@@ -116,3 +116,20 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  # The one required status check (branch protection and .mergify.yml). A
+  # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and
+  # Mergify both read a skipped required check as passing, so this runs
+  # always() and passes only if every job above succeeded.
+  ci-ok:
+    if: always()
+    needs: [lock, smoke, atlas, cairn]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every CI job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "lock smoke atlas cairn: $RESULTS"
+          for r in $RESULTS; do [ "$r" = success ] || exit 1; done

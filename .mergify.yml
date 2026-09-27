@@ -1,0 +1,58 @@
+# Mergify merge queue (docs/merge-queue.md). Same setup as The Decay Factor.
+#
+# Branch protection on main is injected into the queue's conditions
+# automatically. Injection mode "merge", not the default "queue": Mergify
+# does not exempt its own `Mergify Merge Protections` check from the
+# injection, and that check (below) only passes once the PR is queued, so
+# injecting it as a *queue* condition deadlocks — nothing can ever enter.
+# Checked at merge time it is already satisfied. What a PR needs to enter
+# the queue is therefore spelled out explicitly in queue_conditions.
+
+merge_queue:
+  # Speculative checks: with PRs A, B, C queued, Mergify opens temporary
+  # draft PRs for main+A, main+A+B and main+A+B+C at once (branches
+  # mergify/merge-queue/*), so the whole queue is tested in one CI
+  # wall-clock instead of one per PR. If A fails, B and C are re-tested
+  # without it. 3 = one hosted-runner CI run each, in parallel.
+  max_parallel_checks: 3
+
+queue_rules:
+  - name: default
+    branch_protection_injection_mode: merge
+    queue_conditions:
+      - base = main
+      # ci-ok is the aggregate of every job in ci.yml.
+      - check-success = ci-ok
+    # The queue's temporary PR (main + everything queued ahead + this PR)
+    # must pass ci-ok; injected from branch protection at merge.
+    merge_conditions: []
+    # A merge commit per PR (what the merge button did before).
+    merge_method: merge
+    # One PR per temporary PR: a failure points at exactly one PR. Raise
+    # for batching if the queue gets deep.
+    batch_size: 1
+
+pull_request_rules:
+  - name: queue a labelled pull request
+    conditions:
+      - base = main
+      - label = queue
+      - -draft
+    actions:
+      queue:
+
+# Manual merging is what the merge queue exists to replace: with "Require
+# branches to be up to date" off (the queue's speculative checks need that),
+# the merge button would land a PR that was only ever tested against an
+# older main. This check only passes while the queue itself is handling the
+# PR; made required by branch protection it keeps the button grey for
+# everyone else. Needs the Merge Protections product enabled for the repo in
+# the Mergify dashboard before the check exists to be required — see
+# docs/merge-queue.md.
+merge_protections:
+  - name: merged through the merge queue
+    description: Pull requests land via the Mergify merge queue, not the merge button.
+    if:
+      - base = main
+    success_conditions:
+      - queue-position >= 0
