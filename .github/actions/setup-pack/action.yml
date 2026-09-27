@@ -1,0 +1,59 @@
+name: Set up pack test environment
+description: >
+  Python + .NET 10, the pinned Vintage Story dedicated server (cached per version),
+  and the locked mods verified against lock.json and staged into build/mods.
+  Exports VINTAGE_STORY for Atlas and packtool.
+
+outputs:
+  game-version:
+    description: Game version from pack/lock.json
+    value: ${{ steps.meta.outputs.game-version }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.13"
+
+    - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: "10.0.x"
+
+    - id: meta
+      shell: bash
+      run: |
+        echo "game-version=$(jq -r .pack.game_version pack/lock.json)" >> "$GITHUB_OUTPUT"
+
+    # The server archive is downloaded from Anego's public CDN, cached, and never
+    # re-published (no artifacts, no images). Same approach as Atlas's own CI.
+    - id: vs-cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/vs
+        key: vs-server-linux-x64-${{ steps.meta.outputs.game-version }}
+
+    - if: steps.vs-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VS_VERSION: ${{ steps.meta.outputs.game-version }}
+      run: |
+        # md5 published by Anego alongside each build.
+        want=$(curl -fsSL --proto '=https' https://api.vintagestory.at/stable.json \
+          | jq -r --arg v "$VS_VERSION" '.[$v].linuxserver.md5')
+        curl -fsSL --proto '=https' --proto-redir '=https' -o vs_server.tar.gz \
+          "https://cdn.vintagestory.at/gamefiles/stable/vs_server_linux-x64_${VS_VERSION}.tar.gz"
+        echo "$want  vs_server.tar.gz" | md5sum -c -
+        mkdir -p ~/vs && tar -xzf vs_server.tar.gz -C ~/vs && rm vs_server.tar.gz
+
+    - shell: bash
+      run: echo "VINTAGE_STORY=$HOME/vs" >> "$GITHUB_ENV"
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .cache/mods
+        key: mods-${{ hashFiles('pack/lock.json') }}
+        restore-keys: mods-
+
+    - shell: bash
+      run: python3 tools/packtool.py fetch

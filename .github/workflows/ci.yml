@@ -1,0 +1,118 @@
+# Every PR (including forks) and every push to main. Runs on GitHub-hosted runners
+# only and needs no secrets: game and mod downloads are unauthenticated.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lock:
+    name: Lock is consistent
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: pack.toml and lock.json agree
+        run: python3 tools/packtool.py check
+      - name: Locked releases still available on the ModDB (not retracted)
+        run: python3 tools/packtool.py outdated
+
+  smoke:
+    name: Server boot + worldgen smoke test
+    needs: lock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-pack
+      - name: Boot dedicated server with the full pack
+        run: python3 tools/packtool.py smoke --data "$RUNNER_TEMP/smoke-data"
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: smoke-logs
+          path: |
+            ${{ runner.temp }}/smoke-data/Logs/
+            ${{ runner.temp }}/smoke-data/smoke-stdout.log
+
+  atlas:
+    name: Atlas pack scenarios
+    needs: lock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-pack
+      - name: dotnet test
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+          DOTNET_NOLOGO: "1"
+        run: >
+          dotnet test tests/PackTests
+          --logger "trx;LogFileName=atlas.trx"
+          --logger "console;verbosity=normal"
+          --results-directory "$RUNNER_TEMP/atlas-results"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: atlas-results
+          path: ${{ runner.temp }}/atlas-results/
+      # Atlas keeps a failed class's scratch world (incl. server-main.log) under $TMPDIR/atlas.
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: atlas-scratch
+          path: /tmp/atlas/*/Logs/
+          if-no-files-found: ignore
+
+  cairn:
+    name: Cairn installs the pack
+    needs: lock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CAIRN_VERSION: "0.9.8"
+      CAIRN_SHA256: e2133a66439046cfa8942bc16bac3f9c9b092c81a0cf4d99a20643e84be85490
+      CAIRN_HOME: /tmp/cairn-home
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Assemble release artifacts
+        run: python3 tools/packtool.py assemble
+      # cairn-server is source-available (PolyForm Strict + a run-for-any-purpose grant);
+      # we download and run it, never redistribute it.
+      - name: Download cairn-server ${{ env.CAIRN_VERSION }}
+        run: |
+          f="cairn-${CAIRN_VERSION}-linux-x64-server.tar.gz"
+          curl -fsSL --proto '=https' -o "$RUNNER_TEMP/$f" "https://download.cairns.gg/releases/${CAIRN_VERSION}/$f"
+          echo "$CAIRN_SHA256  $RUNNER_TEMP/$f" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/cairn" && tar -xzf "$RUNNER_TEMP/$f" -C "$RUNNER_TEMP/cairn"
+      - name: cairn-server install (resolves, downloads, sha256-verifies every mod)
+        run: |
+          id=$(jq -r .pack.id pack/lock.json); v=$(jq -r .pack.version pack/lock.json)
+          "$RUNNER_TEMP/cairn/cairn-server" install "dist/${id}_${v}.cairn"
+      - name: Cairn's lock matches ours
+        run: |
+          id=$(jq -r .pack.id pack/lock.json)
+          diff <(jq -S '[.mods[] | {id: .id, version, sha256}]' pack/lock.json) \
+               <(jq -S '[.mods[] | {id: .modid, version, sha256}]' "$CAIRN_HOME/packs/$id/pack.lock.json")
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/

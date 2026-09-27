@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Atlas scenarios for the whole pack: boots a real headless Vintage Story server
+       in-process with every locked mod (staged into build/mods by `packtool.py fetch`). -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <PackModsDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'mods'))</PackModsDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Pixnop.Atlas.XUnit" Version="0.15.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+    </Reference>
+    <None Include="../../pack/lock.json" Link="lock.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Feed every staged pack mod to Atlas. [assembly: AtlasMods(...)] only takes constant
+    paths, so instead we write Atlas's generated manifest (atlas-mods.generated.txt: one
+    absolute zip/folder path per line, appended after attribute paths at discovery time).
+    Runs after Build, i.e. after Atlas's own WriteAtlasModManifest (BeforeTargets=Build),
+    which deletes the file when no ProjectReference is tagged <AtlasMod>. If one ever is,
+    switch Overwrite to false so its lines are kept.
+  -->
+  <Target Name="WritePackModManifest" AfterTargets="Build">
+    <ItemGroup>
+      <_PackModZip Include="$(PackModsDir)*.zip" />
+      <_PackModDir Include="$([System.IO.Directory]::GetDirectories('$(PackModsDir)'))" Condition="Exists('$(PackModsDir)')" />
+    </ItemGroup>
+    <Error Condition="'@(_PackModZip)@(_PackModDir)' == ''"
+           Text="No mods staged in $(PackModsDir). Run `python3 tools/packtool.py fetch` first." />
+    <WriteLinesToFile File="$(TargetDir)atlas-mods.generated.txt"
+                      Lines="@(_PackModZip->'%(FullPath)');@(_PackModDir)" Overwrite="true" />
+  </Target>
+
+</Project>
