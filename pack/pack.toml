@@ -1,0 +1,26 @@
+# Seraph Horizons: the pack manifest. Humans edit this file; tools/packtool.py
+# turns it into pack/lock.json (exact files + sha256) and the release artifacts.
+
+[pack]
+id = "seraphhorizons"
+name = "Seraph Horizons"
+version = "0.1.0"
+authors = ["Benjamin Kirkbride"]
+description = "A version-pinned Vintage Story modpack."
+# One game version per pack line. Bump deliberately, on its own PR.
+game_version = "1.22.7"
+dotnet = "10.0"
+
+# One [[mod]] table per ModDB mod. `version` is an exact pin, not a minimum.
+#   side:         universal | server | client (matches the mod's modinfo "side")
+#   license:      SPDX id if known, else "unknown" (no license != public domain)
+#   redistribute: true only if the license allows us to re-host the file;
+#                 otherwise artifacts link to the ModDB CDN instead of bundling.
+[[mod]]
+id = "betterruins"
+version = "0.6.4"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/NicIAss/betterruins"
+redistribute = false
+why = "Adds hundreds of surface and underground ruins to worldgen."

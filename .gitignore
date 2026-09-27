@@ -1,0 +1,13 @@
+# packtool
+/.cache/
+/build/
+/dist/
+
+# dotnet
+bin/
+obj/
+TestResults/
+*.user
+
+# python
+__pycache__/

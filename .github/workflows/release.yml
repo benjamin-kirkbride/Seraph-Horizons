@@ -1,0 +1,53 @@
+# Tag vX.Y.Z (matching pack.toml's version) to publish a GitHub Release with the
+# meta-mod, the .cairn pack file, the mod list and the server bundle.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Tag matches pack version
+        run: |
+          v=$(jq -r .pack.version pack/lock.json)
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != pack version v$v"; exit 1; }
+      - run: python3 tools/packtool.py assemble
+      - name: Release notes (mod changes since the previous tag)
+        run: |
+          prev=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          {
+            echo "Game version: **$(jq -r .pack.game_version pack/lock.json)**"
+            echo
+            echo "| mod | version | license |"
+            echo "|---|---|---|"
+            jq -r '.mods[] | "| [\(.id)](https://mods.vintagestory.at/\(.id)) | \(.version) | \(.license) |"' pack/lock.json
+            if [ -n "$prev" ]; then
+              echo; echo "### Changes since $prev"; echo
+              diff <(git show "$prev:pack/lock.json" | jq -r '.mods[] | "\(.id) \(.version)"' | sort) \
+                   <(jq -r '.mods[] | "\(.id) \(.version)"' pack/lock.json | sort) \
+                | sed -n 's/^< /- removed /p; s/^> /- added /p' || true
+            fi
+          } > "$RUNNER_TEMP/notes.md"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Seraph Horizons $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"

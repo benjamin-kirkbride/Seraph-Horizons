@@ -1,0 +1,30 @@
+{
+  "lockVersion": 1,
+  "pack": {
+    "id": "seraphhorizons",
+    "version": "0.1.0",
+    "game_version": "1.22.7",
+    "dotnet": "10.0"
+  },
+  "mods": [
+    {
+      "id": "betterruins",
+      "version": "0.6.4",
+      "releaseId": 57748,
+      "fileId": 123882,
+      "fileName": "BetterRuinsv0.6.4.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/BetterRuinsv0.6.4_bb48a341ebae096d314f0e77088ccccc.zip?dl=BetterRuinsv0.6.4.zip",
+      "sha256": "c71a4c7d0082d198ce673a0587bdd9722a4ad2911871cad9f069cbca35e28b18",
+      "size": 39764234,
+      "side": "universal",
+      "license": "MIT",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    }
+  ]
+}
