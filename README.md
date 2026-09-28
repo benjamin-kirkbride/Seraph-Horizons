@@ -58,6 +58,6 @@ python3 tools/packtool.py assemble    # build dist/ (what a release publishes)
 
 `ci-ok` aggregates the four jobs and is the one check branch protection requires. PRs land through the Mergify merge queue: comment `@mergifyio queue` on the PR as soon as it is opened. See [docs/merge-queue.md](docs/merge-queue.md).
 
-`release.yml` runs on a `v*` tag that matches `pack.toml`'s version. It reruns CI and then publishes `dist/` as a GitHub Release. `update-check.yml` runs nightly and keeps a "Mod updates available" issue current. It fails if a pinned release is retracted.
+`release.yml` runs on a `v*` tag that matches `pack.toml`'s version. It reruns CI and then publishes `dist/` as a GitHub Release. It is marked as the repository's [latest release](../../releases/latest). `next.yml` runs after CI passes on a push to main and republishes the rolling [`next`](../../releases/tag/next) pre-release from the `dist` artifact that CI run tested, whatever the pack version is. `update-check.yml` runs nightly and keeps a "Mod updates available" issue current. It fails if a pinned release is retracted.
 
 Game server binaries are downloaded from Anego's public CDN and cached per version. They are never committed or re-published.

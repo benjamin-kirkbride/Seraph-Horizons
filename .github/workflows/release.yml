@@ -1,5 +1,6 @@
 # Tag vX.Y.Z (matching pack.toml's version) to publish a GitHub Release with the
-# meta-mod, the .cairn pack file, the mod list and the server bundle.
+# meta-mod, the .cairn pack file, the mod list and the server bundle. The newest
+# tag is the repository's "latest" release; builds of main are next.yml's "next".
 name: Release
 
 on:
@@ -33,7 +34,7 @@ jobs:
       - run: python3 tools/packtool.py assemble
       - name: Release notes (mod changes since the previous tag)
         run: |
-          prev=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          prev=$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
           {
             echo "Game version: **$(jq -r .pack.game_version pack/lock.json)**"
             echo
@@ -50,4 +51,4 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Seraph Horizons $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+        run: gh release create "$GITHUB_REF_NAME" dist/* --latest --title "Seraph Horizons $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
