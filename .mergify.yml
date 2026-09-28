@@ -1,12 +1,14 @@
-# Mergify merge queue (docs/merge-queue.md). Same setup as The Decay Factor.
+# Mergify merge queue (docs/merge-queue.md).
 #
-# Branch protection on main is injected into the queue's conditions
-# automatically. Injection mode "merge", not the default "queue": Mergify
-# does not exempt its own `Mergify Merge Protections` check from the
-# injection, and that check (below) only passes once the PR is queued, so
-# injecting it as a *queue* condition deadlocks — nothing can ever enter.
-# Checked at merge time it is already satisfied. What a PR needs to enter
-# the queue is therefore spelled out explicitly in queue_conditions.
+# Injection mode "merge": whatever the ruleset on main requires is checked
+# only at merge time, against the queue's temporary PR. What a PR needs to
+# enter the queue, and to merge, is spelled out explicitly below.
+#
+# The merge button is kept out of use by that ruleset, not by Mergify: it
+# restricts updates to main and lists Mergify as an exempt bypass actor. A
+# merge protection cannot do this job. Mergify requires every active
+# protection to pass before it will queue a PR, so a protection such as
+# `queue-position >= 0` can never pass and nothing enters the queue.
 
 merge_queue:
   # Speculative checks: with PRs A, B, C queued, Mergify opens temporary
@@ -24,8 +26,10 @@ queue_rules:
       # ci-ok is the aggregate of every job in ci.yml.
       - check-success = ci-ok
     # The queue's temporary PR (main + everything queued ahead + this PR)
-    # must pass ci-ok; injected from branch protection at merge.
-    merge_conditions: []
+    # must pass ci-ok. The ruleset requires it too, but Mergify is exempt
+    # from that ruleset, so the condition is stated here as well.
+    merge_conditions:
+      - check-success = ci-ok
     # A merge commit per PR (what the merge button did before).
     merge_method: merge
     # One PR per temporary PR: a failure points at exactly one PR. Raise
@@ -41,18 +45,3 @@ pull_request_rules:
     actions:
       queue:
 
-# Manual merging is what the merge queue exists to replace: with "Require
-# branches to be up to date" off (the queue's speculative checks need that),
-# the merge button would land a PR that was only ever tested against an
-# older main. This check only passes while the queue itself is handling the
-# PR; made required by branch protection it keeps the button grey for
-# everyone else. Needs the Merge Protections product enabled for the repo in
-# the Mergify dashboard before the check exists to be required — see
-# docs/merge-queue.md.
-merge_protections:
-  - name: merged through the merge queue
-    description: Pull requests land via the Mergify merge queue, not the merge button.
-    if:
-      - base = main
-    success_conditions:
-      - queue-position >= 0

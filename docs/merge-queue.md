@@ -1,8 +1,7 @@
 # Merge queue
 
 PRs land on `main` through the [Mergify merge queue](https://docs.mergify.com/merge-queue/),
-configured in `.mergify.yml`. The merge button is deliberately out of use. This is the same
-setup as The Decay Factor's.
+configured in `.mergify.yml`. The merge button is deliberately out of use.
 
 ## Day to day
 
@@ -23,22 +22,40 @@ setup as The Decay Factor's.
 
 ## The required check
 
-`ci-ok` (last job in `.github/workflows/ci.yml`) is the only CI check branch protection
+`ci-ok` (last job in `.github/workflows/ci.yml`) is the only CI check the ruleset
 requires. It depends on every other job and passes only if all of them succeeded. It runs
 `if: always()` because a plain dependent job is *skipped* when a dependency fails, and
 GitHub and Mergify both read a skipped required check as passing. Add new CI jobs to its
 `needs:` list.
 
-## Branch protection
+## Protecting `main`
 
-- **Strict status checks are off.** The queue's speculative checks need it: a temporary PR
-  for `main+A+B` is tested before `A` has landed, so B's own branch is never "up to date"
-  at the moment the queue merges it.
-- **`Mergify Merge Protections` should be required** alongside `ci-ok`. With strict off, the
-  merge button could otherwise land a PR tested only against an older `main`. That check
-  only passes while the queue itself is handling the PR.
-- **Admins are included** (`enforce_admins`), and GitHub's native auto-merge is off: it
-  fires as soon as the required checks pass, which would race the queue.
+`main` is protected by a repository ruleset, not classic branch protection, and not by a
+Mergify merge protection.
+
+- **Restrict updates, with Mergify as an `exempt` bypass actor.** Nobody else can push to
+  `main` or merge into it, admins included, so the merge button stays unusable. This
+  matters because strict status checks are off: the button could otherwise land a PR that
+  was only tested against an older `main`. Mergify's app is the only bypass actor.
+  Don't add yourself or the admin role, or the button works again.
+- **`ci-ok` is required**, with strict status checks off. The queue's speculative checks
+  need strict off: a temporary PR for `main+A+B` is tested before `A` has landed, so B's
+  own branch is never "up to date" at the moment the queue merges it.
+- **Force pushes and deletion are blocked.**
+- **The ruleset targets `main` only.** The queue pushes its temporary
+  `mergify/merge-queue/*` branches, and these must not match it.
+- **GitHub's native merge queue rule and auto-merge are off.** Both would race Mergify.
+
+### Why not a Mergify merge protection
+
+A `merge_protections` rule such as `queue-position >= 0`, made required in GitHub, looks
+like it keeps the button grey until the queue picks the PR up. It deadlocks instead.
+Mergify won't merge *or queue* a PR until every active merge protection passes, and it
+adds the `Mergify Merge Protections` check to every queue's requirements whatever
+`branch_protection_injection_mode` says. The PR can't enter the queue until it is in
+the queue, so it never enters (see #156). Merge protections are fine for conditions a PR
+can meet on its own, like freeze windows or labels. Blocking the merge button is the
+ruleset's job.
 
 ## Setup (one-time, after this config is on `main`)
 
@@ -46,34 +63,30 @@ Mergify reads `.mergify.yml` from the default branch, so this lands via a normal
 first. Then:
 
 ```sh
-# 1. Protect main: require ci-ok (app 15368 = GitHub Actions), strict off, admins included.
-gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input - <<'JSON'
-{"required_status_checks": {"strict": false,
-                            "checks": [{"context": "ci-ok", "app_id": 15368}]},
- "enforce_admins": true,
- "required_pull_request_reviews": null,
- "restrictions": null}
+# 1. Protect main with a ruleset. 10562 = the Mergify app, 15368 = GitHub Actions.
+gh api -X POST repos/{owner}/{repo}/rulesets --input - <<'JSON'
+{"name": "main", "target": "branch", "enforcement": "active",
+ "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+ "bypass_actors": [{"actor_id": 10562, "actor_type": "Integration", "bypass_mode": "exempt"}],
+ "rules": [
+   {"type": "update"},
+   {"type": "deletion"},
+   {"type": "non_fast_forward"},
+   {"type": "required_status_checks",
+    "parameters": {"strict_required_status_checks_policy": false,
+                   "required_status_checks": [{"context": "ci-ok", "integration_id": 15368}]}}]}
 JSON
 
-# 2. GitHub's native auto-merge would race the queue. Keep it off.
+# 2. Drop classic branch protection now that the ruleset covers main.
+gh api -X DELETE repos/{owner}/{repo}/branches/main/protection
+
+# 3. GitHub's native auto-merge would race the queue. Keep it off.
 gh api -X PATCH repos/{owner}/{repo} -F allow_auto_merge=false
 ```
 
-Then require the merge-protection check. It is only ever posted if the **Merge Protections**
-product is enabled for the repo in the Mergify dashboard (Integrations > GitHub > Configure).
-Until it is, do not make it required: nothing, the queue included, could merge without it.
-Once the check appears on a PR:
-
-```sh
-gh api -X PATCH repos/{owner}/{repo}/branches/main/protection/required_status_checks --input - <<'JSON'
-{"strict": false,
- "checks": [{"context": "ci-ok", "app_id": 15368},
-            {"context": "Mergify Merge Protections", "app_id": -1}]}
-JSON
-```
-
-`app_id=-1` means "any app" (it reads back as `null`). Use Mergify's app id once it has
-posted the check (`gh api repos/{owner}/{repo}/commits/<sha>/check-runs --jq '.check_runs[] | [.name, .app.id]'`).
+To check it, open any PR: the merge button should say you aren't allowed to merge
+into `main`, while `@mergifyio queue` still lands it. The ruleset lives under
+Settings > Rules > Rulesets.
 
 ## Not copied (yet)
 
