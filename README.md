@@ -4,7 +4,7 @@ A version-pinned [Vintage Story](https://www.vintagestory.at/) modpack, built GT
 a human-edited manifest, a checksummed lockfile, and CI that boots a real server with
 the exact pack before anything ships.
 
-**Game version:** 1.22.7 (.NET 10) · **Mods:** [BetterRuins](https://mods.vintagestory.at/betterruins) 0.6.4
+**Game version:** 1.22.7 (.NET 10) · **Mods:** 118, listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)
 
 ## Installing
 
@@ -25,6 +25,7 @@ Mod files are never re-hosted here. Everything is fetched from the ModDB CDN.
 pack/pack.toml          what's in the pack (edit this): game version, mods, licenses, why
 pack/lock.json          generated: exact release, file URL, sha256 per mod
 pack/config/ModConfig/  optional per-mod config overrides (shipped via the .cairn file)
+pack/known-errors.json  understood cross-mod errors the tests tolerate, one issue each
 tools/packtool.py       lock / check / fetch / smoke / outdated / assemble (stdlib Python 3.11+)
 tests/PackTests/        Atlas scenarios: a headless server in `dotnet test` with the whole pack
 .github/                CI, release and nightly update-check workflows
@@ -51,7 +52,7 @@ python3 tools/packtool.py assemble    # build dist/ (what a release publishes)
 `ci.yml` runs on every PR, fork PRs included. It uses GitHub-hosted runners only and needs no secrets.
 
 - **lock**: `pack.toml` and `lock.json` agree, every declared mod dependency is in the pack, and no locked release has been retracted.
-- **smoke**: boots `VintagestoryServer` with the full pack on a standard world (fixed seed), waits for spawn-chunk worldgen, then runs `/stop`. It fails on any `[Error]`/`[Fatal]`, failed JSON patch, exception, or a locked mod that didn't load.
+- **smoke**: boots `VintagestoryServer` with the full pack on a standard world (fixed seed), waits for spawn-chunk worldgen, then runs `/stop`. It fails on any `[Error]`/`[Fatal]`, failed JSON patch, exception, or a locked mod that didn't load, except errors matching an entry in `pack/known-errors.json`. Each entry links the issue that explains it and is removed when that issue is fixed.
 - **atlas**: [Atlas](https://github.com/Pixnop/Atlas) scenarios check that each locked mod loads at its locked version, that boot is clean, and that every block BetterRuins' ~800 schematics actually place resolves, after the engine's legacy remaps.
 - **cairn**: assembles the release and installs the `.cairn` file with the real `cairn-server`. Cairn re-downloads and sha256-verifies every mod, and its lock must match ours.
 

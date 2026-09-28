@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -80,7 +81,7 @@ def http_get(url: str, *, retries: int = 3) -> bytes:
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 return resp.read()
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, http.client.HTTPException, ConnectionError, TimeoutError) as e:
             if attempt == retries - 1:
                 raise RuntimeError(f"GET {url} failed: {e}") from e
             time.sleep(2**attempt)
@@ -153,8 +154,11 @@ def cmd_lock(args) -> None:
             continue
         rel = release_info(m["id"], m["version"])["release"]
         # Prefer the release's full CDN URI ("always respect the full uris returned
-        # by the api"); v2's fileUrl is a relative redirect to the same file.
-        file_url = rel.get("mainfile") or urllib.parse.urljoin(MODDB, entry["fileUrl"])
+        # by the api"); v2's fileUrl is a relative redirect to the same file. The
+        # ModDB returns some with raw spaces (`?dl=Foo 1.0.zip`), which urllib and
+        # curl both reject, so percent-encode whatever isn't already.
+        file_url = urllib.parse.quote(rel.get("mainfile") or urllib.parse.urljoin(MODDB, entry["fileUrl"]),
+                                      safe=":/?#[]@!$&'()*+,;=%")
         path = download(file_url, cache / entry["fileName"])
         mi = modinfo_from_zip(path)
         if mi.get("modid", "").lower() != m["id"]:
@@ -274,6 +278,17 @@ ALLOWED = [
     # The server polls the ModDB for its blocklist; harmless if CI egress is filtered.
     re.compile(r"Could not get blocked mods from api"),
 ]
+# Understood cross-mod errors, each tied to an issue (shared with the Atlas scenarios).
+KNOWN_ERRORS_JSON = ROOT / "pack" / "known-errors.json"
+PATCH_FAILED = FATAL_PATTERNS[2][0]
+PATCH_SUMMARY = re.compile(r"JsonPatch Loader: .*had errors on (\d+) patches")
+
+
+def known_errors() -> list[tuple[re.Pattern, int]]:
+    if not KNOWN_ERRORS_JSON.exists():
+        return []
+    return [(re.compile(e["pattern"]), e["issue"])
+            for e in json.loads(KNOWN_ERRORS_JSON.read_text())["errors"]]
 
 
 def cmd_smoke(args) -> None:
@@ -341,13 +356,30 @@ def cmd_smoke(args) -> None:
         failures.append(f"server did not report ready within {args.timeout}s")
     if booted and code != 0:
         failures.append(f"server exited with code {code}")
+    known = known_errors()
+    tolerated: dict[int, int] = {}  # issue -> lines tolerated
+    tolerated_patches = 0
+    summaries: list[str] = []
     for line in lines:
         if any(a.search(line) for a in ALLOWED):
+            continue
+        issue = next((i for pat, i in known if pat.search(line)), None)
+        if issue is not None:
+            tolerated[issue] = tolerated.get(issue, 0) + 1
+            tolerated_patches += bool(PATCH_FAILED.search(line))
+            continue
+        if PATCH_SUMMARY.search(line):
+            summaries.append(line)
             continue
         for pat, why in FATAL_PATTERNS:
             if pat.search(line):
                 failures.append(f"{why}: {line.strip()}")
                 break
+    # The loader's summary counts every failed patch; it is fine only if all of
+    # them were known ones.
+    for line in summaries:
+        if int(PATCH_SUMMARY.search(line).group(1)) != tolerated_patches:
+            failures.append(f"json patch errors: {line.strip()}")
 
     m = re.search(r"Mods, sorted by dependency: (.*)", log)
     loaded = {s.strip() for s in m.group(1).split(",")} if m else set()
@@ -361,6 +393,7 @@ def cmd_smoke(args) -> None:
         f"loaded mods: {', '.join(sorted(loaded)) or '(none)'}",
         patches.group(0) if patches else "no JsonPatch summary line found",
         f"warnings: {sum('[Server Warning]' in l for l in lines)}",
+        "known errors tolerated: " + (", ".join(f"#{i} x{n}" for i, n in sorted(tolerated.items())) or "none"),
     ]
     report("Server smoke test", summary, failures)
     if failures:

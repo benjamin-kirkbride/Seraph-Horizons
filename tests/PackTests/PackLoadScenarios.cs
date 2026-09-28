@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Atlas.XUnit;
 using Vintagestory.API.Common;
 
@@ -13,7 +14,9 @@ public class PackLoadScenarios : AtlasScenarioBase
     public static TheoryData<string, string> LockedMods()
     {
         var data = new TheoryData<string, string>();
-        foreach (var (id, version) in PackLock.Mods) data.Add(id, version);
+        // Client-only mods never load on a dedicated server, which is what Atlas runs.
+        foreach (var (id, version, side) in PackLock.Mods)
+            if (side != "client") data.Add(id, version);
         return data;
     }
 
@@ -28,8 +31,10 @@ public class PackLoadScenarios : AtlasScenarioBase
     public async Task Server_boots_and_ticks_without_errors()
     {
         await World.Ticks(20);
+        // Known cross-mod errors (pack/known-errors.json, one issue each) are tolerated.
         var errors = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => !PackLock.KnownErrors.Any(k => k.IsMatch(e.Message)))
             .Select(e => $"[{e.Level}] {e.DescribeSource()}: {e.Message}")
             .ToList();
         Assert.True(errors.Count == 0, "Errors logged:\n" + string.Join("\n", errors));
@@ -38,13 +43,28 @@ public class PackLoadScenarios : AtlasScenarioBase
 
 internal static class PackLock
 {
-    public static IReadOnlyList<(string Id, string Version)> Mods { get; } = Load();
+    public static IReadOnlyList<(string Id, string Version, string Side)> Mods { get; } = Load();
 
-    private static List<(string, string)> Load()
+    /// <summary>pack/known-errors.json: understood cross-mod problems, one issue each.</summary>
+    public static IReadOnlyList<Regex> KnownErrors { get; } = LoadKnown("errors", anchored: false);
+
+    public static IReadOnlyList<Regex> KnownSchematicBlocks { get; } = LoadKnown("schematicBlocks", anchored: true);
+
+    private static List<Regex> LoadKnown(string section, bool anchored)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "known-errors.json")));
+        return doc.RootElement.GetProperty(section).EnumerateArray()
+            .Select(e => e.GetProperty("pattern").GetString()!)
+            .Select(p => new Regex(anchored ? $"^(?:{p})$" : p))
+            .ToList();
+    }
+
+    private static List<(string, string, string)> Load()
     {
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "lock.json")));
         return doc.RootElement.GetProperty("mods").EnumerateArray()
-            .Select(m => (m.GetProperty("id").GetString()!, m.GetProperty("version").GetString()!))
+            .Select(m => (m.GetProperty("id").GetString()!, m.GetProperty("version").GetString()!,
+                          m.GetProperty("side").GetString()!))
             .ToList();
     }
 }

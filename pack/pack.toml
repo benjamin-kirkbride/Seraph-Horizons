@@ -24,3 +24,991 @@ license = "MIT"
 license_source = "https://github.com/NicIAss/betterruins"
 redistribute = false
 why = "Adds hundreds of surface and underground ruins to worldgen."
+
+# --- Food, cooking and storage (#3)
+
+[[mod]]
+id = "aculinaryartillery"
+version = "2.0.0-dev.26"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Cooking framework (tools, recipes, liquids) that Expanded Foods is built on."
+
+[[mod]]
+id = "expandedfoods"
+version = "2.0.0-dev.15"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Many new recipes and cooking processes for existing foods."
+
+[[mod]]
+id = "efchefstricks"
+version = "1.0.0-dev.5"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Extra non-cooking uses for Expanded Foods' chef tools."
+
+[[mod]]
+id = "oilsresoaped"
+version = "1.0.3"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Oils, waxes and soaps, plus alternative hide treatments."
+
+[[mod]]
+id = "plantbasedfat"
+version = "1.0.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Plant-based fat as an alternative to animal fat for crafting."
+
+[[mod]]
+id = "metalpots"
+version = "1.8.2"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/ApolloxYT/metalcookingpots"
+redistribute = false
+why = "Larger smithed metal cooking pots and crocks."
+
+[[mod]]
+id = "stonebakeoven"
+version = "1.4.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "A large stone oven that works like the clay oven."
+
+[[mod]]
+id = "tankardsandgoblets"
+version = "1.4.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Tankards, goblets and bottles for drinks."
+
+[[mod]]
+id = "foodshelves"
+version = "3.1.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Food shelves and food storage blocks."
+
+[[mod]]
+id = "purposefulstorage"
+version = "2.1.1"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/SONZ-INA/VintageStory-PurposefulStorage"
+redistribute = false
+why = "Storage blocks for organising specific item types."
+
+[[mod]]
+id = "madfoundation"
+version = "1.2.0"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/mrgrim/VSMadFoundation"
+redistribute = false
+why = "Library: vanilla fixes and helpers, required by Mad Hoarding."
+
+[[mod]]
+id = "madhoarding"
+version = "1.0.1"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/mrgrim/VSMadHoarding"
+redistribute = false
+why = "Larger capacities for Food Shelves and Purposeful Storage containers."
+
+# --- Survival, hunting and needs (#3)
+
+[[mod]]
+id = "hydrateordiedrate"
+version = "2.5.6"
+side = "universal"
+license = "LicenseRef-HydrateOrDiedrate-No-Redistribution"
+license_source = "https://github.com/Chronolegionnaire/HydrateOrDiedrate/blob/HEAD/LICENSE"
+redistribute = false
+why = "Thirst and hot-weather survival mechanics."
+
+[[mod]]
+id = "hardcorewaterforkedforked"
+version = "1.4.7"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/violetsamber/vs-hardcorewater-fork"
+redistribute = false
+why = "Water can't be moved as source blocks; adds ways to carry water instead."
+
+[[mod]]
+id = "slowtox"
+version = "5.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Realistic intoxication, required by SlowTox visualizer."
+
+[[mod]]
+id = "playerstatusstrip"
+version = "1.0.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "HUD strip of player status icons used by the visualizer mods."
+
+[[mod]]
+id = "hodvisualizer"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Shows Hydrate or Diedrate effects on the status HUD."
+
+[[mod]]
+id = "slowtoxvisualized"
+version = "1.1.10"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Shows SlowTox intoxication and effects on the status HUD."
+
+[[mod]]
+id = "primitivesurvival"
+version = "5.1.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Traps, fishing and other primitive survival content."
+
+[[mod]]
+id = "butchering"
+version = "1.14.3"
+side = "universal"
+license = "LicenseRef-All-Rights-Reserved"
+license_source = "https://mods.vintagestory.at/butchering (License.txt in the release zip)"
+redistribute = false
+why = "Carry carcasses home and butcher them properly."
+
+[[mod]]
+id = "goodhunting"
+version = "1.4.7"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "More realistic meat, fat and hide yields from animals."
+
+[[mod]]
+id = "bloodtrail"
+version = "1.2.9"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Wounded animals leave blood trails."
+
+[[mod]]
+id = "fleeexhaustion"
+version = "1.2.0"
+side = "server"
+license = "MIT"
+license_source = "https://github.com/MacaylaMarvelous81/fleeexhaustion"
+redistribute = false
+why = "Hurt animals flee more slowly."
+
+[[mod]]
+id = "projectileflee"
+version = "1.0.5"
+side = "server"
+license = "unknown"
+redistribute = false
+why = "Animals flee when a projectile lands nearby."
+
+[[mod]]
+id = "playercorpseforked"
+version = "1.15.2"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/jsknnr/PlayerCorpse"
+redistribute = false
+why = "Your inventory goes into a corpse where you died, with a corpse compass."
+
+# --- Electrical Progressive and Vintage Engineering (#3)
+
+[[mod]]
+id = "electricalprogressivecore"
+version = "3.3.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Electricity simulation library for the Electrical Progressive series."
+
+[[mod]]
+id = "electricalprogressivebasics"
+version = "3.3.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Cables, switches, generators and motors."
+
+[[mod]]
+id = "electricalprogressiveqol"
+version = "3.3.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Electric lighting, kitchen and other quality-of-life devices."
+
+[[mod]]
+id = "electricalprogressiveindustry"
+version = "0.7.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Industrial machines: recycler, autopress, autohammer and more."
+
+[[mod]]
+id = "electricalprogressivetransport"
+version = "2.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Item and liquid pipe transport."
+
+[[mod]]
+id = "signals"
+version = "0.3.3"
+side = "universal"
+license = "Apache-2.0"
+license_source = "https://github.com/VonZeeple/Signals"
+redistribute = false
+why = "Wires, triodes and other components for simple circuits."
+
+[[mod]]
+id = "signalslinkep"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Signals sensors and controls for Electrical Progressive."
+
+[[mod]]
+id = "vintageengineering"
+version = "0.6.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Late-game machines and electricity, Immersive Engineering style."
+
+[[mod]]
+id = "veep"
+version = "3.0.1"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/V2LenKagamine/LensVintageModding"
+redistribute = false
+why = "Converter between Vintage Engineering and Electrical Progressive power."
+
+# --- Mechanical power and metalworking (#3)
+
+[[mod]]
+id = "handcrank"
+version = "1.0.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "A manual crank as an early source of mechanical power."
+
+[[mod]]
+id = "mpecenteredspurgear"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Spur gears centered on an axle that pass power through."
+
+[[mod]]
+id = "mpegearbox"
+version = "1.0.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Compact 1:2 to 1:5 gearboxes."
+
+[[mod]]
+id = "madmechanics"
+version = "1.0.1"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/mrgrim/VSMadMechanics"
+redistribute = false
+why = "Vertical transmissions and ceiling-mountable clutches."
+
+[[mod]]
+id = "millwright"
+version = "1.3.5"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Reinforced rotors, better sails and vertical-axis windmills."
+
+[[mod]]
+id = "exlib"
+version = "0.7.2"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Library for Fallenstar's Expanded mods, required by Pipes and Power Expanded."
+
+[[mod]]
+id = "ppex"
+version = "0.6.8"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Pipe networks and modular steam power."
+
+[[mod]]
+id = "crucibulum"
+version = "1.5.0"
+side = "universal"
+license = "LGPL-3.0"
+license_source = "https://github.com/dizzyd/crucibulum"
+redistribute = false
+why = "Melt metal in a crucible at the forge."
+
+[[mod]]
+id = "cruciblesstayhot"
+version = "1.0.2"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Crucibles keep heating in the firepit output slot."
+
+[[mod]]
+id = "sprinklersmod"
+version = "1.22.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Tiered sprinklers that water farmland."
+
+[[mod]]
+id = "panningmachine"
+version = "1.1.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "A mechanical panning machine."
+
+[[mod]]
+id = "wpanning"
+version = "1.0.9"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Panning overhaul: pannable rich gravel instead of plain sand and gravel."
+
+[[mod]]
+id = "industrialdeco"
+version = "1.0.8"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Industrial decorative blocks, lamps and heaters."
+
+# --- Crafting materials and textiles (#3)
+
+[[mod]]
+id = "immersivewoodworking"
+version = "1.3.6"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Hands-on, in-world woodworking stations."
+
+[[mod]]
+id = "usefuloils"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "More recipes that accept oils, not just animal fat."
+
+[[mod]]
+id = "meapineappleturpentine"
+version = "1.0.3"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Turpentine distilled from resin, and its uses."
+
+[[mod]]
+id = "resinonfell"
+version = "1.0.4"
+side = "server"
+license = "unknown"
+redistribute = false
+why = "Felled trees drop their unharvested resin."
+
+[[mod]]
+id = "saltpeterproductionfork"
+version = "1.1.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Grow saltpeter from rot on tilled soil."
+
+[[mod]]
+id = "brickyard"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Immersive in-world brickmaking."
+
+[[mod]]
+id = "ageofflaxfork"
+version = "1.1.6"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "A more involved process for getting fibers from flax."
+
+[[mod]]
+id = "flaxtorope"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Recipe for rope from flax fiber."
+
+[[mod]]
+id = "spinningwheel"
+version = "1.2.14"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/HeadPilgrim/vs-spinningwheel"
+redistribute = false
+why = "Spinning wheel and loom for fiber processing."
+
+[[mod]]
+id = "tailorsdelight"
+version = "2.2.2"
+side = "universal"
+license = "GPL-3.0"
+license_source = "https://gitlab.com/codesmiths/vs_tailors_delight"
+redistribute = false
+why = "Tailoring tools, cloth and leather crafts and decorations."
+
+[[mod]]
+id = "shearlib"
+version = "1.3.0"
+side = "universal"
+license = "GPL-3.0"
+license_source = "https://gitlab.com/codesmiths/vs_shearlib"
+redistribute = false
+why = "Library for shearable animals, required by Wool & More."
+
+[[mod]]
+id = "wool"
+version = "1.9.6"
+side = "universal"
+license = "GPL-3.0"
+license_source = "https://gitlab.com/codesmiths/vs_wool"
+redistribute = false
+why = "Harvest and process animal hair, fleece and wool."
+
+[[mod]]
+id = "effectlib"
+version = "1.1.1"
+side = "universal"
+license = "CC-BY-4.0"
+license_source = "https://github.com/Llama3013/vs-effectlib"
+redistribute = false
+why = "Timed entity effects library, required by Alchemy."
+
+[[mod]]
+id = "alchemy"
+version = "2.2.0-rc.12"
+side = "universal"
+license = "CC-BY-4.0"
+license_source = "https://github.com/Llama3013/vsmod-Alchemy"
+redistribute = false
+why = "Potions brewed from herbs and flowers."
+
+# --- Materials, geology and worldgen (#3)
+
+[[mod]]
+id = "em"
+version = "3.8.1"
+side = "universal"
+license = "GPL-3.0"
+license_source = "https://gitlab.com/codesmiths/vs_expanded_matter"
+redistribute = false
+why = "Library of new materials and variants (Expanded Matter)."
+
+[[mod]]
+id = "moreroads"
+version = "2.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "More road and path variants and edge decor."
+
+[[mod]]
+id = "materialneeds"
+version = "2.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Hundreds of new plaster, daub, dye, wood and survival-obtainable blocks."
+
+[[mod]]
+id = "mnflowers"
+version = "2.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "28 new flower varieties."
+
+[[mod]]
+id = "mngeology"
+version = "2.0.10"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "10 new rock varieties."
+
+[[mod]]
+id = "geoaddons"
+version = "1.4.8"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "More real-world rock types and minerals."
+
+[[mod]]
+id = "interestingoregen"
+version = "2.3.8"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "More interesting, semi-realistic ore generation."
+
+[[mod]]
+id = "visibleoresandminerals"
+version = "1.4.2"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "More visible ore and mineral deposits, with richness variants."
+
+[[mod]]
+id = "stonequarryrepckfipil"
+version = "3.6.3"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/fipil/StoneQuarry"
+redistribute = false
+why = "Stone quarrying with plug and feather."
+
+[[mod]]
+id = "substrate"
+version = "2.0.0"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/willis81808/Substrate"
+redistribute = false
+why = "Mushroom cultivation."
+
+[[mod]]
+id = "landformoverhaul"
+version = "1.0.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Smoother, more realistic landforms."
+
+[[mod]]
+id = "abyssaldepths"
+version = "1.0.20"
+side = "universal"
+license = "GPL-3.0"
+license_source = "https://github.com/NtPossible/AbyssalDepths"
+redistribute = false
+why = "Deep-ocean content: pressure and diving suits."
+
+# --- Structures, traders and temporal (#3)
+
+[[mod]]
+id = "spawnersapi"
+version = "1.1.6"
+side = "universal"
+license = "LicenseRef-Free-To-Modify-Public-License"
+license_source = "https://github.com/LeansBoboDev/spawners_api/blob/HEAD/LICENSE.md"
+redistribute = false
+why = "Custom entity spawners, required by Battle Towers."
+
+[[mod]]
+id = "battletowers"
+version = "1.1.0"
+side = "universal"
+license = "LicenseRef-Free-To-Modify-Public-License"
+license_source = "https://github.com/LeansBoboDev/battle_towers/blob/HEAD/LICENSE.md"
+redistribute = false
+why = "Dangerous battle towers to clear in worldgen."
+
+[[mod]]
+id = "betterlootplus"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Configurable loot tables for drifters, shivers and bowtorns."
+
+[[mod]]
+id = "bettertraders"
+version = "0.2.1"
+side = "server"
+license = "MIT"
+license_source = "https://github.com/NicIAss/bettertraders"
+redistribute = false
+why = "More trader structures in worldgen."
+
+[[mod]]
+id = "domesticanimaltrader"
+version = "1.1.5"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "A trader for domestic animals."
+
+[[mod]]
+id = "cartwrightscaravan"
+version = "1.9.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Carts, sleds and market stalls."
+
+[[mod]]
+id = "nooceantranslocators"
+version = "1.0.2"
+side = "server"
+license = "MIT"
+license_source = "https://github.com/brndd/vs-no-ocean-translocators"
+redistribute = false
+why = "Fewer translocators that exit into the ocean."
+
+[[mod]]
+id = "ricketytranslocation"
+version = "1.0.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Retextured translocators, plus craftable linkable ones."
+
+[[mod]]
+id = "translocatormap"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Translocator maps sold by treasure hunters."
+
+[[mod]]
+id = "vcftemporalstabilizer"
+version = "1.13.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "A machine that restores temporal stability nearby."
+
+[[mod]]
+id = "temporalsymphony"
+version = "2.3.2"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Audio-visual temporal storm cues and temporal tweaks."
+
+[[mod]]
+id = "resonatorrangeincrease"
+version = "1.0.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Resonators play music over a much larger range."
+
+# --- Transport and building (#3)
+
+[[mod]]
+id = "collisionflowfields"
+version = "1.2.1"
+side = "universal"
+license = "GPL-3.0"
+license_source = "https://github.com/HugoCortell/vs_back-propagated-flow-field-collisions"
+redistribute = false
+why = "Multi-block collisions, required by Yang's Transport Tycoon."
+
+[[mod]]
+id = "evilinteractionrangehack"
+version = "6.9.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Longer entity interaction ranges, required by Yang's Transport Tycoon."
+
+[[mod]]
+id = "integratedmodmanager"
+version = "1.1.3"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "In-game mod config manager, required by Yang's Transport Tycoon."
+
+[[mod]]
+id = "yangtransport"
+version = "1.0.3"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Mechanical transport: rail and more."
+
+[[mod]]
+id = "zipline"
+version = "1.0.8"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Gravity-powered ziplines."
+
+[[mod]]
+id = "gondolacablecar"
+version = "0.4.43"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Mechanically powered cable cars."
+
+[[mod]]
+id = "scaffolding"
+version = "1.3.1"
+side = "universal"
+license = "CC0-1.0"
+license_source = "https://github.com/123Gurkensalat/Scaffolding"
+redistribute = false
+why = "Climbable scaffolding for building."
+
+[[mod]]
+id = "vsroofing"
+version = "2.0.5"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Gridless roof building with slopes and corners."
+
+[[mod]]
+id = "doorvariants"
+version = "1.1.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Many more door variants."
+
+[[mod]]
+id = "woodenshuttersandmore"
+version = "1.3.3"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Sliding wooden shutters."
+
+[[mod]]
+id = "hqzlights"
+version = "1.1.3"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Decorative metal braziers."
+
+[[mod]]
+id = "shelfobsessed"
+version = "2.2.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Shelves, tool racks and displays."
+
+[[mod]]
+id = "desirepaths"
+version = "0.5.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Paths form where players walk often."
+
+[[mod]]
+id = "splittablestonepaths"
+version = "1.0.1"
+side = "server"
+license = "unknown"
+redistribute = false
+why = "Split stone paths into stairs, slabs and quarters, and back."
+
+[[mod]]
+id = "footprints"
+version = "1.2.11"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Animals and players leave footprints."
+
+# --- Farming, animals and tweaks (#3)
+
+[[mod]]
+id = "betterhusbandry"
+version = "1.3.4"
+side = "universal"
+license = "LicenseRef-Ask-First-Mod-License-1.0"
+license_source = "https://github.com/Tyeia/betterhusbandry/blob/HEAD/LICENSE.MD"
+redistribute = false
+why = "Rewards for petting and feeding animals."
+
+[[mod]]
+id = "naturalfertilizer"
+version = "1.5.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Fertilizer from animal droppings."
+
+[[mod]]
+id = "compostbin"
+version = "1.3.15"
+side = "universal"
+license = "MIT"
+license_source = "https://mods.vintagestory.at/compostbin (LICENSE in the release zip)"
+redistribute = false
+why = "A compost bin with heat, moisture and aeration."
+
+[[mod]]
+id = "biodiversity"
+version = "1.1.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Core library for the Biodiversity suite, required by Biodiversity: Crops."
+
+[[mod]]
+id = "bdcrop"
+version = "1.1.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "New farmland crops."
+
+[[mod]]
+id = "grindablebonearrows"
+version = "1.0.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Grind bone arrows into bonemeal."
+
+[[mod]]
+id = "p1explosives"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Reworked and expanded explosives."
+
+[[mod]]
+id = "carryon"
+version = "1.14.3"
+side = "universal"
+license = "Unlicense"
+license_source = "https://github.com/NerdScurvy/CarryOn"
+redistribute = false
+why = "Pick up and carry blocks and containers."
+
+# --- Quality of life and cosmetics (#3)
+
+[[mod]]
+id = "toolbelt"
+version = "0.3.5"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Belts hold tools."
+
+[[mod]]
+id = "craftabletoolbelts"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Recipes for the Sturdy Belt and Heavy Tool Belt."
+
+[[mod]]
+id = "simplehotbarrefill"
+version = "1.4.0"
+side = "server"
+license = "unknown"
+redistribute = false
+why = "Refills empty hotbar slots from your inventory."
+
+[[mod]]
+id = "walkingstick"
+version = "3.0.10"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Walking sticks that improve walking speed and hunger rate."
+
+[[mod]]
+id = "rollupbed"
+version = "1.0.4"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Portable roll-up beds."
+
+[[mod]]
+id = "vanity"
+version = "2.5.1-rc.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Hide worn gear for looks."
+
+[[mod]]
+id = "toomanytabs"
+version = "1.0.0"
+side = "client"
+license = "unknown"
+redistribute = false
+why = "Scrollable creative inventory tabs."
+
+[[mod]]
+id = "sheltered"
+version = "1.0.1"
+side = "client"
+license = "unknown"
+redistribute = false
+why = "HUD icon when you're in an enclosed room."
+
+[[mod]]
+id = "immersivefoliage"
+version = "0.1.1"
+side = "client"
+license = "unknown"
+redistribute = false
+why = "Foliage that reacts to entities, visually and audibly."
