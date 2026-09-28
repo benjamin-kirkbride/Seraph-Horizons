@@ -1,0 +1,44 @@
+{
+  "_doc": [
+    "Known, understood cross-mod problems that the pack tests tolerate. Each entry must link",
+    "the issue that explains it; delete the entry when that issue is fixed.",
+    "errors: log errors tolerated by `packtool.py smoke` and the Atlas boot scenario. `pattern`",
+    "is a regex searched (not fully matched) in the message; keep it as narrow as the error allows.",
+    "schematicBlocks: BetterRuins schematic block codes allowed not to resolve. `pattern` must",
+    "match the whole code. Python `re` and .NET `Regex` must both accept every pattern."
+  ],
+  "errors": [
+    {
+      "issue": 150,
+      "mod": "moreroads",
+      "why": "moreroads' stonebrick-* recipes also match Geology Additions / MN: Geology rocks it has no blocks for; the recipe is skipped.",
+      "pattern": "Grid Recipe 'moreroads:recipes/grid/[^']+': Output moreroads:\\S+-(amphibolite|arenite|arkose|diorite|dolostone|gabbro|gneiss|jade|jasper|komatiite|marl|migmatite|monzonite|mudstone|pumice|pyroxenite|quartzite|rhyolite|schist|serpentinite|siltstone|syenite|tufa|wacke)-\\S+ cannot be resolved\\."
+    },
+    {
+      "issue": 151,
+      "mod": "doorvariants",
+      "why": "doorvariants' stone-* recipes match Geology Additions' stone-bogiron item, which is not a rock; the recipe is skipped.",
+      "pattern": "Grid Recipe 'doorvariants:recipes/grid/doors/[^']+': Output doorvariants:\\S+-bogiron-\\S+ cannot be resolved\\."
+    },
+    {
+      "issue": 152,
+      "mod": "yangtransport",
+      "why": "The nerd tool recipe's wrench-* matches Electrical Progressive's game:wrench-adjustable; that one recipe is skipped.",
+      "pattern": "Grid Recipe 'yangtransport:recipes/grid/tools\\.json': Output yangtransport:nerdtool-adjustable cannot be resolved\\."
+    },
+    {
+      "issue": 153,
+      "mod": "interestingoregen",
+      "why": "IOG applies its mngeology+geoaddons ore patches before the geoaddons patch that creates the entry they edit.",
+      "pattern": "Patch \\d+ \\(target: interestingoregen:worldgen/deposits/(metalore|gems)/\\w+\\.json\\) in interestingoregen:patches/mngeology/worldgen/geoaddons/(metalore|gems)/\\w+\\.json failed because supplied path /0/"
+    }
+  ],
+  "schematicBlocks": [
+    {
+      "issue": 154,
+      "mod": "wool",
+      "why": "Wool & More disables vanilla game:wool decor blocks (no remap); brmansion loses 4 wool decor placements.",
+      "pattern": "game:wool-(black|brown|white)-(north|east|south|west|up|down)"
+    }
+  ]
+}

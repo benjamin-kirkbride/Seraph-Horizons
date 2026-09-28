@@ -24,6 +24,7 @@
       <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
     </Reference>
     <None Include="../../pack/lock.json" Link="lock.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../pack/known-errors.json" Link="known-errors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--

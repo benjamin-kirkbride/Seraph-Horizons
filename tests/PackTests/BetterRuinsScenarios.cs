@@ -32,6 +32,7 @@ public class BetterRuinsScenarios : AtlasScenarioBase
             {
                 if (!placed.Contains(id)) continue;
                 if (Resolves(api.World, code)) continue;
+                if (PackLock.KnownSchematicBlocks.Any(k => k.IsMatch(code.ToString()))) continue;
                 if (!missing.TryGetValue(code.ToString(), out var users))
                     missing[code.ToString()] = users = new SortedSet<string>();
                 users.Add(asset.Location.Path);
