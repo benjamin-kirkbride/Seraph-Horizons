@@ -46,7 +46,7 @@
     data-cycling={stacks.length > 1 ? stacks.length : undefined}
   >
     <span class="frame">
-      <Icon code={stack.code} label={mark ?? initials} />
+      <Icon code={stack.code} label={mark ?? initials} bare />
       {#if amount}<span class="amount" aria-hidden="true">{amount}</span>{/if}
       {#if tool}<span class="toolmark" aria-hidden="true" title={t.tool}>T</span>{/if}
     </span>
@@ -73,12 +73,14 @@
     flex: none;
     width: var(--slot);
     height: var(--slot);
-    background: var(--surface-2);
-    border: 1px solid var(--border);
+    background: var(--icon-bg);
+    border: 1px solid var(--icon-border);
     border-radius: 4px;
+    box-shadow: var(--icon-inset);
   }
+  /* The link colour stands out from both the light frame and the card around it. */
   .slot:hover .frame {
-    border-color: var(--muted);
+    border-color: var(--link);
   }
   .tool .frame {
     border-style: dashed;
@@ -114,6 +116,6 @@
     text-decoration: underline;
   }
   .missing .frame {
-    color: var(--muted);
+    color: var(--icon-text);
   }
 </style>
