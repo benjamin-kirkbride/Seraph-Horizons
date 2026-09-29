@@ -13,6 +13,11 @@ permissions:
 
 jobs:
   ci:
+    # A called workflow's jobs cannot ask for more than the caller grants, and
+    # ci.yml's ci-ok declares contents: write (to record green trees on PRs;
+    # it writes nothing on a tag run).
+    permissions:
+      contents: write
     uses: ./.github/workflows/ci.yml
 
   release:

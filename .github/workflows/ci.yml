@@ -17,6 +17,45 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Memo (docs/merge-queue.md): smoke, atlas and cairn are a function of the
+  # tree, and a passing pull_request run records its tree's id
+  # (ci/code-tree.sh) as refs/green-trees/<id>. If this tree's id is already
+  # on record there is nothing to learn from running them again. This is what
+  # makes the merge queue cheap: the queue's temporary PR (main + everything
+  # queued ahead + the PR) has exactly the tree the PR's own run tested
+  # whenever the PR is built on the current main and queued alone, so the
+  # queue merges on the PR's own result. PRs only: a push to main still runs
+  # everything, because next.yml publishes the dist artifact cairn builds.
+  tree:
+    name: Already tested?
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      id: ${{ steps.tree.outputs.id }}
+      tested: ${{ steps.tree.outputs.tested }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          id=$(ci/code-tree.sh HEAD)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" != pull_request ]; then
+            echo "tested=false" >> "$GITHUB_OUTPUT"
+            echo "tree $id: $EVENT runs everything"
+          elif by=$(gh api "repos/$REPO/git/ref/green-trees/$id" --jq .object.sha 2>/dev/null); then
+            echo "tested=true" >> "$GITHUB_OUTPUT"
+            echo "tree $id already passed CI (as $by); skipping smoke, atlas and cairn" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "tested=false" >> "$GITHUB_OUTPUT"
+            echo "tree $id: no passing CI on record"
+          fi
+
+  # Never skipped by the memo: it is cheap, and `outdated` depends on the
+  # ModDB rather than on the tree, so an old pass says nothing about today.
   lock:
     name: Lock is consistent
     runs-on: ubuntu-24.04
@@ -33,7 +72,8 @@ jobs:
 
   smoke:
     name: Server boot + worldgen smoke test
-    needs: lock
+    needs: [tree, lock]
+    if: needs.tree.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -60,7 +100,8 @@ jobs:
 
   atlas:
     name: Atlas pack scenarios
-    needs: lock
+    needs: [tree, lock]
+    if: needs.tree.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -90,7 +131,8 @@ jobs:
 
   cairn:
     name: Cairn installs the pack
-    needs: lock
+    needs: [tree, lock]
+    if: needs.tree.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -128,6 +170,8 @@ jobs:
 
   tools:
     name: Tool and site unit tests
+    needs: tree
+    if: needs.tree.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -224,16 +268,55 @@ jobs:
   # The one required status check (branch protection and .mergify.yml). A
   # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and
   # Mergify both read a skipped required check as passing, so this runs
-  # always() and passes only if every job above succeeded.
+  # always() and passes only if every job above succeeded. The one skip it
+  # accepts is the memoised jobs standing down because `tree` found this tree
+  # already on record as green (export and site need smoke, so they are
+  # skipped with it).
   ci-ok:
     if: always()
-    needs: [lock, smoke, atlas, cairn, tools, export, site]
+    needs: [tree, lock, smoke, atlas, cairn, tools, export, site]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    # contents: write is for the record step (a ref under refs/green-trees/,
+    # nothing on any branch). release.yml grants it to its call of this
+    # workflow for the same reason.
+    permissions:
+      contents: write
     steps:
       - name: Every CI job succeeded
         env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
+          TREE: ${{ needs.tree.result }}
+          LOCK: ${{ needs.lock.result }}
+          MEMOISED: >-
+            ${{ needs.smoke.result }} ${{ needs.atlas.result }} ${{ needs.cairn.result }}
+            ${{ needs.tools.result }} ${{ needs.export.result }} ${{ needs.site.result }}
+          TESTED: ${{ needs.tree.outputs.tested }}
         run: |
-          echo "lock smoke atlas cairn tools export site: $RESULTS"
-          for r in $RESULTS; do [ "$r" = success ] || exit 1; done
+          echo "tree: $TREE (already tested: $TESTED), lock: $LOCK, smoke atlas cairn tools export site: $MEMOISED"
+          [ "$TREE" = success ] && [ "$LOCK" = success ] || exit 1
+          for r in $MEMOISED; do
+            [ "$r" = success ] || { [ "$r" = skipped ] && [ "$TESTED" = true ]; } || exit 1
+          done
+      # Everything ran and passed: put this tree's id on record (the memo
+      # `tree` reads). The ref points at the commit that was tested, on a
+      # pull_request event GitHub's merge commit (refs/pull/N/merge), which
+      # also keeps it around for auditing. "Reference already exists" (a
+      # re-run, or another PR with the same tree got there first) is the same
+      # outcome. Anything else is a warning, not a failure: a missed record
+      # costs one redundant run, never a wrong merge. Fork PRs have a
+      # read-only token and just don't record.
+      - name: Record green tree
+        if: github.event_name == 'pull_request' && needs.tree.outputs.tested != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ID: ${{ needs.tree.outputs.id }}
+          SHA: ${{ github.sha }}
+        run: |
+          if out=$(gh api -X POST "repos/$REPO/git/refs" -f ref="refs/green-trees/$ID" -f sha="$SHA" 2>&1); then
+            echo "recorded refs/green-trees/$ID -> $SHA"
+          elif grep -q "already exists" <<<"$out"; then
+            echo "refs/green-trees/$ID already recorded"
+          else
+            echo "::warning title=green tree not recorded::$(tr '\n' ' ' <<<"$out")"
+          fi

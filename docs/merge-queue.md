@@ -26,7 +26,7 @@ configured in `.mergify.yml`. The merge button is deliberately out of use.
 requires. It depends on every other job and passes only if all of them succeeded. It runs
 `if: always()` because a plain dependent job is *skipped* when a dependency fails, and
 GitHub and Mergify both read a skipped required check as passing. Add new CI jobs to its
-`needs:` list.
+`needs:` list, and to its `MEMOISED` list if the green-tree memo below may skip them.
 
 ## Protecting `main`
 
@@ -88,9 +88,33 @@ To check it, open any PR: the merge button should say you aren't allowed to merg
 into `main`, while `@mergifyio queue` still lands it. The ruleset lives under
 Settings > Rules > Rulesets.
 
-## Not copied (yet)
+## Cost, and the green-tree memo
 
-The Decay Factor also keeps a green-tree memo (`refs/green-trees/*`) that skips the second
-CI run on the queue's temporary PR when its tree matches one that already passed. Here that
-means each PR runs CI twice: once on the PR, once in the queue. Worth adding if CI minutes
-or queue latency start to hurt.
+Without help, each PR would run the full CI twice before it lands: once on the PR, once
+on its temporary queue PR. CI skips the second run when it is provably redundant:
+
+- `ci/code-tree.sh` gives a commit an id over what CI reads: its tree minus docs,
+  `.mergify.yml` and the other no-op paths listed in that script.
+- A `pull_request` run in which every job passed records `refs/green-trees/<id>` → the
+  merge commit it tested (a ref in the repo's ref database, like `refs/pull/*`; not a
+  branch, not a file). `ci-ok` writes it.
+- The `tree` job looks the id up first. On record → `smoke`, `atlas` and `cairn` are
+  skipped and `ci-ok` passes on the earlier result.
+
+The queue's temporary PR holds `main` + queued-ahead + PR. For a PR built on the current
+`main` and queued with nothing ahead of it, that is exactly the tree the PR's own run
+tested: same id, no second run. A docs-only commit on `main` changes nothing the id sees,
+so it invalidates nobody. A PR queued behind others, or one whose `main` has moved by a
+real change, has a new tree and gets the full run, which is the run that matters.
+
+What the memo does not cover:
+
+- `lock` always runs. It is cheap, and `packtool outdated` asks the ModDB whether a locked
+  release was retracted, which no earlier pass can answer.
+- Pushes to `main`, tags and manual runs always run everything. `next.yml` publishes the
+  `dist` artifact the `cairn` job of the push run builds.
+- Fork PRs can use a record but not write one (read-only token).
+
+`prune-green-trees.yml` deletes refs whose tested commit is older than 60 days, monthly.
+Inspect them with `git ls-remote origin 'refs/green-trees/*'`; delete one to force a full
+run for that tree.

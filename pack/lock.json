@@ -3172,6 +3172,26 @@
       "dependencies": {}
     },
     {
+      "id": "earthlivingminetransport",
+      "version": "0.12.9",
+      "releaseId": 54625,
+      "fileId": 118044,
+      "fileName": "earthlivingminetransport_0.12.9_vs1.22.7.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/earthlivingminetrans_daaba892ca005e7efb769df46dd333cc.zip?dl=earthlivingminetransport_0.12.9_vs1.22.7.zip",
+      "sha256": "fd3313356b89d0ae543dbe7b34837c926bc4195355bf1b2007f5c63f967e63bb",
+      "size": 392925,
+      "side": "universal",
+      "license": "LicenseRef-All-Rights-Reserved",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.7",
+        "survival": "1.22.7"
+      }
+    },
+    {
       "id": "scaffolding",
       "version": "1.3.1",
       "releaseId": 44103,
