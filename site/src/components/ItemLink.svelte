@@ -9,7 +9,7 @@
 
 <a class="item-link" href={formatRoute({ view: "item", version: data.id, code })}>
   <Icon {code} size={24} label={initials(label ?? data.nameOf(code))} />
-  <span>{label ?? data.nameOf(code)}</span>
+  <span class="name">{label ?? data.nameOf(code)}</span>
 </a>
 
 <style>
@@ -17,5 +17,10 @@
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
+    /* On the link itself the underline would also run through an icon's placeholder letters. */
+    text-decoration: none;
+  }
+  .name {
+    text-decoration: underline;
   }
 </style>
