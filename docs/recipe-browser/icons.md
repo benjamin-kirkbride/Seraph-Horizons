@@ -284,7 +284,10 @@ Push as usual. The pre-push hook uploads the images to LFS.
 - CI runs `drift` against the export built from the pack. It prints a warning annotation and
   a job summary when items have no icon. It never fails the build for missing icons. It fails
   only if the index is corrupt or refers to a file that is not in the tree.
-- Only the site deploy fetches LFS objects. It copies `icons/` to the site.
+- The site deploy copies `icons/` to the site. It takes the LFS objects from the Actions
+  cache, which CI's `icons` job fills on a push to `main`. LFS itself is downloaded only
+  when `icons/index.json` has changed, and then only the new images: every download
+  counts against the LFS bandwidth quota.
 
 ## Rights and removal
 
