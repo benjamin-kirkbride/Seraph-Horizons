@@ -24,6 +24,16 @@ npm --prefix site run check     # svelte-check and tsc, warnings fail it
 
 Without `site/public/icons/index.json` every item shows a lettered placeholder.
 
+## Themes
+
+The site has a light and a dark theme. By default it follows the reader's system setting
+(`prefers-color-scheme`); the Theme picker in the header pins one or the other. Every
+colour token in `site/src/app.css` is a `light-dark()` pair, so the only thing a theme
+changes is `color-scheme` on `<html>`: `data-theme="light"` or `"dark"` pins it, and no
+attribute means "light dark". The choice is kept in `localStorage` under `theme`
+(`site/src/lib/theme.ts`), and a small inline script in `site/index.html` applies it before
+first paint so a dark page never flashes light. The icon tile below is the same in both.
+
 ## Icon background
 
 Every icon, and every recipe slot, sits on a tile that copies the game's item slot, the

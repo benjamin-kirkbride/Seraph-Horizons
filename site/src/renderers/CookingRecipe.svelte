@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { formatRange, slotStacks, variantOutputs } from "../lib/recipe-view.ts";
+  import { formatRange, slotStacks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import Slot from "../components/Slot.svelte";
 
@@ -24,13 +24,8 @@
       {/each}
     </tbody>
   </table>
-  <span class="arrow" aria-hidden="true">→</span>
+  {#if cooksInto || recipe.cooking?.dirtyPot}
   <div class="outputs">
-    <div role="group" aria-label={t.output}>
-      {#each variantOutputs(recipe, variant) as out, i (i)}
-        <div data-output={i}><Slot stacks={[out]} {tick} {data} showName /></div>
-      {/each}
-    </div>
     {#if cooksInto}
       <div data-cooks-into>
         <span class="muted">{t.cooksInto}</span>
@@ -39,6 +34,7 @@
     {/if}
     {#if recipe.cooking?.dirtyPot}<p class="muted">{t.dirtyPot}</p>{/if}
   </div>
+  {/if}
 </div>
 
 <style>
@@ -62,9 +58,5 @@
   }
   .outputs p {
     margin: 0;
-  }
-  .arrow {
-    font-size: 1.5rem;
-    color: var(--muted);
   }
 </style>
