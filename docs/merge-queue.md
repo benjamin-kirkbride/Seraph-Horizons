@@ -98,8 +98,9 @@ on its temporary queue PR. CI skips the second run when it is provably redundant
 - A `pull_request` run in which every job passed records `refs/green-trees/<id>` → the
   merge commit it tested (a ref in the repo's ref database, like `refs/pull/*`; not a
   branch, not a file). `ci-ok` writes it.
-- The `tree` job looks the id up first. On record → `smoke`, `atlas` and `cairn` are
-  skipped and `ci-ok` passes on the earlier result.
+- The `tree` job looks the id up first. On record → `smoke`, `atlas`, `cairn` and
+  `tools` (and `export` and `site`, which need `smoke`) are skipped and `ci-ok` passes
+  on the earlier result.
 
 The queue's temporary PR holds `main` + queued-ahead + PR. For a PR built on the current
 `main` and queued with nothing ahead of it, that is exactly the tree the PR's own run
@@ -111,8 +112,11 @@ What the memo does not cover:
 
 - `lock` always runs. It is cheap, and `packtool outdated` asks the ModDB whether a locked
   release was retracted, which no earlier pass can answer.
-- Pushes to `main`, tags and manual runs always run everything. `next.yml` publishes the
-  `dist` artifact the `cairn` job of the push run builds.
+- A push to `main` uses the memo only for the test-only jobs: `atlas`, `tools` and
+  `site` are skipped for a tree on record, but `smoke`, `cairn` and `export` still run.
+  `next.yml` publishes the `recipe-export` artifact `smoke` dumps and the `dist` artifact
+  `cairn` builds from that push run, and `export` validates what is about to ship.
+- Tags and manual runs always run everything.
 - Fork PRs can use a record but not write one (read-only token).
 
 `prune-green-trees.yml` deletes refs whose tested commit is older than 60 days, monthly.
