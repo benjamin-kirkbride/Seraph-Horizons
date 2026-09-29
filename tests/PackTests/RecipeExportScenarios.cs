@@ -158,7 +158,8 @@ public class RecipeExportScenarios : AtlasScenarioBase
     public void Barrel_entries_sharing_a_code_stay_separate()
     {
         var r = Recipe("barrel|game:recipes/barrel/leather.json|1");
-        Json("""{ "sealHours": 108 }""", r["barrel"]!);
+        Assert.Equal(108, (double)r["barrel"]!["sealHours"]!);
+        Assert.Single(((JObject)r["barrel"]!).Properties());
         var ingredients = (JArray)r["ingredients"]!;
         Assert.Equal(new[] { "game:strongtanninportion", "game:hide-prepared-medium" }, Codes(ingredients).Select(c => (string)c!));
         Assert.Equal(4, (double)ingredients[0]["litres"]!);
@@ -293,15 +294,22 @@ public class RecipeExportScenarios : AtlasScenarioBase
     public void Records_per_type_equal_definitions_in_the_assets()
     {
         var api = (ICoreServerAPI)World.Api;
-        var counts = Doc["recipes"]!.GroupBy(r => (string)r["type"]!).ToDictionary(g => g.Key, g => g.Count());
+        // Recipes a mod registers from code (Hydrate or Diedrate's per-water copies) have no
+        // definition in any asset; they are records of their own, marked as such.
+        bool FromCode(JToken r) => (bool?)r["extra"]?["registeredByCode"] == true;
+        var all = Doc["recipes"]!.GroupBy(r => (string)r["type"]!).ToDictionary(g => g.Key, g => g.ToList());
         foreach (var type in new[] { "grid", "smithing", "knapping", "clayforming", "barrel", "alloy", "cooking" })
         {
+            var records = all.GetValueOrDefault(type) ?? new List<JToken>();
+            var fromAssets = records.Count(r => !FromCode(r));
             var definitions = api.Assets.GetMany<JToken>(api.Logger, $"recipes/{type}/")
                 .Sum(kv => kv.Value switch { JObject => 1, JArray a => a.Count, _ => 0 });
-            Assert.True(definitions == counts.GetValueOrDefault(type),
-                $"{type}: {definitions} definitions in the assets, {counts.GetValueOrDefault(type)} records");
-            Assert.Equal(counts.GetValueOrDefault(type), (int)Doc["recipeTypes"]![type]!["count"]!);
+            Assert.True(definitions == fromAssets,
+                $"{type}: {definitions} definitions in the assets, {fromAssets} records read from assets");
+            Assert.Equal(records.Count, (int)Doc["recipeTypes"]![type]!["count"]!);
         }
+        // A record from code names no asset file, so its id cannot end in a plain index.
+        Assert.All(Doc["recipes"]!.Where(FromCode), r => Assert.Matches(@"\|r\d+$", (string)r["id"]!));
     }
 
     /// <summary>
@@ -386,11 +394,13 @@ public class RecipeExportScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Document_validates_against_the_schema()
     {
-        var schema = JsonSchema.FromText(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "recipe-export.schema.json")));
-        var instance = JsonNode.Parse(Doc.ToString(Formatting.None));
-        var result = schema.Evaluate(instance, new EvaluationOptions { OutputFormat = OutputFormat.List });
+        // Not AppContext.BaseDirectory: after boot it points into the game install.
+        var dir = Path.GetDirectoryName(typeof(RecipeExportScenarios).Assembly.Location)!;
+        var schema = JsonSchema.FromText(File.ReadAllText(Path.Combine(dir, "recipe-export.schema.json")));
+        using var instance = System.Text.Json.JsonDocument.Parse(Doc.ToString(Formatting.None));
+        var result = schema.Evaluate(instance.RootElement, new EvaluationOptions { OutputFormat = OutputFormat.List });
         var errors = (result.Details ?? new List<EvaluationResults>())
-            .Where(d => d.HasErrors && d.Errors != null)
+            .Where(d => d.Errors != null)
             .SelectMany(d => d.Errors!.Select(e => $"{d.InstanceLocation}: {e.Value}"))
             .Take(50).ToList();
         Assert.True(result.IsValid, "schema errors:\n" + string.Join("\n", errors));

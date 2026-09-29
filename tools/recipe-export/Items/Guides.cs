@@ -31,12 +31,12 @@ internal static class Guides
             if (string.IsNullOrEmpty(code)) continue;
             var title = Get(page, "title") ?? "";
             var text = Get(page, "text") ?? "";
-            if (text.Length < 255) text = Lang.Get(text);
+            if (text.Length < 255) text = Lang.GetUnformatted(text);
 
             var guide = new JObject
             {
                 ["code"] = code,
-                ["title"] = Lang.Get(title),
+                ["title"] = Lang.GetUnformatted(title),
                 ["text"] = text,
             };
             var mod = mods.ModForAsset(asset);

@@ -54,8 +54,8 @@ internal static class ItemRecords
                 var title = section["title"]?.Value<string>();
                 var text = section["text"]?.Value<string>();
                 var block = new List<string>();
-                if (!string.IsNullOrEmpty(title)) block.Add("<strong>" + Lang.Get(title) + "</strong>");
-                if (!string.IsNullOrEmpty(text)) block.Add(Lang.Get(text));
+                if (!string.IsNullOrEmpty(title)) block.Add("<strong>" + Lang.GetUnformatted(title) + "</strong>");
+                if (!string.IsNullOrEmpty(text)) block.Add(Lang.GetUnformatted(text));
                 if (block.Count > 0) parts.Add(string.Join("\n", block));
             }
         }
