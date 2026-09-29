@@ -13,12 +13,34 @@
   --filled: #6f6252;
   --cell-empty: #f1eee7;
   --focus: #1c64b8;
-  /* Behind every item icon. Light in both themes: most game icons are dark metal, wood
-     and machinery, and nearly vanish on a dark surface. See docs/recipe-browser/site.md. */
-  --icon-bg: #eeebe3;
-  --icon-border: #cdc8bd;
-  --icon-text: #4a463e;
-  --icon-inset: inset 0 1px 3px rgb(0 0 0 / 0.18);
+  /* Behind every item icon: the game's item slot, the same in both themes. The game fills
+     the slot with #ffe2c2 and blurs a #845c43 stroke into its edges; the centre and the
+     falloff are measured from an in-game tooltip. See docs/recipe-browser/site.md. */
+  --icon-bg: #faddbd;
+  --icon-shade: #845c43;
+  /* Share of --icon-shade over the fill across the tile, the same along both axes, so
+     the corners get it twice. In percentages, so it scales with the tile. */
+  --icon-falloff:
+    color-mix(in srgb, var(--icon-shade) 28%, transparent) 0%,
+    color-mix(in srgb, var(--icon-shade) 25%, transparent) 5%,
+    color-mix(in srgb, var(--icon-shade) 20%, transparent) 10%,
+    color-mix(in srgb, var(--icon-shade) 13%, transparent) 15%,
+    color-mix(in srgb, var(--icon-shade) 8%, transparent) 20%,
+    color-mix(in srgb, var(--icon-shade) 4%, transparent) 25%,
+    color-mix(in srgb, var(--icon-shade) 1.5%, transparent) 30%,
+    transparent 40% 60%,
+    color-mix(in srgb, var(--icon-shade) 1.5%, transparent) 70%,
+    color-mix(in srgb, var(--icon-shade) 4%, transparent) 75%,
+    color-mix(in srgb, var(--icon-shade) 8%, transparent) 80%,
+    color-mix(in srgb, var(--icon-shade) 13%, transparent) 85%,
+    color-mix(in srgb, var(--icon-shade) 20%, transparent) 90%,
+    color-mix(in srgb, var(--icon-shade) 25%, transparent) 95%,
+    color-mix(in srgb, var(--icon-shade) 28%, transparent) 100%;
+  --icon-fill: linear-gradient(to right, var(--icon-falloff)), linear-gradient(var(--icon-falloff)), var(--icon-bg);
+  /* On a near-white page the tile's light edge needs a firm outline to read as a tile. */
+  --icon-border: #845c43;
+  /* The game's dialog panel colour. */
+  --icon-text: #403529;
   --radius: 6px;
   --slot: 44px;
   color-scheme: light;
@@ -45,10 +67,8 @@
     --filled: #c7b79f;
     --cell-empty: #2a2824;
     --focus: #8cbcf0;
-    --icon-bg: #bdb8ae;
-    --icon-border: #8f897d;
-    --icon-text: #3a372f;
-    --icon-inset: inset 0 1px 3px rgb(0 0 0 / 0.3);
+    /* The page already frames the tile the way the game's dark panel does. */
+    --icon-border: #403529;
     color-scheme: dark;
   }
 }
