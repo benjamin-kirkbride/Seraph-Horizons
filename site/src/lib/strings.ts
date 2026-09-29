@@ -106,6 +106,8 @@ const en = {
     smelting: "Heating",
     storageFlags: "Storage",
   },
+  densityHint: (density: number) =>
+    `${density <= 1000 ? "Floats" : "Sinks"} in water. Water's density is 1000: dropped items at or below it float, heavier ones sink.`,
   placeholderIcon: "no icon",
 };
 
