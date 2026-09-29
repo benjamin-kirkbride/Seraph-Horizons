@@ -107,6 +107,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
+      # Local-only icon export mod (never shipped): keep it compiling, and test its logic.
+      - name: Icon export mod builds and its unit tests pass
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+          DOTNET_NOLOGO: "1"
+        run: |
+          dotnet build tools/icon-export -c Release
+          dotnet test tools/icon-export/tests --logger "console;verbosity=normal"
       - name: dotnet test
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"
