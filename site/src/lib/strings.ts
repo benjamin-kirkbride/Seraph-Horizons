@@ -13,6 +13,8 @@ const en = {
   searchPlaceholder: "Search by name or code, e.g. copper ingot",
   searchButton: "Search",
   versionLabel: "Pack version",
+  themeLabel: "Theme",
+  themes: { system: "System", light: "Light", dark: "Dark" },
   loading: "Loading…",
   loadFailed: "Could not load the data for this page.",
   noVersions: "No data has been published yet.",

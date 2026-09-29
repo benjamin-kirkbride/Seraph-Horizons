@@ -87,3 +87,27 @@ test("an item page fits a phone screen @phone", async ({ page }) => {
   expect(scroll).toBeLessThanOrEqual(client);
   await expect(page.getByTestId("unofficial-notice")).toBeVisible();
 });
+
+test("the theme picker overrides the system theme, survives a reload and keeps the icon tile", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await openItem(page, ICON_CODE);
+  const picker = page.getByLabel("Theme");
+  await expect(picker).toHaveValue("system");
+  const bodyBg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const tileBg = () => page.locator(`header img[data-icon="${ICON_CODE}"]`).evaluate((el) => getComputedStyle(el).backgroundColor);
+  const tile = await tileBg();
+  expect(await bodyBg()).toBe("rgb(246, 244, 239)");
+
+  await picker.selectOption("dark");
+  expect(await bodyBg()).toBe("rgb(27, 26, 24)");
+  expect(await tileBg()).toBe(tile);
+  await page.reload();
+  await expect(page.getByLabel("Theme")).toHaveValue("dark");
+  expect(await bodyBg()).toBe("rgb(27, 26, 24)");
+
+  // Back to the system theme, which is still light.
+  await page.getByLabel("Theme").selectOption("system");
+  expect(await bodyBg()).toBe("rgb(246, 244, 239)");
+  await page.emulateMedia({ colorScheme: "dark" });
+  expect(await bodyBg()).toBe("rgb(27, 26, 24)");
+});
