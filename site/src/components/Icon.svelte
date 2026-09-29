@@ -39,12 +39,9 @@
     display: inline-block;
     flex: none;
     image-rendering: auto;
-    border-radius: 4px;
-    background: var(--icon-bg);
+    background: var(--icon-fill);
     /* A shadow rather than a border, so the image keeps its full size. */
-    box-shadow:
-      inset 0 0 0 1px var(--icon-border),
-      var(--icon-inset);
+    box-shadow: inset 0 0 0 1px var(--icon-border);
   }
   .icon.bare {
     background: none;

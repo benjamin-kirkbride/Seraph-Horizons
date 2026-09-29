@@ -73,10 +73,8 @@
     flex: none;
     width: var(--slot);
     height: var(--slot);
-    background: var(--icon-bg);
+    background: var(--icon-fill);
     border: 1px solid var(--icon-border);
-    border-radius: 4px;
-    box-shadow: var(--icon-inset);
   }
   /* The link colour stands out from both the light frame and the card around it. */
   .slot:hover .frame {
