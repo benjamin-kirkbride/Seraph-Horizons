@@ -5,6 +5,7 @@
   import { formatRoute, parseRoute, withVersion, type Route } from "./lib/route.ts";
   import { icons, startClock } from "./lib/state.svelte.ts";
   import { NEW_ISSUE_URL, t } from "./lib/strings.ts";
+  import { THEMES, loadTheme, parseTheme, saveTheme } from "./lib/theme.ts";
   import Credits from "./components/Credits.svelte";
   import Home from "./components/Home.svelte";
   import ItemPage from "./components/ItemPage.svelte";
@@ -19,6 +20,7 @@
   // Filled from the route by the effect below.
   let query = $state("");
   let main: HTMLElement | undefined = $state();
+  let theme = $state(loadTheme());
 
   const versionId = $derived("version" in route ? (route.version ?? null) : null);
   const known = $derived(versions !== null && versionId !== null && versions.versions.some((v) => v.id === versionId));
@@ -109,6 +111,11 @@
     go({ view: "search", version: versionId, query }, route.view === "search");
   }
 
+  function switchTheme(e: Event) {
+    theme = parseTheme((e.currentTarget as HTMLSelectElement).value);
+    saveTheme(theme);
+  }
+
   async function switchVersion(e: Event) {
     const next = (e.currentTarget as HTMLSelectElement).value;
     if (route.view === "item") {
@@ -153,7 +160,7 @@
       <button type="submit" disabled={!data}>{t.searchButton}</button>
     </form>
     {#if versions && versions.versions.length > 0}
-      <label class="version">
+      <label class="picker">
         <span>{t.versionLabel}</span>
         <select value={known ? versionId : ""} onchange={switchVersion}>
           {#if !known}<option value="" disabled>–</option>{/if}
@@ -163,6 +170,14 @@
         </select>
       </label>
     {/if}
+    <label class="picker">
+      <span>{t.themeLabel}</span>
+      <select value={theme} onchange={switchTheme}>
+        {#each THEMES as th (th)}
+          <option value={th}>{t.themes[th]}</option>
+        {/each}
+      </select>
+    </label>
   </div>
   <p class="notice" data-testid="unofficial-notice">{t.unofficial}</p>
 </header>
@@ -251,13 +266,13 @@
     border-radius: var(--radius);
     background: var(--bg);
   }
-  .version {
+  .picker {
     display: flex;
     align-items: center;
     gap: 0.4rem;
     font-size: 0.9rem;
   }
-  .version select {
+  .picker select {
     padding: 0.25rem;
     border: 1px solid var(--border);
     border-radius: var(--radius);
