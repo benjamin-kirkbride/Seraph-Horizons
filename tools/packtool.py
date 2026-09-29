@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import http.client
 import json
 import os
@@ -105,14 +106,29 @@ def sha256_file(path: Path) -> str:
 
 
 def install_information(ids: list[str], game_version: str) -> dict:
-    """ModDB API v2: resolve `modid` or `modid@version` to a downloadable file."""
-    query = urllib.parse.urlencode({"ids": ",".join(ids), "gv": game_version}, safe=",@")
-    return http_json(f"{MODDB}/api/v2/mods/install-information?{query}")["data"]
+    """ModDB API v2: resolve `modid` or `modid@version` to a downloadable file.
+
+    Batched: the server answers 414 somewhere between ~6 and ~11 KB of URL.
+    """
+    data, batch = {}, []
+    for i in [*ids, None]:
+        if batch and (i is None or len(",".join([*batch, i])) > 2000):
+            query = urllib.parse.urlencode({"ids": ",".join(batch), "gv": game_version}, safe=",@")
+            data |= http_json(f"{MODDB}/api/v2/mods/install-information?{query}")["data"]
+            batch = []
+        if i is not None:
+            batch.append(i)
+    return data
+
+
+def mod_info(modid: str) -> dict | None:
+    """ModDB API v1: the mod with all its releases (newest first)."""
+    return http_json(f"{MODDB}/api/mod/{urllib.parse.quote(modid)}").get("mod")
 
 
 def release_info(modid: str, version: str) -> dict:
     """ModDB API v1: release metadata (release id, declared game versions)."""
-    mod = http_json(f"{MODDB}/api/mod/{urllib.parse.quote(modid)}").get("mod")
+    mod = mod_info(modid)
     if not mod:
         die(f"{modid}: not found on the ModDB")
     for rel in mod["releases"]:
@@ -496,29 +512,164 @@ def report(title: str, summary: list[str], failures: list[str]) -> None:
 # --------------------------------------------------------------------- outdated
 
 
+REPORT_MAX = 60_000  # GitHub caps issue bodies at 65536 chars; leave room for the wrapper
+CHANGELOG_MAX = 1_500
+
+
+def version_key(v: str) -> tuple:
+    """Order game version tags: 1.22.0-pre.1 < 1.22.0 < 1.22.1."""
+    core, _, pre = v.partition("-")
+    return tuple(int(x) if x.isdigit() else 0 for x in core.split(".")), pre == "", pre
+
+
+def html_text(s: str) -> str:
+    """ModDB changelogs are HTML; flatten to plain text lines."""
+    s = re.sub(r"(?i)\s*<li\b[^>]*>\s*", "\n- ", re.sub(r"(?i)</li>", "", s))
+    s = re.sub(r"(?i)<br\s*/?>|</(p|div|h\d|ul|ol|pre)>", "\n", s)
+    s = html.unescape(re.sub(r"<[^>]*>", "", s)).replace("\xa0", " ")
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(l.rstrip() for l in s.splitlines())).strip()
+
+
+def clip(s: str, n: int) -> str:
+    if len(s) <= n:
+        return s
+    cut = s.rfind("\n", 0, n)
+    return s[:cut if cut > n // 2 else n].rstrip() + "\n[...]"
+
+
+def cell(s: str) -> str:
+    """Markdown table cell: one line, no pipes, no raw HTML."""
+    return re.sub(r"\s+", " ", str(s)).strip().replace("|", "\\|").replace("<", "&lt;")
+
+
+def span(s: str) -> str:
+    """Inline code span for ModDB-supplied text (no @mentions or #refs)."""
+    return "`" + cell(s).replace("`", "'") + "`"
+
+
 def cmd_outdated(args) -> None:
     lock = load_lock()
     gv = args.game_version or lock["pack"]["game_version"]
-    info = install_information([f"{m['id']}@{m['version']}" for m in lock["mods"]], gv)
-    rows = []
-    for m in lock["mods"]:
+    mods = lock["mods"]
+    pins = {m["id"]: m["version"] for m in mods}
+    info = install_information([f"{i}@{v}" for i, v in pins.items()], gv)
+    errors, upgrades = [], {}  # upgrades: id -> recommended version
+    for m in mods:
         entry = info.get(m["id"], {})
         if "errorCode" in entry:
-            code = entry["errorCode"]
-            rows.append((m["id"], m["version"], "-",
-                         f"ModDB error {code}: {entry.get('retractionReason', MODDB_ERRORS.get(code, '?'))}"))
-        elif entry.get("recommendedUpgrade") and entry["recommendedUpgrade"] != m["version"]:
-            rows.append((m["id"], m["version"], entry["recommendedUpgrade"], "update available"))
+            err = entry["errorCode"]
+            reason = entry.get("retractionReason") or MODDB_ERRORS.get(err, "unknown error")
+            errors.append({"id": m["id"], "locked": m["version"], "latest": "-",
+                           "note": f"ModDB error {err}: {reason}", "errorCode": err, "reason": reason})
+        elif entry.get("recommendedUpgrade") not in (None, m["version"]):
+            upgrades[m["id"]] = entry["recommendedUpgrade"]
+    failed = {e["id"] for e in errors}
+
+    # v2 only recommends stable releases that declare `gv`. Pins whose release does
+    # not declare it are also asked under the newest version they do declare (one
+    # request per such version); prerelease pins are checked against v1 below.
+    fallback: dict[str, list[str]] = {}
+    for m in mods:
+        cv = m["compatibleGameVersions"]
+        if cv and gv not in cv and "-" not in m["version"] and m["id"] not in upgrades.keys() | failed:
+            fallback.setdefault(max(cv, key=version_key), []).append(f"{m['id']}@{m['version']}")
+    for alt, ids in sorted(fallback.items()):
+        for mid, entry in install_information(ids, alt).items():
+            if entry.get("recommendedUpgrade") not in (None, pins.get(mid)):
+                upgrades[mid] = entry["recommendedUpgrade"]
+
+    # Details (one v1 request per mod) only for mods with an update or a prerelease pin.
+    updates = []
+    for m in mods:
+        if m["id"] in failed or not (m["id"] in upgrades or "-" in m["version"]):
+            continue
+        try:
+            mod = mod_info(m["id"]) or {}
+        except RuntimeError as e:
+            print(f"warning: {e}", file=sys.stderr)
+            mod = {}
+        rels = mod.get("releases", [])
+        pinned = next((r for r in rels if r["releaseid"] == m["releaseId"]), None)
+        if m["id"] in upgrades:
+            rel = next((r for r in rels if r["modversion"] == upgrades[m["id"]]), None)
+        elif pinned:
+            cv = m["compatibleGameVersions"]
+            ok = {gv} if gv in cv or not cv else {gv, max(cv, key=version_key)}
+            newer = [r for r in rels if r["created"] > pinned["created"] and ok & set(r.get("tags", []))]
+            if not newer:
+                continue
+            rel = max(newer, key=lambda r: r["created"])
+        else:
+            print(f"warning: {m['id']}@{m['version']}: prerelease pin not found in the ModDB release list",
+                  file=sys.stderr)
+            continue
+        rel = rel or {}
+        latest = rel.get("modversion") or upgrades[m["id"]]
+        tags = sorted(rel.get("tags", []), key=version_key)
+        updates.append({
+            "id": m["id"],
+            "name": mod.get("name", m["id"]),
+            "url": f"{MODDB}/show/mod/{mod['assetid']}" if mod.get("assetid") else f"{MODDB}/{m['id']}",
+            "locked": m["version"],
+            "latest": latest,
+            "note": "update available",
+            "released": rel.get("created", "")[:10] or None,
+            "gameVersions": tags,
+            "declaresGameVersion": gv in tags,
+            "prerelease": "-" in latest,
+            "changelog": clip(html_text(rel.get("changelog") or ""), CHANGELOG_MAX) or None,
+        })
+
     if args.json:
-        print(json.dumps([dict(zip(("id", "locked", "latest", "note"), r)) for r in rows], indent=2))
-    elif not rows:
-        print(f"all {len(lock['mods'])} mod(s) are current for game {gv}")
+        print(json.dumps(errors + updates, indent=2, ensure_ascii=False))
+    elif not (errors or updates):
+        print(f"all {len(mods)} mod(s) are current for game {gv}")
     else:
-        print(f"| mod | locked | latest for {gv} | note |\n|---|---|---|---|")
-        for r in rows:
-            print("| " + " | ".join(r) + " |")
-    if any(r[3].startswith("ModDB error") for r in rows):
+        print(outdated_markdown(gv, errors, updates))
+    if errors:
         sys.exit(2)
+
+
+def outdated_markdown(gv: str, errors: list[dict], updates: list[dict]) -> str:
+    out = []
+    if errors:
+        out += [f"### Locked releases retracted or missing ({len(errors)})", "",
+                "These break installs: pick another release now.", "",
+                "| mod | locked | ModDB error |", "|---|---|---|"]
+        out += [f"| {cell(e['id'])} | {cell(e['locked'])} | {e['errorCode']}: {span(e['reason'])} |"
+                for e in errors]
+        out.append("")
+    if updates:
+        out += [f"### Updates available ({len(updates)})", "",
+                "| mod | locked | latest | released | game versions |", "|---|---|---|---|---|"]
+        for u in updates:
+            name = cell(u["name"]).replace("[", "\\[").replace("]", "\\]")
+            latest = cell(u["latest"]) + (" (pre)" if u["prerelease"] else "")
+            gvs = ", ".join(u["gameVersions"]) or "?"
+            if not u["declaresGameVersion"]:
+                gvs += f" (not {gv})"
+            out.append(f"| [{name}]({u['url']}) `{u['id']}` | {cell(u['locked'])} | {latest} "
+                       f"| {u['released'] or '?'} | {cell(gvs)} |")
+        out.append("")
+    body = "\n".join(out)
+    notes, skipped = [], 0
+    for u in updates:
+        if not u["changelog"]:
+            continue
+        fence = "`" * max(3, 1 + max((len(r) for r in re.findall(r"`+", u["changelog"])), default=0))
+        note = (f"<details><summary><code>{u['id']}</code> {cell(u['latest'])} changelog</summary>\n\n"
+                f"{fence}text\n{u['changelog']}\n{fence}\n\n</details>\n")
+        if len(body) + sum(map(len, notes)) + len(note) > REPORT_MAX - 200:
+            skipped += 1
+        else:
+            notes.append(note)
+    if notes:
+        body += "\n### Changelogs\n\n" + "\n".join(notes)
+    if skipped:
+        body += f"\n_{skipped} more changelog(s) omitted to fit the issue size limit; see the ModDB pages._\n"
+    if len(body) > REPORT_MAX:  # only if the tables alone are huge
+        body = body[:body.rfind("\n", 0, REPORT_MAX - 100)] + "\n\n_[report truncated]_\n"
+    return body.rstrip("\n")
 
 
 # --------------------------------------------------------------------- assemble
