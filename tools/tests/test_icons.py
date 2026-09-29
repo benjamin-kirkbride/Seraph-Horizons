@@ -173,7 +173,8 @@ class Import(ToolCase):
         self.assertEqual(len(self.stored()), 2)
 
     def test_file_name_is_sha256_of_its_bytes(self):
-        self.put("block/stone.png", png(solid(8, 8, (90, 90, 90, 255))))
+        # Not grey: one flat grey would count as untextured (see Untextured below).
+        self.put("block/stone.png", png(solid(8, 8, (90, 80, 70, 255))))
         self.run_tool("import", str(self.export), "--domain", "game")
         [f] = self.stored()
         digest = hashlib.sha256(f.read_bytes()).hexdigest()
@@ -307,6 +308,202 @@ class Import(ToolCase):
         self.assertIn("--domain", r.stderr)
 
 
+def shaded_white(size=8):
+    """The broken export's look: a white cube in three flat shades on transparency."""
+    rows = []
+    for y in range(size):
+        row = []
+        for x in range(size):
+            if x in (0, size - 1) or y in (0, size - 1):
+                row.append(CLEAR)
+            elif y < size // 3:
+                row.append((255, 255, 255, 255))
+            elif x < size // 2:
+                row.append((224, 224, 224, 255))
+            else:
+                row.append((184, 184, 184, 255))
+        rows.append(row)
+    return rows
+
+
+class IconPath(unittest.TestCase):
+    # Written out by hand from the rule in tools/icon-export/Core/IconPaths.cs; the C# tests
+    # check the same vectors against the mod's own implementation.
+    def test_paths(self):
+        cases = [
+            ("game:crate", "block", "game/block/crate.png"),
+            ("materialneeds:crate", "block", "materialneeds/block/crate.png"),
+            ("game:clutter-art/bottle", "block", "game/block/clutter-art/bottle.png"),
+            ("tankardsandgoblets:t&g-winebottle-blue", "item", "tankardsandgoblets/item/t%26g-winebottle-blue.png"),
+            ("tankardsandgoblets:tankard-woodtype-acacia.-bismuth", "item",
+             "tankardsandgoblets/item/tankard-woodtype-acacia%2E-bismuth.png"),
+            ("game:Foo", "item", "game/item/%46oo.png"),
+            ("game:con", "item", "game/item/%63on.png"),
+            ("game:a//b", "item", "game/item/a%2F%2Fb.png"),
+            ("game:ümlaut", "item", "game/item/%C3%BCmlaut.png"),
+        ]
+        for code, kind, path in cases:
+            with self.subTest(code=code):
+                self.assertEqual(icons.icon_path(code, kind), path)
+
+
+@needs_pillow
+class ManifestLayout(ToolCase):
+    def put_icon(self, relpath, rows, code, kind):
+        self.put(relpath, png(rows))
+        self.entries[relpath] = {"code": code, "kind": kind, "size": 4, "check": "ok"}
+
+    def setUp(self):
+        super().setUp()
+        self.entries = {}
+
+    def write_manifest(self, **extra):
+        self.export.mkdir(parents=True, exist_ok=True)
+        (self.export / "manifest.json").write_text(json.dumps(
+            {"schemaVersion": 1, "generator": "test", "icons": self.entries, "failed": [], **extra}))
+
+    def test_codes_come_from_the_manifest(self):
+        blue = (0, 0, 255, 255)
+        self.put_icon("game/block/crate.png", solid(4, 4, RED), "game:crate", "block")
+        self.put_icon("materialneeds/block/crate.png", solid(4, 4, blue), "materialneeds:crate", "block")
+        self.put_icon("game/block/clutter-art/bottle.png", solid(4, 4, (0, 255, 0, 255)), "game:clutter-art/bottle", "block")
+        self.put_icon("tankardsandgoblets/item/t%26g-winebottle-blue.png", solid(4, 4, (9, 99, 199, 255)),
+                      "tankardsandgoblets:t&g-winebottle-blue", "item")
+        self.write_manifest()
+        r = self.run_tool("import", str(self.export), "--size", "4")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        idx = self.index()["icons"]
+        self.assertEqual(sorted(idx), ["game:clutter-art/bottle", "game:crate", "materialneeds:crate",
+                                       "tankardsandgoblets:t&g-winebottle-blue"])
+        self.assertEqual(self.pixels(idx["game:crate"]).getpixel((0, 0)), RED)
+        self.assertEqual(self.pixels(idx["materialneeds:crate"]).getpixel((0, 0)), blue)
+        self.assertIn("imported 4, unchanged 0, distinct images 4 (4 new file(s)), unmapped 0", r.stdout)
+
+    def test_domain_does_not_apply(self):
+        self.put_icon("game/item/a.png", solid(2, 2, RED), "game:a", "item")
+        self.write_manifest()
+        r = self.run_tool("import", str(self.export), "--domain", "game")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--domain does not apply", r.stderr)
+
+    def test_manifest_and_path_must_agree(self):
+        self.put_icon("game/item/stick.png", solid(2, 2, RED), "game:flint", "item")
+        self.put_icon("game/item/ok.png", solid(2, 2, RED), "game:ok", "block")
+        self.write_manifest()
+        r = self.run_tool("import", str(self.export), "--size", "2")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("game:flint", self.index()["icons"])
+        self.assertNotIn("game:ok", self.index()["icons"])
+        self.assertIn("unmapped game/item/stick.png: the manifest says item game:flint, "
+                      "whose file would be game/item/flint.png", r.stdout)
+        self.assertIn("unmapped game/item/ok.png: the manifest says block game:ok, "
+                      "whose file would be game/block/ok.png", r.stdout)
+
+    def test_missing_and_escaping_files_are_not_imported(self):
+        self.entries["game/item/gone.png"] = {"code": "game:gone", "kind": "item"}
+        self.put("../outside.png", png(solid(2, 2, RED)))
+        self.entries["../outside.png"] = {"code": "game:outside", "kind": "item"}
+        self.write_manifest()
+        r = self.run_tool("import", str(self.export), "--size", "2")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.index()["icons"], {})
+        self.assertIn("unmapped game/item/gone.png: listed in the manifest, but the file is missing", r.stdout)
+        self.assertIn("unmapped 2", r.stdout)
+
+    def test_files_not_in_the_manifest_are_ignored(self):
+        self.put_icon("game/item/a.png", solid(2, 2, RED), "game:a", "item")
+        self.put("game/item/b.png", png(solid(2, 2, RED)))
+        self.write_manifest()
+        r = self.run_tool("import", str(self.export), "--size", "2")
+        self.assertEqual(list(self.index()["icons"]), ["game:a"])
+        self.assertIn("note: 1 PNG file(s)", r.stdout)
+
+    def test_block_and_item_with_one_code(self):
+        self.put_icon("game/item/torch.png", solid(2, 2, RED), "game:torch", "item")
+        self.put_icon("game/block/torch.png", solid(2, 2, (0, 0, 255, 255)), "game:torch", "block")
+        self.write_manifest()
+        r = self.run_tool("import", str(self.export), "--size", "2")
+        self.assertEqual(self.index()["icons"], {})
+        self.assertIn("game:torch has icons as both a block and an item", r.stdout)
+        # The recipe export says which one the site shows.
+        (self.tmp / "recipes.json").write_text(json.dumps({"items": {"game:torch": {"kind": "block"}}}))
+        self.run_tool("import", str(self.export), "--items", str(self.tmp / "recipes.json"))
+        self.assertEqual(self.pixels(self.index()["icons"]["game:torch"]).getpixel((0, 0)), (0, 0, 255, 255))
+
+    def test_not_a_manifest(self):
+        self.export.mkdir(parents=True)
+        (self.export / "manifest.json").write_text(json.dumps({"schemaVersion": 7, "icons": {}}))
+        r = self.run_tool("import", str(self.export))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("not a schemaVersion 1 icon manifest", r.stderr)
+
+
+@needs_pillow
+class Untextured(ToolCase):
+    def test_image_check(self):
+        def check(rows):
+            p = self.tmp / "x.png"
+            p.write_bytes(png(rows))
+            return icons.image_check(p)
+
+        self.assertEqual(check(shaded_white()), "untextured")
+        coloured = shaded_white()
+        coloured[3][3] = (200, 120, 80, 255)
+        self.assertEqual(check(coloured), "ok")
+        self.assertEqual(check(solid(4, 4, CLEAR)), "transparent")
+        # Colour under zero alpha is invisible.
+        self.assertEqual(check(solid(4, 4, (255, 0, 0, 0))), "transparent")
+        # A grey texture with more shades than the broken export draws.
+        self.assertEqual(check([[(v, v, v, 255) for v in range(60, 100)]]), "ok")
+        self.assertEqual(check([[(v, v, v, 255) for v in range(100, 116)]]), "untextured")
+        self.assertEqual(check([[(v, v, v, 255) for v in range(100, 117)]]), "ok")
+        self.assertEqual(check([[(100, 101, 102, 255)]]), "untextured")
+        self.assertEqual(check([[(100, 100, 103, 255)]]), "ok")
+
+    def test_mostly_untextured_export_is_refused(self):
+        for name in ("a", "b", "c"):
+            self.put(f"item/{name}.png", png(shaded_white()))
+        self.put("item/d.png", png(solid(8, 8, RED)))
+        r = self.run_tool("import", str(self.export), "--domain", "game")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("3 of 4 images look untextured", r.stderr)
+        self.assertFalse((self.icons / "index.json").exists())
+        self.assertEqual(self.stored(), [])
+
+    def test_refusal_can_be_overridden(self):
+        for name in ("a", "b", "c"):
+            self.put(f"item/{name}.png", png(shaded_white()))
+        r = self.run_tool("import", str(self.export), "--domain", "game", "--allow-untextured")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(sorted(self.index()["icons"]), ["game:a", "game:b", "game:c"])
+        self.assertIn("warning: 3 of 3 images look untextured", r.stdout)
+
+    def test_half_is_not_most(self):
+        self.put("item/a.png", png(shaded_white()))
+        self.put("item/b.png", png(solid(8, 8, RED)))
+        r = self.run_tool("import", str(self.export), "--domain", "game")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(sorted(self.index()["icons"]), ["game:a", "game:b"])
+        self.assertIn("warning: 1 of 2 images look untextured: game:a", r.stdout)
+
+    def test_manifest_layout_is_checked_too(self):
+        self.put("game/item/a.png", png(shaded_white()))
+        self.export.mkdir(parents=True, exist_ok=True)
+        (self.export / "manifest.json").write_text(json.dumps({"schemaVersion": 1, "icons": {
+            "game/item/a.png": {"code": "game:a", "kind": "item"}}}))
+        r = self.run_tool("import", str(self.export))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("1 of 1 images look untextured", r.stderr)
+
+    def test_transparent_images_are_not_imported(self):
+        self.put("item/blank.png", png(solid(4, 4, CLEAR)))
+        self.put("item/red.png", png(solid(4, 4, RED)))
+        r = self.run_tool("import", str(self.export), "--domain", "game", "--size", "4")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(list(self.index()["icons"]), ["game:red"])
+        self.assertIn("unmapped item/blank.png: fully transparent: nothing was drawn", r.stdout)
+
+
 class Drift(ToolCase):
     EXPORT = {"items": {
         "game:stick": {"kind": "item", "mod": "game"},
@@ -367,6 +564,21 @@ class Drift(ToolCase):
     def test_unreadable_export_fails(self):
         self.export_file.write_text("[1, 2")
         self.assertEqual(self.run_tool("drift", "--export", str(self.export_file)).returncode, 1)
+
+    def test_drift_and_verify_run_without_pillow(self):
+        # A PIL package that fails to import stands in for a machine without Pillow (CI's
+        # drift step installs nothing).
+        fake = self.tmp / "nopil" / "PIL"
+        fake.mkdir(parents=True)
+        (fake / "__init__.py").write_text("raise ImportError('Pillow is not installed')\n")
+        env = {"PYTHONPATH": str(fake.parent)}
+        r = self.run_tool("drift", "--export", str(self.export_file), env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r = self.run_tool("verify", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        # The stand-in works: import does notice.
+        r = self.run_tool("import", str(self.tmp), "--domain", "game", env=env)
+        self.assertIn("import needs Pillow", r.stderr)
 
     def test_absent_image_fails(self):
         (self.icons / self.H2[:2] / f"{self.H2}.png").unlink()
