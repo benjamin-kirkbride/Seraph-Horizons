@@ -14,8 +14,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "cli": "node --max-old-space-size=8192 dist/bin.js"
+    "test": "vitest run"
   },
   "dependencies": {
     "ajv": "^8.20.0"
