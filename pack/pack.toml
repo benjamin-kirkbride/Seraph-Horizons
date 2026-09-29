@@ -782,6 +782,30 @@ redistribute = false
 why = "Mechanical transport: rail and more."
 
 [[mod]]
+id = "yangcoifix"
+version = "5.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Client interaction ordering patch, so Yang's Transport Tycoon engines can be fueled with drinkable liquids."
+
+[[mod]]
+id = "yttenhancedinteractionfiltering"
+version = "1.1.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Lets players interact with Yang's Transport Tycoon locomotives that sit in a different chunk."
+
+[[mod]]
+id = "craftablelocusts"
+version = "2.5.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Recipe for hacked locusts, which Yang's Transport Tycoon needs for convoy automation but leaves to other mods."
+
+[[mod]]
 id = "zipline"
 version = "1.0.8"
 side = "universal"
