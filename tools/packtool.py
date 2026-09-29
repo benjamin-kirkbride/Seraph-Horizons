@@ -6,7 +6,8 @@ Stdlib only (Python 3.11+). Subcommands:
   lock        Resolve pack.toml pins against the ModDB and (re)write pack/lock.json.
   check       Offline: fail if lock.json is out of sync with pack.toml.
   fetch       Download locked mod files into a cache, verify sha256, stage them.
-  smoke       Boot a headless dedicated server with the staged mods and scan logs.
+  smoke       Boot a headless dedicated server with the staged mods and scan logs
+              (--export PATH: also load tools/recipe-export and check its export).
   outdated    Report mods with a newer release compatible with the pinned game version.
   assemble    Build release artifacts (meta-mod, Cairn pack, mod list, server bundle).
 """
@@ -305,6 +306,15 @@ def cmd_smoke(args) -> None:
         (shutil.copytree if item.is_dir() else shutil.copy2)(item, target)
 
     lock = load_lock()
+    env = None
+    export = Path(args.export).resolve() if args.export else None
+    if export:
+        # The export mod goes into this run's Mods only, never into build/mods, so it is
+        # not part of the pack, the lock or `assemble`.
+        stage_export_mod(server, data)
+        export.unlink(missing_ok=True)
+        env = {**os.environ, "SERAPH_EXPORT_PATH": str(export),
+               "SERAPH_PACK_ID": lock["pack"]["id"], "SERAPH_PACK_VERSION": lock["pack"]["version"]}
     # Override on the command line rather than writing serverconfig.json: a partial
     # config file lacks the default player groups and the server refuses to start.
     # Fixed seed + standard worldgen so structure mods actually generate.
@@ -314,7 +324,7 @@ def cmd_smoke(args) -> None:
            f"--withconfig={overrides}"]
     print("+ " + " ".join(cmd), flush=True)
     proc = subprocess.Popen(cmd, cwd=server, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, text=True, bufsize=1)
+                            stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
     assert proc.stdin and proc.stdout
     stdin, stdout = proc.stdin, proc.stdout
     lines: list[str] = []
@@ -395,9 +405,76 @@ def cmd_smoke(args) -> None:
         f"warnings: {sum('[Server Warning]' in l for l in lines)}",
         "known errors tolerated: " + (", ".join(f"#{i} x{n}" for i, n in sorted(tolerated.items())) or "none"),
     ]
+    if export:
+        export_lines, export_failures = check_export(export, lines)
+        summary += export_lines
+        failures += export_failures
     report("Server smoke test", summary, failures)
     if failures:
         sys.exit(1)
+
+
+EXPORT_PROJECT = ROOT / "tools" / "recipe-export"
+EXPORT_LOG = re.compile(r"\[seraphexport\]")
+
+
+def stage_export_mod(server: Path, data: Path) -> None:
+    """Build tools/recipe-export against this server and stage it as a folder mod."""
+    out = data / "seraphexport-build"
+    cmd = ["dotnet", "build", str(EXPORT_PROJECT), "-c", "Release", "-o", str(out), "--nologo", "-v", "q"]
+    print("+ " + " ".join(cmd), flush=True)
+    result = subprocess.run(cmd, env={**os.environ, "VINTAGE_STORY": str(server)})
+    if result.returncode != 0:
+        die("building the export mod failed")
+    dest = data / "Mods" / "seraphexport"
+    dest.mkdir()
+    for name in ("SeraphExport.dll", "SeraphExport.pdb", "modinfo.json"):
+        if (out / name).exists():
+            shutil.copy2(out / name, dest / name)
+    shutil.rmtree(out)
+
+
+def check_export(path: Path, log: list[str]) -> tuple[list[str], list[str]]:
+    """Summary lines and failures for the export the server was asked to write."""
+    notes = [l.strip() for l in log if EXPORT_LOG.search(l)]
+    if not path.exists():
+        return [], [f"recipe export not written to {path}"] + [f"exporter: {n}" for n in notes]
+    try:
+        doc = json.loads(path.read_text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return [], [f"recipe export {path} is not valid JSON: {e}"]
+    counts, problems = export_counts(doc)
+    size = path.stat().st_size
+    lines = [f"recipe export: {sum(counts.values())} recipe(s) in {len(counts)} type(s), "
+             f"{size / 1e6:.1f} MB -> {path}"]
+    lines += [f"  {t}: {n}" for t, n in sorted(counts.items())]
+    return lines, [f"recipe export: {p}" for p in problems]
+
+
+def export_counts(doc) -> tuple[dict[str, int], list[str]]:
+    """Recipes per type, checked against recipeTypes; problems that make the export unusable."""
+    if not isinstance(doc, dict) or not isinstance(doc.get("recipes"), list) \
+            or not isinstance(doc.get("recipeTypes"), dict):
+        return {}, ["no recipes list or recipeTypes object"]
+    problems = []
+    counts = {t: 0 for t in doc["recipeTypes"]}
+    ids = set()
+    for r in doc["recipes"]:
+        t = r.get("type") if isinstance(r, dict) else None
+        if t not in counts:
+            problems.append(f"recipe {r.get('id') if isinstance(r, dict) else r!r} has type {t!r}, "
+                            "which is not in recipeTypes")
+            continue
+        counts[t] += 1
+        if r.get("id") in ids:
+            problems.append(f"duplicate recipe id {r.get('id')}")
+        ids.add(r.get("id"))
+    for t, entry in doc["recipeTypes"].items():
+        if entry.get("count") != counts[t]:
+            problems.append(f"recipeTypes[{t!r}].count is {entry.get('count')}, but {counts[t]} recipe(s) have it")
+    if not doc["recipes"]:
+        problems.append("no recipes exported")
+    return counts, problems
 
 
 def report(title: str, summary: list[str], failures: list[str]) -> None:
@@ -594,6 +671,8 @@ def main() -> None:
     s.add_argument("--timeout", type=int, default=600, help="seconds to wait for the server to be ready")
     s.add_argument("--settle", type=int, default=20, help="seconds to keep running after ready")
     s.add_argument("-v", "--verbose", action="store_true")
+    s.add_argument("--export", metavar="PATH",
+                   help="also load tools/recipe-export and write the recipe export to PATH")
     s.set_defaults(func=cmd_smoke)
 
     s = sub.add_parser("outdated")

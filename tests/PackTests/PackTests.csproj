@@ -16,6 +16,8 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <PackageReference Include="Pixnop.Atlas.XUnit" Version="0.15.0" />
+    <!-- Validates the export against schema/recipe-export.schema.json (draft 2020-12). -->
+    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +25,18 @@
     <Reference Include="VintagestoryAPI">
       <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
     </Reference>
+    <!-- The recipe registries' accessors (GetSmithingRecipes and so on) are extension methods here. -->
+    <Reference Include="VSSurvivalMod">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(VINTAGE_STORY)/Lib/Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Referenced as a library, not loaded as a mod: scenarios call Exporter.Build themselves. -->
+    <ProjectReference Include="../../tools/recipe-export/SeraphExport.csproj" />
+    <None Include="../../schema/recipe-export.schema.json" Link="recipe-export.schema.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/lock.json" Link="lock.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/known-errors.json" Link="known-errors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
