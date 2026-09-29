@@ -16,6 +16,16 @@ export function iconPath(index: IconIndex | null | undefined, code: string): str
   return `icons/${h.slice(0, 2)}/${h}.png`;
 }
 
+/** Up to two letters to show where an item has no icon: "Copper ingot" gives "CI". */
+export function initials(name: string): string {
+  return name
+    .split(/[\s()-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+}
+
 /** Accepts a parsed index.json, or null when it is missing or not in a known shape. */
 export function readIconIndex(value: unknown): IconIndex | null {
   if (typeof value !== "object" || value === null) return null;

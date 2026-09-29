@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { creditRows, modLink } from "../src/lib/credits.ts";
-import { iconPath, readIconIndex } from "../src/lib/icons.ts";
+import { iconPath, initials, readIconIndex } from "../src/lib/icons.ts";
+
+describe("initials", () => {
+  it("takes the first letter of the first two words", () => {
+    expect(initials("Copper ingot")).toBe("CI");
+    expect(initials("Torch")).toBe("T");
+    expect(initials("Simple fishing pole (wood)")).toBe("SF");
+  });
+
+  it("skips brackets and dashes, and copes with an empty name", () => {
+    expect(initials("(Extinguished) torch")).toBe("ET");
+    expect(initials("tin-bronze")).toBe("TB");
+    expect(initials("")).toBe("");
+  });
+});
 
 const hash = "3fa9c1d2e4b5a6978877665544332211ffeeddccbbaa99887766554433221100";
 

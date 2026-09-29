@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Recipe, RecipeExport } from "../src/lib/export.ts";
 import {
   cycleAt,
+  distinctSources,
   focusVariants,
   formatRange,
   formatRatio,
@@ -97,5 +98,29 @@ describe("variants and cycling", () => {
     expect(slotStacks(noLitres, 0, 0)).toEqual([{ code: "game:waterportion", kind: "item", quantity: 200, litres: 2 }]);
     // An empty slot in the variant falls back to the definition.
     expect(slotStacks(noLitres, 0, 1)).toEqual([{ code: "game:hide-raw-small", kind: "item", quantity: 1 }]);
+  });
+});
+
+describe("distinctSources", () => {
+  const drop = (from: string, fromName: string, avg = 1) => ({ type: "blockDrop" as const, from, fromName, quantity: { avg } });
+
+  it("keeps one row for the orientations of a block, which share a name", () => {
+    const rows = distinctSources([
+      drop("game:torchholder-aged-filled-north", "Aged torch holder"),
+      drop("game:torchholder-aged-filled-east", "Aged torch holder"),
+      drop("game:torchholder-brass-filled-north", "Brass torch holder"),
+      drop("game:torchholder-aged-filled-south", "Aged torch holder"),
+    ]);
+    expect(rows.map((r) => r.from)).toEqual(["game:torchholder-aged-filled-north", "game:torchholder-brass-filled-north"]);
+  });
+
+  it("keeps rows that differ in quantity, kind or tool", () => {
+    const rows = distinctSources([
+      drop("game:a-north", "A"),
+      drop("game:a-east", "A", 2),
+      { ...drop("game:a-south", "A"), tool: "knife" },
+      { ...drop("game:a-west", "A"), type: "traderSells" as const },
+    ]);
+    expect(rows).toHaveLength(4);
   });
 });
