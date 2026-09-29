@@ -35,10 +35,11 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      # The only job that fetches LFS: the icons. Every download counts against the LFS
-      # bandwidth quota, so the objects are cached and only new icons are fetched.
+      # The icons are in LFS, and every download counts against the LFS bandwidth quota.
+      # CI's icons job keeps the objects in the cache; a run started by workflow_run can
+      # read that cache but not write it. The pull downloads only what the cache lacks.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .git/lfs
           key: lfs-icons-${{ hashFiles('icons/index.json') }}

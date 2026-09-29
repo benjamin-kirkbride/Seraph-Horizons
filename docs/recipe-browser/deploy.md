@@ -46,7 +46,9 @@ The build:
    1.0.0-rc.1 is older than 1.0.0), or `main` when no release has an export.
 3. For each version, `npm --prefix site run prepare-data` turns the export into the
    files the app loads, under `site/public/data/<id>/`. `versions.json` and `icons/`
-   (fetched from Git LFS, only in this workflow) are copied next to them.
+   are copied next to them. The icons are in Git LFS; the workflow reads them from the
+   cache that CI's `icons` job saves, because a run started by `workflow_run` cannot
+   save a cache itself.
 4. `npm --prefix site run build`, the size check, then upload and deploy with the
    official Pages actions.
 

@@ -287,6 +287,30 @@ jobs:
             site/playwright-report/
           if-no-files-found: ignore
 
+  # Keeps the icons' LFS objects in the Actions cache for pages.yml. That
+  # workflow is started by workflow_run, which gets a read-only cache, so it
+  # cannot save one itself; without a cache every deploy downloads all the
+  # icons, and each download counts against the LFS bandwidth quota. Here LFS
+  # is touched only when icons/index.json has changed, and then only for the
+  # icons that are new. Not in ci-ok: a cold cache costs bandwidth, not
+  # correctness.
+  icons:
+    name: Icon cache for the site deploy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/lfs
+          key: lfs-icons-${{ hashFiles('icons/index.json') }}
+          restore-keys: lfs-icons-
+      - name: Fetch the icons the cache does not hold
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: git lfs fetch origin "$GITHUB_SHA" --include "icons/**"
+
   # The one required status check (branch protection and .mergify.yml). A
   # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and
   # Mergify both read a skipped required check as passing, so this runs
