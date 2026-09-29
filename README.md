@@ -4,7 +4,7 @@ A version-pinned [Vintage Story](https://www.vintagestory.at/) modpack, built GT
 a human-edited manifest, a checksummed lockfile, and CI that boots a real server with
 the exact pack before anything ships.
 
-**Game version:** 1.22.7 (.NET 10) · **Mods:** 119, listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)
+**Game version:** 1.22.7 (.NET 10) · **Mods:** 118, listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)
 
 ## Installing
 
