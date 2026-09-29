@@ -5,13 +5,16 @@
 # ///
 """Seraph Horizons icon tool: content-addressed item icons for the recipe browser.
 
-Icons are rendered in the game client with `.blockitempngexport` (see
-docs/recipe-browser/icons.md) and stored under icons/ as
+Icons are rendered in the game client with the local seraphiconfix mod's
+`.seraphicons` command, or the game's own `.blockitempngexport` (see
+docs/recipe-browser/icons.md), and stored under icons/ as
 icons/<first two hex digits>/<sha256>.png, tracked by Git LFS. icons/index.json
 maps item codes to hashes. Subcommands:
 
-  import      Map a client export (icons/block, icons/item) to item codes, resize,
-              store each distinct image once and update the index. Needs Pillow:
+  import      Map an export to item codes, resize, store each distinct image once
+              and update the index. Reads the mod's manifest.json when there is
+              one, else the client's icons/block and icons/item folders. Refuses
+              an export whose images are mostly untextured. Needs Pillow:
               `uv run tools/icons.py import ...`.
   prune       Delete image files the index no longer references (dry run by default).
   drift       Compare a recipe export's items with the index; warns, never fails,
@@ -42,6 +45,12 @@ CODE = re.compile(r"^[a-z0-9_-]+:[^\s:]+$")
 KINDS = ("block", "item")
 LFS_POINTER = b"version https://git-lfs.github.com/spec/v1\n"
 NOT_IN_EXPORT = "no item in the export has this name"
+MANIFEST = "manifest.json"
+# The untextured check, the same rule as ImageChecks in tools/icon-export/Core: an image with
+# no visible pixel whose channels differ by more than CHROMA_TOLERANCE, and at most MAX_SHADES
+# distinct visible RGBA values, is the white, shaded shape the broken export draws.
+CHROMA_TOLERANCE = 2
+MAX_SHADES = 16
 
 
 def die(msg: str) -> None:
@@ -193,6 +202,61 @@ class Resolver:
         return self.items[code].get("kind", "item")
 
 
+# The seraphiconfix mod (tools/icon-export) writes <domain>/<item|block>/<path>.png, a "/" in
+# the path being a directory and every other byte outside [a-z0-9_-] written as %XX, plus a
+# manifest.json that maps each file to its code. The code is read from the manifest; the path
+# is re-derived from it here, independently of the mod, as a check that the two agree.
+
+_SAFE = frozenset(b"abcdefghijklmnopqrstuvwxyz0123456789_-")
+_RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(10)), *(f"lpt{i}" for i in range(10))}
+
+
+def _encode_segment(s: str) -> str:
+    out = "".join(chr(b) if b in _SAFE else f"%{b:02X}" for b in s.encode())
+    # Windows device names; encoding the first letter keeps the name readable.
+    return f"%{ord(out[0]):02X}{out[1:]}" if out in _RESERVED else out
+
+
+def icon_path(code: str, kind: str) -> str:
+    """The file the mod writes for `code`: 'game:clutter-art/bottle' -> 'game/block/clutter-art/bottle.png'."""
+    domain, path = code.split(":", 1)
+    segments = path.split("/")
+    encoded = _encode_segment(path) if "" in segments else "/".join(map(_encode_segment, segments))
+    return f"{_encode_segment(domain)}/{kind}/{encoded}.png"
+
+
+def read_manifest(src: Path) -> tuple[list[tuple[str, str, Path]], list[tuple[str, str]]]:
+    """([(code, kind, file)], [(file, why not)]) from a .seraphicons export's manifest.json."""
+    path = src / MANIFEST
+    try:
+        manifest = json.loads(path.read_text())
+    except (OSError, ValueError) as e:
+        die(f"{path}: cannot read: {e}")
+    if not isinstance(manifest, dict) or manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("icons"), dict):
+        die(f"{path}: not a schemaVersion 1 icon manifest")
+    found: list[tuple[str, str, Path]] = []
+    unmapped: list[tuple[str, str]] = []
+    root = src.resolve()
+    for relpath, entry in sorted(manifest["icons"].items()):
+        code = entry.get("code") if isinstance(entry, dict) else None
+        kind = entry.get("kind") if isinstance(entry, dict) else None
+        if not isinstance(code, str) or not CODE.match(code):
+            unmapped.append((relpath, f"{code!r} is not a valid item code"))
+        elif kind not in KINDS:
+            unmapped.append((relpath, f"kind {kind!r} is not block or item"))
+        elif icon_path(code, kind) != relpath:
+            unmapped.append((relpath, f"the manifest says {kind} {code}, whose file would be {icon_path(code, kind)}"))
+        elif not (src / relpath).resolve().is_relative_to(root) or not (src / relpath).is_file():
+            unmapped.append((relpath, "listed in the manifest, but the file is missing"))
+        else:
+            found.append((code, kind, src / relpath))
+    listed = set(manifest["icons"])
+    stray = sum(1 for f in src.rglob("*.png") if f.relative_to(src).as_posix() not in listed)
+    if stray:
+        print(f"note: {stray} PNG file(s) under {src} are not in the manifest and are ignored")
+    return found, unmapped
+
+
 # ---------------------------------------------------------------------- images
 
 
@@ -221,6 +285,27 @@ def normalise(path: Path, size: int) -> bytes:
     return bytes(raw)
 
 
+def image_check(path: Path) -> str:
+    """'transparent', 'untextured' or 'ok' for the image as exported (before any scaling)."""
+    from PIL import Image
+
+    with Image.open(path) as im:
+        im = im.convert("RGBA")
+    # Every invisible pixel becomes (0, 0, 0, 0), so it adds at most one colour.
+    visible_mask = im.getchannel("A").point(lambda a: 255 if a else 0)
+    clean = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    clean.paste(im, (0, 0), visible_mask)
+    colours = clean.getcolors(maxcolors=MAX_SHADES + 1)
+    if colours is None:
+        return "ok"  # more shades than the broken export ever draws
+    visible = [c for _, c in colours if c[3] > 0]
+    if not visible:
+        return "transparent"
+    if len(visible) <= MAX_SHADES and all(max(c[:3]) - min(c[:3]) <= CHROMA_TOLERANCE for c in visible):
+        return "untextured"
+    return "ok"
+
+
 def encode_png(raw: bytes, size: int) -> bytes:
     """An RGBA PNG with no metadata chunks, so the bytes depend only on the pixels
     (and the Pillow/zlib build; import looks existing images up by pixels, so a
@@ -241,12 +326,17 @@ def cmd_import(args) -> None:
         import PIL  # noqa: F401
     except ImportError:
         die("import needs Pillow: run `uv run tools/icons.py import ...` (or `pip install pillow`)")
-    if not args.domain and not args.items:
-        die("say which mod the files belong to: --domain <modid> for a one-domain export, "
-            "or --items <recipes.json> to look the names up in a recipe export")
     src = Path(args.export_dir)
-    if not any((src / k).is_dir() for k in KINDS):
-        die(f"{src} has neither block/ nor item/ (point it at the client's icons/ folder)")
+    from_manifest = (src / MANIFEST).is_file()
+    if from_manifest and args.domain:
+        die(f"--domain does not apply here: {src / MANIFEST} names the code of every file")
+    if not from_manifest:
+        if not args.domain and not args.items:
+            die("say which mod the files belong to: --domain <modid> for a one-domain export, "
+                "or --items <recipes.json> to look the names up in a recipe export")
+        if not any((src / k).is_dir() for k in KINDS):
+            die(f"{src} has no {MANIFEST} and neither block/ nor item/ (point it at the "
+                ".seraphicons output folder or the client's icons/ folder)")
     items = None
     if args.items:
         try:
@@ -266,16 +356,22 @@ def cmd_import(args) -> None:
     # file -> code, then drop codes that more than one file claims.
     claims: dict[str, list[tuple[str, Path]]] = {}
     unmapped: list[tuple[Path, str]] = []
-    for kind in KINDS:
-        base = src / kind
-        for f in sorted(base.rglob("*.png")) if base.is_dir() else []:
-            code, why = resolver.resolve(*split_export_file(f"{kind}/{f.relative_to(base).as_posix()}"))
-            if code and not CODE.match(code):
-                code, why = None, f"{code!r} is not a valid item code"
-            if code:
-                claims.setdefault(code, []).append((kind, f))
-            else:
-                unmapped.append((f, why))
+    if from_manifest:
+        found, bad = read_manifest(src)
+        unmapped += [(src / p, why) for p, why in bad]
+        for code, kind, f in found:
+            claims.setdefault(code, []).append((kind, f))
+    else:
+        for kind in KINDS:
+            base = src / kind
+            for f in sorted(base.rglob("*.png")) if base.is_dir() else []:
+                code, why = resolver.resolve(*split_export_file(f"{kind}/{f.relative_to(base).as_posix()}"))
+                if code and not CODE.match(code):
+                    code, why = None, f"{code!r} is not a valid item code"
+                if code:
+                    claims.setdefault(code, []).append((kind, f))
+                else:
+                    unmapped.append((f, why))
     chosen: dict[str, Path] = {}
     for code, files in sorted(claims.items()):
         if len(files) > 1:
@@ -285,7 +381,32 @@ def cmd_import(args) -> None:
             chosen[code] = files[0][1]
         else:
             for _, f in files:
-                unmapped.append((f, f"{code} has icons in both block/ and item/"))
+                unmapped.append((f, f"{code} has icons as both a block and an item"))
+
+    # Before anything is written: an export of white shapes is the known rendering bug
+    # (docs/recipe-browser/icons.md), and importing it would replace real icons.
+    untextured: list[str] = []
+    for code, f in list(chosen.items()):
+        try:
+            check = image_check(f)
+        except (OSError, ValueError) as e:
+            unmapped.append((f, f"not a readable image: {e}"))
+            del chosen[code]
+            continue
+        if check == "transparent":
+            unmapped.append((f, "fully transparent: nothing was drawn"))
+            del chosen[code]
+        elif check == "untextured":
+            untextured.append(code)
+    if untextured and len(untextured) * 2 > len(chosen) and not args.allow_untextured:
+        die(f"{len(untextured)} of {len(chosen)} images look untextured (white or grey shapes without "
+            "colour), the known export bug; nothing imported. Re-export with the seraphiconfix mod "
+            "(docs/recipe-browser/icons.md), or pass --allow-untextured if they are right. "
+            f"First: {', '.join(sorted(untextured)[:5])}")
+    if untextured:
+        print(f"warning: {len(untextured)} of {len(chosen)} images look untextured: "
+              + ", ".join(sorted(untextured)[:args.limit])
+              + (f" and {len(untextured) - args.limit} more" if len(untextured) > args.limit else ""))
 
     # Existing images by pixel content, so an unchanged icon keeps its hash even
     # if this machine's zlib would encode it differently.
@@ -333,7 +454,8 @@ def cmd_import(args) -> None:
           f"({written} new file(s)), unmapped {len(unmapped)}"
           + (f" ({absent} not in the export)" if absent else ""))
     for f, why in unmapped[:args.limit]:
-        print(f"  unmapped {f.relative_to(src).as_posix()}: {why}")
+        shown = f.relative_to(src).as_posix() if f.is_relative_to(src) else str(f)
+        print(f"  unmapped {shown}: {why}")
     if len(unmapped) > args.limit:
         print(f"  ... and {len(unmapped) - args.limit} more")
     if imported:
@@ -480,10 +602,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--icons", default=str(ICONS), help="icon store (default: icons/)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    s = sub.add_parser("import", help="import a client icon export")
-    s.add_argument("export_dir", help="the client's icons/ folder (with block/ and item/)")
+    s = sub.add_parser("import", help="import an icon export")
+    s.add_argument("export_dir", help="the .seraphicons output folder (with manifest.json), "
+                                      "or the client's icons/ folder (with block/ and item/)")
     s.add_argument("--domain", help="mod domain of every file (for `.blockitempngexport all <size> <domain>`)")
-    s.add_argument("--items", help="recipes.json whose items resolve file names to codes")
+    s.add_argument("--items", help="recipes.json whose items resolve file names to codes "
+                                   "(with a manifest: only to choose between a block and an item icon)")
+    s.add_argument("--allow-untextured", action="store_true",
+                   help="import even if most images look untextured (white or grey shapes)")
     s.add_argument("--size", type=int, help=f"icon size for a new index (default {DEFAULT_SIZE})")
     s.add_argument("--limit", type=int, default=20, help="unmapped files to list")
     s.set_defaults(func=cmd_import)
