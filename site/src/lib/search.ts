@@ -72,7 +72,7 @@ function scoreItem(p: Prepared, tokens: readonly string[], whole: string, handbo
   let score = 0;
   const usedWords = new Set<number>();
   for (const t of tokens) {
-    const byName = tokenScore(t, p.nameWords, p.name, 10, 7, 3);
+    const byName = tokenScore(t, p.nameWords, p.name, 12, 7, 3);
     const byCode = tokenScore(t, p.codeWords, p.code, 6, 5, 2);
     if (byName === 0 && byCode === 0) return null;
     score += Math.max(byName, byCode);
@@ -80,7 +80,8 @@ function scoreItem(p: Prepared, tokens: readonly string[], whole: string, handbo
     if (w >= 0) usedWords.add(w);
   }
   if (whole === p.name) score += 30;
-  else if (p.name.startsWith(whole)) score += 10;
+  else if (p.name.startsWith(`${whole} `)) score += 10;
+  else if (p.name.startsWith(whole)) score += 2;
   if (whole === p.code || p.code.endsWith(`:${whole}`)) score += 40;
   if (handbook) score += 2;
   // Prefer names that are mostly made of what was typed: "Copper ingot" over

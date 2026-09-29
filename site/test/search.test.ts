@@ -15,6 +15,8 @@ const items: [string, string, number][] = [
   ["game:ladder-stick-north", "Crude ladder", 1],
   ["game:scythe-copper", "Copper Scythe", 1],
   ["game:cafe", "Café table", 1],
+  ["game:rabbit", "Rabbit", 1],
+  ["game:sawdust", "Sawdust", 1],
 ];
 const file: SearchFile = {
   mods: ["game"],
@@ -47,9 +49,21 @@ describe("ItemSearch", () => {
     expect(hits.indexOf("game:ingot-copper")).toBeLessThan(hits.indexOf("game:copperingotcast-hidden"));
   });
 
+  it("prefers a name with fewer words beyond the query, even when it is longer", () => {
+    const f: SearchFile = { mods: ["game"], codes: ["game:a", "game:b"], names: ["Oak log pile", "Oak logpiles"], mod: [0, 0], flags: [1, 1] };
+    const s = new ItemSearch(f);
+    expect(s.search("oak").map((i) => f.codes[i])).toEqual(["game:b", "game:a"]);
+  });
+
   it("finds by code, with or without the domain", () => {
     expect(codes("game:saw-copper")[0]).toBe("game:saw-copper");
     expect(codes("ladder-stick")[0]).toBe("game:ladder-stick-north");
+  });
+
+  it("ranks a whole word over the start of one, and the start of a word over its inside", () => {
+    // Shorter names would win the tie-break, so only the word scoring puts these first.
+    expect(codes("saw")[0]).toBe("game:saw-copper");
+    expect(codes("bit")).toEqual(["game:metalbit-copper", "game:rabbit"]);
   });
 
   it("matches the inside of a word when nothing better is there", () => {
