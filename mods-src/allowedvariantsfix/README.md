@@ -36,21 +36,25 @@ The server builds and sends recipes, with each ingredient's filters, so clients 
 place, BetterRuins' dirty gravel and Butchering's hook. The test project loads this directory's
 build as a mod, and leaves out a pinned copy from the ModDB (`allowedvariantsfix_*.zip` in
 `build/mods`), so the scenarios test the source. `tools/tests/test_mods_src.py` checks that the
-`.csproj`, `modinfo.json` and the pin in `pack/pack.toml` agree on the version.
+`.csproj` and `modinfo.json` agree on the version and that the pin in `pack/pack.toml` is not ahead of it.
 
 ## Releasing
 
-Built locally and uploaded to the ModDB by hand; the pack then pins it like any other mod.
+Built by CI from a tag, uploaded to the ModDB by hand; the pack then pins it like any other mod.
 
-1. Bump the version in both `modinfo.json` and `AllowedVariantsFix.csproj`.
-2. `dotnet build mods-src/allowedvariantsfix -c Release` (needs `VINTAGE_STORY`), which writes
-   `build/allowedvariantsfix_<version>.zip`.
+1. Bump the version in both `modinfo.json` and `AllowedVariantsFix.csproj`, and merge that.
+2. Tag the merge commit on main `allowedvariantsfix-v<version>` and push the tag.
+   `.github/workflows/mod-release.yml` checks that the tag is on main and matches
+   `modinfo.json`, builds in Release and publishes a GitHub Release (never "latest") with
+   `allowedvariantsfix_<version>.zip`.
 3. Upload that zip as a new release on the mod's ModDB page. Keep the file name: the test
    project recognises the pinned copy by it.
 4. Set the version in the mod's `[[mod]]` entry in `pack/pack.toml` (the first release adds the
    entry, `side = "server"`), then `python3 tools/packtool.py lock`.
 
-Between steps 1 and 4, `test_mods_src.py` fails on purpose.
+`test_mods_src.py` lets the pin lag the source between steps 1 and 4, but fails if the pin is
+ahead of it. For a local build instead: `dotnet build mods-src/allowedvariantsfix -c Release`
+(needs `VINTAGE_STORY`) writes the same zip to `build/`.
 
 ## Retiring it
 

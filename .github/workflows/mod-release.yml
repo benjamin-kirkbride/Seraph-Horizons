@@ -1,0 +1,60 @@
+# Tag <modid>-v<version> (e.g. allowedvariantsfix-v1.0.0) on a commit of main to build
+# mods-src/<modid> and attach <modid>_<version>.zip to a GitHub Release, ready to upload
+# to the ModDB by hand (mods-src/<modid>/README.md). These releases are never "latest":
+# that stays the pack's own vX.Y.Z release (release.yml).
+name: Mod release
+
+on:
+  push:
+    tags: ["*-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: tag
+        name: Tag names a mods-src mod at its source version, on main
+        run: |
+          modid="${GITHUB_REF_NAME%-v*}"
+          version="${GITHUB_REF_NAME##*-v}"
+          info="mods-src/$modid/modinfo.json"
+          [ -f "$info" ] || { echo "no $info for tag $GITHUB_REF_NAME"; exit 1; }
+          have=$(jq -r .version "$info")
+          [ "$have" = "$version" ] || { echo "tag says $version, $info says $have"; exit 1; }
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "$GITHUB_REF_NAME is not on main, so CI has not tested it"; exit 1; }
+          echo "modid=$modid" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # .NET 10 and the pinned game server (VINTAGE_STORY), the same as CI.
+      - uses: ./.github/actions/setup-pack
+      - name: Build
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+          DOTNET_NOLOGO: "1"
+        run: dotnet build "mods-src/${{ steps.tag.outputs.modid }}" -c Release
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODID: ${{ steps.tag.outputs.modid }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          zip="build/${MODID}_${VERSION}.zip"
+          [ -f "$zip" ] || { echo "the build wrote no $zip"; exit 1; }
+          (cd build && sha256sum "${MODID}_${VERSION}.zip" > SHA256SUMS)
+          name=$(jq -r .name "mods-src/$MODID/modinfo.json")
+          printf '%s\n' \
+            "Built from mods-src/$MODID at $GITHUB_SHA against Vintage Story $(jq -r .pack.game_version pack/lock.json)." \
+            "" \
+            "Upload \`${MODID}_${VERSION}.zip\` to the ModDB as is (keep the file name), then pin $MODID@$VERSION in pack/pack.toml and run \`packtool lock\`." \
+            > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" "$zip" build/SHA256SUMS --latest=false \
+            --title "$name $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
