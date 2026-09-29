@@ -1,6 +1,8 @@
 # Nightly: ask the ModDB whether any locked mod has a newer release for the pinned
-# game version, or was retracted. Findings go to a single tracking issue; bumping a
-# pin is a normal PR (edit pack.toml, run `packtool.py lock`) so CI tests it.
+# game version, or was retracted. Findings go to a single tracking issue (found by
+# label and exact title); no issue is opened while everything is current, and an
+# open one is closed. Bumping a pin is a normal PR (edit pack.toml, run
+# `packtool.py lock`) so CI tests it.
 name: Mod update check
 
 on:
@@ -12,6 +14,11 @@ permissions:
   contents: read
   issues: write
 
+# A manual run racing the scheduled one could open two issues.
+concurrency:
+  group: update-check
+  cancel-in-progress: false
+
 jobs:
   outdated:
     runs-on: ubuntu-24.04
@@ -21,29 +28,48 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
+      # Exit 0: report (or "all current"); 2: report including retracted/missing
+      # pins; anything else: the check itself failed, so leave the issue alone.
       - name: Check ModDB
         id: check
         run: |
           set +e
           python3 tools/packtool.py outdated > "$RUNNER_TEMP/report.md"
           echo "status=$?" >> "$GITHUB_OUTPUT"
-          cat "$RUNNER_TEMP/report.md" | tee -a "$GITHUB_STEP_SUMMARY"
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/report.md"
       - name: Update tracking issue
+        if: steps.check.outputs.status == '0' || steps.check.outputs.status == '2'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TITLE: "Mod updates available"
+          LABEL: mod-updates
         run: |
-          existing=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number')
-          if grep -q '^|' "$RUNNER_TEMP/report.md"; then
-            { echo "Nightly ModDB check for the pinned game version ($(date -u +%F))."; echo
-              cat "$RUNNER_TEMP/report.md"; echo
-              echo "To take an update: bump \`version\` in \`pack/pack.toml\`, run \`python3 tools/packtool.py lock\`, open a PR."
-            } > "$RUNNER_TEMP/body.md"
-            if [ -n "$existing" ]; then gh issue edit "$existing" --body-file "$RUNNER_TEMP/body.md"
-            else gh issue create --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"; fi
-          elif [ -n "$existing" ]; then
-            gh issue close "$existing" --comment "All locked mods are current."
+          labels=$(gh label list --search "$LABEL" --limit 100 --json name --jq '.[].name')
+          grep -qxF "$LABEL" <<< "$labels" || gh label create "$LABEL" --color FBCA04 --description "Nightly mod update check"
+          existing=$(gh issue list --state open --label "$LABEL" --limit 100 --json number,title \
+            | jq -r --arg t "$TITLE" 'map(select(.title == $t)) | .[0].number // empty')
+          if ! grep -q '^|' "$RUNNER_TEMP/report.md"; then
+            if [ -n "$existing" ]; then gh issue close "$existing" --comment "All locked mods are current."; fi
+            exit 0
           fi
-      - name: Fail on retracted or missing releases
+          # The digest lets an unchanged report skip the edit, so the issue only
+          # changes (and notifies) when the findings do.
+          digest=$(sha256sum "$RUNNER_TEMP/report.md" | cut -c1-64)
+          if [ -n "$existing" ]; then
+            old=$(gh issue view "$existing" --json body --jq .body)
+            if grep -qF "report-sha256: $digest" <<< "$old"; then echo "#$existing is already up to date"; exit 0; fi
+          fi
+          { echo "Nightly ModDB check against the pinned game version. Last changed $(date -u +%F)."; echo
+            cat "$RUNNER_TEMP/report.md"; echo
+            echo "To take an update: bump \`version\` in \`pack/pack.toml\`, run \`python3 tools/packtool.py lock\`, open a PR."
+            echo; echo "<!-- report-sha256: $digest -->"
+          } > "$RUNNER_TEMP/body.md"
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh issue create --title "$TITLE" --label "$LABEL" --body-file "$RUNNER_TEMP/body.md"
+          fi
+      - name: Fail on retracted or missing releases (or a failed check)
         if: steps.check.outputs.status != '0'
         run: exit 1
