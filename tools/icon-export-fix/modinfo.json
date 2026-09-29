@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "seraphiconfix",
+  "name": "Seraph Horizons icon export fix",
+  "description": "Local tool: makes .blockitempngexport and .exponepng draw textures with the full pack loaded. Not part of the pack.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "0.1.0",
+  "side": "Client",
+  "requiredOnServer": false,
+  "dependencies": { "game": "1.22.0" }
+}
