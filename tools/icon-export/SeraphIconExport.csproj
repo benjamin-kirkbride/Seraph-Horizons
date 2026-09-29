@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Local-only client mod that exports item icons for the recipe browser
+       (docs/recipe-browser/icons.md). Never shipped: it is not in pack.toml and no release
+       artifact includes it. Builds against VintagestoryAPI.dll alone, so the dedicated
+       server's copy is enough (CI has no client). -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SeraphIconExport</AssemblyName>
+    <RootNamespace>SeraphHorizons.IconExport</RootNamespace>
+    <Version>0.2.0</Version>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The unit tests are their own project. -->
+    <Compile Remove="tests/**" />
+    <None Remove="tests/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- build/seraphiconfix.zip: the DLL and modinfo.json at the top level, as the game loads it. -->
+  <Target Name="ModZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <_ZipStage>$(IntermediateOutputPath)modzip/</_ZipStage>
+      <_ZipOut>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'seraphiconfix.zip'))</_ZipOut>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_ZipStage)" />
+    <Copy SourceFiles="$(TargetPath);modinfo.json" DestinationFolder="$(_ZipStage)" />
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_ZipOut)'))" />
+    <ZipDirectory SourceDirectory="$(_ZipStage)" DestinationFile="$(_ZipOut)" Overwrite="true" />
+    <Message Importance="high" Text="mod zip: $(_ZipOut)" />
+  </Target>
+
+</Project>
