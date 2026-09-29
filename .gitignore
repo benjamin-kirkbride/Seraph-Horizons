@@ -11,3 +11,7 @@ TestResults/
 
 # python
 __pycache__/
+
+# tools/site-data
+/tools/site-data/node_modules/
+/tools/site-data/dist/

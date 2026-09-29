@@ -1,0 +1,28 @@
+{
+  "name": "@seraph-horizons/site-data",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Validates, migrates and assembles recipe exports for the recipe browser.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "site-data": "dist/bin.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "cli": "node --max-old-space-size=8192 dist/bin.js"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
