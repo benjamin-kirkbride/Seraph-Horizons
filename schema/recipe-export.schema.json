@@ -1,0 +1,381 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/benjamin-kirkbride/Seraph-Horizons/schema/recipe-export.schema.json",
+  "title": "Seraph Horizons recipe export",
+  "description": "One export of the pack's items and recipes, dumped from a running dedicated server. See docs/recipe-browser/schema.md.",
+  "type": "object",
+  "required": ["schemaVersion", "generator", "pack", "mods", "items", "recipes", "recipeTypes", "guides"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "pack": {
+      "type": "object",
+      "required": ["id", "version", "gameVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "gameVersion": { "type": "string", "minLength": 1 }
+      }
+    },
+    "mods": {
+      "description": "Every loaded mod, the base game's own (game, survival, creative) included. Keyed by mod id, which is also the asset domain used in codes unless `domains` says otherwise.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/modId" },
+      "additionalProperties": { "$ref": "#/$defs/mod" }
+    },
+    "items": {
+      "description": "Items and blocks, keyed by full code (domain:path). Holds every handbook-visible collectible plus every collectible a recipe or source references.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/code" },
+      "additionalProperties": { "$ref": "#/$defs/item" }
+    },
+    "recipes": {
+      "description": "One record per recipe definition. Sorted by id.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/recipe" }
+    },
+    "recipeTypes": {
+      "description": "One entry per recipe type present in `recipes`, keyed by the type code.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/typeCode" },
+      "additionalProperties": { "$ref": "#/$defs/recipeType" }
+    },
+    "guides": {
+      "description": "Handbook guide pages that are not tied to one item.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/guide" }
+    },
+    "extra": { "$ref": "#/$defs/extra" }
+  },
+
+  "$defs": {
+    "modId": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "code": {
+      "description": "A full asset code: domain, colon, path. Always lower case, domain always present.",
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+:[^\\s:]+$"
+    },
+    "codePattern": {
+      "description": "A code that may contain `*` wildcards and `{name}` placeholders.",
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+:[^\\s:]+$"
+    },
+    "typeCode": { "type": "string", "pattern": "^[a-z0-9_-]+(:[a-z0-9_/-]+)?$" },
+    "kind": { "enum": ["item", "block"] },
+    "extra": {
+      "description": "Data that does not fit the schema yet. Readers must ignore what they do not know.",
+      "type": "object"
+    },
+
+    "mod": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "authors": { "type": "array", "items": { "type": "string" } },
+        "website": { "type": "string" },
+        "description": { "type": "string" },
+        "side": { "type": "string" },
+        "domains": {
+          "description": "Asset domains this mod owns, when they differ from its id.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "stack": {
+      "description": "A concrete item stack.",
+      "type": "object",
+      "required": ["code", "kind", "quantity"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "$ref": "#/$defs/code" },
+        "kind": { "$ref": "#/$defs/kind" },
+        "quantity": { "type": "number", "minimum": 0 },
+        "litres": { "description": "Set for liquids measured in litres.", "type": "number", "minimum": 0 },
+        "attributes": { "description": "Stack attributes as JSON.", "type": "object" },
+        "name": { "description": "Display name of this exact stack, when attributes change it.", "type": "string" }
+      }
+    },
+
+    "item": {
+      "type": "object",
+      "required": ["kind", "name", "mod", "handbookVisible"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "$ref": "#/$defs/kind" },
+        "name": { "description": "English display name.", "type": "string" },
+        "mod": { "description": "Id of the mod that registered it; a key of `mods`.", "$ref": "#/$defs/modId" },
+        "handbookVisible": { "type": "boolean" },
+        "description": { "description": "English handbook or tooltip text. May contain VTML markup.", "type": "string" },
+        "attributes": { "$ref": "#/$defs/itemAttributes" },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "itemAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxStackSize": { "type": "integer", "minimum": 1 },
+        "durability": { "type": "integer", "minimum": 0 },
+        "tool": { "description": "Tool type, lower case (pickaxe, axe, ...).", "type": "string" },
+        "toolTier": { "type": "integer", "minimum": 0 },
+        "requiredMiningTier": { "type": "integer", "minimum": 0 },
+        "attackPower": { "type": "number" },
+        "materialDensity": { "type": "number" },
+        "nutrition": {
+          "type": "object",
+          "required": ["category", "satiety"],
+          "additionalProperties": false,
+          "properties": {
+            "category": { "type": "string" },
+            "satiety": { "type": "number" },
+            "health": { "type": "number" }
+          }
+        },
+        "burn": {
+          "description": "Use as fuel.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "temperature": { "type": "number" },
+            "durationSeconds": { "type": "number" }
+          }
+        },
+        "smelting": {
+          "description": "What heating this item produces.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "meltingPoint": { "type": "number" },
+            "durationSeconds": { "type": "number" },
+            "inputQuantity": { "type": "number" },
+            "requiresContainer": { "type": "boolean" },
+            "method": { "type": "string" },
+            "output": { "$ref": "#/$defs/stack" }
+          }
+        },
+        "storageFlags": {
+          "description": "Names of the EnumItemStorageFlags set on the item, lower case.",
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "source": {
+      "description": "One way to obtain the item other than a recipe.",
+      "type": "object",
+      "required": ["type", "from"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["blockDrop", "entityDrop", "traderSells", "traderBuys", "other"] },
+        "from": { "description": "Code of the block, entity or trader.", "$ref": "#/$defs/code" },
+        "fromName": { "description": "English display name of `from`.", "type": "string" },
+        "quantity": {
+          "type": "object",
+          "required": ["avg"],
+          "additionalProperties": false,
+          "properties": {
+            "avg": { "type": "number" },
+            "var": { "type": "number" }
+          }
+        },
+        "tool": { "description": "Tool type required for this drop.", "type": "string" },
+        "price": { "description": "Trader price in rusty gears.", "type": "number" },
+        "note": { "type": "string" },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "ingredient": {
+      "description": "One ingredient slot as the recipe defines it, before wildcard resolution.",
+      "type": "object",
+      "required": ["code", "kind", "quantity"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "description": "Grid recipes: the pattern character of this ingredient.", "type": "string", "minLength": 1, "maxLength": 1 },
+        "code": { "$ref": "#/$defs/codePattern" },
+        "kind": { "$ref": "#/$defs/kind" },
+        "quantity": { "type": "number", "minimum": 0 },
+        "litres": { "type": "number", "minimum": 0 },
+        "attributes": { "type": "object" },
+        "wildcardName": { "description": "Variable the wildcard binds, used as `{name}` in outputs.", "type": "string" },
+        "allowedVariants": { "type": "array", "items": { "type": "string" } },
+        "skipVariants": { "type": "array", "items": { "type": "string" } },
+        "isTool": { "description": "Not consumed; loses durability instead.", "type": "boolean" },
+        "toolDurabilityCost": { "type": "integer", "minimum": 0 },
+        "returned": { "description": "Stack handed back after crafting.", "$ref": "#/$defs/stack" },
+        "role": { "description": "Type-specific role, e.g. alloy or cooking slot code.", "type": "string" },
+        "minQuantity": { "description": "Cooking: fewest stacks of this ingredient.", "type": "number", "minimum": 0 },
+        "maxQuantity": { "description": "Cooking: most stacks of this ingredient.", "type": "number", "minimum": 0 },
+        "minRatio": { "description": "Alloy: smallest share, 0 to 1.", "type": "number", "minimum": 0, "maximum": 1 },
+        "maxRatio": { "description": "Alloy: largest share, 0 to 1.", "type": "number", "minimum": 0, "maximum": 1 },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "output": {
+      "description": "An output as the recipe defines it; the code may contain `{name}` placeholders.",
+      "type": "object",
+      "required": ["code", "kind", "quantity"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "$ref": "#/$defs/codePattern" },
+        "kind": { "$ref": "#/$defs/kind" },
+        "quantity": { "type": "number", "minimum": 0 },
+        "litres": { "type": "number", "minimum": 0 },
+        "attributes": { "type": "object" },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "variant": {
+      "description": "One resolved form of the recipe. A recipe without wildcards has exactly one.",
+      "type": "object",
+      "required": ["ingredients", "outputs"],
+      "additionalProperties": false,
+      "properties": {
+        "bindings": {
+          "description": "Wildcard variable values of this variant, e.g. {\"wood\": \"oak\"}.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "ingredients": {
+          "description": "Aligned with the recipe's `ingredients`: for each slot, the concrete stacks accepted. An empty list means nothing registered matches.",
+          "type": "array",
+          "items": { "type": "array", "items": { "$ref": "#/$defs/stack" } }
+        },
+        "outputs": { "type": "array", "items": { "$ref": "#/$defs/stack" } }
+      }
+    },
+
+    "voxelLayers": {
+      "description": "Layers bottom to top; each layer is rows of equal length; `#` is filled, `_` is empty.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string", "pattern": "^[#_]+$" }
+      }
+    },
+
+    "recipe": {
+      "type": "object",
+      "required": ["id", "type", "mod", "ingredients", "outputs", "variants"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Unique and stable between exports of the same pack: `<type>|<source asset>|<index in that asset>`.",
+          "type": "string",
+          "minLength": 1
+        },
+        "type": { "description": "A key of `recipeTypes`.", "$ref": "#/$defs/typeCode" },
+        "mod": { "description": "Id of the mod whose asset defines the recipe; a key of `mods`.", "$ref": "#/$defs/modId" },
+        "source": { "description": "Asset location of the defining file.", "type": "string" },
+        "enabled": { "description": "False when the definition is switched off. Absent means true.", "type": "boolean" },
+        "ingredients": { "type": "array", "items": { "$ref": "#/$defs/ingredient" } },
+        "outputs": { "type": "array", "items": { "$ref": "#/$defs/output" } },
+        "variants": { "type": "array", "items": { "$ref": "#/$defs/variant" } },
+        "grid": {
+          "description": "type grid only.",
+          "type": "object",
+          "required": ["width", "height", "shapeless", "pattern"],
+          "additionalProperties": false,
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "shapeless": { "type": "boolean" },
+            "pattern": {
+              "description": "`height` rows of `width` characters. Each character is an ingredient `key`; `_` is an empty cell.",
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "copyAttributesFrom": { "type": "string" }
+          }
+        },
+        "voxels": {
+          "description": "types smithing, knapping and clayforming.",
+          "$ref": "#/$defs/voxelLayers"
+        },
+        "barrel": {
+          "description": "type barrel only.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sealHours": { "description": "0 means no sealing: mixing is instant.", "type": "number", "minimum": 0 }
+          }
+        },
+        "alloy": {
+          "description": "type alloy only. Ratios live on the ingredients.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        },
+        "cooking": {
+          "description": "type cooking only. Slot quantities live on the ingredients.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "code": { "description": "The meal code, e.g. meatystew.", "type": "string" },
+            "cooksInto": { "$ref": "#/$defs/stack" },
+            "dirtyPot": { "type": "boolean" }
+          }
+        },
+        "requirements": {
+          "description": "Anything else needed, in plain English, e.g. a trait or a machine.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "recipeType": {
+      "type": "object",
+      "required": ["name", "count", "shape"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "description": "English display name, e.g. Smithing.", "type": "string" },
+        "count": { "description": "Number of records of this type in `recipes`.", "type": "integer", "minimum": 0 },
+        "shape": {
+          "description": "Which type-specific block the records carry. `generic` has none.",
+          "enum": ["grid", "voxels", "barrel", "alloy", "cooking", "generic"]
+        },
+        "registry": { "description": "Engine registry or mod system the recipes were read from.", "type": "string" },
+        "mod": { "description": "Mod that registered the type.", "$ref": "#/$defs/modId" }
+      }
+    },
+
+    "guide": {
+      "type": "object",
+      "required": ["code", "title", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "text": { "description": "English text. May contain VTML markup.", "type": "string" },
+        "mod": { "$ref": "#/$defs/modId" }
+      }
+    }
+  }
+}
