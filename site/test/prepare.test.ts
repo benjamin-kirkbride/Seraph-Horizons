@@ -112,6 +112,35 @@ describe("wildcards in the reverse indexes", () => {
     expect(r.detail("game:plankpile").usedIn).toBeUndefined();
   });
 
+  // survival/recipes/grid/fishinggear.json: the line is `{line}`, which as a pattern
+  // matches every code of the game; the game accepts flax twine and rope.
+  it("takes the variants, not the pattern, when a recipe has variants", () => {
+    const stack = (code: string) => ({ code, kind: "item" as const, quantity: 1 });
+    const exp = exportWith(
+      ["game:stick", "game:flaxtwine", "game:rope", "game:torch-basic-lit-up", "game:fishingpole-simple-wood"],
+      [
+        {
+          id: "grid|game:recipes/grid/fishinggear.json|0",
+          type: "grid",
+          mod: "game",
+          ingredients: [stack("game:stick"), stack("game:{line}")],
+          outputs: [stack("game:fishingpole-simple-wood")],
+          variants: [
+            { bindings: { line: "flaxtwine" }, ingredients: [[stack("game:stick")], [stack("game:flaxtwine")]], outputs: [stack("game:fishingpole-simple-wood")] },
+            { bindings: { line: "rope" }, ingredients: [[stack("game:stick")], [stack("game:rope")]], outputs: [stack("game:fishingpole-simple-wood")] },
+          ],
+        },
+      ],
+    );
+    const r = reader(prepareData(exp).files);
+    const pole = { grid: ["grid|game:recipes/grid/fishinggear.json|0"] };
+    expect(r.ids(r.detail("game:rope").usedIn)).toEqual(pole);
+    expect(r.ids(r.detail("game:flaxtwine").usedIn)).toEqual(pole);
+    expect(r.ids(r.detail("game:stick").usedIn)).toEqual(pole);
+    expect(r.detail("game:torch-basic-lit-up").usedIn).toBeUndefined();
+    expect(r.detail("game:fishingpole-simple-wood").usedIn).toBeUndefined();
+  });
+
   it("honours allowedVariants", () => {
     const exp = exportWith(planks, [
       {
