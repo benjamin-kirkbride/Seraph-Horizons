@@ -1,7 +1,7 @@
 # Icons
 
-Item and block icons for the recipe browser, rendered in the game client and imported with
-`tools/icons.py`. Do not edit these files by hand.
+Item and block icons for the recipe browser, rendered in the game client with the local mod in
+`tools/icon-export/` and imported with `tools/icons.py`. Do not edit these files by hand.
 
 - `index.json` maps item codes to image hashes: `{ "schemaVersion": 1, "size": 64, "icons": { "game:stick": "<sha256>" } }`.
 - `<first two hex digits>/<sha256>.png` is one distinct image, named by the sha256 of the file.
