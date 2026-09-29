@@ -109,16 +109,30 @@ jobs:
             ${{ runner.temp }}/smoke-data/smoke-stdout.log
 
   atlas:
-    name: Atlas pack scenarios
+    name: Atlas pack scenarios (${{ matrix.shard }})
     needs: [tree, lock]
     if: needs.tree.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # Atlas runs one embedded server per process, so classes can only run in parallel as
+    # separate jobs. The item and recipe classes share one shard because they read the same
+    # export, built once per process. `rest` is the complement filter, so a new class
+    # lands there without anyone having to list it.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: export
+            filter: FullyQualifiedName~.ItemExportScenarios.|FullyQualifiedName~.RecipeExportScenarios.
+          - shard: rest
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
       # Local-only icon export mod (never shipped): keep it compiling, and test its logic.
+      # Only on the shorter shard.
       - name: Icon export mod builds and its unit tests pass
+        if: matrix.shard == 'rest'
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"
           DOTNET_NOLOGO: "1"
@@ -129,21 +143,23 @@ jobs:
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"
           DOTNET_NOLOGO: "1"
+          FILTER: ${{ matrix.filter }}
         run: >
           dotnet test tests/PackTests
+          --filter "$FILTER"
           --logger "trx;LogFileName=atlas.trx"
           --logger "console;verbosity=normal"
           --results-directory "$RUNNER_TEMP/atlas-results"
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: atlas-results
+          name: atlas-results-${{ matrix.shard }}
           path: ${{ runner.temp }}/atlas-results/
       # Atlas keeps a failed class's scratch world (incl. server-main.log) under $TMPDIR/atlas.
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: atlas-scratch
+          name: atlas-scratch-${{ matrix.shard }}
           path: /tmp/atlas/*/Logs/
           if-no-files-found: ignore
 
