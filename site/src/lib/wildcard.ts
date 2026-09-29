@@ -28,10 +28,13 @@ export function compilePattern(pattern: string): CompiledPattern | null {
     }
   }
   const groups: string[] = [];
-  let re = "";
+  // A wildcard in the domain (`*:plank-*`) accepts any mod's item. It binds nothing, so
+  // it must not take the place of the first `*` that allowedVariants filters on.
+  const anyDomain = domain.includes("*");
+  let re = anyDomain ? `${domain.split("*").map(escapeRe).join("[^:]*")}:` : "";
   let prefix = "";
-  let literal = true;
-  const parts = pattern.split(/(\*|\{[^}]*\})/);
+  let literal = !anyDomain;
+  const parts = (anyDomain ? path : pattern).split(/(\*|\{[^}]*\})/);
   for (const part of parts) {
     if (part === "") continue;
     if (part === "*") {

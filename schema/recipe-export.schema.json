@@ -66,9 +66,9 @@
       "pattern": "^[a-z0-9_-]+:[^\\s:]+$"
     },
     "codePattern": {
-      "description": "A code that may contain `*` wildcards and `{name}` placeholders.",
+      "description": "A code that may contain `*` wildcards and `{name}` placeholders. The domain can be a wildcard too: `*:plank-*` accepts planks of every mod.",
       "type": "string",
-      "pattern": "^[a-z0-9_-]+:[^\\s:]+$"
+      "pattern": "^[a-z0-9_*-]+:[^\\s:]+$"
     },
     "typeCode": { "type": "string", "pattern": "^[a-z0-9_-]+(:[a-z0-9_/-]+)?$" },
     "kind": { "enum": ["item", "block"] },

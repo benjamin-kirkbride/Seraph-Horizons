@@ -17,6 +17,15 @@ describe("matchSorted", () => {
     expect(pick("game:plank-*")).toEqual(["game:plank-birch", "game:plank-oak"]);
   });
 
+  it("matches a `*` domain against every mod", () => {
+    expect(pick("*:plank-*")).toEqual(["game:plank-birch", "game:plank-oak", "mymod:plank-oak"]);
+    expect(pick("*:plank-oak")).toEqual(["game:plank-oak", "mymod:plank-oak"]);
+  });
+
+  it("filters variants on the path's `*`, not on a `*` domain", () => {
+    expect(pick("*:plank-*", { "*": { allowedVariants: ["oak"] } })).toEqual(["game:plank-oak", "mymod:plank-oak"]);
+  });
+
   it("matches `*` in the middle and at the start of the path", () => {
     expect(pick("game:*-oak")).toEqual(["game:plank-oak"]);
     expect(pick("game:planks-*-hor")).toEqual(["game:planks-oak-hor"]);
