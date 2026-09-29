@@ -11,3 +11,12 @@ TestResults/
 
 # python
 __pycache__/
+
+# recipe browser site
+/site/node_modules/
+/site/dist/
+/site/public/data/
+/site/public/icons/
+/site/e2e/.work/
+/site/playwright-report/
+/site/test-results/
