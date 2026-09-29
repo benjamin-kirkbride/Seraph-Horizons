@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { formatRatio, slotStacks, variantOutputs } from "../lib/recipe-view.ts";
+  import { formatRatio, slotStacks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import Slot from "../components/Slot.svelte";
 
@@ -22,12 +22,6 @@
       {/each}
     </tbody>
   </table>
-  <span class="arrow" aria-hidden="true">→</span>
-  <div class="outputs" role="group" aria-label={t.output}>
-    {#each variantOutputs(recipe, variant) as out, i (i)}
-      <div data-output={i}><Slot stacks={[out]} {tick} {data} showName /></div>
-    {/each}
-  </div>
 </div>
 
 <style>
@@ -43,9 +37,5 @@
   .ratio {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-  }
-  .arrow {
-    font-size: 1.5rem;
-    color: var(--muted);
   }
 </style>
