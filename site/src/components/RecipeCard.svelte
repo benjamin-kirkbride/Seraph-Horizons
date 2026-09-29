@@ -14,6 +14,7 @@
   import AlloyRecipe from "../renderers/AlloyRecipe.svelte";
   import CookingRecipe from "../renderers/CookingRecipe.svelte";
   import GenericRecipe from "../renderers/GenericRecipe.svelte";
+  import Slot from "./Slot.svelte";
 
   let {
     recipe,
@@ -35,7 +36,8 @@
   const cycles = $derived(n > 1 || variants.some((v) => (recipe.variants[v]?.ingredients ?? []).some((slot) => slot.length > 1)));
   const bindings = $derived(Object.entries(recipe.variants[variant]?.bindings ?? {}));
 
-  const outputNames = $derived(variantOutputs(recipe, variant).map((o) => o.name ?? data.nameOf(o.code)).join(", "));
+  const outputs = $derived(variantOutputs(recipe, variant));
+  const outputNames = $derived(outputs.map((o) => o.name ?? data.nameOf(o.code)).join(", "));
 
   function move(by: number) {
     if (paused) frozen += by;
@@ -66,6 +68,12 @@
 </script>
 
 <article class="card" aria-label="{type.name}: {outputNames}" data-recipe-id={recipe.id} data-shape={type.shape} data-variant={variant}>
+  <!-- What the recipe makes heads the card; the renderer below shows what goes in. -->
+  <h4 class="outputs">
+    {#each outputs as out, i (i)}
+      <span data-output={i}><Slot stacks={[out]} tick={step} {data} showName /></span>
+    {/each}
+  </h4>
   <!-- The group heading already names the type, so the header only holds what differs. -->
   {#if recipe.mod !== "game" || bindings.length > 0 || cycles}
   <header>
@@ -106,6 +114,14 @@
     border-radius: var(--radius);
     padding: 0.75rem;
     min-width: 0;
+  }
+  .outputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    margin: 0 0 0.6rem;
+    font-size: 1.05rem;
+    font-weight: 600;
   }
   header {
     display: flex;
