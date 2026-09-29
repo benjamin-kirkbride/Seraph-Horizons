@@ -26,13 +26,31 @@ Without `site/public/icons/index.json` every item shows a lettered placeholder.
 
 ## Icon background
 
-Every icon, and every recipe slot, sits on `--icon-bg` from `site/src/app.css`, with
-`--icon-border` and `--icon-text` (placeholder letters) beside it. It is light in both
-themes because most of the pack's icons are dark: half of them have a mean luminance
-under 0.09, so on the dark theme's surfaces iron, steel and machinery all but vanished.
-The dark theme uses a mid-light grey (`#bdb8ae`) rather than something whiter, because
-the game's white items (wool, white dye, milk) are drawn around `#d6ccc2` to `#f2f2f2`
-and need to stay brighter than their tile.
+Every icon, and every recipe slot, sits on a tile that copies the game's item slot, the
+same in both themes. The tokens are in `site/src/app.css`: `--icon-fill` paints it,
+from `--icon-bg` (the centre), `--icon-shade` and `--icon-falloff`; `--icon-border` and
+`--icon-text` (placeholder letters) go with it.
+
+The game draws the slot in code, not from a texture. `GuiElementItemstackInfo` (the
+tooltip and handbook header) fills a square with `GuiStyle.DialogSlotBackColor`
+(`ColorSchematic`, `#ffe2c2`), strokes its edge 5 px wide in `DialogSlotFrontColor`
+(`ColorWood`, `#845c43`), blurs it three times so the stroke bleeds inwards, and adds a
+faint inset emboss. Inventory slots (`GuiElementItemSlotGridBase`) use the same two
+colours with a thinner, less blurred stroke, rounded corners and a black outline. The
+site follows the tooltip, which is what a player compared it with. The centre (`#faddbd`)
+and the falloff are measured from a screenshot of the tooltip rather than taken from the
+code: the screenshot's brightest point is a little darker than `#ffe2c2`, and the blur
+cannot be copied exactly. Over the centre colour, the site lays `#845c43` at up to 28%
+along each axis in two linear gradients, so the corners get it twice, much as the blurred
+stroke does. The stops are percentages, so the falloff scales with the tile from 24 px
+links to 64 px headers. It is within a few levels of the screenshot at every point.
+
+The tile is light because most of the pack's icons are dark: half of them have a mean
+luminance under 0.09, and iron, steel and machinery all but vanished on the dark theme's
+surfaces. The game has the same limits as the site: pale items (eggs, bone, white wool,
+milk, white dye) are harder to see on it than dark ones. In the dark theme the page frames
+the tile the way the game's dark panel does; in the light theme the tile's outline is
+`#845c43` so that it still reads as a tile on the near-white page.
 
 ## Tests
 
@@ -53,8 +71,10 @@ can be tested), adds a test icon for `game:ingot-copper` and the real icons comm
 under `site/e2e/icons/` (plain files, not LFS, so CI needs no LFS fetch), and serves the result at
 `http://127.0.0.1:4317/Seraph-Horizons/`. The same build is served at `/noicons/` with no
 `icons/` directory. The tests check facts from the vanilla 1.22.7 assets, and each names
-the asset file it relies on. `e2e/icons.spec.ts` measures the colours actually painted
-behind icons in both colour schemes, with the WCAG formulas in `site/src/lib/contrast.ts`. Output goes to `site/e2e/.work/` (traces and screenshots of
+the asset file it relies on. `e2e/icons.spec.ts` screenshots the tile with its contents
+hidden, decodes the PNG (`e2e/png.ts`) and compares the centre and corners with colours
+sampled from the in-game screenshot, in both colour schemes and at every size an icon is
+shown; it checks text and icon contrast with the WCAG formulas in `site/src/lib/contrast.ts`. Output goes to `site/e2e/.work/` (traces and screenshots of
 failures in `site/e2e/.work/results/`); with `CI` set there is also an HTML report in
 `site/playwright-report/`.
 
