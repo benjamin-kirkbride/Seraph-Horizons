@@ -1,18 +1,18 @@
 :root {
-  --bg: #f6f4ef;
-  --surface: #ffffff;
-  --surface-2: #eeebe3;
-  --text: #1f1d1a;
-  --muted: #5c574f;
-  --border: #d3cec3;
-  --accent: #3f5f2a;
-  --accent-text: #ffffff;
-  --link: #2f5d8a;
-  --notice-bg: #fff4d6;
-  --notice-border: #c9a64a;
-  --filled: #6f6252;
-  --cell-empty: #f1eee7;
-  --focus: #1c64b8;
+  --bg: light-dark(#f6f4ef, #1b1a18);
+  --surface: light-dark(#ffffff, #24231f);
+  --surface-2: light-dark(#eeebe3, #2e2c27);
+  --text: light-dark(#1f1d1a, #ece8df);
+  --muted: light-dark(#5c574f, #b3ab9d);
+  --border: light-dark(#d3cec3, #45423b);
+  --accent: light-dark(#3f5f2a, #8fb56d);
+  --accent-text: light-dark(#ffffff, #14200b);
+  --link: light-dark(#2f5d8a, #8cbcf0);
+  --notice-bg: light-dark(#fff4d6, #3a3220);
+  --notice-border: light-dark(#c9a64a, #8a7433);
+  --filled: light-dark(#6f6252, #c7b79f);
+  --cell-empty: light-dark(#f1eee7, #2a2824);
+  --focus: light-dark(#1c64b8, #8cbcf0);
   /* Behind every item icon: the game's item slot, the same in both themes. The game fills
      the slot with #ffe2c2 and blurs a #845c43 stroke into its edges; the centre and the
      falloff are measured from an in-game tooltip. See docs/recipe-browser/site.md. */
@@ -37,13 +37,16 @@
     color-mix(in srgb, var(--icon-shade) 25%, transparent) 95%,
     color-mix(in srgb, var(--icon-shade) 28%, transparent) 100%;
   --icon-fill: linear-gradient(to right, var(--icon-falloff)), linear-gradient(var(--icon-falloff)), var(--icon-bg);
-  /* On a near-white page the tile's light edge needs a firm outline to read as a tile. */
-  --icon-border: #845c43;
+  /* On a near-white page the tile's light edge needs a firm outline to read as a tile; a
+     dark page already frames it the way the game's dark panel does. */
+  --icon-border: light-dark(#845c43, #403529);
   /* The game's dialog panel colour. */
   --icon-text: #403529;
   --radius: 6px;
   --slot: 44px;
-  color-scheme: light;
+  /* Every light-dark() pair above follows this: the reader's system setting, unless they
+     picked a theme in the header (src/lib/theme.ts), which sets data-theme. */
+  color-scheme: light dark;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.5;
@@ -51,26 +54,12 @@
   color: var(--text);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1b1a18;
-    --surface: #24231f;
-    --surface-2: #2e2c27;
-    --text: #ece8df;
-    --muted: #b3ab9d;
-    --border: #45423b;
-    --accent: #8fb56d;
-    --accent-text: #14200b;
-    --link: #8cbcf0;
-    --notice-bg: #3a3220;
-    --notice-border: #8a7433;
-    --filled: #c7b79f;
-    --cell-empty: #2a2824;
-    --focus: #8cbcf0;
-    /* The page already frames the tile the way the game's dark panel does. */
-    --icon-border: #403529;
-    color-scheme: dark;
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 * {
