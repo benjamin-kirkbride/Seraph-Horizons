@@ -39,8 +39,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
+      # --export also loads the CI-only export mod (tools/recipe-export), which dumps the
+      # recipes and items the recipe browser shows. release.yml and next.yml publish it.
       - name: Boot dedicated server with the full pack
-        run: python3 tools/packtool.py smoke --data "$RUNNER_TEMP/smoke-data"
+        run: >
+          python3 tools/packtool.py smoke --data "$RUNNER_TEMP/smoke-data"
+          --export "$RUNNER_TEMP/recipe-export/recipes.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: recipe-export
+          path: ${{ runner.temp }}/recipe-export/recipes.json
+          if-no-files-found: error
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -117,13 +126,108 @@ jobs:
           name: dist
           path: dist/
 
+  tools:
+    name: Tool and site unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            tools/site-data/package-lock.json
+            site/package-lock.json
+      # The icon import tests need Pillow; without it they skip and prove nothing.
+      - name: Python tool tests
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 -m unittest discover -s tools/tests -v
+      # Works on the LFS pointer files this checkout has: no image is downloaded.
+      - name: Icon index matches the icon files
+        run: python3 tools/icons.py verify
+      - name: tools/site-data
+        run: |
+          npm ci --prefix tools/site-data
+          npm --prefix tools/site-data run typecheck
+          npm --prefix tools/site-data test
+      - name: site
+        run: |
+          npm ci --prefix site
+          npm --prefix site run check
+          npm --prefix site test
+
+  export:
+    name: Recipe export is valid
+    needs: smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/site-data/package-lock.json
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: recipe-export
+          path: ${{ runner.temp }}/recipe-export
+      - name: Export matches the schema and its cross-references hold
+        run: |
+          npm ci --prefix tools/site-data
+          npm --prefix tools/site-data run build
+          node tools/site-data/dist/bin.js validate "$RUNNER_TEMP/recipe-export/recipes.json"
+      # Warns about items without an icon; never fails for them (the site shows placeholders).
+      - name: Icon drift
+        run: python3 tools/icons.py drift --export "$RUNNER_TEMP/recipe-export/recipes.json"
+
+  site:
+    name: Recipe browser end to end
+    needs: smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: recipe-export
+          path: ${{ runner.temp }}/recipe-export
+      - run: npm ci --prefix site
+      - run: npx --prefix site playwright install --with-deps chromium
+      # Against the export this run's server dumped, not a fixture.
+      - name: Playwright
+        env:
+          RECIPE_EXPORT: ${{ runner.temp }}/recipe-export/recipes.json
+        run: npm --prefix site run e2e
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-e2e
+          path: |
+            site/e2e/.work/results/
+            site/playwright-report/
+          if-no-files-found: ignore
+
   # The one required status check (branch protection and .mergify.yml). A
   # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and
   # Mergify both read a skipped required check as passing, so this runs
   # always() and passes only if every job above succeeded.
   ci-ok:
     if: always()
-    needs: [lock, smoke, atlas, cairn]
+    needs: [lock, smoke, atlas, cairn, tools, export, site]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -131,5 +235,5 @@ jobs:
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "lock smoke atlas cairn: $RESULTS"
+          echo "lock smoke atlas cairn tools export site: $RESULTS"
           for r in $RESULTS; do [ "$r" = success ] || exit 1; done
