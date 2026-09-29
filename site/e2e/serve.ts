@@ -1,7 +1,7 @@
 // Playwright's web server: builds the site, prepares the real export given in
 // RECIPE_EXPORT, and serves the build output the way GitHub Pages will, under a sub-path.
 //
-//   /Seraph-Horizons/   the build with data and a small icon set
+//   /Seraph-Horizons/   the build with data and a few icons
 //   /noicons/           the same build with no icons/ directory at all
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -10,7 +10,7 @@ import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { crc32, deflateSync } from "node:zlib";
-import { E2E_VERSIONS, ICON_CODE, PORT, SUB_PATH, NO_ICONS_PATH } from "./config.ts";
+import { E2E_VERSIONS, ICON_CODE, PORT, REAL_ICONS, SUB_PATH, NO_ICONS_PATH } from "./config.ts";
 
 const site = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const work = join(site, "e2e", ".work");
@@ -35,12 +35,18 @@ run(["--max-old-space-size=6144", "--import", "tsx", "scripts/prepare-data.ts", 
 for (const v of others) cpSync(join(root, "data", first!.id), join(root, "data", v.id), { recursive: true });
 writeFileSync(join(root, "data", "versions.json"), JSON.stringify({ default: E2E_VERSIONS[0]!.id, versions: E2E_VERSIONS }));
 
-// One icon, so the page shows a real image for one item and placeholders for the rest.
-const png = solidPng(8, 8, [0xb8, 0x73, 0x33]);
-const hash = createHash("sha256").update(png).digest("hex");
-mkdirSync(join(root, "icons", hash.slice(0, 2)), { recursive: true });
-writeFileSync(join(root, "icons", hash.slice(0, 2), `${hash}.png`), png);
-writeFileSync(join(root, "icons", "index.json"), JSON.stringify({ schemaVersion: 1, size: 64, icons: { [ICON_CODE]: hash } }));
+// A few icons, so pages show real images for some items and placeholders for the rest:
+// a solid test square, and a few of the pack's own icons.
+const iconIndex: Record<string, string> = {};
+function addIcon(code: string, png: Buffer) {
+  const hash = createHash("sha256").update(png).digest("hex");
+  mkdirSync(join(root, "icons", hash.slice(0, 2)), { recursive: true });
+  writeFileSync(join(root, "icons", hash.slice(0, 2), `${hash}.png`), png);
+  iconIndex[code] = hash;
+}
+addIcon(ICON_CODE, solidPng(8, 8, [0xb8, 0x73, 0x33]));
+for (const [code, file] of Object.entries(REAL_ICONS)) addIcon(code, readFileSync(join(site, "e2e", "icons", file)));
+writeFileSync(join(root, "icons", "index.json"), JSON.stringify({ schemaVersion: 1, size: 64, icons: iconIndex }));
 
 const types: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
