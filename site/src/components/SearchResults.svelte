@@ -4,6 +4,7 @@
   import type { ItemRef, VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
   import { t } from "../lib/strings.ts";
+  import { initials } from "../lib/icons.ts";
   import Icon from "./Icon.svelte";
 
   const LIMIT = 100;
@@ -39,7 +40,7 @@
     {#each results.slice(0, LIMIT) as r (r.index)}
       <li>
         <a href={formatRoute({ view: "item", version: data.id, code: r.code })} data-code={r.code}>
-          <Icon code={r.code} size={32} />
+          <Icon code={r.code} size={32} label={initials(r.name)} />
           <span class="text">
             <span class="name">{r.name}</span>
             <span class="meta">

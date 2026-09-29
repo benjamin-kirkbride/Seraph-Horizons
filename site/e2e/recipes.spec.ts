@@ -184,3 +184,23 @@ test("search ranks Copper ingot first for `ingot cop` and works from the keyboar
   await expect(page).toHaveURL(new RegExp(`#/${V}/item/game:ingot-copper$`));
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Copper ingot");
 });
+
+test("a torch is not a use of the fishing pole, whose line is `{line}`: flax twine or rope", async ({ page }) => {
+  // grid/fishinggear.json, first recipe: S = stick, R = {line}, flaxtwine or rope. As a
+  // pattern `{line}` would match any item.
+  await openItem(page, "game:rope");
+  const c = await card(page, "usedIn", "recipes/grid/fishinggear.json");
+  await expect(c.locator('[data-output="0"] [data-code]')).toHaveAttribute("data-code", /^game:fishingpole-simple-/);
+
+  await openItem(page, "game:torch-basic-lit-up");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Torch");
+  await expect(page.locator('[data-item="game:torch-basic-lit-up"]')).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator('[data-recipe-id*="recipes/grid/fishinggear.json"]')).toHaveCount(0);
+});
+
+test("without an icon a search result shows the initials of its name", async ({ page }) => {
+  await page.goto("./");
+  const results = await search(page, "Crude ladder");
+  await expect(results.first().locator("[data-icon-placeholder]")).toHaveText("CL");
+});
