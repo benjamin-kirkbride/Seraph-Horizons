@@ -1,5 +1,5 @@
 # Tag vX.Y.Z (matching pack.toml's version) to publish a GitHub Release with the
-# meta-mod, the .cairn pack file, the mod list and the server bundle. The newest
+# meta-mod, the .cairn.json pack file, the mod list and the server bundle. The newest
 # tag is the repository's "latest" release; builds of main are next.yml's "next".
 name: Release
 
