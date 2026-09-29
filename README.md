@@ -33,7 +33,7 @@ tests/PackTests/        Atlas scenarios: a headless server in `dotnet test` with
 
 The [recipe browser](docs/recipe-browser/README.md), a site for looking up the pack's
 recipes outside the game, lives in `schema/`, `tools/recipe-export/`, `tools/site-data/`,
-`tools/icons.py`, `icons/` and `site/`.
+`tools/icon-export/`, `tools/icons.py`, `icons/` and `site/`.
 
 ## Working on the pack
 

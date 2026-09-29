@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "seraphiconfix",
+  "name": "Seraph Horizons icon export",
+  "description": "Local tool: .seraphicons exports item and block icons for the recipe browser, and the game's own .blockitempngexport and .exponepng draw textures with the full pack loaded. Not part of the pack.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "0.2.0",
+  "side": "Client",
+  "requiredOnServer": false,
+  "dependencies": { "game": "1.22.0" }
+}

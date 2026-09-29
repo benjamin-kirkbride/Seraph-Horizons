@@ -10,7 +10,8 @@ schema/recipe-export.schema.json   the export format (JSON Schema, draft 2020-12
 schema/examples/minimal.json       a small hand-written export that validates
 tools/recipe-export/               CI-only server mod that writes the export (C#)
 tools/site-data/                   validates, migrates and assembles exports for the site (TypeScript)
-tools/icons.py                     turns a client icon export into content-addressed icons
+tools/icon-export/                 local client mod that renders the icons (C#; never shipped)
+tools/icons.py                     turns an icon export into content-addressed icons
 icons/                             icon files (Git LFS) and icons/index.json
 site/                              the app: Vite + Svelte + TypeScript
 tests/PackTests/                   Atlas scenarios, the exporter's included
