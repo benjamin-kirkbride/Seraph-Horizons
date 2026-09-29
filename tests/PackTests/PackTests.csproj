@@ -23,6 +23,13 @@
     <Reference Include="VintagestoryAPI">
       <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(VINTAGE_STORY)/Lib/Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Referenced as a library, not loaded as a mod: scenarios call Exporter.Build themselves. -->
+    <ProjectReference Include="../../tools/recipe-export/SeraphExport.csproj" />
+    <None Include="../../schema/recipe-export.schema.json" Link="recipe-export.schema.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/lock.json" Link="lock.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/known-errors.json" Link="known-errors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
