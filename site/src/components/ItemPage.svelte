@@ -44,8 +44,9 @@
 
   const itemHref = (c: string) => formatRoute({ view: "item", version: data.id, code: c });
 
-  function attributeRows(a: ItemAttributes): [string, string][] {
-    const rows: [string, string][] = [];
+  // An optional third entry is a tooltip explaining the value.
+  function attributeRows(a: ItemAttributes): [string, string, string?][] {
+    const rows: [string, string, string?][] = [];
     const n = (x: number | undefined) => (x === undefined ? "" : formatNumber(x));
     if (a.maxStackSize !== undefined) rows.push([t.attr.maxStackSize, n(a.maxStackSize)]);
     if (a.durability !== undefined) rows.push([t.attr.durability, n(a.durability)]);
@@ -53,7 +54,7 @@
     if (a.toolTier !== undefined) rows.push([t.attr.toolTier, n(a.toolTier)]);
     if (a.requiredMiningTier !== undefined) rows.push([t.attr.requiredMiningTier, n(a.requiredMiningTier)]);
     if (a.attackPower !== undefined) rows.push([t.attr.attackPower, n(a.attackPower)]);
-    if (a.materialDensity !== undefined) rows.push([t.attr.materialDensity, n(a.materialDensity)]);
+    if (a.materialDensity !== undefined) rows.push([t.attr.materialDensity, n(a.materialDensity), t.densityHint(a.materialDensity)]);
     if (a.nutrition) {
       const parts = [a.nutrition.category, `satiety ${n(a.nutrition.satiety)}`];
       if (a.nutrition.health) parts.push(`health ${n(a.nutrition.health)}`);
@@ -113,7 +114,9 @@
         <h2 id="attr-h">{t.attributes}</h2>
         <table class="attrs">
           <tbody>
-            {#each rows as [k, v] (k)}<tr><th scope="row">{k}</th><td>{v}</td></tr>{/each}
+            {#each rows as [k, v, hint] (k)}
+              <tr><th scope="row">{k}</th><td>{#if hint}<span class="hint" title={hint}>{v}</span>{:else}{v}{/if}</td></tr>
+            {/each}
             {#if detail.smeltsInto !== undefined}
               {@const target = data.ref(detail.smeltsInto)}
               {#if target}<tr><th scope="row">{t.smeltsInto}</th><td><ItemLink code={target.code} {data} /></td></tr>{/if}
@@ -219,6 +222,10 @@
   .description {
     white-space: pre-line;
     max-width: 48rem;
+  }
+  .hint {
+    text-decoration: underline dotted;
+    cursor: help;
   }
   .scroll {
     overflow-x: auto;
