@@ -13,6 +13,12 @@
   --filled: #6f6252;
   --cell-empty: #f1eee7;
   --focus: #1c64b8;
+  /* Behind every item icon. Light in both themes: most game icons are dark metal, wood
+     and machinery, and nearly vanish on a dark surface. See docs/recipe-browser/site.md. */
+  --icon-bg: #eeebe3;
+  --icon-border: #cdc8bd;
+  --icon-text: #4a463e;
+  --icon-inset: inset 0 1px 3px rgb(0 0 0 / 0.18);
   --radius: 6px;
   --slot: 44px;
   color-scheme: light;
@@ -39,6 +45,10 @@
     --filled: #c7b79f;
     --cell-empty: #2a2824;
     --focus: #8cbcf0;
+    --icon-bg: #bdb8ae;
+    --icon-border: #8f897d;
+    --icon-text: #3a372f;
+    --icon-inset: inset 0 1px 3px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
 }
