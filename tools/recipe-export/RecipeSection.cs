@@ -1,16 +1,327 @@
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.RecipeExport.Recipes;
+using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
 
 namespace SeraphHorizons.RecipeExport;
 
-/// <summary>Writes `recipes` and `recipeTypes`.</summary>
+/// <summary>Writes `recipes` and `recipeTypes`. See docs/recipe-browser/exporter.md.</summary>
 public static class RecipeSection
 {
-    /// <returns>Every item and block code the exported recipes reference.</returns>
-    public static ISet<string> Fill(ICoreServerAPI api, JObject root)
+    /// <summary>English names of the base game's types; mod types get a name built from their code.</summary>
+    private static readonly Dictionary<string, string> TypeNames = new()
     {
-        root["recipes"] = new JArray();
-        root["recipeTypes"] = new JObject();
-        return new HashSet<string>();
+        ["grid"] = "Crafting grid",
+        ["smithing"] = "Smithing",
+        ["knapping"] = "Knapping",
+        ["clayforming"] = "Clay forming",
+        ["barrel"] = "Barrel",
+        ["alloy"] = "Alloying",
+        ["cooking"] = "Cooking",
+    };
+
+    /// <returns>Every item and block code the exported recipes reference.</returns>
+    public static ISet<string> Fill(ICoreServerAPI api, JObject root) => Fill(api, root, Registries.Find(api));
+
+    /// <summary>Exports the given registries; a registry that cannot be read throws <see cref="RecipeExportException"/>.</summary>
+    public static ISet<string> Fill(ICoreServerAPI api, JObject root, IReadOnlyList<RegistryInfo> registries)
+    {
+        var ctx = new Context(api);
+        var records = new List<JObject>();
+        var types = new SortedDictionary<string, JObject>(StringComparer.Ordinal);
+        var modNames = api.ModLoader.Mods.ToDictionary(m => m.Info.ModID, m => m.Info.Name);
+
+        foreach (var reg in registries)
+        {
+            List<JObject> exported;
+            string typeCode, shape;
+            try
+            {
+                (typeCode, shape, exported) = ExportRegistry(ctx, reg, types.Keys);
+            }
+            catch (Exception e) when (e is not RecipeExportException)
+            {
+                throw new RecipeExportException($"Recipe registry '{reg.Code}' cannot be serialised: {e.Message}", e);
+            }
+            records.AddRange(exported);
+            var name = TypeNames.GetValueOrDefault(typeCode) ??
+                       $"{Capitalise(TypeName(reg.Code))} ({modNames.GetValueOrDefault(reg.Mod, reg.Mod)})";
+            types[typeCode] = new JObject
+            {
+                ["name"] = name,
+                ["count"] = exported.Count,
+                ["shape"] = shape,
+                ["registry"] = reg.Code,
+                ["mod"] = reg.Mod,
+            };
+        }
+
+        records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));
+        for (int i = 1; i < records.Count; i++)
+            if ((string)records[i]["id"]! == (string)records[i - 1]["id"]!)
+                throw new RecipeExportException($"Duplicate recipe id {records[i]["id"]}");
+
+        root["recipes"] = new JArray(records);
+        root["recipeTypes"] = new JObject(types.Select(kv => new JProperty(kv.Key, kv.Value)));
+        return ctx.Referenced;
     }
+
+    /// <summary>The type part of a registry code: `smithingrecipes` is `smithing`.</summary>
+    public static string TypeName(string registryCode)
+    {
+        foreach (var suffix in new[] { "recipes", "recipe" })
+            if (registryCode.EndsWith(suffix) && registryCode.Length > suffix.Length)
+                return registryCode[..^suffix.Length];
+        return registryCode;
+    }
+
+    private static (string TypeCode, string Shape, List<JObject> Records) ExportRegistry(
+        Context ctx, RegistryInfo reg, IEnumerable<string> taken)
+    {
+        var list = Registries.RecipeList(reg.Registry)
+                   ?? throw new NotSupportedException($"{reg.Registry.GetType().FullName} keeps its recipes in no list");
+        var element = Registries.ElementType(list)
+                      ?? throw new NotSupportedException($"cannot tell the recipe class of {list.GetType().FullName}");
+        var reader = Readers.For(element);
+
+        var typeName = TypeName(reg.Code);
+        var typeCode = Registries.BaseGameMods.Contains(reg.Mod) ? typeName : $"{reg.Mod}:{typeName}";
+        if (taken.Contains(typeCode)) typeCode = $"{reg.Mod}:{reg.Code}";
+
+        var registered = new List<RecipeForm>();
+        foreach (var recipe in list)
+            if (recipe != null) registered.Add(reader.Read(recipe));
+
+        // Definition files: the type's own folder, plus any other file a registered recipe's
+        // Name points at (ACulinaryArtillery's simmerrecipes load from recipes/simmering).
+        var files = new List<DefinitionFile>();
+        var seen = new HashSet<string>();
+        void AddFolder(string folder)
+        {
+            foreach (var f in ctx.Definitions.Folder(folder, element, reader))
+                if (seen.Add(f.Location.ToString())) files.Add(f);
+        }
+        AddFolder(typeName);
+        foreach (var name in registered.Select(r => r.Name).OfType<AssetLocation>().DistinctBy(n => n.ToString()))
+        {
+            var parts = name.Path.Split('/');
+            if (parts.Length > 2 && parts[0] == "recipes" && name.Path.EndsWith(".json")) AddFolder(parts[1]);
+            else if (parts[0] == "recipes" && !seen.Contains(name.ToString()) &&
+                     ctx.Definitions.At(name, element, reader) is { } single && seen.Add(single.Location.ToString()))
+                files.Add(single);
+        }
+
+        var records = new List<JObject>();
+        foreach (var group in Grouper.Group(registered, files))
+        {
+            if (group.Definition != null && group.Definition.Form == null)
+            {
+                ctx.Api.Logger.Warning("[seraphexport] {0} entry {1} does not parse as {2}; not exported ({3})",
+                    group.Definition.File.Location, group.Definition.Index, element.Name, group.Definition.ParseError);
+                continue;
+            }
+            records.Add(Record(ctx, reg, typeCode, group));
+        }
+        return (typeCode, reader.Shape, records);
+    }
+
+    private static JObject Record(Context ctx, RegistryInfo reg, string typeCode, Group group)
+    {
+        var def = group.Definition;
+        var first = group.Variants.FirstOrDefault()?.Form;
+        var shape = group.Form ?? first!;
+        var o = new JObject();
+        if (def != null)
+        {
+            o["id"] = $"{typeCode}|{def.File.Location}|{def.Index}";
+            o["type"] = typeCode;
+            o["mod"] = def.File.Mod;
+            o["source"] = def.File.Location.ToString();
+            // Some mod loaders (ACulinaryArtillery) register definitions marked disabled.
+            if (!def.Enabled && group.Variants.Count == 0) o["enabled"] = false;
+        }
+        else
+        {
+            // `r<n>` cannot clash with a definition's index when Name is a definition file.
+            o["id"] = $"{typeCode}|{group.CodeSource ?? "code"}|r{group.CodeIndex}";
+            o["type"] = typeCode;
+            var domain = first!.Name?.Domain;
+            o["mod"] = domain != null && ctx.ModIds.Contains(domain) ? domain : reg.Mod;
+        }
+
+        o["ingredients"] = new JArray(shape.Slots.Select(s => Ingredient(ctx, s)));
+        o["outputs"] = new JArray(shape.Outputs.Select(Output));
+
+        var variants = new List<JObject>();
+        foreach (var v in group.Variants)
+        {
+            var slots = def != null ? Grouper.Align(shape.Slots, v.Form.Slots)! : v.Form.Slots.Select(s => (s, (SlotForm?)s)).ToList();
+            var vo = new JObject();
+            if (v.Bindings.Count > 0) vo["bindings"] = new JObject(v.Bindings.Select(kv => new JProperty(kv.Key, kv.Value)));
+            vo["ingredients"] = new JArray(slots.Select(pair => new JArray(Accepted(ctx, pair.Item2))));
+            vo["outputs"] = new JArray(v.Form.Outputs.Select(out_ => Produced(ctx, out_.Stack)).OfType<JObject>());
+            variants.Add(vo);
+        }
+        // Registration order follows hash sets of variant values; sort for stable output.
+        variants.Sort((a, b) => string.CompareOrdinal(a.ToString(Formatting.None), b.ToString(Formatting.None)));
+        o["variants"] = new JArray(variants);
+
+        var blocks = first ?? shape;
+        if (blocks.BlockName != null && blocks.Block != null) o[blocks.BlockName] = blocks.Block.DeepClone();
+        if (blocks.Voxels is { Count: > 0 } voxels && voxels.All(l => l.HasValues)) o["voxels"] = voxels.DeepClone();
+        var requirements = (first ?? shape).Requirements;
+        if (requirements.Count > 0) o["requirements"] = new JArray(requirements);
+
+        var extra = (JObject)(first ?? shape).Extra.DeepClone();
+        if ((first ?? shape).Attributes is JObject attributes && attributes.HasValues) extra["attributes"] = attributes.DeepClone();
+        if (def == null) extra["registeredByCode"] = true;
+        else if (!def.Enabled && group.Variants.Count > 0) extra["disabledButRegistered"] = true;
+        else if (def.Enabled && group.Variants.Count == 0) extra["resolved"] = false;
+        if (def != null && group.Form?.Name != null) extra["name"] = group.Form.Name.ToString();
+        if (extra.HasValues) o["extra"] = extra;
+        return o;
+    }
+
+    private static JObject Ingredient(Context ctx, SlotForm slot)
+    {
+        var spec = slot.Primary;
+        var o = new JObject();
+        if (slot.Key != null) o["key"] = slot.Key;
+        o["code"] = spec.Code?.ToString() ?? ctx.TagCode(spec.Tags);
+        o["kind"] = Kind(spec.Type);
+        o["quantity"] = Num(spec.Quantity);
+        if (spec.Litres != null) o["litres"] = Num(spec.Litres.Value);
+        if (spec.Attributes is JObject attrs && attrs.HasValues) o["attributes"] = attrs.DeepClone();
+        if (spec.WildcardName != null && spec.Code != null && Readers.IsPattern(spec.Code)) o["wildcardName"] = spec.WildcardName;
+        if (spec.AllowedVariants is { Length: > 0 }) o["allowedVariants"] = new JArray(spec.AllowedVariants);
+        if (spec.SkipVariants is { Length: > 0 }) o["skipVariants"] = new JArray(spec.SkipVariants);
+        if (slot.IsTool) o["isTool"] = true;
+        if (slot.ToolDurabilityCost != null) o["toolDurabilityCost"] = slot.ToolDurabilityCost;
+        if (slot.Returned != null)
+        {
+            var produced = Produced(ctx, slot.Returned);
+            o["returned"] = produced ?? new JObject
+            {
+                ["code"] = slot.Returned.Code!.ToString(),
+                ["kind"] = Kind(slot.Returned.Type),
+                ["quantity"] = Num(slot.Returned.Quantity),
+            };
+        }
+        if (slot.Role != null) o["role"] = slot.Role;
+        if (slot.MinQuantity != null) o["minQuantity"] = Num(slot.MinQuantity.Value);
+        if (slot.MaxQuantity != null) o["maxQuantity"] = Num(slot.MaxQuantity.Value);
+        if (slot.MinRatio != null) o["minRatio"] = Num(slot.MinRatio.Value);
+        if (slot.MaxRatio != null) o["maxRatio"] = Num(slot.MaxRatio.Value);
+        var extra = (JObject)slot.Extra.DeepClone();
+        if (!spec.Tags.IsEmpty) extra["tags"] = ctx.Tags(spec.Tags);
+        if (extra.HasValues) o["extra"] = extra;
+        return o;
+    }
+
+    private static JObject Output(OutputForm output)
+    {
+        var spec = output.Stack;
+        var o = new JObject
+        {
+            ["code"] = spec.Code?.ToString() ?? "",
+            ["kind"] = Kind(spec.Type),
+            ["quantity"] = Num(spec.Quantity),
+        };
+        if (spec.Litres != null) o["litres"] = Num(spec.Litres.Value);
+        if (spec.Attributes is JObject attrs && attrs.HasValues) o["attributes"] = attrs.DeepClone();
+        if (output.Extra.HasValues) o["extra"] = output.Extra.DeepClone();
+        return o;
+    }
+
+    /// <summary>Concrete stacks for a registered slot: the union over its alternatives, first wins.</summary>
+    private static IEnumerable<JObject> Accepted(Context ctx, SlotForm? slot)
+    {
+        if (slot == null) yield break;
+        var codes = new HashSet<string>();
+        foreach (var spec in slot.Accepts)
+            foreach (var stack in ctx.Expander.Accepted(spec))
+            {
+                var code = (string)stack["code"]!;
+                if (!codes.Add(code)) continue;
+                ctx.Referenced.Add(code);
+                Round(stack);
+                yield return stack;
+            }
+    }
+
+    private static JObject? Produced(Context ctx, StackSpec spec)
+    {
+        var stack = ctx.Expander.Produced(spec);
+        if (stack == null) return null;
+        ctx.Referenced.Add((string)stack["code"]!);
+        Round(stack);
+        return stack;
+    }
+
+    private static void Round(JObject stack)
+    {
+        foreach (var key in new[] { "quantity", "litres" })
+            if (stack[key] is JValue { Value: double d }) stack[key] = Num(d);
+    }
+
+    private static JToken Num(double d)
+    {
+        d = Math.Round(d, 6);
+        return d == Math.Floor(d) && Math.Abs(d) < long.MaxValue ? new JValue((long)d) : new JValue(d);
+    }
+
+    private static string Kind(EnumItemClass type) => type == EnumItemClass.Block ? "block" : "item";
+
+    private static string Capitalise(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
+
+    private sealed class Context
+    {
+        public readonly ICoreServerAPI Api;
+        public readonly StackExpander Expander;
+        public readonly DefinitionIndex Definitions;
+        public readonly HashSet<string> ModIds;
+        public readonly HashSet<string> Referenced = new(StringComparer.Ordinal);
+
+        public Context(ICoreServerAPI api)
+        {
+            Api = api;
+            Expander = new StackExpander(api.World);
+            Definitions = new DefinitionIndex(api);
+            ModIds = api.ModLoader.Mods.Select(m => m.Info.ModID).ToHashSet();
+        }
+
+        public List<string> TagNames(TagSet set) => set.IsEmpty
+            ? new()
+            : Api.CollectibleTagRegistry.SlowEnumerateTagNames(set).OrderBy(t => t, StringComparer.Ordinal).ToList();
+
+        /// <summary>The tag condition, as in the asset: conditions with required and forbidden tag names.</summary>
+        public JObject Tags(ComplexTagCondition<TagSet> tags) => new()
+        {
+            ["disjunctive"] = tags.isDisjunctive,
+            ["conditions"] = new JArray((tags.conditions ?? Array.Empty<ComplexTagCondition<TagSet>.Condition>())
+                .Select(c => new JObject
+                {
+                    ["required"] = new JArray(TagNames(c.RequiredTags)),
+                    ["forbidden"] = new JArray(TagNames(c.ForbiddenTags)),
+                })),
+        };
+
+        /// <summary>
+        /// A tags-only ingredient has no code, but the schema requires one: `tag:` plus its
+        /// required tags. extra.tags has the full condition.
+        /// </summary>
+        public string TagCode(ComplexTagCondition<TagSet> tags)
+        {
+            var names = tags.conditions is { Length: > 0 } c ? TagNames(c[0].RequiredTags) : new();
+            return "tag:" + (names.Count == 0 ? "any" : string.Join("+", names).Replace(':', '-'));
+        }
+    }
+}
+
+/// <summary>The export cannot represent the pack; names the registry at fault.</summary>
+public sealed class RecipeExportException : Exception
+{
+    public RecipeExportException(string message, Exception? inner = null) : base(message, inner) { }
 }
