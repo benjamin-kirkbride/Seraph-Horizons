@@ -39,9 +39,13 @@ cd /path/to/vintagestory                              # the client install folde
 
 `--openWorld` opens the world named `seraph-icons`, and creates it the first time. It is a
 creative world, so you can take any item from the creative inventory. Log in if the game asks
-you to. You can also start the pack from Cairn with the release's `.cairn.json` and open or
-create any creative world. In that case the icons are written to the folder of Cairn's game
-install. The recipe export mod does not need to be installed.
+you to.
+
+You can also open the release's `.cairn.json` in the Cairn launcher and start the pack from
+there. Cairn keeps the game under `~/.cairn/games/` and the pack's mods and data under
+`~/.cairn/packs/<pack>/`. Create a creative world. The icons are then written to the game
+folder under `~/.cairn/games/`, not to the pack folder. The recipe export mod does not need to
+be installed either way.
 
 Before an export, delete any `icons/` folder left in the client install folder. The game
 overwrites files with the same name but does not delete old ones.
