@@ -41,6 +41,7 @@ CODE = re.compile(r"^[a-z0-9_-]+:[^\s:]+$")
 # export (block LOD textures) and is ignored.
 KINDS = ("block", "item")
 LFS_POINTER = b"version https://git-lfs.github.com/spec/v1\n"
+NOT_IN_EXPORT = "no item in the export has this name"
 
 
 def die(msg: str) -> None:
@@ -183,7 +184,7 @@ class Resolver:
         if len(found) == 1:
             return found[0][0], ""
         if not found:
-            return None, "no item in the export has this name"
+            return None, NOT_IN_EXPORT
         return None, "ambiguous: " + ", ".join(sorted(c for c, _ in found))
 
     def kind_of(self, code: str) -> str | None:
@@ -324,8 +325,13 @@ def cmd_import(args) -> None:
             imported += 1
     write_index(icons, index)
 
+    # A whole-pack export has many blocks (rotations and the like) that the recipe
+    # export leaves out; list ambiguous and unreadable files before those.
+    absent = sum(why == NOT_IN_EXPORT for _, why in unmapped)
+    unmapped.sort(key=lambda x: (x[1] == NOT_IN_EXPORT, x[0]))
     print(f"imported {imported}, unchanged {unchanged}, distinct images {len(used)} "
-          f"({written} new file(s)), unmapped {len(unmapped)}")
+          f"({written} new file(s)), unmapped {len(unmapped)}"
+          + (f" ({absent} not in the export)" if absent else ""))
     for f, why in unmapped[:args.limit]:
         print(f"  unmapped {f.relative_to(src).as_posix()}: {why}")
     if len(unmapped) > args.limit:

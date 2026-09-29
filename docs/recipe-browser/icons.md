@@ -42,9 +42,9 @@ creative world, so you can take any item from the creative inventory. Log in if 
 you to.
 
 You can also open the release's `.cairn.json` in the Cairn launcher and start the pack from
-there. Cairn keeps the game under `~/.cairn/games/` and the pack's mods and data under
-`~/.cairn/packs/<pack>/`. Create a creative world. The icons are then written to the game
-folder under `~/.cairn/games/`, not to the pack folder. The recipe export mod does not need to
+there. Cairn keeps the game in `~/.cairn/games/<game version>/` and the pack's mods and data
+in `~/.cairn/packs/<pack>/`. Create a creative world. The icons are then written to
+`~/.cairn/games/<game version>/icons/`, not to the pack folder. The recipe export mod does not need to
 be installed either way.
 
 Before an export, delete any `icons/` folder left in the client install folder. The game

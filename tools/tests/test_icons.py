@@ -295,8 +295,10 @@ class Import(ToolCase):
         r = self.run_tool("import", str(self.export), "--items", str(self.tmp / "recipes.json"), "--size", "2")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(list(self.index()["icons"]), ["game:metalplate/copper"])
-        self.assertIn("unmapped 2", r.stdout)
-        self.assertIn("item/widget.png: ambiguous: examplemod:widget, game:widget", r.stdout)
+        self.assertIn("unmapped 2 (1 not in the export)", r.stdout)
+        # Ambiguous first, although "unknown" sorts before "widget".
+        self.assertIn("  unmapped item/widget.png: ambiguous: examplemod:widget, game:widget\n"
+                      "  unmapped item/unknown.png: no item in the export has this name\n", r.stdout)
 
     def test_needs_domain_or_items(self):
         self.put("item/a.png", png(solid(2, 2, RED)))
