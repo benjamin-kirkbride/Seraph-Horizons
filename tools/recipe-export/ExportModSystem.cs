@@ -9,6 +9,13 @@ namespace SeraphHorizons.RecipeExport;
 /// Writes the export to the file named by SERAPH_EXPORT_PATH once the server is running.
 /// Does nothing when the variable is unset.
 /// </summary>
+/// <remarks>
+/// RunGame is late enough for every registry to be complete (mods register recipes up to
+/// AssetsFinalize) and runs before "Dedicated Server now running" is logged, which is what
+/// `packtool.py smoke` waits for. By then the asset packet thread may already have called
+/// GridRecipe.FreeRAMServer; the exporter does not need what that drops (see
+/// docs/recipe-browser/spike-findings.md).
+/// </remarks>
 public class ExportModSystem : ModSystem
 {
     public const string PathVariable = "SERAPH_EXPORT_PATH";
@@ -26,10 +33,22 @@ public class ExportModSystem : ModSystem
                 Environment.GetEnvironmentVariable("SERAPH_PACK_ID") ?? "unknown",
                 Environment.GetEnvironmentVariable("SERAPH_PACK_VERSION") ?? "unknown",
                 GameVersion.ShortGameVersion);
-            var doc = Exporter.Build(api, pack);
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-            File.WriteAllText(path, doc.ToString(Formatting.None));
-            api.Logger.Notification("[seraphexport] wrote {0}", path);
+            try
+            {
+                var doc = Exporter.Build(api, pack);
+                var full = Path.GetFullPath(path);
+                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+                // Write then rename, so a reader never sees half a file.
+                File.WriteAllText(full + ".part", doc.ToString(Formatting.None));
+                File.Move(full + ".part", full, overwrite: true);
+                api.Logger.Notification("[seraphexport] wrote {0} ({1} recipes)", path, doc["recipes"]?.Count() ?? 0);
+            }
+            catch (Exception e)
+            {
+                // No file is written; packtool smoke fails on the missing file and prints this.
+                api.Logger.Error("[seraphexport] export failed: {0}", e.Message);
+                api.Logger.Error(e);
+            }
         });
     }
 }
