@@ -1,0 +1,35 @@
+# refs/green-trees/<id> (ci.yml: the CI memo) accumulate one per distinct tree
+# that ever passed. They are only useful while a PR with that tree might still
+# be queued, so drop the ones whose tested commit is older than 60 days. A
+# pruned ref costs at most one full CI run; a kept one costs nothing but a
+# pointer, so this errs on keeping.
+name: Prune green trees
+
+on:
+  schedule:
+    - cron: "17 4 1 * *" # monthly
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Delete refs/green-trees/* older than 60 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          cutoff=$(date -u -d '60 days ago' +%s)
+          gh api --paginate "repos/$REPO/git/matching-refs/green-trees/" \
+            --jq '.[] | "\(.ref) \(.object.sha)"' |
+          while read -r ref sha; do
+            when=$(gh api "repos/$REPO/git/commits/$sha" --jq .committer.date 2>/dev/null) || when=""
+            if [ -z "$when" ] || [ "$(date -u -d "$when" +%s)" -lt "$cutoff" ]; then
+              echo "deleting $ref ($sha, ${when:-commit gone})"
+              gh api -X DELETE "repos/$REPO/git/$ref"
+            fi
+          done
