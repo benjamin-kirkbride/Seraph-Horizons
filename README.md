@@ -12,7 +12,7 @@ Each [GitHub Release](../../releases) has these files:
 
 | File | For | Pinning |
 |---|---|---|
-| `seraphhorizons_<v>.cairn` | Players using [Cairn](https://mods.vintagestory.at/cairn) (open it in the launcher) and servers using `cairn-server install <file>` | Exact versions, sha256-verified; Cairn installs the matching game and .NET |
+| `seraphhorizons_<v>.cairn.json` | Players using [Cairn](https://mods.vintagestory.at/cairn) (open it in the launcher) and servers using `cairn-server install <file>` | Exact versions, sha256-verified; Cairn installs the matching game and .NET |
 | `seraphhorizons_<v>_server.zip` | Plain dedicated servers | `lock.json` + `fetch-mods.sh`, which downloads each mod from the ModDB and checks its sha256 |
 | `seraphhorizons_<v>_metamod.zip` | Casual singleplayer: drop into `Mods/`, then click "Download mods" on world creation | The game treats these versions as **minimums** |
 | `seraphhorizons_<v>_modlist.txt` | `modid@version,...` for launchers that import that format | Exact |
@@ -24,7 +24,7 @@ Mod files are never re-hosted here. Everything is fetched from the ModDB CDN.
 ```
 pack/pack.toml          what's in the pack (edit this): game version, mods, licenses, why
 pack/lock.json          generated: exact release, file URL, sha256 per mod
-pack/config/ModConfig/  optional per-mod config overrides (shipped via the .cairn file)
+pack/config/ModConfig/  optional per-mod config overrides (shipped via the .cairn.json file)
 pack/known-errors.json  understood cross-mod errors the tests tolerate, one issue each
 tools/packtool.py       lock / check / fetch / smoke / outdated / assemble (stdlib Python 3.11+)
 tests/PackTests/        Atlas scenarios: a headless server in `dotnet test` with the whole pack
@@ -54,10 +54,10 @@ python3 tools/packtool.py assemble    # build dist/ (what a release publishes)
 - **lock**: `pack.toml` and `lock.json` agree, every declared mod dependency is in the pack, and no locked release has been retracted.
 - **smoke**: boots `VintagestoryServer` with the full pack on a standard world (fixed seed), waits for spawn-chunk worldgen, then runs `/stop`. It fails on any `[Error]`/`[Fatal]`, failed JSON patch, exception, or a locked mod that didn't load, except errors matching an entry in `pack/known-errors.json`. Each entry links the issue that explains it and is removed when that issue is fixed.
 - **atlas**: [Atlas](https://github.com/Pixnop/Atlas) scenarios check that each locked mod loads at its locked version, that boot is clean, and that every block BetterRuins' ~800 schematics actually place resolves, after the engine's legacy remaps.
-- **cairn**: assembles the release and installs the `.cairn` file with the real `cairn-server`. Cairn re-downloads and sha256-verifies every mod, and its lock must match ours.
+- **cairn**: assembles the release and installs the `.cairn.json` file with the real `cairn-server`. Cairn re-downloads and sha256-verifies every mod, and its lock must match ours.
 
 `ci-ok` aggregates the four jobs and is the one check branch protection requires. PRs land through the Mergify merge queue: comment `@mergifyio queue` on the PR as soon as it is opened. See [docs/merge-queue.md](docs/merge-queue.md).
 
-`release.yml` runs on a `v*` tag that matches `pack.toml`'s version. It reruns CI and then publishes `dist/` as a GitHub Release. `update-check.yml` runs nightly and keeps a "Mod updates available" issue current. It fails if a pinned release is retracted.
+`release.yml` runs on a `v*` tag that matches `pack.toml`'s version. It reruns CI and then publishes `dist/` as a GitHub Release. It is marked as the repository's [latest release](../../releases/latest). `next.yml` runs after CI passes on a push to main and republishes the rolling [`next`](../../releases/tag/next) pre-release from the `dist` artifact that CI run tested, whatever the pack version is. `update-check.yml` runs nightly and keeps a "Mod updates available" issue current. It fails if a pinned release is retracted.
 
 Game server binaries are downloaded from Anego's public CDN and cached per version. They are never committed or re-published.

@@ -475,7 +475,7 @@ def cmd_assemble(args) -> None:
     # (b) Cairn pack file (manifest + lockfile): exact pins, sha256-verified downloads,
     # and Cairn installs the matching game and .NET. Open it with the Cairn launcher
     # or `cairn-server install <file>`.
-    write_json(out / f"{tag}.cairn", cairn_bundle(meta, lock))
+    write_json(out / f"{tag}.cairn.json", cairn_bundle(meta, lock))
 
     # (c) modid@version list (Story Forge import string, ModDB v2 `ids` format).
     (out / f"{tag}_modlist.txt").write_text(
