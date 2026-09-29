@@ -24,6 +24,16 @@ npm --prefix site run check     # svelte-check and tsc, warnings fail it
 
 Without `site/public/icons/index.json` every item shows a lettered placeholder.
 
+## Icon background
+
+Every icon, and every recipe slot, sits on `--icon-bg` from `site/src/app.css`, with
+`--icon-border` and `--icon-text` (placeholder letters) beside it. It is light in both
+themes because most of the pack's icons are dark: half of them have a mean luminance
+under 0.09, so on the dark theme's surfaces iron, steel and machinery all but vanished.
+The dark theme uses a mid-light grey (`#bdb8ae`) rather than something whiter, because
+the game's white items (wool, white dye, milk) are drawn around `#d6ccc2` to `#f2f2f2`
+and need to stay brighter than their tile.
+
 ## Tests
 
 ```sh
@@ -39,10 +49,12 @@ hand-written exports.
 The end-to-end tests in `site/e2e/` only run against a real export; without
 `RECIPE_EXPORT` the run fails. `e2e/serve.ts` builds the site, runs prepare-data on the
 export (published twice, as versions `next` and `v0.0.0-e2e`, so the version switcher
-can be tested), adds an icon for `game:ingot-copper` only, and serves the result at
+can be tested), adds a test icon for `game:ingot-copper` and the real icons committed
+under `site/e2e/icons/` (plain files, not LFS, so CI needs no LFS fetch), and serves the result at
 `http://127.0.0.1:4317/Seraph-Horizons/`. The same build is served at `/noicons/` with no
 `icons/` directory. The tests check facts from the vanilla 1.22.7 assets, and each names
-the asset file it relies on. Output goes to `site/e2e/.work/` (traces and screenshots of
+the asset file it relies on. `e2e/icons.spec.ts` measures the colours actually painted
+behind icons in both colour schemes, with the WCAG formulas in `site/src/lib/contrast.ts`. Output goes to `site/e2e/.work/` (traces and screenshots of
 failures in `site/e2e/.work/results/`); with `CI` set there is also an HTML report in
 `site/playwright-report/`.
 
