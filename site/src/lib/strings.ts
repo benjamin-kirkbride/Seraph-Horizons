@@ -13,6 +13,8 @@ const en = {
   searchPlaceholder: "Search by name or code, e.g. copper ingot",
   searchButton: "Search",
   versionLabel: "Pack version",
+  themeLabel: "Theme",
+  themes: { system: "System", light: "Light", dark: "Dark" },
   loading: "Loading…",
   loadFailed: "Could not load the data for this page.",
   noVersions: "No data has been published yet.",
@@ -106,6 +108,8 @@ const en = {
     smelting: "Heating",
     storageFlags: "Storage",
   },
+  densityHint: (density: number) =>
+    `${density <= 1000 ? "Floats" : "Sinks"} in water. Water's density is 1000: dropped items at or below it float, heavier ones sink.`,
   placeholderIcon: "no icon",
 };
 

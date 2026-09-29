@@ -28,6 +28,7 @@ pack/config/ModConfig/  optional per-mod config overrides (shipped via the .cair
 pack/known-errors.json  understood cross-mod errors the tests tolerate, one issue each
 tools/packtool.py       lock / check / fetch / smoke / outdated / assemble (stdlib Python 3.11+)
 tests/PackTests/        Atlas scenarios: a headless server in `dotnet test` with the whole pack
+mods-src/               mods built here, uploaded to the ModDB by hand, then pinned like any other
 .github/                CI, release and nightly update-check workflows
 ```
 
