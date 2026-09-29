@@ -1,0 +1,80 @@
+# Every push to main that passes CI republishes a rolling "next" pre-release,
+# whatever pack.toml's version is. It publishes the dist/ artifact that CI's
+# cairn job built and installed, so what ships is exactly what was tested.
+# Versioned releases are release.yml's job and are not touched.
+name: Next release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One publish at a time, never cancelled half-way through replacing the release.
+concurrency:
+  group: next-release
+  cancel-in-progress: false
+
+jobs:
+  next:
+    # workflow_run also fires for PRs whose head branch is called main.
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      # CI runs for two pushes can finish out of order. Only ever move forward.
+      - name: Skip if next is already ahead of this commit
+        id: order
+        run: |
+          if git rev-parse -q --verify refs/tags/next >/dev/null \
+             && ! git merge-base --is-ancestor refs/tags/next "$SHA"; then
+            echo "next ($(git rev-parse --short refs/tags/next)) is not an ancestor of ${SHA::7}; leaving it alone" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Download the dist artifact CI tested
+        if: steps.order.outputs.publish == 'true'
+        run: gh run download "$RUN_ID" --name dist --dir dist
+      - name: Release notes (mod changes since the last versioned release)
+        if: steps.order.outputs.publish == 'true'
+        run: |
+          prev=$(git describe --tags --abbrev=0 --match 'v*' "$SHA" 2>/dev/null || true)
+          {
+            echo "Rolling build of \`main\` at $SHA. Replaced on every merge; use a versioned release for something that stays put."
+            echo
+            echo "Pack version: **$(jq -r .pack.version pack/lock.json)** · Game version: **$(jq -r .pack.game_version pack/lock.json)**"
+            echo
+            echo "| mod | version | license |"
+            echo "|---|---|---|"
+            jq -r '.mods[] | "| [\(.id)](https://mods.vintagestory.at/\(.id)) | \(.version) | \(.license) |"' pack/lock.json
+            if [ -n "$prev" ]; then
+              echo; echo "### Changes since $prev"; echo
+              diff <(git show "$prev:pack/lock.json" | jq -r '.mods[] | "\(.id) \(.version)"' | sort) \
+                   <(jq -r '.mods[] | "\(.id) \(.version)"' pack/lock.json | sort) \
+                | sed -n 's/^< /- removed /p; s/^> /- added /p' || true
+            fi
+          } > "$RUNNER_TEMP/notes.md"
+      # Delete and recreate rather than edit in place: that drops assets whose
+      # names changed with the pack version and moves the tag to this commit.
+      - name: Publish
+        if: steps.order.outputs.publish == 'true'
+        run: |
+          gh release delete next --cleanup-tag --yes 2>/dev/null || true
+          gh release create next dist/* --target "$SHA" --prerelease \
+            --title "Seraph Horizons next (${SHA::7})" --notes-file "$RUNNER_TEMP/notes.md"

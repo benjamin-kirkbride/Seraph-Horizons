@@ -106,7 +106,7 @@ jobs:
       - name: cairn-server install (resolves, downloads, sha256-verifies every mod)
         run: |
           id=$(jq -r .pack.id pack/lock.json); v=$(jq -r .pack.version pack/lock.json)
-          "$RUNNER_TEMP/cairn/cairn-server" install "dist/${id}_${v}.cairn"
+          "$RUNNER_TEMP/cairn/cairn-server" install "dist/${id}_${v}.cairn.json"
       - name: Cairn's lock matches ours
         run: |
           id=$(jq -r .pack.id pack/lock.json)
