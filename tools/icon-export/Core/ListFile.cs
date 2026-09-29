@@ -115,10 +115,11 @@ public static class ListFile
                 IconKind? kind = null;
                 if (reader.TokenType == JsonTokenType.StartObject)
                 {
-                    int depth = reader.CurrentDepth;
-                    while (reader.Read() && !(reader.TokenType == JsonTokenType.EndObject && reader.CurrentDepth == depth))
+                    // Every value but "kind" is skipped whole, so only the item's own
+                    // properties are ever read here, never a nested "kind".
+                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                     {
-                        if (reader.TokenType == JsonTokenType.PropertyName && reader.CurrentDepth == depth + 1)
+                        if (reader.TokenType == JsonTokenType.PropertyName)
                         {
                             string prop = reader.GetString()!;
                             reader.Read();

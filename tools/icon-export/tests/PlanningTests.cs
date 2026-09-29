@@ -87,6 +87,16 @@ public class PlanningTests
     }
 
     [Fact]
+    public void A_frame_already_over_budget_still_renders_one()
+    {
+        // Without this the export would stall for good on a slow machine.
+        var s = new FrameScheduler(Jobs(3), maxPerFrame: 40, maxMsPerFrame: 25);
+        Assert.Equal(1, s.RunFrame(() => 30, _ => { }));
+        Assert.Equal(1, s.RunFrame(() => 1000, _ => { }));
+        Assert.Equal(2, s.Next);
+    }
+
+    [Fact]
     public void Interval_timer()
     {
         var timer = new IntervalTimer(5000, startMs: 0);
