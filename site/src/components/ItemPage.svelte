@@ -3,9 +3,10 @@
   import type { ItemDetail, Meta } from "../lib/format.ts";
   import type { ItemRef, VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
-  import { formatNumber } from "../lib/recipe-view.ts";
+  import { distinctSources, formatNumber } from "../lib/recipe-view.ts";
   import { parseVtml } from "../lib/vtml.ts";
   import { t } from "../lib/strings.ts";
+  import { initials } from "../lib/icons.ts";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
   import RecipeGroups from "./RecipeGroups.svelte";
@@ -89,7 +90,7 @@
   {@const mod = meta.mods[ref.mod]}
   <article class="item" data-item={ref.code}>
     <header class="head">
-      <Icon code={ref.code} size={64} />
+      <Icon code={ref.code} size={64} label={initials(ref.name)} />
       <div>
         <h1>{ref.name}</h1>
         <dl class="facts">
@@ -131,7 +132,7 @@
               <tr><th scope="col">{t.kind}</th><th scope="col">{t.from}</th><th scope="col">{t.quantity}</th><th scope="col"></th></tr>
             </thead>
             <tbody>
-              {#each detail.sources as s, i (i)}
+              {#each distinctSources(detail.sources) as s, i (i)}
                 <tr>
                   <td>{t.sourceKinds[s.type] ?? s.type}</td>
                   <td>

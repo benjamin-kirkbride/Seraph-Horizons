@@ -44,8 +44,9 @@ export function slotItems(recipe: Recipe, codes: readonly string[], cache: Map<s
         if (i >= 0) found.add(i);
       }
     }
-    // The variants should already list every match, but an exporter may cap them, so
-    // the pattern itself is matched against every known code as well.
+    // With variants present, they are the resolved truth. A pattern can be far wider than
+    // what the game accepts: `game:{line}` is twine or rope, not every item of the game.
+    if (recipe.variants.length > 0) return [...found].sort((a, b) => a - b);
     if (isPattern(ing.code)) {
       const filter: VariantFilter = { allowedVariants: ing.allowedVariants, skipVariants: ing.skipVariants };
       const key = `${ing.code}|${(ing.allowedVariants ?? []).join(",")}|${(ing.skipVariants ?? []).join(",")}`;

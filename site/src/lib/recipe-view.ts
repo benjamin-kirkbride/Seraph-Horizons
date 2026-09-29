@@ -1,6 +1,6 @@
 // Pure layout and formatting for the recipe renderers, kept out of the components so
 // it can be tested without a DOM.
-import type { Recipe, Stack } from "./export.ts";
+import type { Recipe, Source, Stack } from "./export.ts";
 
 /** Grid cells, row by row: the index of the ingredient in each cell, or null when empty. */
 export function gridCells(recipe: Recipe): (number | null)[][] {
@@ -100,5 +100,19 @@ export function variantOutputs(recipe: Recipe, variant: number): Stack[] {
     const s: Stack = { code: o.code, kind: o.kind, quantity: o.quantity };
     if (o.litres !== undefined) s.litres = o.litres;
     return s;
+  });
+}
+
+/**
+ * Sources without the rows that would read the same. A block's four orientations each
+ * drop the item, and all four are called "Aged torch holder".
+ */
+export function distinctSources(sources: readonly Source[]): Source[] {
+  const seen = new Set<string>();
+  return sources.filter((s) => {
+    const key = JSON.stringify([s.type, s.fromName ?? s.from, s.quantity?.avg, s.quantity?.var, s.tool, s.price, s.note]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
