@@ -243,6 +243,27 @@ class Import(ToolCase):
         idx = self.index()["icons"]
         self.assertEqual(idx["game:plain"], idx["game:fancy"])
 
+    def test_stored_png_has_no_metadata(self):
+        self.put("item/a.png", png(solid(3, 3, RED), extra=[(b"tEXt", b"Comment\0hello"), (b"gAMA", struct.pack(">I", 45455))]))
+        self.run_tool("import", str(self.export), "--domain", "game", "--size", "3")
+        [f] = self.stored()
+        data, pos, tags = f.read_bytes(), 8, []
+        while pos < len(data):
+            (length,) = struct.unpack(">I", data[pos:pos + 4])
+            tags.append(data[pos + 4:pos + 8].decode())
+            pos += 12 + length
+        self.assertEqual(tags[0], "IHDR")
+        self.assertEqual(tags[-1], "IEND")
+        self.assertEqual(set(tags[1:-1]), {"IDAT"})
+
+    def test_invalid_code_is_not_imported(self):
+        self.put("item/blue morpho.png", png(solid(2, 2, RED)))
+        r = self.run_tool("import", str(self.export), "--domain", "game", "--size", "2")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.index()["icons"], {})
+        self.assertIn("unmapped item/blue morpho.png: 'game:blue morpho' is not a valid item code", r.stdout)
+        self.assertEqual(self.run_tool("verify").returncode, 0)
+
     def test_new_icon_replaces_mapping(self):
         self.put("item/a.png", png(solid(4, 4, RED)))
         self.run_tool("import", str(self.export), "--domain", "game", "--size", "4")
@@ -255,9 +276,10 @@ class Import(ToolCase):
         self.assertEqual(self.pixels(second).getpixel((0, 0)), (0, 0, 255, 255))
 
     def test_index_is_sorted_and_stable(self):
+        # Separate runs, so the codes arrive out of order.
         for name in ("zeta", "alpha", "mid"):
-            self.put(f"item/{name}.png", png(solid(2, 2, RED)))
-        self.run_tool("import", str(self.export), "--domain", "game", "--size", "2")
+            self.put(f"{name}/item/{name}.png", png(solid(2, 2, RED)))
+            self.run_tool("import", str(self.export / name), "--domain", "game", "--size", "2")
         text = (self.icons / "index.json").read_text()
         self.assertTrue(text.startswith('{\n  "schemaVersion": 1,\n  "size": 2,\n  "icons": {\n    "game:alpha"'), text)
         self.assertLess(text.index("game:mid"), text.index("game:zeta"))

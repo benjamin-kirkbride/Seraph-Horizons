@@ -25,12 +25,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
-import struct
 import sys
-import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -222,18 +221,15 @@ def normalise(path: Path, size: int) -> bytes:
 
 
 def encode_png(raw: bytes, size: int) -> bytes:
-    """A minimal RGBA PNG: IHDR, one IDAT, IEND. No metadata, so the bytes depend
-    only on the pixels (and zlib)."""
-    stride = size * 4
-    scanlines = b"".join(b"\0" + raw[y * stride:(y + 1) * stride] for y in range(size))
+    """An RGBA PNG with no metadata chunks, so the bytes depend only on the pixels
+    (and the Pillow/zlib build; import looks existing images up by pixels, so a
+    different build does not re-hash icons that did not change)."""
+    from PIL import Image
 
-    def chunk(tag: bytes, data: bytes) -> bytes:
-        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
-
-    return (b"\x89PNG\r\n\x1a\n"
-            + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(scanlines, 9))
-            + chunk(b"IEND", b""))
+    buf = io.BytesIO()
+    # A fresh image has an empty .info, so nothing (gamma, ICC, text) is carried over.
+    Image.frombytes("RGBA", (size, size), raw).save(buf, "PNG", optimize=True)
+    return buf.getvalue()
 
 
 # ---------------------------------------------------------------------- import
@@ -273,6 +269,8 @@ def cmd_import(args) -> None:
         base = src / kind
         for f in sorted(base.rglob("*.png")) if base.is_dir() else []:
             code, why = resolver.resolve(*split_export_file(f"{kind}/{f.relative_to(base).as_posix()}"))
+            if code and not CODE.match(code):
+                code, why = None, f"{code!r} is not a valid item code"
             if code:
                 claims.setdefault(code, []).append((kind, f))
             else:
