@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "seraphexport",
+  "name": "Seraph Horizons recipe export",
+  "description": "CI-only: dumps recipes and items to JSON for the out-of-game recipe browser. Not part of the pack.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "0.1.0",
+  "side": "Server",
+  "requiredOnClient": false,
+  "dependencies": { "game": "1.22.0" }
+}

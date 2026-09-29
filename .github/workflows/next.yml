@@ -51,6 +51,13 @@ jobs:
       - name: Download the dist artifact CI tested
         if: steps.order.outputs.publish == 'true'
         run: gh run download "$RUN_ID" --name dist --dir dist
+      - name: Add the recipe export CI dumped
+        if: steps.order.outputs.publish == 'true'
+        run: |
+          gh run download "$RUN_ID" --name recipe-export --dir "$RUNNER_TEMP/recipe-export"
+          f="$(jq -r .pack.id pack/lock.json)_$(jq -r .pack.version pack/lock.json)_recipes.json"
+          cp "$RUNNER_TEMP/recipe-export/recipes.json" "dist/$f"
+          (cd dist && sha256sum "$f" >> SHA256SUMS)
       - name: Release notes (mod changes since the last versioned release)
         if: steps.order.outputs.publish == 'true'
         run: |

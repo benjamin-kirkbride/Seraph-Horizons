@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "generator": { "name": "seraphexport", "version": "0.1.0" },
+  "pack": { "id": "seraphhorizons", "version": "0.1.0", "gameVersion": "1.22.7" },
+  "mods": {
+    "game": { "name": "Essentials", "version": "1.22.7", "authors": ["Tyron"] },
+    "examplemod": {
+      "name": "Example Mod",
+      "version": "1.0.0",
+      "authors": ["Someone"],
+      "website": "https://mods.vintagestory.at/examplemod"
+    }
+  },
+  "items": {
+    "game:plank-oak": { "kind": "item", "name": "Oak plank", "mod": "game", "handbookVisible": true },
+    "game:plank-birch": { "kind": "item", "name": "Birch plank", "mod": "game", "handbookVisible": true },
+    "game:stick": {
+      "kind": "item",
+      "name": "Stick",
+      "mod": "game",
+      "handbookVisible": true,
+      "attributes": { "maxStackSize": 64, "burn": { "temperature": 600, "durationSeconds": 10 } },
+      "sources": [
+        { "type": "blockDrop", "from": "game:leavesbranchy-grown-oak", "fromName": "Branchy oak leaves", "quantity": { "avg": 0.8, "var": 0 } }
+      ]
+    },
+    "game:saw-copper": {
+      "kind": "item",
+      "name": "Copper saw",
+      "mod": "game",
+      "handbookVisible": true,
+      "attributes": { "maxStackSize": 1, "durability": 250, "tool": "saw", "toolTier": 2 }
+    },
+    "game:ladder-wood-north": { "kind": "block", "name": "Wooden ladder", "mod": "game", "handbookVisible": true },
+    "game:flint": { "kind": "item", "name": "Flint", "mod": "game", "handbookVisible": true },
+    "game:knifeblade-flint": { "kind": "item", "name": "Flint knife blade", "mod": "game", "handbookVisible": true },
+    "game:waterportion": { "kind": "item", "name": "Water", "mod": "game", "handbookVisible": true },
+    "game:hide-raw-small": { "kind": "item", "name": "Small raw hide", "mod": "game", "handbookVisible": true },
+    "game:hide-soaked-small": { "kind": "item", "name": "Small soaked hide", "mod": "game", "handbookVisible": true },
+    "game:ingot-copper": {
+      "kind": "item",
+      "name": "Copper ingot",
+      "mod": "game",
+      "handbookVisible": true,
+      "description": "A bar of copper.",
+      "attributes": { "maxStackSize": 16, "materialDensity": 8920 }
+    },
+    "game:ingot-tin": { "kind": "item", "name": "Tin ingot", "mod": "game", "handbookVisible": true },
+    "game:ingot-tinbronze": { "kind": "item", "name": "Tin bronze ingot", "mod": "game", "handbookVisible": true },
+    "examplemod:widget": { "kind": "item", "name": "Widget", "mod": "examplemod", "handbookVisible": false }
+  },
+  "recipes": [
+    {
+      "id": "alloy|game:recipes/alloy/tinbronze.json|0",
+      "type": "alloy",
+      "mod": "game",
+      "source": "game:recipes/alloy/tinbronze.json",
+      "ingredients": [
+        { "code": "game:ingot-copper", "kind": "item", "quantity": 1, "minRatio": 0.88, "maxRatio": 0.92 },
+        { "code": "game:ingot-tin", "kind": "item", "quantity": 1, "minRatio": 0.08, "maxRatio": 0.12 }
+      ],
+      "outputs": [{ "code": "game:ingot-tinbronze", "kind": "item", "quantity": 1 }],
+      "variants": [
+        {
+          "ingredients": [
+            [{ "code": "game:ingot-copper", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:ingot-tin", "kind": "item", "quantity": 1 }]
+          ],
+          "outputs": [{ "code": "game:ingot-tinbronze", "kind": "item", "quantity": 1 }]
+        }
+      ],
+      "alloy": {}
+    },
+    {
+      "id": "barrel|game:recipes/barrel/hide.json|0",
+      "type": "barrel",
+      "mod": "game",
+      "source": "game:recipes/barrel/hide.json",
+      "ingredients": [
+        { "code": "game:waterportion", "kind": "item", "quantity": 1, "litres": 2 },
+        { "code": "game:hide-raw-small", "kind": "item", "quantity": 1 }
+      ],
+      "outputs": [{ "code": "game:hide-soaked-small", "kind": "item", "quantity": 1 }],
+      "variants": [
+        {
+          "ingredients": [
+            [{ "code": "game:waterportion", "kind": "item", "quantity": 1, "litres": 2 }],
+            [{ "code": "game:hide-raw-small", "kind": "item", "quantity": 1 }]
+          ],
+          "outputs": [{ "code": "game:hide-soaked-small", "kind": "item", "quantity": 1 }]
+        }
+      ],
+      "barrel": { "sealHours": 0 }
+    },
+    {
+      "id": "examplemod:press|examplemod:recipes/press/widget.json|0",
+      "type": "examplemod:press",
+      "mod": "examplemod",
+      "source": "examplemod:recipes/press/widget.json",
+      "ingredients": [{ "code": "game:ingot-copper", "kind": "item", "quantity": 2 }],
+      "outputs": [{ "code": "examplemod:widget", "kind": "item", "quantity": 1 }],
+      "variants": [
+        {
+          "ingredients": [[{ "code": "game:ingot-copper", "kind": "item", "quantity": 2 }]],
+          "outputs": [{ "code": "examplemod:widget", "kind": "item", "quantity": 1 }]
+        }
+      ],
+      "requirements": ["Needs a powered press"]
+    },
+    {
+      "id": "grid|game:recipes/grid/ladder.json|0",
+      "type": "grid",
+      "mod": "game",
+      "source": "game:recipes/grid/ladder.json",
+      "ingredients": [
+        { "key": "P", "code": "game:plank-*", "kind": "item", "quantity": 1, "wildcardName": "wood" },
+        { "key": "S", "code": "game:stick", "kind": "item", "quantity": 1 },
+        { "key": "W", "code": "game:saw-*", "kind": "item", "quantity": 1, "isTool": true, "toolDurabilityCost": 1 }
+      ],
+      "outputs": [{ "code": "game:ladder-wood-north", "kind": "block", "quantity": 3 }],
+      "variants": [
+        {
+          "bindings": { "wood": "oak" },
+          "ingredients": [
+            [{ "code": "game:plank-oak", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:stick", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:saw-copper", "kind": "item", "quantity": 1 }]
+          ],
+          "outputs": [{ "code": "game:ladder-wood-north", "kind": "block", "quantity": 3 }]
+        },
+        {
+          "bindings": { "wood": "birch" },
+          "ingredients": [
+            [{ "code": "game:plank-birch", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:stick", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:saw-copper", "kind": "item", "quantity": 1 }]
+          ],
+          "outputs": [{ "code": "game:ladder-wood-north", "kind": "block", "quantity": 3 }]
+        }
+      ],
+      "grid": { "width": 3, "height": 3, "shapeless": false, "pattern": ["SWS", "SPS", "S_S"] }
+    },
+    {
+      "id": "knapping|game:recipes/knapping/knifeblade.json|0",
+      "type": "knapping",
+      "mod": "game",
+      "source": "game:recipes/knapping/knifeblade.json",
+      "ingredients": [{ "code": "game:flint", "kind": "item", "quantity": 1 }],
+      "outputs": [{ "code": "game:knifeblade-flint", "kind": "item", "quantity": 1 }],
+      "variants": [
+        {
+          "ingredients": [[{ "code": "game:flint", "kind": "item", "quantity": 1 }]],
+          "outputs": [{ "code": "game:knifeblade-flint", "kind": "item", "quantity": 1 }]
+        }
+      ],
+      "voxels": [["__#__", "_###_", "_###_", "_###_", "__#__"]]
+    }
+  ],
+  "recipeTypes": {
+    "alloy": { "name": "Alloying", "count": 1, "shape": "alloy", "registry": "alloyrecipes", "mod": "game" },
+    "barrel": { "name": "Barrel", "count": 1, "shape": "barrel", "registry": "barrelrecipes", "mod": "game" },
+    "examplemod:press": { "name": "Press", "count": 1, "shape": "generic", "registry": "pressrecipes", "mod": "examplemod" },
+    "grid": { "name": "Crafting grid", "count": 1, "shape": "grid", "registry": "gridrecipes", "mod": "game" },
+    "knapping": { "name": "Knapping", "count": 1, "shape": "voxels", "registry": "knappingrecipes", "mod": "game" }
+  },
+  "guides": [
+    { "code": "craftinginfo-knapping", "title": "Knapping", "text": "Strike a flint against a stone to knap it.", "mod": "game" }
+  ]
+}
