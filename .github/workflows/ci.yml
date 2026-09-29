@@ -17,15 +17,19 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Memo (docs/merge-queue.md): smoke, atlas and cairn are a function of the
-  # tree, and a passing pull_request run records its tree's id
+  # Memo (docs/merge-queue.md): smoke, atlas, cairn and tools are a function
+  # of the tree, and a passing pull_request run records its tree's id
   # (ci/code-tree.sh) as refs/green-trees/<id>. If this tree's id is already
   # on record there is nothing to learn from running them again. This is what
   # makes the merge queue cheap: the queue's temporary PR (main + everything
   # queued ahead + the PR) has exactly the tree the PR's own run tested
   # whenever the PR is built on the current main and queued alone, so the
-  # queue merges on the PR's own result. PRs only: a push to main still runs
-  # everything, because next.yml publishes the dist artifact cairn builds.
+  # queue merges on the PR's own result.
+  #
+  # A push to main consults the memo too, but only to skip the test-only jobs
+  # (atlas, tools, site): smoke, cairn and export still run, because next.yml
+  # publishes the dist and recipe-export artifacts this run produces. Tags and
+  # manual runs never consult it and run everything.
   tree:
     name: Already tested?
     runs-on: ubuntu-24.04
@@ -40,15 +44,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
         run: |
           id=$(ci/code-tree.sh HEAD)
           echo "id=$id" >> "$GITHUB_OUTPUT"
-          if [ "$EVENT" != pull_request ]; then
+          main_push=false
+          [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ] && main_push=true
+          if [ "$EVENT" != pull_request ] && [ "$main_push" != true ]; then
             echo "tested=false" >> "$GITHUB_OUTPUT"
-            echo "tree $id: $EVENT runs everything"
+            echo "tree $id: $EVENT on $REF runs everything"
           elif by=$(gh api "repos/$REPO/git/ref/green-trees/$id" --jq .object.sha 2>/dev/null); then
             echo "tested=true" >> "$GITHUB_OUTPUT"
-            echo "tree $id already passed CI (as $by); skipping smoke, atlas and cairn" | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ "$EVENT" = pull_request ]; then skipped="smoke, atlas, cairn and tools"; else skipped="atlas, tools and site"; fi
+            echo "tree $id already passed CI (as $by); skipping $skipped" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "tested=false" >> "$GITHUB_OUTPUT"
             echo "tree $id: no passing CI on record"
@@ -73,7 +81,9 @@ jobs:
   smoke:
     name: Server boot + worldgen smoke test
     needs: [tree, lock]
-    if: needs.tree.outputs.tested != 'true'
+    # On a push to main these run even for a tree on record: next.yml publishes
+    # the recipe export (smoke) and dist (cairn) this run uploads.
+    if: needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -140,7 +150,8 @@ jobs:
   cairn:
     name: Cairn installs the pack
     needs: [tree, lock]
-    if: needs.tree.outputs.tested != 'true'
+    # Runs on main even for a tree on record; see smoke.
+    if: needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -243,7 +254,10 @@ jobs:
 
   site:
     name: Recipe browser end to end
-    needs: smoke
+    needs: [tree, smoke]
+    # On a push to main smoke runs for its artifact alone; the site itself is
+    # a function of the tree, so a tree on record skips this.
+    if: needs.tree.outputs.tested != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -278,8 +292,8 @@ jobs:
   # Mergify both read a skipped required check as passing, so this runs
   # always() and passes only if every job above succeeded. The one skip it
   # accepts is the memoised jobs standing down because `tree` found this tree
-  # already on record as green (export and site need smoke, so they are
-  # skipped with it).
+  # already on record as green (on a PR export needs smoke, so it is skipped
+  # with it; on a push to main smoke, cairn and export still run).
   ci-ok:
     if: always()
     needs: [tree, lock, smoke, atlas, cairn, tools, export, site]
