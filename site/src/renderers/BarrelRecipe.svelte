@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { slotStacks, variantOutputs } from "../lib/recipe-view.ts";
+  import { slotStacks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import Slot from "../components/Slot.svelte";
 
@@ -16,15 +16,7 @@
       <li data-input={i}><Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} showName /></li>
     {/each}
   </ul>
-  <div class="seal">
-    <span class="arrow" aria-hidden="true">→</span>
-    <span data-seal-hours={hours}>{hours > 0 ? t.sealFor(hours) : t.noSeal}</span>
-  </div>
-  <ul class="outputs" aria-label={t.output}>
-    {#each variantOutputs(recipe, variant) as out, i (i)}
-      <li data-output={i}><Slot stacks={[out]} {tick} {data} showName /></li>
-    {/each}
-  </ul>
+  <p class="seal" data-seal-hours={hours}>{hours > 0 ? t.sealFor(hours) : t.noSeal}</p>
 </div>
 
 <style>
@@ -44,15 +36,8 @@
     min-width: 0;
   }
   .seal {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    margin: 0;
     font-size: 0.9rem;
     color: var(--muted);
-    max-width: 10rem;
-    text-align: center;
-  }
-  .arrow {
-    font-size: 1.5rem;
   }
 </style>

@@ -2,7 +2,7 @@
   // Smithing, knapping and clayforming: the pattern the player works, one layer at a time.
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { slotStacks, variantOutputs, voxelLayers } from "../lib/recipe-view.ts";
+  import { slotStacks, voxelLayers } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import Slot from "../components/Slot.svelte";
 
@@ -47,12 +47,6 @@
       {/each}
     </div>
   </div>
-  <span class="arrow" aria-hidden="true">→</span>
-  <div class="outputs" role="group" aria-label={t.output}>
-    {#each variantOutputs(recipe, variant) as out, i (i)}
-      <div data-output={i}><Slot stacks={[out]} {tick} {data} showName /></div>
-    {/each}
-  </div>
 </div>
 
 <style>
@@ -62,8 +56,7 @@
     align-items: center;
     gap: 0.75rem;
   }
-  .inputs,
-  .outputs {
+  .inputs {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
@@ -92,9 +85,5 @@
   }
   .v.on {
     background: var(--filled);
-  }
-  .arrow {
-    font-size: 1.5rem;
-    color: var(--muted);
   }
 </style>

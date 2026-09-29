@@ -2,7 +2,7 @@
   // For recipe types the site has no layout for, mods' own machines above all.
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { slotStacks, variantOutputs } from "../lib/recipe-view.ts";
+  import { slotStacks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import Slot from "../components/Slot.svelte";
 
@@ -16,12 +16,6 @@
         <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} showName />
         {#if ing.role}<span class="muted">({ing.role})</span>{/if}
       </li>
-    {/each}
-  </ul>
-  <span class="arrow" aria-hidden="true">→</span>
-  <ul aria-label={t.output}>
-    {#each variantOutputs(recipe, variant) as out, i (i)}
-      <li data-output={i}><Slot stacks={[out]} {tick} {data} showName /></li>
     {/each}
   </ul>
 </div>
@@ -46,9 +40,5 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-  }
-  .arrow {
-    font-size: 1.5rem;
-    color: var(--muted);
   }
 </style>
