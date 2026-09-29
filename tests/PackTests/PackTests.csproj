@@ -36,6 +36,10 @@
     </Reference>
     <!-- Referenced as a library, not loaded as a mod: scenarios call Exporter.Build themselves. -->
     <ProjectReference Include="../../tools/recipe-export/SeraphExport.csproj" />
+    <!-- Loaded as a mod: scenarios run against this build, not the copy pinned from the ModDB. -->
+    <ProjectReference Include="../../mods-src/allowedvariantsfix/AllowedVariantsFix.csproj">
+      <AtlasMod>true</AtlasMod>
+    </ProjectReference>
     <None Include="../../schema/recipe-export.schema.json" Link="recipe-export.schema.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/lock.json" Link="lock.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/known-errors.json" Link="known-errors.json" CopyToOutputDirectory="PreserveNewest" />
@@ -46,18 +50,19 @@
     paths, so instead we write Atlas's generated manifest (atlas-mods.generated.txt: one
     absolute zip/folder path per line, appended after attribute paths at discovery time).
     Runs after Build, i.e. after Atlas's own WriteAtlasModManifest (BeforeTargets=Build),
-    which deletes the file when no ProjectReference is tagged <AtlasMod>. If one ever is,
-    switch Overwrite to false so its lines are kept.
+    which rewrites the file with the <AtlasMod> references (mods-src/); these lines are
+    appended after them. A pinned copy of a mods-src mod is left out, so the game loads the
+    local build and not two mods with one modid: its ModDB zip is named after the modid.
   -->
   <Target Name="WritePackModManifest" AfterTargets="Build">
     <ItemGroup>
-      <_PackModZip Include="$(PackModsDir)*.zip" />
+      <_PackModZip Include="$(PackModsDir)*.zip" Exclude="$(PackModsDir)allowedvariantsfix_*.zip" />
       <_PackModDir Include="$([System.IO.Directory]::GetDirectories('$(PackModsDir)'))" Condition="Exists('$(PackModsDir)')" />
     </ItemGroup>
     <Error Condition="'@(_PackModZip)@(_PackModDir)' == ''"
            Text="No mods staged in $(PackModsDir). Run `python3 tools/packtool.py fetch` first." />
     <WriteLinesToFile File="$(TargetDir)atlas-mods.generated.txt"
-                      Lines="@(_PackModZip->'%(FullPath)');@(_PackModDir)" Overwrite="true" />
+                      Lines="@(_PackModZip->'%(FullPath)');@(_PackModDir)" Overwrite="false" />
   </Target>
 
 </Project>
