@@ -798,15 +798,6 @@ redistribute = false
 why = "Mechanically powered cable cars."
 
 [[mod]]
-id = "earthlivingminetransport"
-version = "0.12.9"
-side = "universal"
-license = "LicenseRef-All-Rights-Reserved"
-license_source = "https://mods.vintagestory.at/earthlivingminetransport (LICENSE in the release zip)"
-redistribute = false
-why = "Narrow-gauge mine railway: cargo carts, coupled trains, chain haul, stations and signals."
-
-[[mod]]
 id = "scaffolding"
 version = "1.3.1"
 side = "universal"
