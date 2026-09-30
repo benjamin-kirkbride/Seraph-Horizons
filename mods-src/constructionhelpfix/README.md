@@ -1,5 +1,7 @@
 # Construction Help Fix
 
+On the ModDB: <https://mods.vintagestory.at/constructionhelpfix>
+
 A code mod that removes the lag spike of looking at an unfinished right-click-constructed block:
 the vanilla waterwheel, and modded machines built in stages the same way.
 
