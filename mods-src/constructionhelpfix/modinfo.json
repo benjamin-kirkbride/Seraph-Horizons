@@ -1,0 +1,12 @@
+{
+  "type": "code",
+  "modid": "constructionhelpfix",
+  "name": "Construction Help Fix",
+  "description": "Removes the lag spike when looking at an unfinished right-click-constructed block (the waterwheel, and modded machines built in stages). The build hint no longer creates an item stack for every item and block in the game each time it is shown. Optional on either side.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "1.0.0",
+  "side": "Universal",
+  "requiredOnClient": false,
+  "requiredOnServer": false,
+  "dependencies": { "game": "1.22.0" }
+}
