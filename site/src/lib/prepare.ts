@@ -28,7 +28,7 @@ export interface Prepared {
   meta: Meta;
 }
 
-const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "generic"];
+const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "generic"];
 
 export function compareCodes(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;

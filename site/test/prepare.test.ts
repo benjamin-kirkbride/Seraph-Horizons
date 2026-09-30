@@ -33,7 +33,18 @@ describe("prepareData on schema/examples/minimal.json", () => {
   const r = reader(prepareData(minimal).files);
 
   it("lists birch plank as used by the ladder recipe although the recipe says game:plank-*", () => {
-    expect(r.ids(r.detail("game:plank-birch").usedIn)).toEqual({ grid: ["grid|game:recipes/grid/ladder.json|0"] });
+    expect(r.ids(r.detail("game:plank-birch").usedIn)).toEqual({
+      construction: ["construction|game:waterwheel-3m-north|2"],
+      grid: ["grid|game:recipes/grid/ladder.json|0"],
+    });
+  });
+
+  it("indexes a block built in place as made by its stages, which use what they consume", () => {
+    const id = "construction|game:waterwheel-3m-north|2";
+    expect(r.ids(r.detail("game:waterwheel-3m-north").madeBy)).toEqual({ construction: [id] });
+    expect(r.ids(r.detail("game:supportbeam-oak").usedIn)).toEqual({ construction: [id] });
+    expect(r.ids(r.detail("game:resin").usedIn)).toEqual({ construction: [id] });
+    expect(r.meta.recipeTypes.construction).toEqual({ name: "Built in place", shape: "construction", count: 1, mod: "survival" });
   });
 
   it("lists the copper saw as used by the ladder recipe, as a tool", () => {
@@ -71,8 +82,8 @@ describe("prepareData on schema/examples/minimal.json", () => {
     ]);
     expect(r.detail("game:ingot-copper").description).toBe("A bar of copper.");
     expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, mod: "examplemod" });
-    expect(r.meta.itemCount).toBe(14);
-    expect(r.meta.recipeCount).toBe(5);
+    expect(r.meta.itemCount).toBe(18);
+    expect(r.meta.recipeCount).toBe(6);
   });
 });
 

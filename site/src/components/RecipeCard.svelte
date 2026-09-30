@@ -13,6 +13,7 @@
   import BarrelRecipe from "../renderers/BarrelRecipe.svelte";
   import AlloyRecipe from "../renderers/AlloyRecipe.svelte";
   import CookingRecipe from "../renderers/CookingRecipe.svelte";
+  import ConstructionRecipe from "../renderers/ConstructionRecipe.svelte";
   import GenericRecipe from "../renderers/GenericRecipe.svelte";
   import Slot from "./Slot.svelte";
 
@@ -55,6 +56,7 @@
     barrel: BarrelRecipe,
     alloy: AlloyRecipe,
     cooking: CookingRecipe,
+    construction: ConstructionRecipe,
     generic: GenericRecipe,
   };
   // The type block a shape relies on can be missing in a malformed record; the generic
@@ -63,6 +65,7 @@
     const shape = type.shape;
     if (shape === "grid" && !recipe.grid) return GenericRecipe;
     if (shape === "voxels" && !recipe.voxels) return GenericRecipe;
+    if (shape === "construction" && !recipe.construction) return GenericRecipe;
     return renderers[shape] ?? GenericRecipe;
   });
 </script>

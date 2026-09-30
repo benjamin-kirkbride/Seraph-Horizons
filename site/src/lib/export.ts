@@ -2,7 +2,7 @@
 // contract; these mirror it and are only as strict as the app needs.
 
 export type Kind = "item" | "block";
-export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "generic";
+export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "generic";
 
 export interface Mod {
   name: string;
@@ -128,6 +128,7 @@ export interface Recipe {
   barrel?: { sealHours?: number };
   alloy?: Record<string, never>;
   cooking?: { code?: string; cooksInto?: Stack; dirtyPot?: boolean };
+  construction?: { stages: { ingredients: number[]; action?: string }[] };
   requirements?: string[];
   extra?: Record<string, unknown>;
 }

@@ -14,6 +14,7 @@ interface Recipe {
   ingredients: { key?: string }[];
   variants: { ingredients: Stack[][]; outputs: Stack[] }[];
   grid?: { width: number; height: number; pattern: string[] };
+  construction?: { stages: { ingredients: number[] }[] };
 }
 export interface ExportV1 {
   schemaVersion: number;
@@ -82,6 +83,7 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
     });
 
     if (r.grid) checkGrid(r, at, report);
+    if (r.construction) checkConstruction(r, at, report);
   });
 
   for (const [type, t] of Object.entries(d.recipeTypes)) {
@@ -108,6 +110,29 @@ function checkGrid(r: Recipe, at: string, report: ErrorReport): void {
         report.add("grid-key", rowAt, `"_" or an ingredient key (${[...keys].join("")})`,
           `${JSON.stringify(c)} at column ${x}`);
       }
+    }
+  });
+}
+
+/** Each ingredient is consumed by exactly one stage. */
+function checkConstruction(r: Recipe, at: string, report: ErrorReport): void {
+  const stageOf = new Map<number, number>();
+  r.construction!.stages.forEach((stage, s) => {
+    stage.ingredients.forEach((i, k) => {
+      const iat = `${at}/construction/stages/${s}/ingredients/${k}`;
+      const first = stageOf.get(i);
+      if (i >= r.ingredients.length) {
+        report.add("construction-ingredient", iat, `an index below ${r.ingredients.length} (ingredients)`, String(i));
+      } else if (first !== undefined) {
+        report.add("construction-ingredient", iat, "an ingredient no other stage lists", `${i}, also in stage ${first}`);
+      } else {
+        stageOf.set(i, s);
+      }
+    });
+  });
+  r.ingredients.forEach((_, i) => {
+    if (!stageOf.has(i)) {
+      report.add("construction-ingredient", `${at}/ingredients/${i}`, "an ingredient some stage lists", "in no stage");
     }
   });
 }

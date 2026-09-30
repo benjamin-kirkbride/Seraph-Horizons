@@ -204,3 +204,26 @@ test("without an icon a search result shows the initials of its name", async ({ 
   const results = await search(page, "Crude ladder");
   await expect(results.first().locator("[data-icon-placeholder]")).toHaveText("CL");
 });
+
+test("the water wheel is built in place, stage by stage, with the wood of its support beams", async ({ page }) => {
+  // blocktypes/mechanics/waterwheel.json: RightClickConstructable, stages 1 (supportbeam-* ×16,
+  // storeWildCard wood), 2 (plank-{wood} ×48, resin ×4), ... and a last stage "Launch".
+  await openItem(page, "game:waterwheel-3m-north");
+  const c = await card(page, "madeBy", "construction|game:waterwheel-3m-north|");
+  await pause(c);
+  await expect(c).toHaveAttribute("data-shape", "construction");
+  await expect(c.locator("[data-stage]")).toHaveCount(7);
+  await expect(c.locator('[data-stage="0"]')).toContainText("Place it");
+  await expect(c.locator('[data-stage="6"]')).toContainText("Right-click: Launch");
+
+  const beam = await c.locator('[data-stage="1"] [data-input="0"] [data-code]').getAttribute("data-code");
+  const wood = beam!.replace("game:supportbeam-", "");
+  expect(["oak", "maple", "kapok", "redwood", "ebony", "walnut", "purpleheart"]).toContain(wood);
+  await expect(c.locator('[data-stage="1"] [data-input="0"] [data-code]')).toHaveAttribute("data-amount", "×16");
+  const plank = c.locator('[data-stage="2"] [data-input="1"] [data-code]');
+  await expect(plank).toHaveAttribute("data-code", `game:plank-${wood}`);
+  await expect(plank).toHaveAttribute("data-amount", "×48");
+
+  // Planks are asked for twice (48 in stage 2 and 48 in stage 5).
+  await expect(c.locator(`[data-totals] [data-code="game:plank-${wood}"]`)).toHaveAttribute("data-amount", "×96");
+});
