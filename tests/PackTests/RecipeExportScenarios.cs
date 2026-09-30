@@ -282,6 +282,100 @@ public class RecipeExportScenarios : AtlasScenarioBase
         Assert.Equal(expected, r["variants"]!.Select(v => (string)v["bindings"]!["metal"]!).OrderBy(m => m, StringComparer.Ordinal));
     }
 
+    // ------------------------------------------------------ built in place
+
+    // survival/blocktypes/mechanics/waterwheel.json: RightClickConstructable, brokenDropsRatio
+    // 0.8. Stage 1 takes 16 supportbeam-* (oak, maple, kapok, redwood, ebony, walnut,
+    // purpleheart) and stores the wood; stages 2 to 5 take plank-{wood} x48 and resin x4,
+    // supportbeam-{wood} x16 and resin x4, metalnailsandstrips-* x8, plank-{wood} x48 and
+    // resin x4; stage 6 takes nothing and is "Launch".
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Water_wheel_is_built_in_place_with_one_variant_per_stored_wood()
+    {
+        var r = Doc["recipes"]!.Cast<JObject>().Single(x =>
+            ((string)x["id"]!).StartsWith("construction|game:waterwheel-") && (string)x["outputs"]![0]!["code"]! == "game:waterwheel-3m-north");
+        Assert.Equal("survival", (string)r["mod"]!);
+        Assert.Equal("construction", (string)Doc["recipeTypes"]!["construction"]!["shape"]!);
+        Json("""
+            [
+              { "code": "game:supportbeam-*", "kind": "block", "quantity": 16,
+                "allowedVariants": ["oak", "maple", "kapok", "redwood", "ebony", "walnut", "purpleheart"],
+                "extra": { "name": "Support beams", "storeWildCard": "wood" } },
+              { "code": "game:plank-{wood}", "kind": "item", "quantity": 48 },
+              { "code": "game:resin", "kind": "item", "quantity": 4 },
+              { "code": "game:supportbeam-{wood}", "kind": "block", "quantity": 16 },
+              { "code": "game:resin", "kind": "item", "quantity": 4 },
+              { "code": "game:metalnailsandstrips-*", "kind": "item", "quantity": 8, "extra": { "storeWildCard": "metal" } },
+              { "code": "game:plank-{wood}", "kind": "item", "quantity": 48 },
+              { "code": "game:resin", "kind": "item", "quantity": 4 }
+            ]
+            """, r["ingredients"]!);
+        Json("""
+            { "stages": [
+              { "ingredients": [] }, { "ingredients": [0] }, { "ingredients": [1, 2] }, { "ingredients": [3, 4] },
+              { "ingredients": [5] }, { "ingredients": [6, 7] }, { "ingredients": [], "action": "Launch" } ] }
+            """, r["construction"]!);
+        Assert.Equal(0.8, (double)r["extra"]!["brokenDropsRatio"]!, 3);
+
+        var oak = VariantWith(r, "wood", "oak");
+        var slots = oak["ingredients"]!.Select(s => Codes(s).Select(c => (string)c!).ToList()).ToList();
+        Assert.Equal(new[] { "game:supportbeam-oak" }, slots[0]);
+        Assert.Equal(new[] { "game:plank-oak" }, slots[1]);
+        Assert.Equal(new[] { "game:supportbeam-oak" }, slots[3]);
+        Assert.Equal(new[] { "game:plank-oak" }, slots[6]);
+        Assert.Contains("game:metalnailsandstrips-iron", slots[5]);
+
+        var world = World.Api.World;
+        var woods = new[] { "oak", "maple", "kapok", "redwood", "ebony", "walnut", "purpleheart" }
+            .Where(w => world.GetBlock(new AssetLocation($"game:supportbeam-{w}")) != null)
+            .OrderBy(w => w, StringComparer.Ordinal);
+        Assert.Equal(woods, r["variants"]!.Select(v => (string)v["bindings"]!["wood"]!).OrderBy(w => w, StringComparer.Ordinal));
+    }
+
+    // ppex's assets/ppex/blocktypes/mpfluidpump.json: exlib's ExRightClickConstructable (a
+    // subclass of the engine's behavior). Stages take plank-* x4, woodenaxle-ud, rod-* x2;
+    // metalplate-* x1, rod-* x2; pipe-straight-* x2, metalplate-* x2, metalnailsandstrips-* x2;
+    // metalplate-* x4, metalnailsandstrips-* x4. Iron and steel only, and no placeholders, so
+    // one variant. The four sides are one record.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Mod_subclass_of_the_behavior_is_exported_too()
+    {
+        var r = Recipe("construction|ppex:mpfluidpump-north|2");
+        Assert.Equal("ppex", (string)r["mod"]!);
+        Assert.Equal("ExRightClickConstructable", (string)r["extra"]!["behavior"]!);
+        Assert.Equal(new[] { "ppex:mpfluidpump-east", "ppex:mpfluidpump-north", "ppex:mpfluidpump-south", "ppex:mpfluidpump-west" },
+            r["extra"]!["members"]!.Select(m => (string)m!));
+        Assert.Equal(new[] { 0, 3, 2, 3, 2 }, r["construction"]!["stages"]!.Select(s => s["ingredients"]!.Count()));
+        Assert.Equal(new[] { "game:plank-*", "game:woodenaxle-ud", "game:rod-*", "game:metalplate-*", "game:rod-*",
+                             "ppex:pipe-straight-*", "game:metalplate-*", "game:metalnailsandstrips-*",
+                             "game:metalplate-*", "game:metalnailsandstrips-*" },
+            Codes(r["ingredients"]!).Select(c => (string)c!));
+        Assert.Equal(new[] { 4.0, 1, 2, 1, 2, 2, 2, 2, 4, 4 }, r["ingredients"]!.Select(i => (double)i["quantity"]!));
+        var variant = Assert.Single(r["variants"]!);
+        Assert.Null(variant["bindings"]);
+        Assert.Equal(new[] { "game:rod-iron", "game:rod-steel" }, Codes(variant["ingredients"]![2]!).Select(c => (string)c!));
+    }
+
+    /// <summary>Every block that has the behavior, or a subclass of it, is in exactly one record.</summary>
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Every_constructable_block_is_in_one_record()
+    {
+        var api = (ICoreServerAPI)World.Api;
+        var blocks = api.World.Blocks
+            .Where(b => b?.Code != null && (b.BlockEntityBehaviors ?? []).Any(beh =>
+                api.ClassRegistry.GetBlockEntityBehaviorClass(beh.Name) is { } t &&
+                typeof(BEBehaviorRightClickConstructable).IsAssignableFrom(t)))
+            .Select(b => b.Code.ToString())
+            .OrderBy(c => c, StringComparer.Ordinal)
+            .ToList();
+        Assert.NotEmpty(blocks);
+        var covered = Doc["recipes"]!.Where(r => (string)r["type"]! == "construction")
+            .SelectMany(r => r["extra"]?["members"]?.Select(m => (string)m!) ?? new[] { (string)r["outputs"]![0]!["code"]! })
+            .OrderBy(c => c, StringComparer.Ordinal)
+            .ToList();
+        Assert.Equal(blocks, covered);
+    }
+
     // ------------------------------------------------------ counts
 
     /// <summary>
@@ -476,7 +570,10 @@ public class RecipeExportScenarios : AtlasScenarioBase
                                          "barrelrecipes", "alloyrecipes", "cookingrecipes" })
             Assert.Contains(expected, codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        var registries = Doc["recipeTypes"]!.Values().Select(t => (string)t["registry"]!).ToHashSet();
+        // Blocks built in place are the one type not read from a registry.
+        var registries = ((JObject)Doc["recipeTypes"]!).Properties()
+            .Where(p => p.Name != RecipeSection.InPlaceType)
+            .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));
     }
 }

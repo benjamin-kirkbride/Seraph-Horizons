@@ -1,7 +1,9 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.RecipeExport.Items;
 using SeraphHorizons.RecipeExport.Recipes;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
 
@@ -21,6 +23,9 @@ public static class RecipeSection
         ["alloy"] = "Alloying",
         ["cooking"] = "Cooking",
     };
+
+    /// <summary>Type code of blocks built in place (not a registry; see <see cref="InPlaceBuilds"/>).</summary>
+    public const string InPlaceType = "construction";
 
     /// <returns>Every item and block code the exported recipes reference.</returns>
     public static ISet<string> Fill(ICoreServerAPI api, JObject root) => Fill(api, root, Registries.Find(api));
@@ -57,6 +62,23 @@ public static class RecipeSection
                 ["mod"] = reg.Mod,
             };
         }
+
+        if (types.ContainsKey(InPlaceType))
+            throw new RecipeExportException($"A recipe registry has the type code '{InPlaceType}' that built-in-place blocks use");
+        var builds = InPlaceBuilds.Find(ctx.Api, ctx.Expander);
+        using (new EnglishLocale())
+        {
+            var mods = new ModIndex(api);
+            records.AddRange(builds.Select(b => BuildRecord(ctx, mods, b)));
+        }
+        types[InPlaceType] = new JObject
+        {
+            ["name"] = "Built in place",
+            ["count"] = builds.Count,
+            ["shape"] = "construction",
+            ["registry"] = nameof(Vintagestory.GameContent.BEBehaviorRightClickConstructable),
+            ["mod"] = "survival",
+        };
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));
         for (int i = 1; i < records.Count; i++)
@@ -184,6 +206,55 @@ public static class RecipeSection
         return o;
     }
 
+    private static JObject BuildRecord(Context ctx, ModIndex mods, InPlaceBuild build)
+    {
+        var code = build.Block.Code.ToString();
+        var o = new JObject
+        {
+            ["id"] = $"{InPlaceType}|{code}|{build.BehaviorIndex}",
+            ["type"] = InPlaceType,
+            ["mod"] = mods.ModForCollectible(build.Block),
+        };
+        o["ingredients"] = new JArray(build.Slots.Select(s =>
+        {
+            if (s.NameLangCode != null) s.Form.Extra["name"] = Lang.Get(s.NameLangCode);
+            if (s.StoreWildCard != null) s.Form.Extra["storeWildCard"] = s.StoreWildCard;
+            return Ingredient(ctx, s.Form);
+        }));
+        var made = new StackSpec { Type = EnumItemClass.Block, Code = build.Block.Code, Resolved = new ItemStack(build.Block) };
+        o["outputs"] = new JArray(new JObject { ["code"] = code, ["kind"] = "block", ["quantity"] = 1 });
+
+        var variants = new List<JObject>();
+        foreach (var v in build.Variants)
+        {
+            var vo = new JObject();
+            if (v.Bindings.Count > 0) vo["bindings"] = new JObject(v.Bindings.Select(kv => new JProperty(kv.Key, kv.Value)));
+            vo["ingredients"] = new JArray(v.Slots.Select(s => new JArray(Take(ctx,
+                ctx.Expander.Accepted(s.Spec).Where(stack =>
+                    s.Group == null || InPlaceBuilds.Lookup(ctx.Api.World, stack)?.Variant?[s.Group] == s.Value)))));
+            vo["outputs"] = new JArray(new[] { Produced(ctx, made) }.OfType<JObject>());
+            variants.Add(vo);
+        }
+        variants.Sort((a, b) => string.CompareOrdinal(a.ToString(Formatting.None), b.ToString(Formatting.None)));
+        o["variants"] = new JArray(variants);
+
+        o["construction"] = new JObject
+        {
+            ["stages"] = new JArray(build.Stages.Select(stage =>
+            {
+                var so = new JObject { ["ingredients"] = new JArray(stage.Slots) };
+                if (stage.ActionLangCode != null) so["action"] = Lang.Get(stage.ActionLangCode);
+                return so;
+            })),
+        };
+
+        var extra = new JObject { ["behavior"] = build.Behavior };
+        if (build.BrokenDropsRatio != null) extra["brokenDropsRatio"] = Num(build.BrokenDropsRatio.Value);
+        if (build.Members.Count > 1) extra["members"] = new JArray(build.Members.Select(b => b.Code.ToString()));
+        o["extra"] = extra;
+        return o;
+    }
+
     private static JObject Ingredient(Context ctx, SlotForm slot)
     {
         var spec = slot.Primary;
@@ -239,16 +310,22 @@ public static class RecipeSection
     private static IEnumerable<JObject> Accepted(Context ctx, SlotForm? slot)
     {
         if (slot == null) yield break;
+        foreach (var stack in Take(ctx, slot.Accepts.SelectMany(ctx.Expander.Accepted)))
+            yield return stack;
+    }
+
+    /// <summary>Distinct stacks by code, first wins, recorded as referenced.</summary>
+    private static IEnumerable<JObject> Take(Context ctx, IEnumerable<JObject> stacks)
+    {
         var codes = new HashSet<string>();
-        foreach (var spec in slot.Accepts)
-            foreach (var stack in ctx.Expander.Accepted(spec))
-            {
-                var code = (string)stack["code"]!;
-                if (!codes.Add(code)) continue;
-                ctx.Referenced.Add(code);
-                Round(stack);
-                yield return stack;
-            }
+        foreach (var stack in stacks)
+        {
+            var code = (string)stack["code"]!;
+            if (!codes.Add(code)) continue;
+            ctx.Referenced.Add(code);
+            Round(stack);
+            yield return stack;
+        }
     }
 
     private static JObject? Produced(Context ctx, StackSpec spec)

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Recipe, RecipeExport } from "../src/lib/export.ts";
 import {
+  constructionStages,
+  constructionTotals,
   cycleAt,
   distinctSources,
   focusVariants,
@@ -18,6 +20,7 @@ const minimal = JSON.parse(
 ) as RecipeExport;
 const byId = (id: string) => minimal.recipes.find((r) => r.id === id)!;
 const ladder = byId("grid|game:recipes/grid/ladder.json|0");
+const waterwheel = byId("construction|game:waterwheel-3m-north|2");
 
 describe("gridCells", () => {
   it("puts the saw in row 0 column 1 and leaves row 2 column 1 empty for SWS/SPS/S_S", () => {
@@ -122,5 +125,41 @@ describe("distinctSources", () => {
       { ...drop("game:a-west", "A"), type: "traderSells" as const },
     ]);
     expect(rows).toHaveLength(4);
+  });
+});
+
+describe("construction", () => {
+  it("lists the stages in build order, the placed block first", () => {
+    expect(constructionStages(waterwheel)).toEqual([
+      { ingredients: [] },
+      { ingredients: [0] },
+      { ingredients: [1, 2] },
+      { ingredients: [], action: "Launch" },
+    ]);
+    expect(constructionStages(ladder)).toEqual([]);
+  });
+
+  it("totals what the variant consumes, slot by slot", () => {
+    // Variant 1 binds wood to oak.
+    expect(constructionTotals(waterwheel, 1)).toEqual([
+      [{ code: "game:supportbeam-oak", kind: "block", quantity: 16 }],
+      [{ code: "game:plank-oak", kind: "item", quantity: 48 }],
+      [{ code: "game:resin", kind: "item", quantity: 4 }],
+    ]);
+  });
+
+  it("adds up slots that accept the same stacks", () => {
+    const resin = waterwheel.ingredients[2]!;
+    const r: Recipe = {
+      ...waterwheel,
+      ingredients: [...waterwheel.ingredients, { ...resin, quantity: 6 }],
+      variants: waterwheel.variants.map((v) => ({ ...v, ingredients: [...v.ingredients, v.ingredients[2]!] })),
+      construction: { stages: [{ ingredients: [] }, { ingredients: [0] }, { ingredients: [1, 2] }, { ingredients: [3] }] },
+    };
+    expect(constructionTotals(r, 0).map((slot) => slot.map((s) => [s.code, s.quantity]))).toEqual([
+      [["game:supportbeam-birch", 16]],
+      [["game:plank-birch", 48]],
+      [["game:resin", 10]],
+    ]);
   });
 });
