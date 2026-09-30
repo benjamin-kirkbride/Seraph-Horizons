@@ -224,6 +224,13 @@ test("the water wheel is built in place, stage by stage, with the wood of its su
   await expect(plank).toHaveAttribute("data-code", `game:plank-${wood}`);
   await expect(plank).toHaveAttribute("data-amount", "×48");
 
+  // Each stage's label is above its items, whatever the length of their names.
+  for (let s = 1; s <= 5; s++) {
+    const label = await c.locator(`[data-stage="${s}"] .step`).boundingBox();
+    const first = await c.locator(`[data-stage="${s}"] [data-input]`).first().boundingBox();
+    expect(label!.y + label!.height, `stage ${s}`).toBeLessThanOrEqual(first!.y);
+  }
+
   // Planks are asked for twice (48 in stage 2 and 48 in stage 5).
   await expect(c.locator(`[data-totals] [data-code="game:plank-${wood}"]`)).toHaveAttribute("data-amount", "×96");
 });
