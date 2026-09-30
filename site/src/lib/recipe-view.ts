@@ -116,3 +116,28 @@ export function distinctSources(sources: readonly Source[]): Source[] {
     return true;
   });
 }
+
+/** Stages of a block built in place, in build order; the first is the block as placed. */
+export function constructionStages(recipe: Recipe): { ingredients: number[]; action?: string }[] {
+  return recipe.construction?.stages ?? [];
+}
+
+/**
+ * What a whole build consumes: slots accepting the same stacks are added up, in order of
+ * first use. The stacks carry the summed quantity.
+ */
+export function constructionTotals(recipe: Recipe, variant: number): Stack[][] {
+  const totals = new Map<string, Stack[]>();
+  recipe.ingredients.forEach((ing, i) => {
+    const stacks = slotStacks(recipe, variant, i);
+    if (stacks.length === 0) return;
+    const key = JSON.stringify(stacks.map((s) => [s.code, s.litres ?? null]));
+    const seen = totals.get(key);
+    if (seen) {
+      totals.set(key, seen.map((s) => ({ ...s, quantity: s.quantity + ing.quantity })));
+    } else {
+      totals.set(key, stacks.map((s) => ({ ...s, quantity: ing.quantity })));
+    }
+  });
+  return [...totals.values()];
+}

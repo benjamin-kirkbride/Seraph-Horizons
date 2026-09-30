@@ -67,9 +67,25 @@ the output item.
 | `barrel` | `barrel`: sealing time | Barrel |
 | `alloy` | `alloy`; ratios are on the ingredients | Alloying |
 | `cooking` | `cooking`; slot quantities are on the ingredients | Cooking |
+| `construction` | `construction`: stages, each listing the ingredients it consumes | Blocks built in place |
 | `generic` | none | Every type without a dedicated serialiser |
 
 In a grid pattern each character is the `key` of an ingredient and `_` is an empty cell.
+
+### Blocks built in place
+
+Some blocks are not crafted whole: the player places the block, then right-clicks it with
+the items of each stage in their hotbar until it is complete. The water wheel works this
+way, and so do ppex's pump, boilers and engines. These are records of type `construction`.
+Their `outputs` is the block, `ingredients` lists every stack a stage consumes, and
+`construction.stages` says which stage consumes which ingredient. The first stage is the
+block as placed and consumes nothing. A stage whose right-click is not "Construct" (the
+water wheel's last stage, "Launch") has an `action`.
+
+A stage can remember the variant of what it consumed (`extra.storeWildCard` on the
+ingredient) and a later stage can ask for the same variant with a `{name}` placeholder:
+the water wheel's planks are of the wood of its support beams. Each value is a variant with
+a binding, as for recipes.
 
 ## Rules beyond the schema
 
@@ -79,6 +95,7 @@ In a grid pattern each character is the `key` of an ingredient and `_` is an emp
 - Recipe ids are unique and sorted by UTF-16 code unit (ordinal order).
 - `variants[].ingredients` is as long as `ingredients`.
 - A grid pattern has `height` rows of `width` characters and uses only keys that exist.
+- Each ingredient of a `construction` record is consumed by exactly one stage.
 
 ## `extra`
 
