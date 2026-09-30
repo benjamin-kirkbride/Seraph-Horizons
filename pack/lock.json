@@ -4082,6 +4082,44 @@
         "1.22.3"
       ],
       "dependencies": {}
+    },
+    {
+      "id": "allowedvariantsfix",
+      "version": "1.0.1",
+      "releaseId": 59133,
+      "fileId": 126326,
+      "fileName": "allowedvariantsfix_1.0.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/allowedvariantsfix_1_fdcf34dddff7467e42b3a8fd69f0302c.zip?dl=allowedvariantsfix_1.0.1.zip",
+      "sha256": "13414391bbfbb4b6158c268e3ce056065c6ba081e5439e7a80e6285b7da8651b",
+      "size": 3508,
+      "side": "server",
+      "license": "Apache-2.0",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
+      "id": "constructionhelpfix",
+      "version": "1.0.0",
+      "releaseId": 59232,
+      "fileId": 126470,
+      "fileName": "constructionhelpfix_1.0.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/constructionhelpfix__08eae5d07773d97c8741a077691a2364.zip?dl=constructionhelpfix_1.0.0.zip",
+      "sha256": "02e1cef26bbdadb620407f08e3d3f9d3d3f22c2ff5a7f195b4b700920a7177b1",
+      "size": 5386,
+      "side": "universal",
+      "license": "Apache-2.0",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
     }
   ]
 }
