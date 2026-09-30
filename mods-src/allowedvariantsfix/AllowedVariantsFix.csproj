@@ -11,7 +11,7 @@
     <AssemblyName>AllowedVariantsFix</AssemblyName>
     <RootNamespace>SeraphHorizons.AllowedVariantsFix</RootNamespace>
     <!-- Keep equal to modinfo.json's version; tools/tests/test_mods_src.py checks it. -->
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateDependencyFile>false</GenerateDependencyFile>
