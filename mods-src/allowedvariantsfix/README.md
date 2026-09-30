@@ -1,4 +1,4 @@
-# Allowed Variants Fix
+# allowedVariants Fix
 
 A server-side code mod that works around
 [VintageStory-Issues#9256](https://github.com/anegostudios/VintageStory-Issues/issues/9256):
