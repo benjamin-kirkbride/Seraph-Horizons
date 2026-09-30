@@ -3,8 +3,8 @@
 Each mods-src/<modid>/ mod is built here, uploaded to the ModDB by hand and pinned in
 pack/pack.toml like any other mod (mods-src/allowedvariantsfix/README.md). Two copies can
 drift, so: the .csproj and modinfo.json agree on the version, and once the mod is pinned,
-the pin is the version in the source. A version bump in mods-src/ therefore fails here until
-that version is uploaded and pinned, which is the reminder to do it.
+the pin is never ahead of the source. The pin may lag: a version bump merges first, is
+released from a tag on main (mod-release.yml), uploaded, and only then pinned.
 
 Run with `python3 -m unittest discover -s tools/tests`.
 """
@@ -38,18 +38,23 @@ class ModsSrcInStep(unittest.TestCase):
             assert found is not None, f"{csproj}: no <Version>"
             self.assertEqual(found.group(1), json.loads(path.read_text())["version"], csproj)
 
-    def test_pin_is_the_source_version(self):
+    def test_pin_is_not_ahead_of_the_source(self):
         pinned = {m["id"]: m["version"] for m in packtool.load_pack()["mod"]}
         for path in MODS:
             info = json.loads(path.read_text())
             if info["modid"] not in pinned:
                 continue  # not uploaded yet
-            self.assertEqual(
-                pinned[info["modid"]], info["version"],
-                f"pack.toml pins {info['modid']}@{pinned[info['modid']]} but {path} is "
-                f"{info['version']}: upload that build to the ModDB and pin it",
+            pin, source = pinned[info["modid"]], info["version"]
+            self.assertLessEqual(
+                _release(pin), _release(source),
+                f"pack.toml pins {info['modid']}@{pin}, newer than {path} ({source}): "
+                "the ModDB copy was not built from this source",
             )
 
+
+def _release(version: str) -> tuple[int, ...]:
+    """1.2.10 as (1, 2, 10), so versions compare numerically. Pre-release tags are not used."""
+    return tuple(int(part) for part in version.split("."))
 
 if __name__ == "__main__":
     unittest.main()
