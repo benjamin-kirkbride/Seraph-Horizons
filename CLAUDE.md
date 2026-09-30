@@ -23,7 +23,7 @@ python3 tools/packtool.py assemble    # build dist/ release artifacts
 dotnet test tests/PackTests
 dotnet test tests/PackTests --filter "FullyQualifiedName~RecipeExportScenarios"
 
-# Pack-authored mods (mods-src/): Release writes build/<modid>_<version>.zip for the ModDB upload
+# Pack-authored mods (mods-src/): Release writes build/<modid>_<version>.zip (CI does this on a <modid>-v<version> tag)
 dotnet build mods-src/allowedvariantsfix -c Release
 
 # Icon export mod (local-only, never shipped); its Core/ tests need no game
@@ -62,7 +62,7 @@ npm --prefix site run dev
 
 **Changing the export format**: a change old readers can't ignore bumps `schemaVersion`. Follow `docs/recipe-browser/deploy.md` exactly: archive the old schema under `schema/archive/`, add a `tools/site-data/src/migrations/vN-to-vN+1.ts` step, and update the exporter (`Exporter.SchemaVersion`), `site/src/lib/export.ts`, `schema.md` and `minimal.json`. A test enforces that every past version has an archived schema and a migration step.
 
-**Pack-authored mods.** `mods-src/<modid>/` holds mods written for this pack (today `allowedvariantsfix`, a Harmony workaround for a game recipe bug). They are built locally, uploaded to the ModDB by hand and pinned in `pack.toml` like any other mod, so releases still only point at the ModDB. `tests/PackTests` loads the local build as an `<AtlasMod>` and drops the pinned zip of the same modid from `build/mods`; `tools/tests/test_mods_src.py` fails until a version bump is uploaded and pinned. Release steps are in each mod's `README.md`. Not `mods/`: `packtool fetch` stages `mods/*/` folders as-is.
+**Pack-authored mods.** `mods-src/<modid>/` holds mods written for this pack (today `allowedvariantsfix`, a Harmony workaround for a game recipe bug). A `<modid>-v<version>` tag on main makes `mod-release.yml` build one and attach the zip to a GitHub Release (never "latest"); it is uploaded to the ModDB by hand and pinned in `pack.toml` like any other mod, so pack releases still only point at the ModDB. `tests/PackTests` loads the local build as an `<AtlasMod>` and drops the pinned zip of the same modid from `build/mods`; `tools/tests/test_mods_src.py` keeps the pin from getting ahead of the source (it may lag while an upload is pending). Release steps are in each mod's `README.md`. Not `mods/`: `packtool fetch` stages `mods/*/` folders as-is.
 
 **Icons.** Icons are rendered by hand in the game client with `tools/icon-export/` (a local mod that must never enter `pack.toml` or a release; a test checks this), then imported by `tools/icons.py import` into content-addressed `icons/<xx>/<sha256>.png` (Git LFS) plus `icons/index.json`. CI checks out without LFS, so it only sees pointer files. See `docs/recipe-browser/icons.md`.
 
