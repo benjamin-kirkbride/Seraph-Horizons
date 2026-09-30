@@ -57,11 +57,13 @@
     padding: 0;
     min-width: 0;
   }
+  /* The label sits above the stage's items: beside them it lined up differently with each
+     name's length, and wrapped under long ones. */
   .stages > li {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.4rem 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
     padding: 0.35rem 0;
     border-top: 1px solid var(--border);
   }
@@ -71,7 +73,6 @@
   .step {
     font-size: 0.85rem;
     font-weight: 600;
-    min-width: 4.5rem;
   }
   .stages ul,
   .totals ul {
