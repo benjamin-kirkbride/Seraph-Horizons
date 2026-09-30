@@ -30,6 +30,11 @@
       <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- ConstructionHelpFixScenarios reverse-patches the game's method to compare against it. -->
+    <Reference Include="0Harmony">
+      <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(VINTAGE_STORY)/Lib/Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
@@ -38,6 +43,9 @@
     <ProjectReference Include="../../tools/recipe-export/SeraphExport.csproj" />
     <!-- Loaded as a mod: scenarios run against this build, not the copy pinned from the ModDB. -->
     <ProjectReference Include="../../mods-src/allowedvariantsfix/AllowedVariantsFix.csproj">
+      <AtlasMod>true</AtlasMod>
+    </ProjectReference>
+    <ProjectReference Include="../../mods-src/constructionhelpfix/ConstructionHelpFix.csproj">
       <AtlasMod>true</AtlasMod>
     </ProjectReference>
     <None Include="../../schema/recipe-export.schema.json" Link="recipe-export.schema.json" CopyToOutputDirectory="PreserveNewest" />
@@ -56,7 +64,7 @@
   -->
   <Target Name="WritePackModManifest" AfterTargets="Build">
     <ItemGroup>
-      <_PackModZip Include="$(PackModsDir)*.zip" Exclude="$(PackModsDir)allowedvariantsfix_*.zip" />
+      <_PackModZip Include="$(PackModsDir)*.zip" Exclude="$(PackModsDir)allowedvariantsfix_*.zip;$(PackModsDir)constructionhelpfix_*.zip" />
       <_PackModDir Include="$([System.IO.Directory]::GetDirectories('$(PackModsDir)'))" Condition="Exists('$(PackModsDir)')" />
     </ItemGroup>
     <Error Condition="'@(_PackModZip)@(_PackModDir)' == ''"
