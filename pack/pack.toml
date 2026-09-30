@@ -1022,6 +1022,14 @@ redistribute = false
 why = "Scrollable creative inventory tabs."
 
 [[mod]]
+id = "dovidarium"
+version = "0.9.5"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Faster creative inventory search, handbook and crafting-grid recipe lookup for large packs."
+
+[[mod]]
 id = "sheltered"
 version = "1.0.1"
 side = "client"

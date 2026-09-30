@@ -4019,6 +4019,32 @@
       }
     },
     {
+      "id": "dovidarium",
+      "version": "0.9.5",
+      "releaseId": 58744,
+      "fileId": 125648,
+      "fileName": "EternalS-Dovidarium-0.9.5.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/EternalS-Dovidarium-_8c6193ac4b8d2575d217f1a266bac179.zip?dl=EternalS-Dovidarium-0.9.5.zip",
+      "sha256": "9719d02aa391ed0c2b743f89c2a113ad4e8c20a5ee1aee8913518c2200f65648",
+      "size": 215573,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "sheltered",
       "version": "1.0.1",
       "releaseId": 44027,
