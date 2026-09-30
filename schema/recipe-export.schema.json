@@ -341,6 +341,32 @@
             "dirtyPot": { "type": "boolean" }
           }
         },
+        "construction": {
+          "description": "type construction only: a block placed, then built up stage by stage with right clicks. Each ingredient is consumed by exactly one stage.",
+          "type": "object",
+          "required": ["stages"],
+          "additionalProperties": false,
+          "properties": {
+            "stages": {
+              "description": "In build order. The first is the block as placed and never asks for anything.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["ingredients"],
+                "additionalProperties": false,
+                "properties": {
+                  "ingredients": {
+                    "description": "Indices into the recipe's `ingredients` consumed by this stage.",
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0 }
+                  },
+                  "action": { "description": "English name of the right-click action when it is not \"Construct\", e.g. Launch.", "type": "string" }
+                }
+              }
+            }
+          }
+        },
         "requirements": {
           "description": "Anything else needed, in plain English, e.g. a trait or a machine.",
           "type": "array",
@@ -359,7 +385,7 @@
         "count": { "description": "Number of records of this type in `recipes`.", "type": "integer", "minimum": 0 },
         "shape": {
           "description": "Which type-specific block the records carry. `generic` has none.",
-          "enum": ["grid", "voxels", "barrel", "alloy", "cooking", "generic"]
+          "enum": ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "generic"]
         },
         "registry": { "description": "Engine registry or mod system the recipes were read from.", "type": "string" },
         "mod": { "description": "Mod that registered the type.", "$ref": "#/$defs/modId" }

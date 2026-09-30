@@ -4,6 +4,7 @@
   "pack": { "id": "seraphhorizons", "version": "0.1.0", "gameVersion": "1.22.7" },
   "mods": {
     "game": { "name": "Essentials", "version": "1.22.7", "authors": ["Tyron"] },
+    "survival": { "name": "Survival Mode", "version": "1.22.7", "authors": ["Tyron"] },
     "examplemod": {
       "name": "Example Mod",
       "version": "1.0.0",
@@ -47,6 +48,10 @@
     },
     "game:ingot-tin": { "kind": "item", "name": "Tin ingot", "mod": "game", "handbookVisible": true },
     "game:ingot-tinbronze": { "kind": "item", "name": "Tin bronze ingot", "mod": "game", "handbookVisible": true },
+    "game:supportbeam-oak": { "kind": "block", "name": "Oak support beam", "mod": "game", "handbookVisible": true },
+    "game:supportbeam-birch": { "kind": "block", "name": "Birch support beam", "mod": "game", "handbookVisible": true },
+    "game:resin": { "kind": "item", "name": "Resin", "mod": "game", "handbookVisible": true },
+    "game:waterwheel-3m-north": { "kind": "block", "name": "Water wheel", "mod": "survival", "handbookVisible": true },
     "examplemod:widget": { "kind": "item", "name": "Widget", "mod": "examplemod", "handbookVisible": false }
   },
   "recipes": [
@@ -91,6 +96,52 @@
         }
       ],
       "barrel": { "sealHours": 0 }
+    },
+    {
+      "id": "construction|game:waterwheel-3m-north|2",
+      "type": "construction",
+      "mod": "survival",
+      "ingredients": [
+        {
+          "code": "game:supportbeam-*",
+          "kind": "block",
+          "quantity": 16,
+          "allowedVariants": ["oak", "birch"],
+          "extra": { "name": "Support beams", "storeWildCard": "wood" }
+        },
+        { "code": "game:plank-{wood}", "kind": "item", "quantity": 48 },
+        { "code": "game:resin", "kind": "item", "quantity": 4 }
+      ],
+      "outputs": [{ "code": "game:waterwheel-3m-north", "kind": "block", "quantity": 1 }],
+      "variants": [
+        {
+          "bindings": { "wood": "birch" },
+          "ingredients": [
+            [{ "code": "game:supportbeam-birch", "kind": "block", "quantity": 16 }],
+            [{ "code": "game:plank-birch", "kind": "item", "quantity": 48 }],
+            [{ "code": "game:resin", "kind": "item", "quantity": 4 }]
+          ],
+          "outputs": [{ "code": "game:waterwheel-3m-north", "kind": "block", "quantity": 1 }]
+        },
+        {
+          "bindings": { "wood": "oak" },
+          "ingredients": [
+            [{ "code": "game:supportbeam-oak", "kind": "block", "quantity": 16 }],
+            [{ "code": "game:plank-oak", "kind": "item", "quantity": 48 }],
+            [{ "code": "game:resin", "kind": "item", "quantity": 4 }]
+          ],
+          "outputs": [{ "code": "game:waterwheel-3m-north", "kind": "block", "quantity": 1 }]
+        }
+      ],
+      "construction": {
+        "stages": [
+          { "ingredients": [] },
+          { "ingredients": [0] },
+          { "ingredients": [1, 2] },
+          { "ingredients": [], "action": "Launch" }
+        ]
+      },
+      "extra": { "behavior": "RightClickConstructable", "brokenDropsRatio": 0.8 }
     },
     {
       "id": "examplemod:press|examplemod:recipes/press/widget.json|0",
@@ -159,6 +210,7 @@
   "recipeTypes": {
     "alloy": { "name": "Alloying", "count": 1, "shape": "alloy", "registry": "alloyrecipes", "mod": "game" },
     "barrel": { "name": "Barrel", "count": 1, "shape": "barrel", "registry": "barrelrecipes", "mod": "game" },
+    "construction": { "name": "Built in place", "count": 1, "shape": "construction", "registry": "BEBehaviorRightClickConstructable", "mod": "survival" },
     "examplemod:press": { "name": "Press", "count": 1, "shape": "generic", "registry": "pressrecipes", "mod": "examplemod" },
     "grid": { "name": "Crafting grid", "count": 1, "shape": "grid", "registry": "gridrecipes", "mod": "game" },
     "knapping": { "name": "Knapping", "count": 1, "shape": "voxels", "registry": "knappingrecipes", "mod": "game" }

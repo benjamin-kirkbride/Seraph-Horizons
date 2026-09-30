@@ -66,6 +66,28 @@ The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUn
    `enabled: false` (or `extra.disabledButRegistered` if a loader registered them anyway). Definitions none of whose forms resolved are records with no variants
    and `extra.resolved: false`. A definition that does not parse is logged and left out.
 
+## Blocks built in place
+
+These are not recipes in any registry. The engine's `BEBehaviorRightClickConstructable`
+(the block JSON's `entityBehaviors`) builds a placed block up in stages, each consuming
+stacks from the hotbar; exlib's `ExRightClickConstructable` subclasses it and only changes
+what breaking the block drops. `InPlaceBuilds` finds every block whose block-entity
+behaviors include that class or a subclass, and reads the behavior's `stages` from the
+registered block, so JSON patches apply, parsed as the behavior parses them.
+
+- Blocks with the same first code part and equal stages are one record (the four sides of
+  a pump). Its output is the first of them with a handbook page, and all of them are in
+  `extra.members`. The id is `construction|<that block>|<index of the behavior>`.
+- Stage 0 is the block as placed. The engine never consumes its `requireStacks`, so
+  neither does the export.
+- `storeWildCard` remembers the variant of the stack consumed, and later stages fill
+  `{name}` placeholders from it. A group some later stage uses is a binding with a variant
+  per value that the storing slot accepts, and that slot then only takes the bound value.
+  A group stored but never used (ppex stores `metal` on every slot) binds nothing, so each
+  slot takes what its own wildcard allows, as in game.
+- The ingredient's `name`, a lang code the game shows for wildcard slots, is in
+  `extra.name` in English.
+
 `mod` is the mod whose files hold the definition asset (vanilla recipes are `survival`),
 and `source` is its asset location. Types from base-game registries are bare (`grid`);
 mod registries are `<modid>:<registry code without "recipes">`, e.g.
@@ -95,6 +117,8 @@ mod registries are `<modid>:<registry code without "recipes">`, e.g.
 - known vanilla recipes of every base-game type, with values copied from the asset
   files (patterns, codes, quantities, voxels, wildcard variants and bindings);
 - a vanilla recipe changed by a mod's JSON patch (BetterRuins adds cupronickel nails);
+- blocks built in place: the water wheel's stages and wood bindings, ppex's pump (exlib's
+  subclass of the behavior), and every block with the behavior in exactly one record;
 - records per type against the definitions counted with the engine's asset loader, and
   variants per type against the sizes of the engine's registries;
 - the structural rules of the document, schema validation (JsonSchema.Net, draft
