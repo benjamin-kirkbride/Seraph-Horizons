@@ -112,8 +112,11 @@ nothing) are not repaired. If the patch isn't applied, the command refuses to ru
   whose materials were changed since is left alone
 - the same for the wayshrine ruin at 270°, which its blocks can't tell from its other rotations
 
-Without the mod, the first two fail; the second lists the corrupted materials. The Atlas world
-is superflat, so the `/chiselfix` scenarios load GenStructures' structures themselves. The test project loads this
+Without the mod, the first two fail; the second lists the corrupted materials. Which materials
+collide depends on how the pack numbers its blocks, which changes whenever a mod is added or
+updated, so the `/chiselfix` scenarios force the collision: they add a `BlockCodes` key at each
+material's world id, naming `overlay-damagedstone`, and remove it afterwards. The Atlas world is
+superflat, so they also load GenStructures' structures themselves. The test project loads this
 directory's build as a mod, and leaves out a pinned copy from the ModDB
 (`chiselrotationfix_*.zip` in `build/mods`).
 

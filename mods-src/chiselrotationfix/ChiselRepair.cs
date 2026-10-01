@@ -432,13 +432,19 @@ public class ChiselRepair
             var said = readings.Where(r => r.ContainsKey(key)).Select(r => r[key]).ToList();
             if (said.All(p => p.Buggy.SequenceEqual(p.Correct)))
                 continue;
-            result.Affected++;
 
             if (accessor.GetBlockEntity(said[0].Pos) is not BlockEntityMicroBlock { BlockIds: { } stored } be)
             {
-                result.Gone++;
+                // Only the best reading's chiseled blocks count as gone: the others' positions are
+                // where a rotation the structure probably wasn't placed at would have put one.
+                if (readings[0].ContainsKey(key))
+                {
+                    result.Affected++;
+                    result.Gone++;
+                }
                 continue;
             }
+            result.Affected++;
             var explained = said.Where(p => Holds(stored, p.Buggy, p.Source)).ToList();
             if (explained.Count == 0)
             {

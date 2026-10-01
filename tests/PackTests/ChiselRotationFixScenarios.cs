@@ -269,6 +269,7 @@ public class ChiselRotationFixScenarios : AtlasScenarioBase
         var layerIds = AccessTools.FieldRefAccess<WorldGenStructure, int[]>("replacewithblocklayersBlockids")(structure);
         var rock = BlockOf("game:rock-andesite");
         var start = World.Spawn.AddCopy(-20, heightAboveSpawn, -20);
+        var collisions = ForceCollisions(schematic);
 
         var corrupted = (BlockSchematicStructure)schematic.ClonePacked();
         RunUnpatched(() => corrupted.TransformWhilePacked(W, EnumOrigin.BottomCenter, angle));
@@ -298,7 +299,40 @@ public class ChiselRotationFixScenarios : AtlasScenarioBase
 
         return new RuinPair(ChiseledBlocks(corrupted, start), ChiseledBlocks(correct, correctStart),
             $"={start.X + corrupted.SizeX / 2} ={start.Y} ={start.Z + corrupted.SizeZ / 2}",
-            () => region.GeneratedStructures.Remove(generated));
+            () =>
+            {
+                region.GeneratedStructures.Remove(generated);
+                foreach (int key in collisions)
+                    schematic.BlockCodes.Remove(key);
+            });
+    }
+
+    /// <summary>
+    /// Which materials the bug corrupts depends on how the pack numbers its blocks, which changes
+    /// whenever a mod is added or updated. So the scenarios make the collision themselves: for each
+    /// chiseled-block material whose world id isn't a key of the ruin's BlockCodes, a key there
+    /// naming overlay-damagedstone, as the ruins in the world the bug was found in have. Grid blocks
+    /// don't use these keys. This edits GenStructures' own copy of the schematic, which
+    /// /chiselfix reads, so the returned keys must be removed again.
+    /// </summary>
+    private List<int> ForceCollisions(BlockSchematic schematic)
+    {
+        var decoy = BlockOf("game:overlay-damagedstone").Code;
+        var added = new List<int>();
+        foreach (var data in schematic.BlockEntities.Values)
+        {
+            if ((schematic.DecodeBlockEntityData(data)["materials"] as IntArrayAttribute)?.value is not int[] ids)
+                continue;
+            foreach (int id in ids)
+            {
+                if (!schematic.BlockCodes.TryGetValue(id, out var code) || W.GetBlock(code) is not Block material
+                    || material.Code.Equals(decoy) || schematic.BlockCodes.ContainsKey(material.Id))
+                    continue;
+                schematic.BlockCodes[material.Id] = decoy;
+                added.Add(material.Id);
+            }
+        }
+        return added;
     }
 
     private sealed record RuinPair(Dictionary<Vec3i, BlockEntityMicroBlock> Corrupted, Dictionary<Vec3i, BlockEntityMicroBlock> Correct,
