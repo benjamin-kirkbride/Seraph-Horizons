@@ -83,18 +83,21 @@ export interface ItemDetail {
 }
 
 /**
- * data/<version>/entities.json: every creature and trader that some item names as a
- * source, column-wise and sorted by code. An entity's index here is its id in the entity
- * chunks.
+ * data/<version>/entities.json: every creature and trader type that some item names as a
+ * source, column-wise and sorted by code. A type is an entity type file of the game
+ * (game:wolf); its variants (game:wolf-eurasian-adult-male) share one page. A type's index
+ * here is its id in the entity chunks.
  */
 export interface EntityIndex {
   codes: string[];
   names: string[];
   /** Mod id, from the code's domain. */
   mod: string[];
-  /** Rows of type entityDrop, dropped on death or harvested. */
+  /** Names of each type's variants, for filtering the list. */
+  variantNames: string[][];
+  /** Distinct items each type drops on death or gives when harvested. */
   drops: number[];
-  /** Rows of type traderSells or traderBuys. */
+  /** Distinct items each type sells or buys. */
   trades: number[];
 }
 
@@ -104,10 +107,16 @@ export type EntitySource = Omit<Source, "from" | "fromName"> & {
   item: number;
 };
 
-/** data/<version>/entities/<n>.json */
+export interface EntityVariant {
+  code: string;
+  name: string;
+  sources: EntitySource[];
+}
+
+/** data/<version>/entities/<n>.json: each type's variants, sorted by code. */
 export interface EntityChunk {
   start: number;
-  entities: EntitySource[][];
+  entities: EntityVariant[][];
 }
 
 /** data/<version>/recipes/<n>.json */

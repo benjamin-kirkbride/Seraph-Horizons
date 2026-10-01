@@ -83,9 +83,10 @@ internal sealed class SourceIndex
             var from = entity.Code.ToString();
             if (!Json.IsValidCode(from)) continue;
             var fromName = Lang.GetMatching(entity.Code.Domain + ":item-creature-" + entity.Code.Path);
+            var type = EntityType(entity);
 
             foreach (var drop in entity.Drops ?? [])
-                AddEntityDrop(drop, from, fromName, null);
+                AddEntityDrop(drop, from, fromName, type, null);
 
             // Butchering drops live in the "harvestable" server behavior (and in look-alike
             // behaviors of mods), each with a "drops" array of block drop stacks.
@@ -100,26 +101,43 @@ internal sealed class SourceIndex
                 {
                     if (drop == null) continue;
                     if (drop.ResolvedItemstack == null && !drop.Resolve(_api.World, "seraphexport", entity.Code)) continue;
-                    AddEntityDrop(drop, from, fromName, code == "harvestable" ? "Harvested" : "Behavior " + code);
+                    AddEntityDrop(drop, from, fromName, type, code == "harvestable" ? "Harvested" : "Behavior " + code);
                 }
             }
 
-            AddTrader(entity, from, fromName);
+            AddTrader(entity, from, fromName, type);
         }
     }
 
-    private void AddEntityDrop(BlockDropItemStack? drop, string from, string fromName, string? note)
+    /// <summary>
+    /// The code of the entity type file, which a variant's code extends with its variant
+    /// states: game:wolf for game:wolf-eurasian-adult-male. The site shows a type's variants
+    /// on one page.
+    /// </summary>
+    internal static string EntityType(EntityProperties entity)
+    {
+        var path = entity.Code.Path;
+        if (entity.Variant is { Count: > 0 })
+        {
+            var suffix = "-" + string.Join("-", entity.Variant.Values);
+            if (path.Length > suffix.Length && path.EndsWith(suffix, StringComparison.Ordinal)) path = path[..^suffix.Length];
+        }
+        return entity.Code.Domain + ":" + path;
+    }
+
+    private void AddEntityDrop(BlockDropItemStack? drop, string from, string fromName, string type, string? note)
     {
         var stack = drop?.ResolvedItemstack;
         if (stack?.Collectible?.Code == null) return;
         var s = Source("entityDrop", from, fromName, Json.Quantity(drop!.Quantity));
         if (drop.Tool != null) s["tool"] = Json.Lower(drop.Tool.Value);
         if (note != null) s["note"] = note;
+        s["extra"] = new JObject { ["entityType"] = type };
         Add(stack.Collectible.Code.ToString(), s);
     }
 
     /// <summary>Same lookup as the game's TradeHandbookInfo: a trade list file, or inline tradeProps.</summary>
-    private void AddTrader(EntityProperties entity, string from, string fromName)
+    private void AddTrader(EntityProperties entity, string from, string fromName, string type)
     {
         var file = entity.Attributes?["tradePropsFile"].AsString(null);
         if (file == null && entity.Attributes?["tradeProps"].Exists != true) return;
@@ -136,11 +154,11 @@ internal sealed class SourceIndex
             return;
         }
         if (props == null) return;
-        AddTrades(props.Selling?.List, "traderSells", from, fromName);
-        AddTrades(props.Buying?.List, "traderBuys", from, fromName);
+        AddTrades(props.Selling?.List, "traderSells", from, fromName, type);
+        AddTrades(props.Buying?.List, "traderBuys", from, fromName, type);
     }
 
-    private void AddTrades(TradeItem[]? list, string type, string from, string fromName)
+    private void AddTrades(TradeItem[]? list, string type, string from, string fromName, string entityType)
     {
         foreach (var trade in list ?? [])
         {
@@ -149,12 +167,12 @@ internal sealed class SourceIndex
             if (stack?.Collectible?.Code == null) continue;
             var s = Source(type, from, fromName, new JObject { ["avg"] = stack.StackSize });
             if (trade.Price != null) s["price"] = Json.Round(trade.Price.avg);
-            var extra = new JObject();
+            var extra = new JObject { ["entityType"] = entityType };
             if (trade.Price != null && trade.Price.var != 0) extra["priceVar"] = Json.Round(trade.Price.var);
             if (trade.Stock != null) extra["stock"] = Json.Quantity(trade.Stock);
             if (trade.Attributes is { Exists: true } && trade.Attributes.Token is JObject attrs && attrs.Count > 0)
                 extra["attributes"] = attrs.DeepClone();
-            if (extra.Count > 0) s["extra"] = extra;
+            s["extra"] = extra;
             Add(stack.Collectible.Code.ToString(), s);
         }
     }

@@ -26,7 +26,7 @@ const en = {
   homeHint: "Search for an item to see how it is made and what it is used for.",
   recipeTypesHeading: "Recipe types",
   entitiesLink: "Creatures and traders",
-  entitiesHomeLink: (n: number) => `Browse the ${n.toLocaleString("en")} creatures and traders and what they drop or trade.`,
+  entitiesHomeLink: (n: number) => `Browse ${n.toLocaleString("en")} kinds of creature and trader and what they drop or trade.`,
   entitiesHeading: "Creatures and traders",
   entitiesIntro:
     "Every creature that drops or can be harvested for something, and every trader, as far as the game's data declares it. Drops decided in code are not listed.",
@@ -35,10 +35,19 @@ const en = {
   entitiesNone: (q: string) => `No creature or trader matches “${q}”.`,
   creatures: "Creatures",
   traders: "Traders",
-  entityCounts: (drops: number, trades: number) =>
-    [drops ? `${drops} drop${drops === 1 ? "" : "s"}` : "", trades ? `${trades} trade${trades === 1 ? "" : "s"}` : ""]
+  entityCounts: (variants: number, drops: number, trades: number) =>
+    [
+      variants > 1 ? `${variants} variants` : "",
+      drops ? `${drops} item${drops === 1 ? "" : "s"} dropped` : "",
+      trades ? `${trades} item${trades === 1 ? "" : "s"} traded` : "",
+    ]
       .filter(Boolean)
       .join(", "),
+  variantsLabel: "Variants",
+  allVariants: "All variants",
+  allVariantsHint: (n: number) => `Every item the ${n} variants give, with the range of amounts. Pick a variant for its own list.`,
+  everyVariant: "all",
+  someVariants: (n: number, total: number) => `${n} of ${total}`,
   entityNotInVersion: (code: string, version: string) => `${code} gives nothing in version ${version}, or does not exist there.`,
   entitySections: {
     drops: "Drops when killed",

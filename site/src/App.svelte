@@ -217,7 +217,7 @@
     <EntityList {data} meta={meta.meta} />
   {:else if route.view === "entity"}
     {#key `${data.id}|${route.code}`}
-      <EntityPage {data} meta={meta.meta} code={route.code} />
+      <EntityPage {data} meta={meta.meta} code={route.code} variant={route.variant} />
     {/key}
   {:else if route.view === "credits"}
     <Credits meta={meta.meta} />

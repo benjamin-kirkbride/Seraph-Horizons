@@ -5,7 +5,7 @@ import {
   chunkOf,
   type EntityChunk,
   type EntityIndex,
-  type EntitySource,
+  type EntityVariant,
   type ItemChunk,
   type ItemDetail,
   type Meta,
@@ -124,8 +124,8 @@ export class VersionData {
     return this.entitiesP;
   }
 
-  /** What entity `index` gives, as listed in entities.json. */
-  async entity(index: number): Promise<EntitySource[]> {
+  /** The variants of entity type `index` of entities.json, with what each gives. */
+  async entity(index: number): Promise<EntityVariant[]> {
     const meta = await this.meta();
     const n = chunkOf(meta.entityChunks, index);
     let p = this.entityChunks.get(n);

@@ -12,6 +12,7 @@
     code: string;
     name: string;
     mod: string;
+    variants: string[];
     drops: number;
     trades: number;
   }
@@ -27,6 +28,7 @@
           code,
           name: index.names[i]!,
           mod: index.mod[i]!,
+          variants: index.variantNames[i]!,
           drops: index.drops[i]!,
           trades: index.trades[i]!,
         }));
@@ -42,7 +44,8 @@
   });
 
   const needle = $derived(filter.trim().toLowerCase());
-  const matches = (r: Row) => needle === "" || r.name.toLowerCase().includes(needle) || r.code.includes(needle);
+  const matches = (r: Row) =>
+    needle === "" || r.code.includes(needle) || [r.name, ...r.variants].some((n) => n.toLowerCase().includes(needle));
   const shown = $derived(rows ? { creatures: rows.creatures.filter(matches), traders: rows.traders.filter(matches) } : null);
 </script>
 
@@ -74,7 +77,7 @@
                   <span class="name">{r.name}</span>
                   <span class="meta">
                     <code>{r.code}</code>
-                    <span class="muted">· {meta.mods[r.mod]?.name ?? r.mod} · {t.entityCounts(r.drops, r.trades)}</span>
+                    <span class="muted">· {meta.mods[r.mod]?.name ?? r.mod} · {t.entityCounts(r.variants.length, r.drops, r.trades)}</span>
                   </span>
                 </span>
               </a>

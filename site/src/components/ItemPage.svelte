@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ItemAttributes } from "../lib/export.ts";
+  import type { ItemAttributes, Source } from "../lib/export.ts";
   import type { ItemDetail, Meta } from "../lib/format.ts";
   import type { ItemRef, VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
@@ -75,6 +75,11 @@
 
   // Creatures and traders have pages of their own; blocks are items.
   const entitySource = (type: string) => type === "entityDrop" || type === "traderSells" || type === "traderBuys";
+  // A variant shares its type's page; the address picks the variant there.
+  function entityHref(s: Source): string {
+    const type = typeof s.extra?.entityType === "string" ? s.extra.entityType : s.from;
+    return formatRoute({ view: "entity", version: data.id, code: type, ...(type !== s.from ? { variant: s.from } : {}) });
+  }
 </script>
 
 {#if page.status === "loading"}
@@ -138,7 +143,7 @@
                   <td>{t.sourceKinds[s.type] ?? s.type}</td>
                   <td>
                     {#if entitySource(s.type)}
-                      <a href={formatRoute({ view: "entity", version: data.id, code: s.from })} data-entity-link={s.from}>{s.fromName ?? s.from}</a>
+                      <a href={entityHref(s)} data-entity-link={s.from}>{s.fromName ?? s.from}</a>
                     {:else if data.indexOf(s.from) >= 0}<ItemLink code={s.from} {data} label={s.fromName} />{:else}{s.fromName ?? s.from}{/if}
                   </td>
                   <td>{formatQuantity(s.quantity)}</td>

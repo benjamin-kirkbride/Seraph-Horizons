@@ -18,6 +18,12 @@ describe("parseRoute", () => {
       version: "main",
       code: "game:wolf-eurasian-adult-male",
     });
+    expect(parseRoute("#/main/entity/game:drifter?variant=game%3Adrifter-normal")).toEqual({
+      view: "entity",
+      version: "main",
+      code: "game:drifter",
+      variant: "game:drifter-normal",
+    });
     expect(parseRoute("#/main/entity/wolf")).toEqual({ view: "notfound", version: "main" });
   });
 
@@ -41,7 +47,7 @@ describe("formatRoute", () => {
   });
 
   it("round-trips through parseRoute", () => {
-    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits", "#/main/entities", "#/main/entity/game:wolf-male"]) {
+    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits", "#/main/entities", "#/main/entity/game:wolf", "#/main/entity/game:wolf?variant=game%3Awolf-male"]) {
       expect(formatRoute(parseRoute(hash))).toBe(hash);
     }
     expect(parseRoute(formatRoute({ view: "item", version: "main", code: "a:b/c" }))).toEqual({ view: "item", version: "main", code: "a:b/c" });
