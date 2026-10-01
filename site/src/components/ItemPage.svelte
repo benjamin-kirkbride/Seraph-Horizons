@@ -3,7 +3,7 @@
   import type { ItemDetail, Meta } from "../lib/format.ts";
   import type { ItemRef, VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
-  import { distinctSources, formatNumber } from "../lib/recipe-view.ts";
+  import { distinctSources, formatNumber, formatQuantity } from "../lib/recipe-view.ts";
   import { parseVtml } from "../lib/vtml.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
@@ -73,10 +73,8 @@
     return rows;
   }
 
-  function quantity(q: { avg: number; var?: number } | undefined): string {
-    if (!q) return "";
-    return q.var ? `${formatNumber(q.avg)} ± ${formatNumber(q.var)}` : formatNumber(q.avg);
-  }
+  // Creatures and traders have pages of their own; blocks are items.
+  const entitySource = (type: string) => type === "entityDrop" || type === "traderSells" || type === "traderBuys";
 </script>
 
 {#if page.status === "loading"}
@@ -139,9 +137,11 @@
                 <tr>
                   <td>{t.sourceKinds[s.type] ?? s.type}</td>
                   <td>
-                    {#if data.indexOf(s.from) >= 0}<ItemLink code={s.from} {data} label={s.fromName} />{:else}{s.fromName ?? s.from}{/if}
+                    {#if entitySource(s.type)}
+                      <a href={formatRoute({ view: "entity", version: data.id, code: s.from })} data-entity-link={s.from}>{s.fromName ?? s.from}</a>
+                    {:else if data.indexOf(s.from) >= 0}<ItemLink code={s.from} {data} label={s.fromName} />{:else}{s.fromName ?? s.from}{/if}
                   </td>
-                  <td>{quantity(s.quantity)}</td>
+                  <td>{formatQuantity(s.quantity)}</td>
                   <td>
                     {[s.tool ? `${t.tool.toLowerCase()}: ${s.tool}` : "", s.price !== undefined ? t.price(s.price) : "", s.note ?? ""]
                       .filter(Boolean)

@@ -100,6 +100,8 @@ Browsers: `npx --prefix site playwright install --with-deps chromium`.
 <dir>/search.json        every item, column-wise and sorted by code
 <dir>/items/<n>.json     item details and reverse indexes, a few hundred items per file
 <dir>/recipes/<n>.json   recipe records as in the export, up to 60 per file
+<dir>/entities.json      every creature and trader, column-wise and sorted by code
+<dir>/entities/<n>.json  what each entity gives, a few hundred entities per file
 ```
 
 The app loads `data/versions.json` (written by `tools/site-data`, see README.md) and, for
@@ -143,6 +145,26 @@ expression, and `allowedVariants` and `skipVariants` filter the value of the fir
 So a recipe asking for `game:plank-*` is a use of `game:plank-birch`. An output with a
 `{name}` placeholder is only matched this way when the recipe has no variants, limited to
 the values its named ingredient allows.
+
+### Creatures and traders
+
+The export has no list of entities. prepare-data turns the item `sources` of type
+`entityDrop`, `traderSells` and `traderBuys` around: every code named in their `from` is
+an entity, and each such source becomes a row of that entity, with `from` and `fromName`
+replaced by `item`, the item's index. An entity that gives nothing the export lists is
+therefore missing, and so is what it gives that is not an item of the export.
+
+```json
+{ "codes": ["game:wolf-eurasian-adult-male"], "names": ["Wolf (male)"], "mod": ["game"], "drops": [7], "trades": [0] }
+```
+
+`mod` is the mod with the code's domain as its id or in its `domains`; failing that, the
+domain itself. `drops` and `trades` count the entity's rows, so the list page
+(`#/<version>/entities`) needs no chunk. `meta.json` has `entityCount` and `entityChunks`,
+read like `itemChunks`; a chunk is `{ "start": ..., "entities": [[row, ...], ...] }`.
+The entity page (`#/<version>/entity/<code>`) splits rows into dropped on death (no
+`note`), harvested (`note` "Harvested"), one section per other behavior note, sells and
+buys. Item pages link every creature and trader source there.
 
 `DATA_FORMAT` in `format.ts` is written to `meta.json` as `format`. The app and the data
 are always built together, so there is no migration between formats.

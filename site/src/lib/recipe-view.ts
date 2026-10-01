@@ -32,6 +32,12 @@ export function formatNumber(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
 }
 
+/** A drop or trade quantity: "2", or "7 ± 2.5" when it varies. */
+export function formatQuantity(q: { avg: number; var?: number } | undefined): string {
+  if (!q) return "";
+  return q.var ? `${formatNumber(q.avg)} ± ${formatNumber(q.var)}` : formatNumber(q.avg);
+}
+
 /** "88–92%" for an alloy share given as fractions. */
 export function formatRatio(min: number | undefined, max: number | undefined): string {
   const pct = (x: number) => formatNumber(Math.round(x * 1000) / 10);

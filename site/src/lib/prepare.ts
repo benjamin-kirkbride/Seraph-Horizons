@@ -5,6 +5,9 @@ import type { Recipe, RecipeExport, Shape } from "./export.ts";
 import {
   DATA_FORMAT,
   FLAG_BLOCK,
+  type EntityChunk,
+  type EntityIndex,
+  type EntitySource,
   FLAG_HANDBOOK,
   type ItemChunk,
   type ItemDetail,
@@ -112,6 +115,43 @@ function pushTo(map: Record<string, number[]>, key: string, value: number) {
   (map[key] ??= []).push(value);
 }
 
+const ENTITY_SOURCES = new Set(["entityDrop", "traderSells", "traderBuys"]);
+
+/** The mod that owns an asset domain: the mod of that id, else one that lists the domain. */
+function modOfDomain(exp: RecipeExport, domain: string): string {
+  if (exp.mods[domain]) return domain;
+  for (const [id, mod] of Object.entries(exp.mods)) if (mod.domains?.includes(domain)) return id;
+  return domain;
+}
+
+/**
+ * Creatures and traders, from the item sources that name them. The export has no list of
+ * entities of its own, so one that gives nothing is not here.
+ */
+export function entitiesFrom(exp: RecipeExport, codes: readonly string[]): { index: EntityIndex; sources: EntitySource[][] } {
+  const byCode = new Map<string, { name?: string; sources: EntitySource[] }>();
+  codes.forEach((code, item) => {
+    for (const { from, fromName, ...rest } of exp.items[code]!.sources ?? []) {
+      if (!ENTITY_SOURCES.has(rest.type)) continue;
+      let e = byCode.get(from);
+      if (!e) byCode.set(from, (e = { sources: [] }));
+      e.name ??= fromName;
+      e.sources.push({ ...rest, item });
+    }
+  });
+  const index: EntityIndex = { codes: [...byCode.keys()].sort(compareCodes), names: [], mod: [], drops: [], trades: [] };
+  const sources = index.codes.map((code) => {
+    const e = byCode.get(code)!;
+    index.names.push(e.name || code);
+    index.mod.push(modOfDomain(exp, code.slice(0, code.indexOf(":"))));
+    const drops = e.sources.filter((s) => s.type === "entityDrop").length;
+    index.drops.push(drops);
+    index.trades.push(e.sources.length - drops);
+    return e.sources;
+  });
+  return { index, sources };
+}
+
 export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Prepared {
   const chunkBytes = options.chunkBytes ?? 256_000;
   const maxItems = options.maxItemsPerChunk ?? 400;
@@ -189,6 +229,14 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     files.set(`recipes/${n}.json`, chunk);
   });
 
+  const entities = entitiesFrom(exp, codes);
+  const entityChunks = chunkBy(entities.sources, maxItems, chunkBytes);
+  entityChunks.forEach((start, n) => {
+    const end = entityChunks[n + 1] ?? entities.sources.length;
+    const chunk: EntityChunk = { start, entities: entities.sources.slice(start, end) };
+    files.set(`entities/${n}.json`, chunk);
+  });
+
   const meta: Meta = {
     format: DATA_FORMAT,
     pack: exp.pack,
@@ -200,8 +248,11 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     recipeCount: recipes.length,
     itemChunks,
     recipeChunks,
+    entityCount: entities.index.codes.length,
+    entityChunks,
   };
   files.set("meta.json", meta);
+  files.set("entities.json", entities.index);
   files.set("search.json", search);
   return { files, meta };
 }

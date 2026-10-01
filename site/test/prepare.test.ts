@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Recipe, RecipeExport } from "../src/lib/export.ts";
-import type { ItemChunk, Meta, RecipeChunk, SearchFile } from "../src/lib/format.ts";
+import type { EntityChunk, EntityIndex, ItemChunk, Meta, RecipeChunk, SearchFile } from "../src/lib/format.ts";
 import { prepareData } from "../src/lib/prepare.ts";
 
 const minimal = JSON.parse(
@@ -228,5 +228,54 @@ describe("wildcards in the reverse indexes", () => {
     const nugget = r.search.codes.indexOf("game:nugget-copper");
     expect(r.detail("game:ingot-copper").smeltedFrom).toEqual([nugget]);
     expect(r.detail("game:nugget-copper").smeltsInto).toBe(ingot);
+  });
+});
+
+describe("entities, from the item sources that name them", () => {
+  const exp = exportWith(["game:fat", "game:gear-rusty", "game:hide-raw-large", "game:stick"], []);
+  exp.mods.wool = { name: "Wool", version: "1", domains: ["woolfleece"] };
+  exp.items["game:fat"]!.sources = [
+    { type: "entityDrop", from: "game:wolf-male", fromName: "Wolf (male)", quantity: { avg: 5, var: 1 }, note: "Harvested" },
+  ];
+  exp.items["game:hide-raw-large"]!.sources = [
+    { type: "entityDrop", from: "game:wolf-male", fromName: "Wolf (male)", quantity: { avg: 1 }, note: "Harvested" },
+    { type: "entityDrop", from: "woolfleece:sheep", fromName: "Sheep", quantity: { avg: 1 } },
+  ];
+  exp.items["game:gear-rusty"]!.sources = [
+    { type: "blockDrop", from: "game:loosegears-1", fromName: "Loose rusty gears", quantity: { avg: 1 } },
+    { type: "entityDrop", from: "game:drifter-normal", fromName: "Surface Drifter", quantity: { avg: 0.01 }, note: "Harvested" },
+    { type: "traderBuys", from: "game:trader-agriculture", fromName: "Agriculture trader", quantity: { avg: 1 }, price: 2 },
+  ];
+  const { files, meta } = prepareData(exp, { maxItemsPerChunk: 2 });
+  const index = files.get("entities.json") as EntityIndex;
+  const rows = (code: string) => {
+    const i = index.codes.indexOf(code);
+    const chunk = [...files.entries()]
+      .filter(([p]) => p.startsWith("entities/"))
+      .map(([, c]) => c as EntityChunk)
+      .find((c) => i >= c.start && i < c.start + c.entities.length)!;
+    const search = files.get("search.json") as SearchFile;
+    return chunk.entities[i - chunk.start]!.map(({ item, ...rest }) => ({ item: search.codes[item], ...rest }));
+  };
+
+  it("lists every creature and trader once, sorted by code, and leaves blocks out", () => {
+    expect(index.codes).toEqual(["game:drifter-normal", "game:trader-agriculture", "game:wolf-male", "woolfleece:sheep"]);
+    expect(index.names).toEqual(["Surface Drifter", "Agriculture trader", "Wolf (male)", "Sheep"]);
+    expect(index.drops).toEqual([1, 0, 2, 1]);
+    expect(index.trades).toEqual([0, 1, 0, 0]);
+    expect(meta.entityCount).toBe(4);
+    expect(meta.entityChunks).toEqual([0, 2]);
+  });
+
+  it("credits a domain to the mod that lists it", () => {
+    expect(index.mod).toEqual(["game", "game", "game", "wool"]);
+  });
+
+  it("turns each source around into what the entity gives, in item order", () => {
+    expect(rows("game:wolf-male")).toEqual([
+      { item: "game:fat", type: "entityDrop", quantity: { avg: 5, var: 1 }, note: "Harvested" },
+      { item: "game:hide-raw-large", type: "entityDrop", quantity: { avg: 1 }, note: "Harvested" },
+    ]);
+    expect(rows("game:trader-agriculture")).toEqual([{ item: "game:gear-rusty", type: "traderBuys", quantity: { avg: 1 }, price: 2 }]);
   });
 });

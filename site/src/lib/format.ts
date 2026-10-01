@@ -32,6 +32,10 @@ export interface Meta {
   itemChunks: number[];
   /** First recipe index of each recipe chunk, ascending. Chunk n is recipes/<n>.json. */
   recipeChunks: number[];
+  /** Number of entities in entities.json. */
+  entityCount: number;
+  /** First entity index of each entity chunk, ascending. Chunk n is entities/<n>.json. */
+  entityChunks: number[];
 }
 
 export interface TypeInfo {
@@ -76,6 +80,34 @@ export interface ItemDetail {
   smeltedFrom?: number[];
   /** Item index of this item's smelting output, when that item is in the export. */
   smeltsInto?: number;
+}
+
+/**
+ * data/<version>/entities.json: every creature and trader that some item names as a
+ * source, column-wise and sorted by code. An entity's index here is its id in the entity
+ * chunks.
+ */
+export interface EntityIndex {
+  codes: string[];
+  names: string[];
+  /** Mod id, from the code's domain. */
+  mod: string[];
+  /** Rows of type entityDrop, dropped on death or harvested. */
+  drops: number[];
+  /** Rows of type traderSells or traderBuys. */
+  trades: number[];
+}
+
+/** One item an entity gives: an item's source, turned around. */
+export type EntitySource = Omit<Source, "from" | "fromName"> & {
+  /** Item index. */
+  item: number;
+};
+
+/** data/<version>/entities/<n>.json */
+export interface EntityChunk {
+  start: number;
+  entities: EntitySource[][];
 }
 
 /** data/<version>/recipes/<n>.json */
