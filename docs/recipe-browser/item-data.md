@@ -117,6 +117,12 @@ meals, pies and liquids) are not called.
 | `entityDrop` | `EntityProperties.Drops`, and the `drops` array of any server behavior (the vanilla `harvestable` behavior, note `Harvested`; others get note `Behavior <code>`). Mod patches such as Good Hunting's are applied. |
 | `traderSells`, `traderBuys` | The trade list of every entity type that has `tradePropsFile` or `tradeProps`, read the way the game's `TradeHandbookInfo` reads it. `quantity.avg` is the stack size per trade, `price` the average price in gears. `extra.priceVar` and `extra.stock` hold the rest. |
 
+Every `entityDrop`, `traderSells` and `traderBuys` source has `extra.entityType`: the code
+of the entity type file it is a variant of, which is the entity's code without the states
+of its variant groups (`EntityProperties.Variant`). `game:wolf-eurasian-adult-male` is a
+`game:wolf`; every vanilla trader is a `game:trader`. The site shows a type's variants on
+one page.
+
 Known missing:
 
 - Drops decided in code: `Block.GetDrops` overrides (crops by growth stage, ore by
@@ -162,3 +168,4 @@ are not included.
 - `source.type: "blockHarvest"` for harvested bushes instead of `other` with a note, and
   `"entityHarvest"` for butchering, which differs from dropping on death.
 - `mod.type` (code, content, theme).
+- `source.entityType`, promoted from `extra.entityType`.

@@ -43,6 +43,7 @@ const { files, meta } = prepareData(data);
 // Stale chunks from an earlier, larger export would otherwise linger in the build.
 rmSync(join(outDir, "items"), { recursive: true, force: true });
 rmSync(join(outDir, "recipes"), { recursive: true, force: true });
+rmSync(join(outDir, "entities"), { recursive: true, force: true });
 let bytes = 0;
 for (const [path, value] of files) {
   const target = join(outDir, path);
@@ -52,6 +53,6 @@ for (const [path, value] of files) {
   writeFileSync(target, text);
 }
 console.log(
-  `prepare-data: ${meta.itemCount} items, ${meta.recipeCount} recipes, ${files.size} files, ` +
+  `prepare-data: ${meta.itemCount} items, ${meta.recipeCount} recipes, ${meta.entityCount} entities, ${files.size} files, ` +
     `${(bytes / 1e6).toFixed(1)} MB in ${((Date.now() - started) / 1000).toFixed(1)} s -> ${outDir}`,
 );
