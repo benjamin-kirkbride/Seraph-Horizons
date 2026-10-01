@@ -48,12 +48,15 @@ export async function search(page: Page, query: string): Promise<Locator> {
 export async function card(page: Page, group: "madeBy" | "usedIn", sourceFile: string, extra = ""): Promise<Locator> {
   const section = page.locator(`[data-group="${group}"]`);
   const found = section.locator(`article[data-recipe-id*="${sourceFile}"]${extra}`).first();
+  // Stop on the site's end-of-list mark, not on a missing button: a page can finish loading
+  // between two checks, so seeing neither "Show more" nor "Loading…" proves nothing.
+  const incomplete = page.locator(`[data-group="${group}"]:not([data-complete])`);
   await expect(section.first()).toBeVisible();
   for (let i = 0; i < 500; i++) {
     if (await found.isVisible()) return found;
     const more = section.getByRole("button", { name: /^Show \d+ more$/ });
     if ((await more.count()) > 0) await more.first().click();
-    else if ((await section.getByText("Loading…").count()) > 0) await page.waitForTimeout(100);
+    else if ((await incomplete.count()) > 0) await page.waitForTimeout(100);
     else break;
   }
   await expect(found).toBeVisible();
