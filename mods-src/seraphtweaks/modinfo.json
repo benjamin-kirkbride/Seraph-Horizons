@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "seraphtweaks",
+  "name": "Seraph Horizons Tweaks",
+  "description": "Gameplay tweaks to other mods for the Seraph Horizons pack, each one switchable in ModConfig/seraphtweaks.json.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "1.0.0",
+  "side": "Universal",
+  "requiredOnClient": false,
+  "dependencies": { "game": "1.22.0" }
+}
