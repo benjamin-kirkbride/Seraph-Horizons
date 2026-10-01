@@ -100,6 +100,8 @@ Browsers: `npx --prefix site playwright install --with-deps chromium`.
 <dir>/search.json        every item, column-wise and sorted by code
 <dir>/items/<n>.json     item details and reverse indexes, a few hundred items per file
 <dir>/recipes/<n>.json   recipe records as in the export, up to 60 per file
+<dir>/entities.json      every creature and trader, column-wise and sorted by code
+<dir>/entities/<n>.json  what each entity gives, a few hundred entities per file
 ```
 
 The app loads `data/versions.json` (written by `tools/site-data`, see README.md) and, for
@@ -143,6 +145,41 @@ expression, and `allowedVariants` and `skipVariants` filter the value of the fir
 So a recipe asking for `game:plank-*` is a use of `game:plank-birch`. An output with a
 `{name}` placeholder is only matched this way when the recipe has no variants, limited to
 the values its named ingredient allows.
+
+### Creatures and traders
+
+The export has no list of entities. prepare-data turns the item `sources` of type
+`entityDrop`, `traderSells` and `traderBuys` around: every code named in their `from` is
+an entity, and each such source becomes a row of that entity, with `from` and `fromName`
+replaced by `item`, the item's index. An entity that gives nothing the export lists is
+therefore missing, and so is what it gives that is not an item of the export.
+
+Entities are grouped by type: the entity type file whose variant the entity is
+(`game:wolf` for `game:wolf-eurasian-adult-male`), which the exporter writes as
+`extra.entityType` on each source. An export from before that field makes each entity a
+type of its own. The game has no names for types, so `entityTypeName` in `prepare.ts`
+takes the words all variant names start or end with ("Wolf", "Drifter", "Trader"), or
+failing that the code ("Fish (saltwater)").
+
+```json
+{ "codes": ["game:wolf"], "names": ["Wolf"], "mod": ["game"],
+  "variantNames": [["Wolf (female)", "Wolf (male)", "Wolf pup (female)", "Wolf pup (male)"]],
+  "drops": [7], "trades": [0] }
+```
+
+`mod` is the mod with the code's domain as its id or in its `domains`; failing that, the
+domain itself. `drops` and `trades` count distinct items, so the list page
+(`#/<version>/entities`) needs no chunk. `meta.json` has `entityCount` and `entityChunks`,
+read like `itemChunks`; a chunk is `{ "start": ..., "entities": [[{ "code", "name",
+"sources": [row, ...] }, ...], ...] }`, each type's variants sorted by code.
+
+The type page (`#/<version>/entity/<type>`) shows every variant merged by default: one row
+per item and way of getting it, with the range of quantities and how many variants give
+it. Variants that give exactly the same are one chip (male and female traders of one kind
+in every climate are one), and `?variant=<code>` shows that chip's own rows. Rows are split
+into dropped on death (no `note`), harvested (`note` "Harvested"), one section per other
+behavior note, sells and buys. Item pages link every creature and trader source to its
+type's page on its variant.
 
 `DATA_FORMAT` in `format.ts` is written to `meta.json` as `format`. The app and the data
 are always built together, so there is no migration between formats.

@@ -5,6 +5,9 @@ import type { Recipe, RecipeExport, Shape } from "./export.ts";
 import {
   DATA_FORMAT,
   FLAG_BLOCK,
+  type EntityChunk,
+  type EntityIndex,
+  type EntityVariant,
   FLAG_HANDBOOK,
   type ItemChunk,
   type ItemDetail,
@@ -112,6 +115,87 @@ function pushTo(map: Record<string, number[]>, key: string, value: number) {
   (map[key] ??= []).push(value);
 }
 
+const ENTITY_SOURCES = new Set(["entityDrop", "traderSells", "traderBuys"]);
+
+/** The mod that owns an asset domain: the mod of that id, else one that lists the domain. */
+function modOfDomain(exp: RecipeExport, domain: string): string {
+  if (exp.mods[domain]) return domain;
+  for (const [id, mod] of Object.entries(exp.mods)) if (mod.domains?.includes(domain)) return id;
+  return domain;
+}
+
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * A name for an entity type, which the game does not have: the words every variant's name
+ * starts or ends with, leaving out what is in brackets ("Wolf (male)" and "Wolf pup
+ * (female)" give "Wolf"; "Surface Drifter" and "Deep Drifter" give "Drifter"). Failing
+ * that, the code: game:fish-saltwater is "Fish (saltwater)".
+ */
+export function entityTypeName(type: string, variantNames: readonly string[]): string {
+  const words = [...new Set(variantNames)].map((n) => n.replace(/\s*\([^)]*\)\s*$/, "").split(/\s+/).filter(Boolean));
+  if (words.length > 0) {
+    const first = words[0]!;
+    let pre = first.length;
+    let suf = first.length;
+    for (const w of words) {
+      let i = 0;
+      while (i < pre && i < w.length && w[i]!.toLowerCase() === first[i]!.toLowerCase()) i++;
+      pre = i;
+      let j = 0;
+      while (j < suf && j < w.length && w[w.length - 1 - j]!.toLowerCase() === first[first.length - 1 - j]!.toLowerCase()) j++;
+      suf = j;
+    }
+    if (pre > 0) return capitalise(first.slice(0, pre).join(" "));
+    if (suf > 0) return capitalise(first.slice(first.length - suf).join(" "));
+  }
+  const [head, ...rest] = type.slice(type.indexOf(":") + 1).split("-");
+  return capitalise(head!) + (rest.length > 0 ? ` (${rest.join(", ")})` : "");
+}
+
+/**
+ * Creature and trader types, from the item sources that name them. The export has no list
+ * of entities of its own, so one that gives nothing is not here. A source's
+ * `extra.entityType` says which type its entity is a variant of; exports from before it was
+ * written make every entity a type of its own.
+ */
+export function entitiesFrom(exp: RecipeExport, codes: readonly string[]): { index: EntityIndex; types: EntityVariant[][] } {
+  const byType = new Map<string, Map<string, EntityVariant>>();
+  codes.forEach((code, item) => {
+    for (const { from, fromName, ...rest } of exp.items[code]!.sources ?? []) {
+      if (!ENTITY_SOURCES.has(rest.type)) continue;
+      const declared = rest.extra?.entityType;
+      const type = typeof declared === "string" && declared !== "" ? declared : from;
+      let variants = byType.get(type);
+      if (!variants) byType.set(type, (variants = new Map()));
+      let v = variants.get(from);
+      if (!v) variants.set(from, (v = { code: from, name: fromName || from, sources: [] }));
+      let extra: Record<string, unknown> | undefined;
+      if (rest.extra) {
+        const { entityType: _type, ...others } = rest.extra;
+        if (Object.keys(others).length > 0) extra = others;
+      }
+      const { extra: _extra, ...fields } = rest;
+      v.sources.push({ ...fields, ...(extra ? { extra } : {}), item });
+    }
+  });
+  const index: EntityIndex = { codes: [...byType.keys()].sort(compareCodes), names: [], mod: [], variantNames: [], drops: [], trades: [] };
+  const types = index.codes.map((code) => {
+    const variants = [...byType.get(code)!.values()].sort((a, b) => compareCodes(a.code, b.code));
+    const names = variants.map((v) => v.name);
+    index.names.push(entityTypeName(code, names));
+    index.mod.push(modOfDomain(exp, code.slice(0, code.indexOf(":"))));
+    index.variantNames.push([...new Set(names)]);
+    const drops = new Set<number>();
+    const trades = new Set<number>();
+    for (const v of variants) for (const s of v.sources) (s.type === "entityDrop" ? drops : trades).add(s.item);
+    index.drops.push(drops.size);
+    index.trades.push(trades.size);
+    return variants;
+  });
+  return { index, types };
+}
+
 export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Prepared {
   const chunkBytes = options.chunkBytes ?? 256_000;
   const maxItems = options.maxItemsPerChunk ?? 400;
@@ -189,6 +273,14 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     files.set(`recipes/${n}.json`, chunk);
   });
 
+  const entities = entitiesFrom(exp, codes);
+  const entityChunks = chunkBy(entities.types, maxItems, chunkBytes);
+  entityChunks.forEach((start, n) => {
+    const end = entityChunks[n + 1] ?? entities.types.length;
+    const chunk: EntityChunk = { start, entities: entities.types.slice(start, end) };
+    files.set(`entities/${n}.json`, chunk);
+  });
+
   const meta: Meta = {
     format: DATA_FORMAT,
     pack: exp.pack,
@@ -200,8 +292,11 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     recipeCount: recipes.length,
     itemChunks,
     recipeChunks,
+    entityCount: entities.index.codes.length,
+    entityChunks,
   };
   files.set("meta.json", meta);
+  files.set("entities.json", entities.index);
   files.set("search.json", search);
   return { files, meta };
 }

@@ -3,6 +3,9 @@
 import type { Recipe } from "./export.ts";
 import {
   chunkOf,
+  type EntityChunk,
+  type EntityIndex,
+  type EntityVariant,
   type ItemChunk,
   type ItemDetail,
   type Meta,
@@ -53,6 +56,8 @@ export class VersionData {
   private engine: ItemSearch | null = null;
   private readonly itemChunks = new Map<number, Promise<ItemChunk>>();
   private readonly recipeChunks = new Map<number, Promise<RecipeChunk>>();
+  private entitiesP: Promise<EntityIndex> | null = null;
+  private readonly entityChunks = new Map<number, Promise<EntityChunk>>();
   /** Loaded search.json, for synchronous lookups once `ready` resolved. */
   index: SearchFile | null = null;
 
@@ -111,6 +116,25 @@ export class VersionData {
     }
     const chunk = await p;
     return chunk.items[index - chunk.start] ?? {};
+  }
+
+  /** entities.json; only the entity pages need it. */
+  entities(): Promise<EntityIndex> {
+    this.entitiesP ??= getJson<EntityIndex>(`${this.base}entities.json`);
+    return this.entitiesP;
+  }
+
+  /** The variants of entity type `index` of entities.json, with what each gives. */
+  async entity(index: number): Promise<EntityVariant[]> {
+    const meta = await this.meta();
+    const n = chunkOf(meta.entityChunks, index);
+    let p = this.entityChunks.get(n);
+    if (!p) {
+      p = getJson<EntityChunk>(`${this.base}entities/${n}.json`);
+      this.entityChunks.set(n, p);
+    }
+    const chunk = await p;
+    return chunk.entities[index - chunk.start] ?? [];
   }
 
   async recipes(indices: readonly number[]): Promise<Recipe[]> {

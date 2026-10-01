@@ -7,6 +7,8 @@ export type Route =
   | { view: "home"; version: string }
   | { view: "search"; version: string; query: string }
   | { view: "item"; version: string; code: string }
+  | { view: "entities"; version: string }
+  | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
   | { view: "notfound"; version?: string };
 
@@ -37,12 +39,18 @@ export function parseRoute(hash: string): Route {
     case "search":
       if (rest.length === 0) return { view: "search", version, query: params.get("q") ?? "" };
       break;
-    case "item": {
+    case "item":
+    case "entity": {
       // A code has no `/` in practice, but joining keeps one intact if it ever does.
       const code = dec(rest.join("/"));
-      if (code && /^[^:\s]+:\S+$/.test(code)) return { view: "item", version, code };
-      break;
+      if (!code || !/^[^:\s]+:\S+$/.test(code)) break;
+      if (page === "item") return { view: "item", version, code };
+      const variant = params.get("variant");
+      return variant ? { view: "entity", version, code, variant } : { view: "entity", version, code };
     }
+    case "entities":
+      if (rest.length === 0) return { view: "entities", version };
+      break;
     case "credits":
       if (rest.length === 0) return { view: "credits", version };
       break;
@@ -60,6 +68,10 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/search?${new URLSearchParams({ q: route.query }).toString()}`;
     case "item":
       return `#/${enc(route.version)}/item/${enc(route.code)}`;
+    case "entities":
+      return `#/${enc(route.version)}/entities`;
+    case "entity":
+      return `#/${enc(route.version)}/entity/${enc(route.code)}${route.variant ? `?${new URLSearchParams({ variant: route.variant }).toString()}` : ""}`;
     case "credits":
       return `#/${enc(route.version)}/credits`;
     case "notfound":
