@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "chiselrotationfix",
+  "name": "Chisel Rotation Fix",
+  "description": "Chiseled blocks in rotated worldgen structures keep their materials instead of turning into unrelated blocks (often see-through overlays). /chiselfix repairs structures generated before it was installed; back up your world before running its repair. Works around https://github.com/anegostudios/VintageStory-Issues/issues/9495. Server only.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "1.0.0",
+  "side": "Server",
+  "requiredOnClient": false,
+  "dependencies": { "game": "1.22.0" }
+}
