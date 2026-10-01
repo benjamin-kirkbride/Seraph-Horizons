@@ -1064,3 +1064,12 @@ license = "Apache-2.0"
 license_source = "https://github.com/benjamin-kirkbride/Seraph-Horizons"
 redistribute = false
 why = "Removes the lag spike when looking at an unfinished right-click-constructed block (waterwheel, staged machines)."
+
+[[mod]]
+id = "chiselrotationfix"
+version = "1.0.0"
+side = "server"
+license = "Apache-2.0"
+license_source = "https://github.com/benjamin-kirkbride/Seraph-Horizons"
+redistribute = false
+why = "Chiseled blocks in rotated worldgen ruins keep their materials instead of going see-through (VintageStory-Issues#9495); /chiselfix repairs older ones."
