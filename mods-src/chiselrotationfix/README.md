@@ -1,5 +1,7 @@
 # Chisel Rotation Fix
 
+On the ModDB: <https://mods.vintagestory.at/chiselrotationfix>
+
 A server-side code mod that works around
 [VintageStory-Issues#9495](https://github.com/anegostudios/VintageStory-Issues/issues/9495):
 chiseled blocks in a rotated structure can be made of the wrong block.

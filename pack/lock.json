@@ -4120,6 +4120,25 @@
       "dependencies": {
         "game": "1.22.0"
       }
+    },
+    {
+      "id": "chiselrotationfix",
+      "version": "1.0.0",
+      "releaseId": 59421,
+      "fileId": 126845,
+      "fileName": "chiselrotationfix_1.0.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/chiselrotationfix_1._9ca28837e2a88c03444d28cd3a51a599.zip?dl=chiselrotationfix_1.0.0.zip",
+      "sha256": "f3ba438f01f6e509ea1bfdcf86fb6bf88b61ea724ea4ff78f5b7f951058971cc",
+      "size": 22328,
+      "side": "server",
+      "license": "Apache-2.0",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
     }
   ]
 }
