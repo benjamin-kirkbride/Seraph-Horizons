@@ -54,7 +54,8 @@
   {@const info = meta.recipeTypes[type] ?? { name: type, shape: "generic" as const, count: 0 }}
   {@const total = groups[type]!.length}
   {@const recipes = loaded[type] ?? []}
-  <section class="group" data-group={kind} data-type={type} aria-labelledby="{kind}-{type}">
+  <!-- data-complete: every page of this type is loaded. The end-to-end tests wait on it. -->
+  <section class="group" data-group={kind} data-type={type} data-complete={recipes.length >= total || undefined} aria-labelledby="{kind}-{type}">
     <h3 id="{kind}-{type}">{info.name} <span class="muted">({total})</span></h3>
     <div class="cards">
       {#each recipes as recipe (recipe.id)}
