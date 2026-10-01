@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Server mod that works around VintageStory-Issues#9495 (README.md here). Built from this
+       repo, uploaded to the ModDB by hand, and pinned in pack.toml like any other mod. Atlas
+       scenarios load this build instead of the pinned copy. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>ChiselRotationFix</AssemblyName>
+    <RootNamespace>SeraphHorizons.ChiselRotationFix</RootNamespace>
+    <!-- Keep equal to modinfo.json's version; tools/tests/test_mods_src.py checks it. -->
+    <Version>1.0.0</Version>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Atlas copies a mod folder by its name: a plain bin/Debug would land in the same
+         TestMods/Debug as another mods-src mod, and the game loads neither. -->
+    <OutputPath>bin/$(Configuration)/chiselrotationfix/</OutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- BlockEntityMicroBlock lives in the survival mod. -->
+    <Reference Include="VSSurvivalMod">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- GenStructures and BlockSchematicStructure, for /chiselfix. -->
+    <Reference Include="VSEssentials">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSEssentials.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- build/chiselrotationfix_<version>.zip, for the ModDB upload: the DLL and modinfo.json
+       at the top level, as the game loads it. -->
+  <Target Name="ModZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <_ZipStage>$(IntermediateOutputPath)modzip/</_ZipStage>
+      <_ZipOut>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'chiselrotationfix_$(Version).zip'))</_ZipOut>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_ZipStage)" />
+    <Copy SourceFiles="$(TargetPath);modinfo.json" DestinationFolder="$(_ZipStage)" />
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_ZipOut)'))" />
+    <ZipDirectory SourceDirectory="$(_ZipStage)" DestinationFile="$(_ZipOut)" Overwrite="true" />
+    <Message Importance="high" Text="mod zip: $(_ZipOut)" />
+  </Target>
+
+</Project>
