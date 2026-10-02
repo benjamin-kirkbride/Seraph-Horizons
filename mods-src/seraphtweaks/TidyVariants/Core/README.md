@@ -38,19 +38,42 @@ Values are compared **normalised**: leading/trailing characters that aren't lett
    needs at least **3** matches since color words are generic. Lists: rock = `block/rock` +
    `block/rockwithdeposit`; wood = `block/wood` + `aged veryaged`; metal = `block/metal` + `block/toolmetal`;
    color = built-in dye/cloth/clay colors (vanilla has no color list). Ties go rock, wood, metal, color.
-   Then the override file's **named lists** (`lists`, e.g. `claycolor`), same 60% / min(2, n) rule: the
+   Then **mixed materials**: the same thresholds over rock + wood + metal + the generic material words
+   (`wood stone metal bone clay glass leather cloth reed horn hide`) together, named after the kind with most
+   matches (stone and metal tool heads `axehead-{material}`, `beam-plane` in wood, clay and metal, rails in
+   `wood`/`metal`).
+   Then the override file's **named lists** (`lists`, e.g. `pigment`), same 60% / min(2, n) rule: the
    dimension is `Filler` with `DimensionInfo.List` set, and the list's `preferred` picks representatives.
 5. **Process state**: at least 60% (and min(2, n)) of the values are process words (raw, cooked,
    partbaked, charred, perfect, lit, extinct, burnedout, fired, dried, cured, free, snow, grown, ...),
    end in `partbaked charred cooked burned burnt`, or are a process word plus digits (`bake3`).
-6. **Grade/size/quality**: two or more values, all in `poor medium rich bountiful tiny small large huge`.
+6. **Grade/size/quality/level**: two or more values, at least 60% (and two) of them in `poor medium rich
+   bountiful tiny small large huge none verylow low high veryhigh sparse verysparse dense verydense normal
+   thin thick light heavy` (termite mounds' `size[medium,large]`, soil's `fertility[verylow..compost,high]`
+   and `grasscoverage[none,verysparse,sparse,normal]`).
 7. Names: `rot rotation facing orientation horizontalorientation verticalorientation` are orientation;
    `side direction dir v h updown attach face axis ...` are orientation only when every value is an
    orientation word (compass, `left right top bottom front back ...`); `stage growthstage cover age ...`
    are process state; `state states condition` are process state only if some value is a process value
    (slidingwoodenshutters' `state[left,half,right,...]` is a shape and stays meaningful; its open/closed
-   dimension `status[opened,closed]` is caught by value in step 2); `grade size quality` are grade.
-8. Otherwise **meaningful** (generic `type`, `style`, `ore`, `construction`, ...).
+   dimension `status[opened,closed]` is caught by value in step 2); `grade size quality fertility coverage
+   grasscoverage density thickness fullness level amount` are grade.
+8. **Numbers**: every value only digits (`forestfloor-{grass}` 0..7, Butchering's `texture` 1..10,
+   `coverage`, `layer`) is filler (`Filler`, reason "values are numbers"); after the names, so `rotation[0,90,...]`
+   stays orientation and `stage[1,2,3]` process state.
+9. **Attributes** (`attr:<key>`) that nothing above caught are filler: one collectible's creative stacks are
+   one tile (bookshelf shapes, bucket contents, fruit tree types). The handbook can only group whole
+   collectibles, so splitting them would only make a `groupby-conflict`. An override `split` makes one
+   meaningful again.
+10. Otherwise **meaningful** (generic `type`, `style`, `ore`, `construction`, ...). When values differ only in
+    their numbers (`Vocabulary.NumberStem`: each `-`/`/` token's trailing digits dropped, a size like `2x1`
+    kept: `collapsed1..4`, `ruined-barred1..3`, `tier1..3`, `mk1..3`), `DimensionInfo.ByStem` is set and the
+    stem, not the value, splits groups (`GroupValue`).
+
+Which `type`-like dimensions are kinds of one thing (paintings, flowers, garments, creatures) and which
+are different things (ores, tools, foods, potions, door styles) can't be told from codes: names are only
+in the game layer and differ per language. Those are override rules (`tidyvariants-overrides.json`,
+"Catalogues of one kind of thing").
 
 Every list is in `Vocabulary.cs`. Filler = every class except meaningful.
 
@@ -65,7 +88,12 @@ else the first in creative order. The rest are hidden. When the game already lis
 ## Groups and representatives
 
 Each visible entry is in exactly one group. The first matching `group`/`ungroup` rule wins; otherwise the
-automatic group is the family plus the values of its meaningful dimensions (all filler collapse).
+automatic group is the **base code** (domain, kind, base path) plus the names and (group) values of the
+entry's meaningful dimensions; all filler collapse. Keyed by base, not family, so families of one base
+with different dimension sets share groups when their meaningful values agree (Purposeful Storage's wooden
+and stone sword pedestal), and `-` tokens of the base that are process words (after the first) are dropped
+(`TidyEngine.GroupBase`: `termitemound-harvested` groups with `termitemound`). A family whose codes don't
+end with their variant values (`variant-mismatch`) keeps its own groups.
 
 **Shipped `groupBy`** (`CreativeEntry.ShippedGroupBy`: the collectible's own `attributes.handbook.groupBy`
 as vanilla or its mod ships it; `{dim}` placeholders are filled from the variant, a `domain:` prefix is
@@ -76,7 +104,7 @@ merge that changes nothing keeps the automatic group; a real merge makes a `Grou
 with id `groupby:<block|item>:<domain>:<pattern>`. Override-claimed and hidden entries never take part.
 Switch: `ResolveOptions.HonorShippedGroupBy`, else the file's `honorShippedGroupBy`, else true. A
 group of one is a plain entry (`GroupOf == -1`), as are ungrouped and hidden entries. Groups are ordered
-by first member; automatic ids are `auto:<domain>:<base>[/<dim>=<value>...]` (a clash, e.g. a block and an
+by first member; automatic ids are `auto:<domain>:<base>[/<dim>=<value>...]` (the stem for a `ByStem` dimension; a clash, e.g. a block and an
 item with the same base and values, gets `#2`).
 
 The representative is: the group rule's `representative` match, else a `prefer` match, else the member
@@ -192,5 +220,6 @@ stacks need no pattern. `PatternKindByGroup` says how each pattern was built. Ma
 ## Issues
 
 `TidyResolution.Issues` and `HandbookPlan.Issues` (kind slugs): `property-missing`, `variant-mismatch`,
-`placeholder-unresolved`, `duplicate-group-id`, `representative-unmatched`, `rule-unused`,
+`property-empty` (a material worldproperties list with no codes), `placeholder-unresolved`,
+`duplicate-group-id`, `representative-unmatched`, `rule-unused`,
 `groupby-inexact`, `groupby-conflict`, `groupby-shared-code`.

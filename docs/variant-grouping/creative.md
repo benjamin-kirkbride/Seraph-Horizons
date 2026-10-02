@@ -14,15 +14,15 @@ Hooks and the reasons for them are in [hooks.md](hooks.md) §1, §4 and §6.
   the position of its first match, showing the best-ranked matching member (the representative). A tile
   contains only matching members, so search never loses an item. A group with one match is a plain slot.
   If only one group is left, it is shown expanded.
-- **A tile is the representative's real slot.** Click, shift-click, right-click and the mouse wheel are
-  vanilla and take the representative. Slot ids never change and the creative inventory itself is never
-  touched (the server resolves clicks by slot id and tab index against its own copy).
-- **Expand / collapse:** Alt+left-click on a tile expands its group inline; Alt+left-click on any member
-  collapses it again. Many Linux window managers take Alt+click for themselves, so the hotkey
-  **Ctrl+G** (Controls settings, "Creative inventory: expand or collapse the hovered variant group",
-  rebindable) toggles the group of the slot under the mouse. Alt+click with an item on the cursor stays
-  vanilla. Alt+click on a member of an auto-expanded group does nothing (there is nothing to collapse).
-  The scroll position is kept.
+- **A tile is the representative's real slot.** Left-click, shift-click, middle-click and the mouse wheel
+  are vanilla and take the representative. Slot ids never change and the creative inventory itself is
+  never touched (the server resolves clicks by slot id and tab index against its own copy).
+- **Expand / collapse: right-click** (see [Right-click](#right-click) for the exact rule). Right-click on a
+  tile expands its group inline; right-click on any member of an expanded group collapses it again. The
+  hotkey **Ctrl+G** (Controls settings, "Creative inventory: expand or collapse the hovered variant
+  group", rebindable) does the same for the slot under the mouse. The scroll position is kept, and after
+  an expand the slot under the mouse is the group's first member, at the tile's place. (Alt+click was the
+  first design; it was dropped because holding Alt in Vintage Story frees the cursor for mouse-look.)
 - **Marks:** expanded members get an amber border; a collapsed tile gets a small amber square in its top
   right corner. Members of an auto-expanded group get a fainter border.
 - **Tooltip** of a tile or member adds the group title (the group's lang key, else a title derived from the members'
@@ -33,6 +33,40 @@ Hooks and the reasons for them are in [hooks.md](hooks.md) §1, §4 and §6.
   (`{"Version": 1, "Expanded": ["<group id>", ...]}`), by group id. A missing or unreadable file means
   everything collapsed (a warning is logged, the file is rewritten on the next toggle). Ids of groups that
   don't exist in the current pack are kept.
+
+## Right-click
+
+**What vanilla does** (decompiled 1.22.7). `GuiElementItemSlotGridBase.OnMouseDownOnElement` calls
+`SlotClick(api, slotId, args.Button, ...)` once per press for whichever button (`EnumMouseButton`: Left 0,
+Middle 1, Right 2), after setting `isRightMouseDownStartedInsideElem = button == Right && the cursor holds
+an item`. `SlotClick` (not shift) runs `InventoryPlayerCreative.ActivateSlot` → `ItemSlotCreative.ActivateSlotRightClick`:
+
+- **empty cursor:** `cursor.TryPutInto(creativeSlot)` with nothing in the cursor moves nothing. A plain
+  right-click on a creative slot is a no-op (it still sends an ActivateInventorySlot packet, a no-op on the
+  server too). So the gesture is free for us.
+- **item on the cursor:** `cursor.TakeOut(1)`: one item of the held stack is voided, whatever the slot
+  shows. Holding the button and moving (`OnMouseMove`, while `isRightMouseDownStartedInsideElem`) repeats
+  that once per newly entered slot whose stack equals the held one. `OnMouseUp` clears the drag state.
+
+**The rule** (`CreativeView.RightClickTarget`, unit-tested; applied in the `SlotClick` prefix):
+
+| Slot | Cursor empty, not in a right-drag | Item on the cursor, or a right-drag in progress |
+|---|---|---|
+| tile (collapsed group, 2+ matching members) | expand the group, no packet | vanilla |
+| member of a group the player expanded | collapse the group, no packet | vanilla |
+| member of an auto-expanded group (the only group left) | vanilla (a no-op) | vanilla |
+| plain slot | vanilla (a no-op) | vanilla |
+
+Left-click, shift-click (either button) and middle-click are never touched.
+
+**One toggle per press, no drag state.** The toggle only happens in the mouse-down call: vanilla's
+only other caller with `Right` is `OnMouseMove` during a right-drag, which needs an item on the cursor at
+the press and is also declined explicitly by reading `isRightMouseDownStartedInsideElem` (so a drag whose
+held stack runs out mid-drag still cannot toggle). A toggle press leaves that flag false and puts nothing
+in `distributeStacks*`, so holding the button and moving over the reshuffled grid does nothing, and the
+next press starts fresh (vanilla resets the flags on every press). `OnMouseDownOnElement` breaks out of
+its slot loop right after `SlotClick` and only touches the clicked slot id afterwards, so regrouping inside
+the click is safe; `OnMouseUp` is not patched (Dovidarium guards it).
 
 ## Patches
 
@@ -50,7 +84,7 @@ exceptions: the first failure per place is logged, that call stays vanilla. With
 |---|---|---|
 | `GuiElementItemSlotGrid.DetermineAvailableSlots(int[] visibleSlots)` | postfix | drops hidden slots from `availableSlots` and `renderedSlots` (Dovidarium policy AllowAny) |
 | `GuiDialogInventory.OnTextChanged(string text)` (private) | postfix | regroups `renderedSlots` in place, fixes `rows`, recomposes moved durability overlays (calls the private `ComposeSlotOverlays`, as Dovidarium does), recomputes the scrollbar height and the result count |
-| `GuiElementItemSlotGridBase.SlotClick(ICoreClientAPI, int, EnumMouseButton, bool, bool, bool)` | prefix | Alt+left on a grouped slot with an empty cursor: toggle, return false (no packet) |
+| `GuiElementItemSlotGridBase.SlotClick(ICoreClientAPI, int, EnumMouseButton, bool, bool, bool)` | prefix | right button on a tile or a player-expanded member, empty cursor, no right-drag: toggle, return false (no packet); reads the private `isRightMouseDownStartedInsideElem` |
 | `ItemSlot.GetStackDescription(IClientWorldAccessor, bool)` | postfix | tooltip lines, `ItemSlotCreative` in the current grouped view only |
 | `GuiDialog.OnRenderGUI(float)` | postfix | borders and tile marks, `GuiDialogInventory` showing its creative composer only, scissored to the grid's clip bounds, z 160 |
 
@@ -70,13 +104,19 @@ The GUI could not be run in CI or by the agent that wrote it; run this before re
 2. **Hidden.** Search `chest`: one chest per wood/type, no east/south/west copies. Search a door or trapdoor:
    no open copies. Clear the search: the count drops accordingly.
 3. **Tiles.** The "Blocks"/"Items" tabs show ingots, ores, rock blocks etc. as one tile each with the corner
-   mark. Hover a tile: the tooltip shows the group title, "N variants" and the hint naming Ctrl+G.
+   mark. Hover a tile: the tooltip shows the group title, "N variants" and "Right-click to expand (or
+   Ctrl+G)"; hover an expanded member: "Right-click to collapse (or Ctrl+G)".
 4. **Click takes the representative.** Click a tile: the cursor holds the tile's item. Shift-click: a full
-   stack goes to the hotbar. Right-click and Ctrl+wheel behave as vanilla. Drop the item back on the grid
+   stack goes to the hotbar. Middle-click and Ctrl+wheel behave as vanilla. Drop the item back on the grid
    (vanilla deletes it).
-5. **Alt+click.** Alt+left-click a tile: the group opens in place with amber borders, the tile's slot
-   still under the mouse, scroll position unchanged. Alt+click any member: it collapses. If the window
-   manager eats Alt+click, note it and use step 6.
+5. **Right-click.** With an empty cursor, right-click a tile: the group opens in place with amber borders,
+   its first member under the mouse, scroll position unchanged, nothing lands on the cursor. Right-click
+   any member: it collapses. Hold the right button after a toggle and sweep across the grid: nothing else
+   toggles or changes; release and right-click again: it toggles again (one toggle per press). Right-click
+   a plain slot: nothing happens (as vanilla). With an item on the cursor (e.g. 10 planks): right-click a
+   tile or member voids one, as vanilla, and does not toggle; right-drag over several plank slots voids one
+   per slot, as vanilla. Search so only one group is left (auto-expanded): right-click a member does
+   nothing.
 6. **Hotkey.** Hover a tile, press Ctrl+G: expands. Hover a member, Ctrl+G: collapses. With the search box
    focused, Ctrl+G does nothing in the grid. Rebind it in Settings > Controls and check the tooltip hint
    follows. Outside the inventory, Ctrl+G must not do anything new.
@@ -97,4 +137,5 @@ The GUI could not be run in CI or by the agent that wrote it; run this before re
 12. **Survival.** Switch to survival (`/gm 0`) and open the inventory: no borders, marks or tooltip lines;
     switch back to creative: grouping is back.
 13. **Handbook and other grids.** Chests, the hotbar, the handbook's item lists: no borders, no extra
-    tooltip lines, Alt+click behaves as before.
+    tooltip lines, right-click behaves as before (e.g. right-click a chest slot with an empty cursor
+    takes half the stack).

@@ -97,9 +97,14 @@ public enum DimensionClass
 public enum MaterialKind { None, Rock, Wood, Metal, Color }
 
 /// <summary>The classification of one dimension, with a human-readable reason (for reports and tests).
-/// <paramref name="List"/> names the override file's value list a <see cref="DimensionClass.Filler"/> dimension matched.</summary>
-public sealed record DimensionInfo(string Name, DimensionClass Class, MaterialKind Material, string Reason, string? List = null)
+/// <paramref name="List"/> names the override file's value list a <see cref="DimensionClass.Filler"/> dimension matched.
+/// <paramref name="ByStem"/> (meaningful dimensions only): values that differ only in their numbers
+/// (<see cref="Vocabulary.NumberStem"/>: <c>collapsed1</c>..<c>collapsed4</c>) share a group.</summary>
+public sealed record DimensionInfo(string Name, DimensionClass Class, MaterialKind Material, string Reason, string? List = null, bool ByStem = false)
 {
+    /// <summary>The value that splits groups: the value itself, or its number stem when <see cref="ByStem"/>.</summary>
+    public string GroupValue(string value) => ByStem ? Vocabulary.NumberStem(value) : value;
+
     /// <summary>Filler dimensions collapse into one group; meaningful ones split groups.</summary>
     public bool IsFiller => Class != DimensionClass.Meaningful;
 

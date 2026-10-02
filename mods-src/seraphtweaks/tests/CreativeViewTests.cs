@@ -155,6 +155,52 @@ public class CreativeViewTests
     }
 
     [Fact]
+    public void RightClickTogglesOnlyWithAnEmptyCursorOutsideADrag()
+    {
+        var r = Sample();
+        var v = new CreativeView(r);
+        int ingots = r.GroupOf(r.Index("game:ingot-tin"));
+        var (slots, entries) = Tab(r, All(r));
+        v.Build(slots, entries, new HashSet<int> { ingots });
+        var tile = v.Slots.First(s => s.IsTile);
+        var member = v.Slots.First(s => s.IsExpandedMember);
+        var plain = v.Slots[0];
+
+        Assert.Equal(tile.Group, CreativeView.RightClickTarget(tile, cursorEmpty: true, rightDragging: false));
+        Assert.Equal(ingots, CreativeView.RightClickTarget(member, cursorEmpty: true, rightDragging: false));
+        Assert.Equal(-1, CreativeView.RightClickTarget(plain, cursorEmpty: true, rightDragging: false));
+        foreach (var s in new[] { tile, member, plain })
+        {
+            Assert.Equal(-1, CreativeView.RightClickTarget(s, cursorEmpty: false, rightDragging: false));   // item held: vanilla
+            Assert.Equal(-1, CreativeView.RightClickTarget(s, cursorEmpty: true, rightDragging: true));     // mid-drag: vanilla
+        }
+
+        // Auto-expanded members stay vanilla (nothing to collapse).
+        var (s2, e2) = Tab(r, All(r).Where(i => r.Entries[i].Code.StartsWith("game:ingot")));
+        v.Build(s2, e2);
+        Assert.All(v.Slots, s => Assert.Equal(-1, CreativeView.RightClickTarget(s, cursorEmpty: true, rightDragging: false)));
+    }
+
+    [Fact]
+    public void ExpandingKeepsTheTilesIndexAsTheGroupsFirstSlot()
+    {
+        // The slot under the cursor after a right-click expand is the group's first member, at the tile's index.
+        var r = Sample();
+        var v = new CreativeView(r);
+        var (slots, entries) = Tab(r, All(r));
+        v.Build(slots, entries);
+        var collapsed = v.Slots.ToList();
+        foreach (var (tile, i) in collapsed.Select((s, i) => (s, i)).Where(t => t.s.IsTile).ToList())
+        {
+            v.Build(slots, entries, new HashSet<int> { tile.Group });
+            Assert.True(v.Slots[i].IsExpandedMember);
+            Assert.True((v.Slots[i].Flags & DisplayFlags.GroupStart) != 0);
+            Assert.Equal(tile.Group, v.Slots[i].Group);
+            Assert.Equal(collapsed.Take(i).Select(s => s.SlotId), v.Slots.Take(i).Select(s => s.SlotId));   // nothing before it moved
+        }
+    }
+
+    [Fact]
     public void MismatchedLengthsThrow()
     {
         var v = new CreativeView(Sample());

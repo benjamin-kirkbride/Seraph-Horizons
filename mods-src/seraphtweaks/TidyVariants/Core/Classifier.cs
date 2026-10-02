@@ -40,8 +40,11 @@ public sealed class TidySettings
             {
                 var key = NormalizePropertyKey(src);
                 propertyKinds[key] = kind;
-                if (props.TryGetValue(key, out var values)) set.UnionWith(values.Select(Vocabulary.Normalize));
-                else issues?.Add(new("property-missing", $"worldproperties '{key}' ({kind.ToString().ToLowerInvariant()}) was not provided"));
+                if (!props.TryGetValue(key, out var values))
+                    issues?.Add(new("property-missing", $"worldproperties '{key}' ({kind.ToString().ToLowerInvariant()}) was not provided"));
+                else if (values.Count == 0)
+                    issues?.Add(new("property-empty", $"worldproperties '{key}' ({kind.ToString().ToLowerInvariant()}) has no variant codes"));
+                else set.UnionWith(values.Select(Vocabulary.Normalize));
             }
             set.UnionWith(extraValues);
             materials[kind] = set;
@@ -155,6 +158,35 @@ public static class Classifier
         if (best != MaterialKind.None)
             return new(name, DimensionClass.Material, best, $"{bestMatches}/{n} values are {best.ToString().ToLowerInvariant()}");
 
+        // Mixed materials (tool heads in stone and metal, beams in wood, clay and metal, rails in wood and metal): the
+        // same thresholds over rock + wood + metal + generic material words together; the kind with most matches names
+        // it (ties rock, wood, metal).
+        if (n > 0)
+        {
+            int m = 0;
+            var counts = new int[3];
+            var kinds = new[] { MaterialKind.Rock, MaterialKind.Wood, MaterialKind.Metal };
+            foreach (var v in values)
+            {
+                bool hit = false;
+                for (int k = 0; k < kinds.Length; k++)
+                    if (settings.MaterialValues(kinds[k]).Contains(v)) { counts[k]++; hit = true; }
+                if (!hit && Vocabulary.GenericMaterials.TryGetValue(v, out var generic))
+                {
+                    hit = true;
+                    int k = Array.IndexOf(kinds, generic);
+                    if (k >= 0) counts[k]++;
+                }
+                if (hit) m++;
+            }
+            if ((double)m / n >= Vocabulary.MaterialRatio && m >= Math.Min(n, Vocabulary.MaterialMinMatches))
+            {
+                int top = 0;
+                for (int k = 1; k < kinds.Length; k++) if (counts[k] > counts[top]) top = k;
+                return new(name, DimensionClass.Material, kinds[top], $"{m}/{n} values are rock, wood or metal");
+            }
+        }
+
         // The override file's named lists (claycolor, ...), same thresholds as materials, first best ratio wins.
         if (n > 0)
         {
@@ -179,8 +211,9 @@ public static class Classifier
             int m = values.Count(Vocabulary.IsProcessValue);
             if ((double)m / n >= Vocabulary.ProcessRatio && m >= Math.Min(n, 2))
                 return new(name, DimensionClass.ProcessState, MaterialKind.None, $"{m}/{n} values are process states");
-            if (n >= 2 && values.All(v => Array.IndexOf(Vocabulary.GradeValues, v) >= 0))
-                return new(name, DimensionClass.GradeSizeQuality, MaterialKind.None, "values are grades/sizes");
+            int g = values.Count(v => Array.IndexOf(Vocabulary.GradeValues, v) >= 0);
+            if (n >= 2 && g >= 2 && (double)g / n >= Vocabulary.GradeRatio)
+                return new(name, DimensionClass.GradeSizeQuality, MaterialKind.None, $"{g}/{n} values are grades/sizes/levels");
         }
 
         if (Array.IndexOf(Vocabulary.OrientationNames, lname) >= 0)
@@ -194,6 +227,18 @@ public static class Classifier
             return new(name, DimensionClass.ProcessState, MaterialKind.None, $"name '{bare}' with a process value");
         if (Array.IndexOf(Vocabulary.GradeNames, lname) >= 0)
             return new(name, DimensionClass.GradeSizeQuality, MaterialKind.None, $"name '{bare}'");
+
+        if (n > 0 && values.All(Vocabulary.IsNumber))
+            return new(name, DimensionClass.Filler, MaterialKind.None, "values are numbers");
+
+        // One collectible's creative stacks (bookshelf shapes, bucket contents, fruit tree types): the handbook can
+        // only group whole collectibles, so their attributes don't split tiles unless an override says so.
+        if (name.StartsWith("attr:", StringComparison.Ordinal))
+            return new(name, DimensionClass.Filler, MaterialKind.None, "attribute of one collectible's stacks");
+
+        // Numbered variants of one thing (collapsed1..4, ruined-barred1..3, mk1..3) share a group.
+        if (values.Select(Vocabulary.NumberStem).Distinct(StringComparer.Ordinal).Count() < n)
+            return new(name, DimensionClass.Meaningful, MaterialKind.None, "default; numbered values share a group", ByStem: true);
 
         return new(name, DimensionClass.Meaningful, MaterialKind.None, "default");
     }

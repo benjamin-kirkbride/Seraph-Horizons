@@ -114,8 +114,9 @@ public class OverrideTests
                            "group": { "id": "clutter-books", "title": "seraphtweaks:tidyvariants-group-clutter-books",
                                       "representative": { "code": "clutter", "attributes": { "type": "book-pile" } } } } ] }
             """));
-        var g = Assert.Single(r.Groups);
-        Assert.Equal("clutter-books", g.Id);
+        // The other stacks (army-tool, bottle) form the automatic group of the collectible.
+        Assert.Equal(["clutter-books", "auto:game:clutter"], r.Groups.Select(x => x.Id).OrderBy(x => x == "auto:game:clutter"));
+        var g = r.Groups.Single(x => x.Id == "clutter-books");
         Assert.False(g.IsAutomatic);
         Assert.Equal(0, g.RuleIndex);
         Assert.Equal("seraphtweaks:tidyvariants-group-clutter-books", g.Title);
