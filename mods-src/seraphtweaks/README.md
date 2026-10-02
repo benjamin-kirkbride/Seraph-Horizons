@@ -31,6 +31,24 @@ the passages in the Steam Power and Boilers handbook pages. Each edit replaces o
 ppex's text (`LangEdits`). If ppex rewords it, that edit logs a warning and does nothing. Languages
 other than the current one load lazily, so the mod loads those three when it starts.
 
+### Fewer surface battle towers (ConfigKit settings)
+
+Battle Towers (`battletowers`, 1.1.0) has no settings: a surface tower has a 0.03 chance per chunk
+and only 200 blocks between two of them, so they outnumber every other surface structure.
+`assets/seraphtweaks/config/configlib-patches.json` declares two settings, which ConfigKit writes
+into Battle Towers' own patch file (`patches/survival-worldgen-structures.json`, entry 0) before
+the game applies it:
+
+| Setting (`ModConfig/seraphtweaks.yaml`) | Battle Towers | Here |
+|---|---|---|
+| `battletowers_surface_chance` | 0.03 | 0.01 |
+| `battletowers_surface_min_distance` | 200 | 600 |
+
+The hard and underground towers are left as Battle Towers ships them. This tweak is data, not a
+class: it has no switch in `seraphtweaks.json`, does nothing without ConfigKit, and is changed in
+ConfigKit's settings screen or, for the pack, in `pack/config/ModConfig/seraphtweaks.yaml`. Like
+any worldgen setting it only affects chunks not generated yet.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -74,6 +92,10 @@ ships in the mod zip.
 the lid shut and with it open, and requires the boiler still standing with its lid open. It also
 requires every `LangEdits` passage reworded, and an edit set for every language ppex ships: when
 either fails after a ppex update, match the edits to ppex's new text or add the new language.
+
+It also reads the patched `game:worldgen/structures.json` and requires the surface tower's chance
+and spacing above, with the hard tower's unchanged: when that fails after a Battle Towers update,
+match the paths in `configlib-patches.json` to its new patch file.
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per

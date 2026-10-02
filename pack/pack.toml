@@ -25,6 +25,15 @@ license_source = "https://github.com/NicIAss/betterruins"
 redistribute = false
 why = "Adds hundreds of surface and underground ruins to worldgen."
 
+[[mod]]
+id = "configkit"
+version = "1.4.1"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/dizzyd/configkit"
+redistribute = false
+why = "Applies the settings content mods declare (BetterRuins' ruin spacing, set in pack/config/ModConfig) and gives them an in-game screen."
+
 # --- Food, cooking and storage (#3)
 
 [[mod]]

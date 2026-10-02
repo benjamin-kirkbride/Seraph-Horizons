@@ -20,9 +20,16 @@ public static class Registries
     public static readonly HashSet<string> BaseGameMods = new() { "game", "survival", "creative" };
 
     /// <summary>
+    /// Registries that hold no recipes: a mod registered one only because the engine sends
+    /// every registry to joining clients. ConfigKit ships its settings that way.
+    /// </summary>
+    public static readonly HashSet<string> NotRecipes = new() { "configkit:configs" };
+
+    /// <summary>
     /// Every registry registered through ICoreAPICommon.RegisterRecipeRegistry. The engine
     /// keeps them in a Dictionary&lt;string, RecipeRegistryBase&gt; on the world (GameMain.
     /// recipeRegistries, not exposed by the API); it is found by type, not by field name.
+    /// Those in <see cref="NotRecipes"/> are left out.
     /// </summary>
     public static List<RegistryInfo> Find(ICoreServerAPI api)
     {
@@ -41,7 +48,7 @@ public static class Registries
                 $"No recipe registry dictionary found on {world.GetType().FullName}; the engine's internals changed");
 
         var owners = Owners(api);
-        return found.Select(kv => new RegistryInfo
+        return found.Where(kv => !NotRecipes.Contains(kv.Key)).Select(kv => new RegistryInfo
         {
             Code = kv.Key,
             Registry = kv.Value,
