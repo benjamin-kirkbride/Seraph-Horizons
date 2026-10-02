@@ -92,6 +92,13 @@ A toggle calls the dialog's private `update()` (re-runs the search, cheap with D
 `OnTextChanged` postfix) and restores the scroll position afterwards. None of the targets is gated by
 Dovidarium or patched by TooManyTabs; nothing on the do-not-patch list in hooks.md §6 is patched (only called).
 
+**The first build.** The game builds the creative dialog in `OnOwnPlayerDataReceived`, before level
+finalize, so before `TidyVariantsModSystem` has resolved the rules (its `AssetsFinalize`): that build's grid
+hides and groups nothing, and Dovidarium's compose reuse keeps it for the first open. So `TidyCreativeModSystem`
+listens to `TidyVariantsModSystem.Resolved` (the client's bridge only; in singleplayer the server's fires too,
+on the server thread) and `CreativeUi.RefreshBuiltDialog` redoes what the build did on the dialog in
+`capi.Gui.LoadedGuis`: `DetermineAvailableSlots()` and `update()`, which run the hide and regroup postfixes.
+
 ## Manual test checklist (in game, creative mode, the full pack)
 
 The GUI could not be run in CI or by the agent that wrote it; run this before release.
@@ -101,15 +108,18 @@ The GUI could not be run in CI or by the agent that wrote it; run this before re
    Dovidarium's lines with a run without this build: `patch-status side=client phase=startup active=20/25`
    and `phase=late-audit active=19/25` with `disabled-by-late-conflict=1` (the TooManyTabs one) must not
    change; no new `incompatible Harmony` or `disabled ...` line naming `seraphtweaks`.
-2. **Hidden.** Search `chest`: one chest per wood/type, no east/south/west copies. Search a door or trapdoor:
+2. **First open.** The very first time the inventory is opened after joining, groups are already
+   collapsed into tiles and hidden variants are gone (the dialog is built before the rules resolve; see
+   **The first build** above). Switch to survival and back, and reopen: still grouped.
+3. **Hidden.** Search `chest`: one chest per wood/type, no east/south/west copies. Search a door or trapdoor:
    no open copies. Clear the search: the count drops accordingly.
-3. **Tiles.** The "Blocks"/"Items" tabs show ingots, ores, rock blocks etc. as one tile each with the corner
+4. **Tiles.** The "Blocks"/"Items" tabs show ingots, ores, rock blocks etc. as one tile each with the corner
    mark. Hover a tile: the tooltip shows the group title, "N variants" and "Right-click to expand (or
    Ctrl+G)"; hover an expanded member: "Right-click to collapse (or Ctrl+G)".
-4. **Click takes the representative.** Click a tile: the cursor holds the tile's item. Shift-click: a full
+5. **Click takes the representative.** Click a tile: the cursor holds the tile's item. Shift-click: a full
    stack goes to the hotbar. Middle-click and Ctrl+wheel behave as vanilla. Drop the item back on the grid
    (vanilla deletes it).
-5. **Right-click.** With an empty cursor, right-click a tile: the group opens in place with amber borders,
+6. **Right-click.** With an empty cursor, right-click a tile: the group opens in place with amber borders,
    its first member under the mouse, scroll position unchanged, nothing lands on the cursor. Right-click
    any member: it collapses. Hold the right button after a toggle and sweep across the grid: nothing else
    toggles or changes; release and right-click again: it toggles again (one toggle per press). Right-click
@@ -117,25 +127,25 @@ The GUI could not be run in CI or by the agent that wrote it; run this before re
    tile or member voids one, as vanilla, and does not toggle; right-drag over several plank slots voids one
    per slot, as vanilla. Search so only one group is left (auto-expanded): right-click a member does
    nothing.
-6. **Hotkey.** Hover a tile, press Ctrl+G: expands. Hover a member, Ctrl+G: collapses. With the search box
+7. **Hotkey.** Hover a tile, press Ctrl+G: expands. Hover a member, Ctrl+G: collapses. With the search box
    focused, Ctrl+G does nothing in the grid. Rebind it in Settings > Controls and check the tooltip hint
    follows. Outside the inventory, Ctrl+G must not do anything new.
-7. **Search.** Type `copper`: ingot/ore tiles contain only copper members (expand to check), the
+8. **Search.** Type `copper`: ingot/ore tiles contain only copper members (expand to check), the
    representative is one of the matches. Type a word matching one group only (e.g. a specific ore name):
    that group is shown expanded with fainter borders. The count reads "N results in M tiles" while
    grouping shortens the list, "N results" otherwise. Nothing that matched before is missing (expand tiles).
-8. **Persistence.** Expand two groups, close and reopen the inventory, switch tabs, then relog: still
+9. **Persistence.** Expand two groups, close and reopen the inventory, switch tabs, then relog: still
    expanded. Check `ModConfig/seraphtweaks-tidyvariants-creative.json`. Corrupt it (write `{`), relog: a warning, all
    collapsed, the next toggle rewrites the file.
-9. **Scrolling.** Long tabs scroll to the end with no blank rows and no clipped last row; the scrollbar
+10. **Scrolling.** Long tabs scroll to the end with no blank rows and no clipped last row; the scrollbar
    handle size matches the shorter list. Scroll down, expand a group: position kept.
-10. **TooManyTabs.** With the tab columns full, scroll the tab list with the mouse wheel over it, switch to a
+11. **TooManyTabs.** With the tab columns full, scroll the tab list with the mouse wheel over it, switch to a
     tab far down: the grid regroups for that tab, the tab scroll keeps working, only one tab is active.
-11. **Dovidarium.** Creative stacks are at full durability, so no durability bar may appear on any tile
+12. **Dovidarium.** Creative stacks are at full durability, so no durability bar may appear on any tile
     or member after searching, expanding and collapsing (a stray bar means an overlay index went stale).
     Fast typing in the search box stays smooth; scrolling a long tab is as fast as before.
-12. **Survival.** Switch to survival (`/gm 0`) and open the inventory: no borders, marks or tooltip lines;
+13. **Survival.** Switch to survival (`/gm 0`) and open the inventory: no borders, marks or tooltip lines;
     switch back to creative: grouping is back.
-13. **Handbook and other grids.** Chests, the hotbar, the handbook's item lists: no borders, no extra
+14. **Handbook and other grids.** Chests, the hotbar, the handbook's item lists: no borders, no extra
     tooltip lines, right-click behaves as before (e.g. right-click a chest slot with an empty cursor
     takes half the stack).
