@@ -27,7 +27,7 @@ internal static class CreativePatches
         n += Patch(harmony, logger, "group after search (GuiDialogInventory.OnTextChanged postfix)",
             AccessTools.DeclaredMethod(typeof(GuiDialogInventory), "OnTextChanged", [typeof(string)]),
             postfix: nameof(OnTextChangedPostfix));
-        n += Patch(harmony, logger, "alt+click (SlotClick prefix)",
+        n += Patch(harmony, logger, "right-click (SlotClick prefix)",
             AccessTools.DeclaredMethod(typeof(GuiElementItemSlotGridBase), nameof(GuiElementItemSlotGridBase.SlotClick),
                 [typeof(ICoreClientAPI), typeof(int), typeof(EnumMouseButton), typeof(bool), typeof(bool), typeof(bool)]),
             prefix: nameof(SlotClickPrefix));
@@ -77,11 +77,14 @@ internal static class CreativePatches
 
     // public virtual void GuiElementItemSlotGridBase.SlotClick(ICoreClientAPI api, int slotId, EnumMouseButton mouseButton,
     //     bool shiftPressed, bool ctrlPressed, bool altPressed)
-    public static bool SlotClickPrefix(GuiElementItemSlotGridBase __instance, int slotId, EnumMouseButton mouseButton, bool altPressed)
+    // Vanilla calls it with Right once per press from OnMouseDownOnElement, and again from OnMouseMove only
+    // during a right-drag (which needs an item on the cursor); CreativeUi.TryRightClick declines both of those.
+    // Shift+right-click stays vanilla (it takes a full stack, like shift+left).
+    public static bool SlotClickPrefix(GuiElementItemSlotGridBase __instance, int slotId, EnumMouseButton mouseButton, bool shiftPressed)
     {
-        if (!altPressed || mouseButton != EnumMouseButton.Left) return true;
-        try { return !CreativeUi.TryAltClick(__instance, slotId); }
-        catch (Exception ex) { CreativeUi.Fail("alt+click", ex); return true; }
+        if (mouseButton != EnumMouseButton.Right || shiftPressed) return true;
+        try { return !CreativeUi.TryRightClick(__instance, slotId); }
+        catch (Exception ex) { CreativeUi.Fail("right-click", ex); return true; }
     }
 
     // public virtual string ItemSlot.GetStackDescription(IClientWorldAccessor world, bool extendedDebugInfo)

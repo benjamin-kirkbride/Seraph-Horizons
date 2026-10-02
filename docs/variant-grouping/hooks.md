@@ -65,8 +65,12 @@ the client grid's view (`availableSlots`/`renderedSlots`), which keeps real slot
   (item at z 90, slot textures at z 50).
 - `OnMouseDownOnElement` / `OnMouseMove` call
   `public virtual void SlotClick(ICoreClientAPI api, int slotId, EnumMouseButton mouseButton, bool shiftPressed, bool ctrlPressed, bool altPressed)`
-  with the real slot id. `altPressed` is `KeyboardKeyState[5]` (`GlKeys.AltLeft` only).
-  Nothing in vanilla reads `ItemStackMoveOperation.AltDown`, so alt+click is unused.
+  with the real slot id. `OnMouseDownOnElement` calls it once per press with the pressed button;
+  `OnMouseMove` calls it with `Right` only during a right-drag (`isRightMouseDownStartedInsideElem`,
+  set at the press when the cursor holds an item) and with `Left` during a left-drag distribute.
+  On a creative slot, right-click with an empty cursor moves nothing (`ItemSlotCreative.ActivateSlotRightClick`
+  puts the empty cursor into the slot); with an item held it voids one. See creative.md, "Right-click".
+  (Alt+click is unused by vanilla too, but holding Alt frees the cursor for mouse-look, so it is unusable.)
 - `private bool ComposeSlotOverlays(ItemSlot slot, int slotId, int slotIndex)` builds the
   durability bar texture for visual index `slotIndex` in `slotQuantityTextures`.
 - Identify the creative grid by `inventory.ClassName == "creative"` (protected field
@@ -286,7 +290,7 @@ other pack mod references them by name (string scan of every DLL in `build/mods`
 |---|---|---|
 | (a) hide | postfix `GuiElementItemSlotGrid.DetermineAvailableSlots(int[])` | creative grid only (`inventory.ClassName == "creative"`): remove hidden slot ids from `availableSlots` and `renderedSlots`. Dovidarium policy AllowAny; its own postfix only invalidates. Hidden items drop out of vanilla and Dovidarium search |
 | (b) group after search, auto-expand single group | postfix `GuiDialogInventory.OnTextChanged(string)` (private) | rewrite `slotGrid.renderedSlots`: first matching member's position gets the representative (or the members, if expanded), other members removed; then redo what `OnTextChanged` did with the new count (`GetScrollbar("scrollbar").SetNewTotalHeight`, `SetScrollbarPosition(0)`, `"searchResults"` text). Refresh overlays for moved visual indices (reflect `ComposeSlotOverlays(slot, slotId, visualIndex)`), since Dovidarium's overlay bookkeeping is per visual index |
-| (d) alt+click | prefix `GuiElementItemSlotGridBase.SlotClick(...)` | creative grid, `altPressed`, left button, empty mouse slot: toggle the group, call the dialog's private `update()` (cheap with Dovidarium's cache), return false so no packet is sent. Plain/shift click falls through on the representative's real slot id |
+| (d) right-click | prefix `GuiElementItemSlotGridBase.SlotClick(...)` | creative grid, right button, no shift, empty mouse slot, not in a right-drag, tile or player-expanded member: toggle the group, call the dialog's private `update()` (cheap with Dovidarium's cache), return false so no packet is sent. Everything else falls through on the representative's real slot id |
 | (c) tinted border | postfix `GuiDialog.OnRenderGUI(float)` filtered to `GuiDialogInventory` in creative | iterate `renderedSlots` and draw a border texture or `Render.RenderRectangle` on `SlotBounds[i]` for expanded members, inside `PushScissor(grid.Bounds.ParentBounds)`, z above 90. Not `RenderInteractiveElements` (Exclusive, and its postfix would see Dovidarium's swapped window). `GuiComposer.Render(float)` (AllowAny) also works but runs for every composer |
 | (e) tooltip | postfix `ItemSlot.GetStackDescription(IClientWorldAccessor, bool)` | only when `__instance is ItemSlotCreative` and the slot is a collapsed representative (map by slot reference). Off the search path; handbook `DummySlot`s are excluded by type |
 | handbook | client `AssetsFinalize`: write `attributes.handbook.groupBy` (one pattern), `isDuplicate` for members; subscribe `ModSystemSurvivalHandbook.OnInitCustomPages` to add group pages | no Harmony on the handbook. `Attributes` may be null; create the `handbook` object as `CollectibleBehaviorSqueezable` does via `Attributes.Token` |
@@ -313,9 +317,9 @@ matter. Leave default priority, and add a test that asserts the late audit stays
 - Group lookup per slot: build `slot id → group` per `CreativeTab` lazily (tab
   inventories and slots are stable after `UpdateFromWorld`). Key groups by collectible
   id plus stack attributes for `CreativeInventoryStacks` families.
-- *Inferred:* many Linux window managers use Alt+drag to move windows, which may eat
-  alt+click before the game sees it. Test on the target desktops, and keep a fallback
-  binding (for example middle-click with a modifier, or a hotkey over the hovered slot).
+- Alt+click, the first choice for (d), does not work: holding Alt in Vintage Story frees
+  the cursor for mouse-look (found in game). Right-click replaced it, with a hotkey over
+  the hovered slot (Ctrl+G) as a second way.
 - `"creative-searchresults"` will count tiles, not items, unless we override the text.
 - Hiding through `isDuplicate` also hides members from handbook slideshows. Creative is
   then their only route, which the epic's "reachable from the UI" rule accepts only

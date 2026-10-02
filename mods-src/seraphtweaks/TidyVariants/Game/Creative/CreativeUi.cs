@@ -65,6 +65,7 @@ internal static class CreativeUi
     static AccessTools.FieldRef<GuiElementItemSlotGridBase, int>? gridRowsRef;
     static AccessTools.FieldRef<GuiDialogInventory, GuiComposer>? composerRef;
     static AccessTools.FieldRef<GuiDialogInventory, int>? colsRef;
+    static AccessTools.FieldRef<GuiElementItemSlotGridBase, bool>? rightDragRef;
     static MethodInfo? composeSlotOverlays;
     static Action<GuiDialogInventory>? updateDialog;
 
@@ -76,6 +77,8 @@ internal static class CreativeUi
         gridRowsRef = Bind(() => AccessTools.FieldRefAccess<GuiElementItemSlotGridBase, int>("rows"), "grid.rows");
         composerRef = Bind(() => AccessTools.FieldRefAccess<GuiDialogInventory, GuiComposer>("creativeInvDialog"), "GuiDialogInventory.creativeInvDialog");
         colsRef = Bind(() => AccessTools.FieldRefAccess<GuiDialogInventory, int>("cols"), "GuiDialogInventory.cols");
+        rightDragRef = Bind(() => AccessTools.FieldRefAccess<GuiElementItemSlotGridBase, bool>("isRightMouseDownStartedInsideElem"),
+            "grid.isRightMouseDownStartedInsideElem");
         composeSlotOverlays = Bind(() => AccessTools.DeclaredMethod(typeof(GuiElementItemSlotGridBase), "ComposeSlotOverlays",
             [typeof(ItemSlot), typeof(int), typeof(int)]), "grid.ComposeSlotOverlays");
         updateDialog = Bind(() => AccessTools.MethodDelegate<Action<GuiDialogInventory>>(
@@ -287,16 +290,24 @@ internal static class CreativeUi
         composer.GetDynamicText("searchResults")?.SetNewText(text);
     }
 
-    // ---- (d) expand / collapse: alt+click and hotkey ------------------------------------------------
+    // ---- (d) expand / collapse: right-click and hotkey ----------------------------------------------
 
-    /// <summary>Alt+left click on a grouped slot: toggles its group. True if consumed (no packet is sent).</summary>
-    public static bool TryAltClick(GuiElementItemSlotGridBase grid, int slotId)
+    /// <summary>
+    /// Right-click on a tile or a member of a group the player expanded, with an empty cursor: toggles the group.
+    /// True if consumed (no packet is sent). Everything else stays vanilla (<see cref="CreativeView.RightClickTarget"/>).
+    /// One toggle per press: vanilla calls SlotClick(Right) once on mouse-down, and from OnMouseMove only while
+    /// <c>isRightMouseDownStartedInsideElem</c> is set, which needs an item on the cursor at the press; a toggle
+    /// never sets it, so no drag state is left behind and moving the held button over the new layout does nothing.
+    /// </summary>
+    public static bool TryRightClick(GuiElementItemSlotGridBase grid, int slotId)
     {
         if (Current() is null || view is null || !IsViewCurrent(grid)) return false;
-        if (capi!.World.Player.InventoryManager.MouseItemSlot?.Empty == false) return false;
         if (!rowBySlotId.TryGetValue(slotId, out int r)) return false;
+        bool cursorEmpty = capi!.World.Player.InventoryManager.MouseItemSlot?.Empty != false;
+        bool dragging = rightDragRef is not null && rightDragRef(grid);   // missing field: the empty-cursor check alone
+        if (CreativeView.RightClickTarget(rows[r], cursorEmpty, dragging) < 0) return false;
         Toggle(rows[r]);
-        return true;   // also swallows alt+click on an auto-expanded member: nothing to toggle, but no pickup either
+        return true;
     }
 
     /// <summary>The hotkey (default Ctrl+G): toggles the group of the hovered creative slot.</summary>

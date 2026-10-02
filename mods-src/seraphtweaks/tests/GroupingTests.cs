@@ -102,13 +102,15 @@ public class GroupingTests
     }
 
     [Fact]
-    public void AttributeStacksWithoutValuesStayPlain()
+    public void AttributeStacksWithoutValuesAreOneTile()
     {
-        // vanilla clutter: one block, many attribute stacks; without an override each is its own entry.
+        // vanilla clutter: one block, many attribute stacks. The handbook can only group whole collectibles, so a
+        // collectible's stacks are one tile unless an override splits them.
         var entries = new[] { "book-big-closed", "bottle", "crate" }
             .Select(t => new CreativeEntry("game:clutter", EntryKind.Block, null, ["decorative"], Stack("{\"type\":\"" + t + "\"}"))).ToList();
         var r = TidyEngine.Resolve(entries, WorldProperties);
-        Assert.Empty(r.Groups);
+        Assert.Equal("auto:game:clutter", Assert.Single(r.Groups).Id);
+        Assert.Empty(Handbook.Build(r).Issues);
     }
 
     [Fact]

@@ -23,12 +23,13 @@ namespace SeraphHorizons.PackTests;
 public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     /// <summary>
-    /// Regression budget: tiles in the full creative list with nothing expanded. About 6,600 when this
-    /// was written (29,449 entries). A new mod or a rule change that adds many ungrouped variants trips it.
+    /// Regression budget: tiles in the full creative list with nothing expanded. About 2,000 when this
+    /// was last set (29,467 entries; 6,595 before the under-grouping fixes). A new mod or a rule change that adds
+    /// many ungrouped variants trips it.
     /// To raise it deliberately: look at the report's largest domains/tabs and untitled groups first; if the
     /// growth is wanted (a big new mod), raise this to about 15% above the new number and say why in the PR.
     /// </summary>
-    private const int TileCeiling = 7_600;
+    private const int TileCeiling = 2_300;
 
     // Issue kinds that only the shipped override file can cause: each is a mistake in it.
     private static readonly string[] OverrideFileIssueKinds =
@@ -55,6 +56,8 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
         public required string Summary;
         /// <summary>Per group index, for groups without a lang title.</summary>
         public required Dictionary<int, TitleRow> Titles;
+        /// <summary>Per-entry and per-family detail for <c>tidyvariants-dump.json</c> (auditing which dimensions split groups).</summary>
+        public required object Dump;
         public int Visible => Entries.Count(e => e.Hide == "None");
         public int Grouped => Entries.Count(e => e.Group >= 0);
         public int Tiles => Visible - Grouped + Groups.Length;
@@ -105,6 +108,44 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
             titles[g.Index] = new TitleRow(repName, derived);
         }
 
+        // Every entry (name, family, group) and every family (base, dimensions with class, reason and values).
+        var famValues = new Dictionary<int, List<HashSet<string>>>();
+        var dumpEntries = new List<object>(n);
+        for (int i = 0; i < n; i++)
+        {
+            dynamic e = res.Entries[i];
+            dynamic fam = res.FamilyOf(i);
+            int fi = (int)fam.Index;
+            var vals = new List<string>();
+            foreach (dynamic kv in (System.Collections.IEnumerable)e.Variant) vals.Add((string)kv.Value);
+            if (e.Stack is not null) foreach (dynamic kv in (System.Collections.IEnumerable)e.Stack.Values) vals.Add((string)kv.Value);
+            if (!famValues.TryGetValue(fi, out var fv)) famValues[fi] = fv = vals.Select(_ => new HashSet<string>(StringComparer.Ordinal)).ToList();
+            for (int k = 0; k < vals.Count && k < fv.Count; k++) fv[k].Add(vals[k]);
+            dumpEntries.Add(new
+            {
+                code = entries[i].Code, kind = ((object)e.Kind).ToString(), family = fi, group = entries[i].Group, hide = entries[i].Hide,
+                name = ((string?)nameOf.Invoke(null, [(object)bridge, i]))?.Trim(), values = vals,
+            });
+        }
+        var dumpFamilies = new List<object>();
+        foreach (dynamic f in (IEnumerable<object>)res.Families)
+        {
+            int fi = (int)f.Index;
+            var names = ((IEnumerable<string>)f.DimensionNames).ToArray();
+            var infos = ((IEnumerable<object>)f.Dimensions).Cast<dynamic>().ToArray();
+            dumpFamilies.Add(new
+            {
+                index = fi, domain = (string)f.Domain, basePath = (string)f.BasePath, kind = ((object)f.Kind).ToString(),
+                members = ((System.Collections.ICollection)f.Members).Count,
+                dims = names.Select((nm, k) => new
+                {
+                    name = nm, cls = ((object)infos[k].Class).ToString(), material = ((object)infos[k].Material).ToString(),
+                    reason = (string)infos[k].Reason, list = (string?)infos[k].List,
+                    values = famValues.TryGetValue(fi, out var fv) && k < fv.Count ? fv[k].OrderBy(v => v, StringComparer.Ordinal).ToArray() : [],
+                }).ToArray(),
+            });
+        }
+
         var issues = new List<Issue>();
         foreach (dynamic i in (IEnumerable<object>)res.Issues) issues.Add(new Issue("resolve", (string)i.Kind, (string)i.Message));
         var asm = ((object)res).GetType().Assembly;
@@ -124,6 +165,7 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
             StatsEntriesAfter = (int)stats.EntriesAfter,
             Summary = (string)bridge.Summary(),
             Titles = titles,
+            Dump = new { entries = dumpEntries, families = dumpFamilies, groups = groups.Select(g => new { g.Index, g.Id, g.Source, g.Title, g.Members, g.Representative, derivedTitle = titles.TryGetValue(g.Index, out var t) ? t.Derived : null }) },
         };
     }
 
@@ -190,6 +232,31 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
+    public void Material_lists_are_read()
+    {
+        // Vanilla's rock.json and wood.json write "Code": an empty or missing list silently turns every rock or wood
+        // dimension in the pack into a meaningful one (termite mounds were 74 tiles).
+        var d = Read();
+        var bad = d.Issues.Where(i => i.Kind is "property-missing" or "property-empty").ToList();
+        Assert.True(bad.Count == 0, string.Join("\n", bad.Select(i => $"[{i.Kind}] {i.Message}")));
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public void Reported_families_are_one_tile_each()
+    {
+        // The first in-game report of under-grouping: each of these is one tile in the full creative list.
+        var d = Read();
+        foreach (var prefix in new[] { "game:termitemound-", "game:soil-", "game:painting-", "game:flower-", "game:creature-butterfly-" })
+        {
+            var members = d.Entries.Where(e => e.Code.StartsWith(prefix, StringComparison.Ordinal) && e.Hide == "None").ToList();
+            Assert.True(members.Count > 1, $"no entries for {prefix}*");
+            var groups = members.Select(e => e.Group).Distinct().ToList();
+            Assert.True(groups.Count == 1 && groups[0] >= 0,
+                $"{prefix}*: {members.Count} entries in {groups.Count} tiles: " + string.Join(", ", groups.Select(g => g >= 0 ? d.Groups[g].Id : "(plain)").Take(10)));
+        }
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
     public void Tiles_after_grouping_stay_within_budget()
     {
         var d = Read();
@@ -208,6 +275,7 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "tidyvariants-report.md"), md);
         File.WriteAllText(Path.Combine(dir, "tidyvariants-report.json"), json);
+        File.WriteAllText(Path.Combine(dir, "tidyvariants-dump.json"), JsonSerializer.Serialize(d.Dump));
         output.WriteLine(md);
         output.WriteLine($"written to {dir}");
     }
