@@ -432,4 +432,23 @@ internal static class CreativeUi
         try { capi.StoreModConfig(new TidyCreativeConfig { Expanded = [.. expand.Ids] }, ConfigFile); }
         catch (Exception ex) { Fail("saving ModConfig/" + ConfigFile, ex); }
     }
+
+    // ---- (f) the dialog built before the rules were resolved ----------------------------------------
+
+    /// <summary>
+    /// The game builds the creative dialog when the own player data arrives, before level finalize,
+    /// so before the client's resolution exists: that build's grid hides and groups nothing, and
+    /// Dovidarium's compose reuse keeps it for the first open. Called once the resolution is there:
+    /// redoes what the build did, DetermineAvailableSlots (our hide postfix) and update() (vanilla
+    /// filter, then our regroup postfix). Nothing to do when the dialog is not built yet, or is in
+    /// survival mode: its next compose takes the rules.
+    /// </summary>
+    public static void RefreshBuiltDialog()
+    {
+        if (Current() is null || view is null || composerRef is null || updateDialog is null) return;
+        var dialog = capi!.Gui.LoadedGuis.OfType<GuiDialogInventory>().FirstOrDefault();
+        if (dialog is null || composerRef(dialog)?.GetSlotGrid("slotgrid") is not { } grid || !IsCreativeGrid(grid)) return;
+        grid.DetermineAvailableSlots();
+        updateDialog(dialog);
+    }
 }
