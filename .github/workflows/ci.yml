@@ -139,11 +139,21 @@ jobs:
         run: |
           dotnet build tools/icon-export -c Release
           dotnet test tools/icon-export/tests --logger "console;verbosity=normal"
+      # Tidy Variants' rule engine (mods-src/tidyvariants/Core): unit tests that need no game.
+      # The mod itself is built and loaded by the dotnet test step below.
+      - name: Tidy Variants rule engine unit tests pass
+        if: matrix.shard == 'rest'
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+          DOTNET_NOLOGO: "1"
+        run: dotnet test mods-src/tidyvariants/tests --logger "console;verbosity=normal"
       - name: dotnet test
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"
           DOTNET_NOLOGO: "1"
           FILTER: ${{ matrix.filter }}
+          # TidyVariantsReportScenarios writes its report here, so it ships in atlas-results-rest.
+          TIDYVARIANTS_REPORT_DIR: ${{ runner.temp }}/atlas-results/tidyvariants
         run: >
           dotnet test tests/PackTests
           --filter "$FILTER"
