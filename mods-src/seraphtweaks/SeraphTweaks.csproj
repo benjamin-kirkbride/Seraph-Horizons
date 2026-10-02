@@ -1,8 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Client and server mod holding the pack's own gameplay tweaks to other mods (README.md
-       here). Built from this repo, uploaded to the ModDB by hand, and pinned in pack.toml like
-       any other mod. Atlas scenarios load this build instead of the pinned copy. -->
+  <!-- Client and server mod holding the pack's own tweaks (README.md here): gameplay tweaks to
+       other mods, and Tidy Variants (TidyVariants/), the creative inventory and handbook variant
+       grouping. Built from this repo, uploaded to the ModDB by hand, and pinned in pack.toml like
+       any other mod. Atlas scenarios load this build instead of the pinned copy.
+
+       Layout: the top level holds the tweaks to other mods; TidyVariants/Core/ is Tidy Variants'
+       game-independent rule engine (BCL only; its unit tests in tests/ are their own project and
+       compile those files directly), TidyVariants/Game/ its game-facing code. Everything under
+       assets/ ships in the mod as is. -->
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -21,35 +27,67 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
 
-  <!-- The tweaked mods are not referenced: each tweak finds its targets by name at run time,
-       so the mod builds from the game alone and a tweak whose mod is missing or changed is
-       skipped with a warning. -->
+  <ItemGroup>
+    <!-- The unit tests are their own project (tests/SeraphTweaks.Tests.csproj). -->
+    <Compile Remove="tests/**" />
+    <None Remove="tests/**" />
+    <Content Remove="tests/**" />
+  </ItemGroup>
+
+  <!-- Only the game's own assemblies are referenced, so the mod builds from the game alone
+       (mod-release.yml needs nothing else). The tweaked mods are not referenced: each tweak finds
+       its targets by name at run time, and one whose mod is missing or changed is skipped with a
+       warning. -->
   <ItemGroup>
     <Reference Include="VintagestoryAPI">
       <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Tidy Variants: the creative inventory and handbook dialogs are client types in the game's
+         own library and its built-in mods. -->
+    <Reference Include="VintagestoryLib">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VSEssentials">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSEssentials.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VSSurvivalMod">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VSCreativeMod">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSCreativeMod.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- Tidy Variants: worldproperties files are the game's lenient JSON (unquoted keys); the game ships this. -->
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(VINTAGE_STORY)/Lib/Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="assets/**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- In the output folder too, so the build Atlas loads has its lang and config files. -->
+    <None Update="assets/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- build/seraphtweaks_<version>.zip, for the ModDB upload: the DLL, modinfo.json and
-       assets/ at the top level, as the game loads it. -->
+       CREDITS.md at the top level, as the game loads it, and assets/ with its folders. -->
   <Target Name="ModZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <PropertyGroup>
       <_ZipStage>$(IntermediateOutputPath)modzip/</_ZipStage>
       <_ZipOut>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'seraphtweaks_$(Version).zip'))</_ZipOut>
     </PropertyGroup>
-    <RemoveDir Directories="$(_ZipStage)" />
     <ItemGroup>
-      <_ZipAsset Include="assets/**" />
+      <_ModAsset Include="assets/**" />
     </ItemGroup>
-    <Copy SourceFiles="$(TargetPath);modinfo.json" DestinationFolder="$(_ZipStage)" />
-    <Copy SourceFiles="@(_ZipAsset)" DestinationFolder="$(_ZipStage)assets/%(RecursiveDir)" />
+    <RemoveDir Directories="$(_ZipStage)" />
+    <Copy SourceFiles="$(TargetPath);modinfo.json;CREDITS.md" DestinationFolder="$(_ZipStage)" />
+    <Copy SourceFiles="@(_ModAsset)" DestinationFiles="@(_ModAsset->'$(_ZipStage)assets/%(RecursiveDir)%(Filename)%(Extension)')" />
     <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_ZipOut)'))" />
     <ZipDirectory SourceDirectory="$(_ZipStage)" DestinationFile="$(_ZipOut)" Overwrite="true" />
     <Message Importance="high" Text="mod zip: $(_ZipOut)" />

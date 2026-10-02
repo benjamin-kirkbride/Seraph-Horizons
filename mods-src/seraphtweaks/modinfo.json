@@ -2,7 +2,7 @@
   "type": "code",
   "modid": "seraphtweaks",
   "name": "Seraph Horizons Tweaks",
-  "description": "Gameplay tweaks to other mods for the Seraph Horizons pack, each one switchable in ModConfig/seraphtweaks.json.",
+  "description": "The Seraph Horizons pack's own tweaks, each one switchable in ModConfig/seraphtweaks.json: gameplay tweaks to other mods, and Tidy Variants, which hides orientation and open/closed variants and groups the remaining variants of each block or item into one creative tile and one handbook page (Alt+click a tile to expand its group).",
   "authors": ["Benjamin Kirkbride"],
   "version": "1.0.0",
   "side": "Universal",

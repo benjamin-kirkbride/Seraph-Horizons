@@ -915,7 +915,7 @@ why = "Animals and players leave footprints."
 
 [[mod]]
 id = "betterhusbandry"
-version = "1.3.6"
+version = "1.3.7"
 side = "universal"
 license = "LicenseRef-Ask-First-Mod-License-1.0"
 license_source = "https://github.com/Tyeia/betterhusbandry/blob/HEAD/LICENSE.MD"
