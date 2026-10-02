@@ -2,6 +2,7 @@ using System.Reflection;
 using Atlas.XUnit;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.GameContent;
 using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
@@ -92,6 +93,21 @@ public class TidyVariantsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             Assert.Equal(stack.Collectible.Code.ToString(), (string)bridge.Resolution.Entries[i].Code);
         }
         Assert.True(attributeStacks > 0, "no attribute-stack entries (clutter, shields, ...)");
+
+        // A filled container (bucket, flask): the game rewrites ucontents to contents in place the first
+        // time it reads them, as the client does when it draws the slot. Still the same entry.
+        int filled = 0;
+        for (int i = 0; i < n; i++)
+        {
+            ItemStack stack = bridge.StackOf(i);
+            if (!stack.Attributes.HasAttribute("ucontents") || stack.Collectible is not BlockContainer container) continue;
+            var clone = stack.Clone();
+            container.GetContents(World.Api.World, clone);
+            Assert.False(clone.Attributes.HasAttribute("ucontents"), $"{stack.Collectible.Code}: ucontents not resolved");
+            Assert.True(i == (int)bridge.EntryOf(clone), $"{stack.Collectible.Code}: entry {i} lost once its contents resolved");
+            filled++;
+        }
+        Assert.True(filled > 0, "no filled containers among the creative stacks");
         Assert.Equal(-1, (int)bridge.EntryOf((ItemStack?)null));
 
         // The creative inventory's own stacks, as it builds them: plain per tab, plus resolved clones.

@@ -35,6 +35,8 @@ internal static class CreativeUi
     public const string ConfigFile = "seraphtweaks-tidyvariants-creative.json";
     const float MarkZ = 160f;   // above slot items (z 90), below the dialog's next slab (ZSize 250)
     static readonly int TintColor = ColorUtil.ToRgba(235, 232, 176, 72);       // ARGB amber
+    static readonly int BadgeFill = ColorUtil.ToRgba(255, 255, 255, 255);
+    static readonly int BadgeRim = ColorUtil.ToRgba(255, 20, 16, 12);
     static readonly int TintColorAuto = ColorUtil.ToRgba(150, 232, 176, 72);
 
     static ICoreClientAPI? capi;
@@ -379,7 +381,8 @@ internal static class CreativeUi
         if (bounds is null || clip is null) return;
 
         var render = capi.Render;
-        float corner = (float)Math.Max(4.0, GuiElement.scaled(6.0));
+        float corner = (float)Math.Max(8.0, Math.Round(GuiElement.scaled(11.0)));
+        float rim = Math.Max(2f, corner / 5f);
         render.PushScissor(clip, stacking: true);
         try
         {
@@ -399,10 +402,11 @@ internal static class CreativeUi
                 }
                 else if (row.IsTile)
                 {
-                    // A small filled square in the top-right corner marks a collapsed group.
-                    float cx = x + w - corner - 3, cy = y + 3;
+                    // A white square with a dark rim in the top-right corner marks a collapsed group
+                    // (amber did not show against the slot background).
+                    float cx = x + w - corner - 2, cy = y + 2;
                     for (float s = corner, o = 0; s > 0; s -= 2, o += 1)
-                        render.RenderRectangle(cx + o, cy + o, MarkZ, s, s, TintColor);
+                        render.RenderRectangle(cx + o, cy + o, MarkZ, s, s, o < rim ? BadgeRim : BadgeFill);
                 }
             }
         }

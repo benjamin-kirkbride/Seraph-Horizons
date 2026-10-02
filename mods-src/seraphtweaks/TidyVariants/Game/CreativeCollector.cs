@@ -86,7 +86,7 @@ public static class CreativeCollector
                     var stack = resolved.Clone();
                     stack.ResolveBlockOrItem(world);
                     if (stack.Collectible?.Code is null) { skipped++; continue; }
-                    string key = AttributeKey(stack.Attributes);
+                    string key = AttributeKey(stack, world);
                     Add(new Raw(stack.Collectible, stack, coll, k, m, key), list.Tabs);
                 }
             }
@@ -175,28 +175,92 @@ public static class CreativeCollector
     /// <summary>
     /// A stable identity for a stack's attributes: JSON with the keys of every tree sorted (ordinal), so it
     /// does not depend on insertion order. "" for no attributes.
+    ///
+    /// A container's contents are written the same in both of their forms: the game rewrites a creative
+    /// stack's <c>ucontents</c> (from JSON) to <c>contents</c> (item stacks) in place the first time it reads
+    /// them (BlockContainer.ResolveUcontents), so a slot's stack changes after it was collected. Quantities
+    /// are left out (the game computes them, e.g. <c>makefull</c>). Nested item stacks are written by class
+    /// and id, which they have before they are resolved.
     /// </summary>
-    public static string AttributeKey(ITreeAttribute? attrs)
+    public static string AttributeKey(ItemStack stack, IWorldAccessor? world)
     {
+        var attrs = stack.Attributes;
         if (attrs is null || attrs.Count == 0) return "";
         var sb = new StringBuilder();
-        AppendCanonical(sb, attrs);
+        AppendCanonical(sb, attrs, world, stack.Collectible?.Code?.Domain ?? "game", top: true);
         return sb.ToString();
     }
 
-    static void AppendCanonical(StringBuilder sb, ITreeAttribute tree)
+    static void AppendCanonical(StringBuilder sb, ITreeAttribute tree, IWorldAccessor? world, string domain, bool top = false)
     {
         sb.Append('{');
         bool firstKey = true;
-        foreach (var kv in tree.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        foreach (var kv in tree.OrderBy(kv => top && kv.Key == "ucontents" ? "contents" : kv.Key, StringComparer.Ordinal))
         {
             if (!firstKey) sb.Append(',');
             firstKey = false;
+            if (top && kv.Key == "ucontents" && kv.Value is TreeArrayAttribute { value: { } ucontents })
+            {
+                sb.Append("\"contents\":[");
+                for (int i = 0; i < ucontents.Length; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    AppendUcontent(sb, ucontents[i], world, domain);
+                }
+                sb.Append(']');
+                continue;
+            }
             sb.Append('"').Append(kv.Key).Append("\":");
-            if (kv.Value is ITreeAttribute sub) AppendCanonical(sb, sub);
-            else sb.Append(kv.Value?.ToJsonToken() ?? "null");
+            if (top && kv.Key == "contents" && kv.Value is ITreeAttribute contents)
+            {
+                // Slot index to stack; in slot order, like the ucontents list.
+                sb.Append('[');
+                bool firstSlot = true;
+                foreach (var c in contents.OrderBy(c => int.TryParse(c.Key, out int n) ? n : int.MaxValue))
+                {
+                    if (!firstSlot) sb.Append(',');
+                    firstSlot = false;
+                    AppendValue(sb, c.Value, world, domain);
+                }
+                sb.Append(']');
+            }
+            else AppendValue(sb, kv.Value, world, domain);
         }
         sb.Append('}');
+    }
+
+    static void AppendValue(StringBuilder sb, IAttribute? value, IWorldAccessor? world, string domain)
+    {
+        if (value is ITreeAttribute sub) AppendCanonical(sb, sub, world, domain);
+        else if (value is ItemstackAttribute isa) AppendStack(sb, isa.value?.Class, isa.value?.Id, isa.value?.Attributes, world, domain);
+        else sb.Append(value?.ToJsonToken() ?? "null");
+    }
+
+    static void AppendStack(StringBuilder sb, EnumItemClass? cls, int? id, ITreeAttribute? attrs, IWorldAccessor? world, string domain)
+    {
+        if (cls is null || id is null) { sb.Append("null"); return; }
+        sb.Append("{\"stack\":\"").Append(cls == EnumItemClass.Item ? 'i' : 'b').Append(id.Value.ToString(CultureInfo.InvariantCulture)).Append('"');
+        if (attrs is not null && attrs.Count > 0)
+        {
+            sb.Append(",\"attributes\":");
+            AppendCanonical(sb, attrs, world, domain);
+        }
+        sb.Append('}');
+    }
+
+    /// <summary>One <c>ucontents</c> element, written as the stack BlockContainer.CreateItemStackFromJson makes of it.</summary>
+    static void AppendUcontent(StringBuilder sb, ITreeAttribute u, IWorldAccessor? world, string domain)
+    {
+        string? code = u.GetString("code");
+        bool item = u.GetString("type") == "item";
+        CollectibleObject? coll = null;
+        if (world is not null && code is not null)
+        {
+            var loc = AssetLocation.Create(code, domain);
+            coll = item ? world.GetItem(loc) : world.GetBlock(loc);
+        }
+        if (coll is null) { sb.Append('"').Append(code).Append('"'); return; }
+        AppendStack(sb, item ? EnumItemClass.Item : EnumItemClass.Block, coll.Id, u["attributes"] as ITreeAttribute, world, domain);
     }
 
     /// <summary>Leaf attributes as dotted path to string, in insertion order.</summary>
