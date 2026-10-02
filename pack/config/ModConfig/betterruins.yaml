@@ -1,0 +1,12 @@
+# BetterRuins settings the pack changes; everything else keeps the mod's default.
+# Applied by ConfigKit. They shape worldgen, so they only affect chunks not yet generated.
+
+# BetterRuins keeps its large ruins and megastructures 2500 blocks from spawn and
+# 2800 / 5000 blocks from each other, which leaves the first few kilometres with none.
+largeruins_min_spawn_distance: 500
+largeruins_min_distance: 1200
+megastructures_min_spawn_distance: 1000
+megastructures_min_distance: 2500
+
+# BetterRuins cuts the vanilla structure chance from 0.46 to 0.30; 1.5 puts it back.
+vanilla_structures_spawn_chance: 1.5
