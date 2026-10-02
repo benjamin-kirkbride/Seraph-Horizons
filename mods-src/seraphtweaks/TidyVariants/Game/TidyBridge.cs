@@ -12,14 +12,16 @@ namespace SeraphHorizons.SeraphTweaks.TidyVariants;
 public sealed class TidyBridge
 {
     readonly CreativeSource[] sources;
+    readonly IWorldAccessor world;
     // Plain entries by (class, id); attribute-stack entries by (class, id) then canonical attribute JSON.
     readonly Dictionary<(EnumItemClass, int), int> plainByCollectible = [];
     readonly Dictionary<(EnumItemClass, int), Dictionary<string, int>> stacksByCollectible = [];
 
-    internal TidyBridge(EnumAppSide side, TidyResolution resolution, CreativeCollector.Result collected,
+    internal TidyBridge(IWorldAccessor world, EnumAppSide side, TidyResolution resolution, CreativeCollector.Result collected,
         IReadOnlyDictionary<string, IReadOnlyList<string>> worldProperties, OverrideFile overrides,
         bool overridesPresent, IReadOnlyList<string> overrideErrors, TimeSpan collectTime, TimeSpan assetsTime, TimeSpan resolveTime)
     {
+        this.world = world;
         Side = side;
         Resolution = resolution;
         WorldProperties = worldProperties;
@@ -80,7 +82,7 @@ public sealed class TidyBridge
         if (attrs is not null && attrs.Count > 0)
         {
             if (stacksByCollectible.TryGetValue(id, out var d))
-                return d.TryGetValue(CreativeCollector.AttributeKey(attrs), out int e) ? e : -1;
+                return d.TryGetValue(CreativeCollector.AttributeKey(stack, world), out int e) ? e : -1;
         }
         return plainByCollectible.TryGetValue(id, out int p) ? p : -1;
     }
@@ -121,6 +123,6 @@ public sealed class TidyBridge
         var resolution = TidyEngine.Resolve(collected.Entries, props, overrides);
         var resolveTime = sw.Elapsed;
 
-        return new TidyBridge(api.Side, resolution, collected, props, overrides, present, errors, collectTime, assetsTime, resolveTime);
+        return new TidyBridge(api.World, api.Side, resolution, collected, props, overrides, present, errors, collectTime, assetsTime, resolveTime);
     }
 }
