@@ -347,21 +347,13 @@ internal static class CreativeUi
         var sb = new StringBuilder(desc ?? "");
         if (sb.Length > 0 && sb[^1] != '\n') sb.Append('\n');
         sb.Append("\n<font color=\"#e8b048\">")
-          .Append(Lang.Get("tidyvariants:creative-group-title", GroupTitle(res, group), row.MemberCount))
+          .Append(Lang.Get("tidyvariants:creative-group-title", GroupTitle(group), row.MemberCount))
           .Append("</font>\n<font color=\"#a0a0a0\">").Append(hint).Append("</font>");
         return sb.ToString();
     }
 
-    static string GroupTitle(TidyResolution res, TidyGroup group)
-    {
-        if (group.Title is { Length: > 0 } t && Lang.HasTranslation(t, findWildcarded: false, logErrors: false)) return Lang.Get(t);
-        int rep = group.Representative;
-        if (bridge is not null && (uint)rep < (uint)bridge.Count)
-        {
-            try { return bridge.StackOf(rep).GetName(); } catch { /* fall through */ }
-        }
-        return group.Id;
-    }
+    static string GroupTitle(TidyGroup group) =>
+        bridge is not null ? GroupTitles.Of(bridge, group.Index) : GroupTitles.LangTitle(group) ?? group.Id;
 
     // ---- (c) tinted borders: GuiDialog.OnRenderGUI postfix ------------------------------------------
 

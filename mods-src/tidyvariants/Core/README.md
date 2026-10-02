@@ -84,6 +84,21 @@ whose filler values rank best lexicographically in dimension order (rock `granit
 `copper`, process `cooked perfect baked bread fired lit ...`, grade `medium`), else creative order. Every
 member gets a rank so the display list can pick the best among a search subset in O(1).
 
+## Titles
+
+Only override groups can carry a lang title (`TidyGroup.Title`). For the rest the game layer
+(`Game/GroupTitles.cs`) asks `TitleDeriver.Derive` for a title from the members' display names: the
+words at least **80%** of the distinct names share (case-insensitive; a word inside brackets counts apart
+from the same word outside), in the order of the name that holds most of them (the representative's on
+ties). A bracket stays only if every word in it is shared; separators (`:` `,` `;` a lone dash) and
+connectives (`of`, `with`, `de`, `aus`, ...) left at an edge by a dropped word go; the first letter is
+upper-cased. It returns null, and the representative's name is shown, when nothing but connectives,
+brackets or digits is shared, or when the shared words only modify a varying head: in a head-last
+language (English, German, ...; `IsHeadLast(locale)`) a varying word right after the last shared one in
+the same clause ("Dead clownfish", "Dead carp (adult)": "Dead" is no title), mirrored for head-first
+languages (French, Spanish, ...). Names that look like untranslated codes are ignored. Big groups it
+cannot name get an override rule with a `title` instead (the Atlas report lists the largest fallbacks).
+
 ## Override file
 
 JSON with `//` comments and trailing commas allowed. Unknown fields anywhere are errors; every problem
@@ -159,18 +174,23 @@ auto-expanded (`AutoExpanded`, `AutoExpandedGroup`); a group with one survivor i
 
 ## Handbook
 
-`Handbook.Build(res, verifyAcrossKinds = false)` gives, per collectible (kind + code), one `groupBy` pattern: a plain `*` wildcard over the code
-path (no domain) where varying variant positions become `*` (`ore-*-nativecopper-*`), or for groups
-spanning families, the members' common prefix `*` common suffix. A pattern is used only if it matches
-exactly the group's codes among all visible codes of the domain and kind (both kinds with
-`verifyAcrossKinds`, in case the handbook turns out to group block and item pages together; vanilla ships
-the same `ore-*-{x}-*` on both); otherwise `groupby-inexact` is
-reported and nothing is written. Codes whose stacks sit in different groups get `groupby-conflict`.
-`Exclude` is set for codes whose every entry is hidden. Groups made only of one code's attribute stacks
-need no pattern.
+`Handbook.Build(res, verifyAcrossKinds = false)` gives, per collectible (kind + code), one `groupBy` pattern over
+the code path (no domain), the first exact one of: a `*` wildcard where varying variant positions become `*`
+(`ore-*-nativecopper-*`); the members' common prefix `*` common suffix; then, except for groups with attribute
+stacks, the shorter exact one of two `@` regexes (`GroupByRegex`): **structured** (per `-` position the value or an
+alternation of the members' values, positions after the first relaxed to `[^-]*` while still exact:
+`@hide-raw-[^-]*`) and **enumerated** (exactly the members' codes as a token trie). Exact means: with the game's
+matcher (`GroupByMatcher`: `@` = regex wrapped in `^…$`, case-sensitive; else `*` wildcard ignoring case), it matches
+every member and no other visible code of the domain and kind (both kinds with `verifyAcrossKinds`, which the client
+uses: the handbook compares codes only). A non-member of the other kind with a member's very code (vanilla's ore
+block and item) can't be excluded by any pattern: it is tolerated and reported as `groupby-shared-code`. With no
+exact pattern `groupby-inexact` is reported and nothing is written. Codes whose stacks sit in different groups get
+`groupby-conflict`. `Exclude` is set for codes whose every entry is hidden. Groups made only of one code's attribute
+stacks need no pattern. `PatternKindByGroup` says how each pattern was built. Matcher semantics and examples:
+[docs/variant-grouping/handbook.md](../../../docs/variant-grouping/handbook.md#patterns).
 
 ## Issues
 
 `TidyResolution.Issues` and `HandbookPlan.Issues` (kind slugs): `property-missing`, `variant-mismatch`,
 `placeholder-unresolved`, `duplicate-group-id`, `representative-unmatched`, `rule-unused`,
-`groupby-inexact`, `groupby-conflict`.
+`groupby-inexact`, `groupby-conflict`, `groupby-shared-code`.

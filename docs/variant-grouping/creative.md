@@ -25,8 +25,8 @@ Hooks and the reasons for them are in [hooks.md](hooks.md) §1, §4 and §6.
   The scroll position is kept.
 - **Marks:** expanded members get an amber border; a collapsed tile gets a small amber square in its top
   right corner. Members of an auto-expanded group get a fainter border.
-- **Tooltip** of a tile or member adds the group title (the group's lang key, else the representative's
-  name) with the number of matching members, and the expand/collapse hint naming the current hotkey. It is
+- **Tooltip** of a tile or member adds the group title (the group's lang key, else a title derived from the members'
+  names, else the representative's name; see the handbook doc's **Title**) with the number of matching members, and the expand/collapse hint naming the current hotkey. It is
   added in `ItemSlot.GetStackDescription`, which is not on the search path, so the hint is not searchable.
 - **Result count:** "N results" as before, or "N results in M tiles" when grouping shortened the list.
 - **Expand state persists per client** in `ModConfig/tidyvariants-creative.json`

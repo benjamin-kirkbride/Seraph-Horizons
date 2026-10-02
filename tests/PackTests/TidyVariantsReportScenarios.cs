@@ -38,6 +38,11 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
     private sealed record Group(int Index, string Id, string Source, string? Title, int[] Members, int Representative, string? ShippedPattern);
     private sealed record Issue(string Origin, string Kind, string Message);
     private sealed record CountRow(string Key, int Before, int Hidden, int After);
+    /// <summary>An untitled group's representative name and the title derived from its members' names (null: none).</summary>
+    private sealed record TitleRow(string? RepName, string? Derived)
+    {
+        public bool IsDerived => Derived is not null && Derived != RepName;
+    }
 
     private sealed class Data
     {
@@ -48,6 +53,8 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
         public required string[] OverrideErrors;
         public required int StatsEntriesAfter;
         public required string Summary;
+        /// <summary>Per group index, for groups without a lang title.</summary>
+        public required Dictionary<int, TitleRow> Titles;
         public int Visible => Entries.Count(e => e.Hide == "None");
         public int Grouped => Entries.Count(e => e.Group >= 0);
         public int Tiles => Visible - Grouped + Groups.Length;
@@ -85,11 +92,24 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
             groups.Add(new Group((int)g.Index, (string)g.Id, ((object)g.Source).ToString()!, (string?)g.Title,
                 ((IEnumerable<int>)g.Members).ToArray(), (int)g.Representative, (string?)g.ShippedPattern));
 
+        // Display titles of groups without a lang title, through the mod's own GroupTitles (lang is loaded
+        // server-side, so names resolve as on the client in the server's language).
+        var titlesType = ((object)bridge).GetType().Assembly.GetType("SeraphHorizons.TidyVariants.GroupTitles")!;
+        var derive = titlesType.GetMethod("Derived", BindingFlags.Public | BindingFlags.Static)!;
+        var nameOf = titlesType.GetMethod("NameOf", BindingFlags.Public | BindingFlags.Static)!;
+        var titles = new Dictionary<int, TitleRow>();
+        foreach (var g in groups.Where(g => g.Title is null))
+        {
+            var repName = ((string?)nameOf.Invoke(null, [(object)bridge, g.Representative]))?.Trim();
+            var derived = (string?)derive.Invoke(null, [(object)bridge, g.Index]);
+            titles[g.Index] = new TitleRow(repName, derived);
+        }
+
         var issues = new List<Issue>();
         foreach (dynamic i in (IEnumerable<object>)res.Issues) issues.Add(new Issue("resolve", (string)i.Kind, (string)i.Message));
         var asm = ((object)res).GetType().Assembly;
         dynamic plan = asm.GetType("SeraphHorizons.TidyVariants.Core.Handbook")!
-            .GetMethod("Build", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [res, false])!;
+            .GetMethod("Build", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [res, true])!; // verifyAcrossKinds, as on the client
         foreach (dynamic i in (IEnumerable<object>)plan.Issues) issues.Add(new Issue("handbook", (string)i.Kind, (string)i.Message));
         dynamic stats = asm.GetType("SeraphHorizons.TidyVariants.Core.TidyStats")!
             .GetMethod("Compute", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [res, 1])!;
@@ -103,6 +123,7 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
             OverrideErrors = ((IEnumerable<string>)bridge.OverrideErrors).ToArray(),
             StatsEntriesAfter = (int)stats.EntriesAfter,
             Summary = (string)bridge.Summary(),
+            Titles = titles,
         };
     }
 
@@ -233,6 +254,13 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
         var bySize = d.Groups.OrderByDescending(g => g.Members.Length).ThenBy(g => g.Id, StringComparer.Ordinal).ToList();
         var untitledAuto = bySize.Where(g => g.Title is null && g.Source != "Override").ToList();
         var untitledOverride = bySize.Where(g => g.Title is null && g.Source == "Override").ToList();
+        // Groups without a lang title: a title derived from member names, the same text as the representative's
+        // name (all members share it), or none (the representative's name is shown).
+        var untitled = bySize.Where(g => d.Titles.ContainsKey(g.Index)).ToList();
+        var derived = untitled.Where(g => d.Titles[g.Index].IsDerived).ToList();
+        var fallbacks = untitled.Where(g => d.Titles[g.Index].Derived is null).ToList();
+        int sameAsRep = untitled.Count - derived.Count - fallbacks.Count;
+        object TitleJson(Group g) => new { g.Id, members = g.Members.Length, derived = d.Titles[g.Index].Derived, representativeName = d.Titles[g.Index].RepName };
         var issueKinds = d.Issues.GroupBy(i => i.Kind).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).ToList();
 
         var sb = new StringBuilder();
@@ -249,6 +277,7 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
         sb.AppendLine($"| **tiles after** (nothing expanded) | **{d.Tiles:N0}** (budget {TileCeiling:N0}) |");
         sb.AppendLine($"| untitled automatic groups | {untitledAuto.Count:N0} |");
         sb.AppendLine($"| override groups without a title | {untitledOverride.Count:N0} |");
+        sb.AppendLine($"| untitled groups: derived title / same as representative / falls back | {derived.Count:N0} / {sameAsRep:N0} / {fallbacks.Count:N0} |");
         sb.AppendLine($"| engine issues | {d.Issues.Length:N0} |");
 
         void CountTable(string title, List<CountRow> rows, int take)
@@ -272,7 +301,21 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
             if (rows.Count > take) sb.AppendLine($"\n{rows.Count - take} more in the JSON.");
         }
         GroupTable("Largest groups", bySize, 30);
-        GroupTable($"Largest untitled automatic groups ({untitledAuto.Count:N0}; candidates for override titles)", untitledAuto, 40);
+        GroupTable($"Largest untitled automatic groups ({untitledAuto.Count:N0})", untitledAuto, 40);
+
+        void TitleTable(string title, string intro, List<Group> rows, int take)
+        {
+            sb.AppendLine().AppendLine($"## {title}").AppendLine().AppendLine(intro).AppendLine();
+            if (rows.Count == 0) { sb.AppendLine("None."); return; }
+            sb.AppendLine("| members | id | derived title | representative's name |\n|---:|---|---|---|");
+            foreach (var g in rows.Take(take))
+                sb.AppendLine($"| {g.Members.Length:N0} | `{g.Id}` | {d.Titles[g.Index].Derived ?? "-"} | {d.Titles[g.Index].RepName} |");
+            if (rows.Count > take) sb.AppendLine($"\n{rows.Count - take} more in the JSON.");
+        }
+        TitleTable($"Derived titles ({derived.Count:N0})",
+            "Untitled groups whose members' names give a title (`Core/TitleDeriver.cs`); largest first, to eyeball.", derived, 40);
+        TitleTable($"Untitled groups that fall back to the representative's name ({fallbacks.Count:N0})",
+            "The names share no usable title. A big one is a candidate for an override `group` rule with a `title`.", fallbacks, 30);
         GroupTable($"Override groups without a title ({untitledOverride.Count:N0})", untitledOverride, 40);
 
         sb.AppendLine().AppendLine($"## Hidden entries ({hidden.Count:N0})").AppendLine();
@@ -319,6 +362,9 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
             largestGroups = bySize.Take(100).Select(GroupRow),
             untitledAutomatic = untitledAuto.Select(GroupRow),
             untitledOverride = untitledOverride.Select(GroupRow),
+            titles = new { derived = derived.Count, sameAsRepresentative = sameAsRep, fallback = fallbacks.Count },
+            derivedTitles = derived.Select(TitleJson),
+            fallbackTitles = fallbacks.Select(TitleJson),
             hiddenEntries = hidden.Select(e => new { e.Code, reason = e.Hide }),
             issueCounts = issueKinds.ToDictionary(k => k.Key, k => k.Count()),
             issues = d.Issues,

@@ -71,6 +71,20 @@
     // stacks (attr:FSAttributes.wood, attr:PSAttributes.*) collapse by value and their groupBy joins the types.
     {"match": {"domain": "expandedfoods", "code": ["breadedvegetable-*", "breadedmeatnugget-*", "cookedmushroom-*", "cookedchoppedmushroom-*", "stuffedpepper-*", "sausage-*", "sausagesnake-*", "sausagefish-*", "sausagecrab-*", "breadedmushroom-*", "breadedfishnugget-*", "breadedball-*", "cookedchoppedvegetable-*", "cookedveggie-*", "choppedmushroom-*", "choppedvegetable-*", "gelatin-*", "hardtack-*", "dryfruit-*", "candiedfruit-*", "agedmeat-*", "meatnugget-*"], "kind": "item"}, "group": {"id": "expandedfoods-{base}", "title": "tidyvariants:group-expandedfoods-{base}"}},
 
+    // Titles only: big shipped-groupBy groups (same code patterns, same members) whose names share no usable
+    // title. Smaller untitled groups get one derived from their members' names (Core/TitleDeriver.cs); the
+    // Atlas report lists the largest that still fall back to the representative's name.
+    {"match": {"domain": "game", "code": "butterfly-dead-*", "kind": "item"}, "group": {"id": "game-butterfly-dead", "title": "tidyvariants:group-game-butterfly-dead"}, "note": "\"Dead Acmon Blue (female)\", ...: only \"Dead\" is shared."},
+    {"match": {"domain": "game", "code": "fishraw-*", "kind": "item"}, "group": {"id": "game-fishraw", "title": "tidyvariants:group-game-fishraw"}},
+    {"match": {"domain": "game", "code": "taxidermy-fish-*", "kind": "item"}, "group": {"id": "game-taxidermy-fish", "title": "tidyvariants:group-game-taxidermy-fish"}},
+    {"match": {"domain": "game", "code": "mushroom-*", "kind": "block"}, "group": {"id": "game-mushroom", "title": "tidyvariants:group-game-mushroom"}},
+    {"match": {"domain": "game", "code": "snowball-*", "kind": "item"}, "group": {"id": "game-snowball", "title": "tidyvariants:group-game-snowball"}, "note": "Snowball, snownade and stones in snowballs."},
+    {"match": {"domain": "game", "code": ["stonebricks-*", "agedstonebricks-*", "crackedstonebricks-*", "stonebrickslab-*", "stonebrickstairs-*-up-north-free"], "kind": "block"}, "group": {"id": "game-ashlar-{base}", "title": "tidyvariants:group-game-{base}"}, "note": "Names mix \"ashlar blocks\", \"ashlar bricks\" and \"stone brick\" by rock."},
+    {"match": {"domain": "tailorsdelight", "code": "panel-cloth-full-*", "kind": "block"}, "group": {"id": "tailorsdelight-panel-cloth-full", "title": "tidyvariants:group-tailorsdelight-panel-cloth-full"}},
+    {"match": {"domain": "cartwrightscaravan", "code": "*marketstall-smallstall-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-smallstall", "title": "tidyvariants:group-cartwrightscaravan-smallstall"}},
+    {"match": {"domain": "walkingstick", "code": "walkingstick-*", "kind": "item"}, "group": {"id": "walkingstick-walkingstick", "title": "tidyvariants:group-walkingstick-walkingstick"}},
+    {"match": {"domain": "gondolacablecar", "code": "gondola-seat-*", "kind": "item"}, "group": {"id": "gondolacablecar-gondola-seat", "title": "tidyvariants:group-gondolacablecar-gondola-seat"}},
+
     // Alchemy herb racks: wood x metal, metal, and clay colour x raw/fired collapse.
     {"match": {"domain": "alchemy", "code": ["herbrack-*", "herbrackhook-*", "herbracktop-*", "herbrackmold-*"]}, "group": {"id": "alchemy-{base}", "title": "tidyvariants:group-alchemy-{base}"}}
   ]

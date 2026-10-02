@@ -29,11 +29,13 @@ All on the client; the server and anything that syncs is untouched.
    - `handbook.groupBy = [pattern]` on every collectible of a group that has an exact pattern
      (`Handbook.Build`), **replacing** whatever the mod shipped, so one source wins and one pattern
      per item avoids VintageStory-Issues#7476. Groups with no exact pattern (`groupby-inexact`,
-     `groupby-conflict`) keep whatever was shipped.
+     `groupby-conflict`) keep whatever was shipped. The pattern is a `*` wildcard when one is exact,
+     else an `@` regex (see [Patterns](#patterns)).
    - `handbook.exclude = true` on collectibles all of whose creative entries are hidden.
    - Patterns are verified with `verifyAcrossKinds: true`: the slideshow matches a pattern against
      every stack's code, blocks and items alike (`WildcardUtil.Match` on the code only), so a
-     pattern must not catch a same-code collectible of the other kind. Page codes do include the
+     pattern must not catch a collectible of the other kind, except one with a member's very code,
+     which no pattern can exclude (`groupby-shared-code`, below). Page codes do include the
      class (`block-…`/`item-…`), which matters only for the list part below.
 2. **After the handbook has built its pages** (`GuiDialogHandbook.LoadPages_Async` on the thread
    pool, right after `LevelFinalize`; and again after every rebuild, which happens on hotkey changes
@@ -63,13 +65,15 @@ All on the client; the server and anything that syncs is untouched.
      `pageNumberByPageCode` (verified: `LoadPages_Async` indexes every page,
      `OpenDetailPageFor` doesn't look at `IsDuplicate`), so recipe links, `handbook://` links,
      the variants section and Shift+H on a held/looked-at member all open the member's own page.
-   - **Title.** The group's lang title if it has a translation (`TidyGroup.Title`), else the
-     representative's name. The representative's list entry is drawn as "*Title* (N)": the list
+   - **Title.** The group's lang title if it has a translation (`TidyGroup.Title`), else a title
+     derived from the members' names (`Core/TitleDeriver.cs`, e.g. "Gravel" for "Andesite gravel", ...),
+     else the representative's name (`Game/GroupTitles.cs`, shared with the creative tooltip). The
+     representative's list entry is drawn as "*Title* (N)": the list
      draws a lazily made name texture (`Texture`), and once the page has made one the tick swaps
      ours in (it watches only while the handbook is open). The detail page itself keeps the
      representative's own name as its heading.
    - **Search.** The representative page's search text (`TextCacheAll`) gets every member's name
-     appended, and with a lang title, its title (`TextCacheTitle`) becomes the group title. So a
+     appended, and when the group title differs from its own name, its title (`TextCacheTitle`) becomes the group title. So a
      member's name finds its group's page (ranked as a text match, below title matches). Member
      pages themselves no longer appear in search results.
 
@@ -82,14 +86,63 @@ No Harmony patch. Nothing touches the methods Dovidarium guards (`LoadPages_Asyn
 `OnNewScrollbarvalueOverviewPage`, `initOverviewGui`, `OnGuiOpened`, `FilterItems`), so none of its
 gates turn off.
 
+## Patterns
+
+How 1.22.7 matches a `groupBy` (decompiled `SlideshowItemstackTextComponent`, `WildcardUtil`,
+`AssetLocation`; mirrored in `Core/Wildcard.cs` `GroupByMatcher` and unit-tested against these cases):
+
+- The head stack's collectible's `IHandbookGrouping` (only `BlockShapeMaterialFromAttributes`, e.g.
+  clutter, and `ItemShieldFromAttributes`) first replaces `{type}`/`{material}`/its variant-group
+  names in the pattern with the stack's attributes; nothing else expands placeholders.
+- No `:` → `new AssetLocation(headDomain, pattern)`, path kept verbatim. With a `:` the whole string
+  is lowercased and split at the first `:` (so a regex must contain no `:`, e.g. no `(?:`). The domain
+  must equal the stack's unless it is `*`; then only the paths are compared.
+- Each other handbook stack is compared by its code, or for an `IHandbookGrouping` collectible by
+  `path-attr1-attr2…`. Kind is never looked at, so a block and an item with the same code can't be
+  told apart by any pattern.
+- `@` → .NET regex: `new Regex("^" + rest + "$", CultureInvariant, 1 s timeout)`, **case-sensitive**,
+  path only, cached per pattern string for the session (`ConcurrentDictionary`). The anchors are
+  plain concatenation, so a top-level `a|b` would mean `^a` or `b$`: alternations go in a group.
+  Otherwise a `*` wildcard (no other special character), ASCII case ignored.
+- Cost: every slideshow runs its head's pattern over all handbook stacks once. Measured on the pack
+  (29,465 stacks): 7 ns per stack for wildcards, 61 ns for regexes (1.8 ms per slideshow); only the
+  regex groups' items pay it.
+
+`Handbook.Build` tries, per group, the positional wildcard and the prefix`*`suffix wildcard, then
+(not for attribute-stack groups, whose `path-attr…` codes a code regex would miss) the shorter exact
+one of two regexes (`GroupByRegex`):
+
+- **Structured**: codes split at `-`, one shape per token count; each position is its value or an
+  alternation of the values members have there (common prefix/suffix factored); then, left to right
+  and never the first token, a position is relaxed to `[^-]*` if that stays exact. E.g.
+  `@hide-raw-[^-]*` (not `hide-raw-*`, which also matches `hide-raw-bear-black-complete`),
+  `@(|tall)displaycase-aged(1|2|3|4|5)`, `@(amethyst|clearquartz|rosequartz|smokyquartz)`.
+- **Enumerated**: exactly the members' codes, as a token trie whose siblings with the same
+  continuation share an alternation (`@ore(-(medium|poor)-ilmenite-(…)|-rich-ilmenite-(…))`).
+
+Each candidate must match every member and no other visible code of the domain (both kinds) with
+the mirror; codes are regex-escaped, and patterns never contain `:` or `{`. Output is deterministic
+(members sorted ordinally).
+
+**Inherent residue: `groupby-shared-code`.** Vanilla's ore block `ore-{grade}-{type}-{rock}` and ore
+item `ore-{grade}-{ore}-{rock}` share codes, and our ore blocks and ore chunks are separate groups.
+No pattern can match a member's code without matching the other kind's collectible with that code,
+so such a match is tolerated: the pattern is written (the same `ore-*-{x}-*` vanilla ships) and the
+group reported. The slideshow then cycles block and item variants of that ore together, as vanilla
+does. 64 groups (`game-ore-*`, `game-orechunk-*`) on the pack; the Atlas scenario asserts that only
+those have it. Where the other kind has codes the members don't, a regex leaves them out
+(`game-ore-ilmenite`).
+
 ## Numbers (whole pack, server-side approximation)
 
 From `TidyVariantsHandbookScenarios` (every creative entry taken as a handbook page, every page able
-to represent): 29,449 stack pages → 6,580 listed; 1,449 groups collapse, 22,869 pages leave the
-list. `groupBy` on 18,338 collectibles, `exclude` on 2. Pattern exactness across kinds: 83
-`groupby-inexact`, 0 `groupby-conflict`, 1,300 patterns (same-kind only would give 16 / 0 / 1,367;
-the 67 groups that differ keep their shipped pattern, e.g. vanilla's shared ore pattern). The client
-logs its real counts (`stack pages listed A -> B`).
+to represent): 29,467 stack pages → 6,595 listed; 1,452 groups collapse, 22,872 pages leave the
+list. `groupBy` on 21,363 collectibles, `exclude` on 2. Patterns (verified across kinds, with the
+game's real `WildcardUtil.Match` in `Every_groupBy_pattern_is_exact_with_the_games_matcher`): 1,386,
+of which 1,367 wildcards, 18 structured and 1 enumerated regex; 0 `groupby-inexact` (83 before
+regexes), 0 `groupby-conflict`, 64 `groupby-shared-code`. Lengths: median 21, p99 40, longest 354
+(`game-ore-ilmenite`). Planning takes about 0.6 s; checking every pattern against every stack with
+the game's matcher (41 M matches) 1.5 s. The client logs its real counts (`stack pages listed A -> B`).
 
 ## Dovidarium (0.9.5)
 
@@ -109,8 +162,8 @@ logs its real counts (`stack pages listed A -> B`).
   `GetHandBookStacks` that adds attributes) are matched by page code only; such pages stay listed.
 - After a GUI-scale change the list briefly shows the representative's name until the tick swaps
   the label back (only while the handbook is open).
-- Groups with no exact pattern keep the shipped `groupBy`, which may still pull in non-members in
-  detail sections (#7476).
+- Groups with no exact pattern (none on the pack) keep the shipped `groupBy`, which may still pull
+  in non-members in detail sections (#7476). Shared ore codes: see `groupby-shared-code` above.
 
 ## Manual in-game checklist
 

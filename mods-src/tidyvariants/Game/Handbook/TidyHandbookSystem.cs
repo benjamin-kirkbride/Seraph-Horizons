@@ -157,7 +157,8 @@ public sealed class TidyHandbookSystem : ModSystem
             {
                 var rep = byCode[g.RepresentativePage];
                 var members = g.MemberPages.Select(m => (byCode[m.Page].Stack, m.Page)).ToList();
-                string title = Title(g.Group.Title, rep);
+                string repName = rep.Stack.GetName();
+                string title = GroupTitles.Of(b, g.Group.Group, repName);
                 var view = new HandbookGroupView(title, members);
                 foreach (var (stack, code) in members)
                 {
@@ -165,10 +166,11 @@ public sealed class TidyHandbookSystem : ModSystem
                     AttachSection(stack.Collectible);
                 }
 
-                // Search: the group's page also matches its members' names (and the group title).
+                // Search: the group's page also matches its members' names, and its title is the group title
+                // (lang or derived; the representative's own name stays in TextCacheAll).
                 var names = g.MemberPages.Skip(1).Select(m => byCode[m.Page].TextCacheTitle).Distinct();
                 rep.TextCacheAll = rep.TextCacheAll + " " + string.Join(" ", names);
-                if (g.Group.Title is not null)
+                if (title != repName)
                 {
                     rep.TextCacheTitle = title.ToSearchFriendly();
                     rep.TextCacheAll = title.ToSearchFriendly() + " " + rep.TextCacheAll;
@@ -206,9 +208,6 @@ public sealed class TidyHandbookSystem : ModSystem
         if (coll.CollectibleBehaviors.Any(b => b is VariantsPageContent)) return;
         coll.CollectibleBehaviors = coll.CollectibleBehaviors.Append(new VariantsPageContent(coll));
     }
-
-    static string Title(string? langKey, GuiHandbookItemStackPage rep) =>
-        langKey is not null && Lang.HasTranslation(langKey, logErrors: false) ? Lang.Get(langKey) : rep.Stack.GetName();
 
     /// <summary>The list draws a page's name from a texture it makes lazily; swap in ours once it has made it.</summary>
     void RefreshLabels()
