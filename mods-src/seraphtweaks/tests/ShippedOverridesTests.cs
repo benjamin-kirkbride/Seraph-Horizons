@@ -205,10 +205,11 @@ public class ShippedOverridesTests
             .Concat(Typed("purposefulstorage:swordpedestal", "stone", "PSAttributes.rock", ["granite", "basalt"], "swordpedestal-stone-*"));
         var r = Resolve(entries);
         Assert.DoesNotContain(Shipped.Value.Rules, x => x.Match.Domain is "foodshelves" or "purposefulstorage");
-        Assert.Equal([6, 3, 3, 2], r.Groups.Select(g => g.Members.Count).ToArray());
+        // The wooden and the stone sword pedestal (one base code, type normal/stone both filler) are one tile.
+        Assert.Equal([6, 3, 5], r.Groups.Select(g => g.Members.Count).ToArray());
         Assert.Same(r.GroupOf("foodshelves:breadshelf-normal-east"), r.GroupOf("foodshelves:breadshelf-short-east"));
+        Assert.Same(r.GroupOf("purposefulstorage:swordpedestal-normal-east"), r.GroupOf("purposefulstorage:swordpedestal-stone-east"));
         Assert.Contains("FSAttributes.wood:\"oak\"", r.Entries[r.Groups[0].Representative].Stack!.Key);
-        Assert.Contains("PSAttributes.rock:\"granite\"", r.Entries[r.Groups[3].Representative].Stack!.Key);
     }
 
     static CreativeEntry WithGroupBy(CreativeEntry e, string pattern) =>
@@ -281,19 +282,48 @@ public class ShippedOverridesTests
     }
 
     [Fact]
-    public void Seed_amulets_group_and_the_other_amulets_stay_single()
+    public void Clothes_are_one_tile_per_body_slot()
     {
         CreativeEntry Neck(string value) => E("game:clothes", EntryKind.Item, ("category", "neck"), ("neck", value));
         CreativeEntry Nadiya(string value) => E("game:clothes", EntryKind.Item, ("type", "nadiya"), ("category", "neck"), ("neck", value));
-        var r = Resolve([Neck("acorn-amulet"), Neck("jade-amulet"), Neck("walnut-amulet"), Neck("larch-seed-amulet"),
-            Neck("bronzeamulet"), Nadiya("birch-amulet"), Nadiya("feather-amulet")]);
-        var seed = r.GroupOf("game:clothes-neck-acorn-amulet");
-        Assert.Equal("Seed and root amulet", TitleText(seed));
-        Assert.Equal(["game:clothes-neck-acorn-amulet", "game:clothes-neck-walnut-amulet", "game:clothes-neck-larch-seed-amulet", "game:clothes-nadiya-neck-birch-amulet"],
-            r.Codes(seed.Members));
-        Assert.Equal(-1, r.GroupOf(r.Index("game:clothes-neck-jade-amulet")));
-        Assert.Equal(-1, r.GroupOf(r.Index("game:clothes-nadiya-neck-feather-amulet")));
-        Assert.Equal(-1, r.GroupOf(r.Index("game:clothes-neck-bronzeamulet")));
+        CreativeEntry Shirt(string value) => E("game:clothes", EntryKind.Item, ("category", "upperbody"), ("upperbody", value));
+        var r = Resolve([Neck("acorn-amulet"), Neck("jade-amulet"), Nadiya("birch-amulet"), Shirt("acrobat"), Shirt("aristocrat-shirt")]);
+        var neck = r.GroupOf("game:clothes-neck-acorn-amulet");
+        Assert.Equal("Necklaces and amulets", TitleText(neck));
+        Assert.Equal(["game:clothes-neck-acorn-amulet", "game:clothes-neck-jade-amulet", "game:clothes-nadiya-neck-birch-amulet"], r.Codes(neck.Members));
+        Assert.Equal("Shirts", TitleText(r.GroupOf("game:clothes-upperbody-acrobat")));
+    }
+
+    [Fact]
+    public void Paintings_creatures_and_flowers_are_one_tile_each()
+    {
+        var r = Resolve([
+            E("game:painting", EntryKind.Block, ("painting", "howl"), ("side", "north")),
+            E("game:painting", EntryKind.Block, ("painting", "family1"), ("side", "north")),
+            E("game:painting", EntryKind.Block, ("painting", "seraph"), ("side", "north")),
+            E("game:creature-butterfly", EntryKind.Item, ("type", "acmonbluefemale")),
+            E("game:creature-butterfly", EntryKind.Item, ("type", "acmonbluemale")),
+            E("game:creature", EntryKind.Item, ("type", "bear-black-adult-female")),
+            E("game:creature", EntryKind.Item, ("type", "wolf-eurasian-adult-male")),
+            E("game:creature", EntryKind.Item, ("group", "deer"), ("type", "elk"), ("age", "adult"), ("gender", "male")),
+            E("game:flower", EntryKind.Block, ("flower", "catmint"), ("cover", "free")),
+            E("game:flower", EntryKind.Block, ("type", "rafflesia"), ("color", "brown")),
+        ]);
+        Assert.Equal("Paintings", TitleText(r.GroupOf("game:painting-howl-north")));
+        Assert.Equal(3, r.GroupOf("game:painting-howl-north").Members.Count);
+        Assert.Equal("Butterflies", TitleText(r.GroupOf("game:creature-butterfly-acmonbluemale")));
+        Assert.Equal(["game:creature-bear-black-adult-female", "game:creature-wolf-eurasian-adult-male", "game:creature-deer-elk-adult-male"],
+            r.Codes(r.GroupOf("game:creature-bear-black-adult-female").Members));
+        Assert.Equal("Flowers", TitleText(r.GroupOf("game:flower-rafflesia-brown")));
+    }
+
+    [Fact]
+    public void Pigments_collapse_daub_and_plaster_colours()
+    {
+        string[] pigments = ["amber", "ash", "browngolden", "oxblood", "viridian", "red"];
+        var r = Resolve(Product("game:daub", EntryKind.Block, ("color", pigments), ("type", ["cracked", "normal"])));
+        Assert.Equal("pigment", r.Families[0].Dimensions[0].List);
+        Assert.Equal(2, r.Groups.Count);
     }
 
     [Fact]

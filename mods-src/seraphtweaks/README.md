@@ -39,8 +39,9 @@ rocks, doors × rocks × woods, foods × cooking states). From one set of rules,
 - **hides** orientation and open/closed-state variants: gone from the creative and handbook lists,
   search included. `/giveitem` still works.
 - **groups** everything else: one creative tile and one handbook page per group, showing a
-  representative member. Alt+click a tile (or Ctrl+G over it) to expand the group inline; search
-  runs over the flat list first, so it never loses an item.
+  representative member. Right-click a tile (or Ctrl+G over it) to expand the group inline, and
+  right-click any of its members to collapse it; left-click still takes the item. Search runs over
+  the flat list first, so it never loses an item.
 
 Nothing decorative becomes unreachable from the UI. The design and its decisions are in #252, the
 details in `docs/variant-grouping/` (creative inventory, handbook, game hooks, the Atlas report).

@@ -136,13 +136,13 @@ those have it. Where the other kind has codes the members don't, a regex leaves 
 ## Numbers (whole pack, server-side approximation)
 
 From `TidyVariantsHandbookScenarios` (every creative entry taken as a handbook page, every page able
-to represent): 29,467 stack pages → 6,595 listed; 1,452 groups collapse, 22,872 pages leave the
-list. `groupBy` on 21,363 collectibles, `exclude` on 2. Patterns (verified across kinds, with the
-game's real `WildcardUtil.Match` in `Every_groupBy_pattern_is_exact_with_the_games_matcher`): 1,386,
-of which 1,367 wildcards, 18 structured and 1 enumerated regex; 0 `groupby-inexact` (83 before
-regexes), 0 `groupby-conflict`, 64 `groupby-shared-code`. Lengths: median 21, p99 40, longest 354
-(`game-ore-ilmenite`). Planning takes about 0.6 s; checking every pattern against every stack with
-the game's matcher (41 M matches) 1.5 s. The client logs its real counts (`stack pages listed A -> B`).
+to represent): 29,467 stack pages → 2,006 listed; 1,146 groups collapse, 27,461 pages leave the
+list. `groupBy` on 24,859 collectibles, `exclude` on 2. Patterns (verified across kinds, with the
+game's real `WildcardUtil.Match` in `Every_groupBy_pattern_is_exact_with_the_games_matcher`): 1,072,
+of which 1,039 wildcards, 32 structured and 1 enumerated regex; 0 `groupby-inexact`, 0 `groupby-conflict`,
+64 `groupby-shared-code`. Lengths: median 18, p99 250, longest 552 (`game-clothes-lowerbody`, a structured
+regex over vanilla and Nadiyan garments). Planning takes about 1 s; checking every pattern against every
+stack with the game's matcher (32 M matches) 1.1 s. The client logs its real counts (`stack pages listed A -> B`).
 
 ## Dovidarium (0.9.5)
 
