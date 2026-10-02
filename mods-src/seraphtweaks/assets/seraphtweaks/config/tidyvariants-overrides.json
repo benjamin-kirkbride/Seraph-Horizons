@@ -3,6 +3,16 @@
 // Nothing here hides anything: hiding stays with the automatic orientation/open-closed rule.
 {
   "version": 1,
+
+  // Daub, plaster and rammed earth pigments (vanilla daub; MaterialNeeds plaster and rammed earth): too many aren't
+  // generic colour words (ash, browngolden, oxblood, viridian) for the built-in colour list, so one tile per block type.
+  "lists": {
+    "pigment": {
+      "values": ["amber", "ash", "ashen", "azure", "black", "blue", "brown", "browngolden", "brownlight", "brownweathered", "charcoal", "chartreuse", "chestnut", "cinnabar", "cobalt", "coral", "graphite", "green", "lime", "magenta", "moss", "orange", "oxblood", "pewter", "pink", "red", "rouge", "russet", "sage", "salmon", "tan", "taupe", "turquoise", "violet", "viridian", "yellow"],
+      "preferred": ["brownlight", "tan", "red"],
+    },
+  },
+
   "rules": [
 
     // Ores (vanilla + GeologyAdditions + MaterialNeedsGeology, all in the game domain).
@@ -22,7 +32,10 @@
     //   meaningful);
     // - types whose clay colour, glaze or grain is a generic "type" (flowerpot and clayplanter also span two
     //   block types each: clay colour x raw/fired, and the glazed ones). storagevessel is an extension.
-    {"match": {"domain": "game", "code": ["clutter", "clutter-devastation", "clutter-aquatic", "jonas-lamp", "antlermount", "banner-banner", "slantedroofing*", "flowerpot-*", "clayplanter-*", "storagevessel-*", "burnedbrick-*", "bread-*", "dough-*", "seeds-*"]}, "group": {"id": "game-{base}", "title": "seraphtweaks:tidyvariants-group-game-{base}"}},
+    {"match": {"domain": "game", "code": ["clutter", "clutter-devastation", "clutter-aquatic", "jonas-lamp", "antlermount", "banner-banner", "slantedroofing*", "flowerpot-*", "clayplanter-*", "storagevessel-*", "burnedbrick-*", "bread-*", "dough-*", "seeds-*",
+      // Catalogues of one kind of thing (see "Catalogues" below); not from Handbook Declutterer.
+      "herb-*", "herbbundle-*", "fruitingbush-*", "fruitingbushcutting-*", "fern-*", "tallplant-*", "attachingplant-*", "saguarocactus-*", "ferntree-*", "glowworms-*", "sodastraws-*", "devgrowth-*", "seashell-*", "dpanel-*", "palisadewall-*", "meta-*", "wallpaper-*", "lootvessel-*", "wallscribbles-*", "jonasparts-*", "jonasframes-*", "antler-*", "locatormap-*",
+      "skep-*", "carvedlog-*", "rug-*", "oxidation-*", "crystallayer-*", "crystal-*", "chute-*", "supportchain-*", "cabinet-*", "mannequin-*", "burnedplanks-*", "supportrope-*", "precipitate-*", "hotspringbacteriasmooth-*", "dirtygravel-*", "decalcan-*"]}, "group": {"id": "game-{base}", "title": "seraphtweaks:tidyvariants-group-game-{base}"}},
     {"match": {"domain": "game", "code": "slantedroofing*-oak-*", "kind": "block"}, "prefer": true},
     {"match": {"domain": "game", "code": "clutteredbookshelf*", "kind": "block"}, "group": {"id": "game-clutteredbookshelf", "title": "seraphtweaks:tidyvariants-group-game-clutteredbookshelf"}, "note": "Three codes (clutteredbookshelf, -agedacacia, -withlore) in one tile. Extension."},
     {"match": {"domain": "game", "code": "figurehead-*", "kind": "block"}, "group": {"id": "game-figurehead-{type}", "by": ["type"], "title": "seraphtweaks:tidyvariants-group-game-figurehead-{type}"}, "note": "One tile per figurehead; its 12 wood stacks collapse."},
@@ -37,19 +50,9 @@
     // The other constructions group automatically per body part and construction (metal collapses).
     {"match": {"domain": "game", "code": "armor-*-tailored-*", "kind": "item"}, "group": {"id": "game-armor-tailored-{bodypart}", "by": ["bodypart"], "title": "seraphtweaks:tidyvariants-group-game-armor-tailored-{bodypart}"}},
 
-    // Clothes: the garment is the value of one dimension (SelectiveMultiply), so families are listed codes
-    // or code wildcards. All but the seed amulets are extensions.
-    {"match": {"domain": "game", "code": ["clothes-neck-acorn-amulet", "clothes-neck-cypress-seed-amulet", "clothes-neck-larch-seed-amulet", "clothes-neck-pinecone-amulet", "clothes-neck-redwood-amulet", "clothes-neck-walnut-amulet", "clothes-nadiya-neck-acacia-amulet", "clothes-nadiya-neck-bamboo-seed-amulet", "clothes-nadiya-neck-birch-amulet", "clothes-nadiya-neck-cattail-root-amulet", "clothes-nadiya-neck-ebony-amulet", "clothes-nadiya-neck-kapok-amulet", "clothes-nadiya-neck-maple-amulet", "clothes-nadiya-neck-maple-red-amulet", "clothes-nadiya-neck-papyrus-root-amulet", "clothes-nadiya-neck-purpleheart-amulet", "clothes-nadiya-neck-tule-root-amulet"], "kind": "item"}, "group": {"id": "game-clothes-seedamulet", "title": "seraphtweaks:tidyvariants-group-game-clothes-seedamulet"}},
-    {"match": {"domain": "game", "code": ["clothes-arm-acacia", "clothes-arm-bamboo", "clothes-arm-birch", "clothes-arm-cattail", "clothes-arm-cypress", "clothes-arm-ebony", "clothes-arm-kapok", "clothes-arm-larch", "clothes-arm-maple", "clothes-arm-maplered", "clothes-arm-oak", "clothes-arm-papyrus", "clothes-arm-pine", "clothes-arm-purpleheart", "clothes-arm-redwood", "clothes-arm-tule", "clothes-arm-walnut"], "kind": "item"}, "group": {"id": "game-clothes-seedbracelet", "title": "seraphtweaks:tidyvariants-group-game-clothes-seedbracelet"}},
-    {"match": {"domain": "game", "code": "clothes-hand-cuffs*", "kind": "item"}, "group": {"id": "game-clothes-cuffs", "title": "seraphtweaks:tidyvariants-group-game-clothes-cuffs"}},
-    {"match": {"domain": "game", "code": "clothes-head-liripipe*", "kind": "item"}, "group": {"id": "game-clothes-liripipe", "title": "seraphtweaks:tidyvariants-group-game-clothes-liripipe"}},
-    {"match": {"domain": "game", "code": "clothes-shoulder-apron*", "kind": "item"}, "group": {"id": "game-clothes-apron", "title": "seraphtweaks:tidyvariants-group-game-clothes-apron"}},
-    {"match": {"domain": "game", "code": "clothes-upperbody-kirtle*", "kind": "item"}, "group": {"id": "game-clothes-kirtle", "title": "seraphtweaks:tidyvariants-group-game-clothes-kirtle"}},
-    {"match": {"domain": "game", "code": "clothes-lowerbody-braies*", "kind": "item"}, "group": {"id": "game-clothes-braies", "title": "seraphtweaks:tidyvariants-group-game-clothes-braies"}},
-    {"match": {"domain": "game", "code": "clothes-lowerbody-hose*", "kind": "item"}, "group": {"id": "game-clothes-hose", "title": "seraphtweaks:tidyvariants-group-game-clothes-hose"}},
-    {"match": {"domain": "game", "code": "clothes-face-funeralmask*", "kind": "item"}, "group": {"id": "game-clothes-funeralmask", "title": "seraphtweaks:tidyvariants-group-game-clothes-funeralmask"}},
-    {"match": {"domain": "game", "code": "clothes-neck-nazar*", "kind": "item"}, "group": {"id": "game-clothes-nazar", "title": "seraphtweaks:tidyvariants-group-game-clothes-nazar"}},
-    {"match": {"domain": "game", "code": "clothes-butterflypin-*", "kind": "item"}, "group": {"id": "game-clothes-butterflypin", "title": "seraphtweaks:tidyvariants-group-game-clothes-butterflypin"}},
+    // Clothes: one tile per body slot (category), vanilla and Nadiyan garments together; the garment is a generic
+    // dimension named after the slot (upperbody, neck, ...), so it would otherwise be one tile per garment.
+    {"match": {"domain": "game", "code": "clothes-*", "kind": "item"}, "group": {"id": "game-clothes-{category}", "by": ["category"], "title": "seraphtweaks:tidyvariants-group-game-clothes-{category}"}},
 
     // Tankards and Goblets.
     {"match": {"domain": "tankardsandgoblets", "code": "goblet-jeweled-*", "kind": "block"}, "group": {"id": "tankardsandgoblets-goblet-jeweled", "title": "seraphtweaks:tidyvariants-group-tankardsandgoblets-goblet-jeweled"}, "note": "metal x jewel; the jewel is a gem name and would stay meaningful."},
@@ -80,10 +83,51 @@
     {"match": {"domain": "game", "code": "mushroom-*", "kind": "block"}, "group": {"id": "game-mushroom", "title": "seraphtweaks:tidyvariants-group-game-mushroom"}},
     {"match": {"domain": "game", "code": "snowball-*", "kind": "item"}, "group": {"id": "game-snowball", "title": "seraphtweaks:tidyvariants-group-game-snowball"}, "note": "Snowball, snownade and stones in snowballs."},
     {"match": {"domain": "game", "code": ["stonebricks-*", "agedstonebricks-*", "crackedstonebricks-*", "stonebrickslab-*", "stonebrickstairs-*-up-north-free"], "kind": "block"}, "group": {"id": "game-ashlar-{base}", "title": "seraphtweaks:tidyvariants-group-game-{base}"}, "note": "Names mix \"ashlar blocks\", \"ashlar bricks\" and \"stone brick\" by rock."},
+    {"match": {"domain": "game", "code": "crackedrock-*", "kind": "block"}, "group": {"id": "game-crackedrock", "title": "seraphtweaks:tidyvariants-group-game-crackedrock"}},
+    {"match": {"domain": "game", "code": "richgravel-*", "kind": "block"}, "group": {"id": "game-richgravel", "title": "seraphtweaks:tidyvariants-group-game-richgravel"}, "note": "Untranslated names; the land-{layer} family joins the plain one."},
     {"match": {"domain": "tailorsdelight", "code": "panel-cloth-full-*", "kind": "block"}, "group": {"id": "tailorsdelight-panel-cloth-full", "title": "seraphtweaks:tidyvariants-group-tailorsdelight-panel-cloth-full"}},
     {"match": {"domain": "cartwrightscaravan", "code": "*marketstall-smallstall-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-smallstall", "title": "seraphtweaks:tidyvariants-group-cartwrightscaravan-smallstall"}},
     {"match": {"domain": "walkingstick", "code": "walkingstick-*", "kind": "item"}, "group": {"id": "walkingstick-walkingstick", "title": "seraphtweaks:tidyvariants-group-walkingstick-walkingstick"}},
     {"match": {"domain": "gondolacablecar", "code": "gondola-seat-*", "kind": "item"}, "group": {"id": "gondolacablecar-gondola-seat", "title": "seraphtweaks:tidyvariants-group-gondolacablecar-gondola-seat"}},
+
+    // Catalogues of one kind of thing (owner feedback: "termite mounds should be one entry, not 74"): the variant is a
+    // generic dimension (painting, flower, type, ...) whose values are kinds of the same thing. One tile each; search
+    // still finds every member (a single surviving group auto-expands). Different tools, foods, potions, ores and
+    // door/road styles stay apart.
+    {"match": {"domain": "game", "code": "termitemound-granite-*", "kind": "block"}, "prefer": true, "note": "Shown by an unharvested mound; the engine already joins termitemound and termitemound-harvested (process word in the base)."},
+    {"match": {"domain": "game", "code": "painting-*", "kind": "block"}, "group": {"id": "game-painting", "title": "seraphtweaks:tidyvariants-group-game-painting"}},
+    {"match": {"domain": "game", "code": "flower-*", "kind": "block"}, "group": {"id": "game-flower", "title": "seraphtweaks:tidyvariants-group-game-flower"}},
+    {"match": {"domain": "game", "code": "paper-*", "kind": "block"}, "group": {"id": "game-paper-notes", "title": "seraphtweaks:tidyvariants-group-game-paper-notes"}, "note": "Every member is \"Ragged notes and scribbles\"; parchment is an item."},
+    {"match": {"domain": "game", "code": "overlay-*", "kind": "block"}, "group": {"id": "game-overlay", "title": "seraphtweaks:tidyvariants-group-game-overlay"}},
+    {"match": {"domain": "game", "code": "metalblock-*", "kind": "block"}, "group": {"id": "game-metalblock", "title": "seraphtweaks:tidyvariants-group-game-metalblock"}},
+    {"match": {"domain": "game", "code": ["hide-*-bear-*", "hide-*-fox-*", "hide-*-raccoon-*"], "kind": "item"}, "group": {"id": "game-hide-{group}", "by": ["group"], "title": "seraphtweaks:tidyvariants-group-game-hide-{group}"}, "note": "Raw, oiled and finished pelts of one animal; the plain hide processing steps stay apart."},
+    {"match": {"domain": "game", "code": ["coral-*", "aquatic-decor-*"], "kind": "block"}, "group": {"id": "game-corals", "title": "seraphtweaks:tidyvariants-group-game-corals"}},
+    {"match": {"domain": "game", "code": ["aquatic-*", "aquaticplant-*"], "kind": "block"}, "group": {"id": "game-aquaticplants", "title": "seraphtweaks:tidyvariants-group-game-aquaticplants"}},
+    {"match": {"domain": "game", "code": "jonas-*", "kind": "block"}, "group": {"id": "game-jonasdevices", "title": "seraphtweaks:tidyvariants-group-game-jonasdevices"}, "note": "After the jonas-lamp rule above, which keeps the lamps apart."},
+    {"match": {"domain": "game", "code": "clutter-*", "kind": "item"}, "group": {"id": "game-clutter-items", "title": "seraphtweaks:tidyvariants-group-game-clutter-items"}},
+    {"match": {"domain": "game", "code": "stackrandomizer*", "kind": "item"}, "group": {"id": "game-stackrandomizer", "title": "seraphtweaks:tidyvariants-group-game-stackrandomizer"}, "note": "Creative-only loot randomizers."},
+    {"match": {"domain": "game", "code": "creature-butterfly-*", "kind": "item"}, "group": {"id": "game-creature-butterfly", "title": "seraphtweaks:tidyvariants-group-game-creature-butterfly"}},
+    {"match": {"domain": "game", "code": "creature-fish-*", "kind": "item"}, "group": {"id": "game-creature-fish", "title": "seraphtweaks:tidyvariants-group-game-creature-fish"}},
+    {"match": {"domain": "game", "code": "creature-*", "kind": "item"}, "group": {"id": "game-creature", "title": "seraphtweaks:tidyvariants-group-game-creature"}, "note": "Spawn items of every land creature."},
+    {"match": {"domain": "game", "code": "armor-*", "kind": "item"}, "dimensions": {"material": "filler"}, "note": "Metal, fur colour and wear (bear-black, blackguard-broken): one tile per body part and construction."},
+    {"match": {"domain": "game", "code": "poultice-*", "kind": "item"}, "dimensions": {"material": "filler"}, "note": "The cloth (bast, linen, reed); the agent stays."},
+    {"match": {"domain": "betterruins", "code": ["br-schematic-*", "locatormap-*"], "kind": "item"}, "group": {"id": "betterruins-{base}", "title": "seraphtweaks:tidyvariants-group-betterruins-{base}"}},
+    {"match": {"domain": "bdcrop", "code": "seeds-*", "kind": "item"}, "group": {"id": "bdcrop-seeds", "title": "seraphtweaks:tidyvariants-group-game-seeds"}},
+    {"match": {"domain": "alchemy", "code": "cuttings-*", "kind": "item"}, "group": {"id": "alchemy-cuttings", "title": "seraphtweaks:tidyvariants-group-alchemy-cuttings"}},
+    {"match": {"domain": "substrate", "code": "sporeprint-*", "kind": "item"}, "group": {"id": "substrate-sporeprint", "title": "seraphtweaks:tidyvariants-group-substrate-sporeprint"}},
+    {"match": {"domain": "oils", "code": ["soap-*", "fullsoapbox-*", "oilmash-*", "oilpaste-*", "oilpulp-*"], "kind": "item"}, "group": {"id": "oils-{base}", "title": "seraphtweaks:tidyvariants-group-oils-{base}"}},
+    {"match": {"domain": "butchering", "code": "dead*", "kind": "item"}, "group": {"id": "butchering-carcass-{base}"}, "note": "Dead animals: sex/age and skin collapse. Untitled: every member has the same name (\"Hare (dead)\")."},
+    {"match": {"domain": "spawnersapi", "code": "spawner-*", "kind": "block"}, "group": {"id": "spawnersapi-spawner", "title": "seraphtweaks:tidyvariants-group-spawnersapi-spawner"}},
+    {"match": {"domain": "cartwrightscaravan", "code": "cartsign-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-cartsign", "title": "seraphtweaks:tidyvariants-group-cartwrightscaravan-cartsign"}},
+    {"match": {"domain": "rollupbed", "code": "rollupbed-*", "kind": "block"}, "group": {"id": "rollupbed-rollupbed", "title": "seraphtweaks:tidyvariants-group-rollupbed-rollupbed"}},
+    {"match": {"domain": "tailorsdelight", "code": "buttons-*", "kind": "item"}, "group": {"id": "tailorsdelight-buttons"}, "note": "Every member is \"Buttons & Clasps\"."},
+    {"match": {"domain": "primitivesurvival", "code": "bioluminescent-*", "kind": "item"}, "group": {"id": "primitivesurvival-bioluminescent"}, "note": "Every member is \"Bioluminescent Sea Creature\"."},
+    {"match": {"domain": "ppex", "code": "pipe-*", "kind": "block"}, "group": {"id": "ppex-pipe", "title": "seraphtweaks:tidyvariants-group-ppex-pipe"}, "note": "Pipe shapes, valves, outlets and passthroughs."},
+    {"match": {"domain": "cartwrightscaravan", "code": "cartswearable-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-cartswearable", "title": "seraphtweaks:tidyvariants-group-cartwrightscaravan-cartswearable"}},
+    {"match": {"domain": "aculinaryartillery", "code": "creature-*", "kind": "item"}, "group": {"id": "aculinaryartillery-creature", "title": "seraphtweaks:tidyvariants-group-aculinaryartillery-creature"}},
+    {"match": {"domain": "primitivesurvival", "code": "fireflies-*", "kind": "block"}, "group": {"id": "primitivesurvival-fireflies", "title": "seraphtweaks:tidyvariants-group-primitivesurvival-fireflies"}},
+    {"match": {"domain": "hydrateordiedrate", "code": "wellwater-*", "kind": "block"}, "group": {"id": "hydrateordiedrate-wellwater", "title": "seraphtweaks:tidyvariants-group-hydrateordiedrate-wellwater"}},
+    {"match": {"domain": "vinteng", "code": "vemultiblockio-*", "kind": "block"}, "group": {"id": "vinteng-vemultiblockio", "title": "seraphtweaks:tidyvariants-group-vinteng-vemultiblockio"}},
 
     // Alchemy herb racks: wood x metal, metal, and clay colour x raw/fired collapse.
     {"match": {"domain": "alchemy", "code": ["herbrack-*", "herbrackhook-*", "herbracktop-*", "herbrackmold-*"]}, "group": {"id": "alchemy-{base}", "title": "seraphtweaks:tidyvariants-group-alchemy-{base}"}}

@@ -143,7 +143,10 @@ public class ClassifierTests
     public void AttributeDimensionsClassifyByValue()
     {
         Assert.Equal(MaterialKind.Wood, Classify("attr:wood", "oak", "pine", "birch").Material);
-        Assert.Equal(DimensionClass.Meaningful, Classify("attr:type", "book-big-closed", "book-small-open", "bottle").Class);
+        // Other attributes of one collectible's stacks don't split tiles by default (the handbook groups whole collectibles).
+        var type = Classify("attr:type", "book-big-closed", "book-small-open", "bottle");
+        Assert.Equal(DimensionClass.Filler, type.Class);
+        Assert.Contains("attribute", type.Reason);
     }
 
     [Fact]

@@ -301,11 +301,14 @@ public static class TidyEngine
             }
             else
             {
-                sb.Append("auto:").Append(fam.Index);
+                // Keyed by base code, not family: families of one base (or of bases that differ only by a process word,
+                // termitemound and termitemound-harvested) share groups when their meaningful values agree.
+                sb.Append("auto:");
+                if (fam.CodeAligned) sb.Append(fam.Domain).Append(':').Append(GroupBase(fam.BasePath)).Append('|').Append(fam.Kind == EntryKind.Block ? 'b' : 'i');
+                else sb.Append(fam.Index);
                 var di = dims[i];
                 for (int d = 0; d < di.Length; d++)
-                    if (!di[d].IsFiller) sb.Append('|').Append(fam.DimensionNames[d]).Append('=').Append(values[i][d]);
-                if (e.Stack is { Values.Count: 0 }) sb.Append('#').Append(e.Stack.Key);
+                    if (!di[d].IsFiller) sb.Append('|').Append(fam.DimensionNames[d]).Append('=').Append(di[d].GroupValue(values[i][d]));
             }
             string key = sb.ToString();
             if (!bucketByKey.TryGetValue(key, out var bucket))
@@ -348,11 +351,10 @@ public static class TidyEngine
             else
             {
                 sb.Clear();
-                sb.Append("auto:").Append(fam0.Domain).Append(':').Append(fam0.BasePath);
+                sb.Append("auto:").Append(fam0.Domain).Append(':').Append(fam0.CodeAligned ? GroupBase(fam0.BasePath) : fam0.BasePath);
                 var di = dims[first];
                 for (int d = 0; d < di.Length; d++)
-                    if (!di[d].IsFiller) sb.Append('/').Append(fam0.DimensionNames[d]).Append('=').Append(values[first][d]);
-                if (e0.Stack is { Values.Count: 0 }) sb.Append('#').Append(e0.Stack.Key);
+                    if (!di[d].IsFiller) sb.Append('/').Append(fam0.DimensionNames[d]).Append('=').Append(di[d].GroupValue(values[first][d]));
                 id = sb.ToString();
             }
             if (groupById.ContainsKey(id))
@@ -508,6 +510,16 @@ public static class TidyEngine
         foreach (var b in byRoot.Values) b.Members.Sort();
         result.Sort((a, b) => a.Members[0].CompareTo(b.Members[0]));
         return result;
+    }
+
+    /// <summary>The base code automatic groups are keyed on: <paramref name="basePath"/> without its <c>-</c> tokens that are
+    /// process words (<c>termitemound-harvested</c> to <c>termitemound</c>), keeping at least the first token.</summary>
+    internal static string GroupBase(string basePath)
+    {
+        if (basePath.IndexOf('-') < 0) return basePath;
+        var tokens = basePath.Split('-');
+        var kept = tokens.Where((t, k) => k == 0 || !Vocabulary.IsProcessValue(t)).ToArray();
+        return kept.Length == tokens.Length ? basePath : string.Join('-', kept);
     }
 
     static int IndexOfDim(IReadOnlyList<string> names, string name)

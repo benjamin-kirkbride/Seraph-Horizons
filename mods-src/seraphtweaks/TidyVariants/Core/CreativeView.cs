@@ -113,6 +113,16 @@ public sealed class CreativeView
     /// </summary>
     public static int ToggleTarget(in ViewSlot slot) =>
         slot.IsGrouped && !slot.IsAutoExpanded && (slot.IsTile || slot.IsExpandedMember) ? slot.Group : -1;
+
+    /// <summary>
+    /// The group a right-click on <paramref name="slot"/> toggles, or -1 to leave the click to vanilla
+    /// (docs/variant-grouping/creative.md, "Right-click"). Only a press with an empty cursor that is not part
+    /// of a right-drag toggles: with an item held, vanilla right-click (void one, right-drag) is kept.
+    /// </summary>
+    /// <param name="cursorEmpty">The mouse slot holds nothing.</param>
+    /// <param name="rightDragging">The grid is in a right-drag (vanilla <c>isRightMouseDownStartedInsideElem</c>).</param>
+    public static int RightClickTarget(in ViewSlot slot, bool cursorEmpty, bool rightDragging) =>
+        cursorEmpty && !rightDragging ? ToggleTarget(slot) : -1;
 }
 
 /// <summary>
