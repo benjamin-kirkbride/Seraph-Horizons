@@ -34,17 +34,22 @@
       <Private>false</Private>
     </Reference>
     <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- build/seraphtweaks_<version>.zip, for the ModDB upload: the DLL and modinfo.json
-       at the top level, as the game loads it. -->
+  <!-- build/seraphtweaks_<version>.zip, for the ModDB upload: the DLL, modinfo.json and
+       assets/ at the top level, as the game loads it. -->
   <Target Name="ModZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <PropertyGroup>
       <_ZipStage>$(IntermediateOutputPath)modzip/</_ZipStage>
       <_ZipOut>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'seraphtweaks_$(Version).zip'))</_ZipOut>
     </PropertyGroup>
     <RemoveDir Directories="$(_ZipStage)" />
+    <ItemGroup>
+      <_ZipAsset Include="assets/**" />
+    </ItemGroup>
     <Copy SourceFiles="$(TargetPath);modinfo.json" DestinationFolder="$(_ZipStage)" />
+    <Copy SourceFiles="@(_ZipAsset)" DestinationFolder="$(_ZipStage)assets/%(RecursiveDir)" />
     <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_ZipOut)'))" />
     <ZipDirectory SourceDirectory="$(_ZipStage)" DestinationFile="$(_ZipOut)" Overwrite="true" />
     <Message Importance="high" Text="mod zip: $(_ZipOut)" />
