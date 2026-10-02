@@ -62,6 +62,8 @@
     <None Include="../../schema/recipe-export.schema.json" Link="recipe-export.schema.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/lock.json" Link="lock.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../pack/known-errors.json" Link="known-errors.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- ModConfig files seeded into a class's server by [AtlasDataFiles]. -->
+    <None Include="fixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--
