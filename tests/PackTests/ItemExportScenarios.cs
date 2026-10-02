@@ -158,6 +158,8 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Equal("Rooster", (string?)drop!["fromName"]);
         Assert.Equal(15.0, (double?)drop["quantity"]?["avg"]);
         Assert.Equal(5.0, (double?)drop["quantity"]?["var"]);
+        // chicken-adult.json is code "chicken"; "rooster" is a state of its variant groups.
+        Assert.Equal("game:chicken", (string?)drop["extra"]?["entityType"]);
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
@@ -171,6 +173,8 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Equal("Agriculture trader (temperate)", (string?)trade!["fromName"]);
         Assert.Equal(8.0, (double?)trade["quantity"]?["avg"]);
         Assert.Equal(1.0, (double?)trade["price"]);
+        // Every survival/entities/humanoid/trader-*.json is code "trader", told apart by variants.
+        Assert.Equal("game:trader", (string?)trade["extra"]?["entityType"]);
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
@@ -212,6 +216,8 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.NotNull(drop);
         Assert.Equal(5.0, (double?)drop!["quantity"]?["avg"]);
         Assert.Equal(2.0, (double?)drop["quantity"]?["var"]);
+        // No variant groups: the type is the entity itself.
+        Assert.Equal("primitivesurvival:landcrab", (string?)drop["extra"]?["entityType"]);
 
         // modinfo.json of the same zip.
         var mod = (JObject)Doc["mods"]!["primitivesurvival"]!;

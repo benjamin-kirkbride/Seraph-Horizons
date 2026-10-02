@@ -30,6 +30,11 @@
       <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- ChiselRotationFixScenarios places BetterRuins schematics as GenStructures does. -->
+    <Reference Include="VSEssentials">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSEssentials.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- ConstructionHelpFixScenarios reverse-patches the game's method to compare against it. -->
     <Reference Include="0Harmony">
       <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
@@ -46,6 +51,12 @@
       <AtlasMod>true</AtlasMod>
     </ProjectReference>
     <ProjectReference Include="../../mods-src/constructionhelpfix/ConstructionHelpFix.csproj">
+      <AtlasMod>true</AtlasMod>
+    </ProjectReference>
+    <ProjectReference Include="../../mods-src/seraphtweaks/SeraphTweaks.csproj">
+      <AtlasMod>true</AtlasMod>
+    </ProjectReference>
+    <ProjectReference Include="../../mods-src/chiselrotationfix/ChiselRotationFix.csproj">
       <AtlasMod>true</AtlasMod>
     </ProjectReference>
     <ProjectReference Include="../../mods-src/tidyvariants/TidyVariants.csproj">
@@ -67,7 +78,7 @@
   -->
   <Target Name="WritePackModManifest" AfterTargets="Build">
     <ItemGroup>
-      <_PackModZip Include="$(PackModsDir)*.zip" Exclude="$(PackModsDir)allowedvariantsfix_*.zip;$(PackModsDir)constructionhelpfix_*.zip;$(PackModsDir)tidyvariants_*.zip" />
+      <_PackModZip Include="$(PackModsDir)*.zip" Exclude="$(PackModsDir)allowedvariantsfix_*.zip;$(PackModsDir)constructionhelpfix_*.zip;$(PackModsDir)seraphtweaks_*.zip;$(PackModsDir)chiselrotationfix_*.zip;$(PackModsDir)tidyvariants_*.zip" />
       <_PackModDir Include="$([System.IO.Directory]::GetDirectories('$(PackModsDir)'))" Condition="Exists('$(PackModsDir)')" />
     </ItemGroup>
     <Error Condition="'@(_PackModZip)@(_PackModDir)' == ''"

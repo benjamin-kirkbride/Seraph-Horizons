@@ -25,6 +25,40 @@ const en = {
     `${items.toLocaleString("en")} items and ${recipes.toLocaleString("en")} recipes from Seraph Horizons ${pack} on Vintage Story ${game}.`,
   homeHint: "Search for an item to see how it is made and what it is used for.",
   recipeTypesHeading: "Recipe types",
+  entitiesLink: "Creatures and traders",
+  entitiesHomeLink: (n: number) => `Browse ${n.toLocaleString("en")} kinds of creature and trader and what they drop or trade.`,
+  entitiesHeading: "Creatures and traders",
+  entitiesIntro:
+    "Every creature that drops or can be harvested for something, and every trader, as far as the game's data declares it. Drops decided in code are not listed.",
+  entitiesFilter: "Filter",
+  entitiesFilterPlaceholder: "Name or code, e.g. wolf",
+  entitiesNone: (q: string) => `No creature or trader matches “${q}”.`,
+  creatures: "Creatures",
+  traders: "Traders",
+  entityCounts: (variants: number, drops: number, trades: number) =>
+    [
+      variants > 1 ? `${variants} variants` : "",
+      drops ? `${drops} item${drops === 1 ? "" : "s"} dropped` : "",
+      trades ? `${trades} item${trades === 1 ? "" : "s"} traded` : "",
+    ]
+      .filter(Boolean)
+      .join(", "),
+  variantsLabel: "Variants",
+  allVariants: "All variants",
+  allVariantsHint: (n: number) => `Every item the ${n} variants give, with the range of amounts. Pick a variant for its own list.`,
+  everyVariant: "all",
+  someVariants: (n: number, total: number) => `${n} of ${total}`,
+  entityNotInVersion: (code: string, version: string) => `${code} gives nothing in version ${version}, or does not exist there.`,
+  entitySections: {
+    drops: "Drops when killed",
+    harvest: "Harvested from the body",
+    sells: "Sells",
+    buys: "Buys",
+  },
+  item: "Item",
+  stock: "Stock",
+  perTrade: "Per trade",
+  priceHeading: "Price in rusty gears",
   resultsFor: (q: string, n: number, more: boolean) =>
     `${more ? "More than " : ""}${n.toLocaleString("en")} result${n === 1 ? "" : "s"} for “${q}”`,
   noResults: (q: string) => `Nothing matches “${q}”.`,

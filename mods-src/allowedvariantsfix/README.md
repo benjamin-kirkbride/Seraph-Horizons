@@ -1,5 +1,7 @@
 # allowedVariants Fix
 
+On the ModDB: <https://mods.vintagestory.at/allowedvariantsfix>
+
 A server-side code mod that works around
 [VintageStory-Issues#9256](https://github.com/anegostudios/VintageStory-Issues/issues/9256):
 when a recipe has a named wildcard ingredient (`"name": "wood"`), the game ignores
@@ -48,7 +50,8 @@ Built by CI from a tag, uploaded to the ModDB by hand; the pack then pins it lik
    `modinfo.json`, builds in Release and publishes a GitHub Release (never "latest") with
    `allowedvariantsfix_<version>.zip`.
 3. Upload that zip as a new release on the mod's ModDB page. Keep the file name: the test
-   project recognises the pinned copy by it.
+   project recognises the pinned copy by it. The mod must be published, not a draft: the
+   ModDB API, which `packtool lock` resolves pins through, doesn't return drafts.
 4. Set the version in the mod's `[[mod]]` entry in `pack/pack.toml` (the first release adds the
    entry, `side = "server"`), then `python3 tools/packtool.py lock`.
 

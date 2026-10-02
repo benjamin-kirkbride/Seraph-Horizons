@@ -7,6 +7,8 @@
   import { NEW_ISSUE_URL, t } from "./lib/strings.ts";
   import { THEMES, loadTheme, parseTheme, saveTheme } from "./lib/theme.ts";
   import Credits from "./components/Credits.svelte";
+  import EntityList from "./components/EntityList.svelte";
+  import EntityPage from "./components/EntityPage.svelte";
   import Home from "./components/Home.svelte";
   import ItemPage from "./components/ItemPage.svelte";
   import SearchResults from "./components/SearchResults.svelte";
@@ -96,7 +98,7 @@
   });
 
   $effect(() => {
-    if (route.view !== "item") document.title = t.siteTitle;
+    if (route.view !== "item" && route.view !== "entity") document.title = t.siteTitle;
   });
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -159,6 +161,9 @@
       />
       <button type="submit" disabled={!data}>{t.searchButton}</button>
     </form>
+    {#if versionId && known}
+      <a class="nav" href={formatRoute({ view: "entities", version: versionId })}>{t.entitiesLink}</a>
+    {/if}
     {#if versions && versions.versions.length > 0}
       <label class="picker">
         <span>{t.versionLabel}</span>
@@ -201,12 +206,18 @@
   {:else if !meta || meta.id !== data.id}
     <p class="muted">{t.loading}</p>
   {:else if route.view === "home"}
-    <Home meta={meta.meta} />
+    <Home meta={meta.meta} version={data.id} />
   {:else if route.view === "search"}
     <SearchResults {data} meta={meta.meta} query={route.query} />
   {:else if route.view === "item"}
     {#key `${data.id}|${route.code}`}
       <ItemPage {data} meta={meta.meta} code={route.code} />
+    {/key}
+  {:else if route.view === "entities"}
+    <EntityList {data} meta={meta.meta} />
+  {:else if route.view === "entity"}
+    {#key `${data.id}|${route.code}`}
+      <EntityPage {data} meta={meta.meta} code={route.code} variant={route.variant} />
     {/key}
   {:else if route.view === "credits"}
     <Credits meta={meta.meta} />
@@ -250,6 +261,9 @@
     font-weight: 700;
     color: var(--text);
     text-decoration: none;
+    white-space: nowrap;
+  }
+  .nav {
     white-space: nowrap;
   }
   .search {

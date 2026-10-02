@@ -3288,6 +3288,33 @@
       "dependencies": {}
     },
     {
+      "id": "flyingmachine",
+      "version": "0.1.0",
+      "releaseId": 59383,
+      "fileId": 126777,
+      "fileName": "flyingmachine_0.1.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/flyingmachine_0.1.0_fd005b155613670fb1ecc55b8bd87157.zip?dl=flyingmachine_0.1.0.zip",
+      "sha256": "59ed35b9d1fc663a5ba71c5c9c5b88592391e340277275b675546988951fc23d",
+      "size": 532118,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0",
+        "survival": ""
+      }
+    },
+    {
       "id": "scaffolding",
       "version": "1.3.1",
       "releaseId": 44103,
@@ -4082,6 +4109,63 @@
         "1.22.3"
       ],
       "dependencies": {}
+    },
+    {
+      "id": "allowedvariantsfix",
+      "version": "1.0.1",
+      "releaseId": 59133,
+      "fileId": 126326,
+      "fileName": "allowedvariantsfix_1.0.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/allowedvariantsfix_1_fdcf34dddff7467e42b3a8fd69f0302c.zip?dl=allowedvariantsfix_1.0.1.zip",
+      "sha256": "13414391bbfbb4b6158c268e3ce056065c6ba081e5439e7a80e6285b7da8651b",
+      "size": 3508,
+      "side": "server",
+      "license": "Apache-2.0",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
+      "id": "constructionhelpfix",
+      "version": "1.0.0",
+      "releaseId": 59232,
+      "fileId": 126470,
+      "fileName": "constructionhelpfix_1.0.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/constructionhelpfix__08eae5d07773d97c8741a077691a2364.zip?dl=constructionhelpfix_1.0.0.zip",
+      "sha256": "02e1cef26bbdadb620407f08e3d3f9d3d3f22c2ff5a7f195b4b700920a7177b1",
+      "size": 5386,
+      "side": "universal",
+      "license": "Apache-2.0",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
+      "id": "chiselrotationfix",
+      "version": "1.0.0",
+      "releaseId": 59421,
+      "fileId": 126845,
+      "fileName": "chiselrotationfix_1.0.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/chiselrotationfix_1._9ca28837e2a88c03444d28cd3a51a599.zip?dl=chiselrotationfix_1.0.0.zip",
+      "sha256": "f3ba438f01f6e509ea1bfdcf86fb6bf88b61ea724ea4ff78f5b7f951058971cc",
+      "size": 22328,
+      "side": "server",
+      "license": "Apache-2.0",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
     }
   ]
 }

@@ -12,6 +12,19 @@ describe("parseRoute", () => {
     expect(parseRoute("#/main/credits")).toEqual({ view: "credits", version: "main" });
     expect(parseRoute("#/main/item/game:ingot-copper")).toEqual({ view: "item", version: "main", code: "game:ingot-copper" });
     expect(parseRoute("#/main/search?q=ingot%20cop")).toEqual({ view: "search", version: "main", query: "ingot cop" });
+    expect(parseRoute("#/main/entities")).toEqual({ view: "entities", version: "main" });
+    expect(parseRoute("#/main/entity/game:wolf-eurasian-adult-male")).toEqual({
+      view: "entity",
+      version: "main",
+      code: "game:wolf-eurasian-adult-male",
+    });
+    expect(parseRoute("#/main/entity/game:drifter?variant=game%3Adrifter-normal")).toEqual({
+      view: "entity",
+      version: "main",
+      code: "game:drifter",
+      variant: "game:drifter-normal",
+    });
+    expect(parseRoute("#/main/entity/wolf")).toEqual({ view: "notfound", version: "main" });
   });
 
   it("decodes an encoded code and rejects one without a domain", () => {
@@ -34,7 +47,7 @@ describe("formatRoute", () => {
   });
 
   it("round-trips through parseRoute", () => {
-    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits"]) {
+    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits", "#/main/entities", "#/main/entity/game:wolf", "#/main/entity/game:wolf?variant=game%3Awolf-male"]) {
       expect(formatRoute(parseRoute(hash))).toBe(hash);
     }
     expect(parseRoute(formatRoute({ view: "item", version: "main", code: "a:b/c" }))).toEqual({ view: "item", version: "main", code: "a:b/c" });
@@ -45,5 +58,6 @@ describe("withVersion", () => {
   it("keeps the item when switching", () => {
     expect(withVersion({ view: "item", version: "main", code: "game:stick" }, "v1")).toEqual({ view: "item", version: "v1", code: "game:stick" });
     expect(withVersion({ view: "notfound", version: "main" }, "v1")).toEqual({ view: "home", version: "v1" });
+    expect(withVersion({ view: "entity", version: "main", code: "game:wolf-male" }, "v1")).toEqual({ view: "entity", version: "v1", code: "game:wolf-male" });
   });
 });
