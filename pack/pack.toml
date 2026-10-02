@@ -822,6 +822,14 @@ redistribute = false
 why = "Mechanically powered cable cars."
 
 [[mod]]
+id = "flyingmachine"
+version = "0.1.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Craftable early biplane, built on trestles and fuelled with aqua vitae."
+
+[[mod]]
 id = "scaffolding"
 version = "1.3.1"
 side = "universal"
