@@ -139,14 +139,15 @@ jobs:
         run: |
           dotnet build tools/icon-export -c Release
           dotnet test tools/icon-export/tests --logger "console;verbosity=normal"
-      # Tidy Variants' rule engine (mods-src/tidyvariants/Core): unit tests that need no game.
-      # The mod itself is built and loaded by the dotnet test step below.
-      - name: Tidy Variants rule engine unit tests pass
+      # Seraph Horizons Tweaks' game-independent code (Tidy Variants' rule engine,
+      # mods-src/seraphtweaks/TidyVariants/Core): unit tests that need no game. The mod itself is
+      # built and loaded by the dotnet test step below.
+      - name: Seraph Horizons Tweaks unit tests pass
         if: matrix.shard == 'rest'
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"
           DOTNET_NOLOGO: "1"
-        run: dotnet test mods-src/tidyvariants/tests --logger "console;verbosity=normal"
+        run: dotnet test mods-src/seraphtweaks/tests --logger "console;verbosity=normal"
       - name: dotnet test
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"

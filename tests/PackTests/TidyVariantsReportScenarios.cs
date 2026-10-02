@@ -73,8 +73,8 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
     {
         // The game loads its own copy of the mod assembly, so its types are reached by name and
         // `dynamic`, never by a compile-time reference (as in TidyVariantsScenarios).
-        var system = World.Api.ModLoader.GetMod("tidyvariants").Systems
-            .Single(s => s.GetType().FullName == "SeraphHorizons.TidyVariants.TidyVariantsModSystem");
+        var system = World.Api.ModLoader.GetMod("seraphtweaks").Systems
+            .Single(s => s.GetType().FullName == "SeraphHorizons.SeraphTweaks.TidyVariants.TidyVariantsModSystem");
         dynamic? bridge = system.GetType().GetProperty("Bridge")!.GetValue(system);
         Assert.True(bridge is not null, "the server resolution is null (see the log for the error)");
         dynamic res = bridge!.Resolution;
@@ -94,7 +94,7 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
 
         // Display titles of groups without a lang title, through the mod's own GroupTitles (lang is loaded
         // server-side, so names resolve as on the client in the server's language).
-        var titlesType = ((object)bridge).GetType().Assembly.GetType("SeraphHorizons.TidyVariants.GroupTitles")!;
+        var titlesType = ((object)bridge).GetType().Assembly.GetType("SeraphHorizons.SeraphTweaks.TidyVariants.GroupTitles")!;
         var derive = titlesType.GetMethod("Derived", BindingFlags.Public | BindingFlags.Static)!;
         var nameOf = titlesType.GetMethod("NameOf", BindingFlags.Public | BindingFlags.Static)!;
         var titles = new Dictionary<int, TitleRow>();
@@ -108,10 +108,10 @@ public class TidyVariantsReportScenarios(ITestOutputHelper output) : AtlasScenar
         var issues = new List<Issue>();
         foreach (dynamic i in (IEnumerable<object>)res.Issues) issues.Add(new Issue("resolve", (string)i.Kind, (string)i.Message));
         var asm = ((object)res).GetType().Assembly;
-        dynamic plan = asm.GetType("SeraphHorizons.TidyVariants.Core.Handbook")!
+        dynamic plan = asm.GetType("SeraphHorizons.SeraphTweaks.TidyVariants.Core.Handbook")!
             .GetMethod("Build", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [res, true])!; // verifyAcrossKinds, as on the client
         foreach (dynamic i in (IEnumerable<object>)plan.Issues) issues.Add(new Issue("handbook", (string)i.Kind, (string)i.Message));
-        dynamic stats = asm.GetType("SeraphHorizons.TidyVariants.Core.TidyStats")!
+        dynamic stats = asm.GetType("SeraphHorizons.SeraphTweaks.TidyVariants.Core.TidyStats")!
             .GetMethod("Compute", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [res, 1])!;
 
         return new Data
