@@ -13,7 +13,8 @@ namespace SeraphHorizons.PackTests;
 /// the boiler's lid instead, and the English text no longer says a boiler explodes. The scenarios
 /// call Explode() directly: ppex's own over-pressure timer is what decides to call it.
 /// CreativeSteamSource: the creative steam source fills a ppex pipe placed against it with steam,
-/// up to its set pressure.
+/// up to its set pressure. It targets ppex 0.7.1 / exlib 0.8.4, which are not on the ModDB yet:
+/// while the pack pins an older ppex the scenarios require the block left out instead.
 /// Also its ConfigKit settings (assets/seraphtweaks/config/configlib-patches.json), which thin out
 /// Battle Towers' surface towers.
 /// </summary>
@@ -134,9 +135,26 @@ public class SeraphTweaksScenarios : AtlasScenarioBase
     private static T PipeValue<T>(BlockEntity pipe, string property) =>
         (T)AccessTools.Property(AccessTools.TypeByName(CreativeSteamSource.PipeNodeType), property).GetValue(pipe)!;
 
+    // The first ppex whose pipes the steam source binds to (exlib 0.8 moved them to ExpandedLib.Industry).
+    private static readonly Version SteamSourcePpex = new(0, 7, 1);
+
+    /// <summary>Whether the loaded ppex predates <see cref="SteamSourcePpex"/>; if so, requires the
+    /// steam source left out of the game, as the mod does when ppex's members are not where it looks.</summary>
+    private bool SteamSourceLeftOutForOldPpex()
+    {
+        var ppex = Version.Parse(World.Api.ModLoader.GetMod("ppex").Info.Version.Split('-')[0]);
+        if (ppex >= SteamSourcePpex)
+            return false;
+        Assert.False(CreativeSteamSource.Bound);
+        Assert.Null(W.GetBlock(new AssetLocation(SteamSource)));
+        return true;
+    }
+
     [AtlasScenario]
     public void Steam_source_is_in_the_creative_inventory_only()
     {
+        if (SteamSourceLeftOutForOldPpex())
+            return;
         Assert.True(CreativeSteamSource.Bound);
         var block = W.GetBlock(new AssetLocation(SteamSource));
         Assert.NotNull(block);
@@ -149,6 +167,8 @@ public class SeraphTweaksScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Steam_source_fills_a_connected_pipe_up_to_its_pressure()
     {
+        if (SteamSourceLeftOutForOldPpex())
+            return;
         // source | pipe (west-east) | rock: the pipe opens only onto the source, so nothing leaks.
         var pos = World.Spawn.AddCopy(0, 2, 60);
         World.SetBlock(SteamSource, pos);
