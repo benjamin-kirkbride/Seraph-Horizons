@@ -21,6 +21,9 @@ public class MapRevealScenarios : AtlasScenarioBase
 {
     private ICoreServerAPI Api => World.Api;
 
+    // Columns the main scenario must be able to check against the loaded chunks.
+    private const int MinCompared = 50;
+
     private async Task<ITestPlayer> Admin(string name)
     {
         var player = await World.JoinPlayer(name);
@@ -39,6 +42,13 @@ public class MapRevealScenarios : AtlasScenarioBase
         // Columns at the rim, well outside what the player's join loaded: not generated yet.
         var far = area.Where(c => Distance(c, cx, cz) > radius - 2).ToList();
         var farBefore = await Existing(far);
+        // The join is still loading chunks around the player: wait for enough columns with all
+        // their neighbours loaded for the comparison below, so it doesn't depend on timing.
+        await World.Until(() =>
+        {
+            var now = new LoadedChunks(Api);
+            return area.Count(c => Neighbourhood(c).All(n => now.Heights(n) is not null)) >= MinCompared;
+        }, 60_000);
         // Finished and loaded now, so in the save the command makes first. (Columns that finish
         // loading after it are not in the savegame yet, and rightly not revealed.)
         var loadedBefore = area.Where(c => new LoadedChunks(Api).Heights(c) is not null).ToList();
@@ -77,7 +87,7 @@ public class MapRevealScenarios : AtlasScenarioBase
                     cellsDiffering++;
             compared++;
         }
-        Assert.True(compared >= 50, $"only {compared} columns had their neighbours loaded");
+        Assert.True(compared >= MinCompared, $"only {compared} columns had their neighbours loaded");
         // The world keeps running after the save (grass spreads, snow settles), so allow a few cells.
         Assert.True(cellsDiffering <= compared * TerrainShade.Area / 1000,
             $"{cellsDiffering} of {compared * TerrainShade.Area} cells differ between the savegame and the loaded chunks");
