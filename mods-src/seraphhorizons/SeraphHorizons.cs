@@ -10,8 +10,8 @@ namespace SeraphHorizons.Mod;
 /// The pack's own tweaks. Each tweak is its own class, switched by its own setting in
 /// ModConfig/seraphhorizons.json, and skipped with a log line when the mod it changes is not
 /// installed or no longer looks as expected. This system applies its own patches explicitly
-/// (never PatchAll). Tidy Variants (TidyVariants/) has its own mod systems, which read their
-/// switch through <see cref="ConfigFor"/>.
+/// (never PatchAll). Tidy Variants (TidyVariants/) and Map Reveal (MapReveal/) have their own mod
+/// systems, which read their switch through <see cref="ConfigFor"/>.
 /// </summary>
 public class SeraphHorizonsSystem : ModSystem
 {
@@ -172,4 +172,9 @@ public class SeraphHorizonsConfig
     /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
     /// (server side; off means they stay at 0).</summary>
     public bool FoodHydration { get; set; } = true;
+
+    /// <summary>Map Reveal: <c>/revealmap &lt;radius&gt;</c> (creative mode or privilege controlserver) shows on the
+    /// caller's world map the terrain already generated within radius chunks, read from the savegame
+    /// (off means no command; on a client, nothing is patched).</summary>
+    public bool MapReveal { get; set; } = true;
 }
