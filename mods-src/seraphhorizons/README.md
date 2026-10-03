@@ -4,8 +4,9 @@ The pack's own mod, named after the pack: every install of the pack downloads it
 page shows the pack's download count and is where people browsing the ModDB find the pack. Its
 modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphhorizonspack`.
 
-It is a code mod holding the pack's own tweaks: gameplay changes to other mods, and Tidy Variants, which
-tidies the creative inventory and the handbook. These are choices for this pack, not bug fixes, so
+It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
+tidies the creative inventory and the handbook, and Map Reveal, which shows already generated
+terrain on the world map. These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.
@@ -14,10 +15,11 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output and feeds the creative steam source; Tidy Variants and cart reach run on the client. The client needs the mod because the
-steam source is a block with its own classes: the game cannot build a block whose class it does not
-know, so a client without the mod could not join a server that has it (a server with the steam
-source switched off, or without ppex, has no such block).
+chopper's output and feeds the creative steam source; Tidy Variants and cart reach run on the
+client; Map Reveal has a half on each side. The client needs the mod because the steam source is a
+block with its own classes: the game cannot build a block whose class it does not know, so a client
+without the mod could not join a server that has it (a server with the steam source switched off,
+or without ppex, has no such block).
 
 ## Tweaks
 
@@ -284,6 +286,55 @@ Server side, where the chopper runs. Immersive Woodworking has no setting for th
 `EjectBatch(ItemStack, int)` or the chopper's `Facing` is gone, the mod logs a warning and the
 chopper keeps its own throw.
 
+### Map Reveal (`MapReveal`)
+
+`/revealmap <radius>` shows on your world map (M) the terrain already generated within radius
+chunks of you (1 to 256; a chunk is 32 blocks), without going there: what `/wgen pregen` made, or
+what other players explored. It generates nothing: columns not generated yet are skipped. It is
+for players in creative mode and for holders of the `controlserver` privilege (admins, as for
+`/wgen pregen`); a survival player without it is refused. It works only in the main world, and
+`/revealmap stop` stops it. A new `/revealmap` replaces the running one; leaving stops it.
+
+The game draws its map only from chunks the client has loaded (`ChunkMapLayer`, VSEssentials),
+caching the pieces in the client's map database (`Maps/<world id>.db`); its only map commands are
+`/map purgedb`, `/map redraw` and `/worldmapsize`. So the two halves:
+
+- **Server** (`MapReveal/Game/MapRevealServer.cs`): saves the world first (what `/autosavenow`
+  does: everyone sees "Saving game world...."), so terrain generated or changed since the last
+  autosave is in the savegame, and waits for the chunk thread to write it. A worker thread then
+  reads each column from the savegame through a read-only connection of its own
+  (`SavegameReader`): nothing is loaded into the world, no entity or block entity is created, and
+  the server's own connection is not touched. It reads the map chunk's rain height map, skips a
+  column that is missing or still part-way through world generation, and decodes only the chunks
+  the surface falls in. Per block column it keeps what the map colours by, as the game's map does
+  on the client: the top block (the one under snow), whether water is lake or shore, and the slope
+  shading from the column's and its north-west neighbours' heights. Batches of 64 columns go to
+  the player, at most one per 100 ms (about 640 columns a second; a typical column is well under
+  1 KB), with the worker at most 4 batches ahead. Progress is reported in chat every 5 s, and the
+  totals at the end.
+- **Client** (`MapReveal/Game/MapRevealClient.cs`): turns each column into the map's 32 × 32
+  pixels with the map's own colours and the game's shading arithmetic (`MapReveal/Core/TerrainShade.cs`,
+  ported from `GenerateChunkImage`), and stores them in the map database, where explored chunks go.
+  So they show like explored terrain, now and in later sessions, and a chunk the client later loads
+  is redrawn from its own data as usual. The database belongs to the map's background thread, so
+  this runs there, in a Harmony postfix on `ChunkMapLayer.OnOffThreadTick` (Harmony id
+  `seraphhorizons.mapreveal`); chunks an open map is showing are then queued for the map to redraw.
+  It uses `ChunkMapLayer`'s private `mapdb`, `chunksToGen`, `chunksToGenLock` and
+  `curVisibleChunks`; if one is gone, the client logs a warning and ignores what it is sent.
+
+With a colour-accurate world map (`colorAccurateWorldmap`), the server also sends each cell's
+height and the client colours the block as the game does there; the climate tint of a region the
+client has not loaded may differ from what exploring it would show.
+
+The server's reader also uses game internals: `ChunkData.DecompressFrom` (by reflection), the
+protobuf field numbers of a saved chunk's blocks (`SavegameReader.StoredChunk`, 1.22.7's
+`ServerChunk`), and `ServerMain.chunkThread` to tell when a save is written (without it, it waits
+3 s). If `DecompressFrom` is gone, the command says so and does nothing.
+
+`MapReveal/Core/`: which columns, in what order (`RevealArea`), the sampling (`ColumnSampler`),
+the shading (`TerrainShade`) and the wire format (`RevealCodec`). Game-independent, tested in
+`tests/`. With the switch off there is no command; on a client, nothing is patched.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -321,7 +372,8 @@ ships in the mod zip.
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, and where the chopper drops its piles (`Core/`). `dotnet test mods-src/seraphhorizons/tests`.
+cart reach's entity matching and reach rule, and where the chopper drops its piles (`Core/`), and
+Map Reveal's `Core/`. `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
 the lid shut and with it open, and requires the boiler still standing with its lid open. It
@@ -378,6 +430,16 @@ the switch off and requires the chopper unpatched and throwing its batch past th
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
 it fails after a mod is added or updated, it lists the foods to give a value in `patches/hydration-*.json`.
+
+`tests/PackTests/MapRevealScenarios.cs` (Atlas) has a test player run `/revealmap`, decodes what
+it is sent as the client would, and requires it to agree with the loaded chunks (so the savegame
+reader reads the blocks the game does: when it fails after a game update, check `StoredChunk`'s
+field numbers and `ChunkData.DecompressFrom`), the columns not generated yet skipped and still
+not generated afterwards, the command refused in survival without `controlserver` and allowed in
+creative, `stop`, and the shading
+helpers equal to the game's `BlurTool.Blur` and `ColorUtil.ColorMultiply3Clamped`.
+`MapRevealOffScenarios` boots a server with the switch off and requires no command. The client
+half (drawing into the map and its database) needs a game client and is not tested.
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per
