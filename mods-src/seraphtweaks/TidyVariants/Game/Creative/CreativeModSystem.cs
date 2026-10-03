@@ -7,7 +7,7 @@ namespace SeraphHorizons.SeraphTweaks.TidyVariants;
 
 /// <summary>
 /// Client-only creative inventory UI for Tidy Variants (#256; docs/variant-grouping/creative.md): hides
-/// hidden variants, collapses groups into tiles after search, expands them on alt+click or a hotkey.
+/// hidden variants, collapses groups into tiles after search, expands and collapses them on right-click or a hotkey.
 ///
 /// Its Harmony patches are applied by hand here, with their own id, on the client only, and only when the
 /// <c>TidyVariants</c> switch is on: GUI patches must never be applied on a dedicated server. Nothing in the
@@ -39,10 +39,21 @@ public sealed class TidyCreativeModSystem : ModSystem
         _harmony = new Harmony(HarmonyId);
         int applied = CreativePatches.Apply(_harmony, api.Logger);
         api.Logger.Notification("[seraphtweaks] Tidy Variants creative inventory: {0}/{1} patches applied", applied, CreativePatches.Count);
+        TidyVariantsModSystem.Resolved += OnResolved;
+    }
+
+    // The game builds the creative dialog before the rules are resolved; see CreativeUi.RefreshBuiltDialog.
+    // In singleplayer the server's resolution raises this too, on the server thread: only the client's counts.
+    private static void OnResolved(TidyBridge bridge)
+    {
+        if (bridge.Side != EnumAppSide.Client) return;
+        try { CreativeUi.RefreshBuiltDialog(); }
+        catch (Exception ex) { CreativeUi.Fail("refresh after resolve", ex); }
     }
 
     public override void Dispose()
     {
+        TidyVariantsModSystem.Resolved -= OnResolved;
         try { _harmony?.UnpatchAll(HarmonyId); }
         catch { /* shutting down */ }
         _harmony = null;

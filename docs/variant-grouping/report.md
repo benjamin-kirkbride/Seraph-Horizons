@@ -12,8 +12,8 @@ export VINTAGE_STORY=/path/to/vs_server_linux-x64_1.22.7
 dotnet test tests/PackTests --filter "FullyQualifiedName~TidyVariantsReport" --logger "console;verbosity=normal"
 ```
 
-It writes `build/tidyvariants-report.md` (for reading) and `build/tidyvariants-report.json` (everything,
-untruncated), and prints the Markdown to the test output. `TIDYVARIANTS_REPORT_DIR` changes the
+It writes `build/tidyvariants-report.md` (for reading), `build/tidyvariants-report.json` (everything,
+untruncated) and `build/tidyvariants-dump.json` (every entry and family, for audits), and prints the Markdown to the test output. `TIDYVARIANTS_REPORT_DIR` changes the
 directory: CI sets it inside the atlas results, so the report is in the `atlas-results-rest` artifact.
 
 ## Reading it
@@ -44,24 +44,31 @@ Fails (each is a bug in the engine, the bridge or the shipped override file):
 - the override file is missing or fails to parse, or yields `rule-unused`, `representative-unmatched`,
   `duplicate-group-id` or `placeholder-unresolved` against the pack;
 - an override group's `title` lang key has no translation on the server;
-- **budget**: tiles after grouping exceed `TileCeiling` (7,600). If a wanted change (a big new mod) passes
+- **budget**: tiles after grouping exceed `TileCeiling` (2,300). If a wanted change (a big new mod) passes
   it, read the report first, then raise the constant to about 15% above the new number and say why in the PR.
 
 Everything else (per-domain and per-tab numbers, group sizes, untitled groups, `groupby-inexact`,
 `groupby-shared-code`, `variant-mismatch`) is report-only: how a mod's variants group is taste, not correctness.
 
-## Numbers (2026-10-01, game 1.22.7)
+## Numbers (2026-10-02, game 1.22.7)
 
 | | |
 |---|---:|
 | creative entries before | 29,467 |
 | hidden | 2 (variant rule: `vinteng:metalplatform-down`, `game:beenade-opened`) |
-| groups | 1,452 (640 automatic, 477 shipped `groupBy`, 335 override) |
-| entries in a group | 24,322 |
-| tiles after | 6,595 |
-| untitled automatic groups | 1,117: 594 derived title, 424 all names alike, 99 fall back (largest: 26, `purposefulstorage:tuningcylinderrack-*`) |
-| issues | 64 `groupby-shared-code`, 3 `variant-mismatch` (0 `groupby-inexact`) |
+| groups | 1,146 (578 automatic, 140 shipped `groupBy`, 428 override) |
+| entries in a group | 28,605 |
+| tiles after | 2,006 |
+| untitled automatic groups | 718: 511 derived title, 179 all names alike, 43 fall back (largest: 26, `purposefulstorage:tuningcylinderrack-*`) |
+| issues | 64 `groupby-shared-code`, 3 `variant-mismatch` (0 `groupby-inexact`, 0 `groupby-conflict`) |
 
-Largest domains (before → after): `game` 17,130 → 4,472, `materialneeds` 336 → 200, `butchering`
-392 → 150, `hardcorewaterforked` 150 → 150, `alchemy` 847 → 109, `primitivesurvival` 241 → 109,
-`vinteng` 254 → 94, `cartwrightscaravan` 486 → 92, `oils` 83 → 83, `expandedfoods` 1,925 → 63.
+Largest domains (before → after): `game` 17,130 → 921, `vinteng` 254 → 86, `expandedfoods` 1,925 → 63,
+`primitivesurvival` 241 → 62, `alchemy` 847 → 56, `butchering` 392 → 53, `gondolacablecar` 86 → 45,
+`yangtransport` 73 → 41, `moreroads` 675 → 40, `materialneeds` 336 → 35.
+
+Before 2026-10-02 it was 6,595 tiles: the worldproperties reader only knew `code`, but vanilla's `rock.json`
+and `wood.json` write `Code`, so no rock or wood dimension in the pack was recognised (termite mounds were
+74 tiles, one per rock). `Material_lists_are_read` now fails on an empty or missing material list, and
+`Reported_families_are_one_tile_each` keeps termite mounds, soil, paintings, flowers and butterflies at one
+tile each. `tidyvariants-dump.json` (written next to the report) has every entry (name, family, group) and
+every family (base, dimensions with class, reason and values) for audits like that one.

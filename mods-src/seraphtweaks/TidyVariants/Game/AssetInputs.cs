@@ -14,8 +14,9 @@ public static class AssetInputs
 
     /// <summary>
     /// Every <c>worldproperties/**.json</c> in every domain, keyed <c>domain:path</c> (under
-    /// <c>worldproperties/</c>, without <c>.json</c>), each its variant codes in file order. A file that
-    /// doesn't parse or has no <c>variants[].code</c> is skipped with a warning.
+    /// <c>worldproperties/</c>, without <c>.json</c>), each its variant codes in file order. Keys are matched
+    /// ignoring case, as the game's own loader does: vanilla's <c>rock.json</c> and <c>wood.json</c> write
+    /// <c>"Code"</c>, <c>metal.json</c> <c>code</c>. A file that doesn't parse is skipped with a warning.
     /// </summary>
     public static Dictionary<string, IReadOnlyList<string>> LoadWorldProperties(ICoreAPI api)
     {
@@ -28,10 +29,10 @@ public static class AssetInputs
             try
             {
                 var root = JToken.Parse(asset.ToText());
-                if (root["variants"] is not JArray variants) continue;
+                if (Field(root as JObject, "variants") is not JArray variants) continue;
                 var codes = new List<string>(variants.Count);
                 foreach (var v in variants)
-                    if ((v as JObject)?["code"]?.Value<string>() is { Length: > 0 } code) codes.Add(code);
+                    if (Field(v as JObject, "code")?.Value<string>() is { Length: > 0 } code) codes.Add(code);
                 result[key] = codes;
             }
             catch (Exception ex)
@@ -41,6 +42,8 @@ public static class AssetInputs
         }
         return result;
     }
+
+    static JToken? Field(JObject? o, string name) => o?.GetValue(name, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The parsed override file, or <see cref="OverrideFile.Empty"/> when it is absent or invalid. Every

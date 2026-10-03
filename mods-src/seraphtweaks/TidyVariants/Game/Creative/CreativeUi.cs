@@ -35,6 +35,8 @@ internal static class CreativeUi
     public const string ConfigFile = "seraphtweaks-tidyvariants-creative.json";
     const float MarkZ = 160f;   // above slot items (z 90), below the dialog's next slab (ZSize 250)
     static readonly int TintColor = ColorUtil.ToRgba(235, 232, 176, 72);       // ARGB amber
+    static readonly int BadgeFill = ColorUtil.ToRgba(255, 255, 255, 255);
+    static readonly int BadgeRim = ColorUtil.ToRgba(255, 20, 16, 12);
     static readonly int TintColorAuto = ColorUtil.ToRgba(150, 232, 176, 72);
 
     static ICoreClientAPI? capi;
@@ -65,6 +67,7 @@ internal static class CreativeUi
     static AccessTools.FieldRef<GuiElementItemSlotGridBase, int>? gridRowsRef;
     static AccessTools.FieldRef<GuiDialogInventory, GuiComposer>? composerRef;
     static AccessTools.FieldRef<GuiDialogInventory, int>? colsRef;
+    static AccessTools.FieldRef<GuiElementItemSlotGridBase, bool>? rightDragRef;
     static MethodInfo? composeSlotOverlays;
     static Action<GuiDialogInventory>? updateDialog;
 
@@ -76,6 +79,8 @@ internal static class CreativeUi
         gridRowsRef = Bind(() => AccessTools.FieldRefAccess<GuiElementItemSlotGridBase, int>("rows"), "grid.rows");
         composerRef = Bind(() => AccessTools.FieldRefAccess<GuiDialogInventory, GuiComposer>("creativeInvDialog"), "GuiDialogInventory.creativeInvDialog");
         colsRef = Bind(() => AccessTools.FieldRefAccess<GuiDialogInventory, int>("cols"), "GuiDialogInventory.cols");
+        rightDragRef = Bind(() => AccessTools.FieldRefAccess<GuiElementItemSlotGridBase, bool>("isRightMouseDownStartedInsideElem"),
+            "grid.isRightMouseDownStartedInsideElem");
         composeSlotOverlays = Bind(() => AccessTools.DeclaredMethod(typeof(GuiElementItemSlotGridBase), "ComposeSlotOverlays",
             [typeof(ItemSlot), typeof(int), typeof(int)]), "grid.ComposeSlotOverlays");
         updateDialog = Bind(() => AccessTools.MethodDelegate<Action<GuiDialogInventory>>(
@@ -287,16 +292,24 @@ internal static class CreativeUi
         composer.GetDynamicText("searchResults")?.SetNewText(text);
     }
 
-    // ---- (d) expand / collapse: alt+click and hotkey ------------------------------------------------
+    // ---- (d) expand / collapse: right-click and hotkey ----------------------------------------------
 
-    /// <summary>Alt+left click on a grouped slot: toggles its group. True if consumed (no packet is sent).</summary>
-    public static bool TryAltClick(GuiElementItemSlotGridBase grid, int slotId)
+    /// <summary>
+    /// Right-click on a tile or a member of a group the player expanded, with an empty cursor: toggles the group.
+    /// True if consumed (no packet is sent). Everything else stays vanilla (<see cref="CreativeView.RightClickTarget"/>).
+    /// One toggle per press: vanilla calls SlotClick(Right) once on mouse-down, and from OnMouseMove only while
+    /// <c>isRightMouseDownStartedInsideElem</c> is set, which needs an item on the cursor at the press; a toggle
+    /// never sets it, so no drag state is left behind and moving the held button over the new layout does nothing.
+    /// </summary>
+    public static bool TryRightClick(GuiElementItemSlotGridBase grid, int slotId)
     {
         if (Current() is null || view is null || !IsViewCurrent(grid)) return false;
-        if (capi!.World.Player.InventoryManager.MouseItemSlot?.Empty == false) return false;
         if (!rowBySlotId.TryGetValue(slotId, out int r)) return false;
+        bool cursorEmpty = capi!.World.Player.InventoryManager.MouseItemSlot?.Empty != false;
+        bool dragging = rightDragRef is not null && rightDragRef(grid);   // missing field: the empty-cursor check alone
+        if (CreativeView.RightClickTarget(rows[r], cursorEmpty, dragging) < 0) return false;
         Toggle(rows[r]);
-        return true;   // also swallows alt+click on an auto-expanded member: nothing to toggle, but no pickup either
+        return true;
     }
 
     /// <summary>The hotkey (default Ctrl+G): toggles the group of the hovered creative slot.</summary>
@@ -368,7 +381,8 @@ internal static class CreativeUi
         if (bounds is null || clip is null) return;
 
         var render = capi.Render;
-        float corner = (float)Math.Max(4.0, GuiElement.scaled(6.0));
+        float corner = (float)Math.Max(8.0, Math.Round(GuiElement.scaled(11.0)));
+        float rim = Math.Max(2f, corner / 5f);
         render.PushScissor(clip, stacking: true);
         try
         {
@@ -388,10 +402,11 @@ internal static class CreativeUi
                 }
                 else if (row.IsTile)
                 {
-                    // A small filled square in the top-right corner marks a collapsed group.
-                    float cx = x + w - corner - 3, cy = y + 3;
+                    // A white square with a dark rim in the top-right corner marks a collapsed group
+                    // (amber did not show against the slot background).
+                    float cx = x + w - corner - 2, cy = y + 2;
                     for (float s = corner, o = 0; s > 0; s -= 2, o += 1)
-                        render.RenderRectangle(cx + o, cy + o, MarkZ, s, s, TintColor);
+                        render.RenderRectangle(cx + o, cy + o, MarkZ, s, s, o < rim ? BadgeRim : BadgeFill);
                 }
             }
         }
@@ -416,5 +431,24 @@ internal static class CreativeUi
         if (capi is null) return;
         try { capi.StoreModConfig(new TidyCreativeConfig { Expanded = [.. expand.Ids] }, ConfigFile); }
         catch (Exception ex) { Fail("saving ModConfig/" + ConfigFile, ex); }
+    }
+
+    // ---- (f) the dialog built before the rules were resolved ----------------------------------------
+
+    /// <summary>
+    /// The game builds the creative dialog when the own player data arrives, before level finalize,
+    /// so before the client's resolution exists: that build's grid hides and groups nothing, and
+    /// Dovidarium's compose reuse keeps it for the first open. Called once the resolution is there:
+    /// redoes what the build did, DetermineAvailableSlots (our hide postfix) and update() (vanilla
+    /// filter, then our regroup postfix). Nothing to do when the dialog is not built yet, or is in
+    /// survival mode: its next compose takes the rules.
+    /// </summary>
+    public static void RefreshBuiltDialog()
+    {
+        if (Current() is null || view is null || composerRef is null || updateDialog is null) return;
+        var dialog = capi!.Gui.LoadedGuis.OfType<GuiDialogInventory>().FirstOrDefault();
+        if (dialog is null || composerRef(dialog)?.GetSlotGrid("slotgrid") is not { } grid || !IsCreativeGrid(grid)) return;
+        grid.DetermineAvailableSlots();
+        updateDialog(dialog);
     }
 }
