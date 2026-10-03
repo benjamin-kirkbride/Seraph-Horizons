@@ -739,6 +739,14 @@ redistribute = false
 why = "Audio-visual temporal storm cues and temporal tweaks."
 
 [[mod]]
+id = "stabilityabove"
+version = "1.2.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "No unstable areas above sea level; underground keeps its stability drain."
+
+[[mod]]
 id = "resonatorrangeincrease"
 version = "1.0.1"
 side = "universal"
