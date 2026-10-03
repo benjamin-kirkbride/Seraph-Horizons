@@ -13,8 +13,8 @@ One whose mod has changed shape logs a warning and leaves that mod alone.
 Only the game's own assemblies are referenced at build time: each tweak to another mod finds what
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
-`"side": "Universal"`, required on the client. The server does the boiler behavior and feeds the
-creative steam source; Tidy Variants and cart reach run on the client. The client needs the mod because the
+`"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
+chopper's output and feeds the creative steam source; Tidy Variants and cart reach run on the client. The client needs the mod because the
 steam source is a block with its own classes: the game cannot build a block whose class it does not
 know, so a client without the mod could not join a server that has it (a server with the steam
 source switched off, or without ppex, has no such block).
@@ -256,6 +256,34 @@ included, from the server, so its tooltip shows the same values. With the switch
 Hydrate or Diedrate) the system empties those patch files in `Start`, before the patch loader runs
 in `AssetsLoaded`, as for Age of Flax. The switch that counts is the server's.
 
+### The powered chopper drops its output in front (`ChopperDropsInFront`)
+
+Immersive Woodworking (`immersivewoodworking` 1.3.11). The powered chopper (the multiblock frame,
+`BlockEntityChopper`; not the hand chopping block) ejects each finished batch through
+`EjectBatch(ItemStack template, int dropCount)`: the batch split into `dropCount` piles
+(`DropDistribution.SplitEvenly`), spawned 0.7 out from the master block's centre on the output
+side (opposite the frame's `Facing`) and 0.8 up, and thrown outward at 0.084 with up to ±0.04
+sideways. The pieces fly over the cell in front and come to rest 2.1 to 2.3 blocks from the master's
+centre, spread over three cells, so no single hopper catches them. The sawmill drops its planks gently instead: over the
+middle of the cell behind its footprint, 0.4 up, with a 0.02 push and no sideways velocity, so one
+hopper sunk into the floor there catches everything.
+
+`ChopperOutput` prefixes `EjectBatch` and drops the batch the sawmill's way, into the cell right in
+front of the master block on the output side, which is not part of the chopper's footprint
+(`Core/ChopperEject.cs`): the same piles, each over the middle of that cell, spread across the
+output side over 0.3 (the chopper's spread is 0.4) with the chopper's ±0.05 jitter, 0.1 above the
+floor and with no velocity at all, so every pile lands at least 0.3 from the cell's edges. The drop
+is short because the game blows a falling item along with the wind (an `EntityItem` takes the wind
+while it touches nothing): in the Atlas world (wind about 1), firewood dropped from the sawmill's
+0.4 drifted 0.17 sideways, from 0.1 about 0.06. A hopper sunk into the floor in that cell, with its top at the floor's level, catches
+the whole batch; vanilla hoppers only take items that rest on their top face, so one standing at
+the machine's level (the items would spawn inside it) catches nothing. Give the hopper somewhere to
+pass the items on to, such as a chest under it, or it drops them out of its bottom.
+
+Server side, where the chopper runs. Immersive Woodworking has no setting for this. If
+`EjectBatch(ItemStack, int)` or the chopper's `Facing` is gone, the mod logs a warning and the
+chopper keeps its own throw.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -293,7 +321,7 @@ ships in the mod zip.
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-and cart reach's entity matching and reach rule (`Core/`). `dotnet test mods-src/seraphhorizons/tests`.
+cart reach's entity matching and reach rule, and where the chopper drops its piles (`Core/`). `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
 the lid shut and with it open, and requires the boiler still standing with its lid open. It
@@ -337,6 +365,15 @@ farmland (seeds and bundles), checks the seeds in the blocktype's drops, and req
 `LangEdits` passage reworded. When it fails after an Age of Flax update, match the patches and edits
 to the new files. `AgeOfFlaxRebalanceOffScenarios` boots a server with the switch off and requires
 Age of Flax as it ships.
+
+`tests/PackTests/ChopperOutputScenarios.cs` (Atlas) builds a chopper frame of each facing on a
+granite floor, chops ten oak logs through the chopper's own `GetChopBatch` and `EjectBatch`, and
+requires every piece at rest in the cell in front, at least 0.15 from its edges, and the patch
+applied. With a hopper sunk into the floor there (a chest under it) it requires the hopper to catch
+every piece, for two facings. It also requires the cell in front, and the one above it, to be
+outside the chopper's footprint (`GetCells`). When it fails after an Immersive Woodworking update,
+check whether `EjectBatch` or the footprint changed. `ChopperOutputOffScenarios` boots a server with
+the switch off and requires the chopper unpatched and throwing its batch past the cell in front.
 
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
