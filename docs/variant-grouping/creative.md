@@ -1,7 +1,7 @@
 # Creative inventory: hidden variants and collapsible groups (#256)
 
-Part of #252. Client only. Code: `mods-src/seraphtweaks/TidyVariants/Game/Creative/` (game layer) and
-`mods-src/seraphtweaks/TidyVariants/Core/CreativeView.cs` (grouping logic, unit-tested in `tests/CreativeViewTests.cs`).
+Part of #252. Client only. Code: `mods-src/seraphhorizons/TidyVariants/Game/Creative/` (game layer) and
+`mods-src/seraphhorizons/TidyVariants/Core/CreativeView.cs` (grouping logic, unit-tested in `tests/CreativeViewTests.cs`).
 Hooks and the reasons for them are in [hooks.md](hooks.md) §1, §4 and §6.
 
 ## Behaviour
@@ -29,7 +29,7 @@ Hooks and the reasons for them are in [hooks.md](hooks.md) §1, §4 and §6.
   names, else the representative's name; see the handbook doc's **Title**) with the number of matching members, and the expand/collapse hint naming the current hotkey. It is
   added in `ItemSlot.GetStackDescription`, which is not on the search path, so the hint is not searchable.
 - **Result count:** "N results" as before, or "N results in M tiles" when grouping shortened the list.
-- **Expand state persists per client** in `ModConfig/seraphtweaks-tidyvariants-creative.json`
+- **Expand state persists per client** in `ModConfig/seraphhorizons-tidyvariants-creative.json`
   (`{"Version": 1, "Expanded": ["<group id>", ...]}`), by group id. A missing or unreadable file means
   everything collapsed (a warning is logged, the file is rewritten on the next toggle). Ids of groups that
   don't exist in the current pack are kept.
@@ -71,7 +71,7 @@ the click is safe; `OnMouseUp` is not patched (Dovidarium guards it).
 ## Patches
 
 `TidyCreativeModSystem` (`ShouldLoad` client only) applies them by hand in `StartClientSide`, when the
-`TidyVariants` switch in `ModConfig/seraphtweaks.json` is on, with the Harmony id **`seraphtweaks.creative`**
+`TidyVariants` switch in `ModConfig/seraphhorizons.json` is on, with the Harmony id **`seraphhorizons.creative`**
 and removes them on `Dispose`. The mod has no `[HarmonyPatch]` attributes and never calls `PatchAll`;
 `tests/PackTests/TidyVariantsCreativeScenarios.cs` checks the system is disabled and the id patched nothing
 on the server. Each patch is applied on its own
@@ -103,11 +103,11 @@ on the server thread) and `CreativeUi.RefreshBuiltDialog` redoes what the build 
 
 The GUI could not be run in CI or by the agent that wrote it; run this before release.
 
-1. **Logs.** In `client-main.log`: `[seraphtweaks] Tidy Variants: client: ... entries ...` and
-   `[seraphtweaks] Tidy Variants creative inventory: 5/5 patches applied`, no `creative inventory ... failed`. Compare
+1. **Logs.** In `client-main.log`: `[seraphhorizons] Tidy Variants: client: ... entries ...` and
+   `[seraphhorizons] Tidy Variants creative inventory: 5/5 patches applied`, no `creative inventory ... failed`. Compare
    Dovidarium's lines with a run without this build: `patch-status side=client phase=startup active=20/25`
    and `phase=late-audit active=19/25` with `disabled-by-late-conflict=1` (the TooManyTabs one) must not
-   change; no new `incompatible Harmony` or `disabled ...` line naming `seraphtweaks`.
+   change; no new `incompatible Harmony` or `disabled ...` line naming `seraphhorizons`.
 2. **First open.** The very first time the inventory is opened after joining, groups are already
    collapsed into tiles and hidden variants are gone (the dialog is built before the rules resolve; see
    **The first build** above). Switch to survival and back, and reopen: still grouped.
@@ -135,7 +135,7 @@ The GUI could not be run in CI or by the agent that wrote it; run this before re
    that group is shown expanded with fainter borders. The count reads "N results in M tiles" while
    grouping shortens the list, "N results" otherwise. Nothing that matched before is missing (expand tiles).
 9. **Persistence.** Expand two groups, close and reopen the inventory, switch tabs, then relog: still
-   expanded. Check `ModConfig/seraphtweaks-tidyvariants-creative.json`. Corrupt it (write `{`), relog: a warning, all
+   expanded. Check `ModConfig/seraphhorizons-tidyvariants-creative.json`. Corrupt it (write `{`), relog: a warning, all
    collapsed, the next toggle rewrites the file.
 10. **Scrolling.** Long tabs scroll to the end with no blank rows and no clipped last row; the scrollbar
    handle size matches the shorter list. Scroll down, expand a group: position kept.

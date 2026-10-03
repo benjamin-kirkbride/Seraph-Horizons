@@ -1,0 +1,135 @@
+// Tidy Variants pack overrides (#252, #258). Format: mods-src/seraphhorizons/TidyVariants/Core/README.md.
+// Rules key on asset domain + code (+ kind), never modid. Group titles are lang keys in ../lang/en.json (seraphhorizons:tidyvariants-group-...).
+// Nothing here hides anything: hiding stays with the automatic orientation/open-closed rule.
+{
+  "version": 1,
+
+  // Daub, plaster and rammed earth pigments (vanilla daub; MaterialNeeds plaster and rammed earth): too many aren't
+  // generic colour words (ash, browngolden, oxblood, viridian) for the built-in colour list, so one tile per block type.
+  "lists": {
+    "pigment": {
+      "values": ["amber", "ash", "ashen", "azure", "black", "blue", "brown", "browngolden", "brownlight", "brownweathered", "charcoal", "chartreuse", "chestnut", "cinnabar", "cobalt", "coral", "graphite", "green", "lime", "magenta", "moss", "orange", "oxblood", "pewter", "pink", "red", "rouge", "russet", "sage", "salmon", "tan", "taupe", "turquoise", "violet", "viridian", "yellow"],
+      "preferred": ["brownlight", "tan", "red"],
+    },
+  },
+
+  "rules": [
+
+    // Ores (vanilla + GeologyAdditions + MaterialNeedsGeology, all in the game domain).
+    // The ore block ore-{grade|potential}-{type}-{rock} and the ore item ore-{grade}-{ore}-{rock} share
+    // codes, so every rule keys on kind. One tile per mineral; grade/potential and rock collapse.
+    {"match": {"domain": "game", "code": "ore-*", "kind": "block"}, "group": {"id": "game-ore-{type}", "by": ["type"], "title": "seraphhorizons:tidyvariants-group-game-ore-{type}"}, "note": "Graded ore-{grade}-{type}-{rock}, gem ore-{potential}-{type}-{rock} (potential low/medium/high is not a grade word), ungraded ore-{type}-{rock}."},
+    {"match": {"domain": "game", "code": "ore-*-*-*", "kind": "item"}, "group": {"id": "game-orechunk-{ore}", "by": ["ore"], "title": "seraphhorizons:tidyvariants-group-game-orechunk-{ore}"}, "note": "Graded ore chunks ore-{grade}-{ore}-{rock}; the ungraded ore-{ore} items have no rock and stay single."},
+    {"match": {"domain": "game", "code": "crystalizedore-*", "kind": "item"}, "group": {"id": "game-crystalizedore-{ore}", "by": ["ore"], "title": "seraphhorizons:tidyvariants-group-game-crystalizedore-{ore}"}},
+    {"match": {"domain": "game", "code": "looseores-*", "kind": "block"}, "group": {"id": "game-looseores-{ore}", "by": ["ore"], "title": "seraphhorizons:tidyvariants-group-game-looseores-{ore}"}},
+    {"match": {"domain": "game", "code": "gem-*-rough", "kind": "item"}, "group": {"id": "game-gem-rough", "title": "seraphhorizons:tidyvariants-group-game-gem-rough"}, "note": "Handbook Declutterer: rough gems as one tile (the gem is a generic \"ore\" dimension)."},
+
+    // Ported from Handbook Declutterer (CREDITS.md) unless noted. {base} is the family base code (the code
+    // minus its variant values), so this one rule gives one tile per collectible type:
+    // - attribute-stack blocks: clutter types, lamp types, mount type x wood, banner patterns (jonas-lamp is
+    //   jonas-{type}, banner-banner is banner-{part}); clutter-devastation/-aquatic and banners are extensions;
+    // - the 12 slanted roofing shapes ("material" mixes woods, clays, metal, slate and thatch, so it would stay
+    //   meaningful);
+    // - types whose clay colour, glaze or grain is a generic "type" (flowerpot and clayplanter also span two
+    //   block types each: clay colour x raw/fired, and the glazed ones). storagevessel is an extension.
+    {"match": {"domain": "game", "code": ["clutter", "clutter-devastation", "clutter-aquatic", "jonas-lamp", "antlermount", "banner-banner", "slantedroofing*", "flowerpot-*", "clayplanter-*", "storagevessel-*", "burnedbrick-*", "bread-*", "dough-*", "seeds-*",
+      // Catalogues of one kind of thing (see "Catalogues" below); not from Handbook Declutterer.
+      "herb-*", "herbbundle-*", "fruitingbush-*", "fruitingbushcutting-*", "fern-*", "tallplant-*", "attachingplant-*", "saguarocactus-*", "ferntree-*", "glowworms-*", "sodastraws-*", "devgrowth-*", "seashell-*", "dpanel-*", "palisadewall-*", "meta-*", "wallpaper-*", "lootvessel-*", "wallscribbles-*", "jonasparts-*", "jonasframes-*", "antler-*", "locatormap-*",
+      "skep-*", "carvedlog-*", "rug-*", "oxidation-*", "crystallayer-*", "crystal-*", "chute-*", "supportchain-*", "cabinet-*", "mannequin-*", "burnedplanks-*", "supportrope-*", "precipitate-*", "hotspringbacteriasmooth-*", "dirtygravel-*", "decalcan-*"]}, "group": {"id": "game-{base}", "title": "seraphhorizons:tidyvariants-group-game-{base}"}},
+    {"match": {"domain": "game", "code": "slantedroofing*-oak-*", "kind": "block"}, "prefer": true},
+    {"match": {"domain": "game", "code": "clutteredbookshelf*", "kind": "block"}, "group": {"id": "game-clutteredbookshelf", "title": "seraphhorizons:tidyvariants-group-game-clutteredbookshelf"}, "note": "Three codes (clutteredbookshelf, -agedacacia, -withlore) in one tile. Extension."},
+    {"match": {"domain": "game", "code": "figurehead-*", "kind": "block"}, "group": {"id": "game-figurehead-{type}", "by": ["type"], "title": "seraphhorizons:tidyvariants-group-game-figurehead-{type}"}, "note": "One tile per figurehead; its 12 wood stacks collapse."},
+    {"match": {"domain": "butchering", "code": ["bloodbread-*", "blooddough-*"], "kind": "item"}, "group": {"id": "butchering-{base}", "title": "seraphhorizons:tidyvariants-group-butchering-{base}"}},
+    {"match": {"domain": "game", "code": "shingle-*", "kind": "item"}, "group": {"id": "game-shingle-{state}", "by": ["state"], "title": "seraphhorizons:tidyvariants-group-game-shingle-{state}"}, "note": "Keep raw and fired apart; the clay colour collapses."},
+
+    // Other resources.
+    {"match": {"domain": "game", "code": ["amethyst", "clearquartz", "rosequartz", "smokyquartz"], "kind": "item"}, "group": {"id": "game-quartz-crystals", "title": "seraphhorizons:tidyvariants-group-game-quartz-crystals"}, "note": "Separate item types. Not ore-olivine: its chunk siblings would not come with it."},
+    {"match": {"domain": "em", "code": ["crushed-ore-*", "powdered-ore-*"], "kind": "item"}, "group": {"id": "em-{base}", "title": "seraphhorizons:tidyvariants-group-em-{base}"}, "note": "\"type\" holds ore and pigment names, not rocks or metals."},
+
+    // Armor: the tailored gambeson colour lives in "construction" (tailored-<colour>).
+    // The other constructions group automatically per body part and construction (metal collapses).
+    {"match": {"domain": "game", "code": "armor-*-tailored-*", "kind": "item"}, "group": {"id": "game-armor-tailored-{bodypart}", "by": ["bodypart"], "title": "seraphhorizons:tidyvariants-group-game-armor-tailored-{bodypart}"}},
+
+    // Clothes: one tile per body slot (category), vanilla and Nadiyan garments together; the garment is a generic
+    // dimension named after the slot (upperbody, neck, ...), so it would otherwise be one tile per garment.
+    {"match": {"domain": "game", "code": "clothes-*", "kind": "item"}, "group": {"id": "game-clothes-{category}", "by": ["category"], "title": "seraphhorizons:tidyvariants-group-game-clothes-{category}"}},
+
+    // Tankards and Goblets.
+    {"match": {"domain": "tankardsandgoblets", "code": "goblet-jeweled-*", "kind": "block"}, "group": {"id": "tankardsandgoblets-goblet-jeweled", "title": "seraphhorizons:tidyvariants-group-tankardsandgoblets-goblet-jeweled"}, "note": "metal x jewel; the jewel is a gem name and would stay meaningful."},
+    {"match": {"domain": "tankardsandgoblets", "code": "tankard-woodtype-*", "kind": "block"}, "group": {"id": "tankardsandgoblets-tankard-woodtype", "title": "seraphhorizons:tidyvariants-group-tankardsandgoblets-tankard-woodtype"}, "note": "binding mixes leather colours and metals, so it would stay meaningful."},
+
+    // Shields (extension): one tile per construction; the metal x colour/wood x deco attribute stacks collapse.
+    {"match": {"domain": "game", "code": "shield-*", "kind": "item"}, "group": {"id": "game-shield-{construction}", "by": ["construction"], "title": "seraphhorizons:tidyvariants-group-game-shield-{construction}"}},
+
+    // DoorVariants: one tile per style; rock/brick colour/metal and wood collapse.
+    {"match": {"domain": "doorvariants", "code": "*door*", "kind": "block"}, "group": {"id": "doorvariants-{style}", "by": ["style"], "title": "seraphhorizons:tidyvariants-group-doorvariants-{style}"}},
+
+    // MoreRoads: rock (or clay colour, or wood) collapses; the ancient road style and the edging piece stay.
+    {"match": {"domain": "moreroads", "code": ["ancientroad-*", "ancientroadslab-*", "ancientroadstairs-*"], "kind": "block"}, "group": {"id": "moreroads-{base}-{style}", "by": ["style"], "title": "seraphhorizons:tidyvariants-group-moreroads-{base}-{style}"}},
+    {"match": {"domain": "moreroads", "code": ["stoneroad3*", "stonepath*", "stonefootpath-*", "clayroad*"], "kind": "block"}, "group": {"id": "moreroads-{base}", "title": "seraphhorizons:tidyvariants-group-moreroads-{base}"}},
+    {"match": {"domain": "moreroads", "code": ["edgestone-*", "edgebrick-*", "edgewood-*", "edgeclay-*"], "kind": "block"}, "group": {"id": "moreroads-{base}-{corner}", "by": ["corner"], "title": "seraphhorizons:tidyvariants-group-moreroads-{base}-{corner}"}},
+
+    // ExpandedFoods: its own handbook groupBy ("<type>-*") already makes one tile per type (honorShippedGroupBy);
+    // this only titles the biggest ones. Food Shelves and Purposeful Storage need no rules at all: their wood/rock
+    // stacks (attr:FSAttributes.wood, attr:PSAttributes.*) collapse by value and their groupBy joins the types.
+    {"match": {"domain": "expandedfoods", "code": ["breadedvegetable-*", "breadedmeatnugget-*", "cookedmushroom-*", "cookedchoppedmushroom-*", "stuffedpepper-*", "sausage-*", "sausagesnake-*", "sausagefish-*", "sausagecrab-*", "breadedmushroom-*", "breadedfishnugget-*", "breadedball-*", "cookedchoppedvegetable-*", "cookedveggie-*", "choppedmushroom-*", "choppedvegetable-*", "gelatin-*", "hardtack-*", "dryfruit-*", "candiedfruit-*", "agedmeat-*", "meatnugget-*"], "kind": "item"}, "group": {"id": "expandedfoods-{base}", "title": "seraphhorizons:tidyvariants-group-expandedfoods-{base}"}},
+
+    // Titles only: big shipped-groupBy groups (same code patterns, same members) whose names share no usable
+    // title. Smaller untitled groups get one derived from their members' names (Core/TitleDeriver.cs); the
+    // Atlas report lists the largest that still fall back to the representative's name.
+    {"match": {"domain": "game", "code": "butterfly-dead-*", "kind": "item"}, "group": {"id": "game-butterfly-dead", "title": "seraphhorizons:tidyvariants-group-game-butterfly-dead"}, "note": "\"Dead Acmon Blue (female)\", ...: only \"Dead\" is shared."},
+    {"match": {"domain": "game", "code": "fishraw-*", "kind": "item"}, "group": {"id": "game-fishraw", "title": "seraphhorizons:tidyvariants-group-game-fishraw"}},
+    {"match": {"domain": "game", "code": "taxidermy-fish-*", "kind": "item"}, "group": {"id": "game-taxidermy-fish", "title": "seraphhorizons:tidyvariants-group-game-taxidermy-fish"}},
+    {"match": {"domain": "game", "code": "mushroom-*", "kind": "block"}, "group": {"id": "game-mushroom", "title": "seraphhorizons:tidyvariants-group-game-mushroom"}},
+    {"match": {"domain": "game", "code": "snowball-*", "kind": "item"}, "group": {"id": "game-snowball", "title": "seraphhorizons:tidyvariants-group-game-snowball"}, "note": "Snowball, snownade and stones in snowballs."},
+    {"match": {"domain": "game", "code": ["stonebricks-*", "agedstonebricks-*", "crackedstonebricks-*", "stonebrickslab-*", "stonebrickstairs-*-up-north-free"], "kind": "block"}, "group": {"id": "game-ashlar-{base}", "title": "seraphhorizons:tidyvariants-group-game-{base}"}, "note": "Names mix \"ashlar blocks\", \"ashlar bricks\" and \"stone brick\" by rock."},
+    {"match": {"domain": "game", "code": "crackedrock-*", "kind": "block"}, "group": {"id": "game-crackedrock", "title": "seraphhorizons:tidyvariants-group-game-crackedrock"}},
+    {"match": {"domain": "game", "code": "richgravel-*", "kind": "block"}, "group": {"id": "game-richgravel", "title": "seraphhorizons:tidyvariants-group-game-richgravel"}, "note": "Untranslated names; the land-{layer} family joins the plain one."},
+    {"match": {"domain": "tailorsdelight", "code": "panel-cloth-full-*", "kind": "block"}, "group": {"id": "tailorsdelight-panel-cloth-full", "title": "seraphhorizons:tidyvariants-group-tailorsdelight-panel-cloth-full"}},
+    {"match": {"domain": "cartwrightscaravan", "code": "*marketstall-smallstall-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-smallstall", "title": "seraphhorizons:tidyvariants-group-cartwrightscaravan-smallstall"}},
+    {"match": {"domain": "walkingstick", "code": "walkingstick-*", "kind": "item"}, "group": {"id": "walkingstick-walkingstick", "title": "seraphhorizons:tidyvariants-group-walkingstick-walkingstick"}},
+    {"match": {"domain": "gondolacablecar", "code": "gondola-seat-*", "kind": "item"}, "group": {"id": "gondolacablecar-gondola-seat", "title": "seraphhorizons:tidyvariants-group-gondolacablecar-gondola-seat"}},
+
+    // Catalogues of one kind of thing (owner feedback: "termite mounds should be one entry, not 74"): the variant is a
+    // generic dimension (painting, flower, type, ...) whose values are kinds of the same thing. One tile each; search
+    // still finds every member (a single surviving group auto-expands). Different tools, foods, potions, ores and
+    // door/road styles stay apart.
+    {"match": {"domain": "game", "code": "termitemound-granite-*", "kind": "block"}, "prefer": true, "note": "Shown by an unharvested mound; the engine already joins termitemound and termitemound-harvested (process word in the base)."},
+    {"match": {"domain": "game", "code": "painting-*", "kind": "block"}, "group": {"id": "game-painting", "title": "seraphhorizons:tidyvariants-group-game-painting"}},
+    {"match": {"domain": "game", "code": "flower-*", "kind": "block"}, "group": {"id": "game-flower", "title": "seraphhorizons:tidyvariants-group-game-flower"}},
+    {"match": {"domain": "game", "code": "paper-*", "kind": "block"}, "group": {"id": "game-paper-notes", "title": "seraphhorizons:tidyvariants-group-game-paper-notes"}, "note": "Every member is \"Ragged notes and scribbles\"; parchment is an item."},
+    {"match": {"domain": "game", "code": "overlay-*", "kind": "block"}, "group": {"id": "game-overlay", "title": "seraphhorizons:tidyvariants-group-game-overlay"}},
+    {"match": {"domain": "game", "code": "metalblock-*", "kind": "block"}, "group": {"id": "game-metalblock", "title": "seraphhorizons:tidyvariants-group-game-metalblock"}},
+    {"match": {"domain": "game", "code": ["hide-*-bear-*", "hide-*-fox-*", "hide-*-raccoon-*"], "kind": "item"}, "group": {"id": "game-hide-{group}", "by": ["group"], "title": "seraphhorizons:tidyvariants-group-game-hide-{group}"}, "note": "Raw, oiled and finished pelts of one animal; the plain hide processing steps stay apart."},
+    {"match": {"domain": "game", "code": ["coral-*", "aquatic-decor-*"], "kind": "block"}, "group": {"id": "game-corals", "title": "seraphhorizons:tidyvariants-group-game-corals"}},
+    {"match": {"domain": "game", "code": ["aquatic-*", "aquaticplant-*"], "kind": "block"}, "group": {"id": "game-aquaticplants", "title": "seraphhorizons:tidyvariants-group-game-aquaticplants"}},
+    {"match": {"domain": "game", "code": "jonas-*", "kind": "block"}, "group": {"id": "game-jonasdevices", "title": "seraphhorizons:tidyvariants-group-game-jonasdevices"}, "note": "After the jonas-lamp rule above, which keeps the lamps apart."},
+    {"match": {"domain": "game", "code": "clutter-*", "kind": "item"}, "group": {"id": "game-clutter-items", "title": "seraphhorizons:tidyvariants-group-game-clutter-items"}},
+    {"match": {"domain": "game", "code": "stackrandomizer*", "kind": "item"}, "group": {"id": "game-stackrandomizer", "title": "seraphhorizons:tidyvariants-group-game-stackrandomizer"}, "note": "Creative-only loot randomizers."},
+    {"match": {"domain": "game", "code": "creature-butterfly-*", "kind": "item"}, "group": {"id": "game-creature-butterfly", "title": "seraphhorizons:tidyvariants-group-game-creature-butterfly"}},
+    {"match": {"domain": "game", "code": "creature-fish-*", "kind": "item"}, "group": {"id": "game-creature-fish", "title": "seraphhorizons:tidyvariants-group-game-creature-fish"}},
+    {"match": {"domain": "game", "code": "creature-*", "kind": "item"}, "group": {"id": "game-creature", "title": "seraphhorizons:tidyvariants-group-game-creature"}, "note": "Spawn items of every land creature."},
+    {"match": {"domain": "game", "code": "armor-*", "kind": "item"}, "dimensions": {"material": "filler"}, "note": "Metal, fur colour and wear (bear-black, blackguard-broken): one tile per body part and construction."},
+    {"match": {"domain": "game", "code": "poultice-*", "kind": "item"}, "dimensions": {"material": "filler"}, "note": "The cloth (bast, linen, reed); the agent stays."},
+    {"match": {"domain": "betterruins", "code": ["br-schematic-*", "locatormap-*"], "kind": "item"}, "group": {"id": "betterruins-{base}", "title": "seraphhorizons:tidyvariants-group-betterruins-{base}"}},
+    {"match": {"domain": "bdcrop", "code": "seeds-*", "kind": "item"}, "group": {"id": "bdcrop-seeds", "title": "seraphhorizons:tidyvariants-group-game-seeds"}},
+    {"match": {"domain": "alchemy", "code": "cuttings-*", "kind": "item"}, "group": {"id": "alchemy-cuttings", "title": "seraphhorizons:tidyvariants-group-alchemy-cuttings"}},
+    {"match": {"domain": "substrate", "code": "sporeprint-*", "kind": "item"}, "group": {"id": "substrate-sporeprint", "title": "seraphhorizons:tidyvariants-group-substrate-sporeprint"}},
+    {"match": {"domain": "oils", "code": ["soap-*", "fullsoapbox-*", "oilmash-*", "oilpaste-*", "oilpulp-*"], "kind": "item"}, "group": {"id": "oils-{base}", "title": "seraphhorizons:tidyvariants-group-oils-{base}"}},
+    {"match": {"domain": "butchering", "code": "dead*", "kind": "item"}, "group": {"id": "butchering-carcass-{base}"}, "note": "Dead animals: sex/age and skin collapse. Untitled: every member has the same name (\"Hare (dead)\")."},
+    {"match": {"domain": "spawnersapi", "code": "spawner-*", "kind": "block"}, "group": {"id": "spawnersapi-spawner", "title": "seraphhorizons:tidyvariants-group-spawnersapi-spawner"}},
+    {"match": {"domain": "cartwrightscaravan", "code": "cartsign-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-cartsign", "title": "seraphhorizons:tidyvariants-group-cartwrightscaravan-cartsign"}},
+    {"match": {"domain": "rollupbed", "code": "rollupbed-*", "kind": "block"}, "group": {"id": "rollupbed-rollupbed", "title": "seraphhorizons:tidyvariants-group-rollupbed-rollupbed"}},
+    {"match": {"domain": "tailorsdelight", "code": "buttons-*", "kind": "item"}, "group": {"id": "tailorsdelight-buttons"}, "note": "Every member is \"Buttons & Clasps\"."},
+    {"match": {"domain": "primitivesurvival", "code": "bioluminescent-*", "kind": "item"}, "group": {"id": "primitivesurvival-bioluminescent"}, "note": "Every member is \"Bioluminescent Sea Creature\"."},
+    {"match": {"domain": "ppex", "code": "pipe-*", "kind": "block"}, "group": {"id": "ppex-pipe", "title": "seraphhorizons:tidyvariants-group-ppex-pipe"}, "note": "Pipe shapes, valves, outlets and passthroughs."},
+    {"match": {"domain": "cartwrightscaravan", "code": "cartswearable-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-cartswearable", "title": "seraphhorizons:tidyvariants-group-cartwrightscaravan-cartswearable"}},
+    {"match": {"domain": "aculinaryartillery", "code": "creature-*", "kind": "item"}, "group": {"id": "aculinaryartillery-creature", "title": "seraphhorizons:tidyvariants-group-aculinaryartillery-creature"}},
+    {"match": {"domain": "primitivesurvival", "code": "fireflies-*", "kind": "block"}, "group": {"id": "primitivesurvival-fireflies", "title": "seraphhorizons:tidyvariants-group-primitivesurvival-fireflies"}},
+    {"match": {"domain": "hydrateordiedrate", "code": "wellwater-*", "kind": "block"}, "group": {"id": "hydrateordiedrate-wellwater", "title": "seraphhorizons:tidyvariants-group-hydrateordiedrate-wellwater"}},
+    {"match": {"domain": "vinteng", "code": "vemultiblockio-*", "kind": "block"}, "group": {"id": "vinteng-vemultiblockio", "title": "seraphhorizons:tidyvariants-group-vinteng-vemultiblockio"}},
+
+    // Alchemy herb racks: wood x metal, metal, and clay colour x raw/fired collapse.
+    {"match": {"domain": "alchemy", "code": ["herbrack-*", "herbrackhook-*", "herbracktop-*", "herbrackmold-*"]}, "group": {"id": "alchemy-{base}", "title": "seraphhorizons:tidyvariants-group-alchemy-{base}"}}
+  ]
+}
