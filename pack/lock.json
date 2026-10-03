@@ -1577,6 +1577,28 @@
       }
     },
     {
+      "id": "loggingmod",
+      "version": "0.3.6",
+      "releaseId": 48115,
+      "fileId": 105204,
+      "fileName": "LoggingMod0.3.6.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/LoggingMod0.3.6_be2137ddcfdf8912e731860023f520f9.zip?dl=LoggingMod0.3.6.zip",
+      "sha256": "c0caa746dc5c745fd1c32076d2b62bfce20642f5f4b4a718b36d6e6ebfe7468b",
+      "size": 447779,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3"
+      ],
+      "dependencies": {
+        "game": ""
+      }
+    },
+    {
       "id": "saltpeterproductionfork",
       "version": "1.1.1",
       "releaseId": 55604,
@@ -2900,6 +2922,32 @@
         "1.22.3"
       ],
       "dependencies": {}
+    },
+    {
+      "id": "stabilityabove",
+      "version": "1.2.1",
+      "releaseId": 55674,
+      "fileId": 119940,
+      "fileName": "stabilityabove_1.2.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/stabilityabove_1.2.1_bb956da04026440902ec7c40437635a6.zip?dl=stabilityabove_1.2.1.zip",
+      "sha256": "607dcdf49ee3da7593a11cb7c2edd85aabbe5d62ceda998a4c729e3a3b0be05e",
+      "size": 55374,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
     },
     {
       "id": "resonatorrangeincrease",

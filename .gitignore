@@ -24,3 +24,6 @@ __pycache__/
 /site/e2e/.work/
 /site/playwright-report/
 /site/test-results/
+
+# per-developer Claude Code notes
+/CLAUDE.local.md

@@ -12,6 +12,8 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphtweaks, BoilerLidRelief: ppex's boiler burst (BlockEntityBoiler.Explode) opens
 /// the boiler's lid instead, and the English text no longer says a boiler explodes. The scenarios
 /// call Explode() directly: ppex's own over-pressure timer is what decides to call it.
+/// CreativeSteamSource: the creative steam source fills a ppex pipe placed against it with steam,
+/// up to its set pressure.
 /// Also its ConfigKit settings (assets/seraphtweaks/config/configlib-patches.json), which thin out
 /// Battle Towers' surface towers.
 /// </summary>
@@ -65,6 +67,18 @@ public class SeraphTweaksScenarios : AtlasScenarioBase
         Assert.True(LidOpen(boiler));
     }
 
+    // Fails when ppex's library renames or changes the engine-explosion sound: point
+    // BoilerLidRelief.BlowSound at the new one. A sound played from the server leaves no trace to
+    // assert on, so this checks the sound itself.
+    [AtlasScenario]
+    public void The_lid_blows_open_with_the_engine_explosion_sound()
+    {
+        var engineSound = AccessTools.Field(AccessTools.TypeByName("ExpandedLib.Helpers.ExSounds"), "MediumExplosion");
+        Assert.NotNull(engineSound);
+        Assert.Equal(BoilerLidRelief.BlowSound, (AssetLocation?)engineSound.GetValue(null));
+        Assert.True(World.Api.Assets.Exists(BoilerLidRelief.BlowSound.Clone().WithPathAppendixOnce(".ogg")));
+    }
+
     // Fails when ppex rewords a passage: update BoilerLidRelief.LangEdits to match.
     [AtlasScenario]
     public void Text_says_the_lid_blows_open()
@@ -112,5 +126,45 @@ public class SeraphTweaksScenarios : AtlasScenarioBase
         var hard = Assert.Single(structures, s => s["code"].AsString() == "surfacehardtowers");
         Assert.Equal(0.005f, hard["chance"].AsFloat(), 4);
         Assert.Equal(1000, hard["minGroupDistance"].AsInt());
+    }
+
+    private const string SteamSource = "seraphtweaks:" + CreativeSteamSource.BlockCode;
+
+    // A pipe's view of its network (ppex's IPipeNode), read by name as the mod does.
+    private static T PipeValue<T>(BlockEntity pipe, string property) =>
+        (T)AccessTools.Property(AccessTools.TypeByName(CreativeSteamSource.PipeNodeType), property).GetValue(pipe)!;
+
+    [AtlasScenario]
+    public void Steam_source_is_in_the_creative_inventory_only()
+    {
+        Assert.True(CreativeSteamSource.Bound);
+        var block = W.GetBlock(new AssetLocation(SteamSource));
+        Assert.NotNull(block);
+        Assert.IsType<BlockCreativeSteamSource>(block);
+        Assert.Contains("ppex", block.CreativeInventoryTabs);
+        Assert.Empty(block.Drops ?? []);
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code == block.Code);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Steam_source_fills_a_connected_pipe_up_to_its_pressure()
+    {
+        // source | pipe (west-east) | rock: the pipe opens only onto the source, so nothing leaks.
+        var pos = World.Spawn.AddCopy(0, 2, 60);
+        World.SetBlock(SteamSource, pos);
+        World.SetBlock("ppex:pipe-straight-we-iron", pos.EastCopy());
+        World.SetBlock("game:rock-granite", pos.EastCopy(2));
+        await World.Ticks(2);
+        var source = Assert.IsType<BlockEntityCreativeSteamSource>(W.BlockAccessor.GetBlockEntity(pos));
+        var pipe = W.BlockAccessor.GetBlockEntity(pos.EastCopy())
+                   ?? throw new Xunit.Sdk.XunitException("pipe placed without a block entity");
+
+        // At full flow and 2 atm: the network fills to the set pressure and goes no higher.
+        source.Configure(pressure: 2, flow: CreativeSteamSource.MaxFlowSetting);
+        await World.Until(() => PipeValue<string>(pipe, "Medium") == "Steam"
+                                && PipeValue<float>(pipe, "Pressure") > 1.9f, 900);
+        await World.Ticks(90);
+        Assert.InRange(PipeValue<float>(pipe, "Pressure"), 1.9f, 2.05f);
+        Assert.Equal("Steam", PipeValue<string>(pipe, "Medium"));
     }
 }

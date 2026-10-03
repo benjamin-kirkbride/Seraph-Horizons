@@ -9,9 +9,11 @@ One whose mod has changed shape logs a warning and leaves that mod alone.
 Only the game's own assemblies are referenced at build time: each tweak to another mod finds what
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
-`"side": "Universal"`, not required on the client. The server does the boiler behavior; Tidy
-Variants runs on the client. A client with the mod also gets the reworded text and Tidy Variants;
-one without it sees vanilla text, a vanilla creative inventory and a vanilla handbook.
+`"side": "Universal"`, required on the client. The server does the boiler behavior and feeds the
+creative steam source; Tidy Variants runs on the client. The client needs the mod because the
+steam source is a block with its own classes: the game cannot build a block whose class it does not
+know, so a client without the mod could not join a server that has it (a server with the steam
+source switched off, or without ppex, has no such block).
 
 ## Tweaks
 
@@ -24,6 +26,11 @@ the boiler, drops a fraction of its materials and blasts the area. `BoilerLidRel
 with its sound and animation, and ppex vents steam through the open lid (`BoilerLidVentRate`,
 200 L/s) and resets the over-pressure timer while it stays open. The player closes the lid by hand,
 and a boiler still with nowhere to send its steam will blow it again.
+
+The lid blowing open bangs like a ppex engine blowing up: it plays the sound ppex's
+`BlockEntityEngine.Break()` plays, `game:sounds/effect/mediumexplosion` (ExpandedLib's
+`ExSounds.MediumExplosion`), from the server at the boiler, over 24 blocks at half volume and
+unrandomized pitch, as the engine does. The lid's own creak is still `ToggleLid()`'s.
 
 The text that promised an explosion is reworded in place, in every language ppex ships (English,
 Russian, Ukrainian): the over-pressure line in the boiler's info ("until the lid blows open!") and
@@ -48,6 +55,35 @@ The hard and underground towers are left as Battle Towers ships them. This tweak
 class: it has no switch in `seraphtweaks.json`, does nothing without ConfigKit, and is changed in
 ConfigKit's settings screen or, for the pack, in `pack/config/ModConfig/seraphtweaks.yaml`. Like
 any worldgen setting it only affects chunks not generated yet.
+
+### Creative steam source (`CreativeSteamSource`)
+
+Pipes and Power Expanded (`ppex`). A creative-only block, `seraphtweaks:creativesteamsource` ("Steam
+source (Creative)"), that keeps every ppex pipe connected to it full of steam: the steam
+counterpart of the game's creative auto rotor, for testing engines and pipe layouts without a
+boiler. It is a plain cube with no texture of its own (the game's missing-texture look), in the
+General and Pipes and Power Expanded creative tabs. It has no recipe, drops nothing and is left
+out of the handbook.
+
+It is set up the way the auto rotor is, by right-clicking it (the block's info shows both
+settings):
+
+- right-click: raise the output pressure, Ctrl+right-click: lower it (1 to 10 atm, from 3);
+- Shift+right-click: raise the flow rate, Ctrl+Shift+right-click: lower it (0 to 100 L/s in
+  steps of 10, from 30; 0 is off).
+
+Each setting wraps around at its ends, as the auto rotor's do. Place a pipe against any face of
+the block with a connector pointing at it (placing the pipe by clicking the block does that). Each
+connected pipe takes its share of the flow, as steam at the set pressure, through ppex's own
+`IPipeNode.TryProduce` on the pipe: the network fills until it reaches that pressure, never past
+the weakest pipe's burst pressure, exactly as from a boiler. At or above a pipe's burst pressure
+(iron 5 atm, steel 10 atm by ppex's defaults) ppex's over-pressure timer bursts a pipe as usual,
+and a leaking network is capped at 1 atm as ppex caps any source.
+
+Without ppex, or with the switch off, the blocktype is disabled before the game loads it, so the
+block does not exist at all. If ppex has changed shape (`IPipeNode.TryProduce(float, float,
+string, float, bool)` or exlib's `BlockNetworkNode.HasConnectorAt(BlockFacing)` is gone) the mod
+logs a warning and the block is left out the same way.
 
 ### Tidy Variants (`TidyVariants`)
 
@@ -89,13 +125,19 @@ ships in the mod zip.
 `dotnet test mods-src/seraphtweaks/tests`.
 
 `tests/PackTests/SeraphTweaksScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
-the lid shut and with it open, and requires the boiler still standing with its lid open. It also
+the lid shut and with it open, and requires the boiler still standing with its lid open. It
+requires `BlowSound` to be ExpandedLib's `ExSounds.MediumExplosion` and present in the assets. It also
 requires every `LangEdits` passage reworded, and an edit set for every language ppex ships: when
 either fails after a ppex update, match the edits to ppex's new text or add the new language.
 
 It also reads the patched `game:worldgen/structures.json` and requires the surface tower's chance
 and spacing above, with the hard tower's unchanged: when that fails after a Battle Towers update,
 match the paths in `configlib-patches.json` to its new patch file.
+
+The same class places the creative steam source against a closed iron pipe and requires the pipe
+full of steam at the set pressure, and no higher; it also requires the block in the creative
+inventory with no drops and no recipe. `CreativeSteamSourceOffScenarios` boots a server with the
+switch off and requires the block not to exist.
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per
