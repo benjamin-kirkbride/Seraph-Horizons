@@ -1,0 +1,6 @@
+// Hydrate or Diedrate values for Expanded Foods: Chef's Tricks (efchefstricks) foods it leaves out,
+// seraphhorizons' FoodHydration switch (README.md). Server side (hydration-game.json says why).
+[
+  // Bread crumb feed (no satiety; chicken feed): as expandedfoods:breadcrumbs-* (-5).
+  { "file": "efchefstricks:itemtypes/breadcrumbfeed.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -5 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "efchefstricks" }] }
+]

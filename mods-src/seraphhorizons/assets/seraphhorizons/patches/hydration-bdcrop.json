@@ -1,0 +1,12 @@
+// Hydrate or Diedrate values for Biodiversity: Crops (bdcrop) foods neither mod sets,
+// seraphhorizons' FoodHydration switch (README.md). bdcrop's own hydration patch covers its fruit,
+// vegetables (in vegetable.json) and drinks only. Buckwheat as Hydrate or Diedrate's vanilla spelt (game:grain-*,
+// game:dough-*, game:bread-spelt-*). Server side, as bdcrop's own (hydration-game.json says why).
+[
+  { "file": "bdcrop:itemtypes/food/grain.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -30 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "bdcrop" }] },
+  { "file": "bdcrop:itemtypes/food/dough.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": 5 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "bdcrop" }] },
+  // Potatoes are in game-vegetable.json, which bdcrop's own patch (vegetable.json) misses. Their
+  // food attributes are in attributesByType, so the value goes there. As vanilla's vegetable-* (+20).
+  { "file": "bdcrop:itemtypes/food/game-vegetable.json", "op": "addmerge", "path": "/attributesByType/*-potato", "value": { "hydration": 20 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "bdcrop" }] },
+  { "file": "bdcrop:itemtypes/food/bread.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-partbaked": -40, "*-perfect": -50, "*-charred": -80 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "bdcrop" }] }
+]

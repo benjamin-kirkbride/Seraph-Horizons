@@ -40,6 +40,8 @@ public class SeraphHorizonsSystem : ModSystem
                      && AgeOfFlaxRebalance.Bind(api.Logger);
         if (!_ageOfFlax)
             AgeOfFlaxRebalance.DisablePatches(api);
+        if (!(Config(api).FoodHydration && FoodHydration.Applies(api)))
+            FoodHydration.DisablePatches(api);
     }
 
     // Behavior changes run on the server only: that is where the tweaked mods simulate.
@@ -165,4 +167,9 @@ public class SeraphHorizonsConfig
     /// <summary>Entity codes that <see cref="CartReach"/> applies to (<c>domain:path</c>, <c>*</c>
     /// wildcards): Cartwright's carts, sleds and market stalls.</summary>
     public string[] CartReachEntities { get; set; } = ["cartwrightscaravan:*"];
+
+    /// <summary>Hydrate or Diedrate: foods it gives no hydration (vanilla, Biodiversity: Crops,
+    /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
+    /// (server side; off means they stay at 0).</summary>
+    public bool FoodHydration { get; set; } = true;
 }
