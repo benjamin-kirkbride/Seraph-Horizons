@@ -8,22 +8,22 @@ using Xunit.Abstractions;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
-/// mods-src/seraphtweaks, Tidy Variants: the feature hides orientation and open/closed variants
+/// mods-src/seraphhorizons, Tidy Variants: the feature hides orientation and open/closed variants
 /// and groups the rest in the creative inventory and the handbook (#252). This build is loaded
 /// instead of a pinned copy (PackTests.csproj); the rule engine itself is unit-tested in
-/// mods-src/seraphtweaks/tests. With its switch off: TidyVariantsOffScenarios.
+/// mods-src/seraphhorizons/tests. With its switch off: TidyVariantsOffScenarios.
 /// </summary>
 [AtlasWorld]
 public class TidyVariantsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
-    private const string ModId = "seraphtweaks";
+    private const string ModId = "seraphhorizons";
 
     // The game loads its own copy of the mod assembly, so its types are reached by name and
     // `dynamic`, never by a compile-time reference.
     private dynamic Bridge()
     {
         var system = World.Api.ModLoader.GetMod(ModId).Systems
-            .Single(s => s.GetType().FullName == "SeraphHorizons.SeraphTweaks.TidyVariants.TidyVariantsModSystem");
+            .Single(s => s.GetType().FullName == "SeraphHorizons.Mod.TidyVariants.TidyVariantsModSystem");
         object? bridge = system.GetType().GetProperty("Bridge")!.GetValue(system);
         Assert.True(bridge is not null, "the server resolution is null (see the log for the error)");
         return bridge!;
@@ -38,7 +38,7 @@ public class TidyVariantsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var loader = World.Api.ModLoader;
         Assert.True(loader.IsModEnabled(ModId), $"{ModId} is not enabled");
         // The game loads its own copy of the assembly, so match the system by name, not type.
-        const string system = "SeraphHorizons.SeraphTweaks.TidyVariants.TidyVariantsModSystem";
+        const string system = "SeraphHorizons.Mod.TidyVariants.TidyVariantsModSystem";
         Assert.Contains(loader.GetMod(ModId).Systems, s => s.GetType().FullName == system);
         Assert.True(loader.IsModSystemEnabled(system), "the resolution system is not enabled on the server");
         // assets/ reached the game: the feature's lang keys (a group title) and its override file.
@@ -66,7 +66,7 @@ public class TidyVariantsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             lines.Add($"issue {g.Key}: {g.Count()}");
             lines.AddRange(g.Take(5).Select(i => "  " + i.Item2));
         }
-        var statsType = ((object)res).GetType().Assembly.GetType("SeraphHorizons.SeraphTweaks.TidyVariants.Core.TidyStats")!;
+        var statsType = ((object)res).GetType().Assembly.GetType("SeraphHorizons.Mod.TidyVariants.Core.TidyStats")!;
         dynamic stats = statsType.GetMethod("Compute", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [res, 15])!;
         lines.Add($"stats: before {stats.EntriesBefore}, after {stats.EntriesAfter}, hidden {stats.Hidden} (rule {stats.HiddenByVariantRule}, override {stats.HiddenByOverride}), groups {stats.Groups}, grouped entries {stats.GroupedEntries}");
         foreach (dynamic g in stats.LargestGroups)

@@ -686,9 +686,11 @@ def cmd_assemble(args) -> None:
 
     # (a) ModDB meta-mod: a content mod whose only payload is its dependency list.
     # The game treats these as minimum versions, so this is the "casual" install path.
+    # Its modid is not the pack id: that one belongs to the pack's own mod (mods-src/seraphhorizons),
+    # which this meta-mod depends on once it is pinned.
     modinfo = {
         "type": "content",
-        "modid": meta["id"],
+        "modid": meta["id"] + "pack",
         "name": meta["name"],
         "version": meta["version"],
         "authors": meta.get("authors", []),

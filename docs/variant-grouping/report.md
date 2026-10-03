@@ -1,7 +1,7 @@
 # Tidy Variants report (#259)
 
 `tests/PackTests/TidyVariantsReportScenarios.cs` reads the server's own Tidy Variants resolution
-(built at `WorldReady` against every locked mod plus the local `mods-src/seraphtweaks` build) and
+(built at `WorldReady` against every locked mod plus the local `mods-src/seraphhorizons` build) and
 reports what hiding and grouping do to the creative inventory.
 
 ## Running it
@@ -27,8 +27,8 @@ directory: CI sets it inside the atlas results, so the report is in the `atlas-r
   a derived title, those whose names are all the same (title = the representative's name) and those
   that fall back to the representative's name, lists the 40 largest derived titles to eyeball and the
   largest fallbacks: a big fallback (30+ members) is a candidate for an override `group` rule with a
-  `title` in `mods-src/seraphtweaks/assets/seraphtweaks/config/tidyvariants-overrides.json`.
-- **Engine issues**: see `mods-src/seraphtweaks/TidyVariants/Core/README.md` for the kinds. `groupby-inexact` means
+  `title` in `mods-src/seraphhorizons/assets/seraphhorizons/config/tidyvariants-overrides.json`.
+- **Engine issues**: see `mods-src/seraphhorizons/TidyVariants/Core/README.md` for the kinds. `groupby-inexact` means
   the handbook gets no `groupBy` for that group (no wildcard or regex matches exactly its codes);
   `groupby-shared-code` that its pattern also matches a same-code collectible of the other kind
   (vanilla's ore block and item), which no pattern can avoid. Patterns are verified across kinds, as
