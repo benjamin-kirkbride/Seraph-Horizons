@@ -8,7 +8,7 @@ A version-pinned Vintage Story modpack (game 1.22.7, .NET 10) plus a static **re
 
 ## Commands
 
-Server-dependent work (smoke, Atlas, building the C# mods) needs the .NET 10 SDK and an extracted `vs_server_linux-x64_<ver>` archive pointed to by `VINTAGE_STORY`.
+Server-dependent work (smoke, Atlas, building the C# mods) needs the .NET 10 SDK and a game server pointed to by `VINTAGE_STORY`: an extracted `vs_server_linux-x64_<ver>` archive, or a full client install of the same version.
 
 ```sh
 # Pack (tools/packtool.py is stdlib-only Python 3.11+)
