@@ -310,7 +310,9 @@ matter. Leave default priority, and add a test that asserts the late audit stays
 
 - Dovidarium's compose reuse skips `ComposeCreativeInvDialog` on reopen, so `OnTextChanged`
   isn't re-run and our `renderedSlots` must stay valid between opens. It does, because
-  we mutate in place.
+  we mutate in place. The same reuse keeps the first build, which `OnOwnPlayerDataReceived`
+  runs before our rules are resolved: `CreativeUi.RefreshBuiltDialog` redoes it on `Resolved`
+  (creative.md, **The first build**).
 - Members aren't always contiguous: blocks are sorted by `BlockMaterial`, so variants of
   one type with different materials can split, and search reorders by weight. Collapse to
   the first member's position.
