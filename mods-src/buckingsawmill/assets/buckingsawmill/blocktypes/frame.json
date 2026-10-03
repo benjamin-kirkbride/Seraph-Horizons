@@ -1,0 +1,71 @@
+{
+	code: "buckingmill",
+	class: "buckingsawmill.Frame",
+	entityClass: "buckingsawmill.Frame",
+	behaviors: [ { name: "HorizontalOrientable" } ],
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "buckingsawmill:block/buckingmill_frame", rotateY: 180 },
+		"*-east":  { base: "buckingsawmill:block/buckingmill_frame", rotateY: 90 },
+		"*-south": { base: "buckingsawmill:block/buckingmill_frame", rotateY: 0 },
+		"*-west":  { base: "buckingsawmill:block/buckingmill_frame", rotateY: 270 }
+	},
+	textures: {
+		"oak":   { base: "game:block/wood/debarked/oak" },
+		"metal": { base: "game:block/metal/plate/iron" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "buckingsawmill:handbook-assembly-title", text: "buckingsawmill:handbook-assembly-text" },
+				{ title: "buckingsawmill:handbook-power-title", text: "buckingsawmill:handbook-power-text" },
+				{ title: "buckingsawmill:handbook-trunks-title", text: "buckingsawmill:handbook-trunks-text" },
+				{ title: "buckingsawmill:handbook-yield-title", text: "buckingsawmill:handbook-yield-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "buckingsawmill:buckingmill-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The shape fills the mill's whole 6×4×3 footprint (x -5..1, z -2..1 once the -north item form
+	// turns it 180°), so the item forms are centred on it and scaled well down.
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.6, z: -0.6 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: -2, y: 0, z: -0.5 },
+		scale: 0.15
+	},
+	fpHandTransform: {
+		rotation: { x: 0, y: -45, z: 0 },
+		origin: { x: -2, y: 1, z: -0.5 },
+		scale: 0.3
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: -2, y: 2, z: -0.5 },
+		scale: 0.28
+	},
+	groundTransform: {
+		origin: { x: -2, y: 0, z: -0.5 },
+		scale: 0.6
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

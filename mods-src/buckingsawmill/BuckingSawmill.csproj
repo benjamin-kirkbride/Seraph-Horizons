@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Client and server mod adding the bucking sawmill (README.md here): a mechanically powered
+       gang saw, assembled from Immersive Woodworking's sawmill parts, that cuts Logging Expanded
+       tree trunks into logs. Built from this repo, uploaded to the ModDB by hand, and pinned in
+       pack.toml like any other mod. Atlas scenarios load this build.
+
+       Layout: Core/ is the game-independent part (the rig file's parser, footprint and rotation
+       maths, assembly rules, cut arithmetic, config; BCL only, its unit tests in tests/ are their
+       own project and compile those files directly); the top level is the game-facing code.
+       Everything under assets/ ships in the mod as is. tools/ holds the model's non-C# tooling
+       and is not part of the build. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>BuckingSawmill</AssemblyName>
+    <RootNamespace>BuckingSawmill</RootNamespace>
+    <!-- Keep equal to modinfo.json's version; tools/tests/test_mods_src.py checks it. -->
+    <Version>1.0.0</Version>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Atlas copies a mod folder by its name: a plain bin/Debug would land in the same
+         TestMods/Debug as another mods-src mod, and the game loads neither. -->
+    <OutputPath>bin/$(Configuration)/buckingsawmill/</OutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The unit tests are their own project (tests/BuckingSawmill.Tests.csproj). -->
+    <Compile Remove="tests/**;tools/**" />
+    <None Remove="tests/**;tools/**" />
+    <Content Remove="tests/**;tools/**" />
+  </ItemGroup>
+
+  <!-- Only the game's own assemblies are referenced, so the mod builds from the game alone
+       (mod-release.yml needs nothing else). Immersive Woodworking's parts are matched by item
+       code, and Logging Expanded is reached by reflection (LoggingBridge.cs). -->
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- BlockMultiblock (the rack's filler cells). -->
+    <Reference Include="VSEssentials">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSEssentials.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Mechanical power (BEBehaviorMPConsumer, IMechanicalPowerBlock). -->
+    <Reference Include="VSSurvivalMod">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- In the output folder too, so the build Atlas loads has its assets. -->
+    <None Update="assets/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- build/buckingsawmill_<version>.zip, for the ModDB upload: the DLL, modinfo.json and
+       CREDITS.md at the top level, as the game loads it, and assets/ with its folders. -->
+  <Target Name="ModZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <_ZipStage>$(IntermediateOutputPath)modzip/</_ZipStage>
+      <_ZipOut>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'buckingsawmill_$(Version).zip'))</_ZipOut>
+    </PropertyGroup>
+    <ItemGroup>
+      <_ModAsset Include="assets/**" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_ZipStage)" />
+    <Copy SourceFiles="$(TargetPath);modinfo.json;CREDITS.md" DestinationFolder="$(_ZipStage)" />
+    <Copy SourceFiles="@(_ModAsset)" DestinationFiles="@(_ModAsset->'$(_ZipStage)assets/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_ZipOut)'))" />
+    <ZipDirectory SourceDirectory="$(_ZipStage)" DestinationFile="$(_ZipOut)" Overwrite="true" />
+    <Message Importance="high" Text="mod zip: $(_ZipOut)" />
+  </Target>
+
+</Project>

@@ -1,3 +1,19 @@
+Scope of this license
+=====================
+
+The Apache License below covers the contents of this repository, except
+where a file or directory carries its own notice. Some assets belong to
+their own authors, are included here with their permission, and are not
+licensed under the Apache License. Each is identified by a notice next to
+it; ask its author before reusing it.
+
+  - mods-src/buckingsawmill/assets/buckingsawmill/shapes/
+    The bucking sawmill model. It is derived from the sawmill model of
+    Immersive Woodworking and belongs to Bobrik00, the author of that mod.
+    See mods-src/buckingsawmill/CREDITS.md.
+
+=========================================================================
+
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
