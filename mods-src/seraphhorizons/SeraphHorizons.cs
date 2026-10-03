@@ -10,8 +10,8 @@ namespace SeraphHorizons.Mod;
 /// The pack's own tweaks. Each tweak is its own class, switched by its own setting in
 /// ModConfig/seraphhorizons.json, and skipped with a log line when the mod it changes is not
 /// installed or no longer looks as expected. This system applies its own patches explicitly
-/// (never PatchAll). Tidy Variants (TidyVariants/) has its own mod systems, which read their
-/// switch through <see cref="ConfigFor"/>.
+/// (never PatchAll). Tidy Variants (TidyVariants/) and the creative mod tabs (CreativeModTabs/) have
+/// their own mod systems, which read their switch through <see cref="ConfigFor"/>.
 /// </summary>
 public class SeraphHorizonsSystem : ModSystem
 {
@@ -151,6 +151,11 @@ public class SeraphHorizonsConfig
     /// <summary>Tidy Variants: hides orientation and open/closed variants and groups the rest in
     /// the creative inventory and the handbook (client side; off means both stay vanilla).</summary>
     public bool TidyVariants { get; set; } = true;
+
+    /// <summary>Creative inventory: a button over the right-hand tabs flips to one tab per mod, holding
+    /// every creative-listed stack of that mod, and back (both sides: the server adds the tabs and decides
+    /// their contents, the client shows them; off means the tabs and the button do not exist).</summary>
+    public bool CreativeModTabs { get; set; } = true;
 
     /// <summary>Pipes and Power Expanded: a creative-only block that fills the pipes connected to it
     /// with steam, set up like the auto rotor (off means the block does not exist).</summary>

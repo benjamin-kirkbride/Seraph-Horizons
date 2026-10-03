@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Unit tests for Seraph Horizons' game-independent code: Tidy Variants' rule engine
-       (../TidyVariants/Core) and the tweaks' own (../Core). They compile those files directly and
+       (../TidyVariants/Core), creative mod tabs' planning (../CreativeModTabs/Core) and the
+       tweaks' own (../Core). They compile those files directly and
        need neither the game nor the pack: `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
 
@@ -22,6 +23,7 @@
     <Using Include="Xunit" />
     <Compile Include="../TidyVariants/Core/**/*.cs" Link="TidyVariants/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Core/**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../CreativeModTabs/Core/**/*.cs" Link="CreativeModTabs/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
