@@ -184,6 +184,60 @@ transpilers the method's body, never another mod's prefixes or postfixes, whiche
 `evilinteractionrangehack` transpiles the server's `HandleEntityInteraction`, which this tweak does
 not touch. The pure logic (which codes match, when a far hit wins) is `Core/EntityReach.cs`.
 
+### Every food has a hydration value (`FoodHydration`)
+
+Hydrate or Diedrate (`hydrateordiedrate` 2.5.6). Eating a food changes thirst by its `hydration`
+attribute (positive quenches, negative costs), which Hydrate or Diedrate fills in at load from its
+pattern lists (`config/hod.additemhydration.json`, `hod.addblockhydration.json`). Foods no pattern
+matches get 0: some are newer than the lists, some patterns are misspelled (Expanded Foods'
+`pemmicanfish-*` for `fishpemmican`, `gelatinfish-*` for a `gelatinfish` with no variants), and
+some name a code that has since gained variants (`game:butter`, `butchering:offal`). Meal
+ingredients count too: a meal's hydration comes from its ingredients'. This
+tweak gives each of them a value modelled on Hydrate or Diedrate's for a similar food (#319):
+
+| Mod | Food | Hydration | Modelled on |
+|---|---|---|---|
+| game | fish chunk, cooked, sizes 2 / 4 / 7 / 9 | -40 / -80 / -140 / -180 | `fish-cooked` -20 at satiety 100, scaled by satiety (200 to 900) |
+| game | egg, raw / boiled / pickled (Expanded Foods adds the last two) | +10 / +5 / +10 | no close match: `limeegg` +1, dough +5, pickled vegetables +15 to +30; raw above cooked, as for fish |
+| game | butter, salted and unsalted | -80 | Hydrate or Diedrate's `butter`, which no longer matches the variants |
+| game | raw cassava, raw / soaked / dried | +15 / +20 / -30 | turnip and parsnip / carrot and onion / `grain-*` and flour (`vegetable-cassava`'s +200 is an outlier) |
+| game | salt (a meal ingredient by Expanded Foods' patch) | -50 | no close match: between cooked fish (-20) and cured fish (-70); salt water is -600 a litre |
+| game | pineapple (the whole fruit, a block) | +420 | the 12 `fruit-pineapple` it is cut into, +35 each |
+| game | fat, raw and rendered | -80 | `butter` |
+| game | honeycomb | -75 | `honeyportion` |
+| game | walnut (`treeseed-walnut`) | -2 | Wildcraft's `nut-*` |
+| game | mushroom: sickener, laughing jim | -30 | earthball and elfin saddle (health -8 and -7; these are -7 and -10) |
+| game | mushroom: fool's conecap | -35 | deathcap (deadly, as it is) |
+| game | mushroom: goldcap, liberty cap, wavy cap, blue meanie | +5 | no close match (psychedelic, no health effect): the low end of the edible mushrooms |
+| bdcrop | buckwheat grain / dough | -30 / +5 | `grain-*` / `dough-*` |
+| bdcrop | buckwheat bread, part-baked / perfect / charred | -40 / -50 / -80 | spelt bread |
+| bdcrop | potato | +20 | vanilla `vegetable-*`; bdcrop's own patch misses it (it is in `game-vegetable.json`, not `vegetable.json`) |
+| butchering | offal, bloody and clean | +3 | Hydrate or Diedrate's `butchering:offal`, which no longer matches the variants |
+| efchefstricks | bread crumb feed | -5 | `expandedfoods:breadcrumbs-*` |
+| expandedfoods | fish, crab and snake pemmican, every state | -25 | `pemmican-*` (and the misspelled patterns' own value) |
+| expandedfoods | fish gelatin | +1 | `gelatin-*` (and the misspelled pattern's) |
+| expandedfoods | fruit leather, sliced | -5 | dried fruit (`dryfruit-*`, `dehydratedfruit-*`) and `fruitbar-*` |
+| primitivesurvival | fish fillet, raw / cooked | +15 / -20 | vanilla `fish-raw` / `fish-cooked` |
+| primitivesurvival | fish fillet, part-baked / charred | -15 / -30 | no close match: between and beyond raw and cooked, as bread's states are (about 0.8 and 1.6 of perfect) |
+| primitivesurvival | fish eggs raw / cooked, caviar (cured) | +15 / -20 / -70 | vanilla `fish-raw` / `fish-cooked` / `fish-cured` |
+| primitivesurvival | nightcrawler | +10 | `insect-*` |
+
+Only foods with no value are covered, eaten by themselves or in meals: wet or dried fruit leather,
+curing caviar and bdcrop's flour are neither, and bdcrop sets its vegetables other than tomatoes
+to 0 on purpose.
+
+The values are JSON patches in `assets/seraphhorizons/patches/hydration-*.json`, one file per mod
+patched, each adding `hydration` (or `hydrationByType`) to the item or block type's `attributes` (for
+bdcrop's potato, to its `attributesByType` entry, where its food attributes are)
+with `addmerge` (which creates `attributes` where there is none) and `dependsOn` hydrateordiedrate
+and the patched mod, so each is a no-op without them. Hydrate or Diedrate only sets a hydration
+attribute that is not set yet, so these values stay put, and one it adds later for the same food
+does not replace them. They are `"side": "server"`, as bdcrop's own hydration patches are: item and
+block types are loaded from their JSON on the server only, and the client gets them, attributes
+included, from the server, so its tooltip shows the same values. With the switch off (or without
+Hydrate or Diedrate) the system empties those patch files in `Start`, before the patch loader runs
+in `AssetsLoaded`, as for Age of Flax. The switch that counts is the server's.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -261,6 +315,10 @@ farmland (seeds and bundles), checks the seeds in the blocktype's drops, and req
 `LangEdits` passage reworded. When it fails after an Age of Flax update, match the patches and edits
 to the new files. `AgeOfFlaxRebalanceOffScenarios` boots a server with the switch off and requires
 Age of Flax as it ships.
+
+`tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
+food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
+it fails after a mod is added or updated, it lists the foods to give a value in `patches/hydration-*.json`.
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per

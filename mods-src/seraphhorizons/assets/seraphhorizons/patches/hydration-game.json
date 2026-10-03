@@ -1,0 +1,39 @@
+// Hydrate or Diedrate values for vanilla foods it leaves out, seraphhorizons' FoodHydration switch
+// (README.md). Each value is modelled on one Hydrate or Diedrate gives a similar food
+// (hydrateordiedrate:config/hod.additemhydration.json and hod.addblockhydration.json, 2.5.6). Hydrate
+// or Diedrate never overwrites a hydration attribute that is already set, so these stay put if it
+// adds its own. Server side: items and blocks are loaded from their JSON on the server and reach the
+// client, attributes included, from it.
+[
+  // Fish chunks (cooked only): fish-cooked is -20 for satiety 100; scaled by satiety (200 to 900).
+  { "file": "game:itemtypes/food/fishchunk.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-9-cooked": -180, "*-7-cooked": -140, "*-4-cooked": -80, "*-2-cooked": -40 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Eggs: Expanded Foods adds the boiled and pickled states; the raw egg goes into meals. No close
+  // match: limeegg (Expanded Foods' century egg) is +1, dough +5, pickled vegetables +15 to +30. Raw
+  // above cooked, as raw fish (+15) is above cooked (-20).
+  { "file": "game:itemtypes/food/egg.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-raw": 10, "*-boiled": 5, "*-pickled": 10 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Butter, salted and unsalted (meal ingredients): Hydrate or Diedrate's game:butter (-80), which no
+  // longer matches since butter has these variants.
+  { "file": "game:itemtypes/food/butter.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -80 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Raw cassava (a meal ingredient, soaked and dried for flour): raw as the root vegetables turnip and
+  // parsnip (+15), soaked as carrot and onion (+20), dried as grain and flour (-30). Hydrate or
+  // Diedrate's vegetable-cassava (+200) is an outlier and not followed.
+  { "file": "game:itemtypes/food/rawcassava.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-raw": 15, "*-soaked": 20, "*-dried": -30 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Salt (a meal ingredient by Expanded Foods' patch): no close match. Salt costs water: -50, between
+  // cooked fish (-20) and cured fish (-70), as a seasoning; salt water is -600 a litre.
+  { "file": "game:itemtypes/resource/crushed/salt.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -50 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // A whole pineapple (a block; meal ingredient): it is cut into 12 fruit-pineapple (+35 each), +420.
+  { "file": "game:blocktypes/food/pineapple.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": 420 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Raw and rendered fat: butter is -80.
+  { "file": "game:itemtypes/resource/fat.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -80 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "game:itemtypes/resource/fat-rendered.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -80 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Honeycomb: honeyportion is -75.
+  { "file": "game:itemtypes/resource/honeycomb.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -75 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Walnuts (the only edible tree seed): Wildcraft's nut-* is -2.
+  { "file": "game:itemtypes/resource/treeseed.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-walnut": -2 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  // Mushrooms Hydrate or Diedrate's per-type list leaves out (blocktypes/plant/mushroom.json; their
+  // harvested blocks are skipped variants, and none of them grows on a tree side). Poisonous ones
+  // by their health: sickener (-7) and laughing jim (-10) as earthball (-8) and elfin saddle (-7),
+  // -30; fool's conecap (-20, deadly) as deathcap and destroying angel, -35. The psychedelic ones
+  // have no health effect and no close match: +5, the low end of the edible mushrooms.
+  { "file": "game:blocktypes/plant/mushroom.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-sickener-*": -30, "*-laughingjim-*": -30, "*-foolsconecap-*": -35, "*-goldcap-*": 5, "*-libertycap-*": 5, "*-wavycap-*": 5, "*-bluemeanie-*": 5 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] }
+]
