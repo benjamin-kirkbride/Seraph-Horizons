@@ -712,7 +712,7 @@ version = "1.9.1"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Carts, sleds and market stalls."
+why = "Carts, sleds and market stalls. Their far slots are put in reach by seraphhorizons (CartReach)."
 
 [[mod]]
 id = "nooceantranslocators"
