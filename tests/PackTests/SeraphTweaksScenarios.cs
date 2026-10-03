@@ -3,6 +3,7 @@ using HarmonyLib;
 using SeraphHorizons.SeraphTweaks;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 
 namespace SeraphHorizons.PackTests;
@@ -11,6 +12,8 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphtweaks, BoilerLidRelief: ppex's boiler burst (BlockEntityBoiler.Explode) opens
 /// the boiler's lid instead, and the English text no longer says a boiler explodes. The scenarios
 /// call Explode() directly: ppex's own over-pressure timer is what decides to call it.
+/// Also its ConfigKit settings (assets/seraphtweaks/config/configlib-patches.json), which thin out
+/// Battle Towers' surface towers.
 /// </summary>
 [AtlasWorld]
 public class SeraphTweaksScenarios : AtlasScenarioBase
@@ -103,5 +106,23 @@ public class SeraphTweaksScenarios : AtlasScenarioBase
             .Order();
         var edited = BoilerLidRelief.LangEdits.Select(edit => edit.Language).Distinct().Order();
         Assert.Equal(shipped, edited);
+    }
+
+    // ConfigKit writes the settings into Battle Towers' own patch file, by position, before the
+    // game applies it. Fails when Battle Towers reorders that file or ConfigKit stops applying:
+    // match the paths in configlib-patches.json to the new layout.
+    [AtlasScenario]
+    public void Surface_battle_towers_are_thinned_out()
+    {
+        var structures = JsonObject.FromJson(
+                World.Api.Assets.Get(new AssetLocation("game", "worldgen/structures.json")).ToText())
+            ["structures"].AsArray()!;
+        var towers = Assert.Single(structures, s => s["code"].AsString() == "surfacetowers");
+        Assert.Equal(0.01f, towers["chance"].AsFloat(), 4);
+        Assert.Equal(600, towers["minGroupDistance"].AsInt());
+        // The other two keep what Battle Towers ships.
+        var hard = Assert.Single(structures, s => s["code"].AsString() == "surfacehardtowers");
+        Assert.Equal(0.005f, hard["chance"].AsFloat(), 4);
+        Assert.Equal(1000, hard["minGroupDistance"].AsInt());
     }
 }

@@ -27,7 +27,8 @@ The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUn
 1. **Registries.** `Registries.Find` reads the engine's registry dictionary by reflection
    and takes each registry's recipe list and element type. Every registry is exported.
    None is skipped silently: one that cannot be read throws `RecipeExportException` with
-   its code.
+   its code. The exceptions are named in `Registries.NotRecipes`: registries a mod
+   uses only to send data to clients, such as ConfigKit's `configkit:configs`.
 2. **Readers.** Each registered recipe is read into a `RecipeForm`. Dedicated readers
    handle `GridRecipe`, `LayeredVoxelRecipe` (smithing, knapping, clay forming),
    `BarrelRecipe`, `AlloyRecipe` and `CookingRecipe`. Any other `IRecipeBase` uses its
