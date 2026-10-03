@@ -116,17 +116,19 @@ jobs:
     timeout-minutes: 30
     # Atlas runs one embedded server per process, so classes can only run in parallel as
     # separate jobs, and every class pays its own server boot (30-45 s), which is nearly all
-    # of a shard's time. The item and recipe classes share one shard because they read the
-    # same export, built once per process. `fixes` is the pack-authored *fix mods' classes
-    # and `tidy` is Tidy Variants', both matched by name, so a new class of either kind joins
-    # its shard. `rest` is the complement filter, so any other new class lands there without
-    # anyone having to list it.
+    # of a shard's time. The item and recipe classes are the exception: each builds the pack's
+    # export (over a minute) and fills parts of it again to compare, so each has a shard to
+    # itself. `fixes` is the pack-authored *fix mods' classes and `tidy` is Tidy Variants',
+    # both matched by name, so a new class of either kind joins its shard. `rest` is the
+    # complement filter, so any other new class lands there without anyone having to list it.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - shard: export
-            filter: FullyQualifiedName~.ItemExportScenarios.|FullyQualifiedName~.RecipeExportScenarios.
+          - shard: items
+            filter: FullyQualifiedName~.ItemExportScenarios.
+          - shard: recipes
+            filter: FullyQualifiedName~.RecipeExportScenarios.
           - shard: fixes
             filter: FullyQualifiedName~FixScenarios.
           - shard: tidy
@@ -137,7 +139,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
       # Local-only icon export mod (never shipped): keep it compiling, and test its logic.
-      # Only on one shard, and not the longest (export).
+      # Only on one shard, and not one of the longest (items, recipes).
       - name: Icon export mod builds and its unit tests pass
         if: matrix.shard == 'rest'
         env:

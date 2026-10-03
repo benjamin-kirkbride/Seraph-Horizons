@@ -12,7 +12,10 @@ public static class Exporter
     public const int SchemaVersion = 1;
     public const string GeneratorName = "seraphexport";
 
-    public static JObject Build(ICoreServerAPI api, PackInfo pack)
+    public static JObject Build(ICoreServerAPI api, PackInfo pack) => Build(api, pack, out _);
+
+    /// <param name="referenced">Every item and block code the exported recipes reference.</param>
+    public static JObject Build(ICoreServerAPI api, PackInfo pack, out ISet<string> referenced)
     {
         var root = new JObject
         {
@@ -31,7 +34,7 @@ public static class Exporter
         };
 
         // Recipes first: the item section needs to know which codes they reference.
-        var referenced = RecipeSection.Fill(api, root);
+        referenced = RecipeSection.Fill(api, root);
         ItemSection.Fill(api, root, referenced);
         return root;
     }
