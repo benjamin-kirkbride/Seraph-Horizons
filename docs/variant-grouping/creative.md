@@ -2,7 +2,8 @@
 
 Part of #252. Client only. Code: `mods-src/seraphhorizons/TidyVariants/Game/Creative/` (game layer) and
 `mods-src/seraphhorizons/TidyVariants/Core/CreativeView.cs` (grouping logic, unit-tested in `tests/CreativeViewTests.cs`).
-Hooks and the reasons for them are in [hooks.md](hooks.md) §1, §4 and §6.
+Hooks and the reasons for them are in [hooks.md](hooks.md) §1, §4 and §6. The mod tabs button on the same dialog
+(a separate tweak) is in [creative-mod-tabs.md](creative-mod-tabs.md); grouping applies in mod tabs too.
 
 ## Behaviour
 

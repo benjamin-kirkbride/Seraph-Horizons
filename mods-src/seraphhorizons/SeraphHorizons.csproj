@@ -7,8 +7,8 @@
 
        Layout: the top level holds the tweaks to other mods; TidyVariants/Core/ is Tidy Variants'
        game-independent rule engine (BCL only; its unit tests in tests/ are their own project and
-       compile those files directly), TidyVariants/Game/ its game-facing code. MapReveal/ is laid
-       out the same way. Everything under assets/ ships in the mod as is. -->
+       compile those files directly), TidyVariants/Game/ its game-facing code. MapReveal/ and
+       CreativeModTabs/ are laid out the same way. Everything under assets/ ships in the mod as is. -->
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -73,6 +73,16 @@
     <!-- Tidy Variants: worldproperties files are the game's lenient JSON (unquoted keys); the game ships this. -->
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(VINTAGE_STORY)/Lib/Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Creative mod tabs: the tab strip and button draw with Cairo, and the server sends the tab
+         list in a protobuf message; the game ships both. -->
+    <Reference Include="cairo-sharp">
+      <HintPath>$(VINTAGE_STORY)/Lib/cairo-sharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="protobuf-net">
+      <HintPath>$(VINTAGE_STORY)/Lib/protobuf-net.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
