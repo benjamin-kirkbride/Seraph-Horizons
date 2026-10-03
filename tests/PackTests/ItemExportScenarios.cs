@@ -35,19 +35,13 @@ public class ItemExportScenarios : AtlasScenarioBase
     private static IEnumerable<JObject> Sources(JObject item, string type) =>
         (item["sources"] as JArray ?? new JArray()).OfType<JObject>().Where(s => (string?)s["type"] == type);
 
-    // ItemSection.Fill with a referenced set of our choosing, cached per set: a fill takes ~30 s.
-    private static readonly Dictionary<string, JObject> Fills = new();
-
-    private JObject Fill(params string[] referenced)
+    // ItemSection.Fill with a referenced set of our choosing. A fill takes the better part of a
+    // minute, so a scenario makes one at most and compares it with the document's.
+    private JObject Fill(IEnumerable<string> referenced)
     {
-        var key = string.Join(",", referenced);
-        lock (Fills)
-        {
-            if (Fills.TryGetValue(key, out var cached)) return cached;
-            var root = new JObject();
-            ItemSection.Fill((ICoreServerAPI)World.Api, root, new HashSet<string>(referenced));
-            return Fills[key] = root;
-        }
+        var root = new JObject();
+        ItemSection.Fill((ICoreServerAPI)World.Api, root, new HashSet<string>(referenced));
+        return root;
     }
 
     // --- vanilla items against survival/itemtypes and game/lang/en.json -------------------
@@ -259,20 +253,23 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.NotNull(World.Api.World.GetItem(new AssetLocation(hidden)));
         Assert.Null(World.Api.World.GetItem(new AssetLocation(unregistered)));
 
-        var plain = (JObject)Fill()["items"]!;
-        Assert.False(plain.ContainsKey(hidden), $"{hidden} is excluded from the handbook but was exported");
-        Assert.True((bool)Item(plain, visible)["handbookVisible"]!);
-        Assert.False(plain.ContainsKey(unregistered));
+        // The document's items are the handbook's plus what its recipes reference, which may
+        // include the hidden ingot; the ones it marks handbook-visible are the handbook's.
+        var plain = Items.Properties().Where(p => (bool)p.Value["handbookVisible"]!).Select(p => p.Name).ToHashSet();
+        Assert.False(plain.Contains(hidden), $"{hidden} is excluded from the handbook but is exported as visible");
+        Assert.Contains(visible, plain);
+        Assert.False(Items.ContainsKey(unregistered));
 
-        var withRefs = (JObject)Fill(hidden, visible, unregistered)["items"]!;
+        var withRefs = (JObject)Fill(new[] { hidden, visible, unregistered })["items"]!;
         var platinum = Item(withRefs, hidden);
         Assert.False((bool)platinum["handbookVisible"]!);
         Assert.Equal("Platinum ingot", (string?)platinum["name"]);
         Assert.Equal("survival", (string?)platinum["mod"]);
         Assert.True((bool)Item(withRefs, visible)["handbookVisible"]!);
         Assert.False(withRefs.ContainsKey(unregistered), "an unregistered referenced code was exported");
-        // Referencing codes adds exactly those codes and nothing else.
-        Assert.Equal(plain.Count + 1, withRefs.Count);
+        // Referencing codes adds exactly those codes and nothing else: this fill, which no
+        // recipe contributed to, is the handbook's items and the hidden ingot.
+        Assert.Equal(plain.Append(hidden).Order(StringComparer.Ordinal), withRefs.Properties().Select(p => p.Name).Order(StringComparer.Ordinal));
 
         // Only a fraction of the registry is in the handbook; exporting everything would not be.
         var registered = World.Api.World.Collectibles.Count(c => c?.Code != null);
@@ -387,27 +384,28 @@ public class ItemExportScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Two_fills_produce_identical_sections()
     {
-        var first = Fill();
-        var second = new JObject();
-        ItemSection.Fill((ICoreServerAPI)World.Api, second, new HashSet<string>());
+        // The first fill is the document's, made with the codes its recipes reference.
+        var second = Fill(ExportUnderTest.Referenced(World.Api));
         foreach (var section in new[] { "mods", "items", "guides" })
         {
-            Assert.Equal(first[section]!.ToString(Formatting.None), second[section]!.ToString(Formatting.None));
+            Assert.Equal(Doc[section]!.ToString(Formatting.None), second[section]!.ToString(Formatting.None));
         }
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Names_are_english_whatever_the_server_language()
     {
-        var english = Fill();
+        // The document's fill, made before the language changes.
+        var english = Doc;
+        var referenced = ExportUnderTest.Referenced(World.Api);
         var previous = Lang.CurrentLocale;
-        var german = new JObject();
+        JObject german;
         try
         {
             Lang.ChangeLanguage("de");
             // Precondition: the switch is real, so a leak would show.
             Assert.NotEqual("Copper pickaxe", Lang.Get("game:item-pickaxe-copper"));
-            ItemSection.Fill((ICoreServerAPI)World.Api, german, new HashSet<string>());
+            german = Fill(referenced);
             Assert.Equal("de", Lang.CurrentLocale);
         }
         finally
