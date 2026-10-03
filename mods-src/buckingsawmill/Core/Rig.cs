@@ -13,7 +13,8 @@ public sealed record RigCell(Int3 Pos, IReadOnlyList<Box> Boxes);
 /// The mill's footprint and anchor points, from assets/buckingsawmill/config/rig.json (written by
 /// the model's tooling). Everything is in the native, south-facing frame with the controller cell
 /// at (0,0,0), in blocks. The moving parts and the trunk bed are optional (the gameplay does not
-/// need them); keys this parser does not know are ignored.
+/// need them), and so is the saws' travel (defaults apply); keys this parser does not know are
+/// ignored.
 /// </summary>
 public sealed class Rig
 {
@@ -31,9 +32,12 @@ public sealed class Rig
     public RigParts MovingParts { get; }
     /// <summary>Where a loaded trunk is drawn, or null.</summary>
     public TrunkBed? TrunkBed { get; }
+    /// <summary>How far the saws travel (rig.json's <c>saw</c>), or <see cref="SawTravel.Default"/>
+    /// when the file has none.</summary>
+    public SawTravel Saw { get; }
 
     public Rig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Side infeedSide, Side outputSide, Float3 outputPos,
-               RigParts? movingParts = null, TrunkBed? trunkBed = null)
+               RigParts? movingParts = null, TrunkBed? trunkBed = null, SawTravel? saw = null)
     {
         if (!cells.Any(c => c.Pos == Int3.Zero))
             throw new FormatException("the cells do not include the controller's, [0,0,0]");
@@ -51,6 +55,9 @@ public sealed class Rig
         OutputPos = outputPos;
         MovingParts = movingParts ?? new RigParts([]);
         TrunkBed = trunkBed;
+        Saw = saw ?? SawTravel.Default;
+        if (Saw.TopY <= Saw.BottomY)
+            throw new FormatException($"saw.topY {Saw.TopY} must be above saw.bottomY {Saw.BottomY}");
     }
 
     /// <summary>The cells other than the controller's, in file order.</summary>
@@ -120,6 +127,12 @@ public sealed class Rig
                         var a => throw new FormatException($"trunkBed.axis \"{a}\" is not x or z"),
                     },
                     bedJson.TryGetProperty("length", out var len) && len.ValueKind == JsonValueKind.Number ? len.GetSingle() : 0);
+            SawTravel? saw = null;
+            if (root.TryGetProperty("saw", out var sawJson))
+                saw = sawJson.ValueKind == JsonValueKind.Object
+                    ? new SawTravel(Required(sawJson, "topY", JsonValueKind.Number).GetSingle(),
+                                    Required(sawJson, "bottomY", JsonValueKind.Number).GetSingle())
+                    : throw new FormatException("\"saw\" must be an object");
             return new Rig(
                 cells,
                 Int3Of(Required(root, "powerCell", JsonValueKind.Array), "powerCell"),
@@ -127,7 +140,7 @@ public sealed class Rig
                 SideOf(Required(root, "infeedSide", JsonValueKind.String), "infeedSide"),
                 SideOf(Required(root, "outputSide", JsonValueKind.String), "outputSide"),
                 Float3Of(Required(output, "pos", JsonValueKind.Array), "output.pos"),
-                parts, bed);
+                parts, bed, saw);
         }
     }
 

@@ -16,7 +16,7 @@ public class BlockBuckingMill : Block
 {
     public static readonly AssetLocation ItemCode = new(BuckingSawmillSystem.Domain, "buckingmill-frame-north");
 
-    private ItemStack[] _sashStacks = [], _crankshaftStacks = [], _bladeStacks = [], _trunkStacks = [];
+    private ItemStack[] _sashStacks = [], _crankshaftStacks = [], _leversStacks = [], _bladeStacks = [], _trunkStacks = [];
 
     public override void OnLoaded(ICoreAPI api)
     {
@@ -25,6 +25,7 @@ public class BlockBuckingMill : Block
             api.World.GetItem(new AssetLocation(BEBuckingMill.IwDomain, path)) is { } item ? [new ItemStack(item)] : [];
         _sashStacks = Items(Parts.SashPath);
         _crankshaftStacks = Items(Parts.CrankshaftPath);
+        _leversStacks = Items(Parts.LeversPath);
         _bladeStacks = ObjectCacheUtil.GetOrCreate(api, "buckingsawmill-bladekits", () => api.World.Items
             .Where(i => i?.Code is { Domain: BEBuckingMill.IwDomain } c && c.Path.StartsWith(Parts.BladePrefix, StringComparison.Ordinal))
             .Select(i => new ItemStack(i))
@@ -101,6 +102,8 @@ public class BlockBuckingMill : Block
                     stacks.AddRange(_sashStacks);
                 if (!mill.HasCrankshaft)
                     stacks.AddRange(_crankshaftStacks);
+                if (!mill.HasLevers)
+                    stacks.AddRange(_leversStacks);
                 if (stacks.Count > 0)
                     help.Add(new WorldInteraction { ActionLangCode = Key("fitpart"), MouseButton = EnumMouseButton.Right, Itemstacks = [.. stacks] });
                 if (mill.BladeCount < mill.SashCount)
@@ -111,7 +114,7 @@ public class BlockBuckingMill : Block
                     help.Add(new WorldInteraction { ActionLangCode = Key("fitblades"), MouseButton = EnumMouseButton.Right, Itemstacks = blades });
                 }
             }
-            else if (mill.Trunk == null)
+            else if (mill.Phase == MillPhase.Idle)
                 help.Add(new WorldInteraction { ActionLangCode = Key("loadtrunk"), MouseButton = EnumMouseButton.Right, Itemstacks = _trunkStacks });
             if (mill.Trunk != null && Cutting.Recoverable(mill.Progress))
                 help.Add(new WorldInteraction { ActionLangCode = Key("taketrunk"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });

@@ -37,6 +37,26 @@ public class RigTests
         Assert.Empty(rig.CellAt(new Int3(0, 0, 1))!.Boxes);
         Assert.Equal(new Box(0.25f, 0.5f, 0.25f, 0.75f, 1, 0.75f), rig.CellAt(new Int3(1, 0, 0))!.Boxes[1]);
         Assert.Null(rig.CellAt(new Int3(5, 5, 5)));
+        // No "saw": the default travel.
+        Assert.Equal(SawTravel.Default, rig.Saw);
+        Assert.Equal(new SawTravel(3.0f, 0.5f), rig.Saw);
+    }
+
+    [Fact]
+    public void Parses_the_saws_travel()
+    {
+        var rig = Rig.Parse(Fixture.Replace("\"trunkBed\"", "\"saw\": { \"topY\": 4.25, \"bottomY\": 0.75 }, \"trunkBed\""));
+        Assert.Equal(new SawTravel(4.25f, 0.75f), rig.Saw);
+    }
+
+    [Theory]
+    [InlineData("\"saw\": [3, 0.5],", "saw")]
+    [InlineData("\"saw\": { \"topY\": 3 },", "bottomY")]
+    [InlineData("\"saw\": { \"topY\": 0.5, \"bottomY\": 3 },", "above")]
+    public void Rejects_a_broken_saw(string saw, string expected)
+    {
+        var e = Assert.Throws<FormatException>(() => Rig.Parse(Fixture.Replace("\"trunkBed\"", saw + " \"trunkBed\"")));
+        Assert.Contains(expected, e.Message);
     }
 
     [Fact]

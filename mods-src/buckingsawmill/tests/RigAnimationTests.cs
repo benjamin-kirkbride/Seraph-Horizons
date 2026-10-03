@@ -138,7 +138,7 @@ public class RigAnimationTests
 
     [Theory]
     [InlineData("""[ { "id": "a", "match": ["a"], "ride": "nope" } ]""", "not a part")]
-    [InlineData("""[ { "id": "a", "match": ["a"], "requires": "levers" } ]""", "levers")]
+    [InlineData("""[ { "id": "a", "match": ["a"], "requires": "carriage" } ]""", "carriage")]
     [InlineData("""[ { "id": "a", "match": ["a"] }, { "id": "a", "match": ["b"] } ]""", "twice")]
     [InlineData("""[ { "id": "a", "match": [] } ]""", "match")]
     [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "spin", "axis": "x" } ] } ]""", "spin")]
@@ -161,6 +161,16 @@ public class RigAnimationTests
         Assert.True(RigPart.Fitted("blade2", 2, false, 2));
         Assert.False(RigPart.Fitted("blade1", 2, true, 0));
         Assert.False(RigPart.Fitted("levers", 2, true, 2));
+        Assert.True(RigPart.Fitted("levers", 0, false, 0, levers: true));
+        Assert.False(RigPart.Fitted("crankshaft", 2, false, 2, levers: true));
+    }
+
+    [Fact]
+    public void Levers_are_a_known_requirement()
+    {
+        Assert.Contains("levers", RigPart.KnownRequires);
+        var parts = Parts("""[ { "id": "a", "match": ["a"], "requires": "levers" } ]""");
+        Assert.Equal("levers", parts.Parts[0].Requires);
     }
 
     // ---- facing, shaft angle, strokes, trunk ----
@@ -255,8 +265,9 @@ public class RigAnimationTests
         }
         Assert.NotNull(rig.TrunkBed);
         Assert.Equal(Axis.X, rig.TrunkBed!.Axis);
-        // Every part the gameplay can fit has something to show.
-        foreach (var req in RigPart.KnownRequires)
+        // Every part the gameplay can fit has something to show. The levers are a part again but
+        // the shipped model has no levers part yet; drop this exemption when it does.
+        foreach (var req in RigPart.KnownRequires.Where(r => r != "levers"))
             Assert.Contains(parts, p => p.Requires == req);
     }
 

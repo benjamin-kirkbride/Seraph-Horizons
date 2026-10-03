@@ -13,6 +13,10 @@ public class MillConfig
     /// <summary>Shaft revolutions to cut through one log's worth of a trunk.</summary>
     public float RevolutionsPerStoredLog { get; set; } = 8f;
 
+    /// <summary>Shaft revolutions for the windlass to wind the saws from the bed back up to the
+    /// latch after a cut.</summary>
+    public float RaiseRevolutions { get; set; } = 6f;
+
     /// <summary>Logs a trunk gives per log stored in it, rounded down over the whole trunk.</summary>
     public float LogsPerStoredLog { get; set; } = 2f;
 
@@ -32,6 +36,7 @@ public class MillConfig
         Resistance = Check(nameof(Resistance), Resistance, v => v >= 0 && v <= 10, Defaults.Resistance, fixes);
         MinSpeed = Check(nameof(MinSpeed), MinSpeed, v => v >= 0, Defaults.MinSpeed, fixes);
         RevolutionsPerStoredLog = Check(nameof(RevolutionsPerStoredLog), RevolutionsPerStoredLog, v => v > 0, Defaults.RevolutionsPerStoredLog, fixes);
+        RaiseRevolutions = Check(nameof(RaiseRevolutions), RaiseRevolutions, v => v > 0, Defaults.RaiseRevolutions, fixes);
         LogsPerStoredLog = Check(nameof(LogsPerStoredLog), LogsPerStoredLog, v => v >= 0, Defaults.LogsPerStoredLog, fixes);
         BladeWearPerStoredLog = Check(nameof(BladeWearPerStoredLog), BladeWearPerStoredLog, v => v >= 0, Defaults.BladeWearPerStoredLog, fixes);
         return fixes;

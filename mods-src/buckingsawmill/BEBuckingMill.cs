@@ -13,8 +13,9 @@ namespace BuckingSawmill;
 /// <summary>
 /// The mill's controller. Holds the fitted parts (Immersive Woodworking's sawmill items), the
 /// blade kits as their own stacks (they wear), the loaded trunk as its whole Logging Expanded item
-/// stack, and the cut's progress. The server cuts from the power ghost's shaft angle, pulls trunks
-/// from a rack at the infeed side, and keeps the ghost cells stamped; the client shows it.
+/// stack, the cut's progress and the saws' depth. The server cuts and winds the saws back up from
+/// the power ghost's shaft angle, pulls trunks from a rack at the infeed side, and keeps the ghost
+/// cells stamped; the client shows it.
 /// </summary>
 public class BEBuckingMill : BlockEntity, IMillVisualState
 {
@@ -27,6 +28,11 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     private ItemStack? _trunk;
     private float _progress;
     private float _clientProgress;
+    // 0 latched at the top, 1 at the bed (Core/SawDepth.cs). The server's is the one that counts.
+    private float _depth;
+    // The client's estimate of _depth, advanced between syncs, and the eased value it shows.
+    private float _clientDepthEstimate;
+    private float _clientDepth;
     // The loaded trunk's stored logs, read when it was loaded (synced, so the client's progress
     // advances by the server's arithmetic).
     private int _storedLogs;
@@ -36,6 +42,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     private bool _clientAngleSeeded;
     private float? _serverMinSpeed;
     private float? _serverRevolutions;
+    private float? _serverRaiseRevolutions;
     private readonly Dictionary<Int3, Cuboidf[]> _boxes = [];
     private MillRenderer? _renderer;
 
@@ -43,11 +50,14 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public BlockFacing Facing => BlockFacing.FromCode(Side.Code());
     public bool Complete => _parts.Complete;
     public float Progress => _progress;
+    /// <summary>The saws' depth, 0 latched at the top to 1 at the bed (server's value on the client).</summary>
+    public float Depth => _depth;
     public IReadOnlyList<ItemStack> Blades => _blades;
     /// <summary>The configured slowest shaft speed that cuts. A client uses the server's value,
     /// which comes with the block entity's data, not its own config file's.</summary>
     public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
     private float RevolutionsPerStoredLog => _serverRevolutions ?? Config.RevolutionsPerStoredLog;
+    private float RaiseRevolutions => _serverRaiseRevolutions ?? Config.RaiseRevolutions;
 
     private BuckingSawmillSystem System => BuckingSawmillSystem.Of(Api);
     private MillConfig Config => System.Config;
@@ -56,10 +66,13 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     // IMillVisualState
     public int SashCount => _parts.Sashes;
     public bool HasCrankshaft => _parts.Crankshaft;
+    public bool HasLevers => _parts.Levers;
     public int BladeCount => _blades.Count;
     public string? BladeMetal => _parts.BladeMetal;
     public ItemStack? Trunk => _trunk;
     public float ClientProgress => _trunk == null ? 0 : Math.Clamp(_clientProgress, 0, 1);
+    public MillPhase Phase => SawDepth.Phase(_trunk != null, _depth);
+    public float ClientSawDepth => Math.Clamp(_clientDepth, 0, 1);
     public float ShaftAngle => Power?.AngleRad ?? 0;
     public float ShaftSpeed => Power?.TrueSpeed ?? 0;
 
@@ -86,6 +99,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         else
         {
             _clientProgress = _progress;
+            _clientDepthEstimate = _clientDepth = _depth;
             RegisterGameTickListener(OnClientTick, 50);
             if (api is ICoreClientAPI capi && Rig is { } rig)
                 _renderer = new MillRenderer(capi, this, rig);
@@ -327,6 +341,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return Error(byPlayer, "error-incomplete");
         if (_trunk != null)
             return Error(byPlayer, "error-bed-full");
+        if (_depth > 0)
+            return Error(byPlayer, "error-saws-rising");
         if (BranchedAndRefused(trunk))
         {
             // Logging Expanded's own message, as its sawhorses give it.
@@ -344,10 +360,17 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         _trunk = trunk;
         _storedLogs = Trunks.StoredLogs(trunk, Api.World);
         _progress = 0;
+        // The saws drop onto the trunk at once.
+        _depth = TouchDepth(trunk);
         _angleSeeded = false;
         MarkDirty(true);
     }
 
+    /// <summary>Where the saws come to rest on <paramref name="trunk"/>.</summary>
+    private float TouchDepth(ItemStack trunk) =>
+        SawDepth.Touch(Rig?.Saw ?? SawTravel.Default, Rig?.TrunkBed, trunk.Block?.Variant["size"]);
+
+    /// <summary>Clears the bed; the saws stay where they are, so the mill winds them up next.</summary>
     private void ClearTrunk()
     {
         _trunk = null;
@@ -373,9 +396,10 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
 
     // ---- Rack ----
 
-    /// <summary>Once a second: an assembled, empty mill turning fast enough takes the next trunk
-    /// from a Trunk Storage Rack touching its infeed side at ground level, unless that trunk is
-    /// branched (it waits for the player to debranch it). The rack is looked up every time.</summary>
+    /// <summary>Once a second: an assembled, empty mill with its saws up, turning fast enough,
+    /// takes the next trunk from a Trunk Storage Rack touching its infeed side at ground level,
+    /// unless that trunk is branched (it waits for the player to debranch it). The rack is looked
+    /// up every time.</summary>
     private void OnRackTick(float dt)
     {
         // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
@@ -385,7 +409,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
 
     public bool PullFromRack()
     {
-        if (!Config.AutoPullFromRack || _trunk != null || !_parts.Complete || ShaftSpeed < Config.MinSpeed
+        if (!Config.AutoPullFromRack || _trunk != null || _depth > 0 || !_parts.Complete || ShaftSpeed < Config.MinSpeed
             || System.Logging is not { } logging || Rig is not { } rig)
             return false;
         foreach (var local in rig.InfeedNeighbours())
@@ -417,11 +441,14 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
 
     // ---- Cutting ----
 
+    // Cuts the loaded trunk, or with none winds the saws back up; either only while assembled and
+    // turning fast enough.
     private void OnCutTick(float dt)
     {
         var power = Power;
         float angle = power?.AngleRad ?? 0, speed = power?.TrueSpeed ?? 0;
-        if (_trunk == null || !_parts.Complete || speed < Config.MinSpeed || System.Logging == null)
+        bool work = _trunk != null ? System.Logging != null : _depth > 0;
+        if (!work || !_parts.Complete || speed < Config.MinSpeed)
         {
             _lastAngle = angle;
             _angleSeeded = true;
@@ -435,7 +462,10 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         }
         float advance = Cutting.AngleAdvance(_lastAngle, angle, speed, dt);
         _lastAngle = angle;
-        AdvanceCut(advance);
+        if (_trunk != null)
+            AdvanceCut(advance);
+        else
+            AdvanceRaise(advance);
     }
 
     /// <summary>Turns the saw by <paramref name="radians"/> of shaft rotation (server side).</summary>
@@ -445,9 +475,21 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return;
         float before = _progress;
         _progress += Cutting.ProgressFor(radians, _storedLogs, Config.RevolutionsPerStoredLog);
+        _depth = SawDepth.Cutting(TouchDepth(_trunk), _progress);
         if (_progress >= 1)
             FinishCut();
         else if ((int)(before * 20) != (int)(_progress * 20) || Cutting.Recoverable(before) != Cutting.Recoverable(_progress))
+            MarkDirty();
+    }
+
+    /// <summary>Winds the saws up by <paramref name="radians"/> of shaft rotation (server side).</summary>
+    public void AdvanceRaise(float radians)
+    {
+        if (_trunk != null || _depth <= 0 || radians <= 0)
+            return;
+        float before = _depth;
+        _depth = SawDepth.Raise(_depth, radians, Config.RaiseRevolutions);
+        if (_depth <= 0 || (int)(before * 20) != (int)(_depth * 20))
             MarkDirty();
     }
 
@@ -505,20 +547,35 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
     }
 
-    // The client turns its own copy of the progress with the shaft between syncs.
+    // The client turns its own copies of the progress and the depth with the shaft between syncs.
+    // The shown depth follows those local steps directly and eases toward the estimate when a sync
+    // moves it, so a new trunk's drop is quick rather than a snap.
     private void OnClientTick(float dt)
     {
         var power = Power;
         float angle = power?.AngleRad ?? 0, speed = power?.TrueSpeed ?? 0;
-        if (_trunk == null || !_parts.Complete || speed < MinSpeed || !_clientAngleSeeded)
-        {
-            _clientLastAngle = angle;
-            _clientAngleSeeded = true;
-            return;
-        }
-        float advance = Cutting.AngleAdvance(_clientLastAngle, angle, speed, dt);
+        float advance = 0;
+        bool work = _trunk != null || _clientDepthEstimate > 0;
+        if (work && _parts.Complete && speed >= MinSpeed && _clientAngleSeeded)
+            advance = Cutting.AngleAdvance(_clientLastAngle, angle, speed, dt);
         _clientLastAngle = angle;
-        _clientProgress = Math.Min(1, _clientProgress + Cutting.ProgressFor(advance, _storedLogs, RevolutionsPerStoredLog));
+        _clientAngleSeeded = true;
+
+        float step;
+        if (_trunk != null)
+        {
+            float touch = TouchDepth(_trunk), before = _clientProgress;
+            _clientProgress = Math.Min(1, _clientProgress + Cutting.ProgressFor(advance, _storedLogs, RevolutionsPerStoredLog));
+            _clientDepthEstimate = SawDepth.Cutting(touch, _clientProgress);
+            step = (1 - touch) * (_clientProgress - before);
+        }
+        else
+        {
+            float before = _clientDepthEstimate;
+            _clientDepthEstimate = SawDepth.Raise(before, advance, RaiseRevolutions);
+            step = _clientDepthEstimate - before;
+        }
+        _clientDepth = SawDepth.Ease(Math.Clamp(_clientDepth + step, 0, 1), _clientDepthEstimate, dt);
     }
 
     // ---- Breaking ----
@@ -533,6 +590,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
                 yield return new ItemStack(sash);
         if (_parts.Crankshaft && Part(Parts.CrankshaftPath) is { } crankshaft)
             yield return new ItemStack(crankshaft);
+        if (_parts.Levers && Part(Parts.LeversPath) is { } levers)
+            yield return new ItemStack(levers);
         foreach (var blade in _blades)
             yield return blade.Clone();
         if (_trunk != null && Cutting.Recoverable(_progress))
@@ -565,6 +624,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         base.ToTreeAttributes(tree);
         tree.SetInt("sashes", _parts.Sashes);
         tree.SetBool("crankshaft", _parts.Crankshaft);
+        tree.SetBool("levers", _parts.Levers);
         tree.SetInt("bladeCount", _blades.Count);
         for (int i = 0; i < _blades.Count; i++)
             tree.SetItemstack("blade" + i, _blades[i]);
@@ -574,10 +634,12 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             tree.RemoveAttribute("trunk");
         tree.SetInt("storedLogs", _storedLogs);
         tree.SetFloat("progress", _progress);
+        tree.SetFloat("depth", _depth);
         if (Api?.Side == EnumAppSide.Server)
         {
             tree.SetFloat("minSpeed", Config.MinSpeed);
             tree.SetFloat("revolutionsPerStoredLog", Config.RevolutionsPerStoredLog);
+            tree.SetFloat("raiseRevolutions", Config.RaiseRevolutions);
         }
     }
 
@@ -589,21 +651,27 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         for (int i = 0; i < count; i++)
             if (tree.GetItemstack("blade" + i) is { } blade && blade.ResolveBlockOrItem(worldForResolving))
                 _blades.Add(blade);
-        _parts = new Parts(tree.GetInt("sashes"), tree.GetBool("crankshaft"),
+        _parts = new Parts(tree.GetInt("sashes"), tree.GetBool("crankshaft"), tree.GetBool("levers"),
             _blades.Select(b => Parts.KindOf(b.Collectible.Code.Path, out var metal) == PartKind.BladeKit ? metal! : ""));
         _trunk = tree.GetItemstack("trunk");
         if (_trunk != null && !_trunk.ResolveBlockOrItem(worldForResolving))
             _trunk = null;
         _storedLogs = tree.GetInt("storedLogs");
         _progress = tree.GetFloat("progress");
+        _depth = Math.Clamp(tree.GetFloat("depth"), 0, 1);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
             _serverMinSpeed = tree.TryGetFloat("minSpeed");
             _serverRevolutions = tree.TryGetFloat("revolutionsPerStoredLog");
+            _serverRaiseRevolutions = tree.TryGetFloat("raiseRevolutions");
         }
-        // A sync behind the client's own estimate (or a new trunk) resets it to the server's.
+        // A sync behind the client's own estimate (or a new trunk) resets it to the server's. While
+        // cutting, the depth estimate follows the progress on the next client tick; the shown depth
+        // eases to it either way.
         if (_trunk == null || Math.Abs(_clientProgress - _progress) > 0.05f)
             _clientProgress = _progress;
+        if (_trunk == null && (_depth == 0 || Math.Abs(_clientDepthEstimate - _depth) > 0.05f))
+            _clientDepthEstimate = _depth;
     }
 
     public override void OnStoreCollectibleMappings(Dictionary<int, AssetLocation> blockIdMapping, Dictionary<int, AssetLocation> itemIdMapping)
@@ -647,15 +715,23 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         }
         if (!_parts.Complete)
             return;
-        if (_trunk != null)
+        switch (Phase)
         {
-            dsc.AppendLine(L("info-trunk", _trunk.GetName(), _storedLogs));
-            dsc.AppendLine(L("info-progress", (int)(ClientProgress * 100)));
-            if (!Cutting.Recoverable(_progress))
-                dsc.AppendLine(L("info-committed"));
+            case MillPhase.Cutting:
+                dsc.AppendLine(L("info-trunk", _trunk!.GetName(), _storedLogs));
+                dsc.AppendLine(L("info-progress", (int)(ClientProgress * 100)));
+                if (!Cutting.Recoverable(_progress))
+                    dsc.AppendLine(L("info-committed"));
+                break;
+            case MillPhase.Raising:
+                // How far up the saws are: the client's eased depth, the server's own on the server.
+                float depth = Api?.Side == EnumAppSide.Client ? ClientSawDepth : _depth;
+                dsc.AppendLine(L("info-raising", (int)((1 - depth) * 100)));
+                break;
+            default:
+                dsc.AppendLine(L("info-empty"));
+                break;
         }
-        else
-            dsc.AppendLine(L("info-empty"));
         float speed = ShaftSpeed;
         dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
     }

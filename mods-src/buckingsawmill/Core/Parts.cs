@@ -1,13 +1,13 @@
 namespace BuckingSawmill.Core;
 
-public enum PartKind { None, Sash, Crankshaft, BladeKit }
+public enum PartKind { None, Sash, Crankshaft, Levers, BladeKit }
 
 /// <summary>Why a part can or cannot be fitted.</summary>
 public enum FitVerdict
 {
     Fits,
     NotAPart,
-    /// <summary>Both sashes or the crankshaft are already in.</summary>
+    /// <summary>Both sashes, the crankshaft or the levers are already in.</summary>
     AlreadyFitted,
     /// <summary>A blade kit needs a sash with no blade kit in it.</summary>
     NeedsFreeSash,
@@ -18,10 +18,11 @@ public enum FitVerdict
 
 /// <summary>
 /// The mill's assembly rules. Parts are Immersive Woodworking's sawmill items, recognised by code
-/// path alone as Immersive Woodworking does: <c>sawmillsash</c> (two), <c>sawmillcrankshaft</c> and
+/// path alone as Immersive Woodworking does: <c>sawmillsash</c> (two), <c>sawmillcrankshaft</c>,
+/// <c>sawmilllevers</c> (the linkage that trips the windlass when the saws bottom out) and
 /// <c>sawmillblade-{metal}</c> (two kits of one metal, each in a sash). Any order, apart from a blade
-/// kit needing a free sash. Immersive Woodworking's levers and carriage drive its log carriage, which
-/// this mill does not have, so they are not parts.
+/// kit needing a free sash. Immersive Woodworking's carriage drives its log carriage, which this mill
+/// does not have, so it is not a part.
 /// </summary>
 public sealed class Parts
 {
@@ -30,20 +31,23 @@ public sealed class Parts
 
     public const string SashPath = "sawmillsash";
     public const string CrankshaftPath = "sawmillcrankshaft";
+    public const string LeversPath = "sawmilllevers";
     public const string BladePrefix = "sawmillblade-";
 
     public int Sashes { get; private set; }
     public bool Crankshaft { get; private set; }
+    public bool Levers { get; private set; }
     private readonly List<string> _bladeMetals = [];
     public IReadOnlyList<string> BladeMetals => _bladeMetals;
 
-    public bool Complete => Sashes == SashesNeeded && Crankshaft && _bladeMetals.Count == BladeKitsNeeded;
+    public bool Complete => Sashes == SashesNeeded && Crankshaft && Levers && _bladeMetals.Count == BladeKitsNeeded;
     public string? BladeMetal => _bladeMetals.Count > 0 ? _bladeMetals[0] : null;
 
-    public Parts(int sashes = 0, bool crankshaft = false, IEnumerable<string>? bladeMetals = null)
+    public Parts(int sashes = 0, bool crankshaft = false, bool levers = false, IEnumerable<string>? bladeMetals = null)
     {
         Sashes = Math.Clamp(sashes, 0, SashesNeeded);
         Crankshaft = crankshaft;
+        Levers = levers;
         foreach (var metal in bladeMetals ?? [])
             if (_bladeMetals.Count < Math.Min(Sashes, BladeKitsNeeded))
                 _bladeMetals.Add(metal);
@@ -57,6 +61,7 @@ public sealed class Parts
         {
             case SashPath: return PartKind.Sash;
             case CrankshaftPath: return PartKind.Crankshaft;
+            case LeversPath: return PartKind.Levers;
         }
         if (path != null && path.StartsWith(BladePrefix, StringComparison.Ordinal) && path.Length > BladePrefix.Length)
         {
@@ -72,6 +77,7 @@ public sealed class Parts
         {
             case PartKind.Sash: return Sashes < SashesNeeded ? FitVerdict.Fits : FitVerdict.AlreadyFitted;
             case PartKind.Crankshaft: return Crankshaft ? FitVerdict.AlreadyFitted : FitVerdict.Fits;
+            case PartKind.Levers: return Levers ? FitVerdict.AlreadyFitted : FitVerdict.Fits;
             case PartKind.BladeKit:
                 if (_bladeMetals.Count >= BladeKitsNeeded)
                     return FitVerdict.BladesFitted;
@@ -94,6 +100,7 @@ public sealed class Parts
         {
             case PartKind.Sash: Sashes++; break;
             case PartKind.Crankshaft: Crankshaft = true; break;
+            case PartKind.Levers: Levers = true; break;
             case PartKind.BladeKit: _bladeMetals.Add(metal!); break;
         }
         return verdict;
@@ -116,6 +123,8 @@ public sealed class Parts
             yield return SashPath;
         if (!Crankshaft)
             yield return CrankshaftPath;
+        if (!Levers)
+            yield return LeversPath;
         for (int i = _bladeMetals.Count; i < BladeKitsNeeded; i++)
             yield return BladePrefix + "*";
     }
