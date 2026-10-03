@@ -106,6 +106,24 @@ names are not there and the block is left out. If ppex has changed shape (`IPipe
 string, float, bool)` or exlib's `BlockNetworkNode.HasConnectorAt(BlockFacing)` is gone) the mod
 logs a warning and the block is left out the same way.
 
+### Assembled chopper and sawmill in creative (`AssembledMachinesInCreative`)
+
+Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its chopper and sawmill are in the creative
+inventory only as empty frames, which take each part by hand. `AssembledMachines` adds a second
+creative entry of each frame, named "Chopper" and "Sawmill", that places the machine assembled:
+every mandatory part installed, with a new steel chopper head or blade kit. The sawmill's optional
+flywheel is left out. The entry is the frame's own block with an `assembledWith` attribute naming
+the metal (any metal the head or blade kit comes in; the creative entry is steel). It has the
+frame's icon, and no handbook page: the frame's page stays as it is.
+
+Nothing of Immersive Woodworking is patched or referenced. On the server, before the game reads
+blocktypes, the two frame blocktypes get the creative stack and two behaviors of this mod: a block
+behavior that names the stack, and a block entity behavior that, when the frame is placed from
+such a stack, sets the part flags and the head or blade kit in the block entity's own saved
+attributes and loads them back, the way a saved machine loads. Breaking the machine drops the
+frame and its parts, as for one built by hand. If a blocktype or the saved attributes are not as
+expected the mod logs a warning and that frame stays as Immersive Woodworking ships it.
+
 ### Age of Flax rebalance (`AgeOfFlaxRebalance`)
 
 Age of Flax (fork) (`ageofflaxfork` 1.1.6, asset domain `ageofflax`). Ripe flax drops flax bundles
@@ -307,6 +325,10 @@ transpiler (its assembly is loaded on the server, its system is not) and cart re
 method, in both orders, and requires the transpiler to have swapped in its own call and the method
 to run. The patch itself only goes in on a client, which Atlas does not run, so whether it is applied
 and acts there is checked by hand in the game.
+
+It also requires each Immersive Woodworking frame to have the assembled creative stack next to the
+plain one, named after the machine, and places both: the plain frame is incomplete, and the
+assembled one is complete with a steel head or blade kit and drops its parts.
 
 `tests/PackTests/AgeOfFlaxRebalanceScenarios.cs` (Atlas) reads the loaded ripples' and hatchels'
 yields (what the tools use, set from the patched balance file), requires steel and no iron in the

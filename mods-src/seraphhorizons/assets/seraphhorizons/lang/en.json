@@ -7,6 +7,7 @@
   "blockhelp-creativesteamsource-flow-down": "Lower flow rate",
   "creativesteamsource-info-pressure": "Output pressure: {0} atm",
   "creativesteamsource-info-flow": "Steam flow: up to {0} L/s",
+  "assembledmachine-info": "Places assembled, with a new {0}.",
   "tidyvariants-creative-hotkey-toggle": "Creative inventory: expand or collapse the hovered variant group",
   "tidyvariants-creative-group-title": "{0}: {1} variants",
   "tidyvariants-creative-hint-expand": "Right-click to expand (or {0})",

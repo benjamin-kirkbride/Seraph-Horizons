@@ -35,6 +35,7 @@ public class SeraphHorizonsSystem : ModSystem
     {
         Config(api);
         CreativeSteamSource.RegisterClasses(api);
+        AssembledMachines.RegisterClasses(api);
         // Before the game's patch loader, which applies the patches in AssetsLoaded.
         _ageOfFlax = Config(api).AgeOfFlaxRebalance && AgeOfFlaxRebalance.Applies(api)
                      && AgeOfFlaxRebalance.Bind(api.Logger);
@@ -101,6 +102,8 @@ public class SeraphHorizonsSystem : ModSystem
         if (api.Side == EnumAppSide.Server
             && !(Config(api).CreativeSteamSource && CreativeSteamSource.Applies(api) && CreativeSteamSource.Bind(api.Logger)))
             CreativeSteamSource.Disable(api);
+        if (api.Side == EnumAppSide.Server && Config(api).AssembledMachinesInCreative && AssembledMachines.Applies(api))
+            AssembledMachines.AddToBlocktypes(api);
     }
 
     public override void Dispose()
@@ -172,4 +175,8 @@ public class SeraphHorizonsConfig
     /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
     /// (server side; off means they stay at 0).</summary>
     public bool FoodHydration { get; set; } = true;
+
+    /// <summary>Immersive Woodworking: the chopper and the sawmill are in the creative inventory
+    /// assembled, with a steel head or blade kit, next to their empty frames.</summary>
+    public bool AssembledMachinesInCreative { get; set; } = true;
 }
