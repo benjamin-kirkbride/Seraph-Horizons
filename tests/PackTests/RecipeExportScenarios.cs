@@ -503,20 +503,23 @@ public class RecipeExportScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Two_exports_are_identical()
     {
-        var api = (ICoreServerAPI)World.Api;
-        var a = new JObject();
-        var b = new JObject();
-        var refsA = RecipeSection.Fill(api, a);
-        var refsB = RecipeSection.Fill(api, b);
-        Assert.Equal(a.ToString(Formatting.None), b.ToString(Formatting.None));
-        Assert.Equal(refsA.OrderBy(c => c, StringComparer.Ordinal), refsB.OrderBy(c => c, StringComparer.Ordinal));
+        // The first export is the document every scenario reads; a recipe fill takes a while.
+        var second = new JObject();
+        var refs = RecipeSection.Fill((ICoreServerAPI)World.Api, second);
+        Assert.Equal(new[] { "recipeTypes", "recipes" }, second.Properties().Select(p => p.Name).Order(StringComparer.Ordinal));
+        foreach (var section in second.Properties())
+        {
+            Assert.Equal(Doc[section.Name]!.ToString(Formatting.None), section.Value.ToString(Formatting.None));
+        }
+        Assert.Equal(ExportUnderTest.Referenced(World.Api).OrderBy(c => c, StringComparer.Ordinal),
+            refs.OrderBy(c => c, StringComparer.Ordinal));
     }
 
     /// <summary>The referenced set holds exactly the codes of every variant stack.</summary>
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Referenced_codes_cover_every_variant_stack()
     {
-        var referenced = RecipeSection.Fill((ICoreServerAPI)World.Api, new JObject());
+        var referenced = ExportUnderTest.Referenced(World.Api);
         var inVariants = Doc["recipes"]!.SelectMany(r => r["variants"]!)
             .SelectMany(v => v["ingredients"]!.SelectMany(s => s).Concat(v["outputs"]!))
             .Select(s => (string)s["code"]!).ToHashSet();
