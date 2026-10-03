@@ -31,6 +31,12 @@
       "mod": "interestingoregen",
       "why": "IOG applies its mngeology+geoaddons ore patches before the geoaddons patch that creates the entry they edit.",
       "pattern": "Patch \\d+ \\(target: interestingoregen:worldgen/deposits/(metalore|gems)/\\w+\\.json\\) in interestingoregen:patches/mngeology/worldgen/geoaddons/(metalore|gems)/\\w+\\.json failed because supplied path /0/"
+    },
+    {
+      "issue": 298,
+      "mod": "scrolled",
+      "why": "Scrolled's rolled locator map lists 18 Better Ruins map types but not forgottenvillage; that one roll recipe is skipped.",
+      "pattern": "Grid Recipe 'scrolled:locatormap-roll': Output scrolled:br-rolled-locatormap-forgottenvillage cannot be resolved\\."
     }
   ],
   "schematicBlocks": [
