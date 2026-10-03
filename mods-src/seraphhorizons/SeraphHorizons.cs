@@ -1,4 +1,6 @@
 using HarmonyLib;
+using SeraphHorizons.Mod.Core;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 
@@ -18,6 +20,8 @@ public class SeraphHorizonsSystem : ModSystem
 
     private SeraphHorizonsConfig? _config;
     private Harmony? _harmony;
+    // Its own id: in singleplayer the server's instance of this system unpatches HarmonyId.
+    private Harmony? _clientHarmony;
     private bool _ageOfFlax;
 
     /// <summary>This side's settings. Loaded on first use (this system's <see cref="Start"/> at the
@@ -53,6 +57,30 @@ public class SeraphHorizonsSystem : ModSystem
         }
     }
 
+    // Cart reach acts where the player picks what is under the crosshair: the client. Entity types
+    // arrive from the server, so the matching ones are known once the level is finalized.
+    public override void StartClientSide(ICoreClientAPI api)
+    {
+        if (Config(api).CartReach)
+            api.Event.LevelFinalize += () => PatchCartReach(api);
+    }
+
+    private void PatchCartReach(ICoreClientAPI api)
+    {
+        var rule = new EntityReach(Config(api).CartReachEntities);
+        var types = CartReach.MatchingTypes(api.World, rule);
+        if (types.Count == 0)
+        {
+            api.Logger.Notification("[seraphhorizons] Cart reach: no entity type matches {0}; nothing to do",
+                string.Join(", ", rule.Patterns));
+            return;
+        }
+        _clientHarmony ??= new Harmony(CartReach.HarmonyId);
+        if (CartReach.Patch(_clientHarmony, api, rule))
+            api.Logger.Notification("[seraphhorizons] Cart reach: far selection boxes of {0} entity types are in reach",
+                types.Count);
+    }
+
     // Lang files are loaded, mod assets included, before this phase on both sides.
     // Blocktypes are read from the assets later in this phase (the game's loader runs at 0.2, this
     // system at the default 0.1), on the server only: clients get the blocks from the server.
@@ -77,6 +105,12 @@ public class SeraphHorizonsSystem : ModSystem
     {
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
+        if (_clientHarmony != null)
+        {
+            _clientHarmony.UnpatchAll(CartReach.HarmonyId);
+            _clientHarmony = null;
+            CartReach.Unbind();
+        }
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -121,4 +155,14 @@ public class SeraphHorizonsConfig
     /// <summary>Pipes and Power Expanded: the Fittings handbook page says which blocks a chimney
     /// vents a pipe network through, and that one on a plain pipe only caps it (text only).</summary>
     public bool ChimneyVentingExplained { get; set; } = true;
+
+    /// <summary>Cartwright's Caravan: the slots at a cart's far end can be used from there, as
+    /// the ones near its middle can (client side). The picking range is unchanged: it is measured
+    /// to the slot instead of to the cart's origin, for the entities in
+    /// <see cref="CartReachEntities"/>.</summary>
+    public bool CartReach { get; set; } = true;
+
+    /// <summary>Entity codes that <see cref="CartReach"/> applies to (<c>domain:path</c>, <c>*</c>
+    /// wildcards): Cartwright's carts, sleds and market stalls.</summary>
+    public string[] CartReachEntities { get; set; } = ["cartwrightscaravan:*"];
 }
