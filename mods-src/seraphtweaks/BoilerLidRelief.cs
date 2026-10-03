@@ -92,8 +92,6 @@ public static class BoilerLidRelief
             "а через недогляд бойлер відкидає кришку та втрачає пару"),
     ];
 
-    public sealed record LangEdit(string Language, string Key, string Old, string New);
-
     public static bool Applies(ICoreAPI api) => api.ModLoader.IsModEnabled(ModId);
 
     /// <summary>Prefixes <c>Explode()</c>. Returns whether the patch went in.</summary>
@@ -141,35 +139,6 @@ public static class BoilerLidRelief
             randomizePitch: false, BlowSoundRange, BlowSoundVolume);
     }
 
-    /// <summary>Applies <see cref="LangEdits"/> to each language's entries. Languages other than
-    /// the current one load lazily, so this loads those few now, from the same assets the game
-    /// would use. Safe to run twice: a singleplayer game runs it for the client and the server,
-    /// which share the entries.</summary>
-    public static void RewriteText(ILogger logger)
-    {
-        foreach (var language in LangEdits.GroupBy(edit => edit.Language))
-        {
-            if (!Lang.AvailableLanguages.TryGetValue(language.Key, out var translations))
-                continue;
-            var entries = translations.GetAllEntries();
-            foreach (var edit in language)
-            {
-                if (!entries.TryGetValue(edit.Key, out var text))
-                {
-                    logger.Warning($"[seraphtweaks] No {edit.Language} lang entry {edit.Key}; ppex changed, so it "
-                                   + "is not reworded");
-                    continue;
-                }
-                if (text.Contains(edit.New))
-                    continue;
-                if (!text.Contains(edit.Old))
-                {
-                    logger.Warning($"[seraphtweaks] {edit.Language} lang entry {edit.Key} no longer reads as "
-                                   + "expected; ppex changed, so it is not reworded");
-                    continue;
-                }
-                entries[edit.Key] = text.Replace(edit.Old, edit.New);
-            }
-        }
-    }
+    /// <summary>Applies <see cref="LangEdits"/> (<see cref="LangText.Apply"/>).</summary>
+    public static void RewriteText(ILogger logger) => LangText.Apply(LangEdits, ModId, logger);
 }
