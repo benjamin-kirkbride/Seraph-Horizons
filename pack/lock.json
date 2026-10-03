@@ -27,6 +27,25 @@
       }
     },
     {
+      "id": "configkit",
+      "version": "1.4.1",
+      "releaseId": 57466,
+      "fileId": 123389,
+      "fileName": "configkit_1.4.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/configkit_1.4.1_3accda8d8af59be6b42af6dfd4041352.zip?dl=configkit_1.4.1.zip",
+      "sha256": "016f640a14d930c94f3741cb80d498f7b927faee15c44618a0a0454c92805dc4",
+      "size": 258847,
+      "side": "universal",
+      "license": "MIT",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "aculinaryartillery",
       "version": "2.0.0-dev.26",
       "releaseId": 58842,

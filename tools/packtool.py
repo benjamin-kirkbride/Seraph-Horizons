@@ -767,13 +767,55 @@ def cairn_bundle(meta: dict, lock: dict) -> dict:
     }
 
 
-def collect_mod_config() -> dict:
-    """pack/config/ModConfig/**/*.json -> {relative/path.json: {keys to merge}}."""
-    base = ROOT / "pack" / "config" / "ModConfig"
+def collect_mod_config(base: Path | None = None) -> dict:
+    """pack/config/ModConfig/**/*.{json,yaml} -> {relative/path: {keys to merge}}.
+
+    A .yaml file is the config ConfigLib or ConfigKit generates for a content mod
+    (ModConfig/<domain>.yaml). Cairn seeds that file from the mod's own settings and then
+    sets only the keys named here, so ours lists just the values the pack changes.
+    """
+    base = base or ROOT / "pack" / "config" / "ModConfig"
     if not base.exists():
         return {}
-    return {f.relative_to(base).as_posix(): json.loads(f.read_text())
-            for f in sorted(base.rglob("*.json"))}
+    files = sorted(f for f in base.rglob("*") if f.suffix in (".json", ".yaml"))
+    return {f.relative_to(base).as_posix():
+            json.loads(f.read_text()) if f.suffix == ".json" else flat_yaml(f)
+            for f in files}
+
+
+YAML_SCALAR = re.compile(r"^([A-Za-z0-9_-]+):\s+(.+?)\s*$")
+
+
+def flat_yaml(path: Path) -> dict:
+    """Top-level `key: scalar` lines only, the one shape those generated files have.
+
+    Not a YAML parser: anything else is an error, so a value never reaches the manifest
+    as something other than what the file says.
+    """
+    out: dict = {}
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        m = YAML_SCALAR.match(line)
+        if not m:
+            die(f"{path}:{n}: expected `key: value`")
+        key, raw = m.groups()
+        if key in out:
+            die(f"{path}:{n}: {key} is set twice")
+        # Cairn refuses it: a version that isn't the mod's own makes the mod reset the file.
+        if key.lower() == "version":
+            die(f"{path}:{n}: don't set version; Cairn takes it from the mod")
+        if raw in ("true", "false"):
+            out[key] = raw == "true"
+        elif re.fullmatch(r"-?\d+", raw):
+            out[key] = int(raw)
+        elif re.fullmatch(r"-?\d+\.\d+", raw):
+            out[key] = float(raw)
+        elif re.fullmatch(r'"[^"\\]*"', raw):
+            out[key] = raw[1:-1]
+        else:
+            die(f"{path}:{n}: {key} must be true, false, a number or a \"quoted string\"")
+    return out
 
 
 def server_fetch_script(lock: dict) -> str:

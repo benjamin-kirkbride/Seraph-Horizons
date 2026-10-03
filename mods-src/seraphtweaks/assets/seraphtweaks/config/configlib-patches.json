@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "settings": {
+    "float": {
+      "BATTLETOWERS_SURFACE_CHANCE": {
+        "name": "battletowers_surface_chance",
+        "ingui": "Battle Towers: surface tower chance",
+        "comment": "Chance per chunk of a surface battle tower, before the vanilla structure multiplier. Battle Towers ships 0.03.",
+        "default": 0.01,
+        "weight": 1,
+        "range": { "min": 0.0, "max": 1.0 }
+      }
+    },
+    "integer": {
+      "BATTLETOWERS_SURFACE_MIN_DISTANCE": {
+        "name": "battletowers_surface_min_distance",
+        "ingui": "Battle Towers: blocks between surface towers",
+        "comment": "Least distance between two surface battle towers. Battle Towers ships 200.",
+        "default": 600,
+        "weight": 2,
+        "range": { "min": 0, "max": 10000 }
+      }
+    }
+  },
+  "patches": {
+    "float": {
+      "battletowers:patches/survival-worldgen-structures.json": {
+        "0/value/chance": "BATTLETOWERS_SURFACE_CHANCE"
+      }
+    },
+    "integer": {
+      "battletowers:patches/survival-worldgen-structures.json": {
+        "0/value/minGroupDistance": "BATTLETOWERS_SURFACE_MIN_DISTANCE"
+      }
+    }
+  }
+}
