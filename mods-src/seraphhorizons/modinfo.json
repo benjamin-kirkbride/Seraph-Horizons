@@ -2,7 +2,7 @@
   "type": "code",
   "modid": "seraphhorizons",
   "name": "Seraph Horizons",
-  "description": "The Seraph Horizons modpack's own mod. It holds the pack's tweaks, each one switchable in ModConfig/seraphhorizons.json: gameplay tweaks to other mods; Tidy Variants, which hides orientation and open/closed variants and groups the remaining variants of each block or item into one creative tile and one handbook page (right-click a tile to expand its group); /revealmap, which shows terrain already generated (e.g. by /wgen pregen) on your world map without going there; and creative mod tabs, a button that switches the creative inventory to one tab per mod.",
+  "description": "The Seraph Horizons modpack's own mod. It holds the pack's tweaks, each one switchable in ModConfig/seraphhorizons.json: gameplay tweaks to other mods; an admin /clear command that clears the weather and sets daytime (/clear stay holds it until /clear stop); Tidy Variants, which hides orientation and open/closed variants and groups the remaining variants of each block or item into one creative tile and one handbook page (right-click a tile to expand its group); /revealmap, which shows terrain already generated (e.g. by /wgen pregen) on your world map without going there; and creative mod tabs, a button that switches the creative inventory to one tab per mod.",
   "authors": ["Benjamin Kirkbride"],
   "version": "1.0.0",
   "side": "Universal",

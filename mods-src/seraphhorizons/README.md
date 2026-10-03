@@ -15,11 +15,11 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output and feeds the creative steam source; Tidy Variants and cart reach run on the
-client; Map Reveal has a half on each side, and the creative mod tabs need both. The client needs
-the mod because the steam source is a block with its own classes: the game cannot build a block
-whose class it does not know, so a client without the mod could not join a server that has it (a
-server with the steam source switched off, or without ppex, has no such block).
+chopper's output, feeds the creative steam source and runs `/clear`; Tidy Variants and cart reach
+run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+client needs the mod because the steam source is a block with its own classes: the game cannot
+build a block whose class it does not know, so a client without the mod could not join a server
+that has it (a server with the steam source switched off, or without ppex, has no such block).
 
 ## Tweaks
 
@@ -356,6 +356,71 @@ out of TooManyTabs' and Dovidarium's way, and the in-game checklist are in
 `docs/variant-grouping/creative-mod-tabs.md`. `CreativeModTabs/Core/` is game-independent (the tab plan,
 domain owners, the state file, the strip's scrolling) and tested in `tests/`.
 
+### Clear weather and daytime on command (`ClearCommand`)
+
+An admin command, not a change to another mod. It needs the `controlserver` privilege, as the
+game's `/weather` does; of the game's default roles only `admin` has it.
+
+- `/clear` sets the time to day, ends a temporal storm and clears the weather, once.
+- `/clear stay` does the same and holds it: time stands still, the weather stays clear and no
+  temporal storm comes, until `/clear stop`.
+- `/clear stop` puts back what `stay` changed, as it was before.
+
+`/clear stay` when it already holds, and `/clear stop` when nothing is held, say so and change
+nothing. Any other word after `/clear` is an error.
+
+**Time.** If the hour is between 8:00 and 16:00 it is left alone, otherwise the clock moves forward
+to the next 12:00 (the game's `/time set day`; the clock never goes back). Hours scale with the
+world's day length (`Core/ClearSkyPlan.cs`). Moving the clock is the same as `/time set`: crops,
+cooking, spoilage and so on catch up with the skipped hours.
+
+**Weather.** Each 512-block region has a weather pattern (clouds), a wind pattern and a weather
+event (thunder, hail). Every loaded region gets the clear sky pattern and no event, at once, as
+`/weather seti clearsky` and `/weather setev noevent` do, each with a full duration ahead. Wind is
+left alone: a still or stormy wind is not rain, and windmills need it. Rain is not part of a region:
+it is one noise over the whole world, shifted in time by the weather system's `RainCloudDaysOffset`.
+`/clear` moves that offset on to the next dry spell (below 0.04, `/weather stoprain`'s threshold)
+where every online player and the spawn are dry, a day long if one starts within 21 days, or else
+the longest shorter one. Like `/weather stoprain` this moves the rain everywhere, not just there. If
+the rain is fixed with `/weather setprecip`, `/clear` leaves it and says so. After `/clear` the
+weather changes as usual.
+
+**Temporal storms.** A storm that is on ends, as when it runs out (half its creatures leave and the
+next storm is scheduled from now, a full interval away). A storm the game is about to announce or
+has announced (within 0.35 days) is skipped the same way: the next one is scheduled a full interval
+from now. A storm further off is left as scheduled. Both go through the game's own storm tick
+(`SystemTemporalStability.onTempStormTick`), with its "waning" and "imminent" messages left out.
+With temporal storms off in the world settings, or in a creative world, there is nothing to do.
+
+**Holding it (`stay`).** The lock is the game's own switches, as the matching commands set them:
+
+| Held | As | Put back by `stop` |
+|---|---|---|
+| no rain anywhere | `/weather setprecip -1` | the override it had (`/weather setprecip`), or none |
+| patterns and events stay as they are | `/weather acp off` | auto-changing on or off, as it was |
+| time stands still | the calendar's `baseline` time speed (`/time speed`, `/time stop`) set so that all the speed modifiers sum to 0 | `baseline` as it was, or removed if there was none |
+| the next temporal storm as far off as at the lock | its scheduled day, kept that many days ahead | that many days ahead of the time at `stop` |
+
+The temporal storm world setting is never changed, so storms switched off stay off. Every second
+the lock is enforced again: every loaded region clear (a region loaded since comes up clear within
+the second), no override other than -1, auto-changing off, a storm that was started ended. Time is
+held as soon as any speed modifier changes (a postfix on `GameCalendar.CalculateCurrentTimeSpeed`),
+so sleeping players, another speed modifier or `/time resume` do not move the clock. The
+lock and what it replaced are kept in the savegame (`seraphhorizons:clearlock`) and reapplied on
+load, so it outlasts a restart; the game saves the override and the time speed itself, but not
+auto-changing patterns.
+
+Time standing still stops whatever the game times by its calendar, as `/time stop` does: for
+example crops on farmland, barrels, pit kilns, food spoiling and other item transitions (drying,
+curing), the season, the sun and the moon, snow accumulation, and the next temporal storm. Whatever
+runs on real seconds goes on: for example a firepit's or bloomery's cooking, mechanical power, and
+creatures moving. Wind stays as it was, since patterns do not change.
+
+With the switch off there is no `/clear`, and a lock left in the savegame is released when the
+server starts. If the mod is removed while a lock holds, the `baseline` speed stays where the lock
+left it and time stays still: `/time speed 60` (or the old value) puts it back, and
+`/weather setprecipa` and `/weather acp on` the weather.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -393,9 +458,24 @@ ships in the mod zip.
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, and where the chopper drops its piles (`Core/`),
-Map Reveal's `Core/`, and the creative mod tabs' plan, domain owners, state file and strip
-scrolling (`CreativeModTabs/Core/`). `dotnet test mods-src/seraphhorizons/tests`.
+cart reach's entity matching and reach rule, where the chopper drops its piles, and `/clear`'s
+daytime, dry-spell search and saved lock (`Core/`), Map Reveal's `Core/`, and the creative mod
+tabs' plan, domain owners, state file and strip scrolling (`CreativeModTabs/Core/`).
+`dotnet test mods-src/seraphhorizons/tests`.
+
+`tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms
+run) requires `/clear` to be this mod's and `controlserver` the admin role's alone, and a player
+with the `suplayer` role refused all three forms. At night, with thunder over cumulonimbus in every
+region, rain at the spawn and a temporal storm on, `/clear` must set day, end the storm (the next
+one more than 0.35 days off), clear every loaded region for a while, dry the spawn and hold nothing.
+A storm 0.1 days off must be skipped and one 3 days off left alone. With an override, a `baseline`
+speed and a storm 3 days off set first, `/clear stay` must hold it all (no time passing, a sleeping
+speed-up cancelled as it is set, `/weather`-style changes undone within the second, regions loaded
+after a teleport clear, a storm started by hand ended), survive a reload of its savegame entry, say
+so when run twice, and `/clear stop` must put back the override, auto-changing patterns, every
+speed modifier and the storm's distance. `ClearCommandOffScenarios` boots a server with the switch
+off and requires no `/clear`. A real restart is not run: Atlas boots each class once, so the
+reload reads the lock back from the savegame data in the same server.
 
 `tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
 the lid shut and with it open, and requires the boiler still standing with its lid open. It
