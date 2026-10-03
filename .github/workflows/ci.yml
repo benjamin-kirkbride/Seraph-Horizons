@@ -189,8 +189,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      CAIRN_VERSION: "0.9.8"
-      CAIRN_SHA256: e2133a66439046cfa8942bc16bac3f9c9b092c81a0cf4d99a20643e84be85490
+      CAIRN_VERSION: "0.9.10"
+      CAIRN_SHA256: b7a2b6359fb8c113e17854184c12b3a7703a26c784324152e17f5d84b850bf68
       CAIRN_HOME: /tmp/cairn-home
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
