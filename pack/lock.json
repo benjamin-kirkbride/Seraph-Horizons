@@ -2883,6 +2883,32 @@
       "dependencies": {}
     },
     {
+      "id": "stabilityabove",
+      "version": "1.2.1",
+      "releaseId": 55674,
+      "fileId": 119940,
+      "fileName": "stabilityabove_1.2.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/stabilityabove_1.2.1_bb956da04026440902ec7c40437635a6.zip?dl=stabilityabove_1.2.1.zip",
+      "sha256": "607dcdf49ee3da7593a11cb7c2edd85aabbe5d62ceda998a4c729e3a3b0be05e",
+      "size": 55374,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "resonatorrangeincrease",
       "version": "1.0.1",
       "releaseId": 38207,
