@@ -29,6 +29,7 @@ public class SeraphTweaksSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         Config(api);
+        CreativeSteamSource.RegisterClasses(api);
     }
 
     // Behavior changes run on the server only: that is where the tweaked mods simulate.
@@ -42,10 +43,15 @@ public class SeraphTweaksSystem : ModSystem
     }
 
     // Lang files are loaded, mod assets included, before this phase on both sides.
+    // Blocktypes are read from the assets later in this phase (the game's loader runs at 0.2, this
+    // system at the default 0.1), on the server only: clients get the blocks from the server.
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (Config(api).BoilerLidBlowsOpen && BoilerLidRelief.Applies(api))
             BoilerLidRelief.RewriteText(api.Logger);
+        if (api.Side == EnumAppSide.Server
+            && !(Config(api).CreativeSteamSource && CreativeSteamSource.Applies(api) && CreativeSteamSource.Bind(api.Logger)))
+            CreativeSteamSource.Disable(api);
     }
 
     public override void Dispose()
@@ -82,4 +88,8 @@ public class SeraphTweaksConfig
     /// <summary>Tidy Variants: hides orientation and open/closed variants and groups the rest in
     /// the creative inventory and the handbook (client side; off means both stay vanilla).</summary>
     public bool TidyVariants { get; set; } = true;
+
+    /// <summary>Pipes and Power Expanded: a creative-only block that fills the pipes connected to it
+    /// with steam, set up like the auto rotor (off means the block does not exist).</summary>
+    public bool CreativeSteamSource { get; set; } = true;
 }
