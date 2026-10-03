@@ -1,4 +1,12 @@
 {
+  "block-creativesteamsource": "Steam source (Creative)",
+  "blockdesc-creativesteamsource": "Fills the Pipes and Power Expanded pipes connected to it with steam, at the set pressure and up to the set flow rate.",
+  "blockhelp-creativesteamsource-pressure-up": "Increase pressure",
+  "blockhelp-creativesteamsource-pressure-down": "Lower pressure",
+  "blockhelp-creativesteamsource-flow-up": "Increase flow rate",
+  "blockhelp-creativesteamsource-flow-down": "Lower flow rate",
+  "creativesteamsource-info-pressure": "Output pressure: {0} atm",
+  "creativesteamsource-info-flow": "Steam flow: up to {0} L/s",
   "tidyvariants-creative-hotkey-toggle": "Creative inventory: expand or collapse the hovered variant group",
   "tidyvariants-creative-group-title": "{0}: {1} variants",
   "tidyvariants-creative-hint-expand": "Right-click to expand (or {0})",

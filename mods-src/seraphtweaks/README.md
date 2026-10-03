@@ -9,9 +9,11 @@ One whose mod has changed shape logs a warning and leaves that mod alone.
 Only the game's own assemblies are referenced at build time: each tweak to another mod finds what
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
-`"side": "Universal"`, not required on the client. The server does the boiler behavior; Tidy
-Variants runs on the client. A client with the mod also gets the reworded text and Tidy Variants;
-one without it sees vanilla text, a vanilla creative inventory and a vanilla handbook.
+`"side": "Universal"`, required on the client. The server does the boiler behavior and feeds the
+creative steam source; Tidy Variants runs on the client. The client needs the mod because the
+steam source is a block with its own classes: the game cannot build a block whose class it does not
+know, so a client without the mod could not join a server that has it (a server with the steam
+source switched off, or without ppex, has no such block).
 
 ## Tweaks
 
@@ -35,6 +37,35 @@ Russian, Ukrainian): the over-pressure line in the boiler's info ("until the lid
 the passages in the Steam Power and Boilers handbook pages. Each edit replaces one exact passage of
 ppex's text (`LangEdits`). If ppex rewords it, that edit logs a warning and does nothing. Languages
 other than the current one load lazily, so the mod loads those three when it starts.
+
+### Creative steam source (`CreativeSteamSource`)
+
+Pipes and Power Expanded (`ppex`). A creative-only block, `seraphtweaks:creativesteamsource` ("Steam
+source (Creative)"), that keeps every ppex pipe connected to it full of steam: the steam
+counterpart of the game's creative auto rotor, for testing engines and pipe layouts without a
+boiler. It is a plain cube with no texture of its own (the game's missing-texture look), in the
+General and Pipes and Power Expanded creative tabs. It has no recipe, drops nothing and is left
+out of the handbook.
+
+It is set up the way the auto rotor is, by right-clicking it (the block's info shows both
+settings):
+
+- right-click: raise the output pressure, Ctrl+right-click: lower it (1 to 10 atm, from 3);
+- Shift+right-click: raise the flow rate, Ctrl+Shift+right-click: lower it (0 to 100 L/s in
+  steps of 10, from 30; 0 is off).
+
+Each setting wraps around at its ends, as the auto rotor's do. Place a pipe against any face of
+the block with a connector pointing at it (placing the pipe by clicking the block does that). Each
+connected pipe takes its share of the flow, as steam at the set pressure, through ppex's own
+`IPipeNode.TryProduce` on the pipe: the network fills until it reaches that pressure, never past
+the weakest pipe's burst pressure, exactly as from a boiler. At or above a pipe's burst pressure
+(iron 5 atm, steel 10 atm by ppex's defaults) ppex's over-pressure timer bursts a pipe as usual,
+and a leaking network is capped at 1 atm as ppex caps any source.
+
+Without ppex, or with the switch off, the blocktype is disabled before the game loads it, so the
+block does not exist at all. If ppex has changed shape (`IPipeNode.TryProduce(float, float,
+string, float, bool)` or exlib's `BlockNetworkNode.HasConnectorAt(BlockFacing)` is gone) the mod
+logs a warning and the block is left out the same way.
 
 ### Tidy Variants (`TidyVariants`)
 
@@ -80,6 +111,11 @@ the lid shut and with it open, and requires the boiler still standing with its l
 requires `BlowSound` to be ExpandedLib's `ExSounds.MediumExplosion` and present in the assets. It also
 requires every `LangEdits` passage reworded, and an edit set for every language ppex ships: when
 either fails after a ppex update, match the edits to ppex's new text or add the new language.
+
+The same class places the creative steam source against a closed iron pipe and requires the pipe
+full of steam at the set pressure, and no higher; it also requires the block in the creative
+inventory with no drops and no recipe. `CreativeSteamSourceOffScenarios` boots a server with the
+switch off and requires the block not to exist.
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per
