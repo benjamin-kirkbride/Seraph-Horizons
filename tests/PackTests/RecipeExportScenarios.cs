@@ -569,6 +569,8 @@ public class RecipeExportScenarios : AtlasScenarioBase
         foreach (var expected in new[] { "gridrecipes", "smithingrecipes", "knappingrecipes", "clayformingrecipes",
                                          "barrelrecipes", "alloyrecipes", "cookingrecipes" })
             Assert.Contains(expected, codes);
+        // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
+        Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
         // Blocks built in place are the one type not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
