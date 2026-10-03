@@ -1558,6 +1558,28 @@
       }
     },
     {
+      "id": "loggingmod",
+      "version": "0.3.6",
+      "releaseId": 48115,
+      "fileId": 105204,
+      "fileName": "LoggingMod0.3.6.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/LoggingMod0.3.6_be2137ddcfdf8912e731860023f520f9.zip?dl=LoggingMod0.3.6.zip",
+      "sha256": "c0caa746dc5c745fd1c32076d2b62bfce20642f5f4b4a718b36d6e6ebfe7468b",
+      "size": 447779,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3"
+      ],
+      "dependencies": {
+        "game": ""
+      }
+    },
+    {
       "id": "saltpeterproductionfork",
       "version": "1.1.1",
       "releaseId": 55604,
