@@ -109,6 +109,23 @@ public class SeraphTweaksScenarios : AtlasScenarioBase
             .Order();
         var edited = BoilerLidRelief.LangEdits.Select(edit => edit.Language).Distinct().Order();
         Assert.Equal(shipped, edited);
+        Assert.Equal(shipped, ChimneyVentText.LangEdits.Select(edit => edit.Language).Distinct().Order());
+    }
+
+    // Fails when ppex rewords the Fittings page or the chimney's look-at line: update
+    // ChimneyVentText.LangEdits to match.
+    [AtlasScenario]
+    public void Text_says_where_a_chimney_vents()
+    {
+        Assert.All(ChimneyVentText.LangEdits, edit =>
+        {
+            var text = Lang.AvailableLanguages[edit.Language].GetAllEntries()[edit.Key];
+            Assert.Contains(edit.New, text);
+            Assert.DoesNotContain(edit.Old, text);
+            // The page quotes the line ppex shows on a venting chimney, up to its amount.
+            var venting = Lang.GetL(edit.Language, "ppex:chimney-info-venting", "").Split(':')[0];
+            Assert.Contains(venting, edit.New);
+        });
     }
 
     // ConfigKit writes the settings into Battle Towers' own patch file, by position, before the

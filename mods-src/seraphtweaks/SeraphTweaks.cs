@@ -60,6 +60,8 @@ public class SeraphTweaksSystem : ModSystem
     {
         if (Config(api).BoilerLidBlowsOpen && BoilerLidRelief.Applies(api))
             BoilerLidRelief.RewriteText(api.Logger);
+        if (Config(api).ChimneyVentingExplained && ChimneyVentText.Applies(api))
+            ChimneyVentText.RewriteText(api.Logger);
         if (_ageOfFlax)
         {
             LangText.Apply(AgeOfFlaxRebalance.LangEdits, AgeOfFlaxRebalance.ModId, api.Logger);
@@ -115,4 +117,8 @@ public class SeraphTweaksConfig
     /// by tool tier; the advanced tools take steel; every break takes raw or rendered fat; and its
     /// text says so.</summary>
     public bool AgeOfFlaxRebalance { get; set; } = true;
+
+    /// <summary>Pipes and Power Expanded: the Fittings handbook page says which blocks a chimney
+    /// vents a pipe network through, and that one on a plain pipe only caps it (text only).</summary>
+    public bool ChimneyVentingExplained { get; set; } = true;
 }
