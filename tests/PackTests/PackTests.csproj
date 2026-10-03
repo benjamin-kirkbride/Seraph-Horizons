@@ -53,7 +53,7 @@
     <ProjectReference Include="../../mods-src/constructionhelpfix/ConstructionHelpFix.csproj">
       <AtlasMod>true</AtlasMod>
     </ProjectReference>
-    <ProjectReference Include="../../mods-src/seraphtweaks/SeraphTweaks.csproj">
+    <ProjectReference Include="../../mods-src/seraphhorizons/SeraphHorizons.csproj">
       <AtlasMod>true</AtlasMod>
     </ProjectReference>
     <ProjectReference Include="../../mods-src/chiselrotationfix/ChiselRotationFix.csproj">
@@ -77,7 +77,7 @@
   -->
   <Target Name="WritePackModManifest" AfterTargets="Build">
     <ItemGroup>
-      <_PackModZip Include="$(PackModsDir)*.zip" Exclude="$(PackModsDir)allowedvariantsfix_*.zip;$(PackModsDir)constructionhelpfix_*.zip;$(PackModsDir)seraphtweaks_*.zip;$(PackModsDir)chiselrotationfix_*.zip" />
+      <_PackModZip Include="$(PackModsDir)*.zip" Exclude="$(PackModsDir)allowedvariantsfix_*.zip;$(PackModsDir)constructionhelpfix_*.zip;$(PackModsDir)seraphhorizons_*.zip;$(PackModsDir)chiselrotationfix_*.zip" />
       <_PackModDir Include="$([System.IO.Directory]::GetDirectories('$(PackModsDir)'))" Condition="Exists('$(PackModsDir)')" />
     </ItemGroup>
     <Error Condition="'@(_PackModZip)@(_PackModDir)' == ''"

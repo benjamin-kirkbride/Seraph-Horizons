@@ -1,7 +1,7 @@
 # Tidy Variants: the handbook side (#257)
 
-Part of #252. Code: `mods-src/seraphtweaks/TidyVariants/Core/HandbookPlan.cs` (decisions, unit-tested in
-`tests/HandbookPlanTests.cs`) and `mods-src/seraphtweaks/TidyVariants/Game/Handbook/` (applies them, client only).
+Part of #252. Code: `mods-src/seraphhorizons/TidyVariants/Core/HandbookPlan.cs` (decisions, unit-tested in
+`tests/HandbookPlanTests.cs`) and `mods-src/seraphhorizons/TidyVariants/Game/Handbook/` (applies them, client only).
 Read [hooks.md](hooks.md) §3 first: it is why this differs from the issue's plan.
 
 ## Why not just `groupBy`
@@ -80,7 +80,7 @@ All on the client; the server and anything that syncs is untouched.
 If a game field read by reflection (`ModSystemSurvivalHandbook.dialog`,
 `GuiDialogHandbook.allHandbookPages`/`loadingPagesAsync`, `GuiHandbookItemStackPage.isDuplicate`)
 is missing, the list stays vanilla (groupBy is still written). An exception while applying undoes
-the page flags it set and stops the tick. Everything logs under `[seraphtweaks] Tidy Variants handbook:`.
+the page flags it set and stops the tick. Everything logs under `[seraphhorizons] Tidy Variants handbook:`.
 
 No Harmony patch. Nothing touches the methods Dovidarium guards (`LoadPages_Async`,
 `OnNewScrollbarvalueOverviewPage`, `initOverviewGui`, `OnGuiOpened`, `FilterItems`), so none of its
@@ -172,9 +172,9 @@ decisions are unit-tested and checked on the whole pack server-side
 (`tests/PackTests/TidyVariantsHandbookScenarios.cs`); the reflection targets and call order are
 verified against decompiled 1.22.7 only. To check in a client with the pack:
 
-1. `client-main.log` has `[seraphtweaks] Tidy Variants handbook: groupBy on … collectibles` and, a moment after
+1. `client-main.log` has `[seraphhorizons] Tidy Variants handbook: groupBy on … collectibles` and, a moment after
    world load, `… groups collapsed …, stack pages listed A -> B` with B well below A, and no
-   `[seraphtweaks] Tidy Variants` errors; Dovidarium's `patch-status … late-audit` shows the same active count as
+   `[seraphhorizons] Tidy Variants` errors; Dovidarium's `patch-status … late-audit` shows the same active count as
    without Tidy Variants.
 2. Open the handbook (H), "Everything": scroll past doors, chairs, ores; each family shows one entry
    "Title (N)" (e.g. "Native copper ore (…)" style titles from `en.json`), not one per wood/rock.

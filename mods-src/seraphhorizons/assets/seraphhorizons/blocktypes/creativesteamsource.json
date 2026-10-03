@@ -1,0 +1,21 @@
+{
+  "code": "creativesteamsource",
+  "class": "seraphhorizons.CreativeSteamSource",
+  "entityClass": "seraphhorizons.CreativeSteamSource",
+  "shape": { "base": "game:block/basic/cube" },
+  "attributes": {
+    "handbook": { "exclude": true }
+  },
+  "creativeinventory": { "general": ["*"], "ppex": ["*"] },
+  "blockmaterial": "Metal",
+  "drops": [],
+  "resistance": 3,
+  "sideopaque": { "all": true },
+  "sidesolid": { "all": true },
+  "sounds": {
+    "place": "game:block/anvil",
+    "break": "game:block/anvil",
+    "hit": "game:block/anvil",
+    "walk": "game:walk/stone"
+  }
+}

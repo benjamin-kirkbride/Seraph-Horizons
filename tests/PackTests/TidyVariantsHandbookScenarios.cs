@@ -10,7 +10,7 @@ using Xunit.Abstractions;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
-/// mods-src/seraphtweaks, Tidy Variants handbook side (#257, docs/variant-grouping/handbook.md): the handbook layout computed
+/// mods-src/seraphhorizons, Tidy Variants handbook side (#257, docs/variant-grouping/handbook.md): the handbook layout computed
 /// from the server's resolution of the whole pack. The handbook itself is client only, so pages are approximated
 /// by every engine entry's page code (vanilla <c>PageCodeForStack</c>) and every page is taken to be able to
 /// represent its group; the client checks that per page at runtime.
@@ -20,8 +20,8 @@ public class TidyVariantsHandbookScenarios(ITestOutputHelper output) : AtlasScen
 {
     private dynamic Bridge()
     {
-        var system = World.Api.ModLoader.GetMod("seraphtweaks").Systems
-            .Single(s => s.GetType().FullName == "SeraphHorizons.SeraphTweaks.TidyVariants.TidyVariantsModSystem");
+        var system = World.Api.ModLoader.GetMod("seraphhorizons").Systems
+            .Single(s => s.GetType().FullName == "SeraphHorizons.Mod.TidyVariants.TidyVariantsModSystem");
         object? bridge = system.GetType().GetProperty("Bridge")!.GetValue(system);
         Assert.True(bridge is not null, "the server resolution is null (see the log for the error)");
         return bridge!;
@@ -32,9 +32,9 @@ public class TidyVariantsHandbookScenarios(ITestOutputHelper output) : AtlasScen
     [AtlasScenario]
     public void Handbook_client_system_does_not_load_on_the_server()
     {
-        const string name = "SeraphHorizons.SeraphTweaks.TidyVariants.TidyHandbookSystem";
+        const string name = "SeraphHorizons.Mod.TidyVariants.TidyHandbookSystem";
         // Mod.Systems lists every system of the mod; the loader only enables those whose ShouldLoad(side) is true.
-        Assert.Contains(World.Api.ModLoader.GetMod("seraphtweaks").Systems, s => s.GetType().FullName == name);
+        Assert.Contains(World.Api.ModLoader.GetMod("seraphhorizons").Systems, s => s.GetType().FullName == name);
         Assert.False(World.Api.ModLoader.IsModSystemEnabled(name), "the handbook system is enabled on the server");
     }
 
@@ -44,7 +44,7 @@ public class TidyVariantsHandbookScenarios(ITestOutputHelper output) : AtlasScen
         dynamic bridge = Bridge();
         object res = bridge.Resolution;
         var asm = res.GetType().Assembly;
-        var layoutType = asm.GetType("SeraphHorizons.SeraphTweaks.TidyVariants.Core.HandbookLayout")!;
+        var layoutType = asm.GetType("SeraphHorizons.Mod.TidyVariants.Core.HandbookLayout")!;
         var build = layoutType.GetMethod("Build", BindingFlags.Public | BindingFlags.Static)!;
         dynamic layout = build.Invoke(null, [res, true])!;
         dynamic layoutSameKind = build.Invoke(null, [res, false])!;
@@ -110,7 +110,7 @@ public class TidyVariantsHandbookScenarios(ITestOutputHelper output) : AtlasScen
         object res = bridge.Resolution;
         var asm = res.GetType().Assembly;
         var sw = Stopwatch.StartNew();
-        dynamic plan = asm.GetType("SeraphHorizons.SeraphTweaks.TidyVariants.Core.Handbook")!
+        dynamic plan = asm.GetType("SeraphHorizons.Mod.TidyVariants.Core.Handbook")!
             .GetMethod("Build", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [res, true])!;
         var planTime = sw.Elapsed;
 

@@ -282,7 +282,7 @@ craftable panel defaults.
 
 ## 6. Recommended hook plan
 
-Client-side, Harmony id `seraphtweaks.creative`, patched in `StartClientSide`. None
+Client-side, Harmony id `seraphhorizons.creative`, patched in `StartClientSide`. None
 of these targets is gated `Exclusive` by Dovidarium or touched by TooManyTabs, and no
 other pack mod references them by name (string scan of every DLL in `build/mods`).
 
