@@ -52,6 +52,14 @@ python3 tools/packtool.py outdated    # newer compatible releases / retractions
 python3 tools/packtool.py assemble    # build dist/ (what a release publishes)
 ```
 
+Atlas writes a ~750 MB scratch world per test class under `$TMPDIR/atlas` (`/tmp/atlas` by
+default). It deletes a passing class's world, keeps a failing one for its `Logs/`, and
+leaves the run's last world (Atlas 0.15.0 never disposes that host) and anything an
+interrupted run had; `tests/PackTests` deletes worlds idle for over two hours when it
+starts (`ATLAS_KEEP_SCRATCH=1` keeps them all). If `/tmp` is a tmpfs, those worlds sit in
+RAM: point the tests at disk with `export TMPDIR=~/.cache/atlas-tmp` (create it
+first). An IDE test runner needs the variable in its own settings.
+
 ## CI
 
 `ci.yml` runs on every PR, fork PRs included. It uses GitHub-hosted runners only and needs no secrets.
