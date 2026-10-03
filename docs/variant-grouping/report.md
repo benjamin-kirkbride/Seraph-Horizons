@@ -14,7 +14,7 @@ dotnet test tests/PackTests --filter "FullyQualifiedName~TidyVariantsReport" --l
 
 It writes `build/tidyvariants-report.md` (for reading), `build/tidyvariants-report.json` (everything,
 untruncated) and `build/tidyvariants-dump.json` (every entry and family, for audits), and prints the Markdown to the test output. `TIDYVARIANTS_REPORT_DIR` changes the
-directory: CI sets it inside the atlas results, so the report is in the `atlas-results-rest` artifact.
+directory: CI sets it inside the atlas results, so the report is in the `atlas-results-tidy` artifact.
 
 ## Reading it
 
