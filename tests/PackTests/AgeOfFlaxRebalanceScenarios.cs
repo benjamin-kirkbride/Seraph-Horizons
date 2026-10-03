@@ -1,7 +1,7 @@
 using System.Reflection;
 using Atlas.XUnit;
 using HarmonyLib;
-using SeraphHorizons.SeraphTweaks;
+using SeraphHorizons.Mod;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
@@ -44,7 +44,7 @@ internal static class AgeOfFlax
 }
 
 /// <summary>
-/// mods-src/seraphtweaks, AgeOfFlaxRebalance: Age of Flax's ripple drops no seeds and the flax
+/// mods-src/seraphhorizons, AgeOfFlaxRebalance: Age of Flax's ripple drops no seeds and the flax
 /// plant drops vanilla's again, the ripple and hatchel yields are rebalanced against vanilla flax,
 /// the advanced tools take steel, every break takes raw or rendered fat, and the text says so.
 /// </summary>
@@ -170,7 +170,7 @@ public class AgeOfFlaxRebalanceOffScenarios : AtlasScenarioBase
     [AtlasScenario]
     public void Switched_off_Age_of_Flax_is_as_it_ships()
     {
-        Assert.False(World.Api.LoadModConfig("seraphtweaks.json")["AgeOfFlaxRebalance"].AsBool(true));
+        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["AgeOfFlaxRebalance"].AsBool(true));
         Assert.Equal(1.2f, AgeOfFlax.Field<float>(W, "ageofflax:ripple-primitive-east", "defaultFlaxSeedDropAvg"));
         Assert.Equal(12f, AgeOfFlax.Field<float>(W, "ageofflax:ripple-advanced-east", "defaultFlaxGrainDropAvg"));
         Assert.Equal(8f, AgeOfFlax.Field<float>(W, "ageofflax:hatchel-advanced-east", "defaultFlaxDropAvg"));
