@@ -38,6 +38,20 @@ the passages in the Steam Power and Boilers handbook pages. Each edit replaces o
 ppex's text (`LangEdits`). If ppex rewords it, that edit logs a warning and does nothing. Languages
 other than the current one load lazily, so the mod loads those three when it starts.
 
+### The handbook says where a chimney vents (`ChimneyVentingExplained`)
+
+Pipes and Power Expanded (`ppex`, 0.6.8 and 0.7.x: the text is the same). ppex vents a pipe network
+through a chimney only when the chimney stands directly on a Pipe Outlet, a Pipe Passthrough or a
+Passthrough Bend with a connector on its top face, at `ChimneyGasDrawRate` (16 L/s) per chimney. On
+a plain pipe the chimney is not a vent, and because it is not air it is not a leak either: it caps
+that end and the run keeps its pressure. ppex's handbook only says that a chimney on an outlet
+vents.
+
+`ChimneyVentText` rewords the chimney passage of the Fittings handbook page to say all of that, and
+that a venting chimney's look-at info says so (ppex's own `chimney-info-venting` line), in every
+language ppex ships. Text only, as exact-passage `LangEdits` like the boiler's; the Russian and
+Ukrainian passages are the pack's own translations.
+
 ### Fewer surface battle towers (ConfigKit settings)
 
 Battle Towers (`battletowers`, 1.1.0) has no settings: a surface tower has a 0.03 chance per chunk
@@ -177,7 +191,9 @@ ships in the mod zip.
 the lid shut and with it open, and requires the boiler still standing with its lid open. It
 requires `BlowSound` to be ExpandedLib's `ExSounds.MediumExplosion` and present in the assets. It also
 requires every `LangEdits` passage reworded, and an edit set for every language ppex ships: when
-either fails after a ppex update, match the edits to ppex's new text or add the new language.
+either fails after a ppex update, match the edits to ppex's new text or add the new language. The
+same goes for `ChimneyVentText.LangEdits`, whose passages must also quote ppex's look-at line for a
+venting chimney.
 
 It also reads the patched `game:worldgen/structures.json` and requires the surface tower's chance
 and spacing above, with the hard tower's unchanged: when that fails after a Battle Towers update,
