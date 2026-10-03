@@ -21,6 +21,8 @@ namespace SeraphHorizons.PackTests;
 /// CreativeSteamSource: the creative steam source fills a ppex pipe placed against it with steam,
 /// up to its set pressure. It targets ppex 0.7.1 / exlib 0.8.4, which are not on the ModDB yet:
 /// while the pack pins an older ppex the scenarios require the block left out instead.
+/// AssembledMachines: Immersive Woodworking's chopper and sawmill frames have a second creative
+/// stack that places the machine assembled, with a steel head or blade kit.
 /// Also its ConfigKit settings (assets/seraphhorizons/config/configlib-patches.json), which thin out
 /// Battle Towers' surface towers. CartReach: the server runs the same entity selection code as the
 /// client, so the scenarios run it, and cart reach's second look, on the server's world against a
@@ -375,5 +377,63 @@ public class SeraphHorizonsModScenarios : AtlasScenarioBase
                 cartReach.UnpatchAll(CartReach.HarmonyId);
             }
         }
+    }
+
+    public static TheoryData<int> AssembledMachineIndexes => [.. Enumerable.Range(0, AssembledMachines.Machines.Length)];
+
+    private Block Frame(AssembledMachines.Machine machine) =>
+        W.GetBlock(new AssetLocation(AssembledMachines.ModId, machine.FrameCode))
+        ?? throw new Xunit.Sdk.XunitException($"{machine.FrameCode} is not loaded");
+
+    [AtlasTheory, MemberData(nameof(AssembledMachineIndexes))]
+    public void Frame_has_an_assembled_creative_stack_next_to_the_plain_one(int index)
+    {
+        var machine = AssembledMachines.Machines[index];
+        var frame = Frame(machine);
+        Assert.NotEmpty(frame.CreativeInventoryTabs);
+        var list = Assert.Single(frame.CreativeInventoryStacks);
+        Assert.Equal(frame.CreativeInventoryTabs, list.Tabs);
+        var stack = Assert.Single(list.Stacks).ResolvedItemstack!;
+        Assert.Same(frame, stack.Block);
+        Assert.Equal(AssembledMachines.DefaultMetal, stack.Attributes.GetString(AssembledMachines.MetalAttribute));
+
+        // Named after the finished machine; the plain frame keeps its name and its handbook page.
+        Assert.Equal(Lang.Get(machine.NameKey), stack.GetName());
+        Assert.NotEqual(Lang.Get(machine.NameKey), new ItemStack(frame).GetName());
+        Assert.True(frame.Attributes!["handbook"]["ignoreCreativeInvStacks"].AsBool());
+        // The other orientations stay out of the creative inventory.
+        var south = W.GetBlock(frame.CodeWithVariant("side", "south"))!;
+        Assert.Empty(south.CreativeInventoryStacks ?? []);
+    }
+
+    [AtlasTheory(TimeoutMs = 120_000), MemberData(nameof(AssembledMachineIndexes))]
+    public async Task Assembled_stack_places_the_machine_complete_with_a_steel_tool(int index)
+    {
+        var machine = AssembledMachines.Machines[index];
+        var frame = Frame(machine);
+        bool Complete(BlockEntity be) => (bool)AccessTools.Property(be.GetType(), "IsComplete").GetValue(be)!;
+
+        // The machines cover several cells; each placement gets room of its own.
+        var plainPos = World.Spawn.AddCopy(-40 - 20 * index, 3, 60);
+        W.BlockAccessor.SetBlock(frame.Id, plainPos, new ItemStack(frame));
+        var assembledPos = plainPos.AddCopy(0, 0, 10);
+        var stack = frame.CreativeInventoryStacks[0].Stacks[0].ResolvedItemstack!.Clone();
+        W.BlockAccessor.SetBlock(frame.Id, assembledPos, stack);
+        await World.Ticks(2);
+
+        var plain = W.BlockAccessor.GetBlockEntity(plainPos) ?? throw new Xunit.Sdk.XunitException("frame placed without a block entity");
+        Assert.False(Complete(plain));
+
+        var assembled = W.BlockAccessor.GetBlockEntity(assembledPos) ?? throw new Xunit.Sdk.XunitException("frame placed without a block entity");
+        Assert.True(Complete(assembled));
+        var tree = new TreeAttribute();
+        assembled.ToTreeAttributes(tree);
+        Assert.All(machine.Flags, flag => Assert.True(tree.GetBool(flag)));
+        var tool = tree.GetItemstack(machine.ToolKey);
+        tool.ResolveBlockOrItem(W);
+        Assert.Equal(machine.ToolCode.Replace("{metal}", "steel"), tool.Collectible.Code.ToString());
+        Assert.Equal(Lang.Get(machine.NameKey), frame.GetPlacedBlockName(W, assembledPos));
+        // Breaking it gives back the frame and every part, as for one built by hand.
+        Assert.True(frame.GetDrops(W, assembledPos, null!).Length > machine.Flags.Length);
     }
 }
