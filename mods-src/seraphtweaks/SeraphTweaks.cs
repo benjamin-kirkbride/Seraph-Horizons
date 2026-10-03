@@ -18,6 +18,7 @@ public class SeraphTweaksSystem : ModSystem
 
     private SeraphTweaksConfig? _config;
     private Harmony? _harmony;
+    private bool _ageOfFlax;
 
     /// <summary>This side's settings. Loaded on first use (this system's <see cref="Start"/> at the
     /// latest), so another system of the mod can read them in any phase.</summary>
@@ -30,6 +31,11 @@ public class SeraphTweaksSystem : ModSystem
     {
         Config(api);
         CreativeSteamSource.RegisterClasses(api);
+        // Before the game's patch loader, which applies the patches in AssetsLoaded.
+        _ageOfFlax = Config(api).AgeOfFlaxRebalance && AgeOfFlaxRebalance.Applies(api)
+                     && AgeOfFlaxRebalance.Bind(api.Logger);
+        if (!_ageOfFlax)
+            AgeOfFlaxRebalance.DisablePatches(api);
     }
 
     // Behavior changes run on the server only: that is where the tweaked mods simulate.
@@ -40,6 +46,11 @@ public class SeraphTweaksSystem : ModSystem
             _harmony ??= new Harmony(HarmonyId);
             BoilerLidRelief.Patch(_harmony, api.Logger);
         }
+        if (_ageOfFlax)
+        {
+            _harmony ??= new Harmony(HarmonyId);
+            AgeOfFlaxRebalance.Patch(_harmony);
+        }
     }
 
     // Lang files are loaded, mod assets included, before this phase on both sides.
@@ -49,6 +60,12 @@ public class SeraphTweaksSystem : ModSystem
     {
         if (Config(api).BoilerLidBlowsOpen && BoilerLidRelief.Applies(api))
             BoilerLidRelief.RewriteText(api.Logger);
+        if (_ageOfFlax)
+        {
+            LangText.Apply(AgeOfFlaxRebalance.LangEdits, AgeOfFlaxRebalance.ModId, api.Logger);
+            if (api.Side == EnumAppSide.Server)
+                AgeOfFlaxRebalance.AddSeedsToBlocktype(api);
+        }
         if (api.Side == EnumAppSide.Server
             && !(Config(api).CreativeSteamSource && CreativeSteamSource.Applies(api) && CreativeSteamSource.Bind(api.Logger)))
             CreativeSteamSource.Disable(api);
@@ -92,4 +109,10 @@ public class SeraphTweaksConfig
     /// <summary>Pipes and Power Expanded: a creative-only block that fills the pipes connected to it
     /// with steam, set up like the auto rotor (off means the block does not exist).</summary>
     public bool CreativeSteamSource { get; set; } = true;
+
+    /// <summary>Age of Flax (fork): seeds drop from the flax plant again, not the ripple; the
+    /// ripple's grain and the hatchel's fibers per ripe plant are 2/3, 1 and 4/3 of vanilla flax's
+    /// by tool tier; the advanced tools take steel; every break takes raw or rendered fat; and its
+    /// text says so.</summary>
+    public bool AgeOfFlaxRebalance { get; set; } = true;
 }
