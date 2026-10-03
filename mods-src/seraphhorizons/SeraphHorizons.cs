@@ -64,7 +64,15 @@ public class SeraphHorizonsSystem : ModSystem
             _harmony ??= new Harmony(HarmonyId);
             ChopperOutput.Patch(_harmony, api.Logger);
         }
+        ClearSky = new ClearSky(api);
+        if (Config(api).ClearCommand)
+            ClearSky.Register(_harmony ??= new Harmony(HarmonyId));
+        else
+            ClearSky.ReleaseLeftoverLock();
     }
+
+    /// <summary>The <c>/clear</c> command (server side).</summary>
+    public ClearSky? ClearSky { get; private set; }
 
     // Cart reach acts where the player picks what is under the crosshair: the client. Entity types
     // arrive from the server, so the matching ones are known once the level is finalized.
@@ -116,6 +124,11 @@ public class SeraphHorizonsSystem : ModSystem
     {
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
+        if (ClearSky != null)
+        {
+            ClearSky.Unbind();
+            ClearSky = null;
+        }
         if (_clientHarmony != null)
         {
             _clientHarmony.UnpatchAll(CartReach.HarmonyId);
@@ -200,4 +213,9 @@ public class SeraphHorizonsConfig
     /// controlserver) shows on the caller's world map the terrain already generated within radius
     /// chunks, read from the savegame (off means no command; on a client, nothing is patched).</summary>
     public bool MapReveal { get; set; } = true;
+
+    /// <summary>The admin command <c>/clear</c>: clear weather, no temporal storm and daytime, and
+    /// <c>/clear stay</c> / <c>/clear stop</c> to hold it (server side; off means no command, and a
+    /// held lock is released).</summary>
+    public bool ClearCommand { get; set; } = true;
 }
