@@ -34,6 +34,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     private bool _angleSeeded;
     private float _clientLastAngle;
     private bool _clientAngleSeeded;
+    private float? _serverMinSpeed;
+    private float? _serverRevolutions;
     private readonly Dictionary<Int3, Cuboidf[]> _boxes = [];
     private MillRenderer? _renderer;
 
@@ -42,8 +44,10 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public bool Complete => _parts.Complete;
     public float Progress => _progress;
     public IReadOnlyList<ItemStack> Blades => _blades;
-    /// <summary>The configured slowest shaft speed that cuts.</summary>
-    public float MinSpeed => Config.MinSpeed;
+    /// <summary>The configured slowest shaft speed that cuts. A client uses the server's value,
+    /// which comes with the block entity's data, not its own config file's.</summary>
+    public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
+    private float RevolutionsPerStoredLog => _serverRevolutions ?? Config.RevolutionsPerStoredLog;
 
     private BuckingSawmillSystem System => BuckingSawmillSystem.Of(Api);
     private MillConfig Config => System.Config;
@@ -372,7 +376,12 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// <summary>Once a second: an assembled, empty mill turning fast enough takes the next trunk
     /// from a Trunk Storage Rack touching its infeed side at ground level, unless that trunk is
     /// branched (it waits for the player to debranch it). The rack is looked up every time.</summary>
-    private void OnRackTick(float dt) => PullFromRack();
+    private void OnRackTick(float dt)
+    {
+        // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
+        EnsureGhosts();
+        PullFromRack();
+    }
 
     public bool PullFromRack()
     {
@@ -501,7 +510,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     {
         var power = Power;
         float angle = power?.AngleRad ?? 0, speed = power?.TrueSpeed ?? 0;
-        if (_trunk == null || !_parts.Complete || speed < Config.MinSpeed || !_clientAngleSeeded)
+        if (_trunk == null || !_parts.Complete || speed < MinSpeed || !_clientAngleSeeded)
         {
             _clientLastAngle = angle;
             _clientAngleSeeded = true;
@@ -509,7 +518,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         }
         float advance = Cutting.AngleAdvance(_clientLastAngle, angle, speed, dt);
         _clientLastAngle = angle;
-        _clientProgress = Math.Min(1, _clientProgress + Cutting.ProgressFor(advance, _storedLogs, Config.RevolutionsPerStoredLog));
+        _clientProgress = Math.Min(1, _clientProgress + Cutting.ProgressFor(advance, _storedLogs, RevolutionsPerStoredLog));
     }
 
     // ---- Breaking ----
@@ -565,6 +574,11 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             tree.RemoveAttribute("trunk");
         tree.SetInt("storedLogs", _storedLogs);
         tree.SetFloat("progress", _progress);
+        if (Api?.Side == EnumAppSide.Server)
+        {
+            tree.SetFloat("minSpeed", Config.MinSpeed);
+            tree.SetFloat("revolutionsPerStoredLog", Config.RevolutionsPerStoredLog);
+        }
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
@@ -582,6 +596,11 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             _trunk = null;
         _storedLogs = tree.GetInt("storedLogs");
         _progress = tree.GetFloat("progress");
+        if (worldForResolving.Side == EnumAppSide.Client)
+        {
+            _serverMinSpeed = tree.TryGetFloat("minSpeed");
+            _serverRevolutions = tree.TryGetFloat("revolutionsPerStoredLog");
+        }
         // A sync behind the client's own estimate (or a new trunk) resets it to the server's.
         if (_trunk == null || Math.Abs(_clientProgress - _progress) > 0.05f)
             _clientProgress = _progress;
@@ -638,6 +657,6 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         else
             dsc.AppendLine(L("info-empty"));
         float speed = ShaftSpeed;
-        dsc.AppendLine(speed < Config.MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
+        dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
     }
 }
