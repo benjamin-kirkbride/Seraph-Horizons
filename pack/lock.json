@@ -3904,14 +3904,37 @@
       "dependencies": {}
     },
     {
+      "id": "carryonlib",
+      "version": "1.0.0-pre.8",
+      "releaseId": 50129,
+      "fileId": 109189,
+      "fileName": "CarryOnLib-1.22.0_v1.0.0-pre.8.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/CarryOnLib-1.22.0_v1_f96c91b3a0b8c7aeeaa0ef3464ec2940.zip?dl=CarryOnLib-1.22.0_v1.0.0-pre.8.zip",
+      "sha256": "162c54ada4533304f923933f48d57033ad502b6749d23e3addcdbb202ef2a9b7",
+      "size": 35754,
+      "side": "universal",
+      "license": "Unlicense",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "carryon",
-      "version": "1.14.3",
-      "releaseId": 52086,
-      "fileId": 113014,
-      "fileName": "CarryOn-1.22.0_v1.14.3.zip",
-      "fileUrl": "https://moddbcdn.vintagestory.at/CarryOn-1.22.0_v1.14_6433d23712caab1513f4189fc39b8b92.zip?dl=CarryOn-1.22.0_v1.14.3.zip",
-      "sha256": "75de8f4d5aa76c32550895a86f8fbb8c8a8fab6d02a2699f7b23983d829ef82b",
-      "size": 263186,
+      "version": "2.0.0-pre.8",
+      "releaseId": 50130,
+      "fileId": 109190,
+      "fileName": "CarryOn-1.22.0_v2.0.0-pre.8.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/CarryOn-1.22.0_v2.0._d743db358a317c3ed33808df9cb5633b.zip?dl=CarryOn-1.22.0_v2.0.0-pre.8.zip",
+      "sha256": "c94d21faf259f9b4664f9f625f183c1b7ded79de8823a2844d03cfb656068af3",
+      "size": 583248,
       "side": "universal",
       "license": "Unlicense",
       "redistribute": false,
@@ -3925,7 +3948,8 @@
         "1.22.6"
       ],
       "dependencies": {
-        "game": "1.22.0"
+        "game": "1.22.0",
+        "carryonlib": "1.0.0-pre.8"
       }
     },
     {
