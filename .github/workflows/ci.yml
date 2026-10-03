@@ -115,22 +115,29 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     # Atlas runs one embedded server per process, so classes can only run in parallel as
-    # separate jobs. The item and recipe classes share one shard because they read the same
-    # export, built once per process. `rest` is the complement filter, so a new class
-    # lands there without anyone having to list it.
+    # separate jobs, and every class pays its own server boot (30-45 s), which is nearly all
+    # of a shard's time. The item and recipe classes share one shard because they read the
+    # same export, built once per process. `fixes` is the pack-authored *fix mods' classes
+    # and `tidy` is Tidy Variants', both matched by name, so a new class of either kind joins
+    # its shard. `rest` is the complement filter, so any other new class lands there without
+    # anyone having to list it.
     strategy:
       fail-fast: false
       matrix:
         include:
           - shard: export
             filter: FullyQualifiedName~.ItemExportScenarios.|FullyQualifiedName~.RecipeExportScenarios.
+          - shard: fixes
+            filter: FullyQualifiedName~FixScenarios.
+          - shard: tidy
+            filter: FullyQualifiedName~.TidyVariants
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
       # Local-only icon export mod (never shipped): keep it compiling, and test its logic.
-      # Only on the shorter shard.
+      # Only on one shard, and not the longest (export).
       - name: Icon export mod builds and its unit tests pass
         if: matrix.shard == 'rest'
         env:
@@ -153,7 +160,7 @@ jobs:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"
           DOTNET_NOLOGO: "1"
           FILTER: ${{ matrix.filter }}
-          # TidyVariantsReportScenarios writes its report here, so it ships in atlas-results-rest.
+          # TidyVariantsReportScenarios writes its report here, so it ships in atlas-results-tidy.
           TIDYVARIANTS_REPORT_DIR: ${{ runner.temp }}/atlas-results/tidyvariants
         run: >
           dotnet test tests/PackTests
