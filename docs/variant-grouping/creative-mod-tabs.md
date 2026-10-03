@@ -110,6 +110,20 @@ game recomposes all composers would change the collection it iterates); a recomp
 composer (window resize, GUI scale) only recomposes it. The flip runs on the next frame, since it rebuilds the
 composer whose mouse handler is running.
 
+**Composer order.** The overlay must come before `"maininventory"` in the dialog's composers.
+`GuiDialog.OnMouseWheel` asks the composers in order, and `GuiComposer.OnMouseWheel` first offers the wheel to the
+elements under the mouse, then to every element regardless of position. The grid's `GuiElementScrollbar` takes it
+without a position check whenever the tab overflows, so with the creative composer first a wheel over the strip
+would scroll the grid. `GuiDialog.OnRenderGUI` also takes `MouseOverCursor` from each composer in turn, last one
+wins, so the creative composer must be last for the search box's text cursor. The composers are an order-keeping
+dictionary (`ConcurrentSmallDictionary`): setting an existing key keeps its place, a new key goes last, removing
+keeps the rest in order, and readers iterate a snapshot. So when the overlay is added, `"maininventory"` is taken
+out and put back after it, the same composer under the same key (Dovidarium's reuse compares the composer
+object, so it sees no change). When the game itself removes and re-adds `"maininventory"` (mode change, backpack
+resize) it lands after the overlay anyway, and `Composers["maininventory"] = x` replaces in place. The strip also
+takes the wheel only with the mouse over it, so whichever order the composers are in, a wheel over the grid
+scrolls the grid.
+
 `ModTabStrip` is a plain `GuiElementTextBase`, not a `GuiElementVerticalTabs`: it draws the game's tab look
 itself (one texture for all tabs, one selected texture per tab), scissored to its bounds, scrolls by
 `TabScroll` (unit-tested), and is invisible to everything that patches or counts vertical tab columns.
@@ -141,8 +155,18 @@ No other pack mod references `UpdateFromWorld` (string scan of every DLL in `bui
 `tests/PackTests/CreativeModTabsScenarios.cs` (Atlas) builds a creative inventory on the server with the whole
 pack and requires: the default tabs identical to a build without the tweak, the mod tabs after them with the
 announced codes and counts, every distinct creative stack in exactly one mod tab, the game tab first and the rest
-by name, `vinteng` and `ageofflax` under their owning mods, a click in a mod tab resolving to its slot, and the
-client's check accepting the server's list. `CreativeModTabsOffScenarios` boots with the switch off.
+by name, and `vinteng`, `ageofflax`, `bomb` and `oils` under their owning mods. It sends the packet through
+protobuf-net and back (the real plan, an empty packet, and entries with every field missing or an empty domain
+list) and requires the same specs. It then takes the client's path from the round-tripped packet (scan, place by
+the server's domains, the check, build the tabs on an inventory without the server's postfix) and requires every
+mod tab slot to equal what the server's inventory returns for that tab index and slot id after `SetTab`, which is
+how the server resolves a click. All of this runs on one world, so it checks the build and the indices on both
+paths, not a client that loads different mods (that case is the client's count and hash check, unit-tested in
+`tests/CreativeModTabsTests.cs`). `CreativeModTabsOffScenarios` boots with the switch off.
+
+A click can't reach a server inventory that lacks the mod tabs: the server leaves them out of an inventory only
+when its default tab count differs from the plan, and then every inventory and every client differ alike (the
+client compares its own count with the announced one and shows nothing).
 
 ## Manual test checklist (in game, creative mode, the full pack)
 
@@ -158,9 +182,10 @@ The GUI cannot run in CI or headless Atlas; check this before release.
    overlapping anything. Hover it: highlighted.
 3. **Flip to mod mode.** The left column disappears; the right shows "Vintage Story" first, then the mods by name.
    The grid shows the game tab's items. The button reads `Tabs: Mod ⇄`.
-4. **Strip.** Wheel over the strip scrolls it (not the hotbar, not the grid); the bar on its right moves. Click a
-   tab far down: it is highlighted and the grid shows that mod's items. Close and reopen the inventory: the same
-   tab, scrolled into view. Long mod names end in "...".
+4. **Strip.** Wheel over the strip scrolls it, all the way to the last tab (not the hotbar, not the grid); the bar
+   on its right moves. Wheel over the grid scrolls the grid, not the strip. Click a tab far down: it is
+   highlighted and the grid shows that mod's items. Close and reopen the inventory: the same tab, scrolled into
+   view. Long mod names end in "...". With the mouse over the search box the text cursor shows.
 5. **Attribution.** Vintage Engineering's tab holds its machines (domain `vinteng`), Sensible Explosives' its
    bombs (`bomb`), AgeOfFlax's the flax tools (`ageofflax`). A stack listed in several default tabs (e.g. a
    block in "General" and in its mod's own default tab) appears once. (Once the pack pins ppex 0.7.1, the
@@ -173,10 +198,12 @@ The GUI cannot run in CI or headless Atlas; check this before release.
    Ctrl+G expand and collapse, borders and tooltips as in default tabs.
 9. **Back to default.** Flip back: the default tab selected before is selected again, both columns as before,
    TooManyTabs scrolling and its single-active-tab behaviour intact.
-10. **Persistence.** In mod mode, relog: the dialog opens in mod mode on the same tab (after the few seconds the
-    button needs). Check `ModConfig/seraphhorizons-creativemodtabs.json`. Write `{` into it, relog: a warning,
+10. **Persistence.** Select a default tab other than the first, flip to mod mode, select a mod tab, relog: the
+    dialog opens in mod mode on the same mod tab (after the few seconds the button needs); flip back: the default
+    tab selected before the relog. Check `ModConfig/seraphhorizons-creativemodtabs.json`. Write `{` into it, relog: a warning,
     default mode. Delete it: default mode.
-11. **Survival.** `/gm 0` with the dialog open and closed: no button, no strip. `/gm 1`: back, in the saved mode.
+11. **Survival.** `/gm 0` with the dialog open and closed: no button, no strip. `/gm 1`: back, in the saved mode;
+    with the dialog open, the strip and the grid still each scroll only under the mouse.
 12. **Resize.** Change the window size and the GUI scale with mod mode shown: the strip and the button follow the
     dialog.
 13. **Without TooManyTabs** (remove it from the pack): default mode as vanilla with Dovidarium's right-column width

@@ -306,7 +306,8 @@ internal sealed class ModTabStrip : GuiElementTextBase
 
     public override void OnMouseWheel(ICoreClientAPI api, MouseWheelEventArgs args)
     {
-        if (TabScroll.MaxOffset(contentHeight, Viewport) <= 0) return;
+        // GuiComposer.OnMouseWheel offers the wheel to every element, under the mouse or not, until one takes it.
+        if (!IsPositionInside(api.Input.MouseX, api.Input.MouseY) || TabScroll.MaxOffset(contentHeight, Viewport) <= 0) return;
         double delta = Math.Abs(args.deltaPrecise) > 0.0001 ? args.deltaPrecise : args.delta;
         if (Math.Abs(delta) < 0.0001) return;
         scrollOffset = TabScroll.Wheel(scrollOffset, delta, 3 * (tabHeight + spacing), contentHeight, Viewport);

@@ -50,11 +50,18 @@ public class CreativeModTabsScenarios(ITestOutputHelper output) : AtlasScenarioB
     /// <summary>A creative inventory as the game builds it without the tweak: the plan hidden while it is built.</summary>
     private InventoryPlayerCreative BuildVanilla(string uid)
     {
+        // With no plan and an error set, the postfix neither appends nor plans again.
         var field = SystemType.GetField("_authority", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var error = SystemType.GetProperty("AuthorityError", BindingFlags.Public | BindingFlags.Static)!;
         object? saved = field.GetValue(null);
         field.SetValue(null, null);
+        error.SetValue(null, "hidden by the scenario");
         try { return Build(uid); }
-        finally { field.SetValue(null, saved); }
+        finally
+        {
+            error.SetValue(null, null);
+            field.SetValue(null, saved);
+        }
     }
 
     private static List<CreativeTab> Tabs(InventoryPlayerCreative inv) => inv.CreativeTabs.Tabs.ToList();
@@ -154,33 +161,115 @@ public class CreativeModTabsScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal(specs.Count, specs.Select(s => (string)s.Code).Distinct().Count());
     }
 
+    /// <summary>The packet through protobuf-net, as the game's network channel sends it.</summary>
+    private static object RoundTrip(object packet)
+    {
+        using var ms = new MemoryStream();
+        ProtoBuf.Serializer.NonGeneric.Serialize(ms, packet);
+        ms.Position = 0;
+        return ProtoBuf.Serializer.NonGeneric.Deserialize(packet.GetType(), ms);
+    }
+
+    private static List<dynamic> List(object list) => ((System.Collections.IEnumerable)list).Cast<dynamic>().ToList();
+
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task A_click_in_a_mod_tab_resolves_on_the_server_and_the_client_check_accepts_the_plan()
+    public async Task The_packet_survives_protobuf_including_empty_and_missing_fields()
+    {
+        await World.Ticks(2);
+        dynamic plan = Authority();
+        dynamic sent = plan.ToPacket();
+        dynamic got = RoundTrip(sent);
+        Assert.Equal(1, (int)got.Version);
+        Assert.Equal((int)sent.DefaultTabCount, (int)got.DefaultTabCount);
+        var a = List(sent.Specs());
+        var b = List(got.Specs());
+        Assert.Equal(a.Count, b.Count);
+        for (int i = 0; i < a.Count; i++)
+        {
+            Assert.Equal((string)a[i].Code, (string)b[i].Code);
+            Assert.Equal((string)a[i].Name, (string)b[i].Name);
+            Assert.Equal((bool)a[i].IsGame, (bool)b[i].IsGame);
+            Assert.Equal((int)a[i].Count, (int)b[i].Count);
+            Assert.Equal((uint)a[i].Hash, (uint)b[i].Hash);
+            Assert.Equal(((IEnumerable<string>)a[i].Domains).ToList(), ((IEnumerable<string>)b[i].Domains).ToList());
+        }
+
+        // Defaults and empty or missing fields: protobuf writes nothing for them, and Specs() reads them back safely.
+        var packetType = ModType("SeraphHorizons.Mod.CreativeModTabs.ModTabsPacket");
+        var entryType = ModType("SeraphHorizons.Mod.CreativeModTabs.ModTabEntry");
+        dynamic empty = RoundTrip(Activator.CreateInstance(packetType)!);
+        Assert.Equal(1, (int)empty.Version);
+        Assert.Equal(0, (int)empty.DefaultTabCount);
+        Assert.Empty(List(empty.Specs()));
+
+        dynamic odd = Activator.CreateInstance(packetType)!;
+        var tabs = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(entryType))!;
+        dynamic bare = Activator.CreateInstance(entryType)!;            // every field missing
+        dynamic noDomains = Activator.CreateInstance(entryType)!;
+        noDomains.Code = "seraphhorizons-modtab-x";
+        noDomains.Domains = new List<string>();                         // empty: arrives as null
+        noDomains.Hash = uint.MaxValue;
+        tabs.Add(bare);
+        tabs.Add(noDomains);
+        packetType.GetProperty("Tabs")!.SetValue(odd, tabs);
+        var specs = List(((dynamic)RoundTrip(odd)).Specs());
+        Assert.Equal(2, specs.Count);
+        Assert.Equal("", (string)specs[0].Code);
+        Assert.Equal("", (string)specs[0].Name);
+        Assert.False((bool)specs[0].IsGame);
+        Assert.Empty((IEnumerable<string>)specs[0].Domains);
+        Assert.Equal("seraphhorizons-modtab-x", (string)specs[1].Code);
+        Assert.Empty((IEnumerable<string>)specs[1].Domains);
+        Assert.Equal(uint.MaxValue, (uint)specs[1].Hash);
+    }
+
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task A_client_built_from_the_packet_has_the_servers_slots_and_clicks_resolve_to_them()
     {
         await World.Ticks(2);
         dynamic plan = Authority();
         int defaults = plan.DefaultTabCount;
-        var inv = Build("atlas-modtabs-click");
+        var server = Build("atlas-modtabs-click");
 
-        // The server handles a creative click with SetTab(packet tab index) and reads its slot by id.
-        var specs = ((System.Collections.IEnumerable)plan.Tabs).Cast<dynamic>().ToList();
-        int k = specs.FindIndex(s => (string)s.Code == Prefix + "vintageengineering");
-        Assert.True(k >= 0);
-        inv.SetTab(defaults + k);
-        Assert.Equal(Prefix + "vintageengineering", inv.CurrentTab.Code);
-        Assert.Equal("vinteng", inv[0]?.Itemstack?.Collectible.Code.Domain);
-
-        // What a client does with the packet: scan its own collectibles, place them by the server's domains,
-        // and require the server's counts and hashes (here on the same world, so they must match).
+        // The client's path, as ModTabsClient.TryBuild takes it: the packet after protobuf, its own scan, the
+        // server's domains, the check, and its own tabs on an inventory without the server's postfix. Same world
+        // here, so this checks the client-side build and indices, not a client that loads other mods.
         var stacksType = ModType("SeraphHorizons.Mod.CreativeModTabs.CreativeStacks");
         var planner = ModType("SeraphHorizons.Mod.CreativeModTabs.Core.ModTabPlanner");
-        dynamic packet = plan.ToPacket();
+        dynamic packet = RoundTrip(plan.ToPacket());
         Assert.Equal(defaults, (int)packet.DefaultTabCount);
         object fromPacket = packet.Specs();
-        dynamic scan = stacksType.GetMethod("Scan")!.Invoke(null, [World.Api.World])!;
-        object assignment = planner.GetMethod("Assign")!.Invoke(null, [scan.Refs, fromPacket])!;
-        object? mismatch = planner.GetMethod("Verify")!.Invoke(null, [scan.Refs, fromPacket, assignment]);
-        Assert.Null(mismatch);
+        object scan = stacksType.GetMethod("Scan")!.Invoke(null, [World.Api.World])!;
+        object refs = stacksType.GetProperty("Refs")!.GetValue(scan)!;
+        object assignment = planner.GetMethod("Assign")!.Invoke(null, [refs, fromPacket])!;
+        Assert.Null(planner.GetMethod("Verify")!.Invoke(null, [refs, fromPacket, assignment]));
+        object members = stacksType.GetMethod("Members")!.Invoke(scan, [fromPacket, assignment])!;
+        var clientInv = BuildVanilla("atlas-modtabs-client");
+        Assert.Equal(defaults, clientInv.CreativeTabs.TabsByCode.Count);
+        var clientTabs = ((System.Collections.IEnumerable)stacksType.GetMethod("BuildTabs")!
+            .Invoke(scan, [clientInv, World.Api, fromPacket, members, defaults])!).Cast<CreativeTab>().ToList();
+
+        var serverTabs = Tabs(server).Skip(defaults).ToList();
+        Assert.Equal(serverTabs.Count, clientTabs.Count);
+        for (int k = 0; k < serverTabs.Count; k++)
+        {
+            var s = serverTabs[k];
+            var c = clientTabs[k];
+            Assert.Equal(s.Code, c.Code);
+            Assert.Equal(s.Index, c.Index);
+            Assert.Equal(s.Inventory.Count, c.Inventory.Count);
+
+            // A creative click: SetTab(packet tab index), then the slot by id, on the server's own inventory.
+            server.SetTab(c.Index);
+            Assert.Same(s, server.CurrentTab);
+            for (int i = 0; i < c.Inventory.Count; i++)
+            {
+                var clicked = server[i]?.Itemstack;
+                var shown = c.Inventory[i]?.Itemstack;
+                Assert.True(clicked is not null && shown is not null && KeyOf(clicked) == KeyOf(shown),
+                    $"{c.Code}[{i}]: server {clicked?.Collectible.Code}, client {shown?.Collectible.Code}");
+            }
+        }
     }
 
     [AtlasScenario]

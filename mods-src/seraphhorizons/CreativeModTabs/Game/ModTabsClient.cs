@@ -275,10 +275,14 @@ internal static class ModTabsClient
         // The dialog's own current tab must follow, or its next build selects a tab the list doesn't have.
         if (Dialog() is not { } dialog || currentTabIndexRef is null) return;
 
-        // Remember where we were in the mode we leave.
-        string? current = inv.CurrentTab?.Code;
-        if (InModMode) state.ModTab = current ?? state.ModTab;
-        else state.DefaultTab = current ?? state.DefaultTab;
+        // Remember where we were in the mode we leave, when the player flips. Not when a saved mod mode is restored
+        // after joining: the default tab then is just the game's first, and the saved one must survive.
+        if (save)
+        {
+            string? current = inv.CurrentTab?.Code;
+            if (InModMode) state.ModTab = current ?? state.ModTab;
+            else state.DefaultTab = current ?? state.DefaultTab;
+        }
 
         CreativeTab target;
         if (toMod)
@@ -440,7 +444,34 @@ internal static class ModTabsClient
         overlay.Compose(focusFirstElement: false);
         overlayParent = main.Bounds;
         overlayModMode = mod;
-        dialog.Composers[OverlayName] = overlay;
+        AddOverlayFirst(dialog, overlay);
+    }
+
+    /// <summary>
+    /// Puts the overlay ahead of "maininventory" in the dialog's composers. Order matters twice:
+    /// <c>GuiDialog.OnMouseWheel</c> asks the composers in order and <c>GuiComposer.OnMouseWheel</c> ends with every
+    /// element whatever the mouse position, so the grid's scrollbar (which checks no position) would take a wheel
+    /// meant for the strip if the creative composer came first; and <c>GuiDialog.OnRenderGUI</c> takes
+    /// <c>MouseOverCursor</c> from each composer in turn, so the creative composer must come last for the search
+    /// box's text cursor. The composers are an order-keeping dictionary: setting an existing key keeps its place (the
+    /// game's and Dovidarium's <c>Composers["maininventory"] = x</c>), a new key goes last, and removing keeps the
+    /// rest in order. So: when the overlay is not in yet, take "maininventory" out and put it back after the overlay.
+    /// When the game itself removes and re-adds "maininventory" (mode change, backpack resize) it lands after the
+    /// overlay anyway. Every reader iterates a snapshot (<c>ToArray</c> or the dictionary's snapshot enumerator), and
+    /// the same composer object goes back under the same key, so Dovidarium's composer reuse sees no change.
+    /// </summary>
+    static void AddOverlayFirst(GuiDialogInventory dialog, GuiComposer composer)
+    {
+        var composers = dialog.Composers;
+        if (composers.ContainsKey(OverlayName))
+        {
+            composers[OverlayName] = composer;   // already ahead of it; keeps its place
+            return;
+        }
+        var main = composers["maininventory"];
+        if (main is not null) composers.Remove("maininventory");
+        composers[OverlayName] = composer;
+        if (main is not null) composers["maininventory"] = main;
     }
 
     // ---- persistence --------------------------------------------------------------------------------
