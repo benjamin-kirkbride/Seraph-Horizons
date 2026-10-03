@@ -30,6 +30,11 @@
       <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- SeraphHorizonsModScenarios runs the game's entity selection (GameMain) on the server's world. -->
+    <Reference Include="VintagestoryLib">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- ChiselRotationFixScenarios places BetterRuins schematics as GenStructures does. -->
     <Reference Include="VSEssentials">
       <HintPath>$(VINTAGE_STORY)/Mods/VSEssentials.dll</HintPath>

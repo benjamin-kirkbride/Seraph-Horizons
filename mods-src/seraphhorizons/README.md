@@ -14,7 +14,7 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior and feeds the
-creative steam source; Tidy Variants runs on the client. The client needs the mod because the
+creative steam source; Tidy Variants and cart reach run on the client. The client needs the mod because the
 steam source is a block with its own classes: the game cannot build a block whose class it does not
 know, so a client without the mod could not join a server that has it (a server with the steam
 source switched off, or without ppex, has no such block).
@@ -152,6 +152,38 @@ handbook lists. The text edits are `LangEdits` exact-passage edits, as for ppex 
 ripple and drying rack descriptions are wildcard keys, so they are set on each variant's own key.
 The switch is read on each side: a client with it off keeps Age of Flax's own text.
 
+### A cart's far slots are in reach (`CartReach`)
+
+Cartwright's Caravan (`cartwrightscaravan` 1.9.1). In survival, the two rear storage slots of a
+basic cart (`RightStorage3AP`, `LeftStorage3AP`) do nothing when clicked from behind the cart; from
+the side, or in creative, they work. The game picks an entity under the crosshair only from those
+whose origin is within the picking range of the eye (`GameMain.RayTraceForSelection` takes them
+from `GetEntitiesAround(eye, range, range)`), 4.5 blocks in survival and 100 in creative. A basic
+cart's origin is near its front and its rear slots end about 4 blocks behind it, so from behind the
+cart a slot can be well within reach while the cart is not looked at at all.
+
+`CartReach` postfixes that method, on the client, for its own world only. After the game has
+picked, it looks again at the entities it left out that match `CartReachEntities`, out to 6 blocks
+past the range, and tests their selection boxes against the same ray. It takes one only if the point
+the ray hits is within the picking range and nearer than the block or entity the game picked, so
+the reach stays the game's, measured to the slot instead of to the cart. The setting is a list of
+entity codes with `*` wildcards (no domain means `game`), by default `cartwrightscaravan:*`: the
+carts, the sled and the market stall, all of which have slots beyond their hitbox. The patch goes in
+when the level is loaded and some entity type matches; it logs how many do.
+
+The server needs nothing: the client sends the entity and the slot it picked, and the server finds
+the entity within the picking range + 10 of the player and uses the slot from the packet. One
+exception: with the server's `AntiAbuse` setting on (`Basic` or `Pedantic`; it is `Off` by
+default), the server also requires the eye within the picking range + 0.25 of the entity's hitbox,
+so a rear slot clicked from well behind a cart is still refused there.
+
+Two mods in the pack patch the same code for Yang's Transport Tycoon's locomotives, and this tweak
+leaves both alone: `yttenhancedinteractionfiltering` transpiles `RayTraceForSelection` and requires
+exactly one `GetEntitiesAround` call in it, which a postfix does not add to (Harmony hands
+transpilers the method's body, never another mod's prefixes or postfixes, whichever loads first);
+`evilinteractionrangehack` transpiles the server's `HandleEntityInteraction`, which this tweak does
+not touch. The pure logic (which codes match, when a far hit wins) is `Core/EntityReach.cs`.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -188,8 +220,8 @@ ships in the mod zip.
 
 ## Tests
 
-`tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files.
-`dotnet test mods-src/seraphhorizons/tests`.
+`tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
+and cart reach's entity matching and reach rule (`Core/`). `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
 the lid shut and with it open, and requires the boiler still standing with its lid open. It
@@ -208,6 +240,19 @@ full of steam at the set pressure, and no higher; it also requires the block in 
 inventory with no drops and no recipe. `CreativeSteamSourceOffScenarios` boots a server with the
 switch off and requires the block not to exist. While the pack pins a ppex older than 0.7.1, the
 steam scenarios require the block left out instead, and run in full once the pin moves.
+
+For cart reach, the same class requires `CartReachEntities`' default to match Cartwright's carts,
+sled and market stalls, each with selection boxes. It then runs the game's selection code on the
+server's world (the same `GameMain` code the client runs) against a basic cart, posed at rest and
+with its boxes loaded as the client has them: from 2 blocks behind the rear right slot the game picks
+nothing with survival reach and the slot with creative reach, the tweak's second look picks the
+slot, from 6 blocks behind it picks nothing, and a block in between stays picked. When it fails
+after a Cartwright's update, check whether the cart's slots moved, or whether the game now picks the
+cart by itself and the tweak can go. A third scenario applies yttenhancedinteractionfiltering's
+transpiler (its assembly is loaded on the server, its system is not) and cart reach's postfix to the
+method, in both orders, and requires the transpiler to have swapped in its own call and the method
+to run. The patch itself only goes in on a client, which Atlas does not run, so whether it is applied
+and acts there is checked by hand in the game.
 
 `tests/PackTests/AgeOfFlaxRebalanceScenarios.cs` (Atlas) reads the loaded ripples' and hatchels'
 yields (what the tools use, set from the patched balance file), requires steel and no iron in the
