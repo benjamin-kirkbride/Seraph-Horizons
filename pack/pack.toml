@@ -1078,6 +1078,14 @@ license = "unknown"
 redistribute = false
 why = "Foliage that reacts to entities, visually and audibly."
 
+[[mod]]
+id = "scrolled"
+version = "1.2.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Schematics roll up into scrolls for the scroll rack, Better Ruins maps included."
+
 # --- Pack-authored fixes (mods-src/)
 
 [[mod]]
