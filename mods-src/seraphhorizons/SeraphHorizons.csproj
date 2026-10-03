@@ -7,8 +7,8 @@
 
        Layout: the top level holds the tweaks to other mods; TidyVariants/Core/ is Tidy Variants'
        game-independent rule engine (BCL only; its unit tests in tests/ are their own project and
-       compile those files directly), TidyVariants/Game/ its game-facing code. Everything under
-       assets/ ships in the mod as is. -->
+       compile those files directly), TidyVariants/Game/ its game-facing code. MapReveal/ is laid
+       out the same way. Everything under assets/ ships in the mod as is. -->
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -63,6 +63,11 @@
     </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Map Reveal: its network packet, and the block fields of a saved chunk it reads. -->
+    <Reference Include="protobuf-net">
+      <HintPath>$(VINTAGE_STORY)/Lib/protobuf-net.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <!-- Tidy Variants: worldproperties files are the game's lenient JSON (unquoted keys); the game ships this. -->
