@@ -457,6 +457,14 @@ redistribute = false
 why = "Felled trees drop their unharvested resin."
 
 [[mod]]
+id = "loggingmod"
+version = "0.3.6"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Logging Expanded: felled trees become trunks processed at tiered sawhorses and splitting blocks."
+
+[[mod]]
 id = "saltpeterproductionfork"
 version = "1.1.1"
 side = "universal"
