@@ -58,6 +58,11 @@ public class SeraphHorizonsSystem : ModSystem
             _harmony ??= new Harmony(HarmonyId);
             AgeOfFlaxRebalance.Patch(_harmony);
         }
+        if (Config(api).ChopperDropsInFront && ChopperOutput.Applies(api))
+        {
+            _harmony ??= new Harmony(HarmonyId);
+            ChopperOutput.Patch(_harmony, api.Logger);
+        }
     }
 
     // Cart reach acts where the player picks what is under the crosshair: the client. Entity types
@@ -179,4 +184,9 @@ public class SeraphHorizonsConfig
     /// <summary>Immersive Woodworking: the chopper and the sawmill are in the creative inventory
     /// assembled, with a steel head or blade kit, next to their empty frames.</summary>
     public bool AssembledMachinesInCreative { get; set; } = true;
+
+    /// <summary>Immersive Woodworking: the powered chopper drops its output gently in the cell in
+    /// front of its output side, as the sawmill does, instead of throwing it two blocks out
+    /// (server side).</summary>
+    public bool ChopperDropsInFront { get; set; } = true;
 }

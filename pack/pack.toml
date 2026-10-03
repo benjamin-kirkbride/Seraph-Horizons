@@ -439,7 +439,7 @@ version = "1.3.11"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Hands-on, in-world woodworking stations."
+why = "Hands-on, in-world woodworking stations. The powered chopper drops its output in front, as the sawmill does, by seraphhorizons (ChopperDropsInFront)."
 
 [[mod]]
 id = "usefuloils"
