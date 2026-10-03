@@ -403,8 +403,10 @@ it fails after a mod is added or updated, it lists the foods to give a value in 
 
 `tests/PackTests/CreativeModTabsScenarios.cs` (Atlas) builds a creative inventory on the server with
 the whole pack: the default tabs are the same as without the tweak, the mod tabs follow with every
-creative stack in exactly one of them, the base game's tab first, `vinteng` and `ageofflax` under
-their owning mods, and a click in a mod tab resolves to its slot. `CreativeModTabsOffScenarios` boots
+creative stack in exactly one of them, the base game's tab first, `vinteng`, `ageofflax`, `bomb` and
+`oils` under their owning mods. The packet survives protobuf-net, and tabs a client builds from it have,
+slot for slot, what the server's inventory returns for a click there (on the same world: a client with
+other mods is the count and hash check's job). `CreativeModTabsOffScenarios` boots
 with the switch off and requires no mod tabs. The GUI is checked by hand (the doc's checklist).
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
