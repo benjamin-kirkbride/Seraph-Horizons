@@ -1,0 +1,7 @@
+// Hydrate or Diedrate values for Butchering foods it leaves out, seraphhorizons' FoodHydration switch
+// (README.md). Server side (hydration-game.json says why).
+[
+  // Offal, bloody and clean (meal ingredients): Hydrate or Diedrate's butchering:offal (+3), which no
+  // longer matches since offal has these variants.
+  { "file": "butchering:itemtypes/resource/offal.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": 3 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "butchering" }] }
+]

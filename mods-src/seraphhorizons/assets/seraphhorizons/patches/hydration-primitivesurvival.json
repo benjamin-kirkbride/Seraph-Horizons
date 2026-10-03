@@ -1,0 +1,16 @@
+// Hydrate or Diedrate values for Primitive Survival foods it leaves out, seraphhorizons'
+// FoodHydration switch (README.md). Fish by vanilla fish's states (game:fish-*: raw +15, cooked -20,
+// cured -70). Server side (hydration-game.json says why).
+[
+  // Fish fillets: raw +15 and cooked -20 as vanilla fish. Part-baked and charred have no match:
+  // -15 and -30, between and beyond raw and cooked as Hydrate or Diedrate's breads are (part-baked
+  // about 0.8 of perfect, charred about 1.6).
+  { "file": "primitivesurvival:itemtypes/fishing/fishfillet.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-raw": 15, "*-partbaked": -15, "*-cooked": -20, "*-charred": -30 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "primitivesurvival" }] },
+  // Fish eggs: raw as raw fish, cooked as cooked fish, cured caviar as cured fish (caviar-curing is
+  // not eaten). Neither cooked eggs nor caviar have an attributes object; addmerge creates it.
+  { "file": "primitivesurvival:itemtypes/fishing/fisheggs.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": 15 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "primitivesurvival" }] },
+  { "file": "primitivesurvival:itemtypes/fishing/fisheggscooked.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -20 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "primitivesurvival" }] },
+  { "file": "primitivesurvival:itemtypes/fishing/caviar.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-cured": -70 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "primitivesurvival" }] },
+  // Nightcrawlers: game:insect-* is +10.
+  { "file": "primitivesurvival:itemtypes/entity/land/nightcrawler.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": 10 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "primitivesurvival" }] }
+]
