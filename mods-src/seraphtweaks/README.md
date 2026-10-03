@@ -85,6 +85,52 @@ block does not exist at all. If ppex has changed shape (`IPipeNode.TryProduce(fl
 string, float, bool)` or exlib's `BlockNetworkNode.HasConnectorAt(BlockFacing)` is gone) the mod
 logs a warning and the block is left out the same way.
 
+### Age of Flax rebalance (`AgeOfFlaxRebalance`)
+
+Age of Flax (fork) (`ageofflaxfork` 1.1.6, asset domain `ageofflax`). Ripe flax drops flax bundles
+(avg 1.2, Age of Flax's), which go through the ripple (grain), a barrel (retting), drying, the break
+and the hatchel (fibers). Each tool comes in three tiers, which process 1, 2 and 4 bundles per use.
+This tweak:
+
+- **seeds**: the flax plant drops vanilla flax's seeds again, avg 1.2 when ripe (stage 9) and avg
+  0.7 at stage 8, on top of Age of Flax's bundles (avg 1.2 and 0.5); stages below 8 drop Age of
+  Flax's seeds as before. The ripple drops no seeds at any tier.
+- **yields**: the ripple's grain and the hatchel's fibers per ripe plant are 2/3 of vanilla flax's
+  (grain avg 3, fibers avg 4) with primitive tools, the same with simple ones and 4/3 with advanced
+  ones:
+
+  | tier | grain per bundle | grain per ripe plant | fibers per bundle | fibers per ripe plant |
+  | --- | --- | --- | --- | --- |
+  | primitive | 1.67 (±0.25) | 2 | 2.22 (±0.35) | 2.67 |
+  | simple | 2.5 (±0.4) | 3 | 3.33 (±0.5) | 4 |
+  | advanced | 3.33 (±0.5) | 4 | 4.44 (±0.65) | 5.33 |
+
+  Age of Flax rolls once per use (a Gaussian of avg and the ± as its standard deviation, rounded at
+  random) and multiplies by the bundles processed, so the mean is exact; the spreads are small
+  enough that a roll below zero, which would drop nothing and raise the mean, practically never
+  happens. Was: seeds 1.2 / 2.1 / 2.5 and grain 6 / 8 / 12 per bundle, fibers 5 / 6 / 8.
+- **steel**: the advanced ripple, hatchel and break take steel nails and strips (and the break a
+  steel rod) instead of iron.
+- **fat**: every break takes raw or rendered fat (`game:fat*`), as the ModDB mod
+  [Age of Flax Fork Break Patch](https://mods.vintagestory.at/ageofflaxforkbreakpatch)
+  (`ageofflaxforkbreakpatch` 1.0.0) does; its only content is that patch to `breaks.json`.
+- **text**: Age of Flax's English text (the only language it ships) says all of this: the seeds come
+  from the plant and the ripple strips the grain (the guide, the unprocessed bundle and the ripples),
+  the guide gives each tier's yields and materials, and the drying rack dries 3x faster, its real
+  `dryingRackSpeedMultiplier` (the text said 2x). It also puts right the dried and broken bundles'
+  descriptions, which a duplicate key in Age of Flax's lang file mixed up, and two "Extact" typos.
+
+The yields and recipes are JSON patches in `assets/seraphtweaks/patches/ageofflax-*.json`, each
+`dependsOn` ageofflaxfork. Age of Flax reads `ageofflax:config/balance.json` again in each tool's
+and the crop's `OnLoaded`, after the patch loader has run, so the patched values are the ones used.
+With the switch off (or Age of Flax changed) the system empties those patch files in `Start`, before
+the patch loader runs in `AssetsLoaded`. Age of Flax's `BlockCropFlax.GetDrops` drops only bundles
+at stages 8 and 9 and never reads the blocktype's drops, so the seeds come from a Harmony postfix on
+it (server side); the same seeds are added to the flax blocktype's `*-8` and `*-9` drops, which the
+handbook lists. The text edits are `LangEdits` exact-passage edits, as for ppex (`LangText`); the
+ripple and drying rack descriptions are wildcard keys, so they are set on each variant's own key.
+The switch is read on each side: a client with it off keeps Age of Flax's own text.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -138,6 +184,14 @@ The same class places the creative steam source against a closed iron pipe and r
 full of steam at the set pressure, and no higher; it also requires the block in the creative
 inventory with no drops and no recipe. `CreativeSteamSourceOffScenarios` boots a server with the
 switch off and requires the block not to exist.
+
+`tests/PackTests/AgeOfFlaxRebalanceScenarios.cs` (Atlas) reads the loaded ripples' and hatchels'
+yields (what the tools use, set from the patched balance file), requires steel and no iron in the
+advanced recipes and both fats in every break, rolls a flax plant's drops at stages 9, 8 and 5 on
+farmland (seeds and bundles), checks the seeds in the blocktype's drops, and requires every
+`LangEdits` passage reworded. When it fails after an Age of Flax update, match the patches and edits
+to the new files. `AgeOfFlaxRebalanceOffScenarios` boots a server with the switch off and requires
+Age of Flax as it ships.
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per

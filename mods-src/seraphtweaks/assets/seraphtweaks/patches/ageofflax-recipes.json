@@ -1,0 +1,13 @@
+// Age of Flax (ageofflaxfork) recipes, seraphtweaks' AgeOfFlaxRebalance switch (README.md).
+// The advanced (third) ripple, hatchel and break take steel nails and strips (and the break a steel
+// rod) instead of iron. Every break takes raw or rendered fat (game:fat, game:fat-rendered), as the
+// Age of Flax Fork Break Patch mod (ageofflaxforkbreakpatch 1.0.0) does.
+[
+  { "file": "ageofflax:recipes/grid/ripples.json", "op": "replace", "path": "/2/ingredients/N/code", "value": "game:metalnailsandstrips-steel", "dependsOn": [{ "modid": "ageofflaxfork" }] },
+  { "file": "ageofflax:recipes/grid/hatchels.json", "op": "replace", "path": "/2/ingredients/N/code", "value": "game:metalnailsandstrips-steel", "dependsOn": [{ "modid": "ageofflaxfork" }] },
+  { "file": "ageofflax:recipes/grid/breaks.json", "op": "replace", "path": "/2/ingredients/N/code", "value": "game:metalnailsandstrips-steel", "dependsOn": [{ "modid": "ageofflaxfork" }] },
+  { "file": "ageofflax:recipes/grid/breaks.json", "op": "replace", "path": "/2/ingredients/B/code", "value": "game:rod-steel", "dependsOn": [{ "modid": "ageofflaxfork" }] },
+  { "file": "ageofflax:recipes/grid/breaks.json", "op": "replace", "path": "/0/ingredients/V/code", "value": "game:fat*", "dependsOn": [{ "modid": "ageofflaxfork" }] },
+  { "file": "ageofflax:recipes/grid/breaks.json", "op": "replace", "path": "/1/ingredients/V/code", "value": "game:fat*", "dependsOn": [{ "modid": "ageofflaxfork" }] },
+  { "file": "ageofflax:recipes/grid/breaks.json", "op": "replace", "path": "/2/ingredients/V/code", "value": "game:fat*", "dependsOn": [{ "modid": "ageofflaxfork" }] }
+]
