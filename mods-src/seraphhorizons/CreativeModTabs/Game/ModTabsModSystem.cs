@@ -167,9 +167,16 @@ public sealed class ModTabsModSystem : ModSystem
     {
         try
         {
-            if (__instance.Api?.Side != EnumAppSide.Server || _authority is not { } a) return;
+            if (__instance.Api?.Side != EnumAppSide.Server) return;
+            // Players' inventories are built after WorldReady, but plan here too rather than leave one without tabs.
+            if ((_authority ?? (__instance.Api is ICoreServerAPI sapi ? EnsureAuthority(sapi) : null)) is not { } a) return;
             var tabs = __instance.tabs;
             if (a.Tabs.Count == 0 || tabs.TabsByCode.ContainsKey(a.Tabs[0].Code)) return;
+            // A click on a tab index this inventory lacks would make SetTab set no tab and the server's packet handler
+            // throw. That can't come from a client showing mod tabs: every inventory's default tabs are built from the
+            // same collectibles as the client's, and the client compares its own count with the announced
+            // DefaultTabCount and shows nothing if they differ. So a mismatch here means the plan is wrong for every
+            // inventory and for every client alike; it is logged and the tabs are left out.
             if (tabs.TabsByCode.Count != a.DefaultTabCount)
             {
                 __instance.Api.Logger.Warning("[seraphhorizons] Creative mod tabs: {0} default tabs, planned for {1}; no mod tabs for {2}",
