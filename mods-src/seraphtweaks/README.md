@@ -25,6 +25,11 @@ with its sound and animation, and ppex vents steam through the open lid (`Boiler
 200 L/s) and resets the over-pressure timer while it stays open. The player closes the lid by hand,
 and a boiler still with nowhere to send its steam will blow it again.
 
+The lid blowing open bangs like a ppex engine blowing up: it plays the sound ppex's
+`BlockEntityEngine.Break()` plays, `game:sounds/effect/mediumexplosion` (ExpandedLib's
+`ExSounds.MediumExplosion`), from the server at the boiler, over 24 blocks at half volume and
+unrandomized pitch, as the engine does. The lid's own creak is still `ToggleLid()`'s.
+
 The text that promised an explosion is reworded in place, in every language ppex ships (English,
 Russian, Ukrainian): the over-pressure line in the boiler's info ("until the lid blows open!") and
 the passages in the Steam Power and Boilers handbook pages. Each edit replaces one exact passage of
@@ -71,7 +76,8 @@ ships in the mod zip.
 `dotnet test mods-src/seraphtweaks/tests`.
 
 `tests/PackTests/SeraphTweaksScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
-the lid shut and with it open, and requires the boiler still standing with its lid open. It also
+the lid shut and with it open, and requires the boiler still standing with its lid open. It
+requires `BlowSound` to be ExpandedLib's `ExSounds.MediumExplosion` and present in the assets. It also
 requires every `LangEdits` passage reworded, and an edit set for every language ppex ships: when
 either fails after a ppex update, match the edits to ppex's new text or add the new language.
 

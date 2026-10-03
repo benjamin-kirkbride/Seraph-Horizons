@@ -62,6 +62,18 @@ public class SeraphTweaksScenarios : AtlasScenarioBase
         Assert.True(LidOpen(boiler));
     }
 
+    // Fails when ppex's library renames or changes the engine-explosion sound: point
+    // BoilerLidRelief.BlowSound at the new one. A sound played from the server leaves no trace to
+    // assert on, so this checks the sound itself.
+    [AtlasScenario]
+    public void The_lid_blows_open_with_the_engine_explosion_sound()
+    {
+        var engineSound = AccessTools.Field(AccessTools.TypeByName("ExpandedLib.Helpers.ExSounds"), "MediumExplosion");
+        Assert.NotNull(engineSound);
+        Assert.Equal(BoilerLidRelief.BlowSound, (AssetLocation?)engineSound.GetValue(null));
+        Assert.True(World.Api.Assets.Exists(BoilerLidRelief.BlowSound.Clone().WithPathAppendixOnce(".ogg")));
+    }
+
     // Fails when ppex rewords a passage: update BoilerLidRelief.LangEdits to match.
     [AtlasScenario]
     public void Text_says_the_lid_blows_open()
