@@ -16,10 +16,10 @@ it patches by name, so the mod builds from the game alone (`mod-release.yml` nee
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output and feeds the creative steam source; Tidy Variants and cart reach run on the
-client; Map Reveal has a half on each side. The client needs the mod because the steam source is a
-block with its own classes: the game cannot build a block whose class it does not know, so a client
-without the mod could not join a server that has it (a server with the steam source switched off,
-or without ppex, has no such block).
+client; Map Reveal has a half on each side, and the creative mod tabs need both. The client needs
+the mod because the steam source is a block with its own classes: the game cannot build a block
+whose class it does not know, so a client without the mod could not join a server that has it (a
+server with the steam source switched off, or without ppex, has no such block).
 
 ## Tweaks
 
@@ -335,6 +335,27 @@ protobuf field numbers of a saved chunk's blocks (`SavegameReader.StoredChunk`, 
 the shading (`TerrainShade`) and the wire format (`RevealCodec`). Game-independent, tested in
 `tests/`. With the switch off there is no command; on a client, nothing is patched.
 
+### Creative mod tabs (`CreativeModTabs`)
+
+The game's own creative inventory. A button above the right-hand tab column, `Tabs: Default ⇄` /
+`Tabs: Mod ⇄`, flips between the game's tabs (exactly as without the mod) and one tab per mod, each holding
+every creative-listed stack of that mod once, in the game's order, whichever default tabs the mod put it
+in. A stack belongs to the mod that owns its code's domain (a mod's several domains share a tab, e.g.
+`vinteng` is VintageEngineering's); the base game's tab, "Vintage Story", comes first, then the mods by name.
+All mod tabs are in one scrolling column on the right. Search covers the current tab, as in vanilla, and Tidy
+Variants hides and groups there as in the default tabs. Each client keeps its choice and its last tab of each
+kind in `ModConfig/seraphhorizons-creativemodtabs.json`.
+
+Both sides take part: the server resolves a creative click by tab index and slot id, so the mod tabs are real
+creative tabs on both sides. The server decides which domain goes to which mod (the two sides load different
+mods), appends the tabs to its creative inventories and sends the list to each client; the client builds the
+same tabs from it, checks them against the server's counts and hashes, and shows them in its own composer
+next to the dialog. Off on a side means nothing is patched, added or shown there. The design, the hooks
+(`GuiComposer.Compose` on the client, `InventoryPlayerCreative.UpdateFromWorld` on the server), how it stays
+out of TooManyTabs' and Dovidarium's way, and the in-game checklist are in
+`docs/variant-grouping/creative-mod-tabs.md`. `CreativeModTabs/Core/` is game-independent (the tab plan,
+domain owners, the state file, the strip's scrolling) and tested in `tests/`.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -372,8 +393,9 @@ ships in the mod zip.
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, and where the chopper drops its piles (`Core/`), and
-Map Reveal's `Core/`. `dotnet test mods-src/seraphhorizons/tests`.
+cart reach's entity matching and reach rule, and where the chopper drops its piles (`Core/`),
+Map Reveal's `Core/`, and the creative mod tabs' plan, domain owners, state file and strip
+scrolling (`CreativeModTabs/Core/`). `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
 the lid shut and with it open, and requires the boiler still standing with its lid open. It
@@ -440,6 +462,14 @@ creative, `stop`, and the shading
 helpers equal to the game's `BlurTool.Blur` and `ColorUtil.ColorMultiply3Clamped`.
 `MapRevealOffScenarios` boots a server with the switch off and requires no command. The client
 half (drawing into the map and its database) needs a game client and is not tested.
+
+`tests/PackTests/CreativeModTabsScenarios.cs` (Atlas) builds a creative inventory on the server with
+the whole pack: the default tabs are the same as without the tweak, the mod tabs follow with every
+creative stack in exactly one of them, the base game's tab first, `vinteng`, `ageofflax`, `bomb` and
+`oils` under their owning mods. The packet survives protobuf-net, and tabs a client builds from it have,
+slot for slot, what the server's inventory returns for a click there (on the same world: a client with
+other mods is the count and hash check's job). `CreativeModTabsOffScenarios` boots
+with the switch off and requires no mod tabs. The GUI is checked by hand (the doc's checklist).
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per
