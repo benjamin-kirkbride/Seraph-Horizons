@@ -81,7 +81,10 @@ the weakest pipe's burst pressure, exactly as from a boiler. At or above a pipe'
 and a leaking network is capped at 1 atm as ppex caps any source.
 
 Without ppex, or with the switch off, the blocktype is disabled before the game loads it, so the
-block does not exist at all. If ppex has changed shape (`IPipeNode.TryProduce(float, float,
+block does not exist at all. It targets ppex 0.7.1 and exlib 0.8.4, where the pipe interface is
+exlib's `ExpandedLib.Industry.Pipes.IPipeNode` and the node base class is
+`ExpandedLib.Networks.BlockNetworkNode`; with an older ppex (0.6.8, still the pinned one) those
+names are not there and the block is left out. If ppex has changed shape (`IPipeNode.TryProduce(float, float,
 string, float, bool)` or exlib's `BlockNetworkNode.HasConnectorAt(BlockFacing)` is gone) the mod
 logs a warning and the block is left out the same way.
 
@@ -183,7 +186,8 @@ match the paths in `configlib-patches.json` to its new patch file.
 The same class places the creative steam source against a closed iron pipe and requires the pipe
 full of steam at the set pressure, and no higher; it also requires the block in the creative
 inventory with no drops and no recipe. `CreativeSteamSourceOffScenarios` boots a server with the
-switch off and requires the block not to exist.
+switch off and requires the block not to exist. While the pack pins a ppex older than 0.7.1, the
+steam scenarios require the block left out instead, and run in full once the pin moves.
 
 `tests/PackTests/AgeOfFlaxRebalanceScenarios.cs` (Atlas) reads the loaded ripples' and hatchels'
 yields (what the tools use, set from the patched balance file), requires steel and no iron in the

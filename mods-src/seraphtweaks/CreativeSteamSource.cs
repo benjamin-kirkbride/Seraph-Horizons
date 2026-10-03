@@ -30,13 +30,14 @@ public static class CreativeSteamSource
     public const string ClassName = "seraphtweaks.CreativeSteamSource";
     public static readonly AssetLocation BlockAsset = new("seraphtweaks", "blocktypes/" + BlockCode + ".json");
 
-    /// <summary>ppex's interface on every pipe block entity: <c>TryProduce(volume, temperature,
+    /// <summary>The interface on every ppex pipe block entity, in exlib's industry library since
+    /// exlib 0.8 / ppex 0.7: <c>TryProduce(volume, temperature,
     /// gasType, maxOutputPressure, bypassLeakCap)</c> adds gas to the pipe's network.</summary>
-    public const string PipeNodeType = "PipesAndPowerExpanded.BlockNetworkPipe.IPipeNode";
+    public const string PipeNodeType = "ExpandedLib.Industry.Pipes.IPipeNode";
 
-    /// <summary>The pipe blocks' base class (in ppex's library, exlib): <c>HasConnectorAt(face)</c>
+    /// <summary>The pipe blocks' base class (in ppex's library, exlib 0.8+): <c>HasConnectorAt(face)</c>
     /// says whether the pipe opens towards a side, as ppex's boilers check before they push steam.</summary>
-    public const string NetworkNodeType = "ExpandedLib.Blocks.Networks.BlockNetworkNode";
+    public const string NetworkNodeType = "ExpandedLib.Networks.BlockNetworkNode";
 
     // ppex's pressure is a network's gas volume over its capacity (shown in atm), so a setting of
     // 3 atm keeps the connected pipes at three times their volume. Pipes burst at 5 (iron) and
