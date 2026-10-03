@@ -988,13 +988,22 @@ redistribute = false
 why = "Reworked and expanded explosives."
 
 [[mod]]
+id = "carryonlib"
+version = "1.0.0-pre.8"
+side = "universal"
+license = "Unlicense"
+license_source = "https://github.com/NerdScurvy/CarryOnLib"
+redistribute = false
+why = "Library required by Carry On 2.0."
+
+[[mod]]
 id = "carryon"
-version = "1.14.3"
+version = "2.0.0-pre.8"
 side = "universal"
 license = "Unlicense"
 license_source = "https://github.com/NerdScurvy/CarryOn"
 redistribute = false
-why = "Pick up and carry blocks and containers."
+why = "Pick up and carry blocks and containers. 2.0 pre-release for transform groups, which Logging Expanded's patch uses to show the logs on a carried trunk storage rack."
 
 # --- Quality of life and cosmetics (#3)
 
