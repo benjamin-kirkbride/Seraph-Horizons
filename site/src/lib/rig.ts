@@ -1,8 +1,8 @@
 // Shape posing and rig maths for the model viewer, as pure functions. A port of the C# in
-// mods-src/buckingsawmill/Core/RigAnimation.cs and of the reference in that mod's
+// mods-src/seraphhorizons/BuckingSawmill/Core/RigAnimation.cs and of the reference in that mod's
 // tools/make_shape.py (driver_matrix, part_matrix, flatten); test/rig.test.ts holds all three
-// to the poses in mods-src/buckingsawmill/tests/rig-reference.json. The rig format is
-// documented in mods-src/buckingsawmill/README.md ("Rig schema").
+// to the poses in mods-src/seraphhorizons/tests/BuckingSawmill/rig-reference.json. The rig format is
+// documented in mods-src/seraphhorizons/BuckingSawmill/README.md ("Rig schema").
 //
 // Matrices are 16 numbers in column-major order (translation in 12..14), the layout of the
 // game's Mat4f and of three.js's Matrix4.elements; points transform as M·p. Shapes are in

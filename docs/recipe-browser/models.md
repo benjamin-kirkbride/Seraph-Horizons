@@ -28,7 +28,7 @@ recipe data is published. A version can therefore never be called `models`.
 
 ### Inputs
 
-The rig format is the bucking sawmill's (`mods-src/buckingsawmill/README.md`, "Rig schema").
+The rig format is the bucking sawmill's (`mods-src/seraphhorizons/BuckingSawmill/README.md`, "Rig schema").
 Its drivers read four inputs, and the viewer shows a control only for those some driver reads:
 
 | Input | Read by | Control |
@@ -68,8 +68,8 @@ Keys starting with `_` are comments. Any other key is listed under the overlays 
       "description": "One or two sentences for the index.",
       "credit": "Who made the model and on what terms; shown on the model's page, always.",
       "creditUrl": "https://github.com/.../CREDITS.md",
-      "shape": "mods-src/buckingsawmill/assets/buckingsawmill/shapes/block/buckingmill.json",
-      "rig": "mods-src/buckingsawmill/assets/buckingsawmill/config/rig.json",
+      "shape": "mods-src/seraphhorizons/assets/seraphhorizons/shapes/block/buckingmill.json",
+      "rig": "mods-src/seraphhorizons/assets/seraphhorizons/config/buckingmill-rig.json",
       "scenario": { }
     }
   ]
@@ -159,11 +159,11 @@ Nothing else: no component, route or workflow changes.
 | `site/src/components/ModelsRoute.svelte`, `ModelPage.svelte` | The index and the model page. |
 | `site/src/viewer/model-scene.ts` | The three.js scene. |
 
-`site/test/rig.test.ts` holds the TypeScript to `mods-src/buckingsawmill/tests/rig-reference.json`,
+`site/test/rig.test.ts` holds the TypeScript to `mods-src/seraphhorizons/tests/BuckingSawmill/rig-reference.json`,
 the part matrices `tools/make_shape.py` computes with its reference maths at a spread of poses,
 which the mod's C# tests also check against: the Python, the C# and the site agree to the file's
 six decimals. It also flattens and poses the shipped shape at rest and recomputes every cell's
-collision boxes the way `make_shape.py` does, which must give back `rig.json`'s `cells`.
+collision boxes the way `make_shape.py` does, which must give back the rig file's `cells`.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view;
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL.
 
