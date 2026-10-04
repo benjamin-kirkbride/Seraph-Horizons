@@ -306,6 +306,37 @@ Server side, where the chopper runs. Immersive Woodworking has no setting for th
 `EjectBatch(ItemStack, int)` or the chopper's `Facing` is gone, the mod logs a warning and the
 chopper keeps its own throw.
 
+### One tun: Hydrate or Diedrate's is retired, Food Shelves' holds 950 L (`HydrateTunRetired`, `LargerTunRack`)
+
+The pack had two tuns, both 2 x 2 x 2 liquid containers: Hydrate or Diedrate's (`hydrateordiedrate`
+2.5.6, `hydrateordiedrate:tun-*`, 950 L by its `TunCapacityLitres` setting) and Food Shelves' tun,
+which sits in a tun rack (`foodshelves` 3.1.0, `foodshelves:tunrack-*` holding `foodshelves:tun-normal`,
+500 L). The pack keeps Food Shelves' one, at Hydrate or Diedrate's size. Two switches:
+
+- **`HydrateTunRetired`**: Hydrate or Diedrate's tun has no grid recipe (`enabled: false`) and is
+  left out of the creative inventory (its `creativeinventoryStacksByType` removed) and the handbook
+  (`attributes.handbook.exclude`). The block type stays registered, so a tun already placed in a world
+  keeps its liquid and still works, and breaking it still drops it. It can be placed again, but no new
+  one can be made. Hydrate or Diedrate's "Craft a Tun" achievement needs Nat's Achievements, which the
+  pack does not have, and its configuration page still lists the tun settings, which still apply to
+  the tuns already placed.
+- **`LargerTunRack`**: the tun rack holds 950 L instead of 500. Food Shelves keeps that number in
+  two places, and both are set: the block's `attributes.capacityLitres`, which
+  `BlockLiquidContainerBase` reads in `OnLoaded` and every fill and pour checks, and `BETunRack`'s own
+  `private readonly int capacityLitres = 500`, which its constructor gives the liquid slot
+  (`ItemSlotLiquidOnly.CapacityLitres`, read by other code that fills a liquid slot) and its
+  `Initialize` sets again. A Harmony postfix on the constructor (server side) sets the field and the
+  slot to 950, so `Initialize` sets the same. A rack that holds more than 500 L when the switch is
+  turned off keeps it, but takes no more until it is below 500.
+
+Both are JSON patches, `assets/seraphhorizons/patches/tun-hydrateordiedrate.json` and
+`tun-foodshelves.json`, `"side": "server"` (block types and recipes are loaded on the server, and the
+client gets the blocks, attributes and creative stacks included, from it) and each `dependsOn` its
+mod. With a switch off the system empties that patch file in `Start`, before the patch loader runs in
+`AssetsLoaded`, as for Age of Flax. If `BETunRack`, its constructor or its `int capacityLitres` field
+is gone, the mod logs a warning and leaves the rack as Food Shelves ships it, block attribute included,
+so the two never disagree. The switches that count are the server's.
+
 ### Map Reveal (`MapReveal`)
 
 `/revealmap <radius>` shows on your world map (M) the terrain already generated within radius
@@ -558,6 +589,14 @@ the switch off and requires the chopper unpatched and throwing its batch past th
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
 it fails after a mod is added or updated, it lists the foods to give a value in `patches/hydration-*.json`.
+
+`tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
+the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's
+block entity, taking 950 L of water. It requires the tun rack's block, field and liquid slot all at
+950 L, the constructor patched, and a placed rack with a tun taking 950 L. `TunOffScenarios` boots a
+server with both switches off and requires both tuns as they ship (the rack at 500 L in all three
+places). When it fails after a Food Shelves update, check whether `BETunRack` still keeps its own
+capacity, and whether the block's `capacityLitres` moved.
 
 `tests/PackTests/MapRevealScenarios.cs` (Atlas) has a test player run `/revealmap`, decodes what
 it is sent as the client would, and requires it to agree with the loaded chunks (so the savegame

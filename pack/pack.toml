@@ -107,7 +107,7 @@ version = "3.1.0"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Food shelves and food storage blocks."
+why = "Food shelves and food storage blocks. Its tun rack is the pack's tun and holds 950 L, by seraphhorizons (LargerTunRack)."
 
 [[mod]]
 id = "purposefulstorage"
@@ -145,7 +145,7 @@ side = "universal"
 license = "LicenseRef-HydrateOrDiedrate-No-Redistribution"
 license_source = "https://github.com/Chronolegionnaire/HydrateOrDiedrate/blob/HEAD/LICENSE"
 redistribute = false
-why = "Thirst and hot-weather survival mechanics. Foods it gives no hydration get a value from seraphhorizons (FoodHydration)."
+why = "Thirst and hot-weather survival mechanics. Foods it gives no hydration get a value from seraphhorizons (FoodHydration); its tun is retired in favour of Food Shelves' tun rack (HydrateTunRetired)."
 
 [[mod]]
 id = "hardcorewaterforkedforked"

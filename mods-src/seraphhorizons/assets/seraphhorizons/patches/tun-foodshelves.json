@@ -1,0 +1,7 @@
+// Food Shelves' tun rack (foodshelves:tunrack-*) holds 950 litres, Hydrate or Diedrate's tun's
+// size, instead of 500: seraphhorizons' LargerTunRack switch (README.md). This is the capacity the
+// block enforces (BlockLiquidContainerBase.CapacityLitres); TunRackCapacity.cs sets the block
+// entity's liquid slot to the same. Server side: the client gets the block's attributes from it.
+[
+  { "file": "foodshelves:blocktypes/barrels/tunrack.json", "op": "replace", "path": "/attributes/capacityLitres", "value": 950, "side": "server", "dependsOn": [{ "modid": "foodshelves" }] }
+]

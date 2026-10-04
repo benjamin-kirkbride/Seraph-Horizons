@@ -24,6 +24,7 @@ public class SeraphHorizonsSystem : ModSystem
     // Its own id: in singleplayer the server's instance of this system unpatches HarmonyId.
     private Harmony? _clientHarmony;
     private bool _ageOfFlax;
+    private bool _tunRack;
 
     /// <summary>This side's settings. Loaded on first use (this system's <see cref="Start"/> at the
     /// latest), so another system of the mod can read them in any phase.</summary>
@@ -44,6 +45,11 @@ public class SeraphHorizonsSystem : ModSystem
             AgeOfFlaxRebalance.DisablePatches(api);
         if (!(Config(api).FoodHydration && FoodHydration.Applies(api)))
             FoodHydration.DisablePatches(api);
+        if (!(Config(api).HydrateTunRetired && HydrateTun.Applies(api)))
+            HydrateTun.DisablePatches(api);
+        _tunRack = Config(api).LargerTunRack && TunRackCapacity.Applies(api) && TunRackCapacity.Bind(api.Logger);
+        if (!_tunRack)
+            TunRackCapacity.DisablePatches(api);
     }
 
     // Behavior changes run on the server only: that is where the tweaked mods simulate.
@@ -64,6 +70,8 @@ public class SeraphHorizonsSystem : ModSystem
             _harmony ??= new Harmony(HarmonyId);
             ChopperOutput.Patch(_harmony, api.Logger);
         }
+        if (_tunRack)
+            TunRackCapacity.Patch(_harmony ??= new Harmony(HarmonyId));
         ClearSky = new ClearSky(api);
         if (Config(api).ClearCommand)
             ClearSky.Register(_harmony ??= new Harmony(HarmonyId));
@@ -224,4 +232,13 @@ public class SeraphHorizonsConfig
     /// <c>/clear stay</c> / <c>/clear stop</c> to hold it (server side; off means no command, and a
     /// held lock is released).</summary>
     public bool ClearCommand { get; set; } = true;
+
+    /// <summary>Hydrate or Diedrate: its tun has no recipe and is left out of the creative inventory
+    /// and the handbook, so Food Shelves' tun rack is the pack's tun; tuns already placed stay and
+    /// keep working (server side; off means it is as Hydrate or Diedrate ships it).</summary>
+    public bool HydrateTunRetired { get; set; } = true;
+
+    /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
+    /// does, instead of 500 (server side).</summary>
+    public bool LargerTunRack { get; set; } = true;
 }
