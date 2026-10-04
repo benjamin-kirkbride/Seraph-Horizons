@@ -145,13 +145,16 @@ public class ItemExportScenarios : AtlasScenarioBase
     {
         // Vanilla chicken-adult.json gives 12 +- 4 feathers; goodhunting's
         // assets/game/patches/goodHunting_Chix.json replaces that with 15 +- 5 for roosters.
+        // Butchering (patches/entities/chicken.json) makes chickens butcherable, which halves
+        // what harvesting one where it lies gives; the source carries that cut.
         var feather = Item(Items, "game:feather");
         Assert.Equal("Feather", (string?)feather["name"]);
         var drop = Sources(feather, "entityDrop").SingleOrDefault(s => (string?)s["from"] == "game:chicken-rooster");
         Assert.NotNull(drop);
         Assert.Equal("Rooster", (string?)drop!["fromName"]);
-        Assert.Equal(15.0, (double?)drop["quantity"]?["avg"]);
-        Assert.Equal(5.0, (double?)drop["quantity"]?["var"]);
+        Assert.Equal(15.0 * 0.5, (double?)drop["quantity"]?["avg"]);
+        Assert.Equal(5.0 * 0.5, (double?)drop["quantity"]?["var"]);
+        Assert.Equal(0.5, (double?)drop["extra"]?["multiplier"]);
         // chicken-adult.json is code "chicken"; "rooster" is a state of its variant groups.
         Assert.Equal("game:chicken", (string?)drop["extra"]?["entityType"]);
     }

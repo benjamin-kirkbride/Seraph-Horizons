@@ -68,6 +68,7 @@ the output item.
 | `alloy` | `alloy`; ratios are on the ingredients | Alloying |
 | `cooking` | `cooking`; slot quantities are on the ingredients | Cooking |
 | `construction` | `construction`: stages, each listing the ingredients it consumes | Blocks built in place |
+| `butchery` | `butchery`: stages with what each needs and gives, yields per variant | The Butchering mod |
 | `generic` | none | Every type without a dedicated serialiser |
 
 In a grid pattern each character is the `key` of an ingredient and `_` is an empty cell.
@@ -87,6 +88,27 @@ ingredient) and a later stage can ask for the same variant with a `{name}` place
 the water wheel's planks are of the wood of its support beams. Each value is a variant with
 a binding, as for recipes.
 
+### Butchery
+
+With the Butchering mod a dead creature is picked up whole, skinned on a hook, left there to
+bleed out, and butchered on a table; or it is harvested where it lies for less. Records of
+type `butchery` are one creature type and one carcass item. `ingredients` are the carcass in
+each state (role `carcass`), the stations (role `station`, with each block's yield
+multiplier in `extra.efficiency`) and the tools; `outputs` are everything any stage gives.
+`butchery.stages` lists, per `step` (`pickUp`, `skin`, `bleed`, `butcher`, `harvest`), the
+ingredients it needs, `options` it needs one of (knife or cleaver), `optional` ones (a
+bucket), `hours` it takes and the outputs it gives. `harvest` is the alternative to the
+others, with the mod's cut in `multiplier`, already applied.
+
+Variants are the creatures that give the same. `butchery.variants`, aligned with
+`variants`, names them (`entities`) and gives each output's `yields`: average and spread,
+or null when that variant does not give it. A variant's `outputs` stacks are the outputs it
+yields, with the average as quantity. An output's `extra.scaledBy` says what multiplies it
+in game (`efficiency`, `condition`), `extra.needs` the optional ingredients it needs, and
+`extra.alternatives` other items it may be instead (carcasses of another coat).
+
+The `butchery` shape and block are optional additions, so `schemaVersion` stayed 1.
+
 ## Rules beyond the schema
 
 - Every recipe `type` is a key of `recipeTypes`, and `count` equals the number of records.
@@ -96,6 +118,9 @@ a binding, as for recipes.
 - `variants[].ingredients` is as long as `ingredients`.
 - A grid pattern has `height` rows of `width` characters and uses only keys that exist.
 - Each ingredient of a `construction` record is consumed by exactly one stage.
+- Each ingredient and each output of a `butchery` record belongs to exactly one stage;
+  `butchery.variants` is as long as `variants`, each one's `yields` as long as `outputs`, and
+  a variant's output stacks are the outputs it yields (with their alternatives).
 
 ## `extra`
 

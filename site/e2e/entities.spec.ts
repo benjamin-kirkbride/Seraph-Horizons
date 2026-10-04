@@ -1,4 +1,4 @@
-import { V, expect, openItem, test } from "./fixtures.ts";
+import { V, card, expect, openItem, pause, test } from "./fixtures.ts";
 
 test("an item's creature source opens its type's page on that variant, which links back", async ({ page }) => {
   // survival/entities/lore/drifter.json: code "drifter", variant type "normal" (Surface
@@ -58,6 +58,46 @@ test("the list has every type once, and the filter matches variant names", async
   await expect(creatures.locator('a[data-code="game:drifter"]')).toBeVisible();
   await expect(creatures.locator('a[data-code="game:wolf"]')).toHaveCount(0);
   await expect(page.getByTestId("traders")).toHaveCount(0);
+});
+
+test("a creature's page shows its butchery stage by stage, for the variant picked", async ({ page }) => {
+  // butchering/patches/entities/deer.json: a whitetail adult is picked up as
+  // deaddeer-male-adultlarge-1-dead; butchering/itemtypes/butchercreatures/deer.json gives that
+  // carcass butcheringRewards primemeat-raw (3 ± 1) and a medium workload (2 hours on the hook,
+  // knife -8 durability, cleaver -4, from the decompiled mod).
+  await page.goto(`./#/${V}/entity/game:deer?variant=game%3Adeer-whitetail-adult-male`);
+  const section = page.locator('[data-section="butchery"]');
+  await expect(section.getByRole("heading", { level: 2 })).toHaveText("Butchery");
+  const c = section.locator('article[data-recipe-id="butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead"]');
+  await expect(c).toHaveCount(1);
+  // Other carcasses of the type (fawns, red brockets) are not the whitetail's.
+  await expect(section.locator("article")).toHaveCount(1);
+  await pause(c);
+  await expect(c).toHaveAttribute("data-shape", "butchery");
+  await expect(c.locator("[data-entities]")).toContainText("Whitetail deer (male)");
+  await expect(c.locator("[data-step]")).toHaveCount(5);
+  await expect(c.locator('[data-step="pickUp"] [data-code="butchering:deaddeer-male-adultlarge-1-dead"]')).toBeVisible();
+  await expect(c.locator('[data-step="skin"] [data-code="game:hide-raw-large"]')).toBeVisible();
+  await expect(c.locator('[data-step="bleed"]')).toContainText("Takes 2 in-game hours");
+  await expect(c.locator('[data-step="bleed"] [data-code="butchering:bloodportion"]')).toHaveAttribute("data-amount", "4 L");
+  const butcher = c.locator('[data-step="butcher"]');
+  await expect(butcher).toContainText("loses 8 durability");
+  await expect(butcher).toContainText("loses 4 durability");
+  await expect(butcher.locator('li[data-yield="3 ± 1"] [data-code="butchering:primemeat-raw"]')).toBeVisible();
+  await expect(c.locator('[data-step="harvest"] [data-multiplier="0.5"]')).toContainText("50%");
+
+  // The creature link on the card leads back to the variant.
+  await c.locator('[data-entities] a[data-entity="game:deer-whitetail-adult-male"]').click();
+  await expect(page).toHaveURL(/variant=game%3Adeer-whitetail-adult-male$/);
+});
+
+test("butchery products and carcasses link to the butchery that makes and uses them", async ({ page }) => {
+  await openItem(page, "butchering:primemeat-raw");
+  const made = await card(page, "madeBy", "butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead");
+  await expect(made).toHaveAttribute("data-shape", "butchery");
+  await openItem(page, "butchering:deaddeer-male-adultlarge-1-bledout");
+  await expect(await card(page, "usedIn", "butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead")).toBeVisible();
+  await expect(await card(page, "madeBy", "butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead")).toBeVisible();
 });
 
 test("an unknown entity says so", async ({ page }) => {

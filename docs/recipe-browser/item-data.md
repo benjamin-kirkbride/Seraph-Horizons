@@ -114,7 +114,7 @@ meals, pies and liquids) are not called.
 |---|---|
 | `blockDrop` | `Block.Drops` of every block, when the drop is not the block itself. `quantity` is the drop's `NatFloat` (avg, var); `tool` when the drop needs one. |
 | `other`, note `Harvested` | `BlockBehaviorHarvestable` and `BlockBehaviorFruitingBush` harvested stacks (berry bushes, ...) |
-| `entityDrop` | `EntityProperties.Drops`, and the `drops` array of any server behavior (the vanilla `harvestable` behavior, note `Harvested`; others get note `Behavior <code>`). Mod patches such as Good Hunting's are applied. |
+| `entityDrop` | `EntityProperties.Drops`, and the `drops` array of any server behavior (the vanilla `harvestable` behavior, note `Harvested`; others get note `Behavior <code>`). Mod patches such as Good Hunting's are applied. For creatures the Butchering mod handles, `Harvested` quantities carry its field-harvesting cut, given in `extra.multiplier`; what its hook and table give is in the `butchery` recipes ([exporter.md](exporter.md#butchery-the-butchering-mod)). |
 | `traderSells`, `traderBuys` | The trade list of every entity type that has `tradePropsFile` or `tradeProps`, read the way the game's `TradeHandbookInfo` reads it. `quantity.avg` is the stack size per trade, `price` the average price in gears. `extra.priceVar` and `extra.stock` hold the rest. |
 
 Every `entityDrop`, `traderSells` and `traderBuys` source has `extra.entityType`: the code
@@ -129,8 +129,7 @@ Known missing:
   quantity config, grass and tall plants, leaves with tool-dependent code paths), loot
   from ruins' vessels and chests (`lootvessel`, BetterRuins, betterlootplus), panning
   (vanilla, Wilderlands Panning, the panning machine), fishing (vanilla, Primitive
-  Survival), beehives, traps, butchering outputs that the Butchering mod computes at
-  runtime, quarrying (Stone Quarry) and machine outputs (Vintage Engineering,
+  Survival), beehives, traps, quarrying (Stone Quarry) and machine outputs (Vintage Engineering,
   Electrical Progressive).
 - Drop chances that depend on world config or player stats (`DropModbyStat`) are not
   applied; the quantity is the declared one.

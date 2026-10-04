@@ -2,9 +2,15 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Recipe, RecipeExport } from "../src/lib/export.ts";
 import {
+  butcheryEntities,
+  butcheryOutput,
+  butcheryStages,
+  butcheryVariantsFor,
+  cardOutputs,
   constructionStages,
   constructionTotals,
   cycleAt,
+  efficiencyRange,
   distinctSources,
   focusVariants,
   formatRange,
@@ -21,6 +27,7 @@ const minimal = JSON.parse(
 const byId = (id: string) => minimal.recipes.find((r) => r.id === id)!;
 const ladder = byId("grid|game:recipes/grid/ladder.json|0");
 const waterwheel = byId("construction|game:waterwheel-3m-north|2");
+const hare = byId("butchery|game:hare|butchering:deadhare-male-european-1-dead");
 
 describe("gridCells", () => {
   it("puts the saw in row 0 column 1 and leaves row 2 column 1 empty for SWS/SPS/S_S", () => {
@@ -161,5 +168,46 @@ describe("construction", () => {
       [["game:plank-birch", 48]],
       [["game:resin", 10]],
     ]);
+  });
+});
+
+describe("butchery", () => {
+  it("lists the stages in order, with the field harvest last", () => {
+    expect(butcheryStages(hare).map((s) => s.step)).toEqual(["pickUp", "skin", "bleed", "butcher", "harvest"]);
+    expect(butcheryStages(ladder)).toEqual([]);
+  });
+
+  it("gives each output's stacks and yield for one variant, and null where the variant gives nothing", () => {
+    expect(butcheryOutput(hare, 0, 5)).toEqual({
+      stacks: [{ code: "game:bushmeat-raw", kind: "item", quantity: 3 }],
+      yield: { avg: 3, var: 1 },
+    });
+    expect(butcheryOutput(hare, 1, 6)).toBeNull();
+    expect(butcheryOutput(hare, 0, 4)!.stacks).toEqual([{ code: "butchering:bloodportion", kind: "item", quantity: 20, litres: 0.2 }]);
+  });
+
+  it("cycles a carcass through its other coats", () => {
+    const r: Recipe = { ...hare, outputs: hare.outputs.map((o, i) => (i === 0 ? { ...o, extra: { alternatives: ["butchering:deadhare-male-european-2-dead"] } } : o)) };
+    expect(butcheryOutput(r, 0, 0)!.stacks.map((s) => s.code)).toEqual([
+      "butchering:deadhare-male-european-1-dead",
+      "butchering:deadhare-male-european-2-dead",
+    ]);
+  });
+
+  it("heads the card with the carcass rather than every output", () => {
+    expect(cardOutputs(hare, 0)).toEqual([{ code: "butchering:deadhare-male-european-1-dead", kind: "item", quantity: 1 }]);
+    expect(cardOutputs(ladder, 0).map((s) => s.code)).toEqual(["game:ladder-wood-north"]);
+  });
+
+  it("names the creatures of a variant and finds the variants of some creatures", () => {
+    expect(butcheryEntities(hare, 1)).toEqual([{ code: "game:hare-european-adult-female", name: "European hare (female)" }]);
+    expect(butcheryVariantsFor(hare, ["game:hare-european-adult-female", "game:wolf-male"])).toEqual([1]);
+    expect(focusVariants(hare, { code: "game:hare-european-adult-male", as: "entity" })).toEqual([0]);
+    expect(focusVariants(hare, { code: "game:fat", as: "output" })).toEqual([0]);
+  });
+
+  it("reads a station's yield range from its efficiency per block", () => {
+    expect(efficiencyRange({ ...hare.ingredients[6]!, extra: { efficiency: { a: 0.8, b: 1.2, c: 1 } } })).toEqual({ min: 0.8, max: 1.2 });
+    expect(efficiencyRange(hare.ingredients[2])).toBeNull();
   });
 });
