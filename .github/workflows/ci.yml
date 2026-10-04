@@ -149,17 +149,16 @@ jobs:
           dotnet build tools/icon-export -c Release
           dotnet test tools/icon-export/tests --logger "console;verbosity=normal"
       # The game-independent code of the mods-src mods (Tidy Variants' rule engine,
-      # mods-src/seraphhorizons/TidyVariants/Core; the bucking sawmill's mods-src/buckingsawmill/Core):
+      # mods-src/seraphhorizons/TidyVariants/Core; the bucking sawmill's BuckingSawmill/Core beside it):
       # unit tests that need no game. The mods themselves are built and loaded by the dotnet test
       # step below.
-      - name: Seraph Horizons and bucking sawmill unit tests pass
+      - name: Seraph Horizons unit tests pass
         if: matrix.shard == 'rest'
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"
           DOTNET_NOLOGO: "1"
         run: |
           dotnet test mods-src/seraphhorizons/tests --logger "console;verbosity=normal"
-          dotnet test mods-src/buckingsawmill/tests --logger "console;verbosity=normal"
       - name: dotnet test
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"

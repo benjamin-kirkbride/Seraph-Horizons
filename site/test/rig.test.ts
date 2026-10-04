@@ -25,14 +25,14 @@ import {
   type Vec3,
 } from "../src/lib/rig.ts";
 
-// The bucking sawmill's shipped files, and the poses tools/make_shape.py computes from them with
+// The bucking sawmill's shipped files, and the poses BuckingSawmill/tools/make_shape.py computes from them with
 // its reference maths. The mod's C# tests (RigAnimationTests) check against the same file, so
 // the Python, the C# and the site are held to the same numbers.
-const MOD = "../../mods-src/buckingsawmill/";
+const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
-const rig = read("assets/buckingsawmill/config/rig.json") as Rig;
-const shape = read("assets/buckingsawmill/shapes/block/buckingmill.json") as Shape;
-const reference = read("tests/rig-reference.json") as {
+const rig = read("assets/seraphhorizons/config/buckingmill-rig.json") as Rig;
+const shape = read("assets/seraphhorizons/shapes/block/buckingmill.json") as Shape;
+const reference = read("tests/BuckingSawmill/rig-reference.json") as {
   poses: { theta: number; depth: number; lifting: number; travel: number; matrices: Record<string, number[][]> }[];
 };
 const parts = rig.parts!;

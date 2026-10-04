@@ -5,8 +5,8 @@ page shows the pack's download count and is where people browsing the ModDB find
 modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphhorizonspack`.
 
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
-tidies the creative inventory and the handbook, and Map Reveal, which shows already generated
-terrain on the world map. These are choices for this pack, not bug fixes, so
+tidies the creative inventory and the handbook, Map Reveal, which shows already generated
+terrain on the world map, and the bucking sawmill, a machine that cuts tree trunks into logs. These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.
@@ -22,7 +22,8 @@ build a block whose class it does not know, so a client without the mod could no
 that has it (a server with the steam source switched off, or without ppex, has no such block).
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
-block entity behavior of this mod, which a client needs in the same way.
+block entity behavior of this mod, which a client needs in the same way. So are the bucking
+sawmill's blocks: the server runs the mill, the client draws its moving parts.
 
 ## Tweaks
 
@@ -859,6 +860,28 @@ Known limits:
 - Logging Expanded's sawhorse holds only logs with their bark on, so beams on a sawhorse come from
   logs, not debarked logs (the automated sawmill takes those).
 
+### Bucking sawmill (`BuckingSawmill`, `BuckingSawmillSettings`)
+
+Immersive Woodworking (`immersivewoodworking`, 1.3.11) and Logging Expanded (`loggingmod`, 0.3.6).
+A machine of this mod's own: a mechanically powered pair of drag saws that cross-cut Logging
+Expanded tree trunks into logs. Its frame is crafted from two Immersive Woodworking sawmill frames
+and four support beams, placed as a six by three by four multiblock, and fitted in the world with
+Immersive Woodworking's sawmill parts (two sashes, a crankshaft, feed levers and two blade kits).
+An axle drives it at the far end; trunks go on by hand or from a Trunk Storage Rack under the
+axle, and the logs come out of the near end. While it turns it never stops: the saws sink through
+the trunk, a windlass winds them back up, and a new trunk can go on only at the top of the cycle.
+
+`BuckingSawmillSettings` holds its figures (shaft load, turns per log, logs per stored log, blade
+wear, whether it pulls from a rack). With the switch off, or either mod missing, its blocks and
+recipe are left out before the game loads them, as the creative steam source's is; neither mod is
+referenced at build time, and Logging Expanded is reached by reflection.
+
+Everything else is in [`BuckingSawmill/README.md`](BuckingSawmill/README.md): the blocks, the rig
+file that ties the model to the code, the cycle, the settings, the generated model and how to
+regenerate it, and its tests. Most of the model was made for this mod; its gears, saw blades, saw
+heads and cranks are from Immersive Woodworking's sawmill model by Bobrik00, used with the
+author's permission and not covered by the repository's license (`CREDITS.md`).
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -952,8 +975,10 @@ and a sign's text (unchanged).
 cart reach's entity matching and reach rule, where the chopper drops its piles, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
-are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, and the creative mod
-tabs' plan, domain owners, state file and mod mode's tab layout (`CreativeModTabs/Core/`).
+are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, the creative mod
+tabs' plan, domain owners, state file and mod mode's tab layout (`CreativeModTabs/Core/`), and the
+bucking sawmill's rig, footprint, assembly rules, cut arithmetic, cycle and animation
+(`BuckingSawmill/Core/`, described in `BuckingSawmill/README.md`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms
