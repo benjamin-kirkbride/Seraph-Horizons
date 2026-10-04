@@ -3679,6 +3679,26 @@
       }
     },
     {
+      "id": "olla",
+      "version": "1.4.0",
+      "assetId": 34157,
+      "releaseId": 59774,
+      "fileId": 127490,
+      "fileName": "olla_1.4.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/olla_1.4.0_fe6ed08425e15d3ec9522cd01be25db5.zip?dl=olla_1.4.0.zip",
+      "sha256": "8b0d18a5412a27859519dbc87b48618e53a721671369a8940d9909b23a04e20d",
+      "size": 60577,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "grindablebonearrows",
       "version": "1.0.1",
       "assetId": 46037,
