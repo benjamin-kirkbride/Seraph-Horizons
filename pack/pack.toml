@@ -554,6 +554,15 @@ redistribute = false
 why = "More interesting, semi-realistic ore generation."
 
 [[mod]]
+id = "bettererprospecting"
+version = "3.4.10"
+side = "universal"
+license = "GPL-3.0"
+license_source = "https://github.com/KnewOne/BetterErProspecting"
+redistribute = false
+why = "Prospecting pick modes that read the ore blocks actually in the ground: Interesting Ore Gen breaks the vanilla density search and names this mod as its replacement."
+
+[[mod]]
 id = "visibleoresandminerals"
 version = "1.4.2"
 side = "universal"

@@ -31,6 +31,12 @@
       "mod": "scrolled",
       "why": "Scrolled's rolled locator map lists 18 Better Ruins map types but not forgottenvillage; that one roll recipe is skipped.",
       "pattern": "Grid Recipe 'scrolled:locatormap-roll': Output scrolled:br-rolled-locatormap-forgottenvillage cannot be resolved\\."
+    },
+    {
+      "issue": 403,
+      "mod": "bettererprospecting",
+      "why": "BetterEr Prospecting reports its missing config file as an error on first boot, then writes the defaults.",
+      "pattern": "\\[bettererprospecting\\] Failed to load config from file\\. Creating a default config"
     }
   ],
   "schematicBlocks": [

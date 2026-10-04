@@ -2140,6 +2140,33 @@
       "dependencies": {}
     },
     {
+      "id": "bettererprospecting",
+      "version": "3.4.10",
+      "assetId": 29479,
+      "releaseId": 58775,
+      "fileId": 125721,
+      "fileName": "bettererprospecting_3.4.10.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/bettererprospecting__09d34df9462b2d417090de3fe9e1c463.zip?dl=bettererprospecting_3.4.10.zip",
+      "sha256": "b4d1ef46e81cdd556b227b3e6ee5c225acf324be526a9e0b41e06cb361d7bfaf",
+      "size": 182131,
+      "side": "universal",
+      "license": "GPL-3.0",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "visibleoresandminerals",
       "version": "1.4.2",
       "assetId": 49827,
