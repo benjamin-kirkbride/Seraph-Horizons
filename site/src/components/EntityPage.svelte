@@ -10,6 +10,7 @@
   import type { Recipe } from "../lib/export.ts";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
+  import ModLink from "./ModLink.svelte";
   import RecipeCard from "./RecipeCard.svelte";
 
   let { data, meta, code, variant }: { data: VersionData; meta: Meta; code: string; variant?: string } = $props();
@@ -111,7 +112,7 @@
         <h1>{page.name}</h1>
         <dl class="facts">
           <div><dt>{t.code}</dt><dd><code data-testid="entity-code">{code}</code></dd></div>
-          <div><dt>{t.mod}</dt><dd data-testid="entity-mod">{meta.mods[page.mod]?.name ?? page.mod}</dd></div>
+          <div><dt>{t.mod}</dt><dd data-testid="entity-mod"><ModLink id={page.mod} mods={meta.mods} /></dd></div>
           {#if total > 1}<div><dt>{t.variantsLabel}</dt><dd>{total}</dd></div>{/if}
         </dl>
       </div>
@@ -209,7 +210,7 @@
               type={meta.recipeTypes[b.recipe.type] ?? { name: t.butcheryHeading, shape: "butchery", count: 0 }}
               {data}
               only={b.only}
-              modName={meta.mods[b.recipe.mod]?.name ?? b.recipe.mod}
+              mods={meta.mods}
             />
           {/each}
         </div>

@@ -65,6 +65,23 @@ milk, white dye) are harder to see on it than dark ones. In the dark theme the p
 the tile the way the game's dark panel does; in the light theme the tile's outline is
 `#845c43` so that it still reads as a tile on the near-white page.
 
+## Mod links
+
+Every place that names a mod (item and creature pages, recipe cards, search results, the
+creature list and the credits) links it to its ModDB page in a new tab, through
+`modLink` in `site/src/lib/credits.ts` and `ModLink.svelte`. The base game's mods (`game`,
+`survival`, `creative`) link to vintagestory.at, and the CI-only exporter (`seraphexport`)
+is not linked. In credits a mod's own `website`, if it gives one, is a second, smaller
+link. In a search or creature-list row the mod link sits beside the row's link, not inside
+it, since links cannot nest.
+
+The link is `https://mods.vintagestory.at/<modid>`. The ModDB serves a mod page at its URL
+alias, which its author picks, and has no route by modid, so this is right only where the
+alias is the modid: in October 2026, 75 of the pack's 123 mods. For the rest it is a 404,
+or another mod's page when that mod's alias is our modid (`scaffolding`). The ModDB API
+(`/api/mod/<modid>`) gives the alias and the `assetid` (`/show/mod/<assetid>` always works),
+but nothing in an export carries them yet.
+
 ## Tests
 
 ```sh

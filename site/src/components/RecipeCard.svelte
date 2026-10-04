@@ -2,7 +2,7 @@
   // One recipe definition. A recipe with several resolved variants cycles through them
   // like the handbook; the controls let a reader step or stop it, and a reader who asked
   // for reduced motion starts with it stopped.
-  import type { Recipe } from "../lib/export.ts";
+  import type { Mod, Recipe } from "../lib/export.ts";
   import type { TypeInfo } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
   import { cardOutputs, focusVariants, type Focus } from "../lib/recipe-view.ts";
@@ -16,6 +16,7 @@
   import ConstructionRecipe from "../renderers/ConstructionRecipe.svelte";
   import ButcheryRecipe from "../renderers/ButcheryRecipe.svelte";
   import GenericRecipe from "../renderers/GenericRecipe.svelte";
+  import ModLink from "./ModLink.svelte";
   import Slot from "./Slot.svelte";
 
   let {
@@ -24,8 +25,8 @@
     data,
     focus = null,
     only,
-    modName,
-  }: { recipe: Recipe; type: TypeInfo; data: VersionData; focus?: Focus; modName: string; only?: number[] } = $props();
+    mods,
+  }: { recipe: Recipe; type: TypeInfo; data: VersionData; focus?: Focus; mods: Record<string, Mod>; only?: number[] } = $props();
 
   // `only` picks the variants outright: a creature page showing some of its creatures.
   const variants = $derived(only && only.length > 0 ? only : focusVariants(recipe, focus));
@@ -86,7 +87,7 @@
   {#if recipe.mod !== "game" || bindings.length > 0 || cycles}
   <header>
     <div class="title">
-      {#if recipe.mod !== "game"}<span class="muted">{modName}</span>{/if}
+      {#if recipe.mod !== "game"}<span class="muted" data-testid="recipe-mod"><ModLink id={recipe.mod} {mods} /></span>{/if}
       {#if bindings.length > 0}
         <span class="bindings">{#each bindings as [k, v] (k)}<span class="binding">{k}: {v}</span>{/each}</span>
       {/if}

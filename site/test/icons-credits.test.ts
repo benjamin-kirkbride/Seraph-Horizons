@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { creditRows, modLink } from "../src/lib/credits.ts";
+import { creditRows, modLink, modWebsite } from "../src/lib/credits.ts";
 import { iconPath, initials, readIconIndex } from "../src/lib/icons.ts";
 
 describe("initials", () => {
@@ -39,22 +39,37 @@ describe("iconPath", () => {
 });
 
 describe("credits", () => {
-  it("links a mod's website when it has one, else its ModDB page", () => {
-    expect(modLink("primitivesurvival", { website: "https://github.com/SpearAndFang/primitive-survival" })).toBe(
+  it("links a mod's ModDB page, the base game the game's site, and the exporter nowhere", () => {
+    expect(modLink("expandedfoods")).toBe("https://mods.vintagestory.at/expandedfoods");
+    expect(modLink("a b")).toBe("https://mods.vintagestory.at/a%20b");
+    expect(modLink("survival")).toBe("https://www.vintagestory.at/");
+    expect(modLink("seraphexport")).toBeNull();
+  });
+
+  it("keeps a mod's own http(s) website as a second link", () => {
+    expect(modWebsite("primitivesurvival", { website: " https://github.com/SpearAndFang/primitive-survival " })).toBe(
       "https://github.com/SpearAndFang/primitive-survival",
     );
-    expect(modLink("expandedfoods", {})).toBe("https://mods.vintagestory.at/expandedfoods");
-    expect(modLink("expandedfoods", { website: "" })).toBe("https://mods.vintagestory.at/expandedfoods");
-    expect(modLink("x", { website: "javascript:alert(1)" })).toBe("https://mods.vintagestory.at/x");
+    expect(modWebsite("expandedfoods", {})).toBeNull();
+    expect(modWebsite("expandedfoods", { website: "" })).toBeNull();
+    expect(modWebsite("x", { website: "javascript:alert(1)" })).toBeNull();
+    expect(modWebsite("x", { website: "https://mods.vintagestory.at/x" })).toBeNull();
   });
 
   it("lists every mod, base game first, then by name", () => {
     const rows = creditRows({
-      zeta: { name: "Alpha Mod", version: "1", authors: ["A", "B"] },
+      zeta: { name: "Alpha Mod", version: "1", authors: ["A", "B"], website: "https://example.org/" },
       game: { name: "Essentials", version: "1.22.7" },
       alpha: { name: "Zulu Mod", version: "2" },
     });
     expect(rows.map((r) => r.id)).toEqual(["game", "zeta", "alpha"]);
-    expect(rows[1]).toEqual({ id: "zeta", name: "Alpha Mod", version: "1", authors: ["A", "B"], link: "https://mods.vintagestory.at/zeta" });
+    expect(rows[1]).toEqual({
+      id: "zeta",
+      name: "Alpha Mod",
+      version: "1",
+      authors: ["A", "B"],
+      link: "https://mods.vintagestory.at/zeta",
+      website: "https://example.org/",
+    });
   });
 });

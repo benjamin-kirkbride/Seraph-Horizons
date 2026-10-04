@@ -9,6 +9,7 @@
   import { initials } from "../lib/icons.ts";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
+  import ModLink from "./ModLink.svelte";
   import RecipeGroups from "./RecipeGroups.svelte";
   import Vtml from "./Vtml.svelte";
 
@@ -104,7 +105,6 @@
   <p>{t.itemNotInVersion(code, data.id)}</p>
 {:else}
   {@const { ref, detail } = page}
-  {@const mod = meta.mods[ref.mod]}
   <article class="item" data-item={ref.code}>
     <header class="head">
       <Icon code={ref.code} size={64} label={initials(ref.name)} />
@@ -112,7 +112,7 @@
         <h1>{ref.name}</h1>
         <dl class="facts">
           <div><dt>{t.code}</dt><dd><code data-testid="item-code">{ref.code}</code></dd></div>
-          <div><dt>{t.mod}</dt><dd data-testid="item-mod">{mod?.name ?? ref.mod}</dd></div>
+          <div><dt>{t.mod}</dt><dd data-testid="item-mod"><ModLink id={ref.mod} mods={meta.mods} /></dd></div>
         </dl>
       </div>
     </header>
