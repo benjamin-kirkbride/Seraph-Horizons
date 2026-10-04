@@ -70,6 +70,10 @@ npm --prefix site run dev
 
 **Icons.** Icons are rendered by hand in the game client with `tools/icon-export/` (a local mod that must never enter `pack.toml` or a release; a test checks this), then imported by `tools/icons.py import` into content-addressed `icons/<xx>/<sha256>.png` (Git LFS) plus `icons/index.json`. CI checks out without LFS, so it only sees pointer files. See `docs/recipe-browser/icons.md`.
 
+## Troubleshooting crash logs
+
+When diagnosing a crash or error log, search the existing issues (open and closed) for the mods, exception text and symptoms involved before settling on a cause: `gh issue list --state all --search "<terms>"`. A matching or related issue may already hold the cause, a workaround, or evidence that correlates with the new report. Link what you find, and add new evidence to an existing issue instead of opening a duplicate.
+
 ## CI and merging
 
 - `ci-ok` in `.github/workflows/ci.yml` is the only required check. **A new CI job must be added to `ci-ok`'s `needs:`**, and to its `MEMOISED` list if the green-tree memo may skip it.
