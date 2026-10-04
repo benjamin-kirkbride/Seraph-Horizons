@@ -8,10 +8,10 @@ namespace SeraphHorizons.Mod.BuckingSawmill;
 /// <summary>
 /// The bucking sawmill: registers its classes and holds what its blocks share: its settings
 /// (BuckingSawmillSettings in ModConfig/seraphhorizons.json), the rig
-/// (assets/seraphhorizons/config/buckingmill-rig.json: the footprint and anchor points) and the
-/// bridge to Logging Expanded. The mill is built from Immersive Woodworking's parts and cuts
-/// Logging Expanded's trunks, so with the switch off, or either mod missing, the server leaves its
-/// blocks and recipe out of the game (<see cref="Disable"/>).
+/// (assets/seraphhorizons/config/buckingmill-rig.json: the footprint and anchor points), the
+/// bridge to Logging Expanded and the blade kits' tool tiers. The mill is built from Immersive
+/// Woodworking's parts and cuts Logging Expanded's trunks, so with the switch off, or either mod
+/// missing, the server leaves its blocks and recipe out of the game (<see cref="Disable"/>).
 /// </summary>
 public class BuckingSawmillSystem : ModSystem
 {
@@ -33,6 +33,9 @@ public class BuckingSawmillSystem : ModSystem
     private bool _rigLoaded;
     private LoggingBridge? _logging;
     private bool _loggingResolved;
+    // Blade kit tool tiers by item code, looked up once each (server side).
+    private readonly Dictionary<AssetLocation, int?> _bladeTiers = [];
+    private Dictionary<string, int>? _metalTiers;
 
     public static BuckingSawmillSystem Of(ICoreAPI api) => api.ModLoader.GetModSystem<BuckingSawmillSystem>();
 
@@ -68,6 +71,73 @@ public class BuckingSawmillSystem : ModSystem
                         string.Join("; ", problems));
             }
             return _logging;
+        }
+    }
+
+    /// <summary>How fast <paramref name="bladeKit"/> cuts, as a multiple of a copper kit's speed:
+    /// <see cref="Cutting.BladeSpeed"/> of its tool tier (<see cref="BladeTier"/>) with this side's
+    /// <c>BladeSpeedPerTier</c>.</summary>
+    public float BladeSpeed(ItemStack bladeKit) => Cutting.BladeSpeed(BladeTier(bladeKit), Config.BladeSpeedPerTier);
+
+    /// <summary>
+    /// The tool tier of a blade kit, so that any metal the kit comes in, a modded one too, has one
+    /// without a table here. Immersive Woodworking's <c>sawmillblade-{metal}</c> has no tier of its
+    /// own (it is not a tool), and it is crafted from the game's saw blade of its metal, so in order:
+    /// the kit's own <c>ToolTier</c> if it has one; the tier of the game's saw of that metal
+    /// (<c>game:saw-{metal}</c>: copper, gold and silver 2, the bronzes 3, iron and meteoric iron 4,
+    /// steel 5); the metal's tier in the game's metal properties plus one (they run one below the
+    /// tools': copper 1, steel 4); else null, which cuts at copper's speed.
+    /// </summary>
+    public int? BladeTier(ItemStack bladeKit)
+    {
+        var code = bladeKit.Collectible?.Code;
+        if (code == null || _api == null)
+            return null;
+        lock (_bladeTiers)
+        {
+            if (!_bladeTiers.TryGetValue(code, out var tier))
+                _bladeTiers[code] = tier = LookUpTier(bladeKit.Collectible!);
+            return tier;
+        }
+    }
+
+    private int? LookUpTier(CollectibleObject kit)
+    {
+        if (kit.ToolTier > 0)
+            return kit.ToolTier;
+        if (Parts.KindOf(kit.Code.Path, out var metal) != PartKind.BladeKit || metal == null)
+            return null;
+        if (_api!.World.GetItem(new AssetLocation("game", "saw-" + metal)) is { ToolTier: > 0 } saw)
+            return saw.ToolTier;
+        return MetalPropertyTier(metal) is int tier ? tier + 1 : null;
+    }
+
+    /// <summary>A metal's tier in the game's metal properties
+    /// (<c>game:worldproperties/block/metal.json</c>, mods' metals included when they patch it in),
+    /// or null; read once.</summary>
+    public int? MetalPropertyTier(string metal)
+    {
+        if (_api == null)
+            return null;
+        _metalTiers ??= LoadMetalTiers(_api);
+        return _metalTiers.TryGetValue(metal, out int tier) ? tier : null;
+    }
+
+    private static Dictionary<string, int> LoadMetalTiers(ICoreAPI api)
+    {
+        try
+        {
+            var json = api.Assets.TryGet(new AssetLocation("game", "worldproperties/block/metal.json"))?.ToObject<JObject>();
+            return (json?["variants"] as JArray ?? [])
+                .OfType<JObject>()
+                .Where(v => v["code"]?.Type == JTokenType.String && v["tier"]?.Type == JTokenType.Integer)
+                .GroupBy(v => (string)v["code"]!)
+                .ToDictionary(g => g.Key, g => (int)g.First()["tier"]!);
+        }
+        catch (Exception e)
+        {
+            api.Logger.Warning("[seraphhorizons] Bucking sawmill: could not read the game's metal tiers: {0}", e.Message);
+            return [];
         }
     }
 

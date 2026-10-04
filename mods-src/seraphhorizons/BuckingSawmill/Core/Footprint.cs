@@ -83,6 +83,15 @@ public static class Footprint
         return new Float3(x * n.Z + z * n.X + 0.5f, local.Y, -x * n.X + z * n.Z + 0.5f);
     }
 
+    /// <summary>The inverse of <see cref="ToWorld(Float3, Side)"/>: a world offset from the
+    /// controller's corner back to native-frame blocks.</summary>
+    public static Float3 ToLocal(Float3 world, Side facing)
+    {
+        var n = facing.Normal();
+        float x = world.X - 0.5f, z = world.Z - 0.5f;
+        return new Float3(x * n.Z - z * n.X + 0.5f, world.Y, x * n.X + z * n.Z + 0.5f);
+    }
+
     /// <summary>A cell-local box turned within its cell (about 0.5, 0.5).</summary>
     public static Box ToWorld(Box box, Side facing)
     {

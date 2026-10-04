@@ -13,7 +13,8 @@ public class MillConfigTests
         Assert.Equal(8f, config.RevolutionsPerStoredLog);
         Assert.Equal(6f, config.RaiseRevolutions);
         Assert.Equal(2f, config.LogsPerStoredLog);
-        Assert.Equal(0.25f, config.BladeWearPerStoredLog);
+        Assert.Equal(1f, config.BladeWearPerStoredLog);
+        Assert.Equal(0.35f, config.BladeSpeedPerTier);
         Assert.True(config.AutoPullFromRack);
         Assert.Empty(config.Sanitise());
     }
@@ -29,9 +30,10 @@ public class MillConfigTests
             RaiseRevolutions = -1,
             LogsPerStoredLog = -2,
             BladeWearPerStoredLog = float.PositiveInfinity,
+            BladeSpeedPerTier = -0.1f,
         };
         var fixes = config.Sanitise();
-        Assert.Equal(6, fixes.Count);
+        Assert.Equal(7, fixes.Count);
         Assert.Contains(fixes, f => f.StartsWith("RevolutionsPerStoredLog"));
         Assert.Contains(fixes, f => f.StartsWith("RaiseRevolutions"));
         Assert.Equal(6f, config.RaiseRevolutions);
@@ -39,13 +41,14 @@ public class MillConfigTests
         Assert.Equal(0.05f, config.MinSpeed);
         Assert.Equal(8f, config.RevolutionsPerStoredLog);
         Assert.Equal(2f, config.LogsPerStoredLog);
-        Assert.Equal(0.25f, config.BladeWearPerStoredLog);
+        Assert.Equal(1f, config.BladeWearPerStoredLog);
+        Assert.Equal(0.35f, config.BladeSpeedPerTier);
     }
 
     [Fact]
     public void Valid_edges_are_kept()
     {
-        var config = new MillConfig { Resistance = 0, MinSpeed = 0, LogsPerStoredLog = 0, BladeWearPerStoredLog = 0, RevolutionsPerStoredLog = 0.01f, RaiseRevolutions = 0.01f };
+        var config = new MillConfig { Resistance = 0, MinSpeed = 0, LogsPerStoredLog = 0, BladeWearPerStoredLog = 0, BladeSpeedPerTier = 0, RevolutionsPerStoredLog = 0.01f, RaiseRevolutions = 0.01f };
         Assert.Empty(config.Sanitise());
         Assert.Equal(0.01f, config.RaiseRevolutions);
         Assert.Equal(0.01f, config.RevolutionsPerStoredLog);

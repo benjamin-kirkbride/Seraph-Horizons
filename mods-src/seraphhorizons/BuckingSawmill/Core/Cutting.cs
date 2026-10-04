@@ -35,11 +35,31 @@ public static class Cutting
         return revolutions <= 0 ? 1f : (float)(radians / (2 * Math.PI * revolutions));
     }
 
+    /// <summary>The tool tier of the copper saw, the slowest blade: a kit of this tier or below cuts
+    /// at 1×.</summary>
+    public const int CopperTier = 2;
+
+    /// <summary>How fast a blade kit of tool tier <paramref name="tier"/> cuts, as a multiple of a
+    /// copper kit: 1 + <paramref name="speedPerTier"/> per tier above <see cref="CopperTier"/>, never
+    /// below 1. An unknown tier (null) cuts at 1×.</summary>
+    public static float BladeSpeed(int? tier, float speedPerTier)
+    {
+        if (tier is not int t || !float.IsFinite(speedPerTier) || speedPerTier <= 0)
+            return 1f;
+        return 1f + speedPerTier * Math.Max(0, t - CopperTier);
+    }
+
+    /// <summary>Shaft turns per stored log with a blade kit cutting at <paramref name="bladeSpeed"/>:
+    /// the configured turns over the speed. Only the cut is scaled; the saws' travel up, and down
+    /// when empty, is the windlass's and does not depend on the blade.</summary>
+    public static float CutRevolutions(float revolutionsPerStoredLog, float bladeSpeed) =>
+        bladeSpeed > 0 && float.IsFinite(bladeSpeed) ? revolutionsPerStoredLog / bladeSpeed : revolutionsPerStoredLog;
+
     /// <summary>Logs a finished trunk gives: floor(storedLogs × logsPerStoredLog).</summary>
     public static int LogYield(int storedLogs, float logsPerStoredLog) =>
         Math.Max(0, (int)Math.Floor(storedLogs * (double)logsPerStoredLog + Epsilon));
 
-    /// <summary>Durability each blade kit loses on a finished trunk:
+    /// <summary>Durability the blade kit loses on a finished trunk:
     /// ceil(storedLogs × bladeWearPerStoredLog).</summary>
     public static int BladeWear(int storedLogs, float bladeWearPerStoredLog) =>
         Math.Max(0, (int)Math.Ceiling(storedLogs * (double)bladeWearPerStoredLog - Epsilon));

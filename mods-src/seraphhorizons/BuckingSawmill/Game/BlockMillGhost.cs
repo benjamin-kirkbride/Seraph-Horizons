@@ -7,7 +7,8 @@ namespace SeraphHorizons.Mod.BuckingSawmill;
 /// <summary>
 /// An invisible cell of the mill around its controller. Interaction, breaking, the pick-block
 /// stack, particles, name, info and help all go to the controller, as Immersive Woodworking's
-/// sawmill ghosts do; its collision and selection boxes are its cell's from the rig.
+/// sawmill ghosts do; its collision and selection boxes are its cell's from the rig, with the
+/// loaded trunk's part in it.
 /// </summary>
 public class BlockMillGhost : Block
 {
@@ -51,10 +52,25 @@ public class BlockMillGhost : Block
 
     public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
     {
-        if (Controller(world.BlockAccessor, blockSel.Position, out var mill, out var principal))
-            return mill.OnBlockInteractStart(world, byPlayer, At(blockSel, principal));
+        if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal))
+            return BlockBuckingMill.InteractAt(world, byPlayer, blockSel, principal);
         return base.OnBlockInteractStart(world, byPlayer, blockSel);
     }
+
+    public override bool OnBlockInteractStep(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        Controller(world.BlockAccessor, blockSel.Position, out var mill, out var principal)
+        && mill.OnBlockInteractStep(secondsUsed, world, byPlayer, At(blockSel, principal));
+
+    public override void OnBlockInteractStop(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
+    {
+        if (Controller(world.BlockAccessor, blockSel.Position, out var mill, out var principal))
+            mill.OnBlockInteractStop(secondsUsed, world, byPlayer, At(blockSel, principal));
+    }
+
+    public override bool OnBlockInteractCancel(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel,
+        EnumItemUseCancelReason cancelReason) =>
+        !Controller(world.BlockAccessor, blockSel.Position, out var mill, out var principal)
+        || mill.OnBlockInteractCancel(secondsUsed, world, byPlayer, At(blockSel, principal), cancelReason);
 
     public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer)
     {

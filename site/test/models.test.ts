@@ -131,10 +131,10 @@ describe("scenario", () => {
   const play = scenario.play!;
   const { anchors } = discoverAnchors(millRig);
   const bed = anchors.find((a): a is Extract<Anchor, { kind: "line" }> => a.kind === "line" && a.key === "trunkBed")!;
-  const xl = scenario.prop!.options.find((o) => o.id === "xl")!;
+  const thick = scenario.prop!.options.find((o) => o.id === "thick")!;
 
   it("is sound against the rig", () => {
-    expect(checkScenario(scenario, millRig, anchors, ["crankshaft", "sash1", "blade1", "sash2", "blade2", "levers"])).toEqual([]);
+    expect(checkScenario(scenario, millRig, anchors, ["crankshaft", "sash1", "blade", "sash2", "levers"])).toEqual([]);
   });
 
   it("names what is wrong with a broken one", () => {
@@ -149,9 +149,11 @@ describe("scenario", () => {
   });
 
   it("lays a prop on the bed and finds where the saw meets it", () => {
-    const b = propBox(xl, bed);
-    // 4 long on x, 2 wide on z, 2 high, underside on the bed
-    expect(b.size).toEqual([4, 2, 2]);
+    // the mill shows every trunk as one of two models, as the game does: thin 1×1×4, thick 2×2×5
+    expect(scenario.prop!.options.map((o) => [o.id, o.size])).toEqual([["thin", [4, 1, 1]], ["thick", [5, 2, 2]]]);
+    const b = propBox(thick, bed);
+    // 5 long on x, 2 wide on z, 2 high, underside on the bed
+    expect(b.size).toEqual([5, 2, 2]);
     expect(b.centre).toEqual([bed.origin[0], bed.origin[1] + 1, bed.origin[2]]);
     expect(rigNumber(millRig, "saw.topY")).toBe(2.5625);
     expect(() => rigNumber(millRig, "saw.nope")).toThrow(/saw.nope/);
@@ -241,9 +243,8 @@ describe("model view", () => {
     expect(view.requires).toEqual([
       { value: "crankshaft", label: "Crankshaft" },
       { value: "sash1", label: "Sash 1" },
-      { value: "blade1", label: "Blade kit 1" },
+      { value: "blade", label: "Blade kit" },
       { value: "sash2", label: "Sash 2" },
-      { value: "blade2", label: "Blade kit 2" },
       { value: "levers", label: "Levers" },
     ]);
     expect(view.textures.map((t) => t.code).sort()).toEqual(["metal", "oak", "rope"]);

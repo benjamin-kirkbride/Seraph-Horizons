@@ -189,9 +189,12 @@ public sealed class MillRenderer : IRenderer
         _trunkMesh?.Dispose();
         _trunkMesh = null;
         _trunkCode = code;
-        // Logging Expanded's own block for this stack: its per-size, per-wood shape and textures,
-        // turned by its side variant. Laid on the bed by its bounds, whatever the size's offset.
-        _capi.Tesselator.TesselateBlock(trunk!.Block, out var mesh);
+        // Logging Expanded's own block of the trunk's wood, without branches, in the size its class
+        // is shown as (Trunks.ShownBlock): its shape and textures, turned by its side variant. Laid
+        // on the bed by its bounds, whatever the size's offset.
+        if (Trunks.ShownBlock(_capi.World, trunk) is not { } shown)
+            return;
+        _capi.Tesselator.TesselateBlock(shown, out var mesh);
         if (mesh == null || mesh.VerticesCount == 0)
             return;
         var (min, max) = Bounds(mesh);
@@ -250,7 +253,7 @@ public sealed class MillRenderer : IRenderer
     private float[][] Matrices() => _parts.Matrices(_theta, _be.ClientSawDepth, _lifting, _travel);
 
     private bool Fitted(int part) =>
-        RigPart.Fitted(_parts.Parts[part].Requires, _be.SashCount, _be.HasCrankshaft, _be.BladeCount, _be.HasLevers);
+        RigPart.Fitted(_parts.Parts[part].Requires, _be.SashCount, _be.HasCrankshaft, _be.HasBladeKit, _be.HasLevers);
 
     private void Draw(MultiTextureMeshRef mesh, float[] native, IStandardShaderProgram? prog, Vec3d cam, BlockPos pos)
     {

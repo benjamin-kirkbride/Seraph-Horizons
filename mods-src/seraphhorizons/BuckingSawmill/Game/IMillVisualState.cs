@@ -25,14 +25,16 @@ public interface IMillVisualState
     /// linkage that trips the windlass when the saws bottom out.</summary>
     bool HasLevers { get; }
 
-    /// <summary>Blade kits fitted, 0 to 2, never more than <see cref="SashCount"/>.</summary>
-    int BladeCount { get; }
+    /// <summary>Whether the blade kit is fitted: one kit, a blade in each saw, fitted only with both
+    /// sashes.</summary>
+    bool HasBladeKit { get; }
 
-    /// <summary>The blade kits' metal (the <c>metal</c> variant of
-    /// <c>immersivewoodworking:sawmillblade-{metal}</c>), or null without blades.</summary>
+    /// <summary>The blade kit's metal (the <c>metal</c> variant of
+    /// <c>immersivewoodworking:sawmillblade-{metal}</c>), or null without one.</summary>
     string? BladeMetal { get; }
 
-    /// <summary>The loaded Logging Expanded trunk as its whole item stack, or null.</summary>
+    /// <summary>The loaded Logging Expanded trunk as its whole item stack, or null. The renderer
+    /// shows it as the model of its class (<see cref="TrunkBox"/>), not of its own size.</summary>
     ItemStack? Trunk { get; }
 
     /// <summary>How far the loaded trunk is cut, 0 to 1; 0 without a trunk.</summary>
