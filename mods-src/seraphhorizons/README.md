@@ -15,8 +15,8 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output, feeds the creative steam source and runs `/clear`; Tidy Variants and cart reach
-run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+chopper's output, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach and
+the creative search tweaks run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block).
@@ -821,6 +821,59 @@ Some rules in the override file are ported from Handbook Declutterer (actioninja
 on Fix Handbook Clutter (Craluminum2413), MIT. The notice and lineage are in `CREDITS.md`, which
 ships in the mod zip.
 
+### The creative inventory keeps your place (`CreativeKeepsPlace`)
+
+Closing the creative inventory empties its search box (`GuiDialogInventory.OnGuiClosed` sets it to
+`""`, which runs the search and scrolls the grid to the top), so every reopen starts at the top of
+the whole tab. With this tweak, reopening it in the same session puts back the search text, and the
+scroll position too if the same tab is shown (clamped to the list's height). The selected tab was
+already kept by the game, the creative mod tabs keep their mode and tab, and Tidy Variants keeps its
+expanded groups in its own file, so the inventory comes back as it was left. Client side, in memory
+only: leaving the world forgets it. A close outside creative restores nothing, and neither does an
+open after a game mode change while it was open; the scroll is not put back on another tab.
+
+Hooks (`CreativeSearch/`, Harmony id `seraphhorizons.creativesearch`, client only): a prefix on
+`GuiDialog.TryClose` for the inventory dialog reads the text, tab and scroll while the dialog is
+still open and its box still full, and a postfix on `GuiDialogInventory.OnGuiOpened` restores them
+after the open's compose (or Dovidarium's reuse of the last composer): `SetValue` on the box, which
+runs the dialog's own search and Tidy Variants' regrouping, then the scrollbar. Not a prefix on
+`OnGuiClosed`: Dovidarium's craftable panel takes only foreign postfixes there and would turn itself
+off (`docs/variant-grouping/hooks.md` §7). Flipping the creative mod tabs recomposes the open dialog
+without closing it, so it never meets these hooks.
+
+With text put back, the box is treated as left, as vanilla treats a search the player comes back
+to: the first Backspace in it clears the whole text (the game's `DeleteOnRefocusBackSpace`). So
+Ctrl+F opens the inventory on the remembered search with the box focused: typing adds to it,
+Backspace (or a right-click, below) starts afresh.
+
+To check by hand in the game (creative, the full pack): search `iron`, scroll down, close with E and
+with Escape, reopen with E and with Ctrl+F: same text, results and scroll; with Ctrl+F, Backspace
+clears the box. Close on one tab, reopen: same tab and scroll. Search with a group expanded: still
+expanded after reopening. Flip the mod tabs with text in the box, scroll, close, reopen: same mod
+tab, text and scroll. `/gm 0` with the inventory open, close, `/gm 1`, reopen: empty search at the top. Leave and
+rejoin the world: empty search.
+
+### Right-click clears the search box (`SearchRightClickClears`)
+
+A right-click on the creative inventory's search box empties it, so the grid shows the whole tab
+again, and leaves it focused, so the player can type straight away. The handbook's search box (its
+list page) does the same. Every other text box is left alone. Client side.
+
+Hook: a postfix on `GuiElementEditableTextBase.OnMouseDownOnElement` (the element under the press,
+as the GUI routes it, so a dialog on top keeps its clicks), right button only, for the creative
+composer's `searchbox` or the handbook overview's `searchField` in an open dialog; it calls the
+box's `SetValue("")`, which runs the dialog's own search. Focus is vanilla's: the element marks the
+press handled for any button and the composer then focuses it (a right-click on the box already
+focused it, and did nothing else). With an item on the cursor nothing else happens: the creative
+dialog's `OnMouseDown` returns as soon as a composer has handled the press, before the code that
+would put the held item into the creative inventory. No pack mod patches that method, and
+Dovidarium does not gate it.
+
+To check by hand in the game: right-click the creative search box with text in it (whole tab back,
+caret in the box, typing works), with an item on the cursor (still held, nothing deleted), and with
+the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
+and a sign's text (unchanged).
+
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
@@ -984,6 +1037,9 @@ cleanly), and are covered by reading.
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per
 group, the creative and handbook systems stay off on the server, and the report
 (`docs/variant-grouping/report.md`). `TidyVariantsOffScenarios` boots a server with the switch off.
+
+`CreativeKeepsPlace` and `SearchRightClickClears` are client GUI only, with no logic apart from the
+game's: they need checking by hand in the game (the lists in their sections).
 
 The test project loads this directory's build as a mod, and leaves out a pinned copy from the
 ModDB (`seraphhorizons_*.zip` in `build/mods`).
