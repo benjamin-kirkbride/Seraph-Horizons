@@ -76,6 +76,9 @@ public sealed class ButcheryData
 
     /// <summary>Path prefixes of drops the creature's condition scales at a workstation even when they are not food.</summary>
     public string[] WeightPrefixes = [];
+
+    /// <summary>The lowest and highest condition (animalWeight) a creature can have; null when it cannot be read.</summary>
+    public (float Min, float Max)? Condition;
     public List<ButcheryChain> Chains = new();
 }
 
@@ -126,6 +129,7 @@ public static class Butchery
                 // The game's own buckets first, so the slot leads with the one most players have.
                 .OrderBy(b => b.Code.Domain != "game").ThenBy(b => b.Code.ToString(), StringComparer.Ordinal).ToList(),
             FieldHarvestMultiplier = MeasureFieldHarvest(api, behaviorCode),
+            Condition = ConditionRange(),
         };
         data.Chains = Chains(api, data);
         return data;
@@ -189,6 +193,15 @@ public static class Butchery
     }
 
     private static object? Const(Type t, string name) => t.GetField(name, Any)?.GetRawConstantValue();
+
+    /// <summary>
+    /// The range of a creature's condition, the animalWeight that scales its food. The game
+    /// (EntityBehaviorHarvestable.OnGameTick) never lets it fall below the class's private
+    /// constant minimumWeight (0.5 in 1.22) nor rise above 1, a literal in that method that
+    /// cannot be read; the mod copies it onto the carcass as it is.
+    /// </summary>
+    private static (float Min, float Max)? ConditionRange() =>
+        Const(typeof(EntityBehaviorHarvestable), "minimumWeight") is float min ? (min, 1f) : null;
 
     /// <summary>
     /// The mod patches EntityBehaviorHarvestable.dropQuantityMultiplier to cut what a creature

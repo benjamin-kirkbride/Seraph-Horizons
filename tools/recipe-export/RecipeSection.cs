@@ -454,6 +454,8 @@ public static class RecipeSection
                 ["yields"] = new JArray(outputs.Select(x => (JToken?)x.Yields[vi] ?? JValue.CreateNull())),
             })),
         };
+        if (data.Condition is { } condition)
+            o["butchery"]!["condition"] = new JObject { ["min"] = Num(condition.Min), ["max"] = Num(condition.Max) };
         o["extra"] = new JObject { ["behavior"] = data.BehaviorClass };
         return o;
     }

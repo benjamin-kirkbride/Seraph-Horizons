@@ -1,8 +1,21 @@
 <script lang="ts">
   import type { EntityIndex, EntityVariant, Meta } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { entitySections, formatSpread, groupLabel, mergeVariants, variantGroups, type MergedRow, type Placed, type VariantGroup } from "../lib/entity-view.ts";
-  import { butcheryVariantsFor, formatQuantity } from "../lib/recipe-view.ts";
+  import {
+    butcheryCovers,
+    butcheryYields,
+    entitySections,
+    formatSpread,
+    groupLabel,
+    mergeVariants,
+    variantGroups,
+    type ButcheryYieldRow,
+    type ButcheryYields,
+    type MergedRow,
+    type Placed,
+    type VariantGroup,
+  } from "../lib/entity-view.ts";
+  import { butcheryVariantsFor, formatNumber, formatQuantity } from "../lib/recipe-view.ts";
   import { formatRoute } from "../lib/route.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
@@ -78,6 +91,32 @@
       .filter((b) => codes === null || b.only.length > 0);
   });
 
+  /**
+   * What the butchery records give the creatures shown, to stand in for their plain harvest
+   * table; null when there are none, or some harvested creature shown has no butchery.
+   */
+  const yields = $derived.by(() => {
+    if (page.status !== "ok" || butchery.length === 0) return null;
+    const shown = selected !== null || page.groups.length === 1 ? (selected ?? page.groups[0]!).codes : page.variants.map((v) => v.code);
+    const harvested = page.variants.filter((v) => shown.includes(v.code) && v.sources.some((s) => s.note === "Harvested")).map((v) => v.code);
+    if (!butcheryCovers(page.butchery, harvested)) return null;
+    return butcheryYields(butchery.map((b) => ({ recipe: b.recipe, variants: b.only.length > 0 ? b.only : (b.recipe.butchery?.variants ?? []).map((_, i) => i) })));
+  });
+
+  /** Under the table: what each column means, from the records. */
+  const yieldsNote = $derived.by(() => {
+    if (!yields) return "";
+    const [low, high] = yields.conditions;
+    return t.butcheryYieldsNote({
+      ...(yields.groundShare !== undefined ? { share: `${formatNumber(yields.groundShare * 100)}%` } : {}),
+      ...(high !== undefined ? { low: formatNumber(low!), high: formatNumber(high) } : {}),
+      stations: yields.stations.map((s) => t.butcheryStationRange(s.step, formatNumber(s.min), formatNumber(s.max))),
+      ranges: yields.rows.some((r) => [...(r.ground ?? []), ...(r.full ?? [])].some((c) => c.min !== c.max)),
+    });
+  });
+
+  const byItemName = (a: ButcheryYieldRow, b: ButcheryYieldRow) => data.nameOf(a.code).localeCompare(data.nameOf(b.code), "en");
+
   const href = (v?: string) => formatRoute({ view: "entity", version: data.id, code, ...(v ? { variant: v } : {}) });
   const isTrade = (kind: string) => kind === "sells" || kind === "buys";
 
@@ -93,6 +132,48 @@
 
 {#snippet heading(kind: string, note: string | undefined, id: string)}
   <h2 {id}>{kind === "behavior" ? note : t.entitySections[kind as keyof typeof t.entitySections]}</h2>
+{/snippet}
+
+<!-- Harvested where the body lies against through the hook and table, each at the lowest
+     and highest condition. Cells are short (averages, no spread) and names wrap, so it fits
+     a phone without scrolling sideways. -->
+{#snippet yieldTable(y: ButcheryYields)}
+  {@const sub = y.conditions.length > 1}
+  <table class="yields" data-testid="butchery-yields">
+    <colgroup><col class="item" /></colgroup>
+    <colgroup span={y.conditions.length}></colgroup>
+    <colgroup span={y.conditions.length}></colgroup>
+    <thead>
+      <tr>
+        <th scope="col" rowspan={sub ? 2 : 1}>{t.item}</th>
+        <th scope="colgroup" colspan={y.conditions.length} class="group">{t.butcheryYieldGround}</th>
+        <th scope="colgroup" colspan={y.conditions.length} class="group">{t.butcheryYieldFull}</th>
+      </tr>
+      {#if sub}
+        <tr>
+          {#each [0, 1] as way (way)}
+            {#each y.conditions as _, k (k)}<th scope="col" class="num" class:first={k === 0}>{t.butcheryYieldWeight(k === 0)}<span class="visually-hidden">{t.butcheryYieldWeightSuffix}</span></th>{/each}
+          {/each}
+        </tr>
+      {/if}
+    </thead>
+    <tbody>
+      {#each [...y.rows].sort(byItemName) as row (row.code)}
+        <tr data-item={row.code}>
+          <td><ItemLink code={row.code} {data} /></td>
+          {#each [row.ground, row.full] as cells, w (w)}
+            {#each y.conditions as _, k (k)}
+              {@const c = cells?.[k]}
+              <td class="num" class:first={k === 0}>
+                {#if c}{formatSpread({ min: c.min, max: c.max })}{row.litres ? " L" : ""}{:else}<span aria-hidden="true">–</span><span class="visually-hidden">{t.butcheryYieldNone}</span>{/if}
+              </td>
+            {/each}
+          {/each}
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+  <p class="muted yields-note">{yieldsNote}</p>
 {/snippet}
 
 {#if page.status === "loading"}
@@ -136,32 +217,36 @@
       {#each entitySections(group.sources) as section, si (si)}
         <section aria-labelledby="sec-{si}" data-section={section.kind}>
           {@render heading(section.kind, section.note, `sec-${si}`)}
-          <div class="scroll">
-            <table>
-              <thead>
-                {#if isTrade(section.kind)}
-                  <tr><th scope="col">{t.item}</th><th scope="col">{t.perTrade}</th><th scope="col">{t.priceHeading}</th><th scope="col">{t.stock}</th></tr>
-                {:else}
-                  <tr><th scope="col">{t.item}</th><th scope="col">{t.quantity}</th><th scope="col"></th></tr>
-                {/if}
-              </thead>
-              <tbody>
-                {#each section.rows as s, i (i)}
-                  {@const ref = data.ref(s.item)}
-                  <tr>
-                    <td>{#if ref}<ItemLink code={ref.code} {data} />{/if}</td>
-                    <td>{formatQuantity(s.quantity)}</td>
-                    {#if isTrade(section.kind)}
-                      <td>{s.price !== undefined ? formatQuantity({ avg: s.price, var: s.extra?.priceVar as number | undefined }) : ""}</td>
-                      <td>{stock(s)}</td>
-                    {:else}
-                      <td>{details(s)}</td>
-                    {/if}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+          {#if section.kind === "harvest" && yields}
+            {@render yieldTable(yields)}
+          {:else}
+            <div class="scroll">
+              <table>
+                <thead>
+                  {#if isTrade(section.kind)}
+                    <tr><th scope="col">{t.item}</th><th scope="col">{t.perTrade}</th><th scope="col">{t.priceHeading}</th><th scope="col">{t.stock}</th></tr>
+                  {:else}
+                    <tr><th scope="col">{t.item}</th><th scope="col">{t.quantity}</th><th scope="col"></th></tr>
+                  {/if}
+                </thead>
+                <tbody>
+                  {#each section.rows as s, i (i)}
+                    {@const ref = data.ref(s.item)}
+                    <tr>
+                      <td>{#if ref}<ItemLink code={ref.code} {data} />{/if}</td>
+                      <td>{formatQuantity(s.quantity)}</td>
+                      {#if isTrade(section.kind)}
+                        <td>{s.price !== undefined ? formatQuantity({ avg: s.price, var: s.extra?.priceVar as number | undefined }) : ""}</td>
+                        <td>{stock(s)}</td>
+                      {:else}
+                        <td>{details(s)}</td>
+                      {/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
         </section>
       {/each}
     {:else}
@@ -169,31 +254,35 @@
       {#each entitySections<MergedRow & Placed>(page.merged) as section, si (si)}
         <section aria-labelledby="sec-{si}" data-section={section.kind}>
           {@render heading(section.kind, section.note, `sec-${si}`)}
-          <div class="scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">{t.item}</th>
-                  <th scope="col">{isTrade(section.kind) ? t.perTrade : t.quantity}</th>
-                  {#if isTrade(section.kind)}<th scope="col">{t.priceHeading}</th>{/if}
-                  <th scope="col">{t.variantsLabel}</th>
-                  {#if !isTrade(section.kind)}<th scope="col"></th>{/if}
-                </tr>
-              </thead>
-              <tbody>
-                {#each section.rows as s, i (i)}
-                  {@const ref = data.ref(s.item)}
+          {#if section.kind === "harvest" && yields}
+            {@render yieldTable(yields)}
+          {:else}
+            <div class="scroll">
+              <table>
+                <thead>
                   <tr>
-                    <td>{#if ref}<ItemLink code={ref.code} {data} />{/if}</td>
-                    <td>{formatSpread(s.quantity)}</td>
-                    {#if isTrade(section.kind)}<td>{formatSpread(s.price)}</td>{/if}
-                    <td>{s.variants === total ? t.everyVariant : t.someVariants(s.variants, total)}</td>
-                    {#if !isTrade(section.kind)}<td>{details(s)}</td>{/if}
+                    <th scope="col">{t.item}</th>
+                    <th scope="col">{isTrade(section.kind) ? t.perTrade : t.quantity}</th>
+                    {#if isTrade(section.kind)}<th scope="col">{t.priceHeading}</th>{/if}
+                    <th scope="col">{t.variantsLabel}</th>
+                    {#if !isTrade(section.kind)}<th scope="col"></th>{/if}
                   </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {#each section.rows as s, i (i)}
+                    {@const ref = data.ref(s.item)}
+                    <tr>
+                      <td>{#if ref}<ItemLink code={ref.code} {data} />{/if}</td>
+                      <td>{formatSpread(s.quantity)}</td>
+                      {#if isTrade(section.kind)}<td>{formatSpread(s.price)}</td>{/if}
+                      <td>{s.variants === total ? t.everyVariant : t.someVariants(s.variants, total)}</td>
+                      {#if !isTrade(section.kind)}<td>{details(s)}</td>{/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
         </section>
       {/each}
     {/if}
@@ -270,6 +359,57 @@
   }
   .scroll {
     overflow-x: auto;
+  }
+  /* Fits the page at any width: a fixed layout gives the item column a share and the
+     numbers the rest, so neither can push the table wider than the page; names and
+     ranges wrap instead. */
+  .yields {
+    width: 100%;
+    max-width: 48rem;
+    table-layout: fixed;
+  }
+  .yields .item {
+    width: 34%;
+  }
+  .yields th,
+  .yields td {
+    padding: 0.25rem 0.4rem;
+    vertical-align: middle;
+    overflow-wrap: break-word;
+  }
+  .yields th:first-child,
+  .yields td:first-child {
+    padding-left: 0;
+  }
+  .yields thead th {
+    font-size: 0.85rem;
+    line-height: 1.2;
+    vertical-align: bottom;
+  }
+  .yields .group {
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .yields .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 30rem) {
+    .yields {
+      font-size: 0.9rem;
+    }
+    .yields th,
+    .yields td {
+      padding: 0.25rem 0.2rem;
+    }
+  }
+  /* Each way's first column starts a group. */
+  .yields .first {
+    border-left: 1px solid var(--border);
+  }
+  .yields-note {
+    font-size: 0.85rem;
+    max-width: 48rem;
   }
   .cards {
     display: grid;

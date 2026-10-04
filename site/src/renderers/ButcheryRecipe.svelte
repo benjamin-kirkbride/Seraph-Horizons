@@ -4,9 +4,10 @@
   // needs (the carcass, the station, the tool) and what it gives in this variant.
   import type { Recipe } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { butcheryEntities, butcheryOutput, butcheryStages, efficiencyRange, formatNumber, formatQuantity, slotStacks } from "../lib/recipe-view.ts";
+  import { butcheryEntities, butcheryOutput, butcheryStages, butcheryStations, efficiencyRange, formatNumber, formatQuantity, slotStacks } from "../lib/recipe-view.ts";
   import { formatRoute } from "../lib/route.ts";
   import { t } from "../lib/strings.ts";
+  import Hint from "../components/Hint.svelte";
   import Slot from "../components/Slot.svelte";
 
   let { recipe, variant, tick, data }: { recipe: Recipe; variant: number; tick: number; data: VersionData } = $props();
@@ -14,6 +15,7 @@
   const stages = $derived(butcheryStages(recipe));
   const entities = $derived(butcheryEntities(recipe, variant));
   const entityType = $derived(recipe.butchery?.entityType ?? "");
+  const uid = $props.id();
 
   /** Names of the ingredients an output needs, e.g. the bucket that catches the blood. */
   function needs(output: number): string {
@@ -21,9 +23,18 @@
     return list.map((i) => data.nameOf(slotStacks(recipe, variant, i)[0]?.code ?? "")).join(", ");
   }
 
-  function scaled(output: number): string {
-    const by = (recipe.outputs[output]?.extra?.scaledBy as string[] | undefined) ?? [];
-    return by.map((k) => t.butcheryScaled[k as keyof typeof t.butcheryScaled] ?? k).join(", ");
+  function scaledBy(output: number): string[] {
+    return (recipe.outputs[output]?.extra?.scaledBy as string[] | undefined) ?? [];
+  }
+
+  /** What each multiplier an output is scaled by can be: the stations of its stage, the creature's condition. */
+  function scaleHint(output: number, by: string): { text: string; lines?: string[] } {
+    if (by === "efficiency") {
+      const stations = butcheryStations(recipe, output, (code) => data.nameOf(code));
+      return { text: t.butcheryStationHint, lines: stations.map((s) => t.butcheryStationYield(s.name, formatNumber(s.multiplier))) };
+    }
+    const c = recipe.butchery?.condition;
+    return { text: t.butcheryConditionHint(c ? { min: formatNumber(c.min), max: formatNumber(c.max) } : null) };
   }
 
   function efficiency(i: number): string {
@@ -35,9 +46,10 @@
 {#snippet slot(i: number)}
   {@const ing = recipe.ingredients[i]}
   <li data-input={i}>
-    <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing?.isTool} showName />
-    {#if ing?.isTool && ing.toolDurabilityCost}<span class="muted">{t.toolNote(ing.toolDurabilityCost)}</span>{/if}
-    {#if efficiency(i)}<span class="muted">{efficiency(i)}</span>{/if}
+    <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing?.isTool} showName>
+      {#if ing?.isTool && ing.toolDurabilityCost}<span>{t.toolNote(ing.toolDurabilityCost)}</span>{/if}
+      {#if efficiency(i)}<span>{efficiency(i)}</span>{/if}
+    </Slot>
   </li>
 {/snippet}
 
@@ -60,8 +72,8 @@
       {/if}
       {#if (stage.optional?.length ?? 0) > 0}
         <div class="optional">
-          <span class="muted">{t.butcheryOptional}:</span>
-          <ul class="needs">{#each stage.optional ?? [] as i (i)}{@render slot(i)}{/each}</ul>
+          <span class="muted" id="{uid}-optional-{s}">{t.butcheryOptional}</span>
+          <ul class="needs" aria-labelledby="{uid}-optional-{s}">{#each stage.optional ?? [] as i (i)}{@render slot(i)}{/each}</ul>
         </div>
       {/if}
       {#if stage.hours !== undefined}<p class="muted note">{t.butcheryHours(stage.hours)}</p>{/if}
@@ -71,10 +83,18 @@
           {@const out = butcheryOutput(recipe, variant, o)}
           {#if out}
             <li data-output={o} data-yield={formatQuantity(out.yield)}>
-              <Slot stacks={out.stacks} {tick} {data} showName />
-              {#if out.yield.var}<span class="muted">{formatQuantity(out.yield)}</span>{/if}
-              {#if needs(o)}<span class="muted">{t.butcheryNeeds(needs(o))}</span>{/if}
-              {#if scaled(o)}<span class="muted scaled">{scaled(o)}</span>{/if}
+              <Slot stacks={out.stacks} {tick} {data} showName>
+                {#if out.yield.var}<span>{formatQuantity(out.yield)}</span>{/if}
+                {#if needs(o)}<span>{t.butcheryNeeds(needs(o))}</span>{/if}
+                {#if scaledBy(o).length > 0}
+                  <span class="scaled">
+                    {#each scaledBy(o) as by, k (by)}
+                      {@const hint = scaleHint(o, by)}
+                      {#if k > 0}, {/if}<Hint text={hint.text} lines={hint.lines}>{t.butcheryScaled[by as keyof typeof t.butcheryScaled] ?? by}</Hint>
+                    {/each}
+                  </span>
+                {/if}
+              </Slot>
             </li>
           {/if}
         {/each}
@@ -118,22 +138,22 @@
     flex-direction: column;
     gap: 0.35rem;
   }
+  /* Each slot holds its own notes under its name (Slot), so a row never wraps. */
   .needs li,
   .gives li {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.25rem 0.6rem;
+    min-width: 0;
   }
   .gives {
     padding-left: 0.75rem;
     border-left: 2px solid var(--border);
   }
+  /* The label sits above the optional slots: beside them it shared a line with each name
+     cycling through, and wrapped differently with each. */
   .optional {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem;
+    flex-direction: column;
+    gap: 0.25rem;
   }
   .note {
     margin: 0;

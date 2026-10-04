@@ -122,11 +122,35 @@ const en = {
   butcheryOptional: "Optional",
   butcheryNeeds: (names: string) => `only with ${names}`,
   butcheryEfficiency: (min: string, max: string) => (min === max ? `yield ×${min}` : `yield ×${min} to ×${max}, by type`),
-  butcheryHarvestCut: (share: string) => `The Butchering mod leaves ${share} of what harvesting would give; the amounts below include that.`,
+  butcheryHarvestCut: (share: string) => `The Butchering mod leaves ${share} of what harvesting would give; the amounts below account for that.`,
   butcheryScaled: {
     efficiency: "times the station's yield",
     condition: "times the creature's condition",
   },
+  butcheryStationHint: "Each station multiplies it by its yield:",
+  butcheryStationYield: (name: string, multiplier: string) => `${name}: ×${multiplier}`,
+  butcheryConditionHint: (range: { min: string; max: string } | null) =>
+    `The creature's condition is its weight${range ? `, from ×${range.min} at the lowest to ×${range.max} when well fed` : ""}. ` +
+    "It puts weight on by eating and loses it in freezing weather once it has gone months without food; " +
+    "with the world's harsh winters turned off, every creature is well fed.",
+  butcheryYieldGround: "Harvested where it lies",
+  butcheryYieldFull: "Hook and table",
+  butcheryYieldWeight: (lowest: boolean) => (lowest ? "Low" : "Good"),
+  butcheryYieldWeightSuffix: " weight",
+  butcheryYieldNone: "none",
+  butcheryYieldsNote: (o: { share?: string; low?: string; high?: string; stations: string[]; ranges: boolean }) =>
+    [
+      `Harvested where it lies is what the Butchering mod leaves of the usual harvest${o.share ? ` (${o.share})` : ""}.`,
+      o.low && o.high
+        ? `Low and good are the creature's weight, which multiplies food (and the like) by ×${o.low} to ×${o.high}.`
+        : "Food (and the like) depends on the creature's weight; these amounts are for a well-fed one.",
+      o.stations.length > 0 ? `Hook and table amounts are at a station yield of ×1; ${o.stations.join(" and ")}, by type.` : "",
+      `Amounts are averages${o.ranges ? ", or the range of the creatures' averages" : ""}; the butchery cards below give the spread.`,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  butcheryStationRange: (step: string, min: string, max: string) =>
+    `${step === "skin" ? "hooks" : step === "butcher" ? "tables" : step} give ${min === max ? `×${min}` : `×${min} to ×${max}`}`,
   butcheryNote: "Amounts are averages ± spread, before the station's yield and the creature's condition (a starving one gives less meat).",
   butcheryOnEntity: "Carry the body to a hook and a table for the full yield, or harvest it in the field for less.",
   ratio: "Share",

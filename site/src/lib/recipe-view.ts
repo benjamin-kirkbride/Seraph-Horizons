@@ -276,6 +276,28 @@ export function efficiencyRange(ing: Ingredient | undefined): { min: number; max
 }
 
 /**
+ * The stations the stage giving a butchery output can use, by name with their loot
+ * multiplier, highest first: skinning names the hooks, butchering the tables. Blocks of
+ * one name and multiplier (a hook in each metal) are one entry.
+ */
+export function butcheryStations(recipe: Recipe, output: number, nameOf: (code: string) => string): { name: string; multiplier: number }[] {
+  const stage = recipe.butchery?.stages.find((s) => s.outputs.includes(output));
+  if (!stage) return [];
+  const seen = new Set<string>();
+  const out: { name: string; multiplier: number }[] = [];
+  for (const i of [...stage.ingredients, ...(stage.options ?? []).flat()]) {
+    for (const [code, multiplier] of Object.entries((recipe.ingredients[i]?.extra?.efficiency as Record<string, number> | undefined) ?? {})) {
+      const name = nameOf(code);
+      const key = `${name}|${multiplier}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ name, multiplier });
+    }
+  }
+  return out.sort((a, b) => b.multiplier - a.multiplier);
+}
+
+/**
  * What heads a recipe card: its outputs. A butchery record gives a dozen things over
  * several stages, so its card is headed by the carcass its first stage gives.
  */
