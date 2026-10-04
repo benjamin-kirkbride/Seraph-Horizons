@@ -21,12 +21,6 @@
       "pattern": "Grid Recipe 'doorvariants:recipes/grid/doors/[^']+': Output doorvariants:\\S+-bogiron-\\S+ cannot be resolved\\."
     },
     {
-      "issue": 152,
-      "mod": "yangtransport",
-      "why": "The nerd tool recipe's wrench-* matches Electrical Progressive's game:wrench-adjustable; that one recipe is skipped.",
-      "pattern": "Grid Recipe 'yangtransport:recipes/grid/tools\\.json': Output yangtransport:nerdtool-adjustable cannot be resolved\\."
-    },
-    {
       "issue": 153,
       "mod": "interestingoregen",
       "why": "IOG applies its mngeology+geoaddons ore patches before the geoaddons patch that creates the entry they edit.",

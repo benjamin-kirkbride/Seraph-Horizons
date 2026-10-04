@@ -18,7 +18,7 @@ below was read against decompiled 1.22.7, Dovidarium 0.9.5 and TooManyTabs 1.0.0
   material, then items by tool). Nothing unlisted.
   - Attribution is by the stack's collectible code domain, mapped to the **owning mod**: `game` → the base
     game; else the mod whose modid is the domain; else the mod with the most blocktype and itemtype files in
-    the domain (it defines those collectibles: `vintageengineering` for `vinteng`, `p1explosives` for `bomb`,
+    the domain (it defines those collectibles: `p1explosives` for `bomb`,
     `ageofflaxfork` for `ageofflax`, `oilsresoaped` for `oils`); else the mod with the most assets in it; else
     the raw domain. A mod's domains share one tab (none in the pack as locked has creative stacks in two).
     Ties go to the smaller modid (`DomainOwners`).
@@ -155,7 +155,7 @@ No other pack mod references `UpdateFromWorld` (string scan of every DLL in `bui
 `tests/PackTests/CreativeModTabsScenarios.cs` (Atlas) builds a creative inventory on the server with the whole
 pack and requires: the default tabs identical to a build without the tweak, the mod tabs after them with the
 announced codes and counts, every distinct creative stack in exactly one mod tab, the game tab first and the rest
-by name, and `vinteng`, `ageofflax`, `bomb` and `oils` under their owning mods. It sends the packet through
+by name, and `ageofflax`, `bomb` and `oils` under their owning mods. It sends the packet through
 protobuf-net and back (the real plan, an empty packet, and entries with every field missing or an empty domain
 list) and requires the same specs. It then takes the client's path from the round-tripped packet (scan, place by
 the server's domains, the check, build the tabs on an inventory without the server's postfix) and requires every
@@ -186,7 +186,7 @@ The GUI cannot run in CI or headless Atlas; check this before release.
    on its right moves. Wheel over the grid scrolls the grid, not the strip. Click a tab far down: it is
    highlighted and the grid shows that mod's items. Close and reopen the inventory: the same tab, scrolled into
    view. Long mod names end in "...". With the mouse over the search box the text cursor shows.
-5. **Attribution.** Vintage Engineering's tab holds its machines (domain `vinteng`), Sensible Explosives' its
+5. **Attribution.** Sensible Explosives' tab holds its
    bombs (`bomb`), AgeOfFlax's the flax tools (`ageofflax`). A stack listed in several default tabs (e.g. a
    block in "General" and in its mod's own default tab) appears once. (Once the pack pins ppex 0.7.1, the
    creative steam source, listed in two default tabs, appears once, in the Seraph Horizons tab.)
