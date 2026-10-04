@@ -137,6 +137,36 @@ public class RigAnimationTests
     }
 
     [Fact]
+    public void A_trip_step_is_thrown_at_the_bottom_going_down_and_back_at_the_top_going_up()
+    {
+        var parts = Parts("""
+            [ { "id": "t", "match": ["t"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "amount": 1, "from": 0.9, "to": 1, "lifting": "trip", "top": 0.1 } ] } ]
+            """);
+        float X(double depth, double lifting) => Mat4.Apply(parts.Matrices(0, depth, lifting)[0], new Float3(0, 0, 0)).X;
+        // down: out until the bottom window, thrown in over it
+        Assert.Equal(0f, X(0.5, 0), 4);
+        Assert.Equal(0.5f, X(0.95, 0), 4);
+        Assert.Equal(1f, X(1, 0), 4);
+        // up: stays in until the top window, thrown out over it
+        Assert.Equal(1f, X(1, 1), 4);
+        Assert.Equal(1f, X(0.5, 1), 4);
+        Assert.Equal(0.5f, X(0.05, 1), 4);
+        Assert.Equal(0f, X(0, 1), 4);
+        // where the direction changes, both halves agree, so the lever never jumps
+        Assert.Equal(X(1, 0), X(1, 1), 4);
+        Assert.Equal(X(0, 0), X(0, 1), 4);
+    }
+
+    [Fact]
+    public void A_trip_step_needs_a_top()
+    {
+        var e = Assert.Throws<FormatException>(() => Parts("""
+            [ { "id": "t", "match": ["t"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "amount": 1, "from": 0.9, "to": 1, "lifting": "trip" } ] } ]
+            """));
+        Assert.Contains("top", e.Message);
+    }
+
+    [Fact]
     public void A_rectified_rotate_turns_with_the_shaft_travel_whichever_way_the_shaft_turns()
     {
         var parts = Parts("""

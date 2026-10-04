@@ -19,8 +19,6 @@ public sealed class MillRenderer : IRenderer
     public static readonly AssetLocation ShapeLoc = new(BuckingSawmillSystem.Domain, "shapes/block/buckingmill.json");
     private const int DrawRange = 64;              // blocks from the camera to the controller
     private const float SawdustInterval = 0.1f;    // seconds between sawdust puffs per blade
-    private const float LiftingEase = 6f;           // per second: how fast the lifting input follows the phase
-    private const int RatchetTeeth = 12;            // teeth on the windlass's ratchet wheel the latch clicks over
 
     private readonly ICoreClientAPI _capi;
     private readonly BEBuckingMill _be;
@@ -43,10 +41,8 @@ public sealed class MillRenderer : IRenderer
     private bool _angleSeeded;
     private int _stroke;
     private float _sawdustTimer;
-    private float _lifting;                         // 0..1, eased towards 1 while the saws are raised
+    private float _lifting;                         // 1 while the saws are wound up: the levers' and clutch's trip input
     private double _travel;                         // the shaft's travel: total angle turned either way (the rectified gears' input)
-    private readonly double _clicksPerDepth;        // latch clicks over a full raise
-    private int _click;
 
     private readonly Matrixf _model = new();
 
@@ -70,11 +66,6 @@ public sealed class MillRenderer : IRenderer
             _drawn[i] = p.Requires != null || p.Ride != null || p.Drivers.Count > 0;
             _isBlade[i] = p.Requires is { } r && r.StartsWith("blade", StringComparison.Ordinal);
         }
-        // the latch clicks over each of the ratchet wheel's teeth while the windlass winds; the
-        // wheel is on the drum shaft, so it turns with the drum
-        var drum = _parts.IndexOf("drum");
-        var spin = drum < 0 ? null : _parts.Parts[drum].Drivers.FirstOrDefault(d => d.Type == DriverType.Step && d.Rotates);
-        _clicksPerDepth = spin == null ? 0 : Math.Abs(spin.Amount) * RatchetTeeth / (2 * Math.PI);
         capi.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "buckingmill");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowFar, "buckingmill");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowNear, "buckingmill");
@@ -280,15 +271,15 @@ public sealed class MillRenderer : IRenderer
     // ---- motion, sound, sawdust ----
 
     /// <summary>Turns the client's shaft clock by the power ghost's angle change (the network
-    /// already advances that angle smoothly between server updates) and eases the lifting input
-    /// towards the phase, and adds the turn's size to the shaft's travel (the rectified gears turn
-    /// with it, the same way whichever way the shaft turns). While cutting it plays a saw stroke per
-    /// half turn and puffs sawdust; while the saws are raised the latch clicks over the ratchet's teeth.</summary>
+    /// already advances that angle smoothly between server updates), adds the turn's size to the
+    /// shaft's travel (the rectified gears turn with it, the same way whichever way the shaft
+    /// turns), and takes the lifting input from the client's cycle: it changes only at the top and
+    /// the bottom of the travel, where the trip steps' two halves agree, so the levers never jump.
+    /// While cutting it plays a saw stroke per half turn and puffs sawdust.</summary>
     private void AdvanceClock(float dt, bool far)
     {
         var phase = _be.Phase;
-        float target = phase == MillPhase.Raising ? 1 : 0;
-        _lifting += (target - _lifting) * Math.Min(1, dt * LiftingEase);
+        _lifting = _be.ClientRising ? 1 : 0;
         float speed = _be.ShaftSpeed;
         double angle = MillMotion.NativeShaftAngle(_be.Side, _be.ShaftAngle);
         if (!_angleSeeded || speed <= 0)
@@ -310,10 +301,6 @@ public sealed class MillRenderer : IRenderer
             before -= wrap;
         }
         bool running = _be.Complete && speed >= _be.MinSpeed && !far;
-        int click = (int)Math.Floor(_be.ClientSawDepth * _clicksPerDepth);
-        if (running && phase == MillPhase.Raising && click != _click)
-            PlayClick();
-        _click = click;
         if (!running || phase != MillPhase.Cutting || _be.Trunk == null)
             return;
         int strokes = MillMotion.StrokesBetween(before, _theta);
@@ -325,13 +312,6 @@ public sealed class MillRenderer : IRenderer
             _sawdustTimer = 0;
             SpawnSawdust();
         }
-    }
-
-    private void PlayClick()
-    {
-        // at the latch, on the ratchet wheel east of station 1's east post
-        var at = WorldPoint(new Float3(2.65f, 3.65f, 0.7f));
-        _capi.World.PlaySoundAt(new AssetLocation("immersivewoodworking", "sounds/saw/metal_click"), at.X, at.Y, at.Z, null, true, 16, 0.35f);
     }
 
     private void PlayStroke()

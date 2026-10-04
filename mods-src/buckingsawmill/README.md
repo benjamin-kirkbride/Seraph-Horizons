@@ -20,7 +20,7 @@ breaks the whole mill.
 
 **Rig.** The footprint and anchor points are data, in `assets/buckingsawmill/config/rig.json`
 (written by the model's tooling in `tools/`): every occupied cell with its collision and selection
-boxes, the power cell and the face that takes the axle, the infeed side a rack must touch, the
+boxes, the power cell and the face that takes the axle, the infeed end a rack must touch, the
 point and side logs leave by, the saws' travel (`saw`, optional), and keys only the renderer
 reads. Everything there is in the native,
 south-facing frame with the controller at `[0,0,0]`. Turning it to a facing follows Immersive
@@ -31,8 +31,8 @@ west 270. `Core/Rig.cs` parses the file and `Core/Footprint.cs` does the turning
 **Assembly.** Right-click the frame or any ghost holding a part, recognised by code path as
 Immersive Woodworking does: two `sawmillsash`, one `sawmillcrankshaft`, one `sawmilllevers` and two
 `sawmillblade-{metal}` kits of one metal. Any order, but each blade kit needs a sash without a kit.
-The levers are the linkage that trips the windlass when the saws bottom out (see **Saws**
-below). No carriage: in Immersive Woodworking it carries the log, which this
+The levers are the linkage that throws the windlass in when the saws reach the bed and out again
+when they are back at the top (see **Saws** below). No carriage: in Immersive Woodworking it carries the log, which this
 mill does not do, and holding one does nothing special here. Parts are used up outside creative
 mode. Ctrl + right-click takes the trunk back if
 there is one, otherwise the last blade kit. The other parts come back only by breaking the frame,
@@ -42,18 +42,21 @@ which drops the frame, every fitted part, the blade kits and a recoverable trunk
 **Power.** `BEBehaviorMillMP`, a mechanical power consumer on the power ghost, connects only
 through the rig's power face, turned to the mill's facing (like Immersive Woodworking's
 `BEBehaviorSawmillMP`, without its cap on the network's speed). It loads the shaft with 0.005 until
-the mill is assembled, then with `Resistance`. The mill cuts, winds its saws up, and pulls from a
-rack, only while the shaft turns at `MinSpeed` or faster.
+the mill is assembled, then with `Resistance`. The mill runs its saws' cycle, cuts, and pulls from a
+rack only while it is assembled and the shaft turns at `MinSpeed` or faster.
 
 **Trunks.** One at a time, held as the trunk's whole item stack, so one taken back out is unchanged.
 Any `loggingmod:treetrunk-*` of any size goes in, but not a branched one (`branches` variant `yes`
 or `branchCount` above 0) while Logging Expanded's `RequireBranchRemovalForProcessing` is on: the
 player gets Logging Expanded's own message. By hand, right-click holding a trunk, or with an empty
 hand to take the first one from the hotbar, then the backpack (as Logging Expanded's workstations
-search). Neither works while the saws are still rising after a cut (the player is told so). From
-a rack: about once a second an assembled, empty, turning mill with its saws up looks for a Trunk
-Storage Rack touching its infeed side at ground level (either of the rack's cells), and takes its
-top trunk (the rack is last in, first out) unless that trunk is branched; then it waits. The rack
+search). A trunk goes on only while the saws are at the top of their cycle, within
+`SawDepth.LoadWindow` (0.08 of the travel, about half a turn either side of the top at the
+default rate); otherwise the player is told to wait for the saws to come up. From a rack: an
+assembled, empty, turning mill looks for a Trunk Storage Rack touching its infeed end at ground
+level (either of the rack's cells), every tick its saws are at (or pass) the top and once a second
+besides. The infeed is the east end in the native frame, the end opposite the axle, where a trunk
+slides in lengthwise along the bed through both stations. The mill takes the rack's top trunk (the rack is last in, first out) unless that trunk is branched; then it waits. The rack
 is looked up afresh every time.
 
 **Cutting.** Progress runs from 0 to 1 per trunk, advanced by how far the shaft turned (its angle,
@@ -67,19 +70,29 @@ than a quarter is cut. Its resin and branch data are lost, as on Logging Expande
 The server does all of it; the arithmetic is in `Core/Cutting.cs`.
 
 **Saws.** Each saw's blade lies across the trunk, held at both ends, strokes back and forth, and sinks
-through it under its own weight. Their depth is one server value from 0 (latched at the top) to 1 (at the bed,
-through the trunk), saved and synced with the block entity. Loading a trunk drops them at once to
-where they touch it: (`topY` − trunk top) / (`topY` − `bottomY`), clamped to 0..1, with the trunk
-top at the bed's `origin` y plus its thickness (2 blocks for sizes `xl` and `xxl`, otherwise 1)
-and `topY` and `bottomY` from the rig's `saw` (3.0 and 0.5 when it has none). While cutting the
-depth is touch + (1 − touch) × progress. When the cut is through, or a trunk is taken back out,
-the saws are left where they are and the mill raises them: the bottomed-out saws trip the levers,
-which engage a windlass that winds them up on ropes to the latch. The depth falls by
-1/`RaiseRevolutions` per shaft revolution, measured from the shaft's angle like the cut, while the
-mill is assembled and turning at `MinSpeed` or faster; a missing or worn out blade kit, or lost
-power, pauses it. At 0 the mill is idle and takes the next trunk. The phase (`MillPhase`) is
-derived: a trunk means Cutting, else a depth above 0 means Raising, else Idle. The arithmetic is in
-`Core/SawDepth.cs`.
+through it under its own weight. Their depth is one server value from 0 (at the top) to 1 (at the
+bed, through the trunk), with the direction they are going (`rising`); both are saved and synced
+with the block entity. Nothing holds the saws at the top: while the mill is assembled and turning at
+`MinSpeed` or faster it cycles without stopping, measured from the shaft's angle like the cut.
+
+1. **Down.** Empty, the saws sink 1/`RaiseRevolutions` of the travel per shaft turn. With a trunk
+   they drop at once to where they touch it, (`topY` − trunk top) / (`topY` − `bottomY`) clamped
+   to 0..1, with the trunk top at the bed's `origin` y plus its thickness (2 blocks for sizes `xl`
+   and `xxl`, otherwise 1) and `topY` and `bottomY` from the rig's `saw` (3.0 and 0.5 when it has
+   none). Cutting, the depth is touch + (1 − touch) × progress.
+2. **At the bed** (depth 1) the bottom trip throws the windlass in. If a cut has just finished, the
+   logs drop, the blades wear and the trunk is gone; turning left over in that tick is dropped.
+3. **Up.** The windlass winds the saws up at 1/`RaiseRevolutions` per turn.
+4. **At the top** (depth 0) the top trip throws the windlass out and the saws start down again,
+   onto the next trunk if one went on. A trunk loaded on the last of the rise waits for the top.
+
+An empty cycle takes 2 × `RaiseRevolutions` turns (12 by default). A trunk taken back out early
+(less than a quarter cut) leaves the saws where they are, and they carry on down at the empty
+rate. A missing or worn out blade kit, or lost power, stops the cycle where it is; it carries on
+from there. The phase (`MillPhase`) is derived: `Stopped` when not assembled or not turning fast
+enough, otherwise `Raising` while going up, `Cutting` while going down with a trunk, and `Sinking`
+while going down empty. Wear, the stroke sound and sawdust happen only while cutting. The
+arithmetic is in `Core/SawDepth.cs` (`Advance`).
 
 **Logging Expanded** is read through `LoggingBridge.cs`, by reflection: the rack's block entity
 (`LoggingMod.BETrunkStorage`: `GetStoredTrunks`, `PopTrunk`), `LoggingMod.TreeManager.Instance`
@@ -102,10 +115,10 @@ speed), which `MillRenderer` polls to draw the moving parts and the trunk (see [
 | `Resistance` | 0.17 | Load of the assembled mill on its shaft (twice Immersive Woodworking's sawmill) |
 | `MinSpeed` | 0.05 | Shaft speed below which it neither cuts nor pulls from a rack |
 | `RevolutionsPerStoredLog` | 8 | Shaft turns per log stored in a trunk |
-| `RaiseRevolutions` | 6 | Shaft turns to wind the saws from the bed back up to the latch after a cut |
+| `RaiseRevolutions` | 6 | Shaft turns for the saws' whole travel, each way, when not cutting: up from the bed, and down when empty. An empty cycle is twice this. |
 | `LogsPerStoredLog` | 2.0 | Logs out per log stored, rounded down over the trunk |
 | `BladeWearPerStoredLog` | 0.25 | Durability each blade kit loses per log stored, rounded up over the trunk |
-| `AutoPullFromRack` | true | Whether it takes trunks from a rack at its infeed side |
+| `AutoPullFromRack` | true | Whether it takes trunks from a rack at its infeed end (the end opposite the axle) |
 
 ## Crafting
 
@@ -127,7 +140,7 @@ The machine's model is an edited copy of the sawmill from Immersive Woodworking 
 
 The mill is a pair of **drag saws with a windlass lift**. All positions are in the native, south-facing frame: x is width (west to east), y is up, z is depth (north to south), and the controller cell is at the origin.
 
-The trunk lies along x on a fixed bed at y 0.5, centred at z 1.6875 (27 voxels), so a 2×2 trunk spans z 11..43 voxels. The north side holds the saw mechanism, and the rack stands there. Logs leave by the south side. Power comes in at the west end, on the shared shaft along x at y 3.5, z 1.5.
+The trunk lies along x on a fixed bed at y 0.5, centred at z 1.6875 (27 voxels), so a 2×2 trunk spans z 11..43 voxels. The north side holds the saw mechanism. Trunks come in at the east end, sliding lengthwise along the bed from a rack standing there, and logs leave by the south side. Power comes in at the west end, on the shared shaft along x at y 3.5, z 1.5.
 
 **Crankshaft and frame.**
 - **Main shaft.** A wooden shaft of IW's cross profile, matching the vanilla axle that feeds it, runs from the input bearing to station 1's west post. It carries the reversing gear.
@@ -144,7 +157,10 @@ The trunk lies along x on a fixed bed at y 0.5, centred at z 1.6875 (27 voxels),
 
 There are two saw stations, at x = 2 and x = 4. Each one has the same parts:
 
-- **Posts and carriage.** Two IW posts stand on the north side of the trunk with their slots facing each other. The carriage slides up and down in the slots. It is IW's sash, squeezed into a short frame whose opening the blade passes through. The posts stand at z 8..11 voxels, against the trunk's north face.
+- **Posts and carriage.** Each station stands on four solid 4×4 timbers, two north of the trunk (z 7..11) and two south of it (z 44..48), 15 voxels apart.
+  - Each north post has a groove down its inner face, 1.7 wide and 1.6 deep, and the carriage runs between them in those grooves.
+  - The carriage is a frame of two stiles and two rails, 2.9 deep, whose opening the blade passes through. Each stile carries a 1.5×1.5 tongue that runs in its post's groove with 0.1 to spare all round.
+  - The top beams (4 wide, 3.5 deep) run north–south from post to post and sit square on them.
 - **Saw head.** The head hangs from two guide bars that run north from the carriage, and slides along z on them.
   - The head is IW's sash rail turned on its side, with its clamp bars gripping the blade.
   - The blade is one of IW's three, turned to cross-cut: its face points along x, its length runs along z, and the teeth point down. It is centred on the station's cutting plane and thickened from 0.2 to 0.4 voxels so it reads at this scale.
@@ -154,17 +170,17 @@ There are two saw stations, at x = 2 and x = 4. Each one has the same parts:
   - A pin on the saw head rides in the yoke's vertical slot. At any height of the carriage, the yoke carries the saw through its stroke.
   - The chain is shaft → crank → rod → yoke → pin → head → blade → tail.
   - Station 2's crank runs half a turn behind station 1's.
-  - The stroke is ±1.89 voxels (crank throw 1.75). It is set by the room south of the trunk: the tail has to stay in its guide block through the whole stroke.
-- **South-end support.** A slim **guide post** (2×1.8 voxels) stands on the south edge, just west of the blade plane (x −3..−1 from it, z 45.6..47.4).
-  - It is squared into the frame like IW's own posts. It stands centred on a sill laid between the feet of the station's two south posts, and runs straight up into a head beam laid between the station's two top beams. Both are on the south posts' centre line (z 45..48), and there are no braces.
+  - The stroke is ±1.85 voxels (crank throw 1.75). It is set by the room south of the trunk: the tail has to stay in its guide block through the whole stroke.
+- **South-end support.** A 3×3 **guide post** stands on the south edge, just west of the blade plane (x −3.9..−0.9 from it, z 44.5..47.5).
+  - It is squared into the frame like IW's own posts. It stands centred on a sill laid between the feet of the station's two south posts, and runs straight up into a head beam laid between the station's two top beams. Both are on the south posts' line (z 44..48), and there are no braces.
   - A **guide block** slides up and down the post: a sleeve round the post, and a web from it to a slot along z in the blade plane, from z 43.1 to 47.9. The tail piece strokes in that slot, so the blade is guided in its cutting plane at both ends.
   - The slot is closed underneath. Over it are two iron straps with a window between them, through which the tail shows.
 - **The guide block's lift.** The block has its own rope, wound by the same windlass, so both ends of the saw rise and sink together.
-  - **Spool:** a second plain spool on the drum shaft, just west of the drum (rope at x −3.6 from the blade plane). It has the drum's rope radius, so it pays out at the same rate.
+  - **Spool:** a second plain spool on the drum shaft, just west of the drum (rope at x −4.3 from the blade plane). It has the drum's rope radius, so it pays out at the same rate.
   - **Run:** the rope leaves the spool's underside, the side that pays out as the drum turns to lower the saw. It runs south at y 53.85, under the crank stub and west of the crank's throw, high above the trunk's path.
-  - **Sheave:** the run passes over a plain grooved sheave (radius 1.1) hung on the guide post's west face. The sheave turns on an iron pin from the post, and an iron strap outside it carries the pin's outer end, with an iron cap back to the post above the rope.
+  - **Sheave:** the run passes over a plain grooved sheave (radius 1.6) hung on the guide post's west face. The sheave turns on an iron pin from the post, and an iron strap outside it carries the pin's outer end, with an iron cap back to the post above the rope.
   - **Drop:** from the sheave the rope drops plumb onto an iron eye on top of the guide block's west sleeve wall. It sits in the sheave's groove on both the incoming and the outgoing side.
-  - Over the stroke the tail runs from z 43.21 to 47.79: 0.11 voxels inside each end of the slot and 0.21 clear of a 2×2 trunk's south face (43). The block's lowest point, at depth 1, is 3.4 voxels above the sill.
+  - Over the stroke the tail runs from z 43.25 to 47.75: 0.15 voxels inside each end of the slot and 0.25 clear of a 2×2 trunk's south face (43). The block's lowest point, at depth 1, is 2.4 voxels above the sill.
 - **Lift.** A rope hangs from a drum on the drum shaft, plumb down to an iron eye on the carriage's top rail. Paying the rope out lowers the carriage; winding it in raises it.
   - The drum is a plain spool: a wooden core wrapped in rope, between two octagonal oak flanges.
   - The rope leaves the wrap tangentially on the drum's north side, level with the drum shaft's axis, so its top end is on the drum's rope surface.
@@ -190,10 +206,6 @@ The drum shaft runs along x above the carriages, at y 3.5, z 0.70 (11.25 voxels)
 - **Collars:** the two loose pinions are kept in place on the main shaft by fixed collars either side of each (and the input bearing beyond the west one).
 - Left out, the drum train is free, and the drums turn back as the ropes pay out under the saws' weight.
 
-**The latch.**
-- A **ratchet wheel** (iron, 12 teeth) sits on the drum shaft just east of station 1's east post.
-- An iron **pawl** hangs from a bracket on that post's top beam. Its tip drops into the gap between the wheel's top two teeth.
-
 No toothed wheel on the machine meshes nothing. The cranks are plain bars with a pin, IW's toothed main-rotor flanges are left off, and the drums and spools are plain. The toothed or pegged wheels are:
 
 | Wheel | Meshes with |
@@ -203,7 +215,6 @@ No toothed wheel on the machine meshes nothing. The cranks are plain bars with a
 | Crown disc | Both pinions |
 | Small crown gear (on its half of the crown axle) | The drum pinion |
 | Drum pinion (on the drum shaft) | The small crown gear |
-| Ratchet wheel (on the drum shaft) | The latch pawl |
 
 Every rotating part, and what drives it:
 
@@ -214,26 +225,29 @@ Every rotating part, and what drives it:
 | Crown disc and its half of the axle (`crown`) | The pinions | The dog clutch |
 | Dog clutch (`dog`) | Keyed to the disc's half (turns); the rock shaft's fork (slides) | The small crown gear's half, when slid onto its hub |
 | Small crown gear, its half of the axle and the dog hub (`crown_b`) | The dog clutch (raising); the drum train (cutting) | The drum pinion |
-| Drum shaft, drum pinion, drums and ratchet wheel (`drum`) | The ropes paying out (cutting); the small crown gear (raising) | The carriages' ropes; the ratchet the pawl holds |
+| Drum shaft, drum pinion and drums (`drum`) | The ropes paying out (sinking); the small crown gear (raising) | The carriages' ropes |
 | Guide-block spools (`f<n>_spool`) | Turn with the drum (same shaft, same radius) | The guide blocks' ropes |
 | Sheaves (`f<n>_sheave`) | The guide-block rope running over them | — |
-| Rock shaft (`rock`) | The trip rod, pushed by the carriage's lug; its counterweight | The dog clutch, through the fork |
-| Latch pawl (`latch`) | Lifted when a cut starts (the gameplay's start signal) | Holds the ratchet, so the windlass and both carriages, at the top |
+| Trip rod (`trip`) | The carriage's lug: pushed down at the bed by its tappet, lifted at the top by its collar | The rock shaft's tappet arm |
+| Rock shaft (`rock`) | The trip rod; held either way by its over-centre weight | The dog clutch, through the fork |
 
-**Levers** (the "levers" part):
-- **Rock shaft.** One iron shaft runs along x low on the north side of the gear set, between bearings on the input post and on station 1's west post. Three things are fixed on it:
-  - a **tappet arm** pointing north to the top of the trip rod, a pushrod standing on a tappet under station 1's carriage lug;
+**Levers** (the "levers" part): one rigid lever and a pushrod.
+- **Rock shaft.** One iron shaft runs along x low on the north side of the gear set, between bearings on the input post and on station 1's west post. Fixed on it:
+  - a **tappet arm** pointing north to the top of the trip rod;
   - a **fork arm** pointing up into the groove of the dog clutch on the crown axle;
-  - a **counterweight** on the tappet arm's south end.
-- **Throwing the clutch in.** At the bottom of a cut the lug pushes the trip rod down 2 voxels. That turns the shaft 11.1°, and the fork slides the clutch 1 voxel north onto the dog hub.
-- **Throwing it out.** The turn lifts the counterweight. Once the carriage has risen off the tappet, the weight turns the shaft back and the fork pulls the clutch out. During the lift the clutch's own load holds it in; the rig shows this with its `lifting` input.
+  - an **over-centre weight** on a short upright arm, which stands exactly over the shaft half way through the throw.
+- **Trip rod.** A pushrod up station 1's west post, with a **tappet** under station 1's carriage lug and a **collar** above it.
 
-One cut, in the terms the gameplay uses:
+In plain terms: at the bottom the carriage's lug pushes the rod down by its tappet, and at the top it lifts the rod by its collar. The rod rocks the shaft, whose fork slides the dog clutch in (at the bottom) or out (at the top). The weight tips past upright as the shaft turns, so it holds the clutch whichever way it was last thrown.
 
-1. Depth 0 means latched at the top, with the blade's cutting edge at `saw.topY` (2.5625, just above a 2-block trunk). The pawl is in the ratchet.
-2. The pawl lifts and the saws sink while stroking. Depth rises to 1, where the cutting edge is at `saw.bottomY` (0.4375, below the bed top), through the gaps in the bed rails. The drums turn back as the ropes pay out; the gear set keeps turning, and the dog clutch spins clear of its hub.
-3. Near the bottom (from depth 0.941, the last 2 voxels of the drop) the carriage pushes the trip rod down, the rock shaft turns, and the dog clutch goes in.
-4. The disc now winds the drums, and the carriages and guide blocks rise, while depth falls from 1 to 0 (`lifting` = 1). The pawl clicks over the ratchet's teeth and catches at the top, and the clutch is released.
+The throw is 2 voxels at the rod, 10.1° at the shaft and 1 voxel at the clutch. The weight leans 0.32 voxels south when the clutch is out and 0.32 north when it is in.
+
+One cycle, in the terms the gameplay uses:
+
+1. Depth 0 is the top, with the blade's cutting edge at `saw.topY` (2.5625, just above a 2-block trunk). The clutch is out.
+2. The saws sink while stroking, onto a trunk if one was loaded, and through it. Depth rises to 1, where the cutting edge is at `saw.bottomY` (0.4375, below the bed top), through the gaps in the bed rails. The drums turn back as the ropes pay out; the gear set keeps turning, and the dog clutch spins clear of its hub.
+3. Over the last 2 voxels of the drop (from depth 0.941) the lug pushes the trip rod down, the rock shaft turns, and the dog clutch goes in.
+4. The disc now winds the drums, and the carriages and guide blocks rise, while depth falls from 1 to 0 (`lifting` = 1). Over the last 2 voxels of the rise (depth 0.059 to 0) the lug lifts the collar, and the clutch comes out. The saws start down again at once.
 
 **Gear ratios.**
 - The pinions turn 2.38 times per turn of the disc (peg rings of 6.05 and 2.54 voxels), and the small crown gear and drum pinion are 1:1.
@@ -257,20 +271,22 @@ The output is deterministic. On every run the script also checks its own output,
   - nothing leaves the declared cells at rest, or the machine box anywhere in the motion.
 - **Clearances** (sampled over 8 shaft angles × 5 depths × cutting and lifting, the shaft turning either way):
   - no trunk size, centred on the bed, touches any part but the blades;
-  - the blades clear a 2×2 trunk while latched, and the bed rails at depth 1;
+  - the blades clear a 2×2 trunk at the top, and the bed rails at depth 1;
   - over 72 shaft angles, every depth, cutting and lifting, and the shaft turning either way, each tail stays inside its guide block's slot (in length, height and width) and clear of a 2×2 trunk, each guide block stays on its post, and both stay inside the declared cells;
   - the guide block's rope leaves the spool's underside and meets the sheave, and its drop stays on the guide block, at every depth; the run, the drop and the sheave clear every other moving part and the frame over the whole motion (the sheave's pin excepted);
   - the moving parts don't run into each other or the frame (pin joints excepted), and the shafts, gears, drums and ropes clear the frame except where a shaft runs in its bearings;
   - every frame element shares a face with (or overlaps) another, and the frame is one piece from the ground up, so nothing fixed floats;
   - each bearing encloses the shaft it carries, at rest and turned 45°;
-  - every rotating shaft is carried by the frame: at least two fixed bearings enclose its axis along its length (main shaft 5, drum shaft 5, rock shaft 2, each sheave's pin 2), or one bearing plus the pilot spigot (each half of the crown axle); the latch pawl's pivot sits in its bracket; each loose pinion has a collar or bearing against both faces. A part that fails is named;
+  - every rotating shaft is carried by the frame: at least two fixed bearings enclose its axis along its length (main shaft 5, drum shaft 5, rock shaft 2, each sheave's pin 2), or one bearing plus the pilot spigot (each half of the crown axle); each loose pinion has a collar or bearing against both faces. A part that fails is named;
 - **Linkages:**
   - each rod's ends stay on the yoke pin and the crank pin, within 0.5 voxel;
   - the head's pin stays on the yoke's slot centre line and within its length at every depth;
   - every rope leaves its spool's rope wrap at the tangent point and ends on its eye, at every depth (the carriage's rope on the carriage's eye; the guide block's rope over the sheave's groove on both sides and on the guide block's eye); the measured gaps are printed, all 0.000;
-  - the trip rod reaches at depth 1 from the tappet under the carriage's lug (lug and tappet meet at y 4.5) up to the tappet arm, and its top stays pinned to the arm's tip over the whole throw (0.19 voxels);
-  - the fork stays in the dog clutch's groove, the clutch's throw puts its face on the dog hub's, and the counterweight rises as the clutch goes in;
-  - the carriage's lug meets the tappet exactly when the trip starts to move;
+  - the trip rod reaches at depth 1 from the tappet under the carriage's lug (lug and tappet meet at y 4.5) up to the tappet arm, and its top stays pinned to the arm's tip over the whole throw (0.18 voxels);
+  - the fork stays in the dog clutch's groove at every depth, going down and up, and the clutch's throw puts its face on the dog hub's;
+  - the counterweight passes over the rock shaft between out and in (it leans south out, north in, and stands upright half way);
+  - both trips: going down, the carriage's lug meets the tappet exactly when the trip starts to move (depth 0.941); going up, it meets the collar exactly when the trip starts back (depth 0.059); and the lug never runs into either;
+  - the lever never jumps: over every depth, going down and going up, the trip rod's top stays pinned to the tappet arm;
   - the rectifier: per radian of shaft travel the west pinion turns +1, the east −1, and the disc the same way either way; in a raise the small crown gear's half turns exactly as the disc does.
 - **Files:** every texture used is declared, and every file parses.
 
@@ -282,8 +298,8 @@ Rerun it when IW's shape changes. Placement numbers are named constants at the t
 
 | Part | Source in IW's model | What was done to it |
 |---|---|---|
-| Posts | `Frame` posts, slats, caps, feet and sills | Unturned, the opening squeezed from 16 to 15 voxels and the depth from 6 to 3. Four per station: the north pair (z 8..11) guides the carriage; the south pair (z 45..48) is the same turned half round, without the sills, and carries the top beams and the guide post's sill and head beam. |
-| Carriage | `sash*`, without its crosshead bars and lever bracket | Unturned, squeezed to 12.5 voxels tall, so its rails sit below and above the blade. |
+| Posts | `Frame.011`'s faces | Built afresh as solid 4×4 timbers from the ground to the top beams, four per station. The north pair (z 7..11) each have a groove down the inner face for the carriage's tongues; the south pair (z 44..48) are plain. IW's slatted, split posts are no longer used. |
+| Carriage | `sash_022`'s faces (IW's sash stile) | Built afresh: two 2-wide stiles with tongues for the post grooves, two 2-tall rails, all 2.9 deep, 10.5 tall; iron guide bars for the saw head and an iron lug for the trip. IW's sash is no longer used. |
 | Saw head | The sash's bottom rail, clamp bars and rivets (`sash_001`–`021`) | Turned on its side: rail length → up, rail height → z, rail depth → x. |
 | Blade | `saw*`: the middle one of IW's three blades (`saw_016`–`030`, `047`, `050`, `055`–`057`) | Turned 90° about x, so it cuts across the trunk with the teeth down. Stretched to 40.7 voxels long, so the teeth are spaced out, and its plate and teeth thickened from 0.2 to 0.4. IW's other two blades are left off: they are its rip saw's, one per cut between planks. |
 | Cranks | `Rotor_default_4_001`–`005` | Throw shortened from 3.5 to 1.75 voxels; IW's flange disc left off; retextured iron. The bar between the two cranks (`shaft_crankbar`) is the stub's profile carried on, so the main shaft's thick section stops at the first crank. |
@@ -298,23 +314,23 @@ Rerun it when IW's shape changes. Placement numbers are named constants at the t
 - the guide post, its sill and head beam, and the sheave's pin, strap and cap;
 - the guide block's spool (rope core and oak flanges, like the drums), the sheave (two oak flanges and a core, octagonal), and the guide block's rope;
 - the drums (plain octagonal spools: four rope-textured strips for the core and four oak strips per flange);
-- the dog clutch and dog hub (from the main rotor's plate), the pinions' one-way catches, and the ratchet wheel;
-- the levers (trip rod and tappet; the rock shaft with its tappet arm, counterweight, fork arm and fork; pawl and tip), from IW's lever plate;
+- the dog clutch and dog hub (from the main rotor's plate) and the pinions' one-way catches;
+- the levers (trip rod with its tappet and collar; the rock shaft with its tappet arm, weight arm and weight, fork arm and fork), from IW's lever plate;
 - the rope wraps on the drums and spools, and the iron eyes the ropes are tied to on the carriages and guide blocks;
-- the top beams, the crankshaft and drum-shaft bearings at every station post, the input post and its bearing, the west post and head beam, the drum shaft's west bearing, the rock shaft's two bearings, and the pawl bracket on station 1's east top beam;
+- the posts (solid 4×4, the north ones grooved), the top beams (4×3.5), the crankshaft and drum-shaft bearings at every station post, the input post and its bearing, the west post and head beam, the drum shaft's west bearing, and the rock shaft's two bearings;
 - the bed: rails with gaps at the blade planes, sleepers and legs.
 
 **Dropped from IW's model:**
 - the log carriage, the log, its springs and rope, and the bed table;
 - IW's main rotor (`MainRotor_twoway`, a shaft section with toothed flanges that would mesh nothing);
-- IW's lever train proper (`leveler_*`, `connector*`, the `rotor_metal*` ratchet wheel: 145 elements; a 16-element ratchet wheel is built instead);
+- IW's lever train proper (`leveler_*`, `connector*`, the `rotor_metal*` ratchet wheel: 145 elements);
 - IW's crank rod and crosshead (rebuilt), and the crank's flange disc.
 
 Texture codes are IW's: `oak`, `metal` and `rope` (`game:item/resource/rope`). The frame shape uses only `oak` and `metal`. The blades use `metal`, which the renderer swaps for the blade kit's metal; everything else that is `metal` stays the block's iron plate.
 
 The rule:
 - **Wood:** structure (posts, beams, bearings, bed), the main shaft and drum shaft (they continue the vanilla wooden axle), the drums, gears and pinions as IW has them, the carriages, saw heads, yoke bars, rod bars and the guide block's body.
-- **Iron:** pins, wearing surfaces and thin linkage. That is the crankshaft and crank bar, the rod eyes, the saw-head pins, the blade's tail piece, the dog clutch, the pinions' catches, the ratchet wheel, the whole lever linkage (trip rod and tappet, rock shaft with its arms, counterweight and fork, pawl and tip), the crown axle's pilot spigot, the rope eyes, the guide block's straps, the trip straps and the sheave's pin, strap and cap.
+- **Iron:** pins, wearing surfaces and thin linkage. That is the crankshaft and crank bar, the rod eyes, the saw-head pins, the blade's tail piece, the dog clutch, the pinions' catches, the whole lever linkage (trip rod with its tappet and collar, rock shaft with its arms, weight and fork), the crown axle's pilot spigot, the rope eyes, the guide block's straps, the trip straps and the sheave's pin, strap and cap.
 
 Elements retextured iron get UVs in proportion to their faces (4 texels per voxel). Elements copied unchanged from IW keep IW's texturing.
 
@@ -324,11 +340,11 @@ Everything is in the native frame, in block units, with the controller at `[0,0,
 
 | Field | Meaning |
 |---|---|
-| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws latched (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. |
+| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws at the top (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. |
 | `powerCell`, `powerFace` | The cell that takes the axle, and the native-frame face it connects on. |
-| `infeedSide`, `outputSide` | Native-frame sides. The rack stands on the infeed side; logs drop off the output side. |
+| `infeedSide`, `outputSide` | Native-frame sides: `east` (the end opposite the axle, where the rack stands and trunks slide in lengthwise) and `south` (logs drop off it). |
 | `output.pos` | Where cut logs spawn: just outside the output side, at bed height. |
-| `saw` | `topY` and `bottomY`: the height of the blades' cutting edge when latched (depth 0) and at the end of a cut (depth 1). The gameplay works out from them where the saw first touches a trunk of a given thickness: at depth (`topY` − (bed top + thickness)) / (`topY` − `bottomY`). |
+| `saw` | `topY` and `bottomY`: the height of the blades' cutting edge at the top (depth 0) and at the end of a cut (depth 1). The gameplay works out from them where the saw first touches a trunk of a given thickness: at depth (`topY` − (bed top + thickness)) / (`topY` − `bottomY`). |
 | `trunkBed` | `origin` is the centre of the bed's top surface. A trunk is drawn centred on it, lying along `axis`. `length` is the usable bed length. |
 | `parts` | An ordered list of moving parts (below). |
 
@@ -338,13 +354,13 @@ How `parts` works:
   - `crankshaft`: the shaft, cranks, rods, yokes, gear set, drum shaft and drums;
   - `sash1` and `sash2`: each station's carriage, saw head (with the blade's tail piece), guide block, rope, and the guide block's spool, rope and sheave;
   - `blade1` and `blade2`: each station's blade;
-  - `levers`: the trip rod, the rock shaft and the pawl.
+  - `levers`: the trip rod and the rock shaft.
   - `crankshaft` also covers the dog clutch and both halves of the crown axle.
 - **Composition.** `drivers` apply in list order to the authored geometry, with pivots in the authored frame: M = Dₙ ⋯ D₂ · D₁. If the part has a `ride`, that part's whole matrix is then applied on top: M = M_ride · M. Parents are evaluated first whatever the file order, and cycles are rejected.
 - **Inputs:**
   - θ is the signed shaft angle in radians.
-  - *d* is the saw's **depth** in [0, 1]: 0 is latched at the top, 1 is at the bed, through the trunk.
-  - *L* is **lifting**: 1 while the saws are being wound back up, otherwise 0. A renderer may ease it over a fraction of a second.
+  - *d* is the saw's **depth** in [0, 1]: 0 is the top, 1 is at the bed, through the trunk.
+  - *L* is **lifting**: 1 while the saws are going up, otherwise 0. The renderer switches it straight from the direction: the `trip` gate is continuous where the direction changes, so nothing jumps.
   - ψ is the shaft's **travel**: the total angle it has turned through either way, in radians, never decreasing. A renderer adds the size of each turn to it. When it is not given it is |θ|.
 - **Units and conventions.** Distances are blocks and angles radians. Rotations are right-handed about the positive axis. `axis` is `x`, `y` or `z`.
 
@@ -354,7 +370,7 @@ How `parts` works:
 | `slide` | `axis`, `amplitude`, `ratio` (1), `phase` (0) | Translation along `axis` by `amplitude`·sin(`ratio`·θ + `phase`). |
 | `swing` | `axis`, `pivot`, `amplitude`, `ratio` (1), `phase` (0) | Rotation by `amplitude`·sin(`ratio`·θ + `phase`) about `pivot`. |
 | `feed` | `axis`, `travel` | Translation along `axis` by `travel`·*d*. |
-| `step` | `motion` (`slide` or `rotate`), `axis`, `pivot` (rotate only), `amount`, `from` (0), `to` (1), `lifting` (absent, `hold` or `block`) | Let e = clamp((*d* − `from`) / (`to` − `from`), 0, 1). Then `lifting: hold` makes e = max(e, *L*), and `lifting: block` makes e = e·(1 − *L*). `slide` translates along `axis` by `amount`·e (blocks); `rotate` turns by `amount`·e (radians) about `pivot`. |
+| `step` | `motion` (`slide` or `rotate`), `axis`, `pivot` (rotate only), `amount`, `from` (0), `to` (1), `lifting` (absent, `hold`, `block` or `trip`), `top` (`trip` only, above 0) | Let e = clamp((*d* − `from`) / (`to` − `from`), 0, 1). Then `lifting: hold` makes e = max(e, *L*), `lifting: block` makes e = e·(1 − *L*), and `lifting: trip` makes e = e·(1 − *L*) + clamp(*d* / `top`, 0, 1)·*L*: thrown in over `from`..`to` going down, held while going up, and thrown back out over `top`..0 at the end of the rise. `slide` translates along `axis` by `amount`·e (blocks); `rotate` turns by `amount`·e (radians) about `pivot`. |
 | `stretch` | `axis`, `anchor`, `length`, `travel` | Scales along `axis` about the plane through `anchor` normal to it, by f = (`length` + `travel`·*d*) / `length`. A coordinate *a* on that axis goes to `anchor` + f·(*a* − `anchor`); the other axes are unchanged. `length` is the signed distance from the anchor to the free end in the authored model, and `travel` is the free end's signed displacement at *d* = 1. The matrix is the identity, except that the axis' diagonal entry is f and its translation is `anchor`·(1 − f). |
 
 How the shipped rig uses them:
@@ -365,10 +381,10 @@ How the shipped rig uses them:
 | `pinion_w`, `pinion_e` | Rectified `rotate` x, ratio +1 and −1: each turns with the shaft's travel, the west one with the shaft when it turns forwards, the east one when it turns backwards. |
 | `crown` | Rectified `rotate` z, ratio −0.4198 (−1/2.38): the same way whichever way the shaft turns. |
 | `crown_b` | `step` `rotate` z of +15.83 rad over the whole cut: geared to the drums. |
-| `dog` | A held `step` `slide` z of −1/16 over depth 0.941..1 (north, onto the dog hub), then the disc's rectified `rotate`. |
-| `drum` | `step` `rotate` x of −15.83 rad (= −`SINK`/`DRUM_R`). The rope pays out as the carriage sinks. Covers the drums, the drum shaft, the drum pinion and the ratchet wheel. |
-| `f<n>_yoke` | `slide` z: the first harmonic of the exact slider-crank, amplitude 0.1179 (1.89 voxels), with station 2 half a turn behind. |
-| `f<n>_rod` | `swing` x about the yoke pin (first harmonic of the exact rod angle, ±5.2°), riding the yoke. |
+| `dog` | A `trip` `step` `slide` z of −1/16 over depth 0.941..1 (north, onto the dog hub), out again over 0.059..0 going up, then the disc's rectified `rotate`. |
+| `drum` | `step` `rotate` x of −15.83 rad (= −`SINK`/`DRUM_R`). The rope pays out as the carriage sinks and winds in as it rises. Covers the drums, the drum shaft and the drum pinion. |
+| `f<n>_yoke` | `slide` z: the first harmonic of the exact slider-crank, amplitude 0.1156 (1.85 voxels), with station 2 half a turn behind. |
+| `f<n>_rod` | `swing` x about the yoke pin (first harmonic of the exact rod angle, ±5.1°), riding the yoke. |
 | `f<n>_carriage` | `feed` y by −`SINK` (−2.125). |
 | `f<n>_saw` | The yoke's `slide`, riding the carriage. Includes the blade's tail piece. |
 | `f<n>_blade` | Rides the saw head. |
@@ -376,13 +392,12 @@ How the shipped rig uses them:
 | `f<n>_rope` | `stretch` y about the drum's axis height, where the rope leaves the drum: from 6.9 voxels long at depth 0 to 40.9 at depth 1. |
 | `f<n>_spool` | The drum's driver: `step` `rotate` x of −15.83 rad about the drum shaft. |
 | `f<n>_tailrun` | No drivers: the guide block rope's run from the spool to the sheave. A rope sliding along itself shows no motion. |
-| `f<n>_taildrop` | `stretch` y about the sheave's centre height: from 8.05 voxels long at depth 0 to 42.05 at depth 1. |
+| `f<n>_taildrop` | `stretch` y about the sheave's centre height: from 7.55 voxels long at depth 0 to 41.55 at depth 1. |
 | `f<n>_sheave` | `step` `rotate` x of +30.9 rad (`SINK` / sheave radius) about its pin, so its rim moves with the rope. |
-| `trip` | A held `step` `slide` y of −2/16 over depth 0.941..1. |
-| `rock` | A held `step` `rotate` x of −0.194 rad (11.1°) about the rock shaft over depth 0.941..1: the trip's travel at the tappet arm's tip. |
-| `latch` | `step` `rotate` x of 0.35 rad over depth 0..0.005, blocked while lifting, so it rides on the ratchet's teeth during the lift and is lifted clear while cutting. |
+| `trip` | A `trip` `step` `slide` y of −2/16 over depth 0.941..1, `top` 0.059. |
+| `rock` | A `trip` `step` `rotate` x of −0.176 rad (10.1°) about the rock shaft over depth 0.941..1, `top` 0.059: the trip's travel at the tappet arm's tip. |
 
-The model is posed for θ = 0, depth 0 and not lifting. The exceptions are the yokes, saw heads and rods, which are authored at mid-stroke and at the rod's mean angle; their drivers put them where the cranks are.
+The model is posed for θ = 0, depth 0 and going down. The exceptions are the yokes, saw heads and rods, which are authored at mid-stroke and at the rod's mean angle; their drivers put them where the cranks are.
 
 ### Rendering
 
@@ -399,10 +414,9 @@ The renderer:
 - **Shaft angle:** taken from the power ghost's `AngleRad`, which the network already advances smoothly on the client, and accumulated into a continuous angle.
   - The native shaft angle is `-AngleRad` facing south or west and `+AngleRad` facing north or east (`MillMotion.NativeShaftAngle`).
   - That makes the shaft turn with a vanilla axle on the power face, which draws itself as a right-handed turn of `-AngleRad` about the world axis.
-- **Depth, lifting and travel:** depth is the block entity's `ClientSawDepth`. Lifting eases towards 1 while `Phase` is `Raising` and back to 0 otherwise (6 per second). The shaft's travel ψ adds up the size of every turn of the shaft, so the rectified gears turn the same way whichever way the network drives it.
+- **Depth, lifting and travel:** depth is the block entity's `ClientSawDepth`, and lifting is 1 while `ClientRising`, otherwise 0. The shaft's travel ψ adds up the size of every turn of the shaft, so the rectified gears turn the same way whichever way the network drives it.
 - **Sound and particles** (IW's sounds are referenced, not copied):
-  - In `MillPhase.Cutting` it plays one of Immersive Woodworking's stroke sounds (`immersivewoodworking:sounds/saw/sawing_*`) per half turn, in IW's speed bands, and puffs sawdust along each blade's cutting edge.
-  - In `Raising` it plays IW's `sounds/saw/metal_click`, quietly, each time the latch passes one of the ratchet wheel's 12 teeth.
+  - Only in `MillPhase.Cutting` it plays one of Immersive Woodworking's stroke sounds (`immersivewoodworking:sounds/saw/sawing_*`) per half turn, in IW's speed bands, and puffs sawdust along each blade's cutting edge. Sinking and raising are silent.
 
 ### Editing by hand
 
@@ -426,15 +440,14 @@ If you edit the shapes in VS Model Creator, keep the element names: the rig find
 | `dog_` | The dog clutch. |
 | `gear_crown_b_`, `gear_crownb_` | The small crown gear, its half of the crown axle and the dog hub. |
 | `drum_pinion_` | The drum pinion (part of `drum`). |
-| `drum_ratchet_` | The ratchet wheel (part of `drum`). |
 | `gear_pinion_w_catch`, `gear_pinion_e_catch` | The pinions' one-way catches. |
 | `gear_pinion_w_`, `gear_pinion_e_` | The two loose pinions. |
 | `gear_crown_` | The crown disc, its axle and the small crown gear. |
 | `drum` | The drum shaft and drums (`drum<n>_core`, `_wrap`, `_flange_*`). |
 | `bearing<n><w\|e>`, `bearing_drum*`, `input_bearing`, `rock_bearing_*` | The shaft bearings (static frame). |
-| `west_post`, `west_head_beam`, `latch_bracket`, `rock_bearing_w`, `rock_bearing_e` | The west end's frame, the pawl's bracket and the rock shaft's bearings (static frame). |
+| `west_post`, `west_head_beam`, `rock_bearing_w`, `rock_bearing_e` | The west end's frame and the rock shaft's bearings (static frame). |
 | `f<n>_carriage_eye`, `f<n>_slider_eye` | The iron eyes the ropes are tied to. |
-| `lever_trip_`, `lever_rock_`, `lever_latch_` | The levers. |
+| `lever_trip_`, `lever_rock_` | The levers: the trip rod (with `lever_trip_collar`) and the rock shaft (with `lever_rock_weight`). |
 
 Everything else is the static frame.
 
@@ -446,25 +459,29 @@ The model is derived from Immersive Woodworking's sawmill model by Bobrik00 and 
 
 - `tests/` (`dotnet test mods-src/buckingsawmill/tests`, no game needed) compiles `Core/` and tests
   the rig parser (with its own fixture, and the shipped `rig.json`), the rotation maths, the
-  assembly rules, the cut arithmetic, the saw depth and raise arithmetic and the config. It also tests the rig's animation: glob
-  matching, each driver (including the step gates and the stretch), ride composition and cycles,
+  assembly rules, the cut arithmetic, the saws' cycle (empty down and up, turning at both ends in
+  one step, the load window, a trunk loaded at the top and on the last of the rise, a finished cut
+  starting the rise, a trunk taken out early, stopping and resuming) and the config. It also tests the rig's animation: glob
+  matching, each driver (including the step gates, the `trip` gate agreeing with itself where the direction changes, and the stretch), ride composition and cycles,
   the shaft's direction against a vanilla axle on every facing, every shipped part's matrix
   against `tests/rig-reference.json` (written by `tools/make_shape.py` from its reference maths,
   with a spread of shaft travels), the shipped carriages falling from `saw.topY` to
   `saw.bottomY`, the guide blocks sinking with the saws without stroking, the rectifier (for each
   shaft direction the disc turns the same way, the pinion whose catch bites turns with the shaft,
   and in a raise the small crown gear's half turns as the disc does), and the rock shaft
-  throwing the dog clutch onto the dog hub and holding it while the saws rise.
+  throwing the dog clutch onto the dog hub, holding it while the saws rise and throwing it out at the top.
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
 - `tests/PackTests/BuckingSawmillScenarios.cs` (Atlas) loads this build with every locked mod: the
   mod loads cleanly with its recipe, the bridge resolves against the pinned Logging Expanded,
   placing stamps the ghosts in every facing and breaking removes them and drops the parts,
   assembly follows the rules (levers included), racks feed debranched trunks only (also through a
-  rack's filler cell), a full cut on a real mechanical network (a creative rotor) gives the
-  configured logs and wears the blades, the rack's next trunk waits until the saws have risen,
-  taking a trunk out early raises the saws from where they were, and the depth survives saving. Its
-  ModConfig is seeded from `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and
-  the raise.
+  rack's filler cell), a powered empty mill cycles down and up without stopping and takes a trunk
+  by hand only at the top, a full cut on a real mechanical network (a creative rotor) gives the
+  configured logs and wears the blades (and a broken kit stops the cycle until replaced), the
+  rack's next trunk waits until the saws are at the top, a trunk taken out early lets the saws
+  carry on down empty, and the depth and direction survive saving. Its ModConfig is seeded from
+  `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and the cycle (an empty cycle
+  is two turns).
 
 The test project loads this directory's build as a mod and leaves out a pinned copy from the
 ModDB (`buckingsawmill_*.zip` in `build/mods`).

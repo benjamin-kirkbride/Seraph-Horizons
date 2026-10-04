@@ -67,6 +67,20 @@ public class RigTests
     }
 
     [Fact]
+    public void An_east_infeed_has_a_neighbour_beyond_each_ground_row_of_the_end()
+    {
+        // a mill three cells deep whose east end is recessed in its north row: a rack touching the
+        // end anywhere along it counts
+        var rig = Rig.Parse("""
+            { "cells": [ { "pos": [0,0,0] }, { "pos": [1,0,0] }, { "pos": [0,0,1] }, { "pos": [1,0,1] }, { "pos": [2,0,1] },
+                         { "pos": [0,0,2] }, { "pos": [1,0,2] }, { "pos": [2,0,2] }, { "pos": [2,1,2] } ],
+              "powerCell": [0,0,1], "powerFace": "west", "infeedSide": "east", "outputSide": "south",
+              "output": { "pos": [0,0,0] } }
+            """);
+        Assert.Equal(new[] { new Int3(2, 0, 0), new Int3(3, 0, 1), new Int3(3, 0, 2) }, rig.InfeedNeighbours().OrderBy(p => p.Z));
+    }
+
+    [Fact]
     public void Infeed_neighbours_skip_upper_cells_and_cells_of_the_mill()
     {
         var rig = Rig.Parse("""

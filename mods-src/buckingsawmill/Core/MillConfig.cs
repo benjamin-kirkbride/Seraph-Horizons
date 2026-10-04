@@ -13,8 +13,9 @@ public class MillConfig
     /// <summary>Shaft revolutions to cut through one log's worth of a trunk.</summary>
     public float RevolutionsPerStoredLog { get; set; } = 8f;
 
-    /// <summary>Shaft revolutions for the windlass to wind the saws from the bed back up to the
-    /// latch after a cut.</summary>
+    /// <summary>Shaft revolutions for the saws' whole travel: the windlass winds them from the bed
+    /// to the top in this many, and with no trunk on the bed they sink back down in as many, so an
+    /// empty cycle takes twice this.</summary>
     public float RaiseRevolutions { get; set; } = 6f;
 
     /// <summary>Logs a trunk gives per log stored in it, rounded down over the whole trunk.</summary>
@@ -24,7 +25,7 @@ public class MillConfig
     /// whole trunk.</summary>
     public float BladeWearPerStoredLog { get; set; } = 0.25f;
 
-    /// <summary>Whether the mill takes trunks from a Trunk Storage Rack at its infeed side.</summary>
+    /// <summary>Whether the mill takes trunks from a Trunk Storage Rack at its infeed end (the end opposite the axle).</summary>
     public bool AutoPullFromRack { get; set; } = true;
 
     public static readonly MillConfig Defaults = new();

@@ -38,11 +38,15 @@ public interface IMillVisualState
     /// <summary>How far the loaded trunk is cut, 0 to 1; 0 without a trunk.</summary>
     float ClientProgress { get; }
 
-    /// <summary>Cutting with a trunk loaded, else Raising while the saws are below the latch, else
-    /// Idle. From the server's synced state.</summary>
+    /// <summary>What the mill is doing: Stopped unless complete and turning, else Raising while the
+    /// saws are wound up, Cutting with a trunk loaded, else Sinking. From the server's synced state.</summary>
     MillPhase Phase { get; }
 
-    /// <summary>The saws' depth, 0 latched at the top to 1 at the bed through the trunk: the
+    /// <summary>Whether the saws are being wound up: the client's estimate, which turns at the top
+    /// and the bottom of the travel as the client's depth does.</summary>
+    bool ClientRising { get; }
+
+    /// <summary>The saws' depth, 0 at the top to 1 at the bed through the trunk: the
     /// client's estimate, advanced with the shaft between syncs and eased toward the server's value
     /// when a sync moves it (a new trunk's drop takes a fraction of a second).</summary>
     float ClientSawDepth { get; }

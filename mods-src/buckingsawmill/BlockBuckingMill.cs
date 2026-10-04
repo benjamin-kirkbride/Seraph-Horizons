@@ -114,7 +114,7 @@ public class BlockBuckingMill : Block
                     help.Add(new WorldInteraction { ActionLangCode = Key("fitblades"), MouseButton = EnumMouseButton.Right, Itemstacks = blades });
                 }
             }
-            else if (mill.Phase == MillPhase.Idle)
+            else if (mill.Trunk == null)
                 help.Add(new WorldInteraction { ActionLangCode = Key("loadtrunk"), MouseButton = EnumMouseButton.Right, Itemstacks = _trunkStacks });
             if (mill.Trunk != null && Cutting.Recoverable(mill.Progress))
                 help.Add(new WorldInteraction { ActionLangCode = Key("taketrunk"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });

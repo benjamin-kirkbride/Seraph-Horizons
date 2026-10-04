@@ -31,11 +31,12 @@ width, y up, z = depth (north is -z), controller cell at the origin. In short:
   carried with it and IW's crown disc, which both mesh, always turns the same way. The disc's
   axle is in two halves joined by a dog clutch; the other half carries IW's small crown gear,
   which turns the drum pinion on the drum shaft, so clutching the halves winds the saws up; one
-  drum per station (and a spool for each guide block) winds its rope. A ratchet wheel on the
-  drum shaft and its pawl latch the windlass at the top. No toothed wheel meshes nothing.
+  drum per station (and a spool for each guide block) winds its rope. No toothed wheel meshes
+  nothing. The mill cycles without stopping while it turns: nothing latches the saws at the top.
 * The levers: a trip rod (pushrod) up station 1's west post, which the carriage pushes down at
   the bottom of the cut, and one rock shaft along x: its tappet arm on the rod's top, its fork
-  arm in the dog clutch's groove, a counterweight to throw the clutch out again; and the pawl.
+  arm in the dog clutch's groove, and an over-centre counterweight that holds the lever whichever
+  way it was last thrown. A collar on the rod over the carriage's lug throws it back at the top.
 """
 
 from __future__ import annotations
@@ -60,10 +61,10 @@ IW_SHAPE = "assets/immersivewoodworking/shapes/block/sawmill/sawmill.json"
 CELLS_X, CELLS_Y, CELLS_Z = 6, 4, 3          # machine box: x 0..5, y 0..3, z 0..2 (blocks)
 STATION_X = (32.0, 64.0)                     # blade planes of the two saws
 SHAFT_Y, SHAFT_Z = 56.0, 24.0                # shared shaft (= centre of the west face of cell [0,3,1])
-POST_N = (8.0, 11.0)                         # z span of the north posts (the carriage slides between them)
+POST_N = (7.0, 11.0)                         # z span of the north posts (the carriage slides between them)
 TRUNK_Z = POST_N[1] + 16.0                   # centre line of the bed (a 2-wide trunk spans z 11..43)
 BED_TOP = 8.0                                # trunk rests on the rails at this height
-SAW_TOP = 41.0                               # blades' cutting edge when latched (depth 0)
+SAW_TOP = 41.0                               # blades' cutting edge at the top of the cycle (depth 0)
 SAW_BOTTOM = 7.0                             # ... at the end of a cut (depth 1), below the bed top
 SINK = SAW_TOP - SAW_BOTTOM                  # how far the carriage falls over a cut
 
@@ -71,17 +72,17 @@ SINK = SAW_TOP - SAW_BOTTOM                  # how far the carriage falls over a
 # set by the room south of the trunk: the blade's tail must stay in its guide block (see SLOT_Z).
 CRANK_THROW = 1.75                           # IW's is 3.5; gives a stroke of +-1.89
 ROD_DX = 3.25                                # rod (and crank pin, yoke) plane east of the blade plane
-ROD_PIN_Y = 48.25                            # rod's lower pin, on the yoke's top block
-YOKE_DX = (2.5, 4.0)                         # yoke's x span east of the blade plane
-YOKE_Y = (2.25, 49.0)                        # yoke's full height
+ROD_PIN_Y = 49.25                            # rod's lower pin, on the yoke's top block
+YOKE_DX = (2.0, 4.5)                         # yoke's x span east of the blade plane
+YOKE_Y = (2.25, 50.0)                        # yoke's full height
 YOKE_END = 1.75                              # height of its top and bottom blocks
-YOKE_BAR = 0.75                              # thickness (z) of each side of the slot
+YOKE_BAR = 1.2                               # thickness (z) of each side of the slot
 PIN_D = 1.0                                  # slot width
 PIN_FIT = 0.1                                # the pin is this much thinner than the slot (no coplanar faces)
 GUIDE_GAP = 0.05                             # running clearance between the yoke and its guides
 
 # Saw head (IW sash rail turned on its side) and blades. Head z at mid-stroke.
-HEAD_Z = (3.5, 6.0)
+HEAD_Z = (3.0, 5.5)
 HEAD_Y = (-0.5, 7.0)                         # relative to the blades' cutting edge
 PIN_Z = (HEAD_Z[0] + HEAD_Z[1]) / 2
 PIN_Y = 3.0                                  # head pin height above the cutting edge
@@ -98,7 +99,7 @@ TAIL_LEN = 0.8                               # tail piece's length along z
 TAIL_Z = ((SLOT_Z[0] + SLOT_Z[1] - TAIL_LEN) / 2, (SLOT_Z[0] + SLOT_Z[1] + TAIL_LEN) / 2)   # mid-stroke
 TAIL_DX = 0.4                                # tail piece's half thickness (x)
 TAIL_Y = (-0.4, 1.9)                         # ... relative to the cutting edge (the blade is 0..1.5)
-BLADE_Z = (5.0, TAIL_Z[1] - 0.2)             # blade root (clamped in the head) to its end in the tail, mid-stroke
+BLADE_Z = (4.5, TAIL_Z[1] - 0.2)             # blade root (clamped in the head) to its end in the tail, mid-stroke
 SLOT_DX = 0.55                               # the slot's half width (x)
 CHEEK = 0.5                                  # the guide block's wall thickness
 STRAP = 0.7                                  # length (z) of each strap over the slot
@@ -107,13 +108,13 @@ SLIDER_Y = (-1.6, 3.1)                       # guide block's height, relative to
 # underside (the side that pays out as the drum turns to lower the saw), south across the
 # machine under the crank stub to a sheave hung on the guide post's west face, then down onto
 # the guide block. The post therefore stands just east of that rope, west of the blade plane.
-TAIL_ROPE_DX = -3.6                          # x of the guide block's rope, relative to the blade plane
+TAIL_ROPE_DX = -4.3                          # x of the guide block's rope, relative to the blade plane
 SPOOL_HALF = 0.75                            # spool core half-length (x)
-GPOST_X = (-3.0, -1.0)                       # guide post (x, relative to the blade plane)
-GPOST_Z = (45.6, 47.4)                       # centred on the south posts' feet and head (z 45..48)
-SOUTH_Z = (45.0, 48.0)                       # the south posts' feet and caps: the sill and head beam line up on them
+GPOST_X = (-3.9, -0.9)                       # guide post, 3x3 (x, relative to the blade plane)
+GPOST_Z = (44.5, 47.5)                       # centred on the south posts (z 44..48)
+SOUTH_Z = (44.0, 48.0)                       # the south posts: the sill and head beam line up on them
 SLEEVE_GAP = 0.05                            # running clearance between the guide block and its post
-SILL_Y = (0.0, 2.0)                          # the sill the guide post stands on, between the south posts' feet
+SILL_Y = (0.0, 3.0)                          # the sill the guide post stands on, between the south posts' feet
 SHEAVE_T = 0.6                               # sheave thickness (x)
 DROP_Z = 47.6                                # where the drop meets the guide block (its west sleeve wall)
 DRUM_BEARING = 2.0                           # half-size of the drum-shaft bearing blocks (y, z)
@@ -153,33 +154,44 @@ DOG_HUB_Z1 = 15.5                            # the dog hub's south face (z), on 
 DOG_THROW = 1.0                              # how far the fork slides the clutch north
 CROWN_AXLE_N = 10.8                          # the small crown gear's half runs north to here, into its bearing
 DOG_R = (1.75, 2.25)                         # the groove's and the sleeve's half-size (x, y)
-BEARING_DRUM_X = (18.5, 20.5)                # the drum shaft's west bearing
+BEARING_DRUM_X = (17.0, 20.5)                # the drum shaft's west bearing
 WRAP = 0.2                                   # rope thickness / 2: the rope's centre runs DRUM_R from the axis
-# Latch: a ratchet wheel on the drum shaft, east of station 1's east post, with a pawl on a bracket
-# from that post's top beam. Teeth every 30 degrees, offset 15 so the top is a gap for the pawl.
-RATCHET_X = (42.0, 42.8)
-RATCHET_R, RATCHET_TIP, RATCHET_TEETH = 2.0, 2.7, 12
-LATCH_PIVOT = (60.0, 14.2)                   # pawl pivot (y, z), axis x
-LATCH_TIP_R = 2.25                           # the pawl's tip sits this far from the drum axis, in the top gap
-LATCH_ANGLE = 0.35                           # pawl lifts this far (rad) to clear the teeth
-LATCH_WINDOW = 0.005                         # depth over which it lifts as the drop starts
 
 # Levers (station 1's west side). Points are (x, y) at z LEVER_Z.
 LEVER_Z = (POST_N[0] - 1.5, POST_N[0] - 0.5)
-TRIP_X = 21.0                                # trip rod centre line
+TRIP_X = 19.5                                # trip rod centre line
 TRIP_TRAVEL = 2.0                            # how far the carriage pushes it down
 TAPPET_Y = (5.5, 6.5)
+# the collar over the lug's path: its underside is where the lug's top is at the top of the cycle,
+# so the lug lifts it (and the rod) over the last TRIP_TRAVEL of the rise
+COLLAR_Y = (SAW_TOP + LUG_Y[1], SAW_TOP + LUG_Y[1] + 1.0)
 # The rock shaft runs along x under the dog clutch, from a bearing on the input post to one on
 # station 1's west post. Its tappet arm points north to the trip rod's top, its fork arm up into
-# the clutch's groove, and a counterweight on the tappet arm's south end returns it.
-ROCK_X = (1.0, 24.0)
+# the clutch's groove, and an over-centre counterweight on an upright arm holds it either way.
+ROCK_X = (0.5, 23.0)
 FORK_Y = SHAFT_Y - DOG_R[0]                  # the groove's underside, where the fork rides
 
 # Bed
-RAIL_Z = ((TRUNK_Z - 7.0, TRUNK_Z - 5.0), (TRUNK_Z + 5.0, TRUNK_Z + 7.0))   # under both 1x1 and 2x2 trunks
+RAIL_Z = ((TRUNK_Z - 7.5, TRUNK_Z - 4.5), (TRUNK_Z + 4.5, TRUNK_Z + 7.5))   # 3x3 rails under both 1x1 and 2x2 trunks
 RAIL_GAP = 2.5                               # rails stop this far either side of a blade plane
 SLEEPER_X = (10.0, 22.0, 42.0, 54.0, 74.0, 86.0)
-TOP_BEAM_Y = (60.0, 62.0)
+TOP_BEAM_Y = (60.0, 63.5)                    # top beams and head beams: 4 wide, 3.5 deep
+# Each station's posts are solid 4x4 timbers either side of the carriage (inner faces at sx -/+
+# POST_IN). The north pair have a groove down the inner face in which the carriage's stile
+# tongues run; the south pair are plain.
+POST_W, POST_IN = 4.0, 7.5
+CARR_Z = (8.0, 10.9)                         # the carriage's depth (z): 2.9, between the saw head and the trunk
+TONGUE_Z, TONGUE_D = (8.35, 9.85), 1.5       # the stile tongues (z) and how far they reach into the posts (x)
+GROOVE_GAP = 0.1                             # running clearance round a tongue in its groove
+STILE_W = 2.0                                # the carriage's stiles (x)
+
+
+def post_x(sx, side):
+    """A station post's x span: side -1 west, +1 east."""
+    return (sx - POST_IN - POST_W, sx - POST_IN) if side < 0 else (sx + POST_IN, sx + POST_IN + POST_W)
+
+
+POST_X0 = STATION_X[0] - POST_IN - POST_W    # station 1's west posts' west face
 
 TEXTURES = {"oak": "game:block/wood/debarked/oak", "metal": "game:block/metal/plate/iron",
             "rope": "game:item/resource/rope"}
@@ -428,7 +440,7 @@ def beam(tpl: El, lo, hi, name: str, part: str, seg: float = 16.0):
 
 
 def strut(tpl: El, a, b, width: float, depth: float, name: str, part: str, axis: str = "x") -> El:
-    """A bar from point a to point b in the plane normal to `axis` (a rod, an arm, a pawl): built
+    """A bar from point a to point b in the plane normal to `axis` (a rod, an arm, a weight): built
     along the plane's first axis from the template, then turned about `axis`. `width` is its size
     in that plane, `depth` its size along `axis`."""
     ia = "xyz".index(axis)
@@ -470,34 +482,42 @@ def aabb_of(els):
 
 
 def build_posts(iw, n: int, sx: float):
-    """IW's post pair (posts, slats, caps, feet), unturned: the slots face each other across x
-    and hold the carriage's stiles. North pair squeezed into z 9..12; the south pair is the
-    same turned half round, without the sills, and only carries the top beams."""
-    north = [el.clone() for el in iw if el.name in POST_KEEP]
-    remap(north, 1, POST_CAP_MAP)
-    remap(north, 0, POST_X_MAP)
-    remap(north, 2, POST_Z_MAP)
-    translate(north, (sx, 0.0, 0.0))
-    south = [el.clone() for el in north if el.name not in POST_SILLS]
-    rotate(south, "y", 180.0, (sx, 0.0, SOUTH_POST_PIVOT_Z))
-    rename(north, f"f{n}_post_n_", "frame")
-    rename(south, f"f{n}_post_s_", "frame")
-    return north + south
+    """Each station's four posts, solid timbers from the ground to the top beams. The north pair
+    have a groove down the inner face, as deep as the carriage's tongues reach and a little wider,
+    so a post is a back with two cheeks; the south pair are plain."""
+    t = tpl(iw, "Frame.011")
+    out = []
+    top = TOP_BEAM_Y[0]
+    gz0, gz1 = TONGUE_Z[0] - GROOVE_GAP, TONGUE_Z[1] + GROOVE_GAP
+    depth = TONGUE_D + GROOVE_GAP
+    for side, tag in ((-1, "w"), (1, "e")):
+        x0, x1 = post_x(sx, side)
+        inner = x1 if side < 0 else x0
+        back = (x0, inner - depth) if side < 0 else (inner + depth, x1)
+        cheek = (inner - depth, inner) if side < 0 else (inner, inner + depth)
+        out += beam(t, [back[0], 0.0, POST_N[0]], [back[1], top, POST_N[1]], f"f{n}_post_n_{tag}_back", "frame")
+        out += beam(t, [cheek[0], 0.0, POST_N[0]], [cheek[1], top, gz0], f"f{n}_post_n_{tag}_cheek_n", "frame")
+        out += beam(t, [cheek[0], 0.0, gz1], [cheek[1], top, POST_N[1]], f"f{n}_post_n_{tag}_cheek_s", "frame")
+        out += beam(t, [x0, 0.0, SOUTH_Z[0]], [x1, top, SOUTH_Z[1]], f"f{n}_post_s_{tag}", "frame")
+    return out
 
 
 def build_carriage(iw, n: int, sx: float):
-    """IW's sash, unturned and squeezed to a short frame between the posts: its stiles slide in
-    the post slots, the blades pass through its opening. Two guide bars run north from it to
-    hang the saw head, and a lug at its west end knocks the trip rod's tappet."""
-    sash = [el for el in pick(iw, r"^sash") if not SASH_DROP.match(el.name)]
-    remap(sash, 1, [(a, SAW_TOP + b) for a, b in SASH_Y_MAP])
-    remap(sash, 0, POST_X_MAP)
-    remap(sash, 2, POST_Z_MAP)
-    translate(sash, (sx, 0.0, 0.0))
-    rename(sash, f"f{n}_carriage_", f"f{n}_carriage")
+    """The carriage: two stiles and two rails, 2.9 deep, framing an opening the blade passes
+    through; each stile carries a tongue that runs in its post's groove. Two guide bars run north
+    from the top rail to hang the saw head, and a lug on the west stile knocks the trip's tappet."""
     t_bar = tpl(iw, "sash_022")
-    north_face = min(el.aabb()[0][2] for el in sash)
-    out = sash
+    y0, y1 = SAW_TOP - 3.0, carriage_top()
+    out = []
+    for tag, side in (("w", -1), ("e", 1)):
+        a, b = (sx - POST_IN, sx - POST_IN + STILE_W) if side < 0 else (sx + POST_IN - STILE_W, sx + POST_IN)
+        out.append(from_template(t_bar, [a, y0, CARR_Z[0]], [b, y1, CARR_Z[1]], f"f{n}_carriage_stile_{tag}", f"f{n}_carriage"))
+        ta, tb = (sx - POST_IN - TONGUE_D, sx - POST_IN) if side < 0 else (sx + POST_IN, sx + POST_IN + TONGUE_D)
+        out.append(from_template(t_bar, [ta, y0, TONGUE_Z[0]], [tb, y1, TONGUE_Z[1]], f"f{n}_carriage_tongue_{tag}", f"f{n}_carriage"))
+    rx0, rx1 = sx - POST_IN + STILE_W, sx + POST_IN - STILE_W
+    out.append(from_template(t_bar, [rx0, y0, CARR_Z[0]], [rx1, SAW_TOP - 1.0, CARR_Z[1]], f"f{n}_carriage_rail_bottom", f"f{n}_carriage"))
+    out.append(from_template(t_bar, [rx0, SAW_TOP + 5.5, CARR_Z[0]], [rx1, y1, CARR_Z[1]], f"f{n}_carriage_rail_top", f"f{n}_carriage"))
+    north_face = CARR_Z[0]
     for side, (x0, x1) in (("w", (sx - GUIDE_DX[1], sx - GUIDE_DX[0])), ("e", (sx + GUIDE_DX[0], sx + GUIDE_DX[1]))):
         out.append(from_template(t_bar, [x0, SAW_TOP + GUIDE_Y[0], 0.25], [x1, SAW_TOP + GUIDE_Y[1], north_face + 0.25],
                                  f"f{n}_carriage_guide_{side}", f"f{n}_carriage"))
@@ -667,7 +687,7 @@ def build_rod(iw, n: int, sx: float, geo):
     a = [sx + ROD_DX, ROD_PIN_Y, PIN_Z]
     psi = geo["psi0"]
     b = [a[0], a[1] - geo["length"] * math.sin(psi), a[2] + geo["length"] * math.cos(psi)]
-    rod = strut(t_rod, a, b, 1.0, 1.0, f"f{n}_rod_bar", f"f{n}_rod")
+    rod = strut(t_rod, a, b, 1.25, 1.5, f"f{n}_rod_bar", f"f{n}_rod")
     t_eye = tpl(iw, "sash_001")
     eyes = [from_template(t_eye, [p[0] - 0.6, p[1] - 0.7, p[2] - 0.7], [p[0] + 0.6, p[1] + 0.7, p[2] + 0.7], f"f{n}_rod_eye{i}", f"f{n}_rod")
             for i, p in enumerate((a, b), 1)]
@@ -720,7 +740,7 @@ def spool(t_rope, t_flange, cx, half, name, part):
 
 def carriage_top():
     """Top of the carriage's top rail at depth 0 (where the rope is tied)."""
-    return SAW_TOP + piecewise(SASH_Y_MAP)(30.0)
+    return SAW_TOP + 7.5
 
 
 def build_gearbox(iw):
@@ -794,19 +814,6 @@ def build_dog(iw):
     return out
 
 
-def build_ratchet(iw):
-    """The windlass's ratchet wheel on the drum shaft (iron): a hub and RATCHET_TEETH teeth, its
-    top a gap for the pawl. It turns with the drum shaft."""
-    t = tpl(iw, "sash_001")
-    x0, x1 = RATCHET_X
-    out = octagon(t, x0, x1, SHAFT_Y, DRUM_Z, RATCHET_R, "drum_ratchet_hub", "drum")
-    for k in range(RATCHET_TEETH):
-        el = from_template(t, [x0, SHAFT_Y + RATCHET_R - 0.1, DRUM_Z - 0.3], [x1, SHAFT_Y + RATCHET_TIP, DRUM_Z + 0.3], f"drum_ratchet_tooth{k + 1}", "drum")
-        rotate([el], "x", 360.0 / RATCHET_TEETH * (k + 0.5), (0.0, SHAFT_Y, DRUM_Z))
-        out.append(el)
-    return out
-
-
 def build_shafts(iw, occupied_main, occupied_drum, end_x):
     """The shared shaft and the drum shaft (IW's cross-shaped main-rotor profile), filling the
     gaps between the parts that sit on them."""
@@ -857,12 +864,12 @@ def metal(el: El):
 # Elements that are iron: pins, wearing surfaces and thin linkage (everything else keeps its
 # template's texture: wood for structure, for the shafts that continue the vanilla axle, for
 # drums, gears, carriages, saw heads and bearings).
-METAL_NAMES = re.compile(r"^(gear_crownb_pilot|f\d_crank_|shaft_crankbar|f\d_rod_eye|f\d_saw_pin|f\d_saw_tail|dog_|gear_pinion_._catch|drum_ratchet|lever_|f\d_slider_(strap_|eye)|f\d_carriage_eye|f\d_tailpost_(pin|strap|cap))")
+METAL_NAMES = re.compile(r"^(bearing_crown_s|f\d_carriage_(guide_|lug)|gear_crownb_pilot|f\d_crank_|shaft_crankbar|f\d_rod_eye|f\d_saw_pin|f\d_saw_tail|dog_|gear_pinion_._catch|lever_|f\d_slider_(strap_|eye)|f\d_carriage_eye|f\d_tailpost_(pin|strap|cap))")
 
 
 def build_levers(iw):
-    """The trip rod, the rock shaft that works the dog clutch on the crown axle, and the latch
-    pawl on the ratchet wheel."""
+    """The trip rod (a pushrod with a tappet under the carriage's lug and a collar over it) and the
+    rock shaft that works the dog clutch on the crown axle."""
     t_oak, t_metal = tpl(iw, "sash_022"), tpl(iw, "leveler_metal_static_003")
     z0, z1 = LEVER_Z
     out = []
@@ -870,32 +877,30 @@ def build_levers(iw):
     ry, rz = ROCK_PIVOT
     out.append(from_template(t_metal, [TRIP_X - 0.5, TAPPET_Y[1], z0], [TRIP_X + 0.5, ry, z1], "lever_trip_rod", "trip"))
     out.append(from_template(t_metal, [TRIP_X - 0.5, TAPPET_Y[0], z0], [STATION_X[0] + LUG_X[1] + 0.25, TAPPET_Y[1], z1], "lever_trip_tappet", "trip"))
-    # the rock shaft along x, its tappet arm north to the trip rod's top (and on south past the
-    # shaft to a counterweight), and its fork arm up into the dog clutch's groove
+    # the collar over the lug's path: at the top of the rise the lug lifts it, throwing the clutch out
+    out.append(from_template(t_metal, [TRIP_X - 0.5, COLLAR_Y[0], z0], [STATION_X[0] + LUG_X[1] + 0.25, COLLAR_Y[1], z1], "lever_trip_collar", "trip"))
+    # the rock shaft along x, its tappet arm north to the trip rod's top, its over-centre weight on
+    # an upright arm, and its fork arm up into the dog clutch's groove
     out.append(from_template(t_metal, [ROCK_X[0], ry - 0.5, rz - 0.5], [ROCK_X[1], ry + 0.5, rz + 0.5], "lever_rock_shaft", "rock"))
-    out.append(from_template(t_metal, [TRIP_X - 0.5, ry - 0.5, z0], [TRIP_X + 0.5, ry + 0.5, rz + 3.0], "lever_rock_tappet_arm", "rock"))
-    out.append(from_template(t_metal, [TRIP_X - 0.9, ry - 0.9, rz + 1.6], [TRIP_X + 0.9, ry + 0.9, rz + 3.0], "lever_rock_weight", "rock"))
+    out.append(from_template(t_metal, [TRIP_X - 0.5, ry - 0.5, z0], [TRIP_X + 0.5, ry + 0.5, rz + 0.5], "lever_rock_tappet_arm", "rock"))
+    (wy, wz), (ty, tz) = weight_centre(), weight_centre(WEIGHT_ARM + WEIGHT_SIZE / 2)
+    out.append(strut(t_metal, [TRIP_X, ry, rz], [TRIP_X, ty, tz], 0.8, 0.8, "lever_rock_weight_arm", "rock"))
+    out.append(strut(t_metal, [TRIP_X, *weight_centre(WEIGHT_ARM - WEIGHT_SIZE / 2)], [TRIP_X, ty, tz], WEIGHT_SIZE, WEIGHT_SIZE, "lever_rock_weight", "rock"))
     out.append(from_template(t_metal, [GEAR_X - 0.4, ry, rz - 0.25], [GEAR_X + 0.4, FORK_Y - 0.9, rz + 0.25], "lever_rock_fork_arm", "rock"))
     out.append(from_template(t_metal, [GEAR_X - 1.0, FORK_Y - 0.9, rz - 0.45], [GEAR_X + 1.0, FORK_Y - 0.05, rz + 0.45], "lever_rock_fork", "rock"))
-    # latch pawl over the ratchet wheel, its tip in the gap between the top two teeth
-    py, pz = LATCH_PIVOT
-    xm = (RATCHET_X[0] + RATCHET_X[1]) / 2
-    tz0, tz1 = DRUM_Z - 0.15, DRUM_Z + 0.15                 # the tip, dropping into the gap between the top two teeth
-    out.append(from_template(t_metal, [xm - 0.3, py - 0.3, tz0], [xm + 0.3, py + 0.3, pz + 0.3], "lever_latch_pawl", "latch"))
-    out.append(from_template(t_metal, [xm - 0.3, SHAFT_Y + LATCH_TIP_R, tz0], [xm + 0.3, py - 0.3, tz1], "lever_latch_tip", "latch"))
     return out
 
 
 def build_frame(iw):
     """Top beams, shaft bearings, the input end, the west posts, the yoke guides, trip-rod straps,
-    the pawl bracket and the bed. Every piece is fixed to the rest of the frame (a face shared
+    the rock shaft's bearings and the bed. Every piece is fixed to the rest of the frame (a face shared
     or overlapping), which `validate` checks."""
     t_beam, t_post, t_block = tpl(iw, "Frame.119"), tpl(iw, "Frame.011"), tpl(iw, "Frame.088")
     t_bar = tpl(iw, "sash_022")
     out = []
     crank_r = 0.5                                       # half the crank bar's section
     for n, sx in enumerate(STATION_X, 1):
-        for side, (x0, x1) in (("w", (sx - 9.5, sx - 7.5)), ("e", (sx + 7.5, sx + 9.5))):
+        for side, (x0, x1) in (("w", post_x(sx, -1)), ("e", post_x(sx, 1))):
             out += beam(t_beam, [x0, TOP_BEAM_Y[0], POST_N[0]], [x1, TOP_BEAM_Y[1], 48.0], f"top_beam{n}{side}", "frame")
             # main-shaft bearing hanging from the top beam: around IW's thick shaft at station 1's
             # west post, around the thinner crank bar everywhere else
@@ -905,44 +910,40 @@ def build_frame(iw):
             out.append(from_template(t_block, [x0 + 0.25, SHAFT_Y - DRUM_BEARING, DRUM_Z - DRUM_BEARING],
                                      [x1 - 0.25, TOP_BEAM_Y[0], DRUM_Z + DRUM_BEARING], f"bearing_drum{n}{side}", "frame"))
         # yoke guides on the east post: top and bottom, along z, with a bracket to the post
-        gx0, gx1 = sx + YOKE_DX[1] + GUIDE_GAP, sx + YOKE_DX[1] + 1.0
+        gx0, gx1 = sx + YOKE_DX[1] + GUIDE_GAP, sx + YOKE_DX[1] + 2.0
         for tag, (y0, y1) in (("top", (YOKE_Y[1] - YOKE_END, YOKE_Y[1])), ("foot", (YOKE_Y[0], YOKE_Y[0] + YOKE_END))):
-            out.append(from_template(t_bar, [gx0, y0, 0.0], [gx1, y1, POST_N[0]], f"f{n}_guide_{tag}", "frame"))
+            out.append(from_template(t_bar, [gx0, y0, 0.0], [gx1, y1, POST_N[0] + 1.0], f"f{n}_guide_{tag}", "frame"))
             out.append(from_template(t_bar, [gx1, y0, POST_N[0] - 1.0], [sx + 7.5, y1, POST_N[0] + 0.5], f"f{n}_guide_{tag}_bracket", "frame"))
     # trip-rod straps on station 1's west post, lapped onto the post's west face
     for i, y in enumerate((18.0, 32.0, ROCK_PIVOT[0] - 4.0), 1):
-        out.append(from_template(tpl(iw, "leveler_metal_static_003"), [TRIP_X - 0.75, y, LEVER_Z[1]], [STATION_X[0] - 9.5, y + 1.0, POST_N[0] + 0.5],
+        out.append(from_template(tpl(iw, "leveler_metal_static_003"), [TRIP_X - 0.75, y, LEVER_Z[1]], [POST_X0, y + 1.0, POST_N[0] + 0.5],
                                  f"trip_strap{i}", "frame"))
     # input end: a post under the shaft and a bearing block on its top, around the shaft
-    out += beam(t_post, [0.5, 0.0, SHAFT_Z - 1.5], [3.5, SHAFT_Y - 2.0, SHAFT_Z + 1.5], "input_post", "frame")
-    out.append(from_template(t_block, [0.5, SHAFT_Y - 2.0, SHAFT_Z - 2.0], [3.5, SHAFT_Y + 2.5, SHAFT_Z + 2.0], "input_bearing", "frame"))
+    out += beam(t_post, [0.0, 0.0, SHAFT_Z - 2.0], [3.5, SHAFT_Y - 2.0, SHAFT_Z + 2.0], "input_post", "frame")
+    out.append(from_template(t_block, [0.0, SHAFT_Y - 2.0, SHAFT_Z - 2.0], [3.5, SHAFT_Y + 2.5, SHAFT_Z + 2.0], "input_bearing", "frame"))
     # west post, on the head beam's centre line (the beam is centred on the drum shaft), the beam's
     # end resting square and flush on the post's top, as the top beams sit on the station posts
-    wz0, wz1 = DRUM_Z - 1.5, DRUM_Z + 1.5
-    out += beam(t_post, [0.5, 0.0, wz0], [3.5, TOP_BEAM_Y[0], wz1], "west_post", "frame")
-    out += beam(t_beam, [0.5, TOP_BEAM_Y[0], wz0], [STATION_X[0] - 9.5, TOP_BEAM_Y[1], wz1], "west_head_beam", "frame")
+    wz0, wz1 = DRUM_Z - 2.0, DRUM_Z + 2.0
+    out += beam(t_post, [0.0, 0.0, wz0], [4.0, TOP_BEAM_Y[0], wz1], "west_post", "frame")
+    out += beam(t_beam, [0.0, TOP_BEAM_Y[0], wz0], [POST_X0, TOP_BEAM_Y[1], wz1], "west_head_beam", "frame")
     # drum-shaft bearing at the west end, beside the drum pinion, hanging from the head beam
     out.append(from_template(t_block, [BEARING_DRUM_X[0], SHAFT_Y - DRUM_BEARING, DRUM_Z - DRUM_BEARING], [BEARING_DRUM_X[1], TOP_BEAM_Y[0], DRUM_Z + DRUM_BEARING],
                              "bearing_drum", "frame"))
     # the rock shaft's bearings: a block round each end, on an arm from the input post (west) and
     # from station 1's west post (east)
     ry, rz = ROCK_PIVOT
-    out.append(from_template(t_block, [0.5, ry - 1.0, rz - 1.0], [3.5, ry + 1.0, SHAFT_Z - 1.5], "rock_bearing_w", "frame"))
-    px0 = STATION_X[0] - 9.5
-    out.append(from_template(t_block, [px0, ry - 1.0, POST_N[1]], [px0 + 2.0, ry + 1.0, rz + 1.0], "rock_bearing_e", "frame"))
+    out.append(from_template(t_block, [0.0, ry - 1.5, rz - 1.5], [3.5, ry + 1.5, SHAFT_Z - 2.0], "rock_bearing_w", "frame"))
+    px0 = POST_X0
+    out.append(from_template(t_block, [px0, ry - 1.5, POST_N[1]], [px0 + 3.0, ry + 1.5, rz + 1.5], "rock_bearing_e", "frame"))
     # the crown axle's bearings: the small crown gear's half in a block hanging from the west head
     # beam, north of the gear; the disc's half in a block between the dog clutch and the disc, on a
     # rail from a hanger under station 1's west top beam
     cb = (GEAR_X - 1.75, SHAFT_Y - 1.75)
-    out.append(from_template(t_block, [cb[0], cb[1], CROWN_AXLE_N - 0.2], [GEAR_X + 1.75, TOP_BEAM_Y[0], CROWN_AXLE_N + 1.6], "bearing_crown_n", "frame"))
+    out.append(from_template(t_block, [cb[0], cb[1], CROWN_AXLE_N - 0.9], [GEAR_X + 1.75, TOP_BEAM_Y[0], CROWN_AXLE_N + 2.1], "bearing_crown_n", "frame"))
     dz0, dz1 = DOG_Z0 + DOG_LEN + 0.1, CROWN_DISC_Z0 - 0.1
     out.append(from_template(t_block, [cb[0], cb[1], dz0], [GEAR_X + 1.75, SHAFT_Y + 1.75, dz1], "bearing_crown_s", "frame"))
-    out.append(from_template(t_beam, [GEAR_X + 1.75, SHAFT_Y + 1.75 - 1.2, dz0], [STATION_X[0] - 9.5, SHAFT_Y + 1.75, dz1], "bearing_crown_s_rail", "frame"))
-    out.append(from_template(t_block, [STATION_X[0] - 9.5, SHAFT_Y + 1.75 - 1.2, dz0], [STATION_X[0] - 7.5, TOP_BEAM_Y[0], dz1], "bearing_crown_s_hanger", "frame"))
-    # the latch pawl's bracket, on the east face of station 1's east top beam
-    py, pz = LATCH_PIVOT
-    out.append(from_template(t_block, [STATION_X[0] + 9.5, py - 0.6, pz - 0.6], [RATCHET_X[1] + 0.5, TOP_BEAM_Y[0] + 0.6, pz + 0.6],
-                             "latch_bracket", "frame"))
+    out.append(from_template(t_beam, [GEAR_X + 1.75, SHAFT_Y + 1.75 - 1.2, dz0], [POST_X0, SHAFT_Y + 1.75, dz1], "bearing_crown_s_rail", "frame"))
+    out.append(from_template(t_block, [POST_X0, SHAFT_Y + 1.75 - 1.2, dz0], [POST_X0 + 2.0, TOP_BEAM_Y[0], dz1], "bearing_crown_s_hanger", "frame"))
     out += build_bed(iw)
     return out
 
@@ -954,16 +955,16 @@ def build_bed(iw):
     edges = [4.0]
     for sx in STATION_X:
         edges += [sx - RAIL_GAP, sx + RAIL_GAP]
-    edges.append(CELLS_X * 16 - 4.0)
+    edges.append(CELLS_X * 16.0)                # the rails run out to the east end: the infeed skid
     runs = list(zip(edges[0::2], edges[1::2]))
     for r, (z0, z1) in enumerate(RAIL_Z, 1):
         for s, (x0, x1) in enumerate(runs, 1):
-            out += beam(tpl_rail, [x0, BED_TOP - 2.0, z0], [x1, BED_TOP, z1], f"bed_rail{r}_{s}", "frame")
+            out += beam(tpl_rail, [x0, BED_TOP - 3.0, z0], [x1, BED_TOP, z1], f"bed_rail{r}_{s}", "frame")
     for i, sx in enumerate(SLEEPER_X, 1):
-        out += beam(tpl_cross, [sx - 1.5, BED_TOP - 4.0, RAIL_Z[0][0] - 3.0], [sx + 1.5, BED_TOP - 2.0, RAIL_Z[1][1] + 3.0],
+        out += beam(tpl_cross, [sx - 1.5, BED_TOP - 6.0, RAIL_Z[0][0] - 3.0], [sx + 1.5, BED_TOP - 3.0, RAIL_Z[1][1] + 3.0],
                     f"bed_sleeper{i}", "frame")
         for j, (z0, z1) in enumerate(((RAIL_Z[0][0] - 3.0, RAIL_Z[0][0]), (RAIL_Z[1][1], RAIL_Z[1][1] + 3.0)), 1):
-            out.append(from_template(tpl_leg, [sx - 1.5, 0.0, z0], [sx + 1.5, BED_TOP - 4.0, z1], f"bed_leg{i}{j}", "frame"))
+            out.append(from_template(tpl_leg, [sx - 1.5, 0.0, z0], [sx + 1.5, BED_TOP - 6.0, z1], f"bed_leg{i}{j}", "frame"))
     return out
 
 
@@ -984,10 +985,8 @@ def build(iw):
     drum_occ = [(aabb_of(pin_d)[0][0], aabb_of(pin_d)[1][0])]
     drum_occ += [(sx - DRUM_HALF - 0.5, sx + DRUM_HALF + 0.5) for sx in STATION_X]
     drum_occ += [(sx + TAIL_ROPE_DX - SPOOL_HALF - 0.75, sx + TAIL_ROPE_DX + SPOOL_HALF + 0.75) for sx in STATION_X]
-    drum_occ += [RATCHET_X]
-    els += build_shafts(iw, main_occ, drum_occ, STATION_X[1] + 9.5)
+    els += build_shafts(iw, main_occ, drum_occ, post_x(STATION_X[1], 1)[1])
     els += build_crankbar(iw, crank_spans)
-    els += build_ratchet(iw)
     els += build_levers(iw)
     els += build_frame(iw)
     for el in els:
@@ -1041,7 +1040,7 @@ def lever_geometry():
     la = DOG_GZ - TRIP_ZC if "DOG_GZ" in globals() else 1.0
     rock = math.asin(TRIP_TRAVEL / la)
     return {"rock": rock, "dog": DOG_THROW, "tappet_arm": la, "fork_arm": FORK_Y - ROCK_Y if "ROCK_Y" in globals() else 0.0,
-            "trip_from": 1.0 - TRIP_TRAVEL / SINK}
+            "trip_from": 1.0 - TRIP_TRAVEL / SINK, "trip_top": TRIP_TRAVEL / SINK}
 
 
 # The dog clutch's groove, and the rock shaft under it: the shaft's height is set so the trip's
@@ -1052,6 +1051,17 @@ TRIP_ZC = (LEVER_Z[0] + LEVER_Z[1]) / 2                    # the trip rod's cent
 CROWN_DISC_Z0 = 19.15                                      # the crown disc's north face (z)
 ROCK_Y = FORK_Y - DOG_THROW * (DOG_GZ - TRIP_ZC) / TRIP_TRAVEL
 ROCK_PIVOT = (ROCK_Y, DOG_GZ)                              # (y, z) of the rock shaft's axis
+# The over-centre weight: on an upright arm leaning so it stands exactly over the rock shaft half
+# way through the throw. Out (at rest) it leans south and holds the lever out; thrown in, it leans
+# north and holds it in, until the carriage's lug throws it back through the vertical.
+WEIGHT_ARM, WEIGHT_SIZE = 3.6, 1.8                         # the weight's centre from the axis; its size
+
+
+def weight_centre(r: float = WEIGHT_ARM):
+    """(y, z) of the point r along the weight arm at rest: the vertical turned by half the throw."""
+    half = lever_geometry()["rock"] / 2
+    return ROCK_PIVOT[0] + r * math.cos(half), ROCK_PIVOT[1] + r * math.sin(half)
+
 
 # ---------------------------------------------------------------- rig
 def rig_parts():
@@ -1059,7 +1069,7 @@ def rig_parts():
     geo, lev = linkage(), lever_geometry()
     shaft_pivot = [0.0, SHAFT_Y * b, SHAFT_Z * b]
     spin = DRUM_SPIN                                           # drum radians over a full cut
-    trip = {"from": round(lev["trip_from"], 6), "to": 1.0, "lifting": "hold"}
+    trip = {"from": round(lev["trip_from"], 6), "to": 1.0, "lifting": "trip", "top": round(lev["trip_top"], 6)}
 
     def r6(v):
         return round(v, 6)
@@ -1122,9 +1132,6 @@ def rig_parts():
         # one rigid part: the rock shaft, its tappet arm and counterweight, its fork arm and fork
         {"id": "rock", "match": ["lever_rock_*"], "requires": "levers",
          "drivers": [{"type": "step", "motion": "rotate", "axis": "x", "pivot": [0.0, r6(ry * b), r6(rz * b)], "amount": r6(-lev["rock"]), **trip}]},
-        {"id": "latch", "match": ["lever_latch_*"], "requires": "levers",
-         "drivers": [{"type": "step", "motion": "rotate", "axis": "x", "pivot": [0.0, LATCH_PIVOT[0] * b, LATCH_PIVOT[1] * b],
-                      "amount": LATCH_ANGLE, "from": 0.0, "to": LATCH_WINDOW, "lifting": "block"}]},
         {"id": "frame", "match": ["*"], "requires": None, "drivers": []},
     ]
     return parts
@@ -1144,7 +1151,7 @@ def part_of(parts, name):
 # ---------------------------------------------------------------- driver maths (reference implementation)
 # The renderer (Core/RigAnimation.cs) and the browser viewer implement exactly this. Inputs:
 #   theta    the signed shaft angle, radians
-#   depth    the saw's depth, 0 (latched at the top) .. 1 (at the bed, through the trunk)
+#   depth    the saw's depth, 0 (at the top) .. 1 (at the bed, through the trunk)
 #   lifting  1 while the saw is being wound back up, else 0 (a renderer may ease it)
 #   travel   the shaft's travel: the total angle it has turned through either way (radians, never
 #            decreasing); a rotate driver with "rectified": true turns by ratio * travel
@@ -1175,6 +1182,10 @@ def step_amount(d, depth, lifting):
         e = max(e, lifting)
     elif gate == "block":
         e = e * (1.0 - lifting)
+    elif gate == "trip":
+        # thrown over [from, to] at the bottom on the way down, back over [0, top] at the top on
+        # the way up; the two halves agree at both ends, where the direction changes
+        e = e * (1.0 - lifting) + min(1.0, max(0.0, depth / d["top"])) * lifting
     return e
 
 
@@ -1386,13 +1397,13 @@ def make_rig(els, parts):
         "cells": cells,
         "powerCell": [0, int(SHAFT_Y // 16), int(SHAFT_Z // 16)],
         "powerFace": "west",
-        "infeedSide": "north",
+        "infeedSide": "east",
         "outputSide": "south",
         "output": {"pos": [CELLS_X / 2, round((BED_TOP + 2) * b, 4), CELLS_Z + 0.25]},
         "trunkBed": {"origin": [CELLS_X / 2, BED_TOP * b, TRUNK_Z * b], "axis": "x", "length": 5.0,
                      "_origin": "centre of the bed's top surface; trunks are drawn centred on it, lying along +x"},
         "saw": {"topY": SAW_TOP * b, "bottomY": SAW_BOTTOM * b,
-                "_comment": "height of the blades' cutting edge at depth 0 (latched) and depth 1 (end of the cut)"},
+                "_comment": "height of the blades' cutting edge at depth 0 (top of the cycle) and depth 1 (end of the cut)"},
         "parts": parts,
     }
 
@@ -1477,14 +1488,13 @@ CLEARANCE_PAIRS = [
     ("f{n}_rod", None, "f{n}_carriage", None), ("f{n}_rod", None, "drum", None), ("f{n}_rod", None, "frame", None),
     ("f{n}_yoke", None, "f{n}_carriage", None), ("f{n}_yoke", None, "frame", r"_guide_"),
     ("f{n}_saw", None, "f{n}_yoke", r"_(bar|head|foot)"), ("f{n}_saw", r"_pin$", "f{n}_carriage", None),
-    ("f{n}_saw", None, "frame", None), ("f{n}_carriage", None, "frame", r"^(?!f\d_post_n_)"),
+    ("f{n}_saw", None, "frame", None), ("f{n}_carriage", None, "frame", None),
     ("f{n}_blade", None, "frame", r"bed_"), ("f{n}_blade", None, "f{n}_carriage", None),
     ("f{n}_rope", None, "f{n}_saw", None), ("f{n}_rope", None, "f{n}_yoke", None),
     ("trip", None, "f1_carriage", r"(?<!lug)$"), ("trip", None, "frame", r"bed_|post|bearing|beam"), ("trip", None, "drum", None),
     ("rock", None, "drum", None), ("rock", None, "crown", None), ("rock", None, "crown_b", None), ("rock", None, "dog", r"sleeve"),
     ("rock", None, "frame", r"^(?!rock_bearing_)"), ("rock", None, "trip", r"tappet"), ("rock", None, "shaft", None),
     ("rock", None, "pinion_w", None), ("rock", None, "pinion_e", None), ("rock", None, "f1_carriage", None), ("rock", None, "f1_rope", None),
-    ("latch", None, "drum", r"ratchet"), ("latch", None, "frame", r"^(?!latch_bracket$)"), ("latch", None, "shaft", None),
     ("dog", None, "frame", None), ("dog", None, "crown", r"_disc_"), ("dog", None, "crown_b", r"_b_"), ("crown_b", None, "frame", r"^(?!bearing_crown_n)"),
     ("pinion_w", None, "frame", None), ("pinion_e", None, "frame", None), ("crown", None, "frame", r"^(?!bearing_crown_s$)"),
     ("f{n}_slider", None, "frame", None), ("f{n}_saw", r"_tail$", "f{n}_slider", None), ("f{n}_saw", r"_tail$", "frame", None),
@@ -1586,7 +1596,24 @@ def validate(els, parts, rig, shape, frame_shape):
         if hits:
             fail(f"trunk {size} intersects the machine")
 
-    # blades: clear of the trunk while latched, clear of the bed rails at the bottom
+    # the infeed: an xxl trunk slides in lengthwise from beyond the east end to its place on the
+    # bed, through station 2 and then station 1; its swept volume touches nothing, fixed or moving,
+    # with the saws at the top (depth 0, every shaft angle sampled)
+    ln, w, h = TRUNK_SIZES["xxl"]
+    lo = [CELLS_X * 8 - ln * 8, BED_TOP, TRUNK_Z - w * 8]
+    hi = [CELLS_X * 16 + ln * 16, BED_TOP + h * 16, TRUNK_Z + w * 8]
+    hits = set()
+    for pid in by_part:
+        for pose in ([(0.0, 0.0, 0.0, 1.0)] if pid == "frame" else [(i * math.pi / 8, 0.0, 0.0, i * 0.4) for i in range(16)]):
+            for el in posed_part(pid, pose):
+                if obb_overlap(el, lo, hi):
+                    hits.add(el.name)
+    print(f"infeed: an xxl trunk sliding in from beyond the east end to the bed (x {hi[0]:.0f} -> {lo[0]:.0f}) "
+          + ("touches nothing with the saws at the top" if not hits else "HITS " + ", ".join(sorted(hits)[:6])))
+    if hits:
+        fail("the east infeed is blocked")
+
+    # blades: clear of the trunk at the top of the cycle, clear of the bed rails at the bottom
     for n in (1, 2):
         hits = set()
         for i in range(16):
@@ -1596,11 +1623,11 @@ def validate(els, parts, rig, shape, frame_shape):
                         hits.add(rail.name)
         lo = [8.0, BED_TOP, TRUNK_Z - 16]
         hi = [88.0, BED_TOP + 32, TRUNK_Z + 16]
-        latched = any(obb_overlap(el, lo, hi) for i in range(16) for el in posed_part(f"f{n}_blade", (i * math.pi / 8, 0.0, 0.0)))
+        at_top = any(obb_overlap(el, lo, hi) for i in range(16) for el in posed_part(f"f{n}_blade", (i * math.pi / 8, 0.0, 0.0)))
         print(f"blades {n}: at depth 1 {'clear of the bed' if not hits else 'HIT ' + ', '.join(sorted(hits))};"
-              f" latched {'clear of a 2x2 trunk' if not latched else 'TOUCH a 2x2 trunk'}")
-        if hits or latched:
-            fail(f"blades {n} hit the bed or a latched trunk")
+              f" at the top {'clear of a 2x2 trunk' if not at_top else 'TOUCH a 2x2 trunk'}")
+        if hits or at_top:
+            fail(f"blades {n} hit the bed, or a trunk with the saws at the top")
 
     # linkage: rod ends on their pins, head pin inside the yoke's slot, rope ends on drum and carriage
     for n, sx in enumerate(STATION_X, 1):
@@ -1724,8 +1751,7 @@ def validate(els, parts, rig, shape, frame_shape):
               ("crown", "crown axle, the disc's half", by_part["crown"], 2, (GEAR_X, SHAFT_Y), 1, True),
               ("crown_b", "crown axle, the small crown gear's half", by_part["crown_b"], 2, (GEAR_X, SHAFT_Y), 1, True),
               ("drum", "drum shaft", by_part["drum"], 0, (SHAFT_Y, DRUM_Z), 2, False),
-              ("rock", "rock shaft", by_part["rock"], 0, ROCK_PIVOT, 2, False),
-              ("latch", "latch pawl's pivot (a lever on a pin in its bracket)", by_part["latch"], 0, LATCH_PIVOT, 1, False)]
+              ("rock", "rock shaft", by_part["rock"], 0, ROCK_PIVOT, 2, False)]
     tg = tail_rope_geometry()
     for n, sx in enumerate(STATION_X, 1):
         shafts.append((f"f{n}_sheave", f"station {n} sheave's pin", [e for e in frame if e.name == f"f{n}_tailpost_pin"], 0, (tg["cy"], tg["cz"]), 2, False))
@@ -1854,7 +1880,7 @@ def validate(els, parts, rig, shape, frame_shape):
         return part_matrix(parts, pid, 0.0, depth, lifting, 0.0)
 
     ry, rz = ROCK_PIVOT
-    window = [lev["trip_from"] + (1 - lev["trip_from"]) * k / 20 for k in range(21)] + [1.0]
+    window = [k / 80 for k in range(81)]          # the whole travel, both ways (lifting 0 and 1)
     q = [TRIP_X * b, ry * b, TRIP_ZC * b]
     worst = max(16 * math.dist(_apply(m("trip", d, lf), q), _apply(m("rock", d, lf), q)) for d in window for lf in (0.0, 1.0))
     print(f"lever joint trip rod / tappet arm: worst gap {worst:.3f} voxels")
@@ -1867,15 +1893,21 @@ def validate(els, parts, rig, shape, frame_shape):
     print(f"dog clutch: fork off the groove by at most {worst_fork:.2f} voxels; thrown, its face reaches {face:.2f}, the dog hub's face is {DOG_HUB_Z1:.2f}")
     if worst_fork > 0.15 or abs(face - DOG_HUB_Z1) > 0.05:
         fail("the rock shaft does not throw the dog clutch onto the dog hub")
-    # the counterweight rises as the clutch goes in, so it throws it out again once the carriage has left the tappet
-    wt = [TRIP_X * b, ry * b, (rz + 2.3) * b]
-    rise = (_apply(m("rock", 1.0), wt)[1] - _apply(m("rock", 0.0), wt)[1]) * 16
-    print(f"rock shaft: turns {math.degrees(lev['rock']):.2f} deg; tappet arm {lev['tappet_arm']:.2f}, fork arm {lev['fork_arm']:.2f} voxels; the counterweight rises {rise:.2f} as the clutch goes in")
-    if rise <= 0:
-        fail("the counterweight does not return the clutch")
+    # the counterweight sits over centre: thrown in (at the bottom) or out (at the top), the lever
+    # stays where it was put until the carriage's lug throws it the other way. Its lean (z from the
+    # rock shaft's axis) changes sign across the throw: south holds it out, north holds it in.
+    wy, wz = weight_centre()
+    wt = [TRIP_X * b, wy * b, wz * b]
+    lean_out = _apply(m("rock", 0.0), wt)[2] * 16 - rz
+    lean_in = _apply(m("rock", 1.0), wt)[2] * 16 - rz
+    lean_mid = _apply(m("rock", (lev["trip_from"] + 1) / 2), wt)[2] * 16 - rz
+    print(f"rock shaft: turns {math.degrees(lev['rock']):.2f} deg; tappet arm {lev['tappet_arm']:.2f}, fork arm {lev['fork_arm']:.2f} voxels;"
+          f" the over-centre weight leans {lean_out:+.2f} voxels (south) out, {lean_mid:+.2f} half way, {lean_in:+.2f} in")
+    if not (lean_out > 0.2 and lean_in < -0.2 and abs(lean_mid) < 0.05):
+        fail("the counterweight does not pass over the rock shaft between out and in")
     # the rectifier: whichever way the shaft turns, the disc turns the same way and one pinion turns
     # with the shaft; during a raise the drum pinion (and so the drum, clutched) turns at the rate
-    # the gameplay raises the saws (RAISE_TURNS shaft turns from bed to latch)
+    # the gameplay raises the saws (RAISE_TURNS shaft turns from the bed to the top)
     ratios = {p["id"]: p["drivers"][0]["ratio"] for p in parts if p["id"] in ("pinion_w", "pinion_e", "crown")}
     crown_b_per_rad = -next(p for p in parts if p["id"] == "crown_b")["drivers"][0]["amount"] / (2 * math.pi * RAISE_TURNS)
     print(f"rectifier: per radian of shaft travel the west pinion turns {ratios['pinion_w']:+.4f} (with the shaft forwards), the east"
@@ -1885,6 +1917,19 @@ def validate(els, parts, rig, shape, frame_shape):
         fail("the rectified gear train does not match the shaft or the raise")
     if abs(ratios["crown"] * GEAR_RATIO + 1.0) > 1e-4:
         fail("the gears' ratios do not mesh")
+    # the top trip: rising, the lug's top meets the collar exactly when the trip starts to move
+    # back, and lifts it the rest of the way to the top
+    worst_lift = 0.0
+    for k in range(41):
+        depth = k / 40
+        lug_top = SAW_TOP + LUG_Y[1] - SINK * depth
+        collar = COLLAR_Y[0] + _apply(m("trip", depth, 1.0), [0.0, 0.0, 0.0])[1] * 16
+        worst_lift = max(worst_lift, lug_top - collar)
+        if depth <= lev["trip_top"] and abs(collar - lug_top) > 0.05:
+            fail(f"the carriage's lug is off the collar at depth {depth:.3f} on the way up")
+    print(f"top trip: rising, the carriage's lug meets the collar from depth {lev['trip_top']:.4f} up; worst overlap {max(worst_lift, 0):.3f} voxels")
+    if worst_lift > 0.05:
+        fail("the lug runs into the collar before it moves")
     lug_y = SAW_TOP + LUG_Y[0]
     worst_push = 0.0
     for k in range(41):
@@ -1919,8 +1964,6 @@ def validate(els, parts, rig, shape, frame_shape):
                 continue
             hits = set()
             for pose in pose_list[::3]:
-                if (pa_, pb_) == ("latch", "drum") and pose[2] > 0:
-                    continue          # while winding, the pawl clicks over the ratchet's teeth
                 ga = [e for e in posed_part(pa_, pose) if not fa or re.search(fa, e.name)]
                 gb = [e for e in posed_part(pb_, pose if pb_ != "frame" else (0.0, 0.0, 0.0, 1.0)) if not fb or re.search(fb, e.name)]
                 bb = [(e, e.aabb()) for e in gb]

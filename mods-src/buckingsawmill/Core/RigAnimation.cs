@@ -100,11 +100,11 @@ public enum Axis { X, Y, Z }
 public enum DriverType { Rotate, Slide, Swing, Feed, Step, Stretch }
 
 /// <summary>How a <see cref="DriverType.Step"/> driver treats the lifting input.</summary>
-public enum LiftGate { None, Hold, Block }
+public enum LiftGate { None, Hold, Block, Trip }
 
 /// <summary>
 /// One motion of a rig part, as rig.json's <c>parts[].drivers</c> describes it. Inputs: θ the
-/// signed shaft angle, d the saw's depth (0 latched at the top .. 1 at the bed), L lifting (1
+/// signed shaft angle, d the saw's depth (0 at the top .. 1 at the bed), L lifting (1
 /// while the saws are wound back up, eased 0..1), ψ the shaft's travel (the total angle it has
 /// turned through either way, never decreasing). Distances are blocks, angles radians; rotations
 /// are right-handed about the positive axis. The mod's README defines each type; the reference
@@ -117,10 +117,13 @@ public enum LiftGate { None, Hold, Block }
 /// keeps turning the same way whichever way the shaft turns (a one-way catch's gear).</param>
 public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Ratio, float Amplitude, float Phase, float Travel,
                             bool Rotates = false, float Amount = 0, float From = 0, float To = 1, LiftGate Lifting = LiftGate.None,
-                            float Length = 1, bool Rectified = false)
+                            float Length = 1, bool Rectified = false, float Top = 0)
 {
     /// <summary>A step driver's fraction: d's progress through [From, To], then held at 1
-    /// (<see cref="LiftGate.Hold"/>) or kept at 0 (<see cref="LiftGate.Block"/>) while lifting.</summary>
+    /// (<see cref="LiftGate.Hold"/>) or kept at 0 (<see cref="LiftGate.Block"/>) while lifting.
+    /// <see cref="LiftGate.Trip"/>: thrown over [From, To] at the bottom on the way down and back
+    /// over [0, Top] at the top on the way up, so e = (1 − L)·down + L·up with up =
+    /// clamp(d / Top, 0, 1); the two agree at both ends, where the direction changes.</summary>
     public double StepFraction(double depth, double lifting)
     {
         double e = Math.Clamp((depth - From) / (To - From), 0, 1);
@@ -128,6 +131,7 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
         {
             LiftGate.Hold => Math.Max(e, lifting),
             LiftGate.Block => e * (1 - lifting),
+            LiftGate.Trip => e * (1 - lifting) + (Top > 0 ? Math.Clamp(depth / Top, 0, 1) : 1) * lifting,
             _ => e,
         };
     }
@@ -350,10 +354,14 @@ public sealed class RigParts
             null => LiftGate.None,
             "hold" => LiftGate.Hold,
             "block" => LiftGate.Block,
-            var g => throw new FormatException($"{where}: lifting \"{g}\" is not hold or block"),
+            "trip" => LiftGate.Trip,
+            var g => throw new FormatException($"{where}: lifting \"{g}\" is not hold, block or trip"),
         };
+        float top = Num(d, "top", 0);
+        if (gate == LiftGate.Trip && !(top > 0))
+            throw new FormatException($"{where}: a trip step needs a top above 0");
         return new Driver(type, axis, pivot, Num(d, "ratio", 1), Num(d, "amplitude", 0), Num(d, "phase", 0), Num(d, "travel", 0),
-                          rotates, Num(d, "amount", 0), from, to, gate, length, Bool(d, "rectified"));
+                          rotates, Num(d, "amount", 0), from, to, gate, length, Bool(d, "rectified"), top);
     }
 
     private static Float3 Point(JsonElement d, string key, string where, string type)

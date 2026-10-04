@@ -15,8 +15,8 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/buckingsawmill: the bucking sawmill against the pinned Immersive Woodworking and
 /// Logging Expanded. The mill is driven by a real mechanical power network (a vanilla creative
 /// rotor against its power face). ModConfig/buckingsawmill.json is seeded from
-/// fixtures/buckingsawmill with RevolutionsPerStoredLog at 0.5 and RaiseRevolutions at 1, so a cut
-/// and the raise after it take seconds; every other setting is the default. Each scenario builds its mill in its own patch of sky.
+/// fixtures/buckingsawmill with RevolutionsPerStoredLog at 0.5 and RaiseRevolutions at 1, so an empty
+/// cycle (down and back up) is two turns and a cut takes seconds; every other setting is the default. Each scenario builds its mill in its own patch of sky.
 /// </summary>
 [AtlasWorld]
 [AtlasDataFiles("fixtures/buckingsawmill", TargetPath = "ModConfig")]
@@ -278,11 +278,13 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.True(mill.HasLevers);
         Assert.NotNull(Click(player, pos, ItemOf($"{Iw}:sawmilllevers")));
         Assert.True(mill.Complete);
-        Assert.Equal(MillPhase.Idle, mill.Phase);
+        // Not turning: stopped, with the saws at the top where a trunk can go on.
+        Assert.Equal(MillPhase.Stopped, mill.Phase);
         info = Info(mill, player);
         Assert.DoesNotContain("Unassembled", info);
         Assert.Contains("250 / 250", info);
-        Assert.Contains("load a trunk", info);
+        Assert.Contains("Stopped", info);
+        Assert.Contains("Saws at the top", info);
         Assert.Equal("Bucking sawmill", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
         Assert.Equal(Mod.Config.Resistance, mill.Power!.GetResistance());
 
@@ -294,6 +296,17 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
     }
 
     // ---- Trunks ----
+
+    /// <summary>Turns the (unpowered) mill's cycle by hand: <paramref name="turns"/> shaft turns.</summary>
+    private static void Turn(BEBuckingMill mill, float turns) => mill.Advance(turns * 2 * MathF.PI);
+
+    /// <summary>Turns an empty mill by hand from wherever it is to the top, just as it starts down again.</summary>
+    private void TurnToTop(BEBuckingMill mill)
+    {
+        float rr = Mod.Config.RaiseRevolutions;
+        Turn(mill, ((mill.Rising ? 0 : 1 - mill.Depth) + (mill.Rising ? mill.Depth : 1)) * rr);
+        Assert.True(SawDepth.AtTop(mill.Depth), $"depth {mill.Depth} after turning to the top");
+    }
 
     [AtlasScenario(TimeoutMs = 180_000)]
     public async Task A_full_cut_gives_the_configured_logs_and_wears_the_blades()
@@ -316,9 +329,12 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.NotNull(Click(player, pos, Trunk("oak", 4, branched: true)));
         Assert.Null(mill.Trunk);
 
-        // Loaded by hand, and taken back intact before it is cut.
+        // Loaded by hand at the top, and taken back intact before it is cut.
+        Assert.Equal(0f, mill.Depth);
         Assert.Null(Click(player, pos, trunk.Clone()));
         Assert.NotNull(mill.Trunk);
+        float touch = SawDepth.Touch(Rig.Saw, Rig.TrunkBed, "sm");
+        Assert.Equal(touch, mill.Depth, 4);
         Click(player, pos, null, ctrl: true);
         Assert.Null(mill.Trunk);
         var back = player.InventoryManager.GetOwnInventory("hotbar").Concat(player.InventoryManager.GetOwnInventory("backpack"))
@@ -326,10 +342,12 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.NotNull(back);
         Assert.True(back.Equals(W, trunk, GlobalConstants.IgnoredStackAttributes), "the trunk came back changed");
         Assert.Equal(2, mill.BladeCount);
-        // The saws dropped onto it, so they wind back up before the next (unpowered here, so by hand).
-        Assert.Equal(MillPhase.Raising, mill.Phase);
-        mill.AdvanceRaise(2 * MathF.PI * Mod.Config.RaiseRevolutions);
-        Assert.Equal(MillPhase.Idle, mill.Phase);
+        // The saws dropped onto it and stay there: no trunk goes on until they have been round to the top.
+        Assert.Equal(MillPhase.Stopped, mill.Phase);
+        Assert.Equal(touch, mill.Depth, 4);
+        Click(player, pos, null);
+        Assert.Null(mill.Trunk);
+        TurnToTop(mill);
 
         // With an empty hand, the trunk is found in the inventory.
         Assert.Null(Click(player, pos, null));
@@ -342,26 +360,60 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         var items = ItemsNear(pos);
         Assert.Equal(Cutting.LogYield(4, Mod.Config.LogsPerStoredLog), items.GetValueOrDefault("game:log-placed-oak-ud"));
         Assert.Equal(8, items.GetValueOrDefault("game:log-placed-oak-ud"));
-        // Each kit lost ceil(4 × 0.25) = 1: the one left at 1 broke, and the mill waits for a new one.
+        // Each kit lost ceil(4 × 0.25) = 1: the one left at 1 broke, and the mill stops for a new one.
         var left = Assert.Single(mill.Blades);
         Assert.Equal(max - Cutting.BladeWear(4, Mod.Config.BladeWearPerStoredLog), left.Collectible.GetRemainingDurability(left));
         Assert.Equal(max - 1, left.Collectible.GetRemainingDurability(left));
         Assert.False(mill.Complete);
         Assert.Equal(0f, mill.Progress);
 
-        // The saws are at the bed, and wait there while a blade kit is missing.
-        Assert.Equal(MillPhase.Raising, mill.Phase);
+        // The saws are at the bed, the lift thrown in, and wait there while a blade kit is missing.
+        Assert.Equal(MillPhase.Stopped, mill.Phase);
+        Assert.True(mill.Rising);
         Assert.Equal(1f, mill.Depth);
         await World.Ticks(20);
         Assert.Equal(1f, mill.Depth);
-        // With a new kit fitted they wind back up, and the mill is idle again.
+        // With a new kit fitted they wind back up, pass the top and carry on round.
         Assert.True(mill.TryFitPart(new DummySlot(ItemOf($"{Iw}:sawmillblade-copper")), player));
-        await World.Until(() => mill.Phase == MillPhase.Idle, 6000);
-        Assert.Equal(0f, mill.Depth);
+        await World.Until(() => mill.Phase == MillPhase.Raising && mill.Depth < 0.9f, 6000);
+        await World.Until(() => mill.Phase == MillPhase.Sinking, 6000);
     }
 
     [AtlasScenario(TimeoutMs = 180_000)]
-    public async Task After_a_cut_the_rack_waits_for_the_saws_to_rise()
+    public async Task A_powered_empty_mill_cycles_and_takes_a_trunk_only_at_the_top()
+    {
+        var pos = Sky(30, -60);
+        var player = await Player("cycler");
+        var mill = await PlaceMill(pos, "east");
+        Assemble(mill, player);
+        await Power(mill);
+
+        // Empty, it goes on round: down to the bed, up to the top, and down again.
+        await World.Until(() => mill.Phase == MillPhase.Sinking && mill.Depth > 0.5f, 6000);
+        Assert.Contains("Saws coming down, no trunk", Info(mill, player));
+        await World.Until(() => mill.Phase == MillPhase.Raising, 6000);
+        Assert.Contains("Raising the saws", Info(mill, player));
+        await World.Until(() => mill.Phase == MillPhase.Raising && mill.Depth < 0.5f, 6000);
+
+        // A trunk offered mid-cycle stays in the hand.
+        var trunk = Trunk("oak", 40);
+        Assert.False(SawDepth.AtTop(mill.Depth));
+        Assert.NotNull(Click(player, pos, trunk.Clone()));
+        Assert.True(_handled);
+        Assert.Null(mill.Trunk);
+
+        // At the top it goes on, and the saws drop onto it.
+        await World.Until(() => SawDepth.AtTop(mill.Depth), 6000);
+        Assert.Null(Click(player, pos, trunk.Clone()));
+        Assert.NotNull(mill.Trunk);
+        // (taken on the last of the rise, the saws finish coming up before they drop onto it)
+        await World.Until(() => mill.Phase == MillPhase.Cutting, 2000);
+        float touch = SawDepth.Touch(Rig.Saw, Rig.TrunkBed, "sm");
+        Assert.InRange(mill.Depth, touch, touch + 0.05f);
+    }
+
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task After_a_cut_the_rack_waits_for_the_saws_to_come_up()
     {
         var pos = Sky(-60, 0);
         var player = await Player("winder");
@@ -397,7 +449,7 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.False(mill.PullFromRack());
         Assert.Equal(1, Count());
 
-        // It is pulled only once they are (nearly) up: the depth seen before it came went to the latch.
+        // It is pulled only once they are at the top.
         float lowest = mill.Depth;
         var until = DateTime.UtcNow.AddSeconds(10);
         while (mill.Trunk == null && DateTime.UtcNow < until)
@@ -406,65 +458,77 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
             await World.Ticks(1);
         }
         Assert.NotNull(mill.Trunk);
-        Assert.True(lowest < 0.2f, $"the next trunk came with the saws still at {lowest}");
+        Assert.True(lowest <= 0.2f, $"the next trunk came with the saws still at {lowest}");
         Assert.Equal(0, Count());
-        Assert.Equal(MillPhase.Cutting, mill.Phase);
+        await World.Until(() => mill.Phase == MillPhase.Cutting, 2000);
     }
 
     [AtlasScenario]
-    public async Task Taking_a_trunk_out_early_raises_the_saws_from_where_they_are()
+    public async Task Taking_a_trunk_out_early_lets_the_saws_carry_on_empty()
     {
         var pos = Sky(-60, -30);
         var player = await Player("changer");
         var mill = await PlaceMill(pos, "north");
         Assemble(mill, player);
+        float rr = Mod.Config.RaiseRevolutions;
 
         // Unpowered, so only this scenario moves the saws. A one-high trunk on the default travel
         // (3.0 to 0.5 over a bed at 0.5) drops them to 0.6.
         var trunk = Trunk("oak", 4);
         Assert.Null(Click(player, pos, trunk.Clone()));
-        Assert.Equal(MillPhase.Cutting, mill.Phase);
+        Assert.NotNull(mill.Trunk);
         float touch = SawDepth.Touch(Rig.Saw, Rig.TrunkBed, "sm");
         Assert.Equal(touch, mill.Depth, 4);
         // A tenth of the cut: four logs at 0.5 turns each.
-        mill.AdvanceCut(0.1f * 2 * MathF.PI * 4 * Mod.Config.RevolutionsPerStoredLog);
+        Turn(mill, 0.1f * 4 * Mod.Config.RevolutionsPerStoredLog);
         float depth = SawDepth.Cutting(touch, 0.1f);
         Assert.Equal(depth, mill.Depth, 3);
 
         Click(player, pos, null, ctrl: true);
         Assert.Null(mill.Trunk);
-        Assert.Equal(MillPhase.Raising, mill.Phase);
+        Assert.Equal(MillPhase.Stopped, mill.Phase);
+        Assert.False(mill.Rising);
         Assert.Equal(depth, mill.Depth, 3);
-        Assert.Contains("Raising the saws", Info(mill, player));
-        Assert.DoesNotContain(W.BlockAccessor.GetBlock(pos).GetPlacedBlockInteractionHelp(W, new BlockSelection { Position = pos }, player),
-            wi => wi.ActionLangCode == "buckingsawmill:blockhelp-loadtrunk");
+        Assert.Contains("Stopped", Info(mill, player));
+        Assert.DoesNotContain("Saws at the top", Info(mill, player));
 
-        // The depth survives saving: moved on after the save, loading puts it back.
-        var tree = new TreeAttribute();
-        mill.ToTreeAttributes(tree);
-        Assert.Equal(depth, tree.GetFloat("depth"), 3);
-        mill.AdvanceRaise(0.1f);
-        Assert.NotEqual(depth, mill.Depth, 3);
-        mill.FromTreeAttributes(tree, W);
-        Assert.Equal(depth, mill.Depth, 3);
-        Assert.Equal(MillPhase.Raising, mill.Phase);
-        Assert.True(mill.HasLevers);
-        Assert.True(mill.Complete);
-
-        // No trunk goes on while they rise: it stays in the hand.
+        // No trunk goes on mid-cycle: it stays in the hand.
         Assert.NotNull(Click(player, pos, trunk.Clone()));
         Assert.Null(mill.Trunk);
 
-        // Half the way up from there takes half of that depth's share of the turns.
-        mill.AdvanceRaise(depth / 2 * 2 * MathF.PI * Mod.Config.RaiseRevolutions);
-        Assert.Equal(depth / 2, mill.Depth, 3);
+        // The saws go on down at the empty rate: a tenth of the travel in a tenth of the turns.
+        Turn(mill, 0.1f * rr);
+        Assert.Equal(depth + 0.1f, mill.Depth, 3);
+        Assert.False(mill.Rising);
+        // To the bed, where the lift is thrown in, and a quarter of the way back up.
+        Turn(mill, (0.9f - depth + 0.25f) * rr);
+        Assert.True(mill.Rising);
+        Assert.Equal(0.75f, mill.Depth, 3);
+
+        // Depth and direction survive saving: moved on after the save, loading puts them back.
+        var tree = new TreeAttribute();
+        mill.ToTreeAttributes(tree);
+        Assert.Equal(0.75f, tree.GetFloat("depth"), 3);
+        Turn(mill, 1 * rr);
+        Assert.False(mill.Rising);
+        mill.FromTreeAttributes(tree, W);
+        Assert.Equal(0.75f, mill.Depth, 3);
+        Assert.True(mill.Rising);
+        Assert.True(mill.HasLevers);
+        Assert.True(mill.Complete);
+
+        // Still refused on the way up, and taken at the top.
         Assert.NotNull(Click(player, pos, trunk.Clone()));
-        mill.AdvanceRaise(depth * 2 * MathF.PI * Mod.Config.RaiseRevolutions);
-        Assert.Equal(0f, mill.Depth);
-        Assert.Equal(MillPhase.Idle, mill.Phase);
-        Assert.Contains("load a trunk", Info(mill, player));
+        Turn(mill, 0.7f * rr);
+        Assert.True(mill.Rising);
+        Assert.True(SawDepth.AtTop(mill.Depth));
+        Assert.Contains("Saws at the top", Info(mill, player));
         Assert.Null(Click(player, pos, trunk.Clone()));
         Assert.NotNull(mill.Trunk);
+        // Loaded on the last of the rise: the saws come up to the top, then drop onto the trunk.
+        Turn(mill, 0.06f * rr);
+        Assert.False(mill.Rising);
+        Assert.InRange(mill.Depth, touch, touch + 0.01f);
     }
 
     [AtlasScenario(TimeoutMs = 180_000)]
@@ -499,9 +563,9 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.Null(mill.Trunk);
         Assert.Equal(2, (int)rack.GetType().GetProperty("TrunkCount")!.GetValue(rack)!);
 
-        // Taken away, the next one is pulled within a couple of seconds.
+        // Taken away, the next one is pulled the next time the saws are at the top.
         Assert.NotNull(logging.PopTrunk(rack));
-        await World.Until(() => mill.Trunk != null, 2000);
+        await World.Until(() => mill.Trunk != null, 8000);
         Assert.Equal("no", mill.Trunk!.Block.Variant["branches"]);
         Assert.Equal(40, Trunks.StoredLogs(mill.Trunk, W));
         rack = W.BlockAccessor.GetBlockEntity(rackPos);
@@ -529,7 +593,7 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         rack.GetType().GetMethod("PushTrunk")!.Invoke(rack, [Trunk("oak", 40)]);
         rack.MarkDirty(true);
 
-        await World.Until(() => mill.Trunk != null, 2000);
+        await World.Until(() => mill.Trunk != null, 8000);
         Assert.Equal(40, Trunks.StoredLogs(mill.Trunk!, W));
     }
 }
