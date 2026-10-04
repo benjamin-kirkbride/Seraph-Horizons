@@ -21,6 +21,8 @@ public class CreativeSteamSourceOffScenarios : AtlasScenarioBase
         Assert.False(config["CreativeSteamSource"].AsBool(true));
         Assert.True(config["BoilerLidBlowsOpen"].AsBool(false));
         Assert.Null(World.Api.World.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
-        Assert.DoesNotContain(World.Api.World.Blocks, b => b.Code?.Domain == "seraphhorizons");
+        // The mod's only other blocks are the bucking sawmill's, which have their own switch.
+        Assert.DoesNotContain(World.Api.World.Blocks,
+            b => b.Code is { Domain: "seraphhorizons" } code && !code.Path.StartsWith("buckingmill", StringComparison.Ordinal));
     }
 }
