@@ -127,7 +127,6 @@
     {"match": {"domain": "aculinaryartillery", "code": "creature-*", "kind": "item"}, "group": {"id": "aculinaryartillery-creature", "title": "seraphhorizons:tidyvariants-group-aculinaryartillery-creature"}},
     {"match": {"domain": "primitivesurvival", "code": "fireflies-*", "kind": "block"}, "group": {"id": "primitivesurvival-fireflies", "title": "seraphhorizons:tidyvariants-group-primitivesurvival-fireflies"}},
     {"match": {"domain": "hydrateordiedrate", "code": "wellwater-*", "kind": "block"}, "group": {"id": "hydrateordiedrate-wellwater", "title": "seraphhorizons:tidyvariants-group-hydrateordiedrate-wellwater"}},
-    {"match": {"domain": "vinteng", "code": "vemultiblockio-*", "kind": "block"}, "group": {"id": "vinteng-vemultiblockio", "title": "seraphhorizons:tidyvariants-group-vinteng-vemultiblockio"}},
 
     // Alchemy herb racks: wood x metal, metal, and clay colour x raw/fired collapse.
     {"match": {"domain": "alchemy", "code": ["herbrack-*", "herbrackhook-*", "herbracktop-*", "herbrackmold-*"]}, "group": {"id": "alchemy-{base}", "title": "seraphhorizons:tidyvariants-group-alchemy-{base}"}}
