@@ -134,6 +134,11 @@ const en = {
     traderBuys: "Bought by trader",
     other: "Other",
   },
+  // Kinds for sources of type `other`, by the export's note; the note then goes unsaid.
+  sourceNotes: { Panned: "Panning", Harvested: "Harvested" } as Record<string, string>,
+  panChance: "Chance on each pan",
+  scalesWithStat: (stat: string) => `chance scales with player stat ${stat}`,
+  andMore: (n: number) => `and ${n} more`,
   quantity: "Quantity",
   price: (gears: number) => `${gears} rusty gear${gears === 1 ? "" : "s"}`,
   attr: {

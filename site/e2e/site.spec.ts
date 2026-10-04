@@ -32,6 +32,26 @@ test("an unknown item and an unknown version say so", async ({ page }) => {
   await expect(page.getByText("There is no version “v999”.")).toBeVisible();
 });
 
+test("panning sources show the chance per pan and fold a block's rock variants", async ({ page }) => {
+  // survival/blocktypes/wood/pan.json: bony soil pans to bone at chance 0.3 among its other
+  // drops; a pan gives at most one, so the chance of bone from one pan is lower.
+  await openItem(page, "game:bone");
+  const sources = page.locator("table.sources tbody > tr");
+  const bony = sources.filter({ has: page.getByRole("link", { name: "Bony soil", exact: true }) });
+  await expect(bony.locator("td").first()).toHaveText("Panning");
+  await expect(bony.locator(".hint")).toHaveText(/^\d+(\.\d+)?%$/);
+  await expect(bony.locator(".hint")).not.toHaveText("30%");
+
+  // The same file pans flint from every rock's gravel at one chance: one row, not one per rock.
+  await openItem(page, "game:flint");
+  // Folded behind "and N more", so found by address rather than by its (hidden) name.
+  const gravel = sources.filter({ has: page.locator('a[href$="/item/game:gravel-granite"]') });
+  await expect(gravel).toHaveCount(1);
+  await expect(gravel.locator("td").first()).toHaveText("Panning");
+  await gravel.getByText(/^and \d+ more$/).click();
+  await expect(gravel.getByRole("link", { name: "Granite gravel", exact: true })).toBeVisible();
+});
+
 test("the unofficial notice, credits and removal contact are present", async ({ page }) => {
   const exp = JSON.parse(readFileSync(process.env.RECIPE_EXPORT!, "utf8")) as { mods: Record<string, { website?: string }> };
   await page.goto("./");
