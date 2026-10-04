@@ -120,7 +120,14 @@ Tool durability per workload is `knifedurabilityloss<workload>` and
 multiplied by the block's `butcheringEfficiency` times the mod's config multiplier
 (`SkinningRackLootMultiplier` for hooks, `butcheringTableLootMultiplier` for tables); food,
 what smelts into food, and `AnimalWeightDoesApply` (sinew, offal) also by the creature's
-condition. The exporter reads all of these, the constants included, from the loaded mod. The
+condition. The condition is the creature's `animalWeight` (vanilla
+`EntityBehaviorHarvestable`), copied onto the carcass when it is picked up; the game's tick
+keeps it between `Math.Max(0.5f, ...)` (the class's private constant `minimumWeight`) and
+`Math.Min(1f, ...)`. It rises while the creature has eaten in the last four months (fast
+within a week of a meal) and falls in freezing weather when it has not; with the world's
+harsh winters off it is always 1. The exporter reads `minimumWeight` by reflection and
+writes `butchery.condition` with it and 1 (a literal it cannot read). The exporter reads all
+of these, the constants included, from the loaded mod. The
 field harvesting cut is measured: a bare `EntityAgent`, never spawned or initialised, is
 given a harvestable behavior and asked for `dropQuantityMultiplier` without and then with the
 butchering behavior; the ratio is the cut, whatever the config says.

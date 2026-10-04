@@ -19,6 +19,7 @@ interface Recipe {
   butchery?: {
     stages: { ingredients: number[]; options?: number[][]; optional?: number[]; outputs: number[] }[];
     variants: { yields: (object | null)[] }[];
+    condition?: { min: number; max: number };
   };
 }
 export interface ExportV1 {
@@ -146,7 +147,8 @@ function checkConstruction(r: Recipe, at: string, report: ErrorReport): void {
 /**
  * Each ingredient and each output belongs to exactly one stage, `butchery.variants` is
  * aligned with `variants` and each one's yields with `outputs`, and a variant's output
- * stacks are the outputs it yields (with their alternatives).
+ * stacks are the outputs it yields (with their alternatives), and the condition's range is
+ * not upside down.
  */
 function checkButchery(r: Recipe, at: string, report: ErrorReport): void {
   const b = r.butchery!;
@@ -181,6 +183,9 @@ function checkButchery(r: Recipe, at: string, report: ErrorReport): void {
   });
   ingredients.unclaimed("ingredients");
   outputs.unclaimed("outputs");
+  if (b.condition && b.condition.min > b.condition.max) {
+    report.add("butchery-condition", `${at}/butchery/condition`, "min at most max", `${b.condition.min} > ${b.condition.max}`);
+  }
 
   if (b.variants.length !== r.variants.length) {
     report.add("butchery-variants", `${at}/butchery/variants`, `${r.variants.length} entries (one per variant)`, String(b.variants.length));
