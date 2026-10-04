@@ -22,7 +22,7 @@ public sealed record TabOwner(string Key, string Name, bool IsGame);
 /// <item>the base game, for <c>game</c> (whatever other mods add under <c>game:</c> stays there);</item>
 /// <item>the mod whose modid is the domain;</item>
 /// <item>the mod with the most blocktype and itemtype files in the domain (the one that defines its
-/// blocks and items, e.g. VintageEngineering for <c>vinteng</c>);</item>
+/// blocks and items, e.g. ageofflaxfork for <c>ageofflax</c>);</item>
 /// <item>the mod with the most assets of any kind in it;</item>
 /// <item>nobody: the raw domain stands for itself.</item>
 /// </list>

@@ -92,7 +92,7 @@ registered block, so JSON patches apply, parsed as the behavior parses them.
 `mod` is the mod whose files hold the definition asset (vanilla recipes are `survival`),
 and `source` is its asset location. Types from base-game registries are bare (`grid`);
 mod registries are `<modid>:<registry code without "recipes">`, e.g.
-`vintageengineering:vesawmill`. `recipeTypes` lists every registry found, including empty ones
+`aculinaryartillery:simmer`. `recipeTypes` lists every registry found, including empty ones
 (`count: 0`).
 
 ## Where the schema does not fit (data in `extra`)

@@ -443,7 +443,7 @@ The game's own creative inventory. A button above the right-hand tab column, `Ta
 `Tabs: Mod ⇄`, flips between the game's tabs (exactly as without the mod) and one tab per mod, each holding
 every creative-listed stack of that mod once, in the game's order, whichever default tabs the mod put it
 in. A stack belongs to the mod that owns its code's domain (a mod's several domains share a tab, e.g.
-`vinteng` is VintageEngineering's); the base game's tab, "Vintage Story", comes first, then the mods by name.
+`ageofflax` is Age of Flax's); the base game's tab, "Vintage Story", comes first, then the mods by name.
 All mod tabs are in one scrolling column on the right. Search covers the current tab, as in vanilla, and Tidy
 Variants hides and groups there as in the default tabs. Each client keeps its choice and its last tab of each
 kind in `ModConfig/seraphhorizons-creativemodtabs.json`.
@@ -673,7 +673,7 @@ half (drawing into the map and its database) needs a game client and is not test
 
 `tests/PackTests/CreativeModTabsScenarios.cs` (Atlas) builds a creative inventory on the server with
 the whole pack: the default tabs are the same as without the tweak, the mod tabs follow with every
-creative stack in exactly one of them, the base game's tab first, `vinteng`, `ageofflax`, `bomb` and
+creative stack in exactly one of them, the base game's tab first, `ageofflax`, `bomb` and
 `oils` under their owning mods. The packet survives protobuf-net, and tabs a client builds from it have,
 slot for slot, what the server's inventory returns for a click there (on the same world: a client with
 other mods is the count and hash check's job). `CreativeModTabsOffScenarios` boots

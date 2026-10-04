@@ -148,7 +148,7 @@ public class CreativeModTabsScenarios(ITestOutputHelper output) : AtlasScenarioB
 
         // Domains that differ from their mod's modid land under that mod, by its display name.
         var owners = (System.Collections.IDictionary)plan.Owners;
-        foreach (var (domain, modid) in new[] { ("vinteng", "vintageengineering"), ("ageofflax", "ageofflaxfork"), ("bomb", "p1explosives"), ("oils", "oilsresoaped") })
+        foreach (var (domain, modid) in new[] { ("ageofflax", "ageofflaxfork"), ("bomb", "p1explosives"), ("oils", "oilsresoaped") })
         {
             Assert.True(owners.Contains(domain), $"no creative stacks in domain {domain}");
             dynamic owner = owners[domain]!;

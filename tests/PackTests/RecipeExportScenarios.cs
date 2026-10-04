@@ -252,34 +252,29 @@ public class RecipeExportScenarios : AtlasScenarioBase
         }
     }
 
-    // VintageEngineering's assets/vinteng/recipes/vemetalpress/metal-gears.json, entry 0:
-    // metalplate-* named metal (copper, brass, tinbronze, gold) makes metalgear-{metal} and
-    // 4 metalbit-{metal}, 250 power per craft. A mod registry with no engine base class.
+    // A Culinary Artillery's assets/aculinaryartillery/recipes/simmering/boiledbark.json:
+    // 100 waterportion and 1 aculinaryartillery:bark-oak-dry simmer into bark-oak-boiled
+    // (Simmering: meltingPoint 100, meltingDuration 200, smeltedRatio 1). A mod registry with
+    // no engine base class.
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Mod_machine_recipe_matches_the_mod_asset()
     {
-        var r = Recipe("vintageengineering:vemetalpress|vinteng:recipes/vemetalpress/metal-gears.json|0");
-        Assert.Equal("vintageengineering", (string)r["mod"]!);
-        Assert.Equal("generic", (string)Doc["recipeTypes"]!["vintageengineering:vemetalpress"]!["shape"]!);
+        var r = Recipe("aculinaryartillery:simmer|aculinaryartillery:recipes/simmering/boiledbark.json|0");
+        Assert.Equal("aculinaryartillery", (string)r["mod"]!);
+        Assert.Equal("generic", (string)Doc["recipeTypes"]!["aculinaryartillery:simmer"]!["shape"]!);
         Json("""
-            [{ "code": "game:metalplate-*", "kind": "item", "quantity": 1, "wildcardName": "metal",
-               "allowedVariants": ["copper", "brass", "tinbronze", "gold"] }]
+            [{ "code": "game:waterportion", "kind": "item", "quantity": 100 },
+             { "code": "aculinaryartillery:bark-oak-dry", "kind": "item", "quantity": 1 }]
             """, r["ingredients"]!);
-        Assert.Equal(new[] { "vinteng:metalgear-{metal}", "game:metalbit-{metal}" }, Codes(r["outputs"]!).Select(c => (string)c!));
-        Assert.Equal(new[] { 1.0, 4.0 }, r["outputs"]!.Select(o => (double)o["quantity"]!));
-        Assert.Equal(250, (int)r["extra"]!["powerPerCraft"]!);
         Json("""
-            { "bindings": { "metal": "copper" },
-              "ingredients": [[{ "code": "game:metalplate-copper", "kind": "item", "quantity": 1 }]],
-              "outputs": [{ "code": "vinteng:metalgear-copper", "kind": "item", "quantity": 1 },
-                          { "code": "game:metalbit-copper", "kind": "item", "quantity": 4 }] }
-            """, VariantWith(r, "metal", "copper"));
-        var world = World.Api.World;
-        var expected = new[] { "copper", "brass", "tinbronze", "gold" }
-            .Where(m => world.GetItem(new AssetLocation($"game:metalplate-{m}")) != null &&
-                        world.GetItem(new AssetLocation($"vinteng:metalgear-{m}")) != null)
-            .OrderBy(m => m, StringComparer.Ordinal);
-        Assert.Equal(expected, r["variants"]!.Select(v => (string)v["bindings"]!["metal"]!).OrderBy(m => m, StringComparer.Ordinal));
+            [{ "code": "aculinaryartillery:bark-oak-boiled", "kind": "item", "quantity": 1,
+               "extra": { "from": "Simmering", "temperature": 100, "durationSeconds": 200.0, "inputRatio": 1 } }]
+            """, r["outputs"]!);
+        Json("""
+            [{ "ingredients": [[{ "code": "game:waterportion", "kind": "item", "quantity": 100 }],
+                               [{ "code": "aculinaryartillery:bark-oak-dry", "kind": "item", "quantity": 1 }]],
+               "outputs": [{ "code": "aculinaryartillery:bark-oak-boiled", "kind": "item", "quantity": 1 }] }]
+            """, r["variants"]!);
     }
 
     // ------------------------------------------------------ built in place
