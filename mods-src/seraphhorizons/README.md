@@ -391,6 +391,36 @@ mod. With a switch off the system empties that patch file in `Start`, before the
 is gone, the mod logs a warning and leaves the rack as Food Shelves ships it, block attribute included,
 so the two never disagree. The switches that count are the server's.
 
+### One olla: Primitive Survival's irrigation vessel is retired (`IrrigationVesselRetired`)
+
+The pack had two buried clay pots that water the farmland around them: Primitive Survival's
+irrigation vessel (`primitivesurvival` 5.1.4, `primitivesurvival:irrigationvessel-*`, 50 L, ten
+colours, made in the grid by chiselling a fired storage vessel and turned back into one with resin)
+and Olla's olla (`olla` 1.4.0, `olla:olla-raw-*` clay formed from 16 clay and fired in a pit kiln
+into `olla:olla-fired-*`, 60 L, watering the 5 x 5 around it). The codes do not collide; the pack
+keeps Olla's. Primitive Survival has no setting for its vessel, so:
+
+- its four grid recipes are disabled (`enabled: false`): the two that make it and the two that turn
+  it back into a storage vessel, whose handbook page would otherwise list a block nobody can get;
+- it is left out of the creative inventory (its `creativeinventory` removed) and the handbook
+  (`attributes.handbook.exclude`);
+- BetterRuins' Primitive Survival compatibility patch adds its nine coloured vessels to the ruins'
+  clay loot (`game:stackrandomizer-clayproducts`, `attributesByType.*-clayproducts.stacks`). On the
+  server, in `AssetsLoaded` after the patch loader and before the item types are read, the tweak takes
+  every `primitivesurvival:irrigationvessel-*` stack out of that list again, as Assembled Machines
+  edits its blocktypes. The vessels are at the end of the list, so BetterRuins' ConfigKit loot
+  settings, which address its own stacks by index, still point at the same stacks. If the loot item is
+  not as expected or holds no vessel, it logs a warning and the loot stays as it is.
+
+The block type stays registered, so a vessel already placed in a world keeps its water and still
+works, and breaking it still drops it. It can be placed again, but no new one can be had.
+
+The recipes and the creative and handbook changes are a JSON patch,
+`assets/seraphhorizons/patches/irrigationvessel-primitivesurvival.json`, `"side": "server"` and
+`dependsOn` primitivesurvival. With the switch off, or without Primitive Survival, the system empties
+that patch file in `Start`, as for Hydrate or Diedrate's tun, and the loot is left alone. The switch
+that counts is the server's.
+
 ### Map Reveal (`MapReveal`)
 
 `/revealmap <radius>` shows on your world map (M) the terrain already generated within radius
@@ -573,13 +603,20 @@ it. On top of that:
   - nail: hold right click 3 s with 8 iron nails and strips (`game:metalnailsandstrips-iron`) and
     a hammer in the offhand, which loses 1; Logging Expanded's costs.
 
-  A player in creative pays nothing. Prefixes on `BlockChoppingBlock`'s `OnBlockInteractStart`,
+  A player in creative pays nothing, and a Ctrl + right click (the game's `ctrl` key, sprint by
+  default; not with Shift) on an empty block below the advanced tier makes the next tier at once,
+  whatever is held, taking and dropping nothing (no bark from the debark), as the game's water
+  wheel (below). On an empty block Immersive Woodworking's Ctrl takes nothing back, so the only
+  thing this replaces there is laying what is held, which a plain right click still does; on a
+  block with something on it or an axe stuck in it, Ctrl takes it back as before. Prefixes on `BlockChoppingBlock`'s `OnBlockInteractStart`,
   `Step`, `Stop` and `Cancel`, on both sides, take the interaction when an upgrade applies: the
   client drives the hold, the server makes the upgrade when it is released at its full time (less
   0.1 s, as Logging Expanded counts its holds). The server counts that time through Immersive
   Woodworking's `HonestHoldSeconds`, as its own holds do: no more than the time since the hold began
-  on the server, so a modified client cannot claim a finished hold at once. A client postfix on
-  `GetPlacedBlockInteractionHelp` adds the next upgrade to an empty block's help.
+  on the server, so a modified client cannot claim a finished hold at once. The server makes the
+  creative upgrade too, reading the game mode from its own player data, not the client's word. A
+  client postfix on `GetPlacedBlockInteractionHelp` adds the next upgrade to an empty block's help,
+  and for a player in creative the Ctrl line (`seraphhorizons:woodworking-help-creative-upgrade`).
 - **yields**: 6 firewood per log on the primitive, debarked and bound tiers, 8 on the advanced
   (Logging Expanded's 6 and 8; Immersive Woodworking's default is 8), so a half-log gives 3 or 4.
   Immersive Woodworking's `FirewoodPerLog` is set to 6 (below), and a server prefix on
@@ -649,6 +686,40 @@ lets it in on a loaded sawhorse, on both sides. That name is the likeliest thing
 only the spud needs it: if it is not found, the spud does nothing on a sawhorse, with one warning,
 and the rest of the tweak runs. A client postfix on `BlockSawhorse.GetPlacedBlockInteractionHelp`
 adds the beam and spud lines.
+
+**Creative upgrades.** The game's water wheel (`RightClickConstruction.tryConsumeIngredients` in
+`VSSurvivalMod`, 1.22.7) lets a player in creative mode who right-clicks with Ctrl held build its
+next stage with nothing in hand (`CurrentGameMode == Creative && Controls.CtrlKey`); its help shows
+nothing for it. The stations do the same (`Core/CreativeUpgrades.cs`), with Ctrl and not Shift,
+which Immersive Woodworking's chopping block reads first, and with a help line
+(`seraphhorizons:woodworking-help-creative-upgrade`, Ctrl + right click) shown to a player in
+creative only:
+
+- the splitting block, one tier per click on an empty block (above);
+- Logging Expanded's frames, each into the next stage its own interaction makes with items: the
+  large stick frame into the primitive sawhorse, the board frame into a standard sawhorse frame,
+  that into a copper standard sawhorse, advanced sawhorse frames A into B and B into the advanced
+  sawhorse, the storage rack frame into a trunk storage rack, the heating rack frame into a trunk
+  heating rack, the stick storage frame into a stick storage. A frame with two ways on takes the
+  one its help lists first, the station it is a frame of; the other ways (a fired bowl on the stick
+  frame for a heating rack frame, 4 iron rods on the board frame for a storage rack frame, 2 iron
+  plates on the standard sawhorse frame for the advanced frames) still take their items.
+
+  Logging Expanded builds the stage itself (`Woodworking/FrameUpgrades.cs`): on the server, a
+  prefix on the frame's `OnBlockInteractStart` puts the stage's items in the player's hands (and an
+  iron hammer in the offhand where the stage takes one), runs Logging Expanded's completion (its
+  `OnBlockInteractStart` for a click, `OnBlockInteractStop` at the full 3 s for a hold), then puts
+  the hands back as they were. So the block, the frame's wood and facing, a two-block frame's second
+  block, the space check and the sound are all Logging Expanded's, and nothing is taken. The client
+  only takes the click; the server reads the game mode from its own player data. A frame class
+  that is not found gets no shortcut, with one warning, and the rest of the tweak runs.
+
+Left out: a finished sawhorse has no next stage (each tier is built from its own frames, not from
+the tier below); the stick pile and board pile a knife or hammer turns into the first frames are
+the game's ground storage, and the hand tool is all they take besides what is in the pile; and
+Immersive Woodworking's chopper and sawmill are assembled from parts that each are an item of their
+own (a bed of some wood, a drive), where Ctrl + right click already takes a part back, and the
+assembled ones are in the creative inventory (`AssembledMachinesInCreative`).
 
 **Retired**: Logging Expanded's four splitting logs, Immersive Woodworking's sawhorse, its pit saw
 and its pit saw blade (which only worked at that sawhorse). Their block and item types are taken
@@ -769,7 +840,8 @@ set or hidden.
 
 The rules that need no game types are in `Core/`, and `tests/` runs them without the game:
 `SplittingBlockTier.cs` (the attribute key, tier names, yields, which tier the chopper takes),
-`SplittingBlockRules.cs` (which upgrade what is held makes, and its cost), `SawhorseWork.cs` (which
+`SplittingBlockRules.cs` (which upgrade what is held makes, and its cost),
+`CreativeUpgrades.cs` (when a click is the creative shortcut, and each frame's stage), `SawhorseWork.cs` (which
 tool set does what on a sawhorse, beams per tier, bark rolls per debark), `WoodworkingGuidePages.cs`
 (the handbook's page list, and the guides the export leaves out), `LangEntries.cs` and `LangPatternKeys.cs` (whole-entry lang changes and
 where the game keeps a pattern key).
@@ -879,7 +951,7 @@ and a sign's text (unchanged).
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
 cart reach's entity matching and reach rule, where the chopper drops its piles, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
-upgrades and yields, sawhorse work, the handbook's page list (and that the guides the export hides
+upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, and the creative mod
 tabs' plan, domain owners, state file and mod mode's tab layout (`CreativeModTabs/Core/`).
 `dotnet test mods-src/seraphhorizons/tests`.
@@ -968,6 +1040,16 @@ server with both switches off and requires both tuns as they ship (the rack at 5
 places). When it fails after a Food Shelves update, check whether `BETunRack` still keeps its own
 capacity, and whether the block's `capacityLitres` moved.
 
+`tests/PackTests/IrrigationVesselScenarios.cs` (Atlas) requires none of Primitive Survival's ten
+irrigation vessels in a grid recipe (as output or ingredient), in the creative inventory or listed in
+the handbook, none in BetterRuins' clay loot (the rest of Primitive Survival's clay loot still there),
+and one placed still Primitive Survival's block entity, taking 50 L of water. It also requires Olla's
+raw ollas clay formed, in the creative inventory and fired in a pit kiln into its fired ollas, which
+are in the creative inventory and the handbook. `IrrigationVesselOffScenarios` boots a server with the
+switch off and requires the vessel as it ships, its loot included. When it fails after a Primitive
+Survival or BetterRuins update, check the recipe file's order and the loot item's `*-clayproducts`
+stacks.
+
 `tests/PackTests/BarrelRackKegsScenarios.cs` (Atlas) places a barrel rack and has a player
 right-click it through the rack block's own `OnBlockInteractStart`: an untapped keg holding 80 L
 goes in (the liquid in the rack, none in the item), fills to 100 L and no further, and comes back
@@ -1006,7 +1088,11 @@ patches in under its own id, the world config telling clients it runs, Immersive
 settings set, and the new name in English with its translations gone. Then: an axe on an upright
 log makes a primitive splitting block of its wood (a sideways log nothing); each upgrade's cost,
 wear and tier, and none with Shift, on a loaded block or past advanced; an upgrade hold that the
-client claims but the server did not see last refused; the tier through breaking, placing, and
+client claims but the server did not see last refused; in creative, Ctrl + right click raising an
+empty block a tier at a time for nothing (no bark, the held stack kept, not with Shift, and Ctrl
+still taking a log back off a loaded block), and building each Logging Expanded frame into its
+next stage with the hands left as they were, while a survival player's empty-handed Ctrl click
+does nothing; the tier through breaking, placing, and
 saving and loading, and through breaking a block of no wood; 6 firewood per log through
 half-logs and the maul (8 on an advanced block), 2 sticks per firewood, the setting put back after
 an advanced chop, and no splitting block laid on one or taken by the restock; the chopper refusing
