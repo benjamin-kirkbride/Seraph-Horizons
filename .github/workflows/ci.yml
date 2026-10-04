@@ -167,11 +167,15 @@ jobs:
           FILTER: ${{ matrix.filter }}
           # TidyVariantsReportScenarios writes its report here, so it ships in atlas-results-tidy.
           TIDYVARIANTS_REPORT_DIR: ${{ runner.temp }}/atlas-results/tidyvariants
+        # Console verbosity minimal: the game prints its whole server log to stdout, and at normal
+        # the console logger relays it (~4,000 lines per booted class). Minimal still prints each
+        # failure with its message, stack and output; every test's outcome and the server logs are
+        # in the trx (atlas-results-*), and a failed class's own logs in atlas-scratch-*.
         run: >
           dotnet test tests/PackTests
           --filter "$FILTER"
           --logger "trx;LogFileName=atlas.trx"
-          --logger "console;verbosity=normal"
+          --logger "console;verbosity=minimal"
           --results-directory "$RUNNER_TEMP/atlas-results"
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

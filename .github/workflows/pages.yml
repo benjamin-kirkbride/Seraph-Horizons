@@ -46,13 +46,12 @@ jobs:
           restore-keys: lfs-icons-
       - name: Fetch the icons
         run: git lfs pull --include "icons/**"
+      # No npm cache: this run can't save one (its post step only warned), main never holds the
+      # key it would restore, and both npm ci steps take seconds without it.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: |
-            tools/site-data/package-lock.json
-            site/package-lock.json
+          package-manager-cache: false
       - name: Build tools/site-data
         run: |
           npm ci --prefix tools/site-data

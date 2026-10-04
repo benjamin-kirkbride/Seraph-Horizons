@@ -68,7 +68,7 @@ public class MapRevealScenarios : AtlasScenarioBase
         // Nothing was generated: the rim columns that did not exist still don't, and none was sent.
         Assert.NotEmpty(far.Except(farBefore));
         Assert.Equal(farBefore, await Existing(far));
-        Assert.Empty(far.Except(farBefore).Where(revealed.Contains));
+        Assert.DoesNotContain(far.Except(farBefore), revealed.Contains);
         // Every column loaded and finished before the command was revealed.
         Assert.NotEmpty(loadedBefore);
         Assert.All(loadedBefore, c => Assert.Contains(c, revealed));
@@ -171,6 +171,9 @@ public class MapRevealScenarios : AtlasScenarioBase
         var water = Api.World.GetBlock(new AssetLocation("game:water-still-7"));
         var glacier = Api.World.GetBlock(new AssetLocation("game:glacierice"));
         var snow = Api.World.GetBlock(new AssetLocation("game:snowlayer-1"));
+        Assert.NotNull(water);
+        Assert.NotNull(glacier);
+        Assert.NotNull(snow);
         Assert.True(traits.Lake(water.Id));
         Assert.False(traits.Lake(glacier.Id));
         Assert.True(traits.Snow(snow.Id));

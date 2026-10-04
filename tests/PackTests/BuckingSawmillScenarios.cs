@@ -225,7 +225,6 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         var d = BlockFacing.FromCode(look).Normali;
         var at = new Vec3d(pos.X + 0.5 - 3 * d.X, pos.Y, pos.Z + 0.5 - 3 * d.Z);
         player.Entity.Pos.SetPos(at);
-        player.Entity.ServerPos.SetPos(at);
         var item = BlockOf("seraphhorizons:buckingmill-frame-north");
         var sel = new BlockSelection { Position = pos.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
         string failure = "";
