@@ -69,6 +69,7 @@ const en = {
   description: "Description",
   attributes: "Properties",
   sources: "Other sources",
+  gives: "Gives",
   madeBy: "Made by",
   usedIn: "Used in",
   noRecipesMake: "No recipe makes this item.",
@@ -183,6 +184,9 @@ const en = {
   },
   // Kinds for sources of type `other`, by the export's note; the note then goes unsaid.
   sourceNotes: { Panned: "Panning", Harvested: "Harvested" } as Record<string, string>,
+  // The same kinds on the page of the block that gives the item.
+  giveKinds: { blockDrop: "When broken", other: "Other" } as Record<string, string>,
+  giveNotes: { Panned: "When panned", Harvested: "When harvested" } as Record<string, string>,
   panChance: "Chance on each pan",
   scalesWithStat: (stat: string) => `chance scales with player stat ${stat}`,
   andMore: (n: number) => `and ${n} more`,

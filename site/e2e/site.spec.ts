@@ -51,6 +51,13 @@ test("panning sources show the chance per pan and fold a block's rock variants",
   await expect(gravel.locator("td").first()).toHaveText("Panning");
   await gravel.getByText(/^and \d+ more$/).click();
   await expect(gravel.getByRole("link", { name: "Granite gravel", exact: true })).toBeVisible();
+
+  // The gravel's own page says the same from its side.
+  await openItem(page, "game:gravel-granite");
+  const flint = page.locator("table.gives tbody > tr").filter({ has: page.locator('a[href$="/item/game:flint"]') });
+  await expect(flint).toHaveCount(1);
+  await expect(flint.locator("td").first()).toHaveText("When panned");
+  await expect(flint.locator(".hint")).toHaveText(/^\d+(\.\d+)?%$/);
 });
 
 // pack/lock.json's asset ids, which prepare-data puts on the mods by default.

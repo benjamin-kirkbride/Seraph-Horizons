@@ -298,6 +298,15 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     for (const i of outputItems(recipe, codes)) pushTo((details[i]!.madeBy ??= {}), recipe.type, ri);
   });
 
+  // A block's page says what it gives. Creatures and traders have pages of their own.
+  codes.forEach((code, item) => {
+    for (const { from, fromName: _name, ...rest } of exp.items[code]!.sources ?? []) {
+      if (ENTITY_SOURCES.has(rest.type)) continue;
+      const block = indexOfSorted(codes, from);
+      if (block >= 0) (details[block]!.gives ??= []).push({ ...rest, item });
+    }
+  });
+
   codes.forEach((code, i) => {
     const out = exp.items[code]!.attributes?.smelting?.output?.code;
     if (!out) return;

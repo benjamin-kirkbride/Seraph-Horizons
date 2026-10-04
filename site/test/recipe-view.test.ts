@@ -19,6 +19,7 @@ import {
   formatRatio,
   gridCells,
   slotStacks,
+  giveRows,
   sourceRows,
   stackAmount,
   voxelLayers,
@@ -135,6 +136,18 @@ describe("sourceRows", () => {
       { ...drop("game:a-west", "A"), type: "traderSells" as const },
     ]);
     expect(rows).toHaveLength(4);
+  });
+
+  it("lists what a block gives: drops first, then panning by chance, a doubled item added up", () => {
+    const panned = (item: number, chancePerPan: number) => ({ type: "other" as const, quantity: { avg: 0.2 }, note: "Panned", extra: { chancePerPan }, item });
+    const broken = { type: "blockDrop" as const, quantity: { avg: 1 }, item: 9 };
+    const rows = giveRows([panned(1, 0.01), panned(2, 0.15), broken, panned(2, 0.24), broken, panned(3, 0.05)]);
+    expect(rows.map((r) => [r.item, r.chance])).toEqual([
+      [9, undefined],
+      [2, 0.39],
+      [3, 0.05],
+      [1, 0.01],
+    ]);
   });
 
   // As the exporter writes panning: one source per pannable block, the declared chance as

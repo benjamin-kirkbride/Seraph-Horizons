@@ -86,7 +86,15 @@ export interface ItemDetail {
   smeltedFrom?: number[];
   /** Item index of this item's smelting output, when that item is in the export. */
   smeltsInto?: number;
+  /** What this block gives when broken, harvested or panned: the sources that name it, turned around. */
+  gives?: GivenItem[];
 }
+
+/** One item a block or an entity gives: an item's source, turned around. */
+export type GivenItem = Omit<Source, "from" | "fromName"> & {
+  /** Item index. */
+  item: number;
+};
 
 /**
  * data/<version>/entities.json: every creature and trader type that some item names as a
@@ -109,11 +117,8 @@ export interface EntityIndex {
   recipes: number[][];
 }
 
-/** One item an entity gives: an item's source, turned around. */
-export type EntitySource = Omit<Source, "from" | "fromName"> & {
-  /** Item index. */
-  item: number;
-};
+/** One item an entity gives. */
+export type EntitySource = GivenItem;
 
 export interface EntityVariant {
   code: string;

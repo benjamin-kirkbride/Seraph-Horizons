@@ -3,7 +3,7 @@
   import type { ItemDetail, Meta } from "../lib/format.ts";
   import type { ItemRef, VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
-  import { formatChance, formatNumber, formatQuantity, panChance, PANNED, sourceRows, type SourceRow } from "../lib/recipe-view.ts";
+  import { formatChance, formatNumber, formatQuantity, giveRows, panChance, PANNED, sourceRows, type SourceRow } from "../lib/recipe-view.ts";
   import { parseVtml } from "../lib/vtml.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
@@ -83,8 +83,9 @@
     return formatRoute({ view: "entity", version: data.id, code: type, ...(type !== s.from ? { variant: s.from } : {}) });
   }
   // Panning and harvesting are kinds of their own to a player, not "Other".
-  const noteKind = (s: Source) => (s.type === "other" && s.note !== undefined ? t.sourceNotes[s.note] : undefined);
-  function sourceDetails(s: Source): string {
+  type How = Omit<Source, "from" | "fromName">;
+  const noteKind = (s: How, notes = t.sourceNotes) => (s.type === "other" && s.note !== undefined ? notes[s.note] : undefined);
+  function sourceDetails(s: How): string {
     const note = noteKind(s) ? "" : (s.note ?? "");
     const stat = s.note === PANNED && typeof s.extra?.stat === "string" ? t.scalesWithStat(s.extra.stat) : "";
     return [s.tool ? `${t.tool.toLowerCase()}: ${s.tool}` : "", s.price !== undefined ? t.price(s.price) : "", note, stat].filter(Boolean).join("; ");
@@ -176,6 +177,35 @@
                   </td>
                   <td>{sourceDetails(s)}</td>
                 </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {/if}
+
+    {#if detail.gives && detail.gives.length > 0}
+      <section aria-labelledby="gives-h">
+        <h2 id="gives-h">{t.gives}</h2>
+        <div class="scroll">
+          <table class="gives">
+            <thead>
+              <tr><th scope="col">{t.kind}</th><th scope="col">{t.item}</th><th scope="col">{t.quantity}</th><th scope="col"></th></tr>
+            </thead>
+            <tbody>
+              {#each giveRows(detail.gives) as g, i (i)}
+                {@const given = data.ref(g.item)}
+                {#if given}
+                  <tr>
+                    <td>{noteKind(g, t.giveNotes) ?? t.giveKinds[g.type] ?? g.type}</td>
+                    <td><ItemLink code={given.code} {data} /></td>
+                    <td>
+                      {#if g.chance !== undefined}<Hint text={t.panChance}>{formatChance(g.chance)}</Hint>
+                      {:else}{formatQuantity(g.quantity)}{/if}
+                    </td>
+                    <td>{sourceDetails(g)}</td>
+                  </tr>
+                {/if}
               {/each}
             </tbody>
           </table>
