@@ -154,7 +154,12 @@ Every `config/handbook/*.json` of every domain, loaded the way the survival mod'
 `GuiDialogSurvivalHandbook` loads it: sorted by asset location; `title` translated; `text`
 translated only when it is shorter than 255 characters (a lang key), otherwise used as is.
 `mod` is the mod whose files hold the page. Tutorial pages and pages added in client code
-are not included.
+are not included. A page a mod hides from players in client code is left out when the mod lists
+it on the server, in `ObjectCache["handbook-hiddenGuides"]` as `(pageCode, title lang key)`
+tuples: seraphhorizons' unified woodworking guide lists Immersive Woodworking's and Logging
+Expanded's guides when it runs, so the export has its own six pages, and one
+`craftinginfo-woodworking`, and its own six pages when it does not, so the export has the two
+mods' guides.
 
 ## Proposed schema changes
 
