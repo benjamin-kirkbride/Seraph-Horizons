@@ -12,9 +12,14 @@ interface Recipe {
   type: string;
   mod: string;
   ingredients: { key?: string }[];
+  outputs: { code: string; extra?: { alternatives?: string[] } }[];
   variants: { ingredients: Stack[][]; outputs: Stack[] }[];
   grid?: { width: number; height: number; pattern: string[] };
   construction?: { stages: { ingredients: number[] }[] };
+  butchery?: {
+    stages: { ingredients: number[]; options?: number[][]; optional?: number[]; outputs: number[] }[];
+    variants: { yields: (object | null)[] }[];
+  };
 }
 export interface ExportV1 {
   schemaVersion: number;
@@ -84,6 +89,7 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
 
     if (r.grid) checkGrid(r, at, report);
     if (r.construction) checkConstruction(r, at, report);
+    if (r.butchery) checkButchery(r, at, report);
   });
 
   for (const [type, t] of Object.entries(d.recipeTypes)) {
@@ -133,6 +139,62 @@ function checkConstruction(r: Recipe, at: string, report: ErrorReport): void {
   r.ingredients.forEach((_, i) => {
     if (!stageOf.has(i)) {
       report.add("construction-ingredient", `${at}/ingredients/${i}`, "an ingredient some stage lists", "in no stage");
+    }
+  });
+}
+
+/**
+ * Each ingredient and each output belongs to exactly one stage, `butchery.variants` is
+ * aligned with `variants` and each one's yields with `outputs`, and a variant's output
+ * stacks are the outputs it yields (with their alternatives).
+ */
+function checkButchery(r: Recipe, at: string, report: ErrorReport): void {
+  const b = r.butchery!;
+  const claim = (kind: "ingredient" | "output", size: number) => {
+    const stageOf = new Map<number, number>();
+    return {
+      add(i: number, s: number, iat: string) {
+        const first = stageOf.get(i);
+        if (i >= size) {
+          report.add("butchery-stage", iat, `an index below ${size} (${kind}s)`, String(i));
+        } else if (first !== undefined) {
+          report.add("butchery-stage", iat, `an ${kind} no other stage lists`, `${i}, also in stage ${first}`);
+        } else {
+          stageOf.set(i, s);
+        }
+      },
+      unclaimed(list: string) {
+        for (let i = 0; i < size; i++) {
+          if (!stageOf.has(i)) report.add("butchery-stage", `${at}/${list}/${i}`, `an ${kind} some stage lists`, "in no stage");
+        }
+      },
+    };
+  };
+  const ingredients = claim("ingredient", r.ingredients.length);
+  const outputs = claim("output", r.outputs.length);
+  b.stages.forEach((stage, s) => {
+    const sat = `${at}/butchery/stages/${s}`;
+    stage.ingredients.forEach((i, k) => ingredients.add(i, s, `${sat}/ingredients/${k}`));
+    (stage.options ?? []).forEach((group, g) => group.forEach((i, k) => ingredients.add(i, s, `${sat}/options/${g}/${k}`)));
+    (stage.optional ?? []).forEach((i, k) => ingredients.add(i, s, `${sat}/optional/${k}`));
+    stage.outputs.forEach((i, k) => outputs.add(i, s, `${sat}/outputs/${k}`));
+  });
+  ingredients.unclaimed("ingredients");
+  outputs.unclaimed("outputs");
+
+  if (b.variants.length !== r.variants.length) {
+    report.add("butchery-variants", `${at}/butchery/variants`, `${r.variants.length} entries (one per variant)`, String(b.variants.length));
+  }
+  b.variants.forEach((v, j) => {
+    const vat = `${at}/butchery/variants/${j}/yields`;
+    if (v.yields.length !== r.outputs.length) {
+      report.add("butchery-variants", vat, `${r.outputs.length} yields (one per output)`, String(v.yields.length));
+      return;
+    }
+    const expected = r.outputs.flatMap((o, i) => (v.yields[i] === null ? [] : [o.code, ...(o.extra?.alternatives ?? [])]));
+    const found = (r.variants[j]?.outputs ?? []).map((s) => s.code);
+    if (JSON.stringify(found) !== JSON.stringify(expected)) {
+      report.add("butchery-variants", `${at}/variants/${j}/outputs`, `the outputs it yields, ${JSON.stringify(expected)}`, JSON.stringify(found));
     }
   });
 }

@@ -163,6 +163,8 @@ internal sealed class SourceIndex
 
     private void AddEntities()
     {
+        // The Butchering mod cuts what the creatures it butchers give when harvested where they lie.
+        var butchery = Recipes.Butchery.FieldHarvest(_api);
         foreach (var entity in _api.World.EntityTypes)
         {
             if (entity?.Code == null) continue;
@@ -170,6 +172,7 @@ internal sealed class SourceIndex
             if (!Json.IsValidCode(from)) continue;
             var fromName = Lang.GetMatching(entity.Code.Domain + ":item-creature-" + entity.Code.Path);
             var type = EntityType(entity);
+            var harvestMultiplier = butchery is var (codes, m) && Recipes.Butchery.IsButcherable(entity, codes) ? m : (float?)null;
 
             foreach (var drop in entity.Drops ?? [])
                 AddEntityDrop(drop, from, fromName, type, null);
@@ -187,7 +190,8 @@ internal sealed class SourceIndex
                 {
                     if (drop == null) continue;
                     if (drop.ResolvedItemstack == null && !drop.Resolve(_api.World, "seraphexport", entity.Code)) continue;
-                    AddEntityDrop(drop, from, fromName, type, code == "harvestable" ? "Harvested" : "Behavior " + code);
+                    AddEntityDrop(drop, from, fromName, type, code == "harvestable" ? "Harvested" : "Behavior " + code,
+                        code == "harvestable" ? harvestMultiplier : null);
                 }
             }
 
@@ -211,14 +215,20 @@ internal sealed class SourceIndex
         return entity.Code.Domain + ":" + path;
     }
 
-    private void AddEntityDrop(BlockDropItemStack? drop, string from, string fromName, string type, string? note)
+    /// <param name="multiplier">A cut a mod applies to the quantity, which is written already applied.</param>
+    private void AddEntityDrop(BlockDropItemStack? drop, string from, string fromName, string type, string? note, float? multiplier = null)
     {
         var stack = drop?.ResolvedItemstack;
         if (stack?.Collectible?.Code == null) return;
-        var s = Source("entityDrop", from, fromName, Json.Quantity(drop!.Quantity));
+        var quantity = Json.Quantity(drop!.Quantity);
+        if (multiplier is { } m)
+            foreach (var key in new[] { "avg", "var" })
+                if (quantity[key] is { } v) quantity[key] = Json.Round((float)((double)v * m));
+        var s = Source("entityDrop", from, fromName, quantity);
         if (drop.Tool != null) s["tool"] = Json.Lower(drop.Tool.Value);
         if (note != null) s["note"] = note;
         s["extra"] = new JObject { ["entityType"] = type };
+        if (multiplier != null) s["extra"]!["multiplier"] = Json.Round(multiplier.Value);
         Add(stack.Collectible.Code.ToString(), s);
     }
 
