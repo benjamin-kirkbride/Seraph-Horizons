@@ -185,5 +185,32 @@ into dropped on death (no `note`), harvested (`note` "Harvested"), one section p
 behavior note, sells and buys. Item pages link every creature and trader source to its
 type's page on its variant.
 
+### Other sources on an item page
+
+An item page lists its `sources` in one table; `sourceRows` in `site/src/lib/recipe-view.ts`
+decides the rows. Sources that would read the same are one row: a block's orientations
+all drop the item under one name. Sources of type `other` also fold the variants of one
+block type (the code up to the first `-` of its path, so `game:richgravel-granite` is a
+`game:richgravel`) into one row. The row names the first block and lists the others under
+"and N more". Block drops are not folded, so flint still has a row for each rock's flint
+ore.
+
+A source of type `other` with a note the site knows (`Panned`, `Harvested`, in
+`t.sourceNotes`) shows the note as its kind ("Panning", "Harvested") instead of "Other".
+
+Harvested sources fold only when quantity and `extra` are equal. Panned sources fold when
+everything but the chance is equal, `extra` included, so a stat-scaled drop never merges
+with a plain one. The chance shown is `extra.chancePerPan`, as a percentage with two
+significant digits below 1% (`0.0001382` is "0.014%"): a pan gives at most one item, so
+it is lower than the declared chance in `quantity.avg`, which is only used when an export
+has no `chancePerPan`. A row whose blocks differ shows the range ("4.9–6.98%" for flint
+from rich gravel, which depends on the rock), and each block in its list shows its own.
+A block that lists the item twice (each gravel lists its stone twice) is one source with
+the chances added. So flint has three panning rows (gravel, sand, rich gravel) instead of 114. `extra.stat`
+is named in the last column; the rest of `extra` (`attributes`) is not shown.
+
+A pannable block's own page does not say what panning gives: nothing on an item page
+lists what a block yields, for panning or for block drops.
+
 `DATA_FORMAT` in `format.ts` is written to `meta.json` as `format`. The app and the data
 are always built together, so there is no migration between formats.

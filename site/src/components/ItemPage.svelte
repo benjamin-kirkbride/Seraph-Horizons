@@ -3,7 +3,7 @@
   import type { ItemDetail, Meta } from "../lib/format.ts";
   import type { ItemRef, VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
-  import { distinctSources, formatNumber, formatQuantity } from "../lib/recipe-view.ts";
+  import { formatChance, formatNumber, formatQuantity, panChance, PANNED, sourceRows, type SourceRow } from "../lib/recipe-view.ts";
   import { parseVtml } from "../lib/vtml.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
@@ -80,7 +80,20 @@
     const type = typeof s.extra?.entityType === "string" ? s.extra.entityType : s.from;
     return formatRoute({ view: "entity", version: data.id, code: type, ...(type !== s.from ? { variant: s.from } : {}) });
   }
+  // Panning and harvesting are kinds of their own to a player, not "Other".
+  const noteKind = (s: Source) => (s.type === "other" && s.note !== undefined ? t.sourceNotes[s.note] : undefined);
+  function sourceDetails(s: Source): string {
+    const note = noteKind(s) ? "" : (s.note ?? "");
+    const stat = s.note === PANNED && typeof s.extra?.stat === "string" ? t.scalesWithStat(s.extra.stat) : "";
+    return [s.tool ? `${t.tool.toLowerCase()}: ${s.tool}` : "", s.price !== undefined ? t.price(s.price) : "", note, stat].filter(Boolean).join("; ");
+  }
 </script>
+
+{#snippet block(s: Source, row: SourceRow)}
+  {#if data.indexOf(s.from) >= 0}<ItemLink code={s.from} {data} label={s.fromName} />{:else}{s.fromName ?? s.from}{/if}
+  <!-- A row whose blocks differ in chance shows a range; each block then shows its own. -->
+  {#if row.chance && row.chance.min !== row.chance.max}<span class="muted">{formatChance(panChance(s))}</span>{/if}
+{/snippet}
 
 {#if page.status === "loading"}
   <p class="muted">{t.loading}</p>
@@ -138,20 +151,29 @@
               <tr><th scope="col">{t.kind}</th><th scope="col">{t.from}</th><th scope="col">{t.quantity}</th><th scope="col"></th></tr>
             </thead>
             <tbody>
-              {#each distinctSources(detail.sources) as s, i (i)}
+              {#each sourceRows(detail.sources) as s, i (i)}
                 <tr>
-                  <td>{t.sourceKinds[s.type] ?? s.type}</td>
+                  <td>{noteKind(s) ?? t.sourceKinds[s.type] ?? s.type}</td>
                   <td>
                     {#if entitySource(s.type)}
                       <a href={entityHref(s)} data-entity-link={s.from}>{s.fromName ?? s.from}</a>
-                    {:else if data.indexOf(s.from) >= 0}<ItemLink code={s.from} {data} label={s.fromName} />{:else}{s.fromName ?? s.from}{/if}
+                    {:else}
+                      {@render block(s, s)}
+                      {#if s.alsoFrom}
+                        <details class="also">
+                          <summary>{t.andMore(s.alsoFrom.length)}</summary>
+                          <ul class="links">
+                            {#each s.alsoFrom as other (other.from)}<li>{@render block(other, s)}</li>{/each}
+                          </ul>
+                        </details>
+                      {/if}
+                    {/if}
                   </td>
-                  <td>{formatQuantity(s.quantity)}</td>
                   <td>
-                    {[s.tool ? `${t.tool.toLowerCase()}: ${s.tool}` : "", s.price !== undefined ? t.price(s.price) : "", s.note ?? ""]
-                      .filter(Boolean)
-                      .join("; ")}
+                    {#if s.chance}<span class="hint" title={t.panChance}>{formatChance(s.chance.min, s.chance.max)}</span>
+                    {:else}{formatQuantity(s.quantity)}{/if}
                   </td>
+                  <td>{sourceDetails(s)}</td>
                 </tr>
               {/each}
             </tbody>
@@ -234,6 +256,14 @@
   }
   .scroll {
     overflow-x: auto;
+  }
+  .also summary {
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .also .links {
+    flex-direction: column;
+    margin: 0.25rem 0 0;
   }
   .links {
     list-style: none;
