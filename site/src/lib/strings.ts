@@ -142,6 +142,7 @@ const en = {
     "Everything shown here comes from these mods and from the game itself, exported from a server running the pack. All names, text and images belong to their authors.",
   by: "by",
   unknownAuthors: "authors not listed",
+  website: "website",
   about: "About",
   aboutText:
     "This site is an unofficial fan project for the Seraph Horizons modpack. It is not made by, affiliated with or endorsed by Anego Studios, the developers of Vintage Story, or by the authors of the mods listed above.",

@@ -19,12 +19,18 @@ export interface VersionEntry {
   commit?: string;
 }
 
+/** A mod as meta.json has it: the export's, without `extra`. */
+export interface MetaMod extends Omit<Mod, "extra"> {
+  /** Its ModDB asset id, from the repo's pack/lock.json when the pack locks it. */
+  assetId?: number;
+}
+
 /** data/<version>/meta.json: small, loaded first. */
 export interface Meta {
   format: number;
   pack: { id: string; version: string; gameVersion: string };
   generator: { name: string; version: string };
-  mods: Record<string, Mod>;
+  mods: Record<string, MetaMod>;
   recipeTypes: Record<string, TypeInfo>;
   itemCount: number;
   recipeCount: number;
