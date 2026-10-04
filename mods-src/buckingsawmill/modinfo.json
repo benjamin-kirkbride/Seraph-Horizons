@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "buckingsawmill",
+  "name": "Bucking Sawmill",
+  "description": "A mechanically powered pair of drag saws that cross-cut Logging Expanded tree trunks into logs. Build it from a frame and Immersive Woodworking's sawmill parts, drive it with an axle, and load trunks by hand or from a Trunk Storage Rack at the far end, under the axle; the logs come out of the near end.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "1.0.0",
+  "side": "Universal",
+  "requiredOnClient": true,
+  "dependencies": { "game": "1.22.0", "immersivewoodworking": "1.3.11", "loggingmod": "0.3.6" }
+}
