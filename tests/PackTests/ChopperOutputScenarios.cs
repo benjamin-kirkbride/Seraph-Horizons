@@ -84,11 +84,11 @@ internal sealed class ChopperSite(IWorldSession world, BlockPos master, BlockFac
     /// output side (0.5 across is in line with the master's centre).</summary>
     public (double Along, double Across, double Up) Local(EntityItem item)
     {
-        double rx = item.ServerPos.X - Master.X, rz = item.ServerPos.Z - Master.Z;
+        double rx = item.Pos.X - Master.X, rz = item.Pos.Z - Master.Z;
         Vec3i o = Facing.Opposite.Normali;
         double along = o.X != 0 ? (o.X > 0 ? rx : 1 - rx) : (o.Z > 0 ? rz : 1 - rz);
         double across = o.X != 0 ? rz : rx;
-        return (along, across, item.ServerPos.Y - Master.Y);
+        return (along, across, item.Pos.Y - Master.Y);
     }
 
     /// <summary>Joins a player 16 blocks off to the side, so the area is simulated, and out of

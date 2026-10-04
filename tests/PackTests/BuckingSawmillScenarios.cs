@@ -284,7 +284,6 @@ public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBa
         var d = BlockFacing.FromCode(look).Normali;
         var at = new Vec3d(pos.X + 0.5 - 3 * d.X, pos.Y, pos.Z + 0.5 - 3 * d.Z);
         player.Entity.Pos.SetPos(at);
-        player.Entity.ServerPos.SetPos(at);
         var item = BlockOf("seraphhorizons:buckingmill-frame-north");
         var sel = new BlockSelection { Position = pos.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
         string failure = "";
@@ -1055,9 +1054,6 @@ public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBa
                 // the player a few blocks back, looking along `look` at the cell
                 var at = new Vec3d(cell.X + 0.5 - 3 * look.Normali.X, cell.Y, cell.Z + 0.5 - 3 * look.Normali.Z);
                 player.Entity.Pos.SetPos(at);
-#pragma warning disable CS0618 // as the placement scenario above: the server reads both
-                player.Entity.ServerPos.SetPos(at);
-#pragma warning restore CS0618
                 player.Entity.Pos.Yaw = (float)Math.Atan2(-look.Normali.X, -look.Normali.Z);
                 var sel = new BlockSelection { Position = cell.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.0, 0.5) };
                 string failure = "";
@@ -1070,9 +1066,6 @@ public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBa
                     sel.Position = cell.AddCopy(infeed);
                     at.Add(infeed.Normali.X, 0, infeed.Normali.Z);
                     player.Entity.Pos.SetPos(at);
-#pragma warning disable CS0618
-                    player.Entity.ServerPos.SetPos(at);
-#pragma warning restore CS0618
                     failure = "";
                     placed = rackBlock.TryPlaceBlock(W, player, new ItemStack(rackBlock), sel, ref failure);
                     where = "one block out";
