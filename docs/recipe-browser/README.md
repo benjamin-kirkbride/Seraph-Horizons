@@ -34,7 +34,7 @@ tests/PackTests/                   Atlas scenarios, the exporter's included
 
 4. For each version the workflow runs `npm --prefix site run prepare-data -- --export
    <out>/<id>/export.json --out site/public/data/<id>`, which writes the files the app
-   loads. `versions.json` is copied to `site/public/data/versions.json` and `icons/` to
+   loads, taking each mod's ModDB asset id from `pack/lock.json`. `versions.json` is copied to `site/public/data/versions.json` and `icons/` to
    `site/public/icons/`.
 
 ## versions.json
