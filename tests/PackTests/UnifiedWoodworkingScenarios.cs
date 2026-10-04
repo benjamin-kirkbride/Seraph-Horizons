@@ -18,7 +18,7 @@ namespace SeraphHorizons.PackTests;
 /// client's clicks reach the server: <c>OnBlockInteractStart</c>, then for a hold
 /// <c>OnBlockInteractStep</c> and <c>OnBlockInteractStop</c> with the seconds held. What the work
 /// makes is read off the ground and out of the player's inventory. Shared with
-/// <see cref="UnifiedWoodworkingOffScenarios"/>.</summary>
+/// <see cref="SwitchesOffScenarios"/>.</summary>
 internal sealed class Woodshop(IWorldSession world, ITestPlayer player, BlockPos at)
 {
     public const string Axe = "game:axe-felling-iron";

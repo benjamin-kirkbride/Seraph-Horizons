@@ -10,7 +10,7 @@ using Vintagestory.API.Util;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>Age of Flax (ageofflaxfork) as these scenarios read it: its loaded tool blocks' yields,
-/// its balance file and its crop's drops. Shared with <see cref="AgeOfFlaxRebalanceOffScenarios"/>.</summary>
+/// its balance file and its crop's drops. Shared with <see cref="SwitchesOffScenarios"/>.</summary>
 internal static class AgeOfFlax
 {
     public static readonly string[] Tiers = ["primitive", "simple", "advanced"];
@@ -154,35 +154,5 @@ public class AgeOfFlaxRebalanceScenarios : AtlasScenarioBase
         var guide = Lang.Get("ageofflax:craftinginfo-flax-text");
         Assert.DoesNotContain("seeds and grain", guide);
         Assert.Contains("(steel)", guide);
-    }
-}
-
-/// <summary>
-/// The same with the switch off (<c>"AgeOfFlaxRebalance": false</c>, fixtures/ageofflax-off): Age
-/// of Flax as it ships. Its own server.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/ageofflax-off", TargetPath = "ModConfig")]
-public class AgeOfFlaxRebalanceOffScenarios : AtlasScenarioBase
-{
-    private IWorldAccessor W => World.Api.World;
-
-    [AtlasScenario]
-    public void Switched_off_Age_of_Flax_is_as_it_ships()
-    {
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["AgeOfFlaxRebalance"].AsBool(true));
-        Assert.Equal(1.2f, AgeOfFlax.Field<float>(W, "ageofflax:ripple-primitive-east", "defaultFlaxSeedDropAvg"));
-        Assert.Equal(12f, AgeOfFlax.Field<float>(W, "ageofflax:ripple-advanced-east", "defaultFlaxGrainDropAvg"));
-        Assert.Equal(8f, AgeOfFlax.Field<float>(W, "ageofflax:hatchel-advanced-east", "defaultFlaxDropAvg"));
-        Assert.Equal("game:metalnailsandstrips-iron",
-            AgeOfFlax.Ingredient(AgeOfFlax.Recipe(W, "ageofflax:ripple-advanced-east"), "N"));
-        Assert.Equal("game:fat", AgeOfFlax.Ingredient(AgeOfFlax.Recipe(W, "ageofflax:break-primitive-east"), "V"));
-        Assert.DoesNotContain(W.GetBlock(new AssetLocation("game:crop-flax-9"))!.Drops,
-            d => d.Code?.ToString() == "game:seeds-flax");
-
-        var pos = World.Spawn.AddCopy(30, 2, 30);
-        World.SetBlock("game:farmland-dry-medium", pos.DownCopy());
-        Assert.Equal(0, AgeOfFlax.MeanDrop(W, W.GetBlock(new AssetLocation("game:crop-flax-9"))!, pos, "game:seeds-flax", 500));
-        Assert.Equal("A tool used for extracting seeds from flax", Lang.GetMatching("ageofflax:blockdesc-ripple-simple-east"));
     }
 }

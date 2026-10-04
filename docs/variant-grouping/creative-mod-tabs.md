@@ -194,7 +194,7 @@ how the server resolves a click. It also arranges mod mode's list from the inven
 loaded `config/creativetabs.json` and requires the ideal layout (default mode's left column, the mod tabs alone on
 the right, in order). All of this runs on one world, so it checks the build and the indices on both
 paths, not a client that loads different mods (that case is the client's count and hash check, unit-tested in
-`tests/CreativeModTabsTests.cs`). `CreativeModTabsOffScenarios` boots with the switch off.
+`tests/CreativeModTabsTests.cs`). `SwitchesOffScenarios` boots with the switch off.
 
 A click can't reach a server inventory that lacks the mod tabs: the server leaves them out of an inventory only
 when its default tab count differs from the plan, and then every inventory and every client differ alike (the

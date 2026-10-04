@@ -326,20 +326,3 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(Clear.Lock);
     }
 }
-
-/// <summary>
-/// The same with the switch off (<c>"ClearCommand": false</c>, fixtures/clearcommand-off): there is
-/// no <c>/clear</c>. Its own server.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/clearcommand-off", TargetPath = "ModConfig")]
-public class ClearCommandOffScenarios : AtlasScenarioBase
-{
-    [AtlasScenario]
-    public async Task Switched_off_there_is_no_clear_command()
-    {
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["ClearCommand"].AsBool(true));
-        Assert.Null(World.Api.ChatCommands.Get(ClearSky.Command));
-        Assert.False((await World.ExecuteCommand("/clear")).Ok);
-    }
-}

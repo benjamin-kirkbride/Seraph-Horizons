@@ -632,30 +632,3 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.Equal(40, Trunks.StoredLogs(mill.Trunk!, W));
     }
 }
-
-/// <summary>
-/// The bucking sawmill with its switch off (<c>"BuckingSawmill": false</c> in
-/// ModConfig/seraphhorizons.json, seeded from fixtures/buckingsawmill-off): its blocks and its
-/// recipe are not in the game, and nothing is logged about them.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/buckingsawmill-off", TargetPath = "ModConfig")]
-public class BuckingSawmillOffScenarios : AtlasScenarioBase
-{
-    [AtlasScenario]
-    public void With_the_switch_off_the_mill_is_not_in_the_game()
-    {
-        var world = World.Api.World;
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["BuckingSawmill"].AsBool(true));
-        Assert.False(BuckingSawmillSystem.Applies(World.Api));
-        Assert.DoesNotContain(world.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("buckingmill"));
-        Assert.DoesNotContain(world.GridRecipes, r => r.Output?.Code?.Path.StartsWith("buckingmill") == true);
-        var logged = World.BootDiagnostics
-            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
-            .Where(e => e.Message.Contains("buckingmill", StringComparison.OrdinalIgnoreCase)
-                        || e.Message.Contains("bucking sawmill", StringComparison.OrdinalIgnoreCase))
-            .Select(e => $"[{e.Level}] {e.Message}")
-            .ToList();
-        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
-    }
-}
