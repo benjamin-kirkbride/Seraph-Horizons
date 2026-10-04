@@ -8,7 +8,7 @@ public enum TabsMode
 {
     /// <summary>The game's own tabs, exactly as without the mod.</summary>
     Default,
-    /// <summary>One tab per mod.</summary>
+    /// <summary>One tab per mod, next to the default tabs of the left column.</summary>
     Mod,
 }
 
@@ -21,9 +21,9 @@ public sealed class ModTabsState
 {
     public int Version { get; set; } = 1;
     public TabsMode Mode { get; set; } = TabsMode.Default;
-    /// <summary>The default tab last selected, or null.</summary>
+    /// <summary>The tab last selected in default mode, or null.</summary>
     public string? DefaultTab { get; set; }
-    /// <summary>The mod tab last selected, or null.</summary>
+    /// <summary>The tab last selected in mod mode (a mod tab or one of the left column's default tabs), or null.</summary>
     public string? ModTab { get; set; }
 
     static readonly JsonSerializerOptions Options = new()

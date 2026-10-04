@@ -214,62 +214,119 @@ public class ModTabsStateTests
     }
 }
 
-public class TabScrollTests
+
+public class TabLayoutTests
 {
-    // The strip at GUI scale 1: 25 px tabs, 5 px apart, a 545 px viewport; 75 tabs make 2250 px.
-    const double H = 25, Sp = 5, View = 545;
-    static readonly double Content = TabScroll.ContentHeight(75, H, Sp);
+    // config/creativetabs.json in 1.22.7: 14 codes, all ordered before the unlisted ones (1.0).
+    static readonly Dictionary<string, double> Vanilla = new()
+    {
+        ["general"] = 0, ["flora"] = 0.1, ["terrain"] = 0.2, ["decorative"] = 0.3, ["clutter"] = 0.35,
+        ["construction"] = 0.4, ["mechanics"] = 0.45, ["aquatic"] = 0.47, ["items"] = 0.5, ["liquids"] = 0.55,
+        ["tools"] = 0.6, ["clothing"] = 0.7, ["creatures"] = 0.8, ["meta"] = 0.9,
+    };
+
+    static Func<string, double> OrderOf(Dictionary<string, double> config) =>
+        code => config.TryGetValue(code, out double o) ? o : TabLayout.UnlistedOrder;
+
+    // As the pack has them: the vanilla tabs among 39 mods' own, in the order the game gathers them.
+    static List<string> PackDefaults()
+    {
+        var codes = new List<string>();
+        var vanilla = Vanilla.Keys.Reverse().ToList();   // gathered in some other order than listed
+        for (int i = 0; i < 39; i++)
+        {
+            if (i % 3 == 0 && vanilla.Count > 0) { codes.Add(vanilla[^1]); vanilla.RemoveAt(vanilla.Count - 1); }
+            codes.Add($"mod{i:00}");
+        }
+        codes.AddRange(vanilla);
+        return codes;
+    }
+
+    static readonly List<string> ModTabs = Enumerable.Range(0, 77).Select(i => $"seraphhorizons-modtab-{i:00}").ToList();
 
     [Fact]
-    public void ContentAndClamp()
+    public void LowerOrdersFirstEqualOrdersReversed()
     {
-        Assert.Equal(2250, Content);
-        Assert.Equal(0, TabScroll.ContentHeight(0, H, Sp));
-        Assert.Equal(0, TabScroll.Clamp(-10, Content, View));
-        Assert.Equal(2250 - 545, TabScroll.Clamp(1e9, Content, View));
-        Assert.Equal(0, TabScroll.Clamp(double.NaN, Content, View));
-        Assert.Equal(0, TabScroll.Clamp(100, 300, View));   // fits: never scrolls
+        var order = OrderOf(new() { ["a"] = 0.5, ["b"] = 0.1, ["c"] = 0.5 });
+        Assert.Equal(["b", "c", "a", "z", "y"], TabLayout.Order(["a", "y", "b", "c", "z"], order));
+        Assert.Equal(["e", "d", "c"], TabLayout.Order(["c", "d", "e"], _ => 1));
+        Assert.Empty(TabLayout.Order([], _ => 1));
     }
 
     [Fact]
-    public void WheelUpScrollsUp()
+    public void VanillaListsItsTabsThenTheLastGatheredUnlistedOnes()
     {
-        Assert.Equal(90, TabScroll.Wheel(180, 1, 90, Content, View));
-        Assert.Equal(270, TabScroll.Wheel(180, -1, 90, Content, View));
-        Assert.Equal(0, TabScroll.Wheel(30, 2, 90, Content, View));
+        var ordered = TabLayout.Order(PackDefaults(), OrderOf(Vanilla));
+        Assert.Equal(53, ordered.Count);
+        Assert.Equal(Vanilla.OrderBy(kv => kv.Value).Select(kv => kv.Key), ordered.Take(14));
+        Assert.Equal(["mod38", "mod37"], ordered.Skip(14).Take(2));
     }
 
     [Fact]
-    public void EnsureVisibleScrollsTheLeastNeeded()
+    public void ModModeKeepsTheLeftColumnAndShowsTheModTabsRight()
     {
-        Assert.Equal(0, TabScroll.EnsureVisible(0, 3, H, Sp, Content, View));            // already in view
-        Assert.Equal(40 * 30 + 25 - 545, TabScroll.EnsureVisible(0, 40, H, Sp, Content, View));   // below: bottom edge
-        Assert.Equal(10 * 30, TabScroll.EnsureVisible(1000, 10, H, Sp, Content, View)); // above: top edge
-        Assert.Equal(74 * 30 + 25 - 545, TabScroll.EnsureVisible(0, 74, H, Sp, Content, View));
-        Assert.Equal(200, TabScroll.EnsureVisible(200, -1, H, Sp, Content, View));
+        var defaults = PackDefaults();
+        var layout = TabLayout.ForModMode(defaults, ModTabs, OrderOf(Vanilla));
+        var defaultLeft = TabLayout.Order(defaults, OrderOf(Vanilla)).Take(16);
+        Assert.True(layout.Ideal);
+        Assert.Equal(defaultLeft, layout.Left);
+        Assert.Equal(ModTabs, layout.Right);
+        Assert.Equal(16 + 77, layout.Iteration.Count);
+        Assert.Equal(layout.Left.Concat(layout.Right), TabLayout.Order(layout.Iteration, OrderOf(Vanilla)));
+        // The mod tabs first, reversed; then the kept default tabs in the game's own iteration order.
+        Assert.Equal(ModTabs.AsEnumerable().Reverse(), layout.Iteration.Take(77));
+        Assert.Equal(defaults.Where(defaultLeft.Contains), layout.Iteration.Skip(77));
     }
 
     [Fact]
-    public void HitTestFindsTheTabUnderTheMouse()
+    public void ARightColumnTabOrderedLastIsLeftOut()
     {
-        Assert.Equal(0, TabScroll.HitTest(0, 0, 75, H, Sp, View));
-        Assert.Equal(0, TabScroll.HitTest(24.9, 0, 75, H, Sp, View));
-        Assert.Equal(-1, TabScroll.HitTest(27, 0, 75, H, Sp, View));    // the gap
-        Assert.Equal(1, TabScroll.HitTest(30, 0, 75, H, Sp, View));
-        Assert.Equal(11, TabScroll.HitTest(30, 300, 75, H, Sp, View));  // scrolled by 10 tabs
-        Assert.Equal(-1, TabScroll.HitTest(-1, 0, 75, H, Sp, View));
-        Assert.Equal(-1, TabScroll.HitTest(View, 0, 75, H, Sp, View));
-        Assert.Equal(-1, TabScroll.HitTest(100, 0, 2, H, Sp, View));    // past the last tab
+        var config = new Dictionary<string, double>(Vanilla) { ["mod05"] = 2.0 };
+        var layout = TabLayout.ForModMode(PackDefaults(), ModTabs, OrderOf(config));
+        Assert.True(layout.Ideal);
+        Assert.DoesNotContain("mod05", layout.Iteration);
     }
 
     [Fact]
-    public void IndicatorOnlyWhenOverflowing()
+    public void LeftTabsOrderedAfterTheModTabsCantBeIdealButAllTabsShow()
     {
-        Assert.Null(TabScroll.Indicator(0, 300, View, 20));
-        var top = TabScroll.Indicator(0, Content, View, 20)!.Value;
-        Assert.Equal(0, top.Top);
-        Assert.Equal(View * View / Content, top.Length, 6);
-        var bottom = TabScroll.Indicator(TabScroll.MaxOffset(Content, View), Content, View, 20)!.Value;
-        Assert.Equal(View, bottom.Top + bottom.Length, 6);
+        // Only 14 vanilla tabs and three ordered after 1.0: those three are in the left 16 and sort after the mod tabs.
+        var config = new Dictionary<string, double>(Vanilla) { ["late1"] = 3, ["late2"] = 3, ["late3"] = 3 };
+        var defaults = Vanilla.Keys.Concat(["late1", "late2", "late3", "plain"]).ToList();
+        var layout = TabLayout.ForModMode(defaults, ModTabs, OrderOf(config));
+        Assert.False(layout.Ideal);
+        Assert.Equal(TabLayout.Order(defaults, OrderOf(config)).Take(16).Concat(ModTabs).Order(), layout.Iteration.Order());
+        Assert.Equal(16 + 77, layout.Left.Count + layout.Right.Count);
+    }
+
+    [Fact]
+    public void FewDefaultTabsShareTheLeftColumnWithModTabs()
+    {
+        var defaults = new List<string> { "general", "flora", "mod00" };
+        var layout = TabLayout.ForModMode(defaults, ModTabs.Take(20).ToList(), OrderOf(Vanilla));
+        Assert.False(layout.Ideal);
+        Assert.Equal(["general", "flora", "mod00", .. ModTabs.Take(13)], layout.Left);
+        Assert.Equal(ModTabs.Skip(13).Take(7), layout.Right);
+
+        var sixteen = PackDefaults().Where(c => Vanilla.ContainsKey(c) || c is "mod00" or "mod01").ToList();
+        Assert.True(TabLayout.ForModMode(sixteen, ModTabs, OrderOf(Vanilla)).Ideal);
+    }
+
+    [Fact]
+    public void AModTabGivenAnOrderIsNotIdeal()
+    {
+        var config = new Dictionary<string, double>(Vanilla) { ["seraphhorizons-modtab-05"] = 0.05 };
+        var layout = TabLayout.ForModMode(PackDefaults(), ModTabs, OrderOf(config));
+        Assert.False(layout.Ideal);
+        Assert.Contains("seraphhorizons-modtab-05", layout.Left);
+    }
+
+    [Theory]
+    [InlineData("Plain", "Plain")]
+    [InlineData("A {b} c", "A {{b}} c")]
+    public void LangValueDoublesBraces(string name, string value)
+    {
+        Assert.Equal(value, TabLayout.LangValue(name));
+        Assert.Equal(name, string.Format(TabLayout.LangValue(name)));
     }
 }
