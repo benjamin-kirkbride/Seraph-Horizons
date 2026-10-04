@@ -9,7 +9,8 @@ Stdlib only (Python 3.11+). Subcommands:
   smoke       Boot a headless dedicated server with the staged mods and scan logs
               (--export PATH: also load tools/recipe-export and check its export).
   outdated    Report mods with a newer release compatible with the pinned game version.
-  assemble    Build release artifacts (meta-mod, Cairn pack, mod list, server bundle).
+  assemble    Build release artifacts (meta-mod, Cairn pack, mod list, server bundle)
+              (--url-mod ZIP URL: also put a mod Cairn fetches from URL in the Cairn pack).
 """
 
 from __future__ import annotations
@@ -681,6 +682,8 @@ def outdated_markdown(gv: str, errors: list[dict], updates: list[dict]) -> str:
 def cmd_assemble(args) -> None:
     pack, lock = load_pack(), load_lock()
     meta = pack["pack"]
+    # Checked before anything is written, so a bad --url-mod leaves no half-built dist/.
+    url_mods = [url_mod(Path(z), u) for z, u in getattr(args, "url_mod", None) or []]
     out = Path(args.out)
     if out.exists():
         shutil.rmtree(out)
@@ -707,8 +710,11 @@ def cmd_assemble(args) -> None:
 
     # (b) Cairn pack file (manifest + lockfile): exact pins, sha256-verified downloads,
     # and Cairn installs the matching game and .NET. Open it with the Cairn launcher
-    # or `cairn-server install <file>`.
-    write_json(out / f"{tag}.cairn.json", cairn_bundle(meta, lock))
+    # or `cairn-server install <file>`. `.cairn` is the name Cairn 0.9.10 exports under;
+    # the contents are the same JSON `.cairn.json` files had. Only this artifact carries
+    # --url-mod mods: the other three are ModDB-only by construction (the meta-mod's
+    # dependencies and the mod list name ModDB releases, the server bundle ships lock.json).
+    write_json(out / f"{tag}.cairn", cairn_bundle(meta, lock, url_mods))
 
     # (c) modid@version list (Story Forge import string, ModDB v2 `ids` format).
     (out / f"{tag}_modlist.txt").write_text(
@@ -738,17 +744,69 @@ def cmd_assemble(args) -> None:
 CAIRN_SIDES = {"universal": "both", "server": "server", "client": "client"}
 
 
-def cairn_bundle(meta: dict, lock: dict) -> dict:
+def url_mod(zip_path: Path, url: str) -> dict:
+    """A mod Cairn fetches from an address instead of the ModDB, described by its own zip.
+
+    For the rolling `next` build, which carries the pack's own mod (mods-src/seraphhorizons)
+    built from the same commit, before that build is on the ModDB. The modid and version come
+    from the zip's modinfo.json, as Cairn reads them (cairn-app ModUrl.Inspect), and the
+    sha256 is what Cairn holds the file at the address to on every sync.
+    """
+    if not zip_path.is_file():
+        die(f"--url-mod: {zip_path} does not exist")
+    try:
+        with zipfile.ZipFile(zip_path) as z:
+            name = next((n for n in z.namelist() if n.lower() == "modinfo.json"), None)
+            if name is None:
+                die(f"--url-mod: {zip_path} has no modinfo.json at its top level")
+            info = json.loads(z.read(name).decode("utf-8-sig"))
+    except zipfile.BadZipFile:
+        die(f"--url-mod: {zip_path} is not a zip")
+    modid, version = info.get("modid"), info.get("version")
+    if not modid or not version:
+        die(f"--url-mod: {zip_path}'s modinfo.json has no modid or version")
+    parsed = urllib.parse.urlsplit(url)
+    # Cairn (ModUrl.Problem) also takes plain http to loopback; a pack meant for players never
+    # should, so this is https only. CI's install test rewrites a copy of the pack instead.
+    if parsed.scheme != "https" or not parsed.netloc or parsed.query or parsed.fragment:
+        die(f"--url-mod: {url} must be a plain https address")
+    # Cairn names the downloaded file after the address's last segment when that is a plain
+    # .zip name (ModUrl.FileNameFor); keeping it the zip's own name keeps the two in step.
+    last = urllib.parse.unquote(parsed.path.rsplit("/", 1)[-1])
+    if last != zip_path.name or not last.endswith(".zip"):
+        die(f"--url-mod: {url} must end in the zip's own name, {zip_path.name}")
+    side = str(info.get("side", "universal")).lower()
+    if side not in CAIRN_SIDES:
+        die(f"--url-mod: {zip_path}'s modinfo.json has side {info.get('side')!r}")
+    return {"modid": modid, "version": version, "filename": last, "url": url,
+            "sha256": sha256_file(zip_path), "side": CAIRN_SIDES[side]}
+
+
+def cairn_bundle(meta: dict, lock: dict, url_mods: list[dict] | None = None) -> dict:
     """Cairn's PackBundle (formatVersion 1): {pack: PackManifest, lock: PackLock}.
 
     Field names follow cairn-app src/Cairn.Core/Packs/PackManifest.cs and PackBundle.cs.
+    A url_mods entry (url_mod()) becomes a manifest entry with an address and no version
+    (Cairn refuses an address beside a pin) and a lock entry with `fromUrl` and the zip's
+    sha256. Cairn keeps one entry per modid, so a URL mod replaces a locked ModDB mod of the
+    same modid in both lists: once the pack's own mod is pinned from the ModDB, `next` still
+    ships the commit's build (as tests/PackTests loads the local build over the pinned zip),
+    and a plain assemble (versioned releases) still ships the pin.
     """
+    url_mods = url_mods or []
+    replaced: set[str] = set()
+    for u in url_mods:
+        if u["modid"].lower() in replaced:
+            die(f"--url-mod: {u['modid']} is given twice")
+        replaced.add(u["modid"].lower())
+    moddb = [m for m in lock["mods"] if m["id"].lower() not in replaced]
     manifest: dict = {
         "id": meta["id"],
         "name": meta["name"],
         "description": meta.get("description", "")[:280],
         "gameVersion": meta["game_version"],
-        "mods": [{"modid": m["id"], "version": m["version"]} for m in lock["mods"]],
+        "mods": [{"modid": m["id"], "version": m["version"]} for m in moddb]
+                + [{"modid": u["modid"], "url": u["url"]} for u in url_mods],
     }
     mod_config = collect_mod_config()
     if mod_config:
@@ -767,7 +825,15 @@ def cairn_bundle(meta: dict, lock: dict) -> dict:
                 "fileId": m["fileId"],
                 "sha256": m["sha256"],
                 "side": CAIRN_SIDES[m["side"]],
-            } for m in lock["mods"]],
+            } for m in moddb] + [{
+                "modid": u["modid"],
+                "version": u["version"],
+                "filename": u["filename"],
+                "url": u["url"],
+                "sha256": u["sha256"],
+                "fromUrl": True,
+                "side": u["side"],
+            } for u in url_mods],
         },
     }
 
@@ -880,6 +946,10 @@ def main() -> None:
 
     s = sub.add_parser("assemble")
     s.add_argument("--out", default=str(ROOT / "dist"))
+    s.add_argument("--url-mod", nargs=2, action="append", metavar=("ZIP", "URL"),
+                   help="also put the mod in ZIP in the Cairn pack, fetched from URL (https, ending "
+                        "in the zip's name) and held to the zip's sha256; repeatable. CI uses it for "
+                        "the rolling next build only")
     s.set_defaults(func=cmd_assemble)
 
     args = p.parse_args()
