@@ -2,7 +2,7 @@
   "type": "code",
   "modid": "allowedvariantsfix",
   "name": "allowedVariants Fix",
-  "description": "Recipes keep allowedVariants and skipVariants on an ingredient when another ingredient has a name. Works around https://github.com/anegostudios/VintageStory-Issues/issues/9256. Server only.",
+  "description": "Recipes keep allowedVariants and skipVariants when another ingredient has a name. Server only.",
   "authors": ["Benjamin Kirkbride"],
   "version": "1.0.1",
   "side": "Server",
