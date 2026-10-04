@@ -29,6 +29,8 @@ namespace SeraphHorizons.PackTests;
 /// Battle Towers' surface towers. CartReach: the server runs the same entity selection code as the
 /// client, so the scenarios run it, and cart reach's second look, on the server's world against a
 /// Cartwright's cart (the patch itself is applied on the client only, which Atlas does not run).
+/// PanningDrops: no panning table in the loaded game gives wool, stitching awls, uranium nuggets or
+/// buttons and clasps.
 /// </summary>
 [AtlasWorld]
 public class SeraphHorizonsModScenarios : AtlasScenarioBase
@@ -544,5 +546,86 @@ public class SeraphHorizonsModScenarios : AtlasScenarioBase
         Assert.Equal((5, 350f), WellShaft(rockAtThree));
         Assert.Equal((7, 490f), WellShaft(rockAtEight));
         Assert.All(cells, cell => Assert.Equal((0, 0f), WellShaft(cell)));
+    }
+
+    // Fails when a mod adds one of the removed items to panning in a way the trim does not reach
+    // (another block with a panning table, a code edit after AssetsLoaded), or when Wool, Tailor's
+    // Delight or Expanded Matter stop adding theirs: check PanningDrops and its README section.
+    [AtlasScenario]
+    public void Panning_gives_no_wool_awls_uranium_or_buttons()
+    {
+        var all = Panning.AllDrops(W);
+        Assert.Contains(all, d => d.Block == Panning.Pan);
+        var removed = all.Where(d => PanningDropRules.IsRemoved(d.Code)).Select(d => $"{d.Block} {d.Material}: {d.Code}").ToList();
+        Assert.True(removed.Count == 0, "Still in a panning table:\n" + string.Join("\n", removed));
+        // What the pan resolves its table to, as it rolls a drop.
+        var resolved = Panning.ResolvedPanCodes(W);
+        Assert.NotEmpty(resolved);
+        Assert.DoesNotContain(resolved, PanningDropRules.IsRemoved);
+        // The same mods' other drops stay: only the four groups are taken out.
+        var codes = all.Where(d => d.Block == Panning.Pan).Select(d => d.Code).ToHashSet();
+        Assert.Contains("tailorsdelight:twine-brown", codes);
+        Assert.Contains("tailorsdelight:needle-bone", codes);
+        Assert.Contains("game:ore-fluorite", codes);
+    }
+
+    // Fails when Tailor's Delight rewords its buttons handbook line or ships a new translation of
+    // it: update PanningDrops.LangEdits to match.
+    [AtlasScenario]
+    public void Panning_buttons_text_no_longer_says_panning()
+    {
+        Assert.All(PanningDrops.LangEdits, edit =>
+        {
+            var text = Lang.AvailableLanguages[edit.Language].GetAllEntries()[edit.Key];
+            Assert.Contains(edit.New, text);
+            Assert.DoesNotContain(edit.Old, text);
+        });
+        Assert.Equal("Can be found in loot or sometimes bought from traders.",
+            Lang.GetL("en", "tailorsdelight:handbook-item-buttons"));
+        var shipped = World.Api.Assets.GetMany("lang/", PanningDrops.TailorsDelightId)
+            .Where(asset => asset.Location.Path.EndsWith(".json") && asset.ToText().Contains("\"tailorsdelight:handbook-item-buttons\""))
+            .Select(asset => asset.Location.GetName()[..^".json".Length])
+            .Order();
+        Assert.Equal(shipped, PanningDrops.LangEdits.Select(edit => edit.Language).Order());
+    }
+}
+
+/// <summary>Every panning table in the loaded game, as these scenarios read it. Shared with
+/// <see cref="SwitchesOffScenarios"/>.</summary>
+internal static class Panning
+{
+    public const string Pan = "game:pan-wooden";
+
+    public sealed record Drop(string Block, string Material, string Code);
+
+    /// <summary>Every entry of every block's <c>panningDrops</c>, codes with their domain.</summary>
+    public static List<Drop> AllDrops(IWorldAccessor world)
+    {
+        var drops = new List<Drop>();
+        foreach (var block in world.Blocks)
+        {
+            if (block?.Code == null || block.Attributes?["panningDrops"].Token is not Newtonsoft.Json.Linq.JObject table)
+                continue;
+            foreach (var material in table.Properties())
+                foreach (var drop in material.Value.OfType<Newtonsoft.Json.Linq.JObject>())
+                {
+                    string code = (string?)drop["code"] ?? "";
+                    drops.Add(new Drop(block.Code.ToString(), material.Name, code.Contains(':') ? code : "game:" + code));
+                }
+        }
+        return drops;
+    }
+
+    /// <summary>The pan's table as the block reads it (<c>BlockPan</c> deserializes
+    /// <c>panningDrops</c> into <see cref="PanningDrop"/>s), codes with their domain.</summary>
+    public static List<string> ResolvedPanCodes(IWorldAccessor world)
+    {
+        var pan = world.GetBlock(new AssetLocation(Pan)) ?? throw new Xunit.Sdk.XunitException($"no block {Pan}");
+        Assert.IsType<BlockPan>(pan);
+        return (pan.Attributes["panningDrops"].AsObject<Dictionary<string, PanningDrop[]>>() ?? [])
+            .SelectMany(table => table.Value)
+            .Select(drop => drop.Code.ToString())
+            .Select(code => code.Contains(':') ? code : "game:" + code)
+            .ToList();
     }
 }
