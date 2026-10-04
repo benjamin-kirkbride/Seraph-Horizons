@@ -265,8 +265,12 @@ A block that lists the item twice (each gravel lists its stone twice) is one sou
 the chances added. So flint has three panning rows (gravel, sand, rich gravel) instead of 114. `extra.stat`
 is named in the last column; the rest of `extra` (`attributes`) is not shown.
 
-A pannable block's own page does not say what panning gives: nothing on an item page
-lists what a block yields, for panning or for block drops.
+A block's own page has the same sources turned around, under "Gives": `prepareData` copies
+every source that is not a creature's or trader's to `gives` of the item its `from` names,
+with `item` in place of `from` (an `ItemDetail` field, like `smeltsInto`). `giveRows`
+lists what breaking and harvesting give first, then what panning gives, likeliest first,
+with an item the block's list holds twice added up. A block that is not an item of the
+export (wavy sand) has no page, so nothing shows it.
 
 `DATA_FORMAT` in `format.ts` is written to `meta.json` as `format`. The app and the data
 are always built together, so there is no migration between formats.

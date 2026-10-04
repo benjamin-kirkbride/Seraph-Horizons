@@ -250,6 +250,21 @@ describe("wildcards in the reverse indexes", () => {
     expect(r.detail("game:ingot-copper").smeltedFrom).toEqual([nugget]);
     expect(r.detail("game:nugget-copper").smeltsInto).toBe(ingot);
   });
+
+  it("turns block sources around into what the block gives, and leaves entities to their pages", () => {
+    const exp = exportWith(["game:flint", "game:gravel-granite"], []);
+    exp.items["game:flint"]!.sources = [
+      { type: "other", from: "game:gravel-granite", fromName: "Granite gravel", quantity: { avg: 0.075 }, note: "Panned", extra: { chancePerPan: 0.05 } },
+      { type: "blockDrop", from: "game:looseflints", fromName: "Loose flint", quantity: { avg: 1 } },
+      { type: "entityDrop", from: "game:gravel-granite", quantity: { avg: 1 } },
+    ];
+    const r = reader(prepareData(exp).files);
+    const flint = r.search.codes.indexOf("game:flint");
+    expect(r.detail("game:gravel-granite").gives).toEqual([
+      { type: "other", quantity: { avg: 0.075 }, note: "Panned", extra: { chancePerPan: 0.05 }, item: flint },
+    ]);
+    expect(r.detail("game:flint").gives).toBeUndefined();
+  });
 });
 
 describe("entities, from the item sources that name them", () => {
