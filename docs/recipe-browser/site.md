@@ -5,6 +5,9 @@ build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<
 so the same `dist/` works at any sub-path and a reload on a deep link only ever asks
 the server for `index.html`.
 
+The model viewer (`#/models`, [models.md](models.md)) is part of the same app but reads no
+recipe data, so its routes carry no version.
+
 ## Running it locally
 
 Needs Node 22.22 or newer (jsdom, used by the unit tests, requires it).
@@ -71,8 +74,9 @@ RECIPE_EXPORT=path/to/recipes.json npm --prefix site run e2e  # end to end (Play
 
 The unit tests in `site/test/` cover the logic in `site/src/lib/`: the prepare-data
 transform and its reverse indexes, wildcard matching, search ranking, VTML sanitising,
-routes, icon paths and recipe layout. They use `schema/examples/minimal.json` and small
-hand-written exports.
+routes, icon paths and recipe layout, and the model viewer's maths, manifest and play
+script ([models.md](models.md)). They use `schema/examples/minimal.json` and small
+hand-written exports, and the bucking sawmill's shipped shape, rig and reference poses.
 
 The end-to-end tests in `site/e2e/` only run against a real export; without
 `RECIPE_EXPORT` the run fails. `e2e/serve.ts` builds the site, runs prepare-data on the

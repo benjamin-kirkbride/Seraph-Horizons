@@ -1,6 +1,8 @@
 // Routes live in the URL hash (#/<version>/item/<code>), so GitHub Pages only ever
 // serves index.html and a deep link survives a reload. The version is always in the
-// route so a shared link keeps pointing at the data it was made from.
+// route so a shared link keeps pointing at the data it was made from. The model viewer
+// (#/models, #/models/<id>) is the exception: it does not read the recipe data, so its
+// routes have no version, and "models" can never be a version id.
 
 export type Route =
   | { view: "root" }
@@ -10,6 +12,8 @@ export type Route =
   | { view: "entities"; version: string }
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
+  | { view: "models" }
+  | { view: "model"; id: string }
   | { view: "notfound"; version?: string };
 
 // Codes are mostly URL-safe; keep `:` readable instead of %3A.
@@ -31,6 +35,11 @@ export function parseRoute(hash: string): Route {
   const path = q >= 0 ? h.slice(0, q) : h;
   const parts = path.split("/").filter((p) => p !== "");
   if (parts.length === 0) return { view: "root" };
+  if (parts[0] === "models") {
+    if (parts.length === 1) return { view: "models" };
+    const id = parts.length === 2 ? dec(parts[1]!) : null;
+    return id ? { view: "model", id } : { view: "notfound" };
+  }
   const version = dec(parts[0]!);
   if (version === null || version === "") return { view: "notfound" };
   if (parts.length === 1) return { view: "home", version };
@@ -74,6 +83,10 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/entity/${enc(route.code)}${route.variant ? `?${new URLSearchParams({ variant: route.variant }).toString()}` : ""}`;
     case "credits":
       return `#/${enc(route.version)}/credits`;
+    case "models":
+      return "#/models";
+    case "model":
+      return `#/models/${enc(route.id)}`;
     case "notfound":
       return route.version ? `#/${enc(route.version)}/not-found` : "#/not-found";
   }
@@ -84,6 +97,8 @@ export function withVersion(route: Route, version: string): Route {
   switch (route.view) {
     case "root":
     case "notfound":
+    case "models":
+    case "model":
       return { view: "home", version };
     case "item":
       return { view: "item", version, code: route.code };
