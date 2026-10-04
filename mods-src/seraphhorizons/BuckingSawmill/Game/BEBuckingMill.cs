@@ -139,7 +139,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             _clientDepthEstimate = _clientDepth = _depth;
             _clientRising = _rising;
             RegisterGameTickListener(OnClientTick, 50);
-            if (api is ICoreClientAPI capi && Rig is { } rig)
+            if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockBuckingMill)
                 _renderer = new MillRenderer(capi, this, rig);
         }
     }
@@ -767,6 +767,14 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     // when a sync moves it, so a new trunk's drop is quick rather than a snap.
     private void OnClientTick(float dt)
     {
+        // The client removes a broken mill at once, and an update the server sent before it heard
+        // of the break then brings the block entity back over air, renderer and all: drop it.
+        if (Api.World.BlockAccessor.GetBlock(Pos) is not BlockBuckingMill)
+        {
+            DisposeRenderer();
+            Api.World.BlockAccessor.RemoveBlockEntity(Pos);
+            return;
+        }
         var power = Power;
         float angle = power?.AngleRad ?? 0, speed = power?.TrueSpeed ?? 0;
         float advance = 0;
