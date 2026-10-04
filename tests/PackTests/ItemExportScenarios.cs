@@ -245,8 +245,7 @@ public class ItemExportScenarios : AtlasScenarioBase
     public void Scope_is_the_handbook_plus_referenced_codes()
     {
         // survival/itemtypes/resource/ingot.json: handbook.excludeByType "*-platinum": true.
-        // (expanded_matter and VintageEngineering remove the chromium/uranium/titanium
-        // exclusions, not platinum.)
+        // (expanded_matter removes the chromium/uranium/titanium exclusions, not platinum.)
         const string hidden = "game:ingot-platinum";
         const string visible = "game:ingot-copper";
         const string unregistered = "game:ingot-seraphexporttest";

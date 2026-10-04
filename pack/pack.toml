@@ -247,47 +247,7 @@ license_source = "https://github.com/jsknnr/PlayerCorpse"
 redistribute = false
 why = "Your inventory goes into a corpse where you died, with a corpse compass."
 
-# --- Electrical Progressive and Vintage Engineering (#3)
-
-[[mod]]
-id = "electricalprogressivecore"
-version = "3.3.0"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Electricity simulation library for the Electrical Progressive series."
-
-[[mod]]
-id = "electricalprogressivebasics"
-version = "3.3.1"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Cables, switches, generators and motors."
-
-[[mod]]
-id = "electricalprogressiveqol"
-version = "3.3.1"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Electric lighting, kitchen and other quality-of-life devices."
-
-[[mod]]
-id = "electricalprogressiveindustry"
-version = "0.7.0"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Industrial machines: recycler, autopress, autohammer and more."
-
-[[mod]]
-id = "electricalprogressivetransport"
-version = "2.0.0"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Item and liquid pipe transport."
+# --- Signal circuits (#3)
 
 [[mod]]
 id = "signals"
@@ -297,31 +257,6 @@ license = "Apache-2.0"
 license_source = "https://github.com/VonZeeple/Signals"
 redistribute = false
 why = "Wires, triodes and other components for simple circuits."
-
-[[mod]]
-id = "signalslinkep"
-version = "1.0.0"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Signals sensors and controls for Electrical Progressive."
-
-[[mod]]
-id = "vintageengineering"
-version = "0.6.1"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Late-game machines and electricity, Immersive Engineering style."
-
-[[mod]]
-id = "veep"
-version = "3.0.1"
-side = "universal"
-license = "MIT"
-license_source = "https://github.com/V2LenKagamine/LensVintageModding"
-redistribute = false
-why = "Converter between Vintage Engineering and Electrical Progressive power."
 
 # --- Mechanical power and metalworking (#3)
 
