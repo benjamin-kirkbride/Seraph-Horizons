@@ -121,6 +121,24 @@ internal sealed class Woodshop(IWorldSession world, ITestPlayer player, BlockPos
         return true;
     }
 
+    /// <summary>A right click with Ctrl held (the game's sprint key), as a player in
+    /// <paramref name="mode"/>; Ctrl is let go and the player is back in survival after.</summary>
+    public bool CtrlClick(BlockPos pos, EnumGameMode mode = EnumGameMode.Creative)
+    {
+        var controls = player.Entity.Controls;
+        P.WorldData.CurrentGameMode = mode;
+        controls.CtrlKey = true;
+        try
+        {
+            return Click(pos);
+        }
+        finally
+        {
+            controls.CtrlKey = false;
+            P.WorldData.CurrentGameMode = EnumGameMode.Survival;
+        }
+    }
+
     public BlockEntity Entity(BlockPos pos) =>
         W.BlockAccessor.GetBlockEntity(pos) ?? throw new Xunit.Sdk.XunitException($"no block entity at {pos}");
 
@@ -296,6 +314,9 @@ public class UnifiedWoodworkingScenarios(ITestOutputHelper output) : AtlasScenar
         Assert.True(PatchedByUs(AccessTools.Method(AccessTools.TypeByName("LoggingMod.BlockSawhorse"), "ProcessWithTool")));
         Assert.True(PatchedByUs(AccessTools.Method(AccessTools.TypeByName("LoggingMod.BlockSawhorseAdvanced"), "ProcessWithTool")));
         Assert.True(PatchedByUs(AccessTools.Method(AccessTools.TypeByName(WoodworkingMods.IwSystemType), RetiredStations.RecipesMethod)));
+        foreach (var frame in CreativeUpgrades.Frames)
+            Assert.True(PatchedByUs(AccessTools.DeclaredMethod(AccessTools.TypeByName("LoggingMod." + frame.FrameClass), "OnBlockInteractStart")),
+                $"{frame.FrameClass} has no creative upgrade");
     }
 
     [AtlasScenario]
@@ -441,6 +462,117 @@ public class UnifiedWoodworkingScenarios(ITestOutputHelper output) : AtlasScenar
             Assert.Equal(3, bark.Value);
             shop.InOffhand(null);
         }
+    }
+
+    // The water wheel's creative shortcut: Ctrl + right click in creative, nothing in hand.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task In_creative_a_Ctrl_click_upgrades_an_empty_splitting_block_a_tier_for_nothing()
+    {
+        var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-40, 3, -160));
+        var pos = await shop.PlaceSplittingBlock(0, "oak", SplittingBlockTier.Primitive);
+        foreach (var tier in new[] { SplittingBlockTier.Debarked, SplittingBlockTier.Bound, SplittingBlockTier.Advanced })
+        {
+            Assert.True(shop.CtrlClick(pos));
+            Assert.Equal(tier, shop.TierAt(pos));
+        }
+        // Nothing above advanced; no bark from the debark; the hands stay empty.
+        shop.CtrlClick(pos);
+        Assert.Equal(SplittingBlockTier.Advanced, shop.TierAt(pos));
+        Assert.Empty(await shop.Collect());
+        Assert.Null(shop.Hand.Itemstack);
+        Assert.Null(shop.ContentAt(pos));
+
+        // Whatever is held, and it is neither taken nor laid on the block.
+        var held = await shop.PlaceSplittingBlock(1, "oak", SplittingBlockTier.Debarked);
+        shop.Holding("game:log-placed-oak-ud", 3);
+        Assert.True(shop.CtrlClick(held));
+        Assert.Equal(SplittingBlockTier.Bound, shop.TierAt(held));
+        Assert.Equal(3, shop.Hand.StackSize);
+        Assert.Null(shop.ContentAt(held));
+
+        // Not with Shift too: Immersive Woodworking's.
+        shop.Holding(null);
+        shop.Player.Entity.Controls.ShiftKey = true;
+        shop.CtrlClick(held);
+        shop.Player.Entity.Controls.ShiftKey = false;
+        Assert.Equal(SplittingBlockTier.Bound, shop.TierAt(held));
+
+        // On a block with a log on it, Ctrl still takes the log back, and nothing is upgraded.
+        var loaded = await shop.PlaceSplittingBlock(2, "oak", SplittingBlockTier.Primitive);
+        Assert.True(shop.Lay(loaded, shop.Stack("game:log-placed-oak-ud")));
+        shop.Holding(null);
+        Assert.True(shop.CtrlClick(loaded));
+        Assert.Null(shop.ContentAt(loaded));
+        Assert.Equal(SplittingBlockTier.Primitive, shop.TierAt(loaded));
+        Assert.Equal(1, (await shop.Collect()).GetValueOrDefault("game:log-placed-oak-ud") + (shop.Hand.Itemstack?.StackSize ?? 0));
+        shop.Holding(null);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task In_survival_a_Ctrl_click_with_empty_hands_upgrades_nothing()
+    {
+        var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-40, 3, -200));
+        var pos = await shop.PlaceSplittingBlock(0, "oak", SplittingBlockTier.Primitive);
+        shop.CtrlClick(pos, EnumGameMode.Survival);
+        Assert.Equal(SplittingBlockTier.Primitive, shop.TierAt(pos));
+
+        var frame = shop.Cell(1);
+        await PlaceFrame(shop, frame, "loggingmod:sawhorseframe-north");
+        shop.CtrlClick(frame, EnumGameMode.Survival);
+        Assert.Equal("loggingmod:sawhorseframe-north", World.BlockAt(frame).Code.ToString());
+        Assert.Empty(await shop.Collect());
+    }
+
+    // Every Logging Expanded frame Logging Expanded turns into something with items, each to the
+    // stage its first help line makes, from the frame's wood and facing.
+    public static TheoryData<int, string, string> Frames => new()
+    {
+        { 0, "loggingmod:sawhorseframe-north", "loggingmod:sawhorse-north" },
+        { 1, "loggingmod:plankframe-birch-north", "loggingmod:standardsawhorseframe-birch-north" },
+        { 2, "loggingmod:standardsawhorseframe-birch-north", "loggingmod:sawhorsestandard-birch-copper-north" },
+        { 3, "loggingmod:advancedsawhorseframea-birch-east", "loggingmod:advancedsawhorseframeb-birch-east" },
+        { 4, "loggingmod:advancedsawhorseframeb-birch-north", "loggingmod:sawhorseadvanced-birch-north" },
+        { 5, "loggingmod:storagerackframe-birch-north", "loggingmod:trunkstorage-birch-empty-north" },
+        { 6, "loggingmod:heatingrackframe-fire-north", "loggingmod:resinrack-fire-north" },
+        { 7, "loggingmod:stickstorageframe", "loggingmod:stickstorage" },
+    };
+
+    // Logging Expanded puts the trunk heating rack a block above its frame, over the fire.
+    private static int Rise(string makes) => makes.StartsWith("loggingmod:resinrack-") ? 1 : 0;
+
+    private async Task PlaceFrame(Woodshop shop, BlockPos pos, string code)
+    {
+        var block = shop.Block(code);
+        Assert.True(block.DoPlaceBlock(W, shop.P, Woodshop.Selection(pos), new ItemStack(block)));
+        await World.Ticks(2);
+        Assert.Equal(code, World.BlockAt(pos).Code.ToString());
+    }
+
+    [AtlasTheory(TimeoutMs = 120_000), MemberData(nameof(Frames))]
+    public async Task In_creative_a_Ctrl_click_builds_a_frame_into_its_next_stage(int n, string frame, string makes)
+    {
+        var shop = await Woodshop.Open(World, World.Spawn.AddCopy(220, 3, -160 + 20 * n));
+        var pos = shop.Cell(0);
+        await PlaceFrame(shop, pos, frame);
+        shop.Holding(null);
+        shop.InOffhand(null);
+        Assert.True(shop.CtrlClick(pos));
+        await World.Ticks(2);
+        Assert.Equal(makes, World.BlockAt(pos.UpCopy(Rise(makes))).Code.ToString());
+        // The staged items are gone again: the hands are as they were, and nothing was dropped.
+        Assert.Null(shop.Hand.Itemstack);
+        Assert.Null(shop.Offhand.Itemstack);
+        Assert.Empty(await shop.Collect());
+
+        // Held items stay where they are.
+        var again = shop.Cell(2);
+        await PlaceFrame(shop, again, frame);
+        shop.Holding("game:stick", 5);
+        Assert.True(shop.CtrlClick(again));
+        await World.Ticks(2);
+        Assert.Equal(makes, World.BlockAt(again.UpCopy(Rise(makes))).Code.ToString());
+        Assert.Equal(("game:stick", 5), (shop.Hand.Itemstack?.Collectible.Code.ToString(), shop.Hand.StackSize));
+        shop.Holding(null);
     }
 
     // A client reports how long it held; the server believes no more than the time since the hold
