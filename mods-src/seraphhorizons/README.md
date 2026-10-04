@@ -258,6 +258,26 @@ included, from the server, so its tooltip shows the same values. With the switch
 Hydrate or Diedrate) the system empties those patch files in `Start`, before the patch loader runs
 in `AssetsLoaded`, as for Age of Flax. The switch that counts is the server's.
 
+### The handbook says how a well shaft holds water (`WellShaftExplained`)
+
+Hydrate or Diedrate (`hydrateordiedrate` 2.5.6). A well spring counts the shaft above it level by
+level (`BlockEntityWellSpring.OnPeriodicShaftCheck`), and holds 70 liters per counted level. A
+level counts when its cell is open and all four horizontal neighbors are full liquid barriers, so
+a shaft wider than one block counts no levels and the spring reads "Max Well Volume: 0 liters".
+Each wall block is rated for a depth: 5 by default (`WellwaterDepthMaxBase`), 7 for `game:brick*`
+(`WellwaterDepthMaxClay`) and 10 for `game:stonebrick*` (`WellwaterDepthMaxStone`). Those are
+prefixes of the block code: `brickcourse-*` (the clay bricks named after their bond) and
+`stonebricks-*` (ashlar blocks) are rated, while `claybricks-*` (fireclay and uneven bricks) and
+`agedstonebricks-*` are not. The count stops
+at the first level that is no lower than the lowest rating seen so far, so one lesser block caps
+the well at its own depth, or just below itself when it is higher than that. The Wells handbook
+page only says to dig straight down, and lists the depths as "default", "bricks" and "ashlar".
+
+`WellShaftText` rewords the Deep Well passages of that page to say all of that, with the liters
+each depth holds and the spring's look-at line (Hydrate or Diedrate's own `well.retentionVolume`).
+Text only, as exact-passage `LangEdits` like ppex's. English only: Hydrate or Diedrate's other
+translations of the page differ in structure, and two are of an older text.
+
 ### The powered chopper drops its output in front (`ChopperDropsInFront`)
 
 Immersive Woodworking (`immersivewoodworking` 1.3.11). The powered chopper (the multiblock frame,
@@ -483,7 +503,13 @@ requires `BlowSound` to be ExpandedLib's `ExSounds.MediumExplosion` and present 
 requires every `LangEdits` passage reworded, and an edit set for every language ppex ships: when
 either fails after a ppex update, match the edits to ppex's new text or add the new language. The
 same goes for `ChimneyVentText.LangEdits`, whose passages must also quote ppex's look-at line for a
-venting chimney.
+venting chimney. `WellShaftText.LangEdits` must be reworded too, quote Hydrate or Diedrate's
+look-at line for an empty well, and give the depths and liters of its default settings: when that
+fails after a Hydrate or Diedrate update, match the edits to its new text or settings. A second
+scenario stands wells in the air and requires what the page says of them: a one-block shaft holds
+5 levels in rock, fireclay bricks, uneven bricks and aged ashlar, 7 in bricks and 10 in ashlar; one
+rock block in an ashlar shaft caps it at 5 from the third level and at 7 from the eighth; and four
+springs under a 2x2 shaft hold nothing. When it fails, the rules changed: reword the edits.
 
 It also reads the patched `game:worldgen/structures.json` and requires the surface tower's chance
 and spacing above, with the hard tower's unchanged: when that fails after a Battle Towers update,
