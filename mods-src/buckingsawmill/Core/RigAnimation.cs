@@ -105,19 +105,19 @@ public enum LiftGate { None, Hold, Block }
 /// <summary>
 /// One motion of a rig part, as rig.json's <c>parts[].drivers</c> describes it. Inputs: θ the
 /// signed shaft angle, d the saw's depth (0 latched at the top .. 1 at the bed), L lifting (1
-/// while the saws are wound back up, eased 0..1), D the shaft's direction (+1 forwards, −1
-/// backwards, eased between). Distances are blocks, angles radians; rotations
+/// while the saws are wound back up, eased 0..1), ψ the shaft's travel (the total angle it has
+/// turned through either way, never decreasing). Distances are blocks, angles radians; rotations
 /// are right-handed about the positive axis. The mod's README defines each type; the reference
 /// implementation is <c>driver_matrix</c> in tools/make_shape.py.
 /// </summary>
 /// <param name="Pivot">rotate, swing, step-rotate: the pivot; stretch: the anchor.</param>
 /// <param name="Rotates">step: true for <c>"motion": "rotate"</c>, false for <c>"slide"</c>.</param>
 /// <param name="Length">stretch: signed authored distance from the anchor to the free end.</param>
-/// <param name="Reversible">step: the throw is scaled by the shaft's direction D, so it goes the
-/// other way when the shaft turns backwards.</param>
+/// <param name="Rectified">rotate: turns by ratio·ψ (the shaft's travel) instead of ratio·θ, so it
+/// keeps turning the same way whichever way the shaft turns (a one-way catch's gear).</param>
 public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Ratio, float Amplitude, float Phase, float Travel,
                             bool Rotates = false, float Amount = 0, float From = 0, float To = 1, LiftGate Lifting = LiftGate.None,
-                            float Length = 1, bool Reversible = false)
+                            float Length = 1, bool Rectified = false)
 {
     /// <summary>A step driver's fraction: d's progress through [From, To], then held at 1
     /// (<see cref="LiftGate.Hold"/>) or kept at 0 (<see cref="LiftGate.Block"/>) while lifting.</summary>
@@ -132,16 +132,17 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
         };
     }
 
-    /// <summary>rotate: angle ratio·θ about pivot. slide: offset amplitude·sin(ratio·θ + phase).
-    /// swing: angle amplitude·sin(ratio·θ + phase) about pivot. feed: offset travel·d. step:
-    /// offset or angle amount·e (<see cref="StepFraction"/>), times D when reversible. stretch:
-    /// scale (length + travel·d) / length along the axis about the anchor.</summary>
-    public float[] Matrix(double theta, double depth, double lifting = 0, double direction = 1)
+    /// <summary>rotate: angle ratio·θ (ratio·ψ when rectified) about pivot. slide: offset
+    /// amplitude·sin(ratio·θ + phase). swing: angle amplitude·sin(ratio·θ + phase) about pivot.
+    /// feed: offset travel·d. step: offset or angle amount·e (<see cref="StepFraction"/>).
+    /// stretch: scale (length + travel·d) / length along the axis about the anchor.
+    /// <paramref name="shaftTravel"/> is ψ; when null it is |θ|.</summary>
+    public float[] Matrix(double theta, double depth, double lifting = 0, double? shaftTravel = null)
     {
         switch (Type)
         {
             case DriverType.Rotate:
-                return Mat4.Rotation(Axis, Ratio * theta, Pivot);
+                return Mat4.Rotation(Axis, Ratio * (Rectified ? shaftTravel ?? Math.Abs(theta) : theta), Pivot);
             case DriverType.Swing:
                 return Mat4.Rotation(Axis, Amplitude * Math.Sin(Ratio * theta + Phase), Pivot);
             case DriverType.Slide:
@@ -149,7 +150,7 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
             case DriverType.Feed:
                 return Along(Travel * depth);
             case DriverType.Step:
-                double e = StepFraction(depth, lifting) * (Reversible ? direction : 1);
+                double e = StepFraction(depth, lifting);
                 return Rotates ? Mat4.Rotation(Axis, Amount * e, Pivot) : Along(Amount * e);
             default:
                 return Mat4.Stretch(Axis, (float)((Length + Travel * depth) / Length), Pivot);
@@ -261,15 +262,16 @@ public sealed class RigParts
     /// order to the authored geometry (pivots in the authored frame), then the ride part's whole
     /// transform. θ is the shaft angle, <paramref name="depth"/> the saw's depth (0..1),
     /// <paramref name="lifting"/> 1 while the saws are wound back up (eased 0..1),
-    /// <paramref name="direction"/> +1 while the shaft turns forwards and −1 backwards.</summary>
-    public float[][] Matrices(double theta, double depth, double lifting = 0, double direction = 1)
+    /// <paramref name="shaftTravel"/> ψ, the total angle the shaft has turned through either way
+    /// (|θ| when null).</summary>
+    public float[][] Matrices(double theta, double depth, double lifting = 0, double? shaftTravel = null)
     {
         var result = new float[Parts.Count][];
         foreach (int i in _order)
         {
             var m = Mat4.Identity();
             foreach (var d in Parts[i].Drivers)
-                m = Mat4.Multiply(d.Matrix(theta, depth, lifting, direction), m);
+                m = Mat4.Multiply(d.Matrix(theta, depth, lifting, shaftTravel), m);
             if (_ride[i] >= 0)
                 m = Mat4.Multiply(result[_ride[i]], m);
             result[i] = m;
@@ -351,7 +353,7 @@ public sealed class RigParts
             var g => throw new FormatException($"{where}: lifting \"{g}\" is not hold or block"),
         };
         return new Driver(type, axis, pivot, Num(d, "ratio", 1), Num(d, "amplitude", 0), Num(d, "phase", 0), Num(d, "travel", 0),
-                          rotates, Num(d, "amount", 0), from, to, gate, length, Bool(d, "reversible"));
+                          rotates, Num(d, "amount", 0), from, to, gate, length, Bool(d, "rectified"));
     }
 
     private static Float3 Point(JsonElement d, string key, string where, string type)

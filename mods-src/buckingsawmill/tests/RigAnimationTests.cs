@@ -137,45 +137,63 @@ public class RigAnimationTests
     }
 
     [Fact]
-    public void A_reversible_step_throws_the_other_way_when_the_shaft_turns_backwards()
+    public void A_rectified_rotate_turns_with_the_shaft_travel_whichever_way_the_shaft_turns()
     {
         var parts = Parts("""
-            [ { "id": "r", "match": ["r"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "amount": 1, "from": 0.5, "to": 1, "lifting": "hold", "reversible": true } ] },
-              { "id": "s", "match": ["s"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "amount": 1, "from": 0.5, "to": 1 } ] } ]
+            [ { "id": "r", "match": ["r"], "drivers": [ { "type": "rotate", "axis": "z", "pivot": [0, 0, 0], "ratio": 0.5, "rectified": true } ] },
+              { "id": "s", "match": ["s"], "drivers": [ { "type": "rotate", "axis": "z", "pivot": [0, 0, 0], "ratio": 0.5 } ] } ]
             """);
-        var o = new Float3(0, 0, 0);
-        Near(new Float3(1, 0, 0), Mat4.Apply(parts.Matrices(0, 1, 0, 1)[0], o));
-        Near(new Float3(-1, 0, 0), Mat4.Apply(parts.Matrices(0, 1, 0, -1)[0], o));
-        Near(new Float3(-1, 0, 0), Mat4.Apply(parts.Matrices(0, 0.2, 1, -1)[0], o));     // held while lifting
-        Near(new Float3(-0.25f, 0, 0), Mat4.Apply(parts.Matrices(0, 0.75, 0, -0.5)[0], o)); // eased direction
-        Near(new Float3(1, 0, 0), Mat4.Apply(parts.Matrices(0, 1, 0, -1)[1], o));       // not reversible
+        var x = new Float3(1, 0, 0);
+        // θ = −π with a travel of π: the rectified part has turned +π/2, the plain one −π/2
+        Near(new Float3(0, 1, 0), Mat4.Apply(parts.Matrices(-Math.PI, 0, 0, Math.PI)[0], x));
+        Near(new Float3(0, -1, 0), Mat4.Apply(parts.Matrices(-Math.PI, 0, 0, Math.PI)[1], x));
+        // with no travel given it is |θ|
+        Near(new Float3(0, 1, 0), Mat4.Apply(parts.Matrices(-Math.PI, 0, 0)[0], x));
     }
 
     [Theory]
     [InlineData(1.0, "pinion_w")]
     [InlineData(-1.0, "pinion_e")]
-    public void In_a_raise_the_shipped_clutch_engages_the_pinion_that_turns_with_the_shaft(double direction, string engaged)
+    public void The_shipped_rectifier_turns_the_disc_one_way_and_carries_the_pinion_that_turns_with_the_shaft(double direction, string carried)
     {
-        // The shaft turns 6 times over a full raise, either way round. The sleeve moves onto the
-        // pinion that then turns with the shaft; the drum winds the ropes in either way.
-        var rig = Shipped();
-        var parts = rig.MovingParts;
-        int clutch = parts.IndexOf("clutch"), pin = parts.IndexOf(engaged), drum = parts.IndexOf("drum");
-        var probe = new Float3(0, 3.5f, 1.5f + 0.15f);              // a point near the shaft axis, off it
-        double turn = 2 * Math.PI * 6;
-        // the sleeve's slide (the rotate is about the shaft axis, so compare the x of a point on it)
-        float slide = Mat4.Apply(parts.Matrices(0, 1, 1, direction)[clutch], new Float3(0, 3.5f, 1.5f)).X;
-        Assert.Equal(engaged == "pinion_w" ? -1 : 1, Math.Sign(slide));
-        // over a small step of the raise the engaged pinion turns as the shaft does
-        double d0 = 0.5, step = 0.01, dTheta = direction * step * turn;
-        var a0 = Mat4.Apply(parts.Matrices(0, d0, 1, direction)[pin], probe);
-        var a1 = Mat4.Apply(parts.Matrices(0, d0 - step, 1, direction)[pin], probe);
-        var s1 = Mat4.Apply(Mat4.Rotation(Axis.X, dTheta, new Float3(0, 3.5f, 1.5f)), a0);
-        Near(s1, a1, 1e-3f);
-        // and the drum turns the way that winds the rope in (its pay-out angle shrinks)
-        var r0 = Mat4.Apply(parts.Matrices(0, d0, 1, direction)[drum], new Float3(0, 3.5f, 0.765625f - 0.13f));
-        var r1 = Mat4.Apply(parts.Matrices(0, d0 - step, 1, direction)[drum], new Float3(0, 3.5f, 0.765625f - 0.13f));
-        Assert.True(r1.Y > r0.Y, "the rope side of the drum should move up as the saws rise");
+        // Each loose pinion has a one-way catch: whichever way the shaft turns, one pinion turns
+        // with it and the crown disc turns the same way; in a raise the small crown gear's half of
+        // the crown axle (geared to the drums) turns as the disc does, so the dog clutch can lock
+        // them together (6 shaft turns per raise).
+        var parts = Shipped().MovingParts;
+        int pin = parts.IndexOf(carried), crown = parts.IndexOf("crown"), crownB = parts.IndexOf("crown_b");
+        Assert.True(pin >= 0 && crown >= 0 && crownB >= 0);
+        var axis = new Float3(0, 3.5f, 1.5f);
+        var probe = new Float3(0, 3.5f, 1.5f + 0.15f);
+        double t0 = 1.0, step = 0.05, psi0 = 0.0;   // the disc starts square, so its top moving east means it turns the raising way
+        var a0 = Mat4.Apply(parts.Matrices(t0, 0.5, 1, psi0)[pin], probe);
+        var a1 = Mat4.Apply(parts.Matrices(t0 + direction * step, 0.5, 1, psi0 + step)[pin], probe);
+        Near(Mat4.Apply(Mat4.Rotation(Axis.X, direction * step, axis), a0), a1, 1e-4f);
+        var disc = new Float3(0.75f, 3.5f + 0.3f, 1.2f);
+        var c0 = Mat4.Apply(parts.Matrices(t0, 0.5, 1, psi0)[crown], disc);
+        var c1 = Mat4.Apply(parts.Matrices(t0 + direction * step, 0.5, 1, psi0 + step)[crown], disc);
+        Assert.True(c1.X > c0.X, "the crown disc's top should move east whichever way the shaft turns");
+        // in a raise of `step` shaft radians the depth falls step / (2π·6)
+        static double Angle(Float3 v) => Math.Atan2(v.Y - 3.5, v.X - 0.75);
+        var q = new Float3(0.75f + 0.12f, 3.5f, 1.0f);
+        double d0 = 0.5, dd = step / (2 * Math.PI * 6);
+        double discTurn = Math.IEEERemainder(Angle(Mat4.Apply(parts.Matrices(t0, d0, 1, psi0 + step)[crown], q)) - Angle(Mat4.Apply(parts.Matrices(t0, d0, 1, psi0)[crown], q)), 2 * Math.PI);
+        double halfTurn = Math.IEEERemainder(Angle(Mat4.Apply(parts.Matrices(t0, d0 - dd, 1, psi0)[crownB], q)) - Angle(Mat4.Apply(parts.Matrices(t0, d0, 1, psi0)[crownB], q)), 2 * Math.PI);
+        Assert.True(Math.Abs(discTurn) > 1e-3, "the disc turns");
+        Assert.Equal(discTurn, halfTurn, 4);
+    }
+
+    [Fact]
+    public void The_shipped_rock_shaft_throws_the_dog_clutch_onto_the_dog_hub_while_the_saws_rise()
+    {
+        var parts = Shipped().MovingParts;
+        int dog = parts.IndexOf("dog");
+        var axisPoint = new Float3(0.75f, 3.5f, 1.1f);           // on the crown axle, which the clutch turns about
+        float rest = Mat4.Apply(parts.Matrices(0, 0.5)[dog], axisPoint).Z;
+        float thrown = Mat4.Apply(parts.Matrices(0, 1)[dog], axisPoint).Z;
+        float held = Mat4.Apply(parts.Matrices(0, 0.3, 1)[dog], axisPoint).Z;
+        Assert.True(thrown < rest - 0.05f, "slid north, onto the dog hub");
+        Assert.Equal(thrown, held, 4);
     }
 
     [Fact]
@@ -379,8 +397,8 @@ public class RigAnimationTests
         foreach (var pose in doc.RootElement.GetProperty("poses").EnumerateArray())
         {
             double theta = pose.GetProperty("theta").GetDouble(), depth = pose.GetProperty("depth").GetDouble(), lifting = pose.GetProperty("lifting").GetDouble();
-            double direction = pose.TryGetProperty("direction", out var dir) ? dir.GetDouble() : 1;
-            var mats = parts.Matrices(theta, depth, lifting, direction);
+            double travel = pose.GetProperty("travel").GetDouble();
+            var mats = parts.Matrices(theta, depth, lifting, travel);
             var expected = pose.GetProperty("matrices");
             Assert.Equal(parts.Parts.Count, expected.EnumerateObject().Count());
             for (int i = 0; i < parts.Parts.Count; i++)
@@ -391,7 +409,7 @@ public class RigAnimationTests
                     {
                         double got = mats[i][col * 4 + row];
                         Assert.True(Math.Abs(got - rows[row][col]) < 2e-4,
-                            $"{parts.Parts[i].Id} at θ {theta}, depth {depth}, lifting {lifting}, direction {direction}: [{row},{col}] is {got}, the reference says {rows[row][col]}");
+                            $"{parts.Parts[i].Id} at θ {theta}, depth {depth}, lifting {lifting}, travel {travel}: [{row},{col}] is {got}, the reference says {rows[row][col]}");
                     }
             }
             poses++;
@@ -410,6 +428,32 @@ public class RigAnimationTests
             Assert.True(i >= 0, id);
             float drop = Mat4.Apply(parts.Matrices(0, 1)[i], new Float3(0, 0, 0)).Y - Mat4.Apply(parts.Matrices(0, 0)[i], new Float3(0, 0, 0)).Y;
             Assert.Equal(rig.Saw.BottomY - rig.Saw.TopY, drop, 4);
+        }
+    }
+
+    [Fact]
+    public void The_shipped_guide_blocks_sink_with_the_saws_but_do_not_stroke()
+    {
+        // Each blade's tail is held in a guide block on a post at the south end: the block follows
+        // the saw down and up, but stays put while the saw strokes along z through it.
+        var parts = Shipped().MovingParts;
+        foreach (int n in new[] { 1, 2 })
+        {
+            int slider = parts.IndexOf($"f{n}_slider"), saw = parts.IndexOf($"f{n}_saw"), carriage = parts.IndexOf($"f{n}_carriage");
+            Assert.True(slider >= 0 && saw >= 0 && carriage >= 0, $"station {n}");
+            double strokeSpan = 0;
+            for (int i = 0; i < 16; i++)
+                foreach (double depth in new[] { 0.0, 0.5, 1.0 })
+                {
+                    var mats = parts.Matrices(i * Math.PI / 8, depth);
+                    var origin = new Float3(0, 0, 0);
+                    Near(Mat4.Apply(mats[carriage], origin), Mat4.Apply(mats[slider], origin));
+                    var s = Mat4.Apply(mats[saw], origin);
+                    var b = Mat4.Apply(mats[slider], origin);
+                    Assert.Equal(b.Y, s.Y, 4);
+                    strokeSpan = Math.Max(strokeSpan, Math.Abs(s.Z - b.Z));
+                }
+            Assert.True(strokeSpan > 0.05, $"station {n}'s saw does not stroke past its guide block");
         }
     }
 }

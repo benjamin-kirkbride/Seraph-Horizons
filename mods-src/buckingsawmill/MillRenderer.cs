@@ -18,9 +18,9 @@ public sealed class MillRenderer : IRenderer
 {
     public static readonly AssetLocation ShapeLoc = new(BuckingSawmillSystem.Domain, "shapes/block/buckingmill.json");
     private const int DrawRange = 64;              // blocks from the camera to the controller
-    private const float SawdustInterval = 0.1f;    // seconds between sawdust puffs per blade set
+    private const float SawdustInterval = 0.1f;    // seconds between sawdust puffs per blade
     private const float LiftingEase = 6f;           // per second: how fast the lifting input follows the phase
-    private const int RatchetPegs = 12;             // pegs on the crown disc the latch clicks over
+    private const int RatchetTeeth = 12;            // teeth on the windlass's ratchet wheel the latch clicks over
 
     private readonly ICoreClientAPI _capi;
     private readonly BEBuckingMill _be;
@@ -44,8 +44,7 @@ public sealed class MillRenderer : IRenderer
     private int _stroke;
     private float _sawdustTimer;
     private float _lifting;                         // 0..1, eased towards 1 while the saws are raised
-    private float _direction = 1;                   // -1..1, eased towards the sign of the shaft's last turn
-    private float _directionTarget = 1;
+    private double _travel;                         // the shaft's travel: total angle turned either way (the rectified gears' input)
     private readonly double _clicksPerDepth;        // latch clicks over a full raise
     private int _click;
 
@@ -71,10 +70,11 @@ public sealed class MillRenderer : IRenderer
             _drawn[i] = p.Requires != null || p.Ride != null || p.Drivers.Count > 0;
             _isBlade[i] = p.Requires is { } r && r.StartsWith("blade", StringComparison.Ordinal);
         }
-        // the latch clicks over each of the crown disc's pegs while the windlass winds
-        var crown = _parts.IndexOf("crown");
-        var spin = crown < 0 ? null : _parts.Parts[crown].Drivers.FirstOrDefault(d => d.Type == DriverType.Step && d.Rotates);
-        _clicksPerDepth = spin == null ? 0 : Math.Abs(spin.Amount) * RatchetPegs / (2 * Math.PI);
+        // the latch clicks over each of the ratchet wheel's teeth while the windlass winds; the
+        // wheel is on the drum shaft, so it turns with the drum
+        var drum = _parts.IndexOf("drum");
+        var spin = drum < 0 ? null : _parts.Parts[drum].Drivers.FirstOrDefault(d => d.Type == DriverType.Step && d.Rotates);
+        _clicksPerDepth = spin == null ? 0 : Math.Abs(spin.Amount) * RatchetTeeth / (2 * Math.PI);
         capi.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "buckingmill");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowFar, "buckingmill");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowNear, "buckingmill");
@@ -255,7 +255,7 @@ public sealed class MillRenderer : IRenderer
         rapi.GlEnableCullFace();
     }
 
-    private float[][] Matrices() => _parts.Matrices(_theta, _be.ClientSawDepth, _lifting, _direction);
+    private float[][] Matrices() => _parts.Matrices(_theta, _be.ClientSawDepth, _lifting, _travel);
 
     private bool Fitted(int part) =>
         RigPart.Fitted(_parts.Parts[part].Requires, _be.SashCount, _be.HasCrankshaft, _be.BladeCount, _be.HasLevers);
@@ -281,16 +281,14 @@ public sealed class MillRenderer : IRenderer
 
     /// <summary>Turns the client's shaft clock by the power ghost's angle change (the network
     /// already advances that angle smoothly between server updates) and eases the lifting input
-    /// towards the phase and the shaft's direction towards the sign of its turning. While cutting it plays a saw stroke per half turn and puffs sawdust;
-    /// while the saws are raised the latch clicks over the crown disc's pegs.</summary>
+    /// towards the phase, and adds the turn's size to the shaft's travel (the rectified gears turn
+    /// with it, the same way whichever way the shaft turns). While cutting it plays a saw stroke per
+    /// half turn and puffs sawdust; while the saws are raised the latch clicks over the ratchet's teeth.</summary>
     private void AdvanceClock(float dt, bool far)
     {
         var phase = _be.Phase;
         float target = phase == MillPhase.Raising ? 1 : 0;
         _lifting += (target - _lifting) * Math.Min(1, dt * LiftingEase);
-        // the clutch side follows the shaft's direction: the shifter puts the sleeve on whichever
-        // pinion winds the drums in for the way the shaft is turning
-        _direction += (_directionTarget - _direction) * Math.Min(1, dt * LiftingEase);
         float speed = _be.ShaftSpeed;
         double angle = MillMotion.NativeShaftAngle(_be.Side, _be.ShaftAngle);
         if (!_angleSeeded || speed <= 0)
@@ -301,9 +299,8 @@ public sealed class MillRenderer : IRenderer
         }
         double before = _theta;
         double delta = MillMotion.WrappedDelta(_lastAngle, angle);
-        if (Math.Abs(delta) > 1e-6)
-            _directionTarget = Math.Sign(delta);
         _theta += delta;
+        _travel += Math.Abs(delta);
         _lastAngle = angle;
         // keep the clock small; every shaft ratio in the shipped rig is a whole number
         if (Math.Abs(_theta) > 1000 * Math.PI)
@@ -332,8 +329,8 @@ public sealed class MillRenderer : IRenderer
 
     private void PlayClick()
     {
-        // at the latch, over the crown disc at the west end
-        var at = WorldPoint(new Float3(0.75f, 3.9f, 1.35f));
+        // at the latch, on the ratchet wheel east of station 1's east post
+        var at = WorldPoint(new Float3(2.65f, 3.65f, 0.7f));
         _capi.World.PlaySoundAt(new AssetLocation("immersivewoodworking", "sounds/saw/metal_click"), at.X, at.Y, at.Z, null, true, 16, 0.35f);
     }
 
@@ -356,7 +353,7 @@ public sealed class MillRenderer : IRenderer
         {
             if (!_isBlade[i] || _bounds[i] is not { } b || !Fitted(i))
                 continue;
-            // along the blade set's cutting edge, where it is in the trunk
+            // along the blade's cutting edge, where it is in the trunk
             var edge = Mat4.Apply(mats[i], new Float3((b.Min.X + b.Max.X) / 2, b.Min.Y, mid));
             var lo = WorldPoint(new Float3(edge.X - 0.1f, edge.Y, mid - 0.6f));
             var hi = WorldPoint(new Float3(edge.X + 0.1f, edge.Y + 0.15f, mid + 0.6f));
