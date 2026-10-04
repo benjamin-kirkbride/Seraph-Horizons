@@ -10,8 +10,8 @@ namespace SeraphHorizons.RecipeExport.Items;
 
 /// <summary>
 /// Ways to get an item other than a recipe, as far as the data declares them: block drops,
-/// block harvests, entity drops and harvests, and trader lists. Drops decided in code
-/// (Block.GetDrops overrides, loot vessels, panning, ...) are not seen; see item-data.md.
+/// block harvests, panning, entity drops and harvests, and trader lists. Drops decided in code
+/// (Block.GetDrops overrides, loot vessels, fishing, ...) are not seen; see item-data.md.
 /// </summary>
 internal sealed class SourceIndex
 {
@@ -22,6 +22,7 @@ internal sealed class SourceIndex
     {
         _api = api;
         AddBlocks();
+        AddPanning();
         AddEntities();
     }
 
@@ -73,6 +74,91 @@ internal sealed class SourceIndex
                 Add(stack.Collectible.Code.ToString(), s);
             }
         }
+    }
+
+    /// <summary>
+    /// One source per pannable block and drop of a pan's table. Only full blocks are listed:
+    /// panning one leaves a block with layers 7 to 1 (pannedBlock), and each layer pans as the
+    /// full block named by its first two code parts, so it repeats that block's drops. A full
+    /// block whose layers pan as another block (sand-wavy leaves sand) also gets that block's
+    /// drops, with extra.material. A layered block whose drops no full block lists is listed
+    /// itself.
+    /// </summary>
+    private void AddPanning()
+    {
+        var pans = Panning.Pans(_api);
+        int count = 0;
+        var skipped = new List<string>();
+        var leftover = new List<string>();
+        foreach (var pan in pans)
+        {
+            var label = pans.Count > 1 ? pan.Pan.Code.ToString() : null;
+            // (drop list, rock) pairs listed so far: what a layered block's pan would repeat.
+            var listed = new HashSet<(PanningDrop[], string?)>();
+            var layered = new List<Block>();
+            foreach (var block in _api.World.Blocks)
+            {
+                if (block?.Code == null || block.IsMissing || !pan.Pan.IsPannableMaterial(block)) continue;
+                if (!Json.IsValidCode(block.Code.ToString())) continue;
+                if (block.Variant["layer"] != null) { layered.Add(block); continue; }
+                var panned = pan.PannedBlock(block);
+                var drops = pan.DropsFor(block);
+                // The pan refuses a block with no panned block, and fails on one with no drops.
+                if (panned == null || drops == null) { skipped.Add(block.Code.ToShortString()); continue; }
+                count += AddPanned(pan, block, block, drops, label);
+                listed.Add((drops, block.Variant["rock"]));
+                if (panned.Variant["layer"] == null || !pan.Pan.IsPannableMaterial(panned) || pan.Material(panned) is not { } rest) continue;
+                var restDrops = pan.DropsFor(rest);
+                if (restDrops == null || listed.Contains((restDrops, rest.Variant["rock"]))) continue;
+                count += AddPanned(pan, block, rest, restDrops, label);
+                listed.Add((restDrops, rest.Variant["rock"]));
+            }
+            foreach (var block in layered)
+            {
+                if (pan.Material(block) is not { } material || pan.DropsFor(material) is not { } drops) continue;
+                if (listed.Contains((drops, material.Variant["rock"]))) continue;
+                count += AddPanned(pan, block, material, drops, label);
+                leftover.Add(block.Code.ToShortString());
+            }
+        }
+        _api.Logger.Notification("[seraphexport] {0} panning source(s) from {1} pan(s)", count, pans.Count);
+        if (skipped.Count > 0)
+            _api.Logger.Notification("[seraphexport] {0} pannable block(s) cannot be panned (no panned block or no drops): {1}",
+                skipped.Count, string.Join(", ", skipped));
+        if (leftover.Count > 0)
+            _api.Logger.Notification("[seraphexport] {0} layered block(s) pan drops no full block lists: {1}",
+                leftover.Count, string.Join(", ", leftover));
+    }
+
+    private int AddPanned(Panning pan, Block block, Block material, PanningDrop[] drops, string? label)
+    {
+        var from = block.Code.ToString();
+        var fromName = ItemRecords.Name(block);
+        var stacks = drops.Select(d => pan.Stack(d, material)).ToArray();
+        // A drop that does not resolve still rolls, but a hit on it does not end the pan.
+        var chances = drops.Select((d, i) => stacks[i] == null ? 0 : Panning.RollChance(d.Chance)).ToArray();
+        int added = 0;
+        for (var i = 0; i < drops.Length; i++)
+        {
+            var stack = stacks[i];
+            if (stack?.Collectible?.Code == null) continue;
+            var drop = drops[i];
+            var quantity = new JObject { ["avg"] = Json.Significant((decimal)drop.Chance.avg) };
+            if (drop.Chance.var != 0) quantity["var"] = Json.Significant((decimal)drop.Chance.var);
+            var s = Source("other", from, fromName, quantity);
+            s["note"] = "Panned";
+            var extra = new JObject { ["chancePerPan"] = Json.Significant((decimal)Panning.ChancePerPan(chances, i)) };
+            if (drop.DropModbyStat != null) extra["stat"] = drop.DropModbyStat;
+            if (drop.Attributes is { Exists: true } && drop.Attributes.Token is JObject attrs && attrs.Count > 0)
+                extra["attributes"] = attrs.DeepClone();
+            if (stack.StackSize != 1) extra["stackSize"] = stack.StackSize;
+            if (material != block) extra["material"] = material.Code.ToString();
+            if (label != null) extra["pan"] = label;
+            s["extra"] = extra;
+            Add(stack.Collectible.Code.ToString(), s);
+            added++;
+        }
+        return added;
     }
 
     private void AddEntities()

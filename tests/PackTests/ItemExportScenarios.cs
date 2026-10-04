@@ -253,6 +253,132 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Equal(new[] { "l33tmaan" }, mod["authors"]!.Values<string>());
     }
 
+    // --- panning: survival/blocktypes/wood/pan.json panningDrops, patched by wpanning ------
+
+    private IEnumerable<(string Item, JObject Source)> Panned() =>
+        Items.Properties().SelectMany(p => Sources((JObject)p.Value, "other")
+            .Where(s => (string?)s["note"] == "Panned")
+            .Select(s => (p.Name, s)));
+
+    private static JObject PannedFrom(JObject item, string from) =>
+        Assert.Single(Sources(item, "other"), s => (string?)s["note"] == "Panned" && (string?)s["from"] == from);
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Panning_bony_soil_gives_bone_rusty_gears_and_low_potential_emeralds()
+    {
+        // pan.json "@(bonysoil|bonysoil-.*)": bone avg 0.3; gear-rusty avg 0.025 with
+        // dropModbyStat rustyGearDropRate; gem-emerald-rough avg 0.01, attributes potential low.
+        var bone = PannedFrom(Item(Items, "game:bone"), "game:bonysoil");
+        Assert.Equal("Bony soil", (string?)bone["fromName"]);
+        Assert.Equal(0.3, (double?)bone["quantity"]?["avg"]);
+        Assert.Null(bone["quantity"]?["var"]);
+        // One pan gives at most one of the ~50 drops, so the chance per pan is lower.
+        var perPan = (double)bone["extra"]!["chancePerPan"]!;
+        Assert.InRange(perPan, 0.15, 0.299);
+
+        var gear = PannedFrom(Item(Items, "game:gear-rusty"), "game:bonysoil");
+        Assert.Equal(0.025, (double?)gear["quantity"]?["avg"]);
+        Assert.Equal("rustyGearDropRate", (string?)gear["extra"]?["stat"]);
+
+        var emerald = PannedFrom(Item(Items, "game:gem-emerald-rough"), "game:bonysoil");
+        Assert.Equal(0.01, (double?)emerald["quantity"]?["avg"]);
+        Assert.Equal("low", (string?)emerald["extra"]?["attributes"]?["potential"]);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Panning_rich_gravel_gives_stone_of_its_own_rock()
+    {
+        // wpanning's pan patch adds "@(richgravel)-.*": stone-{rocktype} avg 0.3, ore-quartz
+        // avg 0.08, nugget-nativecopper avg 0.03. Amphibolite has no key of its own.
+        var stone = PannedFrom(Item(Items, "game:stone-amphibolite"), "game:richgravel-amphibolite");
+        Assert.Equal(0.3, (double?)stone["quantity"]?["avg"]);
+        Assert.DoesNotContain(Sources(Item(Items, "game:stone-amphibolite"), "other"),
+            s => (string?)s["note"] == "Panned" && ((string?)s["from"])!.StartsWith("game:richgravel-") && (string?)s["from"] != "game:richgravel-amphibolite");
+        Assert.Equal(0.08, (double?)PannedFrom(Item(Items, "game:ore-quartz"), "game:richgravel-amphibolite")["quantity"]?["avg"]);
+        Assert.Equal(0.03, (double?)PannedFrom(Item(Items, "game:nugget-nativecopper"), "game:richgravel-amphibolite")["quantity"]?["avg"]);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Panning_rich_basalt_gravel_uses_its_own_key_instead_of_the_shared_one()
+    {
+        // wpanning adds "@(richgravel-basalt)" after "@(richgravel)-.*". Both match, BlockPan
+        // takes the last match, and the lists are not merged: magnetite 0.01 and native copper
+        // 0.02 come from the basalt list; ore-quartz is only in the shared one.
+        var basalt = "game:richgravel-basalt";
+        Assert.Equal(0.01, (double?)PannedFrom(Item(Items, "game:nugget-magnetite"), basalt)["quantity"]?["avg"]);
+        Assert.Equal(0.02, (double?)PannedFrom(Item(Items, "game:nugget-nativecopper"), basalt)["quantity"]?["avg"]);
+        Assert.Equal(0.3, (double?)PannedFrom(Item(Items, "game:stone-basalt"), basalt)["quantity"]?["avg"]);
+        Assert.DoesNotContain(Sources(Item(Items, "game:ore-quartz"), "other"),
+            s => (string?)s["note"] == "Panned" && (string?)s["from"] == basalt);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Panning_lists_full_blocks_only_and_not_sand()
+    {
+        // wpanning removes attributes.pannable from survival/blocktypes/stone/sand.json; wavy
+        // sand keeps it. Layered blocks (what panning leaves behind) pan as their full block.
+        var panned = Panned().ToList();
+        var froms = panned.Select(p => (string)p.Source["from"]!).ToHashSet();
+        Assert.DoesNotContain(froms, f => f.StartsWith("game:sand-"));
+        Assert.Contains("game:sandwavy-granite", froms);
+        Assert.Contains("game:gravel-granite", froms);
+        foreach (var from in froms)
+        {
+            var block = World.Api.World.GetBlock(new AssetLocation(from));
+            Assert.NotNull(block);
+            Assert.True(block!.Attributes?["pannable"].AsBool() == true, $"{from} is not pannable");
+            Assert.Null(block.Variant["layer"]);
+        }
+        Assert.Equal(1, World.Api.World.Blocks.Count(b => b is Vintagestory.GameContent.BlockPan));
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Panning_gravel_rolls_stone_twice_as_wpanning_adds_a_second_entry()
+    {
+        // Vanilla "@(sand|gravel|sandwavy)-.*" has stone-{rocktype} avg 0.2 at index 0;
+        // wpanning keeps it and adds another stone-{rocktype} avg 0.3 at index 6.
+        var avgs = Sources(Item(Items, "game:stone-granite"), "other")
+            .Where(s => (string?)s["note"] == "Panned" && (string?)s["from"] == "game:gravel-granite")
+            .Select(s => (double)s["quantity"]!["avg"]!).OrderBy(a => a).ToList();
+        Assert.Equal(new[] { 0.2, 0.3 }, avgs);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Panning_chances_per_pan_add_up_to_at_most_one_per_block()
+    {
+        foreach (var group in Panned().GroupBy(p => (string)p.Source["from"]!))
+        {
+            double sum = 0;
+            foreach (var (item, s) in group)
+            {
+                var avg = (double)s["quantity"]!["avg"]!;
+                var perPan = (double)s["extra"]!["chancePerPan"]!;
+                Assert.True(perPan > 0 && perPan <= avg, $"{item} from {group.Key}: {perPan} per pan, {avg} per roll");
+                sum += perPan;
+            }
+            Assert.True(sum <= 1.0001, $"{group.Key}: chances per pan add up to {sum}");
+        }
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Panning_machine_reads_the_wooden_pan()
+    {
+        // panningmachine's BlockPanningMachine reads attributes.panSource, default
+        // game:pan-wooden. Its allclasses variants name allclasses:metalpan-*; without that mod
+        // they have no recipe or creative tab, and their pan does not exist, so they pan nothing.
+        var machines = World.Api.World.Blocks
+            .Where(b => b?.Code?.Domain == "panningmachine" && b.Class == "panningmachine.BlockPanningMachine")
+            .ToList();
+        Assert.Contains(machines, m => m.Code.Path.StartsWith("panningmachine-north"));
+        foreach (var m in machines)
+        {
+            var pan = m.Attributes?["panSource"].AsString("game:pan-wooden") ?? "game:pan-wooden";
+            if (m.Code.Path.Contains("allclasses")) Assert.Null(World.Api.World.GetBlock(new AssetLocation(pan)));
+            else Assert.Equal("game:pan-wooden", pan);
+        }
+        Assert.IsAssignableFrom<Vintagestory.GameContent.BlockPan>(World.Api.World.GetBlock(new AssetLocation("game:pan-wooden")));
+    }
+
     // --- scope ---------------------------------------------------------------------------
 
     [AtlasScenario(TimeoutMs = Timeout)]
