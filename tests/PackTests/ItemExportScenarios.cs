@@ -186,6 +186,20 @@ public class ItemExportScenarios : AtlasScenarioBase
             $"expected 32 vanilla guides, got {guides.Count(g => (string?)g["mod"] == "survival")}");
     }
 
+    // seraphhorizons, UnifiedWoodworking: the export lists the handbook a player sees, the
+    // unified guide's six pages in place of Immersive Woodworking's and Logging Expanded's guides.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Woodworking_guide_is_the_unified_one()
+    {
+        var guides = ((JArray)Doc["guides"]!).OfType<JObject>().ToList();
+        var woodworking = guides.Where(g => (string?)g["mod"] is "seraphhorizons" or "immersivewoodworking" or "loggingmod").ToList();
+        Assert.All(woodworking, g => Assert.Equal("seraphhorizons", (string?)g["mod"]));
+        Assert.Equal(SeraphHorizons.Mod.Core.WoodworkingGuidePages.Pages.Select(p => p.PageCode).Order(StringComparer.Ordinal),
+            woodworking.Select(g => (string)g["code"]!).Order(StringComparer.Ordinal));
+        var overview = Assert.Single(guides, g => (string?)g["code"] == "craftinginfo-woodworking");
+        Assert.Equal(Lang.GetL("en", "seraphhorizons:woodworking-overview-title"), (string?)overview["title"]);
+    }
+
     // --- items from mods in the pack, against the mods' own files --------------------------
 
     [AtlasScenario(TimeoutMs = Timeout)]

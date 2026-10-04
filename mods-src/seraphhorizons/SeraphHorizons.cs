@@ -1,5 +1,6 @@
 using HarmonyLib;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
@@ -28,6 +29,10 @@ public class SeraphHorizonsSystem : ModSystem
     private bool _barrelRackKegs;
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
+    private UnifiedWoodworking? _woodworking;
+
+    /// <summary>The unified woodworking tweak on this side; set in <see cref="Start"/>.</summary>
+    public UnifiedWoodworking Woodworking => _woodworking!;
 
     /// <summary>This side's settings. Loaded on first use (this system's <see cref="Start"/> at the
     /// latest), so another system of the mod can read them in any phase.</summary>
@@ -58,6 +63,11 @@ public class SeraphHorizonsSystem : ModSystem
             BarrelRackKegs.Patch(_barrelRackHarmony = new Harmony(BarrelRackKegs.HarmonyId));
         else
             BarrelRackKegs.DisablePatches(api);
+        // Registers its classes whatever the setting; on the server, decides whether it runs and
+        // tells clients; sets the two mods' settings and patches. Last, and it catches its own
+        // failures, so nothing above depends on it.
+        _woodworking = new UnifiedWoodworking();
+        _woodworking.Start(api, Config(api).UnifiedWoodworking);
     }
 
     // Behavior changes run on the server only: that is where the tweaked mods simulate.
@@ -138,10 +148,15 @@ public class SeraphHorizonsSystem : ModSystem
             AssembledMachines.AddToBlocktypes(api);
         if (_barrelRackKegs)
             LangText.Apply(BarrelRackKegs.LangEdits, BarrelRackKegs.FoodShelvesId, api.Logger);
+        _woodworking?.AssetsLoaded(api);
     }
+
+    public override void AssetsFinalize(ICoreAPI api) => _woodworking?.AssetsFinalize(api);
 
     public override void Dispose()
     {
+        _woodworking?.Dispose();
+        _woodworking = null;
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
         if (ClearSky != null)
@@ -259,4 +274,13 @@ public class SeraphHorizonsConfig
     /// perishing at the keg's own rate times the rack's (both sides; the server's switch decides
     /// what the rack takes).</summary>
     public bool BarrelRackKegs { get; set; } = true;
+
+    /// <summary>Immersive Woodworking + Logging Expanded: one woodworking system. Immersive
+    /// Woodworking's chopping block is the splitting block, made in the world with an axe and
+    /// upgraded through Logging Expanded's tiers (the chopper takes only the advanced one);
+    /// Logging Expanded's sawhorses are the only sawhorses and also saw support beams; Immersive
+    /// Woodworking's sawhorse and pit saw and Logging Expanded's splitting logs are retired; one
+    /// handbook guide covers it all (off means both mods as they ship). The server's setting
+    /// decides; a client follows the server, whatever its own says.</summary>
+    public bool UnifiedWoodworking { get; set; } = true;
 }
