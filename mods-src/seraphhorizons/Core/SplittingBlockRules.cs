@@ -30,8 +30,10 @@ public enum SplittingBlockStep
 /// <param name="HoldSeconds">How long the player holds the mouse button; 0 is instant.</param>
 /// <param name="MainWear">Durability the held tool loses.</param>
 /// <param name="HammerWear">Durability the hammer in the offhand loses.</param>
+/// <param name="Creative">The creative shortcut (<see cref="CreativeUpgrades"/>): nothing held,
+/// nothing taken, and no bark.</param>
 public sealed record SplittingBlockUpgrade(SplittingBlockStep Step, SplittingBlockTier From, int Consumes, float HoldSeconds,
-    int MainWear, int HammerWear)
+    int MainWear, int HammerWear, bool Creative = false)
 {
     public SplittingBlockTier To => From + 1;
 
@@ -48,7 +50,8 @@ public sealed record SplittingBlockUpgrade(SplittingBlockStep Step, SplittingBlo
 /// in it), so it never meets Immersive Woodworking's own interactions there, and never with
 /// Shift or Ctrl held, which Immersive Woodworking uses to stick an axe in and to take things off.
 /// None of the items an upgrade takes can be laid on the block or chopped, so on an empty block
-/// they did nothing before.
+/// they did nothing before. The creative shortcut (<see cref="Creative"/>) is the one upgrade made
+/// with Ctrl: on an empty block, Immersive Woodworking's Ctrl takes nothing back.
 /// </summary>
 public static class SplittingBlockRules
 {
@@ -132,6 +135,12 @@ public static class SplittingBlockRules
                 return null;
         }
     }
+
+    /// <summary>The creative shortcut's upgrade of an empty block of <paramref name="tier"/>
+    /// (<see cref="CreativeUpgrades.Applies"/>): the next step at once, whatever is held, for
+    /// nothing. Null for the advanced tier.</summary>
+    public static SplittingBlockUpgrade? Creative(SplittingBlockTier tier) =>
+        NextStep(tier) is { } step ? new(step, tier, 0, 0, 0, 0, Creative: true) : null;
 
     /// <summary>How long debarking takes: Immersive Woodworking's base time
     /// (<c>DebarkSeconds</c>) over the tool's speed, as its sawhorse advances the strip. A speed at
