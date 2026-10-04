@@ -456,10 +456,11 @@ public class RecipeExportScenarios : AtlasScenarioBase
     {
         var api = (ICoreServerAPI)World.Api;
         var entity = api.World.GetEntityType(new AssetLocation("game:deer-whitetail-adult-male"))!;
-        var drops = entity.Server.BehaviorsAsJsonObj.Single(x => x["code"].AsString() == "harvestable")["drops"]
-            .AsObject<BlockDropItemStack[]>(null, "game")
-            .Where(d => d.Quantity.avg != 0 || d.Quantity.var != 0).ToList();
-        var redmeat = drops.Single(d => d.Code.ToString() == "game:redmeat-raw");
+        var harvestable = entity.Server.BehaviorsAsJsonObj.Single(x => x["code"].AsString() == "harvestable")["drops"]
+            .AsObject<BlockDropItemStack[]>(null, "game");
+        Assert.NotNull(harvestable);
+        var drops = harvestable.Where(d => d.Quantity.avg != 0 || d.Quantity.var != 0).ToList();
+        var redmeat = drops.Single(d => d.Code?.ToString() == "game:redmeat-raw");
 
         var r = Recipe("butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead");
         var v = r["butchery"]!["variants"]!.Select((x, i) => (x, i))
@@ -476,7 +477,7 @@ public class RecipeExportScenarios : AtlasScenarioBase
         Assert.Equal(redmeat.Quantity.avg * 0.5, (double)YieldIn("harvest", "game:redmeat-raw")!["avg"]!, 3);
         Assert.Equal(0.5, (double)stages.Single(s => (string)s["step"]! == "harvest")["multiplier"]!, 3);
         Assert.Null(YieldIn("skin", "game:redmeat-raw"));
-        var hide = drops.Single(d => d.Code.Path == "hide-raw-large");
+        var hide = drops.Single(d => d.Code?.Path == "hide-raw-large");
         Assert.Equal(hide.Quantity.avg, (double)YieldIn("skin", "game:hide-raw-large")!["avg"]!, 3);
 
         // The item's "Harvested" source carries the same cut.
