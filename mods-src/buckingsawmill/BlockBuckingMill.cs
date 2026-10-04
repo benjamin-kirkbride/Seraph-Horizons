@@ -59,6 +59,22 @@ public class BlockBuckingMill : Block
         return true;
     }
 
+    /// <summary>Places the variant that makes the mill extend away from the player: the block they
+    /// clicked becomes the middle of its near (output) end, and the axle end is the far one
+    /// (<see cref="Footprint.PlacedFacing"/>).</summary>
+    public override bool TryPlaceBlock(IWorldAccessor world, IPlayer byPlayer, ItemStack itemstack, BlockSelection blockSel, ref string failureCode)
+    {
+        // the horizontal direction from the player to the block they clicked: the way they look
+        var away = SuggestedHVOrientation(byPlayer, blockSel)[0];
+        var look = Sides.FromNormal(away.Normali.X, away.Normali.Z);
+        var side = Footprint.PlacedFacing(look);
+        if (world.GetBlock(CodeWithVariant("side", side.Code())) is not { Id: > 0 } block)
+            return false;
+        if (!block.CanPlaceBlock(world, byPlayer, blockSel, ref failureCode))
+            return false;
+        return block.DoPlaceBlock(world, byPlayer, blockSel, itemstack);
+    }
+
     public override void OnBlockPlaced(IWorldAccessor world, BlockPos blockPos, ItemStack? byItemStack = null)
     {
         base.OnBlockPlaced(world, blockPos, byItemStack);

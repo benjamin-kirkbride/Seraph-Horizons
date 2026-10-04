@@ -121,5 +121,18 @@ public class RigTests
         // The axle comes in from outside the mill.
         var beyond = rig.PowerCell + rig.PowerFace.Normal();
         Assert.Null(rig.CellAt(beyond));
+        // Both come in at the west end: the rack on the ground beyond the whole end, the axle up
+        // in the top row, so they never want the same cell.
+        Assert.Equal(Side.West, rig.InfeedSide);
+        Assert.Equal(Side.West, rig.PowerFace);
+        int west = rig.Cells.Min(c => c.Pos.X);
+        Assert.Equal(west, rig.PowerCell.X);
+        Assert.All(rig.InfeedNeighbours(), p => Assert.Equal(new { X = west - 1, Y = 0 }, new { p.X, p.Y }));
+        Assert.Equal(3, rig.InfeedNeighbours().Count());
+        Assert.DoesNotContain(beyond, rig.InfeedNeighbours());
+        // The logs leave the east end, beyond its face, on the bed's centre line.
+        Assert.Equal(Side.East, rig.OutputSide);
+        Assert.True(rig.OutputPos.X > rig.Cells.Max(c => c.Pos.X) + 1, $"output {rig.OutputPos} inside the mill");
+        Assert.Equal(rig.TrunkBed!.Origin.Z, rig.OutputPos.Z, 4);
     }
 }

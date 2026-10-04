@@ -10,8 +10,13 @@ It depends on the game, `immersivewoodworking` and `loggingmod`.
 
 ## The machine
 
-**Blocks.** The controller is `buckingsawmill:buckingmill-frame-{side}` (horizontally orientable,
-item form `-north`). Placing it needs room for every cell of the rig and stamps an invisible ghost
+**Blocks.** The controller is `buckingsawmill:buckingmill-frame-{side}` (item form `-north`).
+**Placing** it, the mill extends away from the player along their line of sight: the block they
+clicked becomes the controller, the middle of the machine's near end, which is the output end where
+the logs come out; the far end carries the axle and is where a Trunk Storage Rack stands.
+`BlockBuckingMill.TryPlaceBlock` picks the `side` with `Footprint.PlacedFacing`: looking north
+places `west`, east `north`, south `east`, west `south` (the native west end then points the way
+the player looks). Placing needs room for every cell of the rig and stamps an invisible ghost
 into each other cell: `buckingmill-ghost`, and `buckingmill-ghostpower-{side}` in the cell that
 takes the axle. Ghosts store the controller's position and pass interaction, breaking, the
 pick-block stack, particles, name, info and help to it, as Immersive Woodworking's sawmill ghosts
@@ -23,7 +28,9 @@ breaks the whole mill.
 boxes, the power cell and the face that takes the axle, the infeed end a rack must touch, the
 point and side logs leave by, the saws' travel (`saw`, optional), and keys only the renderer
 reads. Everything there is in the native,
-south-facing frame with the controller at `[0,0,0]`. Turning it to a facing follows Immersive
+south-facing frame with the controller at `[0,0,0]`: cells x −5..0 (west to east), y 0..3, z −1..1,
+so the controller is the middle cell of the east end. The power cell is `[-5,3,0]`, taking the axle
+on its west face. Turning it to a facing follows Immersive
 Woodworking: with n the normal of the `side` variant, local (x, y, z) goes to
 (x·nz + z·nx, y, −x·nx + z·nz), and the shape turns by rotateY north 180, east 90, south 0,
 west 270. `Core/Rig.cs` parses the file and `Core/Footprint.cs` does the turning.
@@ -55,8 +62,10 @@ search). A trunk goes on only while the saws are at the top of their cycle, with
 default rate); otherwise the player is told to wait for the saws to come up. From a rack: an
 assembled, empty, turning mill looks for a Trunk Storage Rack touching its infeed end at ground
 level (either of the rack's cells), every tick its saws are at (or pass) the top and once a second
-besides. The infeed is the east end in the native frame, the end opposite the axle, where a trunk
-slides in lengthwise along the bed through both stations. The mill takes the rack's top trunk (the rack is last in, first out) unless that trunk is branched; then it waits. The rack
+besides. The infeed is the west end in the native frame, the far end from the player who placed
+the mill, under the axle: the rack stands on the ground there (it is one block high, the axle comes
+in three blocks up), and a trunk slides in lengthwise through the west portal along the bed's rails
+through both stations. The cut logs leave the other, near end. The mill takes the rack's top trunk (the rack is last in, first out) unless that trunk is branched; then it waits. The rack
 is looked up afresh every time.
 
 **Cutting.** Progress runs from 0 to 1 per trunk, advanced by how far the shaft turned (its angle,
@@ -118,7 +127,7 @@ speed), which `MillRenderer` polls to draw the moving parts and the trunk (see [
 | `RaiseRevolutions` | 6 | Shaft turns for the saws' whole travel, each way, when not cutting: up from the bed, and down when empty. An empty cycle is twice this. |
 | `LogsPerStoredLog` | 2.0 | Logs out per log stored, rounded down over the trunk |
 | `BladeWearPerStoredLog` | 0.25 | Durability each blade kit loses per log stored, rounded up over the trunk |
-| `AutoPullFromRack` | true | Whether it takes trunks from a rack at its infeed end (the end opposite the axle) |
+| `AutoPullFromRack` | true | Whether it takes trunks from a rack at its infeed end (the far end, under the axle) |
 
 ## Crafting
 
@@ -138,9 +147,9 @@ The machine's model is an edited copy of the sawmill from Immersive Woodworking 
 
 ### How the machine works
 
-The mill is a pair of **drag saws with a windlass lift**. All positions are in the native, south-facing frame: x is width (west to east), y is up, z is depth (north to south), and the controller cell is at the origin.
+The mill is a pair of **drag saws with a windlass lift**. Positions in this section are in the generator's **build frame**: the native, south-facing axes (x west to east, y up, z north to south) measured from the machine box's north-west bottom corner, so the box is x 0..6, y 0..4, z 0..3 blocks (voxels are 1/16). The shipped files are the same model moved by (−5, 0, −1) blocks, which puts the controller cell, build cell (5, 0, 1), at `[0,0,0]`.
 
-The trunk lies along x on a fixed bed at y 0.5, centred at z 1.6875 (27 voxels), so a 2×2 trunk spans z 11..43 voxels. The north side holds the saw mechanism. Trunks come in at the east end, sliding lengthwise along the bed from a rack standing there, and logs leave by the south side. Power comes in at the west end, on the shared shaft along x at y 3.5, z 1.5.
+The trunk lies along x on a fixed bed at y 0.5, centred at z 1.6875 (27 voxels), so a 2×2 trunk spans z 11..43 voxels. The north side holds the saw mechanism. Material goes straight through, west to east: trunks come in at the west end, sliding lengthwise onto the bed's rails from a rack standing there, and the cut logs leave off the east end. Power also comes in at the west end, high up, on the shared shaft along x at y 3.5, z 1.5.
 
 **Crankshaft and frame.**
 - **Main shaft.** A wooden shaft of IW's cross profile, matching the vanilla axle that feeds it, runs from the input bearing to station 1's west post. It carries the reversing gear.
@@ -148,11 +157,13 @@ The trunk lies along x on a fixed bed at y 0.5, centred at z 1.6875 (27 voxels),
   - The bar between the cranks is the crank stub's own profile (`shaft_crankbar`).
   - It runs in a bearing block hanging from the top beam at every station post.
 - **Drum shaft.** It runs in a bearing block at each station post, built into the post's cap under the top beam, and in a block hanging from the west head beam beside the drum pinion.
-- **West end.**
-  - The west post stands on the head beam's centre line, and the beam's end rests square and flush on the post's top, as the top beams sit on the station posts.
-  - The input post carries the main shaft's bearing on its top.
-  - The drum shaft's west bearing hangs from the west head beam.
-  - The rock shaft runs in two bearing blocks: one on an arm from the input post, one on an arm from station 1's west post.
+- **West end: a portal the trunk passes through.**
+  - Two solid 4×4 posts stand at the west face either side of the bed, clear of the trunk's path: the north one at z 3..7, the south one at z 44..48 (in line with the station's south posts). A head beam (4×3.5) runs across their tops at the top beams' height.
+  - The main shaft's input bearing hangs from the head beam round the shaft (its underside at y 54 voxels, 14 above a 2-block trunk), its west face flush with the portal's, where the axle connects.
+  - The west head beam runs east from the portal's head beam to station 1's west post. The drum shaft's west bearing and the small crown gear's bearing hang from it.
+  - The rock shaft runs in two bearing blocks: the west one hangs from the portal's head beam, the east one is on an arm from station 1's west post.
+  - Everything above the trunk's path stays above y 40 voxels (a 2-block trunk's top), and nothing stands in it below.
+- **Bed.** Two rails run the machine's whole length, from the west face to the east face, as skids: the trunk slides on at the west end from the rack, and the cut logs slide off at the east end. They stop only for the blades' gaps.
 - **Nothing fixed floats.** The generator checks that every frame element shares a face with the rest of the frame, down to the ground, and that each bearing encloses its shaft.
 
 There are two saw stations, at x = 2 and x = 4. Each one has the same parts:
@@ -271,6 +282,8 @@ The output is deterministic. On every run the script also checks its own output,
   - nothing leaves the declared cells at rest, or the machine box anywhere in the motion.
 - **Clearances** (sampled over 8 shaft angles × 5 depths × cutting and lifting, the shaft turning either way):
   - no trunk size, centred on the bed, touches any part but the blades;
+  - the infeed: an xxl trunk sliding in lengthwise from wholly beyond the west face to its place on the bed, and the outfeed: a 2×2 section sliding from there to wholly beyond the east face, touch nothing, fixed or moving, with the saws at the top (16 shaft angles);
+  - the rack's cells (on the ground beyond the west face) and the axle's (beyond the power cell, three blocks up) are different cells;
   - the blades clear a 2×2 trunk at the top, and the bed rails at depth 1;
   - over 72 shaft angles, every depth, cutting and lifting, and the shaft turning either way, each tail stays inside its guide block's slot (in length, height and width) and clear of a 2×2 trunk, each guide block stays on its post, and both stay inside the declared cells;
   - the guide block's rope leaves the spool's underside and meets the sheave, and its drop stays on the guide block, at every depth; the run, the drop and the sheave clear every other moving part and the frame over the whole motion (the sheave's pin excepted);
@@ -288,7 +301,7 @@ The output is deterministic. On every run the script also checks its own output,
   - both trips: going down, the carriage's lug meets the tappet exactly when the trip starts to move (depth 0.941); going up, it meets the collar exactly when the trip starts back (depth 0.059); and the lug never runs into either;
   - the lever never jumps: over every depth, going down and going up, the trip rod's top stays pinned to the tappet arm;
   - the rectifier: per radian of shaft travel the west pinion turns +1, the east −1, and the disc the same way either way; in a raise the small crown gear's half turns exactly as the disc does.
-- **Files:** every texture used is declared, and every file parses.
+- **Files:** every texture used is declared, and every file parses. Everything is checked in the build frame; the shipped files are then moved by (−5, 0, −1) blocks, and the script checks that every element posed by the shipped rig lands where the checked one does, moved (to 1e-6 voxels), and that `[0,0,0]` is a cell.
 
 Rerun it when IW's shape changes. Placement numbers are named constants at the top of the script. The script also holds the reference implementation of the driver maths (`driver_matrix`, `part_matrix`), which the renderer and the browser viewer must match.
 
@@ -317,8 +330,8 @@ Rerun it when IW's shape changes. Placement numbers are named constants at the t
 - the dog clutch and dog hub (from the main rotor's plate) and the pinions' one-way catches;
 - the levers (trip rod with its tappet and collar; the rock shaft with its tappet arm, weight arm and weight, fork arm and fork), from IW's lever plate;
 - the rope wraps on the drums and spools, and the iron eyes the ropes are tied to on the carriages and guide blocks;
-- the posts (solid 4×4, the north ones grooved), the top beams (4×3.5), the crankshaft and drum-shaft bearings at every station post, the input post and its bearing, the west post and head beam, the drum shaft's west bearing, and the rock shaft's two bearings;
-- the bed: rails with gaps at the blade planes, sleepers and legs.
+- the posts (solid 4×4, the north ones grooved), the top beams (4×3.5), the crankshaft and drum-shaft bearings at every station post, the west portal (two posts, the head beam, the input bearing hanging from it), the west head beam, the drum shaft's west bearing, and the rock shaft's two bearings (the west one on a hanger from the portal);
+- the bed: rails along the whole length (skids at both ends) with gaps at the blade planes, sleepers and legs.
 
 **Dropped from IW's model:**
 - the log carriage, the log, its springs and rope, and the bed table;
@@ -342,8 +355,8 @@ Everything is in the native frame, in block units, with the controller at `[0,0,
 |---|---|
 | `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws at the top (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. |
 | `powerCell`, `powerFace` | The cell that takes the axle, and the native-frame face it connects on. |
-| `infeedSide`, `outputSide` | Native-frame sides: `east` (the end opposite the axle, where the rack stands and trunks slide in lengthwise) and `south` (logs drop off it). |
-| `output.pos` | Where cut logs spawn: just outside the output side, at bed height. |
+| `infeedSide`, `outputSide` | Native-frame sides: `west` (the axle end, where the rack stands and trunks slide in lengthwise) and `east` (the near end, the logs slide off it). |
+| `output.pos` | Where cut logs spawn: just beyond the east end (`[1.25, 0.625, 0.6875]`), at bed height on the bed's centre line. They get a small push east. |
 | `saw` | `topY` and `bottomY`: the height of the blades' cutting edge at the top (depth 0) and at the end of a cut (depth 1). The gameplay works out from them where the saw first touches a trunk of a given thickness: at depth (`topY` − (bed top + thickness)) / (`topY` − `bottomY`). |
 | `trunkBed` | `origin` is the centre of the bed's top surface. A trunk is drawn centred on it, lying along `axis`. `length` is the usable bed length. |
 | `parts` | An ordered list of moving parts (below). |
@@ -445,7 +458,7 @@ If you edit the shapes in VS Model Creator, keep the element names: the rig find
 | `gear_crown_` | The crown disc, its axle and the small crown gear. |
 | `drum` | The drum shaft and drums (`drum<n>_core`, `_wrap`, `_flange_*`). |
 | `bearing<n><w\|e>`, `bearing_drum*`, `input_bearing`, `rock_bearing_*` | The shaft bearings (static frame). |
-| `west_post`, `west_head_beam`, `rock_bearing_w`, `rock_bearing_e` | The west end's frame and the rock shaft's bearings (static frame). |
+| `portal_post_n`, `portal_post_s`, `portal_head_beam`, `input_bearing`, `west_head_beam`, `rock_bearing_w`, `rock_hanger_w`, `rock_bearing_e` | The west portal, its beams and the bearings hanging from them, and the rock shaft's bearings (static frame). |
 | `f<n>_carriage_eye`, `f<n>_slider_eye` | The iron eyes the ropes are tied to. |
 | `lever_trip_`, `lever_rock_` | The levers: the trip rod (with `lever_trip_collar`) and the rock shaft (with `lever_rock_weight`). |
 
@@ -473,7 +486,9 @@ The model is derived from Immersive Woodworking's sawmill model by Bobrik00 and 
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
 - `tests/PackTests/BuckingSawmillScenarios.cs` (Atlas) loads this build with every locked mod: the
   mod loads cleanly with its recipe, the bridge resolves against the pinned Logging Expanded,
-  placing stamps the ghosts in every facing and breaking removes them and drops the parts,
+  placing stamps the ghosts in every facing and breaking removes them and drops the parts, a
+  player looking each of the four ways places a mill that extends away from them (the axle cell 5
+  blocks ahead, the rack cells beyond it, the output behind the clicked block),
   assembly follows the rules (levers included), racks feed debranched trunks only (also through a
   rack's filler cell), a powered empty mill cycles down and up without stopping and takes a trunk
   by hand only at the top, a full cut on a real mechanical network (a creative rotor) gives the

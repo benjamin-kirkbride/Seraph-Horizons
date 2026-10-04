@@ -193,19 +193,19 @@ public class RigAnimationTests
         var parts = Shipped().MovingParts;
         int pin = parts.IndexOf(carried), crown = parts.IndexOf("crown"), crownB = parts.IndexOf("crown_b");
         Assert.True(pin >= 0 && crown >= 0 && crownB >= 0);
-        var axis = new Float3(0, 3.5f, 1.5f);
-        var probe = new Float3(0, 3.5f, 1.5f + 0.15f);
+        var axis = B(0, 3.5f, 1.5f);
+        var probe = B(0, 3.5f, 1.5f + 0.15f);
         double t0 = 1.0, step = 0.05, psi0 = 0.0;   // the disc starts square, so its top moving east means it turns the raising way
         var a0 = Mat4.Apply(parts.Matrices(t0, 0.5, 1, psi0)[pin], probe);
         var a1 = Mat4.Apply(parts.Matrices(t0 + direction * step, 0.5, 1, psi0 + step)[pin], probe);
         Near(Mat4.Apply(Mat4.Rotation(Axis.X, direction * step, axis), a0), a1, 1e-4f);
-        var disc = new Float3(0.75f, 3.5f + 0.3f, 1.2f);
+        var disc = B(0.75f, 3.5f + 0.3f, 1.2f);
         var c0 = Mat4.Apply(parts.Matrices(t0, 0.5, 1, psi0)[crown], disc);
         var c1 = Mat4.Apply(parts.Matrices(t0 + direction * step, 0.5, 1, psi0 + step)[crown], disc);
         Assert.True(c1.X > c0.X, "the crown disc's top should move east whichever way the shaft turns");
         // in a raise of `step` shaft radians the depth falls step / (2π·6)
-        static double Angle(Float3 v) => Math.Atan2(v.Y - 3.5, v.X - 0.75);
-        var q = new Float3(0.75f + 0.12f, 3.5f, 1.0f);
+        static double Angle(Float3 v) => Math.Atan2(v.Y - 3.5, v.X - B(0.75f, 0, 0).X);
+        var q = B(0.75f + 0.12f, 3.5f, 1.0f);
         double d0 = 0.5, dd = step / (2 * Math.PI * 6);
         double discTurn = Math.IEEERemainder(Angle(Mat4.Apply(parts.Matrices(t0, d0, 1, psi0 + step)[crown], q)) - Angle(Mat4.Apply(parts.Matrices(t0, d0, 1, psi0)[crown], q)), 2 * Math.PI);
         double halfTurn = Math.IEEERemainder(Angle(Mat4.Apply(parts.Matrices(t0, d0 - dd, 1, psi0)[crownB], q)) - Angle(Mat4.Apply(parts.Matrices(t0, d0, 1, psi0)[crownB], q)), 2 * Math.PI);
@@ -218,7 +218,7 @@ public class RigAnimationTests
     {
         var parts = Shipped().MovingParts;
         int dog = parts.IndexOf("dog");
-        var axisPoint = new Float3(0.75f, 3.5f, 1.1f);           // on the crown axle, which the clutch turns about
+        var axisPoint = B(0.75f, 3.5f, 1.1f);           // on the crown axle, which the clutch turns about
         float rest = Mat4.Apply(parts.Matrices(0, 0.5)[dog], axisPoint).Z;
         float thrown = Mat4.Apply(parts.Matrices(0, 1)[dog], axisPoint).Z;
         float held = Mat4.Apply(parts.Matrices(0, 0.3, 1)[dog], axisPoint).Z;
@@ -392,6 +392,11 @@ public class RigAnimationTests
     }
 
     // ---- the shipped rig ----
+
+    // A point given in the generator's build frame (the machine box from its north-west corner, in
+    // which make_shape.py places everything) in the shipped native frame, whose controller is the
+    // middle cell of the east end: build cell (5, 0, 1) is [0,0,0].
+    private static Float3 B(float x, float y, float z) => new(x - 5, y, z - 1);
 
     private static Rig Shipped() => Rig.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "rig.json")));
 

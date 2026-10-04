@@ -91,6 +91,17 @@ public static class Footprint
         return new Box(Math.Min(a.X, b.X), box.Y1, Math.Min(a.Z, b.Z), Math.Max(a.X, b.X), box.Y2, Math.Max(a.Z, b.Z));
     }
 
+    /// <summary>The <c>side</c> variant placed for a player looking along <paramref name="look"/>:
+    /// the mill extends away from them, its native west end (the axle and the infeed) farthest and
+    /// its east end (the output, with the controller, the block they clicked) nearest. The native
+    /// west normal goes to <paramref name="look"/> under <see cref="ToWorld(Int3, Side)"/>, so
+    /// looking north places <c>west</c>, east places <c>north</c>, south <c>east</c>, west <c>south</c>.</summary>
+    public static Side PlacedFacing(Side look)
+    {
+        var d = look.Normal();
+        return Sides.FromNormal(d.Z, -d.X);
+    }
+
     /// <summary>The shape's rotateY for a facing.</summary>
     public static int RotateY(Side facing) => facing switch
     {

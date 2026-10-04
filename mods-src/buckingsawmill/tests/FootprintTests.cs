@@ -93,4 +93,39 @@ public class FootprintTests
         Assert.False(Sides.TryParse("up", out _));
         Assert.False(Sides.TryParse(null, out _));
     }
+
+    // Placing: the mill extends away from the player. The block they clicked is the controller, the
+    // middle of the near (east, output) end; the axle and the infeed are at the far (west) end; the
+    // logs come out towards them.
+    [Theory]
+    [InlineData(Side.North, Side.West)]
+    [InlineData(Side.East, Side.North)]
+    [InlineData(Side.South, Side.East)]
+    [InlineData(Side.West, Side.South)]
+    public void Placing_turns_the_mill_to_extend_away_from_the_player(Side look, Side placed)
+    {
+        Assert.Equal(placed, Footprint.PlacedFacing(look));
+        var rig = Rig.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "rig.json")));
+        var d = look.Normal();
+        var toward = Sides.FromNormal(-d.X, -d.Z);
+        int Along(Int3 local) { var w = Footprint.ToWorld(local, placed); return w.X * d.X + w.Z * d.Z; }
+        int Across(Int3 local) { var w = Footprint.ToWorld(local, placed); return w.X * -d.Z + w.Z * d.X; }
+
+        // the controller is the clicked cell, at the near end, centred across the machine
+        Assert.Equal(Int3.Zero, Footprint.ToWorld(Int3.Zero, placed));
+        Assert.Equal(0, rig.Cells.Min(c => Along(c.Pos)));
+        Assert.Equal(-rig.Cells.Min(c => Across(c.Pos)), rig.Cells.Max(c => Across(c.Pos)));
+        Assert.True(rig.Cells.Max(c => Along(c.Pos)) > rig.Cells.Max(c => Math.Abs(Across(c.Pos))), "the long axis runs away from the player");
+
+        // the power cell is at the far end, and the axle and the rack come from beyond it
+        Assert.Equal(rig.Cells.Max(c => Along(c.Pos)), Along(rig.PowerCell));
+        Assert.Equal(look, Footprint.ToWorld(rig.PowerFace, placed));
+        Assert.Equal(look, Footprint.ToWorld(rig.InfeedSide, placed));
+
+        // the logs leave the near end, on the player's side of the controller
+        Assert.Equal(toward, Footprint.ToWorld(rig.OutputSide, placed));
+        var o = Footprint.ToWorld(rig.OutputPos, placed);
+        float alongOut = (o.X - 0.5f) * d.X + (o.Z - 0.5f) * d.Z;
+        Assert.True(alongOut < -0.5f, $"output {o} is not in front of the near end");
+    }
 }

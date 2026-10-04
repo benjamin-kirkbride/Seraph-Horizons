@@ -59,6 +59,13 @@ IW_SHAPE = "assets/immersivewoodworking/shapes/block/sawmill/sawmill.json"
 
 # ---------------------------------------------------------------- placement (voxels)
 CELLS_X, CELLS_Y, CELLS_Z = 6, 4, 3          # machine box: x 0..5, y 0..3, z 0..2 (blocks)
+# Everything below is built and checked in this box's frame (the "build frame": voxels from its
+# north-west-bottom corner). The shipped files are shifted so the controller is the middle cell of
+# the east (output) end: build cell ORIGIN_CELL becomes [0,0,0], the cells x -5..0, z -1..1.
+ORIGIN_CELL = (CELLS_X - 1, 0, CELLS_Z // 2)
+INFEED_SIDE, OUTPUT_SIDE = "west", "east"    # trunks slide in at the west (axle) end, logs leave the east end
+PORTAL_X = (0.0, 4.0)                        # the west portal's posts and head beam (x)
+PORTAL_N_Z = (3.0, 7.0)                      # its north post, clear of the trunk's path (z 11..43)
 STATION_X = (32.0, 64.0)                     # blade planes of the two saws
 SHAFT_Y, SHAFT_Z = 56.0, 24.0                # shared shaft (= centre of the west face of cell [0,3,1])
 POST_N = (7.0, 11.0)                         # z span of the north posts (the carriage slides between them)
@@ -918,21 +925,25 @@ def build_frame(iw):
     for i, y in enumerate((18.0, 32.0, ROCK_PIVOT[0] - 4.0), 1):
         out.append(from_template(tpl(iw, "leveler_metal_static_003"), [TRIP_X - 0.75, y, LEVER_Z[1]], [POST_X0, y + 1.0, POST_N[0] + 0.5],
                                  f"trip_strap{i}", "frame"))
-    # input end: a post under the shaft and a bearing block on its top, around the shaft
-    out += beam(t_post, [0.0, 0.0, SHAFT_Z - 2.0], [3.5, SHAFT_Y - 2.0, SHAFT_Z + 2.0], "input_post", "frame")
-    out.append(from_template(t_block, [0.0, SHAFT_Y - 2.0, SHAFT_Z - 2.0], [3.5, SHAFT_Y + 2.5, SHAFT_Z + 2.0], "input_bearing", "frame"))
-    # west post, on the head beam's centre line (the beam is centred on the drum shaft), the beam's
-    # end resting square and flush on the post's top, as the top beams sit on the station posts
+    # the west portal, which the trunk slides in through: a post either side of the bed, clear of
+    # the trunk's path, and a head beam across them at the top beams' height. The input bearing
+    # hangs from the head beam round the shaft, high above the trunk, with the axle's face flush
+    # with the portal's west face; the west head beam runs east from the portal's beam.
+    px_0, px_1 = PORTAL_X
+    out += beam(t_post, [px_0, 0.0, PORTAL_N_Z[0]], [px_1, TOP_BEAM_Y[0], PORTAL_N_Z[1]], "portal_post_n", "frame")
+    out += beam(t_post, [px_0, 0.0, SOUTH_Z[0]], [px_1, TOP_BEAM_Y[0], SOUTH_Z[1]], "portal_post_s", "frame")
+    out += beam(t_beam, [px_0, TOP_BEAM_Y[0], PORTAL_N_Z[0]], [px_1, TOP_BEAM_Y[1], SOUTH_Z[1]], "portal_head_beam", "frame", seg=12.0)
+    out.append(from_template(t_block, [0.0, SHAFT_Y - 2.0, SHAFT_Z - 2.0], [3.5, TOP_BEAM_Y[0], SHAFT_Z + 2.0], "input_bearing", "frame"))
     wz0, wz1 = DRUM_Z - 2.0, DRUM_Z + 2.0
-    out += beam(t_post, [0.0, 0.0, wz0], [4.0, TOP_BEAM_Y[0], wz1], "west_post", "frame")
-    out += beam(t_beam, [0.0, TOP_BEAM_Y[0], wz0], [POST_X0, TOP_BEAM_Y[1], wz1], "west_head_beam", "frame")
+    out += beam(t_beam, [px_1, TOP_BEAM_Y[0], wz0], [POST_X0, TOP_BEAM_Y[1], wz1], "west_head_beam", "frame")
     # drum-shaft bearing at the west end, beside the drum pinion, hanging from the head beam
     out.append(from_template(t_block, [BEARING_DRUM_X[0], SHAFT_Y - DRUM_BEARING, DRUM_Z - DRUM_BEARING], [BEARING_DRUM_X[1], TOP_BEAM_Y[0], DRUM_Z + DRUM_BEARING],
                              "bearing_drum", "frame"))
-    # the rock shaft's bearings: a block round each end, on an arm from the input post (west) and
-    # from station 1's west post (east)
+    # the rock shaft's bearings: a block round each end, the west one hanging from the portal's
+    # head beam, the east one on an arm from station 1's west post
     ry, rz = ROCK_PIVOT
-    out.append(from_template(t_block, [0.0, ry - 1.5, rz - 1.5], [3.5, ry + 1.5, SHAFT_Z - 2.0], "rock_bearing_w", "frame"))
+    out.append(from_template(t_block, [0.0, ry - 1.5, rz - 1.5], [3.5, ry + 1.5, rz + 1.5], "rock_bearing_w", "frame"))
+    out.append(from_template(t_block, [0.0, ry + 1.5, rz - 1.25], [3.5, TOP_BEAM_Y[0], rz + 1.25], "rock_hanger_w", "frame"))
     px0 = POST_X0
     out.append(from_template(t_block, [px0, ry - 1.5, POST_N[1]], [px0 + 3.0, ry + 1.5, rz + 1.5], "rock_bearing_e", "frame"))
     # the crown axle's bearings: the small crown gear's half in a block hanging from the west head
@@ -952,10 +963,12 @@ def build_bed(iw):
     """Rails along x on sleepers, with gaps where the blades pass below the trunk."""
     tpl_rail, tpl_leg, tpl_cross = tpl(iw, "Frame.119"), tpl(iw, "Frame.102"), tpl(iw, "Frame.110")
     out = []
-    edges = [4.0]
+    # the rails run the machine's whole length, end face to end face: skids for the trunk to slide
+    # on at the west (from the rack) and off at the east (the cut logs)
+    edges = [0.0]
     for sx in STATION_X:
         edges += [sx - RAIL_GAP, sx + RAIL_GAP]
-    edges.append(CELLS_X * 16.0)                # the rails run out to the east end: the infeed skid
+    edges.append(CELLS_X * 16.0)
     runs = list(zip(edges[0::2], edges[1::2]))
     for r, (z0, z1) in enumerate(RAIL_Z, 1):
         for s, (x0, x1) in enumerate(runs, 1):
@@ -1389,17 +1402,18 @@ def make_rig(els, parts):
         for y in range(CELLS_Y):
             for z in range(CELLS_Z):
                 boxes = cell_boxes(rest, (x, y, z))
-                if boxes is not None or (x, y, z) == (0, 0, 0):
+                if boxes is not None or (x, y, z) == ORIGIN_CELL:
                     cells.append({"pos": [x, y, z], "boxes": boxes or []})
     return {
         "_comment": "Generated by mods-src/buckingsawmill/tools/make_shape.py. Native frame (south-facing), "
-                    "block units, controller cell at [0,0,0]; see the mod's README for the schema.",
+                    "block units, controller cell at [0,0,0]: the middle of the east (output) end, nearest the player "
+                    "who placed it; the west (axle and infeed) end is farthest. See the mod's README for the schema.",
         "cells": cells,
         "powerCell": [0, int(SHAFT_Y // 16), int(SHAFT_Z // 16)],
         "powerFace": "west",
-        "infeedSide": "east",
-        "outputSide": "south",
-        "output": {"pos": [CELLS_X / 2, round((BED_TOP + 2) * b, 4), CELLS_Z + 0.25]},
+        "infeedSide": INFEED_SIDE,
+        "outputSide": OUTPUT_SIDE,
+        "output": {"pos": [CELLS_X + 0.25, round((BED_TOP + 2) * b, 4), TRUNK_Z * b]},
         "trunkBed": {"origin": [CELLS_X / 2, BED_TOP * b, TRUNK_Z * b], "axis": "x", "length": 5.0,
                      "_origin": "centre of the bed's top surface; trunks are drawn centred on it, lying along +x"},
         "saw": {"topY": SAW_TOP * b, "bottomY": SAW_BOTTOM * b,
@@ -1596,22 +1610,32 @@ def validate(els, parts, rig, shape, frame_shape):
         if hits:
             fail(f"trunk {size} intersects the machine")
 
-    # the infeed: an xxl trunk slides in lengthwise from beyond the east end to its place on the
-    # bed, through station 2 and then station 1; its swept volume touches nothing, fixed or moving,
-    # with the saws at the top (depth 0, every shaft angle sampled)
+    # the infeed and the outfeed, with the saws at the top (depth 0, every shaft angle sampled):
+    # an xxl trunk slides in lengthwise from beyond the west end, through the portal, to its place
+    # on the bed; a 2x2 section slides from there out beyond the east end. Neither swept volume
+    # touches anything, fixed or moving.
+    def sweep(lo, hi):
+        hits = set()
+        for pid in by_part:
+            for pose in ([(0.0, 0.0, 0.0, 1.0)] if pid == "frame" else [(i * math.pi / 8, 0.0, 0.0, i * 0.4) for i in range(16)]):
+                for el in posed_part(pid, pose):
+                    if obb_overlap(el, lo, hi):
+                        hits.add(el.name)
+        return hits
     ln, w, h = TRUNK_SIZES["xxl"]
-    lo = [CELLS_X * 8 - ln * 8, BED_TOP, TRUNK_Z - w * 8]
-    hi = [CELLS_X * 16 + ln * 16, BED_TOP + h * 16, TRUNK_Z + w * 8]
-    hits = set()
-    for pid in by_part:
-        for pose in ([(0.0, 0.0, 0.0, 1.0)] if pid == "frame" else [(i * math.pi / 8, 0.0, 0.0, i * 0.4) for i in range(16)]):
-            for el in posed_part(pid, pose):
-                if obb_overlap(el, lo, hi):
-                    hits.add(el.name)
-    print(f"infeed: an xxl trunk sliding in from beyond the east end to the bed (x {hi[0]:.0f} -> {lo[0]:.0f}) "
-          + ("touches nothing with the saws at the top" if not hits else "HITS " + ", ".join(sorted(hits)[:6])))
-    if hits:
-        fail("the east infeed is blocked")
+    rest_x = (CELLS_X * 8 - ln * 8, CELLS_X * 8 + ln * 8)
+    for what, (x0, x1), (w, h) in (("infeed: an xxl trunk sliding in from beyond the west end to the bed", (-ln * 16, rest_x[1]), (w, h)),
+                                   ("outfeed: a 2x2 section sliding from the bed out beyond the east end", (rest_x[0], CELLS_X * 16 + ln * 16), (2, 2))):
+        hits = sweep([x0, BED_TOP, TRUNK_Z - w * 8], [x1, BED_TOP + h * 16, TRUNK_Z + w * 8])
+        print(f"{what} (x {x0:.0f}..{x1:.0f}) " + ("touches nothing with the saws at the top" if not hits else "HITS " + ", ".join(sorted(hits)[:6])))
+        if hits:
+            fail(what.split(":")[0] + " is blocked")
+    # the rack stands on the ground against the west end (the infeed neighbours) and the axle comes
+    # in at the power cell's west face: they never need the same cell
+    pc = rig["powerCell"]
+    if pc[1] == 0:
+        fail("the power cell is at ground level, where the rack stands")
+    print(f"west end: the rack stands at ground level (y 0) beyond x 0, the axle arrives at cell {pc} from the west")
 
     # blades: clear of the trunk at the top of the cycle, clear of the bed rails at the bottom
     for n in (1, 2):
@@ -1993,6 +2017,46 @@ def validate(els, parts, rig, shape, frame_shape):
     return ok
 
 
+def shipped(els, parts, rig):
+    """The build-frame model, rig and parts moved so ORIGIN_CELL is the controller cell [0,0,0]."""
+    d = [-ORIGIN_CELL[k] * 16.0 for k in range(3)]
+    db = [v / 16 for v in d]
+    ship_els = copy.deepcopy(els)
+    translate(ship_els, d)
+    ship_parts = copy.deepcopy(parts)
+    for p in ship_parts:
+        for drv in p.get("drivers", []):
+            for key in ("pivot", "anchor"):
+                if key in drv:
+                    drv[key] = [round(drv[key][k] + db[k], 6) for k in range(3)]
+    ship = copy.deepcopy(rig)
+    ship["cells"] = [{**c, "pos": [c["pos"][k] - ORIGIN_CELL[k] for k in range(3)]} for c in rig["cells"]]
+    ship["powerCell"] = [rig["powerCell"][k] - ORIGIN_CELL[k] for k in range(3)]
+    ship["output"] = {**rig["output"], "pos": [round(rig["output"]["pos"][k] + db[k], 4) for k in range(3)]}
+    ship["trunkBed"] = {**rig["trunkBed"], "origin": [round(rig["trunkBed"]["origin"][k] + db[k], 4) for k in range(3)]}
+    ship["parts"] = ship_parts
+    return ship_els, ship_parts, ship
+
+
+def check_shipped(els, parts, ship_els, ship_parts, ship):
+    """The shipped files are the checked model moved, nothing else: every element posed by the
+    shipped rig lands where the checked one does, shifted, and the controller is a cell."""
+    d = [-ORIGIN_CELL[k] * 16.0 for k in range(3)]
+    worst = 0.0
+    for pose in ((0.0, 0.0, 0.0, 0.0), (1.3, 0.5, 0.0, 4.0), (4.0, 0.97, 1.0, 9.0), (2.2, 0.03, 1.0, 2.2)):
+        for a, b in zip(els, ship_els):
+            pa, pb = posed(a, part_matrix(parts, a.part, *pose)), posed(b, part_matrix(ship_parts, b.part, *pose))
+            worst = max(worst, max(abs(pa.c[k] + d[k] - pb.c[k]) for k in range(3)))
+    cells = [tuple(c["pos"]) for c in ship["cells"]]
+    span = [(min(c[k] for c in cells), max(c[k] for c in cells)) for k in range(3)]
+    print(f"shipped: moved by {[v / 16 for v in d]} blocks, worst posed difference {worst:.2e} voxels; cells x {span[0]}, y {span[1]}, z {span[2]}; "
+          f"power cell {ship['powerCell']} face {ship['powerFace']}; output {ship['output']['pos']} ({ship['outputSide']}); infeed {ship['infeedSide']}")
+    if worst > 1e-6 or (0, 0, 0) not in cells:
+        print("FAIL: the shipped model is not the checked one moved")
+        return False
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser(description="Generate the Bucking Sawmill's shapes and rig from Immersive Woodworking's sawmill.")
     ap.add_argument("--out", type=Path, help="write the two shapes and rig.json into this directory instead of the mod's assets")
@@ -2005,17 +2069,20 @@ def main():
     rig = make_rig(els, parts)
     shape = shape_json(els, source)
     frame_shape = shape_json([el for el in els if el.part == "frame"], source)
+    ok = validate(els, parts, rig, shape, frame_shape)
     if args.out:
         outs = (args.out / "buckingmill.json", args.out / "buckingmill_frame.json", args.out / "rig.json", args.out / "rig-reference.json")
     else:
         outs = (SHAPE_DIR / "buckingmill.json", SHAPE_DIR / "buckingmill_frame.json", RIG_DIR / "rig.json", REFERENCE_OUT)
-    texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(rig), reference_dumps(reference_json(parts)))
+    ship_els, ship_parts, ship = shipped(els, parts, rig)
+    shape, frame_shape = shape_json(ship_els, source), shape_json([el for el in ship_els if el.part == "frame"], source)
+    texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship), reference_dumps(reference_json(ship_parts)))
     for path, text in zip(outs, texts):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
         json.loads(path.read_text())
         print(f"wrote {path} ({path.stat().st_size // 1024} KiB)")
-    if not validate(els, parts, rig, shape, frame_shape):
+    if not (ok and check_shipped(els, parts, ship_els, ship_parts, ship)):
         sys.exit(1)
     print("all checks passed")
 

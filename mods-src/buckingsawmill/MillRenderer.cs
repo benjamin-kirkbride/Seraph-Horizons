@@ -229,7 +229,8 @@ public sealed class MillRenderer : IRenderer
         IStandardShaderProgram? prog = null;
         if (opaque)
         {
-            var light = Footprint.ToWorld(new Int3(3, 1, 1), _be.Side);
+            var c = Middle;
+            var light = Footprint.ToWorld(new Int3((int)MathF.Floor(c.X), 1, (int)MathF.Floor(c.Z)), _be.Side);
             prog = rapi.PreparedStandardShader(pos.X + light.X, pos.Y + light.Y, pos.Z + light.Z);
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
@@ -320,7 +321,7 @@ public sealed class MillRenderer : IRenderer
         char band = MillMotion.SpeedBand(_be.ShaftSpeed);
         char dir = _stroke % 2 == 0 ? 'f' : 'b';
         int variant = 1 + _stroke / 2 % 2;
-        var at = WorldPoint(new Float3(3f, 1.5f, 1.5f));
+        var at = WorldPoint(new Float3(Middle.X, 1.5f, Middle.Z));
         _capi.World.PlaySoundAt(new AssetLocation("immersivewoodworking", $"sounds/saw/sawing_{band}{dir}{variant}"),
             at.X, at.Y, at.Z, null, true, 24, 0.7f);
     }
@@ -342,6 +343,9 @@ public sealed class MillRenderer : IRenderer
                 new Vec3f(-0.4f, 0.1f, -0.4f), new Vec3f(0.4f, 0.6f, 0.4f), 1.2f, 0.6f, 0.4f, EnumParticleModel.Quad, null);
         }
     }
+
+    // the middle of the machine (native frame): over the bed's centre, where the trunk lies
+    private Float3 Middle => _bed?.Origin ?? new Float3(0.5f, 0.5f, 0.5f);
 
     private Vec3d WorldPoint(Float3 native)
     {

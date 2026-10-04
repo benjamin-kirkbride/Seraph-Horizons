@@ -214,6 +214,40 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.Equal(1, drops.GetValueOrDefault($"{Iw}:sawmilllevers"));
     }
 
+    /// <summary>A player standing a few blocks back from the target, looking along <paramref name="look"/>,
+    /// places the frame item: the mill extends away from them.</summary>
+    [AtlasTheory, MemberData(nameof(Facings))]
+    public async Task A_placed_mill_extends_away_from_the_player(string look, int index)
+    {
+        var pos = Sky(-30 + 30 * index, 30);
+        var player = await Player("placer" + index);
+        var d = BlockFacing.FromCode(look).Normali;
+        var at = new Vec3d(pos.X + 0.5 - 3 * d.X, pos.Y, pos.Z + 0.5 - 3 * d.Z);
+        player.Entity.Pos.SetPos(at);
+        player.Entity.ServerPos.SetPos(at);
+        var item = BlockOf("buckingsawmill:buckingmill-frame-north");
+        var sel = new BlockSelection { Position = pos.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
+        string failure = "";
+        Assert.True(item.TryPlaceBlock(W, player, new ItemStack(item), sel, ref failure), $"not placed: {failure}");
+        await World.Ticks(5);
+
+        // the clicked block is the controller, turned so the axle end is the far one
+        var mill = Assert.IsType<BEBuckingMill>(W.BlockAccessor.GetBlockEntity(pos));
+        Assert.True(Sides.TryParse(look, out var lookSide));
+        Assert.Equal(Footprint.PlacedFacing(lookSide), mill.Side);
+        int Along(BlockPos p) => (p.X - pos.X) * d.X + (p.Z - pos.Z) * d.Z;
+        var cells = mill.GhostCells().Select(c => c.Pos).ToList();
+        Assert.Equal(0, cells.Min(Along));
+        var power = mill.CellPos(Rig.PowerCell);
+        Assert.Equal(cells.Max(Along), Along(power));
+        Assert.Equal(5, Along(power));
+        Assert.Equal(look, Assert.IsType<BlockMillGhostPower>(W.BlockAccessor.GetBlock(power)).PowerFace.Code);
+        // the rack's cells are beyond the far end, the logs come out of the near end
+        Assert.All(Rig.InfeedNeighbours(), n => Assert.Equal(6, Along(mill.CellPos(n))));
+        var o = Footprint.ToWorld(Rig.OutputPos, mill.Side);
+        Assert.True((o.X - 0.5) * d.X + (o.Z - 0.5) * d.Z < -0.5, $"output {o} not in front of the near end");
+    }
+
     [AtlasScenario]
     public async Task A_lost_ghost_is_restamped_after_reload()
     {

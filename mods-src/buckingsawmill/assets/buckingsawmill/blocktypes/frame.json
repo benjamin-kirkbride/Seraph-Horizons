@@ -2,7 +2,8 @@
 	code: "buckingmill",
 	class: "buckingsawmill.Frame",
 	entityClass: "buckingsawmill.Frame",
-	behaviors: [ { name: "HorizontalOrientable" } ],
+	// No HorizontalOrientable: BlockBuckingMill.TryPlaceBlock picks the side so the mill extends
+	// away from the player (Core/Footprint.cs, PlacedFacing).
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -37,26 +38,27 @@
 	heldTpIdleAnimation: "holdbothhandslarge",
 	heldRightReadyAnimation: "heldblockready",
 	heldTpUseAnimation: "twohandplaceblock",
-	// The shape fills the mill's whole 6×4×3 footprint (x -5..1, z -2..1 once the -north item form
-	// turns it 180°), so the item forms are centred on it and scaled well down.
+	// The shape fills the mill's whole 6×4×3 footprint (native x -5..1, z -1..2 about the controller
+	// at the east end; x 0..6, z -1..2 once the -north item form turns it 180°), so the item forms
+	// are centred on it (3, _, 0.5) and scaled well down.
 	tpHandTransform: {
 		translation: { x: -0.8, y: -0.6, z: -0.6 },
 		rotation: { x: 6, y: 16, z: -77 },
-		origin: { x: -2, y: 0, z: -0.5 },
+		origin: { x: 3, y: 0, z: 0.5 },
 		scale: 0.15
 	},
 	fpHandTransform: {
 		rotation: { x: 0, y: -45, z: 0 },
-		origin: { x: -2, y: 1, z: -0.5 },
+		origin: { x: 3, y: 1, z: 0.5 },
 		scale: 0.3
 	},
 	guiTransform: {
 		rotation: { x: -22.6, y: -45.3, z: 0 },
-		origin: { x: -2, y: 2, z: -0.5 },
+		origin: { x: 3, y: 2, z: 0.5 },
 		scale: 0.28
 	},
 	groundTransform: {
-		origin: { x: -2, y: 0, z: -0.5 },
+		origin: { x: 3, y: 0, z: 0.5 },
 		scale: 0.6
 	},
 	maxStackSize: 1,
