@@ -13,6 +13,11 @@
   --filled: light-dark(#6f6252, #c7b79f);
   --cell-empty: light-dark(#f1eee7, #2a2824);
   --focus: light-dark(#1c64b8, #8cbcf0);
+  /* The model viewer's 3D stage (src/components/ModelPage.svelte reads them for three.js). */
+  --model-stage: light-dark(#e4e1d8, #262520);
+  --model-edge: light-dark(#2a2722, #0b0b0a);
+  --model-grid: light-dark(#8f897c, #6b665b);
+  --model-highlight: light-dark(#d9480f, #ff8a4c);
   /* Behind every item icon: the game's item slot, the same in both themes. The game fills
      the slot with #ffe2c2 and blurs a #845c43 stroke into its edges; the centre and the
      falloff are measured from an in-game tooltip. See docs/recipe-browser/site.md. */

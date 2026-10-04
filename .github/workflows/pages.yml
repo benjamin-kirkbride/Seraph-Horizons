@@ -86,6 +86,8 @@ jobs:
           cp -R icons/. site/public/icons/
       - id: pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      # The build also publishes the model viewer's files (site/models.json): its Vite plugin
+      # copies each model's shape and rig from mods-src/ in this checkout.
       - name: Build the site
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}

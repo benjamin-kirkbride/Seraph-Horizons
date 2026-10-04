@@ -34,7 +34,10 @@ mods-src/               mods built here, uploaded to the ModDB by hand, then pin
 
 The [recipe browser](docs/recipe-browser/README.md), a site for looking up the pack's
 recipes outside the game, lives in `schema/`, `tools/recipe-export/`, `tools/site-data/`,
-`tools/icon-export/`, `tools/icons.py`, `icons/` and `site/`.
+`tools/icon-export/`, `tools/icons.py`, `icons/` and `site/`. The same site has a
+[model viewer](docs/recipe-browser/models.md) (`#/models`) for the machine models of the
+pack's own mods: it draws each shape from `mods-src/`, moves it by its rig, and lets you pick
+any element by name. `site/models.json` lists the models.
 
 ## Working on the pack
 
@@ -70,10 +73,10 @@ first). An IDE test runner needs the variable in its own settings.
 - **cairn**: assembles the release and installs the `.cairn.json` file with the real `cairn-server`. Cairn re-downloads and sha256-verifies every mod, and its lock must match ours.
 - **tools**: unit tests of the Python tools, `tools/site-data` and the site.
 - **export**: the recipe export that the smoke job's server dumped matches the schema, and its cross-references hold. It also warns about items that have no icon.
-- **site**: Playwright tests of the recipe browser, built from that same export.
+- **site**: Playwright tests of the recipe browser and the model viewer, built from that same export.
 
 `ci-ok` aggregates these jobs and is the one check branch protection requires. PRs land through the Mergify merge queue: comment `@mergifyio queue` on the PR as soon as it is opened. See [docs/merge-queue.md](docs/merge-queue.md).
 
-`release.yml` runs on a `v*` tag that matches `pack.toml`'s version. It reruns CI and then publishes `dist/` as a GitHub Release. It is marked as the repository's [latest release](../../releases/latest). `next.yml` runs after CI passes on a push to main and republishes the rolling [`next`](../../releases/tag/next) pre-release from the `dist` artifact that CI run tested, whatever the pack version is. `update-check.yml` runs nightly and keeps a "Mod updates available" issue current. It fails if a pinned release is retracted. Both releases also carry `seraphhorizons_<v>_recipes.json`, the recipe export; `pages.yml` builds the recipe browser from the export of every release and deploys it to GitHub Pages.
+`release.yml` runs on a `v*` tag that matches `pack.toml`'s version. It reruns CI and then publishes `dist/` as a GitHub Release. It is marked as the repository's [latest release](../../releases/latest). `next.yml` runs after CI passes on a push to main and republishes the rolling [`next`](../../releases/tag/next) pre-release from the `dist` artifact that CI run tested, whatever the pack version is. `update-check.yml` runs nightly and keeps a "Mod updates available" issue current. It fails if a pinned release is retracted. Both releases also carry `seraphhorizons_<v>_recipes.json`, the recipe export; `pages.yml` builds the recipe browser from the export of every release, with the model viewer's models from the commit it builds, and deploys it to GitHub Pages.
 
 Game server binaries are downloaded from Anego's public CDN and cached per version. They are never committed or re-published.
