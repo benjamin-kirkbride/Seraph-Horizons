@@ -16,8 +16,7 @@ namespace SeraphHorizons.PackTests;
 /// fields, the game's internal decompression) reads the same blocks the game does. The client half
 /// (drawing the pieces into the world map and its database) needs a game client and is not run here.
 /// </summary>
-[AtlasWorld]
-public class MapRevealScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     private ICoreServerAPI Api => World.Api;
 

@@ -18,11 +18,8 @@ namespace SeraphHorizons.PackTests;
 /// is <see cref="WoodworkingGuidePages"/>'s unit tests; this checks what the server can see: the
 /// page assets, the lang entries after the tweak's edits, and that every link points somewhere.
 /// </summary>
-[AtlasWorld]
-public class WoodworkingHandbookScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class WoodworkingScenarios
 {
-    private IWorldAccessor W => World.Api.World;
-
     private static IDictionary<string, string> Entries(string language) => Lang.AvailableLanguages[language].GetAllEntries();
 
     /// <summary>Text that names something the unified system retired.</summary>

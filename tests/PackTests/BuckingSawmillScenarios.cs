@@ -19,14 +19,13 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/BuckingSawmill: the bucking sawmill against the pinned Immersive Woodworking and
 /// Logging Expanded. The mill is driven by a real mechanical power network (a vanilla creative
 /// rotor against its power face). BuckingSawmillSettings in ModConfig/seraphhorizons.json is seeded from
-/// fixtures/buckingsawmill with RevolutionsPerStoredLog at 0.5 and RaiseRevolutions at 1, so an empty
-/// cycle (down and back up) is two turns and a cut takes seconds; every other setting is the default. Each scenario builds its mill in its own patch of sky.
+/// fixtures/buckingsawmill (the [AtlasDataFiles] on <see cref="WoodworkingScenarios"/>) with
+/// RevolutionsPerStoredLog at 0.5 and RaiseRevolutions at 1, so an empty cycle (down and back up)
+/// is two turns and a cut takes seconds; every other setting is the default. Each scenario builds
+/// its mill in its own patch of sky.
 /// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/buckingsawmill", TargetPath = "ModConfig")]
-public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class WoodworkingScenarios
 {
-    private IWorldAccessor W => World.Api.World;
     private BuckingSawmillSystem Mod => BuckingSawmillSystem.Of(World.Api);
     private Rig Rig => Mod.Rig ?? throw new Xunit.Sdk.XunitException("the rig did not load");
 
@@ -57,12 +56,12 @@ public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBa
                ?? throw new Xunit.Sdk.XunitException($"no mill block entity at {pos}");
     }
 
-    // One player for the whole class: the world takes at most 16 clients, more than the scenarios
-    // would join each with its own.
+    // One player for every mill scenario (millhand): the world takes at most 16 clients, more than
+    // the scenarios would join each with its own.
     private static IPlayer? _shared;
     private static object? _sharedWorld;
 
-    /// <summary>The class's player, in survival with an empty inventory and its keys up. The name is
+    /// <summary>The mill scenarios' player, in survival with an empty inventory and its keys up. The name is
     /// only for reading the scenarios.</summary>
     private async Task<IPlayer> Player(string name)
     {
@@ -189,7 +188,7 @@ public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBa
 
     // ---- Loading ----
 
-    [AtlasScenario]
+    [AtlasScenario, ReadsBootLog]
     public void The_mod_loads_cleanly_with_its_blocks_and_recipe()
     {
         Assert.True(BuckingSawmillSystem.Applies(World.Api));
@@ -235,7 +234,8 @@ public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBa
     [AtlasTheory, MemberData(nameof(Facings))]
     public async Task Placing_stamps_the_ghosts_and_breaking_drops_the_parts(string side, int index)
     {
-        var pos = Sky(-60 + 30 * index, 60);
+        // Not at z 60: the parts would fall into ChopperOutput's hopper room at x -60.
+        var pos = Sky(-60 + 30 * index, -90);
         var player = await Player("breaker" + index);
         var mill = await PlaceMill(pos, side);
 
@@ -646,7 +646,9 @@ public class BuckingSawmillScenarios(ITestOutputHelper output) : AtlasScenarioBa
     [AtlasScenario(TimeoutMs = 180_000)]
     public async Task A_rack_at_the_infeed_feeds_debranched_trunks_only()
     {
-        var pos = Sky(60, -60);
+        // Not over ChopperOutput's rooms at x 60, z -60 to -24: the logs, cut after the scenario
+        // too, fall to the ground.
+        var pos = Sky(90, -30);
         var player = await Player("racker");
         var mill = await PlaceMill(pos, "west");
         Assemble(mill, player);

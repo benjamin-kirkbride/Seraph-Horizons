@@ -111,8 +111,7 @@ internal sealed class RackSite(IWorldSession world, BlockPos pos, ITestPlayer pl
 /// kegs, holding a keg's worth, with the liquid moving between the keg item and the rack, and
 /// perishing at the keg's rate times the rack's. Vanilla barrels in the rack stay as they ship.
 /// </summary>
-[AtlasWorld]
-public class BarrelRackKegsScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     private async Task<RackSite> Site(string player, int dx)
     {

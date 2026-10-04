@@ -98,7 +98,7 @@ iteration order. The dialog then shows default mode's left column unchanged and 
 right column. `TabLayout` (`Core/`, unit-tested) mirrors the dialog's rule and builds that arrangement; it is the
 only one that works, since list order dominates. When no arrangement can (a left tab ordered after 1.0, a mod
 tab code given an order, or fewer than 16 default tabs), the list is built the same way, every tab is in one of
-the columns, and one notification says so. `CreativeModTabsScenarios` checks the arrangement against the pack's
+the columns, and one notification says so. `CreativeModTabsScenarios.cs` checks the arrangement against the pack's
 real tab codes and config.
 
 The dialog's own tab click handlers select tabs in both columns (the right column's handler calls
