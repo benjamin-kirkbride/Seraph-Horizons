@@ -1,8 +1,8 @@
 # Animated machine models
 
 How to build an animated multiblock machine model for a mod in this repository, from another mod's
-model or from scratch. The bucking sawmill (`mods-src/buckingsawmill/`) is the worked example
-throughout. Its [README](../../mods-src/buckingsawmill/README.md) documents the finished machine in
+model or from scratch. The bucking sawmill (`mods-src/seraphhorizons/BuckingSawmill/`, part of the Seraph Horizons mod) is the worked example
+throughout. Its [README](../../mods-src/seraphhorizons/BuckingSawmill/README.md) documents the finished machine in
 detail; this guide is about the process, and the mistakes worth not repeating.
 
 ## When to use this approach
@@ -10,18 +10,18 @@ detail; this guide is about the process, and the mistakes worth not repeating.
 Use it for any machine that has moving parts tied to gameplay state: shafts turned by mechanical
 power, saws that sink with a cut, levers thrown at the ends of a cycle. It produces:
 
-- **A generator script**, [`tools/make_shape.py`](../../mods-src/buckingsawmill/tools/make_shape.py).
+- **A generator script**, [`tools/make_shape.py`](../../mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py).
   It is stdlib-only Python, reads the source mod's shape from `build/mods/` and writes everything below.
 - **Two shape files**: the whole machine, and the static frame only (the block draws the frame; a
   renderer draws everything that moves).
-- **A rig file**, `assets/<modid>/config/rig.json`. It holds the footprint (cells with collision
+- **A rig file**, `assets/<modid>/config/<machine>-rig.json` (the mill's is `buckingmill-rig.json`). It holds the footprint (cells with collision
   boxes), the anchor points gameplay needs (power cell and face, infeed and output), and the moving
   parts. Each part has the element-name globs it owns and the drivers that pose it.
-- **A reference of poses**, [`tests/rig-reference.json`](../../mods-src/buckingsawmill/tests/rig-reference.json):
+- **A reference of poses**, [`tests/BuckingSawmill/rig-reference.json`](../../mods-src/seraphhorizons/tests/BuckingSawmill/rig-reference.json):
   every part's matrix at a grid of inputs, from the script's own maths. It keeps every other
   implementation honest.
 - **A renderer driven by the rig** (`MillRenderer.cs`, with the maths in
-  [`Core/RigAnimation.cs`](../../mods-src/buckingsawmill/Core/RigAnimation.cs)), so gameplay code never
+  [`Core/RigAnimation.cs`](../../mods-src/seraphhorizons/BuckingSawmill/Core/RigAnimation.cs)), so gameplay code never
   knows element names.
 - **A browser viewer** for review without the game (see [Reviewing without the game](#reviewing-without-the-game)).
 
@@ -33,7 +33,7 @@ output is deterministic, so diffs show real changes.
 If someone does edit the output by hand, those edits are lost on the next run, and they must keep:
 - element names, because the rig finds its parts by name prefix;
 - the split between the full shape and the frame-only shape;
-- the cell boxes in `rig.json`, if anything moved across a cell boundary.
+- the cell boxes in the rig file, if anything moved across a cell boundary.
 
 Port hand edits back into the script, or stop regenerating.
 
@@ -46,7 +46,7 @@ Parts taken from another mod's model belong to that mod's author. For the sawmil
 - By the end, about a third of the elements were still Immersive Woodworking's (the gears, saw
   blades, saw heads and cranks); the rest had been rebuilt. Credit what is actually taken, and
   re-check the wording when the model has changed a lot.
-- [`CREDITS.md`](../../mods-src/buckingsawmill/CREDITS.md) names those parts, says they are the
+- [`CREDITS.md`](../../mods-src/seraphhorizons/CREDITS.md) names those parts, says they are the
   author's, used with permission, and outside the repository's licence. The csproj copies it into the release zip,
   next to `modinfo.json`.
 - The root `LICENSE` names the shapes folder as an exception to the Apache licence.
@@ -241,7 +241,7 @@ be rebuilt separately many times.
 
 **Keeping the implementations in step.** The driver maths exists three times:
 - the Python reference in the generator;
-- C# in `Core/RigAnimation.cs`, tested against `tests/rig-reference.json` by `RigAnimationTests`;
+- C# in `Core/RigAnimation.cs`, tested against `tests/BuckingSawmill/rig-reference.json` by `RigAnimationTests`;
 - the site viewer's TypeScript, which should be tested against the same file.
 
 Regenerate the reference whenever the rig changes, and never edit it by hand. A mismatch there is
@@ -298,18 +298,18 @@ What did not:
 5. Add a check for anything you would otherwise only eyeball, especially paths, supports, joints and contacts.
 6. Generate, then check determinism:
    ```sh
-   python3 mods-src/buckingsawmill/tools/make_shape.py --out "$TMPDIR/a"
-   python3 mods-src/buckingsawmill/tools/make_shape.py --out "$TMPDIR/b"
+   python3 mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py --out "$TMPDIR/a"
+   python3 mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py --out "$TMPDIR/b"
    diff -r "$TMPDIR/a" "$TMPDIR/b"
-   python3 mods-src/buckingsawmill/tools/make_shape.py      # writes the assets and tests/rig-reference.json
+   python3 mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py      # writes the assets and the reference poses
    ```
 7. Implement the rig maths in C# `Core/` with tests against the reference poses; build the renderer
    on the visual-state interface; keep gameplay on the rig's anchors.
 8. Render projections and review them; add the model to the site viewer and review there.
 9. Run the full checks before every commit:
    ```sh
-   VINTAGE_STORY=$HOME/Games/vintagestory dotnet build mods-src/buckingsawmill -c Release --no-incremental
-   dotnet test mods-src/buckingsawmill/tests
+   VINTAGE_STORY=$HOME/Games/vintagestory dotnet build mods-src/seraphhorizons -c Release --no-incremental
+   dotnet test mods-src/seraphhorizons/tests
    python3 -m unittest discover -s tools/tests
    mkdir -p build/atlas-tmp
    TMPDIR=$PWD/build/atlas-tmp VINTAGE_STORY=$HOME/Games/vintagestory dotnet test tests/PackTests \

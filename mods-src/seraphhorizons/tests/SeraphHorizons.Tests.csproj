@@ -2,7 +2,8 @@
 
   <!-- Unit tests for Seraph Horizons' game-independent code: Tidy Variants' rule engine
        (../TidyVariants/Core), the tweaks' own (../Core), Map Reveal's sampling, shading and
-       wire format (../MapReveal/Core) and creative mod tabs' planning (../CreativeModTabs/Core).
+       wire format (../MapReveal/Core), creative mod tabs' planning (../CreativeModTabs/Core) and the
+       bucking sawmill's rig, footprint, assembly rules and cut arithmetic (../BuckingSawmill/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -26,6 +27,12 @@
     <Compile Include="../Core/**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../MapReveal/Core/**/*.cs" Link="MapReveal/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../CreativeModTabs/Core/**/*.cs" Link="CreativeModTabs/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../BuckingSawmill/Core/**/*.cs" Link="BuckingSawmill/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The bucking sawmill's shipped rig, so the tests check that it parses and is consistent,
+         and every part's matrix at a grid of poses, from BuckingSawmill/tools/make_shape.py's
+         reference maths. -->
+    <None Include="../assets/seraphhorizons/config/buckingmill-rig.json" Link="buckingmill-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="BuckingSawmill/rig-reference.json" Link="buckingmill-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

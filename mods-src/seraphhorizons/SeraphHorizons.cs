@@ -1,4 +1,5 @@
 using HarmonyLib;
+using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
@@ -304,4 +305,14 @@ public class SeraphHorizonsConfig
     /// <summary>A right-click on the creative inventory's search box, or the handbook's, empties it
     /// and leaves it focused for typing (client side; off means a right-click only focuses it).</summary>
     public bool SearchRightClickClears { get; set; } = true;
+
+    /// <summary>The bucking sawmill: a mechanically powered pair of drag saws, built from a frame
+    /// and Immersive Woodworking's sawmill parts, that cross-cuts Logging Expanded tree trunks into
+    /// logs (needs both mods; off means its blocks and recipe do not exist, and mills already
+    /// placed are lost). The server's setting decides.</summary>
+    public bool BuckingSawmill { get; set; } = true;
+
+    /// <summary>The bucking sawmill's figures; a value out of range falls back to its default with
+    /// a warning. The server's are used.</summary>
+    public MillConfig BuckingSawmillSettings { get; set; } = new();
 }
