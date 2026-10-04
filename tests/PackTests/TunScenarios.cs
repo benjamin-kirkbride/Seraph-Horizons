@@ -77,11 +77,8 @@ internal static class Tuns
 /// be made and is out of the creative inventory and the handbook, but a placed one still works; Food
 /// Shelves' tun rack holds 950 litres, in the block and the block entity alike.
 /// </summary>
-[AtlasWorld]
-public class TunScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
-    private IWorldAccessor W => World.Api.World;
-
     [AtlasScenario]
     public async Task Hydrate_tun_is_retired_but_a_placed_one_still_works()
     {
