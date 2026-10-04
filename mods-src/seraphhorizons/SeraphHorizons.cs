@@ -107,6 +107,8 @@ public class SeraphHorizonsSystem : ModSystem
             BoilerLidRelief.RewriteText(api.Logger);
         if (Config(api).ChimneyVentingExplained && ChimneyVentText.Applies(api))
             ChimneyVentText.RewriteText(api.Logger);
+        if (Config(api).WellShaftExplained && WellShaftText.Applies(api))
+            WellShaftText.RewriteText(api.Logger);
         if (_ageOfFlax)
         {
             LangText.Apply(AgeOfFlaxRebalance.LangEdits, AgeOfFlaxRebalance.ModId, api.Logger);
@@ -199,6 +201,10 @@ public class SeraphHorizonsConfig
     /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
     /// (server side; off means they stay at 0).</summary>
     public bool FoodHydration { get; set; } = true;
+
+    /// <summary>Hydrate or Diedrate: the Wells handbook page says a deep well's shaft must be one
+    /// block wide with solid walls, and how the wall blocks cap what it holds (text only).</summary>
+    public bool WellShaftExplained { get; set; } = true;
 
     /// <summary>Immersive Woodworking: the chopper and the sawmill are in the creative inventory
     /// assembled, with a steel head or blade kit, next to their empty frames.</summary>

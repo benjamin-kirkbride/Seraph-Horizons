@@ -23,6 +23,8 @@ namespace SeraphHorizons.PackTests;
 /// while the pack pins an older ppex the scenarios require the block left out instead.
 /// AssembledMachines: Immersive Woodworking's chopper and sawmill frames have a second creative
 /// stack that places the machine assembled, with a steel head or blade kit.
+/// WellShaftText: Hydrate or Diedrate's Wells page says how a shaft holds water, and wells built to
+/// each rule hold what it says.
 /// Also its ConfigKit settings (assets/seraphhorizons/config/configlib-patches.json), which thin out
 /// Battle Towers' surface towers. CartReach: the server runs the same entity selection code as the
 /// client, so the scenarios run it, and cart reach's second look, on the server's world against a
@@ -435,5 +437,112 @@ public class SeraphHorizonsModScenarios : AtlasScenarioBase
         Assert.Equal(Lang.Get(machine.NameKey), frame.GetPlacedBlockName(W, assembledPos));
         // Breaking it gives back the frame and every part, as for one built by hand.
         Assert.True(frame.GetDrops(W, assembledPos, null!).Length > machine.Flags.Length);
+    }
+
+    // Fails when Hydrate or Diedrate rewords the Wells page, its look-at line or its default
+    // depths: update WellShaftText.LangEdits to match.
+    [AtlasScenario]
+    public void Text_says_how_a_well_shaft_holds_water()
+    {
+        Assert.All(WellShaftText.LangEdits, edit =>
+        {
+            var text = Lang.AvailableLanguages[edit.Language].GetAllEntries()[edit.Key];
+            Assert.Contains(edit.New, text);
+            Assert.DoesNotContain(edit.Old, text);
+        });
+        var page = Lang.GetL("en", "hydrateordiedrate:wellinfo-text");
+        // The page quotes the line a spring under a shaft that holds nothing shows.
+        Assert.Contains(Lang.GetL("en", "hydrateordiedrate:well.retentionVolume", 0), page);
+        // And gives the depths Hydrate or Diedrate ships, with the liters they hold.
+        var settings = AccessTools.Property(AccessTools.TypeByName("HydrateOrDiedrate.Config.ModConfig"), "Instance")
+            .GetValue(null)!;
+        var groundWater = AccessTools.Property(settings.GetType(), "GroundWater").GetValue(settings)!;
+        var perBlock = (float)AccessTools.Field(WellSpringType, "LitersPerFullBlock").GetValue(null)!;
+        foreach (var (setting, label) in new[]
+                 {
+                     ("WellwaterDepthMaxBase", "any other block)"), ("WellwaterDepthMaxClay", "large or small)"),
+                     ("WellwaterDepthMaxStone", "ashlar blocks"),
+                 })
+        {
+            var depth = (int)AccessTools.Property(groundWater.GetType(), setting).GetValue(groundWater)!;
+            Assert.Contains($"{label}: {depth}, or {depth * perBlock:0} liters", page);
+        }
+    }
+
+    private const string Rock = "game:rock-granite";
+    private const string Ashlar = "game:stonebricks-granite";
+    private const string WellSpring = "hydrateordiedrate:wellspring";
+
+    private static Type WellSpringType =>
+        AccessTools.TypeByName("HydrateOrDiedrate.Wells.WellWater.BlockEntityWellSpring");
+
+    /// <summary>Stands a well in the air: a spring on rock, ringed by rock, under a one-block
+    /// shaft whose four walls at each level (1 is the cell above the spring) are what
+    /// <paramref name="wall"/> names. Returns the spring's position.</summary>
+    private BlockPos BuildWell(BlockPos spring, int levels, System.Func<int, BlockFacing, string> wall)
+    {
+        World.SetBlock(Rock, spring.DownCopy());
+        for (var level = 0; level <= levels; level++)
+            foreach (var facing in BlockFacing.HORIZONTALS)
+                World.SetBlock(level == 0 ? Rock : wall(level, facing), spring.UpCopy(level).AddCopy(facing));
+        World.SetBlock(WellSpring, spring);
+        return spring;
+    }
+
+    /// <summary>The levels of shaft the spring at <paramref name="pos"/> counts, after its own
+    /// shaft check (which it otherwise runs every 30 s), and the liters it says it can hold.</summary>
+    private (int Levels, float Liters) WellShaft(BlockPos pos)
+    {
+        var spring = W.BlockAccessor.GetBlockEntity(pos);
+        Assert.IsType(WellSpringType, spring);
+        Assert.True(World.Api.World.IsFullyLoadedChunk(pos));
+        Assert.False((bool)AccessTools.Property(WellSpringType, "IsShallow").GetValue(spring)!);
+        AccessTools.Method(WellSpringType, "OnPeriodicShaftCheck").Invoke(spring, [0f]);
+        return ((int)AccessTools.Property(WellSpringType, "WellShaftHeight").GetValue(spring)!,
+            (float)AccessTools.Property(WellSpringType, "CapacityLitres").GetValue(spring)!);
+    }
+
+    // What WellShaftText's page says, on real wells. Fails when Hydrate or Diedrate changes how a
+    // spring counts its shaft: reword WellShaftText.LangEdits (and the README) to the new rules.
+    [AtlasScenario]
+    public async Task A_well_holds_what_the_handbook_page_says()
+    {
+        // Close to spawn: a spring only checks its shaft where the chunks around it are loaded.
+        var origin = World.Spawn.AddCopy(-8, 30, -8);
+        BlockPos At(int index) => origin.AddCopy(index % 3 * 6, 0, index / 3 * 6);
+        const int levels = 12;
+
+        var rock = BuildWell(At(0), levels, (_, _) => Rock);
+        var ashlar = BuildWell(At(1), levels, (_, _) => Ashlar);
+        var bricks = BuildWell(At(2), levels, (_, _) => "game:brickcourse-four-running-red");
+        var fireclay = BuildWell(At(3), levels, (_, _) => "game:claybricks-good-fire");
+        var uneven = BuildWell(At(4), levels, (_, _) => "game:claybricks-uneven-four-running-red");
+        var aged = BuildWell(At(5), levels, (_, _) => "game:agedstonebricks-granite");
+        // One raw rock block in an ashlar shaft, low and high.
+        var rockAtThree = BuildWell(At(6), levels,
+            (level, facing) => level == 3 && facing == BlockFacing.NORTH ? Rock : Ashlar);
+        var rockAtEight = BuildWell(At(7), levels,
+            (level, facing) => level == 8 && facing == BlockFacing.EAST ? Rock : Ashlar);
+        // A 2x2 shaft in rock: four springs, each cell open to two others.
+        var wide = At(8);
+        var cells = new[] { wide, wide.AddCopy(1, 0, 0), wide.AddCopy(0, 0, 1), wide.AddCopy(1, 0, 1) };
+        for (var level = -1; level <= levels; level++)
+            for (var dx = -1; dx <= 2; dx++)
+                for (var dz = -1; dz <= 2; dz++)
+                    if (level == -1 || dx is -1 or 2 || dz is -1 or 2)
+                        World.SetBlock(Rock, wide.AddCopy(dx, level, dz));
+        foreach (var cell in cells)
+            World.SetBlock(WellSpring, cell);
+        await World.Ticks(5);
+
+        Assert.Equal((5, 350f), WellShaft(rock));
+        Assert.Equal((10, 700f), WellShaft(ashlar));
+        Assert.Equal((7, 490f), WellShaft(bricks));
+        Assert.Equal((5, 350f), WellShaft(fireclay));
+        Assert.Equal((5, 350f), WellShaft(uneven));
+        Assert.Equal((5, 350f), WellShaft(aged));
+        Assert.Equal((5, 350f), WellShaft(rockAtThree));
+        Assert.Equal((7, 490f), WellShaft(rockAtEight));
+        Assert.All(cells, cell => Assert.Equal((0, 0f), WellShaft(cell)));
     }
 }
