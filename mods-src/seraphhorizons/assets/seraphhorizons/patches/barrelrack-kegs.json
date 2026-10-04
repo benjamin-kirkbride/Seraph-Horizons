@@ -1,0 +1,7 @@
+// Food Shelves' barrel rack takes Hydrate or Diedrate's kegs too, seraphhorizons' BarrelRackKegs
+// switch (README.md; BarrelRackKegs.cs holds the code that makes a racked keg behave). Food Shelves
+// reads this restriction file on the server only, in AssetsLoaded after the patch loader, and marks
+// each matching collectible fsbarrelrack; the client gets that attribute with the block types.
+[
+  { "file": "foodshelves:config/restrictions/barrels/barrelrack.json", "op": "add", "path": "/CollectibleCodes/-", "value": "hydrateordiedrate:keg-*", "side": "server", "dependsOn": [{ "modid": "foodshelves" }, { "modid": "hydrateordiedrate" }] }
+]
