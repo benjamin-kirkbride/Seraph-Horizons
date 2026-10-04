@@ -1,0 +1,14 @@
+// Primitive Survival's irrigation vessel (primitivesurvival:irrigationvessel-*), seraphhorizons'
+// IrrigationVesselRetired switch (README.md): Olla's olla is the pack's olla. No grid recipe (neither
+// the storage vessel to irrigation vessel ones nor the resin ones back), not in the creative inventory
+// or the handbook; the block type stays, so vessels already placed keep their water and keep working.
+// Server side: block types and recipes are loaded on the server, and the client gets the block,
+// creative tabs and attributes included, from it.
+[
+  { "file": "primitivesurvival:recipes/grid/irrigationvessel.json", "op": "replace", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "primitivesurvival" }] },
+  { "file": "primitivesurvival:recipes/grid/irrigationvessel.json", "op": "replace", "path": "/1/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "primitivesurvival" }] },
+  { "file": "primitivesurvival:recipes/grid/irrigationvessel.json", "op": "replace", "path": "/2/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "primitivesurvival" }] },
+  { "file": "primitivesurvival:recipes/grid/irrigationvessel.json", "op": "replace", "path": "/3/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "primitivesurvival" }] },
+  { "file": "primitivesurvival:blocktypes/clay/irrigationvessel.json", "op": "remove", "path": "/creativeinventory", "side": "server", "dependsOn": [{ "modid": "primitivesurvival" }] },
+  { "file": "primitivesurvival:blocktypes/clay/irrigationvessel.json", "op": "add", "path": "/attributes/handbook/exclude", "value": true, "side": "server", "dependsOn": [{ "modid": "primitivesurvival" }] }
+]

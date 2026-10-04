@@ -25,6 +25,7 @@ public class SeraphHorizonsSystem : ModSystem
     private Harmony? _clientHarmony;
     private bool _ageOfFlax;
     private bool _tunRack;
+    private bool _irrigationVessel;
     private bool _barrelRackKegs;
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
@@ -50,6 +51,9 @@ public class SeraphHorizonsSystem : ModSystem
             FoodHydration.DisablePatches(api);
         if (!(Config(api).HydrateTunRetired && HydrateTun.Applies(api)))
             HydrateTun.DisablePatches(api);
+        _irrigationVessel = Config(api).IrrigationVesselRetired && IrrigationVessel.Applies(api);
+        if (!_irrigationVessel)
+            IrrigationVessel.DisablePatches(api);
         _tunRack = Config(api).LargerTunRack && TunRackCapacity.Applies(api) && TunRackCapacity.Bind(api.Logger);
         if (!_tunRack)
             TunRackCapacity.DisablePatches(api);
@@ -136,6 +140,8 @@ public class SeraphHorizonsSystem : ModSystem
             CreativeSteamSource.Disable(api);
         if (api.Side == EnumAppSide.Server && Config(api).AssembledMachinesInCreative && AssembledMachines.Applies(api))
             AssembledMachines.AddToBlocktypes(api);
+        if (api.Side == EnumAppSide.Server && _irrigationVessel)
+            IrrigationVessel.DropFromRuinLoot(api);
         if (_barrelRackKegs)
             LangText.Apply(BarrelRackKegs.LangEdits, BarrelRackKegs.FoodShelvesId, api.Logger);
     }
@@ -249,6 +255,12 @@ public class SeraphHorizonsConfig
     /// and the handbook, so Food Shelves' tun rack is the pack's tun; tuns already placed stay and
     /// keep working (server side; off means it is as Hydrate or Diedrate ships it).</summary>
     public bool HydrateTunRetired { get; set; } = true;
+
+    /// <summary>Primitive Survival: its irrigation vessel has no recipe, is left out of the creative
+    /// inventory, the handbook and BetterRuins' ruin loot, so Olla's olla is the pack's; vessels
+    /// already placed stay and keep working (server side; off means it is as Primitive Survival
+    /// ships it).</summary>
+    public bool IrrigationVesselRetired { get; set; } = true;
 
     /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
     /// does, instead of 500 (server side).</summary>
