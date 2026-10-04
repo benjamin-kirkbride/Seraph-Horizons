@@ -32,12 +32,9 @@ namespace SeraphHorizons.PackTests;
 /// PanningDrops: no panning table in the loaded game gives wool, stitching awls, uranium nuggets or
 /// buttons and clasps.
 /// </summary>
-[AtlasWorld]
-public class SeraphHorizonsModScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     private const string Boiler = "ppex:boilercornish-north";
-
-    private IWorldAccessor W => World.Api.World;
 
     private async Task<BlockEntity> PlaceBoiler(BlockPos pos)
     {
@@ -297,7 +294,8 @@ public class SeraphHorizonsModScenarios : AtlasScenarioBase
     {
         const float survival = 4.5f, creative = 100f;
         var game = (GameMain)W;
-        var (cart, index, slot) = await SpawnCartWithBoxes(World.Spawn.AddCopy(-60, 3, 60), "RightStorage3AP");
+        // Clear of the assembled machines' frames (x -40 and -60, z 60 and 70), which it would stand in.
+        var (cart, index, slot) = await SpawnCartWithBoxes(World.Spawn.AddCopy(-60, 3, 100), "RightStorage3AP");
         var origin = cart.Pos.XYZ;
 
         // Straight out behind the slot, level with it: the slot's box is under 2 blocks away, the

@@ -48,11 +48,8 @@ internal static class AgeOfFlax
 /// plant drops vanilla's again, the ripple and hatchel yields are rebalanced against vanilla flax,
 /// the advanced tools take steel, every break takes raw or rendered fat, and the text says so.
 /// </summary>
-[AtlasWorld]
-public class AgeOfFlaxRebalanceScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
-    private IWorldAccessor W => World.Api.World;
-
     // Per bundle; a ripe plant drops 1.2 bundles. Vanilla ripe flax: grain avg 3, fibers avg 4.
     private static readonly Dictionary<string, (float Grain, float Fibers)> PerBundle = new()
     {

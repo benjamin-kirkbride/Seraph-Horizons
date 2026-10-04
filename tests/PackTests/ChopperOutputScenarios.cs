@@ -110,12 +110,9 @@ internal sealed class ChopperSite(IWorldSession world, BlockPos master, BlockFac
 /// in the cell right in front of its output side, so a hopper sunk into the floor there catches all
 /// of it. The scenarios eject real batches through the chopper's own EjectBatch.
 /// </summary>
-[AtlasWorld]
-public class ChopperOutputScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class WoodworkingScenarios
 {
     private const int Logs = 10;
-
-    private IWorldAccessor W => World.Api.World;
 
     // Fails when Immersive Woodworking grows its footprint into the cell in front: the drop point
     // would be inside the machine.

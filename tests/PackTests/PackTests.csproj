@@ -30,7 +30,7 @@
       <HintPath>$(VINTAGE_STORY)/Mods/VSSurvivalMod.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- SeraphHorizonsModScenarios runs the game's entity selection (GameMain) on the server's world. -->
+    <!-- SeraphHorizonsModScenarios.cs runs the game's entity selection (GameMain) on the server's world. -->
     <Reference Include="VintagestoryLib">
       <HintPath>$(VINTAGE_STORY)/VintagestoryLib.dll</HintPath>
       <Private>false</Private>
@@ -45,7 +45,7 @@
       <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- CreativeModTabsScenarios round-trips the mod's network packet through the game's protobuf-net. -->
+    <!-- CreativeModTabsScenarios.cs round-trips the mod's network packet through the game's protobuf-net. -->
     <Reference Include="protobuf-net">
       <HintPath>$(VINTAGE_STORY)/Lib/protobuf-net.dll</HintPath>
       <Private>false</Private>
