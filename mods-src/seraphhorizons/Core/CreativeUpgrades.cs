@@ -21,8 +21,9 @@ public sealed record FrameStage(string FrameClass, string FrameCode, string Main
 /// right-click construction has it for the water wheel (<c>RightClickConstruction</c>): a player in
 /// creative mode who right-clicks with Ctrl (the game's <c>ctrl</c> key, sprint by default) held
 /// gets the next stage at once, with nothing in hand and nothing taken. It applies to the
-/// splitting block's tiers (<see cref="SplittingBlockRules.Creative"/>) and to Logging Expanded's
-/// frames (<see cref="Frames"/>). Game-independent, so tests/ runs it without the game.
+/// splitting block's tiers (<see cref="SplittingBlockRules.Creative"/>), to Logging Expanded's
+/// frames (<see cref="Frames"/>) and to the bucking sawmill's parts (its <c>Parts.NextPart</c>).
+/// Game-independent, so tests/ runs it without the game.
 /// </summary>
 public static class CreativeUpgrades
 {

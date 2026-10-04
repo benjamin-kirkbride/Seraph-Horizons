@@ -1124,7 +1124,7 @@ def rig_parts():
             {"id": f"f{n}_carriage", "match": [f"f{n}_carriage_*"], "requires": f"sash{n}",
              "drivers": [{"type": "feed", "axis": "y", "travel": r6(-SINK * b)}]},
             {"id": f"f{n}_saw", "match": [f"f{n}_saw_*"], "requires": f"sash{n}", "ride": f"f{n}_carriage", "drivers": [dict(stroke)]},
-            {"id": f"f{n}_blade", "match": [f"f{n}_blade_*"], "requires": f"blade{n}", "ride": f"f{n}_saw", "drivers": []},
+            {"id": f"f{n}_blade", "match": [f"f{n}_blade_*"], "requires": "blade", "ride": f"f{n}_saw", "drivers": []},
             {"id": f"f{n}_slider", "match": [f"f{n}_slider_*"], "requires": f"sash{n}", "ride": f"f{n}_carriage", "drivers": []},
             {"id": f"f{n}_spool", "match": [f"f{n}_spool_*"], "requires": f"sash{n}",
              "drivers": [{"type": "step", "motion": "rotate", "axis": "x", "pivot": [0.0, SHAFT_Y * b, DRUM_Z * b], "amount": r6(-spin)}]},
@@ -1440,6 +1440,169 @@ def rig_dumps(rig):
     return "\n".join(lines) + "\n"
 
 
+# ---------------------------------------------------------------- coplanar faces (z-fighting)
+# A face's outward normal along the element's local axes.
+_FACE_NORMAL = {"east": (0, 1), "west": (0, -1), "up": (1, 1), "down": (1, -1), "south": (2, 1), "north": (2, -1)}
+COPLANAR_EPS = 0.005                         # voxels: faces closer than this to one plane share it
+COPLANAR_AREA = 0.01                         # square voxels: a smaller overlap does not show
+
+
+def drawn_faces(el: El):
+    """The element's drawn faces in world voxels: (direction, unit normal, the 4 corners in order)."""
+    out = []
+    h = [abs(v) / 2 for v in el.size]
+    for d, (k, sgn) in _FACE_NORMAL.items():
+        if d not in el.faces or el.faces[d].get("enabled") is False:
+            continue
+        u, v = [a for a in range(3) if a != k]
+        quad = []
+        for su, sv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            local = [0.0, 0.0, 0.0]
+            local[k], local[u], local[v] = sgn * h[k], su * h[u], sv * h[v]
+            w = mvec(el.r, local)
+            quad.append([el.c[i] + w[i] for i in range(3)])
+        n = mvec(el.r, [1.0 if a == k else 0.0 for a in range(3)])
+        out.append((d, [sgn * x for x in n], quad))
+    return out
+
+
+def _poly_area(poly):
+    return abs(sum(poly[i][0] * poly[i - 1][1] - poly[i - 1][0] * poly[i][1] for i in range(len(poly)))) / 2
+
+
+def _clip(subject, clip):
+    """Sutherland-Hodgman: the part of convex polygon `subject` inside convex polygon `clip` (2D)."""
+    def ccw(poly):
+        a = sum(poly[i][0] * poly[i - 1][1] - poly[i - 1][0] * poly[i][1] for i in range(len(poly)))
+        return poly if a < 0 else poly[::-1]   # the sum above is negative for counter-clockwise
+    out = ccw(subject)
+    clip = ccw(clip)
+    for i in range(len(clip)):
+        a, b = clip[i - 1], clip[i]
+        def inside(p):
+            return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= -1e-9
+        def cross(p, q):
+            dx1, dy1, dx2, dy2 = b[0] - a[0], b[1] - a[1], q[0] - p[0], q[1] - p[1]
+            den = dx1 * dy2 - dy1 * dx2
+            t = ((p[0] - a[0]) * dy2 - (p[1] - a[1]) * dx2) / den
+            return [a[0] + t * dx1, a[1] + t * dy1]
+        inp, out = out, []
+        for j in range(len(inp)):
+            cur, prev = inp[j], inp[j - 1]
+            if inside(cur):
+                if not inside(prev):
+                    out.append(cross(prev, cur))
+                out.append(cur)
+            elif inside(prev):
+                out.append(cross(prev, cur))
+        if not out:
+            return []
+    return out
+
+
+def coplanar_faces(els, eps=COPLANAR_EPS, min_area=COPLANAR_AREA, opposite=False):
+    """Every pair of drawn faces of different elements that lie in one plane, facing the same way,
+    and overlap by more than `min_area`: they z-fight. Returns (name a, face a, name b, face b,
+    area) sorted. With `opposite`, the pairs facing opposite ways instead (two elements pressed
+    together), as (index a, face a, area a, index b, face b, area b, overlap)."""
+    buckets = {}
+    faces = []
+    for ei, el in enumerate(els):
+        for d, n, quad in drawn_faces(el):
+            canon = next(x for x in n if abs(x) > 1e-6) > 0 if opposite else True
+            m = n if canon else [-x for x in n]
+            off = sum(m[i] * quad[0][i] for i in range(3))
+            key = tuple(round(x, 3) + 0.0 for x in m)
+            faces.append((ei, d, m, quad, off, canon))
+            buckets.setdefault(key, []).append(len(faces) - 1)
+    found = []
+    for idxs in buckets.values():
+        idxs.sort(key=lambda i: faces[i][4])
+        for x, i in enumerate(idxs):
+            ei, di, n, qa, oa, ca = faces[i]
+            for j in idxs[x + 1:]:
+                ej, dj, _, qb, ob, cb = faces[j]
+                if ob - oa > eps:
+                    break
+                if ej == ei or (opposite and ca == cb):
+                    continue
+                # a 2D basis in the plane
+                t = [1.0, 0.0, 0.0] if abs(n[0]) < 0.9 else [0.0, 1.0, 0.0]
+                u = [n[1] * t[2] - n[2] * t[1], n[2] * t[0] - n[0] * t[2], n[0] * t[1] - n[1] * t[0]]
+                ul = math.sqrt(sum(c * c for c in u))
+                u = [c / ul for c in u]
+                v = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]]
+                pa = [[sum(p[k] * u[k] for k in range(3)), sum(p[k] * v[k] for k in range(3))] for p in qa]
+                pb = [[sum(p[k] * u[k] for k in range(3)), sum(p[k] * v[k] for k in range(3))] for p in qb]
+                inter = _clip(pa, pb)
+                area = _poly_area(inter) if len(inter) >= 3 else 0.0
+                if area <= min_area:
+                    continue
+                if opposite:
+                    found.append((ei, di, _poly_area(pa), ej, dj, _poly_area(pb), area))
+                else:
+                    a, b = sorted([(els[ei].name, di), (els[ej].name, dj)])
+                    found.append((a[0], a[1], b[0], b[1], round(area, 3)))
+    return sorted(found)
+
+
+COPLANAR_INSET = 0.015                       # voxels: how far a z-fighting face is moved in, per step
+COPLANAR_POSES = ((0.0, 0.0, 0.0), (0.7, 0.5, 0.0))   # (θ, depth, lifting): at rest, and mid-cut
+
+
+def inset_face(el: El, d: str, delta: float):
+    """Moves face `d` of `el` in by `delta` voxels, the opposite face staying where it is."""
+    k, sgn = _FACE_NORMAL[d]
+    mag = abs(el.size[k])
+    if mag <= delta * 2:
+        raise ValueError(f"{el.name} is too thin to inset its {d} face")
+    scale_uv(el, k, (mag - delta) / mag)
+    el.size[k] = math.copysign(mag - delta, el.size[k])
+    axis = [el.r[i][k] for i in range(3)]
+    el.c = [el.c[i] - sgn * axis[i] * delta / 2 for i in range(3)]
+
+
+def fix_coplanar(els, parts):
+    """Ends the z-fighting: no two drawn faces may share a plane where they overlap. First every
+    face pressed flat against an element of the same part (inside an opposite face of it, so the
+    other element's body covers it) is removed: it can never be seen. Then of each remaining pair
+    of faces in one plane, facing the same way, at rest or mid-cut, the smaller one (the inner part)
+    is moved in by COPLANAR_INSET, until no pair is left; a stack of n such faces ends up stepped
+    0, 1, ..., n-1 insets deep. Returns the pairs found before, at each pose."""
+    def posed_all(pose):
+        return [posed(el, part_matrix(parts, el.part, *pose)) for el in els]
+    before = {pose: coplanar_faces(posed_all(pose)) for pose in COPLANAR_POSES}
+    rest = posed_all(COPLANAR_POSES[0])
+    hidden = set()
+    for ia, da, area_a, ib, db, area_b, overlap in coplanar_faces(rest, opposite=True):
+        if els[ia].part != els[ib].part:
+            continue
+        if overlap >= area_a - 1e-3:
+            hidden.add((ia, da))
+        if overlap >= area_b - 1e-3:
+            hidden.add((ib, db))
+    for i, d in sorted(hidden):
+        del els[i].faces[d]
+    index = {el.name: i for i, el in enumerate(els)}
+    for _ in range(12):
+        moved = set()
+        for pose in COPLANAR_POSES:
+            for na, da, nb, db, _area in coplanar_faces(posed_all(pose)):
+                if (na, da) in moved or (nb, db) in moved:
+                    continue
+                ea, eb = els[index[na]], els[index[nb]]
+                def face_area(el, d):
+                    k, _ = _FACE_NORMAL[d]
+                    return math.prod(abs(el.size[a]) for a in range(3) if a != k)
+                # the smaller face is the inner part's; on a tie, the later name's
+                inner = (nb, db) if (face_area(eb, db), nb) <= (face_area(ea, da), na) else (na, da)
+                inset_face(els[index[inner[0]]], inner[1], COPLANAR_INSET)
+                moved.add(inner)
+        if not moved:
+            break
+    return before, len(hidden)
+
+
 # ---------------------------------------------------------------- validation
 def obb_overlap(el: El, lo, hi, eps=0.02):
     """Separating-axis test between a rotated element and an axis-aligned box (voxels)."""
@@ -1556,6 +1719,13 @@ def validate(els, parts, rig, shape, frame_shape):
     for p in parts:
         if counts.get(p["id"], 0) == 0:
             fail(f"part {p['id']} matches nothing")
+
+    # no z-fighting: no two drawn faces in one plane, facing the same way, overlapping (review)
+    for pose in COPLANAR_POSES:
+        pairs = coplanar_faces([posed(el, part_matrix(parts, el.part, *pose)) for el in els])
+        print(f"coplanar faces at θ {pose[0]}, depth {pose[1]}: {len(pairs)} pairs")
+        for na, da, nb, db, area in pairs[:20]:
+            fail(f"{na} {da} and {nb} {db} share a plane over {area} sq voxels (z-fighting)")
 
     by_part = {}
     for el in els:
@@ -2068,10 +2238,17 @@ def main():
     parts = rig_parts()
     for el in els:  # tidy: drop near-zero rotation noise from IW's 89.99999 degree angles
         el.r = [[0.0 if abs(v) < 1e-7 else (math.copysign(1.0, v) if abs(abs(v) - 1) < 1e-7 else v) for v in row] for row in el.r]
+    # The cells' boxes come from the model before the z-fighting insets, which only move faces in by
+    # hundredths of a voxel: they would otherwise shift a box edge in its last digit.
     rig = make_rig(els, parts)
+    zfight_before, zfight_hidden = fix_coplanar(els, parts)
+    rig["parts"] = parts
     shape = shape_json(els, source)
     frame_shape = shape_json([el for el in els if el.part == "frame"], source)
     ok = validate(els, parts, rig, shape, frame_shape)
+    for pose, pairs in zfight_before.items():
+        print(f"coplanar faces before the fix at θ {pose[0]}, depth {pose[1]}: {len(pairs)} pairs")
+    print(f"coplanar faces: {zfight_hidden} faces pressed against their own part removed")
     if args.out:
         outs = (args.out / "buckingmill.json", args.out / "buckingmill_frame.json", args.out / "buckingmill-rig.json", args.out / "rig-reference.json")
     else:

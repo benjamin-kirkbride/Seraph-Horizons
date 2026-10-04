@@ -161,6 +161,19 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons");
     }
 
+    /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own
+    /// durability.</summary>
+    [AtlasScenario]
+    public void Durable_sawmill_blades_off_the_kits_are_as_they_ship()
+    {
+        Assert.True(Off("DurableSawmillBlades"));
+        foreach (var (metal, durability) in SawmillBladeDurability.Shipped)
+        {
+            var kit = W.GetItem(new AssetLocation(SawmillBladeDurability.ModId, "sawmillblade-" + metal))!;
+            Assert.Equal(durability, kit.GetMaxDurability(new ItemStack(kit)));
+        }
+    }
+
     /// <summary><c>HydrateTunRetired</c> and <c>LargerTunRack</c>: both tuns as their mods ship
     /// them.</summary>
     [AtlasScenario]

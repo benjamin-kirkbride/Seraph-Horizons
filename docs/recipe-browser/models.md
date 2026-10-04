@@ -107,8 +107,10 @@ Everything specific to one machine lives here, as data; the viewer has no machin
 
 The bucking sawmill's script is the gameplay's cycle: wind up 6 turns with the lift clutch in,
 then drop onto the trunk if one is loaded and cut down through it in 8 turns (in the game a cut
-takes the logs times `RevolutionsPerStoredLog`), or sink empty to the bed in 6 turns; then wind
-up again.
+takes the logs times `RevolutionsPerStoredLog`, over the blade kit's speed), or sink empty to the
+bed in 6 turns; then wind up again. Its prop has the two trunks the game shows, whatever a trunk's
+own size: thin (1×1×4, Logging Expanded's `lg` model) and thick (2×2×5, its `xxl`). Its `requires`
+are the parts the gameplay fits, the one `blade` kit standing for both saws' blades.
 
 ## The data step
 

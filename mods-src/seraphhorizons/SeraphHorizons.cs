@@ -60,6 +60,8 @@ public class SeraphHorizonsSystem : ModSystem
         _irrigationVessel = Config(api).IrrigationVesselRetired && IrrigationVessel.Applies(api);
         if (!_irrigationVessel)
             IrrigationVessel.DisablePatches(api);
+        if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
+            SawmillBladeDurability.DisablePatches(api);
         _tunRack = Config(api).LargerTunRack && TunRackCapacity.Applies(api) && TunRackCapacity.Bind(api.Logger);
         if (!_tunRack)
             TunRackCapacity.DisablePatches(api);
@@ -315,4 +317,8 @@ public class SeraphHorizonsConfig
     /// <summary>The bucking sawmill's figures; a value out of range falls back to its default with
     /// a warning. The server's are used.</summary>
     public MillConfig BuckingSawmillSettings { get; set; } = new();
+
+    /// <summary>Immersive Woodworking: its sawmill blade kits last three times as long, in the
+    /// bucking sawmill and in its own plank sawmill (server side; off means its own durabilities).</summary>
+    public bool DurableSawmillBlades { get; set; } = true;
 }

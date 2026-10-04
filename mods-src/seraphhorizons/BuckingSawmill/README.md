@@ -28,8 +28,9 @@ the player looks). Placing needs room for every cell of the rig and stamps an in
 into each other cell: `buckingmill-ghost`, and `buckingmill-ghostpower-{side}` in the cell that
 takes the axle. Ghosts store the controller's position and pass interaction, breaking, the
 pick-block stack, particles, name, info and help to it, as Immersive Woodworking's sawmill ghosts
-do. The controller re-stamps missing ghosts shortly after it loads. Breaking the frame or any ghost
-breaks the whole mill.
+do. Every cell's collision and selection boxes come from the controller (`CellBoxes`): its own from
+the rig, plus its part of a loaded trunk (see **Trunks**). The controller re-stamps missing ghosts
+shortly after it loads. Breaking the frame or any ghost breaks the whole mill.
 
 **Rig.** The footprint and anchor points are data, in `assets/seraphhorizons/config/buckingmill-rig.json`
 (written by the model's tooling in `tools/`): every occupied cell with its collision and selection
@@ -44,15 +45,28 @@ Woodworking: with n the normal of the `side` variant, local (x, y, z) goes to
 west 270. `Core/Rig.cs` parses the file and `Core/Footprint.cs` does the turning.
 
 **Assembly.** Right-click the frame or any ghost holding a part, recognised by code path as
-Immersive Woodworking does: two `sawmillsash`, one `sawmillcrankshaft`, one `sawmilllevers` and two
-`sawmillblade-{metal}` kits of one metal. Any order, but each blade kit needs a sash without a kit.
+Immersive Woodworking does: two `sawmillsash`, one `sawmillcrankshaft`, one `sawmilllevers` and one
+`sawmillblade-{metal}` kit, of any metal, which puts a blade in each saw. Any order, but the blade
+kit needs both sashes, one for each of its blades (so a blade never shows without its saw head).
 The levers are the linkage that throws the windlass in when the saws reach the bed and out again
 when they are back at the top (see **Saws** below). No carriage: in Immersive Woodworking it carries the log, which this
 mill does not do, and holding one does nothing special here. Parts are used up outside creative
 mode. Ctrl + right-click takes the trunk back if
-there is one, otherwise the last blade kit. The other parts come back only by breaking the frame,
-which drops the frame, every fitted part, the blade kits and a recoverable trunk. The rules are in
+there is one, otherwise the blade kit. The other parts come back only by breaking the frame,
+which drops the frame, every fitted part, the blade kit and a recoverable trunk. The rules are in
 `Core/Parts.cs`.
+
+**Creative shortcut.** The woodworking stations' (the mod README's unified woodworking section,
+`Core/CreativeUpgrades.cs`): a player in creative mode who right-clicks an unassembled mill with
+Ctrl (the game's `ctrl`, sprint by default) held and not Shift gets its next part fitted at once,
+whatever they hold, with nothing taken: the sashes, the crankshaft, the levers, then a steel blade
+kit (`AssembledMachines.DefaultMetal`, as the assembled creative sawmill's), one per click, in the
+order `Parts.Missing` lists them (`Parts.NextPart`). On an assembled mill Ctrl does what it does in
+survival: it takes the trunk, else the blade kit, back, a step back, and the next Ctrl fits a kit
+again. It is part of `UnifiedWoodworking` and runs while that tweak runs
+(`BEBuckingMill.CreativeShortcut`); the server decides, reading the game mode from its own player
+data, and a player in creative sees its help line (`seraphhorizons:woodworking-help-creative-upgrade`)
+while a part is missing.
 
 **Power.** `BEBehaviorMillMP`, a mechanical power consumer on the power ghost, connects only
 through the rig's power face, turned to the mill's facing (like Immersive Woodworking's
@@ -61,28 +75,76 @@ the mill is assembled, then with `Resistance`. The mill runs its saws' cycle, cu
 rack only while it is assembled and the shaft turns at `MinSpeed` or faster.
 
 **Trunks.** One at a time, held as the trunk's whole item stack, so one taken back out is unchanged.
+It is shown as one of two of Logging Expanded's models, whatever its own size (`Core/TrunkBox.cs`):
+a thin trunk (sizes `xs` to `lg`) as the `lg` model, 1×1×4 blocks, and a thick one (`xl`, `xxl`)
+as the `xxl` model, 2×2×5, of its wood and without branches (`Trunks.ShownBlock`). While loaded
+it is solid and selectable: one box of the shown model's size, centred on the bed, its underside
+on it, clipped into the mill's cells and added to their collision and selection boxes. The rig
+has no cells over the bed's middle where no frame is (y 1, z 0), so a cell with no mill cell
+above it reaches up one cell, as the game finds a block's boxes up to a block above it when it
+collides (the selection ray finds them anyway). Only the thick trunk's half block over the
+controller's column (x 0..0.5) loses anything: its north strip and its top have no mill cell at
+or one below them, and get no box. The boxes are built once per facing for no trunk, thin and
+thick in `Initialize`, and a collision lookup off the main thread only reads them. A click on the
+trunk acts on the mill as a click on any cell does; one with an unrelated item in hand, which the
+item would otherwise use (a block would be placed inside the trunk), is taken and does nothing.
 Any `loggingmod:treetrunk-*` of any size goes in, but not a branched one (`branches` variant `yes`
 or `branchCount` above 0) while Logging Expanded's `RequireBranchRemovalForProcessing` is on: the
 player gets Logging Expanded's own message. By hand, right-click holding a trunk, or with an empty
 hand to take the first one from the hotbar, then the backpack (as Logging Expanded's workstations
 search). A trunk goes on only while the saws are at the top of their cycle, within
 `SawDepth.LoadWindow` (0.08 of the travel, about half a turn either side of the top at the
-default rate); otherwise the player is told to wait for the saws to come up. From a rack: an
-assembled, empty, turning mill looks for a Trunk Storage Rack touching its infeed end at ground
-level (either of the rack's cells), every tick its saws are at (or pass) the top and once a second
-besides. The infeed is the west end in the native frame, the far end from the player who placed
-the mill, under the axle: the rack stands on the ground there (it is one block high, the axle comes
-in three blocks up), and a trunk slides in lengthwise through the west portal along the bed's rails
-through both stations. The cut logs leave the other, near end. The mill takes the rack's top trunk (the rack is last in, first out) unless that trunk is branched; then it waits. The rack
-is looked up afresh every time.
+default rate), or on a tick in which they pass the top. A click at any other time on a running
+mill is held: the server keeps the request from the click until the player lets go (the client
+keeps the hold going while the bed is empty), and the mill's own tick loads the trunk on the tick
+its saws are at or pass the top (`Feeding.CanTakeTrunk`), however far a fast shaft turned in that
+tick. A click that is let go before is only told to hold (`error-saws-not-up`). The server hears a
+hold's start and its stop or cancel from the client; it does not run the hold's steps itself, so the
+mill's tick, not the interaction's step, does the loading (and the winding below).
+
+**Where the rack stands.** An assembled, empty, turning mill looks for a Trunk Storage Rack in
+the three ground-level cells just outside its infeed end (`Rig.InfeedNeighbours`): the cells
+beyond the far end, under the axle, one per cell of the end's width, at the level of the
+controller (the block the player clicked when placing the mill). Either of the rack's two cells
+counts, its controller or its filler (`BlockMultiblock`, followed to its controller), so a rack
+stood lengthwise in line with the bed or crosswise along the end, turned either way, is found as
+long as one of its cells is in one of those three cells. One further out, diagonally beside the
+end, or a level up or down is not. Placed by a player, the rack faces them and its second block
+goes away from where they stand; facing one way, that block would go into the mill, and Logging
+Expanded refuses the placement against the end ("not enough space"). Placed one block further out
+instead, its second block reaches back to the end and the rack is found (the Atlas scenario places
+it from all four sides against all three cells, and one out where refused). The infeed is the west end in the native frame, the far end
+from the player who placed the mill: the rack stands on the ground there (it is one block high, the
+axle comes in three blocks up), and a trunk slides in lengthwise through the west portal along the
+bed's rails through both stations. The cut logs leave the other, near end. The mill takes the
+rack's top trunk (the rack is last in, first out) unless that trunk is branched or holds no logs;
+then it waits. It looks every tick its saws are at (or pass) the top and once a second besides,
+and the rack is looked up afresh every time. Once a second the server also works out what the
+racks offer (`CheckRack`, `Core/Feeding.cs`'s `RackState`): none there, empty, top trunk branched,
+top trunk with no logs, or ready; or pulling is switched off, or Logging Expanded is not as
+expected. It sends that to clients with the block entity, and the block info says it, so a player
+can see why nothing is coming.
 
 **Cutting.** Progress runs from 0 to 1 per trunk, advanced by how far the shaft turned (its angle,
 as Immersive Woodworking's sawmill does, not the time). A trunk takes `RevolutionsPerStoredLog`
-turns per log stored in it. When it is through, the mill drops
+turns per log stored in it, over the blade kit's speed. When it is through, the mill drops
 floor(stored logs × `LogsPerStoredLog`) of the log Logging Expanded makes from that wood
-(`TreeManager.GetPlacedLogCode`) at the rig's output point, and each blade kit loses
-ceil(stored logs × `BladeWearPerStoredLog`) durability. A kit worn to 0 breaks with the tool-break
-sound, and the mill stops until a new one is fitted. The trunk can be taken back only while less
+(`TreeManager.GetPlacedLogCode`) at the rig's output point, and the blade kit loses
+ceil(stored logs × `BladeWearPerStoredLog`) durability, one per stored log by default. A kit worn
+to 0 breaks with the tool-break sound, and the mill stops until a new one is fitted.
+
+**Blade speed.** A better kit cuts faster: its speed is 1 + `BladeSpeedPerTier` per tool tier above
+copper's (2), never below 1 (`Cutting.BladeSpeed`), and the cut takes `RevolutionsPerStoredLog` /
+speed turns per stored log (`Cutting.CutRevolutions`); the windlass's raise and the empty descent
+(`RaiseRevolutions`) do not change, since they are the drum gearing's (see **Gear ratios**).
+Immersive Woodworking's kit is no tool and has no tier, so the server looks one up per kit
+(`BuckingSawmillSystem.BladeTier`), so that any metal, a modded one too, has one without a table:
+the kit's own `ToolTier` if it has one, else that of the game's saw of its metal (`game:saw-{metal}`,
+which the kit is made from the blade of), else the metal's tier in the game's metal properties
+(`worldproperties/block/metal.json`) plus one (they run one below the saws': copper 1, steel 4),
+else 1×. With the default 0.35 that is copper, gold and silver 1×, the bronzes 1.35×, iron and
+meteoric iron 1.7×, steel 2.05×. The server's figure goes to clients with the block entity
+(`bladeSpeed`), so their estimate of the cut runs at the same speed, and the block info shows it. The trunk can be taken back only while less
 than a quarter is cut. Its resin and branch data are lost, as on Logging Expanded's sawhorses.
 The server does all of it; the arithmetic is in `Core/Cutting.cs`.
 
@@ -111,6 +173,18 @@ enough, otherwise `Raising` while going up, `Cutting` while going down with a tr
 while going down empty. Wear, the stroke sound and sawdust happen only while cutting. The
 arithmetic is in `Core/SawDepth.cs` (`Advance`).
 
+**Winding up by hand.** A mill that is not running (not assembled, or turning slower than
+`MinSpeed`) with its saws not at the top has them wound up by a player holding right-click on it
+with an empty hand (`Feeding.WindsUp`): the server raises them the whole travel in
+`Feeding.HandWindSeconds` (2 s) while the button is down, as `rising`, so the renderer shows the
+lift, and they stop where they are when it is let go. At the top they stop going up, and an
+empty-handed click there loads a trunk from the inventory as before; so does one on a running mill.
+A trunk on the bed stays, with its progress, and whether it can be taken back still goes by that
+progress, not by where the saws are. When the mill turns again the saws finish any rise left and
+then come down onto the trunk at the depth its cut has reached (`SawDepth.Advance` puts them there
+on the first step, as it does for a newly loaded trunk), and the cut carries on: the logs and the
+wear are those of the whole trunk, once. The block info and the help say when winding applies.
+
 **Logging Expanded** is read through `Game/LoggingBridge.cs`, by reflection: the rack's block entity
 (`LoggingMod.BETrunkStorage`: `GetStoredTrunks`, `PopTrunk`), `LoggingMod.TreeManager.Instance`
 (`GetPlacedLogCode`) and `LoggingMod.LoggingConfig.Current` (`RequireBranchRemovalForProcessing`).
@@ -129,6 +203,11 @@ speed), which `MillRenderer` polls to draw the moving parts and the trunk (see [
 `BuckingSawmill` switch. Values out of range fall back to the default with a warning. The
 server's values are used.
 
+The kits' durability is Immersive Woodworking's tripled while the mod's `DurableSawmillBlades`
+switch is on (a JSON patch, `assets/seraphhorizons/patches/sawmillblade-durability.json`,
+`../SawmillBladeDurability.cs`): copper 750, the bronzes 1200 to 1500, iron 2700, steel 6750. It is
+the item's, so Immersive Woodworking's own plank sawmill gets it too.
+
 | Setting | Default | |
 |---|---|---|
 | `Resistance` | 0.17 | Load of the assembled mill on its shaft (twice Immersive Woodworking's sawmill) |
@@ -136,7 +215,8 @@ server's values are used.
 | `RevolutionsPerStoredLog` | 8 | Shaft turns per log stored in a trunk |
 | `RaiseRevolutions` | 6 | Shaft turns for the saws' whole travel, each way, when not cutting: up from the bed, and down when empty. An empty cycle is twice this. |
 | `LogsPerStoredLog` | 2.0 | Logs out per log stored, rounded down over the trunk |
-| `BladeWearPerStoredLog` | 0.25 | Durability each blade kit loses per log stored, rounded up over the trunk |
+| `BladeWearPerStoredLog` | 1 | Durability the blade kit loses per log stored, rounded up over the trunk |
+| `BladeSpeedPerTier` | 0.35 | How much faster the blade kit cuts per tool tier above copper's (see **Blade speed**); 0 makes every metal cut at copper's speed |
 | `AutoPullFromRack` | true | Whether it takes trunks from a rack at its infeed end (the far end, under the axle) |
 
 ## Crafting
@@ -311,6 +391,7 @@ The output is deterministic. On every run the script also checks its own output,
   - both trips: going down, the carriage's lug meets the tappet exactly when the trip starts to move (depth 0.941); going up, it meets the collar exactly when the trip starts back (depth 0.059); and the lug never runs into either;
   - the lever never jumps: over every depth, going down and going up, the trip rod's top stays pinned to the tappet arm;
   - the rectifier: per radian of shaft travel the west pinion turns +1, the east −1, and the disc the same way either way; in a raise the small crown gear's half turns exactly as the disc does.
+- **No z-fighting** *(review)*: no two drawn faces of different elements lie in one plane facing the same way and overlap (by more than 0.01 sq voxels), at rest and mid-cut (`coplanar_faces`, in world space after every element's rotation). Before the check, `fix_coplanar` removes every face pressed flat against an element of the same part (inside an opposite face of it: the other element covers it, so it can never be seen), then moves the smaller face of each remaining pair in by 0.015 voxels until none is left (a stack of four ends up 0, 0.015, 0.03 and 0.045 deep). The cells' boxes are taken from the model before the insets, so they do not move. On the model as built that found 348 pairs at rest (342 mid-cut): the octagonal drums, guide-block spools and sheaves (four strips per ring, their end caps in one plane), the main shaft's and drum shaft's cross-profile bars (`shaft_1a`/`shaft_1b`, `drum_shaft_*a`/`*b`), the pinions (IW's own pinions z-fight like this in its model), the crown axles, collars flush with bearings, the drum-shaft bearings and the posts, the tail posts' caps, straps and pins, and the levers; 459 hidden faces were removed and 83 elements inset.
 - **Files:** every texture used is declared, and every file parses. Everything is checked in the build frame; the shipped files are then moved by (−5, 0, −1) blocks, and the script checks that every element posed by the shipped rig lands where the checked one does, moved (to 1e-6 voxels), and that `[0,0,0]` is a cell.
 
 Rerun it when IW's shape changes. Placement numbers are named constants at the top of the script. The script also holds the reference implementation of the driver maths (`driver_matrix`, `part_matrix`), which the renderer and the browser viewer must match.
@@ -373,10 +454,10 @@ Everything is in the native frame, in block units, with the controller at `[0,0,
 
 How `parts` works:
 - **Matching.** Each part's `match` is a list of case-sensitive `*` globs over an element's name. The first part with a matching glob owns the element. The last part, `frame` with `*`, is the static frame.
-- **`requires`** names the fitted item the part needs before it is drawn: `crankshaft`, `levers`, `sash1`, `sash2`, `blade1` or `blade2`, or null for always (the parser rejects anything else). In the shipped rig:
+- **`requires`** names the fitted item the part needs before it is drawn: `crankshaft`, `levers`, `sash1`, `sash2` or `blade`, or null for always (the parser rejects anything else). In the shipped rig:
   - `crankshaft`: the shaft, cranks, rods, yokes, gear set, drum shaft and drums;
   - `sash1` and `sash2`: each station's carriage, saw head (with the blade's tail piece), guide block, rope, and the guide block's spool, rope and sheave;
-  - `blade1` and `blade2`: each station's blade;
+  - `blade`: both stations' blades, which the one blade kit puts in;
   - `levers`: the trip rod and the rock shaft.
   - `crankshaft` also covers the dog clutch and both halves of the crown axle.
 - **Composition.** `drivers` apply in list order to the authored geometry, with pivots in the authored frame: M = Dₙ ⋯ D₂ · D₁. If the part has a `ride`, that part's whole matrix is then applied on top: M = M_ride · M. Parents are evaluated first whatever the file order, and cycles are rejected.
@@ -433,7 +514,7 @@ The renderer:
   - It registers for the opaque pass and both shadow passes, and draws nothing beyond 64 blocks.
   - The rope's matrix scales along one axis, so it is not rigid.
 - **Blade texture:** the blade meshes take the fitted kit's metal (`game:block/metal/ingot/{metal}`) in place of `metal`. The head's clamps keep iron.
-- **The loaded trunk** is Logging Expanded's own block for that stack, so every size and wood looks right. It is laid on the bed from its tessellated bounds: turned onto x, centred on `trunkBed.origin`, its underside on the bed. It stays whole until the cut finishes and the gameplay clears it.
+- **The loaded trunk** is Logging Expanded's own block of the trunk's wood without branches, in the `lg` size for a thin trunk and `xxl` for a thick one (`Trunks.ShownBlock`), whatever the stack's own size. It is laid on the bed from its tessellated bounds: turned onto x, centred on `trunkBed.origin`, its underside on the bed. It stays whole until the cut finishes and the gameplay clears it.
 - **Shaft angle:** taken from the power ghost's `AngleRad`, which the network already advances smoothly on the client, and accumulated into a continuous angle.
   - The native shaft angle is `-AngleRad` facing south or west and `+AngleRad` facing north or east (`MillMotion.NativeShaftAngle`).
   - That makes the shaft turn with a vanilla axle on the power face, which draws itself as a right-handed turn of `-AngleRad` about the world axis.
@@ -483,14 +564,17 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
 - `tests/BuckingSawmill/` (part of the mod's unit tests, `dotnet test mods-src/seraphhorizons/tests`,
   no game needed) compiles `Core/` and tests
   the rig parser (with its own fixture, and the shipped `buckingmill-rig.json`), the rotation maths, the
-  assembly rules, the cut arithmetic, the saws' cycle (empty down and up, turning at both ends in
+  assembly rules (one kit, after both sashes) and the creative shortcut's order, the cut arithmetic
+  (wear one per stored log, the blade speed by tier and that it shortens the cut only), the trunk's
+  shown size and its box (centred on the bed, clipped into cells, reaching up through an empty cell,
+  and what of it the shipped cells cover), the saws' cycle (empty down and up, turning at both ends in
   one step, the load window, a trunk loaded at the top and on the last of the rise, a finished cut
   starting the rise, a trunk taken out early, stopping and resuming) and the config. It also tests the rig's animation: glob
   matching, each driver (including the step gates, the `trip` gate agreeing with itself where the direction changes, and the stretch), ride composition and cycles,
   the shaft's direction against a vanilla axle on every facing, every shipped part's matrix
   against `tests/BuckingSawmill/rig-reference.json` (written by `tools/make_shape.py` from its reference maths,
   with a spread of shaft travels), the shipped carriages falling from `saw.topY` to
-  `saw.bottomY`, the guide blocks sinking with the saws without stroking, the rectifier (for each
+  `saw.bottomY`, both blades needing the one blade kit, the guide blocks sinking with the saws without stroking, the rectifier (for each
   shaft direction the disc turns the same way, the pinion whose catch bites turns with the shaft,
   and in a raise the small crown gear's half turns as the disc does), and the rock shaft
   throwing the dog clutch onto the dog hub, holding it while the saws rise and throwing it out at the top.
@@ -503,9 +587,27 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
   assembly follows the rules (levers included), racks feed debranched trunks only (also through a
   rack's filler cell), a powered empty mill cycles down and up without stopping and takes a trunk
   by hand only at the top, a full cut on a real mechanical network (a creative rotor) gives the
-  configured logs and wears the blades (and a broken kit stops the cycle until replaced), the
-  rack's next trunk waits until the saws are at the top, a trunk taken out early lets the saws
-  carry on down empty, and the depth and direction survive saving. Its ModConfig is seeded from
+  configured logs and wears the kit one per stored log (and the next cut breaks it, which stops
+  the cycle until a new one is fitted), the rack's next trunk waits until the saws are at the top,
+  a trunk taken out early lets the saws carry on down empty, and the depth and direction survive
+  saving. At the creative rotor's top speed (speed and power 10) on the default travel, it measures
+  the load window (about 8% of an empty cycle's ticks, so a single click lands in it about one time
+  in twelve), and a held trunk goes on at the next top, cut after cut; let go of, it stays in the
+  hand. Racks placed through Logging Expanded's own placement from a player looking each of the
+  four ways, against each of the three infeed cells (or one block out where Logging Expanded refuses
+  the cell), are all found, and the block info says what the rack offers (empty, branched, ready).
+  A stopped mill's saws are wound up by hand (held, let go, held again to the top), a trunk is
+  refused while they are down, and a trunk cut half way stays on, is still too far cut to take out,
+  and when the mill turns again is finished with its full yield and wear. Every trunk size is shown as Logging Expanded's `lg` or `xxl` model; on every facing a
+  loaded thin and thick trunk add boxes exactly the shown model's box (less the thick one's
+  uncovered half block) to both the collision and selection boxes, a click on its top is the
+  mill's even with a block in hand, and Ctrl there takes it back and its boxes with it. Each metal's
+  kit has its expected speed, the metal-properties fallback agrees with the game's saws, and a
+  steel kit cuts in 1/2.05 of copper's turns while the saws still rise at the same rate. Every kit's
+  durability is tripled. In creative, Ctrl + right click fits the parts one by one with nothing
+  taken (not in survival, not with Shift), shows its help line, and on the assembled mill takes
+  the kit back and fits a new one. Its ModConfig is seeded from
   `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and the cycle (an empty cycle
   is two turns). With the switch off, `SwitchesOffScenarios` requires no mill
-  block, no recipe and nothing logged.
+  block, no recipe and nothing logged, and with `DurableSawmillBlades` off, Immersive Woodworking's
+  own durabilities.

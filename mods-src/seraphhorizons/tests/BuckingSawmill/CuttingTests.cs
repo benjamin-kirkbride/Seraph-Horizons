@@ -64,6 +64,56 @@ public class CuttingTests
     public void Wear_is_rounded_up(int logs, float perLog, int expected) =>
         Assert.Equal(expected, Cutting.BladeWear(logs, perLog));
 
+    // The default wear: a log's worth of durability per stored log.
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(12, 12)]
+    [InlineData(48, 48)]
+    public void Default_wear_is_one_per_stored_log(int logs, int expected) =>
+        Assert.Equal(expected, Cutting.BladeWear(logs, new MillConfig().BladeWearPerStoredLog));
+
+    // The game's saw tiers: copper, gold and silver 2, bronzes 3, iron and meteoric iron 4, steel 5.
+    [Theory]
+    [InlineData(2, 1f)]
+    [InlineData(3, 1.35f)]
+    [InlineData(4, 1.7f)]
+    [InlineData(5, 2.05f)]
+    [InlineData(1, 1f)]
+    [InlineData(0, 1f)]
+    [InlineData(null, 1f)]
+    public void Blade_speed_rises_with_the_tool_tier_above_copper(int? tier, float expected) =>
+        Assert.Equal(expected, Cutting.BladeSpeed(tier, new MillConfig().BladeSpeedPerTier), 4);
+
+    [Fact]
+    public void Blade_speed_per_tier_is_the_setting()
+    {
+        Assert.Equal(1f, Cutting.BladeSpeed(5, 0f));
+        Assert.Equal(2f, Cutting.BladeSpeed(5, 1f / 3), 4);
+        Assert.Equal(1f, Cutting.BladeSpeed(5, float.NaN));
+    }
+
+    // A faster blade shortens the cut and nothing else: the windlass's travel is unchanged, and
+    // the cut stays proportional to the stored logs.
+    [Fact]
+    public void A_faster_blade_cuts_in_fewer_turns()
+    {
+        float steel = Cutting.CutRevolutions(8, 2f);
+        Assert.Equal(4f, steel);
+        Assert.Equal(8f, Cutting.CutRevolutions(8, 1f));
+        Assert.Equal(8f, Cutting.CutRevolutions(8, 0f));
+        // 12 logs: 48 turns with steel, 96 with copper.
+        Assert.Equal(1f, Cutting.ProgressFor(48 * Turn, 12, steel), 4);
+        Assert.Equal(0.5f, Cutting.ProgressFor(48 * Turn, 12, 8), 4);
+        Assert.Equal(1f, Cutting.ProgressFor(24 * Turn, 6, steel), 4);
+
+        var empty = SawDepth.Advance(new SawCycle(0, false), 3 * Turn, null, 0, steel, 6);
+        Assert.Equal(0.5f, empty.Cycle.Depth, 4);
+        var raise = SawDepth.Advance(new SawCycle(1, true), 3 * Turn, null, 0, steel, 6);
+        Assert.Equal(0.5f, raise.Cycle.Depth, 4);
+        var cut = SawDepth.Advance(new SawCycle(0.5f, false), 24 * Turn, 0.5f, 12, steel, 6);
+        Assert.Equal(0.5f, cut.Cycle.Progress, 4);
+    }
+
     [Theory]
     [InlineData(0, 64, new int[0])]
     [InlineData(24, 64, new[] { 24 })]
