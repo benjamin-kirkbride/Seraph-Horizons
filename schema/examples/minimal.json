@@ -10,7 +10,8 @@
       "version": "1.0.0",
       "authors": ["Someone"],
       "website": "https://mods.vintagestory.at/examplemod"
-    }
+    },
+    "butchering": { "name": "Butchering", "version": "1.14.3", "authors": ["G3rste", "CaptainOats"] }
   },
   "items": {
     "game:plank-oak": { "kind": "item", "name": "Oak plank", "mod": "game", "handbookVisible": true },
@@ -52,6 +53,17 @@
     "game:supportbeam-birch": { "kind": "block", "name": "Birch support beam", "mod": "game", "handbookVisible": true },
     "game:resin": { "kind": "item", "name": "Resin", "mod": "game", "handbookVisible": true },
     "game:waterwheel-3m-north": { "kind": "block", "name": "Water wheel", "mod": "survival", "handbookVisible": true },
+    "game:knife-generic-flint": { "kind": "item", "name": "Flint knife", "mod": "game", "handbookVisible": true },
+    "game:cleaver-copper": { "kind": "item", "name": "Copper cleaver", "mod": "game", "handbookVisible": true },
+    "game:woodbucket": { "kind": "block", "name": "Wooden bucket", "mod": "game", "handbookVisible": true },
+    "game:bushmeat-raw": { "kind": "item", "name": "Raw bushmeat", "mod": "game", "handbookVisible": true },
+    "game:fat": { "kind": "item", "name": "Fat", "mod": "game", "handbookVisible": true },
+    "butchering:deadhare-male-european-1-dead": { "kind": "item", "name": "Hare (dead)", "mod": "butchering", "handbookVisible": false },
+    "butchering:deadhare-male-european-1-skinned": { "kind": "item", "name": "Hare (skinned)", "mod": "butchering", "handbookVisible": false },
+    "butchering:deadhare-male-european-1-bledout": { "kind": "item", "name": "Hare (bled out)", "mod": "butchering", "handbookVisible": false },
+    "butchering:butcherhook-copper-north": { "kind": "block", "name": "Copper butchering hook", "mod": "butchering", "handbookVisible": true },
+    "butchering:butchertable-simple-north": { "kind": "block", "name": "Simple butchering table", "mod": "butchering", "handbookVisible": true },
+    "butchering:bloodportion": { "kind": "item", "name": "Blood", "mod": "butchering", "handbookVisible": true },
     "examplemod:widget": { "kind": "item", "name": "Widget", "mod": "examplemod", "handbookVisible": false }
   },
   "recipes": [
@@ -96,6 +108,119 @@
         }
       ],
       "barrel": { "sealHours": 0 }
+    },
+    {
+      "id": "butchery|game:hare|butchering:deadhare-male-european-1-dead",
+      "type": "butchery",
+      "mod": "butchering",
+      "ingredients": [
+        { "code": "butchering:deadhare-male-european-1-dead", "kind": "item", "quantity": 1, "role": "carcass" },
+        {
+          "code": "butchering:butcherhook-copper-north",
+          "kind": "block",
+          "quantity": 1,
+          "role": "station",
+          "extra": { "efficiency": { "butchering:butcherhook-copper-north": 1 } }
+        },
+        { "code": "game:knife-generic-flint", "kind": "item", "quantity": 1, "isTool": true, "toolDurabilityCost": 4, "role": "tool" },
+        { "code": "butchering:deadhare-male-european-1-skinned", "kind": "item", "quantity": 1, "role": "carcass" },
+        { "code": "game:woodbucket", "kind": "block", "quantity": 1, "role": "station" },
+        { "code": "butchering:deadhare-male-european-1-bledout", "kind": "item", "quantity": 1, "role": "carcass" },
+        {
+          "code": "butchering:butchertable-simple-north",
+          "kind": "block",
+          "quantity": 1,
+          "role": "station",
+          "extra": { "efficiency": { "butchering:butchertable-simple-north": 1 } }
+        },
+        { "code": "game:knife-generic-flint", "kind": "item", "quantity": 1, "isTool": true, "toolDurabilityCost": 4, "role": "tool" },
+        { "code": "game:cleaver-copper", "kind": "item", "quantity": 1, "isTool": true, "toolDurabilityCost": 2, "role": "tool" },
+        { "code": "game:knife-generic-flint", "kind": "item", "quantity": 1, "isTool": true, "role": "tool" }
+      ],
+      "outputs": [
+        { "code": "butchering:deadhare-male-european-1-dead", "kind": "item", "quantity": 1 },
+        { "code": "butchering:deadhare-male-european-1-skinned", "kind": "item", "quantity": 1 },
+        { "code": "game:hide-raw-small", "kind": "item", "quantity": 1, "extra": { "scaledBy": ["efficiency"] } },
+        { "code": "butchering:deadhare-male-european-1-bledout", "kind": "item", "quantity": 1 },
+        { "code": "butchering:bloodportion", "kind": "item", "quantity": 20, "litres": 0.2, "extra": { "needs": [4] } },
+        { "code": "game:bushmeat-raw", "kind": "item", "quantity": 3, "extra": { "scaledBy": ["efficiency", "condition"] } },
+        { "code": "game:fat", "kind": "item", "quantity": 1, "extra": { "scaledBy": ["efficiency", "condition"] } },
+        { "code": "game:hide-raw-small", "kind": "item", "quantity": 0.5 },
+        { "code": "game:bushmeat-raw", "kind": "item", "quantity": 1.5, "extra": { "scaledBy": ["condition"] } }
+      ],
+      "variants": [
+        {
+          "ingredients": [
+            [{ "code": "butchering:deadhare-male-european-1-dead", "kind": "item", "quantity": 1 }],
+            [{ "code": "butchering:butcherhook-copper-north", "kind": "block", "quantity": 1 }],
+            [{ "code": "game:knife-generic-flint", "kind": "item", "quantity": 1 }],
+            [{ "code": "butchering:deadhare-male-european-1-skinned", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:woodbucket", "kind": "block", "quantity": 1 }],
+            [{ "code": "butchering:deadhare-male-european-1-bledout", "kind": "item", "quantity": 1 }],
+            [{ "code": "butchering:butchertable-simple-north", "kind": "block", "quantity": 1 }],
+            [{ "code": "game:knife-generic-flint", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:cleaver-copper", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:knife-generic-flint", "kind": "item", "quantity": 1 }]
+          ],
+          "outputs": [
+            { "code": "butchering:deadhare-male-european-1-dead", "kind": "item", "quantity": 1 },
+            { "code": "butchering:deadhare-male-european-1-skinned", "kind": "item", "quantity": 1 },
+            { "code": "game:hide-raw-small", "kind": "item", "quantity": 1 },
+            { "code": "butchering:deadhare-male-european-1-bledout", "kind": "item", "quantity": 1 },
+            { "code": "butchering:bloodportion", "kind": "item", "quantity": 20, "litres": 0.2 },
+            { "code": "game:bushmeat-raw", "kind": "item", "quantity": 3 },
+            { "code": "game:fat", "kind": "item", "quantity": 1 },
+            { "code": "game:hide-raw-small", "kind": "item", "quantity": 0.5 },
+            { "code": "game:bushmeat-raw", "kind": "item", "quantity": 1.5 }
+          ]
+        },
+        {
+          "ingredients": [
+            [{ "code": "butchering:deadhare-male-european-1-dead", "kind": "item", "quantity": 1 }],
+            [{ "code": "butchering:butcherhook-copper-north", "kind": "block", "quantity": 1 }],
+            [{ "code": "game:knife-generic-flint", "kind": "item", "quantity": 1 }],
+            [{ "code": "butchering:deadhare-male-european-1-skinned", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:woodbucket", "kind": "block", "quantity": 1 }],
+            [{ "code": "butchering:deadhare-male-european-1-bledout", "kind": "item", "quantity": 1 }],
+            [{ "code": "butchering:butchertable-simple-north", "kind": "block", "quantity": 1 }],
+            [{ "code": "game:knife-generic-flint", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:cleaver-copper", "kind": "item", "quantity": 1 }],
+            [{ "code": "game:knife-generic-flint", "kind": "item", "quantity": 1 }]
+          ],
+          "outputs": [
+            { "code": "butchering:deadhare-male-european-1-dead", "kind": "item", "quantity": 1 },
+            { "code": "butchering:deadhare-male-european-1-skinned", "kind": "item", "quantity": 1 },
+            { "code": "game:hide-raw-small", "kind": "item", "quantity": 1 },
+            { "code": "butchering:deadhare-male-european-1-bledout", "kind": "item", "quantity": 1 },
+            { "code": "butchering:bloodportion", "kind": "item", "quantity": 20, "litres": 0.2 },
+            { "code": "game:bushmeat-raw", "kind": "item", "quantity": 2 },
+            { "code": "game:hide-raw-small", "kind": "item", "quantity": 0.5 },
+            { "code": "game:bushmeat-raw", "kind": "item", "quantity": 1 }
+          ]
+        }
+      ],
+      "butchery": {
+        "entityType": "game:hare",
+        "workload": "small",
+        "stages": [
+          { "step": "pickUp", "ingredients": [], "outputs": [0] },
+          { "step": "skin", "ingredients": [0, 1, 2], "outputs": [1, 2] },
+          { "step": "bleed", "ingredients": [3], "optional": [4], "hours": 1, "outputs": [3, 4] },
+          { "step": "butcher", "ingredients": [5, 6], "options": [[7], [8]], "outputs": [5, 6] },
+          { "step": "harvest", "ingredients": [9], "multiplier": 0.5, "outputs": [7, 8] }
+        ],
+        "variants": [
+          {
+            "entities": [{ "code": "game:hare-european-adult-male", "name": "European hare (male)" }],
+            "yields": [{ "avg": 1 }, { "avg": 1 }, { "avg": 1 }, { "avg": 1 }, { "avg": 20 }, { "avg": 3, "var": 1 }, { "avg": 1 }, { "avg": 0.5 }, { "avg": 1.5, "var": 0.5 }]
+          },
+          {
+            "entities": [{ "code": "game:hare-european-adult-female", "name": "European hare (female)" }],
+            "yields": [{ "avg": 1 }, { "avg": 1 }, { "avg": 1 }, { "avg": 1 }, { "avg": 20 }, { "avg": 2 }, null, { "avg": 0.5 }, { "avg": 1 }]
+          }
+        ]
+      },
+      "extra": { "behavior": "EntityBehaviorButcherable" }
     },
     {
       "id": "construction|game:waterwheel-3m-north|2",
@@ -210,6 +335,7 @@
   "recipeTypes": {
     "alloy": { "name": "Alloying", "count": 1, "shape": "alloy", "registry": "alloyrecipes", "mod": "game" },
     "barrel": { "name": "Barrel", "count": 1, "shape": "barrel", "registry": "barrelrecipes", "mod": "game" },
+    "butchery": { "name": "Butchery", "count": 1, "shape": "butchery", "registry": "EntityBehaviorButcherable", "mod": "butchering" },
     "construction": { "name": "Built in place", "count": 1, "shape": "construction", "registry": "BEBehaviorRightClickConstructable", "mod": "survival" },
     "examplemod:press": { "name": "Press", "count": 1, "shape": "generic", "registry": "pressrecipes", "mod": "examplemod" },
     "grid": { "name": "Crafting grid", "count": 1, "shape": "grid", "registry": "gridrecipes", "mod": "game" },
