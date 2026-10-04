@@ -224,19 +224,3 @@ public class MapRevealScenarios : AtlasScenarioBase
         }
     }
 }
-
-/// <summary>
-/// Map Reveal with its switch off (<c>"MapReveal": false</c> in ModConfig/seraphhorizons.json, seeded
-/// from fixtures/mapreveal-off): there is no <c>/revealmap</c> command. Its own server.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/mapreveal-off", TargetPath = "ModConfig")]
-public class MapRevealOffScenarios : AtlasScenarioBase
-{
-    [AtlasScenario]
-    public void Switched_off_there_is_no_command()
-    {
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["MapReveal"].AsBool(true));
-        Assert.Null(World.Api.ChatCommands.Get("revealmap"));
-    }
-}

@@ -12,7 +12,7 @@ namespace SeraphHorizons.PackTests;
 /// <summary>Immersive Woodworking's powered chopper as these scenarios drive it: a frame on a
 /// granite floor in clear air, fed a log, its batch ejected through the chopper's own private
 /// <c>EjectBatch</c> (what its chop-complete path calls), and the items that come of it. Shared
-/// with <see cref="ChopperOutputOffScenarios"/>.</summary>
+/// with <see cref="SwitchesOffScenarios"/>.</summary>
 internal sealed class ChopperSite(IWorldSession world, BlockPos master, BlockFacing facing)
 {
     public const string Log = "game:log-placed-oak-ud";
@@ -184,39 +184,5 @@ public class ChopperOutputScenarios(ITestOutputHelper output) : AtlasScenarioBas
             output.WriteLine($"{facing.Code}: {site.Caught()} of {ejected} caught");
             Assert.Equal(ejected, site.Caught());
         }
-    }
-}
-
-/// <summary>
-/// The same with the switch off (<c>"ChopperDropsInFront": false</c>, fixtures/chopperoutput-off):
-/// the chopper is not patched and throws its batch past the cell in front, as Immersive
-/// Woodworking ships it. Its own server.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/chopperoutput-off", TargetPath = "ModConfig")]
-public class ChopperOutputOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
-{
-    [AtlasScenario(TimeoutMs = 180_000)]
-    public async Task Switched_off_the_chopper_throws_its_batch_as_it_ships()
-    {
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["ChopperDropsInFront"].AsBool(true));
-        Assert.False(ChopperSite.Patched(World.Api.World));
-
-        var origin = World.Spawn.AddCopy(60, 12, -60);
-        await ChopperSite.Watcher(World, origin, "chopwatcher");
-        var site = new ChopperSite(World, origin, BlockFacing.NORTH);
-        await site.Build(hopper: false);
-        int ejected = 0;
-        for (int n = 0; n < 10; n++)
-            ejected += site.ChopOneLog();
-        await World.Ticks(150);
-
-        var loose = site.Loose();
-        Assert.Equal(ejected, loose.Sum(e => e.Itemstack.StackSize));
-        var spots = loose.Select(site.Local).ToList();
-        foreach (var (along, across, up) in spots)
-            output.WriteLine($"along {along:F3} across {across:F3} up {up:F3}");
-        // Immersive Woodworking's throw carries the batch past the cell in front.
-        Assert.Contains(spots, s => s.Along > 2);
     }
 }

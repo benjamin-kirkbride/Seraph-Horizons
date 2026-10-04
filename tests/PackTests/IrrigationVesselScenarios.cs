@@ -8,7 +8,7 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>The pack's two ollas as these scenarios read them: Primitive Survival's irrigation vessel
 /// (<c>primitivesurvival:irrigationvessel-*</c>) and Olla's olla (<c>olla:olla-*</c>). Shared with
-/// <see cref="IrrigationVesselOffScenarios"/>.</summary>
+/// <see cref="SwitchesOffScenarios"/>.</summary>
 internal static class Ollas
 {
     public const string RuinLoot = "game:stackrandomizer-clayproducts";
@@ -73,28 +73,5 @@ public class IrrigationVesselScenarios : AtlasScenarioBase
             Assert.True(Tuns.InCreative((Block)fired));
             Assert.False(Tuns.HandbookExcluded((Block)fired));
         }
-    }
-}
-
-/// <summary>
-/// The same with the switch off (<c>"IrrigationVesselRetired": false</c>, fixtures/irrigationvessel-off):
-/// the irrigation vessel as Primitive Survival ships it. Its own server.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/irrigationvessel-off", TargetPath = "ModConfig")]
-public class IrrigationVesselOffScenarios : AtlasScenarioBase
-{
-    private IWorldAccessor W => World.Api.World;
-
-    [AtlasScenario]
-    public void Switched_off_the_irrigation_vessel_is_as_it_ships()
-    {
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["IrrigationVesselRetired"].AsBool(true));
-
-        Assert.Contains(Ollas.VesselRecipes(W), r => r.Output?.Code?.ToString() == IrrigationVessel.Block);
-        var vessel = Tuns.Block(W, IrrigationVessel.Block);
-        Assert.True(Tuns.InCreative(vessel));
-        Assert.False(Tuns.HandbookExcluded(vessel));
-        Assert.Contains(Ollas.RuinLootCodes(W), c => c.StartsWith(IrrigationVessel.CodePrefix));
     }
 }
