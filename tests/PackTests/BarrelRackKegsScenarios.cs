@@ -12,7 +12,7 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>A Food Shelves barrel rack on a granite floor and a player using it with their own
 /// hands, through the rack block's <c>OnBlockInteractStart</c> as the game calls it for a
-/// right-click. Shared with <see cref="BarrelRackKegsOffScenarios"/>.</summary>
+/// right-click. Shared with <see cref="SwitchesOffScenarios"/>.</summary>
 internal sealed class RackSite(IWorldSession world, BlockPos pos, ITestPlayer player)
 {
     public const string Rack = "foodshelves:barrelrack-normal-east";
@@ -224,30 +224,5 @@ public class BarrelRackKegsScenarios(ITestOutputHelper output) : AtlasScenarioBa
         var keg = Assert.Single(loose, s => s.Collectible.Code.ToString() == RackSite.Tapped);
         Assert.Equal(30f, RackSite.LitresIn(keg));
         Assert.DoesNotContain(loose, s => s.Collectible.Code.ToString() == RackSite.Water);
-    }
-}
-
-/// <summary>
-/// The same with the switch off (<c>"BarrelRackKegs": false</c>, fixtures/barrelrackkegs-off): the
-/// rack takes barrels only and nothing is patched. Its own server.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/barrelrackkegs-off", TargetPath = "ModConfig")]
-public class BarrelRackKegsOffScenarios : AtlasScenarioBase
-{
-    [AtlasScenario]
-    public async Task Switched_off_the_rack_refuses_kegs()
-    {
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["BarrelRackKegs"].AsBool(true));
-        Assert.False(RackSite.Patched());
-        var p = await World.JoinPlayer("kegrefused");
-        var pos = World.Spawn.AddCopy(0, 12, 40);
-        await p.TeleportTo(pos.AddCopy(2, 0, 0));
-        var site = new RackSite(World, pos, p);
-        await site.Build();
-        Assert.False(site.Takes(RackSite.Untapped));
-        Assert.True(site.Takes(RackSite.Barrel));
-        Assert.False(site.RightClick(site.Keg(RackSite.Untapped, 10)));
-        Assert.True(site.Entity.Inventory.Empty);
     }
 }

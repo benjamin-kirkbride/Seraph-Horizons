@@ -10,7 +10,7 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>The pack's two tuns as these scenarios read them: Hydrate or Diedrate's
 /// (<c>hydrateordiedrate:tun-*</c>) and Food Shelves' tun rack (<c>foodshelves:tunrack-*</c>), each
-/// placed in clear air and filled with water. Shared with <see cref="TunOffScenarios"/>.</summary>
+/// placed in clear air and filled with water. Shared with <see cref="SwitchesOffScenarios"/>.</summary>
 internal static class Tuns
 {
     public const string HydrateTun = SeraphHorizons.Mod.HydrateTun.Block;
@@ -112,36 +112,5 @@ public class TunScenarios : AtlasScenarioBase
         Assert.Equal((950f, 950, 950f), Tuns.RackCapacity(rack));
         rack.Inventory[0].Itemstack = new ItemStack(Tuns.Block(W, Tuns.RackTun));
         Assert.Equal(950f, Tuns.FillWithWater(W, pos));
-    }
-}
-
-/// <summary>
-/// The same with both switches off (<c>"HydrateTunRetired": false, "LargerTunRack": false</c>,
-/// fixtures/tun-off): both tuns as their mods ship them. Its own server.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/tun-off", TargetPath = "ModConfig")]
-public class TunOffScenarios : AtlasScenarioBase
-{
-    private IWorldAccessor W => World.Api.World;
-
-    [AtlasScenario]
-    public async Task Switched_off_both_tuns_are_as_they_ship()
-    {
-        var config = World.Api.LoadModConfig("seraphhorizons.json");
-        Assert.False(config["HydrateTunRetired"].AsBool(true));
-        Assert.False(config["LargerTunRack"].AsBool(true));
-
-        var tun = Tuns.Block(W, Tuns.HydrateTun);
-        Assert.Single(Tuns.Recipes(W, "hydrateordiedrate", "tun"));
-        Assert.True(Tuns.InCreative(tun));
-        Assert.False(Tuns.HandbookExcluded(tun));
-
-        Assert.False(Tuns.RackPatched());
-        var pos = World.Spawn.AddCopy(-40, 12, 40);
-        var rack = (BlockEntityContainer)await Tuns.Place(World, Tuns.Rack, pos);
-        Assert.Equal((500f, 500, 500f), Tuns.RackCapacity(rack));
-        rack.Inventory[0].Itemstack = new ItemStack(Tuns.Block(W, Tuns.RackTun));
-        Assert.Equal(500f, Tuns.FillWithWater(W, pos));
     }
 }

@@ -11,7 +11,7 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons, Tidy Variants: the feature hides orientation and open/closed variants
 /// and groups the rest in the creative inventory and the handbook (#252). This build is loaded
 /// instead of a pinned copy (PackTests.csproj); the rule engine itself is unit-tested in
-/// mods-src/seraphhorizons/tests. With its switch off: TidyVariantsOffScenarios.
+/// mods-src/seraphhorizons/tests. With its switch off: <see cref="SwitchesOffScenarios"/>.
 /// </summary>
 [AtlasWorld]
 public class TidyVariantsScenarios(ITestOutputHelper output) : AtlasScenarioBase

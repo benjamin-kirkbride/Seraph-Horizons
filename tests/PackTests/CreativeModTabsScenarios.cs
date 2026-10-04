@@ -14,7 +14,7 @@ namespace SeraphHorizons.PackTests;
 /// inventory code: a fresh <c>InventoryPlayerCreative</c> built by <c>UpdateFromWorld</c>, as for a joining
 /// player. The GUI (the button, the dialog's columns) is client only and checked by hand (the doc's checklist); the
 /// planning logic is unit-tested in mods-src/seraphhorizons/tests. With the switch off:
-/// CreativeModTabsOffScenarios.
+/// <see cref="SwitchesOffScenarios"/>.
 /// </summary>
 [AtlasWorld]
 public class CreativeModTabsScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -309,32 +309,5 @@ public class CreativeModTabsScenarios(ITestOutputHelper output) : AtlasScenarioB
         var owners = Harmony.GetAllPatchedMethods().SelectMany(m => Harmony.GetPatchInfo(m)?.Owners ?? []).ToHashSet();
         Assert.Contains("seraphhorizons.modtabs", owners);
         Assert.DoesNotContain("seraphhorizons.modtabs.client", owners);
-    }
-}
-
-/// <summary>
-/// Creative mod tabs with the switch off (<c>"CreativeModTabs": false</c>, seeded from fixtures/creativemodtabs-off):
-/// no plan, no patch, and the creative inventory has only the game's tabs.
-/// </summary>
-[AtlasWorld]
-[AtlasDataFiles("fixtures/creativemodtabs-off", TargetPath = "ModConfig")]
-public class CreativeModTabsOffScenarios : AtlasScenarioBase
-{
-    [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Switched_off_there_are_no_mod_tabs()
-    {
-        await World.Ticks(2);
-        var system = World.Api.ModLoader.GetMod("seraphhorizons").Systems
-            .Single(s => s.GetType().FullName == "SeraphHorizons.Mod.CreativeModTabs.ModTabsModSystem");
-        Assert.Null(system.GetType().GetProperty("Authority", BindingFlags.Public | BindingFlags.Static)!.GetValue(null));
-        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["CreativeModTabs"].AsBool(true));
-
-        var owners = Harmony.GetAllPatchedMethods().SelectMany(m => Harmony.GetPatchInfo(m)?.Owners ?? []).ToHashSet();
-        Assert.DoesNotContain("seraphhorizons.modtabs", owners);
-
-        var inv = new InventoryPlayerCreative("creative", "atlas-modtabs-off", World.Api);
-        typeof(InventoryPlayerCreative).GetMethod("UpdateFromWorld", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(inv, [World.Api.World]);
-        Assert.NotEmpty(inv.CreativeTabs.Tabs);
-        Assert.DoesNotContain(inv.CreativeTabs.Tabs, t => t.Code.StartsWith("seraphhorizons-modtab-", StringComparison.Ordinal));
     }
 }

@@ -507,5 +507,5 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
   rack's next trunk waits until the saws are at the top, a trunk taken out early lets the saws
   carry on down empty, and the depth and direction survive saving. Its ModConfig is seeded from
   `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and the cycle (an empty cycle
-  is two turns). `BuckingSawmillOffScenarios`, in the same file, boots with the switch off
-  (`fixtures/buckingsawmill-off`): no mill block, no recipe, nothing logged.
+  is two turns). With the switch off, `SwitchesOffScenarios` requires no mill
+  block, no recipe and nothing logged.
