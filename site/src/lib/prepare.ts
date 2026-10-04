@@ -23,6 +23,23 @@ export interface PrepareOptions {
   chunkBytes?: number;
   maxItemsPerChunk?: number;
   maxRecipesPerChunk?: number;
+  /** Each mod's ModDB asset id, by modid (assetIdsFromLock). */
+  assetIds?: Record<string, number>;
+}
+
+/**
+ * The ModDB asset id of every mod in a pack/lock.json. All versions are built against the
+ * repo's current lock, which is fine: an asset id never changes. A lock from before
+ * `packtool lock` recorded them, or anything unreadable, gives none.
+ */
+export function assetIdsFromLock(lock: unknown): Record<string, number> {
+  const mods = (lock as { mods?: unknown } | null)?.mods;
+  const ids: Record<string, number> = {};
+  if (!Array.isArray(mods)) return ids;
+  for (const m of mods as { id?: unknown; assetId?: unknown }[]) {
+    if (typeof m?.id === "string" && Number.isSafeInteger(m.assetId) && (m.assetId as number) > 0) ids[m.id] = m.assetId as number;
+  }
+  return ids;
 }
 
 export interface Prepared {
@@ -317,7 +334,12 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     pack: exp.pack,
     generator: exp.generator,
     // `extra` is unbounded and the app does not read it; meta.json has to stay small.
-    mods: Object.fromEntries(Object.entries(exp.mods).map(([id, { extra: _extra, ...mod }]) => [id, mod])),
+    mods: Object.fromEntries(
+      Object.entries(exp.mods).map(([id, { extra: _extra, ...mod }]) => {
+        const assetId = options.assetIds?.[id];
+        return [id, assetId === undefined ? mod : { ...mod, assetId }];
+      }),
+    ),
     recipeTypes,
     itemCount: codes.length,
     recipeCount: recipes.length,

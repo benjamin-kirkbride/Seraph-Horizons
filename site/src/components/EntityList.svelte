@@ -5,6 +5,7 @@
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
   import Icon from "./Icon.svelte";
+  import ModLink from "./ModLink.svelte";
 
   let { data, meta }: { data: VersionData; meta: Meta } = $props();
 
@@ -71,16 +72,17 @@
         <ol class="results" data-testid={id}>
           {#each list as r (r.code)}
             <li>
-              <a href={formatRoute({ view: "entity", version: data.id, code: r.code })} data-code={r.code}>
+              <a class="hit" href={formatRoute({ view: "entity", version: data.id, code: r.code })} data-code={r.code}>
                 <Icon code={r.code} size={32} label={initials(r.name)} />
                 <span class="text">
                   <span class="name">{r.name}</span>
                   <span class="meta">
                     <code>{r.code}</code>
-                    <span class="muted">· {meta.mods[r.mod]?.name ?? r.mod} · {t.entityCounts(r.variants.length, r.drops, r.trades)}</span>
+                    <span class="muted">· {t.entityCounts(r.variants.length, r.drops, r.trades)}</span>
                   </span>
                 </span>
               </a>
+              <span class="mod muted"><ModLink id={r.mod} mods={meta.mods} /></span>
             </li>
           {/each}
         </ol>
@@ -122,7 +124,20 @@
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
     gap: 2px 1rem;
   }
-  a {
+  /* The mod link sits beside the row's link, not inside it: links can't nest. */
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: var(--radius);
+  }
+  li:hover,
+  li:has(:focus-visible) {
+    background: var(--surface-2);
+  }
+  .hit {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -131,9 +146,12 @@
     text-decoration: none;
     color: inherit;
   }
-  a:hover,
-  a:focus-visible {
-    background: var(--surface-2);
+  .mod {
+    max-width: 40%;
+    padding-right: 0.5rem;
+    font-size: 0.85rem;
+    text-align: right;
+    overflow-wrap: anywhere;
   }
   .text {
     display: flex;
