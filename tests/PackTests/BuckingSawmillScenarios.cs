@@ -1,7 +1,8 @@
 using Atlas.Api;
 using Atlas.XUnit;
-using BuckingSawmill;
-using BuckingSawmill.Core;
+using SeraphHorizons.Mod;
+using SeraphHorizons.Mod.BuckingSawmill;
+using SeraphHorizons.Mod.BuckingSawmill.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -12,9 +13,9 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
-/// mods-src/buckingsawmill: the bucking sawmill against the pinned Immersive Woodworking and
+/// mods-src/seraphhorizons/BuckingSawmill: the bucking sawmill against the pinned Immersive Woodworking and
 /// Logging Expanded. The mill is driven by a real mechanical power network (a vanilla creative
-/// rotor against its power face). ModConfig/buckingsawmill.json is seeded from
+/// rotor against its power face). BuckingSawmillSettings in ModConfig/seraphhorizons.json is seeded from
 /// fixtures/buckingsawmill with RevolutionsPerStoredLog at 0.5 and RaiseRevolutions at 1, so an empty
 /// cycle (down and back up) is two turns and a cut takes seconds; every other setting is the default. Each scenario builds its mill in its own patch of sky.
 /// </summary>
@@ -47,7 +48,7 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
 
     private async Task<BEBuckingMill> PlaceMill(BlockPos pos, string side)
     {
-        World.SetBlock($"buckingsawmill:buckingmill-frame-{side}", pos);
+        World.SetBlock($"seraphhorizons:buckingmill-frame-{side}", pos);
         await World.Ticks(5);
         return W.BlockAccessor.GetBlockEntity(pos) as BEBuckingMill
                ?? throw new Xunit.Sdk.XunitException($"no mill block entity at {pos}");
@@ -132,22 +133,22 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
     [AtlasScenario]
     public void The_mod_loads_cleanly_with_its_blocks_and_recipe()
     {
-        Assert.True(World.Api.ModLoader.IsModEnabled("buckingsawmill"));
+        Assert.True(BuckingSawmillSystem.Applies(World.Api));
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
-            .Where(e => e.Message.Contains("buckingsawmill", StringComparison.OrdinalIgnoreCase))
+            .Where(e => e.Message.Contains("bucking", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
         Assert.NotNull(Mod.Rig);
         foreach (var side in Sides.All)
         {
-            Assert.IsType<BlockBuckingMill>(BlockOf($"buckingsawmill:buckingmill-frame-{side.Code()}"));
-            Assert.IsType<BlockMillGhostPower>(BlockOf($"buckingsawmill:buckingmill-ghostpower-{side.Code()}"));
+            Assert.IsType<BlockBuckingMill>(BlockOf($"seraphhorizons:buckingmill-frame-{side.Code()}"));
+            Assert.IsType<BlockMillGhostPower>(BlockOf($"seraphhorizons:buckingmill-ghostpower-{side.Code()}"));
         }
-        Assert.IsType<BlockMillGhost>(BlockOf("buckingsawmill:buckingmill-ghost"));
+        Assert.IsType<BlockMillGhost>(BlockOf("seraphhorizons:buckingmill-ghost"));
 
-        var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "buckingsawmill:buckingmill-frame-north");
+        var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:buckingmill-frame-north");
         Assert.NotNull(recipe.Output!.ResolvedItemStack);
         var ingredients = (recipe.ResolvedIngredients ?? []).OfType<CraftingRecipeIngredient>().ToList();
         var codes = ingredients.Select(i => i.Code!.ToString()).ToList();
@@ -184,7 +185,7 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         foreach (var (cell, power) in cells)
         {
             var block = W.BlockAccessor.GetBlock(cell);
-            Assert.Equal(power ? $"buckingsawmill:buckingmill-ghostpower-{side}" : "buckingsawmill:buckingmill-ghost", block.Code.ToString());
+            Assert.Equal(power ? $"seraphhorizons:buckingmill-ghostpower-{side}" : "seraphhorizons:buckingmill-ghost", block.Code.ToString());
             var ghost = Assert.IsType<BEMillGhost>(W.BlockAccessor.GetBlockEntity(cell));
             Assert.Equal(pos, ghost.Principal);
         }
@@ -207,7 +208,7 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
         Assert.All(cells, c => Assert.Equal(0, W.BlockAccessor.GetBlock(c.Pos).Id));
         var drops = ItemsNear(pos);
-        Assert.Equal(1, drops.GetValueOrDefault("buckingsawmill:buckingmill-frame-north"));
+        Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:buckingmill-frame-north"));
         Assert.Equal(2, drops.GetValueOrDefault($"{Iw}:sawmillsash"));
         Assert.Equal(1, drops.GetValueOrDefault($"{Iw}:sawmillcrankshaft"));
         Assert.Equal(1, drops.GetValueOrDefault($"{Iw}:sawmillblade-iron"));
@@ -225,7 +226,7 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         var at = new Vec3d(pos.X + 0.5 - 3 * d.X, pos.Y, pos.Z + 0.5 - 3 * d.Z);
         player.Entity.Pos.SetPos(at);
         player.Entity.ServerPos.SetPos(at);
-        var item = BlockOf("buckingsawmill:buckingmill-frame-north");
+        var item = BlockOf("seraphhorizons:buckingmill-frame-north");
         var sel = new BlockSelection { Position = pos.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
         string failure = "";
         Assert.True(item.TryPlaceBlock(W, player, new ItemStack(item), sel, ref failure), $"not placed: {failure}");
@@ -278,7 +279,7 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
         Assert.Contains("Sawmill crankshaft", info);
         Assert.Contains("Sawmill feed levers", info);
         Assert.Contains(W.BlockAccessor.GetBlock(pos).GetPlacedBlockInteractionHelp(W, new BlockSelection { Position = pos }, player),
-            wi => wi.ActionLangCode == "buckingsawmill:blockhelp-fitpart");
+            wi => wi.ActionLangCode == "seraphhorizons:blockhelp-buckingmill-fitpart");
 
         // A blade kit needs a sash: refused, and kept in hand.
         Assert.NotNull(Click(player, pos, ItemOf($"{Iw}:sawmillblade-copper")));
@@ -629,5 +630,32 @@ public class BuckingSawmillScenarios : AtlasScenarioBase
 
         await World.Until(() => mill.Trunk != null, 8000);
         Assert.Equal(40, Trunks.StoredLogs(mill.Trunk!, W));
+    }
+}
+
+/// <summary>
+/// The bucking sawmill with its switch off (<c>"BuckingSawmill": false</c> in
+/// ModConfig/seraphhorizons.json, seeded from fixtures/buckingsawmill-off): its blocks and its
+/// recipe are not in the game, and nothing is logged about them.
+/// </summary>
+[AtlasWorld]
+[AtlasDataFiles("fixtures/buckingsawmill-off", TargetPath = "ModConfig")]
+public class BuckingSawmillOffScenarios : AtlasScenarioBase
+{
+    [AtlasScenario]
+    public void With_the_switch_off_the_mill_is_not_in_the_game()
+    {
+        var world = World.Api.World;
+        Assert.False(World.Api.LoadModConfig("seraphhorizons.json")["BuckingSawmill"].AsBool(true));
+        Assert.False(BuckingSawmillSystem.Applies(World.Api));
+        Assert.DoesNotContain(world.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("buckingmill"));
+        Assert.DoesNotContain(world.GridRecipes, r => r.Output?.Code?.Path.StartsWith("buckingmill") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("buckingmill", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("bucking sawmill", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 }

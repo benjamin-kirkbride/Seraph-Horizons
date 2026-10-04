@@ -310,7 +310,7 @@
 
 <nav class="crumbs" aria-label="Breadcrumb"><a href={formatRoute({ view: "models" })}>{mt.heading}</a> › {model.title}</nav>
 <h1>{model.title}</h1>
-<p>{model.description}</p>
+<p class="description">{model.description}</p>
 <p class="credit" data-testid="model-credit">
   <strong>{s.credit}:</strong>
   {model.credit}
@@ -531,6 +531,11 @@
   }
   h1 {
     margin: 0.3rem 0 0.5rem;
+  }
+  /* Manifest text holds file paths, which have nowhere to break on a phone. */
+  .description,
+  .credit {
+    overflow-wrap: anywhere;
   }
   .credit {
     padding: 0.5rem 0.75rem;
