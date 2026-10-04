@@ -114,6 +114,7 @@ meals, pies and liquids) are not called.
 |---|---|
 | `blockDrop` | `Block.Drops` of every block, when the drop is not the block itself. `quantity` is the drop's `NatFloat` (avg, var); `tool` when the drop needs one. |
 | `other`, note `Harvested` | `BlockBehaviorHarvestable` and `BlockBehaviorFruitingBush` harvested stacks (berry bushes, ...) |
+| `other`, note `Panned` | The pan's `panningDrops` table, one source per pannable block and drop. See [Panning](#panning). |
 | `entityDrop` | `EntityProperties.Drops`, and the `drops` array of any server behavior (the vanilla `harvestable` behavior, note `Harvested`; others get note `Behavior <code>`). Mod patches such as Good Hunting's are applied. |
 | `traderSells`, `traderBuys` | The trade list of every entity type that has `tradePropsFile` or `tradeProps`, read the way the game's `TradeHandbookInfo` reads it. `quantity.avg` is the stack size per trade, `price` the average price in gears. `extra.priceVar` and `extra.stock` hold the rest. |
 
@@ -123,17 +124,72 @@ of its variant groups (`EntityProperties.Variant`). `game:wolf-eurasian-adult-ma
 `game:wolf`; every vanilla trader is a `game:trader`. The site shows a type's variants on
 one page.
 
+#### Panning
+
+`Items/Panning.cs` mirrors the survival mod's `BlockPan` of game 1.22.7 (decompiled from
+`Mods/VSSurvivalMod.dll`). Panning is data: the pan block's `attributes.panningDrops` maps
+block code patterns to drop lists, and Wilderlands Panning, Expanded Matter, Tailor's
+Delight, Wool and BetterRuins only patch that table. The export reads the table the pan
+built in `OnLoaded` (the private `dropsBySourceMat`, by reflection), so patches apply, the
+world's `loreContent` filter of `manMade` drops applies, and codes are already resolved.
+
+What the game does, and the export with it:
+
+- **Which blocks.** A block is pannable when `attributes.pannable` is true. Wilderlands
+  Panning removes it from plain sand, so `game:sand-*` is not listed; wavy sand and gravel
+  keep it. A full block turns into its `pannedBlock` (or its own code with layer 7) and
+  then pans down layer by layer to air: 8 pans per block. A block with a `layer` variant
+  pans as the block named by its first two code parts (`sand-granite-3` as
+  `sand-granite`), so its drops repeat a full block's. Sources therefore come from full
+  blocks only. When a full block's layers pan as a block with other drops, that block's
+  drops are listed under the full block with `extra.material`, and a layered block whose
+  drops no full block lists is listed itself; neither happens in this pack.
+- **Which list.** Each key is tried against the material's short code (`bonysoil`,
+  `richgravel-basalt`) with `WildcardUtil.Match`: a key starting with `@` is a whole-code
+  regex, otherwise `*` wildcards. The *last* matching key in table order wins, and lists
+  are not merged. Wilderlands' `@(richgravel-basalt)` comes after `@(richgravel)-.*`, so
+  rich basalt gravel uses only its own list.
+- **`{rocktype}`.** It is replaced by the material's `rock` variant and looked up in the
+  game domain. A code that does not resolve is skipped. In game it still rolls, but a hit
+  on it does not end the pan.
+- **Rolls.** One pan shuffles the list, rolls each drop in turn (`rand < chance ×
+  stat`, the stat being `Stats.GetBlended(dropModbyStat)` when set), and stops at the
+  first hit. So a pan gives at most one item, and the declared chance overstates it.
+  `quantity.avg` (and `var`) is the declared chance per roll. `extra.chancePerPan` is the
+  chance that one pan gives this drop, computed exactly for the shuffle with stats at 1
+  (bone from bony soil: 0.3 declared, 0.22 per pan). By hand a full block gives 8 pans
+  (the block, then layers 7 to 1), so it yields on average 8 × `chancePerPan` of a drop;
+  the Panning Machine gives 6 rolls per block (below). Both values are rounded to 4
+  significant digits.
+- **Duplicates.** A list may hold the same item twice, and each entry rolls separately.
+  Wilderlands keeps vanilla's `stone-{rocktype}` (0.2) in the sand and gravel list and
+  adds another (0.3), so each gravel block has two sources for its stone. For the chance
+  per pan of the item, add their `chancePerPan`s.
+
+`extra` also holds `stat` (the `dropModbyStat` name, `rustyGearDropRate` on rusty gears),
+`attributes` (the drop's stack attributes: gem `potential`, lore book `category`),
+`stackSize` when not 1, and `pan` when the pack has more than one pan block (it has one,
+`game:pan-wooden`).
+
+The **Panning Machine** (`panningmachine`) reads `attributes.panningDrops` of its
+`panSource`, default `game:pan-wooden`, and picks the list and resolves `{rocktype}` the
+same way, so the `Panned` sources cover it too. It differs in four ways, none of which the
+export shows. It takes block stacks from its inventory, rolls `MaxPanningProcesses`
+(config, default 6) times per block, ignores `dropModbyStat` and the `loreContent`
+filter, and matches keys without a domain against the code's path only. Its allclasses
+variants name `allclasses:metalpan-*`, which is not in this pack.
+
 Known missing:
 
 - Drops decided in code: `Block.GetDrops` overrides (crops by growth stage, ore by
   quantity config, grass and tall plants, leaves with tool-dependent code paths), loot
-  from ruins' vessels and chests (`lootvessel`, BetterRuins, betterlootplus), panning
-  (vanilla, Wilderlands Panning, the panning machine), fishing (vanilla, Primitive
-  Survival), beehives, traps, butchering outputs that the Butchering mod computes at
+  from ruins' vessels and chests (`lootvessel`, BetterRuins, betterlootplus), fishing
+  (vanilla, Primitive Survival), beehives, traps, butchering outputs that the Butchering mod computes at
   runtime, quarrying (Stone Quarry) and machine outputs (Vintage Engineering,
   Electrical Progressive).
 - Drop chances that depend on world config or player stats (`DropModbyStat`) are not
-  applied; the quantity is the declared one.
+  applied; the quantity is the declared one. Panned drops with a stat name it in
+  `extra.stat`.
 - Harvestable drops of an entity are credited to every variant separately; the handbook's
   `groupcode` grouping is not used.
 - Trader stock that mods fill in code (e.g. random item pools) is not seen.
@@ -174,3 +230,5 @@ mods' guides.
   `"entityHarvest"` for butchering, which differs from dropping on death.
 - `mod.type` (code, content, theme).
 - `source.entityType`, promoted from `extra.entityType`.
+- `source.type: "panned"` with `chance` (per roll) and `chancePerPan`, promoted from
+  `other` with note `Panned`, `quantity` and `extra.chancePerPan`.
