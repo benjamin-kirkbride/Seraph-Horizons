@@ -473,7 +473,8 @@ public partial class WoodworkingScenarios
         Assert.Null(Click(player, pos, trunk.Clone()));
         Assert.NotNull(mill.Trunk);
         await World.Until(() => mill.Trunk == null, 6000);
-        Assert.Equal(16, ItemsNear(pos).GetValueOrDefault("game:log-placed-oak-ud"));
+        // The first cut's logs are thrown clear of the mill and land some 9 blocks out by now.
+        Assert.Equal(16, ItemsNear(pos, 16).GetValueOrDefault("game:log-placed-oak-ud"));
         Assert.Null(mill.BladeKit);
         Assert.False(mill.Complete);
         Assert.Equal(0f, mill.Progress);
