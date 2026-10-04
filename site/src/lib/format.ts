@@ -99,6 +99,8 @@ export interface EntityIndex {
   drops: number[];
   /** Distinct items each type sells or buys. */
   trades: number[];
+  /** Recipe indices about each type's creatures: their butchery. */
+  recipes: number[][];
 }
 
 /** One item an entity gives: an item's source, turned around. */

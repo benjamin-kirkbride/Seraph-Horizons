@@ -2,7 +2,7 @@
 // contract; these mirror it and are only as strict as the app needs.
 
 export type Kind = "item" | "block";
-export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "generic";
+export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "butchery" | "generic";
 
 export interface Mod {
   name: string;
@@ -129,8 +129,39 @@ export interface Recipe {
   alloy?: Record<string, never>;
   cooking?: { code?: string; cooksInto?: Stack; dirtyPot?: boolean };
   construction?: { stages: { ingredients: number[]; action?: string }[] };
+  butchery?: Butchery;
   requirements?: string[];
   extra?: Record<string, unknown>;
+}
+
+export type ButcheryStep = "pickUp" | "skin" | "bleed" | "butcher" | "harvest";
+
+export interface ButcheryStage {
+  step: ButcheryStep;
+  /** Ingredient indices the stage needs. */
+  ingredients: number[];
+  /** Ingredient index groups; the stage needs one of them as well. */
+  options?: number[][];
+  /** Ingredient indices the stage does without; an output that needs one says so in `extra.needs`. */
+  optional?: number[];
+  /** Output indices. */
+  outputs: number[];
+  hours?: number;
+  multiplier?: number;
+}
+
+export interface Yield {
+  avg: number;
+  var?: number;
+}
+
+/** What one creature gives with the Butchering mod, stage by stage. */
+export interface Butchery {
+  entityType: string;
+  workload?: string;
+  stages: ButcheryStage[];
+  /** Aligned with the recipe's variants; each one's yields with its outputs. */
+  variants: { entities: { code: string; name?: string }[]; yields: (Yield | null)[] }[];
 }
 
 export interface RecipeType {

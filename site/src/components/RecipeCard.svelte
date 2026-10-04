@@ -5,7 +5,7 @@
   import type { Recipe } from "../lib/export.ts";
   import type { TypeInfo } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { focusVariants, variantOutputs, type Focus } from "../lib/recipe-view.ts";
+  import { cardOutputs, focusVariants, type Focus } from "../lib/recipe-view.ts";
   import { clock, prefersReducedMotion } from "../lib/state.svelte.ts";
   import { t } from "../lib/strings.ts";
   import GridRecipe from "../renderers/GridRecipe.svelte";
@@ -14,6 +14,7 @@
   import AlloyRecipe from "../renderers/AlloyRecipe.svelte";
   import CookingRecipe from "../renderers/CookingRecipe.svelte";
   import ConstructionRecipe from "../renderers/ConstructionRecipe.svelte";
+  import ButcheryRecipe from "../renderers/ButcheryRecipe.svelte";
   import GenericRecipe from "../renderers/GenericRecipe.svelte";
   import Slot from "./Slot.svelte";
 
@@ -22,10 +23,12 @@
     type,
     data,
     focus = null,
+    only,
     modName,
-  }: { recipe: Recipe; type: TypeInfo; data: VersionData; focus?: Focus; modName: string } = $props();
+  }: { recipe: Recipe; type: TypeInfo; data: VersionData; focus?: Focus; modName: string; only?: number[] } = $props();
 
-  const variants = $derived(focusVariants(recipe, focus));
+  // `only` picks the variants outright: a creature page showing some of its creatures.
+  const variants = $derived(only && only.length > 0 ? only : focusVariants(recipe, focus));
   let paused = $state(prefersReducedMotion());
   let offset = $state(0);
   let frozen = $state(0);
@@ -37,7 +40,7 @@
   const cycles = $derived(n > 1 || variants.some((v) => (recipe.variants[v]?.ingredients ?? []).some((slot) => slot.length > 1)));
   const bindings = $derived(Object.entries(recipe.variants[variant]?.bindings ?? {}));
 
-  const outputs = $derived(variantOutputs(recipe, variant));
+  const outputs = $derived(cardOutputs(recipe, variant));
   const outputNames = $derived(outputs.map((o) => o.name ?? data.nameOf(o.code)).join(", "));
 
   function move(by: number) {
@@ -57,6 +60,7 @@
     alloy: AlloyRecipe,
     cooking: CookingRecipe,
     construction: ConstructionRecipe,
+    butchery: ButcheryRecipe,
     generic: GenericRecipe,
   };
   // The type block a shape relies on can be missing in a malformed record; the generic
@@ -66,6 +70,7 @@
     if (shape === "grid" && !recipe.grid) return GenericRecipe;
     if (shape === "voxels" && !recipe.voxels) return GenericRecipe;
     if (shape === "construction" && !recipe.construction) return GenericRecipe;
+    if (shape === "butchery" && !recipe.butchery) return GenericRecipe;
     return renderers[shape] ?? GenericRecipe;
   });
 </script>

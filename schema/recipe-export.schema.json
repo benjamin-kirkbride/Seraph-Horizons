@@ -367,6 +367,93 @@
             }
           }
         },
+        "butchery": {
+          "description": "type butchery only: what one creature gives, stage by stage, with the Butchering mod. Each ingredient belongs to exactly one stage, through its `ingredients`, `options` or `optional`.",
+          "type": "object",
+          "required": ["entityType", "stages", "variants"],
+          "additionalProperties": false,
+          "properties": {
+            "entityType": { "description": "The entity type file the creatures are variants of, e.g. game:deer.", "$ref": "#/$defs/code" },
+            "workload": { "description": "The carcass's butcheringWorkLoad (small, medium, large): how long the stations take and how long it bleeds.", "type": "string" },
+            "stages": {
+              "description": "In the order a player goes through them. A `harvest` stage is the alternative to all the others: the body cut up where it lies.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["step", "ingredients", "outputs"],
+                "additionalProperties": false,
+                "properties": {
+                  "step": {
+                    "description": "pickUp: right-click the dead creature with an empty hand. skin: on a hook, with a knife. bleed: left on the hook. butcher: on a table. harvest: with a knife where it lies.",
+                    "enum": ["pickUp", "skin", "bleed", "butcher", "harvest"]
+                  },
+                  "ingredients": {
+                    "description": "Indices into the recipe's `ingredients` the stage needs: the carcass it takes, the station, the tool.",
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0 }
+                  },
+                  "options": {
+                    "description": "Groups of ingredient indices; the stage needs one group as well as `ingredients` (a knife or a cleaver).",
+                    "type": "array",
+                    "items": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+                  },
+                  "optional": {
+                    "description": "Ingredient indices the stage does without; an output that needs one names it in `extra.needs`.",
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0 }
+                  },
+                  "outputs": {
+                    "description": "Indices into the recipe's `outputs` the stage gives.",
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0 }
+                  },
+                  "hours": { "description": "In-game hours the stage takes.", "type": "number", "minimum": 0 },
+                  "multiplier": { "description": "harvest: the share of the creature's drops the mod leaves, already applied to the yields.", "type": "number", "minimum": 0 }
+                }
+              }
+            },
+            "variants": {
+              "description": "Aligned with the recipe's `variants`: which creatures each is, and how much of each output it gives.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["entities", "yields"],
+                "additionalProperties": false,
+                "properties": {
+                  "entities": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["code"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": { "$ref": "#/$defs/code" },
+                        "name": { "description": "English display name.", "type": "string" }
+                      }
+                    }
+                  },
+                  "yields": {
+                    "description": "Aligned with the recipe's `outputs`: the quantity (average and spread) before station efficiency and the creature's condition, or null when this variant does not give it.",
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        { "type": "null" },
+                        {
+                          "type": "object",
+                          "required": ["avg"],
+                          "additionalProperties": false,
+                          "properties": { "avg": { "type": "number", "minimum": 0 }, "var": { "type": "number", "minimum": 0 } }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "requirements": {
           "description": "Anything else needed, in plain English, e.g. a trait or a machine.",
           "type": "array",
@@ -385,7 +472,7 @@
         "count": { "description": "Number of records of this type in `recipes`.", "type": "integer", "minimum": 0 },
         "shape": {
           "description": "Which type-specific block the records carry. `generic` has none.",
-          "enum": ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "generic"]
+          "enum": ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "generic"]
         },
         "registry": { "description": "Engine registry or mod system the recipes were read from.", "type": "string" },
         "mod": { "description": "Mod that registered the type.", "$ref": "#/$defs/modId" }
