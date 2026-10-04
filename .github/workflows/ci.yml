@@ -120,8 +120,12 @@ jobs:
     # of a shard's time. The item and recipe classes are the exception: each builds the pack's
     # export (over a minute) and fills parts of it again to compare, so each has a shard to
     # itself. `fixes` is the pack-authored *fix mods' classes and `tidy` is Tidy Variants',
-    # both matched by name, so a new class of either kind joins its shard. `rest` is the
-    # complement filter, so any other new class lands there without anyone having to list it.
+    # both matched by name, so a new class of either kind joins its shard. `woodworking` is the
+    # woodworking chain (Unified Woodworking, its handbook, the bucking sawmill, the chopper),
+    # four slow classes taken out of `rest` to keep it under the timeout; a new UnifiedWoodworking*
+    # or Woodworking* class joins it. Its terms are anchored on `PackTests.` so that only class
+    # names match, not a test method named after a feature. `rest` is the complement filter, so
+    # any other new class lands there without anyone having to list it.
     strategy:
       fail-fast: false
       matrix:
@@ -134,8 +138,10 @@ jobs:
             filter: FullyQualifiedName~FixScenarios.
           - shard: tidy
             filter: FullyQualifiedName~.TidyVariants
+          - shard: woodworking
+            filter: FullyQualifiedName~PackTests.UnifiedWoodworking|FullyQualifiedName~PackTests.Woodworking|FullyQualifiedName~PackTests.BuckingSawmillScenarios.|FullyQualifiedName~PackTests.ChopperOutputScenarios.
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.UnifiedWoodworking&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.BuckingSawmillScenarios.&FullyQualifiedName!~PackTests.ChopperOutputScenarios.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack

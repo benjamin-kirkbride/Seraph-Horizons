@@ -991,8 +991,8 @@ speed and a storm 3 days off set first, `/clear stay` must hold it all (no time 
 speed-up cancelled as it is set, `/weather`-style changes undone within the second, regions loaded
 after a teleport clear, a storm started by hand ended), survive a reload of its savegame entry, say
 so when run twice, and `/clear stop` must put back the override, auto-changing patterns, every
-speed modifier and the storm's distance. `ClearCommandOffScenarios` boots a server with the switch
-off and requires no `/clear`. A real restart is not run: Atlas boots each class once, so the
+speed modifier and the storm's distance. With the switch off, `SwitchesOffScenarios` requires no
+`/clear`. A real restart is not run: Atlas boots each class once, so the
 reload reads the lock back from the savegame data in the same server.
 
 `tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
@@ -1015,8 +1015,8 @@ match the paths in `configlib-patches.json` to its new patch file.
 
 The same class places the creative steam source against a closed iron pipe and requires the pipe
 full of steam at the set pressure, and no higher; it also requires the block in the creative
-inventory with no drops and no recipe. `CreativeSteamSourceOffScenarios` boots a server with the
-switch off and requires the block not to exist. While the pack pins a ppex older than 0.7.1, the
+inventory with no drops and no recipe. With the switch off, `SwitchesOffScenarios` requires the
+block not to exist. While the pack pins a ppex older than 0.7.1, the
 steam scenarios require the block left out instead, and run in full once the pin moves.
 
 For cart reach, the same class requires `CartReachEntities`' default to match Cartwright's carts,
@@ -1041,8 +1041,7 @@ yields (what the tools use, set from the patched balance file), requires steel a
 advanced recipes and both fats in every break, rolls a flax plant's drops at stages 9, 8 and 5 on
 farmland (seeds and bundles), checks the seeds in the blocktype's drops, and requires every
 `LangEdits` passage reworded. When it fails after an Age of Flax update, match the patches and edits
-to the new files. `AgeOfFlaxRebalanceOffScenarios` boots a server with the switch off and requires
-Age of Flax as it ships.
+to the new files. With the switch off, `SwitchesOffScenarios` requires Age of Flax as it ships.
 
 `tests/PackTests/ChopperOutputScenarios.cs` (Atlas) builds a chopper frame of each facing on a
 granite floor, chops ten oak logs through the chopper's own `GetChopBatch` and `EjectBatch`, and
@@ -1050,8 +1049,8 @@ requires every piece at rest in the cell in front, at least 0.15 from its edges,
 applied. With a hopper sunk into the floor there (a chest under it) it requires the hopper to catch
 every piece, for two facings. It also requires the cell in front, and the one above it, to be
 outside the chopper's footprint (`GetCells`). When it fails after an Immersive Woodworking update,
-check whether `EjectBatch` or the footprint changed. `ChopperOutputOffScenarios` boots a server with
-the switch off and requires the chopper unpatched and throwing its batch past the cell in front.
+check whether `EjectBatch` or the footprint changed. With the switch off, `SwitchesOffScenarios`
+requires the chopper unpatched and throwing its batch past the cell in front.
 
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
@@ -1060,8 +1059,8 @@ it fails after a mod is added or updated, it lists the foods to give a value in 
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's
 block entity, taking 950 L of water. It requires the tun rack's block, field and liquid slot all at
-950 L, the constructor patched, and a placed rack with a tun taking 950 L. `TunOffScenarios` boots a
-server with both switches off and requires both tuns as they ship (the rack at 500 L in all three
+950 L, the constructor patched, and a placed rack with a tun taking 950 L. With both switches off,
+`SwitchesOffScenarios` requires both tuns as they ship (the rack at 500 L in all three
 places). When it fails after a Food Shelves update, check whether `BETunRack` still keeps its own
 capacity, and whether the block's `capacityLitres` moved.
 
@@ -1070,8 +1069,8 @@ irrigation vessels in a grid recipe (as output or ingredient), in the creative i
 the handbook, none in BetterRuins' clay loot (the rest of Primitive Survival's clay loot still there),
 and one placed still Primitive Survival's block entity, taking 50 L of water. It also requires Olla's
 raw ollas clay formed, in the creative inventory and fired in a pit kiln into its fired ollas, which
-are in the creative inventory and the handbook. `IrrigationVesselOffScenarios` boots a server with the
-switch off and requires the vessel as it ships, its loot included. When it fails after a Primitive
+are in the creative inventory and the handbook. With the switch off, `SwitchesOffScenarios` requires
+the vessel as it ships, its loot included. When it fails after a Primitive
 Survival or BetterRuins update, check the recipe file's order and the loot item's `*-clayproducts`
 stacks.
 
@@ -1083,8 +1082,8 @@ rack with each keg is 0.15 and 0.65 of a barrel's; and breaking the rack drops a
 its 30 L in it. It also requires the restriction to mark both kegs and still the barrel, and every `LangEdits`
 passage reworded. When it
 fails after a Food Shelves or Hydrate or Diedrate update, check the restriction file, `BEBarrelRack`
-and Hydrate's `ContainersConfig`. `BarrelRackKegsOffScenarios` boots a server with the switch off
-and requires the rack to refuse a keg. The rack's look and the client's side of the interactions
+and Hydrate's `ContainersConfig`. With the switch off, `SwitchesOffScenarios` requires the rack to
+refuse a keg. The rack's look and the client's side of the interactions
 are checked by hand in the game.
 
 `tests/PackTests/MapRevealScenarios.cs` (Atlas) has a test player run `/revealmap`, decodes what
@@ -1094,7 +1093,7 @@ field numbers and `ChunkData.DecompressFrom`), the columns not generated yet ski
 not generated afterwards, the command refused in survival without `controlserver` and allowed in
 creative, `stop`, and the shading
 helpers equal to the game's `BlurTool.Blur` and `ColorUtil.ColorMultiply3Clamped`.
-`MapRevealOffScenarios` boots a server with the switch off and requires no command. The client
+With the switch off, `SwitchesOffScenarios` requires no command. The client
 half (drawing into the map and its database) needs a game client and is not tested.
 
 `tests/PackTests/CreativeModTabsScenarios.cs` (Atlas) builds a creative inventory on the server with
@@ -1103,8 +1102,8 @@ creative stack in exactly one of them, the base game's tab first, `ageofflax`, `
 `oils` under their owning mods. The packet survives protobuf-net, and tabs a client builds from it have,
 slot for slot, what the server's inventory returns for a click there (on the same world: a client with
 other mods is the count and hash check's job), and mod mode's tab list, arranged from the real tab codes
-and `config/creativetabs.json`, keeps the left column and puts the mod tabs alone on the right. `CreativeModTabsOffScenarios` boots
-with the switch off and requires no mod tabs. The GUI is checked by hand (the doc's checklist).
+and `config/creativetabs.json`, keeps the left column and puts the mod tabs alone on the right. With the switch
+off, `SwitchesOffScenarios` requires no mod tabs. The GUI is checked by hand (the doc's checklist).
 
 `tests/PackTests/UnifiedWoodworkingScenarios.cs` (Atlas) works the blocks the way a client's clicks
 reach the server, through their own interaction methods, so the patches on those are what is under
@@ -1125,9 +1124,9 @@ each lower tier, taking an advanced one, yielding 8 and giving it back advanced;
 creative chopper's oak bed, and an older one's bed of no wood coming back advanced oak; on each sawhorse, beams with Shift and boards without, the spud's
 debark and bark, and the advanced one's two rolls for two trunk logs; and the retired stations
 hidden, registered and made by no recipe. When it fails after an update of either mod, the
-warning in the log names what a part no longer finds. `UnifiedWoodworkingOffScenarios` boots a
-server with the switch off and requires both mods as they ship: nothing patched but the chopper's
-`EjectBatch`, the world config telling clients it does not run, Immersive Woodworking's default
+warning in the log names what a part no longer finds. With the switch off, `SwitchesOffScenarios`
+requires both mods as they ship: nothing of either patched (`ChopperDropsInFront` is off there too),
+the world config telling clients it does not run, Immersive Woodworking's default
 settings, its grid recipes, Logging Expanded's splitting log from an axe, a plain chopping block as
 the chopper's bed, and a recipe export that lists the two mods' guides and none of the six pages.
 
@@ -1147,10 +1146,15 @@ cleanly), and are covered by reading.
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per
 group, the creative and handbook systems stay off on the server, and the report
-(`docs/variant-grouping/report.md`). `TidyVariantsOffScenarios` boots a server with the switch off.
+(`docs/variant-grouping/report.md`). With the switch off, `SwitchesOffScenarios` requires nothing
+resolved or patched and the boiler tweak still applied.
 
 `CreativeKeepsPlace` and `SearchRightClickClears` are client GUI only, with no logic apart from the
 game's: they need checking by hand in the game (the lists in their sections).
+
+`tests/PackTests/SwitchesOffScenarios.cs` (Atlas) is every switch's off check on one server, seeded
+with `fixtures/switches-off/seraphhorizons.json`: each class boots its own server, which costs far
+more than the scenarios. `BoilerLidBlowsOpen` and the switches with no off check stay on.
 
 The test project loads this directory's build as a mod, and leaves out a pinned copy from the
 ModDB (`seraphhorizons_*.zip` in `build/mods`).
@@ -1158,7 +1162,9 @@ ModDB (`seraphhorizons_*.zip` in `build/mods`).
 ## Adding a tweak
 
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
-the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios and a section above. A
+the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios and a section above. Its
+off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
+its own, unless what it requires needs another switch on. A
 tweak big enough for mod systems of its own gets a folder, as `TidyVariants/` does; its systems
 read their switch with `SeraphHorizonsSystem.ConfigFor(api)`.
 
