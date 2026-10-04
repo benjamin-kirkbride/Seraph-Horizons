@@ -106,8 +106,11 @@ or null when that variant does not give it. A variant's `outputs` stacks are the
 yields, with the average as quantity. An output's `extra.scaledBy` says what multiplies it
 in game (`efficiency`, `condition`), `extra.needs` the optional ingredients it needs, and
 `extra.alternatives` other items it may be instead (carcasses of another coat).
+`butchery.condition` is the range of the creature's condition (`min`, `max`; the game's
+`animalWeight`), which multiplies the outputs scaled by `condition`.
 
-The `butchery` shape and block are optional additions, so `schemaVersion` stayed 1.
+The `butchery` shape and block are optional additions, so `schemaVersion` stayed 1; so is
+`condition`, which older exports lack.
 
 ## Rules beyond the schema
 

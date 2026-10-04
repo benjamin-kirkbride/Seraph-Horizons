@@ -7,6 +7,7 @@
   import { parseVtml } from "../lib/vtml.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
+  import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
   import RecipeGroups from "./RecipeGroups.svelte";
@@ -131,7 +132,7 @@
         <table class="attrs">
           <tbody>
             {#each rows as [k, v, hint] (k)}
-              <tr><th scope="row">{k}</th><td>{#if hint}<span class="hint" title={hint}>{v}</span>{:else}{v}{/if}</td></tr>
+              <tr><th scope="row">{k}</th><td>{#if hint}<Hint text={hint}>{v}</Hint>{:else}{v}{/if}</td></tr>
             {/each}
             {#if detail.smeltsInto !== undefined}
               {@const target = data.ref(detail.smeltsInto)}
@@ -170,7 +171,7 @@
                     {/if}
                   </td>
                   <td>
-                    {#if s.chance}<span class="hint" title={t.panChance}>{formatChance(s.chance.min, s.chance.max)}</span>
+                    {#if s.chance}<Hint text={t.panChance}>{formatChance(s.chance.min, s.chance.max)}</Hint>
                     {:else}{formatQuantity(s.quantity)}{/if}
                   </td>
                   <td>{sourceDetails(s)}</td>
@@ -249,10 +250,6 @@
   .description {
     white-space: pre-line;
     max-width: 48rem;
-  }
-  .hint {
-    text-decoration: underline dotted;
-    cursor: help;
   }
   .scroll {
     overflow-x: auto;

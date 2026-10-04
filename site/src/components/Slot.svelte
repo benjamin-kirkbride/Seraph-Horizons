@@ -1,6 +1,9 @@
 <script lang="ts">
   // One slot of a recipe. A slot that accepts several stacks cycles through them on the
-  // shared clock tick its card passes in.
+  // shared clock tick its card passes in. Notes passed as children (a tool's durability, a
+  // yield) stack under the name, beside the icon: after the name, they wrapped under the
+  // icon whenever a longer name cycled in.
+  import type { Snippet } from "svelte";
   import type { Stack } from "../lib/export.ts";
   import type { VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
@@ -15,7 +18,8 @@
     tool = false,
     showName = false,
     mark,
-  }: { stacks: Stack[]; tick: number; data: VersionData; tool?: boolean; showName?: boolean; mark?: string } = $props();
+    children,
+  }: { stacks: Stack[]; tick: number; data: VersionData; tool?: boolean; showName?: boolean; mark?: string; children?: Snippet } = $props();
 
   const stack = $derived(cycleAt(stacks, tick));
   const name = $derived(stack ? (stack.name ?? data.nameOf(stack.code)) : "");
@@ -33,6 +37,7 @@
   );
 </script>
 
+{#snippet slot()}
 {#if stack}
   <a
     class="slot"
@@ -54,6 +59,16 @@
   </a>
 {:else}
   <span class="slot missing" aria-label={label} title={t.nothingMatches}><span class="frame">?</span></span>
+{/if}
+{/snippet}
+
+{#if children}
+  <span class="noted">
+    {@render slot()}
+    <span class="notes">{@render children()}</span>
+  </span>
+{:else}
+  {@render slot()}
 {/if}
 
 <style>
@@ -112,6 +127,32 @@
   }
   .named:hover .name {
     text-decoration: underline;
+  }
+  /* The icon leaves the flow so that the name and the notes under it share one column
+     beside it, whatever the name's length. */
+  .noted {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: var(--slot);
+    min-width: 0;
+    padding-left: calc(var(--slot) + 0.5rem);
+  }
+  .noted .slot {
+    display: block;
+  }
+  .noted .frame {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  .notes {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 0.85rem;
+    color: var(--muted);
   }
   .missing .frame {
     color: var(--icon-text);

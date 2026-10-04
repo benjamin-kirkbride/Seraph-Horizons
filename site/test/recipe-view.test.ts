@@ -4,6 +4,7 @@ import type { Recipe, RecipeExport } from "../src/lib/export.ts";
 import {
   butcheryEntities,
   butcheryOutput,
+  butcheryStations,
   butcheryStages,
   butcheryVariantsFor,
   cardOutputs,
@@ -288,5 +289,19 @@ describe("butchery", () => {
   it("reads a station's yield range from its efficiency per block", () => {
     expect(efficiencyRange({ ...hare.ingredients[6]!, extra: { efficiency: { a: 0.8, b: 1.2, c: 1 } } })).toEqual({ min: 0.8, max: 1.2 });
     expect(efficiencyRange(hare.ingredients[2])).toBeNull();
+  });
+
+  it("lists the stations of the stage that gives an output, one per name and yield, highest first", () => {
+    const r: Recipe = structuredClone(hare);
+    r.ingredients[1]!.extra = { efficiency: { "x:hook-copper": 1, "x:hook-iron": 1.2, "x:hook-tin": 1, "x:hook-flint": 0.8 } };
+    const names: Record<string, string> = { "x:hook-copper": "Hook", "x:hook-iron": "Advanced hook", "x:hook-tin": "Hook", "x:hook-flint": "Primitive hook" };
+    expect(butcheryStations(r, 2, (c) => names[c] ?? c)).toEqual([
+      { name: "Advanced hook", multiplier: 1.2 },
+      { name: "Hook", multiplier: 1 },
+      { name: "Primitive hook", multiplier: 0.8 },
+    ]);
+    // The table's stage: its own station, not the hook.
+    expect(butcheryStations(r, 5, (c) => c)).toEqual([{ name: "butchering:butchertable-simple-north", multiplier: 1 }]);
+    expect(butcheryStations(r, 8, (c) => c)).toEqual([]);
   });
 });

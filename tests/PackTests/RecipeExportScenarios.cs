@@ -393,6 +393,9 @@ public class RecipeExportScenarios : AtlasScenarioBase
         var b = r["butchery"]!;
         Assert.Equal("game:deer", (string)b["entityType"]!);
         Assert.Equal("medium", (string)b["workload"]!);
+        // Decompiled 1.22 EntityBehaviorHarvestable.OnGameTick: animalWeight stays within
+        // Math.Max(0.5f, ...) (the constant minimumWeight) and Math.Min(1f, ...).
+        Json("""{ "min": 0.5, "max": 1 }""", b["condition"]!);
         var stages = b["stages"]!.Cast<JObject>().ToList();
         Assert.Equal(new[] { "pickUp", "skin", "bleed", "butcher", "harvest" }, stages.Select(s => (string)s["step"]!));
 

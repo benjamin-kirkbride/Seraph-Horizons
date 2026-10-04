@@ -195,6 +195,30 @@ options, optional ones apart) and what it gives in that variant, with average ±
 what scales it. Field harvesting comes last as the alternative. Item pages link every creature and trader source to its
 type's page on its variant.
 
+Each slot on the card keeps its notes (durability, yield range, spread, what it needs, what
+scales it) under its name, beside the icon, through `Slot`'s children: after the name they
+wrapped under the icon whenever a longer name cycled in. The generic card does the same
+for a slot's role. "Optional" heads the optional slots on its own line. "times the
+station's yield" and "times the creature's condition" are `Hint`s: the first lists the
+stations of that output's stage with their multipliers (hooks for skinning, tables for
+butchering), the second the creature's condition range from `butchery.condition`. A `Hint`
+is a button styled as dotted text whose explanation shows on hover, focus or tap, is the
+button's description for a screen reader, and is fixed to the window so a table that
+scrolls sideways does not clip it; the item page's density and panning chance hints use
+it too.
+
+On a type with butchery records that cover every harvested creature shown, the "Harvested
+from the body" section is a table built by `butcheryYields` (`entity-view.ts`) instead of
+the plain list: per item, what harvesting where it lies gives and what the hook and table
+give, each at the lowest and highest condition (only the outputs scaled by condition
+differ). The full process is the sum of every stage but the harvest, without the carcass
+in its states, at a station yield of ×1; the note under the table gives the hooks' and
+tables' ranges, the mod's cut and the condition range. Cells are averages (the cards give
+the spread). With several butchery variants shown (all variants, or a chip that covers
+more than one) a cell is the range of their averages, counting only the variants that give
+the item. An export without `butchery.condition` gets one column per way. The table has
+a fixed layout so it fits a 360 px screen without scrolling sideways.
+
 ### Other sources on an item page
 
 An item page lists its `sources` in one table; `sourceRows` in `site/src/lib/recipe-view.ts`
