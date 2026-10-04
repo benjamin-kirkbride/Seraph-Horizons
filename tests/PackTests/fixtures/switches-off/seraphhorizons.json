@@ -10,6 +10,7 @@
   "IrrigationVesselRetired": false,
   "LargerTunRack": false,
   "MapReveal": false,
+  "PanningDropsTrimmed": false,
   "TidyVariants": false,
   "UnifiedWoodworking": false
 }
