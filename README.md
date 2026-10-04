@@ -23,7 +23,7 @@ Mod files are never re-hosted here. Everything is fetched from the ModDB CDN.
 
 ```
 pack/pack.toml          what's in the pack (edit this): game version, mods, licenses, why
-pack/lock.json          generated: exact release, file URL, sha256 per mod
+pack/lock.json          generated: exact release, file URL, sha256 and ModDB asset id per mod
 pack/config/ModConfig/  per-mod config overrides, .json or ConfigKit .yaml (shipped via the .cairn.json file)
 pack/known-errors.json  understood cross-mod errors the tests tolerate, one issue each
 tools/packtool.py       lock / check / fetch / smoke / outdated / assemble (stdlib Python 3.11+)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { creditRows, modLink } from "../src/lib/credits.ts";
+import { creditRows, modLink, modWebsite } from "../src/lib/credits.ts";
 import { iconPath, initials, readIconIndex } from "../src/lib/icons.ts";
 
 describe("initials", () => {
@@ -39,22 +39,40 @@ describe("iconPath", () => {
 });
 
 describe("credits", () => {
-  it("links a mod's website when it has one, else its ModDB page", () => {
-    expect(modLink("primitivesurvival", { website: "https://github.com/SpearAndFang/primitive-survival" })).toBe(
+  it("links a mod's ModDB page by asset id, the base game the game's site, and nothing without an id", () => {
+    // moreroads is at /moreroadsandpaths, so /<modid> would be a 404.
+    expect(modLink("moreroads", { assetId: 26 })).toBe("https://mods.vintagestory.at/show/mod/26");
+    expect(modLink("survival", undefined)).toBe("https://www.vintagestory.at/");
+    expect(modLink("seraphexport", {})).toBeNull();
+    expect(modLink("droppedmod", undefined)).toBeNull();
+  });
+
+  it("keeps a mod's own http(s) website as a second link", () => {
+    expect(modWebsite("primitivesurvival", { website: " https://github.com/SpearAndFang/primitive-survival " })).toBe(
       "https://github.com/SpearAndFang/primitive-survival",
     );
-    expect(modLink("expandedfoods", {})).toBe("https://mods.vintagestory.at/expandedfoods");
-    expect(modLink("expandedfoods", { website: "" })).toBe("https://mods.vintagestory.at/expandedfoods");
-    expect(modLink("x", { website: "javascript:alert(1)" })).toBe("https://mods.vintagestory.at/x");
+    expect(modWebsite("expandedfoods", {})).toBeNull();
+    expect(modWebsite("expandedfoods", { website: "" })).toBeNull();
+    expect(modWebsite("x", { website: "javascript:alert(1)" })).toBeNull();
+    expect(modWebsite("x", { website: "https://mods.vintagestory.at/show/mod/7", assetId: 7 })).toBeNull();
+    expect(modWebsite("x", { website: "https://mods.vintagestory.at/x" })).toBe("https://mods.vintagestory.at/x");
   });
 
   it("lists every mod, base game first, then by name", () => {
     const rows = creditRows({
-      zeta: { name: "Alpha Mod", version: "1", authors: ["A", "B"] },
+      zeta: { name: "Alpha Mod", version: "1", authors: ["A", "B"], website: "https://example.org/", assetId: 12 },
       game: { name: "Essentials", version: "1.22.7" },
       alpha: { name: "Zulu Mod", version: "2" },
     });
     expect(rows.map((r) => r.id)).toEqual(["game", "zeta", "alpha"]);
-    expect(rows[1]).toEqual({ id: "zeta", name: "Alpha Mod", version: "1", authors: ["A", "B"], link: "https://mods.vintagestory.at/zeta" });
+    expect(rows[1]).toEqual({
+      id: "zeta",
+      name: "Alpha Mod",
+      version: "1",
+      authors: ["A", "B"],
+      link: "https://mods.vintagestory.at/show/mod/12",
+      website: "https://example.org/",
+    });
+    expect(rows[2]!.link).toBeNull();
   });
 });

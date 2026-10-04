@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { E2E_VERSIONS, ICON_CODE, NO_ICONS_PATH, PORT } from "./config.ts";
-import { V, expect, openItem, test } from "./fixtures.ts";
+import type { Locator } from "@playwright/test";
+import { V, card, expect, openItem, search, test } from "./fixtures.ts";
 
 test("a deep link survives a reload under the sub-path", async ({ page }) => {
   await page.goto(`./#/${V}/item/game:ingot-tinbronze`);
@@ -52,6 +53,11 @@ test("panning sources show the chance per pan and fold a block's rock variants",
   await expect(gravel.getByRole("link", { name: "Granite gravel", exact: true })).toBeVisible();
 });
 
+// pack/lock.json's asset ids, which prepare-data puts on the mods by default.
+const SHOW_MOD = "https://mods.vintagestory.at/show/mod/";
+const lock = JSON.parse(readFileSync(new URL("../../pack/lock.json", import.meta.url), "utf8")) as { mods: { id: string; assetId: number }[] };
+const ASSET = Object.fromEntries(lock.mods.map((m) => [m.id, m.assetId]));
+
 test("the unofficial notice, credits and removal contact are present", async ({ page }) => {
   const exp = JSON.parse(readFileSync(process.env.RECIPE_EXPORT!, "utf8")) as { mods: Record<string, { website?: string }> };
   await page.goto("./");
@@ -64,10 +70,19 @@ test("the unofficial notice, credits and removal contact are present", async ({ 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Credits");
   const listed = page.getByTestId("credits").locator("li");
   await expect(listed).toHaveCount(Object.keys(exp.mods).length);
-  // A mod from pack/pack.toml, linked to its own site or its ModDB page.
-  const ef = page.locator('[data-mod="expandedfoods"] a');
-  const efSite = exp.mods.expandedfoods?.website;
-  await expect(ef).toHaveAttribute("href", efSite && /^https?:/.test(efSite) ? efSite : "https://mods.vintagestory.at/expandedfoods");
+  // A mod from pack/pack.toml, linked to its ModDB page by the asset id in pack/lock.json;
+  // its own website, if any, comes second.
+  const modLink = (id: string) => page.locator(`li[data-mod="${id}"] a[data-link="mod"]`);
+  await expect(modLink("expandedfoods")).toHaveAttribute("href", `${SHOW_MOD}${ASSET.expandedfoods}`);
+  const efSite = exp.mods.expandedfoods?.website?.trim();
+  await expect(page.locator('li[data-mod="expandedfoods"] a[data-link="website"]')).toHaveCount(efSite && /^https?:/.test(efSite) ? 1 : 0);
+  // ModDB aliases that are not the modid: /moreroads is a 404, /scaffolding another mod.
+  await expect(modLink("moreroads")).toHaveAttribute("href", `${SHOW_MOD}${ASSET.moreroads}`);
+  await expect(modLink("scaffolding")).toHaveAttribute("href", `${SHOW_MOD}${ASSET.scaffolding}`);
+  await expect(page.locator('li[data-mod="game"] a')).toHaveAttribute("href", "https://www.vintagestory.at/");
+  // The CI-only exporter is in the export but not on the ModDB.
+  await expect(page.locator('li[data-mod="seraphexport"]')).toHaveCount(exp.mods.seraphexport ? 1 : 0);
+  await expect(page.locator('li[data-mod="seraphexport"] a')).toHaveCount(0);
   for (const a of await page.getByTestId("credits").locator("a").all()) {
     expect(await a.getAttribute("href")).toMatch(/^https:\/\/[^\s]+$/);
   }
@@ -76,6 +91,34 @@ test("the unofficial notice, credits and removal contact are present", async ({ 
   await expect(removal).toHaveAttribute("href", "https://github.com/benjamin-kirkbride/Seraph-Horizons/issues/new");
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
   expect(await page.content()).not.toMatch(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+});
+
+test("every mod a page names links to its ModDB page, never from inside another link", async ({ page }) => {
+  const ef = `${SHOW_MOD}${ASSET.expandedfoods}`;
+  const external = async (a: Locator, href: string) => {
+    await expect(a).toHaveAttribute("href", href);
+    await expect(a).toHaveAttribute("target", "_blank");
+    await expect(a).toHaveAttribute("rel", "noopener noreferrer");
+  };
+  // expandedfoods:recipes/grid/agedmeat.json makes aged red meat.
+  await openItem(page, "expandedfoods:agedmeat-redmeat-cut");
+  await external(page.getByTestId("item-mod").getByRole("link", { name: "Expanded Foods" }), ef);
+  await card(page, "madeBy", "expandedfoods:recipes/grid/agedmeat.json");
+  await external(page.getByTestId("recipe-mod").getByRole("link").first(), ef);
+  await openItem(page, "game:stick");
+  await external(page.getByTestId("item-mod").getByRole("link"), "https://www.vintagestory.at/");
+
+  await page.goto("./");
+  await search(page, "aged red meat");
+  const row = page.getByTestId("results").locator("li", { has: page.locator('a[data-code="expandedfoods:agedmeat-redmeat-cut"]') });
+  await external(row.locator('a[data-mod="expandedfoods"]'), ef);
+  await expect(page.getByTestId("results").locator("a a")).toHaveCount(0);
+
+  await page.goto(`./#/${V}/entity/game:wolf`);
+  await external(page.getByTestId("entity-mod").getByRole("link"), "https://www.vintagestory.at/");
+  await page.getByRole("link", { name: "Creatures and traders", exact: true }).click();
+  await external(page.getByTestId("creatures").locator("li", { has: page.locator('a[data-code="game:wolf"]') }).locator("a[data-mod]"), "https://www.vintagestory.at/");
+  await expect(page.locator("a a")).toHaveCount(0);
 });
 
 test("an item with an icon shows it and others get a placeholder", async ({ page }) => {
