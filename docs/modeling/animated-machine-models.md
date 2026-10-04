@@ -323,7 +323,7 @@ What did not:
    python3 -m unittest discover -s tools/tests
    mkdir -p build/atlas-tmp
    TMPDIR=$PWD/build/atlas-tmp VINTAGE_STORY=$HOME/Games/vintagestory dotnet test tests/PackTests \
-     --filter "FullyQualifiedName~BuckingSawmill|FullyQualifiedName~PackLoadScenarios"
+     --filter "FullyQualifiedName~PackTests.WoodworkingScenarios.|FullyQualifiedName~SharedWorldScenarios.Locked_mod|FullyQualifiedName~SharedWorldScenarios.Server_boots"
    rm -rf build/atlas-tmp
    ```
 10. Update the mod README (mechanism, rig schema, driver table, validation list, element prefixes).

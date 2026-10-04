@@ -8,8 +8,7 @@ namespace SeraphHorizons.PackTests;
 /// (or a game update) removes or renames a block, worldgen silently places nothing there,
 /// and only when that ruin happens to generate. Check every reference up front.
 /// </summary>
-[AtlasWorld]
-public class BetterRuinsScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     [AtlasScenario(TimeoutMs = 300_000)]
     public void Every_schematic_block_code_resolves()

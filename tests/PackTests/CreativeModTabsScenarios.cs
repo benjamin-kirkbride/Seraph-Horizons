@@ -16,8 +16,7 @@ namespace SeraphHorizons.PackTests;
 /// planning logic is unit-tested in mods-src/seraphhorizons/tests. With the switch off:
 /// <see cref="SwitchesOffScenarios"/>.
 /// </summary>
-[AtlasWorld]
-public class CreativeModTabsScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     private const string ModId = "seraphhorizons";
     private const string Prefix = "seraphhorizons-modtab-";
