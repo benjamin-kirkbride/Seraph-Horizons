@@ -20,22 +20,17 @@
           "crankshaft": "Crankshaft",
           "sash1": "Sash 1",
           "sash2": "Sash 2",
-          "blade1": "Blade kit 1",
-          "blade2": "Blade kit 2",
+          "blade": "Blade kit",
           "levers": "Levers"
         },
         "prop": {
           "label": "Trunk loaded at the top",
           "on": "trunkBed",
-          "default": "xl",
+          "default": "thick",
           "colour": "#8b5a2b",
           "options": [
-            { "id": "xs", "label": "xs · 1×1×1", "size": [1, 1, 1] },
-            { "id": "sm", "label": "sm · 1×1×2", "size": [2, 1, 1] },
-            { "id": "md", "label": "md · 1×1×3", "size": [3, 1, 1] },
-            { "id": "lg", "label": "lg · 1×1×4", "size": [4, 1, 1] },
-            { "id": "xl", "label": "xl · 2×2×4", "size": [4, 2, 2] },
-            { "id": "xxl", "label": "xxl · 2×2×5", "size": [5, 2, 2] }
+            { "id": "thin", "label": "Thin (xs to lg), shown 1×1×4", "size": [4, 1, 1] },
+            { "id": "thick", "label": "Thick (xl, xxl), shown 2×2×5", "size": [5, 2, 2] }
           ]
         },
         "play": {

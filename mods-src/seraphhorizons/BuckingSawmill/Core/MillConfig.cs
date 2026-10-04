@@ -21,9 +21,14 @@ public class MillConfig
     /// <summary>Logs a trunk gives per log stored in it, rounded down over the whole trunk.</summary>
     public float LogsPerStoredLog { get; set; } = 2f;
 
-    /// <summary>Durability each blade kit loses per log stored in a cut trunk, rounded up over the
+    /// <summary>Durability the blade kit loses per log stored in a cut trunk, rounded up over the
     /// whole trunk.</summary>
-    public float BladeWearPerStoredLog { get; set; } = 0.25f;
+    public float BladeWearPerStoredLog { get; set; } = 1f;
+
+    /// <summary>How much faster a blade kit cuts per tool tier above copper's (the game's saw of the
+    /// kit's metal: copper, gold and silver 2, the bronzes 3, iron 4, steel 5), so a steel kit cuts
+    /// in 1/(1 + 3 × this) of the turns. 0 makes every metal cut at copper's speed.</summary>
+    public float BladeSpeedPerTier { get; set; } = 0.35f;
 
     /// <summary>Whether the mill takes trunks from a Trunk Storage Rack at its infeed end (the end opposite the axle).</summary>
     public bool AutoPullFromRack { get; set; } = true;
@@ -40,6 +45,7 @@ public class MillConfig
         RaiseRevolutions = Check(nameof(RaiseRevolutions), RaiseRevolutions, v => v > 0, Defaults.RaiseRevolutions, fixes);
         LogsPerStoredLog = Check(nameof(LogsPerStoredLog), LogsPerStoredLog, v => v >= 0, Defaults.LogsPerStoredLog, fixes);
         BladeWearPerStoredLog = Check(nameof(BladeWearPerStoredLog), BladeWearPerStoredLog, v => v >= 0, Defaults.BladeWearPerStoredLog, fixes);
+        BladeSpeedPerTier = Check(nameof(BladeSpeedPerTier), BladeSpeedPerTier, v => v >= 0 && v <= 10, Defaults.BladeSpeedPerTier, fixes);
         return fixes;
     }
 

@@ -29,6 +29,19 @@ public static class Trunks
 
     public static int StoredLogs(ItemStack trunk, IWorldAccessor world) => StoredLogStack(trunk, world)?.StackSize ?? 0;
 
+    /// <summary>The Logging Expanded block the mill shows for a loaded trunk: its wood, no
+    /// branches, and the size of its class's model (<see cref="TrunkBox.DisplaySize"/>), so every
+    /// thin trunk looks like a 1×1×4 and every thick one like a 2×2×5, whatever its own size. The
+    /// stack is not changed. The trunk's own block if that one does not exist.</summary>
+    public static Block? ShownBlock(IWorldAccessor world, ItemStack? trunk)
+    {
+        if (trunk?.Block is not { } block)
+            return null;
+        if (TrunkBox.DisplaySize(TrunkBox.ClassOf(block.Variant["size"])) is not { } size)
+            return block;
+        return world.GetBlock(block.CodeWithVariants(["size", "branches"], [size, "no"])) is { Id: > 0 } shown ? shown : block;
+    }
+
     /// <summary>The trunk's wood, from its stored logs as Logging Expanded reads it, else its own
     /// <c>wood</c> variant.</summary>
     public static string? Wood(ItemStack trunk, IWorldAccessor world) =>

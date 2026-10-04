@@ -81,8 +81,9 @@ test("with WebGL, clicking the model pins the element under the pointer", async 
 test("taking a part off greys its legend rows, and Play runs the cycle", async ({ page }) => {
   await openMill(page);
   const controls = page.getByTestId("model-controls");
-  await controls.locator('[data-requires="blade1"]').uncheck();
-  await expect(page.getByTestId("model-legend").locator(":scope > li.off")).toHaveCount(rig.parts.filter((p) => p.requires === "blade1").length);
+  // The one blade kit: unticking it takes both saws' blades off.
+  await controls.locator('[data-requires="blade"]').uncheck();
+  await expect(page.getByTestId("model-legend").locator(":scope > li.off")).toHaveCount(rig.parts.filter((p) => p.requires === "blade").length);
   const theta = controls.locator('[data-input="theta"]');
   const before = await theta.inputValue();
   await controls.getByRole("button", { name: "Play" }).click();

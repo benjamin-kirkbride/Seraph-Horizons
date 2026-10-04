@@ -41,9 +41,10 @@ public static class SawDepth
     /// estimate when a sync moves it (a new trunk's drop takes about a quarter second).</summary>
     public const float EaseRate = 12f;
 
-    /// <summary>A trunk's thickness in blocks from its Logging Expanded <c>size</c> variant:
-    /// <c>xl</c> and <c>xxl</c> are two blocks high, the rest one.</summary>
-    public static int TrunkThickness(string? size) => size is "xl" or "xxl" ? 2 : 1;
+    /// <summary>A trunk's thickness in blocks from its Logging Expanded <c>size</c> variant: that of
+    /// the model the mill shows for it (<see cref="TrunkBox"/>), so <c>xl</c> and <c>xxl</c> are two
+    /// blocks high, the rest one.</summary>
+    public static int TrunkThickness(string? size) => TrunkBox.Size(TrunkBox.ClassOf(size)).Height;
 
     /// <summary>The depth at which the saws touch the top of a trunk of <paramref name="size"/>
     /// lying on <paramref name="bed"/>; without a bed, the trunk lies at the saws' bottom.</summary>

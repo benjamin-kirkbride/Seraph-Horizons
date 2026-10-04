@@ -299,16 +299,26 @@ public class RigAnimationTests
     [Fact]
     public void Requires_is_fitted_by_the_parts_count()
     {
-        Assert.True(RigPart.Fitted(null, 0, false, 0));
-        Assert.False(RigPart.Fitted("crankshaft", 2, false, 2));
-        Assert.True(RigPart.Fitted("crankshaft", 0, true, 0));
-        Assert.True(RigPart.Fitted("sash1", 1, false, 0));
-        Assert.False(RigPart.Fitted("sash2", 1, false, 0));
-        Assert.True(RigPart.Fitted("blade2", 2, false, 2));
-        Assert.False(RigPart.Fitted("blade1", 2, true, 0));
-        Assert.False(RigPart.Fitted("levers", 2, true, 2));
-        Assert.True(RigPart.Fitted("levers", 0, false, 0, levers: true));
-        Assert.False(RigPart.Fitted("crankshaft", 2, false, 2, levers: true));
+        Assert.True(RigPart.Fitted(null, 0, false, false));
+        Assert.False(RigPart.Fitted("crankshaft", 2, false, true));
+        Assert.True(RigPart.Fitted("crankshaft", 0, true, false));
+        Assert.True(RigPart.Fitted("sash1", 1, false, false));
+        Assert.False(RigPart.Fitted("sash2", 1, false, false));
+        Assert.True(RigPart.Fitted("blade", 2, false, true));
+        Assert.False(RigPart.Fitted("blade", 2, true, false));
+        Assert.False(RigPart.Fitted("blade1", 2, true, true));
+        Assert.False(RigPart.Fitted("levers", 2, true, true));
+        Assert.True(RigPart.Fitted("levers", 0, false, false, levers: true));
+        Assert.False(RigPart.Fitted("crankshaft", 2, false, true, levers: true));
+    }
+
+    // One blade kit puts a blade in both saws: both blade parts need it, and nothing else does.
+    [Fact]
+    public void Both_blades_need_the_one_blade_kit()
+    {
+        var parts = Shipped().MovingParts.Parts;
+        Assert.Equal(["f1_blade", "f2_blade"], parts.Where(p => p.Requires == "blade").Select(p => p.Id));
+        Assert.DoesNotContain(parts, p => p.Requires is "blade1" or "blade2");
     }
 
     [Fact]

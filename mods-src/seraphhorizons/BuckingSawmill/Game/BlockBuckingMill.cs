@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.BuckingSawmill.Core;
+using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -10,7 +11,7 @@ namespace SeraphHorizons.Mod.BuckingSawmill;
 /// <summary>
 /// The mill's controller block (<c>buckingmill-frame-{side}</c>). Placing it needs room for every
 /// cell of the rig and stamps a ghost into each; breaking it (or a ghost) drops the frame, the
-/// fitted parts, the blade kits and a recoverable trunk, and clears the ghosts.
+/// fitted parts, the blade kit and a recoverable trunk, and clears the ghosts.
 /// </summary>
 public class BlockBuckingMill : Block
 {
@@ -82,9 +83,29 @@ public class BlockBuckingMill : Block
     }
 
     public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
-        world.BlockAccessor.GetBlockEntity(blockSel.Position) is BEBuckingMill mill
-            ? mill.OnInteract(byPlayer)
+        world.BlockAccessor.GetBlockEntity(blockSel.Position) is BEBuckingMill
+            ? InteractAt(world, byPlayer, blockSel, blockSel.Position)
             : base.OnBlockInteractStart(world, byPlayer, blockSel);
+
+    public override bool OnBlockInteractStep(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        world.BlockAccessor.GetBlockEntity(blockSel.Position) is BEBuckingMill mill && mill.OnInteractStep(byPlayer);
+
+    public override void OnBlockInteractStop(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        (world.BlockAccessor.GetBlockEntity(blockSel.Position) as BEBuckingMill)?.OnInteractEnd(byPlayer);
+
+    public override bool OnBlockInteractCancel(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel,
+        EnumItemUseCancelReason cancelReason)
+    {
+        (world.BlockAccessor.GetBlockEntity(blockSel.Position) as BEBuckingMill)?.OnInteractEnd(byPlayer);
+        return true;
+    }
+
+    /// <summary>A right-click on one of the mill's cells: <paramref name="cellSel"/> as the player
+    /// made it (its cell and the hit point in it), <paramref name="principal"/> the controller's
+    /// position. Whether it is on the loaded trunk decides what an unrelated held item does.</summary>
+    public static bool InteractAt(IWorldAccessor world, IPlayer byPlayer, BlockSelection cellSel, BlockPos principal) =>
+        world.BlockAccessor.GetBlockEntity(principal) is BEBuckingMill mill
+        && mill.OnInteract(byPlayer, mill.HitsTrunk(cellSel.Position, cellSel.HitPosition));
 
     public override ItemStack[] GetDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer, float dropQuantityMultiplier = 1)
     {
@@ -122,20 +143,22 @@ public class BlockBuckingMill : Block
                     stacks.AddRange(_leversStacks);
                 if (stacks.Count > 0)
                     help.Add(new WorldInteraction { ActionLangCode = Key("fitpart"), MouseButton = EnumMouseButton.Right, Itemstacks = [.. stacks] });
-                if (mill.BladeCount < mill.SashCount)
-                {
-                    var blades = mill.BladeMetal is { } metal
-                        ? _bladeStacks.Where(s => s.Collectible.Code.Path == Parts.BladePrefix + metal).ToArray()
-                        : _bladeStacks;
-                    help.Add(new WorldInteraction { ActionLangCode = Key("fitblades"), MouseButton = EnumMouseButton.Right, Itemstacks = blades });
-                }
+                // the blade kit goes in once both sashes are in, one blade in each
+                if (!mill.HasBladeKit && mill.SashCount == Parts.SashesNeeded)
+                    help.Add(new WorldInteraction { ActionLangCode = Key("fitblades"), MouseButton = EnumMouseButton.Right, Itemstacks = _bladeStacks });
             }
             else if (mill.Trunk == null)
                 help.Add(new WorldInteraction { ActionLangCode = Key("loadtrunk"), MouseButton = EnumMouseButton.Right, Itemstacks = _trunkStacks });
+            // a stopped mill's saws, if they are down, are wound up by hand
+            if (mill.SashCount > 0 && Feeding.WindsUp(mill.Running, mill.SideDepth))
+                help.Add(new WorldInteraction { ActionLangCode = Key("windup"), MouseButton = EnumMouseButton.Right, RequireFreeHand = true });
             if (mill.Trunk != null && Cutting.Recoverable(mill.Progress))
                 help.Add(new WorldInteraction { ActionLangCode = Key("taketrunk"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
-            else if (mill.Trunk == null && mill.BladeCount > 0)
+            else if (mill.Trunk == null && mill.HasBladeKit)
                 help.Add(new WorldInteraction { ActionLangCode = Key("removeblade"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+            // the woodworking stations' creative shortcut, while there is a part to fit
+            if (!mill.Complete && forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative && mill.CreativeShortcut)
+                help.AddRange(SplittingBlockUpgrades.CreativeUpgradeHelp);
         }
         return help.ToArray().Append(base.GetPlacedBlockInteractionHelp(world, selection, forPlayer));
     }

@@ -715,6 +715,11 @@ creative only:
   only takes the click; the server reads the game mode from its own player data. A frame class
   that is not found gets no shortcut, with one warning, and the rest of the tweak runs.
 
+- the bucking sawmill (`BuckingSawmill/README.md`, "Creative shortcut"), one part per click on an
+  unassembled mill: the sashes, the crankshaft, the levers and a steel blade kit, held items kept.
+  It is the mill's own interaction, not a patch, and runs while this tweak does. On the assembled
+  mill Ctrl takes the trunk or the kit back, as in survival.
+
 Left out: a finished sawhorse has no next stage (each tier is built from its own frames, not from
 the tier below); the stick pile and board pile a knife or hammer turns into the first frames are
 the game's ground storage, and the hand tool is all they take besides what is in the pile; and
@@ -866,13 +871,22 @@ Immersive Woodworking (`immersivewoodworking`, 1.3.11) and Logging Expanded (`lo
 A machine of this mod's own: a mechanically powered pair of drag saws that cross-cut Logging
 Expanded tree trunks into logs. Its frame is crafted from two Immersive Woodworking sawmill frames
 and four support beams, placed as a six by three by four multiblock, and fitted in the world with
-Immersive Woodworking's sawmill parts (two sashes, a crankshaft, feed levers and two blade kits).
-An axle drives it at the far end; trunks go on by hand or from a Trunk Storage Rack under the
-axle, and the logs come out of the near end. While it turns it never stops: the saws sink through
-the trunk, a windlass winds them back up, and a new trunk can go on only at the top of the cycle.
+Immersive Woodworking's sawmill parts (two sashes, a crankshaft, feed levers and one blade kit,
+which puts a blade in both saws). An axle drives it at the far end; trunks go on by hand or from a
+Trunk Storage Rack under the axle, and the logs come out of the near end. While it turns it never
+stops: the saws sink through the trunk, a windlass winds them back up, and a new trunk can go on
+only at the top of the cycle. A loaded trunk is shown as Logging Expanded's 1×1×4 or 2×2×5 model
+(thin or thick, whatever its own length) and is solid and selectable where it is shown. A better
+blade cuts faster, by the tool tier of the game's saw of its metal (steel about twice copper), and
+each cut costs the kit one durability per log in the trunk. A trunk offered while the saws are not
+at the top goes on as they come up if the button is held; a stopped mill's saws are wound up by
+holding right-click with an empty hand; and the block info says what the rack at the far end
+offers, or why nothing is coming. In creative, Ctrl + right click fits the next part, as on the
+woodworking stations (`UnifiedWoodworking`). Its model is checked for z-fighting faces when it is
+generated.
 
 `BuckingSawmillSettings` holds its figures (shaft load, turns per log, logs per stored log, blade
-wear, whether it pulls from a rack). With the switch off, or either mod missing, its blocks and
+wear, how much faster each tool tier cuts, whether it pulls from a rack). With the switch off, or either mod missing, its blocks and
 recipe are left out before the game loads them, as the creative steam source's is; neither mod is
 referenced at build time, and Logging Expanded is reached by reflection.
 
@@ -881,6 +895,21 @@ file that ties the model to the code, the cycle, the settings, the generated mod
 regenerate it, and its tests. Most of the model was made for this mod; its gears, saw blades, saw
 heads and cranks are from Immersive Woodworking's sawmill model by Bobrik00, used with the
 author's permission and not covered by the repository's license (`CREDITS.md`).
+
+### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
+
+Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
+(`immersivewoodworking:sawmillblade-{metal}`) have three times its durability: gold 210, silver
+270, copper 750, tin bronze 1200, bismuth bronze 1350, black bronze 1500, iron 2700, meteoric iron
+3600, steel 6750. The bucking sawmill wears its kit by one for every log in a trunk it cuts, so a
+copper kit lasts 750 logs. The durability is the item's, so Immersive Woodworking's own plank
+sawmill's kits last three times as long too, as does the assembled creative sawmill's steel kit
+(`AssembledMachinesInCreative`, which places a new kit of the item).
+
+A JSON patch, `patches/sawmillblade-durability.json`, replaces each value of the blade's
+`durabilitybytype` (server side; clients get the items from the server). With the switch off, or
+without Immersive Woodworking, `SawmillBladeDurability.DisablePatches` empties it in `Start`, before
+the game's patch loader runs, as for the tun patches.
 
 ### Tidy Variants (`TidyVariants`)
 
@@ -1055,6 +1084,11 @@ requires the chopper unpatched and throwing its batch past the cell in front.
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
 it fails after a mod is added or updated, it lists the foods to give a value in `patches/hydration-*.json`.
+
+`tests/PackTests/BuckingSawmillScenarios.cs` (Atlas) requires every blade kit at three times
+Immersive Woodworking's durability (`DurableSawmillBlades`); with the switch off,
+`SwitchesOffScenarios` requires Immersive Woodworking's own. The rest of its scenarios are the
+bucking sawmill's (`BuckingSawmill/README.md`).
 
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's

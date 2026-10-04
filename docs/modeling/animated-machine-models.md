@@ -141,6 +141,11 @@ The owner's review notes on the sawmill reduce to these rules. Each has a reason
   way either way. Likewise a latch that only gameplay could release was removed, and the cycle now
   runs non-stop.
 - **Clear paths for whatever slides through.** Check this with a swept volume, not by eye.
+- **No two drawn faces in one plane.** Faces of different elements that share a plane and overlap
+  z-fight in the game: they flicker as the camera moves. Boxes built to overlap (an octagon from
+  four rotated strips, a cross-profile shaft from two bars, a collar flush with a bearing) do it at
+  every shared end. Remove a face that is pressed flat against its neighbour (it cannot be seen),
+  and move the smaller of two visible ones in by a hundredth or so of a voxel.
 
 ## The generator
 
@@ -200,6 +205,10 @@ That is the pattern to keep: **every review finding becomes a check**, so it can
 - **Gearing:** in a raise, the clutched halves of the axle turn exactly together; the rectifier
   turns the disc the same way for either shaft direction.
 - **Anchors:** the feeding block's cells and the axle's cell differ.
+- **No z-fighting** *(review)*: no two drawn faces of different elements lie in one plane, facing the
+  same way, and overlap, in world space after rotations, at rest and mid-cut. The generator
+  removes the faces pressed against their own part's elements and insets the smaller face of each
+  remaining pair (`fix_coplanar`) before checking; the failures name both elements.
 - **Files:** every texture code is declared, and every written file parses.
 - **Shifted output equals checked model:** every element posed by the shipped rig lands where the
   checked one does, moved.
@@ -295,7 +304,8 @@ What did not:
    placement orientation, material path, feeding block and power cell. Check them against each other.
 4. Write the generator: constants, one builder per piece, rig parts, reference maths, writers,
    validation, the origin shift.
-5. Add a check for anything you would otherwise only eyeball, especially paths, supports, joints and contacts.
+5. Add a check for anything you would otherwise only eyeball, especially paths, supports, joints and contacts,
+   and for coplanar overlapping faces (z-fighting), which show only in the game or the viewer.
 6. Generate, then check determinism:
    ```sh
    python3 mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py --out "$TMPDIR/a"

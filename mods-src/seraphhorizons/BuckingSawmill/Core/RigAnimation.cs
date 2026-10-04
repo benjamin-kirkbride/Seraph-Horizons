@@ -174,18 +174,18 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
 public sealed record RigPart(string Id, IReadOnlyList<string> Match, string? Requires, string? Ride, IReadOnlyList<Driver> Drivers)
 {
     /// <summary>The <c>requires</c> values the gameplay knows.</summary>
-    public static readonly IReadOnlySet<string> KnownRequires = new HashSet<string> { "crankshaft", "levers", "sash1", "sash2", "blade1", "blade2" };
+    public static readonly IReadOnlySet<string> KnownRequires = new HashSet<string> { "crankshaft", "levers", "sash1", "sash2", "blade" };
 
-    /// <summary>Whether a part needing <paramref name="requires"/> is drawn with these parts fitted.</summary>
-    public static bool Fitted(string? requires, int sashes, bool crankshaft, int blades, bool levers = false) => requires switch
+    /// <summary>Whether a part needing <paramref name="requires"/> is drawn with these parts fitted.
+    /// <c>blade</c> is the one blade kit, which puts a blade in both saws.</summary>
+    public static bool Fitted(string? requires, int sashes, bool crankshaft, bool bladeKit, bool levers = false) => requires switch
     {
         null => true,
         "crankshaft" => crankshaft,
         "levers" => levers,
         "sash1" => sashes >= 1,
         "sash2" => sashes >= 2,
-        "blade1" => blades >= 1,
-        "blade2" => blades >= 2,
+        "blade" => bladeKit,
         _ => false,
     };
 }
