@@ -11,9 +11,9 @@ namespace SeraphHorizons.Mod;
 /// The pack's own tweaks. Each tweak is its own class, switched by its own setting in
 /// ModConfig/seraphhorizons.json, and skipped with a log line when the mod it changes is not
 /// installed or no longer looks as expected. This system applies its own patches explicitly
-/// (never PatchAll). Tidy Variants (TidyVariants/), Map Reveal (MapReveal/) and the creative mod
-/// tabs (CreativeModTabs/) have their own mod systems, which read their switch through
-/// <see cref="ConfigFor"/>.
+/// (never PatchAll). Tidy Variants (TidyVariants/), Map Reveal (MapReveal/), the creative mod
+/// tabs (CreativeModTabs/) and the creative search tweaks (CreativeSearch/) have their own mod
+/// systems, which read their switch through <see cref="ConfigFor"/>.
 /// </summary>
 public class SeraphHorizonsSystem : ModSystem
 {
@@ -283,4 +283,13 @@ public class SeraphHorizonsConfig
     /// handbook guide covers it all (off means both mods as they ship). The server's setting
     /// decides; a client follows the server, whatever its own says.</summary>
     public bool UnifiedWoodworking { get; set; } = true;
+
+    /// <summary>Creative inventory: reopening it puts back the search text, and the scroll position
+    /// if the same tab is shown, that it had when it was closed, in the same session (client side;
+    /// off means it reopens with an empty search at the top, as vanilla does).</summary>
+    public bool CreativeKeepsPlace { get; set; } = true;
+
+    /// <summary>A right-click on the creative inventory's search box, or the handbook's, empties it
+    /// and leaves it focused for typing (client side; off means a right-click only focuses it).</summary>
+    public bool SearchRightClickClears { get; set; } = true;
 }

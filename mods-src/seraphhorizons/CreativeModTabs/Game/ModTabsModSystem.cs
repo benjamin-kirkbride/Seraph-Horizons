@@ -23,8 +23,8 @@ public sealed class ModTabsAuthority
 
 /// <summary>
 /// Creative mod tabs (switch <see cref="SeraphHorizonsConfig.CreativeModTabs"/>; docs/variant-grouping/creative-mod-tabs.md): a
-/// button over the creative inventory's right-hand tabs flips between the game's tabs and one tab per mod,
-/// each holding every creative-listed stack of that mod.
+/// button over the creative inventory's right-hand tabs flips that column between the game's tabs and one tab
+/// per mod, each holding every creative-listed stack of that mod; the left column stays.
 ///
 /// The mod tabs are real creative tabs, appended after the default ones on both sides, because the server
 /// resolves a creative click by tab index and slot id against its own inventory. The server decides which
