@@ -115,7 +115,8 @@ What the memo does not cover:
 - A push to `main` uses the memo only for the test-only jobs: `atlas`, `tools` and
   `site` are skipped for a tree on record, but `smoke`, `cairn` and `export` still run.
   `next.yml` publishes the `recipe-export` artifact `smoke` dumps and the `dist` artifact
-  `cairn` builds from that push run, and `export` validates what is about to ship.
+  `cairn` builds from that push run (with the `seraphhorizons-mod` zip, also `cairn`'s),
+  and `export` validates what is about to ship.
 - Tags and manual runs always run everything.
 - Fork PRs can use a record but not write one (read-only token).
 

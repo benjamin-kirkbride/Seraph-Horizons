@@ -170,6 +170,9 @@ describe("version ids and order", () => {
     ["v1.0.0-rc.1", "v1.0.0-rc.1"],
     ["v1.0.0-alpha.beta-2", "v1.0.0-alpha.beta-2"],
     ["main", undefined],
+    // Mod releases (mod-release.yml, and next.yml's seraphhorizons-next) carry no recipe export and are not site versions.
+    ["allowedvariantsfix-v1.0.0", undefined],
+    ["seraphhorizons-next", undefined],
     ["0.1.0", undefined],
     ["v01.0.0", undefined],
     ["v1.0.0+meta", undefined],
@@ -206,9 +209,9 @@ describe("fetch", () => {
       tags: () => ["next", "v0.2.0", "v0.1.0", "weird/tag"],
       assets: (tag) =>
         ({
-          next: ["seraphhorizons_0.2.0.cairn.json", "seraphhorizons_0.2.0_recipes.json", "SHA256SUMS"],
+          next: ["seraphhorizons_0.2.0.cairn", "seraphhorizons_0.2.0_recipes.json", "SHA256SUMS"],
           "v0.2.0": ["seraphhorizons_0.2.0_recipes.json"],
-          "v0.1.0": ["seraphhorizons_0.1.0.cairn.json"],
+          "v0.1.0": ["seraphhorizons_0.1.0.cairn"],
         })[tag] ?? [],
       commit: (tag) => `sha-of-${tag}`,
       download: (tag, asset, dir) => {
