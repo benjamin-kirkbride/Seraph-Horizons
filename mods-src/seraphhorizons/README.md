@@ -391,6 +391,36 @@ mod. With a switch off the system empties that patch file in `Start`, before the
 is gone, the mod logs a warning and leaves the rack as Food Shelves ships it, block attribute included,
 so the two never disagree. The switches that count are the server's.
 
+### One olla: Primitive Survival's irrigation vessel is retired (`IrrigationVesselRetired`)
+
+The pack had two buried clay pots that water the farmland around them: Primitive Survival's
+irrigation vessel (`primitivesurvival` 5.1.4, `primitivesurvival:irrigationvessel-*`, 50 L, ten
+colours, made in the grid by chiselling a fired storage vessel and turned back into one with resin)
+and Olla's olla (`olla` 1.4.0, `olla:olla-raw-*` clay formed from 16 clay and fired in a pit kiln
+into `olla:olla-fired-*`, 60 L, watering the 5 x 5 around it). The codes do not collide; the pack
+keeps Olla's. Primitive Survival has no setting for its vessel, so:
+
+- its four grid recipes are disabled (`enabled: false`): the two that make it and the two that turn
+  it back into a storage vessel, whose handbook page would otherwise list a block nobody can get;
+- it is left out of the creative inventory (its `creativeinventory` removed) and the handbook
+  (`attributes.handbook.exclude`);
+- BetterRuins' Primitive Survival compatibility patch adds its nine coloured vessels to the ruins'
+  clay loot (`game:stackrandomizer-clayproducts`, `attributesByType.*-clayproducts.stacks`). On the
+  server, in `AssetsLoaded` after the patch loader and before the item types are read, the tweak takes
+  every `primitivesurvival:irrigationvessel-*` stack out of that list again, as Assembled Machines
+  edits its blocktypes. The vessels are at the end of the list, so BetterRuins' ConfigKit loot
+  settings, which address its own stacks by index, still point at the same stacks. If the loot item is
+  not as expected or holds no vessel, it logs a warning and the loot stays as it is.
+
+The block type stays registered, so a vessel already placed in a world keeps its water and still
+works, and breaking it still drops it. It can be placed again, but no new one can be had.
+
+The recipes and the creative and handbook changes are a JSON patch,
+`assets/seraphhorizons/patches/irrigationvessel-primitivesurvival.json`, `"side": "server"` and
+`dependsOn` primitivesurvival. With the switch off, or without Primitive Survival, the system empties
+that patch file in `Start`, as for Hydrate or Diedrate's tun, and the loot is left alone. The switch
+that counts is the server's.
+
 ### Map Reveal (`MapReveal`)
 
 `/revealmap <radius>` shows on your world map (M) the terrain already generated within radius
@@ -912,6 +942,16 @@ block entity, taking 950 L of water. It requires the tun rack's block, field and
 server with both switches off and requires both tuns as they ship (the rack at 500 L in all three
 places). When it fails after a Food Shelves update, check whether `BETunRack` still keeps its own
 capacity, and whether the block's `capacityLitres` moved.
+
+`tests/PackTests/IrrigationVesselScenarios.cs` (Atlas) requires none of Primitive Survival's ten
+irrigation vessels in a grid recipe (as output or ingredient), in the creative inventory or listed in
+the handbook, none in BetterRuins' clay loot (the rest of Primitive Survival's clay loot still there),
+and one placed still Primitive Survival's block entity, taking 50 L of water. It also requires Olla's
+raw ollas clay formed, in the creative inventory and fired in a pit kiln into its fired ollas, which
+are in the creative inventory and the handbook. `IrrigationVesselOffScenarios` boots a server with the
+switch off and requires the vessel as it ships, its loot included. When it fails after a Primitive
+Survival or BetterRuins update, check the recipe file's order and the loot item's `*-clayproducts`
+stacks.
 
 `tests/PackTests/BarrelRackKegsScenarios.cs` (Atlas) places a barrel rack and has a player
 right-click it through the rack block's own `OnBlockInteractStart`: an untapped keg holding 80 L
