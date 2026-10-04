@@ -1,0 +1,10 @@
+// Hydrate or Diedrate's tun (hydrateordiedrate:tun-*), seraphhorizons' HydrateTunRetired switch
+// (README.md): Food Shelves' tun rack is the pack's tun. No recipe, not in the creative inventory or
+// the handbook; the block type stays, so tuns already placed keep their liquid and keep working.
+// Server side: block types and recipes are loaded on the server, and the client gets the block,
+// creative stacks and attributes included, from it.
+[
+  { "file": "hydrateordiedrate:recipes/grid/tun.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:blocktypes/wood/tun.json", "op": "remove", "path": "/creativeinventoryStacksByType", "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:blocktypes/wood/tun.json", "op": "add", "path": "/attributes/handbook", "value": { "exclude": true }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] }
+]
