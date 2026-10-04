@@ -31,12 +31,12 @@ export async function openItem(page: Page, code: string) {
   await expect(page.locator(`article[data-item="${code}"]`)).toBeVisible();
 }
 
-/** Types into the search box and returns the result links. */
+/** Types into the search box and returns the result links (not their mods' links). */
 export async function search(page: Page, query: string): Promise<Locator> {
   const box = page.getByLabel("Search items");
   await expect(box).toBeEnabled();
   await box.fill(query);
-  const results = page.getByTestId("results").locator("a");
+  const results = page.getByTestId("results").locator("a[data-code]");
   await expect(results.first()).toBeVisible();
   return results;
 }

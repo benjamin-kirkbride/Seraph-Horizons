@@ -10,6 +10,7 @@
     {
       "id": "betterruins",
       "version": "0.6.4",
+      "assetId": 3829,
       "releaseId": 57748,
       "fileId": 123882,
       "fileName": "BetterRuinsv0.6.4.zip",
@@ -29,6 +30,7 @@
     {
       "id": "configkit",
       "version": "1.4.1",
+      "assetId": 67100,
       "releaseId": 57466,
       "fileId": 123389,
       "fileName": "configkit_1.4.1.zip",
@@ -48,6 +50,7 @@
     {
       "id": "aculinaryartillery",
       "version": "2.0.0-dev.26",
+      "assetId": 4151,
       "releaseId": 58842,
       "fileId": 125876,
       "fileName": "ACulinaryArtillery 2.0.0-dev.26.zip",
@@ -71,6 +74,7 @@
     {
       "id": "expandedfoods",
       "version": "2.0.0-dev.15",
+      "assetId": 28,
       "releaseId": 58684,
       "fileId": 125488,
       "fileName": "ExpandedFoods 2.0.0-dev.15.zip",
@@ -94,6 +98,7 @@
     {
       "id": "efchefstricks",
       "version": "1.0.0-dev.5",
+      "assetId": 55414,
       "releaseId": 58683,
       "fileId": 125487,
       "fileName": "ExpandedFoods_ChefsTricks 1.0.0-dev.5.zip",
@@ -117,6 +122,7 @@
     {
       "id": "oilsresoaped",
       "version": "1.0.3",
+      "assetId": 57953,
       "releaseId": 49642,
       "fileId": 108159,
       "fileName": "oils-resoaped_v1.0.3.zip",
@@ -138,6 +144,7 @@
     {
       "id": "plantbasedfat",
       "version": "1.0.4",
+      "assetId": 31829,
       "releaseId": 48592,
       "fileId": 106198,
       "fileName": "plantbasedfat_1.0.4.zip",
@@ -157,6 +164,7 @@
     {
       "id": "metalpots",
       "version": "1.8.2",
+      "assetId": 23127,
       "releaseId": 58718,
       "fileId": 125548,
       "fileName": "metalpots_1.8.2.zip",
@@ -198,6 +206,7 @@
     {
       "id": "stonebakeoven",
       "version": "1.4.0",
+      "assetId": 6038,
       "releaseId": 56922,
       "fileId": 122317,
       "fileName": "stonebakeoven_1.4.0.zip",
@@ -217,6 +226,7 @@
     {
       "id": "tankardsandgoblets",
       "version": "1.4.4",
+      "assetId": 23091,
       "releaseId": 47032,
       "fileId": 103050,
       "fileName": "TankardsandGoblets_v1.4.4.zip",
@@ -241,6 +251,7 @@
     {
       "id": "foodshelves",
       "version": "3.1.0",
+      "assetId": 13865,
       "releaseId": 58735,
       "fileId": 125632,
       "fileName": "foodshelves_3.1.0.zip",
@@ -267,6 +278,7 @@
     {
       "id": "purposefulstorage",
       "version": "2.1.1",
+      "assetId": 25347,
       "releaseId": 53230,
       "fileId": 115293,
       "fileName": "purposefulstorage_2.1.1.zip",
@@ -293,6 +305,7 @@
     {
       "id": "madfoundation",
       "version": "1.2.0",
+      "assetId": 57217,
       "releaseId": 48063,
       "fileId": 105113,
       "fileName": "MadFoundation_1.2.0.zip",
@@ -310,6 +323,7 @@
     {
       "id": "madhoarding",
       "version": "1.0.1",
+      "assetId": 57999,
       "releaseId": 47885,
       "fileId": 104715,
       "fileName": "MadHoarding_1.0.1.zip",
@@ -332,6 +346,7 @@
     {
       "id": "hydrateordiedrate",
       "version": "2.5.6",
+      "assetId": 13245,
       "releaseId": 57765,
       "fileId": 123907,
       "fileName": "hydrateordiedrate_2.5.6.zip",
@@ -356,6 +371,7 @@
     {
       "id": "hardcorewaterforkedforked",
       "version": "1.4.7",
+      "assetId": 70869,
       "releaseId": 58646,
       "fileId": 125438,
       "fileName": "hardcorewaterforkedforked_1.4.7.zip",
@@ -373,6 +389,7 @@
     {
       "id": "slowtox",
       "version": "5.0.0",
+      "assetId": 26245,
       "releaseId": 38639,
       "fileId": 86151,
       "fileName": "slowtox_5.0.0.zip",
@@ -399,6 +416,7 @@
     {
       "id": "playerstatusstrip",
       "version": "1.0.1",
+      "assetId": 49345,
       "releaseId": 40972,
       "fileId": 90980,
       "fileName": "playerstatushud-v1.0.1-moddb.zip",
@@ -420,6 +438,7 @@
     {
       "id": "hodvisualizer",
       "version": "1.0.0",
+      "assetId": 50438,
       "releaseId": 41592,
       "fileId": 92125,
       "fileName": "hodvisualizer-1.0.0.zip",
@@ -443,6 +462,7 @@
     {
       "id": "slowtoxvisualized",
       "version": "1.1.10",
+      "assetId": 48872,
       "releaseId": 41702,
       "fileId": 92350,
       "fileName": "slowtoxvisualized_1.1.10.zip",
@@ -466,6 +486,7 @@
     {
       "id": "primitivesurvival",
       "version": "5.1.4",
+      "assetId": 1238,
       "releaseId": 57570,
       "fileId": 123599,
       "fileName": "primitivesurvival_5.1.4.zip",
@@ -505,6 +526,7 @@
     {
       "id": "butchering",
       "version": "1.14.3",
+      "assetId": 7966,
       "releaseId": 54340,
       "fileId": 117484,
       "fileName": "butchering_1.14.3.zip",
@@ -524,6 +546,7 @@
     {
       "id": "goodhunting",
       "version": "1.4.7",
+      "assetId": 24021,
       "releaseId": 57705,
       "fileId": 123822,
       "fileName": "goodhunting_147.zip",
@@ -550,6 +573,7 @@
     {
       "id": "bloodtrail",
       "version": "1.2.9",
+      "assetId": 30331,
       "releaseId": 58425,
       "fileId": 125070,
       "fileName": "BloodTrail-v1.2.9.zip",
@@ -576,6 +600,7 @@
     {
       "id": "fleeexhaustion",
       "version": "1.2.0",
+      "assetId": 22038,
       "releaseId": 23672,
       "fileId": 52138,
       "fileName": "fleeexhaustion_1.2.0.zip",
@@ -637,6 +662,7 @@
     {
       "id": "projectileflee",
       "version": "1.0.5",
+      "assetId": 55384,
       "releaseId": 49052,
       "fileId": 107046,
       "fileName": "projectileflee_1.0.5.zip",
@@ -659,6 +685,7 @@
     {
       "id": "playercorpseforked",
       "version": "1.15.2",
+      "assetId": 47263,
       "releaseId": 56143,
       "fileId": 120774,
       "fileName": "PlayerCorpseForked_VS1.22.7_net10_v1.15.2.zip",
@@ -685,6 +712,7 @@
     {
       "id": "signals",
       "version": "0.3.3",
+      "assetId": 3876,
       "releaseId": 57545,
       "fileId": 123539,
       "fileName": "signals_v0.3.3.zip",
@@ -711,6 +739,7 @@
     {
       "id": "handcrank",
       "version": "1.0.1",
+      "assetId": 64943,
       "releaseId": 54219,
       "fileId": 117288,
       "fileName": "manualcrank_1.0.1.zip",
@@ -737,6 +766,7 @@
     {
       "id": "mpecenteredspurgear",
       "version": "1.0.0",
+      "assetId": 68117,
       "releaseId": 56407,
       "fileId": 121311,
       "fileName": "MPE-Centered-Spur-Gear_1.0.0.zip",
@@ -763,6 +793,7 @@
     {
       "id": "mpegearbox",
       "version": "1.0.1",
+      "assetId": 67908,
       "releaseId": 56171,
       "fileId": 120845,
       "fileName": "MPE-Gearbox_1.0.1.zip",
@@ -789,6 +820,7 @@
     {
       "id": "madmechanics",
       "version": "1.0.1",
+      "assetId": 67859,
       "releaseId": 56134,
       "fileId": 120752,
       "fileName": "MadMechanics_1.0.1.zip",
@@ -807,6 +839,7 @@
     {
       "id": "millwright",
       "version": "1.3.5",
+      "assetId": 7016,
       "releaseId": 57640,
       "fileId": 123715,
       "fileName": "millwright_1.3.5.zip",
@@ -846,6 +879,7 @@
     {
       "id": "exlib",
       "version": "0.7.2",
+      "assetId": 55292,
       "releaseId": 52809,
       "fileId": 114430,
       "fileName": "exlib_0.7.2.zip",
@@ -871,6 +905,7 @@
     {
       "id": "ppex",
       "version": "0.6.8",
+      "assetId": 55302,
       "releaseId": 52810,
       "fileId": 114431,
       "fileName": "ppex_0.6.8.zip",
@@ -897,6 +932,7 @@
     {
       "id": "crucibulum",
       "version": "1.5.0",
+      "assetId": 66201,
       "releaseId": 58896,
       "fileId": 125955,
       "fileName": "crucibulum_1.5.0.zip",
@@ -916,6 +952,7 @@
     {
       "id": "cruciblesstayhot",
       "version": "1.0.2",
+      "assetId": 66349,
       "releaseId": 55040,
       "fileId": 118679,
       "fileName": "cruciblesstayhot_1.0.2.zip",
@@ -1181,6 +1218,7 @@
     {
       "id": "sprinklersmod",
       "version": "1.22.1",
+      "assetId": 33016,
       "releaseId": 39837,
       "fileId": 88698,
       "fileName": "sprinklersmod_1.22.1.zip",
@@ -1200,6 +1238,7 @@
     {
       "id": "panningmachine",
       "version": "1.1.4",
+      "assetId": 33537,
       "releaseId": 55626,
       "fileId": 119829,
       "fileName": "panningmachine_1.1.4.zip",
@@ -1226,6 +1265,7 @@
     {
       "id": "wpanning",
       "version": "1.0.9",
+      "assetId": 17657,
       "releaseId": 45565,
       "fileId": 100178,
       "fileName": "Wilderlands Panning Overhaul 1.0.9.zip",
@@ -1263,6 +1303,7 @@
     {
       "id": "industrialdeco",
       "version": "1.0.8",
+      "assetId": 46184,
       "releaseId": 43647,
       "fileId": 96199,
       "fileName": "IndustrialDeco-v1.0.8.zip",
@@ -1282,6 +1323,7 @@
     {
       "id": "immersivewoodworking",
       "version": "1.3.11",
+      "assetId": 55537,
       "releaseId": 59558,
       "fileId": 127136,
       "fileName": "immersivewoodworking_1.3.11.zip",
@@ -1306,6 +1348,7 @@
     {
       "id": "usefuloils",
       "version": "1.0.0",
+      "assetId": 50285,
       "releaseId": 41464,
       "fileId": 91895,
       "fileName": "usefuloils_1.0.0.zip",
@@ -1325,6 +1368,7 @@
     {
       "id": "meapineappleturpentine",
       "version": "1.0.3",
+      "assetId": 46423,
       "releaseId": 38745,
       "fileId": 86336,
       "fileName": "Turpentine_1.0.3.zip",
@@ -1342,6 +1386,7 @@
     {
       "id": "resinonfell",
       "version": "1.0.4",
+      "assetId": 66212,
       "releaseId": 54699,
       "fileId": 118169,
       "fileName": "ResinOnFell_1.0.4.zip",
@@ -1368,6 +1413,7 @@
     {
       "id": "loggingmod",
       "version": "0.3.6",
+      "assetId": 55535,
       "releaseId": 48115,
       "fileId": 105204,
       "fileName": "LoggingMod0.3.6.zip",
@@ -1390,6 +1436,7 @@
     {
       "id": "saltpeterproductionfork",
       "version": "1.1.1",
+      "assetId": 67276,
       "releaseId": 55604,
       "fileId": 119797,
       "fileName": "SaltpeterProductionFork.zip",
@@ -1416,6 +1463,7 @@
     {
       "id": "brickyard",
       "version": "1.0.0",
+      "assetId": 62678,
       "releaseId": 51774,
       "fileId": 112386,
       "fileName": "brickyard.zip",
@@ -1456,6 +1504,7 @@
     {
       "id": "ageofflaxfork",
       "version": "1.1.6",
+      "assetId": 49542,
       "releaseId": 44243,
       "fileId": 97413,
       "fileName": "ageofflaxfork_1.1.6.zip",
@@ -1478,6 +1527,7 @@
     {
       "id": "flaxtorope",
       "version": "1.0.0",
+      "assetId": 44981,
       "releaseId": 37054,
       "fileId": 81972,
       "fileName": "flaxtorope.zip",
@@ -1730,6 +1780,7 @@
     {
       "id": "spinningwheel",
       "version": "1.2.14",
+      "assetId": 34327,
       "releaseId": 56675,
       "fileId": 121821,
       "fileName": "spinningwheel_1.2.14.zip",
@@ -1769,6 +1820,7 @@
     {
       "id": "tailorsdelight",
       "version": "2.2.2",
+      "assetId": 8600,
       "releaseId": 43341,
       "fileId": 95557,
       "fileName": "tailors_delight-2.2.2.zip",
@@ -1796,6 +1848,7 @@
     {
       "id": "shearlib",
       "version": "1.3.0",
+      "assetId": 14656,
       "releaseId": 39493,
       "fileId": 87908,
       "fileName": "shearlib-1.3.0.zip",
@@ -1823,6 +1876,7 @@
     {
       "id": "wool",
       "version": "1.9.6",
+      "assetId": 14220,
       "releaseId": 55890,
       "fileId": 120303,
       "fileName": "wool-1.9.6.zip",
@@ -1851,6 +1905,7 @@
     {
       "id": "effectlib",
       "version": "1.1.1",
+      "assetId": 68610,
       "releaseId": 58703,
       "fileId": 125521,
       "fileName": "effectlib_1.1.1.zip",
@@ -1877,6 +1932,7 @@
     {
       "id": "alchemy",
       "version": "2.2.0-rc.12",
+      "assetId": 487,
       "releaseId": 58556,
       "fileId": 125281,
       "fileName": "alchemy_2.2.0-rc.12.zip",
@@ -1904,6 +1960,7 @@
     {
       "id": "em",
       "version": "3.8.1",
+      "assetId": 2086,
       "releaseId": 54047,
       "fileId": 116952,
       "fileName": "expanded_matter-3.8.1.zip",
@@ -1931,6 +1988,7 @@
     {
       "id": "moreroads",
       "version": "2.0.0",
+      "assetId": 26,
       "releaseId": 48819,
       "fileId": 106618,
       "fileName": "MoreRoads 2.0.0.zip",
@@ -1953,6 +2011,7 @@
     {
       "id": "materialneeds",
       "version": "2.0.0",
+      "assetId": 32360,
       "releaseId": 49705,
       "fileId": 108291,
       "fileName": "MaterialNeeds_2.0.0.zip",
@@ -1972,6 +2031,7 @@
     {
       "id": "mnflowers",
       "version": "2.0.0",
+      "assetId": 37673,
       "releaseId": 49707,
       "fileId": 108294,
       "fileName": "MaterialNeedsFlowers_2.0.0.zip",
@@ -1991,6 +2051,7 @@
     {
       "id": "mngeology",
       "version": "2.0.10",
+      "assetId": 37407,
       "releaseId": 47113,
       "fileId": 103178,
       "fileName": "MaterialNeedsGeology_2.0.10.zip",
@@ -2010,6 +2071,7 @@
     {
       "id": "geoaddons",
       "version": "1.4.8",
+      "assetId": 8054,
       "releaseId": 46229,
       "fileId": 101411,
       "fileName": "GeologyAdditions 1.4.8.zip",
@@ -2045,6 +2107,7 @@
     {
       "id": "interestingoregen",
       "version": "2.3.8",
+      "assetId": 23261,
       "releaseId": 40603,
       "fileId": 90249,
       "fileName": "InterestingOreGen-v2.3.8.zip",
@@ -2079,6 +2142,7 @@
     {
       "id": "visibleoresandminerals",
       "version": "1.4.2",
+      "assetId": 49827,
       "releaseId": 58706,
       "fileId": 125524,
       "fileName": "visible-ores-and-minerals-v1.4.2.zip",
@@ -2103,6 +2167,7 @@
     {
       "id": "stonequarryrepckfipil",
       "version": "3.6.3",
+      "assetId": 47526,
       "releaseId": 43941,
       "fileId": 96782,
       "fileName": "StoneQuarryRepacked.3.6.3.zip",
@@ -2123,6 +2188,7 @@
     {
       "id": "substrate",
       "version": "2.0.0",
+      "assetId": 21814,
       "releaseId": 41227,
       "fileId": 91475,
       "fileName": "substrate_2.0.0.zip",
@@ -2144,6 +2210,7 @@
     {
       "id": "landformoverhaul",
       "version": "1.0.4",
+      "assetId": 7323,
       "releaseId": 37820,
       "fileId": 84057,
       "fileName": "Conquest Landform Overhaul v1.0.4.zip",
@@ -2195,6 +2262,7 @@
     {
       "id": "abyssaldepths",
       "version": "1.0.20",
+      "assetId": 37091,
       "releaseId": 55305,
       "fileId": 119166,
       "fileName": "abyssaldepths_1.0.20.zip",
@@ -2214,6 +2282,7 @@
     {
       "id": "spawnersapi",
       "version": "1.1.6",
+      "assetId": 13092,
       "releaseId": 49588,
       "fileId": 108051,
       "fileName": "spawnersapi_1.1.6.zip",
@@ -2233,6 +2302,7 @@
     {
       "id": "battletowers",
       "version": "1.1.0",
+      "assetId": 13131,
       "releaseId": 49693,
       "fileId": 108267,
       "fileName": "battle_towers_1.1.0.zip",
@@ -2252,6 +2322,7 @@
     {
       "id": "betterlootplus",
       "version": "1.0.0",
+      "assetId": 63311,
       "releaseId": 52306,
       "fileId": 113463,
       "fileName": "betterlootplus-1.0.0.zip",
@@ -2276,6 +2347,7 @@
     {
       "id": "bettertraders",
       "version": "0.2.1",
+      "assetId": 6160,
       "releaseId": 54412,
       "fileId": 117597,
       "fileName": "BetterTradersv0.2.1.zip",
@@ -2295,6 +2367,7 @@
     {
       "id": "domesticanimaltrader",
       "version": "1.1.5",
+      "assetId": 14037,
       "releaseId": 45125,
       "fileId": 99273,
       "fileName": "domesticanimaltrader_v1.1.5.zip",
@@ -2317,6 +2390,7 @@
     {
       "id": "cartwrightscaravan",
       "version": "1.9.1",
+      "assetId": 20899,
       "releaseId": 41769,
       "fileId": 92492,
       "fileName": "CartwrightsCaravan_1.9.1.zip",
@@ -2342,6 +2416,7 @@
     {
       "id": "nooceantranslocators",
       "version": "1.0.2",
+      "assetId": 17990,
       "releaseId": 47415,
       "fileId": 103818,
       "fileName": "NoOceanTranslocators-1.0.2.zip",
@@ -2379,6 +2454,7 @@
     {
       "id": "ricketytranslocation",
       "version": "1.0.1",
+      "assetId": 30465,
       "releaseId": 41445,
       "fileId": 91852,
       "fileName": "RicketyTranslocation_1.0.1.zip",
@@ -2418,6 +2494,7 @@
     {
       "id": "translocatormap",
       "version": "1.0.0",
+      "assetId": 21252,
       "releaseId": 17666,
       "fileId": 37759,
       "fileName": "translocatormap.zip",
@@ -2675,6 +2752,7 @@
     {
       "id": "vcftemporalstabilizer",
       "version": "1.13.1",
+      "assetId": 58281,
       "releaseId": 48167,
       "fileId": 105297,
       "fileName": "vcftemporalstabilizer_1.13.1.zip",
@@ -2695,6 +2773,7 @@
     {
       "id": "temporalsymphony",
       "version": "2.3.2",
+      "assetId": 24868,
       "releaseId": 44236,
       "fileId": 97391,
       "fileName": "TemporalSymphony_2.3.2.zip",
@@ -2715,6 +2794,7 @@
     {
       "id": "stabilityabove",
       "version": "1.2.1",
+      "assetId": 49887,
       "releaseId": 55674,
       "fileId": 119940,
       "fileName": "stabilityabove_1.2.1.zip",
@@ -2741,6 +2821,7 @@
     {
       "id": "resonatorrangeincrease",
       "version": "1.0.1",
+      "assetId": 38736,
       "releaseId": 38207,
       "fileId": 85065,
       "fileName": "resonatorrangeincrease_1.0.1.zip",
@@ -2772,6 +2853,7 @@
     {
       "id": "collisionflowfields",
       "version": "1.2.1",
+      "assetId": 43422,
       "releaseId": 57789,
       "fileId": 123985,
       "fileName": "collisionflowfields.zip",
@@ -2811,6 +2893,7 @@
     {
       "id": "evilinteractionrangehack",
       "version": "6.9.0",
+      "assetId": 56866,
       "releaseId": 46983,
       "fileId": 102956,
       "fileName": "evilinteractionrangehack.zip",
@@ -2870,6 +2953,7 @@
     {
       "id": "integratedmodmanager",
       "version": "1.1.3",
+      "assetId": 66824,
       "releaseId": 56408,
       "fileId": 121312,
       "fileName": "integratedmodmanager.zip",
@@ -2909,6 +2993,7 @@
     {
       "id": "yangtransport",
       "version": "1.0.3",
+      "assetId": 40204,
       "releaseId": 57791,
       "fileId": 123987,
       "fileName": "yangtransport.zip",
@@ -2952,6 +3037,7 @@
     {
       "id": "yangcoifix",
       "version": "5.0.0",
+      "assetId": 50412,
       "releaseId": 58658,
       "fileId": 125451,
       "fileName": "yangcoifix.zip",
@@ -2991,6 +3077,7 @@
     {
       "id": "yttenhancedinteractionfiltering",
       "version": "1.1.0",
+      "assetId": 63405,
       "releaseId": 52841,
       "fileId": 114506,
       "fileName": "yttenhancedinteractionfiltering.zip",
@@ -3029,6 +3116,7 @@
     {
       "id": "craftablelocusts",
       "version": "2.5.0",
+      "assetId": 45333,
       "releaseId": 55542,
       "fileId": 119682,
       "fileName": "craftablelocusts.zip",
@@ -3068,6 +3156,7 @@
     {
       "id": "zipline",
       "version": "1.0.8",
+      "assetId": 63964,
       "releaseId": 52846,
       "fileId": 114519,
       "fileName": "Zipline_1.0.8.zip",
@@ -3107,6 +3196,7 @@
     {
       "id": "gondolacablecar",
       "version": "0.4.43",
+      "assetId": 63652,
       "releaseId": 58702,
       "fileId": 125520,
       "fileName": "GondolaCableCar_0.4.43.zip",
@@ -3146,6 +3236,7 @@
     {
       "id": "flyingmachine",
       "version": "0.1.0",
+      "assetId": 71735,
       "releaseId": 59383,
       "fileId": 126777,
       "fileName": "flyingmachine_0.1.0.zip",
@@ -3173,6 +3264,7 @@
     {
       "id": "scaffolding",
       "version": "1.3.1",
+      "assetId": 27339,
       "releaseId": 44103,
       "fileId": 97079,
       "fileName": "scaffolding_1.3.1.zip",
@@ -3210,6 +3302,7 @@
     {
       "id": "vsroofing",
       "version": "2.0.5",
+      "assetId": 30143,
       "releaseId": 58872,
       "fileId": 125917,
       "fileName": "vsroofing_2.0.5.zip",
@@ -3251,6 +3344,7 @@
     {
       "id": "doorvariants",
       "version": "1.1.4",
+      "assetId": 33255,
       "releaseId": 41111,
       "fileId": 91279,
       "fileName": "DoorVariants_1.1.4.zip",
@@ -3272,6 +3366,7 @@
     {
       "id": "woodenshuttersandmore",
       "version": "1.3.3",
+      "assetId": 26493,
       "releaseId": 40321,
       "fileId": 89628,
       "fileName": "woodenshuttersandmore_1.3.3.zip",
@@ -3291,6 +3386,7 @@
     {
       "id": "hqzlights",
       "version": "1.1.3",
+      "assetId": 371,
       "releaseId": 42253,
       "fileId": 93448,
       "fileName": "drbraziers_1.1.3.zip",
@@ -3310,6 +3406,7 @@
     {
       "id": "shelfobsessed",
       "version": "2.2.1",
+      "assetId": 25512,
       "releaseId": 51715,
       "fileId": 112253,
       "fileName": "shelfobsessed_v2.2.1.zip",
@@ -3327,6 +3424,7 @@
     {
       "id": "desirepaths",
       "version": "0.5.1",
+      "assetId": 55847,
       "releaseId": 47458,
       "fileId": 103897,
       "fileName": "desirepaths_0.5.1.zip",
@@ -3364,6 +3462,7 @@
     {
       "id": "splittablestonepaths",
       "version": "1.0.1",
+      "assetId": 30308,
       "releaseId": 25155,
       "fileId": 55357,
       "fileName": "splittable-stone-paths-1.0.1.zip",
@@ -3384,6 +3483,7 @@
     {
       "id": "footprints",
       "version": "1.2.11",
+      "assetId": 33245,
       "releaseId": 58424,
       "fileId": 125069,
       "fileName": "Footprints-v1.2.11.zip",
@@ -3410,6 +3510,7 @@
     {
       "id": "betterhusbandry",
       "version": "1.3.7",
+      "assetId": 64152,
       "releaseId": 59452,
       "fileId": 126909,
       "fileName": "betterhusbandry_1.3.7.zip",
@@ -3436,6 +3537,7 @@
     {
       "id": "naturalfertilizer",
       "version": "1.5.1",
+      "assetId": 32000,
       "releaseId": 44108,
       "fileId": 97085,
       "fileName": "naturalfertilizer-v1.22.0-1.5.1.zip",
@@ -3473,6 +3575,7 @@
     {
       "id": "compostbin",
       "version": "1.3.15",
+      "assetId": 43481,
       "releaseId": 58507,
       "fileId": 125195,
       "fileName": "compostbin-v1.3.15-vs1.22.zip",
@@ -3515,6 +3618,7 @@
     {
       "id": "biodiversity",
       "version": "1.1.4",
+      "assetId": 44004,
       "releaseId": 39949,
       "fileId": 88892,
       "fileName": "biodiversity_core_1.1.4.zip",
@@ -3535,6 +3639,7 @@
     {
       "id": "bdcrop",
       "version": "1.1.1",
+      "assetId": 42043,
       "releaseId": 55072,
       "fileId": 118734,
       "fileName": "biodiversity_bdcrop_1.1.1.zip",
@@ -3576,6 +3681,7 @@
     {
       "id": "grindablebonearrows",
       "version": "1.0.1",
+      "assetId": 46037,
       "releaseId": 39286,
       "fileId": 87494,
       "fileName": "grindablebonearrows-1.0.1.zip",
@@ -3613,6 +3719,7 @@
     {
       "id": "p1explosives",
       "version": "1.0.0",
+      "assetId": 40390,
       "releaseId": 33350,
       "fileId": 73345,
       "fileName": "PS_Explosives_1.0.0.zip",
@@ -3695,6 +3802,7 @@
     {
       "id": "carryonlib",
       "version": "1.0.0-pre.8",
+      "assetId": 27960,
       "releaseId": 50129,
       "fileId": 109189,
       "fileName": "CarryOnLib-1.22.0_v1.0.0-pre.8.zip",
@@ -3718,6 +3826,7 @@
     {
       "id": "carryon",
       "version": "2.0.0-pre.8",
+      "assetId": 4405,
       "releaseId": 50130,
       "fileId": 109190,
       "fileName": "CarryOn-1.22.0_v2.0.0-pre.8.zip",
@@ -3744,6 +3853,7 @@
     {
       "id": "toolbelt",
       "version": "0.3.5",
+      "assetId": 37790,
       "releaseId": 39591,
       "fileId": 88145,
       "fileName": "ToolBelt_0.3.5.zip",
@@ -3761,6 +3871,7 @@
     {
       "id": "craftabletoolbelts",
       "version": "1.0.0",
+      "assetId": 56990,
       "releaseId": 47028,
       "fileId": 103042,
       "fileName": "Craftable Tool Belts.zip",
@@ -3779,6 +3890,7 @@
     {
       "id": "simplehotbarrefill",
       "version": "1.4.0",
+      "assetId": 28147,
       "releaseId": 52087,
       "fileId": 113016,
       "fileName": "CFY.SimpleRefill-1.4.0.zip",
@@ -3799,6 +3911,7 @@
     {
       "id": "walkingstick",
       "version": "3.0.10",
+      "assetId": 34545,
       "releaseId": 49997,
       "fileId": 108938,
       "fileName": "adventurers-walking-stick-net10_3.0.10.zip",
@@ -3820,6 +3933,7 @@
     {
       "id": "rollupbed",
       "version": "1.0.4",
+      "assetId": 44748,
       "releaseId": 47007,
       "fileId": 102995,
       "fileName": "rollupbed_1.0.4.zip",
@@ -3842,6 +3956,7 @@
     {
       "id": "vanity",
       "version": "2.5.1-rc.1",
+      "assetId": 7760,
       "releaseId": 42335,
       "fileId": 93582,
       "fileName": "Vanity-2.5.1-rc.1.zip",
@@ -3878,6 +3993,7 @@
     {
       "id": "toomanytabs",
       "version": "1.0.0",
+      "assetId": 52467,
       "releaseId": 43265,
       "fileId": 95389,
       "fileName": "TooManyTabs_v1.0.zip",
@@ -3928,6 +4044,7 @@
     {
       "id": "dovidarium",
       "version": "0.9.5",
+      "assetId": 66740,
       "releaseId": 58744,
       "fileId": 125648,
       "fileName": "EternalS-Dovidarium-0.9.5.zip",
@@ -3954,6 +4071,7 @@
     {
       "id": "sheltered",
       "version": "1.0.1",
+      "assetId": 52830,
       "releaseId": 44027,
       "fileId": 97062,
       "fileName": "Sheltered.zip",
@@ -3973,6 +4091,7 @@
     {
       "id": "immersivefoliage",
       "version": "0.1.1",
+      "assetId": 50618,
       "releaseId": 41976,
       "fileId": 93488,
       "fileName": "ImmersiveFoliage_0.1.1.zip",
@@ -3993,6 +4112,7 @@
     {
       "id": "scrolled",
       "version": "1.2.1",
+      "assetId": 40271,
       "releaseId": 52813,
       "fileId": 114434,
       "fileName": "scrolled 1.2.1.zip",
@@ -4031,6 +4151,7 @@
     {
       "id": "allowedvariantsfix",
       "version": "1.0.1",
+      "assetId": 71427,
       "releaseId": 59133,
       "fileId": 126326,
       "fileName": "allowedvariantsfix_1.0.1.zip",
@@ -4050,6 +4171,7 @@
     {
       "id": "constructionhelpfix",
       "version": "1.0.0",
+      "assetId": 71559,
       "releaseId": 59232,
       "fileId": 126470,
       "fileName": "constructionhelpfix_1.0.0.zip",
@@ -4069,6 +4191,7 @@
     {
       "id": "chiselrotationfix",
       "version": "1.0.0",
+      "assetId": 71782,
       "releaseId": 59421,
       "fileId": 126845,
       "fileName": "chiselrotationfix_1.0.0.zip",

@@ -59,7 +59,7 @@
     <h3 id="{kind}-{type}">{info.name} <span class="muted">({total})</span></h3>
     <div class="cards">
       {#each recipes as recipe (recipe.id)}
-        <RecipeCard {recipe} type={info} {data} {focus} modName={meta.mods[recipe.mod]?.name ?? recipe.mod} />
+        <RecipeCard {recipe} type={info} {data} {focus} mods={meta.mods} />
       {/each}
     </div>
     {#if failed[type]}

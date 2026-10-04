@@ -13,9 +13,10 @@
 <ul class="mods" data-testid="credits">
   {#each rows as m (m.id)}
     <li data-mod={m.id}>
-      <a href={m.link} rel="noopener noreferrer" target="_blank">{m.name}</a>
+      {#if m.link}<a href={m.link} rel="noopener noreferrer" target="_blank" data-link="mod">{m.name}</a>{:else}{m.name}{/if}
       <span class="muted">{m.version}</span>
       <span class="authors">{m.authors.length > 0 ? `${t.by} ${m.authors.join(", ")}` : t.unknownAuthors}</span>
+      {#if m.website}<a class="website" href={m.website} rel="noopener noreferrer" target="_blank" data-link="website">{t.website}</a>{/if}
     </li>
   {/each}
 </ul>
@@ -36,5 +37,9 @@
   }
   .authors {
     margin-left: 0.3rem;
+  }
+  .website {
+    margin-left: 0.3rem;
+    font-size: 0.85rem;
   }
 </style>
