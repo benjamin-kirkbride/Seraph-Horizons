@@ -41,7 +41,7 @@
       {#each index.models as m (m.id)}
         <li data-model={m.id}>
           <h2><a href={formatRoute({ view: "model", id: m.id })}>{m.title}</a></h2>
-          <p>{m.description}</p>
+          <p class="description">{m.description}</p>
           <p class="muted small">{mt.counts(m.elements, m.parts)}</p>
           <p class="muted small">{m.credit}</p>
         </li>
@@ -78,6 +78,10 @@
   }
   .models p {
     margin: 0.3rem 0;
+  }
+  /* Manifest text holds file paths, which have nowhere to break on a phone. */
+  .description {
+    overflow-wrap: anywhere;
   }
   .small {
     font-size: 0.875rem;

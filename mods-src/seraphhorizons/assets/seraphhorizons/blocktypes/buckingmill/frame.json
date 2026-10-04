@@ -1,0 +1,74 @@
+{
+	code: "buckingmill",
+	class: "seraphhorizons.BuckingMill",
+	entityClass: "seraphhorizons.BuckingMill",
+	// No HorizontalOrientable: BlockBuckingMill.TryPlaceBlock picks the side so the mill extends
+	// away from the player (Core/Footprint.cs, PlacedFacing).
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/buckingmill_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/buckingmill_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/buckingmill_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/buckingmill_frame", rotateY: 270 }
+	},
+	textures: {
+		"oak":   { base: "game:block/wood/debarked/oak" },
+		"metal": { base: "game:block/metal/plate/iron" },
+		"rope":  { base: "game:item/resource/rope" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:buckingmill-handbook-assembly-title", text: "seraphhorizons:buckingmill-handbook-assembly-text" },
+				{ title: "seraphhorizons:buckingmill-handbook-power-title", text: "seraphhorizons:buckingmill-handbook-power-text" },
+				{ title: "seraphhorizons:buckingmill-handbook-trunks-title", text: "seraphhorizons:buckingmill-handbook-trunks-text" },
+				{ title: "seraphhorizons:buckingmill-handbook-yield-title", text: "seraphhorizons:buckingmill-handbook-yield-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:buckingmill-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The shape fills the mill's whole 6×4×3 footprint (native x -5..1, z -1..2 about the controller
+	// at the east end; x 0..6, z -1..2 once the -north item form turns it 180°), so the item forms
+	// are centred on it (3, _, 0.5) and scaled well down.
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.6, z: -0.6 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 3, y: 0, z: 0.5 },
+		scale: 0.15
+	},
+	fpHandTransform: {
+		rotation: { x: 0, y: -45, z: 0 },
+		origin: { x: 3, y: 1, z: 0.5 },
+		scale: 0.3
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 3, y: 2, z: 0.5 },
+		scale: 0.28
+	},
+	groundTransform: {
+		origin: { x: 3, y: 0, z: 0.5 },
+		scale: 0.6
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

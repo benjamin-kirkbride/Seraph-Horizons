@@ -7,11 +7,11 @@ their own authors, are included here with their permission, and are not
 licensed under the Apache License. Each is identified by a notice next to
 it; ask its author before reusing it.
 
-  - mods-src/buckingsawmill/assets/buckingsawmill/shapes/
+  - mods-src/seraphhorizons/assets/seraphhorizons/shapes/block/buckingmill*.json
     The bucking sawmill model includes parts taken from the sawmill model
     of Immersive Woodworking (its gears, saw blades, saw heads and cranks),
     which belong to Bobrik00, the author of that mod. The rest of the model
-    is covered by this license. See mods-src/buckingsawmill/CREDITS.md.
+    is covered by this license. See mods-src/seraphhorizons/CREDITS.md.
 
 =========================================================================
 
