@@ -2,7 +2,7 @@
   "type": "code",
   "modid": "seraphhorizons",
   "name": "Seraph Horizons",
-  "description": "The Seraph Horizons modpack's own mod. It holds the pack's tweaks, each one switchable in ModConfig/seraphhorizons.json: gameplay tweaks to other mods; an admin /clear command that clears the weather and sets daytime (/clear stay holds it until /clear stop); Tidy Variants, which hides orientation and open/closed variants and groups the remaining variants of each block or item into one creative tile and one handbook page (right-click a tile to expand its group); /revealmap, which shows terrain already generated (e.g. by /wgen pregen) on your world map without going there; creative mod tabs, a button that switches the creative inventory to one tab per mod; and the bucking sawmill, a mechanically powered pair of drag saws, built from Immersive Woodworking's sawmill parts, that cuts Logging Expanded tree trunks into logs.",
+  "description": "The Seraph Horizons modpack's own mod: its tweaks, each switchable in ModConfig/seraphhorizons.json.",
   "authors": ["Benjamin Kirkbride"],
   "version": "1.0.0",
   "side": "Universal",
