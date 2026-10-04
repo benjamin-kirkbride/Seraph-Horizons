@@ -746,7 +746,7 @@ them too. Nothing is written to the player's file.
 | `FirewoodDropCount` | 4 | at most 6 (Immersive Woodworking requires at most `FirewoodPerLog`) |
 | `ChopperFirewoodPerLog` | -1 (the hand's `FirewoodPerLog`) | 8 |
 
-They are not in `pack/config`: that ships only in the `.cairn.json`, so a dedicated server from
+They are not in `pack/config`: that ships only in the `.cairn` file, so a dedicated server from
 the server zip, or a player with the meta-mod, would not get them, and a player's own file could
 undo them; the tweak needs them wherever it runs, and only then. Logging Expanded's settings need
 no change: its splitting log yields go with its splitting logs, and its sawhorses keep their own.
@@ -1143,6 +1143,15 @@ The same as `mods-src/allowedvariantsfix/README.md`: bump the version in `modinf
 `SeraphHorizons.csproj`, merge, tag `seraphhorizons-v<version>` on main, upload the zip from the
 GitHub Release to the ModDB (keep the file name), then pin it in `pack/pack.toml` (the first
 release adds the entry, `side = "universal"`) and run `packtool lock`.
+
+Between releases, every push to main that passes CI republishes the rolling
+[`seraphhorizons-next`](https://github.com/benjamin-kirkbride/Seraph-Horizons/releases/tag/seraphhorizons-next)
+pre-release (`.github/workflows/next.yml`): the zip CI's cairn job built from that commit, with
+its `SHA256SUMS`. The pack's rolling `next` Cairn pack, published right after it from the same
+commit, installs the mod from there by its sha256, so `next` plays with the mod as it is on main
+before any of it reaches the ModDB. The zip keeps `modinfo.json`'s version, so it is not newer
+than the release of that version as far as the game is concerned: swap it in for that copy,
+don't add it next to one.
 
 For a local build: `dotnet build mods-src/seraphhorizons -c Release` (needs `VINTAGE_STORY`) writes
 `build/seraphhorizons_<version>.zip`: the DLL, `modinfo.json` and `CREDITS.md` at the top level, and
