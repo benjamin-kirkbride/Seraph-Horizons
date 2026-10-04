@@ -329,3 +329,50 @@ matter. Leave default priority, and add a test that asserts the late audit stays
 - The epic's assumption that we "reuse vanilla's grouped handbook page and Dovidarium's
   handbook features" doesn't hold (section 3). The handbook side needs our own
   group-page class (no Harmony) or accepts `isDuplicate`-only hiding.
+
+## 7. Search box: keeping the place, right-click to clear
+
+For `CreativeKeepsPlace` and `SearchRightClickClears` (`mods-src/seraphhorizons/CreativeSearch/`,
+Harmony id `seraphhorizons.creativesearch`, client only). Verified in the decompiled 1.22.7 game
+(`VintagestoryAPI.dll`, `VintagestoryLib.dll`, `VSSurvivalMod.dll`), Dovidarium 0.9.5 and TooManyTabs 1.0.0.
+
+**Close and open.** `GuiDialog.TryClose()` (virtual; `GuiDialogInventory` doesn't override it) sets
+`opened = false`, calls `UnFocus()`, then, if it was open, `OnGuiClosed()` and the `OnClosed` event.
+Nothing in the game library calls `OnGuiClosed` any other way. `GuiDialogInventory.OnGuiClosed` in
+creative does `searchbox.SetValue("")` (→ `OnTextChanged("")`: search, `SetScrollbarPosition(0)`),
+`slotgrid.OnGuiClosed` and the close packet. `TryOpen(bool)` sets `opened = true`, then
+`OnGuiOpened()` and the `OnOpened` event; `GuiDialogInventory.OnGuiOpened` runs `ComposeGui(false)`.
+Without Dovidarium that builds a new composer (empty box, `update()`, scroll 0); with its composer
+reuse it returns early with the last composer, whose box the close emptied. `currentTabIndex` is
+never reset, so the tab survives either way. The Ctrl+F hotkey (`onSearchCreative`) calls `TryOpen()`
+and then focuses the box, so it runs after `OnGuiOpened` and its postfixes.
+
+| Hook | Why |
+|---|---|
+| prefix `GuiDialog.TryClose()`, for `GuiDialogInventory` while `IsOpened()` | the last point where the box still holds the text and the scrollbar its position. Dovidarium registers `GuiDialogInventory.OnGuiClosed` (and `OnGuiOpened`, `ComposeGui`) for its craftable panel as **PostfixesOnly**, so a prefix there would turn that feature off at the late audit; `GuiDialog.TryClose` is registered by neither mod, and no pack mod names it |
+| postfix `GuiDialogInventory.OnGuiOpened()` | runs after the compose or the reuse; a postfix is what PostfixesOnly allows |
+| postfix `GuiElementEditableTextBase.OnMouseDownOnElement(ICoreClientAPI, MouseEvent)` | see below; patched by no pack mod, gated by no Dovidarium feature (TooManyTabs' `OnMouseDownOnElement` prefix is on `GuiElementVerticalTabs`) |
+
+The scroll goes back as Tidy Variants' toggle keeps it: `scrollbar.CurrentYPosition = y`, then
+`SetNewTotalHeight(total)` with the total `OnTextChanged` just set (vanilla's
+`ElementStdBounds.SlotGrid(cols, ceil(renderedSlots / cols)).fixedHeight + 3`, over the grid Tidy
+Variants has already regrouped), which clamps the handle and calls the dialog's
+`OnNewScrollbarvalue` (it moves the grid only while `IsOpened()`, which is true in the postfix).
+
+**Mouse-down routing.** `ClientMain.UpdateMouseButtonState` fires `capi.Event.MouseDown` first (a
+handler may set `Handled` and stop everything), then the client systems; `GuiManager.OnMouseDown`
+offers the press to each loaded dialog in turn until one handles it. `GuiDialogInventory.OnMouseDown`
+overrides `GuiDialog.OnMouseDown` without calling it (so TooManyTabs' prefix on the base doesn't run
+for it): it returns as soon as a composer handled the press, and only then, inside the grid's clip
+bounds, drops a held item into the creative inventory. `GuiComposer.OnMouseDown` gives the press to
+its interactive elements (`OnMouseDown` → `OnMouseDownOnElement` when inside), and after the first
+one handles it, focuses that element if focusable and unfocuses the others.
+`GuiElementEditableTextBase.OnMouseDownOnElement` marks the press handled (base) and returns for any
+button but the left one; `GuiElementTextInput` doesn't override it. So a right-click on a search box
+already focuses it and does nothing else, and a postfix there only runs for presses the GUI gave to
+that box (not `capi.Event.MouseDown`, which runs before the GUI and knows nothing of dialogs on top).
+
+**Handbook.** `GuiDialogHandbook` (VSSurvivalMod) builds its list page as composer
+`"handbook-overview"` with the text input `"searchField"` (handler `FilterItemsBySearchText`) and
+shows it as `SingleComposer`; Dovidarium's overview reuse builds the same name and key itself and
+restores the search text on reopen. `SetValue("")` on that box runs the same filter as typing.
