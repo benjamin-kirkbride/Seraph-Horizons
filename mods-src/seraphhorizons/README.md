@@ -443,23 +443,25 @@ the shading (`TerrainShade`) and the wire format (`RevealCodec`). Game-independe
 ### Creative mod tabs (`CreativeModTabs`)
 
 The game's own creative inventory. A button above the right-hand tab column, `Tabs: Default ⇄` /
-`Tabs: Mod ⇄`, flips between the game's tabs (exactly as without the mod) and one tab per mod, each holding
-every creative-listed stack of that mod once, in the game's order, whichever default tabs the mod put it
-in. A stack belongs to the mod that owns its code's domain (a mod's several domains share a tab, e.g.
-`ageofflax` is Age of Flax's); the base game's tab, "Vintage Story", comes first, then the mods by name.
-All mod tabs are in one scrolling column on the right. Search covers the current tab, as in vanilla, and Tidy
-Variants hides and groups there as in the default tabs. Each client keeps its choice and its last tab of each
-kind in `ModConfig/seraphhorizons-creativemodtabs.json`.
+`Tabs: Mod ⇄`, flips that column between the game's tabs (exactly as without the mod) and one tab per mod, each
+holding every creative-listed stack of that mod once, in the game's order, whichever default tabs the mod put it
+in. The left column keeps its default tabs in both modes. A stack belongs to the mod that owns its code's domain
+(a mod's several domains share a tab, e.g. `ageofflax` is Age of Flax's); the base game's tab, "Vintage Story",
+comes first, then the mods by name. Both columns are the game's own, so TooManyTabs scrolls the mod tabs exactly
+as it scrolls the default ones. Search covers the current tab, as in vanilla, and Tidy Variants hides and groups
+there as in the default tabs. Each client keeps its choice and its last tab of each mode in
+`ModConfig/seraphhorizons-creativemodtabs.json`.
 
 Both sides take part: the server resolves a creative click by tab index and slot id, so the mod tabs are real
 creative tabs on both sides. The server decides which domain goes to which mod (the two sides load different
 mods), appends the tabs to its creative inventories and sends the list to each client; the client builds the
-same tabs from it, checks them against the server's counts and hashes, and shows them in its own composer
-next to the dialog. Off on a side means nothing is patched, added or shown there. The design, the hooks
-(`GuiComposer.Compose` on the client, `InventoryPlayerCreative.UpdateFromWorld` on the server), how it stays
-out of TooManyTabs' and Dovidarium's way, and the in-game checklist are in
-`docs/variant-grouping/creative-mod-tabs.md`. `CreativeModTabs/Core/` is game-independent (the tab plan,
-domain owners, the state file, the strip's scrolling) and tested in `tests/`.
+same tabs from it, checks them against the server's counts and hashes, and in mod mode gives the inventory a
+second tab list (the left column's default tabs plus the mod tabs, ordered so that the game's own layout puts the
+mod tabs in the right column) and names them through lang entries. Off on a side means nothing is patched, added
+or shown there. The design, the hooks (`GuiComposer.Compose` on the client, `InventoryPlayerCreative.UpdateFromWorld`
+on the server), how it fits TooManyTabs and Dovidarium, and the in-game checklist are in
+`docs/variant-grouping/creative-mod-tabs.md`. `CreativeModTabs/Core/` is game-independent (the tab plan, domain
+owners, the state file, mod mode's tab layout) and tested in `tests/`.
 
 ### Clear weather and daytime on command (`ClearCommand`)
 
@@ -826,7 +828,7 @@ cart reach's entity matching and reach rule, where the chopper drops its piles, 
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, and the creative mod
-tabs' plan, domain owners, state file and strip scrolling (`CreativeModTabs/Core/`).
+tabs' plan, domain owners, state file and mod mode's tab layout (`CreativeModTabs/Core/`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms
@@ -940,7 +942,8 @@ the whole pack: the default tabs are the same as without the tweak, the mod tabs
 creative stack in exactly one of them, the base game's tab first, `ageofflax`, `bomb` and
 `oils` under their owning mods. The packet survives protobuf-net, and tabs a client builds from it have,
 slot for slot, what the server's inventory returns for a click there (on the same world: a client with
-other mods is the count and hash check's job). `CreativeModTabsOffScenarios` boots
+other mods is the count and hash check's job), and mod mode's tab list, arranged from the real tab codes
+and `config/creativetabs.json`, keeps the left column and puts the mod tabs alone on the right. `CreativeModTabsOffScenarios` boots
 with the switch off and requires no mod tabs. The GUI is checked by hand (the doc's checklist).
 
 `tests/PackTests/UnifiedWoodworkingScenarios.cs` (Atlas) works the blocks the way a client's clicks

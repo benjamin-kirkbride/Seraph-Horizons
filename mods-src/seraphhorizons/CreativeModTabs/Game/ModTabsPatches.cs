@@ -9,8 +9,8 @@ namespace SeraphHorizons.Mod.CreativeModTabs;
 /// <c>GuiComposer.Compose(bool)</c>, filtered to the creative dialog's composer (<c>"inventory-creative"</c>)
 /// and the survival one (<c>"inventory-backpack"</c>). It is the one point every build of the creative dialog
 /// passes, without patching the dialog's own compose methods (Dovidarium turns features off when they have a
-/// foreign patch; docs/variant-grouping/hooks.md §4). TooManyTabs prefixes it too; the two don't interact
-/// (docs/variant-grouping/creative-mod-tabs.md). Each body catches its own exceptions and leaves that compose vanilla.
+/// foreign patch; docs/variant-grouping/hooks.md §4). TooManyTabs prefixes it too; ours only looks after the compose
+/// (docs/variant-grouping/creative-mod-tabs.md). The postfix catches its own exceptions.
 /// </summary>
 internal static class ModTabsPatches
 {
@@ -40,14 +40,8 @@ internal static class ModTabsPatches
     }
 
     // public GuiComposer GuiComposer.Compose(bool focusFirstElement = true). It returns at once when already
-    // composed; __state remembers whether this call composes.
-    public static void ComposePrefix(GuiComposer __instance, out bool __state)
-    {
-        __state = !__instance.Composed;
-        if (!__state || __instance.DialogName != CreativeComposer) return;
-        try { ModTabsClient.BeforeCreativeCompose(__instance); }
-        catch (Exception ex) { ModTabsClient.Fail("hiding the default tabs", ex); }
-    }
+    // composed; __state remembers whether this call composes. The prefix changes nothing.
+    public static void ComposePrefix(GuiComposer __instance, out bool __state) => __state = !__instance.Composed;
 
     public static void ComposePostfix(GuiComposer __instance, bool __state)
     {
