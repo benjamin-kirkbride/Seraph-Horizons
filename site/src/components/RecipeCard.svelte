@@ -2,8 +2,8 @@
   // One recipe definition. A recipe with several resolved variants cycles through them
   // like the handbook; the controls let a reader step or stop it, and a reader who asked
   // for reduced motion starts with it stopped.
-  import type { Mod, Recipe } from "../lib/export.ts";
-  import type { TypeInfo } from "../lib/format.ts";
+  import type { Recipe } from "../lib/export.ts";
+  import type { MetaMod, TypeInfo } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
   import { cardOutputs, focusVariants, type Focus } from "../lib/recipe-view.ts";
   import { clock, prefersReducedMotion } from "../lib/state.svelte.ts";
@@ -26,7 +26,7 @@
     focus = null,
     only,
     mods,
-  }: { recipe: Recipe; type: TypeInfo; data: VersionData; focus?: Focus; mods: Record<string, Mod>; only?: number[] } = $props();
+  }: { recipe: Recipe; type: TypeInfo; data: VersionData; focus?: Focus; mods: Record<string, MetaMod>; only?: number[] } = $props();
 
   // `only` picks the variants outright: a creature page showing some of its creatures.
   const variants = $derived(only && only.length > 0 ? only : focusVariants(recipe, focus));

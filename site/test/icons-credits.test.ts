@@ -39,11 +39,12 @@ describe("iconPath", () => {
 });
 
 describe("credits", () => {
-  it("links a mod's ModDB page, the base game the game's site, and the exporter nowhere", () => {
-    expect(modLink("expandedfoods")).toBe("https://mods.vintagestory.at/expandedfoods");
-    expect(modLink("a b")).toBe("https://mods.vintagestory.at/a%20b");
-    expect(modLink("survival")).toBe("https://www.vintagestory.at/");
-    expect(modLink("seraphexport")).toBeNull();
+  it("links a mod's ModDB page by asset id, the base game the game's site, and nothing without an id", () => {
+    // moreroads is at /moreroadsandpaths, so /<modid> would be a 404.
+    expect(modLink("moreroads", { assetId: 26 })).toBe("https://mods.vintagestory.at/show/mod/26");
+    expect(modLink("survival", undefined)).toBe("https://www.vintagestory.at/");
+    expect(modLink("seraphexport", {})).toBeNull();
+    expect(modLink("droppedmod", undefined)).toBeNull();
   });
 
   it("keeps a mod's own http(s) website as a second link", () => {
@@ -53,12 +54,13 @@ describe("credits", () => {
     expect(modWebsite("expandedfoods", {})).toBeNull();
     expect(modWebsite("expandedfoods", { website: "" })).toBeNull();
     expect(modWebsite("x", { website: "javascript:alert(1)" })).toBeNull();
-    expect(modWebsite("x", { website: "https://mods.vintagestory.at/x" })).toBeNull();
+    expect(modWebsite("x", { website: "https://mods.vintagestory.at/show/mod/7", assetId: 7 })).toBeNull();
+    expect(modWebsite("x", { website: "https://mods.vintagestory.at/x" })).toBe("https://mods.vintagestory.at/x");
   });
 
   it("lists every mod, base game first, then by name", () => {
     const rows = creditRows({
-      zeta: { name: "Alpha Mod", version: "1", authors: ["A", "B"], website: "https://example.org/" },
+      zeta: { name: "Alpha Mod", version: "1", authors: ["A", "B"], website: "https://example.org/", assetId: 12 },
       game: { name: "Essentials", version: "1.22.7" },
       alpha: { name: "Zulu Mod", version: "2" },
     });
@@ -68,8 +70,9 @@ describe("credits", () => {
       name: "Alpha Mod",
       version: "1",
       authors: ["A", "B"],
-      link: "https://mods.vintagestory.at/zeta",
+      link: "https://mods.vintagestory.at/show/mod/12",
       website: "https://example.org/",
     });
+    expect(rows[2]!.link).toBeNull();
   });
 });

@@ -1,11 +1,11 @@
 <script lang="ts">
   // A mod's name, linked to its ModDB page (see modLink) in a new tab.
-  import type { Mod } from "../lib/export.ts";
+  import type { MetaMod } from "../lib/format.ts";
   import { modLink } from "../lib/credits.ts";
 
-  let { id, mods }: { id: string; mods: Record<string, Pick<Mod, "name">> } = $props();
+  let { id, mods }: { id: string; mods: Record<string, Pick<MetaMod, "name" | "assetId">> } = $props();
 
-  const href = $derived(modLink(id));
+  const href = $derived(modLink(id, mods[id]));
   const name = $derived(mods[id]?.name || id);
 </script>
 

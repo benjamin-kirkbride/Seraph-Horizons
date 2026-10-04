@@ -6,7 +6,7 @@ import ModLink from "../src/components/ModLink.svelte";
 let target: HTMLElement;
 let component: ReturnType<typeof mount> | null = null;
 
-function render(id: string, mods: Record<string, { name: string }>) {
+function render(id: string, mods: Record<string, { name: string; assetId?: number }>) {
   target = document.createElement("div");
   document.body.append(target);
   component = mount(ModLink, { target, props: { id, mods } });
@@ -22,20 +22,21 @@ afterEach(() => {
 
 describe("ModLink", () => {
   it("links the mod's name to its ModDB page in a new tab", () => {
-    const a = render("expandedfoods", { expandedfoods: { name: "Expanded Foods" } }).querySelector("a")!;
+    const a = render("expandedfoods", { expandedfoods: { name: "Expanded Foods", assetId: 3363 } }).querySelector("a")!;
     expect(a.textContent).toBe("Expanded Foods");
-    expect(a.getAttribute("href")).toBe("https://mods.vintagestory.at/expandedfoods");
+    expect(a.getAttribute("href")).toBe("https://mods.vintagestory.at/show/mod/3363");
     expect(a.getAttribute("target")).toBe("_blank");
     expect(a.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
-  it("falls back to the id for a mod the data does not name", () => {
-    expect(render("mystery", {}).querySelector("a")!.textContent).toBe("mystery");
+  it("links the base game to the game's site", () => {
+    expect(render("game", { game: { name: "Essentials" } }).querySelector("a")!.getAttribute("href")).toBe("https://www.vintagestory.at/");
   });
 
-  it("shows the exporter's name without a link", () => {
+  it("names a mod without an asset id, unlinked, and falls back to its id", () => {
     const el = render("seraphexport", { seraphexport: { name: "Seraph export" } });
     expect(el.querySelector("a")).toBeNull();
     expect(el.textContent).toBe("Seraph export");
+    expect(render("mystery", {}).textContent).toBe("mystery");
   });
 });

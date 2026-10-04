@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Recipe, RecipeExport } from "../src/lib/export.ts";
 import type { EntityChunk, EntityIndex, ItemChunk, Meta, RecipeChunk, SearchFile } from "../src/lib/format.ts";
-import { entityTypeName, prepareData } from "../src/lib/prepare.ts";
+import { assetIdsFromLock, entityTypeName, prepareData } from "../src/lib/prepare.ts";
 
 const minimal = JSON.parse(
   readFileSync(new URL("../../schema/examples/minimal.json", import.meta.url), "utf8"),
@@ -322,6 +322,24 @@ describe("entities, from the item sources that name them", () => {
     expect(variants("game:trader")[0]!.sources).toEqual([
       { item: "game:gear-rusty", type: "traderBuys", quantity: { avg: 1 }, price: 2, extra: { stock: { avg: 4 } } },
     ]);
+  });
+});
+
+describe("ModDB asset ids", () => {
+  it("reads them from a lock, and nothing from an old or broken one", () => {
+    const lock = { lockVersion: 1, mods: [{ id: "examplemod", assetId: 42 }, { id: "old" }, { id: "bad", assetId: "7" }, null] };
+    expect(assetIdsFromLock(lock)).toEqual({ examplemod: 42 });
+    expect(assetIdsFromLock({ lockVersion: 1, mods: [{ id: "examplemod", version: "1.0.0" }] })).toEqual({});
+    expect(assetIdsFromLock(null)).toEqual({});
+    expect(assetIdsFromLock("<html>")).toEqual({});
+  });
+
+  it("puts each locked mod's id on it in meta.json and leaves the rest alone", () => {
+    const meta = prepareData(minimal, { assetIds: { examplemod: 42, notexported: 9 } }).meta;
+    expect(meta.mods.examplemod!.assetId).toBe(42);
+    expect(meta.mods.game).toEqual({ name: "Essentials", version: "1.22.7", authors: ["Tyron"] });
+    expect(meta.mods.notexported).toBeUndefined();
+    expect(prepareData(minimal).meta.mods.examplemod!.assetId).toBeUndefined();
   });
 });
 

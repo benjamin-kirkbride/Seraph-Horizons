@@ -169,7 +169,8 @@ def cmd_lock(args) -> None:
             reason = entry.get("retractionReason", MODDB_ERRORS.get(code, "unknown error"))
             problems.append(f"{m['id']}@{m['version']}: ModDB error {code} ({reason})")
             continue
-        rel = release_info(m["id"], m["version"])["release"]
+        found = release_info(m["id"], m["version"])
+        rel = found["release"]
         # Prefer the release's full CDN URI ("always respect the full uris returned
         # by the api"); v2's fileUrl is a relative redirect to the same file. The
         # ModDB returns some with raw spaces (`?dl=Foo 1.0.zip`), which urllib and
@@ -190,6 +191,8 @@ def cmd_lock(args) -> None:
         locked.append({
             "id": m["id"],
             "version": m["version"],
+            # The ModDB page is /show/mod/<assetId>; its /<alias> is often not the modid.
+            "assetId": found["mod"]["assetid"],
             "releaseId": rel["releaseid"],
             "fileId": rel["fileid"],
             "fileName": entry["fileName"],

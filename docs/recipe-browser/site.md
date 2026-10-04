@@ -75,12 +75,16 @@ is not linked. In credits a mod's own `website`, if it gives one, is a second, s
 link. In a search or creature-list row the mod link sits beside the row's link, not inside
 it, since links cannot nest.
 
-The link is `https://mods.vintagestory.at/<modid>`. The ModDB serves a mod page at its URL
-alias, which its author picks, and has no route by modid, so this is right only where the
-alias is the modid: in October 2026, 75 of the pack's 123 mods. For the rest it is a 404,
-or another mod's page when that mod's alias is our modid (`scaffolding`). The ModDB API
-(`/api/mod/<modid>`) gives the alias and the `assetid` (`/show/mod/<assetid>` always works),
-but nothing in an export carries them yet.
+The link is `https://mods.vintagestory.at/show/mod/<assetId>`. The ModDB serves a mod page
+at its URL alias, which its author picks, and has no route by modid: in October 2026 the
+alias was the modid for only 75 of the pack's 123 mods, and `/<modid>` was a 404 for the
+rest, or another mod's page (`/scaffolding` is Simply Scaffolding; ours is `/scafolding`).
+The asset id never changes, so `packtool lock` records it from the ModDB API as `assetId`
+in `pack/lock.json`, and prepare-data copies it onto each mod in `meta.json` (`--lock`,
+by default the repo's `pack/lock.json`). Every version is built with the current lock, so
+a mod an old release had but the pack has since dropped has no asset id; it is named but
+not linked, since guessing `/<modid>` can land on the wrong mod. The same goes for every
+mod when the lock is missing or predates `assetId`, which prepare-data warns about.
 
 ## Tests
 
@@ -113,11 +117,12 @@ Browsers: `npx --prefix site playwright install --with-deps chromium`.
 
 ## Data format
 
-`prepare-data --export <export.json> --out <dir>` reads one export at the current
-`schemaVersion` and writes:
+`prepare-data --export <export.json> --out <dir> [--lock <lock.json>]` reads one export at
+the current `schemaVersion`, plus the mods' ModDB asset ids from the lock (see Mod links),
+and writes:
 
 ```
-<dir>/meta.json          pack, generator, mods, recipe types, item and recipe counts, chunk starts
+<dir>/meta.json          pack, generator, mods (with ModDB asset ids), recipe types, item and recipe counts, chunk starts
 <dir>/search.json        every item, column-wise and sorted by code
 <dir>/items/<n>.json     item details and reverse indexes, a few hundred items per file
 <dir>/recipes/<n>.json   recipe records as in the export, up to 60 per file
