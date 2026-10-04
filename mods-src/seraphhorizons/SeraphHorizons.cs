@@ -25,6 +25,9 @@ public class SeraphHorizonsSystem : ModSystem
     private Harmony? _clientHarmony;
     private bool _ageOfFlax;
     private bool _tunRack;
+    private bool _barrelRackKegs;
+    // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
+    private Harmony? _barrelRackHarmony;
 
     /// <summary>This side's settings. Loaded on first use (this system's <see cref="Start"/> at the
     /// latest), so another system of the mod can read them in any phase.</summary>
@@ -50,6 +53,11 @@ public class SeraphHorizonsSystem : ModSystem
         _tunRack = Config(api).LargerTunRack && TunRackCapacity.Applies(api) && TunRackCapacity.Bind(api.Logger);
         if (!_tunRack)
             TunRackCapacity.DisablePatches(api);
+        _barrelRackKegs = Config(api).BarrelRackKegs && BarrelRackKegs.Applies(api) && BarrelRackKegs.Bind(api.Logger);
+        if (_barrelRackKegs)
+            BarrelRackKegs.Patch(_barrelRackHarmony = new Harmony(BarrelRackKegs.HarmonyId));
+        else
+            BarrelRackKegs.DisablePatches(api);
     }
 
     // Behavior changes run on the server only: that is where the tweaked mods simulate.
@@ -128,6 +136,8 @@ public class SeraphHorizonsSystem : ModSystem
             CreativeSteamSource.Disable(api);
         if (api.Side == EnumAppSide.Server && Config(api).AssembledMachinesInCreative && AssembledMachines.Applies(api))
             AssembledMachines.AddToBlocktypes(api);
+        if (_barrelRackKegs)
+            LangText.Apply(BarrelRackKegs.LangEdits, BarrelRackKegs.FoodShelvesId, api.Logger);
     }
 
     public override void Dispose()
@@ -145,6 +155,8 @@ public class SeraphHorizonsSystem : ModSystem
             _clientHarmony = null;
             CartReach.Unbind();
         }
+        _barrelRackHarmony?.UnpatchAll(BarrelRackKegs.HarmonyId);
+        _barrelRackHarmony = null;
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -241,4 +253,10 @@ public class SeraphHorizonsConfig
     /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
     /// does, instead of 500 (server side).</summary>
     public bool LargerTunRack { get; set; } = true;
+
+    /// <summary>Food Shelves and Hydrate or Diedrate: the barrel rack takes kegs too, holding a keg's
+    /// worth, the liquid moving between the keg and the rack as the keg goes in and out, and
+    /// perishing at the keg's own rate times the rack's (both sides; the server's switch decides
+    /// what the rack takes).</summary>
+    public bool BarrelRackKegs { get; set; } = true;
 }
