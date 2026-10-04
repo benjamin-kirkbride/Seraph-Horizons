@@ -27,6 +27,9 @@ public static class RecipeSection
     /// <summary>Type code of blocks built in place (not a registry; see <see cref="InPlaceBuilds"/>).</summary>
     public const string InPlaceType = "construction";
 
+    /// <summary>Type code of the Butchering mod's carcass processing (not a registry; see <see cref="Butchery"/>).</summary>
+    public const string ButcheryType = "butchery";
+
     /// <returns>Every item and block code the exported recipes reference.</returns>
     public static ISet<string> Fill(ICoreServerAPI api, JObject root) => Fill(api, root, Registries.Find(api));
 
@@ -79,6 +82,23 @@ public static class RecipeSection
             ["registry"] = nameof(Vintagestory.GameContent.BEBehaviorRightClickConstructable),
             ["mod"] = "survival",
         };
+
+        var butchery = Butchery.Find(ctx.Api);
+        if (butchery != null)
+        {
+            if (types.ContainsKey(ButcheryType))
+                throw new RecipeExportException($"A recipe registry has the type code '{ButcheryType}' that butchery uses");
+            var chains = butchery.Chains.Select(c => ButcheryRecord(ctx, butchery, c)).ToList();
+            records.AddRange(chains);
+            types[ButcheryType] = new JObject
+            {
+                ["name"] = "Butchery",
+                ["count"] = chains.Count,
+                ["shape"] = "butchery",
+                ["registry"] = butchery.BehaviorClass,
+                ["mod"] = butchery.Mod,
+            };
+        }
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));
         for (int i = 1; i < records.Count; i++)
@@ -252,6 +272,189 @@ public static class RecipeSection
         if (build.BrokenDropsRatio != null) extra["brokenDropsRatio"] = Num(build.BrokenDropsRatio.Value);
         if (build.Members.Count > 1) extra["members"] = new JArray(build.Members.Select(b => b.Code.ToString()));
         o["extra"] = extra;
+        return o;
+    }
+
+    /// <summary>
+    /// One creature's butchery: ingredients are the carcass in each state plus the stations
+    /// and tools, outputs everything any stage gives, and `butchery` says which stage takes
+    /// and gives what. Variants differ in what they give, so their yields are in
+    /// `butchery.variants`, aligned with `outputs` (null where a variant gives nothing).
+    /// </summary>
+    private static JObject ButcheryRecord(Context ctx, ButcheryData data, ButcheryChain chain)
+    {
+        var ingredients = new List<(JObject Def, List<CollectibleObject> Accepts)>();
+        int Slot(List<CollectibleObject> accepts, string role, int? toolCost = null, JObject? extra = null)
+        {
+            var c = accepts[0];
+            var o = new JObject { ["code"] = c.Code.ToString(), ["kind"] = Kind(c.ItemClass), ["quantity"] = 1 };
+            if (role == "tool") o["isTool"] = true;
+            if (toolCost != null) o["toolDurabilityCost"] = toolCost;
+            o["role"] = role;
+            if (extra != null) o["extra"] = extra;
+            ingredients.Add((o, accepts));
+            return ingredients.Count - 1;
+        }
+        static List<CollectibleObject> Visible(IEnumerable<CollectibleObject> all)
+        {
+            var list = all.ToList();
+            var shown = list.Where(c => HandbookRule.PagesFor(c).Any()).ToList();
+            return shown.Count > 0 ? shown : list;
+        }
+        static JObject Efficiency(ButcheryStation station, List<CollectibleObject> blocks) => new()
+        {
+            ["efficiency"] = new JObject(blocks.Select(b => new JProperty(b.Code.ToString(), Num(station.Efficiency[b.Code.ToString()])))),
+        };
+        static List<CollectibleObject> All<T>(IEnumerable<T> list) where T : CollectibleObject => list.Cast<CollectibleObject>().ToList();
+
+        // Outputs, each with a yield per variant (null when the variant does not give it).
+        var variants = chain.Variants;
+        var outputs = new List<(JObject Def, JObject?[] Yields, List<CollectibleObject> Alternatives)>();
+        int Output(CollectibleObject c, System.Func<ButcheryVariant, JObject?> yield, JObject? extra = null, double? litres = null,
+                   List<CollectibleObject>? alternatives = null)
+        {
+            var yields = variants.Select(yield).ToArray();
+            var first = yields.First(y => y != null)!;
+            var o = new JObject { ["code"] = c.Code.ToString(), ["kind"] = Kind(c.ItemClass), ["quantity"] = first["avg"]!.DeepClone() };
+            if (litres != null) o["litres"] = Num(litres.Value);
+            var e = extra ?? new JObject();
+            if (alternatives is { Count: > 0 }) e["alternatives"] = new JArray(alternatives.Select(a => a.Code.ToString()));
+            if (e.HasValues) o["extra"] = e;
+            outputs.Add((o, yields, alternatives ?? new List<CollectibleObject>()));
+            return outputs.Count - 1;
+        }
+        static JObject One(ButcheryVariant _) => new() { ["avg"] = 1 };
+        // The drops of one stage: one output per item, in order of first appearance across
+        // variants. A variant that drops an item twice (the mod's reward and the creature's own
+        // drop) gets the sum.
+        List<int> DropOutputs(System.Func<ButcheryVariant, List<BlockDropItemStack>> of, bool workstation, double scale)
+        {
+            var order = new List<CollectibleObject>();
+            foreach (var v in variants)
+            foreach (var d in of(v))
+                if (!order.Contains(d.ResolvedItemstack!.Collectible)) order.Add(d.ResolvedItemstack!.Collectible);
+            return order.Select(c =>
+            {
+                var drops = variants.SelectMany(of).Where(d => d.ResolvedItemstack!.Collectible == c).ToList();
+                var scaledBy = new JArray();
+                if (workstation) scaledBy.Add("efficiency");
+                if (drops.Any(d => Butchery.ScaledByCondition(data, d, workstation))) scaledBy.Add("condition");
+                return Output(c, v =>
+                {
+                    var mine = of(v).Where(d => d.ResolvedItemstack!.Collectible == c).ToList();
+                    if (mine.Count == 0) return null;
+                    var y = new JObject { ["avg"] = Num(mine.Sum(d => (double)(d.Quantity?.avg ?? 1)) * scale) };
+                    var spread = mine.Sum(d => (double)(d.Quantity?.var ?? 0)) * scale;
+                    if (spread != 0) y["var"] = Num(spread);
+                    return y;
+                }, scaledBy.Count > 0 ? new JObject { ["scaledBy"] = scaledBy } : null);
+            }).ToList();
+        }
+
+        var stages = new JArray();
+        var dead = All(chain.Dead);
+        stages.Add(new JObject
+        {
+            ["step"] = "pickUp",
+            ["ingredients"] = new JArray(),
+            ["outputs"] = new JArray(Output(dead[0], One, alternatives: dead.Skip(1).ToList())),
+        });
+
+        var hooks = Visible(data.Hook.Blocks);
+        var skin = new JObject
+        {
+            ["step"] = "skin",
+            ["ingredients"] = new JArray(
+                Slot(dead, "carcass"),
+                Slot(hooks, "station", extra: Efficiency(data.Hook, hooks)),
+                Slot(All(data.Knives), "tool", chain.KnifeCost)),
+        };
+        skin["outputs"] = new JArray(new[] { Output(chain.Skinned, One) }.Concat(DropOutputs(v => v.Skinning, true, 1)));
+        stages.Add(skin);
+
+        var bleed = new JObject { ["step"] = "bleed", ["ingredients"] = new JArray(Slot(new() { chain.Skinned }, "carcass")) };
+        if (chain.BleedHours != null) bleed["hours"] = Num(chain.BleedHours.Value);
+        var bleedOutputs = new JArray(Output(chain.BledOut, One));
+        if (chain.Blood != null && chain.BloodAmount > 0 && data.Buckets.Count > 0)
+        {
+            var bucket = Slot(Visible(data.Buckets), "station");
+            bleed["optional"] = new JArray(bucket);
+            bleedOutputs.Add(Output(chain.Blood, _ => new JObject { ["avg"] = chain.BloodAmount },
+                new JObject { ["needs"] = new JArray(bucket) }, chain.BloodLitres));
+        }
+        bleed["outputs"] = bleedOutputs;
+        stages.Add(bleed);
+
+        var tables = Visible(data.Table.Blocks);
+        var butcher = new JObject
+        {
+            ["step"] = "butcher",
+            ["ingredients"] = new JArray(Slot(new() { chain.BledOut }, "carcass"), Slot(tables, "station", extra: Efficiency(data.Table, tables))),
+        };
+        // new JArray(JArray) would copy the inner array's items, not nest it.
+        var tools = new JArray { new JArray(Slot(All(data.Knives), "tool", chain.KnifeCost)) };
+        if (data.Table.TakesCleaver && data.Cleavers.Count > 0) tools.Add(new JArray(Slot(All(data.Cleavers), "tool", chain.CleaverCost)));
+        butcher["options"] = tools;
+        var butcherOutputs = DropOutputs(v => v.Butchering, true, 1);
+        foreach (var remains in variants.Select(v => v.Remains).OfType<Block>().Distinct())
+            butcherOutputs.Add(Output(remains, v => v.Remains == remains ? new JObject { ["avg"] = 1 } : null));
+        butcher["outputs"] = new JArray(butcherOutputs);
+        stages.Add(butcher);
+
+        if (variants.Any(v => v.FieldHarvest.Count > 0))
+        {
+            var harvest = new JObject { ["step"] = "harvest", ["ingredients"] = new JArray(Slot(All(data.Knives), "tool")) };
+            if (data.FieldHarvestMultiplier is { } m) harvest["multiplier"] = Num(m);
+            harvest["outputs"] = new JArray(DropOutputs(v => v.FieldHarvest, false, data.FieldHarvestMultiplier ?? 1));
+            stages.Add(harvest);
+        }
+
+        var o = new JObject
+        {
+            ["id"] = $"{ButcheryType}|{chain.EntityType}|{dead[0].Code}",
+            ["type"] = ButcheryType,
+            ["mod"] = data.Mod,
+            ["ingredients"] = new JArray(ingredients.Select(i => i.Def)),
+            ["outputs"] = new JArray(outputs.Select(x => x.Def)),
+        };
+        var accepted = ingredients.Select(i => new JArray(Take(ctx, i.Accepts.Select(c => new JObject
+        {
+            ["code"] = c.Code.ToString(),
+            ["kind"] = Kind(c.ItemClass),
+            ["quantity"] = 1,
+        })))).ToList();
+        o["variants"] = new JArray(variants.Select((_, vi) =>
+        {
+            var given = new List<JObject>();
+            foreach (var (def, yields, alternatives) in outputs)
+            {
+                if (yields[vi] is not { } y) continue;
+                foreach (var code in new[] { (string)def["code"]! }.Concat(alternatives.Select(a => a.Code.ToString())))
+                {
+                    var stack = new JObject { ["code"] = code, ["kind"] = def["kind"]!.DeepClone(), ["quantity"] = y["avg"]!.DeepClone() };
+                    if (def["litres"] != null) stack["litres"] = def["litres"]!.DeepClone();
+                    ctx.Referenced.Add(code);
+                    given.Add(stack);
+                }
+            }
+            return new JObject
+            {
+                ["ingredients"] = new JArray(accepted.Select(a => a.DeepClone())),
+                ["outputs"] = new JArray(given),
+            };
+        }));
+        o["butchery"] = new JObject
+        {
+            ["entityType"] = chain.EntityType,
+            ["workload"] = chain.Workload,
+            ["stages"] = stages,
+            ["variants"] = new JArray(variants.Select((v, vi) => new JObject
+            {
+                ["entities"] = new JArray(v.Entities.Select(e => new JObject { ["code"] = e.Code, ["name"] = e.Name })),
+                ["yields"] = new JArray(outputs.Select(x => (JToken?)x.Yields[vi] ?? JValue.CreateNull())),
+            })),
+        };
+        o["extra"] = new JObject { ["behavior"] = data.BehaviorClass };
         return o;
     }
 

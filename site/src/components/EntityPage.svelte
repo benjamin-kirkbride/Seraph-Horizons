@@ -2,13 +2,15 @@
   import type { EntityIndex, EntityVariant, Meta } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
   import { entitySections, formatSpread, groupLabel, mergeVariants, variantGroups, type MergedRow, type Placed, type VariantGroup } from "../lib/entity-view.ts";
-  import { formatQuantity } from "../lib/recipe-view.ts";
+  import { butcheryVariantsFor, formatQuantity } from "../lib/recipe-view.ts";
   import { formatRoute } from "../lib/route.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
   import { indexOfSorted } from "../lib/wildcard.ts";
+  import type { Recipe } from "../lib/export.ts";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
+  import RecipeCard from "./RecipeCard.svelte";
 
   let { data, meta, code, variant }: { data: VersionData; meta: Meta; code: string; variant?: string } = $props();
 
@@ -16,7 +18,15 @@
     | { status: "loading" }
     | { status: "missing" }
     | { status: "error" }
-    | { status: "ok"; name: string; mod: string; variants: EntityVariant[]; groups: VariantGroup[]; merged: MergedRow[] };
+    | {
+        status: "ok";
+        name: string;
+        mod: string;
+        variants: EntityVariant[];
+        groups: VariantGroup[];
+        merged: MergedRow[];
+        butchery: Recipe[];
+      };
   let page = $state<Loaded>({ status: "loading" });
 
   $effect(() => {
@@ -30,6 +40,8 @@
         const name = (item: number) => data.ref(item)?.name ?? "";
         const byName = <T extends { item: number }>(rows: T[]) => [...rows].sort((a, b) => name(a.item).localeCompare(name(b.item), "en"));
         const variants = (await data.entity(i)).map((v) => ({ ...v, sources: byName(v.sources) }));
+        // Older data has no recipe list per type.
+        const butchery = await data.recipes(index.recipes?.[i] ?? []);
         return {
           status: "ok",
           name: index.names[i]!,
@@ -37,6 +49,7 @@
           variants,
           groups: variantGroups(variants),
           merged: byName(mergeVariants(variants)),
+          butchery,
         } as const;
       })
       .then(
@@ -55,6 +68,15 @@
 
   /** The group the address picks; null shows every variant merged. */
   const selected = $derived(page.status === "ok" && variant ? (page.groups.find((g) => g.codes.includes(variant!)) ?? null) : null);
+
+  /** Butchery records of the variants shown, each with the variants it shows (none: all). */
+  const butchery = $derived.by(() => {
+    if (page.status !== "ok") return [];
+    const codes = selected !== null || page.groups.length === 1 ? (selected ?? page.groups[0]!).codes : null;
+    return page.butchery
+      .map((recipe) => ({ recipe, only: codes ? butcheryVariantsFor(recipe, codes) : [] }))
+      .filter((b) => codes === null || b.only.length > 0);
+  });
 
   const href = (v?: string) => formatRoute({ view: "entity", version: data.id, code, ...(v ? { variant: v } : {}) });
   const isTrade = (kind: string) => kind === "sells" || kind === "buys";
@@ -175,6 +197,24 @@
         </section>
       {/each}
     {/if}
+
+    {#if butchery.length > 0}
+      <section aria-labelledby="sec-butchery" data-section="butchery">
+        <h2 id="sec-butchery">{t.butcheryHeading}</h2>
+        <p class="muted">{t.butcheryOnEntity}</p>
+        <div class="cards">
+          {#each butchery as b (b.recipe.id)}
+            <RecipeCard
+              recipe={b.recipe}
+              type={meta.recipeTypes[b.recipe.type] ?? { name: t.butcheryHeading, shape: "butchery", count: 0 }}
+              {data}
+              only={b.only}
+              modName={meta.mods[b.recipe.mod]?.name ?? b.recipe.mod}
+            />
+          {/each}
+        </div>
+      </section>
+    {/if}
   </article>
 {/if}
 
@@ -230,5 +270,10 @@
   }
   .scroll {
     overflow-x: auto;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    gap: 0.75rem;
   }
 </style>

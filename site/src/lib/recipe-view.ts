@@ -1,6 +1,6 @@
 // Pure layout and formatting for the recipe renderers, kept out of the components so
 // it can be tested without a DOM.
-import type { Recipe, Source, Stack } from "./export.ts";
+import type { ButcheryStage, Ingredient, Recipe, Source, Stack, Yield } from "./export.ts";
 
 /** Grid cells, row by row: the index of the ingredient in each cell, or null when empty. */
 export function gridCells(recipe: Recipe): (number | null)[][] {
@@ -59,7 +59,7 @@ export function formatRange(min: number | undefined, max: number | undefined): s
   return `${formatNumber(min ?? 0)}–${formatNumber(max)}`;
 }
 
-export type Focus = { code: string; as: "ingredient" | "output" } | null;
+export type Focus = { code: string; as: "ingredient" | "output" | "entity" } | null;
 
 /**
  * Variant indices to cycle through. On an item's page a recipe shows the variants that
@@ -71,6 +71,7 @@ export function focusVariants(recipe: Recipe, focus: Focus): number[] {
   if (!focus) return all;
   const hits = all.filter((i) => {
     const v = recipe.variants[i]!;
+    if (focus.as === "entity") return recipe.butchery?.variants[i]?.entities.some((e) => e.code === focus.code) ?? false;
     return focus.as === "output"
       ? v.outputs.some((s) => s.code === focus.code)
       : v.ingredients.some((slot) => slot.some((s) => s.code === focus.code));
@@ -146,4 +147,51 @@ export function constructionTotals(recipe: Recipe, variant: number): Stack[][] {
     }
   });
   return [...totals.values()];
+}
+
+/** Stages of a creature's butchery in the order a player goes through them; `harvest` is the alternative to the rest. */
+export function butcheryStages(recipe: Recipe): ButcheryStage[] {
+  return recipe.butchery?.stages ?? [];
+}
+
+/**
+ * One output of a butchery variant: its stacks (a carcass can come in several coats) and
+ * its yield. Null when the variant does not give it.
+ */
+export function butcheryOutput(recipe: Recipe, variant: number, output: number): { stacks: Stack[]; yield: Yield } | null {
+  const y = recipe.butchery?.variants[variant]?.yields[output];
+  const o = recipe.outputs[output];
+  if (!y || !o) return null;
+  const codes = [o.code, ...((o.extra?.alternatives as string[] | undefined) ?? [])];
+  return {
+    stacks: codes.map((code) => ({ code, kind: o.kind, quantity: y.avg, ...(o.litres !== undefined ? { litres: o.litres } : {}) })),
+    yield: y,
+  };
+}
+
+/** The creatures a butchery variant covers. */
+export function butcheryEntities(recipe: Recipe, variant: number): { code: string; name: string }[] {
+  return (recipe.butchery?.variants[variant]?.entities ?? []).map((e) => ({ code: e.code, name: e.name || e.code }));
+}
+
+/** Indices of the butchery variants that cover one of `codes`, for a creature page showing some variants. */
+export function butcheryVariantsFor(recipe: Recipe, codes: readonly string[]): number[] {
+  return (recipe.butchery?.variants ?? []).flatMap((v, i) => (v.entities.some((e) => codes.includes(e.code)) ? [i] : []));
+}
+
+/** The lowest and highest loot multiplier of a station slot, from its `extra.efficiency`. */
+export function efficiencyRange(ing: Ingredient | undefined): { min: number; max: number } | null {
+  const values = Object.values((ing?.extra?.efficiency as Record<string, number> | undefined) ?? {});
+  if (values.length === 0) return null;
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
+/**
+ * What heads a recipe card: its outputs. A butchery record gives a dozen things over
+ * several stages, so its card is headed by the carcass its first stage gives.
+ */
+export function cardOutputs(recipe: Recipe, variant: number): Stack[] {
+  const first = recipe.butchery?.stages[0];
+  if (first) return first.outputs.flatMap((o) => butcheryOutput(recipe, variant, o)?.stacks.slice(0, 1) ?? []);
+  return variantOutputs(recipe, variant);
 }

@@ -371,6 +371,154 @@ public class RecipeExportScenarios : AtlasScenarioBase
         Assert.Equal(blocks, covered);
     }
 
+    // ------------------------------------------------------ butchery (Butchering mod)
+
+    private static List<string> Codes(JToken record, int slot) =>
+        record["variants"]![0]!["ingredients"]![slot]!.Select(s => (string)s["code"]!).ToList();
+
+    // butchering/patches/entities/deer.json: a whitetail adult picks up as
+    // deaddeer-male-adultlarge-1-dead. butchering/itemtypes/butchercreatures/deer.json, for
+    // deaddeer-male-adultlarge-*: butcheringWorkLoad medium, bloodAmount 400 of
+    // butchering:bloodportion, butcheringRewards primemeat-raw (3 ± 1) and offal-bloody
+    // (3 ± 1), no skinningRewards. Decompiled Butchering 1.14.3: a medium carcass bleeds
+    // 2 hours on the hook (BlockEntityButcherHook.hoursToBleedOutMedium), the knife loses 8
+    // and the cleaver 4 (BlockEntityButcherWorkstation), only the table takes a cleaver.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Deer_butchery_has_every_stage_with_its_station_tool_and_outputs()
+    {
+        var r = Recipe("butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead");
+        Assert.Equal("butchering", (string)r["mod"]!);
+        Json("""{ "name": "Butchery", "shape": "butchery", "registry": "EntityBehaviorButcherable", "mod": "butchering" }""",
+            new JObject(((JObject)Doc["recipeTypes"]!["butchery"]!).Properties().Where(p => p.Name != "count")));
+        var b = r["butchery"]!;
+        Assert.Equal("game:deer", (string)b["entityType"]!);
+        Assert.Equal("medium", (string)b["workload"]!);
+        var stages = b["stages"]!.Cast<JObject>().ToList();
+        Assert.Equal(new[] { "pickUp", "skin", "bleed", "butcher", "harvest" }, stages.Select(s => (string)s["step"]!));
+
+        string Out(int i) => (string)r["outputs"]![i]!["code"]!;
+        List<string> Outs(JObject stage) => stage["outputs"]!.Select(i => Out((int)i)).ToList();
+        int Ing(JObject stage, int k) => (int)stage["ingredients"]![k]!;
+
+        Assert.Equal(new[] { "butchering:deaddeer-male-adultlarge-1-dead" }, Outs(stages[0]));
+
+        var skin = stages[1];
+        Assert.Equal(new[] { "butchering:deaddeer-male-adultlarge-1-dead" }, Codes(r, Ing(skin, 0)));
+        Assert.Contains("butchering:butcherhook-iron-north", Codes(r, Ing(skin, 1)));
+        Assert.Equal(1.2, (double)r["ingredients"]![Ing(skin, 1)]!["extra"]!["efficiency"]!["butchering:butcherhook-iron-north"]!, 3);
+        Assert.Equal(0.8, (double)r["ingredients"]![Ing(skin, 1)]!["extra"]!["efficiency"]!["butchering:butcherhook-flint-north"]!, 3);
+        Assert.Contains("game:knife-generic-flint", Codes(r, Ing(skin, 2)));
+        Assert.Equal(8, (int)r["ingredients"]![Ing(skin, 2)]!["toolDurabilityCost"]!);
+        Assert.Equal("butchering:deaddeer-male-adultlarge-1-skinned", Outs(skin)[0]);
+        // Hides go to the hook, never meat; the item's excludeRewards drop small and medium hides.
+        Assert.Contains("game:hide-raw-large", Outs(skin));
+        Assert.DoesNotContain(Outs(skin), c => c.Contains("meat") || c is "game:hide-raw-small" or "game:hide-raw-medium");
+
+        var bleed = stages[2];
+        Assert.Equal(2, (double)bleed["hours"]!);
+        Assert.Equal(new[] { "butchering:deaddeer-male-adultlarge-1-skinned" }, Codes(r, Ing(bleed, 0)));
+        Assert.Contains("game:woodbucket", Codes(r, (int)bleed["optional"]![0]!));
+        var blood = r["outputs"]!.Cast<JObject>().Single(o => (string)o["code"]! == "butchering:bloodportion");
+        Assert.Equal(400, (double)blood["quantity"]!);
+        Assert.Equal(4, (double)blood["litres"]!, 3);
+        Assert.Equal(new[] { "butchering:deaddeer-male-adultlarge-1-bledout", "butchering:bloodportion" }, Outs(bleed));
+
+        var butcher = stages[3];
+        Assert.Equal(new[] { "butchering:deaddeer-male-adultlarge-1-bledout" }, Codes(r, Ing(butcher, 0)));
+        Assert.Contains("butchering:butchertable-advanced-north", Codes(r, Ing(butcher, 1)));
+        var options = butcher["options"]!.Select(g => (int)g[0]!).ToList();
+        Assert.Equal(2, options.Count);
+        Assert.Contains("game:knife-generic-flint", Codes(r, options[0]));
+        Assert.Contains("game:cleaver-copper", Codes(r, options[1]));
+        Assert.Equal(new[] { 8, 4 }, options.Select(i => (int)r["ingredients"]![i]!["toolDurabilityCost"]!));
+        Assert.Contains("butchering:primemeat-raw", Outs(butcher));
+        Assert.Contains("butchering:offal-bloody", Outs(butcher));
+        Assert.DoesNotContain(Outs(butcher), c => c.StartsWith("game:hide-"));
+
+        var whitetail = b["variants"]!.Select((v, i) => (v, i))
+            .Single(x => x.v["entities"]!.Any(e => (string)e["code"]! == "game:deer-whitetail-adult-male"));
+        var prime = r["outputs"]!.Select((o, i) => (o, i)).Single(x => (string)x.o["code"]! == "butchering:primemeat-raw").i;
+        Json("""{ "avg": 3, "var": 1 }""", whitetail.v["yields"]![prime]!);
+        Assert.Contains(r["variants"]![whitetail.i]!["outputs"]!, s => (string)s["code"]! == "butchering:primemeat-raw");
+    }
+
+    /// <summary>
+    /// The creature's own harvestable drops (vanilla plus Good Hunting's patches, read here
+    /// from the entity type the engine loaded) are split between the hook and the table, and
+    /// harvested in the field at the cut the mod's patch applies: half by default
+    /// (ButcheringConfig.FieldHarvestingLightMode is off).
+    /// </summary>
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Butchery_splits_the_creature_drops_and_halves_field_harvesting()
+    {
+        var api = (ICoreServerAPI)World.Api;
+        var entity = api.World.GetEntityType(new AssetLocation("game:deer-whitetail-adult-male"))!;
+        var drops = entity.Server.BehaviorsAsJsonObj.Single(x => x["code"].AsString() == "harvestable")["drops"]
+            .AsObject<BlockDropItemStack[]>(null, "game")
+            .Where(d => d.Quantity.avg != 0 || d.Quantity.var != 0).ToList();
+        var redmeat = drops.Single(d => d.Code.ToString() == "game:redmeat-raw");
+
+        var r = Recipe("butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead");
+        var v = r["butchery"]!["variants"]!.Select((x, i) => (x, i))
+            .Single(x => x.x["entities"]!.Any(e => (string)e["code"]! == "game:deer-whitetail-adult-male")).i;
+        var stages = r["butchery"]!["stages"]!.Cast<JObject>().ToList();
+        JToken? YieldIn(string step, string code)
+        {
+            var stage = stages.Single(s => (string)s["step"]! == step);
+            var i = stage["outputs"]!.Select(o => (int)o).SingleOrDefault(o => (string)r["outputs"]![o]!["code"]! == code, -1);
+            return i < 0 ? null : r["butchery"]!["variants"]![v]!["yields"]![i];
+        }
+
+        Assert.Equal(redmeat.Quantity.avg, (double)YieldIn("butcher", "game:redmeat-raw")!["avg"]!, 3);
+        Assert.Equal(redmeat.Quantity.avg * 0.5, (double)YieldIn("harvest", "game:redmeat-raw")!["avg"]!, 3);
+        Assert.Equal(0.5, (double)stages.Single(s => (string)s["step"]! == "harvest")["multiplier"]!, 3);
+        Assert.Null(YieldIn("skin", "game:redmeat-raw"));
+        var hide = drops.Single(d => d.Code.Path == "hide-raw-large");
+        Assert.Equal(hide.Quantity.avg, (double)YieldIn("skin", "game:hide-raw-large")!["avg"]!, 3);
+
+        // The item's "Harvested" source carries the same cut.
+        var source = Doc["items"]!["game:redmeat-raw"]!["sources"]!
+            .Single(s => (string)s["from"]! == "game:deer-whitetail-adult-male" && (string?)s["note"] == "Harvested");
+        Assert.Equal(redmeat.Quantity.avg * 0.5, (double)source["quantity"]!["avg"]!, 3);
+        Assert.Equal(0.5, (double)source["extra"]!["multiplier"]!, 3);
+    }
+
+    /// <summary>
+    /// Every entity type with the mod's behavior is in a butchery record, each entity variant
+    /// in exactly one, and every record's stages, yields and variant outputs line up.
+    /// </summary>
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Every_butcherable_creature_is_in_one_butchery_variant()
+    {
+        var api = (ICoreServerAPI)World.Api;
+        var butcherable = api.World.EntityTypes
+            .Where(e => e?.Code != null && e.Server.BehaviorsAsJsonObj.Any(b =>
+                api.ClassRegistry.GetEntityBehaviorClass(b["code"].AsString() ?? "")?.Name == "EntityBehaviorButcherable"))
+            .Select(e => e.Code.ToString()).OrderBy(c => c, StringComparer.Ordinal).ToList();
+        Assert.NotEmpty(butcherable);
+        var records = Doc["recipes"]!.Where(r => (string)r["type"]! == "butchery").ToList();
+        var covered = records.SelectMany(r => r["butchery"]!["variants"]!.SelectMany(v => v["entities"]!.Select(e => (string)e["code"]!)))
+            .OrderBy(c => c, StringComparer.Ordinal).ToList();
+        Assert.Equal(butcherable, covered);
+
+        foreach (var r in records)
+        {
+            var outputs = (JArray)r["outputs"]!;
+            Assert.Equal(r["variants"]!.Count(), r["butchery"]!["variants"]!.Count());
+            Assert.Equal(Enumerable.Range(0, outputs.Count),
+                r["butchery"]!["stages"]!.SelectMany(s => s["outputs"]!.Select(o => (int)o)).OrderBy(i => i));
+            Assert.Equal(Enumerable.Range(0, r["ingredients"]!.Count()),
+                r["butchery"]!["stages"]!.SelectMany(s => s["ingredients"]!.Concat(s["optional"] ?? new JArray())
+                    .Concat((s["options"] ?? new JArray()).SelectMany(g => g)).Select(o => (int)o)).OrderBy(i => i));
+            foreach (var (v, i) in r["butchery"]!["variants"]!.Select((v, i) => (v, i)))
+            {
+                var expected = outputs.Select((o, k) => (o, k)).Where(x => v["yields"]![x.k]!.Type != JTokenType.Null)
+                    .SelectMany(x => new[] { (string)x.o["code"]! }.Concat(x.o["extra"]?["alternatives"]?.Select(a => (string)a!) ?? []));
+                Assert.Equal(expected, r["variants"]![i]!["outputs"]!.Select(s => (string)s["code"]!));
+            }
+        }
+    }
+
     // ------------------------------------------------------ counts
 
     /// <summary>
@@ -570,9 +718,9 @@ public class RecipeExportScenarios : AtlasScenarioBase
         // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
         Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        // Blocks built in place are the one type not read from a registry.
+        // Blocks built in place and butchery are the types not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
-            .Where(p => p.Name != RecipeSection.InPlaceType)
+            .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
             .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));
     }

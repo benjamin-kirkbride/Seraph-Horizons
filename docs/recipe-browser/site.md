@@ -172,7 +172,9 @@ failing that the code ("Fish (saltwater)").
 ```
 
 `mod` is the mod with the code's domain as its id or in its `domains`; failing that, the
-domain itself. `drops` and `trades` count distinct items, so the list page
+domain itself. `recipes` lists, per type, the indices of its `butchery` records (the
+Butchering mod); the creatures those name are variants of the type even when no item source
+names them. `drops` and `trades` count distinct items, so the list page
 (`#/<version>/entities`) needs no chunk. `meta.json` has `entityCount` and `entityChunks`,
 read like `itemChunks`; a chunk is `{ "start": ..., "entities": [[{ "code", "name",
 "sources": [row, ...] }, ...], ...] }`, each type's variants sorted by code.
@@ -182,7 +184,15 @@ per item and way of getting it, with the range of quantities and how many varian
 it. Variants that give exactly the same are one chip (male and female traders of one kind
 in every climate are one), and `?variant=<code>` shows that chip's own rows. Rows are split
 into dropped on death (no `note`), harvested (`note` "Harvested"), one section per other
-behavior note, sells and buys. Item pages link every creature and trader source to its
+behavior note, sells and buys. A type with butchery records ends with a Butchery section of
+their cards; with a chip picked it shows only the records, and in each only the variants,
+that cover the chip's creatures.
+
+A butchery card is headed by the carcass rather than its outputs, names the creatures of the
+variant shown (each a link to its chip), and lists the stages in order, each with what it
+needs (carcass, station with its yield range, tool with its durability cost, "or" between
+options, optional ones apart) and what it gives in that variant, with average ± spread and
+what scales it. Field harvesting comes last as the alternative. Item pages link every creature and trader source to its
 type's page on its variant.
 
 `DATA_FORMAT` in `format.ts` is written to `meta.json` as `format`. The app and the data
