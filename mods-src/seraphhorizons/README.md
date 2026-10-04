@@ -573,13 +573,20 @@ it. On top of that:
   - nail: hold right click 3 s with 8 iron nails and strips (`game:metalnailsandstrips-iron`) and
     a hammer in the offhand, which loses 1; Logging Expanded's costs.
 
-  A player in creative pays nothing. Prefixes on `BlockChoppingBlock`'s `OnBlockInteractStart`,
+  A player in creative pays nothing, and a Ctrl + right click (the game's `ctrl` key, sprint by
+  default; not with Shift) on an empty block below the advanced tier makes the next tier at once,
+  whatever is held, taking and dropping nothing (no bark from the debark), as the game's water
+  wheel (below). On an empty block Immersive Woodworking's Ctrl takes nothing back, so the only
+  thing this replaces there is laying what is held, which a plain right click still does; on a
+  block with something on it or an axe stuck in it, Ctrl takes it back as before. Prefixes on `BlockChoppingBlock`'s `OnBlockInteractStart`,
   `Step`, `Stop` and `Cancel`, on both sides, take the interaction when an upgrade applies: the
   client drives the hold, the server makes the upgrade when it is released at its full time (less
   0.1 s, as Logging Expanded counts its holds). The server counts that time through Immersive
   Woodworking's `HonestHoldSeconds`, as its own holds do: no more than the time since the hold began
-  on the server, so a modified client cannot claim a finished hold at once. A client postfix on
-  `GetPlacedBlockInteractionHelp` adds the next upgrade to an empty block's help.
+  on the server, so a modified client cannot claim a finished hold at once. The server makes the
+  creative upgrade too, reading the game mode from its own player data, not the client's word. A
+  client postfix on `GetPlacedBlockInteractionHelp` adds the next upgrade to an empty block's help,
+  and for a player in creative the Ctrl line (`seraphhorizons:woodworking-help-creative-upgrade`).
 - **yields**: 6 firewood per log on the primitive, debarked and bound tiers, 8 on the advanced
   (Logging Expanded's 6 and 8; Immersive Woodworking's default is 8), so a half-log gives 3 or 4.
   Immersive Woodworking's `FirewoodPerLog` is set to 6 (below), and a server prefix on
@@ -649,6 +656,40 @@ lets it in on a loaded sawhorse, on both sides. That name is the likeliest thing
 only the spud needs it: if it is not found, the spud does nothing on a sawhorse, with one warning,
 and the rest of the tweak runs. A client postfix on `BlockSawhorse.GetPlacedBlockInteractionHelp`
 adds the beam and spud lines.
+
+**Creative upgrades.** The game's water wheel (`RightClickConstruction.tryConsumeIngredients` in
+`VSSurvivalMod`, 1.22.7) lets a player in creative mode who right-clicks with Ctrl held build its
+next stage with nothing in hand (`CurrentGameMode == Creative && Controls.CtrlKey`); its help shows
+nothing for it. The stations do the same (`Core/CreativeUpgrades.cs`), with Ctrl and not Shift,
+which Immersive Woodworking's chopping block reads first, and with a help line
+(`seraphhorizons:woodworking-help-creative-upgrade`, Ctrl + right click) shown to a player in
+creative only:
+
+- the splitting block, one tier per click on an empty block (above);
+- Logging Expanded's frames, each into the next stage its own interaction makes with items: the
+  large stick frame into the primitive sawhorse, the board frame into a standard sawhorse frame,
+  that into a copper standard sawhorse, advanced sawhorse frames A into B and B into the advanced
+  sawhorse, the storage rack frame into a trunk storage rack, the heating rack frame into a trunk
+  heating rack, the stick storage frame into a stick storage. A frame with two ways on takes the
+  one its help lists first, the station it is a frame of; the other ways (a fired bowl on the stick
+  frame for a heating rack frame, 4 iron rods on the board frame for a storage rack frame, 2 iron
+  plates on the standard sawhorse frame for the advanced frames) still take their items.
+
+  Logging Expanded builds the stage itself (`Woodworking/FrameUpgrades.cs`): on the server, a
+  prefix on the frame's `OnBlockInteractStart` puts the stage's items in the player's hands (and an
+  iron hammer in the offhand where the stage takes one), runs Logging Expanded's completion (its
+  `OnBlockInteractStart` for a click, `OnBlockInteractStop` at the full 3 s for a hold), then puts
+  the hands back as they were. So the block, the frame's wood and facing, a two-block frame's second
+  block, the space check and the sound are all Logging Expanded's, and nothing is taken. The client
+  only takes the click; the server reads the game mode from its own player data. A frame class
+  that is not found gets no shortcut, with one warning, and the rest of the tweak runs.
+
+Left out: a finished sawhorse has no next stage (each tier is built from its own frames, not from
+the tier below); the stick pile and board pile a knife or hammer turns into the first frames are
+the game's ground storage, and the hand tool is all they take besides what is in the pile; and
+Immersive Woodworking's chopper and sawmill are assembled from parts that each are an item of their
+own (a bed of some wood, a drive), where Ctrl + right click already takes a part back, and the
+assembled ones are in the creative inventory (`AssembledMachinesInCreative`).
 
 **Retired**: Logging Expanded's four splitting logs, Immersive Woodworking's sawhorse, its pit saw
 and its pit saw blade (which only worked at that sawhorse). Their block and item types are taken
@@ -769,7 +810,8 @@ set or hidden.
 
 The rules that need no game types are in `Core/`, and `tests/` runs them without the game:
 `SplittingBlockTier.cs` (the attribute key, tier names, yields, which tier the chopper takes),
-`SplittingBlockRules.cs` (which upgrade what is held makes, and its cost), `SawhorseWork.cs` (which
+`SplittingBlockRules.cs` (which upgrade what is held makes, and its cost),
+`CreativeUpgrades.cs` (when a click is the creative shortcut, and each frame's stage), `SawhorseWork.cs` (which
 tool set does what on a sawhorse, beams per tier, bark rolls per debark), `WoodworkingGuidePages.cs`
 (the handbook's page list, and the guides the export leaves out), `LangEntries.cs` and `LangPatternKeys.cs` (whole-entry lang changes and
 where the game keeps a pattern key).
@@ -879,7 +921,7 @@ and a sign's text (unchanged).
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
 cart reach's entity matching and reach rule, where the chopper drops its piles, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
-upgrades and yields, sawhorse work, the handbook's page list (and that the guides the export hides
+upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, and the creative mod
 tabs' plan, domain owners, state file and mod mode's tab layout (`CreativeModTabs/Core/`).
 `dotnet test mods-src/seraphhorizons/tests`.
@@ -1006,7 +1048,11 @@ patches in under its own id, the world config telling clients it runs, Immersive
 settings set, and the new name in English with its translations gone. Then: an axe on an upright
 log makes a primitive splitting block of its wood (a sideways log nothing); each upgrade's cost,
 wear and tier, and none with Shift, on a loaded block or past advanced; an upgrade hold that the
-client claims but the server did not see last refused; the tier through breaking, placing, and
+client claims but the server did not see last refused; in creative, Ctrl + right click raising an
+empty block a tier at a time for nothing (no bark, the held stack kept, not with Shift, and Ctrl
+still taking a log back off a loaded block), and building each Logging Expanded frame into its
+next stage with the hands left as they were, while a survival player's empty-handed Ctrl click
+does nothing; the tier through breaking, placing, and
 saving and loading, and through breaking a block of no wood; 6 firewood per log through
 half-logs and the maul (8 on an advanced block), 2 sticks per firewood, the setting put back after
 an advanced chop, and no splitting block laid on one or taken by the restock; the chopper refusing

@@ -32,6 +32,13 @@ namespace SeraphHorizons.Mod.Woodworking;
 /// has skipped the original.
 /// A postfix on its <c>GetPlacedBlockInteractionHelp</c> (client) adds the next upgrade's help to
 /// an empty block's.
+///
+/// In creative mode, a right click with Ctrl (not Shift) on an empty block below the advanced tier
+/// makes its next tier at once, whatever is held, and takes and drops nothing
+/// (<see cref="CreativeUpgrades"/>, as the game's water wheel). On an empty block Immersive
+/// Woodworking's Ctrl takes nothing back; it would lay what is held, as a plain right click does.
+/// The server makes it, reading the game mode from its own player data; the empty block's help
+/// shows it to a player in creative.
 /// </summary>
 public static class SplittingBlockUpgrades
 {
@@ -119,12 +126,19 @@ public static class SplittingBlockUpgrades
     private static SplittingBlockHeld Held(ItemStack? stack) =>
         SplittingBlockRules.Classify(stack?.Collectible?.Code?.ToString(), stack?.Item?.Tool == EnumTool.Axe);
 
+    private static bool IsCreative(IPlayer player) => player.WorldData?.CurrentGameMode == EnumGameMode.Creative;
+
     /// <summary>The upgrade the player's hands make on the block now, or null: none for what they
-    /// hold, or the block is not empty, or Shift or Ctrl is down.</summary>
+    /// hold, or the block is not empty, or Shift or Ctrl is down. In creative mode with Ctrl down,
+    /// the creative shortcut's.</summary>
     private static SplittingBlockUpgrade? UpgradeFor(IPlayer player, BlockEntity be, BEBehaviorSplittingBlockTier behavior)
     {
         var controls = player.Entity.Controls;
-        if (controls.ShiftKey || controls.CtrlKey || !IsEmpty(be))
+        if (!IsEmpty(be))
+            return null;
+        if (CreativeUpgrades.Applies(IsCreative(player), controls.CtrlKey, controls.ShiftKey))
+            return SplittingBlockRules.Creative(behavior.Tier);
+        if (controls.ShiftKey || controls.CtrlKey)
             return null;
         var main = player.InventoryManager.ActiveHotbarSlot?.Itemstack;
         var held = Held(main);
@@ -226,16 +240,17 @@ public static class SplittingBlockUpgrades
     }
 
     /// <summary>Makes the upgrade, on the server: takes its cost and wear, drops the bark, sounds,
-    /// and sets the tier. A player in creative mode pays nothing.</summary>
+    /// and sets the tier. A player in creative mode pays nothing, and the creative shortcut drops
+    /// no bark either.</summary>
     private static void Complete(IWorldAccessor world, IPlayer player, BlockEntity be, BEBehaviorSplittingBlockTier behavior,
         SplittingBlockUpgrade upgrade)
     {
         var main = player.InventoryManager.ActiveHotbarSlot;
         var offhand = player.Entity.LeftHandItemSlot;
         BlockPos pos = be.Pos;
-        if (upgrade.Step == SplittingBlockStep.Debark)
+        if (upgrade.Step == SplittingBlockStep.Debark && !upgrade.Creative)
             DropBark(world, be, main.Itemstack, offhand?.Itemstack);
-        if (player.WorldData.CurrentGameMode != EnumGameMode.Creative)
+        if (!IsCreative(player))
         {
             if (upgrade.Consumes > 0)
             {
@@ -268,8 +283,10 @@ public static class SplittingBlockUpgrades
     }
 
     /// <summary>Postfix on <c>BlockChoppingBlock.GetPlacedBlockInteractionHelp</c> (client): an empty
-    /// block below the advanced tier also shows its next upgrade.</summary>
-    public static void InteractionHelpPostfix(IWorldAccessor __0, BlockSelection __1, ref WorldInteraction[] __result)
+    /// block below the advanced tier also shows its next upgrade, and to a player in creative mode
+    /// the creative shortcut.</summary>
+    public static void InteractionHelpPostfix(IWorldAccessor __0, BlockSelection __1, IPlayer __2,
+        ref WorldInteraction[] __result)
     {
         if (__0.Api is not ICoreClientAPI capi || Find(__0, __1) is not ({ } be, { } behavior) || !IsEmpty(be)
             || SplittingBlockRules.NextStep(behavior.Tier) is not { } step)
@@ -277,7 +294,16 @@ public static class SplittingBlockUpgrades
         if (!Help.TryGetValue(step, out var help))
             Help[step] = help = BuildHelp(capi, step);
         __result = __result.Append(help);
+        if (__2 != null && IsCreative(__2))
+            __result = __result.Append(CreativeUpgradeHelp);
     }
+
+    /// <summary>The creative shortcut's help line (<see cref="CreativeUpgrades"/>): Ctrl + right
+    /// click, worded as the game's own Ctrl lines.</summary>
+    public static readonly WorldInteraction[] CreativeUpgradeHelp =
+    [
+        new() { ActionLangCode = CreativeUpgrades.HelpKey, MouseButton = EnumMouseButton.Right, HotKeyCode = CreativeUpgrades.HotKey },
+    ];
 
     private static WorldInteraction[] BuildHelp(ICoreClientAPI capi, SplittingBlockStep step)
     {
