@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests for the bucking sawmill's game-independent code (../Core): the rig file's parser,
+       the footprint and rotation maths, the assembly rules, the cut arithmetic and the config.
+       They compile those files directly and need neither the game nor the pack:
+       `dotnet test mods-src/buckingsawmill/tests`. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Compile Include="../Core/**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The shipped rig, so the tests check that it parses and is consistent. -->
+    <None Include="../assets/buckingsawmill/config/rig.json" Link="rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Every part's matrix at a grid of poses, from tools/make_shape.py's reference maths. -->
+    <None Include="rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

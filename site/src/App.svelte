@@ -23,10 +23,17 @@
   let query = $state("");
   let main: HTMLElement | undefined = $state();
   let theme = $state(loadTheme());
+  // The model viewer is loaded only when a reader opens it, with three.js after it.
+  let modelsView: Promise<typeof import("./components/ModelsRoute.svelte")> | null = null;
+  const loadModelsView = () => (modelsView ??= import("./components/ModelsRoute.svelte"));
 
   const versionId = $derived("version" in route ? (route.version ?? null) : null);
   const known = $derived(versions !== null && versionId !== null && versions.versions.some((v) => v.id === versionId));
   const data = $derived(known && versionId ? versionData(versionId) : null);
+  // Pages without a version (the model viewer) search the default version.
+  const searchVersion = $derived(
+    known ? versionId : versions && versions.versions.some((v) => v.id === versions!.default) ? versions.default : (versions?.versions[0]?.id ?? null),
+  );
 
   function go(next: Route, replace = false) {
     const hash = formatRoute(next);
@@ -98,7 +105,7 @@
   });
 
   $effect(() => {
-    if (route.view !== "item" && route.view !== "entity") document.title = t.siteTitle;
+    if (route.view !== "item" && route.view !== "entity" && route.view !== "models" && route.view !== "model") document.title = t.siteTitle;
   });
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -109,8 +116,8 @@
   function submitSearch(e?: Event) {
     e?.preventDefault();
     clearTimeout(debounce);
-    if (!versionId) return;
-    go({ view: "search", version: versionId, query }, route.view === "search");
+    if (!searchVersion) return;
+    go({ view: "search", version: searchVersion, query }, route.view === "search");
   }
 
   function switchTheme(e: Event) {
@@ -157,13 +164,14 @@
         placeholder={t.searchPlaceholder}
         autocomplete="off"
         spellcheck="false"
-        disabled={!data}
+        disabled={!searchVersion}
       />
-      <button type="submit" disabled={!data}>{t.searchButton}</button>
+      <button type="submit" disabled={!searchVersion}>{t.searchButton}</button>
     </form>
     {#if versionId && known}
       <a class="nav" href={formatRoute({ view: "entities", version: versionId })}>{t.entitiesLink}</a>
     {/if}
+    <a class="nav" href={formatRoute({ view: "models" })} aria-current={route.view === "models" || route.view === "model" ? "page" : undefined}>{t.modelsLink}</a>
     {#if versions && versions.versions.length > 0}
       <label class="picker">
         <span>{t.versionLabel}</span>
@@ -189,7 +197,15 @@
 
 <main id="main" tabindex="-1" bind:this={main}>
   {#if flash}<p class="flash" role="status">{flash}</p>{/if}
-  {#if versionsFailed}
+  {#if route.view === "models" || route.view === "model"}
+    {#await loadModelsView()}
+      <p class="muted">{t.loading}</p>
+    {:then mod}
+      <mod.default id={route.view === "model" ? route.id : null} />
+    {:catch}
+      <p role="alert">{t.loadFailed}</p>
+    {/await}
+  {:else if versionsFailed}
     <p role="alert">{t.loadFailed}</p>
   {:else if !versions}
     <p class="muted">{t.loading}</p>

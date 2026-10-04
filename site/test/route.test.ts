@@ -33,6 +33,14 @@ describe("parseRoute", () => {
     expect(parseRoute("#/main/item/%E0%A4%A")).toEqual({ view: "notfound", version: "main" });
   });
 
+  it("reads the model viewer's pages, which have no version", () => {
+    expect(parseRoute("#/models")).toEqual({ view: "models" });
+    expect(parseRoute("#/models/")).toEqual({ view: "models" });
+    expect(parseRoute("#/models/bucking-sawmill")).toEqual({ view: "model", id: "bucking-sawmill" });
+    expect(parseRoute("#/models/a/b")).toEqual({ view: "notfound" });
+    expect(parseRoute("#/models/%E0%A4%A")).toEqual({ view: "notfound" });
+  });
+
   it("reports anything else as not found, keeping the version", () => {
     expect(parseRoute("#/main/nowhere")).toEqual({ view: "notfound", version: "main" });
     expect(parseRoute("#/main/credits/extra")).toEqual({ view: "notfound", version: "main" });
@@ -47,7 +55,7 @@ describe("formatRoute", () => {
   });
 
   it("round-trips through parseRoute", () => {
-    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits", "#/main/entities", "#/main/entity/game:wolf", "#/main/entity/game:wolf?variant=game%3Awolf-male"]) {
+    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits", "#/main/entities", "#/main/entity/game:wolf", "#/main/entity/game:wolf?variant=game%3Awolf-male", "#/models", "#/models/bucking-sawmill"]) {
       expect(formatRoute(parseRoute(hash))).toBe(hash);
     }
     expect(parseRoute(formatRoute({ view: "item", version: "main", code: "a:b/c" }))).toEqual({ view: "item", version: "main", code: "a:b/c" });

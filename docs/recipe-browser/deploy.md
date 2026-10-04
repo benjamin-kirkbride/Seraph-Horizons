@@ -50,7 +50,8 @@ The build:
    cache that CI's `icons` job saves, because a run started by `workflow_run` cannot
    save a cache itself.
 4. `npm --prefix site run build`, the size check, then upload and deploy with the
-   official Pages actions.
+   official Pages actions. The build also publishes the model viewer's shapes and rigs from
+   `mods-src/` in the checked-out commit ([models.md](models.md)).
 
 The same steps locally, given `gh` access:
 
