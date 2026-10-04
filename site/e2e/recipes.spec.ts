@@ -170,7 +170,7 @@ test("search ranks Copper ingot first for `ingot cop` and works from the keyboar
   await page.goto("./");
   await page.getByLabel("Search items").focus();
   await page.keyboard.type("ingot cop");
-  const first = page.getByTestId("results").locator("a").first();
+  const first = page.getByTestId("results").locator("a[data-code]").first();
   await expect(first).toHaveAttribute("data-code", "game:ingot-copper");
   await expect(first).toContainText("Copper ingot");
   await expect(first).toContainText("game:ingot-copper");
