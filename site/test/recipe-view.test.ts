@@ -5,12 +5,14 @@ import {
   constructionStages,
   constructionTotals,
   cycleAt,
-  distinctSources,
   focusVariants,
+  formatChance,
+  panChance,
   formatRange,
   formatRatio,
   gridCells,
   slotStacks,
+  sourceRows,
   stackAmount,
   voxelLayers,
 } from "../src/lib/recipe-view.ts";
@@ -104,11 +106,11 @@ describe("variants and cycling", () => {
   });
 });
 
-describe("distinctSources", () => {
+describe("sourceRows", () => {
   const drop = (from: string, fromName: string, avg = 1) => ({ type: "blockDrop" as const, from, fromName, quantity: { avg } });
 
   it("keeps one row for the orientations of a block, which share a name", () => {
-    const rows = distinctSources([
+    const rows = sourceRows([
       drop("game:torchholder-aged-filled-north", "Aged torch holder"),
       drop("game:torchholder-aged-filled-east", "Aged torch holder"),
       drop("game:torchholder-brass-filled-north", "Brass torch holder"),
@@ -118,13 +120,90 @@ describe("distinctSources", () => {
   });
 
   it("keeps rows that differ in quantity, kind or tool", () => {
-    const rows = distinctSources([
+    const rows = sourceRows([
       drop("game:a-north", "A"),
       drop("game:a-east", "A", 2),
       { ...drop("game:a-south", "A"), tool: "knife" },
       { ...drop("game:a-west", "A"), type: "traderSells" as const },
     ]);
     expect(rows).toHaveLength(4);
+  });
+
+  // As the exporter writes panning: one source per pannable block, the declared chance as
+  // quantity and the real chance of one pan in extra (values from the 1.22.7 export).
+  const pan = (rock: string, chancePerPan: number, block = "gravel", extra: Record<string, unknown> = {}) => ({
+    type: "other" as const,
+    from: `game:${block}-${rock}`,
+    fromName: `${rock} ${block}`,
+    quantity: { avg: 0.075 },
+    note: "Panned",
+    extra: { chancePerPan, ...extra },
+  });
+
+  it("folds the variants of one pannable block into one row with the range of their chances", () => {
+    const rows = sourceRows([
+      pan("andesite", 0.05358),
+      pan("basalt", 0.05358),
+      pan("andesite", 0.05892, "richgravel"),
+      pan("chalk", 0.049, "richgravel"),
+      pan("granite", 0.06975, "richgravel"),
+      pan("andesite", 0.05358, "sandwavy"),
+    ]);
+    expect(rows.map((r) => [r.from, r.chance, (r.alsoFrom ?? []).map((a) => a.from)])).toEqual([
+      ["game:gravel-andesite", { min: 0.05358, max: 0.05358 }, ["game:gravel-basalt"]],
+      ["game:richgravel-andesite", { min: 0.049, max: 0.06975 }, ["game:richgravel-chalk", "game:richgravel-granite"]],
+      ["game:sandwavy-andesite", { min: 0.05358, max: 0.05358 }, []],
+    ]);
+    expect(rows[1]!.alsoFrom![0]!.extra).toEqual({ chancePerPan: 0.049 });
+  });
+
+  it("adds up the chances of a block whose list holds the item twice", () => {
+    const rows = sourceRows([pan("granite", 0.1), pan("granite", 0.15), pan("basalt", 0.25)]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.chance).toEqual({ min: 0.25, max: 0.25 });
+    expect(rows[0]!.alsoFrom!.map((a) => a.from)).toEqual(["game:gravel-basalt"]);
+  });
+
+  it("keeps panned rows apart when the rest of their extra differs", () => {
+    const gear = { stat: "rustyGearDropRate" };
+    const rows = sourceRows([pan("andesite", 0.0001382, "gravel", gear), pan("basalt", 0.0001382, "gravel", gear), pan("chalk", 0.0001382)]);
+    expect(rows.map((r) => r.alsoFrom?.length ?? 0)).toEqual([1, 0]);
+  });
+
+  it("takes the chance per pan from extra, and the declared chance from an export without it", () => {
+    expect(panChance({ type: "other", from: "game:bonysoil", quantity: { avg: 0.3 }, note: "Panned", extra: { chancePerPan: 0.2206 } })).toBe(0.2206);
+    expect(panChance({ type: "other", from: "game:bonysoil", quantity: { avg: 0.3 }, note: "Panned" })).toBe(0.3);
+    expect(sourceRows([{ type: "other", from: "game:bonysoil", quantity: { avg: 0.3 }, note: "Panned" }])[0]!.chance).toEqual({ min: 0.3, max: 0.3 });
+  });
+
+  it("folds harvested block variants only when the quantities agree, and not block drops", () => {
+    const harvest = (code: string, avg = 1) => ({ type: "other" as const, from: code, fromName: code, quantity: { avg }, note: "Harvested" });
+    expect(sourceRows([harvest("game:bush-a"), harvest("game:bush-b")])).toHaveLength(1);
+    expect(sourceRows([harvest("game:bush-a"), harvest("game:bush-b", 2)])).toHaveLength(2);
+    expect(sourceRows([harvest("game:bush-a")])[0]!.chance).toBeUndefined();
+    expect(sourceRows([drop("game:ore-granite", "Granite ore"), drop("game:ore-basalt", "Basalt ore")])).toHaveLength(2);
+  });
+
+  it("lists a folded variant once per name, like the orientations of a block", () => {
+    const rows = sourceRows([pan("andesite", 0.05), { ...pan("andesite", 0.05), from: "game:gravel-andesite-free" }, pan("basalt", 0.05)]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.alsoFrom!.map((a) => a.from)).toEqual(["game:gravel-basalt"]);
+  });
+});
+
+describe("formatChance", () => {
+  it("shows a chance as a percentage, keeping two significant digits below 1%", () => {
+    expect(formatChance(0.2206)).toBe("22.06%");
+    expect(formatChance(0.0125)).toBe("1.25%");
+    expect(formatChance(0.0006912)).toBe("0.069%");
+    expect(formatChance(0.0001382)).toBe("0.014%");
+    expect(formatChance(1)).toBe("100%");
+    expect(formatChance(undefined)).toBe("");
+  });
+
+  it("shows a range when the blocks of a row differ", () => {
+    expect(formatChance(0.049, 0.06975)).toBe("4.9–6.98%");
+    expect(formatChance(0.05358, 0.05358)).toBe("5.36%");
   });
 });
 

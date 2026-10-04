@@ -43,5 +43,16 @@ internal static class Json
     public static double Round(float f) =>
         float.IsFinite(f) && Math.Abs(f) < 1e15 ? (double)Math.Round((decimal)f, 4) : f;
 
+    /// <summary>
+    /// Rounded to 4 significant digits rather than 4 decimals, for probabilities: a panning
+    /// chance per pan can be below 0.0001 (rusty gears from gravel), which 4 decimals would lose.
+    /// </summary>
+    public static double Significant(decimal d)
+    {
+        if (d == 0) return 0;
+        var places = 3 - (int)Math.Floor(Math.Log10((double)Math.Abs(d)));
+        return (double)Math.Round(d, Math.Clamp(places, 0, 28));
+    }
+
     public static string Lower(object value) => value.ToString()!.ToLowerInvariant();
 }

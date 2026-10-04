@@ -109,18 +109,107 @@ export function variantOutputs(recipe: Recipe, variant: number): Stack[] {
   });
 }
 
+/** A source row, standing for every block in `from` (first) and `alsoFrom`. */
+export interface SourceRow extends Source {
+  /** The sources of the other variants of the block that the row stands for, when there are any. */
+  alsoFrom?: Source[];
+  /** Panning only: the lowest and highest chance per pan of the blocks in the row. */
+  chance?: { min: number; max: number };
+}
+
+/** The `note` of a panning source. */
+export const PANNED = "Panned";
+
+const isPanned = (s: Source) => s.type === "other" && s.note === PANNED;
+
+/**
+ * The chance that one pan of the block gives the item. A pan gives at most one item: the
+ * game rolls the block's drops in a random order and stops at the first hit, so the
+ * exporter's `extra.chancePerPan` is below the declared chance in `quantity.avg`, which
+ * is the fallback for an export without it.
+ */
+export function panChance(s: Source): number | undefined {
+  const c = s.extra?.chancePerPan;
+  return typeof c === "number" ? c : s.quantity?.avg;
+}
+
+/** "game:richgravel" for game:richgravel-granite: the block type, without its variant. */
+function blockType(code: string): string {
+  const dash = code.indexOf("-", code.indexOf(":") + 1);
+  return dash < 0 ? code : code.slice(0, dash);
+}
+
+/**
+ * A block's panning list may hold the item twice (Wilderlands Panning keeps vanilla's stone
+ * in the gravel list and adds its own). Each entry rolls, so the block's chances add up.
+ */
+function mergePanned(sources: readonly Source[]): Source[] {
+  const merged = new Map<string, Source>();
+  return sources.flatMap((s) => {
+    if (!isPanned(s)) return [s];
+    const { chancePerPan: _chance, ...extra } = s.extra ?? {};
+    const key = JSON.stringify([s.from, extra, s.tool, s.price]);
+    const first = merged.get(key);
+    if (!first) {
+      const copy = { ...s };
+      merged.set(key, copy);
+      return [copy];
+    }
+    const chance = (panChance(first) ?? 0) + (panChance(s) ?? 0);
+    first.extra = { ...first.extra, chancePerPan: chance };
+    return [];
+  });
+}
+
 /**
  * Sources without the rows that would read the same. A block's four orientations each
- * drop the item, and all four are called "Aged torch holder".
+ * drop the item, and all four are called "Aged torch holder": one row. Sources of type
+ * `other` (panning, harvesting) also fold the variants of one block type into one row
+ * when everything else is equal. Panning folds them even when the chances differ, and the
+ * row has their range: flint pans from 38 gravels and from 29 rich gravels whose chance
+ * depends on the rock, and that is two rows, not dozens.
  */
-export function distinctSources(sources: readonly Source[]): Source[] {
-  const seen = new Set<string>();
-  return sources.filter((s) => {
-    const key = JSON.stringify([s.type, s.fromName ?? s.from, s.quantity?.avg, s.quantity?.var, s.tool, s.price, s.note]);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+export function sourceRows(sources: readonly Source[]): SourceRow[] {
+  const rows = new Map<string, SourceRow>();
+  const names = new Map<SourceRow, Set<string>>();
+  for (const s of mergePanned(sources)) {
+    const name = s.fromName ?? s.from;
+    let key: string;
+    if (isPanned(s)) {
+      const { chancePerPan: _chance, ...extra } = s.extra ?? {};
+      key = JSON.stringify([s.type, s.note, blockType(s.from), extra, s.tool, s.price]);
+    } else {
+      const where = s.type === "other" ? [blockType(s.from), s.extra ?? null] : name;
+      key = JSON.stringify([s.type, where, s.quantity?.avg, s.quantity?.var, s.tool, s.price, s.note]);
+    }
+    const chance = isPanned(s) ? panChance(s) : undefined;
+    let row = rows.get(key);
+    if (!row) {
+      rows.set(key, (row = { ...s }));
+      names.set(row, new Set([name]));
+      if (chance !== undefined) row.chance = { min: chance, max: chance };
+      continue;
+    }
+    const seen = names.get(row)!;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    (row.alsoFrom ??= []).push(s);
+    if (chance !== undefined) {
+      row.chance = row.chance ? { min: Math.min(row.chance.min, chance), max: Math.max(row.chance.max, chance) } : { min: chance, max: chance };
+    }
+  }
+  return [...rows.values()];
+}
+
+/** A chance as a percentage: "30%", "1.25%", "0.06%", or a range "4.9–6.98%". */
+export function formatChance(min: number | undefined, max: number = min ?? 0): string {
+  if (min === undefined) return "";
+  const pct = (x: number) => {
+    const p = x * 100;
+    // Two decimals hide the rare drops, which are the ones worth knowing.
+    return p >= 1 ? formatNumber(p) : String(Number(p.toPrecision(2)));
+  };
+  return min === max ? `${pct(min)}%` : `${pct(min)}–${pct(max)}%`;
 }
 
 /** Stages of a block built in place, in build order; the first is the block as placed. */
