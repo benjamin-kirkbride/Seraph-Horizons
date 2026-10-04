@@ -839,7 +839,7 @@ public class UnifiedWoodworkingScenarios(ITestOutputHelper output) : AtlasScenar
     }
 
     [AtlasTheory(TimeoutMs = 180_000), MemberData(nameof(Sawhorses))]
-    public async Task A_sawhorse_debarks_with_the_bark_spud_and_drops_the_bark(string sawhorse, int beams, int boards)
+    public async Task A_sawhorse_debarks_with_the_bark_spud_and_drops_the_bark(string sawhorse, int _, int boards)
     {
         var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-160, 3, -120 - 10 * boards));
         var pos = await shop.PlaceLoadedSawhorse(0, sawhorse, 2);
@@ -907,9 +907,9 @@ public class UnifiedWoodworkingScenarios(ITestOutputHelper output) : AtlasScenar
                                                            || code.FirstCodePart() is "pitsaw" or "pitsawblade")
                 || code.Domain == WoodworkingMods.LeModId && code.Path.Contains("splittinglog"));
         // Immersive Woodworking's clay covering coats a blade there already is; it makes none.
-        var made = W.GridRecipes.Where(r => Retired(r.Output?.Code)
-                                            && r.ResolvedIngredients?.Any(i => i != null && r.Output.ResolvedItemStack is { } output
-                                                                                   && i.SatisfiesAsIngredient(output, false)) != true).Select(r => $"grid {r.Name}: {r.Output.Code}")
+        var made = W.GridRecipes.Where(r => r.Output is { } result && Retired(result.Code)
+                                            && r.ResolvedIngredients?.Any(i => i != null && result.ResolvedItemStack is { } output
+                                                                                   && i.SatisfiesAsIngredient(output, false)) != true).Select(r => $"grid {r.Name}: {r.Output?.Code}")
             .Concat(World.Api.GetSmithingRecipes().Where(r => Retired(r.Output?.Code)).Select(r => $"smithing {r.Name}: {r.Output.Code}"))
             .Concat(World.Api.GetClayformingRecipes().Where(r => Retired(r.Output?.Code)).Select(r => $"clayforming {r.Name}: {r.Output.Code}"))
             .ToList();

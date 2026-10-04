@@ -32,7 +32,7 @@ public class UnifiedWoodworkingOffScenarios : AtlasScenarioBase
         Assert.False(World.Api.ModLoader.GetModSystem<SeraphHorizonsSystem>().Woodworking.Active);
         // What clients follow, whatever their own switch says.
         Assert.False(W.Config.GetBool(UnifiedWoodworking.RunningKey, true));
-        Assert.Empty(Harmony.GetAllPatchedMethods().Where(m => Harmony.GetPatchInfo(m)?.Owners.Contains(UnifiedWoodworking.ServerHarmonyId) == true));
+        Assert.DoesNotContain(Harmony.GetAllPatchedMethods(), m => Harmony.GetPatchInfo(m)?.Owners.Contains(UnifiedWoodworking.ServerHarmonyId) == true);
 
         var patched = Harmony.GetAllPatchedMethods()
             .Where(m => Harmony.GetPatchInfo(m)?.Owners.Contains(SeraphHorizonsSystem.HarmonyId) == true)
