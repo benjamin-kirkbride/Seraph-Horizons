@@ -89,6 +89,56 @@ registered block, so JSON patches apply, parsed as the behavior parses them.
 - The ingredient's `name`, a lang code the game shows for wildcard slots, is in
   `extra.name` in English.
 
+## Butchery (the Butchering mod)
+
+Not a recipe registry either. The Butchering mod (`butchering`) adds an entity behavior
+(`EntityBehaviorButcherable`, code `butcherable`) to the creatures it handles, and the rest is
+in its C# classes, which `Recipes/Butchery.cs` finds by name through the class registry and
+reads by reflection (the exporter cannot reference the mod). What a player does, from the
+decompiled 1.14.3:
+
+1. **Pick up.** Right-click the dead creature with an empty hand: it becomes the behavior's
+   `item` (a carcass in state `dead`, `butchering:dead<creature>-...-<texture>-dead`; the
+   texture variant follows the entity's texture index, falling back to texture 1). The stack
+   remembers the creature's `harvestable` drops, condition and dead-decay block.
+2. **Skin.** Put it on a block whose `processesState` is `dead` (the hooks) and hold right
+   click with a knife (`ItemKnife`). Drops the item's `skinningRewards` plus the creature's
+   harvestable drops whose path starts with one of `SkinningRackExclusives` (`hide-`, `fat`,
+   `fleece-`, ...), less the item's `excludeRewards`. The carcass becomes `-1-skinned`.
+3. **Bleed.** It stays on the hook for `hoursToBleedOut<Workload>` in-game hours (1, 2 or 4
+   for the item's `butcheringWorkLoad` small, medium, large), then becomes `-bledout`. A
+   bucket (any `BlockEntityBucket`, up to six blocks below) gets `bloodAmount` of `bloodType`.
+4. **Butcher.** On a block whose `processesState` is `bledout` (the tables), with a knife or,
+   on a `BlockButcherTable` only, a cleaver: `butcheringRewards` plus every other harvestable
+   drop, less `excludeRewards`. The table leaves the creature's dead-decay block (bones).
+5. **Or harvest it where it lies** with a knife, as without the mod: the creature's
+   harvestable drops, which the mod's Harmony patch on
+   `EntityBehaviorHarvestable.dropQuantityMultiplier` cuts (to half by default).
+
+Tool durability per workload is `knifedurabilityloss<workload>` and
+`cleaverdurabilityloss<workload>` on the workstation block entity. Workstation drops are
+multiplied by the block's `butcheringEfficiency` times the mod's config multiplier
+(`SkinningRackLootMultiplier` for hooks, `butcheringTableLootMultiplier` for tables); food,
+what smelts into food, and `AnimalWeightDoesApply` (sinew, offal) also by the creature's
+condition. The exporter reads all of these, the constants included, from the loaded mod. The
+field harvesting cut is measured: a bare `EntityAgent`, never spawned or initialised, is
+given a harvestable behavior and asked for `dropQuantityMultiplier` without and then with the
+butchering behavior; the ratio is the cut, whatever the config says.
+
+One record per entity type and carcass item, `butchery|<entity type>|<carcass>` (entity
+variants that pick up as the same carcass, such as the deer subspecies of one size, share
+it). Its variants are the entity variants that give the same; `butchery.variants` names
+them and gives each output's yield (average and spread, before efficiency and condition, or
+null). `ingredients` hold the carcass in each state, the stations and the tools, `outputs`
+everything any stage gives, and `butchery.stages` says which stage needs and gives which. The
+item's "Harvested" sources of these creatures carry the cut, already applied, in
+`extra.multiplier`.
+
+Not covered: antlers the skinning hook hands back (`EntityBehaviorAntlerGrowth`'s inventory,
+decided at runtime), the player's stats (`butcheringSpeedMul`, `animalLootDropRate`, XSkills),
+how long each right click takes, and the mod's smoking rack (`transformsWhenSmoked`, a
+separate process, not butchery).
+
 `mod` is the mod whose files hold the definition asset (vanilla recipes are `survival`),
 and `source` is its asset location. Types from base-game registries are bare (`grid`);
 mod registries are `<modid>:<registry code without "recipes">`, e.g.
@@ -120,6 +170,9 @@ mod registries are `<modid>:<registry code without "recipes">`, e.g.
 - a vanilla recipe changed by a mod's JSON patch (BetterRuins adds cupronickel nails);
 - blocks built in place: the water wheel's stages and wood bindings, ppex's pump (exlib's
   subclass of the behavior), and every block with the behavior in exactly one record;
+- butchery: the whitetail deer's stages, stations, tools, bleed time, blood and rewards from
+  the Butchering mod's assets; its harvestable drops split between hook and table and halved
+  in the field; every butcherable entity variant in exactly one record, with aligned yields;
 - records per type against the definitions counted with the engine's asset loader, and
   variants per type against the sizes of the engine's registries;
 - the structural rules of the document, schema validation (JsonSchema.Net, draft

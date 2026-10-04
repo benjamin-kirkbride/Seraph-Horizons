@@ -47,6 +47,27 @@ describe("prepareData on schema/examples/minimal.json", () => {
     expect(r.meta.recipeTypes.construction).toEqual({ name: "Built in place", shape: "construction", count: 1, mod: "survival" });
   });
 
+  it("indexes a creature's butchery as making every stage's output and using every carcass, station and tool", () => {
+    const id = "butchery|game:hare|butchering:deadhare-male-european-1-dead";
+    for (const code of ["game:bushmeat-raw", "game:fat", "butchering:bloodportion", "butchering:deadhare-male-european-1-bledout"]) {
+      expect(r.ids(r.detail(code).madeBy).butchery).toEqual([id]);
+    }
+    expect(r.ids(r.detail("game:hide-raw-small").madeBy)).toEqual({ butchery: [id] });
+    for (const code of ["butchering:deadhare-male-european-1-skinned", "butchering:butchertable-simple-north", "game:cleaver-copper", "game:woodbucket"]) {
+      expect(r.ids(r.detail(code).usedIn)).toEqual({ butchery: [id] });
+    }
+    expect(r.meta.recipeTypes.butchery).toEqual({ name: "Butchery", shape: "butchery", count: 1, mod: "butchering" });
+  });
+
+  it("gives the creature type its butchery, and the creatures the record names that give nothing else", () => {
+    const index = prepareData(minimal).files.get("entities.json") as EntityIndex;
+    const hare = index.codes.indexOf("game:hare");
+    expect(hare).toBeGreaterThanOrEqual(0);
+    expect(index.recipes[hare]!.map((ri) => r.recipe(ri).id)).toEqual(["butchery|game:hare|butchering:deadhare-male-european-1-dead"]);
+    expect(index.variantNames[hare]).toEqual(["European hare (female)", "European hare (male)"]);
+    expect(index.drops[hare]).toBe(0);
+  });
+
   it("lists the copper saw as used by the ladder recipe, as a tool", () => {
     expect(r.ids(r.detail("game:saw-copper").usedIn)).toEqual({ grid: ["grid|game:recipes/grid/ladder.json|0"] });
   });
@@ -66,7 +87,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
   });
 
   it("writes items sorted by code with names, mods and flags", () => {
-    expect(r.search.codes.slice(0, 3)).toEqual(["examplemod:widget", "game:flint", "game:hide-raw-small"]);
+    expect(r.search.codes.slice(0, 3)).toEqual(["butchering:bloodportion", "butchering:butcherhook-copper-north", "butchering:butchertable-simple-north"]);
     const widget = r.search.codes.indexOf("examplemod:widget");
     expect(r.search.names[widget]).toBe("Widget");
     expect(r.search.mods[r.search.mod[widget]!]).toBe("examplemod");
@@ -82,8 +103,8 @@ describe("prepareData on schema/examples/minimal.json", () => {
     ]);
     expect(r.detail("game:ingot-copper").description).toBe("A bar of copper.");
     expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, mod: "examplemod" });
-    expect(r.meta.itemCount).toBe(18);
-    expect(r.meta.recipeCount).toBe(6);
+    expect(r.meta.itemCount).toBe(29);
+    expect(r.meta.recipeCount).toBe(7);
   });
 });
 
@@ -276,6 +297,7 @@ describe("entities, from the item sources that name them", () => {
     expect(index.variantNames).toEqual([["Surface Drifter"], ["Agriculture trader"], ["Wolf (male)", "Wolf pup (male)"], ["Sheep"]]);
     expect(index.drops).toEqual([1, 0, 2, 1]);
     expect(index.trades).toEqual([0, 1, 0, 0]);
+    expect(index.recipes).toEqual([[], [], [], []]);
     expect(meta.entityCount).toBe(4);
     expect(meta.entityChunks).toEqual([0, 2]);
   });

@@ -50,8 +50,8 @@ describe("validate: cross-references", () => {
 
   it("rejects a recipe from an unknown mod", () => {
     const d = example();
-    d.recipes[3].mod = "othermod";
-    expect(problems(d)).toEqual([["recipe-mod", "/recipes/3/mod"]]);
+    d.recipes[4].mod = "othermod";
+    expect(problems(d)).toEqual([["recipe-mod", "/recipes/4/mod"]]);
   });
 
   it("rejects an item from an unknown mod", () => {
@@ -62,11 +62,11 @@ describe("validate: cross-references", () => {
 
   it("rejects a variant ingredient code that is not an item", () => {
     const d = example();
-    d.recipes[4].variants[1].ingredients[0][0].code = "game:plank-pine";
+    d.recipes[5].variants[1].ingredients[0][0].code = "game:plank-pine";
     const p = only(d);
     expect([p.kind, p.path, p.found]).toEqual([
       "variant-code",
-      "/recipes/4/variants/1/ingredients/0/0/code",
+      "/recipes/5/variants/1/ingredients/0/0/code",
       '"game:plank-pine"',
     ]);
   });
@@ -87,9 +87,9 @@ describe("validate: cross-references", () => {
 
   it("rejects unsorted recipe ids", () => {
     const d = example();
-    [d.recipes[4], d.recipes[5]] = [d.recipes[5], d.recipes[4]];
+    [d.recipes[5], d.recipes[6]] = [d.recipes[6], d.recipes[5]];
     const p = only(d);
-    expect([p.kind, p.path, p.found]).toEqual(["recipe-id-order", "/recipes/5/id", '"grid|game:recipes/grid/ladder.json|0"']);
+    expect([p.kind, p.path, p.found]).toEqual(["recipe-id-order", "/recipes/6/id", '"grid|game:recipes/grid/ladder.json|0"']);
   });
 
   it("sorts ids by code unit, not by locale", () => {
@@ -105,47 +105,92 @@ describe("validate: cross-references", () => {
 
   it("rejects a grid pattern row that is too short", () => {
     const d = example();
-    d.recipes[4].grid.pattern[2] = "S_";
+    d.recipes[5].grid.pattern[2] = "S_";
     const p = only(d);
-    expect([p.kind, p.path]).toEqual(["grid-width", "/recipes/4/grid/pattern/2"]);
+    expect([p.kind, p.path]).toEqual(["grid-width", "/recipes/5/grid/pattern/2"]);
     expect(p.expected).toContain("3");
   });
 
   it("rejects a grid pattern with too few rows", () => {
     const d = example();
-    d.recipes[4].grid.pattern.pop();
-    expect(problems(d)).toEqual([["grid-height", "/recipes/4/grid/pattern"]]);
+    d.recipes[5].grid.pattern.pop();
+    expect(problems(d)).toEqual([["grid-height", "/recipes/5/grid/pattern"]]);
   });
 
   it("rejects a grid pattern key with no ingredient", () => {
     const d = example();
-    d.recipes[4].grid.pattern[1] = "SXS";
+    d.recipes[5].grid.pattern[1] = "SXS";
     const p = only(d);
-    expect([p.kind, p.path, p.found]).toEqual(["grid-key", "/recipes/4/grid/pattern/1", '"X" at column 1']);
+    expect([p.kind, p.path, p.found]).toEqual(["grid-key", "/recipes/5/grid/pattern/1", '"X" at column 1']);
   });
 
   it("rejects a construction stage index past the ingredients", () => {
     const d = example();
-    d.recipes[2].construction.stages[3].ingredients = [3];
+    d.recipes[3].construction.stages[3].ingredients = [3];
     const p = only(d);
-    expect([p.kind, p.path, p.found]).toEqual(["construction-ingredient", "/recipes/2/construction/stages/3/ingredients/0", "3"]);
+    expect([p.kind, p.path, p.found]).toEqual(["construction-ingredient", "/recipes/3/construction/stages/3/ingredients/0", "3"]);
   });
 
   it("rejects a construction ingredient two stages consume", () => {
     const d = example();
-    d.recipes[2].construction.stages[3].ingredients = [0];
+    d.recipes[3].construction.stages[3].ingredients = [0];
     const p = only(d);
     expect([p.kind, p.path, p.found]).toEqual([
       "construction-ingredient",
-      "/recipes/2/construction/stages/3/ingredients/0",
+      "/recipes/3/construction/stages/3/ingredients/0",
       "0, also in stage 1",
     ]);
   });
 
   it("rejects a construction ingredient no stage consumes", () => {
     const d = example();
-    d.recipes[2].construction.stages[2].ingredients = [1];
-    expect(problems(d)).toEqual([["construction-ingredient", "/recipes/2/ingredients/2"]]);
+    d.recipes[3].construction.stages[2].ingredients = [1];
+    expect(problems(d)).toEqual([["construction-ingredient", "/recipes/3/ingredients/2"]]);
+  });
+
+  // recipes[2] is the hare's butchery.
+  it("rejects a butchery ingredient two stages list, counting options and optional ones", () => {
+    const d = example();
+    d.recipes[2].butchery.stages[4].ingredients = [7];
+    expect(problems(d)).toEqual([
+      ["butchery-stage", "/recipes/2/butchery/stages/4/ingredients/0"],
+      ["butchery-stage", "/recipes/2/ingredients/9"],
+    ]);
+    const p = pipeline.process(d);
+    expect(p.ok ? "" : p.report.problems[0]!.found).toBe("7, also in stage 3");
+  });
+
+  it("rejects a butchery output no stage gives, and an index past the outputs", () => {
+    const d = example();
+    d.recipes[2].butchery.stages[2].outputs = [3, 9];
+    expect(problems(d)).toEqual([
+      ["butchery-stage", "/recipes/2/butchery/stages/2/outputs/1"],
+      ["butchery-stage", "/recipes/2/outputs/4"],
+    ]);
+  });
+
+  it("rejects butchery yields that do not line up with the outputs or the variant's stacks", () => {
+    const d = example();
+    d.recipes[2].butchery.variants[1].yields.pop();
+    expect(problems(d)).toEqual([["butchery-variants", "/recipes/2/butchery/variants/1/yields"]]);
+
+    const e = example();
+    e.recipes[2].butchery.variants[1].yields[6] = { avg: 1 };
+    const p = only(e);
+    expect([p.kind, p.path]).toEqual(["butchery-variants", "/recipes/2/variants/1/outputs"]);
+    expect(p.expected).toContain("game:fat");
+  });
+
+  it("rejects a butchery block with one entry too few for the variants", () => {
+    const d = example();
+    d.recipes[2].butchery.variants.pop();
+    expect(problems(d)).toEqual([["butchery-variants", "/recipes/2/butchery/variants"]]);
+  });
+
+  it("rejects a butchery stage step it does not know", () => {
+    const d = example();
+    d.recipes[2].butchery.stages[0].step = "dance";
+    expect(problems(d).map(([kind]) => kind)).toContain("schema:enum");
   });
 
   it("rejects a variant with too few ingredient lists", () => {
@@ -178,11 +223,11 @@ describe("validate: schema", () => {
 
   it("rejects a stack code without a domain", () => {
     const d = example();
-    d.recipes[4].variants[0].outputs[0].code = "ladder-wood-north";
+    d.recipes[5].variants[0].outputs[0].code = "ladder-wood-north";
     const p = only(d);
     expect([p.kind, p.path, p.found]).toEqual([
       "schema:pattern",
-      "/recipes/4/variants/0/outputs/0/code",
+      "/recipes/5/variants/0/outputs/0/code",
       '"ladder-wood-north"',
     ]);
   });
@@ -199,7 +244,7 @@ describe("validate: report", () => {
   it("caps each kind and still counts every error", () => {
     const d = example();
     // 25 unknown ingredient codes: one variant slot with 25 stacks.
-    d.recipes[3].variants[0].ingredients[0] = Array.from({ length: 25 }, (_, i) => ({
+    d.recipes[4].variants[0].ingredients[0] = Array.from({ length: 25 }, (_, i) => ({
       code: `game:nothing-${i}`,
       kind: "item",
       quantity: 1,
@@ -210,7 +255,7 @@ describe("validate: report", () => {
     expect(r.report.problems).toHaveLength(20);
     const lines = r.report.format();
     expect(lines[0]).toBe(
-      '/recipes/3/variants/0/ingredients/0/0/code: expected a key of items, found "game:nothing-0" [variant-code]',
+      '/recipes/4/variants/0/ingredients/0/0/code: expected a key of items, found "game:nothing-0" [variant-code]',
     );
     expect(lines.slice(-2)).toEqual(["  ... and 5 more [variant-code] errors", "25 errors"]);
   });

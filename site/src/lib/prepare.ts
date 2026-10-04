@@ -31,7 +31,7 @@ export interface Prepared {
   meta: Meta;
 }
 
-const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "generic"];
+const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "generic"];
 
 export function compareCodes(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -158,9 +158,31 @@ export function entityTypeName(type: string, variantNames: readonly string[]): s
  * of entities of its own, so one that gives nothing is not here. A source's
  * `extra.entityType` says which type its entity is a variant of; exports from before it was
  * written make every entity a type of its own.
+ *
+ * `recipes` (the enabled recipes, in index order) adds each type's butchery records, and
+ * the creatures they name that give nothing else.
  */
-export function entitiesFrom(exp: RecipeExport, codes: readonly string[]): { index: EntityIndex; types: EntityVariant[][] } {
+export function entitiesFrom(
+  exp: RecipeExport,
+  codes: readonly string[],
+  recipes: readonly Recipe[] = [],
+): { index: EntityIndex; types: EntityVariant[][] } {
   const byType = new Map<string, Map<string, EntityVariant>>();
+  const recipesOf = new Map<string, number[]>();
+  recipes.forEach((r, ri) => {
+    const b = r.butchery;
+    if (!b) return;
+    let variants = byType.get(b.entityType);
+    if (!variants) byType.set(b.entityType, (variants = new Map()));
+    for (const v of b.variants) {
+      for (const e of v.entities) {
+        if (!variants.has(e.code)) variants.set(e.code, { code: e.code, name: e.name || e.code, sources: [] });
+      }
+    }
+    const list = recipesOf.get(b.entityType) ?? [];
+    list.push(ri);
+    recipesOf.set(b.entityType, list);
+  });
   codes.forEach((code, item) => {
     for (const { from, fromName, ...rest } of exp.items[code]!.sources ?? []) {
       if (!ENTITY_SOURCES.has(rest.type)) continue;
@@ -179,7 +201,15 @@ export function entitiesFrom(exp: RecipeExport, codes: readonly string[]): { ind
       v.sources.push({ ...fields, ...(extra ? { extra } : {}), item });
     }
   });
-  const index: EntityIndex = { codes: [...byType.keys()].sort(compareCodes), names: [], mod: [], variantNames: [], drops: [], trades: [] };
+  const index: EntityIndex = {
+    codes: [...byType.keys()].sort(compareCodes),
+    names: [],
+    mod: [],
+    variantNames: [],
+    drops: [],
+    trades: [],
+    recipes: [],
+  };
   const types = index.codes.map((code) => {
     const variants = [...byType.get(code)!.values()].sort((a, b) => compareCodes(a.code, b.code));
     const names = variants.map((v) => v.name);
@@ -191,6 +221,7 @@ export function entitiesFrom(exp: RecipeExport, codes: readonly string[]): { ind
     for (const v of variants) for (const s of v.sources) (s.type === "entityDrop" ? drops : trades).add(s.item);
     index.drops.push(drops.size);
     index.trades.push(trades.size);
+    index.recipes.push(recipesOf.get(code) ?? []);
     return variants;
   });
   return { index, types };
@@ -273,7 +304,7 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     files.set(`recipes/${n}.json`, chunk);
   });
 
-  const entities = entitiesFrom(exp, codes);
+  const entities = entitiesFrom(exp, codes, recipes);
   const entityChunks = chunkBy(entities.types, maxItems, chunkBytes);
   entityChunks.forEach((start, n) => {
     const end = entityChunks[n + 1] ?? entities.types.length;
