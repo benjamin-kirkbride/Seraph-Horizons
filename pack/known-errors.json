@@ -36,7 +36,7 @@
       "issue": 403,
       "mod": "bettererprospecting",
       "why": "BetterEr Prospecting reports its missing config file as an error on first boot, then writes the defaults.",
-      "pattern": "\\[bettererprospecting\\] Failed to load config from file\\. Creating a default config"
+      "pattern": "Failed to load config from file\\. Creating a default config"
     }
   ],
   "schematicBlocks": [
