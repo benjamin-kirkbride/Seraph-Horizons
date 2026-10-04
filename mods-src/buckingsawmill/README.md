@@ -466,7 +466,7 @@ Everything else is the static frame.
 
 Hand edits are lost when the script runs again. Either port them into `make_shape.py`, or stop regenerating.
 
-The model is derived from Immersive Woodworking's sawmill model by Bobrik00 and is used with permission. It is not covered by the repository's license; see `CREDITS.md`.
+Most of the model was made for this mod. Its gears, saw blades, saw heads and cranks are taken from Immersive Woodworking's sawmill model by Bobrik00 and are used with permission; those parts are not covered by the repository's license. See `CREDITS.md`.
 
 ## Tests
 

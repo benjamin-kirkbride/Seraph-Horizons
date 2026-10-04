@@ -8,9 +8,10 @@ licensed under the Apache License. Each is identified by a notice next to
 it; ask its author before reusing it.
 
   - mods-src/buckingsawmill/assets/buckingsawmill/shapes/
-    The bucking sawmill model. It is derived from the sawmill model of
-    Immersive Woodworking and belongs to Bobrik00, the author of that mod.
-    See mods-src/buckingsawmill/CREDITS.md.
+    The bucking sawmill model includes parts taken from the sawmill model
+    of Immersive Woodworking (its gears, saw blades, saw heads and cranks),
+    which belong to Bobrik00, the author of that mod. The rest of the model
+    is covered by this license. See mods-src/buckingsawmill/CREDITS.md.
 
 =========================================================================
 
