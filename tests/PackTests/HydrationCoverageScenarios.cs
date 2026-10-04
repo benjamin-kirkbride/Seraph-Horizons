@@ -11,8 +11,7 @@ namespace SeraphHorizons.PackTests;
 /// applied in its AssetsFinalize), from other mods' JSON patches, or from mods-src/seraphhorizons.
 /// This checks it is there on every food once the server has loaded; an explicit 0 counts.
 /// </summary>
-[AtlasWorld]
-public class HydrationCoverageScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     // Deliberate gaps, with a reason each. Keep it short: a food missing here belongs in a patch.
     private static readonly Dictionary<string, string> Exempt = new();

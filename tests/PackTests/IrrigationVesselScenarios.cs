@@ -33,11 +33,8 @@ internal static class Ollas
 /// made or found, and is out of the creative inventory and the handbook, but a placed one still works;
 /// Olla's olla is clay formed and fired in a pit kiln.
 /// </summary>
-[AtlasWorld]
-public class IrrigationVesselScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
-    private IWorldAccessor W => World.Api.World;
-
     [AtlasScenario]
     public async Task Irrigation_vessel_is_retired_but_a_placed_one_still_works()
     {

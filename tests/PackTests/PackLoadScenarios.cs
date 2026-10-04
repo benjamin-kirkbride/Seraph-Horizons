@@ -8,8 +8,7 @@ using Vintagestory.API.Common;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>The pack as a whole: every locked mod loads, at its locked version, cleanly.</summary>
-[AtlasWorld]
-public class PackLoadScenarios : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     public static TheoryData<string, string> LockedMods()
     {
@@ -27,7 +26,7 @@ public class PackLoadScenarios : AtlasScenarioBase
         Assert.Equal(version, World.Api.ModLoader.GetMod(modId).Info.Version);
     }
 
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 120_000), ReadsBootLog]
     public async Task Server_boots_and_ticks_without_errors()
     {
         await World.Ticks(20);

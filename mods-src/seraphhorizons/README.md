@@ -1233,13 +1233,22 @@ game's: they need checking by hand in the game (the lists in their sections).
 with `fixtures/switches-off/seraphhorizons.json`: each class boots its own server, which costs far
 more than the scenarios. `BoilerLidBlowsOpen` and the switches with no off check stay on.
 
+For the same reason the other scenario files above are not classes of their own but parts of two
+partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
+feature that needs only the plain world, and `WoodworkingScenarios` (`WoodworkingScenarios.cs`),
+the woodworking chain with the bucking sawmill's fixture. Only a different world (a play style,
+ModConfig fixtures) gets a class of its own, as `/clear`'s and the off checks do. Their doc
+comments say what sharing a world asks of a scenario: its own build sites and player names, and
+nothing changed world-wide.
+
 The test project loads this directory's build as a mod, and leaves out a pinned copy from the
 ModDB (`seraphhorizons_*.zip` in `build/mods`).
 
 ## Adding a tweak
 
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
-the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios and a section above. Its
+the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
+of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A
 tweak big enough for mod systems of its own gets a folder, as `TidyVariants/` does; its systems

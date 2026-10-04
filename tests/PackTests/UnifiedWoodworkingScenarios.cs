@@ -260,11 +260,8 @@ internal sealed class Woodshop(IWorldSession world, ITestPlayer player, BlockPos
 /// retired. Every scenario works the blocks through their own interaction methods, so it is the
 /// tweak's Harmony patches on those that are under test.
 /// </summary>
-[AtlasWorld]
-public class UnifiedWoodworkingScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class WoodworkingScenarios
 {
-    private IWorldAccessor W => World.Api.World;
-
     private UnifiedWoodworking Tweak => World.Api.ModLoader.GetModSystem<SeraphHorizonsSystem>().Woodworking;
 
     private object IwConfig => AccessTools.Property(AccessTools.TypeByName(WoodworkingMods.IwSystemType), "Config")
@@ -276,7 +273,7 @@ public class UnifiedWoodworkingScenarios(ITestOutputHelper output) : AtlasScenar
         method != null && Harmony.GetPatchInfo(method)?.Owners.Contains(UnifiedWoodworking.ServerHarmonyId) == true;
 
     // Fails when either mod moved something a part binds to: the warning names it.
-    [AtlasScenario]
+    [AtlasScenario, ReadsBootLog]
     public void Binds_to_both_mods_with_no_warning()
     {
         Assert.True(World.Api.LoadModConfig("seraphhorizons.json")["UnifiedWoodworking"].AsBool(false));
