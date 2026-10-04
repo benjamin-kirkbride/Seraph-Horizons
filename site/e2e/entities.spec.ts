@@ -91,6 +91,74 @@ test("a creature's page shows its butchery stage by stage, for the variant picke
   await expect(page).toHaveURL(/variant=game%3Adeer-whitetail-adult-male$/);
 });
 
+test("a butchery slot keeps its notes under its name, and its multipliers explain themselves on focus", async ({ page }) => {
+  // Decompiled Butchering 1.14.3: tables give butcheringEfficiency 0.8 (primitive), 1
+  // (simple) and 1.2 (advanced); EntityBehaviorHarvestable keeps animalWeight in 0.5–1.
+  await page.goto(`./#/${V}/entity/game:deer?variant=game%3Adeer-whitetail-adult-male`);
+  const c = page.locator('[data-section="butchery"] article').first();
+  await pause(c);
+  const butcher = c.locator('[data-step="butcher"]');
+  // The note sits below the name, to the right of the icon, not on the icon's line or below it.
+  const knife = butcher.locator("li[data-input]").filter({ hasText: "loses 8 durability" });
+  const icon = (await knife.locator(".frame").boundingBox())!;
+  const note = (await knife.getByText("loses 8 durability").boundingBox())!;
+  const name = (await knife.locator(".name").boundingBox())!;
+  expect(note.x).toBeGreaterThanOrEqual(icon.x + icon.width);
+  expect(note.y).toBeGreaterThanOrEqual(name.y + name.height - 1);
+  expect(note.y).toBeLessThan(icon.y + icon.height);
+
+  const meat = butcher.locator("li[data-output]").filter({ has: page.locator('[data-code="butchering:primemeat-raw"]') });
+  const station = meat.getByRole("button", { name: "times the station's yield" });
+  await station.focus();
+  const tip = page.getByRole("tooltip").filter({ visible: true });
+  await expect(tip).toContainText("Advanced Butchering Table: ×1.2");
+  await expect(tip).toContainText("Primitive Butchering Table: ×0.8");
+  await expect(tip).not.toContainText("Hook");
+  await page.keyboard.press("Escape");
+  await expect(tip).toHaveCount(0);
+  await meat.getByRole("button", { name: "times the creature's condition" }).focus();
+  await expect(page.getByRole("tooltip").filter({ visible: true })).toContainText("from ×0.5 at the lowest to ×1 when well fed");
+
+  // "Optional" heads the bucket on a line of its own.
+  const optional = c.locator('[data-step="bleed"] .optional');
+  const label = (await optional.getByText("Optional", { exact: true }).boundingBox())!;
+  const bucket = (await optional.locator("li").first().boundingBox())!;
+  expect(bucket.y).toBeGreaterThanOrEqual(label.y + label.height - 1);
+});
+
+test("a creature with butchery shows what the ground and the hook and table give, by weight, without scrolling sideways", async ({ page }) => {
+  // butchercreatures/deer.json gives a whitetail adult primemeat-raw 3 ± 1 on the table and
+  // nothing in the field; the field gives half the creature's redmeat. Both are food, so
+  // the creature's weight (0.5 to 1) scales them.
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`./#/${V}/entity/game:deer?variant=game%3Adeer-whitetail-adult-male`);
+    const table = page.locator('[data-section="harvest"]').getByTestId("butchery-yields");
+    await expect(table.getByRole("columnheader", { name: "Harvested where it lies" })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: "Hook and table" })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: "Low weight" })).toHaveCount(2);
+    const prime = table.locator('tr[data-item="butchering:primemeat-raw"] td');
+    await expect(prime.nth(1)).toContainText("none");
+    await expect(prime.nth(3)).toHaveText("1.5");
+    await expect(prime.nth(4)).toHaveText("3");
+    const red = table.locator('tr[data-item="game:redmeat-raw"] td');
+    const [low, good, full] = await Promise.all([red.nth(1).innerText(), red.nth(2).innerText(), red.nth(4).innerText()]);
+    expect(Number(low) * 2).toBeCloseTo(Number(good));
+    expect(Number(good) * 2).toBeCloseTo(Number(full));
+    // The carcass in its states is a means, not a product.
+    await expect(table.locator('tr[data-item^="butchering:deaddeer"]')).toHaveCount(0);
+    await expect(page.locator('[data-section="harvest"]')).toContainText("leaves of the usual harvest (50%)");
+    const sizes = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+    expect(sizes[0]).toBeLessThanOrEqual(sizes[1]!);
+  }
+  // All variants: ranges over the creatures, still within a phone's width.
+  await page.setViewportSize({ width: 360, height: 900 });
+  await page.goto(`./#/${V}/entity/game:deer`);
+  await expect(page.getByTestId("butchery-yields").locator('tr[data-item="game:redmeat-raw"] td').nth(4)).toHaveText(/–/);
+  const sizes = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+  expect(sizes[0]).toBeLessThanOrEqual(sizes[1]!);
+});
+
 test("butchery products and carcasses link to the butchery that makes and uses them", async ({ page }) => {
   await openItem(page, "butchering:primemeat-raw");
   const made = await card(page, "madeBy", "butchery|game:deer|butchering:deaddeer-male-adultlarge-1-dead");

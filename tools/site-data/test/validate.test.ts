@@ -181,6 +181,15 @@ describe("validate: cross-references", () => {
     expect(p.expected).toContain("game:fat");
   });
 
+  it("rejects a creature condition range whose lowest is above its highest", () => {
+    const d = example();
+    d.recipes[2].butchery.condition = { min: 1, max: 0.5 };
+    const p = only(d);
+    expect([p.kind, p.path, p.found]).toEqual(["butchery-condition", "/recipes/2/butchery/condition", "1 > 0.5"]);
+    delete d.recipes[2].butchery.condition;
+    expect(problems(d)).toEqual([]);
+  });
+
   it("rejects a butchery block with one entry too few for the variants", () => {
     const d = example();
     d.recipes[2].butchery.variants.pop();

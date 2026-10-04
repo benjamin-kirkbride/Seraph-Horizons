@@ -159,6 +159,8 @@ export interface Yield {
 export interface Butchery {
   entityType: string;
   workload?: string;
+  /** The creature's lowest and highest condition (animalWeight); missing in older exports. */
+  condition?: { min: number; max: number };
   stages: ButcheryStage[];
   /** Aligned with the recipe's variants; each one's yields with its outputs. */
   variants: { entities: { code: string; name?: string }[]; yields: (Yield | null)[] }[];

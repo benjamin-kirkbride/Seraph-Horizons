@@ -13,8 +13,11 @@
   <ul aria-label={t.ingredients}>
     {#each recipe.ingredients as ing, i (i)}
       <li data-input={i}>
-        <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} showName />
-        {#if ing.role}<span class="muted">({ing.role})</span>{/if}
+        {#if ing.role}
+          <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} showName><span>({ing.role})</span></Slot>
+        {:else}
+          <Slot stacks={slotStacks(recipe, variant, i)} {tick} {data} tool={ing.isTool ?? false} showName />
+        {/if}
       </li>
     {/each}
   </ul>

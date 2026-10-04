@@ -375,6 +375,16 @@
           "properties": {
             "entityType": { "description": "The entity type file the creatures are variants of, e.g. game:deer.", "$ref": "#/$defs/code" },
             "workload": { "description": "The carcass's butcheringWorkLoad (small, medium, large): how long the stations take and how long it bleeds.", "type": "string" },
+            "condition": {
+              "description": "The lowest and highest condition (the game's animalWeight) a creature can be in. Outputs with `condition` in `extra.scaledBy` are multiplied by it. Missing in exports from before it was added.",
+              "type": "object",
+              "required": ["min", "max"],
+              "additionalProperties": false,
+              "properties": {
+                "min": { "type": "number", "minimum": 0 },
+                "max": { "type": "number", "minimum": 0 }
+              }
+            },
             "stages": {
               "description": "In the order a player goes through them. A `harvest` stage is the alternative to all the others: the body cut up where it lies.",
               "type": "array",

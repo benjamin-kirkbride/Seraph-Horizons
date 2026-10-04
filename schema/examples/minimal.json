@@ -202,6 +202,7 @@
       "butchery": {
         "entityType": "game:hare",
         "workload": "small",
+        "condition": { "min": 0.5, "max": 1 },
         "stages": [
           { "step": "pickUp", "ingredients": [], "outputs": [0] },
           { "step": "skin", "ingredients": [0, 1, 2], "outputs": [1, 2] },
