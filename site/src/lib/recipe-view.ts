@@ -1,6 +1,7 @@
 // Pure layout and formatting for the recipe renderers, kept out of the components so
 // it can be tested without a DOM.
 import type { ButcheryStage, Ingredient, Recipe, Source, Stack, Yield } from "./export.ts";
+import type { GivenItem } from "./format.ts";
 
 /** Grid cells, row by row: the index of the ingredient in each cell, or null when empty. */
 export function gridCells(recipe: Recipe): (number | null)[][] {
@@ -121,7 +122,10 @@ export interface SourceRow extends Source {
 /** The `note` of a panning source. */
 export const PANNED = "Panned";
 
-const isPanned = (s: Source) => s.type === "other" && s.note === PANNED;
+/** A source, or one turned around (GivenItem). */
+type How = Source | GivenItem;
+
+const isPanned = (s: How) => s.type === "other" && s.note === PANNED;
 
 /**
  * The chance that one pan of the block gives the item. A pan gives at most one item: the
@@ -129,7 +133,7 @@ const isPanned = (s: Source) => s.type === "other" && s.note === PANNED;
  * exporter's `extra.chancePerPan` is below the declared chance in `quantity.avg`, which
  * is the fallback for an export without it.
  */
-export function panChance(s: Source): number | undefined {
+export function panChance(s: How): number | undefined {
   const c = s.extra?.chancePerPan;
   return typeof c === "number" ? c : s.quantity?.avg;
 }
@@ -144,12 +148,12 @@ function blockType(code: string): string {
  * A block's panning list may hold the item twice (Wilderlands Panning keeps vanilla's stone
  * in the gravel list and adds its own). Each entry rolls, so the block's chances add up.
  */
-function mergePanned(sources: readonly Source[]): Source[] {
-  const merged = new Map<string, Source>();
+function mergePanned<T extends How>(sources: readonly T[], pair: (s: T) => unknown): T[] {
+  const merged = new Map<string, T>();
   return sources.flatMap((s) => {
     if (!isPanned(s)) return [s];
     const { chancePerPan: _chance, ...extra } = s.extra ?? {};
-    const key = JSON.stringify([s.from, extra, s.tool, s.price]);
+    const key = JSON.stringify([pair(s), extra, s.tool, s.price]);
     const first = merged.get(key);
     if (!first) {
       const copy = { ...s };
@@ -173,7 +177,7 @@ function mergePanned(sources: readonly Source[]): Source[] {
 export function sourceRows(sources: readonly Source[]): SourceRow[] {
   const rows = new Map<string, SourceRow>();
   const names = new Map<SourceRow, Set<string>>();
-  for (const s of mergePanned(sources)) {
+  for (const s of mergePanned(sources, (s) => s.from)) {
     const name = s.fromName ?? s.from;
     let key: string;
     if (isPanned(s)) {
@@ -200,6 +204,30 @@ export function sourceRows(sources: readonly Source[]): SourceRow[] {
     }
   }
   return [...rows.values()];
+}
+
+/** One row of what a block gives. */
+export type GiveRow = GivenItem & {
+  /** Panning only: the chance that one pan gives the item. */
+  chance?: number;
+};
+
+/**
+ * What a block gives, for its page: rows that read the same once, and what panning gives
+ * last, likeliest first.
+ */
+export function giveRows(gives: readonly GivenItem[]): GiveRow[] {
+  const seen = new Set<string>();
+  const rows: GiveRow[] = [];
+  for (const g of mergePanned(gives, (g) => g.item)) {
+    const key = JSON.stringify(g);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const chance = isPanned(g) ? panChance(g) : undefined;
+    rows.push(chance === undefined ? g : { ...g, chance });
+  }
+  const panned = rows.filter(isPanned).sort((a, b) => (b.chance ?? 0) - (a.chance ?? 0));
+  return [...rows.filter((r) => !isPanned(r)), ...panned];
 }
 
 /** A chance as a percentage: "30%", "1.25%", "0.06%", or a range "4.9–6.98%". */
