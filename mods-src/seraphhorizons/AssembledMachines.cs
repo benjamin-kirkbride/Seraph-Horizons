@@ -18,6 +18,11 @@ namespace SeraphHorizons.Mod;
 /// frame is placed from such a stack, writes the installed parts into the block entity through
 /// its own tree attributes, the way a saved one loads. A block entity that no longer saves those
 /// attributes is left an empty frame, with a warning.
+///
+/// The chopper's bed gets a wood (<see cref="BedWood"/>), as one installed by hand has: without
+/// one it would come back from a broken frame as a chopping block of no wood, which places as a
+/// bare block. With <c>UnifiedWoodworking</c> on, that bed comes back an advanced splitting block
+/// like every chopper's bed (<see cref="Woodworking.ChopperBed"/>).
 /// </summary>
 public static class AssembledMachines
 {
@@ -29,19 +34,26 @@ public static class AssembledMachines
     public const string MetalAttribute = "assembledWith";
     public const string DefaultMetal = "steel";
 
+    /// <summary>The wood of the assembled chopper's bed, as Immersive Woodworking saves it.</summary>
+    public const string BedWood = "oak";
+    public const string BedWoodDomain = "game";
+
     /// <param name="Asset">The frame's blocktype.</param>
     /// <param name="FrameCode">The frame variant in the creative inventory.</param>
     /// <param name="NameKey">Immersive Woodworking's name for the finished machine.</param>
     /// <param name="Flags">The block entity's saved flags, one per installed part.</param>
     /// <param name="ToolKey">The block entity's saved head or blade kit stack.</param>
     /// <param name="ToolCode">That item's code, <c>{metal}</c> for the metal.</param>
-    public record Machine(AssetLocation Asset, string FrameCode, string NameKey, string[] Flags, string ToolKey, string ToolCode);
+    /// <param name="Strings">The block entity's saved strings the assembled machine gets.</param>
+    public record Machine(AssetLocation Asset, string FrameCode, string NameKey, string[] Flags, string ToolKey, string ToolCode,
+        Dictionary<string, string>? Strings = null);
 
     /// <summary>The sawmill's flywheel is an optional part and is left out.</summary>
     public static readonly Machine[] Machines =
     [
         new(new(ModId, "blocktypes/chopper/frame.json"), "chopper-frame-north", ModId + ":block-chopper",
-            ["hasDrive", "hasArm", "hasBed"], "headStack", ModId + ":chopperhead-{metal}"),
+            ["hasDrive", "hasArm", "hasBed"], "headStack", ModId + ":chopperhead-{metal}",
+            new() { ["bedWood"] = BedWood, ["bedWoodDomain"] = BedWoodDomain }),
         new(new(ModId, "blocktypes/sawmill/frame.json"), "sawmill-frame-north", ModId + ":block-sawmill",
             ["hasSash", "hasCrankshaft", "hasLevers", "hasCarriage"], "bladeStack", ModId + ":sawmillblade-{metal}"),
     ];
@@ -105,6 +117,7 @@ public static class AssembledMachines
                 ["flags"] = new JArray(machine.Flags),
                 ["toolKey"] = machine.ToolKey,
                 ["toolCode"] = machine.ToolCode,
+                ["strings"] = JObject.FromObject(machine.Strings ?? []),
             },
         });
 
@@ -170,19 +183,21 @@ public class BlockBehaviorAssembledMachineName(Block block) : BlockBehavior(bloc
     }
 }
 
-/// <summary>Assembles a frame placed from an assembled stack, on the server: every part flag set
-/// and a new head or blade kit of the stack's metal, written through the block entity's own tree
-/// attributes.</summary>
+/// <summary>Assembles a frame placed from an assembled stack, on the server: every part flag set,
+/// the machine's strings (the chopper's bed wood) and a new head or blade kit of the stack's metal,
+/// written through the block entity's own tree attributes.</summary>
 public class BEBehaviorAssembledMachine(BlockEntity blockentity) : BlockEntityBehavior(blockentity)
 {
     private string[] _flags = [];
     private string? _toolKey;
     private string? _toolCode;
+    private Dictionary<string, string> _strings = [];
 
     public override void Initialize(ICoreAPI api, JsonObject properties)
     {
         base.Initialize(api, properties);
         _flags = properties["flags"].AsArray<string>([])!;
+        _strings = properties["strings"].AsObject<Dictionary<string, string>?>(null) ?? [];
         _toolKey = properties["toolKey"].AsString();
         _toolCode = properties["toolCode"].AsString();
     }
@@ -203,6 +218,8 @@ public class BEBehaviorAssembledMachine(BlockEntity blockentity) : BlockEntityBe
         }
         foreach (string flag in _flags)
             tree.SetBool(flag, true);
+        foreach (var (key, value) in _strings)
+            tree.SetString(key, value);
         tree.SetItemstack(_toolKey, new ItemStack(tool));
         Blockentity.FromTreeAttributes(tree, Api.World);
         Blockentity.MarkDirty(true);
