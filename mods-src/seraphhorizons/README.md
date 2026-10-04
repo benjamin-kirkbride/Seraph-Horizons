@@ -20,6 +20,9 @@ run on the client; Map Reveal has a half on each side, and the creative mod tabs
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block).
+Unified woodworking runs on both sides too (the server does the work, the client draws the
+splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
+block entity behavior of this mod, which a client needs in the same way.
 
 ## Tweaks
 
@@ -523,6 +526,265 @@ server starts. If the mod is removed while a lock holds, the `baseline` speed st
 left it and time stays still: `/time speed 60` (or the old value) puts it back, and
 `/weather setprecipa` and `/weather acp on` the weather.
 
+### One woodworking system (`UnifiedWoodworking`)
+
+Immersive Woodworking (`immersivewoodworking` 1.3.11) and Logging Expanded (`loggingmod` 0.3.6)
+each bring a chopping station, a sawhorse and a handbook guide for the same jobs. This tweak makes
+them one system: Immersive Woodworking's chopping block is the splitting block, with Logging
+Expanded's four tiers and looks; Logging Expanded's three sawhorses are the only sawhorses and
+also saw support beams; the stations either mod had for the same job are retired; and one
+handbook guide covers it all. The code is in `Woodworking/`, one class per part.
+
+**The splitting block** is Immersive Woodworking's `immersivewoodworking:choppingblock` (its wood in
+the stack's and block entity's `wood` and `woodDomain`), named "Splitting block". Everything it
+does as a chopping block stays: lay a log on it, hold right click with an axe, and the log splits
+into 2 half-logs and each half-log into firewood; firewood splits into 2 sticks; a maul splits a
+whole log in one pass; Ctrl+right click takes wood back, and Shift+right click sticks an axe in
+it. On top of that:
+
+- **tiers**: primitive, debarked, bound and advanced, Logging Expanded's four splitting log stages.
+  The tier is a string attribute, `seraphhorizons:tier`, on the item stack and in the block entity's
+  saved attributes (a block entity behavior, `seraphhorizons.SplittingBlockTier`, added to the
+  blocktype); none, or a name it does not know, is primitive, so every chopping block made before
+  is one. The stack is named for the tier and wood, "Oak bound splitting block" (a postfix on
+  `GetHeldItemName`, with Immersive Woodworking's own wood wording).
+- **making**: right-click an upright placed log (`log-placed-<wood>-ud`) with any axe, as for
+  Logging Expanded's splitting log: a prefix on its `BlockBehaviorLogConvert.OnBlockInteractStart`
+  makes a primitive splitting block of that log's wood and domain instead, for 1 axe durability.
+  A sideways log does nothing. There is no grid recipe: a prefix skips Immersive Woodworking's
+  `RegisterChoppingBlockRecipes` (one recipe per wood, made on the server in AssetsFinalize).
+  Breaking the block gives it back, wood and tier kept (a postfix on `OnPickBlock`, which Immersive
+  Woodworking's `GetDrops` drops). A block with no wood (placed from the creative or handbook
+  stack, from `/giveblock`, or the bed of a chopper assembled before that bed had a wood) gets a
+  plain stack from `GetDrops` instead, so a postfix there puts the tier on it too; such a block,
+  placed or held, looks like oak, the wood Immersive Woodworking falls back to.
+- **upgrades**, each to the next tier, only on an empty block (nothing on it, no axe stuck in it)
+  and with neither Shift nor Ctrl held, which is where Immersive Woodworking's own interactions do
+  nothing with these items:
+  - debark: hold right click with Immersive Woodworking's bark spud, or with an axe and a hammer
+    in the offhand, as long as Immersive Woodworking takes to debark a log with that tool (its
+    `DebarkSeconds`, 1.5 s, over the spud's sharpness and metal factors, or over
+    `AxeHammerDebarkSpeedMultiplier`, 0.3, for the axe: 5 s), with its debarking animation and
+    sound. The tool, and the hammer with an axe, lose `DebarkDurabilityPerLog` (1). The block's
+    wood drops one log's bark on top, rolled as on the sawhorses below.
+  - bind: right-click with 2 iron hoops (`game:hoop-iron`), at once.
+  - nail: hold right click 3 s with 8 iron nails and strips (`game:metalnailsandstrips-iron`) and
+    a hammer in the offhand, which loses 1; Logging Expanded's costs.
+
+  A player in creative pays nothing. Prefixes on `BlockChoppingBlock`'s `OnBlockInteractStart`,
+  `Step`, `Stop` and `Cancel`, on both sides, take the interaction when an upgrade applies: the
+  client drives the hold, the server makes the upgrade when it is released at its full time (less
+  0.1 s, as Logging Expanded counts its holds). The server counts that time through Immersive
+  Woodworking's `HonestHoldSeconds`, as its own holds do: no more than the time since the hold began
+  on the server, so a modified client cannot claim a finished hold at once. A client postfix on
+  `GetPlacedBlockInteractionHelp` adds the next upgrade to an empty block's help.
+- **yields**: 6 firewood per log on the primitive, debarked and bound tiers, 8 on the advanced
+  (Logging Expanded's 6 and 8; Immersive Woodworking's default is 8), so a half-log gives 3 or 4.
+  Immersive Woodworking's `FirewoodPerLog` is set to 6 (below), and a server prefix on
+  `BlockEntityChoppingBlock.Chop` raises it to 8 for an advanced block's chop, with a finalizer
+  that puts it back. The maul gives the same per log. Sticks per firewood do not depend on the tier.
+- **not choppable itself**: Immersive Woodworking counts a chopping block as a log, so one could be
+  laid on another and chopped, losing the iron of a bound or advanced one. A postfix on its
+  `IsChoppable`, a prefix on `TryPut` (in case the JIT inlined the former there) and a prefix on
+  `AutoRestockUtil.FindRestockSlot`, which refills the block from the hotbar after a chop, leave
+  splitting blocks out. The last is on both sides: the client predicts the restock, and would
+  otherwise swing again at an empty block.
+- **look**, on the client: Logging Expanded's model for the tier (`splittinglog`,
+  `debarkedsplittinglog`, `boundsplittinglog`, `advancedsplittingblock`) in the block's own wood,
+  placed, held and in inventories. The textures come from the wood the way Immersive Woodworking
+  finds them for any wood (`block/wood/bark/<wood>` on the primitive's sides,
+  `block/wood/debarked/<wood>` on the others', `block/wood/treetrunk/<wood>` on the primitive's
+  top, each in the wood's domain and else the game's), not from Logging Expanded's per-wood tables,
+  which name Wildcraft Trees textures the pack does not have; iron for the hoops and nails. A
+  missing texture logs one warning and shows the unknown texture.
+- **height**: the models are 15/16 tall, Immersive Woodworking's block 11/16. The collision box
+  rises to 15/16 and the selection box to 1.25 (Immersive Woodworking's 5/16 over the top), and a
+  prefix on the block entity's `OnTesselation` draws the model and lifts what lies on the block,
+  and a stuck axe, by 4/16. Immersive Woodworking's static mesh builders, which its chopper shares,
+  are left alone. A model is built on the main thread the first time it is wanted (the
+  tesselation thread may not add textures to the atlas); until then the block draws as Immersive
+  Woodworking's, and it is redrawn once the model is there.
+- **the chopper's bed**: Immersive Woodworking's mechanical chopper takes only an advanced
+  splitting block as its bed, so its yield is that tier's (`ChopperFirewoodPerLog` is set to 8). A
+  prefix on `BlockEntityChopper.TryAddPart`, on both sides (the client predicts the install),
+  refuses a lower tier with an in-game error. The chopper keeps only the bed's wood, so a postfix on
+  `BedStack` stamps the advanced tier on the bed that breaking the frame gives back (and oak on a
+  bed without a wood, as Immersive Woodworking drew it). On the client,
+  a prefix on `BuildBedMesh` draws the advanced model, squashed to 11/15 of its height to fit
+  Immersive Woodworking's 11/16 bed (sunk 4/16 instead, its lower hoop would sit on the floor line
+  and the model would poke into a hopper under the frame), and a postfix on `BlockChopper.OnLoaded`
+  shows an advanced oak bed in the frame's interaction help. The assembled creative chopper
+  (`AssembledMachinesInCreative`) has an oak bed, which comes back advanced too.
+
+**The sawhorses** are Logging Expanded's primitive, standard and advanced ones (`sawhorse`,
+`sawhorsestandard`, `sawhorseadvanced`), which keep all they do: load a debranched trunk or up to 16
+logs, and each hold (0.75 s) works one log: an axe takes it off, a saw cuts 9, 12 or 18 boards, and
+an axe with a hammer in the offhand debarks it (the advanced one 3 for every 2 a trunk holds). They
+also take over what Immersive Woodworking's sawhorse did:
+
+- **support beams**: Shift + saw cuts 2 / 2 / 3 per log by tier (Logging Expanded's splitting logs
+  gave 2 and 3), with the boards' hold, sound and wear. The beam is `supportbeam-<wood>` in the
+  log's domain, else the game's; a wood with none is sawn into boards, with one warning, and the
+  server lists every such wood at startup in one notification (the pack has one, Material Needs'
+  `darkaged`). A sawhorse loaded with firewood makes no beams.
+- **the bark spud** debarks, as the axe and hammer do at that tier, for `DebarkDurabilityPerLog` per
+  log.
+- **bark**: debarking with either drops Immersive Woodworking's bark, one roll per log taken off
+  the sawhorse (the advanced sawhorse's 2-for-3 is 2 rolls: the third log is Logging Expanded's
+  bonus, not one that had bark), thrown toward the player with the logs. A roll is Immersive
+  Woodworking's own (`BarkDrops.cs`, after its sawhorse's `DropRolledBark`): the kind from its bark
+  table for the species (`config/barkdrops.json`, else ordinary bark) at the tool set's chance
+  multiplier, a spud's `BarkChanceMultSpud` (1.0) plus `BarkChanceMultSpudSteelBonus` (0.25) times
+  its metal tier fraction, an axe and hammer's `BarkChanceMultAxeHammer` (0.75); the count is the
+  table's for the species, else `BarkPerLog` (3).
+
+The work is done by a server prefix and postfix on `BlockSawhorse.ProcessWithTool` and
+`BlockSawhorseAdvanced.ProcessWithTool` (which overrides it without calling it; the standard
+sawhorse inherits the primitive's), when a hold completes. The spud has no tool type, and a hold
+only starts for a tool, so a postfix on the hold's eligibility, a lambda the compiler put in
+`BlockWorkstation+<>c` (found as its one `bool (IWorldAccessor, IPlayer, BlockSelection)` method),
+lets it in on a loaded sawhorse, on both sides. That name is the likeliest thing to break, and
+only the spud needs it: if it is not found, the spud does nothing on a sawhorse, with one warning,
+and the rest of the tweak runs. A client postfix on `BlockSawhorse.GetPlacedBlockInteractionHelp`
+adds the beam and spud lines.
+
+**Retired**: Logging Expanded's four splitting logs, Immersive Woodworking's sawhorse, its pit saw
+and its pit saw blade (which only worked at that sawhorse). Their block and item types are taken
+out of the creative inventory and the handbook (creative tabs and stacks removed,
+`attributes.handbook.exclude`) on the server, before the game reads them, but stay registered, so
+a world that has one, and code that looks one up, keep working (placed splitting logs are not
+migrated). Nothing makes them: the pit saw's recipes go with `RemovePitSaw`, the axe on a log makes
+the splitting block, and Immersive Woodworking's sawhorse, which is built by right-clicking a
+block's top with a stick, loses that: the operation of its `patches/sawhorse_build_behavior.json`
+that gives the stick its `iw-sawhorsebuild` behavior is removed before the game's patch loader
+runs.
+
+**Immersive Woodworking's settings** are set in memory on the server, in `Start`: after its
+`StartPre` has loaded (and written) its config file, before its `AssetsLoaded` strips recipes by
+them, and before its `StartServerSide` takes the copy it sends each joining client, so clients get
+them too. Nothing is written to the player's file.
+
+| Setting | Immersive Woodworking | Here |
+|---|---|---|
+| `RemovePitSaw` | false | true |
+| `CraftableSawhorse` | false | false, whatever the file says |
+| `AllowKnifeDebark` | true | false (the knife only debarked on the retired sawhorse; the handbook's bark table drops its row) |
+| `FirewoodPerLog` | 8 | 6 |
+| `FirewoodDropCount` | 4 | at most 6 (Immersive Woodworking requires at most `FirewoodPerLog`) |
+| `ChopperFirewoodPerLog` | -1 (the hand's `FirewoodPerLog`) | 8 |
+
+They are not in `pack/config`: that ships only in the `.cairn.json`, so a dedicated server from
+the server zip, or a player with the meta-mod, would not get them, and a player's own file could
+undo them; the tweak needs them wherever it runs, and only then. Logging Expanded's settings need
+no change: its splitting log yields go with its splitting logs, and its sawhorses keep their own.
+
+**The handbook** has one woodworking guide of six pages in place of the two mods' guides
+("Crafting Mechanic: Immersive Woodworking" and "Crafting Mechanic: Logging Expanded"): an overview,
+"Woodworking", and the chapters Trunks, Sawhorses, Splitting block, Bark and Machines. The pages
+are this mod's (`assets/seraphhorizons/config/handbook/woodworking-*.json`, text in `lang/en.json`);
+the overview keeps Immersive Woodworking's page code, `craftinginfo-woodworking`, so every link its
+item pages make to it opens the new one. A client handler on
+`ModSystemSurvivalHandbook.OnInitCustomPages` arranges the page list each time the handbook builds
+it (`Core/WoodworkingGuidePages.cs`): it drops the two old guides, each told by page code and title
+key (Logging Expanded's code is a generic `introduction`, and Immersive Woodworking's is now the
+overview's too), and puts the six, in reading order, where the first of them stood. The handler is
+added whatever the switch, and with the tweak not running it drops the six instead, so the pages
+this mod ships whatever the switch never show next to the mods' own.
+
+Both mods' woodworking text is rewritten to match and to link to the guide, and nothing names a
+retired station:
+
+- Immersive Woodworking's text it composes onto the game's logs, boards, beams, firewood, sticks and
+  debarked logs (`iwsource-*`), and the sections of the splitting block, half-log, maul, chopper,
+  bark spud and tanning bark, are replaced whole (`LangText.Replace`). Immersive Woodworking
+  composes some of them at display time or on `LevelFinalize`, after the edits, so its own sections
+  show the new text. The chopping block's name is an exact-passage edit, and the tiers' names are
+  this mod's (`seraphhorizons:splittingblock-*`).
+- Logging Expanded's block texts are pattern keys (`loggingmod:block-handbooktext-loggingmod:sawhorse-*`),
+  which the game keeps apart from the exact entries: one `*` at the end in a wildcard table, any
+  other in a regex table (`Core/LangPatternKeys.cs`). They are replaced where the game keeps them,
+  `TranslationService`'s private `wildcardCache` and `regexCache` (1.22.7), found by reflection; if
+  those are not there, one warning, and Logging Expanded's text stays.
+- Two of Logging Expanded's numbers are put right on the way: the advanced sawhorse's last step
+  takes 20 nails, not 10, and the trunk storage rack 10, not 12.
+- English only. Every Immersive Woodworking key whose English changes is removed from its
+  translations (de, pt-br, ru, zh-cn; `LangText.Remove`), so those languages show the new English
+  instead of instructions that are now wrong. So are the five sentences it composes into the
+  splitting block's section (`choppingblock-handbook-frag-*`, `WoodworkingText.ComposedFragments`),
+  or a translated sentence would stand in the English section. The sections' titles stay
+  translated. Logging Expanded ships English only.
+
+The text is changed on each side in AssetsLoaded when the tweak runs there (on a client, when the
+server runs it; below).
+
+The recipe export lists the handbook a player sees, but the page list is arranged on the client.
+So the server lists the guide pages a player does not see in `ObjectCache["handbook-hiddenGuides"]`
+as `(pageCode, title lang key)` tuples (`WoodworkingGuidePages.Hidden`), and `tools/recipe-export`
+(`Items/Guides.cs`) leaves out a guide listed there: with the tweak running, the two replaced
+guides; without it, the six pages this mod ships whatever the switch. (Emptying their files on the
+server does not last: the game unloads config assets after startup and reads them from the mod
+again.)
+
+**How it runs.** `UnifiedWoodworking.cs` runs the parts (`WoodworkingPart`) in the game's phase
+order. The server decides: it runs the tweak with the switch on and both mods installed. It binds
+every part before it applies any: each finds every type, member and asset it will patch, call or
+edit, by name, and changes nothing. Then each part applies itself in `Start`, every patch
+included. If a part fails to bind, or throws while it is applied, the mod logs one warning naming
+it, unpatches, puts back what the applied parts changed (Immersive Woodworking's settings, the
+sawhorse build patch, the handbook handler) and runs the tweak as switched off, so both mods stay
+as they ship: half the tweak could leave a world with no way to make a splitting block. (The spud's
+lambda, above, is the one exception.) It runs last in the mod's `Start` and catches its own
+failures, so the other tweaks' work there (Age of Flax, Food Hydration) always happens.
+
+The blocktype edits (the splitting block's tier behavior and boxes, the retired types' hiding) run
+after the game's patch loader, so another mod's JSON patch may have changed an asset since `Bind`
+checked it. Each edit then stands alone: one that fails (or throws) leaves its asset as patched,
+with one warning saying what that means in the game. A retired type stays in the creative
+inventory and the handbook, though nothing makes it. Without the tier behavior no splitting block
+has a tier: none is upgraded, each chops 6 firewood per log and keeps Immersive Woodworking's
+placed look, and the chopper takes a splitting block of any tier as its bed rather than none. A
+hook after `Start` that throws is logged and the rest runs.
+
+Clients follow the server. In `Start` the server writes whether the tweak runs to the world
+config (`seraphhorizons:unifiedWoodworking`), which the game sends a client in its server
+identification, before the client starts its mods; in singleplayer too. A client runs the tweak
+exactly when that says so, whatever its own `UnifiedWoodworking` setting (a mismatch logs one
+notification), so its interaction predictions, the looks, the help lines, the text and the
+handbook all match what the server does, from the client's `Start` on: nothing waits for a late
+packet, and nothing follows the client's own switch. A server without this key (an older build of
+this mod) counts as not running it. If the server runs it and the client then fails to bind (a
+different Immersive Woodworking or Logging Expanded on the client), the client logs the warning and
+runs nothing: the server's tweak still works, but that client predicts, draws and explains both
+mods as they ship. The key stays in the save; the server rewrites it at every start.
+
+Server patches go under `seraphhorizons.woodworking.server`, client ones under
+`seraphhorizons.woodworking`: undoing a failed apply unpatches no other tweak, and singleplayer's
+server unpatch leaves the client's alone. In singleplayer each side keeps the statics its patches
+read until the next bind sets them again, as the other side's patches may still run after one side
+disposes. The block entity behavior class is registered on both sides whatever the switch, as the
+server decides whether the blocktype carries it. With the tweak not running nothing is patched,
+set or hidden.
+
+The rules that need no game types are in `Core/`, and `tests/` runs them without the game:
+`SplittingBlockTier.cs` (the attribute key, tier names, yields, which tier the chopper takes),
+`SplittingBlockRules.cs` (which upgrade what is held makes, and its cost), `SawhorseWork.cs` (which
+tool set does what on a sawhorse, beams per tier, bark rolls per debark), `WoodworkingGuidePages.cs`
+(the handbook's page list, and the guides the export leaves out), `LangEntries.cs` and `LangPatternKeys.cs` (whole-entry lang changes and
+where the game keeps a pattern key).
+
+Known limits:
+
+- Immersive Woodworking's chop swing is aimed at its own 11/16 block, so the axe lands about 4/16
+  below the lifted log.
+- The upgrade holds show no progress bar (and the debark no bark particles).
+- The creative inventory has only primitive splitting blocks (Immersive Woodworking's stacks, one
+  per wood, carry no tier); the others are made by upgrading.
+- Immersive Woodworking's clay-coating recipe still lists pit saw blades: it coats a blade there
+  already is, and makes none.
+- A wood with no `supportbeam-<wood>` saws into boards with Shift too (Material Needs' `darkaged`).
+- Logging Expanded's sawhorse holds only logs with their bark on, so beams on a sawhorse come from
+  logs, not debarked logs (the automated sawmill takes those).
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -560,8 +822,10 @@ ships in the mod zip.
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, where the chopper drops its piles, and `/clear`'s
-daytime, dry-spell search and saved lock (`Core/`), Map Reveal's `Core/`, and the creative mod
+cart reach's entity matching and reach rule, where the chopper drops its piles, `/clear`'s
+daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
+upgrades and yields, sawhorse work, the handbook's page list (and that the guides the export hides
+are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, and the creative mod
 tabs' plan, domain owners, state file and strip scrolling (`CreativeModTabs/Core/`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
@@ -678,6 +942,40 @@ creative stack in exactly one of them, the base game's tab first, `ageofflax`, `
 slot for slot, what the server's inventory returns for a click there (on the same world: a client with
 other mods is the count and hash check's job). `CreativeModTabsOffScenarios` boots
 with the switch off and requires no mod tabs. The GUI is checked by hand (the doc's checklist).
+
+`tests/PackTests/UnifiedWoodworkingScenarios.cs` (Atlas) works the blocks the way a client's clicks
+reach the server, through their own interaction methods, so the patches on those are what is under
+test. It requires the tweak bound to both mods with nothing logged about them, its server
+patches in under its own id, the world config telling clients it runs, Immersive Woodworking's
+settings set, and the new name in English with its translations gone. Then: an axe on an upright
+log makes a primitive splitting block of its wood (a sideways log nothing); each upgrade's cost,
+wear and tier, and none with Shift, on a loaded block or past advanced; an upgrade hold that the
+client claims but the server did not see last refused; the tier through breaking, placing, and
+saving and loading, and through breaking a block of no wood; 6 firewood per log through
+half-logs and the maul (8 on an advanced block), 2 sticks per firewood, the setting put back after
+an advanced chop, and no splitting block laid on one or taken by the restock; the chopper refusing
+each lower tier, taking an advanced one, yielding 8 and giving it back advanced; the assembled
+creative chopper's oak bed, and an older one's bed of no wood coming back advanced oak; on each sawhorse, beams with Shift and boards without, the spud's
+debark and bark, and the advanced one's two rolls for two trunk logs; and the retired stations
+hidden, registered and made by no recipe. When it fails after an update of either mod, the
+warning in the log names what a part no longer finds. `UnifiedWoodworkingOffScenarios` boots a
+server with the switch off and requires both mods as they ship: nothing patched but the chopper's
+`EjectBatch`, the world config telling clients it does not run, Immersive Woodworking's default
+settings, its grid recipes, Logging Expanded's splitting log from an axe, a plain chopping block as
+the chopper's bed, and a recipe export that lists the two mods' guides and none of the six pages.
+
+`tests/PackTests/WoodworkingHandbookScenarios.cs` (Atlas) requires the six pages' assets and text and
+the two guides they replace (by code and title; if those change, the client would show both),
+every rewritten entry and pattern entry reading the new text, Immersive Woodworking's translations
+of them gone, its composed splitting block section reading the same in each translation as in
+English (no translated fragment in it), no woodworking text naming a retired station, and every link in the guide opening a
+page. Which pages the handbook shows is client code, covered by the unit tests. `ItemExportScenarios`
+requires the export's woodworking guides to be the six. What only a client shows or decides (the
+models and textures, the lifted content, the chopper's bed, the help lines, the spud on a sawhorse
+from a real client, the page list, a client following the server's world config key, the client's
+restock prediction) is checked by hand in the game. Undoing a part that throws while it is applied,
+and an asset edit failing after another mod's patch, are not reached in Atlas (the real mods bind
+cleanly), and are covered by reading.
 
 `tests/PackTests/TidyVariants*Scenarios.cs` (Atlas) resolve the rules on a server with the whole
 pack: every creative entry maps to its stack and back, the handbook layout keeps one listed page per
