@@ -422,6 +422,41 @@ The recipes and the creative and handbook changes are a JSON patch,
 that patch file in `Start`, as for Hydrate or Diedrate's tun, and the loot is left alone. The switch
 that counts is the server's.
 
+### Panning gives no wool, awls, uranium or buttons (`PanningDropsTrimmed`)
+
+The game's pan (`game:pan-wooden`, `attributes.panningDrops` in `blocktypes/wood/pan.json`) has
+none of these; three mods add them with a JSON patch on that file, each to the bony soil list
+(`@(bonysoil|bonysoil-.*)`) and the sand and gravel list (`@(sand|gravel|sandwavy)-.*`):
+
+| Mod | Taken out | Bony soil | Sand, gravel |
+|---|---|---|---|
+| Wool (`wool` 1.9.6) | wool fibers, `wool:fibers-generic-*` | brown, gray, black, redbrown, lightbrown, yellow | plain, gray |
+| Tailor's Delight (`tailorsdelight` 2.2.2) | stitching awls, `tailorsdelight:awl-*`, and the copper thorn an awl is made from, `awlthorn-copper` | awl-flint, awl-obsidian, awlthorn-copper | awl-flint |
+| Tailor's Delight | buttons and clasps, `tailorsdelight:buttons-*` | horn, brass, silver, gold, emerald, lapislazuli | zinc, copper |
+| Expanded Matter (`em` 3.8.1) | `game:nugget-uranium` | yes | yes |
+
+Everything else those patches add stays: Tailor's Delight's twine and needles, Expanded Matter's
+fluorite, corundum, phosphorite, rhodochrosite and kernite. The patterns are
+`Core/PanningDropRules.cs`: `wool:*`, `tailorsdelight:awl-*`, `tailorsdelight:awlthorn-*`,
+`tailorsdelight:buttons-*` and `game:nugget-uranium`. Wilderlands Panning's rich gravel lists add
+none of them, and nothing else in the pack has a panning table (Panning Machine pans with the
+wooden pan's).
+
+Wool and Expanded Matter have a ConfigLib setting for their whole panning patch, but that would
+also take Expanded Matter's other ores, and Tailor's Delight has none. So `PanningDrops` edits the
+pan's asset on the server in `AssetsLoaded`, after the game's patch loader (0.05) has applied every
+mod's patches, in whatever order they load, and before the block types are read from the assets
+(0.2): every entry of every material's list (in `attributes`, or an `attributesByType` entry) whose
+code matches is removed, and the server logs how many. The pan, Panning Machine and the handbook
+(clients get the block's attributes from the server) all see the trimmed table, and so does the
+recipe export. If the pan's asset is missing or has no `panningDrops`, the mod logs a warning and
+leaves panning as it is.
+
+Tailor's Delight's handbook line for the buttons says they are found while panning; that passage is
+taken out in each language it ships (en, de, fr, pl, ru; `LangEdits`), on each side. With the switch
+off, panning and that text are as the mods ship them. The switch that counts for panning is the
+server's.
+
 ### Map Reveal (`MapReveal`)
 
 `/revealmap <radius>` shows on your world map (M) the terrain already generated within radius
@@ -1001,7 +1036,7 @@ and a sign's text (unchanged).
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, where the chopper drops its piles, `/clear`'s
+cart reach's entity matching and reach rule, which panning drops are taken out, where the chopper drops its piles, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, the creative mod
@@ -1107,6 +1142,14 @@ are in the creative inventory and the handbook. With the switch off, `SwitchesOf
 the vessel as it ships, its loot included. When it fails after a Primitive
 Survival or BetterRuins update, check the recipe file's order and the loot item's `*-clayproducts`
 stacks.
+
+For panning, `SeraphHorizonsModScenarios` reads every block's `panningDrops` on the loaded server
+and requires none of the removed codes in any list, nor in the pan's table as `BlockPan` reads it
+(`PanningDrop`s), with Tailor's Delight's twine and needles and Expanded Matter's fluorite still
+there. It also requires the buttons text reworded in every language Tailor's Delight ships it in.
+When it fails after a mod update, check whether a mod adds one of them another way, or whether one
+stopped adding its own (then its pattern can go). With the switch off, `SwitchesOffScenarios`
+requires all four groups in the pan's table and the text as it ships.
 
 `tests/PackTests/BarrelRackKegsScenarios.cs` (Atlas) places a barrel rack and has a player
 right-click it through the rack block's own `OnBlockInteractStart`: an untapped keg holding 80 L

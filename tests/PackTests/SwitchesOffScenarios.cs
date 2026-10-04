@@ -209,6 +209,19 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(Ollas.RuinLootCodes(W), c => c.StartsWith(IrrigationVessel.CodePrefix));
     }
 
+    /// <summary><c>PanningDropsTrimmed</c>: panning as Wool, Tailor's Delight and Expanded Matter ship
+    /// it, and their text as it ships.</summary>
+    [AtlasScenario]
+    public void Panning_drops_trimmed_off_panning_is_as_the_mods_ship_it()
+    {
+        Assert.True(Off("PanningDropsTrimmed"));
+        var codes = Panning.AllDrops(W).Where(d => d.Block == Panning.Pan).Select(d => d.Code).ToHashSet();
+        foreach (var code in (string[])["wool:fibers-generic-brown", "tailorsdelight:awl-flint", "tailorsdelight:buttons-horn", "game:nugget-uranium"])
+            Assert.Contains(code, codes);
+        Assert.Equal("Can be found in loot, while panning or sometimes bought from traders.",
+            Lang.GetL("en", "tailorsdelight:handbook-item-buttons"));
+    }
+
     /// <summary><c>MapReveal</c>: there is no <c>/revealmap</c> command.</summary>
     [AtlasScenario]
     public void Map_reveal_off_there_is_no_command()

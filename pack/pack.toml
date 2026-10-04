@@ -456,7 +456,7 @@ side = "universal"
 license = "GPL-3.0"
 license_source = "https://gitlab.com/codesmiths/vs_tailors_delight"
 redistribute = false
-why = "Tailoring tools, cloth and leather crafts and decorations."
+why = "Tailoring tools, cloth and leather crafts and decorations. Its stitching awls and buttons are taken out of panning by seraphhorizons (PanningDropsTrimmed)."
 
 [[mod]]
 id = "shearlib"
@@ -474,7 +474,7 @@ side = "universal"
 license = "GPL-3.0"
 license_source = "https://gitlab.com/codesmiths/vs_wool"
 redistribute = false
-why = "Harvest and process animal hair, fleece and wool."
+why = "Harvest and process animal hair, fleece and wool. Its wool fibers are taken out of panning by seraphhorizons (PanningDropsTrimmed)."
 
 [[mod]]
 id = "effectlib"
@@ -503,7 +503,7 @@ side = "universal"
 license = "GPL-3.0"
 license_source = "https://gitlab.com/codesmiths/vs_expanded_matter"
 redistribute = false
-why = "Library of new materials and variants (Expanded Matter)."
+why = "Library of new materials and variants (Expanded Matter). The uranium nuggets it adds to panning are taken out by seraphhorizons (PanningDropsTrimmed)."
 
 [[mod]]
 id = "moreroads"

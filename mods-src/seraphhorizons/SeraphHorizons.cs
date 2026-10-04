@@ -155,6 +155,12 @@ public class SeraphHorizonsSystem : ModSystem
             AssembledMachines.AddToBlocktypes(api);
         if (api.Side == EnumAppSide.Server && _irrigationVessel)
             IrrigationVessel.DropFromRuinLoot(api);
+        if (Config(api).PanningDropsTrimmed)
+        {
+            if (api.Side == EnumAppSide.Server)
+                PanningDrops.TrimPanAsset(api);
+            PanningDrops.RewriteText(api);
+        }
         if (_barrelRackKegs)
             LangText.Apply(BarrelRackKegs.LangEdits, BarrelRackKegs.FoodShelvesId, api.Logger);
         _woodworking?.AssetsLoaded(api);
@@ -279,6 +285,11 @@ public class SeraphHorizonsConfig
     /// already placed stay and keep working (server side; off means it is as Primitive Survival
     /// ships it).</summary>
     public bool IrrigationVesselRetired { get; set; } = true;
+
+    /// <summary>Panning gives no wool (Wool), stitching awls or buttons and clasps (Tailor's Delight)
+    /// and no uranium nuggets (Expanded Matter); the rest of each mod's panning drops stay (server
+    /// side; off means panning is as the mods ship it).</summary>
+    public bool PanningDropsTrimmed { get; set; } = true;
 
     /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
     /// does, instead of 500 (server side).</summary>
