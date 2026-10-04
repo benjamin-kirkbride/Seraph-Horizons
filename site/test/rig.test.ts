@@ -142,8 +142,10 @@ describe("shape posing", () => {
       expect(got.length, `cell ${cell.pos}`).toBe(want.length);
       got.forEach((b, i) => b.forEach((v, k) => (worst = Math.max(worst, Math.abs(v - want[i]![k]!)))));
     }
-    // The shape's own numbers are rounded to 4 decimals, so the 4th decimal of a box may differ.
-    expect(worst).toBeLessThan(3e-4);
+    // The shape's own numbers are rounded to 4 decimals, so the 4th decimal of a box may differ; and
+    // the boxes come from the model before make_shape.py moved z-fighting faces in (COPLANAR_INSET,
+    // 0.015 voxels a step, at most 4 steps deep), so a box edge may be up to 0.06 voxels out.
+    expect(worst).toBeLessThan(4e-3);
     // And no cell left out of the rig holds anything.
     const listed = new Set(cells.map((c) => c.pos.join(",")));
     const lo = [0, 1, 2].map((k) => Math.min(...cells.map((c) => c.pos[k]!)) - 1);
@@ -222,7 +224,7 @@ describe("rig parts", () => {
       lifting: false,
     });
     expect(rigInputs([])).toEqual({ theta: false, travel: false, depth: false, lifting: false });
-    expect(requiresValues(parts)).toEqual(["crankshaft", "sash1", "blade1", "sash2", "blade2", "levers"]);
+    expect(requiresValues(parts)).toEqual(["crankshaft", "sash1", "blade", "sash2", "levers"]);
   });
 });
 

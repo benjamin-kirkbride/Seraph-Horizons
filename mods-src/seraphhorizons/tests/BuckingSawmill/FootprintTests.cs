@@ -33,6 +33,18 @@ public class FootprintTests
         }
     }
 
+    [Theory, MemberData(nameof(Facings))]
+    public void Points_turn_back_with_ToLocal(Side facing)
+    {
+        foreach (var p in new[] { new Float3(-2.3f, 1.2f, 0.7f), new Float3(0.5f, 0f, 0.5f), new Float3(1.25f, 0.6f, -0.3f) })
+        {
+            var back = Footprint.ToLocal(Footprint.ToWorld(p, facing), facing);
+            Assert.Equal(p.X, back.X, 5);
+            Assert.Equal(p.Y, back.Y, 5);
+            Assert.Equal(p.Z, back.Z, 5);
+        }
+    }
+
     // The shape's rotateY and the cell rotation agree: turning by the facing is a rotation, not a
     // mirror, and a quarter turn apart for neighbouring facings.
     [Theory, MemberData(nameof(Facings))]

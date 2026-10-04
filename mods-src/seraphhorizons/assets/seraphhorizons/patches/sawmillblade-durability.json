@@ -1,0 +1,15 @@
+// Immersive Woodworking's sawmill blade kits (immersivewoodworking:sawmillblade-{metal}) last three
+// times as long: seraphhorizons' DurableSawmillBlades switch (README.md, SawmillBladeDurability.cs).
+// Each value is Immersive Woodworking's (1.3.11) times 3. Server side: the client gets the items
+// from it.
+[
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-gold", "value": 210, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-silver", "value": 270, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-copper", "value": 750, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-tinbronze", "value": 1200, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-bismuthbronze", "value": 1350, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-blackbronze", "value": 1500, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-iron", "value": 2700, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-meteoriciron", "value": 3600, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] },
+  { "file": "immersivewoodworking:itemtypes/sawmill/blade.json", "op": "replace", "path": "/durabilitybytype/sawmillblade-steel", "value": 6750, "side": "server", "dependsOn": [{ "modid": "immersivewoodworking" }] }
+]

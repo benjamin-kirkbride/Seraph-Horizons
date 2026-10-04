@@ -26,28 +26,29 @@ public class PartsTests
     }
 
     [Fact]
-    public void Complete_takes_two_sashes_a_crankshaft_levers_and_two_kits()
+    public void Complete_takes_two_sashes_a_crankshaft_levers_and_one_kit()
     {
-        var parts = Fitted("sawmillsash", "sawmillblade-iron", "sawmillsash", "sawmillcrankshaft", "sawmilllevers");
+        var parts = Fitted("sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmilllevers");
         Assert.False(parts.Complete);
         Assert.Equal(["sawmillblade-*"], parts.Missing());
         Assert.Equal(FitVerdict.Fits, parts.Fit("sawmillblade-iron"));
         Assert.True(parts.Complete);
         Assert.Empty(parts.Missing());
         Assert.Equal("iron", parts.BladeMetal);
+        Assert.True(parts.BladeKit);
     }
 
     [Fact]
     public void Any_order_works_for_the_mechanism()
     {
-        Assert.True(Fitted("sawmilllevers", "sawmillcrankshaft", "sawmillsash", "sawmillsash", "sawmillblade-copper", "sawmillblade-copper").Complete);
-        Assert.True(Fitted("sawmillsash", "sawmillblade-copper", "sawmillcrankshaft", "sawmillsash", "sawmillblade-copper", "sawmilllevers").Complete);
+        Assert.True(Fitted("sawmilllevers", "sawmillcrankshaft", "sawmillsash", "sawmillsash", "sawmillblade-copper").Complete);
+        Assert.True(Fitted("sawmillsash", "sawmillsash", "sawmillblade-copper", "sawmillcrankshaft", "sawmilllevers").Complete);
     }
 
     [Fact]
     public void The_levers_are_needed()
     {
-        var parts = Fitted("sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmillblade-copper", "sawmillblade-copper");
+        var parts = Fitted("sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmillblade-copper");
         Assert.False(parts.Complete);
         Assert.Equal(["sawmilllevers"], parts.Missing());
         Assert.Equal(FitVerdict.Fits, parts.Fit("sawmilllevers"));
@@ -56,34 +57,35 @@ public class PartsTests
     }
 
     [Fact]
-    public void A_blade_kit_needs_a_free_sash()
+    public void The_blade_kit_needs_both_sashes()
     {
         var parts = new Parts();
-        Assert.Equal(FitVerdict.NeedsFreeSash, parts.Fit("sawmillblade-iron"));
+        Assert.Equal(FitVerdict.NeedsSashes, parts.Fit("sawmillblade-iron"));
+        parts.Fit("sawmillsash");
+        Assert.Equal(FitVerdict.NeedsSashes, parts.Fit("sawmillblade-iron"));
         parts.Fit("sawmillsash");
         Assert.Equal(FitVerdict.Fits, parts.Fit("sawmillblade-iron"));
-        Assert.Equal(FitVerdict.NeedsFreeSash, parts.Fit("sawmillblade-iron"));
-        Assert.Single(parts.BladeMetals);
+        Assert.Equal("iron", parts.BladeMetal);
     }
 
     [Fact]
-    public void The_second_kit_must_match_the_first_metal()
+    public void One_kit_only_of_any_metal()
     {
         var parts = Fitted("sawmillsash", "sawmillsash", "sawmillblade-iron");
-        Assert.Equal(FitVerdict.WrongMetal, parts.Fit("sawmillblade-steel"));
-        Assert.Equal(FitVerdict.Fits, parts.Fit("sawmillblade-iron"));
-        Assert.Equal(FitVerdict.BladesFitted, parts.Fit("sawmillblade-iron"));
+        Assert.Equal(FitVerdict.BladeFitted, parts.Fit("sawmillblade-iron"));
+        Assert.Equal(FitVerdict.BladeFitted, parts.Fit("sawmillblade-steel"));
+        Assert.Equal("iron", parts.BladeMetal);
     }
 
     [Fact]
-    public void Removing_the_kits_frees_the_metal()
+    public void Removing_the_kit_frees_its_place()
     {
-        var parts = Fitted("sawmillsash", "sawmillsash", "sawmillblade-iron", "sawmillblade-iron");
-        Assert.True(parts.RemoveBladeKit(1));
-        Assert.True(parts.RemoveBladeKit(0));
-        Assert.False(parts.RemoveBladeKit(0));
+        var parts = Fitted("sawmillsash", "sawmillsash", "sawmillblade-iron");
+        Assert.True(parts.RemoveBladeKit());
+        Assert.False(parts.RemoveBladeKit());
         Assert.Null(parts.BladeMetal);
         Assert.Equal(FitVerdict.Fits, parts.Fit("sawmillblade-steel"));
+        Assert.Equal("steel", parts.BladeMetal);
     }
 
     [Fact]
@@ -100,16 +102,40 @@ public class PartsTests
     [Fact]
     public void Missing_lists_one_entry_per_item()
     {
-        Assert.Equal(["sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmilllevers", "sawmillblade-*", "sawmillblade-*"],
+        Assert.Equal(["sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmilllevers", "sawmillblade-*"],
             new Parts().Missing());
     }
 
+    // The creative shortcut fits the missing parts one per click, in Missing's order, the kit last.
     [Fact]
-    public void Restored_state_drops_kits_without_a_sash()
+    public void The_creative_shortcut_steps_through_the_parts_in_order()
     {
-        var parts = new Parts(sashes: 1, crankshaft: true, levers: true, bladeMetals: ["iron", "iron"]);
-        Assert.Single(parts.BladeMetals);
+        var parts = new Parts();
+        var fitted = new List<string>();
+        while (parts.NextPart("steel") is { } next)
+        {
+            Assert.Equal(FitVerdict.Fits, parts.Fit(next));
+            fitted.Add(next);
+        }
+        Assert.Equal(["sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmilllevers", "sawmillblade-steel"], fitted);
+        Assert.True(parts.Complete);
+        // From wherever a hand-built mill is.
+        var some = Fitted("sawmilllevers", "sawmillsash");
+        Assert.Equal("sawmillsash", some.NextPart("copper"));
+        some.Fit("sawmillsash");
+        Assert.Equal("sawmillcrankshaft", some.NextPart("copper"));
+        some.Fit("sawmillcrankshaft");
+        Assert.Equal("sawmillblade-copper", some.NextPart("copper"));
+    }
+
+    [Fact]
+    public void Restored_state_drops_a_kit_without_both_sashes()
+    {
+        var parts = new Parts(sashes: 1, crankshaft: true, levers: true, bladeMetal: "iron");
+        Assert.Null(parts.BladeMetal);
         Assert.True(parts.Levers);
+        Assert.Equal("iron", new Parts(sashes: 2, bladeMetal: "iron").BladeMetal);
+        Assert.Null(new Parts(sashes: 2, bladeMetal: "").BladeMetal);
         Assert.Equal(2, new Parts(sashes: 5).Sashes);
     }
 }
