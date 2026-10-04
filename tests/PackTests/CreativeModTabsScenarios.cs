@@ -12,7 +12,7 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons, creative mod tabs (docs/creative-mod-tabs.md): the server appends one creative tab
 /// per mod after the default ones, from the plan it also sends to clients. Run on the server's own creative
 /// inventory code: a fresh <c>InventoryPlayerCreative</c> built by <c>UpdateFromWorld</c>, as for a joining
-/// player. The GUI (the button and the strip) is client only and checked by hand (the doc's checklist); the
+/// player. The GUI (the button, the dialog's columns) is client only and checked by hand (the doc's checklist); the
 /// planning logic is unit-tested in mods-src/seraphhorizons/tests. With the switch off:
 /// CreativeModTabsOffScenarios.
 /// </summary>
@@ -159,6 +159,37 @@ public class CreativeModTabsScenarios(ITestOutputHelper output) : AtlasScenarioB
         }
         // A mod with several domains has one tab.
         Assert.Equal(specs.Count, specs.Select(s => (string)s.Code).Distinct().Count());
+    }
+
+    /// <summary>
+    /// Mod mode's tab list as the client arranges it (TabLayout.ForModMode), from this pack's real tab codes and
+    /// config/creativetabs.json: the dialog's ordering rule must keep default mode's left column and put the mod
+    /// tabs alone, in the plan's order, in the right column. The GUI itself is checked by hand.
+    /// </summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Mod_mode_keeps_the_left_column_and_puts_the_mod_tabs_right()
+    {
+        await World.Ticks(2);
+        dynamic plan = Authority();
+        int defaults = plan.DefaultTabCount;
+        var tabs = Tabs(Build("modtabs-layout"));
+        var defaultCodes = tabs.Take(defaults).Select(t => t.Code).ToList();
+        var modCodes = tabs.Skip(defaults).Select(t => t.Code).ToList();
+
+        // Read as the dialog reads it; the server loads the same config asset.
+        var asset = World.Api.Assets.TryGet("config/creativetabs.json");
+        Assert.NotNull(asset);
+        var configs = asset.ToObject<Vintagestory.Client.NoObf.CreativeTabsConfig>().TabConfigs;
+        System.Func<string, double> listOrder = code => configs.FirstOrDefault(c => c.Code == code)?.ListOrder ?? 1.0;
+
+        dynamic layout = ModType("SeraphHorizons.Mod.CreativeModTabs.Core.TabLayout").GetMethod("ForModMode")!
+            .Invoke(null, [defaultCodes, modCodes, listOrder])!;
+        var left = (List<string>)layout.Left;
+        output.WriteLine("left column: " + string.Join(", ", left));
+        Assert.True((bool)layout.Ideal, "the mod tabs don't get the right column to themselves");
+        Assert.Equal(16 + modCodes.Count, ((List<string>)layout.Iteration).Count);
+        Assert.Equal(modCodes, (List<string>)layout.Right);
+        Assert.All(left, code => Assert.Contains(code, defaultCodes));
     }
 
     /// <summary>The packet through protobuf-net, as the game's network channel sends it.</summary>
