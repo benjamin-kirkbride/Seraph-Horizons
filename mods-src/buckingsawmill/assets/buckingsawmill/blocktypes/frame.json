@@ -15,7 +15,8 @@
 	},
 	textures: {
 		"oak":   { base: "game:block/wood/debarked/oak" },
-		"metal": { base: "game:block/metal/plate/iron" }
+		"metal": { base: "game:block/metal/plate/iron" },
+		"rope":  { base: "game:item/resource/rope" }
 	},
 	attributes: {
 		handbook: {

@@ -2,7 +2,7 @@
   "type": "code",
   "modid": "buckingsawmill",
   "name": "Bucking Sawmill",
-  "description": "A mechanically powered gang saw that cross-cuts Logging Expanded tree trunks into logs. Build it from a frame and Immersive Woodworking's sawmill parts, drive it with an axle, and load trunks by hand or from a Trunk Storage Rack at its infeed side.",
+  "description": "A mechanically powered pair of drag saws that cross-cut Logging Expanded tree trunks into logs. Build it from a frame and Immersive Woodworking's sawmill parts, drive it with an axle, and load trunks by hand or from a Trunk Storage Rack at its infeed side.",
   "authors": ["Benjamin Kirkbride"],
   "version": "1.0.0",
   "side": "Universal",

@@ -56,6 +56,26 @@ public static class Mat4
         return Multiply(Translation(pivot.X, pivot.Y, pivot.Z), Multiply(m, Translation(-pivot.X, -pivot.Y, -pivot.Z)));
     }
 
+    /// <summary>A scale by <paramref name="factor"/> along one axis about the plane through
+    /// <paramref name="anchor"/> normal to it; the other axes are unchanged.</summary>
+    public static float[] Stretch(Axis axis, float factor, Float3 anchor)
+    {
+        var m = Identity();
+        switch (axis)
+        {
+            case Axis.X:
+                m[0] = factor; m[12] = anchor.X * (1 - factor);
+                break;
+            case Axis.Y:
+                m[5] = factor; m[13] = anchor.Y * (1 - factor);
+                break;
+            default:
+                m[10] = factor; m[14] = anchor.Z * (1 - factor);
+                break;
+        }
+        return m;
+    }
+
     public static Float3 Apply(float[] m, Float3 p) => new(
         m[0] * p.X + m[4] * p.Y + m[8] * p.Z + m[12],
         m[1] * p.X + m[5] * p.Y + m[9] * p.Z + m[13],
@@ -77,15 +97,46 @@ public static class Mat4
 
 public enum Axis { X, Y, Z }
 
-public enum DriverType { Rotate, Slide, Swing, Feed }
+public enum DriverType { Rotate, Slide, Swing, Feed, Step, Stretch }
 
-/// <summary>One motion of a rig part, as rig.json's <c>parts[].drivers</c> describes it. θ is the
-/// shaft angle, p the cut's progress (0..1); distances are blocks, angles radians.</summary>
-public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Ratio, float Amplitude, float Phase, float Travel)
+/// <summary>How a <see cref="DriverType.Step"/> driver treats the lifting input.</summary>
+public enum LiftGate { None, Hold, Block }
+
+/// <summary>
+/// One motion of a rig part, as rig.json's <c>parts[].drivers</c> describes it. Inputs: θ the
+/// signed shaft angle, d the saw's depth (0 latched at the top .. 1 at the bed), L lifting (1
+/// while the saws are wound back up, eased 0..1), D the shaft's direction (+1 forwards, −1
+/// backwards, eased between). Distances are blocks, angles radians; rotations
+/// are right-handed about the positive axis. The mod's README defines each type; the reference
+/// implementation is <c>driver_matrix</c> in tools/make_shape.py.
+/// </summary>
+/// <param name="Pivot">rotate, swing, step-rotate: the pivot; stretch: the anchor.</param>
+/// <param name="Rotates">step: true for <c>"motion": "rotate"</c>, false for <c>"slide"</c>.</param>
+/// <param name="Length">stretch: signed authored distance from the anchor to the free end.</param>
+/// <param name="Reversible">step: the throw is scaled by the shaft's direction D, so it goes the
+/// other way when the shaft turns backwards.</param>
+public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Ratio, float Amplitude, float Phase, float Travel,
+                            bool Rotates = false, float Amount = 0, float From = 0, float To = 1, LiftGate Lifting = LiftGate.None,
+                            float Length = 1, bool Reversible = false)
 {
+    /// <summary>A step driver's fraction: d's progress through [From, To], then held at 1
+    /// (<see cref="LiftGate.Hold"/>) or kept at 0 (<see cref="LiftGate.Block"/>) while lifting.</summary>
+    public double StepFraction(double depth, double lifting)
+    {
+        double e = Math.Clamp((depth - From) / (To - From), 0, 1);
+        return Lifting switch
+        {
+            LiftGate.Hold => Math.Max(e, lifting),
+            LiftGate.Block => e * (1 - lifting),
+            _ => e,
+        };
+    }
+
     /// <summary>rotate: angle ratio·θ about pivot. slide: offset amplitude·sin(ratio·θ + phase).
-    /// swing: angle amplitude·sin(ratio·θ + phase) about pivot. feed: offset travel·p.</summary>
-    public float[] Matrix(double theta, double progress)
+    /// swing: angle amplitude·sin(ratio·θ + phase) about pivot. feed: offset travel·d. step:
+    /// offset or angle amount·e (<see cref="StepFraction"/>), times D when reversible. stretch:
+    /// scale (length + travel·d) / length along the axis about the anchor.</summary>
+    public float[] Matrix(double theta, double depth, double lifting = 0, double direction = 1)
     {
         switch (Type)
         {
@@ -93,12 +144,22 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
                 return Mat4.Rotation(Axis, Ratio * theta, Pivot);
             case DriverType.Swing:
                 return Mat4.Rotation(Axis, Amplitude * Math.Sin(Ratio * theta + Phase), Pivot);
+            case DriverType.Slide:
+                return Along(Amplitude * Math.Sin(Ratio * theta + Phase));
+            case DriverType.Feed:
+                return Along(Travel * depth);
+            case DriverType.Step:
+                double e = StepFraction(depth, lifting) * (Reversible ? direction : 1);
+                return Rotates ? Mat4.Rotation(Axis, Amount * e, Pivot) : Along(Amount * e);
             default:
-                float off = Type == DriverType.Slide
-                    ? (float)(Amplitude * Math.Sin(Ratio * theta + Phase))
-                    : (float)(Travel * progress);
-                return Mat4.Translation(Axis == Axis.X ? off : 0, Axis == Axis.Y ? off : 0, Axis == Axis.Z ? off : 0);
+                return Mat4.Stretch(Axis, (float)((Length + Travel * depth) / Length), Pivot);
         }
+    }
+
+    private float[] Along(double offset)
+    {
+        float off = (float)offset;
+        return Mat4.Translation(Axis == Axis.X ? off : 0, Axis == Axis.Y ? off : 0, Axis == Axis.Z ? off : 0);
     }
 }
 
@@ -198,15 +259,17 @@ public sealed class RigParts
 
     /// <summary>One native-frame matrix per part, in part order: the drivers applied in list
     /// order to the authored geometry (pivots in the authored frame), then the ride part's whole
-    /// transform.</summary>
-    public float[][] Matrices(double theta, double progress)
+    /// transform. θ is the shaft angle, <paramref name="depth"/> the saw's depth (0..1),
+    /// <paramref name="lifting"/> 1 while the saws are wound back up (eased 0..1),
+    /// <paramref name="direction"/> +1 while the shaft turns forwards and −1 backwards.</summary>
+    public float[][] Matrices(double theta, double depth, double lifting = 0, double direction = 1)
     {
         var result = new float[Parts.Count][];
         foreach (int i in _order)
         {
             var m = Mat4.Identity();
             foreach (var d in Parts[i].Drivers)
-                m = Mat4.Multiply(d.Matrix(theta, progress), m);
+                m = Mat4.Multiply(d.Matrix(theta, depth, lifting, direction), m);
             if (_ride[i] >= 0)
                 m = Mat4.Multiply(result[_ride[i]], m);
             result[i] = m;
@@ -250,6 +313,8 @@ public sealed class RigParts
             "slide" => DriverType.Slide,
             "swing" => DriverType.Swing,
             "feed" => DriverType.Feed,
+            "step" => DriverType.Step,
+            "stretch" => DriverType.Stretch,
             var t => throw new FormatException($"{where}: unknown driver type \"{t}\""),
         };
         var axis = Str(d, "axis") switch
@@ -259,16 +324,46 @@ public sealed class RigParts
             "z" => Axis.Z,
             var a => throw new FormatException($"{where}: driver axis \"{a}\" is not x, y or z"),
         };
+        bool rotates = false;
+        if (type == DriverType.Step)
+            rotates = Str(d, "motion") switch
+            {
+                "rotate" => true,
+                "slide" => false,
+                var m => throw new FormatException($"{where}: a step driver's motion \"{m}\" is not slide or rotate"),
+            };
         var pivot = new Float3(0, 0, 0);
-        if (type is DriverType.Rotate or DriverType.Swing)
+        if (type is DriverType.Rotate or DriverType.Swing || rotates)
+            pivot = Point(d, "pivot", where, Str(d, "type")!);
+        else if (type == DriverType.Stretch)
+            pivot = Point(d, "anchor", where, "stretch");
+        float from = Num(d, "from", 0), to = Num(d, "to", 1);
+        if (type == DriverType.Step && !(to > from))
+            throw new FormatException($"{where}: a step driver's window needs to > from");
+        float length = Num(d, "length", 0);
+        if (type == DriverType.Stretch && length == 0)
+            throw new FormatException($"{where}: a stretch driver needs a non-zero length");
+        var gate = Str(d, "lifting") switch
         {
-            if (!d.TryGetProperty("pivot", out var pv) || pv.ValueKind != JsonValueKind.Array || pv.GetArrayLength() != 3)
-                throw new FormatException($"{where}: a {Str(d, "type")} driver needs a pivot of 3 numbers");
-            var n = pv.EnumerateArray().Select(e => e.GetSingle()).ToArray();
-            pivot = new Float3(n[0], n[1], n[2]);
-        }
-        return new Driver(type, axis, pivot, Num(d, "ratio", 1), Num(d, "amplitude", 0), Num(d, "phase", 0), Num(d, "travel", 0));
+            null => LiftGate.None,
+            "hold" => LiftGate.Hold,
+            "block" => LiftGate.Block,
+            var g => throw new FormatException($"{where}: lifting \"{g}\" is not hold or block"),
+        };
+        return new Driver(type, axis, pivot, Num(d, "ratio", 1), Num(d, "amplitude", 0), Num(d, "phase", 0), Num(d, "travel", 0),
+                          rotates, Num(d, "amount", 0), from, to, gate, length, Bool(d, "reversible"));
     }
+
+    private static Float3 Point(JsonElement d, string key, string where, string type)
+    {
+        if (!d.TryGetProperty(key, out var pv) || pv.ValueKind != JsonValueKind.Array || pv.GetArrayLength() != 3)
+            throw new FormatException($"{where}: a {type} driver needs a {key} of 3 numbers");
+        var n = pv.EnumerateArray().Select(e => e.GetSingle()).ToArray();
+        return new Float3(n[0], n[1], n[2]);
+    }
+
+    private static bool Bool(JsonElement obj, string key) =>
+        obj.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.True;
 
     private static string? Str(JsonElement obj, string key) =>
         obj.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;

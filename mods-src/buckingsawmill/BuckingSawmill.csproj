@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Client and server mod adding the bucking sawmill (README.md here): a mechanically powered
-       gang saw, assembled from Immersive Woodworking's sawmill parts, that cuts Logging Expanded
+       pair of drag saws, assembled from Immersive Woodworking's sawmill parts, that cuts Logging Expanded
        tree trunks into logs. Built from this repo, uploaded to the ModDB by hand, and pinned in
        pack.toml like any other mod. Atlas scenarios load this build.
 

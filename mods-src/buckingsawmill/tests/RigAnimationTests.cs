@@ -92,11 +92,103 @@ public class RigAnimationTests
     }
 
     [Fact]
-    public void Feed_follows_the_cut_and_ignores_the_shaft()
+    public void Feed_follows_the_depth_and_ignores_the_shaft()
     {
         var parts = Parts("""[ { "id": "f", "match": ["*"], "drivers": [ { "type": "feed", "axis": "z", "travel": 2 } ] } ]""");
         Near(new Float3(0, 0, 0), Mat4.Apply(parts.Matrices(1.3, 0)[0], new Float3(0, 0, 0)));
         Near(new Float3(0, 0, 1.5f), Mat4.Apply(parts.Matrices(4.0, 0.75)[0], new Float3(0, 0, 0)));
+    }
+
+    [Fact]
+    public void Step_slides_through_its_depth_window()
+    {
+        var parts = Parts("""[ { "id": "s", "match": ["*"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "amount": 2, "from": 0.5, "to": 0.75 } ] } ]""");
+        Near(new Float3(0, 0, 0), Mat4.Apply(parts.Matrices(3.0, 0.4)[0], new Float3(0, 0, 0)));
+        Near(new Float3(1, 0, 0), Mat4.Apply(parts.Matrices(3.0, 0.625)[0], new Float3(0, 0, 0)));
+        Near(new Float3(2, 0, 0), Mat4.Apply(parts.Matrices(3.0, 0.9)[0], new Float3(0, 0, 0)));
+        // ungated: lifting changes nothing
+        Near(new Float3(0, 0, 0), Mat4.Apply(parts.Matrices(3.0, 0.4, 1)[0], new Float3(0, 0, 0)));
+    }
+
+    [Fact]
+    public void Step_defaults_to_the_whole_depth_and_rotates_about_its_pivot()
+    {
+        var parts = Parts("""[ { "id": "s", "match": ["*"], "drivers": [ { "type": "step", "motion": "rotate", "axis": "z", "pivot": [1, 0, 0], "amount": 3.1415927 } ] } ]""");
+        Near(new Float3(2, 0, 0), Mat4.Apply(parts.Matrices(0, 0)[0], new Float3(2, 0, 0)));
+        Near(new Float3(1, 1, 0), Mat4.Apply(parts.Matrices(0, 0.5)[0], new Float3(2, 0, 0)));
+        Near(new Float3(0, 0, 0), Mat4.Apply(parts.Matrices(0, 1)[0], new Float3(2, 0, 0)));
+    }
+
+    [Fact]
+    public void A_held_step_stays_thrown_while_lifting_and_a_blocked_one_stays_home()
+    {
+        var parts = Parts("""
+            [ { "id": "hold", "match": ["h"], "drivers": [ { "type": "step", "motion": "slide", "axis": "y", "amount": 1, "from": 0.9, "to": 1, "lifting": "hold" } ] },
+              { "id": "block", "match": ["b"], "drivers": [ { "type": "step", "motion": "slide", "axis": "y", "amount": 1, "from": 0, "to": 0.1, "lifting": "block" } ] } ]
+            """);
+        var o = new Float3(0, 0, 0);
+        Near(new Float3(0, 0, 0), Mat4.Apply(parts.Matrices(0, 0.5)[0], o));
+        Near(new Float3(0, 1, 0), Mat4.Apply(parts.Matrices(0, 0.5, 1)[0], o));
+        Near(new Float3(0, 0.5f, 0), Mat4.Apply(parts.Matrices(0, 0.2, 0.5)[0], o));
+        Near(new Float3(0, 0.5f, 0), Mat4.Apply(parts.Matrices(0, 0.95)[0], o));
+        Near(new Float3(0, 1, 0), Mat4.Apply(parts.Matrices(0, 0.5)[1], o));
+        Near(new Float3(0, 0, 0), Mat4.Apply(parts.Matrices(0, 0.5, 1)[1], o));
+        Near(new Float3(0, 0.25f, 0), Mat4.Apply(parts.Matrices(0, 0.5, 0.75)[1], o));
+    }
+
+    [Fact]
+    public void A_reversible_step_throws_the_other_way_when_the_shaft_turns_backwards()
+    {
+        var parts = Parts("""
+            [ { "id": "r", "match": ["r"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "amount": 1, "from": 0.5, "to": 1, "lifting": "hold", "reversible": true } ] },
+              { "id": "s", "match": ["s"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "amount": 1, "from": 0.5, "to": 1 } ] } ]
+            """);
+        var o = new Float3(0, 0, 0);
+        Near(new Float3(1, 0, 0), Mat4.Apply(parts.Matrices(0, 1, 0, 1)[0], o));
+        Near(new Float3(-1, 0, 0), Mat4.Apply(parts.Matrices(0, 1, 0, -1)[0], o));
+        Near(new Float3(-1, 0, 0), Mat4.Apply(parts.Matrices(0, 0.2, 1, -1)[0], o));     // held while lifting
+        Near(new Float3(-0.25f, 0, 0), Mat4.Apply(parts.Matrices(0, 0.75, 0, -0.5)[0], o)); // eased direction
+        Near(new Float3(1, 0, 0), Mat4.Apply(parts.Matrices(0, 1, 0, -1)[1], o));       // not reversible
+    }
+
+    [Theory]
+    [InlineData(1.0, "pinion_w")]
+    [InlineData(-1.0, "pinion_e")]
+    public void In_a_raise_the_shipped_clutch_engages_the_pinion_that_turns_with_the_shaft(double direction, string engaged)
+    {
+        // The shaft turns 6 times over a full raise, either way round. The sleeve moves onto the
+        // pinion that then turns with the shaft; the drum winds the ropes in either way.
+        var rig = Shipped();
+        var parts = rig.MovingParts;
+        int clutch = parts.IndexOf("clutch"), pin = parts.IndexOf(engaged), drum = parts.IndexOf("drum");
+        var probe = new Float3(0, 3.5f, 1.5f + 0.15f);              // a point near the shaft axis, off it
+        double turn = 2 * Math.PI * 6;
+        // the sleeve's slide (the rotate is about the shaft axis, so compare the x of a point on it)
+        float slide = Mat4.Apply(parts.Matrices(0, 1, 1, direction)[clutch], new Float3(0, 3.5f, 1.5f)).X;
+        Assert.Equal(engaged == "pinion_w" ? -1 : 1, Math.Sign(slide));
+        // over a small step of the raise the engaged pinion turns as the shaft does
+        double d0 = 0.5, step = 0.01, dTheta = direction * step * turn;
+        var a0 = Mat4.Apply(parts.Matrices(0, d0, 1, direction)[pin], probe);
+        var a1 = Mat4.Apply(parts.Matrices(0, d0 - step, 1, direction)[pin], probe);
+        var s1 = Mat4.Apply(Mat4.Rotation(Axis.X, dTheta, new Float3(0, 3.5f, 1.5f)), a0);
+        Near(s1, a1, 1e-3f);
+        // and the drum turns the way that winds the rope in (its pay-out angle shrinks)
+        var r0 = Mat4.Apply(parts.Matrices(0, d0, 1, direction)[drum], new Float3(0, 3.5f, 0.765625f - 0.13f));
+        var r1 = Mat4.Apply(parts.Matrices(0, d0 - step, 1, direction)[drum], new Float3(0, 3.5f, 0.765625f - 0.13f));
+        Assert.True(r1.Y > r0.Y, "the rope side of the drum should move up as the saws rise");
+    }
+
+    [Fact]
+    public void Stretch_scales_along_its_axis_from_the_anchor()
+    {
+        // a rope hanging 0.5 below an anchor at y 3, whose free end falls 1.5 over the depth
+        var parts = Parts("""[ { "id": "r", "match": ["*"], "drivers": [ { "type": "stretch", "axis": "y", "anchor": [9, 3, 9], "length": -0.5, "travel": -1.5 } ] } ]""");
+        var m0 = parts.Matrices(1.0, 0)[0];
+        var m1 = parts.Matrices(1.0, 1)[0];
+        Near(new Float3(2, 2.5f, 1), Mat4.Apply(m0, new Float3(2, 2.5f, 1)));
+        Near(new Float3(2, 3, 1), Mat4.Apply(m1, new Float3(2, 3, 1)));          // the anchor stays
+        Near(new Float3(2, 1, 1), Mat4.Apply(m1, new Float3(2, 2.5f, 1)));       // the free end follows
+        Near(new Float3(2, 1.75f, 1), Mat4.Apply(parts.Matrices(1.0, 0.5)[0], new Float3(2, 2.5f, 1)));
     }
 
     [Fact]
@@ -144,6 +236,12 @@ public class RigAnimationTests
     [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "spin", "axis": "x" } ] } ]""", "spin")]
     [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "rotate", "axis": "x" } ] } ]""", "pivot")]
     [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "feed", "axis": "w", "travel": 1 } ] } ]""", "axis")]
+    [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "step", "axis": "x", "amount": 1 } ] } ]""", "motion")]
+    [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "step", "motion": "rotate", "axis": "x", "amount": 1 } ] } ]""", "pivot")]
+    [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "from": 1, "to": 0.5 } ] } ]""", "window")]
+    [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "step", "motion": "slide", "axis": "x", "lifting": "always" } ] } ]""", "always")]
+    [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "stretch", "axis": "y", "length": 1 } ] } ]""", "anchor")]
+    [InlineData("""[ { "id": "a", "match": ["a"], "drivers": [ { "type": "stretch", "axis": "y", "anchor": [0, 0, 0] } ] } ]""", "length")]
     public void Broken_parts_are_reported(string parts, string expected)
     {
         var e = Assert.Throws<FormatException>(() => Parts(parts));
@@ -265,28 +363,53 @@ public class RigAnimationTests
         }
         Assert.NotNull(rig.TrunkBed);
         Assert.Equal(Axis.X, rig.TrunkBed!.Axis);
-        // Every part the gameplay can fit has something to show. The levers are a part again but
-        // the shipped model has no levers part yet; drop this exemption when it does.
-        foreach (var req in RigPart.KnownRequires.Where(r => r != "levers"))
+        // Every part the gameplay can fit has something to show.
+        foreach (var req in RigPart.KnownRequires)
             Assert.Contains(parts, p => p.Requires == req);
     }
 
     [Fact]
-    public void The_shipped_rods_stay_on_their_crank_pins()
+    public void The_shipped_rig_matches_the_python_reference()
     {
+        // tools/make_shape.py writes each part's matrix at a grid of (θ, depth, lifting) poses from
+        // its own reference maths; RigParts must give the same, so the two cannot drift.
         var parts = Shipped().MovingParts;
-        int shaft = parts.IndexOf("shaft");
-        foreach (var (rodId, frameX, pinSign) in new[] { ("f1_rod", 2f, -1f), ("f2_rod", 4f, 1f) })
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "rig-reference.json")));
+        int poses = 0;
+        foreach (var pose in doc.RootElement.GetProperty("poses").EnumerateArray())
         {
-            int rod = parts.IndexOf(rodId);
-            for (int i = 0; i < 64; i++)
+            double theta = pose.GetProperty("theta").GetDouble(), depth = pose.GetProperty("depth").GetDouble(), lifting = pose.GetProperty("lifting").GetDouble();
+            double direction = pose.TryGetProperty("direction", out var dir) ? dir.GetDouble() : 1;
+            var mats = parts.Matrices(theta, depth, lifting, direction);
+            var expected = pose.GetProperty("matrices");
+            Assert.Equal(parts.Parts.Count, expected.EnumerateObject().Count());
+            for (int i = 0; i < parts.Parts.Count; i++)
             {
-                var mats = parts.Matrices(i * Math.PI / 32, 0);
-                var top = Mat4.Apply(mats[rod], new Float3(frameX, 3.5f, 1.5f));
-                var pin = Mat4.Apply(mats[shaft], new Float3(frameX, 3.5f + pinSign * 2.5f / 16, 1.5f));
-                float gap = MathF.Sqrt((top.X - pin.X) * (top.X - pin.X) + (top.Y - pin.Y) * (top.Y - pin.Y) + (top.Z - pin.Z) * (top.Z - pin.Z));
-                Assert.True(gap < 0.75f / 16, $"{rodId} at step {i}: {gap * 16:0.00} voxels off its pin");
+                var rows = expected.GetProperty(parts.Parts[i].Id).EnumerateArray().Select(r => r.EnumerateArray().Select(v => v.GetDouble()).ToArray()).ToArray();
+                for (int row = 0; row < 3; row++)
+                    for (int col = 0; col < 4; col++)
+                    {
+                        double got = mats[i][col * 4 + row];
+                        Assert.True(Math.Abs(got - rows[row][col]) < 2e-4,
+                            $"{parts.Parts[i].Id} at θ {theta}, depth {depth}, lifting {lifting}, direction {direction}: [{row},{col}] is {got}, the reference says {rows[row][col]}");
+                    }
             }
+            poses++;
+        }
+        Assert.True(poses >= 80);
+    }
+
+    [Fact]
+    public void The_shipped_carriages_fall_from_the_saws_top_to_its_bottom()
+    {
+        var rig = Shipped();
+        var parts = rig.MovingParts;
+        foreach (var id in new[] { "f1_carriage", "f2_carriage" })
+        {
+            int i = parts.IndexOf(id);
+            Assert.True(i >= 0, id);
+            float drop = Mat4.Apply(parts.Matrices(0, 1)[i], new Float3(0, 0, 0)).Y - Mat4.Apply(parts.Matrices(0, 0)[i], new Float3(0, 0, 0)).Y;
+            Assert.Equal(rig.Saw.BottomY - rig.Saw.TopY, drop, 4);
         }
     }
 }

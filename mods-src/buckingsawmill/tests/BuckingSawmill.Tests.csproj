@@ -23,6 +23,8 @@
     <Compile Include="../Core/**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- The shipped rig, so the tests check that it parses and is consistent. -->
     <None Include="../assets/buckingsawmill/config/rig.json" Link="rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Every part's matrix at a grid of poses, from tools/make_shape.py's reference maths. -->
+    <None Include="rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

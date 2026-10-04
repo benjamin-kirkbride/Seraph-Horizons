@@ -123,48 +123,122 @@ The machine's model is an edited copy of the sawmill from Immersive Woodworking 
 | `assets/buckingsawmill/shapes/block/buckingmill_frame.json` | The static frame only. The block draws it and the inventory shows it. |
 | `assets/buckingsawmill/config/rig.json` | Footprint, anchors and the part rig: the contract between the model and the code. |
 
+### How the machine works
+
+The mill is a pair of **drag saws with a windlass lift**. All positions are in the native, south-facing frame: x is width (west to east), y is up, z is depth (north to south), and the controller cell is at the origin.
+
+The trunk lies along x on a fixed bed at y 0.5, centred at z 1.75. The north side holds the saw mechanism, and the rack stands there. Logs leave by the south side. Power comes in at the west end, on the shared shaft along x at y 3.5, z 1.5.
+
+There are two saw stations, at x = 2 and x = 4. Each one has the same parts:
+
+- **Posts and carriage.** Two IW posts stand on the north side of the trunk with their slots facing each other. The carriage slides up and down in the slots. It is IW's sash, squeezed into a short frame whose opening the blades pass through.
+- **Saw head.** The head hangs from two guide bars that run north from the carriage, and slides along z on them.
+  - The head is IW's sash rail turned on its side, with its clamp bars gripping the blades.
+  - The blades are IW's set turned to cross-cut: their faces point along x, their length runs along z, and the teeth point down.
+  - They are clamped at the north end only and reach south across the whole trunk. The free tip runs in its own kerf, as on a real drag saw.
+- **Stroke.** IW's crank on the shared shaft drives a connecting rod, which pushes a **yoke** back and forth along z.
+  - The yoke is a slotted crosshead: a tall bar on the north face, sliding in fixed guides at its top and bottom.
+  - A pin on the saw head rides in the yoke's vertical slot. At any height of the carriage, the yoke carries the saw through its stroke.
+  - The chain is shaft → crank → rod → yoke → pin → head → blades.
+  - Station 2's crank runs half a turn behind station 1's.
+- **Lift.** A rope hangs from a drum on the drum shaft, straight down to the carriage's top rail. Paying the rope out lowers the carriage; winding it in raises it. The drum is a plain spool: an octagonal core of wound rope between two octagonal oak flanges.
+
+The drum shaft runs along x above the carriages, at y 3.5, z 0.77. It is turned by IW's gear set at the west end. The gear set is a reversing gear, laid out as IW meshes it:
+
+- **Two loose pinions** sit on the main shaft. A sliding **clutch sleeve**, keyed to the shaft, sits between them. Shifting it west locks the west pinion to the shaft, shifting it east locks the east one; in the middle, neither pinion is driven.
+- **Both pinions mesh the peg ring of IW's crown disc** (axis z, north of the shaft), on opposite sides of it, so they always turn opposite ways.
+- **The disc's axle** runs north to IW's small crown gear, turned half round, which meshes a pinion on the drum shaft. A disc turning about z can't drive a shaft along x without this one right-angle pair.
+- **The result:** because the pinions turn opposite ways, one of them always winds the drums in, whichever way the shaft turns. The shifter puts the sleeve on that one: the west pinion when the shaft turns forwards (θ increasing), the east one when it turns backwards. With the sleeve in the middle the drums run free.
+
+No toothed wheel on the machine meshes nothing. The cranks are plain bars with a pin, IW's toothed main-rotor flanges are left off, and the drums are plain spools. The toothed or pegged wheels are:
+
+| Wheel | Meshes with |
+|---|---|
+| West pinion | The crown disc's peg ring (west side); the sleeve when the shaft turns forwards |
+| East pinion | The crown disc's peg ring (east side); the sleeve when the shaft turns backwards |
+| Crown disc | Both pinions; the latch pawl drops between its pegs |
+| Small crown gear (on the disc's axle) | The drum pinion |
+| Drum pinion (on the drum shaft) | The small crown gear |
+
+**Levers** (the "levers" part):
+
+- **Trip.** At the bottom of a cut, a lug on station 1's carriage pushes down the tappet of a **trip rod** that runs down station 1's west post.
+- **Shifter.** The trip rod turns a **bell crank**, whose pin frees the **link** through a slot in its end (lost motion), and the link turns a **rock shaft** along z. The rock shaft's fork sits in the sleeve's groove and throws the sleeve onto the winding pinion, which starts the lift. Which way it throws follows the shaft's direction (the rig's *D* input); the slot lets the link go either way while the bell crank, pushed down by the carriage, always turns the same way.
+- **Holding the clutch.** The sleeve stays engaged for the whole lift; the rig shows this with its `lifting` input.
+- **Latch.** A **pawl** drops between the top two pegs of the crown disc, which doubles as the windlass's ratchet wheel. While winding it clicks over them, and at the top it holds the windlass, and so both carriages, up.
+- **Release.** When the next cut starts, the pawl swings clear and the carriages sink under their own weight while the saws stroke.
+
+One cut, in the terms the gameplay uses:
+
+1. Depth 0 means latched at the top, with the blades' cutting edge at `saw.topY` (2.5625, just above a 2-block trunk).
+2. The latch lets go and the saws sink while stroking. Depth rises to 1, where the cutting edge is at `saw.bottomY` (0.4375, below the bed top), through the gaps in the bed rails.
+3. Near the bottom (from depth 0.941, the last 2 voxels of the drop) the carriage pushes the trip down and the clutch engages.
+4. The shaft winds the carriages back up while depth falls from 1 to 0 (`lifting` = 1). The latch catches at the top and the clutch is released.
+
+The pinions turn 2.38 times per turn of the disc (peg rings of 6.05 and 2.54 voxels), and the second crown gear and drum pinion are 1:1. The drum's rope radius (2.15 voxels) is chosen so that a full raise takes 6 shaft turns, the gameplay's `RaiseRevolutions` default: the drum turns 15.83 rad over a full sink or raise. With that default the engaged pinion turns exactly with the shaft during a raise, either way round. With another `RaiseRevolutions` the gameplay raises the saws at a different rate from the gears, and the engaged pinion visibly slips against the shaft.
+
 ### Regenerating
 
 ```sh
-python3 tools/packtool.py fetch                        # puts IW's zip in build/mods
-python3 mods-src/buckingsawmill/tools/make_shape.py    # stdlib only; rewrites the three files
+python3 tools/packtool.py fetch                                    # puts IW's zip in build/mods
+python3 mods-src/buckingsawmill/tools/make_shape.py                # stdlib only; rewrites the three files
+python3 mods-src/buckingsawmill/tools/make_shape.py --out DIR      # or writes them into DIR instead
 ```
+
+It also writes `tests/rig-reference.json`: every part's matrix at a grid of poses, from the script's reference maths. The unit tests check `Core/RigAnimation.cs` against it, so the C# and the Python cannot drift apart.
 
 The output is deterministic. On every run the script also checks its own output, and exits non-zero if any check fails:
 
-- every element lands in the rig part it was built for;
-- nothing leaves the declared cells, at rest or anywhere in the motion;
-- no trunk size, centred on the bed, touches the frame or a sash over the full stroke;
-- each rod's upper end stays on its crank pin;
-- every texture used is declared.
+- **Parts and cells:**
+  - every element lands in the rig part it was built for, and the count per part is printed;
+  - nothing leaves the declared cells at rest, or the machine box anywhere in the motion.
+- **Clearances** (sampled over 8 shaft angles × 5 depths × cutting and lifting, the shaft turning either way):
+  - no trunk size, centred on the bed, touches any part but the blades;
+  - the blades clear a 2×2 trunk while latched, and the bed rails at depth 1;
+  - the moving parts don't run into each other or the frame (pin joints excepted).
+- **Linkages:**
+  - each rod's ends stay on the yoke pin and the crank pin, within 0.5 voxel;
+  - the head's pin stays on the yoke's slot centre line and within its length at every depth;
+  - each rope's ends meet its drum and its carriage's top rail at every depth;
+  - each lever joint stays made over the trip's whole throw, the shaft turning either way, and the bell crank's pin stays in the link's slot;
+  - the carriage's lug meets the tappet exactly when the trip starts to move;
+  - the shifter puts the sleeve on the west pinion's face when the shaft turns forwards and on the east one's when it turns backwards;
+  - in a raise the engaged pinion turns exactly with the shaft (both ways) and the drum winds the ropes in.
+- **Files:** every texture used is declared, and every file parses.
 
-Rerun it when IW's shape changes. Placement numbers are named constants at the top of the script.
+Rerun it when IW's shape changes. Placement numbers are named constants at the top of the script. The script also holds the reference implementation of the driver maths (`driver_matrix`, `part_matrix`), which the renderer and the browser viewer must match.
 
 ### How it derives from IW's sawmill
 
-All coordinates are in the native south-facing frame: x is width, y is up, z is depth, and the controller cell is at the origin.
-
 **Built from IW's elements:**
-- **Saw frames:** IW's posts, caps, feet and base sills, and its sash, are copied twice, one copy per frame.
-  - The sash opening is widened from 16 to 38 voxels and the sash stretched from 20 to 38 voxels tall, so a 2×2 trunk fits with stroke clearance.
-  - Each copy is turned 90° about y so the trunk passes through both openings, and placed at x = 2 and x = 4 blocks.
-- **Blades:** each frame keeps IW's blade set in IW's orientation, which is the same as turning it with the frame and back again. Blade normals point along x, so they cross-cut.
-  - The blades are stretched to the taller sash and packed into the sash's thickness.
-  - They start at the north side of the opening and feed south across the trunk as the cut progresses.
-- **Drive:** both cranks (IW's `Rotor_default_4`) sit on one shared shaft along x at y 3.5, z 1.5. That is the centre of the west face of the power cell `[0,3,1]`.
-  - The crank throw is shortened from 3.5 to 2.5 voxels.
-  - The second crank runs half a turn behind the first.
-  - IW's gear set (main rotor, two pinions and the crown disc) sits once at the west end, where the axle comes in.
 
-**New elements**, made from IW's beam elements with their UVs cropped to length:
-- bed rails and sleepers;
-- top beams with shaft bearings;
-- the input bearing post;
-- the disc's axle post.
+| Part | Source in IW's model | What was done to it |
+|---|---|---|
+| Posts | `Frame` posts, slats, caps, feet and sills | Unturned, the opening squeezed from 16 to 15 voxels and the depth from 6 to 3. Four per station: the north pair guides the carriage; the south pair is the same turned half round, without the sills, and only carries the top beams. |
+| Carriage | `sash*`, without its crosshead bars and lever bracket | Unturned, squeezed to 12.5 voxels tall, so its rails sit below and above the blades. |
+| Saw head | The sash's bottom rail, clamp bars and rivets (`sash_001`–`021`) | Turned on its side: rail length → up, rail height → z, rail depth → x. |
+| Blades | `saw*` | Turned 90° about x, so they cut across the trunk with the teeth down. Stretched to 39 voxels long, so the teeth are spaced out, and packed 0.8 voxels apart. |
+| Cranks | `Rotor_default_4_001`–`005` | Throw shortened from 3.5 to 3 voxels; IW's flange disc left off. |
+| Gear set | The two pinions `Rotor_default_1` and `_2`; the crown disc, axle and small crown gear of `Rotor_default_3` | Each pinion stands against the disc's peg ring as IW stands its pinions against its small crown gear. The small crown gear is turned half round at the north end of the axle, and the drum pinion is a copy of IW's east pinion on the drum shaft. |
+| Rope | `spring_002` (rope texture) | Used for the ropes and the rope wound on the drums. |
 
-**Dropped from IW's model:** the carriage, the log, the carriage springs and rope, the levers and ratchet train, the bed table, and the lever posts. All of these served IW's travelling carriage, which the mill does not have (and it takes no levers part).
+**New elements**, made from IW elements' faces with their UVs cropped to length:
+- the yokes and their guides;
+- the connecting rods (from IW's beam);
+- the carriage guide bars and the trip lug;
+- the drums (plain octagonal spools: four rope-textured strips for the core and four oak strips per flange);
+- the clutch sleeve (from the main rotor's plate);
+- the levers (trip rod, tappet, bell crank, link, rock shaft and fork, pawl), from IW's sash stile and lever plate;
+- the top beams, shaft bearings, input post, west post and head beam, and the pawl bracket;
+- the bed: rails with gaps at the blade planes, sleepers and legs.
 
-Texture codes are IW's: `oak` and `metal`. Both are declared in the shapes. The blades use `metal`, which the renderer swaps for the blade's metal.
+**Dropped from IW's model:**
+- the log carriage, the log, its springs and rope, and the bed table;
+- IW's main rotor (`MainRotor_twoway`, a shaft section with toothed flanges that would mesh nothing);
+- IW's lever train proper (`leveler_*`, `connector*`, the `rotor_metal*` ratchet wheel), because the crown disc's pegs serve as the ratchet;
+- IW's crank rod and crosshead (rebuilt), and the crank's flange disc.
+
+Texture codes are IW's: `oak`, `metal` and `rope` (`game:item/resource/rope`). The frame shape uses only `oak` and `metal`. The blades use `metal`, which the renderer swaps for the blade's metal. The head's clamp bars stay iron.
 
 ### Rig schema (`rig.json`)
 
@@ -172,28 +246,57 @@ Everything is in the native frame, in block units, with the controller at `[0,0,
 
 | Field | Meaning |
 |---|---|
-| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell. Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. |
+| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws latched (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. |
 | `powerCell`, `powerFace` | The cell that takes the axle, and the native-frame face it connects on. |
 | `infeedSide`, `outputSide` | Native-frame sides. The rack stands on the infeed side; logs drop off the output side. |
 | `output.pos` | Where cut logs spawn: just outside the output side, at bed height. |
-| `saw` | Optional. `topY` and `bottomY`: the height of the blades' cutting edge when latched at the top and at the end of a cut. The gameplay's saw depth runs between them; 3.0 and 0.5 when absent. |
+| `saw` | `topY` and `bottomY`: the height of the blades' cutting edge when latched (depth 0) and at the end of a cut (depth 1). The gameplay works out from them where the saw first touches a trunk of a given thickness: at depth (`topY` − (bed top + thickness)) / (`topY` − `bottomY`). |
 | `trunkBed` | `origin` is the centre of the bed's top surface. A trunk is drawn centred on it, lying along `axis`. `length` is the usable bed length. |
 | `parts` | An ordered list of moving parts (below). |
 
 How `parts` works:
-- Each part's `match` is a list of case-sensitive `*` globs over an element's name. The first part with a matching glob owns the element. The last part, `frame` with `*`, is the static frame.
-- `requires` names the fitted item the part needs before it is drawn: `crankshaft`, `levers`, `sash1`, `sash2`, `blade1`, `blade2`, or null for always (the parser rejects anything else).
-- `drivers` apply in list order to the authored geometry, with pivots in the authored frame. If the part has a `ride`, that part's whole transform is then applied on top.
-- θ is the signed shaft angle, and rotations are right-handed about the positive axis.
+- **Matching.** Each part's `match` is a list of case-sensitive `*` globs over an element's name. The first part with a matching glob owns the element. The last part, `frame` with `*`, is the static frame.
+- **`requires`** names the fitted item the part needs before it is drawn: `crankshaft`, `levers`, `sash1`, `sash2`, `blade1` or `blade2`, or null for always (the parser rejects anything else). In the shipped rig:
+  - `crankshaft`: the shaft, cranks, rods, yokes, gear set, drum shaft and drums;
+  - `sash1` and `sash2`: each station's carriage, saw head and rope;
+  - `blade1` and `blade2`: each station's blades;
+  - `levers`: the trip, bell crank, link, rock shaft and pawl.
+- **Composition.** `drivers` apply in list order to the authored geometry, with pivots in the authored frame: M = Dₙ ⋯ D₂ · D₁. If the part has a `ride`, that part's whole matrix is then applied on top: M = M_ride · M. Parents are evaluated first whatever the file order, and cycles are rejected.
+- **Inputs:**
+  - θ is the signed shaft angle in radians.
+  - *d* is the saw's **depth** in [0, 1]: 0 is latched at the top, 1 is at the bed, through the trunk.
+  - *L* is **lifting**: 1 while the saws are being wound back up, otherwise 0. A renderer may ease it over a fraction of a second.
+  - *D* is the shaft's **direction**: +1 while it turns forwards (θ increasing), −1 backwards. A renderer may ease it between.
+- **Units and conventions.** Distances are blocks and angles radians. Rotations are right-handed about the positive axis. `axis` is `x`, `y` or `z`.
 
-| Driver | Motion |
+| Driver | Parameters | Motion |
+|---|---|---|
+| `rotate` | `axis`, `pivot`, `ratio` (default 1) | Rotation by `ratio`·θ about `pivot`. |
+| `slide` | `axis`, `amplitude`, `ratio` (1), `phase` (0) | Translation along `axis` by `amplitude`·sin(`ratio`·θ + `phase`). |
+| `swing` | `axis`, `pivot`, `amplitude`, `ratio` (1), `phase` (0) | Rotation by `amplitude`·sin(`ratio`·θ + `phase`) about `pivot`. |
+| `feed` | `axis`, `travel` | Translation along `axis` by `travel`·*d*. |
+| `step` | `motion` (`slide` or `rotate`), `axis`, `pivot` (rotate only), `amount`, `from` (0), `to` (1), `lifting` (absent, `hold` or `block`), `reversible` (false) | Let e = clamp((*d* − `from`) / (`to` − `from`), 0, 1). Then `lifting: hold` makes e = max(e, *L*), and `lifting: block` makes e = e·(1 − *L*). With `reversible: true`, e is then multiplied by *D*. `slide` translates along `axis` by `amount`·e (blocks); `rotate` turns by `amount`·e (radians) about `pivot`. |
+| `stretch` | `axis`, `anchor`, `length`, `travel` | Scales along `axis` about the plane through `anchor` normal to it, by f = (`length` + `travel`·*d*) / `length`. A coordinate *a* on that axis goes to `anchor` + f·(*a* − `anchor`); the other axes are unchanged. `length` is the signed distance from the anchor to the free end in the authored model, and `travel` is the free end's signed displacement at *d* = 1. The matrix is the identity, except that the axis' diagonal entry is f and its translation is `anchor`·(1 − f). |
+
+How the shipped rig uses them:
+
+| Part | Drivers |
 |---|---|
-| `rotate` | Angle = `ratio`·θ about `pivot`. |
-| `slide` | Offset = `amplitude`·sin(`ratio`·θ + `phase`). |
-| `swing` | Angle = `amplitude`·sin(`ratio`·θ + `phase`) about `pivot`. |
-| `feed` | Offset = `travel`·cut progress (0..1). |
+| `shaft` | `rotate` x, ratio 1, about the shaft axis. Covers both cranks and IW's main rotor. |
+| `clutch` | `rotate` with the shaft, then a held, reversible `step` `slide` x of −1.52/16 over depth 0.941..1: west forwards, east backwards. |
+| `pinion_w`, `pinion_e` | `step` `rotate` x of ∓37.70 rad (6 turns) over the whole cut. The disc drives them in opposite directions. |
+| `crown` | `step` `rotate` z of +15.83 rad. |
+| `drum` | `step` `rotate` x of −15.83 rad (= −`SINK`/`DRUM_R`). The rope pays out as the carriage sinks. |
+| `f<n>_yoke` | `slide` z: the first harmonic of the exact slider-crank, amplitude 0.2022, with station 2 half a turn behind. |
+| `f<n>_rod` | `swing` x about the yoke pin (first harmonic of the exact rod angle, ±8.9°), riding the yoke. |
+| `f<n>_carriage` | `feed` y by −`SINK` (−2.125). |
+| `f<n>_saw` | The yoke's `slide`, riding the carriage. |
+| `f<n>_blade` | Rides the saw head. |
+| `f<n>_rope` | `stretch` y about the drum's underside: from 5.35 voxels long at depth 0 to 39.35 at depth 1. |
+| `trip`, `bell`, `link`, `rock` | Held `step`s over depth 0.941..1, sized from the lever geometry so the joints stay made. `link` and `rock` are reversible. |
+| `latch` | `step` `rotate` y of 0.3 rad over depth 0..0.005, blocked while lifting, so it clicks over the pegs during the lift. |
 
-The model is posed for θ = 0 and progress = 0, except that the sashes are authored at mid-stroke and their slide puts them where the cranks are.
+The model is posed for θ = 0, depth 0 and not lifting. The exceptions are the yokes, saw heads and rods, which are authored at mid-stroke and at the rod's mean angle; their drivers put them where the cranks are.
 
 ### Rendering
 
@@ -201,19 +304,42 @@ The model is posed for θ = 0 and progress = 0, except that the sashes are autho
 
 The renderer:
 - **Builds one mesh per moving rig part** from `buckingmill.json`, by blanking every other part's elements, as Immersive Woodworking's sawmill renderer does.
-- **Draws each part** with its rig matrix (`RigParts.Matrices` in `Core/RigAnimation.cs`), turned to the mill's facing.
-  - A part whose `requires` is not fitted is skipped.
+- **Draws each part** with its rig matrix (`RigParts.Matrices(θ, depth, lifting, direction)` in `Core/RigAnimation.cs`), turned to the mill's facing.
+  - A part whose `requires` is not fitted is skipped; the levers part is drawn when `HasLevers`.
   - It registers for the opaque pass and both shadow passes, and draws nothing beyond 64 blocks.
-- **Blade texture:** the blade meshes take the fitted kit's metal (`game:block/metal/ingot/{metal}`) in place of `metal`. The sash's clamps keep iron.
+  - The rope's matrix scales along one axis, so it is not rigid.
+- **Blade texture:** the blade meshes take the fitted kit's metal (`game:block/metal/ingot/{metal}`) in place of `metal`. The head's clamps keep iron.
 - **The loaded trunk** is Logging Expanded's own block for that stack, so every size and wood looks right. It is laid on the bed from its tessellated bounds: turned onto x, centred on `trunkBed.origin`, its underside on the bed. It stays whole until the cut finishes and the gameplay clears it.
 - **Shaft angle:** taken from the power ghost's `AngleRad`, which the network already advances smoothly on the client, and accumulated into a continuous angle.
   - The native shaft angle is `-AngleRad` facing south or west and `+AngleRad` facing north or east (`MillMotion.NativeShaftAngle`).
   - That makes the shaft turn with a vanilla axle on the power face, which draws itself as a right-handed turn of `-AngleRad` about the world axis.
-- **Sound and particles:** while cutting, it plays one of Immersive Woodworking's stroke sounds (`immersivewoodworking:sounds/saw/sawing_*`, referenced, not copied) per half turn, in IW's speed bands. It also puffs sawdust particles at each blade set's leading edge.
+- **Depth, lifting and direction:** depth is the block entity's `ClientSawDepth`. Lifting eases towards 1 while `Phase` is `Raising` and back to 0 otherwise (6 per second). Direction eases towards the sign of the shaft's last turn, so the clutch sleeve crosses to the other pinion if the network reverses.
+- **Sound and particles** (IW's sounds are referenced, not copied):
+  - In `MillPhase.Cutting` it plays one of Immersive Woodworking's stroke sounds (`immersivewoodworking:sounds/saw/sawing_*`) per half turn, in IW's speed bands, and puffs sawdust along each blade set's cutting edge.
+  - In `Raising` it plays IW's `sounds/saw/metal_click`, quietly, each time the latch passes one of the crown disc's 12 pegs.
 
 ### Editing by hand
 
-If you edit the shapes in VS Model Creator, keep the element names: the rig finds its parts through them. Every element of frame *n* is prefixed `f<n>_`, then `frame_`, `sash_`, `rod_`, `crank_` or `blade_`. The shared parts use `shaft_`, `gear_main_`, `gear_idler_` and `gear_disc_`.
+If you edit the shapes in VS Model Creator, keep the element names: the rig finds its parts through them.
+
+| Prefix | Part |
+|---|---|
+| `f<n>_post_n_`, `f<n>_post_s_`, `f<n>_guide_` | Station *n*'s posts and yoke guides (static frame). |
+| `f<n>_carriage_` | Station *n*'s carriage. |
+| `f<n>_saw_` | Station *n*'s saw head. |
+| `f<n>_blade_` | Station *n*'s blades. |
+| `f<n>_yoke_` | Station *n*'s yoke. |
+| `f<n>_rod_` | Station *n*'s rod. |
+| `f<n>_crank_` | Station *n*'s crank. |
+| `f<n>_rope` | Station *n*'s rope. |
+| `shaft_` | The shared shaft. |
+| `gear_clutch_` | The clutch sleeve. |
+| `gear_pinion_w_`, `gear_pinion_e_` | The two loose pinions. |
+| `gear_crown_` | The crown disc, its axle and the small crown gear. |
+| `drum` | The drum shaft, drums and drum pinion. |
+| `lever_trip_`, `lever_bell_`, `lever_link`, `lever_rock_`, `lever_latch_` | The levers. |
+
+Everything else is the static frame.
 
 Hand edits are lost when the script runs again. Either port them into `make_shape.py`, or stop regenerating.
 
@@ -224,8 +350,12 @@ The model is derived from Immersive Woodworking's sawmill model by Bobrik00 and 
 - `tests/` (`dotnet test mods-src/buckingsawmill/tests`, no game needed) compiles `Core/` and tests
   the rig parser (with its own fixture, and the shipped `rig.json`), the rotation maths, the
   assembly rules, the cut arithmetic, the saw depth and raise arithmetic and the config. It also tests the rig's animation: glob
-  matching, each driver, ride composition and cycles, the shaft's direction against a vanilla
-  axle on every facing, and the shipped rods staying on their crank pins.
+  matching, each driver (including the step gates and the stretch), ride composition and cycles,
+  the shaft's direction against a vanilla axle on every facing, every shipped part's matrix
+  against `tests/rig-reference.json` (written by `tools/make_shape.py` from its reference maths,
+  with the shaft turning both ways), the shipped carriages falling from `saw.topY` to
+  `saw.bottomY`, and, for each shaft direction, the clutch engaging the pinion that turns with
+  the shaft while the drum winds the ropes in.
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
 - `tests/PackTests/BuckingSawmillScenarios.cs` (Atlas) loads this build with every locked mod: the
   mod loads cleanly with its recipe, the bridge resolves against the pinned Logging Expanded,

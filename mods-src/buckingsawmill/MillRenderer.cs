@@ -9,8 +9,8 @@ namespace BuckingSawmill;
 /// Draws the mill's moving parts and the loaded trunk (client only; created and disposed by
 /// <see cref="BEBuckingMill"/>). One mesh per rig part from <c>shapes/block/buckingmill.json</c>,
 /// built by blanking every other part's elements, as Immersive Woodworking's sawmill renderer
-/// does; each is drawn with its rig matrix (<see cref="RigParts.Matrices"/>) turned to the mill's
-/// facing. The static frame part is not drawn here: the block's own shape (buckingmill_frame.json,
+/// does; each is drawn with its rig matrix (<see cref="RigParts.Matrices"/>, from the shaft angle,
+/// the saw depth and whether the saws are being raised) turned to the mill's facing. The static frame part is not drawn here: the block's own shape (buckingmill_frame.json,
 /// the same elements) draws it in the chunk mesh. The renderer polls <see cref="IMillVisualState"/>
 /// every frame; there is no change event.
 /// </summary>
@@ -19,6 +19,8 @@ public sealed class MillRenderer : IRenderer
     public static readonly AssetLocation ShapeLoc = new(BuckingSawmillSystem.Domain, "shapes/block/buckingmill.json");
     private const int DrawRange = 64;              // blocks from the camera to the controller
     private const float SawdustInterval = 0.1f;    // seconds between sawdust puffs per blade set
+    private const float LiftingEase = 6f;           // per second: how fast the lifting input follows the phase
+    private const int RatchetPegs = 12;             // pegs on the crown disc the latch clicks over
 
     private readonly ICoreClientAPI _capi;
     private readonly BEBuckingMill _be;
@@ -41,6 +43,11 @@ public sealed class MillRenderer : IRenderer
     private bool _angleSeeded;
     private int _stroke;
     private float _sawdustTimer;
+    private float _lifting;                         // 0..1, eased towards 1 while the saws are raised
+    private float _direction = 1;                   // -1..1, eased towards the sign of the shaft's last turn
+    private float _directionTarget = 1;
+    private readonly double _clicksPerDepth;        // latch clicks over a full raise
+    private int _click;
 
     private readonly Matrixf _model = new();
 
@@ -64,6 +71,10 @@ public sealed class MillRenderer : IRenderer
             _drawn[i] = p.Requires != null || p.Ride != null || p.Drivers.Count > 0;
             _isBlade[i] = p.Requires is { } r && r.StartsWith("blade", StringComparison.Ordinal);
         }
+        // the latch clicks over each of the crown disc's pegs while the windlass winds
+        var crown = _parts.IndexOf("crown");
+        var spin = crown < 0 ? null : _parts.Parts[crown].Drivers.FirstOrDefault(d => d.Type == DriverType.Step && d.Rotates);
+        _clicksPerDepth = spin == null ? 0 : Math.Abs(spin.Amount) * RatchetPegs / (2 * Math.PI);
         capi.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "buckingmill");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowFar, "buckingmill");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowNear, "buckingmill");
@@ -219,7 +230,7 @@ public sealed class MillRenderer : IRenderer
         if (far)
             return;
 
-        var mats = _parts.Matrices(_theta, _be.ClientProgress);
+        var mats = Matrices();
         var facing = Mat4.Facing(_be.Side);
         var rapi = _capi.Render;
         rapi.GlDisableCullFace();
@@ -234,7 +245,7 @@ public sealed class MillRenderer : IRenderer
         }
         for (int i = 0; i < _meshes.Length; i++)
         {
-            if (_meshes[i] is not { } mesh || !RigPart.Fitted(_parts.Parts[i].Requires, _be.SashCount, _be.HasCrankshaft, _be.BladeCount))
+            if (_meshes[i] is not { } mesh || !Fitted(i))
                 continue;
             Draw(mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, pos);
         }
@@ -243,6 +254,11 @@ public sealed class MillRenderer : IRenderer
         prog?.Stop();
         rapi.GlEnableCullFace();
     }
+
+    private float[][] Matrices() => _parts.Matrices(_theta, _be.ClientSawDepth, _lifting, _direction);
+
+    private bool Fitted(int part) =>
+        RigPart.Fitted(_parts.Parts[part].Requires, _be.SashCount, _be.HasCrankshaft, _be.BladeCount, _be.HasLevers);
 
     private void Draw(MultiTextureMeshRef mesh, float[] native, IStandardShaderProgram? prog, Vec3d cam, BlockPos pos)
     {
@@ -264,10 +280,17 @@ public sealed class MillRenderer : IRenderer
     // ---- motion, sound, sawdust ----
 
     /// <summary>Turns the client's shaft clock by the power ghost's angle change (the network
-    /// already advances that angle smoothly between server updates), and plays a saw stroke per
-    /// half turn and puffs sawdust while a trunk is being cut.</summary>
+    /// already advances that angle smoothly between server updates) and eases the lifting input
+    /// towards the phase and the shaft's direction towards the sign of its turning. While cutting it plays a saw stroke per half turn and puffs sawdust;
+    /// while the saws are raised the latch clicks over the crown disc's pegs.</summary>
     private void AdvanceClock(float dt, bool far)
     {
+        var phase = _be.Phase;
+        float target = phase == MillPhase.Raising ? 1 : 0;
+        _lifting += (target - _lifting) * Math.Min(1, dt * LiftingEase);
+        // the clutch side follows the shaft's direction: the shifter puts the sleeve on whichever
+        // pinion winds the drums in for the way the shaft is turning
+        _direction += (_directionTarget - _direction) * Math.Min(1, dt * LiftingEase);
         float speed = _be.ShaftSpeed;
         double angle = MillMotion.NativeShaftAngle(_be.Side, _be.ShaftAngle);
         if (!_angleSeeded || speed <= 0)
@@ -277,17 +300,24 @@ public sealed class MillRenderer : IRenderer
             return;
         }
         double before = _theta;
-        _theta += MillMotion.WrappedDelta(_lastAngle, angle);
+        double delta = MillMotion.WrappedDelta(_lastAngle, angle);
+        if (Math.Abs(delta) > 1e-6)
+            _directionTarget = Math.Sign(delta);
+        _theta += delta;
         _lastAngle = angle;
-        // keep the clock small; every ratio in the shipped rig is a whole number
+        // keep the clock small; every shaft ratio in the shipped rig is a whole number
         if (Math.Abs(_theta) > 1000 * Math.PI)
         {
             double wrap = Math.Floor(_theta / (2 * Math.PI)) * 2 * Math.PI;
             _theta -= wrap;
             before -= wrap;
         }
-        bool cutting = _be.Trunk != null && _be.Complete && speed >= _be.MinSpeed;
-        if (!cutting || far)
+        bool running = _be.Complete && speed >= _be.MinSpeed && !far;
+        int click = (int)Math.Floor(_be.ClientSawDepth * _clicksPerDepth);
+        if (running && phase == MillPhase.Raising && click != _click)
+            PlayClick();
+        _click = click;
+        if (!running || phase != MillPhase.Cutting || _be.Trunk == null)
             return;
         int strokes = MillMotion.StrokesBetween(before, _theta);
         if (strokes > 0)
@@ -298,6 +328,13 @@ public sealed class MillRenderer : IRenderer
             _sawdustTimer = 0;
             SpawnSawdust();
         }
+    }
+
+    private void PlayClick()
+    {
+        // at the latch, over the crown disc at the west end
+        var at = WorldPoint(new Float3(0.75f, 3.9f, 1.35f));
+        _capi.World.PlaySoundAt(new AssetLocation("immersivewoodworking", "sounds/saw/metal_click"), at.X, at.Y, at.Z, null, true, 16, 0.35f);
     }
 
     private void PlayStroke()
@@ -313,16 +350,16 @@ public sealed class MillRenderer : IRenderer
 
     private void SpawnSawdust()
     {
-        var mats = _parts.Matrices(_theta, _be.ClientProgress);
-        float bottom = _bed?.Origin.Y ?? 0.5f;
+        var mats = Matrices();
+        float mid = _bed?.Origin.Z ?? 1.5f;
         for (int i = 0; i < _meshes.Length; i++)
         {
-            if (!_isBlade[i] || _bounds[i] is not { } b || !RigPart.Fitted(_parts.Parts[i].Requires, _be.SashCount, _be.HasCrankshaft, _be.BladeCount))
+            if (!_isBlade[i] || _bounds[i] is not { } b || !Fitted(i))
                 continue;
-            // the blade set's leading (south) edge, where it bites, near the bottom of the trunk
-            var edge = Mat4.Apply(mats[i], new Float3((b.Min.X + b.Max.X) / 2, bottom, b.Max.Z));
-            var lo = WorldPoint(edge with { X = edge.X - 0.1f, Y = bottom + 0.02f });
-            var hi = WorldPoint(edge with { X = edge.X + 0.1f, Y = bottom + 0.25f });
+            // along the blade set's cutting edge, where it is in the trunk
+            var edge = Mat4.Apply(mats[i], new Float3((b.Min.X + b.Max.X) / 2, b.Min.Y, mid));
+            var lo = WorldPoint(new Float3(edge.X - 0.1f, edge.Y, mid - 0.6f));
+            var hi = WorldPoint(new Float3(edge.X + 0.1f, edge.Y + 0.15f, mid + 0.6f));
             _capi.World.SpawnParticles(3, ColorUtil.ToRgba(255, 214, 180, 120),
                 new Vec3d(Math.Min(lo.X, hi.X), lo.Y, Math.Min(lo.Z, hi.Z)), new Vec3d(Math.Max(lo.X, hi.X), hi.Y, Math.Max(lo.Z, hi.Z)),
                 new Vec3f(-0.4f, 0.1f, -0.4f), new Vec3f(0.4f, 0.6f, 0.4f), 1.2f, 0.6f, 0.4f, EnumParticleModel.Quad, null);
