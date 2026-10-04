@@ -278,6 +278,57 @@ each depth holds and the spring's look-at line (Hydrate or Diedrate's own `well.
 Text only, as exact-passage `LangEdits` like ppex's. English only: Hydrate or Diedrate's other
 translations of the page differ in structure, and two are of an older text.
 
+### The barrel rack takes kegs (`BarrelRackKegs`)
+
+Food Shelves (`foodshelves` 3.1.0) and Hydrate or Diedrate (`hydrateordiedrate` 2.5.6). The barrel
+rack (`barrelrack-*`, `BEBarrelRack`) takes a cask into its slot 0 and keeps the liquid in its own
+slot 1, an `ItemSlotLiquidOnly`. What it takes is data: Food Shelves reads
+`config/restrictions/barrels/barrelrack.json` (`"CollectibleTypes": ["game:BlockBarrel"]`) on the
+server in `AssetsLoaded`, after the patch loader, and marks every match `fsbarrelrack` in
+`AssetsFinalize`; the client gets that attribute with the block types. A patch here
+(`patches/barrelrack-kegs.json`) adds `hydrateordiedrate:keg-*`, tapped and untapped, to its
+`CollectibleCodes`. That alone would let a keg in, but a keg is not a barrel in three ways, which
+`BarrelRackKegs` patches (Harmony, on both sides):
+
+- **Its liquid.** A keg item carries its liquid (Hydrate's `KegDropWithLiquid`, on by default),
+  where a vanilla barrel item is always empty. Racked as it ships, a keg's liquid would sit in the
+  item, hidden, never perishing, while the rack's slot took another load. So after every
+  interaction with the rack (`OnInteract`) a racked keg's liquid moves into the rack's slot; taking
+  the keg out with an empty hand moves the rack's liquid back into it first, so it leaves full, as
+  it would picked up from the floor; and breaking the rack does the same before the slots drop.
+  Barrels keep the rack's rule (empty it before taking the barrel out). With `KegDropWithLiquid`
+  off, kegs follow that rule too, and rot is never put back in a keg (Hydrate spills rot when a keg
+  breaks; the rack hands rot out with an empty hand). Nothing is copied: the liquid is in one place
+  at a time.
+- **Its capacity.** The rack's capacity is its block's `capacityLitres` (50), read by
+  `TryPutLiquid(BlockPos, ...)`, which every pour into it goes through. For a rack holding a keg
+  that call runs with the keg's capacity (`BlockKeg.CapacityLitres`, Hydrate's `KegCapacityLitres`,
+  100 by default) in the rack block's field, put back right after (a finalizer). A barrel's rack
+  stays at 50. The field rather than a postfix on the `CapacityLitres` getter, which the JIT may
+  inline into its callers.
+- **Its spoil rate.** The rack halves perishing for whatever it holds (Food Shelves'
+  `PerishMultiplier` 0.5, times its world settings `GlobalPerishMultiplier` and `GlobalBlockBuffs`).
+  A keg has its own rate: Hydrate's `SpoilRateUntapped` 0.15 sealed and `SpoilRateTapped` 0.65 once
+  tapped. A racked keg gets both, multiplied (0.075 and 0.325 by default): a vanilla barrel's own
+  rate is 1, so the rack does to a keg what it does to a barrel, and the rack's "stay fresh 100%
+  longer" holds for both. A racked keg is never worse off than standing, and tapped still spoils
+  faster than sealed. The perish speed the rack shows is multiplied the same way. Curing is the
+  rack's own (0.8), as for a barrel.
+
+A racked keg looks like a racked barrel: the rack draws its own horizontal barrel shape
+(`horizontalbarrel.json`) with the cask's textures, and the keg's `aged`, `bottom` and
+`blackbronze4` are the barrel's. Tapped and untapped look the same in the rack.
+
+The English text says so: the handbook's "Can hold" for the rack lists kegs, and the message for
+a cask it refuses says barrels and kegs (`LangEdits`; Food Shelves' other languages keep their text).
+
+Hydrate's config is read each time it is needed, so a change in ConfigLib applies at once. The
+client predicts the interactions and pours, and refuses a pour past what it thinks is full before
+asking the server, so both sides are patched, once per process (singleplayer runs both in one) with
+their own Harmony id. The switch that decides what the rack takes is the server's. If the rack,
+the keg or Hydrate's keg settings are not as expected, the mod logs a warning and leaves the rack
+as it ships, the restriction patch included.
+
 ### The powered chopper drops its output in front (`ChopperDropsInFront`)
 
 Immersive Woodworking (`immersivewoodworking` 1.3.11). The powered chopper (the multiblock frame,
@@ -305,6 +356,37 @@ pass the items on to, such as a chest under it, or it drops them out of its bott
 Server side, where the chopper runs. Immersive Woodworking has no setting for this. If
 `EjectBatch(ItemStack, int)` or the chopper's `Facing` is gone, the mod logs a warning and the
 chopper keeps its own throw.
+
+### One tun: Hydrate or Diedrate's is retired, Food Shelves' holds 950 L (`HydrateTunRetired`, `LargerTunRack`)
+
+The pack had two tuns, both 2 x 2 x 2 liquid containers: Hydrate or Diedrate's (`hydrateordiedrate`
+2.5.6, `hydrateordiedrate:tun-*`, 950 L by its `TunCapacityLitres` setting) and Food Shelves' tun,
+which sits in a tun rack (`foodshelves` 3.1.0, `foodshelves:tunrack-*` holding `foodshelves:tun-normal`,
+500 L). The pack keeps Food Shelves' one, at Hydrate or Diedrate's size. Two switches:
+
+- **`HydrateTunRetired`**: Hydrate or Diedrate's tun has no grid recipe (`enabled: false`) and is
+  left out of the creative inventory (its `creativeinventoryStacksByType` removed) and the handbook
+  (`attributes.handbook.exclude`). The block type stays registered, so a tun already placed in a world
+  keeps its liquid and still works, and breaking it still drops it. It can be placed again, but no new
+  one can be made. Hydrate or Diedrate's "Craft a Tun" achievement needs Nat's Achievements, which the
+  pack does not have, and its configuration page still lists the tun settings, which still apply to
+  the tuns already placed.
+- **`LargerTunRack`**: the tun rack holds 950 L instead of 500. Food Shelves keeps that number in
+  two places, and both are set: the block's `attributes.capacityLitres`, which
+  `BlockLiquidContainerBase` reads in `OnLoaded` and every fill and pour checks, and `BETunRack`'s own
+  `private readonly int capacityLitres = 500`, which its constructor gives the liquid slot
+  (`ItemSlotLiquidOnly.CapacityLitres`, read by other code that fills a liquid slot) and its
+  `Initialize` sets again. A Harmony postfix on the constructor (server side) sets the field and the
+  slot to 950, so `Initialize` sets the same. A rack that holds more than 500 L when the switch is
+  turned off keeps it, but takes no more until it is below 500.
+
+Both are JSON patches, `assets/seraphhorizons/patches/tun-hydrateordiedrate.json` and
+`tun-foodshelves.json`, `"side": "server"` (block types and recipes are loaded on the server, and the
+client gets the blocks, attributes and creative stacks included, from it) and each `dependsOn` its
+mod. With a switch off the system empties that patch file in `Start`, before the patch loader runs in
+`AssetsLoaded`, as for Age of Flax. If `BETunRack`, its constructor or its `int capacityLitres` field
+is gone, the mod logs a warning and leaves the rack as Food Shelves ships it, block attribute included,
+so the two never disagree. The switches that count are the server's.
 
 ### Map Reveal (`MapReveal`)
 
@@ -558,6 +640,26 @@ the switch off and requires the chopper unpatched and throwing its batch past th
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
 it fails after a mod is added or updated, it lists the foods to give a value in `patches/hydration-*.json`.
+
+`tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
+the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's
+block entity, taking 950 L of water. It requires the tun rack's block, field and liquid slot all at
+950 L, the constructor patched, and a placed rack with a tun taking 950 L. `TunOffScenarios` boots a
+server with both switches off and requires both tuns as they ship (the rack at 500 L in all three
+places). When it fails after a Food Shelves update, check whether `BETunRack` still keeps its own
+capacity, and whether the block's `capacityLitres` moved.
+
+`tests/PackTests/BarrelRackKegsScenarios.cs` (Atlas) places a barrel rack and has a player
+right-click it through the rack block's own `OnBlockInteractStart`: an untapped keg holding 80 L
+goes in (the liquid in the rack, none in the item), fills to 100 L and no further, and comes back
+out holding 100 L; a barrel still holds 50 L and stays put while full; the perish speed in the
+rack with each keg is 0.15 and 0.65 of a barrel's; and breaking the rack drops a tapped keg with
+its 30 L in it. It also requires the restriction to mark both kegs and still the barrel, and every `LangEdits`
+passage reworded. When it
+fails after a Food Shelves or Hydrate or Diedrate update, check the restriction file, `BEBarrelRack`
+and Hydrate's `ContainersConfig`. `BarrelRackKegsOffScenarios` boots a server with the switch off
+and requires the rack to refuse a keg. The rack's look and the client's side of the interactions
+are checked by hand in the game.
 
 `tests/PackTests/MapRevealScenarios.cs` (Atlas) has a test player run `/revealmap`, decodes what
 it is sent as the client would, and requires it to agree with the loaded chunks (so the savegame
