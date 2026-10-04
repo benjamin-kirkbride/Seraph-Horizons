@@ -194,7 +194,7 @@ version = "5.1.4"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Traps, fishing and other primitive survival content."
+why = "Traps, fishing and other primitive survival content. Its irrigation vessel is retired in favour of Olla, by seraphhorizons (IrrigationVesselRetired)."
 
 [[mod]]
 id = "butchering"
@@ -905,6 +905,14 @@ side = "universal"
 license = "unknown"
 redistribute = false
 why = "New farmland crops."
+
+[[mod]]
+id = "olla"
+version = "1.4.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Buried clay ollas that water the farmland around them. The pack's olla: Primitive Survival's irrigation vessel is retired in its favour, by seraphhorizons (IrrigationVesselRetired)."
 
 [[mod]]
 id = "grindablebonearrows"
