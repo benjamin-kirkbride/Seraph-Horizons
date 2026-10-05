@@ -18,6 +18,7 @@ internal sealed class ModIndex
     private readonly List<Mod> _mods;
     private readonly Dictionary<string, string> _originToMod = new();
     private readonly Dictionary<string, string> _typeToMod = new();
+    private readonly Dictionary<string, AssetLocation> _typeToAsset = new();
     private readonly Dictionary<string, string> _domainToMod = new();
     private readonly Dictionary<string, SortedSet<string>> _typeDomainsByMod = new();
 
@@ -40,7 +41,7 @@ internal sealed class ModIndex
 
             var domain = asset.Location.Domain;
             var key = domain + ":" + code.ToLowerInvariant();
-            _typeToMod.TryAdd(key, mod);
+            if (_typeToMod.TryAdd(key, mod)) _typeToAsset[key] = asset.Location;
             if (!domainVotes.TryGetValue(domain, out var votes)) domainVotes[domain] = votes = new();
             votes[mod] = votes.GetValueOrDefault(mod) + 1;
             if (domain != mod && !modIds.Contains(domain))
@@ -66,18 +67,24 @@ internal sealed class ModIndex
     public bool Has(string modId) => _mods.Any(m => m.Info.ModID == modId);
 
     /// <summary>The mod that defined the collectible; never null, falls back to "game".</summary>
-    public string ModForCollectible(CollectibleObject c)
+    public string ModForCollectible(CollectibleObject c) =>
+        TypeKey(c) is { } key ? _typeToMod[key] : ModForDomain(c.Code.Domain);
+
+    /// <summary>The item or block type file the collectible was made from; null when none explains it.</summary>
+    public AssetLocation? TypeAsset(CollectibleObject c) => TypeKey(c) is { } key ? _typeToAsset[key] : null;
+
+    /// <summary>The type whose code is the longest dash-separated prefix of the collectible's path.</summary>
+    private string? TypeKey(CollectibleObject c)
     {
         var domain = c.Code.Domain;
         var path = c.Code.Path;
         while (true)
         {
-            if (_typeToMod.TryGetValue(domain + ":" + path, out var mod)) return mod;
+            if (_typeToMod.ContainsKey(domain + ":" + path)) return domain + ":" + path;
             var dash = path.LastIndexOf('-');
-            if (dash <= 0) break;
+            if (dash <= 0) return null;
             path = path[..dash];
         }
-        return ModForDomain(domain);
     }
 
     public string ModForDomain(string domain)

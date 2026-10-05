@@ -85,6 +85,11 @@ export interface ItemDetail {
   sources?: Source[];
   /** Recipe type code to recipe indices whose outputs include this item. */
   madeBy?: Record<string, number[]>;
+  /**
+   * Recipe type code to how many recipes of that type make this item but are listed only on
+   * their ingredient's page: perishing into rot.
+   */
+  madeByElsewhere?: Record<string, number>;
   /** Recipe type code to recipe indices with an ingredient slot that accepts this item. */
   usedIn?: Record<string, number[]>;
   /** Item indices whose smelting output is this item. */

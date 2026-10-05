@@ -102,9 +102,59 @@ describe("prepareData on schema/examples/minimal.json", () => {
       { type: "blockDrop", from: "game:leavesbranchy-grown-oak", fromName: "Branchy oak leaves", quantity: { avg: 0.8, var: 0 } },
     ]);
     expect(r.detail("game:ingot-copper").description).toBe("A bar of copper.");
-    expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, start: 4, mod: "examplemod" });
-    expect(r.meta.itemCount).toBe(29);
-    expect(r.meta.recipeCount).toBe(7);
+    expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, start: 5, mod: "examplemod" });
+    expect(r.meta.itemCount).toBe(34);
+    expect(r.meta.recipeCount).toBe(9);
+  });
+
+  it("indexes a transition as made by on the result's page and used in on the source's", () => {
+    const id = "curing|butchering:sinew-wet|0";
+    expect(r.ids(r.detail("butchering:sinew-dry").madeBy)).toEqual({ curing: [id] });
+    expect(r.ids(r.detail("butchering:sinew-wet").usedIn)).toEqual({ curing: [id] });
+    expect(r.detail("butchering:sinew-wet").madeBy).toBeUndefined();
+    expect(r.meta.recipeTypes.curing).toEqual({ name: "Curing", shape: "transition", count: 1, start: 4, mod: "game" });
+  });
+
+  it("indexes the smoking rack as a use of the rack and of the raw meat, and as a source of the smoked meat", () => {
+    const id = "smoking|butchering:primemeat-raw|0";
+    expect(r.ids(r.detail("butchering:smoked-none-primemeat").madeBy)).toEqual({ smoking: [id] });
+    expect(r.ids(r.detail("butchering:primemeat-raw").usedIn)).toEqual({ smoking: [id] });
+    expect(r.ids(r.detail("butchering:smokingrack-copper-north").usedIn)).toEqual({ smoking: [id] });
+    expect(r.meta.recipeTypes.smoking).toEqual({ name: "Smoking rack", shape: "transition", count: 1, start: 8, mod: "butchering" });
+  });
+});
+
+describe("perishing", () => {
+  const stack = (code: string, quantity = 1) => ({ code, kind: "item" as const, quantity });
+  const perish = (from: string, to: string): Recipe => ({
+    id: `perishing|${from}|0`,
+    type: "perishing",
+    mod: "game",
+    ingredients: [stack(from)],
+    outputs: [stack(to)],
+    variants: [{ ingredients: [[stack(from)]], outputs: [stack(to)] }],
+    transition: { type: "perish", freshHours: { avg: 36 }, transitionHours: { avg: 24 } },
+  });
+  const exp: RecipeExport = {
+    ...exportWith(["game:redmeat-raw", "game:fish-raw", "game:rot", "game:wine", "game:vinegar"], [
+      perish("game:fish-raw", "game:rot"),
+      perish("game:redmeat-raw", "game:rot"),
+      perish("game:wine", "game:vinegar"),
+    ]),
+    recipeTypes: { perishing: { name: "Perishing", count: 3, shape: "transition" } },
+  };
+  const r = reader(prepareData(exp).files);
+
+  it("lists perishing into rot on the food's page only, and counts it on rot's", () => {
+    expect(r.ids(r.detail("game:redmeat-raw").usedIn)).toEqual({ perishing: ["perishing|game:redmeat-raw|0"] });
+    expect(r.detail("game:rot").madeBy).toBeUndefined();
+    expect(r.detail("game:rot").madeByElsewhere).toEqual({ perishing: 2 });
+  });
+
+  it("lists perishing into anything else on both pages", () => {
+    expect(r.ids(r.detail("game:vinegar").madeBy)).toEqual({ perishing: ["perishing|game:wine|0"] });
+    expect(r.ids(r.detail("game:wine").usedIn)).toEqual({ perishing: ["perishing|game:wine|0"] });
+    expect(r.detail("game:vinegar").madeByElsewhere).toBeUndefined();
   });
 });
 

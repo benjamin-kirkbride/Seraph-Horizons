@@ -159,22 +159,7 @@ internal static class ItemRecords
             };
         }
 
-        var transitions = new JArray();
-        foreach (var t in c.TransitionableProps ?? [])
-        {
-            if (t == null || t.Type == EnumTransitionType.None) continue;
-            var o = new JObject
-            {
-                ["type"] = Json.Lower(t.Type),
-                ["freshHours"] = Json.Quantity(t.FreshHours),
-                ["transitionHours"] = Json.Quantity(t.TransitionHours),
-            };
-            var output = Json.Stack(t.TransitionedStack);
-            if (output != null) o["output"] = output;
-            if (t.TransitionRatio != 1) o["ratio"] = Json.Round(t.TransitionRatio);
-            transitions.Add(o);
-        }
-        if (transitions.Count > 0) extra["transitions"] = transitions;
+        // TransitionableProps are recipe records of shape `transition` (Recipes/Transitions.cs).
 
         var food = c.NutritionProps;
         var eaten = Json.Stack(food?.EatenStack);
