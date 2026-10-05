@@ -26,7 +26,7 @@
     focus = null,
     only,
     mods,
-  }: { recipe: Recipe; type: TypeInfo; data: VersionData; focus?: Focus; mods: Record<string, MetaMod>; only?: number[] } = $props();
+  }: { recipe: Recipe; type: Pick<TypeInfo, "name" | "shape">; data: VersionData; focus?: Focus; mods: Record<string, MetaMod>; only?: number[] } = $props();
 
   // `only` picks the variants outright: a creature page showing some of its creatures.
   const variants = $derived(only && only.length > 0 ? only : focusVariants(recipe, focus));

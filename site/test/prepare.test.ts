@@ -44,7 +44,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
     expect(r.ids(r.detail("game:waterwheel-3m-north").madeBy)).toEqual({ construction: [id] });
     expect(r.ids(r.detail("game:supportbeam-oak").usedIn)).toEqual({ construction: [id] });
     expect(r.ids(r.detail("game:resin").usedIn)).toEqual({ construction: [id] });
-    expect(r.meta.recipeTypes.construction).toEqual({ name: "Built in place", shape: "construction", count: 1, mod: "survival" });
+    expect(r.meta.recipeTypes.construction).toEqual({ name: "Built in place", shape: "construction", count: 1, start: 3, mod: "survival" });
   });
 
   it("indexes a creature's butchery as making every stage's output and using every carcass, station and tool", () => {
@@ -56,7 +56,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
     for (const code of ["butchering:deadhare-male-european-1-skinned", "butchering:butchertable-simple-north", "game:cleaver-copper", "game:woodbucket"]) {
       expect(r.ids(r.detail(code).usedIn)).toEqual({ butchery: [id] });
     }
-    expect(r.meta.recipeTypes.butchery).toEqual({ name: "Butchery", shape: "butchery", count: 1, mod: "butchering" });
+    expect(r.meta.recipeTypes.butchery).toEqual({ name: "Butchery", shape: "butchery", count: 1, start: 2, mod: "butchering" });
   });
 
   it("gives the creature type its butchery, and the creatures the record names that give nothing else", () => {
@@ -102,7 +102,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
       { type: "blockDrop", from: "game:leavesbranchy-grown-oak", fromName: "Branchy oak leaves", quantity: { avg: 0.8, var: 0 } },
     ]);
     expect(r.detail("game:ingot-copper").description).toBe("A bar of copper.");
-    expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, mod: "examplemod" });
+    expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, start: 4, mod: "examplemod" });
     expect(r.meta.itemCount).toBe(29);
     expect(r.meta.recipeCount).toBe(7);
   });
@@ -218,6 +218,35 @@ describe("wildcards in the reverse indexes", () => {
     const r = reader(prepareData(exp).files);
     expect(r.ids(r.detail("game:a").usedIn)).toEqual({ grid: ["grid|x|1"] });
     expect(r.meta.recipeTypes.grid!.count).toBe(1);
+  });
+
+  it("keeps each type's recipes in one run that starts where the meta says", () => {
+    const base = { mod: "game", ingredients: [], outputs: [], variants: [] };
+    // By id alone "grid2|…" would sort between "grid|a|0" and "grid|z|0", since `2` < `|`.
+    const exp = exportWith([], [
+      { ...base, id: "grid|z|0", type: "grid" },
+      { ...base, id: "grid2|m|0", type: "grid2" },
+      { ...base, id: "barrel|m|0", type: "barrel" },
+      { ...base, id: "grid|a|0", type: "grid" },
+    ]);
+    exp.recipeTypes.grid2 = { name: "Other grid", count: 1, shape: "grid" };
+    exp.recipeTypes.barrel = { name: "Barrel", count: 1, shape: "barrel" };
+    const r = reader(prepareData(exp).files);
+    const run = (type: string) => {
+      const { start, count } = r.meta.recipeTypes[type]!;
+      return Array.from({ length: count }, (_, i) => r.recipe(start + i).id);
+    };
+    expect(run("barrel")).toEqual(["barrel|m|0"]);
+    expect(run("grid")).toEqual(["grid|a|0", "grid|z|0"]);
+    expect(run("grid2")).toEqual(["grid2|m|0"]);
+  });
+
+  it("gives every type of minimal.json exactly its own recipes", () => {
+    const r = reader(prepareData(minimal).files);
+    for (const [type, { start, count }] of Object.entries(r.meta.recipeTypes)) {
+      for (let i = 0; i < count; i++) expect(r.recipe(start + i).type).toBe(type);
+    }
+    expect(Object.values(r.meta.recipeTypes).reduce((n, t) => n + t.count, 0)).toBe(r.meta.recipeCount);
   });
 
   it("splits items and recipes into chunks whose starts the meta lists", () => {
