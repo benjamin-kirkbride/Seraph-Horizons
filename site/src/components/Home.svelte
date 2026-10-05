@@ -17,7 +17,7 @@
 <h2>{t.recipeTypesHeading}</h2>
 <ul class="types">
   {#each types as [code, info] (code)}
-    <li><span>{info.name}</span> <span class="muted">{info.count.toLocaleString("en")}</span></li>
+    <li><a href={formatRoute({ view: "type", version, code })}>{info.name}</a> <span class="muted">{info.count.toLocaleString("en")}</span></li>
   {/each}
 </ul>
 
