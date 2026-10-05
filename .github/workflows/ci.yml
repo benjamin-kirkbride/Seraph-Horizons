@@ -216,14 +216,22 @@ jobs:
       # assemble's server bundle takes its redistributable zips from.
       - uses: ./.github/actions/setup-pack
       # The pack's own mod as a release build makes it: build/seraphhorizons_<version>.zip,
-      # the version modinfo.json says, never stamped. next.yml publishes this zip as the
-      # seraphhorizons-next release, and the next Cairn pack below fetches it from there.
+      # the version modinfo.json says, never stamped. next ships it under the commit's name,
+      # seraphhorizons_<version>_<sha7>.zip, which next.yml publishes as the
+      # seraphhorizons-next release and the next Cairn pack below fetches from there. Cairn
+      # sees a followed pack change by its mods' addresses and versions, never their hashes,
+      # so a rebuild under an unchanged name would never reach a follower. The name is keyed
+      # on the commit built, not the last one touching the mod: the zip holds build-time
+      # file times, so every build has a new hash, and one name must never serve two.
       - name: Build the seraphhorizons mod zip
         id: mod
         run: |
           dotnet build mods-src/seraphhorizons -c Release
-          zip="build/seraphhorizons_$(jq -r .version mods-src/seraphhorizons/modinfo.json).zip"
-          [ -f "$zip" ] || { echo "the build wrote no $zip"; exit 1; }
+          version=$(jq -r .version mods-src/seraphhorizons/modinfo.json)
+          built="build/seraphhorizons_${version}.zip"
+          [ -f "$built" ] || { echo "the build wrote no $built"; exit 1; }
+          zip="$RUNNER_TEMP/next-mod/seraphhorizons_${version}_${GITHUB_SHA::7}.zip"
+          mkdir -p "${zip%/*}" && cp "$built" "$zip"
           echo "zip=$zip" >> "$GITHUB_OUTPUT"
       # This dist is what next.yml publishes as next, so its Cairn pack carries the mod by
       # address (the URL is where next.yml puts this very zip; versioned releases assemble
@@ -243,8 +251,8 @@ jobs:
           curl -fsSL --proto '=https' -o "$RUNNER_TEMP/$f" "https://download.cairns.gg/releases/${CAIRN_VERSION}/$f"
           echo "$CAIRN_SHA256  $RUNNER_TEMP/$f" | sha256sum -c -
           mkdir -p "$RUNNER_TEMP/cairn" && tar -xzf "$RUNNER_TEMP/$f" -C "$RUNNER_TEMP/cairn"
-      # The mod's URL holds the previous commit's zip (or nothing) until next.yml publishes
-      # this one, so the install reads a copy of the pack whose address-mods point at this
+      # The mod's URL, named after this commit, serves nothing until next.yml publishes this
+      # zip there, so the install reads a copy of the pack whose address-mods point at this
       # zip served on loopback, plain http to which Cairn allows. The copy differs from
       # dist/ in those addresses only; the lock, and so the hash Cairn holds the zip to, is
       # the one that ships.
