@@ -12,7 +12,7 @@ namespace SeraphHorizons.PackTests;
 /// the 16 GB CI runner died in the `rest` shard's ninth boot. After each scenario this empties that
 /// event, so a stopped server can be collected. The handlers only rebuild the pick's tool modes when
 /// the mod's settings change, which no scenario does. Drop this once the item unsubscribes in
-/// OnUnloaded() (#403).
+/// OnUnloaded() (#403, upstream https://github.com/KnewOne/BetterErProspecting/issues/8).
 /// </summary>
 [AttributeUsage(AttributeTargets.Assembly)]
 public sealed class ReleaseBetterErProspectingServersAttribute : BeforeAfterTestAttribute
