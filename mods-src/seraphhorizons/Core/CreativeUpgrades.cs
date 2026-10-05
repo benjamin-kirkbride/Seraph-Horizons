@@ -16,13 +16,22 @@ public sealed record FrameStage(string FrameClass, string FrameCode, string Main
     public bool IsHold => HoldSeconds > 0;
 }
 
+/// <summary>One of Immersive Woodworking's assembled machines: where its block entity keeps what
+/// the creative shortcut needs.</summary>
+/// <param name="EntityClass">The block entity's class, in Immersive Woodworking's namespace.</param>
+/// <param name="BlockClass">The frame's block class (the ghosts hand their clicks and help to it).</param>
+/// <param name="ToolField">The block entity's field holding the head or blade kit.</param>
+/// <param name="ToolCode">That item's path, <c>{metal}</c> for the metal.</param>
+public sealed record MachineStage(string EntityClass, string BlockClass, string ToolField, string ToolCode);
+
 /// <summary>
 /// The creative shortcut on the woodworking stations (<c>UnifiedWoodworking</c>), as the game's
 /// right-click construction has it for the water wheel (<c>RightClickConstruction</c>): a player in
 /// creative mode who right-clicks with Ctrl (the game's <c>ctrl</c> key, sprint by default) held
 /// gets the next stage at once, with nothing in hand and nothing taken. It applies to the
 /// splitting block's tiers (<see cref="SplittingBlockRules.Creative"/>), to Logging Expanded's
-/// frames (<see cref="Frames"/>) and to the bucking sawmill's parts (its <c>Parts.NextPart</c>).
+/// frames (<see cref="Frames"/>), to the parts of Immersive Woodworking's chopper and sawmill
+/// (<see cref="Machines"/>) and to the bucking sawmill's parts (its <c>Parts.NextPart</c>).
 /// Game-independent, so tests/ runs it without the game.
 /// </summary>
 public static class CreativeUpgrades
@@ -65,6 +74,20 @@ public static class CreativeUpgrades
         new("BlockHeatingRackFrame", "heatingrackframe", "game:rope", 6, false, 3f, "resinrack"),
         new("BlockStickStorageFrame", "stickstorageframe", "game:cattailtops", 4, false, 3f, "stickstorage"),
     ];
+
+    /// <summary>Immersive Woodworking's machines that take their parts by hand (1.3.11).</summary>
+    public static readonly IReadOnlyList<MachineStage> Machines =
+    [
+        new("BlockEntityChopper", "BlockChopper", "headStack", "chopperhead-{metal}"),
+        new("BlockEntitySawmill", "BlockSawmill", "bladeStack", "sawmillblade-{metal}"),
+    ];
+
+    /// <summary>The path of the part the shortcut fits next on such a machine: the first part the
+    /// machine itself says is missing, then its head or blade kit of <paramref name="metal"/>
+    /// (which both machines take only once the part holding it is in); null on a finished one,
+    /// where Ctrl takes the log or the tool out, as Immersive Woodworking has it.</summary>
+    public static string? NextMachinePart(IReadOnlyList<string>? missing, bool hasTool, string toolCode, string metal) =>
+        missing is { Count: > 0 } ? missing[0] : hasTool ? null : toolCode.Replace("{metal}", metal);
 
     /// <summary>The frame stage of a block code, or null for a block that is not one of the
     /// frames.</summary>

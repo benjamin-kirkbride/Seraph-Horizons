@@ -750,6 +750,15 @@ creative only:
   only takes the click; the server reads the game mode from its own player data. A frame class
   that is not found gets no shortcut, with one warning, and the rest of the tweak runs.
 
+- Immersive Woodworking's chopper and sawmill (`Woodworking/MachineUpgrades.cs`), one part per
+  click on an unassembled machine, in the order the machine lists them as missing (the chopper's
+  drive, arm and bed, an advanced oak splitting block; the sawmill's sash, crankshaft, levers and
+  carriage), then a steel head or blade kit, held items kept. A prefix on the block entity's
+  `OnInteract`, which the frame and its ghosts call on both sides, hands the part to the machine's
+  own `TryAddPart` in a slot of its own, so it is fitted as one put in by hand. On the assembled
+  machine Ctrl takes the log or the tool out, as Immersive Woodworking has it. A machine whose
+  members are not found gets no shortcut, with one warning.
+
 - the bucking sawmill (`BuckingSawmill/README.md`, "Creative shortcut"), one part per click on an
   unassembled mill: the sashes, the crankshaft, the levers and a steel blade kit, held items kept.
   It is the mill's own interaction, not a patch, and runs while this tweak does. On the assembled

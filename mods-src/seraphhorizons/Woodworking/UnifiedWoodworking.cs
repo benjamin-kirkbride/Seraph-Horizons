@@ -42,6 +42,7 @@ public sealed class UnifiedWoodworking
         new SplittingBlock(),
         new Sawhorses(),
         new FrameUpgrades(),
+        new MachineUpgrades(),
         new ChopperBed(),
         new WoodworkingGuide(),
     ];

@@ -31,10 +31,13 @@ public class BlockBuckingMill : Block
             .Where(i => i?.Code is { Domain: BEBuckingMill.IwDomain } c && c.Path.StartsWith(Parts.BladePrefix, StringComparison.Ordinal))
             .Select(i => new ItemStack(i))
             .ToArray());
-        // One debranched size per wood: enough to show what goes in.
+        // One debranched size per wood: enough to show what goes in. Only woods the game has logs
+        // of: Logging Expanded has trunks of other mods' woods too, which draw without a texture
+        // when that mod is not installed.
         _trunkStacks = ObjectCacheUtil.GetOrCreate(api, "buckingsawmill-trunks", () => api.World.Blocks
             .Where(b => b?.Code is { Domain: LoggingBridge.ModId } c && c.Path.StartsWith("treetrunk-", StringComparison.Ordinal)
-                        && b.Variant["size"] == "md" && b.Variant["branches"] == "no" && b.Variant["side"] == "north")
+                        && b.Variant["size"] == "md" && b.Variant["branches"] == "no" && b.Variant["side"] == "north"
+                        && api.World.GetBlock(new AssetLocation("game", $"log-placed-{b.Variant["wood"]}-ud")) != null)
             .Select(b => new ItemStack(b))
             .ToArray());
     }
