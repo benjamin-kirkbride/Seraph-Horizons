@@ -296,7 +296,7 @@
           {#each butchery as b (b.recipe.id)}
             <RecipeCard
               recipe={b.recipe}
-              type={meta.recipeTypes[b.recipe.type] ?? { name: t.butcheryHeading, shape: "butchery", count: 0 }}
+              type={meta.recipeTypes[b.recipe.type] ?? { name: t.butcheryHeading, shape: "butchery" }}
               {data}
               only={b.only}
               mods={meta.mods}

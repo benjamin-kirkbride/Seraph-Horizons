@@ -1,7 +1,8 @@
 # Recipe browser site
 
 The app in `site/`: Vite, Svelte 5 and TypeScript. It is a static single-page app. The
-build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<code>`),
+build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<code>`,
+`#/<version>/type/<code>`, `#/<version>/entity/<type>`, `#/<version>/search?q=`),
 so the same `dist/` works at any sub-path and a reload on a deep link only ever asks
 the server for `index.html`.
 
@@ -122,7 +123,7 @@ the current `schemaVersion`, plus the mods' ModDB asset ids from the lock (see M
 and writes:
 
 ```
-<dir>/meta.json          pack, generator, mods (with ModDB asset ids), recipe types, item and recipe counts, chunk starts
+<dir>/meta.json          pack, generator, mods (with ModDB asset ids), recipe types (with their first recipe index), item and recipe counts, chunk starts
 <dir>/search.json        every item, column-wise and sorted by code
 <dir>/items/<n>.json     item details and reverse indexes, a few hundred items per file
 <dir>/recipes/<n>.json   recipe records as in the export, up to 60 per file
@@ -132,7 +133,7 @@ and writes:
 
 The app loads `data/versions.json` (written by `tools/site-data`, see README.md) and, for
 the version in the URL, `meta.json` and `search.json` up front. Everything else is
-fetched when an item page needs it. The types are in `site/src/lib/format.ts`.
+fetched when a page needs it. The types are in `site/src/lib/format.ts`.
 
 An item's index in `search.json` is its id everywhere else:
 
@@ -161,8 +162,13 @@ Each item entry has, where present:
 - `smeltedFrom`: indices of items whose `attributes.smelting.output` is this item;
   `smeltsInto` the reverse.
 
-Recipe indices count the enabled recipes sorted by `id`. Recipes with `enabled: false`
-are left out.
+Recipe indices count the enabled recipes sorted by type, then `id`. Recipes with
+`enabled: false` are left out. Each entry of `recipeTypes` in `meta.json` has the type's
+`name`, `shape`, `mod` if any, `count` and `start`, the index of its first recipe: sorting
+by type first makes a type's recipes the run `start` to `start + count - 1`, so the type's
+page needs no index file. An id starts with its type (`<type>|<asset>|<index>`), so this is
+the id order except where one type is a prefix of another (`grid2|…` sorts before `grid|…`
+by id, since `2` is below `|`).
 
 The reverse indexes are built from each recipe's resolved `variants` and, in case an
 export does not list every variant, by matching each ingredient's code pattern against
@@ -171,6 +177,19 @@ expression, and `allowedVariants` and `skipVariants` filter the value of the fir
 So a recipe asking for `game:plank-*` is a use of `game:plank-birch`. An output with a
 `{name}` placeholder is only matched this way when the recipe has no variants, limited to
 the values its named ingredient allows.
+
+### Recipe type pages
+
+Each type on the start page links to its page, `#/<version>/type/<code>` (a type code
+needs no domain: `grid`, `aculinaryartillery:simmer`). It shows the type's name, mod and
+count, then its recipes 24 at a time (`TYPE_PAGE_SIZE`), the later pages at
+`?page=<n>`. A page reads its 24 indices from the type's run and fetches only the recipe
+chunks that hold them, usually one or two (a chunk holds up to 60), so the crafting grid's thousands
+cost no more than a small type. The pager links the first and last pages and the two
+either side of the current one (`pageLinks`). A page number past the end shows the last
+page. A code no type of the version has says so, as an unknown item does; the version
+switcher keeps the type and goes back to its first page, since another version can have
+fewer.
 
 ### Creatures and traders
 
@@ -273,4 +292,5 @@ with an item the block's list holds twice added up. A block that is not an item 
 export (wavy sand) has no page, so nothing shows it.
 
 `DATA_FORMAT` in `format.ts` is written to `meta.json` as `format`. The app and the data
-are always built together, so there is no migration between formats.
+are always built together, so there is no migration between formats. Format 2 added
+`start` to the recipe types and sorted recipes by type first.

@@ -9,6 +9,7 @@ export type Route =
   | { view: "home"; version: string }
   | { view: "search"; version: string; query: string }
   | { view: "item"; version: string; code: string }
+  | { view: "type"; version: string; code: string; page?: number }
   | { view: "entities"; version: string }
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
@@ -57,6 +58,14 @@ export function parseRoute(hash: string): Route {
       const variant = params.get("variant");
       return variant ? { view: "entity", version, code, variant } : { view: "entity", version, code };
     }
+    case "type": {
+      // Recipe type codes are `grid` or `mymod:press`: a domain is optional.
+      const code = dec(rest.join("/"));
+      if (!code || !/^\S+$/.test(code)) break;
+      const page = Number(params.get("page") ?? "1");
+      // Page 1 is the bare address; a page past the end is the type page's to clamp.
+      return Number.isSafeInteger(page) && page > 1 ? { view: "type", version, code, page } : { view: "type", version, code };
+    }
     case "entities":
       if (rest.length === 0) return { view: "entities", version };
       break;
@@ -77,6 +86,8 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/search?${new URLSearchParams({ q: route.query }).toString()}`;
     case "item":
       return `#/${enc(route.version)}/item/${enc(route.code)}`;
+    case "type":
+      return `#/${enc(route.version)}/type/${enc(route.code)}${route.page && route.page > 1 ? `?page=${route.page}` : ""}`;
     case "entities":
       return `#/${enc(route.version)}/entities`;
     case "entity":
@@ -102,6 +113,9 @@ export function withVersion(route: Route, version: string): Route {
       return { view: "home", version };
     case "item":
       return { view: "item", version, code: route.code };
+    case "type":
+      // Another version can have fewer recipes of the type; start again at its first page.
+      return { view: "type", version, code: route.code };
     default:
       return { ...route, version };
   }

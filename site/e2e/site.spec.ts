@@ -26,6 +26,49 @@ test("switching version keeps the item and puts the version in the address", asy
   await expect(page.getByLabel("Pack version")).toHaveValue(other.id);
 });
 
+test("a recipe type on the start page links to its recipes, a page at a time", async ({ page }) => {
+  const exp = JSON.parse(readFileSync(process.env.RECIPE_EXPORT!, "utf8")) as { recipes: { type: string; enabled?: boolean }[] };
+  // prepare-data leaves disabled recipes out.
+  const total = exp.recipes.filter((r) => r.type === "grid" && r.enabled !== false).length;
+  const pages = Math.ceil(total / 24);
+  const cards = (n: number) => page.locator(`.cards[data-page="${n}"] article.card`);
+
+  await page.goto(`./#/${V}`);
+  await page.getByRole("link", { name: "Crafting grid", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#/${V}/type/grid$`));
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Crafting grid");
+  await expect(page.getByTestId("type-count")).toHaveText(`${total.toLocaleString("en")} recipes`);
+  await expect(cards(1)).toHaveCount(24);
+  await expect(cards(1).first()).toHaveAttribute("data-shape", "grid");
+
+  await page.getByTestId("pager-top").getByRole("link", { name: /^Next/ }).click();
+  await expect(page).toHaveURL(new RegExp(`#/${V}/type/grid\\?page=2$`));
+  await expect(cards(2)).toHaveCount(24);
+  await expect(page.getByText(`Recipes 25–48 of ${total.toLocaleString("en")}`)).toBeVisible();
+
+  // The last page holds what is left over.
+  await page.getByTestId("pager-top").getByRole("link", { name: `Page ${pages} of ${pages}`, exact: true }).click();
+  await expect(cards(pages)).toHaveCount(total - (pages - 1) * 24);
+
+  // A recipe's items link to their pages, as everywhere else. Slots cycle, so the link is
+  // not pinned to one item.
+  await cards(pages).first().locator(`a[href^="#/${V}/item/"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`#/${V}/item/`));
+  await expect(page.locator("article[data-item]")).toBeVisible();
+});
+
+test("switching version keeps the recipe type, and an unknown type says so", async ({ page }) => {
+  const other = E2E_VERSIONS[1]!;
+  await page.goto(`./#/${V}/type/grid?page=3`);
+  await expect(page.locator('.cards[data-page="3"] article.card').first()).toBeVisible();
+  await page.getByLabel("Pack version").selectOption(other.id);
+  await expect(page).toHaveURL(new RegExp(`#/${other.id.replace(/\./g, "\\.")}/type/grid$`));
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Crafting grid");
+
+  await page.goto(`./#/${V}/type/nosuchmod:nothing`);
+  await expect(page.getByText(`There are no recipes of type nosuchmod:nothing in version ${V}.`)).toBeVisible();
+});
+
 test("an unknown item and an unknown version say so", async ({ page }) => {
   await page.goto(`./#/${V}/item/game:no-such-thing`);
   await expect(page.getByText(`game:no-such-thing is not in version ${V}.`)).toBeVisible();

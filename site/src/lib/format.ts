@@ -3,7 +3,7 @@
 // and the data are always built together, so there is no migration.
 import type { ItemAttributes, Mod, Recipe, Shape, Source } from "./export.ts";
 
-export const DATA_FORMAT = 1;
+export const DATA_FORMAT = 2;
 
 /** data/versions.json, written by tools/site-data. */
 export interface VersionsFile {
@@ -48,6 +48,11 @@ export interface TypeInfo {
   name: string;
   shape: Shape;
   count: number;
+  /**
+   * Index of the type's first recipe. Recipes are sorted by type first, so the type's
+   * recipes are `start` to `start + count - 1` and its page needs no index of its own.
+   */
+  start: number;
   mod?: string;
 }
 

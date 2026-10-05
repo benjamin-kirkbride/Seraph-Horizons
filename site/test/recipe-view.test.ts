@@ -18,10 +18,12 @@ import {
   formatRange,
   formatRatio,
   gridCells,
+  pageLinks,
   slotStacks,
   giveRows,
   sourceRows,
   stackAmount,
+  typePage,
   voxelLayers,
 } from "../src/lib/recipe-view.ts";
 
@@ -316,5 +318,33 @@ describe("butchery", () => {
     // The table's stage: its own station, not the hook.
     expect(butcheryStations(r, 5, (c) => c)).toEqual([{ name: "butchering:butchertable-simple-north", multiplier: 1 }]);
     expect(butcheryStations(r, 8, (c) => c)).toEqual([]);
+  });
+});
+
+describe("typePage", () => {
+  const grid = { start: 100, count: 50 };
+
+  it("gives a page's recipe indices from the type's start", () => {
+    expect(typePage(grid, 1, 24)).toEqual({ page: 1, pages: 3, first: 0, indices: Array.from({ length: 24 }, (_, i) => 100 + i) });
+    expect(typePage(grid, 3, 24)).toEqual({ page: 3, pages: 3, first: 48, indices: [148, 149] });
+  });
+
+  it("clamps a page out of range", () => {
+    expect(typePage(grid, 99, 24).page).toBe(3);
+    expect(typePage(grid, 0, 24).page).toBe(1);
+    expect(typePage({ start: 0, count: 0 }, 1, 24)).toEqual({ page: 1, pages: 1, first: 0, indices: [] });
+  });
+});
+
+describe("pageLinks", () => {
+  it("links the ends and the pages near the current one, with a gap marker between", () => {
+    expect(pageLinks(1, 1)).toEqual([1]);
+    expect(pageLinks(1, 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(pageLinks(10, 192)).toEqual([1, null, 8, 9, 10, 11, 12, null, 192]);
+    expect(pageLinks(192, 192)).toEqual([1, null, 190, 191, 192]);
+  });
+
+  it("shows a single missing page instead of a gap", () => {
+    expect(pageLinks(5, 9)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 });
