@@ -1,7 +1,9 @@
 """packtool assemble's Cairn pack file, and the mod the rolling `next` build fetches by address.
 
-CI's cairn job assembles with `--url-mod build/seraphhorizons_<v>.zip <url>`, so the `next`
-pack carries the pack's own mod built from the same commit. The entries follow Cairn 0.9.10
+CI's cairn job assembles with `--url-mod seraphhorizons_<v>_<sha7>.zip <url>` (the build's zip,
+named after the commit so that the address changes with every build: Cairn notices a changed
+address or version, never a changed hash), so the `next` pack carries the pack's own mod built
+from the same commit. The entries follow Cairn 0.9.10
 (cairn-app src/Cairn.Core/Packs/PackManifest.cs): the manifest names the address and no
 version, the lock holds the zip's sha256 with `fromUrl`, and there is one entry per modid.
 Versioned releases (release.yml) assemble without the flag, so nothing changes for them.
@@ -25,10 +27,10 @@ _spec = importlib.util.spec_from_file_location("packtool", ROOT / "tools" / "pac
 packtool = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(packtool)
 
-URL = "https://github.com/owner/repo/releases/download/seraphhorizons-next/seraphhorizons_1.2.3.zip"
+URL = "https://github.com/owner/repo/releases/download/seraphhorizons-next/seraphhorizons_1.2.3_abc1234.zip"
 
 
-def make_zip(dir: Path, name: str = "seraphhorizons_1.2.3.zip", **info) -> Path:
+def make_zip(dir: Path, name: str = "seraphhorizons_1.2.3_abc1234.zip", **info) -> Path:
     info = {"type": "code", "modid": "seraphhorizons", "version": "1.2.3", "side": "Universal", **info}
     path = dir / name
     with zipfile.ZipFile(path, "w") as z:
@@ -70,11 +72,20 @@ class UrlMod(unittest.TestCase):
             "sha256": hashlib.sha256(z.read_bytes()).hexdigest(), "side": "both",
         })
 
+    def test_the_version_is_modinfo_jsons_not_the_file_names(self):
+        # next's zip carries the commit in its name only; Cairn and the game read modinfo.json.
+        z = make_zip(self.tmp, name="seraphhorizons_1.2.3_0123abc.zip")
+        url = URL.rsplit("/", 1)[0] + "/" + z.name
+        m = packtool.url_mod(z, url)
+        self.assertEqual((m["version"], m["filename"], m["url"]), ("1.2.3", z.name, url))
+        # The address must still end in this very file's name, commit and all.
+        refuses(packtool.url_mod, z, URL)
+
     def test_refuses_an_address_cairn_or_players_should_not_fetch_from(self):
         z = make_zip(self.tmp)
-        for url in ("http://127.0.0.1:8000/seraphhorizons_1.2.3.zip",
-                    "http://example.com/seraphhorizons_1.2.3.zip",
-                    "https://example.com/seraphhorizons_1.2.3.zip?x=1",
+        for url in ("http://127.0.0.1:8000/seraphhorizons_1.2.3_abc1234.zip",
+                    "http://example.com/seraphhorizons_1.2.3_abc1234.zip",
+                    "https://example.com/seraphhorizons_1.2.3_abc1234.zip?x=1",
                     "https://example.com/other_1.2.3.zip",
                     "https://example.com/download"):
             with self.subTest(url=url):
@@ -82,7 +93,7 @@ class UrlMod(unittest.TestCase):
 
     def test_refuses_a_zip_that_is_not_a_mod(self):
         refuses(packtool.url_mod, self.tmp / "missing.zip", URL)
-        bad = self.tmp / "seraphhorizons_1.2.3.zip"
+        bad = self.tmp / "seraphhorizons_1.2.3_abc1234.zip"
         bad.write_bytes(b"<html>sign in</html>")
         refuses(packtool.url_mod, bad, URL)
         with zipfile.ZipFile(bad, "w") as z:
@@ -95,7 +106,7 @@ class CairnBundle(unittest.TestCase):
     META = {"id": "seraphhorizons", "name": "Seraph Horizons", "game_version": "1.22.7"}
     LOCK = {"mods": [{"id": "exlib", "version": "1.0.0", "fileName": "exlib.zip", "fileUrl": "https://x/exlib.zip",
                       "releaseId": 1, "fileId": 2, "sha256": "ab" * 32, "side": "universal"}]}
-    URL_MOD = {"modid": "seraphhorizons", "version": "1.2.3", "filename": "seraphhorizons_1.2.3.zip",
+    URL_MOD = {"modid": "seraphhorizons", "version": "1.2.3", "filename": "seraphhorizons_1.2.3_abc1234.zip",
                "url": URL, "sha256": "cd" * 32, "side": "both"}
 
     def test_without_url_mods_only_moddb_pins(self):
@@ -109,7 +120,7 @@ class CairnBundle(unittest.TestCase):
         # No version beside the address: Cairn refuses the two together (pack-mod-url-and-pin).
         self.assertEqual(b["pack"]["mods"][-1], {"modid": "seraphhorizons", "url": URL})
         self.assertEqual(b["lock"]["mods"][-1], {
-            "modid": "seraphhorizons", "version": "1.2.3", "filename": "seraphhorizons_1.2.3.zip",
+            "modid": "seraphhorizons", "version": "1.2.3", "filename": "seraphhorizons_1.2.3_abc1234.zip",
             "url": URL, "sha256": "cd" * 32, "fromUrl": True, "side": "both",
         })
         self.assertEqual(b["pack"]["mods"][0], {"modid": "exlib", "version": "1.0.0"})
