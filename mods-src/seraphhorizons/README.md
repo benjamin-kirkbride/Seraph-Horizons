@@ -6,7 +6,8 @@ modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphh
 
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
-terrain on the world map, and the bucking sawmill, a machine that cuts tree trunks into logs. These are choices for this pack, not bug fixes, so
+terrain on the world map, and two machines: the bucking sawmill, which cuts tree trunks into logs,
+and the rosser, which strips their branches and bark first. These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.
@@ -23,7 +24,8 @@ that has it (a server with the steam source switched off, or without ppex, has n
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
-sawmill's blocks: the server runs the mill, the client draws its moving parts.
+sawmill's and the rosser's blocks: the server runs the machines, the client draws their moving
+parts.
 
 ## Tweaks
 
@@ -764,6 +766,12 @@ creative only:
   It is the mill's own interaction, not a patch, and runs while this tweak does. On the assembled
   mill Ctrl takes the trunk or the kit back, as in survival.
 
+- the rosser (`Rosser/README.md`, "Creative shortcut"), one stage per click on an incomplete
+  rosser: the crankshaft, the ring's four gear sections, the hoops, each set of feed-roll rods, the
+  breaker plates, the levers and four steel bark spud heads. It is the rosser's own interaction too,
+  and runs while this tweak does; on the complete rosser Ctrl takes the trunk or the unused heads
+  back, as in survival.
+
 Left out: a finished sawhorse has no next stage (each tier is built from its own frames, not from
 the tier below); the stick pile and board pile a knife or hammer turns into the first frames are
 the game's ground storage, and the hand tool is all they take besides what is in the pile; and
@@ -907,7 +915,8 @@ Known limits:
   already is, and makes none.
 - A wood with no `supportbeam-<wood>` saws into boards with Shift too (Material Needs' `darkaged`).
 - Logging Expanded's sawhorse holds only logs with their bark on, so beams on a sawhorse come from
-  logs, not debarked logs (the automated sawmill takes those).
+  logs, not debarked logs (the automated sawmill takes those). A debarked trunk (`Rosser`) is the
+  exception: its logs are debarked, and Shift + saw makes beams of them.
 
 ### Bucking sawmill (`BuckingSawmill`, `BuckingSawmillSettings`)
 
@@ -916,21 +925,23 @@ A machine of this mod's own: a mechanically powered pair of drag saws that cross
 Expanded tree trunks into logs. Its frame is crafted from two Immersive Woodworking sawmill frames
 and four support beams, placed as a six by three by four multiblock, and fitted in the world with
 Immersive Woodworking's sawmill parts (two sashes, a crankshaft, feed levers and one blade kit,
-which puts a blade in both saws). An axle drives it at the far end; trunks go on by hand or from a
-Trunk Storage Rack under the axle, and the logs come out of the near end. While it turns it never
+which puts a blade in both saws). An axle drives it at the far end; trunks go on by hand, from a
+Trunk Storage Rack under the axle, or from a rosser placed in line there (below), and the logs come
+out of the near end. A debarked trunk gives debarked logs. While it turns it never
 stops: the saws sink through the trunk, a windlass winds them back up, and a new trunk can go on
 only at the top of the cycle. A loaded trunk is shown as Logging Expanded's 1×1×4 or 2×2×5 model
 (thin or thick, whatever its own length) and is solid and selectable where it is shown. A better
 blade cuts faster, by the tool tier of the game's saw of its metal (steel about twice copper), and
 each cut costs the kit one durability per log in the trunk. A trunk offered while the saws are not
 at the top goes on as they come up if the button is held; a stopped mill's saws are wound up by
-holding right-click with an empty hand; and the block info says what the rack at the far end
-offers, or why nothing is coming. In creative, Ctrl + right click fits the next part, as on the
+holding right-click with an empty hand; and the block info says what the rack or rosser at the
+far end offers, or why nothing is coming. In creative, Ctrl + right click fits the next part, as on the
 woodworking stations (`UnifiedWoodworking`). Its model is checked for z-fighting faces when it is
 generated.
 
 `BuckingSawmillSettings` holds its figures (shaft load, turns per log, logs per stored log, blade
-wear, how much faster each tool tier cuts, whether it pulls from a rack). With the switch off, or either mod missing, its blocks and
+wear, how much faster each tool tier cuts, whether it pulls from a rack or a rosser in line,
+`AutoPullFromRack`). With the switch off, or either mod missing, its blocks and
 recipe are left out before the game loads them, as the creative steam source's is; neither mod is
 referenced at build time, and Logging Expanded is reached by reflection.
 
@@ -939,6 +950,95 @@ file that ties the model to the code, the cycle, the settings, the generated mod
 regenerate it, and its tests. Most of the model was made for this mod; its gears, saw blades, saw
 heads and cranks are from Immersive Woodworking's sawmill model by Bobrik00, used with the
 author's permission and not covered by the repository's license (`CREDITS.md`).
+
+**A rosser in line.** The mill takes trunks from a second kind of feeder as well as a rack: a
+machine at its far end whose block entity implements `ITrunkFeeder` (`Machines/Game/ITrunkFeeder.cs`),
+which is the rosser. In each of its three infeed cells `CheckRack` first looks for a feeder (the
+block entity there, or a ghost's controller through `IMachineGhost`) facing the mill's own way whose
+outfeed cell that is, and only then for a rack. It takes the rosser's finished trunk under the same
+gates as a rack's (assembled, bed empty, saws at the top, `MinSpeed`, `AutoPullFromRack`), peeking
+first and taking only once it will load it, so a trunk it does not take stays on the rosser. The
+block info names the rosser's state (`FeederEmpty`, `FeederBusy`, `FeederReady`). Details are in the
+mill's README ("A rosser in line").
+
+### Rosser (`Rosser`, `RosserSettings`)
+
+Immersive Woodworking (`immersivewoodworking`, 1.3.11) and Logging Expanded (`loggingmod`, 0.3.6);
+Pipes and Power Expanded (`ppex`) optional. A second machine of this mod's own: a mechanically
+powered ring debarker that draws a Logging Expanded tree trunk lengthwise through a spinning cutter
+ring. A limb breaker in the throat snaps off its branches, which fall as sticks (one for every two
+branches by default, where Logging Expanded's knife gives one each); four spring-closed scraper arms
+on the ring, tipped with bark spud heads, strip its bark, which falls as Immersive Woodworking's bark
+for the trunk's wood, log by log; and the trunk comes out debarked. Its frame is crafted from two
+Immersive Woodworking sawmill frames, four support beams and a copper chute section, placed as a
+sixteen by five by four multiblock (long, wide, high), and fitted in the world with existing items only: a sawmill
+crankshaft, four large gear sections, two hoops, four rods, two metal plates, sawmill feed levers and
+four bark spud heads of one metal, which are its wearing part and last four times their metal's bark
+spud. The axle connects on a side face beside the ring and may turn either way. A trunk goes on by
+hand or from a Trunk Storage Rack at the far end; its weight on a treadle starts a geared feed, at
+one speed for every thin trunk and a slower one for every thick trunk (about 68 and 169 shaft turns with
+copper heads; better heads feed faster by their tool tier, as the mill's blade kit cuts). The
+debarked trunk waits on the outfeed bed until a hand takes it, a rack at the near end with room takes
+it, or a bucking mill placed in line takes it at the top of its saws' cycle; it leaves this way even
+when it was the trunk that wore the heads out (only a new trunk needs heads). A Pipes and Power
+Expanded water pipe on its other side fills a drip, and wet logs give more bark, and more often the
+special kinds. In creative, Ctrl + right click fits the next stage, as on the woodworking stations.
+Its model is generated and checked like the mill's.
+
+`RosserSettings` holds its figures (shaft load, the typical trunks and turns per log and per branch
+the two feed speeds are set on, how much faster each tool tier feeds, sticks per branch, the bark
+multipliers dry and wet, head wear, the drip's water, and whether it pulls from and pushes to
+racks). With the switch off, either mod missing, or the debarked trunk not there, its blocks and
+recipe are left out before the game loads them, as the mill's are; neither mod is referenced at
+build time.
+
+Everything else is in [`Rosser/README.md`](Rosser/README.md): the blocks, the rig, the trip, the
+settings, the generated model (its mechanism, the weighing cradle and the two-speed feed) and how to
+regenerate it, and its tests. Most of the model was made for this mod; its crown disc and two
+pinions, and the tooth its other gears are built from, are taken from Immersive Woodworking's
+sawmill model by Bobrik00 and are not covered by the repository's license (`CREDITS.md`).
+
+**The debarked trunk.** The same switch gives Logging Expanded's trunk a third state of its
+`branches` variant, `debarked`: `loggingmod:treetrunk-{wood}-{size}-debarked-{side}`, "<Wood> Tree
+Trunk (Debarked)", for every wood, size and side the clean trunk has (1320 blocks). It needs only
+Logging Expanded, and is not in the creative inventory: the rosser makes it.
+
+- **The patch.** `patches/rosser-debarkedtrunk.json` (server side, `dependsOn` loggingmod) adds the
+  state to `/variantgroups/2/states`; adds a `shapeByType` for `*-debarked-*` that the game resolves
+  into the trunk's own `shape` and merges, so only its `base` changes (to the clean trunk's,
+  `treetrunk-{size}-no`) and its `rotateYByType` stays; and gives each wood's texture entry a
+  `wood-hByType`, which resolves into its `wood-h` (the bark faces) as `block/wood/debarked/<wood>`,
+  and a `woodByType`, which resolves into its `wood` (the ends) as
+  `block/wood/treetrunk/debarked/<wood>`: the textures the vanilla debarked log has there, so the
+  ends show no bark ring. Cherry, which the game has no wood of, takes oak's; Wildcraft: Trees'
+  woods, which the pack does not have, point their bark into its domain, as Logging Expanded's own
+  bark does, and keep Logging Expanded's ends. The names are this mod's lang entries,
+  keyed in Logging Expanded's domain. In `Start`, before the patch loader runs, `DebarkedTrunks.Bind`
+  checks Logging Expanded's trunk blocktype against the patch (the third variant group is `branches`
+  with states `yes` and `no`, the shape is by size and branches with no `shapeByType`, and the
+  texture entries are exactly the ones the patch targets, each with a `wood-h`, and with a `wood`
+  wherever the patch replaces the ends) and finds the members
+  below; if anything differs it logs one warning and empties the patch, and there is no debarked
+  trunk and no rosser.
+- **What works with it.** Logging Expanded carries the state wherever it carries the block: placing
+  and picking up keep it, and the Trunk Storage Rack and the heating rack keep whole stacks. Carry On
+  and Cartwright's Caravan patch the whole trunk blocktype, so they carry it too. The bucking mill
+  cuts it into the wood's debarked logs (`debarkedlog-<wood>-ud`), at the same yield. On a sawhorse
+  the axe gives debarked logs at Logging Expanded's own yields, the bark spud has nothing to do and no
+  bark drops (`UnifiedWoodworking`'s sawhorse guards), the saw gives boards and beams as usual, and
+  unloading gives the debarked trunk back. On the ground an axe gives debarked logs. A debarked trunk
+  has no branch count, so the knife and shears do nothing to it. The rosser refuses it.
+- **How.** A sawhorse keeps only the trunk's stored log stack, so `Trunks.Debark` marks that stack
+  (`seraphhorizons:debarked`), and the mark goes wherever the logs go. Server-side Harmony patches
+  (`Rosser/DebarkedTrunks.cs`): a prefix on `TreeManager.GetPlacedLogCode` answers the wood's
+  debarked log while a flag is set; prefixes and finalizers on `BlockTreeTrunk.OnBlockInteractStop`
+  (a debarked trunk on the ground) and on both sawhorses' `ProcessWithTool` (a marked load) set and
+  clear it; and a postfix on `BEWorkstation.BuildUnloadStack` gives back the debarked trunk where
+  Logging Expanded would rebuild a clean one.
+- **Known limits.** The Trunk Storage Rack draws a debarked trunk with bark (it has its own shapes
+  per wood). The heating rack still drains a debarked pine or acacia trunk's resin. A debarked trunk
+  made without `Trunks.Debark` (only `/giveblock`) has no mark and acts as a clean trunk on a
+  sawhorse. With the switch turned off, debarked trunks already in a world are lost, as are rossers.
 
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
@@ -978,7 +1078,9 @@ to an ingot); a chopper 24 nails and strips, 4 plates and 1 rod (about 15). Wood
 rusty gear and the tools stay as they are. The blade kit and the chopper head keep their recipes and
 take any metal: their metal already sets the machine's durability and speed. The bucking sawmill is
 built from two sawmill frames and takes two sashes, a crankshaft and feed levers, so it comes to 64
-nails and strips, 1 plate and 3 rods with no change of its own. So the sawmill is no longer a copper
+nails and strips, 1 plate and 3 rods with no change of its own. The rosser is built from two
+sawmill frames and takes a crankshaft and feed levers (32 nails and strips, 1 plate and 1 rod), and
+its own hoops, rods and plates follow the same metal rule while this switch is on. So the sawmill is no longer a copper
 age machine; the chopper already needed iron for its bed, the advanced splitting block
 (`UnifiedWoodworking`).
 
@@ -1084,9 +1186,13 @@ cart reach's entity matching and reach rule, which panning drops are taken out, 
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, the creative mod
-tabs' plan, domain owners, state file and mod mode's tab layout (`CreativeModTabs/Core/`), and the
-bucking sawmill's rig, footprint, assembly rules, cut arithmetic, cycle and animation
-(`BuckingSawmill/Core/`, described in `BuckingSawmill/README.md`).
+tabs' plan, domain owners, state file and mod mode's tab layout (`CreativeModTabs/Core/`), the
+machines' shared rig maths, footprint, trunk path and trunk box, held to the driver fixture every
+implementation replays (`Machines/Core/`, `tests/Machines/`), the bucking sawmill's rig, assembly
+rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
+`BuckingSawmill/README.md`), the rosser's rig, parts, pace, trip, water and client-side values
+(`Rosser/Core/`, described in `Rosser/README.md`), and the trunk code and variant rules of the
+debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms
@@ -1168,6 +1274,34 @@ it fails after a mod is added or updated, it lists the foods to give a value in 
 Immersive Woodworking's durability (`DurableSawmillBlades`); with the switch off,
 `SwitchesOffScenarios` requires Immersive Woodworking's own. The rest of its scenarios are the
 bucking sawmill's (`BuckingSawmill/README.md`).
+
+`tests/PackTests/RosserScenarios.cs` (Atlas) is the rosser's (`Rosser/README.md`, "Tests"): loading,
+placing and breaking on every facing; assembly, and the creative shortcut fitting one stage per
+click; the power face on every facing and the shaft against a vanilla axle; a ppex pipe watering the
+drip; whole trips of thin and thick, branchy and clean trunks; spent heads, and the trunk that spent
+them still leaving by rack or mill; racks at both ends on every facing, and both rack switches off
+(nothing taken; the trunk waits for a hand and the info says so); breaking mid-trip; the trunk's
+boxes; a mill in line placed by a player on every facing, a mill in line winning over a rack except
+while the mills' `AutoPullFromRack` is off; unloading mid-trip and mid hand-off (the world saved
+first with `/autosavenow`, as an unsaved chunk column comes back as generated); and one scenario that
+measures Logging Expanded's branch counts on felled trees (about 2.45 per log; the typical trunks
+the pace is set on use it). `tests/PackTests/MillFeederScenarios.cs`
+(Atlas) tests the mill's side of `ITrunkFeeder` with a stub feeder and a stub ghost, block entity
+classes of the test assembly registered at run time: found in each of the three infeed cells on every
+facing, directly and through a ghost, ignored when it faces another way or the cell is not its
+outfeed cell, never taken from by an unassembled mill, the block info for each state, and a running
+mill taking a finished debarked trunk once, at the top of its cycle, and cutting it into debarked
+logs. `tests/PackTests/DebarkedTrunkScenarios.cs` (Atlas) requires a debarked trunk for each of the
+1320 clean ones with the clean one's shape, rotation, behaviours, multiblock size, held animation
+and Cartwright's attribute, its name and no creative tab; the patched asset's state, shape and
+textures (bark faces and ends), each texture file present (the server has no block textures to read); `Trunks.Debark`
+keeping wood, size, side and logs and dropping the branch count; a debarked trunk placed and picked
+up debarked, the knife doing nothing to it, and an axe on it giving debarked logs where a clean
+trunk's gives placed ones; the Trunk Storage Rack storing and returning it, mark and all; each
+sawhorse giving debarked logs with no bark and unloading it debarked; and the bucking mill cutting it
+into debarked logs. With the switch off, `SwitchesOffScenarios` requires no debarked trunk, no
+rosser blocks or recipe, and nothing logged about either. When these fail after a Logging Expanded
+update, `DebarkedTrunks.Bind`'s warning names what changed in its trunk blocktype or members.
 
 `tests/PackTests/WoodworkingMachineCostsScenarios.cs` (Atlas) requires each of the eight parts'
 one recipe to take the nails and strips, plates and rods of `WoodworkingMachineCosts.Parts`, all
@@ -1290,7 +1424,8 @@ more than the scenarios. `BoilerLidBlowsOpen` and the switches with no off check
 For the same reason the other scenario files above are not classes of their own but parts of two
 partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
 feature that needs only the plain world, and `WoodworkingScenarios` (`WoodworkingScenarios.cs`),
-the woodworking chain with the bucking sawmill's fixture. Only a different world (a play style,
+the woodworking chain with the machines' fixture (`fixtures/buckingsawmill`, which shortens the
+mill's cut and cycle and the rosser's trip). Only a different world (a play style,
 ModConfig fixtures) gets a class of its own, as `/clear`'s and the off checks do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
 nothing changed world-wide.

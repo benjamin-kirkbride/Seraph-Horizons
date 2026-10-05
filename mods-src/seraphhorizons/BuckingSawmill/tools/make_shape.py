@@ -51,6 +51,22 @@ import sys
 import zipfile
 from pathlib import Path
 
+# The generic, machine-free half of this script is shared with the other machines' generators.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
+
+from machinegen.checks import (bearing_margin, box_overhang, boxes_touch, cell_boxes, cells_touched,  # noqa: E402
+                               coplanar_faces, euler_round_trip, frame_floating, obb_obb, obb_overlap, touching)
+from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
+from machinegen.checks import supports as shaft_supports  # noqa: E402
+from machinegen.geometry import (El, aabb_of, beam, flatten, from_template, metal, octagon, pick, remap,  # noqa: E402
+                                 rename, rotate, rotate_matrix, scale_uv, strut, tpl, translate)
+from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
+                               shift_parts, shift_point, worst_shift_error)
+from machinegen.output import shape_json as machine_shape_json  # noqa: E402
+from machinegen.rigmath import apply as _apply  # noqa: E402
+from machinegen.rigmath import part_matrix_mill as part_matrix  # noqa: E402
+from machinegen.rigmath import part_of, posed  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
 SHAPE_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "block"
@@ -218,253 +234,6 @@ HEAD_KEEP = re.compile(r"^sash_(00[1-9]|01[0-9]|02[01])$")
 TRUNK_SIZES = {"xs": (1, 1, 1), "sm": (2, 1, 1), "md": (3, 1, 1), "lg": (4, 1, 1), "xl": (4, 2, 2), "xxl": (5, 2, 2)}
 
 
-# ---------------------------------------------------------------- small 3x3 linear algebra
-def mmul(a, b):
-    return [[sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
-
-
-def mvec(m, v):
-    return [m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2] for i in range(3)]
-
-
-IDENT = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
-
-
-def rot(axis: str, deg: float):
-    """Right-handed rotation about a principal axis (VS's Mat4f.RotateX/Y/Z)."""
-    a = math.radians(deg)
-    c, s = math.cos(a), math.sin(a)
-    if axis == "x":
-        return [[1, 0, 0], [0, c, -s], [0, s, c]]
-    if axis == "y":
-        return [[c, 0, s], [0, 1, 0], [-s, 0, c]]
-    return [[c, -s, 0], [s, c, 0], [0, 0, 1]]
-
-
-def euler_xyz(r):
-    """Angles (degrees) with r = Rx(a) * Ry(b) * Rz(c), the order VS applies rotationX/Y/Z in."""
-    sb = max(-1.0, min(1.0, r[0][2]))
-    b = math.asin(sb)
-    if abs(math.cos(b)) > 1e-6:
-        a = math.atan2(-r[1][2], r[2][2])
-        c = math.atan2(-r[0][1], r[0][0])
-    else:
-        a, c = math.atan2(r[2][1], r[1][1]), 0.0
-    return [math.degrees(a), math.degrees(b), math.degrees(c)]
-
-
-def from_euler(a, b, c):
-    return mmul(rot("x", a), mmul(rot("y", b), rot("z", c)))
-
-
-# ---------------------------------------------------------------- flattened elements
-class El:
-    """A box of `size` (local axes), rotated by `r` about its centre `c` (world voxels)."""
-
-    def __init__(self, name, size, c, r, faces, part):
-        self.name, self.size, self.c, self.r, self.faces, self.part = name, list(size), list(c), r, faces, part
-
-    def clone(self, name=None, part=None):
-        return El(name or self.name, self.size, self.c, [row[:] for row in self.r],
-                  copy.deepcopy(self.faces), part or self.part)
-
-    def corners(self):
-        out = []
-        for i in range(8):
-            local = [(self.size[k] / 2) * (1 if (i >> k) & 1 else -1) for k in range(3)]
-            w = mvec(self.r, local)
-            out.append([self.c[k] + w[k] for k in range(3)])
-        return out
-
-    def aabb(self):
-        cs = self.corners()
-        return [min(p[k] for p in cs) for k in range(3)], [max(p[k] for p in cs) for k in range(3)]
-
-    def local_axis_for(self, axis: int):
-        """Index of the local axis that lies along world `axis`, or None if the box is tilted."""
-        for k in range(3):
-            if abs(abs(self.r[axis][k]) - 1.0) < 1e-4:
-                return k
-        return None
-
-
-def _mat4_local(e):
-    o = e.get("rotationOrigin", [0, 0, 0])
-    r = from_euler(e.get("rotationX", 0), e.get("rotationY", 0), e.get("rotationZ", 0))
-    t = [o[i] - mvec(r, o)[i] for i in range(3)]
-    return r, t
-
-
-def flatten(elements, parent_r=IDENT, parent_t=(0.0, 0.0, 0.0)):
-    """Bake VS's hierarchy (child coordinates are relative to the parent's `from`)."""
-    out = []
-    for e in elements:
-        lr, lt = _mat4_local(e)
-        r = mmul(parent_r, lr)
-        t = [parent_t[i] + mvec(parent_r, lt)[i] for i in range(3)]
-        f, to = e["from"], e["to"]
-        mid = [(f[i] + to[i]) / 2 for i in range(3)]
-        c = [mvec(r, mid)[i] + t[i] for i in range(3)]
-        faces = {d: dict(face) for d, face in e.get("faces", {}).items()}
-        for face in faces.values():
-            if face.get("texture") == "#0":  # IW's blocktype maps "0" to debarked oak too
-                face["texture"] = "#oak"
-        out.append(El(e["name"], [to[i] - f[i] for i in range(3)], c, r, faces, None))
-        if e.get("children"):
-            ct = [t[i] + mvec(r, f)[i] for i in range(3)]
-            out += flatten(e["children"], r, ct)
-    return out
-
-
-# ---------------------------------------------------------------- UVs
-# Which local axis each face's u and v run along (before the face's own rotation).
-_FACE_UV_AXES = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
-
-
-def scale_uv(el: El, k: int, ratio: float):
-    """Crop (ratio < 1) or extend (ratio > 1, clamped to the texture) the UVs along local axis k."""
-    for d, face in el.faces.items():
-        if "uv" not in face:
-            continue
-        u_axis, v_axis = _FACE_UV_AXES[d]
-        if face.get("rotation", 0) in (90, 270):
-            u_axis, v_axis = v_axis, u_axis
-        if k not in (u_axis, v_axis):
-            continue
-        uv = list(face["uv"])
-        i0, i1 = (0, 2) if k == u_axis else (1, 3)
-        span = uv[i1] - uv[i0]
-        new = span * ratio
-        if abs(new) > TEX_SIZE:
-            new = math.copysign(TEX_SIZE, new)
-        lo, hi = sorted((uv[i0], uv[i0] + new))
-        shift = -lo if lo < 0 else (TEX_SIZE - hi if hi > TEX_SIZE else 0.0)
-        uv[i0] += shift
-        uv[i1] = uv[i0] + new
-        face["uv"] = uv
-
-
-# ---------------------------------------------------------------- transformations
-def piecewise(points):
-    """Continuous piecewise-linear map through (in, out) points."""
-    def f(x):
-        if x <= points[0][0]:
-            return x - points[0][0] + points[0][1]
-        for (x0, y0), (x1, y1) in zip(points, points[1:]):
-            if x <= x1:
-                return y0 + (x - x0) * (y1 - y0) / (x1 - x0)
-        return x - points[-1][0] + points[-1][1]
-    return f
-
-
-def remap(els, axis: int, points):
-    """Move every element's extent along world `axis` through a piecewise map: elements inside a
-    stretched span grow (UVs extended), those beyond it move, tilted ones only move."""
-    f = piecewise(points)
-    for el in els:
-        k = el.local_axis_for(axis)
-        if k is None:
-            el.c[axis] = f(el.c[axis])
-            continue
-        half = abs(el.size[k]) / 2
-        lo, hi = f(el.c[axis] - half), f(el.c[axis] + half)
-        if hi - lo < 1e-3 or half < 1e-6:
-            el.c[axis] = f(el.c[axis])
-            continue
-        ratio = (hi - lo) / (2 * half)
-        if abs(ratio - 1) > 1e-6:
-            scale_uv(el, k, ratio)
-            el.size[k] *= ratio
-        el.c[axis] = (lo + hi) / 2
-    return els
-
-
-def translate(els, d):
-    for el in els:
-        el.c = [el.c[i] + d[i] for i in range(3)]
-    return els
-
-
-def rotate(els, axis: str, deg: float, origin):
-    m = rot(axis, deg)
-    for el in els:
-        rel = [el.c[i] - origin[i] for i in range(3)]
-        el.c = [origin[i] + mvec(m, rel)[i] for i in range(3)]
-        el.r = mmul(m, el.r)
-    return els
-
-
-def rotate_matrix(els, m, origin):
-    """Turn elements by an arbitrary rotation matrix about `origin`."""
-    for el in els:
-        rel = [el.c[i] - origin[i] for i in range(3)]
-        el.c = [origin[i] + mvec(m, rel)[i] for i in range(3)]
-        el.r = mmul(m, el.r)
-    return els
-
-
-def spread(els, axis: int, about: float, factor: float):
-    """Scale element positions (not sizes) along an axis about a point."""
-    for el in els:
-        el.c[axis] = about + (el.c[axis] - about) * factor
-    return els
-
-
-def rename(els, prefix: str, part: str):
-    for el in els:
-        el.name, el.part = prefix + el.name, part
-    return els
-
-
-def from_template(tpl: El, lo, hi, name: str, part: str) -> El:
-    """A new axis-aligned box spanning lo..hi with a (90-degree-rotated) template's faces,
-    its UVs cropped or extended to the new size."""
-    el = tpl.clone(name, part)
-    for axis in range(3):
-        k = el.local_axis_for(axis)
-        if k is None:
-            raise ValueError(f"template {tpl.name} is tilted")
-        new = hi[axis] - lo[axis]
-        if abs(el.size[k]) > 1e-9 and abs(new - abs(el.size[k])) > 1e-9:
-            scale_uv(el, k, new / abs(el.size[k]))
-        el.size[k] = new
-        el.c[axis] = (lo[axis] + hi[axis]) / 2
-    return el
-
-
-def beam(tpl: El, lo, hi, name: str, part: str, seg: float = 16.0):
-    """A long box split into segments of at most `seg` along its longest axis, so the template's
-    UVs are cropped rather than stretched."""
-    axis = max(range(3), key=lambda a: hi[a] - lo[a])
-    n = max(1, math.ceil((hi[axis] - lo[axis]) / seg - 1e-9))
-    out = []
-    for i in range(n):
-        a = lo[axis] + (hi[axis] - lo[axis]) * i / n
-        b = lo[axis] + (hi[axis] - lo[axis]) * (i + 1) / n
-        l2, h2 = list(lo), list(hi)
-        l2[axis], h2[axis] = a, b
-        out.append(from_template(tpl, l2, h2, f"{name}_{i + 1}" if n > 1 else name, part))
-    return out
-
-
-def strut(tpl: El, a, b, width: float, depth: float, name: str, part: str, axis: str = "x") -> El:
-    """A bar from point a to point b in the plane normal to `axis` (a rod, an arm, a weight): built
-    along the plane's first axis from the template, then turned about `axis`. `width` is its size
-    in that plane, `depth` its size along `axis`."""
-    ia = "xyz".index(axis)
-    u, v = [(1, 2), (2, 0), (0, 1)][ia]          # in-plane axes, right-handed with `axis`
-    du, dv = b[u] - a[u], b[v] - a[v]
-    length = math.hypot(du, dv)
-    mid = [(a[i] + b[i]) / 2 for i in range(3)]
-    lo, hi = list(mid), list(mid)
-    lo[u], hi[u] = mid[u] - length / 2, mid[u] + length / 2
-    lo[v], hi[v] = mid[v] - width / 2, mid[v] + width / 2
-    lo[ia], hi[ia] = mid[ia] - depth / 2, mid[ia] + depth / 2
-    el = from_template(tpl, lo, hi, name, part)
-    rotate([el], axis, math.degrees(math.atan2(dv, du)), mid)
-    return el
-
-
 # ---------------------------------------------------------------- building the machine
 def load_iw():
     zips = sorted((ROOT / "build" / "mods").glob("immersivewoodworking_*.zip"))
@@ -473,20 +242,6 @@ def load_iw():
     with zipfile.ZipFile(zips[-1]) as z:
         shape = json.loads(z.read(IW_SHAPE))
     return zips[-1].name, flatten(shape["elements"])
-
-
-def pick(iw, pattern):
-    rx = re.compile(pattern)
-    return [el.clone() for el in iw if rx.match(el.name)]
-
-
-def tpl(iw, name):
-    return next(el for el in iw if el.name == name)
-
-
-def aabb_of(els):
-    boxes = [el.aabb() for el in els]
-    return ([min(b[0][k] for b in boxes) for k in range(3)], [max(b[1][k] for b in boxes) for k in range(3)])
 
 
 def build_posts(iw, n: int, sx: float):
@@ -702,20 +457,6 @@ def build_rod(iw, n: int, sx: float, geo):
     return [rod] + eyes
 
 
-def octagon(tpl_el, x0, x1, cy, cz, apothem, name, part):
-    """A plain octagonal disc or drum along x: four strips of the template, each as long as the
-    octagon is across and as wide as one of its sides, turned 0, 45, 90 and 135 degrees about x.
-    Their union is exactly the regular octagon, so nothing sticks out like a tooth."""
-    half_side = apothem * math.tan(math.pi / 8)
-    out = []
-    for i in range(4):
-        el = from_template(tpl_el, [x0, cy - half_side, cz - apothem], [x1, cy + half_side, cz + apothem], f"{name}_{i + 1}", part)
-        if i:
-            rotate([el], "x", 45.0 * i, (0.0, cy, cz))
-        out.append(el)
-    return out
-
-
 def build_rope_and_drum(iw, n: int, sx: float):
     """One drum per station on the drum shaft, a plain spool: a core of wound rope between two
     oak flanges, all octagonal; and the rope hanging from it to the carriage's top rail
@@ -856,17 +597,6 @@ def build_crankbar(iw, crank_spans):
     r = abs(t.size[t.local_axis_for(1)]) / 2
     return [from_template(t, [crank_spans[0][1], SHAFT_Y - r, SHAFT_Z - r], [crank_spans[1][0], SHAFT_Y + r, SHAFT_Z + r],
                           "shaft_crankbar", "shaft")]
-
-
-def metal(el: El):
-    """Make an element iron: every face takes the `metal` texture, its UVs a region of the 64x64
-    plate texture in proportion to the face's size (4 texels per voxel), unrotated."""
-    for d, face in el.faces.items():
-        u, v = _FACE_UV_AXES[d]
-        w = min(abs(el.size[u]) * TEX_SIZE / 16, TEX_SIZE)
-        h = min(abs(el.size[v]) * TEX_SIZE / 16, TEX_SIZE)
-        el.faces[d] = {"texture": "#metal", "uv": [0.0, 0.0, w, h]}
-    return el
 
 
 # Elements that are iron: pins, wearing surfaces and thin linkage (everything else keeps its
@@ -1151,122 +881,6 @@ def rig_parts():
     return parts
 
 
-def glob_rx(pattern):
-    return re.compile("^" + re.escape(pattern).replace(r"\*", ".*") + "$")
-
-
-def part_of(parts, name):
-    for p in parts:
-        if any(glob_rx(g).match(name) for g in p["match"]):
-            return p["id"]
-    return None
-
-
-# ---------------------------------------------------------------- driver maths (reference implementation)
-# The renderer (Core/RigAnimation.cs) and the browser viewer implement exactly this. Inputs:
-#   theta    the signed shaft angle, radians
-#   depth    the saw's depth, 0 (at the top) .. 1 (at the bed, through the trunk)
-#   lifting  1 while the saw is being wound back up, else 0 (a renderer may ease it)
-#   travel   the shaft's travel: the total angle it has turned through either way (radians, never
-#            decreasing); a rotate driver with "rectified": true turns by ratio * travel
-# Matrices are 4x4, block units; rotations are right-handed about the positive axis.
-def _m4(r=IDENT, t=(0.0, 0.0, 0.0)):
-    return [[r[0][0], r[0][1], r[0][2], t[0]], [r[1][0], r[1][1], r[1][2], t[1]], [r[2][0], r[2][1], r[2][2], t[2]], [0, 0, 0, 1]]
-
-
-def _m4mul(a, b):
-    return [[sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
-
-
-def _about(r, pivot):
-    t = [pivot[i] - mvec(r, pivot)[i] for i in range(3)]
-    return _m4(r, t)
-
-
-AXES = {"x": 0, "y": 1, "z": 2}
-
-
-def step_amount(d, depth, lifting):
-    """A step driver's fraction e in [0, 1]: the depth's progress through [from, to], then gated:
-    "hold" keeps it at 1 while lifting, "block" keeps it at 0 while lifting."""
-    lo, hi = d.get("from", 0.0), d.get("to", 1.0)
-    e = min(1.0, max(0.0, (depth - lo) / (hi - lo)))
-    gate = d.get("lifting")
-    if gate == "hold":
-        e = max(e, lifting)
-    elif gate == "block":
-        e = e * (1.0 - lifting)
-    elif gate == "trip":
-        # thrown over [from, to] at the bottom on the way down, back over [0, top] at the top on
-        # the way up; the two halves agree at both ends, where the direction changes
-        e = e * (1.0 - lifting) + min(1.0, max(0.0, depth / d["top"])) * lifting
-    return e
-
-
-def driver_matrix(d, theta, depth, lifting=0.0, travel=None):
-    if travel is None:
-        travel = abs(theta)
-    axis = d["axis"]
-    unit = [0.0, 0.0, 0.0]
-    unit[AXES[axis]] = 1.0
-    kind = d["type"]
-    if kind == "rotate":
-        return _about(rot(axis, math.degrees(d.get("ratio", 1.0) * (travel if d.get("rectified") else theta))), d["pivot"])
-    if kind == "swing":
-        ang = d["amplitude"] * math.sin(d.get("ratio", 1.0) * theta + d.get("phase", 0.0))
-        return _about(rot(axis, math.degrees(ang)), d["pivot"])
-    if kind == "slide":
-        return _m4(IDENT, [u * d["amplitude"] * math.sin(d.get("ratio", 1.0) * theta + d.get("phase", 0.0)) for u in unit])
-    if kind == "feed":
-        return _m4(IDENT, [u * d["travel"] * depth for u in unit])
-    if kind == "step":
-        e = step_amount(d, depth, lifting)
-        if d["motion"] == "rotate":
-            return _about(rot(axis, math.degrees(d["amount"] * e)), d["pivot"])
-        return _m4(IDENT, [u * d["amount"] * e for u in unit])
-    if kind == "stretch":
-        k = AXES[axis]
-        f = (d["length"] + d["travel"] * depth) / d["length"]
-        m = _m4()
-        m[k][k] = f
-        m[k][3] = d["anchor"][k] * (1.0 - f)
-        return m
-    raise ValueError(kind)
-
-
-def part_matrix(parts, pid, theta, depth, lifting=0.0, travel=None):
-    """Drivers apply in list order to the authored geometry (pivots in the authored frame);
-    then the `ride` part's whole transform is applied on top."""
-    p = next(q for q in parts if q["id"] == pid)
-    m = _m4()
-    for d in p["drivers"]:
-        m = _m4mul(driver_matrix(d, theta, depth, lifting, travel), m)
-    if p.get("ride"):
-        m = _m4mul(part_matrix(parts, p["ride"], theta, depth, lifting, travel), m)
-    return m
-
-
-def _apply(m, p):
-    return [m[i][0] * p[0] + m[i][1] * p[1] + m[i][2] * p[2] + m[i][3] for i in range(3)]
-
-
-def posed(el: El, m) -> El:
-    """`el` (voxels) moved by a part matrix (blocks). A stretch scales the element's extent along
-    its axis (the rope is axis-aligned, so this stays a box)."""
-    out = el.clone()
-    lin = [row[:3] for row in m[:3]]
-    t = [m[i][3] * 16 for i in range(3)]
-    scale = [math.sqrt(sum(lin[i][j] ** 2 for i in range(3))) for j in range(3)]
-    r = [[lin[i][j] / scale[j] for j in range(3)] for i in range(3)]
-    out.c = [mvec(lin, el.c)[i] + t[i] for i in range(3)]
-    if any(abs(s - 1) > 1e-9 for s in scale):
-        for k in range(3):                       # world axis j scaled: stretch the local axis along it
-            ax = [abs(el.r[j][k]) for j in range(3)]
-            out.size[k] = el.size[k] * sum(ax[j] * scale[j] for j in range(3))
-    out.r = mmul(r, el.r)
-    return out
-
-
 REFERENCE_POSES = [(theta, depth, lifting, travel)
                    for theta in (0.0, 1.1, 2.9, 4.6)
                    for depth in (0.0, 0.002, 0.4, 0.96, 1.0)
@@ -1279,121 +893,18 @@ def reference_json(parts):
     reference maths, for the C# tests to compare against so the two cannot drift."""
     poses = []
     for theta, depth, lifting, travel in REFERENCE_POSES:
-        mats = {p["id"]: [[round(v, 6) for v in row] for row in part_matrix(parts, p["id"], theta, depth, lifting, travel)[:3]] for p in parts}
+        mats = {p["id"]: round_matrix(part_matrix(parts, p["id"], theta, depth, lifting, travel)) for p in parts}
         poses.append({"theta": theta, "depth": depth, "lifting": lifting, "travel": travel, "matrices": mats})
     return {"_comment": "Generated by mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py from the shipped buckingmill-rig.json's parts: "
                         "each part's matrix as 3 rows of 4 (block units). RigAnimationTests checks Core/RigAnimation.cs against it.",
             "poses": poses}
 
 
-def reference_dumps(ref):
-    lines = ["{", f'\t"_comment": {json.dumps(ref["_comment"])},', '\t"poses": [']
-    lines.append(",\n".join("\t\t" + json.dumps(p, separators=(",", ":")) for p in ref["poses"]))
-    lines.append("\t]")
-    lines.append("}")
-    return "\n".join(lines) + "\n"
-
-
-# ---------------------------------------------------------------- collision boxes
-def cell_boxes(els, cell):
-    """Up to three cuboids (cell-local 0..1) covering the elements' AABBs clipped to the cell."""
-    lo_c = [cell[k] * 16 for k in range(3)]
-    clipped = []
-    for el in els:
-        lo, hi = el.aabb()
-        a = [max(lo[k], lo_c[k]) for k in range(3)]
-        b = [min(hi[k], lo_c[k] + 16) for k in range(3)]
-        if all(b[k] - a[k] > 0.01 for k in range(3)):
-            clipped.append((a, b))
-    if not clipped:
-        return None
-
-    def bound(bs):
-        return [min(x[0][k] for x in bs) for k in range(3)], [max(x[1][k] for x in bs) for k in range(3)]
-
-    def vol(b):
-        return math.prod(b[1][k] - b[0][k] for k in range(3))
-
-    groups = [clipped]
-    while len(groups) < 3:
-        best = None
-        for gi, g in enumerate(groups):
-            if len(g) < 2:
-                continue
-            whole = vol(bound(g))
-            for axis in range(3):
-                srt = sorted(g, key=lambda x: (x[0][axis] + x[1][axis]))
-                for i in range(1, len(srt)):
-                    a, b2 = srt[:i], srt[i:]
-                    gain = whole - vol(bound(a)) - vol(bound(b2))
-                    if best is None or gain > best[0]:
-                        best = (gain, gi, a, b2)
-        if best is None or best[0] < 0.08 * 16 ** 3:
-            break
-        _, gi, a, b2 = best
-        groups[gi:gi + 1] = [a, b2]
-    out = []
-    for g in groups:
-        lo, hi = bound(g)
-        out.append([round((lo[k] - lo_c[k]) / 16, 4) for k in range(3)] + [round((hi[k] - lo_c[k]) / 16, 4) for k in range(3)])
-    return sorted(out)
-
-
-# ---------------------------------------------------------------- output
-def r4(x, n=4):
-    v = round(x, n)
-    return 0.0 if v == 0 else v
-
-
-def element_json(el: El):
-    half = [abs(s) / 2 for s in el.size]
-    e = {"name": el.name,
-         "from": [r4(el.c[k] - half[k]) for k in range(3)],
-         "to": [r4(el.c[k] + half[k]) for k in range(3)]}
-    a = euler_xyz(el.r)
-    if any(abs(v) > 1e-4 for v in a):
-        e["rotationOrigin"] = [r4(v) for v in el.c]
-        for key, v in zip(("rotationX", "rotationY", "rotationZ"), a):
-            if abs(v) > 1e-4:
-                e[key] = r4(v)
-    faces = {}
-    for d in ("north", "east", "south", "west", "up", "down"):
-        if d not in el.faces:
-            continue
-        f = el.faces[d]
-        out = {"texture": f["texture"], "uv": [r4(v, 3) for v in f["uv"]]}
-        if f.get("rotation"):
-            out["rotation"] = f["rotation"]
-        out["autoUv"] = False
-        faces[d] = out
-    e["faces"] = faces
-    return e
-
-
 def shape_json(els, source):
-    used = {f["texture"].lstrip("#") for el in els for f in el.faces.values()}
-    textures = {k: v for k, v in TEXTURES.items() if k in used}
-    return {
-        "_comment": f"Generated by mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py. The gears, saw blades, saw heads and "
-                    f"cranks are from Immersive Woodworking's sawmill ({source}) by Bobrik00, used with permission "
-                    f"(CREDITS.md). Keep element names when editing.",
-        "textureWidth": TEX_SIZE, "textureHeight": TEX_SIZE,
-        "textureSizes": {k: [TEX_SIZE, TEX_SIZE] for k in textures},
-        "textures": textures,
-        "elements": [element_json(el) for el in els],
-    }
-
-
-def shape_dumps(shape):
-    head = {k: v for k, v in shape.items() if k != "elements"}
-    lines = ["{"]
-    for k, v in head.items():
-        lines.append(f"\t{json.dumps(k)}: {json.dumps(v, separators=(', ', ': '))},")
-    lines.append('\t"elements": [')
-    lines.append(",\n".join("\t\t" + json.dumps(e, separators=(",", ":")) for e in shape["elements"]))
-    lines.append("\t]")
-    lines.append("}")
-    return "\n".join(lines) + "\n"
+    return machine_shape_json(
+        els, f"Generated by mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py. The gears, saw blades, saw heads and "
+             f"cranks are from Immersive Woodworking's sawmill ({source}) by Bobrik00, used with permission "
+             f"(CREDITS.md). Keep element names when editing.", TEXTURES)
 
 
 def make_rig(els, parts):
@@ -1424,231 +935,16 @@ def make_rig(els, parts):
     }
 
 
-def rig_dumps(rig):
-    lines = ["{"]
-    keys = list(rig)
-    for i, k in enumerate(keys):
-        end = "," if i < len(keys) - 1 else ""
-        v = rig[k]
-        if k in ("cells", "parts"):
-            lines.append(f"\t{json.dumps(k)}: [")
-            lines.append(",\n".join("\t\t" + json.dumps(x, separators=(", ", ": ")) for x in v))
-            lines.append("\t]" + end)
-        else:
-            lines.append(f"\t{json.dumps(k)}: {json.dumps(v, separators=(', ', ': '))}{end}")
-    lines.append("}")
-    return "\n".join(lines) + "\n"
-
-
 # ---------------------------------------------------------------- coplanar faces (z-fighting)
-# A face's outward normal along the element's local axes.
-_FACE_NORMAL = {"east": (0, 1), "west": (0, -1), "up": (1, 1), "down": (1, -1), "south": (2, 1), "north": (2, -1)}
-COPLANAR_EPS = 0.005                         # voxels: faces closer than this to one plane share it
-COPLANAR_AREA = 0.01                         # square voxels: a smaller overlap does not show
-
-
-def drawn_faces(el: El):
-    """The element's drawn faces in world voxels: (direction, unit normal, the 4 corners in order)."""
-    out = []
-    h = [abs(v) / 2 for v in el.size]
-    for d, (k, sgn) in _FACE_NORMAL.items():
-        if d not in el.faces or el.faces[d].get("enabled") is False:
-            continue
-        u, v = [a for a in range(3) if a != k]
-        quad = []
-        for su, sv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
-            local = [0.0, 0.0, 0.0]
-            local[k], local[u], local[v] = sgn * h[k], su * h[u], sv * h[v]
-            w = mvec(el.r, local)
-            quad.append([el.c[i] + w[i] for i in range(3)])
-        n = mvec(el.r, [1.0 if a == k else 0.0 for a in range(3)])
-        out.append((d, [sgn * x for x in n], quad))
-    return out
-
-
-def _poly_area(poly):
-    return abs(sum(poly[i][0] * poly[i - 1][1] - poly[i - 1][0] * poly[i][1] for i in range(len(poly)))) / 2
-
-
-def _clip(subject, clip):
-    """Sutherland-Hodgman: the part of convex polygon `subject` inside convex polygon `clip` (2D)."""
-    def ccw(poly):
-        a = sum(poly[i][0] * poly[i - 1][1] - poly[i - 1][0] * poly[i][1] for i in range(len(poly)))
-        return poly if a < 0 else poly[::-1]   # the sum above is negative for counter-clockwise
-    out = ccw(subject)
-    clip = ccw(clip)
-    for i in range(len(clip)):
-        a, b = clip[i - 1], clip[i]
-        def inside(p):
-            return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= -1e-9
-        def cross(p, q):
-            dx1, dy1, dx2, dy2 = b[0] - a[0], b[1] - a[1], q[0] - p[0], q[1] - p[1]
-            den = dx1 * dy2 - dy1 * dx2
-            t = ((p[0] - a[0]) * dy2 - (p[1] - a[1]) * dx2) / den
-            return [a[0] + t * dx1, a[1] + t * dy1]
-        inp, out = out, []
-        for j in range(len(inp)):
-            cur, prev = inp[j], inp[j - 1]
-            if inside(cur):
-                if not inside(prev):
-                    out.append(cross(prev, cur))
-                out.append(cur)
-            elif inside(prev):
-                out.append(cross(prev, cur))
-        if not out:
-            return []
-    return out
-
-
-def coplanar_faces(els, eps=COPLANAR_EPS, min_area=COPLANAR_AREA, opposite=False):
-    """Every pair of drawn faces of different elements that lie in one plane, facing the same way,
-    and overlap by more than `min_area`: they z-fight. Returns (name a, face a, name b, face b,
-    area) sorted. With `opposite`, the pairs facing opposite ways instead (two elements pressed
-    together), as (index a, face a, area a, index b, face b, area b, overlap)."""
-    buckets = {}
-    faces = []
-    for ei, el in enumerate(els):
-        for d, n, quad in drawn_faces(el):
-            canon = next(x for x in n if abs(x) > 1e-6) > 0 if opposite else True
-            m = n if canon else [-x for x in n]
-            off = sum(m[i] * quad[0][i] for i in range(3))
-            key = tuple(round(x, 3) + 0.0 for x in m)
-            faces.append((ei, d, m, quad, off, canon))
-            buckets.setdefault(key, []).append(len(faces) - 1)
-    found = []
-    for idxs in buckets.values():
-        idxs.sort(key=lambda i: faces[i][4])
-        for x, i in enumerate(idxs):
-            ei, di, n, qa, oa, ca = faces[i]
-            for j in idxs[x + 1:]:
-                ej, dj, _, qb, ob, cb = faces[j]
-                if ob - oa > eps:
-                    break
-                if ej == ei or (opposite and ca == cb):
-                    continue
-                # a 2D basis in the plane
-                t = [1.0, 0.0, 0.0] if abs(n[0]) < 0.9 else [0.0, 1.0, 0.0]
-                u = [n[1] * t[2] - n[2] * t[1], n[2] * t[0] - n[0] * t[2], n[0] * t[1] - n[1] * t[0]]
-                ul = math.sqrt(sum(c * c for c in u))
-                u = [c / ul for c in u]
-                v = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]]
-                pa = [[sum(p[k] * u[k] for k in range(3)), sum(p[k] * v[k] for k in range(3))] for p in qa]
-                pb = [[sum(p[k] * u[k] for k in range(3)), sum(p[k] * v[k] for k in range(3))] for p in qb]
-                inter = _clip(pa, pb)
-                area = _poly_area(inter) if len(inter) >= 3 else 0.0
-                if area <= min_area:
-                    continue
-                if opposite:
-                    found.append((ei, di, _poly_area(pa), ej, dj, _poly_area(pb), area))
-                else:
-                    a, b = sorted([(els[ei].name, di), (els[ej].name, dj)])
-                    found.append((a[0], a[1], b[0], b[1], round(area, 3)))
-    return sorted(found)
-
-
-COPLANAR_INSET = 0.015                       # voxels: how far a z-fighting face is moved in, per step
 COPLANAR_POSES = ((0.0, 0.0, 0.0), (0.7, 0.5, 0.0))   # (θ, depth, lifting): at rest, and mid-cut
 
 
-def inset_face(el: El, d: str, delta: float):
-    """Moves face `d` of `el` in by `delta` voxels, the opposite face staying where it is."""
-    k, sgn = _FACE_NORMAL[d]
-    mag = abs(el.size[k])
-    if mag <= delta * 2:
-        raise ValueError(f"{el.name} is too thin to inset its {d} face")
-    scale_uv(el, k, (mag - delta) / mag)
-    el.size[k] = math.copysign(mag - delta, el.size[k])
-    axis = [el.r[i][k] for i in range(3)]
-    el.c = [el.c[i] - sgn * axis[i] * delta / 2 for i in range(3)]
-
-
 def fix_coplanar(els, parts):
-    """Ends the z-fighting: no two drawn faces may share a plane where they overlap. First every
-    face pressed flat against an element of the same part (inside an opposite face of it, so the
-    other element's body covers it) is removed: it can never be seen. Then of each remaining pair
-    of faces in one plane, facing the same way, at rest or mid-cut, the smaller one (the inner part)
-    is moved in by COPLANAR_INSET, until no pair is left; a stack of n such faces ends up stepped
-    0, 1, ..., n-1 insets deep. Returns the pairs found before, at each pose."""
-    def posed_all(pose):
-        return [posed(el, part_matrix(parts, el.part, *pose)) for el in els]
-    before = {pose: coplanar_faces(posed_all(pose)) for pose in COPLANAR_POSES}
-    rest = posed_all(COPLANAR_POSES[0])
-    hidden = set()
-    for ia, da, area_a, ib, db, area_b, overlap in coplanar_faces(rest, opposite=True):
-        if els[ia].part != els[ib].part:
-            continue
-        if overlap >= area_a - 1e-3:
-            hidden.add((ia, da))
-        if overlap >= area_b - 1e-3:
-            hidden.add((ib, db))
-    for i, d in sorted(hidden):
-        del els[i].faces[d]
-    index = {el.name: i for i, el in enumerate(els)}
-    for _ in range(12):
-        moved = set()
-        for pose in COPLANAR_POSES:
-            for na, da, nb, db, _area in coplanar_faces(posed_all(pose)):
-                if (na, da) in moved or (nb, db) in moved:
-                    continue
-                ea, eb = els[index[na]], els[index[nb]]
-                def face_area(el, d):
-                    k, _ = _FACE_NORMAL[d]
-                    return math.prod(abs(el.size[a]) for a in range(3) if a != k)
-                # the smaller face is the inner part's; on a tie, the later name's
-                inner = (nb, db) if (face_area(eb, db), nb) <= (face_area(ea, da), na) else (na, da)
-                inset_face(els[index[inner[0]]], inner[1], COPLANAR_INSET)
-                moved.add(inner)
-        if not moved:
-            break
-    return before, len(hidden)
+    """machinegen's fix_coplanar over the mill's two poses, at rest and mid-cut."""
+    return fix_coplanar_posed(els, lambda es, pose: [posed(el, part_matrix(parts, el.part, *pose)) for el in es], COPLANAR_POSES)
 
 
 # ---------------------------------------------------------------- validation
-def obb_overlap(el: El, lo, hi, eps=0.02):
-    """Separating-axis test between a rotated element and an axis-aligned box (voxels)."""
-    bc = [(lo[k] + hi[k]) / 2 for k in range(3)]
-    bh = [(hi[k] - lo[k]) / 2 - eps for k in range(3)]
-    eh = [max(abs(s) / 2 - eps, 0.0) for s in el.size]
-    ea = [[el.r[i][k] for i in range(3)] for k in range(3)]  # element axes (columns)
-    ba = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-    d = [el.c[k] - bc[k] for k in range(3)]
-    axes = ea + ba
-    for u in ea:
-        for v in ba:
-            w = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
-            if sum(x * x for x in w) > 1e-9:
-                axes.append(w)
-    for ax in axes:
-        dist = abs(sum(d[k] * ax[k] for k in range(3)))
-        ra = sum(eh[k] * abs(sum(ea[k][i] * ax[i] for i in range(3))) for k in range(3))
-        rb = sum(bh[k] * abs(ax[k]) for k in range(3))
-        if dist > ra + rb:
-            return False
-    return True
-
-
-def obb_obb(a: El, b: El, eps=0.02):
-    """Separating-axis test between two rotated elements (voxels)."""
-    ah = [max(abs(s) / 2 - eps, 0.0) for s in a.size]
-    bh = [max(abs(s) / 2 - eps, 0.0) for s in b.size]
-    aa = [[a.r[i][k] for i in range(3)] for k in range(3)]
-    ba = [[b.r[i][k] for i in range(3)] for k in range(3)]
-    d = [a.c[k] - b.c[k] for k in range(3)]
-    axes = aa + ba
-    for u in aa:
-        for v in ba:
-            w = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
-            if sum(x * x for x in w) > 1e-9:
-                axes.append(w)
-    for ax in axes:
-        dist = abs(sum(d[k] * ax[k] for k in range(3)))
-        ra = sum(ah[k] * abs(sum(aa[k][i] * ax[i] for i in range(3))) for k in range(3))
-        rb = sum(bh[k] * abs(sum(ba[k][i] * ax[i] for i in range(3))) for k in range(3))
-        if dist > ra + rb:
-            return False
-    return True
-
-
 def poses():
     """(theta, depth, lifting, travel) samples: 8 shaft angles, five depths, cutting and lifting,
     and a spread of shaft travels (the rectified gears' input)."""
@@ -1696,10 +992,7 @@ def validate(els, parts, rig, shape, frame_shape):
         print("FAIL", msg)
 
     # Euler round trip
-    worst = 0.0
-    for el in els:
-        back = from_euler(*euler_xyz(el.r))
-        worst = max(worst, max(abs(back[i][j] - el.r[i][j]) for i in range(3) for j in range(3)))
+    worst = euler_round_trip(els)
     print(f"rotation round trip: worst matrix error {worst:.2e}")
     if worst > 1e-4:
         fail("euler decomposition")
@@ -1750,18 +1043,13 @@ def validate(els, parts, rig, shape, frame_shape):
         for pose in samples(pid):
             for el in posed_part(pid, pose):
                 lo, hi = el.aabb()
-                for k, n in enumerate((CELLS_X, CELLS_Y, CELLS_Z)):
-                    over = max(-lo[k], hi[k] - n * 16)
-                    if over > worst_out:
-                        worst_out, worst_el = over, (el.name, pose)
+                over = box_overhang(lo, hi, (CELLS_X, CELLS_Y, CELLS_Z))
+                if over > worst_out:
+                    worst_out, worst_el = over, (el.name, pose)
                 if pose == (0.0, 0.0, 0.0, 1.0):
-                    lo = [v + 0.01 for v in lo]
-                    hi = [v - 0.01 for v in hi]
-                    for cx in range(int(lo[0] // 16), int(math.ceil(hi[0] / 16))):
-                        for cy in range(int(lo[1] // 16), int(math.ceil(hi[1] / 16))):
-                            for cz in range(int(lo[2] // 16), int(math.ceil(hi[2] / 16))):
-                                if (cx, cy, cz) not in declared:
-                                    fail(f"{el.name} reaches undeclared cell {(cx, cy, cz)}")
+                    for cell in cells_touched(lo, hi):
+                        if cell not in declared:
+                            fail(f"{el.name} reaches undeclared cell {cell}")
     print(f"machine box: worst overhang {max(worst_out, 0):.3f} voxels {worst_el or ''}")
     if worst_out > 0.01:
         fail("an element leaves the machine box")
@@ -1873,26 +1161,7 @@ def validate(els, parts, rig, shape, frame_shape):
     # nothing fixed floats: every frame element shares a face with, or overlaps, the rest of the
     # frame, and the frame is one piece standing on the ground
     frame = by_part["frame"]
-    boxes = [el.aabb() for el in frame]
-    aligned = [all(el.local_axis_for(k) is not None for k in range(3)) for el in frame]
-
-    def joined(i, j):
-        (alo, ahi), (blo, bhi) = boxes[i], boxes[j]
-        ov = [min(ahi[k], bhi[k]) - max(alo[k], blo[k]) for k in range(3)]
-        if min(ov) < -0.02:
-            return False
-        if aligned[i] and aligned[j]:
-            return sum(o > 0.05 for o in ov) >= 2          # a shared face, not just an edge or a corner
-        return obb_obb(frame[i], frame[j], eps=-0.03)
-    seen = {i for i, (lo, _) in enumerate(boxes) if lo[1] <= 0.01}
-    todo = list(seen)
-    while todo:
-        i = todo.pop()
-        for j in range(len(frame)):
-            if j not in seen and joined(i, j):
-                seen.add(j)
-                todo.append(j)
-    floating = sorted(frame[i].name for i in range(len(frame)) if i not in seen)
+    seen, floating = frame_floating(frame)
     print(f"frame: {len(seen)} of {len(frame)} elements joined to the ground through the frame"
           + ("" if not floating else f"; FLOATING: {', '.join(floating)}"))
     if floating:
@@ -1900,20 +1169,11 @@ def validate(els, parts, rig, shape, frame_shape):
 
     # each bearing encloses the shaft it carries, at rest and turned 45 degrees
     def shaft_in(bearing, pid, name_rx, axis):
-        b_lo, b_hi = bearing.aabb()
-        worst = 1e9
+        shaft = []
         for theta in (0.0, math.pi / 4):
             pose = (theta, 0.0, 0.0, 1.0) if pid != "rock" else (0.0, 0.0, 0.0, 1.0)
-            for el in posed_part(pid, pose):
-                if not re.search(name_rx, el.name):
-                    continue
-                lo, hi = el.aabb()
-                if min(hi[axis], b_hi[axis]) - max(lo[axis], b_lo[axis]) <= 0.05:
-                    continue
-                for k in range(3):
-                    if k != axis:
-                        worst = min(worst, lo[k] - b_lo[k], b_hi[k] - hi[k])
-        return worst
+            shaft += [el for el in posed_part(pid, pose) if re.search(name_rx, el.name)]
+        return bearing_margin(bearing, shaft, axis)
     carried = [(r"^bearing\d[we]$|^input_bearing$", "shaft", r"^(shaft_|f\d_crank_Rotor_default_4_00[15])", 0),
                (r"^bearing_drum", "drum", r"^drum_shaft_", 0),
                (r"^rock_bearing_", "rock", r"^lever_rock_shaft$", 0)]
@@ -1929,19 +1189,7 @@ def validate(els, parts, rig, shape, frame_shape):
     # spigot into the other half; levers on a pivot pin need their bracket; loose wheels are
     # located on both sides by a collar or a bearing
     def supports(els_, axis, c, exclude=()):
-        u, v = [k for k in range(3) if k != axis]
-        on = [e for e in els_ if (lambda lo, hi: lo[u] <= c[0] <= hi[u] and lo[v] <= c[1] <= hi[v])(*e.aabb())]
-        if not on:
-            return [], None
-        amin, amax = min(e.aabb()[0][axis] for e in on), max(e.aabb()[1][axis] for e in on)
-        found = []
-        for f in frame:
-            if f.name in exclude:
-                continue
-            lo, hi = f.aabb()
-            if lo[u] + 0.05 < c[0] < hi[u] - 0.05 and lo[v] + 0.05 < c[1] < hi[v] - 0.05 and min(hi[axis], amax) - max(lo[axis], amin) > 0.05:
-                found.append(f.name)
-        return found, (amin, amax)
+        return shaft_supports(frame, els_, axis, c, exclude)
     pilot = [e for e in els if e.name == "gear_crownb_pilot"]
     shafts = [("shaft", "main shaft and crankshaft", by_part["shaft"], 0, (SHAFT_Y, SHAFT_Z), 2, False),
               ("crown", "crown axle, the disc's half", by_part["crown"], 2, (GEAR_X, SHAFT_Y), 1, True),
@@ -2007,10 +1255,8 @@ def validate(els, parts, rig, shape, frame_shape):
                     for el in posed_part(pid, pose if pid != "frame" else (0.0, 0.0, 0.0, 1.0)):
                         if rope_pid == f"f{n}_sheave" and el.name == f"f{n}_tailpost_pin":
                             continue                              # the sheave turns on its pin
-                        elo, ehi = el.aabb()
                         for m_el in mine:
-                            mlo, mhi = m_el.aabb()
-                            if all(mlo[k] < ehi[k] - 0.02 and elo[k] < mhi[k] - 0.02 for k in range(3)) and obb_obb(m_el, el):
+                            if boxes_touch(m_el, el):
                                 hits.add((m_el.name, el.name))
         print(f"station {n}: guide block's rope leaves the spool's wrap at the tangent point, lies in the sheave's groove both sides"
               f" and ends on the guide block's eye, worst gap {max(gaps):.3f} voxels;"
@@ -2052,11 +1298,7 @@ def validate(els, parts, rig, shape, frame_shape):
                         worst["slot_y"] = min(worst["slot_y"], t_lo[1] - slot_y[0], slot_y[1] - t_hi[1])
                         worst["slot_x"] = min(worst["slot_x"], t_lo[0] - (STATION_X[n - 1] - SLOT_DX), STATION_X[n - 1] + SLOT_DX - t_hi[0])
                         for lo, hi in [(t_lo, t_hi)] + ([(s_lo, s_hi)] if i == 0 else []):
-                            for cx in range(int((lo[0] + 0.01) // 16), int(math.ceil((hi[0] - 0.01) / 16))):
-                                for cy in range(int((lo[1] + 0.01) // 16), int(math.ceil((hi[1] - 0.01) / 16))):
-                                    for cz in range(int((lo[2] + 0.01) // 16), int(math.ceil((hi[2] - 0.01) / 16))):
-                                        if (cx, cy, cz) not in declared:
-                                            cells_out.add((cx, cy, cz))
+                            cells_out.update(c for c in cells_touched(lo, hi) if c not in declared)
         print(f"station {n}: tail strokes over z {z_lo:.2f}..{z_hi:.2f} in the guide block's slot {SLOT_Z[0]:.2f}..{SLOT_Z[1]:.2f}"
               f" (margins {worst['slot_n']:.2f} north, {worst['slot_s']:.2f} south, {worst['slot_y']:.2f} in height, {worst['slot_x']:.2f} across);"
               f" {worst['trunk']:.2f} clear of a 2x2 trunk's south face; guide block {worst['post']:.2f} inside its post's ends;"
@@ -2162,12 +1404,7 @@ def validate(els, parts, rig, shape, frame_shape):
             for pose in pose_list[::3]:
                 ga = [e for e in posed_part(pa_, pose) if not fa or re.search(fa, e.name)]
                 gb = [e for e in posed_part(pb_, pose if pb_ != "frame" else (0.0, 0.0, 0.0, 1.0)) if not fb or re.search(fb, e.name)]
-                bb = [(e, e.aabb()) for e in gb]
-                for e in ga:
-                    elo, ehi = e.aabb()
-                    for f, (flo, fhi) in bb:
-                        if all(elo[k] < fhi[k] - 0.02 and flo[k] < ehi[k] - 0.02 for k in range(3)) and obb_obb(e, f):
-                            hits.add((e.name, f.name))
+                hits |= touching(ga, gb)
             if hits:
                 reports.append(f"{pa_} x {pb_}: {len(hits)} contacts, e.g. {sorted(hits)[:3]}")
     print("clearances:", "all clear" if not reports else f"{len(reports)} pairs touch")
@@ -2195,17 +1432,12 @@ def shipped(els, parts, rig):
     db = [v / 16 for v in d]
     ship_els = copy.deepcopy(els)
     translate(ship_els, d)
-    ship_parts = copy.deepcopy(parts)
-    for p in ship_parts:
-        for drv in p.get("drivers", []):
-            for key in ("pivot", "anchor"):
-                if key in drv:
-                    drv[key] = [round(drv[key][k] + db[k], 6) for k in range(3)]
+    ship_parts = shift_parts(parts, db)
     ship = copy.deepcopy(rig)
-    ship["cells"] = [{**c, "pos": [c["pos"][k] - ORIGIN_CELL[k] for k in range(3)]} for c in rig["cells"]]
-    ship["powerCell"] = [rig["powerCell"][k] - ORIGIN_CELL[k] for k in range(3)]
-    ship["output"] = {**rig["output"], "pos": [round(rig["output"]["pos"][k] + db[k], 4) for k in range(3)]}
-    ship["trunkBed"] = {**rig["trunkBed"], "origin": [round(rig["trunkBed"]["origin"][k] + db[k], 4) for k in range(3)]}
+    ship["cells"] = [{**c, "pos": shift_cell(c["pos"], ORIGIN_CELL)} for c in rig["cells"]]
+    ship["powerCell"] = shift_cell(rig["powerCell"], ORIGIN_CELL)
+    ship["output"] = {**rig["output"], "pos": shift_point(rig["output"]["pos"], db)}
+    ship["trunkBed"] = {**rig["trunkBed"], "origin": shift_point(rig["trunkBed"]["origin"], db)}
     ship["parts"] = ship_parts
     return ship_els, ship_parts, ship
 
@@ -2214,11 +1446,9 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
     """The shipped files are the checked model moved, nothing else: every element posed by the
     shipped rig lands where the checked one does, shifted, and the controller is a cell."""
     d = [-ORIGIN_CELL[k] * 16.0 for k in range(3)]
-    worst = 0.0
-    for pose in ((0.0, 0.0, 0.0, 0.0), (1.3, 0.5, 0.0, 4.0), (4.0, 0.97, 1.0, 9.0), (2.2, 0.03, 1.0, 2.2)):
-        for a, b in zip(els, ship_els):
-            pa, pb = posed(a, part_matrix(parts, a.part, *pose)), posed(b, part_matrix(ship_parts, b.part, *pose))
-            worst = max(worst, max(abs(pa.c[k] + d[k] - pb.c[k]) for k in range(3)))
+    worst = worst_shift_error(els, ship_els, lambda el, pose: part_matrix(parts, el.part, *pose),
+                              lambda el, pose: part_matrix(ship_parts, el.part, *pose), d,
+                              ((0.0, 0.0, 0.0, 0.0), (1.3, 0.5, 0.0, 4.0), (4.0, 0.97, 1.0, 9.0), (2.2, 0.03, 1.0, 2.2)))
     cells = [tuple(c["pos"]) for c in ship["cells"]]
     span = [(min(c[k] for c in cells), max(c[k] for c in cells)) for k in range(3)]
     print(f"shipped: moved by {[v / 16 for v in d]} blocks, worst posed difference {worst:.2e} voxels; cells x {span[0]}, y {span[1]}, z {span[2]}; "

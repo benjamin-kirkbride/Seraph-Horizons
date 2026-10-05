@@ -1,4 +1,6 @@
 using SeraphHorizons.Mod.BuckingSawmill.Core;
+using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;

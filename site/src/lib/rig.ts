@@ -1,8 +1,12 @@
 // Shape posing and rig maths for the model viewer, as pure functions. A port of the C# in
-// mods-src/seraphhorizons/BuckingSawmill/Core/RigAnimation.cs and of the reference in that mod's
-// tools/make_shape.py (driver_matrix, part_matrix, flatten); test/rig.test.ts holds all three
-// to the poses in mods-src/seraphhorizons/tests/BuckingSawmill/rig-reference.json. The rig format is
-// documented in mods-src/seraphhorizons/BuckingSawmill/README.md ("Rig schema").
+// mods-src/seraphhorizons/Machines/Core/RigAnimation.cs and of the reference maths in
+// mods-src/seraphhorizons/Machines/tools/machinegen/ (driver_matrix, part_matrix, flatten);
+// test/rig.test.ts holds all three to the poses in
+// mods-src/seraphhorizons/tests/BuckingSawmill/rig-reference.json, and the trunk-path inputs and
+// drivers (input, gauge, roll) to mods-src/seraphhorizons/tests/Machines/driver-fixture.json;
+// test/rosser.test.ts holds them to mods-src/seraphhorizons/tests/Rosser/rig-reference.json.
+// The rig format is documented in mods-src/seraphhorizons/BuckingSawmill/README.md ("Rig schema"),
+// the trunk-path additions in mods-src/seraphhorizons/Rosser/README.md and docs/recipe-browser/models.md.
 //
 // Matrices are 16 numbers in column-major order (translation in 12..14), the layout of the
 // game's Mat4f and of three.js's Matrix4.elements; points transform as M·p. Shapes are in
@@ -42,23 +46,55 @@ export type FaceName = (typeof FACE_NAMES)[number];
 
 // ---- rigs
 
+/** What rotate, slide and swing read in place of θ: θ, ψ (the shaft's travel), φ (the feed's travel) or T (the trunk's travel). */
+export type DriverInput = "theta" | "travel" | "feed" | "trunk";
+
+/** A number per trunk class (thin 1×1, thick 2×2); class 0, no trunk, has none. */
+export interface PerClass {
+  thin: number;
+  thick: number;
+}
+
+/** A gauge's window along the trunk path, in blocks: occupied while any part of the trunk lies over [from, to]. */
+export interface GaugeWindow {
+  from: number;
+  to: number;
+  ease: number;
+  /** Per class, each 1 when not given. */
+  gain?: Partial<PerClass>;
+}
+
+/** A gauge's four-lobe term: the rounded-square trunk turning under a part that rides it. */
+export interface GaugeLobes {
+  ratio: number;
+  phase?: number;
+  amplitude: PerClass;
+}
+
 export interface Driver {
-  type: "rotate" | "slide" | "swing" | "feed" | "step" | "stretch";
+  type: "rotate" | "slide" | "swing" | "feed" | "step" | "stretch" | "gauge" | "roll";
   axis: Axis;
   pivot?: Vec3;
   anchor?: Vec3;
   ratio?: number;
   rectified?: boolean;
+  input?: DriverInput;
   amplitude?: number;
   phase?: number;
   travel?: number;
   motion?: "slide" | "rotate";
-  amount?: number;
+  /** A number for step; per class for gauge. */
+  amount?: number | PerClass;
   from?: number;
   to?: number;
   lifting?: "hold" | "block" | "trip";
   top?: number;
   length?: number;
+  mode?: "occupy" | "present";
+  windows?: GaugeWindow[];
+  lobes?: GaugeLobes;
+  /** roll: the roller's place along the trunk path, blocks. */
+  at?: number;
 }
 
 export interface RigPart {
@@ -72,6 +108,8 @@ export interface RigPart {
 export interface RigCell {
   pos: Vec3;
   boxes?: number[][] | null;
+  /** A ghost with nothing of its own to collide with (a trunk path's cell); without boxes it has none, not a full cube. */
+  hollow?: boolean;
 }
 
 /** rig.json: `parts` and `cells` are read as such; every other key is an anchor (model-anchors.ts). */
@@ -82,12 +120,84 @@ export interface Rig {
 }
 
 /** The rig's inputs: θ the signed shaft angle (radians), depth 0..1, lifting 0..1, and ψ
- * the shaft's travel, the total angle it has turned either way (|θ| when not given). */
+ * the shaft's travel, the total angle it has turned either way (|θ| when not given). A machine
+ * a trunk travels through adds T, the trunk's travel along the rig's trunkPath (blocks), its
+ * class (`size`: 0 none, 1 thin, 2 thick), its presence p (0..1, eased as it is loaded and taken
+ * away) and φ, the feed's travel (radians: ψ counted only while the feed runs); each is 0 when not given. */
 export interface Pose {
   theta: number;
   depth: number;
   lifting: number;
   travel?: number;
+  trunk?: number;
+  size?: number;
+  presence?: number;
+  feed?: number;
+}
+
+/** The trunk classes after 0 (none), by index − 1. */
+export const TRUNK_CLASSES = ["thin", "thick"] as const;
+export type TrunkClass = (typeof TRUNK_CLASSES)[number];
+
+/**
+ * The rig's `trunkPath`: the line a trunk travels along, nose first, towards + on its axis.
+ * Places along it (nose0, tailStop, windows, stations, a roll's `at`) are coordinates on that
+ * axis in the rig's frame, in blocks. At travel T the nose is at nose0 + T and the tail L_k
+ * behind it; T runs from 0 to end(k) = tailStop + L_k − nose0.
+ */
+export interface TrunkPath {
+  origin: Vec3;
+  axis: Axis;
+  length: number;
+  nose0: number;
+  /** L_k, indexed by class: [0, thin, thick]. */
+  lengths: [number, number, number];
+  tailStop: number;
+  stations: Record<string, number>;
+}
+
+const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isPerClass = (v: unknown): v is PerClass => typeof v === "object" && v !== null && isNum((v as PerClass).thin) && isNum((v as PerClass).thick);
+
+/** The rig's trunkPath, or null when it has none; throws when it has one that is malformed. */
+export function trunkPathOf(rig: Rig | null | undefined): TrunkPath | null {
+  const raw = rig?.trunkPath as Record<string, unknown> | undefined;
+  if (raw === undefined) return null;
+  const problem = (what: string) => new Error(`trunkPath: ${what}`);
+  if (typeof raw !== "object" || raw === null) throw problem("must be an object");
+  const { origin, axis, length, nose0, lengths, tailStop, stations } = raw;
+  if (!Array.isArray(origin) || origin.length !== 3 || !origin.every(isNum)) throw problem("origin must be 3 numbers");
+  if (axis !== "x" && axis !== "y" && axis !== "z") throw problem('axis must be "x", "y" or "z"');
+  if (!isNum(length) || length <= 0) throw problem("length must be a number above 0");
+  if (!isNum(nose0)) throw problem("nose0 must be a number");
+  if (!isNum(tailStop)) throw problem("tailStop must be a number");
+  if (!isPerClass(lengths) || lengths.thin <= 0 || lengths.thick <= 0) throw problem("lengths needs thin and thick above 0");
+  const st: Record<string, number> = {};
+  if (stations !== undefined) {
+    if (typeof stations !== "object" || stations === null || Array.isArray(stations)) throw problem("stations must map names to numbers");
+    for (const [k, v] of Object.entries(stations)) {
+      if (!isNum(v)) throw problem(`station "${k}" must be a number`);
+      st[k] = v;
+    }
+  }
+  return { origin: origin as Vec3, axis, length, nose0, lengths: [0, lengths.thin, lengths.thick], tailStop, stations: st };
+}
+
+/** A pose's class as 0 (none), 1 (thin) or 2 (thick): rounded and clamped. */
+export function classIndex(size: number | undefined): 0 | 1 | 2 {
+  const k = Math.round(size ?? 0);
+  return k <= 0 ? 0 : k >= 2 ? 2 : 1;
+}
+
+/** Where the nose is at travel T. */
+export function noseAt(path: TrunkPath, trunk: number): number {
+  return path.nose0 + trunk;
+}
+
+/** T at the end of the trip for a class, the tail at tailStop; 0 for no trunk. */
+export function tripEnd(path: TrunkPath, size: number): number {
+  const k = classIndex(size);
+  return k === 0 ? 0 : path.tailStop + path.lengths[k] - path.nose0;
 }
 
 // ---- matrices
@@ -269,23 +379,92 @@ function point(d: Driver, key: "pivot" | "anchor"): Vec3 {
   return p;
 }
 
-/** One driver's matrix (blocks) at a pose. */
-export function driverMatrix(d: Driver, pose: Pose): Mat4 {
-  const { theta, depth } = pose;
+const INPUTS: readonly DriverInput[] = ["theta", "travel", "feed", "trunk"];
+
+/** The input a rotate, slide or swing driver reads in place of θ; `rectified: true` is the mill's way of saying "travel". */
+export function driverInput(d: Driver): DriverInput {
+  if (d.input !== undefined && d.rectified !== undefined) throw new Error(`a ${d.type} driver takes input or rectified, not both`);
+  if (d.input === undefined) return d.rectified ? "travel" : "theta";
+  if (!INPUTS.includes(d.input)) throw new Error(`unknown driver input "${d.input}"`);
+  return d.input;
+}
+
+function inputValue(d: Driver, pose: Pose): number {
+  switch (driverInput(d)) {
+    case "travel":
+      return pose.travel ?? Math.abs(pose.theta);
+    case "feed":
+      return pose.feed ?? 0;
+    case "trunk":
+      return pose.trunk ?? 0;
+    default:
+      return pose.theta;
+  }
+}
+
+function perClass(d: Driver, v: unknown, key: string): PerClass {
+  if (!isPerClass(v)) throw new Error(`a ${d.type} driver's ${key} needs thin and thick numbers`);
+  return v;
+}
+
+function needPath(d: Driver, path: TrunkPath | null | undefined): TrunkPath {
+  if (!path) throw new Error(`a ${d.type} driver needs the rig's trunkPath`);
+  return path;
+}
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+/**
+ * A gauge's engagement e (0..1): 0 without a trunk; p when its mode is "present"; else p times
+ * the most engaged window's min(1, gain · occupancy), occupancy easing in over `ease` blocks as
+ * the nose arrives and out as the tail leaves.
+ */
+export function gaugeEngagement(d: Driver, pose: Pose, path: TrunkPath | null | undefined): number {
+  const mode = d.mode ?? "occupy";
+  if (mode !== "occupy" && mode !== "present") throw new Error(`unknown gauge mode "${mode}"`);
+  if (mode === "occupy") {
+    if (!Array.isArray(d.windows) || d.windows.length === 0) throw new Error("an occupy gauge needs windows");
+    for (const w of d.windows) {
+      if (!isNum(w.from) || !isNum(w.to) || !isNum(w.ease)) throw new Error("a gauge window needs from, to and ease");
+      if (!(w.ease > 0)) throw new Error("a gauge window's ease must be above 0");
+      if (!(w.to > w.from)) throw new Error("a gauge window's to must be above its from");
+      if (w.gain !== undefined && (typeof w.gain !== "object" || w.gain === null || !Object.values(w.gain).every(isNum)))
+        throw new Error("a gauge window's gain needs thin and thick numbers (each 1 when left out)");
+    }
+  }
+  const k = classIndex(pose.size);
+  if (k === 0) return 0;
+  const p = pose.presence ?? 0;
+  if (mode === "present") return p;
+  const pt = needPath(d, path);
+  const nose = noseAt(pt, pose.trunk ?? 0);
+  const tail = nose - pt.lengths[k];
+  let best = 0;
+  for (const w of d.windows!) {
+    const gain = w.gain?.[TRUNK_CLASSES[k - 1]!] ?? 1;
+    const occ = clamp01((nose - w.from) / w.ease) * clamp01((w.to - tail) / w.ease);
+    best = Math.max(best, Math.min(1, gain * occ));
+  }
+  return p * best;
+}
+
+/** One driver's matrix (blocks) at a pose. Gauge and roll drivers read the rig's trunkPath (trunkPathOf). */
+export function driverMatrix(d: Driver, pose: Pose, path?: TrunkPath | null): Mat4 {
+  const { depth } = pose;
   const lifting = pose.lifting ?? 0;
-  const travel = pose.travel ?? Math.abs(theta);
   switch (d.type) {
     case "rotate":
-      return about(rotation(d.axis, (d.ratio ?? 1) * (d.rectified ? travel : theta)), point(d, "pivot"));
+      return about(rotation(d.axis, (d.ratio ?? 1) * inputValue(d, pose)), point(d, "pivot"));
     case "swing":
-      return about(rotation(d.axis, (d.amplitude ?? 0) * Math.sin((d.ratio ?? 1) * theta + (d.phase ?? 0))), point(d, "pivot"));
+      return about(rotation(d.axis, (d.amplitude ?? 0) * Math.sin((d.ratio ?? 1) * inputValue(d, pose) + (d.phase ?? 0))), point(d, "pivot"));
     case "slide":
-      return along(d.axis, (d.amplitude ?? 0) * Math.sin((d.ratio ?? 1) * theta + (d.phase ?? 0)));
+      return along(d.axis, (d.amplitude ?? 0) * Math.sin((d.ratio ?? 1) * inputValue(d, pose) + (d.phase ?? 0)));
     case "feed":
       return along(d.axis, (d.travel ?? 0) * depth);
     case "step": {
       const e = stepFraction(d, depth, lifting);
-      return d.motion === "rotate" ? about(rotation(d.axis, (d.amount ?? 0) * e), point(d, "pivot")) : along(d.axis, (d.amount ?? 0) * e);
+      const amount = (d.amount ?? 0) as number;
+      return d.motion === "rotate" ? about(rotation(d.axis, amount * e), point(d, "pivot")) : along(d.axis, amount * e);
     }
     case "stretch": {
       const k = AXIS_INDEX[d.axis];
@@ -296,6 +475,34 @@ export function driverMatrix(d: Driver, pose: Pose): Mat4 {
       m[k * 5] = f;
       m[12 + k] = point(d, "anchor")[k]! * (1 - f);
       return m;
+    }
+    case "gauge": {
+      if (d.motion !== "slide" && d.motion !== "rotate") throw new Error('a gauge driver needs a motion, "slide" or "rotate"');
+      const amount = perClass(d, d.amount, "amount");
+      if (d.lobes !== undefined) {
+        if (d.motion === "slide") throw new Error("a slide gauge cannot have lobes");
+        if (!isNum(d.lobes.ratio)) throw new Error("a gauge's lobes need a ratio");
+        perClass(d, d.lobes.amplitude, "lobes.amplitude");
+      }
+      const pivot = d.motion === "rotate" ? point(d, "pivot") : null;
+      const e = gaugeEngagement(d, pose, path);
+      const k = classIndex(pose.size);
+      let a = 0;
+      if (k > 0) {
+        const c = TRUNK_CLASSES[k - 1]!;
+        a = amount[c] * e;
+        if (d.lobes) a += e * d.lobes.amplitude[c] * Math.cos(d.lobes.ratio * (pose.travel ?? Math.abs(pose.theta)) + (d.lobes.phase ?? 0));
+      }
+      return pivot ? about(rotation(d.axis, a), pivot) : along(d.axis, a);
+    }
+    case "roll": {
+      const pivot = point(d, "pivot");
+      if (!isNum(d.at)) throw new Error("a roll driver needs an at");
+      const k = classIndex(pose.size);
+      if (k === 0) return identity();
+      const pt = needPath(d, path);
+      const over = Math.min(pt.lengths[k], Math.max(0, noseAt(pt, pose.trunk ?? 0) - d.at));
+      return about(rotation(d.axis, (d.ratio ?? 1) * over), pivot);
     }
     default:
       throw new Error(`unknown driver type "${(d as Driver).type}"`);
@@ -328,34 +535,54 @@ export function rideOrder(parts: readonly RigPart[]): number[] {
   return order;
 }
 
-/** One matrix (blocks) per part, in part order: its drivers in list order, then its ride part's whole matrix. */
-export function partMatrices(parts: readonly RigPart[], pose: Pose, order: readonly number[] = rideOrder(parts)): Mat4[] {
+/** One matrix (blocks) per part, in part order: its drivers in list order, then its ride part's whole matrix. `path` is the rig's trunkPath, for gauge and roll drivers. */
+export function partMatrices(parts: readonly RigPart[], pose: Pose, order: readonly number[] = rideOrder(parts), path?: TrunkPath | null): Mat4[] {
   const ids = new Map(parts.map((p, i) => [p.id, i]));
   const out = new Array<Mat4>(parts.length);
   for (const i of order) {
     const p = parts[i]!;
     let m = identity();
-    for (const d of p.drivers ?? []) m = multiply(driverMatrix(d, pose), m);
+    for (const d of p.drivers ?? []) m = multiply(driverMatrix(d, pose, path), m);
     if (p.ride != null) m = multiply(out[ids.get(p.ride)!]!, m);
     out[i] = m;
   }
   return out;
 }
 
-/** Which of the inputs the rig's drivers read, so a viewer shows a control for each and no others. */
+/**
+ * Which of the inputs the rig's drivers read, so a viewer shows a control for each and no
+ * others. The trunk path's four (T, k, p, φ) are listed only when some driver reads them, so a
+ * rig without them reports the four it always did.
+ */
 export interface RigInputs {
   theta: boolean;
   travel: boolean;
   depth: boolean;
   lifting: boolean;
+  /** T, the trunk's travel. */
+  trunk?: true;
+  /** k, the trunk's class. */
+  size?: true;
+  /** p, the trunk's presence. */
+  presence?: true;
+  /** φ, the feed's travel. */
+  feed?: true;
 }
 
 export function rigInputs(parts: readonly RigPart[]): RigInputs {
   const used: RigInputs = { theta: false, travel: false, depth: false, lifting: false };
   for (const p of parts)
     for (const d of p.drivers ?? []) {
-      if (d.type === "rotate") used[d.rectified ? "travel" : "theta"] = true;
-      else if (d.type === "slide" || d.type === "swing") used.theta = true;
+      if (d.type === "rotate" || d.type === "slide" || d.type === "swing") {
+        const input = driverInput(d);
+        if (input === "theta" || input === "travel") used[input] = true;
+        else used[input] = true;
+      }
+      else if (d.type === "gauge") {
+        used.size = used.presence = true;
+        if ((d.mode ?? "occupy") === "occupy") used.trunk = true;
+        if (d.lobes) used.travel = true;
+      } else if (d.type === "roll") used.size = used.trunk = true;
       else used.depth = true;
       if (d.type === "step" && d.lifting) used.lifting = true;
     }

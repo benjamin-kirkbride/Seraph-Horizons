@@ -1,6 +1,7 @@
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using System.Text;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 
 namespace SeraphHorizons.Mod.BuckingSawmill;

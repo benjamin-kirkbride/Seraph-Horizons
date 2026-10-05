@@ -3,9 +3,23 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { cellBoxes, discoverAnchors, footprintBounds, humanize, sideArrow, type Anchor } from "../src/lib/model-anchors.ts";
 import { checkManifest, publishModels, type ManifestModel } from "../src/lib/model-manifest.ts";
-import { advance, checkScenario, contactDepth, enterPhase, propBox, rigNumber, startPhase, type Motion, type PlayContext, type Scenario } from "../src/lib/model-scenario.ts";
+import {
+  advance,
+  checkScenario,
+  contactDepth,
+  enterPhase,
+  feedAdvance,
+  feedBlocksPerRadian,
+  playTrip,
+  propBox,
+  rigNumber,
+  startPhase,
+  type Motion,
+  type PlayContext,
+  type Scenario,
+} from "../src/lib/model-scenario.ts";
 import { STATIC_COLOUR, buildModelView, elementDetails, modelBounds, textureColour } from "../src/lib/model-view.ts";
-import type { Rig, Shape } from "../src/lib/rig.ts";
+import { partMatrices, trunkPathOf, tripEnd, type Rig, type Shape } from "../src/lib/rig.ts";
 
 const repo = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const readRepoJson = (path: string) => {
@@ -284,5 +298,243 @@ describe("model view", () => {
     const rows = elementDetails(view, i);
     expect(rows.map((r) => r.label)).toEqual(expect.arrayContaining(["from", "to", "rotation", "origin"]));
     expect(modelBounds(view.flat).lo[0]).toBeLessThanOrEqual(-5);
+  });
+});
+
+// A machine a trunk travels through (the rosser, build/rosser/design.md §2): a small rig with the
+// rosser's trunk path in shipped blocks, a part on each kind of new driver, hollow cells and the
+// stations, and the scenario site/models.json will give the rosser (w1c-report.md).
+describe("a trunk travelling through a machine", () => {
+  const rig: Rig = {
+    cells: [
+      { pos: [0, 0, 0], boxes: [] },
+      { pos: [-1, 1, 0], hollow: true },
+      { pos: [-2, 1, 0], hollow: true, boxes: [[0, 0, 0, 1, 0.25, 1]] },
+    ],
+    powerCell: [-9, 3, -2],
+    powerFace: "north",
+    infeedSide: "west",
+    outputSide: "east",
+    chute: { pos: [-6.5, 0.25, 3.05] },
+    chuteSide: "south",
+    trunkPath: {
+      origin: [-7, 1.6875, 0.6875],
+      axis: "x",
+      length: 16,
+      nose0: -9.875,
+      lengths: { thin: 4, thick: 5 },
+      tailStop: -4.25,
+      radius: { thin: [0.46875, 0.5625], thick: [0.940625, 1.15625] },
+      stations: { treadle: -10.875, breaker: -8.875, drip: -7.875, ring: -7.3125 },
+    },
+    feed: { blocksPerRadian: 0.1 },
+    parts: [
+      { id: "main", match: ["main_*"], requires: "shaft", drivers: [{ type: "rotate", axis: "x", pivot: [-7, 3.5, 0.84], ratio: 2.382, input: "travel" }] },
+      { id: "cross_in", match: ["cross_*"], requires: "rollsin", drivers: [{ type: "rotate", axis: "z", pivot: [-10.25, 3.03, 0], ratio: 0.238, input: "feed" }] },
+      {
+        id: "toparm_in",
+        match: ["toparm_*"],
+        requires: "rollsin",
+        drivers: [{ type: "gauge", motion: "rotate", axis: "z", pivot: [-10.25, 3.03, 0], amount: { thin: 0.1, thick: 0.5 }, windows: [{ from: -9.5, to: -8.875, ease: 0.25 }] }],
+      },
+      { id: "cradle_in", match: ["cradle_*"], requires: null, drivers: [{ type: "gauge", motion: "slide", axis: "y", mode: "present", amount: { thin: 0, thick: -0.46875 } }] },
+      { id: "botroll_in", match: ["botroll_*"], requires: "rollsin", ride: "cradle_in", drivers: [{ type: "roll", axis: "z", pivot: [-9.25, 0.97, 0.6875], at: -9.5, ratio: -4 }] },
+      { id: "frame", match: ["*"], requires: null },
+    ],
+  };
+  const el = (name: string, x: number) => ({ name, from: [x, 0, 0] as [number, number, number], to: [x + 4, 4, 4] as [number, number, number] });
+  const shape: Shape = { elements: [el("main_shaft", -112), el("cross_in", -160), el("toparm_in", -160), el("cradle_in", -150), el("botroll_in", -150), el("post", 0)] };
+  const scenario: Scenario = {
+    inputs: {
+      theta: { label: "Axle angle" },
+      reverse: { label: "Axle turns backwards" },
+      trunk: { label: "Trunk travel", hint: "0 waiting on the infeed bed; the end, delivered on the outfeed bed" },
+      presence: { label: "Trunk presence", hint: "Eases in as a trunk is loaded and out as it is taken away" },
+    },
+    requires: { shaft: "Input shaft", rollsin: "Infeed rolls" },
+    prop: {
+      label: "Trunk",
+      on: "trunkPath",
+      placement: "axis",
+      moves: "trunk",
+      default: "thick",
+      colour: "#8b5a2b",
+      options: [
+        { id: "thin", label: "Thin (xs to lg), shown 1×1×4", size: [4, 1, 1], class: "thin" },
+        { id: "thick", label: "Thick (xl, xxl), shown 2×2×5", size: [5, 2, 2], class: "thick" },
+      ],
+    },
+    play: {
+      secondsPerTurn: 1,
+      phases: [
+        { id: "load", label: "Loaded on the infeed bed", wait: true, seconds: 1, prop: "load", next: "feed", nextWithoutProp: "idle", startIf: { travelling: false } },
+        { id: "feed", label: "Feeding through the ring", input: "trunk", to: "end", turns: 40, next: "delivered", startIf: { travelling: true } },
+        { id: "delivered", label: "Delivered on the outfeed bed", wait: true, seconds: 1.5, next: "clear" },
+        { id: "clear", label: "Taken away", wait: true, seconds: 1, prop: "clear", next: "load" },
+        { id: "idle", label: "Turning empty", wait: true, turns: 2, prop: "clear", next: "load" },
+      ],
+    },
+  };
+  const play = scenario.play!;
+  const path = trunkPathOf(rig)!;
+  const { anchors, unrecognised } = discoverAnchors(rig);
+  const line = anchors.find((a): a is Extract<Anchor, { kind: "line" }> => a.kind === "line" && a.key === "trunkPath")!;
+  const [thin, thick] = scenario.prop!.options as [NonNullable<Scenario["prop"]>["options"][number], NonNullable<Scenario["prop"]>["options"][number]];
+
+  it("publishes, its drivers evaluating on the trunk path", () => {
+    const model = { id: "rosser", title: "Rosser", description: "d", credit: "c", shape: "s.json", rig: "r.json", scenario };
+    const { index } = publishModels({ models: [model] }, (p) => (p === "s.json" ? shape : rig));
+    expect(index.models[0]).toMatchObject({ id: "rosser", parts: 6, elements: 6 });
+    const noPath = { ...rig, trunkPath: undefined };
+    expect(() => publishModels({ models: [{ ...model, scenario: undefined }] }, (p) => (p === "s.json" ? shape : noPath))).toThrow(/needs the rig's trunkPath/);
+  });
+
+  it("draws the trunk path with its stations, and the hollow cells with no box of their own", () => {
+    expect(anchors.map((a) => [a.kind, a.key])).toEqual([
+      ["cell", "powerCell"],
+      ["side", "infeedSide"],
+      ["side", "outputSide"],
+      ["point", "chute"],
+      ["side", "chuteSide"],
+      ["line", "trunkPath"],
+    ]);
+    // feed is a number for the game, not a place
+    expect(unrecognised).toEqual(["feed"]);
+    expect(line.marks!.map((m) => [m.label, m.at])).toEqual([
+      ["Treadle", -10.875],
+      ["Breaker", -8.875],
+      ["Drip", -7.875],
+      ["Ring", -7.3125],
+    ]);
+    expect(rig.cells!.map((c) => cellBoxes(c).length)).toEqual([1, 0, 1]);
+    expect(footprintBounds(rig.cells)).toEqual({ lo: [-2, 0, 0], hi: [1, 2, 1] });
+  });
+
+  it("is sound against the rig, and names what is wrong with a broken one", () => {
+    expect(checkScenario(scenario, rig, anchors, ["shaft", "rollsin"])).toEqual([]);
+    const bad: Scenario = {
+      prop: { ...scenario.prop!, placement: "middle" as "axis", options: [{ id: "thin", label: "t", size: [3, 1, 1], class: "thin" }, { id: "x", label: "x", size: [5, 2, 2] }] },
+      play: {
+        presenceRate: 0,
+        phases: [
+          { id: "a", label: "a", input: "trunk", to: "contact", turns: 1, next: "b" },
+          { id: "b", label: "b", wait: true, to: 1, seconds: 1, next: "a" },
+        ],
+      },
+    };
+    const problems = checkScenario(bad, rig, anchors, []).join("\n");
+    for (const re of [/prop.placement/, /"thin" is 3 long, but trunkPath.lengths.thin is 4/, /"x" needs a class/, /presenceRate/, /"a": a trunk phase's to/, /"b" waits/])
+      expect(problems).toMatch(re);
+    // a trunk that travels needs a trunk path, and a trunk phase a trunk that travels
+    const noPath = { ...rig, trunkPath: undefined };
+    expect(checkScenario(scenario, noPath, discoverAnchors(noPath).anchors, []).join("\n")).toMatch(/needs the rig's trunkPath/);
+    const still: Scenario = { ...scenario, prop: { ...scenario.prop!, moves: undefined } };
+    expect(checkScenario(still, rig, anchors, []).join("\n")).toMatch(/"feed" moves the trunk/);
+  });
+
+  it("puts the trunk on the path's axis, its nose at nose0 + T", () => {
+    expect(path.nose0).toBe(-9.875);
+    expect(tripEnd(path, 2)).toBeCloseTo(170 / 16);
+    expect(tripEnd(path, 1)).toBeCloseTo(154 / 16);
+    const at0 = propBox(thick, line, { placement: "axis", nose: path.nose0 });
+    expect(at0).toEqual({ centre: [-9.875 - 2.5, 1.6875, 0.6875], size: [5, 2, 2] });
+    const delivered = propBox(thin, line, { placement: "axis", nose: path.nose0 + tripEnd(path, 1) });
+    // delivered, the tail is at tailStop
+    expect(delivered.centre[0] - delivered.size[0] / 2).toBeCloseTo(path.tailStop);
+    // without a placement, the underside is on the line, as the mill's bed
+    expect(propBox(thick, line).centre).toEqual([-7, 1.6875 + 1, 0.6875]);
+  });
+
+  const rest: Motion = { theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false, trunk: 0, size: 0, presence: 0, feed: 0 };
+  const ctx = (option: typeof thin | null): PlayContext => ({
+    play, direction: 1, propChosen: option !== null, contact: 0, trip: playTrip(scenario.prop, option, path), blocksPerRadian: feedBlocksPerRadian(rig),
+  });
+
+  it("starts by loading a trunk, or carries on with one part-way through", () => {
+    expect(startPhase(play, rest, true, ctx(thick).trip)).toBe("load");
+    expect(startPhase(play, { ...rest, trunk: 3 }, true, ctx(thick).trip)).toBe("feed");
+    expect(startPhase(play, { ...rest, trunk: tripEnd(path, 2) }, true, ctx(thick).trip)).toBe("load");
+    expect(startPhase(play, { ...rest, trunk: 3 }, false, ctx(null).trip)).toBe("load");
+    expect(playTrip(undefined, thick, path)).toBeUndefined();
+    expect(playTrip(scenario.prop, null, path)).toEqual({ size: 0, end: 0 });
+  });
+
+  /** Runs Play in small steps and records each phase change with the motion at the end of that step. */
+  function run(c: PlayContext, seconds: number, from: Motion = rest) {
+    let m = enterPhase(c, from, startPhase(c.play, from, c.propChosen, c.trip)!);
+    const seen: Motion[] = [m];
+    for (let t = 0; t < seconds; t += 1 / 60) {
+      m = advance(c, m, 1 / 60);
+      if (m.phase !== seen.at(-1)!.phase) seen.push(m);
+    }
+    return { m, seen };
+  }
+
+  it("loads a trunk, feeds it through to the end in its turns, waits, takes it away and loads the next", () => {
+    const c = ctx(thick);
+    const { seen } = run(c, 1 + 40 + 1.5 + 1 + 0.2);
+    expect(seen.map((m) => m.phase)).toEqual(["load", "feed", "delivered", "clear", "load"]);
+    const [load, feed, delivered, clear, again] = seen as [Motion, Motion, Motion, Motion, Motion];
+    expect(load).toMatchObject({ propOn: true, trunk: 0, size: 2 });
+    // eased in while it waits on the infeed bed
+    expect(feed.presence).toBe(1);
+    expect(feed.trunk).toBeLessThan(0.05);
+    expect(delivered.trunk).toBeCloseTo(tripEnd(path, 2), 9);
+    // φ followed T through the feed's blocks per radian, as in the game, not the 40 turns of the shaft
+    expect(delivered.feed!).toBeCloseTo(tripEnd(path, 2) / 0.1, 6);
+    expect(clear.propOn).toBe(false);
+    // taken away: it eases out, the class held until it has, and the next goes on at the start
+    expect(again).toMatchObject({ propOn: true, trunk: 0, size: 2 });
+    expect(again.feed).toBe(delivered.feed);
+  });
+
+  it("feeds at an even pace, the rig's parts following T, φ and p", () => {
+    const c = ctx(thin);
+    const { m } = run(c, 1 + 20);
+    expect(m.phase).toBe("feed");
+    expect(m.trunk).toBeCloseTo(tripEnd(path, 1) / 2, 1);
+    expect(m.feed!).toBeCloseTo(m.trunk! / 0.1, 6);
+    const view = buildModelView(shape, rig, scenario);
+    expect(view.inputs).toEqual({ theta: false, travel: true, depth: false, lifting: false, trunk: true, size: true, presence: true, feed: true });
+    expect(view.path).toEqual(path);
+    const ms = partMatrices(rig.parts!, { theta: m.theta, depth: 0, lifting: 0, travel: m.travel, trunk: m.trunk, size: m.size, presence: m.presence, feed: m.feed }, view.order, view.path);
+    const cradle = rig.parts!.findIndex((p) => p.id === "cradle_in");
+    // a thin trunk leaves the cradle up; the cross shaft has turned with the feed
+    expect(ms[cradle]![13]).toBe(0);
+    expect(ms[1]).not.toEqual(partMatrices(rig.parts!, { theta: 0, depth: 0, lifting: 0 }, view.order, view.path)[1]);
+  });
+
+  it("eases presence in and out at its rate, and holds the class until it is out", () => {
+    const c = ctx(thick);
+    let m = enterPhase(c, rest, "load");
+    m = advance(c, m, 1 / 24);
+    expect(m.presence).toBeCloseTo(0.5);
+    m = advance(c, m, 1 / 24);
+    expect(m.presence).toBe(1);
+    m = enterPhase(c, { ...m, trunk: 3 }, "clear");
+    m = advance(c, m, 1 / 24);
+    expect(m).toMatchObject({ propOn: false, size: 2, trunk: 3 });
+    expect(m.presence).toBeCloseTo(0.5);
+    m = advance(c, m, 1 / 24);
+    expect(m).toMatchObject({ presence: 0, size: 0 });
+  });
+
+  it("turns empty without a trunk, and moves nothing", () => {
+    const c = ctx(null);
+    const { seen, m } = run(c, 1 + 2 * 1 + 0.5);
+    expect(seen.map((x) => x.phase)).toEqual(["load", "idle", "load"]);
+    expect(m).toMatchObject({ propOn: false, trunk: 0, size: 0, presence: 0, feed: 0 });
+  });
+});
+
+describe("the feed's travel", () => {
+  it("follows the trunk through the rig's blocks per radian, forward only, as the game's FeedAdvance", () => {
+    expect(feedAdvance(1, 1.5, 0.1)).toBeCloseTo(5, 9);
+    expect(feedAdvance(1.5, 1, 0.1)).toBe(0);
+    expect(feedAdvance(0, 1, undefined)).toBe(0);
+    expect(feedAdvance(0, 1, 0)).toBe(0);
+    expect(feedBlocksPerRadian({ feed: { blocksPerRadian: 0.1 } })).toBe(0.1);
+    expect(feedBlocksPerRadian({ feed: 3 })).toBeUndefined();
+    expect(feedBlocksPerRadian(null)).toBeUndefined();
   });
 });

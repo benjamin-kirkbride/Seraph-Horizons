@@ -28,18 +28,52 @@ recipe data is published. A version can therefore never be called `models`.
 
 ### Inputs
 
-The rig format is the bucking sawmill's (`mods-src/seraphhorizons/BuckingSawmill/README.md`, "Rig schema").
-Its drivers read four inputs, and the viewer shows a control only for those some driver reads:
+The rig format is the bucking sawmill's (`mods-src/seraphhorizons/BuckingSawmill/README.md`, "Rig schema"),
+plus what a machine a trunk travels through adds (the rosser; below). Its drivers read up to eight
+inputs, and the viewer shows a control only for those some driver reads:
 
 | Input | Read by | Control |
 |---|---|---|
 | θ, the shaft angle | `rotate`, `slide`, `swing` | Slider, 0 to 359° |
-| ψ, the shaft's travel | `rotate` with `rectified` | Added up from every change of θ, shown under the slider |
+| ψ, the shaft's travel | `rotate`, `slide`, `swing` with `rectified` or `"input": "travel"`; a `gauge`'s `lobes` | Added up from every change of θ, shown under the slider |
 | depth, 0..1 | `feed`, `step`, `stretch` | Slider |
 | lifting, 0 or 1 | `step` with a `lifting` gate | Checkbox |
+| T, the trunk's travel (blocks) | `"input": "trunk"`, an `occupy` `gauge`, `roll` | Slider, 0 to the end of the trip for the class shown |
+| k, the trunk's class: 0 none, 1 thin, 2 thick | `gauge`, `roll` | The prop's choice when the prop moves with the trunk (below), else a select |
+| p, the trunk's presence, 0..1 | `gauge` | Slider; posed by hand it is 1 with a trunk chosen, and Play eases it |
+| φ, the feed's travel | `"input": "feed"` | Follows T: grows by ΔT over the rig's `feed.blocksPerRadian`, never going back; shown under the slider |
 
-When θ or ψ is read there is also a Play button and a "turn backwards" toggle. Play turns the
+When θ, ψ or φ is read there is also a Play button and a "turn backwards" toggle. Play turns the
 shaft; with a play script (below) it also runs the inputs through the model's cycle.
+
+φ is worked out as the game does: the rosser's feed is geared and never slips, so φ grows by the
+trunk's advance over the rig's `feed.blocksPerRadian` and never goes back (`feedAdvance` in
+`site/src/lib/model-scenario.ts`, the game's `RosserVisuals.FeedAdvance`). Its feed rolls move
+exactly with the trunk, in Play and when T is dragged by hand; turning θ alone does not turn them.
+A rig without `feed.blocksPerRadian` leaves φ at 0. The reference poses (`site/test/rosser.test.ts`)
+give φ explicitly.
+
+#### The trunk path and its drivers
+
+A rig whose drivers read T, k or p has a `trunkPath`: `{ "origin", "axis", "length", "nose0",
+"lengths": { "thin", "thick" }, "tailStop", "stations": { "<name>": x, ... } }`, in blocks. The trunk
+travels nose first towards + on the axis; places along it (`nose0`, `tailStop`, windows, stations, a
+roll's `at`) are coordinates on that axis. At travel T the nose is at `nose0` + T and the tail L_k
+behind it (L = 0, `lengths.thin`, `lengths.thick`), and the trip ends at T = `tailStop` + L_k − `nose0`.
+The drivers (`site/src/lib/rig.ts`; the Python reference is `Machines/tools/machinegen/rigmath.py`):
+
+- `"input"` on `rotate`, `slide` and `swing`: `"theta"` (the default), `"travel"`, `"feed"` or
+  `"trunk"`, read in place of θ. `"rectified": true` is the mill's way of writing `"travel"`; a driver
+  with both keys is refused.
+- `gauge`, a motion set by the trunk at a place: `motion` (`slide` or `rotate`, the latter with a
+  `pivot`), `axis`, `amount: { "thin", "thick" }`, `mode` (`occupy`, the default, or `present`),
+  `windows: [{ "from", "to", "ease", "gain": { "thin", "thick" } }]` (for `occupy`; a gain left out
+  is 1) and optional `lobes: { "ratio", "phase", "amplitude": { "thin", "thick" } }` (rotate only).
+  Its engagement e is 0 without a trunk, p when `present`, else p times the most engaged window's
+  min(1, gain × occupancy), occupancy easing in over `ease` blocks as the nose arrives and out as
+  the tail leaves. It moves by amount[k] × e, plus e × amplitude[k] × cos(ratio × ψ + phase).
+- `roll`, an idle roller the trunk turns: `axis`, `pivot`, `at`, `ratio` (radians per block); it
+  turns by ratio × clamp(nose − `at`, 0, L_k), and not at all without a trunk.
 
 ### Overlays
 
@@ -48,14 +82,16 @@ Anchors are recognised by their shape, so a new rig gets overlays without code c
 
 | In the rig | Drawn as |
 |---|---|
-| `cells` | Block cells (outlined, the origin cell `[0,0,0]` in orange, a floor grid) and collision boxes |
+| `cells` | Block cells (outlined, the origin cell `[0,0,0]` in orange, a floor grid) and collision boxes. A cell with `"hollow": true` and no `boxes` has none (it is solid only where the trunk is, which the game adds); any other cell without boxes is a full cube |
 | `"<name>Cell": [x, y, z]` | That cell outlined; with `"<name>Face": "<side>"`, the face shaded and an arrow into it |
 | `"<name>Side": "<side>"` | An arrow into that side of the footprint, on a line anchor running that way if there is one |
 | `"<name>": { "pos": [x, y, z] }` | A point; with `"<name>Side"`, an arrow out that way |
-| `"<name>": { "origin", "axis", "length" }` | A line along the axis, centred on origin |
+| `"<name>": { "origin", "axis", "length" }` | A line along the axis, centred on origin; with `"stations": { "<name>": x }`, a labelled mark at each place along the axis |
 | `"<name>": { "<x>Y": number, ... }` | A level line across the footprint at each such height |
 
-Keys starting with `_` are comments. Any other key is listed under the overlays as not drawn.
+Keys starting with `_` are comments. Any other key is listed under the overlays as not drawn
+(the rosser's `feed`, its gearing figures, is one: the viewer reads its `blocksPerRadian` for φ
+but draws nothing for it).
 
 ## The manifest: `site/models.json`
 
@@ -90,19 +126,35 @@ Keys starting with `_` are comments. Any other key is listed under the overlays 
 Everything specific to one machine lives here, as data; the viewer has no machine-specific code
 (`site/src/lib/model-scenario.ts`).
 
-- `inputs`: labels for the controls, `{ "theta" | "depth" | "lifting" | "reverse": { "label", "hint" } }`.
+- `inputs`: labels for the controls, `{ "theta" | "depth" | "lifting" | "reverse" | "trunk" | "size" | "presence" | "feed": { "label", "hint" } }`.
 - `requires`: a label for each `requires` value, e.g. `{ "sash1": "Sash 1" }`. Unlabelled values show as they are.
 - `prop`: a box laid on one of the rig's line anchors, such as a trunk on the bed.
   - `label`; `on`, the anchor's key; `colour`; `default`, an option id or `"none"`.
-  - `options`: `{ "id", "label", "size": [length along the line, width, height] }`, in blocks. The box is centred on the line's origin with its underside on it.
+  - `options`: `{ "id", "label", "size": [length along the line, width, height], "class" }`, in blocks. The box is centred on the line's origin with its underside on it.
+  - `placement`: `"underside"` (the default) or `"axis"`, the box centred on the line, as a trunk on a ring's axis.
+  - `moves`: `"trunk"` makes the prop the trunk of the rig's `trunkPath`: its nose is at `nose0` + T, it
+    moves as T does, and each option's `class` (`"thin"` or `"thick"`) is what the rig's k reads. Each
+    option then needs a class, and its length must be that class's `trunkPath.lengths`. Posed by hand,
+    choosing an option sets k and p = 1 (none: k = 0, p = 0).
 - `play`: the cycle Play runs.
   - `secondsPerTurn` (default 1.2) sets the shaft's speed.
   - `edge`, `{ "top", "bottom" }`: the height of the working edge at depth 0 and at depth 1, as numbers or rig paths such as `"saw.topY"`. A phase can then run to `"contact"`, the depth where the edge meets the prop's top.
-  - `phases`, each `{ "id", "label", "to", "turns" or "seconds", "lifting", "prop", "next", "nextWithoutProp", "startIf" }`:
-    - `to` is a depth (0..1) or `"contact"`, and `turns` (of the shaft) or `seconds` is how long the phase takes to get there from where it starts. `lifting` (0 or 1) holds during the phase.
+  - `presenceRate` (default 12 a second, the game's) is how fast p eases in and out.
+  - `phases`, each `{ "id", "label", "input", "to", "wait", "turns" or "seconds", "lifting", "prop", "next", "nextWithoutProp", "startIf" }`:
+    - `input` is what the phase moves: `"depth"` (the default) or `"trunk"` (T; needs a prop that moves with the trunk).
+    - `to` is a depth (0..1) or `"contact"`; for a trunk phase, T in blocks or `"end"`, the end of the
+      chosen class's trip. `turns` (of the shaft) or `seconds` is how long the phase takes to get there
+      from where it starts. `lifting` (0 or 1) holds during the phase.
+    - `wait: true` moves nothing (no `input` or `to`) and lasts its `turns` or `seconds`: a pause.
     - `prop` is `"load"` (the chosen prop goes on as the phase starts) or `"clear"` (it comes off).
-    - At its target the phase goes to `next`, or to `nextWithoutProp` when the reader chose no prop.
-    - Play starts in the first phase whose `startIf` holds (`lifting`, `prop`: whether one is chosen, `depthAtMost`); a phase with no `startIf` is never chosen to start.
+      A trunk that moves goes on at T = 0, as the chosen class.
+    - At its target (or the end of its wait) the phase goes to `next`, or to `nextWithoutProp` when the reader chose no prop.
+    - Play starts in the first phase whose `startIf` holds (`lifting`, `prop`: whether one is chosen,
+      `depthAtMost`, `travelling`: whether a trunk is chosen and part-way through, 0 < T < its end); a
+      phase with no `startIf` is never chosen to start.
+  - With a trunk that moves, Play also eases p towards 1 while the trunk is on and 0 once it is
+    cleared, keeps k until p is back to 0 (so the parts ease back rather than jump, as the game's
+    renderer does), and turns φ with the trunk as it moves (ΔT over `feed.blocksPerRadian`).
   - A prop chosen while Play runs goes on at the next `load`.
 
 The bucking sawmill's script is the gameplay's cycle: wind up 6 turns with the lift clutch in,
@@ -111,6 +163,20 @@ takes the logs times `RevolutionsPerStoredLog`, over the blade kit's speed), or 
 bed in 6 turns; then wind up again. Its prop has the two trunks the game shows, whatever a trunk's
 own size: thin (1×1×4, Logging Expanded's `lg` model) and thick (2×2×5, its `xxl`). Its `requires`
 are the parts the gameplay fits, the one `blade` kit standing for both saws' blades.
+
+A machine the trunk travels through scripts the trip instead: load the trunk on the infeed bed (a
+wait while p eases in), feed it to `"end"` in its turns, a pause delivered on the outfeed bed, take
+it away (a wait while p eases out), and load the next; with no trunk chosen, turn empty.
+
+```json
+"phases": [
+  { "id": "load", "label": "Loaded on the infeed bed", "wait": true, "seconds": 1, "prop": "load", "next": "feed", "nextWithoutProp": "idle", "startIf": { "travelling": false } },
+  { "id": "feed", "label": "Feeding through the ring", "input": "trunk", "to": "end", "turns": 40, "next": "delivered", "startIf": { "travelling": true } },
+  { "id": "delivered", "label": "Delivered on the outfeed bed", "wait": true, "seconds": 1.5, "next": "clear" },
+  { "id": "clear", "label": "Taken away", "wait": true, "seconds": 1, "prop": "clear", "next": "load" },
+  { "id": "idle", "label": "Turning empty", "wait": true, "turns": 2, "prop": "clear", "next": "load" }
+]
+```
 
 ## The data step
 
@@ -153,7 +219,7 @@ Nothing else: no component, route or workflow changes.
 
 | File | |
 |---|---|
-| `site/src/lib/rig.ts` | Shape flattening (VS's rotation order and child frames) and the rig maths: globs, drivers, ride order, part matrices. Pure. |
+| `site/src/lib/rig.ts` | Shape flattening (VS's rotation order and child frames) and the rig maths: globs, drivers (with the trunk path's), ride order, part matrices. Pure. |
 | `site/src/lib/model-anchors.ts` | Anchor discovery, footprint, side arrows. |
 | `site/src/lib/model-scenario.ts` | Scenario types, props, contact depth and the play state machine. |
 | `site/src/lib/model-view.ts` | What the page shows for a shape and rig: parts, textures, colours, controls. |
@@ -161,12 +227,19 @@ Nothing else: no component, route or workflow changes.
 | `site/src/components/ModelsRoute.svelte`, `ModelPage.svelte` | The index and the model page. |
 | `site/src/viewer/model-scene.ts` | The three.js scene. |
 
-`site/test/rig.test.ts` holds the TypeScript to `mods-src/seraphhorizons/tests/BuckingSawmill/rig-reference.json`,
+`site/test/rig.test.ts` replays `mods-src/seraphhorizons/tests/Machines/driver-fixture.json`, every driver
+(old and new) alone and composed in a small rig, plus the drivers every parser must refuse, as
+`Machines/tools/make_fixture.py` computes them with the reference maths; the C# replays the same file.
+It also holds the TypeScript to `mods-src/seraphhorizons/tests/BuckingSawmill/rig-reference.json`,
 the part matrices `tools/make_shape.py` computes with its reference maths at a spread of poses,
 which the mod's C# tests also check against: the Python, the C# and the site agree to the file's
 six decimals. It also flattens and poses the shipped shape at rest and recomputes every cell's
 collision boxes the way `make_shape.py` does, which must give back the rig file's `cells`.
-`site/test/models.test.ts` covers the manifest, anchors, the play script and the view;
+`site/test/rosser.test.ts` does the same for the rosser: every pose of
+`mods-src/seraphhorizons/tests/Rosser/rig-reference.json` (with T, k, p and φ), and every cell's boxes
+rebuilt from the shipped shape, hollow cells with none.
+`site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
+and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL.
 
 Without WebGL (or when three.js fails to load) the stage says so, and the controls, legend and

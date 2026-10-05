@@ -1,6 +1,8 @@
 using HarmonyLib;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Rosser;
+using SeraphHorizons.Mod.Rosser.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -29,9 +31,15 @@ public class SeraphHorizonsSystem : ModSystem
     private bool _tunRack;
     private bool _irrigationVessel;
     private bool _barrelRackKegs;
+    private bool _debarkedTrunks;
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
     private UnifiedWoodworking? _woodworking;
+
+    /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
+    /// <c>Rosser</c> switch on and the patch bound); decided in <see cref="Start"/>. The rosser
+    /// (<see cref="RosserSystem"/>) exists only with it.</summary>
+    public bool DebarkedTrunksOn => _debarkedTrunks;
 
     /// <summary>The unified woodworking tweak on this side; set in <see cref="Start"/>.</summary>
     public UnifiedWoodworking Woodworking => _woodworking!;
@@ -64,6 +72,9 @@ public class SeraphHorizonsSystem : ModSystem
             SawmillBladeDurability.DisablePatches(api);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
             WoodworkingMachineCosts.DisablePatches(api);
+        _debarkedTrunks = Config(api).Rosser && DebarkedTrunks.Applies(api) && DebarkedTrunks.Bind(api);
+        if (!_debarkedTrunks)
+            DebarkedTrunks.DisablePatches(api);
         _tunRack = Config(api).LargerTunRack && TunRackCapacity.Applies(api) && TunRackCapacity.Bind(api.Logger);
         if (!_tunRack)
             TunRackCapacity.DisablePatches(api);
@@ -99,6 +110,8 @@ public class SeraphHorizonsSystem : ModSystem
         }
         if (_tunRack)
             TunRackCapacity.Patch(_harmony ??= new Harmony(HarmonyId));
+        if (_debarkedTrunks)
+            DebarkedTrunks.Patch(_harmony ??= new Harmony(HarmonyId));
         ClearSky = new ClearSky(api);
         if (Config(api).ClearCommand)
             ClearSky.Register(_harmony ??= new Harmony(HarmonyId));
@@ -340,4 +353,18 @@ public class SeraphHorizonsConfig
     /// <summary>Immersive Woodworking: the sawmill's and the chopper's frames and parts take iron,
     /// meteoric iron or steel, and far more nails and strips (off means its own recipes).</summary>
     public bool IronWoodworkingMachines { get; set; } = true;
+
+    /// <summary>The rosser: a mechanically powered ring debarker, built from a frame and Immersive
+    /// Woodworking's and the game's parts, that strips the bark and branches off Logging Expanded
+    /// tree trunks, giving bark and sticks, and hands the debarked trunk on to a Trunk Storage Rack
+    /// or a bucking mill in line. Logging Expanded's trunk gets a debarked state
+    /// (<c>loggingmod:treetrunk-{wood}-{size}-debarked-{side}</c>), which the Trunk Storage Rack,
+    /// the sawhorses and the bucking mill take, giving debarked logs (needs both mods; off means
+    /// there is no rosser and no debarked trunk, and rossers and debarked trunks already in a world
+    /// are lost). The server's setting decides.</summary>
+    public bool Rosser { get; set; } = true;
+
+    /// <summary>The rosser's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public RosserConfig RosserSettings { get; set; } = new();
 }
