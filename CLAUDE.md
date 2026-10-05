@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A version-pinned Vintage Story modpack (game 1.22.7, .NET 10) plus a static **recipe browser** site built from data the pack's own server dumps. `README.md` covers installing, layout and CI; `docs/recipe-browser/` and `docs/merge-queue.md` go deeper. Read the relevant doc before changing a subsystem: they record decisions and engine facts not obvious from the code.
+A version-pinned Vintage Story modpack (game 1.22.7, .NET 10) plus a static **recipe browser** site built from data the pack's own server dumps. `README.md` covers installing and `CONTRIBUTING.md` layout and CI; `docs/recipe-browser/` and `docs/merge-queue.md` go deeper. Read the relevant doc before changing a subsystem: they record decisions and engine facts not obvious from the code.
 
 ## Commands
 
