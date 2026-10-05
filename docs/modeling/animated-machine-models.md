@@ -4,6 +4,8 @@ How to build an animated multiblock machine model for a mod in this repository, 
 model or from scratch. The bucking sawmill (`mods-src/seraphhorizons/BuckingSawmill/`, part of the Seraph Horizons mod) is the worked example
 throughout. Its [README](../../mods-src/seraphhorizons/BuckingSawmill/README.md) documents the finished machine in
 detail; this guide is about the process, and the mistakes worth not repeating.
+[Model pitfalls](pitfalls.md) is the short list of things that went wrong, to read before starting
+and before calling a model done.
 
 ## When to use this approach
 
