@@ -1,7 +1,8 @@
 namespace SeraphHorizons.Mod.BuckingSawmill.Core;
 
-/// <summary>What the Trunk Storage Rack at the mill's infeed end offers, as the server last found
-/// it (synced, so the block info can say why no trunk is coming).</summary>
+/// <summary>What the Trunk Storage Rack, or the feeder in line (the rosser), at the mill's infeed end
+/// offers, as the server last found it (synced, so the block info can say why no trunk is coming).
+/// Saved and synced as its number: new values go at the end.</summary>
 public enum RackState
 {
     /// <summary>Not looked yet (a client before the first sync).</summary>
@@ -20,6 +21,12 @@ public enum RackState
     NoLogs,
     /// <summary>The rack's top trunk goes on at the next top of the cycle.</summary>
     Ready,
+    /// <summary>A feeder in line has no trunk in it.</summary>
+    FeederEmpty,
+    /// <summary>A feeder in line is still working its trunk.</summary>
+    FeederBusy,
+    /// <summary>The feeder's finished trunk goes on at the next top of the cycle.</summary>
+    FeederReady,
 }
 
 /// <summary>
@@ -60,4 +67,38 @@ public static class Feeding
     /// <summary>Whether a trunk can go on this tick: at the top of the cycle, or the cycle passed it
     /// during the tick.</summary>
     public static bool CanTakeTrunk(float depth, bool passedTop) => passedTop || SawDepth.AtTop(depth);
+
+    /// <summary>What a rack offers: its top trunk (<paramref name="hasTrunk"/>, a tree trunk) goes
+    /// on unless Logging Expanded wants its branches off first or it holds no logs.</summary>
+    public static RackState RackOffer(bool hasTrunk, bool branchedAndRefused, int storedLogs) =>
+        !hasTrunk ? RackState.Empty
+        : branchedAndRefused ? RackState.Branched
+        : storedLogs <= 0 ? RackState.NoLogs
+        : RackState.Ready;
+
+    /// <summary>What a feeder in line offers: its finished trunk (<paramref name="finished"/>, a
+    /// tree trunk) by the rack's rules; with none, whether one is on its way.</summary>
+    public static RackState FeederOffer(bool finished, bool busy, bool branchedAndRefused, int storedLogs) =>
+        !finished ? (busy ? RackState.FeederBusy : RackState.FeederEmpty)
+        : branchedAndRefused ? RackState.Branched
+        : storedLogs <= 0 ? RackState.NoLogs
+        : RackState.FeederReady;
+
+    /// <summary>Whether the mill pulls from what offers <paramref name="state"/>.</summary>
+    public static bool Pulls(RackState state) => state is RackState.Ready or RackState.FeederReady;
+
+    /// <summary>Of two offers at the infeed end that the mill does not pull from, the one the block
+    /// info names: a trunk the player has to deal with, then one on its way, then an empty
+    /// feeder, then an empty rack, then nothing there.</summary>
+    public static RackState MoreTelling(RackState a, RackState b) => Telling(b) > Telling(a) ? b : a;
+
+    private static int Telling(RackState state) => state switch
+    {
+        RackState.Empty => 1,
+        RackState.FeederEmpty => 2,
+        RackState.FeederBusy => 3,
+        RackState.Branched => 4,
+        RackState.NoLogs => 5,
+        _ => 0,
+    };
 }

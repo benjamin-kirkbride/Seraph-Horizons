@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.BuckingSawmill.Core;
+using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent.Mechanics;

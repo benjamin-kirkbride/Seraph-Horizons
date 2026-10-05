@@ -30,7 +30,9 @@ public class MillConfig
     /// in 1/(1 + 3 × this) of the turns. 0 makes every metal cut at copper's speed.</summary>
     public float BladeSpeedPerTier { get; set; } = 0.35f;
 
-    /// <summary>Whether the mill takes trunks from a Trunk Storage Rack at its infeed end (the end opposite the axle).</summary>
+    /// <summary>Whether the mill takes trunks from a Trunk Storage Rack, or from a rosser in line
+    /// (an <c>ITrunkFeeder</c>), at its infeed end (the far end, under the axle). Off, a rosser in
+    /// line does not count the mill as its taker either.</summary>
     public bool AutoPullFromRack { get; set; } = true;
 
     public static readonly MillConfig Defaults = new();

@@ -5,11 +5,14 @@
 //   "<name>Cell": [x, y, z]               a cell, outlined (with "<name>Face": a side, that face shaded)
 //   "<name>Side": "west"                  a side of the footprint, an arrow pointing in
 //   "<name>": { "pos": [x, y, z] }        a point (with "<name>Side", an arrow out that way)
-//   "<name>": { "origin", "axis", "length" }   a line along an axis, centred on origin
+//   "<name>": { "origin", "axis", "length" }   a line along an axis, centred on origin; with
+//                                         "stations": { "<station>": number }, a mark at each
+//                                         place along the axis (a trunk path's stations)
 //   "<name>": { "<something>Y": number }  a height, a level line across the footprint
 //
 // Keys starting with "_" are comments; "cells" and "parts" are not anchors. Everything is in
-// blocks, in the rig's frame.
+// blocks, in the rig's frame. A cell with "hollow": true and no boxes of its own has no
+// collision box (a trunk path's cells: solid only where the trunk is, which the game adds).
 import type { Axis, Rig, RigCell, Vec3 } from "./rig.ts";
 
 export const SIDES = ["north", "east", "south", "west", "up", "down"] as const;
@@ -29,8 +32,15 @@ export type Anchor =
   | { kind: "cell"; key: string; label: string; pos: Vec3; face?: Side }
   | { kind: "side"; key: string; label: string; side: Side }
   | { kind: "point"; key: string; label: string; pos: Vec3; side?: Side }
-  | { kind: "line"; key: string; label: string; origin: Vec3; axis: Axis; length: number }
+  | { kind: "line"; key: string; label: string; origin: Vec3; axis: Axis; length: number; marks?: LineMark[] }
   | { kind: "level"; key: string; label: string; y: number };
+
+/** A named place along a line anchor's axis: the coordinate on that axis, blocks. */
+export interface LineMark {
+  name: string;
+  label: string;
+  at: number;
+}
 
 const isSide = (v: unknown): v is Side => typeof v === "string" && (SIDES as readonly string[]).includes(v);
 const isVec3 = (v: unknown): v is Vec3 => Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === "number" && Number.isFinite(n));
@@ -66,7 +76,12 @@ export function discoverAnchors(rig: Rig): { anchors: Anchor[]; unrecognised: st
       const side = rig[`${key}Side`];
       anchors.push({ kind: "point", key, label: humanize(key), pos: value.pos, ...(isSide(side) ? { side } : {}) });
     } else if (isObject(value) && isVec3(value.origin) && isAxis(value.axis) && typeof value.length === "number") {
-      anchors.push({ kind: "line", key, label: humanize(key), origin: value.origin, axis: value.axis, length: value.length });
+      const marks = isObject(value.stations)
+        ? Object.entries(value.stations)
+            .filter((e): e is [string, number] => typeof e[1] === "number" && Number.isFinite(e[1]))
+            .map(([name, at]) => ({ name, label: humanize(name), at }))
+        : [];
+      anchors.push({ kind: "line", key, label: humanize(key), origin: value.origin, axis: value.axis, length: value.length, ...(marks.length > 0 ? { marks } : {}) });
     } else if (isObject(value) && Object.entries(value).some(([k, v]) => /Y$/.test(k) && typeof v === "number")) {
       for (const [k, v] of Object.entries(value))
         if (/Y$/.test(k) && typeof v === "number") anchors.push({ kind: "level", key: `${key}.${k}`, label: `${humanize(key)}: ${k}`, y: v });
@@ -95,9 +110,11 @@ export function footprintBounds(cells: readonly RigCell[] | undefined): Bounds |
   return { lo, hi };
 }
 
-/** A cell's collision boxes in blocks: its `boxes` (cell-local 0..1) moved to the cell, or the whole cell when it has none. */
+/** A cell's collision boxes in blocks: its `boxes` (cell-local 0..1) moved to the cell, else none for a hollow cell and the whole cell for any other. */
 export function cellBoxes(cell: RigCell): Bounds[] {
-  const boxes = cell.boxes && cell.boxes.length > 0 ? cell.boxes : [[0, 0, 0, 1, 1, 1]];
+  const own = cell.boxes && cell.boxes.length > 0 ? cell.boxes : null;
+  if (!own && cell.hollow === true) return [];
+  const boxes = own ?? [[0, 0, 0, 1, 1, 1]];
   const [x, y, z] = cell.pos;
   return boxes.map((b) => ({ lo: [x + b[0]!, y + b[1]!, z + b[2]!], hi: [x + b[3]!, y + b[4]!, z + b[5]!] }));
 }

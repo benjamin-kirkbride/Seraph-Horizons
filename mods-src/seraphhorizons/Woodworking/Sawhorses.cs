@@ -1,6 +1,7 @@
 using System.Reflection;
 using HarmonyLib;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Rosser;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -47,6 +48,10 @@ namespace SeraphHorizons.Mod.Woodworking;
 /// line is not shown), with one warning, and everything else runs, axe and hammer debarking with
 /// bark included. Turning the whole tweak off over it would bring back Immersive Woodworking's
 /// sawhorse and the splitting logs for the sake of one of two debarking tools.
+///
+/// A debarked trunk's logs (the Rosser switch's, <see cref="DebarkedTrunks.IsDebarkedLoad"/>) have no
+/// bark to take off: the spud does nothing on them and the axe and hammer drop no bark.
+/// <see cref="DebarkedTrunks"/> makes Logging Expanded's own work on them give debarked logs.
 ///
 /// Logging Expanded has no chisel debark on a sawhorse (its <c>wi-sawhorse-debark-chisel</c> line
 /// is never used): its chisel only made a debarked splitting log, which the splitting block
@@ -166,14 +171,16 @@ public sealed class Sawhorses : WoodworkingPart
     /// drop its bark.</summary>
     public sealed record BarkState(string? Species, int LogsBefore, double ChanceMultiplier);
 
-    /// <summary>The hold also starts, and completes, for a bark spud on a loaded sawhorse.
-    /// Arguments by position: the lambda's parameter names are the compiler's.</summary>
+    /// <summary>The hold also starts, and completes, for a bark spud on a loaded sawhorse, unless
+    /// the load is already debarked. Arguments by position: the lambda's parameter names are the
+    /// compiler's.</summary>
     public static void EligiblePostfix(ref bool __result, IWorldAccessor __0, IPlayer __1, BlockSelection __2)
     {
         if (__result || __2?.Position == null
             || !BarkDrops.IsSpud(__1?.InventoryManager?.ActiveHotbarSlot?.Itemstack)
             || __0.BlockAccessor.GetBlockEntity(__2.Position) is not { } be || !_workstationEntity!.IsInstanceOfType(be)
-            || !_sawhorse!.IsInstanceOfType(be.Block) || Inventory(be) is not { Empty: false })
+            || !_sawhorse!.IsInstanceOfType(be.Block) || Inventory(be) is not { Empty: false } inventory
+            || DebarkedTrunks.IsDebarkedLoad(inventory))
             return;
         __result = true;
     }
@@ -195,6 +202,7 @@ public sealed class Sawhorses : WoodworkingPart
         var tier = TierOf(__instance);
         string? species = SawhorseWorks.Species((string?)_woodType!.GetValue(inventory));
         int before = (int)_logCount!.GetValue(inventory)!;
+        bool debarked = DebarkedTrunks.IsDebarkedLoad(inventory);
         switch (work)
         {
             case SawhorseWork.Beams when !(bool)_loadedFromFirewood!.GetValue(inventory)!:
@@ -202,13 +210,13 @@ public sealed class Sawhorses : WoodworkingPart
                     return true;
                 __result = Produce(world, player, __2, __3, __4, beams, 1, "sounds/tool/saw", 1);
                 return false;
-            case SawhorseWork.SpudDebark when _spudMissing == null:
+            case SawhorseWork.SpudDebark when _spudMissing == null && !debarked:
                 __result = SpudDebark(__instance, world, player, __2, __3, __4, inventory, tier, before);
                 if (__result)
                     DropBark(world, player, __2.Position, species, SawhorseWorks.LogsTaken(before, LogCount(__3)),
                         BarkDrops.ChanceMultiplier(world.Api, __5, offHand));
                 return false;
-            case SawhorseWork.AxeAndHammerDebark:
+            case SawhorseWork.AxeAndHammerDebark when !debarked:
                 __state = new BarkState(species, before, BarkDrops.ChanceMultiplier(world.Api, __5, offHand));
                 return true;
             default:

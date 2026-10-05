@@ -3,7 +3,7 @@
 	class: "seraphhorizons.BuckingMill",
 	entityClass: "seraphhorizons.BuckingMill",
 	// No HorizontalOrientable: BlockBuckingMill.TryPlaceBlock picks the side so the mill extends
-	// away from the player (Core/Footprint.cs, PlacedFacing).
+	// away from the player (Machines/Core/Footprint.cs, PlacedFacing).
 	variantgroups: [
 		{ code: "type", states: [ "frame" ] },
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }

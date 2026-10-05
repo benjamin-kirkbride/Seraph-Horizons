@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.BuckingSawmill.Core;
+using SeraphHorizons.Mod.Machines.Core;
 
 namespace SeraphHorizons.Mod.Tests;
 
@@ -299,17 +300,17 @@ public class RigAnimationTests
     [Fact]
     public void Requires_is_fitted_by_the_parts_count()
     {
-        Assert.True(RigPart.Fitted(null, 0, false, false));
-        Assert.False(RigPart.Fitted("crankshaft", 2, false, true));
-        Assert.True(RigPart.Fitted("crankshaft", 0, true, false));
-        Assert.True(RigPart.Fitted("sash1", 1, false, false));
-        Assert.False(RigPart.Fitted("sash2", 1, false, false));
-        Assert.True(RigPart.Fitted("blade", 2, false, true));
-        Assert.False(RigPart.Fitted("blade", 2, true, false));
-        Assert.False(RigPart.Fitted("blade1", 2, true, true));
-        Assert.False(RigPart.Fitted("levers", 2, true, true));
-        Assert.True(RigPart.Fitted("levers", 0, false, false, levers: true));
-        Assert.False(RigPart.Fitted("crankshaft", 2, false, true, levers: true));
+        Assert.True(MillRequires.Fitted(null, 0, false, false));
+        Assert.False(MillRequires.Fitted("crankshaft", 2, false, true));
+        Assert.True(MillRequires.Fitted("crankshaft", 0, true, false));
+        Assert.True(MillRequires.Fitted("sash1", 1, false, false));
+        Assert.False(MillRequires.Fitted("sash2", 1, false, false));
+        Assert.True(MillRequires.Fitted("blade", 2, false, true));
+        Assert.False(MillRequires.Fitted("blade", 2, true, false));
+        Assert.False(MillRequires.Fitted("blade1", 2, true, true));
+        Assert.False(MillRequires.Fitted("levers", 2, true, true));
+        Assert.True(MillRequires.Fitted("levers", 0, false, false, levers: true));
+        Assert.False(MillRequires.Fitted("crankshaft", 2, false, true, levers: true));
     }
 
     // One blade kit puts a blade in both saws: both blade parts need it, and nothing else does.
@@ -324,7 +325,7 @@ public class RigAnimationTests
     [Fact]
     public void Levers_are_a_known_requirement()
     {
-        Assert.Contains("levers", RigPart.KnownRequires);
+        Assert.Contains("levers", MillRequires.KnownRequires);
         var parts = Parts("""[ { "id": "a", "match": ["a"], "requires": "levers" } ]""");
         Assert.Equal("levers", parts.Parts[0].Requires);
     }
@@ -422,12 +423,12 @@ public class RigAnimationTests
         {
             if (p.Ride != null)
                 Assert.Contains(parts, q => q.Id == p.Ride);
-            Assert.True(p.Requires == null || RigPart.KnownRequires.Contains(p.Requires), $"{p.Id} requires {p.Requires}");
+            Assert.True(p.Requires == null || MillRequires.KnownRequires.Contains(p.Requires), $"{p.Id} requires {p.Requires}");
         }
         Assert.NotNull(rig.TrunkBed);
         Assert.Equal(Axis.X, rig.TrunkBed!.Axis);
         // Every part the gameplay can fit has something to show.
-        foreach (var req in RigPart.KnownRequires)
+        foreach (var req in MillRequires.KnownRequires)
             Assert.Contains(parts, p => p.Requires == req);
     }
 

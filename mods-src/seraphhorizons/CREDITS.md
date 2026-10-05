@@ -53,3 +53,22 @@ the saw heads and the cranks. In the shape files those elements keep Immersive W
 Those parts belong to Bobrik00 and are used and modified here with the author's permission. They are not
 covered by this repository's Apache License; ask Bobrik00 before reusing or redistributing them. The rest
 of the model is covered by the repository's license.
+
+<!-- OWNER, before release: Bobrik00's permission was given for the bucking sawmill. Confirm with
+Bobrik00 that it extends to the rosser; then say so in the rosser's paragraph below (as the bucking
+sawmill's says "used and modified here with the author's permission"), and check LICENSE's scope
+note, the rosser's credit line in site/models.json and the _comment its generator writes into
+rosser.json and rosser_frame.json. Until then the paragraph below makes no claim of permission. -->
+
+Most of the rosser's model (`assets/seraphhorizons/shapes/block/rosser*.json`) was made for this mod too.
+Some of its parts are taken from the same sawmill model of Immersive Woodworking by Bobrik00: the crown
+disc on its entry shaft and the two pinions that mesh with it, turned and placed as the bucking sawmill's
+are. In the shape files those elements keep Immersive Woodworking's names behind a prefix
+(`entry_Rotor_default_3_*`, `gear_pinion_w_Rotor_default_1_*`, `gear_pinion_e_Rotor_default_2_*`).
+Every other toothed wheel of the rosser (the ring's rim, the ring pinion, the worm wheels and the worms'
+threads, the change gears and the banjo gears) is built from copies of one tooth of that model, the peg
+of its main rotor's flange (`MainRotor_twoway_013.001`), squared up and placed round each wheel; those
+elements are named `*_iwtooth*` and `*_iwthread*`.
+
+Those parts belong to Bobrik00. They are not covered by this repository's Apache License; ask Bobrik00
+before reusing or redistributing them. The rest of the model is covered by the repository's license.

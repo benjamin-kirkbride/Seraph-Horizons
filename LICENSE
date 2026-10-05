@@ -13,6 +13,17 @@ it; ask its author before reusing it.
     which belong to Bobrik00, the author of that mod. The rest of the model
     is covered by this license. See mods-src/seraphhorizons/CREDITS.md.
 
+One more asset includes parts that belong to their author and are not
+licensed under the Apache License. The author's permission for these parts
+is pending confirmation:
+
+  - mods-src/seraphhorizons/assets/seraphhorizons/shapes/block/rosser*.json
+    The rosser model includes parts taken from the same sawmill model of
+    Immersive Woodworking (its crown disc and two pinions, and the gear
+    tooth its other toothed wheels are built from), which belong to
+    Bobrik00, the author of that mod. The rest of the model is covered by
+    this license. See mods-src/seraphhorizons/CREDITS.md.
+
 =========================================================================
 
                                  Apache License

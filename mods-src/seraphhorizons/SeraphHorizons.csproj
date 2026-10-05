@@ -8,8 +8,9 @@
        Layout: the top level holds the tweaks to other mods; TidyVariants/Core/ is Tidy Variants'
        game-independent rule engine (BCL only; its unit tests in tests/ are their own project and
        compile those files directly), TidyVariants/Game/ its game-facing code. MapReveal/,
-       CreativeModTabs/ and BuckingSawmill/ are laid out the same way; BuckingSawmill/tools/ holds
-       that machine's model generator (Python) and is not part of the build. Everything under assets/ ships in the mod as is. -->
+       CreativeModTabs/, BuckingSawmill/, Rosser/ and Machines/ (what the two machines share) are
+       laid out the same way; each machine's tools/ holds its model generator (Python), and
+       Machines/tools/ the generator package they share, none of it part of the build. Everything under assets/ ships in the mod as is. -->
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
