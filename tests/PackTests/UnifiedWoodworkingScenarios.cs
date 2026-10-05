@@ -572,6 +572,52 @@ public partial class WoodworkingScenarios
         shop.Holding(null);
     }
 
+    // Immersive Woodworking's chopper and sawmill: one part a click, in the machine's own order, then
+    // a steel head or blade kit. On the finished machine Ctrl takes the tool out, as it always did.
+    [AtlasTheory(TimeoutMs = 180_000)]
+    [InlineData(0, "chopper", 4, "headStack", "immersivewoodworking:chopperhead-steel")]
+    [InlineData(1, "sawmill", 5, "bladeStack", "immersivewoodworking:sawmillblade-steel")]
+    public async Task In_creative_a_Ctrl_click_fits_a_machines_next_part(int n, string machine, int parts, string toolField, string tool)
+    {
+        var origin = World.Spawn.AddCopy(260, 12, -160 + 30 * n);
+        var shop = await Woodshop.Open(World, origin.AddCopy(0, 0, 12));
+        for (int dx = -5; dx <= 5; dx++)
+        for (int dz = -5; dz <= 5; dz++)
+        {
+            World.SetBlock("game:rock-granite", origin.AddCopy(dx, -1, dz));
+            for (int dy = 0; dy < 5; dy++)
+                World.SetBlock("game:air", origin.AddCopy(dx, dy, dz));
+        }
+        World.SetBlock($"immersivewoodworking:{machine}-frame-north", origin);
+        await World.Ticks(4);
+        var entity = shop.Entity(origin);
+        string[] Missing() => (string[])AccessTools.Method(entity.GetType(), "MissingMandatoryParts").Invoke(entity, null)!;
+        ItemStack? Tool() => (ItemStack?)AccessTools.Field(entity.GetType(), toolField).GetValue(entity);
+        shop.Holding(null);
+
+        // Not in survival: Ctrl with an empty hand fits nothing.
+        int all = Missing().Length;
+        shop.CtrlClick(origin, EnumGameMode.Survival);
+        Assert.Equal(all, Missing().Length);
+
+        for (int i = 0; i < parts; i++)
+        {
+            Assert.Null(Tool());
+            Assert.True(shop.CtrlClick(origin));
+        }
+        Assert.Empty(Missing());
+        Assert.Equal(tool, Tool()?.Collectible.Code.ToString());
+        if (machine == "chopper")
+            Assert.True(HasBed(entity));
+        Assert.Null(shop.Hand.Itemstack);
+
+        // Finished: Ctrl is Immersive Woodworking's again and takes the tool out.
+        Assert.True(shop.CtrlClick(origin));
+        Assert.Null(Tool());
+        Assert.Empty(Missing());
+        shop.Holding(null);
+    }
+
     // A client reports how long it held; the server believes no more than the time since the hold
     // began there (Immersive Woodworking's HonestHoldSeconds), so a claimed 3 s nail is refused.
     [AtlasScenario(TimeoutMs = 120_000)]
