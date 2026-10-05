@@ -277,6 +277,34 @@ public class RecipeExportScenarios : AtlasScenarioBase
             """, r["variants"]!);
     }
 
+    // seraphhorizons, IronWoodworkingMachines: Immersive Woodworking's saw sash, a recipe it
+    // registers itself from recipes/grid/sawmill_sash.json, patched to "NPN,PRP,NPN" with 4 nails
+    // and strips to a slot and a rod, all of iron, meteoric iron or steel. The site shows what the
+    // export says, so the cost and the metals have to be in it.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Patched_mod_recipe_registered_by_code_carries_the_patches()
+    {
+        // The file itself is a second record, disabled and without variants.
+        var r = Recipe("grid|immersivewoodworking:sawmill_sash-game|r0");
+        Assert.True((bool)r["extra"]!["registeredByCode"]!);
+        Json("""[{ "code": "immersivewoodworking:sawmillsash", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
+        Json("""{ "width": 3, "height": 3, "shapeless": false, "pattern": ["NPN", "PRP", "NPN"] }""", r["grid"]!);
+        var metals = new JArray(SeraphHorizons.Mod.WoodworkingMachineCosts.Metals);
+        var nails = r["ingredients"]!.Single(i => (string)i["code"]! == "game:metalnailsandstrips-*");
+        Assert.Equal(4, (int)nails["quantity"]!);
+        Assert.True(JToken.DeepEquals(metals, nails["allowedVariants"]), nails.ToString());
+        var rod = r["ingredients"]!.Single(i => (string)i["code"]! == "game:rod-*");
+        Assert.True(JToken.DeepEquals(metals, rod["allowedVariants"]), rod.ToString());
+
+        // What a player can put in: no stack of another metal in any variant's nails or rod slot.
+        var stacks = r["variants"]!.SelectMany(v => v["ingredients"]!).SelectMany(slot => slot)
+            .Select(s => (Code: (string)s["code"]!, Quantity: (int)s["quantity"]!))
+            .Where(s => s.Code.StartsWith("game:metalnailsandstrips-") || s.Code.StartsWith("game:rod-")).ToList();
+        Assert.NotEmpty(stacks);
+        Assert.All(stacks, s => Assert.Contains(s.Code[(s.Code.LastIndexOf('-') + 1)..], SeraphHorizons.Mod.WoodworkingMachineCosts.Metals));
+        Assert.All(stacks.Where(s => s.Code.StartsWith("game:metalnailsandstrips-")), s => Assert.Equal(4, s.Quantity));
+    }
+
     // ------------------------------------------------------ built in place
 
     // survival/blocktypes/mechanics/waterwheel.json: RightClickConstructable, brokenDropsRatio

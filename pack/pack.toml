@@ -374,7 +374,7 @@ version = "1.3.11"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Hands-on, in-world woodworking stations. With Logging Expanded, one woodworking system by seraphhorizons (UnifiedWoodworking): its chopping block is the splitting block, made with an axe on a log and upgraded through Logging Expanded's tiers (only the advanced one beds the powered chopper); its sawhorse and pit saw are retired; one handbook guide. The powered chopper drops its output in front, as the sawmill does, by seraphhorizons (ChopperDropsInFront)."
+why = "Hands-on, in-world woodworking stations. With Logging Expanded, one woodworking system by seraphhorizons (UnifiedWoodworking): its chopping block is the splitting block, made with an axe on a log and upgraded through Logging Expanded's tiers (only the advanced one beds the powered chopper); its sawhorse and pit saw are retired; one handbook guide. The powered chopper drops its output in front, as the sawmill does, by seraphhorizons (ChopperDropsInFront). Its sawmill and chopper parts take iron and many more nails and strips, by seraphhorizons (IronWoodworkingMachines)."
 
 [[mod]]
 id = "usefuloils"

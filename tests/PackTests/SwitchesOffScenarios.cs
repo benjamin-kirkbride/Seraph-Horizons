@@ -174,6 +174,23 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>IronWoodworkingMachines</c>: Immersive Woodworking's machine parts keep their own
+    /// recipes, of any metal, and the Machines chapter says nothing of iron.</summary>
+    [AtlasScenario]
+    public void Iron_woodworking_machines_off_the_parts_are_as_they_ship()
+    {
+        Assert.True(Off("IronWoodworkingMachines"));
+        foreach (var part in WoodworkingMachineCosts.Parts)
+        {
+            var recipe = MachineParts.Recipe(W, part);
+            Assert.Equal(part.ShippedNails, MachineParts.Count(recipe, MachineParts.Nails));
+            Assert.Equal(0, MachineParts.Count(recipe, MachineParts.Rod));
+            foreach (string code in new[] { MachineParts.Nails, MachineParts.Plate })
+                Assert.Null(MachineParts.Ingredient(recipe, code)?.AllowedVariants);
+        }
+        Assert.DoesNotContain("iron work", Lang.GetL("en", "seraphhorizons:woodworking-machines-text"));
+    }
+
     /// <summary><c>HydrateTunRetired</c> and <c>LargerTunRack</c>: both tuns as their mods ship
     /// them.</summary>
     [AtlasScenario]
