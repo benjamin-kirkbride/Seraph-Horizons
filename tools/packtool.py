@@ -748,8 +748,10 @@ def url_mod(zip_path: Path, url: str) -> dict:
     """A mod Cairn fetches from an address instead of the ModDB, described by its own zip.
 
     For the rolling `next` build, which carries the pack's own mod (mods-src/seraphhorizons)
-    built from the same commit, before that build is on the ModDB. The modid and version come
-    from the zip's modinfo.json, as Cairn reads them (cairn-app ModUrl.Inspect), and the
+    built from the same commit, before that build is on the ModDB. CI names that zip after the
+    commit (seraphhorizons_<version>_<sha7>.zip) so its address changes with every build: Cairn
+    tells a followed pack has changed by its addresses and versions, never by a hash. The modid
+    and version come from the zip's modinfo.json, as Cairn reads them (cairn-app ModUrl.Inspect), and the
     sha256 is what Cairn holds the file at the address to on every sync.
     """
     if not zip_path.is_file():
