@@ -12,12 +12,14 @@ import {
   rideOrder,
   rigInputs,
   textureCodes,
+  trunkPathOf,
   type FlatElement,
   type Rig,
   type RigCell,
   type RigInputs,
   type RigPart,
   type Shape,
+  type TrunkPath,
   type Vec3,
 } from "./rig.ts";
 
@@ -57,6 +59,8 @@ export interface ModelView {
   /** The footprint from the rig's cells, or else the model's bounding box in whole blocks. */
   bounds: Bounds;
   hasRig: boolean;
+  /** The rig's trunkPath, which gauge and roll drivers and a travelling prop read; null without one. */
+  path: TrunkPath | null;
 }
 
 export const STATIC_COLOUR = "#c8b090";
@@ -153,6 +157,7 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     cells: rig?.cells ?? [],
     bounds,
     hasRig: rig !== null,
+    path: trunkPathOf(rig),
   };
 }
 

@@ -1,0 +1,45 @@
+// Logging Expanded's tree trunk gets a third state of its branches variant, debarked
+// (loggingmod:treetrunk-{wood}-{size}-debarked-{side}): the rosser's output, a clean trunk with its
+// bark off. seraphhorizons' Rosser switch (Rosser/DebarkedTrunks.cs); with it off, without Logging
+// Expanded, or with its trunk no longer as below, DebarkedTrunks empties this file in Start.
+// - The shape is the clean trunk's: shapeByType resolves to "shape" and is merged into the trunk's
+//   own, so only its base changes and rotateYByType stays.
+// - The bark faces (texture "wood-h", the bark's -h texture as on a vanilla log lying west-east)
+//   take block/wood/debarked/<wood>, as the vanilla debarked log lying west-east does, and the end
+//   grain ("wood") takes block/wood/treetrunk/debarked/<wood>, the vanilla debarked log's ends (no
+//   bark ring). Each wood's entry gets a wood-hByType and a woodByType that resolve into its
+//   "wood-h" and "wood". The game has no cherry wood, so cherry takes oak's, as its end grain does;
+//   the woods under "*" are Wildcraft: Trees' (not in the pack): their bark points into its domain
+//   as Logging Expanded's does, and their ends keep Logging Expanded's.
+// Server side: the client gets the blocks from it.
+[
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "debarked", "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/shapeByType", "value": {"*-debarked-*": {"base": "loggingmod:treetrunk-{size}-no"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-acacia-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/acacia"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-acacia-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/acacia"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-birch-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/birch"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-birch-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/birch"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-baldcypress-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/baldcypress"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-baldcypress-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/baldcypress"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-cherry-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/oak"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-cherry-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/oak"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-ebony-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/ebony"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-ebony-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/ebony"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-kapok-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/kapok"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-kapok-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/kapok"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-larch-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/larch"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-larch-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/larch"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-maple-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/maple"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-maple-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/maple"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-oak-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/oak"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-oak-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/oak"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-pine-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/pine"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-pine-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/pine"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-purpleheart-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/purpleheart"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-purpleheart-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/purpleheart"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-redwood-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/redwood"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-redwood-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/redwood"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-walnut-*/wood-hByType", "value": {"*-debarked-*": {"base": "game:block/wood/debarked/walnut"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*-walnut-*/woodByType", "value": {"*-debarked-*": {"base": "game:block/wood/treetrunk/debarked/walnut"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]},
+  {"file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/texturesByType/*/wood-hByType", "value": {"*-debarked-*": {"base": "wildcrafttree:block/wood/debarked/{wood}"}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}]}
+]

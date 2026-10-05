@@ -16,9 +16,12 @@ import {
   stepFraction,
   textureCodes,
   toVoxels,
+  tripEnd,
+  trunkPathOf,
   wrappedDelta,
   type Driver,
   type Mat4,
+  type Pose,
   type Rig,
   type RigPart,
   type Shape,
@@ -263,5 +266,110 @@ describe("drivers", () => {
   it("takes the short way round between two angles", () => {
     expect(wrappedDelta(0.1, 2 * Math.PI - 0.1)).toBeCloseTo(-0.2);
     expect(wrappedDelta(3, -3)).toBeCloseTo(2 * Math.PI - 6);
+  });
+});
+
+// The trunk-path inputs (T, class, presence, φ) and the drivers that read them (input on rotate,
+// slide and swing; gauge; roll), held to Machines/tools/make_fixture.py's reference maths
+// (machinegen/rigmath.py), which the C# (DriverFixtureTests) replays too.
+const fixture = read("tests/Machines/driver-fixture.json") as {
+  format: number;
+  tolerance: number;
+  trunkPath: Record<string, unknown>;
+  drivers: { id: string; driver: Driver; cases: { inputs: Pose; matrix: number[][] }[] }[];
+  rig: { parts: RigPart[]; poses: { inputs: Pose; matrices: Record<string, number[][]> }[] };
+  invalid: { id: string; driver: Driver; error: string }[];
+};
+const fixturePath = trunkPathOf({ trunkPath: fixture.trunkPath })!;
+
+/** A column-major matrix as 4 rows of 4, the fixture's layout. */
+const rows4 = (m: Mat4) => [0, 1, 2, 3].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
+const inputsText = (p: Pose) => Object.entries(p).map(([k, v]) => `${k} ${v}`).join(", ");
+
+function expectMatrix(got: Mat4, want: number[][], what: string) {
+  const g = rows4(got);
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (!(Math.abs(g[r]![c]! - want[r]![c]!) <= fixture.tolerance)) throw new Error(`${what}: [${r}][${c}] is ${g[r]![c]}, want ${want[r]![c]}`);
+}
+
+describe("trunk-path drivers against driver-fixture.json", () => {
+  it("is the format this test reads, with the trunk path every case uses", () => {
+    expect(fixture.format).toBe(1);
+    expect(fixturePath.lengths).toEqual([0, 4, 5]);
+    expect(tripEnd(fixturePath, 1)).toBe(9 + 4 - 0.5);
+    expect(tripEnd(fixturePath, 2)).toBe(9 + 5 - 0.5);
+    expect(tripEnd(fixturePath, 0)).toBe(0);
+  });
+
+  it("matches every driver alone at every case", () => {
+    let cases = 0;
+    for (const { id, driver, cases: cs } of fixture.drivers)
+      for (const c of cs) {
+        expectMatrix(driverMatrix(driver, c.inputs, fixturePath), c.matrix, `${id} at ${inputsText(c.inputs)}`);
+        cases++;
+      }
+    const types = new Set(fixture.drivers.map((d) => d.driver.type));
+    for (const t of ["rotate", "slide", "swing", "gauge", "roll"]) expect(types).toContain(t);
+    expect(cases).toBeGreaterThan(100);
+  });
+
+  it("composes the synthetic rig's parts, rides included, at every pose", () => {
+    const parts = fixture.rig.parts;
+    expect(parts.some((p) => p.ride)).toBe(true);
+    expect(fixture.rig.poses.length).toBeGreaterThanOrEqual(30);
+    const order = rideOrder(parts);
+    for (const pose of fixture.rig.poses) {
+      const ms = partMatrices(parts, pose.inputs, order, fixturePath);
+      expect(Object.keys(pose.matrices).sort()).toEqual(parts.map((p) => p.id).sort());
+      parts.forEach((p, i) => expectMatrix(ms[i]!, pose.matrices[p.id]!, `${p.id} at ${inputsText(pose.inputs)}`));
+    }
+  });
+
+  it("rejects every driver the parsers must, whatever the pose", () => {
+    for (const { id, driver } of fixture.invalid)
+      for (const size of [0, 1, 2]) {
+        const pose: Pose = { theta: 0.5, depth: 0.5, lifting: 0, travel: 0.5, trunk: 2.5, size, presence: 1, feed: 0.5 };
+        expect(() => driverMatrix(driver, pose, fixturePath), `${id} at class ${size}`).toThrow();
+      }
+  });
+
+  it("reads which of the new inputs the drivers use, and only lists those", () => {
+    const inputs = rigInputs(fixture.rig.parts);
+    expect(inputs).toMatchObject({ theta: true, travel: true, trunk: true, size: true, presence: true });
+    expect(rigInputs([{ id: "a", match: ["*"], drivers: [{ type: "rotate", axis: "x", pivot: [0, 0, 0], input: "feed" }] }])).toEqual({
+      theta: false,
+      travel: false,
+      depth: false,
+      lifting: false,
+      feed: true,
+    });
+    expect(rigInputs([{ id: "a", match: ["*"], drivers: [{ type: "gauge", motion: "slide", axis: "y", mode: "present", amount: { thin: 1, thick: 2 } }] }])).toEqual({
+      theta: false,
+      travel: false,
+      depth: false,
+      lifting: false,
+      size: true,
+      presence: true,
+    });
+  });
+
+  it("needs the trunk path for an occupy gauge or a roll, but not for a present gauge", () => {
+    const occupy = fixture.drivers.find((d) => d.driver.type === "gauge" && (d.driver.mode ?? "occupy") === "occupy")!.driver;
+    const roll = fixture.drivers.find((d) => d.driver.type === "roll")!.driver;
+    const pose: Pose = { theta: 0, depth: 0, lifting: 0, trunk: 1, size: 2, presence: 1 };
+    expect(() => driverMatrix(occupy, pose)).toThrow(/trunkPath/);
+    expect(() => driverMatrix(roll, pose)).toThrow(/trunkPath/);
+    expect(driverMatrix({ type: "gauge", motion: "slide", axis: "y", mode: "present", amount: { thin: 1, thick: 2 } }, pose)[13]).toBe(2);
+    // and nothing moves without a trunk, path or no path
+    expect(driverMatrix(roll, { ...pose, size: 0 })).toEqual(driverMatrix(roll, { ...pose, size: 0, trunk: 5 }, fixturePath));
+  });
+
+  it("reads a rig's trunk path and refuses a malformed one", () => {
+    expect(trunkPathOf({})).toBeNull();
+    expect(trunkPathOf({ trunkPath: { ...fixture.trunkPath, stations: { ring: 4.5 } } })!.stations).toEqual({ ring: 4.5 });
+    expect(() => trunkPathOf({ trunkPath: { ...fixture.trunkPath, lengths: { thin: 4 } } })).toThrow(/lengths/);
+    expect(() => trunkPathOf({ trunkPath: { ...fixture.trunkPath, axis: "w" } })).toThrow(/axis/);
+    expect(() => trunkPathOf({ trunkPath: { ...fixture.trunkPath, nose0: "a" } })).toThrow(/nose0/);
   });
 });

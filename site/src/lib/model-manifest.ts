@@ -4,7 +4,10 @@
 // them in dev, so the site never keeps a second copy in git. See docs/recipe-browser/models.md.
 import { discoverAnchors } from "./model-anchors.ts";
 import { checkScenario, type Scenario } from "./model-scenario.ts";
-import { compileGlobs, driverMatrix, flattenShape, requiresValues, rideOrder, type Rig, type Shape } from "./rig.ts";
+import { compileGlobs, driverMatrix, flattenShape, requiresValues, rideOrder, trunkPathOf, type Pose, type Rig, type Shape } from "./rig.ts";
+
+// Poses every driver is evaluated at: each class, part-way along the trunk path.
+const CHECK_POSES: Pose[] = [1, 2].map((size) => ({ theta: 0.3, depth: 0.5, lifting: 0.5, travel: 0.3, trunk: 1, size, presence: 0.5, feed: 0.3 }));
 
 export interface ManifestModel {
   /** The URL slug: #/models/<id>. */
@@ -98,8 +101,10 @@ export function checkModelFiles(model: ManifestModel, shape: unknown, rig: unkno
       try {
         rideOrder(ps);
         compileGlobs(ps);
-        // Every driver must evaluate: unknown types and missing pivots throw here.
-        for (const p of ps) for (const d of p.drivers ?? []) driverMatrix(d, { theta: 0.3, depth: 0.5, lifting: 0.5, travel: 0.3 });
+        // Every driver must evaluate: unknown types, missing pivots, a malformed trunkPath, and
+        // gauges and rolls without one throw here.
+        const path = trunkPathOf(r);
+        for (const p of ps) for (const d of p.drivers ?? []) for (const pose of CHECK_POSES) driverMatrix(d, pose, path);
       } catch (e) {
         problems.push(`${model.rig}: ${(e as Error).message}`);
       }

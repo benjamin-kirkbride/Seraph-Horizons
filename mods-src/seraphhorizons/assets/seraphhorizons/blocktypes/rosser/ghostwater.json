@@ -1,0 +1,25 @@
+{
+	code: "rosser-ghostwater",
+	class: "seraphhorizons.RosserGhostWater",
+	entityClass: "seraphhorizons.RosserGhost",
+	// side is the rosser's; the pipe face is the rig's waterFace turned to it (a side face).
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shape: { base: "game:block/basic/nothing" },
+	blockmaterial: "Wood",
+	drops: [],
+	sidesolid: { all: false },
+	sideopaque: { all: false },
+	rainPermeable: true,
+	resistance: 3.5,
+	lightAbsorption: 0,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

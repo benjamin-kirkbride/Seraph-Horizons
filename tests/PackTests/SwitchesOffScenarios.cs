@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -240,6 +241,34 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>MapReveal</c>: there is no <c>/revealmap</c> command.</summary>
+    /// <summary><c>Rosser</c>: there is no rosser (its blocks and recipe are not in the game, and
+    /// nothing is logged about them) and no debarked trunk, and Logging Expanded's trunk code is not
+    /// patched.</summary>
+    [AtlasScenario]
+    public void Rosser_off_there_is_no_debarked_trunk()
+    {
+        Assert.True(Off("Rosser"));
+        Assert.False(SeraphHorizons.Mod.Rosser.RosserSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("rosser"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("rosser") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("rosser", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "loggingmod" } c && c.Path.StartsWith("treetrunk-")
+                                             && b.Variant["branches"] == "debarked");
+        var clean = W.GetBlock(new AssetLocation("loggingmod:treetrunk-oak-md-no-north"))!;
+        Assert.Equal("loggingmod:treetrunk-md-no", clean.Shape.Base.ToString());
+        var trunk = new ItemStack(clean);
+        Assert.Null(Trunks.Debark(trunk, W));
+        foreach (var (type, method, args) in new[] { ("LoggingMod.TreeManager", "GetPlacedLogCode", new[] { typeof(string) }),
+                     ("LoggingMod.BEWorkstation", "BuildUnloadStack", new[] { typeof(IWorldAccessor) }) })
+            Assert.DoesNotContain(SeraphHorizonsSystem.HarmonyId,
+                Harmony.GetPatchInfo(AccessTools.Method(AccessTools.TypeByName(type), method, args))?.Owners ?? []);
+    }
+
     [AtlasScenario]
     public void Map_reveal_off_there_is_no_command()
     {

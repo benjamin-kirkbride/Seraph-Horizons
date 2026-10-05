@@ -1,0 +1,18 @@
+[
+	{
+		// Two of Immersive Woodworking's sawmill frames (with IronWoodworkingMachines, each carries
+		// its eight iron nails and strips), four support beams, and a copper chute section for the
+		// bark and stick chute under the ring, which also keeps the pattern apart from the bucking
+		// mill's. Every metal working part goes in afterwards, fitted by hand.
+		ingredientPattern: "BHB,FCF,B_B",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"F": { type: "block", code: "immersivewoodworking:sawmill-frame-north" },
+			"B": { type: "block", code: "game:supportbeam-*" },
+			"C": { type: "item", code: "game:chutesection-copper" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:rosser-frame-north" }
+	}
+]

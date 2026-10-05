@@ -1,4 +1,6 @@
 using SeraphHorizons.Mod.BuckingSawmill.Core;
+using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
@@ -253,7 +255,7 @@ public sealed class MillRenderer : IRenderer
     private float[][] Matrices() => _parts.Matrices(_theta, _be.ClientSawDepth, _lifting, _travel);
 
     private bool Fitted(int part) =>
-        RigPart.Fitted(_parts.Parts[part].Requires, _be.SashCount, _be.HasCrankshaft, _be.HasBladeKit, _be.HasLevers);
+        MillRequires.Fitted(_parts.Parts[part].Requires, _be.SashCount, _be.HasCrankshaft, _be.HasBladeKit, _be.HasLevers);
 
     private void Draw(MultiTextureMeshRef mesh, float[] native, IStandardShaderProgram? prog, Vec3d cam, BlockPos pos)
     {

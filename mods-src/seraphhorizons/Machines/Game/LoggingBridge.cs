@@ -1,15 +1,17 @@
 using System.Reflection;
 using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
-namespace SeraphHorizons.Mod.BuckingSawmill;
+namespace SeraphHorizons.Mod.Machines;
 
 /// <summary>
-/// Everything the mill reads from Logging Expanded (loggingmod) that a trunk's own item stack does
-/// not carry, found by name at run time so the mod builds from the game alone: the Trunk Storage
-/// Rack's block entity (<c>LoggingMod.BETrunkStorage</c>), the log a wood cuts into
-/// (<c>LoggingMod.TreeManager</c>) and the branch rule (<c>LoggingMod.LoggingConfig</c>).
-/// Resolved once; when anything is missing it logs one warning and <see cref="Resolve"/> gives
-/// null, and the mill neither takes nor cuts trunks.
+/// Everything the machines (the bucking mill, the rosser) read from Logging Expanded (loggingmod)
+/// that a trunk's own item stack does not carry, found by name at run time so the mod builds from
+/// the game alone: the Trunk Storage Rack's block entity (<c>LoggingMod.BETrunkStorage</c>), the
+/// logs a wood cuts into, with and without bark (<c>LoggingMod.TreeManager</c>) and the branch rule
+/// (<c>LoggingMod.LoggingConfig</c>). Resolved once; when anything is missing it logs one warning
+/// and <see cref="Resolve"/> gives null, and the machines neither take nor work trunks.
 /// </summary>
 public sealed class LoggingBridge
 {
@@ -18,19 +20,27 @@ public sealed class LoggingBridge
     private readonly Type _rackType;
     private readonly MethodInfo _popTrunk;
     private readonly MethodInfo _getStoredTrunks;
+    private readonly MethodInfo _pushTrunk;
+    private readonly PropertyInfo _trunkCount;
     private readonly PropertyInfo _treeManagerInstance;
     private readonly MethodInfo _getPlacedLogCode;
+    private readonly MethodInfo _getDebarkedLogCode;
     private readonly PropertyInfo _configCurrent;
     private readonly PropertyInfo _requireBranchRemoval;
 
-    private LoggingBridge(Type rackType, MethodInfo popTrunk, MethodInfo getStoredTrunks, PropertyInfo treeManagerInstance,
-                          MethodInfo getPlacedLogCode, PropertyInfo configCurrent, PropertyInfo requireBranchRemoval)
+    private LoggingBridge(Type rackType, MethodInfo popTrunk, MethodInfo getStoredTrunks, MethodInfo pushTrunk, PropertyInfo trunkCount,
+                          PropertyInfo treeManagerInstance,
+                          MethodInfo getPlacedLogCode, MethodInfo getDebarkedLogCode, PropertyInfo configCurrent,
+                          PropertyInfo requireBranchRemoval)
     {
         _rackType = rackType;
         _popTrunk = popTrunk;
         _getStoredTrunks = getStoredTrunks;
+        _pushTrunk = pushTrunk;
+        _trunkCount = trunkCount;
         _treeManagerInstance = treeManagerInstance;
         _getPlacedLogCode = getPlacedLogCode;
+        _getDebarkedLogCode = getDebarkedLogCode;
         _configCurrent = configCurrent;
         _requireBranchRemoval = requireBranchRemoval;
     }
@@ -84,8 +94,11 @@ public sealed class LoggingBridge
         var config = TypeOf("LoggingMod.LoggingConfig");
         var popTrunk = Method(rack, "PopTrunk", Type.EmptyTypes, typeof(ItemStack));
         var getStored = Method(rack, "GetStoredTrunks", Type.EmptyTypes, typeof(ItemStack[]));
+        var pushTrunk = Method(rack, "PushTrunk", [typeof(ItemStack)], typeof(void));
+        var trunkCount = Property(rack, "TrunkCount", Instance, typeof(int));
         var instance = Property(treeManager, "Instance", Static, treeManager);
         var placedLog = Method(treeManager, "GetPlacedLogCode", [typeof(string)], typeof(AssetLocation));
+        var debarkedLog = Method(treeManager, "GetDebarkedLogCode", [typeof(string)], typeof(AssetLocation));
         var current = Property(config, "Current", Static, config);
         var branches = Property(config, "RequireBranchRemovalForProcessing", Instance, typeof(bool));
         if (rack != null && !typeof(BlockEntity).IsAssignableFrom(rack))
@@ -93,7 +106,7 @@ public sealed class LoggingBridge
 
         if (problems.Count > 0)
             return null;
-        return new LoggingBridge(rack!, popTrunk!, getStored!, instance!, placedLog!, current!, branches!);
+        return new LoggingBridge(rack!, popTrunk!, getStored!, pushTrunk!, trunkCount!, instance!, placedLog!, debarkedLog!, current!, branches!);
     }
 
     /// <summary>Logging Expanded's RequireBranchRemovalForProcessing (its default, true, while its
@@ -108,6 +121,14 @@ public sealed class LoggingBridge
             ? (AssetLocation?)_getPlacedLogCode.Invoke(manager, [wood])
             : null;
 
+    /// <summary>The upright debarked log Logging Expanded gives for <paramref name="wood"/>
+    /// (<c>debarkedlog-&lt;wood&gt;-ud</c> in any domain), or null (also before its tree manager
+    /// exists).</summary>
+    public AssetLocation? DebarkedLogCode(string wood) =>
+        _treeManagerInstance.GetValue(null) is { } manager
+            ? (AssetLocation?)_getDebarkedLogCode.Invoke(manager, [wood])
+            : null;
+
     public bool IsRack(BlockEntity? be) => be != null && _rackType.IsInstanceOfType(be);
 
     /// <summary>The trunk the rack would give next (it is last in, first out), without taking it.</summary>
@@ -116,4 +137,20 @@ public sealed class LoggingBridge
 
     /// <summary>Takes the rack's next trunk; the rack updates its fill variant itself.</summary>
     public ItemStack? PopTrunk(BlockEntity rack) => (ItemStack?)_popTrunk.Invoke(rack, null);
+
+    /// <summary>How many trunks the rack holds (it holds 4 at most).</summary>
+    public int TrunkCount(BlockEntity rack) => (int)_trunkCount.GetValue(rack)!;
+
+    /// <summary>Puts <paramref name="trunk"/> on top of the rack. The rack silently drops it when it
+    /// already holds 4, so check <see cref="TrunkCount"/> first; the caller marks the rack dirty.</summary>
+    public void PushTrunk(BlockEntity rack, ItemStack trunk) => _pushTrunk.Invoke(rack, [trunk]);
+
+    /// <summary>The rack whose controller or filler cell is at <paramref name="pos"/>, or null.</summary>
+    public BlockEntity? FindRack(IBlockAccessor blockAccessor, BlockPos pos)
+    {
+        if (blockAccessor.GetBlock(pos) is BlockMultiblock filler)
+            pos = pos.AddCopy(filler.OffsetInv);
+        var be = blockAccessor.GetBlockEntity(pos);
+        return IsRack(be) ? be : null;
+    }
 }

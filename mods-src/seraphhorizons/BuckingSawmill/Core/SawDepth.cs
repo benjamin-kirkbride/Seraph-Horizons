@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Machines.Core;
+
 namespace SeraphHorizons.Mod.BuckingSawmill.Core;
 
 /// <summary>What the mill is doing. A complete, turning mill cycles without stopping: its saws

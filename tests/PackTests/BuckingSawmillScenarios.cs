@@ -4,6 +4,8 @@ using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;

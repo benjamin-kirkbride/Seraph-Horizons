@@ -6,10 +6,10 @@
   import { onDestroy } from "svelte";
   import { loadModelFiles } from "../lib/model-data.ts";
   import type { PublishedModel } from "../lib/model-manifest.ts";
-  import { advance, contactDepth, enterPhase, propBox, startPhase, type Motion, type PlayContext } from "../lib/model-scenario.ts";
+  import { advance, contactDepth, enterPhase, feedAdvance, feedBlocksPerRadian, optionClass, playTrip, propBox, startPhase, type Motion, type PlayContext } from "../lib/model-scenario.ts";
   import { buildModelView, elementDetails, type ModelView } from "../lib/model-view.ts";
   import { formatRoute } from "../lib/route.ts";
-  import { fitted, partMatrices, wrappedDelta, type Rig } from "../lib/rig.ts";
+  import { classIndex, fitted, partMatrices, tripEnd, wrappedDelta, type Rig } from "../lib/rig.ts";
   import { mt } from "../lib/model-strings.ts";
   import { REPO_URL, t } from "../lib/strings.ts";
   import type { ColourMode, ModelScene, SceneColours, ViewName } from "../viewer/model-scene.ts";
@@ -38,6 +38,7 @@
           };
           colourMode = view.hasRig ? "part" : "texture";
           propChoice = m.scenario?.prop?.default ?? "none";
+          choose();
         } catch (e) {
           failed = (e as Error).message;
         }
@@ -52,7 +53,7 @@
   const propLine = $derived(view && propSpec ? (view.anchors.find((a) => a.kind === "line" && a.key === propSpec.on) ?? null) : null);
 
   // ---- state
-  let motion = $state<Motion>({ theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false });
+  let motion = $state<Motion>({ theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false, trunk: 0, size: 0, presence: 0, feed: 0 });
   let reverse = $state(false);
   let playing = $state(false);
   let fittedState = $state<Record<string, boolean>>({});
@@ -66,13 +67,36 @@
   let openGroups = $state<Record<string, boolean>>({});
 
   const propOption = $derived(propSpec?.options.find((o) => o.id === propChoice) ?? null);
+  // A prop that is the trunk of the rig's trunk path: it travels with T, and its option is the class.
+  const trunkProp = $derived(propSpec?.moves === "trunk" && view?.path ? view.path : null);
+  const tripLength = $derived(view?.path ? tripEnd(view.path, motion.size ?? 0) : 0);
   const matrices = $derived(
-    view ? partMatrices(view.parts.map((p) => p.part), { theta: motion.theta, depth: motion.depth, lifting: motion.lifting, travel: motion.travel }, view.order) : [],
+    view
+      ? partMatrices(
+          view.parts.map((p) => p.part),
+          {
+            theta: motion.theta,
+            depth: motion.depth,
+            lifting: motion.lifting,
+            travel: motion.travel,
+            trunk: motion.trunk,
+            size: motion.size,
+            presence: motion.presence,
+            feed: motion.feed,
+          },
+          view.order,
+          view.path,
+        )
+      : [],
   );
   const visible = $derived(view ? view.parts.map((p) => fitted(p.part.requires, fittedState)) : []);
   // While a cycle runs (or is paused part-way) it decides whether the prop is on; posed by hand, the choice does.
   const propShown = $derived(motion.phase !== null ? motion.propOn : propOption !== null);
-  const box = $derived(propShown && propOption && propLine && propLine.kind === "line" ? propBox(propOption, propLine) : null);
+  const box = $derived(
+    propShown && propOption && propLine && propLine.kind === "line"
+      ? propBox(propOption, propLine, { placement: propSpec?.placement, ...(trunkProp ? { nose: trunkProp.nose0 + (motion.trunk ?? 0) } : {}) })
+      : null,
+  );
   const thetaDeg = $derived(Math.round((motion.theta * 180) / Math.PI) % 360);
   const phaseLabel = $derived(motion.phase ? (play?.phases.find((p) => p.id === motion.phase)?.label ?? motion.phase) : null);
   const status = $derived(playing ? (phaseLabel ?? s.playHintTurn) : phaseLabel ? s.paused(phaseLabel.toLowerCase()) : s.posedByHand);
@@ -196,18 +220,37 @@
   }
   function setTheta(deg: number) {
     const next = (deg * Math.PI) / 180;
-    motion.travel += Math.abs(wrappedDelta(motion.theta, next));
+    const turned = Math.abs(wrappedDelta(motion.theta, next));
+    motion.travel += turned;
     motion.theta = next;
+  }
+  /** Posed by hand, the prop's choice is the trunk's class, fully present, kept within its trip. */
+  function choose() {
+    if (motion.phase !== null || propSpec?.moves !== "trunk") return;
+    const size = optionClass(propOption);
+    motion.size = size;
+    motion.presence = size > 0 ? 1 : 0;
+    if (view?.path) motion.trunk = Math.min(motion.trunk ?? 0, tripEnd(view.path, size));
+  }
+  /** A size chosen without a prop (a rig that reads the class, with no trunk prop in its scenario). */
+  function setSize(size: number) {
+    byHand();
+    motion.size = size;
+    motion.presence = size > 0 ? 1 : 0;
+    if (view?.path) motion.trunk = Math.min(motion.trunk ?? 0, tripEnd(view.path, size));
   }
   function playContext(): PlayContext {
     const chosen = propOption !== null;
     const b = propOption && propLine && propLine.kind === "line" ? propBox(propOption, propLine) : null;
     const top = b ? b.centre[1] + b.size[1] / 2 : 0;
+    const trip = playTrip(propSpec, propOption, view?.path ?? null);
     return {
       play,
       direction: reverse ? -1 : 1,
       propChosen: chosen,
       contact: play && rig && b ? contactDepth(play, rig, top) : motion.depth,
+      ...(trip ? { trip } : {}),
+      ...(feedBlocksPerRadian(rig) !== undefined ? { blocksPerRadian: feedBlocksPerRadian(rig) } : {}),
     };
   }
   let frame = 0;
@@ -227,7 +270,9 @@
     }
     if (motion.phase === null) {
       const ctx = playContext();
-      const first = startPhase(play, motion, ctx.propChosen);
+      // Posed by hand, a chosen trunk is on: Play carries on from where it is.
+      if (ctx.trip) motion.propOn = ctx.propChosen;
+      const first = startPhase(play, motion, ctx.propChosen, ctx.trip);
       if (first) motion = enterPhase(ctx, motion, first);
     }
     playing = true;
@@ -389,7 +434,7 @@
     </div>
 
     <aside class="controls" data-testid="model-controls">
-      {#if view.inputs.theta || view.inputs.travel || view.inputs.depth || view.inputs.lifting}
+      {#if view.inputs.theta || view.inputs.travel || view.inputs.depth || view.inputs.lifting || view.inputs.trunk || view.inputs.size || view.inputs.presence || view.inputs.feed}
         <fieldset>
           <legend>{s.motion}</legend>
           {#if view.inputs.theta || view.inputs.travel}
@@ -397,6 +442,56 @@
               <span class="row"><span>{scenario?.inputs?.theta?.label ?? s.shaftAngle}</span><output>{thetaDeg}°</output></span>
               <input type="range" min="0" max="359" step="1" value={thetaDeg} oninput={(e) => setTheta(+e.currentTarget.value)} data-input="theta" />
               {#if view.inputs.travel}<span class="muted small">{s.shaftTravel(Math.round((motion.travel * 180) / Math.PI))}</span>{/if}
+              {#if view.inputs.feed}<span class="muted small" data-testid="model-feed">{s.feedTravel(Math.round(((motion.feed ?? 0) * 180) / Math.PI))}</span>{/if}
+            </label>
+          {/if}
+          {#if view.inputs.size && !trunkProp}
+            <label class="stack">
+              <span>{scenario?.inputs?.size?.label ?? s.trunkSize}</span>
+              <select value={String(classIndex(motion.size))} onchange={(e) => setSize(+e.currentTarget.value)} data-input="size">
+                {#each s.sizeNames as name, i (i)}<option value={String(i)}>{name}</option>{/each}
+              </select>
+            </label>
+          {/if}
+          {#if view.inputs.trunk && view.path}
+            <label class="slider">
+              <span class="row"><span>{scenario?.inputs?.trunk?.label ?? s.trunkTravel}</span><output>{s.blocks(motion.trunk ?? 0, tripLength)}</output></span>
+              <input
+                type="range"
+                min="0"
+                max={tripLength}
+                step="0.0625"
+                value={motion.trunk ?? 0}
+                disabled={tripLength <= 0}
+                oninput={(e) => {
+                  byHand();
+                  const to = +e.currentTarget.value;
+                  // the feed rolls turn with the trunk, as in the game (forward only)
+                  motion.feed = (motion.feed ?? 0) + feedAdvance(motion.trunk ?? 0, to, feedBlocksPerRadian(rig));
+                  motion.trunk = to;
+                }}
+                data-input="trunk"
+              />
+              {#if scenario?.inputs?.trunk?.hint}<span class="muted small">{scenario.inputs.trunk.hint}</span>{/if}
+            </label>
+          {/if}
+          {#if view.inputs.presence}
+            <label class="slider">
+              <span class="row"><span>{scenario?.inputs?.presence?.label ?? s.presence}</span><output>{(motion.presence ?? 0).toFixed(2)}</output></span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={motion.presence ?? 0}
+                disabled={classIndex(motion.size) === 0}
+                oninput={(e) => {
+                  byHand();
+                  motion.presence = +e.currentTarget.value;
+                }}
+                data-input="presence"
+              />
+              {#if scenario?.inputs?.presence?.hint}<span class="muted small">{scenario.inputs.presence.hint}</span>{/if}
             </label>
           {/if}
           {#if view.inputs.depth}
@@ -431,7 +526,7 @@
               {scenario?.inputs?.lifting?.label ?? s.lifting}
             </label>
           {/if}
-          {#if view.inputs.theta || view.inputs.travel}
+          {#if view.inputs.theta || view.inputs.travel || view.inputs.feed}
             <label class="check"><input type="checkbox" bind:checked={reverse} data-input="reverse" /> {scenario?.inputs?.reverse?.label ?? s.reverse}</label>
             <div class="row play-row">
               <button type="button" class="play" aria-pressed={playing} onclick={togglePlay}>{playing ? s.pause : s.play}</button>
@@ -458,7 +553,14 @@
           <legend>{s.prop}</legend>
           <label class="stack">
             <span>{propSpec.label}</span>
-            <select bind:value={propChoice} data-input="prop">
+            <select
+              value={propChoice}
+              onchange={(e) => {
+                propChoice = e.currentTarget.value;
+                choose();
+              }}
+              data-input="prop"
+            >
               <option value="none">{s.propNone}</option>
               {#each propSpec.options as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
             </select>
