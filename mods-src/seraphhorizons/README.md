@@ -955,6 +955,41 @@ A JSON patch, `patches/sawmillblade-durability.json`, replaces each value of the
 without Immersive Woodworking, `SawmillBladeDurability.DisablePatches` empties it in `Start`, before
 the game's patch loader runs, as for the tun patches.
 
+### The woodworking machines are iron work (`IronWoodworkingMachines`)
+
+Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill and chopper take any metal and
+little of it: 8 nails and strips and a plate for a sawmill, 2 nails and strips and 4 plates for a
+chopper. With this, the two frames and the six fitted parts take iron, meteoric iron or steel
+(nails and strips, plates and rods alike) and many more nails and strips:
+
+| Part | Immersive Woodworking | With the switch on |
+|---|---|---|
+| Sawmill frame | no metal | 8 nails and strips (in place of one of 3 planks) |
+| Saw sash | 4 nails and strips | 16 nails and strips, 1 rod |
+| Sawmill crankshaft | 2 nails and strips | 8 nails and strips, 1 rod |
+| Sawmill feed levers | 2 nails and strips, 1 plate | 8 nails and strips, 1 plate |
+| Sawmill carriage | no metal (a rusty gear) | 8 nails and strips (in place of 2 of 6 planks) |
+| Chopper frame | 2 plates | 8 nails and strips (in place of one of 5 beams), 2 plates |
+| Chopper drive | 1 nails and strips, 1 plate | 8 nails and strips, 1 plate, 1 rod |
+| Chopper arm | 1 nails and strips, 1 plate | 8 nails and strips, 1 plate |
+
+A sawmill is 48 nails and strips, 1 plate and 2 rods in all (about 16 ingots, at 4 nails and strips
+to an ingot); a chopper 24 nails and strips, 4 plates and 1 rod (about 15). Wood, resin, rope, the
+rusty gear and the tools stay as they are. The blade kit and the chopper head keep their recipes and
+take any metal: their metal already sets the machine's durability and speed. The bucking sawmill is
+built from two sawmill frames and takes two sashes, a crankshaft and feed levers, so it comes to 64
+nails and strips, 1 plate and 3 rods with no change of its own. So the sawmill is no longer a copper
+age machine; the chopper already needed iron for its bed, the advanced splitting block
+(`UnifiedWoodworking`).
+
+A JSON patch, `patches/woodworking-machine-costs.json`, rewrites the eight recipe files. Immersive
+Woodworking ships them disabled and registers each recipe itself from the file, after the patch
+loader, so the registered recipe has the pattern, the quantities and the `allowedVariants` of the
+patched file (the allowedVariants Fix is not involved: the recipe keeps its wildcards). With the
+switch off, or without Immersive Woodworking, `WoodworkingMachineCosts.DisablePatches` empties the
+patch in `Start`, as for the blade kits. With the switch on, the handbook's Machines chapter
+(`UnifiedWoodworking`'s guide) gains a paragraph with the two totals, by a `LangEdit`.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -1133,6 +1168,16 @@ it fails after a mod is added or updated, it lists the foods to give a value in 
 Immersive Woodworking's durability (`DurableSawmillBlades`); with the switch off,
 `SwitchesOffScenarios` requires Immersive Woodworking's own. The rest of its scenarios are the
 bucking sawmill's (`BuckingSawmill/README.md`).
+
+`tests/PackTests/WoodworkingMachineCostsScenarios.cs` (Atlas) requires each of the eight parts'
+one recipe to take the nails and strips, plates and rods of `WoodworkingMachineCosts.Parts`, all
+limited to iron, meteoric iron and steel; the saw sash to match on the grid with iron work and not
+with bronze, copper or 3 nails and strips to a slot; and the Machines chapter to give the totals of
+`Parts`. `RecipeExportScenarios` requires the recipe browser's export to carry the sash's pattern,
+quantities and metals, and `ItemExportScenarios` its Machines guide to give the totals. With the
+switch off, `SwitchesOffScenarios` requires Immersive Woodworking's own counts, of any metal, and
+the chapter without the paragraph. When these fail after an Immersive Woodworking update, compare
+its `recipes/grid/sawmill_*.json` and `chopper_*.json` with the patch.
 
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's
