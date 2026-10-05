@@ -99,7 +99,6 @@ tooltip.
 | `storageFlags` | always | `StorageFlags`, lower case names |
 | `extra.grinding` | `GrindingProps` | output stack |
 | `extra.crushing` | `CrushingProps` | output stack, quantity, hardness tier |
-| `extra.transitions` | `TransitionableProps` | type (perish, dry, cure, ...), fresh and transition hours, output, ratio when not 1 |
 | `extra.eatenStack` | food leaves something behind | `NutritionProps.EatenStack` |
 
 The values are the collectible's defaults, not those of a particular stack. Overrides that
@@ -220,8 +219,9 @@ mods' guides.
 
 - `item.untranslated` (bool) and `item.stacks` (array of `$defs/stack`), promoted from
   `extra.untranslated` and `extra.handbookStacks`.
-- `itemAttributes.grinding`, `crushing`, `transitions`: processing that is not a recipe
-  in any registry.
+- `itemAttributes.grinding`, `crushing`: processing that is not a recipe in any registry.
+  `TransitionableProps`, formerly `extra.transitions`, are now recipe records of shape
+  `transition` ([schema.md](schema.md#transitions-over-time)).
 - `source.stock` (`{avg, var}`) and `source.priceVar` for trades. `source.quantity` is
   ambiguous between "per drop" and "per trade"; a separate `stackSize` for trades would
   make it clearer.

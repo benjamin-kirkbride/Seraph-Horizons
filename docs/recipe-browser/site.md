@@ -158,6 +158,8 @@ Each item entry has, where present:
 
 - `description`, `attributes`, `sources`: as in the export.
 - `madeBy`: recipe type to the indices of recipes whose outputs include the item.
+- `madeByElsewhere`: recipe type to the number of recipes that make the item but are not
+  in its `madeBy` (see below).
 - `usedIn`: recipe type to the indices of recipes with an ingredient slot that accepts it.
 - `smeltedFrom`: indices of items whose `attributes.smelting.output` is this item;
   `smeltsInto` the reverse.
@@ -169,6 +171,25 @@ by type first makes a type's recipes the run `start` to `start + count - 1`, so 
 page needs no index file. An id starts with its type (`<type>|<asset>|<index>`), so this is
 the id order except where one type is a prefix of another (`grid2|…` sorts before `grid|…`
 by id, since `2` is below `|`).
+
+Transitions over time (records of shape `transition`: drying, curing, perishing, ...) are
+recipes like any other, so wet sinew's page lists its curing under "Used in" and dry
+sinew's under "Made by". The one exception is perishing into `game:rot`: nearly every food
+does it (about 2,700 records in the pack), and listing them all would bury rot's own
+recipes. Those records are indexed on the food's side only, and rot's `madeByElsewhere`
+counts them; its page says how many items rot into it and that each one's page shows it.
+Perishing into anything else, wine into vinegar or a bush cutting into sticks, is indexed
+on both sides (`listedOnSourceOnly` in `prepare.ts`).
+
+A transition card (`TransitionRecipe.svelte`) shows what turns, any station it needs
+(marked "station": the smoking rack, whose page then lists it under "Used in"), and when it
+turns:
+the fresh hours plus the transition hours, as minutes, hours or days of game time, with the
+range a stack can draw when the export gives a spread, then both parts separately when
+both take time, and the stack size factor when the ratio is not 1. Without a station, a `Hint` on the
+time says it is the rate in an ordinary inventory: containers change it (a cellar slows
+spoiling), and a stack that has started to spoil no longer dries or cures (the engine stops
+every later transition once `Perish` has begun).
 
 The reverse indexes are built from each recipe's resolved `variants` and, in case an
 export does not list every variant, by matching each ingredient's code pattern against

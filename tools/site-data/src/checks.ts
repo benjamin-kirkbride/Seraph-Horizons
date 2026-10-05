@@ -11,7 +11,7 @@ interface Recipe {
   id: string;
   type: string;
   mod: string;
-  ingredients: { key?: string }[];
+  ingredients: { key?: string; role?: string }[];
   outputs: { code: string; extra?: { alternatives?: string[] } }[];
   variants: { ingredients: Stack[][]; outputs: Stack[] }[];
   grid?: { width: number; height: number; pattern: string[] };
@@ -21,6 +21,7 @@ interface Recipe {
     variants: { yields: (object | null)[] }[];
     condition?: { min: number; max: number };
   };
+  transition?: { type: string };
 }
 export interface ExportV1 {
   schemaVersion: number;
@@ -91,6 +92,7 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
     if (r.grid) checkGrid(r, at, report);
     if (r.construction) checkConstruction(r, at, report);
     if (r.butchery) checkButchery(r, at, report);
+    if (r.transition) checkTransition(r, at, report);
   });
 
   for (const [type, t] of Object.entries(d.recipeTypes)) {
@@ -202,4 +204,27 @@ function checkButchery(r: Recipe, at: string, report: ErrorReport): void {
       report.add("butchery-variants", `${at}/variants/${j}/outputs`, `the outputs it yields, ${JSON.stringify(expected)}`, JSON.stringify(found));
     }
   });
+}
+
+/**
+ * One stack turns into one other: the first ingredient turns, any further ones are stations
+ * it needs (role `station`), and there is one output and one variant.
+ */
+function checkTransition(r: Recipe, at: string, report: ErrorReport): void {
+  if (r.ingredients.length === 0) {
+    report.add("transition-shape", `${at}/ingredients`, "1 ingredient (what turns) and any stations", "0");
+  } else if (r.ingredients[0]!.role === "station") {
+    report.add("transition-shape", `${at}/ingredients/0/role`, "what turns, not a station", JSON.stringify("station"));
+  }
+  r.ingredients.forEach((ing, i) => {
+    if (i > 0 && ing.role !== "station") {
+      report.add("transition-shape", `${at}/ingredients/${i}/role`, `"station" (only the first ingredient turns)`, JSON.stringify(ing.role ?? null));
+    }
+  });
+  if (r.outputs.length !== 1) {
+    report.add("transition-shape", `${at}/outputs`, "1 output (what it becomes)", String(r.outputs.length));
+  }
+  if (r.variants.length !== 1) {
+    report.add("transition-shape", `${at}/variants`, "1 variant", String(r.variants.length));
+  }
 }
