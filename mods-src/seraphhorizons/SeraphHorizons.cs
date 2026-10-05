@@ -62,6 +62,8 @@ public class SeraphHorizonsSystem : ModSystem
             IrrigationVessel.DisablePatches(api);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             SawmillBladeDurability.DisablePatches(api);
+        if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
+            WoodworkingMachineCosts.DisablePatches(api);
         _tunRack = Config(api).LargerTunRack && TunRackCapacity.Applies(api) && TunRackCapacity.Bind(api.Logger);
         if (!_tunRack)
             TunRackCapacity.DisablePatches(api);
@@ -161,6 +163,8 @@ public class SeraphHorizonsSystem : ModSystem
                 PanningDrops.TrimPanAsset(api);
             PanningDrops.RewriteText(api);
         }
+        if (Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api))
+            LangText.Apply(WoodworkingMachineCosts.LangEdits, WoodworkingMachineCosts.ModId, api.Logger);
         if (_barrelRackKegs)
             LangText.Apply(BarrelRackKegs.LangEdits, BarrelRackKegs.FoodShelvesId, api.Logger);
         _woodworking?.AssetsLoaded(api);
@@ -332,4 +336,8 @@ public class SeraphHorizonsConfig
     /// <summary>Immersive Woodworking: its sawmill blade kits last three times as long, in the
     /// bucking sawmill and in its own plank sawmill (server side; off means its own durabilities).</summary>
     public bool DurableSawmillBlades { get; set; } = true;
+
+    /// <summary>Immersive Woodworking: the sawmill's and the chopper's frames and parts take iron,
+    /// meteoric iron or steel, and far more nails and strips (off means its own recipes).</summary>
+    public bool IronWoodworkingMachines { get; set; } = true;
 }

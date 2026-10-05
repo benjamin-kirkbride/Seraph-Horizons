@@ -203,6 +203,15 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Equal(Lang.GetL("en", "seraphhorizons:woodworking-overview-title"), (string?)overview["title"]);
     }
 
+    // seraphhorizons, IronWoodworkingMachines: the Machines chapter on the site gives the iron costs,
+    // as the handbook's does.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Woodworking_machines_guide_gives_the_iron_costs()
+    {
+        var machines = Assert.Single(((JArray)Doc["guides"]!).OfType<JObject>(), g => (string?)g["code"] == "seraphhorizons-woodworking-machines");
+        Assert.Contains("A sawmill takes 48 nails and strips, 1 plate and 2 rods in all", (string?)machines["text"]);
+    }
+
     // --- items from mods in the pack, against the mods' own files --------------------------
 
     [AtlasScenario(TimeoutMs = Timeout)]
