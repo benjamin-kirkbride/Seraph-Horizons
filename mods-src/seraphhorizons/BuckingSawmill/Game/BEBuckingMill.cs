@@ -42,6 +42,11 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     // and whether it has seen the cut finish before the server's sync clears the trunk.
     private float _clientDepthEstimate;
     private float _clientDepth;
+    // The shown depth one client tick back, and when and how long that tick was: frames between
+    // ticks draw the saws part way from one to the other.
+    private float _clientDepthBefore;
+    private long _clientDepthMs;
+    private float _clientDepthSeconds;
     private bool _clientRising;
     private bool _clientCutDone;
     // The loaded trunk's stored logs, read when it was loaded (synced, so the client's progress
@@ -105,7 +110,17 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public ItemStack? Trunk => _trunk;
     public float ClientProgress => _trunk == null ? 0 : Math.Clamp(_clientProgress, 0, 1);
     public MillPhase Phase => SawDepth.Phase(Running, _trunk != null, _rising);
-    public float ClientSawDepth => Math.Clamp(_clientDepth, 0, 1);
+    public float ClientSawDepth
+    {
+        get
+        {
+            // The depth moves at the client's ticks (20 a second); read every frame, it would step.
+            float t = _clientDepthSeconds > 0 && Api != null
+                ? Math.Clamp((Api.World.ElapsedMilliseconds - _clientDepthMs) / (_clientDepthSeconds * 1000), 0, 1)
+                : 1;
+            return Math.Clamp(_clientDepthBefore + (_clientDepth - _clientDepthBefore) * t, 0, 1);
+        }
+    }
     /// <summary>The saws' depth as this side knows it: the client's shown depth, the server's own.</summary>
     public float SideDepth => Api?.Side == EnumAppSide.Client ? ClientSawDepth : _depth;
     public bool ClientRising => _clientRising;
@@ -136,7 +151,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         else
         {
             _clientProgress = _progress;
-            _clientDepthEstimate = _clientDepth = _depth;
+            _clientDepthEstimate = _clientDepth = _clientDepthBefore = _depth;
             _clientRising = _rising;
             RegisterGameTickListener(OnClientTick, 50);
             if (api is ICoreClientAPI capi && Rig is { } rig && Block is BlockBuckingMill)
@@ -797,7 +812,10 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         // a big jump (a trunk dropped onto, the bed reached) is eased, small steps are followed
         if (Math.Abs(stepped) > 0.05f)
             stepped = 0;
+        _clientDepthBefore = ClientSawDepth;
         _clientDepth = SawDepth.Ease(Math.Clamp(_clientDepth + stepped, 0, 1), _clientDepthEstimate, dt);
+        _clientDepthMs = Api.World.ElapsedMilliseconds;
+        _clientDepthSeconds = dt;
     }
 
     // ---- Breaking ----

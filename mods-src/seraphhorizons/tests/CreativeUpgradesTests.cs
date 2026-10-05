@@ -15,6 +15,17 @@ public class CreativeUpgradesTests
         Assert.Equal(applies, CreativeUpgrades.Applies(creative, ctrl, shift));
 
     [Fact]
+    public void AMachineGetsItsMissingPartsInItsOwnOrderThenItsTool()
+    {
+        const string tool = "chopperhead-{metal}";
+        Assert.Equal("chopperdrive", CreativeUpgrades.NextMachinePart(["chopperdrive", "chopperarm", "choppingblock"], false, tool, "steel"));
+        Assert.Equal("choppingblock", CreativeUpgrades.NextMachinePart(["choppingblock"], true, tool, "steel"));
+        Assert.Equal("chopperhead-steel", CreativeUpgrades.NextMachinePart([], false, tool, "steel"));
+        Assert.Equal("chopperhead-steel", CreativeUpgrades.NextMachinePart(null, false, tool, "steel"));
+        Assert.Null(CreativeUpgrades.NextMachinePart([], true, tool, "steel"));
+    }
+
+    [Fact]
     public void ASplittingBlockGoesUpOneTierAtOnceForNothing()
     {
         foreach (var tier in new[] { SplittingBlockTier.Primitive, SplittingBlockTier.Debarked, SplittingBlockTier.Bound })
