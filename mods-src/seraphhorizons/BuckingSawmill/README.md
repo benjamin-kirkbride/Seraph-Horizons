@@ -9,6 +9,10 @@ Woodworking's own sawmill works, without referencing either mod at build time.
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`). `Core/` is the game-independent part, `Game/` the blocks, block
 entities, renderer and mod system (`BuckingSawmillSystem`), and `tools/` the model's generator.
+What the mill shares with the rosser (`../Rosser/README.md`) is in `../Machines/`: the footprint,
+rig maths, trunk box and shaft clock in `../Machines/Core/`, the trunk helpers and the Logging
+Expanded bridge in `../Machines/Game/`, and the generic half of the generator in
+`../Machines/tools/machinegen/`.
 
 The mill needs both mods. With the switch off, or either mod not installed, the server marks the
 mill's three blocktypes and its recipe disabled before the game loads them
@@ -42,7 +46,7 @@ so the controller is the middle cell of the east end. The power cell is `[-5,3,0
 on its west face. Turning it to a facing follows Immersive
 Woodworking: with n the normal of the `side` variant, local (x, y, z) goes to
 (x·nz + z·nx, y, −x·nx + z·nz), and the shape turns by rotateY north 180, east 90, south 0,
-west 270. `Core/Rig.cs` parses the file and `Core/Footprint.cs` does the turning.
+west 270. `Core/Rig.cs` parses the file and `../Machines/Core/Footprint.cs` does the turning.
 
 **Assembly.** Right-click the frame or any ghost holding a part, recognised by code path as
 Immersive Woodworking does: two `sawmillsash`, one `sawmillcrankshaft`, one `sawmilllevers` and one
@@ -75,7 +79,7 @@ the mill is assembled, then with `Resistance`. The mill runs its saws' cycle, cu
 rack only while it is assembled and the shaft turns at `MinSpeed` or faster.
 
 **Trunks.** One at a time, held as the trunk's whole item stack, so one taken back out is unchanged.
-It is shown as one of two of Logging Expanded's models, whatever its own size (`Core/TrunkBox.cs`):
+It is shown as one of two of Logging Expanded's models, whatever its own size (`../Machines/Core/TrunkBox.cs`):
 a thin trunk (sizes `xs` to `lg`) as the `lg` model, 1×1×4 blocks, and a thick one (`xl`, `xxl`)
 as the `xxl` model, 2×2×5, of its wood and without branches (`Trunks.ShownBlock`). While loaded
 it is solid and selectable: one box of the shown model's size, centred on the bed, its underside
@@ -90,7 +94,9 @@ trunk acts on the mill as a click on any cell does; one with an unrelated item i
 item would otherwise use (a block would be placed inside the trunk), is taken and does nothing.
 Any `loggingmod:treetrunk-*` of any size goes in, but not a branched one (`branches` variant `yes`
 or `branchCount` above 0) while Logging Expanded's `RequireBranchRemovalForProcessing` is on: the
-player gets Logging Expanded's own message. By hand, right-click holding a trunk, or with an empty
+player gets Logging Expanded's own message. A debarked trunk (the rosser's output, `branches`
+variant `debarked`) goes in like a clean one, and its cut gives the wood's debarked log
+(`TreeManager.GetDebarkedLogCode`) in place of the placed log, at the same yield and wear. By hand, right-click holding a trunk, or with an empty
 hand to take the first one from the hotbar, then the backpack (as Logging Expanded's workstations
 search). A trunk goes on only while the saws are at the top of their cycle, within
 `SawDepth.LoadWindow` (0.08 of the travel, about half a turn either side of the top at the
@@ -106,7 +112,8 @@ mill's tick, not the interaction's step, does the loading (and the winding below
 the three ground-level cells just outside its infeed end (`Rig.InfeedNeighbours`): the cells
 beyond the far end, under the axle, one per cell of the end's width, at the level of the
 controller (the block the player clicked when placing the mill). Either of the rack's two cells
-counts, its controller or its filler (`BlockMultiblock`, followed to its controller), so a rack
+counts, its controller or its filler (`BlockMultiblock`, followed to its controller;
+`LoggingBridge.FindRack`, which the rosser uses too), so a rack
 stood lengthwise in line with the bed or crosswise along the end, turned either way, is found as
 long as one of its cells is in one of those three cells. One further out, diagonally beside the
 end, or a level up or down is not. Placed by a player, the rack faces them and its second block
@@ -124,6 +131,26 @@ racks offer (`CheckRack`, `Core/Feeding.cs`'s `RackState`): none there, empty, t
 top trunk with no logs, or ready; or pulling is switched off, or Logging Expanded is not as
 expected. It sends that to clients with the block entity, and the block info says it, so a player
 can see why nothing is coming.
+
+**A rosser in line.** The same three cells also find a second kind of feeder: a machine whose
+block entity implements `ITrunkFeeder` (`Machines/Game/ITrunkFeeder.cs`), the rosser. A rosser
+placed beyond the far end, facing the mill's way, has its outfeed end in those cells. `CheckRack`
+asks each cell first for a feeder (the block entity there, or the controller of a ghost there,
+through `IMachineGhost`), and counts one only if it faces the mill's own way (`Side`) and the cell
+is one of its outfeed cells (`HasOutfeedCell`); otherwise it looks for a rack as before. The
+feeder's rules say whether a trunk is finished (`PeekFinished`); the mill then applies the rack's
+(branched, no logs) and pulls it at the top of its cycle with `TakeFinished`, under the same gates
+(assembled, empty, saws at the top, `MinSpeed`, `AutoPullFromRack`). Peeking changes nothing, so a
+trunk the mill does not take stays on the rosser. The block info adds three `RackState`s:
+`FeederEmpty`, `FeederBusy` (a trunk is on its way through) and `FeederReady`; between offers
+that do not pull, it names a trunk the player has to deal with first, then one on its way, then an
+empty rosser, then an empty rack (`Feeding.MoreTelling`). The Atlas scenarios test this with a
+stub feeder in every cell and facing, and through a ghost, and with real rossers placed in line on
+every facing. The rosser answers `HasOutfeedCell` only for its controller's cell, the one on the
+trunk's line, so a rosser offset one block sideways is still found and one further off is not; its
+side of the hand-off is in `../Rosser/README.md` ("The mill in line"). To set the two up, place the
+mill, then the rosser on the cell just beyond the mill's far end, in line with its middle, looking
+the same way.
 
 **Cutting.** Progress runs from 0 to 1 per trunk, advanced by how far the shaft turned (its angle,
 as Immersive Woodworking's sawmill does, not the time). A trunk takes `RevolutionsPerStoredLog`
@@ -185,9 +212,10 @@ then come down onto the trunk at the depth its cut has reached (`SawDepth.Advanc
 on the first step, as it does for a newly loaded trunk), and the cut carries on: the logs and the
 wear are those of the whole trunk, once. The block info and the help say when winding applies.
 
-**Logging Expanded** is read through `Game/LoggingBridge.cs`, by reflection: the rack's block entity
-(`LoggingMod.BETrunkStorage`: `GetStoredTrunks`, `PopTrunk`), `LoggingMod.TreeManager.Instance`
-(`GetPlacedLogCode`) and `LoggingMod.LoggingConfig.Current` (`RequireBranchRemovalForProcessing`).
+**Logging Expanded** is read through `../Machines/Game/LoggingBridge.cs`, by reflection, shared with
+the rosser: the rack's block entity (`LoggingMod.BETrunkStorage`: `GetStoredTrunks`, `PopTrunk`, and
+for the rosser `PushTrunk` and `TrunkCount`), `LoggingMod.TreeManager.Instance` (`GetPlacedLogCode`,
+`GetDebarkedLogCode`) and `LoggingMod.LoggingConfig.Current` (`RequireBranchRemovalForProcessing`).
 The log count and wood come from the trunk stack's own attributes (`slots` → `"0"`, a stack of the
 log block whose size is the count). If a member is missing the mod logs one warning and the mill
 takes and cuts no trunks.
@@ -217,7 +245,7 @@ the item's, so Immersive Woodworking's own plank sawmill gets it too.
 | `LogsPerStoredLog` | 2.0 | Logs out per log stored, rounded down over the trunk |
 | `BladeWearPerStoredLog` | 1 | Durability the blade kit loses per log stored, rounded up over the trunk |
 | `BladeSpeedPerTier` | 0.35 | How much faster the blade kit cuts per tool tier above copper's (see **Blade speed**); 0 makes every metal cut at copper's speed |
-| `AutoPullFromRack` | true | Whether it takes trunks from a rack at its infeed end (the far end, under the axle) |
+| `AutoPullFromRack` | true | Whether it takes trunks from a rack, or from a rosser in line, at its infeed end (the far end, under the axle). Off, a rosser in line keeps its trunk too and does not push it to a rack. |
 
 ## Crafting
 
@@ -363,7 +391,7 @@ python3 mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py            # 
 python3 mods-src/seraphhorizons/BuckingSawmill/tools/make_shape.py --out DIR  # or writes them into DIR instead
 ```
 
-It also writes `tests/BuckingSawmill/rig-reference.json`: every part's matrix at a grid of poses, from the script's reference maths. The unit tests check `Core/RigAnimation.cs` against it, so the C# and the Python cannot drift apart.
+It also writes `tests/BuckingSawmill/rig-reference.json`: every part's matrix at a grid of poses, from the script's reference maths. The unit tests check `../Machines/Core/RigAnimation.cs` against it, so the C# and the Python cannot drift apart. The script imports its generic half (geometry helpers, the driver maths, the shared checks, the writers and the origin shift) from `../Machines/tools/machinegen/`, which the rosser's generator shares; moving it there left the mill's four files byte-identical.
 
 The output is deterministic. On every run the script also checks its own output, and exits non-zero if any check fails:
 
@@ -477,6 +505,11 @@ How `parts` works:
 | `step` | `motion` (`slide` or `rotate`), `axis`, `pivot` (rotate only), `amount`, `from` (0), `to` (1), `lifting` (absent, `hold`, `block` or `trip`), `top` (`trip` only, above 0) | Let e = clamp((*d* − `from`) / (`to` − `from`), 0, 1). Then `lifting: hold` makes e = max(e, *L*), `lifting: block` makes e = e·(1 − *L*), and `lifting: trip` makes e = e·(1 − *L*) + clamp(*d* / `top`, 0, 1)·*L*: thrown in over `from`..`to` going down, held while going up, and thrown back out over `top`..0 at the end of the rise. `slide` translates along `axis` by `amount`·e (blocks); `rotate` turns by `amount`·e (radians) about `pivot`. |
 | `stretch` | `axis`, `anchor`, `length`, `travel` | Scales along `axis` about the plane through `anchor` normal to it, by f = (`length` + `travel`·*d*) / `length`. A coordinate *a* on that axis goes to `anchor` + f·(*a* − `anchor`); the other axes are unchanged. `length` is the signed distance from the anchor to the free end in the authored model, and `travel` is the free end's signed displacement at *d* = 1. The matrix is the identity, except that the axis' diagonal entry is f and its translation is `anchor`·(1 − f). |
 
+The maths is shared with the rosser (`../Machines/Core/RigAnimation.cs`, whose rig adds the
+`input` key and the `gauge` and `roll` drivers: `../Rosser/README.md`, "Rig schema"). The mill's rig
+uses none of them, so its poses and its reference are unchanged; `"rectified": true` is the same as
+`"input": "travel"`.
+
 How the shipped rig uses them:
 
 | Part | Drivers |
@@ -509,7 +542,7 @@ The model is posed for θ = 0, depth 0 and going down. The exceptions are the yo
 
 The renderer:
 - **Builds one mesh per moving rig part** from `buckingmill.json`, by blanking every other part's elements, as Immersive Woodworking's sawmill renderer does.
-- **Draws each part** with its rig matrix (`RigParts.Matrices(θ, depth, lifting, ψ)` in `Core/RigAnimation.cs`), turned to the mill's facing.
+- **Draws each part** with its rig matrix (`RigParts.Matrices(θ, depth, lifting, ψ)` in `../Machines/Core/RigAnimation.cs`), turned to the mill's facing.
   - A part whose `requires` is not fitted is skipped; the levers part is drawn when `HasLevers`.
   - It registers for the opaque pass and both shadow passes, and draws nothing beyond 64 blocks.
   - The rope's matrix scales along one axis, so it is not rigid.
@@ -612,3 +645,13 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
   is two turns). With the switch off, `SwitchesOffScenarios` requires no mill
   block, no recipe and nothing logged, and with `DurableSawmillBlades` off, Immersive Woodworking's
   own durabilities.
+- `tests/BuckingSawmill/FeedingTests.cs` also covers the second feeder kind: the rack's and the
+  feeder's offers, which states pull, the order `MoreTelling` gives (the racks' pairs as the old enum
+  order), the states' saved numbers and each state's lang line. `tests/PackTests/MillFeederScenarios.cs`
+  (Atlas) finds a stub feeder in every infeed cell and facing, directly and through a stub ghost,
+  ignores one facing another way or in a cell that is not its outfeed cell, never takes with an
+  unassembled mill, and has a running mill take a finished debarked trunk once, at the top, and cut it
+  into debarked logs. `DebarkedTrunkScenarios` has the mill cut a debarked trunk into debarked logs,
+  and `RosserScenarios` places real rossers in line (`../Rosser/README.md`).
+- `tests/Machines/` holds the shared code's tests: the driver fixture (`DriverFixtureTests`) and the
+  shaft's sign, trunk path and hollow cells (`MachinesCoreTests`).

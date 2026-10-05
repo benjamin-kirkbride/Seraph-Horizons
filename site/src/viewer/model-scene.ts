@@ -346,6 +346,16 @@ export class ModelScene {
           };
           g.add(lines([...p0, ...p1, ...tick(p0), ...tick(p1), ...tick([...a.origin])], OVERLAY_COLOURS.line));
           this.label(a.key, a.label, [p1[0]!, p1[1]! + 0.3, p1[2]!]);
+          // Stations: an upright tick at each place along the axis, labelled.
+          for (const mark of a.marks ?? []) {
+            const at = [...a.origin];
+            at[k] = mark.at;
+            const up = k === 1 ? across : 1;
+            const top = [...at];
+            top[up] = at[up]! + 0.35;
+            g.add(lines([...at, ...top], OVERLAY_COLOURS.line));
+            this.label(a.key, mark.label, top as Vec3);
+          }
           break;
         }
         case "level": {

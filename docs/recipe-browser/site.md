@@ -98,7 +98,8 @@ The unit tests in `site/test/` cover the logic in `site/src/lib/`: the prepare-d
 transform and its reverse indexes, wildcard matching, search ranking, VTML sanitising,
 routes, icon paths and recipe layout, and the model viewer's maths, manifest and play
 script ([models.md](models.md)). They use `schema/examples/minimal.json` and small
-hand-written exports, and the bucking sawmill's shipped shape, rig and reference poses.
+hand-written exports, the bucking sawmill's and the rosser's shipped shapes, rigs and reference
+poses, and the machines' driver fixture (`mods-src/seraphhorizons/tests/Machines/driver-fixture.json`).
 
 The end-to-end tests in `site/e2e/` only run against a real export; without
 `RECIPE_EXPORT` the run fails. `e2e/serve.ts` builds the site, runs prepare-data on the

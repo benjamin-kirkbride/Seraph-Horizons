@@ -1,6 +1,8 @@
 using System.Text;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -607,9 +609,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
 
     /// <summary>An assembled, empty mill with its saws at the top of their cycle, turning fast
     /// enough, takes the next trunk from a Trunk Storage Rack touching its infeed end at ground
-    /// level, unless that trunk is branched (it waits for the player to debranch it). Tried every
-    /// tick the saws are at (or pass) the top, and once a second besides; the rack is looked up
-    /// every time.</summary>
+    /// level, or the finished trunk of a feeder in line there (the rosser), unless that trunk is
+    /// branched (it waits for the player to debranch it). Tried every tick the saws are at (or
+    /// pass) the top, and once a second besides; the rack or feeder is looked up every time.</summary>
     private void OnRackTick(float dt)
     {
         // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
@@ -626,20 +628,32 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public bool PullFromRack(bool passedTop = false)
     {
         if (_trunk != null || !Feeding.CanTakeTrunk(_depth, passedTop) || !_parts.Complete || ShaftSpeed < Config.MinSpeed
-            || CheckRack(out var rack) != RackState.Ready || System.Logging is not { } logging
-            || logging.PopTrunk(rack!) is not { } trunk)
+            || !Feeding.Pulls(CheckRack(out var ready)) || System.Logging is not { } logging)
             return false;
-        rack!.MarkDirty(true);
+        var trunk = ready switch
+        {
+            ITrunkFeeder feeder => feeder.TakeFinished(),
+            BlockEntity rack => logging.PopTrunk(rack),
+            _ => null,
+        };
+        if (trunk == null)
+            return false;
+        // A feeder saves and syncs itself.
+        if (ready is BlockEntity rackEntity and not ITrunkFeeder)
+            rackEntity.MarkDirty(true);
         Load(trunk);
         _rackState = CheckRack(out _);
         return true;
     }
 
-    /// <summary>What the racks at the infeed end offer (server side): the first that has a trunk the
-    /// mill takes is <paramref name="ready"/>; otherwise the most telling reason it has none. A rack
-    /// counts when its controller or filler cell is one of the ground cells just outside the infeed
-    /// end (<see cref="Rig.InfeedNeighbours"/>), however it is turned.</summary>
-    public RackState CheckRack(out BlockEntity? ready)
+    /// <summary>What the racks, or a feeder in line, at the infeed end offer (server side): the
+    /// first that has a trunk the mill takes is <paramref name="ready"/> (the rack's block entity or
+    /// the <see cref="ITrunkFeeder"/>); otherwise the most telling reason it has none. A rack counts
+    /// when its controller or filler cell is one of the ground cells just outside the infeed end
+    /// (<see cref="Rig.InfeedNeighbours"/>), however it is turned. A feeder counts when one of its
+    /// outfeed cells is one of them (its controller's or a ghost's) and it faces the mill's way.
+    /// AutoPullFromRack covers both.</summary>
+    public RackState CheckRack(out object? ready)
     {
         ready = null;
         if (!Config.AutoPullFromRack)
@@ -649,33 +663,38 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         if (Rig is not { } rig)
             return RackState.None;
         var best = RackState.None;
+        var blockAccessor = Api.World.BlockAccessor;
         foreach (var local in rig.InfeedNeighbours())
         {
-            if (FindRack(logging, CellPos(local)) is not { } rack)
-                continue;
-            var state = logging.PeekTrunk(rack) is not { } top || !Trunks.IsTrunk(top) ? RackState.Empty
-                : BranchedAndRefused(top) ? RackState.Branched
-                : Trunks.StoredLogs(top, Api.World) <= 0 ? RackState.NoLogs
-                : RackState.Ready;
-            if (state == RackState.Ready)
+            var cell = CellPos(local);
+            RackState state;
+            object source;
+            if (TrunkFeeders.Find(blockAccessor, cell) is { } feeder && feeder.Side == Side && feeder.HasOutfeedCell(cell))
             {
-                ready = rack;
+                var finished = feeder.PeekFinished();
+                bool isTrunk = Trunks.IsTrunk(finished);
+                state = Feeding.FeederOffer(isTrunk, feeder.Busy, isTrunk && BranchedAndRefused(finished!),
+                                            isTrunk ? Trunks.StoredLogs(finished!, Api.World) : 0);
+                source = feeder;
+            }
+            else if (logging.FindRack(blockAccessor, cell) is { } rack)
+            {
+                var top = logging.PeekTrunk(rack);
+                bool isTrunk = Trunks.IsTrunk(top);
+                bool branched = isTrunk && BranchedAndRefused(top!);
+                state = Feeding.RackOffer(isTrunk, branched, isTrunk && !branched ? Trunks.StoredLogs(top!, Api.World) : 0);
+                source = rack;
+            }
+            else
+                continue;
+            if (Feeding.Pulls(state))
+            {
+                ready = source;
                 return state;
             }
-            if (state > best)
-                best = state;
+            best = Feeding.MoreTelling(best, state);
         }
         return best;
-    }
-
-    /// <summary>The rack whose controller or filler cell is at <paramref name="pos"/>.</summary>
-    private BlockEntity? FindRack(LoggingBridge logging, BlockPos pos)
-    {
-        var ba = Api.World.BlockAccessor;
-        if (ba.GetBlock(pos) is BlockMultiblock filler)
-            pos = pos.AddCopy(filler.OffsetInv);
-        var be = ba.GetBlockEntity(pos);
-        return logging.IsRack(be) ? be : null;
     }
 
     // ---- Cutting ----
@@ -734,7 +753,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     {
         var trunk = _trunk!;
         int stored = _storedLogs;
-        var log = Trunks.Wood(trunk, Api.World) is { } wood && System.Logging?.PlacedLogCode(wood) is { } code
+        // A debarked trunk (the Rosser switch's) cuts into its wood's debarked log.
+        var log = Trunks.Wood(trunk, Api.World) is { } wood && System.Logging is { } logging
+                  && (Trunks.IsDebarked(trunk) ? logging.DebarkedLogCode(wood) : logging.PlacedLogCode(wood)) is { } code
             ? Api.World.GetBlock(code)
             : null;
         ClearTrunk();
