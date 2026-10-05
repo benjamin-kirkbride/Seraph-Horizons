@@ -143,14 +143,128 @@ item's "Harvested" sources of these creatures carry the cut, already applied, in
 
 Not covered: antlers the skinning hook hands back (`EntityBehaviorAntlerGrowth`'s inventory,
 decided at runtime), the player's stats (`butcheringSpeedMul`, `animalLootDropRate`, XSkills),
-how long each right click takes, and the mod's smoking rack (`transformsWhenSmoked`, a
-separate process, not butchery).
+and how long each right click takes. The mod's smoking rack is a separate process with
+records of its own ([below](#the-smoking-rack-the-butchering-mod)).
 
 `mod` is the mod whose files hold the definition asset (vanilla recipes are `survival`),
 and `source` is its asset location. Types from base-game registries are bare (`grid`);
 mod registries are `<modid>:<registry code without "recipes">`, e.g.
 `aculinaryartillery:simmer`. `recipeTypes` lists every registry found, including empty ones
 (`count: 0`).
+
+## Transitions over time
+
+Not a registry either: a collectible's `TransitionableProps` (asset `transitionableProps`,
+usually by type) lists what a stack of it turns into after some hours, and the engine checks
+that list itself whenever it updates a stack (`CollectibleObject.
+UpdateAndGetTransitionStatesNative`, decompiled 1.22.7). `Recipes/Transitions.cs` reads the
+list of every registered collectible, so ByType is resolved and JSON patches are applied.
+Each entry whose kind is not `None` and whose `transitionedStack` resolved is one record of
+shape `transition` (an entry whose stack did not resolve is logged and counted, since the
+engine could not carry it out either). The record type is the kind:
+
+| `EnumTransitionType` | Record type | In the pack (1.22.7, this commit) |
+|---|---|---|
+| `Perish` | `perishing` | 3326, 2685 of them into `game:rot` |
+| `Dry` | `drying` | 116 |
+| `Cure` | `curing` | 237 |
+| `Ripen` | `ripening` | 2 (raw cheese) |
+| `Melt` | `melting` | 27 (snow, ice) |
+| `Harden` | `hardening` | 4 (hot glue, lard, resin) |
+| `Burn`, `Convert` | `burning`, `converting` | 0 |
+
+Every kind gets an entry in `recipeTypes`, with `count: 0` when nothing has it.
+
+What the engine does, from the decompiled code:
+
+- A stack draws its own fresh and transition hours from the two `NatFloat`s when it is
+  created, and turns when the hours it has spent pass both. The new stack's size is the old
+  one's times `transitionRatio`, rounded at random; the transitioned stack's own quantity is
+  ignored. So the record's output quantity is the ratio.
+- Time counts at the rate `InventoryBase.GetTransitionSpeedMul` gives: 1 for perish, dry,
+  cure, ripen, melt and harden in any ordinary inventory, 0 for burn and convert, and
+  whatever a container's `OnAcquireTransitionSpeed` handlers or override make of it (a
+  cellar, a mod's drying rack). Perishing also stops above 75 °C and is scaled by
+  `GlobalConstants.PerishSpeedModifier`. The export gives the hours at rate 1.
+- Once a stack has started to perish, every later entry of its list stops advancing: raw
+  meat that is dry-aging stops drying when it begins to rot.
+- A collectible class may override `GetTransitionableProperties` per stack (meals and liquid
+  containers take their contents'); the export reads the collectible's own list only.
+
+### Which mod a transition belongs to
+
+`mod` and `source` name the file the transition comes from: the JSON patch that wrote it
+into the item's type file, or else the type file itself. Expanded Foods' dry-aging of
+vanilla raw poultry is `expandedfoods`, source `game:patches/poultry.json` (a file in
+Expanded Foods' zip); raw poultry's own perishing stays `survival`, source
+`game:itemtypes/food/poultry.json`. This differs on purpose from other recipe kinds, where a
+patched definition stays with the file it patches (BetterRuins' cupronickel nails in a
+vanilla grid recipe are `survival`).
+
+A collectible remembers neither, so `TransitionOrigins` (in `Recipes/Transitions.cs`)
+reconstructs it:
+
+1. The item's type file is the one `ModIndex` already maps it to (the type whose code is
+   the longest dash-separated prefix of the item's code).
+2. The patch files are read as the engine's `ModJsonPatchLoader` (VSEssentials, decompiled
+   1.22.7) selects them: `patches/` of every domain, in the same order, parsed as its
+   `JsonPatch`, skipping disabled patches, client-only ones, unmet world-config conditions
+   and unmet `dependsOn`. A `file` ending in `*` covers every file it prefixes.
+3. A patch on that file is the origin when its value, at its `path`, holds an entry equal to
+   the live one: same kind, same output (a domain-less code takes the type file's domain,
+   `{placeholders}` match any value), same fresh hours, transition hours and ratio (an
+   absent field counts as the engine's default: 36, 12 and 1), and under
+   `transitionablePropsByType/<key>` with a key that matches the item's code (the engine's
+   `WildcardUtil`), or under `transitionableProps`. The last such patch in load order wins,
+   as the last one applied is in effect. No match: the type file.
+
+It finds the right file whenever a patch adds or replaces whole entries. In the pack that
+is 210 records credited to a patch: Expanded Foods (cider, juice, spirits, fruit, meat, fish), Primitive
+Survival (live fish perish into raw fish) and Expanded Matter (graded powder), each checked
+against the patch files. Where it is wrong:
+
+- A patch that rewrites a whole list takes the credit for entries it copies over unchanged.
+- A patch that changes only one field of an entry (`replace` on `.../freshHours`) carries no
+  whole entry, so the entry stays with the type file, though its hours are the patch's.
+- `move` and `copy` operations have no value and never match (Expanded Foods moves raw
+  mash's list; the content is the game's, so the game keeps it, which is right).
+- Entries a mod adds in code, not by patch, are credited to the type file.
+
+## The smoking rack (the Butchering mod)
+
+The Butchering mod's smoking rack (`blocktypes/smokingrack.json`, entity class `MeatHook`,
+`BlockEntityMeatHook` in the decompiled 1.14.3) is not a transition: an item whose attribute
+`transformsWhenSmoked` names another item can be hung on it, one per slot, 16 slots. While
+the firepit directly below burns, each item's `smokingTime` grows; past the class's
+constant `smokingTimeHours` (4) it becomes one of the named item. When the fire is out the
+time of everything on it goes back to 0. The rack reads `Itemstack.Item`, so blocks cannot
+be hung, and the output code goes through `new AssetLocation(code)`, so a domain-less one is
+in `game`.
+
+`Recipes/Smoking.cs` finds the class by name through the class registry (the exporter cannot
+reference the mod), the racks as every block whose entity class is it, the hours from the
+constant by reflection, and the items from their live attributes (ByType resolved, the mod's
+own patches on vanilla meat and fish applied). Each item is a record `smoking|<item>|0` of
+type `smoking` ("Smoking rack") and shape `transition`: the item, then the racks (role
+`station`, not consumed), the smoked item as the one output, `transition.type` `smoke` with
+0 fresh hours and 4 transition hours, and the firepit in `requirements`. 10 records in the
+pack: Butchering's prime meat and sausages and vanilla red meat, bushmeat and fish, raw and
+cured.
+
+## Other time-based processes (not covered)
+
+Checked in the pack's code (decompiled) and assets; none is exported:
+
+| Mod | Mechanism | Why not |
+|---|---|---|
+| Primitive Survival 5.1.4 | Smoker (`BESmoker`): trussed raw meat becomes `path.Replace("raw", "smoked")`, and taking it out gives 4 of `smokedmeat-<part>-raw` | Outputs are built from code strings, and the time (5/12 of a day after lighting) is a literal in a method, which reflection cannot read |
+| Age of Flax (fork) 1.1.6 | Drying rack (`BlockEntityDryingRack`) for retted flax | Only speeds the flax bundle's own `Dry` transition (×3 by its balance config); the transition is exported |
+| Alchemy 2.2.0-rc.12 | Herb racks (`BlockEntityHerbRacks`) for `herbrackable` items | Only a speed: `Dry` and `Melt` ×4, or ×5 in a closed room |
+| Food Shelves 3.1.0 | Ceiling racks, jars, barrel and tun racks | Only speeds (drying ×4.5, curing ×0.74 to ×0.8) through `OnAcquireTransitionSpeed` |
+| Immersive Woodworking 1.3.11 | Green bark dries faster in ground storage (`ItemIwGreenBark.GetTransitionRateMul`) | Only a speed |
+| Purposeful Storage, A Culinary Artillery, Turpentine, Yang Transport, Hydrate or Diedrate | Their assemblies hook `OnAcquireTransitionSpeed`, `GetTransitionSpeedMul` or `TransitionableSpeedMulByType` | Speeds, by the hooks they use; not decompiled further |
+| Compost Bin 1.3.15 | A bin that composts perishables, with a Harmony patch on `GetTransitionRateMul` for perishing | Composting, not drying; not examined further |
+| Stone Bake Oven 1.4.0 | "Smoke" on the oven grill | Only the grill block's hot/cold look, not a process |
 
 ## Where the schema does not fit (data in `extra`)
 
@@ -180,6 +294,14 @@ mod registries are `<modid>:<registry code without "recipes">`, e.g.
 - butchery: the whitetail deer's stages, stations, tools, bleed time, blood and rewards from
   the Butchering mod's assets; its harvestable drops split between hook and table and halved
   in the field; every butcherable entity variant in exactly one record, with aligned yields;
+- transitions: wet sinew curing into dry sinew (Butchering's asset), a vanilla bowstave
+  drying, raw cheese ripening and then perishing (list positions, ratio 4) and a bush cutting
+  perishing into a quarter as many sticks; every transition of every registered collectible
+  in exactly one record of its kind's type;
+- transition origins: Expanded Foods' dry-aging patch on raw poultry credited to it, raw
+  poultry's own perishing to the game;
+- the smoking rack: prime meat and patched-in vanilla red meat, 4 hours, both racks as
+  stations, and every item with `transformsWhenSmoked` in exactly one record;
 - records per type against the definitions counted with the engine's asset loader, and
   variants per type against the sizes of the engine's registries;
 - the structural rules of the document, schema validation (JsonSchema.Net, draft

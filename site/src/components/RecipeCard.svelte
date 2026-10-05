@@ -15,6 +15,7 @@
   import CookingRecipe from "../renderers/CookingRecipe.svelte";
   import ConstructionRecipe from "../renderers/ConstructionRecipe.svelte";
   import ButcheryRecipe from "../renderers/ButcheryRecipe.svelte";
+  import TransitionRecipe from "../renderers/TransitionRecipe.svelte";
   import GenericRecipe from "../renderers/GenericRecipe.svelte";
   import ModLink from "./ModLink.svelte";
   import Slot from "./Slot.svelte";
@@ -62,6 +63,7 @@
     cooking: CookingRecipe,
     construction: ConstructionRecipe,
     butchery: ButcheryRecipe,
+    transition: TransitionRecipe,
     generic: GenericRecipe,
   };
   // The type block a shape relies on can be missing in a malformed record; the generic
@@ -72,6 +74,7 @@
     if (shape === "voxels" && !recipe.voxels) return GenericRecipe;
     if (shape === "construction" && !recipe.construction) return GenericRecipe;
     if (shape === "butchery" && !recipe.butchery) return GenericRecipe;
+    if (shape === "transition" && !recipe.transition) return GenericRecipe;
     return renderers[shape] ?? GenericRecipe;
   });
 </script>

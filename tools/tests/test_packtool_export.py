@@ -24,7 +24,7 @@ class ExportCounts(unittest.TestCase):
     def test_counts_per_type_from_the_example(self):
         counts, problems = packtool.export_counts(json.loads(EXAMPLE.read_text()))
         self.assertEqual(problems, [])
-        self.assertEqual(counts, {"alloy": 1, "barrel": 1, "butchery": 1, "construction": 1, "examplemod:press": 1, "grid": 1, "knapping": 1})
+        self.assertEqual(counts, {"alloy": 1, "barrel": 1, "butchery": 1, "construction": 1, "curing": 1, "examplemod:press": 1, "grid": 1, "knapping": 1, "smoking": 1})
 
     def test_type_with_no_recipes_is_counted_as_zero(self):
         doc = {"recipes": [recipe("grid|a|0", "grid")],
@@ -88,8 +88,8 @@ class CheckExport(unittest.TestCase):
         self.path.write_text(EXAMPLE.read_text())
         lines, failures = packtool.check_export(self.path, [])
         self.assertEqual(failures, [])
-        self.assertTrue(lines[0].startswith("recipe export: 7 recipe(s) in 7 type(s), "))
-        self.assertEqual(lines[1:], ["  alloy: 1", "  barrel: 1", "  butchery: 1", "  construction: 1", "  examplemod:press: 1", "  grid: 1", "  knapping: 1"])
+        self.assertTrue(lines[0].startswith("recipe export: 9 recipe(s) in 9 type(s), "))
+        self.assertEqual(lines[1:], ["  alloy: 1", "  barrel: 1", "  butchery: 1", "  construction: 1", "  curing: 1", "  examplemod:press: 1", "  grid: 1", "  knapping: 1", "  smoking: 1"])
 
 
 if __name__ == "__main__":

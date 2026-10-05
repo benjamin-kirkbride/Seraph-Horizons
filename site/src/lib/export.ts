@@ -2,7 +2,7 @@
 // contract; these mirror it and are only as strict as the app needs.
 
 export type Kind = "item" | "block";
-export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "butchery" | "generic";
+export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "butchery" | "transition" | "generic";
 
 export interface Mod {
   name: string;
@@ -130,6 +130,7 @@ export interface Recipe {
   cooking?: { code?: string; cooksInto?: Stack; dirtyPot?: boolean };
   construction?: { stages: { ingredients: number[]; action?: string }[] };
   butchery?: Butchery;
+  transition?: Transition;
   requirements?: string[];
   extra?: Record<string, unknown>;
 }
@@ -164,6 +165,26 @@ export interface Butchery {
   stages: ButcheryStage[];
   /** Aligned with the recipe's variants; each one's yields with its outputs. */
   variants: { entities: { code: string; name?: string }[]; yields: (Yield | null)[] }[];
+}
+
+/** In-game hours: the average and the spread each stack draws its own value from. */
+export interface Hours {
+  avg: number;
+  var?: number;
+}
+
+/**
+ * A stack that turns into another after some time: the recipe's first ingredient into its
+ * one output, whose quantity is stacks out per stack in. By itself (the collectible's
+ * transitionableProps), or on a station that further ingredients name (role `station`).
+ */
+export interface Transition {
+  /** The engine's EnumTransitionType in lower case (perish, dry, cure, ...), or a mod's own process (smoke). */
+  type: string;
+  /** Hours before it starts. */
+  freshHours: Hours;
+  /** Hours it then takes. */
+  transitionHours: Hours;
 }
 
 export interface RecipeType {

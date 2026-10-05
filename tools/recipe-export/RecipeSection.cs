@@ -5,6 +5,7 @@ using SeraphHorizons.RecipeExport.Recipes;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
 namespace SeraphHorizons.RecipeExport;
@@ -29,6 +30,9 @@ public static class RecipeSection
 
     /// <summary>Type code of the Butchering mod's carcass processing (not a registry; see <see cref="Butchery"/>).</summary>
     public const string ButcheryType = "butchery";
+
+    /// <summary>Type code of the Butchering mod's smoking rack (not a registry; see <see cref="Smoking"/>).</summary>
+    public const string SmokingType = "smoking";
 
     /// <returns>Every item and block code the exported recipes reference.</returns>
     public static ISet<string> Fill(ICoreServerAPI api, JObject root) => Fill(api, root, Registries.Find(api));
@@ -69,11 +73,9 @@ public static class RecipeSection
         if (types.ContainsKey(InPlaceType))
             throw new RecipeExportException($"A recipe registry has the type code '{InPlaceType}' that built-in-place blocks use");
         var builds = InPlaceBuilds.Find(ctx.Api, ctx.Expander);
+        var mods = new ModIndex(api);
         using (new EnglishLocale())
-        {
-            var mods = new ModIndex(api);
             records.AddRange(builds.Select(b => BuildRecord(ctx, mods, b)));
-        }
         types[InPlaceType] = new JObject
         {
             ["name"] = "Built in place",
@@ -97,6 +99,44 @@ public static class RecipeSection
                 ["shape"] = "butchery",
                 ["registry"] = butchery.BehaviorClass,
                 ["mod"] = butchery.Mod,
+            };
+        }
+
+        // One type per kind of transition, every kind even when no collectible has it, like
+        // empty registries.
+        var transitions = Transitions.Find(ctx.Api, out var skipped);
+        if (skipped > 0)
+            api.Logger.Warning("[seraphexport] {0} transition(s) whose transitioned stack did not resolve were skipped", skipped);
+        var origins = new TransitionOrigins(api, mods);
+        foreach (var (kind, (code, name)) in Transitions.Types)
+        {
+            if (types.ContainsKey(code))
+                throw new RecipeExportException($"A recipe registry has the type code '{code}' that {name.ToLowerInvariant()} uses");
+            var mine = transitions.Where(t => t.Props.Type == kind).ToList();
+            records.AddRange(mine.Select(t => TransitionRecord(ctx, origins, code, t)));
+            types[code] = new JObject
+            {
+                ["name"] = name,
+                ["count"] = mine.Count,
+                ["shape"] = "transition",
+                ["registry"] = nameof(TransitionableProperties),
+                ["mod"] = "game",
+            };
+        }
+
+        var smoking = Smoking.Find(ctx.Api);
+        if (smoking != null)
+        {
+            if (types.ContainsKey(SmokingType))
+                throw new RecipeExportException($"A recipe registry has the type code '{SmokingType}' that the smoking rack uses");
+            records.AddRange(smoking.Items.Select(s => SmokingRecord(ctx, smoking, s)));
+            types[SmokingType] = new JObject
+            {
+                ["name"] = "Smoking rack",
+                ["count"] = smoking.Items.Count,
+                ["shape"] = "transition",
+                ["registry"] = smoking.BlockEntityClass,
+                ["mod"] = smoking.Mod,
             };
         }
 
@@ -457,6 +497,96 @@ public static class RecipeSection
         if (data.Condition is { } condition)
             o["butchery"]!["condition"] = new JObject { ["min"] = Num(condition.Min), ["max"] = Num(condition.Max) };
         o["extra"] = new JObject { ["behavior"] = data.BehaviorClass };
+        return o;
+    }
+
+    /// <summary>
+    /// One transition: the collectible is the one ingredient, the transitioned stack the one
+    /// output, with the transition ratio (stacks out per stack in) as its quantity, since the
+    /// engine sizes the new stack by the ratio and ignores the stack's own size.
+    /// </summary>
+    private static JObject TransitionRecord(Context ctx, TransitionOrigins origins, string type, Transition t)
+    {
+        var from = t.From.Code.ToString();
+        var to = t.Output.Collectible.Code.ToString();
+        var input = new JObject { ["code"] = from, ["kind"] = Kind(t.From.ItemClass), ["quantity"] = 1 };
+        var output = new JObject { ["code"] = to, ["kind"] = Kind(t.Output.Class), ["quantity"] = Num(Json.Round(t.Props.TransitionRatio)) };
+        if (t.Output.Attributes is { Count: > 0 } attrs) output["attributes"] = JObject.Parse(attrs.ToJsonToken());
+        ctx.Referenced.Add(from);
+        ctx.Referenced.Add(to);
+        var (source, mod) = origins.Of(t);
+        var o = new JObject
+        {
+            ["id"] = $"{type}|{from}|{t.Index}",
+            ["type"] = type,
+            ["mod"] = mod,
+        };
+        if (source != null) o["source"] = source.ToString();
+        o.Merge(new JObject
+        {
+            ["ingredients"] = new JArray(input),
+            ["outputs"] = new JArray(output),
+            ["variants"] = new JArray(new JObject
+            {
+                // new JArray(JArray) would copy the inner array's items, not nest it.
+                ["ingredients"] = new JArray { new JArray(input.DeepClone()) },
+                ["outputs"] = new JArray(output.DeepClone()),
+            }),
+            ["transition"] = new JObject
+            {
+                ["type"] = Json.Lower(t.Props.Type),
+                ["freshHours"] = Hours(t.Props.FreshHours),
+                ["transitionHours"] = Hours(t.Props.TransitionHours),
+            },
+        });
+        return o;
+    }
+
+    /// <summary>
+    /// One item on the smoking rack, as a transition with a station: the item is the first
+    /// ingredient, the racks the second (role station, not consumed), and the item it becomes
+    /// the one output.
+    /// </summary>
+    private static JObject SmokingRecord(Context ctx, SmokingData data, Smoked s)
+    {
+        var from = s.From.Code.ToString();
+        var to = s.Output.Code.ToString();
+        var shown = data.Racks.Where(b => HandbookRule.PagesFor(b).Any()).ToList();
+        var racks = shown.Count > 0 ? shown : data.Racks;
+        var input = new JObject { ["code"] = from, ["kind"] = "item", ["quantity"] = 1 };
+        var rack = new JObject { ["code"] = racks[0].Code.ToString(), ["kind"] = "block", ["quantity"] = 1, ["role"] = "station" };
+        var output = new JObject { ["code"] = to, ["kind"] = "item", ["quantity"] = 1 };
+        var accepted = racks.Select(b => new JObject { ["code"] = b.Code.ToString(), ["kind"] = "block", ["quantity"] = 1 }).ToList();
+        ctx.Referenced.Add(from);
+        ctx.Referenced.Add(to);
+        foreach (var b in racks) ctx.Referenced.Add(b.Code.ToString());
+        return new JObject
+        {
+            ["id"] = $"{SmokingType}|{from}|0",
+            ["type"] = SmokingType,
+            ["mod"] = data.Mod,
+            ["ingredients"] = new JArray(input, rack),
+            ["outputs"] = new JArray(output),
+            ["variants"] = new JArray(new JObject
+            {
+                ["ingredients"] = new JArray { new JArray(input.DeepClone()), new JArray(accepted) },
+                ["outputs"] = new JArray(output.DeepClone()),
+            }),
+            ["transition"] = new JObject
+            {
+                ["type"] = "smoke",
+                ["freshHours"] = new JObject { ["avg"] = 0 },
+                ["transitionHours"] = new JObject { ["avg"] = Num(data.Hours) },
+            },
+            ["requirements"] = new JArray("A burning firepit directly below the rack; the time starts over whenever the fire is out"),
+            ["extra"] = new JObject { ["blockEntity"] = data.BlockEntityClass, ["attribute"] = Smoking.Attribute },
+        };
+    }
+
+    private static JObject Hours(NatFloat? hours)
+    {
+        var o = new JObject { ["avg"] = Num(Json.Round(hours?.avg ?? 0)) };
+        if (hours != null && hours.var != 0) o["var"] = Num(Json.Round(hours.var));
         return o;
     }
 

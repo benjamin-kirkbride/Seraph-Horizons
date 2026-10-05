@@ -14,6 +14,8 @@ import {
   efficiencyRange,
   focusVariants,
   formatChance,
+  formatHours,
+  formatHoursRange,
   panChance,
   formatRange,
   formatRatio,
@@ -24,6 +26,7 @@ import {
   sourceRows,
   stackAmount,
   typePage,
+  transitionWindow,
   voxelLayers,
 } from "../src/lib/recipe-view.ts";
 
@@ -346,5 +349,34 @@ describe("pageLinks", () => {
 
   it("shows a single missing page instead of a gap", () => {
     expect(pageLinks(5, 9)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+});
+
+describe("transitions", () => {
+  it("cures wet sinew in two days, starting at once", () => {
+    const sinew = byId("curing|butchering:sinew-wet|0");
+    expect(transitionWindow(sinew.transition!)).toEqual({ starts: [0, 0], takes: [48, 48], done: [48, 48] });
+    expect(formatHoursRange(transitionWindow(sinew.transition!).done)).toBe("2 days");
+  });
+
+  it("smokes prime meat on the rack in four hours", () => {
+    const smoked = byId("smoking|butchering:primemeat-raw|0");
+    expect(formatHoursRange(transitionWindow(smoked.transition!).done)).toBe("4 hours");
+    expect(slotStacks(smoked, 0, 1).map((s) => s.code)).toEqual(["butchering:smokingrack-copper-north"]);
+  });
+
+  it("spreads each part by its var, never below zero", () => {
+    const w = transitionWindow({ type: "perish", freshHours: { avg: 120, var: 24 }, transitionHours: { avg: 2, var: 4 } });
+    expect(w).toEqual({ starts: [96, 144], takes: [0, 6], done: [96, 150] });
+    expect(formatHoursRange(w.done)).toBe("4 days to 6.3 days");
+  });
+
+  it("writes minutes below an hour, hours below two days, then days", () => {
+    expect(formatHours(0.01)).toBe("1 minute");
+    expect(formatHours(0.5)).toBe("30 minutes");
+    expect(formatHours(1)).toBe("1 hour");
+    expect(formatHours(4)).toBe("4 hours");
+    expect(formatHours(47.5)).toBe("47.5 hours");
+    expect(formatHours(168)).toBe("7 days");
   });
 });

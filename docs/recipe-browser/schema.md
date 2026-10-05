@@ -69,6 +69,7 @@ the output item.
 | `cooking` | `cooking`; slot quantities are on the ingredients | Cooking |
 | `construction` | `construction`: stages, each listing the ingredients it consumes | Blocks built in place |
 | `butchery` | `butchery`: stages with what each needs and gives, yields per variant | The Butchering mod |
+| `transition` | `transition`: kind, fresh hours and transition hours | Items that turn into others over time: drying, curing, perishing, ..., and the smoking rack |
 | `generic` | none | Every type without a dedicated serialiser |
 
 In a grid pattern each character is the `key` of an ingredient and `_` is an empty cell.
@@ -112,6 +113,38 @@ in game (`efficiency`, `condition`), `extra.needs` the optional ingredients it n
 The `butchery` shape and block are optional additions, so `schemaVersion` stayed 1; so is
 `condition`, which older exports lack.
 
+### Transitions over time
+
+Some items turn into others by themselves after a while, wherever they are kept: wet sinew
+cures into dry sinew, a raw bowstave dries, raw cheese ripens, snow melts, hot glue
+hardens, food perishes into rot. This is the collectible's `transitionableProps` in game.
+Each entry is a record of shape `transition`, one recipe type per kind: `perishing`,
+`drying`, `curing`, `ripening`, `melting`, `hardening`, `burning` and `converting`. The
+record's one ingredient is the item, its one output what it becomes, with the transition
+ratio (stacks out per stack in) as the output's quantity: four rot from a raw cheese. The
+`transition` block has the kind (`type`, the engine's name in lower case: `perish`, `dry`,
+`cure`, ...), `freshHours`, the in-game hours before it starts, and `transitionHours`, the
+hours it then takes; each is an average with an optional spread (`var`), from which every
+stack draws its own. The item turns when both have passed.
+
+The `id` is `<type>|<item code>|<position in the item's list>`. `mod` and `source` are the
+file the entry comes from: the JSON patch that added it when a mod patched it in (Expanded
+Foods' dry-aging of vanilla meat is `expandedfoods`, source `game:patches/poultry.json`),
+else the item's type file. How that is worked out, and where it can be wrong, is in
+[exporter.md](exporter.md#which-mod-a-transition-belongs-to).
+
+A transition can need a station. The Butchering mod's smoking rack turns raw meat into
+smoked meat in 4 hours over a burning firepit: records of type `smoking`, whose first
+ingredient is the meat and whose second, role `station`, is the rack (not consumed; every
+rack block in the variant), with `transition.type` `smoke` and the firepit in
+`requirements`. The first ingredient of a `transition` record is always what turns; any
+others are stations.
+
+The `transition` shape and block, and the stations, are optional additions, so
+`schemaVersion` stayed 1.
+Items used to carry the same entries in `attributes.extra.transitions`; that copy was
+dropped with no bump, since readers ignore `extra` ([deploy.md](deploy.md#changing-the-export-format)).
+
 ## Rules beyond the schema
 
 - Every recipe `type` is a key of `recipeTypes`, and `count` equals the number of records.
@@ -124,6 +157,8 @@ The `butchery` shape and block are optional additions, so `schemaVersion` stayed
 - Each ingredient and each output of a `butchery` record belongs to exactly one stage;
   `butchery.variants` is as long as `variants`, each one's `yields` as long as `outputs`, and
   a variant's output stacks are the outputs it yields (with their alternatives).
+- A record with a `transition` block has one output and one variant; its first ingredient
+  is what turns and every other one has role `station`.
 
 ## `extra`
 
