@@ -610,7 +610,7 @@ public partial class WoodworkingScenarios
         int i = face.Axis == EnumAxis.X ? 0 : 2;
         Assert.Equal(-1, axleMp.AxisSign[i]);
         var u = Footprint.ToWorld(new Int3(0, 0, 1), rosser.Side);
-        Assert.Equal(face.Axis == EnumAxis.X ? (u.X != 0) : (u.Z != 0), true);
+        Assert.True(face.Axis == EnumAxis.X ? (u.X != 0) : (u.Z != 0));
         int along = u.X + u.Z;
         float lastAngle = shaft.AngleRad;
         double turned = 0;

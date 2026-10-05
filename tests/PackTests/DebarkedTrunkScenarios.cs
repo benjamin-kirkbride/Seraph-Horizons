@@ -135,7 +135,11 @@ public partial class WoodworkingScenarios
         string DebarkedBark(string wood) => ((string?)Entry(wood)["wood-hByType"]?["*-debarked-*"]?["base"])!.Replace("{wood}", wood);
         // the ends: the vanilla debarked log's end grain (no bark ring), where the game has one
         string? DebarkedEnds(string wood) => ((string?)Entry(wood)["woodByType"]?["*-debarked-*"]?["base"])?.Replace("{wood}", wood);
-        bool TextureExists(AssetLocation texture) => World.Api.Assets.Exists(texture.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png"));
+        // A server-only install (CI's) ships no textures at all, so the files can only be looked for
+        // under a full game install, which is told by the clean trunk's own bark being there.
+        bool Exists(AssetLocation texture) => World.Api.Assets.Exists(texture.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png"));
+        var hasTextures = Exists(new AssetLocation("game:block/wood/bark/oak"));
+        bool TextureExists(AssetLocation texture) => !hasTextures || Exists(texture);
         foreach (var wood in woods)
         {
             var bark = new AssetLocation(DebarkedBark(wood));
