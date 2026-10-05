@@ -234,3 +234,54 @@ test("the water wheel is built in place, stage by stage, with the wood of its su
   // Planks are asked for twice (48 in stage 2 and 48 in stage 5).
   await expect(c.locator(`[data-totals] [data-code="game:plank-${wood}"]`)).toHaveAttribute("data-amount", "×96");
 });
+
+test("wet sinew cures into dry sinew in two days, shown on both items' pages", async ({ page }) => {
+  // butchering/itemtypes/resource/sinew.json, sinew-wet: Cure, freshHours 0, transitionHours 48,
+  // into sinew-dry, ratio 1.
+  await openItem(page, "butchering:sinew-wet");
+  const used = await card(page, "usedIn", "curing|butchering:sinew-wet|");
+  await expect(used).toHaveAttribute("data-shape", "transition");
+  await expect(used.locator('[data-output="0"] [data-code]')).toHaveAttribute("data-code", "butchering:sinew-dry");
+  await expect(used.locator('[data-input="0"] [data-code]')).toHaveAttribute("data-code", "butchering:sinew-wet");
+  await expect(used.locator("[data-transition]")).toHaveAttribute("data-transition", "cure");
+  await expect(used.locator("[data-transition]")).toContainText("Cures after 2 days of game time");
+  await expect(page.locator('[data-group="usedIn"][data-type="curing"] h3')).toContainText("Curing");
+
+  await openItem(page, "butchering:sinew-dry");
+  const made = await card(page, "madeBy", "curing|butchering:sinew-wet|");
+  await expect(made.locator('[data-input="0"] [data-code]')).toHaveAttribute("data-code", "butchering:sinew-wet");
+});
+
+test("raw red meat is smoked on the smoking rack in four hours, shown on the meat's, the rack's and the smoked meat's pages", async ({ page }) => {
+  // butchering/patches/items/food/smoked.json: game:itemtypes/food/redmeat.json *-raw
+  // transformsWhenSmoked butchering:smoked-none-redmeat; blocktypes/smokingrack.json;
+  // BlockEntityMeatHook.smokingTimeHours = 4 (decompiled Butchering 1.14.3).
+  await openItem(page, "game:redmeat-raw");
+  const used = await card(page, "usedIn", "smoking|game:redmeat-raw|");
+  await expect(used.locator('[data-output="0"] [data-code]')).toHaveAttribute("data-code", "butchering:smoked-none-redmeat");
+  await expect(used.locator("[data-transition]")).toContainText("Smoked after 4 hours of game time");
+  await expect(used.locator("[data-station] [data-code]").first()).toHaveAttribute("data-code", /^butchering:smokingrack-/);
+  await expect(used).toContainText("A burning firepit directly below the rack");
+
+  await openItem(page, "butchering:smoked-none-redmeat");
+  await card(page, "madeBy", "smoking|game:redmeat-raw|");
+
+  await openItem(page, "butchering:smokingrack-copper-north");
+  await card(page, "usedIn", "smoking|game:redmeat-raw|");
+});
+
+test("raw cheese ripens, and perishing into rot is on the food's page but only counted on rot's", async ({ page }) => {
+  // itemtypes/food/rawcheese.json: Ripen 0 + 336 hours into cheese-cheddar-4slice (salted),
+  // then Perish 360 + 168 hours into rot, ratio 4.
+  await openItem(page, "game:rawcheese-salted");
+  const ripen = await card(page, "usedIn", "ripening|game:rawcheese-salted|0");
+  await expect(ripen.locator("[data-transition]")).toContainText("Ripens after 14 days of game time");
+  const rot = await card(page, "usedIn", "perishing|game:rawcheese-salted|1");
+  await expect(rot.locator("[data-transition]")).toContainText("Spoils after 22 days of game time");
+  await expect(rot.locator("[data-transition]")).toContainText("15 days before it starts, then 7 days");
+  await expect(rot.locator('[data-output="0"] [data-code]')).toHaveAttribute("data-amount", "×4");
+
+  await openItem(page, "game:rot");
+  await expect(page.locator('[data-group="madeBy"][data-type="perishing"]')).toHaveCount(0);
+  await expect(page.getByTestId("made-elsewhere")).toContainText(/\d+ items turn into this by perishing/);
+});

@@ -268,6 +268,17 @@
       }
     },
 
+    "hours": {
+      "description": "In-game hours: the average and the spread each stack draws its own value from.",
+      "type": "object",
+      "required": ["avg"],
+      "additionalProperties": false,
+      "properties": {
+        "avg": { "type": "number", "minimum": 0 },
+        "var": { "type": "number" }
+      }
+    },
+
     "voxelLayers": {
       "description": "Layers bottom to top; each layer is rows of equal length; `#` is filled, `_` is empty.",
       "type": "array",
@@ -464,6 +475,17 @@
             }
           }
         },
+        "transition": {
+          "description": "shape transition only: the first ingredient turns into the one output after some in-game hours, by itself (the collectible's transitionableProps) or on a station a further ingredient names (role station, not consumed), such as a smoking rack. The output's quantity is stacks out per stack in.",
+          "type": "object",
+          "required": ["type", "freshHours", "transitionHours"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "description": "The kind: the engine's EnumTransitionType in lower case (perish, dry, cure, ripen, melt, harden, burn, convert), or a mod's own process (smoke: the Butchering mod's smoking rack).", "type": "string", "minLength": 1 },
+            "freshHours": { "description": "Hours before the transition starts.", "$ref": "#/$defs/hours" },
+            "transitionHours": { "description": "Hours it then takes; the stack turns at freshHours plus transitionHours.", "$ref": "#/$defs/hours" }
+          }
+        },
         "requirements": {
           "description": "Anything else needed, in plain English, e.g. a trait or a machine.",
           "type": "array",
@@ -482,7 +504,7 @@
         "count": { "description": "Number of records of this type in `recipes`.", "type": "integer", "minimum": 0 },
         "shape": {
           "description": "Which type-specific block the records carry. `generic` has none.",
-          "enum": ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "generic"]
+          "enum": ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "transition", "generic"]
         },
         "registry": { "description": "Engine registry or mod system the recipes were read from.", "type": "string" },
         "mod": { "description": "Mod that registered the type.", "$ref": "#/$defs/modId" }

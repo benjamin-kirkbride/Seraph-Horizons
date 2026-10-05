@@ -229,9 +229,12 @@
       <h2 id="made-h">{t.madeBy}</h2>
       {#if detail.madeBy}
         <RecipeGroups groups={detail.madeBy} {meta} {data} kind="madeBy" focus={{ code: ref.code, as: "output" }} />
-      {:else}
+      {:else if !detail.madeByElsewhere}
         <p class="muted">{t.noRecipesMake}</p>
       {/if}
+      {#each Object.entries(detail.madeByElsewhere ?? {}) as [type, n] (type)}
+        <p class="muted" data-testid="made-elsewhere" data-type={type}>{t.madeByElsewhere(n, meta.recipeTypes[type]?.name ?? type)}</p>
+      {/each}
     </section>
 
     <section aria-labelledby="used-h" data-testid="used-in">

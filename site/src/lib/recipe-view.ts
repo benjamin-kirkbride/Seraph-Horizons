@@ -1,6 +1,6 @@
 // Pure layout and formatting for the recipe renderers, kept out of the components so
 // it can be tested without a DOM.
-import type { ButcheryStage, Ingredient, Recipe, Source, Stack, Yield } from "./export.ts";
+import type { ButcheryStage, Hours, Ingredient, Recipe, Source, Stack, Transition, Yield } from "./export.ts";
 import type { GivenItem, TypeInfo } from "./format.ts";
 
 /** Grid cells, row by row: the index of the ingredient in each cell, or null when empty. */
@@ -366,4 +366,37 @@ export function pageLinks(page: number, pages: number, around = 2): (number | nu
     out.push(p);
   });
   return out;
+}
+
+/**
+ * When a transition starts and when it is done, in in-game hours, each as the lowest and
+ * highest a stack can draw: a stack picks its own hours within average ± spread.
+ */
+export function transitionWindow(tr: Transition): { starts: [number, number]; takes: [number, number]; done: [number, number] } {
+  const lo = (h: Hours) => Math.max(0, h.avg - Math.abs(h.var ?? 0));
+  const hi = (h: Hours) => Math.max(0, h.avg + Math.abs(h.var ?? 0));
+  const f = tr.freshHours;
+  const d = tr.transitionHours;
+  return { starts: [lo(f), hi(f)], takes: [lo(d), hi(d)], done: [lo(f) + lo(d), hi(f) + hi(d)] };
+}
+
+/** In-game time: minutes below an hour, hours below two days, then days. */
+export function formatHours(h: number): string {
+  const tenth = (x: number) => formatNumber(Math.round(x * 10) / 10);
+  if (h < 1) {
+    const m = Math.max(1, Math.round(h * 60));
+    return `${m} minute${m === 1 ? "" : "s"}`;
+  }
+  if (h < 48) {
+    const v = tenth(h);
+    return `${v} hour${v === "1" ? "" : "s"}`;
+  }
+  return `${tenth(h / 24)} days`;
+}
+
+/** "2 days", or "2 days to 3 days" when stacks differ. */
+export function formatHoursRange([lo, hi]: [number, number]): string {
+  const a = formatHours(lo);
+  const b = formatHours(hi);
+  return a === b ? a : `${a} to ${b}`;
 }

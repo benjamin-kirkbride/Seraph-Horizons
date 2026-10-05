@@ -583,6 +583,137 @@ public class RecipeExportScenarios : AtlasScenarioBase
         Assert.Equal(ladders, exported);
     }
 
+    // ------------------------------------------------------ transitions over time
+
+    // butchering/itemtypes/resource/sinew.json, sinew-wet: type Cure, freshHours 0,
+    // transitionHours 48, transitionedStack item sinew-dry, transitionRatio 1.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Wet_sinew_cures_into_dry_sinew()
+    {
+        var r = Recipe("curing|butchering:sinew-wet|0");
+        Assert.Equal("curing", (string)r["type"]!);
+        Assert.Equal("butchering", (string)r["mod"]!);
+        Assert.Equal("butchering:itemtypes/resource/sinew.json", (string)r["source"]!);
+        Json("""[{ "code": "butchering:sinew-wet", "kind": "item", "quantity": 1 }]""", r["ingredients"]!);
+        Json("""[{ "code": "butchering:sinew-dry", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
+        Json("""
+            [{ "ingredients": [[{ "code": "butchering:sinew-wet", "kind": "item", "quantity": 1 }]],
+               "outputs": [{ "code": "butchering:sinew-dry", "kind": "item", "quantity": 1 }] }]
+            """, r["variants"]!);
+        Json("""{ "type": "cure", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 48 } }""", r["transition"]!);
+        Json("""{ "name": "Curing", "shape": "transition", "registry": "TransitionableProperties", "mod": "game" }""",
+            new JObject(((JObject)Doc["recipeTypes"]!["curing"]!).Properties().Where(p => p.Name != "count")));
+    }
+
+    // survival/itemtypes/toolhead/bowstave.json, *-recurve-raw: Dry, freshHours 0,
+    // transitionHours 168, bowstave-recurve-dry, ratio 1.
+    // survival/itemtypes/food/rawcheese.json: Ripen first (0 and 336 hours into
+    // cheese-cheddar-4slice for *-salted), then Perish (360 and 168 hours into rot, ratio 4).
+    // survival/blocktypes/plant/fruitingbushcutting.json: Perish (360 and 1 hours) into a
+    // quarter as many sticks.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Vanilla_transitions_have_their_hours_ratio_and_position()
+    {
+        var stave = Recipe("drying|game:bowstave-recurve-raw|0");
+        Assert.Equal("survival", (string)stave["mod"]!);
+        Json("""[{ "code": "game:bowstave-recurve-dry", "kind": "item", "quantity": 1 }]""", stave["outputs"]!);
+        Json("""{ "type": "dry", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 168 } }""", stave["transition"]!);
+
+        var ripen = Recipe("ripening|game:rawcheese-salted|0");
+        Json("""[{ "code": "game:cheese-cheddar-4slice", "kind": "item", "quantity": 1 }]""", ripen["outputs"]!);
+        Json("""{ "type": "ripen", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 336 } }""", ripen["transition"]!);
+        var rot = Recipe("perishing|game:rawcheese-salted|1");
+        Json("""[{ "code": "game:rot", "kind": "item", "quantity": 4 }]""", rot["outputs"]!);
+        Json("""{ "type": "perish", "freshHours": { "avg": 360 }, "transitionHours": { "avg": 168 } }""", rot["transition"]!);
+
+        var cutting = Recipe("perishing|game:fruitingbushcutting-blueberry-free|0");
+        Json("""[{ "code": "game:fruitingbushcutting-blueberry-free", "kind": "block", "quantity": 1 }]""", cutting["ingredients"]!);
+        Json("""[{ "code": "game:stick", "kind": "item", "quantity": 0.25 }]""", cutting["outputs"]!);
+    }
+
+    /// <summary>
+    /// Every transition the engine would carry out, read from the registered collectibles,
+    /// is exactly one record of the type for its kind; there are no others.
+    /// </summary>
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Every_transition_of_every_collectible_is_one_record()
+    {
+        var kinds = new Dictionary<EnumTransitionType, string>
+        {
+            [EnumTransitionType.Perish] = "perishing", [EnumTransitionType.Dry] = "drying",
+            [EnumTransitionType.Cure] = "curing", [EnumTransitionType.Ripen] = "ripening",
+            [EnumTransitionType.Melt] = "melting", [EnumTransitionType.Harden] = "hardening",
+            [EnumTransitionType.Burn] = "burning", [EnumTransitionType.Convert] = "converting",
+        };
+        var expected = new List<string>();
+        foreach (var c in World.Api.World.Collectibles)
+        {
+            if (c?.Code == null || c.IsMissing) continue;
+            var props = c.TransitionableProps ?? Array.Empty<TransitionableProperties>();
+            for (int i = 0; i < props.Length; i++)
+            {
+                if (props[i] == null || props[i].Type == EnumTransitionType.None) continue;
+                if (props[i].TransitionedStack?.ResolvedItemstack?.Collectible == null) continue;
+                expected.Add($"{kinds[props[i].Type]}|{c.Code}|{i}");
+            }
+        }
+        var records = Doc["recipes"]!.Where(r => r["transition"] != null && kinds.ContainsValue((string)r["type"]!))
+            .Select(r => (string)r["id"]!).ToList();
+        Assert.Equal(expected.OrderBy(i => i, StringComparer.Ordinal), records);
+        foreach (var type in kinds.Values)
+        {
+            Assert.Equal("transition", (string)Doc["recipeTypes"]![type]!["shape"]!);
+            Assert.Equal(records.Count(id => id.StartsWith(type + "|")), (int)Doc["recipeTypes"]![type]!["count"]!);
+        }
+    }
+
+    // Expanded Foods 2.0.0-dev.15, assets/game/patches/poultry.json, patch 4: addmerge
+    // /transitionablePropsByType/*-raw/1, Dry 480 + 20 hours into
+    // expandedfoods:agedmeat-poultry-normal. Its patches 11 and 12 add Perish into rot to
+    // *-charred and *-partbaked only, with other hours, so raw poultry's own perishing
+    // (survival/itemtypes/food/poultry.json) stays the game's.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void A_transition_a_mod_patches_in_is_credited_to_that_mod()
+    {
+        var dry = Recipe("drying|game:poultry-raw|1");
+        Assert.Equal("expandedfoods", (string)dry["mod"]!);
+        Assert.Equal("game:patches/poultry.json", (string)dry["source"]!);
+        Json("""[{ "code": "expandedfoods:agedmeat-poultry-normal", "kind": "item", "quantity": 1 }]""", dry["outputs"]!);
+        Json("""{ "type": "dry", "freshHours": { "avg": 480 }, "transitionHours": { "avg": 20 } }""", dry["transition"]!);
+
+        var perish = Recipe("perishing|game:poultry-raw|0");
+        Assert.Equal("survival", (string)perish["mod"]!);
+        Assert.Equal("game:itemtypes/food/poultry.json", (string)perish["source"]!);
+    }
+
+    // butchering/itemtypes/food/primemeat.json: transformsWhenSmokedByType *-raw
+    // "butchering:smoked-none-primemeat"; butchering/patches/items/food/smoked.json gives
+    // game:itemtypes/food/redmeat.json *-raw "butchering:smoked-none-redmeat";
+    // blocktypes/smokingrack.json: entityClass MeatHook, materials copper and iron.
+    // Decompiled Butchering 1.14.3: BlockEntityMeatHook.smokingTimeHours = 4.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Smoking_rack_turns_raw_meat_into_smoked_meat_in_four_hours()
+    {
+        Json("""{ "name": "Smoking rack", "shape": "transition", "registry": "BlockEntityMeatHook", "mod": "butchering" }""",
+            new JObject(((JObject)Doc["recipeTypes"]!["smoking"]!).Properties().Where(p => p.Name != "count")));
+        var prime = Recipe("smoking|butchering:primemeat-raw|0");
+        Assert.Equal("butchering", (string)prime["mod"]!);
+        Json("""[{ "code": "butchering:smoked-none-primemeat", "kind": "item", "quantity": 1 }]""", prime["outputs"]!);
+        Json("""{ "type": "smoke", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 4 } }""", prime["transition"]!);
+        Assert.Equal("station", (string)prime["ingredients"]![1]!["role"]!);
+        Assert.Equal(new[] { "butchering:smokingrack-copper-north", "butchering:smokingrack-iron-north" },
+            Codes(prime["variants"]![0]!["ingredients"]![1]!).Select(c => (string)c!).Where(c => c.EndsWith("-north")));
+
+        var red = Recipe("smoking|game:redmeat-raw|0");
+        Json("""[{ "code": "butchering:smoked-none-redmeat", "kind": "item", "quantity": 1 }]""", red["outputs"]!);
+
+        // Every item the rack would take (a transformsWhenSmoked attribute) is one record.
+        var expected = World.Api.World.Items
+            .Where(i => i?.Code != null && !i.IsMissing && !string.IsNullOrEmpty(i.Attributes?["transformsWhenSmoked"].AsString(null)))
+            .Select(i => $"smoking|{i.Code}|0").OrderBy(i => i, StringComparer.Ordinal);
+        Assert.Equal(expected, Doc["recipes"]!.Where(r => (string)r["type"]! == "smoking").Select(r => (string)r["id"]!));
+    }
+
     // ------------------------------------------------------ whole-document checks
 
     [AtlasScenario(TimeoutMs = Timeout)]
@@ -722,9 +853,10 @@ public class RecipeExportScenarios : AtlasScenarioBase
         // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
         Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        // Blocks built in place and butchery are the types not read from a registry.
+        // Blocks built in place, butchery and transitions are the types not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
+            .Where(p => (string)p.Value["shape"]! != "transition")
             .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));
     }

@@ -48,7 +48,20 @@ export interface Prepared {
   meta: Meta;
 }
 
-const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "generic"];
+const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "transition", "generic"];
+
+/** The item nearly every food perishes into. */
+export const ROT = "game:rot";
+
+/**
+ * Perishing into rot: thousands of records in the pack, which would bury rot's own recipes.
+ * They are listed on the page of what perishes only, and rot's page counts them
+ * (`madeByElsewhere`). Perishing into anything else (wine into vinegar) is listed on both
+ * pages, like any other recipe.
+ */
+export function listedOnSourceOnly(recipe: Recipe): boolean {
+  return recipe.transition?.type === "perish" && recipe.outputs.length === 1 && recipe.outputs[0]!.code === ROT;
+}
 
 export function compareCodes(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -301,7 +314,14 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     const used = new Set<number>();
     for (const slot of slotItems(recipe, codes, patternCache)) for (const i of slot) used.add(i);
     for (const i of used) pushTo((details[i]!.usedIn ??= {}), recipe.type, ri);
-    for (const i of outputItems(recipe, codes)) pushTo((details[i]!.madeBy ??= {}), recipe.type, ri);
+    if (listedOnSourceOnly(recipe)) {
+      for (const i of outputItems(recipe, codes)) {
+        const elsewhere = (details[i]!.madeByElsewhere ??= {});
+        elsewhere[recipe.type] = (elsewhere[recipe.type] ?? 0) + 1;
+      }
+    } else {
+      for (const i of outputItems(recipe, codes)) pushTo((details[i]!.madeBy ??= {}), recipe.type, ri);
+    }
   });
 
   // A block's page says what it gives. Creatures and traders have pages of their own.
