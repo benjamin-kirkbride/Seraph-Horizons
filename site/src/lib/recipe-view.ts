@@ -1,7 +1,7 @@
 // Pure layout and formatting for the recipe renderers, kept out of the components so
 // it can be tested without a DOM.
 import type { ButcheryStage, Ingredient, Recipe, Source, Stack, Yield } from "./export.ts";
-import type { GivenItem } from "./format.ts";
+import type { GivenItem, TypeInfo } from "./format.ts";
 
 /** Grid cells, row by row: the index of the ingredient in each cell, or null when empty. */
 export function gridCells(recipe: Recipe): (number | null)[][] {
@@ -333,4 +333,37 @@ export function cardOutputs(recipe: Recipe, variant: number): Stack[] {
   const first = recipe.butchery?.stages[0];
   if (first) return first.outputs.flatMap((o) => butcheryOutput(recipe, variant, o)?.stacks.slice(0, 1) ?? []);
   return variantOutputs(recipe, variant);
+}
+
+/** Recipes per page of a recipe type's page: four rows at the widest. */
+export const TYPE_PAGE_SIZE = 24;
+
+/**
+ * Page `page` of a recipe type's page, clamped to the pages there are: the recipe indices
+ * it shows and the position of its first recipe within the type.
+ */
+export function typePage(info: Pick<TypeInfo, "start" | "count">, page = 1, size = TYPE_PAGE_SIZE): { page: number; pages: number; first: number; indices: number[] } {
+  const pages = Math.max(1, Math.ceil(info.count / size));
+  const at = Math.min(Math.max(1, Math.floor(page)), pages);
+  const first = (at - 1) * size;
+  const n = Math.max(0, Math.min(size, info.count - first));
+  return { page: at, pages, first, indices: Array.from({ length: n }, (_, i) => info.start + first + i) };
+}
+
+/**
+ * The page numbers to link to from page `page` of `pages`: the first, the last and those
+ * within `around` of it, with null for each gap. A gap of one page shows that page instead.
+ */
+export function pageLinks(page: number, pages: number, around = 2): (number | null)[] {
+  const keep = new Set([1, pages]);
+  for (let p = page - around; p <= page + around; p++) if (p >= 1 && p <= pages) keep.add(p);
+  const sorted = [...keep].sort((a, b) => a - b);
+  const out: (number | null)[] = [];
+  sorted.forEach((p, i) => {
+    const prev = sorted[i - 1];
+    if (prev !== undefined && p - prev === 2) out.push(prev + 1);
+    else if (prev !== undefined && p - prev > 2) out.push(null);
+    out.push(p);
+  });
+  return out;
 }

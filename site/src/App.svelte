@@ -12,6 +12,7 @@
   import Home from "./components/Home.svelte";
   import ItemPage from "./components/ItemPage.svelte";
   import SearchResults from "./components/SearchResults.svelte";
+  import TypePage from "./components/TypePage.svelte";
 
   let route = $state<Route>(parseRoute(location.hash));
   let versions = $state<VersionsFile | null>(null);
@@ -105,7 +106,7 @@
   });
 
   $effect(() => {
-    if (route.view !== "item" && route.view !== "entity" && route.view !== "models" && route.view !== "model") document.title = t.siteTitle;
+    if (route.view !== "item" && route.view !== "type" && route.view !== "entity" && route.view !== "models" && route.view !== "model") document.title = t.siteTitle;
   });
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -228,6 +229,10 @@
   {:else if route.view === "item"}
     {#key `${data.id}|${route.code}`}
       <ItemPage {data} meta={meta.meta} code={route.code} />
+    {/key}
+  {:else if route.view === "type"}
+    {#key `${data.id}|${route.code}`}
+      <TypePage {data} meta={meta.meta} code={route.code} page={route.page} />
     {/key}
   {:else if route.view === "entities"}
     <EntityList {data} meta={meta.meta} />

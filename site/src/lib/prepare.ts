@@ -275,20 +275,26 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     details.push(d);
   }
 
-  // Disabled definitions cannot be crafted, so listing them would mislead.
-  const recipes = exp.recipes.filter((r) => r.enabled !== false).sort((a, b) => compareCodes(a.id, b.id));
+  // Disabled definitions cannot be crafted, so listing them would mislead. Sorting by
+  // type first keeps each type's recipes in one run, which is all its page needs. An id
+  // starts with its type, so this is the id order but for a type that is a prefix of
+  // another.
+  const recipes = exp.recipes
+    .filter((r) => r.enabled !== false)
+    .sort((a, b) => compareCodes(a.type, b.type) || compareCodes(a.id, b.id));
 
   const recipeTypes: Record<string, TypeInfo> = {};
-  for (const r of recipes) {
+  recipes.forEach((r, ri) => {
     const known = exp.recipeTypes[r.type];
     const info = (recipeTypes[r.type] ??= {
       name: known?.name ?? r.type,
       shape: known && SHAPES.includes(known.shape) ? known.shape : "generic",
       count: 0,
+      start: ri,
       ...(known?.mod ? { mod: known.mod } : {}),
     });
     info.count++;
-  }
+  });
 
   const patternCache = new Map<string, number[]>();
   recipes.forEach((recipe, ri) => {
