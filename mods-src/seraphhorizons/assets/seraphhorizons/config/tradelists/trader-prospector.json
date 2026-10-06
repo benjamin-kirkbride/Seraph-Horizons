@@ -1,6 +1,7 @@
 // Prospector: mining supplies, blasting, ore samples by rock, and buyer of gems and ore.
 // Format: docs/trading.md (Trade lists). On the grid's own lattice (one within two cells of every
-// cell); ore maps come here in a later wave.
+// cell). Special entries ("kind": oremap, gravelmap, lead) are offers made up at each restock
+// (#455, config/trading/map-prices.json); their price here is a placeholder.
 {
 	"type": "prospector",
 	"campWeight": 1.0,
@@ -8,6 +9,9 @@
 	"wallet": [{"avg": 90, "var": 15}, {"avg": 115, "var": 15}, {"avg": 145, "var": 20}, {"avg": 180, "var": 25}],
 	"selling": {
 		"core": [
+			{"kind": "oremap", "code": "seraphhorizons:oremap", "price": {"avg": 1, "var": 0}},
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"type": "block", "code": "torch-basic-lit-up", "stacksize": 8, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
 			{"code": "rope", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"type": "block", "code": "ladder-wood-oak-north", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2, "var": 0.3}},
@@ -35,7 +39,7 @@
 				{"code": "pickaxe-tinbronze", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 11, "var": 2.75}, "playerSupplied": true},
 				{"code": "pickaxe-bismuthbronze", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 12, "var": 3}, "playerSupplied": true},
 				{"code": "pickaxe-blackbronze", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 13, "var": 3.25}, "playerSupplied": true},
-				{"type": "block", "code": "lootvessel-ore", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 1.5}}
+				{"type": "block", "code": "lootvessel-ore", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 1.5}, "rare": true}
 			]
 		},
 		"regional": {
@@ -50,7 +54,7 @@
 					{"code": "ore-phosphorite", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
 					{"code": "ore-borax", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}},
 					{"code": "ore-sulfur", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
-					{"code": "ore-alum", "stacksize": 8, "stock": {"avg": 3, "var": 1}, "price": {"avg": 6, "var": 0.9}}
+					{"code": "ore-alum", "stacksize": 8, "stock": {"avg": 3, "var": 1}, "price": {"avg": 6, "var": 0.9}, "rare": true}
 				]
 			},
 			"igneous": {
@@ -61,7 +65,7 @@
 					{"code": "nugget-ilmenite", "stacksize": 5, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}},
 					{"code": "nugget-magnetite", "stacksize": 5, "stock": {"avg": 5, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 					{"code": "nugget-pentlandite", "stacksize": 5, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}},
-					{"code": "nugget-nativegold", "stacksize": 2, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}},
+					{"code": "nugget-nativegold", "stacksize": 2, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}, "rare": true},
 					{"code": "ore-quartz", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
 					{"code": "ore-olivine", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
 					{"code": "ore-fluorite", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}}

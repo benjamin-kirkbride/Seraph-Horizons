@@ -460,4 +460,10 @@ public class SeraphHorizonsConfig
     /// deposit and standing with the sender lost when it fails. Server side; the package item exists
     /// either way.</summary>
     public bool TraderDeliveries { get; set; } = true;
+
+    /// <summary>Traders sell maps and leads (#455, Trading/Maps/, README "Maps and leads"):
+    /// prospectors ore maps to unsold deposits within 5 km, every trader a gravel map to a field
+    /// within 2 km and leads to other camps; precision and the further leads by standing. Needs the
+    /// deposit registry (ore cells or placer fields) for maps. Server side.</summary>
+    public bool TraderMaps { get; set; } = true;
 }

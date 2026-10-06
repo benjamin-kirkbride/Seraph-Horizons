@@ -601,7 +601,9 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
   abandoned order `orderAbandoned`.
 - **Tiers**: stranger 0, known 60, regular 250, trusted 800, partner 2000 points of effective
   standing. Unlocks (`TierUnlocks`): `mapTier`, `mapsToTraders`, `buyPriceFactor`, `sellPriceFactor`,
-  `walletTier`, `orderScale`, `deliveryScale`, `rareStock`. Only `walletTier` has a consumer yet.
+  `walletTier`, `orderScale`, `deliveryScale`, `rareStock`. Consumers: the wallet and the shelf
+  (`walletTier`, `rareStock`, and every entry's `standingTier`), prices (`buyPriceFactor`,
+  `sellPriceFactor`) and maps (`mapTier`, `mapsToTraders`); orders and deliveries in wave 3.
 - **Effective standing** = max(personal, company) + `spilloverShare` (0.1) × the best max(personal,
   company) at another trader of the same type within `TraderStandingSpilloverKm` (6). Same-type
   traders come from the grid's placed camps, so only camp traders spill over.
@@ -823,7 +825,7 @@ double, but it is cleared anyway.
 **Standing gate.** `TradeEntry.StandingTier` (default 0): `TradeListResolver.Resolve(def, region,
 tier)` leaves out entries above the tier; the core is the ungated entries, then the gated ones lowest
 tier first, cut at 16. `Problems` counts every core entry (the top tier) against the 16 slots. The
-trader's restock does not pass a tier yet (wave 2 standing wires it). Slot pressure decided the
+trader's restock passes the shelf tier (see "Wave 2 glue"). Slot pressure decided the
 sellers: the issue's mapping put 20+ schematics on the mechanic and carpenter, so the wooden machines
 went to the carpenter, the metal gear work to the smith, chest/crate/candle/toymaker/artisan and the
 hand crank to the general store, book/alchemist/texture flipper to the curio dealer, and a few plain
@@ -912,3 +914,107 @@ without variables we would have to set per player. The `opentrade` chat summary
   and `DeliveryCommands.AdminLine` format one record.
 - Not done: dialogue options; posting to the notice board; deliveries for traders outside camps
   (only admins can make those).
+
+## Wave 2 glue
+
+Standing, the economy and the schematics' tiers were built in parallel; these are the seams that
+join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
+
+- **Prices follow standing.** Vanilla lets one player at a time trade with a trader
+  (`tradingPlayerUID`, set when the dialog opens, cleared on close, walking away or death), so the
+  shelf is priced for that player. `TradingGlueSystem` (both sides, ExecuteOrder 0.67) adds
+  `StandingPriceModifier` to `EconomySystem.Modifiers`; on the server it writes the trading player's
+  `buyPriceFactor` and `sellPriceFactor` into the trader's watched attribute
+  `seraphhorizons:standingprice` (`uid`, `buy`, `sell`) when the dialog opens
+  (`EntitySeraphTrader.TradeOpened`, raised from `Dialog_DialogTriggers`) and checks it every second
+  (a tier reached in a deal, the player gone), re-pricing and sending the shelf through
+  `EconomySystem.Refresh` when it changes. The modifier reads that attribute on both sides, for the
+  context's player or else the trading player, so listed prices, off-list offers and the client's
+  quotes all carry it. Nobody trading, factor 1. Listed prices are re-priced only with
+  `EverythingHasAPrice` or `RegionalSupply` on (the economy owns the shelf prices); with both off,
+  standing changes no price. `TradingGlueSystem.TradingPlayerPriced` is raised before each re-price
+  for anything else priced per player (map precision).
+- **Shelves follow the best recent customer.** `IStandingSource.ShelfTierFor(trader)`: the highest
+  tier index among players whose record with the trader changed within `recentDays` (14), as the
+  wallet's `WalletTierFor`. `EntitySeraphTrader.Restock` resolves the list at that tier and with that
+  tier's `rareStock` (`IStandingSource.UnlocksOfTier`). A stranger therefore sees what a trusted
+  customer unlocked until the first restock after that customer has been away 14 days; prices and
+  map precision are still the stranger's own, and leads past the nearest camp are refused to them at
+  the deal. `EconomySystem.Reprice` resolves the list at the top tier with rare stock, so every entry
+  a shelf may hold is priced.
+- **Rare stock.** `"rare": true` on a list entry (`TradeEntry.Rare`): shelved only when the shelf
+  tier's `rareStock` is on (trusted and partner). Marked on three selling entries per list (the
+  smith's anthracite only), the dearest goods of the rotating pools that are neither player-supplied
+  nor schematics: tame elk and the living dead, purpleheart, ebony and redwood doors, iron and bronze
+  crocks, the forlorn armour, bells and translocator maps, redwood and kapok seeds, bows, polished
+  rock, panning machines and windmill rotors, native gold, alum and ore vessels, sweaters.
+- **The simulate clock.** `/sh trade simulate <days>` ages standing's "traded recently" records by
+  the days (`StandingLedger.Age`, on `EconomySystem.SimulatedDay`), since it moves the restock clocks
+  but not the calendar.
+
+## Maps and leads (#455)
+
+`Trading/Maps/`: `Core/` (`MapPrices.cs`, `MapOffers.cs`, `LeadTargets.cs`; unit-tested in
+`tests/Trading/Maps/`), `Game/` (`MapsSystem`, `MapTradeHooks`, `ItemTraderLead`, `MapOfferAttrs`),
+`config/trading/map-prices.json`, item `seraphhorizons:traderlead`. Switch `TraderMaps`.
+
+- **Special entries.** A list entry with `"kind"` (`oremap`, `gravelmap`, `lead`) is not goods: at
+  each restock `TradingSystem.Offers` (set by `MapsSystem`) expands it into offers, in place in the
+  core (`TradeOffers.Expand`, `Trading/Core/TradeOffers.cs`); with no expander (switch off) it is
+  left out. Offers marked optional (the further leads) give way first when the core is over 16
+  slots; the rotating slots shrink to what is left. Every list sells `gravelmap` and `lead`, the
+  prospector `oremap` too; their `price` in the list is a placeholder. To keep two rotating slots at
+  the top tier (`SchematicTests`), the carpenter's sticks and aged crate, the mechanic's rope and
+  metal parts and the smith's tin bronze and steel ingots moved from the core to the rotating pool.
+- **Offers.** An offer is an ordinary trade item whose stack carries `offer` and what it is for
+  (`MapOfferAttrs`): ore map offers the deposit id, metal, precision and last measured size; leads
+  the kind, cell, camp type and position. One ore map offer per metal, the nearest deposit of
+  `DepositService.Candidates(x, z, 5000)` that is unsold and not being sold, at most four metals
+  (`MapOffers.PickOre`); the gravel map the nearest such field of `GravelFields(x, z, 2000)`. Deposits
+  in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game). Leads
+  (`LeadTargets.Pick`): camp cells and types come from the grid, sites from the camp registry (the
+  placed camp, else the spot it waits for; cells whose spots all failed are skipped): the nearest
+  camp for everyone; with the shelf tier's `mapsToTraders`, the nearest prospector, one camp two or
+  three cells out, and the 8 km settlement cell's centre.
+- **Per player.** At a restock offers are priced for nobody (precision 1). When the trading player
+  changes (`TradingPlayerPriced`), every offer is re-priced and an ore map offer's precision set to
+  `MapOffers.MaxPrecision(mapTier)` (0 → 1, 1 → 2, 2+ → 3), times standing's factor through the
+  economy's modifiers.
+- **The sale** goes through the game's `ITradeableCollectible` (vanilla's locator maps do the same):
+  `ItemOreMap` implements it through its static `Hooks` (set to `MapTradeHooks`), `ItemTraderLead`
+  directly. `OnTryTrade` (server, before money) refuses a sold-out offer, a deposit sold or reserved
+  meanwhile (setting the shelf's stock to 0), an ore map above the buyer's precision, and a further
+  lead without the buyer's own `mapsToTraders`; it notes the price. `OnDidTrade` gets the stack about
+  to be handed over: it is marked pending (a token) and the sale settles. Ore and gravel maps:
+  reserve the deposit, `DepositService.Verify` (which may generate up to nine columns), then
+  `MapIssuer.Issue` (marks it sold). Leads to camps: the camp registry, generating the cell's pending
+  spot chunk until it is placed or failed, as `/sh trade tp` does; settlement leads at once. If that
+  finishes inside the deal, the stack handed over is the map; otherwise the pending stack ("being
+  checked") is replaced in the buyer's inventory when it does (handed over anew if it moved), with a
+  chat line. A failed sale takes the pending stack back and refunds the gears from the trader.
+- **Never bought back**: the economy's `refused` prefixes (`seraphhorizons:oremap`, `gravelmap`,
+  `traderlead`, `game:locatormap`) refuse them off-list, and no list buys them
+  (`TradingMapsScenarios` checks the quote).
+- **Known limits.** The size class priced is the last measurement (unsurveyed until someone verifies
+  the deposit); the deal's own verify may find it different, and the map says what it found. A lead
+  to a pending cell points at its waiting spot on the shelf; only the sale settles where the camp
+  is. Settlement grounds are reserved but empty until settlements exist (#468). The pending sheet
+  reads as a blank map if the server stops before the sale settles; the deposit is not sold then.
+
+### Edits to shared files (for the integrator)
+
+- `Trading/Game/EntitySeraphTrader.cs`: event `TradeOpened` (raised in `Dialog_DialogTriggers` after
+  the standing line); `Restock` resolves at `Standing.ShelfTierFor` with that tier's `rareStock` and
+  passes the result through `TradeOffers.Expand(resolved, system.Offers …)` (three lines).
+- `Trading/Game/TradingSystem.cs`: property `Offers`.
+- `Trading/Game/TradeLists.cs`: `ItemFor` makes the JSON of an entry it did not load (`Json(entry)`,
+  split out of `ToJson`).
+- `Trading/Core/TradeList.cs`: `TradeEntry.Rare`, `Kind`, `Optional`. `TradeListResolver.Resolve`
+  takes `rareStock` (default false). New `Trading/Core/TradeOffers.cs`.
+- `Trading/Economy/Game/EconomySystem.cs`: `Reprice` resolves at `MaxStandingTier` with rare stock.
+- `Trading/Standing/`: `IStandingSource.ShelfTierFor`, `UnlocksOfTier` (and in `NoStanding`,
+  `StandingSystem`); `StandingLedger.Age`.
+- `Ore/Game/ItemOreMap.cs`: implements `ITradeableCollectible` through `Hooks`, and asks the hooks
+  for an offer's name and description first.
+- `TradeCommands.cs`: unchanged.
+

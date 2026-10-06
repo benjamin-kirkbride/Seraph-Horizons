@@ -17,8 +17,31 @@ namespace SeraphHorizons.Mod.Ore;
 /// already offset by the map's precision (<see cref="MapPrecision"/>), so every copy marks the same
 /// place. A map without attributes (from the creative inventory) is blank.
 /// </summary>
-public class ItemOreMap : Item
+public class ItemOreMap : Item, ITradeableCollectible
 {
+    /// <summary>What the trading side (#455, <c>Trading/Maps/</c>) adds: a trader's map offers and
+    /// sales (the game's ITradeableCollectible), and the names of offer and pending stacks. Unset,
+    /// a map trades like any item and reads as above.</summary>
+    public interface IHooks : ITradeableCollectible
+    {
+        /// <summary>The name of an offer or pending stack, else null.</summary>
+        string? HeldName(ItemStack stack);
+
+        /// <summary>Describes an offer or pending stack and returns true, else false.</summary>
+        bool HeldInfo(ItemStack stack, StringBuilder dsc);
+    }
+
+    public static IHooks? Hooks { get; set; }
+
+    public bool ShouldTrade(EntityTradingHumanoid trader, TradeItem tradeItem, EnumTradeDirection direction) =>
+        Hooks?.ShouldTrade(trader, tradeItem, direction) ?? true;
+
+    public EnumTransactionResult OnTryTrade(EntityTradingHumanoid trader, ItemSlot tradeSlot, EnumTradeDirection direction) =>
+        Hooks?.OnTryTrade(trader, tradeSlot, direction) ?? EnumTransactionResult.Success;
+
+    public bool OnDidTrade(EntityTradingHumanoid trader, ItemStack stack, EnumTradeDirection direction) =>
+        Hooks?.OnDidTrade(trader, stack, direction) ?? true;
+
     public const string ClassName = "seraphhorizons.OreMap";
 
     public const string AttrDeposit = "depositId";
@@ -94,6 +117,7 @@ public class ItemOreMap : Item
 
     public override string GetHeldItemName(ItemStack itemStack)
     {
+        if (Hooks?.HeldName(itemStack) is { } offerName) return offerName;
         var a = itemStack.Attributes;
         string? metal = a.GetString(AttrMetal);
         if (metal == null || metal == PlacerCells.Kind) return base.GetHeldItemName(itemStack);
@@ -103,6 +127,7 @@ public class ItemOreMap : Item
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
+        if (inSlot.Itemstack is { } held && Hooks?.HeldInfo(held, dsc) == true) return;
         var a = inSlot.Itemstack?.Attributes;
         if (a == null || a.GetString(AttrMetal) is not { } metal)
         {

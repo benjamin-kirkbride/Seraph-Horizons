@@ -40,8 +40,10 @@ public class EntitySeraphTrader : EntityTrader
     /// the player sold (what left the selling cart): orders (#453) count their deliveries here.</summary>
     public static event Action<IServerPlayer, EntitySeraphTrader, IReadOnlyList<ItemStack>>? Dealt;
 
-    /// <summary>Raised on the server when a player opens the trade dialog (the dialogue's
-    /// <c>opentrade</c>): orders and deliveries (#453, #454) say in chat what is on here.</summary>
+    /// <summary>Raised on the server when the trading player opens the trade dialog (the dialogue's
+    /// <c>opentrade</c>, once vanilla has set <c>tradingPlayerUID</c> to them): orders and deliveries
+    /// (#453, #454) say in chat what is on here, and prices and offers made for that player (#452,
+    /// #455) are set here.</summary>
     public static event Action<IServerPlayer, EntitySeraphTrader>? TradeOpened;
 
     /// <summary>The trader type, from the entity code (<c>trader-{gender}-{type}-{climate}</c>).</summary>
@@ -160,7 +162,8 @@ public class EntitySeraphTrader : EntityTrader
             && triggeringEntity is EntityPlayer { Player: { } player })
         {
             if (TradingSystem.Of(Api) is { Standing.Enabled: true } system) system.Standing.OnTradeOpened(player, this);
-            if (player is IServerPlayer sp) TradeOpened?.Invoke(sp, this);
+            if (player is IServerPlayer sp && WatchedAttributes.GetString("tradingPlayerUID") == sp.PlayerUID)
+                TradeOpened?.Invoke(sp, this);
         }
         return result;
     }
@@ -172,7 +175,10 @@ public class EntitySeraphTrader : EntityTrader
     {
         var system = TradingSystem.Of(Api);
         if (system?.Lists?.For(TraderType) is not { } def || Inventory is null) return;
-        var resolved = TradeListResolver.Resolve(def, Region);
+        // Shelves are shared: they follow the best recent customer's tier, as the wallet does.
+        int tier = system.Standing.ShelfTierFor(this);
+        var resolved = TradeListResolver.Resolve(def, Region, tier, system.Standing.UnlocksOfTier(tier).RareStock);
+        resolved = TradeOffers.Expand(resolved, system.Offers is { } offers ? e => offers(this, e) : null);
         var context = new TraderContext(TraderType, Region, EntityId, Pos.X, Pos.Z);
         var gate = system.SupplyGate;
         Fill(system, Inventory.SellingSlots, resolved.Selling, SellingKeysAttr, refreshChance, e => gate.Stock(context, e), EnumTradeDirection.Sell);

@@ -8,12 +8,12 @@
 	"wallet": [{"avg": 110, "var": 20}, {"avg": 140, "var": 20}, {"avg": 175, "var": 25}, {"avg": 220, "var": 30}],
 	"selling": {
 		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"code": "coke", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"code": "ore-bituminouscoal", "stacksize": 8, "stock": {"avg": 10, "var": 3}, "price": {"avg": 2, "var": 0.3}},
 			{"code": "ingot-copper", "stacksize": 1, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}, "playerSupplied": true},
-			{"code": "ingot-tinbronze", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 0.9}, "playerSupplied": true},
 			{"code": "ingot-iron", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 10, "var": 1.5}, "playerSupplied": true},
-			{"code": "ingot-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 16, "var": 2.4}, "playerSupplied": true},
 			{"code": "betterruins:br-schematic-mechanical", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 26, "var": 2.6}, "standingTier": 1},
 			{"code": "betterruins:br-schematic-pipes", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 24, "var": 2.4}, "standingTier": 1},
 			{"code": "betterruins:br-schematic-jonaspart", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 28, "var": 2.8}, "standingTier": 1},
@@ -25,6 +25,8 @@
 		],
 		"rotating": { "maxItems": 9,
 			"list": [
+				{"code": "ingot-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 16, "var": 2.4}, "playerSupplied": true},
+				{"code": "ingot-tinbronze", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 0.9}, "playerSupplied": true},
 				{"code": "charcoal", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.5}},
 				{"code": "metalnailsandstrips-copper", "stacksize": 2, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.5}, "playerSupplied": true},
 				{"code": "ore-borax", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 3, "var": 0.45}},
@@ -119,7 +121,7 @@
 			"cold": {
 				"core": [],
 				"rotating": [
-					{"code": "ore-anthracite", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 3, "var": 0.45}}
+					{"code": "ore-anthracite", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 3, "var": 0.45}, "rare": true}
 				]
 			},
 			"igneous": {

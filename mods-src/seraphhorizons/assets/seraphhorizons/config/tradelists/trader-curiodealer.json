@@ -8,6 +8,8 @@
 	"wallet": [{"avg": 130, "var": 25}, {"avg": 165, "var": 25}, {"avg": 210, "var": 30}, {"avg": 260, "var": 35}],
 	"selling": {
 		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"code": "lore-scroll", "attributes": {"category": "villager"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 4, "var": 0.6}},
 			{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 180, "var": 20}, "standingTier": 3},
 			{"code": "walkingstick:schematic-flintlock", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 128, "var": 15.5}, "standingTier": 3},
@@ -79,7 +81,7 @@
 				{"type": "block", "code": "smallcarpet-turqoise", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 8, "var": 2}},
 				{"type": "block", "code": "resonator-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 30, "var": 7.5}, "playerSupplied": true},
 				{"code": "armor-head-antique-forlorn-broken", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 30, "var": 7.5}},
-				{"code": "armor-body-antique-forlorn-broken", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 52, "var": 13}},
+				{"code": "armor-body-antique-forlorn-broken", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 52, "var": 13}, "rare": true},
 				{"code": "armor-legs-antique-forlorn-broken", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 42, "var": 10.5}},
 				{"code": "blade-forlorn-iron", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 32, "var": 8}, "playerSupplied": true},
 				{"code": "hoovedwearables-blanket-forlorn", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 20, "var": 5}},
@@ -130,10 +132,10 @@
 				{"code": "tailorsdelight:buttons-gold", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 4, "var": 1}, "playerSupplied": true},
 				{"code": "tailorsdelight:buttons-silver", "stacksize": 2, "stock": {"avg": 1, "var": 0.5}, "price": {"avg": 8, "var": 1}, "playerSupplied": true},
 				{"code": "tailorsdelight:ruler-gold", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 7, "var": 1}, "playerSupplied": true},
-				{"code": "locatormap-translocator", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 50, "var": 10}},
+				{"code": "locatormap-translocator", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 50, "var": 10}, "rare": true},
 				{"code": "creature-locust-corrupt-hacked", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 30, "var": 7}},
 				{"code": "creature-locust-bronze-hacked", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 25, "var": 7}},
-				{"code": "creature-bell-normal", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 50, "var": 12}}
+				{"code": "creature-bell-normal", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 50, "var": 12}, "rare": true}
 			]
 		},
 		"regional": {}

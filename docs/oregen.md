@@ -127,4 +127,9 @@ deposits.Verify(candidate.Key, result =>
   map is the last measurement, so verify first.
 - A verify loads up to nine columns around the deposit (generating those that aren't): a few seconds
   each on a busy server. Verify when the player asks for the map, not for every candidate.
-- Traders should refuse maps offered for sale (trading epic); the items are ordinary otherwise.
+- Traders refuse maps offered for sale (the economy's `refused` prefixes); the items are ordinary
+  otherwise.
+- The traders' side is built (#455): `docs/trading.md` "Maps and leads". Prospectors offer one map
+  per metal within 5 km, every trader a gravel map within 2 km; the sale reserves the deposit,
+  verifies it and issues the map, or refunds. `ItemOreMap` implements the game's
+  `ITradeableCollectible` through `ItemOreMap.Hooks`, which the trading side sets.

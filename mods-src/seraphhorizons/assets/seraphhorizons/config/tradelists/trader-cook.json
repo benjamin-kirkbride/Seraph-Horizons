@@ -8,6 +8,8 @@
 	"wallet": [{"avg": 75, "var": 12}, {"avg": 95, "var": 15}, {"avg": 120, "var": 18}, {"avg": 150, "var": 20}],
 	"selling": {
 		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"code": "salt", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"code": "flour-spelt", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"code": "aculinaryartillery:cork-generic", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
@@ -25,8 +27,8 @@
 				{"code": "flour-rye", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 				{"code": "flour-rice", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 				{"type": "block", "code": "metalpots:metalcrock-copper-east", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 1.5}},
-				{"type": "block", "code": "metalpots:metalcrock-tinbronze-east", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 12, "var": 1.8}},
-				{"type": "block", "code": "metalpots:metalcrock-iron-east", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 17, "var": 2.55}},
+				{"type": "block", "code": "metalpots:metalcrock-tinbronze-east", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 12, "var": 1.8}, "rare": true},
+				{"type": "block", "code": "metalpots:metalcrock-iron-east", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 17, "var": 2.55}, "rare": true},
 				{"type": "block", "code": "bowl-blue-fired", "attributes": {"ucontents": [{"type": "item", "code": "honeyportion", "makefull": true}]}, "stacksize": 4, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}, "playerSupplied": true},
 				{"code": "redmeat-cooked", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
 				{"code": "cheese-waxedcheddar-4slice", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 10, "var": 2.5}},
@@ -34,7 +36,7 @@
 				{"code": "stone-halite", "stacksize": 16, "stock": {"avg": 12, "var": 3}, "price": {"avg": 3, "var": 0.75}},
 				{"code": "aculinaryartillery:clothes-head-c-hat", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}},
 				{"code": "aculinaryartillery:clothes-head-c-hat1", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}},
-				{"code": "aculinaryartillery:clothes-head-c-hat2", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}},
+				{"code": "aculinaryartillery:clothes-head-c-hat2", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "rare": true},
 				{"type": "block", "code": "aculinaryartillery:saucepan-blue-fired", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 2, "var": 0.5}, "playerSupplied": true},
 				{"type": "block", "code": "aculinaryartillery:saucepan-black-fired", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 2, "var": 0.5}, "playerSupplied": true},
 				{"type": "block", "code": "aculinaryartillery:saucepan-brown-fired", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 2, "var": 0.5}, "playerSupplied": true},

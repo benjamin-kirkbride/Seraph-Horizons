@@ -290,6 +290,16 @@ public sealed class StandingLedger
     public IEnumerable<string> RecentPlayers(string trader, double sinceDay) =>
         State.Players.Where(kv => kv.Value.TryGetValue(trader, out var r) && r.LastDay >= sinceDay).Select(kv => kv.Key);
 
+    /// <summary>Moves every record's last change <paramref name="days"/> into the past, as if that
+    /// much time had gone by: <c>/sh trade simulate</c> advances the "traded recently" clock
+    /// (<see cref="StandingRules.RecentDays"/>) this way, since it does not move the calendar.</summary>
+    public void Age(double days)
+    {
+        foreach (var map in State.Players.Values)
+            foreach (var r in map.Values)
+                if (r.LastDay >= 0) r.LastDay -= days;
+    }
+
     /// <summary>Admin: sets a player's own record (not the company's).</summary>
     public void Set(string player, string trader, double points, double day)
     {

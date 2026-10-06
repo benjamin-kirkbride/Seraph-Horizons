@@ -1648,8 +1648,10 @@ order, never below 0. A tenth of your best standing with another trader of the s
 Five tiers, in `assets/seraphhorizons/config/standing-tiers.json`: stranger (0), known (60), regular
 (250), trusted (800), partner (2000). Each tier's unlocks are data for the features that read them:
 map tier and maps to other traders, a price factor each way, the wallet tier, order and delivery
-size, rare stock. Today the wallet uses it: at the weekly restock a trader tops its gears up towards
-its list's wallet for the best tier among players who traded with it in the last 14 days. Opening a
+size, rare stock. The wallet and the shelves follow the best tier among players who traded with the
+trader in the last 14 days (its gears are topped up towards that tier's wallet at the weekly
+restock; its rare stock, schematics and further leads are shelved for it), and the player trading
+gets their own tier's prices and map precision (see "Maps and leads"). Opening a
 trader's dialog shows your standing there in chat once a visit (the game's trade dialog is client
 side and closed to additions), with the next tier; reaching a tier says so.
 
@@ -1891,3 +1893,39 @@ maths, deadline conversion, both state machines, which outcome calls which stand
 the trade packet paying its premium and standing, one abandoned by `simulate`, a delivery between two
 spawned traders handed in on time for deposit and fee, one failing past its grace and keeping the
 deposit).
+
+## Maps and leads (`TraderMaps`)
+
+Traders sell maps to deposits and leads to other camps (#455; `Trading/Maps/`, server side, default
+on; notes in `docs/trading.md` and `docs/oregen.md`). Prices are in
+`assets/seraphhorizons/config/trading/map-prices.json`, before standing's price factor.
+
+- **Ore maps**, from prospectors: one offer per metal, the nearest unsold deposit of the deposit
+  registry within 5 km (whether or not anyone has generated its chunks), at most four metals,
+  nearest first. A stranger is offered precision 1 (within 400 m); standing's map tier buys
+  precision 2 (tier 1, "known") and exact maps (tier 2 up). Price by precision and the deposit's
+  last measured size (5–32 gears, "unsurveyed" until measured), times the metal's factor.
+- **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
+- **Leads** (`seraphhorizons:traderlead`), from every trader: a lead to the nearest camp for
+  anyone (2 gears); with `mapsToTraders` (tier 2 up), a lead to a prospector, to a camp two or
+  three cells away and to the nearest ground kept for a settlement. Right-click a lead to put the
+  camp on your world map (icon `trader`). A lead may point at a camp nobody has generated yet: the
+  sale generates its spot's chunk and draws the lead to where the camp was placed.
+
+A bought map is checked before it is handed over: the deposit is reserved, verified (its chunks
+generated and its ore counted; the chat says "the prospector is checking the claim" while that
+takes), then marked sold and the map arrives in place of the "being checked" sheet. A deposit sold
+meanwhile or worked out refunds the price. No deposit is sold twice, by any trader; once every
+deposit in reach is sold the shelf shows "Ore maps: sold out" (unavailable). Traders never buy maps
+or leads back.
+
+The shelf is shared, so it is stocked for the best customer of the last 14 days: the further leads
+(and rare stock) stay on it for a stranger until the next restock after that customer stops coming,
+but a stranger can't buy them. The trade dialog shows the player trading their own prices and map
+precision (one player trades with a trader at a time).
+
+Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
+table, lead targets); `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's
+ore map offers, buying one through the trade packet, the registry marked sold and no other trader
+offering it, a gravel map offered exactly when a field is in reach, a lead marking a camp, standing
+changing a trader's prices and map precision).
