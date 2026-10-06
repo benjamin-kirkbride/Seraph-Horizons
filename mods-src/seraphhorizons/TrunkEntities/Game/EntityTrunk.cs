@@ -36,7 +36,8 @@ public class EntityTrunk : Entity
     /// holds the trunk (0 or missing: none).</summary>
     public const string GrabbedByKey = "seraphhorizons:grabbedBy";
 
-    /// <summary>The watched attribute holding the cloth id of that grab's rope.</summary>
+    /// <summary>The watched attribute that held the cloth id of a grab's rope when the grab was a
+    /// game rope; only read now to clean such a rope out of an old save.</summary>
     public const string GrabClothKey = "seraphhorizons:grabCloth";
 
     /// <summary>The wood's density, for floating (water is 1000).</summary>
@@ -130,6 +131,7 @@ public class EntityTrunk : Entity
         WatchedAttributes.RegisterModifiedListener(WeightKey, () => Properties.Weight = WatchedAttributes.GetFloat(WeightKey, Properties.Weight));
         if (api.Side == EnumAppSide.Server)
             UpdateWeight();
+        FitSelectionBox();
     }
 
     public override void AfterInitialized(bool onFirstSpawn)
@@ -159,28 +161,107 @@ public class EntityTrunk : Entity
 
     /// <summary>
     /// The trunk's boxes turned with its yaw (<see cref="TrunkBoxes.Turned"/>): the ray picks the
-    /// trunk along its length, whichever way it lies. The entity's own square hitbox is only its
-    /// width across.
+    /// trunk along its length, whichever way it lies. The nearest hit wins, and the tester is left
+    /// holding that hit's point, which the game reads straight after as the selection's hit position.
     /// </summary>
     public override bool IntersectsRay(Ray ray, AABBIntersectionTest interesectionTester, out double intersectionDistance, ref int selectionBoxIndex)
     {
         intersectionDistance = 0;
         if (!Alive)
             return false;
-        bool hit = false;
+        Cuboidf? bestBox = null;
         double best = double.MaxValue;
         foreach (var b in TrunkBoxes.Turned(TypeClass, Pos.Yaw))
         {
             var box = new Cuboidf(b.X1, b.Y1, b.Z1, b.X2, b.Y2, b.Z2);
             if (!interesectionTester.RayIntersectsWithCuboid(box, Pos.X, Pos.InternalY, Pos.Z))
                 continue;
-            hit = true;
-            double d = ray.origin.SquareDistanceTo(Pos.X + (b.X1 + b.X2) / 2, Pos.InternalY + (b.Y1 + b.Y2) / 2, Pos.Z + (b.Z1 + b.Z2) / 2);
-            best = Math.Min(best, d);
+            double d = ray.origin.SquareDistanceTo(interesectionTester.hitPosition);
+            if (d < best)
+            {
+                best = d;
+                bestBox = box;
+            }
         }
-        if (hit)
-            intersectionDistance = best;
-        return hit;
+        if (bestBox == null)
+            return false;
+        interesectionTester.RayIntersectsWithCuboid(bestBox, Pos.X, Pos.InternalY, Pos.Z);
+        intersectionDistance = best;
+        return true;
+    }
+
+    /// <summary>
+    /// Fits <see cref="Entity.SelectionBox"/> around the trunk's turned boxes. The game measures
+    /// reach to it (the server's interaction range check, and attack range on both sides), so with
+    /// the type's square 2 × 2 or 1 × 1 hitbox only the middle of a long trunk was in reach.
+    /// The collision box stays square: shoving and the physics read that.
+    /// </summary>
+    private void FitSelectionBox()
+    {
+        if (_selectionYaw == Pos.Yaw && ReferenceEquals(SelectionBox, _selectionBox))
+            return;
+        float x1 = float.MaxValue, y1 = float.MaxValue, z1 = float.MaxValue;
+        float x2 = float.MinValue, y2 = float.MinValue, z2 = float.MinValue;
+        foreach (var b in TrunkBoxes.Turned(TypeClass, Pos.Yaw))
+        {
+            x1 = Math.Min(x1, (float)b.X1); y1 = Math.Min(y1, (float)b.Y1); z1 = Math.Min(z1, (float)b.Z1);
+            x2 = Math.Max(x2, (float)b.X2); y2 = Math.Max(y2, (float)b.Y2); z2 = Math.Max(z2, (float)b.Z2);
+        }
+        if (x1 > x2)
+            return;
+        _selectionYaw = Pos.Yaw;
+        _selectionBox = SelectionBox = new Cuboidf(x1, y1, z1, x2, y2, z2);
+    }
+
+    private float _selectionYaw = float.NaN;
+    private Cuboidf? _selectionBox;
+
+    /// <summary>The trunk's weight on land, as worked out from its logs and kept in the watched
+    /// <see cref="WeightKey"/>. <see cref="Properties"/>' weight is this on land and lighter afloat
+    /// on the server (<see cref="TrunkPull.EffectiveWeight"/>), for the rope's pull.</summary>
+    public float LandWeight => WatchedAttributes.GetFloat(WeightKey, Properties.Weight);
+
+    /// <summary>Whether the trunk floats in, or lies in, water.</summary>
+    public bool Afloat => Swimming || FeetInLiquid;
+
+    public override void OnGameTick(float dt)
+    {
+        // Motion as the pulls left it (the grab's, or a rope's), before this tick's physics
+        // stops it against a rise.
+        double mx = Pos.Motion.X, mz = Pos.Motion.Z;
+        base.OnGameTick(dt);
+        FitSelectionBox();
+        TrunkRope.Tick(this, dt);
+        if (Api is { Side: EnumAppSide.Server } && Alive)
+        {
+            Properties.Weight = (float)TrunkPull.EffectiveWeight(LandWeight, Afloat);
+            StepUp(mx, mz);
+        }
+    }
+
+    // Lifts a trunk being pulled against a rise of at most a block onto it (TrunkStep), a few
+    // ticks at a time. Not afloat (water lifts it) and not while falling.
+    private void StepUp(double mx, double mz)
+    {
+        if (Afloat || Pos.Motion.Y < -0.1)
+            return;
+        var accessor = World.BlockAccessor;
+        var cell = new BlockPos(Pos.Dimension);
+        double lift = TrunkStep.Lift(TrunkBoxes.Turned(TypeClass, Pos.Yaw), Pos.X, Pos.Y, Pos.Z, mx, mz,
+            (x, y, z) =>
+            {
+                cell.Set(x, y, z);
+                var boxes = accessor.GetBlock(cell, BlockLayersAccess.MostSolid).GetCollisionBoxes(accessor, cell);
+                return boxes is { Length: > 0 };
+            });
+        if (lift <= 0)
+            return;
+        Pos.Y += lift;
+        if (Pos.Motion.Y < 0)
+            Pos.Motion.Y = 0;
+        // Keep the pull's way on, which the collision just took.
+        Pos.Motion.X = mx;
+        Pos.Motion.Z = mz;
     }
 
     /// <summary>The distance from <paramref name="point"/> to the nearest point of the trunk's
@@ -200,20 +281,22 @@ public class EntityTrunk : Entity
 
     public override void OnInteract(EntityAgent byEntity, ItemSlot itemslot, Vec3d hitPosition, EnumInteractMode mode)
     {
-        // While a player's grab holds it, another player's empty hand does nothing: the game's
-        // ropetieable would otherwise unhook the grab's rope from the trunk and tie it to them
-        // (sneak + click, which comes before Carry On's pick-up), leaving the two players roped
-        // together and the trunk marked as held.
+        // While a player's grab holds it, another player's empty hand does nothing (not even
+        // sneak + click, which would reach ropetieable or Carry On's pick-up under the holder).
         if (mode == EnumInteractMode.Interact && Grabbed && byEntity.EntityId != GrabbedBy && (itemslot == null || itemslot.Empty))
         {
             if (Api.Side == EnumAppSide.Server && byEntity is EntityPlayer { Player: IServerPlayer other })
                 other.SendIngameError("trunkentities-grabbed", Lang.GetL(other.LanguageCode, "seraphhorizons:trunkentities-error-grabbed"));
             return;
         }
-        if (mode == EnumInteractMode.Interact && Api.Side == EnumAppSide.Server && TrunkGrab.Wants(byEntity, itemslot, this)
-            && TrunkEntitySystem.Of(Api).Grabs is { } grabs && byEntity is EntityPlayer { Player: IServerPlayer player })
+        // A grab click stops here on both sides, never reaching ropetieable (whose empty hand
+        // would otherwise act on the client too). The game repeats the interact while the button
+        // is held; TryStart ignores a repeat for the trunk already held.
+        if (mode == EnumInteractMode.Interact && TrunkGrab.Wants(byEntity, itemslot, this))
         {
-            grabs.TryStart(player, this);
+            if (Api.Side == EnumAppSide.Server && TrunkEntitySystem.Of(Api).Grabs is { } grabs
+                && byEntity is EntityPlayer { Player: IServerPlayer player })
+                grabs.TryStart(player, this, hitPosition);
             return;
         }
         base.OnInteract(byEntity, itemslot, hitPosition, mode);
@@ -236,6 +319,8 @@ public class EntityTrunk : Entity
                 sb.AppendLine(Lang.Get("seraphhorizons:trunkentities-info-debarked"));
             sb.AppendLine(Lang.Get("seraphhorizons:trunkentities-info-weight", (int)Math.Round(Properties.Weight)));
         }
+        if (Afloat)
+            sb.AppendLine(Lang.Get("seraphhorizons:trunkentities-info-afloat"));
         if (Grabbed && World?.GetEntityById(GrabbedBy) is EntityPlayer holder)
             sb.AppendLine(Lang.Get("seraphhorizons:trunkentities-info-grabbed", holder.Player?.PlayerName ?? ""));
         sb.Append(base.GetInfoText());
