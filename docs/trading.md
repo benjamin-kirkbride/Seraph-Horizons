@@ -603,7 +603,8 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
   standing. Unlocks (`TierUnlocks`): `mapTier`, `mapsToTraders`, `buyPriceFactor`, `sellPriceFactor`,
   `walletTier`, `orderScale`, `deliveryScale`, `rareStock`. Consumers: the wallet and the shelf
   (`walletTier`, `rareStock`, and every entry's `standingTier`), prices (`buyPriceFactor`,
-  `sellPriceFactor`) and maps (`mapTier`, `mapsToTraders`); orders and deliveries in wave 3.
+  `sellPriceFactor`), maps (`mapTier`, `mapsToTraders`), orders (`orderScale`) and deliveries
+  (`deliveryScale`); every unlock has a consumer.
 - **Effective standing** = max(personal, company) + `spilloverShare` (0.1) × the best max(personal,
   company) at another trader of the same type within `TraderStandingSpilloverKm` (6). Same-type
   traders come from the grid's placed camps, so only camp traders spill over.
@@ -772,6 +773,20 @@ unit-tested in `tests/Trading/Economy/`), `Game/` (`EconomySystem`, `EconomyPatc
 - Camps are not placed in cells that are mostly ocean or high ground: `TryGenerate` refuses spots
   above sea level + 15 in climates under 20 °C, as for vanilla camps.
 - Villager lists (`villager-*.json`) belong to the story villagers and are left alone.
+- **Vanilla: `GenStructures` throws in worlds without lore content.** `GenStructures.initWorldGen`
+  returns early when the world config's `loreContent` is false (and when the story structures config
+  is missing), before it sets its private `spawnPos`; `DoGenStructures` then passes that null to
+  `BlockSchematicStructure.SatisfiesMinSpawnDistance` for any structure with `minSpawnDistance` > 0
+  (vanilla's `specialsurfaceruins`, 10,000), and the TerrainFeatures pass logs a
+  `NullReferenceException` for that chunk column. The structures after it in that column's shuffled
+  order are not tried, so such worlds get fewer ruins. Measured 2026-10-06: an Atlas world (standard,
+  play style `creativebuilding`, whose config has `loreContent` false) on `origin/main`, without the
+  camp grid, logged it for 2,449 distinct chunk columns (49 asked for, the spawn area and neighbours);
+  `packtool smoke` and the ore survey (`surviveandbuild`, lore content on) log none. Not ours: the
+  camp grid only takes the `trader` group out of `scfg` and runs `TryGenerate` itself, which never
+  reads `spawnPos`. Players hit it in a world created with lore content off (the Homo Sapiens play
+  style). Nothing in `pack/known-errors.json`: neither smoke nor the boot-log scenarios see it. A fix
+  would be a postfix on `initWorldGen` that sets `spawnPos` as its last lines do.
 
 ## Schematics (#468, #469)
 
