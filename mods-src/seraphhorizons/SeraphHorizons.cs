@@ -400,4 +400,14 @@ public class SeraphHorizonsConfig
     /// keeps that choice; off later means the world's new chunks get the game's camps again. The
     /// trader types and their lists exist either way. Server side.</summary>
     public bool TraderGrid { get; set; } = true;
+
+    /// <summary>Trader standing (Trading/Standing/, README "Standing" and "Companies"): standing per
+    /// player and trader, raised by trading, pooled by the player's company (a vanilla group), which
+    /// unlocks tiers (wallet, and for later waves prices, maps, orders, rare stock). Saved with the
+    /// world. Server side.</summary>
+    public bool TraderStanding { get; set; } = true;
+
+    /// <summary>How far, in km, standing with another trader of the same type counts (a tenth of it)
+    /// at a trader. 0 turns spillover off.</summary>
+    public double TraderStandingSpilloverKm { get; set; } = 6;
 }
