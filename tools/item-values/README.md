@@ -17,15 +17,19 @@ ITEM_VALUES_EXPORT=$PWD/build/recipes.json TMPDIR=$PWD/build/atlas-tmp VINTAGE_S
 python3 tools/item-values/itemvalues.py build   build/recipes.json   # the table, plus build/item-values-report.md and .json
 python3 tools/item-values/itemvalues.py report  build/recipes.json   # the report only, to stdout (--json for JSON)
 python3 tools/item-values/itemvalues.py explain build/recipes.json game:pickaxe-tinbronze   # the route, every step's numbers
-python3 tools/item-values/itemvalues.py check   build/recipes.json   # CI: every trade list item has a value
+python3 tools/item-values/itemvalues.py check   build/recipes.json   # CI: every item traders buy has a value
 python3 -m unittest discover -s tools/tests -p test_item_values.py
 ```
 
 `check` reads the mod's trade lists (`mods-src/seraphhorizons/assets/seraphhorizons/config/tradelists/*.json`,
-vanilla's trade list format; no folder means nothing to check) and fails when one of their codes
-has no value, either derived from the export or in the shipped table. It warns, without failing,
-when the shipped table differs from what the export derives: rebuild and commit the table when a
-pack change matters. CI runs it in the export job.
+vanilla's trade list format; no folder means nothing to check) and fails when an item traders buy
+has no value, either derived from the export or in the shipped table. Traders buy their `buying`
+entries and their `playerSupplied` selling entries (players sell those to them, off the list at
+their value when the buying side does not list them); what a trader only sells is priced by its list
+and needs none. A code counts as valued the way the mod looks it up (`ItemValues.Lookup`): directly,
+or through its variant family's average, or for a code with `*`, the average of what it matches. It
+warns, without failing, when the shipped table differs from what the export derives: rebuild and
+commit the table when a pack change matters. CI runs it in the export job.
 
 ## Rules
 

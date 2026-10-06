@@ -8,10 +8,21 @@
     "game:anvil-blackbronze": 30,
     "game:anvil-iron": 38,
     "game:anvil-meteoriciron": 45,
-    "game:anvil-steel": 80
+    "game:anvil-steel": 80,
+    "game:coke": 0.175,
+    "ageofflax:flaxbundle-dried": 0.7,
+    "game:ironfence-base-ew": 1.4,
+    "game:ironfence-top-ew": 1.4,
+    "game:smallcarpet-blue": 10.5,
+    "game:smallcarpet-red": 10.5,
+    "game:smallcarpet-brown": 8.4,
+    "game:smallcarpet-turqoise": 8.4,
+    "game:chandelier-candle0": 12.95,
+    "game:resonator-north": 21
   },
   "why": {
     "game:barrel": "three boards and four sticks undervalue a cooper's work; vanilla sells one for 2",
-    "game:anvil-*": "cast in a mold from 9 ingots, which the export does not carry (molds are not recipes): 9 ingots plus labour; iron and steel anvils are welded from smithed halves"
+    "game:anvil-*": "cast in a mold from 9 ingots, which the export does not carry (molds are not recipes): 9 ingots plus labour; iron and steel anvils are welded from smithed halves",
+    "traded, no route": "game:coke, ageofflax:flaxbundle-dried, game:ironfence-*-ew, game:smallcarpet-*, game:chandelier-candle0, game:resonator-north: the pack's traders buy them (tradelists/), but the tool finds no route to them in the export (coke oven, drying, fence smithing, found loot) and no vanilla trader prices them; priced by traderFallback's rule over the pack's own trade lists: the mean per item of 0.7 x selling and 1.4 x buying prices"
   }
 }

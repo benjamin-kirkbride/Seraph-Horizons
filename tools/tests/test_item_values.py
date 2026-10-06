@@ -238,7 +238,7 @@ class ItemValuesTest(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def test_build_explain_and_check(self):
-        items = {c: item() for c in ("game:log", "game:stick", "game:plank")}
+        items = {c: item() for c in ("game:log", "game:stick", "game:plank", "game:ore-tin")}
         ex = export(items, [grid("grid|p|0", ["LS"], {"L": ["game:log"], "S": ["game:stick"]}, st("game:plank", 4))])
         path = self.dir / "recipes.json"
         path.write_text(json.dumps(ex))
@@ -263,13 +263,31 @@ class ItemValuesTest(unittest.TestCase):
         (lists / "smith.json").write_text("""{
           // vanilla style
           money: { avg: 20 },
-          selling: { list: [ { code: "plank", type: "item", stacksize: 4, price: { avg: 1 } }, ] },
-          buying: { list: [ { code: "game:unobtainium", type: "item", price: { avg: 5 } } ] }
+          selling: { list: [
+            { code: "plank", type: "item", stacksize: 4, price: { avg: 1 } },
+            { code: "game:soldonly", type: "item", price: { avg: 5 } },
+            { code: "game:cast", type: "item", price: { avg: 5 }, playerSupplied: true },
+          ] },
+          buying: { list: [
+            { code: "game:unobtainium", type: "item", price: { avg: 5 } },
+            { code: "game:ore-copper", type: "item", price: { avg: 1 } },
+          ] }
         }""")
         code, _, err = self.run_cli("check", str(path), "--rules", str(self.dir), "--tradelists", str(lists), "--table", str(out))
         self.assertEqual(code, 1)
         self.assertIn("smith.json: game:unobtainium has no value", err)
+        # Player-supplied goods are bought (off the list, at their value) as well as sold.
+        self.assertIn("smith.json: game:cast has no value", err)
+        # What a trader only sells is priced by its list.
+        self.assertNotIn("soldonly", err)
+        # A code missing from the table takes its family's value, as the mod looks it up.
         self.assertNotIn("plank", err)
+        self.assertNotIn("ore-copper", err)
+
+    def test_family_prefixes_match_the_mod(self):
+        # ItemValues.FamilyPrefixes: longest first, never past the path's first segment.
+        self.assertEqual(list(iv.family_prefixes("game:axe-felling-silver")), ["game:axe-felling-", "game:axe-"])
+        self.assertEqual(list(iv.family_prefixes("game:plank")), [])
 
 
 class ShippedRulesTest(unittest.TestCase):

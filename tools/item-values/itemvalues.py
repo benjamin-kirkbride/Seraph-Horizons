@@ -6,7 +6,7 @@ Stdlib only, Python 3.11+. See README.md next to this file for the rules and the
   python3 tools/item-values/itemvalues.py build   build/recipes.json   # writes the mod's item-values.json and a report
   python3 tools/item-values/itemvalues.py report  build/recipes.json   # the report only (stdout)
   python3 tools/item-values/itemvalues.py explain build/recipes.json game:pickaxe-tinbronze
-  python3 tools/item-values/itemvalues.py check   build/recipes.json   # fails if a trade list item has no value
+  python3 tools/item-values/itemvalues.py check   build/recipes.json   # fails if an item traders buy has no value
 
 Every item's value is the cheapest route to it: hand-priced raws (raw-values.json) and overrides
 (overrides.json) are fixed; every other item is the cheapest of its recipes, where a recipe costs
@@ -699,38 +699,57 @@ def _lenient_json(text: str):
 
 
 def trade_list_codes(directory: Path) -> dict[str, list[str]]:
-    """Every item code in the trade lists (vanilla tradelist format), per file. Missing folder: none."""
+    """The item codes traders can buy, per trade list file (docs/trading.md, Trade lists): every
+    `buying` entry, and every `selling` entry marked `playerSupplied`, whose stock comes from players
+    selling it to the trader (off its list, at its value, when the buying side does not list it).
+    What a trader only sells is priced by its list and needs no value. Missing folder: none."""
     found: dict[str, list[str]] = {}
     if not directory.is_dir():
         return found
 
-    def walk(node, acc):
+    def walk(node, side, acc):
         if isinstance(node, dict):
             code = node.get("code")
             if isinstance(code, str) and ("type" in node or "price" in node or "stacksize" in node):
-                acc.append(code if ":" in code else "game:" + code)
-            for v in node.values():
-                walk(v, acc)
+                if side == "buying" or (side == "selling" and node.get("playerSupplied") is True):
+                    acc.append(code if ":" in code else "game:" + code)
+            for k, v in node.items():
+                walk(v, side or (k if k in ("buying", "selling") else None), acc)
         elif isinstance(node, list):
             for v in node:
-                walk(v, acc)
+                walk(v, side, acc)
 
     for path in sorted(directory.rglob("*.json")):
         acc: list[str] = []
-        walk(_lenient_json(path.read_text(encoding="utf-8")), acc)
+        walk(_lenient_json(path.read_text(encoding="utf-8")), None, acc)
         found[path.name] = sorted(set(acc))
     return found
 
 
+def family_prefixes(code: str):
+    """ItemValues.FamilyPrefixes (Trading/Values/Core/ItemValues.cs): every prefix of the code ending
+    in '-', longest first, down to the one after the path's first segment."""
+    first = code.find("-", code.find(":") + 1)
+    if first < 0:
+        return
+    i = code.rfind("-")
+    while i >= first:
+        yield code[: i + 1]
+        i = code.rfind("-", 0, i)
+
+
 def check(values: dict[str, float] | set[str], tradelists: Path, what: str = "") -> list[str]:
-    """Trade list entries without a value in `values` (derived values, or the shipped table)."""
+    """Trade list entries without a value in `values` (derived values, or the shipped table). As the
+    mod looks values up (ItemValues.Lookup): a code missing from the table takes its variant family's
+    average, and a code with * the average of what it matches; only a code with neither is missing."""
+    families = {p for c in values for p in family_prefixes(c)}
     problems = []
     for name, codes in trade_list_codes(tradelists).items():
         for code in codes:
             if "*" in code:
                 if not any(fnmatch.fnmatchcase(c, code) for c in values):
                     problems.append(f"{name}: {code} matches nothing with a value{what}")
-            elif code not in values:
+            elif code not in values and not any(p in families for p in family_prefixes(code)):
                 problems.append(f"{name}: {code} has no value{what}")
     return problems
 
@@ -798,10 +817,10 @@ def main(argv: list[str] | None = None) -> int:
         for p in problems:
             print(p, file=sys.stderr)
         if problems:
-            print(f"{len(problems)} trade list entries lack a value", file=sys.stderr)
+            print(f"{len(problems)} trade list entries traders buy lack a value", file=sys.stderr)
             return 1
         n = sum(len(v) for v in trade_list_codes(args.tradelists).values())
-        print(f"every trade list item has a value ({n} entries)" if n else "no trade lists: nothing to check")
+        print(f"every item traders buy has a value ({n} entries)" if n else "no trade lists: nothing to check")
     return 0
 
 
