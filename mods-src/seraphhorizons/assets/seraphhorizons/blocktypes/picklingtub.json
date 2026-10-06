@@ -14,7 +14,8 @@
 	attributes: {
 		handbook: {
 			extraSections: [
-				{ title: "seraphhorizons:picklingtub-handbook-title", text: "seraphhorizons:picklingtub-handbook-text" }
+				{ title: "seraphhorizons:picklingtub-handbook-title", text: "seraphhorizons:picklingtub-handbook-text" },
+				{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }
 			]
 		}
 	},
