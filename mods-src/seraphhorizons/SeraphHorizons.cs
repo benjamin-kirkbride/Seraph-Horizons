@@ -1,7 +1,10 @@
 using HarmonyLib;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.GearCutter.Core;
+using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.PicklingTub.Core;
 using SeraphHorizons.Mod.Rosser;
 using SeraphHorizons.Mod.Rosser.Core;
 using SeraphHorizons.Mod.TrunkEntities.Core;
@@ -38,6 +41,9 @@ public class SeraphHorizonsSystem : ModSystem
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
     private Harmony? _heatingRackHarmony;
+    // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
+    private Harmony? _gearConsumersHarmony;
+    private bool _gearConsumers;
     private UnifiedWoodworking? _woodworking;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
@@ -98,6 +104,11 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(BarrelRackKegs.DisablePatches);
         if (Config(api).HeatingRackKeepsPosition && HeatingRackPosition.Applies(api) && HeatingRackPosition.Bind(api.Logger))
             HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
+        _gearConsumers = Config(api).GearConsumers;
+        if (!_gearConsumers)
+            DisablePatches(GearConsumers.DisablePatches);
+        else if (GearConsumers.BessemerApplies(api) && GearConsumers.Bind(api.Logger))
+            GearConsumers.Patch(_gearConsumersHarmony = new Harmony(GearConsumers.HarmonyId));
         // Registers its classes whatever the setting; on the server, decides whether it runs and
         // tells clients; sets the two mods' settings and patches. Last, and it catches its own
         // failures, so nothing above depends on it.
@@ -187,6 +198,8 @@ public class SeraphHorizonsSystem : ModSystem
             AssembledMachines.AddToBlocktypes(api);
         if (api.Side == EnumAppSide.Server && _irrigationVessel)
             IrrigationVessel.DropFromRuinLoot(api);
+        if (api.Side == EnumAppSide.Server && !Config(api).GearBlanks)
+            Gears.GearBlanks.Disable(api);
         if (Config(api).PanningDropsTrimmed)
         {
             if (api.Side == EnumAppSide.Server)
@@ -197,6 +210,8 @@ public class SeraphHorizonsSystem : ModSystem
             LangText.Apply(WoodworkingMachineCosts.LangEdits, WoodworkingMachineCosts.ModId, api.Logger);
         if (_barrelRackKegs)
             LangText.Apply(BarrelRackKegs.LangEdits, BarrelRackKegs.FoodShelvesId, api.Logger);
+        if (_gearConsumers && GearConsumers.BessemerApplies(api))
+            LangText.Apply(GearConsumers.LangEdits, GearConsumers.SmexId, api.Logger);
         _woodworking?.AssetsLoaded(api);
     }
 
@@ -223,6 +238,8 @@ public class SeraphHorizonsSystem : ModSystem
         _barrelRackHarmony = null;
         _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
         _heatingRackHarmony = null;
+        _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
+        _gearConsumersHarmony = null;
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -391,6 +408,13 @@ public class SeraphHorizonsConfig
     /// meteoric iron or steel, and far more nails and strips (off means its own recipes).</summary>
     public bool IronWoodworkingMachines { get; set; } = true;
 
+    /// <summary>Gears (#473): the rusty gear is salvage and money. Every recipe that took one (ppex's
+    /// and smex's machines, the glider, BetterRuins' Jonas parts and lamps, ...) takes the steel gear
+    /// in the same number, ppex's anvil gears and large gears are no longer made and are hidden, and
+    /// smex's Bessemer converter is raised with the steel large gear (off means every recipe as its
+    /// mod ships it). The server's recipes are used; both sides patch the converter.</summary>
+    public bool GearConsumers { get; set; } = true;
+
     /// <summary>The rosser: a mechanically powered ring debarker, built from a frame and Immersive
     /// Woodworking's and the game's parts, that strips the bark and branches off Logging Expanded
     /// tree trunks, giving bark and sticks, and hands the debarked trunk on to a Trunk Storage Rack
@@ -545,4 +569,48 @@ public class SeraphHorizonsConfig
     /// <summary>The trunk entities' figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public TrunkEntityConfig TrunkEntitiesSettings { get; set; } = new();
+
+    /// <summary>Gear reclamation (#484, GearReclamation/, PicklingTub/, README "Gear reclamation"):
+    /// rusty gears are salvage, reclaimed into steel gears by boiling in lye, pickling in the
+    /// pickling tub, neutralizing in lime water and oiling in lard, one in ten sound and the rest
+    /// steel bits; bare gears flash-rust back, and steel gears rust back into currency in the tub's
+    /// brine bath. Off means none of the steps' recipes, no roll, no salvage text, no pickling tub
+    /// and no bare steel gear; the other gear items exist either way. The server's setting decides.</summary>
+    public bool GearReclamation { get; set; } = true;
+
+    /// <summary>Gear reclamation's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public GearReclamationConfig GearReclamationSettings { get; set; } = new();
+
+    /// <summary>The pickling tub's figures (#476, #482): batch size, capacity, the acid rule table
+    /// and the brine bath; a value out of range falls back to its default with a warning, a broken
+    /// rule is dropped. The server's are used.</summary>
+    public PicklingTubConfig PicklingTubSettings { get; set; } = new();
+
+    /// <summary>Steel bits recovery (#478, SteelBits/): steel bits, which no fuel melts, go back into
+    /// steel. In the game's stone coffin 20 bits take an iron ingot's place and come out a blister
+    /// steel ingot (put in directly, or packed in the crafting grid first); and Steelmaking
+    /// Expanded's Bessemer converter takes them as scrap, which its default setting already does and
+    /// a server's file that leaves them out is overridden for the run. Both sides; off means the
+    /// coffin is not patched, there is no packing recipe and smex's setting is as its file says.</summary>
+    public bool SteelBitsRecovery { get; set; } = true;
+
+    /// <summary>Steel gear blanks (#479, Gears/, README "Steel gear blanks"): a steel gear blank and a
+    /// large one, cast in clay-formed gear blank molds filled from a crucible (or smex's canal
+    /// pedestal) or smithed from one and two steel ingots, by hand or with the helve hammer (off means
+    /// the blanks, their molds and their recipes do not exist, and those already in a world are
+    /// lost). The server's setting decides.</summary>
+    public bool GearBlanks { get; set; } = true;
+
+    /// <summary>The gear cutter (#480, #481, GearCutter/, README "Gear cutter"): a mechanically
+    /// powered generating gear cutter, built on a frame in ten stages from steel parts, Jonas parts
+    /// and a temporal gear master, that cuts steel gear blanks into steel gears and large steel
+    /// gears; a MachineOil machine whose oil wears its cutter kit, not its shaft load (off means its
+    /// blocks, its parts and their recipes do not exist, and cutters already placed are lost). The
+    /// server's setting decides.</summary>
+    public bool GearCutter { get; set; } = true;
+
+    /// <summary>The gear cutter's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public GearCutterConfig GearCutterSettings { get; set; } = new();
 }

@@ -257,6 +257,41 @@ type `smoking` ("Smoking rack") and shape `transition`: the item, then the racks
 pack: Butchering's prime meat and sausages and vanilla red meat, bushmeat and fish, raw and
 cured.
 
+## The gear chain (seraphhorizons)
+
+The pack's own mod has three processes no registry holds (shapes in
+[schema.md](schema.md#the-gear-chain)). `Recipes/GearChain.cs` reads them from the mod's
+loaded systems by reflection, by type name, since the exporter is built on its own and cannot
+reference the mod; what it reads is the server's own settings, `ModConfig` included. Each one
+is left out when its switch is off or what it names is not registered.
+
+- The pickling tub: `PicklingTubSystem.Rules.Rules`, the acid table and the brine bath's two
+  rules per brine, each a `picklingtub` record; `Config.BatchSize` and `LitresPerBatch`. A
+  rule whose liquid matches no registered item (hydrochloric acid without Expanded Matter) is
+  skipped with a note in the log.
+- The oiled gear: `GearReclamationSystem.Config.UsableGearChance` and `BitsPerFailedGear`, one
+  `lottery` record.
+- The gear cutter: `config/gearcutter-rig.json` gives the turns per tooth (`cut.turnsPerTooth`),
+  the masters (`cut.masters`) and the teeth (`work.end`) of each class (`thin`, `thick`); the
+  blank and gear of each class are constants (`GearChain.ClassStock`). The wear per gear and the
+  turns per tooth come from `SeraphHorizonsConfig.GearCutterSettings` (`CutterWearPerGear`,
+  `TurnsPerTooth`), the oil from `MachineOilSettings.GearCutter` (`Tank`, `DrainPerJob`) and
+  the oils from `OilLiquids` and `OilLumps`, each read when the mod has it; until the cutter's
+  gameplay lands, `GearChain`'s defaults stand in (wear 10, oil 10 points, tank 1000). A large
+  gear's wear is the small one's times its teeth over the small gear's, rounded up, and its oil
+  double. The `GearCutter` switch, once there, leaves it out when off.
+
+## Casting in tool molds
+
+`Recipes/Casting.cs` exports every block of the game's `BlockToolMold` class: the game's tool
+molds, and the pack's gear blank molds, which use the same class. The game pours
+`requiredUnits` (100 when unset) of molten metal into one and gives its `drop` (or each of its
+`drops`) with `{metal}` replaced by the poured stack's last code part; the mold refuses a metal
+whose drop does not exist. So each `ingot-<metal>` item stands for a metal (the `game` one when
+several domains have it), and a variant is exported for each metal whose drops all resolve.
+Molds that differ only in colour are one record, id `casting|<first mold code>|0`. Ingot molds
+(`BlockIngotMold`) are not exported.
+
 ## Other time-based processes (not covered)
 
 Checked in the pack's code (decompiled) and assets; none is exported:
@@ -309,6 +344,10 @@ Checked in the pack's code (decompiled) and assets; none is exported:
   poultry's own perishing to the game;
 - the smoking rack: prime meat and patched-in vanilla red meat, 4 hours, both racks as
   stations, and every item with `transformsWhenSmoked` in exactly one record;
+- the gear chain (`RecipeExportGearScenarios.cs`): the tub's rules with their hours, losses
+  and failure output, the oiled gear's one in ten, the gear cutter's two blank sizes (turns,
+  kept master, kit wear, oil), the gear blank molds and two vanilla tool molds cast, and every
+  link of the gear chain's handbook page;
 - records per type against the definitions counted with the engine's asset loader, and
   variants per type against the sizes of the engine's registries;
 - the structural rules of the document, schema validation (JsonSchema.Net, draft

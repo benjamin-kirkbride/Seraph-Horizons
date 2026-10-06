@@ -1,0 +1,45 @@
+// The gear cutter's forged steel parts (#480, #481; GearCutter/, README "Gear cutter"), each from
+// one steel ingot (42 voxels). None is named plate or blistersteel, the only names the game's helve
+// hammer works (ItemWorkItem.GetHelveWorkableMode), so they are smithed by hand. The server disables
+// them with GearCutter off.
+[
+	{
+		// The feed screw: a single-start worm with its clutch sleeve.
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		name: "gearcutterfeedscrew",
+		pattern: [[
+			"_#_#_#_#_",
+			"#########",
+			"#########",
+			"_#_#_#_#_"
+		]],
+		output: { type: "item", code: "seraphhorizons:gearcutterfeedscrew" }
+	},
+	{
+		// The lift cam: an eccentric disc on its hub, with the bore off centre.
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		name: "gearcutterliftcam",
+		pattern: [[
+			"__##___",
+			"_####__",
+			"###_##_",
+			"#######",
+			"_######",
+			"__####_"
+		]],
+		output: { type: "item", code: "seraphhorizons:gearcutterliftcam" }
+	},
+	{
+		// The cutter kit: a formed cutter, one tooth of the rack, on a disc with a bore.
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		name: "gearcutterkit",
+		pattern: [[
+			"#_#_#_#",
+			"#######",
+			"###_###",
+			"#######",
+			"#_#_#_#"
+		]],
+		output: { type: "item", code: "seraphhorizons:gearcutterkit-{metal}" }
+	}
+]

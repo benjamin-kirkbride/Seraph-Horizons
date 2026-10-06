@@ -1,0 +1,34 @@
+// The gear cutter's index: lever, pawls and shield (#480, stage 6; GearCutter/, README "Gear
+// cutter"): a grid recipe from a steel rod, a steel plate and iron nails and strips. Drawn with the
+// game's linkage shape in steel. The server disables it with GearCutter off.
+{
+	code: "gearcutterindex",
+	shape: { base: "game:item/part/linkage" },
+	textures: {
+		"iron": { base: "game:block/metal/sheet-plain/steel1" },
+		"iron1": { base: "game:block/metal/sheet-plain/steel1" },
+		"iron12": { base: "game:block/metal/sheet-plain/steel1" },
+		"linkagewood": { base: "game:block/metal/sheet-plain/steel1" }
+	},
+	maxstacksize: 4,
+	materialDensity: 7850,
+	attributes: {
+		handbook: { extraSections: [ { title: "seraphhorizons:gearcutter-part-section-title", text: "seraphhorizons:gearcutter-part-section-text" } ] }
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"], "mechanics": ["*"] },
+	guiTransform: {
+		rotation: { x: -48, y: -51, z: 0 },
+		origin: { x: 0.8799, y: 0.08, z: 0.45 },
+		scale: 3.53
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 4.31
+	},
+	tpHandTransform: {
+		translation: { x: -0.6299, y: 0, z: -0.51 },
+		rotation: { x: -90, y: 0, z: -1 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.9
+	}
+}

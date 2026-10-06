@@ -1,0 +1,49 @@
+// Packed steel bits (#478; README "Steel bits back into steel", SteelBits/SteelBitsSystem.cs): twenty
+// steel bits that take one iron ingot's place in the game's stone coffin, which takes any item with
+// carburizableProps and turns it into its carburizedOutput one for one. Made in the crafting grid
+// (recipes/grid/steelbitcharge.json), or by the coffin itself when a player puts bits in directly.
+// It exists whatever SteelBitsRecovery says, so charges already made are never lost. The game's iron
+// bloom shape in the steel ingot's texture.
+{
+	code: "steelbitcharge",
+	shape: { base: "game:item/ironbloom" },
+	textures: {
+		"ironbloom": { base: "game:block/metal/ingot/steel" }
+	},
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "Quadrants", collisionBox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.125, z2: 1 } } }
+	],
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	maxstacksize: 16,
+	materialDensity: 7800,
+	attributes: {
+		carburizableProps: {
+			carburizedOutput: { type: "item", code: "game:ingot-blistersteel" }
+		},
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:steelbits-handbook-title", text: "seraphhorizons:steelbits-handbook-text" }
+			]
+		},
+		displaycaseable: true,
+		shelvable: true
+	},
+	heldTpIdleAnimation: "holdbothhandslarge",
+	guiTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: -29, y: -31, z: -180 },
+		origin: { x: 0.53, y: 0.18, z: 0.5 },
+		scale: 2.59
+	},
+	tpHandTransform: {
+		translation: { x: -1.04, y: -0.4, z: -0.22 },
+		rotation: { x: -82, y: -170, z: 100 },
+		scale: 1
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 90, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0.22, z: 0.54 },
+		scale: 4.5
+	}
+}

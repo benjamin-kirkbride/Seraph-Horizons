@@ -100,24 +100,28 @@ public enum Axis { X, Y, Z }
 
 public enum DriverType { Rotate, Slide, Swing, Feed, Step, Stretch, Gauge, Roll }
 
-/// <summary>The input a rotate, slide or swing driver runs on (rig.json's <c>input</c>): θ, ψ
-/// (<c>"travel"</c>, also what <c>"rectified": true</c> means), φ (<c>"feed"</c>) or T
-/// (<c>"trunk"</c>).</summary>
-public enum DriverInput { Theta, Travel, Feed, Trunk }
+/// <summary>The input a driver runs on (rig.json's <c>input</c>): a rotate, slide or swing reads θ, ψ
+/// (<c>"travel"</c>, also what <c>"rectified": true</c> means), φ (<c>"feed"</c>), W (<c>"work"</c>,
+/// or <c>"trunk"</c>, its trunk-flavoured spelling) or the oil tank's fill (<c>"oil"</c>); a stretch
+/// reads the depth (the default) or the oil.</summary>
+public enum DriverInput { Theta, Travel, Feed, Work, Oil, Depth }
 
 /// <summary>How a <see cref="DriverType.Step"/> driver treats the lifting input.</summary>
 public enum LiftGate { None, Hold, Block, Trip }
 
 /// <summary>
-/// Everything a rig is posed by. The bucking mill uses the first four; the through-feed inputs
-/// default to no trunk. θ the signed shaft angle; d the saw's depth (0..1); L lifting (eased 0..1);
+/// Everything a rig is posed by. The bucking mill uses the first four; the work inputs default to
+/// none. θ the signed shaft angle; d the saw's depth (0..1); L lifting (eased 0..1);
 /// ψ (<see cref="Travel"/>) the shaft's travel, the total angle it has turned through either way,
-/// |θ| when null; T (<see cref="Trunk"/>) the trunk's travel along the path, blocks; k
-/// (<see cref="Class"/>) the trunk's class, 0 none, 1 thin, 2 thick; p (<see cref="Presence"/>) the
-/// trunk's eased presence, 0..1; φ (<see cref="Feed"/>) the feed's travel, radians.
+/// |θ| when null; W (<see cref="Work"/>) how far the machine's work has got, in its progress's unit
+/// (a trunk's travel along a trunkPath, blocks; the gear cutter's teeth cut); k
+/// (<see cref="Class"/>) the work's class, 0 none, 1 thin, 2 thick; p (<see cref="Presence"/>) its
+/// eased presence, 0..1; φ (<see cref="Feed"/>) the feed's travel, radians; <see cref="Oil"/>
+/// how full the machine's oil tank is, 0..1.
 /// </summary>
 public readonly record struct RigInput(double Theta, double Depth = 0, double Lifting = 0, double? Travel = null,
-                                       double Trunk = 0, int Class = 0, double Presence = 0, double Feed = 0)
+                                       double Work = 0, int Class = 0, double Presence = 0, double Feed = 0,
+                                       double Oil = 0)
 {
     /// <summary>ψ: <see cref="Travel"/>, or |θ| when it is null.</summary>
     public double Psi => Travel ?? Math.Abs(Theta);
@@ -190,7 +194,7 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
     /// and tail on <paramref name="path"/> (0 without one). a = amount[k] · e, plus
     /// e · amplitude[k] · cos(ratio · ψ + phase) with lobes.
     /// </summary>
-    public double GaugeAmount(in RigInput input, TrunkPath? path)
+    public double GaugeAmount(in RigInput input, IWorkProgress? path)
     {
         int k = input.K;
         if (k == 0)
@@ -203,7 +207,7 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
             double best = 0;
             if (path != null && Windows != null)
             {
-                double nose = path.Nose(input.Trunk), tail = path.Tail(input.Trunk, k);
+                double nose = path.Nose(input.Work), tail = path.Tail(input.Work, k);
                 foreach (var w in Windows)
                     best = Math.Max(best, Math.Min(1, w.Gains[k] * w.Occupancy(nose, tail)));
             }
@@ -215,7 +219,7 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
         return a;
     }
 
-    /// <summary>The mill's pose: <see cref="Matrix(in RigInput, TrunkPath?)"/> with no trunk.
+    /// <summary>The mill's pose: <see cref="Matrix(in RigInput, IWorkProgress?)"/> with no work.
     /// <paramref name="shaftTravel"/> is ψ; when null it is |θ|.</summary>
     public float[] Matrix(double theta, double depth, double lifting = 0, double? shaftTravel = null) =>
         Matrix(new RigInput(theta, depth, lifting, shaftTravel), null);
@@ -223,10 +227,11 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
     /// <summary>rotate: angle ratio·x about pivot, x the driver's <see cref="Input"/>. slide: offset
     /// amplitude·sin(ratio·x + phase). swing: angle amplitude·sin(ratio·x + phase) about pivot.
     /// feed: offset travel·d. step: offset or angle amount·e (<see cref="StepFraction"/>).
-    /// stretch: scale (length + travel·d) / length along the axis about the anchor. gauge: offset or
+    /// stretch: scale (length + travel·x) / length along the axis about the anchor, x the depth or the
+    /// oil (its <see cref="Input"/>). gauge: offset or
     /// angle <see cref="GaugeAmount"/>. roll: with a trunk, angle ratio·clamp(nose − at, 0, L[k])
     /// about pivot (it turns only while the trunk passes over it, and ignores p); without, none.</summary>
-    public float[] Matrix(in RigInput input, TrunkPath? path)
+    public float[] Matrix(in RigInput input, IWorkProgress? path)
     {
         switch (Type)
         {
@@ -246,11 +251,11 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
                 return Rotates ? Mat4.Rotation(Axis, a, Pivot) : Along(a);
             case DriverType.Roll:
                 int k = input.K;
-                if (k == 0 || path == null)
+                if (k == 0 || path is not TrunkPath trunk)
                     return Mat4.Identity();
-                return Mat4.Rotation(Axis, Ratio * Math.Clamp(path.Nose(input.Trunk) - At, 0, path.LengthOf(k)), Pivot);
+                return Mat4.Rotation(Axis, Ratio * Math.Clamp(trunk.Nose(input.Work) - At, 0, trunk.LengthOf(k)), Pivot);
             default:
-                return Mat4.Stretch(Axis, (float)((Length + Travel * input.Depth) / Length), Pivot);
+                return Mat4.Stretch(Axis, (float)((Length + Travel * InputValue(input)) / Length), Pivot);
         }
     }
 
@@ -258,7 +263,9 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
     {
         DriverInput.Travel => input.Psi,
         DriverInput.Feed => input.Feed,
-        DriverInput.Trunk => input.Trunk,
+        DriverInput.Work => input.Work,
+        DriverInput.Oil => input.Oil,
+        DriverInput.Depth => input.Depth,
         _ => input.Theta,
     };
 
@@ -282,13 +289,13 @@ public sealed record TrunkBed(Float3 Origin, Axis Axis, float Length);
 public sealed class RigParts
 {
     public IReadOnlyList<RigPart> Parts { get; }
-    /// <summary>The trunk's path the gauges and rolls read, or null (the mill has none).</summary>
-    public TrunkPath? Path { get; }
+    /// <summary>The rig's progress (its work or trunkPath) the gauges and rolls read, or null (the mill has none).</summary>
+    public IWorkProgress? Path { get; }
     private readonly Regex[][] _globs;
     private readonly int[] _order;   // parts sorted so a ride parent comes before its riders
     private readonly int[] _ride;    // index of each part's ride parent, or -1
 
-    public RigParts(IReadOnlyList<RigPart> parts, TrunkPath? path = null)
+    public RigParts(IReadOnlyList<RigPart> parts, IWorkProgress? path = null)
     {
         var ids = new Dictionary<string, int>();
         for (int i = 0; i < parts.Count; i++)
@@ -379,8 +386,8 @@ public sealed class RigParts
 
     /// <summary>Parses rig.json's <c>parts</c>. A part's <c>requires</c> must be one of
     /// <paramref name="knownRequires"/>, the machine's vocabulary. Rolls and <c>occupy</c> gauges
-    /// need the rig's <paramref name="path"/>.</summary>
-    public static RigParts Parse(JsonElement array, IReadOnlySet<string> knownRequires, TrunkPath? path)
+    /// need the rig's progress, <paramref name="path"/> (<see cref="RigProgress.Of"/>); rolls a trunkPath.</summary>
+    public static RigParts Parse(JsonElement array, IReadOnlySet<string> knownRequires, IWorkProgress? path)
     {
         var parts = new List<RigPart>();
         foreach (var p in array.EnumerateArray())
@@ -405,7 +412,7 @@ public sealed class RigParts
         return new RigParts(parts, path);
     }
 
-    private static Driver DriverOf(JsonElement d, string part, TrunkPath? path)
+    private static Driver DriverOf(JsonElement d, string part, IWorkProgress? path)
     {
         string where = $"part \"{part}\"";
         var type = Str(d, "type") switch
@@ -482,7 +489,7 @@ public sealed class RigParts
             if (!present && (windows == null || windows.Count == 0))
                 throw new FormatException($"{where}: an occupy gauge needs windows");
             if (!present && path == null)
-                throw new FormatException($"{where}: an occupy gauge needs the rig's trunkPath");
+                throw new FormatException($"{where}: an occupy gauge needs the rig's work or trunkPath");
             if (d.TryGetProperty("lobes", out var lb))
             {
                 if (!rotates)
@@ -500,7 +507,7 @@ public sealed class RigParts
             at = atJson.GetSingle();
             if (!d.TryGetProperty("ratio", out var ratioJson) || ratioJson.ValueKind != JsonValueKind.Number)
                 throw new FormatException($"{where}: a roll driver needs a ratio");
-            if (path == null)
+            if (path is not TrunkPath)
                 throw new FormatException($"{where}: a roll driver needs the rig's trunkPath");
         }
         return new Driver(type, axis, pivot, Num(d, "ratio", 1), Num(d, "amplitude", 0), Num(d, "phase", 0), Num(d, "travel", 0),
@@ -508,11 +515,25 @@ public sealed class RigParts
                           amounts, windows, present, lobes, at);
     }
 
-    /// <summary><c>input</c> (theta, travel, feed or trunk), or <c>"rectified": true</c> for
-    /// travel; on rotate, slide and swing only, and not both.</summary>
+    /// <summary><c>input</c> (theta, travel, feed, trunk or oil), or <c>"rectified": true</c> for
+    /// travel; on rotate, slide and swing only, and not both. A stretch reads <c>input</c> depth (the
+    /// default) or oil.</summary>
     private static DriverInput InputOf(JsonElement d, DriverType type, string where)
     {
         bool hasInput = d.TryGetProperty("input", out var inputJson);
+        if (type == DriverType.Stretch)
+        {
+            if (d.TryGetProperty("rectified", out _))
+                throw new FormatException($"{where}: rectified is for rotate, slide and swing drivers");
+            if (!hasInput)
+                return DriverInput.Depth;
+            return (inputJson.ValueKind == JsonValueKind.String ? inputJson.GetString() : null) switch
+            {
+                "depth" => DriverInput.Depth,
+                "oil" => DriverInput.Oil,
+                var i => throw new FormatException($"{where}: a stretch's input \"{i}\" is not depth or oil"),
+            };
+        }
         bool hasRectified = d.TryGetProperty("rectified", out _);
         if (hasInput && hasRectified)
             throw new FormatException($"{where}: a driver has both input and rectified");
@@ -527,8 +548,10 @@ public sealed class RigParts
             "theta" => DriverInput.Theta,
             "travel" => DriverInput.Travel,
             "feed" => DriverInput.Feed,
-            "trunk" => DriverInput.Trunk,
-            var i => throw new FormatException($"{where}: input \"{i}\" is not theta, travel, feed or trunk"),
+            "work" or "trunk" => DriverInput.Work,
+            "oil" => DriverInput.Oil,
+            var i => throw new FormatException($"{where}: input \"{i}\" is not theta, travel, feed, work, trunk or oil"),
+
         };
     }
 

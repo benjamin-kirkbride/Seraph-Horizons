@@ -1,0 +1,50 @@
+// The pickling tub (#476, #482, PicklingTub/): a wooden tub lined with pitch that holds a liquid and
+// a batch of gears. The acids pickle degreased gears and dip steel ones bare; brine rusts steel gears.
+// Its rules are in PicklingTubSettings; the server leaves it out with GearReclamation off.
+{
+	code: "picklingtub",
+	class: "seraphhorizons.PicklingTub",
+	entityClass: "seraphhorizons.PicklingTub",
+	shape: { base: "seraphhorizons:block/picklingtub" },
+	textures: {
+		"planks": { base: "game:block/wood/planks/oak1" },
+		"pitch": { base: "game:block/liquid/tar" },
+		"hoop": { base: "game:block/metal/sheet-plain/iron1" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:picklingtub-handbook-title", text: "seraphhorizons:picklingtub-handbook-text" },
+				{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }
+			]
+		}
+	},
+	creativeinventory: { "general": ["*"], "decorative": ["*"] },
+	blockmaterial: "Wood",
+	lightAbsorption: 0,
+	sidesolid: { all: false },
+	sideopaque: { all: false },
+	emitSideAo: { all: false },
+	faceCullMode: "NeverCull",
+	replaceable: 500,
+	resistance: 2,
+	rainPermeable: false,
+	maxStackSize: 4,
+	selectionbox: { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.75, z2: 0.9375 },
+	collisionbox: { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.75, z2: 0.9375 },
+	combustibleProps: { burnTemperature: 600, burnDuration: 20 },
+	sounds: {
+		"place": "game:block/planks",
+		"hit": "game:block/planks",
+		"break": "game:block/planks",
+		"walk": "game:walk/wood"
+	},
+	guiTransform: { rotation: { x: -22.6, y: -45, z: 0 }, origin: { x: 0.5, y: 0.35, z: 0.5 }, scale: 1.3 },
+	tpHandTransform: {
+		translation: { x: -0.9, y: -0.2, z: -0.6 },
+		rotation: { x: 0, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0.2, z: 0.5 },
+		scale: 0.6
+	},
+	groundTransform: { origin: { x: 0.5, y: 0, z: 0.5 }, scale: 2.5 }
+}

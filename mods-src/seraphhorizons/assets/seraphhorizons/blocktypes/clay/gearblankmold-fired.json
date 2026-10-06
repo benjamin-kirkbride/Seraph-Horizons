@@ -1,0 +1,103 @@
+// Gear blank molds, fired (#479, GearBlanks; README "Steel gear blanks"). The game's own tool mold
+// classes, as smex's molds are: a crucible pours into one (ILiquidMetalSink), smex's canal pedestal
+// takes one as any small tool mold, and the casting is the drop below with {metal} the poured
+// metal's last code part. Only steel has a blank, so any other metal is refused (the game's
+// CanReceive asks for the drop first). The code is "toolmold" in this domain so the game's mold
+// code (it reads the materialtype and tooltype variants) and the handbook treat it as one of its own.
+{
+	code: "toolmold",
+	class: "BlockToolMold",
+	entityClass: "ToolMold",
+	behaviors: [
+		{ name: "Lockable" },
+		{ name: "UnstableFalling" }
+	],
+	entityBehaviors: [{ name: "TemperatureSensitive" }],
+	variantgroups: [
+		{ code: "color", states: ["blue", "fire", "black", "brown", "cream", "earthyorange", "gray", "orange", "red", "tan"] },
+		{ code: "materialtype", states: ["fired"] },
+		{ code: "tooltype", states: ["gearblank", "largegearblank"] }
+	],
+	shape: { base: "seraphhorizons:block/clay/mold/{tooltype}" },
+	textures: {
+		floor: { base: "game:block/clay/hardened/{color}" },
+		other: { base: "game:block/clay/hardened/{color}" }
+	},
+	attributes: {
+		reinforcable: true,
+		shatteredShape: { base: "game:block/clay/mold/shattered-ingot" },
+		handbook: {
+			groupBy: ["toolmold-*-{materialtype}-{tooltype}"],
+			extraSections: [{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }]
+		},
+		onTongTransform: {
+			translation: { x: -1.7, y: -1.3, z: -0.57 },
+			rotation: { x: 98, y: 16, z: 3 },
+			scale: 0.55
+		},
+		onMetalTongTransform: {
+			translation: { x: -2.1, y: -0.19, z: -1 },
+			rotation: { x: 180, y: 7, z: 4 },
+			origin: { x: 0.5, y: 0, z: 0.5 },
+			scale: 0.55
+		}
+	},
+	attributesByType: {
+		"*-gearblank": {
+			requiredUnits: 100,
+			fillHeight: 1,
+			moldrackable: true,
+			onmoldrackTransform: { rotation: { z: 90 } },
+			fillQuadsByLevel: [{ x1: 4.5, z1: 4.5, x2: 11.5, z2: 11.5 }],
+			drop: { type: "item", code: "seraphhorizons:gearblank-{metal}" }
+		},
+		"*-largegearblank": {
+			requiredUnits: 200,
+			fillHeight: 2,
+			moldrackable: false,
+			shelvable: "SingleCenter",
+			fillQuadsByLevel: [{ x1: 3, z1: 3, x2: 13, z2: 13 }],
+			drop: { type: "item", code: "seraphhorizons:largegearblank-{metal}" }
+		}
+	},
+	blockmaterial: "Ceramic",
+	creativeinventory: { "general": ["*"], "construction": ["*"] },
+	replaceable: 700,
+	resistance: 1.5,
+	maxStackSize: 8,
+	lightAbsorption: 0,
+	sounds: {
+		walk: "game:walk/stone"
+	},
+	collisionboxByType: {
+		"*-largegearblank": { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.1875, z2: 0.9375 },
+		"*": { x1: 0.15625, y1: 0, z1: 0.15625, x2: 0.84375, y2: 0.125, z2: 0.84375 }
+	},
+	selectionboxByType: {
+		"*-largegearblank": { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.1875, z2: 0.9375 },
+		"*": { x1: 0.15625, y1: 0, z1: 0.15625, x2: 0.84375, y2: 0.125, z2: 0.84375 }
+	},
+	sideopaque: {
+		all: false
+	},
+	sidesolid: {
+		all: false
+	},
+	guiTransform: {
+		translation: { x: 0, y: 3, z: 0 },
+		origin: { x: 0.5, y: 0.0625, z: 0.5 },
+		scale: 1.33
+	},
+	tpHandTransform: {
+		translation: { x: -1, y: -0.6, z: -1.05 },
+		rotation: { x: -87, y: 9, z: 4 },
+		origin: { x: 0.5, y: 0.125, z: 0.5 },
+		scale: 0.5
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 0, y: -45, z: 0 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.2
+	}
+}

@@ -18,6 +18,8 @@ public enum OilMachine
     BuckingMill,
     /// <summary>This mod's rosser.</summary>
     Rosser,
+    /// <summary>This mod's gear cutter: its oil wears the cutter kit, never its shaft load.</summary>
+    GearCutter,
 }
 
 /// <summary>
@@ -71,6 +73,9 @@ public readonly record struct OilTank(double Points, double Capacity)
 /// <summary>What a finished job costs a machine in oil. Idle turning costs nothing.</summary>
 public static class OilDrain
 {
+    /// <summary>The fill of <paramref name="tank"/>, 0..1 (0 for a tank of no capacity).</summary>
+    public static double Fill(OilTank tank) => tank.Capacity > 0 ? Math.Clamp(tank.Points / tank.Capacity, 0, 1) : 0;
+
     /// <summary>A whole trunk's cost on the bucking mill or the rosser: <paramref name="perLog"/>
     /// per log stored in it, rounded up over the trunk (as the blade's and the heads' wear are).</summary>
     public static double PerTrunk(int storedLogs, double perLog) =>
@@ -177,6 +182,10 @@ public class MachineOilConfig
     /// <summary>Per log stored in a debarked trunk, rounded up over the trunk.</summary>
     public OilMachineConfig Rosser { get; set; } = new(1000, 2f);
 
+    /// <summary>Per small gear cut; a large gear drains double. The gear cutter's load on its shaft
+    /// never changes with its oil: the oil wears its cutter kit instead (GearCutterSettings).</summary>
+    public OilMachineConfig GearCutter { get; set; } = new(1000, 10f);
+
     public static readonly MachineOilConfig Defaults = new();
 
     public OilMachineConfig For(OilMachine machine) => machine switch
@@ -187,6 +196,7 @@ public class MachineOilConfig
         OilMachine.Chopper => Chopper,
         OilMachine.BuckingMill => BuckingMill,
         OilMachine.Rosser => Rosser,
+        OilMachine.GearCutter => GearCutter,
         _ => throw new ArgumentOutOfRangeException(nameof(machine)),
     };
 
@@ -253,6 +263,7 @@ public class MachineOilConfig
             case OilMachine.Chopper: Chopper = value; break;
             case OilMachine.BuckingMill: BuckingMill = value; break;
             case OilMachine.Rosser: Rosser = value; break;
+            case OilMachine.GearCutter: GearCutter = value; break;
         }
     }
 }

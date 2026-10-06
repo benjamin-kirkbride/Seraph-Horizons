@@ -167,13 +167,14 @@ public static class Oil
     public static string Shown(double points) => OilText.Points(points);
 
     /// <summary>The block info's oil lines: the tank, and while dry how much harder it turns: its
-    /// load on the shaft now against the load oiled, once the shaft has asked for it.</summary>
-    public static void Info(OilState? state, StringBuilder dsc)
+    /// load on the shaft now against the load oiled, once the shaft has asked for it (not for a
+    /// machine whose load the oil leaves alone, <paramref name="dryLoad"/> false).</summary>
+    public static void Info(OilState? state, StringBuilder dsc, bool dryLoad = true)
     {
         if (state == null)
             return;
         dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-tank", Shown(state.Tank.Points), Shown(state.Tank.Capacity)));
-        if (!state.Dry)
+        if (!state.Dry || !dryLoad)
             return;
         string times = state.DryMultiplier.ToString("0.##");
         dsc.AppendLine(state.Load is { } load && state.OiledLoad is { } oiled

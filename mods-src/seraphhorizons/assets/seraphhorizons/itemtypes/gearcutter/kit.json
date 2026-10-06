@@ -1,0 +1,39 @@
+// The gear cutter's cutter kit (#481, stage 9; GearCutter/, README "Gear cutter"): a formed cutter,
+// smithed from one steel ingot (recipes/smithing/gearcutter.json), the wearing part. 500 points
+// last 50 small gears at the default CutterWearPerGear of 10 with a full oil tank. Drawn with the
+// game's chisel shape in steel. The server disables it with GearCutter off.
+{
+	code: "gearcutterkit",
+	variantgroups: [
+		{ code: "metal", states: ["steel"] }
+	],
+	shape: { base: "game:item/tool/chisel" },
+	textures: {
+		"metal": { base: "game:block/metal/ingot/{metal}" },
+		"string": { base: "game:item/resource/string" }
+	},
+	durability: 500,
+	maxstacksize: 1,
+	materialDensity: 7850,
+	attributes: {
+		handbook: { extraSections: [
+			{ title: "seraphhorizons:gearcutter-part-section-title", text: "seraphhorizons:gearcutter-kit-section-text" },
+			{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }
+		] }
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"], "mechanics": ["*"] },
+	guiTransform: {
+		rotation: { x: -30, y: 135, z: 0 },
+		origin: { x: 0.5, y: 0.2, z: 0.5 },
+		scale: 2.2
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 3
+	},
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.1, z: -0.6 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.8
+	}
+}

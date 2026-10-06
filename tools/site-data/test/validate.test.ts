@@ -50,8 +50,8 @@ describe("validate: cross-references", () => {
 
   it("rejects a recipe from an unknown mod", () => {
     const d = example();
-    d.recipes[5].mod = "othermod";
-    expect(problems(d)).toEqual([["recipe-mod", "/recipes/5/mod"]]);
+    d.recipes[6].mod = "othermod";
+    expect(problems(d)).toEqual([["recipe-mod", "/recipes/6/mod"]]);
   });
 
   it("rejects an item from an unknown mod", () => {
@@ -62,11 +62,11 @@ describe("validate: cross-references", () => {
 
   it("rejects a variant ingredient code that is not an item", () => {
     const d = example();
-    d.recipes[6].variants[1].ingredients[0][0].code = "game:plank-pine";
+    d.recipes[8].variants[1].ingredients[0][0].code = "game:plank-pine";
     const p = only(d);
     expect([p.kind, p.path, p.found]).toEqual([
       "variant-code",
-      "/recipes/6/variants/1/ingredients/0/0/code",
+      "/recipes/8/variants/1/ingredients/0/0/code",
       '"game:plank-pine"',
     ]);
   });
@@ -87,9 +87,9 @@ describe("validate: cross-references", () => {
 
   it("rejects unsorted recipe ids", () => {
     const d = example();
-    [d.recipes[6], d.recipes[7]] = [d.recipes[7], d.recipes[6]];
+    [d.recipes[8], d.recipes[9]] = [d.recipes[9], d.recipes[8]];
     const p = only(d);
-    expect([p.kind, p.path, p.found]).toEqual(["recipe-id-order", "/recipes/7/id", '"grid|game:recipes/grid/ladder.json|0"']);
+    expect([p.kind, p.path, p.found]).toEqual(["recipe-id-order", "/recipes/9/id", '"grid|game:recipes/grid/ladder.json|0"']);
   });
 
   it("sorts ids by code unit, not by locale", () => {
@@ -105,47 +105,47 @@ describe("validate: cross-references", () => {
 
   it("rejects a grid pattern row that is too short", () => {
     const d = example();
-    d.recipes[6].grid.pattern[2] = "S_";
+    d.recipes[8].grid.pattern[2] = "S_";
     const p = only(d);
-    expect([p.kind, p.path]).toEqual(["grid-width", "/recipes/6/grid/pattern/2"]);
+    expect([p.kind, p.path]).toEqual(["grid-width", "/recipes/8/grid/pattern/2"]);
     expect(p.expected).toContain("3");
   });
 
   it("rejects a grid pattern with too few rows", () => {
     const d = example();
-    d.recipes[6].grid.pattern.pop();
-    expect(problems(d)).toEqual([["grid-height", "/recipes/6/grid/pattern"]]);
+    d.recipes[8].grid.pattern.pop();
+    expect(problems(d)).toEqual([["grid-height", "/recipes/8/grid/pattern"]]);
   });
 
   it("rejects a grid pattern key with no ingredient", () => {
     const d = example();
-    d.recipes[6].grid.pattern[1] = "SXS";
+    d.recipes[8].grid.pattern[1] = "SXS";
     const p = only(d);
-    expect([p.kind, p.path, p.found]).toEqual(["grid-key", "/recipes/6/grid/pattern/1", '"X" at column 1']);
+    expect([p.kind, p.path, p.found]).toEqual(["grid-key", "/recipes/8/grid/pattern/1", '"X" at column 1']);
   });
 
   it("rejects a construction stage index past the ingredients", () => {
     const d = example();
-    d.recipes[3].construction.stages[3].ingredients = [3];
+    d.recipes[4].construction.stages[3].ingredients = [3];
     const p = only(d);
-    expect([p.kind, p.path, p.found]).toEqual(["construction-ingredient", "/recipes/3/construction/stages/3/ingredients/0", "3"]);
+    expect([p.kind, p.path, p.found]).toEqual(["construction-ingredient", "/recipes/4/construction/stages/3/ingredients/0", "3"]);
   });
 
   it("rejects a construction ingredient two stages consume", () => {
     const d = example();
-    d.recipes[3].construction.stages[3].ingredients = [0];
+    d.recipes[4].construction.stages[3].ingredients = [0];
     const p = only(d);
     expect([p.kind, p.path, p.found]).toEqual([
       "construction-ingredient",
-      "/recipes/3/construction/stages/3/ingredients/0",
+      "/recipes/4/construction/stages/3/ingredients/0",
       "0, also in stage 1",
     ]);
   });
 
   it("rejects a construction ingredient no stage consumes", () => {
     const d = example();
-    d.recipes[3].construction.stages[2].ingredients = [1];
-    expect(problems(d)).toEqual([["construction-ingredient", "/recipes/3/ingredients/2"]]);
+    d.recipes[4].construction.stages[2].ingredients = [1];
+    expect(problems(d)).toEqual([["construction-ingredient", "/recipes/4/ingredients/2"]]);
   });
 
   // recipes[2] is the hare's butchery.
@@ -202,32 +202,104 @@ describe("validate: cross-references", () => {
     expect(problems(d).map(([kind]) => kind)).toContain("schema:enum");
   });
 
-  // recipes[4] is wet sinew curing into dry sinew.
+  // recipes[5] is wet sinew curing into dry sinew.
   it("rejects a transition with a second output or variant", () => {
     const d = example();
-    d.recipes[4].outputs.push({ code: "game:fat", kind: "item", quantity: 1 });
-    d.recipes[4].variants.push(structuredClone(d.recipes[4].variants[0]));
+    d.recipes[5].outputs.push({ code: "game:fat", kind: "item", quantity: 1 });
+    d.recipes[5].variants.push(structuredClone(d.recipes[5].variants[0]));
     expect(problems(d)).toEqual([
-      ["transition-shape", "/recipes/4/outputs"],
-      ["transition-shape", "/recipes/4/variants"],
+      ["transition-shape", "/recipes/5/outputs"],
+      ["transition-shape", "/recipes/5/variants"],
     ]);
   });
 
-  // recipes[8] is prime meat on the smoking rack: the meat, then the rack as a station.
+  // recipes[12] is prime meat on the smoking rack: the meat, then the rack as a station.
   it("rejects a transition whose station has no station role, or that starts with a station", () => {
     const d = example();
-    delete d.recipes[8].ingredients[1].role;
-    expect(problems(d)).toEqual([["transition-shape", "/recipes/8/ingredients/1/role"]]);
+    delete d.recipes[12].ingredients[1].role;
+    expect(problems(d)).toEqual([["transition-shape", "/recipes/12/ingredients/1/role"]]);
 
     const e = example();
-    e.recipes[8].ingredients[0].role = "station";
-    expect(problems(e)).toEqual([["transition-shape", "/recipes/8/ingredients/0/role"]]);
+    e.recipes[12].ingredients[0].role = "station";
+    expect(problems(e)).toEqual([["transition-shape", "/recipes/12/ingredients/0/role"]]);
   });
 
   it("rejects transition hours without an average", () => {
     const d = example();
-    d.recipes[4].transition.transitionHours = { var: 2 };
-    expect(problems(d)).toEqual([["schema:required", "/recipes/4/transition/transitionHours/avg"]]);
+    d.recipes[5].transition.transitionHours = { var: 2 };
+    expect(problems(d)).toEqual([["schema:required", "/recipes/5/transition/transitionHours/avg"]]);
+  });
+
+  // recipes[11] is degreased gears pickling in vinegar, recipes[10] the oiled gear's lottery,
+  // recipes[7] a gear cut on the gear cutter.
+  it("rejects a tub whose failure is missing, past the outputs, or whose roles are not one each", () => {
+    const d = example();
+    delete d.recipes[11].tub.failure;
+    expect(problems(d)).toEqual([
+      ["tub-failure", "/recipes/11/tub"],
+      ["tub-shape", "/recipes/11/outputs"],
+    ]);
+
+    const e = example();
+    e.recipes[11].tub.failure = 2;
+    expect(problems(e)).toEqual([["tub-failure", "/recipes/11/tub/failure"]]);
+
+    const f = example();
+    f.recipes[11].ingredients[2].role = "liquid";
+    expect(problems(f)).toEqual([
+      ["tub-shape", "/recipes/11/ingredients"],
+      ["tub-shape", "/recipes/11/ingredients"],
+    ]);
+  });
+
+  it("rejects tub hours of zero and an unknown tub property", () => {
+    const d = example();
+    d.recipes[11].tub.hours = 0;
+    d.recipes[11].tub.colour = "green";
+    expect(problems(d).map(([kind]) => kind).sort()).toEqual(["schema:additionalProperties", "schema:exclusiveMinimum"]);
+  });
+
+  it("rejects lottery chances that do not add up to 1", () => {
+    const d = example();
+    d.recipes[10].lottery.outcomes[1].chance = 0.8;
+    expect(problems(d)).toEqual([["lottery-chance", "/recipes/10/lottery/outcomes"]]);
+  });
+
+  it("rejects a lottery output in two outcomes or in none, and an index past the outputs", () => {
+    const d = example();
+    d.recipes[10].lottery.outcomes[1].outputs = [0, 2];
+    expect(problems(d)).toEqual([
+      ["lottery-output", "/recipes/10/lottery/outcomes/1/outputs/0"],
+      ["lottery-output", "/recipes/10/lottery/outcomes/1/outputs/1"],
+      ["lottery-output", "/recipes/10/outputs/1"],
+    ]);
+  });
+
+  it("rejects a machine whose kept part is a tool, whose worn part is not, or that names one ingredient twice", () => {
+    const d = example();
+    d.recipes[7].machine.kept = [2];
+    expect(problems(d)).toEqual([
+      ["machine-ingredient", "/recipes/7/ingredients/2/isTool"],
+      ["machine-ingredient", "/recipes/7/machine/wear/ingredient"],
+    ]);
+
+    const e = example();
+    delete e.recipes[7].ingredients[2].isTool;
+    expect(problems(e)).toEqual([["machine-ingredient", "/recipes/7/ingredients/2"]]);
+
+    const f = example();
+    f.recipes[7].machine.oil.ingredient = 9;
+    expect(problems(f)).toEqual([["machine-ingredient", "/recipes/7/machine/oil/ingredient"]]);
+  });
+
+  it("rejects a machine with no station and a wear rule it does not know", () => {
+    const d = example();
+    delete d.recipes[7].ingredients[4].role;
+    expect(problems(d)).toEqual([["machine-shape", "/recipes/7/ingredients"]]);
+
+    const e = example();
+    e.recipes[7].machine.wear.rule = "sometimes";
+    expect(problems(e)).toEqual([["schema:enum", "/recipes/7/machine/wear/rule"]]);
   });
 
   it("rejects a variant with too few ingredient lists", () => {
@@ -260,11 +332,11 @@ describe("validate: schema", () => {
 
   it("rejects a stack code without a domain", () => {
     const d = example();
-    d.recipes[6].variants[0].outputs[0].code = "ladder-wood-north";
+    d.recipes[8].variants[0].outputs[0].code = "ladder-wood-north";
     const p = only(d);
     expect([p.kind, p.path, p.found]).toEqual([
       "schema:pattern",
-      "/recipes/6/variants/0/outputs/0/code",
+      "/recipes/8/variants/0/outputs/0/code",
       '"ladder-wood-north"',
     ]);
   });
@@ -281,7 +353,7 @@ describe("validate: report", () => {
   it("caps each kind and still counts every error", () => {
     const d = example();
     // 25 unknown ingredient codes: one variant slot with 25 stacks.
-    d.recipes[5].variants[0].ingredients[0] = Array.from({ length: 25 }, (_, i) => ({
+    d.recipes[6].variants[0].ingredients[0] = Array.from({ length: 25 }, (_, i) => ({
       code: `game:nothing-${i}`,
       kind: "item",
       quantity: 1,
@@ -292,7 +364,7 @@ describe("validate: report", () => {
     expect(r.report.problems).toHaveLength(20);
     const lines = r.report.format();
     expect(lines[0]).toBe(
-      '/recipes/5/variants/0/ingredients/0/0/code: expected a key of items, found "game:nothing-0" [variant-code]',
+      '/recipes/6/variants/0/ingredients/0/0/code: expected a key of items, found "game:nothing-0" [variant-code]',
     );
     expect(lines.slice(-2)).toEqual(["  ... and 5 more [variant-code] errors", "25 errors"]);
   });

@@ -177,7 +177,7 @@ class Gauge(unittest.TestCase):
              "windows": [self.W], "lobes": {"ratio": 4.0, "phase": 0.25, "amplitude": {"thin": 0.0, "thick": 0.1}}}
         inputs = rigmath.full_inputs({"trunk": 3.0, "size": 2, "presence": 0.5, "travel": 1.2})
         self.assertAlmostEqual(rigmath.gauge_amount(d, inputs, PATH), 0.5 * 0.5 + 0.5 * 0.1 * math.cos(4.0 * 1.2 + 0.25))
-        inputs["trunk"] = 0.0
+        inputs["work"] = 0.0
         self.assertEqual(rigmath.gauge_amount(d, inputs, PATH), 0.0)
 
     def test_rotate_turns_about_its_pivot(self):
@@ -225,6 +225,46 @@ class MillMaths(unittest.TestCase):
         self.assertEqual(rigmath.part_of(parts, "ring_body"), "ring")
         self.assertEqual(rigmath.part_of(parts, "ringtyre_1"), "tyre")
         self.assertEqual(rigmath.part_of(parts, "post"), "frame")
+
+
+class Work(unittest.TestCase):
+    """The generic progress, a rig's `work`: a named quantity, a point on its own scale; a trunkPath is
+    the trunk-flavoured case, and "trunk" the trunk-flavoured spelling of the work input."""
+
+    WORK = {"name": "teeth cut", "unit": "teeth", "step": 0.005, "end": {"thin": 12.0, "thick": 20.0}}
+
+    def test_progress_of_reads_work_or_a_trunk_path_not_both(self):
+        self.assertIs(rigmath.progress_of({"work": self.WORK}), self.WORK)
+        self.assertIs(rigmath.progress_of({"trunkPath": PATH}), PATH)
+        self.assertIsNone(rigmath.progress_of({}))
+        for bad in ({"work": self.WORK, "trunkPath": PATH}, {"work": {"end": {"thin": 1.0, "thick": 1.0}}},
+                    {"work": {"unit": "t", "end": {"thin": 1.0}}}, {"work": {"unit": "t", "step": 0, "end": {"thin": 1.0, "thick": 1.0}}},
+                    {"work": dict(self.WORK, lengths={"thin": 1.0, "thick": 1.0})}):
+            with self.assertRaises(ValueError):
+                rigmath.progress_of(bad)
+
+    def test_a_work_quantity_is_a_point_with_an_end_per_class(self):
+        self.assertEqual([rigmath.work_end(self.WORK, k) for k in (0, 1, 2)], [0.0, 12.0, 20.0])
+        self.assertEqual(rigmath.trunk_length(self.WORK, 2), 0.0)
+        d = {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "thick": 1.0},
+             "windows": [{"from": 3.1, "to": 3.68, "ease": 0.28}]}
+        frac = lambda w: rigmath.gauge_fraction(d, rigmath.full_inputs({"work": w, "size": 1, "presence": 1.0}), self.WORK)  # noqa: E731
+        self.assertEqual(frac(3.1), 0.0)
+        self.assertAlmostEqual(frac(3.24), 0.5)
+        self.assertAlmostEqual(frac(3.38), 1.0)
+        self.assertAlmostEqual(frac(3.54), 0.5)
+        self.assertEqual(frac(3.68), 0.0)
+
+    def test_trunk_is_the_same_input_as_work(self):
+        d = {"type": "rotate", "axis": "x", "pivot": [0.0, 0.0, 0.0], "ratio": 2.0, "input": "trunk"}
+        e = dict(d, input="work")
+        self.assertEqual(rigmath.driver_matrix(d, {"trunk": 0.7}), rigmath.driver_matrix(e, {"work": 0.7}))
+        self.assertEqual(rigmath.full_inputs({"trunk": 0.7})["work"], 0.7)
+
+    def test_a_roll_needs_a_trunk_path(self):
+        d = {"type": "roll", "axis": "z", "pivot": [0.0, 0.0, 0.0], "at": 1.0, "ratio": 1.0}
+        with self.assertRaises(ValueError):
+            rigmath.driver_matrix(d, {"work": 2.0, "size": 1, "presence": 1.0}, self.WORK)
 
 
 class Geometry(unittest.TestCase):

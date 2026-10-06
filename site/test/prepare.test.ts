@@ -44,7 +44,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
     expect(r.ids(r.detail("game:waterwheel-3m-north").madeBy)).toEqual({ construction: [id] });
     expect(r.ids(r.detail("game:supportbeam-oak").usedIn)).toEqual({ construction: [id] });
     expect(r.ids(r.detail("game:resin").usedIn)).toEqual({ construction: [id] });
-    expect(r.meta.recipeTypes.construction).toEqual({ name: "Built in place", shape: "construction", count: 1, start: 3, mod: "survival" });
+    expect(r.meta.recipeTypes.construction).toEqual({ name: "Built in place", shape: "construction", count: 1, start: 4, mod: "survival" });
   });
 
   it("indexes a creature's butchery as making every stage's output and using every carcass, station and tool", () => {
@@ -102,9 +102,9 @@ describe("prepareData on schema/examples/minimal.json", () => {
       { type: "blockDrop", from: "game:leavesbranchy-grown-oak", fromName: "Branchy oak leaves", quantity: { avg: 0.8, var: 0 } },
     ]);
     expect(r.detail("game:ingot-copper").description).toBe("A bar of copper.");
-    expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, start: 5, mod: "examplemod" });
-    expect(r.meta.itemCount).toBe(34);
-    expect(r.meta.recipeCount).toBe(9);
+    expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, start: 6, mod: "examplemod" });
+    expect(r.meta.itemCount).toBe(50);
+    expect(r.meta.recipeCount).toBe(13);
   });
 
   it("indexes a transition as made by on the result's page and used in on the source's", () => {
@@ -112,7 +112,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
     expect(r.ids(r.detail("butchering:sinew-dry").madeBy)).toEqual({ curing: [id] });
     expect(r.ids(r.detail("butchering:sinew-wet").usedIn)).toEqual({ curing: [id] });
     expect(r.detail("butchering:sinew-wet").madeBy).toBeUndefined();
-    expect(r.meta.recipeTypes.curing).toEqual({ name: "Curing", shape: "transition", count: 1, start: 4, mod: "game" });
+    expect(r.meta.recipeTypes.curing).toEqual({ name: "Curing", shape: "transition", count: 1, start: 5, mod: "game" });
   });
 
   it("indexes the smoking rack as a use of the rack and of the raw meat, and as a source of the smoked meat", () => {
@@ -120,7 +120,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
     expect(r.ids(r.detail("butchering:smoked-none-primemeat").madeBy)).toEqual({ smoking: [id] });
     expect(r.ids(r.detail("butchering:primemeat-raw").usedIn)).toEqual({ smoking: [id] });
     expect(r.ids(r.detail("butchering:smokingrack-copper-north").usedIn)).toEqual({ smoking: [id] });
-    expect(r.meta.recipeTypes.smoking).toEqual({ name: "Smoking rack", shape: "transition", count: 1, start: 8, mod: "butchering" });
+    expect(r.meta.recipeTypes.smoking).toEqual({ name: "Smoking rack", shape: "transition", count: 1, start: 12, mod: "butchering" });
   });
 });
 

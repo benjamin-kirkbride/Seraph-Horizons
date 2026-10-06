@@ -11,7 +11,7 @@ interface Recipe {
   id: string;
   type: string;
   mod: string;
-  ingredients: { key?: string; role?: string }[];
+  ingredients: { key?: string; role?: string; isTool?: boolean }[];
   outputs: { code: string; extra?: { alternatives?: string[] } }[];
   variants: { ingredients: Stack[][]; outputs: Stack[] }[];
   grid?: { width: number; height: number; pattern: string[] };
@@ -22,6 +22,9 @@ interface Recipe {
     condition?: { min: number; max: number };
   };
   transition?: { type: string };
+  tub?: { lossEveryHours?: number; lossChance?: number; failure?: number };
+  lottery?: { outcomes: { chance: number; outputs: number[] }[] };
+  machine?: { kept?: number[]; wear?: { ingredient: number }; oil?: { ingredient: number } };
 }
 export interface ExportV1 {
   schemaVersion: number;
@@ -93,6 +96,9 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
     if (r.construction) checkConstruction(r, at, report);
     if (r.butchery) checkButchery(r, at, report);
     if (r.transition) checkTransition(r, at, report);
+    if (r.tub) checkTub(r, at, report);
+    if (r.lottery) checkLottery(r, at, report);
+    if (r.machine) checkMachine(r, at, report);
   });
 
   for (const [type, t] of Object.entries(d.recipeTypes)) {
@@ -227,4 +233,88 @@ function checkTransition(r: Recipe, at: string, report: ErrorReport): void {
   if (r.variants.length !== 1) {
     report.add("transition-shape", `${at}/variants`, "1 variant", String(r.variants.length));
   }
+}
+
+/**
+ * A batch, a liquid and a station: exactly one ingredient of each role, and one output
+ * besides the failure, which names an output and is there whenever gears can be lost.
+ */
+function checkTub(r: Recipe, at: string, report: ErrorReport): void {
+  const t = r.tub!;
+  for (const role of ["batch", "liquid", "station"]) {
+    const n = r.ingredients.filter((i) => i.role === role).length;
+    if (n !== 1) report.add("tub-shape", `${at}/ingredients`, `1 ingredient with role ${JSON.stringify(role)}`, String(n));
+  }
+  if (t.failure !== undefined && t.failure >= r.outputs.length) {
+    report.add("tub-failure", `${at}/tub/failure`, `an index below ${r.outputs.length} (outputs)`, String(t.failure));
+  }
+  const loses = (t.lossEveryHours ?? 0) > 0 || (t.lossChance ?? 0) > 0;
+  if (loses && t.failure === undefined) {
+    report.add("tub-failure", `${at}/tub`, "a failure output, since gears can be lost", "none");
+  }
+  const expected = t.failure === undefined ? 1 : 2;
+  if (r.outputs.length !== expected) {
+    report.add("tub-shape", `${at}/outputs`, `${expected} outputs (what the batch becomes${t.failure === undefined ? "" : ", what a lost gear becomes"})`, String(r.outputs.length));
+  }
+}
+
+/** One ingredient; the chances add up to 1; each output belongs to exactly one outcome. */
+function checkLottery(r: Recipe, at: string, report: ErrorReport): void {
+  const l = r.lottery!;
+  if (r.ingredients.length !== 1) {
+    report.add("lottery-shape", `${at}/ingredients`, "1 ingredient (what is decided)", String(r.ingredients.length));
+  }
+  const total = l.outcomes.reduce((n, o) => n + o.chance, 0);
+  if (Math.abs(total - 1) > 1e-6) {
+    report.add("lottery-chance", `${at}/lottery/outcomes`, "chances adding up to 1", String(total));
+  }
+  const outcomeOf = new Map<number, number>();
+  l.outcomes.forEach((o, k) => {
+    o.outputs.forEach((i, m) => {
+      const iat = `${at}/lottery/outcomes/${k}/outputs/${m}`;
+      const first = outcomeOf.get(i);
+      if (i >= r.outputs.length) {
+        report.add("lottery-output", iat, `an index below ${r.outputs.length} (outputs)`, String(i));
+      } else if (first !== undefined) {
+        report.add("lottery-output", iat, "an output no other outcome lists", `${i}, also in outcome ${first}`);
+      } else {
+        outcomeOf.set(i, k);
+      }
+    });
+  });
+  r.outputs.forEach((_, i) => {
+    if (!outcomeOf.has(i)) report.add("lottery-output", `${at}/outputs/${i}`, "an output some outcome lists", "in no outcome");
+  });
+}
+
+/**
+ * The machine is an ingredient with role station; `kept`, `wear` and `oil` name distinct
+ * ingredients; the worn one is a tool and a kept one is not.
+ */
+function checkMachine(r: Recipe, at: string, report: ErrorReport): void {
+  const m = r.machine!;
+  if (!r.ingredients.some((i) => i.role === "station")) {
+    report.add("machine-shape", `${at}/ingredients`, "an ingredient with role \"station\" (the machine)", "none");
+  }
+  const named = new Map<number, string>();
+  const claim = (i: number, iat: string, what: string) => {
+    const first = named.get(i);
+    if (i >= r.ingredients.length) {
+      report.add("machine-ingredient", iat, `an index below ${r.ingredients.length} (ingredients)`, String(i));
+    } else if (first !== undefined) {
+      report.add("machine-ingredient", iat, `an ingredient not already the ${first}`, String(i));
+    } else {
+      named.set(i, what);
+    }
+  };
+  (m.kept ?? []).forEach((i, k) => {
+    claim(i, `${at}/machine/kept/${k}`, "kept");
+    if (r.ingredients[i]?.isTool) report.add("machine-ingredient", `${at}/ingredients/${i}/isTool`, "a kept part, not a tool that wears", "true");
+  });
+  if (m.wear) {
+    claim(m.wear.ingredient, `${at}/machine/wear/ingredient`, "worn tool");
+    const tool = r.ingredients[m.wear.ingredient];
+    if (tool && !tool.isTool) report.add("machine-ingredient", `${at}/ingredients/${m.wear.ingredient}`, "a tool (isTool), since it wears", "not a tool");
+  }
+  if (m.oil) claim(m.oil.ingredient, `${at}/machine/oil/ingredient`, "oil");
 }

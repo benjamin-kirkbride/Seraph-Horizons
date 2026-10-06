@@ -1,0 +1,95 @@
+[
+	{
+		"code": "seraphhorizons-gear-degrease-1",
+		"perishableProps": {
+			"type": "None",
+			"freshHours": { "avg": 48 },
+			"transitionHours": { "avg": 48 },
+			"transitionRatio": 1,
+			"transitionedStack": { "type": "item", "code": "seraphhorizons:gear-degreased" }
+		},
+		"shape": { "base": "game:block/food/meal/liquid" },
+		"ingredients": [
+			{
+				"code": "gears",
+				"validStacks": [ { "type": "item", "code": "game:gear-rusty" } ],
+				"minQuantity": 1,
+				"maxQuantity": 1
+			},
+			{
+				"code": "alkali",
+				"validStacks": [
+					{ "type": "item", "code": "oils:lyeportion" },
+					{ "type": "item", "code": "em:causticsodaportion" },
+					{ "type": "item", "code": "em:washingsodaportion" }
+				],
+				"minQuantity": 1,
+				"maxQuantity": 1,
+				"portionSizeLitres": 0.25
+			}
+		],
+		"cooksInto": { "type": "item", "code": "seraphhorizons:gear-degreased", "quantity": 1 }
+	},
+	{
+		"code": "seraphhorizons-gear-degrease-2",
+		"perishableProps": {
+			"type": "None",
+			"freshHours": { "avg": 48 },
+			"transitionHours": { "avg": 48 },
+			"transitionRatio": 1,
+			"transitionedStack": { "type": "item", "code": "seraphhorizons:gear-degreased" }
+		},
+		"shape": { "base": "game:block/food/meal/liquid" },
+		"ingredients": [
+			{
+				"code": "gears",
+				"validStacks": [ { "type": "item", "code": "game:gear-rusty" } ],
+				"minQuantity": 2,
+				"maxQuantity": 2
+			},
+			{
+				"code": "alkali",
+				"validStacks": [
+					{ "type": "item", "code": "oils:lyeportion" },
+					{ "type": "item", "code": "em:causticsodaportion" },
+					{ "type": "item", "code": "em:washingsodaportion" }
+				],
+				"minQuantity": 1,
+				"maxQuantity": 1,
+				"portionSizeLitres": 0.5
+			}
+		],
+		"cooksInto": { "type": "item", "code": "seraphhorizons:gear-degreased", "quantity": 2 }
+	},
+	{
+		"code": "seraphhorizons-gear-degrease-3",
+		"perishableProps": {
+			"type": "None",
+			"freshHours": { "avg": 48 },
+			"transitionHours": { "avg": 48 },
+			"transitionRatio": 1,
+			"transitionedStack": { "type": "item", "code": "seraphhorizons:gear-degreased" }
+		},
+		"shape": { "base": "game:block/food/meal/liquid" },
+		"ingredients": [
+			{
+				"code": "gears",
+				"validStacks": [ { "type": "item", "code": "game:gear-rusty" } ],
+				"minQuantity": 3,
+				"maxQuantity": 3
+			},
+			{
+				"code": "alkali",
+				"validStacks": [
+					{ "type": "item", "code": "oils:lyeportion" },
+					{ "type": "item", "code": "em:causticsodaportion" },
+					{ "type": "item", "code": "em:washingsodaportion" }
+				],
+				"minQuantity": 1,
+				"maxQuantity": 1,
+				"portionSizeLitres": 0.75
+			}
+		],
+		"cooksInto": { "type": "item", "code": "seraphhorizons:gear-degreased", "quantity": 3 }
+	}
+]
