@@ -323,8 +323,6 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // the trunks' storage flag is Logging Expanded's (backpack only, its default)
         var trunkBlock = W.GetBlock(new AssetLocation("loggingmod:treetrunk-oak-md-no-north"))!;
         Assert.Equal(EnumItemStorageFlags.Backpack, trunkBlock.StorageFlags);
-        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "loggingmod" } c && c.Path.StartsWith("treetrunk-")
-                                             && b.StorageFlags == TrunkEntitySystem.NoStorage);
         // the Trunk Storage Rack keeps Logging Expanded's Carryable
         var rack = W.Blocks.First(b => b?.Code is { Domain: "loggingmod" } c && c.Path.StartsWith("trunkstorage-"));
         Assert.Contains(rack.BlockBehaviors, TrunkCarry.IsCarryable);

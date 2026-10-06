@@ -141,6 +141,7 @@
   "item-creature-trunk-thick": "Tree trunk",
   "trunkentities-info-debarked": "Debarked",
   "trunkentities-info-weight": "Weight: {0}",
+  "trunkentities-info-afloat": "Afloat: pulls easily",
   "trunkentities-info-grabbed": "Dragged by {0}",
   "trunkentities-help-grab": "Hold to drag",
   "trunkentities-help-rope": "Tie a rope to it",
