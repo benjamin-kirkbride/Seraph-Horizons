@@ -71,10 +71,13 @@ The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUn
 
 These are not recipes in any registry. The engine's `BEBehaviorRightClickConstructable`
 (the block JSON's `entityBehaviors`) builds a placed block up in stages, each consuming
-stacks from the hotbar; exlib's `ExRightClickConstructable` subclasses it and only changes
-what breaking the block drops. `InPlaceBuilds` finds every block whose block-entity
-behaviors include that class or a subclass, and reads the behavior's `stages` from the
-registered block, so JSON patches apply, parsed as the behavior parses them.
+stacks from the hotbar. exlib's `ExRightClickConstructable` subclassed it up to exlib 0.7;
+from 0.8 it is its own behavior (`ExRightClickConstruction`) whose stages have the same
+JSON fields and the same `storeWildCard` and placeholder rules.
+`InPlaceBuilds.IsConstructable` takes the engine's class or a subclass, or exlib's class
+(by name) or a subclass; `InPlaceBuilds` finds every block whose block-entity behaviors
+include one, and reads the behavior's `stages` from the registered block, so JSON patches
+apply, parsed as the behavior parses them.
 
 - Blocks with the same first code part and equal stages are one record (the four sides of
   a pump). Its output is the first of them with a handbook page, and all of them are in
@@ -84,8 +87,11 @@ registered block, so JSON patches apply, parsed as the behavior parses them.
 - `storeWildCard` remembers the variant of the stack consumed, and later stages fill
   `{name}` placeholders from it. A group some later stage uses is a binding with a variant
   per value that the storing slot accepts, and that slot then only takes the bound value.
-  A group stored but never used (ppex stores `metal` on every slot) binds nothing, so each
-  slot takes what its own wildcard allows, as in game.
+  A group stored but never used (ppex stores `metal` on most slots, but only the
+  mechanical pump's pipe uses it) binds nothing, so each slot takes what its own wildcard
+  allows, as in game. exlib's own behavior (0.8 on) also refuses a stage paid with one
+  group in two variants, so there the other slots of the storing slot's stage that store
+  the same group take only the bound value too.
 - The ingredient's `name`, a lang code the game shows for wildcard slots, is in
   `extra.name` in English.
 
@@ -290,7 +296,8 @@ Checked in the pack's code (decompiled) and assets; none is exported:
   files (patterns, codes, quantities, voxels, wildcard variants and bindings);
 - a vanilla recipe changed by a mod's JSON patch (BetterRuins adds cupronickel nails);
 - blocks built in place: the water wheel's stages and wood bindings, ppex's pump (exlib's
-  subclass of the behavior), and every block with the behavior in exactly one record;
+  own behavior, with a metal binding and stages paid in one metal), and every block with
+  either behavior in exactly one record;
 - butchery: the whitetail deer's stages, stations, tools, bleed time, blood and rewards from
   the Butchering mod's assets; its harvestable drops split between hook and table and halved
   in the field; every butcherable entity variant in exactly one record, with aligned yields;
