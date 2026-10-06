@@ -49,6 +49,10 @@ public class TradingSystem : ModSystem
     /// <summary>Standing with traders (#452, #463); <see cref="StandingSystem"/> sets it when on.</summary>
     public IStandingSource Standing { get; set; } = NoStanding.Instance;
 
+    /// <summary>Entries left out of the lists when they load (set before GameReady): the machines'
+    /// schematics with their switch off (#469).</summary>
+    public Predicate<TradeEntry>? ExcludeEntry { get; set; }
+
     /// <summary>The camp grid of this world's seed (server, once the lists are loaded).</summary>
     public TraderGrid? Grid { get; private set; }
 
@@ -86,7 +90,7 @@ public class TradingSystem : ModSystem
     {
         var api = _sapi!;
         Classifier = new RegionClassifier(RegionProbe.RockGroups(api));
-        Lists = TradeLists.Load(api);
+        Lists = TradeLists.Load(api, ExcludeEntry);
         foreach (string problem in Lists.Problems)
             api.Logger.Warning("[seraphhorizons] Trading: trade list {0}", problem);
         if (Lists.Unresolved.Count > 0)

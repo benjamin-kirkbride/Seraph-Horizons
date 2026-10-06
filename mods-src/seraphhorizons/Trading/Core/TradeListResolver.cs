@@ -12,24 +12,32 @@ public sealed record ResolvedList(string Type, Region Region, ResolvedSide Selli
 /// The core is the list's core, then its climate key's, then its rock key's; the rotating pool
 /// likewise. An entry appears once (by <see cref="TradeEntry.Key"/>, the first wins, and a core entry
 /// wins over a rotating one). A trader has <see cref="Slots"/> slots a side (vanilla's
-/// InventoryTrader), so the core is cut to that and the rotating slots to what is left.
+/// InventoryTrader), so the core is cut to that and the rotating slots to what is left. An entry
+/// with a <see cref="TradeEntry.StandingTier"/> above the buyer's tier is left out; the ones the
+/// tier reaches come after the ungated core, lowest tier first, so a cut takes the highest tiers.
 /// </summary>
 public static class TradeListResolver
 {
     public const int Slots = 16;
 
-    public static ResolvedList Resolve(TradeListDef def, Region region, int standingTier = 0) =>
-        new(def.Type, region, Resolve(def.Selling, region), Resolve(def.Buying, region), def.WalletFor(standingTier));
+    /// <summary>The highest standing tier an entry may ask for.</summary>
+    public const int MaxStandingTier = 4;
 
-    public static ResolvedSide Resolve(TradeSide side, Region region)
+    public static ResolvedList Resolve(TradeListDef def, Region region, int standingTier = 0) =>
+        new(def.Type, region, Resolve(def.Selling, region, standingTier), Resolve(def.Buying, region, standingTier), def.WalletFor(standingTier));
+
+    public static ResolvedSide Resolve(TradeSide side, Region region, int standingTier = 0)
     {
         var keys = new HashSet<string>();
         var core = new List<TradeEntry>();
-        foreach (var e in side.Core.Concat(Regional(side, region).SelectMany(r => r.Core)))
+        // OrderBy is stable: list order within a tier.
+        foreach (var e in side.Core.Concat(Regional(side, region).SelectMany(r => r.Core))
+                     .Where(e => e.StandingTier <= standingTier).OrderBy(e => e.StandingTier))
             if (keys.Add(e.Key)) core.Add(e);
         if (core.Count > Slots) core.RemoveRange(Slots, core.Count - Slots);
         var rotating = new List<TradeEntry>();
-        foreach (var e in side.Rotating.List.Concat(Regional(side, region).SelectMany(r => r.Rotating)))
+        foreach (var e in side.Rotating.List.Concat(Regional(side, region).SelectMany(r => r.Rotating))
+                     .Where(e => e.StandingTier <= standingTier))
             if (keys.Add(e.Key)) rotating.Add(e);
         int max = Math.Max(0, Math.Min(Math.Min(side.Rotating.MaxItems, Slots - core.Count), rotating.Count));
         return new ResolvedSide(core, rotating, max);
@@ -66,9 +74,13 @@ public static class TradeListResolver
             }
             foreach (var region in Region.All)
             {
+                // At the highest tier any entry names: every gated entry is in the core then.
                 int core = side.Core.Concat(Regional(side, region).SelectMany(r => r.Core)).Select(e => e.Key).Distinct().Count();
                 if (core > Slots) problems.Add($"{name}: {core} core entries in {region}, more than the {Slots} slots");
             }
+            foreach (var e in side.Core.Concat(side.Rotating.List).Concat(side.Regional.Values.SelectMany(r => r.Core.Concat(r.Rotating))))
+                if (e.StandingTier < 0 || e.StandingTier > MaxStandingTier)
+                    problems.Add($"{name}: {e.Key} has standing tier {e.StandingTier}, outside 0..{MaxStandingTier}");
         }
         return problems;
     }

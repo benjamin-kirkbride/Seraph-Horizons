@@ -1,0 +1,124 @@
+// Schematics sold only by traders (#468) and the machines' schematic gates (#469): README
+// "Schematics", docs/trading.md "Schematics", Trading/Schematics/.
+//
+// "sold": every schematic in the pack. With TraderSchematics on they are taken out of loot (any
+//   collectible attribute list entry with a code and a chance: stack randomizers, loot vessels,
+//   panning drops) and out of structures' chests (they become "replacement"), no recipe makes or
+//   copies one (a one-slot recipe making one, Scrolled's unrolling, stays), and every recipe that
+//   uses one keeps it.
+// "gates": with MachineSchematics on, every grid recipe making one of a gate's outputs (with the
+//   output's mod loaded, and not a one-slot conversion) takes seraphhorizons:schematic-{machine},
+//   kept on crafting. A machine built in stages is gated at its first stage.
+// "sales": who sells each schematic, from which standing tier. The trade lists
+//   (config/tradelists/) carry the entries and prices; the unit tests hold them to this.
+{
+	"replacement": "game:paper-parchment",
+	"sold": [
+		{ "mod": "game", "code": "game:schematic-*" },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-*" },
+		{ "mod": "cartwrightscaravan", "code": "cartwrightscaravan:cartschematics-*" },
+		{ "mod": "abyssaldepths", "code": "abyssaldepths:ad-schematic-*" },
+		{ "mod": "walkingstick", "code": "walkingstick:schematic-*" },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-*" }
+	],
+	"gates": [
+		{ "machine": "windmill", "outputs": [
+			{ "mod": "game", "code": "game:windmillrotor-*" },
+			{ "mod": "millwright", "code": "millwright:windmillrotor-*" },
+			{ "mod": "millwright", "code": "millwright:windmillrotorud-*" }
+		] },
+		{ "machine": "waterwheel", "outputs": [ { "mod": "game", "code": "game:waterwheel-*" } ] },
+		{ "machine": "handcrank", "outputs": [ { "mod": "handcrank", "code": "handcrank:handcrank-*" } ] },
+		// Axles, gears, clutch, transmission and brake as one (#469). MadMechanics' vertical clutch
+		// and transmission are one-slot conversions of the game's, so they need no gate of their own.
+		{ "machine": "transmission", "outputs": [
+			{ "mod": "game", "code": "game:woodenaxle-*" },
+			{ "mod": "game", "code": "game:angledgears-*" },
+			{ "mod": "game", "code": "game:spurgear-*" },
+			{ "mod": "game", "code": "game:largegear3" },
+			{ "mod": "game", "code": "game:largegearsection-*" },
+			{ "mod": "game", "code": "game:clutch-*" },
+			{ "mod": "game", "code": "game:transmission-*" },
+			{ "mod": "game", "code": "game:brake-*" },
+			{ "mod": "millwright", "code": "millwright:brake-*" },
+			{ "mod": "millwright", "code": "millwright:woodenaxlepassthroughfull" },
+			{ "mod": "millwright", "code": "millwright:improvedaxlepassthroughfull" }
+		] },
+		// The base is the first stage; the toggle and the hammer head are fitted to it.
+		{ "machine": "helvehammer", "outputs": [ { "mod": "game", "code": "game:helvehammerbase-*" } ] },
+		// The frame is the first stage; the toggle and pounders are fitted to it.
+		{ "machine": "pulverizer", "outputs": [ { "mod": "game", "code": "game:pulverizerframe-*" } ] },
+		// Immersive Woodworking's frames are the first stage; the parts are fitted to them.
+		{ "machine": "sawmill", "outputs": [ { "mod": "immersivewoodworking", "code": "immersivewoodworking:sawmill-frame-*" } ] },
+		{ "machine": "chopper", "outputs": [ { "mod": "immersivewoodworking", "code": "immersivewoodworking:chopper-frame-*" } ] },
+		{ "machine": "buckingmill", "outputs": [ { "mod": "immersivewoodworking", "code": "seraphhorizons:buckingmill-frame-*" } ] },
+		{ "machine": "rosser", "outputs": [ { "mod": "immersivewoodworking", "code": "seraphhorizons:rosser-frame-*" } ] },
+		{ "machine": "gearbox", "outputs": [ { "mod": "mpegearbox", "code": "mpegearbox:gearbox*" } ] },
+		{ "machine": "centeredspurgear", "outputs": [ { "mod": "mpecenteredspurgear", "code": "mpecenteredspurgear:centeredspurgear-*" } ] },
+		// One recipe for every tier (the other tiers' recipes ship disabled).
+		{ "machine": "panningmachine", "outputs": [ { "mod": "panningmachine", "code": "panningmachine:panningmachine-*" } ] },
+		// The route planner places every station and tower's construction site; the plan and kit
+		// recipes ship disabled.
+		{ "machine": "cablecar", "outputs": [ { "mod": "gondolacablecar", "code": "gondolacablecar:routeplanner" } ] },
+		// The trestles are the first stage; the airframe is built on them.
+		{ "machine": "biplane", "outputs": [ { "mod": "flyingmachine", "code": "flyingmachine:trestles" } ] }
+	],
+	"sales": [
+		// The game's.
+		{ "mod": "game", "code": "game:schematic-glider", "sellers": ["curiodealer"], "tier": 3 },
+		{ "mod": "game", "code": "game:schematic-customtranslocator", "sellers": ["curiodealer"], "tier": 3 },
+		// BetterRuins': everyday families at tier 1, the cart and ship wrights at 2.
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-carpenter", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-door", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-bed", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-table", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-wood", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-roofing", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-chest", "sellers": ["generalstore"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-crate", "sellers": ["generalstore"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-candle", "sellers": ["generalstore"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-toymaker", "sellers": ["generalstore"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-artisan", "sellers": ["generalstore"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-book", "sellers": ["curiodealer"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-alchemist", "sellers": ["curiodealer"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-textureflipper", "sellers": ["curiodealer"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-stone", "sellers": ["mason"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-road", "sellers": ["mason"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-gravedigger", "sellers": ["mason"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-palisade", "sellers": ["mason"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-ancient", "sellers": ["mason"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-mechanical", "sellers": ["smith"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-pipes", "sellers": ["smith"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-jonaspart", "sellers": ["smith"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-jonasassembly", "sellers": ["smith"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-gaslamp", "sellers": ["smith"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-jonaslamp", "sellers": ["smith"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-weaver", "sellers": ["tailor"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-banner", "sellers": ["tailor"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-farmer", "sellers": ["farmer"], "tier": 1 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-cartwright", "sellers": ["mechanic"], "tier": 2 },
+		{ "mod": "betterruins", "code": "betterruins:br-schematic-shipwright", "sellers": ["mechanic"], "tier": 2 },
+		// Cartwright's Caravan's: carts (carts, sleds, market stalls) and signs. Its canopies and
+		// sides schematics gate no recipe in 1.9.1, so nobody sells them.
+		{ "mod": "cartwrightscaravan", "code": "cartwrightscaravan:cartschematics-carts", "sellers": ["mechanic"], "tier": 2 },
+		{ "mod": "cartwrightscaravan", "code": "cartwrightscaravan:cartschematics-signs", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "abyssaldepths", "code": "abyssaldepths:ad-schematic-divinggear", "sellers": ["curiodealer"], "tier": 3 },
+		{ "mod": "walkingstick", "code": "walkingstick:schematic-flintlock", "sellers": ["curiodealer"], "tier": 3 },
+		// The machines' (#469).
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-windmill", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-waterwheel", "sellers": ["carpenter"], "tier": 1 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-handcrank", "sellers": ["generalstore"], "tier": 1 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-panningmachine", "sellers": ["prospector"], "tier": 1 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-transmission", "sellers": ["mechanic"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-helvehammer", "sellers": ["mechanic"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-pulverizer", "sellers": ["mechanic"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-sawmill", "sellers": ["carpenter"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-chopper", "sellers": ["carpenter"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-buckingmill", "sellers": ["mechanic"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-rosser", "sellers": ["mechanic"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-gearbox", "sellers": ["smith"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-centeredspurgear", "sellers": ["smith"], "tier": 2 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-cablecar", "sellers": ["mechanic"], "tier": 4 },
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-biplane", "sellers": ["mechanic"], "tier": 4 }
+	]
+}

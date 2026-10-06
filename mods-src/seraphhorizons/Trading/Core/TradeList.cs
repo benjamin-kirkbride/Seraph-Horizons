@@ -31,6 +31,9 @@ public sealed class TradeEntry
     public NatSpec? Stock { get; set; }
     public NatSpec? Price { get; set; }
     public bool PlayerSupplied { get; set; }
+    /// <summary>The buyer's standing tier from which the entry is in the core (#452, #468): 0, the
+    /// default, for everyone. Schematics carry it; their price is the rest of the gate.</summary>
+    public int StandingTier { get; set; }
 
     /// <summary>The attributes in a canonical text form, set by the loader; part of <see cref="Key"/>.</summary>
     public string AttributesKey { get; set; } = "";

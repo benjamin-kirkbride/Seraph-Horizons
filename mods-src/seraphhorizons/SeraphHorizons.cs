@@ -438,4 +438,15 @@ public class SeraphHorizonsConfig
 
     /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
     public int PlacerCellSizeMetres { get; set; } = 1500;
+
+    /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
+    /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
+    /// structures' chests, no recipe copies or makes one, and every recipe using one keeps it.
+    /// Server side.</summary>
+    public bool TraderSchematics { get; set; } = true;
+
+    /// <summary>Machine schematics (#469): every machine's and vehicle's first-stage recipe takes its
+    /// own <c>seraphhorizons:schematic-{machine}</c>, kept on crafting, and traders sell them. Off,
+    /// the recipes are as their mods ship them and nobody sells the schematics. Server side.</summary>
+    public bool MachineSchematics { get; set; } = true;
 }

@@ -8,7 +8,8 @@
        (../Rosser/Core), the item value table's lookup (../Trading/Values/Core), the ore
        cells' grid, state and vein scaling (../Ore/Core), the traders' grid, regions, lists
        and restock (../Trading/Core), standing (../Trading/Standing/Core) and their economy's
-       prices and supply (../Trading/Economy/Core).
+       prices and supply (../Trading/Economy/Core), and the schematics' table and grid placement
+       (../Trading/Schematics/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -65,6 +66,11 @@
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Schematics (#468, #469): the table, the item type and the lang file it is held to. -->
+    <Compile Include="../Trading/Schematics/Core/**/*.cs" Link="Trading/Schematics/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/schematic-gates.json" Link="schematic-gates.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/itemtypes/schematic.json" Link="schematic-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/lang/en.json" Link="lang-en.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

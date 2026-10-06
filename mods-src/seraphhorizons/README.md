@@ -1788,3 +1788,65 @@ suitability, the placer book, the registry's states, size tiers, map offsets);
 `tests/PackTests/OreMapsScenarios.cs` (Atlas, a fixed seed: the switch recorded, the scattered gravel
 cut, every rock panning copper, the registry listing from the seed, verifying an ungenerated deposit,
 `givemap` and the waypoint, a gravel cell resolving to a field of rich gravel and its map).
+
+## Schematics (`TraderSchematics`, `MachineSchematics`)
+
+Schematics are sold by traders and found nowhere else (#468), and every machine and vehicle needs
+one (#469); in `Trading/Schematics/`, driven by `assets/seraphhorizons/config/schematic-gates.json`.
+Server side; clients get the changed recipes and item types from the server.
+
+`TraderSchematics` (default on) covers every schematic in the pack: the game's glider and
+translocator, BetterRuins' 30 `br-schematic-*`, Cartwright's Caravan's `cartschematics-*`, Abyssal
+Depths' diving gear, the walking stick's flintlock and this mod's own.
+
+- **Out of loot**: any loot list entry naming one (stack randomizers: BetterRuins' gear randomizer,
+  Abyssal Depths' four; loot vessels; panning drops) is taken out of the item and block type assets
+  before the game reads them. In structures (ruins, BetterRuins' story locations, the Resonance
+  Archive), a schematic in a chest becomes parchment. Tobias still hands over the translocator
+  schematic his translocator's repair needs.
+- **Not copyable, not craftable**: a recipe that makes one (other than a one-slot conversion) is
+  removed: the game's glider copy and Cartwright's carts and signs from parchment and charcoal.
+  BetterRuins and Abyssal Depths ship their copy recipes disabled (BetterRuins' ConfigKit setting
+  turns its on; it would be removed too). Scrolled's rolling and unrolling are one for one and stay.
+- **Kept on crafting**: every recipe that uses one keeps it (`consume: false`). Cartwright's and
+  Abyssal Depths' used to consume and give back; the walking stick's hidden gun ate it once Scrolled
+  removed the item's old `noConsumeOnCrafting`.
+
+`MachineSchematics` (default on) adds `seraphhorizons:schematic-{machine}` (one item, a `machine`
+variant group, the game's schematic sheet with the glider's or the translocator's drawing) to each
+machine's first-stage grid recipe, kept on crafting:
+
+| Schematic | Gates | Seller, standing tier |
+|---|---|---|
+| `windmill` | windmill rotors (the game's, Millwright's) | carpenter, 1 |
+| `waterwheel` | the water wheel (its first stage) | carpenter, 1 |
+| `handcrank` | the hand crank | general store, 1 |
+| `panningmachine` | the panning machine (one recipe, every tier) | prospector, 1 |
+| `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake; Millwright's brake and axle passthroughs | mechanic, 2 |
+| `helvehammer` | the helve hammer base | mechanic, 2 |
+| `pulverizer` | the pulverizer frame | mechanic, 2 |
+| `sawmill`, `chopper` | Immersive Woodworking's frames | carpenter, 2 |
+| `buckingmill`, `rosser` | this mod's frames | mechanic, 2 |
+| `gearbox`, `centeredspurgear` | Mechanical Power Expanded's | smith, 2 |
+| `cablecar` | Gondola's route planner, which places every station and tower | mechanic, 4 |
+| `biplane` | the biplane's trestles | mechanic, 4 |
+
+The schematic takes the recipe's first empty slot. A narrow or short recipe gets a column or a row.
+In a full 3×3 grid, two slots of the ingredient filling the most slots become one at double quantity
+(the large gear, the pulverizer frame, the metal rotor, the sawmill and rosser frames, the panning
+machine). MadMechanics' vertical clutch and transmission are conversions of the game's and stay as
+they are. Off, the recipes are as their mods ship them and no trader lists the machine schematics.
+
+**Sellers**: each schematic is in its seller's core from its standing tier (`standingTier` on the
+trade list entry; the core shows it once the buyer's tier reaches it). Everyday BetterRuins families
+are tier 1 at the carpenter, mason, smith, tailor, farmer, general store or curio dealer; the cart and
+ship wrights and Cartwright's carts are tier 2 at the mechanic; the glider, translocator, flintlock
+and diving gear are tier 3 at the curio dealer. Prices are hand-set in the lists, 10 to 250 gears.
+Cartwright's canopies and sides schematics gate nothing in 1.9.1 and are not sold.
+
+Tests: `tests/Trading/Schematics/` (the table, the item variants and their text, every sale in its
+seller's list at its tier, slot placement, the recipe rules, `standingTier`);
+`tests/PackTests/TradingSchematicsScenarios.cs` (Atlas: every gated output's recipes take their
+schematic, a helve hammer base crafts and keeps it, BetterRuins' recipes keep theirs, no recipe makes
+or copies one, the stack randomizers and every loot list hold none, structures hand out parchment,
+every sale resolves in its seller's list).
