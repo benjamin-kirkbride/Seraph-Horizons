@@ -151,4 +151,22 @@ public class MachineOilTests
         Assert.Equal(["game:fat"], c.OilLumps.Keys);
         Assert.Empty(c.OilLiquids);
     }
+
+    [Theory]
+    [InlineData(0, "0")]
+    [InlineData(-0.0, "0")]
+    [InlineData(1e-12, "0")]
+    [InlineData(0.001, "1")]
+    [InlineData(199.5, "200")]
+    [InlineData(1000, "1000")]
+    public void Points_are_shown_whole_rounded_up_and_never_minus_zero(double points, string shown) =>
+        Assert.Equal(shown, OilText.Points(points));
+
+    [Theory]
+    [InlineData(0.255f, "0.255")]
+    [InlineData(0.51f, "0.51")]
+    [InlineData(0.0005f, "0.001")]
+    [InlineData(3f, "3")]
+    public void Loads_are_shown_to_three_places(float load, string shown) =>
+        Assert.Equal(shown, OilText.Load(load));
 }
