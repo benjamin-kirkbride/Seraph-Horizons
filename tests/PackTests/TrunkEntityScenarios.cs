@@ -193,11 +193,17 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         slot.Itemstack = null;
         var cloth = W.Api.ModLoader.GetModSystem<ClothManager>();
 
-        // sneaking is Carry On's: no grab
+        // sneaking is Carry On's: no grab, the trunk goes to the hands; it is laid back down
         player.Entity.Controls.ShiftKey = true;
         trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
         player.Entity.Controls.ShiftKey = false;
         Assert.False(trunk.Grabbed);
+        Assert.Null(Mod.Grabs!.HeldBy(player));
+        Assert.False(trunk.Alive);
+        var shouldered = TrunkCarry.Take(player);
+        Assert.NotNull(shouldered);
+        trunk = TrunkSpawns.Spawn(W, shouldered, pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
+        await World.Ticks(5);
 
         player.Entity.ServerControls.RightMouseDown = true;
         trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
