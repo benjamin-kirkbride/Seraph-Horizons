@@ -62,6 +62,10 @@
       if (a.nutrition.health) parts.push(`health ${n(a.nutrition.health)}`);
       rows.push([t.attr.nutrition, parts.join(", ")]);
     }
+    if (a.fertilizer) {
+      const f = a.fertilizer;
+      rows.push([t.attr.fertilizer, `${n(f.n)}% N, ${n(f.p)}% P, ${n(f.k)}% K`]);
+    }
     if (a.burn) {
       const parts = [];
       if (a.burn.temperature !== undefined) parts.push(`${n(a.burn.temperature)} °C`);

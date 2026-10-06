@@ -94,6 +94,7 @@ tooltip.
 | `attackPower` | above 0.5 (bare hands) | `GetAttackPower` |
 | `materialDensity` | always | `MaterialDensity` (the engine default is 2000; many vanilla types declare 9999) |
 | `nutrition` | satiety or health is not 0 | `NutritionProps`: category lower case, satiety, health when not 0 |
+| `fertilizer` | the item has `attributes.fertilizerProps` | `n`, `p`, `k`, all three even when 0, as the handbook's "Fertilizer: N% N, P% P, K% K" line shows them |
 | `burn` | burn temperature and duration above 0 | `CombustibleProps` |
 | `smelting` | a smelted stack resolves | `CombustibleProps`: melting point, melting duration, `smeltedRatio` as `inputQuantity`, `requiresContainer`, `smeltingType` as `method` (smelt, cook, bake, convert, fire), output stack |
 | `storageFlags` | always | `StorageFlags`, lower case names |

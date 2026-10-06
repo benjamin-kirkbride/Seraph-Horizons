@@ -149,6 +149,17 @@
             "health": { "type": "number" }
           }
         },
+        "fertilizer": {
+          "description": "Nutrients the item adds to farmland, in percent, as the handbook shows them (attributes.fertilizerProps).",
+          "type": "object",
+          "required": ["n", "p", "k"],
+          "additionalProperties": false,
+          "properties": {
+            "n": { "type": "number" },
+            "p": { "type": "number" },
+            "k": { "type": "number" }
+          }
+        },
         "burn": {
           "description": "Use as fuel.",
           "type": "object",

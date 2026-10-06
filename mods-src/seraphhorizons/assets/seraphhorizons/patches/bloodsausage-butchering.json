@@ -1,0 +1,10 @@
+// Butchering's grid recipes for raw blood sausage and raw black pudding, seraphhorizons'
+// BloodSausageInMixingBowl switch (README.md): with Expanded Foods, Butchering's own kneading recipes
+// make both in A Culinary Artillery's mixing bowl, and the pack keeps only those. The items stay.
+// Server side: recipes are loaded on the server.
+[
+  { "file": "butchering:recipes/grid/blackpudding.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "butchering" }, { "modid": "expandedfoods" }] },
+  { "file": "butchering:recipes/grid/bloodsausage.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "butchering" }, { "modid": "expandedfoods" }] },
+  { "file": "butchering:recipes/grid/bloodsausage.json", "op": "add", "path": "/1/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "butchering" }, { "modid": "expandedfoods" }] },
+  { "file": "butchering:recipes/grid/bloodsausage.json", "op": "add", "path": "/2/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "butchering" }, { "modid": "expandedfoods" }] }
+]

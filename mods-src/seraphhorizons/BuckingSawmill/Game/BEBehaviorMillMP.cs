@@ -1,3 +1,4 @@
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent.Mechanics;
@@ -26,6 +27,6 @@ public class BEBehaviorMillMP : BEBehaviorMPConsumer
 
     public override float GetResistance() =>
         (Blockentity as BEMillGhost)?.Mill is { Complete: true } mill
-            ? mill.Oiling?.Resistance(BuckingSawmillSystem.Of(Api).Config.Resistance) ?? BuckingSawmillSystem.Of(Api).Config.Resistance
+            ? mill.Oiling is { } oil ? Oil.Asked(oil, BuckingSawmillSystem.Of(Api).Config.Resistance, mill) : BuckingSawmillSystem.Of(Api).Config.Resistance
             : IncompleteResistance;
 }

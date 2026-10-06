@@ -85,6 +85,8 @@ public class SeraphHorizonsSystem : ModSystem
         _irrigationVessel = Config(api).IrrigationVesselRetired && IrrigationVessel.Applies(api);
         if (!_irrigationVessel)
             DisablePatches(IrrigationVessel.DisablePatches);
+        if (!(Config(api).BloodSausageInMixingBowl && BloodSausage.Applies(api)))
+            DisablePatches(BloodSausage.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             DisablePatches(SawmillBladeDurability.DisablePatches);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
@@ -337,6 +339,12 @@ public class SeraphHorizonsConfig
     /// ships it).</summary>
     public bool IrrigationVesselRetired { get; set; } = true;
 
+    /// <summary>Butchering: raw blood sausage and raw black pudding have no grid recipe, so they are
+    /// made only by Butchering's kneading recipes in A Culinary Artillery's mixing bowl, which it
+    /// enables with Expanded Foods (server side; needs all three; off means Butchering's grid
+    /// recipes too).</summary>
+    public bool BloodSausageInMixingBowl { get; set; } = true;
+
     /// <summary>Panning gives no wool (Wool), stitching awls or buttons and clasps (Tailor's Delight)
     /// and no uranium nuggets (Expanded Matter); the rest of each mod's panning drops stay (server
     /// side; off means panning is as the mods ship it).</summary>
@@ -551,7 +559,8 @@ public class SeraphHorizonsConfig
     /// felled tree leaves a trunk lying on the ground as an entity, which you drag with a rope or by
     /// holding the right mouse button on it with an empty hand, shove by walking into it, float down
     /// rivers, or shoulder very slowly with Carry On; its weight grows with its logs. Loose trunk
-    /// items are turned into trunk entities, trunk stacks fit in no inventory, and trunks already
+    /// items are turned into trunk entities, no survival player is given a trunk stack (one
+    /// already in a slot still moves and can be thrown out), and trunks already
     /// placed as blocks are deleted when they load, nothing returned (needs Logging Expanded; Carry
     /// On is optional; off means trunks are as Logging Expanded ships them). The server's setting
     /// decides; a client follows the server.</summary>

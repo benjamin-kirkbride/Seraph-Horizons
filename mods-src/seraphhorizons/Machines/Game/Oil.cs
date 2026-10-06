@@ -22,8 +22,21 @@ public sealed class OilState(OilMachine machine, OilTank tank, float dryMultipli
     public float DryMultiplier { get; set; } = dryMultiplier;
     public bool Dry => Tank.Dry;
 
-    /// <summary>A shaft load as the oil leaves it.</summary>
-    public float Resistance(float resistance) => Tank.Resistance(resistance, DryMultiplier);
+    /// <summary>The load the shaft last asked of the machine (what <see cref="Resistance"/> gave),
+    /// null until it has. The server syncs it for the block info.</summary>
+    public float? Load { get; set; }
+
+    /// <summary>A shaft load as the oil leaves it, remembered as <see cref="Load"/>.</summary>
+    public float Resistance(float resistance)
+    {
+        float load = Tank.Resistance(resistance, DryMultiplier);
+        Load = load;
+        return load;
+    }
+
+    /// <summary>The load the machine takes oiled, from the last one asked: <see cref="Load"/> over
+    /// the dry multiplier while dry, else as it is. Null until the shaft has asked.</summary>
+    public float? OiledLoad => Load is { } load ? (Dry && DryMultiplier > 0 ? load / DryMultiplier : load) : null;
 }
 
 /// <summary>
@@ -49,6 +62,8 @@ public static class Oil
         oil.SetDouble("points", state.Tank.Points);
         oil.SetDouble("capacity", state.Tank.Capacity);
         oil.SetFloat("dryMultiplier", state.DryMultiplier);
+        if (state.Load is { } load)
+            oil.SetFloat("load", load);
         tree[TreeKey] = oil;
     }
 
@@ -60,7 +75,7 @@ public static class Oil
             return null;
         double capacity = oil.GetDouble("capacity");
         return new OilState(machine, new OilTank(Math.Clamp(oil.GetDouble("points"), 0, Math.Max(0, capacity)), capacity),
-            oil.GetFloat("dryMultiplier", 1f));
+            oil.GetFloat("dryMultiplier", 1f)) { Load = oil.HasAttribute("load") ? oil.GetFloat("load") : null };
     }
 
     /// <summary>The server's tank for a machine loaded from <paramref name="tree"/>: what it saved,
@@ -70,7 +85,7 @@ public static class Oil
         double capacity = config.For(machine).Tank;
         var saved = Read(tree, machine);
         var tank = saved == null ? OilTank.Empty(capacity) : saved.Tank.WithCapacity(capacity);
-        return new OilState(machine, tank, config.DryResistanceMultiplier);
+        return new OilState(machine, tank, config.DryResistanceMultiplier) { Load = saved?.Load };
     }
 
     public static OilState New(OilMachine machine, MachineOilConfig config) =>
@@ -148,18 +163,35 @@ public static class Oil
     }
 
     /// <summary>Points as the block info shows them: whole, rounded up, so a tank with any oil in
-    /// it never reads 0.</summary>
-    public static string Shown(double points) => Math.Ceiling(points - 1e-9).ToString("0");
+    /// it never reads 0 (and an empty one reads 0, never -0).</summary>
+    public static string Shown(double points) => OilText.Points(points);
 
-    /// <summary>The block info's oil lines: the tank, and while dry how much harder it turns
-    /// (not for a machine whose load the oil leaves alone, <paramref name="dryLoad"/> false).</summary>
+    /// <summary>The block info's oil lines: the tank, and while dry how much harder it turns: its
+    /// load on the shaft now against the load oiled, once the shaft has asked for it (not for a
+    /// machine whose load the oil leaves alone, <paramref name="dryLoad"/> false).</summary>
     public static void Info(OilState? state, StringBuilder dsc, bool dryLoad = true)
     {
         if (state == null)
             return;
         dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-tank", Shown(state.Tank.Points), Shown(state.Tank.Capacity)));
-        if (state.Dry && dryLoad)
-            dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-dry", state.DryMultiplier.ToString("0.##")));
+        if (!state.Dry || !dryLoad)
+            return;
+        string times = state.DryMultiplier.ToString("0.##");
+        dsc.AppendLine(state.Load is { } load && state.OiledLoad is { } oiled
+            ? Lang.Get(Domain + ":machineoil-info-dry-load", times, OilText.Load(load), OilText.Load(oiled))
+            : Lang.Get(Domain + ":machineoil-info-dry", times));
+    }
+
+    /// <summary>The shaft asking a machine its load: <paramref name="resistance"/> as the oil leaves
+    /// it, remembered on <paramref name="state"/>; the server marks <paramref name="owner"/> dirty
+    /// when the figure changes, so the client's block info has it.</summary>
+    public static float Asked(OilState state, float resistance, BlockEntity? owner)
+    {
+        float? before = state.Load;
+        float load = state.Resistance(resistance);
+        if (before != load && owner?.Api?.Side == EnumAppSide.Server)
+            owner.MarkDirty();
+        return load;
     }
 
     // ---- The bucking mill's and the rosser's own tanks ----
