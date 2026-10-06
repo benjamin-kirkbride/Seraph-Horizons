@@ -383,7 +383,9 @@ public static class TrunkCarry
             || Manager(api) is not { } manager)
             return false;
         var m = _members!;
-        Lay(carrier, stack, carrier.Pos.AsBlockPos, along: false);
+        // Not laid (it warns): Carry On's own drop goes on, so the trunk is never simply lost.
+        if (!Lay(carrier, stack, carrier.Pos.AsBlockPos, along: false))
+            return false;
         m.RemoveCarried.Invoke(manager, [carrier, m.Slot.GetValue(carried), true]);
         if (carrier is EntityAgent agent)
             UpdateSpeed(agent);

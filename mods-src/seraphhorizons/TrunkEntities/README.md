@@ -183,7 +183,9 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   be spawned the trunk stays carried, with a warning in the log.
 - **Drops.** When Carry On drops a carried block (death, damage, a quick drop, its own
   carried-block entity: `CarryDropService.DropCarriedBlock` and `DropBlockAsEntityOrItem`), a trunk
-  is laid as a trunk entity where the carrier stands, never a block nor an item.
+  is laid as a trunk entity where the carrier stands, never a block nor an item. If the entity
+  cannot be spawned (a warning in the log), the trunk is left in the hands and Carry On's own drop
+  goes on, so it is dropped as Carry On drops any block and never simply lost.
 - **Racks are not carried.** Logging Expanded's `patches/carryon.json` gives its Trunk Storage Rack a
   Carryable, and a carried rack takes its four trunks with it. In `AssetsFinalize` the pack strips
   Carry On's `BlockBehaviorCarryable` from every `loggingmod:trunkstorage-*` block
