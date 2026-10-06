@@ -188,8 +188,13 @@ public static class ForeignMachines
         }
     }
 
+    /// <summary>Forgets every machine, once the patches are out (the game is shutting down, or a
+    /// later game in the same process runs with the switch off): no block entity counts as one.</summary>
     public static void Unbind()
     {
+        Machines.Clear();
+        _targets = [];
+        WoodworkingBound = false;
         lock (ClientMachines)
             ClientMachines.Clear();
     }
