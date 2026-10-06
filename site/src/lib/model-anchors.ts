@@ -119,6 +119,16 @@ export function cellBoxes(cell: RigCell): Bounds[] {
   return boxes.map((b) => ({ lo: [x + b[0]!, y + b[1]!, z + b[2]!], hi: [x + b[3]!, y + b[4]!, z + b[5]!] }));
 }
 
+/** A lid's thickness in blocks (`RigCell.LidThickness` in the mod). */
+export const LID_THICKNESS = 1 / 16;
+
+/** A cell's lid in blocks: the collision-only deck over the whole cell, `LID_THICKNESS` thick with its top at the cell's `lid`; null without one. */
+export function lidBox(cell: RigCell): Bounds | null {
+  if (cell.lid === undefined || cell.lid === null) return null;
+  const [x, y, z] = cell.pos;
+  return { lo: [x, y + cell.lid - LID_THICKNESS, z], hi: [x + 1, y + cell.lid, z + 1] };
+}
+
 /**
  * Where a side's arrow goes: just outside the footprint on that side, pointing in. Its other
  * coordinates follow the first line anchor running along the side's normal (material enters
