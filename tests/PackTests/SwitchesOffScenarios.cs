@@ -182,6 +182,25 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>GearBlanks</c>: no gear blanks, no gear blank molds and no recipes for either,
+    /// and nothing logged about them.</summary>
+    [AtlasScenario]
+    public void Gear_blanks_off_there_are_no_blanks_or_molds()
+    {
+        Assert.True(Off("GearBlanks"));
+        Assert.Null(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Gears.GearBlanks.Blank)));
+        Assert.Null(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Gears.GearBlanks.LargeBlank)));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("toolmold-"));
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Domain == "seraphhorizons");
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Domain == "seraphhorizons");
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("gearblank", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>GearboxSourceRatio</c>: nothing is patched, and a rotor placed after its gearbox,
     /// on the low side, takes the high side's ratio, as MPE Gearbox ships it (#462). When this fails
     /// with the rotor at 1, MPE Gearbox has fixed it and the tweak can go.</summary>

@@ -188,6 +188,8 @@ public class SeraphHorizonsSystem : ModSystem
             AssembledMachines.AddToBlocktypes(api);
         if (api.Side == EnumAppSide.Server && _irrigationVessel)
             IrrigationVessel.DropFromRuinLoot(api);
+        if (api.Side == EnumAppSide.Server && !Config(api).GearBlanks)
+            Gears.GearBlanks.Disable(api);
         if (Config(api).PanningDropsTrimmed)
         {
             if (api.Side == EnumAppSide.Server)
@@ -575,4 +577,11 @@ public class SeraphHorizonsConfig
     /// a server's file that leaves them out is overridden for the run. Both sides; off means the
     /// coffin is not patched, there is no packing recipe and smex's setting is as its file says.</summary>
     public bool SteelBitsRecovery { get; set; } = true;
+
+    /// <summary>Steel gear blanks (#479, Gears/, README "Steel gear blanks"): a steel gear blank and a
+    /// large one, cast in clay-formed gear blank molds filled from a crucible (or smex's canal
+    /// pedestal) or smithed from one and two steel ingots, by hand or with the helve hammer (off means
+    /// the blanks, their molds and their recipes do not exist, and those already in a world are
+    /// lost). The server's setting decides.</summary>
+    public bool GearBlanks { get; set; } = true;
 }
