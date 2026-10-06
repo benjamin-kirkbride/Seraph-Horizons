@@ -33,6 +33,8 @@ export interface ItemAttributes {
   attackPower?: number;
   materialDensity?: number;
   nutrition?: { category: string; satiety: number; health?: number };
+  /** Nutrients added to farmland, in percent. */
+  fertilizer?: { n: number; p: number; k: number };
   burn?: { temperature?: number; durationSeconds?: number };
   smelting?: {
     meltingPoint?: number;
