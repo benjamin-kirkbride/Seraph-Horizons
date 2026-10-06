@@ -230,10 +230,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.GridRecipes, r => r.Ingredients?.Values.Any(i => i.Code?.ToString() == GearConsumers.SteelGear) == true);
         // ppex's Cornish engine: one recipe with the rusty gear, its twin with ppex's gears.
         var cornish = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == "ppex:enginecornish-north").ToList();
-        Assert.Contains(cornish, r => r.Ingredients!["G"].Code.ToString() == "game:gear-rusty");
-        Assert.Contains(cornish, r => r.Ingredients!["G"].Code.ToString() == "ppex:gear-*");
+        // Keyed and resolved ingredients both (GearConsumerUses.Codes): the server drops a grid recipe's
+        // keyed ones once recipes are sent to a client, so after a scenario joins a player there are none.
+        Assert.Contains(cornish, r => GearConsumerUses.Codes(r).Contains("game:gear-rusty"));
+        Assert.Contains(cornish, r => GearConsumerUses.Codes(r).Contains("ppex:gear-*"));
         Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:glider"
-                                            && r.Ingredients!.Values.Any(i => i.Code?.ToString() == "game:gear-rusty"));
+                                            && GearConsumerUses.Codes(r).Contains("game:gear-rusty"));
         Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "ppex:gear-steel");
         Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "ppex:largegear-steel");
         var gear = W.GetItem(new AssetLocation("ppex:gear-steel"))!;

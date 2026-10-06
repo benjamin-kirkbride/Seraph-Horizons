@@ -30,6 +30,8 @@ internal static class GearConsumerUses
     [
         "game:recipes/grid/clothes/neck.json", "game:recipes/barrel/dye/gray.json", "game:recipes/barrel/dye/black.json",
         "betterloot:recipes/grid/rustygearpart.json", "cartwrightscaravan:recipes/grid/signs.json",
+        // Gear reclamation's first step boils the rusty gears themselves: salvage, not a machine part.
+        "seraphhorizons:recipes/cooking/gear-degrease.json",
     ];
 
     /// <summary>Recipes that take the steel gear, by the start of their output's code, and how many a
@@ -125,7 +127,11 @@ public partial class SharedWorldScenarios
         {
             var found = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == machine).ToList();
             Assert.NotEmpty(found);
-            Assert.All(found, r => Assert.Equal(GearConsumers.SteelGear, r.Ingredients!["G"].Code.ToString()));
+            // The resolved ingredients, as the loop above reads: the server drops a grid recipe's keyed
+            // ones once recipes are sent to a client (SchematicRecipes.cs), so after a scenario joins a
+            // player there are none.
+            Assert.All(found, r => Assert.Contains(r.ResolvedIngredients ?? [], i => i?.Code?.ToString() == GearConsumers.SteelGear));
+            Assert.All(found, r => Assert.DoesNotContain(r.ResolvedIngredients ?? [], i => IsOldGear(i?.Code?.ToString())));
         }
     }
 
