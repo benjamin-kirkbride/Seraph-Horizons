@@ -282,7 +282,7 @@ version = "1.0.1"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Compact 1:2 to 1:5 gearboxes."
+why = "Compact 1:2 to 1:5 gearboxes. A power source that discovers its network through one takes the ratio of the side it touches, by seraphhorizons (GearboxSourceRatio)."
 
 [[mod]]
 id = "madmechanics"

@@ -175,6 +175,25 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>GearboxSourceRatio</c>: nothing is patched, and a rotor placed after its gearbox,
+    /// on the low side, takes the high side's ratio, as MPE Gearbox ships it (#462). When this fails
+    /// with the rotor at 1, MPE Gearbox has fixed it and the tweak can go.</summary>
+    [AtlasScenario]
+    public async Task Gearbox_source_ratio_off_a_rotor_after_its_gearbox_takes_the_far_sides_ratio()
+    {
+        Assert.True(Off("GearboxSourceRatio"));
+        Assert.False(GearboxTrain.Patched());
+        var train = new GearboxTrain(World, World.Spawn.AddCopy(0, 12, -60));
+        await train.Clear();
+        await train.PlaceGearbox(lowSideToRotor: true);
+        await train.PlaceConsumer();
+        await train.PlaceRotor();
+        train.AssertOneNetwork();
+        var ratios = train.Ratios();
+        output.WriteLine($"ratios (rotor, gearbox, consumer): {string.Join(", ", ratios)}");
+        Assert.Equal([5f, 1f, 5f], ratios);
+    }
+
     /// <summary><c>IronWoodworkingMachines</c>: Immersive Woodworking's machine parts keep their own
     /// recipes, of any metal, and the Machines chapter says nothing of iron.</summary>
     [AtlasScenario]

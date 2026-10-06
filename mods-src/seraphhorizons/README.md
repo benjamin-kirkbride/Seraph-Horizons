@@ -16,7 +16,7 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach and
+chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach and
 the creative search tweaks run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
@@ -362,6 +362,35 @@ pass the items on to, such as a chest under it, or it drops them out of its bott
 Server side, where the chopper runs. Immersive Woodworking has no setting for this. If
 `EjectBatch(ItemStack, int)` or the chopper's `Facing` is gone, the mod logs a warning and the
 chopper keeps its own throw.
+
+### A rotor turns at its own speed through a gearbox (`GearboxSourceRatio`)
+
+MPE Gearbox (`mpegearbox` 1.0.1), #462. A power source (a rotor, the creative or auto rotor)
+driving a machine through one of its gearboxes could run at the wrong speed, depending on the order
+things were built in: an auto rotor set to 1 rps on a 1:5 gearbox's low side turned the network at
+about 0.19 rps, so the rosser on the high side ran at about 0.9 rps instead of about 3.6; one on the
+high side races instead. The game asks a neighbour for its geared ratio, `GetGearedRatio(face)`, in two ways:
+`BEBehaviorMPBase.tryConnect`, when a block joins a network, passes the direction from the asker
+toward the neighbour; `CreateJoinAndDiscoverNetwork`, when a source creates the network itself and
+spreads it (a rotor placed after the gearbox, or every source again when `MechanicalPowerMod`
+rebuilds a network after a block on it is broken), passes the neighbour's own connector face. The
+two agree for every vanilla block, which has one ratio on all its faces. MPE Gearbox's
+`BEBehaviorGearbox12` answers only the first way right, so the rotor stored the far side's ratio
+(5 on the low side, 0.2 on the high side) and throttled its torque at the wrong network speed. The
+gearbox and what lies beyond it were right; only the rotor was off.
+
+`GearboxSourceRatio` postfixes `BEBehaviorMPBase.CreateJoinAndDiscoverNetwork`: when the neighbour
+the block discovered through is MPE Gearbox's, on the same network and connected on the face that
+touches it, it asks the gearbox again the first way (`GetGearedRatio(powerOutFacing)`) and sets
+that ratio when it differs (`Core/GearboxCoupling.cs`). Only the ratio is set, not the propagation
+direction, which the game got right, and nothing is changed next to any other block, or when the
+discovering block is a gearbox itself (its stored ratio is its low side's).
+
+Server side, where networks are discovered; clients get the ratio with the block entity. MPE Gearbox
+is not referenced at build time: if `MPEGearbox.BEBehaviorGearbox12` is missing or no longer a
+`BEBehaviorMPBase`, the mod logs a warning and patches nothing. Reported upstream
+(<https://mods.vintagestory.at/mpegearbox#cmt-245057>); once MPE Gearbox answers both ways, the
+switch's off check fails and the tweak can go.
 
 ### One tun: Hydrate or Diedrate's is retired, Food Shelves' holds 950 L (`HydrateTunRetired`, `LargerTunRack`)
 
@@ -1182,7 +1211,7 @@ and a sign's text (unchanged).
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, which panning drops are taken out, where the chopper drops its piles, `/clear`'s
+cart reach's entity matching and reach rule, which panning drops are taken out, where the chopper drops its piles, which ratio a source next to a gearbox takes, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, the creative mod
@@ -1265,6 +1294,17 @@ every piece, for two facings. It also requires the cell in front, and the one ab
 outside the chopper's footprint (`GetCells`). When it fails after an Immersive Woodworking update,
 check whether `EjectBatch` or the footprint changed. With the switch off, `SwitchesOffScenarios`
 requires the chopper unpatched and throwing its batch past the cell in front.
+
+`tests/PackTests/GearboxSourceRatioScenarios.cs` (Atlas) builds a creative rotor, MPE Gearbox's 1:5
+gearbox and a wooden toggle (what drives a helve hammer) in a row, each connected as its own
+placement code connects it, and requires every block's stored geared ratio: rotor 1, gearbox 1,
+toggle 5 with the rotor on the low side, built rotor first (the order the game already handles)
+and gearbox and toggle first; rotor 1, gearbox and toggle 0.2 with the rotor on the high side; and
+the low-side row still right after the toggle is broken (the network rebuilt from its rotor) and
+placed again. Without the patch the rotor stores 5, 0.2 and 5 in the three cases that discover
+through the gearbox. With the switch off, `SwitchesOffScenarios` requires nothing patched and the
+rotor placed last on the low side at 5, as MPE Gearbox ships it; when that fails with the rotor at
+1, MPE Gearbox has fixed it and the tweak can go.
 
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
