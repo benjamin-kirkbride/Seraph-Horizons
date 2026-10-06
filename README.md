@@ -30,6 +30,17 @@ To be clear, this is **NOT** just a "selection of mods" thrown together. It is i
 - Achievements/Quests
 - Improved QoL (hotbar refill, player corpse, roll-up bed, many vanilla tweaks, betterer prospecting, visible ores, handbook improvements, many many creative improvements, etc)
 
+## Ore and panning
+
+Ore is rare and placed by the world seed. Each metal has at most one deposit per 5 km cell, so the
+nearest deposit of a metal is typically about 2.5 km away. It holds a few hundred ingots (copper and
+iron about 400, alloy metals about 150) and runs out. Surface copper and tin are gone. The first metal
+comes from panning: one rich gravel field per 1.5 km cell, 300–600 blocks by water or on low ground,
+whose pan drops follow the local rock. It also comes from traders, who sell maps to deposits and
+gravel fields. Gold, silver and most chromite and platinum come from Interesting Ore Gen's
+hydrothermal districts, about one per 120 km². All of this applies to new worlds only. How it works,
+the measured numbers and how to re-check them are in [`docs/oregen.md`](docs/oregen.md).
+
 ## What I Could Use Help With
 
 - Playtesters: help me make sure the mods interact correctly with eachother, test my tweaks and changes, tell me if recipes seem too easy or hard, etc

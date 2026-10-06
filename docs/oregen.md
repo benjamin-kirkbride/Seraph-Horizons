@@ -11,6 +11,23 @@ Every change to generation applies to **new worlds only**: the world records at 
 which switches it was created with (`seraphhorizons:oreworld`, `Ore/Core/OreWorldRecord.cs`). A key
 missing from an older record reads as off, so a world created before a switch existed never gets it.
 
+## Targets (epic #435)
+
+A typical deposit of a metal about 2.5 km away (one per metal per 5 km cell), lasting a group of
+about four through an age; the first metal from a rich gravel field about 750 m away (one per
+1.5 km cell) and from traders.
+
+| Metal | Small | Typical | Large (ingots) |
+|---|---|---|---|
+| Copper, iron | 150 | 400 | 1,000 |
+| Tin, zinc, bismuth, lead, nickel | 60 | 150 | 400 |
+| Silver, gold | 30 | 80 | 200 |
+| Titanium, chromium, platinum | 60 | 150 | 400 |
+
+Gravel fields hold 300–600 rich gravel blocks; scattered rich gravel is cut to a quarter; surface
+copper and tin are gone; hydrothermal districts are rarer. `tools/ore-survey/targets.json` holds the
+same numbers for `ore_survey.py check`, which reads small / typical / large as p10 / median / p90.
+
 ## Ore cells (#438)
 
 - The world is cut into 5 km cells per metal (copper, iron, ..., and coal and each industrial
@@ -58,6 +75,24 @@ filter is static state reset every server start, which is why it had to go.
   and fourteen per-rock tables; nine have no copper (conglomerate, limestone, peridotite, phyllite,
   slate, chalk, claystone, granite, shale), so each gets `nugget-nativecopper` at 1% on the server
   in AssetsLoaded (after the patch loader, as the pack's panning trim does).
+
+## Hydrothermal districts (#441, #445)
+
+Interesting Ore Gen's districts are the only source of gold and silver quartz and most chromite
+and platinum. IOG 2.3.8 tiles the world in squares of the first config's
+`minDistanceBetweenDistricts` and gives each tile a district with a hard-coded 40% chance, at a
+point of the tile from the seed; a district is 1–3 km in radius, with major faults 2–4 km long.
+`RarerDistricts` sets the tile to 7 km in every config (`patches/ore-rarerdistricts.json`): one
+district per 122 km², against one per 40–90 km² in IOG's own 4–6 km tiles. Wave 1 had 10 km (one per
+250 km²), sparser than the epic's one per 15 km tile; #445 settled on 7 km. The tiles are a pure
+function of seed and tile, so `/sh ore districts` shows them before anything generates.
+
+District ore is placed by IOG's district generator, not by the vein tries the cell rule approves,
+and `SmallerDeposits` does not scale it. Inside a district the base metals are as plentiful as
+ever: the survey's seed 404 window (a granitic-deep district, radius 2.7 km) held 35 bismuth, 40
+tin, 12 lead and 9 zinc deposits of up to 13,000 ingots in 9.4 km². A district is a rich field,
+roughly 3–28 km² in 122 km², worth a long trek; whether its base metals should be cut too is
+open (see "Survey", below).
 
 ## Deposit registry (#443)
 
@@ -133,3 +168,131 @@ deposits.Verify(candidate.Key, result =>
   per metal within 5 km, every trader a gravel map within 2 km; the sale reserves the deposit,
   verifies it and issues the map, or refunds. `ItemOreMap` implements the game's
   `ITradeableCollectible` through `ItemOreMap.Hooks`, which the trading side sets.
+
+## Survey (#445)
+
+Measured with `tools/ore-survey` (its README has the method): the full pack at the pins of
+2026-10-06 with the branch's `seraphhorizons`, seeds 101, 202 and 303 (then 404 and 505), each a
+96 × 96 chunk square (3.07 km, 9.4 km²) at the map centre. *Before* is the epic's scan of the same
+seeds at 160 × 160 chunks, without any of this (`build/orescan-pack-s*` in the main checkout).
+*First* is the branch as wave 3 left it, *tuned* after #445's changes (below).
+
+**What a window this size can show.** 96 chunks put the whole window inside one 5 km cell per
+metal (cell 102, 102 for every seed), so each seed shows at most one anchored deposit per metal,
+and ore densities per km² mean little: the cell's deposit is in the window or not. The deposits
+below are matched to the server log's `Ore cells: ... deposit placed` lines by position, so a
+managed vein is told apart from district ore and from the epic's merged deposits. Counts per
+25 km² need windows of several cells: a 160 chunk square still holds one to four cells per metal
+(about 35 minutes per seed); a 320 square, 4–9 cells, costs four times that.
+
+### Anchored veins (ingots, the ore of the cell's one deposit)
+
+| Metal (target) | Seed | First | Tuned |
+|---|---|---|---|
+| Copper (400) | 101 | 750 | 185 (deep, 64 under the surface) |
+| | 202 | 925 | 445 |
+| | 303 | 20 | under 20 |
+| | 404 | – | 529 |
+| Iron (400) | 303 | 2,590 | 1,011 |
+| Bismuth (150) | 101 | 406 | 384 |
+| Zinc (150) | 202 | 276 | 131 |
+| Platinum (150) | 202 | 397 | 293 |
+| Tin (150) | 303 | 43 | 43 (factor unchanged) |
+
+First: median 2.1× the target over the eight veins (six of them 1.8–6.5×), so the five metals
+measured above it got half their factor (`config/ore-sizes.json`, "factor"). Tuned: median 1.1×;
+iron and bismuth still about 2.5× on one vein each. Bismuth barely moved: IOG's bismuthinite is a
+chimney already cut to one tendril, so the factor goes on its length, and halving that changed
+little of what the survey counted; worth a closer look. Tin's one vein is a deep seam at 0.3×. Lead, nickel, silver,
+gold, titanium and chromium had no anchored vein in any window: their factors are unmeasured.
+
+### Which spot the deposit took (tuned, five seeds)
+
+The first spot held a vein for copper 5 of 5, bismuth 2/2, tin 1/1, iron 1/4, zinc 1/3, platinum
+1/3, and for lead 0/2, coal 0/2, borax 0/4, rhodochrosite 0/2 (spot 1 placed it once). A failed
+first spot means the metal's tries from that chunk found no rock to start in; the next spot is
+usually outside a 3 km window, so how far down the eight spots a cell goes, and how many cells end
+with none, needs a larger survey or `/sh ore cells` in a played world.
+
+### Before and after, per km²
+
+| | Before (3 seeds, 79 km²) | First (3 seeds, 28 km²) | Tuned (5 seeds, 47 km²) |
+|---|---|---|---|
+| Copper ore, ingots per km² | 11,758 | 60 | 208 (22 outside districts) |
+| Iron ore, ingots per km² | 10,934 | 92 | 88 |
+| Tin ore, ingots per km² | 2,433 | 2 | 891 (all but 43 ingots in districts) |
+| Copper pockets per km² (share at the surface) | 73 (61%) | 0.04 | 0.08 (75%) |
+| Rich gravel fields per km² (median blocks) | – | 0.04 (354) | 0.23 (370) |
+| Scattered rich gravel, blocks per km² | 330–640 (epic) | 138 | 124 |
+| Coal deposits per km² | 0.22 | 0 | 0 |
+
+The before runs did not record rich gravel; the epic's scratch scan had 330–640 blocks per km².
+Surface copper is gone (four pockets in 47 km²). Coal and the minerals show only what a cell's one
+deposit puts in a window: none of the windows held a coal anchor.
+
+### Placer fields
+
+Per placer cell that the survey decided (its active spot's column generated): first, 1 field and
+3 cells with none; tuned, 13 fields and 2 with none (87%), after 1–4 spots each, 244–586 blocks,
+median 370, all at the surface. Other cells' next spot lay outside the window, which is why the
+per-km² figure (one per 4.3 km²) understates them. The first run's spots failed on dry columns
+whose lowest point lay only 2–4 blocks under their edges, or on discs spanning 6–8 blocks; the
+tuned rule allows 8 blocks of relief and 2 blocks of low ground (`PlacerSite`). Most remaining
+failures are slopes (a planar slope's middle is level with its edges' mean), steep ground and lakes.
+
+### Districts seen
+
+Districts IOG built near each window (within a tile of generated chunks): first, 3, 2 and 4 (10 km
+tiles); tuned, 7, 7, 5, 6 and 4 (7 km tiles). District ore reached the window in seed 303 (first)
+and in 404 and 505 (tuned).
+
+### Tuning made (#445)
+
+- `patches/ore-rarerdistricts.json`: 7 km tiles (was 10 km).
+- `config/ore-sizes.json`: copper, iron, bismuth, zinc and platinum at half their factor.
+- `Ore/Core/PlacerCells.cs`: `MaxRelief` 8 (was 5), `ValleyDepth` 2 (was 4).
+
+### Open
+
+- District base metals are unscaled and plentiful (see "Hydrothermal districts").
+- Lead, nickel, silver, gold, titanium and chromium sizes, and counts per 25 km² for every metal,
+  need a survey of several cells (160 × 160 chunks or more, five seeds).
+- Not walked in game yet: finding a gravel field by map, panning, buying an ore map and reaching
+  the deposit.
+
+### Re-running it
+
+```sh
+VINTAGE_STORY=$HOME/Games/vintagestory dotnet build mods-src/seraphhorizons -c Release
+VINTAGE_STORY=$HOME/Games/vintagestory dotnet build tools/ore-survey -c Release
+VINTAGE_STORY=$HOME/Games/vintagestory tools/ore-survey/run.sh --name tuned --dump \
+  --mod build/seraphhorizons_<version>.zip
+VINTAGE_STORY=$HOME/Games/vintagestory tools/ore-survey/run.sh --name tuned --size 96 -j 5 \
+  --port 42591 --mod build/seraphhorizons_<version>.zip 101 202 303 404 505
+python3 tools/ore-survey/ore_survey.py summary build/ore-survey/tuned-s{101,202,303,404,505} \
+  --json build/ore-survey/tuned.json
+python3 tools/ore-survey/ore_survey.py summary build/orescan-pack-s{101,202,303} --json build/ore-survey/before.json
+python3 tools/ore-survey/ore_survey.py compare build/ore-survey/before.json build/ore-survey/tuned.json
+grep -h "Ore cells: .*: \|Placer fields: cell" build/ore-survey/tuned-s*/Logs/server-main.log
+grep -h "\[HydrothermalDistrict\] '" build/ore-survey/tuned-s*/Logs/*.log | sort -u
+```
+
+A 96 square takes 12–16 minutes per seed with five at once. The server log lists every cell
+decision (`Ore cells: <metal> cell X, Z spot N at x, z: deposit placed | no vein, spot M is next`)
+and placer decision (`Placer fields: cell X, Z spot N at x, z: <n> blocks of ... | unsuitable
+(...)`); `/sh ore cells` and `/sh ore districts` give the same in a running world.
+
+## Engine facts
+
+- Vanilla `GenDeposits` is deterministic per chunk (position, radius, thickness, grade); only the
+  Y level and host rock need terrain. IOG's `TiltedAnywhereDiscGenerator` is likewise deterministic
+  apart from its spacing filter, static state reset every server start (replaced by the cell rule).
+- Hydrothermal districts (`HydrothermalDistrictSystem`) are a pure function of seed and tile;
+  radius 1–3 km, major faults 2–4 km; IOG builds a district only when a chunk within a tile of it
+  generates, and keeps it in memory.
+- Vanilla treasure maps use `ItemLocatorMap` with `ModSystemStructureLocator.FindFreshStructureLocation`
+  and a per-region consumed list: the pattern the ore maps follow.
+- Walking is about 4m55 per km, sprinting 2m27; a tamed elk at full gait about 1m30 (unverified).
+- BetterEr Prospecting reads actual ore blocks, so prospecting matches whatever worldgen produces.
+- The pan takes the last `panningDrops` key that matches the block (`BlockPan.CreateDrop`); see
+  "Placer fields".
