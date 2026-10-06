@@ -1627,3 +1627,51 @@ state, the shipped lists and the curation fixture); `tests/PackTests/TradingCore
 (Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere, a
 spawned trader stocking from its list, the game's camps taken over, the spawner rewrite, a cell's
 camp being decided, `/sh trade camps`, and nothing logged).
+
+## Standing (`TraderStanding`)
+
+Each trader remembers you (#452, `Trading/Standing/`, server side, default on). Standing is kept per
+player and trader: a camp's trader is its grid cell (`camp:x,z`, so the camp's next trader knows you
+too), any other of the pack's traders its entity (`entity:n`). Every deal through the trade dialog
+earns a point per gear changing hands, either way; orders and deliveries (later waves) earn more, at
+both ends of a delivery made on time. Standing is lost only by failing a delivery or abandoning an
+order, never below 0. A tenth of your best standing with another trader of the same type within
+`TraderStandingSpilloverKm` (default 6) counts too, through the grid's placed camps.
+
+Five tiers, in `assets/seraphhorizons/config/standing-tiers.json`: stranger (0), known (60), regular
+(250), trusted (800), partner (2000). Each tier's unlocks are data for the features that read them:
+map tier and maps to other traders, a price factor each way, the wallet tier, order and delivery
+size, rare stock. Today the wallet uses it: at the weekly restock a trader tops its gears up towards
+its list's wallet for the best tier among players who traded with it in the last 14 days. Opening a
+trader's dialog shows your standing there in chat once a visit (the game's trade dialog is client
+side and closed to additions), with the next tier; reaching a tier says so.
+
+Admin (`controlserver`): `/sh trade standing <player> [trader]` lists a player's standing with every
+trader they or their company have a record with, or one trader in detail with its recent events;
+`/sh trade standing set <player> <trader> <points>` and `reset <player> [trader]` change the
+player's own record. A trader is its id as listed, or `near` for the one next to you. Saved with
+the world (`seraphhorizons:standing`).
+
+## Companies
+
+Standing is pooled by company (#463): a company is one of the player's vanilla groups (`/group
+create`, `/group join`), the first they joined unless they choose another with `/sh company <group>`
+(any player; `/sh company` alone shows it). Every gain goes to the player's own record and the
+company's, and a trader reads the better of the two. Forming or joining a company raises its standing
+with each trader to the joiner's own if that is higher, once per membership. Leaving, being kicked or
+the group disbanding takes nothing along: the player keeps their own record, the company keeps its
+own. A failed delivery or an abandoned order costs the company and the player who took the job, not
+the other members. Groups are the server's (shared by its worlds), the records are the world's, keyed
+by the group's uid; a group that no longer exists is no company. Joining, leaving and disbanding are
+caught by patches on the server's group methods; if those move in a game update, a log line says so
+and companies catch up the next time standing is read.
+
+Admin: `/sh trade company <player> [group]` shows the player's company, its members pooled and its
+standing per trader, or makes `group` (one they are in) their company.
+
+Tests: `tests/Trading/Standing/` (tiers and thresholds, deal and penalty points, spillover, the
+shipped tiers, company choice, merge by max on joining, leaving keeping the personal record, penalty
+routing, disband); `tests/PackTests/TradingStandingScenarios.cs` (Atlas: a deal through the trade
+packet raises standing by its gears and a failed one does not, a higher tier raising the wallet at the
+next restock, a company made with the server's group manager pooling by max through `/sh company`
+and `/group leave` leaving the player their own, the chat line).

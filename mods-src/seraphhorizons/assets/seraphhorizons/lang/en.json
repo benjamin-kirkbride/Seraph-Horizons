@@ -720,7 +720,7 @@
   "trading-standing-line": "Standing with this {0}: {1} ({2}).",
   "trading-standing-spill": "{0} of it from nearby traders of the kind.",
   "trading-standing-company": "Your company's {0} counts here.",
-  "trading-standing-next": "{0} at {1}.",
+  "trading-standing-next": "Next: {0} at {1}.",
   "trading-standing-top": "The best standing there is.",
   "trading-standing-tierup": "This {0} now counts you {1}.",
   "trading-standing-view": "{0} ({1}): {2} {3} (personal {4}{5}, nearby +{6})",
