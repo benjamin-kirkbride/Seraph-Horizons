@@ -164,9 +164,10 @@ public partial class WoodworkingScenarios
         Assert.NotNull(recipe.Output!.ResolvedItemStack);
         var ingredients = (recipe.ResolvedIngredients ?? []).OfType<CraftingRecipeIngredient>().ToList();
         var codes = ingredients.Select(i => i.Code!.ToString()).ToList();
-        Assert.Equal(2, codes.Count(c => c == $"{Iw}:sawmill-frame-north"));
-        Assert.Equal(4, codes.Count(c => c == "game:supportbeam-*"));
-        Assert.Equal(1, codes.Count(c => c == "game:chutesection-copper"));
+        Assert.Equal(4, codes.Count(c => c == $"{Iw}:sawmill-frame-north"));
+        Assert.Equal(32, ingredients.Where(i => i.Code!.ToString() == "game:supportbeam-*").Sum(i => i.Quantity));
+        Assert.Equal(2, ingredients.Where(i => i.Code!.ToString() == "game:chutesection-copper").Sum(i => i.Quantity));
+        Assert.Equal(32, MachineParts.Count(recipe, MachineParts.Nails));
         Assert.Contains(ingredients, i => i.IsTool && i.Code!.Path.StartsWith("hammer"));
     }
 
@@ -1354,10 +1355,15 @@ public partial class WoodworkingScenarios
         var rosser = await PlaceRosser(pos, side);
         RosserReady(rosser, player);
         var frameOnly = RosserWorldBoxes(rosser, selection: false);
-        Assert.Equal(frameOnly.Select(Key).Order(), RosserWorldBoxes(rosser, selection: true).Select(Key).Order());
+        // Empty, the collision boxes are the selection boxes and the lids.
+        var lids = Added(frameOnly, RosserWorldBoxes(rosser, selection: true));
+        Assert.Equal(RosserRig.Cells.Count(c => c.Lid != null), lids.Count);
+        Assert.All(lids, b => Assert.Equal(RigCell.LidThickness, b.Y2 - b.Y1, 4));
         var hollow = RosserRig.Cells.Where(c => c.Hollow).Select(c => rosser.CellPos(c.Pos)).ToList();
         Assert.NotEmpty(hollow);
-        Assert.All(hollow, c => Assert.Empty(W.BlockAccessor.GetBlock(c).GetCollisionBoxes(W.BlockAccessor, c)));
+        Assert.All(hollow, c => Assert.Empty(W.BlockAccessor.GetBlock(c).GetSelectionBoxes(W.BlockAccessor, c)));
+        Assert.All(RosserRig.Cells.Where(c => c.Hollow), c =>
+            Assert.Equal(c.Lid != null ? 1 : 0, W.BlockAccessor.GetBlock(rosser.CellPos(c.Pos)).GetCollisionBoxes(W.BlockAccessor, rosser.CellPos(c.Pos)).Length));
         var soil = new ItemStack(BlockOf("game:soil-medium-normal"));
 
         // off the trunk, a block in hand is the hand's business
@@ -1388,9 +1394,9 @@ public partial class WoodworkingScenarios
                     var p = new Vec3d(min.X + 0.01 + (max.X - min.X - 0.02) * a / 8, min.Y + 0.01 + (max.Y - min.Y - 0.02) * b / 4, min.Z + 0.01 + (max.Z - min.Z - 0.02) * c / 4);
                     Assert.True(added.Any(x => p.X >= x.X1 && p.X <= x.X2 && p.Y >= x.Y1 && p.Y <= x.Y2 && p.Z >= x.Z1 && p.Z <= x.Z2), $"{where}: {p} is in no box");
                 }
-                // a hollow cell holds the trunk's part or nothing
+                // a hollow cell holds the trunk's part or nothing (its lid, if it has one, is collision only)
                 foreach (var h in hollow)
-                    foreach (var box in W.BlockAccessor.GetBlock(h).GetCollisionBoxes(W.BlockAccessor, h) ?? [])
+                    foreach (var box in W.BlockAccessor.GetBlock(h).GetSelectionBoxes(W.BlockAccessor, h) ?? [])
                     {
                         var wbox = new Cuboidd(box.X1 + h.X, box.Y1 + h.Y, box.Z1 + h.Z, box.X2 + h.X, box.Y2 + h.Y, box.Z2 + h.Z);
                         Assert.True(wbox.X1 >= min.X - 1e-4 && wbox.X2 <= max.X + 1e-4 && wbox.Y1 >= min.Y - 1e-4 && wbox.Y2 <= max.Y + 1e-4
@@ -1413,6 +1419,24 @@ public partial class WoodworkingScenarios
             Assert.Equal(frameOnly.Select(Key).Order(), RosserWorldBoxes(rosser, selection: false).Select(Key).Order());
         }
         KillItemsNear(pos, 20);
+    }
+
+    /// <summary>The rosser's top is a deck, on every facing: no column of the footprint can be fallen
+    /// into from above, the station's (its hollow cells, the gaps about the ring and the rolls) at
+    /// its top and the beds' over their hollow cells, empty and with a thick trunk part way through.
+    /// The lids are collision only: the trunk's boxes and clicks on it are the scenario above's.</summary>
+    [AtlasTheory(TimeoutMs = 180_000), MemberData(nameof(Facings))]
+    public async Task The_rossers_top_is_solid_to_walk_on(string side, int index)
+    {
+        var pos = await RosserSky(45 * index, 600);
+        var player = await Player("rosserdeck" + index);
+        await StandBy(player, pos);
+        var rosser = await PlaceRosser(pos, side);
+        RosserReady(rosser, player);
+        AssertTopIsADeck(RosserRig.Cells, rosser.CellPos, side);
+        Assert.Null(Click(player, pos, RosserTrunk("oak", 6, 0, "xl")));
+        FeedTo(rosser, RosserMod.Pace!.TripLength((int)TrunkClass.Thick) * 0.5);
+        AssertTopIsADeck(RosserRig.Cells, rosser.CellPos, side + ", trunk half way");
     }
 
     // ---- The bucking mill in line ----

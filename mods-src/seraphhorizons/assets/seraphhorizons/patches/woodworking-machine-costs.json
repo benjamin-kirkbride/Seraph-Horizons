@@ -1,8 +1,12 @@
 // Immersive Woodworking's machine parts (the sawmill's and the chopper's frames and fitted parts) take
 // iron, meteoric iron or steel, and far more nails and strips: seraphhorizons'
 // IronWoodworkingMachines switch (README.md, WoodworkingMachineCosts.cs). Each file is one recipe,
-// which Immersive Woodworking (1.3.11) ships disabled and registers itself, once per wood.
+// which Immersive Woodworking (1.3.11) ships disabled and registers itself, once per wood. The last
+// entries put the same metal rule on this mod's own machine frames, whose nails and strips take any
+// metal with the switch off.
 [
+  {"file": "seraphhorizons:recipes/grid/buckingmill.json", "op": "add", "path": "/0/ingredients/N/allowedVariants", "value": ["iron", "meteoriciron", "steel"], "dependsOn": [{"modid": "immersivewoodworking"}]},
+  {"file": "seraphhorizons:recipes/grid/rosser.json", "op": "add", "path": "/0/ingredients/N/allowedVariants", "value": ["iron", "meteoriciron", "steel"], "dependsOn": [{"modid": "immersivewoodworking"}]},
   {"file": "immersivewoodworking:recipes/grid/sawmill_frame.json", "op": "replace", "path": "/ingredientPattern", "value": "HMP,BBB,NMP", "dependsOn": [{"modid": "immersivewoodworking"}]},
   {"file": "immersivewoodworking:recipes/grid/sawmill_frame.json", "op": "add", "path": "/ingredients/N", "value": {"type": "item", "code": "game:metalnailsandstrips-*", "name": "metal", "allowedVariants": ["iron", "meteoriciron", "steel"], "quantity": 8}, "dependsOn": [{"modid": "immersivewoodworking"}]},
   {"file": "immersivewoodworking:recipes/grid/sawmill_sash.json", "op": "replace", "path": "/ingredientPattern", "value": "NPN,PRP,NPN", "dependsOn": [{"modid": "immersivewoodworking"}]},

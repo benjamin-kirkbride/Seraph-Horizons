@@ -8,7 +8,7 @@ namespace SeraphHorizons.Mod.BuckingSawmill;
 /// An invisible cell of the mill around its controller. Interaction, breaking, the pick-block
 /// stack, particles, name, info and help all go to the controller, as Immersive Woodworking's
 /// sawmill ghosts do; its collision and selection boxes are its cell's from the rig, with the
-/// loaded trunk's part in it.
+/// loaded trunk's part in it, and its collision boxes add the cell's lid on a column's top cell.
 /// </summary>
 public class BlockMillGhost : Block
 {
@@ -100,7 +100,7 @@ public class BlockMillGhost : Block
             : 0;
 
     public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEMillGhost)?.CellBoxes(blockAccessor) ?? base.GetCollisionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEMillGhost)?.CollisionBoxes(blockAccessor) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
         (blockAccessor.GetBlockEntity(pos) as BEMillGhost)?.CellBoxes(blockAccessor) ?? base.GetSelectionBoxes(blockAccessor, pos);

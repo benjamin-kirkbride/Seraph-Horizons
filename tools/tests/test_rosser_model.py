@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MOD = ROOT / "mods-src" / "seraphhorizons"
 sys.path.insert(0, str(MOD / "Machines" / "tools"))
 
-from machinegen import rigmath  # noqa: E402
+from machinegen import checks, rigmath  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("rosser_make_shape", MOD / "Rosser" / "tools" / "make_shape.py")
 make_shape = importlib.util.module_from_spec(_spec)
@@ -87,6 +87,7 @@ class Anchors(unittest.TestCase):
         for c in RIG["cells"]:
             self.assertFalse(c.get("hollow") and c.get("boxes"), c["pos"])
             self.assertTrue(c.get("hollow") or c.get("boxes"), c["pos"])     # (a cell with neither would be a full cube)
+        self.assertEqual(checks.lid_gaps(RIG["cells"]), [])
         power, water = tuple(RIG["powerCell"]), tuple(RIG["waterCell"])
         self.assertIn(power, cells)
         self.assertIn(water, cells)
@@ -110,6 +111,13 @@ class Anchors(unittest.TestCase):
         self.assertLess(p["nose0"], st["breaker"])
         self.assertLess(st["breaker"], st["ring"])
         self.assertLessEqual(st["ring"], p["tailStop"])
+        # the heads touch the trunk downstream of the ring's plane, the thick trunk's further out,
+        # and the tail clears them before the trip ends
+        tips = p["tips"]
+        self.assertLess(st["ring"], tips["thin"])
+        self.assertLess(tips["thin"], tips["thick"])
+        self.assertLess(tips["thick"], p["tailStop"])
+        self.assertLess(tips["thick"] - st["ring"], 2.0)
         # a delivered thick trunk stays inside the machine
         self.assertLessEqual(p["tailStop"] + 5, 1.0)
 

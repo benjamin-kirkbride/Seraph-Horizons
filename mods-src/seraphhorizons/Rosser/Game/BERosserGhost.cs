@@ -20,6 +20,9 @@ public class BERosserGhost : BlockEntity, IMachineGhost
     public Cuboidf[]? CellBoxes(IBlockAccessor blockAccessor) =>
         Principal is { } principal && blockAccessor.GetBlockEntity(principal) is BERosser rosser ? rosser.CellBoxes(Pos) : null;
 
+    public Cuboidf[]? CollisionBoxes(IBlockAccessor blockAccessor) =>
+        Principal is { } principal && blockAccessor.GetBlockEntity(principal) is BERosser rosser ? rosser.CollisionBoxes(Pos) : null;
+
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
