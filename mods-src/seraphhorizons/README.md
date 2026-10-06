@@ -1481,13 +1481,13 @@ their own attribute.
 
 Stock for the gear cutter (gears epic #484, #479): `seraphhorizons:gearblank-steel`, a steel disc
 with a bore the size of the game's rusty gear (6.7 voxels across, 1.4 thick), and
-`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 4.6
+`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 2
 thick). Both stack (32 and 8), go on a shelf or in a display case, and can be set on the ground
 (small ones in quadrants, a large one in the middle). They sit in the creative inventory's items
 tab, the molds in its construction tab, as the game's molds do. Two ways to make one:
 
 - **Cast.** Clay-form a gear blank mold (a floor and the walls round a round cavity with a core for
-  the bore, one layer deep) or a large one (three layers deep) from blue, red or fire clay, and fire
+  the bore, one layer deep) or a large one (two layers deep) from blue, red or fire clay, and fire
   it in a pit kiln or a beehive kiln as the game's tool molds fire. Pour 100 units of molten steel
   (one ingot) into the small mold from a crucible, 200 into the large one, and right-click the blank
   out once it has hardened; the mold stays. A mold takes steel only: there is no blank of any other
@@ -1498,7 +1498,7 @@ tab, the molds in its construction tab, as the game's molds do. Two ways to make
 
 The molds are the game's own: `seraphhorizons:toolmold-{color}-{raw|fired}-{gearblank|largegearblank}`,
 on its `BlockToolMold` and `ToolMold` block entity, with the attributes its tool molds have
-(`requiredUnits` 100 and 200, `fillHeight` 1 and 3, `drop` `seraphhorizons:gearblank-{metal}`, the
+(`requiredUnits` 100 and 200, `fillHeight` 1 and 2, `drop` `seraphhorizons:gearblank-{metal}`, the
 pit kiln's `combustibleProps` and the `beehivekiln` table). So the crucible pours into them as into
 any tool mold (`ILiquidMetalSink`), and Steelmaking Expanded's canal pedestal, which takes any small
 `BlockToolMold` (any but the anvil and helve hammer molds, which go on its tap), takes both and casts

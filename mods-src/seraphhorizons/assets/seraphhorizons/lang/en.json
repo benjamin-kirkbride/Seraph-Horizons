@@ -1183,7 +1183,7 @@
   "itemdesc-gearblank-*": "A steel disc with a bore, the size of a rusty gear: stock for cutting a gear.",
   "seraphhorizons:item-handbooktext-seraphhorizons:gearblank-steel": "Cast one in a fired gear blank mold: pour 100 units of molten steel (one <a href=\"handbook://item-ingot-steel\">steel ingot</a>) into it from a crucible, or set the mold on Steelmaking Expanded's canal pedestal, and take the blank out once it has hardened. Or smith one at the anvil from one steel ingot; the helve hammer forges it as it forges a plate. A gear blank mold takes steel only.",
   "item-largegearblank-steel": "Large steel gear blank",
-  "itemdesc-largegearblank-*": "A thick steel disc with a bore, the size of a large temporal gear: stock for cutting a large gear.",
+  "itemdesc-largegearblank-*": "A steel disc with a bore, the size of a large temporal gear: stock for cutting a large gear.",
   "seraphhorizons:item-handbooktext-seraphhorizons:largegearblank-steel": "Cast one in a fired large gear blank mold: pour 200 units of molten steel (two <a href=\"handbook://item-ingot-steel\">steel ingots</a>) into it from a crucible, or set the mold on Steelmaking Expanded's canal pedestal, and take the blank out once it has hardened. Or smith one at the anvil from two steel ingots: put a second hot steel ingot on the work piece. The helve hammer forges it as it forges a plate, once both ingots are on. A large gear blank mold takes steel only.",
   "block-toolmold-*-raw-gearblank": "Raw gear blank mold",
   "blockdesc-toolmold-*-raw-gearblank": "Fire it in a pit kiln or a beehive kiln to make a gear blank mold.",

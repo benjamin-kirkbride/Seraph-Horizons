@@ -92,7 +92,7 @@ public partial class SharedWorldScenarios
 
     // Both molds, raw in the three clays and fired in all ten colours the game's molds come in, the
     // raw one clay-formed (a floor and the walls round the cavity: one layer deep for the small blank,
-    // three for the large) and fired in a pit kiln or a beehive kiln to the fired one.
+    // two for the large) and fired in a pit kiln or a beehive kiln to the fired one.
     [AtlasScenario]
     public void Gear_blank_molds_are_clay_formed_and_fired()
     {
@@ -104,7 +104,7 @@ public partial class SharedWorldScenarios
                 var raw = GearBlankParts.Block(W, GearBlankParts.Mold(clay, "raw", type));
                 var recipe = Assert.Single(clayforming, r => r.Output.ResolvedItemstack?.Collectible == raw);
                 Assert.True(recipe.Ingredient.SatisfiesAsIngredient(new ItemStack(GearBlankParts.Item(W, "game:clay-" + clay))));
-                Assert.Equal(type == GearBlanks.MoldType ? 2 : 4, GearBlankParts.Layers(recipe));
+                Assert.Equal(type == GearBlanks.MoldType ? 2 : 3, GearBlankParts.Layers(recipe));
 
                 var fired = raw.CombustibleProps!.SmeltedStack.ResolvedItemstack.Collectible;
                 Assert.Equal(EnumSmeltType.Fire, raw.CombustibleProps.SmeltingType);
