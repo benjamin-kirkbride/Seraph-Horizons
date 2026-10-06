@@ -81,7 +81,7 @@ public static class AdminCommands
     public static TextCommandResult Answer(TextCommandCallingArgs args, AdminOutput output)
     {
         if (Json(args)) Attach(args, (JsonObject)output.Data.DeepClone());
-        string text = output.ToText();
+        string text = AdminOutput.ChatSafe(output.ToText());
         return output.Ok ? TextCommandResult.Success(text) : TextCommandResult.Error(text);
     }
 
@@ -113,7 +113,12 @@ public static class AdminCommands
         {
             result = TextCommandResult.Error(e.Message);
         }
-        if (!Json(args) || result.Status == EnumCommandStatus.Deferred) return result;
+        if (result.Status == EnumCommandStatus.Deferred) return result;
+        if (!Json(args))
+        {
+            result.StatusMessage = AdminOutput.ChatSafe(result.StatusMessage);
+            return result;
+        }
         Calls.TryGetValue(args, out var state);
         var output = AdminOutput.FromText(path, result.StatusMessage, result.Status != EnumCommandStatus.Error);
         if (state?.Data is { } data)
@@ -122,7 +127,7 @@ public static class AdminCommands
                 data.Remove(key);
                 output.Data[key] = value;
             }
-        result.StatusMessage = output.ToJson();
+        result.StatusMessage = AdminOutput.ChatSafe(output.ToJson());
         return result;
     }
 

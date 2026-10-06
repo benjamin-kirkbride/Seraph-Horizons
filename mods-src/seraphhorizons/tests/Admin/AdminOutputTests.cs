@@ -42,6 +42,15 @@ public class AdminOutputTests
         Assert.Equal("replaced", (string)json["summary"]!);
     }
 
+    [Theory]
+    [InlineData("{\"ok\":true}", "{\"ok\":true}\n")]
+    [InlineData("game:ore-{rock}", "game:ore-{rock}\n")]
+    [InlineData("a {\nb", "a {\nb")]
+    [InlineData("plain", "plain")]
+    [InlineData("", "")]
+    public void ChatSafeAnswersSkipTheTranslationFormatter(string text, string expected) =>
+        Assert.Equal(expected, AdminOutput.ChatSafe(text));
+
     [Fact]
     public void JsonKeepsCodesReadable()
     {

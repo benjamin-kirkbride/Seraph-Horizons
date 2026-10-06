@@ -75,6 +75,18 @@ public sealed class AdminOutput
 
     public string ToJson() => ToJsonObject().ToJsonString(Options);
 
+    /// <summary>
+    /// The text to hand the game as a command's answer. A player's single-line answer goes through
+    /// <c>Lang.GetL</c>, which <c>string.Format</c>s it, so a brace (every JSON answer, a code like
+    /// <c>ore-{rock}</c>) logs a format exception; an answer with a newline in it is sent as is
+    /// (1.22.7 <c>ChatCommandApi.Execute</c>). Such text gets a trailing newline; escaping the braces
+    /// instead would double them for the console and other callers that read the answer raw.
+    /// </summary>
+    public static string ChatSafe(string? text) =>
+        text is { Length: > 0 } && text.IndexOf('\n') < 0 && text.AsSpan().IndexOfAny('{', '}') >= 0
+            ? text + "\n"
+            : text ?? "";
+
     /// <summary>Takes every <see cref="JsonFlag"/> out of a command's words; true if there was one.</summary>
     public static bool StripFlag(List<string> words)
     {

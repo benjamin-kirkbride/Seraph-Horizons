@@ -26,6 +26,13 @@ all of it without doing anything. The handler is swapped through the game's priv
 `ChatCommandImpl.handler` (1.22.7); if that field goes, `--json` is still stripped and commands answer
 in text, with a warning at start.
 
+Every answer under both nodes, text or JSON, goes through `AdminOutput.ChatSafe`: the game
+`string.Format`s a player's single-line answer through `Lang.GetL` (an answer with a newline is sent
+as is), so a brace, which every JSON answer has, logged `Input string was not in a correct format`.
+Such an answer gets a trailing newline; escaping the braces would double them for the console. Atlas
+formats every answer through `Lang.Get` regardless, so the admin scenarios check the raw answer
+against the game's rule and ignore the harness's own log line (`tests/PackTests/FormatErrorWatch.cs`).
+
 Tab completion: the 1.22 client completes no server command arguments. Fixed words use the game's
 `WordRange` / `OptionalWordRange` parsers, which validate them and list them in `/help`; metals use
 `Word(name, suggestions)`.

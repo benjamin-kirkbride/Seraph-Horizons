@@ -31,7 +31,10 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private async Task<string> Run(string command, Atlas.Api.ITestPlayer? player = null)
     {
+        using var watch = new FormatErrorWatch(World.Api.Logger);
         var result = player == null ? await World.ExecuteCommand(command) : await player.ExecuteCommand(command);
+        Assert.True(watch.Errors.Count == 0, $"{command} hit the translation formatter:\n" + string.Join("\n", watch.Errors));
+        FormatErrorWatch.AssertChatSafe(command, result.Raw);
         output.WriteLine($"{command}: {(result.Ok ? "ok" : "FAILED")}:\n{result.Message}");
         Assert.True(result.Ok, $"{command}: {result.Message}");
         Assert.False(string.IsNullOrWhiteSpace(result.Message), $"{command} answered nothing");
