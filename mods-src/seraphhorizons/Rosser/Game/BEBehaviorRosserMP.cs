@@ -7,7 +7,8 @@ namespace SeraphHorizons.Mod.Rosser;
 
 /// <summary>The rosser's load on its shaft, on the power ghost: a consumer whose network is found
 /// through the power face only, as the mill's (<see cref="BEBehaviorMillMP"/>). Resistance is the
-/// configured <c>Resistance</c> once the rosser is assembled, a token 0.005 before.</summary>
+/// configured <c>Resistance</c> once the rosser is assembled (times the dry multiplier while
+/// its oil tank is dry, <c>MachineOil</c>), a token 0.005 before.</summary>
 public class BEBehaviorRosserMP : BEBehaviorMPConsumer
 {
     public BEBehaviorRosserMP(BlockEntity blockentity) : base(blockentity)
@@ -22,7 +23,7 @@ public class BEBehaviorRosserMP : BEBehaviorMPConsumer
     }
 
     public override float GetResistance() =>
-        (Blockentity as BERosserGhost)?.Rosser is { Complete: true }
-            ? RosserSystem.Of(Api).Config.Resistance
+        (Blockentity as BERosserGhost)?.Rosser is { Complete: true } rosser
+            ? rosser.Oiling?.Resistance(RosserSystem.Of(Api).Config.Resistance) ?? RosserSystem.Of(Api).Config.Resistance
             : BEBehaviorMillMP.IncompleteResistance;
 }

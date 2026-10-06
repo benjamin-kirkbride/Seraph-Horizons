@@ -195,12 +195,25 @@ public class ItemExportScenarios : AtlasScenarioBase
     public void Woodworking_guide_is_the_unified_one()
     {
         var guides = ((JArray)Doc["guides"]!).OfType<JObject>().ToList();
-        var woodworking = guides.Where(g => (string?)g["mod"] is "seraphhorizons" or "immersivewoodworking" or "loggingmod").ToList();
+        // seraphhorizons' other page, machine oil's, is not a woodworking one
+        var woodworking = guides.Where(g => (string?)g["mod"] is "seraphhorizons" or "immersivewoodworking" or "loggingmod"
+                                            && (string?)g["code"] != SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode).ToList();
         Assert.All(woodworking, g => Assert.Equal("seraphhorizons", (string?)g["mod"]));
         Assert.Equal(SeraphHorizons.Mod.Core.WoodworkingGuidePages.Pages.Select(p => p.PageCode).Order(StringComparer.Ordinal),
             woodworking.Select(g => (string)g["code"]!).Order(StringComparer.Ordinal));
         var overview = Assert.Single(guides, g => (string?)g["code"] == "craftinginfo-woodworking");
         Assert.Equal(Lang.GetL("en", "seraphhorizons:woodworking-overview-title"), (string?)overview["title"]);
+    }
+
+    // seraphhorizons, MachineOil: its handbook page is on the site, in English.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Machine_oil_guide_is_exported()
+    {
+        var page = Assert.Single(((JArray)Doc["guides"]!).OfType<JObject>(),
+            g => (string?)g["code"] == SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode);
+        Assert.Equal("seraphhorizons", (string?)page["mod"]);
+        Assert.Equal("Oiling machines", (string?)page["title"]);
+        Assert.Contains("three times the power to turn", (string?)page["text"]);
     }
 
     // seraphhorizons, IronWoodworkingMachines: the Machines chapter on the site gives the iron costs,

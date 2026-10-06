@@ -84,6 +84,7 @@ public partial class WoodworkingScenarios
                                               ("game:metalplate-iron", 2), (RosserParts.LeversCode, 1), ($"{Iw}:barkspudhead-{heads}", 4) })
             Assert.True(Click(player, code.Contains("rod") ? ghost : rosser.Pos, ItemOf(code, count)) == null, $"{code} ×{count} not all fitted");
         Assert.True(rosser.Complete);
+        Oil(rosser.Oiling);
     }
 
     /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns fast.</summary>
@@ -317,6 +318,9 @@ public partial class WoodworkingScenarios
         Assert.Contains("1000 / 1000", info);
         Assert.Contains("Empty", info);
         Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-loadtrunk");
+        // Built dry (MachineOil): three times the load until oiled.
+        Assert.Equal(RosserMod.Config.Resistance * 3, rosser.Power!.GetResistance(), 4);
+        Oil(rosser.Oiling);
         Assert.Equal(RosserMod.Config.Resistance, rosser.Power!.GetResistance());
 
         // Ctrl takes unworn heads back (into the empty hand): no longer complete
@@ -1162,6 +1166,9 @@ public partial class WoodworkingScenarios
                 Assert.True(rosser.Parts.Has(stages[j]) == j <= i, $"after {i + 1} clicks, {stages[j]} fitted: {rosser.Parts.Has(stages[j])}");
         }
         Assert.True(rosser.Complete);
+        // Built dry (MachineOil), then oiled.
+        Assert.Equal(RosserMod.Config.Resistance * 3, rosser.Power!.GetResistance(), 4);
+        Oil(rosser.Oiling);
         Assert.Equal(RosserMod.Config.Resistance, rosser.Power!.GetResistance());
         Assert.Equal(RosserMod.HeadCapacity(rosser.HeadMetal!), rosser.Parts.HeadsCapacity);
         var heads = Click(player, pos, null, ctrl: true, creative: true);
