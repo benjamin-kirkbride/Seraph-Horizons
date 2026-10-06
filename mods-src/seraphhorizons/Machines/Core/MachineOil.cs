@@ -256,3 +256,14 @@ public class MachineOilConfig
         }
     }
 }
+
+/// <summary>How the block info writes oil figures.</summary>
+public static class OilText
+{
+    /// <summary>Tank points: whole, rounded up, so a tank with any oil in it never reads 0, and an
+    /// empty one reads 0, never -0.</summary>
+    public static string Points(double points) => points <= 1e-9 ? "0" : Math.Ceiling(points - 1e-9).ToString("0");
+
+    /// <summary>A shaft load, to three places.</summary>
+    public static string Load(float load) => load.ToString("0.###");
+}

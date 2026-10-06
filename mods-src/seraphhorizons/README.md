@@ -1111,8 +1111,11 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
   log chopped, and the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are).
-- **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0), and
-  while dry how many times the power it takes. The handbook has a page of its own, "Oiling
+- **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
+  an empty one 0, not -0), and while dry its load on the shaft now against the load it takes oiled
+  (`Dry: a load of 0.51 on its shaft, 3× the 0.17 it takes oiled`). The load is what the shaft last
+  asked of the machine (`OilState.Load`, set in every `GetResistance`; the server syncs it when it
+  changes), so until the network has asked once the line only gives the multiplier. The handbook has a page of its own, "Oiling
   machines" (`config/handbook/machineoil.json`): which machines, which oils, what dry means and how
   long a tank lasts. Its text quotes the default settings.
 
