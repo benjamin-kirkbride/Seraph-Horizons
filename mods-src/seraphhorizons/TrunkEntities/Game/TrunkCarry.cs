@@ -67,6 +67,7 @@ public static class TrunkCarry
         public required ConstructorInfo NewCarried;
         public required PropertyInfo Stack, Slot;
         public required object Hands;
+        public object? Back;
         public required MethodInfo PlaceDown, DropCarriedBlock, DropAsEntityOrItem;
     }
 
@@ -223,6 +224,7 @@ public static class TrunkCarry
             Manager = manager!, GetCarried = getCarried!, SetCarried = setCarried!, RemoveCarried = removeCarried!,
             HasPermissionAt = permission!, NewCarried = ctor!, Stack = stack!, Slot = slot!, Hands = hands!,
             PlaceDown = placeDown!, DropCarriedBlock = dropCarried!, DropAsEntityOrItem = dropAs!,
+            Back = Enum.GetNames(slotType).Contains("Back") ? Enum.Parse(slotType, "Back") : null,
         };
     }
 
@@ -246,6 +248,15 @@ public static class TrunkCarry
                 _harmony.Patch(take, prefix: new HarmonyMethod(typeof(TrunkCarry), nameof(TakeAttachmentPrefix)));
             else
                 api.Logger.Warning("[seraphhorizons] Trunk entities: the game's EntityBehaviorAttachable.TryRemoveAttachment is gone, so only Carry On's key takes a trunk off a cart");
+            // A trunk is Hands only: whatever puts one on a back (Carry On's swap key), it is laid down.
+            var setters = m.SetCarried.DeclaringType!.Assembly.GetTypes()
+                .Where(t => !t.IsInterface && !t.IsAbstract && m.SetCarried.DeclaringType.IsAssignableFrom(t))
+                .Select(t => AccessTools.Method(t, m.SetCarried.Name, m.SetCarried.GetParameters().Select(p => p.ParameterType).ToArray()))
+                .Where(x => x != null).ToList();
+            foreach (var set in setters)
+                _harmony.Patch(set, postfix: new HarmonyMethod(typeof(TrunkCarry), nameof(SetCarriedPostfix)));
+            if (setters.Count == 0)
+                api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On's carry manager has no SetCarried, so a trunk put on a back is only laid down by the periodic check");
             return true;
         }
     }
@@ -277,7 +288,92 @@ public static class TrunkCarry
             if (block.BlockBehaviors.Length + block.CollectibleBehaviors.Length != before)
                 count++;
         }
+        StripBackSlots(api);
         return count;
+    }
+
+    /// <summary>Removes the Back slot from every trunk's Carryable (Logging Expanded's own patch and
+    /// ours give Hands only, but a merge or a config could add one): trunks are Hands only.
+    /// Returns the trunks changed.</summary>
+    internal static int StripBackSlots(ICoreAPI api)
+    {
+        if (Resolve(api) is not { Back: { } back })
+            return 0;
+        int count = 0;
+        foreach (var block in api.World.Blocks)
+        {
+            if (block?.Code is not { Domain: TrunkEntitySystem.LeModId } code || !code.Path.StartsWith("treetrunk-", StringComparison.Ordinal))
+                continue;
+            foreach (var b in block.BlockBehaviors.Concat<CollectibleBehavior>(block.CollectibleBehaviors).Where(IsCarryable))
+                if (AccessTools.Property(b.GetType(), "Slots")?.GetValue(b) is { } slots
+                    && AccessTools.Method(slots.GetType(), "RemoveSlot") is { } remove && HasBack(slots, back))
+                {
+                    remove.Invoke(slots, [back]);
+                    count++;
+                }
+        }
+        return count;
+    }
+
+    private static bool HasBack(object slots, object back) =>
+        AccessTools.Property(slots.GetType(), "SlotSettingsDict")?.GetValue(slots) is System.Collections.IDictionary dict && dict.Contains(back);
+
+    /// <summary>Whether <paramref name="block"/>'s Carryable lists a Back slot (false without one).</summary>
+    public static bool HasBackSlot(ICoreAPI api, Block block) =>
+        Resolve(api) is { Back: { } back } && block.BlockBehaviors.Concat<CollectibleBehavior>(block.CollectibleBehaviors).Where(IsCarryable)
+            .Any(b => AccessTools.Property(b.GetType(), "Slots")?.GetValue(b) is { } slots && HasBack(slots, back));
+
+    /// <summary>The stack <paramref name="entity"/> carries on its back, or null.</summary>
+    public static ItemStack? OnBack(Entity entity) =>
+        Manager(entity.Api) is { } manager && _members!.Back is { } back
+            ? StackOf(_members.GetCarried.Invoke(manager, [entity, back])) : null;
+
+    /// <summary>Lays a trunk found on <paramref name="entity"/>'s back down at its feet as a trunk
+    /// entity (old saves, or anything that got past the Hands-only rule). Server side.</summary>
+    public static bool EvictFromBack(Entity entity)
+    {
+        if (entity.Api is not { Side: EnumAppSide.Server } || OnBack(entity) is not { } stack || !Trunks.IsTrunk(stack)
+            || Manager(entity.Api) is not { } manager || !Lay(entity, stack, entity.Pos.AsBlockPos, along: false))
+            return false;
+        _members!.RemoveCarried.Invoke(manager, [entity, _members.Back!, true]);
+        return true;
+    }
+
+    private static void SetCarriedPostfix(Entity __0)
+    {
+        if (__0 != null)
+            EvictFromBack(__0);
+    }
+
+    /// <summary>Carry On's pick-up hold for <paramref name="block"/>, in seconds: its Carryable's
+    /// <c>InteractDelay</c> (Carry On's default 0.8 s when unreadable) over Carry On's configured
+    /// <c>InteractSpeedMultiplier</c> when one can be found.</summary>
+    public static float PickUpSeconds(ICoreAPI api, Block? block)
+    {
+        float delay = 0.8f;
+        var carryable = block == null ? null : block.BlockBehaviors.Concat<CollectibleBehavior>(block.CollectibleBehaviors).FirstOrDefault(IsCarryable);
+        if (carryable != null && AccessTools.Property(carryable.GetType(), "InteractDelay")?.GetValue(carryable) is float d && d >= 0)
+            delay = d;
+        if (api.ModLoader.GetModSystem(CarrySystemName) is { } system && Multiplier(system, 3) is float k && k > 0)
+            delay /= k;
+        return delay;
+    }
+
+    private static float? Multiplier(object owner, int depth)
+    {
+        foreach (var prop in owner.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+            if (prop.GetIndexParameters().Length > 0)
+                continue;
+            object? value;
+            try { value = prop.GetValue(owner); } catch { continue; }
+            if (prop.Name == "InteractSpeedMultiplier" && value is float k)
+                return k;
+            if (depth > 1 && value != null && !prop.PropertyType.IsPrimitive && prop.PropertyType != typeof(string)
+                && prop.PropertyType.Namespace?.StartsWith("CarryOn", StringComparison.Ordinal) == true && Multiplier(value, depth - 1) is float found)
+                return found;
+        }
+        return null;
     }
 
     /// <summary>Whether <paramref name="behavior"/> is Carry On's Carryable.</summary>
@@ -309,7 +405,10 @@ public static class TrunkCarry
     {
         foreach (var player in api.World.AllOnlinePlayers)
             if (player.Entity is { } entity)
+            {
+                EvictFromBack(entity);
                 UpdateSpeed(entity);
+            }
     }
 
     /// <summary>Sets or removes <paramref name="entity"/>'s <see cref="SpeedCode"/> walk speed for
@@ -393,7 +492,7 @@ public static class TrunkCarry
     }
 
     // EntityBehaviorAttachable.TryRemoveAttachment(byEntity, selectionBoxIndex), the game's
-    // empty-hand take from a cart slot: a trunk fits no inventory, so it goes to the hands.
+    // empty-hand take from a cart slot: a survival player is never given a trunk, so it goes to the hands.
     private static bool TakeAttachmentPrefix(EntityBehaviorAttachable __instance, EntityAgent __0, int __1, ref bool __result)
     {
         var slot = __instance.GetSlotFromSelectionBoxIndex(__1);
@@ -486,11 +585,68 @@ public class EntityBehaviorTrunkCarry(Entity entity) : EntityBehavior(entity)
             || trunk.Trunk is not { } stack)
             return;
         handled = EnumHandling.PreventSubsequent;
+        if (!TrunkCarry.HandsEmpty(byEntity) || TrunkCarry.Carried(player) != null)
+        {
+            TrunkCarry.HandsFull(player);
+            return;
+        }
+        if (_holder != null)
+            return;
+        // Carry On's pick-up hold, timed here: the button held, sneaking, hands empty, near the trunk.
+        _holder = player;
+        _heldMs = 0;
+        _needMs = (long)(TrunkCarry.PickUpSeconds(entity.Api, stack.Block) * 1000);
+        _listener = entity.World.RegisterGameTickListener(Tick, HoldTickMs);
+    }
+
+    /// <summary>How often the hold is checked, ms.</summary>
+    public const int HoldTickMs = 100;
+    private IServerPlayer? _holder;
+    private long _heldMs, _needMs, _listener;
+
+    /// <summary>Whether a pick-up hold is under way on this trunk.</summary>
+    public bool Holding => _holder != null;
+
+    private void Tick(float dt)
+    {
+        var player = _holder;
+        var by = player?.Entity;
+        if (player == null || by == null || entity is not EntityTrunk { Alive: true } trunk || trunk.Trunk is not { } stack
+            || !by.ServerControls.RightMouseDown
+            || !(by.Controls.ShiftKey || by.Controls.Sneak || by.ServerControls.ShiftKey || by.ServerControls.Sneak) || !TrunkCarry.HandsEmpty(by)
+            || by.Pos.DistanceTo(entity.Pos) > 6 || player.CurrentEntitySelection?.Entity is { } looked && looked != entity)
+        {
+            Cancel();
+            return;
+        }
+        _heldMs += (long)(dt * 1000);
+        if (_heldMs < _needMs)
+            return;
+        Cancel();
         if (!TrunkCarry.TryGive(player, stack))
         {
             TrunkCarry.HandsFull(player);
             return;
         }
+        Finish(player, trunk, stack);
+    }
+
+    private void Cancel()
+    {
+        if (_listener != 0)
+            entity.World.UnregisterGameTickListener(_listener);
+        _listener = 0;
+        _holder = null;
+    }
+
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    {
+        Cancel();
+        base.OnEntityDespawn(despawn);
+    }
+
+    private void Finish(IServerPlayer player, EntityTrunk trunk, ItemStack stack)
+    {
         entity.World.PlaySoundAt(stack.Block?.Sounds?.Place ?? GlobalConstants.DefaultBuildSound, entity, player);
         trunk.Die(EnumDespawnReason.Removed);
     }

@@ -84,6 +84,9 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         return result!;
     }
 
+    private static EntityBehaviorTrunkCarry Hold(Entity trunk) =>
+        trunk.GetBehavior<EntityBehaviorTrunkCarry>() ?? throw new Xunit.Sdk.XunitException("trunk entity has no carry behaviour");
+
     private static object Hands => Enum.Parse(AccessTools.TypeByName("CarryOn.API.Common.Models.CarrySlot"), "Hands");
 
     /// <summary>The Carryable's Hands slot animation and transform templates on <paramref name="block"/>.</summary>
@@ -127,7 +130,9 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
             var settings = HandsSettings(block) ?? throw new Xunit.Sdk.XunitException($"{block.Code} has no Carryable");
             output.WriteLine($"{block.Code}: {settings.Animation}, [{string.Join(", ", settings.Templates)}], walk {settings.WalkSpeed}");
             Assert.Equal(animation, settings.Animation);
-            Assert.Equal(["carry-trunk"], settings.Templates);
+            // no template: Carry On's carry-trunk is the game's chest, carried across the front;
+            // the pack's own hands transform in the patch puts the trunk on the shoulder
+            Assert.Empty(settings.Templates);
             Assert.Equal(0f, settings.WalkSpeed);
         }
     }
@@ -250,11 +255,19 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(TrunkCarry.Carried(player));
         Mod.Grabs!.Release(player.PlayerUID);
 
+        // sneak + right click starts Carry On's pick-up hold; the trunk is shouldered only when it ends
+        output.WriteLine($"pick-up hold {TrunkCarry.PickUpSeconds(World.Api, trunk.Trunk!.Block)} s");
         player.Entity.Controls.ShiftKey = true;
+        player.Entity.ServerControls.RightMouseDown = true;
         trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        Assert.True(Hold(trunk).Holding);
+        await World.Ticks(1);
+        Assert.True(trunk.Alive);
+        Assert.Null(TrunkCarry.Carried(player));
+        await World.Until(() => !trunk.Alive, 10000);
         player.Entity.Controls.ShiftKey = false;
-        await World.Ticks(2);
-        Assert.False(trunk.Alive);
+        player.Entity.ServerControls.RightMouseDown = false;
+        Assert.False(Hold(trunk).Holding);
         var carried = TrunkCarry.Carried(player);
         Assert.NotNull(carried);
         Assert.Equal(12, Trunks.StoredLogs(carried, W));
@@ -264,12 +277,86 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var other = TrunkSpawns.Spawn(W, Trunk(5, "sm"), pos.ToVec3d().Add(0.5, 0, 3.5), 0)!;
         await World.Ticks(2);
         player.Entity.Controls.ShiftKey = true;
+        player.Entity.ServerControls.RightMouseDown = true;
         other.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        Assert.False(Hold(other).Holding);
+        await World.Ticks(10);
         player.Entity.Controls.ShiftKey = false;
+        player.Entity.ServerControls.RightMouseDown = false;
         Assert.True(other.Alive);
         Assert.Equal(12, Trunks.StoredLogs(TrunkCarry.Carried(player)!, W));
         other.Die(EnumDespawnReason.Removed);
         TrunkCarry.Take(player);
+    }
+
+    [AtlasScenario]
+    public async Task Letting_go_before_the_pick_up_hold_ends_leaves_the_trunk()
+    {
+        var pos = await Floor(140);
+        var player = await Player("trunkletgo", pos.AddCopy(2, 0, 0));
+        var trunk = TrunkSpawns.Spawn(W, Trunk(7), pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
+        await World.Ticks(2);
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+
+        player.Entity.Controls.ShiftKey = true;
+        player.Entity.ServerControls.RightMouseDown = true;
+        trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        Assert.True(Hold(trunk).Holding);
+        player.Entity.ServerControls.RightMouseDown = false;
+        await World.Until(() => !Hold(trunk).Holding, 5000);
+        player.Entity.Controls.ShiftKey = false;
+        // well past the hold's length: nothing more happens
+        long until = W.ElapsedMilliseconds + (long)(TrunkCarry.PickUpSeconds(World.Api, trunk.Trunk!.Block) * 1000) + 500;
+        await World.Until(() => W.ElapsedMilliseconds > until, 10000);
+        Assert.True(trunk.Alive);
+        Assert.Null(TrunkCarry.Carried(player));
+
+        // a trunk removed mid-hold ends the hold
+        player.Entity.Controls.ShiftKey = true;
+        player.Entity.ServerControls.RightMouseDown = true;
+        trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        Assert.True(Hold(trunk).Holding);
+        trunk.Die(EnumDespawnReason.Removed);
+        await World.Ticks(5);
+        player.Entity.Controls.ShiftKey = false;
+        player.Entity.ServerControls.RightMouseDown = false;
+        Assert.False(Hold(trunk).Holding);
+        Assert.Null(TrunkCarry.Carried(player));
+    }
+
+    [AtlasScenario]
+    public void No_trunk_has_a_back_slot()
+    {
+        var trunks = W.Blocks.Where(b => b?.Code is { Domain: "loggingmod" } c && c.Path.StartsWith("treetrunk-", StringComparison.Ordinal)).ToList();
+        Assert.NotEmpty(trunks);
+        foreach (var block in trunks)
+            Assert.False(TrunkCarry.HasBackSlot(World.Api, block), $"{block.Code} can go on a back");
+    }
+
+    [AtlasScenario]
+    public async Task A_trunk_put_on_a_back_is_laid_down_beside_the_player()
+    {
+        var pos = await Floor(160);
+        var player = await Player("trunkbacker", pos);
+        var set = AccessTools.TypeByName("CarryOn.API.Common.Interfaces.ICarryManager").GetMethods()
+            .Single(m => m.Name == "SetCarried" && m.GetParameters().Length == 4);
+        var carriedType = set.GetParameters()[1].ParameterType;
+        var slotType = AccessTools.TypeByName("CarryOn.API.Common.Models.CarrySlot");
+        var stack = Trunk(11);
+        var data = new TreeAttribute();
+        data.SetString("blockCode", stack.Collectible.Code.ToShortString());
+        data.SetString("type", "");
+        var carried = AccessTools.Constructor(carriedType, [slotType, typeof(ItemStack), typeof(ITreeAttribute)])
+            .Invoke([Enum.Parse(slotType, "Back"), stack, data]);
+
+        set.Invoke(CarryManager, [player.Entity, carried, null, true]);
+        await World.Ticks(5);
+
+        Assert.Null(TrunkCarry.OnBack(player.Entity));
+        Assert.Null(TrunkCarry.Carried(player));
+        var laid = Assert.IsType<EntityTrunk>(Assert.Single(Around(pos, e => e is EntityTrunk)));
+        Assert.Equal(11, laid.Logs);
+        laid.Die(EnumDespawnReason.Removed);
     }
 
     [AtlasScenario]

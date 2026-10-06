@@ -1185,7 +1185,7 @@ blocks), or tie a rope to it as to any rope-tieable entity. A knife, shears, an 
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
 debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
 trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
-hands, at a walk speed falling from a quarter (4 logs) to 0.02 (48 logs), with Logging Expanded's
+hands, at a walk speed falling from a quarter (4 logs) to 0.2 (48 logs), with Logging Expanded's
 own `trunkcarry` or `trunkcarryheavy` animation; putting it down, or dropping it, lays a trunk
 entity again. Carried, it loads a sawhorse, a Trunk Storage Rack, a heating rack, a rosser or a
 bucking mill, or goes into a cart's or sled's storage slot; unloading any of them, or taking it off
@@ -1193,8 +1193,9 @@ a cart, puts it back in the hands. Trunk Storage Racks can no longer be carried.
 mill also take a trunk entity lying in their infeed cells, after a rack or a rosser in line there.
 
 Every trunk item entity is swapped for a trunk entity as it spawns or loads, so felling, a station
-unloading onto the ground and a broken machine all leave one; trunk blocks get a storage flag no
-inventory accepts (`Custom10`); and **trunk multiblocks already placed in a world are deleted as
+unloading onto the ground and a broken machine all leave one; a trunk is never given to a survival
+player's inventory (picked up, unloaded or taken back), though one already in a slot moves freely
+and thrown out becomes a trunk entity; and **trunk multiblocks already placed in a world are deleted as
 they load, with nothing given back**. Without Carry On (one warning) nothing goes through hands:
 trunks are dragged, roped and worked where they lie, the rosser and mill take them from the ground
 and lay them there on Ctrl, and Logging Expanded's stations and the carts take none. With the switch
