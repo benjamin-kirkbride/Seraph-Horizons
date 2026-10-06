@@ -78,19 +78,32 @@ public class EntityTrunk : Entity
 
     /// <summary>
     /// Rewrites the payload and syncs it; the weight follows. Null or a stack with no logs kills the
-    /// entity (removed, nothing dropped). Server side.
+    /// entity (removed, nothing dropped). A stack of the other display class (an xl trunk axed down
+    /// to lg) goes to a new entity of that type at the same place and yaw, and this one is removed.
+    /// Returns the entity that now holds the trunk, or null. Server side.
     /// </summary>
-    public void SetTrunk(ItemStack? stack)
+    public EntityTrunk? SetTrunk(ItemStack? stack)
     {
         if (stack == null || World == null || Trunks.StoredLogs(stack, World) <= 0)
         {
             if (Alive)
                 Die(EnumDespawnReason.Removed);
-            return;
+            return null;
+        }
+        if (stack.ResolveBlockOrItem(World) && stack.Block?.Variant["size"] is { } size && TrunkBox.ClassOf(size) is var cls
+            && cls != TrunkClass.None && cls != TypeClass && Alive)
+        {
+            var moved = TrunkSpawns.Spawn(World, stack, new Vec3d(Pos.X, Pos.Y, Pos.Z), Pos.Yaw, Pos.Dimension);
+            if (moved != null)
+            {
+                Die(EnumDespawnReason.Removed);
+                return moved;
+            }
         }
         WatchedAttributes.SetItemstack(TrunkKey, stack);
         WatchedAttributes.MarkPathDirty(TrunkKey);
         UpdateWeight();
+        return this;
     }
 
     public override bool IsInteractable => true;

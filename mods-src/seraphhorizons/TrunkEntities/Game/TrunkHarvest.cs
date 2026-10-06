@@ -230,7 +230,10 @@ public static class TrunkHarvest
         }
     }
 
-    /// <summary>A copy of <paramref name="trunk"/> holding <paramref name="logs"/> logs.</summary>
+    /// <summary>A copy of <paramref name="trunk"/> holding <paramref name="logs"/> logs, of the
+    /// size Logging Expanded gives that many (<see cref="TrunkCode.SizeFor"/>, as it re-sizes a
+    /// trunk it picks up), its wood, branches state (debarked too) and side kept: an xl trunk axed
+    /// down to 24 logs is an lg one.</summary>
     public static ItemStack WithLogs(ItemStack trunk, int logs, IWorldAccessor world)
     {
         var copy = trunk.Clone();
@@ -239,6 +242,10 @@ public static class TrunkHarvest
             stored.StackSize = Math.Max(0, logs);
             slots.SetItemstack("0", stored);
         }
+        if (logs > 0 && copy.Block is { Code: { } code } block
+            && TrunkCode.Parse(code.Path) is { } parsed && parsed.Size != TrunkCode.SizeFor(logs)
+            && world.GetBlock(new AssetLocation(code.Domain, parsed.WithSize(TrunkCode.SizeFor(logs)).Path)) is { Id: > 0 } resized)
+            return new ItemStack(resized, copy.StackSize) { Attributes = copy.Attributes };
         return copy;
     }
 

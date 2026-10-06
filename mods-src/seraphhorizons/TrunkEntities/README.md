@@ -51,7 +51,9 @@ shown as its `lg` model, 1 × 1 × 4 blocks; xl and xxl (25 logs and up) are thi
 its logs in `slots/0`, `branchCount`, resin and char in its attributes) is the entity's watched
 attribute `trunk`, so it syncs to clients and saves with the entity, and whatever takes the trunk
 takes that stack unchanged. `SetTrunk` rewrites it; a stack with no logs (or none) removes the
-entity, nothing dropped. An entity that loads with no trunk or no logs removes itself.
+entity, nothing dropped, and a stack of the other display class (an xl trunk cut down to lg) goes
+to a new entity of that type at the same place and yaw, the old one removed. An entity that loads
+with no trunk or no logs removes itself.
 
 **Behaviours** (both sides unless noted): `repulseagents` with `movable: true` (walking into a trunk
 nudges it; the entity counts as a creature, `IsCreature`, so players' shoving finds it, as the
@@ -237,7 +239,11 @@ The spud's hold is refused with "branches first" while the trunk has branches co
 not. A 4-log trunk takes 2 s, a 10-log one 5 s, a 48-log one 24 s. What a tool makes is thrown
 toward the player from the trunk's nearest point, as Logging Expanded throws a placed trunk's. The
 sounds are Logging Expanded's (leaves for the knife and shears, wood for the axe at 0.75 volume,
-the saw's), played by the server for everyone. A trunk whose last log is taken goes.
+the saw's), played by the server for everyone. A trunk whose last log is taken goes. A log taken
+re-sizes the trunk as Logging Expanded sizes one it picks up (`BlockTreeTrunk.GetSizeClass`, here
+`TrunkCode.SizeFor`: xs up to 3 logs, sm 8, md 15, lg 24, xl 35, xxl beyond), its wood, branches
+state (debarked too) and side kept (`TrunkHarvest.WithLogs`), so an xl trunk of 25 logs sawn to 24
+is an lg trunk, and a thin trunk entity, with the thin box, carry animation and machine class.
 
 ## Stations and machines
 
@@ -361,7 +367,8 @@ entities, with nothing to pick them up; turn the switch back on to use them.
   - `TrunkToolScenarios.cs`: every tool kind gets the behaviour; the axe takes a log, with a hammer
     a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from
     twelve branches; the saw cuts planks; the axe and saw refuse a branched trunk; the spud debarks
-    a clean trunk in one hold and drops bark; a trunk at its last log is gone after the axe.
+    a clean trunk in one hold and drops bark; an xl trunk sawn to 24 logs becomes a thin lg trunk
+    entity in its place; a trunk at its last log is gone after the axe.
   - `TrunkCarryScenarios.cs`: carrying runs; a carried trunk has Logging Expanded's animation by
     size; Trunk Storage Racks cannot be carried; a trunk given goes into empty hands and back out;
     an item in either hand refuses it; carrying slows by the logs and the speed goes when it is put

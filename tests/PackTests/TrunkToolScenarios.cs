@@ -1,6 +1,7 @@
 using Atlas.Api;
 using Atlas.XUnit;
 using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.TrunkEntities;
 using SeraphHorizons.Mod.TrunkEntities.Core;
 using Vintagestory.API.Common;
@@ -285,6 +286,39 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(Logging.TreeTrunkLogYield, Count(axed.Drops, Logging.DebarkedLogCode("oak")));
         Assert.Equal(8, trunk.Logs);
         trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario]
+    public async Task A_thick_trunk_cut_down_to_lg_becomes_a_thin_trunk_entity()
+    {
+        var (trunk, player) = await Setup(-14, Trunk(25, size: "xl"));
+        trunk.Pos.Yaw = 0.4f;
+        Assert.Equal(TrunkEntitySystem.ThickCode, trunk.Code);
+        var at = trunk.Pos.XYZ;
+
+        // the saw takes one log: 24 is Logging Expanded's lg, a thin trunk
+        var held = Hold(player, trunk, Saw, TrunkHarvest.ToolSeconds);
+        Assert.True(held.Taken);
+        Assert.False(trunk.Alive);
+        await World.Ticks(2);
+        var thin = Assert.IsType<EntityTrunk>(Assert.Single(
+            W.GetEntitiesAround(at, 6, 4, e => e.Alive && e is EntityTrunk)));
+        Assert.Equal(TrunkEntitySystem.ThinCode, thin.Code);
+        Assert.Equal(TrunkClass.Thin, thin.Class);
+        Assert.Equal(24, thin.Logs);
+        Assert.Equal("loggingmod:treetrunk-oak-lg-no-north", thin.Trunk!.Collectible.Code.ToString());
+        Assert.Equal(0.4f, thin.Pos.Yaw, 2);   // as the entity's position syncs it
+        Assert.InRange(thin.Pos.X, at.X - 0.2, at.X + 0.2);
+        Assert.InRange(thin.Pos.Z, at.Z - 0.2, at.Z + 0.2);
+        Assert.Equal(TrunkWeight.Weight(24, Mod.Config), thin.Properties.Weight);
+
+        // a thin trunk going down a size stays the same entity
+        var axed = Hold(player, thin, Axe, TrunkHarvest.ToolSeconds);
+        Assert.True(axed.Taken);
+        Assert.True(thin.Alive);
+        Assert.Equal(22, thin.Logs);
+        Assert.Equal("loggingmod:treetrunk-oak-lg-no-north", thin.Trunk!.Collectible.Code.ToString());
+        thin.Die(EnumDespawnReason.Removed);
     }
 
     [AtlasScenario]
