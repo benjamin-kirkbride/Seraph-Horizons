@@ -64,6 +64,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     private float? _serverBladeSpeed;
     // What the rack at the infeed end offers, as the server last found it (synced for the info).
     private RackState _rackState;
+    // The oil tank (MachineOil): none with the switch off, or on a client of a server without it.
+    private OilState? _oil;
+    private float _smokeSeconds;
     // Players holding right-click on the mill (server side), by player UID: waiting to load a trunk
     // at the next top of the cycle, or winding the stopped saws up by hand. The server hears a
     // hold's start and its end (stop or cancel) from the client; the mill's own tick does the rest.
@@ -90,6 +93,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public ItemStack? BladeKit => _blade;
     /// <summary>What the rack at the infeed end offers, as the server last found it.</summary>
     public RackState RackState => _rackState;
+
+    /// <summary>The mill's oil, or null without the <c>MachineOil</c> switch.</summary>
+    public OilState? Oiling => _oil;
     /// <summary>The configured slowest shaft speed that cuts. A client uses the server's value,
     /// which comes with the block entity's data, not its own config file's.</summary>
     public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
@@ -143,6 +149,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         _boxes = BuildBoxes();
         if (api.Side == EnumAppSide.Server)
         {
+            _oil ??= Oil.NewOwn(api, OilMachine.BuckingMill);
             RegisterDelayedCallback(_ =>
             {
                 if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
@@ -299,6 +306,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// client only says whether the click is the mill's.</summary>
     public bool OnInteract(IPlayer byPlayer, bool onTrunk = false)
     {
+        // Holding oil, a click anywhere on the mill pours it.
+        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
+            return oiled;
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
         bool take = controls.CtrlKey && !controls.ShiftKey;
@@ -781,6 +791,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         foreach (int size in Cutting.SplitStacks(Cutting.LogYield(stored, Config.LogsPerStoredLog), log.MaxStackSize))
             Api.World.SpawnItemEntity(new ItemStack(log, size), spawnAt, velocity);
         WearBlade(Cutting.BladeWear(stored, Config.BladeWearPerStoredLog));
+        Oil.Drain(_oil, OilDrain.PerTrunk(stored, Oil.DrainPerJob(Api, OilMachine.BuckingMill)));
         MarkDirty(true);
     }
 
@@ -848,6 +859,14 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         _clientDepth = SawDepth.Ease(Math.Clamp(_clientDepth + stepped, 0, 1), _clientDepthEstimate, dt);
         _clientDepthMs = Api.World.ElapsedMilliseconds;
         _clientDepthSeconds = dt;
+
+        // A dry mill smokes while it turns.
+        if ((_smokeSeconds += dt) >= 0.4f)
+        {
+            _smokeSeconds = 0;
+            if (_oil is { Dry: true } && _parts.Complete && speed >= Oil.TurningSpeed && Api is ICoreClientAPI capi)
+                Oil.Smoke(capi, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
+        }
     }
 
     // ---- Breaking ----
@@ -917,6 +936,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             tree.SetFloat("bladeSpeed", BladeSpeed);
             tree.SetInt("rackState", (int)_rackState);
         }
+        if (_oil != null)
+            Oil.Write(tree, _oil);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
@@ -938,6 +959,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         _progress = tree.GetFloat("progress");
         _depth = Math.Clamp(tree.GetFloat("depth"), 0, 1);
         _rising = tree.GetBool("rising");
+        _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.BuckingMill);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
             _serverMinSpeed = tree.TryGetFloat("minSpeed");
@@ -1003,6 +1025,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         float depth = SideDepth;
         if (_parts.Sashes > 0 && Feeding.WindsUp(Running, depth))
             dsc.AppendLine(L("info-windup"));
+        Oil.Info(_oil, dsc);
         if (!_parts.Complete)
             return;
         switch (Phase)

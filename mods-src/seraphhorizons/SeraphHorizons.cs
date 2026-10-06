@@ -1,6 +1,7 @@
 using HarmonyLib;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Rosser;
 using SeraphHorizons.Mod.Rosser.Core;
 using SeraphHorizons.Mod.Woodworking;
@@ -386,4 +387,16 @@ public class SeraphHorizonsConfig
     /// <summary>The rosser's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public RosserConfig RosserSettings { get; set; } = new();
+
+    /// <summary>Machine oil: the heavy mechanical power machines (the game's helve hammer and
+    /// pulverizer, Immersive Woodworking's sawmill and chopper, the bucking sawmill and the rosser)
+    /// have an oil tank, filled by right-clicking them with oil, that their jobs drain; a machine
+    /// starts dry, and a dry one loads its shaft several times as hard (both sides; off means every
+    /// machine turns as it ships, with no tank). The server's setting decides.</summary>
+    public bool MachineOil { get; set; } = true;
+
+    /// <summary>Machine oil's figures: the oils, the dry multiplier, and each machine's tank and
+    /// drain per job; a value out of range falls back to its default with a warning. The server's
+    /// are used.</summary>
+    public MachineOilConfig MachineOilSettings { get; set; } = new();
 }
