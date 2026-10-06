@@ -1,7 +1,8 @@
 namespace SeraphHorizons.Mod.GearReclamation.Core;
 
 /// <summary>The gear codes of the reclamation line (#474): the contract the other gear steps (the
-/// pickling tub, the consumer patches, the brine bath) are written against.</summary>
+/// pickling tub, the consumer patches, the brine bath) are written against, and the one place they
+/// are spelled out (<c>PicklingTubConfig</c> and <c>GearConsumers</c> read them from here).</summary>
 public static class GearCodes
 {
     public const string Domain = "seraphhorizons";
@@ -20,6 +21,9 @@ public static class GearCodes
 
     /// <summary>Out of the oil barrel: the lottery item, resolved in a player's inventory.</summary>
     public const string Oiled = "seraphhorizons:gear-oiled";
+
+    /// <summary>A steel gear after a short acid dip in the pickling tub (#482); flash-rusts.</summary>
+    public const string SteelBare = "seraphhorizons:gear-steel-bare";
 
     /// <summary>The large usable gear, on the large temporal gear's shape.</summary>
     public const string LargeSteel = "seraphhorizons:largegear-steel";

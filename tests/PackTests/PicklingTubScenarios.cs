@@ -1,4 +1,5 @@
 using Atlas.XUnit;
+using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.PicklingTub;
 using SeraphHorizons.Mod.PicklingTub.Core;
 using Vintagestory.API.Common;
@@ -23,7 +24,7 @@ namespace SeraphHorizons.PackTests;
 public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     private const string Tub = "seraphhorizons:picklingtub";
-    private const string LargeGear = "seraphhorizons:largegear-steel";
+    private const string LargeGear = GearCodes.LargeSteel;
     private IWorldAccessor W => World.Api.World;
 
     private sealed class Site(PicklingTubScenarios s, BlockPos pos, IPlayer player)
