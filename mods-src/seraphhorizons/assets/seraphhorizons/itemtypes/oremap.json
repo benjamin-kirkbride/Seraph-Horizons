@@ -1,4 +1,4 @@
-// Ore and gravel maps (#444; README "Ore and gravel maps"): Ore/Game/ItemOreMap.cs. The deposit,
+// Ore and gravel maps (#444; README "Placer fields, deposits and ore maps"): Ore/Game/ItemOreMap.cs. The deposit,
 // precision and marker position are in the stack's attributes, written by Ore/Game/MapIssuer.cs;
 // one from the creative inventory is blank. Model and transforms are the game's locator map's.
 {
