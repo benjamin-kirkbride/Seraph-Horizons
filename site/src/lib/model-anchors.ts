@@ -10,7 +10,7 @@
 //                                         place along the axis (a trunk path's stations)
 //   "<name>": { "<something>Y": number }  a height, a level line across the footprint
 //
-// Keys starting with "_" are comments; "cells" and "parts" are not anchors. Everything is in
+// Keys starting with "_" are comments; "cells", "parts" and "work" (the rig's progress, a quantity, not a place) are not anchors. Everything is in
 // blocks, in the rig's frame. A cell with "hollow": true and no boxes of its own has no
 // collision box (a trunk path's cells: solid only where the trunk is, which the game adds).
 import type { Axis, Rig, RigCell, Vec3 } from "./rig.ts";
@@ -62,7 +62,7 @@ export function discoverAnchors(rig: Rig): { anchors: Anchor[]; unrecognised: st
   const anchors: Anchor[] = [];
   const unrecognised: string[] = [];
   for (const [key, value] of Object.entries(rig)) {
-    if (key.startsWith("_") || key === "cells" || key === "parts") continue;
+    if (key.startsWith("_") || key === "cells" || key === "parts" || key === "work") continue;
     const stem = key.replace(/(Cell|Side|Face)$/, "");
     if (key.endsWith("Cell") && isVec3(value)) {
       const face = rig[`${stem}Face`];

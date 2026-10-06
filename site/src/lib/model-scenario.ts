@@ -2,14 +2,20 @@
 // as data in site/models.json. Labels for the rig's inputs and `requires` values, a prop (a
 // box of a chosen size laid on one of the rig's line anchors, such as a trunk on a bed, or
 // travelling along the rig's trunk path), and a play script: the phases the inputs run
-// through when the reader presses Play. Without one, Play only turns the shaft.
+// through when the reader presses Play. Without one, Play only turns the shaft (at the
+// reader's input speed), and moves the rig's work with it when the script gears it.
 // docs/recipe-browser/models.md describes the format.
 import type { Anchor } from "./model-anchors.ts";
-import { TRUNK_CLASSES, trunkPathOf, tripEnd, type Rig, type TrunkClass, type TrunkPath, type Vec3 } from "./rig.ts";
+import { TRUNK_CLASSES, workEnd, workOf, type Rig, type TrunkClass, type Vec3, type Work } from "./rig.ts";
 
 export interface InputLabel {
   label?: string;
   hint?: string;
+}
+
+/** The size input's labels, and a name for each class: none, thin, thick. */
+export interface SizeInput extends InputLabel {
+  names?: [string, string, string];
 }
 
 export interface PropOption {
@@ -48,8 +54,8 @@ export interface PlayPhase {
   label: string;
   /** The lifting input during the phase (default 0). */
   lifting?: number;
-  /** Which input the phase moves: depth (the default) or T, the trunk's travel. */
-  input?: "depth" | "trunk";
+  /** Which input the phase moves: depth (the default) or W, the work ("trunk", a trunk's travel, is the same). */
+  input?: "depth" | "work" | "trunk";
   /**
    * Where the phase runs to. Depth: 0..1, or "contact", where the edge meets the prop's top.
    * Trunk: T in blocks, or "end", the chosen class's end of trip. Not used by a wait.
@@ -70,7 +76,14 @@ export interface PlayPhase {
 }
 
 export interface PlaySpec {
+  /** The input speed slider's starting point, as seconds per shaft turn (default 1 turn a second). */
   secondsPerTurn?: number;
+  /**
+   * Shaft turns per unit of W, as a number or a rig path ("cut.turnsPerTooth"): with it, Play also
+   * moves the rig's work forward as the shaft turns (either way), up to the class's end, whenever no
+   * script phase runs it. For a machine whose work is geared to the shaft.
+   */
+  turnsPerWork?: number | string;
   /** For "contact": the height of the working edge at depth 0 and at depth 1, as numbers or rig paths ("saw.topY"). */
   edge?: { top: number | string; bottom: number | string };
   /** How fast the trunk's presence eases in and out, per second (default 12, the game's). */
@@ -84,17 +97,37 @@ export interface Scenario {
     depth?: InputLabel;
     lifting?: InputLabel;
     reverse?: InputLabel;
+    /** W's label: `work` for any rig; `trunk` is read too, its trunk-flavoured name. */
+    work?: InputLabel;
     trunk?: InputLabel;
-    size?: InputLabel;
+    size?: SizeInput;
     presence?: InputLabel;
     feed?: InputLabel;
+    oil?: InputLabel;
   };
   requires?: Record<string, string>;
+  /** Requires values that belong to one class only (one master's set-up, say): shown only while that class is chosen. */
+  requiresClass?: Record<string, TrunkClass>;
   prop?: PropSpec;
   play?: PlaySpec;
 }
 
 export const DEFAULT_SECONDS_PER_TURN = 1.2;
+/** The input speed slider: revolutions of the shaft per second of real time. */
+export const INPUT_SPEED_MAX = 5;
+export const DEFAULT_INPUT_SPEED = 1;
+
+/** The input speed Play starts at: the script's secondsPerTurn as turns a second, else 1, within 0..INPUT_SPEED_MAX. */
+export function defaultInputSpeed(play: PlaySpec | undefined): number {
+  const spt = play?.secondsPerTurn;
+  const rps = spt !== undefined && spt > 0 ? 1 / spt : DEFAULT_INPUT_SPEED;
+  return Math.min(INPUT_SPEED_MAX, Math.max(0, Math.round(rps * 100) / 100));
+}
+
+/** Whether a phase moves the work (W; "trunk" is its trunk-flavoured spelling). */
+export function movesWork(p: PlayPhase): boolean {
+  return p.input === "work" || p.input === "trunk";
+}
 export const DEFAULT_PRESENCE_RATE = 12;
 
 /** A number from the rig by dotted path, or the number itself. */
@@ -162,18 +195,21 @@ export interface Motion {
   lifting: number;
   /** The running phase's id, or null when posed by hand. */
   phase: string | null;
-  /** The phase's input (depth, or T) when the phase started. */
+  /** The phase's input (depth, or W) when the phase started. */
   phaseFrom: number;
   /** Whether the prop is on (Play loads and clears it). */
   propOn: boolean;
-  /** T, the trunk's travel along the rig's trunkPath, blocks (0 when not given). */
-  trunk?: number;
-  /** k, the class shown: 0 none, 1 thin, 2 thick. Held after the trunk goes until presence is back to 0. */
+  /** W, the rig's work in its unit (a trunk's travel along its trunkPath, blocks); 0 when not given. */
+  work?: number;
+  /** k, the class shown: 0 none, 1 thin, 2 thick. Held after a trunk goes until presence is back to 0. */
   size?: number;
-  /** p, the trunk's presence, 0..1. */
+  /** p, the work's presence, 0..1. */
   presence?: number;
   /** φ, the feed's travel, radians: it follows T (feedAdvance), never going back. */
   feed?: number;
+  /** How full the oil tank is, 0..1 (set by hand). */
+  oil?: number;
+
   /** How long a wait phase has run, in its own unit (turns or seconds). */
   phaseTime?: number;
 }
@@ -182,21 +218,28 @@ export interface Motion {
 export interface PlayTrip {
   /** 0 when no prop is chosen. */
   size: number;
-  /** T at the end of the trip (0 without a class). */
+  /** W at the end of the trip (0 without a class). */
   end: number;
 }
 
+/** Whether a part with this requires value shows for class `size`: always, unless the scenario ties the value to another class. */
+export function classShows(requires: string | null | undefined, size: number, scenario?: Scenario): boolean {
+  const cls = requires ? scenario?.requiresClass?.[requires] : undefined;
+  if (cls === undefined) return true;
+  return size === TRUNK_CLASSES.indexOf(cls) + 1;
+}
+
 /** The trip for a chosen option on a trunk path; undefined when the prop does not move with the trunk. */
-export function playTrip(prop: PropSpec | undefined, option: PropOption | null, path: TrunkPath | null): PlayTrip | undefined {
+export function playTrip(prop: PropSpec | undefined, option: PropOption | null, path: Work | null): PlayTrip | undefined {
   if (!prop || prop.moves !== "trunk" || !path) return undefined;
   const size = optionClass(option);
-  return { size, end: tripEnd(path, size) };
+  return { size, end: workEnd(path, size) };
 }
 
 /** The phase Play starts in from a pose; null when there is no script. `trip` decides `travelling`. */
 export function startPhase(
   play: PlaySpec | undefined,
-  m: Pick<Motion, "depth" | "lifting"> & Partial<Pick<Motion, "trunk">>,
+  m: Pick<Motion, "depth" | "lifting"> & Partial<Pick<Motion, "work">>,
   propChosen: boolean,
   trip?: PlayTrip,
 ): string | null {
@@ -208,7 +251,7 @@ export function startPhase(
     if (s.prop !== undefined && s.prop !== propChosen) continue;
     if (s.depthAtMost !== undefined && m.depth > s.depthAtMost) continue;
     if (s.travelling !== undefined) {
-      const t = m.trunk ?? 0;
+      const t = m.work ?? 0;
       const travelling = propChosen && trip !== undefined && trip.size > 0 && t > 0 && t < trip.end;
       if (travelling !== s.travelling) continue;
     }
@@ -224,10 +267,14 @@ export interface PlayContext {
   propChosen: boolean;
   /** The contact depth for the chosen prop (contactDepth), used by phases that run to "contact". */
   contact: number;
-  /** Set when the prop is the rig's trunk: Play then loads it at T = 0, runs trunk phases to its end, eases presence and counts φ. */
+  /** Set when the prop is the rig's trunk: Play then loads it at W = 0, runs work phases to its end, eases presence and counts φ. */
   trip?: PlayTrip;
   /** The rig's feed.blocksPerRadian: φ grows by ΔT over it (feedAdvance). Without it φ stays put. */
   blocksPerRadian?: number;
+  /** Set from play.turnsPerWork: W moves forward by one per `turns` shaft turns, up to `end`, whenever no phase runs. */
+  geared?: { turns: number; end: number };
+  /** The reader's input speed, shaft turns a second (0 stops Play); without it, the script's secondsPerTurn. */
+  turnsPerSecond?: number;
 }
 
 /** Enters a phase: sets lifting and the prop, and remembers where it started. */
@@ -242,15 +289,15 @@ export function enterPhase(ctx: PlayContext, m: Motion, id: string): Motion {
   };
   // A trunk goes on at the start of its trip, as the chosen class; one taken away keeps its class until it has eased out.
   if (ctx.trip && p.prop === "load" && ctx.propChosen) {
-    next.trunk = 0;
+    next.work = 0;
     next.size = ctx.trip.size;
   }
-  next.phaseFrom = p.input === "trunk" ? (next.trunk ?? 0) : next.depth;
+  next.phaseFrom = movesWork(p) ? (next.work ?? 0) : next.depth;
   if (p.wait) next.phaseTime = 0;
   return next;
 }
 
-/** Advances the motion by `dt` seconds of Play: the shaft turns, and the script, if any, moves depth or T from phase to phase. */
+/** Advances the motion by `dt` seconds of Play: the shaft turns, and the script, if any, moves depth or W from phase to phase. */
 export function advance(ctx: PlayContext, m: Motion, dt: number): Motion {
   const next = run(ctx, m, dt);
   if (!ctx.trip) return next;
@@ -263,11 +310,17 @@ export function advance(ctx: PlayContext, m: Motion, dt: number): Motion {
 }
 
 function run(ctx: PlayContext, m: Motion, dt: number): Motion {
-  const secondsPerTurn = ctx.play?.secondsPerTurn ?? DEFAULT_SECONDS_PER_TURN;
+  // At an input speed of 0 everything stands, waits included.
+  if (ctx.turnsPerSecond !== undefined && !(ctx.turnsPerSecond > 0)) return m;
+  const secondsPerTurn = ctx.turnsPerSecond !== undefined ? 1 / ctx.turnsPerSecond : (ctx.play?.secondsPerTurn ?? DEFAULT_SECONDS_PER_TURN);
   const dTheta = (ctx.direction * dt * 2 * Math.PI) / secondsPerTurn;
   let turns = Math.abs(dTheta) / (2 * Math.PI);
   let seconds = dt;
   let next: Motion = { ...m, theta: wrapAngle(m.theta + dTheta), travel: m.travel + Math.abs(dTheta) };
+  if (ctx.geared && next.phase === null && ctx.geared.turns > 0) {
+    const w = next.work ?? 0;
+    if (w < ctx.geared.end) next.work = Math.min(ctx.geared.end, w + turns / ctx.geared.turns);
+  }
   if (!ctx.play || next.phase === null) return next;
   // A phase that is already at its target ends at once; the bound stops a script of such phases looping.
   for (let guard = 0; guard <= ctx.play.phases.length; guard++) {
@@ -280,23 +333,23 @@ function run(ctx: PlayContext, m: Motion, dt: number): Motion {
       if (budget < remaining) return { ...next, phaseTime: (next.phaseTime ?? 0) + budget };
       used = remaining;
     } else {
-      const trunk = p.input === "trunk";
-      const value = trunk ? (next.trunk ?? 0) : next.depth;
+      const work = movesWork(p);
+      const value = work ? (next.work ?? 0) : next.depth;
       const target = p.to === "contact" ? ctx.contact : p.to === "end" ? (ctx.trip?.end ?? value) : (p.to ?? value);
       const span = Math.abs(target - next.phaseFrom);
       const remaining = Math.abs(target - value);
       // The input's change per turn or per second, over the phase's whole span.
       const rate = p.turns ? span / p.turns : p.seconds ? span / p.seconds : Infinity;
       const step = rate === Infinity ? Infinity : rate * budget;
-      // φ follows T, as the game's geared feed: it grows by the trunk's advance over blocksPerRadian.
-      const feed = (to: number) => (trunk ? { feed: (next.feed ?? 0) + feedAdvance(value, to, ctx.blocksPerRadian) } : {});
+      // φ follows W, as the game's geared feed: it grows by the trunk's advance over blocksPerRadian.
+      const feed = (to: number) => (work ? { feed: (next.feed ?? 0) + feedAdvance(value, to, ctx.blocksPerRadian) } : {});
       if (step < remaining) {
         const moved = value + Math.sign(target - value) * step;
-        return { ...next, ...(trunk ? { trunk: moved } : { depth: moved }), ...feed(moved) };
+        return { ...next, ...(work ? { work: moved } : { depth: moved }), ...feed(moved) };
       }
       // Reached the target: spend what is left of this frame in the next phase.
       used = rate === Infinity || rate === 0 ? 0 : remaining / rate;
-      next = { ...next, ...(trunk ? { trunk: target } : { depth: target }), ...feed(target) };
+      next = { ...next, ...(work ? { work: target } : { depth: target }), ...feed(target) };
     }
     if (p.turns) {
       turns = Math.max(0, turns - used);
@@ -320,19 +373,27 @@ function wrapAngle(a: number): number {
 export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly Anchor[], requires: readonly string[]): string[] {
   const out: string[] = [];
   for (const key of Object.keys(s.requires ?? {})) if (!requires.includes(key)) out.push(`requires label "${key}" names no part's requires value`);
-  let path: TrunkPath | null = null;
+  for (const [key, cls] of Object.entries(s.requiresClass ?? {})) {
+    if (!requires.includes(key)) out.push(`requiresClass "${key}" names no part's requires value`);
+    if (!(TRUNK_CLASSES as readonly string[]).includes(cls)) out.push(`requiresClass "${key}": class must be "thin" or "thick"`);
+  }
+  let path: Work | null = null;
   try {
-    path = trunkPathOf(rig);
+    path = workOf(rig);
   } catch (e) {
     out.push((e as Error).message);
   }
+  if (s.inputs?.work && s.inputs?.trunk) out.push("inputs: label the work as work or trunk, not both");
+  const names = s.inputs?.size?.names;
+  if (names !== undefined && (!Array.isArray(names) || names.length !== 3 || !names.every((n) => typeof n === "string" && n !== "")))
+    out.push("inputs.size.names needs three names: none, thin, thick");
   const moving = s.prop?.moves === "trunk";
   if (s.prop) {
     const line = anchors.find((a) => a.kind === "line" && a.key === s.prop!.on);
     if (!line) out.push(`prop.on "${s.prop.on}" is not a line anchor ({ origin, axis, length }) of the rig`);
     if (s.prop.placement !== undefined && s.prop.placement !== "underside" && s.prop.placement !== "axis") out.push(`prop.placement must be "underside" or "axis"`);
     if (s.prop.moves !== undefined && s.prop.moves !== "trunk") out.push(`prop.moves must be "trunk"`);
-    if (moving && !path) out.push(`prop.moves "trunk" needs the rig's trunkPath`);
+    if (moving && path?.kind !== "trunk") out.push(`prop.moves "trunk" needs the rig's trunkPath`);
     const ids = new Set<string>();
     for (const o of s.prop.options ?? []) {
       if (ids.has(o.id) || o.id === "none") out.push(`prop option "${o.id}" is listed twice or is reserved`);
@@ -350,23 +411,35 @@ export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly An
   }
   if (s.play) {
     if (!rig) out.push("play needs a rig");
+    if (s.play.secondsPerTurn !== undefined && !(s.play.secondsPerTurn > 0)) out.push("play.secondsPerTurn must be above 0");
+    if (s.play.turnsPerWork !== undefined) {
+      if (!path) out.push("play.turnsPerWork needs the rig's work or trunkPath");
+      if (s.prop?.moves === "trunk") out.push("play.turnsPerWork is for a rig whose work is geared to the shaft, not one with a travelling trunk prop");
+      if (rig)
+        try {
+          if (!(rigNumber(rig, s.play.turnsPerWork) > 0)) out.push("play.turnsPerWork must be above 0");
+        } catch (e) {
+          out.push(`play.turnsPerWork: ${(e as Error).message}`);
+        }
+    }
+
     const ids = new Set(s.play.phases.map((p) => p.id));
     if (ids.size !== s.play.phases.length) out.push("play phase ids must be unique");
     if (s.play.presenceRate !== undefined && !(s.play.presenceRate > 0)) out.push("play.presenceRate must be above 0");
     for (const p of s.play.phases) {
       for (const n of [p.next, p.nextWithoutProp]) if (n !== undefined && !ids.has(n)) out.push(`play phase "${p.id}" goes to "${n}", which is not a phase`);
-      if (p.input !== undefined && p.input !== "depth" && p.input !== "trunk") out.push(`play phase "${p.id}": input must be "depth" or "trunk"`);
+      if (p.input !== undefined && p.input !== "depth" && !movesWork(p)) out.push(`play phase "${p.id}": input must be "depth", "work" or "trunk"`);
       if (p.wait) {
         if (p.to !== undefined || p.input !== undefined) out.push(`play phase "${p.id}" waits, so it takes no to or input`);
-      } else if (p.input === "trunk") {
-        if (p.to !== "end" && (typeof p.to !== "number" || p.to < 0)) out.push(`play phase "${p.id}": a trunk phase's to must be T (0 or more) or "end"`);
+      } else if (movesWork(p)) {
+        if (p.to !== "end" && (typeof p.to !== "number" || p.to < 0)) out.push(`play phase "${p.id}": a trunk phase's to must be W (0 or more) or "end"`);
         if (!moving) out.push(`play phase "${p.id}" moves the trunk, which needs a prop that moves with it (prop.moves "trunk")`);
       } else if (p.to !== "contact" && (typeof p.to !== "number" || p.to < 0 || p.to > 1)) out.push(`play phase "${p.id}": to must be 0..1 or "contact"`);
       if (!(p.turns! > 0) && !(p.seconds! > 0)) out.push(`play phase "${p.id}" needs turns or seconds above 0`);
       if (p.to === "contact" && !s.prop) out.push(`play phase "${p.id}" runs to "contact", which needs a prop`);
       if (p.startIf?.travelling !== undefined && !moving) out.push(`play phase "${p.id}": startIf.travelling needs a prop that moves with the trunk`);
     }
-    if (s.play.phases.some((p) => p.to === "contact" && !p.wait && p.input !== "trunk")) {
+    if (s.play.phases.some((p) => p.to === "contact" && !p.wait && !movesWork(p))) {
       if (!s.play.edge) out.push(`play needs an edge for "contact"`);
       else if (rig)
         for (const ref of [s.play.edge.top, s.play.edge.bottom])

@@ -236,7 +236,7 @@ public class RosserRigTests
         foreach (var pose in doc.RootElement.GetProperty("poses").EnumerateArray())
         {
             double D(string key) => pose.GetProperty(key).GetDouble();
-            var input = new RigInput(D("theta"), Travel: D("travel"), Trunk: D("trunk"), Class: pose.GetProperty("size").GetInt32(),
+            var input = new RigInput(D("theta"), Travel: D("travel"), Work: D("trunk"), Class: pose.GetProperty("size").GetInt32(),
                                      Presence: D("presence"), Feed: D("feed"));
             classes.Add(input.Class);
             var mats = parts.Matrices(input);

@@ -67,6 +67,9 @@
           Condition="Exists('../assets/seraphhorizons/config/rosser-rig.json')" />
     <None Include="Rosser/rig-reference.json" Link="rosser-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('Rosser/rig-reference.json')" />
+    <!-- The gear cutter's shipped rig and its reference poses (GearCutter/tools/make_shape.py). -->
+    <None Include="../assets/seraphhorizons/config/gearcutter-rig.json" Link="gearcutter-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="GearCutter/rig-reference.json" Link="gearcutter-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />

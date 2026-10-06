@@ -46,8 +46,11 @@ export type FaceName = (typeof FACE_NAMES)[number];
 
 // ---- rigs
 
-/** What rotate, slide and swing read in place of θ: θ, ψ (the shaft's travel), φ (the feed's travel) or T (the trunk's travel). */
-export type DriverInput = "theta" | "travel" | "feed" | "trunk";
+/** What rotate, slide and swing read in place of θ: θ, ψ (the shaft's travel), φ (the feed's travel), W (the work; "trunk" is its trunk-flavoured spelling) or the oil tank's fill. */
+export type DriverInput = "theta" | "travel" | "feed" | "work" | "trunk" | "oil";
+
+/** What a stretch reads: the depth (the default) or the oil tank's fill. */
+export type StretchInput = "depth" | "oil";
 
 /** A number per trunk class (thin 1×1, thick 2×2); class 0, no trunk, has none. */
 export interface PerClass {
@@ -78,7 +81,8 @@ export interface Driver {
   anchor?: Vec3;
   ratio?: number;
   rectified?: boolean;
-  input?: DriverInput;
+  /** rotate, slide, swing: a DriverInput; stretch: a StretchInput. */
+  input?: DriverInput | StretchInput;
   amplitude?: number;
   phase?: number;
   travel?: number;
@@ -125,16 +129,21 @@ export interface Rig {
  * the shaft's travel, the total angle it has turned either way (|θ| when not given). A machine
  * a trunk travels through adds T, the trunk's travel along the rig's trunkPath (blocks), its
  * class (`size`: 0 none, 1 thin, 2 thick), its presence p (0..1, eased as it is loaded and taken
- * away) and φ, the feed's travel (radians: ψ counted only while the feed runs); each is 0 when not given. */
+ * away) and φ, the feed's travel (radians: ψ counted only while the feed runs); a machine that shows
+ * its oil adds `oil`, how full its tank is (0..1). Each is 0 when not given. */
 export interface Pose {
   theta: number;
   depth: number;
   lifting: number;
   travel?: number;
+  /** W, the work's progress in the rig's unit (`work`, or a trunk's travel on its trunkPath). */
+  work?: number;
+  /** The trunk-flavoured spelling of `work`, read when `work` is not given. */
   trunk?: number;
   size?: number;
   presence?: number;
   feed?: number;
+  oil?: number;
 }
 
 /** The trunk classes after 0 (none), by index − 1. */
@@ -142,18 +151,38 @@ export const TRUNK_CLASSES = ["thin", "thick"] as const;
 export type TrunkClass = (typeof TRUNK_CLASSES)[number];
 
 /**
+ * A rig's progress, W: what its gauge windows and rolls are placed on. The rig's `work` is a
+ * named quantity in its own unit with an end per class, a point on its own scale (nose = tail = W,
+ * so a window is occupied while W is in it); its `trunkPath` is the trunk-flavoured case, a trunk
+ * with a length travelling along a line (below). A rig has one or neither.
+ */
+export interface Work {
+  kind: "work" | "trunk";
+  /** What W counts ("teeth cut"); "trunk travel" for a trunkPath. */
+  name: string;
+  /** W's unit ("teeth"); "blocks" for a trunkPath. */
+  unit: string;
+  /** A slider's step; 1/16 for a trunkPath. */
+  step: number;
+  /** The leading point at W = 0: 0 for work, a trunkPath's nose0. */
+  nose0: number;
+  /** L_k, indexed by class: [0, thin, thick]; 0 for work. */
+  lengths: [number, number, number];
+  /** Where W ends, indexed by class: [0, thin, thick]. */
+  ends: [number, number, number];
+}
+
+/**
  * The rig's `trunkPath`: the line a trunk travels along, nose first, towards + on its axis.
  * Places along it (nose0, tailStop, windows, stations, a roll's `at`) are coordinates on that
  * axis in the rig's frame, in blocks. At travel T the nose is at nose0 + T and the tail L_k
  * behind it; T runs from 0 to end(k) = tailStop + L_k − nose0.
  */
-export interface TrunkPath {
+export interface TrunkPath extends Work {
+  kind: "trunk";
   origin: Vec3;
   axis: Axis;
   length: number;
-  nose0: number;
-  /** L_k, indexed by class: [0, thin, thick]. */
-  lengths: [number, number, number];
   tailStop: number;
   stations: Record<string, number>;
 }
@@ -182,7 +211,47 @@ export function trunkPathOf(rig: Rig | null | undefined): TrunkPath | null {
       st[k] = v;
     }
   }
-  return { origin: origin as Vec3, axis, length, nose0, lengths: [0, lengths.thin, lengths.thick], tailStop, stations: st };
+  const ls: [number, number, number] = [0, lengths.thin, lengths.thick];
+  return {
+    kind: "trunk",
+    name: "trunk travel",
+    unit: "blocks",
+    step: 1 / 16,
+    origin: origin as Vec3,
+    axis,
+    length,
+    nose0,
+    lengths: ls,
+    ends: [0, tailStop + ls[1] - nose0, tailStop + ls[2] - nose0],
+    tailStop,
+    stations: st,
+  };
+}
+
+/** The rig's `work` as a Work, or null when it has none; throws when it is malformed. */
+export function workQuantityOf(rig: Rig | null | undefined): Work | null {
+  const raw = rig?.work as Record<string, unknown> | undefined;
+  if (raw === undefined) return null;
+  const problem = (what: string) => new Error(`work: ${what}`);
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw problem("must be an object");
+  const { name, unit, step, end } = raw;
+  if (typeof unit !== "string" || unit === "") throw problem("needs a unit");
+  if (name !== undefined && (typeof name !== "string" || name === "")) throw problem("name must be a non-empty string");
+  if (step !== undefined && !(isNum(step) && step > 0)) throw problem("step must be above 0");
+  if (!isPerClass(end) || !(end.thin > 0) || !(end.thick > 0)) throw problem("end needs thin and thick above 0");
+  for (const key of ["nose0", "lengths", "tailStop"]) if (key in raw) throw problem(`has no ${key}: that is a trunkPath's`);
+  return { kind: "work", name: (name as string | undefined) ?? unit, unit, step: (step as number | undefined) ?? 1 / 16, nose0: 0, lengths: [0, 0, 0], ends: [0, end.thin, end.thick] };
+}
+
+/** The rig's progress: its `work`, its `trunkPath`, or null; a rig with both is refused. */
+export function workOf(rig: Rig | null | undefined): Work | null {
+  if (rig?.work !== undefined && rig?.trunkPath !== undefined) throw new Error("a rig has work or a trunkPath, not both");
+  return workQuantityOf(rig) ?? trunkPathOf(rig);
+}
+
+/** W at a pose: `work`, else the trunk-flavoured `trunk`, else 0. */
+export function workAt(pose: Pose): number {
+  return pose.work ?? pose.trunk ?? 0;
 }
 
 /** A pose's class as 0 (none), 1 (thin) or 2 (thick): rounded and clamped. */
@@ -192,15 +261,18 @@ export function classIndex(size: number | undefined): 0 | 1 | 2 {
 }
 
 /** Where the nose is at travel T. */
-export function noseAt(path: TrunkPath, trunk: number): number {
-  return path.nose0 + trunk;
+export function noseAt(path: Work, work: number): number {
+  return path.nose0 + work;
 }
 
-/** T at the end of the trip for a class, the tail at tailStop; 0 for no trunk. */
-export function tripEnd(path: TrunkPath, size: number): number {
+/** Where W ends for a class (a trunk's, the tail at tailStop); 0 for no class. */
+export function workEnd(path: Work, size: number): number {
   const k = classIndex(size);
-  return k === 0 ? 0 : path.tailStop + path.lengths[k] - path.nose0;
+  return k === 0 ? 0 : path.ends[k];
 }
+
+/** The trunk-flavoured name of workEnd. */
+export const tripEnd = workEnd;
 
 // ---- matrices
 
@@ -381,14 +453,24 @@ function point(d: Driver, key: "pivot" | "anchor"): Vec3 {
   return p;
 }
 
-const INPUTS: readonly DriverInput[] = ["theta", "travel", "feed", "trunk"];
+const INPUTS: readonly string[] = ["theta", "travel", "feed", "work", "trunk", "oil"];
+const STRETCH_INPUTS: readonly string[] = ["depth", "oil"];
 
 /** The input a rotate, slide or swing driver reads in place of θ; `rectified: true` is the mill's way of saying "travel". */
-export function driverInput(d: Driver): DriverInput {
+export function driverInput(d: Driver): Exclude<DriverInput, "trunk"> {
   if (d.input !== undefined && d.rectified !== undefined) throw new Error(`a ${d.type} driver takes input or rectified, not both`);
   if (d.input === undefined) return d.rectified ? "travel" : "theta";
   if (!INPUTS.includes(d.input)) throw new Error(`unknown driver input "${d.input}"`);
-  return d.input;
+  // "trunk" is the trunk-flavoured spelling of "work"
+  return (d.input === "trunk" ? "work" : d.input) as Exclude<DriverInput, "trunk">;
+}
+
+/** The input a stretch reads: the depth unless it says `input: "oil"`. */
+export function stretchInput(d: Driver): StretchInput {
+  if (d.rectified !== undefined) throw new Error("rectified is for rotate, slide and swing drivers");
+  if (d.input === undefined) return "depth";
+  if (!STRETCH_INPUTS.includes(d.input)) throw new Error(`a stretch reads depth or oil, not "${d.input}"`);
+  return d.input as StretchInput;
 }
 
 function inputValue(d: Driver, pose: Pose): number {
@@ -397,8 +479,10 @@ function inputValue(d: Driver, pose: Pose): number {
       return pose.travel ?? Math.abs(pose.theta);
     case "feed":
       return pose.feed ?? 0;
-    case "trunk":
-      return pose.trunk ?? 0;
+    case "work":
+      return workAt(pose);
+    case "oil":
+      return pose.oil ?? 0;
     default:
       return pose.theta;
   }
@@ -409,8 +493,8 @@ function perClass(d: Driver, v: unknown, key: string): PerClass {
   return v;
 }
 
-function needPath(d: Driver, path: TrunkPath | null | undefined): TrunkPath {
-  if (!path) throw new Error(`a ${d.type} driver needs the rig's trunkPath`);
+function needPath(d: Driver, path: Work | null | undefined): Work {
+  if (!path) throw new Error(`a ${d.type} driver needs the rig's work or trunkPath`);
   return path;
 }
 
@@ -421,7 +505,7 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
  * the most engaged window's min(1, gain · occupancy), occupancy easing in over `ease` blocks as
  * the nose arrives and out as the tail leaves.
  */
-export function gaugeEngagement(d: Driver, pose: Pose, path: TrunkPath | null | undefined): number {
+export function gaugeEngagement(d: Driver, pose: Pose, path: Work | null | undefined): number {
   const mode = d.mode ?? "occupy";
   if (mode !== "occupy" && mode !== "present") throw new Error(`unknown gauge mode "${mode}"`);
   if (mode === "occupy") {
@@ -439,7 +523,7 @@ export function gaugeEngagement(d: Driver, pose: Pose, path: TrunkPath | null | 
   const p = pose.presence ?? 0;
   if (mode === "present") return p;
   const pt = needPath(d, path);
-  const nose = noseAt(pt, pose.trunk ?? 0);
+  const nose = noseAt(pt, workAt(pose));
   const tail = nose - pt.lengths[k];
   let best = 0;
   for (const w of d.windows!) {
@@ -450,8 +534,8 @@ export function gaugeEngagement(d: Driver, pose: Pose, path: TrunkPath | null | 
   return p * best;
 }
 
-/** One driver's matrix (blocks) at a pose. Gauge and roll drivers read the rig's trunkPath (trunkPathOf). */
-export function driverMatrix(d: Driver, pose: Pose, path?: TrunkPath | null): Mat4 {
+/** One driver's matrix (blocks) at a pose. Gauge and roll drivers read the rig's progress (workOf); a roll needs a trunkPath. */
+export function driverMatrix(d: Driver, pose: Pose, path?: Work | null): Mat4 {
   const { depth } = pose;
   const lifting = pose.lifting ?? 0;
   switch (d.type) {
@@ -472,7 +556,7 @@ export function driverMatrix(d: Driver, pose: Pose, path?: TrunkPath | null): Ma
       const k = AXIS_INDEX[d.axis];
       const length = d.length ?? 0;
       if (length === 0) throw new Error("a stretch driver needs a non-zero length");
-      const f = (length + (d.travel ?? 0) * depth) / length;
+      const f = (length + (d.travel ?? 0) * (stretchInput(d) === "oil" ? (pose.oil ?? 0) : depth)) / length;
       const m = identity();
       m[k * 5] = f;
       m[12 + k] = point(d, "anchor")[k]! * (1 - f);
@@ -500,10 +584,11 @@ export function driverMatrix(d: Driver, pose: Pose, path?: TrunkPath | null): Ma
     case "roll": {
       const pivot = point(d, "pivot");
       if (!isNum(d.at)) throw new Error("a roll driver needs an at");
+      if (path && path.kind !== "trunk") throw new Error("a roll driver needs the rig's trunkPath, not work");
       const k = classIndex(pose.size);
       if (k === 0) return identity();
       const pt = needPath(d, path);
-      const over = Math.min(pt.lengths[k], Math.max(0, noseAt(pt, pose.trunk ?? 0) - d.at));
+      const over = Math.min(pt.lengths[k], Math.max(0, noseAt(pt, workAt(pose)) - d.at));
       return about(rotation(d.axis, (d.ratio ?? 1) * over), pivot);
     }
     default:
@@ -537,8 +622,8 @@ export function rideOrder(parts: readonly RigPart[]): number[] {
   return order;
 }
 
-/** One matrix (blocks) per part, in part order: its drivers in list order, then its ride part's whole matrix. `path` is the rig's trunkPath, for gauge and roll drivers. */
-export function partMatrices(parts: readonly RigPart[], pose: Pose, order: readonly number[] = rideOrder(parts), path?: TrunkPath | null): Mat4[] {
+/** One matrix (blocks) per part, in part order: its drivers in list order, then its ride part's whole matrix. `path` is the rig's progress (workOf), for gauge and roll drivers. */
+export function partMatrices(parts: readonly RigPart[], pose: Pose, order: readonly number[] = rideOrder(parts), path?: Work | null): Mat4[] {
   const ids = new Map(parts.map((p, i) => [p.id, i]));
   const out = new Array<Mat4>(parts.length);
   for (const i of order) {
@@ -561,14 +646,16 @@ export interface RigInputs {
   travel: boolean;
   depth: boolean;
   lifting: boolean;
-  /** T, the trunk's travel. */
-  trunk?: true;
-  /** k, the trunk's class. */
+  /** W, the work's progress (a trunk's travel). */
+  work?: true;
+  /** k, the work's class. */
   size?: true;
   /** p, the trunk's presence. */
   presence?: true;
   /** φ, the feed's travel. */
   feed?: true;
+  /** How full the oil tank is. */
+  oil?: true;
 }
 
 export function rigInputs(parts: readonly RigPart[]): RigInputs {
@@ -582,9 +669,11 @@ export function rigInputs(parts: readonly RigPart[]): RigInputs {
       }
       else if (d.type === "gauge") {
         used.size = used.presence = true;
-        if ((d.mode ?? "occupy") === "occupy") used.trunk = true;
+        if ((d.mode ?? "occupy") === "occupy") used.work = true;
         if (d.lobes) used.travel = true;
-      } else if (d.type === "roll") used.size = used.trunk = true;
+      } else if (d.type === "roll") used.size = used.work = true;
+
+      else if (d.type === "stretch" && stretchInput(d) === "oil") used.oil = true;
       else used.depth = true;
       if (d.type === "step" && d.lifting) used.lifting = true;
     }

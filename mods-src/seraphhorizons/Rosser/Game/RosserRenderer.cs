@@ -204,7 +204,7 @@ public sealed class RosserRenderer : IRenderer
             return;
 
         int k = _shownClass;
-        var input = new RigInput(_theta, Travel: _psi, Trunk: _shownTravel, Class: k, Presence: _presence, Feed: _phi);
+        var input = new RigInput(_theta, Travel: _psi, Work: _shownTravel, Class: k, Presence: _presence, Feed: _phi);
         var mats = _parts.Matrices(input);
         var facing = Mat4.Facing(_be.Side);
         var rapi = _capi.Render;

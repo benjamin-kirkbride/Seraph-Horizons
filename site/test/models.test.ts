@@ -6,10 +6,13 @@ import { checkManifest, publishModels, type ManifestModel } from "../src/lib/mod
 import {
   advance,
   checkScenario,
+  classShows,
   contactDepth,
+  defaultInputSpeed,
   enterPhase,
   feedAdvance,
   feedBlocksPerRadian,
+  INPUT_SPEED_MAX,
   playTrip,
   propBox,
   rigNumber,
@@ -19,7 +22,7 @@ import {
   type Scenario,
 } from "../src/lib/model-scenario.ts";
 import { STATIC_COLOUR, buildModelView, elementDetails, modelBounds, textureColour } from "../src/lib/model-view.ts";
-import { partMatrices, trunkPathOf, tripEnd, type Rig, type Shape } from "../src/lib/rig.ts";
+import { partMatrices, trunkPathOf, tripEnd, workEnd, workOf, type Rig, type Shape } from "../src/lib/rig.ts";
 
 const repo = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const readRepoJson = (path: string) => {
@@ -283,6 +286,9 @@ describe("model view", () => {
     expect(v.bounds).toEqual({ lo: [0, 0, 0], hi: [1, 1, 1] });
     expect(v.textures.map((t) => t.code)).toEqual(["glass", "plank"]);
     expect(textureColour("plank", "game:block/wood/planks/oak")).toBe("#b88a58");
+    expect(textureColour("glass", "game:block/glass/plain")).toBe("#cfe3ea");
+    expect(textureColour("oil", "game:block/liquid/honey")).toBe("#c8902a");
+    expect(textureColour("coil", null)).not.toBe("#c8902a");
   });
 
   it("puts elements no part claims in an unmatched group", () => {
@@ -386,7 +392,7 @@ describe("a trunk travelling through a machine", () => {
     const { index } = publishModels({ models: [model] }, (p) => (p === "s.json" ? shape : rig));
     expect(index.models[0]).toMatchObject({ id: "rosser", parts: 6, elements: 6 });
     const noPath = { ...rig, trunkPath: undefined };
-    expect(() => publishModels({ models: [{ ...model, scenario: undefined }] }, (p) => (p === "s.json" ? shape : noPath))).toThrow(/needs the rig's trunkPath/);
+    expect(() => publishModels({ models: [{ ...model, scenario: undefined }] }, (p) => (p === "s.json" ? shape : noPath))).toThrow(/needs the rig's work or trunkPath/);
   });
 
   it("draws the trunk path with its stations, and the hollow cells with no box of their own", () => {
@@ -445,16 +451,16 @@ describe("a trunk travelling through a machine", () => {
     expect(propBox(thick, line).centre).toEqual([-7, 1.6875 + 1, 0.6875]);
   });
 
-  const rest: Motion = { theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false, trunk: 0, size: 0, presence: 0, feed: 0 };
+  const rest: Motion = { theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false, work: 0, size: 0, presence: 0, feed: 0 };
   const ctx = (option: typeof thin | null): PlayContext => ({
     play, direction: 1, propChosen: option !== null, contact: 0, trip: playTrip(scenario.prop, option, path), blocksPerRadian: feedBlocksPerRadian(rig),
   });
 
   it("starts by loading a trunk, or carries on with one part-way through", () => {
     expect(startPhase(play, rest, true, ctx(thick).trip)).toBe("load");
-    expect(startPhase(play, { ...rest, trunk: 3 }, true, ctx(thick).trip)).toBe("feed");
-    expect(startPhase(play, { ...rest, trunk: tripEnd(path, 2) }, true, ctx(thick).trip)).toBe("load");
-    expect(startPhase(play, { ...rest, trunk: 3 }, false, ctx(null).trip)).toBe("load");
+    expect(startPhase(play, { ...rest, work: 3 }, true, ctx(thick).trip)).toBe("feed");
+    expect(startPhase(play, { ...rest, work: tripEnd(path, 2) }, true, ctx(thick).trip)).toBe("load");
+    expect(startPhase(play, { ...rest, work: 3 }, false, ctx(null).trip)).toBe("load");
     expect(playTrip(undefined, thick, path)).toBeUndefined();
     expect(playTrip(scenario.prop, null, path)).toEqual({ size: 0, end: 0 });
   });
@@ -475,16 +481,16 @@ describe("a trunk travelling through a machine", () => {
     const { seen } = run(c, 1 + 40 + 1.5 + 1 + 0.2);
     expect(seen.map((m) => m.phase)).toEqual(["load", "feed", "delivered", "clear", "load"]);
     const [load, feed, delivered, clear, again] = seen as [Motion, Motion, Motion, Motion, Motion];
-    expect(load).toMatchObject({ propOn: true, trunk: 0, size: 2 });
+    expect(load).toMatchObject({ propOn: true, work: 0, size: 2 });
     // eased in while it waits on the infeed bed
     expect(feed.presence).toBe(1);
-    expect(feed.trunk).toBeLessThan(0.05);
-    expect(delivered.trunk).toBeCloseTo(tripEnd(path, 2), 9);
+    expect(feed.work).toBeLessThan(0.05);
+    expect(delivered.work).toBeCloseTo(tripEnd(path, 2), 9);
     // φ followed T through the feed's blocks per radian, as in the game, not the 40 turns of the shaft
     expect(delivered.feed!).toBeCloseTo(tripEnd(path, 2) / 0.1, 6);
     expect(clear.propOn).toBe(false);
     // taken away: it eases out, the class held until it has, and the next goes on at the start
-    expect(again).toMatchObject({ propOn: true, trunk: 0, size: 2 });
+    expect(again).toMatchObject({ propOn: true, work: 0, size: 2 });
     expect(again.feed).toBe(delivered.feed);
   });
 
@@ -492,12 +498,12 @@ describe("a trunk travelling through a machine", () => {
     const c = ctx(thin);
     const { m } = run(c, 1 + 20);
     expect(m.phase).toBe("feed");
-    expect(m.trunk).toBeCloseTo(tripEnd(path, 1) / 2, 1);
-    expect(m.feed!).toBeCloseTo(m.trunk! / 0.1, 6);
+    expect(m.work).toBeCloseTo(tripEnd(path, 1) / 2, 1);
+    expect(m.feed!).toBeCloseTo(m.work! / 0.1, 6);
     const view = buildModelView(shape, rig, scenario);
-    expect(view.inputs).toEqual({ theta: false, travel: true, depth: false, lifting: false, trunk: true, size: true, presence: true, feed: true });
+    expect(view.inputs).toEqual({ theta: false, travel: true, depth: false, lifting: false, work: true, size: true, presence: true, feed: true });
     expect(view.path).toEqual(path);
-    const ms = partMatrices(rig.parts!, { theta: m.theta, depth: 0, lifting: 0, travel: m.travel, trunk: m.trunk, size: m.size, presence: m.presence, feed: m.feed }, view.order, view.path);
+    const ms = partMatrices(rig.parts!, { theta: m.theta, depth: 0, lifting: 0, travel: m.travel, work: m.work, size: m.size, presence: m.presence, feed: m.feed }, view.order, view.path);
     const cradle = rig.parts!.findIndex((p) => p.id === "cradle_in");
     // a thin trunk leaves the cradle up; the cross shaft has turned with the feed
     expect(ms[cradle]![13]).toBe(0);
@@ -511,9 +517,9 @@ describe("a trunk travelling through a machine", () => {
     expect(m.presence).toBeCloseTo(0.5);
     m = advance(c, m, 1 / 24);
     expect(m.presence).toBe(1);
-    m = enterPhase(c, { ...m, trunk: 3 }, "clear");
+    m = enterPhase(c, { ...m, work: 3 }, "clear");
     m = advance(c, m, 1 / 24);
-    expect(m).toMatchObject({ propOn: false, size: 2, trunk: 3 });
+    expect(m).toMatchObject({ propOn: false, size: 2, work: 3 });
     expect(m.presence).toBeCloseTo(0.5);
     m = advance(c, m, 1 / 24);
     expect(m).toMatchObject({ presence: 0, size: 0 });
@@ -523,7 +529,7 @@ describe("a trunk travelling through a machine", () => {
     const c = ctx(null);
     const { seen, m } = run(c, 1 + 2 * 1 + 0.5);
     expect(seen.map((x) => x.phase)).toEqual(["load", "idle", "load"]);
-    expect(m).toMatchObject({ propOn: false, trunk: 0, size: 0, presence: 0, feed: 0 });
+    expect(m).toMatchObject({ propOn: false, work: 0, size: 0, presence: 0, feed: 0 });
   });
 });
 
@@ -536,5 +542,104 @@ describe("the feed's travel", () => {
     expect(feedBlocksPerRadian({ feed: { blocksPerRadian: 0.1 } })).toBe(0.1);
     expect(feedBlocksPerRadian({ feed: 3 })).toBeUndefined();
     expect(feedBlocksPerRadian(null)).toBeUndefined();
+  });
+});
+
+// A rig whose work is not a trunk (the gear cutter: W counts teeth cut, twelve axle turns a tooth):
+// the rig's `work` names W, its unit, step and end per class; the scenario labels it, ties a
+// master's set-up to its class, names the classes, and Play moves W with the shaft.
+describe("a rig whose work is a quantity, geared to the shaft", () => {
+  const cutter = manifest.models.find((m) => m.id === "gear-cutter")!;
+  const cutterRig = readRepoJson(cutter.rig!) as Rig;
+  const s = cutter.scenario!;
+  const work = workOf(cutterRig)!;
+  const { anchors: cutterAnchors, unrecognised } = discoverAnchors(cutterRig);
+  const requires = [...new Set(cutterRig.parts!.map((p) => p.requires).filter((r): r is string => !!r))];
+
+  it("reads the rig's work: teeth cut, 0 to 12 or 20, and draws nothing for it", () => {
+    expect(work).toMatchObject({ kind: "work", name: "teeth cut", unit: "teeth", ends: [0, 12, 20] });
+    expect(cutterRig.trunkPath).toBeUndefined();
+    expect([0, 1, 2].map((k) => workEnd(work, k))).toEqual([0, 12, 20]);
+    expect(cutterAnchors.map((a) => a.key)).not.toContain("work");
+    expect(unrecognised).not.toContain("work");
+    const view = buildModelView(readRepoJson(cutter.shape) as Shape, cutterRig, s);
+    expect(view.inputs).toMatchObject({ work: true, size: true, presence: true, oil: true });
+    expect(view.path).toEqual(work);
+  });
+
+  it("is sound against the rig, and names what is wrong with a broken one", () => {
+    expect(checkScenario(s, cutterRig, cutterAnchors, requires)).toEqual([]);
+    const bad: Scenario = {
+      inputs: { work: { label: "a" }, trunk: { label: "b" }, size: { names: ["a", "b"] as unknown as [string, string, string] } },
+      requiresClass: { nothing: "thin", master: "medium" as "thin" },
+      play: { turnsPerWork: "cut.nowhere", secondsPerTurn: 0, phases: [] },
+    };
+    const problems = checkScenario(bad, cutterRig, cutterAnchors, requires).join("\n");
+    for (const re of [
+      /label the work as work or trunk, not both/,
+      /inputs.size.names/,
+      /requiresClass "nothing" names no part/,
+      /requiresClass "master": class must be/,
+      /play.turnsPerWork: rig has no number at "cut.nowhere"/,
+      /play.secondsPerTurn must be above 0/,
+    ])
+      expect(problems).toMatch(re);
+    // a rig with both progress declarations is refused
+    expect(checkScenario(s, { ...cutterRig, trunkPath: { origin: [0, 0, 0], axis: "x", length: 1, nose0: 0, lengths: { thin: 1, thick: 1 }, tailStop: 1 } }, cutterAnchors, requires).join("\n")).toMatch(/not both/);
+  });
+
+  it("shows a class's own set-up only while that class is chosen", () => {
+    expect([0, 1, 2].map((k) => classShows("master", k, s))).toEqual([false, true, false]);
+    expect([0, 1, 2].map((k) => classShows("blanklarge", k, s))).toEqual([false, false, true]);
+    expect([0, 1, 2].map((k) => classShows("head", k, s))).toEqual([true, true, true]);
+    expect(classShows("cover", 0, s)).toBe(true);
+    expect(classShows(null, 2, s)).toBe(true);
+    expect(classShows("master", 2, undefined)).toBe(true);
+  });
+
+  it("moves W with the shaft while playing, either way it turns, and stops at the job's end", () => {
+    const turns = rigNumber(cutterRig, s.play!.turnsPerWork!);
+    expect(turns).toBe(12);
+    const start: Motion = { theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false, work: 0, size: 1, presence: 1, feed: 0, oil: 1 };
+    const c = (direction: number): PlayContext => ({ play: s.play, direction, propChosen: false, contact: 0, geared: { turns, end: 12 }, turnsPerSecond: 2 });
+    // six axle turns at 2 RPS is 3 s: half a tooth, forward or backward
+    for (const dir of [1, -1]) {
+      let m = start;
+      for (let i = 0; i < 60; i++) m = advance(c(dir), m, 0.05);
+      expect(m.work).toBeCloseTo(0.5, 9);
+      expect(m.travel).toBeCloseTo(6 * 2 * Math.PI, 9);
+      expect(m.oil).toBe(1);
+    }
+    // it stops at the end, and the shaft turns on
+    let m: Motion = { ...start, work: 11.99 };
+    m = advance(c(1), m, 3);
+    expect(m.work).toBe(12);
+    // without gearing, Play moves only the shaft
+    expect(advance({ play: s.play, direction: 1, propChosen: false, contact: 0, turnsPerSecond: 1 }, start, 1).work).toBe(0);
+  });
+});
+
+describe("the input speed", () => {
+  const millPlay = mill.scenario!.play!;
+  const start: Motion = { theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false };
+
+  it("turns the shaft that many revolutions a second, and 0 stops everything", () => {
+    for (const rps of [0.5, 1, 2.5, INPUT_SPEED_MAX]) {
+      const m = advance({ play: undefined, direction: 1, propChosen: false, contact: 0, turnsPerSecond: rps }, start, 0.2);
+      expect(m.travel).toBeCloseTo(2 * Math.PI * rps * 0.2, 9);
+    }
+    const stopped = advance({ play: millPlay, direction: 1, propChosen: true, contact: 0.3, turnsPerSecond: 0 }, { ...start, phase: millPlay.phases[0]!.id }, 1);
+    expect(stopped).toEqual({ ...start, phase: millPlay.phases[0]!.id });
+    // without a speed, the script's own secondsPerTurn (the old fixed timing)
+    const legacy = advance({ play: { secondsPerTurn: 2, phases: [] }, direction: 1, propChosen: false, contact: 0 }, start, 1);
+    expect(legacy.travel).toBeCloseTo(Math.PI, 9);
+  });
+
+  it("starts at 1 RPS, or the script's secondsPerTurn as turns a second, within 0 to 5", () => {
+    expect(INPUT_SPEED_MAX).toBe(5);
+    expect(defaultInputSpeed(undefined)).toBe(1);
+    expect(defaultInputSpeed({ phases: [] })).toBe(1);
+    expect(defaultInputSpeed({ secondsPerTurn: 1.25, phases: [] })).toBe(0.8);
+    expect(defaultInputSpeed({ secondsPerTurn: 0.1, phases: [] })).toBe(5);
   });
 });
