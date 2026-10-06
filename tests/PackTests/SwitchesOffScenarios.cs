@@ -7,8 +7,10 @@ using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.MachineOil;
 using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.TrunkEntities;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.Common;
@@ -303,6 +305,83 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
                      ("LoggingMod.BEWorkstation", "BuildUnloadStack", new[] { typeof(IWorldAccessor) }) })
             Assert.DoesNotContain(SeraphHorizonsSystem.HarmonyId,
                 Harmony.GetPatchInfo(AccessTools.Method(AccessTools.TypeByName(type), method, args))?.Owners ?? []);
+    }
+
+    /// <summary><c>TrunkEntities</c>: Logging Expanded's trunks are items as it ships them (its
+    /// storage flag, its rack's Carryable, Cartwright's carts as they ship, no tool behaviour, no
+    /// placement or carry patches), and a trunk entity from a world that ran them turns back into a
+    /// trunk item as it loads.</summary>
+    [AtlasScenario]
+    public async Task Trunk_entities_off_trunks_are_items_and_trunk_entities_turn_back_into_them()
+    {
+        Assert.True(Off("TrunkEntities"));
+        var mod = TrunkEntitySystem.Of(World.Api);
+        Assert.False(mod.Enabled);
+        Assert.False(W.Config.GetBool(TrunkEntitySystem.RunningKey, true));
+        Assert.False(TrunkCarry.Available(World.Api));
+
+        // the trunks' storage flag is Logging Expanded's (backpack only, its default)
+        var trunkBlock = W.GetBlock(new AssetLocation("loggingmod:treetrunk-oak-md-no-north"))!;
+        Assert.Equal(EnumItemStorageFlags.Backpack, trunkBlock.StorageFlags);
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "loggingmod" } c && c.Path.StartsWith("treetrunk-")
+                                             && b.StorageFlags == TrunkEntitySystem.NoStorage);
+        // the Trunk Storage Rack keeps Logging Expanded's Carryable
+        var rack = W.Blocks.First(b => b?.Code is { Domain: "loggingmod" } c && c.Path.StartsWith("trunkstorage-"));
+        Assert.Contains(rack.BlockBehaviors, TrunkCarry.IsCarryable);
+        // Cartwright's carts and sleds as the two mods make them: Carry On's own carryonmore patch
+        // gives them one attachablecarryable, and the feature adds none
+        var carts = W.EntityTypes.Where(t => t.Code.Domain == "cartwrightscaravan"
+                                             && (t.Code.Path.StartsWith("cart-") || t.Code.Path.StartsWith("sled"))).ToList();
+        Assert.NotEmpty(carts);
+        foreach (var type in carts)
+            Assert.True(type.Server.BehaviorsAsJsonObj.Count(b => b["code"].AsString() == "carryon:attachablecarryable") <= 1, $"{type.Code}");
+        // no tool works a trunk, and nothing of the feature is patched in
+        foreach (var code in new[] { "game:axe-felling-iron", "game:knife-generic-iron", "game:saw-iron" })
+            Assert.Null(W.GetItem(new AssetLocation(code))!.GetCollectibleBehavior<TrunkToolBehavior>(true));
+        foreach (var id in new[] { OldTrunkBlocks.PlaceHarmonyId, TrunkCarry.HarmonyId, TrunkToolsSystem.HarmonyId, TrunkEntitySystem.HarmonyId })
+            Assert.False(Harmony.HasAnyPatches(id), $"{id} patched something");
+        Assert.DoesNotContain(W.GetEntityType(TrunkEntitySystem.ThinCode)!.Server.BehaviorsAsJsonObj,
+            b => b["code"].AsString() == TrunkCarry.BehaviorCode);
+
+        var origin = World.Spawn.AddCopy(-40, 40, -40);
+        await World.Until(() => W.BlockAccessor.GetChunkAtBlockPos(origin) != null, 30000);
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        for (int x = -4; x <= 4; x++)
+        for (int z = -4; z <= 4; z++)
+        {
+            W.BlockAccessor.SetBlock(granite, origin.AddCopy(x, -1, z));
+            for (int y = 0; y <= 4; y++)
+                W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
+        }
+        ItemStack Trunk(int logs)
+        {
+            var stack = new ItemStack(trunkBlock);
+            var slots = new Vintagestory.API.Datastructures.TreeAttribute();
+            slots["0"] = new Vintagestory.API.Datastructures.ItemstackAttribute(new ItemStack(W.GetBlock(new AssetLocation("game:log-placed-oak-ud"))!, logs));
+            stack.Attributes["slots"] = slots;
+            return stack;
+        }
+        List<Entity> Around(System.Func<Entity, bool> match) =>
+            W.GetEntitiesAround(origin.ToVec3d().Add(0.5, 0.5, 0.5), 8, 8, e => e.Alive && match(e)).ToList();
+
+        // a trunk item stays an item
+        W.SpawnItemEntity(Trunk(7), origin.ToVec3d().Add(0.5, 0.2, 0.5));
+        await World.Ticks(5);
+        Assert.Empty(Around(e => e is EntityTrunk));
+        var item = Assert.IsType<EntityItem>(Assert.Single(Around(e => e is EntityItem i && Trunks.IsTrunk(i.Itemstack))));
+        Assert.Equal(7, Trunks.StoredLogs(item.Itemstack, W));
+        item.Die(EnumDespawnReason.Removed);
+
+        // a trunk entity (as a world that ran them saved it) becomes the trunk item it holds
+        var entity = TrunkSpawns.Spawn(W, Trunk(12), origin.ToVec3d().Add(0.5, 0, 0.5), 0);
+        Assert.NotNull(entity);
+        await World.Ticks(5);
+        Assert.False(entity.Alive);
+        Assert.Empty(Around(e => e is EntityTrunk));
+        item = Assert.IsType<EntityItem>(Assert.Single(Around(e => e is EntityItem i && Trunks.IsTrunk(i.Itemstack))));
+        Assert.Equal(12, Trunks.StoredLogs(item.Itemstack, W));
+        Assert.Equal("loggingmod:treetrunk-oak-md-no-north", item.Itemstack.Collectible.Code.ToString());
+        item.Die(EnumDespawnReason.Removed);
     }
 
     [AtlasScenario]

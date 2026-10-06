@@ -56,7 +56,9 @@ variant: `loggingmod:treetrunk-{wood}-{size}-debarked-{side}`, named "<Wood> Tre
   trunk back; the Trunk Storage Rack stores and returns it (drawn with bark: the rack has its own
   shapes per wood); Carry On and Cartwright's Caravan patch the whole trunk blocktype, so they take
   it too. The knife and shears do nothing (it has no branch count). An axe on a placed debarked
-  trunk gives debarked logs. The heating rack drains its resin as before.
+  trunk, or on a debarked trunk entity with trunk entities (`../TrunkEntities/README.md`), gives
+  debarked logs, and the bark spud makes one from a clean trunk entity. The heating rack drains its
+  resin as before.
 
 ## The machine
 
@@ -122,7 +124,10 @@ turns by rotateY north 180, east 90, south 0, west 270. `Core/RosserRig.cs` pars
 - Parts are used up outside creative mode. In creative mode one item fits all its stages take
   (a single rod fills both roll sets), and nothing is taken.
 - Ctrl + right-click takes the trunk back if it is waiting or delivered, refuses while it is in the
-  rolls, and with no trunk takes the four heads back while they are unused. Used heads stay on until
+  rolls, and with no trunk takes the four heads back while they are unused. With trunk entities
+  (`../TrunkEntities/README.md`) the trunk goes into the player's Carry On hands, and stays on the
+  rosser with an error while those are full (`TrunkStations.GiveToHands`); without Carry On it is
+  laid on the ground two cells beyond the infeed end, across the line (`TrunkStations.DropBeyond`). Used heads stay on until
   they are spent. The other parts come back only by breaking the frame.
 
 The parts are drawn as they are fitted (the rig's `requires`). The cradles, the rocker and the
@@ -158,8 +163,12 @@ spins whenever the shaft turns.
 in, branched or not (the limb breaker deals with branches; Logging Expanded's
 `RequireBranchRemovalForProcessing` is not asked). Refused, each with an in-game message: a trunk
 already debarked (`error-already-debarked`), one holding no logs, a second trunk, and any trunk while
-the rosser is not complete. Power is not needed to load. By hand, right-click holding a trunk, or with
-an empty hand to take the first trunk the rosser would take from the hotbar, then the backpack.
+the rosser is not complete. Power is not needed to load. By hand, right-click with an empty hand
+while carrying the trunk in Carry On's hands (trunk entities, `../TrunkEntities/README.md`: a trunk
+is never in an inventory, and Carry On lets the click through because
+`patches/trunkentities-stations.json` gives the rosser's blocks its `CarryableInteract`); without
+trunk entities or Carry On, right-click holding a trunk, or with an empty hand to take the first
+trunk the rosser would take from the hotbar, then the backpack.
 Loading fixes the trip's pace: the trunk's class and the heads' metal (below).
 
 The trunk is shown, and boxed, as the mill shows it (`Trunks.ShownBlock`, `TrunkBox`): a thin trunk
@@ -255,7 +264,10 @@ shows the heads' metal, their points left and their feed speed.
   (`RosserRig.InfeedNeighbours`: native `[-16,0,-1..1]`, in line with the beds and only beyond the
   end row, never beside the wider station). Either of the rack's two cells counts
   (`LoggingBridge.FindRack`, shared with the mill). A top trunk already debarked, or with no logs,
-  stays and holds the line; the block info says so (`RosserRackState`).
+  stays and holds the line; the block info says so (`RosserRackState`). With trunk entities and no
+  rack ready, a trunk entity lying in those cells (its middle's column, at its underside's height,
+  `TrunkStations.FindInCells`) is taken the same way and under the same rules (`PullFromGround`); a
+  rack there goes first. The block info speaks only of racks.
 - **Outfeed.** A delivered trunk, while the shaft turns at `MinSpeed` (spent heads do not stop it)
   and with `AutoPushToRack` on, goes onto a rack in
   one of the three ground cells just beyond the outfeed end (`OutfeedNeighbours`, `[1,0,-1..1]`)
@@ -290,7 +302,8 @@ The thick trunk's axis is 1.6875 blocks up in the rosser and 1.44 in the mill (0
 hand-off is a transfer, not a slide, and the step shows only at that instant.
 
 **Breaking.** Breaking the frame or any ghost drops the frame, every fitted part by its code (the
-heads only while unused), and the trunk as far as it got (`RosserTrip.Broken`), so breaking and
+heads only while unused), and the trunk as far as it got (`RosserTrip.Broken`; with trunk entities
+it lands as a trunk entity), so breaking and
 running it again never gives its sticks or bark twice:
 
 | Where the trunk is | It drops as |

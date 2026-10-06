@@ -1,0 +1,21 @@
+// Trunk entities (TrunkEntities/Game/TrunkStations.cs): while a player carries something in Carry
+// On's hands, Carry On lets a right click through only to blocks with its CarryableInteract
+// behaviour (after its short hold), and sends it to the server. This adds it, for a carried tree
+// trunk only, to Logging Expanded's sawhorses, Trunk Storage Rack and heating rack, and to the
+// rosser's and bucking mill's frame and ghosts, so a carried trunk is loaded by right click.
+// TrunkStationsSystem empties this file while trunk entities do not run or Carry On is missing.
+// Server side: the client gets the blocks from it.
+[
+  {"file": "loggingmod:blocktypes/sawhorse.json", "op": "add", "path": "/behaviors/-", "value": {"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}, {"modid": "carryon"}]},
+  {"file": "loggingmod:blocktypes/sawhorsestandard.json", "op": "add", "path": "/behaviors/-", "value": {"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}, {"modid": "carryon"}]},
+  {"file": "loggingmod:blocktypes/sawhorseadvanced.json", "op": "add", "path": "/behaviors/-", "value": {"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}, {"modid": "carryon"}]},
+  {"file": "loggingmod:blocktypes/trunkstorage.json", "op": "add", "path": "/behaviors/-", "value": {"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}, {"modid": "carryon"}]},
+  {"file": "loggingmod:blocktypes/resinrack.json", "op": "add", "path": "/behaviors/-", "value": {"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}, "side": "server", "dependsOn": [{"modid": "loggingmod"}, {"modid": "carryon"}]},
+  {"file": "seraphhorizons:blocktypes/rosser/frame.json", "op": "add", "path": "/behaviors", "value": [{"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}], "side": "server", "dependsOn": [{"modid": "carryon"}]},
+  {"file": "seraphhorizons:blocktypes/rosser/ghost.json", "op": "add", "path": "/behaviors", "value": [{"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}], "side": "server", "dependsOn": [{"modid": "carryon"}]},
+  {"file": "seraphhorizons:blocktypes/rosser/ghostpower.json", "op": "add", "path": "/behaviors", "value": [{"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}], "side": "server", "dependsOn": [{"modid": "carryon"}]},
+  {"file": "seraphhorizons:blocktypes/rosser/ghostwater.json", "op": "add", "path": "/behaviors", "value": [{"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}], "side": "server", "dependsOn": [{"modid": "carryon"}]},
+  {"file": "seraphhorizons:blocktypes/buckingmill/frame.json", "op": "add", "path": "/behaviors", "value": [{"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}], "side": "server", "dependsOn": [{"modid": "carryon"}]},
+  {"file": "seraphhorizons:blocktypes/buckingmill/ghost.json", "op": "add", "path": "/behaviors", "value": [{"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}], "side": "server", "dependsOn": [{"modid": "carryon"}]},
+  {"file": "seraphhorizons:blocktypes/buckingmill/ghostpower.json", "op": "add", "path": "/behaviors", "value": [{"name": "CarryableInteract", "properties": {"allowedCarryables": [{"class": "BlockTreeTrunk"}]}}], "side": "server", "dependsOn": [{"modid": "carryon"}]}
+]

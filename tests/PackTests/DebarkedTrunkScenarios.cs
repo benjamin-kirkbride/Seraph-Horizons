@@ -5,11 +5,13 @@ using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
+using SeraphHorizons.Mod.TrunkEntities;
 using SeraphHorizons.Mod.Rosser;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 
 namespace SeraphHorizons.PackTests;
@@ -19,7 +21,9 @@ namespace SeraphHorizons.PackTests;
 /// state of Logging Expanded's <c>branches</c> variant added by JSON patch, against the pinned
 /// Logging Expanded, Immersive Woodworking, Carry On and Cartwright's Caravan. Each scenario makes
 /// its trunk with <see cref="Trunks.Debark"/>, as the rosser will, and works it through Logging
-/// Expanded's own interaction methods.
+/// Expanded's own interaction methods. Trunk entities run in this world, so a trunk reaches a
+/// station through Carry On's hands and comes back into them; a debarked trunk lying on the
+/// ground is a trunk entity, whose tools are <see cref="TrunkToolScenarios"/>'.
 /// </summary>
 public partial class WoodworkingScenarios
 {
@@ -44,39 +48,17 @@ public partial class WoodworkingScenarios
 
     private static ItemStack? StoredLogStack(ItemStack trunk) => (trunk.Attributes["slots"] as Vintagestory.API.Datastructures.ITreeAttribute)?.GetItemstack("0");
 
-    /// <summary>Places a trunk stack on the floor of the shop's cell as a player does (Logging
-    /// Expanded's TryPlaceBlock), facing the player.</summary>
-    private async Task<BlockPos> PlaceTrunk(Woodshop shop, int cell, ItemStack trunk)
+    /// <summary>Carries <paramref name="trunk"/> in the shop's player's Carry On hands (trunk
+    /// entities run: a trunk is never held), in place of whatever was carried.</summary>
+    private static void Carry(Woodshop shop, ItemStack trunk)
     {
-        var pos = shop.Cell(cell);
-        string failure = "";
-        var sel = new BlockSelection { Position = pos.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0, 0.5) };
-        Assert.True(trunk.Block.TryPlaceBlock(W, shop.P, trunk.Clone(), sel, ref failure), $"not placed: {failure}");
-        await World.Ticks(2);
-        return pos;
+        shop.Holding((ItemStack?)null);
+        TrunkCarry.Take((IServerPlayer)shop.P);
+        Assert.True(TrunkCarry.TryGive((IServerPlayer)shop.P, trunk), "the trunk could not be carried");
     }
 
-    private (int Logs, int Branches) TrunkEntity(BlockPos pos)
-    {
-        var be = W.BlockAccessor.GetBlockEntity(pos) ?? throw new Xunit.Sdk.XunitException($"no trunk entity at {pos}");
-        var inventory = AccessTools.Property(be.GetType(), "Inventory").GetValue(be)!;
-        return ((int)AccessTools.Property(inventory.GetType(), "LogCount").GetValue(inventory)!,
-                (int)AccessTools.Property(be.GetType(), "BranchCount").GetValue(be)!);
-    }
-
-    private ItemStack? TakeTrunkFromInventory(Woodshop shop)
-    {
-        foreach (var name in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
-            foreach (var slot in shop.P.InventoryManager.GetOwnInventory(name) ?? (IEnumerable<ItemSlot>)[])
-                if (Trunks.IsTrunk(slot.Itemstack))
-                {
-                    var stack = slot.Itemstack;
-                    slot.Itemstack = null;
-                    slot.MarkDirty();
-                    return stack;
-                }
-        return null;
-    }
+    /// <summary>Takes what the shop's player carries in Carry On's hands.</summary>
+    private static ItemStack? TakeCarried(Woodshop shop) => TrunkCarry.Take((IServerPlayer)shop.P);
 
     [AtlasScenario, ReadsBootLog]
     public void Debarked_trunks_exist_for_every_trunk_with_the_clean_ones_shape_and_debarked_bark()
@@ -197,60 +179,6 @@ public partial class WoodworkingScenarios
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task A_debarked_trunk_is_placed_and_picked_up_debarked_and_the_knife_does_nothing()
-    {
-        var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-200, 3, 200));
-        var trunk = DebarkedTrunk("oak", 6, branched: true);
-        var pos = await PlaceTrunk(shop, 0, trunk);
-        var placed = W.BlockAccessor.GetBlock(pos);
-        Assert.Equal("debarked", placed.Variant["branches"]);
-        Assert.Equal((6, 0), TrunkEntity(pos));
-        var info = placed.GetPlacedBlockInfo(W, pos, shop.P);
-        output.WriteLine(info);
-        Assert.DoesNotContain("branches", info);
-
-        // The knife's hold does not start: no branches.
-        shop.Holding("game:knife-generic-flint");
-        Assert.False(shop.Hold(pos, 3f));
-        Assert.Equal("debarked", W.BlockAccessor.GetBlock(pos).Variant["branches"]);
-        Assert.Empty(await shop.Collect());
-
-        // Picked up with an empty hand: the debarked trunk of the same wood and logs, marker and all.
-        shop.Holding(null);
-        shop.Click(pos);
-        await World.Ticks(2);
-        Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
-        var back = TakeTrunkFromInventory(shop);
-        Assert.NotNull(back);
-        Assert.Equal("debarked", back.Block.Variant["branches"]);
-        Assert.Equal("oak", back.Block.Variant["wood"]);
-        Assert.Equal(6, Trunks.StoredLogs(back, W));
-        Assert.True(DebarkedTrunks.IsMarked(StoredLogStack(back)));
-        Assert.Equal(0, back.Attributes.GetInt(Trunks.BranchCountKey));
-    }
-
-    [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task A_debarked_trunk_on_the_ground_chops_into_debarked_logs()
-    {
-        var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-200, 3, 220));
-        var pos = await PlaceTrunk(shop, 0, DebarkedTrunk("oak", 6));
-        shop.Holding(Woodshop.Axe);
-        await World.Until(() => shop.Hold(pos, 0.8f), 200);
-        var made = await shop.Collect();
-        Assert.True(made.GetValueOrDefault("game:debarkedlog-oak-ud") > 0, "made: " + string.Join(", ", made));
-        Assert.DoesNotContain("game:log-placed-oak-ud", made.Keys);
-        Assert.Equal(4, TrunkEntity(pos).Logs);
-        Assert.Equal("debarked", W.BlockAccessor.GetBlock(pos).Variant["branches"]);
-
-        // A clean trunk next to it still gives Logging Expanded's placed logs.
-        var clean = await PlaceTrunk(shop, 3, Trunk("oak", 6));
-        await World.Until(() => shop.Hold(clean, 0.8f), 200);
-        made = await shop.Collect();
-        Assert.True(made.GetValueOrDefault("game:log-placed-oak-ud") > 0, "made: " + string.Join(", ", made));
-        Assert.DoesNotContain("game:debarkedlog-oak-ud", made.Keys);
-    }
-
-    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_trunk_storage_rack_stores_and_returns_a_debarked_trunk()
     {
         var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-200, 3, 240));
@@ -262,9 +190,9 @@ public partial class WoodworkingScenarios
         Assert.True(logging.IsRack(rack));
 
         var trunk = DebarkedTrunk("birch", 20, size: "md");
-        shop.Holding(trunk.Clone());
+        Carry(shop, trunk.Clone());
         Assert.True(shop.Click(pos));
-        Assert.Null(shop.Hand.Itemstack);
+        Assert.Null(TrunkCarry.Carried(shop.P));
         Assert.Equal("debarked", logging.PeekTrunk(rack)!.Block.Variant["branches"]);
         var back = logging.PopTrunk(rack)!;
         Assert.True(back.Equals(W, trunk, GlobalConstants.IgnoredStackAttributes), "the trunk came back changed");
@@ -284,7 +212,7 @@ public partial class WoodworkingScenarios
         var pos = shop.Cell(0);
         World.SetBlock(sawhorse, pos);
         await World.Ticks(2);
-        shop.Holding(DebarkedTrunk("oak", 8));
+        Carry(shop, DebarkedTrunk("oak", 8));
         Assert.True(shop.Click(pos));
         Assert.Equal(8, shop.LogsOn(pos));
         Assert.True(DebarkedTrunks.IsDebarkedLoad((InventoryBase)AccessTools.Property(shop.Entity(pos).GetType(), "Inventory").GetValue(shop.Entity(pos))!));
@@ -320,12 +248,12 @@ public partial class WoodworkingScenarios
         Assert.True(made.GetValueOrDefault("game:plank-oak") > 0);
         Assert.Single(made);
 
-        // Unloaded with an empty hand: the debarked trunk of what is left.
+        // Unloaded with an empty hand into Carry On's hands: the debarked trunk of what is left.
         int left = shop.LogsOn(pos);
-        shop.Holding(null);
+        shop.Holding((ItemStack?)null);
         shop.Click(pos);
         await World.Ticks(2);
-        var back = TakeTrunkFromInventory(shop);
+        var back = TakeCarried(shop);
         Assert.NotNull(back);
         Assert.Equal("debarked", back.Block.Variant["branches"]);
         Assert.Equal(left, Trunks.StoredLogs(back, W));

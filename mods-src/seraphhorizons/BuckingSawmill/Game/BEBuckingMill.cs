@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.TrunkEntities;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -298,8 +299,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     // ---- Interaction ----
 
     /// <summary>Right-click on the mill or any ghost (<paramref name="onTrunk"/>: on the loaded
-    /// trunk). Ctrl takes the trunk back, else the blade kit; a part in hand is fitted; a trunk in
-    /// hand, or with an empty hand one from the hotbar or backpack, is loaded. Anything else held is
+    /// trunk). Ctrl takes the trunk back (into Carry On's hands with trunk entities), else the blade
+    /// kit; a part in hand is fitted; with an empty hand the trunk carried in Carry On's hands (with
+    /// trunk entities), else a trunk in hand or one from the hotbar or backpack, is loaded. Anything else held is
     /// the item's own business, except on the trunk, where the click is the mill's and does nothing
     /// (a block would be placed inside the trunk). In creative mode, Ctrl on an unassembled mill fits
     /// its next part instead (<see cref="CreativeShortcut"/>). Decided and done on the server; the
@@ -344,7 +346,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     /// <summary>Whether a trunk refused only because the saws are not at the top can wait for them:
     /// the mill is running, its bed is empty and the player has a trunk for it.</summary>
     private bool WaitsForTop(IPlayer byPlayer) =>
-        Running && _trunk == null && !SawDepth.AtTop(_depth) && System.Logging != null && FindTrunk(byPlayer) != null;
+        Running && _trunk == null && !SawDepth.AtTop(_depth) && System.Logging != null
+        && (TrunkStations.Hands(Api) ? TrunkStations.Carried(Api, byPlayer) != null : FindTrunk(byPlayer) != null);
 
     private void StartHold(IPlayer byPlayer, HoldKind kind) =>
         _holds[byPlayer.PlayerUID] = new Hold(byPlayer, kind, Api.World.ElapsedMilliseconds);
@@ -396,7 +399,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return false;
         foreach (var hold in _holds.Values.Where(h => h.Kind == HoldKind.Load).ToList())
         {
-            if (FindTrunk(hold.Player) is not { } slot || !TryLoadFromSlot(slot, null, passedTop))
+            if (TrunkStations.Hands(Api) ? !TryLoadFromHands(hold.Player, null, passedTop)
+                : FindTrunk(hold.Player) is not { } slot || !TryLoadFromSlot(slot, null, passedTop))
                 continue;
             _holds.Remove(hold.Player.PlayerUID);
             return true;
@@ -495,8 +499,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             return true;
         }
         var trunk = _trunk;
+        if (!GiveTrunk(byPlayer, trunk))
+            return true;   // hands full: it stays
         ClearTrunk();
-        Give(byPlayer, trunk);
         Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), Pos, 0, byPlayer);
         MarkDirty(true);
         return true;
@@ -524,11 +529,14 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         return true;
     }
 
-    /// <summary>Loads the first trunk in the player's hotbar, then backpack, as Logging Expanded's
-    /// workstations find one (branched trunks are skipped while Logging Expanded requires them
-    /// debranched).</summary>
+    /// <summary>Loads the trunk the player carries in Carry On's hands, while trunks go through
+    /// hands (<see cref="TrunkStations.Hands"/>); else the first trunk in the player's hotbar, then
+    /// backpack, as Logging Expanded's workstations find one (branched trunks are skipped while
+    /// Logging Expanded requires them debranched).</summary>
     public bool TryLoadFromInventory(IPlayer byPlayer)
     {
+        if (TrunkStations.Hands(Api))
+            return TryLoadFromHands(byPlayer, byPlayer);
         if (FindTrunk(byPlayer, branchedToo: true) is { } slot)
             return TryLoadFromSlot(slot, byPlayer);
         return Error(byPlayer, "error-no-trunk");
@@ -558,6 +566,20 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             }
         }
         return branchedToo ? branched : null;
+    }
+
+    /// <summary>Loads the trunk <paramref name="player"/> carries in Carry On's hands, if the mill
+    /// takes it now (or this tick, the saws having <paramref name="passedTop"/>); why not goes to
+    /// <paramref name="errorsTo"/> (server side).</summary>
+    public bool TryLoadFromHands(IPlayer player, IPlayer? errorsTo, bool passedTop = false)
+    {
+        if (TrunkStations.Carried(Api, player) is not { } carried)
+            return Error(errorsTo, "error-no-trunk");
+        if (!CanLoad(carried, errorsTo, passedTop) || player is not IServerPlayer sp || TrunkCarry.Take(sp) is not { } trunk)
+            return false;
+        Load(trunk);
+        Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), Pos, 0, player);
+        return true;
     }
 
     private bool BranchedAndRefused(ItemStack trunk) =>
@@ -613,6 +635,24 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         _progress = 0;
     }
 
+    /// <summary>Gives a trunk taken off the mill to the player (server side): into Carry On's hands
+    /// while trunks go through hands, false with the hands-full error when they are full; with
+    /// trunk entities but no Carry On, a trunk entity beyond the infeed end; else to the inventory
+    /// as any item.</summary>
+    private bool GiveTrunk(IPlayer byPlayer, ItemStack trunk)
+    {
+        if (TrunkStations.Hands(Api))
+            return byPlayer is IServerPlayer sp && TrunkStations.GiveToHands(sp, trunk);
+        if (TrunkEntitySystem.Of(Api).Enabled && Rig is { } rig)
+        {
+            var outward = Footprint.ToWorld(rig.InfeedSide, Side).Normal();
+            if (TrunkStations.DropBeyond(Api.World, trunk, rig.InfeedNeighbours().Select(CellPos).ToList(), outward.X, outward.Z) != null)
+                return true;
+        }
+        Give(byPlayer, trunk);
+        return true;
+    }
+
     private void Give(IPlayer byPlayer, ItemStack stack)
     {
         if (!byPlayer.InventoryManager.TryGiveItemstack(stack, true))
@@ -630,8 +670,9 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
 
     /// <summary>An assembled, empty mill with its saws at the top of their cycle, turning fast
     /// enough, takes the next trunk from a Trunk Storage Rack touching its infeed end at ground
-    /// level, or the finished trunk of a feeder in line there (the rosser), unless that trunk is
-    /// branched (it waits for the player to debranch it). Tried every tick the saws are at (or
+    /// level, or the finished trunk of a feeder in line there (the rosser), or failing both a trunk
+    /// entity lying in those cells, unless that trunk is branched (it waits for the player to
+    /// debranch it). Tried every tick the saws are at (or
     /// pass) the top, and once a second besides; the rack or feeder is looked up every time.</summary>
     private void OnRackTick(float dt)
     {
@@ -646,11 +687,16 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
         }
     }
 
+    /// <summary>Takes the next trunk at the infeed end when the mill can (see <see cref="OnRackTick"/>):
+    /// a rack's or feeder's first, else a trunk entity lying in the infeed cells
+    /// (<see cref="PullFromGround"/>). Returns whether one went on.</summary>
     public bool PullFromRack(bool passedTop = false)
     {
         if (_trunk != null || !Feeding.CanTakeTrunk(_depth, passedTop) || !_parts.Complete || ShaftSpeed < Config.MinSpeed
-            || !Feeding.Pulls(CheckRack(out var ready)) || System.Logging is not { } logging)
+            || System.Logging is not { } logging)
             return false;
+        if (!Feeding.Pulls(CheckRack(out var ready)))
+            return PullFromGround(passedTop);
         var trunk = ready switch
         {
             ITrunkFeeder feeder => feeder.TakeFinished(),
@@ -664,6 +710,23 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             rackEntity.MarkDirty(true);
         Load(trunk);
         _rackState = CheckRack(out _);
+        return true;
+    }
+
+    /// <summary>A trunk entity lying in the infeed cells (<see cref="Rig.InfeedNeighbours"/>) goes
+    /// on under a rack trunk's rules: while <c>AutoPullFromRack</c> is on, not branched while
+    /// Logging Expanded requires debranching, holding logs, and with the mill able to take a trunk
+    /// now (<see cref="CanLoad"/>). Server side; returns whether one went on.</summary>
+    public bool PullFromGround(bool passedTop = false)
+    {
+        if (_trunk != null || !Config.AutoPullFromRack || Rig is not { } rig || !TrunkEntitySystem.Of(Api).Enabled)
+            return false;
+        var cells = rig.InfeedNeighbours().Select(CellPos).ToList();
+        if (TrunkStations.FindInCells(Api.World, cells, t => CanLoad(t, null, passedTop)) is not { } entity
+            || TrunkStations.TakeEntity(entity) is not { } trunk)
+            return false;
+        Load(trunk);
+        Api.World.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), Pos, 0);
         return true;
     }
 
