@@ -355,13 +355,16 @@ public class RecipeExportScenarios : AtlasScenarioBase
         Assert.Equal(woods, r["variants"]!.Select(v => (string)v["bindings"]!["wood"]!).OrderBy(w => w, StringComparer.Ordinal));
     }
 
-    // ppex's assets/ppex/blocktypes/mpfluidpump.json: exlib's ExRightClickConstructable (a
-    // subclass of the engine's behavior). Stages take plank-* x4, woodenaxle-ud, rod-* x2;
-    // metalplate-* x1, rod-* x2; pipe-straight-* x2, metalplate-* x2, metalnailsandstrips-* x2;
-    // metalplate-* x4, metalnailsandstrips-* x4. Iron and steel only, and no placeholders, so
-    // one variant. The four sides are one record.
+    // ppex's assets/ppex/blocktypes/mpfluidpump.json: exlib's ExRightClickConstructable (its own
+    // behavior since exlib 0.8, with the engine's stage fields). Stages take plank-* x4 (stores
+    // wood), woodenaxle-ud, rod-* x2; metalplate-* x1, rod-* x2; pipe-straight-ns-{metal} x2,
+    // metalplate-* x2, metalnailsandstrips-* x2; metalplate-* x4, metalnailsandstrips-* x4. The
+    // metal slots are iron or steel and store metal. The pipe's {metal} takes the value stage 2
+    // stored last (its rod), so there is a variant per metal; exlib refuses a stage paid in two
+    // metals, so in each variant stage 2's plate and rod both take only that metal. Wood is stored
+    // but never used, so it binds nothing. The four sides are one record.
     [AtlasScenario(TimeoutMs = Timeout)]
-    public void Mod_subclass_of_the_behavior_is_exported_too()
+    public void Exlib_construction_behavior_is_exported_too()
     {
         var r = Recipe("construction|ppex:mpfluidpump-north|2");
         Assert.Equal("ppex", (string)r["mod"]!);
@@ -370,16 +373,27 @@ public class RecipeExportScenarios : AtlasScenarioBase
             r["extra"]!["members"]!.Select(m => (string)m!));
         Assert.Equal(new[] { 0, 3, 2, 3, 2 }, r["construction"]!["stages"]!.Select(s => s["ingredients"]!.Count()));
         Assert.Equal(new[] { "game:plank-*", "game:woodenaxle-ud", "game:rod-*", "game:metalplate-*", "game:rod-*",
-                             "ppex:pipe-straight-*", "game:metalplate-*", "game:metalnailsandstrips-*",
+                             "ppex:pipe-straight-ns-{metal}", "game:metalplate-*", "game:metalnailsandstrips-*",
                              "game:metalplate-*", "game:metalnailsandstrips-*" },
             Codes(r["ingredients"]!).Select(c => (string)c!));
         Assert.Equal(new[] { 4.0, 1, 2, 1, 2, 2, 2, 2, 4, 4 }, r["ingredients"]!.Select(i => (double)i["quantity"]!));
-        var variant = Assert.Single(r["variants"]!);
-        Assert.Null(variant["bindings"]);
-        Assert.Equal(new[] { "game:rod-iron", "game:rod-steel" }, Codes(variant["ingredients"]![2]!).Select(c => (string)c!));
+        Assert.Equal("wood", (string)r["ingredients"]![0]!["extra"]!["storeWildCard"]!);
+
+        Assert.Equal(new[] { "iron", "steel" }, r["variants"]!.Select(v => (string)v["bindings"]!["metal"]!));
+        foreach (var metal in new[] { "iron", "steel" })
+        {
+            var slots = VariantWith(r, "metal", metal)["ingredients"]!
+                .Select(s => Codes(s).Select(c => (string)c!).ToList()).ToList();
+            Assert.Equal(new[] { "game:rod-iron", "game:rod-steel" }, slots[2]);
+            Assert.Equal(new[] { $"game:metalplate-{metal}" }, slots[3]);
+            Assert.Equal(new[] { $"game:rod-{metal}" }, slots[4]);
+            Assert.Equal(new[] { $"ppex:pipe-straight-ns-{metal}" }, slots[5]);
+            Assert.Equal(new[] { "game:metalplate-iron", "game:metalplate-steel" }, slots[6]);
+            Assert.Contains("game:plank-oak", slots[0]);
+        }
     }
 
-    /// <summary>Every block that has the behavior, or a subclass of it, is in exactly one record.</summary>
+    /// <summary>Every block that has the behavior, or a subclass of it, or exlib's, is in exactly one record.</summary>
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Every_constructable_block_is_in_one_record()
     {
@@ -387,11 +401,14 @@ public class RecipeExportScenarios : AtlasScenarioBase
         var blocks = api.World.Blocks
             .Where(b => b?.Code != null && (b.BlockEntityBehaviors ?? []).Any(beh =>
                 api.ClassRegistry.GetBlockEntityBehaviorClass(beh.Name) is { } t &&
-                typeof(BEBehaviorRightClickConstructable).IsAssignableFrom(t)))
+                (typeof(BEBehaviorRightClickConstructable).IsAssignableFrom(t)
+                 || t.FullName == "ExpandedLib.Blocks.ExRightClickConstructable")))
             .Select(b => b.Code.ToString())
             .OrderBy(c => c, StringComparer.Ordinal)
             .ToList();
         Assert.NotEmpty(blocks);
+        // exlib's behavior, its own class since exlib 0.8: fails if ppex's machines stop using it.
+        Assert.Contains("ppex:mpfluidpump-north", blocks);
         var covered = Doc["recipes"]!.Where(r => (string)r["type"]! == "construction")
             .SelectMany(r => r["extra"]?["members"]?.Select(m => (string)m!) ?? new[] { (string)r["outputs"]![0]!["code"]! })
             .OrderBy(c => c, StringComparer.Ordinal)
