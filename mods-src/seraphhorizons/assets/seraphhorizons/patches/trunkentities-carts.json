@@ -1,0 +1,12 @@
+// Trunk entities with Carry On (TrunkEntities/Game/TrunkCarry.cs): Cartwright's Caravan ships Carry
+// On's attachablecarryable on its carts and sleds disabled (its patches/carryon.json); this enables
+// it, both sides' behaviour lists, so a carried trunk goes into a cart's or sled's storage slot by
+// right click (Logging Expanded's patch gives it the look there) and comes back into the hands.
+// TrunkEntitySystem empties this file while trunk entities do not run.
+// Server side: the client gets the entity types from it.
+[
+  {"file": "cartwrightscaravan:entities/nonliving/cart.json", "op": "add", "path": "/server/behaviors/-", "value": {"code": "carryon:attachablecarryable"}, "side": "server", "dependsOn": [{"modid": "carryon"}, {"modid": "cartwrightscaravan"}]},
+  {"file": "cartwrightscaravan:entities/nonliving/cart.json", "op": "add", "path": "/client/behaviors/-", "value": {"code": "carryon:attachablecarryable"}, "side": "server", "dependsOn": [{"modid": "carryon"}, {"modid": "cartwrightscaravan"}]},
+  {"file": "cartwrightscaravan:entities/nonliving/sled.json", "op": "add", "path": "/server/behaviors/-", "value": {"code": "carryon:attachablecarryable"}, "side": "server", "dependsOn": [{"modid": "carryon"}, {"modid": "cartwrightscaravan"}]},
+  {"file": "cartwrightscaravan:entities/nonliving/sled.json", "op": "add", "path": "/client/behaviors/-", "value": {"code": "carryon:attachablecarryable"}, "side": "server", "dependsOn": [{"modid": "carryon"}, {"modid": "cartwrightscaravan"}]}
+]

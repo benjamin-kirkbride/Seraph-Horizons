@@ -14,6 +14,8 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// (<see cref="TrunkGrab"/>) or with a rope, shoved, floated; a loose trunk item entity is swapped
 /// for one as it spawns (<see cref="TrunkSpawns"/>), trunk stacks get a storage flag no inventory
 /// takes, and trunk multiblocks already placed are deleted (<see cref="OldTrunkBlocks"/>).
+/// With Carry On, a trunk is also shouldered, put down, loaded and attached to carts through it
+/// (<see cref="TrunkCarry"/>).
 ///
 /// The classes are registered on both sides whatever the setting. The server decides in
 /// <see cref="Start"/> (the <c>TrunkEntities</c> switch, Logging Expanded installed and
@@ -37,7 +39,11 @@ public class TrunkEntitySystem : ModSystem
 
     /// <summary>The feature's JSON patches (<c>patches/trunkentities-*.json</c>), emptied in
     /// <see cref="Start"/> when it is off. A patch added to the feature is listed here.</summary>
-    public static readonly List<AssetLocation> PatchAssets = [];
+    public static readonly List<AssetLocation> PatchAssets =
+    [
+        new(Domain, "patches/trunkentities-carryon.json"),
+        new(Domain, "patches/trunkentities-carts.json"),
+    ];
 
     /// <summary>The storage flag trunk stacks get: no inventory takes it.</summary>
     public const EnumItemStorageFlags NoStorage = EnumItemStorageFlags.Custom10;
@@ -47,6 +53,8 @@ public class TrunkEntitySystem : ModSystem
     private LoggingBridge? _logging;
     private bool _loggingResolved;
     private Harmony? _harmony;
+    private bool _carrying;
+    private long _speedListener;
 
     public static TrunkEntitySystem Of(ICoreAPI api) => api.ModLoader.GetModSystem<TrunkEntitySystem>();
 
@@ -93,6 +101,7 @@ public class TrunkEntitySystem : ModSystem
         _api = api;
         _config = LoadConfig(api);
         api.RegisterEntity("seraphhorizons.EntityTrunk", typeof(EntityTrunk));
+        api.RegisterEntityBehaviorClass(TrunkCarry.BehaviorCode, typeof(EntityBehaviorTrunkCarry));
         if (api.Side == EnumAppSide.Server)
         {
             Enabled = SeraphHorizonsSystem.ConfigFor(api).TrunkEntities && api.ModLoader.IsModEnabled(LeModId) && Logging != null;
@@ -109,6 +118,8 @@ public class TrunkEntitySystem : ModSystem
             DisablePatches(api);
         else if (!CarryOn)
             api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On is not installed, so trunks cannot be carried: drag or rope them");
+        else
+            _carrying = TrunkCarry.Start(api);
     }
 
     /// <summary>Empties the feature's patch files, before the game's patch loader applies them.</summary>
@@ -132,6 +143,12 @@ public class TrunkEntitySystem : ModSystem
                 count++;
             }
         api.Logger.Notification("[seraphhorizons] Trunk entities: {0} tree trunk variants fit in no inventory", count);
+        if (_carrying)
+        {
+            int racks = TrunkCarry.StripRacks(api);
+            api.Logger.Notification("[seraphhorizons] Trunk entities: {0} Trunk Storage Rack variants can no longer be carried", racks);
+            TrunkCarry.RegisterCartBypass(api);
+        }
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -146,6 +163,8 @@ public class TrunkEntitySystem : ModSystem
                 api.Event.RegisterCallback(_ => TrunkSpawns.OnEntitySpawn(api.World, item), 0);
         };
         Grabs = new TrunkGrab(api, this);
+        if (_carrying)
+            _speedListener = api.Event.RegisterGameTickListener(_ => TrunkCarry.UpdateSpeeds(api), TrunkCarry.SpeedCheckMs);
         _harmony = new Harmony(HarmonyId);
         if (!OldTrunkBlocks.Patch(_harmony, api))
             api.Logger.Warning("[seraphhorizons] Trunk entities: Logging Expanded's trunk block entity is not as expected, so placed trunks are left as they are");
@@ -160,6 +179,12 @@ public class TrunkEntitySystem : ModSystem
     {
         Grabs?.Dispose();
         Grabs = null;
+        if (_speedListener != 0)
+            (_api as ICoreServerAPI)?.Event.UnregisterGameTickListener(_speedListener);
+        _speedListener = 0;
+        if (_carrying)
+            TrunkCarry.Stop();
+        _carrying = false;
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
     }
