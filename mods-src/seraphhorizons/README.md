@@ -1247,7 +1247,7 @@ chopper. With this, the two frames and the six fitted parts take iron, meteoric 
 
 A sawmill is 48 nails and strips, 1 plate and 2 rods in all (about 16 ingots, at 4 nails and strips
 to an ingot); a chopper 24 nails and strips, 4 plates and 1 rod (about 15). Wood, resin, rope, the
-rusty gear and the tools stay as they are. The blade kit and the chopper head keep their recipes and
+carriage's gear (a steel gear with `GearConsumers`, below) and the tools stay as they are. The blade kit and the chopper head keep their recipes and
 take any metal: their metal already sets the machine's durability and speed. The bucking sawmill is
 built from two sawmill frames and 8 nails and strips of its own, and takes two sashes, a crankshaft
 and feed levers, so it comes to 72 nails and strips, 1 plate and 3 rods. The rosser is built from
@@ -1266,6 +1266,59 @@ patched file (the allowedVariants Fix is not involved: the recipe keeps its wild
 switch off, or without Immersive Woodworking, `WoodworkingMachineCosts.DisablePatches` empties the
 patch in `Start`, as for the blade kits. With the switch on, the handbook's Machines chapter
 (`UnifiedWoodworking`'s guide) gains a paragraph with the two totals, by a `LangEdit`.
+
+### Machines take the steel gear, not the rusty gear (`GearConsumers`)
+
+The gears epic (#484), its first step (#473). A rusty gear (`game:gear-rusty`) is salvage and
+money: traders still take it at its currency value, but nothing is built from one. Every recipe in
+the pack that took one takes the pack's steel gear (`seraphhorizons:gear-steel`, #474) in the same
+number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcut remains:
+
+| Mod | Recipes (steel gears per recipe) |
+|---|---|
+| The game | glider (2) |
+| Pipes and Power Expanded | Cornish engine (4), Watt engine (2), fluid pump (1), manual fluid pump (2), mechanical power generator (4), valve (2), pressure valve (4) |
+| Steelmaking Expanded | bell hopper (8), air blower (2), converter transmission (16) |
+| BetterRuins | Jonas gearbox (3, 5), oscillator (3), spring (2), gears (3, 5); the unlit Jonas lamps (1) |
+| Immersive Woodworking | sawmill carriage (1) |
+| Flying Machine | chain drive (2) |
+| Player Corpse Forked | corpse compass (4) |
+| Spinning Wheel | the wheel's mechanism (1) |
+| Sprinklers | tier one sprinkler (2), tier two (4) |
+| Butchering | temporal butcher box (16; it ships switched off) |
+
+ppex and smex give each machine two recipes, one taking the rusty gear and one ppex's gears
+(`ppex:gear-*`); the first takes the steel gear and the second is switched off. ppex's anvil gears
+and large gears (`ppex:gear-*`, `ppex:largegear-*`) are not smithed any more and are hidden from
+the creative inventory and the handbook. Smex's Bessemer converter is raised from its control block
+with a large gear in the hotbar, named in its code (`BlockEntityConverterControl.IsSpawnGear`, and
+`BlockConverterBessemer.GetDrops` gives it back when the vessel is broken): Harmony postfixes make it
+take, and give back, the steel large gear (`seraphhorizons:largegear-steel`, cut on the gear cutter,
+#480) instead, on both sides (the client checks the hotbar before it sends the click), and the
+converter's refusal and its handbook page say so. If smex has changed those methods, a warning is
+logged and the converter keeps taking ppex's large gears, which are no longer made.
+
+Left alone: the rusty gear amulet (the gear on a string, uncrafted back into it), the game's gray and
+black barrel dyes (the rust is the pigment), BetterLoot's gear parts (change: four make a gear) and
+Cartwright's rusty gear sign (decoration). The game's own Jonas devices, and Abyssal Depths, Rickety
+Translocation, Industrial Deco and the walking stick, take temporal gears or Jonas parts, no rusty
+gear, so they are not patched. Trade lists are not touched: the mechanic still lists ppex's gears.
+
+JSON patches, `patches/gearconsumers-{modid}.json`, one per mod patched, each `dependsOn` that mod
+(the game's has none), rewrite the ingredient's code or add `"enabled": false` to the recipe. With
+the switch off, `GearConsumers.DisablePatches` empties them in `Start`, as for the other patch
+tweaks, and the converter is not patched.
+
+`tools/tests/test_gear_consumers.py` reads every locked mod's recipe files from its zip in
+`build/mods` (and the game's, when `VINTAGE_STORY` is set) and fails on any ingredient taking a
+rusty or ppex gear that no patch covers and is not on its exemption list, and on any patch whose
+target has moved, so a mod update that adds a use fails it. CI runs it on the Atlas job's `rest`
+shard, where the mods are fetched; it skips without them. `tests/PackTests/GearConsumersScenarios.cs`
+(Atlas) requires every patch to apply and resolve, no registered grid or barrel recipe and no
+exported recipe of any type to take a rusty or ppex gear outside the exemptions, the patched recipes
+to take the steel gear in their numbers, ppex's gears to be neither smithed nor shown, and the
+converter to take and give back the steel large gear; `SwitchesOffScenarios` requires all of it
+undone with the switch off.
 
 ### The heating rack stays where it is put (`HeatingRackKeepsPosition`)
 

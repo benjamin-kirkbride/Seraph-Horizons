@@ -198,6 +198,12 @@ jobs:
           DOTNET_NOLOGO: "1"
         run: |
           dotnet test mods-src/seraphhorizons/tests --logger "console;verbosity=normal"
+      # GearConsumers (#473): every rusty gear use in the locked mods and the game is patched or
+      # exempt. It needs the fetched mods and VINTAGE_STORY, which the tools job does not have
+      # (there it skips), so it runs here as well.
+      - name: Every rusty gear use is patched
+        if: matrix.shard == 'rest'
+        run: python3 -m unittest -v tools/tests/test_gear_consumers.py
       - name: dotnet test
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: "1"

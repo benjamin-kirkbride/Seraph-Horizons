@@ -1,0 +1,11 @@
+// GearConsumersScenarios only: seraphhorizons:gear-steel until #474 adds the real item to the mod.
+// Delete this fixture folder (and the class's AtlasWorld Mods) once it has: two items of one code
+// fail the boot.
+{
+  "code": "gear",
+  "variantgroups": [{ "code": "metal", "states": ["steel"] }],
+  "shape": { "base": "game:item/gear-rusty" },
+  "textures": { "rusty-iron": { "base": "game:block/metal/ingot/steel" } },
+  "creativeinventory": { "general": ["*"] },
+  "maxstacksize": 64
+}

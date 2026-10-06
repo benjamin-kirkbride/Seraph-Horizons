@@ -38,6 +38,9 @@ public class SeraphHorizonsSystem : ModSystem
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
     private Harmony? _heatingRackHarmony;
+    // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
+    private Harmony? _gearConsumersHarmony;
+    private bool _gearConsumers;
     private UnifiedWoodworking? _woodworking;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
@@ -89,6 +92,11 @@ public class SeraphHorizonsSystem : ModSystem
             BarrelRackKegs.DisablePatches(api);
         if (Config(api).HeatingRackKeepsPosition && HeatingRackPosition.Applies(api) && HeatingRackPosition.Bind(api.Logger))
             HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
+        _gearConsumers = Config(api).GearConsumers;
+        if (!_gearConsumers)
+            GearConsumers.DisablePatches(api);
+        else if (GearConsumers.BessemerApplies(api) && GearConsumers.Bind(api.Logger))
+            GearConsumers.Patch(_gearConsumersHarmony = new Harmony(GearConsumers.HarmonyId));
         // Registers its classes whatever the setting; on the server, decides whether it runs and
         // tells clients; sets the two mods' settings and patches. Last, and it catches its own
         // failures, so nothing above depends on it.
@@ -188,6 +196,8 @@ public class SeraphHorizonsSystem : ModSystem
             LangText.Apply(WoodworkingMachineCosts.LangEdits, WoodworkingMachineCosts.ModId, api.Logger);
         if (_barrelRackKegs)
             LangText.Apply(BarrelRackKegs.LangEdits, BarrelRackKegs.FoodShelvesId, api.Logger);
+        if (_gearConsumers && GearConsumers.BessemerApplies(api))
+            LangText.Apply(GearConsumers.LangEdits, GearConsumers.SmexId, api.Logger);
         _woodworking?.AssetsLoaded(api);
     }
 
@@ -214,6 +224,8 @@ public class SeraphHorizonsSystem : ModSystem
         _barrelRackHarmony = null;
         _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
         _heatingRackHarmony = null;
+        _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
+        _gearConsumersHarmony = null;
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -375,6 +387,13 @@ public class SeraphHorizonsConfig
     /// <summary>Immersive Woodworking: the sawmill's and the chopper's frames and parts take iron,
     /// meteoric iron or steel, and far more nails and strips (off means its own recipes).</summary>
     public bool IronWoodworkingMachines { get; set; } = true;
+
+    /// <summary>Gears (#473): the rusty gear is salvage and money. Every recipe that took one (ppex's
+    /// and smex's machines, the glider, BetterRuins' Jonas parts and lamps, ...) takes the steel gear
+    /// in the same number, ppex's anvil gears and large gears are no longer made and are hidden, and
+    /// smex's Bessemer converter is raised with the steel large gear (off means every recipe as its
+    /// mod ships it). The server's recipes are used; both sides patch the converter.</summary>
+    public bool GearConsumers { get; set; } = true;
 
     /// <summary>The rosser: a mechanically powered ring debarker, built from a frame and Immersive
     /// Woodworking's and the game's parts, that strips the bark and branches off Logging Expanded

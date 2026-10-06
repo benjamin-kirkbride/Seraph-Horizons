@@ -10,6 +10,7 @@
   "DurableSawmillBlades": false,
   "EverythingHasAPrice": false,
   "GearboxSourceRatio": false,
+  "GearConsumers": false,
   "HeatingRackKeepsPosition": false,
   "HydrateTunRetired": false,
   "IronWoodworkingMachines": false,
