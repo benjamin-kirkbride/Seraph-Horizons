@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.BuckingSawmill;
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent.Mechanics;
@@ -24,6 +25,6 @@ public class BEBehaviorRosserMP : BEBehaviorMPConsumer
 
     public override float GetResistance() =>
         (Blockentity as BERosserGhost)?.Rosser is { Complete: true } rosser
-            ? rosser.Oiling?.Resistance(RosserSystem.Of(Api).Config.Resistance) ?? RosserSystem.Of(Api).Config.Resistance
+            ? rosser.Oiling is { } oil ? Oil.Asked(oil, RosserSystem.Of(Api).Config.Resistance, rosser) : RosserSystem.Of(Api).Config.Resistance
             : BEBehaviorMillMP.IncompleteResistance;
 }
