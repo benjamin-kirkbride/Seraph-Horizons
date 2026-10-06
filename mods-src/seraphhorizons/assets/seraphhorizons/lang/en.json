@@ -145,6 +145,7 @@
   "trunkentities-help-grab": "Hold to drag",
   "trunkentities-help-rope": "Tie a rope to it",
   "trunkentities-help-carry": "Shoulder it (very slow)",
+  "trunkentities-help-spud": "Hold to debark the whole trunk",
   "trunkentities-error-grabbed": "Someone is already dragging this trunk.",
   "trunkentities-error-too-heavy": "This trunk is too heavy to drag by hand. Tie a rope to it.",
   "trunkentities-error-too-far": "Get closer to the trunk to grab it.",
