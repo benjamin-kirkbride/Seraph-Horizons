@@ -1,0 +1,85 @@
+// The gear cutter's frame (#480; GearCutter/, README "Gear cutter"): the controller cell of a
+// 2 x 2 x 2 machine, on the operator's side at the north (gearbox) end. The server disables it with
+// GearCutter off.
+{
+	code: "gearcutter",
+	class: "seraphhorizons.GearCutter",
+	entityClass: "seraphhorizons.GearCutter",
+	// No HorizontalOrientable: BlockGearCutter.TryPlaceBlock picks the side so the cutter extends
+	// away from the player (Machines/Core/Footprint.cs, PlacedFacing), as the bucking mill does.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/gearcutter_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/gearcutter_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/gearcutter_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/gearcutter_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (gearcutter.json), which the
+	// renderer draws with this block's textures.
+	textures: {
+		"iron":        { base: "game:block/metal/plate/iron" },
+		"steel":       { base: "game:block/metal/sheet-plain/steel1" },
+		"oak":         { base: "game:block/wood/debarked/oak" },
+		"brass":       { base: "game:block/metal/sheet/brass1" },
+		"glass":       { base: "game:block/glass/plain" },
+		"leather":     { base: "game:block/leather/plain" },
+		"cupronickel": { base: "game:block/metal/sheet/cupronickel1" },
+		"gold":        { base: "game:block/metal/sheet/gold1" },
+		"temporal":    { base: "game:item/resource/temporalgear" },
+		"oil":         { base: "game:block/liquid/honey" },
+		"marble":      { base: "game:block/stone/rock/whitemarble2" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:gearcutter-handbook-assembly-title", text: "seraphhorizons:gearcutter-handbook-assembly-text" },
+				{ title: "seraphhorizons:gearcutter-handbook-work-title", text: "seraphhorizons:gearcutter-handbook-work-text" },
+				{ title: "seraphhorizons:gearcutter-handbook-oil-title", text: "seraphhorizons:gearcutter-handbook-oil-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:gearcutter-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Metal",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The shape fills the cutter's 2 x 2 x 2 footprint (native x -1..1, z 0..2 about the controller;
+	// x 0..2, z -1..1 once the -north item form turns it 180°), so the item forms are centred on it.
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.4, z: -0.6 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 1, y: 0, z: 0 },
+		scale: 0.4
+	},
+	fpHandTransform: {
+		rotation: { x: 0, y: -45, z: 0 },
+		origin: { x: 1, y: 1, z: 0 },
+		scale: 0.6
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 1, y: 1, z: 0 },
+		scale: 0.6
+	},
+	groundTransform: {
+		origin: { x: 1, y: 0, z: 0 },
+		scale: 1.2
+	},
+	maxStackSize: 1,
+	resistance: 4,
+	sounds: {
+		"place": "game:block/anvil",
+		"walk": "game:walk/stone",
+		"hit": "game:block/anvil",
+		"break": "game:block/anvil"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

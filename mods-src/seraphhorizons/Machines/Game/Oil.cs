@@ -151,13 +151,14 @@ public static class Oil
     /// it never reads 0.</summary>
     public static string Shown(double points) => Math.Ceiling(points - 1e-9).ToString("0");
 
-    /// <summary>The block info's oil lines: the tank, and while dry how much harder it turns.</summary>
-    public static void Info(OilState? state, StringBuilder dsc)
+    /// <summary>The block info's oil lines: the tank, and while dry how much harder it turns
+    /// (not for a machine whose load the oil leaves alone, <paramref name="dryLoad"/> false).</summary>
+    public static void Info(OilState? state, StringBuilder dsc, bool dryLoad = true)
     {
         if (state == null)
             return;
         dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-tank", Shown(state.Tank.Points), Shown(state.Tank.Capacity)));
-        if (state.Dry)
+        if (state.Dry && dryLoad)
             dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-dry", state.DryMultiplier.ToString("0.##")));
     }
 

@@ -10,6 +10,7 @@
   "DurableSawmillBlades": false,
   "EverythingHasAPrice": false,
   "GearBlanks": false,
+  "GearCutter": false,
   "GearReclamation": false,
   "GearboxSourceRatio": false,
   "GearConsumers": false,
