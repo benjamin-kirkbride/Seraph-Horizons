@@ -249,14 +249,21 @@ public static class TrunkCarry
             else
                 api.Logger.Warning("[seraphhorizons] Trunk entities: the game's EntityBehaviorAttachable.TryRemoveAttachment is gone, so only Carry On's key takes a trunk off a cart");
             // A trunk is Hands only: whatever puts one on a back (Carry On's swap key), it is laid down.
-            var setters = m.SetCarried.DeclaringType!.Assembly.GetTypes()
-                .Where(t => !t.IsInterface && !t.IsAbstract && m.SetCarried.DeclaringType.IsAssignableFrom(t))
-                .Select(t => AccessTools.Method(t, m.SetCarried.Name, m.SetCarried.GetParameters().Select(p => p.ParameterType).ToArray()))
-                .Where(x => x != null).ToList();
+            // The interface is CarryOnLib's and the manager Carry On's, so every loaded assembly is
+            // looked through for a class that implements it, and its own SetCarried is patched.
+            var iface = m.SetCarried.DeclaringType!;
+            var setters = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => !a.IsDynamic)
+                .SelectMany(a => { try { return a.GetTypes(); } catch (ReflectionTypeLoadException e) { return e.Types.Where(t => t != null)!; } })
+                .Where(t => t is { IsInterface: false, IsAbstract: false } && iface.IsAssignableFrom(t))
+                .Select(t => t.GetInterfaceMap(iface) is var map && Array.IndexOf(map.InterfaceMethods, m.SetCarried) is var i && i >= 0 ? map.TargetMethods[i] : null)
+                .Where(x => x != null).Distinct().ToList();
             foreach (var set in setters)
                 _harmony.Patch(set, postfix: new HarmonyMethod(typeof(TrunkCarry), nameof(SetCarriedPostfix)));
             if (setters.Count == 0)
                 api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On's carry manager has no SetCarried, so a trunk put on a back is only laid down by the periodic check");
+            else
+                api.Logger.Notification("[seraphhorizons] Trunk entities: a trunk put on a back is laid down at once ({0} SetCarried patched)", setters.Count);
             return true;
         }
     }

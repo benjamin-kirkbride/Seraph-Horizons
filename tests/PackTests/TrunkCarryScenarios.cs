@@ -350,7 +350,9 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Invoke([Enum.Parse(slotType, "Back"), stack, data]);
 
         set.Invoke(CarryManager, [player.Entity, carried, null, true]);
-        await World.Ticks(5);
+        // at once, by the SetCarried postfix: not left to the periodic check
+        Assert.Null(TrunkCarry.OnBack(player.Entity));
+        await World.Ticks(2);
 
         Assert.Null(TrunkCarry.OnBack(player.Entity));
         Assert.Null(TrunkCarry.Carried(player));
