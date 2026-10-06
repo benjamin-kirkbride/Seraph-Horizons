@@ -1,0 +1,19 @@
+// Hydrothermal district veins: seraphhorizons' SmallerDeposits switch (README.md "Ore cells",
+// docs/oregen.md "Hydrothermal districts"). Read by Ore/Game/DistrictVeinSizes.cs; the rules are
+// Ore/Core/DistrictVeins.cs. Sizes come from config/ore-sizes.json (small / typical / large).
+//
+// - veinsPerMetal: per district, the most veins (ore shoots and ladder veins) of each sized metal
+//   not in keepCount; its ore in further veins, and in horsetail lenses, is not placed. #435 asked
+//   for about 5–10 per metal per district (Interesting Ore Gen makes 40–80 of tin alone).
+// - keepCount: the metals only districts provide, which keep every vein IOG makes (still sized).
+// - gradeAllowance: ore per block over the poorest grade's; nine blocks in ten are the poorest
+//   away from a fault's rich bands.
+// - bandFloor, bandBelowSeaLevel: a sized vein is a band of heights between bandFloor and sea
+//   level less bandBelowSeaLevel, so it lies in rock wherever the land is above the sea.
+{
+  "veinsPerMetal": 8,
+  "keepCount": ["gold", "silver", "platinum", "chromium"],
+  "gradeAllowance": 1.15,
+  "bandFloor": 4,
+  "bandBelowSeaLevel": 6,
+}

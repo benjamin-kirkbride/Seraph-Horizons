@@ -1,0 +1,40 @@
+// The inn flag (#456, Trading/Visitors/): raised (placed) in or by a player-built inn, it calls
+// travelling merchants. The game's standing banner, with the Hansa keys. Right-click: what the inn
+// still lacks.
+{
+	code: "innflag",
+	class: "SeraphHorizons.InnFlag",
+	shape: { base: "game:block/wood/banner/ground" },
+	textures: {
+		"pennon1": { base: "game:block/cloth/banner/cadet-grey" },
+		"pennon2": { base: "game:block/cloth/banner/mahogany" },
+		"pennon3": { base: "game:block/cloth/banner/budgreen" },
+		"symboltop": { base: "game:block/cloth/banner/hansa/keys-top" },
+		"symbolbot": { base: "game:block/cloth/banner/hansa/keys-bottom" },
+		"white": { base: "game:block/cloth/banner/magnolia" },
+		"lead": { base: "game:block/metal/plate/lead" },
+		"aged": { base: "game:block/wood/bark/aged" },
+		"oak2": { base: "game:block/wood/debarked/oak" },
+	},
+	creativeinventory: { "general": ["*"], "decorative": ["*"] },
+	blockmaterial: "Wood",
+	lightAbsorption: 0,
+	sidesolid: { all: false },
+	sideopaque: { all: false },
+	faceCullMode: "NeverCull",
+	replaceable: 500,
+	resistance: 1.5,
+	rainPermeable: true,
+	collisionbox: { x1: 0.375, y1: 0, z1: 0.375, x2: 0.625, y2: 1, z2: 0.625 },
+	selectionbox: { x1: 0.3125, y1: 0, z1: 0.3125, x2: 0.6875, y2: 1, z2: 0.6875 },
+	combustibleProps: { burnTemperature: 600, burnDuration: 10 },
+	sounds: {
+		"place": "game:block/planks",
+		"hit": "game:block/planks",
+		"break": "game:block/planks",
+		"walk": "game:walk/wood"
+	},
+	guiTransform: { origin: { x: 0.5, y: 1.4, z: 0.5 }, scale: 0.55 },
+	tpHandTransform: { translation: { x: -0.9, y: -0.4, z: -0.6 }, rotation: { x: 0, y: 0, z: -80 }, scale: 0.6 },
+	groundTransform: { origin: { x: 0.5, y: 0, z: 0.5 }, rotation: { x: -90, y: 0, z: 0 }, scale: 2 },
+}

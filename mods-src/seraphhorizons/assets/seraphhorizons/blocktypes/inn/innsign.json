@@ -1,0 +1,61 @@
+// The inn sign (#456, Trading/Visitors/): the stall of a small inn, where no Cartwright's Caravan
+// market stall stands. The game's ground sign; it takes no text.
+{
+	code: "innsign",
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	behaviors: [{ name: "HorizontalOrientable" }],
+	shapebytype: {
+		"*-north": { base: "game:block/wood/sign", rotateY: 0 },
+		"*-east": { base: "game:block/wood/sign", rotateY: 270 },
+		"*-south": { base: "game:block/wood/sign", rotateY: 180 },
+		"*-west": { base: "game:block/wood/sign", rotateY: 90 }
+	},
+	textures: {
+		"sign": { base: "game:block/wood/sign/front" },
+		"back": { base: "game:block/wood/sign/back" },
+	},
+	creativeinventory: { "general": ["innsign-north"], "decorative": ["innsign-north"] },
+	drops: [{ type: "block", code: "innsign-north" }],
+	blockmaterial: "Wood",
+	lightAbsorption: 0,
+	sidesolid: { all: false },
+	sideopaque: { all: false },
+	faceCullMode: "NeverCull",
+	replaceable: 500,
+	resistance: 3,
+	rainPermeable: true,
+	selectionboxbytype: {
+		"*-east": { rotateY: 270, x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 },
+		"*-south": { rotateY: 180, x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 },
+		"*-west": { rotateY: 90, x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 },
+		"*": { x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 }
+	},
+	collisionboxbytype: {
+		"*-east": { rotateY: 270, x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 },
+		"*-south": { rotateY: 180, x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 },
+		"*-west": { rotateY: 90, x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 },
+		"*": { x1: 0.0625, y1: 0, z1: 0.4375, x2: 0.9375, y2: 0.875, z2: 0.625 }
+	},
+	combustibleProps: { burnTemperature: 600, burnDuration: 10 },
+	sounds: {
+		"place": "game:block/planks",
+		"hit": "game:block/planks",
+		"break": "game:block/planks",
+		"walk": "game:walk/wood"
+	},
+	tpHandTransform: {
+		translation: { x: -0.9, y: 0.1, z: -0.9 },
+		rotation: { x: 0, y: 0, z: -89 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.52
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: -90, y: 0, z: -7 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 3
+	},
+	guiTransform: { rotation: { x: -22.6, y: 135, z: 0 }, origin: { x: 0.5, y: 0.4, z: 0.5 }, scale: 1.2 },
+}

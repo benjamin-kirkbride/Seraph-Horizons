@@ -4,8 +4,14 @@
        (../TidyVariants/Core), the tweaks' own (../Core), Map Reveal's sampling, shading and
        wire format (../MapReveal/Core), creative mod tabs' planning (../CreativeModTabs/Core), the
        machines' shared rig maths, footprint and trunk path (../Machines/Core), the bucking
-       sawmill's assembly rules and cut arithmetic (../BuckingSawmill/Core) and the rosser's
-       (../Rosser/Core).
+       sawmill's assembly rules and cut arithmetic (../BuckingSawmill/Core), the rosser's
+       (../Rosser/Core), the item value table's lookup (../Trading/Values/Core), the ore
+       cells' grid, state and vein scaling (../Ore/Core), the traders' grid, regions, lists
+       and restock (../Trading/Core), standing (../Trading/Standing/Core) and their economy's
+       prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
+       (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
+       ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
+       travelling merchants' inns (../Trading/Visitors/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -32,6 +38,17 @@
     <Compile Include="../Machines/Core/**/*.cs" Link="Machines/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../BuckingSawmill/Core/**/*.cs" Link="BuckingSawmill/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Rosser/Core/**/*.cs" Link="Rosser/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../Trading/Values/Core/**/*.cs" Link="Trading/Values/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Item values (#449): the shipped table, so the tests check that it parses. -->
+    <None Include="../assets/seraphhorizons/config/item-values.json" Link="item-values.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../Ore/Core/**/*.cs" Link="Ore/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../Trading/Core/**/*.cs" Link="Trading/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Trader standing and companies (#452, #463), and the shipped tiers file. -->
+    <Compile Include="../Trading/Standing/Core/**/*.cs" Link="Trading/Standing/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/standing-tiers.json" Link="standing-tiers.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The trading economy (#450, #451): fit, prices, side budget, supply; and the shipped relations. -->
+    <Compile Include="../Trading/Economy/Core/**/*.cs" Link="Trading/Economy/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/trading/trader-relations.json" Link="trader-relations.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The bucking sawmill's shipped rig, so the tests check that it parses and is consistent,
          and every part's matrix at a grid of poses, from BuckingSawmill/tools/make_shape.py's
          reference maths. -->
@@ -48,6 +65,22 @@
           Condition="Exists('../assets/seraphhorizons/config/rosser-rig.json')" />
     <None Include="Rosser/rig-reference.json" Link="rosser-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('Rosser/rig-reference.json')" />
+    <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
+    <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Schematics (#468, #469): the table, the item type and the lang file it is held to. -->
+    <Compile Include="../Trading/Schematics/Core/**/*.cs" Link="Trading/Schematics/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/schematic-gates.json" Link="schematic-gates.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/itemtypes/schematic.json" Link="schematic-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/lang/en.json" Link="lang-en.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Standing orders and deliveries (#453, #454): generation, premiums, deadlines, state machines. -->
+    <Compile Include="../Trading/Orders/Core/**/*.cs" Link="Trading/Orders/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../Trading/Deliveries/Core/**/*.cs" Link="Trading/Deliveries/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Maps and leads at traders (#455): offer selection, tier gating, lead targets, and the shipped price table. -->
+    <Compile Include="../Trading/Maps/Core/**/*.cs" Link="Trading/Maps/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/trading/map-prices.json" Link="map-prices.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Travelling merchants (#456): inn rules, the visit cycle, the conditions. -->
+    <Compile Include="../Trading/Visitors/Core/**/*.cs" Link="Trading/Visitors/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
