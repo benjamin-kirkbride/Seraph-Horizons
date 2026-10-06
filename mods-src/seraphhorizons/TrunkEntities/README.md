@@ -370,7 +370,9 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
     taken from the hotbar and lies there as a trunk entity, with no block; and the grab: sneak
     shoulders instead, an empty hand ties the grab's rope between player and trunk, the trunk
     follows a player who steps away, letting go removes the rope, and too far refuses; another
-    player's empty hand, sneaking or not, leaves a grabbed trunk and its rope as they are.
+    player's empty hand, sneaking or not, leaves a grabbed trunk and its rope as they are; a trunk
+    as a world saves it mid-grab (the grabber's and rope's ids, the rope in its `ropetieable` list,
+    no such rope in the game) loads with the grab cleared and can be grabbed again.
   - `TrunkToolScenarios.cs`: every tool kind gets the behaviour; the axe takes a log, with a hammer
     a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from
     twelve branches; the saw cuts planks; the axe and saw refuse a branched trunk; the spud debarks

@@ -228,6 +228,44 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
+    public async Task A_grab_saved_with_a_trunk_is_cleared_when_it_loads()
+    {
+        var pos = await Floor(-40);
+        // a trunk as a world saves it mid-grab: the grabber's id, the grab's rope id, and the rope
+        // in the ropetieable's list; the session that made the rope is gone, so the game has no such cloth
+        var trunk = (EntityTrunk)W.ClassRegistry.CreateEntity(W.GetEntityType(TrunkEntitySystem.ThinCode)!);
+        trunk.WatchedAttributes.SetItemstack(EntityTrunk.TrunkKey, Trunk(6));
+        trunk.WatchedAttributes.SetLong(EntityTrunk.GrabbedByKey, 987654321);
+        trunk.WatchedAttributes.SetInt(EntityTrunk.GrabClothKey, 424242);
+        trunk.WatchedAttributes["clothIds"] = new IntArrayAttribute([424242]);
+        trunk.Pos.SetPos(pos.ToVec3d().Add(0.5, 0, 0.5));
+        Assert.True(trunk.Grabbed);
+        Assert.Null(W.Api.ModLoader.GetModSystem<ClothManager>().GetClothSystem(424242));
+        W.SpawnEntity(trunk);
+        await World.Ticks(3);
+
+        Assert.True(trunk.Alive);
+        Assert.False(trunk.Grabbed);
+        Assert.False(trunk.WatchedAttributes.HasAttribute(EntityTrunk.GrabClothKey));
+        Assert.Empty(trunk.GetBehavior<EntityBehaviorRopeTieable>()!.ClothIds?.value ?? []);
+
+        // and a player can grab it
+        var p = await World.JoinPlayer("trunkregrabber");
+        await p.TeleportTo(pos.AddCopy(2, 0, 0));
+        await World.Ticks(5);
+        var player = p.Player;
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        slot.Itemstack = null;
+        player.Entity.ServerControls.RightMouseDown = true;
+        trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        Assert.True(trunk.Grabbed);
+        Assert.Equal(player.Entity.EntityId, trunk.GrabbedBy);
+        player.Entity.ServerControls.RightMouseDown = false;
+        await World.Until(() => !trunk.Grabbed, 5000);
+        trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario]
     public async Task Another_players_empty_hand_does_not_take_a_grabbed_trunk()
     {
         var pos = await Floor(-60);
