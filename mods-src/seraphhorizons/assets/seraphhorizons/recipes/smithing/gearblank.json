@@ -1,0 +1,40 @@
+// Steel gear blanks at the anvil (#479, GearBlanks; README "Steel gear blanks"). A flat disc with a
+// bore: 36 voxels for the small blank (one ingot, 42 voxels), 84 for the large one (two ingots, put
+// on the anvil one after the other). Both are named "plate": the game's helve hammer works a
+// smithing recipe only when its name is plate or blistersteel (ItemWorkItem.GetHelveWorkableMode),
+// so with that name the helve hammer forges a blank as it forges a plate.
+[
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		name: "plate",
+		pattern: [[
+			"__###__",
+			"_#####_",
+			"#######",
+			"###_###",
+			"#######",
+			"_#####_",
+			"__###__"
+		]],
+		code: "gearblank-{metal}",
+		output: { type: "item", code: "seraphhorizons:gearblank-{metal}" }
+	},
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		name: "plate",
+		pattern: [[
+			"__######__",
+			"_########_",
+			"##########",
+			"##########",
+			"####__####",
+			"####__####",
+			"##########",
+			"##########",
+			"_########_",
+			"__######__"
+		]],
+		code: "largegearblank-{metal}",
+		output: { type: "item", code: "seraphhorizons:largegearblank-{metal}" }
+	}
+]

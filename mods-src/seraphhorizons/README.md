@@ -1372,6 +1372,56 @@ caret in the box, typing works), with an item on the cursor (still held, nothing
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
 
+### Steel gear blanks (`GearBlanks`)
+
+Stock for the gear cutter (gears epic #484, #479): `seraphhorizons:gearblank-steel`, a steel disc
+with a bore the size of the game's rusty gear (6.7 voxels across, 1.4 thick), and
+`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 4.6
+thick). Both stack (32 and 8), go on a shelf or in a display case, and can be set on the ground
+(small ones in quadrants, a large one in the middle). They sit in the creative inventory's items
+tab, the molds in its construction tab, as the game's molds do. Two ways to make one:
+
+- **Cast.** Clay-form a gear blank mold (a floor and the walls round a round cavity with a core for
+  the bore, one layer deep) or a large one (three layers deep) from blue, red or fire clay, and fire
+  it in a pit kiln or a beehive kiln as the game's tool molds fire. Pour 100 units of molten steel
+  (one ingot) into the small mold from a crucible, 200 into the large one, and right-click the blank
+  out once it has hardened; the mold stays. A mold takes steel only: there is no blank of any other
+  metal, and the game's mold refuses a metal its drop has no item for.
+- **Forged.** Smith one at the anvil from a steel ingot (36 voxels of the ingot's 42), or a large
+  one from two (84 voxels, exactly two ingots: put the second hot ingot on the work piece). The
+  helve hammer forges both, as it forges a plate.
+
+The molds are the game's own: `seraphhorizons:toolmold-{color}-{raw|fired}-{gearblank|largegearblank}`,
+on its `BlockToolMold` and `ToolMold` block entity, with the attributes its tool molds have
+(`requiredUnits` 100 and 200, `fillHeight` 1 and 3, `drop` `seraphhorizons:gearblank-{metal}`, the
+pit kiln's `combustibleProps` and the `beehivekiln` table). So the crucible pours into them as into
+any tool mold (`ILiquidMetalSink`), and Steelmaking Expanded's canal pedestal, which takes any small
+`BlockToolMold` (any but the anvil and helve hammer molds, which go on its tap), takes both and casts
+in them; by smex's source, its own patches on the tool mold (the held metal's render, a hardened
+casting handed over, an unfinished one picked up with its metal) apply to them as to the game's.
+Nothing of smex is referenced. Unlike a crucible, smex's pedestal does not check the metal against
+the mold's drop, so a canal of iron fills a gear blank mold with iron that casts nothing; smex then
+lets the mold be picked up with its metal. A crucible held over a gear blank mold with any metal
+but steel logs a warning from the game each time it asks (it resolves the drop to ask), as it does
+for the game's molds with a metal they have no item for.
+
+The handbook text is under the key the handbook builds for an item of another domain,
+`seraphhorizons:item-handbooktext-seraphhorizons:gearblank-steel`: a lang key with a colon is taken
+as it is, so the file carries the domain twice.
+
+The helve hammer works a work item only when the selected smithing recipe's name is `plate` or
+`blistersteel` (`ItemWorkItem.GetHelveWorkableMode`, which the anvil asks on every helve hit; any
+other recipe is `NotWorkable`). Both blank recipes are named `plate` (`recipes/smithing/gearblank.json`):
+the recipe's name is otherwise unused by the game, and the recipe browser's export tells them from
+the game's plate by their file. A smithing recipe takes one ingot; a second goes on the work item as
+for any recipe of more than 42 voxels, and the helve hammer finishes the large blank only once both
+are on (it moves the voxels it has into the recipe's shape, and cannot make more).
+
+All of it is assets on the game's classes (`Gears/GearBlanks.cs` holds the codes): with the switch
+off, the server marks the two item types, the two mold block types and both recipe files disabled
+before the game loads them, so neither the blanks nor the molds exist, and those already in a world
+are lost.
+
 ## Ore
 
 The ore overhaul (epic #435), in `Ore/`: where deposits generate, the gravel fields that give the
@@ -2160,6 +2210,18 @@ quantities and metals, and `ItemExportScenarios` its Machines guide to give the 
 switch off, `SwitchesOffScenarios` requires Immersive Woodworking's own counts, of any metal, and
 the chapter without the paragraph. When these fail after an Immersive Woodworking update, compare
 its `recipes/grid/sawmill_*.json` and `chopper_*.json` with the patch.
+
+`tests/PackTests/GearBlankScenarios.cs` (Atlas) requires both blanks to stack, be ground storable
+and be named; both molds to be clay-formed from each clay (two and four layers) and fire, in a pit
+kiln and in the beehive kiln's four levels, to fired molds of the same kind; a fired mold placed in
+the world to refuse copper, take steel 100 units at a time as a crucible pours it, give nothing while
+hot, and give the blank to a player's empty hand once hardened, through the block's own right-click;
+Steelmaking Expanded's `MoldKinds.FitsPedestal` to take both molds on its canal pedestal (and not the
+game's anvil mold); the two smithing recipes to take steel and not iron, at 36 and 84 voxels, named `plate`; the helve
+hammer, hit by hit on a steel anvil, to finish the small blank from one ingot and the large one from
+two but not from one; and the export to carry both smithing recipes, both clay-forming recipes, the
+raw molds' firing and the blanks' handbook text. With the switch off, `SwitchesOffScenarios`
+requires no blank, no mold and no recipe for either.
 
 `tests/PackTests/HeatingRackScenarios.cs` (Atlas, `WoodworkingScenarios`) places a heating rack, takes
 its stack from `OnPickBlock` and places it elsewhere through the block's own `TryPlaceBlock`, as
