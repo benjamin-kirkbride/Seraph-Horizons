@@ -1,3 +1,4 @@
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.TrunkEntities.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -10,23 +11,23 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 
 /// <summary>
 /// The rope-less grab, server side: a right-click with an empty hand on a trunk entity (not
-/// sneaking, which is Carry On's) pins a game rope, with no rope item, between the player's hand
-/// and the trunk, made as the game's rope item makes one (<c>ItemRope</c>) and tied to the trunk
-/// through its <c>ropetieable</c> behaviour, so the game's own pull drags it: harder the lighter it
-/// is. The grab holds while the player keeps the right button down with an empty hand and stays
-/// within <see cref="TrunkEntityConfig.GrabRange"/> of the trunk; letting go, wandering off, dying,
-/// leaving the game or the trunk going ends it, and the rope goes with it. One grab per player and
-/// one per trunk. A rope tied the ordinary way, with a rope item, is the game's and untouched.
+/// sneaking, which is Carry On's) takes the trunk by its end nearer the click, and while the
+/// player keeps the right button down with an empty hand within
+/// <see cref="TrunkEntityConfig.GrabRange"/>, every tick the trunk turns its grabbed end towards
+/// the hand and is pushed after it (<see cref="TrunkPull"/>), harder the lighter it is, through its
+/// own physics so it still collides. Nothing is drawn and no rope exists: no cloth system, no
+/// <c>ropetieable</c>. Letting go, wandering off, dying, leaving the game or the trunk going ends
+/// it. One grab per player and one per trunk. A trunk with a real rope tied to it is not grabbed.
 /// </summary>
 public sealed class TrunkGrab : IDisposable
 {
-    /// <summary>How often grabs are checked, milliseconds.</summary>
-    public const int CheckMs = 100;
+    /// <summary>How often grabs are checked and pulled, milliseconds (about every server tick).</summary>
+    public const int TickMs = 20;
 
-    /// <summary>The rope's shortest length (the game's minimum).</summary>
-    public const double MinRope = 1.5;
+    /// <summary>How much of the gap to the pull's motion is closed each tick (0..1).</summary>
+    public const double Blend = 0.5;
 
-    private sealed record Hold(IServerPlayer Player, EntityTrunk Trunk, int ClothId);
+    private sealed record Hold(IServerPlayer Player, EntityTrunk Trunk, int End);
 
     private readonly ICoreServerAPI _api;
     private readonly TrunkEntitySystem _system;
@@ -37,13 +38,14 @@ public sealed class TrunkGrab : IDisposable
     {
         _api = api;
         _system = system;
-        _listener = api.Event.RegisterGameTickListener(_ => Check(), CheckMs);
+        _listener = api.Event.RegisterGameTickListener(Tick, TickMs);
         api.Event.PlayerDisconnect += OnLeave;
         api.Event.PlayerDeath += OnDeath;
     }
 
     /// <summary>Whether a click is a grab: an empty hand, not sneaking (Carry On's), and the trunk
-    /// has no rope of the game's own tied to it (an empty hand takes that rope, as the game does).</summary>
+    /// has no rope of the game's own tied to it (an empty hand takes that rope, as the game does).
+    /// Side-independent, so the client also keeps a grab click from <c>ropetieable</c>.</summary>
     public static bool Wants(EntityAgent byEntity, ItemSlot? slot, EntityTrunk trunk) =>
         byEntity is EntityPlayer && (slot == null || slot.Empty)
         && !byEntity.Controls.ShiftKey && !byEntity.Controls.Sneak
@@ -54,8 +56,9 @@ public sealed class TrunkGrab : IDisposable
         var ids = trunk.GetBehavior<EntityBehaviorRopeTieable>()?.ClothIds?.value;
         if (ids == null || ids.Length == 0)
             return false;
-        int grab = trunk.WatchedAttributes.GetInt(EntityTrunk.GrabClothKey);
-        return ids.Any(id => id != grab);
+        // An old save's grab rope (GrabClothKey) is not a real one; ClearStale removes it.
+        int legacy = trunk.WatchedAttributes.GetInt(EntityTrunk.GrabClothKey);
+        return ids.Any(id => id != legacy);
     }
 
     /// <summary>Whether this session's grabs hold <paramref name="trunk"/>.</summary>
@@ -64,9 +67,11 @@ public sealed class TrunkGrab : IDisposable
     /// <summary>The trunk <paramref name="player"/> holds, or null.</summary>
     public EntityTrunk? HeldBy(IPlayer player) => _byPlayer.TryGetValue(player.PlayerUID, out var hold) ? hold.Trunk : null;
 
-    /// <summary>Starts <paramref name="player"/>'s grab on <paramref name="trunk"/>; false, with an
-    /// in-game error, when it may not.</summary>
-    public bool TryStart(IServerPlayer player, EntityTrunk trunk)
+    /// <summary>Starts <paramref name="player"/>'s grab on <paramref name="trunk"/> by the end
+    /// nearer <paramref name="hit"/> (the clicked point, or the player when null); false, with an
+    /// in-game error, when it may not. Calling it again for the trunk already held changes
+    /// nothing, so the game's repeated interact while the button is held is harmless.</summary>
+    public bool TryStart(IServerPlayer player, EntityTrunk trunk, Vec3d? hit = null)
     {
         var agent = player.Entity;
         if (agent == null || !trunk.Alive)
@@ -86,28 +91,16 @@ public sealed class TrunkGrab : IDisposable
         var hand = HandPoint(agent);
         if (trunk.DistanceTo(hand) > _system.Config.GrabRange)
             return Refuse(player, "too-far");
-        var tieable = trunk.GetBehavior<EntityBehaviorRopeTieable>();
-        var cloth = _api.ModLoader.GetModSystem<ClothManager>();
-        if (tieable == null || cloth == null)
-            return false;
 
-        // A rope from the hand towards the trunk's middle, a block shorter than the reach so it
-        // pulls before the grab is lost: the game pulls only once the rope is stretched.
-        var middle = trunk.Pos.XYZ.Add(0, 0.5, 0);
-        double length = Math.Clamp(hand.DistanceTo(middle), MinRope, Math.Max(MinRope, _system.Config.GrabRange - 1));
-        var towards = middle.SubCopy(hand);
-        double span = towards.Length();
-        var end = span < 1e-3 ? hand.AddCopy(0, 0, length) : hand.AddCopy(towards.X / span * length, towards.Y / span * length, towards.Z / span * length);
-        var sys = ClothSystem.CreateRope(_api, cloth, hand, end, null);
-        sys.FirstPoint.PinTo(agent, HandOffset(agent));
-        cloth.RegisterCloth(sys);
-        tieable.Attach(sys, sys.LastPoint);
-        sys.WalkPoints(p => p.update(0, _api.World));
-        sys.setRenderCenterPos();
+        // The hit is a world position; should a caller hand over one relative to the trunk, it
+        // is far from the trunk, so it is taken as relative.
+        var at = hit ?? agent.Pos.XYZ;
+        if (hit != null && hit.SquareDistanceTo(trunk.Pos.XYZ) > 64)
+            at = trunk.Pos.XYZ.Add(hit);
+        int end = TrunkPull.NearerEnd(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, at.X, at.Z);
 
-        _byPlayer[player.PlayerUID] = new Hold(player, trunk, sys.ClothId);
+        _byPlayer[player.PlayerUID] = new Hold(player, trunk, end);
         trunk.WatchedAttributes.SetLong(EntityTrunk.GrabbedByKey, agent.EntityId);
-        trunk.WatchedAttributes.SetInt(EntityTrunk.GrabClothKey, sys.ClothId);
         return true;
     }
 
@@ -117,31 +110,16 @@ public sealed class TrunkGrab : IDisposable
         return false;
     }
 
-    /// <summary>Ends <paramref name="playerUid"/>'s grab, if any: the rope is untied and removed.</summary>
+    /// <summary>Ends <paramref name="playerUid"/>'s grab, if any.</summary>
     public void Release(string playerUid)
     {
-        if (!_byPlayer.Remove(playerUid, out var hold))
-            return;
-        var cloth = _api.ModLoader.GetModSystem<ClothManager>();
-        var sys = cloth?.GetClothSystem(hold.ClothId);
-        var tieable = hold.Trunk.GetBehavior<EntityBehaviorRopeTieable>();
-        if (sys != null)
-        {
-            tieable?.Detach(sys);
-            sys.WalkPoints(p =>
-            {
-                if (p.Pinned)
-                    p.UnPin();
-            });
-            cloth!.UnregisterCloth(sys.ClothId);
-        }
-        else
-            tieable?.ClothIds?.RemoveInt(hold.ClothId);
-        ClearMarks(hold.Trunk);
+        if (_byPlayer.Remove(playerUid, out var hold))
+            ClearMarks(hold.Trunk);
     }
 
-    /// <summary>Clears a grab the trunk was saved with (the session that made it is gone): its
-    /// rope, if the game still has it, and the trunk's marks.</summary>
+    /// <summary>Clears a grab the trunk was saved with (the session that made it is gone): the
+    /// trunk's marks and, from a save made when the grab was a game rope, that rope's cloth id
+    /// (and the rope itself, if the game still has it).</summary>
     public static void ClearStale(EntityTrunk trunk)
     {
         int id = trunk.WatchedAttributes.GetInt(EntityTrunk.GrabClothKey);
@@ -170,11 +148,10 @@ public sealed class TrunkGrab : IDisposable
         trunk.WatchedAttributes.RemoveAttribute(EntityTrunk.GrabClothKey);
     }
 
-    private void Check()
+    private void Tick(float dt)
     {
         if (_byPlayer.Count == 0)
             return;
-        var cloth = _api.ModLoader.GetModSystem<ClothManager>();
         foreach (var (uid, hold) in _byPlayer.ToList())
         {
             var agent = hold.Player.Entity;
@@ -183,22 +160,57 @@ public sealed class TrunkGrab : IDisposable
                         && agent.ServerControls.RightMouseDown
                         && hold.Player.InventoryManager.ActiveHotbarSlot is not { Empty: false }
                         && hold.Trunk.Alive
-                        && cloth?.GetClothSystem(hold.ClothId) != null
                         && hold.Trunk.DistanceTo(HandPoint(agent)) <= _system.Config.GrabRange;
             if (!keep)
                 Release(uid);
+            else
+                Pull(hold, HandPoint(agent), dt);
         }
+    }
+
+    // One tick of the pull: the trunk turns so its grabbed end leads, from the far end towards
+    // the hand, then is pushed after the hand.
+    private static void Pull(Hold hold, Vec3d hand, float dt)
+    {
+        var trunk = hold.Trunk;
+        var pos = trunk.Pos;
+        double length = TrunkBox.Size(trunk.TypeClass).Length;
+        float weight = trunk.LandWeight;
+        bool afloat = trunk.Afloat;
+        var (ex, ez) = TrunkPull.EndPos(pos.X, pos.Z, pos.Yaw, length, hold.End);
+        double dist = Math.Sqrt((hand.X - ex) * (hand.X - ex) + (hand.Z - ez) * (hand.Z - ez));
+        if (dist <= TrunkPull.Slack)
+            return;
+
+        var (fx, fz) = TrunkPull.EndPos(pos.X, pos.Z, pos.Yaw, length, -hold.End);
+        double target = TrunkPull.YawFacing(hand.X - fx, hand.Z - fz, hold.End);
+        pos.Yaw = (float)TrunkPull.StepYaw(pos.Yaw, target, TrunkPull.TurnStep(dist, weight, dt, afloat));
+
+        (ex, ez) = TrunkPull.EndPos(pos.X, pos.Z, pos.Yaw, length, hold.End);
+        double dx = hand.X - ex, dz = hand.Z - ez, d = Math.Sqrt(dx * dx + dz * dz);
+        if (d < 1e-6)
+            return;
+        // Motion is blocks per 1/60 s in the game's physics.
+        double speed = TrunkPull.Speed(d, weight, afloat) / 60;
+        ApplyPull(trunk, dx / d * speed, dz / d * speed);
+    }
+
+    /// <summary>The one place the pull moves a trunk: eases its horizontal motion towards
+    /// (<paramref name="mx"/>, <paramref name="mz"/>), blocks per 1/60 s, and leaves the rest to
+    /// its <c>passivephysicsmultibox</c>, so it still collides. Stepping up a rise is the trunk's
+    /// own (<c>EntityTrunk.StepUp</c>), from the motion left here, so a rope's pull gets it too.</summary>
+    private static void ApplyPull(EntityTrunk trunk, double mx, double mz)
+    {
+        var motion = trunk.Pos.Motion;
+        motion.X += (mx - motion.X) * Blend;
+        motion.Z += (mz - motion.Z) * Blend;
     }
 
     private void OnLeave(IServerPlayer player) => Release(player.PlayerUID);
 
     private void OnDeath(IServerPlayer player, DamageSource? source) => Release(player.PlayerUID);
 
-    // Where the rope's hand end is, as the game's rope item pins it.
-    private static Vec3f HandOffset(EntityAgent agent) =>
-        new Vec3d(0, agent.LocalEyePos.Y - 0.3, 0).AheadCopy(0.1, agent.Pos.Pitch, agent.Pos.Yaw)
-            .AheadCopy(0.4, agent.Pos.Pitch, agent.Pos.Yaw - MathF.PI / 2).ToVec3f();
-
+    // The hand, as the game's rope item pins a rope to it.
     private static Vec3d HandPoint(EntityAgent agent) => agent.Pos.XYZ.Add(0, agent.LocalEyePos.Y - 0.3, 0);
 
     public void Dispose()

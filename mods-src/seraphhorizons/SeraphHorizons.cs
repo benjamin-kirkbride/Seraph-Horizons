@@ -527,7 +527,8 @@ public class SeraphHorizonsConfig
     /// felled tree leaves a trunk lying on the ground as an entity, which you drag with a rope or by
     /// holding the right mouse button on it with an empty hand, shove by walking into it, float down
     /// rivers, or shoulder very slowly with Carry On; its weight grows with its logs. Loose trunk
-    /// items are turned into trunk entities, trunk stacks fit in no inventory, and trunks already
+    /// items are turned into trunk entities, no survival player is given a trunk stack (one
+    /// already in a slot still moves and can be thrown out), and trunks already
     /// placed as blocks are deleted when they load, nothing returned (needs Logging Expanded; Carry
     /// On is optional; off means trunks are as Logging Expanded ships them). The server's setting
     /// decides; a client follows the server.</summary>
