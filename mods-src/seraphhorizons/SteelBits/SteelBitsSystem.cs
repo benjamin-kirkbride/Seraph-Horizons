@@ -62,8 +62,10 @@ public class SteelBitsSystem : ModSystem
     {
         if (!On(api))
         {
-            // Before the game's patch loader (AssetsLoaded) and recipe loader (later still).
-            Disable(api);
+            // Before the game's patch loader (AssetsLoaded) and recipe loader (later still). On the
+            // server only: a client has no assets in Start (the game throws on reading one).
+            if (api.Side == EnumAppSide.Server)
+                Disable(api);
             return;
         }
         // Once per process: in singleplayer the other side's system may have patched already.

@@ -103,7 +103,7 @@ public class SeraphHorizonsSystem : ModSystem
             HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
         _gearConsumers = Config(api).GearConsumers;
         if (!_gearConsumers)
-            GearConsumers.DisablePatches(api);
+            DisablePatches(GearConsumers.DisablePatches);
         else if (GearConsumers.BessemerApplies(api) && GearConsumers.Bind(api.Logger))
             GearConsumers.Patch(_gearConsumersHarmony = new Harmony(GearConsumers.HarmonyId));
         // Registers its classes whatever the setting; on the server, decides whether it runs and

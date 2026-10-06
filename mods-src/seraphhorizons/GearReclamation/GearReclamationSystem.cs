@@ -57,8 +57,9 @@ public class GearReclamationSystem : ModSystem
     {
         _api = api;
         api.RegisterItemClass(GearClass, typeof(ItemReclaimedGear));
-        // Before the game's patch loader, which applies the patches in AssetsLoaded.
-        if (!On && api.Assets.TryGet(PatchAsset) is { } patch)
+        // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
+        // only: a client has no assets in Start (the game throws on reading one).
+        if (!On && api.Side == EnumAppSide.Server && api.Assets.TryGet(PatchAsset) is { } patch)
             patch.Data = "[]"u8.ToArray();
     }
 
