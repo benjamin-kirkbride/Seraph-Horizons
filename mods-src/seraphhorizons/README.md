@@ -7,7 +7,10 @@ modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphh
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
 terrain on the world map, and two machines: the bucking sawmill, which cuts tree trunks into logs,
-and the rosser, which strips their branches and bark first; ore cells, which spread each metal's
+and the rosser, which strips their branches and bark first; the gears (#484): rusty gears reclaimed
+into steel gears through the pot, the pickling tub and the barrel (`GearReclamation`), every machine
+recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`) and
+steel gear blanks for the coming gear cutter (`GearBlanks`); ore cells, which spread each metal's
 deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools. These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
@@ -1216,10 +1219,10 @@ machines' ground pull, old worlds, the settings table, the tests and what is not
 
 ### Gear reclamation (`GearReclamation`, `GearReclamationSettings`)
 
-The gears epic (#484), its first steps: the gear items (#474), degreasing (#475), and neutralizing,
-oiling and the roll (#477); the pickling tub that sits between them, the brine bath, the consumer
-patches, bits recovery and the cutter are separate steps. Rusty gears are salvage. They are reclaimed
-a batch at a time into steel gears, one in ten sound, the rest steel bits:
+The gears epic (#484): the gear items (#474), degreasing (#475), and neutralizing, oiling and the
+roll (#477). The pickling tub and brine bath, the consumer patches, steel bits recovery and the gear
+blanks follow in sections of their own; the gear cutter is still to come. Rusty gears are salvage.
+They are reclaimed a batch at a time into steel gears, one in ten sound, the rest steel bits:
 
 | Step | Where | In | Out |
 |---|---|---|---|
@@ -1294,10 +1297,10 @@ mods' recipes name them, but the three steps' recipes are left out, oiled gears 
 the rusty gear has no salvage section and the guide page is hidden (from the client's handbook, and
 from the recipe export through the hidden guides key, as machine oil does).
 
-### The pickling tub and the brine bath (`GearReclamation`, `PicklingTubSettings`)
+### The pickling tub and the brine bath (`PicklingTubSettings`)
 
-Part of gear reclamation (#484): the tub is its pickling step (#476) and the end game's brine bath
-(#482). `seraphhorizons:picklingtub` is a wooden tub lined with pitch, one block, open at the top,
+Part of gear reclamation (#484), under its switch: the tub is its pickling step (#476) and the end
+game's brine bath (#482). `seraphhorizons:picklingtub` is a wooden tub lined with pitch, one block, open at the top,
 crafted from six boards, a nails and strips and two of Immersive Woodworking's bark tar
 (`immersivewoodworking:barktar`, the lining); without Immersive Woodworking the tub has no recipe.
 It holds one liquid, up to `CapacityLitres` (10), and one batch of up to `BatchSize` (8) gears, and
@@ -1366,61 +1369,6 @@ fills a tub with each acid and brine, adds gears, ages the batch by moving its s
 it out early, at done and eaten; rusts steel gears both ways; and counts the over-rusted share of
 320 gears. `SwitchesOffScenarios` requires no tub, bare gear or recipe with the switch off.
 
-### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
-
-Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
-(`immersivewoodworking:sawmillblade-{metal}`) have three times its durability: gold 210, silver
-270, copper 750, tin bronze 1200, bismuth bronze 1350, black bronze 1500, iron 2700, meteoric iron
-3600, steel 6750. The bucking sawmill wears its kit by one for every log in a trunk it cuts, so a
-copper kit lasts 750 logs. The durability is the item's, so Immersive Woodworking's own plank
-sawmill's kits last three times as long too, as does the assembled creative sawmill's steel kit
-(`AssembledMachinesInCreative`, which places a new kit of the item).
-
-A JSON patch, `patches/sawmillblade-durability.json`, replaces each value of the blade's
-`durabilitybytype` (server side; clients get the items from the server). With the switch off, or
-without Immersive Woodworking, `SawmillBladeDurability.DisablePatches` empties it in `Start`, before
-the game's patch loader runs, as for the tun patches.
-
-### The woodworking machines are iron work (`IronWoodworkingMachines`)
-
-Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill and chopper take any metal and
-little of it: 8 nails and strips and a plate for a sawmill, 2 nails and strips and 4 plates for a
-chopper. With this, the two frames and the six fitted parts take iron, meteoric iron or steel
-(nails and strips, plates and rods alike) and many more nails and strips:
-
-| Part | Immersive Woodworking | With the switch on |
-|---|---|---|
-| Sawmill frame | no metal | 8 nails and strips (in place of one of 3 planks) |
-| Saw sash | 4 nails and strips | 16 nails and strips, 1 rod |
-| Sawmill crankshaft | 2 nails and strips | 8 nails and strips, 1 rod |
-| Sawmill feed levers | 2 nails and strips, 1 plate | 8 nails and strips, 1 plate |
-| Sawmill carriage | no metal (a rusty gear) | 8 nails and strips (in place of 2 of 6 planks) |
-| Chopper frame | 2 plates | 8 nails and strips (in place of one of 5 beams), 2 plates |
-| Chopper drive | 1 nails and strips, 1 plate | 8 nails and strips, 1 plate, 1 rod |
-| Chopper arm | 1 nails and strips, 1 plate | 8 nails and strips, 1 plate |
-
-A sawmill is 48 nails and strips, 1 plate and 2 rods in all (about 16 ingots, at 4 nails and strips
-to an ingot); a chopper 24 nails and strips, 4 plates and 1 rod (about 15). Wood, resin, rope, the
-carriage's gear (a steel gear with `GearConsumers`, below) and the tools stay as they are. The blade kit and the chopper head keep their recipes and
-take any metal: their metal already sets the machine's durability and speed. The bucking sawmill is
-built from two sawmill frames and 8 nails and strips of its own, and takes two sashes, a crankshaft
-and feed levers, so it comes to 72 nails and strips, 1 plate and 3 rods. The rosser is built from
-four sawmill frames and 32 nails and strips, and takes a crankshaft and feed levers, 80 nails and
-strips, 1 plate and 1 rod; its fitted hoops, rods and plates come on top. The two frames' own nails
-and strips, and the rosser's fitted hoops, rods and plates, follow the same metal rule while this
-switch is on (the patch file's last entries put `allowedVariants` on the two frame recipes), and
-take any metal with it off. So the sawmill is no longer a copper
-age machine; the chopper already needed iron for its bed, the advanced splitting block
-(`UnifiedWoodworking`).
-
-A JSON patch, `patches/woodworking-machine-costs.json`, rewrites the eight recipe files. Immersive
-Woodworking ships them disabled and registers each recipe itself from the file, after the patch
-loader, so the registered recipe has the pattern, the quantities and the `allowedVariants` of the
-patched file (the allowedVariants Fix is not involved: the recipe keeps its wildcards). With the
-switch off, or without Immersive Woodworking, `WoodworkingMachineCosts.DisablePatches` empties the
-patch in `Start`, as for the blade kits. With the switch on, the handbook's Machines chapter
-(`UnifiedWoodworking`'s guide) gains a paragraph with the two totals, by a `LangEdit`.
-
 ### Machines take the steel gear, not the rusty gear (`GearConsumers`)
 
 The gears epic (#484), its first step (#473). A rusty gear (`game:gear-rusty`) is salvage and
@@ -1468,29 +1416,11 @@ tweaks, and the converter is not patched.
 rusty or ppex gear that no patch covers and is not on its exemption list, and on any patch whose
 target has moved, so a mod update that adds a use fails it. CI runs it on the Atlas job's `rest`
 shard, where the mods are fetched; it skips without them. `tests/PackTests/GearConsumersScenarios.cs`
-(Atlas) requires every patch to apply and resolve, no registered grid or barrel recipe and no
+(Atlas, `SharedWorldScenarios`) requires every patch to apply and resolve, no registered grid or barrel recipe and no
 exported recipe of any type to take a rusty or ppex gear outside the exemptions, the patched recipes
 to take the steel gear in their numbers, ppex's gears to be neither smithed nor shown, and the
 converter to take and give back the steel large gear; `SwitchesOffScenarios` requires all of it
 undone with the switch off.
-
-### The heating rack stays where it is put (`HeatingRackKeepsPosition`)
-
-Logging Expanded (`loggingmod` 0.3.6). Its Trunk Heating Rack (`loggingmod:resinrack-*`,
-`BlockResinRack`, block entity `BEResinRack`) keeps its trunk and resin when picked up: its
-`OnPickBlock` writes the block entity's whole tree into the stack, and its `DoPlaceBlock` loads that
-tree back into the new block entity. The tree includes the base `BlockEntity`'s `posx`, `posy` and
-`posz`, so a rack placed from that stack has a block entity whose `Pos` is where it was picked up
-(#374): its firepit check and dirty-marking go to the old spot. Carry On builds its carried stack
-from `OnPickBlock`; its server puts the block entity right after the place-down, its client does
-not, and a creative pick and place has nothing to put it right.
-
-`HeatingRackPosition` (Harmony, on both sides, once per process with its own id) postfixes
-`OnPickBlock` to take the three keys out of the stack it returns, and prefixes `DoPlaceBlock` to take
-them out of the stack being placed: racks already picked up before the tweak, in inventories or
-creative hotbars, still carry them. With no position in the tree, `BEResinRack.FromTreeAttributes`
-keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
-warning and leaves the rack as it ships.
 
 ### Steel bits back into steel (`SteelBitsRecovery`)
 
@@ -1546,6 +1476,129 @@ With the switch off nothing is patched, the coffin refuses bits as the game does
 the steel bit's section are left out (the patch file emptied and the recipe disabled in `Start`),
 and smex's setting is as its file says. Packed steel bits made before still go into a coffin by
 their own attribute.
+
+### Steel gear blanks (`GearBlanks`)
+
+Stock for the gear cutter (gears epic #484, #479): `seraphhorizons:gearblank-steel`, a steel disc
+with a bore the size of the game's rusty gear (6.7 voxels across, 1.4 thick), and
+`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 4.6
+thick). Both stack (32 and 8), go on a shelf or in a display case, and can be set on the ground
+(small ones in quadrants, a large one in the middle). They sit in the creative inventory's items
+tab, the molds in its construction tab, as the game's molds do. Two ways to make one:
+
+- **Cast.** Clay-form a gear blank mold (a floor and the walls round a round cavity with a core for
+  the bore, one layer deep) or a large one (three layers deep) from blue, red or fire clay, and fire
+  it in a pit kiln or a beehive kiln as the game's tool molds fire. Pour 100 units of molten steel
+  (one ingot) into the small mold from a crucible, 200 into the large one, and right-click the blank
+  out once it has hardened; the mold stays. A mold takes steel only: there is no blank of any other
+  metal, and the game's mold refuses a metal its drop has no item for.
+- **Forged.** Smith one at the anvil from a steel ingot (36 voxels of the ingot's 42), or a large
+  one from two (84 voxels, exactly two ingots: put the second hot ingot on the work piece). The
+  helve hammer forges both, as it forges a plate.
+
+The molds are the game's own: `seraphhorizons:toolmold-{color}-{raw|fired}-{gearblank|largegearblank}`,
+on its `BlockToolMold` and `ToolMold` block entity, with the attributes its tool molds have
+(`requiredUnits` 100 and 200, `fillHeight` 1 and 3, `drop` `seraphhorizons:gearblank-{metal}`, the
+pit kiln's `combustibleProps` and the `beehivekiln` table). So the crucible pours into them as into
+any tool mold (`ILiquidMetalSink`), and Steelmaking Expanded's canal pedestal, which takes any small
+`BlockToolMold` (any but the anvil and helve hammer molds, which go on its tap), takes both and casts
+in them; by smex's source, its own patches on the tool mold (the held metal's render, a hardened
+casting handed over, an unfinished one picked up with its metal) apply to them as to the game's.
+Nothing of smex is referenced. Unlike a crucible, smex's pedestal does not check the metal against
+the mold's drop, so a canal of iron fills a gear blank mold with iron that casts nothing; smex then
+lets the mold be picked up with its metal. A crucible held over a gear blank mold with any metal
+but steel logs a warning from the game each time it asks (it resolves the drop to ask), as it does
+for the game's molds with a metal they have no item for.
+
+The handbook text is under the key the handbook builds for an item of another domain,
+`seraphhorizons:item-handbooktext-seraphhorizons:gearblank-steel`: a lang key with a colon is taken
+as it is, so the file carries the domain twice.
+
+The helve hammer works a work item only when the selected smithing recipe's name is `plate` or
+`blistersteel` (`ItemWorkItem.GetHelveWorkableMode`, which the anvil asks on every helve hit; any
+other recipe is `NotWorkable`). Both blank recipes are named `plate` (`recipes/smithing/gearblank.json`):
+the recipe's name is otherwise unused by the game, and the recipe browser's export tells them from
+the game's plate by their file. A smithing recipe takes one ingot; a second goes on the work item as
+for any recipe of more than 42 voxels, and the helve hammer finishes the large blank only once both
+are on (it moves the voxels it has into the recipe's shape, and cannot make more).
+
+All of it is assets on the game's classes (`Gears/GearBlanks.cs` holds the codes): with the switch
+off, the server marks the two item types, the two mold block types and both recipe files disabled
+before the game loads them, so neither the blanks nor the molds exist, and those already in a world
+are lost.
+
+### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
+
+Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
+(`immersivewoodworking:sawmillblade-{metal}`) have three times its durability: gold 210, silver
+270, copper 750, tin bronze 1200, bismuth bronze 1350, black bronze 1500, iron 2700, meteoric iron
+3600, steel 6750. The bucking sawmill wears its kit by one for every log in a trunk it cuts, so a
+copper kit lasts 750 logs. The durability is the item's, so Immersive Woodworking's own plank
+sawmill's kits last three times as long too, as does the assembled creative sawmill's steel kit
+(`AssembledMachinesInCreative`, which places a new kit of the item).
+
+A JSON patch, `patches/sawmillblade-durability.json`, replaces each value of the blade's
+`durabilitybytype` (server side; clients get the items from the server). With the switch off, or
+without Immersive Woodworking, `SawmillBladeDurability.DisablePatches` empties it in `Start`, before
+the game's patch loader runs, as for the tun patches.
+
+### The woodworking machines are iron work (`IronWoodworkingMachines`)
+
+Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill and chopper take any metal and
+little of it: 8 nails and strips and a plate for a sawmill, 2 nails and strips and 4 plates for a
+chopper. With this, the two frames and the six fitted parts take iron, meteoric iron or steel
+(nails and strips, plates and rods alike) and many more nails and strips:
+
+| Part | Immersive Woodworking | With the switch on |
+|---|---|---|
+| Sawmill frame | no metal | 8 nails and strips (in place of one of 3 planks) |
+| Saw sash | 4 nails and strips | 16 nails and strips, 1 rod |
+| Sawmill crankshaft | 2 nails and strips | 8 nails and strips, 1 rod |
+| Sawmill feed levers | 2 nails and strips, 1 plate | 8 nails and strips, 1 plate |
+| Sawmill carriage | no metal (a rusty gear) | 8 nails and strips (in place of 2 of 6 planks) |
+| Chopper frame | 2 plates | 8 nails and strips (in place of one of 5 beams), 2 plates |
+| Chopper drive | 1 nails and strips, 1 plate | 8 nails and strips, 1 plate, 1 rod |
+| Chopper arm | 1 nails and strips, 1 plate | 8 nails and strips, 1 plate |
+
+A sawmill is 48 nails and strips, 1 plate and 2 rods in all (about 16 ingots, at 4 nails and strips
+to an ingot); a chopper 24 nails and strips, 4 plates and 1 rod (about 15). Wood, resin, rope, the
+carriage's gear (a steel gear with `GearConsumers`, above) and the tools stay as they are. The blade kit and the chopper head keep their recipes and
+take any metal: their metal already sets the machine's durability and speed. The bucking sawmill is
+built from two sawmill frames and 8 nails and strips of its own, and takes two sashes, a crankshaft
+and feed levers, so it comes to 72 nails and strips, 1 plate and 3 rods. The rosser is built from
+four sawmill frames and 32 nails and strips, and takes a crankshaft and feed levers, 80 nails and
+strips, 1 plate and 1 rod; its fitted hoops, rods and plates come on top. The two frames' own nails
+and strips, and the rosser's fitted hoops, rods and plates, follow the same metal rule while this
+switch is on (the patch file's last entries put `allowedVariants` on the two frame recipes), and
+take any metal with it off. So the sawmill is no longer a copper
+age machine; the chopper already needed iron for its bed, the advanced splitting block
+(`UnifiedWoodworking`).
+
+A JSON patch, `patches/woodworking-machine-costs.json`, rewrites the eight recipe files. Immersive
+Woodworking ships them disabled and registers each recipe itself from the file, after the patch
+loader, so the registered recipe has the pattern, the quantities and the `allowedVariants` of the
+patched file (the allowedVariants Fix is not involved: the recipe keeps its wildcards). With the
+switch off, or without Immersive Woodworking, `WoodworkingMachineCosts.DisablePatches` empties the
+patch in `Start`, as for the blade kits. With the switch on, the handbook's Machines chapter
+(`UnifiedWoodworking`'s guide) gains a paragraph with the two totals, by a `LangEdit`.
+
+### The heating rack stays where it is put (`HeatingRackKeepsPosition`)
+
+Logging Expanded (`loggingmod` 0.3.6). Its Trunk Heating Rack (`loggingmod:resinrack-*`,
+`BlockResinRack`, block entity `BEResinRack`) keeps its trunk and resin when picked up: its
+`OnPickBlock` writes the block entity's whole tree into the stack, and its `DoPlaceBlock` loads that
+tree back into the new block entity. The tree includes the base `BlockEntity`'s `posx`, `posy` and
+`posz`, so a rack placed from that stack has a block entity whose `Pos` is where it was picked up
+(#374): its firepit check and dirty-marking go to the old spot. Carry On builds its carried stack
+from `OnPickBlock`; its server puts the block entity right after the place-down, its client does
+not, and a creative pick and place has nothing to put it right.
+
+`HeatingRackPosition` (Harmony, on both sides, once per process with its own id) postfixes
+`OnPickBlock` to take the three keys out of the stack it returns, and prefixes `DoPlaceBlock` to take
+them out of the stack being placed: racks already picked up before the tweak, in inventories or
+creative hotbars, still carry them. With no position in the tree, `BEResinRack.FromTreeAttributes`
+keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
+warning and leaves the rack as it ships.
 
 ### Tidy Variants (`TidyVariants`)
 
@@ -1633,56 +1686,6 @@ To check by hand in the game: right-click the creative search box with text in i
 caret in the box, typing works), with an item on the cursor (still held, nothing deleted), and with
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
-
-### Steel gear blanks (`GearBlanks`)
-
-Stock for the gear cutter (gears epic #484, #479): `seraphhorizons:gearblank-steel`, a steel disc
-with a bore the size of the game's rusty gear (6.7 voxels across, 1.4 thick), and
-`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 4.6
-thick). Both stack (32 and 8), go on a shelf or in a display case, and can be set on the ground
-(small ones in quadrants, a large one in the middle). They sit in the creative inventory's items
-tab, the molds in its construction tab, as the game's molds do. Two ways to make one:
-
-- **Cast.** Clay-form a gear blank mold (a floor and the walls round a round cavity with a core for
-  the bore, one layer deep) or a large one (three layers deep) from blue, red or fire clay, and fire
-  it in a pit kiln or a beehive kiln as the game's tool molds fire. Pour 100 units of molten steel
-  (one ingot) into the small mold from a crucible, 200 into the large one, and right-click the blank
-  out once it has hardened; the mold stays. A mold takes steel only: there is no blank of any other
-  metal, and the game's mold refuses a metal its drop has no item for.
-- **Forged.** Smith one at the anvil from a steel ingot (36 voxels of the ingot's 42), or a large
-  one from two (84 voxels, exactly two ingots: put the second hot ingot on the work piece). The
-  helve hammer forges both, as it forges a plate.
-
-The molds are the game's own: `seraphhorizons:toolmold-{color}-{raw|fired}-{gearblank|largegearblank}`,
-on its `BlockToolMold` and `ToolMold` block entity, with the attributes its tool molds have
-(`requiredUnits` 100 and 200, `fillHeight` 1 and 3, `drop` `seraphhorizons:gearblank-{metal}`, the
-pit kiln's `combustibleProps` and the `beehivekiln` table). So the crucible pours into them as into
-any tool mold (`ILiquidMetalSink`), and Steelmaking Expanded's canal pedestal, which takes any small
-`BlockToolMold` (any but the anvil and helve hammer molds, which go on its tap), takes both and casts
-in them; by smex's source, its own patches on the tool mold (the held metal's render, a hardened
-casting handed over, an unfinished one picked up with its metal) apply to them as to the game's.
-Nothing of smex is referenced. Unlike a crucible, smex's pedestal does not check the metal against
-the mold's drop, so a canal of iron fills a gear blank mold with iron that casts nothing; smex then
-lets the mold be picked up with its metal. A crucible held over a gear blank mold with any metal
-but steel logs a warning from the game each time it asks (it resolves the drop to ask), as it does
-for the game's molds with a metal they have no item for.
-
-The handbook text is under the key the handbook builds for an item of another domain,
-`seraphhorizons:item-handbooktext-seraphhorizons:gearblank-steel`: a lang key with a colon is taken
-as it is, so the file carries the domain twice.
-
-The helve hammer works a work item only when the selected smithing recipe's name is `plate` or
-`blistersteel` (`ItemWorkItem.GetHelveWorkableMode`, which the anvil asks on every helve hit; any
-other recipe is `NotWorkable`). Both blank recipes are named `plate` (`recipes/smithing/gearblank.json`):
-the recipe's name is otherwise unused by the game, and the recipe browser's export tells them from
-the game's plate by their file. A smithing recipe takes one ingot; a second goes on the work item as
-for any recipe of more than 42 voxels, and the helve hammer finishes the large blank only once both
-are on (it moves the voxels it has into the recipe's shape, and cannot make more).
-
-All of it is assets on the game's classes (`Gears/GearBlanks.cs` holds the codes): with the switch
-off, the server marks the two item types, the two mold block types and both recipe files disabled
-before the game loads them, so neither the blanks nor the molds exist, and those already in a world
-are lost.
 
 ## Ore
 
