@@ -164,11 +164,12 @@ public sealed class PlacerFields
                 {
                     _dirty |= _book.OnAnchorGenerated(cell, spot.Index, field);
                     var after = _book.Get(cell);
+                    string outcome = field != null ? $"{field.Blocks} blocks of richgravel-{field.Rock} at {field.X}, {field.Y}, {field.Z}"
+                        : after.None ? $"unsuitable ({why}), and no spot left: the cell has none"
+                        : $"unsuitable ({why}), spot {after.Active} is next";
                     _api.Logger.Notification("[seraphhorizons] Placer fields: cell {0}, {1} spot {2} at {3}, {4}: {5}",
-                        cell.X, cell.Z, spot.Index, spot.X, spot.Z,
-                        field != null ? $"{field.Blocks} blocks of richgravel-{field.Rock} at {field.X}, {field.Y}, {field.Z}"
-                            : after.None ? $"unsuitable ({why}), and no spot left: the cell has none"
-                            : $"unsuitable ({why}), spot {after.Active} is next");
+                        cell.X, cell.Z, spot.Index, spot.X, spot.Z, outcome);
+                    SeraphHorizons.Mod.Admin.AdminLogs.Ore?.Write("placement", $"gravel cell {cell.X},{cell.Z} spot {spot.Index} at {spot.X},{spot.Z}: {outcome}");
                 }
             }
         }

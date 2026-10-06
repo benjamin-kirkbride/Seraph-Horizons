@@ -53,6 +53,11 @@ public class TradingSystem : ModSystem
     /// schematics with their switch off (#469).</summary>
     public Predicate<TradeEntry>? ExcludeEntry { get; set; }
 
+    /// <summary>The admin state sections <c>/sh trade export|import</c> move (#459): each system
+    /// registers its own (<c>Register(IAdminState)</c>); supply, standing and the deposit registry
+    /// are registered by <c>Trading/Admin/TradingAdminSystem</c>.</summary>
+    public SeraphHorizons.Mod.Core.AdminStateBook AdminState { get; } = new();
+
     /// <summary>The camp grid of this world's seed (server, once the lists are loaded).</summary>
     public TraderGrid? Grid { get; private set; }
 

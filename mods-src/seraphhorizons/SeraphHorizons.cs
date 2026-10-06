@@ -449,4 +449,9 @@ public class SeraphHorizonsConfig
     /// own <c>seraphhorizons:schematic-{machine}</c>, kept on crafting, and traders sell them. Off,
     /// the recipes are as their mods ship them and nobody sells the schematics. Server side.</summary>
     public bool MachineSchematics { get; set; } = true;
+
+    /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
+    /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
+    /// logs and the admin map layer. Changes nothing in play. Server side.</summary>
+    public bool AdminTools { get; set; } = true;
 }

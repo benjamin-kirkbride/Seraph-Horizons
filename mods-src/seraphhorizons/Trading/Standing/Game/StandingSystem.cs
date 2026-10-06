@@ -243,6 +243,7 @@ public class StandingSystem : ModSystem, IStandingSource
         var before = ViewFor(player.PlayerUID, trader);
         Ledger.OnDeal(player.PlayerUID, before.CompanyUid, TraderIdOf(trader), gearsPaid, gearsReceived, Day);
         var after = ViewFor(player.PlayerUID, trader);
+        SeraphHorizons.Mod.Admin.AdminLogs.Trade?.Write("standing", $"{player.PlayerName} deal at {TraderIdOf(trader)} ({gearsPaid} paid, {gearsReceived} received): {before.Effective:0} -> {after.Effective:0}");
         if (after.TierIndex > before.TierIndex && player is IServerPlayer sp)
             sp.SendMessage(GlobalConstants.GeneralChatGroup, StandingText.TierUp(trader, after), EnumChatType.Notification);
     }

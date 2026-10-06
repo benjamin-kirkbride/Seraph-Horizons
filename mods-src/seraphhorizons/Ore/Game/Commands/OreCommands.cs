@@ -62,6 +62,22 @@ internal sealed class OreCommands
             return TextCommandResult.Error(Msg(lang, "unknown-metal", metal, string.Join(", ", OreMetals.All)));
         if (_system.Placement is not { } placement)
             return TextCommandResult.Success(Msg(lang, "off"));
+        var cell = placement.Cells.CellOf(metal, x, z);
+        var state = placement.StateOf(metal, cell);
+        Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
+        {
+            ["metal"] = metal,
+            ["cell"] = new System.Text.Json.Nodes.JsonObject { ["x"] = cell.X, ["z"] = cell.Z },
+            ["cellSize"] = placement.Cells.CellSize(metal),
+            ["managed"] = placement.Managed.Contains(metal),
+            ["active"] = state.None ? null : state.Active,
+            ["placed"] = state.Placed,
+            ["spots"] = new System.Text.Json.Nodes.JsonArray(placement.SpotsOf(metal, cell).Select(s => (System.Text.Json.Nodes.JsonNode?)new System.Text.Json.Nodes.JsonObject
+            {
+                ["index"] = s.Index, ["x"] = s.X, ["z"] = s.Z,
+                ["status"] = placement.StatusOf(metal, cell, s.Index).ToString().ToLowerInvariant(),
+            }).ToArray()),
+        });
         return TextCommandResult.Success(CellTrace(placement, lang, metal, x, z));
     }
 
@@ -99,6 +115,7 @@ internal sealed class OreCommands
         int x = (int)Math.Floor(pos.X), z = (int)Math.Floor(pos.Z);
         var (sx, sz) = Spawn();
         var sb = new StringBuilder(Msg(lang, "here-head", x - sx, z - sz));
+        var rows = new System.Text.Json.Nodes.JsonArray();
         foreach (var metal in placement.Managed)
         {
             var cell = placement.Cells.CellOf(metal, x, z);
@@ -111,10 +128,17 @@ internal sealed class OreCommands
             }
             var spot = placement.SpotsOf(metal, cell)[state.Active];
             int dx = spot.X - x, dz = spot.Z - z;
+            rows.Add(new System.Text.Json.Nodes.JsonObject
+            {
+                ["metal"] = metal, ["cell"] = new System.Text.Json.Nodes.JsonObject { ["x"] = cell.X, ["z"] = cell.Z }, ["spot"] = spot.Index,
+                ["x"] = spot.X, ["z"] = spot.Z, ["distance"] = (int)Math.Round(Math.Sqrt((double)dx * dx + (double)dz * dz)), ["bearing"] = Compass(dx, dz),
+                ["status"] = placement.StatusOf(metal, cell, spot.Index).ToString().ToLowerInvariant(),
+            });
             sb.Append(Msg(lang, "here-line", metal, spot.Index, spot.X - sx, spot.Z - sz,
                 (int)Math.Round(Math.Sqrt((double)dx * dx + (double)dz * dz)), Compass(dx, dz),
                 Msg(lang, "status-" + placement.StatusOf(metal, cell, spot.Index).ToString().ToLowerInvariant())));
         }
+        Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject { ["x"] = x, ["z"] = z, ["deposits"] = rows });
         return TextCommandResult.Success(sb.ToString());
     }
 

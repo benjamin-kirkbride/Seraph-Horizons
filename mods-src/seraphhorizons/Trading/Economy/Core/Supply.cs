@@ -154,6 +154,17 @@ public sealed class SupplyBook
 
     public void Clear() => _regions.Clear();
 
+    /// <summary>Takes the levels, history and day of <paramref name="other"/> in place of this book's,
+    /// keeping its own settings (admin import, #459).</summary>
+    public void ReplaceWith(SupplyBook other)
+    {
+        _regions.Clear();
+        foreach (var (region, items) in other._regions)
+            _regions[region] = items.ToDictionary(kv => kv.Key,
+                kv => new SupplyEntry { Level = kv.Value.Level, History = [.. kv.Value.History] }, StringComparer.Ordinal);
+        Day = other.Day;
+    }
+
     private void Change(string region, string item, double delta, SupplyEventKind kind)
     {
         if (delta == 0) return;

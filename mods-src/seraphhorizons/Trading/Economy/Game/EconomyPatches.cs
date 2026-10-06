@@ -190,6 +190,7 @@ public static class EconomyPatches
             double weight = economy.SupplyWeight(trader.Api, line.Collectible, line.PricePerItem);
             if (line.TraderBuys) economy.Supply.Sold(region, code, line.Items, weight);
             else economy.Supply.Bought(region, code, line.Items, weight);
+            SeraphHorizons.Mod.Admin.AdminLogs.Trade?.Write("supply", $"{region} {code} {(line.TraderBuys ? "sold to" : "bought from")} {trader.TraderType} x{line.Items}: level {economy.Supply.Level(region, code):0.###}");
         }
         // The broadcast that follows the deal (vanilla's packet 1234) carries the new prices to the
         // trading player; the region's other loaded traders are sent theirs.

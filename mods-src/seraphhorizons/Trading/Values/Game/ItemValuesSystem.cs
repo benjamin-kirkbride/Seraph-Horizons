@@ -68,7 +68,13 @@ public class ItemValuesSystem : ModSystem
             code = args.Caller.Player?.InventoryManager?.ActiveHotbarSlot?.Itemstack?.Collectible?.Code?.ToString();
         if (string.IsNullOrEmpty(code))
             return TextCommandResult.Error("Give an item code, or hold the item.");
-        return TextCommandResult.Success(Describe(Values.Lookup(code)));
+        var l = Values.Lookup(code);
+        SeraphHorizons.Mod.Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
+        {
+            ["code"] = l.Code, ["value"] = l.Value, ["effective"] = l.Effective, ["floorZero"] = l.FloorZero,
+            ["source"] = l.Source.ToString().ToLowerInvariant(), ["family"] = l.Family, ["members"] = l.Members,
+        });
+        return TextCommandResult.Success(Describe(l));
     }
 
     public static string Describe(ValueLookup l)

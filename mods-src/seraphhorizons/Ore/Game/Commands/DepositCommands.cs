@@ -133,6 +133,11 @@ internal sealed class DepositCommands
         var (sx, sz) = Spawn();
         var sb = new StringBuilder(Msg(lang, "list-head", rows.Count, radius, x - sx, z - sz));
         foreach (var c in rows) sb.Append('\n').Append(Line(lang, c, x, z));
+        Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
+        {
+            ["radius"] = radius, ["metal"] = metal, ["filter"] = only?.ToString().ToLowerInvariant(),
+            ["deposits"] = SeraphHorizons.Mod.Core.AdminOutput.Rows(rows, c => OreJson.Deposit(c, x, z)),
+        });
         return TextCommandResult.Success(sb.ToString());
     }
 
@@ -147,6 +152,16 @@ internal sealed class DepositCommands
         var (sx, sz) = Spawn();
         var sb = new StringBuilder(Msg(lang, "gravel-head", rows.Count, radius, x - sx, z - sz));
         foreach (var c in rows) sb.Append('\n').Append(Line(lang, c, x, z));
+        Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
+        {
+            ["radius"] = radius,
+            ["fields"] = SeraphHorizons.Mod.Core.AdminOutput.Rows(rows, c =>
+            {
+                var row = OreJson.Deposit(c, x, z);
+                if (_system.Deposits?.FieldOf(c.Key) is { } f) { row["rock"] = f.Rock; row["blocks"] = f.Blocks; }
+                return row;
+            }),
+        });
         return TextCommandResult.Success(sb.ToString());
     }
 
@@ -178,10 +193,17 @@ internal sealed class DepositCommands
         var caller = args.Caller;
         bool answered = false;
         string? immediate = null;
+        var started = System.Diagnostics.Stopwatch.StartNew();
         deposits.Verify(key, result =>
         {
-            string text = Describe(lang, result);
-            if (!answered) immediate = text;
+            string text = Describe(lang, result) + $" ({started.Elapsed.TotalSeconds:0.0} s)";
+            if (!answered)
+            {
+                immediate = text;
+                var data = OreJson.Verify(result);
+                data["seconds"] = Math.Round(started.Elapsed.TotalSeconds, 2);
+                Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject { ["verify"] = data });
+            }
             else Tell(caller, text);
         });
         answered = true;
