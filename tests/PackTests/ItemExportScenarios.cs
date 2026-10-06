@@ -195,9 +195,10 @@ public class ItemExportScenarios : AtlasScenarioBase
     public void Woodworking_guide_is_the_unified_one()
     {
         var guides = ((JArray)Doc["guides"]!).OfType<JObject>().ToList();
-        // seraphhorizons' other page, machine oil's, is not a woodworking one
+        // seraphhorizons' other pages, machine oil's and gear reclamation's, are not woodworking ones
         var woodworking = guides.Where(g => (string?)g["mod"] is "seraphhorizons" or "immersivewoodworking" or "loggingmod"
-                                            && (string?)g["code"] != SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode).ToList();
+                                            && (string?)g["code"] != SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode
+                                            && (string?)g["code"] != SeraphHorizons.Mod.GearReclamation.GearReclamationSystem.GuidePageCode).ToList();
         Assert.All(woodworking, g => Assert.Equal("seraphhorizons", (string?)g["mod"]));
         Assert.Equal(SeraphHorizons.Mod.Core.WoodworkingGuidePages.Pages.Select(p => p.PageCode).Order(StringComparer.Ordinal),
             woodworking.Select(g => (string)g["code"]!).Order(StringComparer.Ordinal));

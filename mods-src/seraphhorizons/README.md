@@ -1212,6 +1212,86 @@ grab, Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and th
 that lets a carried trunk's click through to a station), each tool's rule, the stations and the
 machines' ground pull, old worlds, the settings table, the tests and what is not checked in the game.
 
+### Gear reclamation (`GearReclamation`, `GearReclamationSettings`)
+
+The gears epic (#484), its first steps: the gear items (#474), degreasing (#475), and neutralizing,
+oiling and the roll (#477); the pickling tub that sits between them, the brine bath, the consumer
+patches, bits recovery and the cutter are separate steps. Rusty gears are salvage. They are reclaimed
+a batch at a time into steel gears, one in ten sound, the rest steel bits:
+
+| Step | Where | In | Out |
+|---|---|---|---|
+| Boil | cooking pot over a fire | rusty gears + 0.25 L of an alkali a gear | `seraphhorizons:gear-degreased` |
+| Pickle | the pickling tub (its own step) | degreased gears + acid | `seraphhorizons:gear-pickled` |
+| Neutralize | barrel, sealed 2 h | pickled gears + 0.1 L lime water (`game:limewaterportion`) a gear | `seraphhorizons:gear-neutralized` |
+| Oil | barrel, sealed 4 h | neutralized gears + 0.1 L lard (`expandedfoods:lard`) or 0.2 L hardened lard (`expandedfoods:hardlardliquid`, 1 item) a gear | `seraphhorizons:gear-oiled` |
+| Roll | a player's inventory | oiled gears | `seraphhorizons:gear-steel` with `UsableGearChance`, else `BitsPerFailedGear` × `game:metalbit-steel` |
+
+**The gears** (`itemtypes/gear.json`, one item type `gear` with `type` steel, degreased, pickled,
+neutralized, oiled) are the game's rusty gear shape (`game:item/gear-rusty`) with its one texture,
+`rusty-iron`, replaced: the steel gear with the steel ingot's (as ppex's steel gear does),
+degreased with the game's dull corroded metal, pickled with the iron ingot's bare grey,
+neutralized with blister steel's darker grey, oiled with stainless steel's sheen. No new textures.
+They stack 64, are ground-storable in the rusty gear's pile, shelvable and display-caseable like
+it, and are in the general and items tabs. `largegear-steel` (`itemtypes/largegear.json`) is the
+game's large temporal gear shape (`block/machine/jonas/tempgear`) with both its textures steel; it
+has no recipe yet (the cutter makes it). The rusty gear itself is unchanged except for a handbook
+section (`patches/gearreclamation-rustygear.json`): "Boil, pickle, neutralize, oil. One in ten
+comes out sound." Each reclaimed gear's handbook page has a section pointing to the guide page
+"Reclaiming rusty gears" (`config/handbook/gearreclamation.json`), which tells the whole line and
+quotes the default settings. Tidy Variants leaves the five gears as single tiles (its Atlas report;
+they are not variants of one thing to the player, so no override groups them).
+
+**Flash rust.** Pickled and neutralized gears carry the game's Perish transition to
+`game:gear-rusty`, ratio 1: fresh for `FlashRustHours`, then rusting over a quarter of that again
+(8 and 2 hours by default), after which the stack is a stack of rusty gears. Perish runs at the
+game's rates, so a cellar slows it as it slows food. The barrel carries the pickled gears' freshness
+over to the neutralized ones (vanilla `CarryOverFreshness`), so the clock runs from the tub, not
+from the barrel. The hours are set on the server after the items load
+(`GearReclamationSystem.AssetsFinalize`) for every item with the attribute
+`seraphhorizonsFlashRust: true`, so another step's bare gear follows the setting by carrying it.
+
+**Degreasing is a cooking recipe** (`recipes/cooking/gear-degrease.json`): the game's cooking pot
+returns a plain item stack cleanly (`cooksInto`, as the game's candles and glue do), so no barrel
+fallback was needed. The pot cooks by servings, every slot of an ingredient holding the same number
+of items, and a recipe's output per serving is fixed; so there are three recipes, the gears in one,
+two or three slots, each a quarter litre of alkali per gear: 4 gears and 1 litre in one slot, 2 + 2
+gears and 1 litre, 3 × 2 gears and 1.5 litres. A clay pot holds 6 servings (up to 18 gears in three
+slots), a metal pot 24. The liquid must be exact, as for every cooking recipe. Afterwards the pot is
+dirty, as after candles. The game has no lye of its own: the alkalis are Oils Resoaped's lye
+(`oils:lyeportion`) and Expanded Matter's caustic soda and washing soda (`em:causticsodaportion`,
+`em:washingsodaportion`, the issue's `em:washingsoda`). Each is dropped from the recipe when its
+mod is not loaded (no domain), and a recipe left with none is left out with a warning.
+
+**The oil step.** The game's tallow, rendered fat, is a solid item with no liquid form in the
+game, and a barrel holds one solid and one liquid, so it cannot go in by the lump beside the gears.
+Expanded Foods' lard is the liquid form of rendered fat (melted, or hardened, which spills as
+rendered fat), so both lards oil. A barrel recipe whose liquid's mod is not loaded is left out.
+
+**The roll.** A barrel recipe cannot roll dice, so `gear-oiled` is a lottery item. Its item class
+(`ItemReclaimedGear`) hooks `OnModifiedInInventorySlot`, which the game calls whenever a stack's slot
+changes (taken from the barrel, picked up, moved, merged, given): on the server, in a slot of a
+player's own inventory (`InventoryBasePlayer`, the mouse cursor included, the creative inventory
+not), the slot is resolved on the next tick, after the move that put it there is done. Each gear is
+one draw of the server world's random: sound gears stay in the slot, bits go to the player's
+inventory or drop at their feet, so nothing is lost and no oiled gear is left. Every 2 seconds the
+server also looks through every online player's inventories, and through a player's when they join,
+for an oiled gear the hook missed (a direct write to a slot). The game's stack randomizer resolves
+through `IResolvableCollectible`, which only fills one slot; the oiled gear does not implement it,
+as it needs to give two stacks (an oiled gear in a chest, on the ground or in a barrel stays oiled
+until a player takes it). The arithmetic is in `GearReclamation/Core/GearReclamation.cs`.
+
+| Setting | Default | |
+|---|---|---|
+| `FlashRustHours` | 8 | In-game hours a pickled or neutralized gear stays bare before it rusts (0.5 to 8760); it is rusty a quarter as long again after |
+| `UsableGearChance` | 0.1 | Chance each oiled gear is sound (0 to 1) |
+| `BitsPerFailedGear` | 1 | Steel bits for each oiled gear that is not (0 to 20) |
+
+With the switch off (the server decides), the gear items still exist, since other steps and
+mods' recipes name them, but the three steps' recipes are left out, oiled gears are never rolled,
+the rusty gear has no salvage section and the guide page is hidden (from the client's handbook, and
+from the recipe export through the hidden guides key, as machine oil does).
+
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
@@ -1989,8 +2069,10 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 (`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the trunk code and variant rules of the
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
 and family fallback, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
-and the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
-described in `TrunkEntities/README.md`).
+the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
+described in `TrunkEntities/README.md`), and gear reclamation's roll, flash rust hours, settings and
+optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
+(`GearReclamation/Core/`, `tests/GearReclamation/`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms
@@ -2096,6 +2178,26 @@ the tank as it assembles (a creative rotor at its default settings cannot turn a
 switch off, `SwitchesOffScenarios` requires nothing patched, a pulverizer at 0.085 with no tank
 and refusing tallow, and the page among the hidden guides. The strike detection, the smoke and
 the client's side of the click need a client and are checked by hand in the game.
+
+`tests/PackTests/GearReclamationScenarios.cs` (Atlas, `SharedWorldScenarios`) requires the five
+gears on the rusty gear's shape with the item class, ground storage, shelf and display case, a
+name and the general tab, every texture they name present (under a full install), the large steel
+gear on the temporal gear's shape, and the rusty gear's currency value kept with the salvage
+section added. Flash rust: the pickled and neutralized gears' Perish hours are the setting's, half
+the fresh time leaves a stack as it was, and past fresh and rusting it is a stack of the same number
+of rusty gears. The pot: three degreasing recipes with every alkali of the pack resolved; 4 gears
+and 1 litre of lye in one slot, 2 + 2 with washing soda, and 3 × 2 with caustic soda match their
+recipe at the right servings and `DoSmelt` leaves that many degreased gears and a dirty pot; the
+wrong amount of lye is the pot's recipe error. The barrels: 20 pickled gears in 3 litres of lime
+water are not done half an hour short of 2 hours sealed and are 20 neutralized gears with a litre
+left at 2; those in lard are oiled at 4 hours, hardened lard too. Taking the 20 oiled gears from the
+barrel into a hand (`TryPutInto`) leaves, a few ticks later, only steel gears and bits that add up
+to 20. 40 stacks of 64 oiled gears put in a hotbar slot come out within four standard deviations of
+one in ten sound, with one bit for every other gear; a stack written into a slot without the hook
+is resolved by `ResolveAll` (as on login) and by the sweep. `The_gear_recipes_export` requires the
+three steps' recipes in the export. With the switch off, `SwitchesOffScenarios` requires the items
+still there, none of the recipes, no salvage section, and an oiled gear in a hand left oiled. The
+handbook pages, the item colours and the shelf and ground piles need a client and are checked by hand.
 
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When

@@ -1,0 +1,12 @@
+[
+	{
+		"file": "game:itemtypes/resource/gear.json",
+		"op": "addmerge",
+		"path": "/attributesByType/*-rusty/handbook",
+		"value": {
+			"extraSections": [
+				{ "title": "seraphhorizons:gearreclamation-rusty-title", "text": "seraphhorizons:gearreclamation-rusty-text" }
+			]
+		}
+	}
+]

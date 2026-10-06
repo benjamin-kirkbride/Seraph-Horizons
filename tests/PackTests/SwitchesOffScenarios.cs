@@ -5,6 +5,8 @@ using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.GearReclamation;
+using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.MachineOil;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.TrunkEntities;
@@ -460,9 +462,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's page, whose switch is off here too).
+        // machine oil's and gear reclamation's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
-                .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey)).Order(),
+                .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
+                .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
@@ -651,5 +654,26 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         be.ToTreeAttributes(tree);
         Assert.Null(tree[SeraphHorizons.Mod.Machines.Oil.TreeKey]);
         Assert.DoesNotContain("Oil", OilSite.Info(be, p.Player));
+    }
+
+    /// <summary><c>GearReclamation</c>: the gear items exist, but none of the steps' recipes, no
+    /// salvage section on the rusty gear, and an oiled gear in a hand stays as it is.</summary>
+    [AtlasScenario]
+    public async Task Gear_reclamation_off_no_recipes_no_roll()
+    {
+        Assert.True(Off("GearReclamation"));
+        foreach (var code in new[] { GearCodes.Steel, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Neutralized, GearCodes.Oiled, GearCodes.LargeSteel })
+            Assert.NotNull(W.GetItem(new AssetLocation(code)));
+        Assert.DoesNotContain(World.Api.GetCookingRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
+        Assert.DoesNotContain(World.Api.GetBarrelRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
+        Assert.False(W.GetItem(new AssetLocation(GearCodes.Rusty))!.Attributes["handbook"].Exists);
+        var p = await World.JoinPlayer("nogears");
+        var hand = p.Player.InventoryManager.ActiveHotbarSlot;
+        hand.Itemstack = new ItemStack(W.GetItem(new AssetLocation(GearCodes.Oiled))!, 10);
+        hand.MarkDirty();
+        await World.Ticks(10);
+        Assert.Equal(GearCodes.Oiled, hand.Itemstack?.Collectible.Code.ToString());
+        Assert.Equal(0, GearReclamationSystem.Of(World.Api).ResolveAll(p.Player));
+        Assert.Equal(10, hand.StackSize);
     }
 }
