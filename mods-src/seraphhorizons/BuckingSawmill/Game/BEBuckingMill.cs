@@ -72,7 +72,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     private enum HoldKind { Load, Wind }
     // Every cell's boxes by trunk class (TrunkClass as the index), turned to the facing. Built
     // whole, then published; never changed after.
-    private volatile IReadOnlyDictionary<Int3, Cuboidf[]>[]? _boxes;
+    private volatile BoxTable[]? _boxes;
+    private sealed record BoxTable(IReadOnlyDictionary<Int3, Cuboidf[]> Selection, IReadOnlyDictionary<Int3, Cuboidf[]> Collision);
     private MillRenderer? _renderer;
 
     public Side Side { get; private set; } = Side.North;
@@ -173,20 +174,27 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     public IEnumerable<(BlockPos Pos, bool Power)> GhostCells() =>
         Rig is { } rig ? rig.GhostCells.Select(c => (CellPos(c.Pos), c.Pos == rig.PowerCell)) : [];
 
-    /// <summary>A cell's collision and selection boxes, turned to the mill's facing, with the
-    /// loaded trunk's part in that cell; null when the cell is not the mill's. Safe off the main
-    /// thread: the tables are built whole in <see cref="Initialize"/> and only read here.</summary>
-    public Cuboidf[]? CellBoxes(BlockPos cellPos)
+    /// <summary>A cell's selection boxes, turned to the mill's facing, with the loaded trunk's part
+    /// in that cell; null when the cell is not the mill's. Safe off the main thread: the tables are
+    /// built whole in <see cref="Initialize"/> and only read here.</summary>
+    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Table(cellPos, collision: false);
+
+    /// <summary>A cell's collision boxes: its <see cref="CellBoxes"/> and, on a column's top cell,
+    /// the rig's collision-only lid, so nothing falls into the mill from above.</summary>
+    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Table(cellPos, collision: true);
+
+    private Cuboidf[]? Table(BlockPos cellPos, bool collision)
     {
         var tables = _boxes ??= BuildBoxes();
         if (tables == null)
             return null;
         var local = Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side);
-        return tables[(int)_trunkClass].GetValueOrDefault(local);
+        var table = tables[(int)_trunkClass];
+        return (collision ? table.Collision : table.Selection).GetValueOrDefault(local);
     }
 
     /// <summary>Every cell's boxes, once per trunk class; null before the rig is known.</summary>
-    private IReadOnlyDictionary<Int3, Cuboidf[]>[]? BuildBoxes()
+    private BoxTable[]? BuildBoxes()
     {
         if (Api == null || Rig is not { } rig || !Sides.TryParse(Block?.Variant["side"], out var side))
             return null;
@@ -195,17 +203,20 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
             var w = Footprint.ToWorld(b, side);
             return new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2);
         }
-        var tables = new IReadOnlyDictionary<Int3, Cuboidf[]>[3];
+        var tables = new BoxTable[3];
         foreach (var trunk in new[] { TrunkClass.None, TrunkClass.Thin, TrunkClass.Thick })
         {
             var trunkBoxes = trunk == TrunkClass.None || rig.TrunkBed is not { } bed
                 ? new Dictionary<Int3, Box>()
                 : TrunkBox.CellBoxes(rig.Cells.Select(c => c.Pos), TrunkBox.Bounds(bed, trunk));
-            tables[(int)trunk] = rig.Cells.ToDictionary(c => c.Pos, c =>
+            var selection = rig.Cells.ToDictionary(c => c.Pos, c =>
             {
                 var own = c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World);
                 return (trunkBoxes.TryGetValue(c.Pos, out var t) ? own.Append(World(t)) : own).ToArray();
             });
+            var collision = rig.Cells.ToDictionary(c => c.Pos, c =>
+                c.LidBox is { } lid ? [.. selection[c.Pos], World(lid)] : selection[c.Pos]);
+            tables[(int)trunk] = new BoxTable(selection, collision);
         }
         return tables;
     }

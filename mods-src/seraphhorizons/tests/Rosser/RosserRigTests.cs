@@ -45,6 +45,9 @@ public class RosserRigTests
         Assert.Equal(new RosserChute(new Float3(-7, 0.1f, 2.9f), Side.South), rig.Chute);
         Assert.Equal(-8.875f, rig.Breaker);
         Assert.Equal(-7.5f, rig.Ring);
+        // no trunkPath.tips in the test rig: the heads stand in at the ring for both classes
+        Assert.Equal(new[] { 0f, -7.5f, -7.5f }, rig.Tips);
+        Assert.Equal(-7.5f, rig.TipAt(0));
         Assert.Equal(-9.875f, rig.Path.Nose0);
         Assert.Equal(9.625, rig.Path.End(1), 6);
         Assert.Equal(10.625, rig.Path.End(2), 6);
@@ -53,6 +56,16 @@ public class RosserRigTests
         Assert.Equal(0.14008f, rig.Feed.Gear[2]);
         Assert.Equal(4, rig.MovingParts.Parts.Count);
         Assert.Same(rig.Path, rig.MovingParts.Path);
+    }
+
+    [Fact]
+    public void Reads_where_the_heads_touch_each_class()
+    {
+        string json = RosserFixture.Edited(r => r["trunkPath"]!["tips"] = new JsonObject { ["thin"] = -6.5, ["thick"] = -6.25 });
+        var rig = RosserRig.Parse(json);
+        Assert.Equal(-6.5f, rig.TipAt(1));
+        Assert.Equal(-6.25f, rig.TipAt(2));
+        Assert.Equal(rig.Ring, rig.TipAt(0));
     }
 
     [Fact]
@@ -130,6 +143,9 @@ public class RosserRigTests
         { "breaker-after-ring", "nose0 < breaker < ring <= tailStop" },
         { "breaker-before-nose", "nose0 < breaker < ring <= tailStop" },
         { "ring-after-tailstop", "nose0 < breaker < ring <= tailStop" },
+        { "tips-before-ring", "ring <= tips <= tailStop" },
+        { "tips-after-tailstop", "ring <= tips <= tailStop" },
+        { "tips-no-thick", "thick" },
         { "feed.blocksPerRadian=0", "blocksPerRadian" },
         { "feed.gear.thick=0", "above 0" },
         { "feed.gear.thick=0.5", "thick trunks feed slower" },
@@ -166,6 +182,9 @@ public class RosserRigTests
                 case "breaker-after-ring": stations["breaker"] = -7.0; break;
                 case "breaker-before-nose": stations["breaker"] = -10.0; break;
                 case "ring-after-tailstop": stations["ring"] = -4.0; break;
+                case "tips-before-ring": path["tips"] = new JsonObject { ["thin"] = -7.6, ["thick"] = -6.5 }; break;
+                case "tips-after-tailstop": path["tips"] = new JsonObject { ["thin"] = -6.5, ["thick"] = -4.0 }; break;
+                case "tips-no-thick": path["tips"] = new JsonObject { ["thin"] = -6.5 }; break;
                 case "feed.blocksPerRadian=0": r["feed"]!["blocksPerRadian"] = 0; break;
                 case "feed.gear.thick=0": r["feed"]!["gear"]!["thick"] = 0; break;
                 case "feed.gear.thick=0.5": r["feed"]!["gear"]!["thick"] = 0.5; break;

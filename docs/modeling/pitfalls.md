@@ -135,6 +135,12 @@ at the machine in the game. Where a check now exists, it is named, so a new mode
 
 - **Collision and selection boxes must match what is drawn,** including things the machine holds.
   A loaded trunk with no hitbox could be walked through and not clicked.
+- **A player walks on top of the machine.** Boxes that match what is drawn leave gaps between
+  them, and a player who drops into one (the mill's trough over its saws, the rosser's hollow cells
+  and the spaces about its ring and rolls) is stuck among the boxes, or caught by the trunk moving
+  in. Both machines' rigs put a `lid` on every column's top cell: a thin collision-only box over
+  the whole cell at the deck's height. It must stay out of the selection boxes, or it takes the
+  clicks meant for the parts and the trunk under it.
 - **Boxes belong to cells.** A box taller than its cell needs a cell above to carry the rest; the
   top half of a thick trunk over the controller column still has no collision for this reason.
 - **Show held objects in a small set of known sizes.** Trunks come in six sizes; drawing each as
@@ -195,7 +201,7 @@ Before calling a model done, look at it in the game for:
 2. textures on every part, including with a different metal or wood fitted;
 3. motion smoothness at low and high shaft speeds;
 4. shadows and lighting, indoors and out;
-5. hitboxes: walk into it, and click every part of it, loaded and empty;
+5. hitboxes: walk into it, walk on top of it, and click every part of it, loaded and empty;
 6. placing it in all four facings, next to the blocks that feed it;
 7. breaking it while it runs, in creative and survival, and relogging;
 8. every help line's icon;

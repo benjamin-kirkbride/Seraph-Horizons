@@ -2,8 +2,9 @@
 
     geometry  El and the box builders: flatten, from_template, beam, strut, octagon, rotate, ...
     rigmath   the rig's driver maths (the reference for C# and TypeScript), posed, part_of
-    checks    validation helpers: z-fighting (coplanar_faces, fix_coplanar), OBB tests, cell boxes,
-              containment, clearances, frame connectivity, shaft supports
+    checks    validation helpers: z-fighting (coplanar_faces, fix_coplanar), OBB tests, cell boxes
+              and the collision-only lids over them (with_lids, lid_gaps), containment, clearances,
+              frame connectivity, shaft supports
     output    the deterministic JSON writers: shapes, rigs, reference poses
 
 A generator imports it with

@@ -922,8 +922,8 @@ Known limits:
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11) and Logging Expanded (`loggingmod`, 0.3.6).
 A machine of this mod's own: a mechanically powered pair of drag saws that cross-cut Logging
-Expanded tree trunks into logs. Its frame is crafted from two Immersive Woodworking sawmill frames
-and four support beams, placed as a six by three by four multiblock, and fitted in the world with
+Expanded tree trunks into logs. Its frame is crafted from two Immersive Woodworking sawmill frames,
+four support beams and eight nails and strips, placed as a six by three by four multiblock, and fitted in the world with
 Immersive Woodworking's sawmill parts (two sashes, a crankshaft, feed levers and one blade kit,
 which puts a blade in both saws). An axle drives it at the far end; trunks go on by hand, from a
 Trunk Storage Rack under the axle, or from a rosser placed in line there (below), and the logs come
@@ -969,9 +969,9 @@ powered ring debarker that draws a Logging Expanded tree trunk lengthwise throug
 ring. A limb breaker in the throat snaps off its branches, which fall as sticks (one for every two
 branches by default, where Logging Expanded's knife gives one each); four spring-closed scraper arms
 on the ring, tipped with bark spud heads, strip its bark, which falls as Immersive Woodworking's bark
-for the trunk's wood, log by log; and the trunk comes out debarked. Its frame is crafted from two
-Immersive Woodworking sawmill frames, four support beams and a copper chute section, placed as a
-sixteen by five by four multiblock (long, wide, high), and fitted in the world with existing items only: a sawmill
+for the trunk's wood, log by log; and the trunk comes out debarked. Its frame is crafted from four
+Immersive Woodworking sawmill frames, thirty-two support beams, thirty-two nails and strips and two
+copper chute sections, placed as a sixteen by five by four multiblock (long, wide, high), and fitted in the world with existing items only: a sawmill
 crankshaft, four large gear sections, two hoops, four rods, two metal plates, sawmill feed levers and
 four bark spud heads of one metal, which are its wearing part and last four times their metal's bark
 spud. The axle connects on a side face beside the ring and may turn either way. A trunk goes on by
@@ -1077,10 +1077,13 @@ A sawmill is 48 nails and strips, 1 plate and 2 rods in all (about 16 ingots, at
 to an ingot); a chopper 24 nails and strips, 4 plates and 1 rod (about 15). Wood, resin, rope, the
 rusty gear and the tools stay as they are. The blade kit and the chopper head keep their recipes and
 take any metal: their metal already sets the machine's durability and speed. The bucking sawmill is
-built from two sawmill frames and takes two sashes, a crankshaft and feed levers, so it comes to 64
-nails and strips, 1 plate and 3 rods with no change of its own. The rosser is built from two
-sawmill frames and takes a crankshaft and feed levers (32 nails and strips, 1 plate and 1 rod), and
-its own hoops, rods and plates follow the same metal rule while this switch is on. So the sawmill is no longer a copper
+built from two sawmill frames and 8 nails and strips of its own, and takes two sashes, a crankshaft
+and feed levers, so it comes to 72 nails and strips, 1 plate and 3 rods. The rosser is built from
+four sawmill frames and 32 nails and strips, and takes a crankshaft and feed levers, 80 nails and
+strips, 1 plate and 1 rod; its fitted hoops, rods and plates come on top. The two frames' own nails
+and strips, and the rosser's fitted hoops, rods and plates, follow the same metal rule while this
+switch is on (the patch file's last entries put `allowedVariants` on the two frame recipes), and
+take any metal with it off. So the sawmill is no longer a copper
 age machine; the chopper already needed iron for its bed, the advanced splitting block
 (`UnifiedWoodworking`).
 
