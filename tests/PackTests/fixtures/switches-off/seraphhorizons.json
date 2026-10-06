@@ -16,6 +16,7 @@
   "OreCells": false,
   "PanningDropsTrimmed": false,
   "RarerDistricts": false,
+  "PlacerFields": false,
   "Rosser": false,
   "SmallerDeposits": false,
   "TidyVariants": false,
