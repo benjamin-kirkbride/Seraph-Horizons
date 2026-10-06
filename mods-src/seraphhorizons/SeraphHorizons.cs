@@ -393,4 +393,11 @@ public class SeraphHorizonsConfig
     /// <summary>Interesting Ore Gen's hydrothermal districts about one per 15 km square instead of one
     /// per 40–90 km² in new worlds.</summary>
     public bool RarerDistricts { get; set; } = true;
+
+    /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
+    /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
+    /// worlds only: a world takes the grid at its first start with this mod if this is on then, and
+    /// keeps that choice; off later means the world's new chunks get the game's camps again. The
+    /// trader types and their lists exist either way. Server side.</summary>
+    public bool TraderGrid { get; set; } = true;
 }
