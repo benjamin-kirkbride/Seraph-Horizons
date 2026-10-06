@@ -1,9 +1,0 @@
-{
-  "type": "content",
-  "modid": "gearsteelplaceholder",
-  "name": "Steel gear placeholder (PackTests only)",
-  "description": "Stands in for seraphhorizons' steel gears until the mod has them. Never shipped.",
-  "version": "0.0.1",
-  "side": "Universal",
-  "dependencies": { "game": "" }
-}

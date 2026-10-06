@@ -16,12 +16,10 @@ namespace SeraphHorizons.PackTests;
 /// right-clicks, through the block's <c>OnBlockInteractStart</c> as the game calls it. The clock is
 /// the world's, which a scenario must not move, so a batch is aged by moving its start back
 /// (<see cref="BEPicklingTub.Batch"/>): the tub reads its batch from the time alone.
-/// <para>Its own class, for the stand-ins in fixtures/picklingtub-gearstubs: gear reclamation's
-/// gear items (<c>seraphhorizons:gear-steel</c>, <c>-degreased</c>, <c>-pickled</c>,
-/// <c>largegear-steel</c>) are built on another branch. Once they are in the mod, drop the
-/// <c>Mods</c> of its <c>[AtlasWorld]</c> and the fixture, and these can join <see cref="SharedWorldScenarios"/>.</para>
+/// <para>Its own class on the plain world rather than a part of <see cref="SharedWorldScenarios"/>:
+/// it joins nine players, and the shared world already has fourteen of the server's sixteen.</para>
 /// </summary>
-[AtlasWorld(Mods = ["fixtures/picklingtub-gearstubs"])]
+[AtlasWorld]
 public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     private const string Tub = "seraphhorizons:picklingtub";

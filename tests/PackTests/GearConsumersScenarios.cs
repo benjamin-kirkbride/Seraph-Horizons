@@ -6,27 +6,15 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.GameContent;
 using Xunit.Abstractions;
+using static SeraphHorizons.PackTests.GearConsumerUses;
 
 namespace SeraphHorizons.PackTests;
 
-/// <summary>
-/// <c>GearConsumers</c> (#473), on as it is by default: every recipe that took a rusty gear (or one of
-/// ppex's anvil gears) takes the steel gear, ppex's anvil gears are gone, and smex's Bessemer converter
-/// is raised with the steel large gear. Read from the game's registries and from the recipe export.
-/// The off check is in <see cref="SwitchesOffScenarios"/>; <c>tools/tests/test_gear_consumers.py</c>
-/// holds the patch files to every locked mod's recipe files.
-/// <para>Its own world, with <c>fixtures/gear-steel-placeholder</c> as an extra mod: the steel gear
-/// and steel large gear items are not in seraphhorizons yet (#474, #480), and without them the
-/// patched recipes would not resolve. Once they are, drop the fixture and the <c>Mods</c> argument
-/// (two items of one code fail the boot), and this class can join <see cref="SharedWorldScenarios"/>.</para>
-/// </summary>
-[AtlasWorld(Mods = new[] { "fixtures/gear-steel-placeholder" })]
-[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
-public class GearConsumersScenarios(ITestOutputHelper output) : AtlasScenarioBase
+/// <summary>What the <c>GearConsumers</c> scenarios expect: the uses still exempt, the patched recipes
+/// and how to read a gear code.</summary>
+internal static class GearConsumerUses
 {
-    private const int ExportTimeout = 900_000;
-
-    private IWorldAccessor W => World.Api.World;
+    internal const int ExportTimeout = 900_000;
 
     /// <summary>What still takes a rusty gear, by output: the uses test_gear_consumers.py exempts.</summary>
     internal static readonly string[] ExemptOutputs =
@@ -38,7 +26,7 @@ public class GearConsumersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     ];
 
     /// <summary>The recipe files those exempt uses are in, as the export names them.</summary>
-    private static readonly string[] ExemptSources =
+    internal static readonly string[] ExemptSources =
     [
         "game:recipes/grid/clothes/neck.json", "game:recipes/barrel/dye/gray.json", "game:recipes/barrel/dye/black.json",
         "betterloot:recipes/grid/rustygearpart.json", "cartwrightscaravan:recipes/grid/signs.json",
@@ -65,10 +53,25 @@ public class GearConsumersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     internal static bool IsOldGear(string? code) =>
         code != null && (code == "game:gear-rusty" || code == "game:gear-*" || code.StartsWith("ppex:gear-") || code.StartsWith("ppex:largegear-"));
 
-    private static IEnumerable<string?> Codes(GridRecipe r) =>
+    internal static IEnumerable<string?> Codes(GridRecipe r) =>
         (r.Ingredients?.Values.Select(i => i.Code?.ToString()) ?? [])
         .Concat(r.ResolvedIngredients?.Where(i => i != null).Select(i => i.Code?.ToString()) ?? []);
 
+    internal static IEnumerable<string> ExportedCodes(JObject record) =>
+        record["ingredients"]!.Select(i => (string?)i["code"])
+            .Concat(record["variants"]!.SelectMany(v => v["ingredients"]!).SelectMany(slot => slot).Select(s => (string?)s["code"]))
+            .OfType<string>();
+}
+
+/// <summary>
+/// <c>GearConsumers</c> (#473), on as it is by default: every recipe that took a rusty gear (or one of
+/// ppex's anvil gears) takes the steel gear, ppex's anvil gears are gone, and smex's Bessemer converter
+/// is raised with the steel large gear. Read from the game's registries and from the recipe export.
+/// The off check is in <see cref="SwitchesOffScenarios"/>; <c>tools/tests/test_gear_consumers.py</c>
+/// holds the patch files to every locked mod's recipe files.
+/// </summary>
+public partial class SharedWorldScenarios
+{
     [AtlasScenario, ReadsBootLog]
     public void Every_gear_patch_applies_and_resolves()
     {
@@ -161,11 +164,6 @@ public class GearConsumersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     }
 
     // ------------------------------------------------------ the recipe export (what the browser shows)
-
-    private static IEnumerable<string> ExportedCodes(JObject record) =>
-        record["ingredients"]!.Select(i => (string?)i["code"])
-            .Concat(record["variants"]!.SelectMany(v => v["ingredients"]!).SelectMany(slot => slot).Select(s => (string?)s["code"]))
-            .OfType<string>();
 
     [AtlasScenario(TimeoutMs = ExportTimeout)]
     public void Export_lists_the_steel_gear_and_no_recipe_takes_a_rusty_gear()
