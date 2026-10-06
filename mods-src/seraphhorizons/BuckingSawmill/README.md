@@ -83,6 +83,13 @@ through the rig's power face, turned to the mill's facing (like Immersive Woodwo
 the mill is assembled, then with `Resistance`. The mill runs its saws' cycle, cuts, and pulls from a
 rack only while it is assembled and the shaft turns at `MinSpeed` or faster.
 
+**Oil.** With `MachineOil` on (`../README.md`, "Machines need oil"), the mill keeps an oil tank
+(`OilState`, saved in its tree under `seraphhorizons:oil` and synced), built empty: while it is dry
+`Resistance` is multiplied by `MachineOilSettings.DryResistanceMultiplier` (3). Holding oil, a click
+on any cell pours it before anything else in `OnInteract`; a finished cut drains
+`MachineOilSettings.BuckingMill.DrainPerJob` (2) per stored log, rounded up over the trunk
+(`OilDrain.PerTrunk`); the block info shows the tank; a dry mill smokes while it turns.
+
 **Trunks.** One at a time, held as the trunk's whole item stack, so one taken back out is unchanged.
 It is shown as one of two of Logging Expanded's models, whatever its own size (`../Machines/Core/TrunkBox.cs`):
 a thin trunk (sizes `xs` to `lg`) as the `lg` model, 1×1×4 blocks, and a thick one (`xl`, `xxl`)

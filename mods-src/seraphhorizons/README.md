@@ -25,7 +25,8 @@ Unified woodworking runs on both sides too (the server does the work, the client
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
 sawmill's and the rosser's blocks: the server runs the machines, the client draws their moving
-parts.
+parts. Machine oil runs on both sides too: the server pours, drains and loads the
+shafts, the client takes the click, shows the tank and draws the smoke.
 
 ## Tweaks
 
@@ -1076,6 +1077,96 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
   made without `Trunks.Debark` (only `/giveblock`) has no mark and acts as a clean trunk on a
   sawhorse. With the switch turned off, debarked trunks already in a world are lost, as are rossers.
 
+### Machines need oil (`MachineOil`, `MachineOilSettings`)
+
+The game, Immersive Woodworking (`immersivewoodworking`, 1.3.11) and this mod's two machines. The
+heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
+Woodworking's plank sawmill and powered chopper, the bucking sawmill and the rosser. Nothing else
+does: the quern, axles, gears and every other transmission part are exempt. A machine is built
+**dry**, and runs dry again when its oil is used up. Dry, its load on its shaft is
+`DryResistanceMultiplier` (3) times what it is otherwise; nothing else changes (it wears and works
+as before). Any oil at all is not dry. While dry and turning, it puffs dark smoke.
+
+- **Oil.** Right-click any cell of the machine (any cell of a multiblock) holding a liquid
+  container of a listed oil: as much as fits goes in, in whole items, taken from the container the
+  way a barrel takes it (a stack of containers has one split off). Holding oil, the click always
+  pours, whatever the cell would do otherwise. The listed liquids (`OilLiquids`) are the oils the
+  locked mods ship: the game's `oilportion-*` (flax and olive; its melted fat, `-fat` and
+  `-fatsolid`, are skipped variants but count if a mod enables them), Expanded Foods'
+  `foodoilportion-*` (flax, rice, seed, soy, sunflower, peanut, olive, and walnut from Oils
+  Resoaped's patch) and its `lard` and `hardlardliquid` (liquid rendered fat, hardened or not).
+  The game's tallow, rendered fat (`game:fat-rendered`), is a solid item with no liquid form in the
+  game, so it goes in by hand from the stack, at `OilLumps`' half a litre a lump (what its skipped
+  melted form, `oilportion-fat`, holds: 2 items to the litre). Turpentine and Oils Resoaped's wood
+  finish are not oils for this.
+- **The tank** is in points, 100 to the litre (one item of a 100-per-litre oil is a point). It
+  only fills: oil cannot be drained back out, and breaking the machine loses it. A setting that
+  makes a tank smaller keeps what fits.
+- **The drain** is by the job, and idle turning is free: the helve hammer per strike on an anvil
+  with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
+  log chopped, and the bucking sawmill and the rosser per log stored in the trunk, rounded up over
+  the trunk (as their blade and head wear are).
+- **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0), and
+  while dry how many times the power it takes. The handbook has a page of its own, "Oiling
+  machines" (`config/handbook/machineoil.json`): which machines, which oils, what dry means and how
+  long a tank lasts. Its text quotes the default settings.
+
+| Setting | Default | |
+|---|---|---|
+| `OilLiquids` | the four patterns above | Liquid codes (`domain:path`, `*` wildcards) that oil a machine |
+| `OilLumps` | `game:fat-rendered`: 0.5 | Solid oils by the lump: code pattern and litres a lump |
+| `DryResistanceMultiplier` | 3 | What a dry machine's shaft load is multiplied by (1 to 100) |
+| `HelveHammer` | tank 1000, 0.1 a strike | |
+| `Pulverizer` | tank 1000, 0.5 an item | |
+| `Sawmill` | tank 1000, 2 a log | Immersive Woodworking's plank sawmill |
+| `Chopper` | tank 1000, 1 a log | Immersive Woodworking's powered chopper |
+| `BuckingMill` | tank 1000, 2 a stored log | |
+| `Rosser` | tank 1000, 2 a stored log | |
+
+Each machine's entry is `{ "Tank": points, "DrainPerJob": points }`; a value out of range falls back
+to its default with a warning.
+
+**Why these sizes.** Every tank holds 1000 points, one 10 litre bucket, so "a bucket fills a dry
+machine" holds for all six and the block info reads the same everywhere. The drains are set so
+that a full tank lasts several days of steady play at a busy workshop's pace, by each machine's
+own rate of work: a helve hammer strikes about three times a second at speed 1, so 0.1 a strike
+is 10 000 strikes (some 50 minutes of hammering, a few weeks of smithing sessions); a pulverizer
+2000 items; the plank sawmill 500 logs and the chopper 1000 (firewood goes through it fastest);
+the bucking sawmill and the rosser 500 stored logs (a thin trunk stores about 10). Oil is not
+cheap: vanilla flax oil comes 0.1 litre a cooking pot, a press gives more, and tallow is half a
+litre a lump, so a bucket is a real cost that is paid rarely.
+
+**How.** The four foreign machines are patched (`MachineOil/ForeignMachines.cs`), on both sides
+and once per process (own Harmony id `seraphhorizons.machineoil`): their block entities cannot
+carry a field of this mod's, so the tank is kept beside each block entity and written into, and
+read from, its tree under `seraphhorizons:oil` (postfixes on `ToTreeAttributes` and
+`FromTreeAttributes`), which saves it with the world and syncs it to clients. The targets:
+
+| Machine | Load (postfix) | Drain | Pouring (prefix) | Tank and info |
+|---|---|---|---|---|
+| Helve hammer | `BEBehaviorMPToggle.GetResistance` (the wooden toggle carries the hammer's load; it finds the hammer on either side) | `BEHelveHammer.onEvery25ms`, prefix and postfix: a strike is the swing (`accumHits`) wound back a quarter turn, onto an anvil whose `WorkItemStack` was set | `BlockHelveHammer.OnBlockInteractStart` | `BEHelveHammer.To/FromTreeAttributes`; `BlockEntity.GetBlockInfo` for the hammer alone (it has none of its own) |
+| Pulverizer | `BEBehaviorMPPulverizer.GetResistance` | `BEPulverizer.Crush` (one item a call) | `BlockPulverizer` and `BlockMPMultiblockPulverizer.OnBlockInteractStart` | `BEPulverizer.To/FromTreeAttributes`, `GetBlockInfo` |
+| Sawmill | `BEBehaviorSawmillMP.GetResistance` (its private `Master`) | `BlockEntitySawmill.CompletePass`, prefix and postfix: a pass that empties the input slot | `BlockSawmill` and `BlockSawmillGhost.OnBlockInteractStart` (the power ghost inherits it) | `BlockEntitySawmill.To/FromTreeAttributes`, `GetBlockInfo` (the ghosts pass theirs to it) |
+| Chopper | `BEBehaviorChopperMP.GetResistance` | `BlockEntityChopper.CompletePass`, likewise | `BlockChopper` and `BlockChopperGhost.OnBlockInteractStart` | `BlockEntityChopper.To/FromTreeAttributes`, `GetBlockInfo` |
+
+A click on a multiblock cell finds the machine through the cell's `Principal` (`BEMPMultiblock`,
+Immersive Woodworking's `BEMultiblockSawmill` and `BEMultiblockChopper`). Immersive Woodworking is
+found by name; if any of its members is missing, its two machines are left as they ship with a
+warning, and the game's two are oiled regardless. The bucking sawmill and the rosser keep their
+tank themselves (`BEBuckingMill`, `BERosser`, the same tree key), check for oil first in their
+`OnInteract`, drain in `FinishCut` and `Deliver`, and multiply in their own MP behaviours. The
+shared maths (tank, drain, code patterns, settings) is in `Machines/Core/MachineOil.cs`, the
+shared game side (tree, pouring, info, smoke) in `Machines/Game/Oil.cs`. The client smokes the
+foreign machines from one tick of `MachineOilSystem`, the two of this mod's from their own.
+
+The server decides: it writes the tank into the tree only with the switch on, and a client shows
+and smokes only a tank it was sent. Which held item is oil is judged on each side by its own
+settings (the client only says the click is taken; the server pours). With the switch off nothing
+is patched, the mill and the rosser keep no tank, every machine loads its shaft and works as it
+did before, tanks already saved are dropped at the next save, and the handbook page is hidden (the
+client removes it from the handbook; the server lists it under the hidden guides key, so the
+recipe export leaves it out).
+
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
@@ -1248,7 +1339,8 @@ machines' shared rig maths, footprint, trunk path and trunk box, held to the dri
 implementation replays (`Machines/Core/`, `tests/Machines/`), the bucking sawmill's rig, assembly
 rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 `BuckingSawmill/README.md`), the rosser's rig, parts, pace, trip, water and client-side values
-(`Rosser/Core/`, described in `Rosser/README.md`), and the trunk code and variant rules of the
+(`Rosser/Core/`, described in `Rosser/README.md`), machine oil's tank, drain, oil codes and settings
+(`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), and the trunk code and variant rules of the
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
@@ -1334,6 +1426,27 @@ placed again. Without the patch the rotor stores 5, 0.2 and 5 in the three cases
 through the gearbox. With the switch off, `SwitchesOffScenarios` requires nothing patched and the
 rotor placed last on the low side at 5, as MPE Gearbox ships it; when that fails with the rotor at
 1, MPE Gearbox has fixed it and the tweak can go.
+
+`tests/PackTests/MachineOilScenarios.cs` (Atlas) is the fragility guard and the game's machines:
+every patch target in `ForeignMachines.Targets` (27: the helve hammer's and pulverizer's 13 and
+Immersive Woodworking's 14) resolves against the locked versions and carries its prefix or postfix,
+Immersive Woodworking's machines are bound, and the default oils exist in the pack. When it fails
+after a game or Immersive Woodworking update, the target it names was renamed or changed: find the
+new method that does that job and point `ForeignMachines.Bind` at it. A pulverizer must be built
+dry at three times the game's 0.085, take four lumps of tallow (200 points, back to 0.085), take
+800 of a bucket's 1000 items of flax oil and leave the rest in the bucket, refuse more when full
+(the click still the oil's), save the tank in its tree, drain by `DrainPerJob` for each item
+`Crush` takes and run dry, and be dry again when broken and placed again. A helve hammer next to
+a wooden toggle must load the toggle at three times 0.125 once it has a head, and 0.125 when oiled.
+`MachineOilMillScenarios.cs` (`WoodworkingScenarios`) builds a bucking sawmill: dry at three
+times its `Resistance`, oiled by a bucket on its power cell, and a four-log trunk's cut costing
+`OilDrain.PerTrunk`. The mill's and the rosser's assembly scenarios require three times their
+`Resistance` once assembled and their own once oiled, and every other mill and rosser scenario fills
+the tank as it assembles (a creative rotor at its default settings cannot turn a dry mill).
+`ItemExportScenarios` requires the handbook page in the export. With the
+switch off, `SwitchesOffScenarios` requires nothing patched, a pulverizer at 0.085 with no tank
+and refusing tallow, and the page among the hidden guides. The strike detection, the smoke and
+the client's side of the click need a client and are checked by hand in the game.
 
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When

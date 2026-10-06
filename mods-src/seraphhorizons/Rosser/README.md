@@ -140,7 +140,11 @@ data, and a player in creative sees the help line
 
 **Power.** `BEBehaviorRosserMP`, a mechanical power consumer on the power ghost, connects only
 through the rig's power face, turned to the rosser's facing (`BlockRosserGhostPower`). It loads the
-shaft with the mill's 0.005 until the rosser is complete, then with `Resistance`. The axle comes in
+shaft with the mill's 0.005 until the rosser is complete, then with `Resistance` (times
+`MachineOilSettings.DryResistanceMultiplier` while its oil tank is dry: with `MachineOil` on, the
+rosser keeps an oil tank as the bucking mill does, built empty, filled by a click with oil on any
+cell, drained by `MachineOilSettings.Rosser.DrainPerJob` per stored log of each delivered trunk,
+rounded up; `../README.md`, "Machines need oil"). The axle comes in
 along native z, on a side face, so the shaft's sign is `MillMotion.NativeShaftAngle(side, angle,
 Axis.Z)`: − facing south or east, + facing north or west, which turns the entry shaft with a vanilla
 axle on the power face (unit-tested per facing, and checked in Atlas against a real axle). The

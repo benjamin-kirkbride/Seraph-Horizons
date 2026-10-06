@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.MachineOil;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Common;
@@ -377,8 +378,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
                                       && i.CreativeInventoryTabs?.Length > 0);
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
-        // The recipe export leaves out the six pages a player does not see, and only them.
-        Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey())).Order(),
+        // The recipe export leaves out the six pages a player does not see, and only them (and
+        // machine oil's page, whose switch is off here too).
+        Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
+                .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
@@ -427,5 +430,31 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(shop.Hand.Itemstack);
         // Immersive Woodworking's own yield: its hand value, 8.
         Assert.Equal(8, site.ChopOneLog());
+    }
+
+    /// <summary><c>MachineOil</c>: nothing is patched, a pulverizer loads its shaft as the game ships
+    /// it with no tank, and tallow on it is not taken.</summary>
+    [AtlasScenario]
+    public async Task Machine_oil_off_machines_turn_as_they_ship()
+    {
+        Assert.True(Off("MachineOil"));
+        Assert.False(OilSite.AnyPatched());
+        var p = await World.JoinPlayer("nooil");
+        var pos = World.Spawn.AddCopy(100, 12, 100);
+        await p.TeleportTo(pos.AddCopy(2, 0, 0));
+        var site = new OilSite(World, pos, p.Player);
+        await site.Clear();
+        World.SetBlock(OilSite.Pulverizer, pos);
+        await World.Ticks(2);
+        var be = Assert.IsType<Vintagestory.GameContent.Mechanics.BEPulverizer>(W.BlockAccessor.GetBlockEntity(pos));
+        be.hasAxle = true;
+        Assert.Equal(0.085f, be.GetBehavior<Vintagestory.GameContent.Mechanics.BEBehaviorMPPulverizer>()!.GetResistance(), 4);
+        Assert.Null(ForeignMachines.StateOf(be));
+        site.RightClick(pos, site.Stack(OilSite.Tallow, 4));
+        Assert.Equal(4, site.Hand.Itemstack?.StackSize ?? 0);
+        var tree = new Vintagestory.API.Datastructures.TreeAttribute();
+        be.ToTreeAttributes(tree);
+        Assert.Null(tree[SeraphHorizons.Mod.Machines.Oil.TreeKey]);
+        Assert.DoesNotContain("Oil", OilSite.Info(be, p.Player));
     }
 }
