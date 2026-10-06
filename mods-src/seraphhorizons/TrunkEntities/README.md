@@ -43,7 +43,7 @@ shown as its `lg` model, 1 × 1 × 4 blocks; xl and xxl (25 logs and up) are thi
 |---|---|---|
 | Sizes | xs, sm, md, lg | xl, xxl |
 | Shown as | `lg`, 1 × 1 × 4 | `xxl`, 2 × 2 × 5 |
-| Collision (`passivephysicsmultibox`) | four 1 × 1 × 1 boxes along z, x −0.5..0.5, z −2..2 | five 2 × 2 × 1 boxes, x −1..1, z −2.5..2.5 |
+| Collision (`passivephysicsmultibox`) | four 1 × 1 × 1 boxes along z, x −0.5..0.5, z −2..2 | four 2 × 2 × 2 boxes one block apart (middles at z −1.5, −0.5, 0.5, 1.5), x −1..1, z −2.5..2.5 |
 | `hitboxSize` | 1 × 1 | 2 × 2 |
 | Floats with | half its height (0.5) under | half its height (1) under |
 
@@ -58,8 +58,10 @@ nudges it; the entity counts as a creature, `IsCreature`, so players' shoving fi
 game's boat is found), `passivephysicsmultibox` (gravity factor 1, ground drag 1, falling air drag
 0.5), `ropetieable`, and on the client `interpolateposition`. With Carry On the server's list also
 gets the pack's pick-up behaviour (`seraphhorizons.trunkcarry`, below). The game's multi-box physics
-moves each box's middle round with the yaw but keeps the box itself axis-aligned, as for the raft,
-so a thin trunk lying at 45° collides as a staircase of four cubes. No despawn, no decay.
+moves each box's middle round with the yaw but keeps the box itself axis-aligned and its size, as
+for the raft, so every box is square across (a thick trunk's overlap): a trunk at a quarter turn
+collides as the same trunk along x (5 × 2 for a thick one, not 6 × 1), and a thin trunk lying at
+45° as a staircase of four cubes. No despawn, no decay.
 
 **Buoyancy.** `MaterialDensity` 700 (water is 1000) and `SwimmingOffsetY` half the display class's
 height, so a trunk floats about half under and the game's passive physics moves it with flowing
@@ -84,9 +86,8 @@ holds it, who is dragging it. The name is the stack's ("Oak Tree Trunk"); the ty
 (`item-creature-trunk-thin`, `-thick`) are "Tree trunk".
 
 **Selection.** The entity's square hitbox is only its width across, so `EntityTrunk.IntersectsRay`
-picks against the collision boxes turned with the yaw (`TrunkBoxes.Turned`), each also turned to the
-nearest quarter so the row stays one box wide: a trunk is picked along its whole length whichever
-way it lies. A trunk entity is never collected (`CanCollect` false).
+picks against the collision boxes turned with the yaw (`TrunkBoxes.Turned`), square across as they
+are, so the row keeps its width: a trunk is picked along its whole length whichever way it lies. A trunk entity is never collected (`CanCollect` false).
 
 **Help.** Looking at a trunk: hold to drag (empty hand), tie a rope (with a `game:rope`), shoulder
 it (Shift, empty hand, with Carry On), and each tool that would work it in its present state (the
@@ -337,9 +338,9 @@ entities, with nothing to pick them up; turn the switch back on to use them.
   documented defaults, out-of-range values falling back and edge values kept; the weight (10 + 8 per
   log, and following the setting); the carry speed, linear from 4 to 48 logs and never rising; the
   spud's hold (half a second a log, 2 s at least); `MaxGrabWeight` 0 meaning any weight; the boxes
-  per class (four cubes, five 2 × 2 slices, none for none); the radius; and the turned boxes at
-  yaw 0, a half turn and a quarter turn (laid along x, one box wide), their middles kept at their
-  distance.
+  per class (four cubes, four overlapping 2 × 2 × 2 cubes, none for none); the radius; and the
+  turned boxes at yaw 0, a half turn and a quarter turn (laid along x, a thin trunk one block wide
+  and a thick one 5 × 2), their middles kept at their distance.
 - The Atlas scenarios (`tests/PackTests`) load this build with every locked mod, Carry On included,
   and the pack's default settings; each works on a floor of its own high in the sky. A player is a
   fake one whose clicks reach the server through the entity's or the item's own interaction methods.

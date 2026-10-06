@@ -111,12 +111,12 @@ public class TrunkBoxesTests
     }
 
     [Fact]
-    public void Thick_collision_is_five_two_by_two_slices_along_z()
+    public void Thick_collision_is_four_overlapping_two_block_cubes_along_z()
     {
         var boxes = TrunkBoxes.Collision(TrunkClass.Thick);
-        Assert.Equal(5, boxes.Count);
-        for (int i = 0; i < 5; i++)
-            Assert.Equal(new Box(-1, 0, -2.5f + i, 1, 2, -1.5f + i), boxes[i]);
+        Assert.Equal(4, boxes.Count);
+        for (int i = 0; i < 4; i++)
+            Assert.Equal(new Box(-1, 0, -2.5f + i, 1, 2, -0.5f + i), boxes[i]);
         Assert.Equal(new Box(-1, 0, -2.5f, 1, 2, 2.5f), TrunkBoxes.Selection(TrunkClass.Thick));
         Assert.Equal((2f, 2f), TrunkBoxes.Hitbox(TrunkClass.Thick));
     }
@@ -163,6 +163,23 @@ public class TrunkBoxesTests
             Assert.Equal(-0.5f, turned[i].Z1, 4);
             Assert.Equal(0.5f, turned[i].Z2, 4);
         }
+    }
+
+    [Fact]
+    public void A_quarter_turn_lays_a_thick_trunk_along_x_two_blocks_wide()
+    {
+        var turned = TrunkBoxes.Turned(TrunkClass.Thick, MathF.PI / 2).OrderBy(b => b.X1).ToList();
+        Assert.Equal(4, turned.Count);
+        for (int i = 0; i < 4; i++)
+        {
+            Assert.Equal(-2.5f + i, turned[i].X1, 4);
+            Assert.Equal(-0.5f + i, turned[i].X2, 4);
+            Assert.Equal(-1f, turned[i].Z1, 4);
+            Assert.Equal(1f, turned[i].Z2, 4);
+        }
+        // the same footprint as along z, turned: 5 × 2, not 6 × 1
+        Assert.Equal(-2.5f, turned.Min(b => b.X1), 4);
+        Assert.Equal(2.5f, turned.Max(b => b.X2), 4);
     }
 
     [Fact]
