@@ -529,4 +529,12 @@ public class SeraphHorizonsConfig
     /// <summary>The trunk entities' figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public TrunkEntityConfig TrunkEntitiesSettings { get; set; } = new();
+
+    /// <summary>Steel bits recovery (#478, SteelBits/): steel bits, which no fuel melts, go back into
+    /// steel. In the game's stone coffin 20 bits take an iron ingot's place and come out a blister
+    /// steel ingot (put in directly, or packed in the crafting grid first); and Steelmaking
+    /// Expanded's Bessemer converter takes them as scrap, which its default setting already does and
+    /// a server's file that leaves them out is overridden for the run. Both sides; off means the
+    /// coffin is not patched, there is no packing recipe and smex's setting is as its file says.</summary>
+    public bool SteelBitsRecovery { get; set; } = true;
 }

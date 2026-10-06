@@ -652,4 +652,33 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(tree[SeraphHorizons.Mod.Machines.Oil.TreeKey]);
         Assert.DoesNotContain("Oil", OilSite.Info(be, p.Player));
     }
+
+    /// <summary><c>SteelBitsRecovery</c>: the coffin is not patched and refuses steel bits, there is no
+    /// packing recipe and no handbook section, and smex's scrap setting is left alone; packed steel
+    /// bits still exist.</summary>
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task Steel_bits_recovery_off_the_coffin_refuses_steel_bits()
+    {
+        Assert.True(Off("SteelBitsRecovery"));
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.HarmonyId));
+        Assert.False(CoffinSite.Patched(CoffinSite.AddIngotMethod()));
+        Assert.Null(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.AddIngot);
+        Assert.Equal(SeraphHorizons.Mod.SteelBits.SmexScrap.Status.Off,
+            SeraphHorizons.Mod.SteelBits.SteelBitsSystem.Of(World.Api).SmexStatus);
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Equals(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.ChargeCode) == true);
+        Assert.False(W.GetItem(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.SteelBit)!.Attributes["handbook"]["extraSections"].Exists);
+        Assert.NotNull(W.GetItem(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.ChargeCode));
+
+        var p = await World.JoinPlayer("nocementing");
+        var pos = World.Spawn.AddCopy(-180, 12, -300);
+        await p.TeleportTo(pos.AddCopy(8, 0, 0));
+        var site = new CoffinSite(World, pos, p.Player);
+        await site.Build();
+        site.AddCoal();
+        site.Click(site.Stack(SeraphHorizons.Mod.Core.SteelBitsRules.SteelBit, 40));
+        Assert.Equal(0, site.Coffin.IngotCount);
+        Assert.Equal(40, site.Hand.StackSize);
+        site.Click(site.Stack(CoffinSite.IronIngot, 1));
+        Assert.Equal(1, site.Coffin.IngotCount);
+    }
 }

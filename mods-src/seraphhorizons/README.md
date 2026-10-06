@@ -29,7 +29,8 @@ block entity behavior of this mod, which a client needs in the same way. So are 
 sawmill's and the rosser's blocks: the server runs the machines, the client draws their moving
 parts. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
-the server runs them, the client draws them and drives the tools' holds on them.
+the server runs them, the client draws them and drives the tools' holds on them. Steel bits
+recovery patches the stone coffin on both sides: the server fills it, the client predicts the click.
 
 ## Tweaks
 
@@ -1285,6 +1286,61 @@ creative hotbars, still carry them. With no position in the tree, `BEResinRack.F
 keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
 warning and leaves the rack as it ships.
 
+### Steel bits back into steel (`SteelBitsRecovery`)
+
+The game and Steelmaking Expanded (`smex` 0.10.1), part of the gears epic (#484, #478). A steel bit
+(`game:metalbit-steel`) melts at 1502 °C, and the hottest fuel the game has, coke, burns at 1340 °C:
+no forge, firepit or crucible melts one, so in the game steel bits are dead ends. Reclaiming rusty
+gears leaves mostly steel bits, so two ways take them back into steel.
+
+**The cementation furnace** (the game's stone coffin). What the coffin takes as an ingot is data,
+not code: any item whose attributes have `carburizableProps` (in the game only the iron ingot),
+turned into its `carburizedOutput` one for one when the firing completes; it holds 16 such items,
+filled 4 at a time between 5 layers of 8 coke or charcoal, and fires only full. So:
+
+- **Packed steel bits** (`seraphhorizons:steelbitcharge`, `itemtypes/steelbitcharge.json`): 20 steel
+  bits, the bit's own `smeltedRatio`, with `carburizableProps` out `game:ingot-blistersteel`. Made
+  shapeless in the crafting grid from one slot of 20 bits (`recipes/grid/steelbitcharge.json`). The
+  item exists whatever the switch says, so charges already made are never lost.
+- **Bits straight in.** Holding 20 or more steel bits, the sneak-click that puts an ingot in puts 20
+  bits in as one packed charge, and a stack goes in 20 a click. With fewer, it is refused ("Each
+  ingot's place takes 20 steel bits") and nothing is taken.
+- A full coffin is 16 charges, **320 bits, and gives 16 blister steel ingots**, which the anvil
+  works into steel as usual: exactly the 20 to 1 a steel bit would smelt at. Bits and iron ingots
+  do not share a coffin (the game's own "Cannot mix ingots"), so a coffin is all iron or all bits;
+  packed charges and bits put in directly are the same item and mix. A coffin broken unfired drops
+  the charges, not the bits. The coffin draws its contents as iron ingots whatever they are.
+
+`SteelBits/SteelBitsSystem.cs` (Harmony, own id `seraphhorizons.steelbits`, on both sides, once per
+process: the client predicts the click) patches one method, the coffin's private
+`BlockEntityStoneCoffin.AddIngot(ItemSlot)`. Its prefix, when the held slot holds steel bits, hands
+the game's method a slot holding one packed charge in place of the held one, so every check and
+message is the game's (full, mixed, the move into its slot, the redraw); its postfix takes the 20
+bits from the held slot only if the method returned true, which it does only when the charge went
+in. If the method is not found, a warning says so and bits go in only packed.
+
+**The Bessemer converter** (Steelmaking Expanded). It takes cold scrap with a raw iron charge before
+the blow, by its `BessemerScrapCodes` setting (`ModConfig/ex_values.json`, section `smex`); each
+item is worth `MoltenUnitsPerBit` units, 5, and a steel ingot's mold `MoldDefaultUnits`, 100, so
+**a steel bit is a twentieth of an ingot, returned as steel unit for unit**, and costs the bath
+`BessemerColdScrapLossCoefficient` × 5 = 4 °C, which more blast pressure buys back. Its default
+list is `game:metalbit-iron,game:metalbit-steel`, so nothing needs shipping. In `AssetsFinalize`,
+after smex has read its file in `Start`, `SteelBits/SmexScrap.cs` reads the live setting by name
+(`SteelmakingExpanded.SmexValues`); if it does not list the steel bit, it adds it to the live
+setting (`SmexValues._store.Config`), not to the file, with a log line. exlib sends the server's
+live settings to every client that joins. Without smex nothing is done; if its members are not as
+expected, a warning says so and its setting decides.
+
+**Handbook.** The steel bit's page, and the packed bits', get a section, "Back into steel", with
+both ways (`patches/steelbits-handbook.json` adds it to the steel bit alone, by
+`extraSectionsByType`, since the metal bits share one item file; the pack's Tidy Variants keeps
+each bit's own page openable).
+
+With the switch off nothing is patched, the coffin refuses bits as the game does, the recipe and
+the steel bit's section are left out (the patch file emptied and the recipe disabled in `Start`),
+and smex's setting is as its file says. Packed steel bits made before still go into a coffin by
+their own attribute.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -2075,6 +2131,24 @@ placed again. Without the patch the rotor stores 5, 0.2 and 5 in the three cases
 through the gearbox. With the switch off, `SwitchesOffScenarios` requires nothing patched and the
 rotor placed last on the low side at 5, as MPE Gearbox ships it; when that fails with the rotor at
 1, MPE Gearbox has fixed it and the tweak can go.
+
+`tests/PackTests/SteelBitsScenarios.cs` (Atlas) is the stone coffin's fragility guard:
+`BlockEntityStoneCoffin.AddIngot(ItemSlot)` resolves, returns `bool`, and carries the prefix and
+postfix, and the private fields the scenarios read are there; when it fails after a game update,
+find the method that now puts an ingot in and point `SteelBitsSystem.Start` at it. It requires the
+steel bit to melt above coke's burn temperature at 20 to an ingot, packed steel bits to carburize
+to one blister steel ingot and their recipe to take one slot of 20 bits, and the handbook section
+on the steel bit alone. It builds a cementation furnace from the game's own multiblock description,
+fills it by sneak-clicking its second half: 19 bits refused and kept, 20 taken from a stack of 50,
+an iron ingot refused after them, a packed charge taken, then the rest to 16 places and 5 coal
+layers, more bits refused when full; puts the lids on, lights a coal pile of coke under each half,
+waits for heat and progress, skips the 160 hours and requires 16 blister steel ingots and 32 coke
+left. With smex loaded, its live scrap list must name the steel bit, its converter's own `IsScrap`
+take a steel bit (not a steel ingot), a bit be worth 5 units to a 100 unit ingot, and a list set to
+iron only get the steel bit back from `SmexScrap.Ensure` (the setting put back after); without smex
+it passes saying so. With the switch off, `SwitchesOffScenarios` requires nothing patched, no
+recipe or section, smex's setting untouched, the packed item still there, and a coffin that keeps
+40 held bits and takes an iron ingot.
 
 `tests/PackTests/MachineOilScenarios.cs` (Atlas) is the fragility guard and the game's machines:
 every patch target in `ForeignMachines.Targets` (27: the helve hammer's and pulverizer's 13 and

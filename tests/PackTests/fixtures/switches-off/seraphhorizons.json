@@ -26,6 +26,7 @@
   "RegionalSupply": false,
   "Rosser": false,
   "SmallerDeposits": false,
+  "SteelBitsRecovery": false,
   "TidyVariants": false,
   "TraderDeliveries": false,
   "TraderGrid": false,

@@ -1,0 +1,17 @@
+// Steel bits recovery (#478; README "Steel bits back into steel"): the steel bit's handbook page says
+// how it goes back into steel. ByType inside the attributes, as the other metal bits share the file.
+// Server side: the client gets the items from it. SteelBitsRecovery off empties this file
+// (SteelBitsSystem.Disable).
+[
+  {
+    "file": "game:itemtypes/resource/metalbit.json",
+    "op": "add",
+    "path": "/attributes/handbook/extraSectionsByType",
+    "value": {
+      "*-steel": [
+        { "title": "seraphhorizons:steelbits-handbook-title", "text": "seraphhorizons:steelbits-handbook-text" }
+      ]
+    },
+    "side": "server"
+  }
+]
