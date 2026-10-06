@@ -4,6 +4,7 @@ using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Rosser.Core;
+using SeraphHorizons.Mod.TrunkEntities;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -283,9 +284,10 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     // ---- Interaction ----
 
     /// <summary>Right-click on the rosser or any ghost (<paramref name="onTrunk"/>: on the trunk).
-    /// Ctrl takes the waiting or delivered trunk back, else the unworn heads; a part in hand is
-    /// fitted (as many as its stage still needs); a trunk in hand, or with an empty hand one from
-    /// the hotbar or backpack, is loaded onto the infeed bed. Anything else held is the item's own
+    /// Ctrl takes the waiting or delivered trunk back (into Carry On's hands with trunk entities),
+    /// else the unworn heads; a part in hand is fitted (as many as its stage still needs); with an
+    /// empty hand the trunk carried in Carry On's hands (with trunk entities), else a trunk in hand
+    /// or one from the hotbar or backpack, is loaded onto the infeed bed. Anything else held is the item's own
     /// business, except on the trunk, where the click is the rosser's and does nothing (a block
     /// would be placed inside the trunk). In creative mode, Ctrl on an unassembled rosser fits its
     /// next stage instead. Decided and done on the server; the client only says whether the click
@@ -394,8 +396,9 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         {
             case RosserTakeBack.Trunk:
                 var trunk = _trunk!;
+                if (!GiveTrunk(byPlayer, trunk))
+                    return true;   // hands full: it stays
                 ClearTrunk();
-                Give(byPlayer, trunk);
                 Api.World.PlaySoundAt(TrunkSound, Pos, 0, byPlayer);
                 MarkDirty(true);
                 return true;
@@ -425,10 +428,14 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         return true;
     }
 
-    /// <summary>Loads the first trunk in the player's hotbar, then backpack, that the rosser
-    /// takes; with none, says why the first trunk found is refused, or that there is none.</summary>
+    /// <summary>Loads the trunk the player carries in Carry On's hands, while trunks go through
+    /// hands (<see cref="TrunkStations.Hands"/>); else the first trunk in the player's hotbar, then
+    /// backpack, that the rosser takes. With none, says why the first trunk found is refused, or
+    /// that there is none.</summary>
     public bool TryLoadFromInventory(IPlayer byPlayer)
     {
+        if (TrunkStations.Hands(Api))
+            return TryLoadFromHands(byPlayer);
         ItemSlot? first = null;
         foreach (var name in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
         {
@@ -444,6 +451,19 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             }
         }
         return first != null ? TryLoadFromSlot(first, byPlayer) : Error(byPlayer, "error-no-trunk");
+    }
+
+    /// <summary>Loads the trunk the player carries in Carry On's hands, if the rosser takes it
+    /// (server side).</summary>
+    public bool TryLoadFromHands(IPlayer byPlayer)
+    {
+        if (TrunkStations.Carried(Api, byPlayer) is not { } carried)
+            return Error(byPlayer, "error-no-trunk");
+        if (!CanLoad(carried, byPlayer) || byPlayer is not IServerPlayer sp || TrunkCarry.Take(sp) is not { } trunk)
+            return false;
+        Load(trunk);
+        Api.World.PlaySoundAt(TrunkSound, Pos, 0, byPlayer);
+        return true;
     }
 
     /// <summary>Whether <paramref name="trunk"/> can go on now (<see cref="RosserTrip.CanLoad"/>);
@@ -482,6 +502,24 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         _trunk = null;
         _trip = RosserTrip.Taken;
         RebuildBoxes();
+    }
+
+    /// <summary>Gives a trunk taken off the rosser to the player (server side): into Carry On's
+    /// hands while trunks go through hands, false with the hands-full error when they are full;
+    /// with trunk entities but no Carry On, a trunk entity beyond the infeed end; else to the
+    /// inventory as any item.</summary>
+    private bool GiveTrunk(IPlayer byPlayer, ItemStack trunk)
+    {
+        if (TrunkStations.Hands(Api))
+            return byPlayer is IServerPlayer sp && TrunkStations.GiveToHands(sp, trunk);
+        if (TrunkEntitySystem.Of(Api).Enabled && Rig is { } rig)
+        {
+            var outward = Footprint.ToWorld(rig.InfeedSide, Side).Normal();
+            if (TrunkStations.DropBeyond(Api.World, trunk, rig.InfeedNeighbours().Select(CellPos).ToList(), outward.X, outward.Z) != null)
+                return true;
+        }
+        Give(byPlayer, trunk);
+        return true;
     }
 
     private void Give(IPlayer byPlayer, ItemStack stack)
@@ -662,8 +700,8 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
         EnsureGhosts();
         DrawWater(dt);
-        if (State == RosserState.Empty)
-            PullFromRack();
+        if (State == RosserState.Empty && !PullFromRack())
+            PullFromGround();
         else if (State == RosserState.Delivered)
             PushToRack();
         var rack = CheckRack(out _);
@@ -742,6 +780,24 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         }
         Load(trunk);
         _rackState = CheckRack(out _);
+        return true;
+    }
+
+    /// <summary>An empty, running rosser takes a trunk entity lying in its infeed cells (<see
+    /// cref="RosserRig.InfeedNeighbours"/>), under the rack's rules: while <c>AutoPullFromRack</c>
+    /// is on, and not one already debarked or holding no logs. A rack there goes first. Returns
+    /// whether one went on.</summary>
+    public bool PullFromGround()
+    {
+        if (State != RosserState.Empty || !Running || !Config.AutoPullFromRack || Pace == null || System.Logging == null
+            || Rig is not { } rig || !TrunkEntitySystem.Of(Api).Enabled)
+            return false;
+        var cells = rig.InfeedNeighbours().Select(CellPos).ToList();
+        if (TrunkStations.FindInCells(Api.World, cells, t => CanLoad(t, null)) is not { } entity
+            || TrunkStations.TakeEntity(entity) is not { } trunk)
+            return false;
+        Load(trunk);
+        Api.World.PlaySoundAt(TrunkSound, Pos, 0);
         return true;
     }
 

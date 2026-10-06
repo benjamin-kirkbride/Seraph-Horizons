@@ -11,7 +11,8 @@
        prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
        (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
-       travelling merchants' inns (../Trading/Visitors/Core).
+       travelling merchants' inns (../Trading/Visitors/Core) and the trunk entities' weights
+       and boxes (../TrunkEntities/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -49,6 +50,7 @@
     <!-- The trading economy (#450, #451): fit, prices, side budget, supply; and the shipped relations. -->
     <Compile Include="../Trading/Economy/Core/**/*.cs" Link="Trading/Economy/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/trading/trader-relations.json" Link="trader-relations.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../TrunkEntities/Core/**/*.cs" Link="TrunkEntities/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- The bucking sawmill's shipped rig, so the tests check that it parses and is consistent,
          and every part's matrix at a grid of poses, from BuckingSawmill/tools/make_shape.py's
          reference maths. -->

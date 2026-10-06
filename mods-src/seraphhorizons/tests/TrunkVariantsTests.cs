@@ -43,6 +43,27 @@ public class TrunkVariantsTests
     public void Branched_is_the_variant_or_a_count(string? branches, int count, bool branched) =>
         Assert.Equal(branched, TrunkVariants.IsBranched(branches, count));
 
+    [Theory]
+    [InlineData(1, "xs")]
+    [InlineData(3, "xs")]
+    [InlineData(4, "sm")]
+    [InlineData(8, "sm")]
+    [InlineData(9, "md")]
+    [InlineData(15, "md")]
+    [InlineData(16, "lg")]
+    [InlineData(24, "lg")]
+    [InlineData(25, "xl")]
+    [InlineData(35, "xl")]
+    [InlineData(36, "xxl")]
+    [InlineData(48, "xxl")]
+    public void The_size_follows_the_logs_as_logging_expanded_counts_them(int logs, string size) =>
+        Assert.Equal(size, TrunkCode.SizeFor(logs));
+
+    [Fact]
+    public void A_new_size_keeps_wood_branches_and_side() =>
+        Assert.Equal("treetrunk-dark-oak-lg-debarked-west",
+            TrunkCode.Parse("treetrunk-dark-oak-xl-debarked-west")!.Value.WithSize("lg").Path);
+
     [Fact]
     public void Only_the_new_state_is_debarked()
     {
