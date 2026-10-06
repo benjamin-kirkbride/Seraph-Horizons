@@ -26,6 +26,8 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// </summary>
 public class TrunkToolBehavior(CollectibleObject collObj) : CollectibleBehavior(collObj)
 {
+    public const string ClassName = "seraphhorizons.TrunkTool";
+
     public const string SpudAnimation = Woodworking.SplittingBlockUpgrades.DebarkSpudAnimation;
 
     /// <summary>A hold Logging Expanded would not start again so soon after the last completed
