@@ -607,3 +607,62 @@ store). The tables were written with a one-off script; the JSON is the source.
 - Camps are not placed in cells that are mostly ocean or high ground: `TryGenerate` refuses spots
   above sea level + 15 in climates under 20 °C, as for vanilla camps.
 - Villager lists (`villager-*.json`) belong to the story villagers and are left alone.
+
+## Schematics (#468, #469)
+
+`Trading/Schematics/`, switches `TraderSchematics` and `MachineSchematics`, data in
+`config/schematic-gates.json` ("sold": the schematic code patterns; "gates": machine → gated recipe
+outputs, each with its mod; "sales": seller types and standing tier per schematic, which
+`tests/Trading/Schematics` holds the trade lists to). Server side only: clients get item types and
+recipes from the server.
+
+**Where schematics came from** (1.22.7 and the pinned mods):
+
+| Schematic | Sources found | What we do |
+|---|---|---|
+| `game:schematic-glider` | the Resonance Archive story structure's chest; the game's `schematiccopy` recipe (enabled!) | structure → parchment; recipe removed |
+| `game:schematic-customtranslocator` | Tobias' dialogue (story reward) | kept: his translocator's repair needs it |
+| `betterruins:br-schematic-*` (30) | 28 entries appended to vanilla's `*-gear` stack randomizers (`stackrandomizers-gear.json`); chests in 22 structure schematics (story locations, mega and large ruins); `brschematiccopy` (ships disabled, a ConfigKit setting enables it). Its panning patch adds only a locator map | randomizer entries stripped; structures → parchment; copy removed if enabled |
+| `cartwrightscaravan:cartschematics-*` | crafted from parchment + charcoal (`carts`, `signs`; `canopies`, `sides` disabled) | recipes removed; no loot |
+| `abyssaldepths:ad-schematic-divinggear` | `addmerge` into four vanilla stack randomizers; `adschematiccraft` and `adschematiccopy` (not registered in the pack) | randomizer entries stripped |
+| `walkingstick:schematic-flintlock` | only the treasure hunter's list | — |
+
+No vanilla loot vessel, and no panning table (vanilla, BetterRuins, Wilderlands), holds a schematic.
+
+**Why not JSON patches.** Most entries are appended by other mods' patches (`/-`, `addmerge`), so no
+patch of ours can name their index (patch files apply in asset order, not mod order); structure chests
+live in multi-megabyte schematic files whose item code table is the only handle; and patches can't
+read our switches. So: the loot entries go from the type assets in `AssetsLoaded` between the patch
+loader (0.05) and the type loader (0.2) — after that the collectibles have copied the lists
+(`ItemStackRandomizer.Stacks` in OnLoaded). Structures: a postfix on `BlockSchematic.Remap`, which
+`LoadSchematicsWithRotations` and `BlockSchematicStructure.Init` (story structures unpack through it)
+call, maps sold codes in `ItemCodes` to the replacement, for `BlockSchematicStructure` only. The
+game's own remaps (`config/remaps.json`, `/iir`) would also reach existing saves' item mappings, so
+they are not used.
+
+**Recipes**, at `ModsAndConfigReady` (LoadGamePre): after every mod's AssetsFinalize (Immersive
+Woodworking registers its frames there), before the recipes packet (after WorldReady), while the
+server still has `Ingredients` and `IngredientPattern` (dropped by `FreeRAMServer` when the packet is
+built). A gated recipe gets a new key in `Ingredients`, a new pattern and size, then `Resolve` again
+(`GridGate.Place`: first empty slot, else a column, else a row, else two slots of the most frequent
+consumable ingredient merged at double quantity if the stack fits). `GridRecipe.Enabled` is only read
+at load, so removed recipes are taken out of `World.GridRecipes`. Non-grid construction (the water
+wheel's stages, ppex's exlib construction, Gondola's construction sites, the biplane on its trestles)
+is gated through the grid recipe of its first stage. A one-slot, consumed, make-one recipe is a
+conversion (Scrolled, MadMechanics) and is neither gated, removed nor made to keep its input.
+
+**Kept on crafting**: `noConsumeOnCrafting` (vanilla's, Cartwright's, the walking stick's) skips
+consumption for *every* recipe, which would make Scrolled's rolling a copy; Scrolled removes it (the
+walking stick's on the server only), so we enforce `Consume = false` on recipe slots instead. A
+non-consumed ingredient returns early in `OnConsumedByCrafting`, so a `returnedStack` would not
+double, but it is cleared anyway.
+
+**Standing gate.** `TradeEntry.StandingTier` (default 0): `TradeListResolver.Resolve(def, region,
+tier)` leaves out entries above the tier; the core is the ungated entries, then the gated ones lowest
+tier first, cut at 16. `Problems` counts every core entry (the top tier) against the 16 slots. The
+trader's restock does not pass a tier yet (wave 2 standing wires it). Slot pressure decided the
+sellers: the issue's mapping put 20+ schematics on the mechanic and carpenter, so the wooden machines
+went to the carpenter, the metal gear work to the smith, chest/crate/candle/toymaker/artisan and the
+hand crank to the general store, book/alchemist/texture flipper to the curio dealer, and a few plain
+core goods (the carpenter's planks, the mechanic's ppex gears and blades, the smith's charcoal, borax
+and copper nails) moved to rotating; every list keeps at most 14 core entries at the top tier.
