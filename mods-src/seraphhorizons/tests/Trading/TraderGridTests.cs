@@ -162,6 +162,19 @@ public class TraderGridTests
     }
 
     [Fact]
+    public void ASpotTriesItselfFirstThenItsWholeChunkOnce()
+    {
+        var grid = new TraderGrid(12, Weights);
+        var spot = grid.Spots(new CellKey(3, 3))[0];
+        var positions = grid.PositionsInChunk(spot).ToList();
+        Assert.Equal((spot.X & 31, spot.Z & 31), positions[0]);
+        Assert.Equal(positions.Count, positions.Distinct().Count());
+        Assert.All(positions, p => { Assert.InRange(p.X, 0, 31); Assert.InRange(p.Z, 0, 31); });
+        Assert.True(positions.Count >= 256);
+        Assert.Equal(positions, grid.PositionsInChunk(spot).ToList());
+    }
+
+    [Fact]
     public void StructureOrderIsASeededWeightedPermutation()
     {
         var grid = new TraderGrid(8, Weights);

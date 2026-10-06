@@ -557,9 +557,13 @@ store). The tables were written with a one-off script; the JSON is the source.
   0.6, after GenStructures) the `trader`-group structures are taken out of `GenStructures.scfg`
   (reflection; `config/trading/camps.json` lists the groups, the group dropped outright, and vanilla's
   multi-trader outposts kept back for settlements), their `MinGroupDistance` set to 0. A chunk column
-  holding a cell's spot whose turn it is tries the camp structures there in a seeded order weighted by
-  their `chance`, through the game's own `TryGenerate` (reflection), with the climate and forest values
-  GenStructures computes, and records a placed camp as GenStructures does (generated structure of group
+  holding a cell's spot whose turn it is tries the camp structures in a seeded order weighted by their
+  `chance`, through the game's own `TryGenerate` (reflection), with the climate and forest values
+  GenStructures computes: at the spot, then at the chunk's other points in a seeded order (at most 48
+  that look flat in the chunk's heightmap). The game's surface placement only takes ground whose
+  schematic corners are at one height, which a single point rarely is (vanilla gets there by rolling
+  many structures at random points of every chunk); in the test world a spot's chunk took a camp at
+  the first or second spot, and records a placed camp as GenStructures does (generated structure of group
   `trader`, land claim). Chunks generate in any order, so each cell's state is saved
   (`CampRegistry`, savegame key `seraphhorizons:tradercamps`): a spot is tried only when every earlier
   spot has missed; a spot whose chunk is generated earlier is passed for good.

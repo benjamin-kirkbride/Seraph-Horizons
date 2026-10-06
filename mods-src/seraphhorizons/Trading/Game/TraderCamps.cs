@@ -169,30 +169,59 @@ public sealed class TraderCamps
         // Story locations (and their exclusion zones) keep other structures out, as in GenStructures.
         if (_gen!.GetIntersectingStructure(spot.X, spot.Z, ModStdWorldGen.StructuresHashCode) != null) return false;
         var mapChunk = request.Chunks[0].MapChunk;
-        int lx = spot.X & 31, lz = spot.Z & 31;
-        int height = mapChunk.WorldGenTerrainHeightMap[lz * 32 + lx];
-        if (height <= 0 || height >= _api.WorldManager.MapSizeY - 15) return false;
+        var heights = mapChunk.WorldGenTerrainHeightMap;
+        int sea = _api.World.SeaLevel, top = _api.WorldManager.MapSizeY - 15;
         var region = mapChunk.MapRegion;
         var (climate, forest) = ClimateCorners(region, request.ChunkX, request.ChunkZ);
-        int forestAt = GameMath.BiLerpRgbColor(lx / 32f, lz / 32f, forest[0], forest[1], forest[2], forest[3]);
-        var pos = new BlockPos(spot.X, height, spot.Z);
+        var order = grid.StructureOrder(cell, attempt, _weights);
+        int baseX = request.ChunkX * GlobalConstants.ChunkSize, baseZ = request.ChunkZ * GlobalConstants.ChunkSize;
         _blocks!.BeginColumn();
-        foreach (int i in grid.StructureOrder(cell, attempt, _weights))
+        int tried = 0;
+        foreach (var (lx, lz) in grid.PositionsInChunk(spot))
         {
-            var structure = _camps[i];
-            bool placed = (bool)TryGenerateMethod!.Invoke(structure,
-                [_blocks, _api.World, pos, climate[0], climate[1], climate[2], climate[3], forestAt, null])!;
-            if (!placed) continue;
-            Record(region, structure);
-            var location = structure.LastPlacedSchematicLocation;
-            var centre = new BlockPos(location.CenterX, location.Y1, location.CenterZ);
-            var where = RegionProbe.At(_blocks, centre, _system.Classifier);
-            string name = (structure.LastPlacedSchematic?.FromFile?.GetNameWithDomain() ?? "") + "/" + structure.Code;
-            Registry.Placed(cell, attempt, grid.TypeOf(cell), centre.X, location.Y1, centre.Z, where.ToString(), name);
-            return true;
+            int height = heights[lz * 32 + lx];
+            // Shallow-water camps stand a little below sea level.
+            if (height < sea - 4 || height >= top || !Flat(heights, lx, lz, height)) continue;
+            if (++tried > MaxPositions) break;
+            int forestAt = GameMath.BiLerpRgbColor(lx / 32f, lz / 32f, forest[0], forest[1], forest[2], forest[3]);
+            var pos = new BlockPos(baseX + lx, height, baseZ + lz);
+            foreach (int i in order)
+            {
+                var structure = _camps[i];
+                bool placed = (bool)TryGenerateMethod!.Invoke(structure,
+                    [_blocks, _api.World, pos.Copy(), climate[0], climate[1], climate[2], climate[3], forestAt, null])!;
+                if (!placed) continue;
+                Record(region, structure);
+                var location = structure.LastPlacedSchematicLocation;
+                var centre = new BlockPos(location.CenterX, location.Y1, location.CenterZ);
+                var where = RegionProbe.At(_blocks, centre, _system.Classifier);
+                string name = (structure.LastPlacedSchematic?.FromFile?.GetNameWithDomain() ?? "") + "/" + structure.Code;
+                Registry.Placed(cell, attempt, grid.TypeOf(cell), centre.X, location.Y1, centre.Z, where.ToString(), name);
+                return true;
+            }
         }
         return false;
     }
+
+    /// <summary>Flat positions tried per spot, at most: each costs a TryGenerate per camp structure.</summary>
+    private const int MaxPositions = 48;
+
+    // The game's surface placement wants the terrain under the schematic's corners at one height;
+    // camp schematics are 8 to 16 blocks across. Within the chunk's own heightmap: a quick filter
+    // before asking the game.
+    private static bool Flat(ushort[] heights, int lx, int lz, int height)
+    {
+        foreach (int d in FlatProbe)
+        {
+            int x = lx + d, z = lz + d;
+            if (x < 32 && heights[lz * 32 + x] != height) return false;
+            if (z < 32 && heights[z * 32 + lx] != height) return false;
+            if (x < 32 && z < 32 && heights[z * 32 + x] != height) return false;
+        }
+        return true;
+    }
+
+    private static readonly int[] FlatProbe = [4, 8, 12];
 
     /// <summary>The four climate and forest map values around a chunk, as GenStructures reads them.</summary>
     private (int[] Climate, int[] Forest) ClimateCorners(IMapRegion region, int chunkX, int chunkZ)

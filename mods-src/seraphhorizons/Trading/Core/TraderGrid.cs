@@ -121,6 +121,28 @@ public sealed class TraderGrid
             if (spots[i].ChunkX == chunkX && spots[i].ChunkZ == chunkZ) yield return i;
     }
 
+    /// <summary>
+    /// Where in a spot's chunk column a camp is tried, in order: the spot itself, then every
+    /// <see cref="PositionStep"/>th block of the chunk in a seeded order, as offsets (0..31) from the
+    /// chunk's corner. The game's surface placement wants the ground under a schematic's corners at
+    /// one height, which a single point rarely is; vanilla gets there by rolling many structures at
+    /// random points per chunk, a spot by trying its chunk's points (the worldgen side skips ones
+    /// that aren't flat first).
+    /// </summary>
+    public IEnumerable<(int X, int Z)> PositionsInChunk(Spot spot)
+    {
+        int ox = spot.X & 31, oz = spot.Z & 31;
+        yield return (ox, oz);
+        var rest = new List<(double Key, int X, int Z)>();
+        for (int x = 0; x < 32; x += PositionStep)
+            for (int z = 0; z < 32; z += PositionStep)
+                if (x != ox || z != oz)
+                    rest.Add((StableHash.Unit(_seed, "trader-position", spot.X - ox + x, spot.Z - oz + z), x, z));
+        foreach (var r in rest.OrderBy(r => r.Key)) yield return (r.X, r.Z);
+    }
+
+    public const int PositionStep = 2;
+
     /// <summary>The order a spot tries the camp structures in: a seeded shuffle weighted by each
     /// structure's chance (Efraimidis–Spirakis), so common camp kinds come up as often as vanilla
     /// places them. Structures at weight 0 are left out.</summary>

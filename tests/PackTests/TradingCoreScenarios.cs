@@ -43,7 +43,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
-        Assert.Contains(World.BootDiagnostics, e => e.Message.Contains("[seraphhorizons] Trading: 11 trade lists loaded; trader grid on"));
+        Assert.Equal(11, Trading.Lists?.Lists.Count);
     }
 
     [AtlasScenario]
@@ -185,32 +185,45 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal("game:wolf-eurasian-adult-male", wolf.GetString("type"));
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 900_000)]
     public async Task Generating_a_cells_spots_decides_its_camp()
     {
         var spawn = Api.World.DefaultSpawnPosition.AsBlockPos;
-        var cell = TraderGrid.CellOf(spawn.X, spawn.Z);
+        var home = TraderGrid.CellOf(spawn.X, spawn.Z);
         var grid = Trading.Grid!;
-        var spots = grid.Spots(cell);
         var registry = Trading.Camps!.Registry;
-        // Generate the cell's spots in order until its camp is placed or every spot is used.
-        for (int i = 0; i < spots.Count && registry.Get(cell)?.Status is null or CampStatus.Pending; i++)
+        var placed = new List<CampRecord>();
+        // The spawn's cell and its neighbours: generate each cell's spots in order until its camp is
+        // placed or every spot is used.
+        foreach (var cell in new[] { home }.Concat(TraderGrid.Neighbours(home)))
         {
-            var spot = spots[i];
-            bool loaded = false;
-            Api.WorldManager.LoadChunkColumnPriority(spot.ChunkX, spot.ChunkZ, new ChunkLoadOptions { OnLoaded = () => loaded = true });
-            await World.Until(() => loaded, 120_000);
-            output.WriteLine($"spot {i} at {spot}: {registry.Get(cell)?.Status} attempt {registry.Get(cell)?.Attempt}");
+            var spots = grid.Spots(cell);
+            for (int i = 0; i < spots.Count && registry.Get(cell)?.Status is null or CampStatus.Pending; i++)
+            {
+                var spot = spots[i];
+                bool loaded = false;
+                Api.WorldManager.LoadChunkColumnPriority(spot.ChunkX, spot.ChunkZ, new ChunkLoadOptions { OnLoaded = () => loaded = true });
+                await World.Until(() => loaded, 120_000);
+                var at = new BlockPos(spot.X, 0, spot.Z);
+                var climate = W.BlockAccessor.GetClimateAt(new BlockPos(spot.X, W.BlockAccessor.GetTerrainMapheightAt(at), spot.Z), EnumGetClimateMode.WorldGenValues);
+                output.WriteLine($"cell {cell} spot {i} at {spot.X},{spot.Z}: height {W.BlockAccessor.GetTerrainMapheightAt(at)} (sea {W.SeaLevel}), "
+                                 + $"{climate?.Temperature:0.0} °C, rain {climate?.Rainfall:0.00}, forest {climate?.ForestDensity:0.00} -> {registry.Get(cell)?.Status} attempt {registry.Get(cell)?.Attempt}");
+            }
+            var record = registry.Get(cell);
+            Assert.NotNull(record);
+            Assert.NotEqual(CampStatus.Pending, record!.Status);
+            output.WriteLine($"cell {cell}: {record.Status} {record.Type} at {record.X},{record.Y},{record.Z} {record.Region} {record.Structure}");
+            if (record.Status == CampStatus.Placed) placed.Add(record);
+            if (placed.Count >= 2) break;
         }
-        var record = registry.Get(cell)!;
-        Assert.NotNull(record);
-        Assert.NotEqual(CampStatus.Pending, record.Status);
-        output.WriteLine($"cell {cell}: {record.Status} {record.Type} at {record.X},{record.Y},{record.Z} {record.Region} {record.Structure}");
-        if (record.Status != CampStatus.Placed) return;
-        Assert.Equal(grid.TypeOf(cell), record.Type);
-        Assert.True(Region.TryParse(record.Region, out _));
-        // Recorded as the game records a camp: a generated structure of group trader there.
-        var region = Api.WorldManager.GetMapRegion(record.X / Api.WorldManager.RegionSize, record.Z / Api.WorldManager.RegionSize);
-        Assert.Contains(region.GeneratedStructures, s => s.Group == "trader" && s.Location.Contains(record.X, s.Location.Y1, record.Z));
+        Assert.NotEmpty(placed);
+        foreach (var record in placed)
+        {
+            Assert.Equal(grid.TypeOf(new CellKey(record.CellX, record.CellZ)), record.Type);
+            Assert.True(Region.TryParse(record.Region, out _));
+            // Recorded as the game records a camp: a generated structure of group trader there.
+            var region = Api.WorldManager.GetMapRegion(record.X / Api.WorldManager.RegionSize, record.Z / Api.WorldManager.RegionSize);
+            Assert.Contains(region.GeneratedStructures, s => s.Group == "trader" && s.Location.Contains(record.X, s.Location.Y1, record.Z));
+        }
     }
 }
