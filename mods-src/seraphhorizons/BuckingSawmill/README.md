@@ -61,7 +61,10 @@ The levers are the linkage that throws the windlass in when the saws reach the b
 when they are back at the top (see **Saws** below). No carriage: in Immersive Woodworking it carries the log, which this
 mill does not do, and holding one does nothing special here. Parts are used up outside creative
 mode. Ctrl + right-click takes the trunk back if
-there is one, otherwise the blade kit. The other parts come back only by breaking the frame,
+there is one, otherwise the blade kit. With trunk entities (`../TrunkEntities/README.md`) the
+trunk goes into the player's Carry On hands, and stays on the bed with an error while those are
+full (`TrunkStations.GiveToHands`); without Carry On it is laid on the ground two cells beyond the
+infeed end, across the line (`TrunkStations.DropBeyond`). The other parts come back only by breaking the frame,
 which drops the frame, every fitted part, the blade kit and a recoverable trunk. The rules are in
 `Core/Parts.cs`.
 
@@ -108,9 +111,13 @@ Any `loggingmod:treetrunk-*` of any size goes in, but not a branched one (`branc
 or `branchCount` above 0) while Logging Expanded's `RequireBranchRemovalForProcessing` is on: the
 player gets Logging Expanded's own message. A debarked trunk (the rosser's output, `branches`
 variant `debarked`) goes in like a clean one, and its cut gives the wood's debarked log
-(`TreeManager.GetDebarkedLogCode`) in place of the placed log, at the same yield and wear. By hand, right-click holding a trunk, or with an empty
-hand to take the first one from the hotbar, then the backpack (as Logging Expanded's workstations
-search). A trunk goes on only while the saws are at the top of their cycle, within
+(`TreeManager.GetDebarkedLogCode`) in place of the placed log, at the same yield and wear. By
+hand, with trunk entities (`../TrunkEntities/README.md`: a trunk is never in an inventory),
+right-click with an empty hand while carrying the trunk in Carry On's hands (Carry On lets the
+click through because `patches/trunkentities-stations.json` gives the mill's blocks its
+`CarryableInteract`, after its short hold); without trunk entities or Carry On, right-click
+holding a trunk, or with an empty hand to take the first one from the hotbar, then the backpack
+(as Logging Expanded's workstations search). A trunk goes on only while the saws are at the top of their cycle, within
 `SawDepth.LoadWindow` (0.08 of the travel, about half a turn either side of the top at the
 default rate), or on a tick in which they pass the top. A click at any other time on a running
 mill is held: the server keeps the request from the click until the player lets go (the client
@@ -138,7 +145,10 @@ axle comes in three blocks up), and a trunk slides in lengthwise through the wes
 bed's rails through both stations. The cut logs leave the other, near end. The mill takes the
 rack's top trunk (the rack is last in, first out) unless that trunk is branched or holds no logs;
 then it waits. It looks every tick its saws are at (or pass) the top and once a second besides,
-and the rack is looked up afresh every time. Once a second the server also works out what the
+and the rack is looked up afresh every time. With trunk entities, when no rack or feeder there
+has a trunk ready, a trunk entity lying in those cells (its middle's column, at its underside's
+height, `TrunkStations.FindInCells`) goes on under the same rules, at the same moments
+(`PullFromGround`); the block info speaks only of racks and feeders. Once a second the server also works out what the
 racks offer (`CheckRack`, `Core/Feeding.cs`'s `RackState`): none there, empty, top trunk branched,
 top trunk with no logs, or ready; or pulling is switched off, or Logging Expanded is not as
 expected. It sends that to clients with the block entity, and the block info says it, so a player
@@ -217,7 +227,7 @@ arithmetic is in `Core/SawDepth.cs` (`Advance`).
 with an empty hand (`Feeding.WindsUp`): the server raises them the whole travel in
 `Feeding.HandWindSeconds` (2 s) while the button is down, as `rising`, so the renderer shows the
 lift, and they stop where they are when it is let go. At the top they stop going up, and an
-empty-handed click there loads a trunk from the inventory as before; so does one on a running mill.
+empty-handed click there loads a trunk (the carried one, or from the inventory) as before; so does one on a running mill.
 A trunk on the bed stays, with its progress, and whether it can be taken back still goes by that
 progress, not by where the saws are. When the mill turns again the saws finish any rise left and
 then come down onto the trunk at the depth its cut has reached (`SawDepth.Advance` puts them there

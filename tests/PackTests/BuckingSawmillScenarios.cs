@@ -6,6 +6,8 @@ using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.TrunkEntities;
+using Vintagestory.API.Server;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -63,7 +65,7 @@ public partial class WoodworkingScenarios
     private static IPlayer? _shared;
     private static object? _sharedWorld;
 
-    /// <summary>The mill scenarios' player, in survival with an empty inventory and its keys up. The name is
+    /// <summary>The mill scenarios' player, in survival with an empty inventory, nothing carried and its keys up. The name is
     /// only for reading the scenarios.</summary>
     private async Task<IPlayer> Player(string name)
     {
@@ -80,6 +82,7 @@ public partial class WoodworkingScenarios
                 slot.Itemstack = null;
                 slot.MarkDirty();
             }
+        TrunkCarry.Take((IServerPlayer)player);
         player.Entity.Controls.CtrlKey = player.Entity.Controls.ShiftKey = false;
         return player;
     }
@@ -89,10 +92,25 @@ public partial class WoodworkingScenarios
 
     /// <summary>Right-clicks <paramref name="at"/> (at <paramref name="hit"/> in that cell, its
     /// middle by default) holding <paramref name="held"/>; returns what is left in the hand.
+    /// A trunk is never held (trunk entities run): it is carried in Carry On's hands instead, in
+    /// place of whatever was carried, and the click is empty-handed; what is left is then what is
+    /// still carried. Any other item in hand is held with empty Carry On hands (it once replaced a
+    /// refused trunk in the hand slot). With nothing in hand, what is carried stays carried, except
+    /// that a Ctrl click (the one that takes a trunk back) starts with empty hands unless
+    /// <paramref name="keepCarried"/>.
     /// <paramref name="creative"/> clicks as a player in creative mode, back in survival after.</summary>
     private ItemStack? Click(IPlayer player, BlockPos at, ItemStack? held, bool ctrl = false, bool shift = false,
-        bool creative = false, Vec3d? hit = null)
+        bool creative = false, Vec3d? hit = null, bool keepCarried = false)
     {
+        bool trunk = Trunks.IsTrunk(held);
+        if ((ctrl || held != null) && !keepCarried)
+            TrunkCarry.Take((IServerPlayer)player);
+        if (trunk)
+        {
+            TrunkCarry.Take((IServerPlayer)player);
+            Assert.True(TrunkCarry.TryGive((IServerPlayer)player, held!), "the trunk could not be carried");
+            held = null;
+        }
         var slot = player.InventoryManager.ActiveHotbarSlot;
         slot.Itemstack = held;
         slot.MarkDirty();
@@ -111,7 +129,7 @@ public partial class WoodworkingScenarios
             player.Entity.Controls.ShiftKey = false;
             player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         }
-        return slot.Itemstack;
+        return trunk ? TrunkCarry.Carried(player) : slot.Itemstack;
     }
 
     private static string Info(BEBuckingMill mill, IPlayer player)
@@ -194,7 +212,7 @@ public partial class WoodworkingScenarios
     private void KillItemsNear(BlockPos around, int radius = 8)
     {
         var box = new Cuboidi(around.X - radius, around.Y - 40, around.Z - radius, around.X + radius, around.Y + 8, around.Z + radius);
-        foreach (var e in World.EntitiesIn(box).OfType<EntityItem>())
+        foreach (var e in World.EntitiesIn(box).Where(e => e is EntityItem or EntityTrunk))
             e.Die(EnumDespawnReason.Removed);
     }
 
@@ -453,8 +471,8 @@ public partial class WoodworkingScenarios
         Assert.Equal(touch, mill.Depth, 4);
         Click(player, pos, null, ctrl: true);
         Assert.Null(mill.Trunk);
-        var back = player.InventoryManager.GetOwnInventory("hotbar").Concat(player.InventoryManager.GetOwnInventory("backpack"))
-            .Select(s => s.Itemstack).FirstOrDefault(s => s != null && Trunks.IsTrunk(s));
+        // into Carry On's hands
+        var back = TrunkCarry.Carried(player);
         Assert.NotNull(back);
         Assert.True(back.Equals(W, trunk, GlobalConstants.IgnoredStackAttributes), "the trunk came back changed");
         Assert.True(mill.HasBladeKit);
@@ -465,8 +483,9 @@ public partial class WoodworkingScenarios
         Assert.Null(mill.Trunk);
         TurnToTop(mill);
 
-        // With an empty hand, the trunk is found in the inventory.
+        // With an empty hand, the carried trunk goes on.
         Assert.Null(Click(player, pos, null));
+        Assert.Null(TrunkCarry.Carried(player));
         Assert.NotNull(mill.Trunk);
 
         KillItemsNear(pos);
@@ -1066,7 +1085,7 @@ public partial class WoodworkingScenarios
             for (int cut = 1; cut <= 3; cut++)
             {
                 await World.Until(() => mill.Trunk != null, 20000);
-                Assert.Null(player.InventoryManager.ActiveHotbarSlot.Itemstack);
+                Assert.Null(TrunkCarry.Carried(player));
                 W.BlockAccessor.GetBlock(pos).OnBlockInteractStop(1, W, player, new BlockSelection { Position = pos });
                 await World.Until(() => mill.Trunk == null, 30000);
                 output.WriteLine($"cut {cut} done");
@@ -1077,7 +1096,7 @@ public partial class WoodworkingScenarios
             await World.Until(() => mill.Trunk != null, 20000);
             W.BlockAccessor.GetBlock(pos).OnBlockInteractStop(1, W, player, new BlockSelection { Position = pos });
 
-            // Let go before the top, the request is gone: the trunk stays in the hand.
+            // Let go before the top, the request is gone: the trunk stays carried.
             await World.Until(() => mill.Trunk == null, 30000);
             await World.Until(() => mill.Depth > 0.3f, 20000);
             Click(player, pos, trunk.Clone());
@@ -1086,7 +1105,7 @@ public partial class WoodworkingScenarios
             await World.Until(() => !mill.Rising, 20000);
             await World.Ticks(5);
             Assert.Null(mill.Trunk);
-            Assert.NotNull(player.InventoryManager.ActiveHotbarSlot.Itemstack);
+            Assert.NotNull(TrunkCarry.Carried(player));
         }
         finally
         {
