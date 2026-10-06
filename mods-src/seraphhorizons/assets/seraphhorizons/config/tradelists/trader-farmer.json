@@ -10,7 +10,8 @@
 			{"code": "seeds-flax", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 4, "var": 0.6}},
 			{"code": "seeds-spelt", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 3, "var": 0.45}},
 			{"code": "flaxfibers", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-			{"code": "compost", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}}
+			{"code": "compost", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
+			{"code": "betterruins:br-schematic-farmer", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 18, "var": 1.8}, "standingTier": 1}
 		],
 		"rotating": { "maxItems": 7,
 			"list": [

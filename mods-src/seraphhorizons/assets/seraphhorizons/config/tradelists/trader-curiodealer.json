@@ -9,8 +9,13 @@
 	"selling": {
 		"core": [
 			{"code": "lore-scroll", "attributes": {"category": "villager"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 4, "var": 0.6}},
-			{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 180, "var": 20}},
-			{"code": "walkingstick:schematic-flintlock", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 128, "var": 15.5}}
+			{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 180, "var": 20}, "standingTier": 3},
+			{"code": "walkingstick:schematic-flintlock", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 128, "var": 15.5}, "standingTier": 3},
+			{"code": "game:schematic-glider", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 150, "var": 15.0}, "standingTier": 3},
+			{"code": "game:schematic-customtranslocator", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 160, "var": 16.0}, "standingTier": 3},
+			{"code": "betterruins:br-schematic-book", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 20, "var": 2.0}, "standingTier": 1},
+			{"code": "betterruins:br-schematic-alchemist", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 28, "var": 2.8}, "standingTier": 1},
+			{"code": "betterruins:br-schematic-textureflipper", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 1.0}, "standingTier": 1}
 		],
 		"rotating": { "maxItems": 6,
 			"list": [

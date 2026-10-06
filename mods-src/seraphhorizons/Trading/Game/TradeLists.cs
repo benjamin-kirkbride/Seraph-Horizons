@@ -22,6 +22,7 @@ public sealed class TradeLists
     // Each entry's JSON as vanilla's TradeItem reads it. A TradeItem is made afresh for every
     // restock: TradeItem.Resolve keeps state (it appends to AttributesToIgnore each time).
     private readonly Dictionary<TradeEntry, JObject> _items = new(ReferenceEqualityComparer.Instance);
+    private Predicate<TradeEntry>? _exclude;
 
     /// <summary>Entries the game could not resolve, as <c>type: key</c>; empty in the pack.</summary>
     public List<string> Unresolved { get; } = [];
@@ -38,9 +39,11 @@ public sealed class TradeLists
 
     public IReadOnlyDictionary<string, double> CampWeights => _lists.ToDictionary(kv => kv.Key, kv => kv.Value.CampWeight);
 
-    public static TradeLists Load(ICoreAPI api)
+    /// <param name="exclude">Entries a switched-off feature takes out (the machines' schematics);
+    /// dropped quietly, not counted as unresolved.</param>
+    public static TradeLists Load(ICoreAPI api, Predicate<TradeEntry>? exclude = null)
     {
-        var lists = new TradeLists();
+        var lists = new TradeLists { _exclude = exclude };
         foreach (string type in TraderTypes.All)
         {
             var loc = new AssetLocation(SeraphHorizonsSystem.HarmonyId, $"{Folder}trader-{type}.json");
@@ -100,6 +103,7 @@ public sealed class TradeLists
     {
         entries.RemoveAll(entry =>
         {
+            if (_exclude?.Invoke(entry) == true) return true;
             if (ToJson(world, entry) is { } json)
             {
                 _items[entry] = json;
