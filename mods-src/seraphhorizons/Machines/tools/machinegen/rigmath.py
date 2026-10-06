@@ -11,13 +11,24 @@ Inputs (a dict; every key is optional, see `full_inputs`):
     lifting   1 while the mill's saws are wound back up, else 0 (a renderer may ease it)
     travel    psi, the shaft's travel: the total angle it has turned through either way (radians,
               never decreasing). Missing or None means |theta|.
-    trunk     T, the trunk's travel along the rig's trunk path, blocks (0 .. T_end(size))
-    size      k, the trunk's class: 0 none, 1 thin, 2 thick
-    presence  p, 0..1: how far a loaded trunk has eased in (renderer-side)
+    work      W, the machine's work: how far its job has got, in the unit its rig's progress names
+              (0 .. end(size)). "trunk" is the same input under its trunk-flavoured name (a trunk's
+              travel along the rig's trunkPath, blocks); a dict may give either key.
+    size      k, the work's class: 0 none, 1 thin, 2 thick (a trunk's class; the gear cutter's master)
+    presence  p, 0..1: how far the work (a loaded trunk, a fitted master) has eased in (renderer-side)
     feed      phi, radians: the shaft's travel while the feed runs (renderer-side, never decreasing)
+    oil       0..1, how full the machine's oil tank is (MachineOil; the gear cutter's sight-feed cup)
 
-The trunk path (the rig's `trunkPath`) gives nose(T) = nose0 + T and tail(T, k) = nose - L_k, with
-L = [0, lengths.thin, lengths.thick].
+The rig's progress (what gauges and rolls read; `progress_of`) is one of two things:
+
+    work       {"name", "unit", "step"?, "end": {"thin", "thick"}}: a named quantity, W in its unit,
+               running 0 .. end[k]. It is a point: nose(W) = tail(W) = W, so a gauge window is
+               occupied while from <= W <= to (eased at both ends).
+    trunkPath  the trunk-flavoured case, a trunk travelling along a line: nose(W) = nose0 + W and
+               tail(W, k) = nose - L_k, with L = [0, lengths.thin, lengths.thick]; it ends when the
+               tail reaches tailStop. Its unit is blocks and its step 1/16.
+
+A rig has at most one of them.
 
 Matrices are 4x4 lists, block units; rotations are right-handed about the positive axis. A part's
 matrix is its drivers composed in list order (each applied to the authored geometry, pivots in the
@@ -29,17 +40,19 @@ Drivers (design: build/rosser/design.md section 2.3; the mill's README has the o
     swing    angle = amplitude * sin(ratio * x + phase)          about pivot
     slide    offset = amplitude * sin(ratio * x + phase)         along axis
              x is the driver's input: "input" one of "theta" (the default), "travel" (psi), "feed"
-             (phi) or "trunk" (T). "rectified": true is the mill's spelling of "input": "travel";
-             a driver with both keys is an error.
+             (phi), "work" (W; "trunk" is the same) or "oil". "rectified": true is the mill's spelling
+             of "input": "travel"; a driver with both keys is an error.
     feed     offset = travel * depth                             along axis
     step     a ramp of depth over [from, to] with lift gates hold / block / trip, times amount
-    stretch  scales along axis about anchor: (length + travel * depth) / length
+    stretch  scales along axis about anchor: (length + travel * x) / length, x its "input": "depth"
+             (the default) or "oil"
     gauge    e = 0 if k == 0; p if mode == "present"; else
                  p * max over windows w of min(1, gain_w[k] * occ_w),
                  occ_w = clamp((nose - from_w) / ease_w, 0, 1) * clamp((to_w - tail) / ease_w, 0, 1)
              a = amount[k] * e, plus e * lobes.amplitude[k] * cos(lobes.ratio * psi + lobes.phase)
              motion "slide": along axis by a; "rotate": a radians about pivot
-    roll     identity if k == 0, else ratio * clamp(nose - at, 0, L_k) radians about pivot
+    roll     identity if k == 0, else ratio * clamp(nose - at, 0, L_k) radians about pivot (a
+             trunkPath only: a work quantity has no length to roll over)
 """
 
 from __future__ import annotations
@@ -51,8 +64,10 @@ from .geometry import IDENT, El, mmul, mvec, rot
 
 AXES = {"x": 0, "y": 1, "z": 2}
 CLASSES = ("none", "thin", "thick")          # k = 0, 1, 2; the per-class JSON keys are CLASSES[1:]
-INPUTS = ("theta", "travel", "feed", "trunk")
-INPUT_KEYS = ("theta", "depth", "lifting", "travel", "trunk", "size", "presence", "feed")
+INPUTS = ("theta", "travel", "feed", "work", "trunk", "oil")
+INPUT_ALIASES = {"trunk": "work"}            # the trunk-flavoured spelling of the work input
+STRETCH_INPUTS = ("depth", "oil")
+INPUT_KEYS = ("theta", "depth", "lifting", "travel", "work", "size", "presence", "feed", "oil")
 DRIVER_TYPES = ("rotate", "swing", "slide", "feed", "step", "stretch", "gauge", "roll")
 
 
@@ -76,32 +91,73 @@ def apply(m, p):
     return [m[i][0] * p[0] + m[i][1] * p[1] + m[i][2] * p[2] + m[i][3] for i in range(3)]
 
 
-# ---------------------------------------------------------------- inputs and the trunk path
+# ---------------------------------------------------------------- inputs and the rig's progress
 def full_inputs(inputs):
-    """Every input key, with its default: 0, except travel, which defaults to |theta|."""
+    """Every input key, with its default: 0, except travel, which defaults to |theta|. W may be
+    given as "work" or as "trunk"."""
     out = {k: inputs.get(k, 0.0) for k in INPUT_KEYS}
+    if "work" not in inputs and "trunk" in inputs:
+        out["work"] = inputs["trunk"]
     out["size"] = int(inputs.get("size", 0))
     if inputs.get("travel") is None:
         out["travel"] = abs(out["theta"])
     return out
 
 
+def is_trunk_path(path) -> bool:
+    """A trunkPath (a trunk with a length on a line), as against a plain work quantity."""
+    return "lengths" in path
+
+
+def validate_work(work):
+    """Raises ValueError unless `work` is a sound rig `work` quantity."""
+    if not isinstance(work, dict):
+        raise ValueError("work must be an object")
+    if not isinstance(work.get("unit"), str) or not work["unit"]:
+        raise ValueError("work needs a unit")
+    if "name" in work and (not isinstance(work["name"], str) or not work["name"]):
+        raise ValueError("work.name must be a non-empty string")
+    if "step" in work and not (isinstance(work["step"], (int, float)) and work["step"] > 0):
+        raise ValueError("work.step must be above 0")
+    end = work.get("end")
+    if not isinstance(end, dict) or not all(isinstance(end.get(c), (int, float)) and end[c] > 0 for c in CLASSES[1:]):
+        raise ValueError("work.end needs thin and thick above 0")
+    for key in ("nose0", "lengths", "tailStop"):
+        if key in work:
+            raise ValueError(f"work has no {key}: that is a trunkPath's")
+    return work
+
+
+def progress_of(rig):
+    """The rig's progress, which gauges and rolls read: its `work`, its `trunkPath`, or None."""
+    if "work" in rig and "trunkPath" in rig:
+        raise ValueError("a rig has work or a trunkPath, not both")
+    if "work" in rig:
+        return validate_work(rig["work"])
+    return rig.get("trunkPath")
+
+
 def trunk_length(path, k: int) -> float:
-    """L_k in blocks: 0 for no trunk, else the path's length for that class."""
-    return 0.0 if k == 0 else float(path["lengths"][CLASSES[k]])
+    """L_k: 0 for no class or a work quantity, else the trunk's length for that class (blocks)."""
+    return 0.0 if k == 0 or not is_trunk_path(path) else float(path["lengths"][CLASSES[k]])
 
 
-def nose(path, trunk: float) -> float:
-    return path["nose0"] + trunk
+def nose(path, work: float) -> float:
+    return path.get("nose0", 0.0) + work
 
 
-def tail(path, trunk: float, k: int) -> float:
-    return nose(path, trunk) - trunk_length(path, k)
+def tail(path, work: float, k: int) -> float:
+    return nose(path, work) - trunk_length(path, k)
 
 
-def trunk_end(path, k: int) -> float:
-    """T_end(k): the trunk's travel when its tail reaches the path's tailStop."""
+def work_end(path, k: int) -> float:
+    """end(k): a work quantity's end for the class; a trunk's travel when its tail reaches tailStop."""
+    if not is_trunk_path(path):
+        return 0.0 if k == 0 else float(path["end"][CLASSES[k]])
     return path["tailStop"] + trunk_length(path, k) - path["nose0"]
+
+
+trunk_end = work_end                         # the trunk-flavoured name
 
 
 def _clamp01(x):
@@ -116,7 +172,7 @@ def driver_input(d) -> str:
             raise ValueError(f"{d['type']} driver has both 'input' and 'rectified'")
         if d["input"] not in INPUTS:
             raise ValueError(f"unknown input {d['input']!r}")
-        return d["input"]
+        return INPUT_ALIASES.get(d["input"], d["input"])
     return "travel" if d.get("rectified") else "theta"
 
 
@@ -135,6 +191,8 @@ def validate_driver(d):
         raise ValueError(f"{kind} driver has no axis x, y or z")
     if kind in ("rotate", "swing", "slide"):
         driver_input(d)
+    if kind == "stretch" and d.get("input", "depth") not in STRETCH_INPUTS:
+        raise ValueError(f"unknown stretch input {d['input']!r}")
     if kind == "gauge":
         if d.get("motion") not in ("slide", "rotate"):
             raise ValueError("gauge motion must be 'slide' or 'rotate'")
@@ -192,8 +250,8 @@ def gauge_fraction(d, inputs, path):
     if d.get("mode", "occupy") == "present":
         return inputs["presence"]
     if path is None:
-        raise ValueError("an occupy gauge needs the rig's trunkPath")
-    n, t = nose(path, inputs["trunk"]), tail(path, inputs["trunk"], k)
+        raise ValueError("an occupy gauge needs the rig's work or trunkPath")
+    n, t = nose(path, inputs["work"]), tail(path, inputs["work"], k)
     best = 0.0
     for w in d["windows"]:
         occ = _clamp01((n - w["from"]) / w["ease"]) * _clamp01((w["to"] - t) / w["ease"])
@@ -217,15 +275,16 @@ def roll_angle(d, inputs, path):
     k = inputs["size"]
     if k == 0:
         return 0.0
-    if path is None:
+    if path is None or not is_trunk_path(path):
         raise ValueError("a roll driver needs the rig's trunkPath")
-    over = min(trunk_length(path, k), max(0.0, nose(path, inputs["trunk"]) - d["at"]))
+    over = min(trunk_length(path, k), max(0.0, nose(path, inputs["work"]) - d["at"]))
+
     return d["ratio"] * over
 
 
 def driver_matrix(d, inputs, path=None):
     """One driver's 4x4 at `inputs` (a dict, see the module's docstring); `path` is the rig's
-    trunkPath, needed by occupy gauges and rolls."""
+    progress (`progress_of`: its work or trunkPath), needed by occupy gauges and rolls."""
     inputs = full_inputs(inputs)
     axis = d["axis"]
     unit = [0.0, 0.0, 0.0]
@@ -248,7 +307,7 @@ def driver_matrix(d, inputs, path=None):
         return m4(IDENT, [u * d["amount"] * e for u in unit])
     if kind == "stretch":
         k = AXES[axis]
-        f = (d["length"] + d["travel"] * inputs["depth"]) / d["length"]
+        f = (d["length"] + d["travel"] * inputs[d.get("input", "depth")]) / d["length"]
         m = m4()
         m[k][k] = f
         m[k][3] = d["anchor"][k] * (1.0 - f)
