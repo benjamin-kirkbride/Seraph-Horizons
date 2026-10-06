@@ -449,4 +449,15 @@ public class SeraphHorizonsConfig
     /// own <c>seraphhorizons:schematic-{machine}</c>, kept on crafting, and traders sell them. Off,
     /// the recipes are as their mods ship them and nobody sells the schematics. Server side.</summary>
     public bool MachineSchematics { get; set; } = true;
+
+    /// <summary>Standing orders (#453, README "Orders and deliveries"): each trader asks for one or
+    /// two lots of what it buys at a premium, taken with <c>/sh order</c> and delivered through the
+    /// trade dialog or by hand; an order taken and left undelivered costs standing. Server side.</summary>
+    public bool TraderOrders { get; set; } = true;
+
+    /// <summary>Deliveries (#454, README "Orders and deliveries"): a trader hands a player a package for
+    /// another camp against a deposit, paid with a fee and standing on time, less when late, the
+    /// deposit and standing with the sender lost when it fails. Server side; the package item exists
+    /// either way.</summary>
+    public bool TraderDeliveries { get; set; } = true;
 }

@@ -36,6 +36,14 @@ public class EntitySeraphTrader : EntityTrader
     /// and saved: the economy (#450, #451) refills the side budget and prices the shelves here.</summary>
     public static event Action<EntitySeraphTrader>? Restocked;
 
+    /// <summary>Raised on the server after a deal through the trade dialog went through, with what
+    /// the player sold (what left the selling cart): orders (#453) count their deliveries here.</summary>
+    public static event Action<IServerPlayer, EntitySeraphTrader, IReadOnlyList<ItemStack>>? Dealt;
+
+    /// <summary>Raised on the server when a player opens the trade dialog (the dialogue's
+    /// <c>opentrade</c>): orders and deliveries (#453, #454) say in chat what is on here.</summary>
+    public static event Action<IServerPlayer, EntitySeraphTrader>? TradeOpened;
+
     /// <summary>The trader type, from the entity code (<c>trader-{gender}-{type}-{climate}</c>).</summary>
     public string TraderType => Code.Path.Split('-') is { Length: >= 3 } parts ? parts[2] : "";
 
@@ -106,16 +114,33 @@ public class EntitySeraphTrader : EntityTrader
     /// buying cart and takes the sold goods out of the selling cart; one that fails leaves both.</summary>
     public override void OnReceivedClientPacket(IServerPlayer player, int packetid, byte[] data)
     {
-        if (packetid != 1000 || Inventory is null || TradingSystem.Of(Api) is not { Standing.Enabled: true } system)
+        if (packetid != 1000 || Inventory is null)
         {
             base.OnReceivedClientPacket(player, packetid, data);
             return;
         }
         int paid = Inventory.GetTotalCost(), received = Inventory.GetTotalGain();
         int before = CartItems();
+        // Orders (#453): what is in the selling cart before, to tell what the deal took.
+        var offered = new ItemStack?[4];
+        for (int i = 0; i < 4; i++) offered[i] = Inventory.GetSellingCartSlot(i).Itemstack?.Clone();
         base.OnReceivedClientPacket(player, packetid, data);
-        if (paid + received > 0 && CartItems() < before)
+        if (CartItems() >= before) return;
+        if (paid + received > 0 && TradingSystem.Of(Api) is { Standing.Enabled: true } system)
             system.Standing.OnDeal(player, this, paid, received);
+        if (Dealt is null) return;
+        var sold = new List<ItemStack>();
+        for (int i = 0; i < 4; i++)
+        {
+            if (offered[i] is not { } was) continue;
+            var now = Inventory.GetSellingCartSlot(i).Itemstack;
+            int n = now is null || now.Collectible != was.Collectible ? was.StackSize : was.StackSize - now.StackSize;
+            if (n <= 0) continue;
+            var stack = was.Clone();
+            stack.StackSize = n;
+            sold.Add(stack);
+        }
+        if (sold.Count > 0) Dealt.Invoke(player, this, sold);
     }
 
     private int CartItems()
@@ -132,8 +157,11 @@ public class EntitySeraphTrader : EntityTrader
     {
         int result = base.Dialog_DialogTriggers(triggeringEntity, value, data);
         if (value == "opentrade" && World.Side == EnumAppSide.Server && WatchedAttributes.HasAttribute("tradingPlayerUID")
-            && triggeringEntity is EntityPlayer { Player: { } player } && TradingSystem.Of(Api) is { Standing.Enabled: true } system)
-            system.Standing.OnTradeOpened(player, this);
+            && triggeringEntity is EntityPlayer { Player: { } player })
+        {
+            if (TradingSystem.Of(Api) is { Standing.Enabled: true } system) system.Standing.OnTradeOpened(player, this);
+            if (player is IServerPlayer sp) TradeOpened?.Invoke(sp, this);
+        }
         return result;
     }
 
