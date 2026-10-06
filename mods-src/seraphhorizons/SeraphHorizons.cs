@@ -65,33 +65,40 @@ public class SeraphHorizonsSystem : ModSystem
         Config(api);
         CreativeSteamSource.RegisterClasses(api);
         AssembledMachines.RegisterClasses(api);
-        // Before the game's patch loader, which applies the patches in AssetsLoaded.
+        // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
+        // only: a client has no assets in Start (the game throws on reading one), and the patch
+        // files change what the server loads.
+        void DisablePatches(Action<ICoreAPI> disable)
+        {
+            if (api.Side == EnumAppSide.Server)
+                disable(api);
+        }
         _ageOfFlax = Config(api).AgeOfFlaxRebalance && AgeOfFlaxRebalance.Applies(api)
                      && AgeOfFlaxRebalance.Bind(api.Logger);
         if (!_ageOfFlax)
-            AgeOfFlaxRebalance.DisablePatches(api);
+            DisablePatches(AgeOfFlaxRebalance.DisablePatches);
         if (!(Config(api).FoodHydration && FoodHydration.Applies(api)))
-            FoodHydration.DisablePatches(api);
+            DisablePatches(FoodHydration.DisablePatches);
         if (!(Config(api).HydrateTunRetired && HydrateTun.Applies(api)))
-            HydrateTun.DisablePatches(api);
+            DisablePatches(HydrateTun.DisablePatches);
         _irrigationVessel = Config(api).IrrigationVesselRetired && IrrigationVessel.Applies(api);
         if (!_irrigationVessel)
-            IrrigationVessel.DisablePatches(api);
+            DisablePatches(IrrigationVessel.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
-            SawmillBladeDurability.DisablePatches(api);
+            DisablePatches(SawmillBladeDurability.DisablePatches);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
-            WoodworkingMachineCosts.DisablePatches(api);
+            DisablePatches(WoodworkingMachineCosts.DisablePatches);
         _debarkedTrunks = Config(api).Rosser && DebarkedTrunks.Applies(api) && DebarkedTrunks.Bind(api);
         if (!_debarkedTrunks)
-            DebarkedTrunks.DisablePatches(api);
+            DisablePatches(DebarkedTrunks.DisablePatches);
         _tunRack = Config(api).LargerTunRack && TunRackCapacity.Applies(api) && TunRackCapacity.Bind(api.Logger);
         if (!_tunRack)
-            TunRackCapacity.DisablePatches(api);
+            DisablePatches(TunRackCapacity.DisablePatches);
         _barrelRackKegs = Config(api).BarrelRackKegs && BarrelRackKegs.Applies(api) && BarrelRackKegs.Bind(api.Logger);
         if (_barrelRackKegs)
             BarrelRackKegs.Patch(_barrelRackHarmony = new Harmony(BarrelRackKegs.HarmonyId));
         else
-            BarrelRackKegs.DisablePatches(api);
+            DisablePatches(BarrelRackKegs.DisablePatches);
         if (Config(api).HeatingRackKeepsPosition && HeatingRackPosition.Applies(api) && HeatingRackPosition.Bind(api.Logger))
             HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
         _gearConsumers = Config(api).GearConsumers;
