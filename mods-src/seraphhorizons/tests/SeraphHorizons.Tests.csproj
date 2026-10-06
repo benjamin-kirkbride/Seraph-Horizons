@@ -4,8 +4,8 @@
        (../TidyVariants/Core), the tweaks' own (../Core), Map Reveal's sampling, shading and
        wire format (../MapReveal/Core), creative mod tabs' planning (../CreativeModTabs/Core), the
        machines' shared rig maths, footprint and trunk path (../Machines/Core), the bucking
-       sawmill's assembly rules and cut arithmetic (../BuckingSawmill/Core) and the rosser's
-       (../Rosser/Core).
+       sawmill's assembly rules and cut arithmetic (../BuckingSawmill/Core), the rosser's
+       (../Rosser/Core) and the item value table's lookup (../Trading/Values/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -32,6 +32,9 @@
     <Compile Include="../Machines/Core/**/*.cs" Link="Machines/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../BuckingSawmill/Core/**/*.cs" Link="BuckingSawmill/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Rosser/Core/**/*.cs" Link="Rosser/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../Trading/Values/Core/**/*.cs" Link="Trading/Values/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Item values (#449): the shipped table, so the tests check that it parses. -->
+    <None Include="../assets/seraphhorizons/config/item-values.json" Link="item-values.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The bucking sawmill's shipped rig, so the tests check that it parses and is consistent,
          and every part's matrix at a grid of poses, from BuckingSawmill/tools/make_shape.py's
          reference maths. -->

@@ -1,0 +1,17 @@
+{
+  "about": "Hand overrides, gears per item: fixed like raws, and they win over everything. Use for items the recipe tree prices wrongly; say why next to each in 'why'.",
+  "values": {
+    "game:barrel": 1.5,
+    "game:anvil-copper": 20,
+    "game:anvil-tinbronze": 25,
+    "game:anvil-bismuthbronze": 27,
+    "game:anvil-blackbronze": 30,
+    "game:anvil-iron": 38,
+    "game:anvil-meteoriciron": 45,
+    "game:anvil-steel": 80
+  },
+  "why": {
+    "game:barrel": "three boards and four sticks undervalue a cooper's work; vanilla sells one for 2",
+    "game:anvil-*": "cast in a mold from 9 ingots, which the export does not carry (molds are not recipes): 9 ingots plus labour; iron and steel anvils are welded from smithed halves"
+  }
+}

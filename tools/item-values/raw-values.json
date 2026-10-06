@@ -1,0 +1,197 @@
+{
+  "about": "Hand-priced raw materials, in rusty gears per item (a portion of liquid is 1/100 litre). Raws are fixed: no recipe changes them. In 'groups', a code with * is a glob and the first matching pattern wins (exact codes win over all patterns). 'ores' prices metal by the unit (an ingot is 100 units, a nugget 5) and expands to every graded ore chunk, crystallized ore and nugget of the export, the metal of an ore being what its nugget smelts into. 'defaults' only price leaves (items no recipe makes) that nothing here prices: the first regex on the code's path wins. 'traderFallback' prices the remaining leaves the game's traders deal in, from the vanilla price. See README.md.",
+
+  "ores": {
+    "unitValue": {
+      "game:ingot-copper": 0.017,
+      "game:ingot-tin": 0.035,
+      "game:ingot-zinc": 0.03,
+      "game:ingot-bismuth": 0.03,
+      "game:ingot-lead": 0.015,
+      "game:ingot-silver": 0.06,
+      "game:ingot-gold": 0.08,
+      "game:ingot-nickel": 0.05,
+      "game:ingot-chromium": 0.07,
+      "game:ingot-titanium": 0.08,
+      "game:ingot-platinum": 0.2,
+      "game:ingot-uranium": 0.06,
+      "game:ironbloom": 0.045
+    },
+    "noMetalUnitValue": 0.01,
+    "nuggetUnits": 5,
+    "gradeUnits": { "poor": 15, "medium": 20, "rich": 25, "bountiful": 35 },
+    "unitsByOre": {
+      "cassiterite": { "poor": 5, "medium": 10, "rich": 15, "bountiful": 20 },
+      "hematite": { "poor": 20, "medium": 25, "rich": 30, "bountiful": 40 },
+      "quartz_nativesilver": { "poor": 10, "medium": 15, "rich": 20, "bountiful": 25 },
+      "quartz_nativegold": { "poor": 5, "medium": 10, "rich": 15, "bountiful": 20 }
+    },
+    "pyriteNote": "pyrite smelts to a bloom in the export but is fool's gold: priced by noMetalUnitValue",
+    "noMetal": ["pyrite"]
+  },
+
+  "groups": {
+    "metals": {
+      "game:ingot-blistersteel": 5
+    },
+    "money": {
+      "game:gear-rusty": 1,
+      "game:gear-temporal": 30
+    },
+    "gems": {
+      "game:gem-diamond-rough": 10, "game:gem-emerald-rough": 9,
+      "game:gem-corundum*-rough": 7, "game:gem-beryl*-rough": 5, "game:gem-olivine_peridot-rough": 5,
+      "game:gem-topaz*-rough": 4, "game:gem-tourmaline*-rough": 3, "game:gem-spinelred-rough": 3,
+      "game:gem-garnet*-rough": 2.5,
+      "game:ore-high-diamond-*": 10, "game:ore-low-diamond-*": 5,
+      "game:ore-high-emerald-*": 9, "game:ore-low-emerald-*": 4.5,
+      "game:ore-high-corundum*-*": 7, "game:ore-low-corundum*-*": 3.5,
+      "game:ore-high-beryl*-*": 5, "game:ore-low-beryl*-*": 2.5,
+      "game:ore-high-olivine_peridot-*": 5, "game:ore-low-olivine_peridot-*": 2.5,
+      "game:ore-high-topaz*-*": 4, "game:ore-low-topaz*-*": 2,
+      "game:ore-high-tourmaline*-*": 3, "game:ore-low-tourmaline*-*": 1.5,
+      "game:ore-high-spinelred-*": 3, "game:ore-low-spinelred-*": 1.5,
+      "game:ore-high-garnet*-*": 2.5, "game:ore-low-garnet*-*": 1.25
+    },
+    "minerals": {
+      "game:ore-flint-*": 0.03, "game:flint": 0.03,
+      "game:ore-quartz-*": 0.05,
+      "game:ore-fluorite-*": 0.15,
+      "game:ore-alum-*": 0.4,
+      "game:ore-borax-*": 0.3,
+      "game:ore-kernite-*": 0.3,
+      "game:ore-sulfur-*": 0.25,
+      "game:ore-phosphorite-*": 0.1,
+      "game:ore-lapislazuli-*": 0.15,
+      "game:ore-cinnabar-*": 0.4,
+      "game:ore-graphite-*": 0.2,
+      "game:ore-olivine-*": 0.05,
+      "game:ore-sylvite-*": 0.15,
+      "game:ore-corundum-*": 0.3,
+      "game:ore-lignite-*": 0.03, "game:ore-lignite": 0.03,
+      "game:ore-bituminouscoal-*": 0.05, "game:ore-bituminouscoal": 0.05,
+      "game:ore-anthracite-*": 0.08, "game:ore-anthracite": 0.08,
+      "game:ore-*": 0.05,
+      "game:saltpeter": 0.15,
+      "game:salt": 0.04,
+      "game:lime": 0.05,
+      "game:crystal-*": 0.3
+    },
+    "earth": {
+      "game:stone-bogiron": 0.15,
+      "game:stone-meteorite-iron": 2,
+      "game:stone-*": 0.008,
+      "game:rock-*": 0.03,
+      "game:sand-*": 0.01,
+      "game:gravel-*": 0.01,
+      "game:soil-*": 0.02,
+      "game:clay-*": 0.03,
+      "game:rawclay-*": 0.1,
+      "game:peat-*": 0.03,
+      "game:muddygravel": 0.01,
+      "game:snowball": 0,
+      "game:ice": 0.005,
+      "game:glacierice": 0.005,
+      "game:packedglacierice": 0.01,
+      "game:seashell-*": 0.03,
+      "game:coralchunk-*": 0.05
+    },
+    "wood": {
+      "game:log-placed-*-ud": 0.22,
+      "game:log-grown-*": 0.22,
+      "game:log-*": 0.22,
+      "game:plank-*": 0.06,
+      "game:debarkedlog-*": 0.24,
+      "game:supportbeam-*": 0.3,
+      "game:firewood": 0.03,
+      "game:stick": 0.01,
+      "game:agedfirewood": 0.03,
+      "game:resin": 0.5,
+      "game:bamboostakes": 0.02,
+      "game:treeseed-*": 0.25,
+      "game:sapling-*": 0.05
+    },
+    "fibres": {
+      "game:flaxfibers": 0.07,
+      "game:cattailtops": 0.01,
+      "game:papyrustops": 0.01,
+      "game:drygrass": 0.003,
+      "game:spiderweb": 0.05,
+      "wool:fleece-*": 0.25,
+      "wool:wool-*": 0.25
+    },
+    "animal": {
+      "game:hide-raw-small": 1,
+      "game:hide-raw-medium": 2,
+      "game:hide-raw-large": 3.5,
+      "game:hide-raw-huge": 6,
+      "game:hide-pelt-*": 1,
+      "game:bone": 0.03,
+      "game:feather": 0.02,
+      "game:fat": 0.12,
+      "game:antler-*": 0.3,
+      "game:egg-*": 0.05,
+      "game:honeycomb": 0.5,
+      "game:redmeat-raw": 0.15,
+      "game:bushmeat-raw": 0.08,
+      "game:poultry-raw": 0.1,
+      "game:fish-raw": 0.1,
+      "game:fishraw-*": 0.1,
+      "game:milkportion": 0.0006,
+      "butchering:primemeat-raw": 0.25,
+      "butchering:offal-raw": 0.05,
+      "butchering:bloodportion": 0.0002,
+      "butchering:sinew-wet": 0.05,
+      "butchering:strongbone": 0.06,
+      "butchering:ivory": 1.5
+    },
+    "crops": {
+      "game:grain-*": 0.03,
+      "game:vegetable-*": 0.04,
+      "game:fruit-*": 0.03,
+      "game:legume-*": 0.03,
+      "game:seeds-*": 0.1,
+      "game:mushroom-*": 0.03,
+      "game:pumpkin": 0.3,
+      "game:pineapple": 0.3,
+      "game:rawcassava": 0.04,
+      "game:cattailroot": 0.02,
+      "game:tuleroot": 0.02,
+      "game:papyrusroot": 0.02,
+      "game:flower-*": 0.01,
+      "game:herbbundle-*": 0.05,
+      "bdcrop:*melon*": 0.3,
+      "bdcrop:*squash*": 0.3,
+      "bdcrop:cantaloupe*": 0.3,
+      "bdcrop:grain-*": 0.03,
+      "bdcrop:vegetable-*": 0.04,
+      "bdcrop:seeds-*": 0.1
+    },
+    "liquids": {
+      "game:waterportion": 0,
+      "hydrateordiedrate:waterportion*": 0,
+      "game:saltwaterportion": 0,
+      "game:honeyportion": 0.004,
+      "expandedfoods:birchsapportion": 0.0003,
+      "expandedfoods:maplesapportion": 0.0005
+    }
+  },
+
+  "defaults": [
+    { "category": "earth", "match": "^(rock|stone|gravel|sand|soil|dirt|clay|mud|peat|loam)(-|$)", "value": 0.01 },
+    { "category": "wood", "match": "^(log|stick|firewood|bark|branch|twig)(-|$)", "value": 0.03 },
+    { "category": "plants", "match": "^(flower|fern|leaves|grass|tallgrass|vine|wildvine|seaweed|plant|reed|moss|lichen|herb)(-|$)", "value": 0.005 },
+    { "category": "seeds", "match": "(^|-)(seeds?|treeseed|sapling|cutting|cuttings|spores?)(-|$)", "value": 0.02 },
+    { "category": "crops", "match": "^(fruit|vegetable|grain|legume|mushroom|berry|berries|nut|melon|squash|root)(-|$)", "value": 0.03 },
+    { "category": "meat", "match": "(meat|fish|poultry|crab|snake)[^-]*-raw|^(fishraw|crabmeat|snakemeat|fisheggs)", "value": 0.1 },
+    { "category": "hides", "match": "^(hide|pelt|fur)(-|$)", "value": 0.5 },
+    { "category": "ore", "match": "^(ore|nugget|crystal|gem)(-|$)", "value": 0.1 },
+    { "category": "liquids", "match": "portion", "value": 0.0005 }
+  ],
+
+  "traderFallback": {
+    "about": "A leaf nothing above prices, sold or bought by vanilla traders: the mean over its trader entries of price per item, times 'sells' for what traders sell and 'buys' for what they buy (vanilla buys at about half its sell price).",
+    "sells": 0.7,
+    "buys": 1.4
+  }
+}
