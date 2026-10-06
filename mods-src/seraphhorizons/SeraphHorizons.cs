@@ -367,4 +367,11 @@ public class SeraphHorizonsConfig
     /// <summary>The rosser's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public RosserConfig RosserSettings { get; set; } = new();
+
+    /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
+    /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
+    /// worlds only: a world takes the grid at its first start with this mod if this is on then, and
+    /// keeps that choice; off later means the world's new chunks get the game's camps again. The
+    /// trader types and their lists exist either way. Server side.</summary>
+    public bool TraderGrid { get; set; } = true;
 }

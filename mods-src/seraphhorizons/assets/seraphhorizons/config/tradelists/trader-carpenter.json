@@ -1,0 +1,154 @@
+// Carpenter: planks and logs by climate, furniture, doors, crates; buyer of wood and woodworking
+// tools. Format: docs/trading.md (Trade lists).
+{
+	"type": "carpenter",
+	"campWeight": 1.0,
+	// Gears restocked to, by standing tier (tier 0 until standing exists).
+	"wallet": [{"avg": 75, "var": 12}, {"avg": 95, "var": 15}, {"avg": 120, "var": 18}, {"avg": 150, "var": 20}],
+	"selling": {
+		"core": [
+			{"code": "firewood", "stacksize": 16, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
+			{"code": "stick", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+			{"type": "block", "code": "planks-birch-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+			{"type": "block", "code": "planks-oak-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+			{"type": "block", "code": "planks-maple-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+			{"type": "block", "code": "planks-pine-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+			{"type": "block", "code": "crate", "attributes": {"type": "wood-aged"}, "stacksize": 1, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.5}}
+		],
+		"rotating": { "maxItems": 7,
+			"list": [
+				{"type": "block", "code": "trough-genericwood-large-head-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 8, "var": 1.2}},
+				{"type": "block", "code": "henbox", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 6, "var": 0.9}},
+				{"type": "block", "code": "loggingmod:sawhorse-north", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 0.6}},
+				{"type": "block", "code": "loggingmod:stickstorage", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 0.6}},
+				{"code": "tankardsandgoblets:tankard-wood", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}},
+				{"code": "plank-aged", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "rushmat", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 1.5}},
+				{"type": "block", "code": "burnedplanks-narrow-scorched-ud", "stacksize": 16, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 7, "var": 1.75}},
+				{"type": "block", "code": "burnedplanks-normal-blackened-ud", "stacksize": 16, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 7, "var": 1.75}},
+				{"type": "block", "code": "burnedplanks-narrow-charred-ud", "stacksize": 16, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 7, "var": 1.75}},
+				{"type": "block", "code": "burnedplanks-normal-charred-ud", "stacksize": 16, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 7, "var": 1.75}},
+				{"code": "resin", "stacksize": 2, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "bookshelf", "attributes": {"type": "2row1col", "material": "larch"}, "stacksize": 1, "stock": {"avg": 8, "var": 2}, "price": {"avg": 8, "var": 2}},
+				{"type": "block", "code": "bed-wood-head-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 8, "var": 2}},
+				{"type": "block", "code": "chair-plain", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "table-normal", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "ladder-wood-oak-north", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "shelf-normal-east", "stacksize": 1, "stock": {"avg": 6, "var": 1.5}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "chest-east", "attributes": {"type": "normal-generic"}, "stacksize": 1, "stock": {"avg": 16, "var": 4}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "barrel", "stacksize": 1, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "door-sleek-windowed-birch", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 8, "var": 2}},
+				{"type": "block", "code": "door-sleek-windowed-oak", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 8, "var": 2}},
+				{"type": "block", "code": "door-sleek-windowed-maple", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 8, "var": 2}},
+				{"type": "block", "code": "door-sleek-windowed-pine", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 8, "var": 2}},
+				{"code": "tailorsdelight:leatherbundle-plain", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 5, "var": 0.75}, "playerSupplied": true},
+				{"code": "tailorsdelight:leatherstrips-plain", "stacksize": 4, "stock": {"avg": 2, "var": 0.8}, "price": {"avg": 1.6, "var": 1.28}, "playerSupplied": true},
+				{"type": "block", "code": "tailorsdelight:panel-leather-plain", "stacksize": 4, "stock": {"avg": 3, "var": 1}, "price": {"avg": 6, "var": 0.5}, "playerSupplied": true},
+				{"type": "block", "code": "tailorsdelight:panel-leather-red", "stacksize": 3, "stock": {"avg": 4, "var": 1}, "price": {"avg": 7, "var": 0.5}, "playerSupplied": true},
+				{"type": "block", "code": "tailorsdelight:panel-leather-purple", "stacksize": 3, "stock": {"avg": 4, "var": 1}, "price": {"avg": 7, "var": 0.5}, "playerSupplied": true},
+				{"type": "block", "code": "tailorsdelight:panel-leather-orange", "stacksize": 3, "stock": {"avg": 4, "var": 1}, "price": {"avg": 7, "var": 0.5}, "playerSupplied": true},
+				{"type": "block", "code": "tailorsdelight:panel-leather-white", "stacksize": 3, "stock": {"avg": 2, "var": 1}, "price": {"avg": 8, "var": 0.5}, "playerSupplied": true},
+				{"code": "tailorsdelight:leather-darkred", "stacksize": 2, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 1}, "playerSupplied": true},
+				{"code": "tailorsdelight:leather-darkblue", "stacksize": 2, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 1}, "playerSupplied": true},
+				{"code": "tailorsdelight:leatherbundle-pelt", "stacksize": 2, "stock": {"avg": 1, "var": 0}, "price": {"avg": 3.2, "var": 1.6}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-acacia", "interior": "game:plank-acacia"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-baldcypress", "interior": "game:plank-baldcypress"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-birch", "interior": "game:plank-birch"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-ebony", "interior": "game:plank-ebony"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-kapok", "interior": "game:plank-kapok"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-larch", "interior": "game:plank-larch"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-maple", "interior": "game:plank-maple"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-oak", "interior": "game:plank-oak"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-pine", "interior": "game:plank-pine"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-purpleheart", "interior": "game:plank-purpleheart"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-redwood", "interior": "game:plank-redwood"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-walnut", "interior": "game:plank-walnut"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true},
+				{"type": "block", "code": "aculinaryartillery:bottlerack-north", "attributes": {"frame": "game:plank-aged", "interior": "game:plank-aged"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 2.5}, "playerSupplied": true}
+			]
+		},
+		"regional": {
+			"cold": {
+				"core": [],
+				"rotating": [
+					{"type": "block", "code": "planks-larch-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "planks-redwood-ud", "stacksize": 32, "stock": {"avg": 3, "var": 1}, "price": {"avg": 3, "var": 0.45}},
+					{"type": "block", "code": "log-placed-larch-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "log-placed-birch-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "log-placed-pine-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "door-sleek-windowed-larch", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 9, "var": 2.25}},
+					{"type": "block", "code": "door-sleek-windowed-redwood", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 10, "var": 2.5}}
+				]
+			},
+			"temperate": {
+				"core": [],
+				"rotating": [
+					{"type": "block", "code": "planks-walnut-ud", "stacksize": 32, "stock": {"avg": 3, "var": 1}, "price": {"avg": 3, "var": 0.45}},
+					{"type": "block", "code": "log-placed-oak-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "log-placed-maple-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "log-placed-walnut-ud", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}},
+					{"type": "block", "code": "door-sleek-windowed-ebony", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 11, "var": 2.75}},
+					{"type": "block", "code": "door-sleek-windowed-walnut", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 9, "var": 2.25}},
+					{"type": "block", "code": "door-sleek-windowed-purpleheart", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 11, "var": 2.75}}
+				]
+			},
+			"hot": {
+				"core": [],
+				"rotating": [
+					{"type": "block", "code": "planks-acacia-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "planks-kapok-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "planks-baldcypress-ud", "stacksize": 32, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "planks-ebony-ud", "stacksize": 32, "stock": {"avg": 2, "var": 1}, "price": {"avg": 5, "var": 0.75}},
+					{"type": "block", "code": "planks-purpleheart-ud", "stacksize": 32, "stock": {"avg": 2, "var": 1}, "price": {"avg": 5, "var": 0.75}},
+					{"type": "block", "code": "log-placed-acacia-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "log-placed-kapok-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"type": "block", "code": "door-sleek-windowed-acacia", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 9, "var": 2.25}},
+					{"type": "block", "code": "door-sleek-windowed-kapok", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 9, "var": 2.25}},
+					{"type": "block", "code": "door-sleek-windowed-baldcypress", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 9, "var": 2.25}}
+				]
+			}
+		}
+	},
+	"buying": {
+		"core": [
+			{"code": "firewood", "stacksize": 32, "stock": {"avg": 16, "var": 4}, "price": {"avg": 1, "var": 0.25}},
+			{"type": "block", "code": "log-placed-oak-ud", "stacksize": 8, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
+			{"code": "plank-oak", "stacksize": 32, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
+			{"type": "block", "code": "crate", "attributes": {"type": "wood-aged"}, "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+			{"code": "stick", "stacksize": 64, "stock": {"avg": 1, "var": 1.25}, "price": {"avg": 1, "var": 0}}
+		],
+		"rotating": { "maxItems": 8,
+			"list": [
+				{"type": "block", "code": "log-placed-birch-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "log-placed-maple-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "log-placed-pine-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "log-placed-acacia-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "log-placed-larch-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "log-placed-kapok-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "log-placed-baldcypress-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "log-placed-ebony-ud", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+				{"type": "block", "code": "log-placed-purpleheart-ud", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+				{"type": "block", "code": "log-placed-walnut-ud", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+				{"type": "block", "code": "log-placed-redwood-ud", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+				{"code": "plank-pine", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "plank-birch", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "resin", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "saw-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 5, "var": 1.25}},
+				{"code": "saw-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 6, "var": 1.5}},
+				{"code": "saw-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 7, "var": 1.75}},
+				{"code": "axe-felling-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 4, "var": 1}},
+				{"code": "axe-felling-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 5, "var": 1.25}},
+				{"code": "axe-felling-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 6, "var": 1.5}},
+				{"code": "hammer-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 4, "var": 1}},
+				{"code": "hammer-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 5, "var": 1.25}},
+				{"code": "hammer-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 6, "var": 1.5}},
+				{"type": "block", "code": "chest-east", "attributes": {"type": "owl"}, "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 10, "var": 2.5}},
+				{"code": "metalnailsandstrips-copper", "stacksize": 2, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1.2, "var": 0.3}},
+				{"type": "block", "code": "chest-east", "attributes": {"type": "golden"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 10, "var": 2.5}},
+				{"code": "metalnailsandstrips-tinbronze", "stacksize": 2, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.5}},
+				{"code": "metalnailsandstrips-bismuthbronze", "stacksize": 2, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.5}},
+				{"code": "metalnailsandstrips-blackbronze", "stacksize": 2, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.5}}
+			]
+		},
+		"regional": {}
+	}
+}
