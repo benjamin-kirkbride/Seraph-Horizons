@@ -9,6 +9,10 @@ skins, outfits, voice, AI, revive on death) with the pack's eleven trader types 
 vanilla's nine, the pack's entity class, and every asset path the game resolves in the entity's
 own domain given the game's domain. Re-run it after a game update; the output is committed.
 Trading/Core/TraderTypes.cs holds the same eleven codes.
+
+It also writes visitor-{male,female}.json: the travelling merchants (#456, Trading/Visitors/),
+code `visitor`, class SeraphHorizons.VisitingTrader, the same humanoid with no revive, no fighting
+back or fleeing (they take no damage), wandering at most 4 blocks from where they arrived.
 """
 
 import json
@@ -24,6 +28,13 @@ TYPES = [
 # Vanilla dresses its luxuries trader in its own finer outfit set; the curio dealer wears it.
 FINE_OUTFITS = {"curiodealer": "luxuries"}
 ENTITY_CLASS = "SeraphHorizons.Trader"
+
+VISITOR_TYPES = ["travellingmerchant", "travellingcurio"]
+VISITOR_FINE_OUTFITS = {"travellingcurio": "luxuries"}
+VISITOR_CLASS = "SeraphHorizons.VisitingTrader"
+# What a visitor that takes no damage has no use for.
+VISITOR_DROPPED_BEHAVIORS = {"reviveondeath", "emotionstates"}
+VISITOR_DROPPED_TASKS = {"meleeattack", "seekentity", "fleeentity"}
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent.parent / "assets" / "seraphhorizons" / "entities" / "humanoid"
@@ -56,11 +67,12 @@ def json5(text: str):
     return json.loads(plain)
 
 
-def convert(entity: dict, gender: str) -> dict:
-    entity["class"] = ENTITY_CLASS
+def convert(entity: dict, gender: str, code="trader", types=TYPES, fine=FINE_OUTFITS, cls=ENTITY_CLASS) -> dict:
+    entity["code"] = code
+    entity["class"] = cls
     groups = entity["variantgroups"]
     assert [g["code"] for g in groups] == ["gender", "type", "climate"], groups
-    groups[1]["states"] = TYPES
+    groups[1]["states"] = types
 
     client = entity["client"]
     client["shape"]["base"] = "game:" + client["shape"]["base"]
@@ -77,11 +89,11 @@ def convert(entity: dict, gender: str) -> dict:
         _, g, kind, climate = key.split("-")
         assert g == gender, key
         if kind == "*":
-            renamed[key] = value
+            renamed[f"{code}-{gender}-*-{climate}"] = value
         else:
-            for ours, theirs in FINE_OUTFITS.items():
+            for ours, theirs in fine.items():
                 if theirs == kind:
-                    renamed[f"trader-{gender}-{ours}-{climate}"] = value
+                    renamed[f"{code}-{gender}-{ours}-{climate}"] = value
     # The specific keys first: the game takes the first that matches.
     attributes["partialRandomOutfitsByType"] = dict(
         sorted(renamed.items(), key=lambda kv: "*" in kv[0]))
@@ -95,6 +107,20 @@ def convert(entity: dict, gender: str) -> dict:
     return entity
 
 
+def visitor(entity: dict, gender: str) -> dict:
+    entity = convert(entity, gender, "visitor", VISITOR_TYPES, VISITOR_FINE_OUTFITS, VISITOR_CLASS)
+    behaviors = entity["server"]["behaviors"]
+    behaviors[:] = [b for b in behaviors if b["code"] not in VISITOR_DROPPED_BEHAVIORS]
+    for behavior in behaviors:
+        if behavior["code"] == "taskai":
+            tasks = behavior["aitasks"]
+            tasks[:] = [task for task in tasks if task["code"] not in VISITOR_DROPPED_TASKS]
+            for task in tasks:
+                if task["code"] == "wander":
+                    assert task.get("maxDistanceToSpawn", 99) <= 4, task
+    return entity
+
+
 def main() -> int:
     game = os.environ.get("VINTAGE_STORY")
     if not game:
@@ -103,11 +129,11 @@ def main() -> int:
     src = Path(game) / "assets" / "survival" / "entities" / "humanoid"
     OUT.mkdir(parents=True, exist_ok=True)
     for gender in ("male", "female"):
-        entity = json5((src / f"trader-{gender}.json").read_text(encoding="utf-8"))
-        entity = convert(entity, gender)
-        path = OUT / f"trader-{gender}.json"
-        path.write_text(json.dumps(entity, indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
-        print(path)
+        text = (src / f"trader-{gender}.json").read_text(encoding="utf-8")
+        for name, entity in (("trader", convert(json5(text), gender)), ("visitor", visitor(json5(text), gender))):
+            path = OUT / f"{name}-{gender}.json"
+            path.write_text(json.dumps(entity, indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
+            print(path)
     return 0
 
 

@@ -1,0 +1,25 @@
+[
+	{
+		// The inn flag (#456): a linen pennon on two sticks, the keys painted on in charcoal.
+		ingredientPattern: "LC,S_,S_",
+		width: 2,
+		height: 3,
+		ingredients: {
+			"L": { type: "block", code: "game:linen-*" },
+			"C": { type: "item", code: "game:charcoal" },
+			"S": { type: "item", code: "game:stick" }
+		},
+		output: { type: "block", code: "seraphhorizons:innflag" }
+	},
+	{
+		// The inn sign (#456), for an inn with no market stall: a sign with its board painted.
+		ingredientPattern: "SC",
+		width: 2,
+		height: 1,
+		ingredients: {
+			"S": { type: "block", code: "game:sign-ground-north" },
+			"C": { type: "item", code: "game:charcoal" }
+		},
+		output: { type: "block", code: "seraphhorizons:innsign-north" }
+	}
+]

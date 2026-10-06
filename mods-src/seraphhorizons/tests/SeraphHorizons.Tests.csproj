@@ -8,8 +8,8 @@
        (../Rosser/Core), the item value table's lookup (../Trading/Values/Core), the ore
        cells' grid, state and vein scaling (../Ore/Core), the traders' grid, regions, lists
        and restock (../Trading/Core), standing (../Trading/Standing/Core) and their economy's
-       prices and supply (../Trading/Economy/Core), and the schematics' table and grid placement
-       (../Trading/Schematics/Core).
+       prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
+       (../Trading/Schematics/Core), and the travelling merchants' inns (../Trading/Visitors/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -71,6 +71,8 @@
     <None Include="../assets/seraphhorizons/config/schematic-gates.json" Link="schematic-gates.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/schematic.json" Link="schematic-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/lang/en.json" Link="lang-en.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Travelling merchants (#456): inn rules, the visit cycle, the conditions. -->
+    <Compile Include="../Trading/Visitors/Core/**/*.cs" Link="Trading/Visitors/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

@@ -43,7 +43,8 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
-        Assert.Equal(11, Trading.Lists?.Lists.Count);
+        // The eleven camp types and the two travelling merchants (#456).
+        Assert.Equal(13, Trading.Lists?.Lists.Count);
     }
 
     [AtlasScenario]
@@ -66,7 +67,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var lists = Trading.Lists ?? throw new Xunit.Sdk.XunitException("the lists did not load");
         Assert.True(lists.Problems.Count == 0, string.Join("\n", lists.Problems));
         Assert.True(lists.Unresolved.Count == 0, "Entries the game does not know:\n" + string.Join("\n", lists.Unresolved));
-        Assert.Equal(TraderTypes.All.OrderBy(t => t), lists.Lists.Keys.OrderBy(t => t));
+        Assert.Equal(TraderTypes.All.Concat(TraderTypes.Visitors).OrderBy(t => t), lists.Lists.Keys.OrderBy(t => t));
         foreach (var (type, def) in lists.Lists)
             foreach (var region in Region.All)
             {

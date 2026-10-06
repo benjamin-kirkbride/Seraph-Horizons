@@ -54,7 +54,8 @@ public static class TradeListResolver
     public static List<string> Problems(TradeListDef def)
     {
         var problems = new List<string>();
-        if (!TraderTypes.All.Contains(def.Type)) problems.Add($"type '{def.Type}' is not one of the eleven");
+        if (!TraderTypes.All.Contains(def.Type) && !TraderTypes.Visitors.Contains(def.Type))
+            problems.Add($"type '{def.Type}' is not one of the eleven or a visitor");
         if (def.Wallet.Count == 0) problems.Add("no wallet");
         foreach (var (name, side) in new[] { ("selling", def.Selling), ("buying", def.Buying) })
         {

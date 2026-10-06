@@ -39,6 +39,10 @@ public class EntitySeraphTrader : EntityTrader
     /// <summary>The trader type, from the entity code (<c>trader-{gender}-{type}-{climate}</c>).</summary>
     public string TraderType => Code.Path.Split('-') is { Length: >= 3 } parts ? parts[2] : "";
 
+    /// <summary>The standing tier the shelves are stocked for (<see cref="TradeListResolver.Resolve(TradeListDef, Region, int)"/>):
+    /// 0 for camp traders; a travelling merchant (#456) stocks for its inn's owner.</summary>
+    public virtual int StockTier => 0;
+
     public Region Region
     {
         get => Region.TryParse(WatchedAttributes.GetString(RegionAttr, ""), out var r) ? r : new Region(Region.Temperate, Region.Sedimentary);
@@ -144,7 +148,7 @@ public class EntitySeraphTrader : EntityTrader
     {
         var system = TradingSystem.Of(Api);
         if (system?.Lists?.For(TraderType) is not { } def || Inventory is null) return;
-        var resolved = TradeListResolver.Resolve(def, Region);
+        var resolved = TradeListResolver.Resolve(def, Region, StockTier);
         var context = new TraderContext(TraderType, Region, EntityId, Pos.X, Pos.Z);
         var gate = system.SupplyGate;
         Fill(system, Inventory.SellingSlots, resolved.Selling, SellingKeysAttr, refreshChance, e => gate.Stock(context, e), EnumTradeDirection.Sell);

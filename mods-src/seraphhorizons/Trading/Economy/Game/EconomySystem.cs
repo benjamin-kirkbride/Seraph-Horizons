@@ -273,7 +273,7 @@ public class EconomySystem : ModSystem
     {
         var system = TradingSystem.Of(trader.Api);
         if (system?.Lists?.For(trader.TraderType) is not { } def) return;
-        var resolved = TradeListResolver.Resolve(def, trader.Region);
+        var resolved = TradeListResolver.Resolve(def, trader.Region, trader.StockTier);
         var entries = new Dictionary<string, TradeEntry>();
         foreach (var e in resolved.Selling.Core.Concat(resolved.Selling.Rotating)) entries.TryAdd("s" + e.Key, e);
         foreach (var e in resolved.Buying.Core.Concat(resolved.Buying.Rotating)) entries.TryAdd("b" + e.Key, e);
