@@ -464,6 +464,23 @@ The recipes and the creative and handbook changes are a JSON patch,
 that patch file in `Start`, as for Hydrate or Diedrate's tun, and the loot is left alone. The switch
 that counts is the server's.
 
+### Blood sausage and black pudding come from the mixing bowl (`BloodSausageInMixingBowl`)
+
+Butchering (`butchering` 1.14.3) makes raw blood sausage and raw black pudding
+(`butchering:sausage-bloodsausage-raw`, `butchering:sausage-blackpudding-raw`) two ways. In the grid:
+clean offal, a wooden bucket of blood (0.2 L for a sausage, 0.8 L for a pudding) and, for the sausage,
+2 red meat, 4 bushmeat or 3 poultry (`recipes/grid/bloodsausage.json`, three recipes), for the pudding
+rendered fat (`recipes/grid/blackpudding.json`, one). And in A Culinary Artillery's mixing bowl, by
+its own kneading recipes (`recipes/kneading/bloodmeatnuggetsausages.json`: Expanded Foods' meat
+nuggets for the sausage), which ship `enabled: false` and which its Expanded Foods compatibility patch
+enables. The pack keeps the mixing bowl's, with the rest of its sausages: the four grid recipes are
+disabled (`enabled: false`). The items, their cooking and smoking stay as Butchering ships them.
+
+A JSON patch, `assets/seraphhorizons/patches/bloodsausage-butchering.json`, `"side": "server"` and
+`dependsOn` butchering and expandedfoods. With the switch off, or without Butchering, Expanded Foods
+or A Culinary Artillery (without which nothing else makes them), the system empties that patch file
+in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the server's.
+
 ### Panning gives no wool, awls, uranium or buttons (`PanningDropsTrimmed`)
 
 The game's pan (`game:pan-wooden`, `attributes.panningDrops` in `blocktypes/wood/pan.json`) has
@@ -1111,8 +1128,11 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
   log chopped, and the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are).
-- **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0), and
-  while dry how many times the power it takes. The handbook has a page of its own, "Oiling
+- **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
+  an empty one 0, not -0), and while dry its load on the shaft now against the load it takes oiled
+  (`Dry: a load of 0.51 on its shaft, 3× the 0.17 it takes oiled`). The load is what the shaft last
+  asked of the machine (`OilState.Load`, set in every `GetResistance`; the server syncs it when it
+  changes), so until the network has asked once the line only gives the multiplier. The handbook has a page of its own, "Oiling
   machines" (`config/handbook/machineoil.json`): which machines, which oils, what dry means and how
   long a tank lasts. Its text quotes the default settings.
 
@@ -2188,6 +2208,13 @@ are in the creative inventory and the handbook. With the switch off, `SwitchesOf
 the vessel as it ships, its loot included. When it fails after a Primitive
 Survival or BetterRuins update, check the recipe file's order and the loot item's `*-clayproducts`
 stacks.
+
+`tests/PackTests/BloodSausageScenarios.cs` (Atlas) requires both raw items, no grid recipe making
+either, and both among the outputs of A Culinary Artillery's enabled recipes, read from its
+registries as the recipe exporter reads them. With the switch off, `SwitchesOffScenarios` requires
+Butchering's three blood sausage and one black pudding grid recipes. When it fails after a Butchering
+update, check the two grid files' order and whether its kneading recipes are still enabled with
+Expanded Foods.
 
 For panning, `SeraphHorizonsModScenarios` reads every block's `panningDrops` on the loaded server
 and requires none of the removed codes in any list, nor in the pan's table as `BlockPan` reads it

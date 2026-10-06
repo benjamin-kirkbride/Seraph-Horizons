@@ -330,7 +330,7 @@ public static class ForeignMachines
             if (__instance.Api.World.BlockAccessor.GetBlockEntity(side) is BEHelveHammer { HammerStack: not null } hammer)
             {
                 if (StateOf(hammer) is { } state)
-                    __result = state.Resistance(__result);
+                    __result = Oil.Asked(state, __result, hammer);
                 return;
             }
     }
@@ -345,7 +345,7 @@ public static class ForeignMachines
             _ => null,
         };
         if (StateOf(machine) is { } state)
-            __result = state.Resistance(__result);
+            __result = Oil.Asked(state, __result, machine);
     }
 
     // ---- Pouring ----
