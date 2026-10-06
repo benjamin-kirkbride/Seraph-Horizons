@@ -16,7 +16,8 @@
 // - Coal and the industrial minerals get a quarter cut at most: they were one deposit per 3–10 km²
 //   and are not what the walk is for.
 // Gold, silver (apart from the silver inside copper and lead veins), nickel, titanium and chromium
-// come from hydrothermal districts, which this does not scale; their rows are here for the record.
+// come mostly from hydrothermal districts. District veins are sized to smallIngots / targetIngots /
+// largeIngots directly (config/ore-districts.json, Ore/Core/DistrictVeins.cs), not by the factor.
 // These began as a first cut from volume ∝ radius² × thickness (discs) and count × length (tubes).
 // Correction from the survey of #445 (docs/oregen.md): the anchored veins of copper, iron, bismuth,
 // zinc and platinum came out at about twice the target (eight veins pooled over three seeds, median

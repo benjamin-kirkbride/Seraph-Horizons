@@ -306,4 +306,63 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.NotEmpty(sizes);
         Assert.All(sizes, size => Assert.Equal(7000, size));
     }
+
+    /// <summary>District veins (under SmallerDeposits): a district built from the granite config,
+    /// as IOG builds one when a chunk near it generates, comes out with at most the configured
+    /// number of veins of each base metal, most cut to a band of heights under sea level (a thin
+    /// vein whose whole column holds less than its drawn size keeps it), and its gold untouched in
+    /// number.</summary>
+    [AtlasScenario]
+    public void Hydrothermal_district_veins_are_counted_and_sized()
+    {
+        Assert.Null(DistrictVeinSizes.Unsupported(World.Api));
+        var districtType = AccessTools.TypeByName(DistrictVeinSizes.DistrictTypeName)!;
+        var patches = Harmony.GetPatchInfo(AccessTools.Method(districtType, "DetectOreZones"));
+        Assert.NotNull(patches);
+        Assert.Contains(patches.Postfixes, p => p.owner == OreSystem.HarmonyId);
+
+        var system = World.Api.ModLoader.Systems.First(s => s.GetType().FullName == OreDistricts.SystemTypeName);
+        var configs = ((System.Collections.IEnumerable)AccessTools.Field(system.GetType(), "_configs").GetValue(system)!).Cast<object>();
+        var granite = configs.Single(c => (string)AccessTools.Field(c.GetType(), "Code").GetValue(c)! == "magmatic-granitic-deep");
+        int top = World.Api.World.BlockAccessor.MapSizeY - 1;
+        int seaLevel = World.Api.World.SeaLevel;
+        int done = DistrictVeinSizes.DistrictsDone;
+        var district = Activator.CreateInstance(districtType, new Vec2i(100_000, 100_000), Seed, 12345, 1, top, granite)!;
+        Assert.Equal(done + 1, DistrictVeinSizes.DistrictsDone);
+
+        var veins = new Dictionary<string, int>();
+        int gold = 0, zones = 0, banded = 0, whole = 0;
+        foreach (var zone in (System.Collections.IEnumerable)Traverse.Create(district).Property("OreZones").GetValue())
+        {
+            zones++;
+            var t = Traverse.Create(zone);
+            string kind = t.Field("ZoneType").GetValue()!.ToString()!;
+            var box = t.Field("BoundingBox").GetValue<Cuboidd>();
+            var metals = ((System.Collections.IEnumerable)t.Field("EligibleOres").GetValue())
+                .Cast<object>()
+                .Where(o => Traverse.Create(o).Field("Density").GetValue<float>() > 0)
+                .Select(o => OreMetals.MetalOf(DistrictVeins.OreOfCode(Traverse.Create(o).Field("OreCode").GetValue<string>())))
+                .OfType<string>().Distinct().ToList();
+            if (metals.Contains("gold")) gold++;
+            if (kind == "HorsetailLens")
+            {
+                Assert.DoesNotContain("tin", metals);
+                continue;
+            }
+            foreach (var m in metals) veins[m] = veins.GetValueOrDefault(m) + 1;
+            if (!metals.Contains("tin") && !metals.Contains("bismuth")) continue;
+            output.WriteLine($"{kind} {string.Join("+", metals)}: y {box.Y1}..{box.Y2}");
+            if (box.Y1 <= 1 && box.Y2 >= top) whole++;
+            else
+            {
+                Assert.True(box.Y1 >= 4 && box.Y2 <= seaLevel, $"{kind} {string.Join("+", metals)}: {box.Y1}..{box.Y2}");
+                banded++;
+            }
+        }
+        output.WriteLine($"{zones} zones; veins {string.Join(", ", veins.Select(kv => $"{kv.Key} {kv.Value}"))}; gold zones {gold}; tin and bismuth veins banded {banded}, whole {whole}");
+        Assert.True(banded > whole, $"tin and bismuth veins banded {banded}, whole {whole}");
+        Assert.InRange(veins.GetValueOrDefault("tin"), 1, 8);
+        Assert.InRange(veins.GetValueOrDefault("bismuth"), 1, 8);
+        Assert.True(gold > 8, $"gold zones {gold}: gold keeps every lens IOG makes");
+    }
 }
