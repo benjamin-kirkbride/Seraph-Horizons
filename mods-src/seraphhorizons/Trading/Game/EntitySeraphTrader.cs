@@ -25,12 +25,16 @@ public class EntitySeraphTrader : EntityTrader
 {
     public const string ClassName = "SeraphHorizons.Trader";
     public const string RegionAttr = "seraphhorizons:region";
-    private const string SellingKeysAttr = "seraphhorizons:sellingkeys";
-    private const string BuyingKeysAttr = "seraphhorizons:buyingkeys";
+    public const string SellingKeysAttr = "seraphhorizons:sellingkeys";
+    public const string BuyingKeysAttr = "seraphhorizons:buyingkeys";
     private const string LastRefreshAttr = "lastRefreshTotalDays";
 
     private bool _imported;
     private double _walletSetFor = double.NaN;
+
+    /// <summary>Raised on the server after every <see cref="Restock"/>, once both sides are filled
+    /// and saved: the economy (#450, #451) refills the side budget and prices the shelves here.</summary>
+    public static event Action<EntitySeraphTrader>? Restocked;
 
     /// <summary>The trader type, from the entity code (<c>trader-{gender}-{type}-{climate}</c>).</summary>
     public string TraderType => Code.Path.Split('-') is { Length: >= 3 } parts ? parts[2] : "";
@@ -149,6 +153,7 @@ public class EntitySeraphTrader : EntityTrader
         Inventory.ToTreeAttributes(store);
         WatchedAttributes["traderInventory"] = store;
         WatchedAttributes.MarkAllDirty();
+        Restocked?.Invoke(this);
     }
 
     private void Fill(TradingSystem system, ItemSlotTrade[] slots, ResolvedSide side, string keysAttr, float refreshChance,

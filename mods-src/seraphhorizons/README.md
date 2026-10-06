@@ -1682,3 +1682,46 @@ routing, disband); `tests/PackTests/TradingStandingScenarios.cs` (Atlas: a deal 
 packet raises standing by its gears and a failed one does not, a higher tier raising the wallet at the
 next restock, a company made with the server's group manager pooling by max through `/sh company`
 and `/group leave` leaving the player their own, the chat line).
+
+## Everything has a price (`EverythingHasAPrice`)
+
+The trader overhaul's pricing (#450; `Trading/Economy/`, notes in `docs/trading.md`). A trader of the
+pack takes any item, not only what its list buys. Listed goods keep the list's price and are paid
+from the trader's wallet. Anything else is priced from the item's base value: about half for goods a
+related trader buys, about a fifth otherwise, and the curio dealer 0.3 for anything another trader
+buys (`assets/seraphhorizons/config/trading/trader-relations.json`). It is paid from a **side
+budget**, a quarter of the trader's wallet, refilled at every restock. Cheap goods sell by the fewest
+items worth a gear (a trade is priced in whole gears), and a trader never pays more than 0.6 × its own
+selling price for goods it also sells. Refused: maps and leads (the `refused` prefixes), money, goods
+worth less than a gear per stack, goods the value table doesn't know, and goods that at this trader
+come to under a gear per full stack. The selling cart's tooltip shows the offer's breakdown (value ×
+fit × supply) and which budget pays, a refused good says why, and the dialog's gain and money lines
+show the side budget's share and what is left in it. Switch: `EverythingHasAPrice` (default on); the
+server's setting goes to its clients with each trader.
+
+Admin: `/sh trade price [item]` shows what the nearest trader (16 blocks) pays for an item, or the
+held one, and why.
+
+## Regional supply (`RegionalSupply`, `SupplyHalfLifeDays`, `SupplySpreadFraction`)
+
+Per item and 8 km region (the grid's settlement cells, about sixteen camps), a supply level saved
+with the world (#451). Selling to any of the pack's traders raises it by the goods' value in 10-gear
+units, so a stack of planks and an iron ingot move their items' levels about alike. Buying from a
+trader lowers it. Once a calendar day every level decays (half-life
+`SupplyHalfLifeDays`, default 10 days), and a share (`SupplySpreadFraction`, default 0.1) moves to the
+eight neighbouring regions, thinning with distance. Every price at a trader, buying and selling, is
+scaled by `0.3 + 0.7 / (1 + level / 5)`: ten iron ingots sold take its price to about 0.7×, and it
+never goes under 0.3×. Player-supplied goods are shelved at a restock only from level 1 up, with half
+the region's supply (counted in the entry's stacks) as stock, at most twice the entry's own. Per item,
+not per metal. Switch: `RegionalSupply` (server, default on).
+
+Admin (privilege `controlserver`, in the caller's region or the spawn's): `/sh trade supply
+[item|all]`, `/sh trade supply set <item> <level>`, `add <item> <amount>`, `reset [item|all]`,
+`trace <item>` (its last changes), and `/sh trade simulate <days>` (supply decays and spreads for
+that many days, and the loaded traders' restock clocks move on as much).
+
+Tests: `tests/Trading/Economy/` (the fit table, the price curve and offers, the side budget, supply
+decay, spread, shelving and saving); `tests/PackTests/TradingEconomyScenarios.cs` (Atlas: an off-list
+sale paid from the side budget through vanilla's own deal, worthless goods, money and an overdrawn side
+budget refused, supply rising, falling over `simulate 20`, and player-supplied iron and steel shelved
+once supply is high).

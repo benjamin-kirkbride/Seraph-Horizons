@@ -8,7 +8,7 @@ namespace SeraphHorizons.Mod.Trading.Values;
 /// <summary>
 /// Item base values (#449): loads <c>config/item-values.json</c>, the table <c>tools/item-values</c>
 /// derives from the pack's recipe export, and serves it to the trading features
-/// (<c>ItemValuesSystem.For(api).ValueOf(code)</c>). Server only, and with no switch of its own:
+/// (<c>ItemValuesSystem.For(api).ValueOf(code)</c>). Both sides, and with no switch of its own:
 /// it changes nothing in play, it only answers the features that price things and the admin
 /// command <c>/sh trade value [item]</c>.
 /// </summary>
@@ -22,7 +22,8 @@ public class ItemValuesSystem : ModSystem
     public static ItemValues For(ICoreAPI api) =>
         api.ModLoader.GetModSystem<ItemValuesSystem>()?.Values ?? ItemValues.Empty;
 
-    public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Server;
+    // Both sides: the client prices goods off a trader's list itself, to show the offer (#450).
+    public override bool ShouldLoad(EnumAppSide forSide) => true;
 
     public override void AssetsLoaded(ICoreAPI api)
     {

@@ -664,6 +664,95 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
 - **Standing** (#452, #463): built; `TradingSystem.Standing` (see "Standing and companies").
 - **Everything has a price**: hook `InventoryTrader.GetBuyingConditionsSlot` / `IsTraderInterestedIn`
   (Harmony on our traders only) to accept unlisted goods at a lower price.
+
+## Prices and supply (#450, #451)
+
+`Trading/Economy/`: `Core/` (`TraderRelations.cs` with `BuyerIndex`, `Pricing.cs`, `Supply.cs`;
+unit-tested in `tests/Trading/Economy/`), `Game/` (`EconomySystem`, `EconomyPatches`,
+`EconomyCommands`).
+
+### Everything has a price
+
+- **Fit**: `config/trading/trader-relations.json`. Listed 1, a related type 0.5, otherwise 0.2. The
+  relations are smith–mechanic, smith–prospector, prospector–mason, carpenter–mason,
+  carpenter–mechanic, farmer–cook, farmer–animal dealer, cook–animal dealer and tailor–general store
+  at 0.5; tailor–animal dealer, general store–cook and general store–carpenter at 0.3; and the curio
+  dealer with everyone at 0.3. An item's fit at a trader is the best relation between its type and
+  any type whose list buys the item (any region, core or rotating; `BuyerIndex`).
+- **Prices** (`Pricing`): a listed entry is its list average (vanilla's rolled spread is dropped once
+  the economy prices a trader) × supply × modifiers. An off-list good is the value table's value
+  (scaled by remaining durability) × fit × supply × modifiers. Listed goods keep the list's price because
+  the lists are curated and on the table's scale: the lists' buying prices are 0.94 × the table's value
+  at the median. A buying price is capped at 0.6 × what the trader asks per item for the same goods.
+  The game prices a trade in whole gears per trade-item stack, so an off-list good of less than a
+  gear an item is sold by the fewest items worth a gear (`UnitSize`); under a gear per full stack it
+  is refused (`TooCheap`).
+- **Refusals**: code prefixes under `refused` (`seraphhorizons:oremap`, `gravelmap`, `traderlead`,
+  `game:locatormap`), items with a `currency` attribute, `IsWorthless` items (floorZero), items with
+  no value or family value. The prefixes apply only to off-list goods; a list that names one buys it.
+- **Side budget**: `WatchedAttributes["seraphhorizons:sidebudget"]`, set to ¼ of the list's tier-0
+  wallet average at every restock (`EntitySeraphTrader.Restocked`). The main wallet stays vanilla's
+  money slot.
+- **Hook points** (Harmony, `EconomyPatches`, id `seraphhorizons.economy`, patched once per process,
+  acting only on an `InventoryTrader` whose trader is ours with `seraphhorizons:everythingpriced` set):
+  - `InventoryTrader.GetBuyingConditionsSlot` postfix. Vanilla decides everything about a sale
+    through it: `IsTraderInterestedIn` (so `ItemSlotBuying.CanHold` and shift-click),
+    `HasTraderEnoughDemand`, `GetTotalGain`, and the deal's own loop. Where it finds no buying slot,
+    the postfix returns an `OffListSlot` (an `ItemSlotTrade` outside the inventory, stock 9999) with
+    the offer, and the good then sells exactly like a listed one.
+  - `InventoryTrader.TryBuySell` (internal) prefix and postfix. The prefix totals the off-list gain,
+    refuses the deal (`TraderNotEnoughAssets`, with an in-game error) when it is more than the side
+    budget, and on the server moves that much from the side budget into the money slot, so vanilla's
+    own payment works unchanged. The postfix moves it back if the deal failed; after a deal it
+    records supply and re-prices the region's loaded traders before vanilla broadcasts the inventory
+    (packet 1234).
+  - `InventoryTrader.GetTraderAssets` postfix: on the client, during the deal's local check, counts
+    that same share.
+  - `ItemSlot.GetStackDescription` postfix, selling-cart slots (`ItemSlotBuying`) only: the breakdown
+    and which budget pays. `ItemSlotBuying.CanHold` postfix (client): why a good is refused.
+  - `GuiDialogTrader.TraderInventory_SlotModified` / `CalcAndUpdateAssetsDisplay` (private) postfixes:
+    the gain line gets the side budget's share, the money line the side budget.
+- **Both sides compute**: the client needs the price before the server sees the deal (the cart's
+  `CanHold`, the gain text). `ItemValuesSystem` loads on both sides; the client loads the lists at
+  `LevelFinalize` for the `BuyerIndex`. Per trader the server syncs `everythingpriced`, `sidebudget`
+  and `supplyfactors` (every item of the trader's supply region whose factor is under 0.999). The
+  server prices from the same synced factors, so both sides agree. The factors are refreshed at a
+  restock, at the daily tick, after any deal in the region, and on `/sh trade supply` changes.
+- **`IPriceModifier`** (`EconomySystem.Modifiers`): `double Factor(in PriceContext)` with item code,
+  trader type, supply region, direction, trader id and player uid (null when no player is known: shelf
+  prices). Factors multiply after supply. The standing wave adds one on both sides from data both sides
+  have (e.g. the trader's watched attributes). A modifier that depends on the player should only act
+  where `PlayerUid` is set: listed shelf prices are computed without one.
+
+### Regional supply
+
+- **Region key**: 8192-block squares (`SupplyRegion`, `rx,rz`), the grid's settlement cells, 4 × 4
+  camp cells. Coarse enough that the camps a player visits share a market, fine enough that hauling to
+  the next region pays.
+- **Level**: per (region, full item code), in units of 10 gears' worth (`ReferenceGears`). Selling n
+  items adds n × value / 10 (table value, else the price traded at); buying drains the same, clamped at
+  0. Daily: × 0.5^(1/half-life), then 10 % moves to the eight neighbours, weighted 1 orthogonal and
+  1/√2 diagonal, normalised. Levels under 0.01 are dropped. History: the last 16 changes per entry.
+- **Price curve**: `f(L) = 0.3 + 0.7 / (1 + L / 5)`. 1 at 0, 0.65 at 5 (50 gears' worth sold), never
+  under 0.3. With the defaults, ten iron ingots a day for a week leave the region at about 0.5×, the
+  next region a few percent down, and a month later back above 0.9×
+  (`OnePlayersOutputReachesTheNextRegionWithoutAWeekLongCrash`).
+- **Shelving** (`RegionalSupplyGate`, `TradingSystem.SupplyGate`): from level 1, stock is
+  floor(0.5 × level × 10 / (value × stack size)), at most 2 × the entry's stock.
+- **Clock**: a 2 s server tick listener runs one `Tick` per elapsed calendar day (at most 30 at once).
+  It is saved as `seraphhorizons:supply` (JSON) and `seraphhorizons:supplyday`.
+  `/sh trade simulate <days>` ticks the book, raises `EconomySystem.SimulatedDay` per day (for orders
+  and deliveries), and moves each loaded trader's `lastRefreshTotalDays` back by the days, so vanilla's
+  weekly loop restocks it on its next check.
+
+## Extension points for later waves
+
+- **Supply** (#451, done): `EconomySystem.Supply` (`SupplyBook`); the gate is set at GameReady.
+- **Pricing** (#450, done): `EconomySystem.Modifiers` (`IPriceModifier`) for standing;
+  `EntitySeraphTrader.Restocked` for anything that must follow a restock;
+  `EconomySystem.SimulatedDay` for clocks that `/sh trade simulate` should advance.
+- **Standing** (#452, #463): `TradeListDef.WalletFor(tier)`, `TradeListResolver.Resolve(def, region, tier)`;
+  per-trader data can live in the entity's `WatchedAttributes` like the region.
 - **Orders, deliveries, maps**: dialogue components on the trader (`Dialog_DialogTriggers` is
   protected virtual: override in `EntitySeraphTrader`).
 - **Camps**: `TraderCamps.Registry` (placed camps with type, position, region, structure) for maps to
