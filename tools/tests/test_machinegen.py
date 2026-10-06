@@ -91,6 +91,7 @@ class Parsing(unittest.TestCase):
         for p in rig["parts"]:
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
+        self.assertEqual(checks.lid_gaps(rig["cells"]), [])
 
     def test_input_and_rectified_conflict(self):
         d = {"type": "rotate", "axis": "x", "pivot": [0, 0, 0], "rectified": True, "input": "travel"}
@@ -281,6 +282,20 @@ class Checks(unittest.TestCase):
         els = [box("a", [0, 0, 0], [16, 2, 16]), box("b", [0, 14, 0], [16, 16, 16])]
         self.assertEqual(checks.cell_boxes(els, (0, 0, 0)), [[0.0, 0.0, 0.0, 1.0, 0.125, 1.0], [0.0, 0.875, 0.0, 1.0, 1.0, 1.0]])
         self.assertIsNone(checks.cell_boxes(els, (1, 0, 0)))
+
+    def test_lids_go_on_each_columns_top_cell_as_one_deck_per_layer(self):
+        cells = [{"pos": [0, 0, 0], "boxes": [[0, 0, 0, 1, 0.5, 1]]},
+                 {"pos": [0, 1, 0], "boxes": [[0, 0, 0, 0.25, 0.75, 1]]},
+                 {"pos": [1, 1, 0], "boxes": [[0, 0, 0, 1, 0.5, 1]]},      # same layer: raised to 0.75
+                 {"pos": [2, 0, 0], "hollow": True},                        # a hollow cell's top is 1,
+                 {"pos": [3, 0, 0], "boxes": [[0, 0, 0, 1, 0.25, 1]], "lid": 0.5}]   # and an old lid is replaced
+        got = checks.with_lids(cells)
+        self.assertEqual([c.get("lid") for c in got], [None, 0.75, 0.75, 1.0, 1.0])
+        self.assertTrue(got[3]["hollow"])
+        self.assertEqual(got[1]["boxes"], cells[1]["boxes"])
+        self.assertNotIn("lid", cells[1])                                   # (the input is left alone)
+        self.assertEqual(checks.lid_gaps(got), [])
+        self.assertEqual(checks.lid_gaps(cells[:3]), [(0, 0), (1, 0)])
 
     def test_frame_floating(self):
         frame = [box("post", [0, 0, 0], [2, 10, 2]), box("beam", [0, 10, 0], [10, 12, 2]), box("loose", [20, 20, 20], [21, 21, 21])]

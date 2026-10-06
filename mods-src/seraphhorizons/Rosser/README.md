@@ -69,7 +69,8 @@ cell of the rig and stamps an invisible ghost into each other cell: `rosser-ghos
 a water pipe connects to. Ghosts store the controller's position (`IMachineGhost.Principal`) and
 pass interaction, breaking, the pick-block stack, name, info and help to it. Every cell's collision
 and selection boxes come from the controller (`BERosser.CellBoxes`): its own from the rig, plus its
-part of the trunk. The controller re-stamps missing ghosts once a second. Breaking the frame or any
+part of the trunk. Its collision boxes (`CollisionBoxes`) add the cell's lid on a column's top cell
+(below). The controller re-stamps missing ghosts once a second. Breaking the frame or any
 ghost breaks the whole rosser.
 
 **Rig.** The footprint and anchors are data, in `assets/seraphhorizons/config/rosser-rig.json`
@@ -83,6 +84,12 @@ native, south-facing frame with the controller at `[0,0,0]` the machine box is 1
 - 243 cells, 41 of them `hollow`: cells over the trunk's path that no element of the model reaches.
   A hollow cell is a ghost (nothing can be built in the trunk's way) but has no box of its own: it
   is solid only where the trunk's box is.
+- 66 lids, the mill's (`../BuckingSawmill/README.md`, **Rig**): a collision-only box 1/16 thick over
+  the whole of every column's top cell, at y 4 over the station and y 3 over the beds (the top of
+  their hollow cells, above a thick trunk), so a player on top cannot drop into the hollow cells or
+  the gaps about the ring, the beds and the rolls and get stuck, or be caught there by a moving
+  trunk. A hollow cell's lid is still collision only: its selection box list is empty without the
+  trunk. Over the beds the deck is invisible, two blocks above the bed rolls.
 
 The power cell is `[-9,3,-2]`, taking the axle on its north face: high on the side, just upstream of
 the ring, on the right as you look along the machine from its near end. The water cell is `[-8,2,2]`,
@@ -299,10 +306,11 @@ missing the mod logs one warning and the rosser takes no trunks.
 throwing in and out), a stick crack per stick drop, and the tool break when the heads are spent.
 Client side, while feeding and running: Immersive Woodworking's debarking sound
 (`immersivewoodworking:sounds/debark/debarking{1..3}`, referenced, not copied) every 1.2 s and
-bark-brown chips every 0.1 s while the trunk is under the ring, and drips every 0.15 s while wet and
-the trunk is under the drip. Silent on purpose: an empty rosser whose ring turns (the network's
-axles make their own noise), a waiting trunk without power, a stalled trunk, a delivered trunk, and
-a feeding trunk not yet at the ring or past it.
+bark-brown chips every 0.1 s while the trunk is under the spud heads (`trunkPath.tips` for its
+class, downstream of the ring's plane), and drips every 0.15 s while wet and the trunk is under the
+drip. Silent on purpose: an empty rosser whose ring turns (the network's axles make their own
+noise), a waiting trunk without power, a stalled trunk, a delivered trunk, and a feeding trunk not
+yet at the heads or past them.
 
 ## Config
 
@@ -348,10 +356,13 @@ plain, then show the difference.
 
 ## Crafting
 
-The frame: two Immersive Woodworking sawmill frames, four support beams and a copper chute
-section, with a hammer (`BHB,FCF,B_B`; `assets/seraphhorizons/recipes/grid/rosser.json`). With
-`IronWoodworkingMachines` on, each sawmill frame carries its eight iron nails and strips. The parts
-are existing items: the game's and Immersive Woodworking's.
+The frame: four Immersive Woodworking sawmill frames, one to a corner, a stack of thirty-two nails
+and strips in the middle, sixteen support beams above and sixteen below, and two copper chute
+sections, with a hammer (`FBF,HNC,FBF`; `assets/seraphhorizons/recipes/grid/rosser.json`): about
+three times the mill frame, for a machine four times its size. With `IronWoodworkingMachines` on,
+the nails and strips must be iron, meteoric iron or steel (`patches/woodworking-machine-costs.json`),
+and each sawmill frame carries its own eight. The parts are existing items: the game's and
+Immersive Woodworking's.
 
 ## Model
 
@@ -621,12 +632,12 @@ schema (`../BuckingSawmill/README.md`, "Rig schema") with these differences, par
 
 | Field | Meaning |
 |---|---|
-| `cells` | As the mill's, plus `"hollow": true` on a cell with no boxes of its own: a ghost, solid only where the trunk's box is. A hollow cell with `boxes` is an error; any other cell with none is still a full cube. The controller's cell cannot be hollow. |
+| `cells` | As the mill's (`lid` included), plus `"hollow": true` on a cell with no boxes of its own: a ghost, solid only where the trunk's box is. A hollow cell with `boxes` is an error; any other cell with none is still a full cube. The controller's cell cannot be hollow. A hollow cell may have a `lid`; it counts as 1 high for the deck's height. |
 | `powerCell`, `powerFace` | `[-9,3,-2]`, `north`: a ghost cell, not hollow, whose face looks out of the footprint. |
 | `waterCell`, `waterFace` | `[-8,2,2]`, `south`: the same rules, and not the power cell. |
 | `infeedSide`, `outputSide` | `west` and `east`: they must be the path's ends (for a path along z, `north` and `south`). |
 | `chute` | `{ "pos": [-6.5, 0.1125, 3.05], "side": "south" }`: where bark and sticks spawn, and the face they are pushed out of, which must be opposite `powerFace`. The top-level `chuteSide` is for the site's viewer only. |
-| `trunkPath` | `origin` `[-15, 1.6875, 0.6875]`, `axis` `x`, `length` 16 (the line the viewer draws), `nose0` −9.625, `lengths` `{thin 4, thick 5}`, `tailStop` −4.03125, `radius` `{thin [7.5, 9.0], thick [15.05, 18.5]}` (flats and corners, voxels, for drawing), and `stations` along the axis: `treadle` −11.125, `infeed` −9.0625, `breaker` −8.5, `drip` −7.975, `ring` −7.4375, `outfeed` −4.40625. `breaker` and `ring` are required, with `nose0` < `breaker` < `ring` ≤ `tailStop`, so every stick and log's bark is due by the end of the trip. |
+| `trunkPath` | `origin` `[-15, 1.6875, 0.6875]`, `axis` `x`, `length` 16 (the line the viewer draws), `nose0` −9.625, `lengths` `{thin 4, thick 5}`, `tailStop` −4.03125, `radius` `{thin [7.5, 9.0], thick [15.05, 18.5]}` (flats and corners, voxels, for drawing), and `stations` along the axis: `treadle` −11.125, `infeed` −9.0625, `breaker` −8.5, `drip` −7.975, `ring` −7.4375, `outfeed` −4.40625. `breaker` and `ring` are required, with `nose0` < `breaker` < `ring` ≤ `tailStop`, so every stick and log's bark is due by the end of the trip. `tips` `{thin, thick}` (optional; the ring's position without it) is where the spud heads touch a trunk of each class along the axis: the tip block's centre with the arm at the class's mean opening, downstream of the ring's plane and further for the thick trunk; `ring` ≤ `tips` ≤ `tailStop`. The bark switch, the scraping sound and the chips are there, not at the ring's plane. |
 | `feed` | `blocksPerRadian` 0.1 (trunk travel per radian of φ) and `gear` `{thin 0.221175, thick 0.10029}` (the drawn change gears, feed radians per axle radian; thick below thin). |
 | `parts` | As the mill's, with the new inputs and drivers below, and the rosser's `requires` vocabulary: `shaft`, `ring`, `tyres`, `rollsin`, `rollsout`, `breaker`, `levers`, `heads`, or null. |
 
@@ -668,9 +679,9 @@ renderer skips parts with no `requires`, ride or drivers.
   eases out. Nothing is hard-coded from the shape or the rig.
 - **The trunk** is Logging Expanded's clean and debarked blocks of the shown size and wood,
   tessellated and cut into one-block segments along its length (`MachineMeshes.Segments`). A segment
-  is drawn debarked once its centre is past the ring's plane, inside the ring where the arms hide the
-  change, and every segment once delivered. Branches are not drawn. If a mesh is not made of
-  four-vertex faces it cannot be cut, and the whole trunk changes as it passes the ring.
+  is drawn debarked once its centre is past the spud heads (`trunkPath.tips` for its class, where the
+  heads hide the change), and every segment once delivered. Branches are not drawn. If a mesh is not
+  made of four-vertex faces it cannot be cut, and the whole trunk changes as it passes the heads.
 
 ### Editing by hand
 
@@ -753,7 +764,10 @@ regenerating.
   - Breaking mid-trip, at each stage of the trip, gives the trunk as far as it got (as loaded,
     debranched or debarked) and the parts, and running that trunk again gives nothing twice.
   - The trunk's boxes follow it on every facing, fill it and no more, hollow cells hold only the
-    trunk, and a click on the trunk is the rosser's.
+    trunk (and, for collision, their lids), and a click on the trunk is the rosser's.
+  - The top is a deck on every facing, empty and with a thick trunk half way: every column's top
+    cell has its lid in its collision boxes and not in its selection boxes, and the collision boxes
+    reaching the lid's height cover the whole cell.
   - The mill in line, both placed by a player on every facing: the mill takes the trunk at the top of
     its saws' cycle and cuts debarked logs; breaking the rosser before the mill takes it drops that
     trunk once. A mill in line wins over a rack beside it, but not while the mills'
@@ -783,6 +797,8 @@ unseen. Before release, play it through the modelling guide's list
   debarked;
 - walking into and clicking the trunk at every point of its trip, and hovering the hollow cells
   (their selection box list is empty when the trunk is not in them);
+- walking on the top (Atlas checks the lids' boxes, not a player on them), and whether the
+  invisible deck over the beds reads well;
 - the item in hand, on the ground and in the handbook (the transforms are guesses);
 - how the busy frame reads at play distance.
 

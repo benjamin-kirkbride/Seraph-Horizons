@@ -48,6 +48,20 @@ public partial class SharedWorldScenarios
         }
     }
 
+    // This mod's own frames: iron work of the same metals (the mill's and the rosser's own scenarios
+    // check the rest of their recipes).
+    [AtlasScenario]
+    public void Machine_frames_take_iron_nails_too()
+    {
+        foreach (var frame in WoodworkingMachineCosts.Frames)
+        {
+            var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == frame.Output);
+            Assert.Equal((frame.Nails, frame.SawmillFrames),
+                (MachineParts.Count(recipe, MachineParts.Nails), MachineParts.Count(recipe, WoodworkingMachineCosts.ModId + ":sawmill-frame-north")));
+            Assert.Equal(WoodworkingMachineCosts.Metals, MachineParts.Ingredient(recipe, MachineParts.Nails)!.AllowedVariants);
+        }
+    }
+
     // The saw sash on the grid: "NPN,PRP,NPN", 4 nails and strips to a corner, a rod in the middle.
     [AtlasScenario]
     public async Task Saw_sash_is_crafted_only_from_iron_work()

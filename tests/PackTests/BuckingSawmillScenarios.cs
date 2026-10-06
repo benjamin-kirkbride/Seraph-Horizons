@@ -214,6 +214,7 @@ public partial class WoodworkingScenarios
         var codes = ingredients.Select(i => i.Code!.ToString()).ToList();
         Assert.Equal(2, codes.Count(c => c == $"{Iw}:sawmill-frame-north"));
         Assert.Equal(4, codes.Count(c => c == "game:supportbeam-*"));
+        Assert.Equal(8, MachineParts.Count(recipe, MachineParts.Nails));
         Assert.Contains(ingredients, i => i.IsTool && i.Code!.Path.StartsWith("hammer"));
     }
 
@@ -789,7 +790,10 @@ public partial class WoodworkingScenarios
         var mill = await PlaceMill(pos, side);
         Assemble(mill, player);
         var frameOnly = MillBoxes(mill, selection: false);
-        Assert.Equal(frameOnly.Select(Key), MillBoxes(mill, selection: true).Select(Key));
+        // Empty, the collision boxes are the selection boxes and the lids.
+        var lids = Added(frameOnly, MillBoxes(mill, selection: true));
+        Assert.Equal(Rig.Cells.Count(c => c.Lid != null), lids.Count);
+        Assert.All(lids, b => Assert.Equal(RigCell.LidThickness, b.Y2 - b.Y1, 4));
         var soil = new ItemStack(BlockOf("game:soil-medium-normal"));
 
         foreach (var (size, trunk, uncovered) in new[] { ("sm", TrunkClass.Thin, 0.0), ("xl", TrunkClass.Thick, 0.734375) })
@@ -824,6 +828,62 @@ public partial class WoodworkingScenarios
             Assert.Null(mill.Trunk);
             Assert.Equal(frameOnly.Select(Key), MillBoxes(mill, selection: false).Select(Key));
         }
+    }
+
+    /// <summary>Whether <paramref name="boxes"/>, cell-local and projected on XZ, cover the whole
+    /// cell: tried at the centres of a 32 × 32 grid.</summary>
+    private static bool CoversCell(IEnumerable<Cuboidf> boxes)
+    {
+        var list = boxes.ToList();
+        for (int i = 0; i < 32; i++)
+        for (int j = 0; j < 32; j++)
+        {
+            double x = (i + 0.5) / 32, z = (j + 0.5) / 32;
+            if (!list.Any(b => x >= b.X1 && x <= b.X2 && z >= b.Z1 && z <= b.Z2))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The top of a machine is solid to walk on: every column of its footprint (<paramref name="cells"/>,
+    /// placed by <paramref name="cellPos"/>) has a rig lid on its top cell, and that cell's collision
+    /// boxes, those reaching the lid's height, cover the whole cell, while its selection boxes do
+    /// not hold the lid (it is collision only).
+    /// </summary>
+    private void AssertTopIsADeck(IReadOnlyList<RigCell> cells, System.Func<Int3, BlockPos> cellPos, string where)
+    {
+        static bool IsLid(Cuboidf b, float lid) => Math.Abs(b.Y2 - lid) < 1e-4 && Math.Abs(b.Y2 - b.Y1 - RigCell.LidThickness) < 1e-4 && CoversCell([b]);
+        foreach (var top in cells.GroupBy(c => (c.Pos.X, c.Pos.Z)).Select(g => g.MaxBy(c => c.Pos.Y)!))
+        {
+            string cell = $"{where}: column {top.Pos.X},{top.Pos.Z} (top cell {top.Pos})";
+            Assert.True(top.Lid is not null, $"{cell} has no lid");
+            float lid = top.Lid!.Value;
+            var at = cellPos(top.Pos);
+            var block = W.BlockAccessor.GetBlock(at);
+            var collision = block.GetCollisionBoxes(W.BlockAccessor, at) ?? [];
+            Assert.True(CoversCell(collision.Where(b => b.Y2 >= lid - 1e-4f)), $"{cell}: its top can be fallen through");
+            Assert.Contains(collision, b => IsLid(b, lid));
+            Assert.DoesNotContain(block.GetSelectionBoxes(W.BlockAccessor, at) ?? [], b => IsLid(b, lid));
+        }
+    }
+
+    /// <summary>The mill's top is a deck, on every facing: no column of the footprint can be fallen
+    /// into from above (the trough over the bed and saws above all), loaded or not. The lids are
+    /// collision only, so clicking and the trunk's own boxes are as before (the loaded trunk
+    /// scenario above).</summary>
+    [AtlasTheory(TimeoutMs = 120_000), MemberData(nameof(Facings))]
+    public async Task The_mills_top_is_solid_to_walk_on(string side, int index)
+    {
+        var pos = await RosserSky(-60 + 30 * index, 650);   // (it loads the chunk columns first)
+        var player = await Player("deck" + index);
+        var mill = await PlaceMill(pos, side);
+        Assemble(mill, player);
+        AssertTopIsADeck(Rig.Cells, mill.CellPos, side);
+        TurnToTop(mill);
+        Assert.Null(Click(player, pos, Trunk("oak", 6, size: "xl")));
+        Assert.NotNull(mill.Trunk);
+        AssertTopIsADeck(Rig.Cells, mill.CellPos, side + ", loaded");
     }
 
     // ---- Blades ----

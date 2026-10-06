@@ -7,8 +7,18 @@ public readonly record struct Box(float X1, float Y1, float Z1, float X2, float 
 
 /// <summary>One occupied cell of a machine, in the native frame. <see cref="Boxes"/> is empty for a
 /// full cube, unless the cell is <see cref="Hollow"/>: a ghost with no boxes of its own (nothing can
-/// be built there), solid only where a loaded trunk's box is.</summary>
-public sealed record RigCell(Int3 Pos, IReadOnlyList<Box> Boxes, bool Hollow = false);
+/// be built there), solid only where a loaded trunk's box is. <see cref="Lid"/>, on the top cell of
+/// each of the machine's columns, is the cell-local height of the top of a collision-only box over
+/// the whole cell (<see cref="LidBox"/>), so a player walking on the machine cannot drop between
+/// its boxes; the selection ray does not find it.</summary>
+public sealed record RigCell(Int3 Pos, IReadOnlyList<Box> Boxes, bool Hollow = false, float? Lid = null)
+{
+    /// <summary>A lid's thickness, in blocks.</summary>
+    public const float LidThickness = 1 / 16f;
+
+    /// <summary>The lid's box, cell-local; the same on every facing, as it fills the cell across.</summary>
+    public Box? LidBox => Lid is { } top ? new Box(0, top - LidThickness, 0, 1, top, 1) : null;
+}
 
 /// <summary>
 /// Reading a machine's rig.json (the bucking mill's and the rosser's): the document options and
@@ -44,7 +54,8 @@ public static class RigJson
     }
 
     /// <summary>The rig's <c>cells</c>: each a <c>pos</c>, optional cell-local <c>boxes</c> (none is
-    /// a full cube), and optional <c>"hollow": true</c>, which a cell with boxes cannot have.</summary>
+    /// a full cube), optional <c>"hollow": true</c>, which a cell with boxes cannot have, and an
+    /// optional <c>lid</c> height from <see cref="RigCell.LidThickness"/> to 1.</summary>
     public static List<RigCell> Cells(JsonElement root)
     {
         var cells = new List<RigCell>();
@@ -58,7 +69,15 @@ public static class RigJson
             bool hollow = Bool(cell, "hollow");
             if (hollow && boxes.Count > 0)
                 throw new FormatException($"cell {pos} is hollow but has boxes of its own");
-            cells.Add(new RigCell(pos, boxes, hollow));
+            float? lid = null;
+            if (cell.TryGetProperty("lid", out var l))
+            {
+                float top = l.ValueKind == JsonValueKind.Number ? l.GetSingle() : float.NaN;
+                if (!(top >= RigCell.LidThickness - 1e-6f && top <= 1))
+                    throw new FormatException($"the lid of cell {pos} must be a height from {RigCell.LidThickness} to 1");
+                lid = top;
+            }
+            cells.Add(new RigCell(pos, boxes, hollow, lid));
         }
         return cells;
     }

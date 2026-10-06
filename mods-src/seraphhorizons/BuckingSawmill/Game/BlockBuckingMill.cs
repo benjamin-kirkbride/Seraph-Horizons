@@ -121,7 +121,7 @@ public class BlockBuckingMill : Block
     public override ItemStack OnPickBlock(IWorldAccessor world, BlockPos pos) => new(world.GetBlock(ItemCode));
 
     public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEBuckingMill)?.CellBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEBuckingMill)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
         (blockAccessor.GetBlockEntity(pos) as BEBuckingMill)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);

@@ -148,6 +148,32 @@ public class MachinesCoreTests
         Assert.Contains("hollow", Assert.Throws<FormatException>(() => RigJson.Cells(bad.RootElement)).Message);
     }
 
+    [Theory]
+    [InlineData("0", false)]
+    [InlineData("1.5", false)]
+    [InlineData("\"high\"", false)]
+    [InlineData("0.0625", true)]
+    [InlineData("1", true)]
+    public void A_lid_is_a_height_from_its_thickness_to_the_cells_top(string lid, bool valid)
+    {
+        using var doc = JsonDocument.Parse($$"""{ "cells": [ { "pos": [0, 0, 0], "hollow": true, "lid": {{lid}} } ] }""");
+        if (!valid)
+        {
+            Assert.Contains("lid", Assert.Throws<FormatException>(() => RigJson.Cells(doc.RootElement)).Message);
+            return;
+        }
+        var cell = Assert.Single(RigJson.Cells(doc.RootElement));
+        Assert.True(cell.Hollow);
+        Assert.Equal(new Box(0, cell.Lid!.Value - 1 / 16f, 0, 1, cell.Lid.Value, 1), cell.LidBox);
+    }
+
+    [Fact]
+    public void A_cell_without_a_lid_has_no_lid_box()
+    {
+        using var doc = JsonDocument.Parse("""{ "cells": [ { "pos": [0, 0, 0], "boxes": [[0, 0, 0, 1, 0.5, 1]] } ] }""");
+        Assert.Null(Assert.Single(RigJson.Cells(doc.RootElement)).LidBox);
+    }
+
     [Fact]
     public void A_cell_under_a_hollow_cell_reaches_into_it_and_the_hollow_cell_holds_its_own_part()
     {
