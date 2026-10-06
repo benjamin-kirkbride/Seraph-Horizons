@@ -64,7 +64,10 @@ public static class VeinScaling
 /// </summary>
 public sealed class OreSizeTable
 {
-    public sealed record Entry(double? MedianIngots = null, double? TargetIngots = null, double? Factor = null);
+    /// <param name="SmallIngots">The bottom of the metal's deposit range (epic #435), for the
+    /// deposit registry's size tiers (<see cref="DepositSizing"/>); with <paramref name="LargeIngots"/>.</param>
+    public sealed record Entry(double? MedianIngots = null, double? TargetIngots = null, double? Factor = null,
+        double? SmallIngots = null, double? LargeIngots = null);
 
     private readonly IReadOnlyDictionary<string, Entry> _entries;
 
@@ -79,4 +82,12 @@ public sealed class OreSizeTable
     }
 
     public IEnumerable<string> Metals => _entries.Keys;
+
+    /// <summary>A metal's small / typical / large sizes, or null if the table has no range for it
+    /// (coal and the minerals: they aren't sold by size).</summary>
+    public SizeTargets? TargetsFor(string metal) =>
+        _entries.TryGetValue(metal, out var e) && e is { SmallIngots: > 0, TargetIngots: > 0, LargeIngots: > 0 }
+        && e.SmallIngots < e.LargeIngots
+            ? new SizeTargets(e.SmallIngots.Value, e.TargetIngots.Value, e.LargeIngots.Value)
+            : null;
 }

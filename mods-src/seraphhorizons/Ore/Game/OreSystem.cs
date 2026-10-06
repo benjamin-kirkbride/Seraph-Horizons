@@ -15,8 +15,12 @@ namespace SeraphHorizons.Mod.Ore;
 /// <item><c>NoSurfaceCopper</c> (#440): <c>patches/ore-nosurfacecopper.json</c>.</item>
 /// <item><c>SmallerDeposits</c> (#439): <see cref="DepositSizes"/>.</item>
 /// <item><c>RarerDistricts</c> (#441): <c>patches/ore-rarerdistricts.json</c>.</item>
+/// <item><c>PlacerFields</c> (#442): <see cref="PlacerFields"/>.</item>
 /// </list>
-/// It also binds <see cref="ProPickShutdownGuard"/>, with no switch.
+/// It also binds <see cref="ProPickShutdownGuard"/>, with no switch. With ore cells or placer
+/// fields on, it also keeps the deposit registry (#443, <see cref="Deposits"/>) and makes maps
+/// (#444, <see cref="Maps"/>), for the traders (#455).
+///
 /// All of them change how chunks generate, so they are decided per world, once: a world created
 /// with a switch on keeps it (unless the config switches it off later), and one created with it
 /// off, or before this existed, never gets it (<see cref="OreWorldRecord"/>, saved under
@@ -35,6 +39,7 @@ public class OreSystem : ModSystem
 
     private Harmony? _harmony;
     private OreCommands? _commands;
+    private DepositCommands? _depositCommands;
 
     /// <summary>What is in force in this world this run.</summary>
     public OreWorldRecord World { get; private set; } = OreWorldRecord.AllOff;
@@ -45,6 +50,16 @@ public class OreSystem : ModSystem
     /// <summary>The ore cell rule, if it is on and bound.</summary>
     public OreCellPlacement? Placement { get; private set; }
 
+    /// <summary>The placer field rule, if it is on and bound.</summary>
+    public PlacerFields? Placer { get; private set; }
+
+    /// <summary>The deposit registry's service: listing, verifying and reserving deposits and gravel
+    /// fields (docs/oregen.md). Null when neither ore cells nor placer fields are bound.</summary>
+    public DepositService? Deposits { get; private set; }
+
+    /// <summary>Makes ore and gravel maps; null with <see cref="Deposits"/>.</summary>
+    public MapIssuer? Maps { get; private set; }
+
     public override bool ShouldLoad(EnumAppSide forSide) => forSide == EnumAppSide.Server;
 
     public override void Start(ICoreAPI api)
@@ -53,7 +68,8 @@ public class OreSystem : ModSystem
         var config = SeraphHorizonsSystem.ConfigFor(api);
         var wanted = new OreWorldRecord(config.OreCells, config.OreCellSizeMetres,
             new Dictionary<string, int>(config.OreCellSizeByMetal ?? new Dictionary<string, int>()),
-            config.NoSurfaceCopper, config.SmallerDeposits, config.RarerDistricts);
+            config.NoSurfaceCopper, config.SmallerDeposits, config.RarerDistricts,
+            config.PlacerFields, OreCells.ClampCellSize(config.PlacerCellSizeMetres));
         var saveGame = sapi.WorldManager.SaveGame;
         NewWorld = saveGame.IsNew;
         OreWorldRecord? saved = null;
@@ -79,6 +95,15 @@ public class OreSystem : ModSystem
 
         if (!World.NoSurfaceCopper) EmptyPatch(api, NoSurfaceCopperPatch);
         if (!World.RarerDistricts) EmptyPatch(api, RarerDistrictsPatch);
+        api.Logger.Notification("[seraphhorizons] Placer fields for this world: {0}",
+            World.PlacerFields ? $"on, {World.PlacerCellSize} m" : "off");
+        if (World.PlacerFields)
+        {
+            if (PlacerFields.Unsupported(api) is { } why)
+                api.Logger.Warning("[seraphhorizons] Placer fields are off: {0}", why);
+            else
+                PlacerFields.BindScatteredCut(_harmony ??= new Harmony(HarmonyId));
+        }
         // The cell rule binds on the server side, but its tries must be raised before the deposit
         // generators are built (AssetsFinalize).
         if (World.OreCells && OreCellPlacement.Unsupported(api) is null)
@@ -107,14 +132,45 @@ public class OreSystem : ModSystem
             else
                 Placement = OreCellPlacement.Bind(api, _harmony ??= new Harmony(HarmonyId), World);
         }
+        if (World.PlacerFields && PlacerFields.Unsupported(api) is null)
+            Placer = PlacerFields.Bind(api, World);
+        if (Placement != null || Placer != null)
+        {
+            Deposits = new DepositService(api, Placement, Placer);
+            Maps = new MapIssuer(api, Deposits);
+        }
         _commands = new OreCommands(api, this);
         _commands.Register();
+        _depositCommands = new DepositCommands(api, this);
+        _depositCommands.Register();
+    }
+
+    // The pan's table, on the server after the patch loader and before the blocks are read
+    // (as PanningDrops trims it); clients get the block's attributes from the server.
+    public override void AssetsLoaded(ICoreAPI api)
+    {
+        if (!World.PlacerFields || PlacerFields.Unsupported(api) is not null) return;
+        try
+        {
+            var changed = PlacerFields.AddPanCopper(api);
+            api.Logger.Notification("[seraphhorizons] Placer fields: native copper at {0:0.#}% added to the pan's {1}",
+                PlacerFields.AddedCopperChance * 100, changed.Count == 0 ? "rich gravel (none needed it)" : string.Join(", ", changed));
+        }
+        catch (Exception e)
+        {
+            api.Logger.Warning("[seraphhorizons] Placer fields: could not add copper to the pan's rich gravel: {0}", e.Message);
+        }
     }
 
     public override void Dispose()
     {
         Placement?.Unbind();
         Placement = null;
+        Placer?.Unbind();
+        Placer = null;
+        Deposits?.Dispose();
+        Deposits = null;
+        Maps = null;
         DepositSizes.Unbind();
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;

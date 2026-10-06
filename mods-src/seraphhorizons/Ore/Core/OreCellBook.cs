@@ -6,8 +6,12 @@ namespace SeraphHorizons.Mod.Ore.Core;
 /// <summary>What became of a cell's spots so far, for one metal.</summary>
 public sealed class CellState
 {
-    /// <summary>The spot whose anchor chunk may hold the deposit; <see cref="OreCells.SpotCount"/>
-    /// or more means none is left: the cell has no deposit of the metal.</summary>
+    /// <summary>How many spots the cell has (<see cref="OreCells.SpotCount"/> for ore cells; placer
+    /// fields have more, <see cref="PlacerCells.SpotCount"/>).</summary>
+    public int SpotCount { get; init; } = OreCells.SpotCount;
+
+    /// <summary>The spot whose anchor chunk may hold the deposit; <see cref="SpotCount"/> or more
+    /// means none is left: the cell has no deposit of the metal.</summary>
     public int Active { get; set; }
 
     /// <summary>The active spot's anchor was generated and the vein is there.</summary>
@@ -21,7 +25,7 @@ public sealed class CellState
     /// can no longer be whole, so they are skipped.</summary>
     public int ConsumedMask { get; set; }
 
-    public bool None => Active >= OreCells.SpotCount;
+    public bool None => Active >= SpotCount;
 
     public CellState Clone() => (CellState)MemberwiseClone();
 }
@@ -43,12 +47,20 @@ public enum SpotStatus { Waiting, Placed, Failed, Consumed, Pending }
 public sealed class OreCellBook
 {
     private readonly Dictionary<(string Metal, CellPos Cell), CellState> _states = new();
+    private readonly int _spotCount;
+
+    /// <param name="spotCount">Spots per cell, at most 31 (the masks are ints).</param>
+    public OreCellBook(int spotCount = OreCells.SpotCount)
+    {
+        if (spotCount is < 1 or > 31) throw new ArgumentOutOfRangeException(nameof(spotCount));
+        _spotCount = spotCount;
+    }
 
     public int Count => _states.Count;
 
     /// <summary>The state of a cell (a fresh one, unsaved, if the cell was never touched).</summary>
     public CellState Get(string metal, CellPos cell) =>
-        _states.TryGetValue((metal, cell), out var state) ? state : new CellState();
+        _states.TryGetValue((metal, cell), out var state) ? state : new CellState { SpotCount = _spotCount };
 
     /// <summary>The active spot's index, or null if the cell has none left.</summary>
     public int? ActiveIndex(string metal, CellPos cell) => Get(metal, cell) is { None: false } s ? s.Active : null;
@@ -101,7 +113,7 @@ public sealed class OreCellBook
     private static void Advance(CellState state)
     {
         do state.Active++;
-        while (state.Active < OreCells.SpotCount && (state.ConsumedMask & (1 << state.Active)) != 0);
+        while (state.Active < state.SpotCount && (state.ConsumedMask & (1 << state.Active)) != 0);
     }
 
     // One line per touched cell: "metal cellX cellZ active placed failedMask consumedMask".
@@ -115,9 +127,9 @@ public sealed class OreCellBook
         return sb.ToString();
     }
 
-    public static OreCellBook Parse(string? text)
+    public static OreCellBook Parse(string? text, int spotCount = OreCells.SpotCount)
     {
-        var book = new OreCellBook();
+        var book = new OreCellBook(spotCount);
         if (string.IsNullOrWhiteSpace(text)) return book;
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (lines.Length == 0 || lines[0] != "v1")
@@ -129,6 +141,7 @@ public sealed class OreCellBook
             int I(int i) => int.Parse(f[i], CultureInfo.InvariantCulture);
             book._states[(f[0], new CellPos(I(1), I(2)))] = new CellState
             {
+                SpotCount = spotCount,
                 Active = I(3), Placed = I(4) != 0, FailedMask = I(5), ConsumedMask = I(6),
             };
         }

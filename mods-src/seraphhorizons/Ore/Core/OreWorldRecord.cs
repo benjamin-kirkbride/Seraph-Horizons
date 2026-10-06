@@ -15,7 +15,9 @@ public sealed record OreWorldRecord(
     IReadOnlyDictionary<string, int> CellSizeByMetal,
     bool NoSurfaceCopper,
     bool SmallerDeposits,
-    bool RarerDistricts)
+    bool RarerDistricts,
+    bool PlacerFields = false,
+    int PlacerCellSize = PlacerCells.DefaultCellSize)
 {
     // Inside the record, OreCells names the switch, not the class.
     private const int DefaultCellSize = global::SeraphHorizons.Mod.Ore.Core.OreCells.DefaultCellSize;
@@ -37,6 +39,7 @@ public sealed record OreWorldRecord(
         NoSurfaceCopper = NoSurfaceCopper && config.NoSurfaceCopper,
         SmallerDeposits = SmallerDeposits && config.SmallerDeposits,
         RarerDistricts = RarerDistricts && config.RarerDistricts,
+        PlacerFields = PlacerFields && config.PlacerFields,
     };
 
     // "key=value" lines, so a later version can add keys.
@@ -48,6 +51,8 @@ public sealed record OreWorldRecord(
             sb.Append(CultureInfo.InvariantCulture, $"cellSize.{metal}={size}\n");
         sb.Append(CultureInfo.InvariantCulture,
             $"noSurfaceCopper={NoSurfaceCopper}\nsmallerDeposits={SmallerDeposits}\nrarerDistricts={RarerDistricts}\n");
+        // Placer fields (#442) came later: a record without the key is a world created before them.
+        sb.Append(CultureInfo.InvariantCulture, $"placerFields={PlacerFields}\nplacerCellSize={PlacerCellSize}\n");
         return sb.ToString();
     }
 
@@ -69,7 +74,9 @@ public sealed record OreWorldRecord(
             B("oreCells"),
             values.TryGetValue("cellSize", out var cs) ? int.Parse(cs, CultureInfo.InvariantCulture) : DefaultCellSize,
             bySize,
-            B("noSurfaceCopper"), B("smallerDeposits"), B("rarerDistricts"));
+            B("noSurfaceCopper"), B("smallerDeposits"), B("rarerDistricts"),
+            B("placerFields"),
+            values.TryGetValue("placerCellSize", out var ps) ? int.Parse(ps, CultureInfo.InvariantCulture) : PlacerCells.DefaultCellSize);
     }
 
     public bool Equals(OreWorldRecord? other) => other is not null && Serialize() == other.Serialize();
