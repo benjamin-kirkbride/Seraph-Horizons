@@ -2,7 +2,7 @@
 // contract; these mirror it and are only as strict as the app needs.
 
 export type Kind = "item" | "block";
-export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "butchery" | "transition" | "generic";
+export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "butchery" | "transition" | "tub" | "lottery" | "machine" | "generic";
 
 export interface Mod {
   name: string;
@@ -131,6 +131,9 @@ export interface Recipe {
   construction?: { stages: { ingredients: number[]; action?: string }[] };
   butchery?: Butchery;
   transition?: Transition;
+  tub?: Tub;
+  lottery?: Lottery;
+  machine?: Machine;
   requirements?: string[];
   extra?: Record<string, unknown>;
 }
@@ -185,6 +188,49 @@ export interface Transition {
   freshHours: Hours;
   /** Hours it then takes. */
   transitionHours: Hours;
+}
+
+/**
+ * A batch of gears in a liquid in a vessel (ingredient roles batch, liquid, station) until it
+ * turns into the first output; with `failure`, gears can be lost to that output.
+ */
+export interface Tub {
+  /** pickle: an acid leaves the metal clean. rust: brine rusts it through. */
+  kind: string;
+  hours: number;
+  batchSize: number;
+  /** Litres of the liquid a finished batch uses up. */
+  litresPerBatch?: number;
+  /** Hours past done before the liquid starts on the batch. */
+  graceHours?: number;
+  /** After the grace, one gear is lost every this many hours. */
+  lossEveryHours?: number;
+  /** Each gear's chance to come out as the failure at done. */
+  lossChance?: number;
+  /** Index into `outputs` of what a lost gear becomes. */
+  failure?: number;
+}
+
+/** The one ingredient is decided item by item into one of the outcomes; the chances add up to 1. */
+export interface Lottery {
+  /** inventory: when it lands in a player's inventory. */
+  trigger: string;
+  outcomes: { chance: number; outputs: number[] }[];
+}
+
+/**
+ * A powered machine (the ingredient with role station) that makes the outputs a job at a
+ * time; `kept` ingredients are fitted and never consumed.
+ */
+export interface Machine {
+  power: string;
+  /** Input shaft turns per job. */
+  turns: number;
+  work?: { amount: number; unit: string; turnsPerUnit?: number };
+  kept?: number[];
+  wear?: { ingredient: number; rule: "fixed" | "dividedByOilFill" };
+  /** Points drained from a tank of `tank` per job, 100 to the litre. */
+  oil?: { ingredient: number; points: number; tank?: number };
 }
 
 export interface RecipeType {

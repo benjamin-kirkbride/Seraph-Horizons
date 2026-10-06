@@ -180,6 +180,33 @@ const en = {
   transitionRate:
     "At the usual rate, in an inventory, a chest or on the ground. Where it is kept can change that: a cellar slows spoiling, and some containers speed drying or stop it. Once a stack has started to spoil, it no longer dries or cures.",
   transitionRatio: (ratio: string) => `Stack size ×${ratio}`,
+  tubDone: (kind: string, when: string) =>
+    kind === "rust" ? `Rusts through in ${when} of game time` : kind === "pickle" ? `Pickled clean in ${when} of game time` : `Done in ${when} of game time`,
+  tubBatch: (n: number, litres: number | undefined) =>
+    `A batch of up to ${n} gear${n === 1 ? "" : "s"}${litres ? `; a finished batch uses up ${litres} L` : ""}`,
+  tubEats: (grace: string, every: string) =>
+    `Take them out within ${grace} of done: after that the liquid eats one gear every ${every}`,
+  tubLossChance: (chance: string) => `${chance} of the gears come out lost`,
+  tubLost: "a lost gear becomes",
+  tubRoles: { batch: "the batch", liquid: "the liquid", station: "in" } as Record<string, string>,
+  lotteryTrigger: (trigger: string) =>
+    trigger === "inventory" ? "Each one is decided the moment it lands in a player's inventory:" : "Each one is decided by chance:",
+  lotteryNothing: "nothing",
+  lotteryOutcomes: "Outcomes",
+  machineTurns: (power: string, turns: string, work?: { amount: string; unit: string; per?: number }) =>
+    `${power === "mechanical" ? "Mechanical power" : power}: ${turns} turns of the axle a job` +
+    (work ? ` (${work.amount} ${work.unit}${work.per ? `, ${work.per} turns each` : ""})` : ""),
+  machineOil: (points: string, tank: number | undefined, litres: string) =>
+    `Drains ${points} points of oil (${litres} L) from the machine's tank${tank ? ` of ${tank}` : ""} a job`,
+  machineNotes: {
+    kept: "kept: fitted, never consumed",
+    oil: "fills the oil tank",
+    station: "the machine",
+    consumed: "",
+  } as Record<string, string>,
+  machineWear: (cost: number | undefined, rule: string | undefined) =>
+    `tool, loses ${cost ?? 0} durability a job` +
+    (rule === "dividedByOilFill" ? " with a full oil tank; divided by the tank's fill, so an empty tank breaks it" : ""),
   madeByElsewhere: (n: number, type: string) =>
     `${n.toLocaleString("en")} item${n === 1 ? " turns" : "s turn"} into this by ${type.toLowerCase()}, not listed here: each one's own page shows it under “Used in”.`,
   ratio: "Share",
