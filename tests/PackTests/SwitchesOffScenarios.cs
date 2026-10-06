@@ -158,8 +158,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(Off("CreativeSteamSource"));
         Assert.True(On("BoilerLidBlowsOpen"));
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
-        // The mod's only other blocks are the bucking sawmill's, off here as well.
-        Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons");
+        // The mod's other blocks are the bucking sawmill's, off here as well, and the inn flag and
+        // sign, which load with TravellingMerchants off too (a world may hold them).
+        Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons"
+            && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal));
     }
 
     /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own

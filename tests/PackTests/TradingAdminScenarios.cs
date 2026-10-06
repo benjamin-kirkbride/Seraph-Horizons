@@ -74,6 +74,9 @@ public class TradingAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var trader = await Spawn("smith", 6, 6);
         string id = "entity:" + trader.EntityId;
         var admin = await Admin("tradeadmin");
+        // A standard world joins a player at a random spot around the spawn; `near` needs the trader
+        // within 16 blocks.
+        await admin.TeleportTo(trader.Pos.AsBlockPos.AddCopy(2, 0, 0));
         foreach (var command in new[]
                  {
                      $"/sh trade inspect {id}", $"/sh trade restock {id}", $"/sh trade restock {id} --full", $"/sh trade reroll {id}",
