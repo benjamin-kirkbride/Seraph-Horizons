@@ -297,9 +297,33 @@ and in 404 and 505 (tuned).
 - `config/ore-sizes.json`: copper, iron, bismuth, zinc and platinum at half their factor.
 - `Ore/Core/PlacerCells.cs`: `MaxRelief` 8 (was 5), `ValleyDepth` 2 (was 4).
 
+### Districts after (#435)
+
+The same windows with district veins sized and counted (`districts-s404`, `-s505`, `-s101`;
+seed 101's window holds no district ore either way). Deposits in the two windows with district
+ore (18.9 km²), ingots p10 / median / max; before is `tuned`:
+
+| Metal (target) | Before: deposits | p10 / median / max | After: deposits | p10 / median / max |
+|---|---|---|---|---|
+| Bismuth (60 / 150 / 400) | 47 | 288 / 1,414 / 13,318 | 9 | 71 / 276 / 609 |
+| Tin | 51 | 106 / 504 / 7,449 | 6 | 54 / 213 / 912 |
+| Lead | 14 | 262 / 390 / 1,482 | 7 | 76 / 102 / 627 |
+| Zinc | 12 | 140 / 478 / 7,009 | 8 | 77 / 186 / 949 |
+
+Seed 404 alone (the window of the survey above): bismuth 35 → 8 deposits, tin 41 → 4, lead 12 →
+5, zinc 9 → 6. Ore of the four per km², 404 and 505 together: 10,100 → 450 ingots. The server log
+names each district built near the windows with its veins per metal before and after: granite
+districts had 60–95 tin and bismuth veins each, mafic ones 60–150 copper and iron, felsic ones
+35–60 lead; all are 8 now, and gold (5–9), silver (3–15), platinum (5–6) and chromium keep theirs.
+Medians are 0.7–1.8× the typical size and the largest up to 2.4× the large one: a vein's ore per
+layer is an estimate (the fault's width varies along it, and rich bands raise the grade), and
+deposits within 150 m are counted as one. Few veins reach the surface now (12–50%), since a band
+lies under sea level.
+
 ### Open
 
-- District base metals are unscaled and plentiful (see "Hydrothermal districts").
+- District vein sizes rest on 30 deposits in two windows; a wider survey would show whether
+  `gradeAllowance` (`config/ore-districts.json`) needs raising.
 - Lead, nickel, silver, gold, titanium and chromium sizes, and counts per 25 km² for every metal,
   need a survey of several cells (160 × 160 chunks or more, five seeds).
 - Not walked in game yet: finding a gravel field by map, panning, buying an ore map and reaching
