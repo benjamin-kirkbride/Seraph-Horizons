@@ -108,6 +108,8 @@ public class SeraphHorizonsSystem : ModSystem
             _harmony ??= new Harmony(HarmonyId);
             ChopperOutput.Patch(_harmony, api.Logger);
         }
+        if (Config(api).GearboxSourceRatio && GearboxSourceRatio.Applies(api))
+            GearboxSourceRatio.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
         if (_tunRack)
             TunRackCapacity.Patch(_harmony ??= new Harmony(HarmonyId));
         if (_debarkedTrunks)
@@ -307,6 +309,13 @@ public class SeraphHorizonsConfig
     /// and no uranium nuggets (Expanded Matter); the rest of each mod's panning drops stay (server
     /// side; off means panning is as the mods ship it).</summary>
     public bool PanningDropsTrimmed { get; set; } = true;
+
+    /// <summary>MPE Gearbox: a power source (a rotor, the creative rotor) that creates its network
+    /// through a gearbox takes the ratio of the gearbox side it touches, as it does when the gearbox
+    /// is placed after it, instead of the far side's (server side; off means a source placed after
+    /// its gearbox, or rebuilt after a block on its network is broken, may drive it at the wrong
+    /// speed: through a 1:5 gearbox, a fifth of it or five times it).</summary>
+    public bool GearboxSourceRatio { get; set; } = true;
 
     /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
     /// does, instead of 500 (server side).</summary>
