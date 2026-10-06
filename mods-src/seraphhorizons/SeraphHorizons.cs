@@ -34,6 +34,7 @@ public class SeraphHorizonsSystem : ModSystem
     private bool _debarkedTrunks;
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
+    private Harmony? _heatingRackHarmony;
     private UnifiedWoodworking? _woodworking;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
@@ -83,6 +84,8 @@ public class SeraphHorizonsSystem : ModSystem
             BarrelRackKegs.Patch(_barrelRackHarmony = new Harmony(BarrelRackKegs.HarmonyId));
         else
             BarrelRackKegs.DisablePatches(api);
+        if (Config(api).HeatingRackKeepsPosition && HeatingRackPosition.Applies(api) && HeatingRackPosition.Bind(api.Logger))
+            HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
         // Registers its classes whatever the setting; on the server, decides whether it runs and
         // tells clients; sets the two mods' settings and patches. Last, and it catches its own
         // failures, so nothing above depends on it.
@@ -206,6 +209,8 @@ public class SeraphHorizonsSystem : ModSystem
         }
         _barrelRackHarmony?.UnpatchAll(BarrelRackKegs.HarmonyId);
         _barrelRackHarmony = null;
+        _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
+        _heatingRackHarmony = null;
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -326,6 +331,11 @@ public class SeraphHorizonsConfig
     /// perishing at the keg's own rate times the rack's (both sides; the server's switch decides
     /// what the rack takes).</summary>
     public bool BarrelRackKegs { get; set; } = true;
+
+    /// <summary>Logging Expanded: a Trunk Heating Rack placed from a picked-up stack (Carry On's
+    /// client, a creative pick) knows its new position, not the one it was picked up from (both
+    /// sides; off means it is as Logging Expanded ships it).</summary>
+    public bool HeatingRackKeepsPosition { get; set; } = true;
 
     /// <summary>Immersive Woodworking + Logging Expanded: one woodworking system. Immersive
     /// Woodworking's chopping block is the splitting block, made in the world with an axe and
