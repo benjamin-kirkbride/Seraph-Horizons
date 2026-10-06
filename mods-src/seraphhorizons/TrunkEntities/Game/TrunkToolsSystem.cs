@@ -12,9 +12,10 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// <summary>
 /// Tools on trunk entities: while trunk entities run (<see cref="TrunkEntitySystem.Enabled"/>),
 /// every knife, shears, axe and saw, and Immersive Woodworking's bark spud, gets a
-/// <see cref="TrunkToolBehavior"/> (both sides, after the game's and the mods' collectibles are
-/// final), and the overrides of the held interaction on those tools' classes are prefixed so the
-/// behaviour runs first (<see cref="TrunkToolBehavior.Hooks"/>). A client lists the tools in a
+/// <see cref="TrunkToolBehavior"/> (after the game's and the mods' collectibles are final; a
+/// client's arrive from the server with it), and the overrides of the held interaction on those
+/// tools' classes are prefixed on both sides so the behaviour runs first
+/// (<see cref="TrunkToolBehavior.Hooks"/>). A client lists the tools in a
 /// trunk's interaction help (<see cref="EntityTrunk.HelpProviders"/>). Off, nothing is added.
 /// </summary>
 public class TrunkToolsSystem : ModSystem
@@ -71,7 +72,13 @@ public class TrunkToolsSystem : ModSystem
         }
     }
 
-    public override void Start(ICoreAPI api) => _api = api;
+    // Registered on both sides whatever the setting: the server sends a collectible's behaviours
+    // to a client by class name, and a behaviour with none crashes the client reading them.
+    public override void Start(ICoreAPI api)
+    {
+        _api = api;
+        api.RegisterCollectibleBehaviorClass(TrunkToolBehavior.ClassName, typeof(TrunkToolBehavior));
+    }
 
     public override void AssetsFinalize(ICoreAPI api)
     {
@@ -81,10 +88,11 @@ public class TrunkToolsSystem : ModSystem
         int count = 0;
         foreach (var collectible in api.World.Collectibles)
         {
-            if (collectible?.Code == null || TrunkHarvest.ToolOf(collectible) == TrunkTool.None
-                || collectible.GetCollectibleBehavior<TrunkToolBehavior>(true) != null)
+            if (collectible?.Code == null || TrunkHarvest.ToolOf(collectible) == TrunkTool.None)
                 continue;
-            collectible.CollectibleBehaviors = collectible.CollectibleBehaviors.Append(new TrunkToolBehavior(collectible));
+            // a client's collectibles come from the server with the behaviour on them
+            if (collectible.GetCollectibleBehavior<TrunkToolBehavior>(true) == null)
+                collectible.CollectibleBehaviors = collectible.CollectibleBehaviors.Append(new TrunkToolBehavior(collectible));
             types.Add(collectible.GetType());
             count++;
         }

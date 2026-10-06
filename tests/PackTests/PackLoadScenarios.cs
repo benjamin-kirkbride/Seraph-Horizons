@@ -38,6 +38,26 @@ public partial class SharedWorldScenarios
             .ToList();
         Assert.True(errors.Count == 0, "Errors logged:\n" + string.Join("\n", errors));
     }
+
+    /// <summary>The server sends a client each item's and block's behaviours by registered class
+    /// name. One added in code without a registration goes out with no name, and the client
+    /// crashes reading it (ArgumentNullException in ReadItemTypePacket or ReadBlockTypePacket),
+    /// which no scenario sees: Atlas runs no client.</summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public void Every_behaviour_sent_to_a_client_has_a_class_name()
+    {
+        var registry = World.Api.ClassRegistry;
+        var unnamed = World.Api.World.Collectibles
+            .Where(c => c?.Code != null)
+            .SelectMany(c => c.CollectibleBehaviors.Select(b => (c.Code, Type: b.GetType())))
+            .Where(x => (typeof(BlockBehavior).IsAssignableFrom(x.Type)
+                ? registry.GetBlockBehaviorClassName(x.Type)
+                : registry.GetCollectibleBehaviorClassName(x.Type)) == null)
+            .GroupBy(x => x.Type, x => x.Code)
+            .Select(g => $"{g.Key.FullName} (on {g.Count()}, e.g. {g.First()})")
+            .ToList();
+        Assert.True(unnamed.Count == 0, "Behaviours with no registered class:\n" + string.Join("\n", unnamed));
+    }
 }
 
 internal static class PackLock

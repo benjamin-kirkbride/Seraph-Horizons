@@ -56,13 +56,15 @@ public static class DebarkedTrunks
 
     /// <summary>Checks Logging Expanded's trunk asset against the patch and finds every member the
     /// patches need. False, with one warning, when anything is not as expected. Runs in Start:
-    /// the assets and the mod's types are there, and the patch loader has not run.</summary>
+    /// the mod's types are there, and on the server so are the assets, and the patch loader has
+    /// not run. A client has no assets yet (the game throws on reading one), so it checks only
+    /// the members.</summary>
     public static bool Bind(ICoreAPI api)
     {
         string? problem;
         try
         {
-            problem = CheckAssets(api) ?? BindMembers();
+            problem = (api.Side == EnumAppSide.Server ? CheckAssets(api) : null) ?? BindMembers();
         }
         catch (Exception e)
         {
