@@ -1,7 +1,8 @@
 """packtool assemble never ships the repository's local tool mods.
 
-tools/icon-export (seraphiconfix) and tools/recipe-export (seraphexport) are mods that live in
-this repository for CI and for exporting icons; they must never reach players. assemble builds
+tools/icon-export (seraphiconfix), tools/recipe-export (seraphexport) and tools/ore-survey
+(seraphoresurvey) are mods that live in this repository for CI, for exporting icons and for
+measuring worldgen; they must never reach players. assemble builds
 every release artifact from pack/lock.json alone, so the check is that the lock and pack.toml
 do not name them and that nothing assemble writes mentions them.
 
@@ -28,6 +29,7 @@ _spec.loader.exec_module(packtool)
 TOOL_MODS = {
     "seraphiconfix": ROOT / "tools" / "icon-export" / "modinfo.json",
     "seraphexport": ROOT / "tools" / "recipe-export" / "modinfo.json",
+    "seraphoresurvey": ROOT / "tools" / "ore-survey" / "modinfo.json",
 }
 
 
@@ -69,6 +71,7 @@ class ToolModsStayOut(unittest.TestCase):
                 for modid in TOOL_MODS:
                     self.assertNotIn(modid.encode(), data.lower(), name)
                 self.assertNotIn(b"icon-export", data, name)
+                self.assertNotIn(b"ore-survey", data, name)
 
 
 if __name__ == "__main__":

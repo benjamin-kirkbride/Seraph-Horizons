@@ -388,6 +388,121 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public RosserConfig RosserSettings { get; set; } = new();
 
+    /// <summary>Ore cells (Ore/, README "Ore cells"): Interesting Ore Gen places at most one deposit
+    /// of each metal (and of coal and each industrial mineral) per <see cref="OreCellSizeMetres"/>
+    /// square, at a spot picked from the world seed, instead of by its own distance rule (server
+    /// side). New worlds only: a world created with it off never gets it.</summary>
+    public bool OreCells { get; set; } = true;
+
+    /// <summary>The ore cell's side in blocks (at least 500). Fixed when a world is created.</summary>
+    public int OreCellSizeMetres { get; set; } = 5000;
+
+    /// <summary>Per-metal cell sizes overriding <see cref="OreCellSizeMetres"/>, by metal group
+    /// (<c>copper</c>, <c>iron</c>, <c>tin</c>, <c>gold</c>, <c>coal</c>, ...). Fixed when a world
+    /// is created.</summary>
+    public Dictionary<string, int> OreCellSizeByMetal { get; set; } = new();
+
+    /// <summary>No surface copper or surface cassiterite pockets in new worlds (Interesting Ore Gen's
+    /// surface signs of deep veins stay).</summary>
+    public bool NoSurfaceCopper { get; set; } = true;
+
+    /// <summary>Interesting Ore Gen's veins shrunk per metal to the sizes in
+    /// <c>config/ore-sizes.json</c> in new worlds (coal and minerals by a quarter at most).</summary>
+    public bool SmallerDeposits { get; set; } = true;
+
+    /// <summary>Interesting Ore Gen's hydrothermal districts about one per 120 km² (7 km tiles) instead of
+    /// one per 40–90 km² in new worlds.</summary>
+    public bool RarerDistricts { get; set; } = true;
+
+    /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
+    /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
+    /// worlds only: a world takes the grid at its first start with this mod if this is on then, and
+    /// keeps that choice; off later means the world's new chunks get the game's camps again. The
+    /// trader types and their lists exist either way. Server side.</summary>
+    public bool TraderGrid { get; set; } = true;
+
+    /// <summary>Trader standing (Trading/Standing/, README "Standing" and "Companies"): standing per
+    /// player and trader, raised by trading, pooled by the player's company (a vanilla group), which
+    /// unlocks tiers (wallet, and for later waves prices, maps, orders, rare stock). Saved with the
+    /// world. Server side.</summary>
+    public bool TraderStanding { get; set; } = true;
+
+    /// <summary>How far, in km, standing with another trader of the same type counts (a tenth of it)
+    /// at a trader. 0 turns spillover off.</summary>
+    public double TraderStandingSpilloverKm { get; set; } = 6;
+
+    /// <summary>Traders: the pack's traders take any item, not only what their list buys: full price
+    /// for listed goods, about half for goods a related type buys, about a fifth otherwise
+    /// (config/trading/trader-relations.json), paid from a side budget of a quarter of their wallet,
+    /// refilled at restock. Maps, leads, money and worthless goods are refused. Both sides follow the
+    /// server's setting.</summary>
+    public bool EverythingHasAPrice { get; set; } = true;
+
+    /// <summary>Traders: a supply level per item and 8 km region, raised by selling, drained by buying
+    /// and by time, spreading to neighbouring regions; it lowers the price of plentiful goods and puts
+    /// player-supplied goods (metal, glass, leather, machine parts) on the shelves. Server side.</summary>
+    public bool RegionalSupply { get; set; } = true;
+
+    /// <summary>Regional supply: days for a level to halve on its own.</summary>
+    public double SupplyHalfLifeDays { get; set; } = 10;
+
+    /// <summary>Regional supply: the share of a region's level that moves to its neighbours each day.</summary>
+    public double SupplySpreadFraction { get; set; } = 0.1;
+
+    /// <summary>Placer fields (Ore/, README "Placer fields"): one rich gravel field of 300–600 blocks
+    /// per <see cref="PlacerCellSizeMetres"/> square, by water or on a valley floor, at a spot from
+    /// the seed; the scattered rich gravel cut to a quarter; and native copper in the pan from the
+    /// rich gravel of every rock (server side). New worlds only: a world created with it off never
+    /// gets it.</summary>
+    public bool PlacerFields { get; set; } = true;
+
+    /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
+    public int PlacerCellSizeMetres { get; set; } = 1500;
+
+    /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
+    /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
+    /// structures' chests, no recipe copies or makes one, and every recipe using one keeps it.
+    /// Server side.</summary>
+    public bool TraderSchematics { get; set; } = true;
+
+    /// <summary>Machine schematics (#469): every machine's and vehicle's first-stage recipe takes its
+    /// own <c>seraphhorizons:schematic-{machine}</c>, kept on crafting, and traders sell them. Off,
+    /// the recipes are as their mods ship them and nobody sells the schematics. Server side.</summary>
+    public bool MachineSchematics { get; set; } = true;
+
+    /// <summary>Standing orders (#453, README "Orders and deliveries"): each trader asks for one or
+    /// two lots of what it buys at a premium, taken with <c>/sh order</c> and delivered through the
+    /// trade dialog or by hand; an order taken and left undelivered costs standing. Server side.</summary>
+    public bool TraderOrders { get; set; } = true;
+
+    /// <summary>Deliveries (#454, README "Orders and deliveries"): a trader hands a player a package for
+    /// another camp against a deposit, paid with a fee and standing on time, less when late, the
+    /// deposit and standing with the sender lost when it fails. Server side; the package item exists
+    /// either way.</summary>
+    public bool TraderDeliveries { get; set; } = true;
+
+    /// <summary>Traders sell maps and leads (#455, Trading/Maps/, README "Maps and leads"):
+    /// prospectors ore maps to unsold deposits within 5 km, every trader a gravel map to a field
+    /// within 2 km and leads to other camps; precision and the further leads by standing. Needs the
+    /// deposit registry (ore cells or placer fields) for maps. Server side.</summary>
+    public bool TraderMaps { get; set; } = true;
+
+    /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
+    /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
+    /// logs and the admin map layer. Changes nothing in play. Server side.</summary>
+    public bool AdminTools { get; set; } = true;
+
+    /// <summary>Travelling merchants (#456, Trading/Visitors/, README "Travelling merchants"): an inn
+    /// flag raised by a player-built inn (a market stall or inn sign, a bed, a table with food, lit,
+    /// roofed and walled) calls a travelling merchant or curio dealer, when its owner is regular with a
+    /// camp within 6 km and the region trades in what the visitor buys; it stays 3–5 days, cannot be
+    /// hurt, and comes again after 10 days. Server side.</summary>
+    public bool TravellingMerchants { get; set; } = true;
+
+    /// <summary>Travelling merchants: the region's summed supply level of what a visitor buys before it
+    /// comes (a level is 10 gears' worth sold there and not yet drained). 0 turns the condition off.</summary>
+    public double TravellingMerchantMinSupply { get; set; } = 2;
+
     /// <summary>Machine oil: the heavy mechanical power machines (the game's helve hammer and
     /// pulverizer, Immersive Woodworking's sawmill and chopper, the bucking sawmill and the rosser)
     /// have an oil tank, filled by right-clicking them with oil, that their jobs drain; a machine

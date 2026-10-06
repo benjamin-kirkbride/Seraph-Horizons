@@ -1,0 +1,130 @@
+// Farmer: seeds and saplings by climate, produce, bees, compost; buyer of crops and farm tools.
+// Format: docs/trading.md (Trade lists).
+{
+	"type": "farmer",
+	"campWeight": 1.2,
+	// Gears restocked to, by standing tier (tier 0 until standing exists).
+	"wallet": [{"avg": 70, "var": 12}, {"avg": 90, "var": 15}, {"avg": 115, "var": 18}, {"avg": 145, "var": 20}],
+	"selling": {
+		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
+			{"code": "seeds-flax", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+			{"code": "seeds-spelt", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 3, "var": 0.45}},
+			{"code": "flaxfibers", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+			{"code": "compost", "stacksize": 8, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
+			{"code": "betterruins:br-schematic-farmer", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 18, "var": 1.8}, "standingTier": 1}
+		],
+		"rotating": { "maxItems": 7,
+			"list": [
+				{"code": "seeds-carrot", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+				{"code": "seeds-onion", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+				{"code": "seeds-soybean", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+				{"code": "seeds-pumpkin", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 5, "var": 0.75}},
+				{"code": "grain-spelt", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "flour-spelt", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+				{"code": "redmeat-raw", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+				{"code": "poultry-raw", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+				{"type": "block", "code": "henbox", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 6, "var": 0.9}},
+				{"type": "block", "code": "trough-genericwood-small-ns", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 0.6}},
+				{"code": "fruit-redapple", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "fruit-blueberry", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "vegetable-parsnip", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "bowl-blue-fired", "attributes": {"ucontents": [{"type": "item", "code": "honeyportion", "makefull": true}]}, "stacksize": 4, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}, "playerSupplied": true},
+				{"code": "beeswax", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+				{"code": "honeycomb", "stacksize": 1, "stock": {"avg": 16, "var": 4}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "fat", "stacksize": 3, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+				{"code": "treeseed-oak", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
+				{"code": "treeseed-maple", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
+				{"code": "treeseed-pine", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
+				{"code": "treeseed-redwood", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 8, "var": 2}, "rare": true},
+				{"type": "block", "code": "hay-normal-ud", "stacksize": 4, "stock": {"avg": 5, "var": 1}, "price": {"avg": 5, "var": 1}},
+				{"type": "block", "code": "hay-aged-ud", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 7, "var": 1}, "rare": true}
+			]
+		},
+		"regional": {
+			"cold": {
+				"core": [],
+				"rotating": [
+					{"code": "seeds-rye", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 3, "var": 0.45}},
+					{"code": "seeds-turnip", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "treeseed-larch", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "treeseed-birch", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "fruit-cranberry", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+					{"code": "fruit-blackcurrant", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}}
+				]
+			},
+			"temperate": {
+				"core": [],
+				"rotating": [
+					{"code": "seeds-cabbage", "stacksize": 2, "stock": {"avg": 6, "var": 2}, "price": {"avg": 6, "var": 0.9}},
+					{"code": "seeds-parsnip", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "treeseed-walnut", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 0.9}},
+					{"code": "fruit-cherry", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+					{"code": "fruit-peach", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 1, "var": 0.25}}
+				]
+			},
+			"hot": {
+				"core": [],
+				"rotating": [
+					{"code": "seeds-rice", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "seeds-pineapple", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 0.9}},
+					{"code": "seeds-cassava", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "seeds-amaranth", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "treeseed-acacia", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
+					{"code": "treeseed-kapok", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 6, "var": 0.9}, "rare": true},
+					{"code": "fruit-pineapple", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+					{"code": "fruit-saguaro", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}}
+				]
+			}
+		}
+	},
+	"buying": {
+		"core": [
+			{"code": "grain-spelt", "stacksize": 32, "stock": {"avg": 16, "var": 4}, "price": {"avg": 1, "var": 0.25}},
+			{"code": "flaxfibers", "stacksize": 16, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
+			{"code": "vegetable-carrot", "stacksize": 16, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}}
+		],
+		"rotating": { "maxItems": 8,
+			"list": [
+				{"code": "grain-rye", "stacksize": 32, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "grain-rice", "stacksize": 32, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "grain-flax", "stacksize": 32, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "grain-amaranth", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "vegetable-cabbage", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "vegetable-onion", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "vegetable-turnip", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "vegetable-parsnip", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "fruit-redapple", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "honeycomb", "stacksize": 2, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+				{"code": "beeswax", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "ageofflax:flaxbundle-dried", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
+				{"code": "hoe-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 4, "var": 1}},
+				{"code": "hoe-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 5, "var": 1.25}},
+				{"code": "hoe-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 6, "var": 1.5}},
+				{"code": "knife-generic-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 5, "var": 1.25}},
+				{"code": "knife-generic-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 6, "var": 1.5}},
+				{"code": "knife-generic-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 7, "var": 1.75}},
+				{"code": "scythe-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 5, "var": 1.25}},
+				{"code": "scythe-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 6, "var": 1.5}},
+				{"code": "scythe-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 7, "var": 1.75}},
+				{"type": "block", "code": "skep-reed-empty-east", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "bowl-cream-fired", "stacksize": 6, "stock": {"avg": 4, "var": 1}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "pumpkin-fruit-4", "stacksize": 4, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "legume-soybean", "stacksize": 16, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "bowl-cream-fired", "attributes": {"ucontents": [{"type": "item", "code": "honeyportion", "makefull": true}]}, "stacksize": 2, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "oils:soap-wood-flax", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "oils:soap-wood-olive", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "oils:soap-wood-peanut", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "oils:soap-wood-rice", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "oils:soap-wood-soy", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "oils:soap-wood-sunflower", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "oils:soap-wood-walnut", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
+				{"code": "bone", "stacksize": 4, "stock": {"avg": 12, "var": 5}, "price": {"avg": 3.6, "var": 1.2}},
+				{"type": "block", "code": "hay-normal-ud", "stacksize": 8, "stock": {"avg": 5, "var": 1}, "price": {"avg": 2, "var": 1}},
+				{"code": "bonemeal", "stacksize": 16, "stock": {"avg": 3, "var": 1}, "price": {"avg": 4, "var": 2}}
+			]
+		},
+		"regional": {}
+	}
+}

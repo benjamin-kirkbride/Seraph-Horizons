@@ -1,0 +1,49 @@
+// Deposit sizes (#439): seraphhorizons' SmallerDeposits switch (README.md "Ore cells").
+// Read by Ore/Game/DepositSizes.cs, which scales each Interesting Ore Gen vein variant of a metal
+// by that metal's volume factor (Ore/Core/VeinScaling.cs: disc veins by √factor on the radius,
+// tube veins on their tendril count). Never above 1.
+//
+// A metal's factor is targetIngots / medianIngots, or "factor" given outright:
+// - medianIngots: the median deposit measured over 5 seeds x 26 km² of the pack before this change
+//   (epic #435's table; a deposit is all ore of one metal within 150 m, an ore block 1.25 chunks).
+// - targetIngots: the typical deposit the epic wants for a group of about four: copper and iron 400,
+//   tin, zinc, bismuth, lead and nickel 150, silver and gold 80, titanium, chromium and platinum 150.
+//   Its small / large tiers (about ÷2.7 and ×2.5) come from the veins' own spread, which is kept.
+// - smallIngots, largeIngots: the bottom and top of the metal's range (the epic's small and large);
+//   with targetIngots, the deposit registry's size tiers (#443): small, medium and large are the
+//   bottom, middle and top third of smallIngots..largeIngots, and below a tenth of smallIngots a
+//   deposit counts as worked out (Ore/Core/DepositRegistry.cs, DepositSizing).
+// - Coal and the industrial minerals get a quarter cut at most: they were one deposit per 3–10 km²
+//   and are not what the walk is for.
+// Gold, silver (apart from the silver inside copper and lead veins), nickel, titanium and chromium
+// come mostly from hydrothermal districts. District veins are sized to smallIngots / targetIngots /
+// largeIngots directly (config/ore-districts.json, Ore/Core/DistrictVeins.cs), not by the factor.
+// These began as a first cut from volume ∝ radius² × thickness (discs) and count × length (tubes).
+// Correction from the survey of #445 (docs/oregen.md): the anchored veins of copper, iron, bismuth,
+// zinc and platinum came out at about twice the target (eight veins pooled over three seeds, median
+// 2.1x; one or three veins per metal, so the correction is shared, not per metal). Those metals
+// carry "factor" outright: half of target / median. Tin's one vein was small (0.3x, a deep
+// cassiterite seam) and lead, nickel, silver, gold, titanium and chromium had no anchored vein in
+// the survey; they keep target / median until a wider survey measures them.
+{
+  "copper":   { "medianIngots": 3567, "targetIngots": 400, "factor": 0.0561, "smallIngots": 150, "largeIngots": 1000 },
+  "iron":     { "medianIngots": 4806, "targetIngots": 400, "factor": 0.0416, "smallIngots": 150, "largeIngots": 1000 },
+  "tin":      { "medianIngots": 896,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+  "zinc":     { "medianIngots": 2009, "targetIngots": 150, "factor": 0.0373, "smallIngots": 60, "largeIngots": 400 },
+  "bismuth":  { "medianIngots": 6643, "targetIngots": 150, "factor": 0.0113, "smallIngots": 60, "largeIngots": 400 },
+  "lead":     { "medianIngots": 1100, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+  "nickel":   { "medianIngots": 1411, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+  "silver":   { "medianIngots": 348,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
+  "gold":     { "medianIngots": 130,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
+  "platinum": { "medianIngots": 905,  "targetIngots": 150, "factor": 0.0829, "smallIngots": 60, "largeIngots": 400 },
+  "titanium": { "medianIngots": 2852, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+  "chromium": { "medianIngots": 825,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+
+  "coal":          { "factor": 0.75 },
+  "alum":          { "factor": 0.75 },
+  "borax":         { "factor": 0.75 },
+  "saltpeter":     { "factor": 0.75 },
+  "cinnabar":      { "factor": 0.75 },
+  "sulfur":        { "factor": 0.75 },
+  "rhodochrosite": { "factor": 0.75 },
+}

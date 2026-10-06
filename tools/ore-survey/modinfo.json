@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "seraphoresurvey",
+  "name": "Seraph Horizons ore survey",
+  "description": "Local tool: records where worldgen puts ore and rich gravel, then stops. Not part of the pack.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "0.1.0",
+  "side": "Server",
+  "requiredOnClient": false,
+  "dependencies": { "game": "1.22.0" }
+}

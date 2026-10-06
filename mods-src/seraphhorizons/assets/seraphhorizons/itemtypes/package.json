@@ -1,0 +1,35 @@
+// Delivery packages (#454; README "Orders and deliveries"): Trading/Deliveries/Game/ItemPackage.cs.
+// The delivery is in the stack's attributes, written when a trader hands it over; one from the
+// creative inventory is blank. The game's linen sack, without its bag behaviours: it can't be opened.
+{
+	code: "package",
+	class: "seraphhorizons.Package",
+	maxstacksize: 1,
+	shape: { base: "game:item/bag/linensack" },
+	textures: {
+		"linen": { base: "game:item/bag/linensack/linen" },
+		"top": { base: "game:item/bag/linensack/top" }
+	},
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "SingleCenter", collisionBox: { x1: 0.25, y1: 0, z1: 0.25, x2: 0.75, y2: 0.375, z2: 0.75 } } }
+	],
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	guiTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: -25, y: 23, z: 180 },
+		origin: { x: 0.5299, y: 0.23, z: 0.5 },
+		scale: 2.7,
+		rotate: true
+	},
+	tpHandTransform: {
+		translation: { x: -0.7, y: -0.5, z: -0.6 },
+		rotation: { x: -4, y: 47, z: -17 },
+		scale: 0.81
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 180, y: 33, z: -180 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 4
+	}
+}

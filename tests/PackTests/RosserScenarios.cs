@@ -164,8 +164,8 @@ public partial class WoodworkingScenarios
         var recipe = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:rosser-frame-north");
         Assert.NotNull(recipe.Output!.ResolvedItemStack);
         var ingredients = (recipe.ResolvedIngredients ?? []).OfType<CraftingRecipeIngredient>().ToList();
-        var codes = ingredients.Select(i => i.Code!.ToString()).ToList();
-        Assert.Equal(4, codes.Count(c => c == $"{Iw}:sawmill-frame-north"));
+        // By quantity: with MachineSchematics on, the schematic takes a slot and two frames share one.
+        Assert.Equal(4, ingredients.Where(i => i.Code!.ToString() == $"{Iw}:sawmill-frame-north").Sum(i => i.Quantity));
         Assert.Equal(32, ingredients.Where(i => i.Code!.ToString() == "game:supportbeam-*").Sum(i => i.Quantity));
         Assert.Equal(2, ingredients.Where(i => i.Code!.ToString() == "game:chutesection-copper").Sum(i => i.Quantity));
         Assert.Equal(32, MachineParts.Count(recipe, MachineParts.Nails));

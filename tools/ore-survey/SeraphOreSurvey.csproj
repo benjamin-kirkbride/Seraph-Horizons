@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Local-only server mod that measures where worldgen puts ore (README.md). Never shipped:
+       it is not in pack.toml and no release artifact includes it
+       (tools/tests/test_packtool_assemble.py). -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SeraphOreSurvey</AssemblyName>
+    <RootNamespace>SeraphHorizons.OreSurvey</RootNamespace>
+    <Version>0.1.0</Version>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(VINTAGE_STORY)/VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- GenDeposits and DepositVariant, for the dump. -->
+    <Reference Include="VSEssentials">
+      <HintPath>$(VINTAGE_STORY)/Mods/VSEssentials.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- build/seraphoresurvey.zip: the DLL and modinfo.json at the top level; run.sh copies it
+       into each run's Mods folder. -->
+  <Target Name="ModZip" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <_ZipStage>$(IntermediateOutputPath)modzip/</_ZipStage>
+      <_ZipOut>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'seraphoresurvey.zip'))</_ZipOut>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_ZipStage)" />
+    <Copy SourceFiles="$(TargetPath);modinfo.json" DestinationFolder="$(_ZipStage)" />
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_ZipOut)'))" />
+    <ZipDirectory SourceDirectory="$(_ZipStage)" DestinationFile="$(_ZipOut)" Overwrite="true" />
+    <Message Importance="high" Text="mod zip: $(_ZipOut)" />
+  </Target>
+
+</Project>
