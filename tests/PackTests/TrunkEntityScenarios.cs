@@ -228,6 +228,48 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
+    public async Task Another_players_empty_hand_does_not_take_a_grabbed_trunk()
+    {
+        var pos = await Floor(-60);
+        var trunk = TrunkSpawns.Spawn(W, Trunk(8), pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
+        var p1 = await World.JoinPlayer("trunkholder");
+        await p1.TeleportTo(pos.AddCopy(2, 0, 0));
+        var p2 = await World.JoinPlayer("trunkmeddler");
+        await p2.TeleportTo(pos.AddCopy(-2, 0, 0));
+        await World.Ticks(5);
+        var holder = p1.Player;
+        var meddler = p2.Player;
+        holder.InventoryManager.ActiveHotbarSlot.Itemstack = null;
+        meddler.InventoryManager.ActiveHotbarSlot.Itemstack = null;
+        var cloth = W.Api.ModLoader.GetModSystem<ClothManager>();
+
+        holder.Entity.ServerControls.RightMouseDown = true;
+        trunk.OnInteract(holder.Entity, holder.InventoryManager.ActiveHotbarSlot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        Assert.True(trunk.Grabbed);
+        int id = trunk.WatchedAttributes.GetInt(EntityTrunk.GrabClothKey);
+
+        // the other player's click, sneaking (the rope's and Carry On's) and not
+        foreach (bool sneak in new[] { true, false })
+        {
+            meddler.Entity.Controls.ShiftKey = sneak;
+            trunk.OnInteract(meddler.Entity, meddler.InventoryManager.ActiveHotbarSlot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+            meddler.Entity.Controls.ShiftKey = false;
+            Assert.True(trunk.Alive);
+            Assert.Equal(holder.Entity.EntityId, trunk.GrabbedBy);
+            Assert.Null(TrunkCarry.Carried(meddler));
+            var rope = cloth.GetClothSystem(id);
+            Assert.NotNull(rope);
+            Assert.Contains(id, trunk.GetBehavior<EntityBehaviorRopeTieable>()!.ClothIds!.value);
+            Assert.Equal(trunk.EntityId, rope.LastPoint.PinnedToEntity?.EntityId);
+            Assert.Equal(holder.Entity.EntityId, rope.FirstPoint.PinnedToEntity?.EntityId);
+        }
+
+        holder.Entity.ServerControls.RightMouseDown = false;
+        await World.Until(() => !trunk.Grabbed, 5000);
+        trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario]
     public async Task An_empty_hand_drags_a_trunk_while_held()
     {
         var pos = await Floor(120);

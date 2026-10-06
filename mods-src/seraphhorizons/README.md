@@ -2138,18 +2138,18 @@ update, `DebarkedTrunks.Bind`'s warning names what changed in its trunk blocktyp
 `TrunkStationScenarios.cs` (Atlas) are the trunk entities' (`TrunkEntities/README.md`, "Tests"): a
 spawned trunk item becoming a thin or thick trunk entity, no trunk given to a player, the weight by
 logs, a trunk at rest on the ground, a placed trunk multiblock removed as it loads, a trunk left in
-a hotbar laid down as an entity rather than placed, and the grab dragging a trunk while held; each
-tool on a trunk entity, the axe and saw refusing a branched one and the spud debarking a clean one
-whole with its bark, a thick trunk cut down to lg becoming a thin one; carrying through the pinned
-Carry On (the animation by size, racks not carryable, an item in either hand refusing a trunk, the
-speed by logs, sneak to shoulder, put-down and a drop laying a trunk entity, a cart taking a carried
-trunk and giving it back to the hands); and the rosser and mill pulling a trunk entity from their
-infeed cells, Ctrl into the hands, and the sawhorse, Trunk Storage Rack and heating rack loading
-from the hands and unloading into them. When they fail after a Logging Expanded or Carry On update,
-the warning in the log names what the bridge no longer finds. With the switch off,
-`SwitchesOffScenarios` requires Logging Expanded's trunks, rack and Cartwright's carts as the mods
-ship them, no tool behaviour and no patch of the feature, and a trunk entity turning back into its
-trunk item.
+a hotbar laid down as an entity rather than placed, and the grab dragging a trunk while held and
+kept from another player; each tool on a trunk entity, the axe and saw refusing a branched one and
+the spud debarking a clean one whole with its bark, a thick trunk cut down to lg becoming a thin
+one; carrying through the pinned Carry On (the animation by size, racks not carryable, an item in
+either hand refusing a trunk, the speed by logs, sneak to shoulder, put-down and a drop laying a
+trunk entity, a cart taking a carried trunk and giving it back to the hands); and the rosser and
+mill pulling a trunk entity from their infeed cells, Ctrl into the hands, and the sawhorse, Trunk
+Storage Rack and heating rack loading from the hands and unloading into them. When they fail after a
+Logging Expanded or Carry On update, the warning in the log names what the bridge no longer finds.
+With the switch off, `SwitchesOffScenarios` requires Logging Expanded's trunks, rack and
+Cartwright's carts as the mods ship them, no tool behaviour and no patch of the feature, and a trunk
+entity turning back into its trunk item.
 
 `tests/PackTests/WoodworkingMachineCostsScenarios.cs` (Atlas) requires each of the eight parts'
 one recipe to take the nails and strips, plates and rods of `WoodworkingMachineCosts.Parts`, all

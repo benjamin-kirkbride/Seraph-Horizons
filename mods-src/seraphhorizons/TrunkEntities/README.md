@@ -124,15 +124,18 @@ the cart slots below need it either way.
 makes one, from the player's hand to the trunk, and ties it through the trunk's `ropetieable`, so
 the game's own pull drags the trunk after the player. The rope is as long as the hand is from the
 trunk's middle, at least the game's 1.5 blocks and at most a block short of `GrabRange`, because the
-game pulls only once a rope is stretched and the grab must pull before it is out of reach.
-Refused, each with an in-game error: a trunk someone else is dragging, one heavier than
-`MaxGrabWeight` (0, the default, is no limit), and one further than `GrabRange` (3 blocks) from the
-hand. One grab per player and one per trunk; grabbing another trunk lets go of the first. A trunk
-with a rope of the game's own tied to it is not grabbed: the empty-hand click goes on to the game,
-which takes that rope off. Checked every 100 ms on the server, the grab lets go (and the rope goes)
-when the player releases the right button, holds anything, is further than `GrabRange` from the
-trunk, dies, or leaves the game, or the trunk or its rope is gone. A grab never outlives the session:
-a trunk saved while grabbed clears its grab when it loads.
+game pulls only once a rope is stretched and the grab must pull before it is out of reach. Refused,
+each with an in-game error: a trunk someone else is dragging (any empty-hand click of another player
+on it, sneaking too, stops at the trunk, `EntityTrunk.OnInteract`: the game's `ropetieable` would
+otherwise unhook the grab's rope from the trunk and tie it to that player, roping the two players
+together while the trunk stays marked as held), one heavier than `MaxGrabWeight` (0, the default, is
+no limit), and one further than `GrabRange` (3 blocks) from the hand. One grab per player and one
+per trunk; grabbing another trunk lets go of the first. A trunk with a rope of the game's own tied
+to it is not grabbed: the empty-hand click goes on to the game, which takes that rope off. Checked
+every 100 ms on the server, the grab lets go (and the rope goes) when the player releases the right
+button, holds anything, is further than `GrabRange` from the trunk, dies, or leaves the game, or the
+trunk or its rope is gone. A grab never outlives the session: a trunk saved while grabbed clears its
+grab when it loads.
 
 **Rope.** `game:rope` ties to a trunk like to any `ropetieable` entity: to a fence post, an animal
 or a cart, untouched by the pack.
@@ -366,7 +369,8 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
     loads, nothing dropped; a trunk left in a hotbar, placed through the game's own placement, is
     taken from the hotbar and lies there as a trunk entity, with no block; and the grab: sneak
     shoulders instead, an empty hand ties the grab's rope between player and trunk, the trunk
-    follows a player who steps away, letting go removes the rope, and too far refuses.
+    follows a player who steps away, letting go removes the rope, and too far refuses; another
+    player's empty hand, sneaking or not, leaves a grabbed trunk and its rope as they are.
   - `TrunkToolScenarios.cs`: every tool kind gets the behaviour; the axe takes a log, with a hammer
     a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from
     twelve branches; the saw cuts planks; the axe and saw refuse a branched trunk; the spud debarks

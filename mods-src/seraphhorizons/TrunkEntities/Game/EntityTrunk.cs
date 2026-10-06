@@ -200,6 +200,16 @@ public class EntityTrunk : Entity
 
     public override void OnInteract(EntityAgent byEntity, ItemSlot itemslot, Vec3d hitPosition, EnumInteractMode mode)
     {
+        // While a player's grab holds it, another player's empty hand does nothing: the game's
+        // ropetieable would otherwise unhook the grab's rope from the trunk and tie it to them
+        // (sneak + click, which comes before Carry On's pick-up), leaving the two players roped
+        // together and the trunk marked as held.
+        if (mode == EnumInteractMode.Interact && Grabbed && byEntity.EntityId != GrabbedBy && (itemslot == null || itemslot.Empty))
+        {
+            if (Api.Side == EnumAppSide.Server && byEntity is EntityPlayer { Player: IServerPlayer other })
+                other.SendIngameError("trunkentities-grabbed", Lang.GetL(other.LanguageCode, "seraphhorizons:trunkentities-error-grabbed"));
+            return;
+        }
         if (mode == EnumInteractMode.Interact && Api.Side == EnumAppSide.Server && TrunkGrab.Wants(byEntity, itemslot, this)
             && TrunkEntitySystem.Of(Api).Grabs is { } grabs && byEntity is EntityPlayer { Player: IServerPlayer player })
         {
