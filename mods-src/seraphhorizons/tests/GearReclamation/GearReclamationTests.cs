@@ -95,6 +95,53 @@ public class FlashRustTests
         Assert.Equal(10, h.Total);
         Assert.Equal(new FlashRustHours(12, 3), FlashRustHours.For(12));
     }
+
+    private static Func<double> Sequence(params double[] values)
+    {
+        int i = 0;
+        return () => values[i++];
+    }
+
+    // A draw below 1 - loss chance keeps the gear as a rusty gear; at or above it, it rusts through.
+    [Fact]
+    public void A_bare_gear_rusts_through_to_bits_with_the_loss_chance()
+    {
+        var r = FlashRustLoss.Roll(4, 0.25, 1, Sequence(0.0, 0.74, 0.75, 0.99));
+        Assert.Equal(new LotteryResult(4, 2, 2), r);
+        Assert.Equal(2, r.Failed);
+        Assert.Equal(new LotteryResult(3, 1, 6), FlashRustLoss.Roll(3, 0.25, 3, Sequence(0.9, 0.1, 0.8)));
+    }
+
+    [Theory]
+    [InlineData(0.0, 1.0)]
+    [InlineData(0.25, 0.75)]
+    [InlineData(1.0, 0.0)]
+    [InlineData(-1.0, 1.0)]
+    [InlineData(2.0, 0.0)]
+    [InlineData(double.NaN, 1.0)]
+    public void The_keep_chance_is_one_less_the_clamped_loss_chance(double loss, double keep) =>
+        Assert.Equal(keep, FlashRustLoss.KeepChance(loss), 12);
+
+    [Fact]
+    public void No_loss_keeps_every_gear_and_full_loss_keeps_none()
+    {
+        Assert.Equal(new LotteryResult(5, 5, 0), FlashRustLoss.Roll(5, 0, 1, () => 0.999));
+        Assert.Equal(new LotteryResult(5, 0, 5), FlashRustLoss.Roll(5, 1, 1, () => 0.0));
+        Assert.Equal(new LotteryResult(0, 0, 0), FlashRustLoss.Roll(0, 0.25, 1, () => 0.0));
+    }
+
+    [Fact]
+    public void A_quarter_lost_is_three_rusty_gears_and_one_bit_in_four()
+    {
+        var (rusty, bits) = FlashRustLoss.Expected(64, 0.25, 1);
+        Assert.Equal(48, rusty, 9);
+        Assert.Equal(16, bits, 9);
+        var rand = new Random(477);
+        var r = FlashRustLoss.Roll(10_000, 0.25, 1, rand.NextDouble);
+        double sd = GearLottery.SteelDeviation(10_000, 0.75);
+        Assert.InRange(r.Steel, 7500 - 4 * sd, 7500 + 4 * sd);
+        Assert.Equal(r.Failed, r.Bits);
+    }
 }
 
 public class GearReclamationConfigTests
@@ -107,19 +154,25 @@ public class GearReclamationConfigTests
         Assert.Equal(8, c.FlashRustHours);
         Assert.Equal(0.1, c.UsableGearChance);
         Assert.Equal(1, c.BitsPerFailedGear);
+        Assert.Equal(0.25, c.FlashRustLossChance);
     }
 
     [Fact]
     public void Out_of_range_values_fall_back_with_a_line_each()
     {
-        var c = new GearReclamationConfig { FlashRustHours = 0, UsableGearChance = 1.5, BitsPerFailedGear = -1 };
-        Assert.Equal(3, c.Sanitise().Count);
+        var c = new GearReclamationConfig { FlashRustHours = 0, UsableGearChance = 1.5, BitsPerFailedGear = -1, FlashRustLossChance = -0.1 };
+        Assert.Equal(4, c.Sanitise().Count);
         Assert.Equal(8, c.FlashRustHours);
         Assert.Equal(0.1, c.UsableGearChance);
         Assert.Equal(1, c.BitsPerFailedGear);
-        c = new GearReclamationConfig { FlashRustHours = double.NaN, UsableGearChance = 1, BitsPerFailedGear = 20 };
+        Assert.Equal(0.25, c.FlashRustLossChance);
+        c = new GearReclamationConfig { FlashRustHours = double.NaN, UsableGearChance = 1, BitsPerFailedGear = 20, FlashRustLossChance = 1 };
         Assert.Single(c.Sanitise());
         Assert.Equal(1, c.UsableGearChance);
+        Assert.Equal(1, c.FlashRustLossChance);
+        c = new GearReclamationConfig { FlashRustLossChance = double.PositiveInfinity };
+        Assert.Contains("FlashRustLossChance", Assert.Single(c.Sanitise()));
+        Assert.Equal(0.25, c.FlashRustLossChance);
     }
 }
 

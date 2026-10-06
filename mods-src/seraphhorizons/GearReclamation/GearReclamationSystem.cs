@@ -53,6 +53,10 @@ public class GearReclamationSystem : ModSystem
     /// <summary>The stacks resolved so far on this server (the tests read it).</summary>
     public int Resolved { get; private set; }
 
+    /// <summary>The bare steel gear stacks that have flash-rusted so far on this server (the tests
+    /// read it).</summary>
+    public int FlashRusted { get; private set; }
+
     public override void Start(ICoreAPI api)
     {
         _api = api;
@@ -215,6 +219,77 @@ public class GearReclamationSystem : ModSystem
         return true;
     }
 
+    /// <summary>Called by a bare steel gear when its flash rust completes (#477, #482): each gear is a
+    /// rusty gear with 1 - <see cref="GearReclamationConfig.FlashRustLossChance"/> and otherwise
+    /// <see cref="GearReclamationConfig.BitsPerFailedGear"/> steel bits. Returns what the slot
+    /// becomes: the rusty gears, or the bits if none is (an empty stack if neither); the rest goes
+    /// where <see cref="PlaceNear"/> puts it. Null leaves the game's own transition to it.</summary>
+    internal ItemStack? FlashRust(ItemSlot slot, TransitionableProperties props, ItemStack rusty)
+    {
+        var world = _api?.World;
+        if (world == null || world.Side != EnumAppSide.Server || !On || slot.Itemstack is not { } stack)
+            return null;
+        var bitItem = world.GetItem(new AssetLocation(GearCodes.SteelBit));
+        if (bitItem == null)
+        {
+            world.Logger.Error("[seraphhorizons] Gear reclamation: {0} is missing; bare steel gears rust whole", GearCodes.SteelBit);
+            return null;
+        }
+        int gears = GameMath.RoundRandom(world.Rand, stack.StackSize * props.TransitionRatio);
+        var result = FlashRustLoss.Roll(gears, Config.FlashRustLossChance, Config.BitsPerFailedGear, world.Rand.NextDouble);
+        var bits = GearLottery.Stacks(result.Bits, bitItem.MaxStackSize).Select(n => new ItemStack(bitItem, n)).ToList();
+        var keep = rusty.Clone();
+        keep.StackSize = result.Steel;
+        if (result.Steel == 0 && bits.Count > 0)
+        {
+            keep = bits[0];
+            bits.RemoveAt(0);
+        }
+        foreach (var rest in bits)
+            PlaceNear(world, slot, rest);
+        FlashRusted++;
+        world.Logger.Debug("[seraphhorizons] Gear reclamation: {0} bare steel gears flash-rusted: {1} rusty, {2} steel bits",
+            result.Gears, result.Steel, result.Bits);
+        return keep;
+    }
+
+    /// <summary>Puts <paramref name="stack"/> next to <paramref name="slot"/>'s: in its player's
+    /// inventory, else in another slot of its inventory, and what does not fit on the ground at the
+    /// player, the inventory's block or the dropped item. A slot with no place in the world (a mod's
+    /// virtual slot) loses it.</summary>
+    private static void PlaceNear(IWorldAccessor world, ItemSlot slot, ItemStack stack)
+    {
+        Vec3d? at = null;
+        ItemStack? left = stack;
+        switch (slot.Inventory)
+        {
+            case InventoryBasePlayer { Player: { } player } when Rolls(slot.Inventory):
+                player.InventoryManager.TryGiveItemstack(stack, true);
+                at = player.Entity?.Pos.XYZ;
+                break;
+            case InventoryBase inventory:
+                var source = new DummySlot(stack);
+                foreach (var target in inventory)
+                {
+                    if (source.Empty)
+                        break;
+                    if (target != slot)
+                        source.TryPutInto(world, target, source.StackSize);
+                }
+                left = source.Itemstack;
+                at = inventory.Pos?.ToVec3d().Add(0.5, 0.5, 0.5);
+                break;
+        }
+        if (slot is EntityItemSlot { Ei: { } dropped })
+            at = dropped.Pos.XYZ;
+        if (left is not { StackSize: > 0 })
+            return;
+        if (at != null)
+            world.SpawnItemEntity(left, at);
+        else
+            world.Logger.Warning("[seraphhorizons] Gear reclamation: {0} steel bits from flash-rusted gears had nowhere to go", left.StackSize);
+    }
+
     /// <summary>Leaves the degreasing recipes out with the switch off; keeps only the alkalis whose
     /// mod is loaded, and leaves a recipe out when none is.</summary>
     private static void FilterCooking(ICoreAPI api, bool on, System.Func<string, bool> domainLoaded)
@@ -277,11 +352,25 @@ public class GearReclamationSystem : ModSystem
     }
 }
 
-/// <summary>The reclaimed gears' item class. Only the oiled gear does anything: on the server, when
-/// its slot in a player's inventory changes, it is resolved (<see cref="GearReclamationSystem.Resolve"/>).</summary>
+/// <summary>The reclaimed gears' item class, and the bare steel gear's. The oiled gear is resolved on
+/// the server when its slot in a player's inventory changes (<see cref="GearReclamationSystem.Resolve"/>);
+/// the bare steel gear's flash rust loses a share of it to steel bits
+/// (<see cref="GearReclamationSystem.FlashRust"/>). The others do nothing of their own.</summary>
 public class ItemReclaimedGear : Item
 {
     private bool Oiled => Code?.ToString() == GearCodes.Oiled;
+
+    private bool SteelBare => Code?.ToString() == GearCodes.SteelBare;
+
+    // The game calls this on the server only, when a Perish transition completes.
+    public override ItemStack OnTransitionNow(ItemSlot slot, TransitionableProperties props)
+    {
+        if (SteelBare && props.Type == EnumTransitionType.Perish && api != null
+            && props.TransitionedStack?.ResolvedItemstack is { } rusty
+            && GearReclamationSystem.Of(api).FlashRust(slot, props, rusty) is { } result)
+            return result;
+        return base.OnTransitionNow(slot, props);
+    }
 
     public override void OnModifiedInInventorySlot(IWorldAccessor world, ItemSlot slot, ItemStack? extractedStack = null)
     {

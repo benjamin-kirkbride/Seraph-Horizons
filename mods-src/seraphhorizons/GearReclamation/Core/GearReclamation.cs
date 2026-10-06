@@ -90,6 +90,25 @@ public static class GearLottery
     }
 }
 
+/// <summary>A bare steel gear's flash rust (#477, #482): a steel gear dipped bare in the pickling tub
+/// must not rust into a rusty gear for free, so each gear that flash-rusts is a rusty gear with
+/// 1 - <c>FlashRustLossChance</c> and otherwise rusts through to steel bits, the bits a failed oiled
+/// gear gives. Rolled as the oiled gears are (<see cref="GearLottery.Roll"/>), sound meaning rusty.</summary>
+public static class FlashRustLoss
+{
+    /// <summary>Rolls <paramref name="gears"/> bare steel gears: <see cref="LotteryResult.Steel"/>
+    /// is the rusty gears, <see cref="LotteryResult.Bits"/> the steel bits of the rest.</summary>
+    public static LotteryResult Roll(int gears, double lossChance, int bitsPerFailure, Func<double> next) =>
+        GearLottery.Roll(gears, KeepChance(lossChance), bitsPerFailure, next);
+
+    /// <summary>The mean rusty gears and bits of <see cref="Roll"/>.</summary>
+    public static (double Rusty, double Bits) Expected(int gears, double lossChance, int bitsPerFailure) =>
+        GearLottery.Expected(gears, KeepChance(lossChance), bitsPerFailure);
+
+    /// <summary>Each gear's chance to come out a rusty gear.</summary>
+    public static double KeepChance(double lossChance) => 1 - Math.Clamp(double.IsFinite(lossChance) ? lossChance : 0, 0, 1);
+}
+
 /// <summary>The flash rust of the bare gears (#474): a vanilla Perish transition to the rusty
 /// gear, fresh for <see cref="Fresh"/> hours, then rusting over <see cref="Transition"/>.</summary>
 public readonly record struct FlashRustHours(double Fresh, double Transition)
@@ -129,8 +148,13 @@ public class GearReclamationConfig
     /// <summary>The chance each oiled gear is sound.</summary>
     public double UsableGearChance { get; set; } = 0.1;
 
-    /// <summary>Steel bits for each oiled gear that is not.</summary>
+    /// <summary>Steel bits for each oiled gear that is not, and for each bare steel gear that rusts
+    /// through.</summary>
     public int BitsPerFailedGear { get; set; } = 1;
+
+    /// <summary>The chance each bare steel gear (the pickling tub's dip) that flash-rusts rusts
+    /// through to <see cref="BitsPerFailedGear"/> steel bits instead of into a rusty gear.</summary>
+    public double FlashRustLossChance { get; set; } = 0.25;
 
     public static readonly GearReclamationConfig Defaults = new();
 
@@ -152,6 +176,11 @@ public class GearReclamationConfig
         {
             fixes.Add($"BitsPerFailedGear {BitsPerFailedGear} is out of range (0 to 20), using {Defaults.BitsPerFailedGear}");
             BitsPerFailedGear = Defaults.BitsPerFailedGear;
+        }
+        if (!double.IsFinite(FlashRustLossChance) || FlashRustLossChance < 0 || FlashRustLossChance > 1)
+        {
+            fixes.Add($"FlashRustLossChance {FlashRustLossChance} is out of range (0 to 1), using {Defaults.FlashRustLossChance}");
+            FlashRustLossChance = Defaults.FlashRustLossChance;
         }
         return fixes;
     }

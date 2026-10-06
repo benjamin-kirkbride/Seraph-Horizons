@@ -283,4 +283,78 @@ public partial class SharedWorldScenarios
             await World.Ticks(5);
         Assert.Equal(0, Count(player).Oiled);
     }
+
+    /// <summary>Ages a stack of flash-rusting gears past rusty: the transition runs as the game runs
+    /// it on the server, through the stack's own <c>UpdateAndGetTransitionStates</c>.</summary>
+    private void FlashRustNow(ItemSlot slot)
+    {
+        var hours = FlashRustHours.For(GearReclamationSystem.Of(World.Api).Config.FlashRustHours);
+        slot.Itemstack.Collectible.UpdateAndGetTransitionStates(W, slot);
+        var state = (ITreeAttribute)slot.Itemstack.Attributes["transitionstate"];
+        state.SetDouble("lastUpdatedTotalHours", state.GetDouble("lastUpdatedTotalHours") - hours.Total - 1);
+        slot.Itemstack.Collectible.UpdateAndGetTransitionStates(W, slot);
+    }
+
+    private static int CountIn(IEnumerable<ItemSlot> slots, string code) =>
+        slots.Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
+
+    // #477, #482: a bare steel gear that flash-rusts is a rusty gear three times in four
+    // (FlashRustLossChance 0.25) and a steel bit otherwise, so dipping steel gears is no free way to
+    // currency. In a player's inventory the bits go to the player; in a chest, to its other slots.
+    [AtlasScenario]
+    public async Task Bare_steel_gears_flash_rust_a_quarter_to_steel_bits()
+    {
+        var system = GearReclamationSystem.Of(World.Api);
+        var config = system.Config;
+        Assert.Equal(0.25, config.FlashRustLossChance);
+        var bare = W.GetItem(new AssetLocation(GearCodes.SteelBare))!;
+        Assert.IsType<ItemReclaimedGear>(bare);
+        var hours = FlashRustHours.For(config.FlashRustHours);
+        var perish = Assert.Single(bare.TransitionableProps, t => t.Type == EnumTransitionType.Perish);
+        Assert.Equal(hours.Fresh, perish.FreshHours.avg, 3);
+        Assert.Equal(GearCodes.Rusty, perish.TransitionedStack.ResolvedItemstack.Collectible.Code.ToString());
+
+        var p = await World.JoinPlayer("flashrust");
+        await p.TeleportTo(World.Spawn.AddCopy(-100, 12, -120));
+        var player = p.Player;
+        IEnumerable<ItemSlot> Held() => player.InventoryManager.Inventories.Values
+            .Where(inv => inv.ClassName != GlobalConstants.creativeInvClassName).SelectMany(inv => inv);
+        var hotbar = player.InventoryManager.GetHotbarInventory();
+        const int rounds = 20, perRound = 64;
+        int rusty = 0, bits = 0, before = system.FlashRusted;
+        for (int round = 0; round < rounds; round++)
+        {
+            foreach (var s in Held()) { s.Itemstack = null; s.MarkDirty(); }
+            var slot = hotbar[round % 5];
+            slot.Itemstack = GearStack(GearCodes.SteelBare, perRound);
+            FlashRustNow(slot);
+            Assert.Equal(GearCodes.Rusty, slot.Itemstack?.Collectible.Code.ToString());
+            Assert.Equal(0, CountIn(Held(), GearCodes.SteelBare));
+            int r = CountIn(Held(), GearCodes.Rusty), b = CountIn(Held(), GearCodes.SteelBit);
+            Assert.Equal(perRound, r + b / Math.Max(1, config.BitsPerFailedGear));
+            rusty += r;
+            bits += b;
+        }
+        Assert.Equal(rounds, system.FlashRusted - before);
+        int gears = rounds * perRound;
+        var (expected, _) = FlashRustLoss.Expected(gears, config.FlashRustLossChance, config.BitsPerFailedGear);
+        double sd = GearLottery.SteelDeviation(gears, FlashRustLoss.KeepChance(config.FlashRustLossChance));
+        output.WriteLine($"{gears} bare steel gears flash-rusted: {rusty} rusty (expected {expected:0.#} ± {sd:0.#}), {bits} bits");
+        Assert.InRange(rusty, expected - 4 * sd, expected + 4 * sd);
+        Assert.Equal((gears - rusty) * config.BitsPerFailedGear, bits);
+
+        // In a chest the rusty gears keep the slot and the bits take another.
+        var pos = World.Spawn.AddCopy(-104, 12, -120);
+        World.SetBlock("game:air", pos.UpCopy());
+        World.SetBlock("game:chest-east", pos);
+        await World.Ticks(2);
+        var chest = W.BlockAccessor.GetBlockEntity(pos) as BlockEntityContainer
+                    ?? throw new Xunit.Sdk.XunitException("chest placed without a block entity");
+        chest.Inventory[0].Itemstack = GearStack(GearCodes.SteelBare, perRound);
+        FlashRustNow(chest.Inventory[0]);
+        Assert.Equal(GearCodes.Rusty, chest.Inventory[0].Itemstack?.Collectible.Code.ToString());
+        int inChest = CountIn(chest.Inventory, GearCodes.Rusty) + CountIn(chest.Inventory, GearCodes.SteelBit) / Math.Max(1, config.BitsPerFailedGear);
+        Assert.Equal(perRound, inChest);
+        Assert.True(CountIn(chest.Inventory, GearCodes.SteelBit) > 0, "no bits from 64 gears");
+    }
 }
