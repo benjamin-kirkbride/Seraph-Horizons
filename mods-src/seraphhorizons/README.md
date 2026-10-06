@@ -1131,6 +1131,24 @@ switch off, or without Immersive Woodworking, `WoodworkingMachineCosts.DisablePa
 patch in `Start`, as for the blade kits. With the switch on, the handbook's Machines chapter
 (`UnifiedWoodworking`'s guide) gains a paragraph with the two totals, by a `LangEdit`.
 
+### The heating rack stays where it is put (`HeatingRackKeepsPosition`)
+
+Logging Expanded (`loggingmod` 0.3.6). Its Trunk Heating Rack (`loggingmod:resinrack-*`,
+`BlockResinRack`, block entity `BEResinRack`) keeps its trunk and resin when picked up: its
+`OnPickBlock` writes the block entity's whole tree into the stack, and its `DoPlaceBlock` loads that
+tree back into the new block entity. The tree includes the base `BlockEntity`'s `posx`, `posy` and
+`posz`, so a rack placed from that stack has a block entity whose `Pos` is where it was picked up
+(#374): its firepit check and dirty-marking go to the old spot. Carry On builds its carried stack
+from `OnPickBlock`; its server puts the block entity right after the place-down, its client does
+not, and a creative pick and place has nothing to put it right.
+
+`HeatingRackPosition` (Harmony, on both sides, once per process with its own id) postfixes
+`OnPickBlock` to take the three keys out of the stack it returns, and prefixes `DoPlaceBlock` to take
+them out of the stack being placed: racks already picked up before the tweak, in inventories or
+creative hotbars, still carry them. With no position in the tree, `BEResinRack.FromTreeAttributes`
+keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
+warning and leaves the rack as it ships.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -1363,6 +1381,15 @@ quantities and metals, and `ItemExportScenarios` its Machines guide to give the 
 switch off, `SwitchesOffScenarios` requires Immersive Woodworking's own counts, of any metal, and
 the chapter without the paragraph. When these fail after an Immersive Woodworking update, compare
 its `recipes/grid/sawmill_*.json` and `chopper_*.json` with the patch.
+
+`tests/PackTests/HeatingRackScenarios.cs` (Atlas, `WoodworkingScenarios`) places a heating rack, takes
+its stack from `OnPickBlock` and places it elsewhere through the block's own `TryPlaceBlock`, as
+Carry On's client and a creative pick do: the stack must carry no `posx` and the new block entity's
+`Pos` must be the new position. It also carries a rack with Carry On's server calls and breaks one
+in survival. With the switch off, `SwitchesOffScenarios` requires nothing patched and the picked
+stack carrying the rack's position. When it fails after a Logging Expanded update, check whether
+the rack still writes its tree into the stack, and whether `FromTreeAttributes` still keeps its
+position when the tree has none.
 
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's
