@@ -400,4 +400,22 @@ public class SeraphHorizonsConfig
     /// keeps that choice; off later means the world's new chunks get the game's camps again. The
     /// trader types and their lists exist either way. Server side.</summary>
     public bool TraderGrid { get; set; } = true;
+
+    /// <summary>Traders: the pack's traders take any item, not only what their list buys: full price
+    /// for listed goods, about half for goods a related type buys, about a fifth otherwise
+    /// (config/trading/trader-relations.json), paid from a side budget of a quarter of their wallet,
+    /// refilled at restock. Maps, leads, money and worthless goods are refused. Both sides follow the
+    /// server's setting.</summary>
+    public bool EverythingHasAPrice { get; set; } = true;
+
+    /// <summary>Traders: a supply level per item and 8 km region, raised by selling, drained by buying
+    /// and by time, spreading to neighbouring regions; it lowers the price of plentiful goods and puts
+    /// player-supplied goods (metal, glass, leather, machine parts) on the shelves. Server side.</summary>
+    public bool RegionalSupply { get; set; } = true;
+
+    /// <summary>Regional supply: days for a level to halve on its own.</summary>
+    public double SupplyHalfLifeDays { get; set; } = 10;
+
+    /// <summary>Regional supply: the share of a region's level that moves to its neighbours each day.</summary>
+    public double SupplySpreadFraction { get; set; } = 0.1;
 }

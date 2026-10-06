@@ -1,0 +1,33 @@
+// What a trader pays for goods off its own buying list (#450, docs/trading.md "Everything has a
+// price"). An item's fit at a trader: "listed" when the trader's type buys it, else the best
+// relation between the trader's type and a type that buys it, else "unrelated". A pair without a
+// weight relates at "related"; "toAll" relates a type to every other type, both ways.
+{
+	"listed": 1.0,
+	"related": 0.5,
+	"unrelated": 0.2,
+	"pairs": [
+		["smith", "mechanic"],
+		["smith", "prospector"],
+		["prospector", "mason"],
+		["carpenter", "mason"],
+		["carpenter", "mechanic"],
+		["farmer", "cook"],
+		["farmer", "animaldealer"],
+		["cook", "animaldealer"],
+		["tailor", "generalstore"],
+		["tailor", "animaldealer", 0.3],
+		["generalstore", "cook", 0.3],
+		["generalstore", "carpenter", 0.3],
+	],
+	// The curio dealer takes a little interest in anything.
+	"toAll": { "curiodealer": 0.3 },
+	// Never bought, listed or not: maps and leads (what they point at is the trader's own business),
+	// the pack's and the game's locator maps.
+	"refused": [
+		"seraphhorizons:oremap",
+		"seraphhorizons:gravelmap",
+		"seraphhorizons:traderlead",
+		"game:locatormap",
+	],
+}
