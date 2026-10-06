@@ -38,11 +38,13 @@ public class TrunkEntitySystem : ModSystem
     public static readonly AssetLocation ThickCode = new(Domain, "trunk-thick");
 
     /// <summary>The feature's JSON patches (<c>patches/trunkentities-*.json</c>), emptied in
-    /// <see cref="Start"/> when it is off. A patch added to the feature is listed here.</summary>
+    /// <see cref="Start"/> when it is off. A patch added to the feature is listed here. (The
+    /// stations' patch is also emptied by <see cref="TrunkStationsSystem"/> without Carry On.)</summary>
     public static readonly List<AssetLocation> PatchAssets =
     [
         new(Domain, "patches/trunkentities-carryon.json"),
         new(Domain, "patches/trunkentities-carts.json"),
+        TrunkStationsSystem.PatchAsset,
     ];
 
     /// <summary>The storage flag trunk stacks get: no inventory takes it.</summary>

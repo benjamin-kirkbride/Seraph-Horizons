@@ -19,7 +19,13 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// </summary>
 public class TrunkToolsSystem : ModSystem
 {
-    public const string HarmonyIdPrefix = "seraphhorizons.trunktools.";
+    // One id for both sides: a single-player game runs both in one process, and the prefixes find
+    // each side's own behaviour on the instance, so each method is patched once, by the first side
+    // to get there, and unpatched when the last side goes.
+    public const string HarmonyId = "seraphhorizons.trunktools";
+
+    private static readonly object Lock = new();
+    private static int _users;
 
     private static readonly (string Name, Type[] Args, string Prefix)[] Hooked =
     [
@@ -38,7 +44,7 @@ public class TrunkToolsSystem : ModSystem
     ];
 
     private ICoreAPI? _api;
-    private Harmony? _harmony;
+    private bool _patching;
     private bool? _barkBound;
     private System.Func<EntityTrunk, IClientPlayer, IEnumerable<WorldInteraction>>? _help;
 
@@ -91,12 +97,21 @@ public class TrunkToolsSystem : ModSystem
     private int Patch(ICoreAPI api, IEnumerable<Type> types)
     {
         var methods = new HashSet<MethodInfo>();
-        foreach (var type in types)
-        foreach (var (name, args, prefix) in Hooked)
-            if (type.GetMethod(name, BindingFlags.Public | BindingFlags.Instance, args) is { } method
-                && method.DeclaringType != typeof(CollectibleObject) && methods.Add(method))
-                (_harmony ??= new Harmony(HarmonyIdPrefix + api.Side.ToString().ToLowerInvariant()))
-                    .Patch(method, prefix: new HarmonyMethod(typeof(TrunkToolBehavior.Hooks), prefix));
+        lock (Lock)
+        {
+            if (!_patching)
+            {
+                _patching = true;
+                _users++;
+            }
+            var harmony = new Harmony(HarmonyId);
+            foreach (var type in types)
+            foreach (var (name, args, prefix) in Hooked)
+                if (type.GetMethod(name, BindingFlags.Public | BindingFlags.Instance, args) is { } method
+                    && method.DeclaringType != typeof(CollectibleObject) && methods.Add(method)
+                    && Harmony.GetPatchInfo(method)?.Prefixes.Any(p => p.owner == HarmonyId) != true)
+                    harmony.Patch(method, prefix: new HarmonyMethod(typeof(TrunkToolBehavior.Hooks), prefix));
+        }
         return methods.Count;
     }
 
@@ -142,7 +157,11 @@ public class TrunkToolsSystem : ModSystem
         if (_help != null)
             EntityTrunk.HelpProviders.Remove(_help);
         _help = null;
-        _harmony?.UnpatchAll(_harmony.Id);
-        _harmony = null;
+        if (!_patching)
+            return;
+        _patching = false;
+        lock (Lock)
+            if (--_users == 0)
+                new Harmony(HarmonyId).UnpatchAll(HarmonyId);
     }
 }
