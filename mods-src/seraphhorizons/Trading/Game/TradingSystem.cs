@@ -1,5 +1,6 @@
 using SeraphHorizons.Mod.Trading.Commands;
 using SeraphHorizons.Mod.Trading.Core;
+using SeraphHorizons.Mod.Trading.Standing;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
@@ -44,6 +45,9 @@ public class TradingSystem : ModSystem
 
     /// <summary>What decides whether a player-supplied good is shelved; #451 replaces it.</summary>
     public ISupplyGate SupplyGate { get; set; } = NoSupply.Instance;
+
+    /// <summary>Standing with traders (#452, #463); <see cref="StandingSystem"/> sets it when on.</summary>
+    public IStandingSource Standing { get; set; } = NoStanding.Instance;
 
     /// <summary>The camp grid of this world's seed (server, once the lists are loaded).</summary>
     public TraderGrid? Grid { get; private set; }

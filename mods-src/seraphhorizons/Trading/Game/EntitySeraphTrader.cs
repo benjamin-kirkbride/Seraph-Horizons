@@ -1,8 +1,10 @@
 using SeraphHorizons.Mod.Trading.Core;
+using SeraphHorizons.Mod.Trading.Standing;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Trading;
@@ -28,6 +30,7 @@ public class EntitySeraphTrader : EntityTrader
     private const string LastRefreshAttr = "lastRefreshTotalDays";
 
     private bool _imported;
+    private double _walletSetFor = double.NaN;
 
     /// <summary>The trader type, from the entity code (<c>trader-{gender}-{type}-{climate}</c>).</summary>
     public string TraderType => Code.Path.Split('-') is { Length: >= 3 } parts ? parts[2] : "";
@@ -73,9 +76,61 @@ public class EntitySeraphTrader : EntityTrader
             return;
         }
         double before = WatchedAttributes.GetDouble(LastRefreshAttr, double.NaN);
+        UpdateWallet(before);
         base.OnGameTick(dt);
         double after = WatchedAttributes.GetDouble(LastRefreshAttr, double.NaN);
         if (!before.Equals(after) && TradeProps != null) Restock(0.5f);
+    }
+
+    /// <summary>Standing (#452): before vanilla's weekly top-up, the wallet it tops up towards is the
+    /// list's for the best standing tier among players who traded here recently (a trader that does
+    /// well with someone keeps more gears for everyone). Asked once per due restock.</summary>
+    private void UpdateWallet(double lastRefresh)
+    {
+        double last = double.IsNaN(lastRefresh) ? World.Calendar.TotalDays - 10 : lastRefresh;
+        if (TradeProps is null || World.Calendar.TotalDays - last <= doubleRefreshIntervalDays || last.Equals(_walletSetFor)) return;
+        _walletSetFor = last;
+        var system = TradingSystem.Of(Api);
+        if (system?.Lists?.For(TraderType) is not { } def || !system.Standing.Enabled) return;
+        var wallet = def.WalletFor(system.Standing.WalletTierFor(this));
+        TradeProps.Money = NatFloat.createUniform(wallet.Avg, wallet.Var);
+    }
+
+    /// <summary>Standing (#452): a deal (packet 1000, the dialog's trade button) that went through
+    /// credits the player with its gear value. The game's TryBuySell is internal and reports success
+    /// only to the base class, so the carts are compared: a deal that goes through empties the
+    /// buying cart and takes the sold goods out of the selling cart; one that fails leaves both.</summary>
+    public override void OnReceivedClientPacket(IServerPlayer player, int packetid, byte[] data)
+    {
+        if (packetid != 1000 || Inventory is null || TradingSystem.Of(Api) is not { Standing.Enabled: true } system)
+        {
+            base.OnReceivedClientPacket(player, packetid, data);
+            return;
+        }
+        int paid = Inventory.GetTotalCost(), received = Inventory.GetTotalGain();
+        int before = CartItems();
+        base.OnReceivedClientPacket(player, packetid, data);
+        if (paid + received > 0 && CartItems() < before)
+            system.Standing.OnDeal(player, this, paid, received);
+    }
+
+    private int CartItems()
+    {
+        int n = 0;
+        for (int i = 0; i < 4; i++)
+            n += (Inventory.GetBuyingCartSlot(i).Itemstack?.StackSize ?? 0) + (Inventory.GetSellingCartSlot(i).Itemstack?.StackSize ?? 0);
+        return n;
+    }
+
+    /// <summary>Standing (#452): opening the trade dialog shows the player's standing in chat, once
+    /// a visit (the dialog itself is the game's, client side, and private).</summary>
+    protected override int Dialog_DialogTriggers(EntityAgent triggeringEntity, string value, JsonObject data)
+    {
+        int result = base.Dialog_DialogTriggers(triggeringEntity, value, data);
+        if (value == "opentrade" && World.Side == EnumAppSide.Server && WatchedAttributes.HasAttribute("tradingPlayerUID")
+            && triggeringEntity is EntityPlayer { Player: { } player } && TradingSystem.Of(Api) is { Standing.Enabled: true } system)
+            system.Standing.OnTradeOpened(player, this);
+        return result;
     }
 
     /// <summary>Fills both sides from the trader's list for its region (<see cref="RestockPlanner"/>);

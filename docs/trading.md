@@ -580,14 +580,88 @@ store). The tables were written with a one-off script; the JSON is the source.
   generated first). `/sh` is made with `GetOrCreate`; `TradeCommands.Trade` is the `trade` node for
   #459 to add to.
 
+## Standing and companies (#452, #463)
+
+`Trading/Standing/`: `Core/Standing.cs` (records, tiers, spillover, the ledger), `Core/Company.cs`
+(company choice and merge rules), `Game/StandingSystem.cs` (server `ModSystem`, ExecuteOrder 0.61,
+switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
+`config/standing-tiers.json`.
+
+- **Records**: per (player uid, trader id) and per (group uid, trader id): points (never below 0),
+  the day they last changed, the last `eventsKept` changes. Saved as one JSON blob in the savegame
+  (`seraphhorizons:standing`; a blob that fails to load is kept under `….broken` and the world starts
+  afresh).
+- **Trader id**: `camp:x,z` when the trader stands within 96 blocks of its cell's placed camp (the
+  registry, `CampRegistry`), else `entity:<EntityId>`; decided once and kept in the trader's
+  `WatchedAttributes` (`seraphhorizons:traderid`). Camp ids survive the spawner replacing a trader;
+  entity ids do not, which only matters for traders outside camps (vanilla worlds, `/entity spawn`).
+- **Points**: a deal earns `perGear` × (gears paid + gears received) at the dialog's prices, so it
+  scales with the value of the goods. Orders `order`; a delivery `delivery` at the receiver, and at
+  the sender too when on time (`bothEnds`). A failed delivery takes `deliveryFailed` at the sender, an
+  abandoned order `orderAbandoned`.
+- **Tiers**: stranger 0, known 60, regular 250, trusted 800, partner 2000 points of effective
+  standing. Unlocks (`TierUnlocks`): `mapTier`, `mapsToTraders`, `buyPriceFactor`, `sellPriceFactor`,
+  `walletTier`, `orderScale`, `deliveryScale`, `rareStock`. Only `walletTier` has a consumer yet.
+- **Effective standing** = max(personal, company) + `spilloverShare` (0.1) × the best max(personal,
+  company) at another trader of the same type within `TraderStandingSpilloverKm` (6). Same-type
+  traders come from the grid's placed camps, so only camp traders spill over.
+- **Deal hook** (no Harmony): `EntitySeraphTrader.OnReceivedClientPacket` (public virtual) wraps the
+  game's packet 1000, whose `InventoryTrader.TryBuySell` is internal and reports success only to the
+  base class. It reads `GetTotalCost`/`GetTotalGain` first and compares the carts after: a deal that
+  went through empties the buying cart and takes the sold goods out of the selling cart, a failed one
+  changes neither.
+- **Display**: `Dialog_DialogTriggers` (protected virtual) on `opentrade`, server side, sends the
+  player a chat line with their tier, points, spillover, company share and the next tier, once a
+  visit (6 game hours since the last open), and a line when a deal lifts them a tier.
+  `GuiDialogTrader` is client side with private composition; a line in the dialog would need a
+  client patch on `Compose` and the standing sent to the client, left for later.
+- **Wallet**: before vanilla's weekly top-up runs (`OnGameTick`, when `lastRefreshTotalDays` is more
+  than 7 days back), `EntitySeraphTrader` sets `TradeProps.Money` to the list's wallet for
+  `IStandingSource.WalletTierFor`: the best `walletTier` among players whose own record with the
+  trader changed in the last `recentDays` (14). Chosen over the interacting player's tier because the
+  top-up happens with nobody there; vanilla's top-up only moves 7–28 % towards the target a week, so
+  a trader's wallet grows over a few weeks of trading.
+- **Companies**: a player's company is the group they chose (`/sh company`), if they are still in
+  it and it exists, else their first group that exists (the server's membership dictionary, in join
+  order), else none. Every read resolves it live from `sapi.PlayerData` / `sapi.Groups` and syncs
+  (`CompanyBook.Sync`): a company the player is new to takes max(company, personal) per trader and
+  records them as merged; a company they are merged with but no longer in forgets them and keeps its
+  points. Merging once per membership matters: a penalty to the company must not be undone by the
+  next read lifting it back to a member's personal record. Harmony postfixes on
+  `ServerPlayerData.JoinGroup(PlayerGroup, EnumPlayerGroupMemberShip)`, `LeaveGroup(PlayerGroup)`,
+  `LeaveGroup(int)` and `PlayerDataManager.RemovePlayerGroup` (bound by name with
+  `AccessTools`; every `/group` path goes through them) run the same sync at once, record the first
+  group joined as the company, and drop a disbanded group's record. Missing methods are logged and
+  skipped; the lazy sync still holds.
+- **Known gaps**: a public group run by a veteran lends full standing to anyone in it while they stay
+  (accepted in #463). A player who leaves and rejoins between two reads is not re-merged (harmless:
+  max). Groups are server-wide and records per world, so a group uid from another world's records
+  means nothing until it exists here.
+
+### For the integrator and later waves
+
+- `TradingSystem.Standing` (`IStandingSource`, `Trading/Standing/Game/IStandingSource.cs`):
+  `TraderIdOf(trader)`, `TierFor(player, trader)`, `UnlocksFor(player, trader)`,
+  `PriceFactorFor(player, trader, PriceSide.PlayerBuys|PlayerSells)`, `WalletTierFor(trader)`,
+  and the wave 3 hooks `OnOrderDone(playerUid, traderId)`,
+  `OnDeliveryDone(playerUid, fromTraderId, toTraderId, bothEnds)`,
+  `OnDeliveryFailed(playerUid, fromTraderId)`, `OnOrderAbandoned(playerUid, traderId)`. With the
+  switch off it is `NoStanding` (tier 0, factor 1, hooks do nothing).
+- Pricing: multiply a slot's price by `PriceFactorFor` for the player at the trader. Prices live in
+  the shared `InventoryTrader` slots and every player sees the same dialog, so a per-player price has
+  to be applied where the deal is priced for that player (`GetTotalCost`/`GetTotalGain` read
+  `TradeItem.Price`), not when the shelf is filled.
+- Stock by tier (`rareStock`, maps): `TradeListResolver.Resolve(def, region, tier)` takes a tier;
+  shelves are shared, so tier-gated stock needs either the best recent tier (as the wallet) or a
+  per-player check at the deal.
+
 ## Extension points for later waves
 
 - **Supply** (#450, #451): set `TradingSystem.SupplyGate` (`ISupplyGate.Stock(TraderContext, TradeEntry)`);
   call `EntitySeraphTrader.Restock` when supply changes. Selling sides only.
 - **Pricing**: entries carry vanilla prices; a value system replaces `ResolvedTradeItem.Price` in
   `EntitySeraphTrader.Fill` (one place) or adds a field to entries.
-- **Standing** (#452, #463): `TradeListDef.WalletFor(tier)`, `TradeListResolver.Resolve(def, region, tier)`;
-  per-trader data can live in the entity's `WatchedAttributes` like the region.
+- **Standing** (#452, #463): built; `TradingSystem.Standing` (see "Standing and companies").
 - **Everything has a price**: hook `InventoryTrader.GetBuyingConditionsSlot` / `IsTraderInterestedIn`
   (Harmony on our traders only) to accept unlisted goods at a lower price.
 - **Orders, deliveries, maps**: dialogue components on the trader (`Dialog_DialogTriggers` is
