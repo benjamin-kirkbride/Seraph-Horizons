@@ -88,6 +88,22 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Equal(40.0, (double?)a["burn"]?["durationSeconds"]);
         Assert.Null(a["nutrition"]);
         Assert.Null(a["toolTier"]);
+        Assert.Null(a["fertilizer"]);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Compost_and_potash_carry_their_fertilizer_nutrients()
+    {
+        // survival/itemtypes/resource/compost.json fertilizerProps n 40, p 8, k 8;
+        // crushed/potash.json n 0, p 0, k 60. The handbook shows all three, zeros included.
+        var compost = Attrs(Item(Items, "game:compost"))["fertilizer"];
+        Assert.Equal(40.0, (double?)compost?["n"]);
+        Assert.Equal(8.0, (double?)compost?["p"]);
+        Assert.Equal(8.0, (double?)compost?["k"]);
+        var potash = Attrs(Item(Items, "game:potash"))["fertilizer"];
+        Assert.Equal(0.0, (double?)potash?["n"]);
+        Assert.Equal(0.0, (double?)potash?["p"]);
+        Assert.Equal(60.0, (double?)potash?["k"]);
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]

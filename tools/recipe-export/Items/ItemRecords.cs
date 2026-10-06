@@ -107,6 +107,19 @@ internal static class ItemRecords
             a["nutrition"] = n;
         }
 
+        // The handbook reads fertilizerProps from the attributes (survival's FertilizerProps) and
+        // shows all three nutrients, zeros included: "Fertilizer: {0}% N, {1}% P, {2}% K".
+        var fert = c.Attributes?["fertilizerProps"];
+        if (fert != null && fert.Exists)
+        {
+            a["fertilizer"] = new JObject
+            {
+                ["n"] = Json.Round(fert["n"].AsFloat(0)),
+                ["p"] = Json.Round(fert["p"].AsFloat(0)),
+                ["k"] = Json.Round(fert["k"].AsFloat(0)),
+            };
+        }
+
         var comb = c.CombustibleProps;
         if (comb != null && comb.BurnTemperature > 0 && comb.BurnDuration > 0)
         {
