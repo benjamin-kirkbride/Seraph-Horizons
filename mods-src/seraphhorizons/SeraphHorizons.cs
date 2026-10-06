@@ -400,4 +400,14 @@ public class SeraphHorizonsConfig
     /// keeps that choice; off later means the world's new chunks get the game's camps again. The
     /// trader types and their lists exist either way. Server side.</summary>
     public bool TraderGrid { get; set; } = true;
+
+    /// <summary>Placer fields (Ore/, README "Placer fields"): one rich gravel field of 300–600 blocks
+    /// per <see cref="PlacerCellSizeMetres"/> square, by water or on a valley floor, at a spot from
+    /// the seed; the scattered rich gravel cut to a quarter; and native copper in the pan from the
+    /// rich gravel of every rock (server side). New worlds only: a world created with it off never
+    /// gets it.</summary>
+    public bool PlacerFields { get; set; } = true;
+
+    /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
+    public int PlacerCellSizeMetres { get; set; } = 1500;
 }
