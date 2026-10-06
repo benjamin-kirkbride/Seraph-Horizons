@@ -96,13 +96,19 @@ public class GearCutterSystem : ModSystem
         UnlinkText(api.Logger);
     }
 
-    /// <summary>The machine oil page's list of machines without the cutter, when it is off.</summary>
+    /// <summary>The machine oil page without the cutter, when it is off: its list of machines, and
+    /// its drain and its exception to the dry rule.</summary>
     public static readonly LangEdit[] LangEdits =
     [
         new("en", Domain + ":machineoil-text",
             ", the <a href=\"handbook://block-seraphhorizons:rosser-frame-north\">rosser</a> and the "
             + "<a href=\"handbook://block-seraphhorizons:gearcutter-frame-north\">gear cutter</a>.",
             " and the <a href=\"handbook://block-seraphhorizons:rosser-frame-north\">rosser</a>."),
+        new("en", Domain + ":machineoil-text",
+            ", and the bucking sawmill and the rosser 2 points for each log stored in a trunk, and the gear cutter 10 points a "
+            + "gear (20 a large one). The gear cutter is the exception to the dry rule: dry or oiled it takes the same power, "
+            + "but its oil spares its cutter kit, which wears faster as the tank runs down and breaks on the first gear cut dry.",
+            ", and the bucking sawmill and the rosser 2 points for each log stored in a trunk."),
     ];
 
     private static readonly Regex CutterLink =
