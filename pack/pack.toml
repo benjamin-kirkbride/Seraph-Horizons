@@ -318,6 +318,14 @@ redistribute = false
 why = "Pipe networks and modular steam power. Its wiki warns that pipes can burst from a pressure spike on login or after a restart, with no fix yet (https://exwiki.felled-stars.org/current/ppex/mechanics/pipes-and-pressure/). It is a closed line: it and smex shut down in a world with iiex or siex enabled, neither of which is in the pack."
 
 [[mod]]
+id = "smex"
+version = "0.10.1"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Industrial iron and steel: a blast furnace, Bessemer converter and molten-metal canals on ppex's pipes. Part of the same closed line as ppex (see its why). Needs exlib 0.8.4 and ppex 0.7.1."
+
+[[mod]]
 id = "crucibulum"
 version = "1.5.0"
 side = "universal"
