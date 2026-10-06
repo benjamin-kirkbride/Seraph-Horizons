@@ -19,8 +19,8 @@ namespace SeraphHorizons.PackTests;
 /// the boiler's lid instead, and the English text no longer says a boiler explodes. The scenarios
 /// call Explode() directly: ppex's own over-pressure timer is what decides to call it.
 /// CreativeSteamSource: the creative steam source fills a ppex pipe placed against it with steam,
-/// up to its set pressure. It targets ppex 0.7.1 / exlib 0.8.4, which are not on the ModDB yet:
-/// while the pack pins an older ppex the scenarios require the block left out instead.
+/// up to its set pressure. It targets ppex 0.7.1 / exlib 0.8.4; with an older ppex the scenarios
+/// require the block left out instead.
 /// AssembledMachines: Immersive Woodworking's chopper and sawmill frames have a second creative
 /// stack that places the machine assembled, with a steel head or blade kit.
 /// WellShaftText: Hydrate or Diedrate's Wells page says how a shaft holds water, and wells built to
@@ -85,7 +85,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario]
     public void The_lid_blows_open_with_the_engine_explosion_sound()
     {
-        var engineSound = AccessTools.Field(AccessTools.TypeByName("ExpandedLib.Helpers.ExSounds"), "MediumExplosion");
+        var engineSound = AccessTools.Field(AccessTools.TypeByName("ExpandedLib.Industry.Helpers.ExSounds"), "MediumExplosion");
         Assert.NotNull(engineSound);
         Assert.Equal(BoilerLidRelief.BlowSound, (AssetLocation?)engineSound.GetValue(null));
         Assert.True(World.Api.Assets.Exists(BoilerLidRelief.BlowSound.Clone().WithPathAppendixOnce(".ogg")));
@@ -123,8 +123,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(shipped, ChimneyVentText.LangEdits.Select(edit => edit.Language).Distinct().Order());
     }
 
-    // Fails when ppex rewords the Fittings page or the chimney's look-at line: update
-    // ChimneyVentText.LangEdits to match.
+    // Fails when ppex rewords the Fittings page or the chimney's look-at line, or drops the draught
+    // rule the page now states: update ChimneyVentText.LangEdits to match.
     [AtlasScenario]
     public void Text_says_where_a_chimney_vents()
     {
@@ -137,6 +137,9 @@ public partial class SharedWorldScenarios
             var venting = Lang.GetL(edit.Language, "ppex:chimney-info-venting", "").Split(':')[0];
             Assert.Contains(venting, edit.New);
         });
+        // The page says an open end gives no draught, as ppex's choked boiler says.
+        Assert.Contains("no draught", Lang.GetL("en", "ppex:boiler-info-choked"));
+        Assert.Contains("no draught", Assert.Single(ChimneyVentText.LangEdits, edit => edit.Language == "en").New);
     }
 
     // ConfigKit writes the settings into Battle Towers' own patch file, by position, before the
@@ -166,8 +169,9 @@ public partial class SharedWorldScenarios
     // The first ppex whose pipes the steam source binds to (exlib 0.8 moved them to ExpandedLib.Industry).
     private static readonly Version SteamSourcePpex = new(0, 7, 1);
 
-    /// <summary>Whether the loaded ppex predates <see cref="SteamSourcePpex"/>; if so, requires the
-    /// steam source left out of the game, as the mod does when ppex's members are not where it looks.</summary>
+    /// <summary>Whether the loaded ppex predates <see cref="SteamSourcePpex"/> (the pack pins 0.7.1, so
+    /// only a local downgrade gets here); if so, requires the steam source left out of the game, as
+    /// the mod does when ppex's members are not where it looks.</summary>
     private bool SteamSourceLeftOutForOldPpex()
     {
         var ppex = Version.Parse(World.Api.ModLoader.GetMod("ppex").Info.Version.Split('-')[0]);
