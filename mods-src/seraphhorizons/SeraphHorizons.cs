@@ -449,4 +449,10 @@ public class SeraphHorizonsConfig
     /// own <c>seraphhorizons:schematic-{machine}</c>, kept on crafting, and traders sell them. Off,
     /// the recipes are as their mods ship them and nobody sells the schematics. Server side.</summary>
     public bool MachineSchematics { get; set; } = true;
+
+    /// <summary>Traders sell maps and leads (#455, Trading/Maps/, README "Maps and leads"):
+    /// prospectors ore maps to unsold deposits within 5 km, every trader a gravel map to a field
+    /// within 2 km and leads to other camps; precision and the further leads by standing. Needs the
+    /// deposit registry (ore cells or placer fields) for maps. Server side.</summary>
+    public bool TraderMaps { get; set; } = true;
 }

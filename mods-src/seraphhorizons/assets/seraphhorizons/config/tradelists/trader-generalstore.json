@@ -7,6 +7,8 @@
 	"wallet": [{"avg": 80, "var": 15}, {"avg": 100, "var": 15}, {"avg": 130, "var": 20}, {"avg": 160, "var": 25}],
 	"selling": {
 		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"type": "block", "code": "torch-basic-lit-up", "stacksize": 8, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
 			{"code": "rope", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"code": "candle", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},

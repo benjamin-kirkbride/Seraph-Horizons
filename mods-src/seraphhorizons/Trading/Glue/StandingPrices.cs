@@ -42,7 +42,7 @@ public sealed class StandingPriceModifier(ICoreAPI api) : IPriceModifier
 /// when the dialog opens (<see cref="EntitySeraphTrader.TradeOpened"/>), checked every second
 /// (a tier reached in a deal, the dialog closed or walked away from, which vanilla clears in
 /// several places), re-pricing the shelf and sending it when it changes
-/// (<see cref="TradingPlayerChanged"/> for anything else priced per player, the maps);</item>
+/// (<see cref="TradingPlayerPriced"/> for anything else priced per player, the maps);</item>
 /// <item><c>/sh trade simulate</c> ages standing's "traded recently" records by the simulated days
 /// (<see cref="Standing.Core.StandingLedger.Age"/>), as it moves the restock clocks.</item>
 /// </list>
@@ -52,9 +52,9 @@ public class TradingGlueSystem : ModSystem
     private ICoreServerAPI? _sapi;
     private long _tick;
 
-    /// <summary>Raised on the server when a trader's trading player changes (null: nobody), before
-    /// the shelf is re-priced and sent.</summary>
-    public static event Action<EntitySeraphTrader, IPlayer?>? TradingPlayerChanged;
+    /// <summary>Raised on the server when a trader's trading player (null: nobody) or their factors
+    /// change, before the shelf is re-priced and sent: offers priced per player (the maps) follow.</summary>
+    public static event Action<EntitySeraphTrader, IPlayer?>? TradingPlayerPriced;
 
     public override double ExecuteOrder() => 0.67;
 
@@ -120,7 +120,7 @@ public class TradingGlueSystem : ModSystem
             attrs[StandingPriceModifier.Attr] = tree;
         }
         attrs.MarkPathDirty(StandingPriceModifier.Attr);
-        if (playerChanged) TradingPlayerChanged?.Invoke(trader, player);
+        TradingPlayerPriced?.Invoke(trader, player);
         Reprice(api, trader);
     }
 

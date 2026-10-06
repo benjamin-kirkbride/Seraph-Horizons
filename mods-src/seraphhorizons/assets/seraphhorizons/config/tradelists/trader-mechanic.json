@@ -8,10 +8,10 @@
 	"wallet": [{"avg": 120, "var": 20}, {"avg": 150, "var": 20}, {"avg": 190, "var": 25}, {"avg": 240, "var": 30}],
 	"selling": {
 		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"type": "block", "code": "woodenaxle-ud", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"type": "block", "code": "angledgears-s", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
-			{"code": "rope", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
-			{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 6, "var": 1.5}, "price": {"avg": 2, "var": 0.5}, "playerSupplied": true},
 			{"code": "betterruins:br-schematic-cartwright", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 45, "var": 4.5}, "standingTier": 2},
 			{"code": "betterruins:br-schematic-shipwright", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 55, "var": 5.5}, "standingTier": 2},
 			{"code": "cartwrightscaravan:cartschematics-carts", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 60, "var": 6.0}, "standingTier": 2},
@@ -25,6 +25,8 @@
 		],
 		"rotating": { "maxItems": 10,
 			"list": [
+				{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 6, "var": 1.5}, "price": {"avg": 2, "var": 0.5}, "playerSupplied": true},
+				{"code": "rope", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 				{"code": "ppex:gear-iron", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 14, "var": 2.1}, "playerSupplied": true},
 				{"code": "ppex:largegear-iron", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 22, "var": 3.3}, "playerSupplied": true},
 				{"code": "immersivewoodworking:sawmillblade-iron", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 30, "var": 4.5}, "playerSupplied": true},

@@ -8,6 +8,8 @@
 	"wallet": [{"avg": 100, "var": 18}, {"avg": 125, "var": 18}, {"avg": 160, "var": 22}, {"avg": 200, "var": 25}],
 	"selling": {
 		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"type": "block", "code": "hay-normal-ud", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"code": "creature-chicken-baby", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 7, "var": 1.05}},
 			{"code": "feather", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.5}},

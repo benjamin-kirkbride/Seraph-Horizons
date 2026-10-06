@@ -1,6 +1,7 @@
 // Prospector: mining supplies, blasting, ore samples by rock, and buyer of gems and ore.
 // Format: docs/trading.md (Trade lists). On the grid's own lattice (one within two cells of every
-// cell); ore maps come here in a later wave.
+// cell). Special entries ("kind": oremap, gravelmap, lead) are offers made up at each restock
+// (#455, config/trading/map-prices.json); their price here is a placeholder.
 {
 	"type": "prospector",
 	"campWeight": 1.0,
@@ -8,6 +9,9 @@
 	"wallet": [{"avg": 90, "var": 15}, {"avg": 115, "var": 15}, {"avg": 145, "var": 20}, {"avg": 180, "var": 25}],
 	"selling": {
 		"core": [
+			{"kind": "oremap", "code": "seraphhorizons:oremap", "price": {"avg": 1, "var": 0}},
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": {"avg": 1, "var": 0}},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": {"avg": 1, "var": 0}},
 			{"type": "block", "code": "torch-basic-lit-up", "stacksize": 8, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
 			{"code": "rope", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 			{"type": "block", "code": "ladder-wood-oak-north", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2, "var": 0.3}},
