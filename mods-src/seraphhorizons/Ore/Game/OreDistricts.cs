@@ -12,7 +12,7 @@ public sealed record DistrictTile(int TileX, int TileZ, int TileSize, bool Rolle
 /// <summary>
 /// Interesting Ore Gen's hydrothermal districts as admins see them (#458). IOG 2.3.8
 /// (<c>HydrothermalDistrictSystem</c>) tiles the world in squares of its first config's
-/// <c>minDistanceBetweenDistricts</c> (10 km with RarerDistricts) and rolls each tile once, with
+/// <c>minDistanceBetweenDistricts</c> (7 km with RarerDistricts) and rolls each tile once, with
 /// <c>LCGRandom.InitPositionSeed(seed ^ tileX * 1000033, tileZ * 998244353)</c>: a district if the
 /// first draw is under 0.4, centred at the next two draws times the tile size. That roll is
 /// reproduced here from the seed, so a tile's district is known before any chunk of it generates;

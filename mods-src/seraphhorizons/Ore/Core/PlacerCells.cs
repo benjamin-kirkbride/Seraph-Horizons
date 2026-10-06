@@ -115,14 +115,19 @@ public sealed class TerrainPatch
 /// edges).</item>
 /// </list>
 /// Of the centres that suit, the one nearest the spot is taken.
+/// <para>The thresholds were 5 blocks of relief and a 4-block valley until the survey of #445: three
+/// 9 km² areas got one field in 28 km² (one per 2.25 km² wanted), most spots failing on dry columns
+/// whose low point lay only 2–4 blocks under their edges, or on a disc spanning 6–8 blocks. Each
+/// gravel block follows its own column's height, so relief only decides how much of a slope a
+/// field may lie on, not whether it looks flat.</para>
 /// </summary>
 public static class PlacerSite
 {
-    public const int MaxRelief = 5;
+    public const int MaxRelief = 8;
     public const double MinLandShare = 2.0 / 3;
     public const double MinReplaceableShare = 0.8;
     public const int NearWater = 8;
-    public const int ValleyDepth = 4;
+    public const int ValleyDepth = 2;
 
     /// <summary>The disc's cells, as offsets from its centre.</summary>
     public static IReadOnlyList<(int Dx, int Dz)> Disc(double radius)

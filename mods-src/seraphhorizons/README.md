@@ -1276,13 +1276,13 @@ fixed at creation. The server log says what the world has
   Grade is untouched, and each vein's spread is kept, so small and large deposits stay apart.
   Coal and the industrial minerals lose a quarter. It acts on the generators the game builds from
   the deposit files (a postfix on `GenDeposits.initAssets`), so every variant, whatever patched
-  it in, is covered; the log says what was scaled. The factors are a first cut, to be corrected
-  from a survey of a world made with them (#458).
+  it in, is covered; the log says what was scaled. The factors began as a first cut; the survey of
+  #445 found anchored veins about twice the target, so copper, iron, bismuth, zinc and platinum
+  carry half that factor outright (`docs/oregen.md`, "Survey").
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
-  quartz and most chromite and platinum, tile the world in 10 km squares instead of 4–6 km
+  quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km
   (`patches/ore-rarerdistricts.json`, on its `minDistanceBetweenDistricts`); with IOG's hard-coded
-  40% chance per tile that is one per 250 km², about one per 15 km square. The tiles line up with
-  pairs of 5 km ore cells.
+  40% chance per tile that is one per 122 km², about one per 11 km square.
 
 Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule:
 
@@ -1568,7 +1568,7 @@ column of one that holds a deposit,
 `/sh ore cell` answering with the spots `OreCells` computes for that seed and `/sh ore here`
 listing every managed metal, no surface copper or cassiterite tried and no other generator trying
 a managed metal, IOG's native copper and hematite veins scaled and a gem's not, and the
-hydrothermal districts' 10 km tiles. Generating enough ore to measure deposits is too slow for
+hydrothermal districts' 7 km tiles. Generating enough ore to measure deposits is too slow for
 Atlas: sizes and spacing are checked with the survey tool (#458). `SwitchesOffScenarios` requires
 a world created with them off to have none of it.
 
@@ -1741,8 +1741,8 @@ The rest of the ore epic's first half (#435; details and the traders' API in `do
 The seed picks sixteen spots per cell, as ore cells do (`Ore/Core/PlacerCells.cs`, its own salt);
 when the chunk column holding the active spot generates (the TerrainFeatures pass, after terrain,
 soil and water, before plants), the field goes in that column if its terrain suits: dry ground of
-at most 5 blocks' relief under the disc, mostly soil, gravel or sand, with water within 8 blocks or
-on a valley floor (4 or more blocks under the column's edges). Otherwise the spot fails and the next
+at most 8 blocks' relief under the disc, mostly soil, gravel or sand, with water within 8 blocks or
+on low ground (2 or more blocks under the column's edges). Otherwise the spot fails and the next
 becomes active; a cell with none left has no field (the log says why each spot failed:
 `Placer fields: cell 341, 341 spot 1 at ...: unsuitable (water 0/1024, heights 128-143, ...)`). A
 field is 300–600 blocks (seeded) of `richgravel-{rock}` in a disc one or two blocks thick, flush

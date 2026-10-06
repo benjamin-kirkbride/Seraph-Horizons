@@ -390,8 +390,8 @@ public class SeraphHorizonsConfig
     /// <c>config/ore-sizes.json</c> in new worlds (coal and minerals by a quarter at most).</summary>
     public bool SmallerDeposits { get; set; } = true;
 
-    /// <summary>Interesting Ore Gen's hydrothermal districts about one per 15 km square instead of one
-    /// per 40–90 km² in new worlds.</summary>
+    /// <summary>Interesting Ore Gen's hydrothermal districts about one per 120 km² (7 km tiles) instead of
+    /// one per 40–90 km² in new worlds.</summary>
     public bool RarerDistricts { get; set; } = true;
 
     /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven

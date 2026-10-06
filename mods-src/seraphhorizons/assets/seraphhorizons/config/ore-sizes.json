@@ -17,19 +17,24 @@
 //   and are not what the walk is for.
 // Gold, silver (apart from the silver inside copper and lead veins), nickel, titanium and chromium
 // come from hydrothermal districts, which this does not scale; their rows are here for the record.
-// These are a first cut from volume ∝ radius² × thickness (discs) and count × length (tubes);
-// re-survey and correct the medians here (#439, #458).
+// These began as a first cut from volume ∝ radius² × thickness (discs) and count × length (tubes).
+// Correction from the survey of #445 (docs/oregen.md): the anchored veins of copper, iron, bismuth,
+// zinc and platinum came out at about twice the target (eight veins pooled over three seeds, median
+// 2.1x; one or three veins per metal, so the correction is shared, not per metal). Those metals
+// carry "factor" outright: half of target / median. Tin's one vein was small (0.3x, a deep
+// cassiterite seam) and lead, nickel, silver, gold, titanium and chromium had no anchored vein in
+// the survey; they keep target / median until a wider survey measures them.
 {
-  "copper":   { "medianIngots": 3567, "targetIngots": 400, "smallIngots": 150, "largeIngots": 1000 },
-  "iron":     { "medianIngots": 4806, "targetIngots": 400, "smallIngots": 150, "largeIngots": 1000 },
+  "copper":   { "medianIngots": 3567, "targetIngots": 400, "factor": 0.0561, "smallIngots": 150, "largeIngots": 1000 },
+  "iron":     { "medianIngots": 4806, "targetIngots": 400, "factor": 0.0416, "smallIngots": 150, "largeIngots": 1000 },
   "tin":      { "medianIngots": 896,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
-  "zinc":     { "medianIngots": 2009, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
-  "bismuth":  { "medianIngots": 6643, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+  "zinc":     { "medianIngots": 2009, "targetIngots": 150, "factor": 0.0373, "smallIngots": 60, "largeIngots": 400 },
+  "bismuth":  { "medianIngots": 6643, "targetIngots": 150, "factor": 0.0113, "smallIngots": 60, "largeIngots": 400 },
   "lead":     { "medianIngots": 1100, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
   "nickel":   { "medianIngots": 1411, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
   "silver":   { "medianIngots": 348,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
   "gold":     { "medianIngots": 130,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
-  "platinum": { "medianIngots": 905,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+  "platinum": { "medianIngots": 905,  "targetIngots": 150, "factor": 0.0829, "smallIngots": 60, "largeIngots": 400 },
   "titanium": { "medianIngots": 2852, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
   "chromium": { "medianIngots": 825,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
 

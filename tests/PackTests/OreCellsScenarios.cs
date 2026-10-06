@@ -231,21 +231,22 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public void Veins_are_scaled_by_their_metals_factor()
     {
         // The variant's attributes keep the deposit file's values; its generator has the scaled ones.
-        // Native copper's chimney, scaled by 400 / 3567 on its tendrils.
+        // Native copper's chimney, scaled on its tendrils by copper's factor in config/ore-sizes.json
+        // (half of 400 / 3567 since the survey of #445).
         var chimney = IogVeins("nativecopper").Single();
         var shape = new VeinShape("chimney",
             new SizeRange(Attribute(chimney, "radius"), chimney.Attributes["radius"]["var"].AsFloat()),
             new SizeRange(Attribute(chimney, "branchCount"), chimney.Attributes["branchCount"]["var"].AsFloat()),
             new SizeRange(Attribute(chimney, "branchLength"), chimney.Attributes["branchLength"]["var"].AsFloat()));
-        var expected = VeinScaling.Scale(shape, 400.0 / 3567);
+        var expected = VeinScaling.Scale(shape, 0.0561);
         output.WriteLine($"native copper chimney {shape} -> {expected}");
         Assert.NotEqual(shape, expected);
         Assert.Equal(expected.BranchCount.Avg, Field(chimney, "BranchCount").avg, 3);
         Assert.Equal(expected.BranchLength.Avg, Field(chimney, "BranchLength").avg, 3);
 
-        // Hematite's seam, by √(400 / 4806) on the radius.
+        // Hematite's seam, by the square root of iron's factor (half of 400 / 4806) on the radius.
         var seam = IogVeins("hematite").Single();
-        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(400.0 / 4806), Field(seam, "Radius").avg, 3);
+        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(0.0416), Field(seam, "Radius").avg, 3);
 
         // Gems are left alone.
         var garnet = IogVeins("garnetpyrope").Single();
@@ -295,7 +296,7 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
-    public void Hydrothermal_districts_tile_the_world_in_10_km_squares()
+    public void Hydrothermal_districts_tile_the_world_in_7_km_squares()
     {
         var system = World.Api.ModLoader.Systems.First(s => s.GetType().FullName == "InterestingOreGen.Generators.HydrothermalDistrictSystem");
         var configs = (System.Collections.IEnumerable)AccessTools.Field(system.GetType(), "_configs").GetValue(system)!;
@@ -303,6 +304,6 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(c => (int)AccessTools.Field(c.GetType(), "MinDistanceBetweenDistricts").GetValue(c)!)
             .ToList();
         Assert.NotEmpty(sizes);
-        Assert.All(sizes, size => Assert.Equal(10000, size));
+        Assert.All(sizes, size => Assert.Equal(7000, size));
     }
 }
