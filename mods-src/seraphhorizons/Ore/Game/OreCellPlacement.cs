@@ -22,10 +22,12 @@ namespace SeraphHorizons.Mod.Ore;
 /// The game's <c>GenDeposits</c> makes every vein try from a source chunk with the chunk's own
 /// seeded random sequence, once for each chunk within three chunks of it being generated. A try is
 /// approved when its source chunk is the anchor of its cell's active spot and it is the first try
-/// of its metal from that chunk in the pass over it (a prefix on <c>GeneratePartial</c> starts
-/// each pass), so every neighbouring chunk approves the same try and the vein comes out whole.
-/// Which ore that is (malachite or native copper, a tube or a disc) is whatever IOG's tries in
-/// that chunk give for the rock there.
+/// of its metal from that chunk, in the pass over it (a prefix on <c>GeneratePartial</c> starts
+/// each pass), whose vein can start: its centre in a rock its ore takes
+/// (<see cref="CentreInHostRock"/>). Every neighbouring chunk sees the same tries in the same
+/// order and approves the same one, so the vein comes out whole. Which ore that is (malachite or
+/// native copper, a tube or a disc) follows from IOG's tries there and the rock. Metals with few
+/// tries get more (<see cref="BindTries"/>), so an anchor chunk usually has some.
 ///
 /// When an anchor's own column has been generated (a postfix on <c>GenChunkColumn</c>, after all
 /// deposits reaching it are placed), its blocks are checked for the metal's ore; without any the
@@ -43,10 +45,14 @@ public sealed class OreCellPlacement
 
     private static OreCellPlacement? _current;
 
-    // The source chunk of the pass GenDeposits is making on this thread, and the metals whose first
-    // try from it has been seen.
+    private static readonly AccessTools.FieldRef<GenDeposits, IBlockAccessor>? WorldgenAccessor =
+        Try(() => AccessTools.FieldRefAccess<GenDeposits, IBlockAccessor>("blockAccessor"));
+
+    // The pass GenDeposits is making on this thread: its source chunk, its worldgen block accessor,
+    // and per metal whether the anchor's try is decided (approved, or undecidable here).
     [ThreadStatic] private static ChunkPos? _passChunk;
-    [ThreadStatic] private static HashSet<string>? _passSeen;
+    [ThreadStatic] private static IBlockAccessor? _passAccessor;
+    [ThreadStatic] private static HashSet<string>? _passDecided;
 
     private readonly ICoreServerAPI _api;
     private readonly object _lock = new();
@@ -55,6 +61,7 @@ public sealed class OreCellPlacement
     private bool _dirty;
     private bool _warned;
     private string?[]? _metalByBlockId;
+    private readonly ConcurrentDictionary<DepositGeneratorBase, HashSet<int>> _hostRocks = new();
 
     public OreCells Cells { get; }
 
@@ -90,7 +97,9 @@ public sealed class OreCellPlacement
         if (GeneratorType is null) return $"{GeneratorTypeName} is gone";
         if (ApproveMethod is null) return $"{GeneratorTypeName}.{ApproveMethodName}(BlockPos) is gone or changed";
         if (VariantOf is null) return "DepositGeneratorBase.variant is gone";
-        if (GeneratePartial is null || GenChunkColumn is null) return "GenDeposits.GeneratePartial or GenChunkColumn is gone";
+        if (WorldgenAccessor is null) return "GenDeposits.blockAccessor is gone";
+        if (GeneratePartial is null || GenChunkColumn is null || InitAssets is null)
+            return "GenDeposits.GeneratePartial, GenChunkColumn or initAssets is gone";
         return null;
     }
 
@@ -130,6 +139,35 @@ public sealed class OreCellPlacement
             .ToArray();
     }
 
+    private static MethodInfo? InitAssets => AccessTools.Method(typeof(GenDeposits), nameof(GenDeposits.initAssets));
+
+    /// <summary>
+    /// Raises the tries of managed metals' IOG variants, in a postfix on <c>GenDeposits.initAssets</c>
+    /// (bound in <c>Start</c>: the generators are built in AssetsFinalize, before the server side
+    /// starts). Under the cell rule a try counts only in an anchor chunk, so a metal with fewer
+    /// than <see cref="OreCells.MinTriesPerChunk"/> tries per chunk (borax has 0.01) would mostly
+    /// find none there. Each of its variants is scaled up by the same factor, so its ores keep their
+    /// mix; every other try is turned down by the rule before anything is drawn.
+    /// </summary>
+    public static void BindTries(Harmony harmony) =>
+        harmony.Patch(InitAssets, postfix: new HarmonyMethod(typeof(OreCellPlacement), nameof(RaiseTriesPostfix)));
+
+    private static void RaiseTriesPostfix(GenDeposits __instance)
+    {
+        if (GeneratorType is not { } type) return;
+        var byMetal = (__instance.Deposits ?? [])
+            .Where(v => v.TriesPerChunk > 0 && v.GeneratorInst != null && type.IsInstanceOfType(v.GeneratorInst))
+            .GroupBy(v => OreMetals.MetalOf(v.Code))
+            .Where(g => g.Key != null);
+        foreach (var metal in byMetal)
+        {
+            float total = metal.Sum(v => v.TriesPerChunk);
+            if (total >= OreCells.MinTriesPerChunk) continue;
+            float k = OreCells.MinTriesPerChunk / total;
+            foreach (var variant in metal) variant.TriesPerChunk *= k;
+        }
+    }
+
     public OreSpot[] SpotsOf(string metal, CellPos cell) =>
         _spots.GetOrAdd((metal, cell), key => Cells.Spots(key.Item1, key.Item2));
 
@@ -143,8 +181,9 @@ public sealed class OreCellPlacement
         lock (_lock) return _book.StatusOf(metal, cell, spot);
     }
 
-    private bool Approve(string metal, int x, int z)
+    private bool Approve(DepositGeneratorBase generator, string metal, BlockPos pos)
     {
+        int x = pos.X, z = pos.Z;
         var cell = Cells.CellOf(metal, x, z);
         int? active;
         lock (_lock) active = _book.ActiveIndex(metal, cell);
@@ -155,11 +194,58 @@ public sealed class OreCellPlacement
         if (_passChunk != chunk)
         {
             _passChunk = chunk;
-            _passSeen?.Clear();
+            _passDecided?.Clear();
         }
-        bool first = spot?.Chunk == chunk && (_passSeen ??= []).Add(metal);
-        return OreCells.Approves(spot, x, z, first);
+        if (spot?.Chunk != chunk) return false;
+        var decided = _passDecided ??= [];
+        if (decided.Contains(metal)) return false;
+        switch (CentreInHostRock(generator, pos))
+        {
+            case false:
+                return false; // this try's vein would not start; the next one of the metal may
+            case null:
+                decided.Add(metal); // the anchor's rock can't be read from here: none is approved
+                return false;
+        }
+        decided.Add(metal);
+        return OreCells.Approves(spot, x, z, firstOfMetalInChunk: true);
     }
+
+    /// <summary>
+    /// Whether the try's vein centre is in a rock its variant can host, or null if that can't be
+    /// read from this pass (the anchor's chunk is not reachable). IOG draws the centre's height
+    /// right after this filter, from the try's own <c>DepositRand</c>: its radius, one float, then
+    /// <c>YPosRel</c> (TiltedDiscDepositGenerator.GenDeposit, TiltedAnywhereDiscGenerator.
+    /// beforeGenDeposit). Those draws are replayed on a copy of the random, and the block there
+    /// looked up in the variant's host rocks (<c>GetBearingBlocks</c>), as its disc and tube veins
+    /// do at their centre. Every pass over the chunk computes the same, so they agree on the try.
+    /// </summary>
+    private bool? CentreInHostRock(DepositGeneratorBase generator, BlockPos pos)
+    {
+        // A chimney checks the rock at every step of its tendrils, not at its centre, and grows
+        // through whatever host rock it meets: its first try is taken as it comes.
+        if (VariantOf!(generator)?.Attributes?["inblock"]?["veintype"]?.AsString()?.StartsWith("chimney", StringComparison.Ordinal) == true)
+            return true;
+        var type = generator.GetType();
+        if (AccessTools.Field(type, "YPosRel")?.GetValue(generator) is not NatFloat yPosRel
+            || AccessTools.Field(type, "Radius")?.GetValue(generator) is not NatFloat radius
+            || generator.DepositRand is not { } source)
+            return true; // not the generator this was written against: the first try, as before
+        var rand = new LCGRandom { worldSeed = source.worldSeed, mapGenSeed = source.mapGenSeed, currentSeed = source.currentSeed };
+        if ((int)radius.nextFloat(1f, rand) <= 0) return false;
+        rand.NextFloat();
+        int y = (int)yPosRel.nextFloat(1f, rand);
+        if (y <= 0 || y >= _api.WorldManager.MapSizeY) return false;
+        if (_passAccessor?.GetChunkAtBlockPos(new BlockPos(pos.X, y, pos.Z)) is not IServerChunk { Data: { } data })
+            return null;
+        int size = OreCells.ChunkSize;
+        int id = data.GetBlockIdUnsafe((GameMath.Mod(y, size) * size + GameMath.Mod(pos.Z, size)) * size + GameMath.Mod(pos.X, size));
+        return HostRocks(generator).Contains(id);
+    }
+
+    private HashSet<int> HostRocks(DepositGeneratorBase generator) =>
+        _hostRocks.GetOrAdd(generator, g =>
+            AccessTools.Method(g.GetType(), "GetBearingBlocks")?.Invoke(g, null) is int[] ids ? [.. ids] : []);
 
     private void OnColumnGenerated(IChunkColumnGenerateRequest request)
     {
@@ -265,7 +351,7 @@ public sealed class OreCellPlacement
         {
             var metal = OreMetals.MetalOf(VariantOf!(__instance)?.Code);
             if (metal == null) return true;
-            __result = placement.Approve(metal, __0.X, __0.Z);
+            __result = placement.Approve(__instance, metal, __0);
             return false;
         }
         catch (Exception e)
@@ -277,10 +363,11 @@ public sealed class OreCellPlacement
 
     // Harmony: GenDeposits.GeneratePartial(chunks, chunkX, chunkZ, chunkdX, chunkdZ), one pass over
     // the source chunk (chunkX + chunkdX, chunkZ + chunkdZ).
-    private static void GeneratePartialPrefix(int __1, int __2, int __3, int __4)
+    private static void GeneratePartialPrefix(GenDeposits __instance, int __1, int __2, int __3, int __4)
     {
         _passChunk = new ChunkPos(__1 + __3, __2 + __4);
-        _passSeen?.Clear();
+        _passAccessor = WorldgenAccessor?.Invoke(__instance);
+        _passDecided?.Clear();
     }
 
     // Harmony: GenDeposits.GenChunkColumn(request), after every deposit reaching the column is placed.

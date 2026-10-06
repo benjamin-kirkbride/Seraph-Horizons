@@ -1215,9 +1215,17 @@ fixed at creation. The server log says what the world has
   random sequence), but its spacing filter, `TiltedDiscDepositGenerator.TryApproveOreSpawnSeed`,
   is replaced (a Harmony prefix, id `seraphhorizons.ore`) by the cell rule: a try is approved only
   if it comes from the chunk holding the cell's active spot (its anchor) and is the first try of
-  that metal from that chunk. Every chunk around the anchor sees the same tries in the same order,
-  so they all approve the same one and the vein comes out whole, whatever order chunks generate
-  in. Which ore and vein shape it is follows from IOG's own tries there, so from the rock.
+  that metal from that chunk whose vein can start there. For disc and tube veins that means its
+  centre is in a rock its ore takes: IOG draws the centre's height right after the filter, so the
+  rule replays those draws on a copy of the try's random and looks at the block; a chimney grows
+  through whatever host rock it meets, so its first try counts. Every chunk around the anchor sees
+  the same tries in the same order, so they all approve the same one and the vein comes out
+  whole, whatever order chunks generate in (a chunk generated before the anchor's own, from which
+  the anchor's rock can't be read yet, approves none and misses its part of a disc or tube vein,
+  as IOG's own veins do there). Which ore and vein shape it is follows from IOG's tries and the
+  rock. A metal with fewer than 2 tries per chunk (borax has 0.01) gets its tries raised to 2,
+  each ore in proportion, so an anchor chunk usually has some; every try away from an anchor is
+  turned down before anything is drawn.
 
   When the anchor's own chunk column has been generated, its blocks are checked for the metal's
   ore. With none (no try of that metal from the chunk, or rock that can't host it), the spot
@@ -1518,9 +1526,11 @@ nothing changed world-wide.
 The test project loads this directory's build as a mod, and leaves out a pinned copy from the
 ModDB (`seraphhorizons_*.zip` in `build/mods`).
 
-`tests/PackTests/OreCellsScenarios.cs` (Atlas, a new world with a fixed seed) requires the four
-ore switches read and recorded in the savegame, IOG's `TryApproveOreSpawnSeed` patched, only the
-first copper try from the active spot's chunk approved (called on IOG's own generators),
+`tests/PackTests/OreCellsScenarios.cs` (Atlas, a new standard world with a fixed seed) requires
+the four ore switches read and recorded in the savegame, IOG's `TryApproveOreSpawnSeed` patched,
+only the first copper try from the active spot's chunk approved (called on IOG's own generators),
+the spawn cell's copper, iron and tin anchors resolving as they generate, with the ore in the
+column of one that holds a deposit,
 `/sh ore cell` answering with the spots `OreCells` computes for that seed and `/sh ore here`
 listing every managed metal, no surface copper or cassiterite tried and no other generator trying
 a managed metal, IOG's native copper and hematite veins scaled and a gem's not, and the

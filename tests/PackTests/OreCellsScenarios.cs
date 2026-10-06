@@ -14,14 +14,14 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// mods-src/seraphhorizons, Ore/ (epic #435): ore cells (#438), no surface copper (#440), smaller
-/// deposits (#439) and rarer hydrothermal districts (#441), all on (the defaults) in a new world
-/// with a fixed seed. Generating enough ore to measure deposits is far too slow here: sizes and
-/// spacing are the survey tool's job (#458). This checks that each change is bound to the loaded
-/// pack: the rule replaces Interesting Ore Gen's spacing filter and answers by the seed, the
-/// patches and the scaling reached the deposits the game loaded, and the world recorded its
-/// settings.
+/// deposits (#439) and rarer hydrothermal districts (#441), all on (the defaults) in a new standard
+/// world with a fixed seed. Generating enough ore to measure deposits is far too slow here: sizes
+/// and spacing are the survey tool's job (#458). This checks that each change is bound to the
+/// loaded pack: the rule replaces Interesting Ore Gen's spacing filter, answers by the seed and
+/// places a deposit at a generated anchor, the patches and the scaling reached the deposits the
+/// game loaded, and the world recorded its settings.
 /// </summary>
-[AtlasWorld(Seed = Seed)]
+[AtlasWorld(Seed = Seed, WorldType = "standard")]
 public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     private const int Seed = 424242;
@@ -101,20 +101,82 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var cell = new CellPos(150, 150);
         var spot = Placement.SpotsOf("copper", cell)[0];
         Assert.Equal(SpotStatus.Waiting, Placement.StatusOf("copper", cell, 0));
-        var malachite = IogVeins("malachite").First().GeneratorInst;
-        var nativeCopper = IogVeins("nativecopper").First().GeneratorInst;
+        var chimney = IogVeins("nativecopper").First().GeneratorInst; // taken as it comes
+        var tube = IogVeins("malachite").First().GeneratorInst; // needs its centre's rock, unreadable here
         bool Approves(DepositGeneratorBase gen, int x, int z) =>
             (bool)OreCellPlacement.ApproveMethod!.Invoke(gen, [new BlockPos(x, 0, z)])!;
 
         int cx = spot.Chunk.X * 32, cz = spot.Chunk.Z * 32;
-        Assert.False(Approves(malachite, cx - 1, cz + 5)); // the next chunk west
-        Assert.True(Approves(malachite, cx + 3, cz + 7)); // the first copper try from the anchor
-        Assert.False(Approves(nativeCopper, cx + 20, cz + 20)); // a second one, of another copper ore
-        // The same pass seen from another chunk being generated: the first try is approved again.
-        Assert.False(Approves(malachite, cx + 40, cz)); // a try from elsewhere starts a new pass
-        Assert.True(Approves(malachite, cx + 3, cz + 7));
+        Assert.False(Approves(chimney, cx - 1, cz + 5)); // the next chunk west
+        Assert.True(Approves(chimney, cx + 3, cz + 7)); // the first copper try from the anchor
+        Assert.False(Approves(chimney, cx + 20, cz + 20)); // a second one
+        // The same tries seen from another chunk being generated: the first is approved again.
+        Assert.False(Approves(chimney, cx + 40, cz)); // a try from elsewhere starts a new pass
+        Assert.True(Approves(chimney, cx + 3, cz + 7));
         // Iron is a cell of its own.
         Assert.False(Approves(IogVeins("hematite").First().GeneratorInst, cx + 3, cz + 7));
+        // When a tube's centre can't be read (no chunk there), no try of the metal is approved in
+        // that pass, not a later one in its place.
+        Assert.False(Approves(chimney, cx + 40, cz));
+        Assert.False(Approves(tube, cx + 3, cz + 7));
+        Assert.False(Approves(chimney, cx + 3, cz + 7));
+    }
+
+    /// <summary>The anchors of the spawn cell's copper, iron and tin generated in turn: each
+    /// resolves (a deposit, or the next spot), and one that holds a deposit has the metal's ore in
+    /// its column. With this seed and pack all three are placed, but a new pack version may move
+    /// rock, so only one is required.</summary>
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task Generated_anchors_hold_their_deposit()
+    {
+        var sapi = (ICoreServerAPI)World.Api;
+        await World.JoinPlayer("surveyor");
+        var spawn = sapi.World.DefaultSpawnPosition.AsBlockPos;
+        int placed = 0;
+        foreach (var metal in new[] { "copper", "iron", "tin" })
+        {
+            var cell = Placement.Cells.CellOf(metal, spawn.X, spawn.Z);
+            for (int tries = 0; tries < 3; tries++)
+            {
+                var before = Placement.StateOf(metal, cell);
+                if (before.None || before.Placed) break;
+                var spot = Placement.SpotsOf(metal, cell)[before.Active];
+                bool loaded = false;
+                sapi.WorldManager.LoadChunkColumnPriority(spot.Chunk.X, spot.Chunk.Z,
+                    new ChunkLoadOptions { OnLoaded = () => loaded = true });
+                await World.Until(() => loaded, 3000);
+                await World.Until(() => !Placement.StateOf(metal, cell).Equals(before)
+                                        && Placement.StateOf(metal, cell) is var s && (s.Placed || s.Active != before.Active), 200);
+                var after = Placement.StateOf(metal, cell);
+                output.WriteLine($"{metal} cell {cell} spot {spot.Index} at {spot.X}, {spot.Z}: placed {after.Placed}, active {after.Active}");
+                Assert.True(after.Placed || after.Active > before.Active, $"{metal} spot {spot.Index} did not resolve");
+                if (!after.Placed) continue;
+                placed++;
+                Assert.True(ColumnHasOre(sapi, spot.Chunk, metal), $"{metal} placed but its ore is not in chunk {spot.Chunk}");
+                break;
+            }
+        }
+        Assert.True(placed > 0, "no deposit placed for copper, iron or tin");
+        Assert.Contains("deposit placed", await Run($"/sh ore cell {spawn.X} {spawn.Z} copper")
+                                          + await Run($"/sh ore cell {spawn.X} {spawn.Z} iron")
+                                          + await Run($"/sh ore cell {spawn.X} {spawn.Z} tin"));
+    }
+
+    private static bool ColumnHasOre(ICoreServerAPI sapi, ChunkPos chunk, string metal)
+    {
+        for (int cy = 0; cy < sapi.WorldManager.MapSizeY / 32; cy++)
+        {
+            if (sapi.WorldManager.GetChunk(chunk.X, cy, chunk.Z) is not { } c) continue;
+            c.Unpack();
+            for (int i = 0; i < 32 * 32 * 32; i++)
+            {
+                int id = c.Data.GetBlockIdUnsafe(i);
+                if (id > 0 && sapi.World.Blocks[id]?.Code is { } code
+                    && OreMetals.MetalOf(OreMetals.OreOfBlockPath(code.Path)) == metal)
+                    return true;
+            }
+        }
+        return false;
     }
 
     [AtlasScenario]

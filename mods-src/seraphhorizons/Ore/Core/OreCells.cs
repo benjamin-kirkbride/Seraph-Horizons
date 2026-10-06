@@ -22,8 +22,9 @@ public readonly record struct OreSpot(int Index, int X, int Z)
 ///
 /// A spot is a chunk column, its anchor: Interesting Ore Gen's vein tries are made per source
 /// chunk, each with its own seeded random sequence, so "the first try of this metal from that
-/// chunk" is the same try whichever neighbouring chunk is being generated when it is asked
-/// (<see cref="Approves"/>). Nothing here depends on the order chunks are generated in.
+/// chunk that can start a vein" is the same try whichever neighbouring chunk is being generated
+/// when it is asked (<see cref="Approves"/>). Nothing here depends on the order chunks are
+/// generated in.
 /// </summary>
 public sealed class OreCells
 {
@@ -34,6 +35,10 @@ public sealed class OreCells
     /// <summary>The smallest cell the rule takes: below it, the spots' margin and the veins' own
     /// reach (up to about 100 blocks) would leave neighbouring deposits touching.</summary>
     public const int MinCellSize = 500;
+
+    /// <summary>The fewest vein tries per chunk a managed metal gets (all its ores together), so
+    /// that an anchor chunk usually has one: with 2, about 6 anchors in 7.</summary>
+    public const float MinTriesPerChunk = 2f;
 
     private readonly long _seed;
     private readonly int _defaultCellSize;
@@ -86,8 +91,9 @@ public sealed class OreCells
 
     /// <summary>
     /// Whether a vein try of a metal at (x, z) may place its vein: its source chunk is the anchor
-    /// of the cell's active spot, and it is the first try of the metal from that chunk
-    /// (<paramref name="firstOfMetalInChunk"/>, which the caller tracks per pass over the chunk).
+    /// of the cell's active spot, and it is the first try of the metal from that chunk whose vein
+    /// can start (<paramref name="firstOfMetalInChunk"/>, which the caller decides per pass over
+    /// the chunk).
     /// No active spot (null) means the cell has no deposit of the metal.
     /// </summary>
     public static bool Approves(OreSpot? active, int x, int z, bool firstOfMetalInChunk) =>

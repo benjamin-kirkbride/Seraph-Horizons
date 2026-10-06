@@ -78,6 +78,10 @@ public class OreSystem : ModSystem
 
         if (!World.NoSurfaceCopper) EmptyPatch(api, NoSurfaceCopperPatch);
         if (!World.RarerDistricts) EmptyPatch(api, RarerDistrictsPatch);
+        // The cell rule binds on the server side, but its tries must be raised before the deposit
+        // generators are built (AssetsFinalize).
+        if (World.OreCells && OreCellPlacement.Unsupported(api) is null)
+            OreCellPlacement.BindTries(_harmony ??= new Harmony(HarmonyId));
         if (World.SmallerDeposits)
         {
             if (DepositSizes.Unsupported(api) is { } why)
