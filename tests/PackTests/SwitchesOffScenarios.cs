@@ -194,6 +194,20 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal([5f, 1f, 5f], ratios);
     }
 
+    /// <summary><c>HeatingRackKeepsPosition</c>: nothing is patched, and the heating rack's picked
+    /// stack carries its position, as Logging Expanded ships it.</summary>
+    [AtlasScenario]
+    public async Task Heating_rack_keeps_position_off_the_picked_stack_carries_its_position()
+    {
+        Assert.True(Off("HeatingRackKeepsPosition"));
+        Assert.False(Harmony.HasAnyPatches(HeatingRackPosition.HarmonyId));
+        var pos = World.Spawn.AddCopy(-60, 12, -60);
+        World.SetBlock("loggingmod:resinrack-fire-north", pos);
+        await World.Ticks(2);
+        var stack = World.BlockAt(pos).OnPickBlock(W, pos);
+        Assert.Equal(pos.X, stack.Attributes.GetInt("posx", int.MinValue));
+    }
+
     /// <summary><c>IronWoodworkingMachines</c>: Immersive Woodworking's machine parts keep their own
     /// recipes, of any metal, and the Machines chapter says nothing of iron.</summary>
     [AtlasScenario]
