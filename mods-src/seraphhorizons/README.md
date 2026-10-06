@@ -1850,3 +1850,44 @@ seller's list at its tier, slot placement, the recipe rules, `standingTier`);
 schematic, a helve hammer base crafts and keeps it, BetterRuins' recipes keep theirs, no recipe makes
 or copies one, the stack randomizers and every loot list hold none, structures hand out parchment,
 every sale resolves in its seller's list).
+
+## Orders and deliveries (`TraderOrders`, `TraderDeliveries`)
+
+Traders give work (#453, #454; `Trading/Orders/`, `Trading/Deliveries/`, notes in
+`docs/trading.md`), server side, both default on. Players deal by chat command next to a trader
+(within 8 blocks); opening a trade dialog says in chat what is on.
+
+**Standing orders** (`TraderOrders`): at every restock a trader puts up to one or two orders on
+offer, each for something its list buys where it stands: about 24 gears' worth at its normal price,
+in whole lots, with a premium of 1.3–1.6× over that price, held back from its wallet then (a trader
+too poor makes none). `/sh order` lists them and yours there; `/sh order accept <id>` takes one,
+scaled by your standing's `orderScale` (1 for a stranger, 4 for a partner) as far as the wallet
+covers the bigger premium, and gives you 3–6 days. Sell the goods through the trade dialog as usual,
+or hold them and `/sh order handin`: each item pays its normal price and its share of the premium,
+the last one the rest and standing (`order` points). An order you took and delivered nothing for by
+the deadline is abandoned and costs standing; delivered in part, it just ends.
+
+**Deliveries** (`TraderDeliveries`): `/sh delivery` next to a trader shows its offer: a package for
+another camp within `deliveryScale` × 3 km (none for strangers; a camp of another type where there is
+one), with a deadline from the walk (5 minutes a km, half again as slack, at least 5 minutes, in game
+time at the world's calendar speed: 2 km is 7.5 game hours by default), a deposit of 10–30 % of the
+package's value from your gears and a fee of 20–40 %. `/sh delivery accept` takes it and hands you a
+`seraphhorizons:package` (can't be opened, says where it goes and how long is left); one at a time
+per sender. `/sh delivery handin` at the receiver: on time, your deposit back, the fee from its
+wallet and standing at both ends; up to a game day late, the deposit and half the fee and standing at
+the receiver; later, the delivery fails: the deposit is gone, standing with the sender drops, and the
+package is junk. Packages go only to the grid's camps, so a world without the grid has no deliveries.
+
+Admin (`controlserver`): `/sh trade orders [trader|player]` (open orders, a trader's by id or `near`,
+or a player's), `orders create <trader> <item> <qty> <days>`, `orders complete|cancel <id>`;
+`/sh trade deliveries [player]`, `deliveries create <from> <to> <player>` (any two loaded traders or
+placed camps; the deposit comes from the player), `deliveries complete <id>` (on time, wherever the
+package is), `fail <id>`, `expire <id>` (the deadline is now). `/sh trade simulate <days>` runs both
+clocks on. Saved with the world (`seraphhorizons:orders`, `seraphhorizons:deliveries`).
+
+Tests: `tests/Trading/Orders/`, `tests/Trading/Deliveries/` (generation and scaling, the premium
+maths, deadline conversion, both state machines, which outcome calls which standing hook);
+`tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's orders, one filled through
+the trade packet paying its premium and standing, one abandoned by `simulate`, a delivery between two
+spawned traders handed in on time for deposit and fee, one failing past its grace and keeping the
+deposit).

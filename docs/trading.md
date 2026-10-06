@@ -829,3 +829,86 @@ went to the carpenter, the metal gear work to the smith, chest/crate/candle/toym
 hand crank to the general store, book/alchemist/texture flipper to the curio dealer, and a few plain
 core goods (the carpenter's planks, the mechanic's ppex gears and blades, the smith's charcoal, borax
 and copper nails) moved to rotating; every list keeps at most 14 core entries at the top tier.
+
+## Orders and deliveries (#453, #454)
+
+`Trading/Orders/` and `Trading/Deliveries/`: `Core/Orders.cs` (`Order`, `OrderPlanner`,
+`OrderBook`), `Core/Deliveries.cs` (`Delivery`, `DeliveryPlanner`, `DeliveryBook`), unit-tested in
+`tests/Trading/Orders/` and `tests/Trading/Deliveries/`; `Game/OrdersSystem.cs` and
+`Game/DeliveriesSystem.cs` (server `ModSystem`s, ExecuteOrder 0.66, after the economy), the commands,
+`Orders/Game/TraderFinder.cs` (loaded traders by standing id, wallet and gear helpers, shared by both),
+and `Deliveries/Game/ItemPackage.cs` with `itemtypes/package.json`. Switches `TraderOrders` and
+`TraderDeliveries`; saved as JSON under `seraphhorizons:orders` and `seraphhorizons:deliveries` (a blob
+that fails to load is kept under `….broken`).
+
+**Chat commands, not dialogue.** Players offer, take and hand in with `/sh order …` and
+`/sh delivery …`. Dialogue would mean the pack shipping its own copy of `config/dialogue/trader.json`
+(the entity's `dialogueByType`), which every wave-3 trader feature (maps and leads, visitors) would
+also edit, and a dialogue line is static text: it can't show an order's item, quantity or premium
+without variables we would have to set per player. The `opentrade` chat summary
+(`EntitySeraphTrader.TradeOpened`) says what is on offer and how to take it. When the notice board
+(settlements) or a shared dialogue file exists, the commands' handlers are what its components call.
+
+### Orders
+
+- **Generation**: on `EntitySeraphTrader.Restocked` (spawn, import, every weekly restock) a trader
+  tops its open orders (offered or taken) up to 1 or 2 (a coin flip each restock). Candidates are its
+  list's buying side for its region (`TradeListResolver.Resolve`, core and rotating pool, so the
+  region's goods too), plain stacks with a price; the price per item is the list average over its
+  stack size times the region's supply factor. Never two open orders for one item at one trader.
+- **Size and premium**: at standing scale 1 an order is worth `BaseGears` (24) at that price, in whole
+  lots of the list's stack size, at most four stacks; the premium factor is 1.3–1.6 (steps of 0.05),
+  the premium (factor − 1) × quantity × price, at least a gear. It is taken out of the trader's wallet
+  (`InventoryTrader.DeductFromTrader`) when the order is made; a wallet that can't cover it makes no
+  order. Taking an order scales its quantity by the player's `orderScale` (in lots, up to four
+  stacks) and holds back the larger premium, shrinking the order back towards the offer as far as the
+  wallet falls short. `orderScale` 0 gives that player no orders; standing off counts as 1.
+- **Delivery**: an item counts when the player sells it through the trade dialog
+  (`EntitySeraphTrader.Dealt`, the stacks that left the selling cart in a deal that went through) or
+  hands the held stack over with `/sh order handin` (paid at the order's price per item from the
+  wallet, refused if the wallet can't pay). Each item pays its share of the premium at once
+  (floor of premium × delivered / quantity, less what was paid); completion pays the rest and calls
+  `OnOrderDone`. Hand-ins by command don't move supply; deals do, as any deal.
+- **Time**: an offer lapses `days` (3–6) after it was made; a taken order's deadline is `days` after
+  it was taken. Past it (`OrderBook.Tick`, a 5 s listener and every simulated day): an offer expires,
+  a taken order with nothing delivered is abandoned (`OnOrderAbandoned`), one delivered in part
+  expires without penalty. The premium not yet paid goes back to the trader's wallet if it is loaded,
+  else it is gone (the weekly top-up refills the wallet). Closed orders are dropped after 30 days.
+- **Simulate**: `EconomySystem.SimulatedDay` moves every open order's dates back a day and ticks.
+
+### Deliveries
+
+- **Offer**: per (sender, player, calendar day), seeded with `StableHash` from the world seed, so it
+  doesn't change while the player decides. Destinations are the grid's placed camps
+  (`TraderCamps.Registry`) between 300 blocks and `deliveryScale` × 3 km away, of another type than
+  the sender where any is in reach. Value 20 × max(1, scale) gears ±20 %; deposit 10–30 % and fee
+  20–40 % of it, at least a gear each. `deliveryScale` 0 (strangers) gets no offer; standing off
+  counts as 1. One active delivery per player per sender.
+- **Deadline**: real minutes = max(5, km × 5 min/km × 1.5 slack); game days per real minute =
+  60 × `SpeedOfTime` × `CalendarSpeedMul` / 3600 / `HoursPerDay` from the world's calendar when the
+  delivery is made (1/48 by default, a game day being 48 real minutes). So 2 km gives 15 real
+  minutes, 0.31 of a game day, 7.5 game hours. Then a grace of one game day in which it is late.
+  Sleeping skips game time and so eats into the deadline, as it would for walking.
+- **Package**: `seraphhorizons:package`, stack size 1, the linen sack's model without its bag
+  behaviours (it can't be opened), attributes `deliveryId`, `from`, `to`, `toType`, `toX`, `toZ`,
+  `deadline` (total days), and `failed`. It is not in the value table, so no trader buys it.
+- **Hand-in** (`/sh delivery handin` at the receiver, the player who took it, a live package in their
+  inventory): on time, the deposit back, the fee from the receiver's wallet (as far as it has it) and
+  `OnDeliveryDone(bothEnds: true)`; late, the deposit and half the fee (rounded up) and
+  `OnDeliveryDone(bothEnds: false)`. Past the grace (`DeliveryBook.Tick`): `OnDeliveryFailed`, the
+  deposit is kept by nobody, and the package turns to junk (`failed`) in the player's inventory now
+  if they are online, else at their next join.
+- **Simulate**: as orders, a day's shift per simulated day.
+
+### For the integrator and later waves
+
+- **Hooks in `EntitySeraphTrader`** (shared with #455 maps/leads, #456 visitors, #459 admin tools):
+  `OnReceivedClientPacket` now always runs for packet 1000 (not only with standing on), snapshots the
+  selling cart, calls standing as before and raises the new static `Dealt(player, trader, sold)`;
+  `Dialog_DialogTriggers` raises the new static `TradeOpened(player, trader)` on `opentrade`, after
+  the standing line. Other features should subscribe to these rather than override the methods
+  again.
+- `OrdersSystem.Book` / `DeliveriesSystem.Book` for inspect and export tools; `OrderCommands.AdminLine`
+  and `DeliveryCommands.AdminLine` format one record.
+- Not done: dialogue options; posting to the notice board; deliveries for traders outside camps
+  (only admins can make those).

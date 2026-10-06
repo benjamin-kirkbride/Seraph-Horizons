@@ -112,13 +112,16 @@ public static class OrderPlanner
     }
 
     /// <summary>The order for a player at <paramref name="scale"/> (their standing's
-    /// <c>orderScale</c>): the quantity grows with the scale, and with it the premium, as far as
+    /// <c>orderScale</c>): the offered quantity times the scale in whole lots (at most
+    /// <see cref="MaxStacks"/> stacks), and the premium with it, as far as
     /// <paramref name="affordableExtra"/> gears more than the order already holds back allow (down to
     /// the offered quantity). A scale under 1 keeps the offer as it is.</summary>
     public static (int Quantity, int Premium) Scaled(Order offer, double scale, int maxStack, int affordableExtra)
     {
-        int qty = Math.Max(offer.BaseQuantity, Quantity(offer.UnitPrice, offer.Lot, maxStack, Math.Max(1, scale)));
         int lot = Math.Max(1, offer.Lot);
+        int max = Math.Max(offer.BaseQuantity, MaxStacks * Math.Max(1, maxStack) / lot * lot);
+        int qty = Math.Min(max, (int)Math.Ceiling(offer.BaseQuantity * Math.Max(1, scale) / lot - 1e-9) * lot);
+        qty = Math.Max(offer.BaseQuantity, qty);
         while (true)
         {
             int premium = Math.Max(offer.Reserved, Premium(qty, offer.UnitPrice, offer.PremiumFactor));
