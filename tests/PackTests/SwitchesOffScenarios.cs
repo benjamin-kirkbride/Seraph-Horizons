@@ -546,6 +546,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Empty(inns.Book.Inns);
         var result = await World.ExecuteCommand("/sh trade inn check");
         Assert.False(result.Ok, result.Message);
+    }
 
     /// <summary><c>MachineOil</c>: nothing is patched, a pulverizer loads its shaft as the game ships
     /// it with no tank, and tallow on it is not taken.</summary>
