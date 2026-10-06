@@ -1,0 +1,80 @@
+{
+  "about": "Labour markup per recipe kind: a route's value is (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction) / output quantity. Kinds are recipe types (grid, smithing, knapping, clayforming, barrel, cooking, alloy, construction), 'transition' (drying, curing, ripening, smoking, ...), the item attributes the export carries (smelting, baking, crushing, grinding), and 'mod' for every other mod registry; a mod recipe type can have its own entry by its type code. See README.md.",
+  "toolFraction": 0.02,
+  "kinds": {
+    "grid": {
+      "pct": 0.1,
+      "flat": 0.1
+    },
+    "smithing": {
+      "pct": 0.3,
+      "flat": 1.5
+    },
+    "knapping": {
+      "pct": 0.0,
+      "flat": 0.05
+    },
+    "clayforming": {
+      "pct": 0.1,
+      "flat": 0.1
+    },
+    "barrel": {
+      "pct": 0.05,
+      "flat": 0.1
+    },
+    "cooking": {
+      "pct": 0.1,
+      "flat": 0.1
+    },
+    "alloy": {
+      "pct": 0.05,
+      "flat": 0.05
+    },
+    "construction": {
+      "pct": 0.1,
+      "flat": 1.0
+    },
+    "transition": {
+      "pct": 0.0,
+      "flat": 0.0
+    },
+    "smelting": {
+      "pct": 0.1,
+      "flat": 0.2
+    },
+    "baking": {
+      "pct": 0.1,
+      "flat": 0.05
+    },
+    "crushing": {
+      "pct": 0.05,
+      "flat": 0.02
+    },
+    "grinding": {
+      "pct": 0.05,
+      "flat": 0.02
+    },
+    "mod": {
+      "pct": 0.1,
+      "flat": 0.05
+    }
+  },
+  "voxelsPerUnit": {
+    "about": "Smithing and clay forming use their material by volume: the material slot counts filled voxels / voxels per unit when its code contains 'match' (an ingot is 42 voxels, a lump of clay 25); otherwise (an iron bloom) the stack as given.",
+    "smithing": {
+      "match": ":ingot-",
+      "voxels": 42
+    },
+    "clayforming": {
+      "match": ":clay-",
+      "voxels": 25
+    }
+  },
+  "excludeRecipes": [
+    "/destroy",
+    "recycle",
+    "salvage",
+    "uncraft",
+    "/disassembl"
+  ]
+}
