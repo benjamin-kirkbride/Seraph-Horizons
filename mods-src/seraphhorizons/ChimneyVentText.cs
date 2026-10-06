@@ -7,8 +7,10 @@ namespace SeraphHorizons.Mod;
 /// network's gas, and nothing more. ppex vents through a chimney only when it stands directly on
 /// an outlet, a passthrough or a passthrough bend with a connector on its top face (16 L/s per
 /// chimney, <c>ChimneyGasDrawRate</c>). On a plain pipe the chimney is neither a vent nor, not
-/// being air, a leak: it caps that end and the run keeps its pressure. This tweak says so in the
-/// Fittings handbook page, in every language ppex ships. It changes text only.
+/// being air, a leak: it caps that end and the run keeps its pressure. A boiler's fire also needs
+/// draught on its exhaust run (<c>PipeNetwork.HasDraught</c>): a venting chimney or a smoke stack
+/// (<c>IPipeDraught</c>); an open end leaks but gives none, and the choked fire goes out. This
+/// tweak says so in the Fittings handbook page, in every language ppex ships. It changes text only.
 /// </summary>
 public static class ChimneyVentText
 {
@@ -28,7 +30,8 @@ public static class ChimneyVentText
             + "only when it stands directly on top of an outlet or a passthrough (straight or bend) whose pipe "
             + "opens upward. To check, look at the chimney: while it draws gas its info reads \"Venting pipe "
             + "network\". A chimney set straight on a plain pipe vents nothing: it only caps that end, and the run "
-            + "keeps its pressure."),
+            + "keeps its pressure. A boiler's fire draws only through such a venting chimney or a smoke stack on its "
+            + "exhaust run: an open pipe end leaks the gas but gives no draught, and the fire chokes and goes out."),
 
         new("ru", "ppex:handbook-fittings-text",
             "Выход трубы служит конечным элементом трубопровода у порта машины. Если поверх него установить "
@@ -40,7 +43,9 @@ public static class ChimneyVentText
             + "(прямой или с поворотом), труба которых открыта вверх. Чтобы проверить, посмотрите на дымоход: пока "
             + "он вытягивает газ, в его описании есть строка «Сброс из трубопровода». Дымоход, поставленный прямо "
             + "на обычную трубу, ничего не стравливает: он лишь заглушает этот конец, и давление в трубопроводе "
-            + "сохраняется."),
+            + "сохраняется. Огонь бойлера тянет только через такой стравливающий дымоход или через дымовую трубу на "
+            + "его выхлопной линии: открытый конец трубы выпускает газ, но тяги не даёт, и огонь захлёбывается и "
+            + "гаснет."),
 
         new("uk", "ppex:handbook-fittings-text",
             "Вихід завершує гілку біля порту машини; а якщо накрити його звичайним <strong>димарем</strong>, "
@@ -51,7 +56,9 @@ public static class ChimneyVentText
             + "лише тоді, коли він стоїть просто на виході труби або на прохідній трубі (прямій чи з поворотом), "
             + "труба яких відкрита догори. Щоб перевірити, подивіться на димар: поки він витягує газ, у його описі "
             + "є рядок «Скидання з трубопроводу». Димар, поставлений просто на звичайну трубу, нічого не стравлює: "
-            + "він лише заглушує цей кінець, і тиск у трубопроводі зберігається."),
+            + "він лише заглушує цей кінець, і тиск у трубопроводі зберігається. Вогонь бойлера тягне лише через "
+            + "такий димар, що стравлює газ, або через димову трубу на його вихлопній лінії: відкритий кінець труби "
+            + "випускає газ, але тяги не дає, і вогонь захлинається й гасне."),
     ];
 
     public static bool Applies(ICoreAPI api) => api.ModLoader.IsModEnabled(ModId);

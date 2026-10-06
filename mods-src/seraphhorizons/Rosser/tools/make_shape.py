@@ -69,7 +69,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
+from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
 from machinegen.geometry import (IDENT, aabb_of, beam, flatten, from_template, metal, pick,  # noqa: E402
                                  rename, rotate, strut, tpl, translate)
@@ -1886,7 +1886,16 @@ def trunk_path():
     return {"origin": pt(0.0, H, TZ), "axis": "x", "length": float(CELLS_X), "nose0": r6(NOSE0 / B),
             "lengths": dict(LENGTHS), "tailStop": r6(TAIL_STOP / B),
             "radius": {cls: [r6(v) for v in TRUNK_RADII[cls]] for cls in ("thin", "thick")},
-            "stations": {k: r6(v / B) for k, v in stations.items()}}
+            "stations": {k: r6(v / B) for k, v in stations.items()},
+            "tips": {cls: r6(tip_x(cls) / B) for cls in ("thin", "thick")}}
+
+
+def tip_x(cls):
+    """Where the spud heads touch a trunk of `cls` (x): the tip block's centre with the arm at the
+    class's mean opening. Downstream of the ring's plane, and further for a thick trunk, whose arms
+    swing wider. The bark comes off here, not at the ring."""
+    beta = arm_geometry()["beta0"] - arm_fit()[cls]["a0"]
+    return ARM_PIN_X + ARM_LEN * math.cos(beta)
 
 
 def plan_cells():
@@ -1915,6 +1924,7 @@ def make_rig(els, parts):
     for c in plan_cells():
         boxes = cell_boxes(by_cell[c], c) if c in by_cell else None
         cells.append({"pos": list(c), "boxes": boxes} if boxes else {"pos": list(c), "hollow": True})
+    cells = with_lids(cells)
     gear = feed_gear()
     power = (int(ENTRY_X // B), int(MAIN_Y // B), 0)
     water = (int(DRIP_X // B), int(DRIP_Y // B), CELLS_Z - 1)
@@ -1969,7 +1979,7 @@ def t_end(k):
 def shipped(els, parts, rig):
     """The build-frame model, rig and parts moved so ORIGIN_CELL is the controller cell [0,0,0]:
     pivots and anchors by the shift, and every position along the path (windows, a roll's `at`, the
-    path's nose0, tailStop and stations) by the shift along x."""
+    path's nose0, tailStop, stations and tips) by the shift along x."""
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
     db = [v / B for v in d]
     ship_els = copy.deepcopy(els)
@@ -1985,6 +1995,7 @@ def shipped(els, parts, rig):
     tp["nose0"] = r6(tp["nose0"] + db[0])
     tp["tailStop"] = r6(tp["tailStop"] + db[0])
     tp["stations"] = {k: r6(v + db[0]) for k, v in tp["stations"].items()}
+    tp["tips"] = {k: r6(v + db[0]) for k, v in tp["tips"].items()}
     ship["trunkPath"] = tp
     ship["parts"] = ship_parts
     return ship_els, ship_parts, ship
@@ -2006,7 +2017,8 @@ def shift_rig_parts(parts, db):
 def shipped_cells(shape, ship_parts, sp, cells):
     """The shipped cells' boxes rebuilt from the shipped shape as written (rounded, in the shipped
     frame) posed at rest by the shipped rig: exactly what the site's test and any other reader of
-    the two files computes, so the greedy split cannot come out differently there."""
+    the two files computes, so the greedy split cannot come out differently there. The lids go on
+    after (`with_lids`)."""
     written = flatten(shape["elements"], textures={})
     rest = [posed(w, _part_matrix(ship_parts, part_of(ship_parts, w.name), inputs_of(REST), sp)) for w in written]
     by_cell = {}
@@ -2019,7 +2031,7 @@ def shipped_cells(shape, ship_parts, sp, cells):
         pos = tuple(c["pos"])
         boxes = cell_boxes(by_cell[pos], pos) if pos in by_cell else None
         out.append({"pos": list(pos), "boxes": boxes} if boxes else {"pos": list(pos), "hollow": True})
-    return out
+    return with_lids(out)
 
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):

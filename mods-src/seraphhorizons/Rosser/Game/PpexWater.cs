@@ -7,8 +7,8 @@ namespace SeraphHorizons.Mod.Rosser;
 
 /// <summary>
 /// Water for the rosser's drip from a Pipes and Power Expanded pipe on its water face, found by
-/// name (research §1). The pipes moved between namespaces from ppex 0.6.8 / exlib 0.7.2 (pinned)
-/// to ppex 0.7.1 / exlib 0.8.4, with the same members, so both sets are tried, the newer first:
+/// name (research §1). The pipes moved between namespaces from ppex 0.6.8 / exlib 0.7.2
+/// to ppex 0.7.1 / exlib 0.8.4 (pinned), with the same members, so both sets are tried, the newer first:
 /// <list type="bullet">
 /// <item>the network manager <c>BlockNetworkModSystem</c> (<c>ExpandedLib.Networks</c> or
 /// <c>ExpandedLib.Blocks.Networks</c>) and its <c>GetConnectedNetworkAcross(IBlockAccessor, BlockPos,

@@ -41,12 +41,17 @@ public sealed class RosserRig
     public Side OutputSide { get; }
     public RosserChute Chute { get; }
     public TrunkPath Path { get; }
+    /// <summary>Where the spud heads touch the trunk, per class [none, thin, thick], along the
+    /// path: the bark comes off there, downstream of the ring's plane. Without <c>trunkPath.tips</c>
+    /// the ring's position stands in.</summary>
+    public IReadOnlyList<float> Tips { get; }
     public RosserFeed Feed { get; }
     /// <summary>The model's moving parts; empty when the file has none.</summary>
     public RigParts MovingParts { get; }
 
     public RosserRig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Int3 waterCell, Side waterFace,
-                     Side infeedSide, Side outputSide, RosserChute chute, TrunkPath path, RosserFeed feed, RigParts? movingParts = null)
+                     Side infeedSide, Side outputSide, RosserChute chute, TrunkPath path, RosserFeed feed, RigParts? movingParts = null,
+                     IReadOnlyList<float>? tips = null)
     {
         var positions = cells.Select(c => c.Pos).ToHashSet();
         if (!positions.Contains(Int3.Zero))
@@ -70,6 +75,12 @@ public sealed class RosserRig
             throw new FormatException("trunkPath.stations needs \"breaker\" and \"ring\"");
         if (!(path.Nose0 < breaker && breaker < ring && ring <= path.TailStop))
             throw new FormatException($"trunkPath needs nose0 < breaker < ring <= tailStop, got {path.Nose0}, {breaker}, {ring}, {path.TailStop}");
+        tips ??= [0, ring, ring];
+        if (tips.Count != 3 || tips[0] != 0)
+            throw new FormatException("tips must be [0, thin, thick]");
+        for (int k = 1; k <= 2; k++)
+            if (!(ring <= tips[k] && tips[k] <= path.TailStop))
+                throw new FormatException($"trunkPath.tips needs ring <= tips <= tailStop, got {ring}, {tips[k]}, {path.TailStop}");
         if (!(feed.BlocksPerRadian > 0) || !float.IsFinite(feed.BlocksPerRadian))
             throw new FormatException("feed.blocksPerRadian must be above 0");
         if (feed.Gear.Count != 3 || !(feed.Gear[1] > 0) || !(feed.Gear[2] > 0) || !float.IsFinite(feed.Gear[1]) || !float.IsFinite(feed.Gear[2]))
@@ -85,6 +96,7 @@ public sealed class RosserRig
         OutputSide = outputSide;
         Chute = chute;
         Path = path;
+        Tips = tips;
         Feed = feed;
         MovingParts = movingParts ?? new RigParts([], path);
     }
@@ -112,8 +124,12 @@ public sealed class RosserRig
     /// <summary>The limb breaker's position along the path.</summary>
     public float Breaker => Path.Stations[BreakerStation];
 
-    /// <summary>The ring's position along the path: bark comes off as the trunk passes it.</summary>
+    /// <summary>The ring's position along the path (its midplane): the scraping station.</summary>
     public float Ring => Path.Stations[RingStation];
+
+    /// <summary>Where the heads touch a trunk of class <paramref name="k"/>, along the path: bark
+    /// comes off as the trunk passes it. The ring's position for class 0 (none).</summary>
+    public float TipAt(int k) => k is 1 or 2 ? Tips[k] : Ring;
 
     /// <summary>The cells other than the controller's, in file order.</summary>
     public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
@@ -152,7 +168,15 @@ public sealed class RosserRig
         using var doc = RigJson.Parse(json);
         var root = doc.RootElement;
         var cells = Cells(root);
-        var path = TrunkPath.Parse(Required(root, "trunkPath", JsonValueKind.Object));
+        var pathJson = Required(root, "trunkPath", JsonValueKind.Object);
+        var path = TrunkPath.Parse(pathJson);
+        IReadOnlyList<float>? tips = null;
+        if (pathJson.TryGetProperty("tips", out var tipsJson))
+        {
+            if (tipsJson.ValueKind != JsonValueKind.Object)
+                throw new FormatException("trunkPath.tips must be an object");
+            tips = [0, Required(tipsJson, "thin", JsonValueKind.Number).GetSingle(), Required(tipsJson, "thick", JsonValueKind.Number).GetSingle()];
+        }
         var chute = Required(root, "chute", JsonValueKind.Object);
         var feed = Required(root, "feed", JsonValueKind.Object);
         var gear = Required(feed, "gear", JsonValueKind.Object);
@@ -174,6 +198,7 @@ public sealed class RosserRig
             path,
             new RosserFeed(Required(feed, "blocksPerRadian", JsonValueKind.Number).GetSingle(),
                            [0, Required(gear, "thin", JsonValueKind.Number).GetSingle(), Required(gear, "thick", JsonValueKind.Number).GetSingle()]),
-            parts);
+            parts,
+            tips);
     }
 }

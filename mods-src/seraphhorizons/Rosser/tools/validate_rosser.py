@@ -12,7 +12,7 @@ import math
 import re
 
 from machinegen.checks import (bearing_margin, box_overhang, cells_touched, coplanar_faces, euler_round_trip,
-                               frame_floating, obb_obb)
+                               frame_floating, lid_gaps, obb_obb)
 from machinegen.checks import supports as shaft_supports
 from machinegen.geometry import aabb_of, mvec
 from machinegen.rigmath import CLASSES, gauge_fraction, full_inputs, part_of, posed
@@ -981,4 +981,11 @@ def validate_files(m, shape, frame_shape, ship):
         if missing:
             print(f"FAIL {label} shape uses undeclared textures {missing}")
             ok = False
+    # a lid on every column's top cell, so nothing falls into the rosser from above
+    gaps = lid_gaps(ship["cells"])
+    decks = sorted({c["lid"] + c["pos"][1] for c in ship["cells"] if "lid" in c})
+    print(f"lids: {sum(1 for c in ship['cells'] if 'lid' in c)}, decks at y {decks}")
+    if gaps:
+        print(f"FAIL columns with no lid on their top cell: {gaps}")
+        ok = False
     return ok
