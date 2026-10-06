@@ -1,6 +1,7 @@
 using System.Reflection;
 using Atlas.Api;
 using Atlas.XUnit;
+using SeraphHorizons.Mod;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
@@ -125,9 +126,10 @@ public partial class WoodworkingScenarios
     /// TryPlaceDownAsPlayer: the block's TryPlaceBlock with the stack OnPickBlock gave at pickup;
     /// only the server restores the block entity's tree afterwards), and what a creative pick and
     /// place does. The rack's OnPickBlock writes its whole block entity tree into that stack, posx,
-    /// posy and posz included, and its DoPlaceBlock loads the tree back, so the new block entity's
-    /// Pos should still be the new position. Fails on Logging Expanded 0.3.6 (#374): Pos is where
-    /// the rack was picked up.</summary>
+    /// posy and posz included, and its DoPlaceBlock loads the tree back, so on Logging Expanded 0.3.6
+    /// the new block entity's Pos is where the rack was picked up (#374). The regression test for
+    /// <c>HeatingRackKeepsPosition</c> (<see cref="HeatingRackPosition"/>): the stack carries no
+    /// position, and the placed rack's Pos is the new position.</summary>
     [AtlasScenario]
     public async Task Heating_rack_placed_from_its_picked_up_stack_keeps_the_new_position()
     {
@@ -139,6 +141,7 @@ public partial class WoodworkingScenarios
 
         var stack = W.BlockAccessor.GetBlock(from).OnPickBlock(W, from);
         output.WriteLine($"picked stack attributes: {stack.Attributes}");
+        Assert.False(stack.Attributes.HasAttribute("posx"), "the picked stack carries the rack's position");
         W.BlockAccessor.SetBlock(0, from);
         await World.Ticks(2);
 
