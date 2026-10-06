@@ -13,6 +13,7 @@ Server-dependent work (smoke, Atlas, building the C# mods) needs the .NET 10 SDK
 ```sh
 # Pack (tools/packtool.py is stdlib-only Python 3.11+)
 python3 tools/packtool.py lock        # after editing pack/pack.toml: resolve pins, rewrite pack/lock.json
+uvx --from cogapp==3.6.0 cog -r README.md   # after adding/removing a mod or a game bump: README's status line is generated, and CI's lock job checks it
 python3 tools/packtool.py check       # offline: pack.toml and lock.json agree
 python3 tools/packtool.py fetch       # download + sha256-verify mods into build/mods (Atlas needs this first)
 python3 tools/packtool.py smoke [--export build/recipes.json]   # boot a server, scan logs; --export also runs the recipe exporter

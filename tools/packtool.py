@@ -62,6 +62,17 @@ def load_pack() -> dict:
     return pack
 
 
+def readme_status(pack: dict | None = None) -> str:
+    """The README's status line. cog writes it there (`cog -r README.md`), so it follows pack.toml."""
+    pack = load_pack() if pack is None else pack
+    meta = pack["pack"]
+    dotnet = meta["dotnet"].removesuffix(".0")
+    return (
+        f"**Game version:** {meta['game_version']} (.NET {dotnet}) · **Mods:** {len(pack.get('mod', []))}, "
+        "listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)"
+    )
+
+
 def load_lock() -> dict:
     if not LOCK_JSON.exists():
         die("pack/lock.json is missing; run `tools/packtool.py lock`")
