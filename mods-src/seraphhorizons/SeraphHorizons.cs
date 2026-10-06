@@ -1,6 +1,7 @@
 using HarmonyLib;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.GearCutter.Core;
 using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.PicklingTub.Core;
@@ -591,4 +592,16 @@ public class SeraphHorizonsConfig
     /// the blanks, their molds and their recipes do not exist, and those already in a world are
     /// lost). The server's setting decides.</summary>
     public bool GearBlanks { get; set; } = true;
+
+    /// <summary>The gear cutter (#480, #481, GearCutter/, README "Gear cutter"): a mechanically
+    /// powered generating gear cutter, built on a frame in ten stages from steel parts, Jonas parts
+    /// and a temporal gear master, that cuts steel gear blanks into steel gears and large steel
+    /// gears; a MachineOil machine whose oil wears its cutter kit, not its shaft load (off means its
+    /// blocks, its parts and their recipes do not exist, and cutters already placed are lost). The
+    /// server's setting decides.</summary>
+    public bool GearCutter { get; set; } = true;
+
+    /// <summary>The gear cutter's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public GearCutterConfig GearCutterSettings { get; set; } = new();
 }

@@ -1,0 +1,29 @@
+// The gear cutter's cell that takes the axle (GearCutter/Game/BlockGearCutterGhostPower.cs).
+{
+	code: "gearcutter-ghostpower",
+	class: "seraphhorizons.GearCutterGhostPower",
+	entityClass: "seraphhorizons.GearCutterGhost",
+	// side is the cutter's; the axle face is the rig's powerFace (native west) turned to it.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	entityBehaviors: [
+		{ name: "seraphhorizons.GearCutterMP", properties: { mechPartShape: null } }
+	],
+	shape: { base: "game:block/basic/nothing" },
+	blockmaterial: "Metal",
+	drops: [],
+	sidesolid: { all: false },
+	sideopaque: { all: false },
+	rainPermeable: true,
+	resistance: 4,
+	lightAbsorption: 0,
+	sounds: {
+		"place": "game:block/anvil",
+		"walk": "game:walk/stone",
+		"hit": "game:block/anvil",
+		"break": "game:block/anvil"
+	},
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

@@ -9,9 +9,9 @@ tidies the creative inventory and the handbook, Map Reveal, which shows already 
 terrain on the world map, and two machines: the bucking sawmill, which cuts tree trunks into logs,
 and the rosser, which strips their branches and bark first; the gears (#484): rusty gears reclaimed
 into steel gears through the pot, the pickling tub and the barrel (`GearReclamation`), every machine
-recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`) and
-steel gear blanks for the coming gear cutter (`GearBlanks`); ore cells, which spread each metal's
-deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
+steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
+(`GearCutter`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools. These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -29,8 +29,8 @@ that has it (a server with the steam source switched off, or without ppex, has n
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
-sawmill's and the rosser's blocks: the server runs the machines, the client draws their moving
-parts. Machine oil runs on both sides too: the server pours, drains and loads the
+sawmill's, the rosser's and the gear cutter's blocks: the server runs the machines, the client draws
+their moving parts. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
 tub: the server runs its batches, the client draws the liquid and the gears in it. Steel bits
@@ -1091,7 +1091,8 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
 
 The game, Immersive Woodworking (`immersivewoodworking`, 1.3.11) and this mod's two machines. The
 heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
-Woodworking's plank sawmill and powered chopper, the bucking sawmill and the rosser. Nothing else
+Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser and the gear
+cutter (whose oil wears its cutter kit instead of loading its shaft: "Gear cutter" below). Nothing else
 does: the quern, axles, gears and every other transmission part are exempt. A machine is built
 **dry**, and runs dry again when its oil is used up. Dry, its load on its shaft is
 `DryResistanceMultiplier` (3) times what it is otherwise; nothing else changes (it wears and works
@@ -1114,8 +1115,9 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   makes a tank smaller keeps what fits.
 - **The drain** is by the job, and idle turning is free: the helve hammer per strike on an anvil
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
-  log chopped, and the bucking sawmill and the rosser per log stored in the trunk, rounded up over
-  the trunk (as their blade and head wear are).
+  log chopped, the bucking sawmill and the rosser per log stored in the trunk, rounded up over
+  the trunk (as their blade and head wear are), and the gear cutter per gear cut (a large one
+  double).
 - **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0), and
   while dry how many times the power it takes. The handbook has a page of its own, "Oiling
   machines" (`config/handbook/machineoil.json`): which machines, which oils, what dry means and how
@@ -1132,6 +1134,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
 | `Chopper` | tank 1000, 1 a log | Immersive Woodworking's powered chopper |
 | `BuckingMill` | tank 1000, 2 a stored log | |
 | `Rosser` | tank 1000, 2 a stored log | |
+| `GearCutter` | tank 1000, 10 a gear | A large gear drains double; never a dry load ("Gear cutter") |
 
 Each machine's entry is `{ "Tank": points, "DrainPerJob": points }`; a value out of range falls back
 to its default with a warning.
@@ -1534,6 +1537,90 @@ All of it is assets on the game's classes (`Gears/GearBlanks.cs` holds the codes
 off, the server marks the two item types, the two mold block types and both recipe files disabled
 before the game loads them, so neither the blanks nor the molds exist, and those already in a world
 are lost.
+
+### Gear cutter (`GearCutter`, `GearCutterSettings`)
+
+The end of the gears epic (#484; the machine is #480, its cutter kit and oil #481): a mechanically
+powered generating gear cutter that cuts steel gear blanks into steel gears (12 teeth) and large
+steel gears (20). Its model, rig and generator are described in `GearCutter/README.md`; this is the
+gameplay, in `GearCutter/` (rules in `GearCutter/Core/`, the game side in `GearCutter/Game/`).
+
+**Blocks.** `seraphhorizons:gearcutter-frame-{side}` is the controller, placed as the mill and the
+rosser are (`Footprint.PlacedFacing`: the machine runs away from the player), with a ghost in each of
+the rig's other seven cells (`gearcutter-ghost`) and the power ghost
+(`gearcutter-ghostpower-{side}`), which takes the axle on the column's back face (native west).
+The frame is a grid recipe: two ingots of iron, meteoric iron or steel, five planks and eight iron
+(or meteoric iron or steel) nails and strips, with a hammer.
+
+**Stages.** Fitted by right-click on the frame or any ghost with the item, one item each, in this
+order only; the next missing stage is the only one a click fills, and anything of a later stage is
+refused with a message naming the next:
+
+| # | Stage (`requires`) | Item | Made |
+|---|---|---|---|
+| 1 | `spindle` | `seraphhorizons:gearcutterspindle` | Grid: steel rod over steel plate over iron nails and strips |
+| 2 | `feedscrew` | `seraphhorizons:gearcutterfeedscrew` | Smithing, 1 steel ingot |
+| 3 | `camfeed` | `game:jonasframes-gearbox02` | Looted, or BetterRuins' conversion |
+| 4 | `camindex` | `game:jonasframes-gearbox02`, a second | As above |
+| 5 | `liftcam` | `seraphhorizons:gearcutterliftcam` | Smithing, 1 steel ingot |
+| 6 | `index` | `seraphhorizons:gearcutterindex` | Grid: steel rod, steel plate, iron nails and strips in a row |
+| 7 | `oiler` | `game:jonasparts-valve01` | Looted |
+| 8 | `head` | `game:jonasframes-gears02` or `game:jonasframes-gears01` | Looted, or converted |
+| 9 | `cutter` | `seraphhorizons:gearcutterkit-steel` (500 durability) | Smithing, 1 steel ingot |
+| 10 | `master` / `masterlarge` | `game:gear-temporal` / `game:largegear-temporal` | Loot; never worn, never consumed |
+
+The three smithing recipes are named after their part, not `plate`, so the helve hammer does not
+work them. Items are taken from the hand outside creative mode; in creative mode Ctrl + right-click
+on an incomplete cutter fits its next stage with nothing taken (the small master, a new kit).
+**Ctrl + right-click** takes back the cutter kit, with what durability it has left; then a blank on
+the arbor (its cut lost); then the master. Every other stage comes back only by breaking the frame,
+which drops the frame, every fitted item by code, the kit with its durability and the blank. A save
+keeps every fitted code and the kit's durability.
+
+**Work.** Complete is every stage in, the kit with durability left. A blank goes on the arbor by
+right-click, or from a chest or hopper (any container) against the infeed face (native north, the
+gearbox end, the end nearest the placed block), one at a time while the shaft turns. The master
+decides the size: the temporal gear takes `seraphhorizons:gearblank-steel` and cuts
+`seraphhorizons:gear-steel`, the large temporal gear takes `seraphhorizons:largegearblank-steel` and
+cuts `seraphhorizons:largegear-steel`; the other size is refused with a message. The cut needs the
+shaft at `MinSpeed` and advances by its angle as the mill's saws do (`ShaftClock.AngleAdvance`), one
+tooth per `TurnsPerTooth` turns: 144 turns a small gear and 240 a large one at 12. The finished gear
+goes into a container against the output face (native south, the cell beyond `output.pos`), else
+drops just outside that face, and the next blank comes in. W, the rig's `work`, is the teeth cut;
+the server syncs it every tenth of a tooth and the renderer runs it on with the shaft between.
+
+**Oil and wear (#481).** The cutter is a MachineOil machine (`MachineOilSettings.GearCutter`: tank
+1000, 10 points a gear, a large one 20), filled by right-click with oil, but it opts out of the dry
+load: its `Resistance` is the same oiled or dry. Oil wears the kit instead: when a gear finishes the
+kit loses `CutterWearPerGear` / fill points (the tank's fill then, before that gear's oil is
+drained), times 20/12 for a large gear, rounded up: full, 10; half, 20; a tenth, 100; empty, all
+it has left, so it breaks on that gear (with the tool-break sound; the gear still comes out). A
+spent kit stops the cutter with the blank on until a new kit is fitted; the cut resumes where it
+was. With MachineOil off there is no tank and the kit wears at its base. Steady at a full tank a
+kit cuts 50 small gears; cut from full without topping up (the tank falling 10 a gear) about 40. A
+dry cutter smokes while it cuts. The block info shows the next stage, the master, the kit's
+durability and about how many gears it has left at this fill, the cut's teeth, MachineOil's oil
+line (without its dry-load line) and the wear multiplier, or that the next gear breaks the kit.
+
+**Drawn.** The block draws `gearcutter_frame.json`; the renderer splits `gearcutter.json` by element
+name into the rig's parts and draws each whose `requires` is fitted: the cover always, a blank's
+parts while that blank is on the arbor, one master's while it is fitted. θ is the power ghost's
+angle about native x; k is the master's class (held while its presence eases out); the reservoir's
+oil follows the tank's fill (`oil`). While it cuts: chips and sparks at `chips.pos`, and with oil
+in the tank a spray from the injection valve's nozzle at `drip.pos`.
+
+| Setting | Default | |
+|---|---|---|
+| `TurnsPerTooth` | 12 | Axle turns per tooth; the rig's `cut.turnsPerTooth` (a test holds them together) |
+| `CutterWearPerGear` | 10 | Kit durability a small gear costs at a full tank |
+| `Resistance` | 0.2 | The complete cutter's load, as the rosser's |
+| `MinSpeed` | 0.05 | Below it the cutter neither cuts nor takes a blank from its infeed |
+
+With the switch off the server marks the three block types, the five new item types and both
+recipe files disabled before the game loads them, so none of it exists and cutters already placed
+are lost. The steel gears it makes exist either way. Not yet: the recipe export of the cut (#483),
+a schematic for the frame (`MachineSchematics`), and item shapes of the new parts' own (they wear
+the game's hub, rod, bracket, linkage and chisel shapes in steel).
 
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
@@ -2315,7 +2402,9 @@ and family fallback, and that the shipped table parses (`Trading/Values/Core/`, 
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
 described in `TrunkEntities/README.md`), gear reclamation's roll, flash rust hours, settings and
 optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
-(`GearReclamation/Core/`, `tests/GearReclamation/`), and the pickling tub's rules, timings,
+(`GearReclamation/Core/`, `tests/GearReclamation/`), the gear cutter's build order, take-back,
+drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
+`tests/GearCutter/GearCutterGameplayTests.cs`), and the pickling tub's rules, timings,
 over-pickling order, early take-out, brine loss and settings (`PicklingTub/Core/`, `tests/PicklingTub/`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
@@ -2536,6 +2625,21 @@ hammer, hit by hit on a steel anvil, to finish the small blank from one ingot an
 two but not from one; and the export to carry both smithing recipes, both clay-forming recipes, the
 raw molds' firing and the blanks' handbook text. With the switch off, `SwitchesOffScenarios`
 requires no blank, no mold and no recipe for either.
+
+`tests/PackTests/GearCutterScenarios.cs` (Atlas, the shared world) requires the gear cutter's
+blocks, parts and recipes (none of its smithing recipes helve-able); placing on all four facings
+with every ghost, the axle face turned and every cell cleared on breaking; the stages fitted in
+order by real clicks on the frame and ghosts, a later stage's part, a third gearbox and a blank
+before the master refused, and a save keeping every code; the creative shortcut fitting the ten
+stages one per click; under a creative rotor, the shaft cutting, a small blank to a steel gear
+dropped beyond the output face, the master changed over, the wrong size refused and a large blank
+to a large gear (oil drained 10 and 20, kit worn 10 and 17); the kit's wear at full, half and a
+tenth of a tank, the load the same dry, a dry gear breaking the kit and no blank going on after, and
+a refit resuming a half-cut blank; Ctrl + right-click giving back the kit, the blank and the master
+in turn, and breaking giving back every part, the kit with its wear and the blank; and blanks taken
+from a chest at the infeed (not while the shaft stands, never the other size) and gears put in a
+chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks, items
+or recipes.
 
 `tests/PackTests/HeatingRackScenarios.cs` (Atlas, `WoodworkingScenarios`) places a heating rack, takes
 its stack from `OnPickBlock` and places it elsewhere through the block's own `TryPlaceBlock`, as
