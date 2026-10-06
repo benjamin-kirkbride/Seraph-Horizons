@@ -48,9 +48,6 @@ public class TrunkEntitySystem : ModSystem
         TrunkStationsSystem.PatchAsset,
     ];
 
-    /// <summary>The storage flag trunk stacks get: no inventory takes it.</summary>
-    public const EnumItemStorageFlags NoStorage = EnumItemStorageFlags.Custom10;
-
     private ICoreAPI? _api;
     private TrunkEntityConfig? _config;
     private LoggingBridge? _logging;
@@ -145,14 +142,6 @@ public class TrunkEntitySystem : ModSystem
     {
         if (!Enabled)
             return;
-        int count = 0;
-        foreach (var block in api.World.Blocks)
-            if (block?.Code is { Domain: LeModId } code && code.Path.StartsWith("treetrunk-", StringComparison.Ordinal))
-            {
-                block.StorageFlags = NoStorage;
-                count++;
-            }
-        api.Logger.Notification("[seraphhorizons] Trunk entities: {0} tree trunk variants fit in no inventory", count);
         if (_carrying)
         {
             int racks = TrunkCarry.StripRacks(api);
@@ -187,6 +176,8 @@ public class TrunkEntitySystem : ModSystem
         _harmony = new Harmony(HarmonyId);
         if (!OldTrunkBlocks.Patch(_harmony, api))
             api.Logger.Warning("[seraphhorizons] Trunk entities: Logging Expanded's trunk block entity is not as expected, so placed trunks are left as they are");
+        if (!TrunkPockets.Patch(_harmony))
+            api.Logger.Warning("[seraphhorizons] Trunk entities: the game's TryGiveItemstack is not as expected, so trunks can be given to survival inventories");
     }
 
     private static void UnswapLater(ICoreServerAPI api, Entity entity)
