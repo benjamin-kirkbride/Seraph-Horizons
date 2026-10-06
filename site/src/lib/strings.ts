@@ -229,6 +229,7 @@ const en = {
     attackPower: "Attack power",
     materialDensity: "Density",
     nutrition: "Nutrition",
+    fertilizer: "Fertilizer",
     burn: "Fuel",
     smelting: "Heating",
     storageFlags: "Storage",
