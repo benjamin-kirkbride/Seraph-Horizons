@@ -1,11 +1,16 @@
 [
 	{
-		ingredientPattern: "BHB,F_F,B_B",
+		// Two of Immersive Woodworking's sawmill frames, four support beams and eight nails and
+		// strips to strap the bed together (iron, meteoric iron or steel while IronWoodworkingMachines
+		// is on: patches/woodworking-machine-costs.json). The saws, crankshaft, levers and blades go
+		// in afterwards, fitted by hand.
+		ingredientPattern: "BHB,FNF,B_B",
 		width: 3,
 		height: 3,
 		ingredients: {
 			"F": { type: "block", code: "immersivewoodworking:sawmill-frame-north" },
 			"B": { type: "block", code: "game:supportbeam-*" },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", quantity: 8 },
 			"H": { type: "item", code: "game:hammer-*", isTool: true }
 		},
 		output: { type: "block", code: "seraphhorizons:buckingmill-frame-north" }

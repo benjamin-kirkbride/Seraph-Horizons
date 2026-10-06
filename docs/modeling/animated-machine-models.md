@@ -237,7 +237,8 @@ That is the pattern to keep: **every review finding becomes a check**, so it can
 
 The schema is in the mill README's "Rig schema" section, and what a trunk-path machine adds in the
 rosser README's. In short:
-- `cells` (with up to three boxes each), `powerCell`, `powerFace`, `infeedSide`, `outputSide`,
+- `cells` (with up to three boxes each, and a collision-only `lid` on each column's top cell),
+  `powerCell`, `powerFace`, `infeedSide`, `outputSide`,
   `output.pos`, `trunkBed` and `saw` are for gameplay;
 - `parts` is an ordered list of `{id, match, requires, ride, drivers}` for the renderer.
 

@@ -60,9 +60,11 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     // published; collision lookups, which can run off the main thread, only read it.
     private volatile BoxTable? _boxes;
     private Dictionary<Int3, Cuboidf[]>? _frameBoxes;
+    private Dictionary<Int3, Cuboidf>? _lidBoxes;
     private RosserRenderer? _renderer;
 
-    private sealed record BoxTable(TrunkClass Class, double Travel, (Float3 Min, Float3 Max) Trunk, IReadOnlyDictionary<Int3, Cuboidf[]> Cells);
+    private sealed record BoxTable(TrunkClass Class, double Travel, (Float3 Min, Float3 Max) Trunk,
+        IReadOnlyDictionary<Int3, Cuboidf[]> Cells, IReadOnlyDictionary<Int3, Cuboidf[]> Collision);
 
     public Side Side { get; private set; } = Side.North;
     public BlockFacing Facing => BlockFacing.FromCode(Side.Code());
@@ -154,15 +156,21 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             ? rig.GhostCells.Select(c => (CellPos(c.Pos), c.Pos == rig.PowerCell ? CellKind.Power : c.Pos == rig.WaterCell ? CellKind.Water : CellKind.Plain))
             : [];
 
-    /// <summary>A cell's collision and selection boxes, turned to the rosser's facing, with the
-    /// trunk's part in that cell; an empty set for a hollow cell the trunk is not in; null when the
-    /// cell is not the rosser's. Safe off the main thread: the table is built whole and only read here.</summary>
-    public Cuboidf[]? CellBoxes(BlockPos cellPos)
+    /// <summary>A cell's selection boxes, turned to the rosser's facing, with the trunk's part in
+    /// that cell; an empty set for a hollow cell the trunk is not in; null when the cell is not the
+    /// rosser's. Safe off the main thread: the table is built whole and only read here.</summary>
+    public Cuboidf[]? CellBoxes(BlockPos cellPos) => Table(cellPos, collision: false);
+
+    /// <summary>A cell's collision boxes: its <see cref="CellBoxes"/> and, on a column's top cell
+    /// (hollow or not), the rig's collision-only lid, so nothing falls into the rosser from above.</summary>
+    public Cuboidf[]? CollisionBoxes(BlockPos cellPos) => Table(cellPos, collision: true);
+
+    private Cuboidf[]? Table(BlockPos cellPos, bool collision)
     {
         if (_boxes is not { } table)
             return null;
         var local = Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side);
-        return table.Cells.GetValueOrDefault(local);
+        return (collision ? table.Collision : table.Cells).GetValueOrDefault(local);
     }
 
     /// <summary>Rebuilds the box table when the trunk's class or its quantised travel
@@ -182,12 +190,16 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         }
         var frame = _frameBoxes ??= rig.Cells.ToDictionary(c => c.Pos, c =>
             c.Hollow ? [] : c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
+        var lids = _lidBoxes ??= rig.Cells.Where(c => c.LidBox != null).ToDictionary(c => c.Pos, c => World(c.LidBox!.Value));
         var cells = new Dictionary<Int3, Cuboidf[]>(frame);
         var bounds = TrunkBox.BoundsOnPath(rig.Path, k, (float)travel);
         if (k != TrunkClass.None)
             foreach (var (cell, box) in TrunkBox.CellBoxes(rig.Cells, bounds))
                 cells[cell] = [.. frame[cell], World(box)];
-        _boxes = new BoxTable(k, travel, bounds, cells);
+        var collision = new Dictionary<Int3, Cuboidf[]>(cells);
+        foreach (var (cell, lid) in lids)
+            collision[cell] = [.. cells[cell], lid];
+        _boxes = new BoxTable(k, travel, bounds, cells, collision);
     }
 
     /// <summary>Whether a click on cell <paramref name="cellPos"/> at <paramref name="hit"/> (the

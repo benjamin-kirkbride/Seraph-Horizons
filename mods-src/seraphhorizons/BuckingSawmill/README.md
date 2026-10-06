@@ -33,14 +33,19 @@ into each other cell: `buckingmill-ghost`, and `buckingmill-ghostpower-{side}` i
 takes the axle. Ghosts store the controller's position and pass interaction, breaking, the
 pick-block stack, particles, name, info and help to it, as Immersive Woodworking's sawmill ghosts
 do. Every cell's collision and selection boxes come from the controller (`CellBoxes`): its own from
-the rig, plus its part of a loaded trunk (see **Trunks**). The controller re-stamps missing ghosts
+the rig, plus its part of a loaded trunk (see **Trunks**). Its collision boxes
+(`CollisionBoxes`) add the cell's lid, if the rig gives it one (see **Rig**). The controller re-stamps missing ghosts
 shortly after it loads. Breaking the frame or any ghost breaks the whole mill.
 
 **Rig.** The footprint and anchor points are data, in `assets/seraphhorizons/config/buckingmill-rig.json`
 (written by the model's tooling in `tools/`): every occupied cell with its collision and selection
 boxes, the power cell and the face that takes the axle, the infeed end a rack must touch, the
 point and side logs leave by, the saws' travel (`saw`, optional), and keys only the renderer
-reads. Everything there is in the native,
+reads. The top cell of every column of the footprint has a **lid**: a collision-only box over the
+whole cell, 1/16 block thick, its top at the top of the mill (3.97 blocks up; 0.5 over the
+controller's two cells, the end of the bed), so a player walking on the mill stands on one deck and
+cannot drop into the trough over the bed and saws and get stuck among the boxes. The selection ray
+does not find a lid, so clicks are as before. Everything there is in the native,
 south-facing frame with the controller at `[0,0,0]`: cells x −5..0 (west to east), y 0..3, z −1..1,
 so the controller is the middle cell of the east end. The power cell is `[-5,3,0]`, taking the axle
 on its west face. Turning it to a facing follows Immersive
@@ -249,9 +254,11 @@ the item's, so Immersive Woodworking's own plank sawmill gets it too.
 
 ## Crafting
 
-The frame: two Immersive Woodworking sawmill frames and four support beams, with a hammer
-(`assets/seraphhorizons/recipes/grid/buckingmill.json`). The parts are Immersive Woodworking's
-own.
+The frame: two Immersive Woodworking sawmill frames, four support beams and eight nails and strips,
+with a hammer (`BHB,FNF,B_B`; `assets/seraphhorizons/recipes/grid/buckingmill.json`). With
+`IronWoodworkingMachines` on, the nails and strips must be iron, meteoric iron or steel
+(`patches/woodworking-machine-costs.json`), and each sawmill frame carries its own eight. The parts
+are Immersive Woodworking's own.
 
 ## Model
 
@@ -472,7 +479,7 @@ Everything is in the native frame, in block units, with the controller at `[0,0,
 
 | Field | Meaning |
 |---|---|
-| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws at the top (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. |
+| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws at the top (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. `lid`, on the top cell of each column (x, z), is the cell-local height of the top of a collision-only box over the whole cell, 1/16 thick (`RigCell.LidBox`), from 1/16 to 1: the highest top of the boxes of the top cells in that layer (1 for a full cube), so the top is a deck. The generator writes them (`machinegen.checks.with_lids`) and fails on a column without one (`lid_gaps`). |
 | `powerCell`, `powerFace` | The cell that takes the axle, and the native-frame face it connects on. |
 | `infeedSide`, `outputSide` | Native-frame sides: `west` (the axle end, where the rack stands and trunks slide in lengthwise) and `east` (the near end, the logs slide off it). |
 | `output.pos` | Where cut logs spawn: just beyond the east end (`[1.25, 0.625, 0.6875]`), at bed height on the bed's centre line. They get a small push east. |
@@ -634,7 +641,10 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
   and when the mill turns again is finished with its full yield and wear. Every trunk size is shown as Logging Expanded's `lg` or `xxl` model; on every facing a
   loaded thin and thick trunk add boxes exactly the shown model's box (less the thick one's
   uncovered half block) to both the collision and selection boxes, a click on its top is the
-  mill's even with a block in hand, and Ctrl there takes it back and its boxes with it. Each metal's
+  mill's even with a block in hand, and Ctrl there takes it back and its boxes with it. Empty, the
+  collision boxes are the selection boxes plus one lid per column; on every facing, empty and with
+  a thick trunk loaded, every column's top cell has its lid in its collision boxes and not in its
+  selection boxes, and the collision boxes reaching the lid's height cover the whole cell. Each metal's
   kit has its expected speed, the metal-properties fallback agrees with the game's saws, and a
   steel kit cuts in 1/2.05 of copper's turns while the saws still rise at the same rate. Every kit's
   durability is tripled. In creative, Ctrl + right click fits the parts one by one with nothing

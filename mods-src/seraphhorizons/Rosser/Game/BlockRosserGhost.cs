@@ -8,7 +8,8 @@ namespace SeraphHorizons.Mod.Rosser;
 /// An invisible cell of the rosser around its controller. Interaction, breaking, the pick-block
 /// stack, particles, name, info and help all go to the controller, as the bucking mill's ghosts
 /// do; its collision and selection boxes are its cell's from the rig, with the travelling trunk's
-/// part in it (none at all in a hollow cell the trunk is not in).
+/// part in it (none at all in a hollow cell the trunk is not in), and its collision boxes add the
+/// cell's lid on a column's top cell.
 /// </summary>
 public class BlockRosserGhost : Block
 {
@@ -85,7 +86,7 @@ public class BlockRosserGhost : Block
             : 0;
 
     public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BERosserGhost)?.CellBoxes(blockAccessor) ?? base.GetCollisionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BERosserGhost)?.CollisionBoxes(blockAccessor) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
         (blockAccessor.GetBlockEntity(pos) as BERosserGhost)?.CellBoxes(blockAccessor) ?? base.GetSelectionBoxes(blockAccessor, pos);

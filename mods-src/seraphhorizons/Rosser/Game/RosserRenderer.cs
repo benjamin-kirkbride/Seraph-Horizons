@@ -24,10 +24,11 @@ namespace SeraphHorizons.Mod.Rosser;
 /// <para>The trunk is Logging Expanded's own block of its wood, as its class is shown
 /// (<see cref="Trunks.ShownBlock"/>, lg or xxl), cut into one-block segments along its length
 /// (<see cref="MachineMeshes.Segments"/>), once with bark and once debarked: a segment is drawn
-/// debarked once its centre is past the ring's plane (inside the ring, where the arms hide the
-/// change), and every segment once delivered.</para>
+/// debarked once its centre is past the spud heads (<see cref="RosserRig.TipAt"/>: downstream of
+/// the ring's plane, further for a thick trunk, where the heads hide the change), and every
+/// segment once delivered.</para>
 /// <para>Sounds and particles belong to states (design §4.9): while feeding and running with the
-/// trunk under the ring, the scraping sound and bark chips at the ring; while feeding and running
+/// trunk under the heads, the scraping sound and bark chips at the heads; while feeding and running
 /// wet with the trunk under the drip, drips. Silent on purpose: an empty rosser whose ring turns
 /// (the network's axles make their own noise); a waiting trunk without power; a stalled trunk; a
 /// delivered trunk; and a feeding trunk not yet at the ring or past it (the server plays the
@@ -233,12 +234,12 @@ public sealed class RosserRenderer : IRenderer
         var place = MillMotion.TrunkOnAxis(_trunkBounds.Min, _trunkBounds.Max, _path, (int)_be.TrunkClass, travel);
         var m = Mat4.Multiply(facing, place);
         bool delivered = _be.State == RosserState.Delivered;
-        float ring = _rig.Ring;
+        float tips = _rig.TipAt((int)_be.TrunkClass);
         for (int s = 0; s < _barkSegments.Length; s++)
         {
             var centre = Mat4.Apply(place, _segmentCentres[s]);
             float along = _path.Axis == Axis.Z ? centre.Z : centre.X;
-            var mesh = delivered || along > ring ? _bareSegments[s] : _barkSegments[s];
+            var mesh = delivered || along > tips ? _bareSegments[s] : _barkSegments[s];
             if (mesh != null)
                 MachineMeshes.Draw(_capi, _model, mesh, m, prog, camPos, pos);
         }
@@ -285,8 +286,9 @@ public sealed class RosserRenderer : IRenderer
         if (far || !loaded || !_be.Running || _be.State != RosserState.Feeding)
             return;
         double nose = _path.Nose(travel), tail = _path.Tail(travel, (int)_be.TrunkClass);
-        bool atRing = tail <= _rig.Ring && _rig.Ring <= nose;
-        if (atRing)
+        float tips = _rig.TipAt((int)_be.TrunkClass);
+        bool underHeads = tail <= tips && tips <= nose;
+        if (underHeads)
         {
             _scrapeTimer -= dt;
             if (_scrapeTimer <= 0)
@@ -317,7 +319,8 @@ public sealed class RosserRenderer : IRenderer
     private void PlayScrape()
     {
         int variant = 1 + _scrape++ % 3;
-        var at = WorldPoint(new Float3(_path.Axis == Axis.Z ? _path.Origin.X : _rig.Ring, _path.Origin.Y, _path.Axis == Axis.Z ? _rig.Ring : _path.Origin.Z));
+        float tips = _rig.TipAt((int)_be.TrunkClass);
+        var at = WorldPoint(new Float3(_path.Axis == Axis.Z ? _path.Origin.X : tips, _path.Origin.Y, _path.Axis == Axis.Z ? tips : _path.Origin.Z));
         _capi.World.PlaySoundAt(new AssetLocation("immersivewoodworking", $"sounds/debark/debarking{variant}"),
             at.X, at.Y, at.Z, null, true, 24, 0.8f);
     }
@@ -331,10 +334,11 @@ public sealed class RosserRenderer : IRenderer
     {
         float r = HalfWidth((int)_be.TrunkClass) + 0.05f;
         var o = _path.Origin;
-        // around the trunk just downstream of the ring, where the tips scrape
+        float tips = _rig.TipAt((int)_be.TrunkClass);
+        // around the trunk where the heads scrape
         Float3 At(float across, float up) => _path.Axis == Axis.Z
-            ? new Float3(o.X + across, o.Y + up, _rig.Ring + 0.2f)
-            : new Float3(_rig.Ring + 0.2f, o.Y + up, o.Z + across);
+            ? new Float3(o.X + across, o.Y + up, tips)
+            : new Float3(tips, o.Y + up, o.Z + across);
         var lo = WorldPoint(At(-r, -r));
         var hi = WorldPoint(At(r, r));
         _capi.World.SpawnParticles(4, ColorUtil.ToRgba(255, 70, 92, 120),

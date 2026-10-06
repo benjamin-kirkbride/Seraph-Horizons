@@ -9,8 +9,10 @@ namespace SeraphHorizons.Mod;
 /// and strips, 4 or 8 to a slot where Immersive Woodworking (1.3.11) takes 1; the sash, the
 /// crankshaft and the chopper's drive take a rod as well; and the nails and strips, plates and rods
 /// must be of <see cref="Metals"/>, where any metal did. The blade kit and the chopper head keep
-/// their recipes: their metal is already the machine's durability and speed. The bucking sawmill is
-/// built from two sawmill frames and takes the sawmill's parts, so it costs more with them.
+/// their recipes: their metal is already the machine's durability and speed. The bucking sawmill and
+/// the rosser are built from sawmill frames (two and four) and take the sawmill's parts, so they cost
+/// more with them; their own frame recipes take nails and strips whatever the switch, and the same
+/// patch holds those to <see cref="Metals"/> (<see cref="Frames"/>).
 ///
 /// With the switch off, or without Immersive Woodworking, <see cref="DisablePatches"/> empties the
 /// patch file in <c>Start</c>, before the game's patch loader runs in <c>AssetsLoaded</c>, and the
@@ -41,6 +43,20 @@ public static class WoodworkingMachineCosts
         new("chopper_frame", "chopper-frame-north", 8, 2, 0, 0),
         new("chopper_drive", "chopperdrive", 8, 1, 1, 1),
         new("chopper_arm", "chopperarm", 8, 1, 0, 1),
+    ];
+
+    /// <param name="Output">The frame's block code.</param>
+    /// <param name="Nails">Nails and strips the frame's own recipe takes, beyond its sawmill frames'.</param>
+    /// <param name="SawmillFrames">Immersive Woodworking sawmill frames, each with the nails and
+    /// strips of its own recipe.</param>
+    public record Frame(string Output, int Nails, int SawmillFrames);
+
+    /// <summary>This mod's own machine frames: their recipes (<c>recipes/grid/</c>) always take these
+    /// nails and strips, and the same patch file holds them to <see cref="Metals"/>.</summary>
+    public static readonly Frame[] Frames =
+    [
+        new("seraphhorizons:buckingmill-frame-north", 8, 2),
+        new("seraphhorizons:rosser-frame-north", 32, 4),
     ];
 
     /// <summary>The handbook's Machines chapter (this mod's, <c>UnifiedWoodworking</c>) says what

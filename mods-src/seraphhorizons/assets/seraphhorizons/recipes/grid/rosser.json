@@ -1,16 +1,20 @@
 [
 	{
-		// Two of Immersive Woodworking's sawmill frames (with IronWoodworkingMachines, each carries
-		// its eight iron nails and strips), four support beams, and a copper chute section for the
-		// bark and stick chute under the ring, which also keeps the pattern apart from the bucking
-		// mill's. Every metal working part goes in afterwards, fitted by hand.
-		ingredientPattern: "BHB,FCF,B_B",
+		// Sixteen blocks of machine: four of Immersive Woodworking's sawmill frames, one to a corner,
+		// for the two roll stands and the two cradles; a stack of nails and strips in the middle to
+		// strap it all; a bunch of support beams above and below for the beds and the ring stand;
+		// and two copper chute sections for the bark and stick chute under the ring, which also keep
+		// the pattern apart from the bucking mill's. The nails and strips are iron, meteoric iron or
+		// steel while IronWoodworkingMachines is on (patches/woodworking-machine-costs.json). Every
+		// metal working part goes in afterwards, fitted by hand.
+		ingredientPattern: "FBF,HNC,FBF",
 		width: 3,
 		height: 3,
 		ingredients: {
 			"F": { type: "block", code: "immersivewoodworking:sawmill-frame-north" },
-			"B": { type: "block", code: "game:supportbeam-*" },
-			"C": { type: "item", code: "game:chutesection-copper" },
+			"B": { type: "block", code: "game:supportbeam-*", quantity: 16 },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", quantity: 32 },
+			"C": { type: "item", code: "game:chutesection-copper", quantity: 2 },
 			"H": { type: "item", code: "game:hammer-*", isTool: true }
 		},
 		output: { type: "block", code: "seraphhorizons:rosser-frame-north" }
