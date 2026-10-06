@@ -28,10 +28,12 @@ public static class EconomyCommands
     {
         var parsers = api.ChatCommands.Parsers;
         var trade = api.ChatCommands.GetOrCreate("sh").BeginSubCommand("trade");
-        // The supply node takes no parsers of its own: a parser would swallow the subcommand's name.
+        // The supply node takes no parsers of its own (a parser would swallow the subcommand's name):
+        // its handler reads the optional item from the raw arguments.
         trade.BeginSubCommand("supply")
                 .WithDescription("Regional supply levels where you are: supply [item|all], or a subcommand")
                 .RequiresPrivilege(Privilege.controlserver)
+                .IgnoreAdditionalArgs()
                 .HandleWith(args => Show(api, economy, args))
                 .BeginSubCommand("set")
                     .WithDescription("Set an item's supply level in your region")
