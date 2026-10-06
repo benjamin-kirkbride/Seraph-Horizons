@@ -56,7 +56,9 @@ variant: `loggingmod:treetrunk-{wood}-{size}-debarked-{side}`, named "<Wood> Tre
   trunk back; the Trunk Storage Rack stores and returns it (drawn with bark: the rack has its own
   shapes per wood); Carry On and Cartwright's Caravan patch the whole trunk blocktype, so they take
   it too. The knife and shears do nothing (it has no branch count). An axe on a placed debarked
-  trunk gives debarked logs. The heating rack drains its resin as before.
+  trunk, or on a debarked trunk entity with trunk entities (`../TrunkEntities/README.md`), gives
+  debarked logs, and the bark spud makes one from a clean trunk entity. The heating rack drains its
+  resin as before.
 
 ## The machine
 
@@ -300,7 +302,8 @@ The thick trunk's axis is 1.6875 blocks up in the rosser and 1.44 in the mill (0
 hand-off is a transfer, not a slide, and the step shows only at that instant.
 
 **Breaking.** Breaking the frame or any ghost drops the frame, every fitted part by its code (the
-heads only while unused), and the trunk as far as it got (`RosserTrip.Broken`), so breaking and
+heads only while unused), and the trunk as far as it got (`RosserTrip.Broken`; with trunk entities
+it lands as a trunk entity), so breaking and
 running it again never gives its sticks or bark twice:
 
 | Where the trunk is | It drops as |

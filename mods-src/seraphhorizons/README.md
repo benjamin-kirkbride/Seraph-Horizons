@@ -28,7 +28,8 @@ splitting block, predicts its upgrades and arranges the handbook), and its split
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
 sawmill's and the rosser's blocks: the server runs the machines, the client draws their moving
 parts. Machine oil runs on both sides too: the server pours, drains and loads the
-shafts, the client takes the click, shows the tank and draws the smoke.
+shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
+the server runs them, the client draws them and drives the tools' holds on them.
 
 ## Tweaks
 
@@ -733,8 +734,8 @@ it. On top of that:
   (`AssembledMachinesInCreative`) has an oak bed, which comes back advanced too.
 
 **The sawhorses** are Logging Expanded's primitive, standard and advanced ones (`sawhorse`,
-`sawhorsestandard`, `sawhorseadvanced`), which keep all they do: load a debranched trunk or up to 16
-logs, and each hold (0.75 s) works one log: an axe takes it off, a saw cuts 9, 12 or 18 boards, and
+`sawhorsestandard`, `sawhorseadvanced`), which keep all they do: load a debranched trunk (carried
+in Carry On's hands, with `TrunkEntities`, below) or up to 16 logs, and each hold (0.75 s) works one log: an axe takes it off, a saw cuts 9, 12 or 18 boards, and
 an axe with a hammer in the offhand debarks it (the advanced one 3 for every 2 a trunk holds). They
 also take over what Immersive Woodworking's sawhorse did:
 
@@ -1060,12 +1061,14 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
   below; if anything differs it logs one warning and empties the patch, and there is no debarked
   trunk and no rosser.
 - **What works with it.** Logging Expanded carries the state wherever it carries the block: placing
-  and picking up keep it, and the Trunk Storage Rack and the heating rack keep whole stacks. Carry On
+  and picking up keep it (with `TrunkEntities` there is no placing: a trunk entity keeps the stack),
+  and the Trunk Storage Rack and the heating rack keep whole stacks. Carry On
   and Cartwright's Caravan patch the whole trunk blocktype, so they carry it too. The bucking mill
   cuts it into the wood's debarked logs (`debarkedlog-<wood>-ud`), at the same yield. On a sawhorse
   the axe gives debarked logs at Logging Expanded's own yields, the bark spud has nothing to do and no
   bark drops (`UnifiedWoodworking`'s sawhorse guards), the saw gives boards and beams as usual, and
-  unloading gives the debarked trunk back. On the ground an axe gives debarked logs. A debarked trunk
+  unloading gives the debarked trunk back. On the ground (a trunk entity, with `TrunkEntities`) an
+  axe gives debarked logs, and the bark spud debarks a clean trunk whole. A debarked trunk
   has no branch count, so the knife and shears do nothing to it. The rosser refuses it.
 - **How.** A sawhorse keeps only the trunk's stored log stack, so `Trunks.Debark` marks that stack
   (`seraphhorizons:debarked`), and the mark goes wherever the logs go. Server-side Harmony patches
@@ -1168,6 +1171,45 @@ is patched, the mill and the rosser keep no tank, every machine loads its shaft 
 did before, tanks already saved are dropped at the next save, and the handbook page is hidden (the
 client removes it from the handbook; the server lists it under the hidden guides key, so the
 recipe export leaves it out).
+
+### Trunk entities (`TrunkEntities`, `TrunkEntitiesSettings`)
+
+Logging Expanded (`loggingmod`, 0.3.6); Carry On (`carryon`) optional. Logging Expanded's tree
+trunks are never items in an inventory. A felled tree leaves a trunk entity lying on the ground
+(`seraphhorizons:trunk-thin` or `-thick`, shown, boxed and selected as the machines show trunks:
+Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
+holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is shoved by
+walking into it. Hold right-click on it with an empty hand to drag it after you on a rope the game
+pulls (a heavier trunk follows more slowly; the grab lets go when the button does, or beyond 3
+blocks), or tie a rope to it as to any rope-tieable entity. A knife, shears, an axe or a saw held on
+it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
+debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
+trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
+hands, at a walk speed falling from a quarter (4 logs) to 0.02 (48 logs), with Logging Expanded's
+own `trunkcarry` or `trunkcarryheavy` animation; putting it down, or dropping it, lays a trunk
+entity again. Carried, it loads a sawhorse, a Trunk Storage Rack, a heating rack, a rosser or a
+bucking mill, or goes into a cart's or sled's storage slot; unloading any of them, or taking it off
+a cart, puts it back in the hands. Trunk Storage Racks can no longer be carried. The rosser and the
+mill also take a trunk entity lying in their infeed cells, after a rack or a rosser in line there.
+
+Every trunk item entity is swapped for a trunk entity as it spawns or loads, so felling, a station
+unloading onto the ground and a broken machine all leave one; trunk blocks get a storage flag no
+inventory accepts (`Custom10`); and **trunk multiblocks already placed in a world are deleted as they
+load, with nothing given back**. Without Carry On (one warning) nothing goes through hands: trunks are
+dragged, roped and worked where they lie, the rosser and mill take them from the ground and lay them
+there on Ctrl, and Logging Expanded's stations and the carts take none. With the switch off, Logging
+Expanded missing or not as expected, nothing changes and its trunks are items as it ships them; the
+server decides and a client follows it through the world config (`seraphhorizons:trunkEntities`), as
+`UnifiedWoodworking` does. Nothing of Carry On, Logging Expanded or Cartwright's Caravan is
+referenced at build time.
+
+`TrunkEntitiesSettings` holds its figures (weight per log, the carry speeds at 4 and 48 logs, the
+spud's seconds per log, the grab's reach and an optional weight limit for grabbing by hand); values
+out of range fall back to the default with a warning. Everything else is in
+[`TrunkEntities/README.md`](TrunkEntities/README.md): the entity and its boxes, the spawn swap, the
+grab, Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and the `CarryableInteract`
+that lets a carried trunk's click through to a station), each tool's rule, the stations and the
+machines' ground pull, old worlds, the settings table, the tests and what is not checked in the game.
 
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
@@ -1944,8 +1986,10 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 `BuckingSawmill/README.md`), the rosser's rig, parts, pace, trip, water and client-side values
 (`Rosser/Core/`, described in `Rosser/README.md`), machine oil's tank, drain, oil codes and settings
 (`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the trunk code and variant rules of the
-debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), and the item value table's lookup
-and family fallback, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`).
+debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
+and family fallback, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
+and the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
+described in `TrunkEntities/README.md`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms
@@ -2081,13 +2125,26 @@ logs. `tests/PackTests/DebarkedTrunkScenarios.cs` (Atlas) requires a debarked tr
 1320 clean ones with the clean one's shape, rotation, behaviours, multiblock size, held animation
 and Cartwright's attribute, its name and no creative tab; the patched asset's state, shape and
 textures (bark faces and ends), each texture file present (the server has no block textures to read); `Trunks.Debark`
-keeping wood, size, side and logs and dropping the branch count; a debarked trunk placed and picked
-up debarked, the knife doing nothing to it, and an axe on it giving debarked logs where a clean
-trunk's gives placed ones; the Trunk Storage Rack storing and returning it, mark and all; each
-sawhorse giving debarked logs with no bark and unloading it debarked; and the bucking mill cutting it
-into debarked logs. With the switch off, `SwitchesOffScenarios` requires no debarked trunk, no
+keeping wood, size, side and logs and dropping the branch count; the Trunk Storage Rack storing and
+returning it, mark and all; each sawhorse giving debarked logs with no bark and unloading it
+debarked; and the bucking mill cutting it into debarked logs. Trunk entities run in that world, so
+its trunks reach the stations through Carry On's hands and come back into them; a debarked trunk on
+the ground is a trunk entity, worked in `TrunkToolScenarios` (below). With the switch off, `SwitchesOffScenarios` requires no debarked trunk, no
 rosser blocks or recipe, and nothing logged about either. When these fail after a Logging Expanded
 update, `DebarkedTrunks.Bind`'s warning names what changed in its trunk blocktype or members.
+
+`tests/PackTests/TrunkEntityScenarios.cs`, `TrunkToolScenarios.cs`, `TrunkCarryScenarios.cs` and
+`TrunkStationScenarios.cs` (Atlas) are the trunk entities' (`TrunkEntities/README.md`, "Tests"):
+a spawned trunk item becoming a thin or thick trunk entity, no trunk given to a player, the weight
+by logs, a trunk at rest on the ground, a placed trunk multiblock removed as it loads, and the grab
+dragging a trunk while held; each tool on a trunk entity, the axe and saw refusing a branched one
+and the spud debarking a clean one whole with its bark; carrying through the pinned Carry On (the
+animation by size, racks not carryable, the speed by logs, sneak to shoulder, put-down and a drop
+laying a trunk entity, a cart taking a carried trunk and giving it back to the hands); and the
+rosser and mill pulling a trunk entity from their infeed cells, Ctrl into the hands, and the
+sawhorse, Trunk Storage Rack and heating rack loading from the hands and unloading into them. When
+they fail after a Logging Expanded or Carry On update, the warning in the log names what the bridge
+no longer finds.
 
 `tests/PackTests/WoodworkingMachineCostsScenarios.cs` (Atlas) requires each of the eight parts'
 one recipe to take the nails and strips, plates and rods of `WoodworkingMachineCosts.Parts`, all

@@ -65,7 +65,8 @@ there is one, otherwise the blade kit. With trunk entities (`../TrunkEntities/RE
 trunk goes into the player's Carry On hands, and stays on the bed with an error while those are
 full (`TrunkStations.GiveToHands`); without Carry On it is laid on the ground two cells beyond the
 infeed end, across the line (`TrunkStations.DropBeyond`). The other parts come back only by breaking the frame,
-which drops the frame, every fitted part, the blade kit and a recoverable trunk. The rules are in
+which drops the frame, every fitted part, the blade kit and a recoverable trunk (with trunk
+entities, as a trunk entity). The rules are in
 `Core/Parts.cs`.
 
 **Creative shortcut.** The woodworking stations' (the mod README's unified woodworking section,
