@@ -878,14 +878,14 @@
     },
     {
       "id": "exlib",
-      "version": "0.7.2",
+      "version": "0.8.4",
       "assetId": 55292,
-      "releaseId": 52809,
-      "fileId": 114430,
-      "fileName": "exlib_0.7.2.zip",
-      "fileUrl": "https://moddbcdn.vintagestory.at/exlib_0.7.2_883614bf0c5bdd6a2658d2d775e6c23e.zip?dl=exlib_0.7.2.zip",
-      "sha256": "84b15db94aa21a8ef79e9b3964aba70ac7422e4ca0298ad468f1b0cf0fbeb8ab",
-      "size": 114952,
+      "releaseId": 59927,
+      "fileId": 127766,
+      "fileName": "exlib_0.8.4.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/exlib_0.8.4_1fe338cba57538b89801b65963ba2509.zip?dl=exlib_0.8.4.zip",
+      "sha256": "ec5f5360f4f081fb10422da17852ea1eb165921331485db4734e99fb5d6b70b1",
+      "size": 617514,
       "side": "universal",
       "license": "unknown",
       "redistribute": false,
@@ -896,7 +896,8 @@
         "1.22.3",
         "1.22.4",
         "1.22.5",
-        "1.22.6"
+        "1.22.6",
+        "1.22.7"
       ],
       "dependencies": {
         "game": "1.22.0"
@@ -904,14 +905,14 @@
     },
     {
       "id": "ppex",
-      "version": "0.6.8",
+      "version": "0.7.1",
       "assetId": 55302,
-      "releaseId": 52810,
-      "fileId": 114431,
-      "fileName": "ppex_0.6.8.zip",
-      "fileUrl": "https://moddbcdn.vintagestory.at/ppex_0.6.8_befd512e3b3881e2cd55abc292a57432.zip?dl=ppex_0.6.8.zip",
-      "sha256": "d1366180a5c6b813850534b04bd5fbe9fdbe71878039687dcebae88e321d86f7",
-      "size": 262390,
+      "releaseId": 59928,
+      "fileId": 127767,
+      "fileName": "ppex_0.7.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/ppex_0.7.1_e35ccfd58bf7cf57fdd43713a5dc5d3b.zip?dl=ppex_0.7.1.zip",
+      "sha256": "c1acfab80ffc528f6f520dbfefcdcfca026800d1ed39f0525c7af2e9a6e9b0cf",
+      "size": 308470,
       "side": "universal",
       "license": "unknown",
       "redistribute": false,
@@ -922,11 +923,12 @@
         "1.22.3",
         "1.22.4",
         "1.22.5",
-        "1.22.6"
+        "1.22.6",
+        "1.22.7"
       ],
       "dependencies": {
         "game": "1.22.0",
-        "exlib": "0.7.2"
+        "exlib": "0.8.4"
       }
     },
     {

@@ -6,8 +6,9 @@ namespace SeraphHorizons.RecipeExport.Recipes;
 
 /// <summary>
 /// A block built in place: placed, then completed stage by stage with right clicks that each
-/// consume stacks from the hotbar (BEBehaviorRightClickConstructable, or a subclass such as
-/// exlib's ExRightClickConstructable). The water wheel and ppex's machines work this way.
+/// consume stacks from the hotbar (BEBehaviorRightClickConstructable or a subclass, or exlib's
+/// ExRightClickConstructable, which since exlib 0.8 is its own behavior with stages of the same
+/// shape). The water wheel and ppex's machines work this way.
 /// Blocks of one type whose stages are equal (the four sides of a pump) are one build.
 /// </summary>
 public sealed class InPlaceBuild
@@ -18,6 +19,10 @@ public sealed class InPlaceBuild
     public required string Behavior;
     public required int BehaviorIndex;
     public float? BrokenDropsRatio;
+
+    /// <summary>exlib's behavior (0.8 on) refuses a stage paid with one stored wildcard in two
+    /// variants, so the slots of a stage that store the same group take the same value.</summary>
+    public bool OneVariantPerStage;
 
     /// <summary>Every stage, the placed block (stage 0) included.</summary>
     public List<BuildStage> Stages = new();
@@ -61,6 +66,26 @@ public static class InPlaceBuilds
 {
     public const string DefaultActionLangCode = "rollers-construct";
 
+    /// <summary>exlib's construction behavior: a subclass of the engine's up to exlib 0.7, its own
+    /// class (ExRightClickConstruction, same JSON stages) from 0.8. Matched by name, as exlib is not
+    /// referenced.</summary>
+    public const string ExlibBehaviorType = "ExpandedLib.Blocks.ExRightClickConstructable";
+
+    /// <summary>Whether a block-entity behavior class builds its block in place: the engine's
+    /// behavior or a subclass, or exlib's (or a subclass of it).</summary>
+    public static bool IsConstructable(Type? type) =>
+        type != null && (typeof(BEBehaviorRightClickConstructable).IsAssignableFrom(type) || IsExlibOwn(type));
+
+    /// <summary>Whether the class is exlib's own behavior (0.8 on) or a subclass of it, as opposed
+    /// to a subclass of the engine's.</summary>
+    private static bool IsExlibOwn(Type type)
+    {
+        if (typeof(BEBehaviorRightClickConstructable).IsAssignableFrom(type)) return false;
+        for (var t = type; t != null; t = t.BaseType)
+            if (t.FullName == ExlibBehaviorType) return true;
+        return false;
+    }
+
     public static List<InPlaceBuild> Find(ICoreServerAPI api, StackExpander expander)
     {
         var groups = new Dictionary<string, InPlaceBuild>(StringComparer.Ordinal);
@@ -72,7 +97,7 @@ public static class InPlaceBuilds
             for (int i = 0; i < behaviors.Length; i++)
             {
                 var type = api.ClassRegistry.GetBlockEntityBehaviorClass(behaviors[i].Name);
-                if (type == null || !typeof(BEBehaviorRightClickConstructable).IsAssignableFrom(type)) continue;
+                if (!IsConstructable(type)) continue;
                 var props = behaviors[i].properties;
                 var stagesJson = props?["stages"];
                 if (stagesJson == null || !stagesJson.Exists) continue;
@@ -83,7 +108,8 @@ public static class InPlaceBuilds
                     existing.Members.Add(block);
                     continue;
                 }
-                // Parsed as the behavior parses it (JsonObject.AsObject, domain "game").
+                // Parsed as the behavior parses it (JsonObject.AsObject, domain "game"); exlib's
+                // ExConstructionStage has the engine's fields, so it parses the same.
                 var stages = stagesJson.AsObject<ConstructionStage[]>() ?? [];
                 var build = new InPlaceBuild
                 {
@@ -92,6 +118,7 @@ public static class InPlaceBuilds
                     Behavior = behaviors[i].Name,
                     BehaviorIndex = i,
                     BrokenDropsRatio = props!["brokenDropsRatio"].Exists ? props["brokenDropsRatio"].AsFloat() : null,
+                    OneVariantPerStage = IsExlibOwn(type!),
                 };
                 ReadStages(build, stages);
                 groups[key] = build;
@@ -102,7 +129,7 @@ public static class InPlaceBuilds
         foreach (var build in ordered)
         {
             build.Block = build.Members.FirstOrDefault(b => Items.HandbookRule.PagesFor(b).Any()) ?? build.Members[0];
-            build.Variants = Resolve(api.World, expander, build.Slots);
+            build.Variants = Resolve(api.World, expander, build.Slots, build.OneVariantPerStage);
         }
         return ordered;
     }
@@ -143,9 +170,12 @@ public static class InPlaceBuilds
     /// stored that group in an earlier stage (RightClickConstruction.StoredWildCards). Each
     /// placeholder group used becomes a binding, and the slot that stored it may only take
     /// stacks with the bound value. Groups stored but never used bind nothing: each slot takes
-    /// any stack its own wildcard allows, as the engine does.
+    /// any stack its own wildcard allows, as the engine does. With
+    /// <paramref name="oneVariantPerStage"/> (exlib's behavior), the other slots of that slot's
+    /// stage that store the same group must match it, so they take only the bound value too.
     /// </summary>
-    internal static List<BuildVariant> Resolve(IWorldAccessor world, StackExpander expander, List<BuildSlot> slots)
+    internal static List<BuildVariant> Resolve(IWorldAccessor world, StackExpander expander, List<BuildSlot> slots,
+        bool oneVariantPerStage = false)
     {
         // For each slot using `{group}`: the slot whose stored value it gets.
         var feeders = new Dictionary<string, SortedSet<int>>(StringComparer.Ordinal);
@@ -191,7 +221,9 @@ public static class InPlaceBuilds
             {
                 var spec = Fill(slots[i].Form.Primary, bindings);
                 var group = slots[i].StoreWildCard;
-                var restricted = group != null && bindings.ContainsKey(group) && feeders[group].Contains(i);
+                var restricted = group != null && bindings.ContainsKey(group)
+                                 && (feeders[group].Contains(i)
+                                     || oneVariantPerStage && feeders[group].Any(f => slots[f].Stage == slots[i].Stage));
                 variant.Slots.Add((spec, restricted ? group : null, restricted ? bindings[group!] : null));
             }
             variants.Add(variant);

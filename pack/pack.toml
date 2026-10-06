@@ -303,7 +303,7 @@ why = "Reinforced rotors, better sails and vertical-axis windmills."
 
 [[mod]]
 id = "exlib"
-version = "0.7.2"
+version = "0.8.4"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -311,11 +311,11 @@ why = "Library for Fallenstar's Expanded mods, required by Pipes and Power Expan
 
 [[mod]]
 id = "ppex"
-version = "0.6.8"
+version = "0.7.1"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Pipe networks and modular steam power."
+why = "Pipe networks and modular steam power. Its wiki warns that pipes can burst from a pressure spike on login or after a restart, with no fix yet (https://exwiki.felled-stars.org/current/ppex/mechanics/pipes-and-pressure/). It is a closed line: it and smex shut down in a world with iiex or siex enabled, neither of which is in the pack."
 
 [[mod]]
 id = "crucibulum"
