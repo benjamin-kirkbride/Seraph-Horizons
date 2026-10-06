@@ -150,6 +150,7 @@
   "trunkentities-error-too-heavy": "This trunk is too heavy to drag by hand. Tie a rope to it.",
   "trunkentities-error-too-far": "Get closer to the trunk to grab it.",
   "trunkentities-hands-full": "Your hands are full. Put down what you are carrying first.",
+  "trunkentities-hands-not-empty": "Empty both hands first.",
   "loggingmod:block-treetrunk-acacia-*-debarked-*": "Acacia Tree Trunk (Debarked)",
   "loggingmod:block-treetrunk-birch-*-debarked-*": "Birch Tree Trunk (Debarked)",
   "loggingmod:block-treetrunk-baldcypress-*-debarked-*": "Baldcypress Tree Trunk (Debarked)",

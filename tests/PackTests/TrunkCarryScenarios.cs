@@ -176,6 +176,40 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
+    public async Task A_trunk_is_refused_while_a_hand_holds_an_item()
+    {
+        var pos = await Floor(-20);
+        var player = await Player("trunkjuggler", pos.AddCopy(2, 0, 0));
+        var offhand = player.Entity.LeftHandItemSlot;
+        Assert.NotNull(offhand);
+
+        // something in the offhand: Carry On could then neither put the trunk down nor free the hand
+        offhand.Itemstack = new ItemStack(W.GetItem(new AssetLocation("game:stick")));
+        Assert.False(TrunkCarry.TryGive(player, Trunk(6)));
+        Assert.Null(TrunkCarry.Carried(player));
+
+        // sneak-clicking a trunk entity leaves it lying there
+        var trunk = TrunkSpawns.Spawn(W, Trunk(6), pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
+        await World.Ticks(2);
+        player.Entity.Controls.ShiftKey = true;
+        trunk.OnInteract(player.Entity, player.InventoryManager.ActiveHotbarSlot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        player.Entity.Controls.ShiftKey = false;
+        Assert.True(trunk.Alive);
+        Assert.Null(TrunkCarry.Carried(player));
+
+        // something in the active hand
+        offhand.Itemstack = null;
+        player.InventoryManager.ActiveHotbarSlot.Itemstack = new ItemStack(W.GetItem(new AssetLocation("game:stick")));
+        Assert.False(TrunkCarry.TryGive(player, Trunk(6)));
+        player.InventoryManager.ActiveHotbarSlot.Itemstack = null;
+
+        // both empty: taken
+        Assert.True(TrunkCarry.TryGive(player, Trunk(6)));
+        Assert.NotNull(TrunkCarry.Take(player));
+        trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario]
     public async Task Carrying_a_trunk_slows_by_its_logs_and_stops_when_put_away()
     {
         var pos = await Floor(20);

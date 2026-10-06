@@ -150,10 +150,15 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   trunk entity: sneak + right-click with an empty hand puts the trunk's stack in the player's Carry
   On hands slot and removes the entity, at once, with the trunk's place sound
   (`EntityBehaviorTrunkCarry`, server side, added to both entity types by
-  `patches/trunkentities-carryon.json`). Hands already full: the error "Your hands are full. Put down
-  what you are carrying first." (`trunkentities-hands-full`). The carried stack gets a small block
-  entity tree (`blockCode`, `type`), because Carry On attaches a carried block to a cart only with
-  block entity data.
+  `patches/trunkentities-carryon.json`). Hands already full: the error "Your hands are full. Put
+  down what you are carrying first." (`trunkentities-hands-full`). An item in either hand (the
+  offhand too): "Empty both hands first." (`trunkentities-hands-not-empty`), and the trunk stays
+  where it was. `TryGive` refuses it for every way into the hands (pick-up, a station, the rosser
+  and mill's Ctrl, a cart), because Carry On locks both hand slots while carrying and its client
+  starts no carry action, a put-down included, unless both are empty: a trunk taken with something
+  in the offhand could never be put down. The carried stack gets a small block entity tree
+  (`blockCode`, `type`), because Carry On attaches a carried block to a cart only with block entity
+  data.
 - **Speed.** While a trunk is carried, the player's `walkspeed` stat gets the code
   `seraphhorizons:trunk`, so the walk speed is `TrunkWeight.CarrySpeed` of its logs:
   `CarrySpeedAtFourLogs` (0.25) up to 4 logs, falling linearly to `CarrySpeedAtMaxLogs` (0.02) at 48
@@ -350,18 +355,19 @@ entities, with nothing to pick them up; turn the switch back on to use them.
     the weight follows the logs per entity and leaves the type's alone, and no logs removes it; a
     trunk dropped from a height rests on the ground; a placed trunk multiblock is removed when it
     loads, nothing dropped; a trunk left in a hotbar, placed through the game's own placement, is
-    taken from the hotbar and lies there as a trunk entity, with no block; and the grab: sneak shoulders instead, an empty hand ties the grab's rope
-    between player and trunk, the trunk follows a player who steps away, letting go removes the rope,
-    and too far refuses.
+    taken from the hotbar and lies there as a trunk entity, with no block; and the grab: sneak
+    shoulders instead, an empty hand ties the grab's rope between player and trunk, the trunk
+    follows a player who steps away, letting go removes the rope, and too far refuses.
   - `TrunkToolScenarios.cs`: every tool kind gets the behaviour; the axe takes a log, with a hammer
-    a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from twelve
-    branches; the saw cuts planks; the axe and saw refuse a branched trunk; the spud debarks a clean
-    trunk in one hold and drops bark; a trunk at its last log is gone after the axe.
+    a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from
+    twelve branches; the saw cuts planks; the axe and saw refuse a branched trunk; the spud debarks
+    a clean trunk in one hold and drops bark; a trunk at its last log is gone after the axe.
   - `TrunkCarryScenarios.cs`: carrying runs; a carried trunk has Logging Expanded's animation by
     size; Trunk Storage Racks cannot be carried; a trunk given goes into empty hands and back out;
-    carrying slows by the logs and the speed goes when it is put away; sneak-clicking a trunk entity
-    shoulders it; putting it down lays a trunk entity and no block; a dropped carried trunk lands as a
-    trunk entity; a cart takes a carried trunk and gives it back to the hands.
+    an item in either hand refuses it; carrying slows by the logs and the speed goes when it is put
+    away; sneak-clicking a trunk entity shoulders it; putting it down lays a trunk entity and no
+    block; a dropped carried trunk lands as a trunk entity; a cart takes a carried trunk and gives
+    it back to the hands.
   - `TrunkStationScenarios.cs` (on the woodworking world, `WoodworkingScenarios`, where trunk
     entities run with Carry On): a running rosser, and a running mill with a debranched trunk, take a
     trunk entity from their infeed cells only; Ctrl on the mill puts the trunk in the hands and full
@@ -401,9 +407,10 @@ through:
 - a trunk lying at an angle (its collision is a staircase of axis-aligned boxes, above).
 
 Also not checked: the axe on a debarked trunk without a hammer (debarked logs, by reading; the
-placed-trunk scenario for it went with placed trunks), Carry On's death, damage and quick drops
-(one dropped-trunk scenario covers the drop path), the heating rack's hands-full put-back, and the feature without Carry On or without
-Immersive Woodworking: the pack always loads both, so Atlas never sees those paths.
+placed-trunk scenario for it went with placed trunks), Carry On's death, damage and quick drops (one
+dropped-trunk scenario covers the drop path), the heating rack's hands-full put-back, and the
+feature without Carry On or without Immersive Woodworking: the pack always loads both, so Atlas
+never sees those paths.
 
 Known compromises:
 

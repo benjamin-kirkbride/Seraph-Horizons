@@ -87,13 +87,16 @@ public static class TrunkCarry
         player.Entity is { } entity && CarriedIn(entity) is { } carried && StackOf(carried) is { } stack && Trunks.IsTrunk(stack) ? stack : null;
 
     /// <summary>Puts <paramref name="trunk"/> into <paramref name="player"/>'s empty Carry On hands.
-    /// False when the hands hold anything, the stack is not a trunk, or carrying is unavailable.
-    /// Server side.</summary>
+    /// False when Carry On's hands hold anything, either of the player's hands holds an item (Carry
+    /// On locks both hand slots while carrying, and starts nothing, a put-down included, unless both
+    /// are empty, so the trunk could not be put down), the stack is not a trunk, or carrying is
+    /// unavailable; <see cref="HandsFull"/> says which. Server side.</summary>
     public static bool TryGive(IServerPlayer player, ItemStack trunk)
     {
         var entity = player.Entity;
         if (entity == null || entity.Api.Side != EnumAppSide.Server || Manager(entity.Api) is not { } manager
-            || !trunk.ResolveBlockOrItem(entity.World) || !Trunks.IsTrunk(trunk) || CarriedIn(entity) != null)
+            || !trunk.ResolveBlockOrItem(entity.World) || !Trunks.IsTrunk(trunk) || CarriedIn(entity) != null
+            || !HandsEmpty(entity))
             return false;
         var m = _members!;
         var stack = Clean(trunk.Clone());
@@ -121,9 +124,19 @@ public static class TrunkCarry
         return Clean(stack);
     }
 
-    /// <summary>Tells <paramref name="player"/> their hands are full (in-game error).</summary>
-    public static void HandsFull(IServerPlayer player) =>
-        player.SendIngameError("trunkentities-hands-full", Lang.GetL(player.LanguageCode, "seraphhorizons:trunkentities-hands-full"));
+    /// <summary>Whether both of <paramref name="entity"/>'s hands are empty (the active hotbar slot
+    /// and the offhand), as Carry On needs them to carry.</summary>
+    public static bool HandsEmpty(EntityAgent entity) =>
+        entity.RightHandItemSlot is not { Empty: false } && entity.LeftHandItemSlot is not { Empty: false };
+
+    /// <summary>Tells <paramref name="player"/> why a trunk does not go into their hands (in-game
+    /// error): Carry On's hands are full, or else a hand holds an item.</summary>
+    public static void HandsFull(IServerPlayer player)
+    {
+        string code = player.Entity is { } entity && CarriedIn(entity) == null && !HandsEmpty(entity)
+            ? "trunkentities-hands-not-empty" : "trunkentities-hands-full";
+        player.SendIngameError(code, Lang.GetL(player.LanguageCode, "seraphhorizons:" + code));
+    }
 
     // ---- set-up ----
 
@@ -387,7 +400,7 @@ public static class TrunkCarry
         __result = false;
         if (api.Side != EnumAppSide.Server || __0 is not EntityPlayer { Player: IServerPlayer player })
             return false;
-        if (CarriedIn(__0) != null)
+        if (CarriedIn(__0) != null || !HandsEmpty(__0))
         {
             HandsFull(player);
             return false;
@@ -459,7 +472,8 @@ public class EntityBehaviorTrunkCarry(Entity entity) : EntityBehavior(entity)
 {
     public override string PropertyName() => TrunkCarry.BehaviorCode;
 
-    /// <summary>Whether a click is a pick-up: sneaking, with an empty hand.</summary>
+    /// <summary>Whether a click is a pick-up: sneaking, with an empty hand. (A full offhand is still
+    /// a pick-up, refused with the error that says to empty it.)</summary>
     public static bool Wants(EntityAgent byEntity, ItemSlot? slot) =>
         byEntity is EntityPlayer && (slot == null || slot.Empty) && (byEntity.Controls.ShiftKey || byEntity.Controls.Sneak);
 

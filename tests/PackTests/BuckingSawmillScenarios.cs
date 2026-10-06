@@ -108,9 +108,11 @@ public partial class WoodworkingScenarios
         if (trunk)
         {
             TrunkCarry.Take((IServerPlayer)player);
+            player.InventoryManager.ActiveHotbarSlot.Itemstack = null;   // Carry On takes a trunk only into empty hands
             Assert.True(TrunkCarry.TryGive((IServerPlayer)player, held!), "the trunk could not be carried");
             held = null;
         }
+        // fetched after: carrying puts Carry On's locked slot in the hand
         var slot = player.InventoryManager.ActiveHotbarSlot;
         slot.Itemstack = held;
         slot.MarkDirty();
