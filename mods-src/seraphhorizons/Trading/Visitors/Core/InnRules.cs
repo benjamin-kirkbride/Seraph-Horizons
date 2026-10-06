@@ -209,8 +209,8 @@ public static class InnRules
         }
         report.Checks.Add(new InnCheck(InnRule.Light, light >= s.MinLight, light >= s.MinLight ? "lit" : "dark", st, light));
 
-        // A floor cell for the visitor: open, open above, solid below; not the stall's own cell.
-        report.SpawnAt = room.Cast<InnPos?>().FirstOrDefault(p => p != center && Standable(area, p!.Value))
+        // A floor cell for the visitor: open, open above, solid below; not the stall's cell or on top of it.
+        report.SpawnAt = room.Cast<InnPos?>().FirstOrDefault(p => p != center && p != center.Offset(0, 1, 0) && Standable(area, p!.Value))
                          ?? (Standable(area, st) ? st : null);
         return report;
     }
