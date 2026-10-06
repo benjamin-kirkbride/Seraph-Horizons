@@ -41,9 +41,9 @@ filter is static state reset every server start, which is why it had to go.
   terrain, soil layers and water; before plants), from that column alone. The field is kept inside
   the column (its centre at least its radius from the edges; at most 600 blocks one thick is a
   radius under 14), so no neighbour has to agree on anything.
-- Suitability (`PlacerSite`): the dry part of the disc spans at most 5 blocks in height, at least
+- Suitability (`PlacerSite`): the dry part of the disc spans at most 8 blocks in height, at least
   two thirds of it is dry and 80% of that is soil, gravel or sand; and water stands within 8 blocks
-  of the disc's edge, or the centre lies 4 or more blocks under the mean height of the column's
+  of the disc's edge, or the centre lies 2 or more blocks under the mean height of the column's
   edges (a valley floor). The nearest suiting centre to the spot is taken. Heights are the column's
   `WorldGenTerrainHeightMap` (the top solid block, which the game's surface deposits follow too);
   water is the fluid layer above it.
