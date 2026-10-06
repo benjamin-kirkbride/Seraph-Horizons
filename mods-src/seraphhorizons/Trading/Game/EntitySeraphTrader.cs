@@ -49,6 +49,12 @@ public class EntitySeraphTrader : EntityTrader
     /// <summary>The trader type, from the entity code (<c>trader-{gender}-{type}-{climate}</c>).</summary>
     public string TraderType => Code.Path.Split('-') is { Length: >= 3 } parts ? parts[2] : "";
 
+    /// <summary>The standing tier the shelves are stocked for (<see cref="TradeListResolver.Resolve(TradeListDef, Region, int)"/>).
+    /// Shelves are shared, so a camp trader's follow the best recent customer's tier, as the wallet
+    /// does (<see cref="IStandingSource.ShelfTierFor"/>); a travelling merchant (#456) stocks for its
+    /// inn's owner.</summary>
+    public virtual int StockTier => TradingSystem.Of(Api) is { } system ? system.Standing.ShelfTierFor(this) : 0;
+
     public Region Region
     {
         get => Region.TryParse(WatchedAttributes.GetString(RegionAttr, ""), out var r) ? r : new Region(Region.Temperate, Region.Sedimentary);
@@ -175,8 +181,7 @@ public class EntitySeraphTrader : EntityTrader
     {
         var system = TradingSystem.Of(Api);
         if (system?.Lists?.For(TraderType) is not { } def || Inventory is null) return;
-        // Shelves are shared: they follow the best recent customer's tier, as the wallet does.
-        int tier = system.Standing.ShelfTierFor(this);
+        int tier = StockTier;
         var resolved = TradeListResolver.Resolve(def, Region, tier, system.Standing.UnlocksOfTier(tier).RareStock);
         resolved = TradeOffers.Expand(resolved, system.Offers is { } offers ? e => offers(this, e) : null);
         var context = new TraderContext(TraderType, Region, EntityId, Pos.X, Pos.Z);

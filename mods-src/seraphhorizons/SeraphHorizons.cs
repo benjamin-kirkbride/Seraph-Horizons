@@ -471,4 +471,15 @@ public class SeraphHorizonsConfig
     /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
     /// logs and the admin map layer. Changes nothing in play. Server side.</summary>
     public bool AdminTools { get; set; } = true;
+
+    /// <summary>Travelling merchants (#456, Trading/Visitors/, README "Travelling merchants"): an inn
+    /// flag raised by a player-built inn (a market stall or inn sign, a bed, a table with food, lit,
+    /// roofed and walled) calls a travelling merchant or curio dealer, when its owner is regular with a
+    /// camp within 6 km and the region trades in what the visitor buys; it stays 3–5 days, cannot be
+    /// hurt, and comes again after 10 days. Server side.</summary>
+    public bool TravellingMerchants { get; set; } = true;
+
+    /// <summary>Travelling merchants: the region's summed supply level of what a visitor buys before it
+    /// comes (a level is 10 gears' worth sold there and not yet drained). 0 turns the condition off.</summary>
+    public double TravellingMerchantMinSupply { get; set; } = 2;
 }

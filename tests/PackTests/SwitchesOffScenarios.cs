@@ -491,4 +491,22 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(admin.Map);
         Assert.Empty(admin.MapProviders);
     }
+
+    /// <summary><c>TravellingMerchants</c>: no inns. The flag, the sign and the visitor entities
+    /// still load (a world may hold them), a raised flag makes no inn, and there is no
+    /// <c>/sh trade inn</c>.</summary>
+    [AtlasScenario]
+    public async Task Travelling_merchants_off_a_raised_flag_makes_no_inn()
+    {
+        Assert.True(Off("TravellingMerchants"));
+        var inns = SeraphHorizons.Mod.Trading.Visitors.InnSystem.Of(World.Api)!;
+        Assert.False(inns.Active);
+        Assert.NotNull(W.GetEntityType(new AssetLocation("seraphhorizons:visitor-male-travellingmerchant-temperate")));
+        var pos = World.Spawn.AddCopy(-30, 2, 30);
+        World.SetBlock("seraphhorizons:innflag", pos);
+        await World.Ticks(5);
+        Assert.Empty(inns.Book.Inns);
+        var result = await World.ExecuteCommand("/sh trade inn check");
+        Assert.False(result.Ok, result.Message);
+    }
 }

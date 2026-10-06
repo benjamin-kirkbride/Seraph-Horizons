@@ -37,14 +37,15 @@ public sealed class TradeLists
     /// <summary>A new game TradeItem for an entry this loaded and kept.</summary>
     public TradeItem ItemFor(TradeEntry entry) => (_items.TryGetValue(entry, out var json) ? json : Json(entry)).ToObject<TradeItem>()!;
 
-    public IReadOnlyDictionary<string, double> CampWeights => _lists.ToDictionary(kv => kv.Key, kv => kv.Value.CampWeight);
+    public IReadOnlyDictionary<string, double> CampWeights =>
+        _lists.Where(kv => TraderTypes.All.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value.CampWeight);
 
     /// <param name="exclude">Entries a switched-off feature takes out (the machines' schematics);
     /// dropped quietly, not counted as unresolved.</param>
     public static TradeLists Load(ICoreAPI api, Predicate<TradeEntry>? exclude = null)
     {
         var lists = new TradeLists { _exclude = exclude };
-        foreach (string type in TraderTypes.All)
+        foreach (string type in TraderTypes.All.Concat(TraderTypes.Visitors))
         {
             var loc = new AssetLocation(SeraphHorizonsSystem.HarmonyId, $"{Folder}trader-{type}.json");
             var asset = api.Assets.TryGet(loc);
