@@ -20,11 +20,18 @@ public static class TraderTypes
     public const string AnimalDealer = "animaldealer";
     public const string GeneralStore = "generalstore";
     public const string CurioDealer = "curiodealer";
+    // Travelling merchants (#456): not camp types; they visit player-built inns
+    // (Trading/Visitors/), as <c>seraphhorizons:visitor-{gender}-{type}-{climate}</c>.
+    public const string TravellingMerchant = "travellingmerchant";
+    public const string TravellingCurio = "travellingcurio";
 
     public static readonly IReadOnlyList<string> All =
     [
         Smith, Mechanic, Prospector, Farmer, Cook, Tailor, Carpenter, Mason, AnimalDealer, GeneralStore, CurioDealer,
     ];
+
+    /// <summary>The visitors' types: they have trade lists but are never on the grid.</summary>
+    public static readonly IReadOnlyList<string> Visitors = [TravellingMerchant, TravellingCurio];
 
     /// <summary>The entity code path of a type: <c>trader-{gender}-{type}-{climate}</c>, where
     /// climate is the outfit set (<c>cold</c>, <c>temperate</c> or <c>desert</c>, as vanilla's).</summary>

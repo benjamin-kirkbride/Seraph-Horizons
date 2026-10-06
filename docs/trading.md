@@ -1018,3 +1018,48 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   for an offer's name and description first.
 - `TradeCommands.cs`: unchanged.
 
+
+## Travelling merchants (#456)
+
+`Trading/Visitors/`: `Core/` (`InnRules.cs`, `VisitSchedule.cs`, `VisitConditions.cs`,
+`InnEvaluation.cs`; unit-tested in `tests/Trading/Visitors/`), `Game/` (`InnSystem`, ExecuteOrder 0.66,
+switch `TravellingMerchants`; `InnProbe`, `BlockInnFlag`, `EntityVisitingTrader`, `InnCommands`). The
+player-facing rules are in the mod's README ("Travelling merchants"); what follows is how it hangs
+together.
+
+- **Types without camps**: `TraderTypes.Visitors` (`travellingmerchant`, `travellingcurio`) are not in
+  `TraderTypes.All`, so the grid, the relations and the schematics never see them. `TradeLists.Load`
+  reads their lists with the eleven (so `TradingSystem.Lists` has 13), and `CampWeights` keeps to the
+  eleven. `TradeListResolver.Problems` accepts both.
+- **Entities**: `make_entities.py` also writes `visitor-{male,female}.json` (code `visitor`, the
+  same variant groups, outfits keyed `visitor-*`, the curio dealer in the luxuries set), class
+  `SeraphHorizons.VisitingTrader` (`EntityVisitingTrader : EntitySeraphTrader`), without
+  `reviveondeath`, `emotionstates` and the melee, seek and flee tasks. `ReceiveDamage` lets only
+  healing through. The trader type comes from the code's third part as for the camp traders.
+- **Standing id**: set before spawning, `WatchedAttributes["seraphhorizons:traderid"] =
+  visitor:<kind>` (`TraderIds.Visitor`, which `IsValid` now accepts), so `StandingSystem.TraderIdOf`
+  keeps it and never makes a visitor near a camp the camp's trader.
+- **Stock tier**: `EntitySeraphTrader.StockTier` (virtual, 0) is the tier `Restock` and the economy's
+  `Reprice` resolve the list at. A visitor's is its inn owner's tier with its kind at arrival (saved
+  in its visit attribute), which is how `standingTier` 3 entries are its rare goods. Camp traders
+  still stock at tier 0 until standing wires a tier in.
+- **Clock**: visits run on `Calendar.TotalDays + InnBook.Offset`; `EconomySystem.SimulatedDay` adds a
+  day to the offset and steps every inn, so `/sh trade simulate` moves visits like supply.
+- **Lifecycle**: `InnSystem.Update` (every 2 s, and per simulated day) steps each `InnRecord`:
+  evaluate an idle inn once per whole day (only while its chunk is loaded), spawn on the arrival day
+  (likewise), and on the leave day despawn the visitor if loaded and start the cooldown. Each visitor
+  also asks `CheckVisitor` once a second and leaves (`Die(Removed)`) when its record is gone, not
+  visiting, or past its leave day, or the system is off; so one unloaded at the end of its visit
+  leaves on load. A flag whose block went without `OnBlockRemoved` is noticed when its chunk is
+  loaded. A spawn that fails puts the inn into cooldown rather than retrying every tick.
+- **Flag owner**: `DoPlaceBlock` (it has the player) records the owner after `OnBlockPlaced` (which
+  any `SetBlock` calls, so a flag placed by a command or a test makes an ownerless inn).
+- **Light and solidity**: the rules estimate block light from the room's light sources (the game's
+  falloff of one per block, Manhattan) rather than reading the light engine, which is the night-time
+  light, independent of the hour and of when the engine catches up. A block is solid for the fill
+  unless it is air, a liquid, or replaceable from 5000 (plants, snow layers).
+- **Supply**: the visitor's specials are sold nowhere, so they have no supply of their own; the
+  condition reads the region's levels of the visitor's *buying* list (`BuyerIndex.FullCode`).
+
+Open: visitors only come while the inn's chunk is loaded; the arrival is not announced at the
+camps; a world without the grid skips standing entirely (vanilla camps have no standing ids).

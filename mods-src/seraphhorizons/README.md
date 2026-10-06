@@ -2001,3 +2001,65 @@ the channel log, the overlay format), `tests/Ore/OreTallyTests.cs`, `RegistryRep
 `tests/PackTests/OreAdminScenarios.cs` and `TradingAdminScenarios.cs` (Atlas: every subcommand
 answers in text and JSON, privileges, `count` finding a verified deposit's ore, the registry and
 state exports reading back, a live survey's files, the overlays reaching admins only, the logs).
+
+## Travelling merchants (`TravellingMerchants`, `TravellingMerchantMinSupply`)
+
+A player who builds a small inn and raises an inn flag in it gets visits from two travelling traders
+(#456) that no camp has: a **travelling merchant** (seeds from far off, exotic fruit, olive soap,
+candles; rare: a flute, meteoric iron shears and chisel) who buys copper, bronze and iron ingots,
+leather, linen and twine, and a **travelling curio dealer** (paintings, coloured glass, shells,
+amber; rare: the fish-and-rain painting, the spice merchant's coat, red spinel) who buys gold, silver
+and gems. In `Trading/Visitors/`; server side (default on). Off, any visitor still about leaves.
+
+**The inn** (`Core/InnRules.cs`, checked around the flag):
+
+- **Stall**: a Cartwright's Caravan market stall (the entity) or the pack's **inn sign**
+  (`seraphhorizons:innsign`: a ground sign and charcoal) within 12 blocks of the flag.
+- **Walls**: a flood fill from the stall through open blocks (air, plants, liquids) stays within 12
+  blocks of it. Any other block is wall; doors and trapdoors are wall too, open or shut. **Roof**: a
+  block at most 8 above the stall.
+- "In the room" is a block the fill reaches or one touching it, so furniture counts. **Bed**: any bed
+  (`BlockBed`, or a block code starting `bed-`). **Table**: a block with a `table` part in its code,
+  with food on it or beside it: an edible block, or a container (crock, bowl, pot, pie, shelf, ground
+  storage) holding something edible.
+- **Light**: lamplight at the stall at least 7, from lamps in the room as the game spreads it (a
+  source's level less one per block); the sun never counts, so it is the stall's light at night. A
+  torch three blocks off gives 11.
+
+**The flag** (`seraphhorizons:innflag`: a linen block, charcoal and two sticks) makes an inn of the
+building; whoever places it owns it, and right-clicking it says what the inn still lacks. Taking it
+down ends the inn and any visit.
+
+**The visit**: once a day an idle inn is checked. When the inn passes, **the owner is regular** (tier
+2) with some placed camp within `TraderStandingSpilloverKm` (6 km), and **the region trades** in what
+a visitor buys (the summed supply level of its buying list in the inn's 8 km supply region is at
+least `TravellingMerchantMinSupply`, default 2, i.e. 20 gears' worth sold there and not yet drained),
+one of the kinds that pass sets out: it arrives 2–4 days later (the owner is told), stays 3–5 days and
+leaves; the next can come 10 days after. A world without the grid or standing skips the standing
+condition, and one without regional supply (or the setting at 0) the supply one. A visitor arrives
+only while the inn's chunk is loaded.
+
+**The visitor** is the pack's trader (`seraphhorizons:visitor-{gender}-{type}-{climate}`, entity class
+`SeraphHorizons.VisitingTrader`): its own list (`config/tradelists/trader-travellingmerchant.json`,
+`-travellingcurio.json`), the economy's prices and supply, standing under the trader id
+`visitor:general` or `visitor:curio`, the same at every inn. Its rare goods (`standingTier` 3) are on
+the shelf when the inn's owner is trusted by its kind. It takes no damage, never fights or flees,
+wanders at most 4 blocks, is never a camp for the grid, and says goodbye to players nearby when it
+leaves. Inns and visits are saved with the world (`seraphhorizons:inns`); the visitor keeps its visit
+on itself, and one whose visit ended while its chunk was unloaded leaves as soon as it loads.
+
+**Commands** (privilege `controlserver`): `/sh trade inn check [pos]` (every rule and condition, and
+the visit, for the inn around a position or the nearest flag within 16 blocks),
+`/sh trade inn call <general|curio> [now]` (a visitor to the nearest inn, skipping the conditions and
+the cooldown: on its way, or here at once with `now` or `--now`), `/sh trade inn dismiss` (the
+visitor leaves and the cooldown starts, or a pending visit is called off). `/sh trade simulate <days>`
+moves the visits on too.
+
+Tests: `tests/Trading/Visitors/` (the rules on block grids: a complete inn, a hole in the wall, no
+roof, doors, food on and beside the table, light by distance and walls, furniture outside, stall
+entities; the visit cycle and its ranges; the book's JSON; the conditions; both lists: no problems,
+10–15 specials no camp sells, rare goods by tier); `tests/PackTests/TradingVisitorsScenarios.cs`
+(Atlas: an inn built in the world passes `inn check`, `inn call general --now` brings a merchant with
+its specials that takes no harm and leaves after `simulate 5`, a curio dealer called the slow way
+arrives on its day and is dismissed, an inn without a bed or light says so and is never visited, a
+market stall stands in for the sign, a missing roof fails).
