@@ -1277,10 +1277,9 @@ fixed at creation. The server log says what the world has
   it in, is covered; the log says what was scaled. The factors are a first cut, to be corrected
   from a survey of a world made with them (#458).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
-  quartz and most chromite and platinum, tile the world in 10 km squares instead of 4–6 km
+  quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km
   (`patches/ore-rarerdistricts.json`, on its `minDistanceBetweenDistricts`); with IOG's hard-coded
-  40% chance per tile that is one per 250 km², about one per 15 km square. The tiles line up with
-  pairs of 5 km ore cells.
+  40% chance per tile that is one per 122 km², about one per 11 km square.
 
 Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule:
 
@@ -1566,7 +1565,7 @@ column of one that holds a deposit,
 `/sh ore cell` answering with the spots `OreCells` computes for that seed and `/sh ore here`
 listing every managed metal, no surface copper or cassiterite tried and no other generator trying
 a managed metal, IOG's native copper and hematite veins scaled and a gem's not, and the
-hydrothermal districts' 10 km tiles. Generating enough ore to measure deposits is too slow for
+hydrothermal districts' 7 km tiles. Generating enough ore to measure deposits is too slow for
 Atlas: sizes and spacing are checked with the survey tool (#458). `SwitchesOffScenarios` requires
 a world created with them off to have none of it.
 

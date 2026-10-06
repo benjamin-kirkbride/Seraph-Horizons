@@ -420,6 +420,6 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var districts = World.Api.ModLoader.Systems.First(s => s.GetType().FullName == "InterestingOreGen.Generators.HydrothermalDistrictSystem");
         var configs = (System.Collections.IEnumerable)AccessTools.Field(districts.GetType(), "_configs").GetValue(districts)!;
         Assert.All(configs.Cast<object>(), c =>
-            Assert.NotEqual(10000, (int)AccessTools.Field(c.GetType(), "MinDistanceBetweenDistricts").GetValue(c)!));
+            Assert.NotEqual(7000, (int)AccessTools.Field(c.GetType(), "MinDistanceBetweenDistricts").GetValue(c)!));
     }
 }

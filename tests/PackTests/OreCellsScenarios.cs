@@ -295,7 +295,7 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
-    public void Hydrothermal_districts_tile_the_world_in_10_km_squares()
+    public void Hydrothermal_districts_tile_the_world_in_7_km_squares()
     {
         var system = World.Api.ModLoader.Systems.First(s => s.GetType().FullName == "InterestingOreGen.Generators.HydrothermalDistrictSystem");
         var configs = (System.Collections.IEnumerable)AccessTools.Field(system.GetType(), "_configs").GetValue(system)!;
@@ -303,6 +303,6 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(c => (int)AccessTools.Field(c.GetType(), "MinDistanceBetweenDistricts").GetValue(c)!)
             .ToList();
         Assert.NotEmpty(sizes);
-        Assert.All(sizes, size => Assert.Equal(10000, size));
+        Assert.All(sizes, size => Assert.Equal(7000, size));
     }
 }
