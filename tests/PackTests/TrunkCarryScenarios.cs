@@ -112,7 +112,6 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(Mod.CarryOn);
         Assert.True(TrunkCarry.Available(World.Api));
         Assert.Contains(new AssetLocation("seraphhorizons", "patches/trunkentities-carryon.json"), TrunkEntitySystem.PatchAssets);
-        Assert.Contains(new AssetLocation("seraphhorizons", "patches/trunkentities-carts.json"), TrunkEntitySystem.PatchAssets);
         Assert.Contains(W.GetEntityType(TrunkEntitySystem.ThinCode)!.Server.BehaviorsAsJsonObj, b => b["code"].AsString() == TrunkCarry.BehaviorCode);
         Assert.Contains(W.GetEntityType(TrunkEntitySystem.ThickCode)!.Server.BehaviorsAsJsonObj, b => b["code"].AsString() == TrunkCarry.BehaviorCode);
     }

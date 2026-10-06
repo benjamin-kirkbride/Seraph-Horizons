@@ -329,7 +329,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var rack = W.Blocks.First(b => b?.Code is { Domain: "loggingmod" } c && c.Path.StartsWith("trunkstorage-"));
         Assert.Contains(rack.BlockBehaviors, TrunkCarry.IsCarryable);
         // Cartwright's carts and sleds as the two mods make them: Carry On's own carryonmore patch
-        // gives them one attachablecarryable, and the feature's adds none
+        // gives them one attachablecarryable, and the feature adds none
         var carts = W.EntityTypes.Where(t => t.Code.Domain == "cartwrightscaravan"
                                              && (t.Code.Path.StartsWith("cart-") || t.Code.Path.StartsWith("sled"))).ToList();
         Assert.NotEmpty(carts);

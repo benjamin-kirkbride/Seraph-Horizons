@@ -45,7 +45,6 @@ public class TrunkEntitySystem : ModSystem
     public static readonly List<AssetLocation> PatchAssets =
     [
         new(Domain, "patches/trunkentities-carryon.json"),
-        new(Domain, "patches/trunkentities-carts.json"),
         TrunkStationsSystem.PatchAsset,
     ];
 

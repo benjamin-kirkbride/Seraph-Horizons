@@ -55,7 +55,7 @@ public static class TrunkSpawns
         float yaw = motion.X * motion.X + motion.Z * motion.Z > 1e-6
             ? (float)Math.Atan2(motion.X, motion.Z)
             : (float)(world.Rand.NextDouble() * Math.PI * 2);
-        var pos = item.Pos.XYZ;
+        var pos = new Vec3d(item.Pos.X, item.Pos.Y, item.Pos.Z);   // not XYZ: that Y carries the dimension, set apart below
         int dimension = item.Pos.Dimension;
         item.Die(EnumDespawnReason.Removed);
         for (int i = 0; i < Math.Max(1, stack.StackSize); i++)

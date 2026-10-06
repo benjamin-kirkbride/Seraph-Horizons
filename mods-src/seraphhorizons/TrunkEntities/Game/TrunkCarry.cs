@@ -33,8 +33,8 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// (Carry On's own slot modifier is cancelled out); removed when it is not;</item>
 /// <item>Logging Expanded's Trunk Storage Rack loses its Carryable (<see cref="StripRacks"/>);</item>
 /// <item>Cartwright's carts and sleds take a carried trunk into a storage slot through Carry On's
-/// <c>attachablecarryable</c> (<c>patches/trunkentities-carts.json</c>), and taking one off, by
-/// Carry On's key or the game's own empty-hand take, puts it in the player's hands.</item>
+/// own <c>attachablecarryable</c> (its <c>carryonmore</c> patch gives them it), and taking one off,
+/// by Carry On's key or the game's own empty-hand take, puts it in the player's hands.</item>
 /// </list>
 /// The trunk's carry animation (Logging Expanded's <c>trunkcarry</c>, <c>trunkcarryheavy</c> for
 /// thick trunks) and Carry On's <c>carry-trunk</c> transform are a second Carryable merged into

@@ -195,8 +195,9 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   (`StripRacks`): in code, after Carry On's own asset pass merges and maps Carryables, rather than a
   JSON patch racing Logging Expanded's. The heating rack and stick storage keep theirs.
 - **Carts and sleds.** Cartwright's Caravan ships Carry On's `attachablecarryable` on its cart and
-  sled disabled; `patches/trunkentities-carts.json` adds it to both entity types' server and client
-  behaviour lists, so a carried trunk goes into a cart's or sled's storage slot by Carry On's attach.
+  sled disabled, but Carry On 2.0.0-pre.8's own `patches/carryonmore/cartwrightscaravan.json` adds
+  it to both entity types' server and client behaviour lists, so a carried trunk goes into a cart's
+  or sled's storage slot by Carry On's attach; the feature adds nothing to the carts.
   How it looks there is Logging Expanded's existing patch (the `treetrunk-xs-cart` shape per slot).
   Taking it off by Carry On's own key puts it in the hands; so does the game's empty-hand take from
   an attachment slot (`EntityBehaviorAttachable.TryRemoveAttachment`, prefixed: a trunk fits no
