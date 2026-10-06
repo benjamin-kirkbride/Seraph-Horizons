@@ -1245,7 +1245,7 @@ fixed at creation. The server log says what the world has
   and logged as it changes (`Ore cells: copper cell 102, 98 spot 0 at ...: deposit placed`). Only
   metals that IOG has vein variants with tries for are managed (the log line
   `Ore cells: bound ...` lists them): gold, silver, nickel, titanium and chromium come from
-  hydrothermal districts, which keep their own placement.
+  hydrothermal districts, which keep their own placement (`SmallerDeposits` sizes and counts their veins).
 - **`NoSurfaceCopper`** (#440): the game's surface copper and surface cassiterite pockets, which
   IOG leaves on (it switches off only the deep vanilla deposits), are not tried
   (`patches/ore-nosurfacecopper.json`). IOG's surface signs of its own deep veins (boulders and
@@ -1262,6 +1262,19 @@ fixed at creation. The server log says what the world has
   it in, is covered; the log says what was scaled. The factors began as a first cut; the survey of
   #445 found anchored veins about twice the target, so copper, iron, bismuth, zinc and platinum
   carry half that factor outright (`docs/oregen.md`, "Survey").
+
+  It covers hydrothermal districts too, whose ore IOG places itself, outside the game's deposit
+  generators (`Ore/Game/DistrictVeinSizes.cs`, a postfix on `HydrothermalDistrict.DetectOreZones`;
+  rules in `Ore/Core/DistrictVeins.cs`, data in `config/ore-districts.json`). A district stays a
+  rich field of veins, but finite ones: at most 8 veins (ore shoots and ladder veins) of each metal
+  per district, chosen by a stable hash, except gold, silver, platinum and chromium, which only
+  districts provide and which keep every vein; the others' ore in further veins and in horsetail
+  lenses is not placed. IOG's veins run from the bottom of the world to the top, so each kept vein
+  is cut to a band of heights under sea level that gives a size drawn from the metal's small,
+  typical and large in `config/ore-sizes.json` (the band's height from the vein's geometry, its
+  ores' shares and the ingots of their poorest grade). Gems and minerals are left as IOG makes
+  them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
+  (...): 65 of 310 ore zones kept; veins per metal bismuth 8 (was 69), ...`).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
   quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km
   (`patches/ore-rarerdistricts.json`, on its `minDistanceBetweenDistricts`); with IOG's hard-coded
@@ -1277,7 +1290,7 @@ Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule
 
 Code: `Ore/Core/` (the grid and spot hash, the cell states, the world record, the vein scaling;
 game-independent, tested in `tests/Ore/`), `Ore/Game/` (`OreSystem`, `OreCellPlacement`,
-`DepositSizes`, `ProPickShutdownGuard`, `Commands/`). If IOG is missing or its filter or fields changed, the server logs a
+`DepositSizes`, `DistrictVeinSizes`, `ProPickShutdownGuard`, `Commands/`). If IOG is missing or its filter or fields changed, the server logs a
 warning and leaves IOG's own rule and sizes; the districts patch does nothing without IOG.
 
 With no switch, `OreSystem` also guards the prospecting pick's own deposit setup

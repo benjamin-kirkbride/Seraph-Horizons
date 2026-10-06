@@ -36,10 +36,12 @@ internal static class DepositSizes
         return null;
     }
 
+    public static OreSizeTable LoadTable(ICoreAPI api) =>
+        new(api.Assets.Get(SizesAsset).ToObject<Dictionary<string, OreSizeTable.Entry>>());
+
     public static void Bind(ICoreAPI api, Harmony harmony)
     {
-        var entries = api.Assets.Get(SizesAsset).ToObject<Dictionary<string, OreSizeTable.Entry>>();
-        _table = new OreSizeTable(entries);
+        _table = LoadTable(api);
         _logger = api.Logger;
         harmony.Patch(InitAssets, postfix: new HarmonyMethod(typeof(DepositSizes), nameof(InitAssetsPostfix)));
     }

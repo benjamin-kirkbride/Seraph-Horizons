@@ -13,7 +13,8 @@ namespace SeraphHorizons.Mod.Ore;
 /// <item><c>OreCells</c> (#438): one deposit per metal per cell, at a spot from the seed
 /// (<see cref="OreCellPlacement"/>).</item>
 /// <item><c>NoSurfaceCopper</c> (#440): <c>patches/ore-nosurfacecopper.json</c>.</item>
-/// <item><c>SmallerDeposits</c> (#439): <see cref="DepositSizes"/>.</item>
+/// <item><c>SmallerDeposits</c> (#439): <see cref="DepositSizes"/>, and in hydrothermal districts
+/// <see cref="DistrictVeinSizes"/>.</item>
 /// <item><c>RarerDistricts</c> (#441): <c>patches/ore-rarerdistricts.json</c>.</item>
 /// <item><c>PlacerFields</c> (#442): <see cref="PlacerFields"/>.</item>
 /// </list>
@@ -134,6 +135,14 @@ public class OreSystem : ModSystem
         }
         if (World.PlacerFields && PlacerFields.Unsupported(api) is null)
             Placer = PlacerFields.Bind(api, World);
+        // District veins are sized as IOG builds each district, lazily during worldgen.
+        if (World.SmallerDeposits)
+        {
+            if (DistrictVeinSizes.Unsupported(api) is { } why)
+                api.Logger.Warning("[seraphhorizons] Smaller deposits in hydrothermal districts is off: {0}", why);
+            else
+                DistrictVeinSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), DepositSizes.LoadTable(api));
+        }
         if (Placement != null || Placer != null)
         {
             Deposits = new DepositService(api, Placement, Placer);
@@ -172,6 +181,7 @@ public class OreSystem : ModSystem
         Deposits = null;
         Maps = null;
         DepositSizes.Unbind();
+        DistrictVeinSizes.Unbind();
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
     }

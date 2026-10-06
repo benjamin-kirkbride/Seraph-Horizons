@@ -87,12 +87,57 @@ district per 122 km², against one per 40–90 km² in IOG's own 4–6 km tiles.
 250 km²), sparser than the epic's one per 15 km tile; #445 settled on 7 km. The tiles are a pure
 function of seed and tile, so `/sh ore districts` shows them before anything generates.
 
-District ore is placed by IOG's district generator, not by the vein tries the cell rule approves,
-and `SmallerDeposits` does not scale it. Inside a district the base metals are as plentiful as
-ever: the survey's seed 404 window (a granitic-deep district, radius 2.7 km) held 35 bismuth, 41
-tin, 12 lead and 9 zinc deposits of up to 13,000 ingots in 9.4 km². A district is a rich field,
-roughly 3–28 km² in 122 km², worth a long trek; whether its base metals should be cut too is
-open (see "Survey", below).
+How district ore is made (IOG 2.3.8, `HydrothermalDistrict`, `HydrothermalDistrictSystem`):
+
+- A district is built once per run, from the seed, when a chunk within a tile of it generates
+  (`TrySpawnDistrictsNear`): its faults (5–10 major, 2–4 km; minor branches; 13–22 horsetail
+  splays at each major tip), then its **ore zones** (`DetectOreZones`), 230–500 per district.
+  Its ore never goes through the game's `GenDeposits` or IOG's `TiltedDiscDepositGenerator`, so
+  neither the cell rule (`TryApproveOreSpawnSeed`) nor `DepositSizes` sees it.
+  `HydrothermalDistrictSystem` places it itself in a `TerrainFeatures` pass: it lays the fault
+  rock (the config's `hostMaterialCode`, replacing rock, gravel and sand), then turns zone blocks
+  that are fault rock into ore.
+- Zones: **ore shoots** at fault bends and widenings (an ellipse `oreShootRadius` ± variance,
+  35 ± 10 blocks along the fault, half that across, density 1 − r², at least 10 segments of
+  16 blocks apart on a fault), **ladder veins** (one-block slabs every 2–7 blocks across a
+  widened 100–500 block stretch of fault) and **horsetail lenses** (1–4 ellipsoids of 4–24 blocks
+  on a one-block fracture). Shoots and ladders reach from y 1 to the top of the world: every layer
+  of rock under them is ore, which is why a vein held up to 13,000 ingots. Lenses hold a few
+  ingots each.
+- Each zone draws one ore from its type's pool by `weight`, and a second with even chance; a
+  block becomes an ore with chance `geometric density × density`. The grade is the poorest nine
+  times in ten except in a fault's 1–2 rich bands (`RichnessAt`). An ore whose
+  `allowedVariantsByInBlock` has no entry for the district's rock places nothing (the geology
+  add-on ores of the granite configs name basalt).
+- The config sets fault and zone geometry per district type, not per ore, and has no field for a
+  zone's height or for a number of zones per ore. Lowering an ore's `weight` hands its zones to
+  the other ores (gold, gems), and lowering `density` only thins the ore into specks. So district
+  veins are sized in code.
+
+`SmallerDeposits` covers districts too (`Ore/Game/DistrictVeinSizes.cs`, rules in
+`Ore/Core/DistrictVeins.cs`, data in `config/ore-districts.json`): a postfix on
+`DetectOreZones`, before the zones are indexed, so each district is decided once from what IOG
+builds from the seed, the same after every restart.
+
+- Count: per district, at most 8 veins (shoots and ladders) hold each metal with a size target
+  that is not one only districts provide; which ones is a stable hash of the district and the
+  zone. The metal's ore in further veins and in every horsetail lens is swapped for a copy that
+  places nothing (same weight, so the others' shares stay), and a zone left with nothing is
+  dropped. Gold, silver, platinum and chromium keep all their zones.
+- Size: each kept vein holding a sized metal is cut to a band of heights (its bounding box, which
+  `GetOreBlocksInChunk` iterates). The ore a layer gives is estimated from the zone's geometry
+  (a shoot: fault width × 4r/3; a ladder: stretch × widened width ÷ slab spacing), the ore's
+  share and density, and the ingots of a block of its poorest grade (read from the block's drops)
+  times 1.15; the band is the height that gives the size drawn for the zone (log-linear through
+  the metal's small, typical and large at the 10th, 50th and 90th percentile), the least over its
+  ores, placed by the hash between y 4 and sea level less 6, so it lies in rock. A vein whose
+  whole column holds less keeps it.
+- Unmanaged ores (gems, sulfur, halite, ...) keep their counts; in a vein that also holds a
+  sized metal they share its band.
+
+Before (the survey's seed 404 window, a granitic-deep district, radius 2.7 km): 35 bismuth, 41
+tin, 12 lead and 9 zinc deposits of up to 13,000 ingots in 9.4 km², from 69–82 tin and bismuth
+veins per granite district. After: see "Survey", "Districts after (#435)".
 
 ## Deposit registry (#443)
 
@@ -252,9 +297,33 @@ and in 404 and 505 (tuned).
 - `config/ore-sizes.json`: copper, iron, bismuth, zinc and platinum at half their factor.
 - `Ore/Core/PlacerCells.cs`: `MaxRelief` 8 (was 5), `ValleyDepth` 2 (was 4).
 
+### Districts after (#435)
+
+The same windows with district veins sized and counted (`districts-s404`, `-s505`, `-s101`;
+seed 101's window holds no district ore either way). Deposits in the two windows with district
+ore (18.9 km²), ingots p10 / median / max; before is `tuned`:
+
+| Metal (target) | Before: deposits | p10 / median / max | After: deposits | p10 / median / max |
+|---|---|---|---|---|
+| Bismuth (60 / 150 / 400) | 47 | 288 / 1,414 / 13,318 | 9 | 71 / 276 / 609 |
+| Tin | 51 | 106 / 504 / 7,449 | 6 | 54 / 213 / 912 |
+| Lead | 14 | 262 / 390 / 1,482 | 7 | 76 / 102 / 627 |
+| Zinc | 12 | 140 / 478 / 7,009 | 8 | 77 / 186 / 949 |
+
+Seed 404 alone (the window of the survey above): bismuth 35 → 8 deposits, tin 41 → 4, lead 12 →
+5, zinc 9 → 6. Ore of the four per km², 404 and 505 together: 10,100 → 450 ingots. The server log
+names each district built near the windows with its veins per metal before and after: granite
+districts had 60–95 tin and bismuth veins each, mafic ones 60–150 copper and iron, felsic ones
+35–60 lead; all are 8 now, and gold (5–9), silver (3–15), platinum (5–6) and chromium keep theirs.
+Medians are 0.7–1.8× the typical size and the largest up to 2.4× the large one: a vein's ore per
+layer is an estimate (the fault's width varies along it, and rich bands raise the grade), and
+deposits within 150 m are counted as one. Few veins reach the surface now (12–50%), since a band
+lies under sea level.
+
 ### Open
 
-- District base metals are unscaled and plentiful (see "Hydrothermal districts").
+- District vein sizes rest on 30 deposits in two windows; a wider survey would show whether
+  `gradeAllowance` (`config/ore-districts.json`) needs raising.
 - Lead, nickel, silver, gold, titanium and chromium sizes, and counts per 25 km² for every metal,
   need a survey of several cells (160 × 160 chunks or more, five seeds).
 - Not walked in game yet: finding a gravel field by map, panning, buying an ore map and reaching
