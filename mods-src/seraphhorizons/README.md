@@ -1627,3 +1627,66 @@ state, the shipped lists and the curation fixture); `tests/PackTests/TradingCore
 (Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere, a
 spawned trader stocking from its list, the game's camps taken over, the spawner rewrite, a cell's
 camp being decided, `/sh trade camps`, and nothing logged).
+
+## Placer fields, deposits and ore maps (`PlacerFields`, `PlacerCellSizeMetres`)
+
+The rest of the ore epic's first half (#435; details and the traders' API in `docs/oregen.md`), in
+`Ore/`, next to the ore cells above.
+
+**Placer fields** (#442, server, default on, **new worlds only**, recorded with the ore switches in
+`seraphhorizons:oreworld`): one rich gravel field per placer cell, a square of
+`PlacerCellSizeMetres` (1,500) blocks, the first metal a new player can reach (about 750 m away).
+The seed picks sixteen spots per cell, as ore cells do (`Ore/Core/PlacerCells.cs`, its own salt);
+when the chunk column holding the active spot generates (the TerrainFeatures pass, after terrain,
+soil and water, before plants), the field goes in that column if its terrain suits: dry ground of
+at most 5 blocks' relief under the disc, mostly soil, gravel or sand, with water within 8 blocks or
+on a valley floor (4 or more blocks under the column's edges). Otherwise the spot fails and the next
+becomes active; a cell with none left has no field (the log says why each spot failed:
+`Placer fields: cell 341, 341 spot 1 at ...: unsuitable (water 0/1024, heights 128-143, ...)`). A
+field is 300–600 blocks (seeded) of `richgravel-{rock}` in a disc one or two blocks thick, flush
+with the surface or one block under it, of the rock found under it, so Wilderlands Panning's per-rock
+tables decide what it pans. State in `seraphhorizons:placercells`. Also, in such worlds:
+
+- the scattered rich gravel (Wilderlands Panning's `richgravel` deposit, 75 tries per chunk) is cut
+  to a quarter (a postfix on `GenDeposits.initAssets`);
+- every rock's rich gravel pans native copper. Wilderlands Panning 1.0.9 gives copper at 3% to rich
+  gravel without a table of its own, and has fourteen per-rock tables (which win for their rock):
+  basalt and chert 2%, andesite 2%, bauxite 1.5%, sandstone 1%, and none for conglomerate,
+  limestone, peridotite, phyllite, slate, chalk, claystone, granite and shale, among the commonest
+  surface rocks. Those nine get `nugget-nativecopper` at 1%, added to the pan's table on the server
+  after the patch loader (the log lists them). Panning yield is still to be checked in game (#442).
+
+**Deposit registry** (#443): `OreSystem.Deposits` (`Ore/Game/DepositService.cs`) lists, from the
+seed and the cell books alone, every metal's deposit and every gravel field within a radius
+(metal, cell, active spot, state); verifies one by generating its spot's column if need be (which
+places the vein or moves the cell to its next spot, which is followed), then its column and the
+eight around it, and counting the metal's ore there as the survey does (each block's drops times
+their `metalUnits`; 5 units a nugget, 20 nuggets an ingot); classes it small, medium or large by
+thirds of the metal's range (`config/ore-sizes.json`'s `smallIngots`..`largeIngots`: copper and
+iron 150–1,000, ...) and marks it sold out below a tenth of small. The world-wide record
+(`Ore/Core/DepositRegistry.cs`, `seraphhorizons:deposits`) holds per (metal, cell) and gravel cell:
+unsold, sold (to whom, game day), or sold out, and the last measurement. Coal and the minerals are
+not listed.
+
+**Ore and gravel maps** (#444): `seraphhorizons:oremap` and `seraphhorizons:gravelmap`
+(`Ore/Game/ItemOreMap.cs`, after the game's locator map), stack size 1, ordinary items. A map holds
+its deposit, metal, size tier, precision and marker position; right-click adds a pinned waypoint
+("Copper deposit (large)", "Rich gravel (granite)") and keeps the map. Precision 1 marks within
+400 m, 2 within 150 m, 3 the deposit itself (its measured centre); the offset is seeded from the
+deposit, so every copy agrees and a better tier's marker lies between the worse one's and the
+deposit (`MapPrecision`). Gravel maps are exact. `OreSystem.Maps.Issue(player, deposit, precision)`
+(`Ore/Game/MapIssuer.cs`) builds the map and marks the deposit sold, refusing one already sold or
+sold out: the call the traders make (#455). The items exist in every world; without ore cells or
+placer fields there is nothing to issue.
+
+Admin commands (`controlserver`), under `/sh ore`: `list [metal] [radius] [--unsold|--sold|--soldout]`
+(default radius 6,000; ids `copper:102,102`), `gravel [radius]`, `verify <id>` (answers when the
+chunks are ready), `tp <id>`, `registry mark <id> sold|soldout`, `registry reset <id>`, and
+`givemap <player> <metal|gravel> <precision 1-3>` (the nearest unsold deposit to the player,
+verified, issued to them).
+
+Tests: `tests/Ore/PlacerCellsTests.cs`, `DepositRegistryTests.cs` (spots, field sizes, terrain
+suitability, the placer book, the registry's states, size tiers, map offsets);
+`tests/PackTests/OreMapsScenarios.cs` (Atlas, a fixed seed: the switch recorded, the scattered gravel
+cut, every rock panning copper, the registry listing from the seed, verifying an ungenerated deposit,
+`givemap` and the waypoint, a gravel cell resolving to a field of rich gravel and its map).

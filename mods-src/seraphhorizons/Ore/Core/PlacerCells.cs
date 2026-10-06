@@ -106,7 +106,8 @@ public sealed class TerrainPatch
 /// order the world is explored in: its centre is at least the disc's radius from the column's
 /// edges. A centre suits when:
 /// <list type="bullet">
-/// <item>the ground is gentle: the disc's heights span at most <see cref="MaxRelief"/> blocks;</item>
+/// <item>the ground is gentle: the disc's dry heights span at most <see cref="MaxRelief"/> blocks
+/// (a lake or river bed under part of it doesn't count: the gravel there goes on the bed);</item>
 /// <item>it is mostly land (at least <see cref="MinLandShare"/> of the disc dry) whose top block can
 /// take the gravel (at least <see cref="MinReplaceableShare"/> of it soil, gravel or sand);</item>
 /// <item>water is near (within <see cref="NearWater"/> blocks of the disc's edge), or it lies on a
@@ -117,7 +118,7 @@ public sealed class TerrainPatch
 /// </summary>
 public static class PlacerSite
 {
-    public const int MaxRelief = 3;
+    public const int MaxRelief = 5;
     public const double MinLandShare = 2.0 / 3;
     public const double MinReplaceableShare = 0.8;
     public const int NearWater = 8;
@@ -178,20 +179,32 @@ public static class PlacerSite
             if (x < 0 || z < 0 || x >= TerrainPatch.Size || z >= TerrainPatch.Size) return false;
             int i = TerrainPatch.Index(x, z);
             inside++;
+            if (patch.Water[i]) continue;
             int h = patch.Heights[i];
             min = Math.Min(min, h);
             max = Math.Max(max, h);
-            if (patch.Water[i]) continue;
             land++;
             if (patch.Replaceable[i]) replaceable++;
         }
-        if (inside == 0 || max - min > MaxRelief) return false;
+        if (land == 0 || max - min > MaxRelief) return false;
         if (land < MinLandShare * inside || replaceable < MinReplaceableShare * land) return false;
         double reach = radius + NearWater;
         foreach (var (wx, wz) in waterCells)
             if ((wx - cx) * (wx - cx) + (wz - cz) * (wz - cz) <= reach * reach)
                 return true;
         return patch.Heights[TerrainPatch.Index(cx, cz)] <= edgeMean - ValleyDepth;
+    }
+
+    /// <summary>A column's terrain in a few words, for the log when no centre suits: its water
+    /// cells, height range, dry share that can take gravel, and how far its lowest point lies under
+    /// its edges.</summary>
+    public static string Describe(TerrainPatch patch)
+    {
+        int water = patch.Water.Count(w => w);
+        int loose = Enumerable.Range(0, patch.Heights.Length).Count(i => !patch.Water[i] && patch.Replaceable[i]);
+        int min = patch.Heights.Min(), max = patch.Heights.Max();
+        return string.Create(CultureInfo.InvariantCulture,
+            $"water {water}/{patch.Heights.Length}, heights {min}-{max}, loose dry {loose}, lowest {EdgeMean(patch) - min:0.#} under the edges");
     }
 
     private static double EdgeMean(TerrainPatch patch)

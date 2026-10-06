@@ -224,3 +224,25 @@ public class OreWorldRecordPlacerTests
         Assert.True(record.Effective(record).PlacerFields);
     }
 }
+
+public class PlacerSiteShoreTests
+{
+    [Fact]
+    public void AShoreSuitsHoweverDeepTheWaterBeside()
+    {
+        // Dry land at 110 on the east; a lake bed at 90 under the west third.
+        const int n = TerrainPatch.Size;
+        var h = new int[n * n];
+        var w = new bool[n * n];
+        var r = new bool[n * n];
+        for (int z = 0; z < n; z++)
+            for (int x = 0; x < n; x++)
+            {
+                int i = TerrainPatch.Index(x, z);
+                w[i] = x < 10;
+                h[i] = w[i] ? 90 : 110 + x / 12;
+                r[i] = true;
+            }
+        Assert.NotNull(PlacerSite.FindCentre(new TerrainPatch(h, w, r), new PlacerFieldSpec(600, 1, 0), 16, 16));
+    }
+}

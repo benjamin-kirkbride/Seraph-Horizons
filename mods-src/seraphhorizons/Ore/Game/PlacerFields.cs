@@ -159,7 +159,7 @@ public sealed class PlacerFields
                         continue;
                     }
                 }
-                var field = TryPlace(request, cell, spot);
+                var field = TryPlace(request, cell, spot, out string why);
                 lock (_lock)
                 {
                     _dirty |= _book.OnAnchorGenerated(cell, spot.Index, field);
@@ -167,8 +167,8 @@ public sealed class PlacerFields
                     _api.Logger.Notification("[seraphhorizons] Placer fields: cell {0}, {1} spot {2} at {3}, {4}: {5}",
                         cell.X, cell.Z, spot.Index, spot.X, spot.Z,
                         field != null ? $"{field.Blocks} blocks of richgravel-{field.Rock} at {field.X}, {field.Y}, {field.Z}"
-                            : after.None ? "unsuitable, and no spot left: the cell has none"
-                            : $"unsuitable, spot {after.Active} is next");
+                            : after.None ? $"unsuitable ({why}), and no spot left: the cell has none"
+                            : $"unsuitable ({why}), spot {after.Active} is next");
                 }
             }
         }
@@ -180,8 +180,9 @@ public sealed class PlacerFields
         }
     }
 
-    private PlacedField? TryPlace(IChunkColumnGenerateRequest request, CellPos cell, OreSpot spot)
+    private PlacedField? TryPlace(IChunkColumnGenerateRequest request, CellPos cell, OreSpot spot, out string why)
     {
+        why = "";
         const int size = OreCells.ChunkSize;
         var chunks = request.Chunks;
         var heightMap = chunks[0].MapChunk.WorldGenTerrainHeightMap;
@@ -204,10 +205,18 @@ public sealed class PlacerFields
         var patch = new TerrainPatch(heights, water, replaceable);
         var spec = Cells.Field(cell, spot.Index);
         int lx = spot.X - spot.Chunk.X * size, lz = spot.Z - spot.Chunk.Z * size;
-        if (PlacerSite.FindCentre(patch, spec, lx, lz) is not { } centre) return null;
+        if (PlacerSite.FindCentre(patch, spec, lx, lz) is not { } centre)
+        {
+            why = PlacerSite.Describe(patch);
+            return null;
+        }
         var (cx, cz) = centre;
         int top = heights[TerrainPatch.Index(cx, cz)] - spec.Depth;
-        if (RockAt(chunks, cx, top, cz) is not { } local) return null;
+        if (RockAt(chunks, cx, top, cz) is not { } local)
+        {
+            why = "no rock with rich gravel under it";
+            return null;
+        }
         var (rock, gravelId) = local;
 
         int placed = 0;
@@ -224,7 +233,11 @@ public sealed class PlacerFields
                 placed++;
             }
         }
-        if (placed == 0) return null;
+        if (placed == 0)
+        {
+            why = "nothing to replace";
+            return null;
+        }
         int baseX = request.ChunkX * size, baseZ = request.ChunkZ * size;
         return new PlacedField(spot.Index, baseX + cx, top, baseZ + cz, rock, placed);
     }
