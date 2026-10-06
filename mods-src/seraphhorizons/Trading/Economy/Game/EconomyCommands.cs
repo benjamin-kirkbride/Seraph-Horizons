@@ -108,14 +108,34 @@ public static class EconomyCommands
             var rows = book.In(region).ToList();
             var lines = new List<string> { L("trading-supply-all-header", region, rows.Count, book.Day) };
             lines.AddRange(rows.Take(40).Select(r => L("trading-supply-line", r.Item, F(r.Entry.Level), F(book.Settings.Curve.Factor(r.Entry.Level)))));
+            SeraphHorizons.Mod.Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
+            {
+                ["region"] = region, ["day"] = book.Day,
+                ["items"] = SeraphHorizons.Mod.Core.AdminOutput.Rows(rows, r => SupplyJson(book, r.Item, r.Entry.Level, r.Entry)),
+            });
             if (rows.Count > 40) lines.Add(L("trading-supply-more", rows.Count - 40));
             return TextCommandResult.Success(string.Join("\n", lines));
         }
         string? item = ItemOf(args, word);
         if (item is null) return TextCommandResult.Error(L("trading-supply-noitem"));
         double level = book.Level(region, item);
+        SeraphHorizons.Mod.Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
+        {
+            ["region"] = region, ["day"] = book.Day, ["items"] = new System.Text.Json.Nodes.JsonArray(SupplyJson(book, item, level, book.Entry(region, item))),
+        });
         return TextCommandResult.Success(L("trading-supply-one", item, region, F(level), F(book.Settings.Curve.Factor(level))));
     }
+
+    /// <summary>One item's supply as the admin JSON gives it (docs/admin-tools.md).</summary>
+    private static System.Text.Json.Nodes.JsonObject SupplyJson(SupplyBook book, string item, double level, SupplyEntry? entry) => new()
+    {
+        ["item"] = item, ["level"] = Math.Round(level, 4), ["factor"] = Math.Round(book.Settings.Curve.Factor(level), 4),
+        ["decayPerDay"] = Math.Round(book.Settings.DailyDecay, 4),
+        ["last"] = entry is { History.Count: > 0 } e ? new System.Text.Json.Nodes.JsonObject
+        {
+            ["day"] = e.History[^1].Day, ["kind"] = e.History[^1].Kind.ToString().ToLowerInvariant(), ["delta"] = Math.Round(e.History[^1].Delta, 4),
+        } : null,
+    };
 
     private static TextCommandResult Change(ICoreServerAPI api, EconomySystem economy, TextCommandCallingArgs args, bool set)
     {

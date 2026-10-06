@@ -119,6 +119,28 @@ public sealed class DepositRegistry
         }
     }
 
+    /// <summary>Takes every record of <paramref name="other"/> in place of this one's (admin import, #458).</summary>
+    public void ReplaceWith(DepositRegistry other)
+    {
+        var records = other.All();
+        lock (_lock)
+        {
+            _records.Clear();
+            foreach (var (key, record) in records) _records[key] = record;
+        }
+    }
+
+    /// <summary>Forgets the records <paramref name="match"/> picks (admin); how many it forgot.</summary>
+    public int RemoveAll(Func<DepositKey, bool> match)
+    {
+        lock (_lock)
+        {
+            var keys = _records.Keys.Where(match).ToList();
+            foreach (var key in keys) _records.Remove(key);
+            return keys.Count;
+        }
+    }
+
     private sealed record Row(string Id, DepositRecord Record);
 
     private static readonly JsonSerializerOptions Json = new()

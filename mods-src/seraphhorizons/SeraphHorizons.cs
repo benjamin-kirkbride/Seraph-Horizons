@@ -466,4 +466,9 @@ public class SeraphHorizonsConfig
     /// within 2 km and leads to other camps; precision and the further leads by standing. Needs the
     /// deposit registry (ore cells or placer fields) for maps. Server side.</summary>
     public bool TraderMaps { get; set; } = true;
+
+    /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
+    /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
+    /// logs and the admin map layer. Changes nothing in play. Server side.</summary>
+    public bool AdminTools { get; set; } = true;
 }

@@ -57,6 +57,11 @@ public class TradingSystem : ModSystem
     /// the offers a trader makes at a restock (#455, <c>TraderMaps</c>); null leaves them out.</summary>
     public System.Func<EntitySeraphTrader, TradeEntry, IEnumerable<TradeEntry>>? Offers { get; set; }
 
+    /// <summary>The admin state sections <c>/sh trade export|import</c> move (#459): each system
+    /// registers its own (<c>Register(IAdminState)</c>); supply, standing and the deposit registry
+    /// are registered by <c>Trading/Admin/TradingAdminSystem</c>.</summary>
+    public SeraphHorizons.Mod.Core.AdminStateBook AdminState { get; } = new();
+
     /// <summary>The camp grid of this world's seed (server, once the lists are loaded).</summary>
     public TraderGrid? Grid { get; private set; }
 

@@ -271,11 +271,12 @@ public sealed class OreCellPlacement
                     bool has = present.Contains(metal);
                     _dirty |= _book.OnAnchorGenerated(metal, cell, spot.Index, has);
                     var after = _book.Get(metal, cell);
+                    string outcome = has ? "deposit placed"
+                        : after.None ? "no vein, and no spot left: the cell has none"
+                        : $"no vein, spot {after.Active} is next";
                     _api.Logger.Notification("[seraphhorizons] Ore cells: {0} cell {1}, {2} spot {3} at {4}, {5}: {6}",
-                        metal, cell.X, cell.Z, spot.Index, spot.X, spot.Z,
-                        has ? "deposit placed"
-                            : after.None ? "no vein, and no spot left: the cell has none"
-                            : $"no vein, spot {after.Active} is next");
+                        metal, cell.X, cell.Z, spot.Index, spot.X, spot.Z, outcome);
+                    SeraphHorizons.Mod.Admin.AdminLogs.Ore?.Write("placement", $"{metal} cell {cell.X},{cell.Z} spot {spot.Index} at {spot.X},{spot.Z}: {outcome}");
                 }
             }
         }

@@ -1929,3 +1929,75 @@ table, lead targets); `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed 
 ore map offers, buying one through the trade packet, the registry marked sold and no other trader
 offering it, a gravel map offered exactly when a field is in reach, a lead marking a camp, standing
 changing a trader's prices and map precision).
+
+## Admin tools (`AdminTools`)
+
+Debugging tools for server admins (#458, #459; JSON shapes, export format and hooks in
+`docs/admin-tools.md`), under `/sh ore` and `/sh trade`. Server side, default on; they change
+nothing in play. Every subcommand of both:
+
+- needs `controlserver` (enforced for the whole tree, whichever feature registered the command;
+  `/sh company` is the players' own and sits outside it);
+- prints a one-line summary and the detail below it, and with `--json` anywhere in its arguments one
+  JSON object instead (`command`, `ok`, `summary`, `lines`, plus the command's own fields);
+- validates its fixed words (`on|off`, `missing|suspicious`, log channels) with the game's word-range
+  parser, which lists them in `/help`; the 1.22 client has no tab completion for server commands.
+
+A trader is `near` (the pack's nearest within 16 blocks), `camp:x,z`, `entity:n`, or a camp cell
+`x,z`; a deposit is `copper:12,-3` or `gravel:341,340`. Files are plain names, read and written in
+the server's `seraphhorizons-admin` folder (next to `Saves`), `.json` added when there is no
+extension.
+
+| Command | What it does |
+|---|---|
+| `/sh ore cells [radius]` | every metal's (and gravel's) cells within the radius (2,500): the active spot, primary or which fallback, and how each earlier spot failed (generated without a vein, generated before its turn) |
+| `/sh ore cell <x> <z> <metal>` | one (metal, cell)'s decision trace from the seed |
+| `/sh ore here` | the cell you stand in, per metal: active spot, distance and bearing |
+| `/sh ore list [metal] [radius] [--unsold\|--sold\|--soldout]` | deposits from the registry: spot, generated, state, last measurement |
+| `/sh ore gravel [radius]` | gravel fields: blocks, rock, distance |
+| `/sh ore verify <id>` | generate and measure a deposit; answers with the result and the time it took |
+| `/sh ore tp <id>` | to a deposit or gravel field (generated first) |
+| `/sh ore count [radius]` | ore blocks by metal and grade in the loaded chunk columns within the radius (48, at most 256), in blocks and ingots |
+| `/sh ore districts [radius]` | Interesting Ore Gen's hydrothermal district tiles within the radius (20,000): whether the tile rolled a district (from the seed), and for districts built this run their config, radius, faults and ore zones |
+| `/sh ore markers [radius]`, `markers clear` | deposits and gravel fields as waypoints (`[sh]` in the title), for clients without the overlay |
+| `/sh ore survey <chunks> <file>` | the ore survey tool's scan of chunks × chunks columns around you, written as the tool writes it (`<file>.json` and `<file>.json.cells.csv`; `ore_survey.py summary` reads it); answers in chat when done |
+| `/sh ore registry mark <id> sold\|soldout`, `registry reset <id>` | a deposit's state by hand |
+| `/sh ore registry clear <metal\|gravel\|all>` | forget every record of a kind |
+| `/sh ore registry export <file>`, `registry import <file>` | the registry to and from a file (import also takes a `/sh trade export` file) |
+| `/sh ore givemap <player> <metal\|gravel> <1-3>` | a map to the nearest unsold deposit, sold to the player |
+| `/sh ore log on\|off` | every ore cell and placer field decision and every verification to `Logs/seraphhorizons-ore.log` |
+| `/sh ore map on\|off [radius]` | the ore overlay on your world map (radius 12,000) |
+| `/sh trade camps [radius]` | camp cells: type, placed camp or the spot it waits for |
+| `/sh trade tp <camp>` | to a cell's camp (generated first) |
+| `/sh trade inspect [trader]` | type, region, list core and pool, current slots (core or rotating), wallet and its target, side budget, next restock, every player's and company's standing with it |
+| `/sh trade restock [trader] [--full]` | the weekly restock now; `--full` draws every rotating slot anew and refills the wallet |
+| `/sh trade reroll [trader]` | new rotating slots |
+| `/sh trade wallet <trader> <gears>`, `budget <trader> <gears>` | set the gears, or the side budget |
+| `/sh trade value [item]` | an item's base value and where it comes from |
+| `/sh trade price [item]` | what the nearest trader pays for it, and why |
+| `/sh trade values missing\|suspicious` | trade list entries and creative items with no value; items valued below the ingredients of their cheapest grid recipe |
+| `/sh trade supply [item\|all]`, `supply set\|add\|reset\|trace` | regional supply where you are |
+| `/sh trade simulate <days>` | advance supply and the loaded traders' restock clocks |
+| `/sh trade standing <player> [trader]`, `standing set\|reset` | a player's standing |
+| `/sh trade company <player> [group]` | a player's company |
+| `/sh trade maps [trader]` | the deposits and gravel fields around a trader and whether a map of each could be sold now (and why not) |
+| `/sh trade export <file>`, `import <file>` | supply, standing and the deposit registry (and the sections later systems register) as one JSON file |
+| `/sh trade log on\|off [channel]` | `supply`, `standing`, `orders`, `deliveries`, `maps`, `visitors` (all without a channel) to `Logs/seraphhorizons-trade.log` |
+| `/sh trade map on\|off [item]` | the trade overlay on your world map: camp cells by type, placed camps, settlement reserves, supply heat for the item (the held one) |
+
+Orders, deliveries, the map shop and inn visitors add their own subcommands (`orders`, `deliveries`,
+`givemap`, `inn`); they get `--json` and the privilege the same way.
+
+**Admin map layer**: a world map tab, "Admin overlays" (`Admin/AdminMap.cs`), drawn on the client
+from what the server sends over the `seraphhorizons-admin` channel to players with
+`controlserver` who switched an overlay on, refreshed every 30 s. A minimal layer: outlined cells and
+rings, small filled squares for deposits (coloured by metal; smaller once sold, grey once sold out),
+camps and supply, with their label under the mouse. The tab shows for everyone; only admins are sent
+anything to draw.
+
+Tests: `tests/Admin/` (the JSON answer, file names, the state export round trip with a fake section,
+the channel log, the overlay format), `tests/Ore/OreTallyTests.cs`, `RegistryReplaceTests.cs`,
+`tests/Trading/Values/ValueChecksTests.cs`, `tests/Trading/Economy/SupplyReplaceTests.cs`;
+`tests/PackTests/OreAdminScenarios.cs` and `TradingAdminScenarios.cs` (Atlas: every subcommand
+answers in text and JSON, privileges, `count` finding a verified deposit's ore, the registry and
+state exports reading back, a live survey's files, the overlays reaching admins only, the logs).

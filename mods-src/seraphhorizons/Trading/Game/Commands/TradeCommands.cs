@@ -65,6 +65,16 @@ public static class TradeCommands
         int offX = api.World.DefaultSpawnPosition.XYZInt.X, offZ = api.World.DefaultSpawnPosition.XYZInt.Z;
         var lines = new List<string> { L("trading-camps-header", rows.Count, radius, origin.X - offX, origin.Z - offZ) };
         lines.AddRange(rows.Select(r => CampListing.Line(r, offX, offZ, (key, a) => Lang.Get(key, a))));
+        SeraphHorizons.Mod.Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
+        {
+            ["radius"] = radius,
+            ["camps"] = SeraphHorizons.Mod.Core.AdminOutput.Rows(rows, r => new System.Text.Json.Nodes.JsonObject
+            {
+                ["id"] = r.Cell.ToString(), ["type"] = r.Type, ["status"] = r.Status.ToString().ToLowerInvariant(),
+                ["x"] = r.X, ["y"] = r.Y, ["z"] = r.Z, ["distance"] = (int)Math.Round(r.Distance), ["region"] = r.Region,
+                ["settlementReserve"] = TraderGrid.InSettlementReserve(r.X, r.Z),
+            }),
+        });
         return TextCommandResult.Success(string.Join("\n", lines));
     }
 

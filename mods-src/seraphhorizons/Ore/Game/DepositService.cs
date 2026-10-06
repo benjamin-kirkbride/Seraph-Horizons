@@ -217,6 +217,7 @@ public sealed class DepositService
         Registry.RecordMeasure(key, Math.Round(ingots, 1), tier, x, y, z, _api.World.Calendar.TotalDays, workedOut);
         _api.Logger.Notification("[seraphhorizons] Deposits: {0} measured: {1} ore blocks, {2:0} ingots, {3}{4}",
             key, blocks, ingots, tier, workedOut ? ", worked out: sold out" : "");
+        SeraphHorizons.Mod.Admin.AdminLogs.Ore?.Write("verify", $"{key} at {x},{y},{z}: {blocks} ore blocks, {ingots:0} ingots, {tier}{(workedOut ? ", worked out: sold out" : "")}");
         return new VerifyResult(VerifyStatus.Measured, Candidate(key), ingots, blocks, tier, workedOut);
     }
 
