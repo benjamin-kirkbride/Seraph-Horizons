@@ -75,9 +75,9 @@ public static class GearChain
     public const string TubBlock = "seraphhorizons:picklingtub";
 
     // The gear cutter (#480, #481). The rig (config/gearcutter-rig.json) gives the turns per tooth,
-    // the teeth and the masters; the rest is the gameplay's GearCutterSettings and the MachineOil
-    // entry GearCutter, read when the mod has them. Until it does (the cutter's gameplay is built on
-    // its own branch), these defaults, agreed with it, stand in: the gameplay is the source of truth.
+    // the teeth and the masters; the rest is the gameplay's GearCutterSettings (TurnsPerTooth,
+    // CutterWearPerGear) and the MachineOil entry GearCutter (Tank, DrainPerJob), read live from the
+    // server's config. These defaults, the gameplay's own, stand in only if a setting is missing.
     public static readonly AssetLocation RigAsset = new(Mod, "config/gearcutter-rig.json");
     public const string KitCode = "seraphhorizons:gearcutterkit-steel";
     public const string FrameCode = "seraphhorizons:gearcutter-frame-north";

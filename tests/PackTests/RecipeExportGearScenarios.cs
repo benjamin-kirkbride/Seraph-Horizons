@@ -117,8 +117,9 @@ public partial class RecipeExportScenarios
             var variant = r["variants"]![0]!;
             Assert.Equal(new[] { blank }, Codes(variant["ingredients"]![0]!).Select(c => (string)c!));
             Assert.Equal(new[] { master }, Codes(variant["ingredients"]![1]!).Select(c => (string)c!));
-            // The kit and the frame are the cutter's gameplay's (#480, #481): in the variant once registered.
-            Assert.Equal(Registered("seraphhorizons:gearcutterkit-steel"), variant["ingredients"]![2]!.Any());
+            // The kit and the frame (#480, #481) are registered, and in the variant.
+            Assert.Equal(new[] { "seraphhorizons:gearcutterkit-steel" }, Codes(variant["ingredients"]![2]!).Select(c => (string)c!));
+            Assert.Equal(new[] { "seraphhorizons:gearcutter-frame-north" }, Codes(variant["ingredients"]![4]!).Select(c => (string)c!));
             // Every oil MachineOil takes: the game's flax oil among them, the litres on each.
             var oils = variant["ingredients"]![3]!;
             Assert.Contains("game:oilportion-flax", Codes(oils).Select(c => (string)c!));
@@ -126,11 +127,6 @@ public partial class RecipeExportScenarios
             Assert.Equal(new[] { gear }, Codes(variant["outputs"]!).Select(c => (string)c!));
         }
     }
-
-    /// <summary>The gear cutter's frame and kit are the cutter's gameplay's (#480, #481, built on its
-    /// own branch); until it is merged their links have no page. Empty this at the merge.</summary>
-    private static readonly string[] PendingCutterPages =
-        ["block-seraphhorizons:gearcutter-frame-north", "item-seraphhorizons:gearcutterkit-steel"];
 
     // The gear chain's guide page (#483) and the sections that point at it: every handbook link
     // opens a page, and the guide is exported.
@@ -155,9 +151,7 @@ public partial class RecipeExportScenarios
                 : link.StartsWith("block-") ? world.GetBlock(new AssetLocation(link["block-".Length..]))
                 : null;
             if (found == null || found.Id == 0 || found.Code == null || found.IsMissing)
-            {
-                if (!PendingCutterPages.Contains(link)) broken.Add($"{link}: no such page");
-            }
+                broken.Add($"{link}: no such page");
             else if (found.Attributes?["handbook"]?["exclude"].AsBool(false) == true)
                 broken.Add($"{link}: excluded from the handbook");
             else if (!(found.CreativeInventoryTabs?.Length > 0 || found.CreativeInventoryStacks?.Length > 0))

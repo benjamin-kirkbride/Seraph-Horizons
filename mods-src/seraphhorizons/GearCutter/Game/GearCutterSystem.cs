@@ -1,7 +1,9 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.GearCutter.Core;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 
 namespace SeraphHorizons.Mod.GearCutter;
 
@@ -86,8 +88,42 @@ public class GearCutterSystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         _ = Rig;
-        if (api.Side == EnumAppSide.Server && !Applies(api))
+        if (Applies(api))
+            return;
+        if (api.Side == EnumAppSide.Server)
             Disable(api);
+        // Both sides, each from its own setting, as the handbook is the client's.
+        UnlinkText(api.Logger);
+    }
+
+    /// <summary>The machine oil page's list of machines without the cutter, when it is off.</summary>
+    public static readonly LangEdit[] LangEdits =
+    [
+        new("en", Domain + ":machineoil-text",
+            ", the <a href=\"handbook://block-seraphhorizons:rosser-frame-north\">rosser</a> and the "
+            + "<a href=\"handbook://block-seraphhorizons:gearcutter-frame-north\">gear cutter</a>.",
+            " and the <a href=\"handbook://block-seraphhorizons:rosser-frame-north\">rosser</a>."),
+    ];
+
+    private static readonly Regex CutterLink =
+        new("<a href=\"handbook://(?:block|item)-seraphhorizons:gearcutter[^\"]*\">(.*?)</a>", RegexOptions.Compiled);
+
+    /// <summary>With the cutter off its blocks and items have no handbook page, so the mod's own text
+    /// names them without a link (the gear article, the machine oil page). Safe to run twice, as
+    /// singleplayer's two sides do on shared entries.</summary>
+    public static void UnlinkText(ILogger logger)
+    {
+        LangText.Apply(LangEdits, "seraphhorizons", logger);
+        foreach (var translations in Lang.AvailableLanguages.Values)
+        {
+            var entries = translations.GetAllEntries();
+            foreach (var key in entries.Keys.Where(k => k.StartsWith(Domain + ":", StringComparison.Ordinal)).ToList())
+            {
+                var text = entries[key];
+                if (text.Contains("handbook://", StringComparison.Ordinal) && CutterLink.IsMatch(text))
+                    entries[key] = CutterLink.Replace(text, "$1");
+            }
+        }
     }
 
     /// <summary>Leaves the gear cutter out of the game: marks its block and item types and its

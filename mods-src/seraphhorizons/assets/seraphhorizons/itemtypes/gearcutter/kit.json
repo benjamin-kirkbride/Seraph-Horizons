@@ -16,7 +16,10 @@
 	maxstacksize: 1,
 	materialDensity: 7850,
 	attributes: {
-		handbook: { extraSections: [ { title: "seraphhorizons:gearcutter-part-section-title", text: "seraphhorizons:gearcutter-kit-section-text" } ] }
+		handbook: { extraSections: [
+			{ title: "seraphhorizons:gearcutter-part-section-title", text: "seraphhorizons:gearcutter-kit-section-text" },
+			{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }
+		] }
 	},
 	creativeinventory: { "general": ["*"], "items": ["*"], "mechanics": ["*"] },
 	guiTransform: {

@@ -37,7 +37,8 @@
 			extraSections: [
 				{ title: "seraphhorizons:gearcutter-handbook-assembly-title", text: "seraphhorizons:gearcutter-handbook-assembly-text" },
 				{ title: "seraphhorizons:gearcutter-handbook-work-title", text: "seraphhorizons:gearcutter-handbook-work-text" },
-				{ title: "seraphhorizons:gearcutter-handbook-oil-title", text: "seraphhorizons:gearcutter-handbook-oil-text" }
+				{ title: "seraphhorizons:gearcutter-handbook-oil-title", text: "seraphhorizons:gearcutter-handbook-oil-text" },
+				{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }
 			]
 		}
 	},

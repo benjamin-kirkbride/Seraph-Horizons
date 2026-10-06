@@ -214,9 +214,19 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path?.StartsWith("gearcutter") == true);
         // the gears it cuts exist either way
         Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.GearCutter.Core.GearCut.Gear)));
+        // The mod's own text names the cutter without a link, which would open no page: the gear
+        // article and the machine oil page among it; the machine oil page no longer lists it.
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:gearcutter"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the gear cutter: " + string.Join(", ", linked));
+        Assert.Contains("gear cutter", Lang.Get("seraphhorizons:gearreclamation-text"));
+        Assert.DoesNotContain("gear cutter", Lang.Get("seraphhorizons:machineoil-text"));
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
-            .Where(e => e.Message.Contains("gearcutter", StringComparison.OrdinalIgnoreCase))
+            .Where(e => e.Message.Contains("gearcutter", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
