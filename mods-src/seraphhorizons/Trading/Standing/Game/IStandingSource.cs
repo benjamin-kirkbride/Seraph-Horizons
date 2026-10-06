@@ -38,6 +38,14 @@ public interface IStandingSource
     /// tier among players who traded with it recently.</summary>
     int WalletTierFor(EntitySeraphTrader trader);
 
+    /// <summary>The standing tier (index) a trader's shelves are stocked for: the best tier among
+    /// players who traded with it recently, as <see cref="WalletTierFor"/>. Shelves are shared, so a
+    /// stranger sees what a trusted customer unlocked until the next restock after they stop coming.</summary>
+    int ShelfTierFor(EntitySeraphTrader trader);
+
+    /// <summary>What a tier (index) unlocks.</summary>
+    TierUnlocks UnlocksOfTier(int tier);
+
     /// <summary>A deal went through at the trader (the game's trade packet).</summary>
     void OnDeal(IPlayer player, EntitySeraphTrader trader, int gearsPaid, int gearsReceived);
 
@@ -69,6 +77,8 @@ public sealed class NoStanding : IStandingSource
     public TierUnlocks UnlocksFor(IPlayer player, EntitySeraphTrader trader) => new();
     public double PriceFactorFor(IPlayer player, EntitySeraphTrader trader, PriceSide side) => 1;
     public int WalletTierFor(EntitySeraphTrader trader) => 0;
+    public int ShelfTierFor(EntitySeraphTrader trader) => 0;
+    public TierUnlocks UnlocksOfTier(int tier) => new();
     public void OnDeal(IPlayer player, EntitySeraphTrader trader, int gearsPaid, int gearsReceived) { }
     public void OnTradeOpened(IPlayer player, EntitySeraphTrader trader) { }
     public void OnOrderDone(string playerUid, string traderId) { }

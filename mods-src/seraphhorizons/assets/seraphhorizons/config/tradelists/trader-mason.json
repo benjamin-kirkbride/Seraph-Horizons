@@ -126,7 +126,7 @@
 					{"type": "block", "code": "stonebricks-granite", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
 					{"type": "block", "code": "stonebricks-andesite", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
 					{"type": "block", "code": "stonebricks-basalt", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
-					{"type": "block", "code": "rockpolished-peridotite", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}},
+					{"type": "block", "code": "rockpolished-peridotite", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}, "rare": true},
 					{"type": "block", "code": "drystone-granite", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}}
 				]
 			},
@@ -137,8 +137,8 @@
 					{"type": "block", "code": "cobblestone-phyllite", "stacksize": 16, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 					{"type": "block", "code": "stonebricks-slate", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
 					{"type": "block", "code": "stonebricks-phyllite", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
-					{"type": "block", "code": "rockpolished-slate", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}},
-					{"type": "block", "code": "rockpolished-phyllite", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}},
+					{"type": "block", "code": "rockpolished-slate", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}, "rare": true},
+					{"type": "block", "code": "rockpolished-phyllite", "stacksize": 16, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}, "rare": true},
 					{"type": "block", "code": "cobblestone-whitemarble", "stacksize": 16, "stock": {"avg": 3, "var": 1}, "price": {"avg": 5, "var": 0.75}},
 					{"type": "block", "code": "drystone-slate", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}}
 				]

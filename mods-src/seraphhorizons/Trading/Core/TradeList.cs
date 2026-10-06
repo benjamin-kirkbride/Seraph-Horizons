@@ -34,6 +34,15 @@ public sealed class TradeEntry
     /// <summary>The buyer's standing tier from which the entry is in the core (#452, #468): 0, the
     /// default, for everyone. Schematics carry it; their price is the rest of the gate.</summary>
     public int StandingTier { get; set; }
+    /// <summary>Rare stock (#452): shelved only when the trader stocks for a tier whose
+    /// <c>rareStock</c> unlock is on (the best recent customer's, as the wallet).</summary>
+    public bool Rare { get; set; }
+    /// <summary>A special entry (#455): not goods but a kind of offer the trader makes up at each
+    /// restock (<c>oremap</c>, <c>gravelmap</c>, <c>lead</c>), expanded by
+    /// <see cref="TradeOffers.Expand"/>; null for goods. Without an expander it is left out.</summary>
+    public string? Kind { get; set; }
+    /// <summary>Set on an expanded offer that gives way first when the core is over the slots.</summary>
+    public bool Optional { get; set; }
 
     /// <summary>The attributes in a canonical text form, set by the loader; part of <see cref="Key"/>.</summary>
     public string AttributesKey { get; set; } = "";

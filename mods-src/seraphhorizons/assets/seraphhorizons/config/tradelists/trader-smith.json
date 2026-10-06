@@ -119,7 +119,7 @@
 			"cold": {
 				"core": [],
 				"rotating": [
-					{"code": "ore-anthracite", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 3, "var": 0.45}}
+					{"code": "ore-anthracite", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 3, "var": 0.45}, "rare": true}
 				]
 			},
 			"igneous": {

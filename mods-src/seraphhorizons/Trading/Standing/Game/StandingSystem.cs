@@ -238,6 +238,17 @@ public class StandingSystem : ModSystem, IStandingSource
         return best;
     }
 
+    public int ShelfTierFor(EntitySeraphTrader trader)
+    {
+        string id = TraderIdOf(trader);
+        int best = 0;
+        foreach (string player in Ledger.RecentPlayers(id, Day - Rules.RecentDays).ToList())
+            best = Math.Max(best, ViewFor(player, trader).TierIndex);
+        return best;
+    }
+
+    public TierUnlocks UnlocksOfTier(int tier) => Rules.Tier(tier).Unlocks;
+
     public void OnDeal(IPlayer player, EntitySeraphTrader trader, int gearsPaid, int gearsReceived)
     {
         var before = ViewFor(player.PlayerUID, trader);

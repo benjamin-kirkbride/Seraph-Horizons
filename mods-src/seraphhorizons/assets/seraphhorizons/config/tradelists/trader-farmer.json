@@ -35,9 +35,9 @@
 				{"code": "treeseed-oak", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
 				{"code": "treeseed-maple", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
 				{"code": "treeseed-pine", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 1}},
-				{"code": "treeseed-redwood", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 8, "var": 2}},
+				{"code": "treeseed-redwood", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 8, "var": 2}, "rare": true},
 				{"type": "block", "code": "hay-normal-ud", "stacksize": 4, "stock": {"avg": 5, "var": 1}, "price": {"avg": 5, "var": 1}},
-				{"type": "block", "code": "hay-aged-ud", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 7, "var": 1}}
+				{"type": "block", "code": "hay-aged-ud", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 7, "var": 1}, "rare": true}
 			]
 		},
 		"regional": {
@@ -70,7 +70,7 @@
 					{"code": "seeds-cassava", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
 					{"code": "seeds-amaranth", "stacksize": 8, "stock": {"avg": 6, "var": 2}, "price": {"avg": 4, "var": 0.6}},
 					{"code": "treeseed-acacia", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}},
-					{"code": "treeseed-kapok", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 6, "var": 0.9}},
+					{"code": "treeseed-kapok", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 6, "var": 0.9}, "rare": true},
 					{"code": "fruit-pineapple", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
 					{"code": "fruit-saguaro", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}}
 				]

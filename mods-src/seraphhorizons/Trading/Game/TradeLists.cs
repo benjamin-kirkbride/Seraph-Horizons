@@ -35,7 +35,7 @@ public sealed class TradeLists
     public TradeListDef? For(string type) => _lists.GetValueOrDefault(type);
 
     /// <summary>A new game TradeItem for an entry this loaded and kept.</summary>
-    public TradeItem ItemFor(TradeEntry entry) => _items[entry].ToObject<TradeItem>()!;
+    public TradeItem ItemFor(TradeEntry entry) => (_items.TryGetValue(entry, out var json) ? json : Json(entry)).ToObject<TradeItem>()!;
 
     public IReadOnlyDictionary<string, double> CampWeights => _lists.ToDictionary(kv => kv.Key, kv => kv.Value.CampWeight);
 
@@ -114,7 +114,9 @@ public sealed class TradeLists
         });
     }
 
-    private static JObject? ToJson(IWorldAccessor world, TradeEntry entry)
+    /// <summary>An entry's JSON as vanilla's TradeItem reads it (offers made at a restock, #455,
+    /// come here unchecked: their maker knows the item exists).</summary>
+    public static JObject Json(TradeEntry entry)
     {
         var json = new JObject
         {
@@ -125,6 +127,12 @@ public sealed class TradeLists
             ["stock"] = new JObject { ["avg"] = entry.Stock?.Avg ?? 1, ["var"] = entry.Stock?.Var ?? 0 },
         };
         if (entry.Attributes is JToken attributes) json["attributes"] = attributes.DeepClone();
+        return json;
+    }
+
+    private static JObject? ToJson(IWorldAccessor world, TradeEntry entry)
+    {
+        var json = Json(entry);
         TradeItem item;
         try
         {

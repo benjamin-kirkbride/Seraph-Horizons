@@ -15,6 +15,7 @@ public sealed record ResolvedList(string Type, Region Region, ResolvedSide Selli
 /// InventoryTrader), so the core is cut to that and the rotating slots to what is left. An entry
 /// with a <see cref="TradeEntry.StandingTier"/> above the buyer's tier is left out; the ones the
 /// tier reaches come after the ungated core, lowest tier first, so a cut takes the highest tiers.
+/// A <see cref="TradeEntry.Rare"/> entry is left out unless <c>rareStock</c> is set.
 /// </summary>
 public static class TradeListResolver
 {
@@ -23,21 +24,22 @@ public static class TradeListResolver
     /// <summary>The highest standing tier an entry may ask for.</summary>
     public const int MaxStandingTier = 4;
 
-    public static ResolvedList Resolve(TradeListDef def, Region region, int standingTier = 0) =>
-        new(def.Type, region, Resolve(def.Selling, region, standingTier), Resolve(def.Buying, region, standingTier), def.WalletFor(standingTier));
+    public static ResolvedList Resolve(TradeListDef def, Region region, int standingTier = 0, bool rareStock = false) =>
+        new(def.Type, region, Resolve(def.Selling, region, standingTier, rareStock), Resolve(def.Buying, region, standingTier, rareStock),
+            def.WalletFor(standingTier));
 
-    public static ResolvedSide Resolve(TradeSide side, Region region, int standingTier = 0)
+    public static ResolvedSide Resolve(TradeSide side, Region region, int standingTier = 0, bool rareStock = false)
     {
         var keys = new HashSet<string>();
         var core = new List<TradeEntry>();
         // OrderBy is stable: list order within a tier.
         foreach (var e in side.Core.Concat(Regional(side, region).SelectMany(r => r.Core))
-                     .Where(e => e.StandingTier <= standingTier).OrderBy(e => e.StandingTier))
+                     .Where(e => e.StandingTier <= standingTier && (rareStock || !e.Rare)).OrderBy(e => e.StandingTier))
             if (keys.Add(e.Key)) core.Add(e);
         if (core.Count > Slots) core.RemoveRange(Slots, core.Count - Slots);
         var rotating = new List<TradeEntry>();
         foreach (var e in side.Rotating.List.Concat(Regional(side, region).SelectMany(r => r.Rotating))
-                     .Where(e => e.StandingTier <= standingTier))
+                     .Where(e => e.StandingTier <= standingTier && (rareStock || !e.Rare)))
             if (keys.Add(e.Key)) rotating.Add(e);
         int max = Math.Max(0, Math.Min(Math.Min(side.Rotating.MaxItems, Slots - core.Count), rotating.Count));
         return new ResolvedSide(core, rotating, max);

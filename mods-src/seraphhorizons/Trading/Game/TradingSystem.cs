@@ -53,6 +53,10 @@ public class TradingSystem : ModSystem
     /// schematics with their switch off (#469).</summary>
     public Predicate<TradeEntry>? ExcludeEntry { get; set; }
 
+    /// <summary>Expands a list's special entries (<see cref="TradeEntry.Kind"/>: maps, leads) into
+    /// the offers a trader makes at a restock (#455, <c>TraderMaps</c>); null leaves them out.</summary>
+    public System.Func<EntitySeraphTrader, TradeEntry, IEnumerable<TradeEntry>>? Offers { get; set; }
+
     /// <summary>The camp grid of this world's seed (server, once the lists are loaded).</summary>
     public TraderGrid? Grid { get; private set; }
 

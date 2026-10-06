@@ -36,6 +36,10 @@ public class EntitySeraphTrader : EntityTrader
     /// and saved: the economy (#450, #451) refills the side budget and prices the shelves here.</summary>
     public static event Action<EntitySeraphTrader>? Restocked;
 
+    /// <summary>Raised on the server when a player opens the trade dialog (vanilla has just set
+    /// <c>tradingPlayerUID</c>): prices and offers made for that player (#452, #455) are set here.</summary>
+    public static event Action<EntitySeraphTrader, IPlayer>? TradeOpened;
+
     /// <summary>The trader type, from the entity code (<c>trader-{gender}-{type}-{climate}</c>).</summary>
     public string TraderType => Code.Path.Split('-') is { Length: >= 3 } parts ? parts[2] : "";
 
@@ -134,6 +138,9 @@ public class EntitySeraphTrader : EntityTrader
         if (value == "opentrade" && World.Side == EnumAppSide.Server && WatchedAttributes.HasAttribute("tradingPlayerUID")
             && triggeringEntity is EntityPlayer { Player: { } player } && TradingSystem.Of(Api) is { Standing.Enabled: true } system)
             system.Standing.OnTradeOpened(player, this);
+        if (value == "opentrade" && World.Side == EnumAppSide.Server && triggeringEntity is EntityPlayer { Player: { } opener }
+            && WatchedAttributes.GetString("tradingPlayerUID") == opener.PlayerUID)
+            TradeOpened?.Invoke(this, opener);
         return result;
     }
 
@@ -144,7 +151,10 @@ public class EntitySeraphTrader : EntityTrader
     {
         var system = TradingSystem.Of(Api);
         if (system?.Lists?.For(TraderType) is not { } def || Inventory is null) return;
-        var resolved = TradeListResolver.Resolve(def, Region);
+        // Shelves are shared: they follow the best recent customer's tier, as the wallet does.
+        int tier = system.Standing.ShelfTierFor(this);
+        var resolved = TradeListResolver.Resolve(def, Region, tier, system.Standing.UnlocksOfTier(tier).RareStock);
+        resolved = TradeOffers.Expand(resolved, system.Offers is { } offers ? e => offers(this, e) : null);
         var context = new TraderContext(TraderType, Region, EntityId, Pos.X, Pos.Z);
         var gate = system.SupplyGate;
         Fill(system, Inventory.SellingSlots, resolved.Selling, SellingKeysAttr, refreshChance, e => gate.Stock(context, e), EnumTradeDirection.Sell);
