@@ -9,16 +9,12 @@ the cutter generates the master's tooth form in the blank (Bilgram 1884, Fellows
 **sight-feed oiler** over the cutter, its reservoir the visible face of the machine's oil and a Jonas
 **injection valve** spraying the cutter's teeth (#481).
 
-**Status: model only.** This folder holds the model's generator and its rig. The blocks, block
-entities, renderer, recipes, items and the gameplay rules (#480's "Blocks and parts", "Work", "Tests")
-are not written yet; the rig below is the contract they will be built against, as the bucking mill's
-and the rosser's were.
+This folder holds the model's generator and its rig (`tools/`), and the gameplay built against the
+rig (`Core/`, `Game/`, "Gameplay" below; switch `GearCutter`, settings `GearCutterSettings`).
 
-**Depends on MachineOil (#488).** The oiler's level is the rig's `oil` input, which the gameplay will
-feed from the machine's MachineOil tank ("heavy machines need oil", merged to main after this branch
-was cut; this branch has not been rebased onto it). The oiler is only the tank's face: it has no fill
-face or anchor of its own and no pipe. Whoever integrates the two passes the tank's fill, 0..1, as
-`RigInput.Oil` (C#) and `oil` (the viewer and the Python maths).
+**A MachineOil machine (#488, #481).** The oiler's level is the rig's `oil` input, the fill (0..1)
+of the cutter's MachineOil tank, passed as `RigInput.Oil` (C#) and `oil` (the viewer and the Python
+maths). The oiler is only the tank's face: it has no fill face or anchor of its own and no pipe.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's
@@ -95,8 +91,8 @@ The masters (#480, "The temporal gear as master", as settled): **one master stat
 master, one at a time, and the master fitted decides which blank the cutter accepts; changing over
 means swapping the master. A master is an ordinary recoverable part like the mill's sash: it never
 wears and is never consumed, Ctrl + right-click takes it back once the cutter kit is out, and breaking
-the frame drops whatever is fitted. The other "Taken back" entries are this README's proposal for the
-gameplay, which is not written.
+the frame drops whatever is fitted. The gameplay follows the "Taken back" column, with one addition:
+Ctrl + right-click takes a blank off the arbor between the kit and the master ("Gameplay").
 
 ## Model
 
@@ -426,6 +422,82 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 walls `fr_case_*`). Hand edits are lost when the
 script runs again: port them into `make_shape.py`, or stop regenerating.
 
+## Gameplay
+
+The rules are game-independent in `Core/` (`GearCutterParts.cs`, `GearCut.cs`, `GearCutterConfig.cs`,
+`GearCutterRig.cs`); the game side is `Game/` (`GearCutterSystem`, the controller `BlockGearCutter` and
+`BEGearCutter`, the ghosts `BlockGearCutterGhost` and `BlockGearCutterGhostPower` with
+`BEGearCutterGhost`, the load `BEBehaviorGearCutterMP`, and `GearCutterRenderer`), as the rosser's are.
+The mod's README, "Gear cutter", is the player-facing summary; the decisions are here.
+
+**Blocks.** `seraphhorizons:gearcutter-frame-{side}` (`blocktypes/gearcutter/frame.json`, drawing
+`gearcutter_frame.json`, its textures every texture of both shapes, since the renderer draws the parts
+with the block's texture source), `gearcutter-ghost` and `gearcutter-ghostpower-{side}`. Placement,
+ghosts, ghost repair, breaking through a ghost and the boxes (selection from the rig's cells, collision
+with their lids) are the rosser's, without the trunk. The frame recipe (`recipes/grid/gearcutter.json`):
+2 ingots of iron, meteoric iron or steel, 5 planks, 8 nails and strips of the same metals and a
+hammer, in the recipe itself (the cutter does not need Immersive Woodworking, so it is not in
+`patches/woodworking-machine-costs.json`).
+
+**Stages** (`GearCutterParts`). One item a stage, in `GearCutterStage` order, the next missing stage
+the only one a click fills (an item a later stage takes is `OutOfOrder`, one whose stages are all in
+`AlreadyFitted`, a kit with no durability `KitSpent`). The two cam drums each take one
+`game:jonasframes-gearbox02`. The head takes either Jonas gear assembly. The kit keeps its durability
+left and full (`GetRemainingDurability`, `GetMaxDurability`; 500 in `itemtypes/gearcutter/kit.json`). The
+master is `master` for the temporal gear and `masterlarge` for the large one; `Fitted` draws only the
+fitted one. The creative shortcut (`CreativeUpgrades.Applies`, Ctrl in creative mode on an incomplete
+cutter) fits each stage's first code, always on (the rosser's follows `UnifiedWoodworking`; this
+machine has nothing to do with woodworking). Take-back (`TakeBack`): the kit, else a blank on the
+arbor, else the master (only once the kit is out); a kit comes back with a `durability` attribute when
+worn. Restoring a save keeps the stages up to the head as a run from the first and the kit and the
+master only with the head, as the rules could have fitted them.
+
+**The cut** (`GearCut`, `CutJob`). A blank goes on only on a complete cutter, one at a time, of the
+master's size. W runs from 0 to 12 or 20 by `TeethFor(radians, TurnsPerTooth)` while
+`GearCut.Running` (complete, a blank on, the shaft at `MinSpeed`). `BEGearCutter.Cut(radians)` is
+the step (the server's 50 ms tick calls it with the shaft's advance; the Atlas scenarios call it to
+finish a gear without minutes of turning). A finished gear goes into a container in
+`GearCutterRig.OutputNeighbour()` (the cell beyond `output.pos` across the output face), else drops at
+`OutputDrop()` (`output.pos` moved 0.15 beyond that face, pushed outward). The infeed is every cell
+just beyond the infeed face, both levels (`InfeedNeighbours`); the first container slot holding a
+blank of the master's size gives one, on the slow tick and after each gear, while the shaft turns.
+
+**Oil and wear** (`GearCutterWear`). `Oil.NewOwn(api, OilMachine.GearCutter)`: the tank, pouring,
+saving, syncing and smoke are MachineOil's. `BEBehaviorGearCutterMP.GetResistance` is `Resistance`
+whatever the tank holds (the mill's and the rosser's multiply while dry). When a gear finishes:
+fill = points / tank before this gear's drain; wear = ceil(`CutterWearPerGear` × teeth / 12 / fill),
+at most what is left, all of it at fill 0; then the drain (`DrainPerJob`, doubled for a large gear);
+then `WearKit`, which at 0 removes the kit and plays the tool-break sound. The gear is delivered
+either way. `Oil.Info` takes `dryLoad: false`, so the cutter's info has no "takes 3× the power"
+line; it adds the wear multiplier (or "the next gear breaks the kit") and the kit's gears left at the
+current fill (`GearsLeft`).
+
+**Renderer.** Every rig part with a `requires`, a ride or a driver, from `gearcutter.json`
+(`MachineMeshes.PartMesh`), drawn when `BEGearCutter.Fitted(requires)`: the parts' rule, `cover`
+always, `blanksmall` / `blanklarge` while that blank is on. Inputs: θ and ψ from the power ghost's
+angle about native x (`MillMotion.NativeShaftAngle(.., Axis.X)`); W advanced per frame by the shaft
+while running, never behind the server's W and at most 0.3 tooth ahead of it, at the master's end
+with no blank on (so the clutch is out and the index stands at rest); k the master's class, held while
+p eases out over 0.4 s; `Oil` the tank's fill (1 with MachineOil off). Particles while running: steel
+chips and now and then a spark at `chips.pos`; with oil in the tank, a downward oil spray at
+`drip.pos`.
+
+**Settings** (`GearCutterSettings`): `TurnsPerTooth` 12, `CutterWearPerGear` 10, `Resistance` 0.2 and
+`MinSpeed` 0.05 (the rosser's), each falling back to its default with a warning when out of range;
+the oil's are `MachineOilSettings.GearCutter` (tank 1000, 10 a gear). The client uses the server's
+`MinSpeed`, `TurnsPerTooth` and `CutterWearPerGear` (synced in the tree).
+
+**Switch.** `GearCutter` (default on): off, the server marks the block types, the item types
+(`itemtypes/gearcutter/*.json`) and the recipe files (`recipes/grid/gearcutter.json`,
+`recipes/smithing/gearcutter.json`) disabled before the game loads them. The classes are registered
+either way, as the rosser's are.
+
+**Open questions, decided the simplest way.** The blank can be taken back by Ctrl + right-click
+(after the kit, before the master), its cut lost, since otherwise only breaking the frame would free
+it to change the master; the kit's wear rounds up per gear; a cutter with no MachineOil tank wears at its base; the
+infeed only feeds while the shaft turns; the frame has no schematic yet; and the new parts wear game
+item shapes, not their own.
+
 ## Tests
 
 - `tools/tests/test_gearcutter_model.py` (no game, no fetched mods, so CI runs it): the shipped rig
@@ -447,12 +519,20 @@ script runs again: port them into `make_shape.py`, or stop regenerating.
   the driver fixture (`tests/Machines/driver-fixture.json`) holds the `oil` input and the work quantity
   in all three.
 - `make_shape.py` checks its own output every time it regenerates the model.
-- Not yet: everything gameplay-side (#480's Core and Atlas tests), which waits for the gameplay.
+- `tests/GearCutter/GearCutterGameplayTests.cs` (the same project, no game): the build order and what
+  each stage takes, out-of-order and repeated parts refused, the two cam drums, either Jonas head,
+  the masters' classes and what is drawn, take-back order, drops and saves; the cut's turns per tooth,
+  progress by angle and the teeth by master; the kit's wear over the fill, the large gear's 20/12,
+  the empty tank taking the whole kit; the settings, and the shipped rig's anchors, neighbours and
+  `cut.turnsPerTooth` against the gameplay's default.
+- `tests/PackTests/GearCutterScenarios.cs` (Atlas, the shared world) and `SwitchesOffScenarios`:
+  see the mod's README, "Tests".
 
 ## Known weak spots, and what is not checked
 
-Nothing of this machine has been seen in the game: there is no block, renderer or gameplay yet. The
-model has been reviewed in projections rendered from the written files and in the site's own viewer.
+The model has been reviewed in projections rendered from the written files and in the site's own
+viewer. The gameplay is tested headless (Atlas): no one has yet looked at the renderer's output in a
+client, the particles' placing included.
 
 1. **Box teeth.** Every tooth is one or two boxes, so meshing teeth overlap a little where real tooth
    forms would not (the limits above). The cutter is three stepped bands inside the rack tooth's

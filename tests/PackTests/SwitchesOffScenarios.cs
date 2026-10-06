@@ -201,6 +201,27 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>GearCutter</c>: no gear cutter blocks, none of its new parts and no recipe for
+    /// them, and nothing logged about them.</summary>
+    [AtlasScenario]
+    public void Gear_cutter_off_there_is_no_gear_cutter()
+    {
+        Assert.True(Off("GearCutter"));
+        Assert.False(SeraphHorizons.Mod.GearCutter.GearCutterSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("gearcutter"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("gearcutter"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("gearcutter") == true);
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path?.StartsWith("gearcutter") == true);
+        // the gears it cuts exist either way
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.GearCutter.Core.GearCut.Gear)));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("gearcutter", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>GearboxSourceRatio</c>: nothing is patched, and a rotor placed after its gearbox,
     /// on the low side, takes the high side's ratio, as MPE Gearbox ships it (#462). When this fails
     /// with the rotor at 1, MPE Gearbox has fixed it and the tweak can go.</summary>
