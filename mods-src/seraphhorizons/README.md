@@ -1194,12 +1194,13 @@ mill also take a trunk entity lying in their infeed cells, after a rack or a ros
 
 Every trunk item entity is swapped for a trunk entity as it spawns or loads, so felling, a station
 unloading onto the ground and a broken machine all leave one; trunk blocks get a storage flag no
-inventory accepts (`Custom10`); and **trunk multiblocks already placed in a world are deleted as they
-load, with nothing given back**. Without Carry On (one warning) nothing goes through hands: trunks are
-dragged, roped and worked where they lie, the rosser and mill take them from the ground and lay them
-there on Ctrl, and Logging Expanded's stations and the carts take none. With the switch off, Logging
-Expanded missing or not as expected, nothing changes and its trunks are items as it ships them; the
-server decides and a client follows it through the world config (`seraphhorizons:trunkEntities`), as
+inventory accepts (`Custom10`); and **trunk multiblocks already placed in a world are deleted as
+they load, with nothing given back**. Without Carry On (one warning) nothing goes through hands:
+trunks are dragged, roped and worked where they lie, the rosser and mill take them from the ground
+and lay them there on Ctrl, and Logging Expanded's stations and the carts take none. With the switch
+off, Logging Expanded missing or not as expected, nothing changes and its trunks are items as it
+ships them (trunk entities already in a world turn back into trunk items as they load); the server
+decides and a client follows it through the world config (`seraphhorizons:trunkEntities`), as
 `UnifiedWoodworking` does. Nothing of Carry On, Logging Expanded or Cartwright's Caravan is
 referenced at build time.
 
@@ -2145,7 +2146,10 @@ speed by logs, sneak to shoulder, put-down and a drop laying a trunk entity, a c
 trunk and giving it back to the hands); and the rosser and mill pulling a trunk entity from their
 infeed cells, Ctrl into the hands, and the sawhorse, Trunk Storage Rack and heating rack loading
 from the hands and unloading into them. When they fail after a Logging Expanded or Carry On update,
-the warning in the log names what the bridge no longer finds.
+the warning in the log names what the bridge no longer finds. With the switch off,
+`SwitchesOffScenarios` requires Logging Expanded's trunks, rack and Cartwright's carts as the mods
+ship them, no tool behaviour and no patch of the feature, and a trunk entity turning back into its
+trunk item.
 
 `tests/PackTests/WoodworkingMachineCostsScenarios.cs` (Atlas) requires each of the eight parts'
 one recipe to take the nails and strips, plates and rods of `WoodworkingMachineCosts.Parts`, all

@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.TrunkEntities.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
@@ -22,7 +23,8 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// <see cref="LoggingBridge"/> resolving) and writes it to the world config
 /// (<see cref="RunningKey"/>), which a client follows. Off, there is no swap, no flag, no deletion
 /// and no grab, the feature's asset patches are emptied (<see cref="DisablePatches"/>), and Logging
-/// Expanded's trunks behave as it ships them. The two entity types exist either way.
+/// Expanded's trunks behave as it ships them; a trunk entity that loads turns back into its trunk
+/// item (<see cref="Unswap"/>). The two entity types exist either way.
 /// </summary>
 public class TrunkEntitySystem : ModSystem
 {
@@ -163,7 +165,16 @@ public class TrunkEntitySystem : ModSystem
     public override void StartServerSide(ICoreServerAPI api)
     {
         if (!Enabled)
+        {
+            // Trunk entities from a world that ran them go back to Logging Expanded's trunk items,
+            // which the game and Logging Expanded handle, on the tick after they load (not mid-load).
+            if (api.ModLoader.IsModEnabled(LeModId))
+            {
+                api.Event.OnEntityLoaded += entity => UnswapLater(api, entity);
+                api.Event.OnEntitySpawn += entity => UnswapLater(api, entity);
+            }
             return;
+        }
         api.Event.OnEntitySpawn += entity => TrunkSpawns.OnEntitySpawn(api.World, entity);
         // Trunk items saved before trunk entities ran: swapped on the next tick, not mid-load.
         api.Event.OnEntityLoaded += entity =>
@@ -177,6 +188,27 @@ public class TrunkEntitySystem : ModSystem
         _harmony = new Harmony(HarmonyId);
         if (!OldTrunkBlocks.Patch(_harmony, api))
             api.Logger.Warning("[seraphhorizons] Trunk entities: Logging Expanded's trunk block entity is not as expected, so placed trunks are left as they are");
+    }
+
+    private static void UnswapLater(ICoreServerAPI api, Entity entity)
+    {
+        if (entity is EntityTrunk trunk)
+            api.Event.RegisterCallback(_ => Unswap(api.World, trunk), 0);
+    }
+
+    /// <summary>With the switch off: <paramref name="trunk"/> is removed and its stack spawned as
+    /// the trunk item entity it was before (the spawn swap reversed). Server side.</summary>
+    public static void Unswap(IWorldAccessor world, EntityTrunk trunk)
+    {
+        if (!trunk.Alive)
+            return;
+        var stack = trunk.Trunk;
+        var pos = trunk.Pos.XYZ.Add(0, 0.25, 0);   // dimension aware, as SpawnItemEntity takes it
+        trunk.Die(EnumDespawnReason.Removed);
+        if (stack?.Collectible == null)
+            return;
+        world.SpawnItemEntity(stack, pos);
+        world.Logger.Notification("[seraphhorizons] Trunk entities are off: a trunk entity ({0}) is a trunk item again", stack.Collectible.Code);
     }
 
     public override void StartClientSide(ICoreClientAPI api)

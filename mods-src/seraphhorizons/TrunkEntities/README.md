@@ -339,8 +339,9 @@ client follows that, whatever its own setting (a mismatch logs one notification)
 behaviour, no station or machine change, no deletion, and the feature's three patch files are emptied
 before the game's patch loader runs (`carryon` and `carts` by `TrunkEntitySystem.DisablePatches`,
 `stations` by `TrunkStationsSystem`, which also empties it when Carry On is missing). Logging
-Expanded's trunks are then items, as it ships them. Trunk entities already in a world stay
-entities, with nothing to pick them up; turn the switch back on to use them.
+Expanded's trunks are then items, as it ships them. Trunk entities already in a world (and any
+spawned) turn back into the trunk items they hold, the tick after they load: the spawn swap reversed
+(`TrunkEntitySystem.Unswap`, server side, with Logging Expanded installed; each one logged).
 
 ## Tests
 
@@ -391,7 +392,12 @@ TMPDIR=~/.cache/atlas-tmp VINTAGE_STORY=<game> dotnet test tests/PackTests \
 ```
 
 With the switch off (`fixtures/switches-off`, `TrunkEntities: false`) the other switches' scenarios
-run on Logging Expanded's trunks as items; no scenario there checks the trunks themselves.
+run on Logging Expanded's trunks as items, and `SwitchesOffScenarios` checks the feature off: the
+world config key false, carrying unavailable, the trunks' storage flag Logging Expanded's (backpack
+only), the Trunk Storage Rack keeping its Carryable, Cartwright's carts and sleds with no more than
+Carry On's own `attachablecarryable`, no tool behaviour on an axe, knife or saw, nothing patched
+under the feature's Harmony ids, no pick-up behaviour on the entity types, a trunk item staying an
+item, and a trunk entity turning back into the trunk item it holds.
 
 ## Known limits, and what is not checked in the game
 
@@ -425,7 +431,5 @@ Known compromises:
    thick one as a 5-block `xxl`, whatever its own length, as the machines show them.
 2. **The ground pull finds a trunk by its middle.** A trunk lying across the infeed cells with its
    middle outside them is not taken; one needs to lie in line with them.
-3. **The switch off strands entities.** Trunk entities already in a world stay entities with the
-   switch off, and nothing then picks them up or works them.
-4. **The handbook describes trunk entities.** The woodworking guide and the machines' handbook pages
+3. **The handbook describes trunk entities.** The woodworking guide and the machines' handbook pages
    say how trunks are moved and loaded with the feature on, and are not rewritten when it is off.
