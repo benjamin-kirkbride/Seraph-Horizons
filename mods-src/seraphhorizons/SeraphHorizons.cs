@@ -1,6 +1,7 @@
 using HarmonyLib;
 using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Rosser;
 using SeraphHorizons.Mod.Rosser.Core;
 using SeraphHorizons.Mod.Woodworking;
@@ -34,6 +35,7 @@ public class SeraphHorizonsSystem : ModSystem
     private bool _debarkedTrunks;
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
+    private Harmony? _heatingRackHarmony;
     private UnifiedWoodworking? _woodworking;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
@@ -83,6 +85,8 @@ public class SeraphHorizonsSystem : ModSystem
             BarrelRackKegs.Patch(_barrelRackHarmony = new Harmony(BarrelRackKegs.HarmonyId));
         else
             BarrelRackKegs.DisablePatches(api);
+        if (Config(api).HeatingRackKeepsPosition && HeatingRackPosition.Applies(api) && HeatingRackPosition.Bind(api.Logger))
+            HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
         // Registers its classes whatever the setting; on the server, decides whether it runs and
         // tells clients; sets the two mods' settings and patches. Last, and it catches its own
         // failures, so nothing above depends on it.
@@ -108,6 +112,8 @@ public class SeraphHorizonsSystem : ModSystem
             _harmony ??= new Harmony(HarmonyId);
             ChopperOutput.Patch(_harmony, api.Logger);
         }
+        if (Config(api).GearboxSourceRatio && GearboxSourceRatio.Applies(api))
+            GearboxSourceRatio.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
         if (_tunRack)
             TunRackCapacity.Patch(_harmony ??= new Harmony(HarmonyId));
         if (_debarkedTrunks)
@@ -204,6 +210,8 @@ public class SeraphHorizonsSystem : ModSystem
         }
         _barrelRackHarmony?.UnpatchAll(BarrelRackKegs.HarmonyId);
         _barrelRackHarmony = null;
+        _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
+        _heatingRackHarmony = null;
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -308,6 +316,13 @@ public class SeraphHorizonsConfig
     /// side; off means panning is as the mods ship it).</summary>
     public bool PanningDropsTrimmed { get; set; } = true;
 
+    /// <summary>MPE Gearbox: a power source (a rotor, the creative rotor) that creates its network
+    /// through a gearbox takes the ratio of the gearbox side it touches, as it does when the gearbox
+    /// is placed after it, instead of the far side's (server side; off means a source placed after
+    /// its gearbox, or rebuilt after a block on its network is broken, may drive it at the wrong
+    /// speed: through a 1:5 gearbox, a fifth of it or five times it).</summary>
+    public bool GearboxSourceRatio { get; set; } = true;
+
     /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
     /// does, instead of 500 (server side).</summary>
     public bool LargerTunRack { get; set; } = true;
@@ -317,6 +332,11 @@ public class SeraphHorizonsConfig
     /// perishing at the keg's own rate times the rack's (both sides; the server's switch decides
     /// what the rack takes).</summary>
     public bool BarrelRackKegs { get; set; } = true;
+
+    /// <summary>Logging Expanded: a Trunk Heating Rack placed from a picked-up stack (Carry On's
+    /// client, a creative pick) knows its new position, not the one it was picked up from (both
+    /// sides; off means it is as Logging Expanded ships it).</summary>
+    public bool HeatingRackKeepsPosition { get; set; } = true;
 
     /// <summary>Immersive Woodworking + Logging Expanded: one woodworking system. Immersive
     /// Woodworking's chopping block is the splitting block, made in the world with an axe and
@@ -482,4 +502,16 @@ public class SeraphHorizonsConfig
     /// <summary>Travelling merchants: the region's summed supply level of what a visitor buys before it
     /// comes (a level is 10 gears' worth sold there and not yet drained). 0 turns the condition off.</summary>
     public double TravellingMerchantMinSupply { get; set; } = 2;
+
+    /// <summary>Machine oil: the heavy mechanical power machines (the game's helve hammer and
+    /// pulverizer, Immersive Woodworking's sawmill and chopper, the bucking sawmill and the rosser)
+    /// have an oil tank, filled by right-clicking them with oil, that their jobs drain; a machine
+    /// starts dry, and a dry one loads its shaft several times as hard (both sides; off means every
+    /// machine turns as it ships, with no tank). The server's setting decides.</summary>
+    public bool MachineOil { get; set; } = true;
+
+    /// <summary>Machine oil's figures: the oils, the dry multiplier, and each machine's tank and
+    /// drain per job; a value out of range falls back to its default with a warning. The server's
+    /// are used.</summary>
+    public MachineOilConfig MachineOilSettings { get; set; } = new();
 }

@@ -66,7 +66,8 @@ public partial class WoodworkingScenarios
             .Where(p => p.Page != null)
             .Select(p => (p.Domain, Code: (string?)p.Page["pageCode"], Title: (string?)p.Page["title"], Text: (string?)p.Page["text"]))
             .ToList();
-        var ours = pages.Where(p => p.Domain == "seraphhorizons").ToList();
+        // machine oil's page is not a woodworking one
+        var ours = pages.Where(p => p.Domain == "seraphhorizons" && p.Code != SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode).ToList();
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey(), p.TextKey())).Order(),
             ours.Select(p => (p.Code!, p.Title!, p.Text!)).Order());
         var en = Entries("en");

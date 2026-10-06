@@ -126,6 +126,16 @@ public partial class WoodworkingScenarios
         foreach (var path in new[] { "sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmilllevers", "sawmillblade-" + metal })
             Assert.True(mill.TryFitPart(new DummySlot(ItemOf($"{Iw}:{path}")), player), $"could not fit {path}");
         Assert.True(mill.Complete);
+        Oil(mill.Oiling);
+    }
+
+    /// <summary>Fills a machine's oil tank (MachineOil): a creative rotor cannot turn a dry mill or
+    /// rosser, whose load is three times as high. <c>MachineOilMillScenarios.cs</c> tests the oil
+    /// itself.</summary>
+    private static void Oil(OilState? oil)
+    {
+        Assert.NotNull(oil);
+        oil.Tank = oil.Tank.Fill(oil.Tank.Capacity);
     }
 
     /// <summary>A creative rotor against the power face; waits until the mill's shaft turns. With
@@ -389,6 +399,9 @@ public partial class WoodworkingScenarios
         Assert.Contains("Stopped", info);
         Assert.Contains("Saws at the top", info);
         Assert.Equal("Bucking sawmill", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
+        // Built dry (MachineOil): three times the load until oiled.
+        Assert.Equal(Mod.Config.Resistance * 3, mill.Power!.GetResistance(), 4);
+        Oil(mill.Oiling);
         Assert.Equal(Mod.Config.Resistance, mill.Power!.GetResistance());
 
         // Ctrl takes the blade kit back (into the empty hand), and the mill is no longer complete.

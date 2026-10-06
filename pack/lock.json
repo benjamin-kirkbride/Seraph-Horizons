@@ -932,6 +932,35 @@
       }
     },
     {
+      "id": "smex",
+      "version": "0.10.1",
+      "assetId": 53606,
+      "releaseId": 59929,
+      "fileId": 127768,
+      "fileName": "smex_0.10.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/smex_0.10.1_201000ba5ba5c57c611528357e6db8be.zip?dl=smex_0.10.1.zip",
+      "sha256": "5b5b2c5515d8b7d58b287dbaed0479931cde8e80312f165249612c8e5ef2fa4e",
+      "size": 359508,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0",
+        "exlib": "0.8.4",
+        "ppex": "0.7.1"
+      }
+    },
+    {
       "id": "crucibulum",
       "version": "1.5.0",
       "assetId": 66201,

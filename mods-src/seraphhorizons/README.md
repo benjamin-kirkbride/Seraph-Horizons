@@ -18,7 +18,7 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach and
+chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach and
 the creative search tweaks run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
@@ -27,7 +27,8 @@ Unified woodworking runs on both sides too (the server does the work, the client
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
 sawmill's and the rosser's blocks: the server runs the machines, the client draws their moving
-parts.
+parts. Machine oil runs on both sides too: the server pours, drains and loads the
+shafts, the client takes the click, shows the tank and draws the smoke.
 
 ## Tweaks
 
@@ -371,6 +372,35 @@ pass the items on to, such as a chest under it, or it drops them out of its bott
 Server side, where the chopper runs. Immersive Woodworking has no setting for this. If
 `EjectBatch(ItemStack, int)` or the chopper's `Facing` is gone, the mod logs a warning and the
 chopper keeps its own throw.
+
+### A rotor turns at its own speed through a gearbox (`GearboxSourceRatio`)
+
+MPE Gearbox (`mpegearbox` 1.0.1), #462. A power source (a rotor, the creative or auto rotor)
+driving a machine through one of its gearboxes could run at the wrong speed, depending on the order
+things were built in: an auto rotor set to 1 rps on a 1:5 gearbox's low side turned the network at
+about 0.19 rps, so the rosser on the high side ran at about 0.9 rps instead of about 3.6; one on the
+high side races instead. The game asks a neighbour for its geared ratio, `GetGearedRatio(face)`, in two ways:
+`BEBehaviorMPBase.tryConnect`, when a block joins a network, passes the direction from the asker
+toward the neighbour; `CreateJoinAndDiscoverNetwork`, when a source creates the network itself and
+spreads it (a rotor placed after the gearbox, or every source again when `MechanicalPowerMod`
+rebuilds a network after a block on it is broken), passes the neighbour's own connector face. The
+two agree for every vanilla block, which has one ratio on all its faces. MPE Gearbox's
+`BEBehaviorGearbox12` answers only the first way right, so the rotor stored the far side's ratio
+(5 on the low side, 0.2 on the high side) and throttled its torque at the wrong network speed. The
+gearbox and what lies beyond it were right; only the rotor was off.
+
+`GearboxSourceRatio` postfixes `BEBehaviorMPBase.CreateJoinAndDiscoverNetwork`: when the neighbour
+the block discovered through is MPE Gearbox's, on the same network and connected on the face that
+touches it, it asks the gearbox again the first way (`GetGearedRatio(powerOutFacing)`) and sets
+that ratio when it differs (`Core/GearboxCoupling.cs`). Only the ratio is set, not the propagation
+direction, which the game got right, and nothing is changed next to any other block, or when the
+discovering block is a gearbox itself (its stored ratio is its low side's).
+
+Server side, where networks are discovered; clients get the ratio with the block entity. MPE Gearbox
+is not referenced at build time: if `MPEGearbox.BEBehaviorGearbox12` is missing or no longer a
+`BEBehaviorMPBase`, the mod logs a warning and patches nothing. Reported upstream
+(<https://mods.vintagestory.at/mpegearbox#cmt-245057>); once MPE Gearbox answers both ways, the
+switch's off check fails and the tweak can go.
 
 ### One tun: Hydrate or Diedrate's is retired, Food Shelves' holds 950 L (`HydrateTunRetired`, `LargerTunRack`)
 
@@ -1049,6 +1079,96 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
   made without `Trunks.Debark` (only `/giveblock`) has no mark and acts as a clean trunk on a
   sawhorse. With the switch turned off, debarked trunks already in a world are lost, as are rossers.
 
+### Machines need oil (`MachineOil`, `MachineOilSettings`)
+
+The game, Immersive Woodworking (`immersivewoodworking`, 1.3.11) and this mod's two machines. The
+heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
+Woodworking's plank sawmill and powered chopper, the bucking sawmill and the rosser. Nothing else
+does: the quern, axles, gears and every other transmission part are exempt. A machine is built
+**dry**, and runs dry again when its oil is used up. Dry, its load on its shaft is
+`DryResistanceMultiplier` (3) times what it is otherwise; nothing else changes (it wears and works
+as before). Any oil at all is not dry. While dry and turning, it puffs dark smoke.
+
+- **Oil.** Right-click any cell of the machine (any cell of a multiblock) holding a liquid
+  container of a listed oil: as much as fits goes in, in whole items, taken from the container the
+  way a barrel takes it (a stack of containers has one split off). Holding oil, the click always
+  pours, whatever the cell would do otherwise. The listed liquids (`OilLiquids`) are the oils the
+  locked mods ship: the game's `oilportion-*` (flax and olive; its melted fat, `-fat` and
+  `-fatsolid`, are skipped variants but count if a mod enables them), Expanded Foods'
+  `foodoilportion-*` (flax, rice, seed, soy, sunflower, peanut, olive, and walnut from Oils
+  Resoaped's patch) and its `lard` and `hardlardliquid` (liquid rendered fat, hardened or not).
+  The game's tallow, rendered fat (`game:fat-rendered`), is a solid item with no liquid form in the
+  game, so it goes in by hand from the stack, at `OilLumps`' half a litre a lump (what its skipped
+  melted form, `oilportion-fat`, holds: 2 items to the litre). Turpentine and Oils Resoaped's wood
+  finish are not oils for this.
+- **The tank** is in points, 100 to the litre (one item of a 100-per-litre oil is a point). It
+  only fills: oil cannot be drained back out, and breaking the machine loses it. A setting that
+  makes a tank smaller keeps what fits.
+- **The drain** is by the job, and idle turning is free: the helve hammer per strike on an anvil
+  with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
+  log chopped, and the bucking sawmill and the rosser per log stored in the trunk, rounded up over
+  the trunk (as their blade and head wear are).
+- **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0), and
+  while dry how many times the power it takes. The handbook has a page of its own, "Oiling
+  machines" (`config/handbook/machineoil.json`): which machines, which oils, what dry means and how
+  long a tank lasts. Its text quotes the default settings.
+
+| Setting | Default | |
+|---|---|---|
+| `OilLiquids` | the four patterns above | Liquid codes (`domain:path`, `*` wildcards) that oil a machine |
+| `OilLumps` | `game:fat-rendered`: 0.5 | Solid oils by the lump: code pattern and litres a lump |
+| `DryResistanceMultiplier` | 3 | What a dry machine's shaft load is multiplied by (1 to 100) |
+| `HelveHammer` | tank 1000, 0.1 a strike | |
+| `Pulverizer` | tank 1000, 0.5 an item | |
+| `Sawmill` | tank 1000, 2 a log | Immersive Woodworking's plank sawmill |
+| `Chopper` | tank 1000, 1 a log | Immersive Woodworking's powered chopper |
+| `BuckingMill` | tank 1000, 2 a stored log | |
+| `Rosser` | tank 1000, 2 a stored log | |
+
+Each machine's entry is `{ "Tank": points, "DrainPerJob": points }`; a value out of range falls back
+to its default with a warning.
+
+**Why these sizes.** Every tank holds 1000 points, one 10 litre bucket, so "a bucket fills a dry
+machine" holds for all six and the block info reads the same everywhere. The drains are set so
+that a full tank lasts several days of steady play at a busy workshop's pace, by each machine's
+own rate of work: a helve hammer strikes about three times a second at speed 1, so 0.1 a strike
+is 10 000 strikes (some 50 minutes of hammering, a few weeks of smithing sessions); a pulverizer
+2000 items; the plank sawmill 500 logs and the chopper 1000 (firewood goes through it fastest);
+the bucking sawmill and the rosser 500 stored logs (a thin trunk stores about 10). Oil is not
+cheap: vanilla flax oil comes 0.1 litre a cooking pot, a press gives more, and tallow is half a
+litre a lump, so a bucket is a real cost that is paid rarely.
+
+**How.** The four foreign machines are patched (`MachineOil/ForeignMachines.cs`), on both sides
+and once per process (own Harmony id `seraphhorizons.machineoil`): their block entities cannot
+carry a field of this mod's, so the tank is kept beside each block entity and written into, and
+read from, its tree under `seraphhorizons:oil` (postfixes on `ToTreeAttributes` and
+`FromTreeAttributes`), which saves it with the world and syncs it to clients. The targets:
+
+| Machine | Load (postfix) | Drain | Pouring (prefix) | Tank and info |
+|---|---|---|---|---|
+| Helve hammer | `BEBehaviorMPToggle.GetResistance` (the wooden toggle carries the hammer's load; it finds the hammer on either side) | `BEHelveHammer.onEvery25ms`, prefix and postfix: a strike is the swing (`accumHits`) wound back a quarter turn, onto an anvil whose `WorkItemStack` was set | `BlockHelveHammer.OnBlockInteractStart` | `BEHelveHammer.To/FromTreeAttributes`; `BlockEntity.GetBlockInfo` for the hammer alone (it has none of its own) |
+| Pulverizer | `BEBehaviorMPPulverizer.GetResistance` | `BEPulverizer.Crush` (one item a call) | `BlockPulverizer` and `BlockMPMultiblockPulverizer.OnBlockInteractStart` | `BEPulverizer.To/FromTreeAttributes`, `GetBlockInfo` |
+| Sawmill | `BEBehaviorSawmillMP.GetResistance` (its private `Master`) | `BlockEntitySawmill.CompletePass`, prefix and postfix: a pass that empties the input slot | `BlockSawmill` and `BlockSawmillGhost.OnBlockInteractStart` (the power ghost inherits it) | `BlockEntitySawmill.To/FromTreeAttributes`, `GetBlockInfo` (the ghosts pass theirs to it) |
+| Chopper | `BEBehaviorChopperMP.GetResistance` | `BlockEntityChopper.CompletePass`, likewise | `BlockChopper` and `BlockChopperGhost.OnBlockInteractStart` | `BlockEntityChopper.To/FromTreeAttributes`, `GetBlockInfo` |
+
+A click on a multiblock cell finds the machine through the cell's `Principal` (`BEMPMultiblock`,
+Immersive Woodworking's `BEMultiblockSawmill` and `BEMultiblockChopper`). Immersive Woodworking is
+found by name; if any of its members is missing, its two machines are left as they ship with a
+warning, and the game's two are oiled regardless. The bucking sawmill and the rosser keep their
+tank themselves (`BEBuckingMill`, `BERosser`, the same tree key), check for oil first in their
+`OnInteract`, drain in `FinishCut` and `Deliver`, and multiply in their own MP behaviours. The
+shared maths (tank, drain, code patterns, settings) is in `Machines/Core/MachineOil.cs`, the
+shared game side (tree, pouring, info, smoke) in `Machines/Game/Oil.cs`. The client smokes the
+foreign machines from one tick of `MachineOilSystem`, the two of this mod's from their own.
+
+The server decides: it writes the tank into the tree only with the switch on, and a client shows
+and smokes only a tank it was sent. Which held item is oil is judged on each side by its own
+settings (the client only says the click is taken; the server pours). With the switch off nothing
+is patched, the mill and the rosser keep no tank, every machine loads its shaft and works as it
+did before, tanks already saved are dropped at the next save, and the handbook page is hidden (the
+client removes it from the handbook; the server lists it under the hidden guides key, so the
+recipe export leaves it out).
+
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
@@ -1103,6 +1223,24 @@ patched file (the allowedVariants Fix is not involved: the recipe keeps its wild
 switch off, or without Immersive Woodworking, `WoodworkingMachineCosts.DisablePatches` empties the
 patch in `Start`, as for the blade kits. With the switch on, the handbook's Machines chapter
 (`UnifiedWoodworking`'s guide) gains a paragraph with the two totals, by a `LangEdit`.
+
+### The heating rack stays where it is put (`HeatingRackKeepsPosition`)
+
+Logging Expanded (`loggingmod` 0.3.6). Its Trunk Heating Rack (`loggingmod:resinrack-*`,
+`BlockResinRack`, block entity `BEResinRack`) keeps its trunk and resin when picked up: its
+`OnPickBlock` writes the block entity's whole tree into the stack, and its `DoPlaceBlock` loads that
+tree back into the new block entity. The tree includes the base `BlockEntity`'s `posx`, `posy` and
+`posz`, so a rack placed from that stack has a block entity whose `Pos` is where it was picked up
+(#374): its firepit check and dirty-marking go to the old spot. Carry On builds its carried stack
+from `OnPickBlock`; its server puts the block entity right after the place-down, its client does
+not, and a creative pick and place has nothing to put it right.
+
+`HeatingRackPosition` (Harmony, on both sides, once per process with its own id) postfixes
+`OnPickBlock` to take the three keys out of the stack it returns, and prefixes `DoPlaceBlock` to take
+them out of the stack being placed: racks already picked up before the tweak, in inventories or
+creative hotbars, still carry them. With no position in the tree, `BEResinRack.FromTreeAttributes`
+keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
+warning and leaves the rack as it ships.
 
 ### Tidy Variants (`TidyVariants`)
 
@@ -1795,7 +1933,7 @@ state exports reading back, a live survey's files, the overlays reaching admins 
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, which panning drops are taken out, where the chopper drops its piles, `/clear`'s
+cart reach's entity matching and reach rule, which panning drops are taken out, where the chopper drops its piles, which ratio a source next to a gearbox takes, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, the creative mod
@@ -1804,7 +1942,8 @@ machines' shared rig maths, footprint, trunk path and trunk box, held to the dri
 implementation replays (`Machines/Core/`, `tests/Machines/`), the bucking sawmill's rig, assembly
 rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 `BuckingSawmill/README.md`), the rosser's rig, parts, pace, trip, water and client-side values
-(`Rosser/Core/`, described in `Rosser/README.md`), and the trunk code and variant rules of the
+(`Rosser/Core/`, described in `Rosser/README.md`), machine oil's tank, drain, oil codes and settings
+(`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the trunk code and variant rules of the
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), and the item value table's lookup
 and family fallback, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`).
 `dotnet test mods-src/seraphhorizons/tests`.
@@ -1881,6 +2020,38 @@ outside the chopper's footprint (`GetCells`). When it fails after an Immersive W
 check whether `EjectBatch` or the footprint changed. With the switch off, `SwitchesOffScenarios`
 requires the chopper unpatched and throwing its batch past the cell in front.
 
+`tests/PackTests/GearboxSourceRatioScenarios.cs` (Atlas) builds a creative rotor, MPE Gearbox's 1:5
+gearbox and a wooden toggle (what drives a helve hammer) in a row, each connected as its own
+placement code connects it, and requires every block's stored geared ratio: rotor 1, gearbox 1,
+toggle 5 with the rotor on the low side, built rotor first (the order the game already handles)
+and gearbox and toggle first; rotor 1, gearbox and toggle 0.2 with the rotor on the high side; and
+the low-side row still right after the toggle is broken (the network rebuilt from its rotor) and
+placed again. Without the patch the rotor stores 5, 0.2 and 5 in the three cases that discover
+through the gearbox. With the switch off, `SwitchesOffScenarios` requires nothing patched and the
+rotor placed last on the low side at 5, as MPE Gearbox ships it; when that fails with the rotor at
+1, MPE Gearbox has fixed it and the tweak can go.
+
+`tests/PackTests/MachineOilScenarios.cs` (Atlas) is the fragility guard and the game's machines:
+every patch target in `ForeignMachines.Targets` (27: the helve hammer's and pulverizer's 13 and
+Immersive Woodworking's 14) resolves against the locked versions and carries its prefix or postfix,
+Immersive Woodworking's machines are bound, and the default oils exist in the pack. When it fails
+after a game or Immersive Woodworking update, the target it names was renamed or changed: find the
+new method that does that job and point `ForeignMachines.Bind` at it. A pulverizer must be built
+dry at three times the game's 0.085, take four lumps of tallow (200 points, back to 0.085), take
+800 of a bucket's 1000 items of flax oil and leave the rest in the bucket, refuse more when full
+(the click still the oil's), save the tank in its tree, drain by `DrainPerJob` for each item
+`Crush` takes and run dry, and be dry again when broken and placed again. A helve hammer next to
+a wooden toggle must load the toggle at three times 0.125 once it has a head, and 0.125 when oiled.
+`MachineOilMillScenarios.cs` (`WoodworkingScenarios`) builds a bucking sawmill: dry at three
+times its `Resistance`, oiled by a bucket on its power cell, and a four-log trunk's cut costing
+`OilDrain.PerTrunk`. The mill's and the rosser's assembly scenarios require three times their
+`Resistance` once assembled and their own once oiled, and every other mill and rosser scenario fills
+the tank as it assembles (a creative rotor at its default settings cannot turn a dry mill).
+`ItemExportScenarios` requires the handbook page in the export. With the
+switch off, `SwitchesOffScenarios` requires nothing patched, a pulverizer at 0.085 with no tank
+and refusing tallow, and the page among the hidden guides. The strike detection, the smoke and
+the client's side of the click need a client and are checked by hand in the game.
+
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
 food the server loads: anything eaten, used as a meal ingredient or drunk. An explicit 0 counts. When
 it fails after a mod is added or updated, it lists the foods to give a value in `patches/hydration-*.json`.
@@ -1927,6 +2098,15 @@ quantities and metals, and `ItemExportScenarios` its Machines guide to give the 
 switch off, `SwitchesOffScenarios` requires Immersive Woodworking's own counts, of any metal, and
 the chapter without the paragraph. When these fail after an Immersive Woodworking update, compare
 its `recipes/grid/sawmill_*.json` and `chopper_*.json` with the patch.
+
+`tests/PackTests/HeatingRackScenarios.cs` (Atlas, `WoodworkingScenarios`) places a heating rack, takes
+its stack from `OnPickBlock` and places it elsewhere through the block's own `TryPlaceBlock`, as
+Carry On's client and a creative pick do: the stack must carry no `posx` and the new block entity's
+`Pos` must be the new position. It also carries a rack with Carry On's server calls and breaks one
+in survival. With the switch off, `SwitchesOffScenarios` requires nothing patched and the picked
+stack carrying the rack's position. When it fails after a Logging Expanded update, check whether
+the rack still writes its tree into the stack, and whether `FromTreeAttributes` still keeps its
+position when the tree has none.
 
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's

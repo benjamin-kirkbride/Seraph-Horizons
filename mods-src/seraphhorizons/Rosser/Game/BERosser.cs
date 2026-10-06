@@ -45,6 +45,9 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     private float _lastAngle;
     private bool _angleSeeded;
     private bool _warnedNoDebark;
+    // The oil tank (MachineOil): none with the switch off, or on a client of a server without it.
+    private OilState? _oil;
+    private float _smokeSeconds;
     // The client's estimate of T, advanced with the shaft between syncs, and the shown T one client
     // tick back with when and how long that tick was: frames between ticks draw part way.
     private double _clientTravel;
@@ -76,6 +79,9 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     public RosserWater Water => _water;
     public RosserRackState RackState => _rackState;
     public RosserOutfeedState OutfeedState => _outfeedState;
+
+    /// <summary>The rosser's oil, or null without the <c>MachineOil</c> switch.</summary>
+    public OilState? Oiling => _oil;
     /// <summary>The configured slowest shaft speed that feeds; a client uses the server's value.</summary>
     public float MinSpeed => _serverMinSpeed ?? Config.MinSpeed;
 
@@ -123,6 +129,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         RebuildBoxes(force: true);
         if (api.Side == EnumAppSide.Server)
         {
+            _oil ??= Oil.NewOwn(api, OilMachine.Rosser);
             RegisterDelayedCallback(_ =>
             {
                 if (Api?.World.BlockAccessor.GetBlockEntity(Pos) == this)
@@ -285,6 +292,9 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     /// is the rosser's.</summary>
     public bool OnInteract(IPlayer byPlayer, bool onTrunk = false)
     {
+        // Holding oil, a click anywhere on the rosser pours it.
+        if (Oil.Interact(this, _oil, byPlayer) is { } oiled)
+            return oiled;
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
         bool take = controls.CtrlKey && !controls.ShiftKey;
@@ -541,6 +551,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             _warnedNoDebark = true;
             Api.Logger.Warning("[seraphhorizons] Rosser: no debarked trunk for {0} at {1}; it leaves as it came", _trunk?.Collectible?.Code, Pos);
         }
+        Oil.Drain(_oil, OilDrain.PerTrunk(_trip.Logs, Oil.DrainPerJob(Api, OilMachine.Rosser)));
         if (_parts.WearHeads(RosserParts.WearFor(_trip.Logs, Config.HeadWearPerStoredLog)))
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
         // the last top roll drops and its weight throws the dog out
@@ -633,6 +644,14 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         _clientTravelMs = Api.World.ElapsedMilliseconds;
         _clientTravelSeconds = dt;
         RebuildBoxes();
+
+        // A dry rosser smokes while it turns.
+        if ((_smokeSeconds += dt) >= 0.4f)
+        {
+            _smokeSeconds = 0;
+            if (_oil is { Dry: true } && _parts.Complete && speed >= Oil.TurningSpeed && Api is ICoreClientAPI capi)
+                Oil.Smoke(capi, Pos.ToVec3d().Add(0.5, 1.2, 0.5));
+        }
     }
 
     // ---- Racks, the mill, water ----
@@ -883,6 +902,8 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             tree.SetInt("rackState", (int)_rackState);
             tree.SetInt("outfeedState", (int)_outfeedState);
         }
+        if (_oil != null)
+            Oil.Write(tree, _oil);
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
@@ -909,6 +930,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
             ? RosserTrip.Restore(pace, k, logs, branches, travel, rate, sticksDone, barkDone, system.HeadTier(_parts.HeadMetal))
             : k == TrunkClass.None ? RosserTrip.None : new RosserTrip((int)k, logs, branches, travel, rate, sticksDone ?? 0, barkDone ?? 0);
         _water = RosserWater.Restore(tree.GetDouble("water"), system.Config);
+        _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.Rosser);
 
         if (worldForResolving.Side == EnumAppSide.Client)
         {
@@ -991,6 +1013,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         }
         double reservoir = _serverReservoir ?? Config.ReservoirLitres;
         dsc.AppendLine(Wet ? L("info-water", _water.Litres.ToString("0"), reservoir.ToString("0")) : L("info-dry"));
+        Oil.Info(_oil, dsc);
         float speed = ShaftSpeed;
         dsc.AppendLine(speed < MinSpeed ? L("info-nopower") : L("info-speed", speed.ToString("0.00")));
     }
