@@ -11,7 +11,7 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.RecipeExport;
 
 /// <summary>Writes `recipes` and `recipeTypes`. See docs/recipe-browser/exporter.md.</summary>
-public static class RecipeSection
+public static partial class RecipeSection
 {
     /// <summary>English names of the base game's types; mod types get a name built from their code.</summary>
     private static readonly Dictionary<string, string> TypeNames = new()
@@ -139,6 +139,9 @@ public static class RecipeSection
                 ["mod"] = smoking.Mod,
             };
         }
+
+        FillGearChain(ctx, records, types);
+        FillCasting(ctx, records, types);
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));
         for (int i = 1; i < records.Count; i++)

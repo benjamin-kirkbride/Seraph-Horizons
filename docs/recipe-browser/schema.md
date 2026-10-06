@@ -70,7 +70,10 @@ the output item.
 | `construction` | `construction`: stages, each listing the ingredients it consumes | Blocks built in place |
 | `butchery` | `butchery`: stages with what each needs and gives, yields per variant | The Butchering mod |
 | `transition` | `transition`: kind, fresh hours and transition hours | Items that turn into others over time: drying, curing, perishing, ..., and the smoking rack |
-| `generic` | none | Every type without a dedicated serialiser |
+| `tub` | `tub`: kind, hours, batch size, litres, and how gears are lost | The pickling tub's acids and brine bath (seraphhorizons) |
+| `lottery` | `lottery`: when it is decided, and outcomes with chances | The oiled gear (seraphhorizons) |
+| `machine` | `machine`: power, shaft turns, work, kept parts, wear and oil | The gear cutter (seraphhorizons) |
+| `generic` | none | Every type without a dedicated serialiser, and casting in tool molds |
 
 In a grid pattern each character is the `key` of an ingredient and `_` is an empty cell.
 
@@ -145,6 +148,50 @@ The `transition` shape and block, and the stations, are optional additions, so
 Items used to carry the same entries in `attributes.extra.transitions`; that copy was
 dropped with no bump, since readers ignore `extra` ([deploy.md](deploy.md#changing-the-export-format)).
 
+### The gear chain
+
+The pack's own mod reclaims rusty gears, cuts new ones and rusts them back into money
+(epic #484). Three of its processes have shapes of their own; the cooking pot and barrel
+steps are ordinary `cooking` and `barrel` records.
+
+**The pickling tub** (type `picklingtub`, shape `tub`): one record per rule of the tub's
+table (`PicklingTubSettings`), id `picklingtub|<gear>|<liquid pattern>`. The ingredients are
+the gear (role `batch`), the liquid (role `liquid`; its `litres` are what a finished batch
+uses up; the code may be a pattern, and the variant lists every liquid it matches) and the
+tub (role `station`). The first output is what the batch becomes. `tub` has the `kind`
+(`pickle` for an acid, `rust` for brine), the `hours` to done and the `batchSize`; when the
+liquid can lose gears, `failure` is the index of the output a lost gear becomes (steel bits),
+`graceHours` and `lossEveryHours` say when an acid starts eating a batch left past done and
+how fast, and `lossChance` is each gear's chance to come out lost at done (brine's
+over-rusting).
+
+**The oiled gear** (type `lottery`, shape `lottery`): an item decided by chance, one at a time.
+The one ingredient is the item; `lottery.trigger` says when (`inventory`: when it lands in a
+player's inventory) and `lottery.outcomes` lists each outcome's `chance` and the `outputs`
+indices it gives (none: it is lost). Chances add up to 1.
+
+**The gear cutter** (type `gearcutter`, shape `machine`): one record per blank size, id
+`gearcutter|<blank>|0`. The ingredients are the blank (consumed), the master (listed in
+`machine.kept`: fitted, never consumed), the cutter kit (`isTool`, its `toolDurabilityCost`
+the wear per gear with a full oil tank), the oil (each listed oil in the variant, with the
+litres one gear drains) and the machine (role `station`). `machine` has the `power`
+(`mechanical`), the `turns` of the input shaft one gear takes, the `work` it is made of (12
+teeth, 12 turns each), `kept`, `wear` (`dividedByOilFill`: the kit's wear is divided by the
+tank's fill, so a dry tank breaks it) and `oil` (`points` drained per gear from a `tank`,
+100 points to the litre). Until the cutter's own blocks and kit are registered, their slots
+in the variant are empty.
+
+**Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
+gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
+`station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
+The metal is its ingot, `game:ingot-*`, the quantity in ingots and the units in
+`extra.units`; the outputs are the mold's drops with `{metal}` in their code;
+`requirements` says to pour it from a crucible.
+
+These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
+lacks them is still valid, and the site falls back to the generic card for a record of a
+shape it has no layout for.
+
 ## Rules beyond the schema
 
 - Every recipe `type` is a key of `recipeTypes`, and `count` equals the number of records.
@@ -159,6 +206,14 @@ dropped with no bump, since readers ignore `extra` ([deploy.md](deploy.md#changi
   a variant's output stacks are the outputs it yields (with their alternatives).
 - A record with a `transition` block has one output and one variant; its first ingredient
   is what turns and every other one has role `station`.
+- A `tub` record has exactly one ingredient of each role `batch`, `liquid` and `station`;
+  `tub.failure` is an index into `outputs`, present whenever gears can be lost
+  (`lossEveryHours` or `lossChance` above 0), and the outputs are what the batch becomes
+  plus, with a failure, what a lost gear becomes.
+- A `lottery` record has one ingredient; its outcomes' chances add up to 1, and each output
+  belongs to exactly one outcome.
+- A `machine` record has an ingredient with role `station`; `kept`, `wear.ingredient` and
+  `oil.ingredient` name different ingredients, a kept one is not a tool and the worn one is.
 
 ## `extra`
 
