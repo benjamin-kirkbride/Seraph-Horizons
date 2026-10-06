@@ -367,4 +367,30 @@ public class SeraphHorizonsConfig
     /// <summary>The rosser's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public RosserConfig RosserSettings { get; set; } = new();
+
+    /// <summary>Ore cells (Ore/, README "Ore cells"): Interesting Ore Gen places at most one deposit
+    /// of each metal (and of coal and each industrial mineral) per <see cref="OreCellSizeMetres"/>
+    /// square, at a spot picked from the world seed, instead of by its own distance rule (server
+    /// side). New worlds only: a world created with it off never gets it.</summary>
+    public bool OreCells { get; set; } = true;
+
+    /// <summary>The ore cell's side in blocks (at least 500). Fixed when a world is created.</summary>
+    public int OreCellSizeMetres { get; set; } = 5000;
+
+    /// <summary>Per-metal cell sizes overriding <see cref="OreCellSizeMetres"/>, by metal group
+    /// (<c>copper</c>, <c>iron</c>, <c>tin</c>, <c>gold</c>, <c>coal</c>, ...). Fixed when a world
+    /// is created.</summary>
+    public Dictionary<string, int> OreCellSizeByMetal { get; set; } = new();
+
+    /// <summary>No surface copper or surface cassiterite pockets in new worlds (Interesting Ore Gen's
+    /// surface signs of deep veins stay).</summary>
+    public bool NoSurfaceCopper { get; set; } = true;
+
+    /// <summary>Interesting Ore Gen's veins shrunk per metal to the sizes in
+    /// <c>config/ore-sizes.json</c> in new worlds (coal and minerals by a quarter at most).</summary>
+    public bool SmallerDeposits { get; set; } = true;
+
+    /// <summary>Interesting Ore Gen's hydrothermal districts about one per 15 km square instead of one
+    /// per 40–90 km² in new worlds.</summary>
+    public bool RarerDistricts { get; set; } = true;
 }

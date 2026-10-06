@@ -662,5 +662,20 @@
   "tidyvariants-group-tailorsdelight-panel-cloth-full": "Cloth panel",
   "tidyvariants-group-tankardsandgoblets-goblet-jeweled": "Jeweled goblet",
   "tidyvariants-group-tankardsandgoblets-tankard-woodtype": "Wooden tankard",
-  "tidyvariants-group-walkingstick-walkingstick": "Walking sticks"
+  "tidyvariants-group-walkingstick-walkingstick": "Walking sticks",
+  "ore-off": "Ore cells are off in this world: Interesting Ore Gen places ore by its own rule.",
+  "ore-unknown-metal": "Unknown metal '{0}'. Metals: {1}.",
+  "ore-not-managed": "No Interesting Ore Gen vein of {0} is tried here (it comes from hydrothermal districts or the game's own deposits), so its cells place nothing.",
+  "ore-cell-head": "{0} at {1}, {2}: cell {3}, {4}, {5} m square, world seed {6}.",
+  "ore-cell-spot": "Spot {0}: {1}, {2} (chunk {3}, {4}; {5}, {6} from spawn): {7}",
+  "ore-cell-rule": "Only the first {0} vein try made from chunk {1}, {2} places a vein in this cell.",
+  "ore-cell-none": "No spot left: this cell has no {0}.",
+  "ore-status-waiting": "active, its chunk not generated yet",
+  "ore-status-placed": "deposit placed",
+  "ore-status-failed": "generated without a vein",
+  "ore-status-consumed": "generated before its turn, skipped",
+  "ore-status-pending": "fallback",
+  "ore-here-head": "Ore cells where you stand ({0}, {1} from spawn):",
+  "ore-here-line": "{0}: spot {1} at {2}, {3} from spawn, {4} m {5}, {6}",
+  "ore-here-none": "{0}: none in this cell"
 }

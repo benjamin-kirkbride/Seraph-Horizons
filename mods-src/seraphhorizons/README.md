@@ -1189,6 +1189,80 @@ caret in the box, typing works), with an item on the cursor (still held, nothing
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
 
+### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`)
+
+Ore is rare and placed by the seed (epic #435): a deposit of a given metal is a few kilometres
+away, and one deposit carries a group for a long while, then runs out. Four switches, all on by
+default, all server side, all **for new worlds only**: they change how chunks generate, so the
+world records at its first start which of them it was created with
+(`seraphhorizons:oreworld` in the savegame, `Ore/Core/OreWorldRecord.cs`). A world created with
+a switch off, or before this existed, never gets it, whatever the config says later; switching
+one off in the config does take effect (for chunks generated from then on). The cell sizes are
+fixed at creation. The server log says what the world has
+(`Ore worldgen for this world (...): ore cells on, 5000 m, ...`).
+
+- **`OreCells`** (#438): at most one deposit of each metal per cell, a square of
+  `OreCellSizeMetres` (5,000) blocks, or `OreCellSizeByMetal`'s size for that metal (by metal
+  group: `{"gold": 8000}`; at least 500). Metals are groups of ores (`Ore/Core/OreMetals.cs`):
+  copper is one deposit per cell whether the rock makes it malachite or native copper. Coal and
+  each industrial mineral (borax, rhodochrosite, ...) count as their own metal; gems, quartz and
+  olivine are not managed and keep Interesting Ore Gen's own spacing.
+
+  For every (world seed, metal, cell), a stable hash picks eight spots inside the cell, at least a
+  tenth of the cell from its edge (500 m for 5 km cells): the first is the deposit's spot, the
+  rest are fallbacks (`Ore/Core/OreCells.cs`). Interesting Ore Gen (2.3.8) still makes its vein
+  tries as before (the game's `GenDeposits` asks each chunk for its tries from its own seeded
+  random sequence), but its spacing filter, `TiltedDiscDepositGenerator.TryApproveOreSpawnSeed`,
+  is replaced (a Harmony prefix, id `seraphhorizons.ore`) by the cell rule: a try is approved only
+  if it comes from the chunk holding the cell's active spot (its anchor) and is the first try of
+  that metal from that chunk. Every chunk around the anchor sees the same tries in the same order,
+  so they all approve the same one and the vein comes out whole, whatever order chunks generate
+  in. Which ore and vein shape it is follows from IOG's own tries there, so from the rock.
+
+  When the anchor's own chunk column has been generated, its blocks are checked for the metal's
+  ore. With none (no try of that metal from the chunk, or rock that can't host it), the spot
+  failed and the next fallback becomes active; a fallback whose chunk was already generated
+  before its turn is skipped; with none left the cell has no deposit of that metal. The primary
+  spot depends only on the seed; which fallback is used depends on what was explored first, so
+  each cell's state is kept in the savegame (`seraphhorizons:orecells`, `Ore/Core/OreCellBook.cs`)
+  and logged as it changes (`Ore cells: copper cell 102, 98 spot 0 at ...: deposit placed`). Only
+  metals that IOG has vein variants with tries for are managed (the log line
+  `Ore cells: bound ...` lists them): gold, silver, nickel, titanium and chromium come from
+  hydrothermal districts, which keep their own placement.
+- **`NoSurfaceCopper`** (#440): the game's surface copper and surface cassiterite pockets, which
+  IOG leaves on (it switches off only the deep vanilla deposits), are not tried
+  (`patches/ore-nosurfacecopper.json`). IOG's surface signs of its own deep veins (boulders and
+  prospecting veins) are part of those veins and stay. Bog iron is still the game's.
+- **`SmallerDeposits`** (#439): IOG's veins are shrunk per metal to the epic's typical deposit
+  (copper and iron 400 ingots; tin, zinc, bismuth, lead and nickel 150; silver and gold 80;
+  titanium, chromium and platinum 150), by `config/ore-sizes.json`'s target over the median
+  measured before. Disc veins (`fault`, `seam`) lose radius (√factor: volume goes with
+  radius² × thickness); tube veins (`chimney`, `hydrotube`) lose tendrils, down to one, then
+  length (their radius only sets which chunks they are drawn in) (`Ore/Core/VeinScaling.cs`).
+  Grade is untouched, and each vein's spread is kept, so small and large deposits stay apart.
+  Coal and the industrial minerals lose a quarter. It acts on the generators the game builds from
+  the deposit files (a postfix on `GenDeposits.initAssets`), so every variant, whatever patched
+  it in, is covered; the log says what was scaled. The factors are a first cut, to be corrected
+  from a survey of a world made with them (#458).
+- **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
+  quartz and most chromite and platinum, tile the world in 10 km squares instead of 4–6 km
+  (`patches/ore-rarerdistricts.json`, on its `minDistanceBetweenDistricts`); with IOG's hard-coded
+  40% chance per tile that is one per 250 km², about one per 15 km square. The tiles line up with
+  pairs of 5 km ore cells.
+
+Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule:
+
+- `/sh ore cell <x> <z> <metal>`: the cell holding the absolute block position for a metal, the
+  seed, its eight spots (block, chunk and spawn-relative positions) and how each stands (active,
+  placed, failed, skipped, fallback), and which chunk's first try places the vein.
+- `/sh ore here`: for every managed metal, the active spot of the cell you stand in, its distance
+  and direction, and how it stands.
+
+Code: `Ore/Core/` (the grid and spot hash, the cell states, the world record, the vein scaling;
+game-independent, tested in `tests/Ore/`), `Ore/Game/` (`OreSystem`, `OreCellPlacement`,
+`DepositSizes`, `Commands/`). If IOG is missing or its filter or fields changed, the server logs a
+warning and leaves IOG's own rule and sizes; the districts patch does nothing without IOG.
+
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
@@ -1443,6 +1517,16 @@ nothing changed world-wide.
 
 The test project loads this directory's build as a mod, and leaves out a pinned copy from the
 ModDB (`seraphhorizons_*.zip` in `build/mods`).
+
+`tests/PackTests/OreCellsScenarios.cs` (Atlas, a new world with a fixed seed) requires the four
+ore switches read and recorded in the savegame, IOG's `TryApproveOreSpawnSeed` patched, only the
+first copper try from the active spot's chunk approved (called on IOG's own generators),
+`/sh ore cell` answering with the spots `OreCells` computes for that seed and `/sh ore here`
+listing every managed metal, no surface copper or cassiterite tried and no other generator trying
+a managed metal, IOG's native copper and hematite veins scaled and a gem's not, and the
+hydrothermal districts' 10 km tiles. Generating enough ore to measure deposits is too slow for
+Atlas: sizes and spacing are checked with the survey tool (#458). `SwitchesOffScenarios` requires
+a world created with them off to have none of it.
 
 ## Adding a tweak
 

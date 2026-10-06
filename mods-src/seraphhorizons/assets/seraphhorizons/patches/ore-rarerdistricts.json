@@ -1,0 +1,13 @@
+// Interesting Ore Gen's hydrothermal districts, rarer: seraphhorizons' RarerDistricts switch
+// (README.md "Ore cells", #441). IOG 2.3.8 (HydrothermalDistrictSystem) tiles the world in squares
+// of the first config's minDistanceBetweenDistricts (4–6 km) and gives each tile a district with a
+// hard-coded 40% chance, a district every 40–90 km². With 10 km tiles it is one per 250 km², about
+// one per 15 km square, and the tiles line up with two 5 km ore cells. Every config gets the same
+// value, since which one comes first is up to the asset order. Districts stay 1–3 km in radius, so
+// they never overlap. New worlds only: Ore/Game/OreSystem.cs empties this file otherwise.
+[
+  { "file": "interestingoregen:config/hydrothermal/hydrothermal-cold.json", "op": "replace", "path": "/minDistanceBetweenDistricts", "value": 10000, "side": "server", "dependsOn": [{ "modid": "interestingoregen" }] },
+  { "file": "interestingoregen:config/hydrothermal/magmatic-felsic-shallow.json", "op": "replace", "path": "/minDistanceBetweenDistricts", "value": 10000, "side": "server", "dependsOn": [{ "modid": "interestingoregen" }] },
+  { "file": "interestingoregen:config/hydrothermal/magmatic-granitic-deep.json", "op": "replace", "path": "/minDistanceBetweenDistricts", "value": 10000, "side": "server", "dependsOn": [{ "modid": "interestingoregen" }] },
+  { "file": "interestingoregen:config/hydrothermal/magmatic-mafic-shallow.json", "op": "replace", "path": "/minDistanceBetweenDistricts", "value": 10000, "side": "server", "dependsOn": [{ "modid": "interestingoregen" }] }
+]

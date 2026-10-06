@@ -1,0 +1,39 @@
+// Deposit sizes (#439): seraphhorizons' SmallerDeposits switch (README.md "Ore cells").
+// Read by Ore/Game/DepositSizes.cs, which scales each Interesting Ore Gen vein variant of a metal
+// by that metal's volume factor (Ore/Core/VeinScaling.cs: disc veins by √factor on the radius,
+// tube veins on their tendril count). Never above 1.
+//
+// A metal's factor is targetIngots / medianIngots, or "factor" given outright:
+// - medianIngots: the median deposit measured over 5 seeds x 26 km² of the pack before this change
+//   (epic #435's table; a deposit is all ore of one metal within 150 m, an ore block 1.25 chunks).
+// - targetIngots: the typical deposit the epic wants for a group of about four: copper and iron 400,
+//   tin, zinc, bismuth, lead and nickel 150, silver and gold 80, titanium, chromium and platinum 150.
+//   Its small / large tiers (about ÷2.7 and ×2.5) come from the veins' own spread, which is kept.
+// - Coal and the industrial minerals get a quarter cut at most: they were one deposit per 3–10 km²
+//   and are not what the walk is for.
+// Gold, silver (apart from the silver inside copper and lead veins), nickel, titanium and chromium
+// come from hydrothermal districts, which this does not scale; their rows are here for the record.
+// These are a first cut from volume ∝ radius² × thickness (discs) and count × length (tubes);
+// re-survey and correct the medians here (#439, #458).
+{
+  "copper":   { "medianIngots": 3567, "targetIngots": 400 },
+  "iron":     { "medianIngots": 4806, "targetIngots": 400 },
+  "tin":      { "medianIngots": 896,  "targetIngots": 150 },
+  "zinc":     { "medianIngots": 2009, "targetIngots": 150 },
+  "bismuth":  { "medianIngots": 6643, "targetIngots": 150 },
+  "lead":     { "medianIngots": 1100, "targetIngots": 150 },
+  "nickel":   { "medianIngots": 1411, "targetIngots": 150 },
+  "silver":   { "medianIngots": 348,  "targetIngots": 80 },
+  "gold":     { "medianIngots": 130,  "targetIngots": 80 },
+  "platinum": { "medianIngots": 905,  "targetIngots": 150 },
+  "titanium": { "medianIngots": 2852, "targetIngots": 150 },
+  "chromium": { "medianIngots": 825,  "targetIngots": 150 },
+
+  "coal":          { "factor": 0.75 },
+  "alum":          { "factor": 0.75 },
+  "borax":         { "factor": 0.75 },
+  "saltpeter":     { "factor": 0.75 },
+  "cinnabar":      { "factor": 0.75 },
+  "sulfur":        { "factor": 0.75 },
+  "rhodochrosite": { "factor": 0.75 },
+}
