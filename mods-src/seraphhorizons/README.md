@@ -2136,7 +2136,8 @@ update, `DebarkedTrunks.Bind`'s warning names what changed in its trunk blocktyp
 `tests/PackTests/TrunkEntityScenarios.cs`, `TrunkToolScenarios.cs`, `TrunkCarryScenarios.cs` and
 `TrunkStationScenarios.cs` (Atlas) are the trunk entities' (`TrunkEntities/README.md`, "Tests"):
 a spawned trunk item becoming a thin or thick trunk entity, no trunk given to a player, the weight
-by logs, a trunk at rest on the ground, a placed trunk multiblock removed as it loads, and the grab
+by logs, a trunk at rest on the ground, a placed trunk multiblock removed as it loads, a trunk left in a hotbar laid down as an entity
+rather than placed, and the grab
 dragging a trunk while held; each tool on a trunk entity, the axe and saw refusing a branched one
 and the spud debarking a clean one whole with its bark; carrying through the pinned Carry On (the
 animation by size, racks not carryable, the speed by logs, sneak to shoulder, put-down and a drop

@@ -181,6 +181,53 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
+    public async Task A_trunk_left_in_a_hotbar_is_laid_down_as_an_entity_and_not_placed()
+    {
+        var pos = await Floor(-20);
+        var p = await World.JoinPlayer("trunkplacer");
+        await p.TeleportTo(pos.AddCopy(0, 0, 3));
+        await World.Ticks(5);
+        var player = p.Player;
+        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
+        player.Entity.Pos.Yaw = 0;
+        // from before trunk entities ran: the storage flag only stops a trunk going in
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        slot.Itemstack = Trunk(9, "md");
+        int blockId = slot.Itemstack.Block.Id;
+
+        // the game's own placement from the hotbar, as its server runs it for a client's click
+        var server = World.Api.World;
+        var systems = (System.Collections.IEnumerable)HarmonyLib.AccessTools.Field(server.GetType(), "Systems").GetValue(server)!;
+        var simulation = systems.Cast<object>().Single(s => s.GetType().Name == "ServerSystemBlockSimulation");
+        var packetType = HarmonyLib.AccessTools.TypeByName("Packet_ClientBlockPlaceOrBreak");
+        var packet = Activator.CreateInstance(packetType)!;
+        void Set(string field, object value) => HarmonyLib.AccessTools.Field(packetType, field).SetValue(packet, value);
+        Set("X", pos.X);
+        Set("Y", pos.Y);
+        Set("Z", pos.Z);
+        Set("Mode", 1);
+        Set("BlockType", blockId);
+        Set("OnBlockFace", BlockFacing.UP.Index);
+        Set("DidOffset", 1);
+        bool placed = (bool)HarmonyLib.AccessTools.Method(simulation.GetType(), "TryModifyBlockInWorld").Invoke(simulation, [player, packet])!;
+        Assert.True(placed);
+        await World.Ticks(5);
+
+        // the hotbar gave the trunk up, no block went down, and the trunk lies there as an entity
+        Assert.True(slot.Empty);
+        for (int x = -2; x <= 2; x++)
+        for (int y = 0; y <= 2; y++)
+        for (int z = -4; z <= 4; z++)
+            Assert.Equal(0, W.BlockAccessor.GetBlock(pos.AddCopy(x, y, z)).Id);
+        var trunk = Assert.IsType<EntityTrunk>(Assert.Single(Around(pos, e => e is EntityTrunk)));
+        Assert.Equal(9, trunk.Logs);
+        Assert.InRange(trunk.Pos.X, pos.X + 0.3, pos.X + 0.7);
+        Assert.InRange(trunk.Pos.Z, pos.Z + 0.3, pos.Z + 0.7);
+        Assert.Empty(Around(pos, e => e is EntityItem item && Trunks.IsTrunk(item.Itemstack)));
+        trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario]
     public async Task An_empty_hand_drags_a_trunk_while_held()
     {
         var pos = await Floor(120);

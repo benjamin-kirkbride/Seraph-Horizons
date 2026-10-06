@@ -294,9 +294,14 @@ block entity type is not found, one warning, and placed trunks are left as they 
 
 Trunk item entities lying in a world are swapped as they load (above). A trunk in an inventory from
 before (a hotbar, a backpack, a chest) stays where it is: the storage flag only stops it going in.
-Thrown out of the inventory it becomes a trunk entity. Placed as a block from a hotbar, it would be
-a new trunk multiblock, and the postfix above runs on any `BETreeTrunk` that initialises, so it is
-deleted the next tick (read from the code, not tested).
+Thrown out of the inventory it becomes a trunk entity. Placed from a hotbar, it is laid down as a
+trunk entity in the cell the block would have gone into, along the player's view, and never placed:
+a Harmony prefix on Logging Expanded's `BlockTreeTrunk.TryPlaceBlock` (both sides, patched once per
+process, while the feature runs; the client only answers yes) spawns the entity and says the block
+went down, so the game takes the stack from the hotbar as for any placed block. Carry On's
+put-down also ends in `TryPlaceBlock`, but its own place-down is intercepted first (above). If the
+method is not found, one warning; the trunk is then placed as a block and the postfix above deletes
+it the next tick.
 
 ## Config
 
@@ -343,7 +348,8 @@ entities, with nothing to pick them up; turn the switch back on to use them.
     with its stack, branches and info, and a thick one for xl; a trunk cannot be given to a player;
     the weight follows the logs per entity and leaves the type's alone, and no logs removes it; a
     trunk dropped from a height rests on the ground; a placed trunk multiblock is removed when it
-    loads, nothing dropped; and the grab: sneak shoulders instead, an empty hand ties the grab's rope
+    loads, nothing dropped; a trunk left in a hotbar, placed through the game's own placement, is
+    taken from the hotbar and lies there as a trunk entity, with no block; and the grab: sneak shoulders instead, an empty hand ties the grab's rope
     between player and trunk, the trunk follows a player who steps away, letting go removes the rope,
     and too far refuses.
   - `TrunkToolScenarios.cs`: every tool kind gets the behaviour; the axe takes a log, with a hammer
@@ -395,8 +401,7 @@ through:
 
 Also not checked: the axe on a debarked trunk without a hammer (debarked logs, by reading; the
 placed-trunk scenario for it went with placed trunks), Carry On's death, damage and quick drops
-(one dropped-trunk scenario covers the drop path), a trunk from an old inventory placed as a block
-(above), the heating rack's hands-full put-back, and the feature without Carry On or without
+(one dropped-trunk scenario covers the drop path), the heating rack's hands-full put-back, and the feature without Carry On or without
 Immersive Woodworking: the pack always loads both, so Atlas never sees those paths.
 
 Known compromises:

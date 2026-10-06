@@ -56,6 +56,7 @@ public class TrunkEntitySystem : ModSystem
     private bool _loggingResolved;
     private Harmony? _harmony;
     private bool _carrying;
+    private bool _placing;
     private long _speedListener;
 
     public static TrunkEntitySystem Of(ICoreAPI api) => api.ModLoader.GetModSystem<TrunkEntitySystem>();
@@ -117,8 +118,14 @@ public class TrunkEntitySystem : ModSystem
                                         + $"so this client {(Enabled ? "does too" : "does not")}, whatever its own setting says");
         }
         if (!Enabled)
+        {
             DisablePatches(api);
-        else if (!CarryOn)
+            return;
+        }
+        _placing = OldTrunkBlocks.PatchPlace();
+        if (!_placing)
+            api.Logger.Warning("[seraphhorizons] Trunk entities: Logging Expanded's BlockTreeTrunk.TryPlaceBlock is not as expected, so a trunk left in a hotbar is placed as a block (and removed the next tick)");
+        if (!CarryOn)
             api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On is not installed, so trunks cannot be carried: drag or rope them");
         else
             _carrying = TrunkCarry.Start(api);
@@ -187,6 +194,9 @@ public class TrunkEntitySystem : ModSystem
         if (_carrying)
             TrunkCarry.Stop();
         _carrying = false;
+        if (_placing)
+            OldTrunkBlocks.UnpatchPlace();
+        _placing = false;
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
     }
