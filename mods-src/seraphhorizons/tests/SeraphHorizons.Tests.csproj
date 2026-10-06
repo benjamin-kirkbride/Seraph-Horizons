@@ -87,6 +87,8 @@
     <None Include="../assets/seraphhorizons/itemtypes/gear.json" Link="gear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/largegear.json" Link="largegear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/cooking/gear-degrease.json" Link="gear-degrease-recipes.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The pickling tub (#476) and the brine bath (#482): rules, batches, loss. -->
+    <Compile Include="../PicklingTub/Core/**/*.cs" Link="PicklingTub/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Travelling merchants (#456): inn rules, the visit cycle, the conditions. -->
     <Compile Include="../Trading/Visitors/Core/**/*.cs" Link="Trading/Visitors/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

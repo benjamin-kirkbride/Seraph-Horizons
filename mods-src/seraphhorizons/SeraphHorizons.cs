@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.BuckingSawmill.Core;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.PicklingTub.Core;
 using SeraphHorizons.Mod.Rosser;
 using SeraphHorizons.Mod.Rosser.Core;
 using SeraphHorizons.Mod.TrunkEntities.Core;
@@ -531,14 +532,20 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public TrunkEntityConfig TrunkEntitiesSettings { get; set; } = new();
 
-    /// <summary>Gear reclamation (#484, GearReclamation/, README "Gear reclamation"): rusty gears are
-    /// salvage, reclaimed into steel gears by boiling in lye, pickling, neutralizing in lime water
-    /// and oiling in lard, one in ten sound and the rest steel bits; bare gears flash-rust back
-    /// (off means none of the steps' recipes, no roll, and no salvage text; the gear items exist
-    /// either way). The server's setting decides.</summary>
+    /// <summary>Gear reclamation (#484, GearReclamation/, PicklingTub/, README "Gear reclamation"):
+    /// rusty gears are salvage, reclaimed into steel gears by boiling in lye, pickling in the
+    /// pickling tub, neutralizing in lime water and oiling in lard, one in ten sound and the rest
+    /// steel bits; bare gears flash-rust back, and steel gears rust back into currency in the tub's
+    /// brine bath. Off means none of the steps' recipes, no roll, no salvage text, no pickling tub
+    /// and no bare steel gear; the other gear items exist either way. The server's setting decides.</summary>
     public bool GearReclamation { get; set; } = true;
 
     /// <summary>Gear reclamation's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public GearReclamationConfig GearReclamationSettings { get; set; } = new();
+
+    /// <summary>The pickling tub's figures (#476, #482): batch size, capacity, the acid rule table
+    /// and the brine bath; a value out of range falls back to its default with a warning, a broken
+    /// rule is dropped. The server's are used.</summary>
+    public PicklingTubConfig PicklingTubSettings { get; set; } = new();
 }

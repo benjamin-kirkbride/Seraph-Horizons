@@ -29,7 +29,8 @@ block entity behavior of this mod, which a client needs in the same way. So are 
 sawmill's and the rosser's blocks: the server runs the machines, the client draws their moving
 parts. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
-the server runs them, the client draws them and drives the tools' holds on them.
+the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
+tub: the server runs its batches, the client draws the liquid and the gears in it.
 
 ## Tweaks
 
@@ -1292,6 +1293,78 @@ mods' recipes name them, but the three steps' recipes are left out, oiled gears 
 the rusty gear has no salvage section and the guide page is hidden (from the client's handbook, and
 from the recipe export through the hidden guides key, as machine oil does).
 
+### The pickling tub and the brine bath (`GearReclamation`, `PicklingTubSettings`)
+
+Part of gear reclamation (#484): the tub is its pickling step (#476) and the end game's brine bath
+(#482). `seraphhorizons:picklingtub` is a wooden tub lined with pitch, one block, open at the top,
+crafted from six boards, a nails and strips and two of Immersive Woodworking's bark tar
+(`immersivewoodworking:barktar`, the lining); without Immersive Woodworking the tub has no recipe.
+It holds one liquid, up to `CapacityLitres` (10), and one batch of up to `BatchSize` (8) gears, and
+shows both: the liquid's surface at its level and the gears lying in it, as they are now.
+
+- **Liquid.** Right-click with a bucket, jug or any liquid container of a liquid a rule names: as
+  much as fits goes in, in whole items, taken from the container as a barrel takes it. One liquid at
+  a time; another is refused, and so is one that does nothing for the gears waiting in the tub. An
+  empty container takes the free liquid back out.
+- **Gears.** Right-click with gears a rule takes, up to the batch size from the stack. The batch
+  starts when the tub holds a liquid with a rule for it and a litre of it (`LitresPerBatch`), which
+  goes into the batch. Gears with no liquid for them wait. More of the same gears added to a running
+  batch start its clock again; other gears are refused until the batch is out, and so is more for a
+  finished batch. The large steel gear (`RefusedGears`, `seraphhorizons:largegear-*`) is refused
+  with a word: it has no currency form.
+- **Taking out.** Right-click with an empty hand. Before done, the gears that went in come back
+  unchanged and the batch's litre goes back into the tub. From done, what the batch became: its
+  litre is used up. Breaking the tub drops the batch the same way and spills the liquid.
+- **Block info:** the liquid, the batch and its progress; at done "the metal looks grey and clean"
+  (a pickle) or "rusted through" (brine), and how many gears the acid has eaten. The tub's handbook
+  page says how it works and that the acids are one part to ten of water.
+
+The rules are a table (`AcidRules`): a liquid code pattern, the gear in and the gear out, the hours
+to done, a grace after done, the hours between gears lost after the grace, and what a lost gear
+becomes (`Failure`, `FailureQuantity` of it). The defaults:
+
+| Liquid | In | Out | Hours | Grace | A gear lost every |
+|---|---|---|---|---|---|
+| vinegar (`game:vinegarportion`; Expanded Foods makes it) | `gear-degreased` | `gear-pickled` | 24 | 12 | 3 h |
+| sulfuric acid (`game:acid-full-sulfuric`) | `gear-degreased` | `gear-pickled` | 8 | 4 | 1 h |
+| hydrochloric acid (`game:acid-full-hydrochloric`; Expanded Matter) | `gear-degreased` | `gear-pickled` | 2 | 1 | 15 min |
+| vinegar | `gear-steel` | `gear-steel-bare` | 6 | 3 | 45 min |
+| sulfuric acid | `gear-steel` | `gear-steel-bare` | 2 | 1 | 15 min |
+| hydrochloric acid | `gear-steel` | `gear-steel-bare` | 0.5 | 0.25 | 3.75 min |
+
+Every lost gear is one `game:metalbit-steel`. Past done plus the grace, the first gear goes and then
+one every interval, until only bits are left: an hour of game time is two real minutes at the
+default speed, so a batch of eight in hydrochloric acid is gone a quarter of an hour of play after
+its grace. Brine (`BrineLiquids`, `game:brineportion`) has two rules of its own, built from three
+settings: `gear-steel` rusts into the game's `gear-rusty` in `BrineRustHours` (48), a bare steel
+gear in `BareBrineRustHours` (4), and each gear has `OverRustChance` (0.1) of over-rusting to a
+steel bit instead, rolled when the batch starts and shown at done. Brine eats nothing by time. The
+rusty gear is the game's own, full currency.
+
+`seraphhorizons:gear-steel-bare` is the one item the tub adds: a steel gear after the dip, the
+rusty gear's model in bright steel, with the bare gears' flash rust (a perish transition to
+`game:gear-rusty`, its hours from `GearReclamationSettings.FlashRustHours` through the
+`seraphhorizonsFlashRust` attribute). The other gear items are gear reclamation's; the tub only
+names their codes.
+
+**How.** `PicklingTub/Core/` holds the rules and the batch, with no game: `TubConfig.cs` (the
+settings and their sanitising: a value out of range falls back to its default, a broken rule is
+dropped, each with a warning), `TubRules.cs` (matching a liquid and a gear to a rule, what may go in)
+and `TubBatch.cs` (a batch is its gears, its liquid, its start hour, its litre and the loss rolled at
+the start, and its stage at any hour is a function of those: waiting, soaking, done, eating,
+dissolved). `PicklingTub/Game/` holds the system (registration; on the server, with the switch off,
+the tub, its recipe and the bare gear are disabled before the game loads them), the block, the block
+entity and the meshes of the gears in the tub. The block entity keeps the batch's rule with it, so a
+running batch keeps its timings when the settings change and a client reads them from the tree. Its
+server tick only starts a waiting batch and resends the tree when the stage changes; the clock is
+the calendar's total hours. The liquid in the tub does not perish.
+
+With the switch off, the tub, its recipe and the bare steel gear do not exist, and tubs already
+placed are lost. The server's setting decides. `tests/PackTests/PicklingTubScenarios.cs` (Atlas)
+fills a tub with each acid and brine, adds gears, ages the batch by moving its start back, and takes
+it out early, at done and eaten; rusts steel gears both ways; and counts the over-rusted share of
+320 gears. `SwitchesOffScenarios` requires no tub, bare gear or recipe with the switch off.
+
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
@@ -2070,9 +2143,10 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
 and family fallback, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
-described in `TrunkEntities/README.md`), and gear reclamation's roll, flash rust hours, settings and
+described in `TrunkEntities/README.md`), gear reclamation's roll, flash rust hours, settings and
 optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
-(`GearReclamation/Core/`, `tests/GearReclamation/`).
+(`GearReclamation/Core/`, `tests/GearReclamation/`), and the pickling tub's rules, timings,
+over-pickling order, early take-out, brine loss and settings (`PicklingTub/Core/`, `tests/PicklingTub/`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms

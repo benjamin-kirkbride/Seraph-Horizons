@@ -1,0 +1,10 @@
+{
+  "type": "content",
+  "modid": "picklingtubgearstubs",
+  "name": "Pickling tub gear stubs (test fixture)",
+  "description": "Stand-ins for gear reclamation's gear items (#474), for PicklingTubScenarios until those items are on the same branch. Delete with the Mods of PicklingTubScenarios' [AtlasWorld] once seraphhorizons ships seraphhorizons:gear-* itself.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "1.0.0",
+  "side": "Universal",
+  "dependencies": { "game": "1.22.0" }
+}
