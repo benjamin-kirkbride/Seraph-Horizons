@@ -29,7 +29,7 @@ namespace SeraphHorizons.Mod;
 ///
 /// With the switch off, <see cref="DisablePatches"/> empties every patch file in <c>Start</c>,
 /// before the game's patch loader runs in <c>AssetsLoaded</c>, and the converter is not patched.
-/// Trade lists are not touched: the rusty gear stays currency.
+/// The rusty gear stays currency; the mechanic's trade list no longer has ppex's gears (#436).
 /// </summary>
 public static class GearConsumers
 {

@@ -1404,7 +1404,8 @@ Left alone: the rusty gear amulet (the gear on a string, uncrafted back into it)
 black barrel dyes (the rust is the pigment), BetterLoot's gear parts (change: four make a gear) and
 Cartwright's rusty gear sign (decoration). The game's own Jonas devices, and Abyssal Depths, Rickety
 Translocation, Industrial Deco and the walking stick, take temporal gears or Jonas parts, no rusty
-gear, so they are not patched. Trade lists are not touched: the mechanic still lists ppex's gears.
+gear, so they are not patched. The rusty gear stays currency, and the mechanic no longer buys or
+sells ppex's gears (#436).
 
 JSON patches, `patches/gearconsumers-{modid}.json`, one per mod patched, each `dependsOn` that mod
 (the game's has none), rewrite the ingredient's code or add `"enabled": false` to the recipe. With
