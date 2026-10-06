@@ -95,6 +95,7 @@ public class SchematicsSystem : ModSystem
         Report = SchematicRecipes.Apply(api.World, api, table, _trader, _machine);
         api.Logger.Notification("[seraphhorizons] Schematics: {0} recipes gated, {1} recipes making or copying a schematic removed ({2}), {3} schematic slots kept on crafting",
             Report.Gated.Count, Report.Removed.Count, string.Join(", ", Report.Removed), Report.Kept);
+        api.Logger.Debug("[seraphhorizons] Schematics: gated {0}", string.Join(", ", Report.Gated.Distinct().OrderBy(g => g)));
         if (Report.Failed.Count > 0)
             api.Logger.Warning("[seraphhorizons] Schematics: {0} gated recipes had no room for their schematic and are left ungated: {1}",
                 Report.Failed.Count, string.Join("; ", Report.Failed));
