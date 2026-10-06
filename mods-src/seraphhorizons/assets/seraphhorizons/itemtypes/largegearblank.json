@@ -16,6 +16,7 @@
 	maxstacksize: 8,
 	materialDensity: 7850,
 	attributes: {
+		handbook: { extraSections: [{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }] },
 		displaycaseable: true,
 		shelvable: true,
 		onTongTransform: {

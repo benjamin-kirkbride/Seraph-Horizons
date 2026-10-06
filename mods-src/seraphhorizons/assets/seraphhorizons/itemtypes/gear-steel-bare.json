@@ -12,6 +12,7 @@
 	maxstacksize: 64,
 	materialDensity: 4000,
 	attributes: {
+		handbook: { extraSections: [{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }] },
 		seraphhorizonsFlashRust: true,
 		displaycaseable: true,
 		shelvable: true

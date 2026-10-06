@@ -1243,8 +1243,11 @@ game's large temporal gear shape (`block/machine/jonas/tempgear`) with both its 
 has no recipe yet (the cutter makes it). The rusty gear itself is unchanged except for a handbook
 section (`patches/gearreclamation-rustygear.json`): "Boil, pickle, neutralize, oil. One in ten
 comes out sound." Each reclaimed gear's handbook page has a section pointing to the guide page
-"Reclaiming rusty gears" (`config/handbook/gearreclamation.json`), which tells the whole line and
-quotes the default settings. Tidy Variants leaves the five gears as single tiles (its Atlas report;
+"Gears: reclaiming, cutting, rusting" (`config/handbook/gearreclamation.json`, #483), which tells
+the whole chain with the chemistry as its story (degrease, pickle, neutralize, oil, the one in ten,
+steel bits back through the coffin or the Bessemer, blanks, the gear cutter's ten stages and master,
+the brine bath) and quotes the default settings; so do the bare steel gear, the blanks, their molds
+and the pickling tub. Tidy Variants leaves the five gears as single tiles (its Atlas report;
 they are not variants of one thing to the player, so no override groups them).
 
 **Flash rust.** Pickled and neutralized gears carry the game's Perish transition to
