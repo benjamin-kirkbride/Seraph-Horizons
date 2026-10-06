@@ -16,6 +16,7 @@ namespace SeraphHorizons.Mod.Ore;
 /// <item><c>SmallerDeposits</c> (#439): <see cref="DepositSizes"/>.</item>
 /// <item><c>RarerDistricts</c> (#441): <c>patches/ore-rarerdistricts.json</c>.</item>
 /// </list>
+/// It also binds <see cref="ProPickShutdownGuard"/>, with no switch.
 /// All of them change how chunks generate, so they are decided per world, once: a world created
 /// with a switch on keeps it (unless the config switches it off later), and one created with it
 /// off, or before this existed, never gets it (<see cref="OreWorldRecord"/>, saved under
@@ -89,6 +90,12 @@ public class OreSystem : ModSystem
             else
                 DepositSizes.Bind(api, _harmony ??= new Harmony(HarmonyId));
         }
+        // No switch: it only keeps a stopping server from crashing. Bound before items load, when
+        // the prospecting pick starts its task.
+        if (ProPickShutdownGuard.Unsupported() is { } guardWhy)
+            api.Logger.Warning("[seraphhorizons] Prospecting pick shutdown guard is off: {0}", guardWhy);
+        else
+            ProPickShutdownGuard.Bind(_harmony ??= new Harmony(HarmonyId));
     }
 
     public override void StartServerSide(ICoreServerAPI api)

@@ -1292,8 +1292,15 @@ Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule
 
 Code: `Ore/Core/` (the grid and spot hash, the cell states, the world record, the vein scaling;
 game-independent, tested in `tests/Ore/`), `Ore/Game/` (`OreSystem`, `OreCellPlacement`,
-`DepositSizes`, `Commands/`). If IOG is missing or its filter or fields changed, the server logs a
+`DepositSizes`, `ProPickShutdownGuard`, `Commands/`). If IOG is missing or its filter or fields changed, the server logs a
 warning and leaves IOG's own rule and sizes; the districts patch does nothing without IOG.
+
+With no switch, `OreSystem` also guards the prospecting pick's own deposit setup
+(`Ore/Game/ProPickShutdownGuard.cs`): vanilla's `ProPickWorkSpace` builds a second set of deposit
+generators on the thread pool, which takes seconds with IOG, and nothing waits for it. A server
+stopped before it ends has nulled its logger, IOG's next warning throws on that thread, and the
+process dies (a test host, or a world left right after loading). A finalizer on that task drops
+what it throws once the server is shutting down.
 
 ## Tests
 

@@ -7,6 +7,8 @@ using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
+using Vintagestory.GameContent;
 using Vintagestory.ServerMods;
 using Xunit.Abstractions;
 
@@ -261,6 +263,35 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(v => $"{v.Code} ({v.fromFile}, {v.GeneratorInst?.GetType().Name}, {v.TriesPerChunk})")
             .ToList();
         Assert.True(others.Count == 0, "Also tried:\n" + string.Join("\n", others));
+    }
+
+    /// <summary>The prospecting pick builds a second set of deposit generators on the thread pool
+    /// (ProPickWorkSpace.OnLoaded). That second initAssets has to finish, scaled like worldgen's
+    /// (the pick reports what generates), and the task that runs it is guarded, so a server
+    /// disposed while it still runs doesn't take the process down: a test host crashed that way
+    /// with an NRE in Interesting Ore Gen's IOGDepositBlock.Resolve logging to a nulled logger.</summary>
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task The_prospecting_picks_deposits_initialise_and_are_scaled_too()
+    {
+        Assert.Null(ProPickShutdownGuard.Unsupported());
+        var patches = Harmony.GetPatchInfo(ProPickShutdownGuard.Task);
+        Assert.NotNull(patches);
+        Assert.Contains(patches.Finalizers, p => p.owner == OreSystem.HarmonyId);
+
+        var workspace = ObjectCacheUtil.TryGet<ProPickWorkSpace>(World.Api, "propickworkspace");
+        Assert.NotNull(workspace);
+        var genField = AccessTools.Field(typeof(ProPickWorkSpace), "depositGen");
+        await World.Until(() => genField.GetValue(workspace) != null, 6000);
+        var pickGen = (GenDeposits)genField.GetValue(workspace)!;
+        Assert.Equal(Deposits.Count(), pickGen.Deposits.Length);
+
+        var worldgen = IogVeins("nativecopper").Single();
+        var pick = pickGen.Deposits.Single(v => v.Code == "nativecopper" && v.TriesPerChunk > 0
+                                                && OreCellPlacement.GeneratorType!.IsInstanceOfType(v.GeneratorInst));
+        Assert.NotSame(worldgen.GeneratorInst, pick.GeneratorInst);
+        Assert.NotEqual(Attribute(pick, "branchCount"), Field(pick, "BranchCount").avg);
+        Assert.Equal(Field(worldgen, "BranchCount").avg, Field(pick, "BranchCount").avg);
+        Assert.Equal(Field(worldgen, "BranchLength").avg, Field(pick, "BranchLength").avg);
     }
 
     [AtlasScenario]
