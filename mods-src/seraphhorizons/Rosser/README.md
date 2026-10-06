@@ -220,7 +220,7 @@ reservoir wets ten logs. A wet log's roll uses `WetBarkMultiplier` (1.5, so the 
 bark come more often) and its count is multiplied by `WetBarkCountMultiplier` (1.5): floor(n × 1.5),
 and one more with chance frac(n × 1.5), so 3 pieces become 4 or 5. Only water is drawn (the network's
 `MediumType` is `Water`). The binder tries ppex 0.7.1 / exlib 0.8.4's names, then 0.6.8 / 0.7.2's
-(the pinned ones), by reflection; it uses the network manager's `GetConnectedNetworkAcross`, which
+(pinned before), by reflection; it uses the network manager's `GetConnectedNetworkAcross`, which
 finds the pipe beyond the face whose connector points back, so the water ghost has no ppex type of
 its own. It overrides `CanAttachBlockAt` on its water face only, so ppex keeps a pipe's connector
 into it and does not break the pipe. Without ppex, or with its members not as expected (one
