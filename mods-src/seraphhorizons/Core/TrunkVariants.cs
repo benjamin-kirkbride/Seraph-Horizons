@@ -22,6 +22,14 @@ public readonly record struct TrunkCode(string Wood, string Size, string Branche
     }
 
     public TrunkCode WithBranches(string branches) => this with { Branches = branches };
+
+    public TrunkCode WithSize(string size) => this with { Size = size };
+
+    /// <summary>Logging Expanded's size for a trunk of <paramref name="logs"/> logs
+    /// (<c>BlockTreeTrunk.GetSizeClass</c>): xs up to 3, sm up to 8, md up to 15, lg up to 24, xl
+    /// up to 35, xxl beyond.</summary>
+    public static string SizeFor(int logs) =>
+        logs <= 3 ? "xs" : logs <= 8 ? "sm" : logs <= 15 ? "md" : logs <= 24 ? "lg" : logs <= 35 ? "xl" : "xxl";
 }
 
 /// <summary>

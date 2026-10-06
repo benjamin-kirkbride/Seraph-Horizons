@@ -115,10 +115,12 @@ public partial class WoodworkingScenarios
         return stack;
     }
 
-    /// <summary>Takes the first stack matching <paramref name="match"/> out of the player's hotbar
-    /// or backpack (a trunk given back need not land in the hand).</summary>
+    /// <summary>Takes the first stack matching <paramref name="match"/> out of the player's Carry On
+    /// hands (where a trunk given back goes), hotbar or backpack.</summary>
     private static ItemStack? TakeFromPlayer(IPlayer player, System.Func<ItemStack, bool> match)
     {
+        if (SeraphHorizons.Mod.TrunkEntities.TrunkCarry.Carried(player) is { } carried && match(carried))
+            return SeraphHorizons.Mod.TrunkEntities.TrunkCarry.Take((IServerPlayer)player);
         foreach (var inv in new[] { Vintagestory.API.Config.GlobalConstants.hotBarInvClassName, Vintagestory.API.Config.GlobalConstants.backpackInvClassName })
             foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
                 if (slot.Itemstack is { } stack && match(stack))
@@ -522,11 +524,17 @@ public partial class WoodworkingScenarios
         throw new Xunit.Sdk.XunitException($"no cell's box holds {p}");
     }
 
-    /// <summary>The trunk stacks lying around <paramref name="around"/>, alive.</summary>
+    /// <summary>The trunks lying around <paramref name="around"/>, alive: trunk entities' stacks
+    /// (and trunk item entities', which trunk entities swap as they spawn).</summary>
     private List<ItemStack> TrunksNear(BlockPos around, int radius = 20)
     {
         var box = new Cuboidi(around.X - radius, around.Y - 40, around.Z - radius, around.X + radius, around.Y + 8, around.Z + radius);
-        return World.EntitiesIn(box).OfType<EntityItem>().Where(e => e.Alive && Trunks.IsTrunk(e.Itemstack)).Select(e => e.Itemstack).ToList();
+        return World.EntitiesIn(box).Where(e => e.Alive).Select(e => e switch
+            {
+                EntityItem item when Trunks.IsTrunk(item.Itemstack) => item.Itemstack,
+                SeraphHorizons.Mod.TrunkEntities.EntityTrunk trunk => trunk.Trunk,
+                _ => null,
+            }).OfType<ItemStack>().ToList();
     }
 
     private BlockEntity? RackAt(BlockPos pos) => RosserMod.Logging!.FindRack(W.BlockAccessor, pos);
@@ -1542,14 +1550,18 @@ public partial class WoodworkingScenarios
         W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
         await World.Ticks(2);
         Assert.Equal(RackState.None, mill.CheckRack(out _));
+        // The broken rosser's trunk drops once, as a trunk entity by its controller's cell. Where
+        // it comes to rest decides whether it lies in the mill's infeed cells (then the mill would
+        // take it off the ground: TrunkStationScenarios), so it is taken away first.
+        var left = Assert.Single(TrunksNear(at, 25));
+        Assert.Equal("loggingmod:treetrunk-oak-sm-debarked-north", left.Collectible.Code.ToString());
+        Assert.Equal(4, Trunks.StoredLogs(left, W));
+        KillItemsNear(at, 25);
         await Power(mill, full: true);
         var until = DateTime.UtcNow.AddSeconds(4);
         while (DateTime.UtcNow < until)
             await World.Ticks(5);
         Assert.Null(mill.Trunk);
-        var left = Assert.Single(TrunksNear(at, 25));
-        Assert.Equal("loggingmod:treetrunk-oak-sm-debarked-north", left.Collectible.Code.ToString());
-        Assert.Equal(4, Trunks.StoredLogs(left, W));
         W.BlockAccessor.SetBlock(0, RotorPos(mill));
         KillItemsNear(at, 25);
         KillItemsNear(millPos, 12);

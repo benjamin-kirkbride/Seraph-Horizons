@@ -4,6 +4,7 @@ using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Rosser;
 using SeraphHorizons.Mod.Rosser.Core;
+using SeraphHorizons.Mod.TrunkEntities.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -16,8 +17,9 @@ namespace SeraphHorizons.Mod;
 /// ModConfig/seraphhorizons.json, and skipped with a log line when the mod it changes is not
 /// installed or no longer looks as expected. This system applies its own patches explicitly
 /// (never PatchAll). Tidy Variants (TidyVariants/), Map Reveal (MapReveal/), the creative mod
-/// tabs (CreativeModTabs/) and the creative search tweaks (CreativeSearch/) have their own mod
-/// systems, which read their switch through <see cref="ConfigFor"/>.
+/// tabs (CreativeModTabs/), the creative search tweaks (CreativeSearch/), the machines and trunk
+/// entities (TrunkEntities/) have their own mod systems, which read their switch through
+/// <see cref="ConfigFor"/>.
 /// </summary>
 public class SeraphHorizonsSystem : ModSystem
 {
@@ -514,4 +516,17 @@ public class SeraphHorizonsConfig
     /// drain per job; a value out of range falls back to its default with a warning. The server's
     /// are used.</summary>
     public MachineOilConfig MachineOilSettings { get; set; } = new();
+    /// <summary>Trunk entities: Logging Expanded's tree trunks are never items in an inventory. A
+    /// felled tree leaves a trunk lying on the ground as an entity, which you drag with a rope or by
+    /// holding the right mouse button on it with an empty hand, shove by walking into it, float down
+    /// rivers, or shoulder very slowly with Carry On; its weight grows with its logs. Loose trunk
+    /// items are turned into trunk entities, trunk stacks fit in no inventory, and trunks already
+    /// placed as blocks are deleted when they load, nothing returned (needs Logging Expanded; Carry
+    /// On is optional; off means trunks are as Logging Expanded ships them). The server's setting
+    /// decides; a client follows the server.</summary>
+    public bool TrunkEntities { get; set; } = true;
+
+    /// <summary>The trunk entities' figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public TrunkEntityConfig TrunkEntitiesSettings { get; set; } = new();
 }

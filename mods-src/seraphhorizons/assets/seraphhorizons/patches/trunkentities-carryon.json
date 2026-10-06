@@ -1,0 +1,35 @@
+// Trunk entities with Carry On (TrunkEntities/Game/TrunkCarry.cs). TrunkEntitySystem empties this
+// file while trunk entities do not run.
+// - Logging Expanded's own patch gives the tree trunk a Carryable (slot Hands, server side). This
+//   second one is merged into it by Carry On (overrideExistingProperties with a higher
+//   patchPriority, so the order of the two patches does not matter): Logging Expanded's own carry
+//   animations, trunkcarry for thin trunks (sizes xs to lg) and trunkcarryheavy for thick ones
+//   (xl, xxl), Carry On's shoulder carry transform, and no walk speed of Carry On's own: the pack
+//   sets the walk speed from the trunk's logs. Server side: the client gets the blocks from it.
+//   The game merges propertiesByType into properties (arrays concatenated), so the shared settings
+//   are in properties only.
+// - The trunk entity types get the pack's pick-up (sneak + right click, EntityBehaviorTrunkCarry).
+[
+  {
+    "file": "loggingmod:blocktypes/treetrunk.json", "op": "add", "path": "/behaviors/-", "side": "server",
+    "value": {
+      "name": "Carryable",
+      "properties": {
+        "patchPriority": 1,
+        "overrideExistingProperties": true,
+        "transformTemplates": ["carry-trunk"]
+      },
+      "propertiesByType": {
+        "*-xs-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
+        "*-sm-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
+        "*-md-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
+        "*-lg-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
+        "*-xl-*": { "slots": { "Hands": { "animation": "trunkcarryheavy", "walkSpeedModifier": 0 } } },
+        "*-xxl-*": { "slots": { "Hands": { "animation": "trunkcarryheavy", "walkSpeedModifier": 0 } } }
+      }
+    },
+    "dependsOn": [{ "modid": "loggingmod" }, { "modid": "carryon" }]
+  },
+  {"file": "seraphhorizons:entities/trunk-thin.json", "op": "add", "path": "/server/behaviors/-", "value": {"code": "seraphhorizons.trunkcarry"}, "dependsOn": [{"modid": "carryon"}]},
+  {"file": "seraphhorizons:entities/trunk-thick.json", "op": "add", "path": "/server/behaviors/-", "value": {"code": "seraphhorizons.trunkcarry"}, "dependsOn": [{"modid": "carryon"}]}
+]
