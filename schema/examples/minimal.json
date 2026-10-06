@@ -11,7 +11,8 @@
       "authors": ["Someone"],
       "website": "https://mods.vintagestory.at/examplemod"
     },
-    "butchering": { "name": "Butchering", "version": "1.14.3", "authors": ["G3rste", "CaptainOats"] }
+    "butchering": { "name": "Butchering", "version": "1.14.3", "authors": ["G3rste", "CaptainOats"] },
+    "seraphhorizons": { "name": "Seraph Horizons", "version": "1.0.0", "authors": ["Benjamin Kirkbride"] }
   },
   "items": {
     "game:plank-oak": { "kind": "item", "name": "Oak plank", "mod": "game", "handbookVisible": true },
@@ -69,7 +70,23 @@
     "butchering:primemeat-raw": { "kind": "item", "name": "Raw prime meat", "mod": "butchering", "handbookVisible": true },
     "butchering:smoked-none-primemeat": { "kind": "item", "name": "Smoked prime meat", "mod": "butchering", "handbookVisible": true },
     "butchering:smokingrack-copper-north": { "kind": "block", "name": "Copper smoking rack", "mod": "butchering", "handbookVisible": true },
-    "examplemod:widget": { "kind": "item", "name": "Widget", "mod": "examplemod", "handbookVisible": false }
+    "examplemod:widget": { "kind": "item", "name": "Widget", "mod": "examplemod", "handbookVisible": false },
+    "seraphhorizons:toolmold-black-fired-gearblank": { "kind": "block", "name": "Gear blank mold", "mod": "seraphhorizons", "handbookVisible": true },
+    "seraphhorizons:toolmold-blue-fired-gearblank": { "kind": "block", "name": "Gear blank mold", "mod": "seraphhorizons", "handbookVisible": true },
+    "game:ingot-steel": { "kind": "item", "name": "Steel ingot", "mod": "game", "handbookVisible": true },
+    "seraphhorizons:gearblank-steel": { "kind": "item", "name": "Steel gear blank", "mod": "seraphhorizons", "handbookVisible": true },
+    "game:gear-temporal": { "kind": "item", "name": "Temporal gear", "mod": "game", "handbookVisible": true },
+    "seraphhorizons:gearcutterkit-steel": { "kind": "item", "name": "Steel cutter kit", "mod": "seraphhorizons", "handbookVisible": true },
+    "game:oilportion-flax": { "kind": "item", "name": "Flax oil", "mod": "game", "handbookVisible": true },
+    "game:fat-rendered": { "kind": "item", "name": "Tallow", "mod": "game", "handbookVisible": true },
+    "seraphhorizons:gearcutter-frame-north": { "kind": "block", "name": "Gear cutter frame", "mod": "seraphhorizons", "handbookVisible": true },
+    "seraphhorizons:gear-steel": { "kind": "item", "name": "Steel gear", "mod": "seraphhorizons", "handbookVisible": true },
+    "seraphhorizons:gear-oiled": { "kind": "item", "name": "Oiled gear", "mod": "seraphhorizons", "handbookVisible": true },
+    "game:metalbit-steel": { "kind": "item", "name": "Steel bits", "mod": "game", "handbookVisible": true },
+    "seraphhorizons:gear-degreased": { "kind": "item", "name": "Degreased rusty gear", "mod": "seraphhorizons", "handbookVisible": true },
+    "seraphhorizons:gear-pickled": { "kind": "item", "name": "Pickled gear", "mod": "seraphhorizons", "handbookVisible": true },
+    "game:vinegarportion": { "kind": "item", "name": "Vinegar", "mod": "game", "handbookVisible": true },
+    "seraphhorizons:picklingtub": { "kind": "block", "name": "Pickling tub", "mod": "seraphhorizons", "handbookVisible": true }
   },
   "recipes": [
     {
@@ -229,6 +246,74 @@
       "extra": { "behavior": "EntityBehaviorButcherable" }
     },
     {
+      "id": "casting|seraphhorizons:toolmold-black-fired-gearblank|0",
+      "type": "casting",
+      "mod": "seraphhorizons",
+      "ingredients": [
+        {
+          "code": "seraphhorizons:toolmold-*-fired-gearblank",
+          "kind": "block",
+          "quantity": 1,
+          "role": "station"
+        },
+        {
+          "code": "game:ingot-*",
+          "kind": "item",
+          "quantity": 1,
+          "wildcardName": "metal",
+          "role": "metal",
+          "extra": {
+            "units": 100
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "code": "seraphhorizons:gearblank-{metal}",
+          "kind": "item",
+          "quantity": 1
+        }
+      ],
+      "variants": [
+        {
+          "bindings": {
+            "metal": "steel"
+          },
+          "ingredients": [
+            [
+              {
+                "code": "seraphhorizons:toolmold-black-fired-gearblank",
+                "kind": "block",
+                "quantity": 1
+              },
+              {
+                "code": "seraphhorizons:toolmold-blue-fired-gearblank",
+                "kind": "block",
+                "quantity": 1
+              }
+            ],
+            [
+              {
+                "code": "game:ingot-steel",
+                "kind": "item",
+                "quantity": 1
+              }
+            ]
+          ],
+          "outputs": [
+            {
+              "code": "seraphhorizons:gearblank-steel",
+              "kind": "item",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "requirements": [
+        "Pour 100 units of molten metal into the mold from a crucible, and take the casting out once it has hardened"
+      ]
+    },
+    {
       "id": "construction|game:waterwheel-3m-north|2",
       "type": "construction",
       "mod": "survival",
@@ -305,6 +390,128 @@
       "requirements": ["Needs a powered press"]
     },
     {
+      "id": "gearcutter|seraphhorizons:gearblank-steel|0",
+      "type": "gearcutter",
+      "mod": "seraphhorizons",
+      "ingredients": [
+        {
+          "code": "seraphhorizons:gearblank-steel",
+          "kind": "item",
+          "quantity": 1
+        },
+        {
+          "code": "game:gear-temporal",
+          "kind": "item",
+          "quantity": 1,
+          "role": "kept"
+        },
+        {
+          "code": "seraphhorizons:gearcutterkit-steel",
+          "kind": "item",
+          "quantity": 1,
+          "role": "tool",
+          "isTool": true,
+          "toolDurabilityCost": 10
+        },
+        {
+          "code": "game:oilportion-flax",
+          "kind": "item",
+          "quantity": 10,
+          "role": "oil",
+          "litres": 0.1
+        },
+        {
+          "code": "seraphhorizons:gearcutter-frame-north",
+          "kind": "block",
+          "quantity": 1,
+          "role": "station"
+        }
+      ],
+      "outputs": [
+        {
+          "code": "seraphhorizons:gear-steel",
+          "kind": "item",
+          "quantity": 1
+        }
+      ],
+      "variants": [
+        {
+          "ingredients": [
+            [
+              {
+                "code": "seraphhorizons:gearblank-steel",
+                "kind": "item",
+                "quantity": 1
+              }
+            ],
+            [
+              {
+                "code": "game:gear-temporal",
+                "kind": "item",
+                "quantity": 1
+              }
+            ],
+            [
+              {
+                "code": "seraphhorizons:gearcutterkit-steel",
+                "kind": "item",
+                "quantity": 1
+              }
+            ],
+            [
+              {
+                "code": "game:oilportion-flax",
+                "kind": "item",
+                "quantity": 10,
+                "litres": 0.1
+              },
+              {
+                "code": "game:fat-rendered",
+                "kind": "item",
+                "quantity": 0.2,
+                "litres": 0.1
+              }
+            ],
+            [
+              {
+                "code": "seraphhorizons:gearcutter-frame-north",
+                "kind": "block",
+                "quantity": 1
+              }
+            ]
+          ],
+          "outputs": [
+            {
+              "code": "seraphhorizons:gear-steel",
+              "kind": "item",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "machine": {
+        "power": "mechanical",
+        "turns": 144,
+        "work": {
+          "amount": 12,
+          "unit": "teeth",
+          "turnsPerUnit": 12
+        },
+        "kept": [
+          1
+        ],
+        "wear": {
+          "ingredient": 2,
+          "rule": "dividedByOilFill"
+        },
+        "oil": {
+          "ingredient": 3,
+          "points": 10,
+          "tank": 1000
+        }
+      }
+    },
+    {
       "id": "grid|game:recipes/grid/ladder.json|0",
       "type": "grid",
       "mod": "game",
@@ -353,6 +560,159 @@
       "voxels": [["__#__", "_###_", "_###_", "_###_", "__#__"]]
     },
     {
+      "id": "lottery|seraphhorizons:gear-oiled|0",
+      "type": "lottery",
+      "mod": "seraphhorizons",
+      "ingredients": [
+        {
+          "code": "seraphhorizons:gear-oiled",
+          "kind": "item",
+          "quantity": 1
+        }
+      ],
+      "outputs": [
+        {
+          "code": "seraphhorizons:gear-steel",
+          "kind": "item",
+          "quantity": 1
+        },
+        {
+          "code": "game:metalbit-steel",
+          "kind": "item",
+          "quantity": 1
+        }
+      ],
+      "variants": [
+        {
+          "ingredients": [
+            [
+              {
+                "code": "seraphhorizons:gear-oiled",
+                "kind": "item",
+                "quantity": 1
+              }
+            ]
+          ],
+          "outputs": [
+            {
+              "code": "seraphhorizons:gear-steel",
+              "kind": "item",
+              "quantity": 1
+            },
+            {
+              "code": "game:metalbit-steel",
+              "kind": "item",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "lottery": {
+        "trigger": "inventory",
+        "outcomes": [
+          {
+            "chance": 0.1,
+            "outputs": [
+              0
+            ]
+          },
+          {
+            "chance": 0.9,
+            "outputs": [
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "picklingtub|seraphhorizons:gear-degreased|game:vinegarportion",
+      "type": "picklingtub",
+      "mod": "seraphhorizons",
+      "ingredients": [
+        {
+          "code": "seraphhorizons:gear-degreased",
+          "kind": "item",
+          "quantity": 1,
+          "role": "batch"
+        },
+        {
+          "code": "game:vinegarportion",
+          "kind": "item",
+          "quantity": 1,
+          "role": "liquid",
+          "litres": 1
+        },
+        {
+          "code": "seraphhorizons:picklingtub",
+          "kind": "block",
+          "quantity": 1,
+          "role": "station"
+        }
+      ],
+      "outputs": [
+        {
+          "code": "seraphhorizons:gear-pickled",
+          "kind": "item",
+          "quantity": 1
+        },
+        {
+          "code": "game:metalbit-steel",
+          "kind": "item",
+          "quantity": 1
+        }
+      ],
+      "variants": [
+        {
+          "ingredients": [
+            [
+              {
+                "code": "seraphhorizons:gear-degreased",
+                "kind": "item",
+                "quantity": 1
+              }
+            ],
+            [
+              {
+                "code": "game:vinegarportion",
+                "kind": "item",
+                "quantity": 1,
+                "litres": 1
+              }
+            ],
+            [
+              {
+                "code": "seraphhorizons:picklingtub",
+                "kind": "block",
+                "quantity": 1
+              }
+            ]
+          ],
+          "outputs": [
+            {
+              "code": "seraphhorizons:gear-pickled",
+              "kind": "item",
+              "quantity": 1
+            },
+            {
+              "code": "game:metalbit-steel",
+              "kind": "item",
+              "quantity": 1
+            }
+          ]
+        }
+      ],
+      "tub": {
+        "kind": "pickle",
+        "hours": 24,
+        "batchSize": 8,
+        "litresPerBatch": 1,
+        "graceHours": 12,
+        "lossEveryHours": 3,
+        "failure": 1
+      }
+    },
+    {
       "id": "smoking|butchering:primemeat-raw|0",
       "type": "smoking",
       "mod": "butchering",
@@ -384,6 +744,10 @@
     "examplemod:press": { "name": "Press", "count": 1, "shape": "generic", "registry": "pressrecipes", "mod": "examplemod" },
     "grid": { "name": "Crafting grid", "count": 1, "shape": "grid", "registry": "gridrecipes", "mod": "game" },
     "knapping": { "name": "Knapping", "count": 1, "shape": "voxels", "registry": "knappingrecipes", "mod": "game" },
+    "casting": { "name": "Casting", "count": 1, "shape": "generic", "registry": "BlockToolMold", "mod": "game" },
+    "gearcutter": { "name": "Gear cutter", "count": 1, "shape": "machine", "registry": "GearCutterSettings", "mod": "seraphhorizons" },
+    "lottery": { "name": "Decided on pickup", "count": 1, "shape": "lottery", "registry": "GearReclamationSettings", "mod": "seraphhorizons" },
+    "picklingtub": { "name": "Pickling tub", "count": 1, "shape": "tub", "registry": "PicklingTubSettings", "mod": "seraphhorizons" },
     "smoking": { "name": "Smoking rack", "count": 1, "shape": "transition", "registry": "BlockEntityMeatHook", "mod": "butchering" }
   },
   "guides": [

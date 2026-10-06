@@ -6,10 +6,26 @@
   import { onDestroy } from "svelte";
   import { loadModelFiles } from "../lib/model-data.ts";
   import type { PublishedModel } from "../lib/model-manifest.ts";
-  import { advance, contactDepth, enterPhase, feedAdvance, feedBlocksPerRadian, optionClass, playTrip, propBox, startPhase, type Motion, type PlayContext } from "../lib/model-scenario.ts";
+  import {
+    advance,
+    classShows,
+    contactDepth,
+    defaultInputSpeed,
+    enterPhase,
+    feedAdvance,
+    feedBlocksPerRadian,
+    INPUT_SPEED_MAX,
+    optionClass,
+    playTrip,
+    propBox,
+    rigNumber,
+    startPhase,
+    type Motion,
+    type PlayContext,
+  } from "../lib/model-scenario.ts";
   import { buildModelView, elementDetails, type ModelView } from "../lib/model-view.ts";
   import { formatRoute } from "../lib/route.ts";
-  import { classIndex, fitted, partMatrices, tripEnd, wrappedDelta, type Rig } from "../lib/rig.ts";
+  import { classIndex, fitted, partMatrices, workEnd, wrappedDelta, type Rig } from "../lib/rig.ts";
   import { mt } from "../lib/model-strings.ts";
   import { REPO_URL, t } from "../lib/strings.ts";
   import type { ColourMode, ModelScene, SceneColours, ViewName } from "../viewer/model-scene.ts";
@@ -38,6 +54,7 @@
           };
           colourMode = view.hasRig ? "part" : "texture";
           propChoice = m.scenario?.prop?.default ?? "none";
+          inputSpeed = defaultInputSpeed(m.scenario?.play);
           choose();
         } catch (e) {
           failed = (e as Error).message;
@@ -53,7 +70,10 @@
   const propLine = $derived(view && propSpec ? (view.anchors.find((a) => a.kind === "line" && a.key === propSpec.on) ?? null) : null);
 
   // ---- state
-  let motion = $state<Motion>({ theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false, trunk: 0, size: 0, presence: 0, feed: 0 });
+  // The oil tank starts full: a machine is shown as it runs.
+  let motion = $state<Motion>({ theta: 0, travel: 0, depth: 0, lifting: 0, phase: null, phaseFrom: 0, propOn: false, work: 0, size: 0, presence: 0, feed: 0, oil: 1 });
+  // Play's input speed: shaft turns a second of real time, 0 to INPUT_SPEED_MAX (0 stops it).
+  let inputSpeed = $state(1);
   let reverse = $state(false);
   let playing = $state(false);
   let fittedState = $state<Record<string, boolean>>({});
@@ -67,9 +87,24 @@
   let openGroups = $state<Record<string, boolean>>({});
 
   const propOption = $derived(propSpec?.options.find((o) => o.id === propChoice) ?? null);
-  // A prop that is the trunk of the rig's trunk path: it travels with T, and its option is the class.
-  const trunkProp = $derived(propSpec?.moves === "trunk" && view?.path ? view.path : null);
-  const tripLength = $derived(view?.path ? tripEnd(view.path, motion.size ?? 0) : 0);
+  // A prop that is the trunk of the rig's trunk path: it travels with W, and its option is the class.
+  const trunkProp = $derived(propSpec?.moves === "trunk" && view?.path?.kind === "trunk" ? view.path : null);
+  const tripLength = $derived(view?.path ? workEnd(view.path, motion.size ?? 0) : 0);
+  // The work's labels: the scenario's, else the trunk's for a trunkPath, else the rig's own name for its work.
+  const workIsTrunk = $derived(view?.path?.kind === "trunk");
+  const workLabel = $derived(scenario?.inputs?.work ?? scenario?.inputs?.trunk);
+  const workName = $derived(view?.path ? (workIsTrunk ? s.trunkTravel : s.workOf(view.path.name)) : "");
+  const sizeNames = $derived(scenario?.inputs?.size?.names ?? s.sizeNames);
+  // Shaft turns per unit of W when Play gears the work to the shaft (play.turnsPerWork); null otherwise.
+  const gearedTurns = $derived.by(() => {
+    const ref = play?.turnsPerWork;
+    if (ref === undefined || !rig || !view?.path) return null;
+    try {
+      return rigNumber(rig, ref);
+    } catch {
+      return null;
+    }
+  });
   const matrices = $derived(
     view
       ? partMatrices(
@@ -79,22 +114,23 @@
             depth: motion.depth,
             lifting: motion.lifting,
             travel: motion.travel,
-            trunk: motion.trunk,
+            work: motion.work,
             size: motion.size,
             presence: motion.presence,
             feed: motion.feed,
+            oil: motion.oil,
           },
           view.order,
           view.path,
         )
       : [],
   );
-  const visible = $derived(view ? view.parts.map((p) => fitted(p.part.requires, fittedState)) : []);
+  const visible = $derived(view ? view.parts.map((p) => fitted(p.part.requires, fittedState) && classShows(p.part.requires, classIndex(motion.size), scenario)) : []);
   // While a cycle runs (or is paused part-way) it decides whether the prop is on; posed by hand, the choice does.
   const propShown = $derived(motion.phase !== null ? motion.propOn : propOption !== null);
   const box = $derived(
     propShown && propOption && propLine && propLine.kind === "line"
-      ? propBox(propOption, propLine, { placement: propSpec?.placement, ...(trunkProp ? { nose: trunkProp.nose0 + (motion.trunk ?? 0) } : {}) })
+      ? propBox(propOption, propLine, { placement: propSpec?.placement, ...(trunkProp ? { nose: trunkProp.nose0 + (motion.work ?? 0) } : {}) })
       : null,
   );
   const thetaDeg = $derived(Math.round((motion.theta * 180) / Math.PI) % 360);
@@ -230,14 +266,14 @@
     const size = optionClass(propOption);
     motion.size = size;
     motion.presence = size > 0 ? 1 : 0;
-    if (view?.path) motion.trunk = Math.min(motion.trunk ?? 0, tripEnd(view.path, size));
+    if (view?.path) motion.work = Math.min(motion.work ?? 0, workEnd(view.path, size));
   }
   /** A size chosen without a prop (a rig that reads the class, with no trunk prop in its scenario). */
   function setSize(size: number) {
     byHand();
     motion.size = size;
     motion.presence = size > 0 ? 1 : 0;
-    if (view?.path) motion.trunk = Math.min(motion.trunk ?? 0, tripEnd(view.path, size));
+    if (view?.path) motion.work = Math.min(motion.work ?? 0, workEnd(view.path, size));
   }
   function playContext(): PlayContext {
     const chosen = propOption !== null;
@@ -251,6 +287,8 @@
       contact: play && rig && b ? contactDepth(play, rig, top) : motion.depth,
       ...(trip ? { trip } : {}),
       ...(feedBlocksPerRadian(rig) !== undefined ? { blocksPerRadian: feedBlocksPerRadian(rig) } : {}),
+      ...(gearedTurns !== null && classIndex(motion.size) > 0 ? { geared: { turns: gearedTurns, end: tripLength } } : {}),
+      turnsPerSecond: inputSpeed,
     };
   }
   let frame = 0;
@@ -434,7 +472,7 @@
     </div>
 
     <aside class="controls" data-testid="model-controls">
-      {#if view.inputs.theta || view.inputs.travel || view.inputs.depth || view.inputs.lifting || view.inputs.trunk || view.inputs.size || view.inputs.presence || view.inputs.feed}
+      {#if view.inputs.theta || view.inputs.travel || view.inputs.depth || view.inputs.lifting || view.inputs.work || view.inputs.size || view.inputs.presence || view.inputs.feed || view.inputs.oil}
         <fieldset>
           <legend>{s.motion}</legend>
           {#if view.inputs.theta || view.inputs.travel}
@@ -447,37 +485,41 @@
           {/if}
           {#if view.inputs.size && !trunkProp}
             <label class="stack">
-              <span>{scenario?.inputs?.size?.label ?? s.trunkSize}</span>
+              <span>{scenario?.inputs?.size?.label ?? (workIsTrunk ? s.trunkSize : s.workClass)}</span>
               <select value={String(classIndex(motion.size))} onchange={(e) => setSize(+e.currentTarget.value)} data-input="size">
-                {#each s.sizeNames as name, i (i)}<option value={String(i)}>{name}</option>{/each}
+                {#each sizeNames as name, i (i)}<option value={String(i)}>{name}</option>{/each}
               </select>
             </label>
           {/if}
-          {#if view.inputs.trunk && view.path}
+          {#if view.inputs.work && view.path}
             <label class="slider">
-              <span class="row"><span>{scenario?.inputs?.trunk?.label ?? s.trunkTravel}</span><output>{s.blocks(motion.trunk ?? 0, tripLength)}</output></span>
+              <span class="row"
+                ><span>{workLabel?.label ?? workName}</span><output data-testid="model-work"
+                  >{s.travelOf(motion.work ?? 0, tripLength, view.path.unit)}</output
+                ></span
+              >
               <input
                 type="range"
                 min="0"
                 max={tripLength}
-                step="0.0625"
-                value={motion.trunk ?? 0}
+                step={view.path.step}
+                value={motion.work ?? 0}
                 disabled={tripLength <= 0}
                 oninput={(e) => {
                   byHand();
                   const to = +e.currentTarget.value;
                   // the feed rolls turn with the trunk, as in the game (forward only)
-                  motion.feed = (motion.feed ?? 0) + feedAdvance(motion.trunk ?? 0, to, feedBlocksPerRadian(rig));
-                  motion.trunk = to;
+                  motion.feed = (motion.feed ?? 0) + feedAdvance(motion.work ?? 0, to, feedBlocksPerRadian(rig));
+                  motion.work = to;
                 }}
-                data-input="trunk"
+                data-input="work"
               />
-              {#if scenario?.inputs?.trunk?.hint}<span class="muted small">{scenario.inputs.trunk.hint}</span>{/if}
+              {#if workLabel?.hint}<span class="muted small">{workLabel.hint}</span>{/if}
             </label>
           {/if}
           {#if view.inputs.presence}
             <label class="slider">
-              <span class="row"><span>{scenario?.inputs?.presence?.label ?? s.presence}</span><output>{(motion.presence ?? 0).toFixed(2)}</output></span>
+              <span class="row"><span>{scenario?.inputs?.presence?.label ?? (workIsTrunk ? s.presence : s.workPresence)}</span><output>{(motion.presence ?? 0).toFixed(2)}</output></span>
               <input
                 type="range"
                 min="0"
@@ -512,6 +554,23 @@
               {#if scenario?.inputs?.depth?.hint}<span class="muted small">{scenario.inputs.depth.hint}</span>{/if}
             </label>
           {/if}
+          {#if view.inputs.oil}
+            <label class="slider">
+              <span class="row"><span>{scenario?.inputs?.oil?.label ?? s.oil}</span><output>{(motion.oil ?? 0).toFixed(2)}</output></span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={motion.oil ?? 0}
+                oninput={(e) => {
+                  motion.oil = +e.currentTarget.value;
+                }}
+                data-input="oil"
+              />
+              {#if scenario?.inputs?.oil?.hint}<span class="muted small">{scenario.inputs.oil.hint}</span>{/if}
+            </label>
+          {/if}
           {#if view.inputs.lifting}
             <label class="check">
               <input
@@ -528,11 +587,16 @@
           {/if}
           {#if view.inputs.theta || view.inputs.travel || view.inputs.feed}
             <label class="check"><input type="checkbox" bind:checked={reverse} data-input="reverse" /> {scenario?.inputs?.reverse?.label ?? s.reverse}</label>
+            <label class="slider">
+              <span class="row"><span>{s.inputSpeed}</span><output data-testid="model-speed">{s.rps(inputSpeed)}</output></span>
+              <input type="range" min="0" max={INPUT_SPEED_MAX} step="0.05" bind:value={inputSpeed} data-input="speed" />
+            </label>
             <div class="row play-row">
               <button type="button" class="play" aria-pressed={playing} onclick={togglePlay}>{playing ? s.pause : s.play}</button>
               <span class="muted small" role="status" data-testid="model-status">{status}</span>
             </div>
-            <span class="muted small">{play ? s.playHintScript : s.playHintTurn}</span>
+            <span class="muted small">{play?.phases.length ? s.playHintScript : gearedTurns !== null ? s.playHintGeared : s.playHintTurn}</span>
+
           {/if}
         </fieldset>
       {/if}

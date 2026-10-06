@@ -1,0 +1,16 @@
+[
+	{
+		// The pickling tub (#476): boards, as a barrel takes, two hoops' worth of nails and strips,
+		// and Immersive Woodworking's bark tar for the pitch lining that keeps the acid off the wood.
+		// The server disables it without Immersive Woodworking, and with GearReclamation off.
+		ingredientPattern: "PNP,PTP,PPP",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"P": { type: "item", code: "game:plank-*" },
+			"N": { type: "item", code: "game:metalnailsandstrips-*" },
+			"T": { type: "item", code: "immersivewoodworking:barktar", quantity: 2 }
+		},
+		output: { type: "block", code: "seraphhorizons:picklingtub" }
+	}
+]

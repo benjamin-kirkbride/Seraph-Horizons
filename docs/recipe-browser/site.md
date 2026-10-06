@@ -192,6 +192,19 @@ time says it is the rate in an ordinary inventory: containers change it (a cella
 spoiling), and a stack that has started to spoil no longer dries or cures (the engine stops
 every later transition once `Perish` has begun).
 
+The gear chain's shapes ([schema.md](schema.md#the-gear-chain)) have cards of their own. A
+tub card (`TubRecipe.svelte`) lists the batch, the liquid and the tub by role, then the time
+to done, the batch size and litres, and how gears are lost: the grace and the rate at which a
+liquid eats a batch left too long, or each gear's chance to come out lost, with the item a
+lost gear becomes; the card's heading shows only what the batch becomes (`cardOutputs` leaves
+the failure out). A lottery card (`LotteryRecipe.svelte`) shows the item, when it is decided,
+and each outcome with its chance, likeliest first. A machine card (`MachineRecipe.svelte`,
+the gear cutter) notes each ingredient's part: the master as kept, never consumed; the cutter
+kit as a tool with its wear per job and how the oil divides it; the oil; the machine itself;
+then the shaft turns a job takes and the oil it drains. The text is built by `tubLines`,
+`lotteryOutcomes`, `machineLines` and `machineRole` in `recipe-view.ts`. A record whose block
+is missing gets the generic card.
+
 The reverse indexes are built from each recipe's resolved `variants` and, in case an
 export does not list every variant, by matching each ingredient's code pattern against
 every item code: `*` matches any run of characters, a path starting with `@` is a regular

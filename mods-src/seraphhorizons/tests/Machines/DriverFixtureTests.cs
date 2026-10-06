@@ -7,8 +7,9 @@ namespace SeraphHorizons.Mod.Tests;
 /// Holds <see cref="RigParts"/> and <see cref="Driver"/> to the reference driver maths
 /// (Machines/tools/machinegen/rigmath.py) through tests/Machines/driver-fixture.json, written by
 /// Machines/tools/make_fixture.py: every driver alone at a grid of inputs, a small rig that uses
-/// all of them with ride chains, and drivers every parser must reject. The site's rig.ts replays
-/// the same file.
+/// all of them with ride chains, and drivers every parser must reject; then the same with the
+/// generic progress, a rig's <c>work</c>, in place of the trunkPath. The site's rig.ts replays the
+/// same file.
 /// </summary>
 public class DriverFixtureTests
 {
@@ -24,11 +25,11 @@ public class DriverFixtureTests
         var travel = inputs.GetProperty("travel");
         return new RigInput(D("theta"), D("depth"), D("lifting"),
                             travel.ValueKind == JsonValueKind.Null ? null : travel.GetDouble(),
-                            D("trunk"), inputs.GetProperty("size").GetInt32(), D("presence"), D("feed"));
+                            D("work"), inputs.GetProperty("size").GetInt32(), D("presence"), D("feed"), D("oil"));
     }
 
     /// <summary>One driver as the only part of a rig, parsed as a rig's parts are.</summary>
-    private static RigParts Alone(JsonElement driver, TrunkPath path)
+    private static RigParts Alone(JsonElement driver, IWorkProgress path)
     {
         string json = $$"""[ { "id": "d", "match": ["*"], "drivers": [ {{driver.GetRawText()}} ] } ]""";
         using var doc = JsonDocument.Parse(json);
@@ -55,7 +56,7 @@ public class DriverFixtureTests
     public void The_fixture_is_the_format_this_test_reads()
     {
         using var doc = Fixture();
-        Assert.Equal(1, doc.RootElement.GetProperty("format").GetInt32());
+        Assert.Equal(2, doc.RootElement.GetProperty("format").GetInt32());
         Assert.InRange(ToleranceOf(doc.RootElement), 0, 1e-6);
     }
 
@@ -126,7 +127,54 @@ public class DriverFixtureTests
     }
 
     [Fact]
+    public void Every_driver_matches_the_reference_on_a_work_quantity()
+    {
+        using var doc = Fixture();
+        var root = doc.RootElement;
+        var work = WorkQuantity.Parse(root.GetProperty("work"));
+        Assert.Equal(6, work.End(1), 6);
+        Assert.Equal(9, work.End(2), 6);
+        Assert.Equal(0, work.End(0));
+        int cases = 0;
+        foreach (var entry in root.GetProperty("workDrivers").EnumerateArray())
+        {
+            string id = entry.GetProperty("id").GetString()!;
+            var parts = Alone(entry.GetProperty("driver"), work);
+            foreach (var c in entry.GetProperty("cases").EnumerateArray())
+            {
+                var input = InputOf(c.GetProperty("inputs"));
+                AssertMatrix(c.GetProperty("matrix"), parts.Matrices(input)[0], ToleranceOf(root), $"{id} at {input}");
+                cases++;
+            }
+        }
+        Assert.True(cases >= 100, $"only {cases} cases");
+        foreach (var entry in root.GetProperty("workInvalid").EnumerateArray())
+        {
+            var e = Record.Exception(() => Alone(entry.GetProperty("driver"), work));
+            Assert.True(e is FormatException, $"{entry.GetProperty("id").GetString()} was not rejected with a work quantity");
+        }
+    }
+
+    [Fact]
+    public void Every_bad_progress_is_rejected()
+    {
+        using var doc = Fixture();
+        int n = 0;
+        foreach (var entry in doc.RootElement.GetProperty("badProgress").EnumerateArray())
+        {
+            var e = Record.Exception(() => RigProgress.Of(entry.GetProperty("rig")));
+            Assert.True(e is FormatException, $"{entry.GetProperty("id").GetString()} ({entry.GetProperty("error").GetString()}) was accepted");
+            n++;
+        }
+        Assert.True(n > 0);
+        using var ok = JsonDocument.Parse("""{ "work": { "unit": "teeth", "end": { "thin": 12, "thick": 20 } } }""");
+        Assert.IsType<WorkQuantity>(RigProgress.Of(ok.RootElement));
+        Assert.Null(RigProgress.Of(JsonDocument.Parse("{}").RootElement));
+    }
+
+    [Fact]
     public void The_mill_spells_travel_as_rectified()
+
     {
         using var doc = Fixture();
         var path = PathOf(doc.RootElement);

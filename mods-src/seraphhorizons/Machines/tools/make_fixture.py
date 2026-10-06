@@ -10,17 +10,24 @@ machine's model uses the new drivers. Run it from anywhere:
 
 Stdlib only; two runs write the same bytes. Never edit the output by hand.
 
-The file (format 1):
+The file (format 2):
 
-    trunkPath   the path every case uses: nose(T) = nose0 + T, tail = nose - lengths[class]
-    drivers     [{id, driver, cases: [{inputs, matrix}]}]: one driver alone, its 4x4 matrix
-    rig         {parts, poses: [{inputs, matrices: {part id: 4x4}}]}: a small synthetic rig that
-                uses every driver, with ride chains, composed as RigParts does
-    invalid     [{id, driver, error}]: drivers every parser must reject (error is a hint only)
+    trunkPath    the trunk-flavoured progress every case in `drivers` and `rig` uses: nose(W) = nose0 + W,
+                 tail = nose - lengths[class]
+    drivers      [{id, driver, cases: [{inputs, matrix}]}]: one driver alone, its 4x4 matrix
+    rig          {parts, poses: [{inputs, matrices: {part id: 4x4}}]}: a small synthetic rig that
+                 uses every driver, with ride chains, composed as RigParts does
+    invalid      [{id, driver, error}]: drivers every parser must reject (error is a hint only)
+    work         the generic progress: a named quantity with a unit, a step and an end per class,
+                 a point (nose = tail = W)
+    workDrivers  as `drivers`, evaluated with `work` as the rig's progress
+    workInvalid  [{id, driver, error}]: drivers every parser must reject with `work` (a roll)
+    badProgress  [{id, rig, error}]: rig progress declarations every parser must reject
 
-`inputs` always carries all eight keys (theta, depth, lifting, travel, trunk, size, presence,
-feed; size is the trunk class 0 none / 1 thin / 2 thick). Matrices are 4 rows of 4, block units,
-row-major (row i, column j; translation in column 3), rounded to 9 places: compare within 1e-6.
+`inputs` always carries all nine keys (theta, depth, lifting, travel, work, size, presence,
+feed, oil; size is the class 0 none / 1 thin / 2 thick; "work" is W, a trunk's travel on a
+trunkPath). Matrices are 4 rows of 4, block units, row-major (row i, column j; translation in
+column 3), rounded to 9 places: compare within 1e-6.
 """
 
 from __future__ import annotations
@@ -33,7 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from machinegen.rigmath import (driver_matrix, full_inputs, part_matrix, trunk_end,  # noqa: E402
+from machinegen.rigmath import (driver_matrix, full_inputs, part_matrix, progress_of, trunk_end,  # noqa: E402
                                 trunk_length, validate_driver)
 
 OUT = Path(__file__).resolve().parents[2] / "tests" / "Machines" / "driver-fixture.json"
@@ -66,6 +73,8 @@ DRIVERS = [
     ("step_trip", {"type": "step", "motion": "rotate", "axis": "x", "pivot": P3, "amount": -0.6, "from": 0.9375, "to": 1.0,
                    "lifting": "trip", "top": 0.0625}),
     ("stretch", {"type": "stretch", "axis": "y", "anchor": P1, "length": -0.8125, "travel": -2.0}),
+    ("stretch_input_depth", {"type": "stretch", "axis": "x", "anchor": P2, "length": 0.25, "travel": 1.5, "input": "depth"}),
+    ("stretch_input_oil", {"type": "stretch", "axis": "y", "anchor": P3, "length": 0.0625, "travel": 0.125, "input": "oil"}),
     # `input` on rotate, slide and swing
     ("rotate_input_theta", {"type": "rotate", "axis": "y", "pivot": P1, "ratio": 0.6, "input": "theta"}),
     ("rotate_input_travel", {"type": "rotate", "axis": "y", "pivot": P3, "ratio": -1.3, "input": "travel"}),
@@ -77,6 +86,8 @@ DRIVERS = [
     ("swing_input_travel", {"type": "swing", "axis": "z", "pivot": P2, "amplitude": 0.25, "ratio": 0.5, "phase": 0.3, "input": "travel"}),
     ("swing_input_feed", {"type": "swing", "axis": "y", "pivot": P3, "amplitude": 0.4, "ratio": 2.0, "input": "feed"}),
     ("swing_input_trunk", {"type": "swing", "axis": "x", "pivot": P1, "amplitude": 0.15, "ratio": 0.75, "phase": -0.5, "input": "trunk"}),
+    ("rotate_input_oil", {"type": "rotate", "axis": "x", "pivot": P3, "ratio": 2.25, "input": "oil"}),
+    ("slide_input_oil", {"type": "slide", "axis": "z", "amplitude": 0.3, "ratio": 1.25, "phase": 0.1, "input": "oil"}),
     # gauge
     ("gauge_occupy_rotate_lobes", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P1,
                                    "amount": {"thin": 0.35, "thick": -0.2}, "windows": [W1, W2], "lobes": LOBES}),
@@ -91,6 +102,37 @@ DRIVERS = [
     # roll
     ("roll_z", {"type": "roll", "axis": "z", "pivot": P2, "at": 4.0, "ratio": 2.5}),
     ("roll_x", {"type": "roll", "axis": "x", "pivot": P3, "at": 9.5, "ratio": -1.2}),
+    # `input` "work", the generic spelling of "trunk"
+    ("rotate_input_work", {"type": "rotate", "axis": "z", "pivot": P2, "ratio": 0.8125, "input": "work"}),
+    ("slide_input_work", {"type": "slide", "axis": "y", "amplitude": 0.125, "ratio": 2.5, "phase": 0.5, "input": "work"}),
+]
+
+# The generic progress: a quantity counted in its own unit (parts made, say), a point on its own
+# scale. Its drivers' windows are where W is, with nothing behind it.
+WORK = {"name": "parts made", "unit": "parts", "step": 0.25, "end": {"thin": 6.0, "thick": 9.0}}
+WORK_DRIVERS = [
+    ("work_gauge_occupy_rotate_lobes", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P1,
+                                        "amount": {"thin": 0.35, "thick": -0.2}, "windows": [W1, W2], "lobes": LOBES}),
+    ("work_gauge_occupy_overlap", {"type": "gauge", "motion": "slide", "axis": "z", "amount": {"thin": -0.3125, "thick": 0.5},
+                                   "windows": [WA, WB]}),
+    ("work_gauge_staircase", {"type": "gauge", "motion": "rotate", "axis": "y", "pivot": P3, "amount": {"thin": -0.5, "thick": -0.3},
+                              "windows": [{"from": 1.5, "to": 1000.0, "ease": 0.25, "gain": {"thin": 1.0, "thick": 0.0}},
+                                          {"from": 2.5, "to": 1000.0, "ease": 0.5, "gain": {"thin": 0.0, "thick": 1.0}}]}),
+    ("work_gauge_present", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"thin": 0.1, "thick": 0.3}}),
+    ("work_rotate_input_work", {"type": "rotate", "axis": "z", "pivot": P1, "ratio": -1.9, "input": "work"}),
+    ("work_slide_input_trunk", {"type": "slide", "axis": "x", "amplitude": 0.2, "ratio": 1.5, "input": "trunk"}),
+]
+WORK_INVALID = [
+    ("roll_on_work", {"type": "roll", "axis": "z", "pivot": P2, "at": 4.0, "ratio": 2.5}, "a roll needs a trunkPath"),
+]
+BAD_PROGRESS = [
+    ("both", {"trunkPath": PATH, "work": WORK}, "work and a trunkPath"),
+    ("no_unit", {"work": {"end": {"thin": 1.0, "thick": 2.0}}}, "no unit"),
+    ("end_thin_only", {"work": {"unit": "parts", "end": {"thin": 1.0}}}, "end without thick"),
+    ("end_zero", {"work": {"unit": "parts", "end": {"thin": 0.0, "thick": 2.0}}}, "end not above 0"),
+    ("step_zero", {"work": {"unit": "parts", "step": 0.0, "end": {"thin": 1.0, "thick": 2.0}}}, "step not above 0"),
+    ("trunk_keys", {"work": {"unit": "parts", "end": {"thin": 1.0, "thick": 2.0}, "lengths": {"thin": 1.0, "thick": 1.0}}},
+     "a trunkPath's key in work"),
 ]
 
 INVALID = [
@@ -99,6 +141,8 @@ INVALID = [
     ("input_and_rectified_false", {"type": "swing", "axis": "x", "pivot": P1, "amplitude": 0.1, "rectified": False, "input": "theta"},
      "both 'input' and 'rectified', whatever their values"),
     ("input_unknown", {"type": "slide", "axis": "y", "amplitude": 0.1, "input": "depth"}, "unknown input"),
+    ("stretch_input_unknown", {"type": "stretch", "axis": "y", "anchor": P1, "length": 0.5, "travel": 1.0, "input": "theta"},
+     "a stretch reads depth or oil only"),
     ("gauge_ease_zero", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "thick": 1.0},
                          "windows": [{"from": 1.0, "to": 2.0, "ease": 0.0}]}, "ease <= 0"),
     ("gauge_ease_negative", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "thick": 1.0},
@@ -164,6 +208,8 @@ RIG_PARTS = [
     {"id": "carriage", "match": ["carriage_*"], "requires": "sash", "drivers": [{"type": "feed", "axis": "y", "travel": -2.125}]},
     {"id": "rope", "match": ["rope*"], "requires": "sash",
      "drivers": [{"type": "stretch", "axis": "y", "anchor": P3, "length": -0.5625, "travel": -2.125}]},
+    {"id": "level", "match": ["level_*"], "requires": None, "ride": "carriage",
+     "drivers": [{"type": "stretch", "axis": "y", "anchor": P1, "length": 0.0625, "travel": 0.1875, "input": "oil"}]},
     {"id": "trip", "match": ["trip_*"], "requires": "levers",
      "drivers": [{"type": "step", "motion": "rotate", "axis": "x", "pivot": P1, "amount": -0.5, "from": 0.9375, "to": 1.0,
                   "lifting": "trip", "top": 0.0625}]},
@@ -191,7 +237,7 @@ def pose(i, trunk, size, presence, depth=None, lifting=None):
     theta = r6(math.remainder(1.37 * i - 2.0, 2 * math.pi) * (1 if i % 3 else -1))
     return {"theta": theta, "depth": r6((i * 0.173) % 1.0) if depth is None else depth,
             "lifting": float(i % 2) if lifting is None else lifting, "travel": r6(abs(theta) + 0.61 * i),
-            "trunk": trunk, "size": size, "presence": presence, "feed": r6(0.43 * i)}
+            "work": trunk, "size": size, "presence": presence, "feed": r6(0.43 * i), "oil": r6((0.29 * i + 0.1) % 1.0)}
 
 
 def general():
@@ -206,25 +252,28 @@ def general():
     return out
 
 
-def trunk_cases(d):
-    """The trunk sweep for a gauge or a roll: each window's (or the roll's) edges and mid-ramps for
+def trunk_cases(d, path=None):
+    """The work sweep for a gauge or a roll: each window's (or the roll's) edges and mid-ramps for
     both classes, the start and the end of the trip, all three classes at every one of those
-    travels, and presence 0 and 0.3 where a contact is full."""
+    travels, and presence 0 and 0.3 where a contact is full. `path` is the progress (PATH by default)."""
+    path = PATH if path is None else path
+    nose0 = path.get("nose0", 0.0)
     ts = {0.0}
     full = []
     for k in (1, 2):
-        ln = trunk_length(PATH, k)
-        ts.add(trunk_end(PATH, k))
+        ln = trunk_length(path, k)
+        ts.add(trunk_end(path, k))
         for w in d.get("windows", []) if d.get("mode", "occupy") == "occupy" else []:
             for nose_at in (w["from"], w["from"] + w["ease"] / 2, w["from"] + w["ease"]):
-                ts.add(nose_at - PATH["nose0"])
+                ts.add(nose_at - nose0)
             for tail_at in (w["to"] - w["ease"], w["to"] - w["ease"] / 2, w["to"]):
-                ts.add(tail_at + ln - PATH["nose0"])
-            full.append((k, (w["from"] + w["ease"] + w["to"]) / 2 - PATH["nose0"]))
+                if tail_at + ln - nose0 < 100:
+                    ts.add(tail_at + ln - nose0)
+            full.append((k, ((w["from"] + w["ease"] + w["to"]) / 2 if w["to"] < 100 else w["from"] + 2 * w["ease"]) - nose0))
         if d["type"] == "roll":
             for nose_at in (d["at"] - 0.5, d["at"], d["at"] + ln / 2, d["at"] + ln, d["at"] + ln + 1.0):
-                ts.add(nose_at - PATH["nose0"])
-            full.append((k, d["at"] + ln / 2 - PATH["nose0"]))
+                ts.add(nose_at - nose0)
+            full.append((k, d["at"] + ln / 2 - nose0))
         if d.get("mode") == "present":
             full.append((k, 3.0))
     out = []
@@ -264,6 +313,20 @@ def build():
         except ValueError:
             continue
         raise SystemExit(f"invalid case {pid} parses")
+    if progress_of({"work": WORK}) is not WORK:
+        raise SystemExit("WORK does not parse")
+    for pid, rig, _ in BAD_PROGRESS:
+        try:
+            progress_of(rig)
+        except ValueError:
+            continue
+        raise SystemExit(f"bad progress {pid} parses")
+    for pid, d, _ in WORK_INVALID:
+        try:
+            driver_matrix(d, pose(0, 1.0, 1, 1.0), WORK)
+        except ValueError:
+            continue
+        raise SystemExit(f"invalid work case {pid} evaluates")
     gen = general()
     drivers = []
     for did, d in DRIVERS:
@@ -272,17 +335,27 @@ def build():
                         "cases": [{"inputs": full_inputs(c), "matrix": mat(driver_matrix(d, c, PATH))} for c in cases]})
     poses = [{"inputs": full_inputs(c), "matrices": {p["id"]: mat(part_matrix(RIG_PARTS, p["id"], c, PATH)) for p in RIG_PARTS}}
              for c in rig_poses()]
+    work_drivers = []
+    for did, d in WORK_DRIVERS:
+        validate_driver(d)
+        cases = gen + (trunk_cases(d, WORK) if d["type"] == "gauge" else [])
+        work_drivers.append({"id": did, "driver": d,
+                             "cases": [{"inputs": full_inputs(c), "matrix": mat(driver_matrix(d, c, WORK))} for c in cases]})
     return {
         "_comment": "Generated by mods-src/seraphhorizons/Machines/tools/make_fixture.py from machinegen/rigmath.py, the reference "
                     "driver maths; never edit by hand. C# (DriverFixtureTests) and TypeScript (rig.test.ts) replay it. See the "
                     "script's docstring for the format.",
-        "format": 1,
+        "format": 2,
         "tolerance": 1e-6,
-        "inputs": ["theta", "depth", "lifting", "travel", "trunk", "size", "presence", "feed"],
+        "inputs": ["theta", "depth", "lifting", "travel", "work", "size", "presence", "feed", "oil"],
         "trunkPath": PATH,
         "drivers": drivers,
         "rig": {"parts": RIG_PARTS, "poses": poses},
         "invalid": [{"id": pid, "driver": d, "error": err} for pid, d, err in INVALID],
+        "work": WORK,
+        "workDrivers": work_drivers,
+        "workInvalid": [{"id": pid, "driver": d, "error": err} for pid, d, err in WORK_INVALID],
+        "badProgress": [{"id": pid, "rig": r, "error": err} for pid, r, err in BAD_PROGRESS],
     }
 
 
@@ -310,8 +383,21 @@ def dumps(fx):
     lines.append("\t},")
     lines.append('\t"invalid": [')
     lines.append(",\n".join("\t\t" + j(x) for x in fx["invalid"]))
-    lines.append("\t]")
+    lines.append("\t],")
+    lines.append(f'\t"work": {json.dumps(fx["work"], separators=(", ", ": "))},')
+    lines.append('\t"workDrivers": [')
+    blocks = []
+    for d in fx["workDrivers"]:
+        head = f'\t\t{{"id": {json.dumps(d["id"])}, "driver": {j(d["driver"])}, "cases": [\n'
+        blocks.append(head + ",\n".join("\t\t\t" + j(c) for c in d["cases"]) + "\n\t\t]}")
+    lines.append(",\n".join(blocks))
+    lines.append("\t],")
+    for key in ("workInvalid", "badProgress"):
+        lines.append(f'\t"{key}": [')
+        lines.append(",\n".join("\t\t" + j(x) for x in fx[key]))
+        lines.append("\t]" + ("," if key == "workInvalid" else ""))
     lines.append("}")
+
     return "\n".join(lines) + "\n"
 
 

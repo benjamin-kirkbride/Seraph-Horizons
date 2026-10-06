@@ -67,6 +67,11 @@
           Condition="Exists('../assets/seraphhorizons/config/rosser-rig.json')" />
     <None Include="Rosser/rig-reference.json" Link="rosser-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('Rosser/rig-reference.json')" />
+    <!-- The gear cutter's gameplay rules (#480, #481): parts, the cut, wear, settings and its rig. -->
+    <Compile Include="../GearCutter/Core/**/*.cs" Link="GearCutter/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The gear cutter's shipped rig and its reference poses (GearCutter/tools/make_shape.py). -->
+    <None Include="../assets/seraphhorizons/config/gearcutter-rig.json" Link="gearcutter-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="GearCutter/rig-reference.json" Link="gearcutter-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
@@ -81,6 +86,17 @@
     <!-- Maps and leads at traders (#455): offer selection, tier gating, lead targets, and the shipped price table. -->
     <Compile Include="../Trading/Maps/Core/**/*.cs" Link="Trading/Maps/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/trading/map-prices.json" Link="map-prices.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Gear reclamation (#474, #475, #477): the roll, flash rust hours, settings, optional
+         ingredients; and the shipped item types and recipes held to them. -->
+    <Compile Include="../GearReclamation/Core/**/*.cs" Link="GearReclamation/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/itemtypes/gear.json" Link="gear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/itemtypes/largegear.json" Link="largegear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/recipes/cooking/gear-degrease.json" Link="gear-degrease-recipes.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/itemtypes/gear-steel-bare.json" Link="gear-steel-bare-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The gear codes' readers, which must take them from GearCodes rather than spell them out. -->
+    <None Include="../GearConsumers.cs;../PicklingTub/Core/TubConfig.cs" Link="gear-code-readers/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The pickling tub (#476) and the brine bath (#482): rules, batches, loss. -->
+    <Compile Include="../PicklingTub/Core/**/*.cs" Link="PicklingTub/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Travelling merchants (#456): inn rules, the visit cycle, the conditions. -->
     <Compile Include="../Trading/Visitors/Core/**/*.cs" Link="Trading/Visitors/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

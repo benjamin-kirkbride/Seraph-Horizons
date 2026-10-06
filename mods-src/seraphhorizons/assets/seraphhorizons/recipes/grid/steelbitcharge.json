@@ -1,0 +1,14 @@
+[
+	{
+		// Packed steel bits (#478): twenty steel bits for one ingot's place in the stone coffin.
+		// SteelBitsRecovery off leaves it out (SteelBitsSystem.Disable).
+		ingredientPattern: "B",
+		width: 1,
+		height: 1,
+		shapeless: true,
+		ingredients: {
+			"B": { type: "item", code: "game:metalbit-steel", quantity: 20 }
+		},
+		output: { type: "item", code: "seraphhorizons:steelbitcharge" }
+	}
+]

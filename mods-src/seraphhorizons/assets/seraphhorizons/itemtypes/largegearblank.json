@@ -1,0 +1,47 @@
+// Large steel gear blank (#479, GearBlanks; README "Steel gear blanks"): a disc with a bore, the
+// size of the game's large temporal gear (2 voxels thick, as it is), stock for the gear cutter's
+// large gears. Cast in a large gear blank mold (200 units) or smithed from two ingots
+// (recipes/smithing/gearblank.json).
+{
+	code: "largegearblank",
+	variantgroups: [
+		{ code: "metal", states: ["steel"] }
+	],
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "SingleCenter", placeRemoveSound: "game:sounds/block/plate", collisionBox: { x1: 0.1875, y1: 0, z1: 0.1875, x2: 0.8125, y2: 0.125, z2: 0.8125 } } }
+	],
+	shape: { base: "seraphhorizons:item/largegearblank" },
+	textures: {
+		metal: { base: "game:block/metal/ingot/{metal}" }
+	},
+	maxstacksize: 8,
+	materialDensity: 7850,
+	attributes: {
+		handbook: { extraSections: [{ title: "seraphhorizons:gearreclamation-section-title", text: "seraphhorizons:gearreclamation-section-text" }] },
+		displaycaseable: true,
+		shelvable: true,
+		onTongTransform: {
+			translation: { x: -1.03, y: -0.64, z: -1.015 },
+			rotation: { x: -83, y: -16, z: -3 }
+		}
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	guiTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 145, y: -12, z: 0 },
+		origin: { x: 0.5, y: 0.0625, z: 0.5 },
+		scale: 1.7
+	},
+	tpHandTransform: {
+		translation: { x: -0.6, y: -0.3, z: -0.55 },
+		rotation: { x: 0, y: -89, z: -83 },
+		origin: { x: 0.5, y: 0.0625, z: 0.5 },
+		scale: 0.7
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 0, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.4
+	}
+}

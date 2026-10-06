@@ -16,6 +16,9 @@
   import ConstructionRecipe from "../renderers/ConstructionRecipe.svelte";
   import ButcheryRecipe from "../renderers/ButcheryRecipe.svelte";
   import TransitionRecipe from "../renderers/TransitionRecipe.svelte";
+  import TubRecipe from "../renderers/TubRecipe.svelte";
+  import LotteryRecipe from "../renderers/LotteryRecipe.svelte";
+  import MachineRecipe from "../renderers/MachineRecipe.svelte";
   import GenericRecipe from "../renderers/GenericRecipe.svelte";
   import ModLink from "./ModLink.svelte";
   import Slot from "./Slot.svelte";
@@ -64,6 +67,9 @@
     construction: ConstructionRecipe,
     butchery: ButcheryRecipe,
     transition: TransitionRecipe,
+    tub: TubRecipe,
+    lottery: LotteryRecipe,
+    machine: MachineRecipe,
     generic: GenericRecipe,
   };
   // The type block a shape relies on can be missing in a malformed record; the generic
@@ -75,6 +81,9 @@
     if (shape === "construction" && !recipe.construction) return GenericRecipe;
     if (shape === "butchery" && !recipe.butchery) return GenericRecipe;
     if (shape === "transition" && !recipe.transition) return GenericRecipe;
+    if (shape === "tub" && !recipe.tub) return GenericRecipe;
+    if (shape === "lottery" && !recipe.lottery) return GenericRecipe;
+    if (shape === "machine" && !recipe.machine) return GenericRecipe;
     return renderers[shape] ?? GenericRecipe;
   });
 </script>
