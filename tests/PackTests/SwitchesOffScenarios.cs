@@ -201,6 +201,28 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal([5f, 1f, 5f], ratios);
     }
 
+    /// <summary><c>GearConsumers</c>: every recipe takes the gears its mod ships it with, ppex still
+    /// smiths and shows its gears, and smex's converter is not patched.</summary>
+    [AtlasScenario]
+    public void Gear_consumers_off_recipes_take_the_gears_their_mods_ship_with()
+    {
+        Assert.True(Off("GearConsumers"));
+        Assert.False(Harmony.HasAnyPatches(GearConsumers.HarmonyId));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Ingredients?.Values.Any(i => i.Code?.ToString() == GearConsumers.SteelGear) == true);
+        // ppex's Cornish engine: one recipe with the rusty gear, its twin with ppex's gears.
+        var cornish = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == "ppex:enginecornish-north").ToList();
+        Assert.Contains(cornish, r => r.Ingredients!["G"].Code.ToString() == "game:gear-rusty");
+        Assert.Contains(cornish, r => r.Ingredients!["G"].Code.ToString() == "ppex:gear-*");
+        Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:glider"
+                                            && r.Ingredients!.Values.Any(i => i.Code?.ToString() == "game:gear-rusty"));
+        Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "ppex:gear-steel");
+        Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "ppex:largegear-steel");
+        var gear = W.GetItem(new AssetLocation("ppex:gear-steel"))!;
+        Assert.True(gear.CreativeInventoryTabs is { Length: > 0 });
+        Assert.False(gear.Attributes?["handbook"]?["exclude"].AsBool() == true);
+        Assert.DoesNotContain("steel large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
+    }
+
     /// <summary><c>HeatingRackKeepsPosition</c>: nothing is patched, and the heating rack's picked
     /// stack carries its position, as Logging Expanded ships it.</summary>
     [AtlasScenario]

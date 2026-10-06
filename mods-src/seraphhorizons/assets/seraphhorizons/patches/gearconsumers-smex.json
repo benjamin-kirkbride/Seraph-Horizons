@@ -1,0 +1,17 @@
+// seraphhorizons' GearConsumers switch (README.md, GearConsumers.cs; #473): the rusty gear is salvage
+// and money, so every recipe that took one takes the pack's steel gear (seraphhorizons:gear-steel),
+// in the same number (counts below are per recipe, all slots). tools/tests/test_gear_consumers.py
+// holds this file to the mod's recipes.
+// Steelmaking Expanded (smex 0.10.1), as ppex: the recipe taking game:gear-rusty takes the steel
+// gear, its twin taking ppex:gear-* is switched off. Bell hopper 8 (blastfurnace.json /4, /5), air
+// blower 2 (airblower.json /0, /1), converter transmission 16 (bessemerconverter.json /1, /3). Its
+// built-in-place stages (blocktypes) take no gear. The converter vessel is raised with a large gear
+// named in smex's code, not in a recipe: GearConsumers.cs patches that to the steel large gear.
+[
+  {"file": "smex:recipes/grid/blastfurnace.json", "op": "replace", "path": "/4/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "smex"}]},
+  {"file": "smex:recipes/grid/blastfurnace.json", "op": "add", "path": "/5/enabled", "value": false, "dependsOn": [{"modid": "smex"}]},
+  {"file": "smex:recipes/grid/airblower.json", "op": "replace", "path": "/0/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "smex"}]},
+  {"file": "smex:recipes/grid/airblower.json", "op": "add", "path": "/1/enabled", "value": false, "dependsOn": [{"modid": "smex"}]},
+  {"file": "smex:recipes/grid/bessemerconverter.json", "op": "replace", "path": "/1/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "smex"}]},
+  {"file": "smex:recipes/grid/bessemerconverter.json", "op": "add", "path": "/3/enabled", "value": false, "dependsOn": [{"modid": "smex"}]}
+]

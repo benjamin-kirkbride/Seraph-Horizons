@@ -1,0 +1,9 @@
+// seraphhorizons' GearConsumers switch (README.md, GearConsumers.cs; #473): the rusty gear is salvage
+// and money, so every recipe that took one takes the pack's steel gear (seraphhorizons:gear-steel),
+// in the same number (counts below are per recipe, all slots). tools/tests/test_gear_consumers.py
+// holds this file to the mod's recipes.
+// Butchering (1.14.3): the temporal butcher box, 16 (the file ships disabled; the patch holds for
+// whoever turns it on).
+[
+  {"file": "butchering:recipes/grid/temporalbutcherbox.json", "op": "replace", "path": "/0/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "butchering"}]}
+]
