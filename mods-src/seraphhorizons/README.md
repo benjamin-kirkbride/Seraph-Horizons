@@ -31,13 +31,15 @@ parts.
 
 ### Boilers blow their lid instead of exploding (`BoilerLidBlowsOpen`)
 
-Pipes and Power Expanded (`ppex`, 0.7.x). A boiler that keeps firing at its choke pressure for
-`BoilerOverpressureSeconds` (ppex config, 30 s) calls `BlockEntityBoiler.Explode()`, which deletes
-the boiler, drops a fraction of its materials and blasts the area. `BoilerLidRelief` prefixes
-`Explode()` with the boiler's own `ToggleLid()` and skips the blast: the access lid swings open
-with its sound and animation, and ppex vents steam through the open lid (`BoilerLidVentRate`,
-200 L/s) and resets the over-pressure timer while it stays open. The player closes the lid by hand,
-and a boiler still with nowhere to send its steam will blow it again.
+Pipes and Power Expanded (`ppex`, 0.7.1). A boiler whose steam run is sealed and that keeps firing
+at its choke pressure for `BoilerOverpressureSeconds` (ppex config, 30 s) calls
+`BlockEntityBoiler.Explode()`, which deletes the boiler, drops a fraction of its materials and
+blasts the area. A run open at an end never gets there: every pipe connector facing air leaks, and
+ppex blows such a boiler down to about 1 atm. `BoilerLidRelief` prefixes `Explode()` with the
+boiler's own `ToggleLid()` and skips the blast: the access lid swings open with its sound and
+animation, and ppex vents steam through the open lid (`BoilerLidVentRate`, 200 L/s) and resets the
+over-pressure timer while it stays open. The player closes the lid by hand, and a boiler still with
+nowhere to send its steam will blow it again.
 
 The lid blowing open bangs like a ppex engine blowing up: it plays the sound ppex's
 `BlockEntityEngine.Break()` plays, `game:sounds/effect/mediumexplosion` (ExpandedLib's
@@ -46,23 +48,28 @@ unrandomized pitch, as the engine does. The lid's own creak is still `ToggleLid(
 
 The text that promised an explosion is reworded in place, in every language ppex ships (English,
 Russian, Ukrainian): the over-pressure line in the boiler's info ("until the lid blows open!") and
-the passages in the Steam Power and Boilers handbook pages. Each edit replaces one exact passage of
+the passages in the Steam Power and Boilers handbook pages. The Boilers page keeps ppex's point that
+an unpiped steam outlet or a run left open at an end blows the boiler down to about 1 atm, which now
+keeps the lid shut but leaves the run no working pressure. Each edit replaces one exact passage of
 ppex's text (`LangEdits`). If ppex rewords it, that edit logs a warning and does nothing. Languages
 other than the current one load lazily, so the mod loads those three when it starts.
 
 ### The handbook says where a chimney vents (`ChimneyVentingExplained`)
 
-Pipes and Power Expanded (`ppex`, 0.6.8 and 0.7.x: the text is the same). ppex vents a pipe network
-through a chimney only when the chimney stands directly on a Pipe Outlet, a Pipe Passthrough or a
-Passthrough Bend with a connector on its top face, at `ChimneyGasDrawRate` (16 L/s) per chimney. On
-a plain pipe the chimney is not a vent, and because it is not air it is not a leak either: it caps
-that end and the run keeps its pressure. ppex's handbook only says that a chimney on an outlet
-vents.
+Pipes and Power Expanded (`ppex`, 0.7.1). ppex vents a pipe network through a chimney only when the
+chimney stands directly on a Pipe Outlet, a Pipe Passthrough or a Passthrough Bend with a connector
+on its top face, at `ChimneyGasDrawRate` (16 L/s) per chimney. On a plain pipe the chimney is not a
+vent, and because it is not air it is not a leak either: it caps that end and the run keeps its
+pressure. A boiler's fire also needs draught on its exhaust run (`PipeNetwork.HasDraught`): a
+venting chimney, or a smoke stack (a block entity that is exlib's `IPipeDraught`). An open end leaks
+the gas but gives no draught, and a choked fire goes out after `BoilerChokeExtinguishSeconds` (10
+s). ppex's Fittings page only says that a chimney on an outlet vents; its Boilers page has the
+draught rule, but not where a chimney counts.
 
-`ChimneyVentText` rewords the chimney passage of the Fittings handbook page to say all of that, and
-that a venting chimney's look-at info says so (ppex's own `chimney-info-venting` line), in every
-language ppex ships. Text only, as exact-passage `LangEdits` like the boiler's; the Russian and
-Ukrainian passages are the pack's own translations.
+`ChimneyVentText` rewords the chimney passage of the Fittings handbook page to say all of that,
+including the draught rule, and that a venting chimney's look-at info says so (ppex's own
+`chimney-info-venting` line), in every language ppex ships. Text only, as exact-passage `LangEdits`
+like the boiler's; the Russian and Ukrainian passages are the pack's own translations.
 
 ### Fewer surface battle towers (ConfigKit settings)
 
@@ -109,8 +116,8 @@ and a leaking network is capped at 1 atm as ppex caps any source.
 Without ppex, or with the switch off, the blocktype is disabled before the game loads it, so the
 block does not exist at all. It targets ppex 0.7.1 and exlib 0.8.4, where the pipe interface is
 exlib's `ExpandedLib.Industry.Pipes.IPipeNode` and the node base class is
-`ExpandedLib.Networks.BlockNetworkNode`; with an older ppex (0.6.8, still the pinned one) those
-names are not there and the block is left out. If ppex has changed shape (`IPipeNode.TryProduce(float, float,
+`ExpandedLib.Networks.BlockNetworkNode`; with an older ppex (0.6.8 and before) those names are
+not there and the block is left out. If ppex has changed shape (`IPipeNode.TryProduce(float, float,
 string, float, bool)` or exlib's `BlockNetworkNode.HasConnectorAt(BlockFacing)` is gone) the mod
 logs a warning and the block is left out the same way.
 
@@ -1209,19 +1216,20 @@ speed modifier and the storm's distance. With the switch off, `SwitchesOffScenar
 `/clear`. A real restart is not run: Atlas boots each class once, so the
 reload reads the lock back from the savegame data in the same server.
 
-`tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()` with
-the lid shut and with it open, and requires the boiler still standing with its lid open. It
-requires `BlowSound` to be ExpandedLib's `ExSounds.MediumExplosion` and present in the assets. It also
-requires every `LangEdits` passage reworded, and an edit set for every language ppex ships: when
-either fails after a ppex update, match the edits to ppex's new text or add the new language. The
-same goes for `ChimneyVentText.LangEdits`, whose passages must also quote ppex's look-at line for a
-venting chimney. `WellShaftText.LangEdits` must be reworded too, quote Hydrate or Diedrate's
-look-at line for an empty well, and give the depths and liters of its default settings: when that
-fails after a Hydrate or Diedrate update, match the edits to its new text or settings. A second
-scenario stands wells in the air and requires what the page says of them: a one-block shaft holds
-5 levels in rock, fireclay bricks, uneven bricks and aged ashlar, 7 in bricks and 10 in ashlar; one
-rock block in an ashlar shaft caps it at 5 from the third level and at 7 from the eighth; and four
-springs under a 2x2 shaft hold nothing. When it fails, the rules changed: reword the edits.
+`tests/PackTests/SeraphHorizonsModScenarios.cs` (Atlas) places a Cornish boiler, calls `Explode()`
+with the lid shut and with it open, and requires the boiler still standing with its lid open. It
+requires `BlowSound` to be ExpandedLib's `ExSounds.MediumExplosion` and present in the assets. It
+also requires every `LangEdits` passage reworded, and an edit set for every language ppex ships:
+when either fails after a ppex update, match the edits to ppex's new text or add the new language.
+The same goes for `ChimneyVentText.LangEdits`, whose passages must also quote ppex's look-at line
+for a venting chimney, and whose English one must say "no draught" while ppex's choked boiler does.
+`WellShaftText.LangEdits` must be reworded too, quote Hydrate or Diedrate's look-at line for an
+empty well, and give the depths and liters of its default settings: when that fails after a Hydrate
+or Diedrate update, match the edits to its new text or settings. A second scenario stands wells in
+the air and requires what the page says of them: a one-block shaft holds 5 levels in rock, fireclay
+bricks, uneven bricks and aged ashlar, 7 in bricks and 10 in ashlar; one rock block in an ashlar
+shaft caps it at 5 from the third level and at 7 from the eighth; and four springs under a 2x2 shaft
+hold nothing. When it fails, the rules changed: reword the edits.
 
 It also reads the patched `game:worldgen/structures.json` and requires the surface tower's chance
 and spacing above, with the hard tower's unchanged: when that fails after a Battle Towers update,
@@ -1230,8 +1238,8 @@ match the paths in `configlib-patches.json` to its new patch file.
 The same class places the creative steam source against a closed iron pipe and requires the pipe
 full of steam at the set pressure, and no higher; it also requires the block in the creative
 inventory with no drops and no recipe. With the switch off, `SwitchesOffScenarios` requires the
-block not to exist. While the pack pins a ppex older than 0.7.1, the
-steam scenarios require the block left out instead, and run in full once the pin moves.
+block not to exist. Run against a ppex older than 0.7.1, the steam scenarios require the block left
+out instead.
 
 For cart reach, the same class requires `CartReachEntities`' default to match Cartwright's carts,
 sled and market stalls, each with selection boxes. It then runs the game's selection code on the

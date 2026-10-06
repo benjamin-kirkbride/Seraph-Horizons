@@ -223,8 +223,8 @@ The GUI cannot run in CI or headless Atlas; check this before release.
    view. With the mouse over the search box the text cursor shows.
 5. **Attribution.** Sensible Explosives' tab holds its
    bombs (`bomb`), AgeOfFlax's the flax tools (`ageofflax`). A stack listed in several default tabs (e.g. a
-   block in "General" and in its mod's own default tab) appears once. (Once the pack pins ppex 0.7.1, the
-   creative steam source, listed in two default tabs, appears once, in the Seraph Horizons tab.)
+   block in "General" and in its mod's own default tab) appears once. (The creative steam source, listed
+   in two default tabs, appears once, in the Seraph Horizons tab.)
 6. **Clicks.** In a mod tab: left-click takes the item, shift-click a full stack, middle-click works, and the item
    that lands is the one clicked (a desync would give another item). The same in a left default tab in mod mode.
    Drop an item on the grid: deleted.
