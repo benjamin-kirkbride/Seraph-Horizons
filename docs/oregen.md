@@ -89,7 +89,7 @@ function of seed and tile, so `/sh ore districts` shows them before anything gen
 
 District ore is placed by IOG's district generator, not by the vein tries the cell rule approves,
 and `SmallerDeposits` does not scale it. Inside a district the base metals are as plentiful as
-ever: the survey's seed 404 window (a granitic-deep district, radius 2.7 km) held 35 bismuth, 40
+ever: the survey's seed 404 window (a granitic-deep district, radius 2.7 km) held 35 bismuth, 41
 tin, 12 lead and 9 zinc deposits of up to 13,000 ingots in 9.4 km². A district is a rich field,
 roughly 3–28 km² in 122 km², worth a long trek; whether its base metals should be cut too is
 open (see "Survey", below).
