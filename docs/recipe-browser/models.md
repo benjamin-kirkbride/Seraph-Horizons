@@ -29,49 +29,68 @@ recipe data is published. A version can therefore never be called `models`.
 ### Inputs
 
 The rig format is the bucking sawmill's (`mods-src/seraphhorizons/BuckingSawmill/README.md`, "Rig schema"),
-plus what a machine a trunk travels through adds (the rosser; below). Its drivers read up to eight
-inputs, and the viewer shows a control only for those some driver reads:
+plus a machine's work (below): a trunk travelling through the rosser, the gear cutter's teeth cut. Its
+drivers read up to nine inputs, and the viewer shows a control only for those some driver reads:
 
 | Input | Read by | Control |
 |---|---|---|
 | θ, the shaft angle | `rotate`, `slide`, `swing` | Slider, 0 to 359° |
 | ψ, the shaft's travel | `rotate`, `slide`, `swing` with `rectified` or `"input": "travel"`; a `gauge`'s `lobes` | Added up from every change of θ, shown under the slider |
-| depth, 0..1 | `feed`, `step`, `stretch` | Slider |
+| depth, 0..1 | `feed`, `step`, `stretch` (unless its `input` is `"oil"`) | Slider |
 | lifting, 0 or 1 | `step` with a `lifting` gate | Checkbox |
-| T, the trunk's travel (blocks) | `"input": "trunk"`, an `occupy` `gauge`, `roll` | Slider, 0 to the end of the trip for the class shown |
-| k, the trunk's class: 0 none, 1 thin, 2 thick | `gauge`, `roll` | The prop's choice when the prop moves with the trunk (below), else a select |
-| p, the trunk's presence, 0..1 | `gauge` | Slider; posed by hand it is 1 with a trunk chosen, and Play eases it |
-| φ, the feed's travel | `"input": "feed"` | Follows T: grows by ΔT over the rig's `feed.blocksPerRadian`, never going back; shown under the slider |
+| W, the work, in the rig's unit (a trunk's travel in blocks; teeth cut) | `"input": "work"` (or `"trunk"`), an `occupy` `gauge`, `roll` | Slider in the work's unit and step, 0 to its end for the class shown, labelled with the work's name |
+| k, the work's class: 0 none, 1 thin, 2 thick | `gauge`, `roll` | The prop's choice when the prop moves with the trunk (below), else a select |
+| p, the work's presence, 0..1 | `gauge` | Slider; posed by hand it is 1 with a class chosen, and Play eases a trunk's |
+| φ, the feed's travel | `"input": "feed"` | Follows W: grows by ΔW over the rig's `feed.blocksPerRadian`, never going back; shown under the slider |
+| oil, how full the machine's oil tank is, 0..1 | `"input": "oil"` on `rotate`, `slide`, `swing` or `stretch` | Slider, starting full (the gear cutter's sight-feed cup) |
 
-When θ, ψ or φ is read there is also a Play button and a "turn backwards" toggle. Play turns the
-shaft; with a play script (below) it also runs the inputs through the model's cycle.
+When θ, ψ or φ is read there is also a Play button, a "turn backwards" toggle and an **input speed**
+slider, 0 to 5 RPS (shaft revolutions per second of real time; 0 stops Play, waits included). Play
+turns the shaft at that speed; with a play script (below) it also runs the inputs through the model's
+cycle, a phase's `turns` at that speed (its `seconds` are real time). The slider starts at 1 RPS, or
+at the script's `secondsPerTurn` as turns a second.
 
 φ is worked out as the game does: the rosser's feed is geared and never slips, so φ grows by the
 trunk's advance over the rig's `feed.blocksPerRadian` and never goes back (`feedAdvance` in
 `site/src/lib/model-scenario.ts`, the game's `RosserVisuals.FeedAdvance`). Its feed rolls move
-exactly with the trunk, in Play and when T is dragged by hand; turning θ alone does not turn them.
+exactly with the trunk, in Play and when W is dragged by hand; turning θ alone does not turn them.
 A rig without `feed.blocksPerRadian` leaves φ at 0. The reference poses (`site/test/rosser.test.ts`)
 give φ explicitly.
 
-#### The trunk path and its drivers
+#### The work and its drivers
 
-A rig whose drivers read T, k or p has a `trunkPath`: `{ "origin", "axis", "length", "nose0",
-"lengths": { "thin", "thick" }, "tailStop", "stations": { "<name>": x, ... } }`, in blocks. The trunk
-travels nose first towards + on the axis; places along it (`nose0`, `tailStop`, windows, stations, a
-roll's `at`) are coordinates on that axis. At travel T the nose is at `nose0` + T and the tail L_k
-behind it (L = 0, `lengths.thin`, `lengths.thick`), and the trip ends at T = `tailStop` + L_k − `nose0`.
+A rig whose drivers read W, k or p declares its **work**, the machine's progress, in one of two ways (a
+rig with both is refused; `workOf` in `site/src/lib/rig.ts`, `progress_of` in `rigmath.py`,
+`RigProgress.Of` in `Machines/Core/WorkProgress.cs`):
+
+- `work`: `{ "name", "unit", "step", "end": { "thin", "thick" } }`, a named quantity in its own unit
+  (the gear cutter's `{ "name": "teeth cut", "unit": "teeth", "step": 0.005, "end": { "thin": 12,
+  "thick": 20 } }`). `unit` and `end` (both above 0) are required; `name` defaults to the unit, `step`
+  (the slider's) to 1/16. W runs from 0 to `end[k]`. It is a point on its own scale: a window is
+  occupied while W is in it (nose = tail = W), so windows are written in the work's unit. A trunkPath's
+  keys (`nose0`, `lengths`, `tailStop`) are refused here, and a `roll` needs a trunkPath.
+- `trunkPath`, the trunk-flavoured case: `{ "origin", "axis", "length", "nose0", "lengths": { "thin",
+  "thick" }, "tailStop", "stations": { "<name>": x, ... } }`, in blocks, a trunk with a length travelling
+  along a line. Its name is "trunk travel", its unit blocks and its step 1/16. The trunk travels nose
+  first towards + on the axis; places along it (`nose0`, `tailStop`, windows, stations, a roll's `at`)
+  are coordinates on that axis. At travel W the nose is at `nose0` + W and the tail L_k behind it (L =
+  0, `lengths.thin`, `lengths.thick`), and the trip ends at W = `tailStop` + L_k − `nose0`. The mill's
+  and the rosser's rigs are written this way, unchanged.
+
 The drivers (`site/src/lib/rig.ts`; the Python reference is `Machines/tools/machinegen/rigmath.py`):
 
-- `"input"` on `rotate`, `slide` and `swing`: `"theta"` (the default), `"travel"`, `"feed"` or
-  `"trunk"`, read in place of θ. `"rectified": true` is the mill's way of writing `"travel"`; a driver
-  with both keys is refused.
-- `gauge`, a motion set by the trunk at a place: `motion` (`slide` or `rotate`, the latter with a
+- `"input"` on `rotate`, `slide` and `swing`: `"theta"` (the default), `"travel"`, `"feed"`,
+  `"work"` (W; `"trunk"` is the same, its trunk-flavoured spelling) or `"oil"`, read in place of θ.
+  `"rectified": true` is the mill's way of writing `"travel"`; a driver with both keys is refused. On a
+  `stretch`, `"input"` is `"depth"` (the default) or `"oil"`: it scales by (length + travel × that
+  input) / length, so a liquid's level can follow the oil tank.
+- `gauge`, a motion set by the work at a place: `motion` (`slide` or `rotate`, the latter with a
   `pivot`), `axis`, `amount: { "thin", "thick" }`, `mode` (`occupy`, the default, or `present`),
   `windows: [{ "from", "to", "ease", "gain": { "thin", "thick" } }]` (for `occupy`; a gain left out
   is 1) and optional `lobes: { "ratio", "phase", "amplitude": { "thin", "thick" } }` (rotate only).
-  Its engagement e is 0 without a trunk, p when `present`, else p times the most engaged window's
-  min(1, gain × occupancy), occupancy easing in over `ease` blocks as the nose arrives and out as
-  the tail leaves. It moves by amount[k] × e, plus e × amplitude[k] × cos(ratio × ψ + phase).
+  Its engagement e is 0 without a class, p when `present`, else p times the most engaged window's
+  min(1, gain × occupancy), occupancy easing in over `ease` (in the work's unit) as the nose arrives
+  and out as the tail leaves. It moves by amount[k] × e, plus e × amplitude[k] × cos(ratio × ψ + phase).
 - `roll`, an idle roller the trunk turns: `axis`, `pivot`, `at`, `ratio` (radians per block); it
   turns by ratio × clamp(nose − `at`, 0, L_k), and not at all without a trunk.
 
@@ -126,8 +145,14 @@ but draws nothing for it).
 Everything specific to one machine lives here, as data; the viewer has no machine-specific code
 (`site/src/lib/model-scenario.ts`).
 
-- `inputs`: labels for the controls, `{ "theta" | "depth" | "lifting" | "reverse" | "trunk" | "size" | "presence" | "feed": { "label", "hint" } }`.
+- `inputs`: labels for the controls, `{ "theta" | "depth" | "lifting" | "reverse" | "work" | "size" | "presence" | "feed" | "oil": { "label", "hint" } }`.
+  The work's label may be written `trunk` instead (the mill's and the rosser's are), not both; the
+  work's unit, step and ends are the rig's (`work`, or the trunkPath's), not the scenario's. `size`
+  takes `names`: three names for none, thin and thick, for the select.
 - `requires`: a label for each `requires` value, e.g. `{ "sash1": "Sash 1" }`. Unlabelled values show as they are.
+- `requiresClass`: `{ "<requires value>": "thin" | "thick" }`, parts that belong to one class's set-up
+  (the gear cutter's master and blank for each size): shown only while that class is chosen, and not
+  with none, whatever their checkbox says, as the game only ever has one fitted.
 - `prop`: a box laid on one of the rig's line anchors, such as a trunk on the bed.
   - `label`; `on`, the anchor's key; `colour`; `default`, an option id or `"none"`.
   - `options`: `{ "id", "label", "size": [length along the line, width, height], "class" }`, in blocks. The box is centred on the line's origin with its underside on it.
@@ -137,11 +162,19 @@ Everything specific to one machine lives here, as data; the viewer has no machin
     option then needs a class, and its length must be that class's `trunkPath.lengths`. Posed by hand,
     choosing an option sets k and p = 1 (none: k = 0, p = 0).
 - `play`: the cycle Play runs.
-  - `secondsPerTurn` (default 1.2) sets the shaft's speed.
+  - `secondsPerTurn` (above 0) is where the input speed slider starts, as seconds per turn; without it
+    the slider starts at 1 RPS. (It used to be Play's fixed speed; the reader's slider now sets it.)
+  - `turnsPerWork`, a number or a rig path such as `"cut.turnsPerTooth"`: shaft turns per unit of W,
+    for a rig whose work is geared to the shaft (no trunk prop). While no phase runs it, Play moves W
+    forward by that rate whichever way the shaft turns, up to the class's end, and holds it there;
+    with no class chosen W stays put. The gear cutter's play is just this, with no phases.
+
   - `edge`, `{ "top", "bottom" }`: the height of the working edge at depth 0 and at depth 1, as numbers or rig paths such as `"saw.topY"`. A phase can then run to `"contact"`, the depth where the edge meets the prop's top.
   - `presenceRate` (default 12 a second, the game's) is how fast p eases in and out.
   - `phases`, each `{ "id", "label", "input", "to", "wait", "turns" or "seconds", "lifting", "prop", "next", "nextWithoutProp", "startIf" }`:
-    - `input` is what the phase moves: `"depth"` (the default) or `"trunk"` (T; needs a prop that moves with the trunk).
+    - `input` is what the phase moves: `"depth"` (the default) or `"work"` (W; `"trunk"` is the same;
+      needs a prop that moves with the trunk).
+
     - `to` is a depth (0..1) or `"contact"`; for a trunk phase, T in blocks or `"end"`, the end of the
       chosen class's trip. `turns` (of the shaft) or `seconds` is how long the phase takes to get there
       from where it starts. `lifting` (0 or 1) holds during the phase.

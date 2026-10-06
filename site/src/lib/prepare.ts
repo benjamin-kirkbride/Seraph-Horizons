@@ -48,7 +48,7 @@ export interface Prepared {
   meta: Meta;
 }
 
-const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "transition", "generic"];
+const SHAPES: readonly Shape[] = ["grid", "voxels", "barrel", "alloy", "cooking", "construction", "butchery", "transition", "tub", "lottery", "machine", "generic"];
 
 /** The item nearly every food perishes into. */
 export const ROT = "game:rot";

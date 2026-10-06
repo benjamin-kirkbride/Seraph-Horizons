@@ -2,6 +2,7 @@
 // it can be tested without a DOM.
 import type { ButcheryStage, Hours, Ingredient, Recipe, Source, Stack, Transition, Yield } from "./export.ts";
 import type { GivenItem, TypeInfo } from "./format.ts";
+import { t } from "./strings.ts";
 
 /** Grid cells, row by row: the index of the ingredient in each cell, or null when empty. */
 export function gridCells(recipe: Recipe): (number | null)[][] {
@@ -332,6 +333,9 @@ export function butcheryStations(recipe: Recipe, output: number, nameOf: (code: 
 export function cardOutputs(recipe: Recipe, variant: number): Stack[] {
   const first = recipe.butchery?.stages[0];
   if (first) return first.outputs.flatMap((o) => butcheryOutput(recipe, variant, o)?.stacks.slice(0, 1) ?? []);
+  // A tub's lost gears are not what it makes; the renderer shows them.
+  const failure = recipe.tub?.failure;
+  if (failure !== undefined) return variantOutputs(recipe, variant).filter((_, i) => i !== failure);
   return variantOutputs(recipe, variant);
 }
 
@@ -399,4 +403,54 @@ export function formatHoursRange([lo, hi]: [number, number]): string {
   const a = formatHours(lo);
   const b = formatHours(hi);
   return a === b ? a : `${a} to ${b}`;
+}
+
+/** What a tub does to a batch, as sentences: how long, the batch, and how gears are lost. */
+export function tubLines(recipe: Recipe): string[] {
+  const tub = recipe.tub;
+  if (!tub) return [];
+  const lines = [t.tubDone(tub.kind, formatHours(tub.hours)), t.tubBatch(tub.batchSize, tub.litresPerBatch)];
+  if (tub.lossEveryHours !== undefined && tub.lossEveryHours > 0) {
+    lines.push(t.tubEats(formatHours(tub.graceHours ?? 0), formatHours(tub.lossEveryHours)));
+  }
+  if (tub.lossChance !== undefined && tub.lossChance > 0) lines.push(t.tubLossChance(formatChance(tub.lossChance)));
+  return lines;
+}
+
+/** The outputs of a tub other than what a lost gear becomes, and the failure's index or -1. */
+export function tubOutputs(recipe: Recipe): { made: number[]; failure: number } {
+  const failure = recipe.tub?.failure ?? -1;
+  return { made: recipe.outputs.map((_, i) => i).filter((i) => i !== failure), failure };
+}
+
+/** A lottery's outcomes, likeliest first: each chance as text and the stacks it gives in `variant`. */
+export function lotteryOutcomes(recipe: Recipe, variant: number): { chance: number; label: string; stacks: Stack[] }[] {
+  const given = recipe.variants[variant]?.outputs ?? [];
+  return (recipe.lottery?.outcomes ?? [])
+    .map((o) => ({
+      chance: o.chance,
+      label: formatChance(o.chance),
+      stacks: o.outputs.flatMap((i) => (given[i] ? [given[i]!] : [])),
+    }))
+    .sort((a, b) => b.chance - a.chance);
+}
+
+/** A machine job's facts, as sentences: the power and turns, then the oil it drains. */
+export function machineLines(recipe: Recipe): string[] {
+  const m = recipe.machine;
+  if (!m) return [];
+  const work = m.work ? { amount: formatNumber(m.work.amount), unit: m.work.unit, per: m.work.turnsPerUnit } : undefined;
+  const lines = [t.machineTurns(m.power, formatNumber(m.turns), work)];
+  if (m.oil) lines.push(t.machineOil(formatNumber(m.oil.points), m.oil.tank, formatNumber(m.oil.points / 100)));
+  return lines;
+}
+
+/** What one ingredient is to a machine: kept, the worn tool, the oil, the machine itself, or consumed. */
+export function machineRole(recipe: Recipe, i: number): "kept" | "wear" | "oil" | "station" | "consumed" {
+  const m = recipe.machine;
+  if (m?.kept?.includes(i)) return "kept";
+  if (m?.wear?.ingredient === i) return "wear";
+  if (m?.oil?.ingredient === i) return "oil";
+  if (recipe.ingredients[i]?.role === "station") return "station";
+  return "consumed";
 }

@@ -27,8 +27,6 @@
 			"list": [
 				{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 6, "var": 1.5}, "price": {"avg": 2, "var": 0.5}, "playerSupplied": true},
 				{"code": "rope", "stacksize": 4, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
-				{"code": "ppex:gear-iron", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 14, "var": 2.1}, "playerSupplied": true},
-				{"code": "ppex:largegear-iron", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 22, "var": 3.3}, "playerSupplied": true},
 				{"code": "immersivewoodworking:sawmillblade-iron", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 30, "var": 4.5}, "playerSupplied": true},
 				{"code": "immersivewoodworking:chopperhead-iron", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 26, "var": 3.9}, "playerSupplied": true},
 				{"type": "block", "code": "transmission-ns", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 6, "var": 0.9}},
@@ -59,8 +57,6 @@
 				{"type": "block", "code": "mpegearbox:gearbox13brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 28, "var": 4.2}, "playerSupplied": true},
 				{"type": "block", "code": "mpegearbox:gearbox14brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 30, "var": 4.5}, "playerSupplied": true},
 				{"type": "block", "code": "mpegearbox:gearbox15brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 32, "var": 4.8}, "playerSupplied": true},
-				{"code": "ppex:gear-steel", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 20, "var": 3.0}, "playerSupplied": true},
-				{"code": "ppex:largegear-steel", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 30, "var": 4.5}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-straight-ns-iron", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-bend-nw-iron", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-tjunction-uns-iron", "stacksize": 2, "stock": {"avg": 3, "var": 1}, "price": {"avg": 5, "var": 0.75}, "playerSupplied": true},
@@ -89,13 +85,10 @@
 	"buying": {
 		"core": [
 			{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 12, "var": 3}, "price": {"avg": 2, "var": 0.3}},
-			{"code": "ppex:gear-iron", "stacksize": 1, "stock": {"avg": 6, "var": 2}, "price": {"avg": 8, "var": 1.2}},
 			{"code": "rope", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}}
 		],
 		"rotating": { "maxItems": 8,
 			"list": [
-				{"code": "ppex:gear-steel", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 12, "var": 1.8}},
-				{"code": "ppex:largegear-iron", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 14, "var": 2.1}},
 				{"code": "immersivewoodworking:sawmillblade-copper", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 10, "var": 1.5}},
 				{"code": "immersivewoodworking:sawmillblade-tinbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 12, "var": 1.8}},
 				{"code": "immersivewoodworking:sawmillblade-bismuthbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 13, "var": 1.95}},

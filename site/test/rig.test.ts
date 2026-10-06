@@ -18,6 +18,8 @@ import {
   toVoxels,
   tripEnd,
   trunkPathOf,
+  workEnd,
+  workOf,
   wrappedDelta,
   type Driver,
   type Mat4,
@@ -279,6 +281,10 @@ const fixture = read("tests/Machines/driver-fixture.json") as {
   drivers: { id: string; driver: Driver; cases: { inputs: Pose; matrix: number[][] }[] }[];
   rig: { parts: RigPart[]; poses: { inputs: Pose; matrices: Record<string, number[][]> }[] };
   invalid: { id: string; driver: Driver; error: string }[];
+  work: Record<string, unknown>;
+  workDrivers: { id: string; driver: Driver; cases: { inputs: Pose; matrix: number[][] }[] }[];
+  workInvalid: { id: string; driver: Driver; error: string }[];
+  badProgress: { id: string; rig: Rig; error: string }[];
 };
 const fixturePath = trunkPathOf({ trunkPath: fixture.trunkPath })!;
 
@@ -295,7 +301,7 @@ function expectMatrix(got: Mat4, want: number[][], what: string) {
 
 describe("trunk-path drivers against driver-fixture.json", () => {
   it("is the format this test reads, with the trunk path every case uses", () => {
-    expect(fixture.format).toBe(1);
+    expect(fixture.format).toBe(2);
     expect(fixturePath.lengths).toEqual([0, 4, 5]);
     expect(tripEnd(fixturePath, 1)).toBe(9 + 4 - 0.5);
     expect(tripEnd(fixturePath, 2)).toBe(9 + 5 - 0.5);
@@ -336,7 +342,7 @@ describe("trunk-path drivers against driver-fixture.json", () => {
 
   it("reads which of the new inputs the drivers use, and only lists those", () => {
     const inputs = rigInputs(fixture.rig.parts);
-    expect(inputs).toMatchObject({ theta: true, travel: true, trunk: true, size: true, presence: true });
+    expect(inputs).toMatchObject({ theta: true, travel: true, work: true, size: true, presence: true });
     expect(rigInputs([{ id: "a", match: ["*"], drivers: [{ type: "rotate", axis: "x", pivot: [0, 0, 0], input: "feed" }] }])).toEqual({
       theta: false,
       travel: false,
@@ -351,6 +357,26 @@ describe("trunk-path drivers against driver-fixture.json", () => {
       lifting: false,
       size: true,
       presence: true,
+    });
+  });
+
+  it("reads the oil tank's fill: a stretch with input oil, and rotate, slide and swing with it", () => {
+    const level: Driver = { type: "stretch", axis: "y", anchor: [0, 1, 0], length: 0.25, travel: 0.5, input: "oil" };
+    const pose: Pose = { theta: 0, depth: 0.9, lifting: 0, oil: 0.5 };
+    // (0.25 + 0.5 * 0.5) / 0.25 = 2, about y = 1: row 1 scales by 2 and moves by 1 * (1 - 2)
+    const m = driverMatrix(level, pose);
+    expect(m[5]).toBeCloseTo(2, 12);
+    expect(m[13]).toBeCloseTo(-1, 12);
+    expect(driverMatrix(level, { ...pose, oil: undefined })[5]).toBeCloseTo(1, 12);
+    expect(driverMatrix({ ...level, input: undefined }, pose)[5]).toBeCloseTo((0.25 + 0.5 * 0.9) / 0.25, 12);
+    expect(() => driverMatrix({ ...level, input: "theta" }, pose)).toThrow();
+    expect(rigInputs([{ id: "a", match: ["*"], drivers: [level] }])).toEqual({ theta: false, travel: false, depth: false, lifting: false, oil: true });
+    expect(rigInputs([{ id: "a", match: ["*"], drivers: [{ type: "rotate", axis: "x", pivot: [0, 0, 0], input: "oil" }] }])).toEqual({
+      theta: false,
+      travel: false,
+      depth: false,
+      lifting: false,
+      oil: true,
     });
   });
 
@@ -371,5 +397,38 @@ describe("trunk-path drivers against driver-fixture.json", () => {
     expect(() => trunkPathOf({ trunkPath: { ...fixture.trunkPath, lengths: { thin: 4 } } })).toThrow(/lengths/);
     expect(() => trunkPathOf({ trunkPath: { ...fixture.trunkPath, axis: "w" } })).toThrow(/axis/);
     expect(() => trunkPathOf({ trunkPath: { ...fixture.trunkPath, nose0: "a" } })).toThrow(/nose0/);
+  });
+});
+
+// The generic progress, a rig's `work`: a named quantity with a unit, a step and an end per class,
+// a point on its own scale. The same fixture holds its drivers, a roll it must refuse, and rig
+// progress declarations every parser must refuse.
+describe("work-quantity drivers against driver-fixture.json", () => {
+  const work = workOf({ work: fixture.work })!;
+
+  it("reads the work quantity: a point with its unit, step and ends", () => {
+    expect(work).toMatchObject({ kind: "work", name: "parts made", unit: "parts", step: 0.25, nose0: 0, lengths: [0, 0, 0], ends: [0, 6, 9] });
+    expect([0, 1, 2].map((k) => workEnd(work, k))).toEqual([0, 6, 9]);
+    expect(fixturePath.kind).toBe("trunk");
+    expect(fixturePath.unit).toBe("blocks");
+    expect(workOf({ trunkPath: fixture.trunkPath })).toEqual(fixturePath);
+    expect(workOf({})).toBeNull();
+  });
+
+  it("matches every work driver's matrix at every case, within the fixture's tolerance", () => {
+    let n = 0;
+    for (const { id, driver, cases: cs } of fixture.workDrivers)
+      for (const c of cs) {
+        expectMatrix(driverMatrix(driver, c.inputs, work), c.matrix, `${id} at ${inputsText(c.inputs)}`);
+        n++;
+      }
+    expect(n).toBeGreaterThan(100);
+  });
+
+  it("refuses a roll on a work quantity, and every bad progress declaration", () => {
+    for (const { id, driver } of fixture.workInvalid)
+      expect(() => driverMatrix(driver, { theta: 0, depth: 0, lifting: 0, work: 1, size: 1, presence: 1 }, work), id).toThrow();
+    expect(fixture.badProgress.length).toBeGreaterThan(0);
+    for (const { id, rig } of fixture.badProgress) expect(() => workOf(rig), id).toThrow();
   });
 });

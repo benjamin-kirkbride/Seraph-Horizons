@@ -658,6 +658,11 @@ schema (`../BuckingSawmill/README.md`, "Rig schema") with these differences, par
 | `feed` | `blocksPerRadian` 0.1 (trunk travel per radian of φ) and `gear` `{thin 0.221175, thick 0.10029}` (the drawn change gears, feed radians per axle radian; thick below thin). |
 | `parts` | As the mill's, with the new inputs and drivers below, and the rosser's `requires` vocabulary: `shaft`, `ring`, `tyres`, `rollsin`, `rollsout`, `breaker`, `levers`, `heads`, or null. |
 
+The rosser's `trunkPath` is the trunk-flavoured case of a rig's generic **work** (a named progress
+quantity with a unit, a step and an end per class; `docs/recipe-browser/models.md`, "The work and its
+drivers"): its keys and this rig are unchanged, and T below is the work W, in blocks (`"trunk"` is W's
+trunk-flavoured spelling, in a driver's `input` and a pose).
+
 **Inputs.** The mill's θ, depth, lifting and ψ, plus four:
 - T, the trunk's travel (blocks), 0 to T_end(k);
 - k, its class: 0 none, 1 thin, 2 thick (`TrunkBox.ClassOf` of the stack's size);
@@ -670,7 +675,9 @@ schema (`../BuckingSawmill/README.md`, "Rig schema") with these differences, par
 
 | Driver | Parameters | Motion |
 |---|---|---|
-| `"input"` on `rotate`, `slide`, `swing` | `"theta"` (default), `"travel"` (ψ), `"feed"` (φ) or `"trunk"` (T) | The driver's angle or offset with that input in place of θ. `"rectified": true` is the mill's way of writing `"travel"`; a driver with both keys is an error, as is `input` on any other driver. |
+| `"input"` on `rotate`, `slide`, `swing` | `"theta"` (default), `"travel"` (ψ), `"feed"` (φ), `"trunk"` (T) or `"oil"` | The driver's angle or offset with that input in place of θ. `"rectified": true` is the mill's way of writing `"travel"`; a driver with both keys is an error, as is `input` on any other driver except `stretch`. `"oil"` is how full the machine's oil tank is, 0..1 (added for the gear cutter's sight-feed cup; `RigInput.Oil`, default 0). |
+| `"input"` on `stretch` | `"depth"` (default) or `"oil"` | The stretch scales by (`length` + `travel` × that input) / `length`. Anything else is an error. |
+
 | `gauge` | `motion` (`slide` or `rotate`), `axis`, `pivot` (rotate), `amount: {thin, thick}`, `mode` (`occupy`, the default, or `present`), `windows: [{from, to, ease, gain: {thin, thick}}]` (occupy), `lobes: {ratio, phase, amplitude: {thin, thick}}` (rotate only) | A motion set by the trunk at a place. With no trunk e = 0; `present`: e = p; `occupy`: e = p × the most engaged window's min(1, gain[k] × occupancy), occupancy = clamp((nose − from) / ease, 0, 1) × clamp((to − tail) / ease, 0, 1). It moves by amount[k] × e, plus e × amplitude[k] × cos(ratio × ψ + phase). A window's gain defaults to 1; windows combine by max (held in by any contact), not sum. |
 | `roll` | `axis`, `pivot`, `at` (a place on the path), `ratio` (radians per block) | An idle roller the trunk turns: by ratio × clamp(nose − at, 0, L_k) while k > 0, the identity without a trunk. It ignores p. |
 

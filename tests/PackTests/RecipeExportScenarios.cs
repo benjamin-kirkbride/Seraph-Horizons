@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 /// or from the schema; never from the exporter's own code.
 /// </summary>
 [AtlasWorld]
-public class RecipeExportScenarios : AtlasScenarioBase
+public partial class RecipeExportScenarios : AtlasScenarioBase
 {
     private const int Timeout = 900_000;
 
@@ -898,9 +898,11 @@ public class RecipeExportScenarios : AtlasScenarioBase
         // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
         Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        // Blocks built in place, butchery and transitions are the types not read from a registry.
+        // Blocks built in place, butchery, transitions, the gear chain and casting are the types not
+        // read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
+            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType))
             .Where(p => (string)p.Value["shape"]! != "transition")
             .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));

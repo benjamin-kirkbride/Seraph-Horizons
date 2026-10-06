@@ -235,8 +235,9 @@ That is the pattern to keep: **every review finding becomes a check**, so it can
 
 ## The rig
 
-The schema is in the mill README's "Rig schema" section, and what a trunk-path machine adds in the
-rosser README's. In short:
+The schema is in the mill README's "Rig schema" section, what a trunk-path machine adds in the
+rosser README's, and the generic work in `docs/recipe-browser/models.md` ("The work and its
+drivers"). In short:
 - `cells` (with up to three boxes each, and a collision-only `lid` on each column's top cell),
   `powerCell`, `powerFace`, `infeedSide`, `outputSide`,
   `output.pos`, `trunkBed` and `saw` are for gameplay;
@@ -248,14 +249,18 @@ rosser README's. In short:
 - *L*, lifting, 1 while the saws go up;
 - ψ, the shaft's total travel either way.
 
-A machine that a trunk travels through (the rosser) adds four, all opt-in, so a rig that uses none of
-them poses exactly as before:
-- T, the trunk's travel along the rig's `trunkPath`, in blocks: the nose is at `nose0` + T and the
-  tail L_k behind it;
-- k, the trunk's class: 0 none, 1 thin, 2 thick;
-- p, the trunk's presence, 0..1, eased in as a trunk is loaded and out as it is taken away (k is held
-  while p eases out, so parts ease back rather than jump);
-- φ, the feed's travel, an angle that only grows.
+A machine with work in progress adds four, all opt-in, so a rig that uses none of them poses exactly
+as before:
+- W, the machine's **work**: how far its job has got, in a unit the rig declares. A rig declares it
+  as `work` (`{name, unit, step, end: {thin, thick}}`, a point on its own scale: the gear cutter's teeth
+  cut, 0..12 or 0..20) or, the trunk-flavoured case, as a `trunkPath` (a trunk travelling along a line,
+  in blocks: the nose at `nose0` + W and the tail L_k behind it; the rosser's), never both. `"trunk"`
+  is W's trunk-flavoured spelling as a driver input and in a pose;
+- k, the work's class: 0 none, 1 thin, 2 thick (a trunk's size; the gear cutter's master);
+- p, its presence, 0..1, eased in as a trunk is loaded (or a master fitted) and out as it is taken away
+  (k is held while p eases out, so parts ease back rather than jump);
+- φ, the feed's travel, an angle that only grows;
+- and, separately, `oil`, 0..1, how full the machine's oil tank is (the gear cutter's sight-feed cup).
 
 A part's matrix is its drivers composed in order, then its `ride` parent's matrix.
 
@@ -264,14 +269,16 @@ A part's matrix is its drivers composed in order, then its `ride` parent's matri
 - `slide` and `swing` (sinusoidal in θ);
 - `feed` (linear in *d*);
 - `step` (a ramp over a depth window, with lift gates `hold`, `block` and `trip`);
-- `stretch` (ropes);
+- `stretch` (ropes; with `"input": "oil"`, a liquid's level);
 - `"input"` on `rotate`, `slide` and `swing`: θ (the default), ψ (`"travel"`, which is what
-  `rectified` means), φ (`"feed"`) or T (`"trunk"`) in place of θ;
-- `gauge`, a motion set by the trunk at a place: a slide or rotation by `amount[k]` times an
-  engagement that is p when `present`, or p times how far the trunk covers the most engaged of its
-  `windows` along the path, easing in as the nose arrives and out as the tail leaves; optional
-  `lobes` add a term in cos(ratio × ψ + phase), so a part can follow a turning, non-round section;
-- `roll`, an idle roller the trunk turns while it is over it.
+  `rectified` means), φ (`"feed"`), W (`"work"`, or `"trunk"`) or the oil in place of θ;
+- `gauge`, a motion set by the work at a place: a slide or rotation by `amount[k]` times an
+  engagement that is p when `present`, or p times how far the work covers the most engaged of its
+  `windows`, easing in as the nose arrives and out as the tail leaves (for a plain work quantity nose
+  and tail are both W); optional `lobes` add a term in cos(ratio × ψ + phase), so a part can follow a
+  turning, non-round section;
+- `roll`, an idle roller a trunk turns while it is over it (a trunkPath only).
+
 
 The rosser's README ("Rig schema") has the exact formulas and parse rules;
 `Machines/tools/machinegen/rigmath.py` is the reference.

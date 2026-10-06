@@ -4,7 +4,8 @@ using static SeraphHorizons.Mod.Machines.Core.RigJson;
 namespace SeraphHorizons.Mod.Machines.Core;
 
 /// <summary>
-/// The line a trunk travels along through a through-feed machine (rig.json's <c>trunkPath</c>), in
+/// The line a trunk travels along through a through-feed machine (rig.json's <c>trunkPath</c>, the trunk-flavoured
+/// case of a rig's progress, <see cref="IWorkProgress"/>: W is the trunk's travel), in
 /// native-frame blocks. Positions along the path (<see cref="Nose0"/>, <see cref="TailStop"/>, the
 /// stations, a gauge's windows, a roll's <c>at</c>) are coordinates on <see cref="Axis"/>; the
 /// trunk's axis is the line through <see cref="Origin"/> along it. A trunk of class k (0 none,
@@ -18,7 +19,7 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// <param name="Radii">The shown trunk's [flats, corners] half-widths per class, [none, thin, thick];
 /// for drawing.</param>
 public sealed record TrunkPath(Float3 Origin, Axis Axis, float Length, float Nose0, IReadOnlyList<float> Lengths, float TailStop,
-                               IReadOnlyDictionary<string, float> Stations, IReadOnlyList<(float Flats, float Corners)> Radii)
+                               IReadOnlyDictionary<string, float> Stations, IReadOnlyList<(float Flats, float Corners)> Radii) : IWorkProgress
 {
     /// <summary>The shown trunk's length for class <paramref name="k"/>; 0 for none or an unknown class.</summary>
     public float LengthOf(int k) => k is 1 or 2 ? Lengths[k] : 0;

@@ -12,14 +12,14 @@ import {
   rideOrder,
   rigInputs,
   textureCodes,
-  trunkPathOf,
+  workOf,
   type FlatElement,
   type Rig,
   type RigCell,
   type RigInputs,
   type RigPart,
   type Shape,
-  type TrunkPath,
+  type Work,
   type Vec3,
 } from "./rig.ts";
 
@@ -59,8 +59,8 @@ export interface ModelView {
   /** The footprint from the rig's cells, or else the model's bounding box in whole blocks. */
   bounds: Bounds;
   hasRig: boolean;
-  /** The rig's trunkPath, which gauge and roll drivers and a travelling prop read; null without one. */
-  path: TrunkPath | null;
+  /** The rig's progress (its work or trunkPath), which gauge and roll drivers and a travelling prop read; null without one. */
+  path: Work | null;
 }
 
 export const STATIC_COLOUR = "#c8b090";
@@ -72,6 +72,8 @@ export function partColour(i: number): string {
 }
 
 const TEXTURE_FAMILIES: [RegExp, string][] = [
+  [/glass/, "#cfe3ea"],
+  [/^oil\b|honey|lubric/, "#c8902a"],
   [/oak|wood|plank|log|debarked|bark|timber/, "#b88a58"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
@@ -157,7 +159,7 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     cells: rig?.cells ?? [],
     bounds,
     hasRig: rig !== null,
-    path: trunkPathOf(rig),
+    path: workOf(rig),
   };
 }
 

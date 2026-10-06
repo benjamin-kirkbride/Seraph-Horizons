@@ -1,0 +1,10 @@
+// seraphhorizons' GearConsumers switch (README.md, GearConsumers.cs; #473): the rusty gear is salvage
+// and money, so every recipe that took one takes the pack's steel gear (seraphhorizons:gear-steel),
+// in the same number (counts below are per recipe, all slots). tools/tests/test_gear_consumers.py
+// holds this file to the mod's recipes.
+// Flying Machine (0.1.0): the chain drive, 2 in each of its three recipes (fat, flax oil, olive oil).
+[
+  {"file": "flyingmachine:recipes/grid/chaindrive.json", "op": "replace", "path": "/0/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "flyingmachine"}]},
+  {"file": "flyingmachine:recipes/grid/chaindrive.json", "op": "replace", "path": "/1/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "flyingmachine"}]},
+  {"file": "flyingmachine:recipes/grid/chaindrive.json", "op": "replace", "path": "/2/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "flyingmachine"}]}
+]

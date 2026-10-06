@@ -1,0 +1,30 @@
+// The gear cutter's lift cam on its hub (#480, stage 5; GearCutter/, README "Gear cutter"): smithed
+// from one steel ingot (recipes/smithing/gearcutter.json). Drawn with the game's heavy bracket shape
+// in steel. The server disables it with GearCutter off.
+{
+	code: "gearcutterliftcam",
+	shape: { base: "game:item/part/bracket-heavy" },
+	textures: {
+		"iron": { base: "game:block/metal/sheet-plain/steel1" }
+	},
+	maxstacksize: 4,
+	materialDensity: 7850,
+	attributes: {
+		handbook: { extraSections: [ { title: "seraphhorizons:gearcutter-part-section-title", text: "seraphhorizons:gearcutter-part-section-text" } ] }
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"], "mechanics": ["*"] },
+	guiTransform: {
+		rotation: { x: -30, y: 45, z: 0 },
+		origin: { x: 0.5, y: 0.3, z: 0.5 },
+		scale: 1.6
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.5
+	},
+	tpHandTransform: {
+		translation: { x: -0.7, y: -0.2, z: -0.6 },
+		origin: { x: 0.5, y: 0.5, z: 0.5 },
+		scale: 0.6
+	}
+}

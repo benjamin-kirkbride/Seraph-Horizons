@@ -5,6 +5,8 @@ using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.GearReclamation;
+using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.MachineOil;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.TrunkEntities;
@@ -180,6 +182,56 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>GearBlanks</c>: no gear blanks, no gear blank molds and no recipes for either,
+    /// and nothing logged about them.</summary>
+    [AtlasScenario]
+    public void Gear_blanks_off_there_are_no_blanks_or_molds()
+    {
+        Assert.True(Off("GearBlanks"));
+        Assert.Null(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Gears.GearBlanks.Blank)));
+        Assert.Null(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Gears.GearBlanks.LargeBlank)));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("toolmold-"));
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Domain == "seraphhorizons");
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Domain == "seraphhorizons");
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("gearblank", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>GearCutter</c>: no gear cutter blocks, none of its new parts and no recipe for
+    /// them, and nothing logged about them.</summary>
+    [AtlasScenario]
+    public void Gear_cutter_off_there_is_no_gear_cutter()
+    {
+        Assert.True(Off("GearCutter"));
+        Assert.False(SeraphHorizons.Mod.GearCutter.GearCutterSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("gearcutter"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("gearcutter"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("gearcutter") == true);
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path?.StartsWith("gearcutter") == true);
+        // the gears it cuts exist either way
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.GearCutter.Core.GearCut.Gear)));
+        // The mod's own text names the cutter without a link, which would open no page: the gear
+        // article and the machine oil page among it; the machine oil page no longer lists it.
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:gearcutter"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the gear cutter: " + string.Join(", ", linked));
+        Assert.Contains("gear cutter", Lang.Get("seraphhorizons:gearreclamation-text"));
+        Assert.DoesNotContain("gear cutter", Lang.Get("seraphhorizons:machineoil-text"));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("gearcutter", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>GearboxSourceRatio</c>: nothing is patched, and a rotor placed after its gearbox,
     /// on the low side, takes the high side's ratio, as MPE Gearbox ships it (#462). When this fails
     /// with the rotor at 1, MPE Gearbox has fixed it and the tweak can go.</summary>
@@ -197,6 +249,30 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var ratios = train.Ratios();
         output.WriteLine($"ratios (rotor, gearbox, consumer): {string.Join(", ", ratios)}");
         Assert.Equal([5f, 1f, 5f], ratios);
+    }
+
+    /// <summary><c>GearConsumers</c>: every recipe takes the gears its mod ships it with, ppex still
+    /// smiths and shows its gears, and smex's converter is not patched.</summary>
+    [AtlasScenario]
+    public void Gear_consumers_off_recipes_take_the_gears_their_mods_ship_with()
+    {
+        Assert.True(Off("GearConsumers"));
+        Assert.False(Harmony.HasAnyPatches(GearConsumers.HarmonyId));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Ingredients?.Values.Any(i => i.Code?.ToString() == GearConsumers.SteelGear) == true);
+        // ppex's Cornish engine: one recipe with the rusty gear, its twin with ppex's gears.
+        var cornish = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == "ppex:enginecornish-north").ToList();
+        // Keyed and resolved ingredients both (GearConsumerUses.Codes): the server drops a grid recipe's
+        // keyed ones once recipes are sent to a client, so after a scenario joins a player there are none.
+        Assert.Contains(cornish, r => GearConsumerUses.Codes(r).Contains("game:gear-rusty"));
+        Assert.Contains(cornish, r => GearConsumerUses.Codes(r).Contains("ppex:gear-*"));
+        Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:glider"
+                                            && GearConsumerUses.Codes(r).Contains("game:gear-rusty"));
+        Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "ppex:gear-steel");
+        Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "ppex:largegear-steel");
+        var gear = W.GetItem(new AssetLocation("ppex:gear-steel"))!;
+        Assert.True(gear.CreativeInventoryTabs is { Length: > 0 });
+        Assert.False(gear.Attributes?["handbook"]?["exclude"].AsBool() == true);
+        Assert.DoesNotContain("steel large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
     }
 
     /// <summary><c>HeatingRackKeepsPosition</c>: nothing is patched, and the heating rack's picked
@@ -469,9 +545,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's page, whose switch is off here too).
+        // machine oil's and gear reclamation's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
-                .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey)).Order(),
+                .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
+                .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
@@ -660,5 +737,65 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         be.ToTreeAttributes(tree);
         Assert.Null(tree[SeraphHorizons.Mod.Machines.Oil.TreeKey]);
         Assert.DoesNotContain("Oil", OilSite.Info(be, p.Player));
+    }
+
+    /// <summary><c>GearReclamation</c>: the gear items exist, but none of the steps' recipes, no
+    /// salvage section on the rusty gear, and an oiled gear in a hand stays as it is.</summary>
+    [AtlasScenario]
+    public async Task Gear_reclamation_off_no_recipes_no_roll()
+    {
+        Assert.True(Off("GearReclamation"));
+        foreach (var code in new[] { GearCodes.Steel, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Neutralized, GearCodes.Oiled, GearCodes.LargeSteel })
+            Assert.NotNull(W.GetItem(new AssetLocation(code)));
+        Assert.DoesNotContain(World.Api.GetCookingRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
+        Assert.DoesNotContain(World.Api.GetBarrelRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
+        Assert.False(W.GetItem(new AssetLocation(GearCodes.Rusty))!.Attributes["handbook"].Exists);
+        var p = await World.JoinPlayer("nogears");
+        var hand = p.Player.InventoryManager.ActiveHotbarSlot;
+        hand.Itemstack = new ItemStack(W.GetItem(new AssetLocation(GearCodes.Oiled))!, 10);
+        hand.MarkDirty();
+        await World.Ticks(10);
+        Assert.Equal(GearCodes.Oiled, hand.Itemstack?.Collectible.Code.ToString());
+        Assert.Equal(0, GearReclamationSystem.Of(World.Api).ResolveAll(p.Player));
+        Assert.Equal(10, hand.StackSize);
+    }
+
+    /// <summary><c>GearReclamation</c>: no pickling tub, no bare steel gear, no tub recipe.</summary>
+    [AtlasScenario]
+    public void Gear_reclamation_off_there_is_no_pickling_tub()
+    {
+        Assert.True(Off("GearReclamation"));
+        Assert.False(W.GetBlock(new AssetLocation("seraphhorizons:picklingtub")) is { Id: > 0 }, "the tub exists");
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:gear-steel-bare")));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:picklingtub" && r.Enabled);
+    }
+
+    /// <summary><c>SteelBitsRecovery</c>: the coffin is not patched and refuses steel bits, there is no
+    /// packing recipe and no handbook section, and smex's scrap setting is left alone; packed steel
+    /// bits still exist.</summary>
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task Steel_bits_recovery_off_the_coffin_refuses_steel_bits()
+    {
+        Assert.True(Off("SteelBitsRecovery"));
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.HarmonyId));
+        Assert.False(CoffinSite.Patched(CoffinSite.AddIngotMethod()));
+        Assert.Null(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.AddIngot);
+        Assert.Equal(SeraphHorizons.Mod.SteelBits.SmexScrap.Status.Off,
+            SeraphHorizons.Mod.SteelBits.SteelBitsSystem.Of(World.Api).SmexStatus);
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Equals(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.ChargeCode) == true);
+        Assert.False(W.GetItem(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.SteelBit)!.Attributes["handbook"]["extraSections"].Exists);
+        Assert.NotNull(W.GetItem(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.ChargeCode));
+
+        var p = await World.JoinPlayer("nocementing");
+        var pos = World.Spawn.AddCopy(-180, 12, -300);
+        await p.TeleportTo(pos.AddCopy(8, 0, 0));
+        var site = new CoffinSite(World, pos, p.Player);
+        await site.Build();
+        site.AddCoal();
+        site.Click(site.Stack(SeraphHorizons.Mod.Core.SteelBitsRules.SteelBit, 40));
+        Assert.Equal(0, site.Coffin.IngotCount);
+        Assert.Equal(40, site.Hand.StackSize);
+        site.Click(site.Stack(CoffinSite.IronIngot, 1));
+        Assert.Equal(1, site.Coffin.IngotCount);
     }
 }
