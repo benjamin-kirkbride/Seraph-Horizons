@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.GearReclamation.Core;
+
 namespace SeraphHorizons.Mod.PicklingTub.Core;
 
 /// <summary>What a finished batch is, for the block info's words: an acid pickle (the metal looks
@@ -46,7 +48,7 @@ public class TubRuleConfig
     public double Hours { get; set; }
 
     /// <summary>What a lost gear becomes.</summary>
-    public string Failure { get; set; } = "game:metalbit-steel";
+    public string Failure { get; set; } = GearCodes.SteelBit;
 
     /// <summary>Failure items per lost gear.</summary>
     public int FailureQuantity { get; set; } = 1;
@@ -71,12 +73,14 @@ public class PicklingTubConfig
     public const string Sulfuric = "game:acid-full-sulfuric";
     public const string Hydrochloric = "game:acid-full-hydrochloric";
     public const string Brine = "game:brineportion";
-    public const string Bits = "game:metalbit-steel";
-    public const string Degreased = "seraphhorizons:gear-degreased";
-    public const string Pickled = "seraphhorizons:gear-pickled";
-    public const string Steel = "seraphhorizons:gear-steel";
-    public const string SteelBare = "seraphhorizons:gear-steel-bare";
-    public const string Rusty = "game:gear-rusty";
+
+    // The gears are GearCodes' (the reclamation line's contract); the tub's rules name them by these.
+    public const string Bits = GearCodes.SteelBit;
+    public const string Degreased = GearCodes.Degreased;
+    public const string Pickled = GearCodes.Pickled;
+    public const string Steel = GearCodes.Steel;
+    public const string SteelBare = GearCodes.SteelBare;
+    public const string Rusty = GearCodes.Rusty;
 
     /// <summary>Gears a batch holds.</summary>
     public int BatchSize { get; set; } = 8;

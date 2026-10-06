@@ -1,6 +1,6 @@
 // Gear blank molds (#479, GearBlanks; README "Steel gear blanks"): a clay slab with a round
 // cavity the size of the blank and a core for its bore. The small one is one layer deep (100 units,
-// one ingot), the large one three (200 units, two ingots).
+// one ingot), the large one two (200 units, two ingots).
 [
 	{
 		ingredient: { type: "item", code: "game:clay-*", name: "color", allowedVariants: ["blue", "fire", "red"] },
@@ -47,21 +47,6 @@
 			"##############",
 			"##############",
 			"##############",
-			"##############",
-			"##############"
-		], [
-			"##############",
-			"##############",
-			"####______####",
-			"###________###",
-			"##__________##",
-			"##__________##",
-			"##____##____##",
-			"##____##____##",
-			"##__________##",
-			"##__________##",
-			"###________###",
-			"####______####",
 			"##############",
 			"##############"
 		], [

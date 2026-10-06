@@ -1290,7 +1290,8 @@ until a player takes it). The arithmetic is in `GearReclamation/Core/GearReclama
 |---|---|---|
 | `FlashRustHours` | 8 | In-game hours a pickled or neutralized gear stays bare before it rusts (0.5 to 8760); it is rusty a quarter as long again after |
 | `UsableGearChance` | 0.1 | Chance each oiled gear is sound (0 to 1) |
-| `BitsPerFailedGear` | 1 | Steel bits for each oiled gear that is not (0 to 20) |
+| `BitsPerFailedGear` | 1 | Steel bits for each oiled gear that is not, and for each bare steel gear that rusts through (0 to 20) |
+| `FlashRustLossChance` | 0.25 | Chance each bare steel gear that flash-rusts rusts through to steel bits instead of into a rusty gear (0 to 1) |
 
 With the switch off (the server decides), the gear items still exist, since other steps and
 mods' recipes name them, but the three steps' recipes are left out, oiled gears are never rolled,
@@ -1348,8 +1349,14 @@ rusty gear is the game's own, full currency.
 `seraphhorizons:gear-steel-bare` is the one item the tub adds: a steel gear after the dip, the
 rusty gear's model in bright steel, with the bare gears' flash rust (a perish transition to
 `game:gear-rusty`, its hours from `GearReclamationSettings.FlashRustHours` through the
-`seraphhorizonsFlashRust` attribute). The other gear items are gear reclamation's; the tub only
-names their codes.
+`seraphhorizonsFlashRust` attribute). A steel gear must not become a rusty gear for nothing, so its
+flash rust loses a share (#477, #482): when the transition completes, the gear reclamation item
+class it shares (`ItemReclaimedGear.OnTransitionNow`) rolls each gear as the oiled gears are rolled,
+a rusty gear with 1 − `GearReclamationSettings.FlashRustLossChance` (0.75) and otherwise
+`BitsPerFailedGear` steel bits. The rusty gears keep the slot (the bits, if none is); the bits go to
+the player whose inventory it is, else to another slot of the same inventory, and what does not fit
+drops at the player, the container's block or the dropped stack. The other gear items are gear
+reclamation's; the tub only names their codes.
 
 **How.** `PicklingTub/Core/` holds the rules and the batch, with no game: `TubConfig.cs` (the
 settings and their sanitising: a value out of range falls back to its default, a broken rule is
@@ -1404,7 +1411,8 @@ Left alone: the rusty gear amulet (the gear on a string, uncrafted back into it)
 black barrel dyes (the rust is the pigment), BetterLoot's gear parts (change: four make a gear) and
 Cartwright's rusty gear sign (decoration). The game's own Jonas devices, and Abyssal Depths, Rickety
 Translocation, Industrial Deco and the walking stick, take temporal gears or Jonas parts, no rusty
-gear, so they are not patched. Trade lists are not touched: the mechanic still lists ppex's gears.
+gear, so they are not patched. The rusty gear stays currency, and the mechanic no longer buys or
+sells ppex's gears (#436).
 
 JSON patches, `patches/gearconsumers-{modid}.json`, one per mod patched, each `dependsOn` that mod
 (the game's has none), rewrite the ingredient's code or add `"enabled": false` to the recipe. With
@@ -1481,13 +1489,13 @@ their own attribute.
 
 Stock for the gear cutter (gears epic #484, #479): `seraphhorizons:gearblank-steel`, a steel disc
 with a bore the size of the game's rusty gear (6.7 voxels across, 1.4 thick), and
-`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 4.6
+`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 2
 thick). Both stack (32 and 8), go on a shelf or in a display case, and can be set on the ground
 (small ones in quadrants, a large one in the middle). They sit in the creative inventory's items
 tab, the molds in its construction tab, as the game's molds do. Two ways to make one:
 
 - **Cast.** Clay-form a gear blank mold (a floor and the walls round a round cavity with a core for
-  the bore, one layer deep) or a large one (three layers deep) from blue, red or fire clay, and fire
+  the bore, one layer deep) or a large one (two layers deep) from blue, red or fire clay, and fire
   it in a pit kiln or a beehive kiln as the game's tool molds fire. Pour 100 units of molten steel
   (one ingot) into the small mold from a crucible, 200 into the large one, and right-click the blank
   out once it has hardened; the mold stays. A mold takes steel only: there is no blank of any other
@@ -1498,7 +1506,7 @@ tab, the molds in its construction tab, as the game's molds do. Two ways to make
 
 The molds are the game's own: `seraphhorizons:toolmold-{color}-{raw|fired}-{gearblank|largegearblank}`,
 on its `BlockToolMold` and `ToolMold` block entity, with the attributes its tool molds have
-(`requiredUnits` 100 and 200, `fillHeight` 1 and 3, `drop` `seraphhorizons:gearblank-{metal}`, the
+(`requiredUnits` 100 and 200, `fillHeight` 1 and 2, `drop` `seraphhorizons:gearblank-{metal}`, the
 pit kiln's `combustibleProps` and the `beehivekiln` table). So the crucible pours into them as into
 any tool mold (`ILiquidMetalSink`), and Steelmaking Expanded's canal pedestal, which takes any small
 `BlockToolMold` (any but the anvil and helve hammer molds, which go on its tap), takes both and casts

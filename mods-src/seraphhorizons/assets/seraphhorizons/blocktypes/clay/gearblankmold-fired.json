@@ -52,7 +52,7 @@
 		},
 		"*-largegearblank": {
 			requiredUnits: 200,
-			fillHeight: 3,
+			fillHeight: 2,
 			moldrackable: false,
 			shelvable: "SingleCenter",
 			fillQuadsByLevel: [{ x1: 3, z1: 3, x2: 13, z2: 13 }],
@@ -69,11 +69,11 @@
 		walk: "game:walk/stone"
 	},
 	collisionboxByType: {
-		"*-largegearblank": { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.25, z2: 0.9375 },
+		"*-largegearblank": { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.1875, z2: 0.9375 },
 		"*": { x1: 0.15625, y1: 0, z1: 0.15625, x2: 0.84375, y2: 0.125, z2: 0.84375 }
 	},
 	selectionboxByType: {
-		"*-largegearblank": { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.25, z2: 0.9375 },
+		"*-largegearblank": { x1: 0.0625, y1: 0, z1: 0.0625, x2: 0.9375, y2: 0.1875, z2: 0.9375 },
 		"*": { x1: 0.15625, y1: 0, z1: 0.15625, x2: 0.84375, y2: 0.125, z2: 0.84375 }
 	},
 	sideopaque: {

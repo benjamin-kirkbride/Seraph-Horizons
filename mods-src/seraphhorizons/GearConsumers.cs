@@ -1,5 +1,6 @@
 using System.Reflection;
 using HarmonyLib;
+using SeraphHorizons.Mod.GearReclamation.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
@@ -28,17 +29,17 @@ namespace SeraphHorizons.Mod;
 ///
 /// With the switch off, <see cref="DisablePatches"/> empties every patch file in <c>Start</c>,
 /// before the game's patch loader runs in <c>AssetsLoaded</c>, and the converter is not patched.
-/// Trade lists are not touched: the rusty gear stays currency.
+/// The rusty gear stays currency; the mechanic's trade list no longer has ppex's gears (#436).
 /// </summary>
 public static class GearConsumers
 {
     public const string HarmonyId = "seraphhorizons.gearconsumers";
 
     /// <summary>The pack's steel gear, what every rusty gear use now takes (#474 adds the item).</summary>
-    public const string SteelGear = "seraphhorizons:gear-steel";
+    public const string SteelGear = GearCodes.Steel;
 
     /// <summary>The pack's steel large gear, cut on the gear cutter (#480).</summary>
-    public const string SteelLargeGear = "seraphhorizons:largegear-steel";
+    public const string SteelLargeGear = GearCodes.LargeSteel;
 
     public const string SmexId = "smex";
     public const string ControlType = "SteelmakingExpanded.BlockStructures.Converter.BlockEntities.BlockEntityConverterControl";
