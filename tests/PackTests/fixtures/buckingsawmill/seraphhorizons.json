@@ -6,5 +6,6 @@
   "RosserSettings": {
     "RevolutionsPerStoredLog": 0.5,
     "RevolutionsPerBranch": 0.08
-  }
+  },
+  "TrunkEntities": false
 }

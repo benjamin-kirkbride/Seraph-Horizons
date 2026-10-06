@@ -1,0 +1,41 @@
+{
+	code: "trunk-thin",
+	class: "seraphhorizons.EntityTrunk",
+	tags: ["inanimate"],
+	weight: 50,
+	hitboxSize: { x: 1, y: 1 },
+	attributes: {
+		shouldSwivelFromMotion: false
+	},
+	behaviorConfigs: {
+		repulseagents: { movable: true },
+		passivephysicsmultibox: {
+			collisionBoxes: [
+				{ x1: -0.5, y1: 0, z1: -2, x2: 0.5, y2: 1, z2: -1 },
+				{ x1: -0.5, y1: 0, z1: -1, x2: 0.5, y2: 1, z2: 0 },
+				{ x1: -0.5, y1: 0, z1: 0, x2: 0.5, y2: 1, z2: 1 },
+				{ x1: -0.5, y1: 0, z1: 1, x2: 0.5, y2: 1, z2: 2 }
+			],
+			groundDragFactor: 1,
+			airDragFallingFactor: 0.5,
+			gravityFactor: 1.0
+		}
+	},
+	client: {
+		renderer: "seraphhorizons.trunk",
+		behaviors: [
+			{ code: "repulseagents" },
+			{ code: "passivephysicsmultibox" },
+			{ code: "interpolateposition" },
+			{ code: "ropetieable" }
+		]
+	},
+	server: {
+		behaviors: [
+			{ code: "repulseagents" },
+			{ code: "passivephysicsmultibox" },
+			{ code: "ropetieable" }
+		]
+	},
+	sounds: { }
+}
