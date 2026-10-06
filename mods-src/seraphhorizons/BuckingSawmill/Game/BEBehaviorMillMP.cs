@@ -7,7 +7,8 @@ namespace SeraphHorizons.Mod.BuckingSawmill;
 /// <summary>The mill's load on its shaft, on the power ghost: a consumer whose network is found
 /// through the power face only, as Immersive Woodworking's BEBehaviorSawmillMP does (without its
 /// cap on the network's speed). Resistance is the configured <c>Resistance</c> once the mill is
-/// assembled, a token 0.005 before.</summary>
+/// assembled (times the dry multiplier while its oil tank is dry, <c>MachineOil</c>), a token 0.005
+/// before.</summary>
 public class BEBehaviorMillMP : BEBehaviorMPConsumer
 {
     public const float IncompleteResistance = 0.005f;
@@ -24,7 +25,7 @@ public class BEBehaviorMillMP : BEBehaviorMPConsumer
     }
 
     public override float GetResistance() =>
-        (Blockentity as BEMillGhost)?.Mill is { Complete: true }
-            ? BuckingSawmillSystem.Of(Api).Config.Resistance
+        (Blockentity as BEMillGhost)?.Mill is { Complete: true } mill
+            ? mill.Oiling?.Resistance(BuckingSawmillSystem.Of(Api).Config.Resistance) ?? BuckingSawmillSystem.Of(Api).Config.Resistance
             : IncompleteResistance;
 }
