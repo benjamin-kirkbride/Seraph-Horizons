@@ -1,0 +1,33 @@
+{
+	"textureWidth": 16,
+	"textureHeight": 16,
+	"textures": {
+		"contents": "game:block/liquid/water"
+	},
+	"elements": [
+		{
+			"name": "Surface",
+			"from": [
+				2,
+				0,
+				2
+			],
+			"to": [
+				14,
+				0.01,
+				14
+			],
+			"faces": {
+				"up": {
+					"texture": "#contents",
+					"uv": [
+						2,
+						2,
+						14,
+						14
+					]
+				}
+			}
+		}
+	]
+}

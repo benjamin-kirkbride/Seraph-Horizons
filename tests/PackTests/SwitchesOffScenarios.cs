@@ -652,4 +652,14 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(tree[SeraphHorizons.Mod.Machines.Oil.TreeKey]);
         Assert.DoesNotContain("Oil", OilSite.Info(be, p.Player));
     }
+
+    /// <summary><c>GearReclamation</c>: no pickling tub, no bare steel gear, no tub recipe.</summary>
+    [AtlasScenario]
+    public void Gear_reclamation_off_there_is_no_pickling_tub()
+    {
+        Assert.True(Off("GearReclamation"));
+        Assert.False(W.GetBlock(new AssetLocation("seraphhorizons:picklingtub")) is { Id: > 0 }, "the tub exists");
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:gear-steel-bare")));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:picklingtub" && r.Enabled);
+    }
 }

@@ -81,6 +81,8 @@
     <!-- Maps and leads at traders (#455): offer selection, tier gating, lead targets, and the shipped price table. -->
     <Compile Include="../Trading/Maps/Core/**/*.cs" Link="Trading/Maps/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/trading/map-prices.json" Link="map-prices.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The pickling tub (#476) and the brine bath (#482): rules, batches, loss. -->
+    <Compile Include="../PicklingTub/Core/**/*.cs" Link="PicklingTub/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Travelling merchants (#456): inn rules, the visit cycle, the conditions. -->
     <Compile Include="../Trading/Visitors/Core/**/*.cs" Link="Trading/Visitors/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
