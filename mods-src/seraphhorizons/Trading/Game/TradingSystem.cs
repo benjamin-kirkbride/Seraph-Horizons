@@ -52,9 +52,13 @@ public class TradingSystem : ModSystem
 
     /// <summary>Whether this world places camps on the grid: the switch is on and the world has had
     /// the grid since its first start.</summary>
-    public bool GridActive => _gridActive ??= DecideGrid();
+    public bool GridActive => _gridActive ?? (_sapi is null ? false : (_gridActive = DecideGrid()).Value);
 
-    public string GridOffReason => GridActive ? "" : _gridOffReason;
+    /// <summary>Why the grid is not placing camps: the world, the switch, or the lists failing to load.</summary>
+    public string GridOffReason => !GridActive ? _gridOffReason : Grid is null ? "the trade lists did not load" : "";
+
+    /// <summary>The grid is on and ready (the lists loaded).</summary>
+    public bool GridReady => GridActive && Grid != null && Camps != null;
 
     public override void Start(ICoreAPI api)
     {
@@ -66,11 +70,15 @@ public class TradingSystem : ModSystem
         _sapi = api;
         Camps = new TraderCamps(api, this);
         Camps.Register();
-        api.Event.SaveGameLoaded += OnSaveGameLoaded;
+        // Whether this world has the grid is decided with the savegame; the lists need the world's
+        // items and blocks, which the server finishes loading after the savegame (just before
+        // GameReady), and worldgen starts at the end of WorldReady, after them.
+        api.Event.SaveGameLoaded += () => _ = GridActive;
+        api.Event.ServerRunPhase(EnumServerRunPhase.GameReady, LoadLists);
         TradeCommands.Register(api, this);
     }
 
-    private void OnSaveGameLoaded()
+    private void LoadLists()
     {
         var api = _sapi!;
         Classifier = new RegionClassifier(RegionProbe.RockGroups(api));
@@ -87,8 +95,7 @@ public class TradingSystem : ModSystem
 
     private bool DecideGrid()
     {
-        var api = _sapi;
-        if (api is null) return false;
+        var api = _sapi!;
         var saved = api.WorldManager.SaveGame.GetData<string>(GridStateKey);
         if (saved is null)
         {

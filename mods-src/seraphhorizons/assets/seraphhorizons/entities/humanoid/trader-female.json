@@ -80,7 +80,9 @@
 			},
 			{
 				"code": "conversable",
-				"dialogue": "game:config/dialogue/trader"
+				"dialogueByType": {
+					"*": "game:config/dialogue/trader"
+				}
 			}
 		],
 		"animations": [
@@ -4417,7 +4419,9 @@
 			},
 			{
 				"code": "conversable",
-				"dialogue": "game:config/dialogue/trader"
+				"dialogueByType": {
+					"*": "game:config/dialogue/trader"
+				}
 			},
 			{
 				"code": "entitystatetags"

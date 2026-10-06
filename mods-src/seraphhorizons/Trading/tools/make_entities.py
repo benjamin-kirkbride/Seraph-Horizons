@@ -89,8 +89,9 @@ def convert(entity: dict, gender: str) -> dict:
     for side in ("client", "server"):
         for behavior in entity[side]["behaviors"]:
             if behavior["code"] == "conversable":
-                behavior.pop("dialogueByType", None)
-                behavior["dialogue"] = "game:config/dialogue/trader"
+                # BetterRuins gives two types its quest dialogues by a patch of its own
+                # (patches/trading-betterruins-dialogue.json), which needs "*" to stay a key here.
+                behavior["dialogueByType"] = {"*": "game:config/dialogue/trader"}
     return entity
 
 

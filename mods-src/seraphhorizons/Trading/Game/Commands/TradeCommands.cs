@@ -55,13 +55,13 @@ public static class TradeCommands
 
     private static TextCommandResult Camps(ICoreServerAPI api, TradingSystem system, TextCommandCallingArgs args)
     {
-        if (!system.GridActive || system.Grid is null || system.Camps is null)
+        if (!system.GridReady)
             return TextCommandResult.Error(L("trading-grid-off", system.GridOffReason));
         int radius = (int)args[0];
         if (radius < 1 || radius > MaxRadius)
             return TextCommandResult.Error(L("trading-camps-radius", MaxRadius));
         var origin = args.Caller.Entity?.Pos.AsBlockPos ?? api.World.DefaultSpawnPosition.AsBlockPos;
-        var rows = CampListing.Rows(system.Grid, system.Camps.Registry, origin.X, origin.Z, radius);
+        var rows = CampListing.Rows(system.Grid!, system.Camps!.Registry, origin.X, origin.Z, radius);
         int offX = api.World.DefaultSpawnPosition.XYZInt.X, offZ = api.World.DefaultSpawnPosition.XYZInt.Z;
         var lines = new List<string> { L("trading-camps-header", rows.Count, radius, origin.X - offX, origin.Z - offZ) };
         lines.AddRange(rows.Select(r => CampListing.Line(r, offX, offZ, (key, a) => Lang.Get(key, a))));
@@ -70,12 +70,12 @@ public static class TradeCommands
 
     private static TextCommandResult Teleport(ICoreServerAPI api, TradingSystem system, TextCommandCallingArgs args)
     {
-        if (!system.GridActive || system.Grid is null || system.Camps is null)
+        if (!system.GridReady)
             return TextCommandResult.Error(L("trading-grid-off", system.GridOffReason));
         if (!CellKey.TryParse((string)args[0], out var cell))
             return TextCommandResult.Error(L("trading-tp-badid", (string)args[0]));
-        var spots = system.Grid.Spots(cell);
-        var record = system.Camps.Registry.Get(cell);
+        var spots = system.Grid!.Spots(cell);
+        var record = system.Camps!.Registry.Get(cell);
         if (spots.Count == 0 || record is { Status: CampStatus.Failed })
             return TextCommandResult.Error(L("trading-tp-nocamp", cell.ToString()));
         var entity = args.Caller.Entity;
@@ -90,7 +90,7 @@ public static class TradeCommands
         {
             OnLoaded = () =>
             {
-                var now = system.Camps.Registry.Get(cell);
+                var now = system.Camps!.Registry.Get(cell);
                 if (now is { Status: CampStatus.Placed }) Go(api, entity, now.X, now.Z);
                 else Go(api, entity, spot.X, spot.Z);
             },

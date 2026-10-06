@@ -1475,3 +1475,36 @@ don't add it next to one.
 For a local build: `dotnet build mods-src/seraphhorizons -c Release` (needs `VINTAGE_STORY`) writes
 `build/seraphhorizons_<version>.zip`: the DLL, `modinfo.json` and `CREDITS.md` at the top level, and
 `assets/`.
+
+## Traders (`TraderGrid`)
+
+The trader overhaul's first wave (epic #436; design and engine notes in `docs/trading.md`), in
+`Trading/`. Eleven trader types take over from vanilla's nine and the other mods' traders: smith,
+mechanic, prospector, farmer, cook, tailor, carpenter, mason, animal dealer, general store and curio
+dealer (`seraphhorizons:trader-{gender}-{type}-{climate}`, vanilla's trader with the pack's class).
+Each stocks from its own list (`assets/seraphhorizons/config/tradelists/trader-{type}.json`): a core
+always on the shelf, a few rotating slots, more by the camp's climate (cold, temperate, hot) and rock
+(sedimentary, igneous, metamorphic), and a bigger wallet than vanilla's (60–150 gears). Every good
+vanilla's lists and the pack's mods trade has a place in one of them. Metal and metal goods, glass and
+fired goods, leather and fine cloth and machine parts are player-supplied: listed, but never on a
+shelf until the supply system (a later wave) puts them there, so a fresh world's smith sells fuel and
+flux and buys metal.
+
+`TraderGrid` (server, default on) places lone camps on a seeded 2 km grid, about one per 2 km cell,
+in place of the game's randomly placed ones; the camp kinds are the game's, BetterTraders' and the
+other mods' camp buildings, chosen by climate as the game does, and the trader in a camp is the
+cell's type. Neighbouring cells never have the same type, and a prospector is never more than two
+cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
+takes the grid at its first start with this mod if the switch is on then, and keeps that; an existing
+world keeps vanilla's camps and traders. Turned off later, the world's new chunks get the game's camps
+again. The trader types and their lists exist either way.
+
+Admin commands (privilege `controlserver`): `/sh trade camps [radius]` lists the grid cells within
+radius blocks (default 4096) with their type and camp, or the spot not generated yet;
+`/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating it first if needed.
+
+Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
+state, the shipped lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
+(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere, a
+spawned trader stocking from its list, the game's camps taken over, the spawner rewrite, a cell's
+camp being decided, `/sh trade camps`, and nothing logged).

@@ -21,7 +21,7 @@
 				{"type": "block", "code": "henbox", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 6, "var": 0.9}},
 				{"type": "block", "code": "loggingmod:sawhorse-north", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 0.6}},
 				{"type": "block", "code": "loggingmod:stickstorage", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 0.6}},
-				{"code": "tankardsandgoblets:tankard-wood", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}},
+				{"type": "block", "code": "tankardsandgoblets:tankard-wood", "stacksize": 2, "stock": {"avg": 4, "var": 1}, "price": {"avg": 3, "var": 0.45}},
 				{"code": "plank-aged", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
 				{"type": "block", "code": "rushmat", "stacksize": 16, "stock": {"avg": 4, "var": 1}, "price": {"avg": 6, "var": 1.5}},
 				{"type": "block", "code": "burnedplanks-narrow-scorched-ud", "stacksize": 16, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 7, "var": 1.75}},

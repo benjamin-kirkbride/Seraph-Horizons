@@ -53,20 +53,31 @@ public sealed class TradeLists
             TradeListDef def;
             try
             {
-                var token = JToken.Parse(asset.ToText());
-                def = token.ToObject<TradeListDef>()!;
+                // The game's lenient JSON: comments (the files start with one), trailing commas.
+                var token = JObject.Parse(asset.ToText(), new JsonLoadSettings { CommentHandling = CommentHandling.Ignore });
+                def = token.ToObject<TradeListDef>() ?? throw new InvalidDataException("empty");
             }
             catch (Exception e)
             {
                 lists.Problems.Add($"{type}: {loc} does not parse: {e.Message}");
                 continue;
             }
-            if (string.IsNullOrEmpty(def.Type)) def.Type = type;
-            foreach (var entry in AllEntries(def))
-                entry.AttributesKey = entry.Attributes is JToken attrs ? attrs.ToString(Formatting.None) : "";
-            lists.Problems.AddRange(TradeListResolver.Problems(def).Select(p => $"{type}: {p}"));
-            lists.Resolve(api.World, def);
-            lists._lists[type] = def;
+            string stage = "keys";
+            try
+            {
+                if (string.IsNullOrEmpty(def.Type)) def.Type = type;
+                foreach (var entry in AllEntries(def))
+                    entry.AttributesKey = entry.Attributes is JToken attrs ? attrs.ToString(Formatting.None) : "";
+                stage = "problems";
+                lists.Problems.AddRange(TradeListResolver.Problems(def).Select(p => $"{type}: {p}"));
+                stage = "resolve";
+                lists.Resolve(api.World, def);
+                lists._lists[type] = def;
+            }
+            catch (Exception e)
+            {
+                lists.Problems.Add($"{type}: {loc} failed at {stage}: {e}");
+            }
         }
         return lists;
     }
@@ -115,10 +126,12 @@ public sealed class TradeLists
         {
             item = json.ToObject<TradeItem>()!;
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            world.Logger.Warning("[seraphhorizons] Trading: entry {0} does not make a trade item: {1}", entry.Key, e.Message);
             return null;
         }
+        if (item.Code is null) throw new InvalidDataException($"{entry.Key}: no code after deserialising");
         var code = item.Code;
         bool exists = item.Type == EnumItemClass.Block ? world.GetBlock(code) is { Id: > 0 } : world.GetItem(code) is { Id: > 0 };
         // Quietly: what fails is reported once, as a list, by the caller.
