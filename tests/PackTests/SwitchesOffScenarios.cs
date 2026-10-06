@@ -265,6 +265,17 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(Ollas.RuinLootCodes(W), c => c.StartsWith(IrrigationVessel.CodePrefix));
     }
 
+    /// <summary><c>BloodSausageInMixingBowl</c>: Butchering's grid recipes for raw blood sausage
+    /// (three) and raw black pudding (one) as it ships them.</summary>
+    [AtlasScenario]
+    public void Blood_sausage_in_mixing_bowl_off_the_grid_recipes_are_as_they_ship()
+    {
+        Assert.True(Off("BloodSausageInMixingBowl"));
+        var grid = BloodSausages.GridRecipes(W);
+        Assert.Equal(3, grid.Count(r => r.Output?.Code?.ToString() == BloodSausage.BloodSausageRaw));
+        Assert.Equal(1, grid.Count(r => r.Output?.Code?.ToString() == BloodSausage.BlackPuddingRaw));
+    }
+
     /// <summary><c>PanningDropsTrimmed</c>: panning as Wool, Tailor's Delight and Expanded Matter ship
     /// it, and their text as it ships.</summary>
     [AtlasScenario]

@@ -79,6 +79,8 @@ public class SeraphHorizonsSystem : ModSystem
         _irrigationVessel = Config(api).IrrigationVesselRetired && IrrigationVessel.Applies(api);
         if (!_irrigationVessel)
             DisablePatches(IrrigationVessel.DisablePatches);
+        if (!(Config(api).BloodSausageInMixingBowl && BloodSausage.Applies(api)))
+            DisablePatches(BloodSausage.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             DisablePatches(SawmillBladeDurability.DisablePatches);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
@@ -319,6 +321,12 @@ public class SeraphHorizonsConfig
     /// already placed stay and keep working (server side; off means it is as Primitive Survival
     /// ships it).</summary>
     public bool IrrigationVesselRetired { get; set; } = true;
+
+    /// <summary>Butchering: raw blood sausage and raw black pudding have no grid recipe, so they are
+    /// made only by Butchering's kneading recipes in A Culinary Artillery's mixing bowl, which it
+    /// enables with Expanded Foods (server side; needs all three; off means Butchering's grid
+    /// recipes too).</summary>
+    public bool BloodSausageInMixingBowl { get; set; } = true;
 
     /// <summary>Panning gives no wool (Wool), stitching awls or buttons and clasps (Tailor's Delight)
     /// and no uranium nuggets (Expanded Matter); the rest of each mod's panning drops stay (server
