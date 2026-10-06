@@ -1,0 +1,4851 @@
+{
+	"code": "visitor",
+	"class": "SeraphHorizons.VisitingTrader",
+	"tags": [
+		"humanoid",
+		"trader",
+		"human",
+		"habitat-land"
+	],
+	"weight": 80,
+	"canClimb": true,
+	"hitboxSize": {
+		"x": 0.6,
+		"y": 1.75
+	},
+	"deadHitboxSize": {
+		"x": 0.75,
+		"y": 0.5
+	},
+	"behaviorConfigs": {
+		"nametag": {
+			"showtagonlywhentargeted": true,
+			"triggeredNameReveal": true,
+			"unrevealedDisplayName": "nametag-trader-unrevealedname"
+		}
+	},
+	"variantgroups": [
+		{
+			"code": "gender",
+			"states": [
+				"male"
+			]
+		},
+		{
+			"code": "type",
+			"states": [
+				"travellingmerchant",
+				"travellingcurio"
+			]
+		},
+		{
+			"code": "climate",
+			"states": [
+				"cold",
+				"temperate",
+				"desert"
+			]
+		}
+	],
+	"client": {
+		"renderer": "Shape",
+		"shape": {
+			"base": "game:entity/humanoid/trader-female"
+		},
+		"texture": {
+			"base": "game:entity/humanoid/villagerbody/skin/normal*"
+		},
+		"behaviors": [
+			{
+				"code": "nametag",
+				"showtagonlywhentargeted": true
+			},
+			{
+				"code": "repulseagents"
+			},
+			{
+				"code": "controlledphysics",
+				"stepHeight": 1.01
+			},
+			{
+				"code": "interpolateposition"
+			},
+			{
+				"code": "conversable",
+				"dialogueByType": {
+					"*": "game:config/dialogue/trader"
+				}
+			}
+		],
+		"animations": [
+			{
+				"code": "die",
+				"animation": "die",
+				"animationSpeed": 1.75,
+				"weight": 10,
+				"blendMode": "AddAverage"
+			},
+			{
+				"code": "hurt",
+				"animation": "hurt",
+				"animationSpeed": 2,
+				"blendMode": "AddAverage"
+			},
+			{
+				"code": "formal-walk",
+				"animation": "formal-walk",
+				"animationSpeed": 1.5
+			}
+		]
+	},
+	"attributes": {
+		"disableElements": [
+			"breasts"
+		],
+		"frostOverlayThreshold": -10,
+		"shouldSwivelFromMotion": false,
+		"outfitConfigFileName": "game:traderaccessories-male",
+		"voiceSounds": [
+			"sounds/voice/duduk/",
+			"sounds/voice/harp/",
+			"sounds/voice/oboe/",
+			"sounds/voice/ocarina/",
+			"sounds/voice/trumpet/",
+			"sounds/voice/tuba/"
+		],
+		"outfitversion": 1,
+		"partialRandomOutfitsByType": {
+			"visitor-male-travellingcurio-temperate": {
+				"bodyskin": [
+					{
+						"Code": "bodyskin-1"
+					},
+					{
+						"Code": "bodyskin-2"
+					},
+					{
+						"Code": "bodyskin-3"
+					},
+					{
+						"Code": "bodyskin-4"
+					},
+					{
+						"Code": "bodyskin-5"
+					},
+					{
+						"Code": "bodyskin-6"
+					},
+					{
+						"Code": "bodyskin-7"
+					},
+					{
+						"Code": "bodyskin-8"
+					},
+					{
+						"Code": "bodyskin-9"
+					},
+					{
+						"Code": "bodyskin-10"
+					},
+					{
+						"Code": "bodyskin-11"
+					},
+					{
+						"Code": "bodyskin-12"
+					},
+					{
+						"Code": "bodyskin-13"
+					},
+					{
+						"Code": "bodyskin-14"
+					},
+					{
+						"Code": "bodyskin-15"
+					},
+					{
+						"Code": "bodyskin-16"
+					},
+					{
+						"Code": "bodyskin-17"
+					},
+					{
+						"Code": "bodyskin-18"
+					},
+					{
+						"Code": "bodyskin-19"
+					},
+					{
+						"Code": "bodyskin-20"
+					},
+					{
+						"Code": "bodyskin-27"
+					},
+					{
+						"Code": "bodyskin-28"
+					},
+					{
+						"Code": "bodyskin-29"
+					}
+				],
+				"hair-base": [
+					{
+						"Code": "hair-00"
+					},
+					{
+						"Code": "hair-01"
+					},
+					{
+						"Code": "hair-02"
+					},
+					{
+						"Code": "hair-03"
+					},
+					{
+						"Code": "hair-05"
+					},
+					{
+						"Code": "hair-07"
+					},
+					{
+						"Code": "hair-09"
+					},
+					{
+						"Code": "hair-12"
+					},
+					{
+						"Code": "hair-15"
+					},
+					{
+						"Code": "hair-16"
+					},
+					{
+						"Code": "hair-17"
+					},
+					{
+						"Code": "hair-bald-horseshoe"
+					},
+					{
+						"Code": "hair-bald-iroquis"
+					},
+					{
+						"Code": "hair-bald-topknot"
+					},
+					{
+						"Code": "hair-long-dreads"
+					},
+					{
+						"Code": "hair-medium-afro"
+					},
+					{
+						"Code": "hair-medium-basic"
+					},
+					{
+						"Code": "hair-medium-layered"
+					},
+					{
+						"Code": "hair-medium-spiky"
+					},
+					{
+						"Code": "hair-short-indigenousbalding"
+					},
+					{
+						"Code": "hair-short-sideshave"
+					},
+					{
+						"Code": "hair-short-trimmed"
+					}
+				],
+				"beard": [
+					{
+						"Code": "nothing",
+						"Weight": 16.0
+					},
+					{
+						"Code": "beard-1"
+					},
+					{
+						"Code": "beard-2"
+					},
+					{
+						"Code": "beard-3"
+					},
+					{
+						"Code": "beard-4"
+					},
+					{
+						"Code": "beard-5"
+					},
+					{
+						"Code": "beard-6"
+					},
+					{
+						"Code": "beard-7"
+					},
+					{
+						"Code": "beard-8"
+					},
+					{
+						"Code": "beard-full1"
+					},
+					{
+						"Code": "beard-full2"
+					},
+					{
+						"Code": "beard-full3"
+					},
+					{
+						"Code": "beard-full4"
+					},
+					{
+						"Code": "beard-full5"
+					},
+					{
+						"Code": "beard-full6"
+					},
+					{
+						"Code": "beard-full7"
+					},
+					{
+						"Code": "beard-full8"
+					}
+				],
+				"mustache": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "mustache-1"
+					},
+					{
+						"Code": "mustache-2"
+					},
+					{
+						"Code": "mustache-3"
+					},
+					{
+						"Code": "mustache-4"
+					},
+					{
+						"Code": "mustache-5"
+					}
+				],
+				"arm": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "arm-beadedbracelet"
+					},
+					{
+						"Code": "arm-braceletcopperl"
+					},
+					{
+						"Code": "arm-braceletgoldl"
+					},
+					{
+						"Code": "arm-braceletsilverl"
+					},
+					{
+						"Code": "arm-braceletcopperr"
+					},
+					{
+						"Code": "arm-braceletgoldr"
+					},
+					{
+						"Code": "arm-braceletsilverr"
+					},
+					{
+						"Code": "arm-shoulderpouch"
+					}
+				],
+				"face": [
+					{
+						"Code": "nothing",
+						"Weight": 25.0
+					},
+					{
+						"Code": "face-goggles"
+					},
+					{
+						"Code": "face-headband"
+					},
+					{
+						"Code": "face-monoclesilverl"
+					},
+					{
+						"Code": "face-monoclegoldl"
+					},
+					{
+						"Code": "face-monoclesilverr"
+					},
+					{
+						"Code": "face-monoclegoldr"
+					},
+					{
+						"Code": "face-pincenez"
+					},
+					{
+						"Code": "face-pipe"
+					},
+					{
+						"Code": "face-facemask"
+					},
+					{
+						"Code": "face-metalmask1"
+					},
+					{
+						"Code": "face-metalmask2"
+					},
+					{
+						"Code": "face-oldmask"
+					},
+					{
+						"Code": "face-plaguemask"
+					},
+					{
+						"Code": "face-primitivegasmask"
+					},
+					{
+						"Code": "face-scavengermask"
+					},
+					{
+						"Code": "face-veil"
+					},
+					{
+						"Code": "face-veiledgoggles"
+					},
+					{
+						"Code": "face-woodmask1"
+					},
+					{
+						"Code": "face-woodmask2"
+					},
+					{
+						"Code": "face-armor-bandageseye"
+					},
+					{
+						"Code": "face-armor-leathermask"
+					}
+				],
+				"foot": [
+					{
+						"Code": "foot-boots1"
+					},
+					{
+						"Code": "foot-boots2"
+					},
+					{
+						"Code": "foot-boots3"
+					},
+					{
+						"Code": "foot-boots4"
+					},
+					{
+						"Code": "foot-furboots1"
+					},
+					{
+						"Code": "foot-furboots2"
+					},
+					{
+						"Code": "foot-reinforcedboots"
+					},
+					{
+						"Code": "foot-sandals1"
+					},
+					{
+						"Code": "foot-sandals2"
+					},
+					{
+						"Code": "foot-sandals3"
+					},
+					{
+						"Code": "foot-shoes1"
+					},
+					{
+						"Code": "foot-slippers1"
+					},
+					{
+						"Code": "foot-slippers2"
+					},
+					{
+						"Code": "foot-slippers2clogs"
+					},
+					{
+						"Code": "foot-slippers3"
+					}
+				],
+				"hand": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "hand-abacus"
+					},
+					{
+						"Code": "hand-glovescopperpin"
+					},
+					{
+						"Code": "hand-glovesfurlined"
+					},
+					{
+						"Code": "hand-gloveswork"
+					},
+					{
+						"Code": "hand-glovesgardening"
+					},
+					{
+						"Code": "hand-glovesforearm"
+					},
+					{
+						"Code": "hand-glovesleather"
+					},
+					{
+						"Code": "hand-glovesreinforced"
+					},
+					{
+						"Code": "hand-ringssilverl"
+					},
+					{
+						"Code": "hand-ringscopperl"
+					},
+					{
+						"Code": "hand-ringsgoldl"
+					},
+					{
+						"Code": "hand-ringssilverr"
+					},
+					{
+						"Code": "hand-ringscopperr"
+					},
+					{
+						"Code": "hand-ringsgoldr"
+					}
+				],
+				"head": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "head-beret"
+					},
+					{
+						"Code": "head-camohood"
+					},
+					{
+						"Code": "head-chaperon"
+					},
+					{
+						"Code": "head-coontailhat"
+					},
+					{
+						"Code": "head-felthat"
+					},
+					{
+						"Code": "head-nadiyanhat"
+					},
+					{
+						"Code": "head-nadiyanhoodgreen"
+					},
+					{
+						"Code": "head-nadiyanhoodeye"
+					},
+					{
+						"Code": "head-nadiyanhoodtan"
+					},
+					{
+						"Code": "head-skullcap"
+					},
+					{
+						"Code": "head-trapperhat"
+					},
+					{
+						"Code": "head-warmhat1"
+					},
+					{
+						"Code": "head-warmhat2"
+					},
+					{
+						"Code": "head-warmhat3"
+					},
+					{
+						"Code": "head-bandages"
+					},
+					{
+						"Code": "head-armor-leather"
+					},
+					{
+						"Code": "head-armor-metal"
+					}
+				],
+				"lowerbody": [
+					{
+						"Code": "lowerbody-hose1sailor"
+					},
+					{
+						"Code": "lowerbody-hose2"
+					},
+					{
+						"Code": "lowerbody-hose3scholar"
+					},
+					{
+						"Code": "lowerbody-hose4trapper"
+					},
+					{
+						"Code": "lowerbody-hose5"
+					},
+					{
+						"Code": "lowerbody-pants1striped"
+					},
+					{
+						"Code": "lowerbody-pants2squaresbright"
+					},
+					{
+						"Code": "lowerbody-pants3"
+					},
+					{
+						"Code": "lowerbody-pants4"
+					},
+					{
+						"Code": "lowerbody-pants5"
+					},
+					{
+						"Code": "lowerbody-pants7squaresdark"
+					},
+					{
+						"Code": "lowerbody-pants8"
+					},
+					{
+						"Code": "lowerbody-pants9"
+					},
+					{
+						"Code": "lowerbody-pants10"
+					},
+					{
+						"Code": "lowerbody-pants11"
+					},
+					{
+						"Code": "lowerbody-pants12"
+					},
+					{
+						"Code": "lowerbody-pantssuspender"
+					}
+				],
+				"neck": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "neck-gearsamulet"
+					},
+					{
+						"Code": "neck-tradernecklacesilver"
+					},
+					{
+						"Code": "neck-tradernecklacecopper"
+					},
+					{
+						"Code": "neck-tradernecklacegold"
+					}
+				],
+				"shoulder": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "shoulder-aprontan"
+					},
+					{
+						"Code": "shoulder-apronbrown"
+					},
+					{
+						"Code": "shoulder-apronfancy"
+					},
+					{
+						"Code": "shoulder-apronleather"
+					},
+					{
+						"Code": "shoulder-longsleevebolero"
+					},
+					{
+						"Code": "shoulder-sash"
+					},
+					{
+						"Code": "shoulder-sashsimple"
+					},
+					{
+						"Code": "shoulder-scarfgreen"
+					},
+					{
+						"Code": "shoulder-scarfred"
+					},
+					{
+						"Code": "shoulder-shortsleeve-coat2"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket1forester"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket2shady"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket3capelet"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest1"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest2sailor"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest3warm"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest4scholar"
+					},
+					{
+						"Code": "shoulder-shortsleeveextended-coat1"
+					}
+				],
+				"upperbody": [
+					{
+						"Code": "upperbody-longsleeve-shirt1worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt2worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt3squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt4embroidered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt5cheongsam"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt6tattered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt7"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt8spelunker"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt9raggedy"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt10squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt11dark"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt12fur"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt13fishnet"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt14pastoral"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt15"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt16"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt17patched"
+					}
+				],
+				"upperbodyover": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt1furvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt2"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt3peltvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt4vest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt5"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt6fancyvest"
+					},
+					{
+						"Code": "upperbodyover-armor-bandages"
+					},
+					{
+						"Code": "upperbodyover-armor-leather"
+					},
+					{
+						"Code": "upperbodyover-armor-metal"
+					},
+					{
+						"Code": "upperbodyover-armor-wicker"
+					}
+				],
+				"waist": [
+					{
+						"Code": "waist-abacus"
+					},
+					{
+						"Code": "waist-beltkit"
+					},
+					{
+						"Code": "waist-beltwithstring"
+					},
+					{
+						"Code": "waist-beltwithtrim"
+					},
+					{
+						"Code": "waist-chisel"
+					},
+					{
+						"Code": "waist-climbingbelt"
+					},
+					{
+						"Code": "waist-dagger"
+					},
+					{
+						"Code": "waist-driedherbs"
+					},
+					{
+						"Code": "waist-drill"
+					},
+					{
+						"Code": "waist-girdlesilver"
+					},
+					{
+						"Code": "waist-girdlecopper"
+					},
+					{
+						"Code": "waist-girdlegold"
+					},
+					{
+						"Code": "waist-sashcentergreen"
+					},
+					{
+						"Code": "waist-sashcenterred"
+					},
+					{
+						"Code": "waist-sashleftgreen"
+					},
+					{
+						"Code": "waist-sashleftred"
+					},
+					{
+						"Code": "waist-hammer"
+					},
+					{
+						"Code": "waist-handsaw"
+					},
+					{
+						"Code": "waist-ledger"
+					},
+					{
+						"Code": "waist-panningbowl"
+					},
+					{
+						"Code": "waist-pouchblue"
+					},
+					{
+						"Code": "waist-sack"
+					},
+					{
+						"Code": "waist-spyglass"
+					},
+					{
+						"Code": "waist-tiedrope"
+					}
+				]
+			},
+			"visitor-male-travellingcurio-cold": {
+				"bodyskin": [
+					{
+						"Code": "bodyskin-1"
+					},
+					{
+						"Code": "bodyskin-2"
+					},
+					{
+						"Code": "bodyskin-3"
+					},
+					{
+						"Code": "bodyskin-4"
+					},
+					{
+						"Code": "bodyskin-5"
+					},
+					{
+						"Code": "bodyskin-6"
+					},
+					{
+						"Code": "bodyskin-7"
+					},
+					{
+						"Code": "bodyskin-8"
+					},
+					{
+						"Code": "bodyskin-9"
+					},
+					{
+						"Code": "bodyskin-10"
+					},
+					{
+						"Code": "bodyskin-11"
+					},
+					{
+						"Code": "bodyskin-27"
+					},
+					{
+						"Code": "bodyskin-28"
+					},
+					{
+						"Code": "bodyskin-29"
+					}
+				],
+				"hair-base": [
+					{
+						"Code": "hair-00"
+					},
+					{
+						"Code": "hair-01"
+					},
+					{
+						"Code": "hair-02"
+					},
+					{
+						"Code": "hair-03"
+					},
+					{
+						"Code": "hair-05"
+					},
+					{
+						"Code": "hair-07"
+					},
+					{
+						"Code": "hair-09"
+					},
+					{
+						"Code": "hair-12"
+					},
+					{
+						"Code": "hair-15"
+					},
+					{
+						"Code": "hair-16"
+					},
+					{
+						"Code": "hair-17"
+					},
+					{
+						"Code": "hair-bald-horseshoe"
+					},
+					{
+						"Code": "hair-bald-iroquis"
+					},
+					{
+						"Code": "hair-bald-topknot"
+					},
+					{
+						"Code": "hair-long-dreads"
+					},
+					{
+						"Code": "hair-medium-afro"
+					},
+					{
+						"Code": "hair-medium-basic"
+					},
+					{
+						"Code": "hair-medium-layered"
+					},
+					{
+						"Code": "hair-medium-spiky"
+					},
+					{
+						"Code": "hair-short-indigenousbalding"
+					},
+					{
+						"Code": "hair-short-sideshave"
+					},
+					{
+						"Code": "hair-short-trimmed"
+					}
+				],
+				"beard": [
+					{
+						"Code": "nothing",
+						"Weight": 8.0
+					},
+					{
+						"Code": "beard-1"
+					},
+					{
+						"Code": "beard-2"
+					},
+					{
+						"Code": "beard-3"
+					},
+					{
+						"Code": "beard-4"
+					},
+					{
+						"Code": "beard-5"
+					},
+					{
+						"Code": "beard-6"
+					},
+					{
+						"Code": "beard-7"
+					},
+					{
+						"Code": "beard-8"
+					},
+					{
+						"Code": "beard-full1"
+					},
+					{
+						"Code": "beard-full2"
+					},
+					{
+						"Code": "beard-full3"
+					},
+					{
+						"Code": "beard-full4"
+					},
+					{
+						"Code": "beard-full5"
+					},
+					{
+						"Code": "beard-full6"
+					},
+					{
+						"Code": "beard-full7"
+					},
+					{
+						"Code": "beard-full8"
+					}
+				],
+				"mustache": [
+					{
+						"Code": "nothing",
+						"Weight": 2.0
+					},
+					{
+						"Code": "mustache-1"
+					},
+					{
+						"Code": "mustache-2"
+					},
+					{
+						"Code": "mustache-3"
+					},
+					{
+						"Code": "mustache-4"
+					},
+					{
+						"Code": "mustache-5"
+					}
+				],
+				"arm": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "arm-beadedbracelet"
+					},
+					{
+						"Code": "arm-braceletcopperl"
+					},
+					{
+						"Code": "arm-braceletgoldl"
+					},
+					{
+						"Code": "arm-braceletsilverl"
+					},
+					{
+						"Code": "arm-braceletcopperr"
+					},
+					{
+						"Code": "arm-braceletgoldr"
+					},
+					{
+						"Code": "arm-braceletsilverr"
+					},
+					{
+						"Code": "arm-shoulderpouch"
+					}
+				],
+				"face": [
+					{
+						"Code": "nothing",
+						"Weight": 25.0
+					},
+					{
+						"Code": "face-goggles"
+					},
+					{
+						"Code": "face-headband"
+					},
+					{
+						"Code": "face-monoclesilverl"
+					},
+					{
+						"Code": "face-monoclegoldl"
+					},
+					{
+						"Code": "face-monoclesilverr"
+					},
+					{
+						"Code": "face-monoclegoldr"
+					},
+					{
+						"Code": "face-pincenez"
+					},
+					{
+						"Code": "face-pipe"
+					},
+					{
+						"Code": "face-facemask"
+					},
+					{
+						"Code": "face-metalmask1"
+					},
+					{
+						"Code": "face-metalmask2"
+					},
+					{
+						"Code": "face-oldmask"
+					},
+					{
+						"Code": "face-plaguemask"
+					},
+					{
+						"Code": "face-primitivegasmask"
+					},
+					{
+						"Code": "face-scavengermask"
+					},
+					{
+						"Code": "face-snowmask",
+						"Weight": 5.0
+					},
+					{
+						"Code": "face-woodmask1"
+					},
+					{
+						"Code": "face-woodmask2"
+					},
+					{
+						"Code": "face-armor-bandageseye"
+					},
+					{
+						"Code": "face-armor-leathermask"
+					}
+				],
+				"foot": [
+					{
+						"Code": "foot-boots1"
+					},
+					{
+						"Code": "foot-boots2"
+					},
+					{
+						"Code": "foot-boots3"
+					},
+					{
+						"Code": "foot-boots4"
+					},
+					{
+						"Code": "foot-furboots1"
+					},
+					{
+						"Code": "foot-furboots2"
+					},
+					{
+						"Code": "foot-reinforcedboots"
+					},
+					{
+						"Code": "foot-shoes1"
+					},
+					{
+						"Code": "foot-slippers1"
+					},
+					{
+						"Code": "foot-slippers2"
+					},
+					{
+						"Code": "foot-slippers2clogs"
+					},
+					{
+						"Code": "foot-slippers3"
+					}
+				],
+				"hand": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "hand-abacus"
+					},
+					{
+						"Code": "hand-glovescopperpin"
+					},
+					{
+						"Code": "hand-glovesfurlined"
+					},
+					{
+						"Code": "hand-gloveswork"
+					},
+					{
+						"Code": "hand-glovesgardening"
+					},
+					{
+						"Code": "hand-glovesforearm"
+					},
+					{
+						"Code": "hand-glovesleather"
+					},
+					{
+						"Code": "hand-glovesreinforced"
+					},
+					{
+						"Code": "hand-ringssilverl"
+					},
+					{
+						"Code": "hand-ringscopperl"
+					},
+					{
+						"Code": "hand-ringsgoldl"
+					},
+					{
+						"Code": "hand-ringssilverr"
+					},
+					{
+						"Code": "hand-ringscopperr"
+					},
+					{
+						"Code": "hand-ringsgoldr"
+					}
+				],
+				"head": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "head-beret"
+					},
+					{
+						"Code": "head-camohood"
+					},
+					{
+						"Code": "head-chaperon"
+					},
+					{
+						"Code": "head-coontailhat"
+					},
+					{
+						"Code": "head-felthat"
+					},
+					{
+						"Code": "head-nadiyanhat"
+					},
+					{
+						"Code": "head-nadiyanhoodgreen"
+					},
+					{
+						"Code": "head-nadiyanhoodeye"
+					},
+					{
+						"Code": "head-nadiyanhoodtan"
+					},
+					{
+						"Code": "head-skullcap"
+					},
+					{
+						"Code": "head-trapperhat"
+					},
+					{
+						"Code": "head-warmhat1"
+					},
+					{
+						"Code": "head-warmhat2"
+					},
+					{
+						"Code": "head-warmhat3"
+					},
+					{
+						"Code": "head-bandages"
+					},
+					{
+						"Code": "head-armor-leather"
+					},
+					{
+						"Code": "head-armor-metal"
+					}
+				],
+				"lowerbody": [
+					{
+						"Code": "lowerbody-hose1sailor"
+					},
+					{
+						"Code": "lowerbody-hose2"
+					},
+					{
+						"Code": "lowerbody-hose3scholar"
+					},
+					{
+						"Code": "lowerbody-hose4trapper"
+					},
+					{
+						"Code": "lowerbody-hose5"
+					},
+					{
+						"Code": "lowerbody-pants1striped"
+					},
+					{
+						"Code": "lowerbody-pants2squaresbright"
+					},
+					{
+						"Code": "lowerbody-pants3"
+					},
+					{
+						"Code": "lowerbody-pants4"
+					},
+					{
+						"Code": "lowerbody-pants5"
+					},
+					{
+						"Code": "lowerbody-pants7squaresdark"
+					},
+					{
+						"Code": "lowerbody-pants8"
+					},
+					{
+						"Code": "lowerbody-pants9"
+					},
+					{
+						"Code": "lowerbody-pants10"
+					},
+					{
+						"Code": "lowerbody-pants11"
+					},
+					{
+						"Code": "lowerbody-pants12"
+					},
+					{
+						"Code": "lowerbody-pantssuspender"
+					}
+				],
+				"neck": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "neck-gearsamulet"
+					},
+					{
+						"Code": "neck-tradernecklacesilver"
+					},
+					{
+						"Code": "neck-tradernecklacecopper"
+					},
+					{
+						"Code": "neck-tradernecklacegold"
+					}
+				],
+				"shoulder": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "shoulder-aprontan"
+					},
+					{
+						"Code": "shoulder-apronbrown"
+					},
+					{
+						"Code": "shoulder-apronfancy"
+					},
+					{
+						"Code": "shoulder-apronleather"
+					},
+					{
+						"Code": "shoulder-longsleevebolero"
+					},
+					{
+						"Code": "shoulder-sash"
+					},
+					{
+						"Code": "shoulder-sashsimple"
+					},
+					{
+						"Code": "shoulder-scarfgreen"
+					},
+					{
+						"Code": "shoulder-scarfred"
+					},
+					{
+						"Code": "shoulder-shortsleeve-coat2"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket1forester"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket2shady"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket3capelet"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest1"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest2sailor"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest3warm"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest4scholar"
+					},
+					{
+						"Code": "shoulder-shortsleeveextended-coat1"
+					}
+				],
+				"upperbody": [
+					{
+						"Code": "upperbody-longsleeve-shirt1worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt2worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt3squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt4embroidered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt5cheongsam"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt6tattered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt7"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt8spelunker"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt9raggedy"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt10squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt11dark"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt12fur"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt13fishnet"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt14pastoral"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt15"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt16"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt17patched"
+					}
+				],
+				"upperbodyover": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt1furvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt2"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt3peltvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt4vest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt5"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt6fancyvest"
+					},
+					{
+						"Code": "upperbodyover-armor-bandages"
+					},
+					{
+						"Code": "upperbodyover-armor-leather"
+					},
+					{
+						"Code": "upperbodyover-armor-metal"
+					},
+					{
+						"Code": "upperbodyover-armor-wicker"
+					}
+				],
+				"waist": [
+					{
+						"Code": "waist-abacus"
+					},
+					{
+						"Code": "waist-beltkit"
+					},
+					{
+						"Code": "waist-beltwithstring"
+					},
+					{
+						"Code": "waist-beltwithtrim"
+					},
+					{
+						"Code": "waist-chisel"
+					},
+					{
+						"Code": "waist-climbingbelt"
+					},
+					{
+						"Code": "waist-dagger"
+					},
+					{
+						"Code": "waist-driedherbs"
+					},
+					{
+						"Code": "waist-drill"
+					},
+					{
+						"Code": "waist-girdlesilver"
+					},
+					{
+						"Code": "waist-girdlecopper"
+					},
+					{
+						"Code": "waist-girdlegold"
+					},
+					{
+						"Code": "waist-sashcentergreen"
+					},
+					{
+						"Code": "waist-sashcenterred"
+					},
+					{
+						"Code": "waist-sashleftgreen"
+					},
+					{
+						"Code": "waist-sashleftred"
+					},
+					{
+						"Code": "waist-hammer"
+					},
+					{
+						"Code": "waist-handsaw"
+					},
+					{
+						"Code": "waist-ledger"
+					},
+					{
+						"Code": "waist-panningbowl"
+					},
+					{
+						"Code": "waist-pouchblue"
+					},
+					{
+						"Code": "waist-sack"
+					},
+					{
+						"Code": "waist-spyglass"
+					},
+					{
+						"Code": "waist-tiedrope"
+					}
+				]
+			},
+			"visitor-male-travellingcurio-desert": {
+				"bodyskin": [
+					{
+						"Code": "bodyskin-4"
+					},
+					{
+						"Code": "bodyskin-5"
+					},
+					{
+						"Code": "bodyskin-6"
+					},
+					{
+						"Code": "bodyskin-7"
+					},
+					{
+						"Code": "bodyskin-8"
+					},
+					{
+						"Code": "bodyskin-9"
+					},
+					{
+						"Code": "bodyskin-10"
+					},
+					{
+						"Code": "bodyskin-11"
+					},
+					{
+						"Code": "bodyskin-12"
+					},
+					{
+						"Code": "bodyskin-13"
+					},
+					{
+						"Code": "bodyskin-14"
+					},
+					{
+						"Code": "bodyskin-15"
+					},
+					{
+						"Code": "bodyskin-16"
+					},
+					{
+						"Code": "bodyskin-17"
+					},
+					{
+						"Code": "bodyskin-18"
+					},
+					{
+						"Code": "bodyskin-19"
+					},
+					{
+						"Code": "bodyskin-20"
+					},
+					{
+						"Code": "bodyskin-21"
+					},
+					{
+						"Code": "bodyskin-22"
+					},
+					{
+						"Code": "bodyskin-23"
+					},
+					{
+						"Code": "bodyskin-24"
+					},
+					{
+						"Code": "bodyskin-25"
+					},
+					{
+						"Code": "bodyskin-26"
+					},
+					{
+						"Code": "bodyskin-27"
+					},
+					{
+						"Code": "bodyskin-28"
+					},
+					{
+						"Code": "bodyskin-29"
+					}
+				],
+				"hair-base": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "hair-00"
+					},
+					{
+						"Code": "hair-01"
+					},
+					{
+						"Code": "hair-02"
+					},
+					{
+						"Code": "hair-03"
+					},
+					{
+						"Code": "hair-05"
+					},
+					{
+						"Code": "hair-07"
+					},
+					{
+						"Code": "hair-09"
+					},
+					{
+						"Code": "hair-12"
+					},
+					{
+						"Code": "hair-15"
+					},
+					{
+						"Code": "hair-16"
+					},
+					{
+						"Code": "hair-17"
+					},
+					{
+						"Code": "hair-bald-horseshoe"
+					},
+					{
+						"Code": "hair-bald-iroquis"
+					},
+					{
+						"Code": "hair-bald-topknot"
+					},
+					{
+						"Code": "hair-long-dreads"
+					},
+					{
+						"Code": "hair-medium-afro"
+					},
+					{
+						"Code": "hair-medium-basic"
+					},
+					{
+						"Code": "hair-medium-layered"
+					},
+					{
+						"Code": "hair-medium-spiky"
+					},
+					{
+						"Code": "hair-short-indigenousbalding"
+					},
+					{
+						"Code": "hair-short-sideshave"
+					},
+					{
+						"Code": "hair-short-trimmed"
+					}
+				],
+				"beard": [
+					{
+						"Code": "nothing",
+						"Weight": 30.0
+					},
+					{
+						"Code": "beard-1"
+					},
+					{
+						"Code": "beard-2"
+					},
+					{
+						"Code": "beard-3"
+					},
+					{
+						"Code": "beard-4"
+					},
+					{
+						"Code": "beard-5"
+					},
+					{
+						"Code": "beard-6"
+					},
+					{
+						"Code": "beard-7"
+					},
+					{
+						"Code": "beard-8"
+					},
+					{
+						"Code": "beard-full1"
+					},
+					{
+						"Code": "beard-full2"
+					},
+					{
+						"Code": "beard-full3"
+					},
+					{
+						"Code": "beard-full4"
+					},
+					{
+						"Code": "beard-full5"
+					},
+					{
+						"Code": "beard-full6"
+					},
+					{
+						"Code": "beard-full7"
+					},
+					{
+						"Code": "beard-full8"
+					}
+				],
+				"mustache": [
+					{
+						"Code": "nothing",
+						"Weight": 2.0
+					},
+					{
+						"Code": "mustache-1"
+					},
+					{
+						"Code": "mustache-2"
+					},
+					{
+						"Code": "mustache-3"
+					},
+					{
+						"Code": "mustache-4"
+					},
+					{
+						"Code": "mustache-5"
+					}
+				],
+				"arm": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "arm-beadedbracelet"
+					},
+					{
+						"Code": "arm-braceletcopperl"
+					},
+					{
+						"Code": "arm-braceletgoldl"
+					},
+					{
+						"Code": "arm-braceletsilverl"
+					},
+					{
+						"Code": "arm-braceletcopperr"
+					},
+					{
+						"Code": "arm-braceletgoldr"
+					},
+					{
+						"Code": "arm-braceletsilverr"
+					},
+					{
+						"Code": "arm-shoulderpouch"
+					}
+				],
+				"face": [
+					{
+						"Code": "nothing",
+						"Weight": 25.0
+					},
+					{
+						"Code": "face-goggles"
+					},
+					{
+						"Code": "face-headband"
+					},
+					{
+						"Code": "face-monoclesilverl"
+					},
+					{
+						"Code": "face-monoclegoldl"
+					},
+					{
+						"Code": "face-monoclesilverr"
+					},
+					{
+						"Code": "face-monoclegoldr"
+					},
+					{
+						"Code": "face-pincenez"
+					},
+					{
+						"Code": "face-pipe"
+					},
+					{
+						"Code": "face-facemask"
+					},
+					{
+						"Code": "face-metalmask1"
+					},
+					{
+						"Code": "face-metalmask2"
+					},
+					{
+						"Code": "face-oldmask"
+					},
+					{
+						"Code": "face-plaguemask"
+					},
+					{
+						"Code": "face-primitivegasmask"
+					},
+					{
+						"Code": "face-scavengermask"
+					},
+					{
+						"Code": "face-veil"
+					},
+					{
+						"Code": "face-veiledgoggles"
+					},
+					{
+						"Code": "face-woodmask1"
+					},
+					{
+						"Code": "face-woodmask2"
+					},
+					{
+						"Code": "face-armor-bandageseye"
+					},
+					{
+						"Code": "face-armor-leathermask"
+					}
+				],
+				"foot": [
+					{
+						"Code": "foot-boots1"
+					},
+					{
+						"Code": "foot-boots2"
+					},
+					{
+						"Code": "foot-boots3"
+					},
+					{
+						"Code": "foot-reinforcedboots"
+					},
+					{
+						"Code": "foot-sandals1"
+					},
+					{
+						"Code": "foot-sandals2"
+					},
+					{
+						"Code": "foot-sandals3"
+					},
+					{
+						"Code": "foot-shoes1"
+					},
+					{
+						"Code": "foot-slippers1"
+					},
+					{
+						"Code": "foot-slippers2"
+					},
+					{
+						"Code": "foot-slippers3"
+					}
+				],
+				"hand": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "hand-abacus"
+					},
+					{
+						"Code": "hand-glovescopperpin"
+					},
+					{
+						"Code": "hand-gloveswork"
+					},
+					{
+						"Code": "hand-glovesgardening"
+					},
+					{
+						"Code": "hand-glovesforearm"
+					},
+					{
+						"Code": "hand-glovesleather"
+					},
+					{
+						"Code": "hand-glovesreinforced"
+					},
+					{
+						"Code": "hand-ringssilverl"
+					},
+					{
+						"Code": "hand-ringscopperl"
+					},
+					{
+						"Code": "hand-ringsgoldl"
+					},
+					{
+						"Code": "hand-ringssilverr"
+					},
+					{
+						"Code": "hand-ringscopperr"
+					},
+					{
+						"Code": "hand-ringsgoldr"
+					}
+				],
+				"head": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "head-beret"
+					},
+					{
+						"Code": "head-fez"
+					},
+					{
+						"Code": "head-headwrap"
+					},
+					{
+						"Code": "head-headwrapnoface"
+					},
+					{
+						"Code": "head-keffiyeh"
+					},
+					{
+						"Code": "head-skullcap"
+					},
+					{
+						"Code": "head-turban"
+					},
+					{
+						"Code": "head-bandages"
+					},
+					{
+						"Code": "head-armor-leather"
+					},
+					{
+						"Code": "head-armor-metal"
+					}
+				],
+				"lowerbody": [
+					{
+						"Code": "lowerbody-hose1sailor"
+					},
+					{
+						"Code": "lowerbody-hose2"
+					},
+					{
+						"Code": "lowerbody-hose3scholar"
+					},
+					{
+						"Code": "lowerbody-hose4trapper"
+					},
+					{
+						"Code": "lowerbody-hose5"
+					},
+					{
+						"Code": "lowerbody-pants1striped"
+					},
+					{
+						"Code": "lowerbody-pants2squaresbright"
+					},
+					{
+						"Code": "lowerbody-pants3"
+					},
+					{
+						"Code": "lowerbody-pants4"
+					},
+					{
+						"Code": "lowerbody-pants5"
+					},
+					{
+						"Code": "lowerbody-pants7squaresdark"
+					},
+					{
+						"Code": "lowerbody-pants8"
+					},
+					{
+						"Code": "lowerbody-pants9"
+					},
+					{
+						"Code": "lowerbody-pants10"
+					},
+					{
+						"Code": "lowerbody-pants11"
+					},
+					{
+						"Code": "lowerbody-pants12"
+					},
+					{
+						"Code": "lowerbody-pantssuspender"
+					}
+				],
+				"neck": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "neck-gearsamulet"
+					},
+					{
+						"Code": "neck-tradernecklacesilver"
+					},
+					{
+						"Code": "neck-tradernecklacecopper"
+					},
+					{
+						"Code": "neck-tradernecklacegold"
+					}
+				],
+				"shoulder": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "shoulder-aprontan"
+					},
+					{
+						"Code": "shoulder-apronbrown"
+					},
+					{
+						"Code": "shoulder-apronfancy"
+					},
+					{
+						"Code": "shoulder-apronleather"
+					},
+					{
+						"Code": "shoulder-longsleevebolero"
+					},
+					{
+						"Code": "shoulder-sash"
+					},
+					{
+						"Code": "shoulder-sashsimple"
+					},
+					{
+						"Code": "shoulder-scarfgreen"
+					},
+					{
+						"Code": "shoulder-scarfred"
+					},
+					{
+						"Code": "shoulder-shortsleeve-coat2"
+					},
+					{
+						"Code": "shoulder-shortsleeve-desertwrapribbed"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket1forester"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket2shady"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket3capelet"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest1"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest2sailor"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest3warm"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest4scholar"
+					},
+					{
+						"Code": "shoulder-shortsleeveextended-coat1"
+					}
+				],
+				"upperbody": [
+					{
+						"Code": "upperbody-longsleeve-shirt1worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt2worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt3squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt4embroidered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt5cheongsam"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt6tattered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt7"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt8spelunker"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt9raggedy"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt10squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt11dark"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt13fishnet"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt14pastoral"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt15"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt16"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt17patched"
+					}
+				],
+				"upperbodyover": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt2"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt3peltvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt4vest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt5"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt6fancyvest"
+					},
+					{
+						"Code": "upperbodyover-armor-bandages"
+					},
+					{
+						"Code": "upperbodyover-armor-leather"
+					},
+					{
+						"Code": "upperbodyover-armor-metal"
+					},
+					{
+						"Code": "upperbodyover-armor-wicker"
+					}
+				],
+				"waist": [
+					{
+						"Code": "waist-abacus"
+					},
+					{
+						"Code": "waist-beltkit"
+					},
+					{
+						"Code": "waist-beltwithstring"
+					},
+					{
+						"Code": "waist-beltwithtrim"
+					},
+					{
+						"Code": "waist-chisel"
+					},
+					{
+						"Code": "waist-climbingbelt"
+					},
+					{
+						"Code": "waist-dagger"
+					},
+					{
+						"Code": "waist-driedherbs"
+					},
+					{
+						"Code": "waist-drill"
+					},
+					{
+						"Code": "waist-girdlesilver"
+					},
+					{
+						"Code": "waist-girdlecopper"
+					},
+					{
+						"Code": "waist-girdlegold"
+					},
+					{
+						"Code": "waist-sashcentergreen"
+					},
+					{
+						"Code": "waist-sashcenterred"
+					},
+					{
+						"Code": "waist-sashleftgreen"
+					},
+					{
+						"Code": "waist-sashleftred"
+					},
+					{
+						"Code": "waist-hammer"
+					},
+					{
+						"Code": "waist-handsaw"
+					},
+					{
+						"Code": "waist-ledger"
+					},
+					{
+						"Code": "waist-panningbowl"
+					},
+					{
+						"Code": "waist-pouchblue"
+					},
+					{
+						"Code": "waist-sack"
+					},
+					{
+						"Code": "waist-spyglass"
+					},
+					{
+						"Code": "waist-tiedrope"
+					}
+				]
+			},
+			"visitor-male-*-temperate": {
+				"bodyskin": [
+					{
+						"Code": "bodyskin-1"
+					},
+					{
+						"Code": "bodyskin-2"
+					},
+					{
+						"Code": "bodyskin-3"
+					},
+					{
+						"Code": "bodyskin-4"
+					},
+					{
+						"Code": "bodyskin-5"
+					},
+					{
+						"Code": "bodyskin-6"
+					},
+					{
+						"Code": "bodyskin-7"
+					},
+					{
+						"Code": "bodyskin-8"
+					},
+					{
+						"Code": "bodyskin-9"
+					},
+					{
+						"Code": "bodyskin-10"
+					},
+					{
+						"Code": "bodyskin-11"
+					},
+					{
+						"Code": "bodyskin-12"
+					},
+					{
+						"Code": "bodyskin-13"
+					},
+					{
+						"Code": "bodyskin-14"
+					},
+					{
+						"Code": "bodyskin-15"
+					},
+					{
+						"Code": "bodyskin-16"
+					},
+					{
+						"Code": "bodyskin-17"
+					},
+					{
+						"Code": "bodyskin-18"
+					},
+					{
+						"Code": "bodyskin-19"
+					},
+					{
+						"Code": "bodyskin-20"
+					},
+					{
+						"Code": "bodyskin-27"
+					},
+					{
+						"Code": "bodyskin-28"
+					},
+					{
+						"Code": "bodyskin-29"
+					}
+				],
+				"hair-base": [
+					{
+						"Code": "hair-00"
+					},
+					{
+						"Code": "hair-01"
+					},
+					{
+						"Code": "hair-02"
+					},
+					{
+						"Code": "hair-03"
+					},
+					{
+						"Code": "hair-05"
+					},
+					{
+						"Code": "hair-07"
+					},
+					{
+						"Code": "hair-09"
+					},
+					{
+						"Code": "hair-12"
+					},
+					{
+						"Code": "hair-15"
+					},
+					{
+						"Code": "hair-16"
+					},
+					{
+						"Code": "hair-17"
+					},
+					{
+						"Code": "hair-bald-horseshoe"
+					},
+					{
+						"Code": "hair-bald-iroquis"
+					},
+					{
+						"Code": "hair-bald-topknot"
+					},
+					{
+						"Code": "hair-long-dreads"
+					},
+					{
+						"Code": "hair-medium-afro"
+					},
+					{
+						"Code": "hair-medium-basic"
+					},
+					{
+						"Code": "hair-medium-layered"
+					},
+					{
+						"Code": "hair-medium-spiky"
+					},
+					{
+						"Code": "hair-short-indigenousbalding"
+					},
+					{
+						"Code": "hair-short-sideshave"
+					},
+					{
+						"Code": "hair-short-trimmed"
+					}
+				],
+				"beard": [
+					{
+						"Code": "nothing",
+						"Weight": 16.0
+					},
+					{
+						"Code": "beard-1"
+					},
+					{
+						"Code": "beard-2"
+					},
+					{
+						"Code": "beard-3"
+					},
+					{
+						"Code": "beard-4"
+					},
+					{
+						"Code": "beard-5"
+					},
+					{
+						"Code": "beard-6"
+					},
+					{
+						"Code": "beard-7"
+					},
+					{
+						"Code": "beard-8"
+					},
+					{
+						"Code": "beard-full1"
+					},
+					{
+						"Code": "beard-full2"
+					},
+					{
+						"Code": "beard-full3"
+					},
+					{
+						"Code": "beard-full4"
+					},
+					{
+						"Code": "beard-full5"
+					},
+					{
+						"Code": "beard-full6"
+					},
+					{
+						"Code": "beard-full7"
+					},
+					{
+						"Code": "beard-full8"
+					}
+				],
+				"mustache": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "mustache-1"
+					},
+					{
+						"Code": "mustache-2"
+					},
+					{
+						"Code": "mustache-3"
+					},
+					{
+						"Code": "mustache-4"
+					},
+					{
+						"Code": "mustache-5"
+					}
+				],
+				"arm": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "arm-beadedbracelet"
+					},
+					{
+						"Code": "arm-bonebracer"
+					},
+					{
+						"Code": "arm-braceletcopperl"
+					},
+					{
+						"Code": "arm-braceletgoldl"
+					},
+					{
+						"Code": "arm-braceletsilverl"
+					},
+					{
+						"Code": "arm-braceletcopperr"
+					},
+					{
+						"Code": "arm-braceletgoldr"
+					},
+					{
+						"Code": "arm-braceletsilverr"
+					},
+					{
+						"Code": "arm-filamentlamp"
+					},
+					{
+						"Code": "arm-pugilistbracers"
+					},
+					{
+						"Code": "arm-shoulderpouch"
+					},
+					{
+						"Code": "arm-strings"
+					},
+					{
+						"Code": "arm-tiedrope"
+					}
+				],
+				"face": [
+					{
+						"Code": "nothing",
+						"Weight": 25.0
+					},
+					{
+						"Code": "face-goggles"
+					},
+					{
+						"Code": "face-headband"
+					},
+					{
+						"Code": "face-pincenez"
+					},
+					{
+						"Code": "face-pipe"
+					},
+					{
+						"Code": "face-facemask"
+					},
+					{
+						"Code": "face-metalmask1"
+					},
+					{
+						"Code": "face-metalmask2"
+					},
+					{
+						"Code": "face-oldmask"
+					},
+					{
+						"Code": "face-plaguemask"
+					},
+					{
+						"Code": "face-primitivegasmask"
+					},
+					{
+						"Code": "face-scavengermask"
+					},
+					{
+						"Code": "face-skullmask"
+					},
+					{
+						"Code": "face-veil"
+					},
+					{
+						"Code": "face-veiledgoggles"
+					},
+					{
+						"Code": "face-wolfskull"
+					},
+					{
+						"Code": "face-woodmask1"
+					},
+					{
+						"Code": "face-woodmask2"
+					},
+					{
+						"Code": "face-armor-bandageseye"
+					},
+					{
+						"Code": "face-armor-leathermask"
+					}
+				],
+				"foot": [
+					{
+						"Code": "foot-boots1"
+					},
+					{
+						"Code": "foot-boots2"
+					},
+					{
+						"Code": "foot-boots3"
+					},
+					{
+						"Code": "foot-boots4"
+					},
+					{
+						"Code": "foot-furboots1"
+					},
+					{
+						"Code": "foot-furboots2"
+					},
+					{
+						"Code": "foot-reinforcedboots"
+					},
+					{
+						"Code": "foot-sandals1"
+					},
+					{
+						"Code": "foot-sandals2"
+					},
+					{
+						"Code": "foot-sandals3"
+					},
+					{
+						"Code": "foot-shoes1"
+					},
+					{
+						"Code": "foot-slippers1"
+					},
+					{
+						"Code": "foot-slippers2"
+					},
+					{
+						"Code": "foot-slippers2clogs"
+					},
+					{
+						"Code": "foot-slippers3"
+					},
+					{
+						"Code": "foot-wraps1"
+					},
+					{
+						"Code": "foot-wraps2"
+					}
+				],
+				"hand": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "hand-abacus"
+					},
+					{
+						"Code": "hand-glovesbonepin"
+					},
+					{
+						"Code": "hand-glovescopperpin"
+					},
+					{
+						"Code": "hand-glovesfurlined"
+					},
+					{
+						"Code": "hand-gloveswork"
+					},
+					{
+						"Code": "hand-glovesgardening"
+					},
+					{
+						"Code": "hand-glovesforearm"
+					},
+					{
+						"Code": "hand-glovesleather"
+					},
+					{
+						"Code": "hand-glovesdirty"
+					},
+					{
+						"Code": "hand-glovesreinforced"
+					},
+					{
+						"Code": "hand-gloveswraps"
+					},
+					{
+						"Code": "hand-ringssilverl"
+					},
+					{
+						"Code": "hand-ringscopperl"
+					},
+					{
+						"Code": "hand-ringsgoldl"
+					},
+					{
+						"Code": "hand-ringssilverr"
+					},
+					{
+						"Code": "hand-ringscopperr"
+					},
+					{
+						"Code": "hand-ringsgoldr"
+					}
+				],
+				"head": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "head-beret"
+					},
+					{
+						"Code": "head-bonyheadband"
+					},
+					{
+						"Code": "head-camohood"
+					},
+					{
+						"Code": "head-chaperon"
+					},
+					{
+						"Code": "head-coontailhat"
+					},
+					{
+						"Code": "head-crowcrown"
+					},
+					{
+						"Code": "head-felthat"
+					},
+					{
+						"Code": "head-minerhat"
+					},
+					{
+						"Code": "head-nadiyanhat"
+					},
+					{
+						"Code": "head-nadiyanhoodgreen"
+					},
+					{
+						"Code": "head-nadiyanhoodeye"
+					},
+					{
+						"Code": "head-nadiyanhoodtan"
+					},
+					{
+						"Code": "head-skullcap"
+					},
+					{
+						"Code": "head-trapperhat"
+					},
+					{
+						"Code": "head-turban"
+					},
+					{
+						"Code": "head-warmhat1"
+					},
+					{
+						"Code": "head-warmhat2"
+					},
+					{
+						"Code": "head-warmhat3"
+					},
+					{
+						"Code": "head-bandages"
+					},
+					{
+						"Code": "head-armor-leather"
+					},
+					{
+						"Code": "head-armor-metal"
+					}
+				],
+				"lowerbody": [
+					{
+						"Code": "lowerbody-hose1sailor"
+					},
+					{
+						"Code": "lowerbody-hose2"
+					},
+					{
+						"Code": "lowerbody-hose3scholar"
+					},
+					{
+						"Code": "lowerbody-hose4trapper"
+					},
+					{
+						"Code": "lowerbody-hose5"
+					},
+					{
+						"Code": "lowerbody-pants1striped"
+					},
+					{
+						"Code": "lowerbody-pants2squaresbright"
+					},
+					{
+						"Code": "lowerbody-pants3"
+					},
+					{
+						"Code": "lowerbody-pants4"
+					},
+					{
+						"Code": "lowerbody-pants5"
+					},
+					{
+						"Code": "lowerbody-pants6bony"
+					},
+					{
+						"Code": "lowerbody-pants7squaresdark"
+					},
+					{
+						"Code": "lowerbody-pants8"
+					},
+					{
+						"Code": "lowerbody-pants9"
+					},
+					{
+						"Code": "lowerbody-pants10"
+					},
+					{
+						"Code": "lowerbody-pants11"
+					},
+					{
+						"Code": "lowerbody-pants12"
+					},
+					{
+						"Code": "lowerbody-pantssuspender"
+					}
+				],
+				"neck": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "neck-bonenecklace"
+					},
+					{
+						"Code": "neck-gearsamulet"
+					},
+					{
+						"Code": "neck-teethnecklace"
+					},
+					{
+						"Code": "neck-tradernecklacesilver"
+					},
+					{
+						"Code": "neck-tradernecklacecopper"
+					},
+					{
+						"Code": "neck-tradernecklacegold"
+					}
+				],
+				"shoulder": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "shoulder-aprontan"
+					},
+					{
+						"Code": "shoulder-apronbrown"
+					},
+					{
+						"Code": "shoulder-apronfancy"
+					},
+					{
+						"Code": "shoulder-apronleather"
+					},
+					{
+						"Code": "shoulder-bonejacket"
+					},
+					{
+						"Code": "shoulder-furwrap"
+					},
+					{
+						"Code": "shoulder-longsleevebolero"
+					},
+					{
+						"Code": "shoulder-sash"
+					},
+					{
+						"Code": "shoulder-sashsimple"
+					},
+					{
+						"Code": "shoulder-scarfgreen"
+					},
+					{
+						"Code": "shoulder-scarfpoor"
+					},
+					{
+						"Code": "shoulder-scarfred"
+					},
+					{
+						"Code": "shoulder-shortsleeve-coat2"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket1forester"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket2shady"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket3capelet"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest1"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest2sailor"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest3warm"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest4scholar"
+					},
+					{
+						"Code": "shoulder-shortsleeveextended-coat1"
+					},
+					{
+						"Code": "shoulder-tiedrope"
+					}
+				],
+				"upperbody": [
+					{
+						"Code": "upperbody-longsleeve-shirt1worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt2worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt3squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt4embroidered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt5cheongsam"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt6tattered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt7"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt8spelunker"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt9raggedy"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt10squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt11dark"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt12fur"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt13fishnet"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt14pastoral"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt15"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt16"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt17patched"
+					}
+				],
+				"upperbodyover": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt1furvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt2"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt3peltvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt4vest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt5"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt6fancyvest"
+					},
+					{
+						"Code": "upperbodyover-armor-bandages"
+					},
+					{
+						"Code": "upperbodyover-armor-leather"
+					},
+					{
+						"Code": "upperbodyover-armor-metal"
+					},
+					{
+						"Code": "upperbodyover-armor-wicker"
+					}
+				],
+				"waist": [
+					{
+						"Code": "waist-abacus"
+					},
+					{
+						"Code": "waist-beltkit"
+					},
+					{
+						"Code": "waist-beltwithstring"
+					},
+					{
+						"Code": "waist-beltwithtrim"
+					},
+					{
+						"Code": "waist-chisel"
+					},
+					{
+						"Code": "waist-climbingbelt"
+					},
+					{
+						"Code": "waist-dagger"
+					},
+					{
+						"Code": "waist-driedherbs"
+					},
+					{
+						"Code": "waist-drill"
+					},
+					{
+						"Code": "waist-girdlesilver"
+					},
+					{
+						"Code": "waist-girdlecopper"
+					},
+					{
+						"Code": "waist-girdlegold"
+					},
+					{
+						"Code": "waist-sashcentergreen"
+					},
+					{
+						"Code": "waist-sashcenterred"
+					},
+					{
+						"Code": "waist-sashleftgreen"
+					},
+					{
+						"Code": "waist-sashleftred"
+					},
+					{
+						"Code": "waist-hammer"
+					},
+					{
+						"Code": "waist-handsaw"
+					},
+					{
+						"Code": "waist-ledger"
+					},
+					{
+						"Code": "waist-panningbowl"
+					},
+					{
+						"Code": "waist-pouchblue"
+					},
+					{
+						"Code": "waist-sack"
+					},
+					{
+						"Code": "waist-spyglass"
+					},
+					{
+						"Code": "waist-tiedrope"
+					}
+				]
+			},
+			"visitor-male-*-cold": {
+				"bodyskin": [
+					{
+						"Code": "bodyskin-1"
+					},
+					{
+						"Code": "bodyskin-2"
+					},
+					{
+						"Code": "bodyskin-3"
+					},
+					{
+						"Code": "bodyskin-4"
+					},
+					{
+						"Code": "bodyskin-5"
+					},
+					{
+						"Code": "bodyskin-6"
+					},
+					{
+						"Code": "bodyskin-7"
+					},
+					{
+						"Code": "bodyskin-8"
+					},
+					{
+						"Code": "bodyskin-9"
+					},
+					{
+						"Code": "bodyskin-10"
+					},
+					{
+						"Code": "bodyskin-11"
+					},
+					{
+						"Code": "bodyskin-27"
+					},
+					{
+						"Code": "bodyskin-28"
+					},
+					{
+						"Code": "bodyskin-29"
+					}
+				],
+				"hair-base": [
+					{
+						"Code": "hair-00"
+					},
+					{
+						"Code": "hair-01"
+					},
+					{
+						"Code": "hair-02"
+					},
+					{
+						"Code": "hair-03"
+					},
+					{
+						"Code": "hair-05"
+					},
+					{
+						"Code": "hair-07"
+					},
+					{
+						"Code": "hair-09"
+					},
+					{
+						"Code": "hair-12"
+					},
+					{
+						"Code": "hair-15"
+					},
+					{
+						"Code": "hair-16"
+					},
+					{
+						"Code": "hair-17"
+					},
+					{
+						"Code": "hair-bald-horseshoe"
+					},
+					{
+						"Code": "hair-bald-iroquis"
+					},
+					{
+						"Code": "hair-bald-topknot"
+					},
+					{
+						"Code": "hair-long-dreads"
+					},
+					{
+						"Code": "hair-medium-afro"
+					},
+					{
+						"Code": "hair-medium-basic"
+					},
+					{
+						"Code": "hair-medium-layered"
+					},
+					{
+						"Code": "hair-medium-spiky"
+					},
+					{
+						"Code": "hair-short-indigenousbalding"
+					},
+					{
+						"Code": "hair-short-sideshave"
+					},
+					{
+						"Code": "hair-short-trimmed"
+					}
+				],
+				"beard": [
+					{
+						"Code": "nothing",
+						"Weight": 8.0
+					},
+					{
+						"Code": "beard-1"
+					},
+					{
+						"Code": "beard-2"
+					},
+					{
+						"Code": "beard-3"
+					},
+					{
+						"Code": "beard-4"
+					},
+					{
+						"Code": "beard-5"
+					},
+					{
+						"Code": "beard-6"
+					},
+					{
+						"Code": "beard-7"
+					},
+					{
+						"Code": "beard-8"
+					},
+					{
+						"Code": "beard-full1"
+					},
+					{
+						"Code": "beard-full2"
+					},
+					{
+						"Code": "beard-full3"
+					},
+					{
+						"Code": "beard-full4"
+					},
+					{
+						"Code": "beard-full5"
+					},
+					{
+						"Code": "beard-full6"
+					},
+					{
+						"Code": "beard-full7"
+					},
+					{
+						"Code": "beard-full8"
+					}
+				],
+				"mustache": [
+					{
+						"Code": "nothing",
+						"Weight": 2.0
+					},
+					{
+						"Code": "mustache-1"
+					},
+					{
+						"Code": "mustache-2"
+					},
+					{
+						"Code": "mustache-3"
+					},
+					{
+						"Code": "mustache-4"
+					},
+					{
+						"Code": "mustache-5"
+					}
+				],
+				"arm": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "arm-beadedbracelet"
+					},
+					{
+						"Code": "arm-bonebracer"
+					},
+					{
+						"Code": "arm-braceletcopperl"
+					},
+					{
+						"Code": "arm-braceletgoldl"
+					},
+					{
+						"Code": "arm-braceletsilverl"
+					},
+					{
+						"Code": "arm-braceletcopperr"
+					},
+					{
+						"Code": "arm-braceletgoldr"
+					},
+					{
+						"Code": "arm-braceletsilverr"
+					},
+					{
+						"Code": "arm-filamentlamp"
+					},
+					{
+						"Code": "arm-pugilistbracers"
+					},
+					{
+						"Code": "arm-shoulderpouch"
+					},
+					{
+						"Code": "arm-strings"
+					},
+					{
+						"Code": "arm-tiedrope"
+					}
+				],
+				"face": [
+					{
+						"Code": "nothing",
+						"Weight": 25.0
+					},
+					{
+						"Code": "face-goggles"
+					},
+					{
+						"Code": "face-headband"
+					},
+					{
+						"Code": "face-pincenez"
+					},
+					{
+						"Code": "face-pipe"
+					},
+					{
+						"Code": "face-facemask"
+					},
+					{
+						"Code": "face-metalmask1"
+					},
+					{
+						"Code": "face-metalmask2"
+					},
+					{
+						"Code": "face-oldmask"
+					},
+					{
+						"Code": "face-plaguemask"
+					},
+					{
+						"Code": "face-primitivegasmask"
+					},
+					{
+						"Code": "face-scavengermask"
+					},
+					{
+						"Code": "face-skullmask"
+					},
+					{
+						"Code": "face-snowmask",
+						"Weight": 5.0
+					},
+					{
+						"Code": "face-wolfskull"
+					},
+					{
+						"Code": "face-woodmask1"
+					},
+					{
+						"Code": "face-woodmask2"
+					},
+					{
+						"Code": "face-armor-bandageseye"
+					},
+					{
+						"Code": "face-armor-leathermask"
+					}
+				],
+				"foot": [
+					{
+						"Code": "foot-boots1"
+					},
+					{
+						"Code": "foot-boots2"
+					},
+					{
+						"Code": "foot-boots3"
+					},
+					{
+						"Code": "foot-boots4"
+					},
+					{
+						"Code": "foot-furboots1"
+					},
+					{
+						"Code": "foot-furboots2"
+					},
+					{
+						"Code": "foot-reinforcedboots"
+					},
+					{
+						"Code": "foot-shoes1"
+					},
+					{
+						"Code": "foot-slippers1"
+					},
+					{
+						"Code": "foot-slippers2"
+					},
+					{
+						"Code": "foot-slippers2clogs"
+					},
+					{
+						"Code": "foot-slippers3"
+					},
+					{
+						"Code": "foot-wraps1"
+					},
+					{
+						"Code": "foot-wraps2"
+					}
+				],
+				"hand": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "hand-abacus"
+					},
+					{
+						"Code": "hand-glovesbonepin"
+					},
+					{
+						"Code": "hand-glovescopperpin"
+					},
+					{
+						"Code": "hand-glovesfurlined"
+					},
+					{
+						"Code": "hand-gloveswork"
+					},
+					{
+						"Code": "hand-glovesgardening"
+					},
+					{
+						"Code": "hand-glovesforearm"
+					},
+					{
+						"Code": "hand-glovesleather"
+					},
+					{
+						"Code": "hand-glovesdirty"
+					},
+					{
+						"Code": "hand-glovesreinforced"
+					},
+					{
+						"Code": "hand-gloveswraps"
+					},
+					{
+						"Code": "hand-ringssilverl"
+					},
+					{
+						"Code": "hand-ringscopperl"
+					},
+					{
+						"Code": "hand-ringsgoldl"
+					},
+					{
+						"Code": "hand-ringssilverr"
+					},
+					{
+						"Code": "hand-ringscopperr"
+					},
+					{
+						"Code": "hand-ringsgoldr"
+					}
+				],
+				"head": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "head-beret"
+					},
+					{
+						"Code": "head-bonyheadband"
+					},
+					{
+						"Code": "head-camohood"
+					},
+					{
+						"Code": "head-chaperon"
+					},
+					{
+						"Code": "head-coontailhat"
+					},
+					{
+						"Code": "head-crowcrown"
+					},
+					{
+						"Code": "head-felthat"
+					},
+					{
+						"Code": "head-minerhat"
+					},
+					{
+						"Code": "head-nadiyanhat"
+					},
+					{
+						"Code": "head-nadiyanhoodgreen"
+					},
+					{
+						"Code": "head-nadiyanhoodeye"
+					},
+					{
+						"Code": "head-nadiyanhoodtan"
+					},
+					{
+						"Code": "head-skullcap"
+					},
+					{
+						"Code": "head-trapperhat"
+					},
+					{
+						"Code": "head-warmhat1"
+					},
+					{
+						"Code": "head-warmhat2"
+					},
+					{
+						"Code": "head-warmhat3"
+					},
+					{
+						"Code": "head-bandages"
+					},
+					{
+						"Code": "head-armor-leather"
+					},
+					{
+						"Code": "head-armor-metal"
+					}
+				],
+				"lowerbody": [
+					{
+						"Code": "lowerbody-hose1sailor"
+					},
+					{
+						"Code": "lowerbody-hose2"
+					},
+					{
+						"Code": "lowerbody-hose3scholar"
+					},
+					{
+						"Code": "lowerbody-hose4trapper"
+					},
+					{
+						"Code": "lowerbody-hose5"
+					},
+					{
+						"Code": "lowerbody-pants1striped"
+					},
+					{
+						"Code": "lowerbody-pants2squaresbright"
+					},
+					{
+						"Code": "lowerbody-pants3"
+					},
+					{
+						"Code": "lowerbody-pants4"
+					},
+					{
+						"Code": "lowerbody-pants5"
+					},
+					{
+						"Code": "lowerbody-pants6bony"
+					},
+					{
+						"Code": "lowerbody-pants7squaresdark"
+					},
+					{
+						"Code": "lowerbody-pants8"
+					},
+					{
+						"Code": "lowerbody-pants9"
+					},
+					{
+						"Code": "lowerbody-pants10"
+					},
+					{
+						"Code": "lowerbody-pants11"
+					},
+					{
+						"Code": "lowerbody-pants12"
+					},
+					{
+						"Code": "lowerbody-pantssuspender"
+					}
+				],
+				"neck": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "neck-bonenecklace"
+					},
+					{
+						"Code": "neck-gearsamulet"
+					},
+					{
+						"Code": "neck-teethnecklace"
+					},
+					{
+						"Code": "neck-tradernecklacesilver"
+					},
+					{
+						"Code": "neck-tradernecklacecopper"
+					},
+					{
+						"Code": "neck-tradernecklacegold"
+					}
+				],
+				"shoulder": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "shoulder-aprontan"
+					},
+					{
+						"Code": "shoulder-apronbrown"
+					},
+					{
+						"Code": "shoulder-apronfancy"
+					},
+					{
+						"Code": "shoulder-apronleather"
+					},
+					{
+						"Code": "shoulder-bonejacket"
+					},
+					{
+						"Code": "shoulder-furwrap"
+					},
+					{
+						"Code": "shoulder-longsleevebolero"
+					},
+					{
+						"Code": "shoulder-sash"
+					},
+					{
+						"Code": "shoulder-sashsimple"
+					},
+					{
+						"Code": "shoulder-scarfgreen"
+					},
+					{
+						"Code": "shoulder-scarfpoor"
+					},
+					{
+						"Code": "shoulder-scarfred"
+					},
+					{
+						"Code": "shoulder-shortsleeve-coat2"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket1forester"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket2shady"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket3capelet"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest1"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest2sailor"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest3warm"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest4scholar"
+					},
+					{
+						"Code": "shoulder-shortsleeveextended-coat1"
+					},
+					{
+						"Code": "shoulder-tiedrope"
+					}
+				],
+				"upperbody": [
+					{
+						"Code": "upperbody-longsleeve-shirt1worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt2worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt3squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt4embroidered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt5cheongsam"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt6tattered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt7"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt8spelunker"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt9raggedy"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt10squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt11dark"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt12fur"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt13fishnet"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt14pastoral"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt15"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt16"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt17patched"
+					}
+				],
+				"upperbodyover": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt1furvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt2"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt3peltvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt4vest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt5"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt6fancyvest"
+					},
+					{
+						"Code": "upperbodyover-armor-bandages"
+					},
+					{
+						"Code": "upperbodyover-armor-leather"
+					},
+					{
+						"Code": "upperbodyover-armor-metal"
+					},
+					{
+						"Code": "upperbodyover-armor-wicker"
+					}
+				],
+				"waist": [
+					{
+						"Code": "waist-abacus"
+					},
+					{
+						"Code": "waist-beltkit"
+					},
+					{
+						"Code": "waist-beltwithstring"
+					},
+					{
+						"Code": "waist-beltwithtrim"
+					},
+					{
+						"Code": "waist-chisel"
+					},
+					{
+						"Code": "waist-climbingbelt"
+					},
+					{
+						"Code": "waist-dagger"
+					},
+					{
+						"Code": "waist-driedherbs"
+					},
+					{
+						"Code": "waist-drill"
+					},
+					{
+						"Code": "waist-girdlesilver"
+					},
+					{
+						"Code": "waist-girdlecopper"
+					},
+					{
+						"Code": "waist-girdlegold"
+					},
+					{
+						"Code": "waist-sashcentergreen"
+					},
+					{
+						"Code": "waist-sashcenterred"
+					},
+					{
+						"Code": "waist-sashleftgreen"
+					},
+					{
+						"Code": "waist-sashleftred"
+					},
+					{
+						"Code": "waist-hammer"
+					},
+					{
+						"Code": "waist-handsaw"
+					},
+					{
+						"Code": "waist-ledger"
+					},
+					{
+						"Code": "waist-panningbowl"
+					},
+					{
+						"Code": "waist-pouchblue"
+					},
+					{
+						"Code": "waist-sack"
+					},
+					{
+						"Code": "waist-spyglass"
+					},
+					{
+						"Code": "waist-tiedrope"
+					}
+				]
+			},
+			"visitor-male-*-desert": {
+				"bodyskin": [
+					{
+						"Code": "bodyskin-4"
+					},
+					{
+						"Code": "bodyskin-5"
+					},
+					{
+						"Code": "bodyskin-6"
+					},
+					{
+						"Code": "bodyskin-7"
+					},
+					{
+						"Code": "bodyskin-8"
+					},
+					{
+						"Code": "bodyskin-9"
+					},
+					{
+						"Code": "bodyskin-10"
+					},
+					{
+						"Code": "bodyskin-11"
+					},
+					{
+						"Code": "bodyskin-12"
+					},
+					{
+						"Code": "bodyskin-13"
+					},
+					{
+						"Code": "bodyskin-14"
+					},
+					{
+						"Code": "bodyskin-15"
+					},
+					{
+						"Code": "bodyskin-16"
+					},
+					{
+						"Code": "bodyskin-17"
+					},
+					{
+						"Code": "bodyskin-18"
+					},
+					{
+						"Code": "bodyskin-19"
+					},
+					{
+						"Code": "bodyskin-20"
+					},
+					{
+						"Code": "bodyskin-21"
+					},
+					{
+						"Code": "bodyskin-22"
+					},
+					{
+						"Code": "bodyskin-23"
+					},
+					{
+						"Code": "bodyskin-24"
+					},
+					{
+						"Code": "bodyskin-25"
+					},
+					{
+						"Code": "bodyskin-26"
+					},
+					{
+						"Code": "bodyskin-27"
+					},
+					{
+						"Code": "bodyskin-28"
+					},
+					{
+						"Code": "bodyskin-29"
+					}
+				],
+				"hair-base": [
+					{
+						"Code": "nothing",
+						"Weight": 5.0
+					},
+					{
+						"Code": "hair-00"
+					},
+					{
+						"Code": "hair-01"
+					},
+					{
+						"Code": "hair-02"
+					},
+					{
+						"Code": "hair-03"
+					},
+					{
+						"Code": "hair-05"
+					},
+					{
+						"Code": "hair-07"
+					},
+					{
+						"Code": "hair-09"
+					},
+					{
+						"Code": "hair-12"
+					},
+					{
+						"Code": "hair-15"
+					},
+					{
+						"Code": "hair-16"
+					},
+					{
+						"Code": "hair-17"
+					},
+					{
+						"Code": "hair-bald-horseshoe"
+					},
+					{
+						"Code": "hair-bald-iroquis"
+					},
+					{
+						"Code": "hair-bald-topknot"
+					},
+					{
+						"Code": "hair-long-dreads"
+					},
+					{
+						"Code": "hair-medium-afro"
+					},
+					{
+						"Code": "hair-medium-basic"
+					},
+					{
+						"Code": "hair-medium-layered"
+					},
+					{
+						"Code": "hair-medium-spiky"
+					},
+					{
+						"Code": "hair-short-indigenousbalding"
+					},
+					{
+						"Code": "hair-short-sideshave"
+					},
+					{
+						"Code": "hair-short-trimmed"
+					}
+				],
+				"beard": [
+					{
+						"Code": "nothing",
+						"Weight": 30.0
+					},
+					{
+						"Code": "beard-1"
+					},
+					{
+						"Code": "beard-2"
+					},
+					{
+						"Code": "beard-3"
+					},
+					{
+						"Code": "beard-4"
+					},
+					{
+						"Code": "beard-5"
+					},
+					{
+						"Code": "beard-6"
+					},
+					{
+						"Code": "beard-7"
+					},
+					{
+						"Code": "beard-8"
+					},
+					{
+						"Code": "beard-full1"
+					},
+					{
+						"Code": "beard-full2"
+					},
+					{
+						"Code": "beard-full3"
+					},
+					{
+						"Code": "beard-full4"
+					},
+					{
+						"Code": "beard-full5"
+					},
+					{
+						"Code": "beard-full6"
+					},
+					{
+						"Code": "beard-full7"
+					},
+					{
+						"Code": "beard-full8"
+					}
+				],
+				"mustache": [
+					{
+						"Code": "nothing",
+						"Weight": 2.0
+					},
+					{
+						"Code": "mustache-1"
+					},
+					{
+						"Code": "mustache-2"
+					},
+					{
+						"Code": "mustache-3"
+					},
+					{
+						"Code": "mustache-4"
+					},
+					{
+						"Code": "mustache-5"
+					}
+				],
+				"arm": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "arm-beadedbracelet"
+					},
+					{
+						"Code": "arm-bonebracer"
+					},
+					{
+						"Code": "arm-braceletcopperl"
+					},
+					{
+						"Code": "arm-braceletgoldl"
+					},
+					{
+						"Code": "arm-braceletsilverl"
+					},
+					{
+						"Code": "arm-braceletcopperr"
+					},
+					{
+						"Code": "arm-braceletgoldr"
+					},
+					{
+						"Code": "arm-braceletsilverr"
+					},
+					{
+						"Code": "arm-filamentlamp"
+					},
+					{
+						"Code": "arm-pugilistbracers"
+					},
+					{
+						"Code": "arm-shoulderpouch"
+					},
+					{
+						"Code": "arm-strings"
+					},
+					{
+						"Code": "arm-tiedrope"
+					}
+				],
+				"face": [
+					{
+						"Code": "nothing",
+						"Weight": 25.0
+					},
+					{
+						"Code": "face-goggles"
+					},
+					{
+						"Code": "face-headband"
+					},
+					{
+						"Code": "face-pincenez"
+					},
+					{
+						"Code": "face-pipe"
+					},
+					{
+						"Code": "face-facemask"
+					},
+					{
+						"Code": "face-metalmask1"
+					},
+					{
+						"Code": "face-metalmask2"
+					},
+					{
+						"Code": "face-oldmask"
+					},
+					{
+						"Code": "face-plaguemask"
+					},
+					{
+						"Code": "face-primitivegasmask"
+					},
+					{
+						"Code": "face-scavengermask"
+					},
+					{
+						"Code": "face-skullmask"
+					},
+					{
+						"Code": "face-veil"
+					},
+					{
+						"Code": "face-veiledgoggles"
+					},
+					{
+						"Code": "face-wolfskull"
+					},
+					{
+						"Code": "face-woodmask1"
+					},
+					{
+						"Code": "face-woodmask2"
+					},
+					{
+						"Code": "face-armor-bandageseye"
+					},
+					{
+						"Code": "face-armor-leathermask"
+					}
+				],
+				"foot": [
+					{
+						"Code": "foot-boots1"
+					},
+					{
+						"Code": "foot-boots2"
+					},
+					{
+						"Code": "foot-boots3"
+					},
+					{
+						"Code": "foot-reinforcedboots"
+					},
+					{
+						"Code": "foot-sandals1"
+					},
+					{
+						"Code": "foot-sandals2"
+					},
+					{
+						"Code": "foot-sandals3"
+					},
+					{
+						"Code": "foot-shoes1"
+					},
+					{
+						"Code": "foot-slippers1"
+					},
+					{
+						"Code": "foot-slippers2"
+					},
+					{
+						"Code": "foot-slippers3"
+					},
+					{
+						"Code": "foot-wraps1"
+					},
+					{
+						"Code": "foot-wraps2"
+					}
+				],
+				"hand": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "hand-abacus"
+					},
+					{
+						"Code": "hand-glovesbonepin"
+					},
+					{
+						"Code": "hand-glovescopperpin"
+					},
+					{
+						"Code": "hand-gloveswork"
+					},
+					{
+						"Code": "hand-glovesgardening"
+					},
+					{
+						"Code": "hand-glovesforearm"
+					},
+					{
+						"Code": "hand-glovesleather"
+					},
+					{
+						"Code": "hand-glovesdirty"
+					},
+					{
+						"Code": "hand-glovesreinforced"
+					},
+					{
+						"Code": "hand-gloveswraps"
+					},
+					{
+						"Code": "hand-ringssilverl"
+					},
+					{
+						"Code": "hand-ringscopperl"
+					},
+					{
+						"Code": "hand-ringsgoldl"
+					},
+					{
+						"Code": "hand-ringssilverr"
+					},
+					{
+						"Code": "hand-ringscopperr"
+					},
+					{
+						"Code": "hand-ringsgoldr"
+					}
+				],
+				"head": [
+					{
+						"Code": "nothing",
+						"Weight": 20.0
+					},
+					{
+						"Code": "head-beret"
+					},
+					{
+						"Code": "head-bonyheadband"
+					},
+					{
+						"Code": "head-crowcrown"
+					},
+					{
+						"Code": "head-fez"
+					},
+					{
+						"Code": "head-headwrap"
+					},
+					{
+						"Code": "head-headwrapnoface"
+					},
+					{
+						"Code": "head-keffiyeh"
+					},
+					{
+						"Code": "head-minerhat"
+					},
+					{
+						"Code": "head-skullcap"
+					},
+					{
+						"Code": "head-turban"
+					},
+					{
+						"Code": "head-bandages"
+					},
+					{
+						"Code": "head-armor-leather"
+					},
+					{
+						"Code": "head-armor-metal"
+					}
+				],
+				"lowerbody": [
+					{
+						"Code": "lowerbody-hose1sailor"
+					},
+					{
+						"Code": "lowerbody-hose2"
+					},
+					{
+						"Code": "lowerbody-hose3scholar"
+					},
+					{
+						"Code": "lowerbody-hose4trapper"
+					},
+					{
+						"Code": "lowerbody-hose5"
+					},
+					{
+						"Code": "lowerbody-pants1striped"
+					},
+					{
+						"Code": "lowerbody-pants2squaresbright"
+					},
+					{
+						"Code": "lowerbody-pants3"
+					},
+					{
+						"Code": "lowerbody-pants4"
+					},
+					{
+						"Code": "lowerbody-pants5"
+					},
+					{
+						"Code": "lowerbody-pants6bony"
+					},
+					{
+						"Code": "lowerbody-pants7squaresdark"
+					},
+					{
+						"Code": "lowerbody-pants8"
+					},
+					{
+						"Code": "lowerbody-pants9"
+					},
+					{
+						"Code": "lowerbody-pants10"
+					},
+					{
+						"Code": "lowerbody-pants11"
+					},
+					{
+						"Code": "lowerbody-pants12"
+					},
+					{
+						"Code": "lowerbody-pantssuspender"
+					}
+				],
+				"neck": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "neck-bonenecklace"
+					},
+					{
+						"Code": "neck-gearsamulet"
+					},
+					{
+						"Code": "neck-teethnecklace"
+					},
+					{
+						"Code": "neck-tradernecklacesilver"
+					},
+					{
+						"Code": "neck-tradernecklacecopper"
+					},
+					{
+						"Code": "neck-tradernecklacegold"
+					}
+				],
+				"shoulder": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "shoulder-aprontan"
+					},
+					{
+						"Code": "shoulder-apronbrown"
+					},
+					{
+						"Code": "shoulder-apronfancy"
+					},
+					{
+						"Code": "shoulder-apronleather"
+					},
+					{
+						"Code": "shoulder-bonejacket"
+					},
+					{
+						"Code": "shoulder-longsleevebolero"
+					},
+					{
+						"Code": "shoulder-sash"
+					},
+					{
+						"Code": "shoulder-sashsimple"
+					},
+					{
+						"Code": "shoulder-scarfgreen"
+					},
+					{
+						"Code": "shoulder-scarfpoor"
+					},
+					{
+						"Code": "shoulder-scarfred"
+					},
+					{
+						"Code": "shoulder-shortsleeve-coat2"
+					},
+					{
+						"Code": "shoulder-shortsleeve-desertwrapribbed"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket1forester"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket2shady"
+					},
+					{
+						"Code": "shoulder-shortsleeve-jacket3capelet"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest1"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest2sailor"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest3warm"
+					},
+					{
+						"Code": "shoulder-shortsleeve-vest4scholar"
+					},
+					{
+						"Code": "shoulder-shortsleeveextended-coat1"
+					},
+					{
+						"Code": "shoulder-tiedrope"
+					}
+				],
+				"upperbody": [
+					{
+						"Code": "upperbody-longsleeve-shirt1worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt2worn"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt3squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt4embroidered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt5cheongsam"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt6tattered"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt7"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt8spelunker"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt9raggedy"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt10squared"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt11dark"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt13fishnet"
+					},
+					{
+						"Code": "upperbody-longsleeve-shirt14pastoral"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt15"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt16"
+					},
+					{
+						"Code": "upperbody-shortsleeve-shirt17patched"
+					}
+				],
+				"upperbodyover": [
+					{
+						"Code": "nothing",
+						"Weight": 10.0
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt2"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt3peltvest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt4vest"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt5"
+					},
+					{
+						"Code": "upperbodyover-shortsleeve-overshirt6fancyvest"
+					},
+					{
+						"Code": "upperbodyover-armor-bandages"
+					},
+					{
+						"Code": "upperbodyover-armor-leather"
+					},
+					{
+						"Code": "upperbodyover-armor-metal"
+					},
+					{
+						"Code": "upperbodyover-armor-wicker"
+					}
+				],
+				"waist": [
+					{
+						"Code": "waist-abacus"
+					},
+					{
+						"Code": "waist-beltkit"
+					},
+					{
+						"Code": "waist-beltwithstring"
+					},
+					{
+						"Code": "waist-beltwithtrim"
+					},
+					{
+						"Code": "waist-chisel"
+					},
+					{
+						"Code": "waist-climbingbelt"
+					},
+					{
+						"Code": "waist-dagger"
+					},
+					{
+						"Code": "waist-driedherbs"
+					},
+					{
+						"Code": "waist-drill"
+					},
+					{
+						"Code": "waist-girdlesilver"
+					},
+					{
+						"Code": "waist-girdlecopper"
+					},
+					{
+						"Code": "waist-girdlegold"
+					},
+					{
+						"Code": "waist-sashcentergreen"
+					},
+					{
+						"Code": "waist-sashcenterred"
+					},
+					{
+						"Code": "waist-sashleftgreen"
+					},
+					{
+						"Code": "waist-sashleftred"
+					},
+					{
+						"Code": "waist-hammer"
+					},
+					{
+						"Code": "waist-handsaw"
+					},
+					{
+						"Code": "waist-ledger"
+					},
+					{
+						"Code": "waist-panningbowl"
+					},
+					{
+						"Code": "waist-pouchblue"
+					},
+					{
+						"Code": "waist-sack"
+					},
+					{
+						"Code": "waist-spyglass"
+					},
+					{
+						"Code": "waist-tiedrope"
+					}
+				]
+			}
+		}
+	},
+	"server": {
+		"attributes": {
+			"pathfinder": {
+				"minTurnAnglePerSec": 720,
+				"maxTurnAnglePerSec": 1440
+			}
+		},
+		"behaviors": [
+			{
+				"code": "nametag",
+				"showtagonlywhentargeted": true,
+				"selectFromRandomName": [
+					"Alfonse",
+					"Rigby",
+					"Marco",
+					"Rote",
+					"Horace",
+					"Two Tongue",
+					"Optal",
+					"Veera",
+					"Stefan",
+					"Yan",
+					"Leo",
+					"Jasper",
+					"Aram",
+					"Samoset",
+					"Ruslan",
+					"Stretch",
+					"Noah",
+					"Wallace",
+					"Kino",
+					"Mostofa",
+					"Oliver",
+					"Bedwyr",
+					"Izel",
+					"Ahanu",
+					"Wilt",
+					"Lin",
+					"Robert",
+					"Ra Bal",
+					"Filippe",
+					"Hosa",
+					"Vlad",
+					"Mouse",
+					"Hubert",
+					"Wildling",
+					"Shem",
+					"Tybal",
+					"Loon",
+					"Axe",
+					"Karl",
+					"Yern",
+					"Gild",
+					"Hans",
+					"Hector",
+					"McCrae",
+					"Yoskolo",
+					"Innis",
+					"Roi",
+					"Ephram",
+					"Timaf",
+					"Humbert",
+					"Miguel",
+					"Sasha",
+					"Onyx",
+					"Elsu",
+					"Old Eyes",
+					"Haldor"
+				]
+			},
+			{
+				"code": "repulseagents"
+			},
+			{
+				"code": "controlledphysics",
+				"stepHeight": 1.01
+			},
+			{
+				"code": "health",
+				"currenthealth": 25,
+				"maxhealth": 25
+			},
+			{
+				"code": "taskai",
+				"aitasks": [
+					{
+						"code": "idle",
+						"priority": 1.2,
+						"minduration": 2500,
+						"maxduration": 2500,
+						"mincooldown": 2000,
+						"maxcooldown": 10000,
+						"animation": "laugh"
+					},
+					{
+						"code": "idle",
+						"priority": 1.2,
+						"minduration": 2500,
+						"maxduration": 2500,
+						"mincooldown": 5000,
+						"maxcooldown": 30000,
+						"animation": "idle2"
+					},
+					{
+						"code": "wander",
+						"priority": 1.0,
+						"movespeed": 0.01,
+						"animation": "Walk",
+						"executionChance": 0.005,
+						"maxDistanceToSpawn": 4,
+						"wanderRangeMin": 1,
+						"wanderRangeMax": 3
+					},
+					{
+						"code": "lookaround",
+						"priority": 0.5
+					}
+				]
+			},
+			{
+				"code": "conversable",
+				"dialogueByType": {
+					"*": "game:config/dialogue/trader"
+				}
+			},
+			{
+				"code": "entitystatetags"
+			}
+		]
+	},
+	"sounds": {}
+}

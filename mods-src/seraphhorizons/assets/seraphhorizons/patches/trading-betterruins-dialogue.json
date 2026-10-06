@@ -1,0 +1,244 @@
+// Trading: BetterRuins gives vanilla's luxuries and agriculture traders dialogues with its map
+// quests (patches/others/trader/dialogue in BetterRuins); the pack's curio dealer and farmer, which
+// take over those trades, get them the same way. "*" is moved past the new keys, since the game
+// takes the first key that matches.
+[
+ {
+  "op": "add",
+  "path": "/temp",
+  "value": {},
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/client/behaviors/4/dialogueByType/*",
+  "path": "/temp/clientfallback",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/client/behaviors/4/dialogueByType/*-curiodealer-*",
+  "value": "betterruins:config/dialogue/luxuries",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/client/behaviors/4/dialogueByType/*-farmer-*",
+  "value": "betterruins:config/dialogue/agriculture",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/temp/clientfallback",
+  "path": "/client/behaviors/4/dialogueByType/*",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/server/behaviors/7/dialogueByType/*",
+  "path": "/temp/serverfallback",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/server/behaviors/7/dialogueByType/*-curiodealer-*",
+  "value": "betterruins:config/dialogue/luxuries",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/server/behaviors/7/dialogueByType/*-farmer-*",
+  "value": "betterruins:config/dialogue/agriculture",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/temp/serverfallback",
+  "path": "/server/behaviors/7/dialogueByType/*",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "remove",
+  "path": "/temp",
+  "file": "seraphhorizons:entities/humanoid/trader-male.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/temp",
+  "value": {},
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/client/behaviors/4/dialogueByType/*",
+  "path": "/temp/clientfallback",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/client/behaviors/4/dialogueByType/*-curiodealer-*",
+  "value": "betterruins:config/dialogue/luxuries",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/client/behaviors/4/dialogueByType/*-farmer-*",
+  "value": "betterruins:config/dialogue/agriculture",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/temp/clientfallback",
+  "path": "/client/behaviors/4/dialogueByType/*",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/server/behaviors/7/dialogueByType/*",
+  "path": "/temp/serverfallback",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/server/behaviors/7/dialogueByType/*-curiodealer-*",
+  "value": "betterruins:config/dialogue/luxuries",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/server/behaviors/7/dialogueByType/*-farmer-*",
+  "value": "betterruins:config/dialogue/agriculture",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "move",
+  "frompath": "/temp/serverfallback",
+  "path": "/server/behaviors/7/dialogueByType/*",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "remove",
+  "path": "/temp",
+  "file": "seraphhorizons:entities/humanoid/trader-female.json",
+  "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ }
+]

@@ -1,0 +1,14 @@
+// Which of the game's worldgen structures are trader camps (Trading/Game/TraderCamps.cs, #447).
+// Read at worldgen init, after every mod's worldgen/structures.json is loaded, in worlds with the
+// trader grid.
+{
+	// Structures of these groups are taken out of the game's random placement and become the camps
+	// placed on the grid: vanilla's camps, BetterTraders' buildings, Domestic Animal Trader's home and
+	// Culinary Artillery's wagon are all group "trader".
+	"campGroups": ["trader"],
+	// Taken out and not placed at all: Culinary Artillery's second wagon near the spawn.
+	"dropGroups": ["acatraderclosetospawn"],
+	// Camp-group structures with several traders (vanilla's two- and three-trader outposts): kept for
+	// the settlements (8 km cells, deferred), not placed as lone camps.
+	"settlementSchematics": ["game:trader/outpost/*"]
+}

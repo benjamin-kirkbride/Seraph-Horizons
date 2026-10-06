@@ -1,0 +1,23 @@
+{
+  "_source": "Epic #435, Decisions: size targets small / typical / large in ingots, one deposit per metal per 5 km cell, one gravel field of 300-600 rich gravel blocks per 1.5 km cell. check reads small / typical / large as p10 / median / p90.",
+  "tolerance": 1.5,
+  "areaPerDeposit_km2": 25,
+  "metals": {
+    "copper":   {"small": 150, "typical": 400, "large": 1000},
+    "iron":     {"small": 150, "typical": 400, "large": 1000},
+    "tin":      {"small": 60,  "typical": 150, "large": 400},
+    "zinc":     {"small": 60,  "typical": 150, "large": 400},
+    "bismuth":  {"small": 60,  "typical": 150, "large": 400},
+    "lead":     {"small": 60,  "typical": 150, "large": 400},
+    "nickel":   {"small": 60,  "typical": 150, "large": 400},
+    "silver":   {"small": 30,  "typical": 80,  "large": 200},
+    "gold":     {"small": 30,  "typical": 80,  "large": 200},
+    "titanium": {"small": 60,  "typical": 150, "large": 400},
+    "chromium": {"small": 60,  "typical": 150, "large": 400},
+    "platinum": {"small": 60,  "typical": 150, "large": 400}
+  },
+  "gravel": {
+    "areaPerField_km2": 2.25,
+    "blocks": [300, 600]
+  }
+}
