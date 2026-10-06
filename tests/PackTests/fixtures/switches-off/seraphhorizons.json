@@ -12,8 +12,12 @@
   "IrrigationVesselRetired": false,
   "LargerTunRack": false,
   "MapReveal": false,
+  "NoSurfaceCopper": false,
+  "OreCells": false,
   "PanningDropsTrimmed": false,
+  "RarerDistricts": false,
   "Rosser": false,
+  "SmallerDeposits": false,
   "TidyVariants": false,
   "UnifiedWoodworking": false
 }

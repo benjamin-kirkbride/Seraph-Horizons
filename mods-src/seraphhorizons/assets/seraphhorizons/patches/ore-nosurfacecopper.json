@@ -1,0 +1,9 @@
+// The game's surface copper and surface cassiterite pockets, which Interesting Ore Gen leaves on
+// (its disable-vanilla-oregen.json switches off the deep ones only): seraphhorizons' NoSurfaceCopper
+// switch (README.md "Ore cells", #440). Both are entry 0 of their file in the game's 1.22.7 assets;
+// IOG's own surface signs of deep veins (boulders, prospecting veins) are part of its veins and stay.
+// New worlds only: Ore/Game/OreSystem.cs empties this file for a world created without the switch.
+[
+  { "file": "game:worldgen/deposits/metalore/nativecopper.json", "op": "addmerge", "path": "/0/triesPerChunk", "value": 0, "side": "server" },
+  { "file": "game:worldgen/deposits/metalore/cassiterite.json", "op": "addmerge", "path": "/0/triesPerChunk", "value": 0, "side": "server" }
+]

@@ -395,4 +395,31 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // Immersive Woodworking's own yield: its hand value, 8.
         Assert.Equal(8, site.ChopOneLog());
     }
+
+    /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,
+    /// <c>RarerDistricts</c>: a world created with them off records them off, Interesting Ore Gen's
+    /// spacing filter is not patched, and the deposits are as the mods ship them.</summary>
+    [AtlasScenario]
+    public void Ore_worldgen_off_ore_is_as_the_mods_ship_it()
+    {
+        foreach (var key in new[] { "OreCells", "NoSurfaceCopper", "SmallerDeposits", "RarerDistricts" })
+            Assert.True(Off(key), key);
+        var ore = World.Api.ModLoader.GetModSystem<SeraphHorizons.Mod.Ore.OreSystem>();
+        Assert.Equal(SeraphHorizons.Mod.Ore.Core.OreWorldRecord.AllOff, ore.World);
+        Assert.Null(ore.Placement);
+        var approve = SeraphHorizons.Mod.Ore.OreCellPlacement.ApproveMethod;
+        Assert.NotNull(approve);
+        Assert.DoesNotContain(Harmony.GetPatchInfo(approve)?.Prefixes ?? [], p => p.owner == SeraphHorizons.Mod.Ore.OreSystem.HarmonyId);
+
+        var deposits = World.Api.ModLoader.Systems.OfType<Vintagestory.ServerMods.GenDeposits>().SelectMany(g => g.Deposits ?? []).ToList();
+        Assert.Contains(deposits, v => v.Code == "surfacecopper" && v.TriesPerChunk > 0);
+        var hematite = deposits.First(v => v.Code == "hematite" && v.TriesPerChunk > 0);
+        var radius = (NatFloat)AccessTools.Field(hematite.GeneratorInst.GetType(), "Radius").GetValue(hematite.GeneratorInst)!;
+        Assert.Equal(hematite.Attributes["radius"]["avg"].AsFloat(), radius.avg);
+
+        var districts = World.Api.ModLoader.Systems.First(s => s.GetType().FullName == "InterestingOreGen.Generators.HydrothermalDistrictSystem");
+        var configs = (System.Collections.IEnumerable)AccessTools.Field(districts.GetType(), "_configs").GetValue(districts)!;
+        Assert.All(configs.Cast<object>(), c =>
+            Assert.NotEqual(10000, (int)AccessTools.Field(c.GetType(), "MinDistanceBetweenDistricts").GetValue(c)!));
+    }
 }
