@@ -4,7 +4,7 @@ The ore overhaul (epic #435), built in the pack's own mod (`mods-src/seraphhoriz
 rare and placed by the seed; a deposit lasts a group a long while and then runs out; the first
 metal comes from rich gravel fields and from traders, who sell maps to both. This note covers what
 the code does and the facts it rests on; the switches and commands are in the mod's README
-("Ore cells", "Placer fields, deposits and ore maps"). Game 1.22.7, Interesting Ore Gen 2.3.8,
+("Ore cells", "Placer fields, deposits and ore maps"), the admin tools in `docs/admin-tools.md`. Game 1.22.7, Interesting Ore Gen 2.3.8,
 Wilderlands Panning 1.0.9.
 
 Every change to generation applies to **new worlds only**: the world records at its first start

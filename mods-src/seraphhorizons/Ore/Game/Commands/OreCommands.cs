@@ -8,7 +8,7 @@ namespace SeraphHorizons.Mod.Ore;
 
 /// <summary>
 /// <c>/sh ore</c>, for admins (<c>controlserver</c>): where the ore cell rule puts deposits, and
-/// why. Enough to test the rule; the survey tools come later (#458), as further subcommands here.
+/// why. The rest of the ore admin tools (#458) are in <see cref="OreAdminCommands"/>.
 /// <list type="bullet">
 /// <item><c>/sh ore cell &lt;x&gt; &lt;z&gt; &lt;metal&gt;</c>: the cell holding the absolute block
 /// position, its spots in order and how each stands.</item>

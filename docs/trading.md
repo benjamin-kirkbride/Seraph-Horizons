@@ -578,7 +578,7 @@ store). The tables were written with a one-off script; the JSON is the source.
   `/sh trade camps [radius]` (cells around the caller or the spawn: id `cellX,cellZ`, type, placed camp
   or the spot it waits for) and `/sh trade tp <id>` (to the camp; a cell not generated yet is
   generated first). `/sh` is made with `GetOrCreate`; `TradeCommands.Trade` is the `trade` node for
-  #459 to add to.
+  #459 to add to. The admin tools (#459) are in `Trading/Admin/` and `docs/admin-tools.md`.
 
 ## Standing and companies (#452, #463)
 
