@@ -397,16 +397,18 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,
-    /// <c>RarerDistricts</c>: a world created with them off records them off, Interesting Ore Gen's
-    /// spacing filter is not patched, and the deposits are as the mods ship them.</summary>
+    /// <c>RarerDistricts</c>, <c>PlacerFields</c>: a world created with them off records them off,
+    /// Interesting Ore Gen's spacing filter is not patched, and the deposits are as the mods ship
+    /// them.</summary>
     [AtlasScenario]
     public void Ore_worldgen_off_ore_is_as_the_mods_ship_it()
     {
-        foreach (var key in new[] { "OreCells", "NoSurfaceCopper", "SmallerDeposits", "RarerDistricts" })
+        foreach (var key in new[] { "OreCells", "NoSurfaceCopper", "SmallerDeposits", "RarerDistricts", "PlacerFields" })
             Assert.True(Off(key), key);
         var ore = World.Api.ModLoader.GetModSystem<SeraphHorizons.Mod.Ore.OreSystem>();
         Assert.Equal(SeraphHorizons.Mod.Ore.Core.OreWorldRecord.AllOff, ore.World);
         Assert.Null(ore.Placement);
+        Assert.Null(ore.Placer);
         var approve = SeraphHorizons.Mod.Ore.OreCellPlacement.ApproveMethod;
         Assert.NotNull(approve);
         Assert.DoesNotContain(Harmony.GetPatchInfo(approve)?.Prefixes ?? [], p => p.owner == SeraphHorizons.Mod.Ore.OreSystem.HarmonyId);
@@ -421,5 +423,72 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var configs = (System.Collections.IEnumerable)AccessTools.Field(districts.GetType(), "_configs").GetValue(districts)!;
         Assert.All(configs.Cast<object>(), c =>
             Assert.NotEqual(10000, (int)AccessTools.Field(c.GetType(), "MinDistanceBetweenDistricts").GetValue(c)!));
+    }
+
+    /// <summary><c>TraderGrid</c>: a world created with it off records it off for good and keeps
+    /// vanilla's camps; the systems built on the grid (standing, orders, deliveries, maps) are off with
+    /// their own switches.</summary>
+    [AtlasScenario]
+    public void Trader_grid_off_the_world_keeps_vanillas_camps()
+    {
+        Assert.True(Off("TraderGrid"));
+        var trading = SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!;
+        Assert.False(trading.GridActive);
+        Assert.False(trading.GridReady);
+        Assert.Equal("off", World.Api.WorldManager.SaveGame.GetData<string>(SeraphHorizons.Mod.Trading.TradingSystem.GridStateKey));
+    }
+
+    /// <summary><c>TraderStanding</c>, <c>TraderOrders</c>, <c>TraderDeliveries</c>, <c>TraderMaps</c>:
+    /// each system stands down, and the traders see no standing (everyone a stranger).</summary>
+    [AtlasScenario]
+    public void Trader_standing_orders_deliveries_and_maps_off_none_of_them_runs()
+    {
+        foreach (var key in new[] { "TraderStanding", "TraderOrders", "TraderDeliveries", "TraderMaps" })
+            Assert.True(Off(key), key);
+        Assert.False(SeraphHorizons.Mod.Trading.Standing.StandingSystem.Of(World.Api)!.Enabled);
+        Assert.False(SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Standing.Enabled);
+        Assert.False(SeraphHorizons.Mod.Trading.Orders.OrdersSystem.Of(World.Api)!.Enabled);
+        Assert.False(SeraphHorizons.Mod.Trading.Deliveries.DeliveriesSystem.Of(World.Api)!.Enabled);
+        Assert.False(World.Api.ModLoader.GetModSystem<SeraphHorizons.Mod.Trading.Maps.MapsSystem>()!.Active);
+    }
+
+    /// <summary><c>EverythingHasAPrice</c>, <c>RegionalSupply</c>: traders deal in their lists only
+    /// and nothing gates their stock.</summary>
+    [AtlasScenario]
+    public void Economy_off_traders_deal_in_their_lists_only()
+    {
+        Assert.True(Off("EverythingHasAPrice"));
+        Assert.True(Off("RegionalSupply"));
+        var economy = SeraphHorizons.Mod.Trading.Economy.EconomySystem.Of(World.Api)!;
+        Assert.False(economy.EverythingHasAPrice);
+        Assert.False(economy.RegionalSupply);
+        Assert.IsNotType<SeraphHorizons.Mod.Trading.Economy.RegionalSupplyGate>(SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.SupplyGate);
+    }
+
+    /// <summary><c>TraderSchematics</c>, <c>MachineSchematics</c>: loot is not scrubbed, no recipe is
+    /// gated or removed, and the traders' lists keep no machine schematic.</summary>
+    [AtlasScenario]
+    public void Schematics_off_loot_and_recipes_are_as_the_mods_ship_them()
+    {
+        Assert.True(Off("TraderSchematics"));
+        Assert.True(Off("MachineSchematics"));
+        var schematics = SeraphHorizons.Mod.Trading.Schematics.SchematicsSystem.Of(World.Api)!;
+        Assert.NotNull(schematics.Table);
+        Assert.Null(schematics.Report);
+        Assert.DoesNotContain(Harmony.GetAllPatchedMethods(), m =>
+            Harmony.GetPatchInfo(m)?.Owners.Contains(SeraphHorizons.Mod.Trading.Schematics.SchematicsSystem.HarmonyId) == true);
+        Assert.DoesNotContain(W.GridRecipes, r => (r.ResolvedIngredients ?? []).Any(i =>
+            i?.Code?.Domain == "seraphhorizons" && i.Code.Path.StartsWith("schematic-", StringComparison.Ordinal)));
+    }
+
+    /// <summary><c>AdminTools</c>: no admin map, no overlays, no admin subcommands.</summary>
+    [AtlasScenario]
+    public void Admin_tools_off_there_is_no_admin_map()
+    {
+        Assert.True(Off("AdminTools"));
+        var admin = SeraphHorizons.Mod.Admin.AdminSystem.Of(World.Api)!;
+        Assert.False(admin.Enabled);
+        Assert.Null(admin.Map);
+        Assert.Empty(admin.MapProviders);
     }
 }

@@ -7,7 +7,9 @@ modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphh
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
 terrain on the world map, and two machines: the bucking sawmill, which cuts tree trunks into logs,
-and the rosser, which strips their branches and bark first. These are choices for this pack, not bug fixes, so
+and the rosser, which strips their branches and bark first; ore cells, which spread each metal's
+deposits on a grid, and the trader overhaul (the sections after Releasing): traders on a grid of
+camps, item values, regional supply, standing, schematics, orders, maps and admin tools. These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.

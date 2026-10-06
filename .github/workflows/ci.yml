@@ -134,8 +134,15 @@ jobs:
     # Variants', both matched by name, so a new class of either kind joins its shard. `woodworking`
     # is WoodworkingScenarios (and any Woodworking* class), taken out of `rest` to keep both short;
     # its term is anchored on `PackTests.` so that only a class name matches, not a test method
-    # named after a feature. `rest` is the complement filter, so any other new class lands there
-    # without anyone having to list it.
+    # named after a feature. `ore` is every Ore* class (ore cells, ore maps, ore admin) and the
+    # trading shards every Trading* class, each a standard world of its own with a fixed seed and
+    # 45-150 s of scenarios after its boot, so all of them in one shard would be the longest after
+    # woodworking. `trading-core` names its classes (the grid and camps, values, economy,
+    # standing); `trading-features` is the rest of Trading* (schematics, orders, maps, admin,
+    # visitors), so a new Trading class lands there. Both are anchored like `woodworking`, and
+    # the class terms end in `.` so that no class whose name extends another's matches it. `rest`
+    # is the complement filter, so any other new class lands there without anyone having to list
+    # it.
     strategy:
       fail-fast: false
       matrix:
@@ -150,8 +157,14 @@ jobs:
             filter: FullyQualifiedName~.TidyVariants
           - shard: woodworking
             filter: FullyQualifiedName~PackTests.Woodworking
+          - shard: ore
+            filter: FullyQualifiedName~PackTests.Ore
+          - shard: trading-core
+            filter: FullyQualifiedName~PackTests.TradingCoreScenarios.|FullyQualifiedName~PackTests.TradingValuesScenarios.|FullyQualifiedName~PackTests.TradingEconomyScenarios.|FullyQualifiedName~PackTests.TradingStandingScenarios.
+          - shard: trading-features
+            filter: FullyQualifiedName~PackTests.Trading&FullyQualifiedName!~PackTests.TradingCoreScenarios.&FullyQualifiedName!~PackTests.TradingValuesScenarios.&FullyQualifiedName!~PackTests.TradingEconomyScenarios.&FullyQualifiedName!~PackTests.TradingStandingScenarios.
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
@@ -165,6 +178,14 @@ jobs:
         run: |
           dotnet build tools/icon-export -c Release
           dotnet test tools/icon-export/tests --logger "console;verbosity=normal"
+      # The local-only ore survey mod (tools/ore-survey, never shipped, like icon-export): keep it
+      # compiling. Its Python half is in the tools job's tools/tests.
+      - name: Ore survey mod builds
+        if: matrix.shard == 'rest'
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+          DOTNET_NOLOGO: "1"
+        run: dotnet build tools/ore-survey -c Release
       # The game-independent code of the mods-src mods (Tidy Variants' rule engine,
       # mods-src/seraphhorizons/TidyVariants/Core; the bucking sawmill's BuckingSawmill/Core beside it):
       # unit tests that need no game. The mods themselves are built and loaded by the dotnet test
