@@ -69,6 +69,14 @@ export interface Item {
   description?: string;
   attributes?: ItemAttributes;
   sources?: Source[];
+  /** Base value in rusty gears per item (the pack's item value table). */
+  value?: number;
+  /** Present when the table counts it worth under a gear per full stack. */
+  floorZero?: true;
+  /** Config switches the value exists only with. */
+  valueSwitches?: string[];
+  /** The config switch that adds the item itself. */
+  switch?: string;
   extra?: Record<string, unknown>;
 }
 
@@ -122,6 +130,8 @@ export interface Recipe {
   mod: string;
   source?: string;
   enabled?: boolean;
+  /** The config switch of the pack's own mod that adds the recipe. */
+  switch?: string;
   ingredients: Ingredient[];
   outputs: Output[];
   variants: Variant[];
