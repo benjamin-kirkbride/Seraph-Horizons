@@ -229,6 +229,130 @@ class ItemValuesTest(unittest.TestCase):
         self.assertTrue(val.source["game:mold-black-fired-axe"].startswith("default:siblings game:mold-*-fired-axe"))
         self.assertNotIn("game:other-black-fired-axe", val.value)  # the first segment must match
 
+    # ------------------------------------------------------------ schematics (#506)
+
+    GATES = """// schematic-gates.json style: // comments, globs in "sold"
+{
+  "replacement": "game:paper-parchment",
+  "sold": [
+    { "mod": "game", "code": "game:schematic-*" },
+    { "mod": "seraphhorizons", "code": "seraphhorizons:schematic-*" }
+  ],
+  // a gate
+  "gates": [ { "machine": "windmill", "outputs": [ { "mod": "game", "code": "game:windmillrotor-*" } ] } ]
+}"""
+
+    LISTS = {
+        "trader-carpenter.json": """{
+          // the pack's own list
+          selling: { list: [
+            { code: "seraphhorizons:schematic-windmill", stacksize: 1, price: { avg: 30, var: 3 } },
+            { code: "game:schematic-glider", stacksize: 1, price: { avg: 20 } },
+            { code: "game:log", stacksize: 4, price: { avg: 8 } },
+          ] },
+          buying: { list: [
+            { code: "game:schematic-glider", type: "item", stacksize: 1, price: { avg: 10 } },
+          ] }
+        }""",
+    }
+
+    def write_pack(self):
+        (self.dir / "gates.json").write_text(self.GATES)
+        lists = self.dir / "tradelists"
+        lists.mkdir(exist_ok=True)
+        for name, text in self.LISTS.items():
+            (lists / name).write_text(text)
+        return self.dir / "gates.json", lists
+
+    def gated_export(self, *extra_items):
+        # The windmill rotor, gated: 4 logs, a hammer (a tool) and the windmill schematic, kept (the
+        # exporter writes a grid ingredient with consume false as extra.consumed false).
+        items = {c: item() for c in ("game:log", "game:gem", "game:hammer", "game:windmillrotor-oak",
+                                     "seraphhorizons:schematic-windmill", "game:schematic-glider",
+                                     "seraphhorizons:schematic-unsold", *extra_items)}
+        return export(items, [
+            grid("grid|hammer|0", ["G"], {"G": ["game:gem"]}, st("game:hammer")),
+            grid("grid|rotor|0", ["LL", "LL", "HS"],
+                 {"L": ["game:log"], "H": ["game:hammer"], "S": ["seraphhorizons:schematic-windmill"]},
+                 st("game:windmillrotor-oak"), H={"isTool": True}, S={"extra": {"consumed": False}}),
+        ])
+
+    def test_schematics_are_valued_from_the_pack_trade_lists(self):
+        gates, lists = self.write_pack()
+        rules = iv.Rules.load(self.dir, gates, lists)
+        self.assertEqual(rules.schematics, ["game:schematic-*", "seraphhorizons:schematic-*"])
+        val = iv.solve(self.gated_export(), rules)
+        # traderFallback (sells 0.5, buys 1.0 here): 30 x 0.5; the glider's mean of 20 x 0.5 and
+        # 10 / 0.2 x 1.0 (a buying price is the final pay, value x the buy spread).
+        self.assertAlmostEqual(val.value["seraphhorizons:schematic-windmill"], 15.0)
+        self.assertEqual(val.source["seraphhorizons:schematic-windmill"], "schematic:trade lists")
+        self.assertAlmostEqual(val.value["game:schematic-glider"], (10.0 + 50.0) / 2)
+        # Only schematics: a log the trade lists price stays a raw.
+        self.assertEqual(val.source["game:log"], "raw")
+        # A schematic no trade list sells gets nothing from this rule (only the later sibling fallback).
+        self.assertTrue(val.source["seraphhorizons:schematic-unsold"].startswith("default:siblings"))
+        self.assertEqual(iv.report(self.gated_export(), val, rules)["sources"]["schematic"], 2)
+
+    def test_kept_schematic_adds_nothing_to_a_gated_recipe(self):
+        gates, lists = self.write_pack()
+        rules = iv.Rules.load(self.dir, gates, lists)
+        ex = self.gated_export()
+        val = iv.solve(ex, rules)
+        # 4 logs + the hammer's tool fraction (10 x 0.1); the schematic (15) adds 0, not 15 x 0.1.
+        self.assertAlmostEqual(val.value["game:windmillrotor-oak"], 4.0 + 1.0)
+        text = "\n".join(iv.explain(ex, val, rules, "game:windmillrotor-oak"))
+        self.assertIn("kept schematic seraphhorizons:schematic-windmill: 0", text)
+        self.assertEqual(iv.below_ingredients(ex, val, rules), [])
+
+    def test_kept_schematic_needs_no_value(self):
+        # No trade list prices it: the gated recipe still prices, by its consumed parts.
+        gates, _ = self.write_pack()
+        rules = iv.Rules.load(self.dir, gates, self.dir / "no-lists")
+        val = iv.solve(self.gated_export(), rules)
+        self.assertNotIn("seraphhorizons:schematic-windmill", val.value)
+        self.assertAlmostEqual(val.value["game:windmillrotor-oak"], 5.0)
+
+    def test_kept_ingredients_that_are_not_schematics_keep_the_tool_fraction(self):
+        # consume false on a gem, and a gear cutter's master (role "kept"): kept, at the tool fraction.
+        items = {c: item() for c in ("game:log", "game:gem", "game:out", "game:cut")}
+        ex = export(items, [
+            grid("grid|out|0", ["LG"], {"L": ["game:log"], "G": ["game:gem"]}, st("game:out"),
+                 G={"extra": {"consumed": False}}),
+            recipe("gearcutter|game:log|0", "gearcutter",
+                   [st("game:log"), {**st("game:gem"), "role": "kept"}],
+                   [[st("game:log")], [st("game:gem")]], [st("game:cut")]),
+        ])
+        val, _ = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:out"], 1.0 + 10 * 0.1)
+        self.assertAlmostEqual(val.value["game:cut"], 1.0 + 1.0 + 10 * 0.1)  # mod: +1 flat
+
+    def test_check_with_and_without_the_mod(self):
+        gates, lists = self.write_pack()
+        (lists / "trader-smith.json").write_text("""{
+          buying: { list: [ { code: "game:ingot", type: "item", price: { avg: 2 } } ] }
+        }""")
+        # With the mod: the schematics are in the export.
+        path = self.dir / "with.json"
+        path.write_text(json.dumps(self.gated_export("game:ingot")))
+        args = ("--rules", str(self.dir), "--gates", str(gates), "--tradelists", str(lists),
+                "--table", str(self.dir / "absent.json"))
+        code, text, err = self.run_cli("check", str(path), *args)
+        self.assertEqual(code, 1)  # game:ingot has no value
+        self.assertIn("validated 2 trade list items traders buy (2 distinct codes) in 2 lists", text)
+        self.assertIn("trader-smith.json: game:ingot has no value", err)
+        self.assertNotIn("glider", err)
+        # Without the mod: no seraphhorizons codes in the export, and the check still runs.
+        ex = self.gated_export("game:ingot")
+        ex["items"] = {c: v for c, v in ex["items"].items() if not c.startswith("seraphhorizons:")}
+        ex["recipes"] = [r for r in ex["recipes"] if r["id"] != "grid|rotor|0"]
+        ex["items"]["game:ingot"]["sources"] = [{"type": "traderBuys", "price": 2, "quantity": {"avg": 1}}]
+        path = self.dir / "without.json"
+        path.write_text(json.dumps(ex))
+        code, text, err = self.run_cli("check", str(path), *args)
+        self.assertEqual(code, 0, err)
+        self.assertIn("validated 2 trade list items", text)
+        self.assertIn("every item traders buy has a value", text)
+
     # ------------------------------------------------------------ CLI
 
     def run_cli(self, *args) -> tuple[int, str, str]:
@@ -297,6 +421,39 @@ class ShippedRulesTest(unittest.TestCase):
         rules = iv.Rules.load()
         self.assertEqual(rules.raws["game:gear-rusty"], 1)
         self.assertIn("grid", rules.markups)
+
+    def test_buy_spread_matches_the_mod(self):
+        # BUY_SPREAD is the mod's default buy spread: Pricing.DefaultBuySpread and the config default.
+        import re
+        src = iv.REPO / "mods-src/seraphhorizons"
+        pricing = src / "Trading/Economy/Core/Pricing.cs"
+        config = src / "SeraphHorizons.cs"
+        if not pricing.exists() or not config.exists():
+            self.skipTest("no mod source")
+        m = re.search(r"DefaultBuySpread\s*=\s*([0-9.]+)", pricing.read_text(encoding="utf-8"))
+        self.assertIsNotNone(m)
+        self.assertEqual(float(m.group(1)), iv.BUY_SPREAD)
+        m = re.search(r"double BuySpread\s*\{[^}]*\}\s*=\s*([^;]+);", config.read_text(encoding="utf-8"))
+        self.assertIsNotNone(m)
+        default = m.group(1).strip()
+        self.assertIn(default, ("Pricing.DefaultBuySpread", repr(iv.BUY_SPREAD)))
+
+    def test_steel_gear_override(self):
+        # The reclamation line's cost (#506), its arithmetic in "why".
+        rules = iv.Rules.load()
+        self.assertEqual(rules.overrides["seraphhorizons:gear-steel"], 15)
+        self.assertIn("14.66", iv.load_json(iv.HERE / "overrides.json")["why"]["seraphhorizons:gear-steel"])
+        self.assertNotIn("seraphhorizons:largegear-steel", rules.overrides)
+
+    def test_shipped_schematics_are_all_priced_by_the_trade_lists(self):
+        # Every schematic a trader sells gets a value; the shipped gates file parses.
+        if not iv.DEFAULT_GATES.exists() or not iv.DEFAULT_TRADELISTS.is_dir():
+            self.skipTest("no gates file or trade lists")
+        rules = iv.Rules.load(iv.HERE, iv.DEFAULT_GATES, iv.DEFAULT_TRADELISTS)
+        self.assertIn("seraphhorizons:schematic-*", rules.schematics)
+        sold = [c for c in rules.pack_trade if rules.is_schematic(c)]
+        self.assertIn("seraphhorizons:schematic-windmill", sold)
+        self.assertTrue(all(rules.pack_trade[c] > 0 for c in sold))
 
     def test_shipped_table_shape(self):
         if not iv.DEFAULT_OUT.exists():

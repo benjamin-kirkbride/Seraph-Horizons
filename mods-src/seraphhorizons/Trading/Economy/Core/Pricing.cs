@@ -16,7 +16,7 @@ public enum Refusal
     NoValue,
     /// <summary>Money.</summary>
     Currency,
-    /// <summary>Worth something, but at this trader's fit and supply under a gear per full stack.</summary>
+    /// <summary>Worth something, but at the buy spread and this trader's fit and supply under a gear per full stack.</summary>
     TooCheap,
 }
 
@@ -65,67 +65,72 @@ public readonly record struct PriceCurve(double Floor = 0.3, double HalfLevel = 
 /// <param name="Modifiers">The product of every <see cref="IPriceModifier"/>.</param>
 /// <param name="UnitSize">Items per price unit: the trade item's stack size.</param>
 /// <param name="UnitPrice">Gears per unit, the ResolvedTradeItem's Price.</param>
-/// <param name="Capped">The sell-back cap lowered it (<see cref="Pricing.SellBackShare"/>).</param>
+/// <param name="Spread">The buy spread on the base (<see cref="Pricing.DefaultBuySpread"/>; 1 for
+/// listed goods, whose list price already holds it).</param>
 /// <param name="Budget">Which wallet pays.</param>
-public sealed record Offer(Refusal Refusal, double Base, double Fit, double Supply, double Modifiers, int UnitSize, int UnitPrice, bool Capped, Budget Budget)
+public sealed record Offer(Refusal Refusal, double Base, double Fit, double Supply, double Modifiers, int UnitSize, int UnitPrice, double Spread, Budget Budget)
 {
     public bool Accepted => Refusal == Refusal.None;
 
-    public static Offer Refused(Refusal why) => new(why, 0, 0, 1, 1, 1, 0, false, Budget.Side);
+    public static Offer Refused(Refusal why) => new(why, 0, 0, 1, 1, 1, 0, 1, Budget.Side);
 }
 
 /// <summary>
-/// Prices (#450, #451). Goods on a trader's list keep the list's price as their base (curated,
-/// within the value table's scale: the lists' buying prices are 0.94 × the table's value at the
-/// median); goods off its list are priced from the value table (#449). Both are then scaled by the
-/// regional supply factor and the modifiers; a trader buying goods it also sells pays at most
-/// <see cref="SellBackShare"/> of its own selling price for them.
+/// Prices (#450, #451). A trader pays a fifth of what goods are worth (<see cref="DefaultBuySpread"/>,
+/// config <c>BuySpread</c>), a pawnshop's spread, and asks the full price when it sells. Goods on a
+/// trader's list keep the list's price as their base: the lists are curated and hold the final
+/// figure, so a list's buying prices are already a fifth of the value table's scale (a test holds the
+/// two together). Goods off its list are priced from the value table (#449) × the spread × the fit.
+/// Both are then scaled by the regional supply factor and the modifiers.
 /// </summary>
 public static class Pricing
 {
-    /// <summary>The most a trader pays for goods it sells, as a share of its selling price.</summary>
-    public const double SellBackShare = 0.6;
+    /// <summary>What a trader pays for goods, as a share of their value (2026-10-06).</summary>
+    public const double DefaultBuySpread = 0.2;
 
-    /// <summary>A listed entry's price: <paramref name="listPrice"/> per its stack, scaled; at least
-    /// 1. <paramref name="sellPricePerItem"/>: what the trader asks per item for the same goods, if it
-    /// sells them (buying sides only).</summary>
-    public static Offer Listed(double listPrice, int stackSize, double supply, double modifiers, double? sellPricePerItem = null, bool traderBuys = true)
+    /// <summary>
+    /// A listed entry's price: <paramref name="listPrice"/> per its stack, scaled; at least 1. A
+    /// buying entry worth under a gear per stack is bought by a bigger unit, a whole number of the
+    /// entry's stacks up to <paramref name="maxStackSize"/>, the fewest worth a gear (a list's buying
+    /// prices are a fifth of value, so a cheap stack would otherwise round up to a gear and pay up to
+    /// five times its share). Selling entries keep their stack.
+    /// </summary>
+    public static Offer Listed(double listPrice, int stackSize, double supply, double modifiers, bool traderBuys = true, int maxStackSize = 0)
     {
+        int stack = Math.Max(1, stackSize);
         double price = listPrice * supply * modifiers;
-        bool capped = false;
-        if (traderBuys && sellPricePerItem is double sell && price > SellBackShare * sell * stackSize)
+        int unit = stack;
+        if (traderBuys && price > 0 && price < 1 - 1e-9 && maxStackSize > stack)
         {
-            price = SellBackShare * sell * stackSize;
-            capped = true;
+            int k = Math.Min(maxStackSize / stack, (int)Math.Ceiling(1 / price - 1e-9));
+            if (k > 1)
+            {
+                unit = stack * k;
+                price *= k;
+            }
         }
         int unitPrice = Math.Max(1, (int)Math.Round(price, MidpointRounding.AwayFromZero));
-        return new Offer(Refusal.None, listPrice, 1, supply, modifiers, Math.Max(1, stackSize), unitPrice, capped, Budget.Main);
+        return new Offer(Refusal.None, listPrice, 1, supply, modifiers, unit, unitPrice, 1, Budget.Main);
     }
 
     /// <summary>
-    /// What a trader offers for goods off its list. Per item: value × fit × supply × modifiers, capped
-    /// by the sell-back share. The unit is one item when that is a gear or more, else the fewest items
-    /// worth a gear (so a stack of planks sells by the 17, at one gear): the game prices trades in whole
-    /// gears per unit. Under a gear per full stack it is <see cref="Refusal.TooCheap"/>.
+    /// What a trader offers for goods off its list. Per item: value × spread × fit × supply ×
+    /// modifiers. The unit is one item when that is a gear or more, else the fewest items worth a gear
+    /// (so a stack of planks sells by the 17, at one gear): the game prices trades in whole gears per
+    /// unit. Under a gear per full stack it is <see cref="Refusal.TooCheap"/>.
     /// </summary>
     public static Offer OffList(double valuePerItem, bool worthless, double fit, double supply, double modifiers, int maxStackSize,
-        double? sellPricePerItem = null)
+        double spread = DefaultBuySpread)
     {
         if (worthless) return Offer.Refused(Refusal.Worthless);
         if (valuePerItem <= 0) return Offer.Refused(Refusal.NoValue);
-        double perItem = valuePerItem * fit * supply * modifiers;
-        bool capped = false;
-        if (sellPricePerItem is double sell && perItem > SellBackShare * sell)
-        {
-            perItem = SellBackShare * sell;
-            capped = true;
-        }
+        double perItem = valuePerItem * spread * fit * supply * modifiers;
         int maxStack = Math.Max(1, maxStackSize);
         if (perItem * maxStack < 1 - 1e-9)
-            return Offer.Refused(Refusal.TooCheap) with { Base = valuePerItem, Fit = fit, Supply = supply, Modifiers = modifiers, Capped = capped };
+            return Offer.Refused(Refusal.TooCheap) with { Base = valuePerItem, Fit = fit, Supply = supply, Modifiers = modifiers, Spread = spread };
         int unit = perItem >= 1 ? 1 : Math.Min(maxStack, (int)Math.Ceiling(1 / perItem - 1e-9));
         int unitPrice = Math.Max(1, (int)Math.Round(unit * perItem, MidpointRounding.AwayFromZero));
-        return new Offer(Refusal.None, valuePerItem, fit, supply, modifiers, unit, unitPrice, capped, Budget.Side);
+        return new Offer(Refusal.None, valuePerItem, fit, supply, modifiers, unit, unitPrice, spread, Budget.Side);
     }
 
     /// <summary>The product of the modifiers' factors (1 with none); a factor below 0 counts as 0.</summary>

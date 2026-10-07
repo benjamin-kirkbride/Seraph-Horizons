@@ -535,7 +535,8 @@ afresh from each entry's JSON for every restock.
 
 **Curation.** Every entry of vanilla's nine trader lists and of the table above is in at least one of
 our lists, keeping vanilla's price, stack and stock (a good moved from selling to buying is priced
-×0.6, the other way ×1.6), and the pack's own goods are added where the vanilla lists had none:
+×0.6, the other way ×1.6; every buying price was later divided by five for the buy spread, see
+"Everything has a price"), and the pack's own goods are added where the vanilla lists had none:
 mechanical power, pipes and steam (mechanic), ore samples and mining supplies by rock group
 (prospector), seeds and saplings by climate (farmer), planks and logs by climate (carpenter), stone by
 rock group (mason), young animals by climate and tack (animal dealer), everyday supplies (general
@@ -674,22 +675,48 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
 unit-tested in `tests/Trading/Economy/`), `Game/` (`EconomySystem`, `EconomyPatches`,
 `EconomyCommands`).
 
+### Values (#449)
+
+The value table (`config/item-values.json`, built by `tools/item-values`; the mod README's "Item base
+values") is what off-list prices start from and what the list-pay tests hold the lists to.
+
+- **Schematics** take their value from the pack's own trade lists. Every code matched by a `sold`
+  pattern in `config/schematic-gates.json` is valued by traderFallback's rule over
+  `config/tradelists/`: the mean per item of the selling price × 0.7 and the buying price / 0.2 × 1.4 (the
+  lists' buying prices hold the buy spread, so the tool divides it out first). A
+  recipe that keeps a schematic is priced by its consumed parts and labour only; the kept schematic
+  adds nothing, not even the 2 % tool share, while hammers and other tools keep that share. (#506)
+- **The steel gear** (`seraphhorizons:gear-steel`) is a hand price of 15, what the reclamation line
+  costs: ten oiled gears at 1.83 each, less nine steel bits at 0.4. The large steel gear
+  (`seraphhorizons:largegear-steel`) takes the value of its gear cutter route. (#506)
+
 ### Everything has a price
 
-- **Fit**: `config/trading/trader-relations.json`. Listed 1, a related type 0.5, otherwise 0.2. The
+- **Buy spread**: a trader pays a fifth of what goods are worth (`BuySpread`, default 0.2, server
+  config, synced to clients per trader as `seraphhorizons:buyspread`), a pawnshop's spread, and asks
+  the full price when it sells. It applies to everything a trader buys from a player: off-list goods
+  at runtime, and list entries because the lists hold the final pay (below).
+- **Fit**: `config/trading/trader-relations.json`. Listed 1, a related type 0.75, otherwise 0.5. The
   relations are smith–mechanic, smith–prospector, prospector–mason, carpenter–mason,
   carpenter–mechanic, farmer–cook, farmer–animal dealer, cook–animal dealer and tailor–general store
-  at 0.5; tailor–animal dealer, general store–cook and general store–carpenter at 0.3; and the curio
-  dealer with everyone at 0.3. An item's fit at a trader is the best relation between its type and
+  at 0.75; tailor–animal dealer, general store–cook and general store–carpenter at 0.6; and the curio
+  dealer with everyone at 0.6. An item's fit at a trader is the best relation between its type and
   any type whose list buys the item (any region, core or rotating; `BuyerIndex`).
 - **Prices** (`Pricing`): a listed entry is its list average (vanilla's rolled spread is dropped once
   the economy prices a trader) × supply × modifiers. An off-list good is the value table's value
-  (scaled by remaining durability) × fit × supply × modifiers. Listed goods keep the list's price because
-  the lists are curated and on the table's scale: the lists' buying prices are 0.94 × the table's value
-  at the median. A buying price is capped at 0.6 × what the trader asks per item for the same goods.
-  The game prices a trade in whole gears per trade-item stack, so an off-list good of less than a
-  gear an item is sold by the fewest items worth a gear (`UnitSize`); under a gear per full stack it
-  is refused (`TooCheap`).
+  (scaled by remaining durability) × spread × fit × supply × modifiers. Listed goods keep the list's
+  price because the lists are curated and already hold the spread: their buying prices were rescaled
+  by 0.2 (`Trading/tools/rescale_buying.py`, 2026-10-06), so they sit at 0.19 × the table's value at
+  the median, and `BuySpread` does not touch them. `tests/Trading/Economy/ShippedListPayTests.cs`
+  holds the two together: the median in 0.15–0.25, every entry at most 0.3 × value except the
+  outliers the rescale found (`tests/Trading/fixtures/list-pay-outliers.json`, mostly items the
+  table prices low, each held to 1.25 × its share then), and no list paying more than 0.6 × the
+  lowest list ask for the same item (the rule a runtime cap used to enforce). The game prices a
+  trade in whole gears per trade-item stack, so an off-list good of less than a gear an item is sold
+  by the fewest items worth a gear (`UnitSize`); under a gear per full stack it is refused
+  (`TooCheap`). A listed buying entry under a gear per stack is bought by the fewest whole multiples
+  of its stack worth a gear, up to the item's stack size (`Pricing.Listed`; the slot's trade stack is
+  resized at every reprice), rather than rounding a fifth of a gear up to a whole one.
 - **Refusals**: code prefixes under `refused` (`seraphhorizons:oremap`, `gravelmap`, `traderlead`,
   `game:locatormap`), items with a `currency` attribute, `IsWorthless` items (floorZero), items with
   no value or family value. The prefixes apply only to off-list goods; a list that names one buys it.
@@ -747,6 +774,20 @@ unit-tested in `tests/Trading/Economy/`), `Game/` (`EconomySystem`, `EconomyPatc
   `/sh trade simulate <days>` ticks the book, raises `EconomySystem.SimulatedDay` per day (for orders
   and deliveries), and moves each loaded trader's `lastRefreshTotalDays` back by the days, so vanilla's
   weekly loop restocks it on its next check.
+
+### Decisions
+
+- **2026-10-06: a trader pays a fifth of value; fit flattened to 1 / 0.75 / 0.5** (was 1 / 0.5 / 0.2,
+  weak links 0.3, now 0.6; and a buying price capped at 0.6 × what the trader asks, now gone). A steel
+  gear rusts in brine 1:1 into a rusty gear, the currency, so what a trader pays for one had to sit
+  well under its value, or reclaiming gears would print money. A pawnshop's spread does that for
+  everything at once, and with the fit flattened, hauling goods to the trader who wants them still
+  pays (a good fit doubles the pay, not quintuples it) without a poor fit being a refusal in all
+  but name. The lists hold the final pay (rescaled once by 0.2) rather than the runtime dividing
+  them, so a list's numbers are what a player is offered; the runtime spreads off-list goods only.
+  The mechanic took in the pack's reclaimed steel gear and large gear (`seraphhorizons:gear-steel`
+  at 15, its value, `largegear-steel` at 19, player-supplied; bought at 3 and 3.8), filling the hole left
+  when ppex's gears were dropped (#507).
 
 ## Extension points for later waves
 
@@ -873,13 +914,17 @@ without variables we would have to set per player. The `opentrade` chat summary
   list's buying side for its region (`TradeListResolver.Resolve`, core and rotating pool, so the
   region's goods too), plain stacks with a price; the price per item is the list average over its
   stack size times the region's supply factor. Never two open orders for one item at one trader.
-- **Size and premium**: at standing scale 1 an order is worth `BaseGears` (24) at that price, in whole
+- **Size and premium**: at standing scale 1 an order is worth `BaseGears` (5) at that price, in whole
   lots of the list's stack size, at most four stacks; the premium factor is 1.3–1.6 (steps of 0.05),
   the premium (factor − 1) × quantity × price, at least a gear. It is taken out of the trader's wallet
   (`InventoryTrader.DeductFromTrader`) when the order is made; a wallet that can't cover it makes no
   order. Taking an order scales its quantity by the player's `orderScale` (in lots, up to four
   stacks) and holds back the larger premium, shrinking the order back towards the offer as far as the
   wallet falls short. `orderScale` 0 gives that player no orders; standing off counts as 1.
+- **Since the buy spread** (2026-10-06): `BaseGears` went from 24 to 5 (24 × 0.2, rounded). The normal
+  price is the list's buying price, now a fifth of value, so at 24 an order would have asked five
+  times the items (up to the four-stack cap) for the same gears; at 5 it asks about as many as before,
+  and its premium, a share of that price, is a fifth of what it was.
 - **Delivery**: an item counts when the player sells it through the trade dialog
   (`EntitySeraphTrader.Dealt`, the stacks that left the selling cart in a deal that went through) or
   hands the held stack over with `/sh order handin` (paid at the order's price per item from the

@@ -14,37 +14,39 @@ public class TraderRelationsTests
         var rel = Shipped();
         Assert.Empty(rel.Problems(TraderTypes.All.ToList()));
         Assert.Equal(1.0, rel.Listed);
-        Assert.Equal(0.5, rel.Related);
-        Assert.Equal(0.2, rel.Unrelated);
+        Assert.Equal(0.75, rel.Related);
+        Assert.Equal(0.5, rel.Unrelated);
         Assert.Contains("seraphhorizons:oremap", rel.Refused);
     }
 
     [Fact]
-    public void FitIsFullListedHalfRelatedAFifthOtherwise()
+    public void FitIsFullListedThreeQuartersRelatedHalfOtherwise()
     {
         var rel = Shipped();
         Assert.Equal(1.0, rel.Fit("smith", ["smith", "mechanic"]));
-        Assert.Equal(0.5, rel.Fit("smith", ["mechanic"]));
-        Assert.Equal(0.5, rel.Fit("mechanic", ["smith"]));
-        Assert.Equal(0.5, rel.Fit("carpenter", ["mason"]));
-        Assert.Equal(0.5, rel.Fit("cook", ["farmer"]));
-        Assert.Equal(0.5, rel.Fit("animaldealer", ["cook"]));
-        Assert.Equal(0.5, rel.Fit("generalstore", ["tailor"]));
-        Assert.Equal(0.2, rel.Fit("tailor", ["smith"]));
+        Assert.Equal(0.75, rel.Fit("smith", ["mechanic"]));
+        Assert.Equal(0.75, rel.Fit("mechanic", ["smith"]));
+        Assert.Equal(0.75, rel.Fit("carpenter", ["mason"]));
+        Assert.Equal(0.75, rel.Fit("cook", ["farmer"]));
+        Assert.Equal(0.75, rel.Fit("animaldealer", ["cook"]));
+        Assert.Equal(0.75, rel.Fit("generalstore", ["tailor"]));
+        Assert.Equal(0.5, rel.Fit("tailor", ["smith"]));
+        // A weak link sits between.
+        Assert.Equal(0.6, rel.Fit("tailor", ["animaldealer"]));
         // The best relation among the buyers counts.
-        Assert.Equal(0.5, rel.Fit("tailor", ["smith", "generalstore"]));
+        Assert.Equal(0.75, rel.Fit("tailor", ["smith", "generalstore"]));
         // Nobody buys it: unrelated everywhere, the curio dealer included.
-        Assert.Equal(0.2, rel.Fit("smith", []));
-        Assert.Equal(0.2, rel.Fit("curiodealer", []));
+        Assert.Equal(0.5, rel.Fit("smith", []));
+        Assert.Equal(0.5, rel.Fit("curiodealer", []));
     }
 
     [Fact]
     public void TheCurioDealerRelatesToEveryoneAtItsOwnWeight()
     {
         var rel = Shipped();
-        Assert.Equal(0.3, rel.Fit("curiodealer", ["smith"]));
-        Assert.Equal(0.3, rel.Fit("smith", ["curiodealer"]));
-        Assert.Equal(0.3, rel.Relation("mason", "curiodealer"));
+        Assert.Equal(0.6, rel.Fit("curiodealer", ["smith"]));
+        Assert.Equal(0.6, rel.Fit("smith", ["curiodealer"]));
+        Assert.Equal(0.6, rel.Relation("mason", "curiodealer"));
     }
 
     [Fact]
@@ -90,23 +92,35 @@ public class PricingTests
     [Fact]
     public void AnOffListGoodWorthAGearOrMoreIsPricedPerItem()
     {
-        var o = Pricing.OffList(valuePerItem: 3.5, worthless: false, fit: 0.5, supply: 1, modifiers: 1, maxStackSize: 64);
+        // Iron at 4 a bar, a fifth of it, at a related trader: 4 × 0.2 × 0.75 = 0.6, two bars a gear.
+        var o = Pricing.OffList(valuePerItem: 17.5, worthless: false, fit: 0.5, supply: 1, modifiers: 1, maxStackSize: 64);
         Assert.True(o.Accepted);
         Assert.Equal(1, o.UnitSize);
-        Assert.Equal(2, o.UnitPrice); // 1.75 rounds to 2
+        Assert.Equal(2, o.UnitPrice); // 17.5 × 0.2 × 0.5 = 1.75 rounds to 2
+        Assert.Equal(0.2, o.Spread);
         Assert.Equal(Budget.Side, o.Budget);
+    }
+
+    [Fact]
+    public void ATraderPaysAFifthOfValueByDefaultAndTheSpreadIsAKnob()
+    {
+        Assert.Equal(0.2, Pricing.DefaultBuySpread);
+        Assert.Equal(2, Pricing.OffList(10, false, 1, 1, 1, 1).UnitPrice);
+        Assert.Equal(5, Pricing.OffList(10, false, 1, 1, 1, 1, spread: 0.5).UnitPrice);
+        Assert.Equal(10, Pricing.OffList(10, false, 1, 1, 1, 1, spread: 1).UnitPrice);
     }
 
     [Fact]
     public void ACheapGoodIsSoldByTheFewestItemsWorthAGear()
     {
-        // Planks: 0.06 a plank, to the carpenter's relation at 0.5: 0.03 a plank, so 34 for a gear.
-        var o = Pricing.OffList(0.06, false, 0.5, 1, 1, 64);
-        Assert.Equal(34, o.UnitSize);
+        // Planks: 0.3 a plank, a fifth of it, to the carpenter's relation at 0.75: 0.045 a plank, so 23 for a gear.
+        var o = Pricing.OffList(0.3, false, 0.75, 1, 1, 64);
+        Assert.Equal(23, o.UnitSize);
         Assert.Equal(1, o.UnitPrice);
-        // At a fifth, a full stack is worth under a gear: refused.
-        var low = Pricing.OffList(0.06, false, 0.2, 1, 1, 64);
+        // Unrelated, at a tenth of value, a full stack is worth under a gear: refused.
+        var low = Pricing.OffList(0.15, false, 0.5, 1, 1, 64);
         Assert.Equal(Refusal.TooCheap, low.Refusal);
+        Assert.Equal(0.2, low.Spread);
     }
 
     [Fact]
@@ -119,28 +133,43 @@ public class PricingTests
     [Fact]
     public void SupplyAndModifiersScaleTheOffer()
     {
-        var full = Pricing.OffList(10, false, 1, 1, 1, 1);
-        var glut = Pricing.OffList(10, false, 1, 0.5, 1, 1);
-        var standing = Pricing.OffList(10, false, 1, 0.5, 1.2, 1);
+        var full = Pricing.OffList(50, false, 1, 1, 1, 1);
+        var glut = Pricing.OffList(50, false, 1, 0.5, 1, 1);
+        var standing = Pricing.OffList(50, false, 1, 0.5, 1.2, 1);
         Assert.Equal(10, full.UnitPrice);
         Assert.Equal(5, glut.UnitPrice);
         Assert.Equal(6, standing.UnitPrice);
     }
 
     [Fact]
-    public void ATraderPaysAtMostSixTenthsOfItsOwnPriceForGoodsItSells()
+    public void AListedPriceIsTheListsWithNoSpreadOnTop()
     {
-        var o = Pricing.OffList(10, false, 1, 1, 1, 1, sellPricePerItem: 10);
-        Assert.Equal(6, o.UnitPrice);
-        Assert.True(o.Capped);
-        var listed = Pricing.Listed(listPrice: 9, stackSize: 2, supply: 1, modifiers: 1, sellPricePerItem: 5);
-        Assert.Equal(6, listed.UnitPrice);
-        Assert.True(listed.Capped);
+        // The list holds the final pay: no spread, no cap against the trader's own price.
+        var listed = Pricing.Listed(listPrice: 9, stackSize: 2, supply: 1, modifiers: 1);
+        Assert.Equal(9, listed.UnitPrice);
+        Assert.Equal(2, listed.UnitSize);
+        Assert.Equal(1, listed.Spread);
         Assert.Equal(Budget.Main, listed.Budget);
-        // Not capped when buying under that.
-        Assert.False(Pricing.Listed(4, 2, 1, 1, sellPricePerItem: 5).Capped);
-        // A trader's own selling price is not capped.
-        Assert.Equal(9, Pricing.Listed(9, 2, 1, 1, sellPricePerItem: 1, traderBuys: false).UnitPrice);
+        Assert.Equal(9, Pricing.Listed(9, 2, 1, 1, traderBuys: false).UnitPrice);
+    }
+
+    [Fact]
+    public void ACheapListedBuyingEntryIsBoughtByABiggerUnit()
+    {
+        // Rope at 0.2 a 4: bought by the 20 for a gear, not by the 4 for a rounded-up gear.
+        var rope = Pricing.Listed(0.2, 4, 1, 1, traderBuys: true, maxStackSize: 64);
+        Assert.Equal(20, rope.UnitSize);
+        Assert.Equal(1, rope.UnitPrice);
+        // Whole stacks of the entry, and never past the item's stack size.
+        var capped = Pricing.Listed(0.4, 32, 1, 1, traderBuys: true, maxStackSize: 64);
+        Assert.Equal(64, capped.UnitSize);
+        Assert.Equal(1, capped.UnitPrice);
+        var single = Pricing.Listed(0.6, 1, 1, 1, traderBuys: true, maxStackSize: 1);
+        Assert.Equal(1, single.UnitSize);
+        Assert.Equal(1, single.UnitPrice);
+        // A gear or more per stack keeps the entry's stack; a trader's selling side always does.
+        Assert.Equal(4, Pricing.Listed(3.2, 4, 1, 1, traderBuys: true, maxStackSize: 64).UnitSize);
+        Assert.Equal(4, Pricing.Listed(0.2, 4, 1, 1, traderBuys: false, maxStackSize: 64).UnitSize);
     }
 
     [Fact]

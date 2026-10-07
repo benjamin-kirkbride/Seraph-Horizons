@@ -507,12 +507,18 @@ public class SeraphHorizonsConfig
     /// at a trader. 0 turns spillover off.</summary>
     public double TraderStandingSpilloverKm { get; set; } = 6;
 
-    /// <summary>Traders: the pack's traders take any item, not only what their list buys: full price
-    /// for listed goods, about half for goods a related type buys, about a fifth otherwise
-    /// (config/trading/trader-relations.json), paid from a side budget of a quarter of their wallet,
-    /// refilled at restock. Maps, leads, money and worthless goods are refused. Both sides follow the
-    /// server's setting.</summary>
+    /// <summary>Traders: the pack's traders take any item, not only what their list buys: off-list
+    /// goods at <see cref="BuySpread"/> of their value × three quarters for goods a related type buys,
+    /// half otherwise (config/trading/trader-relations.json), paid from a side budget of a quarter of
+    /// their wallet, refilled at restock. Maps, leads, money and worthless goods are refused. Both
+    /// sides follow the server's setting.</summary>
     public bool EverythingHasAPrice { get; set; } = true;
+
+    /// <summary>Traders: what a trader pays for goods off its list, as a share of their value (a
+    /// pawnshop's spread; selling prices are not touched). The lists' own buying prices are written at
+    /// the default 0.2 and do not follow this setting. Clamped to 0.01–1; both sides follow the
+    /// server's setting.</summary>
+    public double BuySpread { get; set; } = 0.2;
 
     /// <summary>Traders: a supply level per item and 8 km region, raised by selling, drained by buying
     /// and by time, spreading to neighbouring regions; it lowers the price of plentiful goods and puts
