@@ -251,12 +251,11 @@ public static class TrunkStations
             case Station.Rack:
                 if (logging!.PeekTrunk(be!) is not { } top)
                     return true;
-                if (GiveToHands(player, top))
-                {
-                    logging.PopTrunk(be!);
-                    be!.MarkDirty(true);
-                    Sound(world, blockSel.Position, player);
-                }
+                // Taken after Carry On's pick-up hold, as a trunk off the ground is (RackTake).
+                if (!TrunkCarry.CanGive(player))
+                    TrunkCarry.HandsFull(player);
+                else
+                    RackTake.Start(player, blockSel.Position.Copy(), TrunkCarry.PickUpSeconds(world.Api, top.Block));
                 break;
             default:
                 if ((bool)_resinIsEmpty!.GetValue(be)! || _resinRetrieve!.Invoke(be, null) is not ItemStack trunk)
@@ -313,4 +312,74 @@ public static class TrunkStations
 
     private static void Sound(IWorldAccessor world, BlockPos pos, IPlayer player) =>
         world.PlaySoundAt(WoodSound, pos, 0, player, true, 16f, 0.75f);
+}
+
+/// <summary>
+/// Server side: taking the top trunk off a Trunk Storage Rack with an empty hand is a hold, timed as
+/// a trunk entity's pick-up (<see cref="TrunkCarry.PickUpSeconds"/> of the top trunk): the right
+/// button held, both hands empty, nothing carried, within reach, not looking at another block. Let
+/// go early and the trunk stays. The client shows the same circle (<see cref="TrunkHoldCircle"/>).
+/// One hold per player; a new click starts it over.
+/// </summary>
+public static class RackTake
+{
+    /// <summary>How often a hold is checked, ms.</summary>
+    public const int TickMs = 100;
+
+    private sealed class Hold
+    {
+        public required IServerPlayer Player;
+        public required BlockPos Pos;
+        public long NeedMs, HeldMs, Listener;
+    }
+
+    private static readonly Dictionary<string, Hold> Holds = new();
+
+    /// <summary>Whether <paramref name="player"/> is holding to take a trunk off a rack.</summary>
+    public static bool Holding(IPlayer player) => Holds.ContainsKey(player.PlayerUID);
+
+    public static void Start(IServerPlayer player, BlockPos pos, float seconds)
+    {
+        if (player.Entity?.World is not { } world)
+            return;
+        if (Holds.TryGetValue(player.PlayerUID, out var old) && old.Pos == pos)
+            return;   // already holding on this rack
+        Stop(player.PlayerUID);
+        var hold = new Hold { Player = player, Pos = pos, NeedMs = (long)(Math.Max(0, seconds) * 1000) };
+        hold.Listener = world.RegisterGameTickListener(dt => Tick(hold, dt), TickMs);
+        Holds[player.PlayerUID] = hold;
+    }
+
+    private static void Stop(string uid)
+    {
+        if (Holds.Remove(uid, out var hold) && hold.Listener != 0)
+            hold.Player.Entity?.World.UnregisterGameTickListener(hold.Listener);
+    }
+
+    private static void Tick(Hold hold, float dt)
+    {
+        var player = hold.Player;
+        var by = player.Entity;
+        var world = by?.World;
+        var logging = world == null ? null : TrunkEntitySystem.Of(world.Api).Logging;
+        var be = world?.BlockAccessor.GetBlockEntity(hold.Pos);
+        if (by == null || world == null || logging == null || !logging.IsRack(be) || logging.PeekTrunk(be!) is not { } top
+            || !by.ServerControls.RightMouseDown || !TrunkCarry.CanGive(player)
+            || by.Pos.DistanceTo(hold.Pos.ToVec3d().Add(0.5, 0.5, 0.5)) > TrunkHoldCircle.Reach
+            || player.CurrentBlockSelection?.Position is { } looked && looked != hold.Pos)
+        {
+            Stop(player.PlayerUID);
+            return;
+        }
+        hold.HeldMs += (long)(dt * 1000);
+        if (hold.HeldMs < hold.NeedMs)
+            return;
+        Stop(player.PlayerUID);
+        if (TrunkStations.GiveToHands(player, top))
+        {
+            logging.PopTrunk(be!);
+            be!.MarkDirty(true);
+            world.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), hold.Pos, 0, player, true, 16f, 0.75f);
+        }
+    }
 }

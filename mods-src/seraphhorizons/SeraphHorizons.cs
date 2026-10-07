@@ -41,6 +41,7 @@ public class SeraphHorizonsSystem : ModSystem
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
     private Harmony? _heatingRackHarmony;
+    private Harmony? _heatingRackPlacementHarmony;
     // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
     private Harmony? _gearConsumersHarmony;
     private bool _gearConsumers;
@@ -48,6 +49,8 @@ public class SeraphHorizonsSystem : ModSystem
     private UnifiedWoodworking? _woodworking;
     // Client side only: Carry On's icon stack fields, cleared again when the client leaves the world.
     private List<System.Reflection.FieldInfo>? _carryOnIconFields;
+    // Client side only: the sun of /clear stay on the client's calendar.
+    private ClearSkyClient? _clearSkyClient;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
     /// <c>Rosser</c> switch on and the patch bound); decided in <see cref="Start"/>. The rosser
@@ -67,6 +70,8 @@ public class SeraphHorizonsSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         Config(api);
+        // On both sides whatever the switch says: the client cannot know the server's.
+        api.Network.RegisterChannel(ClearSkySun.Channel).RegisterMessageType<ClearSkyPacket>();
         CreativeSteamSource.RegisterClasses(api);
         AssembledMachines.RegisterClasses(api);
         // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
@@ -109,6 +114,8 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(BarrelRackKegs.DisablePatches);
         if (Config(api).HeatingRackKeepsPosition && HeatingRackPosition.Applies(api) && HeatingRackPosition.Bind(api.Logger))
             HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
+        if (Config(api).HeatingRackStandsOnBlock && HeatingRackPlacement.Applies(api) && HeatingRackPlacement.Bind(api.Logger))
+            HeatingRackPlacement.Patch(_heatingRackPlacementHarmony = new Harmony(HeatingRackPlacement.HarmonyId));
         _gearConsumers = Config(api).GearConsumers;
         if (!_gearConsumers)
             DisablePatches(GearConsumers.DisablePatches);
@@ -153,7 +160,7 @@ public class SeraphHorizonsSystem : ModSystem
             FellingWear.Patch(_harmony ??= new Harmony(HarmonyId), api, Config(api).FlatFellingWearSettings ?? new FellingWearConfig());
         ClearSky = new ClearSky(api);
         if (Config(api).ClearCommand)
-            ClearSky.Register(_harmony ??= new Harmony(HarmonyId));
+            ClearSky.Register();
         else
             ClearSky.ReleaseLeftoverLock();
     }
@@ -165,6 +172,8 @@ public class SeraphHorizonsSystem : ModSystem
     // arrive from the server, so the matching ones are known once the level is finalized.
     public override void StartClientSide(ICoreClientAPI api)
     {
+        // Always: the server says whether /clear stay holds the sun.
+        _clearSkyClient = new ClearSkyClient(api);
         if (Config(api).CartReach)
             api.Event.LevelFinalize += () => PatchCartReach(api);
         if (Config(api).CarryOnIconsPerWorld && CarryOnIcons.Find(api) is { } iconFields)
@@ -244,9 +253,11 @@ public class SeraphHorizonsSystem : ModSystem
         FellingWear.Unbind();
         if (ClearSky != null)
         {
-            ClearSky.Unbind();
+            ClearSky.Dispose();
             ClearSky = null;
         }
+        _clearSkyClient?.Dispose();
+        _clearSkyClient = null;
         if (_clientHarmony != null)
         {
             _clientHarmony.UnpatchAll(CartReach.HarmonyId);
@@ -257,6 +268,8 @@ public class SeraphHorizonsSystem : ModSystem
         _barrelRackHarmony = null;
         _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
         _heatingRackHarmony = null;
+        _heatingRackPlacementHarmony?.UnpatchAll(HeatingRackPlacement.HarmonyId);
+        _heatingRackPlacementHarmony = null;
         _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
         _gearConsumersHarmony = null;
         if (_carryOnIconFields != null)
@@ -406,6 +419,12 @@ public class SeraphHorizonsConfig
     /// client, a creative pick) knows its new position, not the one it was picked up from (both
     /// sides; off means it is as Logging Expanded ships it).</summary>
     public bool HeatingRackKeepsPosition { get; set; } = true;
+
+    /// <summary>Logging Expanded: a Trunk Heating Rack placed onto the top face of a block (from the
+    /// hotbar, a creative pick or Carry On) stands on it, one cell up with the cell between left for
+    /// a firepit, unless the block is a firepit (both sides; off means it stands in the block, legs
+    /// in the floor, as Logging Expanded ships it).</summary>
+    public bool HeatingRackStandsOnBlock { get; set; } = true;
 
     /// <summary>Immersive Woodworking + Logging Expanded: one woodworking system. Immersive
     /// Woodworking's chopping block is the splitting block, made in the world with an axe and
@@ -615,8 +634,8 @@ public class SeraphHorizonsConfig
     /// are used.</summary>
     public MachineOilConfig MachineOilSettings { get; set; } = new();
     /// <summary>Trunk entities: Logging Expanded's tree trunks are never items in an inventory. A
-    /// felled tree leaves a trunk lying on the ground as an entity, which you drag with a rope or by
-    /// holding the right mouse button on it with an empty hand, shove by walking into it, float down
+    /// felled tree leaves a trunk lying on the ground as an entity, which you move with a rope or
+    /// drive on foot by one end (right-click with an empty hand), which is solid to walk into, float down
     /// rivers, or shoulder very slowly with Carry On; its weight grows with its logs. Loose trunk
     /// items are turned into trunk entities, no survival player is given a trunk stack (one
     /// already in a slot still moves and can be thrown out), and trunks already
@@ -672,4 +691,13 @@ public class SeraphHorizonsConfig
     /// <summary>The gear cutter's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public GearCutterConfig GearCutterSettings { get; set; } = new();
+
+    /// <summary>Pack version check (PackCheck/, README "Pack version check"): each side compares its
+    /// loaded mods and game version with the pack this build was released with (pack/lock.json,
+    /// built in): a locked mod at another version or missing, a mod the pack does not have, another
+    /// game version, or this mod at another version than the pack's. The server logs a warning for
+    /// each and tells a joining admin in chat; a client shows a dialog once in the world, until the
+    /// player dismisses that set of findings. Each side's own setting decides for it; off means
+    /// nothing is checked.</summary>
+    public bool PackVersionCheck { get; set; } = true;
 }

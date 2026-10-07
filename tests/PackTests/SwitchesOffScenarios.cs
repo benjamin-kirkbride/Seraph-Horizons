@@ -203,6 +203,20 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.NotEmpty(Felling.TrunksNear(World, site));
     }
 
+    /// <summary><c>PackVersionCheck</c>: nothing is read or compared, and nothing is logged about it
+    /// but the line that says it is off.</summary>
+    [AtlasScenario]
+    public void Pack_version_check_off_nothing_is_checked()
+    {
+        Assert.True(Off("PackVersionCheck"));
+        var check = World.Api.ModLoader.GetModSystem<SeraphHorizons.Mod.PackCheck.PackCheckSystem>();
+        Assert.NotNull(check);
+        Assert.Null(check.Pack);
+        Assert.Empty(check.Findings);
+        Assert.DoesNotContain(World.BootDiagnostics, e => e.Level is EnumLogType.Warning
+            && e.Message.Contains("Pack version check", StringComparison.Ordinal));
+    }
+
     /// <summary><c>GearBlanks</c>: no gear blanks, no gear blank molds and no recipes for either,
     /// and nothing logged about them.</summary>
     [AtlasScenario]
@@ -329,6 +343,33 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Ticks(2);
         var stack = World.BlockAt(pos).OnPickBlock(W, pos);
         Assert.Equal(pos.X, stack.Attributes.GetInt("posx", int.MinValue));
+    }
+
+    /// <summary><c>HeatingRackStandsOnBlock</c>: nothing is patched, and a heating rack placed from a
+    /// stack onto a floor's top face goes in the cell over it, legs in the floor, as Logging Expanded
+    /// ships it.</summary>
+    [AtlasScenario]
+    public async Task Heating_rack_stands_on_block_off_the_rack_goes_in_the_cell_over_the_floor()
+    {
+        Assert.True(Off("HeatingRackStandsOnBlock"));
+        Assert.False(Harmony.HasAnyPatches(HeatingRackPlacement.HarmonyId));
+        var shop = await Woodshop.Open(World, World.Spawn.AddCopy(80, 3, 110));
+        var to = shop.Cell(2);
+        // Open's floor can be lost in a chunk nothing had loaded; lay it again with the player there.
+        World.SetBlock("game:rock-granite", to.DownCopy());
+        await World.Ticks(2);
+
+        var stack = new ItemStack(W.GetBlock(new AssetLocation("loggingmod:resinrack-fire-north")));
+        var sel = new BlockSelection { Position = to.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 1, 0.5), DidOffset = true };
+        string failure = "";
+        shop.Holding(stack);
+        Assert.True(stack.Block.TryPlaceBlock(W, shop.P, stack, sel, ref failure), $"not placed: {failure}");
+        shop.Holding(null);
+        await World.Ticks(2);
+
+        Assert.Equal(to, sel.Position);
+        Assert.StartsWith("loggingmod:resinrack-fire-", World.BlockAt(to).Code.ToString());
+        Assert.Equal("game:air", World.BlockAt(to.UpCopy()).Code.ToString());
     }
 
     /// <summary><c>IronWoodworkingMachines</c>: Immersive Woodworking's machine parts keep their own

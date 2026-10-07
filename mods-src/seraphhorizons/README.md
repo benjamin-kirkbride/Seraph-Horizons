@@ -13,7 +13,7 @@ into steel gears through the pot, the pickling tub and the barrel (`GearReclamat
 recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
 (`GearCutter`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
-camps, item values, regional supply, standing, schematics, orders, maps and admin tools. These are choices for this pack, not bug fixes, so
+camps, item values, regional supply, standing, schematics, orders, maps and admin tools; and a check that the installed mods are the pack's (`PackVersionCheck`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.
@@ -36,6 +36,8 @@ shafts, the client takes the click, shows the tank and draws the smoke. So are t
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
 tub: the server runs its batches, the client draws the liquid and the gears in it. Steel bits
 recovery patches the stone coffin on both sides: the server fills it, the client predicts the click.
+The pack version check runs on each side for that side's own mods: the server logs and tells
+admins, the client shows its dialog.
 
 ## Tweaks
 
@@ -692,8 +694,8 @@ An admin command, not a change to another mod. It needs the `controlserver` priv
 game's `/weather` does; of the game's default roles only `admin` has it.
 
 - `/clear` sets the time to day, ends a temporal storm and clears the weather, once.
-- `/clear stay` does the same and holds it: time stands still, the weather stays clear and no
-  temporal storm comes, until `/clear stop`.
+- `/clear stay` does the same and holds it: the sun stays at summer noon while the hours go by as
+  usual, the weather stays clear and no temporal storm comes, until `/clear stop`.
 - `/clear stop` puts back what `stay` changed, as it was before.
 
 `/clear stay` when it already holds, and `/clear stop` when nothing is held, say so and change
@@ -728,28 +730,45 @@ With temporal storms off in the world settings, or in a creative world, there is
 |---|---|---|
 | no rain anywhere | `/weather setprecip -1` | the override it had (`/weather setprecip`), or none |
 | patterns and events stay as they are | `/weather acp off` | auto-changing on or off, as it was |
-| time stands still | the calendar's `baseline` time speed (`/time speed`, `/time stop`) set so that all the speed modifiers sum to 0 | `baseline` as it was, or removed if there was none |
+| the sun at summer noon, time running on | the calendar's sun (`OnGetSolarSphericalCoords`, the survival mod's) asked for noon at midsummer whatever the hour and the day, on the server and on every client | the sun as it was |
 | the next temporal storm as far off as at the lock | its scheduled day, kept that many days ahead | that many days ahead of the time at `stop` |
 
 The temporal storm world setting is never changed, so storms switched off stay off. Every second
 the lock is enforced again: every loaded region clear (a region loaded since comes up clear within
-the second), no override other than -1, auto-changing off, a storm that was started ended. Time is
-held as soon as any speed modifier changes (a postfix on `GameCalendar.CalculateCurrentTimeSpeed`),
-so sleeping players, another speed modifier or `/time resume` do not move the clock. The
+the second), no override other than -1, auto-changing off, a storm that was started ended. The
 lock and what it replaced are kept in the savegame (`seraphhorizons:clearlock`) and reapplied on
-load, so it outlasts a restart; the game saves the override and the time speed itself, but not
-auto-changing patterns.
+load, so it outlasts a restart; the game saves the override itself, but not auto-changing patterns.
 
-Time standing still stops whatever the game times by its calendar, as `/time stop` does: for
-example crops on farmland, barrels, pit kilns, food spoiling and other item transitions (drying,
-curing), the season, the sun and the moon, snow accumulation, and the next temporal storm. Whatever
-runs on real seconds goes on: for example a firepit's or bloomery's cooking, mechanical power, and
-creatures moving. Wind stays as it was, since patterns do not change.
+**The sun.** Every sun position and daylight strength the game works out goes through the
+calendar's `OnGetSolarSphericalCoords`, which `GameCalendar.GetCelestialAngles` hands the fraction
+of the year and of the day; the survival mod installs the real one
+(`SurvivalCoreSystem.GetSolarSphericalCoords`, from those two fractions alone) on the server's
+calendar and on each client's. While held, that one is wrapped and asked for noon (the day half
+gone) at the hemisphere's midsummer: the year 10 days short of half gone in the north (the survival
+mod's year starts 10 days after the northern winter solstice), 10 days short of its end in the
+south (`Core/ClearSkyPlan.cs`). The wrap is put back within a tenth of a second if something
+installs another sun over it (the survival mod does, at load). The server tells each client whether
+the sun is held (channel `seraphhorizons:clearsky`) when the lock starts and ends and as a player
+joins, since the sky, the sun and the light are drawn from the client's own calendar.
+
+The clock is not stopped: the hours pass as usual, sleeping speeds them up, and whatever the game
+times by its calendar runs on, for example a forge heating, crops on farmland, barrels, pit kilns
+and charcoal pits, food spoiling and other item transitions (drying, curing), beehives, body
+temperature, the season and its temperatures, and the next temporal storm. What the hold changes
+is the sun and the daylight it gives: whatever goes by daylight sees a lasting day, for example
+creatures that spawn in the dark (above ground; caves stay dark), rifts, resting butterflies, bees
+around a hive, and a firepit's night sounds. The moon still moves, and the few creature behaviours
+that read the hour itself (the survival mod's `TimeOfDayCondition` and `JumpAction`) see the real
+time. Wind stays as it was, since patterns do not change.
+
+A world saved while an older version of the mod held it, when `stay` stopped time with the
+calendar's `baseline` time speed (set so that all the speed modifiers summed to 0), gets `baseline`
+back as it was before that lock, once, on load; the lock goes on as above and is saved without it.
 
 With the switch off there is no `/clear`, and a lock left in the savegame is released when the
-server starts. If the mod is removed while a lock holds, the `baseline` speed stays where the lock
-left it and time stays still: `/time speed 60` (or the old value) puts it back, and
-`/weather setprecipa` and `/weather acp on` the weather.
+server starts. If the mod is removed while a lock holds, the sun is back to normal at once (the
+wrap lives in memory only, nothing of it is saved), and `/weather setprecipa` and
+`/weather acp on` put the weather back.
 
 ### One woodworking system (`UnifiedWoodworking`)
 
@@ -1299,11 +1318,13 @@ Logging Expanded (`loggingmod`, 0.3.6); Carry On (`carryon`) optional. Logging E
 trunks are never items in an inventory. A felled tree leaves a trunk entity lying on the ground
 (`seraphhorizons:trunk-thin` or `-thick`, shown, boxed and selected as the machines show trunks:
 Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
-holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is shoved by
-walking into it. Hold right-click on it with an empty hand to drag it by that end after you, no
-rope involved (you walk at the trunk's pace, slower the heavier it is, and it steps up one block;
-the grab lets go when the button does, or beyond 3 blocks), or tie a rope to it as to any
-rope-tieable entity, where it pulls from the nearer end. Both are far easier in water. A knife, shears, an axe or a saw held on
+holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is solid to
+whoever walks into it. Right-click it with an empty hand to take that end and drive it on foot like a
+sled (you are mounted on it, standing just beyond the end: W moves it with your end leading as you
+back up, S pushes it, A and D turn it about its middle; a walk at one log, half of it at 48, it
+steps up one block, and sneak lets go; no one else can touch a trunk while you drive it), or tie a
+rope to it as to any rope-tieable entity, where it pulls from the nearer end. Both are easier in
+water. A knife, shears, an axe or a saw held on
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
 debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
 trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
@@ -1319,7 +1340,7 @@ unloading onto the ground and a broken machine all leave one; a trunk is never g
 player's inventory (picked up, unloaded or taken back), though one already in a slot moves freely
 and thrown out becomes a trunk entity; and **trunk multiblocks already placed in a world are deleted as
 they load, with nothing given back**. Without Carry On (one warning) nothing goes through hands:
-trunks are dragged, roped and worked where they lie, the rosser and mill take them from the ground
+trunks are driven, roped and worked where they lie, the rosser and mill take them from the ground
 and lay them there on Ctrl, and Logging Expanded's stations and the carts take none. With the switch
 off, Logging Expanded missing or not as expected, nothing changes and its trunks are items as it
 ships them (trunk entities already in a world turn back into trunk items as they load); the server
@@ -1327,11 +1348,11 @@ decides and a client follows it through the world config (`seraphhorizons:trunkE
 `UnifiedWoodworking` does. Nothing of Carry On, Logging Expanded or Cartwright's Caravan is
 referenced at build time.
 
-`TrunkEntitiesSettings` holds its figures (weight per log, the carry speeds at 4 and 48 logs, the
-spud's seconds per log, the grab's reach and an optional weight limit for grabbing by hand); values
+`TrunkEntitiesSettings` holds its figures (weight per log, the carry speeds at 1 and 48 logs, the
+spud's seconds per log; the drive's figures are constants); values
 out of range fall back to the default with a warning. Everything else is in
 [`TrunkEntities/README.md`](TrunkEntities/README.md): the entity and its boxes, the spawn swap, the
-grab, Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and the `CarryableInteract`
+drive (and why the server, not the driver's client, moves the trunk), Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and the `CarryableInteract`
 that lets a carried trunk's click through to a station), each tool's rule, the stations and the
 machines' ground pull, old worlds, the settings table, the tests and what is not checked in the game.
 
@@ -1842,6 +1863,45 @@ creative hotbars, still carry them. With no position in the tree, `BEResinRack.F
 keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
 warning and leaves the rack as it ships.
 
+### The heating rack stands on the block it is placed on (`HeatingRackStandsOnBlock`)
+
+Logging Expanded (`loggingmod` 0.3.6). The Trunk Heating Rack's legs reach a full block below its
+own cell (`shapes/resinrack.json` runs from y -16 to +14), with the bowl on the cell's floor and the
+firepit meant to go in the cell under it: binding a heating rack frame builds the rack one block above
+the ground, and `BEResinRack` reads its firepit from `Pos.DownCopy()`. `BlockResinRack` has no
+placement of its own, so a rack placed from a stack (the hotbar, a creative pick, Carry On's
+place-down, which runs the block's `TryPlaceBlock` too) goes in the cell over the face aimed at, like
+any block, its legs drawn inside the floor.
+
+`HeatingRackPlacement` (Harmony, on both sides, once per process with its own id) prefixes the rack's
+`DoPlaceBlock`, the one method on the rack's own class that every placement from a stack reaches (its
+`HorizontalOrientable` behavior runs `CanPlaceBlock` and then `DoPlaceBlock`). It moves the selection
+one cell up when all of these hold:
+
+- the placement was offset off an up face (`DidOffset` set, face up): aimed at the top face of a
+  block, not at a side, and not at a replaceable block such as grass, where the rack goes into the
+  aimed-at cell as it ships;
+- the block aimed at (the cell below) is not a firepit (`BlockFirepit` or `BlockEntityFirepit`, any
+  stage): over a firepit the rack already goes in the cell right above it, where its firepit check
+  looks;
+- the cell above can take the rack: in the world, replaceable, no entity in it, and the player may
+  build there (the claim is tested, not tried, so no message is sent). If not, the rack goes where it
+  would have gone without the tweak.
+
+The selection's `Position` is moved in place, never replaced, so everyone holding that selection sees
+the lifted cell: the game's client sends it to the server with the placement, and Carry On 2.0's
+`TryPlaceDownAt` (whose `placedAt` is the same `BlockPos` it passes on) reports it, restores the block
+entity's tree there (`RestoreBlockEntityData`) and plays the sound there. The face stays up and
+`DidOffset` stays set, since the rack was still placed off that up face. A server receiving a lifted
+position finds air under it, not a block, so it does not lift again. If the placement fails after the
+lift, a postfix moves the position back down, so the game's client, which undoes its own offset by
+the face, ends where it started. A rack Carry On drops (a dropped carry, not a place-down) goes
+through `ExchangeBlock`, not `DoPlaceBlock`, and is not lifted; nor is the rack the frame binding builds,
+whose selection is not offset. Each side reads its own switch, so the two should agree (both are on
+by default): with it on on the client only, the server places at the client's lifted cell; on the
+server only, the server lifts a rack the client predicted one cell lower. If the rack or the method
+is not as expected, the mod logs a warning and leaves the rack as it ships.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -1928,6 +1988,49 @@ To check by hand in the game: right-click the creative search box with text in i
 caret in the box, typing works), with an item on the cursor (still held, nothing deleted), and with
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
+
+### The mod checks the installed mods against the pack (`PackVersionCheck`)
+
+The mod is released with the pack, at the pack's version (Releasing, below), and carries the
+pack's `pack/lock.json` inside its DLL (an embedded resource, `seraphhorizons.pack-lock.json`, from
+the csproj). Each side compares what it actually loaded with that lock and reports every
+difference:
+
+- a locked mod loaded at another version than locked, higher or lower (`exlib: expected 1.2.0,
+  found 1.3.0`);
+- a locked mod not loaded (`missing`), counted only on a side it loads on: a dedicated server never
+  loads a `client` mod, nor a client a `server` one;
+- a loaded mod the lock does not have (`not in the pack`). The game's own mods (`game`, `creative`,
+  `survival`), the release meta-mod (`seraphhorizonspack`) and this mod are not counted; there is
+  no allow-list;
+- another game version than the pack's `game_version`;
+- this mod at another version than the pack it was built with.
+
+The server logs one `Warning` per finding (`[seraphhorizons] Pack version check: ...`) and sends the
+list in chat to each player with the `controlserver` privilege as they join. A client logs one
+warning line and, a second after it is in the world, opens a dialog: what the install should be,
+the findings in a scrolled list, and two buttons. **Close** leaves it to come back on the next
+join; **Don't show again until this changes** stores a hash of the findings in the client's own
+`ModConfig/seraphhorizons-packcheck.json` (`DismissedFingerprint`), and the dialog stays away until
+the findings are another set. The list only goes quiet once the install matches the release this
+copy of the mod shipped with: install that release again (Cairn's `.cairn` file does this), or
+update to a newer one. Each side's own `PackVersionCheck` decides for it; off means nothing is
+checked or shown.
+
+Expect findings wherever the install is not a release as shipped: a Cairn local mods folder (its
+mods are extras, or another version of a locked one), and CI's smoke run, which also loads the
+recipe exporter (`seraphexport: not in the pack`, a warning, which smoke does not fail on), and
+Atlas, whose own mod `atlasbridge` is the one finding there (`PackCheckScenarios.cs` requires exactly
+that, and `SwitchesOffScenarios` none with the switch off). The
+`next` build carries main's lock, so it matches the `next` pack.
+
+The comparison is `PackCheck/Core/PackComparison.cs` (unit-tested in `tests/PackCheck/`, including
+against the real lock), the game side `PackCheck/Game/` (`PackCheckSystem`, `PackCheckDialog`).
+
+To check by hand in the game: put a mod the pack does not have in the mods folder and join a world
+(dialog with that line; Close, rejoin: back; Don't show again, rejoin: gone; remove the mod, add
+another, rejoin: back); on a dedicated server, join as an admin (chat lines) and as a player
+(none).
 
 ## Ore
 
@@ -2614,7 +2717,8 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
 and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
-described in `TrunkEntities/README.md`), gear reclamation's roll, flash rust hours, settings and
+described in `TrunkEntities/README.md`), the pack version check's comparison with the
+embedded lock (`PackCheck/Core/`, `tests/PackCheck/`), gear reclamation's roll, flash rust hours, settings and
 optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
 (`GearReclamation/Core/`, `tests/GearReclamation/`), the gear cutter's build order, take-back,
 drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
@@ -2816,8 +2920,9 @@ update, `DebarkedTrunks.Bind`'s warning names what changed in its trunk blocktyp
 `TrunkStationScenarios.cs` (Atlas) are the trunk entities' (`TrunkEntities/README.md`, "Tests"): a
 spawned trunk item becoming a thin or thick trunk entity, no trunk given to a player, the weight by
 logs, a trunk at rest on the ground, a placed trunk multiblock removed as it loads, a trunk left in
-a hotbar laid down as an entity rather than placed, and the grab dragging a trunk while held, kept
-from another player and cleared when a trunk saved with it loads; each tool on a trunk entity, the
+a hotbar laid down as an entity rather than placed, and the drive (W, S, A and D, a light trunk
+twice as fast as a 48-log one, up a step, faster afloat), kept from another player and cleared when
+a trunk saved with it loads; each tool on a trunk entity, the
 axe and saw refusing a branched one and the spud debarking a clean one whole with its bark, a thick
 trunk cut down to lg becoming a thin one; carrying through the pinned Carry On (the animation by
 size, racks not carryable, an item in either hand refusing a trunk, the speed by logs, sneak to
@@ -2884,6 +2989,19 @@ in survival. With the switch off, `SwitchesOffScenarios` requires nothing patche
 stack carrying the rack's position. When it fails after a Logging Expanded update, check whether
 the rack still writes its tree into the stack, and whether `FromTreeAttributes` still keeps its
 position when the tree has none.
+
+The same file holds `HeatingRackStandsOnBlock`'s scenarios. A rack placed from a stack through
+`TryPlaceBlock`, with the selection the game makes for a click on the granite floor's top face (the
+cell over it, `DidOffset` set), must stand one cell higher, the cell between empty and the block
+entity's `Pos` the rack's, and the selection must say so; aimed at an extinct firepit's top face it
+must stand right above the firepit; with the cell above taken, or aimed at a side face, it goes in
+the cell over the face. Carry On's place-down (the scenario above) must report the lifted cell and
+restore the block entity's tree there (a banked resin figure set before the pickup). With the switch
+off, `SwitchesOffScenarios` requires nothing patched and the rack in the cell over the floor. When
+they fail after a Logging Expanded update, check whether the rack gained a placement of its own
+(`TryPlaceBlock` or a different `DoPlaceBlock`) or a new shape; after a Carry On update, whether
+`TryPlaceDownAt` still hands the block the same `BlockSelection` whose `Position` it reports and
+restores at.
 
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's

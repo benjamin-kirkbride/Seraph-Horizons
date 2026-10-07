@@ -525,7 +525,7 @@ def hold_geometry(st):
 
 # Iron: pins, wearing surfaces and thin linkage (builders call metal() on most); these too: the feed
 # rolls (the trunk runs on them; they are fitted as iron rods), the worms and the selector dogs.
-METAL_NAMES = re.compile(r"^(gear_pinion_._catch|toproll_\w+_body|botroll_\w+_body|worm_|sel_)")
+METAL_NAMES = re.compile(r"^(gear_pinion_._catch|toproll_(in|out)_body|botroll_(in|out)_body|worm_|sel_)")
 # ---------------------------------------------------------------- builders: drive
 def build_entry(iw):
     """The entry shaft (IW's cross profile, continuing the vanilla axle) from the north face to
