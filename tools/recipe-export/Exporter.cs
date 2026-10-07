@@ -36,7 +36,6 @@ public static class Exporter
         // Recipes first: the item section needs to know which codes they reference.
         referenced = RecipeSection.Fill(api, root);
         ItemSection.Fill(api, root, referenced);
-        Recipes.Switches.Annotate(api, root);
         return root;
     }
 }

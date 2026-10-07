@@ -55,21 +55,28 @@ public static class Switches
         }
     }
 
-    /// <summary>Adds the fields to the built document's `recipes` and `items`.</summary>
-    public static void Annotate(ICoreServerAPI api, JObject root)
+    /// <summary>`switch` on each record of `recipes` (RecipeSection.Fill's last step).</summary>
+    public static void AnnotateRecipes(ICoreServerAPI api, JArray recipes)
+    {
+        if (Find(api) is not { } owners)
+            return;
+        int n = 0;
+        foreach (var r in recipes.OfType<JObject>())
+            if (owners.ForRecipe((string)r["id"]!) is { } name)
+            {
+                r["switch"] = name;
+                n++;
+            }
+        api.Logger.Notification("[seraphexport] switches: {0} recipes owned by a switch", n);
+    }
+
+    /// <summary>`switch`, `value`, `floorZero` and `valueSwitches` on each item (ItemSection.Fill's
+    /// last step).</summary>
+    public static void AnnotateItems(ICoreServerAPI api, JObject items)
     {
         var owners = Find(api);
         var table = Table(api);
-        int recipes = 0, owned = 0, valued = 0;
-        if (owners != null && root["recipes"] is JArray list)
-            foreach (var r in list.OfType<JObject>())
-                if (owners.ForRecipe((string)r["id"]!) is { } name)
-                {
-                    r["switch"] = name;
-                    recipes++;
-                }
-        if (root["items"] is not JObject items)
-            return;
+        int owned = 0, valued = 0;
         var values = table?["values"] as JObject;
         var floorZero = new HashSet<string>((table?["floorZero"] as JArray)?.Values<string>().OfType<string>() ?? [], StringComparer.Ordinal);
         var switches = table?["switches"] as JObject;
@@ -92,7 +99,7 @@ public static class Switches
                     item["valueSwitches"] = depends.DeepClone();
             }
         }
-        api.Logger.Notification("[seraphexport] switches: {0} recipes and {1} items owned by a switch{2}; item values: {3}{4}",
-            recipes, owned, owners == null ? " (no seraphhorizons)" : "", valued, table == null ? " (no table)" : "");
+        api.Logger.Notification("[seraphexport] switches: {0} items owned by a switch{1}; item values: {2}{3}",
+            owned, owners == null ? " (no seraphhorizons)" : "", valued, table == null ? " (no table)" : "");
     }
 }
