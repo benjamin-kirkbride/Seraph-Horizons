@@ -85,7 +85,7 @@ public static class TrunkCarry
     /// <summary>The trunk stack in <paramref name="player"/>'s Carry On hands slot, or null (nothing
     /// carried, something else carried, or carrying unavailable).</summary>
     public static ItemStack? Carried(IPlayer player) =>
-        player.Entity is { } entity && CarriedIn(entity) is { } carried && StackOf(carried) is { } stack && Trunks.IsTrunk(stack) ? stack : null;
+        player.Entity is { } entity && CarriedIn(entity) is { } carried && StackOf(carried, entity.World) is { } stack && Trunks.IsTrunk(stack) ? stack : null;
 
     /// <summary>Puts <paramref name="trunk"/> into <paramref name="player"/>'s empty Carry On hands.
     /// False when Carry On's hands hold anything, either of the player's hands holds an item (Carry
@@ -99,18 +99,65 @@ public static class TrunkCarry
             || !trunk.ResolveBlockOrItem(entity.World) || !Trunks.IsTrunk(trunk) || CarriedIn(entity) != null
             || !HandsEmpty(entity))
             return false;
-        var m = _members!;
-        var stack = Clean(trunk.Clone());
+        var stack = Clean(Real(trunk, entity.World));
         stack.StackSize = 1;
-        // Carry On attaches a block to a cart only with block entity data, so the trunk gets some.
-        var data = new TreeAttribute();
-        data.SetString("blockCode", stack.Collectible.Code.ToShortString());
-        data.SetString("type", "");
-        var carried = m.NewCarried.Invoke([m.Hands, stack, data]);
-        m.SetCarried.Invoke(manager, [entity, carried, null, true]);
+        Hold(manager, entity, Shown(stack, entity.World));
         UpdateSpeed(entity);
         return true;
     }
+
+    /// <summary>Puts <paramref name="shown"/> into Carry On's hands as it is.</summary>
+    private static void Hold(object manager, Entity entity, ItemStack shown)
+    {
+        var m = _members!;
+        // Carry On attaches a block to a cart only with block entity data, so the trunk gets some.
+        var data = new TreeAttribute();
+        data.SetString("blockCode", shown.Collectible.Code.ToShortString());
+        data.SetString("type", "");
+        var carried = m.NewCarried.Invoke([m.Hands, shown, data]);
+        m.SetCarried.Invoke(manager, [entity, carried, null, true]);
+    }
+
+    // ---- the carried block ----
+
+    /// <summary>The attribute of a carried trunk stack that holds the real trunk's block code
+    /// (<see cref="Shown"/>).</summary>
+    public const string RealCodeKey = "seraphhorizons:trunkCode";
+
+    /// <summary>What Carry On carries for <paramref name="trunk"/>: the block of its class's model
+    /// (<see cref="Trunks.ShownBlock"/>: <c>lg</c> for a thin trunk, <c>xxl</c> for a thick one,
+    /// debarked when it is), so only those two models are ever seen in hand and the carry animation
+    /// goes by class, with the trunk's own attributes (its logs) and its real block code under
+    /// <see cref="RealCodeKey"/>. <see cref="Real"/> gives the trunk back. A copy of the trunk when
+    /// it is its own shown block.</summary>
+    public static ItemStack Shown(ItemStack trunk, IWorldAccessor world)
+    {
+        var real = Real(trunk, world);
+        if (real.Collectible?.Code is not { } code || Trunks.ShownBlock(world, real) is not { } shown || shown.Code == code)
+            return real;
+        var stack = new ItemStack(shown, real.StackSize) { Attributes = real.Attributes.Clone() };
+        stack.Attributes.SetString(RealCodeKey, code.ToShortString());
+        return stack;
+    }
+
+    /// <summary>The real trunk behind a carried (<see cref="Shown"/>) stack: its block, its
+    /// attributes less <see cref="RealCodeKey"/>; a copy of <paramref name="stack"/> when it is no
+    /// shown stack (or its block is gone).</summary>
+    public static ItemStack Real(ItemStack stack, IWorldAccessor world)
+    {
+        var copy = stack.Clone();
+        if (copy.Attributes.GetString(RealCodeKey) is not { } code)
+            return copy;
+        copy.Attributes.RemoveAttribute(RealCodeKey);
+        if (world.GetBlock(new AssetLocation(code)) is not { Id: > 0 } block)
+            return copy;
+        return new ItemStack(block, copy.StackSize) { Attributes = copy.Attributes };
+    }
+
+    /// <summary>Whether <see cref="TryGive"/> would take a trunk for <paramref name="player"/>:
+    /// carrying available, nothing in Carry On's hands, both hands empty.</summary>
+    public static bool CanGive(IPlayer player) =>
+        player.Entity is { } entity && Manager(entity.Api) != null && CarriedIn(entity) == null && HandsEmpty(entity);
 
     /// <summary>Removes the trunk from <paramref name="player"/>'s Carry On hands and returns it;
     /// null when they hold none. Server side.</summary>
@@ -118,7 +165,7 @@ public static class TrunkCarry
     {
         var entity = player.Entity;
         if (entity == null || entity.Api.Side != EnumAppSide.Server || Manager(entity.Api) is not { } manager
-            || CarriedIn(entity) is not { } carried || StackOf(carried) is not { } stack || !Trunks.IsTrunk(stack))
+            || CarriedIn(entity) is not { } carried || StackOf(carried, entity.World) is not { } stack || !Trunks.IsTrunk(stack))
             return null;
         _members!.RemoveCarried.Invoke(manager, [entity, _members.Hands, true]);
         UpdateSpeed(entity);
@@ -333,7 +380,7 @@ public static class TrunkCarry
     /// <summary>The stack <paramref name="entity"/> carries on its back, or null.</summary>
     public static ItemStack? OnBack(Entity entity) =>
         Manager(entity.Api) is { } manager && _members!.Back is { } back
-            ? StackOf(_members.GetCarried.Invoke(manager, [entity, back])) : null;
+            ? StackOf(_members.GetCarried.Invoke(manager, [entity, back]), entity.World) : null;
 
     /// <summary>Lays a trunk found on <paramref name="entity"/>'s back down at its feet as a trunk
     /// entity (old saves, or anything that got past the Hands-only rule). Server side.</summary>
@@ -348,8 +395,26 @@ public static class TrunkCarry
 
     private static void SetCarriedPostfix(Entity __0)
     {
-        if (__0 != null)
-            EvictFromBack(__0);
+        if (__0 == null)
+            return;
+        EvictFromBack(__0);
+        ShowInHands(__0);
+    }
+
+    /// <summary>Swaps a trunk Carry On put into <paramref name="entity"/>'s hands as its own block
+    /// (from a cart slot filled before, or anything else that did not go through
+    /// <see cref="TryGive"/>) for its <see cref="Shown"/> stack. Server side; true when swapped.</summary>
+    public static bool ShowInHands(Entity entity)
+    {
+        if (entity.Api is not { Side: EnumAppSide.Server } || Manager(entity.Api) is not { } manager
+            || CarriedIn(entity) is not { } carried || _members!.Stack.GetValue(carried) is not ItemStack raw
+            || !Trunks.IsTrunk(raw) || raw.Attributes.HasAttribute(RealCodeKey))
+            return false;
+        var shown = Shown(Clean(raw.Clone()), entity.World);
+        if (!shown.Attributes.HasAttribute(RealCodeKey))
+            return false;   // the trunk is its own shown block
+        Hold(manager, entity, shown);
+        return true;
     }
 
     /// <summary>Carry On's pick-up hold for <paramref name="block"/>, in seconds: its Carryable's
@@ -428,7 +493,7 @@ public static class TrunkCarry
         if (stats == null)
             return;
         bool has = stats.ValuesByKey.TryGetValue(SpeedCode, out var current);
-        var trunk = CarriedIn(entity) is { } carried && StackOf(carried) is { } stack && Trunks.IsTrunk(stack) ? stack : null;
+        var trunk = CarriedIn(entity) is { } carried && StackOf(carried, entity.World) is { } stack && Trunks.IsTrunk(stack) ? stack : null;
         if (trunk == null)
         {
             if (has)
@@ -449,7 +514,7 @@ public static class TrunkCarry
     // a trunk lies down as an entity, on the client as on the server (the client predicts, then asks).
     private static bool PlaceDownPrefix(Entity __0, object __1, BlockSelection __2, ref string __3, bool __4, ref bool __result)
     {
-        if (__0?.Api is not { } api || __2?.Position == null || StackOf(__1) is not { } stack || !Trunks.IsTrunk(stack)
+        if (__0?.Api is not { } api || __2?.Position == null || StackOf(__1, __0.World) is not { } stack || !Trunks.IsTrunk(stack)
             || Manager(api) is not { } manager)
             return true;
         var m = _members!;
@@ -485,7 +550,7 @@ public static class TrunkCarry
 
     private static bool DropHere(Entity? carrier, object? carried)
     {
-        if (carrier?.Api is not { Side: EnumAppSide.Server } api || StackOf(carried) is not { } stack || !Trunks.IsTrunk(stack)
+        if (carrier?.Api is not { Side: EnumAppSide.Server } api || StackOf(carried, carrier.World) is not { } stack || !Trunks.IsTrunk(stack)
             || Manager(api) is not { } manager)
             return false;
         var m = _members!;
@@ -553,11 +618,14 @@ public static class TrunkCarry
     private static object? CarriedIn(Entity entity) =>
         Manager(entity.Api) is { } manager ? _members!.GetCarried.Invoke(manager, [entity, _members.Hands]) : null;
 
-    private static ItemStack? StackOf(object? carried)
+    /// <summary>The real trunk (<see cref="Real"/>) of a carried block, or its stack when it is no
+    /// trunk; null for no carried block.</summary>
+    private static ItemStack? StackOf(object? carried, IWorldAccessor world)
     {
-        if (carried == null || _members == null || !_members.Stack.DeclaringType!.IsInstanceOfType(carried))
+        if (carried == null || _members == null || !_members.Stack.DeclaringType!.IsInstanceOfType(carried)
+            || _members.Stack.GetValue(carried) is not ItemStack stack)
             return null;
-        return _members.Stack.GetValue(carried) as ItemStack;
+        return Trunks.IsTrunk(stack) ? Real(stack, world) : stack;
     }
 
     /// <summary>The stack without what Carry On's cart slots leave on it.</summary>

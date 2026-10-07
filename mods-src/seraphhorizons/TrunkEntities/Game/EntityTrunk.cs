@@ -21,10 +21,11 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// unchanged. The entity type (<c>seraphhorizons:trunk-thin</c> or <c>-thick</c>) gives its
 /// collision boxes, its display class's (<see cref="TrunkBoxes"/>); its weight follows its logs
 /// (<see cref="TrunkWeight.Weight"/>), on its own copy of the type's properties. It is never picked
-/// up as an item; it is dragged (<see cref="TrunkGrab"/>, or a rope through the game's
-/// <c>ropetieable</c>), shoved, floated, or shouldered through Carry On.
+/// up as an item; it is driven on foot by a player attached to one end (its <c>seatable</c>'s one
+/// seat, <see cref="TrunkDriveSeat"/>, the maths in <see cref="TrunkDrive"/>), roped through the
+/// game's <c>ropetieable</c>, shoved, floated, or shouldered through Carry On.
 /// </summary>
-public class EntityTrunk : Entity
+public class EntityTrunk : Entity, ISeatInstSupplier
 {
     /// <summary>The watched attribute holding the trunk's stack.</summary>
     public const string TrunkKey = "trunk";
@@ -32,9 +33,13 @@ public class EntityTrunk : Entity
     /// <summary>The watched attribute holding the server's weight for the trunk.</summary>
     public const string WeightKey = "seraphhorizons:weight";
 
-    /// <summary>The watched attribute holding the entity id of the player whose rope-less grab
-    /// holds the trunk (0 or missing: none).</summary>
+    /// <summary>The watched attribute holding the entity id of the player driving the trunk (0 or
+    /// missing: none). Set just before the player is mounted and removed when they leave the seat;
+    /// whatever refuses a trunk someone is moving reads it (<see cref="Grabbed"/>).</summary>
     public const string GrabbedByKey = "seraphhorizons:grabbedBy";
+
+    /// <summary>The watched attribute holding the end (±1, <see cref="TrunkPull"/>) the driver took.</summary>
+    public const string DriveEndKey = "seraphhorizons:driveEnd";
 
     /// <summary>The watched attribute that held the cloth id of a grab's rope when the grab was a
     /// game rope; only read now to clean such a rope out of an old save.</summary>
@@ -71,11 +76,29 @@ public class EntityTrunk : Entity
     /// <summary>The stored logs.</summary>
     public int Logs => Trunk is { } stack && World != null ? Trunks.StoredLogs(stack, World) : 0;
 
-    /// <summary>Whether a player's rope-less grab holds it.</summary>
+    /// <summary>Whether a player is driving it (its mark, <see cref="GrabbedByKey"/>).</summary>
     public bool Grabbed => GrabbedBy != 0;
 
-    /// <summary>The entity id of the player whose grab holds it, 0 for none.</summary>
+    /// <summary>The entity id of the player driving it, 0 for none.</summary>
     public long GrabbedBy => WatchedAttributes.GetLong(GrabbedByKey);
+
+    /// <summary>The entity id of the player driving it, 0 for none (<see cref="GrabbedBy"/>).</summary>
+    public long DriverId => GrabbedBy;
+
+    /// <summary>The trunk's one seat, the driver's.</summary>
+    public TrunkDriveSeat? DriveSeat => GetBehavior<EntityBehaviorSeatable>()?.Seats?.FirstOrDefault() as TrunkDriveSeat;
+
+    /// <summary>The player standing in the driver's place, or null.</summary>
+    public EntityPlayer? Driver => DriveSeat?.Passenger as EntityPlayer;
+
+    /// <summary>Whether a player stands in the driver's place.</summary>
+    public bool Driven => Driver != null;
+
+    /// <summary>The end (±1) the driver took.</summary>
+    public int DriveEnd => WatchedAttributes.GetInt(DriveEndKey, 1) >= 0 ? 1 : -1;
+
+    public IMountableSeat CreateSeat(IMountable mountable, string seatId, SeatConfig config) =>
+        new TrunkDriveSeat(mountable, seatId, config);
 
     /// <summary>
     /// Rewrites the payload and syncs it; the weight follows. Null or a stack with no logs kills the
@@ -126,7 +149,15 @@ public class EntityTrunk : Entity
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
     {
         // Its own copy: the weight is per trunk, and the type's properties are shared.
+        // A drive never outlives the session it was made in: a trunk saved while driven forgets
+        // its driver before the seatable (in base.Initialize and AfterInitialized) reads its seat
+        // data, so the seat's own re-mount is refused (TrunkDriveSeat.CanMount).
+        if (api.Side == EnumAppSide.Server)
+            WatchedAttributes.RemoveAttribute(GrabbedByKey);
         base.Initialize(properties.Clone(), api, InChunkIndex3d);
+        if (GetBehavior<EntityBehaviorSeatable>() is { } seatable)
+            // Only the drive's own click mounts (OnInteract), never the seatable's.
+            seatable.CanSit += (EntityAgent _, out string error) => { error = null!; return false; };
         Properties.Weight = WatchedAttributes.GetFloat(WeightKey, Properties.Weight);
         WatchedAttributes.RegisterModifiedListener(WeightKey, () => Properties.Weight = WatchedAttributes.GetFloat(WeightKey, Properties.Weight));
         if (api.Side == EnumAppSide.Server)
@@ -144,9 +175,30 @@ public class EntityTrunk : Entity
             Die(EnumDespawnReason.Removed);
             return;
         }
-        // A grab never outlives the session it was made in.
-        if (Grabbed && !(TrunkEntitySystem.Of(Api).Grabs?.Holds(this) ?? false))
-            TrunkGrab.ClearStale(this);
+        ClearLegacyRope();
+    }
+
+    /// <summary>A save from when the grab was a game rope: the rope's cloth id (and the rope
+    /// itself, if the game still has it) goes.</summary>
+    private void ClearLegacyRope()
+    {
+        int id = WatchedAttributes.GetInt(GrabClothKey);
+        if (id == 0)
+            return;
+        var tieable = GetBehavior<EntityBehaviorRopeTieable>();
+        var cloth = Api.ModLoader.GetModSystem<ClothManager>();
+        if (cloth?.GetClothSystem(id) is { } sys)
+        {
+            tieable?.Detach(sys);
+            cloth.UnregisterCloth(id);
+        }
+        else if (tieable?.ClothIds is { } ids)
+        {
+            ids.RemoveInt(id);
+            if (ids.value.Length == 0)
+                WatchedAttributes.RemoveAttribute("clothIds");
+        }
+        WatchedAttributes.RemoveAttribute(GrabClothKey);
     }
 
     private void UpdateWeight()
@@ -224,30 +276,110 @@ public class EntityTrunk : Entity
     /// <summary>Whether the trunk floats in, or lies in, water.</summary>
     public bool Afloat => Swimming || FeetInLiquid;
 
+    // The drive's eased speed along the axis (blocks per second, + with the taken end leading)
+    // and turn (radians per second), server side.
+    private double _along, _turn;
+    private int _logs = -1;
+
     public override void OnGameTick(float dt)
     {
-        // Motion as the pulls left it (the grab's, or a rope's), before this tick's physics
-        // stops it against a rise.
-        double mx = Pos.Motion.X, mz = Pos.Motion.Z;
         base.OnGameTick(dt);
         FitSelectionBox();
         TrunkRope.Tick(this, dt);
+        var seat = DriveSeat;
+        if (seat?.Passenger is EntityAgent driver)
+        {
+            bool server = Api.Side == EnumAppSide.Server;
+            if (server && (!driver.Alive || driver.State == EnumEntityState.Despawned || !Alive
+                           || driver is EntityPlayer { Player: IServerPlayer { ConnectionState: not EnumClientState.Playing } }))
+                driver.TryUnmount();
+            else
+            {
+                HoldDriver(driver, seat);
+                // The server's copy of the driver stands in their place (the driver's client
+                // reports its own, from the same seat; a player without one, as in Atlas, has only this).
+                if (server)
+                {
+                    var at = seat.SeatPosition;
+                    driver.Pos.SetPos(at.X, at.Y, at.Z);
+                }
+            }
+        }
         if (Api is { Side: EnumAppSide.Server } && Alive)
         {
             Properties.Weight = (float)TrunkPull.EffectiveWeight(LandWeight, Afloat);
-            StepUp(mx, mz);
+            _logs = Logs;
+            if (Grabbed && seat?.Passenger == null)
+                ClearDrive();
+            // As good as solid: agents in its boxes are moved out (the client moves its own player).
+            TrunkSolid.PushAll(this);
         }
     }
 
-    // Lifts a trunk being pulled against a rise of at most a block onto it (TrunkStep), in one
-    // go. Not afloat (water lifts it) and not while falling.
-    private void StepUp(double mx, double mz)
+    // The driver's body faces the trunk along its axis; the head may look half round.
+    private void HoldDriver(EntityAgent driver, TrunkDriveSeat seat)
     {
-        if (Afloat || Pos.Motion.Y < -0.1)
+        if (driver is not EntityPlayer player)
             return;
+        float face = seat.SeatPosition.Yaw;
+        if (player.BodyYawLimits == null)
+            player.BodyYawLimits = new AngleConstraint(face, BodyYawRange);
+        else
+            (player.BodyYawLimits.X, player.BodyYawLimits.Y) = (face, BodyYawRange);
+        if (player.HeadYawLimits == null)
+            player.HeadYawLimits = new AngleConstraint(face, GameMath.PIHALF);
+        else
+            (player.HeadYawLimits.X, player.HeadYawLimits.Y) = (face, GameMath.PIHALF);
+    }
+
+    private const float BodyYawRange = 0.05f;
+
+    /// <summary>
+    /// One physics tick of the drive, server side, from <see cref="EntityBehaviorTrunkPhysics"/>:
+    /// after the game's drag and gravity, before its collision. The driver's keys (the seat's
+    /// controls) ease the speed along the axis and the turn (<see cref="TrunkDrive"/>); the turn
+    /// goes through the multi-box physics' own yaw adjustment with a push, as the game's boat
+    /// turns, so the swinging boxes shove the trunk off what they swing into and a turn with no way
+    /// out is refused; the speed sets the horizontal motion outright. Then the step-up, from that
+    /// motion (or a rope's, undriven).
+    /// </summary>
+    public void BeforeCollision(EntityBehaviorPassivePhysicsMultiBox physics, EntityPos pos, float dtFactor)
+    {
+        float dt = dtFactor / 60f;
+        var controls = DriveSeat is { Passenger: not null } seat ? seat.Controls : null;
+        if (controls != null)
+        {
+            int logs = _logs >= 0 ? _logs : Logs;
+            bool afloat = Afloat;
+            _along = TrunkDrive.Ease(_along, TrunkDrive.Along(controls.Forward, controls.Backward, TrunkDrive.Speed(logs, afloat)), dt);
+            _turn = TrunkDrive.Ease(_turn, TrunkDrive.Turning(controls.Left, controls.Right, TrunkDrive.Turn(logs, afloat)), dt);
+            if (_turn != 0)
+            {
+                float yaw = GameMath.Mod(pos.Yaw + (float)(_turn * dt), GameMath.TWOPI);
+                if (physics.AdjustCollisionBoxesToYaw(dtFactor, true, yaw))
+                    pos.Yaw = yaw;
+                else
+                    _turn = 0;
+            }
+            var (mx, mz) = TrunkDrive.Motion(pos.Yaw, DriveEnd, _along);
+            pos.Motion.X = mx;
+            pos.Motion.Z = mz;
+        }
+        else
+            _along = _turn = 0;
+        StepUp(pos);
+    }
+
+    // Lifts a trunk moving against a rise of at most a block onto it (TrunkStep), in one go. Not
+    // afloat (water lifts it) and not while falling.
+    private void StepUp(EntityPos pos)
+    {
+        if (Afloat || pos.Motion.Y < -0.1)
+            return;
+        double mx = pos.Motion.X, mz = pos.Motion.Z;
         var accessor = World.BlockAccessor;
-        var cell = new BlockPos(Pos.Dimension);
-        double lift = TrunkStep.Lift(TrunkBoxes.Turned(TypeClass, Pos.Yaw), Pos.X, Pos.Y, Pos.Z, mx, mz,
+        var cell = new BlockPos(pos.Dimension);
+        double lift = TrunkStep.Lift(TrunkBoxes.Turned(TypeClass, pos.Yaw), pos.X, pos.Y, pos.Z, mx, mz,
             (x, y, z) =>
             {
                 cell.Set(x, y, z);
@@ -256,12 +388,63 @@ public class EntityTrunk : Entity
             });
         if (lift <= 0)
             return;
-        Pos.Y += lift;
-        if (Pos.Motion.Y < 0)
-            Pos.Motion.Y = 0;
-        // Keep the pull's way on, which the collision just took.
-        Pos.Motion.X = mx;
-        Pos.Motion.Z = mz;
+        pos.Y += lift;
+        if (pos.Motion.Y < 0)
+            pos.Motion.Y = 0;
+    }
+
+    /// <summary>Takes <paramref name="player"/> onto the end of the trunk nearer
+    /// <paramref name="hit"/> (the clicked point, or the player when null) as its driver; false,
+    /// with an in-game error, when someone else drives it. Server side.</summary>
+    public bool TryDrive(IServerPlayer player, Vec3d? hit = null)
+    {
+        if (player.Entity is not { Alive: true } agent || !Alive || DriveSeat is not { } seat)
+            return false;
+        if (Grabbed && GrabbedBy != agent.EntityId)
+        {
+            Refuse(player);
+            return false;
+        }
+        if (seat.Passenger == agent)
+            return true;
+        // The hit is a world position; should a caller hand over one relative to the trunk, it
+        // is far from the trunk, so it is taken as relative.
+        var at = hit ?? agent.Pos.XYZ;
+        if (hit != null && hit.SquareDistanceTo(Pos.XYZ) > 64)
+            at = Pos.XYZ.Add(hit);
+        int end = TrunkPull.NearerEnd(Pos.X, Pos.Z, Pos.Yaw, at.X, at.Z);
+        WatchedAttributes.SetInt(DriveEndKey, end);
+        WatchedAttributes.SetLong(GrabbedByKey, agent.EntityId);
+        _along = _turn = 0;
+        if (!agent.TryMount(seat))
+        {
+            ClearDrive();
+            return false;
+        }
+        return true;
+    }
+
+    private static void Refuse(IServerPlayer player) =>
+        player.SendIngameError("trunkentities-grabbed", Lang.GetL(player.LanguageCode, "seraphhorizons:trunkentities-error-grabbed"));
+
+    /// <summary>The seat's word that <paramref name="agent"/> left it (sneak, death, leaving the
+    /// game, another mount, the trunk going): the mark goes.</summary>
+    public void DriverLeft(EntityAgent agent)
+    {
+        _along = _turn = 0;
+        if (Api?.Side == EnumAppSide.Server && GrabbedBy == agent.EntityId)
+            ClearDrive();
+    }
+
+    private void ClearDrive() => WatchedAttributes.RemoveAttribute(GrabbedByKey);
+
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    {
+        // A trunk that goes (taken by a machine or Carry On, cut to the other class, unloaded)
+        // lets its driver go.
+        if (Api?.Side == EnumAppSide.Server && Driver is { } driver)
+            driver.TryUnmount();
+        base.OnEntityDespawn(despawn);
     }
 
     /// <summary>The distance from <paramref name="point"/> to the nearest point of the trunk's
@@ -279,24 +462,41 @@ public class EntityTrunk : Entity
         return best;
     }
 
+    /// <summary>Whether a click is a drive: an empty hand, not sneaking (Carry On's), and the
+    /// trunk has no rope of the game's own tied to it (an empty hand takes that rope off, as the
+    /// game does). Side-independent, so the client also keeps a drive click from <c>ropetieable</c>.</summary>
+    public static bool WantsDrive(EntityAgent byEntity, ItemSlot? slot, EntityTrunk trunk) =>
+        byEntity is EntityPlayer && (slot == null || slot.Empty)
+        && !byEntity.Controls.ShiftKey && !byEntity.Controls.Sneak
+        && !trunk.HasOtherRope();
+
+    private bool HasOtherRope()
+    {
+        var ids = GetBehavior<EntityBehaviorRopeTieable>()?.ClothIds?.value;
+        if (ids == null || ids.Length == 0)
+            return false;
+        // An old save's grab rope (GrabClothKey) is not a real one; AfterInitialized removes it.
+        int legacy = WatchedAttributes.GetInt(GrabClothKey);
+        return ids.Any(id => id != legacy);
+    }
+
     public override void OnInteract(EntityAgent byEntity, ItemSlot itemslot, Vec3d hitPosition, EnumInteractMode mode)
     {
-        // While a player's grab holds it, another player's empty hand does nothing (not even
-        // sneak + click, which would reach ropetieable or Carry On's pick-up under the holder).
-        if (mode == EnumInteractMode.Interact && Grabbed && byEntity.EntityId != GrabbedBy && (itemslot == null || itemslot.Empty))
+        if (mode == EnumInteractMode.Interact && Grabbed)
         {
-            if (Api.Side == EnumAppSide.Server && byEntity is EntityPlayer { Player: IServerPlayer other })
-                other.SendIngameError("trunkentities-grabbed", Lang.GetL(other.LanguageCode, "seraphhorizons:trunkentities-error-grabbed"));
+            // While a player drives it nothing else is done to it: another player's click (an
+            // empty hand, sneaking too, which would reach Carry On's pick-up, or a rope) stops
+            // here, with the error; the driver's own click changes nothing.
+            if (byEntity.EntityId != GrabbedBy && Api.Side == EnumAppSide.Server && byEntity is EntityPlayer { Player: IServerPlayer other })
+                Refuse(other);
             return;
         }
-        // A grab click stops here on both sides, never reaching ropetieable (whose empty hand
-        // would otherwise act on the client too). The game repeats the interact while the button
-        // is held; TryStart ignores a repeat for the trunk already held.
-        if (mode == EnumInteractMode.Interact && TrunkGrab.Wants(byEntity, itemslot, this))
+        // A drive click stops here on both sides, never reaching ropetieable (whose empty hand
+        // would otherwise act on the client too) or the seatable (which refuses: CanSit).
+        if (mode == EnumInteractMode.Interact && WantsDrive(byEntity, itemslot, this))
         {
-            if (Api.Side == EnumAppSide.Server && TrunkEntitySystem.Of(Api).Grabs is { } grabs
-                && byEntity is EntityPlayer { Player: IServerPlayer player })
-                grabs.TryStart(player, this, hitPosition);
+            if (Api.Side == EnumAppSide.Server && byEntity is EntityPlayer { Player: IServerPlayer player })
+                TryDrive(player, hitPosition);
             return;
         }
         base.OnInteract(byEntity, itemslot, hitPosition, mode);
@@ -333,7 +533,8 @@ public class EntityTrunk : Entity
         var system = TrunkEntitySystem.Of(world.Api);
         if (system.Enabled)
         {
-            help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:trunkentities-help-grab", MouseButton = EnumMouseButton.Right, RequireFreeHand = true });
+            if (!Grabbed)
+                help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:trunkentities-help-grab", MouseButton = EnumMouseButton.Right, RequireFreeHand = true });
             if (world.GetItem(new AssetLocation("game:rope")) is { } rope)
                 help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:trunkentities-help-rope", MouseButton = EnumMouseButton.Right, Itemstacks = [new ItemStack(rope)] });
             if (system.CarryOn)

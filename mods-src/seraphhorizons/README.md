@@ -1301,11 +1301,13 @@ Logging Expanded (`loggingmod`, 0.3.6); Carry On (`carryon`) optional. Logging E
 trunks are never items in an inventory. A felled tree leaves a trunk entity lying on the ground
 (`seraphhorizons:trunk-thin` or `-thick`, shown, boxed and selected as the machines show trunks:
 Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
-holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is shoved by
-walking into it. Hold right-click on it with an empty hand to drag it by that end after you, no
-rope involved (you walk at the trunk's pace, slower the heavier it is, and it steps up one block;
-the grab lets go when the button does, or beyond 3 blocks), or tie a rope to it as to any
-rope-tieable entity, where it pulls from the nearer end. Both are far easier in water. A knife, shears, an axe or a saw held on
+holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is solid to
+whoever walks into it. Right-click it with an empty hand to take that end and drive it on foot like a
+sled (you are mounted on it, standing just beyond the end: W moves it with your end leading as you
+back up, S pushes it, A and D turn it about its middle; a walk at one log, half of it at 48, it
+steps up one block, and sneak lets go; no one else can touch a trunk while you drive it), or tie a
+rope to it as to any rope-tieable entity, where it pulls from the nearer end. Both are easier in
+water. A knife, shears, an axe or a saw held on
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
 debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
 trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
@@ -1321,7 +1323,7 @@ unloading onto the ground and a broken machine all leave one; a trunk is never g
 player's inventory (picked up, unloaded or taken back), though one already in a slot moves freely
 and thrown out becomes a trunk entity; and **trunk multiblocks already placed in a world are deleted as
 they load, with nothing given back**. Without Carry On (one warning) nothing goes through hands:
-trunks are dragged, roped and worked where they lie, the rosser and mill take them from the ground
+trunks are driven, roped and worked where they lie, the rosser and mill take them from the ground
 and lay them there on Ctrl, and Logging Expanded's stations and the carts take none. With the switch
 off, Logging Expanded missing or not as expected, nothing changes and its trunks are items as it
 ships them (trunk entities already in a world turn back into trunk items as they load); the server
@@ -1329,11 +1331,11 @@ decides and a client follows it through the world config (`seraphhorizons:trunkE
 `UnifiedWoodworking` does. Nothing of Carry On, Logging Expanded or Cartwright's Caravan is
 referenced at build time.
 
-`TrunkEntitiesSettings` holds its figures (weight per log, the carry speeds at 4 and 48 logs, the
-spud's seconds per log, the grab's reach and an optional weight limit for grabbing by hand); values
+`TrunkEntitiesSettings` holds its figures (weight per log, the carry speeds at 1 and 48 logs, the
+spud's seconds per log; the drive's figures are constants); values
 out of range fall back to the default with a warning. Everything else is in
 [`TrunkEntities/README.md`](TrunkEntities/README.md): the entity and its boxes, the spawn swap, the
-grab, Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and the `CarryableInteract`
+drive (and why the server, not the driver's client, moves the trunk), Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and the `CarryableInteract`
 that lets a carried trunk's click through to a station), each tool's rule, the stations and the
 machines' ground pull, old worlds, the settings table, the tests and what is not checked in the game.
 
@@ -2846,8 +2848,9 @@ update, `DebarkedTrunks.Bind`'s warning names what changed in its trunk blocktyp
 `TrunkStationScenarios.cs` (Atlas) are the trunk entities' (`TrunkEntities/README.md`, "Tests"): a
 spawned trunk item becoming a thin or thick trunk entity, no trunk given to a player, the weight by
 logs, a trunk at rest on the ground, a placed trunk multiblock removed as it loads, a trunk left in
-a hotbar laid down as an entity rather than placed, and the grab dragging a trunk while held, kept
-from another player and cleared when a trunk saved with it loads; each tool on a trunk entity, the
+a hotbar laid down as an entity rather than placed, and the drive (W, S, A and D, a light trunk
+twice as fast as a 48-log one, up a step, faster afloat), kept from another player and cleared when
+a trunk saved with it loads; each tool on a trunk entity, the
 axe and saw refusing a branched one and the spud debarking a clean one whole with its bark, a thick
 trunk cut down to lg becoming a thin one; carrying through the pinned Carry On (the animation by
 size, racks not carryable, an item in either hand refusing a trunk, the speed by logs, sneak to
