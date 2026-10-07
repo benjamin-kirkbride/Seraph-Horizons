@@ -1318,9 +1318,11 @@ trunks are never items in an inventory. A felled tree leaves a trunk entity lyin
 Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
 holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is solid to
 whoever walks into it. Right-click it with an empty hand to take that end and drive it on foot like a
-sled (you are mounted on it, standing just beyond the end: W moves it with your end leading as you
-back up, S pushes it, A and D turn it about its middle; a walk at one log, half of it at 48, it
-steps up one block, and sneak lets go; no one else can touch a trunk while you drive it), or tie a
+sled (you are mounted on it, standing just beyond the end and facing along it: W pushes it away
+from you, the far end leading, S draws it back as you walk backwards, A and D turn it about its
+middle; a walk at one log, half of it at 48, it steps up one block, and sneak lets go; your client
+moves it, so the keys act at once, and with Cartwright's Caravan you use its sled pusher's
+animations; no one else can touch a trunk while you drive it), or tie a
 rope to it as to any rope-tieable entity, where it pulls from the nearer end. Both are easier in
 water. A knife, shears, an axe or a saw held on
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud

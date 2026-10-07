@@ -346,6 +346,15 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private static double Flat(Vec3d a, double x, double z) => Math.Sqrt((a.X - x) * (a.X - x) + (a.Z - z) * (a.Z - z));
 
+    // A fake player has no client to send the trunk's position, so once the mount's grace
+    // (EntityTrunk.ClientPositionTimeoutMs) runs out the server ticks the trunk itself: its
+    // seatable has no controller there, and the game's physics manager ticks it.
+    private async Task ServerTicks(EntityTrunk trunk)
+    {
+        await World.Until(() => !trunk.ClientPredicting, 60);
+        Assert.Null(trunk.Seatable!.Controller);
+    }
+
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_drive_saved_with_a_trunk_is_cleared_when_it_loads()
     {
@@ -418,28 +427,34 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(trunk.Driven);
         Log("driver attached");
         var keys = Keys(player);
+        await ServerTicks(trunk);
+        // the driver faces along the trunk, over it, towards its far end (world -z: yaw π)
+        Assert.Equal(0, TrunkPull.Wrap(trunk.DriveSeat!.SeatPosition.Yaw - Math.PI), 3);
 
-        // W: the trunk moves along its axis with the taken end leading, the driver backing up with it
+        // W: the trunk is pushed along its axis away from the driver, the far end leading, the
+        // driver walking after it
         double z0 = trunk.Pos.Z, x0 = trunk.Pos.X;
         keys.Forward = true;
         await World.Ticks(20);
         keys.Forward = false;
         await World.Ticks(10);
         output.WriteLine($"W: trunk z {z0:F2} -> {trunk.Pos.Z:F2}, x {trunk.Pos.X:F2}, driver {player.Entity.Pos.XYZ}");
-        Assert.True(trunk.Pos.Z > z0 + 1, $"W did not move the trunk towards the taken end: {z0:F2} -> {trunk.Pos.Z:F2}");
+        Assert.True(trunk.Pos.Z < z0 - 1, $"W did not push the trunk away from the driver: {z0:F2} -> {trunk.Pos.Z:F2}");
         Assert.InRange(trunk.Pos.X, x0 - 0.1, x0 + 0.1);
         var (ex, ez) = EndOf(trunk, -1);
         Assert.InRange(Flat(player.Entity.Pos.XYZ, ex, ez), TrunkDrive.StandOff - 0.15, TrunkDrive.StandOff + 0.15);
         Assert.True(player.Entity.Pos.Z > ez, "the driver is not beyond the taken end");
 
-        // S: the other way, the driver pushing it
+        // S: back into the driver, who walks backwards
         double z1 = trunk.Pos.Z;
         keys.Backward = true;
         await World.Ticks(20);
         keys.Backward = false;
         await World.Ticks(10);
         output.WriteLine($"S: trunk z {z1:F2} -> {trunk.Pos.Z:F2}");
-        Assert.True(trunk.Pos.Z < z1 - 1, $"S did not push the trunk: {z1:F2} -> {trunk.Pos.Z:F2}");
+        Assert.True(trunk.Pos.Z > z1 + 1, $"S did not draw the trunk back: {z1:F2} -> {trunk.Pos.Z:F2}");
+        (ex, ez) = EndOf(trunk, -1);
+        Assert.InRange(Flat(player.Entity.Pos.XYZ, ex, ez), TrunkDrive.StandOff - 0.15, TrunkDrive.StandOff + 0.15);
 
         // A and D turn it about its middle: both ends swing, the middle stays
         var middle = trunk.Pos.XYZ;
@@ -450,7 +465,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Ticks(5);
         double turnedA = TrunkPull.Wrap(trunk.Pos.Yaw - yaw0);
         output.WriteLine($"A: yaw {yaw0:F2} -> {trunk.Pos.Yaw:F2} ({turnedA:F2}), middle {middle} -> {trunk.Pos.XYZ}");
-        Assert.True(turnedA < -0.2, $"A did not turn the trunk: {turnedA:F2}");
+        Assert.True(turnedA > 0.2, $"A did not turn the trunk: {turnedA:F2}");
         Assert.True(Flat(trunk.Pos.XYZ, middle.X, middle.Z) < 0.2, "the middle moved while turning");
         // the driver swung with their end (which way is TrunkDriveTests'): still just beyond it
         (ex, ez) = EndOf(trunk, -1);
@@ -462,7 +477,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Ticks(5);
         double turnedD = TrunkPull.Wrap(trunk.Pos.Yaw - yaw1);
         output.WriteLine($"D: yaw {yaw1:F2} -> {trunk.Pos.Yaw:F2} ({turnedD:F2})");
-        Assert.True(turnedD > 0.2, $"D did not turn the trunk back: {turnedD:F2}");
+        Assert.True(turnedD < -0.2, $"D did not turn the trunk back: {turnedD:F2}");
         Assert.True(Flat(trunk.Pos.XYZ, middle.X, middle.Z) < 0.2, "the middle moved while turning");
         player.Entity.TryUnmount();
         await World.Ticks(2);
@@ -511,8 +526,8 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     // Spawns a thin trunk of `logs` at `pos` (yaw 0, along z), has a fresh player take its end at
-    // local -z (world +z) and hold W for `ticks`, and returns the trunk, let go, and how far along
-    // z it went.
+    // local -z (world +z), waits for the server to tick it (ServerTicks), holds W for `ticks`, and
+    // returns the trunk, let go, and how far it was pushed (towards world -z).
     private async Task<(EntityTrunk Trunk, double Moved)> DriveFrom(BlockPos pos, int logs, string name, int ticks)
     {
         var trunk = SpawnThin(pos, logs);
@@ -521,10 +536,11 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Click(trunk, player, -1);
         Assert.True(trunk.Driven);
         Log($"{name} attached");
+        await ServerTicks(trunk);
         double z0 = trunk.Pos.Z;
         Keys(player).Forward = true;
         await World.Ticks(ticks);
-        double moved = trunk.Pos.Z - z0;
+        double moved = z0 - trunk.Pos.Z;
         output.WriteLine($"{name}: {logs} logs moved {moved:F2} to {trunk.Pos.XYZ}, afloat {trunk.Afloat}");
         Assert.True(trunk.Driven);
         Keys(player).Forward = false;
@@ -532,6 +548,97 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Ticks(2);
         Assert.False(trunk.Grabbed);
         return (trunk, moved);
+    }
+
+    // One player for both halves: the class's server takes 16 players at most.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task The_server_drives_a_trunk_no_client_predicts_and_lets_a_predicting_one()
+    {
+        var pos = await Floor(100, 14, 100);
+        var trunk = SpawnThin(pos.AddCopy(0, 0, 4), 6);
+        await World.Ticks(20);
+        var player = await Walker("trunkfallback", pos.AddCopy(0, 0, 8));
+        Click(trunk, player, -1);
+        Assert.True(trunk.Driven);
+        // the seat is the game's controllable one, and the client has its grace to start sending
+        Assert.True(trunk.DriveSeat!.CanControl);
+        Assert.Same(trunk.DriveSeat.Controls, trunk.Seatable!.ControllingControls);
+        Assert.True(trunk.ClientPredicting);
+        var keys = Keys(player);
+
+        // W at once: no position ever comes from a fake player, so the server takes over and the
+        // trunk moves within a second
+        long pressed = W.ElapsedMilliseconds;
+        double z0 = trunk.Pos.Z;
+        keys.Forward = true;
+        await World.Until(() => z0 - trunk.Pos.Z > 0.2, 60);
+        long after = W.ElapsedMilliseconds - pressed;
+        output.WriteLine($"moved {z0 - trunk.Pos.Z:F2} after {after} ms");
+        Assert.InRange(after, 0, 1000);
+        Assert.Null(trunk.Seatable.Controller);
+        // up to speed, the trunk goes at the drive's speed: ticked once, not twice
+        await World.Ticks(10);
+        double z1 = trunk.Pos.Z;
+        long t1 = W.ElapsedMilliseconds;
+        await World.Ticks(30);
+        double speed = (z1 - trunk.Pos.Z) / ((W.ElapsedMilliseconds - t1) / 1000.0);
+        double expected = TrunkDrive.Speed(6, false);
+        output.WriteLine($"server: speed {speed:F2} blocks/s, expected {expected:F2}");
+        Assert.InRange(speed, expected * 0.8, expected * 1.2);
+        keys.Forward = false;
+        await World.Ticks(10);
+
+        // The driver's client as the game runs it, here with S: its player physics ticks the
+        // trunk's physics at 60 Hz (two steps a server tick here), and every few steps the server
+        // takes the trunk's position (ServerUdpNetwork.HandleMountPosition: the position is the
+        // one the steps left, then IRemotePhysics.OnReceivedClientPos). The server must not move
+        // it as well.
+        var physics = trunk.GetBehavior<EntityBehaviorTrunkPhysics>()!;
+        keys.Backward = true;
+        double z2 = trunk.Pos.Z;
+        int steps = 0;
+        for (int i = 0; i < 30; i++)
+        {
+            physics.OnReceivedClientPos(0);
+            Assert.True(trunk.ClientPredicting);
+            Assert.Same(player.Entity, trunk.Seatable!.Controller);
+            physics.Step(1 / 60f);
+            physics.Step(1 / 60f);
+            steps += 2;
+            await World.Ticks(1);
+        }
+        double moved = trunk.Pos.Z - z2;
+        // what that many steps of the drive give: up to speed by the ease, at the drive's speed
+        double v = 0, predicted = 0;
+        for (int i = 0; i < steps; i++)
+        {
+            v = TrunkDrive.Ease(v, TrunkDrive.Speed(6, false), 1 / 60.0);
+            predicted += v / 60;
+        }
+        output.WriteLine($"client: {steps} steps moved it {moved:F2}, expected {predicted:F2}");
+        Assert.InRange(moved, predicted * 0.8, predicted * 1.2);
+        // the driver stays at their end on the server too
+        await World.Ticks(1);
+        var (ex, ez) = EndOf(trunk, -1);
+        Assert.InRange(Flat(player.Entity.Pos.XYZ, ex, ez), TrunkDrive.StandOff - 0.15, TrunkDrive.StandOff + 0.15);
+
+        // the client goes quiet: after the timeout the server ticks it again, from the same keys
+        double z3 = trunk.Pos.Z;
+        await World.Until(() => !trunk.ClientPredicting, 60);
+        Assert.Null(trunk.Seatable!.Controller);
+        await World.Ticks(15);
+        output.WriteLine($"quiet client: the server moved it {trunk.Pos.Z - z3:F2}");
+        Assert.True(trunk.Pos.Z - z3 > 0.5, "the server did not take the trunk back");
+        keys.Backward = false;
+        // letting go hands the physics back to the server, with the trunk stopped
+        player.Entity.TryUnmount();
+        await World.Ticks(2);
+        Assert.False(trunk.Grabbed);
+        Assert.Null(trunk.Seatable.Controller);
+        double z4 = trunk.Pos.Z;
+        await World.Ticks(10);
+        Assert.InRange(trunk.Pos.Z - z4, -0.1, 0.1);
+        trunk.Die(EnumDespawnReason.Removed);
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
@@ -551,10 +658,11 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task A_driven_trunk_climbs_a_one_block_step()
     {
         var pos = await Floor(-60, 8);
-        // a step one block high across the way, from z +3 (the trunk's +z end is at +2.5)
+        // a step one block high across the way, from z -3 (W pushes the trunk to -z; its -z end
+        // is at -1.5)
         int granite = BlockOf("game:rock-granite").Id;
         for (int x = -8; x <= 8; x++)
-            for (int z = 3; z <= 8; z++)
+            for (int z = -8; z <= -3; z++)
                 W.BlockAccessor.SetBlock(granite, pos.AddCopy(x, 0, z));
         var (trunk, moved) = await DriveFrom(pos, 6, "trunkstepper", 40);
         Assert.True(trunk.Pos.Y > pos.Y + 0.9, $"the trunk did not climb the step: {trunk.Pos.XYZ}");
