@@ -270,11 +270,16 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
             [{ "code": "aculinaryartillery:bark-oak-boiled", "kind": "item", "quantity": 1,
                "extra": { "from": "Simmering", "temperature": 100, "durationSeconds": 200.0, "inputRatio": 1 } }]
             """, r["outputs"]!);
+        // Hydrate or Diedrate's copies with its own waters are folded in as alternatives.
+        var water = new JArray(new[] { "game:waterportion" }.Concat(HodWaters)
+            .Select(c => new JObject { ["code"] = c, ["kind"] = "item", ["quantity"] = 100 }));
+        var variant = (JObject)Assert.Single(r["variants"]!);
+        Json(water.ToString(), variant["ingredients"]![0]!);
         Json("""
-            [{ "ingredients": [[{ "code": "game:waterportion", "kind": "item", "quantity": 100 }],
-                               [{ "code": "aculinaryartillery:bark-oak-dry", "kind": "item", "quantity": 1 }]],
-               "outputs": [{ "code": "aculinaryartillery:bark-oak-boiled", "kind": "item", "quantity": 1 }] }]
-            """, r["variants"]!);
+            { "ingredients": [[{ "code": "aculinaryartillery:bark-oak-dry", "kind": "item", "quantity": 1 }]],
+              "outputs": [{ "code": "aculinaryartillery:bark-oak-boiled", "kind": "item", "quantity": 1 }] }
+            """, new JObject { ["ingredients"] = new JArray(variant["ingredients"]!.Skip(1)), ["outputs"] = variant["outputs"]! });
+        Assert.Equal(HodWaters.Length, (int)r["extra"]!["waterCopies"]!["recipes"]!);
     }
 
     // seraphhorizons, IronWoodworkingMachines: Immersive Woodworking's saw sash, a recipe it
@@ -599,8 +604,8 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
     }
 
     /// <summary>
-    /// Every recipe the engine registered is exactly one variant: the sum of variants per
-    /// type equals the size of the engine's registry, read through the public API.
+    /// Every recipe the engine registered is exactly one variant or one folded water copy: the
+    /// sum per type equals the size of the engine's registry, read through the public API.
     /// </summary>
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Variants_per_type_equal_the_engine_registries()
@@ -618,8 +623,11 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         };
         foreach (var (type, count) in engine)
         {
-            var variants = Doc["recipes"]!.Where(r => (string)r["type"]! == type).Sum(r => r["variants"]!.Count());
-            Assert.True(count == variants, $"{type}: engine has {count} recipes, export has {variants} variants");
+            // Hydrate or Diedrate's water copies are folded into the recipes they copy, and counted there.
+            var records = Doc["recipes"]!.Where(r => (string)r["type"]! == type).ToList();
+            var variants = records.Sum(r => r["variants"]!.Count());
+            var folded = records.Sum(r => (int?)r["extra"]?["waterCopies"]?["recipes"] ?? 0);
+            Assert.True(count == variants + folded, $"{type}: engine has {count} recipes, export has {variants} variants and {folded} folded copies");
         }
 
         // All three ladder records together hold exactly the recipes registered under that asset.
