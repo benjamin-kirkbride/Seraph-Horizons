@@ -1,0 +1,33 @@
+// Recipes that duplicate or undercut another recipe for the same thing, seraphhorizons'
+// DuplicateRecipes switch (README.md, DuplicateRecipes.cs). Each patch dependsOn the mod whose file
+// it patches and the mod whose recipe replaces it, so nothing is lost when either is missing.
+// Expanded Foods' kneading sausages (4 per file: raw, curing, cheese raw, cheese curing) give way to
+// Butchering's, which add clean offal and which Butchering enables with Expanded Foods. Expanded
+// Foods' scrap brazier (/0; its /1 names hqzlights:metalstrip-*, which does not exist) gives way to
+// HQZ Lights' own. Material Needs' aged roofing, raft and oar, and very aged round shield re-declare
+// the game's, whose wildcards already make them. The game's barrel cottage cheese gives way to
+// Expanded Foods' mixing bowl recipe; the game's sandstone daub (/14, 8) to GeoAddons' (12).
+// Server side: recipes are loaded on the server.
+[
+  { "file": "expandedfoods:recipes/kneading/sausage.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/kneading/sausage.json", "op": "add", "path": "/1/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/kneading/sausage.json", "op": "add", "path": "/2/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/kneading/sausage.json", "op": "add", "path": "/3/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/kneading/sausagefish.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/kneading/sausagefish.json", "op": "add", "path": "/1/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/kneading/sausagefish.json", "op": "add", "path": "/2/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/kneading/sausagefish.json", "op": "add", "path": "/3/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "butchering" }] },
+  { "file": "expandedfoods:recipes/grid/braziers/brazier.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }, { "modid": "hqzlights" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-roofing.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-roofing.json", "op": "add", "path": "/1/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-roofing.json", "op": "add", "path": "/2/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-roofing.json", "op": "add", "path": "/3/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-roofing.json", "op": "add", "path": "/4/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-roofing.json", "op": "add", "path": "/5/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-roofing.json", "op": "add", "path": "/6/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-raft.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-raft.json", "op": "add", "path": "/1/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "materialneeds:recipes/grid/wood/substitutions/mn-shield.json", "op": "add", "path": "/0/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "materialneeds" }] },
+  { "file": "game:recipes/barrel/cheesemaking/cottagecheese.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "expandedfoods" }] },
+  { "file": "game:recipes/grid/daub-raw.json", "op": "add", "path": "/14/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "geoaddons" }] }
+]

@@ -521,6 +521,46 @@ A JSON patch, `assets/seraphhorizons/patches/bloodsausage-butchering.json`, `"si
 or A Culinary Artillery (without which nothing else makes them), the system empties that patch file
 in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the server's.
 
+### Recipes that duplicate or undercut another are off (`DuplicateRecipes`)
+
+Some mods declare a recipe for something another recipe in the pack already makes, the same way or
+for less. The pack keeps one, and the other is disabled (`enabled: false`):
+
+- Expanded Foods (`expandedfoods` 2.0.0-dev.15) kneads its sausages in A Culinary Artillery's mixing
+  bowl from fat and meat or fish nuggets: `recipes/kneading/sausage.json` (`expandedfoods:sausage-{meat}-raw`,
+  `-curing`, `-{meat}cheese-raw`, `-{meat}cheese-curing`) and `recipes/kneading/sausagefish.json`
+  (`expandedfoods:sausagefish-normal-raw`, `-normal-curing`, `-cheese-raw`, `-cheese-curing`), four
+  recipes each, all off. Butchering (`butchering` 1.14.3) makes the same eight with clean offal added
+  (`recipes/kneading/meatnuggetsausages.json`, `fishnuggetsausages.json`), recipes it ships
+  `enabled: false` and enables with Expanded Foods; those stay. Needs both mods.
+- Expanded Foods' scrap brazier (`recipes/grid/braziers/brazier.json` `/0`: 4 firewood, 2 metal
+  scraps, an oil lamp and 0.2 L of food oil make `hqzlights:brazier-scrap`) undercuts HQZ Lights'
+  own (`hqzlights` 1.1.3, `recipes/grid/brazier.json`: 16 firewood, or 10 aged, 2 metal scraps and
+  2 fat), which stays. The file's `/1` names `hqzlights:metalstrip-*`, which no mod adds, so it
+  makes nothing and is left alone. Needs both mods.
+- Material Needs (`materialneeds` 2.0.0) re-declares three of the game's recipes for aged wood, which
+  the game's wildcards already make: `recipes/grid/wood/substitutions/mn-roofing.json` (the seven
+  aged roofing pieces), `mn-raft.json` (the aged crude oar and raft) and `mn-shield.json` (the very
+  aged plank round shield), all off. Its ashlar, roof beam, dirty gravel and mud brick recipes stay.
+- The game's barrel cottage cheese (`game:recipes/barrel/cheesemaking/cottagecheese.json`: 5 L of
+  curdled milk and salt, sealed 24 h, give 5 L) is replaced by Expanded Foods' mixing bowl recipe
+  (`recipes/kneading/cottagecheese.json`: 10 vinegar and 10 pasteurised milk give 20 portions).
+  Needs Expanded Foods.
+- The game's sandstone daub (`game:recipes/grid/daub-raw.json` `/14`: soil, 2 dry grass, sandstone
+  sand and any clay give 8 yellow daub) is GeoAddons' (`geoaddons` 1.4.8,
+  `game:recipes/grid/daub-raw-geo.json`) sandstone recipe giving 12; GeoAddons' stays. Only that one
+  of the file's recipes: the rest are for rocks GeoAddons' file does not cover, and Material Needs
+  appends its gravel daubs to the same file. Needs GeoAddons.
+
+MEA Pineapple Turpentine's and Oils Resoaped's oil lamp recipes look like the game's but are not:
+the first fills the lamp with camphine, the second takes 1 L of any oil (flax too) in a bucket, so
+both stay.
+
+A JSON patch, `assets/seraphhorizons/patches/duplicaterecipes.json`, `"side": "server"`. Each entry
+`dependsOn` the mod it patches and the mod whose recipe stays, so the patch loader skips it when
+either is missing and nothing is left without a recipe. With the switch off, the system empties that
+patch file in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the server's.
+
 ### Panning gives no wool, awls, uranium or buttons (`PanningDropsTrimmed`)
 
 The game's pan (`game:pan-wooden`, `attributes.panningDrops` in `blocktypes/wood/pan.json`) has
@@ -2781,6 +2821,16 @@ registries as the recipe exporter reads them. With the switch off, `SwitchesOffS
 Butchering's three blood sausage and one black pudding grid recipes. When it fails after a Butchering
 update, check the two grid files' order and whether its kneading recipes are still enabled with
 Expanded Foods.
+
+`tests/PackTests/DuplicateRecipesScenarios.cs` (Atlas) requires no enabled kneading recipe
+from Expanded Foods' two sausage files, every one making its meat or fish sausages to take clean
+offal, and one to make each; no grid recipe for the scrap brazier taking fewer than 10 firewood, and HQZ Lights' still
+there; no Material Needs grid recipe for any aged roofing piece, the aged oar and raft or the very
+aged iron round shield, and the game's for each; no barrel recipe making cottage cheese and the mixing bowl's making it; and yellow
+daub from sandstone giving 12, and only that. With the switch off, `SwitchesOffScenarios` requires
+each duplicate back. When it fails after an update, check the patched files' order, whether
+Butchering still enables its kneading sausages with Expanded Foods, and whether the game's or
+GeoAddons' daub file changed.
 
 For panning, `SeraphHorizonsModScenarios` reads every block's `panningDrops` on the loaded server
 and requires none of the removed codes in any list, nor in the pan's table as `BlockPan` reads it
