@@ -1,7 +1,10 @@
-# Tag vX.Y.Z (matching pack.toml's version) to publish a GitHub Release with the
-# meta-mod, the .cairn pack file, the mod list, the server bundle and the recipe
-# export the recipe browser reads (pages.yml deploys it afterwards). The newest
-# tag is the repository's "latest" release; builds of main are next.yml's "next".
+# Tag vX.Y.Z (matching pack.toml's version, which is also mods-src/seraphhorizons'
+# version) to publish one GitHub Release for the pack and its own mod: the mod's zip,
+# seraphhorizons_X.Y.Z.zip, built from the tagged commit, and the pack's meta-mod, .cairn
+# pack file, mod list, server bundle and the recipe export the recipe browser reads
+# (pages.yml deploys it afterwards). The .cairn file fetches the mod from this release
+# by address and holds it to the zip's sha256; the server bundle carries the zip. The
+# newest tag is the repository's "latest" release; builds of main are next.yml's "next".
 name: Release
 
 on:
@@ -23,21 +26,56 @@ jobs:
   release:
     needs: ci
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: write
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - name: Tag matches pack version
+      - name: Tag matches the pack's and its mod's version
         run: |
           v=$(jq -r .pack.version pack/lock.json)
           [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != pack version v$v"; exit 1; }
-      - run: python3 tools/packtool.py assemble
+          m=$(jq -r .version mods-src/seraphhorizons/modinfo.json)
+          [ "v$m" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != mods-src/seraphhorizons version v$m"; exit 1; }
+      # .NET 10 and the pinned game server (VINTAGE_STORY), to build the pack's own mod;
+      # also fetches the locked mods, which assemble's server bundle takes its
+      # redistributable zips from. The same as CI's cairn job.
+      - uses: ./.github/actions/setup-pack
+      # As CI's cairn job builds it, under the name the build gives it: a versioned
+      # release's address is new with every version, so Cairn re-downloads it on an
+      # update without the commit in the name that next's zip needs.
+      - name: Build the seraphhorizons mod zip
+        id: mod
+        run: |
+          dotnet build mods-src/seraphhorizons -c Release
+          zip="build/seraphhorizons_$(jq -r .version mods-src/seraphhorizons/modinfo.json).zip"
+          [ -f "$zip" ] || { echo "the build wrote no $zip"; exit 1; }
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+      # The URL is where the publish below puts this very zip.
+      - name: Assemble release artifacts
+        env:
+          ZIP: ${{ steps.mod.outputs.zip }}
+        run: >
+          python3 tools/packtool.py assemble --url-mod "$ZIP"
+          "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/${ZIP##*/}"
+      - name: Add the mod zip, and check the pack names it
+        env:
+          ZIP: ${{ steps.mod.outputs.zip }}
+        run: |
+          name=${ZIP##*/}
+          cp "$ZIP" "dist/$name"
+          (cd dist && sha256sum "$name" >> SHA256SUMS)
+          cairn="dist/$(jq -r .pack.id pack/lock.json)_$(jq -r .pack.version pack/lock.json).cairn"
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$name"
+          [ "$(jq -r '.pack.mods[] | select(.modid == "seraphhorizons") | .url' "$cairn")" = "$url" ] \
+            || { echo "$cairn does not fetch seraphhorizons from $url"; exit 1; }
+          [ "$(jq -r '.lock.mods[] | select(.modid == "seraphhorizons") | .sha256' "$cairn")" = "$(sha256sum < "dist/$name" | cut -d' ' -f1)" ] \
+            || { echo "$cairn locks seraphhorizons to another hash than $name's"; exit 1; }
       # From the smoke job of this run's CI, which dumped it from the server.
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -49,10 +87,14 @@ jobs:
           cp "$RUNNER_TEMP/recipe-export/recipes.json" "dist/$f"
           (cd dist && sha256sum "$f" >> SHA256SUMS)
       - name: Release notes (mod changes since the previous tag)
+        env:
+          ZIP: ${{ steps.mod.outputs.zip }}
         run: |
           prev=$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
           {
             echo "Game version: **$(jq -r .pack.game_version pack/lock.json)**"
+            echo
+            echo "\`${ZIP##*/}\` is the pack's own mod, Seraph Horizons $(jq -r .version mods-src/seraphhorizons/modinfo.json), built from this tag. The \`.cairn\` file installs it from this release and checks its sha256, and the server bundle carries it; the meta-mod and the mod list name the ModDB mods below only, so add it to \`Mods/\` yourself with those."
             echo
             echo "| mod | version | license |"
             echo "|---|---|---|"
@@ -62,6 +104,8 @@ jobs:
               diff <(git show "$prev:pack/lock.json" | jq -r '.mods[] | "\(.id) \(.version)"' | sort) \
                    <(jq -r '.mods[] | "\(.id) \(.version)"' pack/lock.json | sort) \
                 | sed -n 's/^< /- removed /p; s/^> /- added /p' || true
+              echo; echo "### Seraph Horizons mod changes since $prev"; echo
+              git log --no-merges --format='- %s (%h)' "$prev..$GITHUB_REF_NAME" -- mods-src/seraphhorizons
             fi
           } > "$RUNNER_TEMP/notes.md"
       - name: Publish
