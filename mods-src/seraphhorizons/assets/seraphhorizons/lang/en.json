@@ -1403,5 +1403,19 @@
   "ppex:blockdesc-pipe-straight-ns-lead": "Carries water. Water only: steam or exhaust in its run bursts it at once.",
   "ppex:blockdesc-pipe-bend-nw-lead": "A 90 degree bend in a pipe run. Water only: steam or exhaust in its run bursts it at once.",
   "ppex:blockdesc-pipe-tjunction-uns-lead": "A three-way pipe junction. Water only: steam or exhaust in its run bursts it at once.",
-  "ppex:blockdesc-pipe-xjunction-nswe-lead": "A four-way pipe junction. Water only: steam or exhaust in its run bursts it at once."
+  "ppex:blockdesc-pipe-xjunction-nswe-lead": "A four-way pipe junction. Water only: steam or exhaust in its run bursts it at once.",
+
+  "item-handcar": "Handcar",
+  "itemdesc-handcar": "A standard-gauge rail car for two, pumped by hand. Place it on standard-gauge track, step onto either end and pump the walking beam.",
+  "item-creature-handcar": "Handcar",
+  "creature-handcar-selectionbox-SEAT_FRONT_AP": "Front pump handle",
+  "creature-handcar-selectionbox-SEAT_REAR_AP": "Rear pump handle",
+  "creature-handcar-selectionbox-CARGO_AP": "Cargo deck",
+  "handcar-info-riders": "Riders: {0} of {1}, {2} pumping",
+  "handcar-info-branch": "Next switch: {0}",
+  "handcar-branch-left": "left",
+  "handcar-branch-straight": "straight on",
+  "handcar-branch-right": "right",
+  "handcar-handbook-title": "Riding a handcar",
+  "handcar-handbook-text": "Place the handcar on standard-gauge track as you would a wagon. Two can ride, one at each end of the walking beam, facing each other across it: press <hk>rightmouse</hk> on the deck at either end to step on, and <hk>sneak</hk> to step off.\n\n<strong>Pumping</strong>\nHold <hk>walkforward</hk> to pump the car the way you face, <hk>walkbackward</hk> to pump it the way your back is to. Let go and it coasts, slowing as it rolls. Pump against the way it rolls and it brakes to a stop before it starts back. One rider alone gets the car to about 4 blocks a second, two pumping together to about 6: each rider adds thrust, and the other only rides until they pump too. Two pumping against each other lock the beam. A chest on board, or a wagon coupled behind, slows it. Pumping is as hungry work as running.\n\n<strong>Switches</strong>\nPress <hk>walkleft</hk> or <hk>walkright</hk> to throw the branch selector beside the pump stand one place that way, as you face: left, straight on, right. The car takes that branch at the next switch, and the selector stays where it is put.\n\n<strong>Cargo</strong>\nThe deck behind the rear rider takes a chest or a crate.\n\n<strong>Taking it up</strong>\nWith nobody on board and the car stopped, press <hk>sneak</hk> and <hk>rightmouse</hk> with an empty hand to pick it up, or take it apart with a wrench, holding a hammer in your other hand. Either way it comes back whole."
 }

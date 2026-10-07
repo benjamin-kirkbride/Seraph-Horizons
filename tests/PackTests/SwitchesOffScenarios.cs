@@ -394,6 +394,33 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>Handcar</c>: no handcar entity, item or recipe, the riders' animations not added to
+    /// the seraph or the player, the drive not patched into Yang's, and nothing logged about it.</summary>
+    [AtlasScenario]
+    public void Handcar_off_there_is_no_handcar()
+    {
+        Assert.True(Off("Handcar"));
+        var handcars = SeraphHorizons.Mod.Handcar.HandcarSystem.Of(World.Api);
+        Assert.False(handcars.Enabled);
+        Assert.False(World.Api.World.Config.GetBool(SeraphHorizons.Mod.Handcar.HandcarSystem.RunningKey, true));
+        Assert.Null(W.GetEntityType(SeraphHorizons.Mod.Handcar.HandcarSystem.EntityCode));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path == "handcar");
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path == "handcar");
+        var seraph = World.Api.Assets.Get(new AssetLocation("game:shapes/entity/humanoid/seraph-faceless.json")).ToObject<Shape>();
+        Assert.DoesNotContain(seraph.Animations, a => a.Code.StartsWith("seraphhorizons-handcar", StringComparison.Ordinal));
+        var player = W.GetEntityType(new AssetLocation("game:player"))!;
+        Assert.DoesNotContain(player.Client.Animations, m => m.Code.StartsWith("seraphhorizons-handcar", StringComparison.Ordinal));
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Handcar.HandcarPatches.ServerHarmonyId));
+        // Yang's own locomotive still drives
+        Assert.NotNull(W.GetEntityType(new AssetLocation("yangtransport", "sglocomotive-primitive")));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("handcar", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>GearboxSourceRatio</c>: nothing is patched, and a rotor placed after its gearbox,
     /// on the low side, takes the high side's ratio, as MPE Gearbox ships it (#462). When this fails
     /// with the rotor at 1, MPE Gearbox has fixed it and the tweak can go.</summary>

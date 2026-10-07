@@ -1,0 +1,20 @@
+// The handcar (Handcar/, README "Handcar"). The server disables it with Handcar off or without Yang.
+[
+	{
+		// Copper age: Yang's standard-gauge stock less its engine. Four of Yang's minecarts for the
+		// running gear and the deck's frame (as every standard-gauge wagon of Yang's takes), two planks
+		// for the deck, a wooden spur gear and a wooden axle for the pump's gearing and its walking
+		// beam, and two copper rods for the crank and the pitman's pins.
+		ingredientPattern: "RGR,PAP,M_M",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"R": { type: "item", code: "game:rod-copper" },
+			"G": { type: "block", code: "game:spurgear-s" },
+			"A": { type: "block", code: "game:woodenaxle-ud" },
+			"P": { type: "block", code: "game:planks-*" },
+			"M": { type: "item", code: "yangtransport:minecart", quantity: 2 }
+		},
+		output: { type: "item", code: "seraphhorizons:handcar" }
+	}
+]

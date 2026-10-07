@@ -2197,6 +2197,57 @@ links it. The hollows and the pipe sections exist either way (the sections are `
 that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic
 for the frame (`MachineSchematics`).
 
+### Handcar (`Handcar`, `HandcarSettings`)
+
+A standard-gauge rail car for Yang's Transport Tycoon, pumped by hand: a walking beam on an A-frame in
+the middle of the deck drives the front axle through a pitman, a crank and a 3 to 1 gear. Two riders
+stand at the beam's ends, facing each other, hands on its handles, and a chest or crate rides on the
+deck behind them. Its model, rig, generator and what it is built on in Yang's code are described in
+`Handcar/README.md`; this is the gameplay, in `Handcar/` (rules in `Handcar/Core/`, the game side in
+`Handcar/Game/`). It is Yang's own standard-gauge vehicle (`yangtransport.sglocomotive`: its renderer,
+seats, couplings, cargo slot, pickup and deconstruction) with this mod's behaviour in place of a steam
+engine, and three Harmony patches on Yang's sealed classes found by name.
+
+**Riding and pumping.** Placed by its item on standard-gauge track. Right-click on the deck at either end
+steps on, sneak steps off. Forward pumps the car the way the rider faces, back the other way; let go and
+it coasts down by its drag. Pumping against the way it rolls brakes it to a stop, then it goes back. One
+rider pumping makes the solo top speed, two pumping the same way the pair's; a second rider only rides
+until they pump too, and two pumping against each other lock the beam and hold the car. Load (a chest
+or crate, a coupled wagon) costs top speed. Pumping costs a survival rider what sprinting does. Left or
+right moves the branch selector beside the stand one place that way, as the rider faces: the car takes
+that branch at the next switch.
+
+**The riders' animation.** The car's wheels, gears, crank, pitman and beam and both riders' arms move by
+the distance the car has rolled, every frame on the client, so the hands stay on the handles at any
+speed and when it stands; the pump's lean fades in while a rider pumps and out when they stop. The
+animations are added to the game's seraph by `patches/handcar-riders.json`, solved for its arms by the
+generator.
+
+**Taking it up.** Yang's own: with nobody on and the car stopped, a sneak click with an empty hand picks
+it up, or Yang's wrench held six seconds with a hammer in the other hand takes it apart; either gives
+the handcar back. The recipe (copper age): four of Yang's minecarts, two planks, a wooden spur gear, a
+wooden axle and two copper rods.
+
+| Setting | Default | |
+|---|---|---|
+| `TopSpeedOne` | 4.2 | Blocks a second, one rider pumping: 60 % of Yang's primitive engine cart (7) |
+| `TopSpeedTwo` | 5.95 | Two pumping: 85 % |
+| `AccelerationOne` | 0.6 | Blocks a second squared, one rider (the engine cart pulls 0.8) |
+| `AccelerationTwo` | 0.9 | Two |
+| `SpeedLossPerWeight` | 0.5 | Top speed lost per weight over the bare car's 2 (a chest or crate is 1) |
+| `MinTopSpeed` | 0.8 | The least top speed however loaded |
+| `CoastDrag` | 0.35 | Slowing while coasting (Yang's `Roll0`, written into the entity type at load) |
+| `DragPerWeight` | 0.05 | More of it per weight over 1 (`RollW`) |
+| `BrakeDeceleration` | 2.5 | Braking when pumped against the way it rolls (`BrakeDecel`) |
+| `SatietyPerPumpSecond` | 1.5 | A pumping rider's satiety a second, as sprinting's |
+| `PumpFadeSeconds` | 0.35 | How fast the pump's lean fades in and out (each client's own) |
+
+With the switch off (or without Yang's Transport Tycoon, or with it changed so the patches cannot bind,
+which is logged) the server marks the entity type, the item type and the recipe disabled before the game
+loads them and empties the riders' patch, so none of it exists, in the handbook or the recipe export;
+handcars already in a world are lost. A client follows the server. Not yet: an icon for the recipe
+browser.
+
 ### Felling a tree costs the axe a flat figure (`FlatFellingWear`, `FlatFellingWearSettings`)
 
 Logging Expanded (`loggingmod`, 0.3.6). Felling a tree that leaves a trunk costs the axe
@@ -2753,8 +2804,8 @@ Which switch adds a recipe or an item, for the recipe export (`recipes[i].switch
 recipe files and the block and item type files its system disables (`GearCutterSystem.TypeAssets`
 and `RecipeAssets`, `GearBlanks`', `BuckingSawmillSystem`'s and `RosserSystem`'s `BlockAssets` and
 `RecipeAsset`, `PicklingTubSystem`'s tub, bare gear and recipe, `GearReclamationSystem`'s cooking
-and barrel recipes, `SteelBitsSystem.RecipeAsset`, `CreativeSteamSource.BlockAsset`, `CastPipesSystem.TypeAssets` and
-`RecipeAssets`), reading each
+and barrel recipes, `SteelBitsSystem.RecipeAsset`, `HandcarSystem.TypeAssets` and `RecipeAsset`, `CreativeSteamSource.BlockAsset`,
+`CastPipesSystem.TypeAssets` and `RecipeAssets`), reading each
 type file's `code` for the codes it defines (`domain:code` and `domain:code-*`). What no such list
 says is hand-listed in `Core/SwitchOwnership.cs` (`HandListed`): the debarked trunks the Rosser
 switch's patch adds to Logging Expanded's trunk (`loggingmod:treetrunk-*-debarked-*`), the pipe molds
@@ -2776,6 +2827,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
+| `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
 
@@ -3188,7 +3240,9 @@ take-back, plates by metal, fold arithmetic (W only while held, two sections at 
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
 `PressBrakeRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
 blows (two sections at the last), renderer clock, settings and rig (`MandrelStation/Core/`,
-`tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the pickling tub's rules, timings,
+`tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the handcar's drive (pumping by
+facing, solo and pair, braking and holding, load), branch selector, distance rolled, stroke phase, effort fade,
+easing, settings and rig, held to its entity type and rider reference (`Handcar/Core/`, `tests/Handcar/`), the pickling tub's rules, timings,
 over-pickling order, early take-out, brine loss and settings (`PicklingTub/Core/`, `tests/PicklingTub/`),
 and the unified pipes' burst figures, lead rule, recipe cost filter and the guard on ppex's assets, held
 to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on the
@@ -3535,6 +3589,17 @@ recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 6 or 9
 blows, no oil.
+
+`tests/PackTests/HandcarScenarios.cs` (Atlas, the shared world) requires the handcar registered with its
+item, recipe, the riders' animations on the seraph and the player, and Yang's wrench patch; placed by its
+item on standard-gauge track, two players mounted on the deck facing each other; one pumping to the solo
+top speed and paying satiety over the other; both to the pair speed; pumping back braking and reversing;
+two against each other stopping and holding; coasting by its drag; the branch selector stepped by both
+riders as they face; sneak getting them off; Yang's wrench with a hammer taking it apart into its item, a
+sneak click picking it up; and, in the game's own animator on the patched seraph and the car's shape,
+each rider's hands on its handles at sampled frames and blends. With the switch off,
+`SwitchesOffScenarios` requires no entity, item, recipe or rider animations, nothing patched, and
+nothing logged.
 
 `tests/PackTests/UnifiedPipesScenarios.cs` (Atlas, the shared world) requires the switch bound with
 nothing logged; every pipe shape in copper and lead, at the default figures with iron and steel, on

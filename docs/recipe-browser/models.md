@@ -104,13 +104,13 @@ Anchors are recognised by their shape, so a new rig gets overlays without code c
 | `cells` | Block cells (outlined, the origin cell `[0,0,0]` in orange, a floor grid) and collision boxes. A cell with `"hollow": true` and no `boxes` has none (it is solid only where the trunk is, which the game adds); any other cell without boxes is a full cube. A cell's `lid` (a collision-only deck over the whole cell, 1/16 thick, on the top cell of a column: every column of the mill and the gear cutter, the rosser's station only) is drawn with the collision boxes in its own shade, violet, so the deck the game adds reads apart from the boxes under it |
 | `"<name>Cell": [x, y, z]` | That cell outlined; with `"<name>Face": "<side>"`, the face shaded and an arrow into it |
 | `"<name>Side": "<side>"` | An arrow into that side of the footprint, on a line anchor running that way if there is one |
-| `"<name>": { "pos": [x, y, z] }` | A point; with `"<name>Side"`, an arrow out that way |
+| `"<name>": { "pos": [x, y, z] }` | A point; with `"<name>Side"`, an arrow out that way. With `"part": "<part id>"` it rides that part, posed by the part's matrix (the handcar's grips on its beam); a part the rig does not have fails the build |
 | `"<name>": { "origin", "axis", "length" }` | A line along the axis, centred on origin; with `"stations": { "<name>": x }`, a labelled mark at each place along the axis |
 | `"<name>": { "<x>Y": number, ... }` | A level line across the footprint at each such height |
 
 Keys starting with `_` are comments. Any other key is listed under the overlays as not drawn
 (the rosser's `feed`, its gearing figures, is one: the viewer reads its `blocksPerRadian` for φ
-but draws nothing for it).
+but draws nothing for it; the handcar's `cycle`, `riders` and `bogies` are others).
 
 ## The manifest: `site/models.json`
 
@@ -284,6 +284,8 @@ collision boxes the way `make_shape.py` does, which must give back the rig file'
 `site/test/rosser.test.ts` does the same for the rosser: every pose of
 `mods-src/seraphhorizons/tests/Rosser/rig-reference.json` (with T, k, p and φ), and every cell's boxes
 rebuilt from the shipped shape, hollow cells with none.
+`site/test/handcar.test.ts` replays `mods-src/seraphhorizons/tests/Handcar/rig-reference.json` (θ alone) and
+checks the handcar's anchors, its grips riding the beam.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL.
