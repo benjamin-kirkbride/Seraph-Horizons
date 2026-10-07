@@ -1909,6 +1909,18 @@ def plan_cells():
     return out
 
 
+def station_column(x, z, x0=0):
+    """Whether column (x, z) is over the station, in a frame whose build-frame x cell 0 is at x0
+    (0 in the build frame, -ORIGIN_CELL[0] shipped). Only the station is lidded: over a bed the
+    lid would be an invisible floor two blocks above the rolls, so the beds have none."""
+    return STATION_CELLS[0] <= x - x0 <= STATION_CELLS[1]
+
+
+def shipped_station_column(x, z):
+    """station_column in the shipped frame (controller cell [0,0,0]): x -12..-4."""
+    return station_column(x, z, -ORIGIN_CELL[0])
+
+
 def make_rig(els, parts):
     """Cells with boxes from the model at rest (no trunk); a cell with nothing of its own is hollow."""
     # from the elements as the shape file writes them (rounded), so anything that rebuilds the boxes
@@ -1924,7 +1936,7 @@ def make_rig(els, parts):
     for c in plan_cells():
         boxes = cell_boxes(by_cell[c], c) if c in by_cell else None
         cells.append({"pos": list(c), "boxes": boxes} if boxes else {"pos": list(c), "hollow": True})
-    cells = with_lids(cells)
+    cells = with_lids(cells, station_column)
     gear = feed_gear()
     power = (int(ENTRY_X // B), int(MAIN_Y // B), 0)
     water = (int(DRIP_X // B), int(DRIP_Y // B), CELLS_Z - 1)
@@ -2018,7 +2030,7 @@ def shipped_cells(shape, ship_parts, sp, cells):
     """The shipped cells' boxes rebuilt from the shipped shape as written (rounded, in the shipped
     frame) posed at rest by the shipped rig: exactly what the site's test and any other reader of
     the two files computes, so the greedy split cannot come out differently there. The lids go on
-    after (`with_lids`)."""
+    after (`with_lids`, over the station only)."""
     written = flatten(shape["elements"], textures={})
     rest = [posed(w, _part_matrix(ship_parts, part_of(ship_parts, w.name), inputs_of(REST), sp)) for w in written]
     by_cell = {}
@@ -2031,7 +2043,7 @@ def shipped_cells(shape, ship_parts, sp, cells):
         pos = tuple(c["pos"])
         boxes = cell_boxes(by_cell[pos], pos) if pos in by_cell else None
         out.append({"pos": list(pos), "boxes": boxes} if boxes else {"pos": list(pos), "hollow": True})
-    return with_lids(out)
+    return with_lids(out, shipped_station_column)
 
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):

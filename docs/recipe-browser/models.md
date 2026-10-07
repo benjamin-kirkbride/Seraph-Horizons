@@ -101,7 +101,7 @@ Anchors are recognised by their shape, so a new rig gets overlays without code c
 
 | In the rig | Drawn as |
 |---|---|
-| `cells` | Block cells (outlined, the origin cell `[0,0,0]` in orange, a floor grid) and collision boxes. A cell with `"hollow": true` and no `boxes` has none (it is solid only where the trunk is, which the game adds); any other cell without boxes is a full cube. A cell's `lid` (a collision-only deck over the whole cell, 1/16 thick, on the top cell of every column) is drawn with the collision boxes in its own shade, violet, so the deck the game adds reads apart from the boxes under it |
+| `cells` | Block cells (outlined, the origin cell `[0,0,0]` in orange, a floor grid) and collision boxes. A cell with `"hollow": true` and no `boxes` has none (it is solid only where the trunk is, which the game adds); any other cell without boxes is a full cube. A cell's `lid` (a collision-only deck over the whole cell, 1/16 thick, on the top cell of a column: every column of the mill and the gear cutter, the rosser's station only) is drawn with the collision boxes in its own shade, violet, so the deck the game adds reads apart from the boxes under it |
 | `"<name>Cell": [x, y, z]` | That cell outlined; with `"<name>Face": "<side>"`, the face shaded and an arrow into it |
 | `"<name>Side": "<side>"` | An arrow into that side of the footprint, on a line anchor running that way if there is one |
 | `"<name>": { "pos": [x, y, z] }` | A point; with `"<name>Side"`, an arrow out that way |
