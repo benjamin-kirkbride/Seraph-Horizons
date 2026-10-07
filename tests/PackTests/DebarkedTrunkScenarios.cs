@@ -241,10 +241,15 @@ public partial class WoodworkingRosserScenarios
         Assert.True(made.GetValueOrDefault("game:plank-oak") > 0);
         Assert.Single(made);
 
-        // Unloaded with an empty hand into Carry On's hands: the debarked trunk of what is left.
+        // Unloaded with an empty hand into Carry On's hands, through the station's timed hold
+        // (StationTake, as TrunkStationScenarios holds it): the debarked trunk of what is left.
         int left = shop.LogsOn(pos);
         shop.Holding((ItemStack?)null);
+        var sp = (Vintagestory.API.Server.IServerPlayer)shop.P;
+        sp.Entity.ServerControls.RightMouseDown = true;
         shop.Click(pos);
+        await World.Until(() => !StationTake.Holding(sp), 600);
+        sp.Entity.ServerControls.RightMouseDown = false;
         await World.Ticks(2);
         var back = TakeCarried(shop);
         Assert.NotNull(back);
