@@ -8,6 +8,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 using Xunit.Abstractions;
 
@@ -45,9 +46,9 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     /// <summary>A spot 40 above spawn at <paramref name="dx"/>, its chunk loaded, cleared around,
     /// on a granite floor one below it.</summary>
-    private async Task<BlockPos> Floor(int dx, int reach = 6)
+    private async Task<BlockPos> Floor(int dx, int reach = 6, int dz = 60)
     {
-        var origin = World.Spawn.AddCopy(dx, 40, 60);
+        var origin = World.Spawn.AddCopy(dx, 40, dz);
         await World.Until(() => W.BlockAccessor.GetChunkAtBlockPos(origin) != null, 30000);
         int granite = BlockOf("game:rock-granite").Id;
         for (int x = -reach; x <= reach; x++)
@@ -305,12 +306,53 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         trunk.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario]
-    public async Task A_grab_saved_with_a_trunk_is_cleared_when_it_loads()
+    // A thin trunk of `logs` at `pos`'s middle, lying along z (yaw 0).
+    private EntityTrunk SpawnThin(BlockPos pos, int logs)
+    {
+        var trunk = (EntityTrunk)W.ClassRegistry.CreateEntity(W.GetEntityType(TrunkEntitySystem.ThinCode)!);
+        trunk.WatchedAttributes.SetItemstack(EntityTrunk.TrunkKey, Trunk(logs));
+        trunk.Pos.SetPos(pos.ToVec3d().Add(0.5, 0, 0.5));
+        W.SpawnEntity(trunk);
+        return trunk;
+    }
+
+    // A fresh player at `at` with an empty hand, not sneaking.
+    private async Task<IServerPlayer> Walker(string name, BlockPos at)
+    {
+        var p = await World.JoinPlayer(name);
+        await p.TeleportTo(at);
+        await World.Ticks(5);
+        var player = p.Player;
+        player.InventoryManager.ActiveHotbarSlot.Itemstack = null;
+        player.Entity.Controls.ShiftKey = player.Entity.Controls.Sneak = false;
+        return player;
+    }
+
+    private static (double X, double Z) EndOf(EntityTrunk trunk, int end) =>
+        TrunkPull.EndPos(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, TrunkBox.Size(trunk.TypeClass).Length, end);
+
+    // An empty-hand click on the trunk at end `end`.
+    private static void Click(EntityTrunk trunk, IServerPlayer player, int end)
+    {
+        var (x, z) = EndOf(trunk, end);
+        trunk.OnInteract(player.Entity, player.InventoryManager.ActiveHotbarSlot, new Vec3d(x, trunk.Pos.Y + 0.5, z), EnumInteractMode.Interact);
+    }
+
+    // The driver's keys: the game feeds a mounted player's movement keys into their seat's controls.
+    private static EntityControls Keys(IServerPlayer player) => player.Entity.MountedOn!.Controls;
+
+    // Progress in the server log, live (the test's own output only shows at the end).
+    private void Log(string what) => W.Logger.Notification("[trunk-drive-test] " + what);
+
+    private static double Flat(Vec3d a, double x, double z) => Math.Sqrt((a.X - x) * (a.X - x) + (a.Z - z) * (a.Z - z));
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_drive_saved_with_a_trunk_is_cleared_when_it_loads()
     {
         var pos = await Floor(-40);
-        // a trunk as a world saves it mid-grab: the grabber's id, the grab's rope id, and the rope
-        // in the ropetieable's list; the session that made the rope is gone, so the game has no such cloth
+        // a trunk as a world saves it mid-drive (the driver's id), and from when the grab was a
+        // game rope (the rope's id, and the rope in the ropetieable's list; the session that made
+        // the rope is gone, so the game has no such cloth)
         var trunk = (EntityTrunk)W.ClassRegistry.CreateEntity(W.GetEntityType(TrunkEntitySystem.ThinCode)!);
         trunk.WatchedAttributes.SetItemstack(EntityTrunk.TrunkKey, Trunk(6));
         trunk.WatchedAttributes.SetLong(EntityTrunk.GrabbedByKey, 987654321);
@@ -324,110 +366,189 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
         Assert.True(trunk.Alive);
         Assert.False(trunk.Grabbed);
+        Assert.False(trunk.Driven);
         Assert.False(trunk.WatchedAttributes.HasAttribute(EntityTrunk.GrabClothKey));
         Assert.Empty(trunk.GetBehavior<EntityBehaviorRopeTieable>()!.ClothIds?.value ?? []);
 
-        // and a player can grab it
-        var p = await World.JoinPlayer("trunkregrabber");
-        await p.TeleportTo(pos.AddCopy(2, 0, 0));
-        await World.Ticks(5);
-        var player = p.Player;
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = null;
-        // grabbed by the end at local -z (yaw 0: world +z), clicked there
-        var length = TrunkBox.Size(trunk.TypeClass).Length;
-        var (cx, cz) = TrunkPull.EndPos(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, length, -1);
-        var click = new Vec3d(cx, trunk.Pos.Y + 0.5, cz);
-        player.Entity.ServerControls.RightMouseDown = true;
-        trunk.OnInteract(player.Entity, slot, click, EnumInteractMode.Interact);
+        // and a player can take it: by the end at local -z (yaw 0: world +z), clicked there
+        var player = await Walker("trunkregrabber", pos.AddCopy(2, 0, 0));
+        Click(trunk, player, -1);
         Assert.True(trunk.Grabbed);
         Assert.Equal(player.Entity.EntityId, trunk.GrabbedBy);
-        Assert.Same(trunk, Mod.Grabs!.HeldBy(player));
-        // the player is held to the trunk's pace: 6 logs (weight 48) walk at its factor, 50/48
-        // capped at the ceiling
-        var walk = player.Entity.Stats["walkspeed"].ValuesByKey;
-        Assert.True(walk.ContainsKey(TrunkGrab.DragCode), "no drag walk speed");
-        Assert.Equal(TrunkPull.DragSpeed(trunk.LandWeight) - 1, walk[TrunkGrab.DragCode].Value, 3);
-        Assert.Equal(TrunkPull.DragCeiling - 1, walk[TrunkGrab.DragCode].Value, 3);
-        // no rope of any kind: the grab is the mod's own pull
+        Assert.Equal(-1, trunk.DriveEnd);
+        var seat = Assert.IsType<TrunkDriveSeat>(player.Entity.MountedOn);
+        Assert.Same(trunk, seat.Entity);
+        Assert.Same(player.Entity, trunk.Driver);
+        // no rope of any kind
         Assert.Empty(trunk.GetBehavior<EntityBehaviorRopeTieable>()!.ClothIds?.value ?? []);
-        Assert.False(trunk.WatchedAttributes.HasAttribute(EntityTrunk.GrabClothKey));
-
-        // the held button repeats the interact: nothing restarts or lets go
-        for (int i = 0; i < 5; i++)
-        {
-            trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
-            await World.Ticks(1);
-            Assert.True(trunk.Grabbed);
-            Assert.Same(trunk, Mod.Grabs.HeldBy(player));
-        }
-
-        // the player steps away, still within reach: the trunk follows and turns its grabbed
-        // end (world +z at the start) towards the player (world +x)
-        var start = trunk.Pos.XYZ;
-        float startYaw = trunk.Pos.Yaw;
-        await p.TeleportTo(pos.AddCopy(3, 0, 0));
-        await World.Ticks(40);
-        output.WriteLine($"trunk from {start} yaw {startYaw} to {trunk.Pos.XYZ} yaw {trunk.Pos.Yaw}, grabbed {trunk.Grabbed}");
-        Assert.True(trunk.Grabbed);
-        Assert.True(trunk.Pos.X > start.X + 0.1, $"the trunk did not follow: {start} → {trunk.Pos.XYZ}");
-        Assert.True(Math.Abs(TrunkPull.Wrap(trunk.Pos.Yaw - startYaw)) > 0.2, $"the trunk did not turn: yaw {trunk.Pos.Yaw}");
-        var (gx, gz) = TrunkPull.EndPos(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, length, -1);
-        var (ox, oz) = TrunkPull.EndPos(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, length, 1);
-        var me = player.Entity.Pos;
-        Assert.True(Math.Pow(me.X - gx, 2) + Math.Pow(me.Z - gz, 2) < Math.Pow(me.X - ox, 2) + Math.Pow(me.Z - oz, 2),
-            "the grabbed end does not lead");
-
-        player.Entity.ServerControls.RightMouseDown = false;
-        await World.Until(() => !trunk.Grabbed, 5000);
-        Assert.Null(Mod.Grabs.HeldBy(player));
-        Assert.False(walk.ContainsKey(TrunkGrab.DragCode), "the drag walk speed outlived the grab");
-        Assert.Empty(trunk.GetBehavior<EntityBehaviorRopeTieable>()!.ClothIds?.value ?? []);
-        // no rope item ever comes of a grab
-        Assert.Empty(W.GetEntitiesAround(trunk.Pos.XYZ, 16, 16,
-            e => e is EntityItem { Itemstack.Collectible.Code.Path: "rope" }));
-
-        // too far from the trunk: no grab
-        await p.TeleportTo(pos.AddCopy(6, 0, 0));
         await World.Ticks(2);
-        player.Entity.ServerControls.RightMouseDown = true;
-        trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        // the driver stands just beyond that end, along the axis, on the trunk's ground
+        var (ex, ez) = EndOf(trunk, -1);
+        var me = player.Entity.Pos.XYZ;
+        output.WriteLine($"trunk {trunk.Pos.XYZ}, end ({ex:F2}, {ez:F2}), driver {me}");
+        Assert.InRange(Flat(me, ex, ez), TrunkDrive.StandOff - 0.15, TrunkDrive.StandOff + 0.15);
+        Assert.True(Flat(me, trunk.Pos.X, trunk.Pos.Z) > Flat(new Vec3d(ex, 0, ez), trunk.Pos.X, trunk.Pos.Z));
+        Assert.InRange(me.Y, trunk.Pos.Y - 0.1, trunk.Pos.Y + 0.1);
+        // the driver's own clicks again change nothing
+        for (int i = 0; i < 3; i++)
+        {
+            Click(trunk, player, 1);
+            await World.Ticks(1);
+            Assert.Same(seat, player.Entity.MountedOn);
+            Assert.Equal(-1, trunk.DriveEnd);
+        }
+        // sneak lets go (the game's dismount on the seat's sneak), and the mark goes with it
+        Keys(player).UpdateFromPacket(true, (int)EnumEntityAction.Sneak);
+        await World.Ticks(2);
+        Assert.Null(player.Entity.MountedOn);
         Assert.False(trunk.Grabbed);
-        player.Entity.ServerControls.RightMouseDown = false;
+        Assert.False(trunk.Driven);
         trunk.Die(EnumDespawnReason.Removed);
     }
 
-    // Spawns a thin trunk of `logs` at `pos` (yaw 0, along z), has a fresh player grab its end at
-    // local -z (world +z) and walk to `to`, and returns the trunk after `ticks`, still grabbed.
-    // `to` must stay within GrabRange (3) of that end, which lies at z + 2.5, or the grab lets go.
-    private async Task<EntityTrunk> PullFrom(BlockPos pos, int logs, string name, BlockPos to, int ticks)
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_driven_trunk_moves_and_turns_by_the_drivers_keys()
     {
-        var trunk = (EntityTrunk)W.ClassRegistry.CreateEntity(W.GetEntityType(TrunkEntitySystem.ThinCode)!);
-        trunk.WatchedAttributes.SetItemstack(EntityTrunk.TrunkKey, Trunk(logs));
-        trunk.Pos.SetPos(pos.ToVec3d().Add(0.5, 0, 0.5));
-        W.SpawnEntity(trunk);
+        var pos = await Floor(0, 10, 100);
+        var trunk = SpawnThin(pos, 6);
         await World.Ticks(20);
-        var p = await World.JoinPlayer(name);
-        await p.TeleportTo(pos.AddCopy(0, 0, 3));
+        var player = await Walker("trunkdriver", pos.AddCopy(0, 0, 3));
+        // the end at world +z (local -z)
+        Click(trunk, player, -1);
+        Assert.True(trunk.Driven);
+        Log("driver attached");
+        var keys = Keys(player);
+
+        // W: the trunk moves along its axis with the taken end leading, the driver backing up with it
+        double z0 = trunk.Pos.Z, x0 = trunk.Pos.X;
+        keys.Forward = true;
+        await World.Ticks(20);
+        keys.Forward = false;
+        await World.Ticks(10);
+        output.WriteLine($"W: trunk z {z0:F2} -> {trunk.Pos.Z:F2}, x {trunk.Pos.X:F2}, driver {player.Entity.Pos.XYZ}");
+        Assert.True(trunk.Pos.Z > z0 + 1, $"W did not move the trunk towards the taken end: {z0:F2} -> {trunk.Pos.Z:F2}");
+        Assert.InRange(trunk.Pos.X, x0 - 0.1, x0 + 0.1);
+        var (ex, ez) = EndOf(trunk, -1);
+        Assert.InRange(Flat(player.Entity.Pos.XYZ, ex, ez), TrunkDrive.StandOff - 0.15, TrunkDrive.StandOff + 0.15);
+        Assert.True(player.Entity.Pos.Z > ez, "the driver is not beyond the taken end");
+
+        // S: the other way, the driver pushing it
+        double z1 = trunk.Pos.Z;
+        keys.Backward = true;
+        await World.Ticks(20);
+        keys.Backward = false;
+        await World.Ticks(10);
+        output.WriteLine($"S: trunk z {z1:F2} -> {trunk.Pos.Z:F2}");
+        Assert.True(trunk.Pos.Z < z1 - 1, $"S did not push the trunk: {z1:F2} -> {trunk.Pos.Z:F2}");
+
+        // A and D turn it about its middle: both ends swing, the middle stays
+        var middle = trunk.Pos.XYZ;
+        float yaw0 = trunk.Pos.Yaw;
+        keys.Left = true;
+        await World.Ticks(20);
+        keys.Left = false;
         await World.Ticks(5);
-        var player = p.Player;
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = null;
-        var (cx, cz) = TrunkPull.EndPos(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, TrunkBox.Size(trunk.TypeClass).Length, -1);
-        player.Entity.ServerControls.RightMouseDown = true;
-        trunk.OnInteract(player.Entity, slot, new Vec3d(cx, trunk.Pos.Y + 0.5, cz), EnumInteractMode.Interact);
-        Assert.True(trunk.Grabbed);
-        await p.TeleportTo(to);
-        await World.Ticks(ticks);
-        output.WriteLine($"{name}: trunk at {trunk.Pos.XYZ}, afloat {trunk.Afloat}, grabbed {trunk.Grabbed}");
-        Assert.True(trunk.Grabbed);
-        player.Entity.ServerControls.RightMouseDown = false;
-        await World.Until(() => !trunk.Grabbed, 5000);
-        return trunk;
+        double turnedA = TrunkPull.Wrap(trunk.Pos.Yaw - yaw0);
+        output.WriteLine($"A: yaw {yaw0:F2} -> {trunk.Pos.Yaw:F2} ({turnedA:F2}), middle {middle} -> {trunk.Pos.XYZ}");
+        Assert.True(turnedA < -0.2, $"A did not turn the trunk: {turnedA:F2}");
+        Assert.True(Flat(trunk.Pos.XYZ, middle.X, middle.Z) < 0.2, "the middle moved while turning");
+        // the driver swung with their end (which way is TrunkDriveTests'): still just beyond it
+        (ex, ez) = EndOf(trunk, -1);
+        Assert.InRange(Flat(player.Entity.Pos.XYZ, ex, ez), TrunkDrive.StandOff - 0.15, TrunkDrive.StandOff + 0.15);
+        float yaw1 = trunk.Pos.Yaw;
+        keys.Right = true;
+        await World.Ticks(20);
+        keys.Right = false;
+        await World.Ticks(5);
+        double turnedD = TrunkPull.Wrap(trunk.Pos.Yaw - yaw1);
+        output.WriteLine($"D: yaw {yaw1:F2} -> {trunk.Pos.Yaw:F2} ({turnedD:F2})");
+        Assert.True(turnedD > 0.2, $"D did not turn the trunk back: {turnedD:F2}");
+        Assert.True(Flat(trunk.Pos.XYZ, middle.X, middle.Z) < 0.2, "the middle moved while turning");
+        player.Entity.TryUnmount();
+        await World.Ticks(2);
+        Assert.False(trunk.Grabbed);
+        trunk.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario]
-    public async Task A_grabbed_trunk_is_pulled_up_a_one_block_step()
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task No_one_else_may_touch_a_driven_trunk()
+    {
+        var pos = await Floor(-30, 8, 100);
+        var trunk = SpawnThin(pos.AddCopy(0, 0, -3), 6);
+        await World.Ticks(20);
+        var player = await Walker("trunkkeeper", pos.AddCopy(0, 0, 0));
+        Click(trunk, player, -1);
+        Assert.True(trunk.Driven);
+        Log("keeper attached");
+
+        // another player can neither take it (an empty hand at the other end), nor shoulder it
+        // (sneak), nor reach the seat; the first stays the driver
+        var other = await Walker("trunkintruder", pos.AddCopy(3, 0, -6));
+        Click(trunk, other, 1);
+        Assert.Null(other.Entity.MountedOn);
+        Assert.Equal(player.Entity.EntityId, trunk.GrabbedBy);
+        other.Entity.Controls.ShiftKey = true;
+        other.Entity.ServerControls.RightMouseDown = true;
+        Click(trunk, other, 1);
+        await World.Ticks(40);
+        other.Entity.Controls.ShiftKey = false;
+        other.Entity.ServerControls.RightMouseDown = false;
+        Assert.True(trunk.Alive, "another player shouldered a driven trunk");
+        Assert.Same(player.Entity, trunk.Driver);
+        Assert.False(other.Entity.TryMount(trunk.DriveSeat!), "a second player mounted the driver's place");
+
+        // letting go leaves the trunk free for the other player
+        player.Entity.TryUnmount();
+        await World.Ticks(2);
+        Assert.False(trunk.Grabbed);
+        Click(trunk, other, 1);
+        Assert.Same(other.Entity, trunk.Driver);
+        Assert.Equal(1, trunk.DriveEnd);
+        other.Entity.TryUnmount();
+        await World.Ticks(2);
+        Assert.False(trunk.Grabbed);
+        trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    // Spawns a thin trunk of `logs` at `pos` (yaw 0, along z), has a fresh player take its end at
+    // local -z (world +z) and hold W for `ticks`, and returns the trunk, let go, and how far along
+    // z it went.
+    private async Task<(EntityTrunk Trunk, double Moved)> DriveFrom(BlockPos pos, int logs, string name, int ticks)
+    {
+        var trunk = SpawnThin(pos, logs);
+        await World.Ticks(20);
+        var player = await Walker(name, pos.AddCopy(0, 0, 3));
+        Click(trunk, player, -1);
+        Assert.True(trunk.Driven);
+        Log($"{name} attached");
+        double z0 = trunk.Pos.Z;
+        Keys(player).Forward = true;
+        await World.Ticks(ticks);
+        double moved = trunk.Pos.Z - z0;
+        output.WriteLine($"{name}: {logs} logs moved {moved:F2} to {trunk.Pos.XYZ}, afloat {trunk.Afloat}");
+        Assert.True(trunk.Driven);
+        Keys(player).Forward = false;
+        player.Entity.TryUnmount();
+        await World.Ticks(2);
+        Assert.False(trunk.Grabbed);
+        return (trunk, moved);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_one_log_trunk_drives_about_twice_as_fast_as_a_48_log_one()
+    {
+        var light = await DriveFrom(await Floor(30, 10, 100), 1, "trunklightdriver", 30);
+        var heavy = await DriveFrom(await Floor(60, 10, 100), 48, "trunkheavydriver", 30);
+        double ratio = light.Moved / heavy.Moved;
+        output.WriteLine($"light {light.Moved:F2}, heavy {heavy.Moved:F2}, ratio {ratio:F2}");
+        Assert.True(heavy.Moved > 0.5, $"the heavy trunk hardly moved: {heavy.Moved:F2}");
+        Assert.InRange(ratio, 1.6, 2.4);
+        light.Trunk.Die(EnumDespawnReason.Removed);
+        heavy.Trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_driven_trunk_climbs_a_one_block_step()
     {
         var pos = await Floor(-60, 8);
         // a step one block high across the way, from z +3 (the trunk's +z end is at +2.5)
@@ -435,23 +556,21 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         for (int x = -8; x <= 8; x++)
             for (int z = 3; z <= 8; z++)
                 W.BlockAccessor.SetBlock(granite, pos.AddCopy(x, 0, z));
-        // the player stands on the step, 2.5 blocks beyond the trunk's end: the trunk comes up
-        // to within the grab's slack of them, so its middle ends past z +1.5
-        var trunk = await PullFrom(pos, 6, "trunkstepper", pos.AddCopy(0, 1, 5), 120);
+        var (trunk, moved) = await DriveFrom(pos, 6, "trunkstepper", 40);
         Assert.True(trunk.Pos.Y > pos.Y + 0.9, $"the trunk did not climb the step: {trunk.Pos.XYZ}");
-        Assert.True(trunk.Pos.Z > pos.Z + 1.5, $"the trunk did not move onto the step: {trunk.Pos.XYZ}");
+        Assert.True(moved > 1.0, $"the trunk did not move onto the step: {trunk.Pos.XYZ}");
         trunk.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario]
-    public async Task A_heavy_trunk_is_pulled_faster_afloat_than_on_land()
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_heavy_trunk_drives_faster_afloat_than_on_land()
     {
-        var land = await Floor(-80, 8);
-        var pool = await Floor(-100, 8);
+        var land = await Floor(-80, 10);
+        var pool = await Floor(-100, 10);
         int water = BlockOf("game:water-still-7").Id;
         int granite = BlockOf("game:rock-granite").Id;
-        for (int x = -8; x <= 8; x++)
-            for (int z = -8; z <= 8; z++)
+        for (int x = -10; x <= 10; x++)
+            for (int z = -10; z <= 10; z++)
             {
                 // a pool two deep, sunk into the floor (still water, which a still block keeps)
                 var below = pool.AddCopy(x, -1, z);
@@ -461,13 +580,41 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 W.BlockAccessor.SetBlock(water, below.AddCopy(0, -1, 0), BlockLayersAccess.Fluid);
                 W.BlockAccessor.SetBlock(water, below, BlockLayersAccess.Fluid);
             }
-        var onLand = await PullFrom(land, 48, "trunklandpuller", land.AddCopy(0, 0, 5), 60);
-        var afloat = await PullFrom(pool.AddCopy(0, -2, 0), 48, "trunkwaterpuller", pool.AddCopy(0, -1, 5), 60);
-        Assert.True(afloat.Afloat || afloat.Swimming, "the trunk in the pool is not afloat");
-        double landMoved = onLand.Pos.Z - (land.Z + 0.5), waterMoved = afloat.Pos.Z - (pool.Z + 0.5);
-        output.WriteLine($"moved on land {landMoved:F2}, afloat {waterMoved:F2}");
-        Assert.True(waterMoved > landMoved + 0.5, $"afloat {waterMoved:F2} is not faster than on land {landMoved:F2}");
-        onLand.Die(EnumDespawnReason.Removed);
-        afloat.Die(EnumDespawnReason.Removed);
+        var onLand = await DriveFrom(land, 48, "trunklanddriver", 40);
+        var afloat = await DriveFrom(pool.AddCopy(0, -2, 0), 48, "trunkwaterdriver", 40);
+        Assert.True(afloat.Trunk.Afloat || afloat.Trunk.Swimming, "the trunk in the pool is not afloat");
+        output.WriteLine($"moved on land {onLand.Moved:F2}, afloat {afloat.Moved:F2}");
+        Assert.True(afloat.Moved > onLand.Moved * 1.2, $"afloat {afloat.Moved:F2} is not faster than on land {onLand.Moved:F2}");
+        onLand.Trunk.Die(EnumDespawnReason.Removed);
+        afloat.Trunk.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_player_inside_a_trunk_is_pushed_out_of_every_box()
+    {
+        var pos = await Floor(-60, 8, 100);
+        var trunk = SpawnThin(pos, 6);
+        await World.Ticks(20);
+        var player = await Walker("trunkinsider", pos.AddCopy(4, 0, 0));
+        var startTrunk = trunk.Pos.XYZ;
+        // into the middle of the trunk, a little off its axis
+        player.Entity.TeleportToDouble(trunk.Pos.X + 0.1, trunk.Pos.Y, trunk.Pos.Z + 0.4);
+        bool Inside()
+        {
+            var cb = player.Entity.CollisionBox;
+            var p = player.Entity.Pos;
+            var box = new Box((float)(p.X - trunk.Pos.X + cb.X1), (float)(p.Y - trunk.Pos.Y + cb.Y1), (float)(p.Z - trunk.Pos.Z + cb.Z1),
+                              (float)(p.X - trunk.Pos.X + cb.X2), (float)(p.Y - trunk.Pos.Y + cb.Y2), (float)(p.Z - trunk.Pos.Z + cb.Z2));
+            return TrunkBoxes.Turned(trunk.TypeClass, trunk.Pos.Yaw).Any(b => TrunkPush.Overlaps(b, box));
+        }
+        await World.Ticks(2);
+        Log($"insider at {player.Entity.Pos.XYZ}, inside {Inside()}");
+        await World.Until(() => !Inside(), 20);
+        output.WriteLine($"player out at {player.Entity.Pos.XYZ}; trunk {startTrunk} -> {trunk.Pos.XYZ}");
+        Assert.False(Inside());
+        // out across the trunk (+x, the near side), and the trunk itself stayed put
+        Assert.True(player.Entity.Pos.X > trunk.Pos.X + 0.5);
+        Assert.True(Flat(trunk.Pos.XYZ, startTrunk.X, startTrunk.Z) < 0.15, "the trunk was moved");
+        trunk.Die(EnumDespawnReason.Removed);
     }
 }

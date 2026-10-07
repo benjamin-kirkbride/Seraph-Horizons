@@ -626,8 +626,8 @@ public class SeraphHorizonsConfig
     /// are used.</summary>
     public MachineOilConfig MachineOilSettings { get; set; } = new();
     /// <summary>Trunk entities: Logging Expanded's tree trunks are never items in an inventory. A
-    /// felled tree leaves a trunk lying on the ground as an entity, which you drag with a rope or by
-    /// holding the right mouse button on it with an empty hand, shove by walking into it, float down
+    /// felled tree leaves a trunk lying on the ground as an entity, which you move with a rope or
+    /// drive on foot by one end (right-click with an empty hand), which is solid to walk into, float down
     /// rivers, or shoulder very slowly with Carry On; its weight grows with its logs. Loose trunk
     /// items are turned into trunk entities, no survival player is given a trunk stack (one
     /// already in a slot still moves and can be thrown out), and trunks already

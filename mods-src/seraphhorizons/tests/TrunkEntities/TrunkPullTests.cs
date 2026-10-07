@@ -73,41 +73,10 @@ public class TrunkPullTests
     }
 
     [Fact]
-    public void Pull_starts_past_the_slack_and_is_weighted_and_capped()
+    public void Afloat_a_rope_sees_a_lighter_trunk()
     {
-        Assert.Equal(0, TrunkPull.Speed(TrunkPull.Slack, 25));
-        Assert.Equal(2.0, TrunkPull.Factor(10));
-        Assert.Equal(0.1, TrunkPull.Factor(1000), 9);
-        Assert.Equal(0.5, TrunkPull.Factor(100), 9);
-        Assert.True(TrunkPull.Speed(1.5, 100) < TrunkPull.Speed(1.5, 25));
-        Assert.Equal(TrunkPull.MaxSpeed, TrunkPull.Speed(50, 1));
-        Assert.Equal(0, TrunkPull.TurnStep(0.5, 25, 1));
-        Assert.True(TrunkPull.TurnStep(3, 400, 0.05) < TrunkPull.TurnStep(3, 25, 0.05));
-    }
-
-    [Fact]
-    public void Afloat_a_heavy_trunk_pulls_nearly_as_fast_as_a_light_one()
-    {
-        Assert.Equal(TrunkPull.Factor(400), TrunkPull.Factor(400, false), 9);
-        Assert.True(TrunkPull.Factor(400, true) >= TrunkPull.WaterFloor);
-        Assert.True(TrunkPull.Factor(400, true) > 5 * TrunkPull.Factor(400, false));
-        Assert.Equal(TrunkPull.Factor(10), TrunkPull.Factor(10, true), 9);
-        Assert.True(TrunkPull.Speed(2.5, 400, true) > TrunkPull.Speed(2.5, 400, false));
-        Assert.True(TrunkPull.TurnStep(2, 400, 0.1, true) > TrunkPull.TurnStep(2, 400, 0.1, false));
         Assert.Equal(400 / TrunkPull.WaterLightening, TrunkPull.EffectiveWeight(400, true), 9);
         Assert.Equal(400, TrunkPull.EffectiveWeight(400, false), 9);
-    }
-
-    [Fact]
-    public void A_dragging_player_walks_at_the_trunks_pace_within_bounds()
-    {
-        Assert.Equal(TrunkPull.DragCeiling, TrunkPull.DragSpeed(10), 9);          // light: capped
-        Assert.Equal(0.5, TrunkPull.DragSpeed(100), 9);                            // factor 0.5
-        Assert.Equal(TrunkPull.DragFloor, TrunkPull.DragSpeed(1000), 9);           // heavy: the floor
-        Assert.Equal(TrunkPull.DragCeiling, TrunkPull.DragSpeed(1000, true), 9);   // afloat: the water floor caps it
-        Assert.True(TrunkPull.DragCeiling * 60 / 60 < TrunkPull.MaxSpeed, "a dragged trunk could be outwalked");
-        for (double w = 1; w < 500; w += 7)
-            Assert.True(TrunkPull.DragSpeed(w + 7) <= TrunkPull.DragSpeed(w));
     }
 
     // A thin trunk along z at yaw 0, standing on the ground at y 64 (cells below 64 solid).
