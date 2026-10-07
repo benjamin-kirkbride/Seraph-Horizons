@@ -107,7 +107,8 @@ Open chat (`T`) and type the commands with the leading dot. First one icon, to c
 ```
 
 Then everything the site shows, from the recipe export of the pack version you are exporting
-(the release asset `seraphhorizons_<version>_recipes.json`, or the `recipe-export` artifact of
+(the release asset `seraphhorizons_<version>_recipes.json`, `seraphhorizons_next_recipes.json` on
+`next`, or the `recipe-export` artifact of
 a CI run), saved somewhere on the same machine:
 
 ```

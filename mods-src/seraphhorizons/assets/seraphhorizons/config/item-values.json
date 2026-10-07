@@ -1,7 +1,7 @@
 {
   "about": "Item base values in rusty gears per item, from tools/item-values (#449). Generated: do not edit; change tools/item-values/*.json and rebuild.",
   "schemaVersion": 1,
-  "pack": {"id": "seraphhorizons", "version": "1.1.0"},
+  "pack": {"id": "seraphhorizons", "version": "0.1.0"},
   "values": {
     "abyssaldepths:divingsuit-body-black-mk1": 98.655,
     "abyssaldepths:divingsuit-body-black-mk2": 136.742,

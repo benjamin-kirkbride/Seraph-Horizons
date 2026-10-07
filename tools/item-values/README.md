@@ -142,7 +142,7 @@ which only a raw or override can be: the review list for hand prices.
 
 ## Numbers
 
-From smoke's export of the pack (pack 1.1.0, game 1.22.7, with mods-src/seraphhorizons loaded;
+From smoke's export of the pack (pack 0.1.0, game 1.22.7, with mods-src/seraphhorizons loaded;
 27,163 items, 10,517 recipes), the export as of the item-values branch at 98db1fb (main merged):
 
 - 21,918 of 27,163 items valued (80.7%); of the 24,023 the handbook shows, 84.5%.
