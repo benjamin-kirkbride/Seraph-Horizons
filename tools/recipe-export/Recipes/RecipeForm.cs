@@ -30,6 +30,12 @@ public sealed class RecipeForm
     public JToken? Attributes;
 
     public JObject Extra = new();
+
+    /// <summary>
+    /// The water of each Hydrate or Diedrate copy of this recipe folded into it
+    /// (<see cref="WaterClones"/>), one entry per copy.
+    /// </summary>
+    public List<string> FoldedWater = new();
 }
 
 /// <summary>One ingredient slot. `Accepts` lists what may fill it; usually one entry.</summary>
