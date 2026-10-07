@@ -138,12 +138,15 @@ describe("anchors", () => {
     expect(lidBox({ pos: [0, 2, 0], hollow: true })).toBeNull();
     // The lid is collision only: it never joins the cell's own boxes.
     expect(cellBoxes({ pos: [0, 2, 0], hollow: true, lid: 1 })).toEqual([]);
-    // Every column of the rosser has one, on its top cell and nowhere else.
+    // Every column of the rosser's station (x -12..-4) has one, on its top cell and nowhere else; the beds have none.
     const cells = rosserRig.cells!;
     const top = new Map<string, number>();
+    const station = (x: number) => x >= -12 && x <= -4;
     for (const c of cells) top.set(`${c.pos[0]},${c.pos[2]}`, Math.max(top.get(`${c.pos[0]},${c.pos[2]}`) ?? -Infinity, c.pos[1]));
-    for (const c of cells) expect(lidBox(c) !== null, `cell ${c.pos.join(",")}`).toBe(top.get(`${c.pos[0]},${c.pos[2]}`) === c.pos[1]);
-    expect(cells.filter((c) => lidBox(c)).length).toBe(66);
+    for (const c of cells)
+      expect(lidBox(c) !== null, `cell ${c.pos.join(",")}`).toBe(station(c.pos[0]) && top.get(`${c.pos[0]},${c.pos[2]}`) === c.pos[1]);
+    expect(cells.filter((c) => lidBox(c)).length).toBe(45);
+    expect(cells.some((c) => !station(c.pos[0]))).toBe(true);
   });
 
   it("puts a side's arrow outside that side, on a bed running that way", () => {

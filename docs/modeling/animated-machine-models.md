@@ -238,7 +238,8 @@ That is the pattern to keep: **every review finding becomes a check**, so it can
 The schema is in the mill README's "Rig schema" section, what a trunk-path machine adds in the
 rosser README's, and the generic work in `docs/recipe-browser/models.md` ("The work and its
 drivers"). In short:
-- `cells` (with up to three boxes each, and a collision-only `lid` on each column's top cell),
+- `cells` (with up to three boxes each, and a collision-only `lid` on a column's top cell: every
+  column's for the mill and the gear cutter, the station's only for the rosser),
   `powerCell`, `powerFace`, `infeedSide`, `outputSide`,
   `output.pos`, `trunkBed` and `saw` are for gameplay;
 - `parts` is an ordered list of `{id, match, requires, ride, drivers}` for the renderer.
