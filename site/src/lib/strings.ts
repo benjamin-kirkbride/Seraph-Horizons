@@ -4,6 +4,9 @@
 export const REPO_URL = "https://github.com/benjamin-kirkbride/Seraph-Horizons";
 export const NEW_ISSUE_URL = `${REPO_URL}/issues/new`;
 
+/** A tooltip lists this many of a row's codes; a termite mound has 148. */
+const VARIANTS_SHOWN = 20;
+
 const en = {
   siteTitle: "Seraph Horizons recipes",
   skipToContent: "Skip to content",
@@ -279,9 +282,10 @@ const en = {
   valuesFilter: "Filter",
   valuesFilterPlaceholder: "Name, code or mod, e.g. copper",
   valuesUnvalued: "Include items with no value",
-  valuesCount: (n: number) => `${n.toLocaleString("en")} item${n === 1 ? "" : "s"}`,
+  valuesCount: (n: number) => `${n.toLocaleString("en")} row${n === 1 ? "" : "s"}`,
   valuesVariants: (n: number) => `${n.toLocaleString("en")} variants`,
-  valuesVariantsHint: (codes: readonly string[]) => `Same name, mod and value:\n${codes.join("\n")}`,
+  valuesVariantsHint: (codes: readonly string[]) =>
+    `Same name, mod and value:\n${codes.slice(0, VARIANTS_SHOWN).join("\n")}${codes.length > VARIANTS_SHOWN ? `\nand ${codes.length - VARIANTS_SHOWN} more` : ""}`,
   valuesNoMatch: (q: string) => `No item matches “${q}”.`,
   valuesColumns: { name: "Item", mod: "Mod", value: "Value" },
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,

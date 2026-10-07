@@ -193,6 +193,8 @@ describe("ValueTable variant rows", () => {
     ["othermod:rock-granite-east", "Rock", 2, null],
     ["othermod:rock-granite-west", "Rock", 2, null],
     ["othermod:rock-basalt-east", "Rock", 2, null],
+    ["othermod:clutter-aquatic", "othermod:clutter-", 2, null],
+    ["othermod:clutter-devastation", "othermod:clutter-", 2, null],
   ];
   items.sort((a, b) => (a[0] < b[0] ? -1 : 1)); // search.json's codes are sorted
   const file: SearchFile = {
@@ -203,7 +205,7 @@ describe("ValueTable variant rows", () => {
     flags: items.map(() => 1),
     value: items.map((x) => x[3]),
   };
-  const table = new ValueTable(file, {});
+  const table = new ValueTable(file, { othermod: { name: "The Other Mod" } });
   const base: ValueQuery = { filter: "", column: "name", dir: "asc", unvalued: false };
   const rows = (q: Partial<ValueQuery> = {}, t = table, f = file) =>
     t.query({ ...base, ...q }).map((i) => [f.codes[i], t.variantsOf(i).length] as const);
@@ -211,6 +213,8 @@ describe("ValueTable variant rows", () => {
   it("folds a block's orientations into one row, under its first code, with the rest counted", () => {
     expect(codeBase("mpegearbox:gearbox14-north")).toBe("mpegearbox:gearbox14");
     expect(codeBase("game:stick")).toBe("game:stick");
+    expect(codeBase("gearbox14-north")).toBe("gearbox14");
+    expect(codeBase("my-mod:gearbox14-north")).toBe("my-mod:gearbox14");
     expect(rows()).toEqual([
       ["mpegearbox:gearbox14-down", 4],
       ["mpegearbox:gearbox14-south", 1], // another value
@@ -241,6 +245,7 @@ describe("ValueTable variant rows", () => {
   it("finds a row by any of its codes", () => {
     expect(rows({ filter: "gearbox14-east" })).toEqual([["mpegearbox:gearbox14-down", 4]]);
     expect(rows({ filter: "othermod west" })).toEqual([["othermod:gearbox-east", 2]]);
+    expect(rows({ filter: "other mod west" })).toEqual([["othermod:gearbox-east", 2]]);
   });
 
   it("folds the items without a value the same way", () => {
@@ -249,9 +254,16 @@ describe("ValueTable variant rows", () => {
     ]);
     for (const dir of ["asc", "desc"] as const) {
       const all = rows({ column: "value", dir, unvalued: true });
-      expect(all).toHaveLength(5);
+      expect(all).toHaveLength(7);
       expect(all.at(-1)).toEqual(["othermod:rock-basalt-east", 3]);
     }
+  });
+
+  it("never folds items whose name is still a lang key", () => {
+    expect(rows({ unvalued: true, filter: "clutter" })).toEqual([
+      ["othermod:clutter-aquatic", 1],
+      ["othermod:clutter-devastation", 1],
+    ]);
   });
 
   it("keeps apart items whose rows would show something else", () => {

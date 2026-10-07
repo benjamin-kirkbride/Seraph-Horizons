@@ -260,14 +260,16 @@ traders treat as worthless, still shows its number, dimmed, with the reason on h
   domain (`codeBase`). The code part keeps apart different blocks that happen to share a
   name and price (`game:carcass-large` and `game:drycarcass-large`, Primitive Survival's
   grown and placed tree hollows); only the first part is used because variant parts sit
-  anywhere after it (a door's stone is mid-code). The row links to the group's lowest
-  code and says "N variants", with every code in its tooltip; the filter matches any of
-  them, and the count and the pager count rows. On the 27,000-item export that is about
+  anywhere after it (a door's stone is mid-code). An item whose name is still a lang key
+  (`game:clutter-`) is never folded, since the name says nothing. The row links to the group's lowest
+  code and says "N variants", with its codes in its tooltip (the first twenty, then how
+  many more: a termite mound has 148); the filter matches any of them, and the count
+  ("N rows") and the pager count rows. On the 27,000-item export that is about
   14,600 valued rows (from 21,900 valued items) and 17,200 in all.
 
 The values page reads `search.json`, which the app has loaded anyway, instead of a file of
-its own. `ValueTable` (`values.ts`) groups the items when it is made (with the filter text,
-35 to 60 ms for 27,000 items), builds each column's order of rows once, when first sorted
+its own. `ValueTable` (`values.ts`) groups the items and builds each row's search text when it is
+made (35 to 60 ms for 27,000 items), builds each column's order of rows once, when first sorted
 on (10 to 20 ms over the 17,000 rows), and a query walks that order keeping the rows that
 match, 2 to 30 ms depending on how many pass. The page shows 100
 rows at a time with a pager, so the DOM never holds more than a page of icons and links,

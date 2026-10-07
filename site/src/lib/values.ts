@@ -66,7 +66,9 @@ export function codeBase(code: string): string {
  * a block's orientations and states (`gearbox14-north`, `-east`, ...) have the same name,
  * mod, value and code base (`codeBase`), so they make one group, shown as its first code
  * with the rest counted (`variantsOf`). Floor-zero and the switches a value depends on must
- * match too, since the row shows them. The groups are made once, at construction.
+ * match too, since the row shows them. An item whose name is still a lang key (it has a
+ * ":") stays its own row: such names say nothing about what the item is. The groups are
+ * made once, at construction.
  *
  * Each column's ascending order of rows is computed once, on first use; a query then walks
  * that order (backwards for descending) and keeps the rows whose name, any of its codes, or
@@ -97,7 +99,7 @@ export class ValueTable {
         valueOf(file, i) ?? "",
         isFloorZero(file, i) ? 1 : 0,
         file.valueSwitches?.[String(i)]?.join(",") ?? "",
-        codeBase(code),
+        file.names[i]!.includes(":") ? code : codeBase(code),
       ].join("\u0000");
       const group = groups.get(key);
       if (group) group.push(i);
