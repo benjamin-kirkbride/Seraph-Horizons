@@ -63,10 +63,6 @@ public static class PackComparison
     public static readonly IReadOnlySet<string> BuiltIn =
         new HashSet<string>(["game", "creative", "survival"], StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>The release meta-mod's modid is the pack id plus this (packtool assemble): it is
-    /// part of the pack, and only lists the locked mods as dependencies.</summary>
-    public const string MetaModSuffix = "pack";
-
     /// <summary>Reads <c>pack/lock.json</c>: its <c>pack</c> id, version and game version, and each
     /// mod's id, version and side. Throws <see cref="FormatException"/> on anything else.</summary>
     public static PackLock ParseLock(string json)
@@ -105,7 +101,7 @@ public static class PackComparison
     /// the game version; this mod's own version (<paramref name="ownId"/>, which is the pack id, at
     /// <paramref name="ownVersion"/>) against the pack's; each locked mod that loads on this side,
     /// loaded at another version or not at all; and each loaded mod the lock does not have, except
-    /// the game's own (<see cref="BuiltIn"/>), the meta-mod and this mod. Mod ids compare without
+    /// the game's own (<see cref="BuiltIn"/>) and this mod. Mod ids compare without
     /// case; versions exactly, as the lock pins them.
     /// </summary>
     public static List<Finding> Compare(PackLock pack, IEnumerable<LoadedMod> loaded, CheckSide side,
@@ -137,8 +133,7 @@ public static class PackComparison
         foreach (var m in byId.Values)
         {
             if (locked.Contains(m.Id) || BuiltIn.Contains(m.Id)
-                || string.Equals(m.Id, ownId, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(m.Id, pack.PackId + MetaModSuffix, StringComparison.OrdinalIgnoreCase))
+                || string.Equals(m.Id, ownId, StringComparison.OrdinalIgnoreCase))
                 continue;
             findings.Add(new Finding(FindingKind.NotInPack, m.Id, null, m.Version));
         }

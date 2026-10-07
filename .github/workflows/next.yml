@@ -1,8 +1,10 @@
 # Every push to main that passes CI republishes the rolling `next` pre-release,
 # whatever pack.toml's and modinfo.json's versions are, in one `gh release create`:
-#   - the pack, the dist/ artifact that CI's cairn job built and installed;
+#   - the pack, the dist/ artifact that CI's cairn job built and installed, its files
+#     named for next rather than the version (seraphhorizons_next.cairn,
+#     seraphhorizons_next_server.zip, ..., and the recipe export added below);
 #   - the pack's own mod (mods-src/seraphhorizons), the zip that job built from
-#     that commit, seraphhorizons_<version>_<sha7>.zip (plus the previous build's,
+#     that commit, seraphhorizons_next_<sha7>.zip (plus the previous build's,
 #     kept for one publish), which the pack's .cairn fetches from this same release
 #     by address and holds to that zip's sha256.
 # So what ships is exactly what was tested, and the zip appears at its address in
@@ -63,7 +65,7 @@ jobs:
         if: steps.order.outputs.publish == 'true'
         run: |
           gh run download "$RUN_ID" --name recipe-export --dir "$RUNNER_TEMP/recipe-export"
-          f="$(jq -r .pack.id pack/lock.json)_$(jq -r .pack.version pack/lock.json)_recipes.json"
+          f="$(jq -r .pack.id pack/lock.json)_next_recipes.json"
           cp "$RUNNER_TEMP/recipe-export/recipes.json" "dist/$f"
           (cd dist && sha256sum "$f" >> SHA256SUMS)
       # The zip keeps the version modinfo.json says, unstamped: the game ranks
@@ -79,10 +81,11 @@ jobs:
         if: steps.order.outputs.publish == 'true'
         run: |
           version=$(jq -r .version mods-src/seraphhorizons/modinfo.json)
-          zip="seraphhorizons_${version}_${SHA::7}.zip"
+          zip="seraphhorizons_next_${SHA::7}.zip"
           gh run download "$RUN_ID" --name seraphhorizons-mod --dir mod
           [ -f "mod/$zip" ] || { echo "CI's seraphhorizons-mod artifact has no $zip:"; ls mod; exit 1; }
-          cairn="dist/$(jq -r .pack.id pack/lock.json)_$(jq -r .pack.version pack/lock.json).cairn"
+          cairn="dist/$(jq -r .pack.id pack/lock.json)_next.cairn"
+          [ -f "$cairn" ] || { echo "CI's dist artifact has no $cairn:"; ls dist; exit 1; }
           url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/next/$zip"
           [ "$(jq -r '.pack.mods[] | select(.modid == "seraphhorizons") | .url' "$cairn")" = "$url" ] \
             || { echo "$cairn does not fetch seraphhorizons from $url"; exit 1; }
@@ -93,6 +96,7 @@ jobs:
       # Each build's zip has its own name, so the release is not left holding only this
       # one: the zip the published next pack names (the previous build) stays for one
       # more publish, for a follower who fetched that pack document but not yet its mod.
+      # Its name is read from that pack, whatever it was called then.
       # Older ones are dropped with the release. Best effort: only a copy that still
       # matches that pack's hash is kept.
       - name: Keep the zip the current next pack names
@@ -120,7 +124,7 @@ jobs:
           echo "zip=$name" >> "$GITHUB_OUTPUT"
       # dist/ has its own SHA256SUMS (assemble, and the export above); the zips join it.
       # Their names carry a commit, so they never collide with the pack's own
-      # seraphhorizons_<version>_{metamod,server}.zip, but say so if they ever did.
+      # seraphhorizons_next_server.zip, but say so if they ever did.
       - name: Add the mod zips to the release files
         if: steps.order.outputs.publish == 'true'
         run: |
@@ -145,7 +149,7 @@ jobs:
             echo
             echo "Pack version: **$(jq -r .pack.version pack/lock.json)** · Game version: **$game**"
             echo
-            echo "The Cairn pack also carries the pack's own mod, Seraph Horizons $VERSION built from this commit (built against game $game; the mod requires $(jq -r .dependencies.game mods-src/seraphhorizons/modinfo.json) or later), as \`$ZIP\` in this release, which it fetches by address and checks against its sha256. The meta-mod, the mod list and the table below name the ModDB mods only."
+            echo "The Cairn pack also carries the pack's own mod, Seraph Horizons $VERSION built from this commit (built against game $game; the mod requires $(jq -r .dependencies.game mods-src/seraphhorizons/modinfo.json) or later), as \`$ZIP\` in this release, which it fetches by address and checks against its sha256. The mod list and the table below name the ModDB mods only. The files are named \`next\` where a versioned release has its version; what is in them carries the version."
             echo
             echo "\`$ZIP\` carries the version modinfo.json says, unstamped, the same as the $VERSION release: with two copies of one modid at one version the game may load either, so replace any other copy of the mod rather than adding this one next to it. The \`_${SHA::7}\` in its name is the commit it was built from, so the Cairn pack's address for it changes with every build."
             if [ -n "$PREV_ZIP" ]; then

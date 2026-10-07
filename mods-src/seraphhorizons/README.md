@@ -2,8 +2,7 @@
 
 The pack's own mod, named after the pack: the pack and it are one thing with one version, released
 together (Releasing, below). Its ModDB page, where it is uploaded after a release, is where people
-browsing the ModDB find the pack. Its modid is the pack's id, so the pack's meta-mod
-(`packtool assemble`) is `seraphhorizonspack`.
+browsing the ModDB find the pack. Its modid is the pack's id.
 
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
@@ -979,8 +978,7 @@ them too. Nothing is written to the player's file.
 | `ChopperFirewoodPerLog` | -1 (the hand's `FirewoodPerLog`) | 8 |
 
 They are not in `pack/config`: that ships only in the `.cairn` file, so a dedicated server from
-the server zip, or a player with the meta-mod, would not get them, and a player's own file could
-undo them; the tweak needs them wherever it runs, and only then. Logging Expanded's settings need
+the server zip would not get them, and a player's own file could undo them; the tweak needs them wherever it runs, and only then. Logging Expanded's settings need
 no change: its splitting log yields go with its splitting logs, and its sawhorses keep their own.
 
 **The handbook** has one woodworking guide of six pages in place of the two mods' guides
@@ -2001,7 +1999,7 @@ difference:
 - a locked mod not loaded (`missing`), counted only on a side it loads on: a dedicated server never
   loads a `client` mod, nor a client a `server` one;
 - a loaded mod the lock does not have (`not in the pack`). The game's own mods (`game`, `creative`,
-  `survival`), the release meta-mod (`seraphhorizonspack`) and this mod are not counted; there is
+  `survival`) and this mod are not counted; there is
   no allow-list;
 - another game version than the pack's `game_version`;
 - this mod at another version than the pack it was built with.
@@ -3184,8 +3182,9 @@ find mods there; the release never waits on it.
 Between releases, every push to main that passes CI republishes the pack's rolling
 [`next`](https://github.com/benjamin-kirkbride/Seraph-Horizons/releases/tag/next)
 pre-release (`.github/workflows/next.yml`), which carries the zip CI's cairn job built from that
-commit, named after it (`seraphhorizons_<version>_<sha7>.zip`, so that Cairn, which sees a new
-address but not a new hash, fetches every build), listed in its `SHA256SUMS`, and the previous
+commit, named after it (`seraphhorizons_next_<sha7>.zip`, so that Cairn, which sees a new
+address but not a new hash, fetches every build; like every file on `next`, its name says `next`
+where a versioned release's says the version), listed in its `SHA256SUMS`, and the previous
 build's zip, kept for one more publish. The release's Cairn pack, published in the same step,
 installs the mod from there by its sha256, so `next` plays with the mod as it is on main before
 any of it is released. (The mod's own rolling release, `seraphhorizons-next`, is retired.) The zip keeps `modinfo.json`'s version, so it is not newer

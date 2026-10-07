@@ -4,7 +4,7 @@
   "name": "Seraph Horizons",
   "description": "The Seraph Horizons modpack's own mod: its tweaks, each switchable in ModConfig/seraphhorizons.json.",
   "authors": ["Benjamin Kirkbride"],
-  "version": "1.1.0",
+  "version": "0.1.0",
   "side": "Universal",
   "requiredOnClient": true,
   "dependencies": { "game": "1.22.0" }

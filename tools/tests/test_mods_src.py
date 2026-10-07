@@ -28,7 +28,7 @@ _spec.loader.exec_module(packtool)
 # The pack's own mod: its modid is the pack id.
 PACK_MOD = packtool.load_pack()["pack"]["id"]
 MODS = sorted((ROOT / "mods-src").glob("*/modinfo.json"))
-# Every mod written here, shipped or not, plus the release meta-mod's description (pack.toml).
+# Every mod written here, shipped or not.
 ALL_MODS = MODS + sorted((ROOT / "tools").glob("*/modinfo.json"))
 DESCRIPTION_LIMIT = 100
 
@@ -36,7 +36,6 @@ DESCRIPTION_LIMIT = 100
 class Descriptions(unittest.TestCase):
     def test_no_description_is_longer_than_the_limit(self):
         descriptions = {path: json.loads(path.read_text())["description"] for path in ALL_MODS}
-        descriptions[ROOT / "pack" / "pack.toml"] =packtool.load_pack()["pack"].get("description", "")
         for source, text in descriptions.items():
             self.assertLessEqual(
                 len(text), DESCRIPTION_LIMIT,
