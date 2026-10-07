@@ -45,6 +45,8 @@ public class SeraphHorizonsSystem : ModSystem
     private Harmony? _gearConsumersHarmony;
     private bool _gearConsumers;
     private UnifiedWoodworking? _woodworking;
+    // Client side only: Carry On's icon stack fields, cleared again when the client leaves the world.
+    private List<System.Reflection.FieldInfo>? _carryOnIconFields;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
     /// <c>Rosser</c> switch on and the patch bound); decided in <see cref="Start"/>. The rosser
@@ -156,6 +158,13 @@ public class SeraphHorizonsSystem : ModSystem
     {
         if (Config(api).CartReach)
             api.Event.LevelFinalize += () => PatchCartReach(api);
+        if (Config(api).CarryOnIconsPerWorld && CarryOnIcons.Find(api) is { } iconFields)
+        {
+            _carryOnIconFields = iconFields;
+            CarryOnIcons.Clear(iconFields);
+            api.Logger.Notification("[seraphhorizons] Carry On icons: {0} cached icon stack fields are cleared when the world is left",
+                iconFields.Count);
+        }
     }
 
     private void PatchCartReach(ICoreClientAPI api)
@@ -240,6 +249,11 @@ public class SeraphHorizonsSystem : ModSystem
         _heatingRackHarmony = null;
         _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
         _gearConsumersHarmony = null;
+        if (_carryOnIconFields != null)
+        {
+            CarryOnIcons.Clear(_carryOnIconFields);
+            _carryOnIconFields = null;
+        }
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -299,6 +313,11 @@ public class SeraphHorizonsConfig
     /// <summary>Entity codes that <see cref="CartReach"/> applies to (<c>domain:path</c>, <c>*</c>
     /// wildcards): Cartwright's carts, sleds and market stalls.</summary>
     public string[] CartReachEntities { get; set; } = ["cartwrightscaravan:*"];
+
+    /// <summary>Carry On: its interaction help icons are built again in every world of a client run,
+    /// so a second world does not crash the client drawing the first world's (#401, client side;
+    /// off means Carry On keeps them, as it ships).</summary>
+    public bool CarryOnIconsPerWorld { get; set; } = true;
 
     /// <summary>Hydrate or Diedrate: foods it gives no hydration (vanilla, Biodiversity: Crops,
     /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
