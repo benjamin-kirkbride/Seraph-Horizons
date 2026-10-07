@@ -272,8 +272,8 @@ jobs:
       - uses: ./.github/actions/setup-pack
       # The pack's own mod as a release build makes it: build/seraphhorizons_<version>.zip,
       # the version modinfo.json says, never stamped. next ships it under the commit's name,
-      # seraphhorizons_<version>_<sha7>.zip, which next.yml publishes as the
-      # seraphhorizons-next release and the next Cairn pack below fetches from there. Cairn
+      # seraphhorizons_<version>_<sha7>.zip, which next.yml publishes in the next
+      # release beside the Cairn pack below, which fetches it from there. Cairn
       # sees a followed pack change by its mods' addresses and versions, never their hashes,
       # so a rebuild under an unchanged name would never reach a follower. The name is keyed
       # on the commit built, not the last one touching the mod: the zip holds build-time
@@ -297,7 +297,7 @@ jobs:
           ZIP: ${{ steps.mod.outputs.zip }}
         run: >
           python3 tools/packtool.py assemble --url-mod "$ZIP"
-          "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/seraphhorizons-next/${ZIP##*/}"
+          "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/next/${ZIP##*/}"
       # cairn-server is source-available (PolyForm Strict + a run-for-any-purpose grant);
       # we download and run it, never redistribute it.
       - name: Download cairn-server ${{ env.CAIRN_VERSION }}
@@ -338,7 +338,7 @@ jobs:
         with:
           name: dist
           path: dist/
-      # The zip dist's Cairn pack names by hash; next.yml publishes the two together.
+      # The zip dist's Cairn pack names by hash; next.yml publishes the two together, in next.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: seraphhorizons-mod

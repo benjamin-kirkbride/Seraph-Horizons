@@ -3181,14 +3181,14 @@ bundle carries it. The mod is never pinned in `pack/pack.toml`, and `mod-release
 Uploading the zip from the release to the ModDB (keep the file name) is optional, for people who
 find mods there; the release never waits on it.
 
-Between releases, every push to main that passes CI republishes the rolling
-[`seraphhorizons-next`](https://github.com/benjamin-kirkbride/Seraph-Horizons/releases/tag/seraphhorizons-next)
-pre-release (`.github/workflows/next.yml`): the zip CI's cairn job built from that commit, named
-after it (`seraphhorizons_<version>_<sha7>.zip`, so that Cairn, which sees a new address but not a
-new hash, fetches every build), with its `SHA256SUMS` and the previous build's zip, kept for one
-more publish. The pack's rolling `next` Cairn pack, published right after it from the same
-commit, installs the mod from there by its sha256, so `next` plays with the mod as it is on main
-before any of it is released. The zip keeps `modinfo.json`'s version, so it is not newer
+Between releases, every push to main that passes CI republishes the pack's rolling
+[`next`](https://github.com/benjamin-kirkbride/Seraph-Horizons/releases/tag/next)
+pre-release (`.github/workflows/next.yml`), which carries the zip CI's cairn job built from that
+commit, named after it (`seraphhorizons_<version>_<sha7>.zip`, so that Cairn, which sees a new
+address but not a new hash, fetches every build), listed in its `SHA256SUMS`, and the previous
+build's zip, kept for one more publish. The release's Cairn pack, published in the same step,
+installs the mod from there by its sha256, so `next` plays with the mod as it is on main before
+any of it is released. (The mod's own rolling release, `seraphhorizons-next`, is retired.) The zip keeps `modinfo.json`'s version, so it is not newer
 than the release of that version as far as the game is concerned: swap it in for that copy,
 don't add it next to one.
 
