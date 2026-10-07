@@ -26,13 +26,13 @@ the controller at `[0,0,0]`: x 0, y 0, z 0..1. The controller is the stump, `[0,
 player clicks. Placed like the press brake and the draw bench, the station extends away from the
 player along their line of sight, the stump nearest them and the mandrel pointing away: the block's
 `side` is the way they look. A chest of hollows can stand beside the stump (native west, `infeedSide`);
-the sections come off the tip (native south, `outputSide`), into a container standing beyond it, or
-onto the ground at `output.pos`.
+when a hollow is done, gameplay delivers its two sections beyond the tip (native south, `outputSide`),
+into a container standing there, or onto the ground at `output.pos`. The model draws nothing coming off.
 
 **Why 1 × 1 × 2.** The finished tube is 16 long (two sections) on a mandrel that also needs a root
-held in a bracket, and both sections must slide off the tip and come to rest inside the footprint: the
-hollow starts against the shoulder at z 7, the tube reaches the tip at z 23.5, and the sections lie at
-z 24..32.
+held in a bracket: the hollow starts against the shoulder at z 7 and the finished tube ends at z 23, half a
+voxel short of the tip at 23.5. `output.pos` is on the ground beyond the tip (z 28), where the sections are
+dropped.
 
 **Parts, by build order.** The block itself (`seraphhorizons:mandrelstation-frame-{side}`, its recipe
 gameplay's) is the frame: the oak stump with its iron hoop, the iron bracket and the swage. Then one
@@ -63,17 +63,16 @@ taken from another mod's model.
 | The bracket (base plate; two bands, each a saddle, two cheeks and a cap) | fixed to the stump | holds the mandrel's root at two places, against the cantilever |
 | The mandrel (`mandrel`) | fixed in the bracket | takes the blows: the hollow is hammered onto it |
 | The swage (a block with a square groove) | fixed | none: a tool beside the mandrel, not animated |
-| The hollow (eight rings `1`..`8`: four walls and four corner bars each) | the blows, the mandrel under them | closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly, in one motion; parted between rings 4 and 5 into two sections, which slide off the tip and drop |
+| The hollow (eight rings `1`..`8`: four walls and four corner bars each) | the blows, the mandrel under them | closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly, in one motion over the whole work; at W 1 it stays on the mandrel (rings 1..4 and 5..8 are the two sections) |
 
 The forging (t = W, one hollow; the rig holds none of these times):
 
 | t | |
 |---|---|
 | 0.00..0.02 | the hollow lies on the mandrel against the shoulder (p eases in) |
-| 0.02..0.82 | forged: the hollow closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly along its whole length, together: one 6 × 6 tube, 16 long, its far end at the tip |
-| 0.82..0.86 | parted in the middle: the far section moves 1 off the near one |
-| 0.86..0.94 | the far section slides off the tip and drops to the ground |
-| 0.94..1.00 | the near section slides off and drops onto it: delivered at 1 |
+| 0 | the hollow lies on the mandrel against the shoulder, 8 × 8, 8 long (p eases in) |
+| 0..1 | forged: it closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly along its whole length, together, in proportion to W |
+| 1 | one 6 × 6 tube, 16 long, its far end at the tip, the part line between rings 4 and 5 showing; it stays on the mandrel. Gameplay delivers the two sections and stops drawing the work; nothing slides or drops |
 
 **How it closes and stretches at once.** No rig driver scales a part, so the hollow is drawn as eight
 short rings (2.1 long) along the mandrel, each four walls 6 wide and four 1 × 1 corner bars. At rest the
@@ -83,7 +82,8 @@ mandrel's 4), while each ring slides along the axis from its place at rest to it
 tube: the first not at all, the last 8, the rest in proportion to their place in their section. All of
 it is one gauge window, linear in W, so the tube closes and lengthens together and evenly. The forged
 tube is two sections of four rings each, the rings in a section overlapping a little (0.13) and the two
-sections meeting end to end where they are parted. At every tenth of W the work is checked to be one
+sections meeting end to end at the part line (where a ring's side walls and corner bars stand back at
+their ends, a hairline shows there at W 1). At every tenth of W the work is checked to be one
 continuous square tube of even cross-section, with no gap between rings; the volumes where rings, walls
 and corner bars overlap are never seen.
 
@@ -100,7 +100,7 @@ python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py --out DIR   #
 python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py --quick     # skips the z-fighting fix and the swept paths
 ```
 
-A full run takes about 25 s and is deterministic (two runs into two folders are byte-identical, logs
+A full run takes about 20 s and is deterministic (two runs into two folders are byte-identical, logs
 included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py`):
 
 - **Parts:** every element in its intended part; no part without elements; Euler angles round-trip.
@@ -109,18 +109,19 @@ included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py
   work its own sheet.
 - **Containment:** nothing leaves the 1 × 1 × 2 box over the whole forging, either metal, every 0.01.
 - **Forging:** at every tenth of W, one continuous square tube of even cross-section (every sample of its
-  walls covered, nothing in its bore or outside it, all along it), (8 − 2e) across and (8 + 8e) long for
-  forging e, with no gap between rings; after parting, two such sections, 6 × 6 × 8; closed onto the
-  mandrel; parted; at W 1 both off the tip, the far one on the ground and the near one on it, `output.pos`
-  the pile's middle. The tolerance is 0.15 voxels, the fix's deepest step and a margin.
+  walls covered, nothing in its bore or outside it, all along it, but for 0.1 either side of the part
+  line), (8 − 2W) across and (8 + 8W) long, with no gap between rings; at W 1 closed onto the mandrel and
+  still on it (its far end short of the tip), its two sections (rings 1..4, 5..8) each 6 × 6 × 8 and end to
+  end; `output.pos` beyond the tip. The tolerance is 0.15 voxels, the fix's deepest step and a margin.
 - **Mandrel:** through both bands of the bracket, each band's saddle, cheeks and cap bearing on it; the
   hollow against the shoulder; θ moves no part.
 - **Clearances:** no two parts overlap at any pose every 0.02 of the forging (the work's own rings,
-  walls and corner bars excepted; the two sections' rings only until they are parted), and the **swept
-  paths** every 0.0025: the hollow stretching, the sections sliding off the tip and dropping.
+  walls and corner bars excepted), and the **swept paths** every 0.0025: the hollow stretching along the
+  mandrel.
 - **No z-fighting** at twelve poses, rest to delivered, after the fix (21 faces pressed against their own
   part removed, the rest stepped in by 0.015; the fix runs up to 40 rounds for the stacks of rings).
-- **Files:** every texture code declared; lids over both columns; no power cell; the shipped files are the
+- **Files:** every texture code declared; no `lid` on any cell (a hand station is not walked on); no
+  power cell; the shipped files are the
   checked model (no move: the build frame's corner is the controller's).
 
 ### Rig schema (`mandrelstation-rig.json`)
@@ -137,7 +138,7 @@ nothing added to the shared rig maths: a `work` quantity, gauges, and one θ-dri
   sections are delivered.
 - **`forge`**: `blowsPerHollow` (lead 6, copper 9: the pace), `hollows` (each class's work), `sections`
   (what a hollow makes) and `sectionsPerHollow` (2).
-- **Anchors**: `output.pos` (the two sections' pile beyond the tip), `strike.pos` (the top of the box's
+- **Anchors**: `output.pos` (on the ground beyond the tip, where gameplay drops the two sections), `strike.pos` (the top of the box's
   middle, where the hammer lands: sparks and the blow's sound), `infeedSide` west, `outputSide` south.
 
 **Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `strike`, `work`, `forge` and `parts`.
@@ -162,19 +163,22 @@ script runs again: port them into `make_shape.py`, or stop regenerating.
 The model has been reviewed in projections rendered from the written files and in the site's own viewer
 (a standalone copy). No one has yet looked at it in a client.
 
-1. **The mandrel is cantilevered** 17.3 voxels past the bracket (10 past the stump): it must be, for the
-   sections to slide off its end. The bracket holds it at two bands 3.6 apart.
+1. **The mandrel is cantilevered** 17.3 voxels past the bracket (10 past the stump): a smith slips the
+   hollow on and the tube off over its free end. The bracket holds it at two bands 3.6 apart.
 2. **Ring joints.** The hollow is eight rings, so the game will show seams where their textures meet
    (like rings of blows), and the stretch is carried by the rings sliding apart, not by the texture
    stretching. Through the open end the overlapping rings' ends can be seen inside the bore.
 3. **Stepped faces.** The overlapping rings' outer faces are stepped in by up to 0.105 voxels (the
    z-fighting fix); a ring's side walls and corner bars stand back 0.03 and 0.06 at its ends.
-4. **No slide-on.** The hollow appears on the mandrel as p eases in; it does not slide on over the tip.
-5. **Blows and windows.** Lead's six blows land at W multiples of 1/6, copper's nine at 1/9; the windows
-   are not aligned to either, so a blow can end part way through a motion (the renderer eases W).
-6. **Linear ramps**, as the press brake's: every motion starts and stops at full speed.
+4. **No slide-on, no slide-off.** The hollow appears on the mandrel as p eases in; at W 1 the finished tube
+   stays on the mandrel and gameplay drops the two sections as items at `output.pos` and stops drawing it.
+   Nothing is seen coming off. (Every gauge eases back as p eases out, so the work must not be drawn then.)
+5. **Blows.** The forging is linear in W, so each blow (1/6 of a lead hollow, 1/9 of a copper one) closes and
+   stretches it by the same amount; the renderer eases W between blows.
+6. **Linear ramps**, as the press brake's: the motion starts and stops at full speed.
 7. **The swage is decoration**: nothing is swaged in it.
 8. **Lead and copper look the same** but for their texture.
+9. **No lids.** The cells have their boxes and no collision-only deck: a player cannot walk across the top.
 
 ## Gameplay
 

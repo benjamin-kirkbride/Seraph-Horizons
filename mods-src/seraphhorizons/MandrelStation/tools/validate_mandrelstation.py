@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
+from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, frame_floating, obb_obb
 from machinegen.geometry import aabb_of
 from machinegen.rigmath import part_of, posed
 
@@ -122,14 +122,10 @@ RING = re.compile(r"([lc])(\d+)[udew]+")
 
 def allowed(m, pa, pb, pose):
     """Intended overlaps, all inside the work, whose union is the tube (the volumes inside each other are
-    never seen): a ring's own walls and corner bars, which overlap as they close; the rings of one
-    section, which overlap until the hollow is stretched; and the two sections' rings until they are
-    parted."""
+    never seen): a ring's own walls and corner bars, which overlap as they close, and the rings, which
+    overlap until the hollow is stretched."""
     ra, rb = RING.fullmatch(pa), RING.fullmatch(pb)
-    if not (ra and rb and ra.group(1) == rb.group(1)):
-        return False
-    near_a, near_b = int(ra.group(2)) - 1 in m.NEAR, int(rb.group(2)) - 1 in m.NEAR
-    return near_a == near_b or pose[1] <= m.T_PART[0]
+    return bool(ra and rb and ra.group(1) == rb.group(1))
 
 
 def touching_pairs(v, pose):
@@ -181,10 +177,11 @@ def covered(boxes, p, seam=TOL):
     return False
 
 
-def tube_whole(els, half, length, wall):
+def tube_whole(els, half, length, wall, joints=()):
     """Whether the elements make one continuous square tube, `half` from its axis to its outside, `wall`
     thick and `length` long: every sample point of the walls covered, none of the bore or the outside,
-    all along it; and its outside and length within TOL. Returns a reason it is not, or None."""
+    all along it (but within 0.1 of a `joints` z, a part line allowed to show); and its outside and length
+    within TOL. Returns a reason it is not, or None."""
     lo, hi = aabb_of(els)
     size = [hi[q] - lo[q] for q in range(3)]
     if max(abs(size[0] - 2 * half), abs(size[1] - 2 * half), abs(size[2] - length)) > TOL:
@@ -195,6 +192,8 @@ def tube_whole(els, half, length, wall):
     boxes = [e.aabb() for e in els]
     for kz in range(nz + 1):
         z = lo[2] + 0.05 + (length - 0.1) * kz / nz
+        if any(abs(z - j) < 0.1 for j in joints):
+            continue
         for i in range(n + 1):
             for j in range(n + 1):
                 x = -half - 0.5 + (2 * half + 1) * i / n
@@ -228,9 +227,9 @@ def forged(m, W):
 def check_forging(v):
     """At every tenth of W the work is one continuous square tube of even cross-section along its whole
     length (the walls closing from 8 to 6 across and the length stretching from 8 to 16 together, no gap
-    between rings larger than TOL), and, once parted, two such sections of 6 x 6 x 8; the closed tube's
-    bore is the mandrel's; the parted sections lie a gap apart; at W 1 both are off the tip, the far one
-    on the ground and the near one on it, about output.pos."""
+    between rings larger than TOL); at W 1 it is closed onto the mandrel, still on it (its far end not past
+    the tip), and its two sections (rings 1..4 and 5..8) are each 6 x 6 x 8, meeting end to end; output.pos
+    is beyond the tip, where gameplay drops them."""
     m = v.m
     near, far = list(m.NEAR), [i for i in range(m.N_RINGS) if i not in m.NEAR]
     worst_gap = -1e9
@@ -239,43 +238,37 @@ def check_forging(v):
             W = t / 10
             pose = m.pose_at(k, W)
             e = forged(m, W)
-            half = m.OUT - m.CLOSE * e
-            groups = [range(m.N_RINGS)] if W <= m.T_PART[0] else [near, far]
-            for g in groups:
-                els = [x for i in g for x in v.group(rf"{pre}{i + 1}[udew]+", pose)]
-                length = (m.L + m.L * e) * len(g) / m.N_RINGS
-                why = tube_whole(els, half, length, m.WALL)
-                if why:
-                    v.fail(f"{pre} at W {W:.1f} is not one even tube ({len(g)} rings): {why}")
-                gap = ring_gaps(v, pre, g, pose)
-                worst_gap = max(worst_gap, gap)
-                if gap > TOL:
-                    v.fail(f"{pre} at W {W:.1f}: a gap of {gap:.3f} between rings")
-        # closed: its bore is the mandrel's
-        lo, hi = aabb_of(v.group(rf"{pre}\d+[udew]+", m.pose_at(k, m.T_FORGE[1])))
+            els = v.group(rf"{pre}\d+[udew]+", pose)
+            # the part line between the sections (rings 4 and 5) may show as the piece finishes
+            joint = min(x.aabb()[0][2] for x in v.group(rf"{pre}{m.SECTION_RINGS + 1}[udew]+", pose))
+            why = tube_whole(els, m.OUT - m.CLOSE * e, m.L + m.L * e, m.WALL, joints=(joint,))
+            if why:
+                v.fail(f"{pre} at W {W:.1f} is not one even tube: {why}")
+            gap = ring_gaps(v, pre, range(m.N_RINGS), pose)
+            worst_gap = max(worst_gap, gap)
+            if gap > TOL:
+                v.fail(f"{pre} at W {W:.1f}: a gap of {gap:.3f} between rings")
+        pose = m.pose_at(k, 1.0)
+        lo, hi = aabb_of(v.group(rf"{pre}\d+[udew]+", pose))
         want = (m.X0 - m.SEC, m.YM - m.SEC, m.X0 + m.SEC, m.YM + m.SEC)
         if max(abs(a - b) for a, b in zip((lo[0], lo[1], hi[0], hi[1]), want)) > TOL:
             v.fail(f"{pre} does not close onto the mandrel: {lo}, {hi}")
-        # parted, and at W 1 off the tip in a pile about output.pos
-        pose = m.pose_at(k, m.T_PART[1])
-        n_box = aabb_of([x for i in near for x in v.group(rf"{pre}{i + 1}[udew]+", pose)])
-        f_box = aabb_of([x for i in far for x in v.group(rf"{pre}{i + 1}[udew]+", pose)])
-        if abs(f_box[0][2] - n_box[1][2] - m.PART_GAP) > TOL:
-            v.fail("the sections are not parted")
-        pose = m.pose_at(k, 1.0)
-        n_box = aabb_of([x for i in near for x in v.group(rf"{pre}{i + 1}[udew]+", pose)])
-        f_box = aabb_of([x for i in far for x in v.group(rf"{pre}{i + 1}[udew]+", pose)])
-        if not (n_box[0][2] > m.TIP and f_box[0][2] > m.TIP):
-            v.fail("a section is still on the mandrel at W 1")
-        if abs(f_box[0][1]) > TOL or abs(n_box[0][1] - f_box[1][1]) > TOL:
-            v.fail(f"the sections do not lie on the ground, one on the other: {n_box}, {f_box}")
-        o = m.output_point()
-        mid = [(n_box[0][q] + f_box[1][q]) / 2 if q == 1 else (n_box[0][q] + n_box[1][q]) / 2 for q in range(3)]
-        if max(abs(mid[q] - o[q]) for q in range(3)) > TOL:
-            v.fail(f"output.pos {o} is not the pile's middle {mid}")
-    print(f"forging: at every tenth of W one even square tube (8 -> 6 across, 8 -> 16 long together; the largest gap "
-          f"between rings {worst_gap:.3f}), then two 6 x 6 x 8 sections; closed onto the mandrel; parted; off the tip at "
-          f"W 1 at output.pos")
+        if hi[2] > m.TIP + 1e-6:
+            v.fail(f"{pre}'s tube runs off the tip at W 1 ({hi[2]:.3f} past {m.TIP})")
+        for name, g in (("near", near), ("far", far)):
+            els = [x for i in g for x in v.group(rf"{pre}{i + 1}[udew]+", pose)]
+            why = tube_whole(els, m.SEC, m.L, m.WALL)
+            if why:
+                v.fail(f"{pre}'s {name} section at W 1 is not 6 x 6 x 8: {why}")
+        n_hi = aabb_of([x for i in near for x in v.group(rf"{pre}{i + 1}[udew]+", pose)])[1][2]
+        f_lo = aabb_of([x for i in far for x in v.group(rf"{pre}{i + 1}[udew]+", pose)])[0][2]
+        if abs(f_lo - n_hi) > TOL:
+            v.fail(f"{pre}'s sections do not meet end to end at W 1 ({n_hi:.3f}, {f_lo:.3f})")
+    if not m.output_point()[2] > m.TIP:
+        v.fail("output.pos is not beyond the tip")
+    print(f"forging: at every tenth of W one even square tube (8 -> 6 across, 8 -> 16 long together, over the whole "
+          f"work; the largest gap between rings {worst_gap:.3f}); at W 1 closed onto the mandrel and still on it, two "
+          f"6 x 6 x 8 sections end to end; output.pos beyond the tip")
 
 
 def check_mandrel(v):
@@ -335,7 +328,7 @@ def validate(m, els, parts, rig, quick=False):
     check_mandrel(v)
     check_clearances(v, [m.REST] + cycle_poses(m, 0.02), "clearances")
     if not quick:
-        check_clearances(v, cycle_poses(m, 0.0025), "swept paths (every 0.0025 of the cycle, both metals: the hollow stretching, the sections off the tip and dropping)")
+        check_clearances(v, cycle_poses(m, 0.0025), "swept paths (every 0.0025 of the cycle, both metals: the hollow stretching along the mandrel)")
         check_zfight(v)
     return v.ok
 
@@ -347,11 +340,11 @@ def validate_files(m, shape, frame_shape, ship):
     if missing:
         print(f"FAIL textures used but not declared: {missing}")
         ok = False
-    gaps = lid_gaps(ship["cells"])
+    lids = [c["pos"] for c in ship["cells"] if "lid" in c]
     hollow = sum(1 for c in ship["cells"] if c.get("hollow"))
     print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, {hollow} hollow; "
-          f"lids over every column: {'yes' if not gaps else gaps}")
-    if gaps or hollow:
+          f"lids: {lids or 'none (a hand station is not walked on)'}")
+    if lids or hollow:
         ok = False
     if "powerCell" in ship or "powerFace" in ship:
         print("FAIL a hand station has no power cell")

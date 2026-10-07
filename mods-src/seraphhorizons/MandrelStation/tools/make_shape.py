@@ -10,8 +10,9 @@ slipped over the mandrel against the shoulder and hammered down onto it blow by 
 closes from 8 to 6 across and stretches from 8 to 16 long, evenly along its whole length, in one motion.
 The box is drawn as eight short rings (no rig driver scales a part): they overlap at first, and spread
 along the mandrel as it stretches, each by its index times the stretch, while every ring's walls and
-corner bars slide in. The 16-long tube is parted in the middle, and the two pipe sections slide off the
-tip one after the other and drop to the ground beyond it. No hammer is modelled: the player holds it.
+corner bars slide in, over the whole work, W 0..1. At W 1 the finished tube, 16 long, its far end at the
+tip, stays on the mandrel; gameplay then delivers the two pipe sections (the joint between rings 4 and 5
+is where it is parted) and stops drawing the work. No hammer is modelled: the player holds it.
 Everything is built here from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
@@ -49,7 +50,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
+from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
 from machinegen.geometry import IDENT, El, flatten, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
@@ -122,17 +123,9 @@ NEAR = range(SECTION_RINGS)                  # the near section's rings (from th
 RECESS = 0.03                                # the side walls' ends stand back this far, the corner bars' twice: no two
                                              # end faces of a ring share a plane, so the z-fighting fix leaves them be
 TIP = NOSE_Z[1]
-PART_GAP = 1.0                               # how far the far section is moved off the near one when parted
-FAR_OFF = TIP + 0.5 - (Z0 + L + PART_GAP)    # the far section's slide off the tip (its near end 0.5 past it)
-NEAR_OFF = TIP + 0.5 - Z0                    # the near section's
-FAR_DROP = YM - SEC                          # the far section drops to the ground
-NEAR_DROP = YM - SEC - 2 * SEC               # the near one onto it
 
 # ---------------------------------------------------------------- the cycle (t = W, one hollow)
-T_FORGE = (0.02, 0.82)                       # closes from 8 to 6 across and stretches from 8 to 16, evenly
-T_PART = (0.82, 0.86)                        # parted in the middle
-T_FAR_OFF, T_FAR_DROP = (0.86, 0.91), (0.91, 0.94)
-T_NEAR_OFF, T_NEAR_DROP = (0.94, 0.98), (0.98, 1.00)
+T_FORGE = (0.0, 1.0)                         # closes from 8 to 6 across and stretches from 8 to 16, evenly, the whole work
 BLOWS = {"thin": 6.0, "thick": 9.0}          # the pace: blows a hollow
 
 METALS = (("thin", "l", "lead", "hollowlead"), ("thick", "c", "copper", "hollowcopper"))
@@ -290,10 +283,6 @@ def _rig_parts():
                     drv.append(slide("y", dy * CLOSE, T_FORGE))
                 if i:
                     drv.append(slide("z", stretch(i), T_FORGE))
-                if i in NEAR:
-                    drv += [slide("z", NEAR_OFF, T_NEAR_OFF), slide("y", -NEAR_DROP, T_NEAR_DROP)]
-                else:
-                    drv += [slide("z", PART_GAP, T_PART), slide("z", FAR_OFF, T_FAR_OFF), slide("y", -FAR_DROP, T_FAR_DROP)]
                 parts.append({"id": f"{pre}{i + 1}{s}", "match": [f"{pre}{i + 1}{s}_*"], "requires": req, "drivers": drv})
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []})
     for p in parts:
@@ -331,7 +320,8 @@ ANCHORS = ("output", "strike")
 
 
 def output_point():
-    """Where the two sections lie at W = 1: the middle of the pile beyond the tip."""
+    """Where gameplay drops the two sections when it delivers them: on the ground beyond the tip, the middle
+    of a pile of two (the tube itself stays on the mandrel at W 1 until then)."""
     return (X0, 2 * SEC, TIP + 0.5 + L / 2)
 
 
@@ -387,7 +377,8 @@ def shipped(els, parts, rig):
 
 
 def shipped_cells(shape, ship_parts, sp):
-    """The cells' boxes from the shipped shape as written, posed at rest by the shipped rig; then the lids."""
+    """The cells' boxes from the shipped shape as written, posed at rest by the shipped rig. No lids: a hand
+    station is not walked on."""
     written = flatten(shape["elements"], textures={})
     rest = [posed(w, _part_matrix(ship_parts, part_of(ship_parts, w.name), inputs_of(REST), sp)) for w in written]
     by_cell = {}
@@ -400,7 +391,7 @@ def shipped_cells(shape, ship_parts, sp):
         pos = tuple(c[k] - ORIGIN_CELL[k] for k in range(3))
         boxes = cell_boxes(by_cell[pos], pos) if pos in by_cell else None
         out.append({"pos": list(pos), "boxes": boxes} if boxes else {"pos": list(pos), "hollow": True})
-    return with_lids(out)
+    return out
 
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):
@@ -418,7 +409,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 
 
 # ---------------------------------------------------------------- reference poses
-REF_EDGES = (0.0, 0.01, 0.02, 0.1, 0.25, 0.5, 0.75, 0.82, 0.84, 0.86, 0.885, 0.91, 0.925, 0.94, 0.96, 0.98, 0.99, 1.0)
+REF_EDGES = (0.0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.333, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.75, 0.8, 0.9, 0.99, 1.0)
 
 
 def reference_poses():
@@ -456,7 +447,7 @@ def shape_json(els):
 
 def coplanar_poses():
     return (REST, pose_at(1, 0.1), pose_at(2, 0.25), pose_at(1, 0.4), pose_at(2, 0.5), pose_at(1, 0.6), pose_at(2, 0.7),
-            pose_at(1, 0.82), pose_at(2, 0.84), pose_at(1, 0.9), pose_at(2, 0.96), pose_at(1, 1.0))
+            pose_at(1, 0.8), pose_at(2, 0.9), pose_at(1, 0.95), pose_at(2, 1.0), pose_at(1, 1.0))
 
 
 def on_show(part, k):

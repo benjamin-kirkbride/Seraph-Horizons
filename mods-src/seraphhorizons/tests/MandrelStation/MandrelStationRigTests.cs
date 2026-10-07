@@ -63,7 +63,7 @@ public class MandrelStationRigTests
     {
         var rig = MandrelStationRig.Parse(Shipped());
         Assert.Equal([Int3.Zero, new Int3(0, 0, 1)], rig.Cells.Select(c => c.Pos));
-        Assert.All(rig.Cells, c => Assert.NotNull(c.Lid));
+        Assert.All(rig.Cells, c => Assert.Null(c.Lid)); // a hand station has no deck to walk on
         Assert.Single(rig.GhostCells);
         Assert.Equal(Side.West, rig.InfeedSide);
         Assert.Equal(Side.South, rig.OutputSide);

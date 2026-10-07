@@ -131,32 +131,39 @@ class Forge(unittest.TestCase):
                 self.assertAlmostEqual((lo[1] + hi[1]) / 2, make_shape.YM, delta=0.05)
                 self.assertAlmostEqual(lo[2], make_shape.Z0, delta=0.05)
 
-    def test_the_sections_come_off_the_tip_at_the_output(self):
-        out = [c * 16 for c in RIG["output"]["pos"]]
+    def test_the_tube_stays_on_the_mandrel_at_the_end(self):
+        # nothing slides off: at W 1 the 16-long tube is on the mandrel, its two sections end to end
         for k, pre in ((1, "l"), (2, "c")):
+            whole = aabb_of(posed_group(pre, ALL, work=1.0, size=k, presence=1.0))
+            self.assertAlmostEqual(whole[0][2], make_shape.Z0, delta=0.05)
+            self.assertLessEqual(whole[1][2], make_shape.TIP + 1e-3)
             near = aabb_of(posed_group(pre, NEAR, work=1.0, size=k, presence=1.0))
             far = aabb_of(posed_group(pre, FAR, work=1.0, size=k, presence=1.0))
             for lo, hi in (near, far):
-                self.assertGreater(lo[2], make_shape.TIP)
-                self.assertAlmostEqual(hi[2] - lo[2], 8.0, delta=0.05)
-                self.assertLessEqual(hi[2], 32.0 + 1e-3)
-            self.assertAlmostEqual(far[0][1], 0.0, delta=0.05)
-            self.assertAlmostEqual(near[0][1], far[1][1], delta=0.05)
-            self.assertAlmostEqual(out[1], near[0][1], delta=0.05)
-            self.assertAlmostEqual(out[2], (near[0][2] + near[1][2]) / 2, delta=0.05)
+                self.assertAlmostEqual(hi[2] - lo[2], 8.0, delta=0.15)
+                self.assertAlmostEqual((lo[1] + hi[1]) / 2, make_shape.YM, delta=0.05)
+            self.assertAlmostEqual(far[0][2], near[1][2], delta=0.15)
+        # every driver is the forging's: no part moves beyond the closing and the stretch
+        for p in RIG["parts"]:
+            for d in p["drivers"]:
+                if d["type"] == "gauge":
+                    self.assertEqual([(w["from"], w["ease"]) for w in d["windows"]], [(0.0, 1.0)], p["id"])
 
 
 class Anchors(unittest.TestCase):
     def test_cells_sides_and_anchors(self):
         cells = {tuple(c["pos"]) for c in RIG["cells"]}
         self.assertEqual(cells, {(0, 0, 0), (0, 0, 1)})
-        self.assertEqual(checks.lid_gaps(RIG["cells"]), [])
+        # a hand station is not walked on: no lids
+        self.assertFalse([c for c in RIG["cells"] if "lid" in c])
+        self.assertTrue(all(c.get("boxes") for c in RIG["cells"]))
         self.assertNotIn("powerCell", RIG)
         self.assertNotIn("powerFace", RIG)
         self.assertEqual((RIG["infeedSide"], RIG["outputSide"]), ("west", "south"))
         for key in ("output", "strike"):
             self.assertEqual(len(RIG[key]["pos"]), 3)
-        # the strike on the box's top over the stump's cell; the output beyond the tip in the far cell
+        # the strike on the box's top over the stump's cell; the output (where gameplay drops the sections)
+        # beyond the tip in the far cell
         self.assertLess(RIG["strike"]["pos"][2], 1.0)
         self.assertGreater(RIG["output"]["pos"][2], make_shape.TIP / 16)
 

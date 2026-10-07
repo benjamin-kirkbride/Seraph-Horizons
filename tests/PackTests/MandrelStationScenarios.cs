@@ -114,10 +114,11 @@ public partial class SharedWorldScenarios
     // ---- Placing ----
 
     // On all four facings: room for both cells, a ghost stamped in the far one, the station running
-    // away along the facing from the stump, each cell's collision boxes its selection boxes and its
-    // lid; broken through the ghost, both cells are cleared and the frame drops.
+    // away along the facing from the stump, each cell's collision boxes its selection boxes and no
+    // lid (a hand station has no deck to walk on); broken through the ghost, both cells are cleared
+    // and the frame drops.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Mandrel_station_places_on_all_four_facings_with_its_ghost_and_lids()
+    public async Task Mandrel_station_places_on_all_four_facings_with_its_ghost_and_no_lids()
     {
         var player = await CutterPlayer();
         int i = 0;
@@ -137,8 +138,8 @@ public partial class SharedWorldScenarios
                 var selection = block.GetSelectionBoxes(W.BlockAccessor, cell);
                 var collision = block.GetCollisionBoxes(W.BlockAccessor, cell);
                 Assert.NotNull(selection);
-                Assert.Equal(selection.Length + 1, collision.Length);
-                Assert.Equal(MandrelRig.Cells[c++].Lid!.Value, collision[^1].Y2, 3);
+                Assert.Null(MandrelRig.Cells[c++].Lid);
+                Assert.Equal(selection.Length, collision.Length);
             }
             Assert.Equal("Mandrel forging station frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
             Assert.Equal("Mandrel forging station frame", W.BlockAccessor.GetBlock(ghost).GetPlacedBlockName(W, ghost));
