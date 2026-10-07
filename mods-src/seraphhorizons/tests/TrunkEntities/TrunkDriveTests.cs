@@ -44,21 +44,25 @@ public class TrunkDriveTests
         Assert.Equal(-3, TrunkDrive.Along(false, true, 3));
         Assert.Equal(0, TrunkDrive.Along(true, true, 3));
         Assert.Equal(0, TrunkDrive.Along(false, false, 3));
-        Assert.True(TrunkDrive.Turning(true, false, 1) < 0);
-        Assert.True(TrunkDrive.Turning(false, true, 1) > 0);
+        Assert.True(TrunkDrive.Turning(true, false, 1) > 0);
+        Assert.True(TrunkDrive.Turning(false, true, 1) < 0);
         Assert.Equal(0, TrunkDrive.Turning(true, true, 1));
     }
 
     [Fact]
-    public void A_swings_the_drivers_end_to_their_left()
+    public void A_steers_the_far_end_to_the_drivers_left()
     {
         // Driver of end +1 at yaw 0 stands at -z and faces +z (yaw 0). Facing +z (south), the
-        // left hand is +x (east): yaw falling must move the driver's stand towards +x.
+        // left hand is +x (east): A must move the far end (-1) towards +x, and so the driver's
+        // own stand towards -x.
         Assert.Equal(0, TrunkDrive.FacingYaw(0, 1), 9);
         var (x0, _) = TrunkDrive.Stand(0, 0, 0, 4, 1);
         var (x1, _) = TrunkDrive.Stand(0, 0, TrunkDrive.Turning(true, false, 1) * 0.1, 4, 1);
-        Assert.True(x1 > x0, $"{x0} -> {x1}");
-        // the game's view at yaw y looks along (sin y, cos y): the driver looks at the middle
+        Assert.True(x1 < x0, $"{x0} -> {x1}");
+        var (fx0, _) = TrunkPull.EndPos(0, 0, 0, 4, -1);
+        var (fx1, _) = TrunkPull.EndPos(0, 0, TrunkDrive.Turning(true, false, 1) * 0.1, 4, -1);
+        Assert.True(fx1 > fx0, $"far end {fx0} -> {fx1}");
+        // the game's view at yaw y looks along (sin y, cos y): the driver looks over the middle
         foreach (double yaw in new[] { 0, 0.7, 2, -2.5 })
             foreach (int end in new[] { 1, -1 })
             {
@@ -70,16 +74,41 @@ public class TrunkDriveTests
     }
 
     [Fact]
-    public void The_driver_stands_just_beyond_the_taken_end_and_W_leads_with_it()
+    public void The_driver_stands_just_beyond_the_taken_end_and_W_pushes_the_trunk_away()
     {
         var (ex, ez) = TrunkPull.EndPos(3, 4, 0.4, 5, -1);
         var (sx, sz) = TrunkDrive.Stand(3, 4, 0.4, 5, -1);
         Assert.Equal(TrunkDrive.StandOff, Math.Sqrt((sx - ex) * (sx - ex) + (sz - ez) * (sz - ez)), 9);
         Assert.True(Math.Pow(sx - 3, 2) + Math.Pow(sz - 4, 2) > Math.Pow(ex - 3, 2) + Math.Pow(ez - 4, 2));
-        // W: motion towards the taken end, blocks per 1/60 s
-        var (mx, mz) = TrunkDrive.Motion(0.4, -1, 6);
-        Assert.Equal(0.1, Math.Sqrt(mx * mx + mz * mz), 9);
-        Assert.True(mx * (ex - 3) + mz * (ez - 4) > 0);
+        foreach (double yaw in new[] { 0, 0.4, 2, -2.5 })
+            foreach (int end in new[] { 1, -1 })
+            {
+                var (dx, dz) = TrunkDrive.Stand(0, 0, yaw, 5, end);
+                // W (positive along): away from the driver, the far end leading, blocks per 1/60 s
+                var (mx, mz) = TrunkDrive.DriveMotion(yaw, end, 6);
+                Assert.Equal(0.1, Math.Sqrt(mx * mx + mz * mz), 9);
+                Assert.True(mx * dx + mz * dz < 0, $"W does not push away from the driver at {yaw}, {end}");
+                // and the way the driver faces
+                double f = TrunkDrive.FacingYaw(yaw, end);
+                Assert.Equal(0, TrunkPull.Wrap(f - Math.Atan2(mx, mz)), 9);
+                // S: back into them
+                var (bx, bz) = TrunkDrive.DriveMotion(yaw, end, -6);
+                Assert.True(bx * dx + bz * dz > 0);
+            }
+    }
+
+    [Fact]
+    public void Gaits_are_walk_and_walk_back_only()
+    {
+        Assert.Equal(EnumDriveGait.Idle, TrunkDrive.Gait(false, false, false, false));
+        Assert.Equal(EnumDriveGait.Walk, TrunkDrive.Gait(true, false, false, false));
+        Assert.Equal(EnumDriveGait.WalkBack, TrunkDrive.Gait(false, true, false, false));
+        Assert.Equal(EnumDriveGait.Walk, TrunkDrive.Gait(true, false, true, false));
+        Assert.Equal(EnumDriveGait.WalkBack, TrunkDrive.Gait(false, true, false, true));
+        // turning on the spot steps, W and S together cancel
+        Assert.Equal(EnumDriveGait.Walk, TrunkDrive.Gait(false, false, true, false));
+        Assert.Equal(EnumDriveGait.Walk, TrunkDrive.Gait(true, true, false, true));
+        Assert.Equal(EnumDriveGait.Idle, TrunkDrive.Gait(true, true, true, true));
     }
 
     [Fact]

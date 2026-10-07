@@ -1,11 +1,11 @@
 namespace SeraphHorizons.Mod.TrunkEntities.Core;
 
 /// <summary>
-/// Driving a trunk on foot, game-independent: a player attached to one end of a trunk moves it
-/// like a sled. W moves the trunk along its axis with the taken end leading (towards the player,
-/// who backs up), S the other way (the player pushes it), A and D turn it about its middle, so
-/// both ends swing. Speeds are blocks per second here; the game's motion is blocks per 1/60 s
-/// (<see cref="PerTick"/>). Ends and axes are <see cref="TrunkPull"/>'s.
+/// Driving a trunk on foot, game-independent: a player standing beyond one end of a trunk, facing
+/// along it, pushes it like Cartwright's Caravan's sled. W pushes the trunk along its axis away
+/// from the player, the far end leading, S draws it back into them (they walk backwards), A and D
+/// turn it about its middle, so both ends swing. Speeds are blocks per second here; the game's
+/// motion is blocks per 1/60 s (<see cref="PerTick"/>). Ends and axes are <see cref="TrunkPull"/>'s.
 /// </summary>
 public static class TrunkDrive
 {
@@ -70,16 +70,17 @@ public static class TrunkDrive
         return afloat ? Math.Max(rate, WaterFloorShare * TurnRate) : rate;
     }
 
-    /// <summary>The speed asked for along the axis, blocks per second, positive with the taken
-    /// end leading: W (<paramref name="forward"/>) +<paramref name="speed"/>, S −, both or
-    /// neither none.</summary>
+    /// <summary>The speed asked for along the axis, blocks per second, positive away from the
+    /// driver (the far end leading, <see cref="DriveMotion"/>): W (<paramref name="forward"/>)
+    /// +<paramref name="speed"/>, S −, both or neither none.</summary>
     public static double Along(bool forward, bool backward, double speed) =>
         forward == backward ? 0 : forward ? speed : -speed;
 
-    /// <summary>The turn asked for, radians per second: A (<paramref name="left"/>) swings the
-    /// driver's end to their left, which is the yaw falling; D the other way; both or neither none.</summary>
+    /// <summary>The turn asked for, radians per second: A (<paramref name="left"/>) steers the far
+    /// end, the one ahead of the driver, to their left, as a pushed sled turns (so the driver's own
+    /// end swings right), which is the yaw rising; D the other way; both or neither none.</summary>
     public static double Turning(bool left, bool right, double rate) =>
-        left == right ? 0 : left ? -rate : rate;
+        left == right ? 0 : left ? rate : -rate;
 
     /// <summary><paramref name="current"/> eased towards <paramref name="target"/> over
     /// <paramref name="dt"/> seconds (<see cref="EaseSeconds"/>); it never overshoots.</summary>
@@ -104,6 +105,21 @@ public static class TrunkDrive
         return (ax * m, az * m);
     }
 
+    /// <summary>The horizontal motion, blocks per 1/60 s, of a trunk at <paramref name="yaw"/>
+    /// whose driver holds end <paramref name="driveEnd"/>, driven at <paramref name="along"/>
+    /// blocks per second (<see cref="Along"/>: positive pushes it away from the driver, the other
+    /// end leading; negative draws it back into them).</summary>
+    public static (double X, double Z) DriveMotion(double yaw, int driveEnd, double along) =>
+        Motion(yaw, -driveEnd, along);
+
+    /// <summary>What the driver's legs do: <see cref="EnumDriveGait.Walk"/> pushing (W, or only
+    /// turning), <see cref="EnumDriveGait.WalkBack"/> drawing it back (S),
+    /// <see cref="EnumDriveGait.Idle"/> otherwise. There is no faster gait: the speed is the
+    /// trunk's (<see cref="Speed"/>), not the player's.</summary>
+    public static EnumDriveGait Gait(bool forward, bool backward, bool left, bool right) =>
+        forward != backward ? (forward ? EnumDriveGait.Walk : EnumDriveGait.WalkBack)
+        : left != right ? EnumDriveGait.Walk : EnumDriveGait.Idle;
+
     /// <summary>Where the driver of end <paramref name="end"/> stands, horizontally, for a trunk
     /// centred at (<paramref name="cx"/>, <paramref name="cz"/>) of <paramref name="length"/>
     /// blocks: <see cref="StandOff"/> beyond that end along the axis.</summary>
@@ -114,11 +130,20 @@ public static class TrunkDrive
         return (cx + ax * reach, cz + az * reach);
     }
 
-    /// <summary>The yaw the driver of end <paramref name="end"/> faces: along the axis, towards
-    /// the trunk's middle. (The game's view at yaw y looks along (sin y, cos y).)</summary>
+    /// <summary>The yaw the driver of end <paramref name="end"/> faces: along the axis, over the
+    /// trunk towards its far end, the way <see cref="DriveMotion"/> pushes it. (The game's view at
+    /// yaw y looks along (sin y, cos y).)</summary>
     public static double FacingYaw(double yaw, int end)
     {
         var (ax, az) = TrunkPull.Axis(yaw, end);
         return TrunkPull.Wrap(Math.Atan2(-ax, -az));
     }
+}
+
+/// <summary>The driver's gait (<see cref="TrunkDrive.Gait"/>).</summary>
+public enum EnumDriveGait
+{
+    Idle,
+    Walk,
+    WalkBack,
 }

@@ -88,6 +88,14 @@ public class EntityTrunk : Entity, ISeatInstSupplier
     /// <summary>The trunk's one seat, the driver's.</summary>
     public TrunkDriveSeat? DriveSeat => GetBehavior<EntityBehaviorSeatable>()?.Seats?.FirstOrDefault() as TrunkDriveSeat;
 
+    /// <summary>The trunk's <c>seatable</c>, the game's mount behaviour; its <c>Controller</c> says
+    /// who ticks the physics (<see cref="EntityBehaviorTrunkPhysics"/>).</summary>
+    public EntityBehaviorSeatable? Seatable => GetBehavior<EntityBehaviorSeatable>();
+
+    /// <summary>How long, ms, the server waits for the driver's client to send the trunk's position
+    /// before it ticks the trunk's physics itself (and from the mount, for the first one).</summary>
+    public const long ClientPositionTimeoutMs = 500;
+
     /// <summary>The player standing in the driver's place, or null.</summary>
     public EntityPlayer? Driver => DriveSeat?.Passenger as EntityPlayer;
 
@@ -276,10 +284,57 @@ public class EntityTrunk : Entity, ISeatInstSupplier
     /// <summary>Whether the trunk floats in, or lies in, water.</summary>
     public bool Afloat => Swimming || FeetInLiquid;
 
-    // The drive's eased speed along the axis (blocks per second, + with the taken end leading)
-    // and turn (radians per second), server side.
+    // The drive's eased speed along the axis (blocks per second, + away from the driver) and turn
+    // (radians per second), on the side that ticks the physics.
     private double _along, _turn;
     private int _logs = -1;
+
+    // When the server last heard the trunk's position from the driver's client (or the drive began),
+    // the world's ElapsedMilliseconds; long.MinValue: never.
+    private long _clientPositionAt = long.MinValue;
+
+    /// <summary>Whether the server has had the trunk's position from its driver's client within
+    /// <see cref="ClientPositionTimeoutMs"/> (counting from the mount), so that client ticks it.</summary>
+    public bool ClientPredicting =>
+        Api?.Side == EnumAppSide.Server && Driver is { Alive: true }
+        && World.ElapsedMilliseconds - _clientPositionAt <= ClientPositionTimeoutMs;
+
+    /// <summary>The trunk physics' word that the driver's client sent its position: the client
+    /// goes on ticking it (the seatable's <c>Controller</c>, at once). Server side.</summary>
+    public void ClientPositionReceived()
+    {
+        if (Api?.Side != EnumAppSide.Server || Driver is not { Alive: true } driver)
+            return;
+        _clientPositionAt = World.ElapsedMilliseconds;
+        if (Seatable is { } seatable && seatable.Controller != driver)
+            seatable.Controller = driver;
+    }
+
+    /// <summary>
+    /// Who ticks the trunk's physics, by the seatable's <c>Controller</c>, which the game's
+    /// physics manager and the driver's player physics read. On a client, the driver, so theirs
+    /// predicts. On the server, the driver while their client has sent the trunk's position in the
+    /// last <see cref="ClientPositionTimeoutMs"/>, else none, so the server ticks it (a player with
+    /// no client, as in Atlas, or a client that has gone quiet).
+    /// </summary>
+    private void UpdateController()
+    {
+        if (Seatable is not { } seatable)
+            return;
+        Entity? want = Api.Side == EnumAppSide.Server ? (ClientPredicting ? Driver : null) : Driver;
+        if (seatable.Controller != want)
+            seatable.Controller = want;
+    }
+
+    /// <summary>The seat's word that <paramref name="agent"/> took the driver's place: the server
+    /// gives their client <see cref="ClientPositionTimeoutMs"/> to start sending positions.</summary>
+    public void DriverMounted(EntityAgent agent)
+    {
+        _along = _turn = 0;
+        if (Api?.Side == EnumAppSide.Server)
+            _clientPositionAt = World.ElapsedMilliseconds;
+        UpdateController();
+    }
 
     public override void OnGameTick(float dt)
     {
@@ -305,10 +360,12 @@ public class EntityTrunk : Entity, ISeatInstSupplier
                 }
             }
         }
+        UpdateController();
+        if (Alive)
+            _logs = Logs;
         if (Api is { Side: EnumAppSide.Server } && Alive)
         {
             Properties.Weight = (float)TrunkPull.EffectiveWeight(LandWeight, Afloat);
-            _logs = Logs;
             if (Grabbed && seat?.Passenger == null)
                 ClearDrive();
             // As good as solid: agents in its boxes are moved out (the client moves its own player).
@@ -316,7 +373,8 @@ public class EntityTrunk : Entity, ISeatInstSupplier
         }
     }
 
-    // The driver's body faces the trunk along its axis; the head may look half round.
+    // The driver's body faces along the trunk, over it, within a little (Cartwright's sled's rider
+    // has 0.3); the head may look a quarter turn either way.
     private void HoldDriver(EntityAgent driver, TrunkDriveSeat seat)
     {
         if (driver is not EntityPlayer player)
@@ -332,11 +390,13 @@ public class EntityTrunk : Entity, ISeatInstSupplier
             (player.HeadYawLimits.X, player.HeadYawLimits.Y) = (face, GameMath.PIHALF);
     }
 
-    private const float BodyYawRange = 0.05f;
+    private const float BodyYawRange = 0.3f;
 
     /// <summary>
-    /// One physics tick of the drive, server side, from <see cref="EntityBehaviorTrunkPhysics"/>:
-    /// after the game's drag and gravity, before its collision. The driver's keys (the seat's
+    /// One physics tick of the drive, from <see cref="EntityBehaviorTrunkPhysics"/> on whichever
+    /// side ticks it (the driver's client, or the server): after the game's drag and gravity,
+    /// before its collision. Everything it reads is on both sides: the seat's controls, the pose,
+    /// the stored logs and the water flags. The driver's keys (the seat's
     /// controls) ease the speed along the axis and the turn (<see cref="TrunkDrive"/>); the turn
     /// goes through the multi-box physics' own yaw adjustment with a push, as the game's boat
     /// turns, so the swinging boxes shove the trunk off what they swing into and a turn with no way
@@ -361,7 +421,7 @@ public class EntityTrunk : Entity, ISeatInstSupplier
                 else
                     _turn = 0;
             }
-            var (mx, mz) = TrunkDrive.Motion(pos.Yaw, DriveEnd, _along);
+            var (mx, mz) = TrunkDrive.DriveMotion(pos.Yaw, DriveEnd, _along);
             pos.Motion.X = mx;
             pos.Motion.Z = mz;
         }
@@ -431,7 +491,13 @@ public class EntityTrunk : Entity, ISeatInstSupplier
     /// game, another mount, the trunk going): the mark goes.</summary>
     public void DriverLeft(EntityAgent agent)
     {
+        // The physics goes back to the server (the controller goes), and the trunk stops where it
+        // is rather than gliding on the drive's last motion.
         _along = _turn = 0;
+        _clientPositionAt = long.MinValue;
+        if (Seatable is { } seatable && seatable.Controller == agent)
+            seatable.Controller = null;
+        Pos.Motion.X = Pos.Motion.Z = 0;
         if (Api?.Side == EnumAppSide.Server && GrabbedBy == agent.EntityId)
             ClearDrive();
     }

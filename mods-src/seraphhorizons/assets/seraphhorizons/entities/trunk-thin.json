@@ -21,9 +21,10 @@
 			airDragFallingFactor: 0.5,
 			gravityFactor: 1.0
 		},
-		// the one driver's place (TrunkDriveSeat.cs); not controllable, so the server keeps the physics
+		// the one driver's place (TrunkDriveSeat.cs); controllable, so the driver's client ticks the
+		// physics and the server takes its positions (or ticks it itself when none come)
 		seatable: {
-			seats: [{ seatId: "driver", controllable: false }]
+			seats: [{ seatId: "driver", controllable: true }]
 		}
 	},
 	client: {
