@@ -2,14 +2,17 @@ using Atlas.XUnit;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.TidyVariants;
 using Vintagestory.API.Common;
+using Vintagestory.API.Util;
 
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
-/// Tidy Variants groups in the export (`variantGroups`, docs/recipe-browser/schema.md "Variant
-/// groups"): what the server's own resolution groups, as the site will fold it. Expected values come
-/// from the vanilla assets (gravel is `gravel-{rock}`, its handbook groups it with `gravel-*`) and from
-/// the mod's resolution, read here directly, never from the exporter's reflection.
+/// Variant groups in the export (`variantGroups`, docs/recipe-browser/schema.md "Variant groups"):
+/// what the server's own Tidy Variants resolution groups, then what the handbook's shipped `groupBy`
+/// groups among the rest, as the site will fold them. Expected values come from the vanilla assets
+/// (gravel is `gravel-{rock}`, its handbook groups it with `gravel-*`; juice is only in creative inside
+/// a bucket, and `rawjuice.json` groups its pages with `juiceportion-*`) and from the mod's resolution,
+/// read here directly, never from the exporter's reflection.
 /// </summary>
 public partial class RecipeExportScenarios
 {
@@ -35,8 +38,26 @@ public partial class RecipeExportScenarios
         Assert.Equal(id, TidyVariantsModSystem.ForSide(EnumAppSide.Server)!.Resolution.GroupById(id)?.Id);
     }
 
-    /// <summary>Every exported group is the engine's group of that id: its members are codes of the
-    /// group's entries in rank order, items of the export, and in no other group.</summary>
+    // survival/itemtypes/liquid/rawjuice.json: juiceportion-{fruit}, in creative only as a bucket's
+    // contents, handbook groupBy juiceportion-*. The exporter's second pass groups the items the
+    // handbook does; the first exported code, apple's, leads.
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Juices_are_one_group_from_the_handbooks_groupBy()
+    {
+        var group = (JObject)VariantGroupSection["handbook:game:juiceportion-*"]!;
+        Assert.Equal("Juice", (string)group["title"]!);
+        var members = group["members"]!.Values<string>().ToList();
+        Assert.Equal("game:juiceportion-apple", members[0]);
+        foreach (var fruit in new[] { "redcurrant", "cranberry", "blueberry", "peach" })
+            Assert.Contains($"game:juiceportion-{fruit}", members);
+        // Not a creative entry, so no Tidy Variants group has a juice.
+        var bridge = TidyVariantsModSystem.ForSide(EnumAppSide.Server)!;
+        Assert.DoesNotContain(bridge.Resolution.Groups, g => g.Members.Any(e => bridge.CollectibleOf(e).Code.Path.StartsWith("juiceportion-")));
+    }
+
+    /// <summary>Every exported Tidy Variants group is the engine's group of that id: its members are
+    /// codes of the group's entries in rank order, items of the export, and in no other group. A
+    /// handbook group's members are items of the export, in no other group, and match its pattern.</summary>
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Variant_groups_are_the_server_resolution_in_rank_order()
     {
@@ -45,8 +66,23 @@ public partial class RecipeExportScenarios
         var r = bridge.Resolution;
         var items = (JObject)Doc["items"]!;
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        int handbook = 0;
         foreach (var p in VariantGroupSection.Properties())
         {
+            if (p.Name.StartsWith("handbook:"))
+            {
+                handbook++;
+                var parts = p.Name.Split(':', 3);
+                var pattern = new AssetLocation(parts[1], parts[2]);
+                foreach (var code in p.Value["members"]!.Values<string>().Select(c => c!))
+                {
+                    Assert.True(items.ContainsKey(code), $"{p.Name}: {code} is not an item");
+                    Assert.True(seen.Add(code), $"{p.Name}: {code} is in two groups");
+                    Assert.True(WildcardUtil.Match(pattern, new AssetLocation(code)) || p.Value["members"]![0]!.ToString() == code,
+                        $"{p.Name}: {code} does not match the pattern");
+                }
+                continue;
+            }
             var g = r.GroupById(p.Name);
             Assert.True(g != null, $"{p.Name} is not a group of the server's resolution");
             Assert.False(string.IsNullOrWhiteSpace((string?)p.Value["title"]), $"{p.Name} has no title");
@@ -68,5 +104,6 @@ public partial class RecipeExportScenarios
             }
             Assert.Equal(members.OrderBy(c => rank[c]).ToList(), members);
         }
+        Assert.True(handbook > 0, "no handbook group");
     }
 }

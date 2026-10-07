@@ -66,12 +66,15 @@ ownership"), read by reflection. A switch is named as in `ModConfig/seraphhorizo
 
 ### Variant groups
 
-`variantGroups`, an optional top-level object, also comes from the pack's own mod: its Tidy
-Variants groups (#252), the variants the game collapses into one creative tile and one handbook
-group (every gravel, every plank wood), so the site can collapse the same items. Like the
-fields above it is an optional addition, and `schemaVersion` stayed 1. It is absent without the
-mod, with Tidy Variants switched off, or when its resolution failed; every reader copes, and
-older exports lack it.
+`variantGroups`, an optional top-level object, holds the variants the game shows as one, so the
+site can collapse the same items. Most come from the pack's own mod: its Tidy Variants groups
+(#252), the variants the game collapses into one creative tile and one handbook group (every
+gravel, every plank wood). The items those leave are grouped as the handbook groups their pages,
+by the collectible's shipped `handbook.groupBy` pattern (juice is in creative only inside a bucket,
+so Tidy Variants never sees the juice items, but `juiceportion-*` makes one page of them). Like
+the fields above it is an optional addition, and `schemaVersion` stayed 1. It is absent when
+neither source gives a group (without the mod only the handbook's remain); every reader copes,
+and older exports lack it.
 
 ```json
 "variantGroups": {
@@ -81,17 +84,25 @@ older exports lack it.
 
 - The key is the group's id as the engine gives it: `auto:<domain>:<base>[/<dim>=<value>...]`
   for an automatic group, an override rule's id, or `groupby:<block|item>:<domain>:<pattern>`
-  for one merged by a shipped handbook `groupBy` (the mod's `TidyVariants/Core/README.md`).
+  for one merged by a shipped handbook `groupBy` (the mod's `TidyVariants/Core/README.md`); or
+  `handbook:<domain>:<pattern>` for a group the handbook's `groupBy` makes among the items left,
+  the domain being the leading item's.
 - `title`: the group's English title as the game shows it (`GroupTitles.Of`): its lang title,
-  else one derived from the members' names, else the representative's name.
+  else one derived from the members' names, else the representative's name. A handbook group's
+  is derived from the members' names the same way (`TitleDeriver.Derive`), else the leader's.
 - `members`: codes of `items`, best representative first (the engine ranks every member). The
   entries of one collectible's attribute stacks share a code and count once; a group left with
   fewer than two codes is not exported, nor is a member whose code `items` holds as the other
-  kind (a block and an item can share a code). Entries Tidy Variants hides are in no group.
+  kind (a block and an item can share a code). Entries Tidy Variants hides are in no group. A
+  handbook group's leader is the first item in code order that declares the pattern, and the
+  rest, blocks and items alike as the handbook matches codes, follow in code order.
 
 The exporter reads the server's resolution (`TidyVariantsModSystem.ForSide(Server)`) by
 reflection, as it reads the switches; the server resolves at the WorldReady run phase, before
-the export runs.
+the export runs. The handbook pass matches with the game's own `WildcardUtil`, over the shipped
+patterns (Tidy Variants rewrites `groupBy` on the client only), and skips patterns with a `{`
+placeholder, which the game expands per stack for clutter and shields, both in Tidy Variants'
+groups anyway.
 
 ## Recipes
 
