@@ -1,6 +1,7 @@
 // Mechanic: mechanical power, machine parts, pipes and steam, signals.
 // Format: docs/trading.md (Trade lists). Machine parts are player-supplied; the wooden mechanical
 // power pieces are not.
+// Buying prices are what the trader pays, a fifth of value (docs/trading.md, "Everything has a price").
 {
 	"type": "mechanic",
 	"campWeight": 0.8,
@@ -57,6 +58,8 @@
 				{"type": "block", "code": "mpegearbox:gearbox13brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 28, "var": 4.2}, "playerSupplied": true},
 				{"type": "block", "code": "mpegearbox:gearbox14brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 30, "var": 4.5}, "playerSupplied": true},
 				{"type": "block", "code": "mpegearbox:gearbox15brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 32, "var": 4.8}, "playerSupplied": true},
+				{"code": "seraphhorizons:gear-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 15, "var": 2.25}, "playerSupplied": true},
+				{"code": "seraphhorizons:largegear-steel", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 19, "var": 2.85}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-straight-ns-iron", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-bend-nw-iron", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "price": {"avg": 4, "var": 0.6}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-tjunction-uns-iron", "stacksize": 2, "stock": {"avg": 3, "var": 1}, "price": {"avg": 5, "var": 0.75}, "playerSupplied": true},
@@ -84,31 +87,33 @@
 	},
 	"buying": {
 		"core": [
-			{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 12, "var": 3}, "price": {"avg": 2, "var": 0.3}},
-			{"code": "rope", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}}
+			{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 12, "var": 3}, "price": {"avg": 0.4, "var": 0.06}},
+			{"code": "rope", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.1, "var": 0.02}},
+			{"code": "seraphhorizons:gear-steel", "stacksize": 1, "stock": {"avg": 6, "var": 2}, "price": {"avg": 3, "var": 0.45}}
 		],
 		"rotating": { "maxItems": 8,
 			"list": [
-				{"code": "immersivewoodworking:sawmillblade-copper", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 10, "var": 1.5}},
-				{"code": "immersivewoodworking:sawmillblade-tinbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 12, "var": 1.8}},
-				{"code": "immersivewoodworking:sawmillblade-bismuthbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 13, "var": 1.95}},
-				{"code": "immersivewoodworking:sawmillblade-blackbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 14, "var": 2.1}},
-				{"code": "immersivewoodworking:sawmillblade-iron", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 17, "var": 2.55}},
-				{"code": "immersivewoodworking:sawmillblade-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 21, "var": 3.15}},
-				{"code": "immersivewoodworking:chopperhead-copper", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 9, "var": 1.35}},
-				{"code": "immersivewoodworking:chopperhead-tinbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 11, "var": 1.65}},
-				{"code": "immersivewoodworking:chopperhead-bismuthbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 12, "var": 1.8}},
-				{"code": "immersivewoodworking:chopperhead-blackbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 13, "var": 1.95}},
-				{"code": "immersivewoodworking:chopperhead-iron", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 16, "var": 2.4}},
-				{"code": "immersivewoodworking:chopperhead-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 20, "var": 3.0}},
-				{"code": "sail", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 2, "var": 0.3}},
-				{"type": "block", "code": "woodenaxle-ud", "stacksize": 8, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "angledgears-s", "stacksize": 2, "stock": {"avg": 6, "var": 2}, "price": {"avg": 2, "var": 0.3}},
-				{"code": "gear-temporal", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 6, "var": 0.9}},
-				{"code": "flaxtwine", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "metal-scraps", "stacksize": 5, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "creature-locust-bronze-hacked", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 10, "var": 4}},
-				{"code": "creature-locust-corrupt-hacked", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 18.0, "var": 4.2}}
+				{"code": "immersivewoodworking:sawmillblade-copper", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2, "var": 0.3}},
+				{"code": "immersivewoodworking:sawmillblade-tinbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2.4, "var": 0.36}},
+				{"code": "immersivewoodworking:sawmillblade-bismuthbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2.6, "var": 0.39}},
+				{"code": "immersivewoodworking:sawmillblade-blackbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2.8, "var": 0.42}},
+				{"code": "immersivewoodworking:sawmillblade-iron", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 3.4, "var": 0.51}},
+				{"code": "immersivewoodworking:sawmillblade-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4.2, "var": 0.63}},
+				{"code": "immersivewoodworking:chopperhead-copper", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 1.8, "var": 0.27}},
+				{"code": "immersivewoodworking:chopperhead-tinbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2.2, "var": 0.33}},
+				{"code": "immersivewoodworking:chopperhead-bismuthbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2.4, "var": 0.36}},
+				{"code": "immersivewoodworking:chopperhead-blackbronze", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 2.6, "var": 0.39}},
+				{"code": "immersivewoodworking:chopperhead-iron", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 3.2, "var": 0.48}},
+				{"code": "immersivewoodworking:chopperhead-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 4, "var": 0.6}},
+				{"code": "sail", "stacksize": 4, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.4, "var": 0.06}},
+				{"type": "block", "code": "woodenaxle-ud", "stacksize": 8, "stock": {"avg": 12, "var": 3}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "angledgears-s", "stacksize": 2, "stock": {"avg": 6, "var": 2}, "price": {"avg": 0.4, "var": 0.06}},
+				{"code": "seraphhorizons:largegear-steel", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 3.8, "var": 0.57}},
+				{"code": "gear-temporal", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 1.2, "var": 0.18}},
+				{"code": "flaxtwine", "stacksize": 8, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "metal-scraps", "stacksize": 5, "stock": {"avg": 3, "var": 0.75}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "creature-locust-bronze-hacked", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": {"avg": 2, "var": 0.8}},
+				{"code": "creature-locust-corrupt-hacked", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 3.6, "var": 0.84}}
 			]
 		},
 		"regional": {}

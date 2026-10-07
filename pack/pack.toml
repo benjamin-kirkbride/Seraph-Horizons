@@ -4,7 +4,7 @@
 [pack]
 id = "seraphhorizons"
 name = "Seraph Horizons"
-version = "0.1.0"
+version = "1.1.0"
 authors = ["Benjamin Kirkbride"]
 description = "A version-pinned Vintage Story modpack."
 # One game version per pack line. Bump deliberately, on its own PR.

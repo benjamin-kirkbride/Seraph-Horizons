@@ -220,6 +220,22 @@ public class RosserRigTests
     }
 
     [Fact]
+    public void The_shipped_rig_lids_the_station_and_not_the_beds()
+    {
+        // The station (x -12..-4, 9 x 5 columns) is a deck to walk on; over the beds a lid would be an
+        // invisible floor two blocks above the rolls, so they have none.
+        var rig = RosserFixture.Shipped();
+        if (rig == null)
+            return;
+        static bool Station(Int3 p) => p.X is >= -12 and <= -4;
+        var tops = rig.Cells.GroupBy(c => (c.Pos.X, c.Pos.Z)).Select(g => g.MaxBy(c => c.Pos.Y)!).ToList();
+        Assert.Equal(45, tops.Count(c => Station(c.Pos)));
+        Assert.All(tops.Where(c => Station(c.Pos)), c => Assert.NotNull(c.LidBox));
+        Assert.All(rig.Cells.Where(c => !Station(c.Pos)), c => Assert.Null(c.Lid));
+        Assert.Equal(45, rig.Cells.Count(c => c.Lid != null));
+    }
+
+    [Fact]
     public void The_shipped_rig_matches_the_python_reference_poses()
     {
         // Rosser/tools/make_shape.py writes each part's matrix at a grid of poses (θ, ψ, φ, T, k, p)

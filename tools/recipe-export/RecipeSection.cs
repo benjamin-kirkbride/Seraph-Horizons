@@ -176,9 +176,12 @@ public static partial class RecipeSection
         var typeCode = Registries.BaseGameMods.Contains(reg.Mod) ? typeName : $"{reg.Mod}:{typeName}";
         if (taken.Contains(typeCode)) typeCode = $"{reg.Mod}:{reg.Code}";
 
-        var registered = new List<RecipeForm>();
+        var read = new List<RecipeForm>();
         foreach (var recipe in list)
-            if (recipe != null) registered.Add(reader.Read(recipe));
+            if (recipe != null) read.Add(reader.Read(recipe));
+        var registered = WaterClones.Fold(read, out var folded);
+        if (folded > 0)
+            ctx.Api.Logger.Notification("[seraphexport] {0}: folded {1} Hydrate or Diedrate water copies into their recipes", reg.Code, folded);
 
         // Definition files: the type's own folder, plus any other file a registered recipe's
         // Name points at (ACulinaryArtillery's simmerrecipes load from recipes/simmering).
@@ -262,6 +265,14 @@ public static partial class RecipeSection
 
         var extra = (JObject)(first ?? shape).Extra.DeepClone();
         if ((first ?? shape).Attributes is JObject attributes && attributes.HasValues) extra["attributes"] = attributes.DeepClone();
+        var water = group.Variants.SelectMany(v => v.Form.FoldedWater).ToList();
+        if (water.Count > 0)
+            extra["waterCopies"] = new JObject
+            {
+                ["mod"] = WaterClones.Mod,
+                ["recipes"] = water.Count,
+                ["water"] = new JArray(water.Distinct().OrderBy(w => w, StringComparer.Ordinal)),
+            };
         if (def == null) extra["registeredByCode"] = true;
         else if (!def.Enabled && group.Variants.Count > 0) extra["disabledButRegistered"] = true;
         else if (def.Enabled && group.Variants.Count == 0) extra["resolved"] = false;

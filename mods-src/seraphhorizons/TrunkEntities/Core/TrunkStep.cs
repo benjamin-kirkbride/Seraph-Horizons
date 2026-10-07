@@ -19,14 +19,12 @@ public static class TrunkStep
     /// per second).</summary>
     public const double MinMotion = 0.005;
 
-    /// <summary>The most a trunk rises in one tick, blocks, so a step takes a few ticks.</summary>
-    public const double MaxLiftPerTick = 0.25;
-
     private const double Skin = 0.01;
 
     /// <summary>How far, blocks, a trunk at (<paramref name="x"/>, <paramref name="y"/>,
     /// <paramref name="z"/>) moving along (<paramref name="mx"/>, <paramref name="mz"/>) should
-    /// rise this tick: 0 for no step, else at most <see cref="MaxLiftPerTick"/>.
+    /// rise this tick: 0 for no step, else the whole rise onto the block in one go (a part lift
+    /// left the trunk hanging against the step, falling back and lifted again, tick after tick).
     /// <paramref name="solid"/> says whether the block cell (x, y, z) is solid.</summary>
     public static double Lift(IReadOnlyList<Box> boxes, double x, double y, double z,
         double mx, double mz, Func<int, int, int, bool> solid)
@@ -44,7 +42,7 @@ public static class TrunkStep
         double ny = y + rise + Skin;
         if (Blocked(boxes, ax, ny, az, solid) || Blocked(boxes, x, ny, z, solid))
             return 0;
-        return Math.Min(MaxLiftPerTick, rise + Skin);
+        return rise + Skin;
     }
 
     /// <summary>Whether any of the boxes at (<paramref name="x"/>, <paramref name="y"/>,

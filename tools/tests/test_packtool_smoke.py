@@ -55,6 +55,25 @@ class StageMods(unittest.TestCase):
         self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}), [])
         self.assertEqual(sorted(p.name for p in self.dest.iterdir()), ["notes.txt", "olla_1.2.0.zip"])
 
+    def test_modid_is_matched_without_case(self):
+        mod_zip(self.src / "seraphhorizons_0.9.0.zip", "SeraphHorizons", "0.9.0")
+        self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}),
+                         ["seraphhorizons_0.9.0.zip"])
+        self.assertEqual(list(self.dest.iterdir()), [])
+
+    def test_a_folder_mod_of_the_modid_is_left_out_too(self):
+        folder = self.src / "seraphhorizons"
+        folder.mkdir()
+        (folder / "modinfo.json").write_text(json.dumps({"ModID": "seraphhorizons", "version": "1"}))
+        self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}), ["seraphhorizons"])
+
+    def test_broken_zips_and_non_mods_are_kept(self):
+        with zipfile.ZipFile(self.src / "broken.zip", "w") as z:
+            z.writestr("x.dll", "x")  # no modinfo.json
+        (self.src / "notzip.zip").write_text("not a zip")
+        self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}), [])
+        self.assertEqual(sorted(p.name for p in self.dest.iterdir()), ["broken.zip", "notzip.zip"])
+
 
 class StagePackMod(unittest.TestCase):
     def test_zip_is_named_after_modinfo(self):
@@ -100,6 +119,21 @@ class StagePackMod(unittest.TestCase):
                     mock.patch.object(packtool.subprocess, "run", lambda cmd, env: subprocess.CompletedProcess(cmd, 1)), \
                     self.assertRaises(SystemExit):
                 packtool.stage_pack_mod(tmp / "server", tmp / "data", project)
+
+
+class SmokeArguments(unittest.TestCase):
+    def test_there_is_no_local_mod_flag(self):
+        """The pack's own mod is always built and staged; there is nothing to opt into."""
+        with mock.patch.object(packtool, "cmd_smoke", lambda a: None), \
+                mock.patch("sys.argv", ["packtool", "smoke", "--local-mod", "a.zip"]), \
+                mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+            packtool.main()
+
+    def test_smoke_parses_without_flags(self):
+        seen = []
+        with mock.patch.object(packtool, "cmd_smoke", seen.append), mock.patch("sys.argv", ["packtool", "smoke"]):
+            packtool.main()
+        self.assertFalse(hasattr(seen[0], "local_mod"))
 
 
 if __name__ == "__main__":

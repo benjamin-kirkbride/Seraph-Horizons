@@ -1,8 +1,9 @@
 # Seraph Horizons
 
-The pack's own mod, named after the pack: every install of the pack downloads it, so its ModDB
-page shows the pack's download count and is where people browsing the ModDB find the pack. Its
-modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphhorizonspack`.
+The pack's own mod, named after the pack: the pack and it are one thing with one version, released
+together (Releasing, below). Its ModDB page, where it is uploaded after a release, is where people
+browsing the ModDB find the pack. Its modid is the pack's id, so the pack's meta-mod
+(`packtool assemble`) is `seraphhorizonspack`.
 
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
@@ -18,7 +19,7 @@ they live together here and not in a mod each. Every tweak has its own switch in
 One whose mod has changed shape logs a warning and leaves that mod alone.
 
 Only the game's own assemblies are referenced at build time: each tweak to another mod finds what
-it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
+it patches by name, so the mod builds from the game alone (`release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
@@ -80,23 +81,40 @@ including the draught rule, and that a venting chimney's look-at info says so (p
 `chimney-info-venting` line), in every language ppex ships. Text only, as exact-passage `LangEdits`
 like the boiler's; the Russian and Ukrainian passages are the pack's own translations.
 
-### Fewer surface battle towers (ConfigKit settings)
+### Rarer battle towers (`RarerBattleTowers`)
 
-Battle Towers (`battletowers`, 1.1.0) has no settings: a surface tower has a 0.03 chance per chunk
-and only 200 blocks between two of them, so they outnumber every other surface structure.
-`assets/seraphhorizons/config/configlib-patches.json` declares two settings, which ConfigKit writes
-into Battle Towers' own patch file (`patches/survival-worldgen-structures.json`, entry 0) before
-the game applies it:
+Battle Towers (`battletowers`, 1.1.0, #519) has no settings, and its towers were everywhere: in
+the pack's worlds about 0.9 surface towers, 0.5 hard towers and 59 underground towers per km², an
+underground tower every 130 m of cave. With this switch there is about one surface tower per
+16 km² (a 4 km square), one hard tower per 66 km² (an 8 km square) and one underground tower per
+17 km² (a 4 km square): about one tower of any kind per 7.5 km², so finding one is an event.
 
-| Setting (`ModConfig/seraphhorizons.yaml`) | Battle Towers | Here |
-|---|---|---|
-| `battletowers_surface_chance` | 0.03 | 0.01 |
-| `battletowers_surface_min_distance` | 200 | 600 |
+| Tower (`code`) | Battle Towers: chance, spacing | Here | Per km², before → here |
+|---|---|---|---|
+| surface (`surfacetowers`) | 0.03, 200 blocks (0.01, 600 with the pack's old ConfigKit setting) | 0.0007, 1500 | 0.88 → 0.062 |
+| hard (`surfacehardtowers`) | 0.005, 1000 blocks | 0.00015, 3000 | 0.51 → 0.015 |
+| underground (`undergroundtowers`) | 200, 50 blocks | 0.2, 50 | 59 → 0.059 |
 
-The hard and underground towers are left as Battle Towers ships them. This tweak is data, not a
-class: it has no switch in `seraphhorizons.json`, does nothing without ConfigKit, and is changed in
-ConfigKit's settings screen or, for the pack, in `pack/config/ModConfig/seraphhorizons.yaml`. Like
-any worldgen setting it only affects chunks not generated yet.
+The game's `GenStructures` gives each structure chance × chanceMultiplier tries per chunk column (977
+per km²) at random spots, and a try places a tower only where the schematic fits. The multiplier is
+0.45 in the pack (BetterRuins cuts vanilla's 0.46 to 0.30, `pack/config/ModConfig/betterruins.yaml`
+puts it back). The share of tries that place a tower was measured in an Atlas world: 20% for a
+surface tower, 23% for a hard one, 0.067% for an underground one, which must open onto a cave. The
+spacing (`minGroupDistance`) is only checked against towers in loaded map regions, and never for
+the underground towers, whose schematics attach to caves: the chance does the work, and the
+spacings only keep two towers from landing side by side. The figures and the maths are in
+`assets/seraphhorizons/config/battletowers-rates.json`.
+
+Battle Towers appends its towers to `game:worldgen/structures.json` (`/structures/-`), so where they
+end up in that list depends on every other mod adding structures, and a JSON patch of ours could
+not address them; it could not patch Battle Towers' patch file either, as the game reads every patch
+file before it applies any. So `BattleTowers.cs`, on the server in `Start`, before the patch loader
+runs, rewrites Battle Towers' own `patches/survival-worldgen-structures.json` in memory, each tower
+found by its code (`Core/BattleTowerRates.cs`). A tower Battle Towers no longer adds is logged and
+left alone. This replaces the two ConfigKit settings (`battletowers_surface_chance`,
+`battletowers_surface_min_distance`) that thinned only the surface towers. Worldgen only: it changes
+the chunks generated from then on, in any world, and never a tower already placed. With the switch
+off, or without Battle Towers, the towers are as Battle Towers ships them.
 
 ### Creative steam source (`CreativeSteamSource`)
 
@@ -520,6 +538,46 @@ A JSON patch, `assets/seraphhorizons/patches/bloodsausage-butchering.json`, `"si
 `dependsOn` butchering and expandedfoods. With the switch off, or without Butchering, Expanded Foods
 or A Culinary Artillery (without which nothing else makes them), the system empties that patch file
 in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the server's.
+
+### Recipes that duplicate or undercut another are off (`DuplicateRecipes`)
+
+Some mods declare a recipe for something another recipe in the pack already makes, the same way or
+for less. The pack keeps one, and the other is disabled (`enabled: false`):
+
+- Expanded Foods (`expandedfoods` 2.0.0-dev.15) kneads its sausages in A Culinary Artillery's mixing
+  bowl from fat and meat or fish nuggets: `recipes/kneading/sausage.json` (`expandedfoods:sausage-{meat}-raw`,
+  `-curing`, `-{meat}cheese-raw`, `-{meat}cheese-curing`) and `recipes/kneading/sausagefish.json`
+  (`expandedfoods:sausagefish-normal-raw`, `-normal-curing`, `-cheese-raw`, `-cheese-curing`), four
+  recipes each, all off. Butchering (`butchering` 1.14.3) makes the same eight with clean offal added
+  (`recipes/kneading/meatnuggetsausages.json`, `fishnuggetsausages.json`), recipes it ships
+  `enabled: false` and enables with Expanded Foods; those stay. Needs both mods.
+- Expanded Foods' scrap brazier (`recipes/grid/braziers/brazier.json` `/0`: 4 firewood, 2 metal
+  scraps, an oil lamp and 0.2 L of food oil make `hqzlights:brazier-scrap`) undercuts HQZ Lights'
+  own (`hqzlights` 1.1.3, `recipes/grid/brazier.json`: 16 firewood, or 10 aged, 2 metal scraps and
+  2 fat), which stays. The file's `/1` names `hqzlights:metalstrip-*`, which no mod adds, so it
+  makes nothing and is left alone. Needs both mods.
+- Material Needs (`materialneeds` 2.0.0) re-declares three of the game's recipes for aged wood, which
+  the game's wildcards already make: `recipes/grid/wood/substitutions/mn-roofing.json` (the seven
+  aged roofing pieces), `mn-raft.json` (the aged crude oar and raft) and `mn-shield.json` (the very
+  aged plank round shield), all off. Its ashlar, roof beam, dirty gravel and mud brick recipes stay.
+- The game's barrel cottage cheese (`game:recipes/barrel/cheesemaking/cottagecheese.json`: 5 L of
+  curdled milk and salt, sealed 24 h, give 5 L) is replaced by Expanded Foods' mixing bowl recipe
+  (`recipes/kneading/cottagecheese.json`: 10 vinegar and 10 pasteurised milk give 20 portions).
+  Needs Expanded Foods.
+- The game's sandstone daub (`game:recipes/grid/daub-raw.json` `/14`: soil, 2 dry grass, sandstone
+  sand and any clay give 8 yellow daub) is GeoAddons' (`geoaddons` 1.4.8,
+  `game:recipes/grid/daub-raw-geo.json`) sandstone recipe giving 12; GeoAddons' stays. Only that one
+  of the file's recipes: the rest are for rocks GeoAddons' file does not cover, and Material Needs
+  appends its gravel daubs to the same file. Needs GeoAddons.
+
+MEA Pineapple Turpentine's and Oils Resoaped's oil lamp recipes look like the game's but are not:
+the first fills the lamp with camphine, the second takes 1 L of any oil (flax too) in a bucket, so
+both stay.
+
+A JSON patch, `assets/seraphhorizons/patches/duplicaterecipes.json`, `"side": "server"`. Each entry
+`dependsOn` the mod it patches and the mod whose recipe stays, so the patch loader skips it when
+either is missing and nothing is left without a recipe. With the switch off, the system empties that
+patch file in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the server's.
 
 ### Panning gives no wool, awls, uranium or buttons (`PanningDropsTrimmed`)
 
@@ -1242,9 +1300,10 @@ trunks are never items in an inventory. A felled tree leaves a trunk entity lyin
 (`seraphhorizons:trunk-thin` or `-thick`, shown, boxed and selected as the machines show trunks:
 Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
 holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is shoved by
-walking into it. Hold right-click on it with an empty hand to drag it after you on a rope the game
-pulls (a heavier trunk follows more slowly; the grab lets go when the button does, or beyond 3
-blocks), or tie a rope to it as to any rope-tieable entity. A knife, shears, an axe or a saw held on
+walking into it. Hold right-click on it with an empty hand to drag it by that end after you, no
+rope involved (you walk at the trunk's pace, slower the heavier it is, and it steps up one block;
+the grab lets go when the button does, or beyond 3 blocks), or tie a rope to it as to any
+rope-tieable entity, where it pulls from the nearer end. Both are far easier in water. A knife, shears, an axe or a saw held on
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
 debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
 trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
@@ -2094,12 +2153,21 @@ itself, so it has no switch.
 true for a known item worth nothing. A code missing from the table falls back to its variant
 family: the longest prefix ending at a `-` that table codes share, never shorter than the path's
 first segment (`game:plank-oak` takes the average of `game:plank-*`), and a code with `*` averages
-its matches. `Game/ItemValuesSystem.cs` loads the asset on the server when assets load and serves
+its matches. A table never changes once loaded, so it caches each wildcard's answer: `/sh trade
+values suspicious` looks up the same few hundred patterns across some 80,000 grid recipes, and
+uncached that took close to a minute. `Game/ItemValuesSystem.cs` loads the asset on the server when assets load and serves
 it: `ItemValuesSystem.For(api)`.
 
 `/sh trade value [item code]` (`controlserver`) prints an item's value and where it comes from
 (direct, family fallback with the family, or missing); without a code, the held item's. The `/sh`
 root and its `trade` branch are shared with the other trading features (`GetOrCreate`).
+
+Schematics have no value in `item-values.json` (`tools/item-values`, #506): they are kept on
+crafting and traders are their only source, at their lists' prices. A machine gated behind a
+schematic is worth its consumed parts and labour. `seraphhorizons:gear-steel` takes its cheapest
+route (the gear cutter, or the reclamation lottery: ten oiled gears less the nine steel bits the
+failed rolls give), and `seraphhorizons:largegear-steel` its gear cutter route; neither is a hand
+price.
 
 After a pack change that adds, removes or re-recipes items, rebuild the table from a fresh export
 (`tools/item-values/README.md`). CI's export job fails when an item of this mod's trade lists
@@ -2159,21 +2227,24 @@ the pack, `RecipeExportValueScenarios` (every listed asset exists, every hand-li
 a registered code, every hand-listed recipe type is in the export) and `SwitchesOffScenarios`
 (nothing a switch owns is registered with it off).
 
-### Everything has a price (`EverythingHasAPrice`)
+### Everything has a price (`EverythingHasAPrice`, `BuySpread`)
 
 The trader overhaul's pricing (#450; `Trading/Economy/`, notes in `docs/trading.md`). A trader of the
-pack takes any item, not only what its list buys. Listed goods keep the list's price and are paid
-from the trader's wallet. Anything else is priced from the item's base value: about half for goods a
-related trader buys, about a fifth otherwise, and the curio dealer 0.3 for anything another trader
-buys (`assets/seraphhorizons/config/trading/trader-relations.json`). It is paid from a **side
-budget**, a quarter of the trader's wallet, refilled at every restock. Cheap goods sell by the fewest
-items worth a gear (a trade is priced in whole gears), and a trader never pays more than 0.6 × its own
-selling price for goods it also sells. Refused: maps and leads (the `refused` prefixes), money, goods
-worth less than a gear per stack, goods the value table doesn't know, and goods that at this trader
-come to under a gear per full stack. The selling cart's tooltip shows the offer's breakdown (value ×
-fit × supply) and which budget pays, a refused good says why, and the dialog's gain and money lines
-show the side budget's share and what is left in it. Switch: `EverythingHasAPrice` (default on); the
-server's setting goes to its clients with each trader.
+pack takes any item, not only what its list buys, and pays a fifth of what it is worth, a pawnshop's
+spread (`BuySpread`, default 0.2); what it asks when it sells is unchanged. Listed goods keep the
+list's price, which already holds the spread (the lists' buying prices were divided by five on
+2026-10-06, and do not follow `BuySpread`), and are paid from the trader's wallet. Anything else is
+priced from the item's base value × the spread × the fit: three quarters for goods a related trader
+buys, 0.6 for a weak link (and the curio dealer for anything another trader buys), half otherwise
+(`assets/seraphhorizons/config/trading/trader-relations.json`). It is paid from a **side budget**, a
+quarter of the trader's wallet, refilled at every restock. Cheap goods sell by the fewest items worth
+a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot for the
+same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than a gear per
+stack, goods the value table doesn't know, and goods that at this trader come to under a gear per full
+stack. The selling cart's tooltip shows the offer's breakdown (value × spread × fit × supply) and which
+budget pays, a refused good says why, and the dialog's gain and money lines show the side budget's
+share and what is left in it. Switches: `EverythingHasAPrice` (default on) and `BuySpread` (0.01–1,
+default 0.2); the server's settings go to its clients with each trader.
 
 Admin: `/sh trade price [item]` shows what the nearest trader (16 blocks) pays for an item, or the
 held one, and why.
@@ -2196,8 +2267,9 @@ Admin (privilege `controlserver`, in the caller's region or the spawn's): `/sh t
 `trace <item>` (its last changes), and `/sh trade simulate <days>` (supply decays and spreads for
 that many days, and the loaded traders' restock clocks move on as much).
 
-Tests: `tests/Trading/Economy/` (the fit table, the price curve and offers, the side budget, supply
-decay, spread, shelving and saving); `tests/PackTests/TradingEconomyScenarios.cs` (Atlas: an off-list
+Tests: `tests/Trading/Economy/` (the fit table, the price curve and offers, the buy spread, the side
+budget, supply decay, spread, shelving and saving, and the shipped lists' buying prices held to a
+fifth of the value table and under 0.6 × the lowest ask, `ShippedListPayTests`); `tests/PackTests/TradingEconomyScenarios.cs` (Atlas: an off-list
 sale paid from the side budget through vanilla's own deal, worthless goods, money and an overdrawn side
 budget refused, supply rising, falling over `simulate 20`, and player-supplied iron and steel shelved
 once supply is high).
@@ -2357,7 +2429,7 @@ Traders give work (#453, #454; `Trading/Orders/`, `Trading/Deliveries/`, notes i
 (within 8 blocks); opening a trade dialog says in chat what is on.
 
 **Standing orders** (`TraderOrders`): at every restock a trader puts up to one or two orders on
-offer, each for something its list buys where it stands: about 24 gears' worth at its normal price,
+offer, each for something its list buys where it stands: about 5 gears' worth at its normal price,
 in whole lots, with a premium of 1.3–1.6× over that price, held back from its wallet then (a trader
 too poor makes none). `/sh order` lists them and yours there; `/sh order accept <id>` takes one,
 scaled by your standing's `orderScale` (1 for a stranger, 4 for a partner) as far as the wallet
@@ -2540,7 +2612,7 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 (`Rosser/Core/`, described in `Rosser/README.md`), machine oil's tank, drain, oil codes and settings
 (`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the trunk code and variant rules of the
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
-and family fallback, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
+and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
 described in `TrunkEntities/README.md`), gear reclamation's roll, flash rust hours, settings and
 optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
@@ -2579,9 +2651,12 @@ bricks, uneven bricks and aged ashlar, 7 in bricks and 10 in ashlar; one rock bl
 shaft caps it at 5 from the third level and at 7 from the eighth; and four springs under a 2x2 shaft
 hold nothing. When it fails, the rules changed: reword the edits.
 
-It also reads the patched `game:worldgen/structures.json` and requires the surface tower's chance
-and spacing above, with the hard tower's unchanged: when that fails after a Battle Towers update,
-match the paths in `configlib-patches.json` to its new patch file.
+It also reads the patched `game:worldgen/structures.json` and requires each battle tower at the
+chance and spacing in `battletowers-rates.json` (`RarerBattleTowers`): when that fails after a
+Battle Towers update, match `BattleTowers.PatchAsset` and the rates' codes to its new patch file.
+With the switch off, `SwitchesOffScenarios` requires the three towers as Battle Towers 1.1.0 ships
+them. `BattleTowerRatesTests` (no game) parses the shipped rates and rewrites a trimmed copy of
+Battle Towers' patch file.
 
 The same class places the creative steam source against a closed iron pipe and requires the pipe
 full of steam at the set pressure, and no higher; it also requires the block in the creative
@@ -2835,6 +2910,16 @@ Butchering's three blood sausage and one black pudding grid recipes. When it fai
 update, check the two grid files' order and whether its kneading recipes are still enabled with
 Expanded Foods.
 
+`tests/PackTests/DuplicateRecipesScenarios.cs` (Atlas) requires no enabled kneading recipe
+from Expanded Foods' two sausage files, every one making its meat or fish sausages to take clean
+offal, and one to make each; no grid recipe for the scrap brazier taking fewer than 10 firewood, and HQZ Lights' still
+there; no Material Needs grid recipe for any aged roofing piece, the aged oar and raft or the very
+aged iron round shield, and the game's for each; no barrel recipe making cottage cheese and the mixing bowl's making it; and yellow
+daub from sandstone giving 12, and only that. With the switch off, `SwitchesOffScenarios` requires
+each duplicate back. When it fails after an update, check the patched files' order, whether
+Butchering still enables its kneading sausages with Expanded Foods, and whether the game's or
+GeoAddons' daub file changed.
+
 For panning, `SeraphHorizonsModScenarios` reads every block's `panningDrops` on the loaded server
 and requires none of the removed codes in any list, nor in the pan's table as `BlockPan` reads it
 (`PanningDrop`s), with Tailor's Delight's twine and needles and Expanded Matter's fluorite still
@@ -2925,17 +3010,22 @@ game's: they need checking by hand in the game (the lists in their sections).
 with `fixtures/switches-off/seraphhorizons.json`: each class boots its own server, which costs far
 more than the scenarios. `BoilerLidBlowsOpen` and the switches with no off check stay on.
 
-For the same reason the other scenario files above are not classes of their own but parts of two
-partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
-feature that needs only the plain world, and `WoodworkingScenarios` (`WoodworkingScenarios.cs`),
-the woodworking chain with the machines' fixture (`fixtures/buckingsawmill`, which shortens the
-mill's cut and cycle and the rosser's trip). Only a different world (a play style,
-ModConfig fixtures) gets a class of its own, as `/clear`'s and the off checks do. Their doc
+For the same reason the other scenario files above are not classes of their own but parts of a
+few partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
+feature that needs only the plain world; `TradingScenarios` (`TradingScenarios.cs`), the trading
+features on the plain world, sharing its players; `WoodworkingScenarios`
+(`WoodworkingScenarios.cs`), the woodworking chain with the machines' fixture
+(`fixtures/buckingsawmill`, which shortens the mill's cut and cycle and the rosser's trip), and
+`WoodworkingRosserScenarios` (`WoodworkingRosserScenarios.cs`), the rosser and the debarked trunk
+on the same fixture, a class of its own only because its real-time trips would otherwise make the
+one class's CI shard too long. Only a different world (a play style, ModConfig fixtures, a seeded
+standard world) gets a class of its own, as `/clear`'s, the off checks and the ore and trading
+camp scenarios do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
 nothing changed world-wide.
 
-The test project loads this directory's build as a mod, and leaves out a pinned copy from the
-ModDB (`seraphhorizons_*.zip` in `build/mods`).
+The test project loads this directory's build as a mod, and leaves out any other copy
+(`seraphhorizons_*.zip` in `build/mods`).
 
 `tests/PackTests/OreCellsScenarios.cs` (Atlas, a new standard world with a fixed seed) requires
 the four ore switches read and recorded in the savegame, IOG's `TryApproveOreSpawnSeed` patched,
@@ -2953,7 +3043,8 @@ a world created with them off to have none of it.
 
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
 the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
-of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking), and a section above. Its
+of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
+the rosser, `TradingScenarios` for trading), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A
 tweak big enough for mod systems of its own gets a folder, as `TidyVariants/` does; its systems
@@ -2961,10 +3052,16 @@ read their switch with `SeraphHorizonsSystem.ConfigFor(api)`.
 
 ## Releasing
 
-The same as `mods-src/allowedvariantsfix/README.md`: bump the version in `modinfo.json` and
-`SeraphHorizons.csproj`, merge, tag `seraphhorizons-v<version>` on main, upload the zip from the
-GitHub Release to the ModDB (keep the file name), then pin it in `pack/pack.toml` (the first
-release adds the entry, `side = "universal"`) and run `packtool lock`.
+With the pack: one release, one version. Bump `modinfo.json`, `SeraphHorizons.csproj` and
+`pack/pack.toml`'s `[pack] version` together (`tools/tests/test_mods_src.py` requires the three
+equal), run `packtool lock` and cog (`CLAUDE.md`), merge, and tag `v<version>` on main.
+`.github/workflows/release.yml` builds `seraphhorizons_<version>.zip` from the tag and publishes it
+in the pack's release, whose `.cairn` file installs it from there by its sha256 and whose server
+bundle carries it. The mod is never pinned in `pack/pack.toml`, and `mod-release.yml` (the other
+`mods-src/` mods' way) refuses a `seraphhorizons-v*` tag.
+
+Uploading the zip from the release to the ModDB (keep the file name) is optional, for people who
+find mods there; the release never waits on it.
 
 Between releases, every push to main that passes CI republishes the rolling
 [`seraphhorizons-next`](https://github.com/benjamin-kirkbride/Seraph-Horizons/releases/tag/seraphhorizons-next)
@@ -2973,7 +3070,7 @@ after it (`seraphhorizons_<version>_<sha7>.zip`, so that Cairn, which sees a new
 new hash, fetches every build), with its `SHA256SUMS` and the previous build's zip, kept for one
 more publish. The pack's rolling `next` Cairn pack, published right after it from the same
 commit, installs the mod from there by its sha256, so `next` plays with the mod as it is on main
-before any of it reaches the ModDB. The zip keeps `modinfo.json`'s version, so it is not newer
+before any of it is released. The zip keeps `modinfo.json`'s version, so it is not newer
 than the release of that version as far as the game is concerned: swap it in for that copy,
 don't add it next to one.
 

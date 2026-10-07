@@ -1,6 +1,7 @@
 // Mason: stone of the local rock group, clay, lime and plaster, and fired and glass goods;
 // buyer of stone, clay and fuel. Format: docs/trading.md (Trade lists). Bricks, tiles, pottery and
 // glass are player-supplied.
+// Buying prices are what the trader pays, a fifth of value (docs/trading.md, "Everything has a price").
 {
 	"type": "mason",
 	"campWeight": 1.0,
@@ -149,41 +150,41 @@
 	},
 	"buying": {
 		"core": [
-			{"code": "clay-blue", "stacksize": 64, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
-			{"code": "clay-fire", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-			{"code": "stone-granite", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}}
+			{"code": "clay-blue", "stacksize": 64, "stock": {"avg": 12, "var": 3}, "price": {"avg": 0.2, "var": 0.05}},
+			{"code": "clay-fire", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+			{"code": "stone-granite", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}}
 		],
 		"rotating": { "maxItems": 8,
 			"list": [
-				{"code": "stone-limestone", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "stone-sandstone", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "stone-andesite", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "stone-basalt", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "stone-slate", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "stone-chalk", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "clay-red", "stacksize": 64, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "charcoal", "stacksize": 12, "stock": {"avg": 12, "var": 3}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "lime", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "quicklime", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "peatbrick", "stacksize": 12, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "storagevessel-chthonic", "attributes": {"type": "normal"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 12, "var": 3}},
-				{"type": "block", "code": "storagevessel-loam", "attributes": {"type": "normal"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 9, "var": 2.25}},
-				{"type": "block", "code": "clayplanter-loam", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 7, "var": 1.75}},
-				{"type": "block", "code": "clayplanter-cthonic", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 10, "var": 2.5}},
-				{"type": "block", "code": "glass-green", "stacksize": 4, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "glass-blue", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "glass-violet", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "glass-red", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "glass-yellow", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "glass-brown", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
-				{"type": "block", "code": "glass-plain", "stacksize": 8, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 1, "var": 0.25}},
-				{"code": "oils:soap-potash-flax", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.25}},
-				{"code": "oils:soap-potash-olive", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.25}},
-				{"code": "oils:soap-potash-peanut", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.25}},
-				{"code": "oils:soap-potash-rice", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.25}},
-				{"code": "oils:soap-potash-soy", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.25}},
-				{"code": "oils:soap-potash-sunflower", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.25}},
-				{"code": "oils:soap-potash-walnut", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 2, "var": 0.25}}
+				{"code": "stone-limestone", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "stone-sandstone", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "stone-andesite", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "stone-basalt", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "stone-slate", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "stone-chalk", "stacksize": 32, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "clay-red", "stacksize": 64, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "charcoal", "stacksize": 12, "stock": {"avg": 12, "var": 3}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "lime", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "quicklime", "stacksize": 16, "stock": {"avg": 8, "var": 2}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "peatbrick", "stacksize": 12, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "storagevessel-chthonic", "attributes": {"type": "normal"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 2.4, "var": 0.6}},
+				{"type": "block", "code": "storagevessel-loam", "attributes": {"type": "normal"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": {"avg": 1.8, "var": 0.45}},
+				{"type": "block", "code": "clayplanter-loam", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 1.4, "var": 0.35}},
+				{"type": "block", "code": "clayplanter-cthonic", "stacksize": 1, "stock": {"avg": 4, "var": 1}, "price": {"avg": 2, "var": 0.5}},
+				{"type": "block", "code": "glass-green", "stacksize": 4, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "glass-blue", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "glass-violet", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "glass-red", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "glass-yellow", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "glass-brown", "stacksize": 3, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 0.2, "var": 0.05}},
+				{"type": "block", "code": "glass-plain", "stacksize": 8, "stock": {"avg": 5, "var": 1.25}, "price": {"avg": 0.2, "var": 0.05}},
+				{"code": "oils:soap-potash-flax", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.4, "var": 0.05}},
+				{"code": "oils:soap-potash-olive", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.4, "var": 0.05}},
+				{"code": "oils:soap-potash-peanut", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.4, "var": 0.05}},
+				{"code": "oils:soap-potash-rice", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.4, "var": 0.05}},
+				{"code": "oils:soap-potash-soy", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.4, "var": 0.05}},
+				{"code": "oils:soap-potash-sunflower", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.4, "var": 0.05}},
+				{"code": "oils:soap-potash-walnut", "stacksize": 6, "stock": {"avg": 2, "var": 0.5}, "price": {"avg": 0.4, "var": 0.05}}
 			]
 		},
 		"regional": {}

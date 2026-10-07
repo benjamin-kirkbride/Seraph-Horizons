@@ -71,8 +71,8 @@ cell of the rig and stamps an invisible ghost into each other cell: `rosser-ghos
 a water pipe connects to. Ghosts store the controller's position (`IMachineGhost.Principal`) and
 pass interaction, breaking, the pick-block stack, name, info and help to it. Every cell's collision
 and selection boxes come from the controller (`BERosser.CellBoxes`): its own from the rig, plus its
-part of the trunk. Its collision boxes (`CollisionBoxes`) add the cell's lid on a column's top cell
-(below). The controller re-stamps missing ghosts once a second. Breaking the frame or any
+part of the trunk. Its collision boxes (`CollisionBoxes`) add the cell's lid on a station column's top
+cell (below). The controller re-stamps missing ghosts once a second. Breaking the frame or any
 ghost breaks the whole rosser.
 
 **Rig.** The footprint and anchors are data, in `assets/seraphhorizons/config/rosser-rig.json`
@@ -86,12 +86,15 @@ native, south-facing frame with the controller at `[0,0,0]` the machine box is 1
 - 243 cells, 41 of them `hollow`: cells over the trunk's path that no element of the model reaches.
   A hollow cell is a ghost (nothing can be built in the trunk's way) but has no box of its own: it
   is solid only where the trunk's box is.
-- 66 lids, the mill's (`../BuckingSawmill/README.md`, **Rig**): a collision-only box 1/16 thick over
-  the whole of every column's top cell, at y 4 over the station and y 3 over the beds (the top of
-  their hollow cells, above a thick trunk), so a player on top cannot drop into the hollow cells or
-  the gaps about the ring, the beds and the rolls and get stuck, or be caught there by a moving
-  trunk. A hollow cell's lid is still collision only: its selection box list is empty without the
-  trunk. Over the beds the deck is invisible, two blocks above the bed rolls.
+- 45 lids, the mill's (`../BuckingSawmill/README.md`, **Rig**), over the station only: a
+  collision-only box 1/16 thick over the whole of each station column's top cell, at y 4, so a
+  player on top cannot drop into the hollow cells or the gaps about the ring and the rolls and get
+  stuck, or be caught there by a moving trunk. A hollow cell's lid is still collision only: its
+  selection box list is empty without the trunk. The beds have none: there a lid would be an
+  invisible floor at y 3 (the top of their hollow cells), two blocks above the bed rolls, which was
+  awkward to walk on. The generator
+  lids only the station's columns (`with_lids(cells, station_column)`) and fails on a station column
+  without a lid or a bed column with one (`lid_gaps`).
 
 The power cell is `[-9,3,-2]`, taking the axle on its north face: high on the side, just upstream of
 the ring, on the right as you look along the machine from its near end. The water cell is `[-8,2,2]`,
@@ -758,8 +761,8 @@ regenerating.
   gears' pitch and centre distances. `tools/tests/test_machinegen.py` tests the shared generator
   package and that the driver fixture is what its maths writes.
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
-- `tests/PackTests/RosserScenarios.cs` (Atlas, part of `WoodworkingScenarios`, its ModConfig seeded
-  from `tests/PackTests/fixtures/buckingsawmill`, where `RevolutionsPerStoredLog` is 0.5 and
+- `tests/PackTests/RosserScenarios.cs` (Atlas, part of `WoodworkingRosserScenarios`, its ModConfig seeded
+  from `tests/PackTests/fixtures/buckingsawmill`, where `RevolutionsPerStoredLog` is 0.2 and
   `RevolutionsPerBranch` 0.08, so a trip takes a few turns) loads this build with every locked mod.
   Each scenario builds on a floor of its own high above the ground.
   - Loading and placing: the rosser loads cleanly with its blocks, recipe, part items and ppex
@@ -789,9 +792,10 @@ regenerating.
     debranched or debarked) and the parts, and running that trunk again gives nothing twice.
   - The trunk's boxes follow it on every facing, fill it and no more, hollow cells hold only the
     trunk (and, for collision, their lids), and a click on the trunk is the rosser's.
-  - The top is a deck on every facing, empty and with a thick trunk half way: every column's top
-    cell has its lid in its collision boxes and not in its selection boxes, and the collision boxes
-    reaching the lid's height cover the whole cell.
+  - The station's top is a deck on every facing, empty and with a thick trunk half way: every
+    station column's top cell has its lid in its collision boxes and not in its selection boxes,
+    and the collision boxes reaching the lid's height cover the whole cell; no bed cell has a lid in
+    the rig, and no bed column's top cell collides with one.
   - The mill in line, both placed by a player on every facing: the mill takes the trunk at the top of
     its saws' cycle and cuts debarked logs; breaking the rosser before the mill takes it drops that
     trunk once. A mill in line wins over a rack beside it, but not while the mills'
@@ -821,8 +825,8 @@ unseen. Before release, play it through the modelling guide's list
   debarked;
 - walking into and clicking the trunk at every point of its trip, and hovering the hollow cells
   (their selection box list is empty when the trunk is not in them);
-- walking on the top (Atlas checks the lids' boxes, not a player on them), and whether the
-  invisible deck over the beds reads well;
+- walking on the top (Atlas checks the lids' boxes, not a player on them), and stepping from the
+  station's deck down onto the beds;
 - the item in hand, on the ground and in the handbook (the transforms are guesses);
 - how the busy frame reads at play distance.
 

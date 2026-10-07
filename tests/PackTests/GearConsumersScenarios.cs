@@ -14,8 +14,6 @@ namespace SeraphHorizons.PackTests;
 /// and how to read a gear code.</summary>
 internal static class GearConsumerUses
 {
-    internal const int ExportTimeout = 900_000;
-
     /// <summary>What still takes a rusty gear, by output: the uses test_gear_consumers.py exempts.</summary>
     internal static readonly string[] ExemptOutputs =
     [
@@ -68,7 +66,8 @@ internal static class GearConsumerUses
 /// <summary>
 /// <c>GearConsumers</c> (#473), on as it is by default: every recipe that took a rusty gear (or one of
 /// ppex's anvil gears) takes the steel gear, ppex's anvil gears are gone, and smex's Bessemer converter
-/// is raised with the steel large gear. Read from the game's registries and from the recipe export.
+/// is raised with the steel large gear. Read from the game's registries here, and from the recipe export in
+/// <see cref="RecipeExportScenarios"/> (RecipeExportGearChainScenarios.cs).
 /// The off check is in <see cref="SwitchesOffScenarios"/>; <c>tools/tests/test_gear_consumers.py</c>
 /// holds the patch files to every locked mod's recipe files.
 /// </summary>
@@ -167,51 +166,5 @@ public partial class SharedWorldScenarios
 
         Assert.Contains("steel large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
         Assert.Contains("one steel large gear", Lang.GetL("en", "smex:handbook-bessemer-text"));
-    }
-
-    // ------------------------------------------------------ the recipe export (what the browser shows)
-
-    [AtlasScenario(TimeoutMs = ExportTimeout)]
-    public void Export_lists_the_steel_gear_and_no_recipe_takes_a_rusty_gear()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        var records = doc["recipes"]!.Cast<JObject>().Where(r => (bool?)r["enabled"] != false).ToList();
-
-        var old = records
-            .Where(r => !ExemptSources.Contains((string?)r["source"]))
-            .Where(r => !r["outputs"]!.Any(o => ExemptOutputs.Contains((string?)o["code"])))
-            .Where(r => ExportedCodes(r).Any(IsOldGear))
-            .Select(r => $"{r["id"]}: {string.Join(", ", ExportedCodes(r).Where(IsOldGear).Distinct())}")
-            .ToList();
-        Assert.True(old.Count == 0, "Still take an old gear:\n" + string.Join("\n", old));
-
-        JObject Record(string id) => records.SingleOrDefault(r => (string)r["id"]! == id)
-                                     ?? throw new Xunit.Sdk.XunitException($"no enabled recipe {id}");
-        void TakesSteel(string id, int perSlot)
-        {
-            var r = Record(id);
-            Assert.Contains(r["ingredients"]!, i => (string?)i["code"] == GearConsumers.SteelGear && (int)i["quantity"]! == perSlot);
-            Assert.NotEqual(false, (bool?)r["extra"]?["resolved"]);
-            Assert.All(r["variants"]!, v => Assert.Contains(GearConsumers.SteelGear,
-                v["ingredients"]!.SelectMany(slot => slot).Select(s => (string?)s["code"])));
-        }
-        TakesSteel("grid|ppex:recipes/grid/machines.json|4", 4); // Cornish engine
-        TakesSteel("grid|ppex:recipes/grid/machines.json|8", 2); // mechanical power generator
-        TakesSteel("grid|ppex:recipes/grid/pipes.json|8", 2); // pressure valve
-        TakesSteel("grid|smex:recipes/grid/bessemerconverter.json|1", 16); // converter transmission
-        TakesSteel("grid|game:recipes/grid/glider.json|0", 1);
-        TakesSteel("grid|betterruins:recipes/grid/schematic-jonasassembly/assembly.json|6", 5); // Jonas gears
-        TakesSteel("grid|sprinklersmod:recipes/grid/ttwosprinklerrecipe.json|0", 4); // asset paths are lower case
-
-        var all = doc["recipes"]!.Cast<JObject>().ToDictionary(r => (string)r["id"]!);
-        foreach (var off in new[] { "grid|ppex:recipes/grid/machines.json|9", "grid|ppex:recipes/grid/pipes.json|10",
-                                    "grid|smex:recipes/grid/bessemerconverter.json|3", "smithing|ppex:recipes/smithing/gear.json|0",
-                                    "smithing|ppex:recipes/smithing/largegear.json|0" })
-            Assert.False((bool?)all[off]["enabled"] ?? true, $"{off} is not switched off");
-
-        // Immersive Woodworking registers the carriage itself, once per wood.
-        var carriages = records.Where(r => r["outputs"]!.Any(o => (string?)o["code"] == "immersivewoodworking:sawmillcarriage")).ToList();
-        Assert.NotEmpty(carriages);
-        Assert.All(carriages, r => Assert.Contains(GearConsumers.SteelGear, ExportedCodes(r)));
     }
 }

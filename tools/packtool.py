@@ -7,7 +7,8 @@ Stdlib only (Python 3.11+). Subcommands:
   check       Offline: fail if lock.json is out of sync with pack.toml.
   fetch       Download locked mod files into a cache, verify sha256, stage them.
   smoke       Boot a headless dedicated server with the staged mods and scan logs
-              (--export PATH: also load tools/recipe-export and check its export).
+              (--export PATH: also load tools/recipe-export and check its export). The pack's
+              own mod is always built from mods-src/seraphhorizons and loaded in place of its pin.
   outdated    Report mods with a newer release compatible with the pinned game version.
   assemble    Build release artifacts (meta-mod, Cairn pack, mod list, server bundle)
               (--url-mod ZIP URL: also put a mod Cairn fetches from URL in the Cairn pack).
@@ -461,13 +462,16 @@ def staged_modid(path: Path) -> str | None:
     """The modid of a staged mod: a zip, or a folder with a modinfo.json."""
     try:
         if path.is_dir():
-            info = path / "modinfo.json"
-            return parse_modinfo(info.read_text(encoding="utf-8-sig")).get("modid") if info.exists() else None
-        if path.suffix.lower() == ".zip":
-            return modinfo_from_zip(path).get("modid")
+            f = path / "modinfo.json"
+            modid = parse_modinfo(f.read_text(encoding="utf-8-sig")).get("modid") if f.exists() else None
+        elif path.suffix.lower() == ".zip":
+            modid = modinfo_from_zip(path).get("modid")
+        else:
+            return None
     except (OSError, ValueError, zipfile.BadZipFile):
         return None
-    return None
+    # The game compares modids without case.
+    return modid.lower() if isinstance(modid, str) else None
 
 
 def stage_mods(src: Path, dest: Path, drop: set[str]) -> list[str]:
@@ -753,7 +757,9 @@ def cmd_assemble(args) -> None:
     pack, lock = load_pack(), load_lock()
     meta = pack["pack"]
     # Checked before anything is written, so a bad --url-mod leaves no half-built dist/.
-    url_mods = [url_mod(Path(z), u) for z, u in getattr(args, "url_mod", None) or []]
+    url_zips = [(Path(z), url_mod(Path(z), u)) for z, u in getattr(args, "url_mod", None) or []]
+    url_mods = [m for _, m in url_zips]
+    replaced = {m["modid"].lower() for m in url_mods}
     out = Path(args.out)
     if out.exists():
         shutil.rmtree(out)
@@ -763,7 +769,7 @@ def cmd_assemble(args) -> None:
     # (a) ModDB meta-mod: a content mod whose only payload is its dependency list.
     # The game treats these as minimum versions, so this is the "casual" install path.
     # Its modid is not the pack id: that one belongs to the pack's own mod (mods-src/seraphhorizons),
-    # which this meta-mod depends on once it is pinned.
+    # which is released with the pack (--url-mod) rather than pinned, so it is not a dependency here.
     modinfo = {
         "type": "content",
         "modid": meta["id"] + "pack",
@@ -781,9 +787,9 @@ def cmd_assemble(args) -> None:
     # (b) Cairn pack file (manifest + lockfile): exact pins, sha256-verified downloads,
     # and Cairn installs the matching game and .NET. Open it with the Cairn launcher
     # or `cairn-server install <file>`. `.cairn` is the name Cairn 0.9.10 exports under;
-    # the contents are the same JSON `.cairn.json` files had. Only this artifact carries
-    # --url-mod mods: the other three are ModDB-only by construction (the meta-mod's
-    # dependencies and the mod list name ModDB releases, the server bundle ships lock.json).
+    # the contents are the same JSON `.cairn.json` files had. It carries the --url-mod mods
+    # by address, as does the server bundle (d) by file; the meta-mod and the mod list are
+    # ModDB-only by construction (their entries name ModDB releases).
     write_json(out / f"{tag}.cairn", cairn_bundle(meta, lock, url_mods))
 
     # (c) modid@version list (Story Forge import string, ModDB v2 `ids` format).
@@ -793,12 +799,17 @@ def cmd_assemble(args) -> None:
     # (d) Plain server bundle (for hosts not using cairn-server): lockfile + fetch
     # script. ModConfig overrides are partial merges, so they ship via Cairn only. Mod zips are included
     # only when their license allows redistribution; the rest are fetched from
-    # the ModDB CDN and checked against the locked sha256.
+    # the ModDB CDN and checked against the locked sha256. A --url-mod mod is the pack's
+    # own (mods-src/seraphhorizons), so its zip is bundled as is, in place of any ModDB pin
+    # of its modid, which is then neither bundled nor fetched.
     with zipfile.ZipFile(out / f"{tag}_server.zip", "w", zipfile.ZIP_DEFLATED) as z:
         z.write(LOCK_JSON, "lock.json")
-        z.writestr("fetch-mods.sh", server_fetch_script(lock))
+        moddb = {**lock, "mods": [m for m in lock["mods"] if m["id"].lower() not in replaced]}
+        z.writestr("fetch-mods.sh", server_fetch_script(moddb))
         z.getinfo("fetch-mods.sh").external_attr = 0o755 << 16
-        for m in lock["mods"]:
+        for src, m in url_zips:
+            z.write(src, f"Mods/{m['filename']}")
+        for m in moddb["mods"]:
             if m["redistribute"]:
                 src = Path(args.cache) / m["fileName"]
                 if not src.exists() or sha256_file(src) != m["sha256"]:
@@ -817,9 +828,10 @@ CAIRN_SIDES = {"universal": "both", "server": "server", "client": "client"}
 def url_mod(zip_path: Path, url: str) -> dict:
     """A mod Cairn fetches from an address instead of the ModDB, described by its own zip.
 
-    For the rolling `next` build, which carries the pack's own mod (mods-src/seraphhorizons)
-    built from the same commit, before that build is on the ModDB. CI names that zip after the
-    commit (seraphhorizons_<version>_<sha7>.zip) so its address changes with every build: Cairn
+    For the pack's own mod (mods-src/seraphhorizons), which is released with the pack rather than
+    pinned: a versioned release (release.yml) names its own seraphhorizons_<version>.zip asset, and
+    the rolling `next` build the zip built from the same commit, which CI names after the commit
+    (seraphhorizons_<version>_<sha7>.zip) so its address changes with every build: Cairn
     tells a followed pack has changed by its addresses and versions, never by a hash. The modid
     and version come from the zip's modinfo.json, as Cairn reads them (cairn-app ModUrl.Inspect), and the
     sha256 is what Cairn holds the file at the address to on every sync.
@@ -861,9 +873,9 @@ def cairn_bundle(meta: dict, lock: dict, url_mods: list[dict] | None = None) -> 
     A url_mods entry (url_mod()) becomes a manifest entry with an address and no version
     (Cairn refuses an address beside a pin) and a lock entry with `fromUrl` and the zip's
     sha256. Cairn keeps one entry per modid, so a URL mod replaces a locked ModDB mod of the
-    same modid in both lists: once the pack's own mod is pinned from the ModDB, `next` still
-    ships the commit's build (as tests/PackTests loads the local build over the pinned zip),
-    and a plain assemble (versioned releases) still ships the pin.
+    same modid in both lists: were the pack's own mod ever pinned from the ModDB, a release
+    would still ship its own build (as tests/PackTests loads the local build over the pinned zip),
+    and a plain assemble the pin.
     """
     url_mods = url_mods or []
     replaced: set[str] = set()

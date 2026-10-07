@@ -35,6 +35,9 @@ public class EconomySystem : ModSystem
     public const string PricedAttr = "seraphhorizons:everythingpriced";
     public const string SideBudgetAttr = "seraphhorizons:sidebudget";
     public const string SupplyFactorsAttr = "seraphhorizons:supplyfactors";
+    /// <summary>The server's <see cref="SeraphHorizonsConfig.BuySpread"/>, per trader, for the client's
+    /// off-list prices.</summary>
+    public const string BuySpreadAttr = "seraphhorizons:buyspread";
     public const string SaveKey = "seraphhorizons:supply";
     public const string SaveDayKey = "seraphhorizons:supplyday";
     public static readonly AssetLocation RelationsAsset = new("seraphhorizons", "config/trading/trader-relations.json");
@@ -68,6 +71,10 @@ public class EconomySystem : ModSystem
     /// <summary>The switches as this server has them.</summary>
     public bool EverythingHasAPrice { get; private set; }
     public bool RegionalSupply { get; private set; }
+
+    /// <summary>What a trader pays for off-list goods, as a share of value (server; the client reads
+    /// it from each trader, <see cref="BuySpreadAttr"/>).</summary>
+    public double BuySpread { get; private set; } = Pricing.DefaultBuySpread;
 
     /// <summary>Raised for every simulated day of <c>/sh trade simulate</c>, after supply has ticked,
     /// with the book's day: orders and deliveries (#453, #454) advance their own clocks here.</summary>
@@ -120,6 +127,7 @@ public class EconomySystem : ModSystem
         var config = SeraphHorizonsSystem.ConfigFor(api);
         EverythingHasAPrice = config.EverythingHasAPrice;
         RegionalSupply = config.RegionalSupply;
+        BuySpread = Math.Clamp(config.BuySpread, 0.01, 1);
         Supply = new SupplyBook(Settings(config));
         api.Event.SaveGameLoaded += LoadSupply;
         api.Event.GameWorldSave += SaveSupply;
@@ -240,6 +248,11 @@ public class EconomySystem : ModSystem
     public void Refresh(EntitySeraphTrader trader, bool broadcast)
     {
         SyncSupply(trader);
+        if (!trader.WatchedAttributes.HasAttribute(BuySpreadAttr) || trader.WatchedAttributes.GetDouble(BuySpreadAttr) != BuySpread)
+        {
+            trader.WatchedAttributes.SetDouble(BuySpreadAttr, BuySpread);
+            trader.WatchedAttributes.MarkPathDirty(BuySpreadAttr);
+        }
         if (!EverythingHasAPrice && !RegionalSupply) return;
         Reprice(trader);
         var store = new TreeAttribute();
@@ -266,9 +279,10 @@ public class EconomySystem : ModSystem
         trader.WatchedAttributes.MarkPathDirty(SupplyFactorsAttr);
     }
 
-    /// <summary>Prices every listed slot from its entry: list price × supply × modifiers, a buying
-    /// price capped by the sell-back share of what the trader asks for the same item. Vanilla's
-    /// rolled spread is dropped: a listed price is its list average.</summary>
+    /// <summary>Prices every listed slot from its entry: list price × supply × modifiers (a list's
+    /// buying prices already hold the buy spread), a cheap buying entry by a bigger unit
+    /// (<see cref="Pricing.Listed"/>). Vanilla's rolled spread is dropped: a listed price is its list
+    /// average.</summary>
     private void Reprice(EntitySeraphTrader trader)
     {
         var system = TradingSystem.Of(trader.Api);
@@ -291,9 +305,15 @@ public class EconomySystem : ModSystem
             if (slot.Itemstack is null || slot.TradeItem is null || !entries.TryGetValue(prefix + keys[i], out var entry) || entry.Price is null) continue;
             string code = slot.Itemstack.Collectible.Code.ToString();
             var context = Context(trader, code, traderBuys, null);
-            var offer = Pricing.Listed(entry.Price.Avg, slot.TradeItem.Stack?.StackSize ?? entry.StackSize, SupplyFactor(trader, code),
-                Pricing.Modifiers(Modifiers, context), traderBuys ? SellPricePerItem(trader, code) : null, traderBuys);
+            // From the entry's own stack, not the slot's: an earlier pricing may have grown the unit.
+            var offer = Pricing.Listed(entry.Price.Avg, entry.StackSize, SupplyFactor(trader, code),
+                Pricing.Modifiers(Modifiers, context), traderBuys, slot.Itemstack.Collectible.MaxStackSize);
             slot.TradeItem.Price = offer.UnitPrice;
+            if (traderBuys && slot.TradeItem.Stack is { } unit && unit.StackSize != offer.UnitSize)
+            {
+                unit.StackSize = offer.UnitSize;
+                slot.Itemstack.StackSize = offer.UnitSize;
+            }
         }
     }
 
@@ -315,18 +335,10 @@ public class EconomySystem : ModSystem
     public static double SupplyFactor(EntitySeraphTrader trader, string code) =>
         trader.WatchedAttributes[SupplyFactorsAttr] is ITreeAttribute tree && tree.HasAttribute(code) ? tree.GetDouble(code, 1) : 1;
 
-    /// <summary>The lowest price per item the trader asks for an item it sells, or null.</summary>
-    public static double? SellPricePerItem(EntitySeraphTrader trader, string code)
-    {
-        double? best = null;
-        foreach (var slot in trader.Inventory.SellingSlots)
-        {
-            if (slot.Itemstack?.Collectible?.Code?.ToString() != code || slot.TradeItem is not { Price: > 0 } item) continue;
-            double per = item.Price / (double)Math.Max(1, item.Stack?.StackSize ?? 1);
-            best = best is null ? per : Math.Min(best.Value, per);
-        }
-        return best;
-    }
+    /// <summary>The buy spread a trader pays off-list goods at: the server's setting, which the
+    /// client has from the trader (the default until the trader's first refresh reaches it).</summary>
+    public double BuySpreadOf(EntitySeraphTrader trader) =>
+        trader.Api.Side == EnumAppSide.Server ? BuySpread : trader.WatchedAttributes.GetDouble(BuySpreadAttr, Pricing.DefaultBuySpread);
 
     public PriceContext Context(EntitySeraphTrader trader, string code, bool traderBuys, string? playerUid) =>
         new(code, trader.TraderType, RegionOf(trader), traderBuys, trader.EntityId, playerUid);
@@ -345,7 +357,7 @@ public class EconomySystem : ModSystem
         if (max > 1) value *= Math.Clamp(collectible.GetRemainingDurability(stack) / (double)max, 0, 1);
         var context = Context(trader, code, true, playerUid);
         return Pricing.OffList(value, values.IsWorthless(code), Relations.Fit(trader.TraderType, Buyers.BuyersOf(code)),
-            SupplyFactor(trader, code), Pricing.Modifiers(Modifiers, context), collectible.MaxStackSize, SellPricePerItem(trader, code));
+            SupplyFactor(trader, code), Pricing.Modifiers(Modifiers, context), collectible.MaxStackSize, BuySpreadOf(trader));
     }
 
     /// <summary>An item's value in the table (0 when worthless or unknown).</summary>

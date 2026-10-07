@@ -25,7 +25,7 @@ namespace SeraphHorizons.PackTests;
 /// station through Carry On's hands and comes back into them; a debarked trunk lying on the
 /// ground is a trunk entity, whose tools are <see cref="TrunkToolScenarios"/>'.
 /// </summary>
-public partial class WoodworkingScenarios
+public partial class WoodworkingRosserScenarios
 {
     private const string LoggingMod = "loggingmod";
 
@@ -37,13 +37,6 @@ public partial class WoodworkingScenarios
                                         && b.Variant["size"] == "md" && b.Variant["branches"] == "no" && b.Variant["side"] == "north")
             .Select(b => b.Variant["wood"]!).ToList();
         return woods.Where(w => Mod.Logging!.PlacedLogCode(w) is { } code && W.GetBlock(code) is { Id: > 0 }).ToList();
-    }
-
-    private ItemStack DebarkedTrunk(string wood, int logs, bool branched = false, string size = "sm")
-    {
-        var debarking = Trunks.Debark(Trunk(wood, logs, branched, size), W);
-        Assert.NotNull(debarking);
-        return debarking.Trunk;
     }
 
     private static ItemStack? StoredLogStack(ItemStack trunk) => (trunk.Attributes["slots"] as Vintagestory.API.Datastructures.ITreeAttribute)?.GetItemstack("0");
@@ -264,14 +257,17 @@ public partial class WoodworkingScenarios
     [AtlasScenario(TimeoutMs = 180_000)]
     public async Task The_bucking_mill_cuts_a_debarked_trunk_into_debarked_logs()
     {
-        var pos = Sky(90, 30);
+        // On a floor of its own, its chunk columns loaded and kept: nothing else in this class keeps
+        // the ground near spawn loaded (Sky's spots rely on it).
+        var pos = await RosserSky(90, 30, reach: 10);
         var player = await Player("debarker");
+        await StandBy(player, pos);
         var mill = await PlaceMill(pos, "south");
         Assemble(mill, player);
         KillItemsNear(pos);
         Assert.Null(Click(player, pos, DebarkedTrunk("oak", 4)));
         Assert.True(mill.Trunk is { } loaded && Trunks.IsDebarked(loaded));
-        await Power(mill);
+        await Power(mill, fast: true);
         await World.Until(() => mill.Trunk == null, 6000);
 
         var items = ItemsNear(pos);

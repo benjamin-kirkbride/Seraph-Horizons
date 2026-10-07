@@ -138,8 +138,9 @@ at the machine in the game. Where a check now exists, it is named, so a new mode
 - **A player walks on top of the machine.** Boxes that match what is drawn leave gaps between
   them, and a player who drops into one (the mill's trough over its saws, the rosser's hollow cells
   and the spaces about its ring and rolls) is stuck among the boxes, or caught by the trunk moving
-  in. Both machines' rigs put a `lid` on every column's top cell: a thin collision-only box over
-  the whole cell at the deck's height. It must stay out of the selection boxes, or it takes the
+  in. The rigs put a `lid` on a column's top cell: a thin collision-only box over the whole cell at
+  the deck's height, on every column of the mill and the gear cutter and on the rosser's station
+  only (over its beds a lid would be an invisible floor two blocks above the rolls). It must stay out of the selection boxes, or it takes the
   clicks meant for the parts and the trunk under it.
 - **Boxes belong to cells.** A box taller than its cell needs a cell above to carry the rest; the
   top half of a thick trunk over the controller column still has no collision for this reason.

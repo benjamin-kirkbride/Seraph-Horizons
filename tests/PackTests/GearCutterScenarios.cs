@@ -1,3 +1,4 @@
+using Atlas.Api;
 using Atlas.XUnit;
 using SeraphHorizons.Mod.GearCutter;
 using SeraphHorizons.Mod.GearCutter.Core;
@@ -25,18 +26,20 @@ public partial class SharedWorldScenarios
     private GearCutterSystem CutterMod => GearCutterSystem.Of(World.Api);
     private GearCutterRig CutterRig => CutterMod.Rig ?? throw new Xunit.Sdk.XunitException("the gear cutter's rig did not load");
 
-    private static IPlayer? _cutterHand;
+    private static ITestPlayer? _cutterHand;
     private static object? _cutterWorld;
 
-    /// <summary>The gear cutter scenarios' player, in survival with an empty inventory and its keys up.</summary>
-    private async Task<IPlayer> CutterPlayer()
+    /// <summary>The gear cutter scenarios' player, in survival with empty hands and inventory and its
+    /// keys up. The trunk tool scenarios work with it too (<see cref="TrunkToolSetup"/>): the server
+    /// takes 16 players at most, and the other scenarios use the rest.</summary>
+    private async Task<ITestPlayer> CutterHand()
     {
         if (_cutterHand == null || !ReferenceEquals(_cutterWorld, World.Api))
         {
-            _cutterHand = (await World.JoinPlayer("gearcutterhand")).Player;
+            _cutterHand = await World.JoinPlayer("gearcutterhand");
             _cutterWorld = World.Api;
         }
-        var player = _cutterHand;
+        var player = _cutterHand.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
             foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
@@ -44,9 +47,13 @@ public partial class SharedWorldScenarios
                 slot.Itemstack = null;
                 slot.MarkDirty();
             }
+        player.Entity.LeftHandItemSlot.Itemstack = null;
+        player.Entity.LeftHandItemSlot.MarkDirty();
         player.Entity.Controls.CtrlKey = player.Entity.Controls.ShiftKey = false;
-        return player;
+        return _cutterHand;
     }
+
+    private async Task<IPlayer> CutterPlayer() => (await CutterHand()).Player;
 
     private ItemStack CutterItem(string code, int size = 1) =>
         W.GetItem(new AssetLocation(code)) is { } item ? new ItemStack(item, size) : throw new Xunit.Sdk.XunitException($"no item {code}");

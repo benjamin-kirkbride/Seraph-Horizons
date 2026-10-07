@@ -87,7 +87,10 @@ class Anchors(unittest.TestCase):
         for c in RIG["cells"]:
             self.assertFalse(c.get("hollow") and c.get("boxes"), c["pos"])
             self.assertTrue(c.get("hollow") or c.get("boxes"), c["pos"])     # (a cell with neither would be a full cube)
-        self.assertEqual(checks.lid_gaps(RIG["cells"]), [])
+        self.assertEqual(checks.lid_gaps(RIG["cells"], make_shape.shipped_station_column), [])
+        lidded = {(c["pos"][0], c["pos"][2]) for c in RIG["cells"] if "lid" in c}
+        self.assertEqual(len(lidded), 45)                                    # the station's 9 x 5, none over the beds
+        self.assertTrue(all(-12 <= x <= -4 for x, _ in lidded), lidded)
         power, water = tuple(RIG["powerCell"]), tuple(RIG["waterCell"])
         self.assertIn(power, cells)
         self.assertIn(water, cells)

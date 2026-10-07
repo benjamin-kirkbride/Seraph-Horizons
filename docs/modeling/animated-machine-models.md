@@ -238,7 +238,8 @@ That is the pattern to keep: **every review finding becomes a check**, so it can
 The schema is in the mill README's "Rig schema" section, what a trunk-path machine adds in the
 rosser README's, and the generic work in `docs/recipe-browser/models.md` ("The work and its
 drivers"). In short:
-- `cells` (with up to three boxes each, and a collision-only `lid` on each column's top cell),
+- `cells` (with up to three boxes each, and a collision-only `lid` on a column's top cell: every
+  column's for the mill and the gear cutter, the station's only for the rosser),
   `powerCell`, `powerFace`, `infeedSide`, `outputSide`,
   `output.pos`, `trunkBed` and `saw` are for gameplay;
 - `parts` is an ordered list of `{id, match, requires, ride, drivers}` for the renderer.
@@ -452,7 +453,7 @@ What did not:
    npm --prefix site run check && npm --prefix site test
    mkdir -p build/atlas-tmp
    TMPDIR=$PWD/build/atlas-tmp VINTAGE_STORY=$HOME/Games/vintagestory dotnet test tests/PackTests \
-     --filter "FullyQualifiedName~PackTests.WoodworkingScenarios.|FullyQualifiedName~SharedWorldScenarios.Locked_mod|FullyQualifiedName~SharedWorldScenarios.Server_boots"
+     --filter "FullyQualifiedName~PackTests.WoodworkingScenarios.|FullyQualifiedName~PackTests.WoodworkingRosserScenarios.|FullyQualifiedName~SharedWorldScenarios.Locked_mod|FullyQualifiedName~SharedWorldScenarios.Server_boots"
    rm -rf build/atlas-tmp
    ```
 10. Update the mod README (mechanism, rig schema, driver table, validation list, element prefixes).

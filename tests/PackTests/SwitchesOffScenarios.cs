@@ -11,10 +11,12 @@ using SeraphHorizons.Mod.MachineOil;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.TrunkEntities;
 using SeraphHorizons.Mod.Woodworking;
+using SeraphHorizons.RecipeExport;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.Common;
 using Vintagestory.GameContent;
 using Xunit.Abstractions;
@@ -392,6 +394,25 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(1, grid.Count(r => r.Output?.Code?.ToString() == BloodSausage.BlackPuddingRaw));
     }
 
+    /// <summary><c>DuplicateRecipes</c>: every duplicate as its mod ships it, Expanded Foods' offal-free
+    /// sausages and scrap brazier, Material Needs' aged wood recipes, the game's barrel cottage cheese
+    /// and its sandstone daub giving 8.</summary>
+    [AtlasScenario]
+    public void Duplicate_recipes_off_the_duplicates_are_as_they_ship()
+    {
+        Assert.True(Off("DuplicateRecipes"));
+        var api = (Vintagestory.API.Server.ICoreServerAPI)World.Api;
+        var sausages = Duplicates.SausageRecipes(api);
+        foreach (var file in Duplicates.EfSausageFiles)
+            Assert.Contains(sausages, f => f.Name?.ToString() == file && !Duplicates.TakesOffal(f));
+        Assert.Contains(W.GridRecipes, r => Duplicates.Out(r) == Duplicates.ScrapBrazier && Duplicates.From(r) == Duplicates.EfBrazierFile);
+        foreach (var output in Duplicates.AgedOutputs)
+            Assert.Contains(W.GridRecipes, r => Duplicates.Out(r) == output && Duplicates.FromMaterialNeeds(r));
+        Assert.Contains(W.GridRecipes, r => Duplicates.VeryAgedIronShield(r) && Duplicates.FromMaterialNeeds(r));
+        Assert.Contains(World.Api.GetBarrelRecipes(), r => r.Output?.Code?.ToString() == Duplicates.CottageCheese);
+        Assert.Contains(W.GridRecipes, r => Duplicates.SandstoneDaub(r) && r.Output.Quantity == 8);
+    }
+
     /// <summary><c>PanningDropsTrimmed</c>: panning as Wool, Tailor's Delight and Expanded Matter ship
     /// it, and their text as it ships.</summary>
     [AtlasScenario]
@@ -592,11 +613,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario]
     public void Unified_woodworking_off_the_export_lists_the_two_mods_guides()
     {
         Assert.True(Off("UnifiedWoodworking"));
-        var guides = ((JArray)ExportUnderTest.Get(World.Api)["guides"]!).OfType<JObject>().ToList();
+        var guides = Exporter.Guides((ICoreServerAPI)World.Api).OfType<JObject>().ToList();
         Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons");
         foreach (var (mod, code) in new[] { (WoodworkingMods.IwModId, "craftinginfo-woodworking"), (WoodworkingMods.LeModId, "introduction") })
             Assert.Single(guides, g => (string?)g["mod"] == mod && (string?)g["code"] == code);
@@ -637,6 +658,24 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(shop.Hand.Itemstack);
         // Immersive Woodworking's own yield: its hand value, 8.
         Assert.Equal(8, site.ChopOneLog());
+    }
+
+    /// <summary><c>RarerBattleTowers</c>: Battle Towers' three towers at the chances and spacings
+    /// it ships (1.1.0).</summary>
+    [AtlasScenario]
+    public void Rarer_battle_towers_off_towers_are_as_Battle_Towers_ships_them()
+    {
+        Assert.True(Off("RarerBattleTowers"));
+        var structures = Vintagestory.API.Datastructures.JsonObject.FromJson(
+                World.Api.Assets.Get(new AssetLocation("game", "worldgen/structures.json")).ToText())
+            ["structures"].AsArray()!;
+        foreach (var (code, chance, distance) in new[]
+                 { ("surfacetowers", 0.03, 200), ("surfacehardtowers", 0.005, 1000), ("undergroundtowers", 200.0, 50) })
+        {
+            var tower = Assert.Single(structures, s => s["code"].AsString() == code);
+            Assert.Equal(chance, tower["chance"].AsDouble(), 6);
+            Assert.Equal(distance, tower["minGroupDistance"].AsInt());
+        }
     }
 
     /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,

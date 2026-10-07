@@ -214,7 +214,11 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
                 if all(rules.is_schematic(a["code"]) for a in accepted):
                     continue  # a schematic: kept, worth nothing, never blocks the route
                 accepted = [a for a in accepted if not rules.is_schematic(a["code"])]
-                consumed = not d.get("isTool") and d.get("role") not in ("station", "tool", "kept") and idx not in kept
+                # Kept: a tool, a station, a fitted part ("kept" role, or the machine's kept list: the
+                # gear cutter's master), or a grid ingredient with consume false (the exporter writes
+                # extra.consumed false).
+                consumed = (not d.get("isTool") and d.get("role") not in ("station", "tool", "kept")
+                            and idx not in kept and (d.get("extra") or {}).get("consumed") is not False)
                 factor = 1.0
                 if vox and idx == 0 and vox["match"] in accepted[0]["code"]:
                     factor = units / max(_items(accepted[0]), 1.0)
@@ -1011,7 +1015,7 @@ def main(argv: list[str] | None = None) -> int:
         if name == "report":
             p.add_argument("--json", action="store_true", help="the report as JSON")
         if name == "check":
-            p.add_argument("--tradelists", type=Path, default=DEFAULT_TRADELISTS)
+            p.add_argument("--tradelists", type=Path, default=DEFAULT_TRADELISTS, help="the pack's trade lists")
             p.add_argument("--table", type=Path, default=DEFAULT_OUT, help="the shipped table, checked too")
     args = ap.parse_args(argv)
 
@@ -1067,6 +1071,11 @@ def main(argv: list[str] | None = None) -> int:
                       f"(in CI the export is this run's recipe-export artifact; locally "
                       f"'packtool.py smoke --export build/recipes.json' writes one, see tools/item-values/README.md)",
                       file=sys.stderr)
+        lists = trade_list_codes(args.tradelists)
+        if lists:
+            n = sum(len(v) for v in lists.values())
+            distinct = len({c for v in lists.values() for c in v})
+            print(f"validated {n} trade list items traders buy ({distinct} distinct codes) in {len(lists)} lists")
         dead, sold_only = unrouted(export, val, rules, args.tradelists)
         for p in problems + dead:
             print(p, file=sys.stderr)

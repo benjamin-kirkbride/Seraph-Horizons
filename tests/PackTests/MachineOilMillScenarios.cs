@@ -46,7 +46,7 @@ public partial class WoodworkingScenarios
         TurnToTop(mill);
         Assert.Null(Click(player, pos, Trunk("oak", 4)));
         Assert.NotNull(mill.Trunk);
-        await Power(mill);
+        await Power(mill, fast: true);
         await World.Until(() => mill.Trunk == null, 6000);
         Assert.Equal(500 - OilDrain.PerTrunk(4, oil.BuckingMill.DrainPerJob), mill.Oiling.Tank.Points, 3);
         Assert.Contains($"Oil: {500 - OilDrain.PerTrunk(4, oil.BuckingMill.DrainPerJob)} of 1000", Info(mill, player));

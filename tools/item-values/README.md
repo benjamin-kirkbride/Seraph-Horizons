@@ -16,7 +16,7 @@ VINTAGE_STORY=$HOME/Games/vintagestory python3 tools/packtool.py smoke --export 
 # CI checks is rebuilt from smoke's export:)
 mkdir -p build/atlas-tmp
 ITEM_VALUES_EXPORT=$PWD/build/recipes.json TMPDIR=$PWD/build/atlas-tmp VINTAGE_STORY=$HOME/Games/vintagestory \
-  dotnet test tests/PackTests --filter "FullyQualifiedName~TradingValuesScenarios"
+  dotnet test tests/PackTests --filter "FullyQualifiedName~PackTests.TradingScenarios.Export_is_written_when_asked"
 
 python3 tools/item-values/itemvalues.py build   build/recipes.json   # the table, plus build/item-values-report.md and .json
 python3 tools/item-values/itemvalues.py report  build/recipes.json   # the report only, to stdout (--json for JSON)
@@ -47,6 +47,10 @@ python3 -m unittest discover -s tools/tests -p test_item_values.py
   has no value although the handbook shows it (baby animals, locator maps, found hats) are counted
   and allowed: their lists price them.
 
+It prints how many trade list items traders buy it validated (and how many distinct codes, in how
+many lists). It works on an export with or without the pack's own mod: what the mod adds is then
+simply absent (but CI's export always has it, and so does the table).
+
 ## Rules
 
 The inputs are the export's recipes (every recipe type, each variant a route) and three item
@@ -72,9 +76,10 @@ floored at zero, where a slot costs its cheapest accepted stack; a grid ingredie
 cell of the pattern; a liquid counts 100 portions a litre; smithing uses filled voxels / 42 ingots
 and clay forming filled voxels / 25 clay; an alloy is its inputs at the middle of their ratios;
 cooking counts only the ingredients a meal needs (`minQuantity`); and a tool or container not
-consumed (`isTool`, a station, a machine's fitted part such as the gear cutter's master, an
-ingredient handed back) adds `toolFraction` (2%) of its value. A container handed back as something
-else (a bucket of milk gives back the bucket) costs the difference. Butchery, perishing and burning
+consumed (`isTool`, a station, a machine's fitted part such as the gear cutter's master: role
+`kept` or the record's `machine.kept`, a grid ingredient with consume false, one handed back) adds
+`toolFraction` (2%) of its value. A container handed back as something else (a bucket of milk
+gives back the bucket) costs the difference. Butchery, perishing and burning
 are not routes (one carcass gives a dozen things; hides and meat are raws instead).
 
 **Lotteries.** A `lottery` record (the oiled gear: one ingredient decided by chance into weighted
@@ -175,8 +180,10 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 ## Why these prices
 
 - **Reference.** Vanilla trade lists (`assets/survival/config/tradelists/`), where traders buy at
-  about half what they sell for. A value is what a trader that wants the item pays (#436), so the
-  target is vanilla's buy price, or between buy and sell where vanilla only sells.
+  about half what they sell for. A value is the item's worth on the table's scale, calibrated to
+  what a vanilla trader that wants the item pays (#436), so the target is vanilla's buy price, or
+  between buy and sell where vanilla only sells. What the pack's traders actually pay is a fifth of the value
+  (`BuySpread`, #506); what they ask is the value.
 - **Metal.** Vanilla sells 16 copper nuggets for 2 gears (0.125 each, 2.5 an ingot's worth) and buys
   a copper ingot for 1. Copper is 0.017 a unit: a nugget 0.085, an ingot 2.07 after smelting
   (+10%, +0.2 fuel). Vanilla buys tin at 2x copper, silver 3x, gold 4x; tin 0.035 (ingot 4.05), zinc
@@ -196,7 +203,12 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 - **Gems.** Rough gems at vanilla's prices (diamond and emerald about 10, olivine 5, garnet 2.5).
 - **Overrides.** The barrel (3 boards and 4 sticks make it 0.34, a cooper's work is worth more;
   vanilla sells it for 2) and the anvils (cast in molds, which the export does not carry: 9 ingots
-  plus labour).
+  plus labour). No gear is overridden: the steel gear takes its cheapest route (the gear cutter,
+  or the oiled gear's lottery, Lotteries above), and the large steel gear its gear cutter route.
+- **Schematics** have no value: they are kept on crafting, and traders are their only source, at
+  their lists' prices (the curio dealer, which also buys back Abyssal Depths' diving gear schematic
+  at its list's price, the mechanic, the smith, ...). A machine built with one is worth its parts
+  and labour.
 
 ## Known gaps
 

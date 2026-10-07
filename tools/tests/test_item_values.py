@@ -241,6 +241,96 @@ class ItemValuesTest(unittest.TestCase):
         self.assertTrue(val.source["game:mold-black-fired-axe"].startswith("default:siblings game:mold-*-fired-axe"))
         self.assertNotIn("game:other-black-fired-axe", val.value)  # the first segment must match
 
+    # ------------------------------------------------------------ schematics on trade lists (#506)
+
+    LISTS = {
+        "trader-carpenter.json": """{
+          // the pack's own list
+          selling: { list: [
+            { code: "seraphhorizons:schematic-windmill", stacksize: 1, price: { avg: 30, var: 3 } },
+            { code: "game:schematic-glider", stacksize: 1, price: { avg: 20 } },
+            { code: "game:log", stacksize: 4, price: { avg: 8 } },
+          ] },
+          buying: { list: [
+            { code: "game:schematic-glider", type: "item", stacksize: 1, price: { avg: 10 } },
+          ] }
+        }""",
+    }
+
+    def write_lists(self):
+        lists = self.dir / "tradelists"
+        lists.mkdir(exist_ok=True)
+        for name, text in self.LISTS.items():
+            (lists / name).write_text(text)
+        return lists
+
+    def gated_export(self, *extra_items):
+        # The windmill rotor, gated: 4 logs, a hammer (a tool) and the windmill schematic, kept (the
+        # exporter writes a grid ingredient with consume false as extra.consumed false).
+        items = {c: item() for c in ("game:log", "game:gem", "game:hammer", "game:windmillrotor-oak",
+                                     "seraphhorizons:schematic-windmill", "game:schematic-glider",
+                                     "seraphhorizons:schematic-unsold", *extra_items)}
+        return export(items, [
+            grid("grid|hammer|0", ["G"], {"G": ["game:gem"]}, st("game:hammer")),
+            grid("grid|rotor|0", ["LL", "LL", "HS"],
+                 {"L": ["game:log"], "H": ["game:hammer"], "S": ["seraphhorizons:schematic-windmill"]},
+                 st("game:windmillrotor-oak"), H={"isTool": True}, S={"extra": {"consumed": False}}),
+        ])
+
+    def test_schematics_traders_sell_stay_unpriced_and_add_nothing_to_a_gated_recipe(self):
+        # The trade lists sell and buy schematics, but they are free kept tools: never valued, and a
+        # gated recipe costs 4 logs + the hammer's tool fraction (10 x 0.1), nothing for the schematic.
+        ex = self.gated_export()
+        val, rules = self.solve(ex)
+        for code in ("seraphhorizons:schematic-windmill", "game:schematic-glider", "seraphhorizons:schematic-unsold"):
+            self.assertNotIn(code, val.value)
+        self.assertEqual(val.source["game:log"], "raw")
+        self.assertAlmostEqual(val.value["game:windmillrotor-oak"], 4.0 + 1.0)
+        self.assertNotIn("schematic", "\n".join(iv.explain(ex, val, rules, "game:windmillrotor-oak")))
+        self.assertEqual(iv.below_ingredients(ex, val, rules), [])
+        self.assertNotIn("schematic", iv.report(ex, val, rules)["sources"])
+
+    def test_kept_ingredients_that_are_not_schematics_keep_the_tool_fraction(self):
+        # consume false on a gem, and a gear cutter's master (role "kept"): kept, at the tool fraction.
+        items = {c: item() for c in ("game:log", "game:gem", "game:out", "game:cut")}
+        ex = export(items, [
+            grid("grid|out|0", ["LG"], {"L": ["game:log"], "G": ["game:gem"]}, st("game:out"),
+                 G={"extra": {"consumed": False}}),
+            recipe("gearcutter|game:log|0", "gearcutter",
+                   [st("game:log"), {**st("game:gem"), "role": "kept"}],
+                   [[st("game:log")], [st("game:gem")]], [st("game:cut")]),
+        ])
+        val, _ = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:out"], 1.0 + 10 * 0.1)
+        self.assertAlmostEqual(val.value["game:cut"], 1.0 + 1.0 + 10 * 0.1)  # mod: +1 flat
+
+    def test_check_with_and_without_the_mod(self):
+        lists = self.write_lists()
+        (lists / "trader-smith.json").write_text("""{
+          buying: { list: [ { code: "game:ingot", type: "item", price: { avg: 2 } } ] }
+        }""")
+        # With the mod: the schematics are in the export.
+        path = self.dir / "with.json"
+        path.write_text(json.dumps(self.gated_export("game:ingot")))
+        args = ("--rules", str(self.dir), "--tradelists", str(lists),
+                "--table", str(self.dir / "absent.json"))
+        code, text, err = self.run_cli("check", str(path), *args)
+        self.assertEqual(code, 1)  # game:ingot has no value
+        self.assertIn("validated 2 trade list items traders buy (2 distinct codes) in 2 lists", text)
+        self.assertIn("trader-smith.json: game:ingot has no value", err)
+        self.assertNotIn("glider", err)
+        # Without the mod: no seraphhorizons codes in the export, and the check still runs.
+        ex = self.gated_export("game:ingot")
+        ex["items"] = {c: v for c, v in ex["items"].items() if not c.startswith("seraphhorizons:")}
+        ex["recipes"] = [r for r in ex["recipes"] if r["id"] != "grid|rotor|0"]
+        ex["items"]["game:ingot"]["sources"] = [{"type": "traderBuys", "price": 2, "quantity": {"avg": 1}}]
+        path = self.dir / "without.json"
+        path.write_text(json.dumps(ex))
+        code, text, err = self.run_cli("check", str(path), *args)
+        self.assertEqual(code, 0, err)
+        self.assertIn("validated 2 trade list items", text)
+        self.assertIn("every item traders buy has a value", text)
+
     # ------------------------------------------------------------ CLI
 
     def run_cli(self, *args) -> tuple[int, str, str]:
@@ -586,6 +676,21 @@ class ShippedRulesTest(unittest.TestCase):
         rules = iv.Rules.load()
         self.assertEqual(rules.raws["game:gear-rusty"], 1)
         self.assertIn("grid", rules.markups)
+
+    def test_steel_gears_are_derived_not_overridden(self):
+        # The steel gear takes its cheapest route (the reclamation lottery or the gear cutter), and
+        # the large gear its gear cutter route (#506, #523): neither is pinned by hand.
+        rules = iv.Rules.load()
+        self.assertNotIn("seraphhorizons:gear-steel", rules.overrides)
+        self.assertNotIn("seraphhorizons:largegear-steel", rules.overrides)
+
+    def test_shipped_table_values_no_schematic(self):
+        # Schematics are free and never consumed: the table has none, though traders sell them.
+        if not iv.DEFAULT_OUT.exists():
+            self.skipTest("no shipped table")
+        rules = iv.Rules.load()
+        values = json.loads(iv.DEFAULT_OUT.read_text())["values"]
+        self.assertEqual([c for c in values if rules.is_schematic(c)], [])
 
     def test_shipped_table_shape(self):
         if not iv.DEFAULT_OUT.exists():

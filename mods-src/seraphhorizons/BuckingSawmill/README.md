@@ -497,7 +497,7 @@ Everything is in the native frame, in block units, with the controller at `[0,0,
 
 | Field | Meaning |
 |---|---|
-| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws at the top (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. `lid`, on the top cell of each column (x, z), is the cell-local height of the top of a collision-only box over the whole cell, 1/16 thick (`RigCell.LidBox`), from 1/16 to 1: the highest top of the boxes of the top cells in that layer (1 for a full cube), so the top is a deck. The generator writes them (`machinegen.checks.with_lids`) and fails on a column without one (`lid_gaps`). |
+| `cells` | Every cell the machine occupies, each with `pos` and `boxes`. `boxes` holds up to three collision/selection cuboids in cell-local 0..1 coordinates, derived from the elements in that cell with the saws at the top (depth 0, θ 0). Cells that hold nothing are omitted, so players can walk there. An empty or missing `boxes` means a full cube. `lid`, on the top cell of each column (x, z), is the cell-local height of the top of a collision-only box over the whole cell, 1/16 thick (`RigCell.LidBox`), from 1/16 to 1: the highest top of the boxes of the top cells in that layer (1 for a full cube), so the top is a deck. The generator writes them (`machinegen.checks.with_lids`) and fails on a column without one (`lid_gaps`); both take an optional column filter, which the rosser uses to lid its station only. |
 | `powerCell`, `powerFace` | The cell that takes the axle, and the native-frame face it connects on. |
 | `infeedSide`, `outputSide` | Native-frame sides: `west` (the axle end, where the rack stands and trunks slide in lengthwise) and `east` (the near end, the logs slide off it). |
 | `output.pos` | Where cut logs spawn: just beyond the east end (`[1.25, 0.625, 0.6875]`), at bed height on the bed's centre line. They get a small push east. |
@@ -668,8 +668,10 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
   durability is tripled. In creative, Ctrl + right click fits the parts one by one with nothing
   taken (not in survival, not with Shift), shows its help line, and on the assembled mill takes
   the kit back and fits a new one. They are part of `WoodworkingScenarios`, which shares one
-  server with the other woodworking scenarios, its ModConfig seeded from
-  `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and the cycle (an empty cycle
+  server with the other woodworking scenarios (the rosser's and the debarked trunk's run apart,
+  in `WoodworkingRosserScenarios`, on the same fixture), its ModConfig seeded from
+  `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and the cycle (a quarter turn
+  per stored log; an empty cycle
   is two turns). With the switch off, `SwitchesOffScenarios` requires no mill
   block, no recipe and nothing logged, and with `DurableSawmillBlades` off, Immersive Woodworking's
   own durabilities.

@@ -8,9 +8,10 @@
 #     address and holds it to that zip's sha256.
 # So what ships is exactly what was tested, and the two releases always describe
 # the same commit: one job, one ordering check (next's), the mod first and the
-# pack only after it. Versioned releases are release.yml's and mod-release.yml's
-# job and are not touched; the seraphhorizons-next tag matches neither's
-# trigger (v*, *-v*), and site-data skips it (not vX.Y.Z or next).
+# pack only after it. Versioned releases are release.yml's (the pack and its own
+# mod, together) and mod-release.yml's (the other mods-src mods) job and are not
+# touched; the seraphhorizons-next tag matches neither's trigger (v*, *-v*), and
+# site-data skips it (not vX.Y.Z or next).
 name: Next release
 
 on:
@@ -152,9 +153,9 @@ jobs:
                 | sed -n 's/^< /- removed /p; s/^> /- added /p' || true
             fi
           } > "$RUNNER_TEMP/notes.md"
-          prev=$(git describe --tags --abbrev=0 --match 'seraphhorizons-v*' "$SHA" 2>/dev/null || true)
+          prev=$(git describe --tags --abbrev=0 --match 'v*' "$SHA" 2>/dev/null || true)
           {
-            echo "Rolling build of \`mods-src/seraphhorizons\` on \`main\` at $SHA, the build the [\`next\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/next) Cairn pack installs. Replaced on every merge; use a versioned release (or the ModDB) for something that stays put."
+            echo "Rolling build of \`mods-src/seraphhorizons\` on \`main\` at $SHA, the build the [\`next\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/next) Cairn pack installs. Replaced on every merge; use a versioned release of the pack, which carries the mod, for something that stays put."
             echo
             echo "Mod version: **$VERSION** (modinfo.json, not stamped) · Game version: **$game** (built against; the mod requires $(jq -r .dependencies.game mods-src/seraphhorizons/modinfo.json) or later)"
             echo

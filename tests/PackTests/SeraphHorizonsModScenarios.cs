@@ -25,8 +25,8 @@ namespace SeraphHorizons.PackTests;
 /// stack that places the machine assembled, with a steel head or blade kit.
 /// WellShaftText: Hydrate or Diedrate's Wells page says how a shaft holds water, and wells built to
 /// each rule hold what it says.
-/// Also its ConfigKit settings (assets/seraphhorizons/config/configlib-patches.json), which thin out
-/// Battle Towers' surface towers. CartReach: the server runs the same entity selection code as the
+/// RarerBattleTowers: Battle Towers' three towers at the chances and spacings of
+/// assets/seraphhorizons/config/battletowers-rates.json. CartReach: the server runs the same entity selection code as the
 /// client, so the scenarios run it, and cart reach's second look, on the server's world against a
 /// Cartwright's cart (the patch itself is applied on the client only, which Atlas does not run).
 /// PanningDrops: no panning table in the loaded game gives wool, stitching awls, uranium nuggets or
@@ -142,22 +142,27 @@ public partial class SharedWorldScenarios
         Assert.Contains("no draught", Assert.Single(ChimneyVentText.LangEdits, edit => edit.Language == "en").New);
     }
 
-    // ConfigKit writes the settings into Battle Towers' own patch file, by position, before the
-    // game applies it. Fails when Battle Towers reorders that file or ConfigKit stops applying:
-    // match the paths in configlib-patches.json to the new layout.
+    // BattleTowers.MakeRarer rewrites Battle Towers' own patch file, each tower by its code, before
+    // the game applies it. Fails when Battle Towers renames or drops a tower, or stops adding them
+    // through that file: match BattleTowers.PatchAsset and battletowers-rates.json to it.
     [AtlasScenario]
-    public void Surface_battle_towers_are_thinned_out()
+    public void Battle_towers_are_rarer()
     {
         var structures = JsonObject.FromJson(
                 World.Api.Assets.Get(new AssetLocation("game", "worldgen/structures.json")).ToText())
             ["structures"].AsArray()!;
-        var towers = Assert.Single(structures, s => s["code"].AsString() == "surfacetowers");
-        Assert.Equal(0.01f, towers["chance"].AsFloat(), 4);
-        Assert.Equal(600, towers["minGroupDistance"].AsInt());
-        // The other two keep what Battle Towers ships.
-        var hard = Assert.Single(structures, s => s["code"].AsString() == "surfacehardtowers");
-        Assert.Equal(0.005f, hard["chance"].AsFloat(), 4);
-        Assert.Equal(1000, hard["minGroupDistance"].AsInt());
+        var rates = BattleTowerRates.ParseRates(World.Api.Assets.Get(BattleTowers.RatesAsset).ToText());
+        Assert.Equal(3, rates.Count);
+        foreach (var (code, rate) in rates)
+        {
+            var tower = Assert.Single(structures, s => s["code"].AsString() == code);
+            Assert.Equal(rate.Chance, tower["chance"].AsDouble(), 6);
+            if (rate.MinGroupDistance is { } distance)
+                Assert.Equal(distance, tower["minGroupDistance"].AsInt());
+        }
+        // The underground towers keep Battle Towers' spacing (the game ignores it for them).
+        var underground = Assert.Single(structures, s => s["code"].AsString() == "undergroundtowers");
+        Assert.Equal(50, underground["minGroupDistance"].AsInt());
     }
 
     private const string SteamSource = "seraphhorizons:" + CreativeSteamSource.BlockCode;

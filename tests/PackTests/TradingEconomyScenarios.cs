@@ -6,7 +6,6 @@ using SeraphHorizons.Mod.Trading.Economy.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -17,33 +16,13 @@ namespace SeraphHorizons.PackTests;
 /// shelf once supply is high enough. Deals go through vanilla's own <c>InventoryTrader.TryBuySell</c>
 /// (what the dialog's Buy / Sell button sends), with the goods put straight into the selling cart.
 /// </summary>
-[AtlasWorld]
-public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class TradingScenarios
 {
-    private ICoreServerAPI Api => World.Api;
-    private IWorldAccessor W => World.Api.World;
-    private EconomySystem Economy => EconomySystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no EconomySystem");
-
     private const string Iron = "game:ingot-iron";
 
-    private async Task<EntitySeraphTrader> Spawn(string type, int dx, int dz)
-    {
-        var pos = World.Spawn.AddCopy(dx, 0, dz);
-        pos.Y = W.BlockAccessor.GetTerrainMapheightAt(pos) + 1;
-        var props = W.GetEntityType(new AssetLocation("seraphhorizons", $"trader-male-{type}-temperate"))!;
-        var trader = (EntitySeraphTrader)W.ClassRegistry.CreateEntity(props);
-        trader.Pos.SetPos(pos.X + 0.5, pos.Y, pos.Z + 0.5);
-        W.SpawnEntity(trader);
-        await World.Ticks(5);
-        return trader;
-    }
-
-    private async Task<IServerPlayer> Seller(string name)
-    {
-        var player = (await World.JoinPlayer(name)).Player;
-        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        return player;
-    }
+    /// <summary>The customer, as a seller standing wherever it is: these deals go straight through
+    /// <c>TryBuySell</c>.</summary>
+    private async Task<IServerPlayer> Seller() => (IServerPlayer)(await Customer()).Player;
 
     private ItemStack Stack(string code, int size)
     {
@@ -56,16 +35,14 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
     private static EnumTransactionResult Deal(InventoryTrader inv, IPlayer player) =>
         (EnumTransactionResult)AccessTools.Method(typeof(InventoryTrader), "TryBuySell").Invoke(inv, [player])!;
 
-    private static int Gears(IPlayer player) => InventoryTrader.GetPlayerAssets(player.Entity);
-
     private static double PerItem(Offer o) => o.UnitPrice / (double)o.UnitSize;
 
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_trader_buys_goods_off_its_list_from_its_side_budget_and_supply_rises_then_decays()
     {
-        Economy.Supply.Clear();
-        var trader = await Spawn("generalstore", 30, -30);
-        var player = await Seller("offlistseller");
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", 30, -30);
+        var player = await Seller();
         var inv = trader.Inventory;
         string region = EconomySystem.RegionOf(trader);
         Assert.True(EconomySystem.IsPriced(trader), "the trader is not priced");
@@ -78,7 +55,8 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
         output.WriteLine($"offer for iron at the general store: {before}");
         Assert.True(before.Accepted, before.Refusal.ToString());
         Assert.Equal(Budget.Side, before.Budget);
-        Assert.Equal(0.2, before.Fit, 3);
+        Assert.Equal(0.5, before.Fit, 3);
+        Assert.Equal(Pricing.DefaultBuySpread, before.Spread, 3);
         Assert.True(before.UnitPrice > 0);
         Assert.True(inv.IsTraderInterestedIn(ingots), "the selling cart would not take an off-list good");
         Assert.Contains("side budget", EconomyPatches.Describe(inv, ingots));
@@ -115,13 +93,15 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
         Assert.True(recovered.Supply > after.Supply);
         Assert.True(PerItem(recovered) >= PerItem(after));
         trader.Die(EnumDespawnReason.Removed);
+        FreshSupply();
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Worthless_goods_and_money_are_refused()
     {
-        var trader = await Spawn("generalstore", -30, 30);
-        var player = await Seller("worthlessseller");
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", -30, 30);
+        var player = await Seller();
         var inv = trader.Inventory;
         var stone = Stack("game:stone-granite", 64);
         Assert.Equal(Refusal.Worthless, Economy.QuoteOffList(trader, stone).Refusal);
@@ -140,8 +120,9 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task More_than_the_side_budget_is_refused_and_nothing_moves()
     {
-        var trader = await Spawn("generalstore", 40, 40);
-        var player = await Seller("greedyseller");
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", 40, 40);
+        var player = await Seller();
         var inv = trader.Inventory;
         EconomySystem.SetSideBudget(trader, 1);
         int main = inv.GetTraderAssets(), gears = Gears(player);
@@ -158,9 +139,9 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Selling_metal_to_the_smith_puts_it_on_the_shelves_after_the_next_restock()
     {
-        Economy.Supply.Clear();
-        var smith = await Spawn("smith", -40, -40);
-        var player = await Seller("ironseller");
+        FreshSupply();
+        var smith = await SpawnTrader("smith", -40, -40);
+        var player = await Seller();
         var inv = smith.Inventory;
         string region = EconomySystem.RegionOf(smith);
         bool Shelved(string code) => inv.SellingSlots.Any(s => s.Itemstack?.Collectible.Code.ToString() == code && s.TradeItem.Stock > 0);
@@ -170,13 +151,20 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
         var buying = inv.GetBuyingConditionsSlot(Stack(Iron, 1));
         Assert.True(buying is not null and not OffListSlot, "the smith does not list iron");
         int price = buying!.TradeItem.Price, budget = EconomySystem.SideBudgetOf(smith);
+        // Per item: a cheaper price may buy by a bigger unit (Pricing.Listed).
+        static double PerItemOf(ItemSlotTrade slot) => slot.TradeItem.Price / (double)Math.Max(1, slot.TradeItem.Stack.StackSize);
+        double perItem = PerItemOf(buying);
         inv.GetSellingCartSlot(0).Itemstack = Stack(Iron, 8);
         Assert.Equal(EnumTransactionResult.Success, Deal(inv, player));
         Assert.Equal(budget, EconomySystem.SideBudgetOf(smith));
         double level = Economy.Supply.Level(region, Iron);
-        output.WriteLine($"sold 8 iron at {price}: level {level:0.###}; buying price now {inv.GetBuyingConditionsSlot(Stack(Iron, 1))!.TradeItem.Price}");
+        var now = inv.GetBuyingConditionsSlot(Stack(Iron, 1))!;
+        output.WriteLine($"sold 8 iron at {price}: level {level:0.###}; buying price now {now.TradeItem.Price} per {now.TradeItem.Stack.StackSize}");
         Assert.True(level >= Economy.Supply.Settings.ShelfMinLevel, $"level {level}");
-        Assert.True(inv.GetBuyingConditionsSlot(Stack(Iron, 1))!.TradeItem.Price < price, "the listed price did not fall");
+        // The pay is a fifth of value, a gear or so an ingot, so whole gears may hide the fall: the
+        // factor shows it, and the price per item never rises.
+        Assert.True(EconomySystem.SupplyFactor(smith, Iron) < 1, "the listed price did not fall");
+        Assert.True(PerItemOf(now) <= perItem, $"{PerItemOf(now)} an ingot is over {perItem}");
 
         smith.Restock(1.1f);
         var shelf = inv.SellingSlots.FirstOrDefault(s => s.Itemstack?.Collectible.Code.ToString() == Iron);
@@ -199,6 +187,7 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
         output.WriteLine(trace.Message);
         Assert.True(trace.Ok, trace.Message);
         smith.Die(EnumDespawnReason.Removed);
+        FreshSupply();
     }
 
     private TradeEntryProbe? TradeListsBuy(EntitySeraphTrader trader, string code)
