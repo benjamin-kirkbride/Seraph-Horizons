@@ -9,8 +9,10 @@ CI's smoke job dumps `recipes.json` from the server and uploads it as the
 `recipe-export` artifact. `tools/site-data validate` checks it in the same CI run,
 so a pull request that breaks the export fails CI.
 
-Both release workflows attach it as `<pack id>_<version>_recipes.json`, next to the
-other `dist/` files, and add its hash to `SHA256SUMS`:
+Both release workflows attach it next to the other `dist/` files, and add its hash to
+`SHA256SUMS`, as `<pack id>_<version>_recipes.json`, or on `next`
+`<pack id>_next_recipes.json` (every file there says `next` where a versioned release's says
+the version). Nothing reads a version from the file name: a release's id is its tag.
 
 - `release.yml` (tag `vX.Y.Z`) downloads the artifact from the CI run it calls.
 - `next.yml` (every push to main that passes CI) downloads it from the CI run it

@@ -1,6 +1,6 @@
 # Tag vX.Y.Z (matching pack.toml's version, which is also mods-src/seraphhorizons'
 # version) to publish one GitHub Release for the pack and its own mod: the mod's zip,
-# seraphhorizons_X.Y.Z.zip, built from the tagged commit, and the pack's meta-mod, .cairn
+# seraphhorizons_X.Y.Z.zip, built from the tagged commit, and the pack's .cairn
 # pack file, mod list, server bundle and the recipe export the recipe browser reads
 # (pages.yml deploys it afterwards). The .cairn file fetches the mod from this release
 # by address and holds it to the zip's sha256; the server bundle carries the zip. The
@@ -94,7 +94,7 @@ jobs:
           {
             echo "Game version: **$(jq -r .pack.game_version pack/lock.json)**"
             echo
-            echo "\`${ZIP##*/}\` is the pack's own mod, Seraph Horizons $(jq -r .version mods-src/seraphhorizons/modinfo.json), built from this tag. The \`.cairn\` file installs it from this release and checks its sha256, and the server bundle carries it; the meta-mod and the mod list name the ModDB mods below only, so add it to \`Mods/\` yourself with those."
+            echo "\`${ZIP##*/}\` is the pack's own mod, Seraph Horizons $(jq -r .version mods-src/seraphhorizons/modinfo.json), built from this tag. The \`.cairn\` file installs it from this release and checks its sha256, and the server bundle carries it; the mod list names the ModDB mods below only, so add it to \`Mods/\` yourself with that."
             echo
             echo "| mod | version | license |"
             echo "|---|---|---|"
