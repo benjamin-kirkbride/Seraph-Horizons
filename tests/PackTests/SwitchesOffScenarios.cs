@@ -182,6 +182,25 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>FlatFellingWear</c>: nothing is patched, and felling a tree that leaves a trunk
+    /// costs the axe the game's one durability per log.</summary>
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task Flat_felling_wear_off_felling_costs_a_log_each()
+    {
+        Assert.True(Off("FlatFellingWear"));
+        Assert.False(FellingWear.Patched);
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-300, 90, 1200));
+        var log = await Felling.Grow(World, site, Felling.Oak, 1.0f, 101);
+        var (_, wood) = Felling.Tree(W, (ItemAxe)W.GetItem(new AssetLocation("game:axe-felling-iron")), log);
+        Assert.True(wood > 4, $"an oak of {wood} logs from {log} {W.BlockAccessor.GetBlock(log).Code}");
+        var (player, slot, axe) = await Felling.Feller(World, "vanillafeller");
+
+        int lost = await Felling.Fell(World, player, slot, axe, log);
+
+        Assert.Equal(wood, lost);
+        Assert.NotEmpty(Felling.TrunksNear(World, site));
+    }
+
     /// <summary><c>GearBlanks</c>: no gear blanks, no gear blank molds and no recipes for either,
     /// and nothing logged about them.</summary>
     [AtlasScenario]
