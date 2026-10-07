@@ -672,4 +672,13 @@ public class SeraphHorizonsConfig
     /// <summary>The gear cutter's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public GearCutterConfig GearCutterSettings { get; set; } = new();
+
+    /// <summary>Pack version check (PackCheck/, README "Pack version check"): each side compares its
+    /// loaded mods and game version with the pack this build was released with (pack/lock.json,
+    /// built in): a locked mod at another version or missing, a mod the pack does not have, another
+    /// game version, or this mod at another version than the pack's. The server logs a warning for
+    /// each and tells a joining admin in chat; a client shows a dialog once in the world, until the
+    /// player dismisses that set of findings. Each side's own setting decides for it; off means
+    /// nothing is checked.</summary>
+    public bool PackVersionCheck { get; set; } = true;
 }
