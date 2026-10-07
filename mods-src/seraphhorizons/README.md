@@ -21,8 +21,8 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach and
-the creative search tweaks run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
+icon reset and the creative search tweaks run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block).
@@ -225,6 +225,41 @@ exactly one `GetEntitiesAround` call in it, which a postfix does not add to (Har
 transpilers the method's body, never another mod's prefixes or postfixes, whichever loads first);
 `evilinteractionrangehack` transpiles the server's `HandleEntityInteraction`, which this tweak does
 not touch. The pure logic (which codes match, when a far hit wins) is `Core/EntityReach.cs`.
+
+### Carry On's help icons are built for each world (`CarryOnIconsPerWorld`)
+
+Carry On (`carryon` 2.0.0-pre.8), #401, upstream
+[NerdScurvy/CarryOn#87](https://github.com/NerdScurvy/CarryOn/issues/87). Looking at a carryable
+block (a chest, a crate, a barrel) in the second world of one client run crashes the client when the
+two worlds number their items differently:
+
+```
+System.Exception: Error while rendering item in slot Vintagestory.API.Common.DummySlot (1x Item Id 13955, Code carryon:icon-handsfree)
+ ---> System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Vintagestory.Client.NoObf.InventoryItemRenderer.GetItemStackRenderInfo(...)
+```
+
+Carry On builds the item stacks its interaction help shows (`carryon:icon-handsfree`,
+`-nohandsfree`, `-put` and `-take`) the first time it needs them and keeps them in static fields that
+nothing clears, so the next world in the same client run is shown the first world's `Item` objects
+and the renderer indexes past the end of its item model array. There are seven such fields, all of
+the static item stack fields in Carry On's assembly: `handsfreeStacks` and `nohandsfreeStacks` of
+`CarryableInteractionHelpBuilder` (blocks) and of `EntityCarriedBlock` (a dropped carried block), and
+`putStacks`, `takeStacks` and `nohandsfreeStacks` of `EntityBehaviorAttachableCarryable` (cart and
+boat slots).
+
+`CarryOnIcons` sets all seven back to null when the client leaves a world (the client's
+`SeraphHorizonsSystem` is disposed), and once more when the client side starts, before the new world
+draws anything. Each field is filled only while it is null, so the next world's first interaction
+help builds them from its own items. It is a world-leave hook and not a Harmony patch: Carry On's code
+is right for one world, only the state it keeps between worlds is wrong. The server never builds
+these stacks (interaction help is the client's), so nothing happens there. Carry On is found by its
+mod system's name (`CarryOn.CarrySystem`); a field that is gone or no longer an `ItemStack[]` is
+logged as a warning and left out, and the client logs how many fields it clears. Without the tweak,
+restart the client before opening another world.
+
+Remove this tweak once Carry On clears the fields itself (upstream #87) and the pack pins that
+version.
 
 ### Every food has a hydration value (`FoodHydration`)
 
@@ -2516,6 +2551,14 @@ and acts there is checked by hand in the game.
 It also requires each Immersive Woodworking frame to have the assembled creative stack next to the
 plain one, named after the machine, and places both: the plain frame is incomplete, and the
 assembled one is complete with a steel head or blade kit and drops its parts.
+
+`tests/PackTests/CarryOnIconsScenarios.cs` (Atlas) requires the pinned Carry On's static fields that
+can hold an item stack or a collectible to be exactly the seven `CarryOnIcons` clears (a Carry On
+update that adds, renames or retypes one fails it), and `CarryOnIcons.Find` to find all seven. It
+then runs Carry On's block interaction help on the server's world for a chest (initialising the help
+builder as Carry On's client does, and putting it back): the stacks are built once and kept, cleared
+by `CarryOnIcons.Clear`, and built again from the world's items. That a client leaving one world and
+opening another no longer crashes is checked by hand in the game, since Atlas runs no client.
 
 `tests/PackTests/AgeOfFlaxRebalanceScenarios.cs` (Atlas) reads the loaded ripples' and hatchels'
 yields (what the tools use, set from the patched balance file), requires steel and no iron in the
