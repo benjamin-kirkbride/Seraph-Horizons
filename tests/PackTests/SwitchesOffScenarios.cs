@@ -618,6 +618,24 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(8, site.ChopOneLog());
     }
 
+    /// <summary><c>RarerBattleTowers</c>: Battle Towers' three towers at the chances and spacings
+    /// it ships (1.1.0).</summary>
+    [AtlasScenario]
+    public void Rarer_battle_towers_off_towers_are_as_Battle_Towers_ships_them()
+    {
+        Assert.True(Off("RarerBattleTowers"));
+        var structures = Vintagestory.API.Datastructures.JsonObject.FromJson(
+                World.Api.Assets.Get(new AssetLocation("game", "worldgen/structures.json")).ToText())
+            ["structures"].AsArray()!;
+        foreach (var (code, chance, distance) in new[]
+                 { ("surfacetowers", 0.03, 200), ("surfacehardtowers", 0.005, 1000), ("undergroundtowers", 200.0, 50) })
+        {
+            var tower = Assert.Single(structures, s => s["code"].AsString() == code);
+            Assert.Equal(chance, tower["chance"].AsDouble(), 6);
+            Assert.Equal(distance, tower["minGroupDistance"].AsInt());
+        }
+    }
+
     /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,
     /// <c>RarerDistricts</c>, <c>PlacerFields</c>: a world created with them off records them off,
     /// Interesting Ore Gen's spacing filter is not patched, and the deposits are as the mods ship
