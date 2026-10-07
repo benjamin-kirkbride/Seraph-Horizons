@@ -1,14 +1,17 @@
 <script lang="ts">
   // #/<version>/values: the pack's price table, every item with a value. It reads only
   // search.json, which the app has already loaded, and shows PAGE_SIZE rows at a time: the
-  // filter and the sort run over all 25,000 or so rows (ValueTable), the DOM holds a page.
+  // filter and the sort run over all 25,000 or so items (ValueTable), the DOM holds a page.
+  // Variants Tidy Variants groups into one tile are one row when they share a price, and the
+  // row opens to list them; an export without groups gets a row per item.
+  import { SvelteSet } from "svelte/reactivity";
   import type { Meta, SearchFile } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
   import { pageLinks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
-  import { isFloorZero, valueOf, ValueTable, type SortDir, type ValueColumn } from "../lib/values.ts";
+  import { isFloorZero, itemCount, ValueTable, type SortDir, type ValueColumn, type ValueRow } from "../lib/values.ts";
   import GearValue from "./GearValue.svelte";
   import Icon from "./Icon.svelte";
   import ModLink from "./ModLink.svelte";
@@ -26,6 +29,8 @@
   let dir = $state<SortDir>("desc");
   let unvalued = $state(false);
   let page = $state(1);
+  /** Open group rows, by their first item. */
+  const open = new SvelteSet<number>();
 
   $effect(() => {
     data.searchFile().then(
@@ -53,6 +58,11 @@
 
   const ariaSort = (c: ValueColumn) => (c === column ? (dir === "asc" ? "ascending" : "descending") : "none");
   const switchesOf = (i: number) => file?.valueSwitches?.[String(i)];
+  const toggle = (row: ValueRow) => {
+    const key = row.items[0]!;
+    if (open.has(key)) open.delete(key);
+    else open.add(key);
+  };
 </script>
 
 {#snippet pager(where: string)}
@@ -79,6 +89,7 @@
 {:else if table.valued === 0}
   <p>{t.valuesNone}</p>
 {:else}
+  {#if table.grouped}<p class="muted">{t.valuesGroupedNote}</p>{/if}
   <div class="controls">
     <label class="filter">
       <span>{t.valuesFilter}</span>
@@ -96,7 +107,9 @@
       <input type="checkbox" bind:checked={unvalued} onchange={() => (page = 1)} />
       <span>{t.valuesUnvalued}</span>
     </label>
-    <p class="muted count" role="status" data-testid="values-count">{t.valuesCount(rows.length)}</p>
+    <p class="muted count" role="status" data-testid="values-count">
+      {table.grouped ? t.valuesRowCount(rows.length, itemCount(rows)) : t.valuesCount(rows.length)}
+    </p>
   </div>
 
   {#if rows.length === 0}
@@ -117,19 +130,58 @@
           </tr>
         </thead>
         <tbody>
-          {#each shown as i (i)}
+          {#each shown as row (row.items[0])}
+            {@const i = row.items[0]!}
             {@const code = file.codes[i]!}
-            {@const name = file.names[i]!}
-            {@const value = valueOf(file, i)}
+            {@const label = table.label(row)}
+            {@const value = table.value(row)}
             {@const switches = switchesOf(i)}
-            <tr data-code={code}>
+            {@const isOpen = open.has(i)}
+            <tr
+              data-code={row.group === undefined ? code : undefined}
+              data-group={row.group === undefined ? undefined : label}
+              data-items={row.group === undefined ? undefined : row.items.length}
+            >
               <td class="name">
-                <a class="item" href={formatRoute({ view: "item", version: data.id, code })}>
-                  <Icon {code} size={24} label={initials(name)} />
-                  <span class="text"><span class="label">{name}</span> <code class="muted">{code}</code></span>
-                </a>
+                {#if row.group === undefined}
+                  <a class="item" href={formatRoute({ view: "item", version: data.id, code })}>
+                    <Icon {code} size={24} label={initials(label)} />
+                    <span class="text"><span class="label">{label}</span> <code class="muted">{code}</code></span>
+                  </a>
+                {:else}
+                  <div class="item">
+                    <Icon {code} size={24} label={initials(label)} />
+                    <span class="text"><span class="label group-title">{label}</span></span>
+                    <button
+                      type="button"
+                      class="variants"
+                      aria-expanded={isOpen}
+                      aria-controls={isOpen ? `variants-${i}` : undefined}
+                      title={isOpen ? t.valuesHideVariants : t.valuesShowVariants}
+                      onclick={() => toggle(row)}
+                      data-testid="values-group-toggle"
+                    >
+                      {t.valuesVariants(row.items.length, row.groupSize ?? row.items.length)}<span class="arrow" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
+                    </button>
+                  </div>
+                  {#if isOpen}
+                    <ul class="members" id="variants-{i}" data-testid="values-group-members">
+                      {#each row.items as m (m)}
+                        {@const mcode = file.codes[m]!}
+                        <li data-code={mcode}>
+                          <a class="item" href={formatRoute({ view: "item", version: data.id, code: mcode })}>
+                            <Icon code={mcode} size={20} label={initials(file.names[m]!)} />
+                            <span class="text"><span class="member">{file.names[m]}</span> <code class="muted">{mcode}</code></span>
+                          </a>
+                        </li>
+                      {/each}
+                    </ul>
+                  {/if}
+                {/if}
               </td>
-              <td class="mod muted"><ModLink id={file.mods[file.mod[i]!]!} mods={meta.mods} /></td>
+              <td class="mod muted">
+                {#each table.modsOf(row) as id, n (id)}{#if n > 0}, {/if}<ModLink {id} mods={meta.mods} />{/each}
+              </td>
               <td class="value">
                 {#if value !== undefined}
                   <GearValue {value} floorZero={isFloorZero(file, i)} title={switches ? t.valueSwitchesHint(switches) : undefined} />
@@ -218,6 +270,14 @@
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
   }
+  /* An open group's list makes the row tall; its mod and value stay by its title. */
+  tr[data-group] td {
+    vertical-align: top;
+  }
+  tr[data-group] td.mod,
+  tr[data-group] td.value {
+    padding-top: 0.45rem;
+  }
   tbody tr:hover {
     background: var(--surface-2);
   }
@@ -231,8 +291,34 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .label {
+  .label,
+  .member {
     text-decoration: underline;
+  }
+  .group-title {
+    text-decoration: none;
+  }
+  .variants {
+    font: inherit;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    color: inherit;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.05rem 0.45rem;
+    cursor: pointer;
+  }
+  .variants .arrow {
+    margin-left: 0.3rem;
+    width: auto;
+  }
+  .members {
+    list-style: none;
+    margin: 0.25rem 0 0.35rem 2rem;
+    padding: 0;
+    display: grid;
+    gap: 0.15rem;
   }
   .text code {
     font-size: 0.8rem;

@@ -771,5 +771,9 @@
   },
   "guides": [
     { "code": "craftinginfo-knapping", "title": "Knapping", "text": "Strike a flint against a stone to knap it.", "mod": "game" }
-  ]
+  ],
+  "variantGroups": {
+    "auto:game:plank": { "title": "Plank", "members": ["game:plank-oak", "game:plank-birch"] },
+    "auto:game:supportbeam": { "title": "Support beam", "members": ["game:supportbeam-oak", "game:supportbeam-birch"] }
+  }
 }

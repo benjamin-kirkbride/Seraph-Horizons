@@ -3,7 +3,7 @@
 // and the data are always built together, so there is no migration.
 import type { ItemAttributes, Mod, Recipe, Shape, Source } from "./export.ts";
 
-export const DATA_FORMAT = 3;
+export const DATA_FORMAT = 4;
 
 /** data/versions.json, written by tools/site-data. */
 export interface VersionsFile {
@@ -77,6 +77,12 @@ export interface SearchFile {
   value?: (number | null)[];
   /** Item index, as a string, to the config switches its value depends on. Only items that have some. */
   valueSwitches?: Record<string, string[]>;
+  /**
+   * Tidy Variants' groups (the export's `variantGroups`), for the values page: `titles[g]`
+   * is group g's title and `members[g]` its item indices, best representative first. An
+   * item is in at most one group. Absent when the export has none.
+   */
+  groups?: { titles: string[]; members: number[][] };
 }
 
 export const FLAG_HANDBOOK = 1;

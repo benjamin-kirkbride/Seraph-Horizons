@@ -1,5 +1,6 @@
 // Item values. The test server writes E2E_VALUES over the export's (and gives an export
 // without values made-up ones on nine items in ten), so these numbers hold for any export.
+// It adds E2E_GROUPS to the export's variant groups the same way.
 import { V, expect, openItem, search, test } from "./fixtures.ts";
 
 test("an item's header shows its value after the gear icon, or that it has none", async ({ page }) => {
@@ -56,8 +57,10 @@ test("the values page lists every valued item, sorts on each column and filters"
   const table = page.getByTestId("values");
   const rows = table.locator("tbody tr");
   await expect(rows).toHaveCount(100);
-  const count = Number((await page.getByTestId("values-count").textContent())!.replace(/\D/g, ""));
-  expect(count).toBeGreaterThan(1000);
+  // Grouped variants make fewer rows than items: "1,234 rows, 25,112 items".
+  const [rowCount, itemCount] = (await page.getByTestId("values-count").textContent())!.match(/\d[\d,]*/g)!.map((n) => Number(n.replace(/,/g, "")));
+  expect(rowCount).toBeGreaterThan(1000);
+  expect(itemCount).toBeGreaterThan(rowCount!);
 
   const column = (n: number) => rows.evaluateAll((trs, n) => trs.map((tr) => tr.children[n]!.textContent!.trim()), n);
   const numbers = async () =>
@@ -99,7 +102,8 @@ test("the values page lists every valued item, sorts on each column and filters"
 
 test("the values page can list the items without a value, last whichever way it sorts", async ({ page }) => {
   await page.goto(`./#/${V}/values`);
-  const count = async () => Number((await page.getByTestId("values-count").textContent())!.replace(/\D/g, ""));
+  // The number of rows, the first of the count line's two numbers.
+  const count = async () => Number((await page.getByTestId("values-count").textContent())!.match(/\d[\d,]*/)![0].replace(/,/g, ""));
   await expect(page.getByTestId("values").locator("tbody tr")).toHaveCount(100);
   const valued = await count();
   await page.getByLabel("Include items with no value").check();
@@ -116,4 +120,49 @@ test("the values page can list the items without a value, last whichever way it 
     expect(cells.at(-1)!.trim()).toBe("–");
     await nav.getByRole("button", { name: "1", exact: true }).click();
   }
+});
+
+test("the values page shows a group's variants that share a price as one row, which opens to list them", async ({ page }) => {
+  await page.goto(`./#/${V}/values`);
+  const table = page.getByTestId("values");
+  await page.getByTestId("values-filter").fill("E2E ingots");
+  // Tin, zinc and bismuth share 4 gears; lead, at 6, is a row of its own and does not carry the title.
+  const group = table.locator('tr[data-group="E2E ingots"]');
+  await expect(table.locator("tbody tr")).toHaveCount(1);
+  await expect(page.getByTestId("values-count")).toHaveText("1 row, 3 items");
+  await expect(group).toHaveAttribute("data-items", "3");
+  await expect(group.locator("td.name .label")).toHaveText("E2E ingots");
+  await expect(group.locator("td.value")).toHaveText("4 rusty gears");
+  // All four ingots come from one mod (survival, in the vanilla game), named once.
+  await expect(group.locator("td.mod [data-mod]")).toHaveCount(1);
+  // The best-ranked member's icon (here its placeholder: the server has no icon for it) stands for the row.
+  await expect(group.locator('td.name [data-icon-placeholder="game:ingot-tin"]')).toBeVisible();
+
+  const toggle = group.getByTestId("values-group-toggle");
+  await expect(toggle).toHaveText(/^3 of 4 variants/);
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(group.getByTestId("values-group-members")).toHaveCount(0);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const members = group.getByTestId("values-group-members").locator("li");
+  // In rank order, each with its name and code.
+  await expect(members).toHaveCount(3);
+  expect(await members.evaluateAll((lis) => lis.map((li) => li.getAttribute("data-code")))).toEqual(["game:ingot-tin", "game:ingot-zinc", "game:ingot-bismuth"]);
+  await expect(members.first().locator("code")).toHaveText("game:ingot-tin");
+
+  // A member's name or code finds its group's row; lead's own row is found the same way.
+  await page.getByTestId("values-filter").fill("ingot zinc");
+  await expect(table.locator("tbody tr")).toHaveCount(1);
+  await expect(group).toBeVisible();
+  await page.getByTestId("values-filter").fill("game:ingot-lead");
+  await expect(table.locator('tr[data-code="game:ingot-lead"] td.value')).toHaveText("6 rusty gears");
+
+  // A group whose variants all share a price says so without "of".
+  await page.getByTestId("values-filter").fill("E2E planks");
+  await expect(table.locator('tr[data-group="E2E planks"]').getByTestId("values-group-toggle")).toHaveText(/^3 variants/);
+
+  // The members link to their pages.
+  await page.getByTestId("values-filter").fill("E2E ingots");
+  await members.nth(1).locator("a.item").click();
+  await expect(page).toHaveURL(new RegExp(`#/${V}/item/game:ingot-zinc$`));
 });

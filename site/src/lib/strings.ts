@@ -280,6 +280,14 @@ const en = {
   valuesFilterPlaceholder: "Name, code or mod, e.g. copper",
   valuesUnvalued: "Include items with no value",
   valuesCount: (n: number) => `${n.toLocaleString("en")} item${n === 1 ? "" : "s"}`,
+  valuesRowCount: (rows: number, items: number) =>
+    `${rows.toLocaleString("en")} row${rows === 1 ? "" : "s"}, ${items.toLocaleString("en")} item${items === 1 ? "" : "s"}`,
+  valuesGroupedNote:
+    "Variants the game shows as one tile in the creative menu and the handbook share a row when they are worth the same; open a row to list them.",
+  valuesVariants: (n: number, total: number) =>
+    n === total ? `${n.toLocaleString("en")} variants` : `${n.toLocaleString("en")} of ${total.toLocaleString("en")} variants`,
+  valuesShowVariants: "Show the variants",
+  valuesHideVariants: "Hide the variants",
   valuesNoMatch: (q: string) => `No item matches “${q}”.`,
   valuesColumns: { name: "Item", mod: "Mod", value: "Value" },
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,

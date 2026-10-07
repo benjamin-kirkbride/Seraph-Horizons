@@ -111,7 +111,9 @@ under `site/e2e/icons/` (plain files, not LFS, so CI needs no LFS fetch), and se
 also writes a few fixed item values over the export's (`E2E_VALUES` in `e2e/config.ts`:
 copper ingot 2.5, a `floorZero` stick, rot without one), and when the export has no values
 of its own it gives nine items in ten a made-up one, so `e2e/values.spec.ts` tests the
-values page at full size; the gear's icon is committed under `site/e2e/icons/` too. The same build is served at `/noicons/` with no
+values page at full size. It adds two variant groups the same way (`E2E_GROUPS`: four
+ingots, three of them at one price, and three planks), after taking their members and the
+items of `E2E_VALUES` out of the export's own groups, so group rows are tested on any export; the gear's icon is committed under `site/e2e/icons/` too. The same build is served at `/noicons/` with no
 `icons/` directory. The tests check facts from the vanilla 1.22.7 assets, and each names
 the asset file it relies on. `e2e/icons.spec.ts` screenshots the tile with its contents
 hidden, decodes the PNG (`e2e/png.ts`) and compares the centre and corners with colours
@@ -130,7 +132,7 @@ and writes:
 
 ```
 <dir>/meta.json          pack, generator, mods (with ModDB asset ids), recipe types (with their first recipe index), item, recipe and valued-item counts, chunk starts
-<dir>/search.json        every item, column-wise and sorted by code, with its value
+<dir>/search.json        every item, column-wise and sorted by code, with its value, and the variant groups
 <dir>/items/<n>.json     item details and reverse indexes, a few hundred items per file
 <dir>/recipes/<n>.json   recipe records as in the export, up to 60 per file
 <dir>/entities.json      every creature and trader, column-wise and sorted by code
@@ -164,6 +166,20 @@ none of the three. A value is one number per row, about a tenth of the file's si
 compression for a pack where nearly every item has one (2.0 to 2.2 MB for 27,000 items
 with three-decimal values), and the item page, search and the values page then need no
 other file. Item chunks do not repeat it.
+
+When the export has `variantGroups` (Tidy Variants' groups, [schema.md](schema.md)),
+`search.json` also has `groups`: `titles`, one title per group, and `members`, each
+group's item indices, best representative first, groups in id order:
+
+```json
+"groups": { "titles": ["Gravel", "Plank"], "members": [[812, 809, 815], [2210, 2204]] }
+```
+
+An item is in at most one group, so the app builds the reverse map itself rather than the
+file carrying a column for every item. The group ids are left out: nothing reads them. A
+member the export does not have, or one already in an earlier group, is skipped, and a
+group left with fewer than two members is dropped (site-data rejects both, but an older
+export may predate the check). An export without groups gets no `groups`.
 
 `meta.json` has `itemChunks` and `recipeChunks`, the first index held by each chunk file,
 ascending. Item `i` is in `items/<n>.json` for the last `n` whose start is at most `i`,
@@ -254,10 +270,26 @@ traders treat as worthless, still shows its number, dimmed, with the reason on h
   rows whose name, code, mod id and mod name contain every word typed. A checkbox adds
   the items without a value, which sort last whichever way the value column is sorted.
 
+Variants the game shows as one creative-menu tile and one handbook group (Tidy Variants,
+`search.json`'s `groups`) share a row on the values page when they share a price, as
+gravels of every rock or planks of every wood do. `valueRows` (`values.ts`) splits each
+group by price: value, `floorZero` and `valueSwitches` all have to agree, and members with
+no value make one row of their own, shown with the unvalued items. A part of two or more
+members is one row: the icon of its best-ranked member, the group's title, a button that
+says how many variants the row holds ("12 variants", or "12 of 14 variants" when the
+group is split across prices) and opens the list of them inline (name and code, linking
+to their pages), the mod or the distinct mods of the members, and the value. A member
+alone at its price is a row of its own, as on a page without groups, and does not carry
+the group's title. A group row sorts by its title, and by its mods' names joined; it
+matches the filter when the title together with one member's name, code, mod id and mod
+name has every word typed. With groups, the count line gives rows and items ("1,234 rows,
+25,112 items"). An export without groups gives a row per item, as before.
+
 The values page reads `search.json`, which the app has loaded anyway, instead of a file of
-its own. `ValueTable` (`values.ts`) builds each column's order once, when first sorted on
-(about 35 ms for 27,000 items, value being the slowest), and a query walks that order
-keeping the rows that match, 2 to 30 ms depending on how many pass. The page shows 100
+its own. `ValueTable` (`values.ts`) builds the rows and what the filter searches when the
+page opens (about 135 ms in Node for 27,163 items in 983 groups, which make 8,654 rows),
+and each column's order once, when first sorted on (about 50 ms for all three), and a
+query walks that order keeping the rows that match, 2 to 35 ms depending on how many pass. The page shows 100
 rows at a time with a pager, so the DOM never holds more than a page of icons and links,
 and it filters as the reader types without a debounce. Sort, filter and page are the
 page's own state, not in the address.
@@ -379,4 +411,4 @@ export (wavy sand) has no page, so nothing shows it.
 are always built together, so there is no migration between formats. Format 2 added
 `start` to the recipe types and sorted recipes by type first. Format 3 added item values:
 `value`, `valueSwitches` and the `floorZero` flag in `search.json`, `valueCount` in
-`meta.json`.
+`meta.json`. Format 4 added `groups` to `search.json`.
