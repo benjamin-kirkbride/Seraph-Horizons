@@ -1,0 +1,53 @@
+// seraphhorizons' UnifiedPipes switch (README.md "Unified pipes", Pipes/Game/UnifiedPipesSystem.cs):
+// one pipe network. Pipes and Power Expanded (ppex 0.7.1) gets copper and lead as states of the
+// material variant (the third group) of its straight, bend, T- and X-junction pipes, on its own
+// models with game:block/metal/sheet-plain/<metal>4 in place of iron4; its valve and pressure valve
+// get the three bronzes the same way, and the creative inventory shows only the bronze valves (the
+// iron and steel ones stay as blocks, so those already placed are kept, but nothing makes them).
+// Recipes switched off in ppex:recipes/grid/pipes.json, by index: 0-3 the plate-and-nails straight,
+// bend, T- and X-junction (ferrous pipe is cast only), 7-10 the iron and steel valves and pressure
+// valves (7 and 8 are also rewritten by gearconsumers-ppex.json, 9 and 10 also switched off there;
+// adding "enabled" is the same whichever file the loader applies first). UnifiedPipesSystem checks
+// every path here against ppex's assets before the patch loader runs (Pipes/Core/PipeAssetGuard.cs)
+// and empties this file with one warning when ppex has changed; tools/tests/test_unified_pipes.py
+// holds it to ppex's zip.
+[
+  {"file": "ppex:blocktypes/pipes/straight.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "copper", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/straight.json", "op": "add", "path": "/texturesByType/*-copper", "value": {"iron4": {"base": "game:block/metal/sheet-plain/copper4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/straight.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "lead", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/straight.json", "op": "add", "path": "/texturesByType/*-lead", "value": {"iron4": {"base": "game:block/metal/sheet-plain/lead4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/bend.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "copper", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/bend.json", "op": "add", "path": "/texturesByType/*-copper", "value": {"iron4": {"base": "game:block/metal/sheet-plain/copper4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/bend.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "lead", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/bend.json", "op": "add", "path": "/texturesByType/*-lead", "value": {"iron4": {"base": "game:block/metal/sheet-plain/lead4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/tjunction.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "copper", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/tjunction.json", "op": "add", "path": "/texturesByType/*-copper", "value": {"iron4": {"base": "game:block/metal/sheet-plain/copper4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/tjunction.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "lead", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/tjunction.json", "op": "add", "path": "/texturesByType/*-lead", "value": {"iron4": {"base": "game:block/metal/sheet-plain/lead4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/xjunction.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "copper", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/xjunction.json", "op": "add", "path": "/texturesByType/*-copper", "value": {"iron4": {"base": "game:block/metal/sheet-plain/copper4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/xjunction.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "lead", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/xjunction.json", "op": "add", "path": "/texturesByType/*-lead", "value": {"iron4": {"base": "game:block/metal/sheet-plain/lead4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/valve.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "tinbronze", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/valve.json", "op": "add", "path": "/texturesByType/*-tinbronze", "value": {"iron4": {"base": "game:block/metal/sheet-plain/tinbronze4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/valve.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "bismuthbronze", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/valve.json", "op": "add", "path": "/texturesByType/*-bismuthbronze", "value": {"iron4": {"base": "game:block/metal/sheet-plain/bismuthbronze4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/valve.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "blackbronze", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/valve.json", "op": "add", "path": "/texturesByType/*-blackbronze", "value": {"iron4": {"base": "game:block/metal/sheet-plain/blackbronze4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/valve.json", "op": "replace", "path": "/creativeinventory", "value": {"general": ["*-valve-sn-tinbronze", "*-valve-sn-bismuthbronze", "*-valve-sn-blackbronze"], "ppex": ["*-valve-sn-tinbronze", "*-valve-sn-bismuthbronze", "*-valve-sn-blackbronze"]}, "side": "server", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "tinbronze", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "add", "path": "/texturesByType/*-tinbronze", "value": {"iron4": {"base": "game:block/metal/sheet-plain/tinbronze4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "bismuthbronze", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "add", "path": "/texturesByType/*-bismuthbronze", "value": {"iron4": {"base": "game:block/metal/sheet-plain/bismuthbronze4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "add", "path": "/variantgroups/2/states/-", "value": "blackbronze", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "add", "path": "/texturesByType/*-blackbronze", "value": {"iron4": {"base": "game:block/metal/sheet-plain/blackbronze4"}}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "replace", "path": "/creativeinventory", "value": {"general": ["*-pressurevalve-sn-tinbronze", "*-pressurevalve-sn-bismuthbronze", "*-pressurevalve-sn-blackbronze"], "ppex": ["*-pressurevalve-sn-tinbronze", "*-pressurevalve-sn-bismuthbronze", "*-pressurevalve-sn-blackbronze"]}, "side": "server", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/0/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/1/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/2/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/3/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/7/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/8/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/9/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/pipes.json", "op": "add", "path": "/10/enabled", "value": false, "dependsOn": [{"modid": "ppex"}]}
+]

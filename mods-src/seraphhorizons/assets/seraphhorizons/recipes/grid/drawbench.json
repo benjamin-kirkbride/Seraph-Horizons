@@ -1,0 +1,21 @@
+// The draw bench (DrawBench/, README "Draw bench"). The server disables it with DrawBench off.
+[
+	{
+		// The frame: oak sills (logs) and an oak bed (planks) on which iron ways (rods) carry the
+		// die stock and the drive head's pedestals (plates), bolted up with nails and strips, with
+		// a hammer: iron, meteoric iron or steel, as the other frames. Every working part goes in
+		// afterwards, fitted by hand.
+		ingredientPattern: "MHM,RNR,LPL",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"M": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 4 },
+			"L": { type: "block", code: "game:log-placed-oak-ud" },
+			"P": { type: "item", code: "game:plank-oak" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:drawbench-frame-north" }
+	}
+]

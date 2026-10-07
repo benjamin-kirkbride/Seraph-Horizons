@@ -1,0 +1,20 @@
+// The mandrel forging station (MandrelStation/, README "Mandrel forging station"). The server
+// disables it with MandrelStation off.
+[
+	{
+		// The frame: a squared oak stump (an oak log stood on end) with an iron hoop, carrying an iron
+		// bracket (a base plate and two strap bands) and a small bottom swage, forged from a plate and
+		// nails and strips of iron, meteoric iron or steel, put together with a hammer. The mandrel
+		// itself, a rod, is fitted afterwards by hand. Iron throughout, so it is an iron-age station.
+		ingredientPattern: "PNH,_L_",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "steel"] },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
+			"L": { type: "block", code: "game:log-placed-oak-ud" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:mandrelstation-frame-north" }
+	}
+]

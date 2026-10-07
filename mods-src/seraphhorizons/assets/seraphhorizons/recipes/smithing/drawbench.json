@@ -1,0 +1,36 @@
+// The draw bench's dies (DrawBench/, README "Draw bench"), each from one ingot of its metal (a
+// ring of 40 voxels, its bore through the middle). Named drawdie, not plate or blistersteel, the
+// only names the game's helve hammer works (ItemWorkItem.GetHelveWorkableMode), so they are
+// smithed by hand. An iron ingot makes an iron die, a steel ingot (from any route, blister steel
+// included) a steel one. The server disables them with DrawBench off.
+[
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["iron", "steel"] },
+		name: "drawdie",
+		code: "drawdie-{metal}",
+		pattern: [
+			[
+				"_###_",
+				"##_##",
+				"#___#",
+				"##_##",
+				"_###_"
+			],
+			[
+				"_###_",
+				"##_##",
+				"#___#",
+				"##_##",
+				"_###_"
+			],
+			[
+				"_____",
+				"_###_",
+				"_#_#_",
+				"_###_",
+				"_____"
+			]
+		],
+		output: { type: "item", code: "seraphhorizons:drawdie-{metal}" }
+	}
+]

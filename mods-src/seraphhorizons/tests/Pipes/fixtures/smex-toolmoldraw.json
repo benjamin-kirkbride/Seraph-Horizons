@@ -1,0 +1,139 @@
+{
+  "code": "toolmold",
+  "class": "Block",
+  "variantgroups": [
+    {
+      "code": "color",
+      "states": [
+        "blue",
+        "red",
+        "fire"
+      ]
+    },
+    {
+      "code": "materialtype",
+      "states": [
+        "raw"
+      ]
+    },
+    {
+      "code": "tooltype",
+      "states": [
+        "plate",
+        "doubleingot",
+        "quadrod"
+      ]
+    }
+  ],
+  "shapebytype": {
+    "*-plate": {
+      "base": "smex:molten/molds/plate",
+      "rotateY": 90
+    },
+    "*-doubleingot": {
+      "base": "smex:molten/molds/doubleingot",
+      "rotateY": 90
+    },
+    "*-quadrod": {
+      "base": "smex:molten/molds/quadrod",
+      "rotateY": 90
+    }
+  },
+  "attributesByType": {
+    "toolmold-red-raw-*": {
+      "beehivekiln": {
+        "0": {
+          "type": "block",
+          "code": "smex:toolmold-tan-fired-{tooltype}"
+        },
+        "1": {
+          "type": "block",
+          "code": "smex:toolmold-orange-fired-{tooltype}"
+        },
+        "2": {
+          "type": "block",
+          "code": "smex:toolmold-red-fired-{tooltype}"
+        },
+        "3": {
+          "type": "block",
+          "code": "smex:toolmold-brown-fired-{tooltype}"
+        }
+      }
+    },
+    "toolmold-blue-raw-*": {
+      "beehivekiln": {
+        "0": {
+          "type": "block",
+          "code": "smex:toolmold-cream-fired-{tooltype}"
+        },
+        "1": {
+          "type": "block",
+          "code": "smex:toolmold-gray-fired-{tooltype}"
+        },
+        "2": {
+          "type": "block",
+          "code": "smex:toolmold-black-fired-{tooltype}"
+        },
+        "3": {
+          "type": "block",
+          "code": "smex:toolmold-black-fired-{tooltype}"
+        }
+      }
+    },
+    "toolmold-fire-raw-*": {
+      "beehivekiln": {
+        "0": {
+          "type": "block",
+          "code": "smex:toolmold-fire-fired-{tooltype}"
+        },
+        "1": {
+          "type": "block",
+          "code": "smex:toolmold-fire-fired-{tooltype}"
+        },
+        "2": {
+          "type": "block",
+          "code": "smex:toolmold-fire-fired-{tooltype}"
+        },
+        "3": {
+          "type": "block",
+          "code": "smex:toolmold-fire-fired-{tooltype}"
+        }
+      }
+    }
+  },
+  "combustiblePropsByType": {
+    "toolmold-fire-raw-*": {
+      "meltingPoint": 650,
+      "meltingDuration": 45,
+      "smeltedRatio": 1,
+      "smeltingType": "fire",
+      "smeltedStack": {
+        "type": "block",
+        "code": "smex:toolmold-fire-fired-{tooltype}"
+      },
+      "requiresContainer": false
+    },
+    "toolmold-blue-raw-*": {
+      "meltingPoint": 650,
+      "meltingDuration": 45,
+      "smeltedRatio": 1,
+      "smeltingType": "fire",
+      "smeltedStack": {
+        "type": "block",
+        "code": "smex:toolmold-blue-fired-{tooltype}"
+      },
+      "requiresContainer": false
+    },
+    "toolmold-red-raw-*": {
+      "meltingPoint": 650,
+      "meltingDuration": 45,
+      "smeltedRatio": 1,
+      "smeltingType": "fire",
+      "smeltedStack": {
+        "type": "block",
+        "code": "smex:toolmold-earthyorange-fired-{tooltype}"
+      },
+      "requiresContainer": false
+    }
+  }
+}

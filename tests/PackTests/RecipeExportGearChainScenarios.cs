@@ -44,7 +44,6 @@ public partial class RecipeExportScenarios
         }
         TakesSteel("grid|ppex:recipes/grid/machines.json|4", 4); // Cornish engine
         TakesSteel("grid|ppex:recipes/grid/machines.json|8", 2); // mechanical power generator
-        TakesSteel("grid|ppex:recipes/grid/pipes.json|8", 2); // pressure valve
         TakesSteel("grid|smex:recipes/grid/bessemerconverter.json|1", 16); // converter transmission
         TakesSteel("grid|game:recipes/grid/glider.json|0", 1);
         TakesSteel("grid|betterruins:recipes/grid/schematic-jonasassembly/assembly.json|6", 5); // Jonas gears
@@ -52,6 +51,8 @@ public partial class RecipeExportScenarios
 
         var all = doc["recipes"]!.Cast<JObject>().ToDictionary(r => (string)r["id"]!);
         foreach (var off in new[] { "grid|ppex:recipes/grid/machines.json|9", "grid|ppex:recipes/grid/pipes.json|10",
+                                    // the iron and steel valves: UnifiedPipes makes them bronze, from no gear
+                                    "grid|ppex:recipes/grid/pipes.json|7", "grid|ppex:recipes/grid/pipes.json|8",
                                     "grid|smex:recipes/grid/bessemerconverter.json|3", "smithing|ppex:recipes/smithing/gear.json|0",
                                     "smithing|ppex:recipes/smithing/largegear.json|0" })
             Assert.False((bool?)all[off]["enabled"] ?? true, $"{off} is not switched off");

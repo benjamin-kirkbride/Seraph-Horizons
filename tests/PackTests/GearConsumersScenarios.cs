@@ -38,7 +38,8 @@ internal static class GearConsumerUses
     [
         ("ppex:enginecornish-north", 4), ("ppex:enginewatt-north", 2), ("ppex:enginefluidpump-north", 1),
         ("ppex:manualfluidpump-north", 2), ("ppex:enginempgenerator-north", 2),
-        ("ppex:pipe-valve-sn-", 2), ("ppex:pipe-pressurevalve-sn-", 2),
+        // ppex's valve and pressure valve (pipes.json /7, /8) take the steel gear too, but UnifiedPipes,
+        // on here, switches both off: its bronze valves take none (UnifiedPipesScenarios.cs).
         ("smex:hopperbell", 4), ("smex:engineairblower-north", 2), ("smex:convertertransmission-north", 16),
         ("game:glider", 1),
         ("game:jonasframes-gearbox01", 3), ("game:jonasframes-gearbox02", 5), ("game:jonasframes-oscillator01", 3),

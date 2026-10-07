@@ -248,6 +248,19 @@ either. A model's files are fetched when its page opens.
 
 Nothing else: no component, route or workflow changes.
 
+## A standalone copy for review
+
+`site/scripts/standalone-viewer.ts` builds one model of the manifest into a single self-contained HTML
+file: the model page itself (`ModelPage.svelte`, `rig.ts`, the three.js scene), the model's shape and
+rig built in, three.js bundled, scripts and styles inlined, so it opens from a file and fetches nothing.
+It is how a new model is shown to the owner for review before it is published (the draw bench was).
+It is a separate Vite build with its own entry (`site/scripts/standalone/`), whose data module stands in
+for `src/lib/model-data.ts`; the site's build, check and tests do not use it.
+
+```sh
+cd site && node --import tsx scripts/standalone-viewer.ts draw-bench ../build/drawbench-viewer.html
+```
+
 ## Code and tests
 
 | File | |

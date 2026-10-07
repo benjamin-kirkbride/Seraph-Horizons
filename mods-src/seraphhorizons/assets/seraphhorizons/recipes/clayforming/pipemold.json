@@ -1,0 +1,44 @@
+// Pipe mold (CastPipes; README "Cast pipes"): Steelmaking Expanded's tool mold with a fourth
+// tool type, added by patches/castpipes-smexmold.json. A clay slab with a long trough, closed at
+// both ends, and a core down its middle for the bore; one layer deep, as smex's own molds are.
+[
+	{
+		"ingredient": { "type": "item", "code": "game:clay-*", "name": "color", "allowedVariants": ["blue", "fire", "red"] },
+		"pattern": [
+			[
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############",
+				"##############"
+			],
+			[
+				"##############",
+				"##############",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"###___##___###",
+				"##############",
+				"##############"
+			]
+		],
+		"name": "Pipe Mold",
+		"output": { "type": "block", "code": "smex:toolmold-{color}-raw-pipe" }
+	}
+]
