@@ -49,10 +49,11 @@ public class MandrelStationRigTests
         Assert.Equal(1.0, path.End(1), 6);
         Assert.Equal(1.0, path.End(2), 6);
         // the contract's stable part ids
-        foreach (var id in new[] { "mandrel", "frame", "lt", "ct" })
+        foreach (var id in new[] { "mandrel", "frame" })
             Assert.True(parts.IndexOf(id) >= 0, $"no part {id}");
+        // the work is eight rings a metal, closing and spreading along the mandrel together
         foreach (var metal in new[] { "l", "c" })
-            foreach (var ring in new[] { "1", "2" })
+            foreach (var ring in new[] { "1", "2", "3", "4", "5", "6", "7", "8" })
                 foreach (var wall in new[] { "u", "d", "e", "w", "ue", "uw", "de", "dw" })
                     Assert.True(parts.IndexOf(metal + ring + wall) >= 0, $"no part {metal + ring + wall}");
     }

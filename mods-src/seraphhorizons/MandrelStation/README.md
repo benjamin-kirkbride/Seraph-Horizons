@@ -63,33 +63,34 @@ taken from another mod's model.
 | The bracket (base plate; two bands, each a saddle, two cheeks and a cap) | fixed to the stump | holds the mandrel's root at two places, against the cantilever |
 | The mandrel (`mandrel`) | fixed in the bracket | takes the blows: the hollow is hammered onto it |
 | The swage (a block with a square groove) | fixed | none: a tool beside the mandrel, not animated |
-| The box's root half and tip half (rings `1`, `2`: four walls and four corner bars each) | the blows, the mandrel under them | close from 8 to 6 across onto the mandrel, then slide off the tip and drop |
-| The drawn tube (`t`) | the metal the blows draw out | creeps out of the box's mouth towards the tip, is parted, slides off and drops |
+| The hollow (eight rings `1`..`8`: four walls and four corner bars each) | the blows, the mandrel under them | closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly, in one motion; parted between rings 4 and 5 into two sections, which slide off the tip and drop |
 
 The forging (t = W, one hollow; the rig holds none of these times):
 
 | t | |
 |---|---|
 | 0.00..0.02 | the hollow lies on the mandrel against the shoulder (p eases in) |
-| 0.02..0.20 | drawn out: the tube creeps 4 towards the tip out of the box's mouth |
-| 0.20..0.41 | the root half closes from 8 to 6 across onto the mandrel |
-| 0.41..0.60 | drawn out again: the tube's far end reaches the tip |
-| 0.60..0.82 | the tip half closes: one 6 × 6 tube, 16 long |
+| 0.02..0.82 | forged: the hollow closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly along its whole length, together: one 6 × 6 tube, 16 long, its far end at the tip |
 | 0.82..0.86 | parted in the middle: the far section moves 1 off the near one |
 | 0.86..0.94 | the far section slides off the tip and drops to the ground |
 | 0.94..1.00 | the near section slides off and drops onto it: delivered at 1 |
 
-**How the box closes.** No rig driver scales a part, so the box is drawn so that its walls can slide
-in without stretching: each half (ring) is four walls 6 wide and four 1 × 1 corner bars. As it closes,
-each wall slides in by 1 and each corner bar diagonally by 1 on both axes; at every step their union is
-a whole square tube with 1-voxel walls, its outside going from 8 to 6 and its bore from 6 to the
-mandrel's 4 (checked at every tenth of each closing). Inside a closed ring the walls and the corner bars
-overlap; those volumes are never seen, and the faces that would share a plane are inset.
+**How it closes and stretches at once.** No rig driver scales a part, so the hollow is drawn as eight
+short rings (2.1 long) along the mandrel, each four walls 6 wide and four 1 × 1 corner bars. At rest the
+rings overlap, filling the hollow's 8; over the forging every ring's walls slide in by 1 and its corner
+bars diagonally by 1 on both axes (so the cross-section goes from 8 across to 6, its bore from 6 to the
+mandrel's 4), while each ring slides along the axis from its place at rest to its place in the forged
+tube: the first not at all, the last 8, the rest in proportion to their place in their section. All of
+it is one gauge window, linear in W, so the tube closes and lengthens together and evenly. The forged
+tube is two sections of four rings each, the rings in a section overlapping a little (0.13) and the two
+sections meeting end to end where they are parted. At every tenth of W the work is checked to be one
+continuous square tube of even cross-section, with no gap between rings; the volumes where rings, walls
+and corner bars overlap are never seen.
 
-**How it lengthens.** The tube that is drawn out is the far section, made at rest as a 6-across tube
-nested inside the box (its bore the mandrel's); it slides out of the box's mouth as the blows draw the
-metal towards the tip, and each half of the box closes only once the tube has left it (checked). At W 1
-the box's two rings are the near section and the tube the far one.
+**Faces that share a plane.** The overlapping rings' outer faces lie in one plane all the time, so the
+z-fighting fix steps them in by 0.015 each, up to 0.105 deep for a stack of eight; no end faces share a
+plane (a ring's side walls stand back 0.03 at its ends and its corner bars 0.06), so the joints between
+rings are not opened by the fix.
 
 ### Regenerating
 
@@ -99,7 +100,7 @@ python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py --out DIR   #
 python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py --quick     # skips the z-fighting fix and the swept paths
 ```
 
-A full run takes about 8 s and is deterministic (two runs into two folders are byte-identical, logs
+A full run takes about 25 s and is deterministic (two runs into two folders are byte-identical, logs
 included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py`):
 
 - **Parts:** every element in its intended part; no part without elements; Euler angles round-trip.
@@ -107,16 +108,18 @@ included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py
 - **Textures by role:** the stump oak; hoop, bracket and swage iron; the mandrel `mandrel`; each metal's
   work its own sheet.
 - **Containment:** nothing leaves the 1 × 1 × 2 box over the whole forging, either metal, every 0.01.
-- **Forging:** each ring a whole square tube at every tenth of its closing and closed onto the mandrel;
-  the drawn tube out of the root half before it closes; two 6 × 6 × 8 sections, parted; at W 1 both off
-  the tip, the far one on the ground and the near one on it, `output.pos` the pile's middle.
+- **Forging:** at every tenth of W, one continuous square tube of even cross-section (every sample of its
+  walls covered, nothing in its bore or outside it, all along it), (8 − 2e) across and (8 + 8e) long for
+  forging e, with no gap between rings; after parting, two such sections, 6 × 6 × 8; closed onto the
+  mandrel; parted; at W 1 both off the tip, the far one on the ground and the near one on it, `output.pos`
+  the pile's middle. The tolerance is 0.15 voxels, the fix's deepest step and a margin.
 - **Mandrel:** through both bands of the bracket, each band's saddle, cheeks and cap bearing on it; the
   hollow against the shoulder; θ moves no part.
-- **Clearances:** no two parts overlap at any pose every 0.02 of the forging (a ring's own walls and
-  corner bars excepted), and the **swept paths** every 0.0025: the tube drawn out, the sections sliding
-  off the tip and dropping.
-- **No z-fighting** at eleven poses, rest to delivered, after the fix (21 faces pressed against their own
-  part removed, the rest inset by 0.015).
+- **Clearances:** no two parts overlap at any pose every 0.02 of the forging (the work's own rings,
+  walls and corner bars excepted; the two sections' rings only until they are parted), and the **swept
+  paths** every 0.0025: the hollow stretching, the sections sliding off the tip and dropping.
+- **No z-fighting** at twelve poses, rest to delivered, after the fix (21 faces pressed against their own
+  part removed, the rest stepped in by 0.015; the fix runs up to 40 rounds for the stacks of rings).
 - **Files:** every texture code declared; lids over both columns; no power cell; the shipped files are the
   checked model (no move: the build frame's corner is the controller's).
 
@@ -149,8 +152,9 @@ turn a blow (`play.turnsPerWork` `"forge.blowsPerHollow.thin"`).
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `mandrel_*`; per metal
-(`l`, `c`) and ring (`1`, `2`) the walls `l1u_*`, `l1d_*`, `l1e_*`, `l1w_*` and the corner bars `l1ue_*`,
-`l1uw_*`, `l1de_*`, `l1dw_*`; the tube `lt_*`; and `fr_*` for the frame. Hand edits are lost when the
+(`l`, `c`) and ring (`1` at the shoulder .. `8`; `1`..`4` are the near section, `5`..`8` the far one) the
+walls `l1u_*`, `l1d_*`, `l1e_*`, `l1w_*` and the corner bars `l1ue_*`, `l1uw_*`, `l1de_*`, `l1dw_*`; and
+`fr_*` for the frame. Hand edits are lost when the
 script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Known weak spots, and what is not checked
@@ -160,10 +164,11 @@ The model has been reviewed in projections rendered from the written files and i
 
 1. **The mandrel is cantilevered** 17.3 voxels past the bracket (10 past the stump): it must be, for the
    sections to slide off its end. The bracket holds it at two bands 3.6 apart.
-2. **The hollow shows a double wall at its mouth at rest**: the tube to be drawn out is nested inside the
-   box (its bore the mandrel's), so the box's open end shows two rings, 8 and 6 across.
-3. **Drawn out, then closed.** The tube creeps out of the box's mouth before each half closes; a real
-   tube would lengthen as it closes. Without a scaling driver the two have to take turns.
+2. **Ring joints.** The hollow is eight rings, so the game will show seams where their textures meet
+   (like rings of blows), and the stretch is carried by the rings sliding apart, not by the texture
+   stretching. Through the open end the overlapping rings' ends can be seen inside the bore.
+3. **Stepped faces.** The overlapping rings' outer faces are stepped in by up to 0.105 voxels (the
+   z-fighting fix); a ring's side walls and corner bars stand back 0.03 and 0.06 at its ends.
 4. **No slide-on.** The hollow appears on the mandrel as p eases in; it does not slide on over the tip.
 5. **Blows and windows.** Lead's six blows land at W multiples of 1/6, copper's nine at 1/9; the windows
    are not aligned to either, so a blow can end part way through a motion (the renderer eases W).

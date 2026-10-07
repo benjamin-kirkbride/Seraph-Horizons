@@ -479,7 +479,9 @@ def shown(posed_els, pose):
 
 
 def fix_coplanar(els, parts):
-    return fix_coplanar_posed(els, lambda es, pose: shown([posed(el, pm(parts, el.part, pose)) for el in es], pose), coplanar_poses())
+    # the rings overlap in stacks up to eight deep, so the fix needs more rounds than the default
+    return fix_coplanar_posed(els, lambda es, pose: shown([posed(el, pm(parts, el.part, pose)) for el in es], pose), coplanar_poses(),
+                              rounds=40)
 
 
 def main():

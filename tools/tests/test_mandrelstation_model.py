@@ -9,6 +9,7 @@ anchors are where the contract puts them. Run with `python3 -m unittest discover
 
 import importlib.util
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -41,14 +42,18 @@ def matrix(pid, **ins):
     return rigmath.part_matrix(RIG["parts"], pid, ins, RIG["work"])
 
 
-def posed_group(prefix, **ins):
-    """The shipped shape's elements whose part starts with `prefix`, posed (voxels)."""
+def posed_group(pre, rings, **ins):
+    """The shipped shape's elements of metal `pre`'s rings (numbered from 1 at the shoulder), posed (voxels)."""
     out = []
     for el in flatten(SHAPE["elements"], textures={}):
         pid = rigmath.part_of(RIG["parts"], el.name)
-        if pid.startswith(prefix):
+        m = re.fullmatch(r"([lc])(\d+)[udew]+", pid)
+        if m and m.group(1) == pre and int(m.group(2)) in rings:
             out.append(rigmath.posed(el, matrix(pid, **ins)))
     return out
+
+
+ALL, NEAR, FAR = range(1, 9), range(1, 5), range(5, 9)
 
 
 class Rig(unittest.TestCase):
@@ -113,25 +118,28 @@ class Forge(unittest.TestCase):
             b = matrix(pid, theta=4.4, work=0.3, size=2, presence=1.0)
             self.assertEqual([[round(v, 12) for v in r] for r in a], [[round(v, 12) for v in r] for r in b], pid)
 
-    def test_the_box_closes_from_eight_to_six_onto_the_mandrel(self):
+    def test_the_hollow_closes_and_stretches_evenly_together(self):
+        # one motion: at every tenth of the forging the hollow is (8 - 2e) across and (8 + 8e) long
+        t0, t1 = make_shape.T_FORGE
         for k, pre in ((1, "l"), (2, "c")):
-            for r in ("1", "2"):
-                lo, hi = aabb_of(posed_group(pre + r, work=0.0, size=k, presence=1.0))
-                self.assertAlmostEqual(hi[0] - lo[0], 8.0, delta=0.05)
-                lo, hi = aabb_of(posed_group(pre + r, work=0.82, size=k, presence=1.0))
-                self.assertAlmostEqual(hi[0] - lo[0], 6.0, delta=0.05)
-                self.assertAlmostEqual(hi[1] - lo[1], 6.0, delta=0.05)
+            for i in range(11):
+                e = i / 10
+                lo, hi = aabb_of(posed_group(pre, ALL, work=t0 + (t1 - t0) * e, size=k, presence=1.0))
+                self.assertAlmostEqual(hi[0] - lo[0], 8.0 - 2.0 * e, delta=0.15)
+                self.assertAlmostEqual(hi[1] - lo[1], 8.0 - 2.0 * e, delta=0.15)
+                self.assertAlmostEqual(hi[2] - lo[2], 8.0 + 8.0 * e, delta=0.15)
                 self.assertAlmostEqual((lo[1] + hi[1]) / 2, make_shape.YM, delta=0.05)
+                self.assertAlmostEqual(lo[2], make_shape.Z0, delta=0.05)
 
     def test_the_sections_come_off_the_tip_at_the_output(self):
         out = [c * 16 for c in RIG["output"]["pos"]]
         for k, pre in ((1, "l"), (2, "c")):
-            near = aabb_of(posed_group(pre + "1", work=1.0, size=k, presence=1.0) + posed_group(pre + "2", work=1.0, size=k, presence=1.0))
-            far = aabb_of(posed_group(pre + "t", work=1.0, size=k, presence=1.0))
+            near = aabb_of(posed_group(pre, NEAR, work=1.0, size=k, presence=1.0))
+            far = aabb_of(posed_group(pre, FAR, work=1.0, size=k, presence=1.0))
             for lo, hi in (near, far):
                 self.assertGreater(lo[2], make_shape.TIP)
                 self.assertAlmostEqual(hi[2] - lo[2], 8.0, delta=0.05)
-                self.assertLessEqual(hi[2], 32.0 + 1e-6)
+                self.assertLessEqual(hi[2], 32.0 + 1e-3)
             self.assertAlmostEqual(far[0][1], 0.0, delta=0.05)
             self.assertAlmostEqual(near[0][1], far[1][1], delta=0.05)
             self.assertAlmostEqual(out[1], near[0][1], delta=0.05)
