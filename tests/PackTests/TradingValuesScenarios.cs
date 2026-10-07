@@ -2,7 +2,6 @@ using Atlas.XUnit;
 using Newtonsoft.Json;
 using SeraphHorizons.Mod.Trading.Values;
 using Vintagestory.API.Common;
-using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -12,8 +11,7 @@ namespace SeraphHorizons.PackTests;
 /// pack's recipe export to <c>$ITEM_VALUES_EXPORT</c> when that is set, the input of
 /// <c>tools/item-values</c> (a full export takes a minute or two, so only on request).
 /// </summary>
-[AtlasWorld]
-public class TradingValuesScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class TradingScenarios
 {
     private async Task<string> Run(string command)
     {

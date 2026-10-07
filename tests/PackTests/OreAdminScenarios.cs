@@ -17,19 +17,13 @@ namespace SeraphHorizons.PackTests;
 /// new standard world and its <c>--json</c> answer parses, <c>count</c> finds the ore a verified
 /// deposit holds, the registry export reads back, a live survey writes the survey tool's files, and
 /// the admin map overlay reaches admins only.
+/// <para>A partial file of <see cref="OreMapsScenarios"/>, on its boot (seed 515151): see there for
+/// the rules both files keep.</para>
 /// </summary>
-[AtlasWorld(Seed = Seed, WorldType = "standard")]
-public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class OreMapsScenarios
 {
-    private const int Seed = 458458;
-
-    private ICoreServerAPI Sapi => World.Api;
-
-    private OreSystem Ore => Sapi.ModLoader.GetModSystem<OreSystem>();
-
-    private DepositService Deposits => Ore.Deposits ?? throw new Xunit.Sdk.XunitException("the deposit service is not bound");
-
-    private async Task<string> Run(string command, Atlas.Api.ITestPlayer? player = null)
+    /// <summary>Runs a command and checks its answer: no formatter errors, chat-safe, ok, not empty.</summary>
+    private async Task<string> RunChecked(string command, Atlas.Api.ITestPlayer? player = null)
     {
         using var watch = new FormatErrorWatch(World.Api.Logger);
         var result = player == null ? await World.ExecuteCommand(command) : await player.ExecuteCommand(command);
@@ -44,7 +38,7 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
     /// <summary>Runs a command with --json and checks the shape every answer has.</summary>
     private async Task<JsonObject> Json(string command, Atlas.Api.ITestPlayer? player = null)
     {
-        string text = await Run(command + " --json", player);
+        string text = await RunChecked(command + " --json", player);
         var json = JsonNode.Parse(text) as JsonObject;
         Assert.True(json != null, $"{command} --json is not a JSON object: {text}");
         Assert.True((bool)json!["ok"]!);
@@ -73,12 +67,12 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
                      "/sh ore log on", "/sh ore log off", "/sh ore registry export oreadmin-all",
                  })
         {
-            await Run(command);
+            await RunChecked(command);
             await Json(command);
         }
         foreach (var command in new[] { "/sh ore here", "/sh ore markers 4000", "/sh ore markers clear", "/sh ore map on", "/sh ore map off" })
         {
-            await Run(command, admin);
+            await RunChecked(command, admin);
             await Json(command, admin);
         }
 
@@ -114,7 +108,7 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(deniedMap.Ok);
         Assert.Empty(visitor.Client.Packets<AdminMapPacket>(AdminSystem.ChannelName));
 
-        await Run("/sh ore map on 9000", admin);
+        await RunChecked("/sh ore map on 9000", admin);
         await World.Ticks(5);
         var packet = admin.Client.Packets<AdminMapPacket>(AdminSystem.ChannelName).LastOrDefault(p => p.Key == "ore");
         Assert.True(packet != null, "no ore overlay arrived");
@@ -122,7 +116,7 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
         output.WriteLine($"overlay: {overlay.Rects.Count} rects, {overlay.Marks.Count} marks, {overlay.Rings.Count} rings");
         Assert.NotEmpty(overlay.Rects);
         Assert.NotEmpty(overlay.Marks);
-        await Run("/sh ore map off", admin);
+        await RunChecked("/sh ore map off", admin);
         await World.Ticks(5);
         Assert.Equal("", admin.Client.Packets<AdminMapPacket>(AdminSystem.ChannelName).Last().Json);
     }
@@ -164,6 +158,7 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task The_registry_exports_and_imports()
     {
         var spawn = World.Spawn;
+        // Reset and MarkSoldOut set each record whatever the other file left in it.
         var key = Deposits.Candidates(spawn.X, spawn.Z, 9000, "copper").First().Key;
         var gravel = Deposits.GravelFields(spawn.X, spawn.Z, 3000).First().Key;
         Deposits.Registry.Reset(key);
@@ -174,14 +169,14 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(Path.Combine(GamePaths.DataPath, AdminFiles.Folder, "oreadmin-registry.json"), path);
         Assert.True(File.Exists(path));
 
-        await Run("/sh ore registry clear all");
+        await RunChecked("/sh ore registry clear all");
         Assert.Empty(Deposits.Registry.All());
         var imported = await Json("/sh ore registry import oreadmin-registry");
         Assert.True((int)imported["records"]! >= 2);
         Assert.Equal("Exporter", Deposits.Registry.Get(key).SoldToName);
         Assert.Equal(DepositState.SoldOut, Deposits.Registry.Get(gravel).State);
 
-        await Run("/sh ore registry clear gravel");
+        await RunChecked("/sh ore registry clear gravel");
         Assert.Equal(DepositState.Unsold, Deposits.Registry.Get(gravel).State);
         Assert.Equal(DepositState.Sold, Deposits.Registry.Get(key).State);
         Assert.False((await World.ExecuteCommand("/sh ore registry export ../escape")).Ok);
@@ -208,12 +203,12 @@ public class OreAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task Logging_writes_placement_decisions()
     {
-        await Run("/sh ore log on");
+        await RunChecked("/sh ore log on");
         Assert.NotNull(AdminLogs.Ore);
         Assert.Equal(AdminLogs.OreChannels.Order(), AdminLogs.Ore!.On);
         AdminLogs.Ore.Write("placement", "scenario line");
         Assert.Contains("[placement] scenario line", File.ReadAllText(AdminLogs.Ore.Path));
-        await Run("/sh ore log off");
+        await RunChecked("/sh ore log off");
         Assert.Empty(AdminLogs.Ore.On);
     }
 }

@@ -8,7 +8,6 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 using Vintagestory.ServerMods;
-using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -16,15 +15,11 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Trading/Schematics (#468, #469) against the pinned mods: the machines'
 /// first-stage recipes take their schematic (kept on crafting), no recipe makes or copies a
 /// schematic, recipes using one keep it, the loot lists and structures hand none out, and the trade
-/// lists sell each from the table's sellers at its tier. Its own class so the integrator can shard
-/// it with the other trading classes; the plain world is enough.
+/// lists sell each from the table's sellers at its tier. The plain world is enough, so it shares
+/// <see cref="TradingScenarios"/>' boot with the other plain-world trading features.
 /// </summary>
-[AtlasWorld]
-[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
-public class TradingSchematicsScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class TradingScenarios
 {
-    private ICoreServerAPI Api => World.Api;
-    private IWorldAccessor W => World.Api.World;
     private SchematicsSystem Schematics => SchematicsSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no SchematicsSystem");
     private SchematicTable Table => Schematics.Table ?? throw new Xunit.Sdk.XunitException("the schematic table did not load");
 
@@ -102,7 +97,7 @@ public class TradingSchematicsScenarios(ITestOutputHelper output) : AtlasScenari
         // the first empty slot.
         var recipe = Making("game:helvehammerbase-north").First();
         var slots = recipe.ResolvedIngredients!.Select(i => (ItemSlot)new DummySlot(i == null ? null : Stack(i))).ToArray();
-        var player = (await World.JoinPlayer("schematicwright")).Player;
+        var player = (await Customer()).Player;
         Assert.True(recipe.Matches(player, W, slots, recipe.Width));
         int schematicSlot = Array.FindIndex(recipe.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:schematic-helvehammer");
         var without = slots.Select((s, i) => i == schematicSlot ? new DummySlot() : s).ToArray();

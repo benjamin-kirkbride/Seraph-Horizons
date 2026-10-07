@@ -8,7 +8,6 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
-using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -19,9 +18,10 @@ namespace SeraphHorizons.PackTests;
 /// client's hold reaches the server: the held collectible's <c>OnHeldInteractStart</c>, one
 /// <c>OnHeldInteractStep</c> and <c>OnHeldInteractStop</c> with the seconds held, an
 /// <see cref="EntitySelection"/> of the trunk. What the work throws out is caught as it spawns.
+/// <para>Builds 40 above spawn, at x −19 to 103 and z −64 to −56, with the gear cutter's player
+/// (<see cref="CutterHand"/>).</para>
 /// </summary>
-[AtlasWorld]
-public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class SharedWorldScenarios
 {
     private const string Axe = "game:axe-felling-iron";
     private const string Hammer = "game:hammer-iron";
@@ -29,8 +29,6 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private const string Shears = "game:shears-iron";
     private const string Saw = "game:saw-iron";
     private const string Spud = "immersivewoodworking:barkspud-iron";
-
-    private IWorldAccessor W => World.Api.World;
 
     private TrunkEntitySystem Mod => TrunkEntitySystem.Of(World.Api);
 
@@ -55,12 +53,9 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
         return stack;
     }
 
-    // One player for the class's world.
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, ITestPlayer> Players = new();
-
     /// <summary>A cleared granite floor 40 above spawn at <paramref name="dx"/>, a trunk lying on
     /// it along z, and the player three blocks off its side, in survival with empty hands.</summary>
-    private async Task<(EntityTrunk Trunk, ITestPlayer Player)> Setup(int dx, ItemStack trunk)
+    private async Task<(EntityTrunk Trunk, ITestPlayer Player)> TrunkToolSetup(int dx, ItemStack trunk)
     {
         var origin = World.Spawn.AddCopy(dx, 40, -60);
         await World.Until(() => W.BlockAccessor.GetChunkAtBlockPos(origin) != null, 30000);
@@ -72,13 +67,8 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
             for (int y = 0; y <= 4; y++)
                 W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
         }
-        if (!Players.TryGetValue(World.Api, out var player))
-            Players.Add(World.Api, player = await World.JoinPlayer("trunktooler"));
+        var player = await CutterHand();
         await player.TeleportTo(origin.AddCopy(3, 0, 0));
-        player.Player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        player.Entity.Controls.ShiftKey = false;
-        player.Entity.LeftHandItemSlot.Itemstack = null;
-        player.Entity.LeftHandItemSlot.MarkDirty();
         var entity = TrunkSpawns.Spawn(W, trunk, origin.ToVec3d().Add(0.5, 0, 0.5), 0) ?? throw new Xunit.Sdk.XunitException("no trunk entity");
         await World.Ticks(2);
         return (entity, player);
@@ -143,7 +133,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task An_axe_takes_a_log_off_a_trunk()
     {
-        var (trunk, player) = await Setup(0, Trunk(10));
+        var (trunk, player) = await TrunkToolSetup(0, Trunk(10));
         var placed = Logging.PlacedLogCode("oak");
         Assert.NotNull(placed);
 
@@ -167,7 +157,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task An_axe_with_a_hammer_in_the_offhand_gives_a_debarked_log()
     {
-        var (trunk, player) = await Setup(14, Trunk(6));
+        var (trunk, player) = await TrunkToolSetup(14, Trunk(6));
         var debarked = Logging.DebarkedLogCode("oak");
         Assert.NotNull(debarked);
         var held = Hold(player, trunk, Axe, TrunkHarvest.ToolSeconds, Hammer);
@@ -179,7 +169,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task A_knife_cuts_branches_into_sticks_and_leaves_a_clean_trunk()
     {
-        var (trunk, player) = await Setup(28, Trunk(10, branches: 20));
+        var (trunk, player) = await TrunkToolSetup(28, Trunk(10, branches: 20));
         var stick = new AssetLocation("game:stick");
         float rate = player.Entity.Stats.GetBlended("stickDropRate");
 
@@ -204,7 +194,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task Shears_make_a_sapling_from_twelve_branches()
     {
-        var (trunk, player) = await Setup(42, Trunk(10, branches: 17));
+        var (trunk, player) = await TrunkToolSetup(42, Trunk(10, branches: 17));
         var sapling = new AssetLocation("game:sapling-oak-free");
         var held = Hold(player, trunk, Shears, TrunkHarvest.BranchSeconds);
         Assert.True(held.Taken);
@@ -219,7 +209,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task A_saw_cuts_a_log_into_planks()
     {
-        var (trunk, player) = await Setup(56, Trunk(5));
+        var (trunk, player) = await TrunkToolSetup(56, Trunk(5));
         var held = Hold(player, trunk, Saw, TrunkHarvest.ToolSeconds);
         Assert.True(held.Taken);
         Assert.Equal(Logging.TreeTrunkPlankYield, Count(held.Drops, Logging.PlankCode("oak")));
@@ -231,7 +221,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task An_axe_and_a_saw_refuse_a_branched_trunk()
     {
         Assert.True(Logging.RequireBranchRemoval);
-        var (trunk, player) = await Setup(70, Trunk(10, branches: 5));
+        var (trunk, player) = await TrunkToolSetup(70, Trunk(10, branches: 5));
         foreach (var tool in new[] { Axe, Saw })
         {
             var held = Hold(player, trunk, tool, 1f);
@@ -247,7 +237,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task A_bark_spud_debarks_a_clean_trunk_in_one_hold()
     {
-        var (trunk, player) = await Setup(84, Trunk(10, branches: 4));
+        var (trunk, player) = await TrunkToolSetup(84, Trunk(10, branches: 4));
         float seconds = TrunkWeight.SpudSeconds(10, Mod.Config);
         Assert.Equal(5f, seconds);
 
@@ -291,7 +281,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task A_thick_trunk_cut_down_to_lg_becomes_a_thin_trunk_entity()
     {
-        var (trunk, player) = await Setup(-14, Trunk(25, size: "xl"));
+        var (trunk, player) = await TrunkToolSetup(-14, Trunk(25, size: "xl"));
         trunk.Pos.Yaw = 0.4f;
         Assert.Equal(TrunkEntitySystem.ThickCode, trunk.Code);
         var at = trunk.Pos.XYZ;
@@ -324,7 +314,7 @@ public class TrunkToolScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task A_trunk_at_its_last_log_is_gone_after_the_axe()
     {
-        var (trunk, player) = await Setup(98, Trunk(1, size: "xs"));
+        var (trunk, player) = await TrunkToolSetup(98, Trunk(1, size: "xs"));
         var held = Hold(player, trunk, Axe, TrunkHarvest.ToolSeconds);
         Assert.Equal(Logging.TreeTrunkLogYield, Count(held.Drops, Logging.PlacedLogCode("oak")));
         Assert.False(trunk.Alive);

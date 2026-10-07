@@ -81,9 +81,9 @@ public partial class WoodworkingScenarios
         var outside = SpawnTrunk(Trunk("oak", 4), Middle(cell).Add(3 * outward.X, 0, 3 * outward.Z), outward);
         // branched, while Logging Expanded requires debranching: it waits there
         var branched = SpawnTrunk(Trunk("oak", 4, branched: true), Middle(cell), outward);
-        await Power(mill);
-        // a few whole cycles: the saws pass the top each time
-        await World.Ticks(200);
+        await Power(mill, fast: true);
+        // whole cycles: the saws pass the top each time
+        await PastTheTop(mill);
         Assert.Null(mill.Trunk);
         Assert.True(branched.Alive);
         branched.Die(EnumDespawnReason.Removed);

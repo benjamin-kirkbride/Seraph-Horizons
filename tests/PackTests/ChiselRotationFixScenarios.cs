@@ -17,11 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// it, and the mod can go. The /chiselfix scenarios place a ruin as the unpatched game does and
 /// repair it.
 /// </summary>
-[AtlasWorld]
-public class ChiselRotationFixScenarios : AtlasScenarioBase
+public partial class PackFixScenarios
 {
-    private IWorldAccessor W => World.Api.World;
-
     private Block BlockOf(string code) =>
         W.GetBlock(new AssetLocation(code)) ?? throw new Xunit.Sdk.XunitException($"no block {code}");
 

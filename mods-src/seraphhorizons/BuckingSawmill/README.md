@@ -668,8 +668,10 @@ Most of the model was made for this mod. Its gears, saw blades, saw heads and cr
   durability is tripled. In creative, Ctrl + right click fits the parts one by one with nothing
   taken (not in survival, not with Shift), shows its help line, and on the assembled mill takes
   the kit back and fits a new one. They are part of `WoodworkingScenarios`, which shares one
-  server with the other woodworking scenarios, its ModConfig seeded from
-  `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and the cycle (an empty cycle
+  server with the other woodworking scenarios (the rosser's and the debarked trunk's run apart,
+  in `WoodworkingRosserScenarios`, on the same fixture), its ModConfig seeded from
+  `tests/PackTests/fixtures/buckingsawmill`, which shortens the cut and the cycle (a quarter turn
+  per stored log; an empty cycle
   is two turns). With the switch off, `SwitchesOffScenarios` requires no mill
   block, no recipe and nothing logged, and with `DurableSawmillBlades` off, Immersive Woodworking's
   own durabilities.
