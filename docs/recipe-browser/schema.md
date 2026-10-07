@@ -21,6 +21,7 @@ below that JSON Schema cannot express.
 | `recipes` | One record per recipe definition, sorted by `id`. |
 | `recipeTypes` | One entry per recipe type, keyed by type code. |
 | `guides` | Handbook guide pages that are not tied to one item. |
+| `variantGroups` | Optional. The pack's own mod's Tidy Variants groups, keyed by group id. |
 
 ## Codes
 
@@ -62,6 +63,35 @@ out when off, its type is one only that feature has, such as `picklingtub`, `lot
 `gearcutter`, or it is keyed by an item the switch adds, such as the bare steel gear's flash
 rust). Which switch owns what is the mod's switch ownership registry (its README, "Switch
 ownership"), read by reflection. A switch is named as in `ModConfig/seraphhorizons.json`.
+
+### Variant groups
+
+`variantGroups`, an optional top-level object, also comes from the pack's own mod: its Tidy
+Variants groups (#252), the variants the game collapses into one creative tile and one handbook
+group (every gravel, every plank wood), so the site can collapse the same items. Like the
+fields above it is an optional addition, and `schemaVersion` stayed 1. It is absent without the
+mod, with Tidy Variants switched off, or when its resolution failed; every reader copes, and
+older exports lack it.
+
+```json
+"variantGroups": {
+  "auto:game:plank": { "title": "Plank", "members": ["game:plank-oak", "game:plank-birch"] }
+}
+```
+
+- The key is the group's id as the engine gives it: `auto:<domain>:<base>[/<dim>=<value>...]`
+  for an automatic group, an override rule's id, or `groupby:<block|item>:<domain>:<pattern>`
+  for one merged by a shipped handbook `groupBy` (the mod's `TidyVariants/Core/README.md`).
+- `title`: the group's English title as the game shows it (`GroupTitles.Of`): its lang title,
+  else one derived from the members' names, else the representative's name.
+- `members`: codes of `items`, best representative first (the engine ranks every member). The
+  entries of one collectible's attribute stacks share a code and count once; a group left with
+  fewer than two codes is not exported, nor is a member whose code `items` holds as the other
+  kind (a block and an item can share a code). Entries Tidy Variants hides are in no group.
+
+The exporter reads the server's resolution (`TidyVariantsModSystem.ForSide(Server)`) by
+reflection, as it reads the switches; the server resolves at the WorldReady run phase, before
+the export runs.
 
 ## Recipes
 
@@ -224,6 +254,8 @@ shape it has no layout for.
 - Every code in a variant is a key of `items`.
 - Recipe ids are unique and sorted by UTF-16 code unit (ordinal order).
 - An item's `value` is a finite number, 0 or more.
+- Every member of a `variantGroups` entry is a key of `items`, a group has two or more
+  distinct members and a non-empty title, and no code is in two groups.
 - `variants[].ingredients` is as long as `ingredients`.
 - A grid pattern has `height` rows of `width` characters and uses only keys that exist.
 - Each ingredient of a `construction` record is consumed by exactly one stage.

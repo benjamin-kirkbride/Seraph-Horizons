@@ -10,7 +10,7 @@ import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { crc32, deflateSync } from "node:zlib";
-import { E2E_VALUES, E2E_VERSIONS, GEAR_ICON, ICON_CODE, PORT, REAL_ICONS, SUB_PATH, NO_ICONS_PATH } from "./config.ts";
+import { E2E_GROUPS, E2E_VALUES, E2E_VERSIONS, GEAR_ICON, ICON_CODE, PORT, REAL_ICONS, SUB_PATH, NO_ICONS_PATH } from "./config.ts";
 
 const site = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const work = join(site, "e2e", ".work");
@@ -86,10 +86,14 @@ createServer((req, res) => {
   console.log(`serving ${root} at http://127.0.0.1:${PORT}${SUB_PATH}`);
 });
 
-/** A copy of the export with E2E_VALUES, and made-up values when it has none of its own. */
+/**
+ * A copy of the export with E2E_VALUES, and made-up values when it has none of its own, and
+ * with E2E_GROUPS added to its variant groups.
+ */
 function withValues(path: string): string {
   type Item = { value?: number; floorZero?: boolean };
-  const exp = JSON.parse(readFileSync(path, "utf8")) as { items: Record<string, Item> };
+  type Group = { title: string; members: string[] };
+  const exp = JSON.parse(readFileSync(path, "utf8")) as { items: Record<string, Item>; variantGroups?: Record<string, Group> };
   const items = Object.entries(exp.items);
   if (!items.some(([, item]) => typeof item.value === "number")) {
     for (const [code, item] of items) {
@@ -104,6 +108,18 @@ function withValues(path: string): string {
     delete item.floorZero;
     if (fixed) Object.assign(item, fixed);
   }
+  // A code is in at most one group, and a group needs two members.
+  const fixed = new Set([...Object.keys(E2E_VALUES), ...Object.values(E2E_GROUPS).flatMap((g) => g.members)]);
+  const groups: Record<string, Group> = {};
+  for (const [id, group] of Object.entries(exp.variantGroups ?? {})) {
+    const members = group.members.filter((code) => !fixed.has(code));
+    if (members.length >= 2) groups[id] = { ...group, members };
+  }
+  for (const [id, group] of Object.entries(E2E_GROUPS)) {
+    for (const code of group.members) if (!exp.items[code]) throw new Error(`${code} is not in the export; e2e/config.ts E2E_GROUPS needs it`);
+    groups[id] = group;
+  }
+  exp.variantGroups = groups;
   const out = join(work, "export-with-values.json");
   writeFileSync(out, JSON.stringify(exp));
   return out;

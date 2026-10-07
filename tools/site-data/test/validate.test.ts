@@ -80,6 +80,47 @@ describe("validate: cross-references", () => {
     expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["item-value", "/items/examplemod:widget/value"]]);
   });
 
+  it("accepts an export without variantGroups", () => {
+    const d = example();
+    delete d.variantGroups;
+    expect(problems(d)).toEqual([]);
+  });
+
+  it("rejects a variant group member that is not an item", () => {
+    const d = example();
+    d.variantGroups["auto:game:plank"].members[1] = "game:plank-pine";
+    const p = only(d);
+    expect([p.kind, p.path, p.found]).toEqual([
+      "variant-group-code",
+      "/variantGroups/auto:game:plank/members/1",
+      '"game:plank-pine"',
+    ]);
+  });
+
+  it("rejects a code in two variant groups", () => {
+    const d = example();
+    d.variantGroups["auto:game:supportbeam"].members.push("game:plank-oak");
+    const p = only(d);
+    expect([p.kind, p.path]).toEqual(["variant-group-overlap", "/variantGroups/auto:game:supportbeam/members/2"]);
+    expect(p.found).toContain("auto:game:plank");
+  });
+
+  it("rejects a blank variant group title", () => {
+    const d = example();
+    d.variantGroups["auto:game:plank"].title = "  ";
+    expect(problems(d)).toEqual([["variant-group-title", "/variantGroups/auto:game:plank/title"]]);
+  });
+
+  it("rejects a variant group of one distinct code", () => {
+    const d = example();
+    d.variantGroups["auto:game:plank"].members = ["game:plank-oak", "game:plank-oak"];
+    // The schema's uniqueItems stops this first; the check stands on its own too.
+    expect(problems(d).map(([kind]) => kind)).not.toContain("variant-group-size");
+    const report = new ErrorReport();
+    checkCrossReferences(d, report);
+    expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["variant-group-size", "/variantGroups/auto:game:plank/members"]]);
+  });
+
   it("rejects a variant ingredient code that is not an item", () => {
     const d = example();
     d.recipes[8].variants[1].ingredients[0][0].code = "game:plank-pine";

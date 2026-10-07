@@ -449,3 +449,32 @@ describe("entityTypeName", () => {
     expect(entityTypeName("game:goat", [])).toBe("Goat");
   });
 });
+
+describe("variant groups", () => {
+  const exp = structuredClone(minimal);
+  exp.variantGroups = {
+    "auto:game:plank": { title: "Plank", members: ["game:plank-oak", "game:plank-birch"] },
+    "auto:game:ingot": { title: "Ingot", members: ["game:ingot-tin", "game:ingot-copper", "game:ingot-tinbronze"] },
+    // site-data rejects these, but an older export may still have them: an unknown member,
+    // a member already in another group, a group left with one item.
+    "auto:game:supportbeam": { title: "Support beam", members: ["game:supportbeam-oak", "game:nosuchitem", "game:ingot-tin"] },
+  };
+  const search = prepareData(exp).files.get("search.json") as SearchFile;
+  const at = (code: string) => search.codes.indexOf(code);
+
+  it("writes each group's title and members as item indices, in rank order, groups by id", () => {
+    expect(search.groups).toEqual({
+      titles: ["Ingot", "Plank"],
+      members: [
+        [at("game:ingot-tin"), at("game:ingot-copper"), at("game:ingot-tinbronze")],
+        [at("game:plank-oak"), at("game:plank-birch")],
+      ],
+    });
+  });
+
+  it("writes no groups for an export without them", () => {
+    const plain = structuredClone(minimal);
+    delete plain.variantGroups;
+    expect((prepareData(plain).files.get("search.json") as SearchFile).groups).toBeUndefined();
+  });
+});
