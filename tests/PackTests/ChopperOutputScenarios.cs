@@ -144,7 +144,9 @@ public partial class WoodworkingScenarios
             int ejected = 0;
             for (int n = 0; n < Logs; n++)
                 ejected += site.ChopOneLog();
-            await World.Ticks(150);
+            // until the batches have landed, then a second for them to settle
+            await World.Until(() => site.Loose() is var l && l.Sum(e => e.Itemstack.StackSize) == ejected && l.All(e => e.OnGround), 300);
+            await World.Ticks(20);
 
             var loose = site.Loose();
             output.WriteLine($"{facing.Code}: wind {W.BlockAccessor.GetWindSpeedAt(site.OutputCell)}");

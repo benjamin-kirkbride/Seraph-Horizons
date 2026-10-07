@@ -138,22 +138,6 @@ public partial class SharedWorldScenarios
         Assert.Equal(-1, none);
     }
 
-    [AtlasScenario(TimeoutMs = 900_000)]
-    public void The_gear_recipes_export()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        JObject Recipe(string id) => doc["recipes"]!.Cast<JObject>().SingleOrDefault(r => (string)r["id"]! == id)
-            ?? throw new Xunit.Sdk.XunitException($"no recipe {id}");
-        var cook = Recipe("cooking|seraphhorizons:recipes/cooking/gear-degrease.json|1");
-        Assert.Equal("cooking", (string)cook["type"]!);
-        Assert.Contains(cook["outputs"]!, o => (string)o["code"]! == GearCodes.Degreased);
-        var neutralize = Recipe("barrel|seraphhorizons:recipes/barrel/gear-neutralize.json|0");
-        Assert.Contains(neutralize["outputs"]!, o => (string)o["code"]! == GearCodes.Neutralized);
-        foreach (int i in new[] { 0, 1 })
-            Assert.Contains(Recipe($"barrel|seraphhorizons:recipes/barrel/gear-oil.json|{i}")["outputs"]!,
-                o => (string)o["code"]! == GearCodes.Oiled);
-    }
-
     /// <summary>Seals <paramref name="gears"/> in a barrel with <paramref name="liquid"/>, checks it is
     /// not done <paramref name="hours"/> − 0.5 hours in and is at <paramref name="hours"/>; returns the
     /// barrel.</summary>

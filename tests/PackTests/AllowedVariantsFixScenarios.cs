@@ -10,15 +10,12 @@ namespace SeraphHorizons.PackTests;
 /// (https://github.com/anegostudios/VintageStory-Issues/issues/9256). Without the mod every
 /// scenario here fails; when the game fixes the bug they pass without it, and the mod can go.
 /// </summary>
-[AtlasWorld]
-public class AllowedVariantsFixScenarios : AtlasScenarioBase
+public partial class PackFixScenarios
 {
-    private IWorldAccessor W => World.Api.World;
-
-    private ItemStack Block(string code) =>
+    private ItemStack BlockStack(string code) =>
         new(W.GetBlock(new AssetLocation(code)) ?? throw new Xunit.Sdk.XunitException($"no block {code}"));
 
-    private ItemStack Item(string code) =>
+    private ItemStack ItemStackOf(string code) =>
         new(W.GetItem(new AssetLocation(code)) ?? throw new Xunit.Sdk.XunitException($"no item {code}"));
 
     private static CraftingRecipeIngredient Cell(GridRecipe recipe, string key) =>
@@ -65,9 +62,9 @@ public class AllowedVariantsFixScenarios : AtlasScenarioBase
         foreach (var r in recipes)
         {
             var soil = Cell(r, "S");
-            Assert.True(soil.SatisfiesAsIngredient(Block("game:soil-low-none")));
-            Assert.False(soil.SatisfiesAsIngredient(Block("game:soil-high-none")), "terra preta accepted");
-            Assert.False(soil.SatisfiesAsIngredient(Block("game:soil-medium-none")));
+            Assert.True(soil.SatisfiesAsIngredient(BlockStack("game:soil-low-none")));
+            Assert.False(soil.SatisfiesAsIngredient(BlockStack("game:soil-high-none")), "terra preta accepted");
+            Assert.False(soil.SatisfiesAsIngredient(BlockStack("game:soil-medium-none")));
         }
     }
 
@@ -84,9 +81,9 @@ public class AllowedVariantsFixScenarios : AtlasScenarioBase
         foreach (var r in recipes)
         {
             var nails = Cell(r, "F"); // needs 2; only the variant matters here
-            Assert.True(nails.SatisfiesAsIngredient(Item("game:metalnailsandstrips-copper"), checkStackSize: false));
-            Assert.False(nails.SatisfiesAsIngredient(Item("game:metalnailsandstrips-iron"), checkStackSize: false), "iron nails accepted");
-            Assert.False(nails.SatisfiesAsIngredient(Item("game:metalnailsandstrips-steel"), checkStackSize: false));
+            Assert.True(nails.SatisfiesAsIngredient(ItemStackOf("game:metalnailsandstrips-copper"), checkStackSize: false));
+            Assert.False(nails.SatisfiesAsIngredient(ItemStackOf("game:metalnailsandstrips-iron"), checkStackSize: false), "iron nails accepted");
+            Assert.False(nails.SatisfiesAsIngredient(ItemStackOf("game:metalnailsandstrips-steel"), checkStackSize: false));
         }
     }
 }

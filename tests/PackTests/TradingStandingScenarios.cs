@@ -7,7 +7,6 @@ using SeraphHorizons.Mod.Trading.Standing.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -18,13 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// group manager and its player data, and left with <c>/group leave</c>. Atlas' default world: no
 /// camps, so traders are known by their entity.
 /// </summary>
-[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
-public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class TradingScenarios
 {
-    private ICoreServerAPI Api => World.Api;
-    private IWorldAccessor W => World.Api.World;
-    private StandingSystem Standing => StandingSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no StandingSystem");
-
     [AtlasScenario]
     [ReadsBootLog]
     public void Standing_is_on_with_the_group_hooks_and_the_boot_logs_nothing_about_it()
@@ -41,25 +35,6 @@ public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal(["stranger", "known", "regular", "trusted", "partner"], Standing.Rules.Tiers.Select(t => t.Code));
     }
 
-    private async Task<EntitySeraphTrader> SpawnTrader(int dx, int dz, string type = "generalstore")
-    {
-        var pos = World.Spawn.AddCopy(dx, 0, dz);
-        pos.Y = W.BlockAccessor.GetTerrainMapheightAt(pos) + 1;
-        var props = W.GetEntityType(new AssetLocation("seraphhorizons", $"trader-male-{type}-temperate"))!;
-        var entity = (EntitySeraphTrader)W.ClassRegistry.CreateEntity(props);
-        entity.Pos.SetPos(pos.X + 0.5, pos.Y, pos.Z + 0.5);
-        W.SpawnEntity(entity);
-        await World.Ticks(5);
-        return entity;
-    }
-
-    private async Task<ITestPlayer> PlayerAt(string name, EntitySeraphTrader trader)
-    {
-        var player = await World.JoinPlayer(name);
-        await player.TeleportTo(trader.Pos.AsBlockPos.AddCopy(2, 0, 0));
-        return player;
-    }
-
     /// <summary>As the dialog's AddToBuyingCart: one lot of a selling slot into the buying cart.</summary>
     private void AddToBuyingCart(InventoryTrader inv, ItemSlotTrade selling, int cart)
     {
@@ -72,8 +47,9 @@ public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioB
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_deal_through_the_trader_raises_standing_by_its_gear_value()
     {
-        var trader = await SpawnTrader(20, -20);
-        var p = await PlayerAt("standingbuyer", trader);
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", 15, -35);
+        var p = await At(await Customer(), trader);
         var sp = (IServerPlayer)p.Player;
         await p.GiveItem("game:gear-rusty", 32);
         var inv = trader.Inventory;
@@ -108,7 +84,7 @@ public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioB
         inv.GetBuyingCartSlot(0).Itemstack = null;
 
         // The admin view lists it, by name and by id.
-        var view = await World.ExecuteCommand($"/sh trade standing standingbuyer {id}");
+        var view = await World.ExecuteCommand($"/sh trade standing {sp.PlayerName} {id}");
         output.WriteLine(view.Message);
         Assert.True(view.Ok, view.Message);
         Assert.Contains(id, view.Message);
@@ -119,14 +95,15 @@ public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioB
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_higher_tier_raises_the_wallet_at_the_next_restock()
     {
-        var trader = await SpawnTrader(-20, 20);
-        var p = await PlayerAt("standingwallet", trader);
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", -15, 35);
+        var p = await At(await Customer(), trader);
         var def = TradingSystem.Of(Api)!.Lists!.For("generalstore")!;
         Assert.Equal(def.WalletFor(0).Avg, trader.TradeProps.Money.avg);
         string id = Standing.TraderIdOf(trader);
         Assert.Equal(0, Standing.WalletTierFor(trader));
 
-        var set = await World.ExecuteCommand($"/sh trade standing set standingwallet {id} 300");
+        var set = await World.ExecuteCommand($"/sh trade standing set {p.Player.PlayerName} {id} 300");
         output.WriteLine(set.Message);
         Assert.True(set.Ok, set.Message);
         Assert.Equal("regular", Standing.ViewFor(p.Player.PlayerUID, trader).Tier.Code);
@@ -158,13 +135,14 @@ public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioB
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_company_pools_standing_by_max_and_a_leaver_keeps_only_their_own()
     {
-        var trader = await SpawnTrader(30, 30, "smith");
-        var vet = await PlayerAt("standingvet", trader);
-        var newbie = await PlayerAt("standingnew", trader);
+        FreshSupply();
+        var trader = await SpawnTrader("smith", 35, 15);
+        var vet = await At(await Veteran(), trader);
+        var newbie = await At(await Newcomer(), trader);
         string vetUid = vet.Player.PlayerUID, newUid = newbie.Player.PlayerUID;
         string id = Standing.TraderIdOf(trader);
-        Assert.True((await World.ExecuteCommand($"/sh trade standing set standingvet {id} 900")).Ok);
-        Assert.True((await World.ExecuteCommand($"/sh trade standing set standingnew {id} 40")).Ok);
+        Assert.True((await World.ExecuteCommand($"/sh trade standing set {vet.Player.PlayerName} {id} 900")).Ok);
+        Assert.True((await World.ExecuteCommand($"/sh trade standing set {newbie.Player.PlayerName} {id} 40")).Ok);
         Assert.Equal("stranger", Standing.ViewFor(newUid, trader).Tier.Code);
 
         // The veteran forms a company; the newcomer joins and picks it with /sh company.
@@ -190,11 +168,11 @@ public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal(50, Standing.Ledger.Personal(newUid, id)!.Points);
         Assert.Equal(910, Standing.Ledger.Companies.Get(acme.Uid, id)!.Points);
 
-        var admin = await World.ExecuteCommand("/sh trade company standingnew");
+        var admin = await World.ExecuteCommand($"/sh trade company {newbie.Player.PlayerName}");
         output.WriteLine(admin.Message);
         Assert.True(admin.Ok, admin.Message);
         Assert.Contains("acmestanding", admin.Message);
-        Assert.Contains("standingvet", admin.Message);
+        Assert.Contains(vet.Player.PlayerName, admin.Message);
 
         // Leaving: back to the newcomer's own 50; the company keeps its 910.
         var leave = await newbie.ExecuteCommand("/group leave acmestanding");
@@ -211,17 +189,20 @@ public class TradingStandingScenarios(ITestOutputHelper output) : AtlasScenarioB
         Api.Groups.RemovePlayerGroup(acme);
         Assert.Null(Standing.Ledger.Companies.Record(acme.Uid));
         trader.Die(EnumDespawnReason.Removed);
+        Api.Groups.RemovePlayerGroup(other);
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Opening_the_trade_dialog_shows_standing_once_a_visit()
     {
-        var trader = await SpawnTrader(-30, -30);
-        var p = await PlayerAt("standingvisit", trader);
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", -35, -15);
+        var p = await At(await Customer(), trader);
         var line = StandingText.Line(trader, Standing.ViewFor(p.Player.PlayerUID, trader));
         output.WriteLine(line);
         Assert.Contains("general store", line);
         Assert.Contains("stranger", line);
         Assert.Contains("known at 60", line);
+        trader.Die(EnumDespawnReason.Removed);
     }
 }

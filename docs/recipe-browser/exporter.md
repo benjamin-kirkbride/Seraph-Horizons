@@ -33,6 +33,8 @@ loaded, and its summary names what the build replaced. Without the flag the expo
 pinned pack's alone, which is not what CI publishes.
 
 The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUnderTest`).
+One that reads only the guide pages calls `Exporter.Guides`, which returns the `guides`
+section alone without the cost of a full export.
 
 ## How recipes are exported
 
