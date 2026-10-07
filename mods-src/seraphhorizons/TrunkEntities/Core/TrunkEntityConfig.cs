@@ -13,11 +13,11 @@ public class TrunkEntityConfig
 
     /// <summary>Walk speed, as a multiple of the normal one, while carrying a trunk of four logs or
     /// fewer.</summary>
-    public float CarrySpeedAtFourLogs { get; set; } = 0.25f;
+    public float CarrySpeedAtFourLogs { get; set; } = 0.8f;
 
     /// <summary>Walk speed while carrying a trunk of 48 logs or more; between 4 and 48 logs it goes
     /// linearly from <see cref="CarrySpeedAtFourLogs"/> to this.</summary>
-    public float CarrySpeedAtMaxLogs { get; set; } = 0.2f;
+    public float CarrySpeedAtMaxLogs { get; set; } = 0.5f;
 
     /// <summary>Seconds the bark spud is held per stored log to debark a whole trunk (2 at least).</summary>
     public float SpudSecondsPerLog { get; set; } = 0.5f;

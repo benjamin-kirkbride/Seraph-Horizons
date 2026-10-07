@@ -209,8 +209,8 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   data.
 - **Speed.** While a trunk is carried, the player's `walkspeed` stat gets the code
   `seraphhorizons:trunk`, so the walk speed is `TrunkWeight.CarrySpeed` of its logs:
-  `CarrySpeedAtFourLogs` (0.25) up to 4 logs, falling linearly to `CarrySpeedAtMaxLogs` (0.2) at 48
-  logs and beyond. About 0.24 at 10 logs and 0.23 at 25. Carry On's own slot modifier is set to 0 for
+  `CarrySpeedAtFourLogs` (0.8) up to 4 logs, falling linearly to `CarrySpeedAtMaxLogs` (0.5) at 48
+  logs and beyond. About 0.76 at 10 logs and 0.66 at 25. Carry On's own slot modifier is set to 0 for
   trunks by the patch and cancelled out in the value besides. The server checks every online player
   every 250 ms (and at once when the pack itself gives or takes a trunk) and removes the code once
   no trunk is carried; the game syncs stats to the client.
@@ -221,9 +221,12 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   `trunkcarryheavy` for xl and xxl (its player patches add both; nothing of its own starts them),
   a `hands` transform of its own in place of Carry On's `carry-trunk` template (which holds the
   trunk across the chest), and `walkSpeedModifier` 0. The transform is meant to lay the trunk along
-  the shoulder: `translation` [0.35, 0.6, -0.5], `rotationY` 90, `originZ` 1.0. It is a guess and
-  not seen in the game yet; if the trunk sits wrong, tune `translation` (x sideways, y up, z
-  forward and back) and `originZ` (the point it turns about) first. The game merges
+  the shoulder: `translation` [0.35, 0.6, -0.5], `rotationZ` 90 about the block's centre
+  (`origin` [0.5, 0.5, 0.5]), which tips the standing trunk block over to lie along the carrier's
+  front-to-back axis (in Carry On's carried frame x runs front to back and z side to side, as its
+  own strap positions show). Without the tip the trunk stood on end at the shoulder; if it lies
+  across the chest instead, the tip belongs on `rotationX`; if it sits wrong, tune `translation`
+  (x forward and back, y up, z sideways). The game merges
   `propertiesByType` into `properties` with arrays concatenated, so the shared settings sit in
   `properties` only.
 - **Hands only, never the back.** The patch sets `preventSwapBack`, and `StripBackSlots` removes any
@@ -384,8 +387,8 @@ Values out of range fall back to the default with a warning. The server's values
 | Setting | Default | Range | |
 |---|---|---|---|
 | `WeightPerLog` | 8 | 0..1000 | Weight a stored log adds: weight = 10 + logs × this. What a rope or a grab pulls against. |
-| `CarrySpeedAtFourLogs` | 0.25 | 0..1 | Walk speed, as a multiple of the normal one, carrying a trunk of 4 logs or fewer |
-| `CarrySpeedAtMaxLogs` | 0.2 | 0..1 | Walk speed carrying one of 48 logs or more; linear in logs between the two |
+| `CarrySpeedAtFourLogs` | 0.8 | 0..1 | Walk speed, as a multiple of the normal one, carrying a trunk of 4 logs or fewer |
+| `CarrySpeedAtMaxLogs` | 0.5 | 0..1 | Walk speed carrying one of 48 logs or more; linear in logs between the two |
 | `SpudSecondsPerLog` | 0.5 | 0..60 | The bark spud's hold per stored log, 2 s at least |
 | `GrabRange` | 3 | 1..10 | Blocks from the hand beyond which a grab cannot start, and lets go |
 | `MaxGrabWeight` | 0 | 0 and up | Trunks heavier than this cannot be grabbed by hand, only roped; 0 is no limit |
