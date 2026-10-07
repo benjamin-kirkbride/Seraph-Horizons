@@ -90,6 +90,42 @@ public class ItemValuesTests
         Assert.Equal(["game:a-b-c-", "game:a-b-", "game:a-"], ItemValues.FamilyPrefixes("game:a-b-c-d"));
 
     [Fact]
+    public void CachedWildcardMatchesUncached()
+    {
+        foreach (var p in new[] { "game:plank-*", "game:axe-*-copper", "game:*", "game:a*", "game:*-copper", "game:nothing-*" })
+        {
+            var uncached = Table.WildcardUncached(p);
+            Assert.Equal(uncached, Table.Lookup(p));
+            Assert.Equal(uncached, Table.Lookup(p));
+        }
+        // Normalised before the cache: the same answer under any spelling.
+        Assert.Equal(Table.Lookup("game:plank-*"), Table.Lookup("Plank-*"));
+    }
+
+    [Fact]
+    public void WildcardCacheBelongsToItsTable()
+    {
+        // The table is immutable; a reload builds a new one, whose answers come from its own codes.
+        Assert.Equal(0.07, Table.Lookup("game:plank-*").Value);
+        var reloaded = ItemValues.Parse("""{ "values": { "game:plank-oak": 1.0 } }""");
+        Assert.Equal(1.0, reloaded.Lookup("game:plank-*").Value);
+        Assert.Equal(1, reloaded.Lookup("game:plank-*").Members);
+        Assert.Equal(0.07, Table.Lookup("game:plank-*").Value);
+    }
+
+    [Fact]
+    public void ShippedTableWildcardsMatchUncached()
+    {
+        // Patterns built like recipe wildcards: each code's last segment, and a middle one, starred.
+        var table = ItemValues.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "item-values.json")));
+        var patterns = table.Codes.Where(c => c.Contains('-'))
+            .SelectMany(c => new[] { c[..(c.LastIndexOf('-') + 1)] + "*", c[..(c.IndexOf('-') + 1)] + "*" + c[c.LastIndexOf('-')..] })
+            .Distinct().Take(300).ToList();
+        foreach (var p in patterns)
+            Assert.Equal(table.WildcardUncached(p), table.Lookup(p));
+    }
+
+    [Fact]
     public void ShippedTableParses()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "item-values.json");

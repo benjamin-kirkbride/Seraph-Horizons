@@ -761,8 +761,8 @@ regenerating.
   gears' pitch and centre distances. `tools/tests/test_machinegen.py` tests the shared generator
   package and that the driver fixture is what its maths writes.
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
-- `tests/PackTests/RosserScenarios.cs` (Atlas, part of `WoodworkingScenarios`, its ModConfig seeded
-  from `tests/PackTests/fixtures/buckingsawmill`, where `RevolutionsPerStoredLog` is 0.5 and
+- `tests/PackTests/RosserScenarios.cs` (Atlas, part of `WoodworkingRosserScenarios`, its ModConfig seeded
+  from `tests/PackTests/fixtures/buckingsawmill`, where `RevolutionsPerStoredLog` is 0.2 and
   `RevolutionsPerBranch` 0.08, so a trip takes a few turns) loads this build with every locked mod.
   Each scenario builds on a floor of its own high above the ground.
   - Loading and placing: the rosser loads cleanly with its blocks, recipe, part items and ppex

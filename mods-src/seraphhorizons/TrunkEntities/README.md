@@ -457,7 +457,7 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
     is; a trunk as a world saves it mid-grab, from when the grab was a game rope (the grabber's
     and rope's ids, the rope in its `ropetieable` list, no such rope in the game) loads with the
     grab and the rope's id cleared and can be grabbed again.
-  - `TrunkToolScenarios.cs`: every tool kind gets the behaviour; the axe takes a log, with a hammer
+  - `TrunkToolScenarios.cs` (a partial file of `SharedWorldScenarios`, on the plain world): every tool kind gets the behaviour; the axe takes a log, with a hammer
     a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from
     twelve branches; the saw cuts planks; the axe and saw refuse a branched trunk; the spud debarks
     a clean trunk in one hold and drops bark; an xl trunk sawn to 24 logs becomes a thin lg trunk
@@ -483,7 +483,10 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
 ```sh
 dotnet test mods-src/seraphhorizons/tests --filter "FullyQualifiedName~TrunkEntities"
 TMPDIR=~/.cache/atlas-tmp VINTAGE_STORY=<game> dotnet test tests/PackTests \
-  --filter "FullyQualifiedName~TrunkEntityScenarios|FullyQualifiedName~TrunkToolScenarios|FullyQualifiedName~TrunkCarryScenarios|FullyQualifiedName~TrunkStationScenarios"
+  --filter "FullyQualifiedName~TrunkEntityScenarios|FullyQualifiedName~TrunkCarryScenarios|FullyQualifiedName~TrunkStationScenarios"
+# The tool scenarios share SharedWorldScenarios' server: run that class, or just its trunk tests
+TMPDIR=~/.cache/atlas-tmp VINTAGE_STORY=<game> dotnet test tests/PackTests \
+  --filter "FullyQualifiedName~SharedWorldScenarios&(FullyQualifiedName~trunk|FullyQualifiedName~Every_tool_kind|FullyQualifiedName~Shears_make|FullyQualifiedName~A_saw_cuts_a_log)"
 ```
 
 With the switch off (`fixtures/switches-off`, `TrunkEntities: false`) the other switches' scenarios

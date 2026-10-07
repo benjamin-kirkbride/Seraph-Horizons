@@ -453,7 +453,7 @@ What did not:
    npm --prefix site run check && npm --prefix site test
    mkdir -p build/atlas-tmp
    TMPDIR=$PWD/build/atlas-tmp VINTAGE_STORY=$HOME/Games/vintagestory dotnet test tests/PackTests \
-     --filter "FullyQualifiedName~PackTests.WoodworkingScenarios.|FullyQualifiedName~SharedWorldScenarios.Locked_mod|FullyQualifiedName~SharedWorldScenarios.Server_boots"
+     --filter "FullyQualifiedName~PackTests.WoodworkingScenarios.|FullyQualifiedName~PackTests.WoodworkingRosserScenarios.|FullyQualifiedName~SharedWorldScenarios.Locked_mod|FullyQualifiedName~SharedWorldScenarios.Server_boots"
    rm -rf build/atlas-tmp
    ```
 10. Update the mod README (mechanism, rig schema, driver table, validation list, element prefixes).

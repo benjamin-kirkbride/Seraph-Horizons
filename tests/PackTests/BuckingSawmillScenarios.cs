@@ -24,200 +24,12 @@ namespace SeraphHorizons.PackTests;
 /// Logging Expanded. The mill is driven by a real mechanical power network (a vanilla creative
 /// rotor against its power face). BuckingSawmillSettings in ModConfig/seraphhorizons.json is seeded from
 /// fixtures/buckingsawmill (the [AtlasDataFiles] on <see cref="WoodworkingScenarios"/>) with
-/// RevolutionsPerStoredLog at 0.5 and RaiseRevolutions at 1, so an empty cycle (down and back up)
+/// RevolutionsPerStoredLog at 0.25 and RaiseRevolutions at 1, so an empty cycle (down and back up)
 /// is two turns and a cut takes seconds; every other setting is the default. Each scenario builds
 /// its mill in its own patch of sky.
 /// </summary>
 public partial class WoodworkingScenarios
 {
-    private BuckingSawmillSystem Mod => BuckingSawmillSystem.Of(World.Api);
-    private Rig Rig => Mod.Rig ?? throw new Xunit.Sdk.XunitException("the rig did not load");
-
-    private const string Iw = "immersivewoodworking";
-
-    private Block BlockOf(string code) =>
-        W.GetBlock(new AssetLocation(code)) is { Id: > 0 } block ? block : throw new Xunit.Sdk.XunitException($"no block {code}");
-
-    private ItemStack ItemOf(string code, int size = 1) =>
-        W.GetItem(new AssetLocation(code)) is { } item ? new ItemStack(item, size) : throw new Xunit.Sdk.XunitException($"no item {code}");
-
-    /// <summary>A spot high above the ground, cleared well beyond the mill's footprint.</summary>
-    private BlockPos Sky(int dx, int dz)
-    {
-        var origin = World.Spawn.AddCopy(dx, 30, dz);
-        for (int x = -9; x <= 9; x++)
-        for (int y = -1; y <= 6; y++)
-        for (int z = -9; z <= 9; z++)
-            W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
-        return origin;
-    }
-
-    private async Task<BEBuckingMill> PlaceMill(BlockPos pos, string side)
-    {
-        World.SetBlock($"seraphhorizons:buckingmill-frame-{side}", pos);
-        await World.Ticks(5);
-        return W.BlockAccessor.GetBlockEntity(pos) as BEBuckingMill
-               ?? throw new Xunit.Sdk.XunitException($"no mill block entity at {pos}");
-    }
-
-    // One player for every mill scenario (millhand): the world takes at most 16 clients, more than
-    // the scenarios would join each with its own.
-    private static IPlayer? _shared;
-    private static object? _sharedWorld;
-
-    /// <summary>The mill scenarios' player, in survival with an empty inventory, nothing carried and its keys up. The name is
-    /// only for reading the scenarios.</summary>
-    private async Task<IPlayer> Player(string name)
-    {
-        if (_shared == null || !ReferenceEquals(_sharedWorld, World.Api))
-        {
-            _shared = (await World.JoinPlayer("millhand")).Player;
-            _sharedWorld = World.Api;
-        }
-        var player = _shared;
-        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
-            foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
-            {
-                slot.Itemstack = null;
-                slot.MarkDirty();
-            }
-        TrunkCarry.Take((IServerPlayer)player);
-        player.Entity.Controls.CtrlKey = player.Entity.Controls.ShiftKey = false;
-        return player;
-    }
-
-    // Whether the last Click was taken by the block.
-    private bool _handled;
-
-    /// <summary>Right-clicks <paramref name="at"/> (at <paramref name="hit"/> in that cell, its
-    /// middle by default) holding <paramref name="held"/>; returns what is left in the hand.
-    /// A trunk is never held (trunk entities run): it is carried in Carry On's hands instead, in
-    /// place of whatever was carried, and the click is empty-handed; what is left is then what is
-    /// still carried. Any other item in hand is held with empty Carry On hands (it once replaced a
-    /// refused trunk in the hand slot). With nothing in hand, what is carried stays carried, except
-    /// that a Ctrl click (the one that takes a trunk back) starts with empty hands unless
-    /// <paramref name="keepCarried"/>.
-    /// <paramref name="creative"/> clicks as a player in creative mode, back in survival after.</summary>
-    private ItemStack? Click(IPlayer player, BlockPos at, ItemStack? held, bool ctrl = false, bool shift = false,
-        bool creative = false, Vec3d? hit = null, bool keepCarried = false)
-    {
-        bool trunk = Trunks.IsTrunk(held);
-        if ((ctrl || held != null) && !keepCarried)
-            TrunkCarry.Take((IServerPlayer)player);
-        if (trunk)
-        {
-            TrunkCarry.Take((IServerPlayer)player);
-            player.InventoryManager.ActiveHotbarSlot.Itemstack = null;   // Carry On takes a trunk only into empty hands
-            Assert.True(TrunkCarry.TryGive((IServerPlayer)player, held!), "the trunk could not be carried");
-            held = null;
-        }
-        // fetched after: carrying puts Carry On's locked slot in the hand
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        slot.Itemstack = held;
-        slot.MarkDirty();
-        player.Entity.Controls.CtrlKey = ctrl;
-        player.Entity.Controls.ShiftKey = shift;
-        if (creative)
-            player.WorldData.CurrentGameMode = EnumGameMode.Creative;
-        try
-        {
-            var sel = new BlockSelection { Position = at.Copy(), Face = BlockFacing.UP, HitPosition = hit ?? new Vec3d(0.5, 0.5, 0.5) };
-            _handled = W.BlockAccessor.GetBlock(at).OnBlockInteractStart(W, player, sel);
-        }
-        finally
-        {
-            player.Entity.Controls.CtrlKey = false;
-            player.Entity.Controls.ShiftKey = false;
-            player.WorldData.CurrentGameMode = EnumGameMode.Survival;
-        }
-        return trunk ? TrunkCarry.Carried(player) : slot.Itemstack;
-    }
-
-    private static string Info(BEBuckingMill mill, IPlayer player)
-    {
-        var sb = new System.Text.StringBuilder();
-        mill.GetBlockInfo(player, sb);
-        return sb.ToString();
-    }
-
-    private void Assemble(BEBuckingMill mill, IPlayer player, string metal = "copper")
-    {
-        foreach (var path in new[] { "sawmillsash", "sawmillsash", "sawmillcrankshaft", "sawmilllevers", "sawmillblade-" + metal })
-            Assert.True(mill.TryFitPart(new DummySlot(ItemOf($"{Iw}:{path}")), player), $"could not fit {path}");
-        Assert.True(mill.Complete);
-        Oil(mill.Oiling);
-    }
-
-    /// <summary>Fills a machine's oil tank (MachineOil): a creative rotor cannot turn a dry mill or
-    /// rosser, whose load is three times as high. <c>MachineOilMillScenarios.cs</c> tests the oil
-    /// itself.</summary>
-    private static void Oil(OilState? oil)
-    {
-        Assert.NotNull(oil);
-        oil.Tank = oil.Tank.Fill(oil.Tank.Capacity);
-    }
-
-    /// <summary>A creative rotor against the power face; waits until the mill's shaft turns. With
-    /// <paramref name="full"/>, the rotor is set to its top speed and torque (10 and 10, as a player
-    /// gets by right-clicking it), and this waits until the shaft is up to speed.</summary>
-    private async Task Power(BEBuckingMill mill, bool full = false)
-    {
-        var rotorPos = RotorPos(mill);
-        var face = Assert.IsType<BlockMillGhostPower>(W.BlockAccessor.GetBlock(mill.CellPos(Rig.PowerCell))).PowerFace;
-        World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
-        if (full)
-        {
-            await World.Ticks(2);
-            var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
-            HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
-            HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
-            rotor.Blockentity.MarkDirty(true);
-            await World.Until(() => mill.ShaftSpeed >= 0.8f, 10000);
-        }
-        await World.Until(() => mill.ShaftSpeed >= Mod.Config.MinSpeed, 2000);
-    }
-
-    private BlockPos RotorPos(BEBuckingMill mill)
-    {
-        var ghost = mill.CellPos(Rig.PowerCell);
-        return ghost.AddCopy(Assert.IsType<BlockMillGhostPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace);
-    }
-
-    /// <summary>Takes the rotor away; waits until the shaft has run down below the mill's speed.</summary>
-    private async Task Unpower(BEBuckingMill mill)
-    {
-        W.BlockAccessor.SetBlock(0, RotorPos(mill));
-        await World.Until(() => mill.ShaftSpeed < Mod.Config.MinSpeed, 20000);
-    }
-
-    private ItemStack Trunk(string wood, int logs, bool branched = false, string size = "sm")
-    {
-        var stack = new ItemStack(BlockOf($"loggingmod:treetrunk-{wood}-{size}-{(branched ? "yes" : "no")}-north"));
-        var slots = new TreeAttribute();
-        slots["0"] = new ItemstackAttribute(new ItemStack(BlockOf($"game:log-placed-{wood}-ud"), logs));
-        stack.Attributes["slots"] = slots;
-        if (branched)
-            stack.Attributes.SetInt("branchCount", 3);
-        return stack;
-    }
-
-    /// <summary>The stacks of item entities in a tall box around <paramref name="around"/>, by code.</summary>
-    private Dictionary<string, int> ItemsNear(BlockPos around, int radius = 8)
-    {
-        var box = new Cuboidi(around.X - radius, around.Y - 40, around.Z - radius, around.X + radius, around.Y + 8, around.Z + radius);
-        return World.EntitiesIn(box).OfType<EntityItem>().Where(e => e.Alive)
-            .GroupBy(e => e.Itemstack.Collectible.Code.ToString())
-            .ToDictionary(g => g.Key, g => g.Sum(e => e.Itemstack.StackSize));
-    }
-
-    private void KillItemsNear(BlockPos around, int radius = 8)
-    {
-        var box = new Cuboidi(around.X - radius, around.Y - 40, around.Z - radius, around.X + radius, around.Y + 8, around.Z + radius);
-        foreach (var e in World.EntitiesIn(box).Where(e => e is EntityItem or EntityTrunk))
-            e.Die(EnumDespawnReason.Removed);
-    }
-
     // ---- Loading ----
 
     [AtlasScenario, ReadsBootLog]
@@ -261,8 +73,6 @@ public partial class WoodworkingScenarios
     }
 
     // ---- Placing and breaking ----
-
-    public static TheoryData<string, int> Facings() => new() { { "north", 0 }, { "east", 1 }, { "south", 2 }, { "west", 3 } };
 
     [AtlasTheory, MemberData(nameof(Facings))]
     public async Task Placing_stamps_the_ghosts_and_breaking_drops_the_parts(string side, int index)
@@ -433,17 +243,6 @@ public partial class WoodworkingScenarios
 
     // ---- Trunks ----
 
-    /// <summary>Turns the (unpowered) mill's cycle by hand: <paramref name="turns"/> shaft turns.</summary>
-    private static void Turn(BEBuckingMill mill, float turns) => mill.Advance(turns * 2 * MathF.PI);
-
-    /// <summary>Turns an empty mill by hand from wherever it is to the top, just as it starts down again.</summary>
-    private void TurnToTop(BEBuckingMill mill)
-    {
-        float rr = Mod.Config.RaiseRevolutions;
-        Turn(mill, ((mill.Rising ? 0 : 1 - mill.Depth) + (mill.Rising ? mill.Depth : 1)) * rr);
-        Assert.True(SawDepth.AtTop(mill.Depth), $"depth {mill.Depth} after turning to the top");
-    }
-
     [AtlasScenario(TimeoutMs = 180_000)]
     public async Task A_full_cut_gives_the_configured_logs_and_wears_the_blade_a_log_per_stored_log()
     {
@@ -491,7 +290,7 @@ public partial class WoodworkingScenarios
         Assert.NotNull(mill.Trunk);
 
         KillItemsNear(pos);
-        await Power(mill);
+        await Power(mill, fast: true);
         await World.Until(() => mill.Trunk == null, 6000);
 
         var items = ItemsNear(pos);
@@ -534,7 +333,7 @@ public partial class WoodworkingScenarios
         var player = await Player("cycler");
         var mill = await PlaceMill(pos, "east");
         Assemble(mill, player);
-        await Power(mill);
+        await Power(mill, fast: true);
 
         // Empty, it goes on round: down to the bed, up to the top, and down again.
         await World.Until(() => mill.Phase == MillPhase.Sinking && mill.Depth > 0.5f, 6000);
@@ -587,7 +386,7 @@ public partial class WoodworkingScenarios
         }
 
         // The first trunk is pulled and cut through.
-        await Power(mill);
+        await Power(mill, fast: true);
         await World.Until(() => mill.Trunk != null, 3000);
         Assert.Equal(1, Count());
         await World.Until(() => mill.Trunk == null, 6000);
@@ -628,7 +427,7 @@ public partial class WoodworkingScenarios
         Assert.NotNull(mill.Trunk);
         float touch = SawDepth.Touch(Rig.Saw, Rig.TrunkBed, "sm");
         Assert.Equal(touch, mill.Depth, 4);
-        // A tenth of the cut: four logs at 0.5 turns each.
+        // A tenth of the cut: four logs at the fixture's turns per log.
         Turn(mill, 0.1f * 4 * Mod.Config.RevolutionsPerStoredLog);
         float depth = SawDepth.Cutting(touch, 0.1f);
         Assert.Equal(depth, mill.Depth, 3);
@@ -689,7 +488,7 @@ public partial class WoodworkingScenarios
         var player = await Player("racker");
         var mill = await PlaceMill(pos, "west");
         Assemble(mill, player);
-        await Power(mill);
+        await Power(mill, fast: true);
 
         var logging = Mod.Logging!;
         var infeed = Footprint.ToWorld(Rig.InfeedSide, mill.Side).Code();
@@ -708,9 +507,7 @@ public partial class WoodworkingScenarios
         rack.MarkDirty(true);
 
         // The branched trunk on top holds the line.
-        var until = DateTime.UtcNow.AddSeconds(3);
-        while (DateTime.UtcNow < until)
-            await World.Ticks(5);
+        await PastTheTop(mill);
         Assert.Null(mill.Trunk);
         Assert.Equal(2, (int)rack.GetType().GetProperty("TrunkCount")!.GetValue(rack)!);
 
@@ -772,21 +569,6 @@ public partial class WoodworkingScenarios
             var boxes = selection ? block.GetSelectionBoxes(W.BlockAccessor, c) : block.GetCollisionBoxes(W.BlockAccessor, c);
             return (boxes ?? []).Select(b => new Cuboidd(b.X1 + c.X, b.Y1 + c.Y, b.Z1 + c.Z, b.X2 + c.X, b.Y2 + c.Y, b.Z2 + c.Z));
         }).ToList();
-    }
-
-    private static string Key(Cuboidd b) => $"{b.X1:F4},{b.Y1:F4},{b.Z1:F4},{b.X2:F4},{b.Y2:F4},{b.Z2:F4}";
-
-    /// <summary>The boxes in <paramref name="with"/> that are not in <paramref name="without"/>.</summary>
-    private static List<Cuboidd> Added(List<Cuboidd> with, List<Cuboidd> without)
-    {
-        var left = without.GroupBy(Key).ToDictionary(g => g.Key, g => g.Count());
-        var added = new List<Cuboidd>();
-        foreach (var b in with)
-            if (left.TryGetValue(Key(b), out int n) && n > 0)
-                left[Key(b)] = n - 1;
-            else
-                added.Add(b);
-        return added;
     }
 
     /// <summary>The trunk's box in the world, from the rig's bed turned to the mill's facing.</summary>
@@ -864,45 +646,6 @@ public partial class WoodworkingScenarios
         }
     }
 
-    /// <summary>Whether <paramref name="boxes"/>, cell-local and projected on XZ, cover the whole
-    /// cell: tried at the centres of a 32 × 32 grid.</summary>
-    private static bool CoversCell(IEnumerable<Cuboidf> boxes)
-    {
-        var list = boxes.ToList();
-        for (int i = 0; i < 32; i++)
-        for (int j = 0; j < 32; j++)
-        {
-            double x = (i + 0.5) / 32, z = (j + 0.5) / 32;
-            if (!list.Any(b => x >= b.X1 && x <= b.X2 && z >= b.Z1 && z <= b.Z2))
-                return false;
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// The top of a machine is solid to walk on: every column of <paramref name="cells"/> (its whole
-    /// footprint, or the lidded part of it: the rosser's station), placed by <paramref name="cellPos"/>,
-    /// has a rig lid on its top cell, and that cell's collision
-    /// boxes, those reaching the lid's height, cover the whole cell, while its selection boxes do
-    /// not hold the lid (it is collision only).
-    /// </summary>
-    private void AssertTopIsADeck(IReadOnlyList<RigCell> cells, System.Func<Int3, BlockPos> cellPos, string where)
-    {
-        static bool IsLid(Cuboidf b, float lid) => Math.Abs(b.Y2 - lid) < 1e-4 && Math.Abs(b.Y2 - b.Y1 - RigCell.LidThickness) < 1e-4 && CoversCell([b]);
-        foreach (var top in cells.GroupBy(c => (c.Pos.X, c.Pos.Z)).Select(g => g.MaxBy(c => c.Pos.Y)!))
-        {
-            string cell = $"{where}: column {top.Pos.X},{top.Pos.Z} (top cell {top.Pos})";
-            Assert.True(top.Lid is not null, $"{cell} has no lid");
-            float lid = top.Lid!.Value;
-            var at = cellPos(top.Pos);
-            var block = W.BlockAccessor.GetBlock(at);
-            var collision = block.GetCollisionBoxes(W.BlockAccessor, at) ?? [];
-            Assert.True(CoversCell(collision.Where(b => b.Y2 >= lid - 1e-4f)), $"{cell}: its top can be fallen through");
-            Assert.Contains(collision, b => IsLid(b, lid));
-            Assert.DoesNotContain(block.GetSelectionBoxes(W.BlockAccessor, at) ?? [], b => IsLid(b, lid));
-        }
-    }
-
     /// <summary>The mill's top is a deck, on every facing: no column of the footprint can be fallen
     /// into from above (the trough over the bed and saws above all), loaded or not. The lids are
     /// collision only, so clicking and the trunk's own boxes are as before (the loaded trunk
@@ -951,7 +694,7 @@ public partial class WoodworkingScenarios
         mill.ToTreeAttributes(tree);
         Assert.Equal(2.05f, tree.GetFloat("bladeSpeed"), 3);
 
-        // Unpowered, turned by hand. Four logs take 4 × 0.5 turns with copper, 2.05 times fewer with steel.
+        // Unpowered, turned by hand. Four logs take 4 × RevolutionsPerStoredLog turns with copper, 2.05 times fewer with steel.
         Assert.Null(Click(player, pos, Trunk("oak", 4)));
         float cut = 4 * Mod.Config.RevolutionsPerStoredLog / 2.05f;
         Turn(mill, cut / 2);
@@ -1044,7 +787,8 @@ public partial class WoodworkingScenarios
     /// went on. Measured at the creative rotor's top speed on the default travel (RaiseRevolutions 6):
     /// the share of ticks the saws are in the load window, which is the chance that a single click
     /// lands in it. A click is refused outside it; a held click (the mill keeps the request while the
-    /// button is down) goes on at the next top, cut after cut.
+    /// button is down) goes on at the next top, cut after cut (those at the fixture's raise, which
+    /// changes nothing but how long they take).
     /// </summary>
     [AtlasScenario(TimeoutMs = 240_000)]
     public async Task At_full_speed_a_held_trunk_goes_on_at_the_next_top_every_cycle()
@@ -1078,6 +822,9 @@ public partial class WoodworkingScenarios
             output.WriteLine($"full speed: shaft speed {mill.ShaftSpeed:0.00}, one empty cycle of {ticks} ticks, "
                              + $"{open} of them in the load window ({100.0 * open / ticks:0.0}%)");
             Assert.True(open < ticks / 4, "the load window is not narrow at this speed");
+            // The rest needs no measured cycle: back to the fixture's short raise, so the cuts
+            // below come round in a few seconds each.
+            Mod.Config.RaiseRevolutions = raise;
 
             // A click outside the window is refused, and with no hold it stays refused.
             await World.Until(() => mill.Depth > 0.5f && !mill.Rising, 20000);
@@ -1264,7 +1011,7 @@ public partial class WoodworkingScenarios
         Assert.NotNull(mill.Trunk);
 
         KillItemsNear(pos);
-        await Power(mill);
+        await Power(mill, fast: true);
         // the saws come down onto the trunk where the cut is, and carry on
         await World.Until(() => mill.Phase == MillPhase.Cutting, 6000);
         float touch = SawDepth.Touch(Rig.Saw, Rig.TrunkBed, "sm");

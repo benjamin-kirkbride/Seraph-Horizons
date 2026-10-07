@@ -8,7 +8,6 @@ using SeraphHorizons.Mod.Trading.Visitors.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
-using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -21,11 +20,8 @@ namespace SeraphHorizons.PackTests;
 /// <c>/sh trade simulate</c> as a player standing in it. Atlas' world has no camps near spawn and
 /// no supply, so the standing and supply conditions fail here; <c>inn call</c> skips them.
 /// </summary>
-[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
-public class TradingVisitorsScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class TradingScenarios
 {
-    private ICoreServerAPI Api => World.Api;
-    private IWorldAccessor W => World.Api.World;
     private InnSystem Inns => InnSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no InnSystem");
 
     [AtlasScenario]
@@ -79,13 +75,13 @@ public class TradingVisitorsScenarios(ITestOutputHelper output) : AtlasScenarioB
         return origin;
     }
 
-    private int Id(string code) => (W.GetBlock(new AssetLocation(code)) ?? throw new Xunit.Sdk.XunitException($"no block {code}")).Id;
+    private int BlockId(string code) => (W.GetBlock(new AssetLocation(code)) ?? throw new Xunit.Sdk.XunitException($"no block {code}")).Id;
 
     /// <summary>A 5×5 room around origin (floor at -1, walls to 2, roof at 3); the stall's spot is origin.
     /// Returns the flag's position (inside, by the east wall).</summary>
     private async Task<BlockPos> BuildInn(BlockPos o, bool sign = true, bool bed = true, bool food = true, bool torch = true, bool roof = true)
     {
-        int granite = Id("game:rock-granite");
+        int granite = BlockId("game:rock-granite");
         for (int x = -3; x <= 3; x++)
         for (int z = -3; z <= 3; z++)
         {
@@ -94,34 +90,34 @@ public class TradingVisitorsScenarios(ITestOutputHelper output) : AtlasScenarioB
             if (Math.Abs(x) == 3 || Math.Abs(z) == 3)
                 for (int y = 0; y <= 2; y++) W.BlockAccessor.SetBlock(granite, o.AddCopy(x, y, z));
         }
-        if (sign) W.BlockAccessor.SetBlock(Id("seraphhorizons:innsign-north"), o);
+        if (sign) W.BlockAccessor.SetBlock(BlockId("seraphhorizons:innsign-north"), o);
         if (bed)
         {
-            W.BlockAccessor.SetBlock(Id("game:bed-wood-head-north"), o.AddCopy(2, 0, 1));
-            W.BlockAccessor.SetBlock(Id("game:bed-wood-feet-north"), o.AddCopy(2, 0, 2));
+            W.BlockAccessor.SetBlock(BlockId("game:bed-wood-head-north"), o.AddCopy(2, 0, 1));
+            W.BlockAccessor.SetBlock(BlockId("game:bed-wood-feet-north"), o.AddCopy(2, 0, 2));
         }
         var table = o.AddCopy(-2, 0, 2);
-        W.BlockAccessor.SetBlock(Id("game:table-normal"), table);
+        W.BlockAccessor.SetBlock(BlockId("game:table-normal"), table);
         if (food)
         {
             var crock = table.UpCopy();
-            W.BlockAccessor.SetBlock(Id("game:crock-blue-fired"), crock);
+            W.BlockAccessor.SetBlock(BlockId("game:crock-blue-fired"), crock);
             await World.Ticks(2);
             var be = W.BlockAccessor.GetBlockEntity(crock) as IBlockEntityContainer
                      ?? throw new Xunit.Sdk.XunitException("the crock has no inventory");
             be.Inventory[0].Itemstack = new ItemStack(W.GetItem(new AssetLocation("game:fruit-redapple")), 4);
             be.Inventory[0].MarkDirty();
         }
-        if (torch) W.BlockAccessor.SetBlock(Id("game:torch-basic-lit-up"), o.AddCopy(1, 0, -2));
+        if (torch) W.BlockAccessor.SetBlock(BlockId("game:torch-basic-lit-up"), o.AddCopy(1, 0, -2));
         var flag = o.AddCopy(2, 0, -1);
         World.SetBlock("seraphhorizons:innflag", flag);
         await World.Ticks(5);
         return flag;
     }
 
-    private async Task<ITestPlayer> PlayerIn(string name, BlockPos o)
+    private async Task<ITestPlayer> PlayerIn(BlockPos o)
     {
-        var player = await World.JoinPlayer(name);
+        var player = await Innkeeper();
         await player.TeleportTo(o.AddCopy(-1, 0, -1));
         await World.Ticks(5);
         return player;
@@ -139,11 +135,12 @@ public class TradingVisitorsScenarios(ITestOutputHelper output) : AtlasScenarioB
     [AtlasScenario(TimeoutMs = 180_000)]
     public async Task A_built_inn_passes_its_check_and_a_called_visitor_sells_its_specials_takes_no_harm_and_leaves_after_its_stay()
     {
+        FreshSupply();
         var o = await Sky(0, 70);
         var flag = await BuildInn(o);
         var record = Record(flag);
         Assert.Equal("", record.Owner);
-        var p = await PlayerIn("innkeeper", o);
+        var p = await PlayerIn(o);
 
         var check = await p.ExecuteCommand("/sh trade inn check");
         output.WriteLine(check.Message);
@@ -208,9 +205,10 @@ public class TradingVisitorsScenarios(ITestOutputHelper output) : AtlasScenarioB
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task An_inn_without_a_bed_or_light_reports_what_it_lacks_and_is_never_visited()
     {
+        FreshSupply();
         var o = await Sky(-70, 0);
         var flag = await BuildInn(o, bed: false, torch: false);
-        var p = await PlayerIn("innbuilder", o);
+        var p = await PlayerIn(o);
         var check = await p.ExecuteCommand("/sh trade inn check");
         output.WriteLine(check.Message);
         Assert.True(check.Ok, check.Message);

@@ -21,6 +21,8 @@ recipe count per type, and the same lines go into the job summary. If the export
 nothing. Smoke then fails and shows that line.
 
 The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUnderTest`).
+One that reads only the guide pages calls `Exporter.Guides`, which returns the `guides`
+section alone without the cost of a full export.
 
 ## How recipes are exported
 

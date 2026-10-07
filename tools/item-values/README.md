@@ -12,7 +12,7 @@ mod's README). Stdlib-only Python 3.11+, like `packtool.py`.
 # recipes.json), or locally through Atlas (writes it in a minute or two):
 mkdir -p build/atlas-tmp
 ITEM_VALUES_EXPORT=$PWD/build/recipes.json TMPDIR=$PWD/build/atlas-tmp VINTAGE_STORY=$HOME/Games/vintagestory \
-  dotnet test tests/PackTests --filter "FullyQualifiedName~TradingValuesScenarios"
+  dotnet test tests/PackTests --filter "FullyQualifiedName~PackTests.TradingScenarios.Export_is_written_when_asked"
 
 python3 tools/item-values/itemvalues.py build   build/recipes.json   # the table, plus build/item-values-report.md and .json
 python3 tools/item-values/itemvalues.py report  build/recipes.json   # the report only, to stdout (--json for JSON)

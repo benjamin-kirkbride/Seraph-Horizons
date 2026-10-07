@@ -11,10 +11,12 @@ using SeraphHorizons.Mod.MachineOil;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.TrunkEntities;
 using SeraphHorizons.Mod.Woodworking;
+using SeraphHorizons.RecipeExport;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.Common;
 using Vintagestory.GameContent;
 using Xunit.Abstractions;
@@ -590,11 +592,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario]
     public void Unified_woodworking_off_the_export_lists_the_two_mods_guides()
     {
         Assert.True(Off("UnifiedWoodworking"));
-        var guides = ((JArray)ExportUnderTest.Get(World.Api)["guides"]!).OfType<JObject>().ToList();
+        var guides = Exporter.Guides((ICoreServerAPI)World.Api).OfType<JObject>().ToList();
         Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons");
         foreach (var (mod, code) in new[] { (WoodworkingMods.IwModId, "craftinginfo-woodworking"), (WoodworkingMods.LeModId, "introduction") })
             Assert.Single(guides, g => (string?)g["mod"] == mod && (string?)g["code"] == code);

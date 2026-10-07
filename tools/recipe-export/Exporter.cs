@@ -38,6 +38,16 @@ public static class Exporter
         ItemSection.Fill(api, root, referenced);
         return root;
     }
+
+    /// <summary>
+    /// The document's <c>guides</c> section alone, as <see cref="Build(ICoreServerAPI, PackInfo)"/>
+    /// writes it: cheap next to a full export, for a caller that reads only the guide pages.
+    /// </summary>
+    public static JArray Guides(ICoreServerAPI api)
+    {
+        using var english = new Items.EnglishLocale();
+        return Items.Guides.Build(api, new Items.ModIndex(api));
+    }
 }
 
 public sealed record PackInfo(string Id, string Version, string GameVersion);

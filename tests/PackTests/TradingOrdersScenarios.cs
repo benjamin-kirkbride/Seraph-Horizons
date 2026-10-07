@@ -1,3 +1,4 @@
+using Atlas.Api;
 using Atlas.XUnit;
 using SeraphHorizons.Mod.Trading;
 using SeraphHorizons.Mod.Trading.Deliveries;
@@ -9,7 +10,6 @@ using SeraphHorizons.Mod.Trading.Standing.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -22,36 +22,17 @@ namespace SeraphHorizons.PackTests;
 /// left past its grace fails and keeps the deposit. Atlas' default world: no camps, so traders are
 /// known by their entity and deliveries are made by the admin command.
 /// </summary>
-[AtlasWorld]
-public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class TradingScenarios
 {
-    private ICoreServerAPI Api => World.Api;
-    private IWorldAccessor W => World.Api.World;
     private OrdersSystem Orders => OrdersSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no OrdersSystem");
     private DeliveriesSystem Deliveries => DeliveriesSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no DeliveriesSystem");
-    private StandingSystem Standing => StandingSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no StandingSystem");
 
-    private async Task<EntitySeraphTrader> Spawn(string type, int dx, int dz)
+    /// <summary>The role's player, beside the trader.</summary>
+    private static async Task<ITestPlayer> At(ITestPlayer player, EntitySeraphTrader trader)
     {
-        var pos = World.Spawn.AddCopy(dx, 0, dz);
-        pos.Y = W.BlockAccessor.GetTerrainMapheightAt(pos) + 1;
-        var props = W.GetEntityType(new AssetLocation("seraphhorizons", $"trader-male-{type}-temperate"))!;
-        var trader = (EntitySeraphTrader)W.ClassRegistry.CreateEntity(props);
-        trader.Pos.SetPos(pos.X + 0.5, pos.Y, pos.Z + 0.5);
-        W.SpawnEntity(trader);
-        await World.Ticks(5);
-        return trader;
-    }
-
-    private async Task<Atlas.Api.ITestPlayer> PlayerAt(string name, EntitySeraphTrader trader)
-    {
-        var player = await World.JoinPlayer(name);
-        player.Player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         await player.TeleportTo(trader.Pos.AsBlockPos.AddCopy(2, 0, 0));
         return player;
     }
-
-    private static int Gears(IPlayer player) => InventoryTrader.GetPlayerAssets(player.Entity);
 
     private string Id(EntitySeraphTrader trader) => Standing.TraderIdOf(trader);
 
@@ -59,7 +40,8 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     public async Task A_spawned_trader_puts_one_or_two_orders_on_offer_from_what_it_buys()
     {
         Assert.True(Orders.Enabled && Deliveries.Enabled);
-        var trader = await Spawn("smith", 25, -25);
+        FreshSupply();
+        var trader = await SpawnTrader("smith", 0, -25);
         var open = Orders.Book.OpenAt(Id(trader)).ToList();
         foreach (var o in open) output.WriteLine(OrderCommandsLine(o));
         Assert.InRange(open.Count, 1, 2);
@@ -78,7 +60,7 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
 
     /// <summary>An order made by the admin command for one lot of the first thing on the trader's
     /// buying shelf, so a deal can fill it.</summary>
-    private async Task<(Order Order, ItemSlotTrade Buying)> OrderOnShelf(EntitySeraphTrader trader, Atlas.Api.ITestPlayer at, int days)
+    private async Task<(Order Order, ItemSlotTrade Buying)> OrderOnShelf(EntitySeraphTrader trader, ITestPlayer at, int days)
     {
         var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null);
         string code = buying.Itemstack.Collectible.Code.ToString();
@@ -98,8 +80,9 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Filling_an_order_through_the_trade_dialog_pays_the_premium_and_raises_standing()
     {
-        var trader = await Spawn("generalstore", -25, 25);
-        var p = await PlayerAt("orderfiller", trader);
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", 0, 25);
+        var p = await At(await Customer(), trader);
         var sp = (IServerPlayer)p.Player;
         var (order, buying) = await OrderOnShelf(trader, p, 4);
         // A stranger's orderScale is 1: the order stays one lot.
@@ -122,7 +105,7 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Contains(record.Events, e => e.Kind == StandingKinds.Order);
         Assert.Equal(received + Standing.Rules.Points.Order, record.Points);
 
-        var list = await World.ExecuteCommand("/sh trade orders orderfiller");
+        var list = await World.ExecuteCommand($"/sh trade orders {sp.PlayerName}");
         output.WriteLine(list.Message);
         Assert.True(list.Ok, list.Message);
         Assert.Contains($"#{order.Id} done", list.Message);
@@ -132,10 +115,11 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_taken_order_left_past_its_deadline_is_abandoned_and_costs_standing()
     {
-        var trader = await Spawn("carpenter", 25, 25);
-        var p = await PlayerAt("orderquitter", trader);
+        FreshSupply();
+        var trader = await SpawnTrader("carpenter", 25, 0);
+        var p = await At(await Customer(), trader);
         string uid = p.Player.PlayerUID;
-        Assert.True((await World.ExecuteCommand($"/sh trade standing set orderquitter {Id(trader)} 100")).Ok);
+        Assert.True((await World.ExecuteCommand($"/sh trade standing set {p.Player.PlayerName} {Id(trader)} 100")).Ok);
         var (order, _) = await OrderOnShelf(trader, p, 2);
 
         var sim = await World.ExecuteCommand("/sh trade simulate 3");
@@ -160,14 +144,15 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_delivery_handed_in_on_time_returns_the_deposit_and_pays_a_fee()
     {
-        var a = await Spawn("mason", -30, -30);
-        var b = await Spawn("cook", 30, -40);
-        var p = await PlayerAt("courier", a);
+        FreshSupply();
+        var a = await SpawnTrader("mason", -25, 0);
+        var b = await SpawnTrader("cook", 0, -40);
+        var p = await At(await Courier(), a);
         var sp = (IServerPlayer)p.Player;
         await p.GiveItem("game:gear-rusty", 20);
         int start = Gears(sp);
 
-        var d = await Create(a, b, "courier");
+        var d = await Create(a, b, sp.PlayerName);
         Assert.Equal(DeliveryState.Active, d.State);
         Assert.InRange(d.Deposit, 1, 30);
         Assert.Equal(start - d.Deposit, Gears(sp));
@@ -175,7 +160,7 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.NotNull(package);
         Assert.Equal(Id(b), package!.Itemstack.Attributes.GetString(ItemPackage.AttrTo));
         // One at a time per sender.
-        Assert.False((await World.ExecuteCommand($"/sh trade deliveries create {Id(a)} {Id(b)} courier")).Ok);
+        Assert.False((await World.ExecuteCommand($"/sh trade deliveries create {Id(a)} {Id(b)} {sp.PlayerName}")).Ok);
 
         // Not at the sender.
         Assert.False((await p.ExecuteCommand("/sh delivery handin")).Ok);
@@ -197,13 +182,14 @@ public class TradingOrdersScenarios(ITestOutputHelper output) : AtlasScenarioBas
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_delivery_left_past_its_grace_fails_and_keeps_the_deposit()
     {
-        var a = await Spawn("tailor", -40, 30);
-        var b = await Spawn("farmer", 40, 40);
-        var p = await PlayerAt("lostcourier", a);
+        FreshSupply();
+        var a = await SpawnTrader("tailor", -40, 0);
+        var b = await SpawnTrader("farmer", 40, 0);
+        var p = await At(await Courier(), a);
         var sp = (IServerPlayer)p.Player;
         await p.GiveItem("game:gear-rusty", 20);
-        Assert.True((await World.ExecuteCommand($"/sh trade standing set lostcourier {Id(a)} 200")).Ok);
-        var d = await Create(a, b, "lostcourier");
+        Assert.True((await World.ExecuteCommand($"/sh trade standing set {sp.PlayerName} {Id(a)} 200")).Ok);
+        var d = await Create(a, b, sp.PlayerName);
         int afterDeposit = Gears(sp);
 
         var sim = await World.ExecuteCommand("/sh trade simulate 2");

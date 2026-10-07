@@ -20,52 +20,15 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Rosser: the rosser against the pinned Immersive Woodworking, Logging
 /// Expanded and Pipes and Power Expanded, driven by a real mechanical power network (a vanilla
 /// creative rotor against its side power face). RosserSettings in ModConfig/seraphhorizons.json is
-/// seeded from fixtures/buckingsawmill (the [AtlasDataFiles] on <see cref="WoodworkingScenarios"/>)
-/// with RevolutionsPerStoredLog at 0.5 and RevolutionsPerBranch at 0.08, so a trip takes a few
-/// turns; every other setting is the default. Each scenario builds its rosser on a floor of its own
+/// seeded from fixtures/buckingsawmill (the [AtlasDataFiles] on <see cref="WoodworkingRosserScenarios"/>)
+/// with RevolutionsPerStoredLog at 0.2 and RevolutionsPerBranch at 0.08, so a trip takes a few
+/// turns (a thin trunk's about 2 at steel speed, a thick one's about 5); every other setting is the default. Each scenario builds its rosser on a floor of its own
 /// high in the sky (sticks and bark land on it), at z 230 from spawn, clear of the other
 /// woodworking scenarios; the scenarios further down use rows of their own (z 270 to 900, see
 /// "Rows" there).
 /// </summary>
-public partial class WoodworkingScenarios
+public partial class WoodworkingRosserScenarios
 {
-    private RosserSystem RosserMod => RosserSystem.Of(World.Api);
-    private RosserRig RosserRig => RosserMod.Rig ?? throw new Xunit.Sdk.XunitException("the rosser's rig did not load");
-
-    /// <summary>A spot 50 above spawn, its chunk columns loaded, cleared well beyond the rosser's
-    /// footprint in every facing, on a granite floor one below it.</summary>
-    private async Task<BlockPos> RosserSky(int dx, int dz, int reach = 18)
-    {
-        var origin = World.Spawn.AddCopy(dx, 50, dz);
-        int size = Vintagestory.API.Config.GlobalConstants.ChunkSize;
-        // one block in every chunk column the area touches (37 or more wide, it can span three)
-        var columns = new List<BlockPos>();
-        for (int cx = (origin.X - reach) / size; cx <= (origin.X + reach) / size; cx++)
-            for (int cz = (origin.Z - reach) / size; cz <= (origin.Z + reach) / size; cz++)
-                columns.Add(new BlockPos(cx * size, origin.Y, cz * size));
-        if (World.Api is ICoreServerAPI sapi)
-            foreach (var c in columns)
-                sapi.WorldManager.LoadChunkColumnPriority(c.X / size, c.Z / size);
-        await World.Until(() => columns.All(c => W.BlockAccessor.GetChunkAtBlockPos(c) != null), 30000);
-        int floor = BlockOf("game:rock-granite").Id;
-        for (int x = -reach; x <= reach; x++)
-        for (int z = -reach; z <= reach; z++)
-        {
-            W.BlockAccessor.SetBlock(floor, origin.AddCopy(x, -1, z));
-            for (int y = 0; y <= 6; y++)
-                W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
-        }
-        return origin;
-    }
-
-    private async Task<BERosser> PlaceRosser(BlockPos pos, string side)
-    {
-        World.SetBlock($"seraphhorizons:rosser-frame-{side}", pos);
-        await World.Ticks(5);
-        return W.BlockAccessor.GetBlockEntity(pos) as BERosser
-               ?? throw new Xunit.Sdk.XunitException($"no rosser block entity at {pos}");
-    }
-
     private static string Info(BERosser rosser, IPlayer player)
     {
         var sb = new System.Text.StringBuilder();
@@ -75,45 +38,6 @@ public partial class WoodworkingScenarios
 
     private WorldInteraction[] RosserHelp(BlockPos pos, IPlayer player) =>
         W.BlockAccessor.GetBlock(pos).GetPlacedBlockInteractionHelp(W, new BlockSelection { Position = pos }, player);
-
-    /// <summary>Every stage by right-clicks with real stacks, through the frame and a ghost.</summary>
-    private void AssembleRosser(BERosser rosser, IPlayer player, string heads = "steel")
-    {
-        var ghost = rosser.GhostCells().First().Pos;
-        foreach (var (code, count) in new[] { (RosserParts.ShaftCode, 1), (RosserParts.RingCode, 4), ("game:hoop-iron", 2), ("game:rod-iron", 4),
-                                              ("game:metalplate-iron", 2), (RosserParts.LeversCode, 1), ($"{Iw}:barkspudhead-{heads}", 4) })
-            Assert.True(Click(player, code.Contains("rod") ? ghost : rosser.Pos, ItemOf(code, count)) == null, $"{code} ×{count} not all fitted");
-        Assert.True(rosser.Complete);
-        Oil(rosser.Oiling);
-    }
-
-    /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns fast.</summary>
-    private async Task PowerRosser(BERosser rosser)
-    {
-        var ghost = rosser.CellPos(RosserRig.PowerCell);
-        var face = Assert.IsType<BlockRosserGhostPower>(W.BlockAccessor.GetBlock(ghost)).PowerFace;
-        var rotorPos = ghost.AddCopy(face);
-        World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
-        await World.Ticks(2);
-        var rotor = W.BlockAccessor.GetBlockEntity(rotorPos)!.GetBehavior<BEBehaviorMPCreativeRotor>()!;
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "speedSetting").SetValue(rotor, 10);
-        HarmonyLib.AccessTools.Field(typeof(BEBehaviorMPCreativeRotor), "powerSetting").SetValue(rotor, 10);
-        rotor.Blockentity.MarkDirty(true);
-        await World.Until(() => rosser.ShaftSpeed >= 0.5f, 15000);
-    }
-
-    /// <summary>A trunk of <paramref name="wood"/> holding <paramref name="logs"/> logs, with
-    /// <paramref name="branches"/> branches counted (and the <c>yes</c> state) when above 0.</summary>
-    private ItemStack RosserTrunk(string wood, int logs, int branches, string size = "sm")
-    {
-        var stack = new ItemStack(BlockOf($"loggingmod:treetrunk-{wood}-{size}-{(branches > 0 ? "yes" : "no")}-north"));
-        var slots = new TreeAttribute();
-        slots["0"] = new ItemstackAttribute(new ItemStack(BlockOf($"game:log-placed-{wood}-ud"), logs));
-        stack.Attributes["slots"] = slots;
-        if (branches > 0)
-            stack.Attributes.SetInt(Trunks.BranchCountKey, branches);
-        return stack;
-    }
 
     /// <summary>Takes the first stack matching <paramref name="match"/> out of the player's Carry On
     /// hands (where a trunk given back goes), hotbar or backpack.</summary>
@@ -400,7 +324,7 @@ public partial class WoodworkingScenarios
         Assert.Contains("Debarked", Info(rosser, player));
 
         // three sticks (one per two branches) and oak's tan bark, three pieces a log, at the chute
-        await World.Ticks(40);
+        await ItemsSettle(pos, 20, i => i.GetValueOrDefault("game:stick") >= 3 && i.GetValueOrDefault($"{Iw}:bark-tan-green") >= 18);
         var items = ItemsNear(pos, 20);
         Assert.Equal(3, items.GetValueOrDefault("game:stick"));
         Assert.Equal(18, items.GetValueOrDefault($"{Iw}:bark-tan-green"));
@@ -434,41 +358,11 @@ public partial class WoodworkingScenarios
     // in line (wider floors, x 55 × index), 500 trips, water, wear and the mill's precedence, 620
     // unloading (a chunk column of its own), 700 to 900 felled trees. The rows above are 230 (the first scenarios here).
 
-    // A second player who only stands by a machine: the server unloads chunk columns no player is
-    // near, and a scenario longer than a minute would lose its machine. Not the shared player, who
-    // stays where the other woodworking scenarios expect (their floors near spawn load no chunks).
-    private static IPlayer? _keeper;
-    private static object? _keeperWorld;
-
-    /// <summary>Keeps the chunk columns around <paramref name="pos"/> loaded (the keeper player
-    /// stands above it) until the next scenario moves the keeper.</summary>
-    private async Task StandBy(IPlayer _, BlockPos pos)
-    {
-        if (_keeper == null || !ReferenceEquals(_keeperWorld, World.Api))
-        {
-            _keeper = (await World.JoinPlayer("rosserkeeper")).Player;
-            _keeperWorld = World.Api;
-        }
-        _keeper.WorldData.CurrentGameMode = EnumGameMode.Creative;
-        _keeper.Entity.TeleportTo(pos.ToVec3d().Add(0.5, 5, 0.5));
-    }
-
-    private BlockFacing RosserPowerFace(BERosser rosser) =>
-        Assert.IsType<BlockRosserGhostPower>(W.BlockAccessor.GetBlock(rosser.CellPos(RosserRig.PowerCell))).PowerFace;
-
-    private BlockPos RosserRotorPos(BERosser rosser) => rosser.CellPos(RosserRig.PowerCell).AddCopy(RosserPowerFace(rosser));
-
     /// <summary>Takes the rotor away; waits until the shaft has run down below the rosser's speed.</summary>
     private async Task UnpowerRosser(BERosser rosser)
     {
         W.BlockAccessor.SetBlock(0, RosserRotorPos(rosser));
         await World.Until(() => rosser.ShaftSpeed < rosser.MinSpeed, 20000);
-    }
-
-    private ItemStack RosserReady(BERosser rosser, IPlayer player, string heads = "steel")
-    {
-        AssembleRosser(rosser, player, heads);
-        return ItemOf($"{Iw}:barkspudhead-{heads}");
     }
 
     /// <summary>Feeds the trunk on to travel <paramref name="travel"/> (server side) in steps of at
@@ -798,7 +692,7 @@ public partial class WoodworkingScenarios
         KillItemsNear(pos, 20);
         Assert.Null(Click(player, dryPos, RosserTrunk("acacia", 10, 0)));
         Assert.Equal(10, FeedTo(dry, 100).BarkLogs);
-        await World.Ticks(40);
+        await ItemsSettle(pos, 20, i => i.GetValueOrDefault($"{Iw}:bark-tan-green") + i.GetValueOrDefault($"{Iw}:bark-generic") >= 30);
         var dried = ItemsNear(pos, 20);
         output.WriteLine("dry acacia, 10 logs: " + string.Join(", ", dried.Select(kv => $"{kv.Key} ×{kv.Value}")));
         Assert.Equal(30, dried.GetValueOrDefault($"{Iw}:bark-tan-green") + dried.GetValueOrDefault($"{Iw}:bark-generic"));
@@ -885,11 +779,12 @@ public partial class WoodworkingScenarios
                 first = false;
             }
             var started = DateTime.UtcNow;
-            while (rosser.State != RosserState.Delivered)
+            for (int poll = 0; rosser.State != RosserState.Delivered; poll++)
             {
-                output.WriteLine($"{DateTime.UtcNow - started:mm\\:ss} {size}: {rosser.State} T {rosser.Trip.Travel:0.000} / {RosserMod.Pace!.TripLength((int)k):0.000}, rate {rosser.Trip.Rate:0.0000}, speed {rosser.ShaftSpeed:0.00}");
+                if (poll % 20 == 0)
+                    output.WriteLine($"{DateTime.UtcNow - started:mm\\:ss} {size}: {rosser.State} T {rosser.Trip.Travel:0.000} / {RosserMod.Pace!.TripLength((int)k):0.000}, rate {rosser.Trip.Rate:0.0000}, speed {rosser.ShaftSpeed:0.00}");
                 Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(90), "not delivered");
-                await World.Ticks(20);
+                await World.Ticks(1);
             }
 
             var done = rosser.PeekFinished()!;
@@ -905,7 +800,8 @@ public partial class WoodworkingScenarios
             Assert.Contains("Take it with Ctrl + right click", info);
             Assert.Contains($"Scraper heads: Steel, {left} / 9000", info);
             Assert.True(HelpHas("taketrunk"));
-            await World.Ticks(40);
+            await ItemsSettle(pos, 20, i => i.GetValueOrDefault("game:stick") >= (int)Math.Floor(branches * config.StickFraction)
+                                            && i.GetValueOrDefault($"{Iw}:bark-tan-green") >= 3 * logs);
             var items = ItemsNear(pos, 20);
             output.WriteLine($"oak {size}, {logs} logs, {branches} branches: " + string.Join(", ", items.Select(kv => $"{kv.Key} ×{kv.Value}")));
             Assert.Equal((int)Math.Floor(branches * config.StickFraction), items.GetValueOrDefault("game:stick"));
@@ -1296,7 +1192,8 @@ public partial class WoodworkingScenarios
         Assert.Equal((steps.Sticks, steps.BarkLogs), (trip.SticksDone, trip.BarkDone));
         if (stage == "Debranched")
             Assert.InRange(trip.SticksDone, 1, sticks - 1);
-        await World.Ticks(30);
+        await ItemsSettle(pos, 20, i => i.GetValueOrDefault("game:stick") >= trip.SticksDone
+                                        && i.GetValueOrDefault($"{Iw}:bark-tan-green") >= 3 * trip.BarkDone, 30);
         var dropped = ItemsNear(pos, 20);
         output.WriteLine($"{stage} at T {trip.Travel:0.000}: {trip.SticksDone} sticks, {trip.BarkDone} logs' bark; " + string.Join(", ", dropped.Select(kv => $"{kv.Key} ×{kv.Value}")));
         Assert.Equal(trip.SticksDone, dropped.GetValueOrDefault("game:stick"));
@@ -1557,8 +1454,9 @@ public partial class WoodworkingScenarios
         Assert.True(Trunks.IsDebarked(mill.Trunk));
         Assert.Equal(6, Trunks.StoredLogs(mill.Trunk!, W));
         await World.Until(() => mill.Trunk == null, 30000);
-        await World.Ticks(40);
-        Assert.Equal(Cutting.LogYield(6, Mod.Config.LogsPerStoredLog), ItemsNear(millPos, 10).GetValueOrDefault("game:debarkedlog-oak-ud"));
+        int logs = Cutting.LogYield(6, Mod.Config.LogsPerStoredLog);
+        await ItemsSettle(millPos, 10, i => i.GetValueOrDefault("game:debarkedlog-oak-ud") >= logs);
+        Assert.Equal(logs, ItemsNear(millPos, 10).GetValueOrDefault("game:debarkedlog-oak-ud"));
         Assert.Empty(TrunksNear(at, 25));
 
         // Mid hand-off: the mill stopped, a finished trunk on the rosser's outfeed bed, the rosser broken.
@@ -1583,9 +1481,7 @@ public partial class WoodworkingScenarios
         Assert.Equal(4, Trunks.StoredLogs(left, W));
         KillItemsNear(at, 25);
         await Power(mill, full: true);
-        var until = DateTime.UtcNow.AddSeconds(4);
-        while (DateTime.UtcNow < until)
-            await World.Ticks(5);
+        await PastTheTop(mill);
         Assert.Null(mill.Trunk);
         W.BlockAccessor.SetBlock(0, RotorPos(mill));
         KillItemsNear(at, 25);
@@ -1717,7 +1613,7 @@ public partial class WoodworkingScenarios
         RosserReady(rosser, player);
         var pace = RosserMod.Pace!;
         // far from the player, so nothing keeps the column loaded
-        _keeper?.Entity.TeleportTo(World.Spawn.ToVec3d());
+        Keeper?.Entity.TeleportTo(World.Spawn.ToVec3d());
 
         // mid-trip: some sticks and bark down
         KillItemsNear(pos, 20);
@@ -1726,7 +1622,7 @@ public partial class WoodworkingScenarios
         var trip = rosser.Trip;
         Assert.InRange(trip.SticksDone, 1, 4);
         Assert.InRange(trip.BarkDone, 1, 11);
-        await World.Ticks(30);
+        await ItemsSettle(pos, 20, i => i.GetValueOrDefault("game:stick") >= trip.SticksDone, 30);
         var before = ItemsNear(pos, 20);
         Assert.Equal(trip.SticksDone, before.GetValueOrDefault("game:stick"));
         var again = await UnloadAndReload<BERosser>(pos, rosser);
@@ -1746,7 +1642,7 @@ public partial class WoodworkingScenarios
         Assert.True(rest.Delivered);
         Assert.Equal(5, trip.SticksDone + rest.Sticks);
         Assert.Equal(12, trip.BarkDone + rest.BarkLogs);
-        await World.Ticks(30);
+        await ItemsSettle(pos, 20, i => i.GetValueOrDefault("game:stick") >= 5 && i.GetValueOrDefault($"{Iw}:bark-tan-green") >= 36, 30);
         var all = ItemsNear(pos, 20);
         Assert.Equal(5, all.GetValueOrDefault("game:stick"));
         Assert.Equal(36, all.GetValueOrDefault($"{Iw}:bark-tan-green"));
