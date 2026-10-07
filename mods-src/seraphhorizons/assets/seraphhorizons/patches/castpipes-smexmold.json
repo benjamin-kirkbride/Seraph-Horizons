@@ -1,0 +1,53 @@
+[
+	{
+		"file": "smex:blocktypes/molds/toolmoldraw.json",
+		"op": "add",
+		"path": "/variantgroups/2/states/-",
+		"value": "pipe",
+		"side": "server",
+		"dependsOn": [{ "modid": "smex" }]
+	},
+	{
+		"file": "smex:blocktypes/molds/toolmoldraw.json",
+		"op": "add",
+		"path": "/shapebytype/*-pipe",
+		"value": { "base": "seraphhorizons:block/clay/mold/pipe", "rotateY": 90 },
+		"side": "server",
+		"dependsOn": [{ "modid": "smex" }]
+	},
+	{
+		"file": "smex:blocktypes/molds/toolmoldfired.json",
+		"op": "add",
+		"path": "/variantgroups/2/states/-",
+		"value": "pipe",
+		"side": "server",
+		"dependsOn": [{ "modid": "smex" }]
+	},
+	{
+		"file": "smex:blocktypes/molds/toolmoldfired.json",
+		"op": "add",
+		"path": "/shapebytype/*-pipe",
+		"value": { "base": "seraphhorizons:block/clay/mold/pipe", "rotateY": 90 },
+		"side": "server",
+		"dependsOn": [{ "modid": "smex" }]
+	},
+	{
+		"file": "smex:blocktypes/molds/toolmoldfired.json",
+		"op": "add",
+		"path": "/attributesByType/toolmold-*-fired-pipe",
+		"value": {
+			"requiredUnits": 100,
+			"fillHeight": 1,
+			"moldrackable": true,
+			"onmoldrackTransform": { "rotation": { "z": 90 } },
+			"fillQuadsByLevel": [{ "x1": 4, "z1": 4, "x2": 12, "z2": 12 }],
+			"drop": { "type": "item", "code": "game:chutesection-{metal}", "quantity": 2 },
+			"handbook": {
+				"groupBy": ["toolmold-*-{materialtype}-{tooltype}"],
+				"extraSections": [{ "title": "seraphhorizons:castpipes-handbook-title", "text": "seraphhorizons:castpipes-handbook-mold-text" }]
+			}
+		},
+		"side": "server",
+		"dependsOn": [{ "modid": "smex" }]
+	}
+]

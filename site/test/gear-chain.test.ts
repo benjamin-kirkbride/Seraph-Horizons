@@ -65,6 +65,11 @@ describe("machine", () => {
     ]);
   });
 
+  it("says a hand machine's turns are its lever's", () => {
+    const brake: Recipe = { ...cutter, machine: { power: "hand", turns: 6, kept: [1] } };
+    expect(machineLines(brake)).toEqual(["By hand: 6 turns of the lever a job, a turn a second while right-click is held"]);
+  });
+
   it("tells the consumed blank from the kept master, the worn kit, the oil and the machine", () => {
     expect(cutter.ingredients.map((_, i) => machineRole(cutter, i))).toEqual(["consumed", "kept", "wear", "oil", "station"]);
   });

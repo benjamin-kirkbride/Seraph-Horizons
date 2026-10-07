@@ -1,0 +1,21 @@
+// The press brake (PressBrake/, README "Press brake"). The server disables it with PressBrake off.
+[
+	{
+		// The frame: a wooden brake of the early 1800s. Oak logs for the end cheeks and the bed, oak
+		// planks for the folding leaf, the clamping bar and the lever's hand bar, and iron fittings
+		// (the gallows and their nuts, the hinge pins, the bail handle's arms) from nails and strips
+		// of iron, meteoric iron or steel, put together with a hammer. Its working iron goes in
+		// afterwards, fitted by hand: two rods as the clamp screws, then a plate for the wearing
+		// edges. Iron throughout, so the brake is an iron-age machine.
+		ingredientPattern: "NHN,PPP,L_L",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
+			"P": { type: "item", code: "game:plank-oak" },
+			"L": { type: "block", code: "game:log-placed-oak-ud" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:pressbrake-frame-north" }
+	}
+]

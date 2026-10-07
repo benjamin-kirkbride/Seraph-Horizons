@@ -60,7 +60,7 @@ public class SwitchOwnershipTests
     {
         foreach (var o in SwitchOwnership.HandListed)
         {
-            Assert.Contains(o.Switch, new[] { "Rosser", "GearReclamation", "GearCutter" });
+            Assert.Contains(o.Switch, new[] { "Rosser", "GearReclamation", "GearCutter", "DrawBench", "PressBrake", "CastPipes", "UnifiedPipes" });
             Assert.True(o.RecipeAssets.Count + o.CodePatterns.Count + o.RecipeTypes.Count > 0);
         }
     }

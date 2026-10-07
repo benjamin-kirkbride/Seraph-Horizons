@@ -247,6 +247,21 @@ tank's fill, so a dry tank breaks it) and `oil` (`points` drained per gear from 
 100 points to the litre). Until the cutter's own blocks and kit are registered, their slots
 in the variant are empty.
 
+**The draw bench** (type `drawbench`, shape `machine`): one record per ingot metal, id
+`drawbench|game:ingot-<metal>|0`. The ingredients are the ingot (consumed), the fitted parts (the
+Jonas gearbox, chain, bracket and rod, in `machine.kept`), the die (`isTool`, its `toolDurabilityCost`
+one per ingot; an iron die draws lead only, a steel one lead and copper), the oil (each listed oil in
+the variant, with the litres one ingot drains) and the machine (role `station`); the output is three
+chute sections of the metal. `machine` has `power` (`mechanical`), the `turns` of the input shaft one
+ingot takes, the `work` it is made of (3 sections, `turnsPerUnit` each), `kept`, `wear` (`fixed`:
+one point per ingot) and `oil` (`points` drained per section from a `tank`).
+
+**The press brake** (type `pressbrake`, shape `machine`): one record per plate metal, id
+`pressbrake|game:metalplate-<metal>|0`. The ingredients are the plate (consumed), the screws and
+the edges (both in `machine.kept`) and the machine (role `station`); the output is two open chute
+sections. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
+plate takes (a turn a second while the player holds right-click); there is no `wear` and no `oil`.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

@@ -1,0 +1,259 @@
+{
+ "editor": {
+  "allAngles": false,
+  "entityTextureMode": false
+ },
+ "textureWidth": 16,
+ "textureHeight": 16,
+ "textureSizes": {},
+ "textures": {
+  "metaltex": "game:block/metal/sheet/copper1"
+ },
+ "elements": [
+  {
+   "name": "North",
+   "from": [
+    4.75,
+    4.0,
+    4.0
+   ],
+   "to": [
+    11.25,
+    12.0,
+    5.0
+   ],
+   "rotationOrigin": [
+    8.0,
+    8.0,
+    8.0
+   ],
+   "faces": {
+    "north": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      0.0,
+      8.0,
+      8.0
+     ],
+     "rotation": 270,
+     "enabled": true
+    },
+    "east": {
+     "texture": "#metaltex",
+     "uv": [
+      13.0,
+      0.0,
+      14.0,
+      8.0
+     ],
+     "enabled": true
+    },
+    "south": {
+     "texture": "#metaltex",
+     "uv": [
+      4.0,
+      0.0,
+      12.0,
+      8.0
+     ],
+     "rotation": 90,
+     "enabled": true
+    },
+    "west": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      0.0,
+      1.0,
+      8.0
+     ],
+     "enabled": true
+    },
+    "up": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      8.0,
+      8.0,
+      9.0
+     ],
+     "enabled": true
+    },
+    "down": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      4.0,
+      8.0,
+      5.0
+     ],
+     "enabled": true
+    }
+   }
+  },
+  {
+   "name": "South",
+   "from": [
+    4.75,
+    4.0,
+    11.0
+   ],
+   "to": [
+    11.25,
+    12.0,
+    12.0
+   ],
+   "rotationOrigin": [
+    12.0,
+    8.0,
+    8.0
+   ],
+   "faces": {
+    "north": {
+     "texture": "#metaltex",
+     "uv": [
+      4.0,
+      0.0,
+      12.0,
+      8.0
+     ],
+     "rotation": 90,
+     "enabled": true
+    },
+    "east": {
+     "texture": "#metaltex",
+     "uv": [
+      11.0,
+      0.0,
+      12.0,
+      8.0
+     ],
+     "enabled": true
+    },
+    "south": {
+     "texture": "#metaltex",
+     "uv": [
+      4.0,
+      0.0,
+      12.0,
+      8.0
+     ],
+     "rotation": 270,
+     "enabled": true
+    },
+    "west": {
+     "texture": "#metaltex",
+     "uv": [
+      15.0,
+      0.0,
+      16.0,
+      8.0
+     ],
+     "enabled": true
+    },
+    "up": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      2.0,
+      8.0,
+      3.0
+     ],
+     "enabled": true
+    },
+    "down": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      4.0,
+      8.0,
+      5.0
+     ],
+     "enabled": true
+    }
+   }
+  },
+  {
+   "name": "Bottom",
+   "from": [
+    4.75,
+    4.0,
+    5.0
+   ],
+   "to": [
+    11.25,
+    5.0,
+    11.0
+   ],
+   "rotationOrigin": [
+    8.0,
+    12.0,
+    8.0
+   ],
+   "faces": {
+    "north": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      0.0,
+      8.0,
+      1.0
+     ],
+     "enabled": true
+    },
+    "east": {
+     "texture": "#metaltex",
+     "uv": [
+      5.0,
+      0.0,
+      11.0,
+      1.0
+     ],
+     "enabled": true
+    },
+    "south": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      0.0,
+      8.0,
+      1.0
+     ],
+     "enabled": true
+    },
+    "west": {
+     "texture": "#metaltex",
+     "uv": [
+      0.5,
+      0.0,
+      6.5,
+      1.0
+     ],
+     "enabled": true
+    },
+    "up": {
+     "texture": "#metaltex",
+     "uv": [
+      5.0,
+      0.0,
+      11.0,
+      8.0
+     ],
+     "rotation": 90,
+     "enabled": true
+    },
+    "down": {
+     "texture": "#metaltex",
+     "uv": [
+      0.0,
+      5.0,
+      8.0,
+      11.0
+     ],
+     "enabled": true
+    }
+   }
+  }
+ ]
+}

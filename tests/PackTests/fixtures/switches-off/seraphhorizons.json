@@ -4,10 +4,12 @@
   "BarrelRackKegs": false,
   "BloodSausageInMixingBowl": false,
   "BuckingSawmill": false,
+  "CastPipes": false,
   "ChopperDropsInFront": false,
   "ClearCommand": false,
   "CreativeModTabs": false,
   "CreativeSteamSource": false,
+  "DrawBench": false,
   "DuplicateRecipes": false,
   "DurableSawmillBlades": false,
   "EverythingHasAPrice": false,
@@ -31,6 +33,7 @@
   "PackVersionCheck": false,
   "PanningDropsTrimmed": false,
   "PlacerFields": false,
+  "PressBrake": false,
   "RarerBattleTowers": false,
   "RarerDistricts": false,
   "RegionalSupply": false,
@@ -46,5 +49,6 @@
   "TraderStanding": false,
   "TravellingMerchants": false,
   "TrunkEntities": false,
+  "UnifiedPipes": false,
   "UnifiedWoodworking": false
 }

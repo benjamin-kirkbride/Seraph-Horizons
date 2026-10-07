@@ -692,6 +692,38 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public GearCutterConfig GearCutterSettings { get; set; } = new();
 
+    /// <summary>The draw bench (DrawBench/, README "Draw bench"): a mechanically powered chain draw
+    /// bench, built on a frame in five stages (a Jonas gearbox, a chain, a heavy bracket as the dog,
+    /// a rod as the mandrel and a smithed die), that draws a lead or copper ingot into three of the
+    /// game's chute sections (the pack's pipe section) of its metal; an iron die draws lead, a steel one lead and
+    /// copper; a MachineOil machine (off means its blocks, its dies and their recipes do not exist,
+    /// and benches already placed are lost). The server's setting decides.</summary>
+    public bool DrawBench { get; set; } = true;
+
+    /// <summary>The draw bench's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public DrawBench.Core.DrawBenchConfig DrawBenchSettings { get; set; } = new();
+
+    /// <summary>The press brake (PressBrake/, README "Press brake"): a hand-worked leaf brake of oak
+    /// with iron edges and screws, built on a frame in two stages (two rods as its clamp screws, a
+    /// plate as its wearing edges), that folds a lead or copper plate into two open chute sections
+    /// while the player holds right-click on it, as on the quern; no power and no oil (off means its
+    /// blocks and its recipe do not exist, and brakes already placed are lost). The server's setting
+    /// decides.</summary>
+    public bool PressBrake { get; set; } = true;
+
+    /// <summary>The press brake's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public PressBrake.Core.PressBrakeConfig PressBrakeSettings { get; set; } = new();
+
+    /// <summary>Cast pipes (Pipes/Game/CastPipesSystem.cs, README "Cast pipes"): Steelmaking
+    /// Expanded's tool mold gets a pipe tool type, filled from its canal (or a crucible) with one
+    /// ingot of iron or steel, which casts two of the game's chute sections of that metal, banded into
+    /// ppex pipe on the grid (needs UnifiedPipes, which adds those sections; off, or with smex's mold
+    /// files not as expected, means there is no pipe mold and no recipe for one, and those already in
+    /// a world are lost). The server's setting decides.</summary>
+    public bool CastPipes { get; set; } = true;
+
     /// <summary>Pack version check (PackCheck/, README "Pack version check"): each side compares its
     /// loaded mods and game version with the pack this build was released with (pack/lock.json,
     /// built in): a locked mod at another version or missing, a mod the pack does not have, another
@@ -700,4 +732,18 @@ public class SeraphHorizonsConfig
     /// player dismisses that set of findings. Each side's own setting decides for it; off means
     /// nothing is checked.</summary>
     public bool PackVersionCheck { get; set; } = true;
+
+    /// <summary>Unified pipes (Pipes/, README "Unified pipes"): one pipe network. Pipes and Power
+    /// Expanded's pipes come in copper and lead as well as iron and steel, and its valves and pressure
+    /// valves in bronze; its plate-and-nails pipes and iron and steel valves are not made any more;
+    /// pipe of every shape is made from the game's chute sections (which come in lead, iron and steel
+    /// too, the game's plate recipe for them off), soldered or banded with nails, and each metal bursts
+    /// at its own figure, lead at once on steam or exhaust (off means ppex's pipes and the game's chute
+    /// section are as they ship, and copper, lead and bronze pipes and lead, iron and steel sections
+    /// already in a world are lost). The server's setting decides.</summary>
+    public bool UnifiedPipes { get; set; } = true;
+
+    /// <summary>The unified pipes' burst figures, in atm; a value out of range falls back to its
+    /// default with a warning. Each side uses its own for the text, the server's for the pipes.</summary>
+    public Pipes.Core.UnifiedPipesConfig UnifiedPipesSettings { get; set; } = new();
 }

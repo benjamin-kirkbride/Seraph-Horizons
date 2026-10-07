@@ -40,8 +40,12 @@ public static class SwitchRegistry
             [PicklingTubSystem.BlockAsset, PicklingTubSystem.BareGearAsset]);
         yield return (nameof(SeraphHorizonsConfig.GearBlanks), GearBlanks.RecipeAssets, GearBlanks.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.GearCutter), GearCutterSystem.RecipeAssets, GearCutterSystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.DrawBench), DrawBench.DrawBenchSystem.RecipeAssets, DrawBench.DrawBenchSystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.PressBrake), PressBrake.PressBrakeSystem.RecipeAssets, PressBrake.PressBrakeSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.SteelBitsRecovery), [SteelBitsSystem.RecipeAsset], []);
         yield return (nameof(SeraphHorizonsConfig.CreativeSteamSource), [], [CreativeSteamSource.BlockAsset]);
+        yield return (nameof(SeraphHorizonsConfig.CastPipes), Pipes.CastPipesSystem.RecipeAssets, Pipes.CastPipesSystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.UnifiedPipes), Pipes.UnifiedPipesSystem.RecipeAssets, Pipes.UnifiedPipesSystem.TypeAssets);
     }
 
     /// <summary>The registry, its codes read from this side's type assets (a type file that is

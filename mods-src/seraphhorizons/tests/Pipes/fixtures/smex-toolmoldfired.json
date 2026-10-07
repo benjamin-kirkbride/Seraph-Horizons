@@ -1,0 +1,120 @@
+{
+  "code": "toolmold",
+  "class": "BlockToolMold",
+  "entityClass": "ToolMold",
+  "variantgroups": [
+    {
+      "code": "color",
+      "states": [
+        "blue",
+        "fire",
+        "black",
+        "brown",
+        "cream",
+        "earthyorange",
+        "gray",
+        "orange",
+        "red",
+        "tan"
+      ]
+    },
+    {
+      "code": "materialtype",
+      "states": [
+        "fired"
+      ]
+    },
+    {
+      "code": "tooltype",
+      "states": [
+        "plate",
+        "doubleingot",
+        "quadrod"
+      ]
+    }
+  ],
+  "shapebytype": {
+    "*-plate": {
+      "base": "smex:molten/molds/plate",
+      "rotateY": 90
+    },
+    "*-doubleingot": {
+      "base": "smex:molten/molds/doubleingot",
+      "rotateY": 90
+    },
+    "*-quadrod": {
+      "base": "smex:molten/molds/quadrod",
+      "rotateY": 90
+    }
+  },
+  "attributesByType": {
+    "toolmold-*-fired-plate": {
+      "requiredUnits": 200,
+      "fillHeight": 1,
+      "moldrackable": true,
+      "onmoldrackTransform": {
+        "rotation": {
+          "z": 90
+        }
+      },
+      "fillQuadsByLevel": [
+        {
+          "x1": 2,
+          "z1": 2,
+          "x2": 14,
+          "z2": 14
+        }
+      ],
+      "drop": {
+        "type": "item",
+        "code": "game:metalplate-{metal}"
+      }
+    },
+    "toolmold-*-fired-doubleingot": {
+      "requiredUnits": 200,
+      "fillHeight": 1,
+      "moldrackable": true,
+      "onmoldrackTransform": {
+        "rotation": {
+          "z": 90
+        }
+      },
+      "fillQuadsByLevel": [
+        {
+          "x1": 2,
+          "z1": 2,
+          "x2": 14,
+          "z2": 14
+        }
+      ],
+      "drop": {
+        "type": "item",
+        "code": "game:ingot-{metal}",
+        "quantity": 2
+      }
+    },
+    "toolmold-*-fired-quadrod": {
+      "requiredUnits": 400,
+      "fillHeight": 1,
+      "moldrackable": true,
+      "onmoldrackTransform": {
+        "rotation": {
+          "z": 90
+        }
+      },
+      "fillQuadsByLevel": [
+        {
+          "x1": 2,
+          "z1": 2,
+          "x2": 14,
+          "z2": 14
+        }
+      ],
+      "drop": {
+        "type": "item",
+        "code": "game:rod-{metal}",
+        "quantity": 4
+      }
+    }
+  }
+}

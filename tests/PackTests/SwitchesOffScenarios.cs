@@ -236,6 +236,25 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>CastPipes</c>: Steelmaking Expanded's tool molds as it ships them (no pipe tool
+    /// type, the patch file emptied), no recipe for one, and nothing logged about them.</summary>
+    [AtlasScenario]
+    public void Cast_pipes_off_there_is_no_pipe_mold()
+    {
+        Assert.True(Off("CastPipes"));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "smex" } c && c.Path.StartsWith("toolmold-") && c.Path.EndsWith("-pipe"));
+        Assert.NotNull(W.GetBlock(new AssetLocation("smex:toolmold-blue-fired-quadrod")));
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Path?.EndsWith("-pipe") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("castpipe", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("Cast pipes", StringComparison.Ordinal)
+                        || e.Message.Contains("-pipe", StringComparison.Ordinal) && e.Message.Contains("toolmold", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary>Switch ownership (SwitchRegistry): every switch off here owns nothing that is
     /// registered, so the registry's "adds it when on" holds; and the server tells clients which
     /// switches are off, for the handbook's value line.</summary>
@@ -245,6 +264,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var registry = SwitchRegistry.For(World.Api);
         var off = registry.Switches.Where(Off).ToList();
         Assert.Contains("GearCutter", off);
+        Assert.Contains("DrawBench", off);
+        Assert.Contains("PressBrake", off);
         Assert.Contains("Rosser", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
             .Select(c => (Code: c.Code.ToString(), Owner: registry.SwitchForCode(c.Code.ToString())))
@@ -283,6 +304,65 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("gearcutter", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>DrawBench</c>: no draw bench blocks, no dies and no recipe for them, no link to
+    /// them in the mod's own text, the machine oil page without it whatever the gear cutter's switch
+    /// (both are off here, and their edits to that page touch different passages), and nothing
+    /// logged about them.</summary>
+    [AtlasScenario]
+    public void Draw_bench_off_there_is_no_draw_bench()
+    {
+        Assert.True(Off("DrawBench"));
+        Assert.False(SeraphHorizons.Mod.DrawBench.DrawBenchSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("drawbench"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("drawdie"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("drawbench") == true);
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path?.StartsWith("drawdie") == true);
+        // the parts it takes are the game's, and exist either way
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.DrawBench.Core.DrawBenchParts.GearboxCode)));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:(drawbench|drawdie)"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the draw bench: " + string.Join(", ", linked));
+        var oil = Lang.Get("seraphhorizons:machineoil-text");
+        Assert.DoesNotContain("draw bench", oil);
+        Assert.Contains("pulverizer</a>, the <a href=\"handbook://block-immersivewoodworking:sawmill-frame-north\">", oil);
+        Assert.Contains("a pulverizer half a point an item, the sawmill", oil);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("drawbench", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("draw bench", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
+    /// the mod's own text, and nothing logged about it. The plates it folds and the open sections it
+    /// makes (UnifiedPipes') exist either way.</summary>
+    [AtlasScenario]
+    public void Press_brake_off_there_is_no_press_brake()
+    {
+        Assert.True(Off("PressBrake"));
+        Assert.False(SeraphHorizons.Mod.PressBrake.PressBrakeSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("pressbrake"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("pressbrake") == true);
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.PressBrake.Core.Folding.LeadPlate)));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://block-seraphhorizons:pressbrake"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the press brake: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("pressbrake", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("press brake", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
@@ -329,6 +409,42 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(gear.CreativeInventoryTabs is { Length: > 0 });
         Assert.False(gear.Attributes?["handbook"]?["exclude"].AsBool() == true);
         Assert.DoesNotContain("steel large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
+    }
+
+    /// <summary><c>UnifiedPipes</c>: ppex's pipes are as it ships them (iron and steel, from plate and
+    /// nails, iron and steel valves), nothing of ppex or exlib is patched, the game's chute section is
+    /// copper alone and made from a plate again, and there is no open section, copper, lead or bronze
+    /// pipe, or recipe of this mod's for them.</summary>
+    [AtlasScenario]
+    public void UnifiedPipes_off_ppex_pipes_are_as_they_ship()
+    {
+        Assert.True(Off("UnifiedPipes"));
+        Assert.False(SeraphHorizons.Mod.Pipes.UnifiedPipesSystem.Applies(World.Api));
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Pipes.UnifiedPipesSystem.HarmonyId));
+        string[] added = ["copper", "lead", "tinbronze", "bismuthbronze", "blackbronze"];
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "ppex" } c && c.Path.StartsWith("pipe-") && added.Contains(b.Variant?["material"]));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("chutesectionopen"));
+        Assert.Equal(["game:chutesection-copper"], W.Items.Where(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith("chutesection-"))
+            .Select(i => i.Code.ToString()));
+        Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:chutesection-copper"
+                                            && r.ResolvedIngredients.Any(i => i?.Code?.ToString() == "game:metalplate-copper"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Name?.Domain == "seraphhorizons" && r.Output?.Code?.Domain == "ppex"
+                                                  && r.Output.Code.Path.StartsWith("pipe-"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Name?.Domain == "seraphhorizons" && r.Output?.Code?.Path.StartsWith("chutesection-") == true);
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "game:chutesection-lead");
+        // the game's chutes from sections alone again, and Better Ruins' blueprint chutes back
+        Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:chute-straight-ns"
+                                            && r.ResolvedIngredients.Where(i => i != null).All(i => i.Code?.ToString() == "game:chutesection-copper"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("chute-") == true
+                                                  && r.ResolvedIngredients.Any(i => i?.Code?.Path.StartsWith("solderbar-") == true));
+        Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:chute-straight-ns"
+                                            && r.ResolvedIngredients.Any(i => i?.Code?.ToString() == "betterruins:br-schematic-mechanical"));
+        // ppex's plate-and-nails straight pipe and its iron and steel valves are made again
+        Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "ppex:pipe-straight-ns-iron" && r.Name?.Domain == "ppex");
+        Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "ppex:pipe-valve-sn-steel" && r.Name?.Domain == "ppex");
+        Assert.Contains("<strong>iron</strong> pipe bursts above <strong>5 atm</strong>", Lang.GetL("en", "ppex:handbook-steampower-text"));
+        Assert.Equal(5f, (float)W.GetBlock(new AssetLocation("ppex:pipe-straight-ns-iron"))!.GetType().GetProperty("BurstPressure")!.GetValue(
+            W.GetBlock(new AssetLocation("ppex:pipe-straight-ns-iron")))!);
     }
 
     /// <summary><c>HeatingRackKeepsPosition</c>: nothing is patched, and the heating rack's picked

@@ -1,0 +1,16 @@
+// seraphhorizons' UnifiedPipes switch (README.md "Unified pipes"): Better Ruins (0.6.4)'s Machinist's
+// Mechanism Blueprint (recipes/grid/schematic-mechanical/mechanical.json) makes 8 straight, 4 elbow,
+// 4 T, 4 cross and 4 3-way chutes from copper chute sections and the blueprint, with no solder: those
+// five (indices 6-10, by content: /6 elbow, /7 straight, /8 cross, /9 T, /10 3-way) are switched off,
+// so every chute takes solder. Everything else in the file (the riveted and plain metal blocks,
+// sheets, fences, beams, chains, axles, gears, the hopper), the blueprint, its trader entry and its
+// schematic gate are left alone. UnifiedPipesSystem checks each entry before the patch loader runs
+// (Pipes/Core/ChuteSections.cs, CheckBetterRuins) and empties this file with one warning if Better
+// Ruins has changed them, or with the switch off.
+[
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "add", "path": "/6/enabled", "value": false, "side": "server", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "add", "path": "/7/enabled", "value": false, "side": "server", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "add", "path": "/8/enabled", "value": false, "side": "server", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "add", "path": "/9/enabled", "value": false, "side": "server", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "add", "path": "/10/enabled", "value": false, "side": "server", "dependsOn": [{"modid": "betterruins"}]}
+]

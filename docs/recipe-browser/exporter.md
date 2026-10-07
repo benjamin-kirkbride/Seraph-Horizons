@@ -314,6 +314,25 @@ is left out when its switch is off or what it names is not registered.
   gameplay lands, `GearChain`'s defaults stand in (wear 10, oil 10 points, tank 1000). A large
   gear's wear is the small one's times its teeth over the small gear's, rounded up, and its oil
   double. The `GearCutter` switch, once there, leaves it out when off.
+- The draw bench (`Recipes/DrawBenchExport.cs`, `RecipeSection.DrawBench.cs`, type `drawbench`, shape
+  `machine`): one record per metal, `drawbench|game:ingot-{metal}|0`. `config/drawbench-rig.json`
+  gives the sections an ingot (`draw.sectionsPerIngot`), each class's ingot (`draw.ingots`) and the turns
+  a section as a fallback; `SeraphHorizonsConfig.DrawBenchSettings` gives the turns a section
+  (`TurnsPerSectionLead`, `TurnsPerSectionCopper`), the die's wear (`DieWearPerIngot`, rule `fixed`) and
+  which dies draw the metal (`DieMetals`); `MachineOilSettings.DrawBench` the oil per section and the
+  tank. The gearbox, chain, dog and mandrel are `kept`, their alternatives the variant's stacks; the
+  output is three of the game's chute sections of the metal (work unit `sections`), and a metal whose
+  chute section is not registered (lead with `UnifiedPipes` off) has no record. The `DrawBench` switch leaves it out when off.
+- The press brake (`Recipes/PressBrakeExport.cs`, `RecipeSection.PressBrake.cs`, type `pressbrake`,
+  shape `machine`): one record per metal, `pressbrake|game:metalplate-{metal}|0`.
+  `config/pressbrake-rig.json` gives each class's plate and open section (`fold.plates`,
+  `fold.sections`), the sections a plate (`fold.sectionsPerPlate`) and the lever turns a plate as a
+  fallback; `SeraphHorizonsConfig.PressBrakeSettings` gives the lever turns a plate
+  (`LeverTurnsPerPlateLead`, `LeverTurnsPerPlateCopper`). A hand machine: `power` is `hand`, `turns`
+  the lever's (a turn a second while right-click is held), and there is no `wear` and no `oil`. The
+  screws and edges are `kept`, their alternatives the variant's stacks; the output is two open chute
+  sections of the metal, and a metal whose open section is not registered (`UnifiedPipes` off) has no
+  record. The `PressBrake` switch leaves it out when off.
 
 ## Casting in tool molds
 
@@ -382,6 +401,10 @@ Checked in the pack's code (decompiled) and assets; none is exported:
   and failure output, the oiled gear's one in ten, the gear cutter's two blank sizes (turns,
   kept master, kit wear, oil), the gear blank molds and two vanilla tool molds cast, and every
   link of the gear chain's handbook page;
+- the draw bench (`RecipeExportDrawBenchScenarios.cs`): a record per metal, its kept stages, the
+  dies that draw it, the oil and three chute sections;
+- the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, its kept stages,
+  power `hand` at the lever's turns, and two open sections;
 - records per type against the definitions counted with the engine's asset loader, and
   variants per type against the sizes of the engine's registries;
 - the structural rules of the document, schema validation (JsonSchema.Net, draft
