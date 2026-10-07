@@ -10,11 +10,9 @@ public class TrunkEntityConfigTests
     {
         var c = new TrunkEntityConfig();
         Assert.Equal(8f, c.WeightPerLog);
-        Assert.Equal(0.8f, c.CarrySpeedAtFourLogs);
+        Assert.Equal(1f, c.CarrySpeedAtOneLog);
         Assert.Equal(0.5f, c.CarrySpeedAtMaxLogs);
         Assert.Equal(0.5f, c.SpudSecondsPerLog);
-        Assert.Equal(3f, c.GrabRange);
-        Assert.Equal(0f, c.MaxGrabWeight);
         Assert.Empty(c.Sanitise());
     }
 
@@ -23,27 +21,25 @@ public class TrunkEntityConfigTests
     {
         var c = new TrunkEntityConfig
         {
-            WeightPerLog = -1, CarrySpeedAtFourLogs = 2, CarrySpeedAtMaxLogs = float.NaN,
-            SpudSecondsPerLog = 100, GrabRange = 0.5f, MaxGrabWeight = float.PositiveInfinity,
+            WeightPerLog = -1, CarrySpeedAtOneLog = 2, CarrySpeedAtMaxLogs = float.NaN,
+            SpudSecondsPerLog = 100,
         };
         var fixes = c.Sanitise();
-        Assert.Equal(6, fixes.Count);
+        Assert.Equal(4, fixes.Count);
         Assert.Contains(fixes, f => f.StartsWith("WeightPerLog -1 is out of range"));
         Assert.Equal(TrunkEntityConfig.Defaults.WeightPerLog, c.WeightPerLog);
-        Assert.Equal(TrunkEntityConfig.Defaults.CarrySpeedAtFourLogs, c.CarrySpeedAtFourLogs);
+        Assert.Equal(TrunkEntityConfig.Defaults.CarrySpeedAtOneLog, c.CarrySpeedAtOneLog);
         Assert.Equal(TrunkEntityConfig.Defaults.CarrySpeedAtMaxLogs, c.CarrySpeedAtMaxLogs);
         Assert.Equal(TrunkEntityConfig.Defaults.SpudSecondsPerLog, c.SpudSecondsPerLog);
-        Assert.Equal(TrunkEntityConfig.Defaults.GrabRange, c.GrabRange);
-        Assert.Equal(TrunkEntityConfig.Defaults.MaxGrabWeight, c.MaxGrabWeight);
         Assert.Empty(c.Sanitise());
     }
 
     [Fact]
     public void Edge_values_in_range_are_kept()
     {
-        var c = new TrunkEntityConfig { WeightPerLog = 0, CarrySpeedAtFourLogs = 1, CarrySpeedAtMaxLogs = 0, SpudSecondsPerLog = 0, GrabRange = 10, MaxGrabWeight = 500 };
+        var c = new TrunkEntityConfig { WeightPerLog = 0, CarrySpeedAtOneLog = 1,CarrySpeedAtMaxLogs = 0, SpudSecondsPerLog = 0 };
         Assert.Empty(c.Sanitise());
-        Assert.Equal(500, c.MaxGrabWeight);
+        Assert.Equal(0, c.SpudSecondsPerLog);
     }
 }
 
@@ -63,12 +59,12 @@ public class TrunkWeightTests
         Assert.Equal(10f + 5 * 20f, TrunkWeight.Weight(5, new TrunkEntityConfig { WeightPerLog = 20 }));
 
     [Theory]
-    [InlineData(1, 0.8f)]
-    [InlineData(4, 0.8f)]
-    [InlineData(26, 0.65f)]
+    [InlineData(0, 1f)]
+    [InlineData(1, 1f)]
+    [InlineData(25, 0.7447f)]
     [InlineData(48, 0.5f)]
     [InlineData(100, 0.5f)]
-    public void Carry_speed_runs_linearly_from_four_logs_to_forty_eight(int logs, float speed) =>
+    public void Carry_speed_runs_linearly_from_a_normal_walk_at_one_log_to_half_at_forty_eight(int logs, float speed) =>
         Assert.Equal(speed, TrunkWeight.CarrySpeed(logs, C), 4);
 
     [Fact]
@@ -86,15 +82,6 @@ public class TrunkWeightTests
     [InlineData(48, 24f)]
     public void Spud_hold_is_half_a_second_per_log_two_at_least(int logs, float seconds) =>
         Assert.Equal(seconds, TrunkWeight.SpudSeconds(logs, C), 4);
-
-    [Fact]
-    public void Grab_limit_zero_means_any_weight()
-    {
-        Assert.True(TrunkWeight.Grabbable(10000, C));
-        var limited = new TrunkEntityConfig { MaxGrabWeight = 100 };
-        Assert.True(TrunkWeight.Grabbable(100, limited));
-        Assert.False(TrunkWeight.Grabbable(100.5f, limited));
-    }
 }
 
 public class TrunkBoxesTests

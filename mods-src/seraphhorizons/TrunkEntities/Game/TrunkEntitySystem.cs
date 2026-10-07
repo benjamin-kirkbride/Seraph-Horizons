@@ -11,8 +11,8 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 
 /// <summary>
 /// Trunk entities: Logging Expanded's tree trunks are never items in an inventory. A trunk in the
-/// world is an <see cref="EntityTrunk"/> lying on the ground, dragged by hand
-/// (<see cref="TrunkGrab"/>) or with a rope, shoved, floated; a loose trunk item entity is swapped
+/// world is an <see cref="EntityTrunk"/> lying on the ground, driven on foot by a player at one
+/// end (<see cref="TrunkDriveSeat"/>) or moved with a rope, shoved, floated; a loose trunk item entity is swapped
 /// for one as it spawns (<see cref="TrunkSpawns"/>), trunk stacks get a storage flag no inventory
 /// takes, and trunk multiblocks already placed are deleted (<see cref="OldTrunkBlocks"/>).
 /// With Carry On, a trunk is also shouldered, put down, loaded and attached to carts through it
@@ -22,7 +22,7 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// <see cref="Start"/> (the <c>TrunkEntities</c> switch, Logging Expanded installed and
 /// <see cref="LoggingBridge"/> resolving) and writes it to the world config
 /// (<see cref="RunningKey"/>), which a client follows. Off, there is no swap, no flag, no deletion
-/// and no grab, the feature's asset patches are emptied (<see cref="DisablePatches"/>), and Logging
+/// and no drive, the feature's asset patches are emptied (<see cref="DisablePatches"/>), and Logging
 /// Expanded's trunks behave as it ships them; a trunk entity that loads turns back into its trunk
 /// item (<see cref="Unswap"/>). The two entity types exist either way.
 /// </summary>
@@ -56,6 +56,8 @@ public class TrunkEntitySystem : ModSystem
     private bool _carrying;
     private bool _placing;
     private long _speedListener;
+    private TrunkHoldCircle? _holdCircle;
+    private TrunkSolid.ClientRenderer? _solid;
 
     public static TrunkEntitySystem Of(ICoreAPI api) => api.ModLoader.GetModSystem<TrunkEntitySystem>();
 
@@ -84,9 +86,6 @@ public class TrunkEntitySystem : ModSystem
         }
     }
 
-    /// <summary>The rope-less grabs (server side; null on a client).</summary>
-    public TrunkGrab? Grabs { get; private set; }
-
     /// <summary>Whether Carry On is installed (carrying, racks by hand and cart slots need it).</summary>
     public bool CarryOn => _api?.ModLoader.IsModEnabled(CarryOnModId) ?? false;
 
@@ -103,6 +102,9 @@ public class TrunkEntitySystem : ModSystem
         _config = LoadConfig(api);
         api.RegisterEntity("seraphhorizons.EntityTrunk", typeof(EntityTrunk));
         api.RegisterEntityBehaviorClass(TrunkCarry.BehaviorCode, typeof(EntityBehaviorTrunkCarry));
+        api.RegisterEntityBehaviorClass(EntityBehaviorTrunkPhysics.Code, typeof(EntityBehaviorTrunkPhysics));
+        api.RegisterMountable(TrunkDriveSeat.ClassName, TrunkDriveSeat.GetMountable);
+        TrunkPick.Register(api);
         if (api.Side == EnumAppSide.Server)
         {
             Enabled = SeraphHorizonsSystem.ConfigFor(api).TrunkEntities && api.ModLoader.IsModEnabled(LeModId) && Logging != null;
@@ -124,7 +126,7 @@ public class TrunkEntitySystem : ModSystem
         if (!_placing)
             api.Logger.Warning("[seraphhorizons] Trunk entities: Logging Expanded's BlockTreeTrunk.TryPlaceBlock is not as expected, so a trunk left in a hotbar is placed as a block (and removed the next tick)");
         if (!CarryOn)
-            api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On is not installed, so trunks cannot be carried: drag or rope them");
+            api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On is not installed, so trunks cannot be carried: drive or rope them");
         else
             _carrying = TrunkCarry.Start(api);
     }
@@ -170,7 +172,20 @@ public class TrunkEntitySystem : ModSystem
             if (entity is EntityItem item && Trunks.IsTrunk(item.Itemstack))
                 api.Event.RegisterCallback(_ => TrunkSpawns.OnEntitySpawn(api.World, item), 0);
         };
-        Grabs = new TrunkGrab(api, this);
+        // A player leaving the game while driving a trunk is let go first, so their save holds no
+        // mount; one saved mounted anyway (a crash) has the stale mount cleared when they join.
+        api.Event.PlayerDisconnect += player =>
+        {
+            if (player.Entity?.MountedOn is TrunkDriveSeat)
+                player.Entity.TryUnmount();
+        };
+        api.Event.PlayerJoin += player =>
+        {
+            if (player.Entity is { MountedOn: null } agent
+                && (agent.WatchedAttributes["mountedOn"] as Vintagestory.API.Datastructures.TreeAttribute)?.GetString("className") == TrunkDriveSeat.ClassName)
+                agent.WatchedAttributes.RemoveAttribute("mountedOn");
+        };
+        TrunkPick.StartServer(api);
         if (_carrying)
             _speedListener = api.Event.RegisterGameTickListener(_ => TrunkCarry.UpdateSpeeds(api), TrunkCarry.SpeedCheckMs);
         _harmony = new Harmony(HarmonyId);
@@ -204,12 +219,20 @@ public class TrunkEntitySystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         api.RegisterEntityRendererClass("seraphhorizons.trunk", typeof(TrunkEntityRenderer));
+        if (!Enabled)
+            return;
+        TrunkPick.StartClient(api);
+        _solid = new TrunkSolid.ClientRenderer(api);
+        if (_carrying)
+            _holdCircle = new TrunkHoldCircle(api);
     }
 
     public override void Dispose()
     {
-        Grabs?.Dispose();
-        Grabs = null;
+        _holdCircle?.Dispose();
+        _holdCircle = null;
+        _solid?.Dispose();
+        _solid = null;
         if (_speedListener != 0)
             (_api as ICoreServerAPI)?.Event.UnregisterGameTickListener(_speedListener);
         _speedListener = 0;

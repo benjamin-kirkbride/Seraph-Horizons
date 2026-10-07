@@ -72,6 +72,17 @@ public class TrunkToolBehavior(CollectibleObject collObj) : CollectibleBehavior(
         var tool = TrunkHarvest.ToolOf(slot.Itemstack?.Collectible);
         if (TrunkHarvest.PlanFor(tool, trunk, logging, system.Config) is not { } plan)
             return;
+        // A trunk someone is driving is not worked: the hold is taken, refused, and idles.
+        if (trunk.Grabbed)
+        {
+            Stop(byEntity);
+            Holds.AddOrUpdate(byEntity, new Hold(trunk.EntityId, tool, plan.Seconds, true));
+            if (firstEvent)
+                (player as IServerPlayer)?.SendIngameError("trunkentities-grabbed", Lang.Get("seraphhorizons:trunkentities-error-grabbed"));
+            handHandling = EnumHandHandling.PreventDefault;
+            handling = EnumHandling.PreventSubsequent;
+            return;
+        }
         // The client decides whether a held button starts again; the server follows it.
         if (!plan.Refused && byEntity.World.Side == EnumAppSide.Client && LastDone.TryGetValue(byEntity, out var last)
             && Environment.TickCount64 < last.Value + RepeatPauseMs)

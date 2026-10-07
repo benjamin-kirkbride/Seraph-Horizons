@@ -207,16 +207,40 @@ public partial class WoodworkingScenarios
         Assert.Equal(4, logging.TrunkCount(Rack()));
         Assert.Equal("birch", Trunks.Wood(TrunkCarry.Take(sp)!, W));
 
-        // an empty hand pops the top one into the hands; carrying it, a click puts it back
+        // an empty hand held on the rack takes the top one into the hands after the pick-up hold,
+        // as off the ground; let go early, it stays
+        var controls = sp.Entity.ServerControls;
+        controls.RightMouseDown = true;
         Assert.True(shop.Click(pos));
+        Assert.True(RackTake.Holding(sp));
+        Assert.Equal(4, logging.TrunkCount(Rack()));
+        Assert.Null(TrunkCarry.Carried(shop.P));
+        controls.RightMouseDown = false;
+        await World.Until(() => !RackTake.Holding(sp), 600);
+        await World.Ticks(40);
+        Assert.Equal(4, logging.TrunkCount(Rack()));
+        Assert.Null(TrunkCarry.Carried(shop.P));
+
+        async Task TakeOff()
+        {
+            controls.RightMouseDown = true;
+            Assert.True(shop.Click(pos));
+            await World.Until(() => !RackTake.Holding(sp), 600);
+            controls.RightMouseDown = false;
+        }
+        long start = W.ElapsedMilliseconds;
+        await TakeOff();
+        output.WriteLine($"rack take held {W.ElapsedMilliseconds - start} ms for {TrunkCarry.PickUpSeconds(World.Api, BlockOf("loggingmod:treetrunk-oak-xs-no-north"))} s");
+        Assert.True(W.ElapsedMilliseconds - start >= 500);
         Assert.Equal(4, Trunks.StoredLogs(TrunkCarry.Carried(shop.P)!, W));
         Assert.Equal(3, logging.TrunkCount(Rack()));
+        // carrying it, a click puts it back
         Assert.True(shop.Click(pos));
         Assert.Equal(4, logging.TrunkCount(Rack()));
         Assert.Null(TrunkCarry.Carried(shop.P));
-        Assert.True(shop.Click(pos));
+        await TakeOff();
         Assert.Equal(4, Trunks.StoredLogs(TrunkCarry.Take(sp)!, W));
-        Assert.True(shop.Click(pos));
+        await TakeOff();
         Assert.Equal(3, Trunks.StoredLogs(TrunkCarry.Take(sp)!, W));
         Assert.Equal(2, logging.TrunkCount(Rack()));
         Assert.DoesNotContain(await shop.Collect(), kv => kv.Key.StartsWith("loggingmod:treetrunk"));
