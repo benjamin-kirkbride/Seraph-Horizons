@@ -194,7 +194,7 @@ public static class EconomyCommands
         var o = economy.QuoteOffList(trader, stack, args.Caller.Player?.PlayerUID);
         if (!o.Accepted) return TextCommandResult.Success(L("trading-price-refused", type, code, EconomyPatches.RefusalText(o.Refusal) ?? ""));
         return TextCommandResult.Success(L("trading-price-offlist", type, code, o.UnitPrice, o.UnitSize, F(o.Base), F(o.Fit), F(o.Supply), F(o.Modifiers),
-            o.Capped ? L("trading-economy-offer-capped") : "", EconomySystem.SideBudgetOf(trader)));
+            F(o.Spread), EconomySystem.SideBudgetOf(trader)));
     }
 
     private static TextCommandResult Simulate(EconomySystem economy, TextCommandCallingArgs args)
