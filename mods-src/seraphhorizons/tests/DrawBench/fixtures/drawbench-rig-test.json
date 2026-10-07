@@ -1,0 +1,232 @@
+{
+ "_comment": "A hand-trimmed draw bench rig for DrawBenchGameplayTests: the keys and anchors of the model's contract (figures of 2026-10-07, pass 3: a hollow section in, four pipe sections out), one static part per requires. The shipped rig is assets/seraphhorizons/config/drawbench-rig.json.",
+ "cells": [
+  {
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "boxes": [
+    [
+     0.075,
+     0.0,
+     0.0188,
+     0.6813,
+     0.9156,
+     1.0
+    ],
+    [
+     0.6062,
+     0.0,
+     0.7812,
+     0.9375,
+     0.6687,
+     0.9906
+    ]
+   ],
+   "lid": 1.0
+  },
+  {
+   "pos": [
+    0,
+    0,
+    1
+   ],
+   "boxes": [
+    [
+     0.075,
+     0.0,
+     0.0,
+     1.0,
+     0.6798,
+     1.0
+    ],
+    [
+     0.125,
+     0.6,
+     0.0,
+     0.9438,
+     1.0,
+     0.5625
+    ]
+   ],
+   "lid": 1.0
+  },
+  {
+   "pos": [
+    0,
+    0,
+    2
+   ],
+   "boxes": [
+    [
+     0.0125,
+     0.0,
+     0.0,
+     1.0,
+     0.625,
+     1.0
+    ],
+    [
+     0.2769,
+     0.5392,
+     0.9535,
+     0.3731,
+     0.7919,
+     1.0
+    ]
+   ],
+   "lid": 1.0
+  },
+  {
+   "pos": [
+    0,
+    0,
+    3
+   ],
+   "boxes": [
+    [
+     0.0,
+     0.0625,
+     0.3474,
+     0.4437,
+     0.7992,
+     0.6313
+    ],
+    [
+     0.0125,
+     0.0,
+     0.0,
+     0.9875,
+     0.0625,
+     0.975
+    ],
+    [
+     0.05,
+     0.0625,
+     0.0,
+     0.9875,
+     0.8941,
+     0.4062
+    ]
+   ],
+   "lid": 1.0
+  }
+ ],
+ "powerCell": [
+  0,
+  0,
+  3
+ ],
+ "powerFace": "west",
+ "infeedSide": "north",
+ "outputSide": "east",
+ "output": {
+  "pos": [
+   0.9994,
+   0.2329,
+   0.26
+  ]
+ },
+ "die": {
+  "pos": [
+   0.3125,
+   0.7188,
+   1.5125
+  ]
+ },
+ "drip": {
+  "pos": [
+   0.3125,
+   0.9719,
+   1.1281
+  ]
+ },
+ "work": {
+  "name": "sections drawn",
+  "unit": "sections",
+  "step": 0.005,
+  "end": {
+   "thin": 4.0,
+   "thick": 4.0
+  }
+ },
+ "draw": {
+  "turnsPerSection": {
+   "thin": 10.298179,
+   "thick": 20.596358
+  },
+  "sectionsPerHollow": 4,
+  "hollows": {
+   "thin": "game:chutesection-lead",
+   "thick": "game:chutesection-copper"
+  }
+ },
+ "parts": [
+  {
+   "id": "frame",
+   "match": [
+    "fr_*"
+   ],
+   "requires": null,
+   "drivers": []
+  },
+  {
+   "id": "gearbox",
+   "match": [
+    "gearbox_*"
+   ],
+   "requires": "gearbox",
+   "drivers": []
+  },
+  {
+   "id": "chain",
+   "match": [
+    "chain_*"
+   ],
+   "requires": "chain",
+   "drivers": []
+  },
+  {
+   "id": "dog",
+   "match": [
+    "dog_*"
+   ],
+   "requires": "dog",
+   "drivers": []
+  },
+  {
+   "id": "mandrel",
+   "match": [
+    "mandrel_*"
+   ],
+   "requires": "mandrel",
+   "drivers": []
+  },
+  {
+   "id": "die",
+   "match": [
+    "die_*"
+   ],
+   "requires": "die",
+   "drivers": []
+  },
+  {
+   "id": "billetlead",
+   "match": [
+    "billetlead_*"
+   ],
+   "requires": "billetlead",
+   "drivers": []
+  },
+  {
+   "id": "billetcopper",
+   "match": [
+    "billetcopper_*"
+   ],
+   "requires": "billetcopper",
+   "drivers": []
+  }
+ ]
+}

@@ -44,6 +44,21 @@ public sealed class SwitchOwnership
         // The exporter's own recipe types for the gear chain (tools/recipe-export, RecipeSection.Gears.cs).
         new("GearReclamation", [], [], ["picklingtub", "lottery"]),
         new("GearCutter", [], [], ["gearcutter"]),
+        // The exporter's own recipe type for the draw bench's process (tools/recipe-export, Recipes/DrawBenchExport.cs).
+        new("DrawBench", [], [], ["drawbench"]),
+        // The exporter's own recipe type for the press brake's process (tools/recipe-export, Recipes/PressBrakeExport.cs).
+        new("PressBrake", [], [], ["pressbrake"]),
+        // The exporter's own recipe type for the mandrel station's process (tools/recipe-export, Recipes/MandrelStationExport.cs).
+        new("MandrelStation", [], [], ["mandrelstation"]),
+        // The pipe mold is Steelmaking Expanded's own tool mold with a fourth tool type, added by a
+        // JSON patch (patches/castpipes-smexmold.json), not a type file of the mod's.
+        new("CastPipes", [], ["smex:toolmold-*-pipe"], []),
+        // Copper and lead pipes and bronze valves are Pipes and Power Expanded's own blocks with more
+        // material states, added by a JSON patch (patches/unifiedpipes-ppex.json); the lead chute
+        // section is the game's chute section with another state (patches/unifiedpipes-chutesection.json).
+        new("UnifiedPipes", [], ["ppex:pipe-*-copper", "ppex:pipe-*-lead", "ppex:pipe-*-tinbronze",
+                                 "ppex:pipe-*-bismuthbronze", "ppex:pipe-*-blackbronze",
+                                 "game:chutesection-lead"], []),
     ];
 
     private readonly List<OwnedBySwitch> _owned;

@@ -1,0 +1,151 @@
+{
+	"editor": {
+		"allAngles": false,
+		"entityTextureMode": false
+	},
+	"textureWidth": 16,
+	"textureHeight": 16,
+	"textures": {
+		"metaltex": "game:block/metal/sheet/copper1"
+	},
+	"elements": [
+		{
+			"name": "Flange",
+			"from": [
+				4.0,
+				4.0,
+				4.0
+			],
+			"to": [
+				12.0,
+				5.0,
+				12.0
+			],
+			"faces": {
+				"north": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						1.0
+					]
+				},
+				"south": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						1.0
+					]
+				},
+				"east": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						1.0
+					]
+				},
+				"west": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						1.0
+					]
+				},
+				"up": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						8.0
+					]
+				},
+				"down": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						8.0
+					]
+				}
+			}
+		},
+		{
+			"name": "Web",
+			"from": [
+				4.0,
+				5.0,
+				4.0
+			],
+			"to": [
+				12.0,
+				12.0,
+				5.0
+			],
+			"faces": {
+				"north": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						7.0
+					]
+				},
+				"south": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						7.0
+					]
+				},
+				"east": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						1.0,
+						7.0
+					]
+				},
+				"west": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						1.0,
+						7.0
+					]
+				},
+				"up": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						1.0
+					]
+				},
+				"down": {
+					"texture": "#metaltex",
+					"uv": [
+						0.0,
+						0.0,
+						8.0,
+						1.0
+					]
+				}
+			}
+		}
+	]
+}

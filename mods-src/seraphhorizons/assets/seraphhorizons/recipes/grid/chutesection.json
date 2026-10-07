@@ -1,0 +1,20 @@
+// seraphhorizons' UnifiedPipes switch (README.md "Unified pipes"): the hollow section. Two copper or
+// lead angles (seraphhorizons:angle-*, forged or folded on the press brake), soldered together along
+// both seams with two tin or silver solder bars and a soldering iron (2 durability, as the game's own
+// soldering), make one of the game's chute sections of that metal. This is the only way to one: the
+// game's anvil recipe and its one-step "plate + solder + soldering iron + hammer" recipe are switched
+// off (patches/unifiedpipes-chutesection.json). Marked disabled by UnifiedPipesSystem with the switch off.
+[
+  {
+    "name": "Chute section soldered from two angles",
+    "ingredientPattern": "AS,AT",
+    "ingredients": {
+      "A": { "type": "item", "code": "seraphhorizons:angle-*", "name": "metal", "allowedVariants": ["copper", "lead"], "quantity": 1 },
+      "S": { "type": "item", "code": "game:solderbar-*", "name": "solder", "allowedVariants": ["tin", "silver"], "quantity": 2 },
+      "T": { "type": "item", "code": "game:solderingiron", "isTool": true, "toolDurabilityCost": 2 }
+    },
+    "width": 2,
+    "height": 2,
+    "output": { "type": "item", "code": "game:chutesection-{metal}", "quantity": 1 }
+  }
+]

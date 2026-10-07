@@ -1,0 +1,85 @@
+// The draw bench's frame (DrawBench/, README "Draw bench"): the controller cell of a 1 x 1 x 4
+// chain draw bench, at the die end, nearest the player who placed it. The server disables it with
+// DrawBench off.
+{
+	code: "drawbench",
+	class: "seraphhorizons.DrawBench",
+	entityClass: "seraphhorizons.DrawBench",
+	// No HorizontalOrientable: BlockDrawBench.TryPlaceBlock picks the side so the bench extends
+	// away from the player (Machines/Core/Footprint.cs, PlacedFacing), as the other machines do.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/drawbench_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/drawbench_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/drawbench_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/drawbench_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (drawbench.json), which the
+	// renderer draws with this block's textures; the renderer sets "die" to the fitted die's metal.
+	textures: {
+		"iron":        { base: "game:block/metal/plate/iron" },
+		"steel":       { base: "game:block/metal/sheet-plain/steel1" },
+		"oak":         { base: "game:block/wood/debarked/oak" },
+		"brass":       { base: "game:block/metal/sheet/brass1" },
+		"cupronickel": { base: "game:block/metal/sheet/cupronickel1" },
+		"lead":        { base: "game:block/metal/sheet-plain/lead1" },
+		"copper":      { base: "game:block/metal/sheet-plain/copper1" },
+		"die":         { base: "game:block/metal/sheet-plain/steel1" },
+		"rope":        { base: "game:item/resource/rope" },
+		"glass":       { base: "game:block/glass/plain" },
+		"oil":         { base: "game:block/liquid/honey" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:drawbench-handbook-assembly-title", text: "seraphhorizons:drawbench-handbook-assembly-text" },
+				{ title: "seraphhorizons:drawbench-handbook-work-title", text: "seraphhorizons:drawbench-handbook-work-text" },
+				{ title: "seraphhorizons:drawbench-handbook-oil-title", text: "seraphhorizons:drawbench-handbook-oil-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:drawbench-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The shape fills the bench's 1 x 1 x 4 footprint (native z 0..4 from the controller; z -3..1
+	// once the -north item form turns it 180°), so the item forms are centred on it.
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.5, z: -0.6 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0, z: -1 },
+		scale: 0.25
+	},
+	fpHandTransform: {
+		rotation: { x: 0, y: -45, z: 0 },
+		origin: { x: 0.5, y: 0.5, z: -1 },
+		scale: 0.4
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.5, z: -1 },
+		scale: 0.42
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: -1 },
+		scale: 0.9
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
