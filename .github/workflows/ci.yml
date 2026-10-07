@@ -287,7 +287,7 @@ jobs:
           echo "zip=$zip" >> "$GITHUB_OUTPUT"
       # This dist is what next.yml publishes as next, so its Cairn pack carries the mod by
       # address (the URL is where next.yml puts this very zip; versioned releases assemble
-      # their own dist without it, release.yml). Built the same on every run, PRs included,
+      # their own dist, naming the release's own copy, release.yml). Built the same on every run, PRs included,
       # so the install below tests what next ships.
       - name: Assemble release artifacts
         env:
