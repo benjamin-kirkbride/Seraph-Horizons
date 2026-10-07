@@ -114,7 +114,7 @@ export interface RigCell {
   boxes?: number[][] | null;
   /** A ghost with nothing of its own to collide with (a trunk path's cell); without boxes it has none, not a full cube. */
   hollow?: boolean;
-  /** On the top cell of each column: the cell-local height of the top of a collision-only box over the whole cell, 1/16 thick, so the machine's top walks as a deck. Not drawn, not selectable. */
+  /** On the top cell of each column: the cell-local height of the top of a collision-only box over the whole cell, 1/16 thick, so the machine's top walks as a deck. Not selectable; the viewer draws it with the collision boxes, in its own shade. */
   lid?: number;
 }
 
