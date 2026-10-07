@@ -13,12 +13,13 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// The driver's place on a trunk entity (<see cref="EntityTrunk"/> is the <c>seatable</c>'s seat
 /// supplier): the player stands on the ground <see cref="TrunkDrive.StandOff"/> beyond the end
 /// they took (<see cref="EntityTrunk.DriveEnd"/>), feet at the trunk's underside (afloat, at the
-/// waterline less <see cref="TrunkDrive.SwimFeetBelow"/>, swimming), facing the trunk along its
-/// axis. The game puts a mounted player at <see cref="SeatPosition"/> every physics tick and feeds
+/// waterline less <see cref="TrunkDrive.SwimFeetBelow"/>, swimming), facing along the trunk to
+/// its far end, pushing it like Cartwright's Caravan's sled. The game puts a mounted player at
+/// <see cref="SeatPosition"/> every physics tick, from the trunk's pose on that side, and feeds
 /// their movement keys into <see cref="EntitySeat.Controls"/> on both sides, which the trunk's
-/// drive reads; sneak dismounts (the game's <c>EntitySeat</c>). Not controllable in the game's
-/// sense (<c>controllable: false</c>), so the server keeps running the trunk's physics; see the
-/// README for why.
+/// drive reads; sneak dismounts (the game's <c>EntitySeat</c>). Controllable in the game's sense
+/// (<c>controllable: true</c>): the driver's client ticks the trunk's physics and the server
+/// takes its positions, falling back to ticking it itself (see the README's Drive).
 /// <para>Only the player the trunk's mark names may mount it on the server
 /// (<see cref="CanMount"/>), which <see cref="EntityTrunk"/> sets just before it mounts them, so
 /// nothing else (the <c>seatable</c>'s own click, a save's seat data or a player's saved
@@ -68,18 +69,52 @@ public class TrunkDriveSeat : EntitySeat
 
     public override float FpHandPitchFollow => 1f;
 
-    /// <summary>Walking while the drive keys are held, standing otherwise; swimming afloat.</summary>
+    /// <summary>The driver's animation by gait (<see cref="TrunkDrive.Gait"/>). With Cartwright's
+    /// Caravan, on land, its sled pusher's (<c>pushsled-idle</c>, <c>-walk</c>, <c>-walkback</c>,
+    /// which its patch adds to the player's shape; referenced by name only), with the first-person
+    /// variant as its sled asks for it (<c>withFpVariant</c>: the game plays <c>…-fp</c> in first
+    /// person). Without it, or afloat, the player's own <c>idle</c> and <c>walk</c> (S walks
+    /// forwards too: the player has no walking-backwards animation), or <c>swimidle</c> and
+    /// <c>swim</c>.</summary>
     public override AnimationMetaData? SuggestedAnimation
     {
         get
         {
             if (Passenger?.Properties?.Client?.AnimationsByMetaCode is not { } anims || Trunk is not { } trunk)
                 return null;
-            bool moving = Controls.Forward || Controls.Backward || Controls.Left || Controls.Right;
+            var gait = TrunkDrive.Gait(Controls.Forward, Controls.Backward, Controls.Left, Controls.Right);
+            if (!trunk.Afloat && (_cartwright ??= trunk.Api.ModLoader.IsModEnabled(CartwrightModId)))
+            {
+                var push = gait switch
+                {
+                    EnumDriveGait.Walk => _pushWalk ??= PushAnim("pushsled-walk", 1.3f),
+                    EnumDriveGait.WalkBack => _pushBack ??= PushAnim("pushsled-walkback", 1.5f),
+                    _ => _pushIdle ??= PushAnim("pushsled-idle", 1e-8f),
+                };
+                return push;
+            }
+            bool moving = gait != EnumDriveGait.Idle;
             string code = trunk.Afloat ? (moving ? "swim" : "swimidle") : (moving ? "walk" : "idle");
             return anims.TryGetValue(code, out var meta) ? meta : null;
         }
     }
+
+    /// <summary>Cartwright's Caravan's mod id, whose sled animations the driver uses when it is loaded.</summary>
+    public const string CartwrightModId = "cartwrightscaravan";
+
+    private bool? _cartwright;
+    private AnimationMetaData? _pushIdle, _pushWalk, _pushBack;
+
+    // As Cartwright's sled's riderAnim: weight 1, average blend, a first-person variant.
+    private static AnimationMetaData PushAnim(string code, float speed) => new AnimationMetaData
+    {
+        Code = code,
+        Animation = code,
+        AnimationSpeed = speed,
+        Weight = 1,
+        BlendMode = EnumAnimationBlendMode.Average,
+        WithFpVariant = true,
+    }.Init();
 
     public override bool CanMount(EntityAgent entityAgent) =>
         entityAgent is EntityPlayer && Trunk is { Alive: true } trunk
@@ -97,6 +132,7 @@ public class TrunkDriveSeat : EntitySeat
         base.DidMount(entityAgent);
         if (Trunk is not { } trunk)
             return;
+        trunk.DriverMounted(entityAgent);
         if (trunk.Api is ICoreClientAPI capi && capi.World.Player?.Entity?.EntityId == entityAgent.EntityId)
             capi.Input.MouseYaw = (float)TrunkDrive.FacingYaw(trunk.Pos.Yaw, trunk.DriveEnd);
         trunk.Api.Event.TriggerEntityMounted(entityAgent, this);

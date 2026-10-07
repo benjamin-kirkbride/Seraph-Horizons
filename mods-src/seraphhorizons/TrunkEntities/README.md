@@ -143,25 +143,41 @@ copy down as a trunk entity (`OldTrunkBlocks`; creative does not use it up).
 
 ## Moving a trunk
 
-**Drive** (`EntityTrunk.TryDrive` and `BeforeCollision`, `Game/TrunkDriveSeat.cs`, maths in
-`Core/TrunkDrive.cs`, geometry in `Core/TrunkPull.cs`). Right-click a trunk with an empty hand, not
-sneaking (sneak is Carry On's): the player takes the end nearer the click and is mounted on the
-trunk's one seat, the game's own mount machinery (`seatable`, the trunk its seat supplier), so
-they move with the trunk exactly. They stand on the ground `TrunkDrive.StandOff` (0.6) blocks
-beyond that end along the axis, feet at the trunk's underside, facing the trunk; afloat, at the
-waterline less `SwimFeetBelow` (1), swimming. Their body is held to face the trunk
-(`BodyYawLimits`, ±0.05 rad) and the head may look a quarter turn either way (`HeadYawLimits`), as
-the game's boat holds its rowers; the seat's angle mode is `PushYaw`, so the view turns with the
-trunk. The seat suggests the walk animation while a drive key is held and idle otherwise (`swim`
-and `swimidle` afloat); the player has no walking-backwards animation, so pulling with W walks
-forwards while backing up. The game feeds a mounted player's movement keys into the seat's
-controls on both sides (`ServerMain.HandleMoveKeyChange`, `SystemPlayerControl`), and sneak
-dismounts (the game's `EntitySeat`), which is how one lets go.
+**Drive** (`EntityTrunk.TryDrive` and `BeforeCollision`, `Game/TrunkDriveSeat.cs`,
+`Game/TrunkPhysics.cs`, maths in `Core/TrunkDrive.cs`, geometry in `Core/TrunkPull.cs`).
+Right-click a trunk with an empty hand, not sneaking (sneak is Carry On's): the player takes the end
+nearer the click and is mounted on the trunk's one seat, the game's own mount machinery
+(`seatable`, the trunk its seat supplier), so they move with the trunk exactly. They stand as
+Cartwright's Caravan's sled pusher does: on the ground `TrunkDrive.StandOff` (0.6) blocks beyond
+that end along the axis, feet at the trunk's underside, facing along the trunk over it to its far
+end, pushing it from behind; afloat, at the waterline less `SwimFeetBelow` (1), swimming. Their
+body is held to that heading within ±0.3 rad (`BodyYawLimits`, the sled's `bodyYawLimit`) and the
+head may look a quarter turn either way (`HeadYawLimits`); the seat's angle mode is `PushYaw`, so
+the view turns with the trunk. The seat (`TrunkDriveSeat.SeatPosition`) is worked out from the
+trunk's pose on whichever side asks, so on the driver's client it follows the predicted trunk (the
+player physics puts a mounted player there every tick). The game feeds a mounted player's movement
+keys into the seat's controls on both sides (`ServerMain.HandleMoveKeyChange`,
+`SystemPlayerControl`, and the mount position packet's `MountControls`), and sneak dismounts (the
+game's `EntitySeat`), which is how one lets go.
 
-The keys: **W** moves the trunk along its axis with the taken end leading (towards the player, who
-backs up), **S** the other way (the player pushes it), **A** and **D** turn it about its middle, so
-both ends swing and the player goes with theirs: A swings the player's end to their left, D to
-their right. Turning works standing still. Speeds are eased with a time constant of 0.1 s
+The keys: **W** pushes the trunk along its axis away from the player, the far end leading, **S**
+draws it back into them (they walk backwards), **A** and **D** turn it about its middle, so both
+ends swing and the player goes with theirs: A steers the far end, the one ahead, to the player's
+left and D to their right, as a pushed sled turns (so their own end swings the other way; a first
+build turned the player's end left on A, which nobody pushing a sled expects). Turning works
+standing still. There are two gaits, walk forwards and walk back
+(`TrunkDrive.Gait`), and no sprint: the speed is the trunk's.
+
+**Animations** (`TrunkDriveSeat.SuggestedAnimation`). With Cartwright's Caravan loaded
+(`cartwrightscaravan`), on land, the driver plays its sled pusher's animations, which its patch
+(`patches/cartanimation.json`) adds to the player's shape: `pushsled-idle` standing,
+`pushsled-walk` for W (and turning), `pushsled-walkback` for S, at its sled's speeds and blend
+(weight 1, average), each with `WithFpVariant` as its sled has it, so in first person the game
+plays `<code>-fp` where the shape has it (`pushsled-walk-fp`; `AnimationMetaData.Init`,
+`PlayerAnimationManager.StartAnimation`). They are referenced by name only; none of Cartwright's
+animation data is in the pack. Without Cartwright, the player's own `idle` and `walk` (S walks
+forwards too: the player has no walking-backwards animation); afloat, `swimidle` and `swim`
+either way. Speeds are eased with a time constant of 0.1 s
 (`EaseSeconds`), so a trunk is up to speed in about a third of a second and stops as quickly,
 with no glide. On land the speed is linear in the stored logs: one log is a player's walk
 (`WalkBlocksPerSecond`, 4.3 blocks a second), 48 logs or more half of it, about 3.25 at 24.
@@ -199,30 +215,59 @@ the server a seat only on a trunk marked as driven, so a player saved mounted (a
 back, and their stale `mountedOn` is removed when they join. A trunk saved by an older build whose
 grab was a game rope also loses that rope's cloth id.
 
-**Who moves it: the server, with the client only interpolating.** The game's mounts are moved by
-the pilot's client: a seat with `controllable: true` makes the mount "being controlled"
-(`MountableUtil.IsBeingControlled`), which stops the server's passive physics for it
-(`EntityBehaviorPassivePhysics.OnPhysicsTick`) and the interpolation of server positions on the
-pilot's client, while the pilot's client ticks the mount's physics itself
-(`EntityBehaviorPlayerPhysics`, for `MountSupplier.Controller` that player) and sends its position
-(`SendPlayerMountPositionPacket`); the boat sets the controller and its motion on both sides from
-the seats' controls (`updateBoatAngleAndMotion`, from `OnGameTick` on the server and
-`OnRenderFrame` on the client). That puts the drive, the step-up and the collision on the driver's
-client, where the server cannot check them and the Atlas scenarios (a server with players that
-have no client) cannot run them. So the seat is **not** controllable: the server runs the trunk's
-physics as for any trunk, the drive and the step-up inside it, and every client, the driver's
-included, only interpolates the server's positions (`interpolateposition`; the client's
-`passivephysicsmultibox` ticks nothing for an entity no one controls, it only works out its ground
-and water flags from those positions, `HandleRemotePhysics`). Each client puts a mounted player at
-the seat of its own interpolated trunk, so the driver and the trunk never part on screen; the cost
-is that the driver sees their keys act about a network round trip and an interpolation step (some
-0.1 to 0.2 s) late. The server also stands its own copy of the driver in the seat each tick (the
-driver's client reports the same place from its seat; a player with no client, as in Atlas, has
-only this). Client-side prediction of the drive (the same maths from the same keys, corrected by
-the server) is the next step if that lag shows in play.
+**Who moves it: the driver's client, with the server falling back.** The trunk is driven through
+the game's own path for a mount with a controllable seat, as its boats and Cartwright's sleds
+are, so the driver's keys act at once and the step-up runs where the driver sees it:
+
+- The seat is `controllable: true`, so the seatable's `ControllingControls` are its controls, and
+  its `Controller` is the driver, set by the trunk (`EntityTrunk.UpdateController`, every tick and
+  at mount and unmount).
+- On the driver's client, `EntityBehaviorPlayerPhysics.OnRenderFrame` sees `MountedOn.MountSupplier.Controller`
+  is its player, finds the first behaviour on the trunk that is `IPhysicsTickable`
+  (`seraphhorizons.trunkphysics`; `repulseagents` is not one) and ticks it at 60 Hz beside its own,
+  sending the trunk's position every fourth tick (`SendPlayerMountPositionPacket`). Its
+  `interpolateposition` leaves a trunk its own player controls alone.
+- On the server, `PhysicsManager` skips the physics of a `PhysicsBehaviorBase` whose
+  `mountableSupplier.Controller` is a living player, and `ServerUdpNetwork.HandleMountPosition`
+  applies the client's packet (`Pos.SetFromPacket`, the controls `FromInt`), relays it to the other
+  clients and calls `IRemotePhysics.OnReceivedClientPos` on the first behaviour implementing it.
+  `EntityBehaviorTrunkPhysics` re-implements that to note the time (`EntityTrunk.ClientPositionReceived`)
+  before the base works out the ground and water flags from the position, as for any entity moved
+  remotely, and turns its boxes to the yaw. Other clients interpolate the relayed positions
+  (`HandleRemotePhysics`, the base's, plus the boxes).
+- The tick (`EntityBehaviorTrunkPhysics.Step`, the drive and step-up in `EntityTrunk.BeforeCollision`)
+  is the same code on both sides, deterministic from what both have: the seat's controls, the
+  pose, the stored logs (from the synced stack) and the water flags. The game's passive physics
+  refuses to tick on the server for any entity with a passenger in a controllable seat
+  (`IsBeingControlled`), so the behaviour re-implements `IPhysicsTickable.OnPhysicsTick` with the
+  physics manager's own test (`ClientDriven`) instead.
+
+**The server's fallback.** A player with no client to predict (Atlas's fake players) or a client that
+has gone quiet would leave the trunk unticked. So the server's `Controller` is the driver only while
+their client has sent the trunk's position within `EntityTrunk.ClientPositionTimeoutMs` (500 ms;
+counted from the mount, so a real client has that long to start); otherwise it is none, and the
+game's physics manager ticks the trunk on the server as for any undriven trunk, from the seat's
+controls, building and sending its positions to every client (the driver's too, whose prediction
+they then correct). The first packet from the client gives it back at once. Unmounting clears the
+`Controller` and stops the trunk's horizontal motion on both sides (`EntityTrunk.DriverLeft`), so
+the server's physics takes over from where the driver's client left it with no glide. The server
+also stands its own copy of the driver in the seat each tick (the driver's client reports the same
+place from its seat; a player with no client has only this).
+
+**The position check.** The server accepts a mount position only within 128 blocks of where it has
+the trunk on each axis (`EntityPosExtensions.SetFromPacket`; 64 blocks a tick of motion) and
+otherwise refuses it and sends its own (logged as "Rejected mount position update"). A drive moves
+at most 4.3 blocks a second and a step-up lifts at most a block in a tick, so a packet (every 4/60 s)
+is never near it; only a client that predicted for over half a minute unheard could be.
+
+**Why not Cartwright's physics.** Cartwright's sled is a `controlledphysics` entity (the game's
+`EntityBehaviorControlledPhysics`, with its step-up and its stepping on blocks), which collides with
+one square collision box. A trunk is up to 5 blocks long, so it keeps the multi-box physics
+(`passivephysicsmultibox`, a row of boxes turned with its yaw) and its own step-up (below), and takes
+from Cartwright only the stance, the keys' feel and, by name, the animations.
 
 **Why inside the physics.** The drive and the step-up run in the trunk's physics tick
-(`EntityBehaviorTrunkPhysics.applyCollision`, server side), after the game's drag and gravity and
+(`EntityBehaviorTrunkPhysics.applyCollision`, on whichever side ticks it), after the game's drag and gravity and
 before its collision. The drive sets the horizontal motion outright there, so the speed is the
 collision's, whatever the ground's drag (set from the entity's game tick it would be cut by the
 ground drag, 0.7 a physics tick on most blocks, and unevenly, as game ticks and the 30 Hz physics
@@ -240,7 +285,7 @@ moves the trunk, it turns that end to lead at the drive's turn rate (`TrunkDrive
 says so once and ropes pull where they were tied, without turning.
 
 **Step up** (`EntityTrunk.StepUp`, maths in `Core/TrunkStep.cs`). `passivephysicsmultibox` has no
-step-up, so on the server, inside the physics tick (above), a trunk whose motion (the drive's or a
+step-up, so inside the physics tick (above, on the driver's client or the server), a trunk whose motion (the drive's or a
 rope's, at least 0.3 blocks a second) runs into a solid block within `TrunkStep.Probe` (0.15) ahead is
 lifted onto it in one go, if the rise is at most one block above its underside and its boxes are
 clear lifted, both ahead and where it is (no cliffs, no ceilings). Blocks count as whole cubes, so a
@@ -552,8 +597,10 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
   moving away). `tests/TrunkEntities/TrunkDriveTests.cs` checks the drive (`TrunkDrive`): the land
   speed linear from a walk at one log to half at 48 and never rising, afloat never under three
   quarters of the raft, the turn rates, the keys' speed and turn, A swinging the driver's end to
-  their left and the driver looking at the middle, the stand just beyond the taken end with W
-  moving towards it, and the ease up to speed in a few tenths of a second without overshooting.
+  their left and the driver looking over the middle, the stand just beyond the taken end with W
+  pushing the trunk away from it (the way the driver faces) and S back into it, the gaits (walk,
+  walk back, idle; turning on the spot walks), and the ease up to speed in a few tenths of a second
+  without overshooting.
   `tests/TrunkEntities/TrunkPushTests.cs` checks the solidity's geometry (`TrunkPush`): nothing
   outside or touching, across rather than along from the middle box, past the end near an end,
   overlapping thick boxes cleared together, up onto the top only within the margin, capped steps
@@ -586,13 +633,21 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
     rope's id cleared; an empty hand at an end then mounts the player on the trunk's seat by that
     end, with no rope of any kind, standing 0.6 beyond it at the trunk's height; the driver's own
     clicks change nothing; the seat's sneak lets go and clears the mark. Driven (fake players' keys
-    set on their seat's controls, as the game feeds them): W moves the trunk towards the taken end
-    with the driver still just beyond it, S the other way, A and D turn it both ways with its
+    set on their seat's controls, as the game feeds them, once the server has taken over from the
+    client that never sends): the driver faces the far end; W pushes the trunk away from the taken
+    end with the driver still just beyond it, S draws it back, A and D turn it both ways with its
     middle staying put and the driver at their end; another player's empty hand, their sneak hold
     (Carry On's pick-up) and a mount of the seat are all refused, and once let go the other player
     can take it by the other end. A 1-log trunk driven with W goes 1.6 to 2.4 times as far as a
     48-log one in the same time; a driven trunk climbs a one-block step; a 48-log trunk driven in a
-    pool goes over 1.2 times as far as on land. A fake player teleported into a thin trunk's
+    pool goes over 1.2 times as far as on land. The prediction path: the seat is controllable and
+    its controls are the seatable's `ControllingControls`; W pressed right at the mount moves the
+    trunk within a second (the server's fallback after the client's 500 ms grace), with no
+    `Controller`, and at the drive's speed within 20 % (ticked once, not twice); then the test plays
+    the driver's client (two `Step`s of 1/60 s and an `OnReceivedClientPos` each server tick, with S)
+    and the trunk moves as those steps alone give, within 20 %, the driver its `Controller` and the
+    driver still at their end; once those stop, the server ticks it again within the timeout; and
+    letting go clears the `Controller` and leaves the trunk at rest. A fake player teleported into a thin trunk's
     middle is out of every box within 20 ticks, on the near side, and the trunk has not moved.
   - `TrunkToolScenarios.cs` (a partial file of `SharedWorldScenarios`, on the plain world): every tool kind gets the behaviour; the axe takes a log, with a hammer
     a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from
@@ -644,8 +699,15 @@ a put-down (the same patched method, which a server cannot run), the carry anima
 pack's own shoulder transform on a trunk (a guess, see Carry On above), how the pick-up hold feels
 with no progress ring and whether a real client's held button reaches the server for its whole
 length, Carry On's swap key with a trunk in the hands, and everything of the drive a client shows: the driver's place,
-facing and animations, the view turning with the trunk, the body and head limits, sneak letting go
-on a real client, the lag of the keys, and the trunk and driver as other players see them; and the
+facing and animations (Cartwright's `pushsled-*` poses on a trunk: its arms are posed for the
+sled's handle, which may sit wrong against a trunk's end, and whether its idle and walk-back
+first-person variants, which its patch does not define, cause any trouble), the view turning with
+the trunk, the body and head limits, sneak letting go on a real client; and the driver's client's
+prediction itself (Atlas plays it by calling the same tick on the server): whether it is smooth,
+whether the server's positions during the 500 ms after a mount (none) or after a quiet spell
+(the fallback's, which correct the prediction) show as a jump, a trunk and driver as other players
+see them, a player standing on a trunk someone else drives, and the drive on a dedicated server
+with real latency; and the
 client's half of the solidity (walking into a trunk, standing on one, jumping off it). Before release, play
 through:
 
@@ -656,7 +718,8 @@ through:
   and shoving by walking into a trunk;
 - driving a thin and a thick 48-log trunk on flat ground, up a step, into a wall, across a slope
   and in a river, and whether the speeds, the turn and the ease feel right (the constants in
-  `TrunkDrive` are first guesses; the swimming driver's height, `SwimFeetBelow`, is a guess);
+  `TrunkDrive` are first guesses; the swimming driver's height, `SwimFeetBelow`, is a guess; the
+  walk animations' speed is Cartwright's, not scaled by the trunk's);
   whether the server's copy of the driver, stood in the seat each tick, ever fights the driver's
   client's reports (others see the driver at the seat of their own trunk, so it should not show);
   a trunk turned by a rope against a wall can swing its boxes into it;
