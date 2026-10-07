@@ -9,7 +9,7 @@ namespace SeraphHorizons.Mod.Rosser;
 /// stack, particles, name, info and help all go to the controller, as the bucking mill's ghosts
 /// do; its collision and selection boxes are its cell's from the rig, with the travelling trunk's
 /// part in it (none at all in a hollow cell the trunk is not in), and its collision boxes add the
-/// cell's lid on a column's top cell.
+/// cell's lid on a station column's top cell (the beds have none).
 /// </summary>
 public class BlockRosserGhost : Block
 {
