@@ -98,6 +98,18 @@ public class TrunkPullTests
         Assert.Equal(400, TrunkPull.EffectiveWeight(400, false), 9);
     }
 
+    [Fact]
+    public void A_dragging_player_walks_at_the_trunks_pace_within_bounds()
+    {
+        Assert.Equal(TrunkPull.DragCeiling, TrunkPull.DragSpeed(10), 9);          // light: capped
+        Assert.Equal(0.5, TrunkPull.DragSpeed(100), 9);                            // factor 0.5
+        Assert.Equal(TrunkPull.DragFloor, TrunkPull.DragSpeed(1000), 9);           // heavy: the floor
+        Assert.Equal(TrunkPull.DragCeiling, TrunkPull.DragSpeed(1000, true), 9);   // afloat: the water floor caps it
+        Assert.True(TrunkPull.DragCeiling * 60 / 60 < TrunkPull.MaxSpeed, "a dragged trunk could be outwalked");
+        for (double w = 1; w < 500; w += 7)
+            Assert.True(TrunkPull.DragSpeed(w + 7) <= TrunkPull.DragSpeed(w));
+    }
+
     // A thin trunk along z at yaw 0, standing on the ground at y 64 (cells below 64 solid).
     private static IReadOnlyList<Box> Thin => new[] { new Box(-0.5f, 0, -2, 0.5f, 1, 2) };
 
@@ -109,10 +121,12 @@ public class TrunkPullTests
     {
         // Pulled along +z, a block at z 2 (just ahead of the end at 2.0 - the probe reaches it).
         var solid = Ground((0, 64, 2));
+        // The whole block in one go (plus a skin), not a part of it.
         double lift = TrunkStep.Lift(Thin, 0.5, 64, 0, 0, 0.05, solid);
-        Assert.Equal(TrunkStep.MaxLiftPerTick, lift, 9);
-        // Part way up, it carries on; at the top it stops.
-        Assert.True(TrunkStep.Lift(Thin, 0.5, 64.9, 0, 0, 0.05, solid) > 0.09);
+        Assert.True(lift > 1 && lift < 1.05, $"lift {lift}");
+        // Left part way up, it finishes the rise; at the top it stops.
+        double rest = TrunkStep.Lift(Thin, 0.5, 64.9, 0, 0, 0.05, solid);
+        Assert.True(rest > 0.1 && rest < 0.15, $"lift {rest}");
         Assert.Equal(0, TrunkStep.Lift(Thin, 0.5, 65.02, 0, 0, 0.05, solid));
     }
 

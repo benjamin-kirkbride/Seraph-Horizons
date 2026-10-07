@@ -15,7 +15,10 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// player keeps the right button down with an empty hand within
 /// <see cref="TrunkEntityConfig.GrabRange"/>, every tick the trunk turns its grabbed end towards
 /// the hand and is pushed after it (<see cref="TrunkPull"/>), harder the lighter it is, through its
-/// own physics so it still collides. Nothing is drawn and no rope exists: no cloth system, no
+/// own physics so it still collides. The player is held to the trunk's pace meanwhile: their
+/// <c>walkspeed</c> stat gets <see cref="DragCode"/>, <see cref="TrunkPull.DragSpeed"/> of the
+/// trunk's weight, so they drag it rather than walk off and pull it after them, and cannot outwalk
+/// it out of range. Nothing is drawn and no rope exists: no cloth system, no
 /// <c>ropetieable</c>. Letting go, wandering off, dying, leaving the game or the trunk going ends
 /// it. One grab per player and one per trunk. A trunk with a real rope tied to it is not grabbed.
 /// </summary>
@@ -26,6 +29,9 @@ public sealed class TrunkGrab : IDisposable
 
     /// <summary>How much of the gap to the pull's motion is closed each tick (0..1).</summary>
     public const double Blend = 0.5;
+
+    /// <summary>The dragging player's <c>walkspeed</c> stat code.</summary>
+    public const string DragCode = "seraphhorizons:drag";
 
     private sealed record Hold(IServerPlayer Player, EntityTrunk Trunk, int End);
 
@@ -101,6 +107,7 @@ public sealed class TrunkGrab : IDisposable
 
         _byPlayer[player.PlayerUID] = new Hold(player, trunk, end);
         trunk.WatchedAttributes.SetLong(EntityTrunk.GrabbedByKey, agent.EntityId);
+        SetDrag(agent, trunk);
         return true;
     }
 
@@ -114,7 +121,20 @@ public sealed class TrunkGrab : IDisposable
     public void Release(string playerUid)
     {
         if (_byPlayer.Remove(playerUid, out var hold))
+        {
             ClearMarks(hold.Trunk);
+            if (hold.Player.Entity is { } agent)
+                agent.Stats.Remove("walkspeed", DragCode);
+        }
+    }
+
+    // The player walks at the trunk's pace while dragging it (the game syncs stats to the client).
+    private static void SetDrag(EntityAgent agent, EntityTrunk trunk)
+    {
+        float value = (float)TrunkPull.DragSpeed(trunk.LandWeight, trunk.Afloat) - 1f;
+        var stats = agent.Stats["walkspeed"];
+        if (stats == null || !stats.ValuesByKey.TryGetValue(DragCode, out var current) || Math.Abs(current.Value - value) > 1e-4f)
+            agent.Stats.Set("walkspeed", DragCode, value);
     }
 
     /// <summary>Clears a grab the trunk was saved with (the session that made it is gone): the
@@ -164,7 +184,10 @@ public sealed class TrunkGrab : IDisposable
             if (!keep)
                 Release(uid);
             else
-                Pull(hold, HandPoint(agent), dt);
+            {
+                SetDrag(agent!, hold.Trunk);
+                Pull(hold, HandPoint(agent!), dt);
+            }
         }
     }
 
