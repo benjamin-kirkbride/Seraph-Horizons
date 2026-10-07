@@ -4,9 +4,10 @@
 #     named for next rather than the version (seraphhorizons_next.cairn,
 #     seraphhorizons_next_server.zip, ..., and the recipe export added below);
 #   - the pack's own mod (mods-src/seraphhorizons), the zip that job built from
-#     that commit, seraphhorizons_next_<sha7>.zip (plus the previous build's,
-#     kept for one publish), which the pack's .cairn fetches from this same release
-#     by address and holds to that zip's sha256.
+#     that commit, seraphhorizons_next_<sha7>.zip, which the pack's .cairn fetches
+#     from this same release by address and holds to that zip's sha256. Only the
+#     current build's zip is on the release: a follower whose Cairn still has the
+#     previous pack document gets the new pack when it syncs, which it does on launch.
 # So what ships is exactly what was tested, and the zip appears at its address in
 # the same publish as the pack naming it. Versioned releases are release.yml's (the
 # pack and its own mod, together) and mod-release.yml's (the other mods-src mods)
@@ -93,35 +94,6 @@ jobs:
             || { echo "$cairn locks seraphhorizons to another hash than $zip's"; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "zip=$zip" >> "$GITHUB_OUTPUT"
-      # Each build's zip has its own name, so the release is not left holding only this
-      # one: the zip the published next pack names (the previous build) stays for one
-      # more publish, for a follower who fetched that pack document but not yet its mod.
-      # Its name is read from that pack, whatever it was called then.
-      # Older ones are dropped with the release. Best effort: only a copy that still
-      # matches that pack's hash is kept.
-      - name: Keep the zip the current next pack names
-        id: prev
-        if: steps.order.outputs.publish == 'true'
-        env:
-          ZIP: ${{ steps.mod.outputs.zip }}
-        run: |
-          base="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/next/"
-          gh release download next --pattern '*.cairn' --dir "$RUNNER_TEMP/current" 2>/dev/null \
-            || { echo "no next pack is published; nothing to keep"; exit 0; }
-          cur=$(ls "$RUNNER_TEMP"/current/*.cairn | head -n1)
-          url=$(jq -r '.pack.mods[] | select(.modid == "seraphhorizons") | .url // empty' "$cur")
-          sha=$(jq -r '.lock.mods[] | select(.modid == "seraphhorizons") | .sha256 // empty' "$cur")
-          name=${url#"$base"}
-          if [ -z "$url" ] || [ "$name" = "$url" ] || [ "$name" = "$ZIP" ] || [[ "$name" == */* ]]; then
-            echo "the current next pack names no other zip on next (${url:-none}); nothing to keep"; exit 0
-          fi
-          gh release download next --pattern "$name" --dir "$RUNNER_TEMP/prev" 2>/dev/null \
-            || { echo "::warning::next no longer has $name, which the current next pack names"; exit 0; }
-          [ "$(sha256sum < "$RUNNER_TEMP/prev/$name" | cut -d' ' -f1)" = "$sha" ] \
-            || { echo "::warning::next's $name does not match the current next pack's hash; not keeping it"; exit 0; }
-          mv "$RUNNER_TEMP/prev/$name" mod/
-          echo "keeping $name, which the current next pack names" | tee -a "$GITHUB_STEP_SUMMARY"
-          echo "zip=$name" >> "$GITHUB_OUTPUT"
       # dist/ has its own SHA256SUMS (assemble, and the export above); the zips join it.
       # Their names carry a commit, so they never collide with the pack's own
       # seraphhorizons_next_server.zip, but say so if they ever did.
@@ -140,7 +112,6 @@ jobs:
         env:
           VERSION: ${{ steps.mod.outputs.version }}
           ZIP: ${{ steps.mod.outputs.zip }}
-          PREV_ZIP: ${{ steps.prev.outputs.zip }}
         run: |
           game=$(jq -r .pack.game_version pack/lock.json)
           prev=$(git describe --tags --abbrev=0 --match 'v*' "$SHA" 2>/dev/null || true)
@@ -152,10 +123,6 @@ jobs:
             echo "The Cairn pack also carries the pack's own mod, Seraph Horizons $VERSION built from this commit (built against game $game; the mod requires $(jq -r .dependencies.game mods-src/seraphhorizons/modinfo.json) or later), as \`$ZIP\` in this release, which it fetches by address and checks against its sha256. The mod list and the table below name the ModDB mods only. The files are named \`next\` where a versioned release has its version; what is in them carries the version."
             echo
             echo "\`$ZIP\` carries the version modinfo.json says, unstamped, the same as the $VERSION release: with two copies of one modid at one version the game may load either, so replace any other copy of the mod rather than adding this one next to it. The \`_${SHA::7}\` in its name is the commit it was built from, so the Cairn pack's address for it changes with every build."
-            if [ -n "$PREV_ZIP" ]; then
-              echo
-              echo "\`$PREV_ZIP\` is the previous build, kept until the next publish for anyone still on the previous \`next\` pack."
-            fi
             echo
             echo "| mod | version | license |"
             echo "|---|---|---|"
@@ -170,7 +137,7 @@ jobs:
             fi
           } > "$RUNNER_TEMP/notes.md"
       # Delete and recreate rather than edit in place: that drops assets whose names
-      # changed with the version or the commit (but for the zip kept above) and moves
+      # changed with the version or the commit, so only this build's zip stays, and moves
       # the tag to this commit. One create, so the pack and the zip it names appear
       # together.
       - name: Publish next
