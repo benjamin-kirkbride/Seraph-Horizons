@@ -371,6 +371,25 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(1, grid.Count(r => r.Output?.Code?.ToString() == BloodSausage.BlackPuddingRaw));
     }
 
+    /// <summary><c>DuplicateRecipes</c>: every duplicate as its mod ships it, Expanded Foods' offal-free
+    /// sausages and scrap brazier, Material Needs' aged wood recipes, the game's barrel cottage cheese
+    /// and its sandstone daub giving 8.</summary>
+    [AtlasScenario]
+    public void Duplicate_recipes_off_the_duplicates_are_as_they_ship()
+    {
+        Assert.True(Off("DuplicateRecipes"));
+        var api = (Vintagestory.API.Server.ICoreServerAPI)World.Api;
+        var sausages = Duplicates.SausageRecipes(api);
+        foreach (var file in Duplicates.EfSausageFiles)
+            Assert.Contains(sausages, f => f.Name?.ToString() == file && !Duplicates.TakesOffal(f));
+        Assert.Contains(W.GridRecipes, r => Duplicates.Out(r) == Duplicates.ScrapBrazier && Duplicates.From(r) == Duplicates.EfBrazierFile);
+        foreach (var output in Duplicates.AgedOutputs)
+            Assert.Contains(W.GridRecipes, r => Duplicates.Out(r) == output && Duplicates.FromMaterialNeeds(r));
+        Assert.Contains(W.GridRecipes, r => Duplicates.VeryAgedIronShield(r) && Duplicates.FromMaterialNeeds(r));
+        Assert.Contains(World.Api.GetBarrelRecipes(), r => r.Output?.Code?.ToString() == Duplicates.CottageCheese);
+        Assert.Contains(W.GridRecipes, r => Duplicates.SandstoneDaub(r) && r.Output.Quantity == 8);
+    }
+
     /// <summary><c>PanningDropsTrimmed</c>: panning as Wool, Tailor's Delight and Expanded Matter ship
     /// it, and their text as it ships.</summary>
     [AtlasScenario]
