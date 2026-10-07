@@ -36,7 +36,8 @@
     },
     "money": {
       "game:gear-rusty": 1,
-      "game:gear-temporal": 30
+      "game:gear-temporal": 30,
+      "game:largegear-temporal": 60
     },
     "gems": {
       "game:gem-diamond-rough": 10, "game:gem-emerald-rough": 9,
@@ -102,6 +103,7 @@
       "game:log-*": 0.22,
       "game:plank-*": 0.06,
       "game:debarkedlog-*": 0.24,
+      "immersivewoodworking:barktar": 0.3,
       "game:supportbeam-*": 0.3,
       "game:firewood": 0.03,
       "game:stick": 0.01,
