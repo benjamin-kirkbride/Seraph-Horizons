@@ -9,7 +9,8 @@
 	},
 	behaviorConfigs: {
 		repulseagents: { movable: true },
-		passivephysicsmultibox: {
+		// the game's passivephysicsmultibox with the drive and the step-up in it (TrunkPhysics.cs)
+		"seraphhorizons.trunkphysics": {
 			collisionBoxes: [
 				{ x1: -0.5, y1: 0, z1: -2, x2: 0.5, y2: 1, z2: -1 },
 				{ x1: -0.5, y1: 0, z1: -1, x2: 0.5, y2: 1, z2: 0 },
@@ -19,22 +20,28 @@
 			groundDragFactor: 1,
 			airDragFallingFactor: 0.5,
 			gravityFactor: 1.0
+		},
+		// the one driver's place (TrunkDriveSeat.cs); not controllable, so the server keeps the physics
+		seatable: {
+			seats: [{ seatId: "driver", controllable: false }]
 		}
 	},
 	client: {
 		renderer: "seraphhorizons.trunk",
 		behaviors: [
 			{ code: "repulseagents" },
-			{ code: "passivephysicsmultibox" },
+			{ code: "seraphhorizons.trunkphysics" },
 			{ code: "interpolateposition" },
-			{ code: "ropetieable" }
+			{ code: "ropetieable" },
+			{ code: "seatable" }
 		]
 	},
 	server: {
 		behaviors: [
 			{ code: "repulseagents" },
-			{ code: "passivephysicsmultibox" },
-			{ code: "ropetieable" }
+			{ code: "seraphhorizons.trunkphysics" },
+			{ code: "ropetieable" },
+			{ code: "seatable" }
 		]
 	},
 	sounds: { }

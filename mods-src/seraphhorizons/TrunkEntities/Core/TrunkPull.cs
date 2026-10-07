@@ -1,26 +1,14 @@
 namespace SeraphHorizons.Mod.TrunkEntities.Core;
 
 /// <summary>
-/// The maths of the grab's pull, game-independent. A trunk lies along its local z and is turned
+/// A trunk's geometry, game-independent, for the drive (<see cref="TrunkDrive"/>) and the rope's
+/// end (<c>TrunkRope</c>). A trunk lies along its local z and is turned
 /// by its yaw as <see cref="TrunkBoxes.Turned"/> turns its boxes: local (0, z) lands at
 /// (z·sin(yaw+π), z·cos(yaw+π)). End +1 is the end at local +z, end -1 the one at local -z.
 /// Positions here are horizontal (x, z) only.
 /// </summary>
 public static class TrunkPull
 {
-    /// <summary>How far, blocks, the hand may be from the grabbed end before it pulls.</summary>
-    public const double Slack = 1.0;
-
-    /// <summary>The pull's speed per block of stretch past <see cref="Slack"/>, blocks per second,
-    /// before the weight's factor.</summary>
-    public const double Gain = 3.0;
-
-    /// <summary>The fastest a pulled trunk moves, blocks per second: under a player's walk.</summary>
-    public const double MaxSpeed = 3.5;
-
-    /// <summary>The fastest a trunk of factor 1 turns, radians per second.</summary>
-    public const double TurnRate = 1.5;
-
     /// <summary>The horizontal unit vector from the centre to end <paramref name="end"/> (±1).</summary>
     public static (double X, double Z) Axis(double yaw, int end)
     {
@@ -65,56 +53,11 @@ public static class TrunkPull
         return Wrap(yaw + Math.Clamp(diff, -maxStep, maxStep));
     }
 
-    /// <summary>How readily a trunk of <paramref name="weight"/> follows the pull: the old rope
-    /// pull's 50 / weight, between 0.1 and 2.</summary>
-    public static double Factor(double weight) => weight <= 0 ? 2 : Math.Clamp(50 / weight, 0.1, 2);
-
-    /// <summary>How much lighter a trunk pulls afloat than on land: the weight the pull sees in
-    /// water is the land weight over this.</summary>
+    /// <summary>How much lighter a trunk is afloat than on land, for a rope's pull: the weight
+    /// the game's rope sees in water is the land weight over this.</summary>
     public const double WaterLightening = 6.0;
 
-    /// <summary>The least factor of a trunk afloat, so even the heaviest follows nearly as fast as
-    /// a player swims.</summary>
-    public const double WaterFloor = 1.0;
-
-    /// <summary>The weight a pull sees for a trunk of land <paramref name="weight"/>: the same on
-    /// land, <see cref="WaterLightening"/> times lighter afloat.</summary>
+    /// <summary>The weight a rope's pull sees for a trunk of land <paramref name="weight"/>: the
+    /// same on land, <see cref="WaterLightening"/> times lighter afloat.</summary>
     public static double EffectiveWeight(double weight, bool afloat) => afloat ? weight / WaterLightening : weight;
-
-    /// <summary><see cref="Factor(double)"/> afloat or not: afloat it is that of the
-    /// <see cref="EffectiveWeight"/>, never under <see cref="WaterFloor"/>.</summary>
-    public static double Factor(double weight, bool afloat) =>
-        afloat ? Math.Max(WaterFloor, Factor(EffectiveWeight(weight, true))) : Factor(weight);
-
-    /// <summary>The pull's speed, blocks per second, with the hand <paramref name="distance"/>
-    /// blocks from the grabbed end: none within <see cref="Slack"/>, then growing with the stretch
-    /// and the weight's factor, never past <see cref="MaxSpeed"/>.</summary>
-    public static double Speed(double distance, double weight, bool afloat = false)
-    {
-        double stretch = distance - Slack;
-        return stretch <= 0 ? 0 : Math.Min(MaxSpeed, stretch * Gain * Factor(weight, afloat));
-    }
-
-    /// <summary>The slowest a dragging player walks, as a multiple of the normal walk.</summary>
-    public const double DragFloor = 0.1;
-
-    /// <summary>The fastest a dragging player walks, as a multiple of the normal walk: under the
-    /// pull's <see cref="MaxSpeed"/>, so no trunk is outwalked.</summary>
-    public const double DragCeiling = 0.6;
-
-    /// <summary>The walk speed, as a multiple of the normal one, of a player dragging a trunk of
-    /// <paramref name="weight"/>: the weight's factor, between <see cref="DragFloor"/> and
-    /// <see cref="DragCeiling"/>, so the player is held to about the trunk's own pace and the hand
-    /// settles a little past the slack, within <c>GrabRange</c>, rather than walking out of it.</summary>
-    public static double DragSpeed(double weight, bool afloat = false) =>
-        Math.Clamp(Factor(weight, afloat), DragFloor, DragCeiling);
-
-    /// <summary>The largest turn, radians, in <paramref name="dt"/> seconds for a trunk of
-    /// <paramref name="weight"/> pulled with the hand <paramref name="distance"/> from the grabbed
-    /// end: none within <see cref="Slack"/>, full rate once a block past it.</summary>
-    public static double TurnStep(double distance, double weight, double dt, bool afloat = false)
-    {
-        double stretch = Math.Clamp(distance - Slack, 0, 1);
-        return TurnRate * Math.Min(1, Factor(weight, afloat)) * stretch * dt;
-    }
 }

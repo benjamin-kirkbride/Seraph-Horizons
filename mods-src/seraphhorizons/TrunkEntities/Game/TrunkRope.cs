@@ -10,13 +10,13 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.TrunkEntities;
 
 /// <summary>
-/// A real <c>game:rope</c> tied to a trunk acts at one of its ends, as the grab does. The game pins
+/// A real <c>game:rope</c> tied to a trunk acts at one of its ends. The game pins
 /// the rope's point to the entity with an offset that turns with the entity's yaw from the yaw it
 /// was tied at (<c>ClothPoint.pinnedToOffset</c>, <c>pinnedToOffsetStartYaw</c>); every tick this
 /// moves that offset to the end nearer the rope's far point, with the start yaw set to the
 /// trunk's yaw so the game's turn of it is none. On the server, while the rope's pull moves the
-/// trunk, the trunk also turns so that end leads, at the grab's turn rate
-/// (<see cref="TrunkPull.TurnStep"/>). The rope's own pull on the motion is the game's, by the
+/// trunk, the trunk also turns so that end leads, at the drive's turn rate
+/// (<see cref="TrunkDrive.Turn"/>). The rope's own pull on the motion is the game's, by the
 /// trunk's <c>Properties.Weight</c> (lighter afloat, <see cref="EntityTrunk.LandWeight"/>).
 /// </summary>
 public static class TrunkRope
@@ -86,8 +86,8 @@ public static class TrunkRope
             {
                 var (fx, fz) = TrunkPull.EndPos(pos.X, pos.Z, pos.Yaw, length, -end);
                 double target = TrunkPull.YawFacing(far.Pos.X - fx, far.Pos.Z - fz, end);
-                // Taut enough to turn at the full rate once moving: the grab's step a block past slack.
-                double step = TrunkPull.TurnStep(TrunkPull.Slack + 1, trunk.LandWeight, dt, trunk.Afloat);
+                // Once moving, at the drive's turn rate for the trunk's logs.
+                double step = TrunkDrive.Turn(trunk.Logs, trunk.Afloat) * dt;
                 pos.Yaw = (float)TrunkPull.StepYaw(pos.Yaw, target, step);
             }
         }

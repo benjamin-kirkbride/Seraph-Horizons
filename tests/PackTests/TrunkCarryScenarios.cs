@@ -222,11 +222,18 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         float before = stats.GetBlended("walkspeed");
         Assert.False(stats["walkspeed"].ValuesByKey.ContainsKey(TrunkCarry.SpeedCode));
 
+        // one log: a normal walk
+        Assert.True(TrunkCarry.TryGive(player, Trunk(1, "xs")));
+        await World.Ticks(10);
+        output.WriteLine($"walkspeed {before} -> {stats.GetBlended("walkspeed")} with 1 log");
+        Assert.Equal(1f, TrunkWeight.CarrySpeed(1, Mod.Config), 3);
+        Assert.Equal(before, stats.GetBlended("walkspeed"), 3);
+        TrunkCarry.Take(player);
+
         Assert.True(TrunkCarry.TryGive(player, Trunk(4, "xs")));
         await World.Ticks(10);
         output.WriteLine($"walkspeed {before} -> {stats.GetBlended("walkspeed")} with 4 logs");
         Assert.Equal(TrunkWeight.CarrySpeed(4, Mod.Config), stats.GetBlended("walkspeed") - (before - 1f), 3);
-        Assert.Equal(0.8f, TrunkWeight.CarrySpeed(4, Mod.Config), 3);
         TrunkCarry.Take(player);
 
         Assert.True(TrunkCarry.TryGive(player, Trunk(40, "xxl")));
@@ -248,12 +255,6 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var trunk = TrunkSpawns.Spawn(W, Trunk(12), pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
         await World.Ticks(2);
         var slot = player.InventoryManager.ActiveHotbarSlot;
-
-        // without sneaking it is a grab, not a carry
-        trunk.OnInteract(player.Entity, slot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
-        Assert.True(trunk.Alive);
-        Assert.Null(TrunkCarry.Carried(player));
-        Mod.Grabs!.Release(player.PlayerUID);
 
         // sneak + right click starts Carry On's pick-up hold; the trunk is shouldered only when it ends
         output.WriteLine($"pick-up hold {TrunkCarry.PickUpSeconds(World.Api, trunk.Trunk!.Block)} s");
@@ -287,6 +288,145 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(12, Trunks.StoredLogs(TrunkCarry.Carried(player)!, W));
         other.Die(EnumDespawnReason.Removed);
         TrunkCarry.Take(player);
+    }
+
+    /// <summary>Sneak + right click held on <paramref name="trunk"/> by <paramref name="player"/>
+    /// until it is shouldered (the real pick-up: the trunk's own hold, then TryGive).</summary>
+    private async Task PickUp(IServerPlayer player, EntityTrunk trunk)
+    {
+        player.Entity.Controls.ShiftKey = true;
+        player.Entity.ServerControls.RightMouseDown = true;
+        trunk.OnInteract(player.Entity, player.InventoryManager.ActiveHotbarSlot, new Vec3d(0, 0.5, 0), EnumInteractMode.Interact);
+        Assert.True(Hold(trunk).Holding);
+        await World.Until(() => !trunk.Alive, 10000);
+        player.Entity.Controls.ShiftKey = false;
+        player.Entity.ServerControls.RightMouseDown = false;
+    }
+
+    private ItemStack CarriedAsIs(IServerPlayer player) =>
+        (ItemStack)AccessTools.Property(Invoke("GetCarried", player.Entity, Hands).GetType(), "ItemStack")
+            .GetValue(Invoke("GetCarried", player.Entity, Hands))!;
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_picked_up_heavy_trunk_walks_at_its_carry_speed_and_nothing_else_slows()
+    {
+        var pos = await Floor(-40);
+        var player = await Player("trunkheavy", pos.AddCopy(2, 0, 0));
+        var stats = player.Entity.Stats;
+        var codes = stats["walkspeed"].ValuesByKey.Keys.ToHashSet();
+        float before = stats.GetBlended("walkspeed");
+        output.WriteLine($"walkspeed {before} before: {string.Join(", ", stats["walkspeed"].ValuesByKey.Select(kv => $"{kv.Key}={kv.Value.Value}*{kv.Value.Weight}"))}");
+
+        var trunk = TrunkSpawns.Spawn(W, Trunk(48, "xxl"), pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
+        await World.Ticks(2);
+        await PickUp(player, trunk);
+        Assert.Equal(48, Trunks.StoredLogs(TrunkCarry.Carried(player)!, W));
+        // past a speed check, and longer than any of Carry On's own ticks
+        await World.Ticks(30);
+
+        var values = stats["walkspeed"].ValuesByKey;
+        output.WriteLine($"walkspeed {stats.GetBlended("walkspeed")} carrying 48 logs: {string.Join(", ", values.Select(kv => $"{kv.Key}={kv.Value.Value}*{kv.Value.Weight}"))}");
+        output.WriteLine($"player walk multiplier {player.Entity.GetWalkSpeedMultiplier()}");
+        Assert.Equal(0.5f, TrunkWeight.CarrySpeed(48, Mod.Config), 3);
+        Assert.Equal(TrunkWeight.CarrySpeed(48, Mod.Config), stats.GetBlended("walkspeed") - (before - 1f), 2);
+        // nothing but the game's own codes and the pack's: no Carry On slowdown, zero or not
+        Assert.DoesNotContain(values.Keys, k => k != TrunkCarry.SpeedCode && !codes.Contains(k));
+
+        TrunkCarry.Take(player);
+        await World.Ticks(10);
+        Assert.Equal(before, stats.GetBlended("walkspeed"), 3);
+        Assert.DoesNotContain(stats["walkspeed"].ValuesByKey.Keys, k => !codes.Contains(k));
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_small_trunk_is_carried_as_the_thin_model_and_comes_back_down_as_itself()
+    {
+        var pos = await Floor(-60);
+        var player = await Player("trunkxs", pos.AddCopy(0, 0, 3));
+        player.Entity.Pos.Yaw = 0;
+        var trunk = TrunkSpawns.Spawn(W, Trunk(1, "xs"), pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
+        await World.Ticks(2);
+        await PickUp(player, trunk);
+
+        // Carry On holds Logging Expanded's lg trunk (thin class model, its animation trunkcarry)
+        var asIs = CarriedAsIs(player);
+        output.WriteLine($"carried as {asIs.Collectible.Code}, real {asIs.Attributes.GetString(TrunkCarry.RealCodeKey)}");
+        Assert.Equal("loggingmod:treetrunk-oak-lg-no-north", asIs.Collectible.Code.ToString());
+        Assert.Equal("trunkcarry", HandsSettings(asIs.Block)!.Value.Animation);
+        // what the pack reads is the trunk itself
+        var carried = TrunkCarry.Carried(player)!;
+        Assert.Equal("loggingmod:treetrunk-oak-xs-no-north", carried.Collectible.Code.ToString());
+        Assert.Equal(1, Trunks.StoredLogs(carried, W));
+        Assert.False(carried.Attributes.HasAttribute(TrunkCarry.RealCodeKey));
+
+        // put down by Carry On: the xs trunk of 1 log again
+        var selection = new BlockSelection { Position = pos.AddCopy(0, -1, 1), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 1, 0.5) };
+        object?[] args = [player, Hands, selection, null, "__ignore__"];
+        Assert.True((bool)Invoke("TryPlaceDownAt", args));
+        await World.Ticks(5);
+        Assert.Null(TrunkCarry.Carried(player));
+        var laid = Assert.IsType<EntityTrunk>(Assert.Single(Around(pos, e => e is EntityTrunk)));
+        Assert.Equal("loggingmod:treetrunk-oak-xs-no-north", laid.Trunk!.Collectible.Code.ToString());
+        Assert.Equal(1, laid.Logs);
+        Assert.False(laid.Trunk.Attributes.HasAttribute(TrunkCarry.RealCodeKey));
+
+        // a thick one is carried as xxl (trunkcarryheavy), debarked as debarked
+        Assert.True(TrunkCarry.TryGive(player, Trunk(30, "xl")));
+        Assert.Equal("loggingmod:treetrunk-oak-xxl-no-north", CarriedAsIs(player).Collectible.Code.ToString());
+        Assert.Equal("trunkcarryheavy", HandsSettings(CarriedAsIs(player).Block)!.Value.Animation);
+        Assert.Equal("loggingmod:treetrunk-oak-xl-no-north", TrunkCarry.Take(player)!.Collectible.Code.ToString());
+        var debarked = new ItemStack(BlockOf("loggingmod:treetrunk-oak-sm-debarked-north")) { Attributes = Trunk(5, "sm").Attributes.Clone() };
+        Assert.True(TrunkCarry.TryGive(player, debarked));
+        Assert.Equal("loggingmod:treetrunk-oak-lg-debarked-north", CarriedAsIs(player).Collectible.Code.ToString());
+        Assert.Equal("loggingmod:treetrunk-oak-sm-debarked-north", TrunkCarry.Take(player)!.Collectible.Code.ToString());
+        laid.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Middle_clicking_a_trunk_entity_in_creative_gives_its_stack()
+    {
+        var pos = await Floor(-80);
+        var player = await Player("trunkpicker", pos.AddCopy(2, 0, 0));
+        var trunk = TrunkSpawns.Spawn(W, Trunk(9, "sm", "birch"), pos.ToVec3d().Add(0.5, 0, 0.5), 0)!;
+        await World.Ticks(2);
+        var hotbar = player.InventoryManager.GetHotbarInventory();
+        for (int i = 0; i < hotbar.Count; i++)
+            if ((hotbar[i].StorageType & (EnumItemStorageFlags.Backpack | EnumItemStorageFlags.Offhand)) == 0)
+                hotbar[i].Itemstack = null;
+
+        // survival: nothing
+        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
+        Assert.False(TrunkPick.Give(player, trunk.EntityId, 0));
+        Assert.All(Enumerable.Range(0, hotbar.Count), i => Assert.False(Trunks.IsTrunk(hotbar[i].Itemstack)));
+
+        // creative: the exact stack, into the slot asked for
+        player.WorldData.CurrentGameMode = EnumGameMode.Creative;
+        try
+        {
+            int slot = TrunkPick.SlotFor(player, hotbar);
+            Assert.Equal(player.InventoryManager.ActiveHotbarSlotNumber, slot);
+            Assert.True(TrunkPick.Give(player, trunk.EntityId, slot));
+            var given = hotbar[slot].Itemstack!;
+            Assert.Equal("loggingmod:treetrunk-birch-sm-no-north", given.Collectible.Code.ToString());
+            Assert.Equal(9, Trunks.StoredLogs(given, W));
+            Assert.Equal(1, given.StackSize);
+            Assert.True(trunk.Alive);
+            // the active slot full: the first empty one
+            int next = TrunkPick.SlotFor(player, hotbar);
+            Assert.NotEqual(slot, next);
+            Assert.True(hotbar[next].Empty);
+            // not a trunk entity: nothing
+            Assert.False(TrunkPick.Give(player, player.Entity.EntityId, next));
+            Assert.True(hotbar[next].Empty);
+        }
+        finally
+        {
+            player.WorldData.CurrentGameMode = EnumGameMode.Survival;
+            for (int i = 0; i < hotbar.Count; i++)
+                if (Trunks.IsTrunk(hotbar[i].Itemstack))
+                    hotbar[i].Itemstack = null;
+            trunk.Die(EnumDespawnReason.Removed);
+        }
     }
 
     [AtlasScenario]

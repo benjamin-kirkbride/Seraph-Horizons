@@ -3,7 +3,8 @@
 Part of the Seraph Horizons mod (`../README.md`), switched by `TrunkEntities` in
 `ModConfig/seraphhorizons.json` (on by default), with its figures in `TrunkEntitiesSettings`.
 Logging Expanded's (`loggingmod` 0.3.6) tree trunks stop being items you pocket. A felled tree
-leaves a **trunk entity** lying on the ground, which you drag by hand or with a rope, shove by
+leaves a **trunk entity** lying on the ground, which you take by one end and drive on foot like a
+sled, move with a rope, shove by
 walking into it, float down a river, work with tools where it lies, or shoulder very slowly through
 Carry On (`carryon`) to load a station, a rack or a cart. A trunk is never in an inventory: the
 only "slot" that holds one is Carry On's hands.
@@ -19,9 +20,9 @@ Harmony.
 **What it needs.** Logging Expanded. With the switch off, Logging Expanded missing, or
 `LoggingBridge` not resolving (Logging Expanded not as expected, one warning), nothing below
 happens and Logging Expanded's trunks are items again, as it ships them. Carry On is optional:
-without it there is one warning ("trunks cannot be carried: drag or rope them") and everything that
-goes through hands is gone. A trunk can then be dragged, roped, shoved, floated and worked with
-tools, and fed to a rosser or a bucking mill by dragging it into their infeed cells, but Logging
+without it there is one warning ("trunks cannot be carried: drive or rope them") and everything that
+goes through hands is gone. A trunk can then be driven, roped, shoved, floated and worked with
+tools, and fed to a rosser or a bucking mill by driving it into their infeed cells, but Logging
 Expanded's sawhorses, Trunk Storage Rack and heating rack cannot be loaded at all (no trunk is in a
 hand or an inventory to load from), carts and sleds take none, and Ctrl + right-click on a rosser
 or mill lays the trunk on the ground beyond its infeed end. The bark spud on a trunk needs the
@@ -57,8 +58,10 @@ with no trunk or no logs removes itself.
 
 **Behaviours** (both sides unless noted): `repulseagents` with `movable: true` (walking into a trunk
 nudges it; the entity counts as a creature, `IsCreature`, so players' shoving finds it, as the
-game's boat is found), `passivephysicsmultibox` (gravity factor 1, ground drag 1, falling air drag
-0.5), `ropetieable`, and on the client `interpolateposition`. With Carry On the server's list also
+game's boat is found), `seraphhorizons.trunkphysics` (`Game/TrunkPhysics.cs`: the game's
+`passivephysicsmultibox` with the drive and the step-up inside its tick, below; gravity factor 1,
+ground drag 1, falling air drag 0.5), `ropetieable`, `seatable` with one seat, the driver's
+(`controllable: false`, below), and on the client `interpolateposition`. With Carry On the server's list also
 gets the pack's pick-up behaviour (`seraphhorizons.trunkcarry`, below). The game's multi-box physics
 moves each box's middle round with the yaw but keeps the box itself axis-aligned and its size, as
 for the raft, so every box is square across (a thick trunk's overlap): a trunk at a quarter turn
@@ -73,8 +76,8 @@ water as it moves items.
 a 10-log one 90 (about a cart), a 48-log one 394. The game's rope pull on an entity
 (`ClothPoint.update`) is scaled by `clamp(50 / weight, 0.1, 2)` once the rope is taut, so weight is
 what makes a big trunk follow slowly: about 1.2 at 4 logs, 0.56 at 10, 0.24 at 25, 0.13 at 48, and
-the floor of 0.1 only past 61 logs, so every trunk Logging Expanded makes can be dragged by one
-player. `Entity.Properties` is the type's shared object, not a copy per entity, so each trunk clones
+the floor of 0.1 only past 61 logs, so every trunk Logging Expanded makes can be roped by one
+player. Driving goes by the logs, not the weight (below). `Entity.Properties` is the type's shared object, not a copy per entity, so each trunk clones
 it in `Initialize` before setting its own weight; the server keeps the weight in the watched
 attribute `seraphhorizons:weight`, which a client applies to its copy.
 
@@ -83,8 +86,8 @@ Logging Expanded's block for the stack in its display size (`Trunks.ShownBlock`:
 thick as `xxl`, the debarked block if the trunk is debarked, `../Rosser/README.md`), laid along z
 with its underside's middle on the entity's position, turned by the yaw as the collision boxes
 are. It re-tessellates when the shown block changes (debranched, debarked). The info text names
-the wood, the logs, the branches while there are any, "Debarked", the weight and, while a grab
-holds it, who is dragging it. The name is the stack's ("Oak Tree Trunk"); the types' own lang names
+the wood, the logs, the branches while there are any, "Debarked", the weight and, while someone
+drives it, who ("Moved by"). The name is the stack's ("Oak Tree Trunk"); the types' own lang names
 (`item-creature-trunk-thin`, `-thick`) are "Tree trunk".
 
 **Selection.** The entity's square hitbox is only its width across, so `EntityTrunk.IntersectsRay`
@@ -96,10 +99,11 @@ nearest is tested again last). That alone was not enough in play: the game measu
 by default), so with the square hitbox only the middle of a long trunk was in reach.
 `EntityTrunk.FitSelectionBox` sets `SelectionBox` to the bounding box of the turned boxes whenever
 the yaw changes; at a slant it is wider than the trunk, which only makes the range checks lenient.
-The collision box stays square, and `repulseagents` reads that and `touchDistance`, so walking into
-a trunk shoves only by its middle (a known limit). A trunk entity is never collected (`CanCollect` false).
+The collision box stays square, and `repulseagents` reads that and `touchDistance`, so the game's
+own shove acts only at its middle; the trunk's solidity (below) acts on every box. A trunk entity is never collected (`CanCollect` false).
 
-**Help.** Looking at a trunk: hold to drag (empty hand), tie a rope (with a `game:rope`), shoulder
+**Help.** Looking at a trunk: take this end, with the keys (empty hand; not while someone drives
+it), tie a rope (with a `game:rope`), shoulder
 it (Shift, empty hand, with Carry On), and each tool that would work it in its present state (the
 knife while it has branches, shears from twelve, the axe and saw once they may, the spud on a clean
 trunk with bark). Logging Expanded lists all four tools on a placed trunk whatever its state.
@@ -129,52 +133,116 @@ backpack-only trunks into entity attachment slots, registers only while its `Tre
 is on, so with Carry On the pack registers every trunk code with it (`TrunkCarry.RegisterCartBypass`):
 the cart slots below need it either way.
 
+**Creative pick.** The game's "Pick block" hotkey (middle click, `pickblock`) only picks blocks.
+`Game/TrunkPick.cs` adds trunk entities: the client listens for the hotkey beside the game's own
+handler (`AddHotkeyListener`, never in its place) and, in creative with a trunk entity selected,
+moves to the hotbar slot the game's pick would use (the active one if empty, else the first empty
+one, else the active one) and asks the server on the channel `seraphhorizons:trunkpick`. The
+server checks the mode again (`TrunkPockets.MayGive`) and puts a copy of the trunk's exact stack
+(wood, size, branches, logs) in that slot; a survival player gets nothing. Placing that item lays a
+copy down as a trunk entity (`OldTrunkBlocks`; creative does not use it up).
+
 ## Moving a trunk
 
-**Grab** (`Game/TrunkGrab.cs`, maths in `Core/TrunkPull.cs`). Right-click and hold on a trunk
-with an empty hand, not sneaking (sneak is Carry On's): the player takes the trunk by the end nearer
-the click. There is no rope, drawn or otherwise: no cloth system and no `ropetieable`, so nothing
-can snap and no rope item can come of it. Every server tick (20 ms) the grab works out where the
-grabbed end is (the trunk's middle plus half its length, 4 blocks thin and 5 thick, along its yaw,
-as `TrunkBoxes.Turned` turns it), and while the hand is more than a block (`TrunkPull.Slack`) from
-it, turns the trunk towards the line from the far end to the hand, at most 1.5 radians a second
-scaled by the weight's factor and by how far past the slack the hand is, then eases the trunk's
-horizontal motion towards the hand at 3 blocks a second per block past the slack, times the
-factor, at most 3.5 blocks a second, so the grabbed end leads and the rest trails. The factor is
-the old rope pull's `clamp(50 / weight, 0.1, 2)`. The motion goes through the trunk's own
-`passivephysicsmultibox`, so it still collides; `TrunkGrab.ApplyPull` is the one place it is set.
-The pull stops within the slack, so a trunk never runs ahead of the player. The player is held to
-the trunk's pace meanwhile: their `walkspeed` stat gets `seraphhorizons:drag`, `TrunkPull.DragSpeed`
-of the trunk's weight (the factor between 0.1 and 0.6: 0.6 up to about 10 logs, 0.5 at 12, 0.25 at
-25, 0.13 at 48; 0.6 afloat), set when the grab starts, kept up each tick (it changes as the trunk
-enters water) and removed with the grab. So the character drags the trunk rather than walking off
-and pulling it after them, and at a walk settles a little past the slack, inside `GrabRange`; a
-sprint can still break away. Refused, each with an
-in-game error: a trunk someone else is dragging (any empty-hand click of another player on it,
-sneaking too, stops at the trunk, `EntityTrunk.OnInteract`), one heavier than `MaxGrabWeight` (0,
-the default, is no limit), and one further than `GrabRange` (3 blocks) from the hand. One grab per
-player and one per trunk; grabbing another trunk lets go of the first. A grab click stops at the
-trunk on the client and the server alike, never reaching `ropetieable`, and the interact the game
-repeats while the button is held changes nothing on a trunk already held. (The rope the grab used
-to be flickered: the client's click went on to `ropetieable`, and a rope the pull stretched too far
-snapped, dropping a rope item, and the held button roped it again.) A trunk with a rope of the
-game's own tied to it is not grabbed: the empty-hand click goes on to the game, which takes that
-rope off. Checked every tick, the grab lets go when the player releases the right button, holds
-anything, is further than `GrabRange` from the trunk, dies, or leaves the game, or the trunk is
-gone. A grab never outlives the session: a trunk saved while grabbed clears its grab when it loads,
-and one saved by an older build, whose grab was a game rope, also loses that rope's cloth id.
+**Drive** (`EntityTrunk.TryDrive` and `BeforeCollision`, `Game/TrunkDriveSeat.cs`, maths in
+`Core/TrunkDrive.cs`, geometry in `Core/TrunkPull.cs`). Right-click a trunk with an empty hand, not
+sneaking (sneak is Carry On's): the player takes the end nearer the click and is mounted on the
+trunk's one seat, the game's own mount machinery (`seatable`, the trunk its seat supplier), so
+they move with the trunk exactly. They stand on the ground `TrunkDrive.StandOff` (0.6) blocks
+beyond that end along the axis, feet at the trunk's underside, facing the trunk; afloat, at the
+waterline less `SwimFeetBelow` (1), swimming. Their body is held to face the trunk
+(`BodyYawLimits`, ±0.05 rad) and the head may look a quarter turn either way (`HeadYawLimits`), as
+the game's boat holds its rowers; the seat's angle mode is `PushYaw`, so the view turns with the
+trunk. The seat suggests the walk animation while a drive key is held and idle otherwise (`swim`
+and `swimidle` afloat); the player has no walking-backwards animation, so pulling with W walks
+forwards while backing up. The game feeds a mounted player's movement keys into the seat's
+controls on both sides (`ServerMain.HandleMoveKeyChange`, `SystemPlayerControl`), and sneak
+dismounts (the game's `EntitySeat`), which is how one lets go.
+
+The keys: **W** moves the trunk along its axis with the taken end leading (towards the player, who
+backs up), **S** the other way (the player pushes it), **A** and **D** turn it about its middle, so
+both ends swing and the player goes with theirs: A swings the player's end to their left, D to
+their right. Turning works standing still. Speeds are eased with a time constant of 0.1 s
+(`EaseSeconds`), so a trunk is up to speed in about a third of a second and stops as quickly,
+with no glide. On land the speed is linear in the stored logs: one log is a player's walk
+(`WalkBlocksPerSecond`, 4.3 blocks a second), 48 logs or more half of it, about 3.25 at 24.
+Afloat it is the same but never under three quarters of the game's raft: `EntityBoat.SeatsToMotion`
+gives one paddling seat a forward speed of 2 × `PhysicsFrameTime` (1/30) = 1/15 blocks per 1/60 s
+at `speedMultiplier` 1, so 4 blocks a second (`RaftBlocksPerSecond`, before the water's drag; the
+raft is a little slower than that in the water), and a trunk afloat drives at 3 blocks a second at
+least. The turn is a radian a second for one log, half that at 48 (afloat never under 0.75). Any
+trunk can be driven; the speed is the only penalty for weight. The turn goes through the multi-box
+physics' own `AdjustCollisionBoxesToYaw` with a push, as the boat turns: the swinging boxes shove
+the trunk off whatever they swing into, and a turn with no way out within a block is refused.
+
+**Who may.** While someone drives a trunk nothing else is done to it: another player's click on it
+(an empty hand, a rope, sneaking, which would reach Carry On's pick-up) stops at
+`EntityTrunk.OnInteract` with "Someone is already moving this trunk", a tool's hold on it is
+refused with the same error and idles (`TrunkToolBehavior`), and only the player the trunk's mark
+names may sit in the seat (`TrunkDriveSeat.CanMount`). The mark is the watched
+`seraphhorizons:grabbedBy`, the driver's entity id (`EntityTrunk.Grabbed`, `GrabbedBy`, `DriverId`;
+`Driver` and `Driven` read the seat), set just before the mount and removed when the seat empties;
+the end is `seraphhorizons:driveEnd`, so a client knows where to put the player. The seatable's own
+click (any empty hand would sit on any seat) is switched off through its `CanSit` event. A trunk
+with a rope of the game's own tied to it is not taken: the empty-hand click goes on to the game,
+which takes that rope off. A drive click stops at the trunk on the client and the server alike,
+never reaching `ropetieable`. The machines' ground pull still takes a driven trunk that is driven
+into their infeed cells, which is how one feeds them without Carry On; the driver is let go as the
+trunk goes. Whatever removes a trunk lets its driver go (`EntityTrunk.OnEntityDespawn`), and the
+server lets go of a driver who dies or is no longer playing. A player leaving the game while
+driving is let go first, so their save holds no mount.
+
+**A drive never outlives the session.** A trunk loaded with a mark forgets it in `Initialize`,
+before the seatable reads its seat data, so the seat's own re-mount of the saved passenger is
+refused; the seat writes its own class name (`seraphhorizons.trunkdrive`) into the player's
+`mountedOn`, whose lookup (`TrunkDriveSeat.GetMountable`, registered with `RegisterMountable`) gives
+the server a seat only on a trunk marked as driven, so a player saved mounted (a crash) is not put
+back, and their stale `mountedOn` is removed when they join. A trunk saved by an older build whose
+grab was a game rope also loses that rope's cloth id.
+
+**Who moves it: the server, with the client only interpolating.** The game's mounts are moved by
+the pilot's client: a seat with `controllable: true` makes the mount "being controlled"
+(`MountableUtil.IsBeingControlled`), which stops the server's passive physics for it
+(`EntityBehaviorPassivePhysics.OnPhysicsTick`) and the interpolation of server positions on the
+pilot's client, while the pilot's client ticks the mount's physics itself
+(`EntityBehaviorPlayerPhysics`, for `MountSupplier.Controller` that player) and sends its position
+(`SendPlayerMountPositionPacket`); the boat sets the controller and its motion on both sides from
+the seats' controls (`updateBoatAngleAndMotion`, from `OnGameTick` on the server and
+`OnRenderFrame` on the client). That puts the drive, the step-up and the collision on the driver's
+client, where the server cannot check them and the Atlas scenarios (a server with players that
+have no client) cannot run them. So the seat is **not** controllable: the server runs the trunk's
+physics as for any trunk, the drive and the step-up inside it, and every client, the driver's
+included, only interpolates the server's positions (`interpolateposition`; the client's
+`passivephysicsmultibox` ticks nothing for an entity no one controls, it only works out its ground
+and water flags from those positions, `HandleRemotePhysics`). Each client puts a mounted player at
+the seat of its own interpolated trunk, so the driver and the trunk never part on screen; the cost
+is that the driver sees their keys act about a network round trip and an interpolation step (some
+0.1 to 0.2 s) late. The server also stands its own copy of the driver in the seat each tick (the
+driver's client reports the same place from its seat; a player with no client, as in Atlas, has
+only this). Client-side prediction of the drive (the same maths from the same keys, corrected by
+the server) is the next step if that lag shows in play.
+
+**Why inside the physics.** The drive and the step-up run in the trunk's physics tick
+(`EntityBehaviorTrunkPhysics.applyCollision`, server side), after the game's drag and gravity and
+before its collision. The drive sets the horizontal motion outright there, so the speed is the
+collision's, whatever the ground's drag (set from the entity's game tick it would be cut by the
+ground drag, 0.7 a physics tick on most blocks, and unevenly, as game ticks and the 30 Hz physics
+ticks do not line up). The step-up sees that motion and lifts the trunk before the collision, in the
+same tick. The grab's step-up ran from the game tick on the motion left over from the last physics
+tick, which the collision had zeroed against the step, so it often saw no motion, did not lift,
+and the trunk sank back off the step a few times before a lift caught: the stutter seen in play.
 
 **Rope.** `game:rope` ties to a trunk like to any `ropetieable` entity: to a fence post, an animal
 or a cart. The pull on the motion is the game's (by `Properties.Weight`), but the rope acts at an
 end (`Game/TrunkRope.cs`): each tick the rope's point pinned to the trunk is moved to the end nearer
 the rope's far point (the game's `ClothPoint.pinnedToOffset`, with `pinnedToOffsetStartYaw`, found
 by name, set to the trunk's yaw so the game adds no turn), and on the server, while the rope's pull
-moves the trunk, it turns that end to lead at the grab's turn rate. If those fields are gone the log
+moves the trunk, it turns that end to lead at the drive's turn rate (`TrunkDrive.Turn`). If those fields are gone the log
 says so once and ropes pull where they were tied, without turning.
 
 **Step up** (`EntityTrunk.StepUp`, maths in `Core/TrunkStep.cs`). `passivephysicsmultibox` has no
-step-up, so on the server a trunk whose motion before the tick's physics (the grab's or a rope's,
-at least 0.3 blocks a second) runs into a solid block within `TrunkStep.Probe` (0.15) ahead is
+step-up, so on the server, inside the physics tick (above), a trunk whose motion (the drive's or a
+rope's, at least 0.3 blocks a second) runs into a solid block within `TrunkStep.Probe` (0.15) ahead is
 lifted onto it in one go, if the rise is at most one block above its underside and its boxes are
 clear lifted, both ahead and where it is (no cliffs, no ceilings). Blocks count as whole cubes, so a
 slab is stepped like a full block. Not afloat, not while falling. (A first build lifted a quarter
@@ -183,10 +251,31 @@ gravity and lifted again, a stutter up each step.)
 
 **Shove.** Walking into a trunk nudges it (`repulseagents`, by its hitbox).
 
+**Solid** (`Game/TrunkSolid.cs`, geometry in `Core/TrunkPush.cs`). A trunk is as good as solid to
+whoever walks into it: an agent (a player, an animal) whose collision box overlaps any of the
+trunk's turned boxes is moved out the shortest way along ±x or ±z that clears every box at once
+(so from the middle of the row it leaves across the trunk, not along it), at most
+`TrunkPush.MaxStep` (0.25) blocks a step, and its motion into the trunk is taken away. That is over
+three times a walk (about 0.07 blocks per 1/60 s), so a walking player is held at the surface; one
+found deep inside slides out over a few steps. The game's `repulseagents` pushes by motion, at most
+0.1 blocks per 1/60 s, by the trunk's middle hitbox only (`EntityBehaviorRepulseAgents`: its push
+vector clamped to ±3 and divided by 30); this works by position, on every box. An agent whose feet
+are within `StandMargin` (0.4) of the top is lifted onto it the whole way, its fall stopped and
+`OnGround` set, so a player can stand on a trunk. The trunk itself is never moved by this, and its
+driver (mounted, and standing beyond its end) is left alone. Driven into a bystander, the same push
+moves them out of its way. It runs on the server every game tick for every agent near a trunk
+(`EntityTrunk.OnGameTick`), and on the client every frame for the local player, right after the
+game's player physics (`TrunkSolid.ClientRenderer`, stage `Before`, order 1.05; the player physics
+renders at 1): a player's position is their client's to say, so the server's push alone would be
+overwritten by the client's next report, while the client's is immediate. Standing on a trunk is
+this push catching the player each frame after their physics has let them fall a little into it,
+not a collision the game's physics knows of, so whether it feels like standing on a block (no
+jitter, jumping off it) is to be seen in play.
+
 **Water.** Trunks float and drift (above). Afloat (`Swimming` or `FeetInLiquid`, `EntityTrunk.Afloat`,
-shown as "Afloat" in the info text) a trunk pulls as one `TrunkPull.WaterLightening` (6) times
-lighter, and never with a factor under `WaterFloor` (1): the grab's speed and turn use that, and
-on the server `Properties.Weight` is set to the lighter weight for the rope's pull each tick. The
+shown as "Afloat" in the info text) a trunk drives at least at three quarters of the raft's speed
+(above), and the driver floats with it, swimming. For a rope it is `TrunkPull.WaterLightening` (6)
+times lighter: on the server `Properties.Weight` is set to the lighter weight each tick. The
 watched `seraphhorizons:weight` (`EntityTrunk.LandWeight`, the info text's weight) stays the land
 weight, so the client's `Properties.Weight` is always the land one.
 
@@ -206,7 +295,16 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   On's `InteractSpeedMultiplier` when it can be found. The server checks it every 100 ms and drops
   it, with nothing taken, when the button (`ServerControls.RightMouseDown`) or sneak is let go, a
   hand fills, the player is over 6 blocks away or looks at another entity, or the trunk is gone.
-  The client shows no progress ring for it. Hands already full: the error "Your hands are full. Put
+  The server sends nothing back while it runs, so the client counts the same hold itself
+  (`TrunkHoldCircle`, the maths in `Core/HoldProgress.cs`): from the right-button press on a trunk
+  entity, while sneaking with both hands empty, nothing carried and within 6 blocks, it fills Carry
+  On's own half-circle over `PickUpSeconds` by setting `CircleProgress` on Carry On's client
+  `HudOverlayRenderer` (`CarrySystem.HudOverlayRenderer`, found by name), and hides it
+  (`CircleVisible` false) the moment any of that stops. Carry On's own interaction leaves the
+  circle alone while it has no action of its own, and it has none for an entity or a rack. The
+  same tracker fills the circle for taking a trunk off a Trunk Storage Rack (`RackTake`, under
+  Stations), from the press on a rack holding a trunk, sneaking or not. Without that
+  renderer, one warning and no circle. Hands already full: the error "Your hands are full. Put
   down what you are carrying first." (`trunkentities-hands-full`). An item in either hand (the
   offhand too): "Empty both hands first." (`trunkentities-hands-not-empty`), and the trunk stays
   where it was. `TryGive` refuses it for every way into the hands (pick-up, a station, the rosser
@@ -215,26 +313,42 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   in the offhand could never be put down. The carried stack gets a small block entity tree
   (`blockCode`, `type`), because Carry On attaches a carried block to a cart only with block entity
   data.
+- **Carried as its class's model.** Carry On draws (and animates) the block of the stack it
+  carries, so what goes into its hands is not the trunk's own block but the one of its class's
+  model (`TrunkCarry.Shown`, by `Trunks.ShownBlock`): Logging Expanded's `lg` for a thin trunk and
+  `xxl` for a thick one, debarked when the trunk is, no branches; only those two models are ever
+  seen in hand, as on the ground and in the machines. The stack keeps the trunk's attributes (its
+  logs) and the real block code under `seraphhorizons:trunkCode`; everything that reads the hands
+  (`Carried`, `Take`, put-down, drops, the back check, the speed, the stations and machines) gets
+  the real trunk back (`TrunkCarry.Real`), so a 1-log `xs` trunk is carried as an `lg` and put down
+  as the same 1-log `xs`. A cart slot holds the shown stack as Carry On attached it (and shows the
+  class's model too); taken back off, it is unwrapped and wrapped again. A trunk that reaches the
+  hands as its own block some other way (Carry On's own pick-up, a cart slot filled before) is
+  swapped for its shown stack by the `SetCarried` postfix below.
 - **Speed.** While a trunk is carried, the player's `walkspeed` stat gets the code
   `seraphhorizons:trunk`, so the walk speed is `TrunkWeight.CarrySpeed` of its logs:
-  `CarrySpeedAtFourLogs` (0.8) up to 4 logs, falling linearly to `CarrySpeedAtMaxLogs` (0.5) at 48
-  logs and beyond. About 0.76 at 10 logs and 0.66 at 25. Carry On's own slot modifier is set to 0 for
-  trunks by the patch and cancelled out in the value besides. The server checks every online player
-  every 250 ms (and at once when the pack itself gives or takes a trunk) and removes the code once
-  no trunk is carried; the game syncs stats to the client.
+  `CarrySpeedAtOneLog` (1, a normal walk) for a trunk of 1 log, falling linearly to
+  `CarrySpeedAtMaxLogs` (0.5) at 48 logs and beyond. About 0.90 at 10 logs and 0.74 at 25. Carry
+  On's own slot modifier is set to 0 for trunks by the patch and cancelled out in the value
+  besides. The server checks every online player every 250 ms (and at once when the pack itself
+  gives or takes a trunk) and removes the code once no trunk is carried; the game syncs stats to
+  the client. Atlas picks a 48-log trunk up the real way (the hold, server side) and finds the
+  blended `walkspeed`, and the player's whole walk multiplier, at 0.5, with no code but the game's
+  and this one: no `carryon:Hands` at all. A much slower walk seen in game (about 5% with a
+  48-log trunk, the stat reading 0.5) is therefore not a second stat on the server; it was not
+  reproduced headless, and if it recurs it is to be looked for on the client.
 - **Animation.** A second `Carryable` on `loggingmod:blocktypes/treetrunk`
   (`patches/trunkentities-carryon.json`), which Carry On merges into Logging Expanded's own
   (`patchPriority` 1 with `overrideExistingProperties`, so the order of the two patches does not
   matter): slot `Hands` with Logging Expanded's `trunkcarry` animation for xs, sm, md and lg and
   `trunkcarryheavy` for xl and xxl (its player patches add both; nothing of its own starts them),
-  a `hands` transform of its own in place of Carry On's `carry-trunk` template (which holds the
-  trunk across the chest), and `walkSpeedModifier` 0. The transform is meant to lay the trunk along
-  the shoulder: `translation` [0.35, 0.6, -0.5], `rotationZ` 90 about the block's centre
-  (`origin` [0.5, 0.5, 0.5]), which tips the standing trunk block over to lie along the carrier's
-  front-to-back axis (in Carry On's carried frame x runs front to back and z side to side, as its
-  own strap positions show). Without the tip the trunk stood on end at the shoulder; if it lies
-  across the chest instead, the tip belongs on `rotationX`; if it sits wrong, tune `translation`
-  (x forward and back, y up, z sideways). The game merges
+  matched on the carried block's code, so with only `lg` and `xxl` carried they go by class, thin
+  and thick; a `hands` transform of its own in place of Carry On's `carry-trunk` template (which
+  holds the trunk across the chest), and `walkSpeedModifier` 0. The transform lays the trunk along
+  the shoulder: `translation` [0.35, 0.6, -0.5] and `rotationX` 90 about the block's centre
+  (`origin` [0.5, 0.5, 0.5]). In Carry On's hands frame z runs front to back, so the tip about x
+  lays the standing trunk block down pointing ahead and behind; about z (as it was first) it lay
+  on the shoulder but across, parallel to the shoulders. To move it, tune `translation`. The game merges
   `propertiesByType` into `properties` with arrays concatenated, so the shared settings sit in
   `properties` only.
 - **Hands only, never the back.** The patch sets `preventSwapBack`, and `StripBackSlots` removes any
@@ -247,7 +361,10 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   prefixed on both sides: the client predicts, then asks) never places a block. The server checks
   Carry On's permission for the cell, then lays a trunk entity in the cell Carry On chose, along the
   player's view, reaching away from them; the hands are emptied on both sides. If the entity cannot
-  be spawned the trunk stays carried, with a warning in the log.
+  be spawned the trunk stays carried, with a warning in the log. The prefix only changes what the
+  place-down does once it runs: Carry On's client calls it at the end of its own put-down hold
+  (`CarryInteractionStateMachine`, sneak + right-click held for the Carryable's `InteractDelay`,
+  with its own filling circle), so a trunk's put-down has the same delay and circle as any block's.
 - **Drops.** When Carry On drops a carried block (death, damage, a quick drop, its own
   carried-block entity: `CarryDropService.DropCarriedBlock` and `DropBlockAsEntityOrItem`), a trunk
   is laid as a trunk entity where the carrier stands, never a block nor an item. If the entity
@@ -334,6 +451,14 @@ Rack's `BlockTrunkStorage` and the heating rack's `BlockResinRack`.
   (`BuildUnloadStack`; one loaded with logs or firewood gives those back as Logging Expanded does),
   the rack's top trunk, the heating rack's trunk. While the hands are full, the error, and the trunk
   stays (the heating rack's is stored back, its retrieve having written its state into the stack).
+  The Trunk Storage Rack's take is a hold, as a pick-up off the ground is (`RackTake` in
+  `TrunkStations.cs`). Carry On's own delay never applies here: its `CarryableInteract` hold runs
+  only while something is carried, and the rack has no Carryable. So the server times it itself,
+  for `TrunkCarry.PickUpSeconds` of the top trunk, checked every 100 ms, and gives the trunk when it
+  ends. The hold breaks, leaving the trunk on the rack, when the button is let go, a hand fills,
+  something is carried, the player is over 6 blocks away or looks at another block, or the rack
+  empties. The client fills Carry On's circle for it (`TrunkHoldCircle`, under Pick up above).
+  The sawhorse and heating rack still unload at once.
 - Anything else (a tool, logs, a knife on the heating rack, Carry On's own sneak clicks) is the
   original's. The client's prefix only says a carried trunk's click is the station's.
 
@@ -394,19 +519,21 @@ Values out of range fall back to the default with a warning. The server's values
 
 | Setting | Default | Range | |
 |---|---|---|---|
-| `WeightPerLog` | 8 | 0..1000 | Weight a stored log adds: weight = 10 + logs × this. What a rope or a grab pulls against. |
-| `CarrySpeedAtFourLogs` | 0.8 | 0..1 | Walk speed, as a multiple of the normal one, carrying a trunk of 4 logs or fewer |
+| `WeightPerLog` | 8 | 0..1000 | Weight a stored log adds: weight = 10 + logs × this. What a rope pulls against (the drive goes by logs). |
+| `CarrySpeedAtOneLog` | 1 | 0..1 | Walk speed, as a multiple of the normal one, carrying a trunk of 1 log (1 is a normal walk) |
 | `CarrySpeedAtMaxLogs` | 0.5 | 0..1 | Walk speed carrying one of 48 logs or more; linear in logs between the two |
 | `SpudSecondsPerLog` | 0.5 | 0..60 | The bark spud's hold per stored log, 2 s at least |
-| `GrabRange` | 3 | 1..10 | Blocks from the hand beyond which a grab cannot start, and lets go |
-| `MaxGrabWeight` | 0 | 0 and up | Trunks heavier than this cannot be grabbed by hand, only roped; 0 is no limit |
+
+The drive's figures are constants in `Core/TrunkDrive.cs`, not settings. (The grab's `GrabRange`
+and `MaxGrabWeight` are gone: any trunk can be driven, and a config that still names them is
+read without them.)
 
 **Who decides.** The classes (the entity, the pick-up behaviour, the renderer) are registered on
 both sides whatever the setting, so both entity types always exist. The server decides in `Start`
 (the switch on, Logging Expanded installed, `LoggingBridge` resolving) and writes it to the world
 config (`seraphhorizons:trunkEntities`), which the game sends a client before it starts its mods; a
 client follows that, whatever its own setting (a mismatch logs one notification), as
-`UnifiedWoodworking` does. **Off**, nothing runs: no spawn swap, no storage flag, no grab, no tool
+`UnifiedWoodworking` does. **Off**, nothing runs: no spawn swap, no storage flag, no drive, no tool
 behaviour, no station or machine change, no deletion, and the feature's three patch files are emptied
 before the game's patch loader runs (`carryon` and `carts` by `TrunkEntitySystem.DisablePatches`,
 `stations` by `TrunkStationsSystem`, which also empties it when Carry On is missing). Logging
@@ -416,22 +543,26 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
 
 ## Tests
 
-- `tests/TrunkEntities/TrunkPullTests.cs` also checks the water factor (`Factor(weight, afloat)`,
-  `Speed`, `TurnStep`, `EffectiveWeight`), the dragging player's walk (`DragSpeed`: capped light,
-  the factor between, the floor heavy, the ceiling afloat, never rising with weight, under the
-  pull's top speed) and the step-up (`TrunkStep.Lift`: lifts onto a one-block rise in one go,
-  finishes a rise left part way, stops on top; none on flat ground, without a pull, up a two-block
-  cliff, under a ceiling or moving away). Atlas (`tests/PackTests/TrunkEntityScenarios.cs`) pulls a
-  grabbed trunk up a one-block step and a 48-log trunk in a pool against one on land (more distance
-  afloat). The rope's end pin and turn have no test.
+- `tests/TrunkEntities/TrunkPullTests.cs` checks the geometry (`TrunkPull`: the ends as
+  `TrunkBoxes.Turned` turns the trunk, the nearer end, the yaw facing an end along a line, the
+  short way round and capped, the wrap), the rope's lighter weight afloat (`EffectiveWeight`) and
+  the step-up (`TrunkStep.Lift`: lifts onto a one-block rise in one go, finishes a rise left part
+  way, stops on top; none on flat ground, without motion, up a two-block cliff, under a ceiling or
+  moving away). `tests/TrunkEntities/TrunkDriveTests.cs` checks the drive (`TrunkDrive`): the land
+  speed linear from a walk at one log to half at 48 and never rising, afloat never under three
+  quarters of the raft, the turn rates, the keys' speed and turn, A swinging the driver's end to
+  their left and the driver looking at the middle, the stand just beyond the taken end with W
+  moving towards it, and the ease up to speed in a few tenths of a second without overshooting.
+  `tests/TrunkEntities/TrunkPushTests.cs` checks the solidity's geometry (`TrunkPush`): nothing
+  outside or touching, across rather than along from the middle box, past the end near an end,
+  overlapping thick boxes cleared together, up onto the top only within the margin, capped steps
+  getting out in a few, and motion into the trunk stopped. The rope's end pin and turn have no test.
 
 - `tests/TrunkEntities/TrunkEntityCoreTests.cs` (part of the mod's unit tests,
   `dotnet test mods-src/seraphhorizons/tests`, no game needed) compiles `Core/` and tests the
-  documented defaults, out-of-range values falling back and edge values kept; the grab's pull (`TrunkPull`: the ends as `TrunkBoxes.Turned`
-  turns the trunk, the nearer end, the yaw facing an end along a line, the short way round and
-  capped, the weight's factor, no pull within the slack); the weight (10 + 8 per
+  documented defaults, out-of-range values falling back and edge values kept; the weight (10 + 8 per
   log, and following the setting); the carry speed, linear from 4 to 48 logs and never rising; the
-  spud's hold (half a second a log, 2 s at least); `MaxGrabWeight` 0 meaning any weight; the boxes
+  spud's hold (half a second a log, 2 s at least); the boxes
   per class (four cubes, four overlapping 2 × 2 × 2 cubes, none for none); the radius; and the
   turned boxes at yaw 0, a half turn and a quarter turn (laid along x, a thin trunk one block wide
   and a thick one 5 × 2), their middles kept at their distance.
@@ -448,15 +579,20 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
     the weight follows the logs per entity and leaves the type's alone, and no logs removes it; a
     trunk dropped from a height rests on the ground; a placed trunk multiblock is removed when it
     loads, nothing dropped; a trunk left in a hotbar, placed through the game's own placement, is
-    taken from the hotbar and lies there as a trunk entity, with no block; and the grab: sneak
-    shoulders instead, an empty hand grabs the end it clicks with no rope of any
-    kind, repeated interacts while held change nothing, the player walks at the drag speed while
-    holding and not after, the trunk follows a player who steps
-    away and turns its grabbed end towards them, letting go ends it, no rope item appears, and
-    too far refuses; another player's empty hand, sneaking or not, leaves a grabbed trunk as it
-    is; a trunk as a world saves it mid-grab, from when the grab was a game rope (the grabber's
-    and rope's ids, the rope in its `ropetieable` list, no such rope in the game) loads with the
-    grab and the rope's id cleared and can be grabbed again.
+    taken from the hotbar and lies there as a trunk entity, with no block; and the drive: a trunk
+    as a world saves it mid-drive and from when the grab was a game rope (the driver's and rope's
+    ids, the rope in its `ropetieable` list, no such rope in the game) loads with the mark and the
+    rope's id cleared; an empty hand at an end then mounts the player on the trunk's seat by that
+    end, with no rope of any kind, standing 0.6 beyond it at the trunk's height; the driver's own
+    clicks change nothing; the seat's sneak lets go and clears the mark. Driven (fake players' keys
+    set on their seat's controls, as the game feeds them): W moves the trunk towards the taken end
+    with the driver still just beyond it, S the other way, A and D turn it both ways with its
+    middle staying put and the driver at their end; another player's empty hand, their sneak hold
+    (Carry On's pick-up) and a mount of the seat are all refused, and once let go the other player
+    can take it by the other end. A 1-log trunk driven with W goes 1.6 to 2.4 times as far as a
+    48-log one in the same time; a driven trunk climbs a one-block step; a 48-log trunk driven in a
+    pool goes over 1.2 times as far as on land. A fake player teleported into a thin trunk's
+    middle is out of every box within 20 ticks, on the near side, and the trunk has not moved.
   - `TrunkToolScenarios.cs` (a partial file of `SharedWorldScenarios`, on the plain world): every tool kind gets the behaviour; the axe takes a log, with a hammer
     a debarked log; the knife cuts sticks and leaves a clean trunk; shears make a sapling from
     twelve branches; the saw cuts planks; the axe and saw refuse a branched trunk; the spud debarks
@@ -506,7 +642,10 @@ progress bar and the spud's animation, the client's repeat pause, Carry On's cli
 a put-down (the same patched method, which a server cannot run), the carry animations and the
 pack's own shoulder transform on a trunk (a guess, see Carry On above), how the pick-up hold feels
 with no progress ring and whether a real client's held button reaches the server for its whole
-length, Carry On's swap key with a trunk in the hands, and how the grab feels (and the trunk's turn, seen from a client). Before release, play
+length, Carry On's swap key with a trunk in the hands, and everything of the drive a client shows: the driver's place,
+facing and animations, the view turning with the trunk, the body and head limits, sneak letting go
+on a real client, the lag of the keys, and the trunk and driver as other players see them; and the
+client's half of the solidity (walking into a trunk, standing on one, jumping off it). Before release, play
 through:
 
 - felling a real tree (Atlas spawns the trunk item as Logging Expanded's felling does, not by
@@ -514,9 +653,12 @@ through:
 - floating and drifting in still and flowing water (buoyancy is not in any scenario);
 - a rope item tied to a trunk and to a post, an animal and a cart (the game's, but untested here),
   and shoving by walking into a trunk;
-- dragging a thick 48-log trunk by hand, and whether the pull and the turn feel right (the
-  constants in `TrunkPull` are first guesses); a trunk turned by a grab or a rope against a wall can swing
-  its boxes into it, and a pulled trunk does not yet climb a one-block rise;
+- driving a thin and a thick 48-log trunk on flat ground, up a step, into a wall, across a slope
+  and in a river, and whether the speeds, the turn and the ease feel right (the constants in
+  `TrunkDrive` are first guesses; the swimming driver's height, `SwimFeetBelow`, is a guess);
+  whether the server's copy of the driver, stood in the seat each tick, ever fights the driver's
+  client's reports (others see the driver at the seat of their own trunk, so it should not show);
+  a trunk turned by a rope against a wall can swing its boxes into it;
 - the 0.8 s Carry On hold before a station, rosser or mill takes a carried trunk;
 - a carried trunk on a sled, and taking one off a cart with an empty hand from a real client;
 - a trunk lying at an angle (its collision is a staircase of axis-aligned boxes, above).
@@ -529,15 +671,16 @@ never sees those paths.
 
 Known compromises:
 
-1. **Display size.** Every thin trunk is shown, boxed and dragged as a 4-block `lg` trunk and every
+1. **Display size.** Every thin trunk is shown, boxed and driven as a 4-block `lg` trunk and every
    thick one as a 5-block `xxl`, whatever its own length, as the machines show them.
 2. **The ground pull finds a trunk by its middle.** A trunk lying across the infeed cells with its
    middle outside them is not taken; one needs to lie in line with them.
 3. **The handbook describes trunk entities.** The woodworking guide and the machines' handbook pages
    say how trunks are moved and loaded with the feature on, and are not rewritten when it is off.
-4. **Shoving acts at the middle.** Walking into a trunk pushes it only around its middle: the
-   game's `repulseagents` uses the entity's `CollisionBox`, one box at the trunk's centre, not the
-   turned boxes the selection and collision use.
+4. **Shoving the trunk acts at the middle.** Walking into a trunk nudges it only around its
+   middle: the game's `repulseagents` uses the entity's `CollisionBox`, one box at the trunk's
+   centre, not the turned boxes the selection and collision use. (Keeping players out of it uses
+   every box, `TrunkSolid`.)
 5. **Survival never receives a trunk, whatever asks.** `TrunkPockets` refuses every
    `TryGiveItemstack` of a trunk to a player not in creative mode, so a mod or command that gives
    one either drops it (and it lies there as a trunk entity) or, if it does not drop what was refused,
