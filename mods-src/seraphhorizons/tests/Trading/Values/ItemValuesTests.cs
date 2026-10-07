@@ -134,4 +134,44 @@ public class ItemValuesTests
         Assert.Equal(1.0, table.ValueOf("game:gear-rusty"));
         Assert.InRange(table.ValueOf("game:ingot-copper"), 1, 4);
     }
+    private static readonly ItemValues Switched = ItemValues.Parse("""
+        {
+          "values": {
+            "seraphhorizons:gear-steel": 14.2,
+            "seraphhorizons:largegear-steel": 40.5,
+            "game:gear-rusty": 1.0,
+            "game:plank-pine": 0.08
+          },
+          "floorZero": [],
+          "switches": {
+            "seraphhorizons:gear-steel": ["GearCutter", "GearBlanks"],
+            "seraphhorizons:largegear-steel": ["GearCutter"]
+          }
+        }
+        """);
+
+    [Fact]
+    public void SwitchesParse()
+    {
+        Assert.Equal(["GearCutter", "GearBlanks"], Switched.SwitchesOf("seraphhorizons:gear-steel"));
+        Assert.Empty(Switched.SwitchesOf("game:gear-rusty"));
+        Assert.Empty(Switched.SwitchesOf("game:nothing"));
+        Assert.Empty(Table.SwitchesOf("game:ingot-copper"));
+    }
+
+    [Fact]
+    public void ShownHidesAValueWhoseSwitchIsOff()
+    {
+        Assert.Equal(14.2, Switched.Shown("seraphhorizons:gear-steel", _ => false));
+        Assert.Null(Switched.Shown("seraphhorizons:gear-steel", s => s == "GearBlanks"));
+        Assert.Equal(14.2, Switched.Shown("seraphhorizons:gear-steel", s => s == "Rosser"));
+        Assert.Equal(1.0, Switched.Shown("gear-rusty", _ => true));
+    }
+
+    [Fact]
+    public void ShownHasNothingForAMissingCodeAndFallsBackToFamilies()
+    {
+        Assert.Null(Switched.Shown("game:nothing", _ => false));
+        Assert.Equal(0.08, Switched.Shown("game:plank-oak", _ => false));
+    }
 }

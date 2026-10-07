@@ -6,13 +6,15 @@ Stdlib only, Python 3.11+. See README.md next to this file for the rules and the
   python3 tools/item-values/itemvalues.py build   build/recipes.json   # writes the mod's item-values.json and a report
   python3 tools/item-values/itemvalues.py report  build/recipes.json   # the report only (stdout)
   python3 tools/item-values/itemvalues.py explain build/recipes.json game:pickaxe-tinbronze
-  python3 tools/item-values/itemvalues.py check   build/recipes.json   # fails if an item traders buy has no value
+  python3 tools/item-values/itemvalues.py check   build/recipes.json   # fails on a stale table, an unvalued bought item, a retired item listed
 
 Every item's value is the cheapest route to it: hand-priced raws (raw-values.json) and overrides
 (overrides.json) are fixed; every other item is the cheapest of its recipes, where a recipe costs
 its consumed ingredients (each slot at its cheapest accepted stack) times the kind's markup
-(markups.json) plus a flat labour charge, divided by the output quantity. Values are relaxed to a
-fixed point, so chains of any length and cycles resolve.
+(markups.json) plus a flat labour charge, less its other outputs' value (a lottery's losers),
+divided by the output quantity. Schematics are free kept tools. Items settle cheapest first, so
+chains of any length and cycles resolve; the table also records the config switches each value
+exists by.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ import fnmatch
 import heapq
 import json
 import math
+import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -32,8 +35,6 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 DEFAULT_OUT = REPO / "mods-src/seraphhorizons/assets/seraphhorizons/config/item-values.json"
 DEFAULT_TRADELISTS = REPO / "mods-src/seraphhorizons/assets/seraphhorizons/config/tradelists"
-# The schematics the pack's traders sell ("sold") and the machine gates (#468, #469).
-DEFAULT_GATES = REPO / "mods-src/seraphhorizons/assets/seraphhorizons/config/schematic-gates.json"
 
 # Portions (liquids) are items: 100 per litre for every liquid in the game and the pack's mods.
 ITEMS_PER_LITRE = 100
@@ -41,10 +42,6 @@ ITEMS_PER_LITRE = 100
 # Butchery is skipped as a route: one carcass gives a dozen outputs, and hides and meat are raws.
 SKIPPED_TYPES = {"perishing", "burning", "butchery"}
 EPS = 1e-9
-# The pack's trade lists hold a buying entry's final pay, value x the buy spread: the mod's BuySpread
-# (SeraphHorizonsConfig.BuySpread, default Pricing.DefaultBuySpread in Trading/Economy/Core/Pricing.cs).
-# A buying price is divided by it before traderFallback weighs it. Vanilla's lists are not rescaled.
-BUY_SPREAD = 0.2
 
 
 # ------------------------------------------------------------------ inputs
@@ -68,16 +65,10 @@ class Rules:
     overrides: dict[str, float]
     ores: dict = field(default_factory=dict)
     trader_fallback: dict = field(default_factory=dict)
-    # Schematic code globs (schematic-gates.json's "sold"): valued from the pack's trade lists, and
-    # free when a recipe keeps them.
-    schematics: list[str] = field(default_factory=list)
-    # The pack's trade lists through traderFallback's rule: code -> gears per item.
-    pack_trade: dict[str, float] = field(default_factory=dict)
+    schematics: list[str] = field(default_factory=list)  # globs: kept, worth nothing, never block
 
     @staticmethod
-    def load(directory: Path = HERE, gates: Path | None = None, tradelists: Path | None = None) -> "Rules":
-        """The rule files in `directory`; with `gates`, the schematics it lists (none when the file
-        is missing), valued from the trade lists in `tradelists`."""
+    def load(directory: Path = HERE) -> "Rules":
         raw = load_json(directory / "raw-values.json")
         mk = load_json(directory / "markups.json")
         ov = load_json(directory / "overrides.json") if (directory / "overrides.json").exists() else {}
@@ -101,8 +92,7 @@ class Rules:
             overrides={k: float(v) for k, v in ov.get("values", {}).items()},
             ores=raw.get("ores", {}),
             trader_fallback=raw.get("traderFallback", {}),
-            schematics=schematic_patterns(gates) if gates else [],
-            pack_trade=pack_trade_values(tradelists, raw.get("traderFallback", {})) if tradelists else {},
+            schematics=list(mk.get("schematics", [])),
         )
 
     def is_schematic(self, code: str) -> bool:
@@ -138,7 +128,6 @@ class Slot:
     alternatives: list[tuple[str, float]]
     consumed: bool = True
     returned: tuple[str, float] | None = None  # a different stack handed back (bucket of X -> bucket)
-    free: bool = False  # a kept schematic: adds nothing, not even the tool fraction
 
 
 @dataclass
@@ -146,8 +135,11 @@ class Route:
     kind: str  # markup key
     recipe: str  # recipe id or attribute route ("smelting|<code>")
     output: str
-    quantity: float
+    quantity: float  # output items per batch (expected, for a lottery)
     slots: list[Slot] = field(default_factory=list)
+    # The batch's other outputs, (code, expected items): credited against this output's cost.
+    byproducts: list[tuple[str, float]] = field(default_factory=list)
+    switch: str | None = None  # the seraphhorizons config switch that owns the recipe
 
 
 def _items(stack: dict) -> float:
@@ -201,10 +193,16 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
         if rtype == "alloy":
             mids = [((i.get("minRatio") or 0) + (i.get("maxRatio") or 0)) / 2 for i in defs]
             total = sum(mids) or 1.0
+        lottery = expected_shares(r) if r.get("lottery") else None
+        # A machine's fitted parts (machine.kept: the gear cutter's master) are never consumed.
+        kept = set((r.get("machine") or {}).get("kept") or [])
         for v in r["variants"]:
             if not v["outputs"]:
                 continue
             out = v["outputs"][0]
+            if rules.is_schematic(out["code"]):
+                skipped["schematic"] += 1
+                continue
             slots: list[Slot] = []
             ok = True
             for idx, (d, accepted) in enumerate(zip(defs, v["ingredients"])):
@@ -213,15 +211,14 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
                 if not accepted:
                     ok = False
                     break
-                # Kept: a tool, a station, a gear cutter's master ("kept"), or a grid ingredient with
-                # consume false (the exporter writes extra.consumed false).
+                if all(rules.is_schematic(a["code"]) for a in accepted):
+                    continue  # a schematic: kept, worth nothing, never blocks the route
+                accepted = [a for a in accepted if not rules.is_schematic(a["code"])]
+                # Kept: a tool, a station, a fitted part ("kept" role, or the machine's kept list: the
+                # gear cutter's master), or a grid ingredient with consume false (the exporter writes
+                # extra.consumed false).
                 consumed = (not d.get("isTool") and d.get("role") not in ("station", "tool", "kept")
-                            and (d.get("extra") or {}).get("consumed") is not False)
-                if not consumed and all(rules.is_schematic(a["code"]) for a in accepted):
-                    # A kept schematic (MachineSchematics' gates, every recipe that uses one): the
-                    # recipe is priced by its consumed parts and labour only.
-                    slots.append(Slot([(a["code"], 0.0) for a in accepted], False, None, True))
-                    continue
+                            and idx not in kept and (d.get("extra") or {}).get("consumed") is not False)
                 factor = 1.0
                 if vox and idx == 0 and vox["match"] in accepted[0]["code"]:
                     factor = units / max(_items(accepted[0]), 1.0)
@@ -243,8 +240,28 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
                 slots.append(Slot([(a["code"], _items(a) * factor) for a in accepted], consumed, ret))
             if not ok:
                 continue
-            routes.append(Route(kind, r["id"], out["code"], _items(out), slots))
+            if lottery is None:
+                routes.append(Route(kind, r["id"], out["code"], _items(out), slots, switch=r.get("switch")))
+                continue
+            # A lottery: one route per output that can come out, the others credited at their value.
+            expected = [(o["code"], _items(o) * share) for o, share in zip(v["outputs"], lottery)]
+            for j, (code, q) in enumerate(expected):
+                if q <= EPS or rules.is_schematic(code):
+                    continue
+                others = [(c, n) for k, (c, n) in enumerate(expected) if k != j and n > EPS]
+                routes.append(Route(kind, r["id"], code, q, slots, others, r.get("switch")))
     return routes, skipped
+
+
+def expected_shares(r: dict) -> list[float]:
+    """A lottery record's chance per output: each output belongs to one outcome (schema.md), so
+    its expected items per input are its outcome's chance times its quantity."""
+    shares = [0.0] * len(r.get("outputs") or [])
+    for outcome in r["lottery"].get("outcomes") or []:
+        for idx in outcome.get("outputs") or []:
+            if 0 <= idx < len(shares):
+                shares[idx] += float(outcome.get("chance") or 0)
+    return shares
 
 
 def routes_from_attributes(export: dict) -> list[Route]:
@@ -329,34 +346,6 @@ def trader_value(item: dict, rules: Rules) -> float | None:
     return sum(vals) / len(vals) if vals else None
 
 
-def schematic_patterns(path: Path) -> list[str]:
-    """The schematic code globs of schematic-gates.json's "sold" (it has // comments). No file: none."""
-    if not path.is_file():
-        return []
-    return [e["code"] for e in _lenient_json(path.read_text(encoding="utf-8")).get("sold", []) if e.get("code")]
-
-
-def pack_trade_values(directory: Path, tf: dict) -> dict[str, float]:
-    """traderFallback's rule over the pack's own trade lists: per code, the mean over its entries of
-    the price per item (price / stacksize), times 'sells' for selling entries, and for buying entries
-    divided by BUY_SPREAD (the lists hold the final pay) times 'buys'."""
-    if not tf:
-        return {}
-    vals: dict[str, list[float]] = defaultdict(list)
-    for _, side, entry in trade_entries(directory):
-        price = entry.get("price")
-        price = price.get("avg") if isinstance(price, dict) else price
-        if not isinstance(price, (int, float)):
-            continue
-        n = float(entry.get("stacksize") or 1)
-        per_item = float(price) / max(n, 1.0)
-        if side == "selling":
-            vals[_full_code(entry["code"])].append(per_item * float(tf["sells"]))
-        else:
-            vals[_full_code(entry["code"])].append(per_item / BUY_SPREAD * float(tf["buys"]))
-    return {c: sum(v) / len(v) for c, v in vals.items()}
-
-
 # ------------------------------------------------------------------ solving
 
 
@@ -367,35 +356,74 @@ class Valuation:
     route: dict[str, Route]
     routes_by_output: dict[str, list[Route]]
     passes: int
+    # Codes whose value exists only with these seraphhorizons config switches on (sorted).
+    switches: dict[str, list[str]] = field(default_factory=dict)
 
 
-def route_cost(route: Route, value: dict[str, float], rules: Rules, wait_for: set[str] | None = None) -> float | None:
-    """Gears per output item, or None while a consumed slot has no valued alternative (or, with
-    wait_for, a tool slot has none yet although one of its alternatives will get one)."""
+def route_eval(route: Route, value: dict[str, float], rules: Rules,
+               wait_for: set[str] | None = None, hint: dict[str, float] | None = None,
+               hint_byproducts: bool = False) -> tuple[float, list[str]] | None:
+    """Gears per output item and the codes the price was made of (each slot's cheapest stack, the
+    returned containers and the credited byproducts), or None while a consumed slot has no valued
+    alternative (or, with wait_for, a tool slot or a byproduct has none yet although it will get
+    one). A tool not valued yet takes its `hint` value (the first pass's) instead of waiting, and
+    so does a byproduct with `hint_byproducts`.
+
+        (consumed x (1 + pct) + flat + tools x toolFraction - byproducts) / quantity, at least 0
+
+    where a byproduct is each other output of the batch at its value times its expected items (a
+    lottery's losers)."""
     total = 0.0
     tools = 0.0
+    picks: list[str] = []
     for slot in route.slots:
-        if slot.free:
-            continue
         best = None
+        pick = None
         for code, n in slot.alternatives:
             v = value.get(code)
             if v is not None and (best is None or v * n < best):
-                best = v * n
+                best, pick = v * n, code
         if not slot.consumed:
+            if best is None and hint:
+                for code, n in slot.alternatives:
+                    v = hint.get(code)
+                    if v is not None and (best is None or v * n < best):
+                        best, pick = v * n, code
             if best is None and wait_for and any(code in wait_for for code, _ in slot.alternatives):
                 return None
             tools += best or 0.0
+            if pick is not None:
+                picks.append(pick)
             continue
         if best is None:
             return None
+        picks.append(pick)
         if slot.returned:
             rv = value.get(slot.returned[0])
             if rv is not None:
                 best = max(best - rv * slot.returned[1], 0.0)
+                picks.append(slot.returned[0])
         total += best
+    credit = 0.0
+    for code, n in route.byproducts:
+        v = value.get(code)
+        if v is None and hint_byproducts and hint:
+            v = hint.get(code)
+        if v is None:
+            if wait_for and code in wait_for:
+                return None
+            continue
+        credit += v * n
+        picks.append(code)
     pct, flat = rules.markup(route.kind)
-    return (total * (1 + pct) + flat + tools * rules.tool_fraction) / max(route.quantity, EPS)
+    cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / max(route.quantity, EPS)
+    return max(cost, 0.0), picks
+
+
+def route_cost(route: Route, value: dict[str, float], rules: Rules, wait_for: set[str] | None = None) -> float | None:
+    """Gears per output item (route_eval), or None while the route cannot be priced."""
+    got = route_eval(route, value, rules, wait_for)
+    return None if got is None else got[0]
 
 
 class Siblings:
@@ -431,7 +459,9 @@ class Siblings:
         return sum(vals) / len(vals), pattern, len(vals)
 
 
-def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: dict[str, str], rules: Rules) -> tuple[dict[str, float], dict[str, str], dict[str, Route], int]:
+def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: dict[str, str], rules: Rules,
+            picks: dict[str, list[str]] | None = None, hint: dict[str, float] | None = None,
+            ) -> tuple[dict[str, float], dict[str, str], dict[str, Route], int]:
     """Knuth's generalisation of Dijkstra: settle items cheapest first, each at its cheapest route over
     items already settled. A settled value never drops again, so a cycle that makes more than it
     consumes (two linen -> four sails -> eight linen) cannot pull prices down: the sail is priced
@@ -444,6 +474,10 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
         for slot in rt.slots:
             for code, _ in slot.alternatives:
                 uses[code].append(i)
+            if slot.returned:
+                uses[slot.returned[0]].append(i)
+        for code, _ in rt.byproducts:
+            uses[code].append(i)
     # What will get a value at all, so a route waits for its tools to be priced (a hammer is) but
     # not for a tool nothing prices.
     reachable = set(value)
@@ -455,34 +489,53 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
                     not slot.consumed or any(c in reachable for c, _ in slot.alternatives) for slot in rt.slots):
                 reachable.add(rt.output)
                 grew = True
-    tentative: dict[str, tuple[float, int]] = {}
+    tentative: dict[str, tuple[float, int, list[str]]] = {}
     heap: list[tuple[float, str, int]] = []
+    picks = {} if picks is None else picks
 
-    def consider(i: int) -> None:
+    def consider(i: int, wait: set[str] | None) -> None:
         rt = routes[i]
         if rt.output in value:
             return
-        cost = route_cost(rt, value, rules, reachable)
-        if cost is None:
+        got = route_eval(rt, value, rules, wait, hint)
+        if got is None:
             return
+        cost, used = got
         cur = tentative.get(rt.output)
         if cur is None or cost < cur[0] - EPS * max(1.0, cur[0]):
-            tentative[rt.output] = (cost, i)
+            tentative[rt.output] = (cost, i, used)
             heapq.heappush(heap, (cost, rt.output, i))
 
-    for i in range(len(routes)):
-        consider(i)
     settled = 0
-    while heap:
-        cost, code, i = heapq.heappop(heap)
-        if code in value or tentative.get(code, (None, None))[1] != i or tentative[code][0] != cost:
-            continue
-        value[code] = cost
-        source[code] = routes[i].recipe
-        best_route[code] = routes[i]
-        settled += 1
-        for j in uses.get(code, ()):
-            consider(j)
+    for i in range(len(routes)):
+        consider(i, reachable)
+    while True:
+        while heap:
+            cost, code, i = heapq.heappop(heap)
+            if code in value or tentative.get(code, (None, None))[1] != i or tentative[code][0] != cost:
+                continue
+            value[code] = cost
+            source[code] = routes[i].recipe
+            best_route[code] = routes[i]
+            picks[code] = tentative[code][2]
+            settled += 1
+            for j in uses.get(code, ()):
+                consider(j, reachable)
+        # A knot: routes that wait on each other (a tool or a byproduct made only through the item
+        # that waits for it) never settle. Settle the cheapest of them without waiting, then wait
+        # again for the rest.
+        knot = None
+        for i, rt in enumerate(routes):
+            if rt.output in value:
+                continue
+            got = route_eval(rt, value, rules, None, hint, True)
+            if got is not None and (knot is None or got[0] < knot[0]):
+                knot = (got[0], i, got[1])
+        if knot is None:
+            break
+        cost, i, used = knot
+        tentative[routes[i].output] = (cost, i, used)
+        heapq.heappush(heap, (cost, routes[i].output, i))
     return value, source, best_route, settled
 
 
@@ -497,12 +550,13 @@ def solve(export: dict, rules: Rules) -> Valuation:
     value: dict[str, float] = {}
     source: dict[str, str] = {}
     ores = ore_raws(export, rules)
+    # Schematics are worth nothing and never priced: kept tools that add nothing (routes_from_recipes).
+    schematic = {code for code in items if rules.is_schematic(code)}
     for code in items:
+        if code in schematic:
+            continue
         if code in rules.overrides:
             value[code], source[code] = rules.overrides[code], "override"
-            continue
-        if code in rules.pack_trade and rules.is_schematic(code):
-            value[code], source[code] = rules.pack_trade[code], "schematic:trade lists"
             continue
         raw = (rules.raws[code], "raw") if code in rules.raws else ores.get(code) or rules.raw_value(code)
         if raw is not None:
@@ -513,33 +567,72 @@ def solve(export: dict, rules: Rules) -> Valuation:
         source.setdefault(code, "override")
     # Leaves nothing makes and nobody priced: a category default when the code says what it is.
     for code in items:
-        if code not in value and code not in by_out and (dv := rules.default_value(code)) is not None:
+        if code not in value and code not in by_out and code not in schematic \
+                and (dv := rules.default_value(code)) is not None:
             value[code], source[code] = dv
 
     # Settled in two layers. The fallbacks of the second, vanilla trader prices of leaves and category
     # defaults of items made only from unpriced things, are guesses, so they only price what the
     # first layer left unpriced and never undercut a production chain (copper buttons a trader
     # sells cheaply do not make copper ingots cheaper).
-    value, source, best_route, settled = _settle(routes, value, source, rules)
-    sibling = Siblings(value)
-    late = 0
-    for code in items:
-        if code in value or code in by_out:
-            continue
-        dv = None
-        if (tv := trader_value(items[code], rules)) is not None:
-            dv = (tv, "default:trader")
-        elif (sv := sibling.average(code)) is not None:
-            dv = (sv[0], f"default:siblings {sv[1]} ({sv[2]})")
-        if dv is not None:
-            value[code], source[code] = dv
-            late += 1
-    if late:
-        value, source, more, n = _settle(routes, value, source, rules)
-        best_route.update(more)
-        settled += n
-    passes = settled
-    return Valuation(value, source, best_route, by_out, passes)
+    def layers(hint: dict[str, float] | None):
+        picks: dict[str, list[str]] = {}
+        val, src, best_route, settled = _settle(routes, dict(value), dict(source), rules, picks, hint)
+        sibling = Siblings(val)
+        late = 0
+        for code in items:
+            if code in val or code in by_out or code in schematic:
+                continue
+            dv = None
+            if (tv := trader_value(items[code], rules)) is not None:
+                dv = (tv, "default:trader")
+            elif (sv := sibling.average(code)) is not None:
+                dv = (sv[0], f"default:siblings {sv[1]} ({sv[2]})")
+            if dv is not None:
+                val[code], src[code] = dv
+                late += 1
+        if late:
+            val, src, more, n = _settle(routes, val, src, rules, picks, hint)
+            best_route.update(more)
+            settled += n
+        return val, src, best_route, settled, picks
+
+    # Twice. Settling cheapest first, a route waits for its tools, so one whose tool is worth more
+    # than its output (the gear cutter's frame, 16 gears, cutting a steel gear worth 11) would
+    # only be priced after that output had settled by a dearer route. The second pass starts from
+    # the same raws and takes a tool not yet valued at its first-pass value instead of waiting.
+    first = layers(None)[0]
+    value, source, best_route, settled, picks = layers(first)
+    return Valuation(value, source, best_route, by_out, settled, switch_dependencies(items, value, best_route, picks))
+
+
+def switch_dependencies(items: dict, value: dict[str, float], best_route: dict[str, Route],
+                        picks: dict[str, list[str]]) -> dict[str, list[str]]:
+    """The config switches each value exists by: the switch that adds the item itself
+    (items[code].switch), the one that owns its route's recipe (recipes[i].switch), and every
+    switch of what that route was priced from (its stacks, tools, returned containers and credited
+    byproducts), through the whole chain. `value` is in the order items were valued, and a route is
+    priced mostly from items valued before it, so a pass in that order sees nearly every input
+    first; a tool priced at its first-pass value may come later, so passes repeat until nothing
+    changes."""
+    deps: dict[str, frozenset[str]] = {}
+    changed = True
+    while changed:
+        changed = False
+        for code in value:
+            own = set()
+            if (sw := (items.get(code) or {}).get("switch")):
+                own.add(sw)
+            rt = best_route.get(code)
+            if rt is not None:
+                if rt.switch:
+                    own.add(rt.switch)
+                for c in picks.get(code, ()):
+                    own |= deps.get(c, frozenset())
+            if deps.get(code) != own:
+                deps[code] = frozenset(own)
+                changed = True
+    return {code: sorted(deps[code]) for code in sorted(value) if deps[code]}
 
 
 # ------------------------------------------------------------------ output
@@ -573,6 +666,7 @@ def table(export: dict, val: Valuation) -> dict:
         "pack": {k: pack.get(k) for k in ("id", "version")},
         "values": values,
         "floorZero": zero,
+        "switches": {c: sw for c, sw in val.switches.items() if c in values},
     }
 
 
@@ -587,7 +681,13 @@ def write_table(path: Path, data: dict) -> None:
     lines.append("  },")
     lines.append('  "floorZero": [')
     lines.append(",\n".join(f"    {json.dumps(c)}" for c in data["floorZero"]))
-    lines.append("  ]")
+    lines.append("  ],")
+    if data["switches"]:
+        lines.append('  "switches": {')
+        lines.append(",\n".join(f"    {json.dumps(c)}: {json.dumps(sw)}" for c, sw in data["switches"].items()))
+        lines.append("  }")
+    else:
+        lines.append('  "switches": {}')
     lines.append("}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -612,7 +712,7 @@ def below_ingredients(export: dict, val: Valuation, rules: Rules) -> list[tuple[
                 continue
             pct, flat = rules.markup(rt.kind)
             tools = sum(min((val.value.get(a, 0.0) * n for a, n in s.alternatives), default=0.0)
-                        for s in rt.slots if not s.consumed and not s.free) * rules.tool_fraction
+                        for s in rt.slots if not s.consumed) * rules.tool_fraction
             # Ingredients alone, without the labour markup.
             ing = ((c * rt.quantity - flat - tools) / (1 + pct)) / rt.quantity
             if best is None or ing < best[0]:
@@ -641,7 +741,7 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
     src = Counter()
     for c in priced:
         s = val.source[c]
-        src["override" if s == "override" else s.split(":")[0] if s.startswith(("raw", "default", "schematic")) else "recipe"] += 1
+        src["override" if s == "override" else s.split(":")[0] if s.startswith(("raw", "default")) else "recipe"] += 1
     return {
         "items": len(codes),
         "valued": len(priced),
@@ -694,7 +794,8 @@ def report_markdown(rep: dict, export: dict, val: Valuation, samples: list[str])
 SAMPLES = [
     "game:ingot-copper", "game:pickaxe-tinbronze", "game:bread-spelt-perfect", "game:linen-normal-down",
     "game:plank-oak", "game:glass-plain", "game:leather-normal-plain", "game:gear-rusty",
-    "game:bed-wood-head-north", "game:barrel",
+    "game:bed-wood-head-north", "game:barrel", "seraphhorizons:gear-oiled", "game:metalbit-steel",
+    "seraphhorizons:gear-steel", "seraphhorizons:gear-steel-bare",
 ]
 
 
@@ -718,9 +819,6 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
     pct, flat = rules.markup(rt.kind)
     total = tools = 0.0
     for slot in rt.slots:
-        if slot.free:
-            out.append(f"{pad}  - kept schematic {slot.alternatives[0][0]}: 0 (schematics a recipe keeps add nothing)")
-            continue
         best = None
         for c, n in slot.alternatives:
             cv = val.value.get(c)
@@ -743,8 +841,21 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
             tools += cost
             out.append(f"{pad}  - tool/kept {c}: {cost:.4f} x {rules.tool_fraction} = {cost * rules.tool_fraction:.4f}")
         explain(export, val, rules, c, depth + 2, seen, out, max_depth)
-    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat} + {tools * rules.tool_fraction:.4f}) / {rt.quantity:g} "
-               f"[{rt.kind}] = {(total * (1 + pct) + flat + tools * rules.tool_fraction) / rt.quantity:.4f}")
+    credit = 0.0
+    for c, n in rt.byproducts:
+        cv = val.value.get(c)
+        if cv is None:
+            out.append(f"{pad}  - other outcome {n:g} x {c}: no value, credited 0")
+            continue
+        credit += cv * n
+        out.append(f"{pad}  - other outcome {n:g} x {c} = {cv * n:.4f}, credited")
+    less = f" - {credit:.4f}" if rt.byproducts else ""
+    cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / rt.quantity
+    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat} + {tools * rules.tool_fraction:.4f}{less}) / {rt.quantity:g} "
+               f"[{rt.kind}] = {cost:.4f}" + (" -> 0 (floored)" if cost < 0 else ""))
+    sw = val.switches.get(code)
+    if sw and depth == 0:
+        out.append(f"{pad}  only with switches on: {', '.join(sw)}")
     return out
 
 
@@ -761,45 +872,51 @@ def _lenient_json(text: str):
     return json.loads(text)
 
 
-def _full_code(code: str) -> str:
-    return code if ":" in code else "game:" + code
+@dataclass(frozen=True)
+class TradeEntry:
+    code: str  # with its domain
+    side: str  # "buying" or "selling"
+    player_supplied: bool = False
+    special: bool = False  # a "kind" entry (a map, a lead): a service the list prices itself
+
+    @property
+    def bought(self) -> bool:
+        return self.side == "buying" or (self.side == "selling" and self.player_supplied)
 
 
-def trade_entries(directory: Path):
-    """(file name, "buying" or "selling", entry) for every entry of the trade lists in `directory`
-    (vanilla's format: an entry is an object with a code and a type, price or stacksize)."""
+def trade_list_entries(directory: Path) -> dict[str, list[TradeEntry]]:
+    """Every entry of every trade list file (docs/trading.md, Trade lists), per file name, in file
+    order. Missing folder: none."""
+    found: dict[str, list[TradeEntry]] = {}
     if not directory.is_dir():
-        return
+        return found
 
-    def walk(node, side):
+    def walk(node, side, acc):
         if isinstance(node, dict):
             code = node.get("code")
             if side and isinstance(code, str) and ("type" in node or "price" in node or "stacksize" in node):
-                yield side, node
+                acc.append(TradeEntry(code if ":" in code else "game:" + code, side,
+                                      node.get("playerSupplied") is True, "kind" in node))
             for k, v in node.items():
-                yield from walk(v, side or (k if k in ("buying", "selling") else None))
+                walk(v, side or (k if k in ("buying", "selling") else None), acc)
         elif isinstance(node, list):
             for v in node:
-                yield from walk(v, side)
+                walk(v, side, acc)
 
     for path in sorted(directory.rglob("*.json")):
-        for side, entry in walk(_lenient_json(path.read_text(encoding="utf-8")), None):
-            yield path.name, side, entry
+        acc: list[TradeEntry] = []
+        walk(_lenient_json(path.read_text(encoding="utf-8")), None, acc)
+        found[path.name] = acc
+    return found
 
 
 def trade_list_codes(directory: Path) -> dict[str, list[str]]:
-    """The item codes traders can buy, per trade list file (docs/trading.md, Trade lists): every
-    `buying` entry, and every `selling` entry marked `playerSupplied`, whose stock comes from players
-    selling it to the trader (off its list, at its value, when the buying side does not list it).
-    What a trader only sells is priced by its list and needs no value. Missing folder: none."""
-    acc: dict[str, set[str]] = defaultdict(set)
-    if directory.is_dir():
-        for path in sorted(directory.rglob("*.json")):
-            acc[path.name]  # a list that buys nothing still counts as a list
-    for name, side, entry in trade_entries(directory):
-        if side == "buying" or entry.get("playerSupplied") is True:
-            acc[name].add(_full_code(entry["code"]))
-    return {name: sorted(codes) for name, codes in acc.items()}
+    """The item codes traders can buy, per trade list file: every `buying` entry, and every
+    `selling` entry marked `playerSupplied`, whose stock comes from players selling it to the trader
+    (off its list, at its value, when the buying side does not list it). What a trader only sells
+    is priced by its list and needs no value."""
+    return {name: sorted({e.code for e in entries if e.bought})
+            for name, entries in trade_list_entries(directory).items()}
 
 
 def family_prefixes(code: str):
@@ -814,14 +931,63 @@ def family_prefixes(code: str):
         i = code.rfind("-", 0, i)
 
 
-def check(values: dict[str, float] | set[str], tradelists: Path, what: str = "") -> list[str]:
+def unrouted(export: dict, val: Valuation, rules: Rules, tradelists: Path) -> tuple[list[str], list[str]]:
+    """Dead trade list entries (#506): an item of the export that nothing values (no route makes
+    it, and no raw, override or fallback prices it) and the handbook hides: retired by the pack
+    (Immersive Woodworking's pit saws and blades) or technical. Bought or sold, such an entry comes
+    off the list, even when the item's variant family has a value the mod would fall back to.
+    (What the pack removes outright, Hydrate or Diedrate's tun, is not in the export at all.)
+    Returns (dead entries, entries traders only sell whose item has no value although the handbook
+    shows it: creatures, maps, found goods, priced by their lists). Schematics are worth nothing by
+    rule and traders are their only source, and a special entry (a map, a lead) is a service:
+    neither counts."""
+    dead, sold = [], []
+    items = export["items"]
+    for name, entries in trade_list_entries(tradelists).items():
+        for e in entries:
+            if e.special or "*" in e.code or e.code not in items or e.code in val.value or rules.is_schematic(e.code):
+                continue
+            if items[e.code].get("handbookVisible") is False:
+                dead.append(f"{name}: {e.code} ({'bought' if e.bought else 'sold'}) is retired: hidden from "
+                            f"the handbook and nothing values it; take it off the trade list")
+            elif not e.bought:
+                sold.append(f"{name}: {e.code}")
+    return dead, sold
+
+
+def table_drift(fresh: dict, shipped: dict) -> list[str]:
+    """What differs between a rebuilt table and the shipped one (values, floorZero, switches), one
+    line per code: "code: shipped -> rebuilt"."""
+    lines = []
+    fv, sv = fresh.get("values", {}), shipped.get("values", {})
+    for c in sorted(set(fv) | set(sv)):
+        if fv.get(c) != sv.get(c):
+            lines.append(f"{c}: {sv.get(c, 'no value')} -> {fv.get(c, 'no value')}")
+    fz, sz = set(fresh.get("floorZero", [])), set(shipped.get("floorZero", []))
+    for c in sorted(fz ^ sz):
+        lines.append(f"{c}: floorZero {'added' if c in fz else 'removed'}")
+    fs, ss = fresh.get("switches", {}), shipped.get("switches", {})
+    for c in sorted(set(fs) | set(ss)):
+        if fs.get(c) != ss.get(c):
+            lines.append(f"{c}: switches {ss.get(c, [])} -> {fs.get(c, [])}")
+    return lines
+
+
+DRIFT_SAMPLE = 25
+
+
+def check(values: dict[str, float] | set[str], tradelists: Path, what: str = "",
+          exempt=lambda code: False) -> list[str]:
     """Trade list entries without a value in `values` (derived values, or the shipped table). As the
     mod looks values up (ItemValues.Lookup): a code missing from the table takes its variant family's
-    average, and a code with * the average of what it matches; only a code with neither is missing."""
+    average, and a code with * the average of what it matches; only a code with neither is missing.
+    `exempt` codes (schematics, worth nothing by rule) are bought at their list's price."""
     families = {p for c in values for p in family_prefixes(c)}
     problems = []
     for name, codes in trade_list_codes(tradelists).items():
         for code in codes:
+            if exempt(code):
+                continue
             if "*" in code:
                 if not any(fnmatch.fnmatchcase(c, code) for c in values):
                     problems.append(f"{name}: {code} matches nothing with a value{what}")
@@ -840,9 +1006,6 @@ def main(argv: list[str] | None = None) -> int:
         p = sub.add_parser(name)
         p.add_argument("export", type=Path, help="recipe export (recipes.json)")
         p.add_argument("--rules", type=Path, default=HERE, help="folder with raw-values.json, markups.json, overrides.json")
-        p.add_argument("--gates", type=Path, default=DEFAULT_GATES,
-                       help="schematic-gates.json: its 'sold' schematics are valued from the trade lists, and free when kept")
-        p.add_argument("--tradelists", type=Path, default=DEFAULT_TRADELISTS, help="the pack's trade lists")
         if name == "explain":
             p.add_argument("code")
             p.add_argument("--depth", type=int, default=8)
@@ -852,11 +1015,12 @@ def main(argv: list[str] | None = None) -> int:
         if name == "report":
             p.add_argument("--json", action="store_true", help="the report as JSON")
         if name == "check":
+            p.add_argument("--tradelists", type=Path, default=DEFAULT_TRADELISTS, help="the pack's trade lists")
             p.add_argument("--table", type=Path, default=DEFAULT_OUT, help="the shipped table, checked too")
     args = ap.parse_args(argv)
 
     export = load_json(args.export)
-    rules = Rules.load(args.rules, args.gates, args.tradelists)
+    rules = Rules.load(args.rules)
     val = solve(export, rules)
 
     if args.cmd == "build":
@@ -882,29 +1046,51 @@ def main(argv: list[str] | None = None) -> int:
             for c, rid in costs[:15]:
                 print(f"  {'unpriced' if c is None else f'{c:.4f}'}  {rid}")
     elif args.cmd == "check":
-        problems = check(val.value, args.tradelists)
-        shipped = None
+        # In GitHub Actions a failure's headline is also an error annotation on the run.
+        annotate = "::error::" if os.environ.get("GITHUB_ACTIONS") == "true" else ""
+        failed = False
+        problems = check(val.value, args.tradelists, exempt=rules.is_schematic)
         if args.table.exists():
-            shipped = json.loads(args.table.read_text(encoding="utf-8"))["values"]
-            problems += check(shipped, args.tradelists, " in the shipped table (rebuild it)")
-            fresh = table(export, val)["values"]
-            stale = sum(1 for c in set(fresh) | set(shipped) if fresh.get(c) != shipped.get(c))
-            if stale:
-                print(f"warning: the shipped table differs from this export's values for {stale} codes; "
-                      f"rebuild with 'itemvalues.py build' when that matters", file=sys.stderr)
+            shipped = json.loads(args.table.read_text(encoding="utf-8"))
+            problems += check(shipped["values"], args.tradelists, " in the shipped table", rules.is_schematic)
+            drift = table_drift(table(export, val), shipped)
+            if drift:
+                failed = True
+                try:
+                    shown = args.table.resolve().relative_to(REPO)
+                except ValueError:
+                    shown = args.table
+                print(f"{annotate}the shipped table {shown} is stale: {len(drift)} differences from what "
+                      f"{args.export} derives (shipped -> rebuilt):", file=sys.stderr)
+                for line in drift[:DRIFT_SAMPLE]:
+                    print(f"  {line}", file=sys.stderr)
+                if len(drift) > DRIFT_SAMPLE:
+                    print(f"  ... and {len(drift) - DRIFT_SAMPLE} more", file=sys.stderr)
+                print(f"rebuild it from this export and commit it:\n"
+                      f"  python3 tools/item-values/itemvalues.py build {args.export}\n"
+                      f"(in CI the export is this run's recipe-export artifact; locally "
+                      f"'packtool.py smoke --export build/recipes.json' writes one, see tools/item-values/README.md)",
+                      file=sys.stderr)
         lists = trade_list_codes(args.tradelists)
-        n = sum(len(v) for v in lists.values())
-        distinct = len({c for v in lists.values() for c in v})
-        if not lists:
-            print("no trade lists: nothing to check")
-            return 0
-        print(f"validated {n} trade list items traders buy ({distinct} distinct codes) in {len(lists)} lists")
-        for p in problems:
+        if lists:
+            n = sum(len(v) for v in lists.values())
+            distinct = len({c for v in lists.values() for c in v})
+            print(f"validated {n} trade list items traders buy ({distinct} distinct codes) in {len(lists)} lists")
+        dead, sold_only = unrouted(export, val, rules, args.tradelists)
+        for p in problems + dead:
             print(p, file=sys.stderr)
         if problems:
-            print(f"{len(problems)} trade list entries traders buy lack a value", file=sys.stderr)
+            print(f"{annotate}{len(problems)} trade list entries traders buy lack a value", file=sys.stderr)
+        if dead:
+            print(f"{annotate}{len(dead)} trade list entries name items nothing values (no route)", file=sys.stderr)
+        if failed or problems or dead:
             return 1
-        print("every item traders buy has a value")
+        n = sum(len(v) for v in trade_list_codes(args.tradelists).values())
+        print(f"every item traders buy has a value ({n} entries)" if n else "no trade lists: nothing to check")
+        if sold_only:
+            print(f"{len(sold_only)} entries traders only sell have no value (priced by their lists; fine)")
+        if args.table.exists():
+            print("the shipped table matches this export")
     return 0
 
 

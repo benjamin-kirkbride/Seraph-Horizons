@@ -2,7 +2,9 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { main } from "../src/cli.js";
+import { checkCrossReferences } from "../src/checks.js";
 import { Pipeline } from "../src/pipeline.js";
+import { ErrorReport } from "../src/report.js";
 import { example, EXAMPLE_FILE, tempDir, type Loose } from "./helpers.js";
 
 const pipeline = Pipeline.fromDir();
@@ -58,6 +60,24 @@ describe("validate: cross-references", () => {
     const d = example();
     d.items["examplemod:widget"].mod = "nomod";
     expect(problems(d)).toEqual([["item-mod", "/items/examplemod:widget/mod"]]);
+  });
+
+  it("takes item values, switches and recipe switches, and rejects a negative value", () => {
+    const d = example();
+    expect(d.items["seraphhorizons:gear-steel"].valueSwitches).toEqual(["GearBlanks", "GearCutter"]);
+    d.items["examplemod:widget"].value = -1;
+    expect(problems(d).length).toBeGreaterThan(0);
+    d.items["examplemod:widget"].value = 0;
+    d.items["examplemod:widget"].switch = "not a switch";
+    expect(problems(d).length).toBeGreaterThan(0);
+  });
+
+  it("rejects an item value that is not a finite number", () => {
+    const report = new ErrorReport();
+    const d = example();
+    d.items["examplemod:widget"].value = Number.NaN;
+    checkCrossReferences(d, report);
+    expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["item-value", "/items/examplemod:widget/value"]]);
   });
 
   it("rejects a variant ingredient code that is not an item", () => {

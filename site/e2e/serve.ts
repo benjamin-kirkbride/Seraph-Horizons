@@ -10,7 +10,7 @@ import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { crc32, deflateSync } from "node:zlib";
-import { E2E_VERSIONS, ICON_CODE, PORT, REAL_ICONS, SUB_PATH, NO_ICONS_PATH } from "./config.ts";
+import { E2E_VALUES, E2E_VERSIONS, GEAR_ICON, ICON_CODE, PORT, REAL_ICONS, SUB_PATH, NO_ICONS_PATH } from "./config.ts";
 
 const site = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const work = join(site, "e2e", ".work");
@@ -31,7 +31,7 @@ mkdirSync(work, { recursive: true });
 run([join(site, "node_modules/vite/bin/vite.js"), "build", "--outDir", root, "--emptyOutDir"]);
 // The same export under two version ids, so the version switcher has somewhere to go.
 const [first, ...others] = E2E_VERSIONS;
-run(["--max-old-space-size=6144", "--import", "tsx", "scripts/prepare-data.ts", "--export", resolve(exportPath), "--out", join(root, "data", first!.id)]);
+run(["--max-old-space-size=6144", "--import", "tsx", "scripts/prepare-data.ts", "--export", withValues(resolve(exportPath)), "--out", join(root, "data", first!.id)]);
 for (const v of others) cpSync(join(root, "data", first!.id), join(root, "data", v.id), { recursive: true });
 writeFileSync(join(root, "data", "versions.json"), JSON.stringify({ default: E2E_VERSIONS[0]!.id, versions: E2E_VERSIONS }));
 
@@ -45,7 +45,7 @@ function addIcon(code: string, png: Buffer) {
   iconIndex[code] = hash;
 }
 addIcon(ICON_CODE, solidPng(8, 8, [0xb8, 0x73, 0x33]));
-for (const [code, file] of Object.entries(REAL_ICONS)) addIcon(code, readFileSync(join(site, "e2e", "icons", file)));
+for (const [code, file] of Object.entries({ ...REAL_ICONS, [GEAR_ICON.code]: GEAR_ICON.file })) addIcon(code, readFileSync(join(site, "e2e", "icons", file)));
 writeFileSync(join(root, "icons", "index.json"), JSON.stringify({ schemaVersion: 1, size: 64, icons: iconIndex }));
 
 const types: Record<string, string> = {
@@ -85,6 +85,29 @@ createServer((req, res) => {
 }).listen(PORT, "127.0.0.1", () => {
   console.log(`serving ${root} at http://127.0.0.1:${PORT}${SUB_PATH}`);
 });
+
+/** A copy of the export with E2E_VALUES, and made-up values when it has none of its own. */
+function withValues(path: string): string {
+  type Item = { value?: number; floorZero?: boolean };
+  const exp = JSON.parse(readFileSync(path, "utf8")) as { items: Record<string, Item> };
+  const items = Object.entries(exp.items);
+  if (!items.some(([, item]) => typeof item.value === "number")) {
+    for (const [code, item] of items) {
+      const h = createHash("sha256").update(code).digest().readUInt32BE(0);
+      if (h % 10 !== 0) item.value = (h % 5_000_000) / 1000;
+    }
+  }
+  for (const [code, fixed] of Object.entries(E2E_VALUES)) {
+    const item = exp.items[code];
+    if (!item) throw new Error(`${code} is not in the export; e2e/config.ts E2E_VALUES needs it`);
+    delete item.value;
+    delete item.floorZero;
+    if (fixed) Object.assign(item, fixed);
+  }
+  const out = join(work, "export-with-values.json");
+  writeFileSync(out, JSON.stringify(exp));
+  return out;
+}
 
 function solidPng(w: number, h: number, rgb: [number, number, number]): Buffer {
   const chunk = (type: string, body: Buffer) => {

@@ -38,6 +38,31 @@ An attribute that does not apply is left out. A stick has no `toolTier`.
 `sources` lists ways to get the item other than a recipe: block drops, entity drops and
 trader stock. Much of this is driven by code in the game, so the list is best effort.
 
+### Values and switches
+
+Four optional fields come from the pack's own mod (`seraphhorizons`, #506, #523); without it
+they are all absent, which is valid. They are optional additions, so `schemaVersion` stayed 1.
+
+- `value`: the item's base value in rusty gears (a rusty gear is 1), the table
+  `seraphhorizons:config/item-values.json`'s `values[code]`, as loaded by the server. Only a
+  value of the code's own: the mod's family fallback (a missing variant priced as the average
+  of its family) is not exported, so an item without one has no `value`.
+- `floorZero`: `true` when the table lists the code as worth under a gear per full stack
+  (traders take it for nothing). Present only then, and only with a `value`.
+- `valueSwitches`: the table's `switches[code]`, the config switches the value exists only
+  with, because its cheapest route takes a recipe or an item one of them adds. With any of
+  them off, the handbook shows "No trade value". The value itself is always the one for the
+  default config.
+- `switch`: the config switch that adds the item itself (the gear cutter's blocks and parts,
+  the gear blanks and their molds, the pickling tub, the bare steel gear, the debarked trunks,
+  ...). With it off the item does not exist.
+
+Recipes have `switch` too: the switch that adds the recipe (its file is one the switch leaves
+out when off, its type is one only that feature has, such as `picklingtub`, `lottery` and
+`gearcutter`, or it is keyed by an item the switch adds, such as the bare steel gear's flash
+rust). Which switch owns what is the mod's switch ownership registry (its README, "Switch
+ownership"), read by reflection. A switch is named as in `ModConfig/seraphhorizons.json`.
+
 ## Recipes
 
 A recipe record describes the **definition**, as the mod author wrote it, and lists the
@@ -198,6 +223,7 @@ shape it has no layout for.
 - Every `mod` on an item or recipe is a key of `mods`.
 - Every code in a variant is a key of `items`.
 - Recipe ids are unique and sorted by UTF-16 code unit (ordinal order).
+- An item's `value` is a finite number, 0 or more.
 - `variants[].ingredients` is as long as `ingredients`.
 - A grid pattern has `height` rows of `width` characters and uses only keys that exist.
 - Each ingredient of a `construction` record is consumed by exactly one stage.

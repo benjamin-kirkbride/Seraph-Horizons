@@ -15,7 +15,7 @@
     "seraphhorizons": { "name": "Seraph Horizons", "version": "1.0.0", "authors": ["Benjamin Kirkbride"] }
   },
   "items": {
-    "game:plank-oak": { "kind": "item", "name": "Oak plank", "mod": "game", "handbookVisible": true },
+    "game:plank-oak": { "kind": "item", "name": "Oak plank", "mod": "game", "handbookVisible": true, "value": 0.01, "floorZero": true },
     "game:plank-birch": { "kind": "item", "name": "Birch plank", "mod": "game", "handbookVisible": true },
     "game:stick": {
       "kind": "item",
@@ -74,19 +74,34 @@
     "seraphhorizons:toolmold-black-fired-gearblank": { "kind": "block", "name": "Gear blank mold", "mod": "seraphhorizons", "handbookVisible": true },
     "seraphhorizons:toolmold-blue-fired-gearblank": { "kind": "block", "name": "Gear blank mold", "mod": "seraphhorizons", "handbookVisible": true },
     "game:ingot-steel": { "kind": "item", "name": "Steel ingot", "mod": "game", "handbookVisible": true },
-    "seraphhorizons:gearblank-steel": { "kind": "item", "name": "Steel gear blank", "mod": "seraphhorizons", "handbookVisible": true },
+    "seraphhorizons:gearblank-steel": {
+      "kind": "item",
+      "name": "Steel gear blank",
+      "mod": "seraphhorizons",
+      "handbookVisible": true,
+      "value": 6.5,
+      "valueSwitches": ["GearBlanks"],
+      "switch": "GearBlanks"
+    },
     "game:gear-temporal": { "kind": "item", "name": "Temporal gear", "mod": "game", "handbookVisible": true },
     "seraphhorizons:gearcutterkit-steel": { "kind": "item", "name": "Steel cutter kit", "mod": "seraphhorizons", "handbookVisible": true },
     "game:oilportion-flax": { "kind": "item", "name": "Flax oil", "mod": "game", "handbookVisible": true },
     "game:fat-rendered": { "kind": "item", "name": "Tallow", "mod": "game", "handbookVisible": true },
-    "seraphhorizons:gearcutter-frame-north": { "kind": "block", "name": "Gear cutter frame", "mod": "seraphhorizons", "handbookVisible": true },
-    "seraphhorizons:gear-steel": { "kind": "item", "name": "Steel gear", "mod": "seraphhorizons", "handbookVisible": true },
+    "seraphhorizons:gearcutter-frame-north": { "kind": "block", "name": "Gear cutter frame", "mod": "seraphhorizons", "handbookVisible": true, "switch": "GearCutter" },
+    "seraphhorizons:gear-steel": {
+      "kind": "item",
+      "name": "Steel gear",
+      "mod": "seraphhorizons",
+      "handbookVisible": true,
+      "value": 9.25,
+      "valueSwitches": ["GearBlanks", "GearCutter"]
+    },
     "seraphhorizons:gear-oiled": { "kind": "item", "name": "Oiled gear", "mod": "seraphhorizons", "handbookVisible": true },
     "game:metalbit-steel": { "kind": "item", "name": "Steel bits", "mod": "game", "handbookVisible": true },
     "seraphhorizons:gear-degreased": { "kind": "item", "name": "Degreased rusty gear", "mod": "seraphhorizons", "handbookVisible": true },
     "seraphhorizons:gear-pickled": { "kind": "item", "name": "Pickled gear", "mod": "seraphhorizons", "handbookVisible": true },
     "game:vinegarportion": { "kind": "item", "name": "Vinegar", "mod": "game", "handbookVisible": true },
-    "seraphhorizons:picklingtub": { "kind": "block", "name": "Pickling tub", "mod": "seraphhorizons", "handbookVisible": true }
+    "seraphhorizons:picklingtub": { "kind": "block", "name": "Pickling tub", "mod": "seraphhorizons", "handbookVisible": true, "switch": "GearReclamation" }
   },
   "recipes": [
     {
@@ -249,6 +264,7 @@
       "id": "casting|seraphhorizons:toolmold-black-fired-gearblank|0",
       "type": "casting",
       "mod": "seraphhorizons",
+      "switch": "GearBlanks",
       "ingredients": [
         {
           "code": "seraphhorizons:toolmold-*-fired-gearblank",
@@ -393,6 +409,7 @@
       "id": "gearcutter|seraphhorizons:gearblank-steel|0",
       "type": "gearcutter",
       "mod": "seraphhorizons",
+      "switch": "GearCutter",
       "ingredients": [
         {
           "code": "seraphhorizons:gearblank-steel",
@@ -563,6 +580,7 @@
       "id": "lottery|seraphhorizons:gear-oiled|0",
       "type": "lottery",
       "mod": "seraphhorizons",
+      "switch": "GearReclamation",
       "ingredients": [
         {
           "code": "seraphhorizons:gear-oiled",
@@ -629,6 +647,7 @@
       "id": "picklingtub|seraphhorizons:gear-degreased|game:vinegarportion",
       "type": "picklingtub",
       "mod": "seraphhorizons",
+      "switch": "GearReclamation",
       "ingredients": [
         {
           "code": "seraphhorizons:gear-degreased",
