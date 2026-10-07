@@ -2,8 +2,8 @@
 
   <!-- Client and server mod holding the pack's own tweaks (README.md here): gameplay tweaks to
        other mods, and Tidy Variants (TidyVariants/), the creative inventory and handbook variant
-       grouping. Built from this repo, uploaded to the ModDB by hand, and pinned in pack.toml like
-       any other mod. Atlas scenarios load this build instead of the pinned copy.
+       grouping. Built from this repo and released with the pack, at the pack's version
+       (release.yml), never pinned in pack.toml. Atlas scenarios load this build.
 
        Layout: the top level holds the tweaks to other mods; TidyVariants/Core/ is Tidy Variants'
        game-independent rule engine (BCL only; its unit tests in tests/ are their own project and
@@ -37,7 +37,7 @@
   </ItemGroup>
 
   <!-- Only the game's own assemblies are referenced, so the mod builds from the game alone
-       (mod-release.yml needs nothing else). The tweaked mods are not referenced: each tweak finds
+       (release.yml needs nothing else). The tweaked mods are not referenced: each tweak finds
        its targets by name at run time, and one whose mod is missing or changed is skipped with a
        warning. -->
   <ItemGroup>
@@ -88,6 +88,9 @@
       <Private>false</Private>
     </Reference>
     <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Pack version check (PackCheck/): the pack this build is released with, as packtool lock
+         wrote it. Inside the DLL, so it cannot drift from the build. -->
+    <EmbeddedResource Include="../../pack/lock.json" LogicalName="seraphhorizons.pack-lock.json" />
     <!-- In the output folder too, so the build Atlas loads has its lang and config files. -->
     <None Update="assets/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

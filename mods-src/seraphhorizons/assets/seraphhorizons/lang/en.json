@@ -1255,5 +1255,16 @@
   "gearcutter-handbook-oil-title": "Oil and wear",
   "gearcutter-handbook-oil-text": "The cutter has an oil tank like the other heavy machines (see <a href=\"handbook://seraphhorizons-machineoil\">Oiling machines</a>): <hk>rightmouse</hk> with oil fills it, and the glass on the overarm shows its level. Each small gear uses 10 points of oil, a large one 20. Dry or oiled it takes the same power: the oil goes on the cutter, sprayed from the injection valve.\n\nThe cutter kit loses 10 points a small gear with a full tank, more as the tank runs down: twice as much at half full, ten times at a tenth, and a large gear wears it 20/12 as much. With no oil at all, the gear being cut breaks the kit. A spent kit stops the machine until a new kit is fitted. Look at the cutter to see the wear and the kit's life. These figures are the defaults of GearCutterSettings and MachineOilSettings in ModConfig/seraphhorizons.json.",
   "seraphhorizons:item-handbooktext-seraphhorizons:gearcutterspindle": "Made in the crafting grid from a steel rod above a steel plate above iron nails and strips.",
-  "seraphhorizons:item-handbooktext-seraphhorizons:gearcutterindex": "Made in the crafting grid from a steel rod, a steel plate and iron nails and strips laid in a row."
+  "seraphhorizons:item-handbooktext-seraphhorizons:gearcutterindex": "Made in the crafting grid from a steel rod, a steel plate and iron nails and strips laid in a row.",
+  "packcheck-title": "Seraph Horizons: your mods differ from the pack",
+  "packcheck-intro": "This install does not match Seraph Horizons {0} (game {1}), the release this copy of the Seraph Horizons mod came with. The pack is tested only as released: install that release again, or the release that matches your game, to be safe. This list goes away once the install matches.",
+  "packcheck-game": "Game: expected {0}, found {1}",
+  "packcheck-own": "{0} (the pack's own mod): expected {1}, found {2}",
+  "packcheck-wrongversion": "{0}: expected {1}, found {2}",
+  "packcheck-missing": "{0}: expected {1}, missing",
+  "packcheck-notinpack": "{0} {1}: not in the pack",
+  "packcheck-close": "Close",
+  "packcheck-dismiss": "Don't show again until this changes",
+  "packcheck-chat-header": "This server's mods differ from Seraph Horizons {0} (game {1}) in {2} way(s):",
+  "packcheck-chat-footer": "The same is in the server log. PackVersionCheck in ModConfig/seraphhorizons.json turns this off."
 }
