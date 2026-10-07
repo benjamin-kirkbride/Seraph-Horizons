@@ -1242,9 +1242,10 @@ trunks are never items in an inventory. A felled tree leaves a trunk entity lyin
 (`seraphhorizons:trunk-thin` or `-thick`, shown, boxed and selected as the machines show trunks:
 Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
 holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is shoved by
-walking into it. Hold right-click on it with an empty hand to drag it after you on a rope the game
-pulls (a heavier trunk follows more slowly; the grab lets go when the button does, or beyond 3
-blocks), or tie a rope to it as to any rope-tieable entity. A knife, shears, an axe or a saw held on
+walking into it. Hold right-click on it with an empty hand to drag it by that end after you, no
+rope involved (you walk at the trunk's pace, slower the heavier it is, and it steps up one block;
+the grab lets go when the button does, or beyond 3 blocks), or tie a rope to it as to any
+rope-tieable entity, where it pulls from the nearer end. Both are far easier in water. A knife, shears, an axe or a saw held on
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
 debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
 trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
