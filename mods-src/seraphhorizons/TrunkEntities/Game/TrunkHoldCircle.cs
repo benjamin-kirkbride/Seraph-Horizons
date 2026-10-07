@@ -8,11 +8,12 @@ using Vintagestory.API.MathTools;
 namespace SeraphHorizons.Mod.TrunkEntities;
 
 /// <summary>
-/// Client side: Carry On's filling circle for the trunk pick-up holds, off the ground and off a
-/// Trunk Storage Rack. Both are timed on the server (<see cref="EntityBehaviorTrunkCarry"/>,
-/// <see cref="RackTake"/>), which sends nothing back, so the client counts the same hold itself
-/// (<see cref="HoldProgress"/>) under the same conditions: right button pressed and held on a
-/// trunk entity while sneaking, or on a rack holding a trunk; both hands empty, nothing carried,
+/// Client side: Carry On's filling circle for the trunk pick-up holds, off the ground and off
+/// Logging Expanded's stations (sawhorses, Trunk Storage Rack, heating rack). Both are timed on the
+/// server (<see cref="EntityBehaviorTrunkCarry"/>, <see cref="StationTake"/>), which sends nothing
+/// back, so the client counts the same hold itself (<see cref="HoldProgress"/>) under the same
+/// conditions: right button pressed and held on a trunk entity while sneaking, or on a station
+/// holding a trunk (<see cref="TrunkStations.Offer"/>); both hands empty, nothing carried,
 /// within reach; for <see cref="TrunkCarry.PickUpSeconds"/>. It shows it on Carry On's own
 /// <c>HudOverlayRenderer</c> (<c>CarrySystem.HudOverlayRenderer</c>: <c>CircleProgress</c>,
 /// <c>CircleVisible</c>), the circle Carry On's own pick-up and put-down fill, so the two look the
@@ -62,25 +63,21 @@ public sealed class TrunkHoldCircle : IDisposable
     }
 
     /// <summary>What a right-click hold now would take, and its length: a trunk entity looked at
-    /// while sneaking (its id), or a Trunk Storage Rack holding a trunk (<see cref="RackTarget"/>
-    /// of its cell); null for neither, or out of reach.</summary>
+    /// while sneaking (its id), or a station holding a trunk (<see cref="StationTarget"/> of its
+    /// cell); null for neither, or out of reach.</summary>
     private (long Target, float Seconds)? Target(IClientPlayer player, EntityPlayer by)
     {
         if (player.CurrentEntitySelection?.Entity is EntityTrunk { Alive: true, Trunk: { } stack } trunk)
             return (by.Controls.ShiftKey || by.Controls.Sneak) && by.Pos.DistanceTo(trunk.Pos) <= Reach
                 ? (trunk.EntityId, TrunkCarry.PickUpSeconds(_api, stack.Block)) : null;
-        if (player.CurrentBlockSelection?.Position is not { } pos || TrunkEntitySystem.Of(_api).Logging is not { } logging)
+        if (player.CurrentBlockSelection?.Position is not { } pos || by.Pos.DistanceTo(pos.ToVec3d().Add(0.5, 0.5, 0.5)) > Reach
+            || TrunkStations.Offer(_api.World, pos) is not { } offer)
             return null;
-        var be = _api.World.BlockAccessor.GetBlockEntity(pos);
-        if (!logging.IsRack(be) || logging.TrunkCount(be!) <= 0 || by.Pos.DistanceTo(pos.ToVec3d().Add(0.5, 0.5, 0.5)) > Reach)
-            return null;
-        var top = logging.PeekTrunk(be!);
-        top?.ResolveBlockOrItem(_api.World);
-        return (RackTarget(pos), TrunkCarry.PickUpSeconds(_api, top?.Block));
+        return (StationTarget(pos), TrunkCarry.PickUpSeconds(_api, offer.Block));
     }
 
-    /// <summary>A hold target for a rack's cell, never an entity id (those are positive).</summary>
-    private static long RackTarget(BlockPos pos) => -1 - (((long)pos.X & 0xFFFFFF) << 32 | ((long)pos.Z & 0xFFFFFF) << 8 | ((long)pos.Y & 0xFF));
+    /// <summary>A hold target for a station's cell, never an entity id (those are positive).</summary>
+    private static long StationTarget(BlockPos pos) => -1 - (((long)pos.X & 0xFFFFFF) << 32 | ((long)pos.Z & 0xFFFFFF) << 8 | ((long)pos.Y & 0xFF));
 
     private void Show(float fraction)
     {
