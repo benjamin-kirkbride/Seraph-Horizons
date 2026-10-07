@@ -78,7 +78,8 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
         output.WriteLine($"offer for iron at the general store: {before}");
         Assert.True(before.Accepted, before.Refusal.ToString());
         Assert.Equal(Budget.Side, before.Budget);
-        Assert.Equal(0.2, before.Fit, 3);
+        Assert.Equal(0.5, before.Fit, 3);
+        Assert.Equal(Pricing.DefaultBuySpread, before.Spread, 3);
         Assert.True(before.UnitPrice > 0);
         Assert.True(inv.IsTraderInterestedIn(ingots), "the selling cart would not take an off-list good");
         Assert.Contains("side budget", EconomyPatches.Describe(inv, ingots));
@@ -170,13 +171,20 @@ public class TradingEconomyScenarios(ITestOutputHelper output) : AtlasScenarioBa
         var buying = inv.GetBuyingConditionsSlot(Stack(Iron, 1));
         Assert.True(buying is not null and not OffListSlot, "the smith does not list iron");
         int price = buying!.TradeItem.Price, budget = EconomySystem.SideBudgetOf(smith);
+        // Per item: a cheaper price may buy by a bigger unit (Pricing.Listed).
+        static double PerItemOf(ItemSlotTrade slot) => slot.TradeItem.Price / (double)Math.Max(1, slot.TradeItem.Stack.StackSize);
+        double perItem = PerItemOf(buying);
         inv.GetSellingCartSlot(0).Itemstack = Stack(Iron, 8);
         Assert.Equal(EnumTransactionResult.Success, Deal(inv, player));
         Assert.Equal(budget, EconomySystem.SideBudgetOf(smith));
         double level = Economy.Supply.Level(region, Iron);
-        output.WriteLine($"sold 8 iron at {price}: level {level:0.###}; buying price now {inv.GetBuyingConditionsSlot(Stack(Iron, 1))!.TradeItem.Price}");
+        var now = inv.GetBuyingConditionsSlot(Stack(Iron, 1))!;
+        output.WriteLine($"sold 8 iron at {price}: level {level:0.###}; buying price now {now.TradeItem.Price} per {now.TradeItem.Stack.StackSize}");
         Assert.True(level >= Economy.Supply.Settings.ShelfMinLevel, $"level {level}");
-        Assert.True(inv.GetBuyingConditionsSlot(Stack(Iron, 1))!.TradeItem.Price < price, "the listed price did not fall");
+        // The pay is a fifth of value, a gear or so an ingot, so whole gears may hide the fall: the
+        // factor shows it, and the price per item never rises.
+        Assert.True(EconomySystem.SupplyFactor(smith, Iron) < 1, "the listed price did not fall");
+        Assert.True(PerItemOf(now) <= perItem, $"{PerItemOf(now)} an ingot is over {perItem}");
 
         smith.Restock(1.1f);
         var shelf = inv.SellingSlots.FirstOrDefault(s => s.Itemstack?.Collectible.Code.ToString() == Iron);
