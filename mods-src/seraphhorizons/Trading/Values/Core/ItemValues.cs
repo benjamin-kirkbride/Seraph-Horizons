@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -35,6 +36,10 @@ public readonly record struct ValueLookup(string Code, double Value, bool FloorZ
 /// axes). A family must keep at least the first segment of the path, so <c>game:plank-oak</c>
 /// never averages over everything in <c>game:</c>. A code with <c>*</c> averages every table code
 /// it matches.
+///
+/// A table never changes once built (a new asset load builds a new one), so each table caches its
+/// wildcard answers: <c>/sh trade values suspicious</c> looks up the same few hundred patterns for
+/// some 80,000 grid recipes, and each uncached one scans every table code.
 /// </summary>
 public sealed class ItemValues
 {
@@ -42,6 +47,8 @@ public sealed class ItemValues
     private readonly HashSet<string> _floorZero;
     // Family prefix ("game:plank-") -> (sum, count, zeroed members).
     private readonly Dictionary<string, (double Sum, int Count, int Zero)> _families = new(StringComparer.Ordinal);
+    // Normalised wildcard pattern -> its answer. Sound only because the table is immutable.
+    private readonly ConcurrentDictionary<string, ValueLookup> _wildcards = new(StringComparer.Ordinal);
 
     public static readonly ItemValues Empty = new(new Dictionary<string, double>(), []);
 
@@ -75,7 +82,7 @@ public sealed class ItemValues
     {
         code = code.ToLowerInvariant();
         if (!code.Contains(':')) code = "game:" + code;
-        if (code.Contains('*')) return Wildcard(code);
+        if (code.Contains('*')) return _wildcards.GetOrAdd(code, WildcardUncached);
         if (_values.TryGetValue(code, out var v))
             return new ValueLookup(code, v, _floorZero.Contains(code), ValueSource.Direct, null, 1);
         foreach (var prefix in FamilyPrefixes(code))
@@ -84,14 +91,18 @@ public sealed class ItemValues
         return new ValueLookup(code, 0, false, ValueSource.Missing, null, 0);
     }
 
-    private ValueLookup Wildcard(string pattern)
+    /// <summary>A wildcard's answer, computed afresh, without the cache (internal for its tests).</summary>
+    internal ValueLookup WildcardUncached(string pattern)
     {
         var rx = new Regex("^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$", RegexOptions.CultureInvariant);
+        // The text before the first '*' and after the last must match literally: a cheap filter
+        // before the regex, which still decides.
+        string head = pattern[..pattern.IndexOf('*')], tail = pattern[(pattern.LastIndexOf('*') + 1)..];
         double sum = 0;
         int n = 0, zero = 0;
         foreach (var (code, value) in _values)
         {
-            if (!rx.IsMatch(code)) continue;
+            if (!code.StartsWith(head, StringComparison.Ordinal) || !code.EndsWith(tail, StringComparison.Ordinal) || !rx.IsMatch(code)) continue;
             sum += value;
             n++;
             if (_floorZero.Contains(code)) zero++;

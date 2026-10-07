@@ -7,11 +7,13 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// The scenarios that need nothing but the pack's plain world (<c>[AtlasWorld]</c>, no data files),
 /// one partial file per feature: PackLoad, BetterRuins, HydrationCoverage, SeraphHorizonsMod, Tun,
-/// IrrigationVessel, BloodSausage, DuplicateRecipes, BarrelRackKegs, AgeOfFlaxRebalance, CreativeModTabs, MapReveal, GearboxSourceRatio (each
+/// IrrigationVessel, BloodSausage, DuplicateRecipes, BarrelRackKegs, AgeOfFlaxRebalance, CreativeModTabs, MapReveal, GearboxSourceRatio, TrunkTool (each
 /// <c>*Scenarios.cs</c>). Atlas boots one server per scenario class, about 30 s each in CI, so these
 /// share a single boot. A new feature that needs only the plain world adds a partial file of this
 /// class instead of a class of its own; a class of its own is for a different world (a play style,
 /// ModConfig fixtures: <see cref="ClearCommandScenarios"/>, <see cref="SwitchesOffScenarios"/>).
+/// Nothing here builds the recipe export (a minute and more): what a feature checks in it goes in
+/// <see cref="RecipeExportScenarios"/>, which builds it anyway.
 /// <para>Every scenario shares the world with every other, in no set order, so each one: builds at
 /// its own offsets from <c>World.Spawn</c> (pick ones no file here uses, keeping clear of their
 /// rooms and of where their items fall); joins players under names of its own (16 at most per

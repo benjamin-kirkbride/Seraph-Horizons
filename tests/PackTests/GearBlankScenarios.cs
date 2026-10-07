@@ -1,6 +1,5 @@
 using Atlas.Api;
 using Atlas.XUnit;
-using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.Gears;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -268,37 +267,5 @@ public partial class SharedWorldScenarios
         Assert.True(Hammer(), "the large blank did not finish from two ingots");
         await World.Ticks(2);
         Assert.Contains(Dropped(), s => s.Collectible.Code.ToString() == GearBlanks.LargeBlank);
-    }
-
-    // The export has both routes: the molds' clay-forming recipes and the raw mold's firing to the
-    // fired one (the casting itself is the fired mold's drop, which the export does not model for any
-    // mold; the blank's description says it), and the two smithing recipes.
-    [AtlasScenario(TimeoutMs = 900_000)]
-    public void Gear_blank_routes_are_in_the_export()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        var recipes = ((JArray)doc["recipes"]!).Cast<JObject>().ToList();
-        JObject Of(string type, string output) => Assert.Single(recipes, r => (string?)r["type"] == type
-            && r["outputs"]!.Any(o => (string?)o["code"] == output));
-
-        var smallSmith = Of("smithing", "seraphhorizons:gearblank-{metal}");
-        var largeSmith = Of("smithing", "seraphhorizons:largegearblank-{metal}");
-        foreach (var r in new[] { smallSmith, largeSmith })
-        {
-            Assert.Equal("seraphhorizons", (string?)r["mod"]);
-            Assert.Equal("game:ingot-steel", (string?)Assert.Single(r["variants"]!)["ingredients"]![0]![0]!["code"]);
-        }
-        foreach (string type in GearMoldTypes)
-        {
-            var clay = Of("clayforming", $"seraphhorizons:toolmold-{{color}}-raw-{type}");
-            Assert.Equal(3, clay["variants"]!.Count());
-        }
-
-        var items = (JObject)doc["items"]!;
-        foreach (string code in new[] { GearBlanks.Blank, GearBlanks.LargeBlank })
-            Assert.Contains("gear blank mold", (string?)items[code]?["description"]);
-        foreach (string type in GearMoldTypes)
-            Assert.Equal(GearBlankParts.Mold("blue", "fired", type),
-                (string?)items[GearBlankParts.Mold("blue", "raw", type)]?["attributes"]?["smelting"]?["output"]?["code"]);
     }
 }

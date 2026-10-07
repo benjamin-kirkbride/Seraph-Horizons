@@ -2152,7 +2152,9 @@ itself, so it has no switch.
 true for a known item worth nothing. A code missing from the table falls back to its variant
 family: the longest prefix ending at a `-` that table codes share, never shorter than the path's
 first segment (`game:plank-oak` takes the average of `game:plank-*`), and a code with `*` averages
-its matches. `Game/ItemValuesSystem.cs` loads the asset on the server when assets load and serves
+its matches. A table never changes once loaded, so it caches each wildcard's answer: `/sh trade
+values suspicious` looks up the same few hundred patterns across some 80,000 grid recipes, and
+uncached that took close to a minute. `Game/ItemValuesSystem.cs` loads the asset on the server when assets load and serves
 it: `ItemValuesSystem.For(api)`.
 
 `/sh trade value [item code]` (`controlserver`) prints an item's value and where it comes from
@@ -2554,7 +2556,7 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 (`Rosser/Core/`, described in `Rosser/README.md`), machine oil's tank, drain, oil codes and settings
 (`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the trunk code and variant rules of the
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
-and family fallback, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
+and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
 described in `TrunkEntities/README.md`), gear reclamation's roll, flash rust hours, settings and
 optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
@@ -2952,12 +2954,17 @@ game's: they need checking by hand in the game (the lists in their sections).
 with `fixtures/switches-off/seraphhorizons.json`: each class boots its own server, which costs far
 more than the scenarios. `BoilerLidBlowsOpen` and the switches with no off check stay on.
 
-For the same reason the other scenario files above are not classes of their own but parts of two
-partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
-feature that needs only the plain world, and `WoodworkingScenarios` (`WoodworkingScenarios.cs`),
-the woodworking chain with the machines' fixture (`fixtures/buckingsawmill`, which shortens the
-mill's cut and cycle and the rosser's trip). Only a different world (a play style,
-ModConfig fixtures) gets a class of its own, as `/clear`'s and the off checks do. Their doc
+For the same reason the other scenario files above are not classes of their own but parts of a
+few partial classes, one server each: `SharedWorldScenarios` (`SharedWorldScenarios.cs`), every
+feature that needs only the plain world; `TradingScenarios` (`TradingScenarios.cs`), the trading
+features on the plain world, sharing its players; `WoodworkingScenarios`
+(`WoodworkingScenarios.cs`), the woodworking chain with the machines' fixture
+(`fixtures/buckingsawmill`, which shortens the mill's cut and cycle and the rosser's trip), and
+`WoodworkingRosserScenarios` (`WoodworkingRosserScenarios.cs`), the rosser and the debarked trunk
+on the same fixture, a class of its own only because its real-time trips would otherwise make the
+one class's CI shard too long. Only a different world (a play style, ModConfig fixtures, a seeded
+standard world) gets a class of its own, as `/clear`'s, the off checks and the ore and trading
+camp scenarios do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
 nothing changed world-wide.
 
@@ -2980,7 +2987,8 @@ a world created with them off to have none of it.
 
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
 the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
-of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking), and a section above. Its
+of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
+the rosser, `TradingScenarios` for trading), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A
 tweak big enough for mod systems of its own gets a folder, as `TidyVariants/` does; its systems

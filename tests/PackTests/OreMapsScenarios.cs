@@ -18,11 +18,22 @@ namespace SeraphHorizons.PackTests;
 /// registry lists deposits from the seed alone, verifying one generates its chunks and counts its
 /// ore, <c>/sh ore givemap</c> gives a map that puts a waypoint on the reader's map and reserves
 /// the deposit, and the placer field rule resolves a gravel cell.
+/// <para>A second partial file, OreAdminScenarios.cs, holds the ore admin tools' scenarios (#458) on
+/// the same boot (Atlas boots one server per class, 65-90 s for a seeded standard world in CI). Both
+/// share the world and its deposit registry in no set order, so a scenario that needs a deposit or
+/// gravel field unsold (or in any other state) puts it there in its own arrange step; each uses its
+/// own player names, and <see cref="ReadsBootLogAttribute"/> marks a scenario that reads the boot's
+/// log. <see cref="OreCellsScenarios"/> stays a class of its own: it depends on its seed.</para>
 /// </summary>
 [AtlasWorld(Seed = Seed, WorldType = "standard")]
-public class OreMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
+[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
+public partial class OreMapsScenarios : AtlasScenarioBase
 {
     private const int Seed = 515151;
+
+    private readonly ITestOutputHelper output;
+
+    public OreMapsScenarios(ITestOutputHelper output) => this.output = output;
 
     private ICoreServerAPI Sapi => (ICoreServerAPI)World.Api;
 
@@ -58,7 +69,7 @@ public class OreMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         return result!;
     }
 
-    [AtlasScenario]
+    [AtlasScenario, ReadsBootLog]
     public void Placer_fields_are_on_for_the_new_world()
     {
         Assert.True(Ore.World.PlacerFields);
@@ -146,6 +157,8 @@ public class OreMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         var player = await World.JoinPlayer("cartographer");
         var sp = (IServerPlayer)player.Player;
+        // The admin scenarios may have sold copper deposits near the spawn.
+        await Run("/sh ore registry clear copper");
         await Run("/sh ore givemap cartographer copper 2");
         await World.Until(() => MapIn(sp) != null, 12000);
         var slot = MapIn(sp);
@@ -203,6 +216,8 @@ public class OreMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task A_gravel_cell_resolves_and_its_map_marks_the_field()
     {
         var (x, z) = Spawn;
+        // The admin scenarios may have sold out a gravel field near the spawn.
+        await Run("/sh ore registry clear gravel");
         var listed = await Run("/sh ore gravel 3000");
         var fields = Deposits.GravelFields(x, z, 3000);
         Assert.NotEmpty(fields);

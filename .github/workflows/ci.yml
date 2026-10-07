@@ -140,25 +140,31 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     # Atlas runs one embedded server per process, so classes can only run in parallel as
-    # separate jobs, and every scenario class pays its own server boot (30-45 s). So classes on the
-    # same world share one: SharedWorldScenarios is every feature that needs only the plain world,
-    # WoodworkingScenarios the woodworking chain, each a partial class over one file per feature (a
-    # new feature adds a file, not a class). The item and recipe classes are the exception: each
-    # builds the pack's export (over a minute) and fills parts of it again to compare, so each has
-    # a shard to itself. `fixes` is the pack-authored *fix mods' classes and `tidy` is Tidy
-    # Variants', both matched by name, so a new class of either kind joins its shard. `woodworking`
-    # is WoodworkingScenarios (and any Woodworking* class), taken out of `rest` to keep both short;
-    # its term is anchored on `PackTests.` so that only a class name matches, not a test method
-    # named after a feature. `ore` is every Ore* class (ore cells, ore maps, ore admin) and the
-    # trading shards every Trading* class, each a world of its own taking 45-140 s with its boot
-    # (about 4 min for the ore classes, 12 for the trading ones, run locally), so in one shard they
-    # would be the longest after woodworking. `trading-core` names its classes (the grid and
-    # camps, values, economy, standing, orders: about 6 min); `trading-features` is the rest of
-    # Trading* (schematics, maps, admin, visitors: about the same), so a new Trading class lands
-    # there. Both are anchored like `woodworking`, and
-    # the class terms end in `.` so that no class whose name extends another's matches it. `rest`
-    # is the complement filter, so any other new class lands there without anyone having to list
-    # it.
+    # separate jobs, and every scenario class pays its own server boot: 45-55 s on the default
+    # world, 65-90 s on a seeded `standard` one, most of it asset loading (every locked mod), which
+    # no world option shortens. So classes on the same world share one: SharedWorldScenarios is
+    # every feature that needs only the plain world, WoodworkingScenarios the woodworking chain,
+    # WoodworkingRosserScenarios the rosser and its debarked trunks, TradingScenarios every trading
+    # feature on the plain world, PackFixScenarios the pack-authored fix mods, each a partial class
+    # over one file per feature (a new feature adds a file, not a class). The item and recipe
+    # classes are the exception: each builds the pack's export (over a minute) and fills parts of
+    # it again to compare, so each has a shard to itself. `fixes` is the fix mods' class and `tidy`
+    # is Tidy Variants', both matched by name, so a new class of either kind joins its shard.
+    # `woodworking` and `woodworking-rosser` are the two woodworking classes, each a world of real
+    # machine runs (the machines turn in wall-clock time, so their tests cannot be hurried), kept
+    # out of `rest` and apart from each other to keep every shard under five minutes; the terms are
+    # anchored on `PackTests.` and end in `.` so that only that class name matches, not a test
+    # method named after a feature or a class whose name extends another's. `ore` is every Ore*
+    # class (ore maps with the ore admin tools, ore cells, each a seeded standard world of its
+    # own). The trading shards split the Trading* classes: `trading-core` is the camp grid
+    # (TradingCoreScenarios, a seeded standard world) with TradingScenarios; `trading-features` is
+    # the rest of Trading* (maps and admin, each a seeded standard world), so a new seeded Trading
+    # class lands there, and a new plain-world trading feature joins TradingScenarios. `switches`
+    # is the two classes that cannot share the plain world: SwitchesOffScenarios (its own ModConfig)
+    # and ClearCommandScenarios (a survival world). `trunks` is the trunk entity classes and the
+    # pickling tub, each joining more players than the plain world has slots left for. `rest` is
+    # the complement filter, so any other new class lands there without anyone having to list it.
+    # Each shard's dotnet test run should stay under about four minutes, and the job under five.
     strategy:
       fail-fast: false
       matrix:
@@ -172,15 +178,21 @@ jobs:
           - shard: tidy
             filter: FullyQualifiedName~.TidyVariants
           - shard: woodworking
-            filter: FullyQualifiedName~PackTests.Woodworking
+            filter: FullyQualifiedName~PackTests.WoodworkingScenarios.
+          - shard: woodworking-rosser
+            filter: FullyQualifiedName~PackTests.WoodworkingRosserScenarios.
           - shard: ore
             filter: FullyQualifiedName~PackTests.Ore
           - shard: trading-core
-            filter: FullyQualifiedName~PackTests.TradingCoreScenarios.|FullyQualifiedName~PackTests.TradingValuesScenarios.|FullyQualifiedName~PackTests.TradingEconomyScenarios.|FullyQualifiedName~PackTests.TradingStandingScenarios.|FullyQualifiedName~PackTests.TradingOrdersScenarios.
+            filter: FullyQualifiedName~PackTests.TradingCoreScenarios.|FullyQualifiedName~PackTests.TradingScenarios.
           - shard: trading-features
-            filter: FullyQualifiedName~PackTests.Trading&FullyQualifiedName!~PackTests.TradingCoreScenarios.&FullyQualifiedName!~PackTests.TradingValuesScenarios.&FullyQualifiedName!~PackTests.TradingEconomyScenarios.&FullyQualifiedName!~PackTests.TradingStandingScenarios.&FullyQualifiedName!~PackTests.TradingOrdersScenarios.
+            filter: FullyQualifiedName~PackTests.Trading&FullyQualifiedName!~PackTests.TradingCoreScenarios.&FullyQualifiedName!~PackTests.TradingScenarios.
+          - shard: switches
+            filter: FullyQualifiedName~PackTests.SwitchesOffScenarios.|FullyQualifiedName~PackTests.ClearCommandScenarios.
+          - shard: trunks
+            filter: FullyQualifiedName~PackTests.TrunkEntityScenarios.|FullyQualifiedName~PackTests.TrunkCarryScenarios.|FullyQualifiedName~PackTests.PicklingTubScenarios.
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack

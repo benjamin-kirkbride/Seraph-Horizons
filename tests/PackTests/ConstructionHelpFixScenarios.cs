@@ -17,14 +17,11 @@ namespace SeraphHorizons.PackTests;
 /// built input, and compares the hints: the action, the mouse button and every stack, in order.
 /// A method that returns early leaves the hint untouched, and that is compared too.
 /// </summary>
-[AtlasWorld]
-public class ConstructionHelpFixScenarios : AtlasScenarioBase
+public partial class PackFixScenarios
 {
     private const string HarmonyId = "constructionhelpfix";
 
     private ICoreAPI Api => World.Api;
-    private IWorldAccessor W => World.Api.World;
-
     private static readonly System.Reflection.MethodInfo Target =
         AccessTools.DeclaredMethod(typeof(RightClickConstruction), "GenInteractionHelp", Type.EmptyTypes)
         ?? throw new InvalidOperationException("RightClickConstruction.GenInteractionHelp not found");

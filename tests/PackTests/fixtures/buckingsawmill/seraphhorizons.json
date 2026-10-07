@@ -1,10 +1,10 @@
 {
   "BuckingSawmillSettings": {
-    "RevolutionsPerStoredLog": 0.5,
+    "RevolutionsPerStoredLog": 0.25,
     "RaiseRevolutions": 1
   },
   "RosserSettings": {
-    "RevolutionsPerStoredLog": 0.5,
+    "RevolutionsPerStoredLog": 0.2,
     "RevolutionsPerBranch": 0.08
   }
 }

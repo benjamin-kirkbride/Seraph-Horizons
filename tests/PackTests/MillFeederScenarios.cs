@@ -216,12 +216,10 @@ public partial class WoodworkingScenarios
             feeder.Side = mill.Side;
             feeder.OutfeedCells.Add(cell.Copy());
             feeder.Busy = true;
-            await Power(mill);
+            await Power(mill, fast: true);
 
             // A trunk on its way: the mill cycles empty and waits.
-            var until = DateTime.UtcNow.AddSeconds(3);
-            while (DateTime.UtcNow < until)
-                await World.Ticks(5);
+            await PastTheTop(mill);
             Assert.Null(mill.Trunk);
             Assert.Equal(RackState.FeederBusy, mill.RackState);
             Assert.Equal(0, feeder.Takes);
@@ -246,7 +244,7 @@ public partial class WoodworkingScenarios
             Assert.Equal(1, feeder.Takes);
             Assert.NotNull(feeder.Finished);
             float lowest = mill.Depth;
-            until = DateTime.UtcNow.AddSeconds(10);
+            var until = DateTime.UtcNow.AddSeconds(10);
             while (mill.Trunk == null && DateTime.UtcNow < until)
             {
                 lowest = Math.Min(lowest, mill.Depth);
