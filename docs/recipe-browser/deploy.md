@@ -35,7 +35,8 @@ The build:
 
 1. `site-data fetch` lists the published releases with `gh`, and downloads the
    `*_recipes.json` asset of each `vX.Y.Z` tag and of `next`. Other tags (the mod
-   releases, `<modid>-v<version>` and `seraphhorizons-next`) are ignored. It writes
+   releases, `<modid>-v<version>`) are ignored, and so are a release's other assets (the
+   pack's files, the pack's own mod zip, `SHA256SUMS`). It writes
    the downloads and `releases.json` (tag, commit, file) to a scratch directory.
 2. `site-data assemble` validates each export, migrates it to the current
    `schemaVersion`, and writes `versions.json` and `<id>/export.json`. `next` becomes
