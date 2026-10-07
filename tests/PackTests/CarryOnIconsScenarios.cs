@@ -17,7 +17,7 @@ namespace SeraphHorizons.PackTests;
 public partial class SharedWorldScenarios
 {
     [AtlasScenario]
-    public async Task Carry_On_icon_stacks_are_cleared_and_built_again()
+    public void Carry_On_icon_stacks_are_cleared_and_built_again()
     {
         var assembly = CarryOnIcons.CarryOnAssembly(World.Api)
             ?? throw new Xunit.Sdk.XunitException("Carry On's mod system is not loaded");
@@ -31,16 +31,17 @@ public partial class SharedWorldScenarios
         var fields = CarryOnIcons.Find(World.Api)!;
         Assert.Equal(CarryOnIcons.Fields.Length, fields.Count);
 
-        var p = await World.JoinPlayer("iconreset");
         var pos = World.Spawn.AddCopy(-47, 14, -83);
         World.SetBlock("game:chest-east", pos);
         var chest = W.BlockAccessor.GetBlock(pos);
         var carryable = chest.BlockBehaviors.Single(b => b.GetType().FullName == "CarryOn.Common.Behaviors.BlockBehaviorCarryable");
         var handsfree = fields.Single(f => f.DeclaringType!.Name == "CarryableInteractionHelpBuilder" && f.Name == "handsfreeStacks");
+        // No player (Carry On's builder takes null, and builds both stacks either way): the shared
+        // world's server takes 16 players at most, and its other scenarios use them all.
         WorldInteraction[] Help()
         {
             var handling = EnumHandling.PassThrough;
-            return carryable.GetPlacedBlockInteractionHelp(W, new BlockSelection { Position = pos, Block = chest }, p.Player, ref handling);
+            return carryable.GetPlacedBlockInteractionHelp(W, new BlockSelection { Position = pos, Block = chest }, null!, ref handling);
         }
 
         // The help builder is the client's: Carry On initialises it in StartClientSide only, so it is
