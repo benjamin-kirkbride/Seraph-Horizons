@@ -28,6 +28,7 @@
   "OreCells": false,
   "PanningDropsTrimmed": false,
   "PlacerFields": false,
+  "RarerBattleTowers": false,
   "RarerDistricts": false,
   "RegionalSupply": false,
   "Rosser": false,

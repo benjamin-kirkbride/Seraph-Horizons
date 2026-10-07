@@ -42,6 +42,8 @@
     <Compile Include="../Trading/Values/Core/**/*.cs" Link="Trading/Values/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Item values (#449): the shipped table, so the tests check that it parses. -->
     <None Include="../assets/seraphhorizons/config/item-values.json" Link="item-values.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Rarer battle towers (#519): the shipped rates, so the tests check that they parse. -->
+    <None Include="../assets/seraphhorizons/config/battletowers-rates.json" Link="battletowers-rates.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Ore/Core/**/*.cs" Link="Ore/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Trading/Core/**/*.cs" Link="Trading/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Trader standing and companies (#452, #463), and the shipped tiers file. -->
