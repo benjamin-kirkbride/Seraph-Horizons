@@ -337,6 +337,18 @@ class Checks(unittest.TestCase):
         self.assertEqual(checks.lid_gaps(got), [])
         self.assertEqual(checks.lid_gaps(cells[:3]), [(0, 0), (1, 0)])
 
+    def test_lids_go_only_on_the_columns_picked(self):
+        cells = [{"pos": [0, 0, 0], "hollow": True},
+                 {"pos": [0, 1, 0], "boxes": [[0, 0, 0, 1, 0.5, 1]]},
+                 {"pos": [1, 0, 0], "boxes": [[0, 0, 0, 1, 0.75, 1]]},      # left out: its height does not raise the deck
+                 {"pos": [2, 0, 0], "boxes": [[0, 0, 0, 1, 0.25, 1]], "lid": 0.5}]   # left out: an old lid is dropped
+        picked = lambda x, z: x == 0                                          # noqa: E731
+        got = checks.with_lids(cells, picked)
+        self.assertEqual([c.get("lid") for c in got], [None, 0.5, None, None])
+        self.assertEqual(checks.lid_gaps(got, picked), [])
+        self.assertEqual(checks.lid_gaps(got), [(1, 0), (2, 0)])
+        self.assertEqual(checks.lid_gaps(cells, picked), [(0, 0), (2, 0)])   # no lid where wanted, and one where not
+
     def test_frame_floating(self):
         frame = [box("post", [0, 0, 0], [2, 10, 2]), box("beam", [0, 10, 0], [10, 12, 2]), box("loose", [20, 20, 20], [21, 21, 21])]
         seen, floating = checks.frame_floating(frame)

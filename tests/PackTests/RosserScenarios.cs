@@ -1436,10 +1436,12 @@ public partial class WoodworkingScenarios
         KillItemsNear(pos, 20);
     }
 
-    /// <summary>The rosser's top is a deck, on every facing: no column of the footprint can be fallen
-    /// into from above, the station's (its hollow cells, the gaps about the ring and the rolls) at
-    /// its top and the beds' over their hollow cells, empty and with a thick trunk part way through.
-    /// The lids are collision only: the trunk's boxes and clicks on it are the scenario above's.</summary>
+    /// <summary>The rosser's station is a deck, on every facing: none of its columns (x -12..-4 of
+    /// the rig, the full 9 x 5 section) can be fallen into from above at its top (its hollow cells,
+    /// the gaps about the ring and the rolls), empty and with a thick trunk part way through. The
+    /// beds either side have no lids at all (over them a lid would be an invisible floor two blocks
+    /// above the rolls): no bed cell has one in the rig, and no bed column's top cell collides with
+    /// one. The lids are collision only: the trunk's boxes and clicks on it are the scenario above's.</summary>
     [AtlasTheory(TimeoutMs = 180_000), MemberData(nameof(Facings))]
     public async Task The_rossers_top_is_solid_to_walk_on(string side, int index)
     {
@@ -1448,10 +1450,33 @@ public partial class WoodworkingScenarios
         await StandBy(player, pos);
         var rosser = await PlaceRosser(pos, side);
         RosserReady(rosser, player);
-        AssertTopIsADeck(RosserRig.Cells, rosser.CellPos, side);
+        var station = RosserRig.Cells.Where(c => IsStationColumn(c.Pos)).ToList();
+        var beds = RosserRig.Cells.Where(c => !IsStationColumn(c.Pos)).ToList();
+        Assert.Equal(45, station.Select(c => (c.Pos.X, c.Pos.Z)).Distinct().Count());
+        Assert.NotEmpty(beds);
+        Assert.All(beds, c => Assert.Null(c.Lid));
+        AssertTopIsADeck(station, rosser.CellPos, side);
+        AssertNoLidOnTop(beds, rosser.CellPos, side);
         Assert.Null(Click(player, pos, RosserTrunk("oak", 6, 0, "xl")));
         FeedTo(rosser, RosserMod.Pace!.TripLength((int)TrunkClass.Thick) * 0.5);
-        AssertTopIsADeck(RosserRig.Cells, rosser.CellPos, side + ", trunk half way");
+        AssertTopIsADeck(station, rosser.CellPos, side + ", trunk half way");
+        AssertNoLidOnTop(beds, rosser.CellPos, side + ", trunk half way");
+    }
+
+    /// <summary>A column of the rosser's station, in the rig's frame (the controller at 0,0,0 on the
+    /// outfeed end): x -12..-4. The infeed bed is x -15..-13, the outfeed bed x -3..0.</summary>
+    private static bool IsStationColumn(Int3 p) => p.X is >= -12 and <= -4;
+
+    /// <summary>No top cell of these columns collides with a lid: a box 1/16 thick over the whole cell.</summary>
+    private void AssertNoLidOnTop(IReadOnlyList<RigCell> cells, System.Func<Int3, BlockPos> cellPos, string where)
+    {
+        foreach (var top in cells.GroupBy(c => (c.Pos.X, c.Pos.Z)).Select(g => g.MaxBy(c => c.Pos.Y)!))
+        {
+            var at = cellPos(top.Pos);
+            var collision = W.BlockAccessor.GetBlock(at).GetCollisionBoxes(W.BlockAccessor, at) ?? [];
+            Assert.False(collision.Any(b => Math.Abs(b.Y2 - b.Y1 - RigCell.LidThickness) < 1e-4 && CoversCell([b])),
+                $"{where}: bed column {top.Pos.X},{top.Pos.Z} (top cell {top.Pos}) has a lid");
+        }
     }
 
     // ---- The bucking mill in line ----
