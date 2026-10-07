@@ -4,8 +4,7 @@ Part of the Seraph Horizons mod (`../README.md`), switched by `TrunkEntities` in
 `ModConfig/seraphhorizons.json` (on by default), with its figures in `TrunkEntitiesSettings`.
 Logging Expanded's (`loggingmod` 0.3.6) tree trunks stop being items you pocket. A felled tree
 leaves a **trunk entity** lying on the ground, which you take by one end and drive on foot like a
-sled, move with a rope, shove by
-walking into it, float down a river, work with tools where it lies, or shoulder very slowly through
+sled, move with a rope, float down a river, work with tools where it lies, or shoulder very slowly through
 Carry On (`carryon`) to load a station, a rack or a cart. A trunk is never in an inventory: the
 only "slot" that holds one is Carry On's hands.
 
@@ -21,7 +20,7 @@ Harmony.
 `LoggingBridge` not resolving (Logging Expanded not as expected, one warning), nothing below
 happens and Logging Expanded's trunks are items again, as it ships them. Carry On is optional:
 without it there is one warning ("trunks cannot be carried: drive or rope them") and everything that
-goes through hands is gone. A trunk can then be driven, roped, shoved, floated and worked with
+goes through hands is gone. A trunk can then be driven, roped, floated and worked with
 tools, and fed to a rosser or a bucking mill by driving it into their infeed cells, but Logging
 Expanded's sawhorses, Trunk Storage Rack and heating rack cannot be loaded at all (no trunk is in a
 hand or an inventory to load from), carts and sleds take none, and Ctrl + right-click on a rosser
@@ -56,9 +55,9 @@ entity, nothing dropped, and a stack of the other display class (an xl trunk cut
 to a new entity of that type at the same place and yaw, the old one removed. An entity that loads
 with no trunk or no logs removes itself.
 
-**Behaviours** (both sides unless noted): `repulseagents` with `movable: true` (walking into a trunk
-nudges it; the entity counts as a creature, `IsCreature`, so players' shoving finds it, as the
-game's boat is found), `seraphhorizons.trunkphysics` (`Game/TrunkPhysics.cs`: the game's
+**Behaviours** (both sides unless noted): `repulseagents` with `movable: false` (walking into a trunk
+does not move it; the behaviour still pushes creatures off its middle box, and the entity counts as
+a creature, `IsCreature`, so the game's shoving finds it, as the boat is found), `seraphhorizons.trunkphysics` (`Game/TrunkPhysics.cs`: the game's
 `passivephysicsmultibox` with the drive and the step-up inside its tick, below; gravity factor 1,
 ground drag 1, falling air drag 0.5), `ropetieable`, `seatable` with one seat, the driver's
 (`controllable: false`, below), and on the client `interpolateposition`. With Carry On the server's list also
@@ -249,7 +248,9 @@ slab is stepped like a full block. Not afloat, not while falling. (A first build
 block a tick, which left the trunk hanging against the step between lifts, dropping back under
 gravity and lifted again, a stutter up each step.)
 
-**Shove.** Walking into a trunk nudges it (`repulseagents`, by its hitbox).
+**Shove.** Walking into a trunk does not move it: `repulseagents` is `movable: false` (a first build
+let a walk nudge it, which a player inside the hull did too, by 0.2 blocks in a tick), and the
+trunk moves only by the drive, a rope, water and gravity.
 
 **Solid** (`Game/TrunkSolid.cs`, geometry in `Core/TrunkPush.cs`). A trunk is as good as solid to
 whoever walks into it: an agent (a player, an animal) whose collision box overlaps any of the
@@ -677,10 +678,9 @@ Known compromises:
    middle outside them is not taken; one needs to lie in line with them.
 3. **The handbook describes trunk entities.** The woodworking guide and the machines' handbook pages
    say how trunks are moved and loaded with the feature on, and are not rewritten when it is off.
-4. **Shoving the trunk acts at the middle.** Walking into a trunk nudges it only around its
-   middle: the game's `repulseagents` uses the entity's `CollisionBox`, one box at the trunk's
-   centre, not the turned boxes the selection and collision use. (Keeping players out of it uses
-   every box, `TrunkSolid`.)
+4. **The game's own repulse acts at the middle.** `repulseagents` uses the entity's
+   `CollisionBox`, one box at the trunk's centre, not the turned boxes; it no longer moves the
+   trunk, and keeping agents out of it is `TrunkSolid`'s, on every box.
 5. **Survival never receives a trunk, whatever asks.** `TrunkPockets` refuses every
    `TryGiveItemstack` of a trunk to a player not in creative mode, so a mod or command that gives
    one either drops it (and it lies there as a trunk entity) or, if it does not drop what was refused,

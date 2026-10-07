@@ -1298,8 +1298,8 @@ Logging Expanded (`loggingmod`, 0.3.6); Carry On (`carryon`) optional. Logging E
 trunks are never items in an inventory. A felled tree leaves a trunk entity lying on the ground
 (`seraphhorizons:trunk-thin` or `-thick`, shown, boxed and selected as the machines show trunks:
 Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
-holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is shoved by
-walking into it. Right-click it with an empty hand to take that end and drive it on foot like a
+holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is solid to
+whoever walks into it. Right-click it with an empty hand to take that end and drive it on foot like a
 sled (you are mounted on it, standing just beyond the end: W moves it with your end leading as you
 back up, S pushes it, A and D turn it about its middle; a walk at one log, half of it at 48, it
 steps up one block, and sneak lets go; no one else can touch a trunk while you drive it), or tie a

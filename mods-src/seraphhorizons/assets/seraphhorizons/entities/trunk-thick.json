@@ -8,7 +8,7 @@
 		shouldSwivelFromMotion: false
 	},
 	behaviorConfigs: {
-		repulseagents: { movable: true },
+		repulseagents: { movable: false },
 		// the game's passivephysicsmultibox with the drive and the step-up in it (TrunkPhysics.cs)
 		"seraphhorizons.trunkphysics": {
 			collisionBoxes: [
