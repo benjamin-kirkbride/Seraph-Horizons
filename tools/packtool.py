@@ -156,11 +156,7 @@ def modinfo_from_zip(path: Path) -> dict:
         if "modinfo.json" not in names:
             return {}
         raw = z.read(names["modinfo.json"]).decode("utf-8-sig")
-    # modinfo.json is parsed by Newtonsoft, which tolerates keys in any case,
-    # comments and trailing commas; normalise the common cases.
-    raw = re.sub(r"^\s*//.*$", "", raw, flags=re.M)
-    raw = re.sub(r",(\s*[}\]])", r"\1", raw)
-    return {k.lower(): v for k, v in json.loads(raw).items()}
+    return parse_modinfo(raw)
 
 
 # ------------------------------------------------------------------------- lock
@@ -332,9 +328,10 @@ def cmd_smoke(args) -> None:
     if data.exists():
         shutil.rmtree(data)
     (data / "Mods").mkdir(parents=True)
-    for item in Path(args.mods).iterdir():
-        target = data / "Mods" / item.name
-        (shutil.copytree if item.is_dir() else shutil.copy2)(item, target)
+    # The pack's own mod is built from mods-src and loaded in place of any pinned copy, so the
+    # smoke run, its log scan and the export see the mod as it is in this tree.
+    dropped = stage_mods(Path(args.mods), data / "Mods", {PACK_MOD_ID})
+    pack_mod = stage_pack_mod(server, data)
 
     lock = load_lock()
     env = None
@@ -425,13 +422,17 @@ def cmd_smoke(args) -> None:
     m = re.search(r"Mods, sorted by dependency: (.*)", log)
     loaded = {s.strip() for s in m.group(1).split(",")} if m else set()
     for mod in lock["mods"]:
-        if mod["id"] not in loaded:
+        if mod["id"] not in loaded and mod["id"] != PACK_MOD_ID:
             failures.append(f"locked mod {mod['id']} was not loaded")
+    if PACK_MOD_ID not in loaded:
+        failures.append(f"the pack's own mod {PACK_MOD_ID} (built from mods-src) was not loaded")
     patches = re.search(r"JsonPatch Loader: .*", log)
 
     summary = [
         f"game {lock['pack']['game_version']}, seed {args.seed}",
         f"loaded mods: {', '.join(sorted(loaded)) or '(none)'}",
+        f"pack mod: {pack_mod.name}, built from mods-src/{PACK_MOD_ID}"
+        + (f" (in place of the pinned {', '.join(dropped)})" if dropped else ""),
         patches.group(0) if patches else "no JsonPatch summary line found",
         f"warnings: {sum('[Server Warning]' in l for l in lines)}",
         "known errors tolerated: " + (", ".join(f"#{i} x{n}" for i, n in sorted(tolerated.items())) or "none"),
@@ -443,6 +444,64 @@ def cmd_smoke(args) -> None:
     report("Server smoke test", summary, failures)
     if failures:
         sys.exit(1)
+
+
+PACK_MOD_ID = "seraphhorizons"
+PACK_MOD_PROJECT = ROOT / "mods-src" / PACK_MOD_ID
+
+
+def parse_modinfo(raw: str) -> dict:
+    """modinfo.json as Newtonsoft reads it: keys in any case, comments, trailing commas."""
+    raw = re.sub(r"^\s*//.*$", "", raw, flags=re.M)
+    raw = re.sub(r",(\s*[}\]])", r"\1", raw)
+    return {k.lower(): v for k, v in json.loads(raw).items()}
+
+
+def staged_modid(path: Path) -> str | None:
+    """The modid of a staged mod: a zip, or a folder with a modinfo.json."""
+    try:
+        if path.is_dir():
+            info = path / "modinfo.json"
+            return parse_modinfo(info.read_text(encoding="utf-8-sig")).get("modid") if info.exists() else None
+        if path.suffix.lower() == ".zip":
+            return modinfo_from_zip(path).get("modid")
+    except (OSError, ValueError, zipfile.BadZipFile):
+        return None
+    return None
+
+
+def stage_mods(src: Path, dest: Path, drop: set[str]) -> list[str]:
+    """Copy the staged pack mods (build/mods) into a run's Mods, leaving out any of the modids
+    in `drop` (mods-src mods the run builds itself; tests/PackTests leaves the same out for Atlas).
+    Returns the names left out."""
+    dropped = []
+    for item in sorted(src.iterdir()):
+        if staged_modid(item) in drop:
+            dropped.append(item.name)
+            continue
+        (shutil.copytree if item.is_dir() else shutil.copy2)(item, dest / item.name)
+    return dropped
+
+
+def pack_mod_zip(project: Path = PACK_MOD_PROJECT) -> Path:
+    """Where a Release build of a mods-src mod writes its zip: build/<modid>_<version>.zip."""
+    info = parse_modinfo((project / "modinfo.json").read_text(encoding="utf-8-sig"))
+    return ROOT / "build" / f"{info['modid']}_{info['version']}.zip"
+
+
+def stage_pack_mod(server: Path, data: Path, project: Path = PACK_MOD_PROJECT) -> Path:
+    """Build the pack's own mod (Release, against this server) and stage its zip in the run's
+    Mods. Never in build/mods: like the export mod, it is not part of the lock or `assemble`."""
+    zip_path = pack_mod_zip(project)
+    zip_path.unlink(missing_ok=True)
+    cmd = ["dotnet", "build", str(project), "-c", "Release", "--nologo", "-v", "q"]
+    print("+ " + " ".join(cmd), flush=True)
+    result = subprocess.run(cmd, env={**os.environ, "VINTAGE_STORY": str(server)})
+    if result.returncode != 0 or not zip_path.exists():
+        die(f"building {project} failed (expected {zip_path})")
+    dest = data / "Mods" / zip_path.name
+    shutil.copy2(zip_path, dest)
+    return dest
 
 
 EXPORT_PROJECT = ROOT / "tools" / "recipe-export"

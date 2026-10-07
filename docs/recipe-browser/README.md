@@ -21,7 +21,8 @@ tests/PackTests/                   Atlas scenarios, the exporter's included
 
 ## Data flow
 
-1. CI's smoke job boots the server with the pack plus the export mod, which writes
+1. CI's smoke job boots the server with the pack (its own mod built from `mods-src/seraphhorizons`)
+   plus the export mod, which writes
    `recipes.json`. The job uploads it as the `recipe-export` artifact.
 2. Releases (versioned and `next`) attach it as `<pack id>_<version>_recipes.json`.
 3. The Pages workflow downloads the export of every release, and `tools/site-data`

@@ -13,7 +13,10 @@ python3 tools/packtool.py smoke --export build/recipes.json
 
 This builds `tools/recipe-export` against `$VINTAGE_STORY` and stages it as a folder mod in
 the smoke run's own `Mods` (never in `build/mods`, so it is not part of the lock or of
-`assemble`). It then boots the server with `SERAPH_EXPORT_PATH`, `SERAPH_PACK_ID` and
+`assemble`). The pack's own mod goes there the same way: every smoke run builds
+`mods-src/seraphhorizons` (Release, its `build/seraphhorizons_<version>.zip`) and loads that zip in
+place of any pinned copy of the modid, as `tests/PackTests` does for Atlas, so the export carries
+the mod's items and recipes as the tree has them. It then boots the server with `SERAPH_EXPORT_PATH`, `SERAPH_PACK_ID` and
 `SERAPH_PACK_VERSION` set, from `pack/lock.json`. The smoke check fails if the file was not
 written, is not JSON, or its `recipeTypes` counts disagree with its records. It prints the
 recipe count per type, and the same lines go into the job summary. If the exporter throws
