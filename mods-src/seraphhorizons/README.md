@@ -2103,7 +2103,9 @@ root and its `trade` branch are shared with the other trading features (`GetOrCr
 
 After a pack change that adds, removes or re-recipes items, rebuild the table from a fresh export
 (`tools/item-values/README.md`). CI's export job fails when an item of this mod's trade lists
-(`config/tradelists/`) has no value, and warns when the shipped table has drifted from the export.
+(`config/tradelists/`) has no value or is retired with nothing valuing it, and when the shipped
+table differs from a rebuild from the export (smoke loads this mod, so the export has its items).
+The table's `switches` names, per code, the config switches its value exists by (#523).
 
 ### Everything has a price (`EverythingHasAPrice`)
 

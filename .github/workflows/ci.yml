@@ -99,6 +99,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
+      # Smoke builds the pack's own mod (mods-src/seraphhorizons) and loads it in place of any
+      # pinned copy, so the log scan and the export see it as this tree has it.
       # --export also loads the CI-only export mod (tools/recipe-export), which dumps the
       # recipes and items the recipe browser shows. release.yml and next.yml publish it.
       - name: Boot dedicated server with the full pack
@@ -388,11 +390,12 @@ jobs:
           npm ci --prefix tools/site-data
           npm --prefix tools/site-data run build
           node tools/site-data/dist/bin.js validate "$RUNNER_TEMP/recipe-export/recipes.json"
-      # Item values (#449): every item the pack's traders buy (their buying sides and player-supplied
-      # goods) has a base value, both derived from this export and in the table the mod ships. The
-      # export is the pinned pack's, without mods-src/seraphhorizons, so the mod's own items are not
-      # in it: none of them is bought.
-      - name: Items traders buy have values
+      # Item values (#449, #523): the table the mod ships equals a rebuild from this export (which
+      # has the mod's own items: smoke loads this tree's build), every item the pack's traders buy
+      # (their buying sides and player-supplied goods) has a base value, and no trade list names a
+      # retired item nothing values. On drift it prints the changed codes and the rebuild command;
+      # rebuild from this run's recipe-export artifact.
+      - name: Item values table is current and items traders buy have values
         run: python3 tools/item-values/itemvalues.py check "$RUNNER_TEMP/recipe-export/recipes.json"
       # Warns about items without an icon; never fails for them (the site shows placeholders).
       - name: Icon drift

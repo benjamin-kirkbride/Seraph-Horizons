@@ -8,8 +8,12 @@ mod's README). Stdlib-only Python 3.11+, like `packtool.py`.
 ## Commands
 
 ```sh
-# A recipe export of the pack: from CI (the export job's recipe-export artifact, or a release's
-# recipes.json), or locally through Atlas (writes it in a minute or two):
+# A recipe export of the pack, with the pack's own mod as this tree has it: from CI (the export
+# job's recipe-export artifact), or locally from smoke, which builds mods-src/seraphhorizons and
+# loads it in place of any pinned copy (a few minutes; needs `packtool.py fetch` first):
+VINTAGE_STORY=$HOME/Games/vintagestory python3 tools/packtool.py smoke --export build/recipes.json
+# (Atlas writes one too, but under pack version 0.0.0-test and its own world settings; the table
+# CI checks is rebuilt from smoke's export:)
 mkdir -p build/atlas-tmp
 ITEM_VALUES_EXPORT=$PWD/build/recipes.json TMPDIR=$PWD/build/atlas-tmp VINTAGE_STORY=$HOME/Games/vintagestory \
   dotnet test tests/PackTests --filter "FullyQualifiedName~TradingValuesScenarios"
@@ -17,19 +21,31 @@ ITEM_VALUES_EXPORT=$PWD/build/recipes.json TMPDIR=$PWD/build/atlas-tmp VINTAGE_S
 python3 tools/item-values/itemvalues.py build   build/recipes.json   # the table, plus build/item-values-report.md and .json
 python3 tools/item-values/itemvalues.py report  build/recipes.json   # the report only, to stdout (--json for JSON)
 python3 tools/item-values/itemvalues.py explain build/recipes.json game:pickaxe-tinbronze   # the route, every step's numbers
-python3 tools/item-values/itemvalues.py check   build/recipes.json   # CI: every item traders buy has a value
+python3 tools/item-values/itemvalues.py check   build/recipes.json   # CI: the table is current, traders' items have values
 python3 -m unittest discover -s tools/tests -p test_item_values.py
 ```
 
-`check` reads the mod's trade lists (`mods-src/seraphhorizons/assets/seraphhorizons/config/tradelists/*.json`,
-vanilla's trade list format; no folder means nothing to check) and fails when an item traders buy
-has no value, either derived from the export or in the shipped table. Traders buy their `buying`
-entries and their `playerSupplied` selling entries (players sell those to them, off the list at
-their value when the buying side does not list them); what a trader only sells is priced by its list
-and needs none. A code counts as valued the way the mod looks it up (`ItemValues.Lookup`): directly,
-or through its variant family's average, or for a code with `*`, the average of what it matches. It
-warns, without failing, when the shipped table differs from what the export derives: rebuild and
-commit the table when a pack change matters. CI runs it in the export job.
+`check` fails (CI runs it in the export job, on the export smoke dumped) when:
+
+- **The shipped table is stale.** It must equal a rebuild from the export (`values`, `floorZero` and
+  `switches`; the `pack` header is not compared). It prints how many codes differ, the first 25 as
+  `code: shipped -> rebuilt`, and the command to rebuild. In CI, download the run's
+  `recipe-export` artifact and run `build` on it, or run smoke locally; then commit the table.
+- **An item traders buy has no value**, derived from the export or in the shipped table. It reads
+  the mod's trade lists (`mods-src/seraphhorizons/assets/seraphhorizons/config/tradelists/*.json`,
+  vanilla's trade list format; no folder means nothing to check). Traders buy their `buying`
+  entries and their `playerSupplied` selling entries (players sell those to them, off the list at
+  their value when the buying side does not list them); what a trader only sells is priced by its
+  list and needs none. A code counts as valued the way the mod looks it up (`ItemValues.Lookup`):
+  directly, or through its variant family's average, or for a code with `*`, the average of what
+  it matches. Schematics are exempt: worth nothing by rule, they are bought at their list's price.
+- **A trade list names a retired item** (#506): an item of the export that nothing values (no
+  route, raw, override or fallback) and the handbook hides, bought or sold, even when its family
+  has a value. Take the entry off the list. What the pack removes outright (Hydrate or Diedrate's
+  tun, Primitive Survival's irrigation vessels, ppex's gears) is not in the export at all; Immersive
+  Woodworking's pit saws and blades are hidden and unvalued. Entries traders only sell whose item
+  has no value although the handbook shows it (baby animals, locator maps, found hats) are counted
+  and allowed: their lists price them.
 
 ## Rules
 
@@ -39,32 +55,66 @@ attributes it carries: smelting (with firing and baking), crushing and grinding.
 - `raw-values.json`: hand-priced raws. Exact codes, then globs in file order. Ores are priced by
   metal unit (`ores`: an ingot is 100 units, a nugget 5, a chunk by grade the game's
   `metalUnitsByType`), the metal of an ore being what its nugget smelts into. Raws are fixed: no
-  recipe changes them.
+  recipe changes them. The rusty gear, the unit, is 1.
 - `markups.json`: a labour markup per recipe kind (`grid`, `smithing`, `knapping`, `clayforming`,
   `barrel`, `cooking`, `alloy`, `construction`, `transition` for drying/curing/smoking/...,
-  `smelting`, `baking`, `crushing`, `grinding`, `mod` for every other mod registry; a mod type can
-  have an entry of its own by its type code), the tool fraction, recipe ids never used as routes
-  (uncrafting and recycling), and how smithing and clay forming use material by volume.
+  `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `mod` for every other mod registry; a mod
+  type can have an entry of its own by its type code), the tool fraction, recipe ids never used as
+  routes (uncrafting and recycling), how smithing and clay forming use material by volume, and the
+  schematic patterns.
 - `overrides.json`: hand overrides, fixed and winning over everything, each with its reason.
 
 A route's value per output item is
 
-    (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction) / output quantity
+    (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction - other outputs) / output quantity
 
-where a slot costs its cheapest accepted stack; a grid ingredient counts once per cell of the
-pattern; a liquid counts 100 portions a litre; smithing uses filled voxels / 42 ingots and clay
-forming filled voxels / 25 clay; an alloy is its inputs at the middle of their ratios; cooking
-counts only the ingredients a meal needs (`minQuantity`); and a tool or container not consumed
-(`isTool`, a station, an ingredient handed back) adds `toolFraction` (2%) of its value. A container
-handed back as something else (a bucket of milk gives back the bucket) costs the difference.
-Butchery, perishing and burning are not routes (one carcass gives a dozen things; hides and meat
-are raws instead).
+floored at zero, where a slot costs its cheapest accepted stack; a grid ingredient counts once per
+cell of the pattern; a liquid counts 100 portions a litre; smithing uses filled voxels / 42 ingots
+and clay forming filled voxels / 25 clay; an alloy is its inputs at the middle of their ratios;
+cooking counts only the ingredients a meal needs (`minQuantity`); and a tool or container not
+consumed (`isTool`, a station, a machine's fitted part such as the gear cutter's master, an
+ingredient handed back) adds `toolFraction` (2%) of its value. A container handed back as something
+else (a bucket of milk gives back the bucket) costs the difference. Butchery, perishing and burning
+are not routes (one carcass gives a dozen things; hides and meat are raws instead).
+
+**Lotteries.** A `lottery` record (the oiled gear: one ingredient decided by chance into weighted
+outcomes, `schema.md`) is a route to each output that can come out. The output's quantity is its
+expected items per input, p x q (its outcome's chance times its stack), and every other output is
+credited at its value times its own expected items:
+
+    value = (input x (1 + pct) + flat - sum over the other outputs of p_other x q_other x their value) / (p x q)
+
+floored at zero. The `lottery` kind has no labour (pct 0, flat 0), so the oiled gear (1.80, one in
+ten a steel gear, else one steel bit at 0.448) prices a steel gear at 10 x 1.80 - 9 x 0.448 = 13.97.
+A lottery route waits for the other outputs' values as a route waits for its tools; a loser no
+route will ever value is credited 0. Today the gear cutter (10.89) is the cheaper way to a steel
+gear, so that is its value; the lottery is what prices it when the cutter's switch is off.
+
+**Schematics** (`schematics` in `markups.json`: `*:schematic-*`, `*:*-schematic-*` for BetterRuins,
+Abyssal Depths and Scrolled's rolled copies, and Cartwright's `cartschematics-*`; the patterns
+cover `config/schematic-gates.json`'s `sold`, which a test holds them to) are kept on crafting and
+come only from traders. A slot that takes only schematics is dropped from the route: it adds
+nothing and never blocks it (MachineSchematics gates the machines' first stages with
+`seraphhorizons:schematic-<machine>`; BetterRuins' recipes keep theirs). A schematic is never
+priced: no raw, default or fallback, and no route making one counts.
+
+**Switches.** `item-values.json` has `switches`: per code, the `ModConfig/seraphhorizons.json`
+switches (bools on `SeraphHorizonsConfig`) its value exists by, only for codes that have any. An
+item depends on switch S when its cheapest route's recipe is owned by S (export
+`recipes[i].switch`), when the item itself is added by S (`items[code].switch`), or when anything
+that route was priced from (its stacks, tools, handed-back containers and credited outputs)
+depends on S, through the whole chain. The mod's handbook hides a value whose switch is off.
 
 Every other item is valued at its cheapest route. The solver settles items cheapest first, each
 from items already settled (Knuth's generalisation of Dijkstra), so chains of any length and cycles
 resolve, and a settled value never drops again: a loop that makes more than it consumes (two linen
 make four sails, a sail cuts back into two linen; a lightning rod chisels into fifty copper bits)
-cannot pull prices down. A route waits for its tools when they will get a value.
+cannot pull prices down. A route waits for its tools and its credited outputs when they will get a
+value. When routes wait on each other (a lottery's loser made only from its winner), the cheapest
+of them is settled without waiting and the rest wait again. The whole solve runs twice: a route
+whose tool is worth more than its output (the gear cutter's frame, 16 gears, cutting an 11-gear
+steel gear) could only be priced after that output had settled by a dearer route, so the second
+pass takes a tool not yet valued at its first-pass value.
 
 What no recipe makes and nothing prices (a leaf) gets, in this order: a category default by a regex
 on the code's path (`defaults` in `raw-values.json`: earth, wood, plants, seeds, crops, meat, hides,
@@ -75,7 +125,9 @@ of the blue and red ones; planks facing north take planks facing up). These fall
 undercut a production chain: they are settled after it.
 
 Values are stored per item as gears with 3 decimals. An item worth under 1 gear per full stack is
-listed in `floorZero`: trading treats it as worthless, and keeps the value for sums.
+listed in `floorZero`: trading treats it as worthless, and keeps the value for sums. The table's
+keys are `about`, `schemaVersion`, `pack`, `values`, `floorZero`, `switches`, one entry per line in
+code order, so a rebuild diffs cleanly.
 
 The report (`build/item-values-report.md` and `.json`) lists coverage per mod domain, the items with
 no value, the 50 most and least valuable, and items valued below the ingredients of their route,
@@ -83,25 +135,28 @@ which only a raw or override can be: the review list for hand prices.
 
 ## Numbers
 
-From an Atlas export of the pack at commit 31052e6 (game 1.22.7, 26,708 items, 11,053 recipes):
+From smoke's export of the pack (pack 0.1.0, game 1.22.7, with mods-src/seraphhorizons loaded;
+27,163 items, 11,217 recipes), the export as of the item-values branch at dbeeac1:
 
-- 21,113 of 26,708 items valued (79.0%); of the 23,569 the handbook shows, 82.6%.
-- 13,232 from recipes, 5,795 raws, 2,078 defaults and fallbacks, 8 overrides.
-- 1,892 worthless (under a gear per stack), 9.0% of those valued.
-- 101 valued below their ingredients, all raws (nuggets, which the game hammers from ore chunks of
+- 21,987 of 27,163 items valued (80.9%); of the 24,023 the handbook shows, 84.8%.
+- 13,836 from recipes, 5,795 raws, 2,338 defaults and fallbacks, 18 overrides.
+- 2,044 worthless (under a gear per stack), 9.3% of those valued.
+- 107 valued below their ingredients, all raws (nuggets, which the game hammers from ore chunks of
   more units; boards, wool) and the overrides: by design.
-- No value: 5,595, mostly things no player trades: creatures (463), loose surface ores (644), plant
-  and crop blocks, rich gravel, coral, butterflies, termite mounds, stalagmites, carcasses
-  (butchery is skipped), technical blocks (signals' resistors, More Roads' stairs).
-- Coverage per domain: game 74.5%, Expanded Foods 98.2%, Door Variants 100%, Tailor's Delight
-  100%, Alchemy 99.6%, Cartwright's 99.0%, ppex 100%, Butchering 20.4% (carcasses).
+- No value: 5,176, mostly things no player trades: creatures, loose surface ores, plant and crop
+  blocks, rich gravel, coral, butterflies, termite mounds, stalagmites, carcasses (butchery is
+  skipped), technical blocks, the schematics (87, by rule), and the retired pit saws and blades.
+- Coverage per domain: game 77.5%, Expanded Foods 98.2%, Door Variants 100%, Tailor's Delight
+  100%, Alchemy 98.0%, Cartwright's 98.6%, ppex 100%, Butchering 20.4% (carcasses),
+  seraphhorizons 69.7% (its schematics, maps and leads; the large steel gear, whose kept master,
+  the large temporal gear, and the pickling tub, whose bark tar, have no value).
 
 Samples (gears per item; vanilla trader prices per item for reference, sell / buy):
 
 | item | value | stack | vanilla | route |
 |---|---|---|---|---|
 | copper ingot | 2.07 | 16 | — / 1 | 20 nuggets smelted |
-| tin bronze pickaxe | 4.59 | 1 | 11 / 4 | smithed head + stick |
+| tin bronze pickaxe | 4.37 | 1 | 11 / 4 | smithed head + stick |
 | bread (spelt) | 0.175 | 32 | 0.25 / 0.125 | vanilla trader fallback |
 | linen | 1.0 | 64 | 3 / 0.5 | grid |
 | board (oak) | 0.06 | 64 | 0.0625 / — | raw |
@@ -110,8 +165,10 @@ Samples (gears per item; vanilla trader prices per item for reference, sell / bu
 | rusty gear | 1 | 1000 | | raw (money) |
 | bed (wood) | 1.19 | 2 | 8 / — | grid |
 | barrel | 1.5 | 1 | 2 / — | override |
+| oiled gear | 1.80 | 64 | | rusty gear degreased, pickled, neutralized, oiled |
+| steel gear | 10.89 | 64 | | gear cutter (a cast steel blank, 8.87); 13.97 by the oiled gear's lottery |
 
-Over the 475 items vanilla traders deal in, the median value is 1.2 x vanilla's buy price (266
+At commit 31052e6, over the 475 items vanilla traders deal in, the median value is 1.2 x vanilla's buy price (266
 entries) and 0.7 x its sell price (346): values sit near what a trader pays, below what it charges.
 
 ## Why these prices
@@ -142,9 +199,11 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 
 ## Known gaps
 
-- Casting in tool molds, the pack's woodworking machines, kiln glazing, bread baking stages and the
-  cementation furnace are not in the export; items made only that way are raws, overrides, or take
-  a fallback.
+- The pack's woodworking machines, kiln glazing, bread baking stages and the cementation furnace are
+  not in the export; items made only that way are raws, overrides, or take a fallback.
+- A pickling tub record's `failure` output (gears an acid eats, brine's `lossChance`) is not
+  credited or charged: the tub prices its first output as if no gear were lost. Perishing (the bare
+  gears' flash rust) is not a route.
 - A nugget hammered from a rich chunk carries more metal units in its attributes than the plain
   nugget the table prices; trading reads the code, not the attributes.
 - Values are per item; a stack's attributes (a filled bucket's contents, a meal's ingredients) are
