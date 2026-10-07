@@ -15,7 +15,8 @@ namespace SeraphHorizons.Mod.MandrelStation;
 /// The mandrel station's controller. Holds the fitted mandrel (its code), the hollow section on it as
 /// its item stack, and the forging (<see cref="ForgeJob"/>: the blows struck and W, 0..1). The player
 /// forges as on the anvil: each right-click with a hammer is a blow (the anvil's sound and sparks at
-/// <c>strike.pos</c>, the hammer's durability paid), and at the last blow two pipe sections of the
+/// <c>strike.pos</c>, the hammer's durability paid; a hammer of a higher tool tier forges more a blow),
+/// and at the blow that finishes the hollow two pipe sections of the
 /// hollow's metal go into a container beyond the tip, or drop there. A blow on a bare mandrel takes a
 /// hollow from a chest or hopper beside the stump. The server keeps the ghost cell stamped; the client
 /// draws the station (<see cref="MandrelStationRenderer"/>, through <see cref="IMandrelStationView"/>).
@@ -47,7 +48,8 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     public ItemStack? Hollow => _hollow;
     public ForgeJob Job => _job;
 
-    /// <summary>Blows the hollow on takes, as the server runs (0 with none).</summary>
+    /// <summary>Blows the hollow on takes with the base hammer (the copper one), as the server runs (0
+    /// with none); a better hammer takes fewer.</summary>
     public int BlowsNeeded => _job.On ? _serverBlowsNeeded ?? Config.BlowsPerHollow(_job.Class) : 0;
 
     // IMandrelStationView
@@ -377,16 +379,18 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     }
 
     /// <summary>
-    /// One blow of the hammer on the hollow (server side): W advances by one over the hollow's blows,
-    /// the anvil's sound and sparks at <c>strike.pos</c>, the hammer in <paramref name="hammer"/> (if
-    /// any) loses its wear a blow, and at the last blow the hollow is used up and its two pipe sections
-    /// come off. Returns the sections delivered.
+    /// One blow of the hammer on the hollow (server side): W advances by the hammer's tool tier over
+    /// the base tier, over the hollow's blows (<see cref="Forging.WorkPerBlow"/>; no hammer, or one with
+    /// no tier, is the base), the anvil's sound and sparks at <c>strike.pos</c>, the hammer in
+    /// <paramref name="hammer"/> (if any) loses its wear a blow, and at the blow that brings W to 1 the
+    /// hollow is used up and its two pipe sections come off. Returns the sections delivered.
     /// </summary>
     public int Blow(IPlayer? byPlayer = null, ItemSlot? hammer = null)
     {
         if (!HollowOn || !Complete)
             return 0;
-        (_job, bool finished) = _job.Strike(Config.BlowsPerHollow(_job.Class));
+        int tier = hammer?.Itemstack?.Collectible?.ToolTier ?? 0;
+        (_job, bool finished) = _job.Strike(Config.BlowsPerHollow(_job.Class), tier, Config.BaseHammerTier);
         var at = WorldPoint(Rig?.Strike ?? new Float3(0.5f, 0.75f, 1f));
         Api.World.PlaySoundAt(BlowSound, at.X, at.Y, at.Z, null, true, 16, 0.8f);
         Sparks(at);
@@ -580,7 +584,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         if (!Complete)
             dsc.AppendLine(L("info-next"));
         else if (HollowOn)
-            dsc.AppendLine(L("info-hollow", L("metal-" + Forging.MetalOf(_job.Class)), _job.Blows, BlowsNeeded));
+            dsc.AppendLine(L("info-hollow", L("metal-" + Forging.MetalOf(_job.Class)), _job.Blows, (int)Math.Floor(_job.Work * 100 + 1e-6)));
         else
             dsc.AppendLine(L("info-empty"));
     }

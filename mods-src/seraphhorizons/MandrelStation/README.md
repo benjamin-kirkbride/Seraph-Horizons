@@ -87,6 +87,15 @@ their ends, a hairline shows there at W 1). At every tenth of W the work is chec
 continuous square tube of even cross-section, with no gap between rings; the volumes where rings, walls
 and corner bars overlap are never seen.
 
+**It hangs on the mandrel.** A loose box on a bar hangs from it: at every W the bore's ceiling (the top
+wall's underside) rests on the bar's top face, and the gap is below the bar, never round it. At rest the
+6 bore on the 4 bar puts the box's centre 1 below the mandrel's axis (y 12.6; the box's bottom 0.6 over
+the stump). As it closes, the top wall stays on the bar, the side walls come in by 1 and the bottom wall
+comes up by 2, so the section's centre rises by 1 with the forging, and the finished tube's bore closes
+round the bar. Checked at every tenth of W: the lowest ceiling of the ring stack on the bar's top within
+0.01 (each ring's within the z-fighting fix's steps, 0.09 at most), and no element of the work into the
+bar by more than 0.01.
+
 **Faces that share a plane.** The overlapping rings' outer faces lie in one plane all the time, so the
 z-fighting fix steps them in by 0.015 each, up to 0.105 deep for a stack of eight; no end faces share a
 plane (a ring's side walls stand back 0.03 at its ends and its corner bars 0.06), so the joints between
@@ -113,6 +122,8 @@ included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py
   line), (8 − 2W) across and (8 + 8W) long, with no gap between rings; at W 1 closed onto the mandrel and
   still on it (its far end short of the tip), its two sections (rings 1..4, 5..8) each 6 × 6 × 8 and end to
   end; `output.pos` beyond the tip. The tolerance is 0.15 voxels, the fix's deepest step and a margin.
+- **Hang:** at every tenth of W the bore's ceiling on the bar's top (the stack's lowest within 0.01, every
+  ring's within 0.15), nothing of the work into the bar by more than 0.01.
 - **Mandrel:** through both bands of the bracket, each band's saddle, cheeks and cap bearing on it; the
   hollow against the shoulder; θ moves no part.
 - **Clearances:** no two parts overlap at any pose every 0.02 of the forging (the work's own rings,
@@ -216,10 +227,16 @@ right-click; nothing else does (an angle, a pipe section, an ingot, a plate: `Fo
 and only when its pipe section exists (`UnifiedPipes`' item; with that switch off a hollow is refused
 with a message). Then **each right-click with any of the game's hammers** (`game:hammer-*`) on the
 station is a blow, no faster than one each `Forging.BlowIntervalMs` (300) on a station, so right-click
-held does not hammer faster than a smith swings. A blow advances W by 1 / `BlowsPerHollow` of the
-hollow's metal (`ForgeJob.Strike`), plays the anvil's `game:sounds/effect/anvilhit` and throws a few
+held does not hammer faster than a smith swings. A blow advances W by (the hammer's tool tier /
+`BaseHammerTier`) / `BlowsPerHollow` of the hollow's metal (`Forging.WorkPerBlow`, `ForgeJob.Strike`):
+`BlowsPerHollow` is the count for the base hammer, the copper one, and the tier is read from the held
+hammer's item (`CollectibleObject.ToolTier`, the game's `tooltierbytype`: copper, gold and silver 2, the
+three bronzes 3, iron and meteoric iron 4, steel 5) at each blow; a hammer with no tier counts as the
+base, and one blow never advances more than half a hollow (`Forging.MaxWorkPerBlow`). So lead takes 6
+blows of a copper hammer, 4 of a bronze one, 3 of an iron or steel one; copper 9, 6, 5 (iron) and 4
+(steel). The blow that brings W to 1 finishes it (the overshoot is dropped). A blow plays the anvil's `game:sounds/effect/anvilhit` and throws a few
 small glowing sparks at `strike.pos`, and costs the hammer `HammerWearPerBlow` durability (not in
-creative mode). At the last blow (W = 1) the hollow is used up and `forge.sectionsPerHollow` (2)
+creative mode), one a blow whatever the hammer. At W = 1 the hollow is used up and `forge.sectionsPerHollow` (2)
 `forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) go into a container in
 `MandrelStationRig.OutputNeighbour()` (the cell beyond the tip, native south), else drop just past it at
 `OutputDrop()`, pushed outward, as the press brake's angle does. Each blow syncs W and the blow count.
@@ -230,8 +247,9 @@ west: beside the stump or beside the tip's cell) and loads it; that click is not
 the mandrel's code, the hollow, its class, the blows and W.
 
 **Settings** (`MandrelStationSettings`): `BlowsPerHollowLead` 6 and `BlowsPerHollowCopper` 9, the rig's
-`forge.blowsPerHollow` (`MandrelStationRigTests.The_default_pace_is_the_rigs` holds them together); the
-server sends the current hollow's blows to clients in the block entity's tree, for the block info.
+`forge.blowsPerHollow` (`MandrelStationRigTests.The_default_pace_is_the_rigs` holds them together),
+counted for a hammer of `BaseHammerTier` 2 (the game's copper hammer's tier); the block info shows the
+blows struck and W as a percentage, since the blows left depend on the hammer.
 `HammerWearPerBlow` 1, as a blow on the anvil costs a hammer one. Nothing of the station wears, so there
 is no oil and no tool of its own.
 
@@ -255,8 +273,10 @@ and the other features' `handbooksearch://mandrel station`).
 write one `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow
 consumed, the mandrel kept, the hammer as a tool worn `HammerWearPerBlow` × blows a job (`wear`
 `fixed`, so the site shows it as the worn tool, not consumed), the frame as the station, two pipe
-sections out; `power` `hand`, `turns` the blows and `work` that many `blows` (the site says "By hand: 6
-blows a job, each a right-click with a hammer"); no `oil`. Type `mandrelstation`, owned by
+sections out; `power` `hand`, `turns` the base (copper) hammer's blows and `work` that many `blows` (the
+site says "By hand: 6 blows a job, each a right-click with a hammer"), the definition's hammer
+`game:hammer-copper`; a better hammer's fewer blows are the handbook's (the schema has no note on a
+recipe); no `oil`. Type `mandrelstation`, owned by
 `MandrelStation` (`Core/SwitchOwnership.cs`).
 
 **Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the mandrel and its take-back, saves,

@@ -14,7 +14,7 @@ namespace SeraphHorizons.PackTests;
 // station in the plain world, worked by hand. Every blow is a real right-click with a hammer through
 // the block's own interaction call, as the game makes it, a few ticks apart (the station takes a blow
 // no faster than Forging.BlowIntervalMs). Every scenario builds on a granite floor of its own 40 above
-// spawn at x -460 to -508, z -460 to -480 (clear of the draw bench's at x -240 to -300, z -240 to
+// spawn at x -460 to -508, z -460 to -500 (clear of the draw bench's at x -240 to -300, z -240 to
 // -280, and the press brake's at x -320 to -368, z -320 to -340), and they share the gear cutter's
 // player, gearcutterhand (the server takes 16 players at most, and the other scenarios use the rest).
 public partial class SharedWorldScenarios
@@ -26,7 +26,10 @@ public partial class SharedWorldScenarios
     private const string PipeSectionLead = "seraphhorizons:pipesection-lead";
     private const string PipeSectionCopper = "seraphhorizons:pipesection-copper";
     private const string MandrelFrame = "seraphhorizons:mandrelstation-frame-north";
-    private const string MandrelHammer = "game:hammer-iron";
+    // The base hammer, whose blows the settings count (MandrelStationSettings.BaseHammerTier, the game's
+    // copper hammer's tier), and the best: steel, tier 5 against copper's 2 (hammer.json's tooltierbytype).
+    private const string MandrelHammer = "game:hammer-copper";
+    private const string MandrelSteelHammer = "game:hammer-steel";
 
     private async Task<BEMandrelStation> PlaceMandrelStation(BlockPos pos, string side = "north")
     {
@@ -96,6 +99,8 @@ public partial class SharedWorldScenarios
         }
         Assert.Equal((PipeSectionLead, PipeSectionCopper), (Forging.SectionFor(1), Forging.SectionFor(2)));
         Assert.True(W.GetItem(new AssetLocation(MandrelHammer)) is { Id: > 0, IsMissing: false });
+        // the base tier is the copper hammer's, as the game defines it
+        Assert.Equal(W.GetItem(new AssetLocation(MandrelHammer))!.ToolTier, MandrelMod.Config.BaseHammerTier);
         Assert.Equal("Mandrel forging station frame", new ItemStack(W.GetBlock(BlockMandrelStation.ItemCode)).GetName());
 
         // the grid: the frame, an oak log, an iron plate and nails and strips, with a hammer
@@ -205,8 +210,8 @@ public partial class SharedWorldScenarios
 
     // ---- Forging ----
 
-    // A lead hollow goes on by hand and is forged a blow at a time, each a right-click with a hammer
-    // that costs the hammer a point; at the sixth two lead pipe sections drop beyond the tip and the
+    // A lead hollow goes on by hand and is forged a blow at a time, each a right-click with a copper
+    // hammer (the base) that costs the hammer a point; at the sixth two lead pipe sections drop beyond the tip and the
     // hollow is used up. An angle, a pipe section, an ingot and a plate never go on.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Mandrel_station_strikes_a_lead_hollow_into_two_pipe_sections()
@@ -235,7 +240,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, station.HollowClass);
         Assert.Equal(Forging.LeadHollow, station.Hollow?.Collectible.Code.ToString());
         Assert.Equal(2, CutterClick(player, pos, CutterItem(Forging.LeadHollow, 2))?.StackSize);
-        Assert.Contains("A lead hollow section on the mandrel: 0 of 6 blows", MandrelInfo(station, player));
+        Assert.Contains("A lead hollow section on the mandrel: 0 blows struck, 0% forged", MandrelInfo(station, player));
 
         // nothing moves without blows; each blow, from the stump or the ghost, is a sixth
         await World.Ticks(10);
@@ -250,7 +255,7 @@ public partial class SharedWorldScenarios
             Assert.True(station.HollowOn);
         }
         Assert.Equal(durability - 5 * MandrelMod.Config.HammerWearPerBlow, hammer.Collectible.GetRemainingDurability(hammer));
-        Assert.Contains("5 of 6 blows", MandrelInfo(station, player));
+        Assert.Contains("5 blows struck, 83% forged", MandrelInfo(station, player));
         // a save keeps the blows and W
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         station.ToTreeAttributes(tree);
@@ -297,6 +302,85 @@ public partial class SharedWorldScenarios
         Assert.False(station.HollowOn);
         await World.Ticks(5);
         Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(PipeSectionCopper));
+        CutterKillItems(pos);
+    }
+
+    // A steel hammer (tier 5) forges two and a half copper blows a blow, the game's ratio: lead in
+    // three blows, copper in four, each costing the hammer its one point.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Mandrel_station_forges_faster_with_a_steel_hammer_by_its_tier()
+    {
+        var pos = await CutterSite(-460, -500);
+        var player = await CutterPlayer();
+        var station = await PlaceMandrelStation(pos, "north");
+        FitMandrel(station, player);
+        var hammer = CutterItem(MandrelSteelHammer);
+        int steel = hammer.Collectible.ToolTier, copper = W.GetItem(new AssetLocation(MandrelHammer))!.ToolTier;
+        Assert.Equal((5, 2), (steel, copper));
+        double perBlow = (double)steel / copper / MandrelMod.Config.BlowsPerHollowLead;
+        int durability = hammer.Collectible.GetRemainingDurability(hammer);
+
+        Assert.Null(CutterClick(player, pos, CutterItem(Forging.LeadHollow)));
+        for (int b = 1; b <= 2; b++)
+        {
+            await MandrelBlow(station, player, hammer);
+            Assert.True(station.HollowOn);
+            Assert.Equal(b * perBlow, station.Job.Work, 6);
+        }
+        await MandrelBlow(station, player, hammer);
+        Assert.False(station.HollowOn);
+        Assert.Equal(durability - 3 * MandrelMod.Config.HammerWearPerBlow, hammer.Collectible.GetRemainingDurability(hammer));
+        await World.Ticks(5);
+        Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(PipeSectionLead));
+        CutterKillItems(pos);
+
+        // copper, nine copper blows: four of steel
+        Assert.Null(CutterClick(player, pos, CutterItem(Forging.CopperHollow)));
+        for (int b = 1; b <= 3; b++)
+        {
+            await MandrelBlow(station, player, hammer);
+            Assert.True(station.HollowOn);
+            Assert.Equal(b * steel / (double)copper / MandrelMod.Config.BlowsPerHollowCopper, station.Job.Work, 6);
+        }
+        await MandrelBlow(station, player, hammer);
+        Assert.False(station.HollowOn);
+        Assert.Equal(4, Forging.BlowsWith(MandrelMod.Config.BlowsPerHollowCopper, steel, copper));
+        await World.Ticks(5);
+        Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(PipeSectionCopper));
+        CutterKillItems(pos);
+    }
+
+    // A hammer with no tool tier counts as the base: the steel hammer with its tier taken away for the
+    // scenario (and given back) forges lead in the copper hammer's six blows.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Mandrel_station_counts_a_hammer_with_no_tier_as_the_base()
+    {
+        var pos = await CutterSite(-472, -500);
+        var player = await CutterPlayer();
+        var station = await PlaceMandrelStation(pos, "east");
+        FitMandrel(station, player);
+        var item = W.GetItem(new AssetLocation(MandrelSteelHammer))!;
+        int tier = item.ToolTier;
+        try
+        {
+            item.ToolTier = 0;
+            var hammer = CutterItem(MandrelSteelHammer);
+            Assert.Null(CutterClick(player, pos, CutterItem(Forging.LeadHollow)));
+            for (int b = 1; b <= 5; b++)
+            {
+                await MandrelBlow(station, player, hammer);
+                Assert.True(station.HollowOn);
+                Assert.Equal(b / 6.0, station.Job.Work, 6);
+            }
+            await MandrelBlow(station, player, hammer);
+            Assert.False(station.HollowOn);
+        }
+        finally
+        {
+            item.ToolTier = tier;
+        }
+        await World.Ticks(5);
+        Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(PipeSectionLead));
         CutterKillItems(pos);
     }
 

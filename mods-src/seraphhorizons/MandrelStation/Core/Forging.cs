@@ -78,9 +78,10 @@ public static class MandrelPart
 /// <summary>
 /// The forging's arithmetic: a hollow section of class k (1 lead, 2 copper; the game's chute
 /// section) goes on the mandrel and is hammered over it, one blow a right-click with a hammer, as on
-/// the anvil. W, the forging of one hollow (0..1), advances by 1 / blowsPerHollow[k] a blow; at the
-/// last blow (W = 1) the hollow is used up and <see cref="SectionsPerHollow"/> pipe sections of its
-/// metal come off the mandrel's tip.
+/// the anvil. W, the forging of one hollow (0..1), advances by (hammer tier / base tier) /
+/// blowsPerHollow[k] a blow (<see cref="WorkPerBlow"/>): blowsPerHollow is the count for the base
+/// hammer, the copper one, and a better hammer forges faster. At the blow that brings W to 1 the hollow
+/// is used up and <see cref="SectionsPerHollow"/> pipe sections of its metal come off the mandrel's tip.
 /// </summary>
 public static class Forging
 {
@@ -118,6 +119,33 @@ public static class Forging
         return occupied ? HollowLoadVerdict.Occupied : HollowLoadVerdict.Loads;
     }
 
+    /// <summary>The most one blow forges, whatever the hammer: half a hollow.</summary>
+    public const double MaxWorkPerBlow = 0.5;
+
+    /// <summary>How many base blows one blow of a hammer of tool tier <paramref name="tier"/> is worth:
+    /// its tier over <paramref name="baseTier"/>. A hammer with no tier (0 or less) counts as the base.</summary>
+    public static double BlowWeight(int tier, int baseTier) =>
+        tier <= 0 || baseTier <= 0 ? 1.0 : (double)tier / baseTier;
+
+    /// <summary>W one blow adds on a hollow that takes <paramref name="blowsPerHollow"/> blows of the
+    /// base hammer, struck with a hammer of tier <paramref name="tier"/>: its <see cref="BlowWeight"/>
+    /// over the blows, never more than <see cref="MaxWorkPerBlow"/>; 0 when the hollow takes none.</summary>
+    public static double WorkPerBlow(int blowsPerHollow, int tier, int baseTier) =>
+        blowsPerHollow < 1 ? 0 : Math.Min(MaxWorkPerBlow, BlowWeight(tier, baseTier) / blowsPerHollow);
+
+    /// <summary>The blows a hollow of <paramref name="blowsPerHollow"/> base blows takes with a hammer
+    /// of tier <paramref name="tier"/> (the last blow may overshoot); 0 when it takes none.</summary>
+    public static int BlowsWith(int blowsPerHollow, int tier, int baseTier)
+    {
+        double w = WorkPerBlow(blowsPerHollow, tier, baseTier);
+        if (w <= 0)
+            return 0;
+        int n = 0;
+        for (double work = 0; work < 1 - 1e-9; n++)
+            work += w;
+        return n;
+    }
+
     /// <summary>Whether a blow is struck now: <paramref name="sinceLastMs"/> since the last one.</summary>
     public static bool Ready(long sinceLastMs) => sinceLastMs >= BlowIntervalMs;
 }
@@ -134,13 +162,18 @@ public readonly record struct ForgeJob(int Class, int Blows, double Work)
     /// <summary>Whether nothing has been done to the hollow yet (it can be taken back).</summary>
     public bool Untouched => On && Blows == 0 && Work <= 0;
 
-    /// <summary>The job after one blow, of <paramref name="blowsPerHollow"/> the hollow takes, W held
-    /// at 1, and whether this blow finished it.</summary>
-    public (ForgeJob Job, bool Finished) Strike(int blowsPerHollow)
+    /// <summary>The job after one blow of the base hammer, of <paramref name="blowsPerHollow"/> the
+    /// hollow takes, W held at 1, and whether this blow finished it.</summary>
+    public (ForgeJob Job, bool Finished) Strike(int blowsPerHollow) => Strike(blowsPerHollow, 0, 0);
+
+    /// <summary>The job after one blow of a hammer of tool tier <paramref name="tier"/>
+    /// (<see cref="Forging.WorkPerBlow"/>: <paramref name="blowsPerHollow"/> is the base hammer's count,
+    /// <paramref name="baseTier"/> its tier), W held at 1, and whether this blow finished it.</summary>
+    public (ForgeJob Job, bool Finished) Strike(int blowsPerHollow, int tier, int baseTier)
     {
         if (!On || Done || blowsPerHollow < 1)
             return (this, false);
-        var next = this with { Blows = Blows + 1, Work = Math.Min(1, Work + 1.0 / blowsPerHollow) };
+        var next = this with { Blows = Blows + 1, Work = Math.Min(1, Work + Forging.WorkPerBlow(blowsPerHollow, tier, baseTier)) };
         if (next.Work >= 1 - 1e-9)
             next = next with { Work = 1 };
         return (next, next.Done);

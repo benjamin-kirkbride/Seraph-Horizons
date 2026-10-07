@@ -37,8 +37,10 @@ public static class MandrelStationExport
 
     // MandrelStation/Core/Forging.cs: the mandrel's alternatives.
     public static readonly string[] MandrelCodes = ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"];
-    /// <summary>The hammer the definition names; the variant lists every hammer.</summary>
-    public const string HammerTemplate = "game:hammer-iron";
+    /// <summary>The hammer the definition names: the base hammer (MandrelStationSettings.BaseHammerTier,
+    /// the copper one's tier), whose blows the record's turns count. The variant lists every hammer; a
+    /// better one forges in fewer blows, by its tool tier, which the handbook says.</summary>
+    public const string HammerTemplate = "game:hammer-copper";
 
     private static Item? ItemOf(ICoreServerAPI api, string code) =>
         api.World.GetItem(new AssetLocation(code)) is { IsMissing: false } i && i.Code != null ? i : null;

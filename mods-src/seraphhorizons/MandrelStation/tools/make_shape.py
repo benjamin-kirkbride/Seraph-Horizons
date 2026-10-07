@@ -91,7 +91,7 @@ HOOP_T = 0.3                                 # the hoop's thickness, outside the
 
 # ---------------------------------------------------------------- the mandrel and its bracket
 X0 = 8.0                                     # the mandrel's axis (x)
-YM = 11.6                                    # the mandrel's axis (y): the box's top just under the block's
+YM = 12.6                                    # the mandrel's axis (y): the hollow hung on it clears the stump
 MH = 2.0                                     # the mandrel's half width: a 4 x 4 square, the tube's bore
 ROOT_Z = 0.8                                 # the root's end, in the bracket
 SHOULDER_Z = (6.4, 7.0)                      # the collar the hollow is driven against
@@ -123,6 +123,13 @@ NEAR = range(SECTION_RINGS)                  # the near section's rings (from th
 RECESS = 0.03                                # the side walls' ends stand back this far, the corner bars' twice: no two
                                              # end faces of a ring share a plane, so the z-fighting fix leaves them be
 TIP = NOSE_Z[1]
+# The hollow hangs on the mandrel: its bore's ceiling (the top wall's underside) rests on the bar's top face at
+# every W, the gap below the bar. Its cross-section's centre is HANG0 below the axis at rest and HANG1 when
+# closed; the whole section rises by the difference as the bottom wall comes up and the sides close in, so
+# the top wall stays on the bar.
+HANG0 = (OUT - WALL) - MH                    # at rest: a 6 bore on a 4 bar, its centre 1 below the axis
+HANG1 = (SEC - WALL) - MH                    # closed: a 4 bore on a 4 bar, centred
+LIFT = HANG0 - HANG1                         # how far the section's centre rises as it closes
 
 # ---------------------------------------------------------------- the cycle (t = W, one hollow)
 T_FORGE = (0.0, 1.0)                         # closes from 8 to 6 across and stretches from 8 to 16, evenly, the whole work
@@ -151,8 +158,10 @@ def box(lo, hi, name, part, tex):
 
 
 def section_box(x0, x1, y0, y1, z0, z1, name, part, tex):
-    """A box in the work's cross-section frame: x and y measured from the mandrel's axis."""
-    return box([X0 + x0, YM + y0, z0], [X0 + x1, YM + y1, z1], name, part, tex)
+    """A box in the work's cross-section frame at rest: x and y measured from the hollow's centre, hung
+    HANG0 below the mandrel's axis."""
+    yc = YM - HANG0
+    return box([X0 + x0, yc + y0, z0], [X0 + x1, yc + y1, z1], name, part, tex)
 
 
 # ---------------------------------------------------------------- builders
@@ -279,8 +288,9 @@ def _rig_parts():
                 drv = []
                 if dx:
                     drv.append(slide("x", dx * CLOSE, T_FORGE))
-                if dy:
-                    drv.append(slide("y", dy * CLOSE, T_FORGE))
+                # closing about the section's centre, which rises as it closes: the top wall stays on the bar
+                if dy * CLOSE + LIFT:
+                    drv.append(slide("y", dy * CLOSE + LIFT, T_FORGE))
                 if i:
                     drv.append(slide("z", stretch(i), T_FORGE))
                 parts.append({"id": f"{pre}{i + 1}{s}", "match": [f"{pre}{i + 1}{s}_*"], "requires": req, "drivers": drv})
@@ -326,8 +336,8 @@ def output_point():
 
 
 def strike_point():
-    """Where the hammer lands: the top of the box's middle."""
-    return (X0, YM + OUT, Z0 + L / 2)
+    """Where the hammer lands: the top of the box's middle (its top wall lies on the bar throughout)."""
+    return (X0, YM + MH + WALL, Z0 + L / 2)
 
 
 def make_rig(parts):

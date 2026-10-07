@@ -271,6 +271,35 @@ def check_forging(v):
           f"6 x 6 x 8 sections end to end; output.pos beyond the tip")
 
 
+def check_hang(v):
+    """The hollow hangs on the mandrel, never centred round it: at every tenth of W the bore's ceiling (the
+    top walls' undersides) bears on the bar's top face (the lowest within 0.01, every ring's within the
+    z-fighting fix's steps), and no element of the work passes into the bar by more than 0.01."""
+    m = v.m
+    bar = next(e for e in v.by_part["mandrel"] if e.name == "mandrel_body").aabb()
+    top = m.YM + m.MH
+    worst_low, worst_ring, worst_in = 0.0, 0.0, 0.0
+    for k, pre in ((1, "l"), (2, "c")):
+        for t in range(11):
+            pose = m.pose_at(k, t / 10)
+            ceil = [aabb_of(v.group(rf"{pre}{i + 1}u", pose))[0][1] for i in range(m.N_RINGS)]
+            low = min(ceil) - top
+            worst_low = max(worst_low, abs(low))
+            worst_ring = max(worst_ring, max(c - top for c in ceil))
+            if abs(low) > 0.01:
+                v.fail(f"{pre} at W {t / 10:.1f}: the bore's ceiling is {low:+.3f} off the bar's top")
+            if max(c - top for c in ceil) > TOL or min(ceil) < top - 0.01:
+                v.fail(f"{pre} at W {t / 10:.1f}: a ring's ceiling is off the bar ({[round(c - top, 3) for c in ceil]})")
+            for e in v.group(rf"{pre}\d+[udew]+", pose):
+                lo, hi = e.aabb()
+                depth = min(min(hi[q], bar[1][q]) - max(lo[q], bar[0][q]) for q in range(3))
+                worst_in = max(worst_in, depth)
+                if depth > 0.01:
+                    v.fail(f"{e.name} passes {depth:.3f} into the bar at W {t / 10:.1f}")
+    print(f"hang: the bore's ceiling on the bar's top at every tenth of W (lowest within {worst_low:.4f}, every ring within "
+          f"{worst_ring:.3f}); nothing passes into the bar (worst {worst_in:+.3f})")
+
+
 def check_mandrel(v):
     """The mandrel's root lies in both bands of the bracket (held at two places against the cantilever), its
     collar clear of them, the hollow against the collar; theta moves nothing."""
@@ -326,6 +355,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, [m.REST] + cycle_poses(m, 0.01))
     check_forging(v)
     check_mandrel(v)
+    check_hang(v)
     check_clearances(v, [m.REST] + cycle_poses(m, 0.02), "clearances")
     if not quick:
         check_clearances(v, cycle_poses(m, 0.0025), "swept paths (every 0.0025 of the cycle, both metals: the hollow stretching along the mandrel)")

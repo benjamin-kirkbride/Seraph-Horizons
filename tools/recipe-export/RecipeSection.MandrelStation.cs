@@ -19,7 +19,7 @@ public static partial class RecipeSection
         AddType(types, MandrelStationType, "Mandrel forging station", mine.Count, "machine", "MandrelStationSettings", station.Mod);
     }
 
-    /// <summary>The job: by hand, its turns the blows (the work: that many <c>blows</c>), the mandrel
+    /// <summary>The job: by hand, its turns the base (copper) hammer's blows (the work: that many <c>blows</c>), the mandrel
     /// kept, and the hammer, when it pays, worn a fixed amount (its toolDurabilityCost) a job.</summary>
     private static JObject Machine(ForgeClass k, bool hammer)
     {

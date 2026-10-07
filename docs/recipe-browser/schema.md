@@ -269,8 +269,10 @@ id `mandrelstation|game:chutesection-<metal>|0`. The ingredients are the hollow 
 mandrel (a rod, in `machine.kept`), the hammer (`isTool`, its `toolDurabilityCost` the blows a hollow
 times the wear a blow; `machine.wear` names it, rule `fixed`) and the machine (role `station`); the
 output is two pipe sections (`seraphhorizons:pipesection-<metal>`). It is worked by hand: `power` is
-`hand`, `turns` the hammer blows one hollow takes, each a right-click with a hammer, and `work` says so
-(`amount` that many, `unit` `blows`, no `turnsPerUnit`); there is no `oil`.
+`hand`, `turns` the hammer blows one hollow takes with the base hammer (the copper one, the definition's
+hammer), each a right-click, and `work` says so (`amount` that many, `unit` `blows`, no `turnsPerUnit`);
+a hammer of a higher tool tier forges in proportionally fewer blows, which the record does not carry.
+There is no `oil`.
 
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role

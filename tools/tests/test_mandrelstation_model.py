@@ -128,7 +128,10 @@ class Forge(unittest.TestCase):
                 self.assertAlmostEqual(hi[0] - lo[0], 8.0 - 2.0 * e, delta=0.15)
                 self.assertAlmostEqual(hi[1] - lo[1], 8.0 - 2.0 * e, delta=0.15)
                 self.assertAlmostEqual(hi[2] - lo[2], 8.0 + 8.0 * e, delta=0.15)
-                self.assertAlmostEqual((lo[1] + hi[1]) / 2, make_shape.YM, delta=0.05)
+                # hung on the bar, not centred: the centre rises from HANG0 below the axis to the axis, and the
+                # top wall (the bore's ceiling) bears on the bar's top throughout
+                self.assertAlmostEqual((lo[1] + hi[1]) / 2, make_shape.YM - make_shape.HANG0 + make_shape.LIFT * e, delta=0.05)
+                self.assertAlmostEqual(hi[1] - 1.0, make_shape.YM + make_shape.MH, delta=0.05)
                 self.assertAlmostEqual(lo[2], make_shape.Z0, delta=0.05)
 
     def test_the_tube_stays_on_the_mandrel_at_the_end(self):

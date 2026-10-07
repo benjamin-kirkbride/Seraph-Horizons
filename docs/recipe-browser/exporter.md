@@ -341,9 +341,11 @@ is left out when its switch is off or what it names is not registered.
   `forge.sections`), the sections a hollow (`forge.sectionsPerHollow`, 2) and the blows a hollow as a
   fallback; `SeraphHorizonsConfig.MandrelStationSettings` gives the blows a hollow
   (`BlowsPerHollowLead`, `BlowsPerHollowCopper`) and the hammer's wear a blow (`HammerWearPerBlow`). A
-  hand station: `power` is `hand`, `turns` the blows and `work` `{amount: blows, unit: "blows"}`; the
-  mandrel is `kept` (the three rods the variant's stacks), the hammer a tool worn blows × wear a job
-  (`wear` `fixed`; every `game:hammer-*` in the variant, `game:hammer-iron` the definition's), no `oil`.
+  hand station: `power` is `hand`, `turns` the blows and `work` `{amount: blows, unit: "blows"}`, both
+  the base hammer's (`BaseHammerTier`, the copper one's: a better hammer forges faster by its tool tier,
+  which the handbook gives and the record does not); the mandrel is `kept` (the three rods the variant's
+  stacks), the hammer a tool worn blows × wear a job (`wear` `fixed`; every `game:hammer-*` in the
+  variant, `game:hammer-copper`, the base, the definition's), no `oil`.
   The output is two pipe sections of the metal, and a metal whose pipe section is not registered
   (`UnifiedPipes` off) has no record. The `MandrelStation` switch leaves it out when off.
 

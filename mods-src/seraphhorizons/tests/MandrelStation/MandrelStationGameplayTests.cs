@@ -157,6 +157,85 @@ public class MandrelStationGameplayTests
         Assert.Equal(9, Blows(2));
     }
 
+    // ---- The hammer's tier ----
+
+    // The game's hammers' tool tiers (survival itemtypes/tool/hammer.json, tooltierbytype): copper,
+    // gold and silver 2, the three bronzes 3, iron and meteoric iron 4, steel 5.
+    [Fact]
+    public void The_base_hammer_is_the_copper_one_at_the_games_tier()
+    {
+        Assert.Equal(2, MandrelStationConfig.Defaults.BaseHammerTier);
+        Assert.Equal(1.0, Forging.BlowWeight(2, 2));
+        Assert.Equal(1.5, Forging.BlowWeight(3, 2));
+        Assert.Equal(2.0, Forging.BlowWeight(4, 2));
+        Assert.Equal(2.5, Forging.BlowWeight(5, 2));
+        Assert.Equal(0.5, Forging.BlowWeight(1, 2));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public void A_hammer_with_no_tier_counts_as_the_base(int tier)
+    {
+        Assert.Equal(1.0, Forging.BlowWeight(tier, 2));
+        Assert.Equal(1 / 6.0, Forging.WorkPerBlow(6, tier, 2), 12);
+        Assert.Equal(6, Forging.BlowsWith(6, tier, 2));
+        Assert.Equal(new ForgeJob(1, 0, 0).Strike(6), new ForgeJob(1, 0, 0).Strike(6, tier, 2));
+    }
+
+    [Theory]
+    // tier, lead's blows, copper's blows at the defaults (6 and 9 for the copper hammer)
+    [InlineData(2, 6, 9)]   // copper, gold, silver
+    [InlineData(3, 4, 6)]   // tin, bismuth and black bronze
+    [InlineData(4, 3, 5)]   // iron, meteoric iron
+    [InlineData(5, 3, 4)]   // steel
+    public void A_better_hammer_forges_in_fewer_blows_by_its_tier(int tier, int lead, int copper)
+    {
+        var config = new MandrelStationConfig();
+        int Blows(int k)
+        {
+            var job = new ForgeJob(k, 0, 0);
+            int n = 0;
+            for (bool done = false; !done; n++)
+                (job, done) = job.Strike(config.BlowsPerHollow(k), tier, config.BaseHammerTier);
+            Assert.Equal(1.0, job.Work);
+            Assert.Equal(n, job.Blows);
+            return n;
+        }
+        Assert.Equal((lead, copper), (Blows(1), Blows(2)));
+        Assert.Equal((lead, copper), (Forging.BlowsWith(6, tier, 2), Forging.BlowsWith(9, tier, 2)));
+    }
+
+    [Fact]
+    public void A_steel_blow_forges_two_and_a_half_copper_blows()
+    {
+        var (job, finished) = new ForgeJob(1, 0, 0).Strike(6, 5, 2);
+        Assert.False(finished);
+        Assert.Equal(2.5 / 6, job.Work, 12);
+        // the third blow overshoots and is held at 1
+        (job, _) = job.Strike(6, 5, 2);
+        (job, finished) = job.Strike(6, 5, 2);
+        Assert.True(finished);
+        Assert.Equal((3, 1.0), (job.Blows, job.Work));
+    }
+
+    [Fact]
+    public void One_blow_never_forges_more_than_half_a_hollow()
+    {
+        Assert.Equal(0.5, Forging.MaxWorkPerBlow);
+        // a steel hammer on a hollow set to take one copper blow: capped at half
+        Assert.Equal(0.5, Forging.WorkPerBlow(1, 5, 2));
+        Assert.Equal(0.5, Forging.WorkPerBlow(2, 5, 2));
+        Assert.Equal(2, Forging.BlowsWith(1, 5, 2));
+        var (job, finished) = new ForgeJob(2, 0, 0).Strike(1, 5, 2);
+        Assert.False(finished);
+        Assert.Equal(0.5, job.Work);
+        // under the cap it is untouched
+        Assert.Equal(2.5 / 6, Forging.WorkPerBlow(6, 5, 2), 12);
+        Assert.Equal(0, Forging.WorkPerBlow(0, 5, 2));
+        Assert.Equal(0, Forging.BlowsWith(0, 5, 2));
+    }
+
     [Fact]
     public void No_hollow_takes_no_blows()
     {
@@ -253,11 +332,11 @@ public class MandrelStationGameplayTests
     [Fact]
     public void Settings_out_of_range_fall_back_to_their_defaults()
     {
-        var config = new MandrelStationConfig { BlowsPerHollowLead = 0, BlowsPerHollowCopper = 5000, HammerWearPerBlow = -1 };
+        var config = new MandrelStationConfig { BlowsPerHollowLead = 0, BlowsPerHollowCopper = 5000, HammerWearPerBlow = -1, BaseHammerTier = 0 };
         var fixes = config.Sanitise();
-        Assert.Equal(3, fixes.Count);
-        Assert.Equal((6, 9, 1), (config.BlowsPerHollowLead, config.BlowsPerHollowCopper, config.HammerWearPerBlow));
-        Assert.Empty(new MandrelStationConfig { BlowsPerHollowLead = 1, HammerWearPerBlow = 0 }.Sanitise());
+        Assert.Equal(4, fixes.Count);
+        Assert.Equal((6, 9, 1, 2), (config.BlowsPerHollowLead, config.BlowsPerHollowCopper, config.HammerWearPerBlow, config.BaseHammerTier));
+        Assert.Empty(new MandrelStationConfig { BlowsPerHollowLead = 1, HammerWearPerBlow = 0, BaseHammerTier = 1 }.Sanitise());
     }
 
     // ---- The rig reader, on a rig written to the contract ----

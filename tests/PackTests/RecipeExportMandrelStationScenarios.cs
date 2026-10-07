@@ -8,7 +8,7 @@ namespace SeraphHorizons.PackTests;
 /// The mandrel forging station's process (mods-src/seraphhorizons/MandrelStation/): a hand-written
 /// <c>machine</c> record per metal, from config/mandrelstation-rig.json and the gameplay's
 /// MandrelStationSettings defaults, written down here. A hand station: power <c>hand</c>, its turns the
-/// hammer's blows, the mandrel kept, the hammer worn a point a blow, no oil; two pipe sections of the
+/// base (copper) hammer's blows, the definition's hammer, the mandrel kept, the hammer worn a point a blow, no oil; two pipe sections of the
 /// metal a hollow.
 /// </summary>
 public partial class RecipeExportScenarios
@@ -27,7 +27,7 @@ public partial class RecipeExportScenarios
             var ingredients = (JArray)r["ingredients"]!;
             Json($$"""{ "code": "game:chutesection-{{metal}}", "kind": "item", "quantity": 1 }""", ingredients[0]);
             Json("""{ "code": "game:rod-iron", "kind": "item", "quantity": 1, "role": "kept" }""", ingredients[1]);
-            Json($$"""{ "code": "game:hammer-iron", "kind": "item", "quantity": 1, "role": "tool", "isTool": true, "toolDurabilityCost": {{blows}} }""", ingredients[2]);
+            Json($$"""{ "code": "game:hammer-copper", "kind": "item", "quantity": 1, "role": "tool", "isTool": true, "toolDurabilityCost": {{blows}} }""", ingredients[2]);
             Json("""{ "code": "seraphhorizons:mandrelstation-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[3]);
             Assert.Equal(4, ingredients.Count);
             Json($$"""[{ "code": "seraphhorizons:pipesection-{{metal}}", "kind": "item", "quantity": 2 }]""", r["outputs"]!);
