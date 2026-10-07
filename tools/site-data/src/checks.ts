@@ -33,6 +33,7 @@ export interface ExportV1 {
   items: Record<string, { mod: string; value?: number }>;
   recipes: Recipe[];
   recipeTypes: Record<string, { count: number }>;
+  variantGroups?: Record<string, { title: string; members: string[] }>;
 }
 
 export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
@@ -110,6 +111,36 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
     if (t.count !== n) {
       report.add("recipe-type-count", `/recipeTypes/${ptr(type)}/count`, `${n} (records of this type)`, String(t.count));
     }
+  }
+
+  if (d.variantGroups) checkVariantGroups(d, report);
+}
+
+// Tidy Variants groups: the site folds each into one row, so a member must be an item, and an
+// item can stand in only one group. The schema already asks for two distinct members and a
+// non-empty title; a title of only spaces still passes it.
+function checkVariantGroups(d: ExportV1, report: ErrorReport): void {
+  const groupOf = new Map<string, string>();
+  for (const [id, g] of Object.entries(d.variantGroups!)) {
+    const at = `/variantGroups/${ptr(id)}`;
+    if (g.title.trim() === "") {
+      report.add("variant-group-title", `${at}/title`, "a title that is not blank", JSON.stringify(g.title));
+    }
+    if (new Set(g.members).size < 2) {
+      report.add("variant-group-size", `${at}/members`, "two or more distinct codes", String(new Set(g.members).size));
+    }
+    g.members.forEach((code, i) => {
+      if (!Object.hasOwn(d.items, code)) {
+        report.add("variant-group-code", `${at}/members/${i}`, "a key of items", JSON.stringify(code));
+      }
+      const other = groupOf.get(code);
+      if (other !== undefined && other !== id) {
+        report.add("variant-group-overlap", `${at}/members/${i}`, "a code in no other group",
+          `${JSON.stringify(code)}, also in ${JSON.stringify(other)}`);
+      } else {
+        groupOf.set(code, id);
+      }
+    });
   }
 }
 

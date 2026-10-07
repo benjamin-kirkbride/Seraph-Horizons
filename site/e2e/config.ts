@@ -35,4 +35,22 @@ export const E2E_VALUES: Record<string, { value: number; floorZero?: true } | nu
   "game:chest-north": { value: 6 },
   "game:chest-south": { value: 6 },
   "game:chest-west": { value: 6 },
+  // The members of E2E_GROUPS: three ingots share a price and lead stands apart.
+  "game:ingot-tin": { value: 4 },
+  "game:ingot-zinc": { value: 4 },
+  "game:ingot-bismuth": { value: 4 },
+  "game:ingot-lead": { value: 6 },
+  "game:plank-oak": { value: 0.75 },
+  "game:plank-birch": { value: 0.75 },
+  "game:plank-pine": { value: 0.75 },
+};
+/**
+ * Variant groups the test server adds to the export's (`variantGroups`), so the values page's
+ * group rows are tested whether or not the export has groups of its own. Their members, and
+ * every item of E2E_VALUES, are taken out of the export's groups first, so the tests know
+ * which row each is in. Members are in rank order, as the exporter writes them.
+ */
+export const E2E_GROUPS: Record<string, { title: string; members: string[] }> = {
+  "e2e:ingots": { title: "E2E ingots", members: ["game:ingot-tin", "game:ingot-zinc", "game:ingot-lead", "game:ingot-bismuth"] },
+  "e2e:planks": { title: "E2E planks", members: ["game:plank-oak", "game:plank-birch", "game:plank-pine"] },
 };

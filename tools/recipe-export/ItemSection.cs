@@ -6,7 +6,7 @@ using Vintagestory.API.Server;
 
 namespace SeraphHorizons.RecipeExport;
 
-/// <summary>Writes `mods`, `items` and `guides`. docs/recipe-browser/item-data.md describes the data.</summary>
+/// <summary>Writes `mods`, `items`, `variantGroups` and `guides`. docs/recipe-browser/item-data.md describes the data.</summary>
 public static class ItemSection
 {
     /// <param name="referenced">Codes recipes reference; exported even when hidden from the handbook.</param>
@@ -18,6 +18,7 @@ public static class ItemSection
         root["mods"] = BuildMods(mods);
         root["items"] = BuildItems(api, mods, referenced);
         Switches.AnnotateItems(api, (JObject)root["items"]!);
+        VariantGroups.Fill(api, root);
         root["guides"] = Guides.Build(api, mods);
     }
 
