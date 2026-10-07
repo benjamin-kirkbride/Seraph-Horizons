@@ -343,6 +343,12 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(trunk.Grabbed);
         Assert.Equal(player.Entity.EntityId, trunk.GrabbedBy);
         Assert.Same(trunk, Mod.Grabs!.HeldBy(player));
+        // the player is held to the trunk's pace: 6 logs (weight 48) walk at its factor, 50/48
+        // capped at the ceiling
+        var walk = player.Entity.Stats["walkspeed"].ValuesByKey;
+        Assert.True(walk.ContainsKey(TrunkGrab.DragCode), "no drag walk speed");
+        Assert.Equal(TrunkPull.DragSpeed(trunk.LandWeight) - 1, walk[TrunkGrab.DragCode].Value, 3);
+        Assert.Equal(TrunkPull.DragCeiling - 1, walk[TrunkGrab.DragCode].Value, 3);
         // no rope of any kind: the grab is the mod's own pull
         Assert.Empty(trunk.GetBehavior<EntityBehaviorRopeTieable>()!.ClothIds?.value ?? []);
         Assert.False(trunk.WatchedAttributes.HasAttribute(EntityTrunk.GrabClothKey));
@@ -375,6 +381,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         player.Entity.ServerControls.RightMouseDown = false;
         await World.Until(() => !trunk.Grabbed, 5000);
         Assert.Null(Mod.Grabs.HeldBy(player));
+        Assert.False(walk.ContainsKey(TrunkGrab.DragCode), "the drag walk speed outlived the grab");
         Assert.Empty(trunk.GetBehavior<EntityBehaviorRopeTieable>()!.ClothIds?.value ?? []);
         // no rope item ever comes of a grab
         Assert.Empty(W.GetEntitiesAround(trunk.Pos.XYZ, 16, 16,

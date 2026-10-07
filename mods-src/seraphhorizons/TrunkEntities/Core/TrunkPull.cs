@@ -95,6 +95,20 @@ public static class TrunkPull
         return stretch <= 0 ? 0 : Math.Min(MaxSpeed, stretch * Gain * Factor(weight, afloat));
     }
 
+    /// <summary>The slowest a dragging player walks, as a multiple of the normal walk.</summary>
+    public const double DragFloor = 0.1;
+
+    /// <summary>The fastest a dragging player walks, as a multiple of the normal walk: under the
+    /// pull's <see cref="MaxSpeed"/>, so no trunk is outwalked.</summary>
+    public const double DragCeiling = 0.6;
+
+    /// <summary>The walk speed, as a multiple of the normal one, of a player dragging a trunk of
+    /// <paramref name="weight"/>: the weight's factor, between <see cref="DragFloor"/> and
+    /// <see cref="DragCeiling"/>, so the player is held to about the trunk's own pace and the hand
+    /// settles a little past the slack, within <c>GrabRange</c>, rather than walking out of it.</summary>
+    public static double DragSpeed(double weight, bool afloat = false) =>
+        Math.Clamp(Factor(weight, afloat), DragFloor, DragCeiling);
+
     /// <summary>The largest turn, radians, in <paramref name="dt"/> seconds for a trunk of
     /// <paramref name="weight"/> pulled with the hand <paramref name="distance"/> from the grabbed
     /// end: none within <see cref="Slack"/>, full rate once a block past it.</summary>

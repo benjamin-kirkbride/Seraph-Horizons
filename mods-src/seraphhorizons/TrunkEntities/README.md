@@ -143,7 +143,13 @@ horizontal motion towards the hand at 3 blocks a second per block past the slack
 factor, at most 3.5 blocks a second, so the grabbed end leads and the rest trails. The factor is
 the old rope pull's `clamp(50 / weight, 0.1, 2)`. The motion goes through the trunk's own
 `passivephysicsmultibox`, so it still collides; `TrunkGrab.ApplyPull` is the one place it is set.
-The pull stops within the slack, so a trunk never runs ahead of the player. Refused, each with an
+The pull stops within the slack, so a trunk never runs ahead of the player. The player is held to
+the trunk's pace meanwhile: their `walkspeed` stat gets `seraphhorizons:drag`, `TrunkPull.DragSpeed`
+of the trunk's weight (the factor between 0.1 and 0.6: 0.6 up to about 10 logs, 0.5 at 12, 0.25 at
+25, 0.13 at 48; 0.6 afloat), set when the grab starts, kept up each tick (it changes as the trunk
+enters water) and removed with the grab. So the character drags the trunk rather than walking off
+and pulling it after them, and at a walk settles a little past the slack, inside `GrabRange`; a
+sprint can still break away. Refused, each with an
 in-game error: a trunk someone else is dragging (any empty-hand click of another player on it,
 sneaking too, stops at the trunk, `EntityTrunk.OnInteract`), one heavier than `MaxGrabWeight` (0,
 the default, is no limit), and one further than `GrabRange` (3 blocks) from the hand. One grab per
@@ -169,9 +175,11 @@ says so once and ropes pull where they were tied, without turning.
 **Step up** (`EntityTrunk.StepUp`, maths in `Core/TrunkStep.cs`). `passivephysicsmultibox` has no
 step-up, so on the server a trunk whose motion before the tick's physics (the grab's or a rope's,
 at least 0.3 blocks a second) runs into a solid block within `TrunkStep.Probe` (0.15) ahead is
-lifted onto it, at most `MaxLiftPerTick` (0.25) a tick, if the rise is at most one block above its
-underside and its boxes are clear lifted, both ahead and where it is (no cliffs, no ceilings). Blocks
-count as whole cubes, so a slab is stepped like a full block. Not afloat, not while falling.
+lifted onto it in one go, if the rise is at most one block above its underside and its boxes are
+clear lifted, both ahead and where it is (no cliffs, no ceilings). Blocks count as whole cubes, so a
+slab is stepped like a full block. Not afloat, not while falling. (A first build lifted a quarter
+block a tick, which left the trunk hanging against the step between lifts, dropping back under
+gravity and lifted again, a stutter up each step.)
 
 **Shove.** Walking into a trunk nudges it (`repulseagents`, by its hitbox).
 
@@ -409,8 +417,10 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
 ## Tests
 
 - `tests/TrunkEntities/TrunkPullTests.cs` also checks the water factor (`Factor(weight, afloat)`,
-  `Speed`, `TurnStep`, `EffectiveWeight`) and the step-up (`TrunkStep.Lift`: lifts onto a one-block
-  rise, keeps going part way up, stops on top; none on flat ground, without a pull, up a two-block
+  `Speed`, `TurnStep`, `EffectiveWeight`), the dragging player's walk (`DragSpeed`: capped light,
+  the factor between, the floor heavy, the ceiling afloat, never rising with weight, under the
+  pull's top speed) and the step-up (`TrunkStep.Lift`: lifts onto a one-block rise in one go,
+  finishes a rise left part way, stops on top; none on flat ground, without a pull, up a two-block
   cliff, under a ceiling or moving away). Atlas (`tests/PackTests/TrunkEntityScenarios.cs`) pulls a
   grabbed trunk up a one-block step and a 48-log trunk in a pool against one on land (more distance
   afloat). The rope's end pin and turn have no test.
@@ -440,7 +450,8 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
     loads, nothing dropped; a trunk left in a hotbar, placed through the game's own placement, is
     taken from the hotbar and lies there as a trunk entity, with no block; and the grab: sneak
     shoulders instead, an empty hand grabs the end it clicks with no rope of any
-    kind, repeated interacts while held change nothing, the trunk follows a player who steps
+    kind, repeated interacts while held change nothing, the player walks at the drag speed while
+    holding and not after, the trunk follows a player who steps
     away and turns its grabbed end towards them, letting go ends it, no rope item appears, and
     too far refuses; another player's empty hand, sneaking or not, leaves a grabbed trunk as it
     is; a trunk as a world saves it mid-grab, from when the grab was a game rope (the grabber's
