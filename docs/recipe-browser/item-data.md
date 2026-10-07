@@ -218,10 +218,16 @@ mods' guides.
 
 ## variantGroups
 
-`Recipes/VariantGroups.cs`, after the items: the server's Tidy Variants resolution, read by
-reflection from the pack's own mod (`TidyVariantsModSystem.ForSide(Server)`), one entry per group
-whose members come to two or more exported codes. Titles are `GroupTitles.Of`'s, taken inside the
-same English locale scope as the item names. Absent without the mod or with the feature off; see
+`Recipes/VariantGroups.cs`, after the items, from two sources. First the server's Tidy Variants
+resolution, read by reflection from the pack's own mod (`TidyVariantsModSystem.ForSide(Server)`),
+one entry per group whose members come to two or more exported codes; titles are `GroupTitles.Of`'s,
+taken inside the same English locale scope as the item names. Then, among the items left, the
+handbook's own grouping: an item's shipped `attributes.handbook.groupBy` pattern (on the server the
+collectibles carry what the mods ship; Tidy Variants rewrites them on the client only), matched with
+the game's `WildcardUtil` against the other items left, as the handbook's slideshow does, so juices,
+which are in creative only inside a bucket and so never Tidy Variants entries, still group by
+`rawjuice.json`'s `juiceportion-*`. Those titles come from `TitleDeriver.Derive` over the members'
+names, else the leader's name. Absent when neither source gives a group; see
 [schema.md](schema.md#variant-groups).
 
 ## Proposed schema changes
