@@ -3,7 +3,7 @@
 // and the data are always built together, so there is no migration.
 import type { ItemAttributes, Mod, Recipe, Shape, Source } from "./export.ts";
 
-export const DATA_FORMAT = 2;
+export const DATA_FORMAT = 3;
 
 /** data/versions.json, written by tools/site-data. */
 export interface VersionsFile {
@@ -42,6 +42,8 @@ export interface Meta {
   entityCount: number;
   /** First entity index of each entity chunk, ascending. Chunk n is entities/<n>.json. */
   entityChunks: number[];
+  /** Number of items with a value (search.json's `value`); 0 or absent when the export has none. */
+  valueCount?: number;
 }
 
 export interface TypeInfo {
@@ -68,10 +70,19 @@ export interface SearchFile {
   mod: number[];
   /** Bit flags, see FLAG_*. */
   flags: number[];
+  /**
+   * Each item's value in rusty gears, or null when it has none. Absent when no item of the
+   * export has a value (an export from before item values).
+   */
+  value?: (number | null)[];
+  /** Item index, as a string, to the config switches its value depends on. Only items that have some. */
+  valueSwitches?: Record<string, string[]>;
 }
 
 export const FLAG_HANDBOOK = 1;
 export const FLAG_BLOCK = 2;
+/** Worth under a gear per full stack: traders treat it as worthless. */
+export const FLAG_FLOOR_ZERO = 4;
 
 /** data/<version>/items/<n>.json */
 export interface ItemChunk {

@@ -69,6 +69,14 @@ export interface Item {
   description?: string;
   attributes?: ItemAttributes;
   sources?: Source[];
+  /** Item values (the pack's price table): gears per item, with rusty gear = 1. */
+  value?: number;
+  /** Worth under a gear per full stack: traders treat it as worthless. */
+  floorZero?: boolean;
+  /** Config switches the value depends on; the value is the default config's. */
+  valueSwitches?: string[];
+  /** The config switch that adds the item. */
+  switch?: string;
   extra?: Record<string, unknown>;
 }
 

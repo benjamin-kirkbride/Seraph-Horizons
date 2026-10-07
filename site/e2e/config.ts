@@ -17,3 +17,17 @@ export const REAL_ICONS: Record<string, string> = {
   "game:rod-iron": "rod-iron.png",
   "yangtransport:steamengine-standard-north": "steamengine-standard-north.png",
 };
+/** The icon every item value is shown with, from the repository's icons/ like REAL_ICONS. */
+export const GEAR_ICON = { code: "game:gear-rusty", file: "gear-rusty.png" };
+/**
+ * Item values the test server writes over the export's, so the tests know them whatever the
+ * export says; null takes an item's value away. An export without values (one from before
+ * the pack priced its items) gets a made-up value on nine items in ten besides, so the
+ * values page is tested at full size. See serve.ts.
+ */
+export const E2E_VALUES: Record<string, { value: number; floorZero?: true } | null> = {
+  "game:gear-rusty": { value: 1 },
+  "game:ingot-copper": { value: 2.5 },
+  "game:stick": { value: 0.002, floorZero: true },
+  "game:rot": null,
+};

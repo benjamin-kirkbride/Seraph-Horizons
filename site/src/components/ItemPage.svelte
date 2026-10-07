@@ -7,9 +7,11 @@
   import { parseVtml } from "../lib/vtml.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
+  import { isFloorZero } from "../lib/values.ts";
   import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
+  import GearValue from "./GearValue.svelte";
   import ModLink from "./ModLink.svelte";
   import RecipeGroups from "./RecipeGroups.svelte";
   import Vtml from "./Vtml.svelte";
@@ -115,7 +117,17 @@
     <header class="head">
       <Icon code={ref.code} size={64} label={initials(ref.name)} />
       <div>
-        <h1>{ref.name}</h1>
+        <div class="title">
+          <h1>{ref.name}</h1>
+          <!-- An export from before item values has none for any item: say nothing then. -->
+          {#if data.index?.value}
+            {#if ref.value !== undefined}
+              <span class="value" data-testid="item-value"><GearValue value={ref.value} floorZero={isFloorZero(data.index, ref.index)} size={32} /></span>
+            {:else}
+              <span class="value muted" data-testid="item-value">{t.noTradeValue}</span>
+            {/if}
+          {/if}
+        </div>
         <dl class="facts">
           <div><dt>{t.code}</dt><dd><code data-testid="item-code">{ref.code}</code></dd></div>
           <div><dt>{t.mod}</dt><dd data-testid="item-mod"><ModLink id={ref.mod} mods={meta.mods} /></dd></div>
@@ -258,9 +270,19 @@
     gap: 1rem;
     align-items: flex-start;
   }
-  h1 {
+  .title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 1rem;
     margin: 0 0 0.25rem;
+  }
+  h1 {
+    margin: 0;
     font-size: 1.6rem;
+  }
+  .value {
+    font-size: 1.2rem;
   }
   h2 {
     font-size: 1.2rem;
