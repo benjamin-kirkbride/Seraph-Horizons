@@ -3186,8 +3186,8 @@ Between releases, every push to main that passes CI republishes the pack's rolli
 pre-release (`.github/workflows/next.yml`), which carries the zip CI's cairn job built from that
 commit, named after it (`seraphhorizons_next_<sha7>.zip`, so that Cairn, which sees a new
 address but not a new hash, fetches every build; like every file on `next`, its name says `next`
-where a versioned release's says the version), listed in its `SHA256SUMS`, and the previous
-build's zip, kept for one more publish. The release's Cairn pack, published in the same step,
+where a versioned release's says the version) and listed in its `SHA256SUMS`; only the current
+build's zip is on the release. The release's Cairn pack, published in the same step,
 installs the mod from there by its sha256, so `next` plays with the mod as it is on main before
 any of it is released. (The mod's own rolling release, `seraphhorizons-next`, is retired.) The zip keeps `modinfo.json`'s version, so it is not newer
 than the release of that version as far as the game is concerned: swap it in for that copy,
