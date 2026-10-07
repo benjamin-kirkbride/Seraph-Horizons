@@ -77,6 +77,7 @@
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Trading/fixtures/list-pay-outliers.json" Link="list-pay-outliers.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Schematics (#468, #469): the table, the item type and the lang file it is held to. -->
     <Compile Include="../Trading/Schematics/Core/**/*.cs" Link="Trading/Schematics/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/schematic-gates.json" Link="schematic-gates.json" CopyToOutputDirectory="PreserveNewest" />

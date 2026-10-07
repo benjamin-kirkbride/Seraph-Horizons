@@ -29,7 +29,9 @@ their value when the buying side does not list them); what a trader only sells i
 and needs none. A code counts as valued the way the mod looks it up (`ItemValues.Lookup`): directly,
 or through its variant family's average, or for a code with `*`, the average of what it matches. It
 warns, without failing, when the shipped table differs from what the export derives: rebuild and
-commit the table when a pack change matters. CI runs it in the export job.
+commit the table when a pack change matters. It prints how many trade list items it validated (and
+how many distinct codes, in how many lists). It works on an export with or without the pack's own
+mod: what the mod adds is then simply absent. CI runs it in the export job.
 
 ## Rules
 
@@ -46,6 +48,12 @@ attributes it carries: smelting (with firing and baking), crushing and grinding.
   have an entry of its own by its type code), the tool fraction, recipe ids never used as routes
   (uncrafting and recycling), and how smithing and clay forming use material by volume.
 - `overrides.json`: hand overrides, fixed and winning over everything, each with its reason.
+- Schematics (#506): every code matched by a `sold` pattern of the mod's
+  `config/schematic-gates.json` (`--gates`) is valued from the pack's trade lists (`--tradelists`)
+  by traderFallback's rule: the mean over its entries of the price per item, selling x 0.7 and
+  buying / 0.2 x 1.4 (x 7: the lists' buying prices are the final pay, value x the mod's buy spread,
+  `BUY_SPREAD`, `BuySpread`'s default). Fixed like a raw (an override still wins); a schematic no list prices takes the
+  fallbacks below. No data file of their own: the trade lists' hand prices are the values.
 
 A route's value per output item is
 
@@ -55,8 +63,12 @@ where a slot costs its cheapest accepted stack; a grid ingredient counts once pe
 pattern; a liquid counts 100 portions a litre; smithing uses filled voxels / 42 ingots and clay
 forming filled voxels / 25 clay; an alloy is its inputs at the middle of their ratios; cooking
 counts only the ingredients a meal needs (`minQuantity`); and a tool or container not consumed
-(`isTool`, a station, an ingredient handed back) adds `toolFraction` (2%) of its value. A container
-handed back as something else (a bucket of milk gives back the bucket) costs the difference.
+(`isTool`, a station, a machine's `kept` part, an ingredient with consume false, one handed back)
+adds `toolFraction` (2%) of its value. A container handed back as something else (a bucket of milk
+gives back the bucket) costs the difference. A kept schematic (an ingredient not consumed whose
+codes all match the gates' `sold` patterns: MachineSchematics' machine gates, and every recipe that
+uses a schematic) adds nothing, not even the tool fraction, and needs no value: a gated machine is
+priced by its consumed parts and labour only. Other kept tools (hammers, saws) keep the fraction.
 Butchery, perishing and burning are not routes (one carcass gives a dozen things; hides and meat
 are raws instead).
 
@@ -117,8 +129,10 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 ## Why these prices
 
 - **Reference.** Vanilla trade lists (`assets/survival/config/tradelists/`), where traders buy at
-  about half what they sell for. A value is what a trader that wants the item pays (#436), so the
-  target is vanilla's buy price, or between buy and sell where vanilla only sells.
+  about half what they sell for. A value is the item's worth on the table's scale, calibrated to what a vanilla trader
+  that wants the item pays (#436), so the target is vanilla's buy price, or between buy and sell
+  where vanilla only sells. What the pack's traders actually pay is a fifth of the value
+  (`BuySpread`, #506); what they ask is the value.
 - **Metal.** Vanilla sells 16 copper nuggets for 2 gears (0.125 each, 2.5 an ingot's worth) and buys
   a copper ingot for 1. Copper is 0.017 a unit: a nugget 0.085, an ingot 2.07 after smelting
   (+10%, +0.2 fuel). Vanilla buys tin at 2x copper, silver 3x, gold 4x; tin 0.035 (ingot 4.05), zinc
@@ -138,7 +152,13 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 - **Gems.** Rough gems at vanilla's prices (diamond and emerald about 10, olivine 5, garnet 2.5).
 - **Overrides.** The barrel (3 boards and 4 sticks make it 0.34, a cooper's work is worth more;
   vanilla sells it for 2) and the anvils (cast in molds, which the export does not carry: 9 ingots
-  plus labour).
+  plus labour). The steel gear is 15, the reclamation line's cost: one oiled gear in ten rolls sound
+  and the rest become a steel bit each, and an oiled gear costs 1.83 by these markups (a rusty gear
+  and its lye, acid, lime water and lard), so ten of them, 18.26, less nine bits at 0.4 (`why` has
+  the steps). The roll is a lottery the solver cannot weigh. The large steel gear takes its gear
+  cutter route (the smithed blank, the oil, labour).
+- **Schematics** are what the pack's traders ask for them (x 0.7; a buying entry counts / 0.2 x 1.4), so a schematic trades back near
+  70% of its price; a machine built with one is worth its parts, as the schematic is kept.
 
 ## Known gaps
 

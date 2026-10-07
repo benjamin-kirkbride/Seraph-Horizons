@@ -29,11 +29,11 @@ public class OrdersTests
     [Fact]
     public void The_quantity_is_worth_the_base_gears_in_whole_lots_and_grows_with_the_scale()
     {
-        // 24 gears of iron at 3 a piece: 8 ingots; twice the scale, 16.
-        Assert.Equal(8, OrderPlanner.Quantity(Iron.UnitPrice, Iron.Lot, Iron.MaxStack, 1));
-        Assert.Equal(16, OrderPlanner.Quantity(Iron.UnitPrice, Iron.Lot, Iron.MaxStack, 2));
-        // 24 gears of planks at a quarter each: 96, in lots of 16.
-        Assert.Equal(96, OrderPlanner.Quantity(Planks.UnitPrice, Planks.Lot, Planks.MaxStack, 1));
+        // 5 gears of iron at 0.625 a piece (pay, a fifth of value): 8 ingots; twice the scale, 16.
+        Assert.Equal(8, OrderPlanner.Quantity(0.625, 1, 64, 1));
+        Assert.Equal(16, OrderPlanner.Quantity(0.625, 1, 64, 2));
+        // 5 gears of planks at 0.0625 each: 80, in lots of 16.
+        Assert.Equal(80, OrderPlanner.Quantity(0.0625, 16, 64, 1));
         Assert.Equal(0, OrderPlanner.Quantity(Planks.UnitPrice, Planks.Lot, Planks.MaxStack, 1.3) % 16);
         // Never under a lot, never over four stacks.
         Assert.Equal(1, OrderPlanner.Quantity(100, 1, 64, 1));
