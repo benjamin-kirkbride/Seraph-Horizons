@@ -1,11 +1,12 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SeraphHorizons.Mod.Core;
 
 /// <summary>
-/// The <c>/clear</c> command (<c>ClearSky</c>): how far to move the clock to reach daytime, and how
-/// far to move the rain forward to reach a dry spell. Game-independent, so tests/ runs it without
-/// the game.
+/// The <c>/clear</c> command (<c>ClearSky</c>): how far to move the clock to reach daytime, how
+/// far to move the rain forward to reach a dry spell, and where <c>/clear stay</c> holds the sun.
+/// Game-independent, so tests/ runs it without the game.
 /// </summary>
 public static class ClearSkyPlan
 {
@@ -25,6 +26,26 @@ public static class ClearSkyPlan
 
     /// <summary>A dry spell this long (in days) is taken as soon as one starts.</summary>
     public const double WantedDryDays = 1;
+
+    /// <summary>The day fraction <c>/clear stay</c> holds the sun at: noon, hour angle 0 for the
+    /// survival mod's sun (<c>SurvivalCoreSystem.GetSolarSphericalCoords</c> takes the hour angle
+    /// from <c>dayRel - 0.5</c>).</summary>
+    public const float NoonDayRel = 0.5f;
+
+    /// <summary>The survival mod's sun takes its declination from
+    /// <c>-tilt * cos(2 pi (yearRel + 10/365))</c>: the year starts 10 days after the northern
+    /// winter solstice.</summary>
+    public const double SolsticeLeadYears = 10.0 / 365;
+
+    /// <summary>The year fraction of midsummer, where the noon sun stands highest: half a year after
+    /// the northern winter solstice in the northern hemisphere (the declination at its most
+    /// northern), and the northern winter solstice itself in the southern one (most southern).
+    /// <c>/clear stay</c> holds the sun there.</summary>
+    public static float MidsummerYearRel(bool southern)
+    {
+        double rel = (southern ? 1.0 : 0.5) - SolsticeLeadYears;
+        return (float)(rel - Math.Floor(rel));
+    }
 
     /// <summary>Hours to add to the clock to reach daytime: 0 inside
     /// [<see cref="DayFrom"/>, <see cref="DayUntil"/>), otherwise to the next <see cref="Noon"/>.
@@ -74,15 +95,63 @@ public static class ClearSkyPlan
 }
 
 /// <summary>
+/// One wrap of a delegate kept in a settable slot (a calendar's <c>OnGetSolarSphericalCoords</c>):
+/// wraps whatever is installed, never its own wrapper again, and on release puts the wrapped
+/// delegate back if the wrapper is still the one installed (and leaves the slot alone if something
+/// replaced it since). Only the newest wrapper <see cref="IsLive"/>: an older one that something
+/// else still calls (it wrapped ours, or was replaced and wrapped again) passes calls through.
+/// </summary>
+public sealed class DelegateWrap<T> where T : class
+{
+    private T? _wrapper, _inner;
+
+    /// <summary>Whether a wrap is in force.</summary>
+    public bool Held => _wrapper != null;
+
+    /// <summary>Whether <paramref name="wrapper"/> is the wrapper in force.</summary>
+    public bool IsLive(T wrapper) => ReferenceEquals(wrapper, _wrapper);
+
+    /// <summary>Wraps <paramref name="current"/> with <paramref name="make"/>, unless it is our
+    /// wrapper already or nothing is installed. Returns the delegate to install, or null for no
+    /// change.</summary>
+    public T? Wrap(T? current, Func<T, T> make)
+    {
+        if (current == null || ReferenceEquals(current, _wrapper))
+            return null;
+        _inner = current;
+        _wrapper = make(current);
+        return _wrapper;
+    }
+
+    /// <summary>Ends the wrap. Returns the delegate to install in place of
+    /// <paramref name="current"/>, or null to leave the slot as it is.</summary>
+    public T? Unwrap(T? current)
+    {
+        var (wrapper, inner) = (_wrapper, _inner);
+        _wrapper = _inner = null;
+        return wrapper != null && ReferenceEquals(current, wrapper) ? inner : null;
+    }
+}
+
+/// <summary>
 /// What <c>/clear stay</c> changed, as it was before, so <c>/clear stop</c> puts it back. Kept in
 /// the savegame, so the lock outlasts a restart.
 /// </summary>
 public sealed class ClearLock
 {
-    /// <summary>Whether the calendar had a <c>baseline</c> time speed modifier (the one
-    /// <c>/time speed</c> and <c>/time stop</c> set), and its value.</summary>
-    public bool HadBaseline { get; set; }
-    public float Baseline { get; set; }
+    /// <summary>Left by the version that stopped time: whether the calendar had a <c>baseline</c>
+    /// time speed modifier (the one <c>/time speed</c> and <c>/time stop</c> set) before the lock,
+    /// and its value. Null in a lock written since; an old lock's <c>baseline</c> is put back once
+    /// on load and these dropped (<see cref="StopsTime"/>).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? HadBaseline { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public float? Baseline { get; set; }
+
+    /// <summary>Whether this lock is from the version that stopped time, with the calendar's
+    /// <c>baseline</c> still holding the speed modifiers' sum at 0.</summary>
+    [JsonIgnore]
+    public bool StopsTime => HadBaseline != null;
 
     /// <summary>The weather system's precipitation override (<c>/weather setprecip</c>), null for
     /// none.</summary>

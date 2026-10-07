@@ -694,8 +694,8 @@ An admin command, not a change to another mod. It needs the `controlserver` priv
 game's `/weather` does; of the game's default roles only `admin` has it.
 
 - `/clear` sets the time to day, ends a temporal storm and clears the weather, once.
-- `/clear stay` does the same and holds it: time stands still, the weather stays clear and no
-  temporal storm comes, until `/clear stop`.
+- `/clear stay` does the same and holds it: the sun stays at summer noon while the hours go by as
+  usual, the weather stays clear and no temporal storm comes, until `/clear stop`.
 - `/clear stop` puts back what `stay` changed, as it was before.
 
 `/clear stay` when it already holds, and `/clear stop` when nothing is held, say so and change
@@ -730,28 +730,45 @@ With temporal storms off in the world settings, or in a creative world, there is
 |---|---|---|
 | no rain anywhere | `/weather setprecip -1` | the override it had (`/weather setprecip`), or none |
 | patterns and events stay as they are | `/weather acp off` | auto-changing on or off, as it was |
-| time stands still | the calendar's `baseline` time speed (`/time speed`, `/time stop`) set so that all the speed modifiers sum to 0 | `baseline` as it was, or removed if there was none |
+| the sun at summer noon, time running on | the calendar's sun (`OnGetSolarSphericalCoords`, the survival mod's) asked for noon at midsummer whatever the hour and the day, on the server and on every client | the sun as it was |
 | the next temporal storm as far off as at the lock | its scheduled day, kept that many days ahead | that many days ahead of the time at `stop` |
 
 The temporal storm world setting is never changed, so storms switched off stay off. Every second
 the lock is enforced again: every loaded region clear (a region loaded since comes up clear within
-the second), no override other than -1, auto-changing off, a storm that was started ended. Time is
-held as soon as any speed modifier changes (a postfix on `GameCalendar.CalculateCurrentTimeSpeed`),
-so sleeping players, another speed modifier or `/time resume` do not move the clock. The
+the second), no override other than -1, auto-changing off, a storm that was started ended. The
 lock and what it replaced are kept in the savegame (`seraphhorizons:clearlock`) and reapplied on
-load, so it outlasts a restart; the game saves the override and the time speed itself, but not
-auto-changing patterns.
+load, so it outlasts a restart; the game saves the override itself, but not auto-changing patterns.
 
-Time standing still stops whatever the game times by its calendar, as `/time stop` does: for
-example crops on farmland, barrels, pit kilns, food spoiling and other item transitions (drying,
-curing), the season, the sun and the moon, snow accumulation, and the next temporal storm. Whatever
-runs on real seconds goes on: for example a firepit's or bloomery's cooking, mechanical power, and
-creatures moving. Wind stays as it was, since patterns do not change.
+**The sun.** Every sun position and daylight strength the game works out goes through the
+calendar's `OnGetSolarSphericalCoords`, which `GameCalendar.GetCelestialAngles` hands the fraction
+of the year and of the day; the survival mod installs the real one
+(`SurvivalCoreSystem.GetSolarSphericalCoords`, from those two fractions alone) on the server's
+calendar and on each client's. While held, that one is wrapped and asked for noon (the day half
+gone) at the hemisphere's midsummer: the year 10 days short of half gone in the north (the survival
+mod's year starts 10 days after the northern winter solstice), 10 days short of its end in the
+south (`Core/ClearSkyPlan.cs`). The wrap is put back within a tenth of a second if something
+installs another sun over it (the survival mod does, at load). The server tells each client whether
+the sun is held (channel `seraphhorizons:clearsky`) when the lock starts and ends and as a player
+joins, since the sky, the sun and the light are drawn from the client's own calendar.
+
+The clock is not stopped: the hours pass as usual, sleeping speeds them up, and whatever the game
+times by its calendar runs on, for example a forge heating, crops on farmland, barrels, pit kilns
+and charcoal pits, food spoiling and other item transitions (drying, curing), beehives, body
+temperature, the season and its temperatures, and the next temporal storm. What the hold changes
+is the sun and the daylight it gives: whatever goes by daylight sees a lasting day, for example
+creatures that spawn in the dark (above ground; caves stay dark), rifts, resting butterflies, bees
+around a hive, and a firepit's night sounds. The moon still moves, and the few creature behaviours
+that read the hour itself (the survival mod's `TimeOfDayCondition` and `JumpAction`) see the real
+time. Wind stays as it was, since patterns do not change.
+
+A world saved while an older version of the mod held it, when `stay` stopped time with the
+calendar's `baseline` time speed (set so that all the speed modifiers summed to 0), gets `baseline`
+back as it was before that lock, once, on load; the lock goes on as above and is saved without it.
 
 With the switch off there is no `/clear`, and a lock left in the savegame is released when the
-server starts. If the mod is removed while a lock holds, the `baseline` speed stays where the lock
-left it and time stays still: `/time speed 60` (or the old value) puts it back, and
-`/weather setprecipa` and `/weather acp on` the weather.
+server starts. If the mod is removed while a lock holds, the sun is back to normal at once (the
+wrap lives in memory only, nothing of it is saved), and `/weather setprecipa` and
+`/weather acp on` put the weather back.
 
 ### One woodworking system (`UnifiedWoodworking`)
 
