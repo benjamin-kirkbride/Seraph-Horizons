@@ -7,7 +7,7 @@
   import { parseVtml } from "../lib/vtml.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
-  import { isFloorZero } from "../lib/values.ts";
+  import { isFloorZero, isPerLitre } from "../lib/values.ts";
   import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
@@ -122,7 +122,7 @@
           <!-- An export from before item values has none for any item: say nothing then. -->
           {#if data.index?.value}
             {#if ref.value !== undefined}
-              <span class="value" data-testid="item-value"><GearValue value={ref.value} floorZero={isFloorZero(data.index, ref.index)} size={32} /></span>
+              <span class="value" data-testid="item-value"><GearValue value={ref.value} floorZero={isFloorZero(data.index, ref.index)} perLitre={isPerLitre(data.index, ref.index)} size={32} /></span>
             {:else}
               <span class="value muted" data-testid="item-value">{t.noTradeValue}</span>
             {/if}

@@ -95,7 +95,8 @@
   // type in the search box.
   let lastKey = "";
   $effect(() => {
-    const key = route.view === "search" ? "search" : formatRoute(route);
+    // The values page's filters are in its address too; changing them is not a new page.
+    const key = route.view === "search" ? "search" : route.view === "values" ? `values|${route.version}` : formatRoute(route);
     if (key === lastKey) return;
     const first = lastKey === "";
     lastKey = key;
@@ -249,7 +250,7 @@
   {:else if route.view === "credits"}
     <Credits meta={meta.meta} />
   {:else if route.view === "values"}
-    <ValuesPage {data} meta={meta.meta} />
+    <ValuesPage {data} meta={meta.meta} view={route} />
   {/if}
 </main>
 

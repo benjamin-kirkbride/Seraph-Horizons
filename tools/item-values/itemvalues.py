@@ -12,9 +12,11 @@ Every item's value is the cheapest route to it: hand-priced raws (raw-values.jso
 (overrides.json) are fixed; every other item is the cheapest of its recipes, where a recipe costs
 its consumed ingredients (each slot at its cheapest accepted stack) times the kind's markup
 (markups.json) plus a flat labour charge, less its other outputs' value (a lottery's losers),
-divided by the output quantity. Schematics are free kept tools. Items settle cheapest first, so
+divided by the output quantity, plus the kind's charge per output item (`perItem`: what ageing in
+a barrel or a cellar adds to each portion, which a flat per batch of thousands cannot). Schematics are free kept tools. Items settle cheapest first, so
 chains of any length and cycles resolve; the table also records the config switches each value
-exists by.
+exists by. The solver works per item (recipes count portions); the table stores liquids, the
+codes the export marks `extra.liquid`, in gears per litre (`perLitre`).
 """
 
 from __future__ import annotations
@@ -36,7 +38,9 @@ REPO = HERE.parents[1]
 DEFAULT_OUT = REPO / "mods-src/seraphhorizons/assets/seraphhorizons/config/item-values.json"
 DEFAULT_TRADELISTS = REPO / "mods-src/seraphhorizons/assets/seraphhorizons/config/tradelists"
 
-# Portions (liquids) are items: 100 per litre for every liquid in the game and the pack's mods.
+# Portions (liquids) are items: 100 per litre for every liquid in the game and the pack's mods. The
+# solver converts recipes' litres with this; the table's per-litre values read the export's own
+# items[code].attributes.extra.liquid.itemsPerLitre instead (per_litre).
 ITEMS_PER_LITRE = 100
 # Recipe types that never make anything worth pricing from: perishing makes rot, burning ash.
 # Butchery is skipped as a route: one carcass gives a dozen outputs, and hides and meat are raws.
@@ -58,7 +62,7 @@ class Rules:
     raws: dict[str, float]  # exact code -> gears per item
     raw_patterns: list[tuple[str, float, str]]  # (glob, gears, note), first match wins
     defaults: list[tuple[str, float, str]]  # (regex on path, gears, category) for unknown leaves
-    markups: dict[str, dict]  # kind -> {pct, flat}
+    markups: dict[str, dict]  # kind -> {pct, flat, perItem}
     tool_fraction: float
     exclude: list[re.Pattern]  # recipe ids never used as routes (uncrafting, recycling)
     voxels_per_unit: dict[str, dict]  # recipe type -> {match, voxels}
@@ -102,6 +106,22 @@ class Rules:
         m = self.markups.get(kind) or self.markups["mod"]
         return float(m.get("pct", 0)), float(m.get("flat", 0))
 
+    def flat(self, route: "Route") -> float:
+        """The kind's flat for this route's batch. With minBatchLitres, a recipe making a liquid is
+        charged its flat over at least that many litres: a barrel recipe written for 0.1 L (mead)
+        or one portion (cider) is run by the barrelful, not one labour charge per portion."""
+        m = self.markups.get(route.kind) or self.markups["mod"]
+        flat = float(m.get("flat", 0))
+        least = float(m.get("minBatchLitres", 0)) * route.liquid
+        if route.liquid and route.quantity < least:
+            flat *= route.quantity / least
+        return flat
+
+    def per_item(self, kind: str) -> float:
+        """Gears the kind adds to each output item, after the division by the output quantity."""
+        m = self.markups.get(kind) or self.markups["mod"]
+        return float(m.get("perItem", 0))
+
     def raw_value(self, code: str) -> tuple[float, str] | None:
         if code in self.raws:
             return self.raws[code], "raw"
@@ -140,11 +160,15 @@ class Route:
     # The batch's other outputs, (code, expected items): credited against this output's cost.
     byproducts: list[tuple[str, float]] = field(default_factory=list)
     switch: str | None = None  # the seraphhorizons config switch that owns the recipe
+    # The output stack is in litres (a recipe's): its items per litre, for the kind's minBatchLitres; 0 if not.
+    liquid: float = 0.0
 
 
-def _items(stack: dict) -> float:
+def _items(stack: dict, litres: dict[str, float] | None = None) -> float:
+    """A stack's items; a liquid's litres at the export's items per litre for it (per_litre), else
+    ITEMS_PER_LITRE (Expanded Foods' hardened lard is 5 a litre, not 100)."""
     if stack.get("litres") is not None:
-        return float(stack["litres"]) * ITEMS_PER_LITRE
+        return float(stack["litres"]) * (litres or {}).get(stack.get("code"), ITEMS_PER_LITRE)
     return float(stack["quantity"])
 
 
@@ -169,6 +193,7 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
     routes: list[Route] = []
     skipped: Counter = Counter()
     types = export.get("recipeTypes", {})
+    litres = per_litre(export)
     for r in export["recipes"]:
         rtype = r["type"]
         if rtype in SKIPPED_TYPES:
@@ -221,10 +246,10 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
                             and idx not in kept and (d.get("extra") or {}).get("consumed") is not False)
                 factor = 1.0
                 if vox and idx == 0 and vox["match"] in accepted[0]["code"]:
-                    factor = units / max(_items(accepted[0]), 1.0)
+                    factor = units / max(_items(accepted[0], litres), 1.0)
                 if rtype == "alloy":
                     # Shares of one output unit: the alloy's ingot is made of 1 ingot's worth of inputs.
-                    factor = (mids[idx] / total) / max(_items(accepted[0]), 1.0)
+                    factor = (mids[idx] / total) / max(_items(accepted[0], litres), 1.0)
                 if rtype == "cooking":
                     factor = float(d.get("minQuantity") or 1)
                 if grid_counts and d.get("key"):
@@ -236,15 +261,16 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
                     if any(a["code"] == rc for a in accepted):
                         consumed = False
                     else:
-                        ret = (rc, _items(d["returned"]))
-                slots.append(Slot([(a["code"], _items(a) * factor) for a in accepted], consumed, ret))
+                        ret = (rc, _items(d["returned"], litres))
+                slots.append(Slot([(a["code"], _items(a, litres) * factor) for a in accepted], consumed, ret))
             if not ok:
                 continue
             if lottery is None:
-                routes.append(Route(kind, r["id"], out["code"], _items(out), slots, switch=r.get("switch")))
+                routes.append(Route(kind, r["id"], out["code"], _items(out, litres), slots, switch=r.get("switch"),
+                                    liquid=litres.get(out["code"], ITEMS_PER_LITRE) if out.get("litres") is not None else 0.0))
                 continue
             # A lottery: one route per output that can come out, the others credited at their value.
-            expected = [(o["code"], _items(o) * share) for o, share in zip(v["outputs"], lottery)]
+            expected = [(o["code"], _items(o, litres) * share) for o, share in zip(v["outputs"], lottery)]
             for j, (code, q) in enumerate(expected):
                 if q <= EPS or rules.is_schematic(code):
                     continue
@@ -265,23 +291,39 @@ def expected_shares(r: dict) -> list[float]:
 
 
 def routes_from_attributes(export: dict) -> list[Route]:
-    """Smelting (incl. baking), crushing and grinding, which the export keeps on the items."""
+    """Smelting (incl. baking), crushing, grinding, the fruit press (juicing) and the still
+    (distillation), which the export keeps on the items."""
     routes = []
+    litres = per_litre(export)
     for code, item in export["items"].items():
         a = item.get("attributes") or {}
         sm = a.get("smelting")
         if sm and sm.get("output") and sm["output"]["code"] != code:
             n = float(sm.get("inputQuantity") or 1)
             kind = "baking" if sm.get("method") == "bake" else "smelting"
-            routes.append(Route(kind, f"{kind}|{code}", sm["output"]["code"], _items(sm["output"]),
+            routes.append(Route(kind, f"{kind}|{code}", sm["output"]["code"], _items(sm["output"], litres),
                                 [Slot([(code, n)])]))
         extra = a.get("extra") or {}
         for kind in ("crushing", "grinding"):
             p = extra.get(kind)
             if p and p.get("output") and p["output"]["code"] != code:
                 avg = float((p.get("quantity") or {}).get("avg", 1.0))
-                routes.append(Route(kind, f"{kind}|{code}", p["output"]["code"], _items(p["output"]) * avg,
+                routes.append(Route(kind, f"{kind}|{code}", p["output"]["code"], _items(p["output"], litres) * avg,
                                     [Slot([(code, 1.0)])]))
+        # The fruit press: one item gives litresPerItem litres. Its by-products (the pressed mash,
+        # a returned stack such as honeycomb's beeswax) are not credited, as butchery's many outputs
+        # are not routes: the juice carries the whole input. Mash has no litresPerItem: what is
+        # left in it rides on the stack, so it is no route.
+        j = extra.get("juicing")
+        if j and j.get("output") and j.get("litresPerItem") and j["output"]["code"] != code:
+            routes.append(Route("pressing", f"pressing|{code}", j["output"]["code"],
+                                float(j["litresPerItem"]) * litres.get(j["output"]["code"], ITEMS_PER_LITRE), [Slot([(code, 1.0)])]))
+        # The still: a portion of the liquid (cider) distils into `ratio` portions of the output
+        # (spirit): 10 L of fruit cider make 1 L of brandy (0.1), 20 L of grain cider or mead 1 L (0.05).
+        d = extra.get("distillation")
+        if d and d.get("output") and d.get("ratio") and d["output"]["code"] != code:
+            routes.append(Route("distilling", f"distilling|{code}", d["output"]["code"], float(d["ratio"]),
+                                [Slot([(code, 1.0)])]))
     return routes
 
 
@@ -369,10 +411,12 @@ def route_eval(route: Route, value: dict[str, float], rules: Rules,
     one). A tool not valued yet takes its `hint` value (the first pass's) instead of waiting, and
     so does a byproduct with `hint_byproducts`.
 
-        (consumed x (1 + pct) + flat + tools x toolFraction - byproducts) / quantity, at least 0
+        (consumed x (1 + pct) + flat + tools x toolFraction - byproducts) / quantity + perItem
 
-    where a byproduct is each other output of the batch at its value times its expected items (a
-    lottery's losers)."""
+    with the quotient floored at 0, where a byproduct is each other output of the batch at its
+    value times its expected items (a lottery's losers), and perItem the kind's charge per output
+    item (markups.json). A kind's minBatchLitres spreads the flat of a recipe making a liquid
+    over at least that many litres (Rules.flat)."""
     total = 0.0
     tools = 0.0
     picks: list[str] = []
@@ -415,9 +459,10 @@ def route_eval(route: Route, value: dict[str, float], rules: Rules,
             continue
         credit += v * n
         picks.append(code)
-    pct, flat = rules.markup(route.kind)
+    pct, _ = rules.markup(route.kind)
+    flat = rules.flat(route)
     cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / max(route.quantity, EPS)
-    return max(cost, 0.0), picks
+    return max(cost, 0.0) + rules.per_item(route.kind), picks
 
 
 def route_cost(route: Route, value: dict[str, float], rules: Rules, wait_for: set[str] | None = None) -> float | None:
@@ -644,28 +689,55 @@ def stack_size(export: dict, code: str) -> int:
 
 
 def floor_zero(export: dict, code: str, value: float) -> bool:
-    """Worth under a gear per full stack: trading treats it as worthless."""
+    """Worth under a gear per full stack (value per item, a liquid's per portion): trading treats
+    it as worthless."""
     return value * stack_size(export, code) < 1.0
 
 
+def per_litre(export: dict) -> dict[str, float]:
+    """The liquids: code -> items (portions) per litre, from the export's
+    items[code].attributes.extra.liquid.itemsPerLitre (the game's waterTightContainerProps). Under
+    one item a litre is no liquid a container holds (the engine stores 0.001 on world water)."""
+    out: dict[str, float] = {}
+    for code, item in export["items"].items():
+        liquid = (((item.get("attributes") or {}).get("extra") or {}).get("liquid")) or {}
+        n = liquid.get("itemsPerLitre") if isinstance(liquid, dict) else None
+        if isinstance(n, (int, float)) and n >= 1:
+            out[code] = int(n) if float(n).is_integer() else float(n)
+    return out
+
+
+def shown(export: dict, code: str, value: float, litres: dict[str, float] | None = None) -> tuple[float, str]:
+    """A value as the table stores it, with its unit: gears per item, or a liquid's gears per litre."""
+    litres = per_litre(export) if litres is None else litres
+    if code in litres:
+        return value * litres[code], "/L"
+    return value, ""
+
+
+ABOUT = ("Item base values in rusty gears: per item, except the liquids listed in perLitre (code: items "
+         "per litre), whose values are gears per litre. From tools/item-values (#449). Generated: do not "
+         "edit; change tools/item-values/*.json and rebuild.")
+
+
 def table(export: dict, val: Valuation) -> dict:
+    litres = per_litre(export)
     values = {}
     zero = []
     for code in sorted(export["items"]):
         if code not in val.value:
             continue
-        v = round(val.value[code], 3)
-        values[code] = v
+        values[code] = round(shown(export, code, val.value[code], litres)[0], 3)
         if floor_zero(export, code, val.value[code]):
             zero.append(code)
     pack = export.get("pack", {})
     return {
-        "about": "Item base values in rusty gears per item, from tools/item-values (#449). Generated: do not edit; "
-                 "change tools/item-values/*.json and rebuild.",
+        "about": ABOUT,
         "schemaVersion": export.get("schemaVersion"),
         "pack": {k: pack.get(k) for k in ("id", "version")},
         "values": values,
         "floorZero": zero,
+        "perLitre": {c: litres[c] for c in values if c in litres},
         "switches": {c: sw for c, sw in val.switches.items() if c in values},
     }
 
@@ -682,6 +754,12 @@ def write_table(path: Path, data: dict) -> None:
     lines.append('  "floorZero": [')
     lines.append(",\n".join(f"    {json.dumps(c)}" for c in data["floorZero"]))
     lines.append("  ],")
+    if data["perLitre"]:
+        lines.append('  "perLitre": {')
+        lines.append(",\n".join(f"    {json.dumps(c)}: {json.dumps(n)}" for c, n in data["perLitre"].items()))
+        lines.append("  },")
+    else:
+        lines.append('  "perLitre": {},')
     if data["switches"]:
         lines.append('  "switches": {')
         lines.append(",\n".join(f"    {json.dumps(c)}: {json.dumps(sw)}" for c, sw in data["switches"].items()))
@@ -710,11 +788,12 @@ def below_ingredients(export: dict, val: Valuation, rules: Rules) -> list[tuple[
             c = route_cost(rt, val.value, rules)
             if c is None:
                 continue
-            pct, flat = rules.markup(rt.kind)
+            pct, _ = rules.markup(rt.kind)
+            flat = rules.flat(rt)
             tools = sum(min((val.value.get(a, 0.0) * n for a, n in s.alternatives), default=0.0)
                         for s in rt.slots if not s.consumed) * rules.tool_fraction
             # Ingredients alone, without the labour markup.
-            ing = ((c * rt.quantity - flat - tools) / (1 + pct)) / rt.quantity
+            ing = (((c - rules.per_item(rt.kind)) * rt.quantity - flat - tools) / (1 + pct)) / rt.quantity
             if best is None or ing < best[0]:
                 best = (ing, rt.recipe)
         if best and val.value[code] < best[0] - 1e-6 * max(1.0, best[0]):
@@ -728,7 +807,20 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
     missing = [c for c in codes if c not in val.value]
     zero = [c for c in codes if c in val.value and floor_zero(export, c, val.value[c])]
     priced = [c for c in codes if c in val.value]
-    by_value = sorted(priced, key=lambda c: (val.value[c], c))
+    litres = per_litre(export)
+
+    def entry(c: str, v: float, **more) -> dict:
+        """A value as the table has it: a liquid's per litre, marked so."""
+        n, unit = shown(export, c, v, litres)
+        e = {"code": c, "value": round(n, 3)}
+        if unit:
+            e["perLitre"] = True
+        for k, x in more.items():
+            e[k] = round(shown(export, c, x, litres)[0], 3) if isinstance(x, float) else x
+        return e
+
+    # Ranked by the table's number: a liquid by its litre, which is what a trader deals in.
+    by_value = sorted(priced, key=lambda c: (shown(export, c, val.value[c], litres)[0], c))
     nonzero = [c for c in by_value if c not in set(zero)]
     per_domain: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
     for c in codes:
@@ -751,12 +843,9 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
         "passes": val.passes,
         "sources": dict(src),
         "missing": missing,
-        "belowIngredients": [
-            {"code": c, "value": round(v, 3), "ingredients": round(i, 3), "recipe": r}
-            for c, v, i, r in below_ingredients(export, val, rules)
-        ],
-        "mostValuable": [{"code": c, "value": round(val.value[c], 3)} for c in reversed(by_value[-50:])],
-        "leastValuable": [{"code": c, "value": round(val.value[c], 3)} for c in nonzero[:50]],
+        "belowIngredients": [entry(c, v, ingredients=i, recipe=r) for c, v, i, r in below_ingredients(export, val, rules)],
+        "mostValuable": [entry(c, val.value[c]) for c in reversed(by_value[-50:])],
+        "leastValuable": [entry(c, val.value[c]) for c in nonzero[:50]],
         "domains": {
             d: {"items": n, "valued": v, "floorZero": z, "coverage": round(v / n, 4)}
             for d, (n, v, z) in sorted(per_domain.items())
@@ -764,8 +853,12 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
     }
 
 
+def _unit(e: dict) -> str:
+    return "/L" if e.get("perLitre") else ""
+
+
 def report_markdown(rep: dict, export: dict, val: Valuation, samples: list[str]) -> str:
-    lines = ["# Item values report", ""]
+    lines = ["# Item values report", "", "Gears per item; a liquid's (marked /L) per litre, as the table stores it.", ""]
     lines.append(f"- items: {rep['items']}, valued: {rep['valued']} ({rep['coverage']:.1%}), "
                  f"worthless (under a gear per stack): {rep['floorZero']} ({rep['floorZeroShare']:.1%} of valued)")
     lines.append(f"- sources: {rep['sources']}; {rep['passes']} items settled from recipes")
@@ -775,17 +868,20 @@ def report_markdown(rep: dict, export: dict, val: Valuation, samples: list[str])
         lines += ["## Samples", "", "| item | gears | stack | source |", "|---|---|---|---|"]
         for c in samples:
             v = val.value.get(c)
-            lines.append(f"| `{c}` | {'—' if v is None else f'{v:.3f}'} | {stack_size(export, c)} | {val.source.get(c, 'missing')} |")
+            if v is not None:
+                n, unit = shown(export, c, v)
+            lines.append(f"| `{c}` | {'—' if v is None else f'{n:.3f}{unit}'} | {stack_size(export, c)} | {val.source.get(c, 'missing')} |")
         lines.append("")
     lines += ["## Coverage per domain", "", "| domain | items | valued | worthless | coverage |", "|---|---|---|---|---|"]
     for d, row in sorted(rep["domains"].items(), key=lambda kv: -kv[1]["items"]):
         lines.append(f"| {d} | {row['items']} | {row['valued']} | {row['floorZero']} | {row['coverage']:.1%} |")
     lines += ["", "## Most valuable", ""]
-    lines += [f"- `{e['code']}` {e['value']}" for e in rep["mostValuable"]]
+    lines += [f"- `{e['code']}` {e['value']}{_unit(e)}" for e in rep["mostValuable"]]
     lines += ["", "## Least valuable (not worthless)", ""]
-    lines += [f"- `{e['code']}` {e['value']}" for e in rep["leastValuable"]]
+    lines += [f"- `{e['code']}` {e['value']}{_unit(e)}" for e in rep["leastValuable"]]
     lines += ["", "## Valued below their ingredients", ""]
-    lines += [f"- `{e['code']}` {e['value']} < {e['ingredients']} ({e['recipe']})" for e in rep["belowIngredients"]]
+    lines += [f"- `{e['code']}` {e['value']}{_unit(e)} < {e['ingredients']}{_unit(e)} ({e['recipe']})"
+              for e in rep["belowIngredients"]]
     lines += ["", "## No value", ""]
     lines += [f"- `{c}`" for c in rep["missing"]]
     return "\n".join(lines) + "\n"
@@ -796,6 +892,8 @@ SAMPLES = [
     "game:plank-oak", "game:glass-plain", "game:leather-normal-plain", "game:gear-rusty",
     "game:bed-wood-head-north", "game:barrel", "seraphhorizons:gear-oiled", "game:metalbit-steel",
     "seraphhorizons:gear-steel", "seraphhorizons:gear-steel-bare",
+    "game:juiceportion-apple", "game:ciderportion-apple", "game:spiritportion-apple", "game:ciderportion-mead",
+    "expandedfoods:foodoilportion-olive",
 ]
 
 
@@ -811,12 +909,16 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
         out.append(f"{pad}{code} ({name}): no value")
         return out
     zero = " [worthless: under 1 gear per stack]" if code in export["items"] and floor_zero(export, code, v) else ""
-    out.append(f"{pad}{code} ({name}) = {v:.4f} gears/item, stack {stack_size(export, code)}{zero}  <- {src}")
+    litre, unit = shown(export, code, v)
+    each = (f"{litre:.4f} gears/L ({v:.6g} a portion, {per_litre(export)[code]:g} portions a litre)"
+            if unit else f"{v:.4f} gears/item")
+    out.append(f"{pad}{code} ({name}) = {each}, stack {stack_size(export, code)}{zero}  <- {src}")
     rt = val.route.get(code)
     if rt is None or code in seen or depth >= max_depth:
         return out
     seen.add(code)
-    pct, flat = rules.markup(rt.kind)
+    pct, _ = rules.markup(rt.kind)
+    flat = rules.flat(rt)
     total = tools = 0.0
     for slot in rt.slots:
         best = None
@@ -851,8 +953,17 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
         out.append(f"{pad}  - other outcome {n:g} x {c} = {cv * n:.4f}, credited")
     less = f" - {credit:.4f}" if rt.byproducts else ""
     cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / rt.quantity
-    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat} + {tools * rules.tool_fraction:.4f}{less}) / {rt.quantity:g} "
-               f"[{rt.kind}] = {cost:.4f}" + (" -> 0 (floored)" if cost < 0 else ""))
+    per = rules.per_item(rt.kind)
+    plus = f" + {per:g} per item" if per else ""
+    each = max(cost, 0.0) + per
+    if unit:  # the route is per portion; the table's number is a litre's
+        plus = plus.replace("per item", "a portion")
+        ipl = per_litre(export)[code]
+        result = f"{each:.6g} a portion = {each * ipl:.4f} gears/L"
+    else:
+        result = f"{each:.4f}"
+    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat:.4g} + {tools * rules.tool_fraction:.4f}{less}) / {rt.quantity:g}{plus} "
+               f"[{rt.kind}] = {result}" + (" (quotient floored at 0)" if cost < 0 else ""))
     sw = val.switches.get(code)
     if sw and depth == 0:
         out.append(f"{pad}  only with switches on: {', '.join(sw)}")
@@ -956,8 +1067,8 @@ def unrouted(export: dict, val: Valuation, rules: Rules, tradelists: Path) -> tu
 
 
 def table_drift(fresh: dict, shipped: dict) -> list[str]:
-    """What differs between a rebuilt table and the shipped one (values, floorZero, switches), one
-    line per code: "code: shipped -> rebuilt"."""
+    """What differs between a rebuilt table and the shipped one (values, floorZero, perLitre,
+    switches), one line per code: "code: shipped -> rebuilt"."""
     lines = []
     fv, sv = fresh.get("values", {}), shipped.get("values", {})
     for c in sorted(set(fv) | set(sv)):
@@ -966,6 +1077,10 @@ def table_drift(fresh: dict, shipped: dict) -> list[str]:
     fz, sz = set(fresh.get("floorZero", [])), set(shipped.get("floorZero", []))
     for c in sorted(fz ^ sz):
         lines.append(f"{c}: floorZero {'added' if c in fz else 'removed'}")
+    fl, sl = fresh.get("perLitre", {}), shipped.get("perLitre", {})
+    for c in sorted(set(fl) | set(sl)):
+        if fl.get(c) != sl.get(c):
+            lines.append(f"{c}: perLitre {sl.get(c, 'none')} -> {fl.get(c, 'none')}")
     fs, ss = fresh.get("switches", {}), shipped.get("switches", {})
     for c in sorted(set(fs) | set(ss)):
         if fs.get(c) != ss.get(c):

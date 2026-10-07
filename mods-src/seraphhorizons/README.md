@@ -2687,18 +2687,32 @@ recipe export (raws priced by hand, everything else from its cheapest recipe plu
 the rules and the numbers are in `tools/item-values/README.md`). It changes nothing in play by
 itself, so it has no switch.
 
+The table's `values` are gears per item, except liquids: the codes in its `perLitre` object (code
+to the liquid's items per litre, 100 for most) are priced in gears per litre, the unit a player
+thinks in (a portion is a hundredth of a litre). `floorZero` keeps its meaning for them (under a
+gear per full stack of portions).
+
 `Trading/Values/`: `Core/ItemValues.cs` is the lookup (no game). `ValueOf(code)` is gears per item,
-0 for an item worth under a gear per full stack (`floorZero`) or unknown; `IsWorthless(code)` is
+for a liquid its per-litre value over its items per litre (trading prices stacks of portions, so
+every caller, the economy's off-list offers, orders and the value checks, gets per item without
+knowing the unit), 0 for an item worth under a gear per full stack (`floorZero`) or unknown; `IsWorthless(code)` is
 true for a known item worth nothing. A code missing from the table falls back to its variant
 family: the longest prefix ending at a `-` that table codes share, never shorter than the path's
 first segment (`game:plank-oak` takes the average of `game:plank-*`), and a code with `*` averages
-its matches. A table never changes once loaded, so it caches each wildcard's answer: `/sh trade
+its matches. A family or wildcard averages per-item values; when every member is a liquid with the
+same items per litre (`game:ciderportion-cherry` in the ciders), the answer is per litre too, the
+average per-litre value rounded to three decimals; any other family is per item. The display form
+is `PerLitre(code)` (items per litre, or null for per item) and `DisplayValue(code)` (the value in
+its unit and that), and `Lookup(code)` carries both (`PerLitre`, `Display`) next to the per-item
+`Value`. A table never changes once loaded, so it caches each wildcard's answer: `/sh trade
 values suspicious` looks up the same few hundred patterns across some 80,000 grid recipes, and
 uncached that took close to a minute. `Game/ItemValuesSystem.cs` loads the asset on the server when assets load and serves
 it: `ItemValuesSystem.For(api)`.
 
 `/sh trade value [item code]` (`controlserver`) prints an item's value and where it comes from
-(direct, family fallback with the family, or missing); without a code, the held item's. The `/sh`
+(direct, family fallback with the family, or missing); without a code, the held item's. A liquid's
+reads "1.85 gears per litre (0.0185 per item, 100 items per litre)"; the JSON has `value` in its
+`unit` (`"litre"` or `"item"`), `itemsPerLitre`, and `perItem` and `effective` per item. The `/sh`
 root and its `trade` branch are shared with the other trading features (`GetOrCreate`).
 
 Schematics have no value in `item-values.json` (`tools/item-values`, #506): they are kept on
@@ -2715,7 +2729,8 @@ table differs from a rebuild from the export (smoke loads this mod, so the expor
 The table's `switches` names, per code, the config switches its value exists by (#523).
 
 **In the handbook** (#506): every item and block page shows, under its name and description, the
-rusty gear's icon and the item's value (a family fallback shows like a direct value), or "No trade
+rusty gear's icon and the item's value (a family fallback shows like a direct value; a liquid's
+reads "1.85 per litre", `itemvalues-handbook-perlitre`), or "No trade
 value" when the table has none or when a switch its value depends on is off. The table's optional
 `switches` object maps a code to the switches its value exists only with (its cheapest route takes a
 recipe or an item they add; `tools/item-values` works that out from the export's `switch` fields,
@@ -2726,7 +2741,8 @@ as the unified woodworking does its state, and the client reads them from there.
 game's private `CollectibleBehaviorHandbookTextAndExtraInfo.addGeneralInfo`, which appends an
 inline item stack component (the rusty gear) and the number; not a collectible behaviour, since the
 handbook calls only the first `ICustomHandbookPageContent` of a collectible and Tidy Variants' groups
-need theirs to be it. The rusty gear's own page adds one sentence saying what the number is. If the
+need theirs to be it. The rusty gear's own page adds a sentence saying what the number is, and that liquids are priced
+per litre. If the
 game's method changes, a warning says so and pages show no value.
 
 #### Switch ownership

@@ -8,7 +8,7 @@ namespace SeraphHorizons.RecipeExport.Recipes;
 /// <summary>
 /// The pack's own mod's switch ownership and item value table (#506, #523; see
 /// docs/recipe-browser/schema.md): `recipes[i].switch`, `items[code].switch`, `items[code].value`,
-/// `items[code].floorZero` and `items[code].valueSwitches`. The ownership is the mod's
+/// `items[code].floorZero`, `items[code].valuePerLitre` and `items[code].valueSwitches`. The ownership is the mod's
 /// <c>SwitchRegistry.For(api)</c>, called by reflection like <see cref="GearChain"/> reads the
 /// mod's settings (the exporter cannot reference the mod); the table is the loaded asset
 /// <c>seraphhorizons:config/item-values.json</c>. Without the mod neither exists, and nothing is
@@ -70,7 +70,7 @@ public static class Switches
         api.Logger.Notification("[seraphexport] switches: {0} recipes owned by a switch", n);
     }
 
-    /// <summary>`switch`, `value`, `floorZero` and `valueSwitches` on each item (ItemSection.Fill's
+    /// <summary>`switch`, `value`, `floorZero`, `valuePerLitre` and `valueSwitches` on each item (ItemSection.Fill's
     /// last step).</summary>
     public static void AnnotateItems(ICoreServerAPI api, JObject items)
     {
@@ -80,6 +80,9 @@ public static class Switches
         var values = table?["values"] as JObject;
         var floorZero = new HashSet<string>((table?["floorZero"] as JArray)?.Values<string>().OfType<string>() ?? [], StringComparer.Ordinal);
         var switches = table?["switches"] as JObject;
+        // The table's perLitre: {code: itemsPerLitre} for liquids, whose values[code] is gears per
+        // litre. The value is copied as it is; valuePerLitre says what unit it is in.
+        var perLitre = table?["perLitre"] as JObject;
         foreach (var (code, token) in items)
         {
             if (token is not JObject item)
@@ -95,6 +98,8 @@ public static class Switches
                 valued++;
                 if (floorZero.Contains(code))
                     item["floorZero"] = true;
+                if (perLitre?[code] != null)
+                    item["valuePerLitre"] = true;
                 if (switches?[code] is JArray { Count: > 0 } depends)
                     item["valueSwitches"] = depends.DeepClone();
             }

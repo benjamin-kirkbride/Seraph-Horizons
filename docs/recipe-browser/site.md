@@ -109,7 +109,7 @@ can be tested), adds a test icon for `game:ingot-copper` and the real icons comm
 under `site/e2e/icons/` (plain files, not LFS, so CI needs no LFS fetch), and serves the result at
 `http://127.0.0.1:4317/Seraph-Horizons/`. It
 also writes a few fixed item values over the export's (`E2E_VALUES` in `e2e/config.ts`:
-copper ingot 2.5, a `floorZero` stick, rot without one), and when the export has no values
+copper ingot 2.5, a `floorZero` stick, apple cider 4 per litre, rot without one), and when the export has no values
 of its own it gives nine items in ten a made-up one, so `e2e/values.spec.ts` tests the
 values page at full size. It adds two variant groups the same way (`E2E_GROUPS`: four
 ingots, three of them at one price, and three planks), after taking their members and the
@@ -155,11 +155,11 @@ An item's index in `search.json` is its id everywhere else:
 }
 ```
 
-`mod` indexes `mods`. `flags` has bit 1 for handbook-visible, bit 2 for blocks and bit 4
-for `floorZero` (see Item values).
+`mod` indexes `mods`. `flags` has bit 1 for handbook-visible, bit 2 for blocks, bit 4
+for `floorZero` and bit 8 for `valuePerLitre`, a value per litre (see Item values).
 
 When the export gives any item a `value`, `search.json` also has `value`, one entry per
-item: its value in rusty gears, or `null`. `valueSwitches` maps an item's index (as a
+item: its value in rusty gears (per litre for a liquid, flag 8), or `null`. `valueSwitches` maps an item's index (as a
 string) to the config switches its value depends on, for the items that have any, and
 `meta.json` has `valueCount`, the number of valued items. An export without values gets
 none of the three. A value is one number per row, about a tenth of the file's size before
@@ -254,6 +254,11 @@ value on the values page. A value is the gear's icon followed by the number, wit
 gears" for screen readers only (`GearValue.svelte`, `formatGears` in
 `site/src/lib/values.ts`). A `floorZero` item, worth under a gear for a full stack, which
 traders treat as worthless, still shows its number, dimmed, with the reason on hover.
+A liquid is priced per litre (the export's `valuePerLitre`, flag 8 in `search.json`): its
+number is followed by a muted "/ L", and the screen reader word and the hover say "rusty
+gears per litre". The values page's intro says liquids are priced per litre. Sorting by
+value, in search and on the values page, compares the numbers as shown, a litre against an
+item, and a liquid's unit keeps its variants apart from per-item ones in a group row.
 
 - Item page: the value sits beside the item's name in the header, or "No trade value" when
   the item has none. With an export that has no values at all the header says nothing.
@@ -269,6 +274,16 @@ traders treat as worthless, still shows its number, dimmed, with the reason on h
   starts highest first, item and mod start at A, ties go by name. The filter box keeps the
   rows whose name, code, mod id and mod name contain every word typed. A checkbox adds
   the items without a value, which sort last whichever way the value column is sorted.
+  A segmented control (radio buttons, so arrow keys move along it) keeps one kind: All,
+  Items, Blocks or Liquids (liquids are the per-litre rows, flag 8; blocks flag 2; items
+  everything else). Two selects show the worthless rows (`floorZero`, flag 4) and the rows
+  not in the handbook (flag 1 off) with the rest, alone, or not at all. A row of several
+  items is worthless when they are (it is part of their price), not in the handbook when
+  none of them is (Tidy Variants hides a block's other orientations, so the canonical one
+  decides), and of a kind when any item is. All of it, the filter text and the order too, is
+  in the address (`#/<version>/values?q=cider&sort=name-asc&unvalued=1&kind=liquids&worthless=hide&unlisted=only`,
+  defaults left out; `ValuesView` in `route.ts`), so a link or a reload keeps it; a change
+  replaces the history entry, as the search page's order does.
 
 Items the reader couldn't tell apart share a row, in two ways. Variants the game shows as
 one creative-menu tile or one handbook page (Tidy Variants, and the handbook's `groupBy` for

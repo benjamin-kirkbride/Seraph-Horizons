@@ -11,7 +11,7 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// Switch ownership and item values in the export (#506, #523): the mod's
 /// <see cref="SwitchRegistry"/> names real assets and codes, and the exporter writes
-/// `recipes[i].switch` and `items[code].switch`, `value`, `floorZero` and `valueSwitches` from it and
+/// `recipes[i].switch` and `items[code].switch`, `value`, `floorZero`, `valuePerLitre` and `valueSwitches` from it and
 /// from the shipped table. Expected owners are read off the features' own files: the gear cutter's
 /// recipes are in recipes/grid/gearcutter.json, its frame in blocktypes/gearcutter/frame.json.
 /// </summary>
@@ -86,6 +86,7 @@ public partial class RecipeExportScenarios
         var values = (JObject)table["values"]!;
         var switches = table["switches"] as JObject;
         var floorZero = ((JArray?)table["floorZero"])?.Values<string>().ToHashSet() ?? [];
+        var perLitre = table["perLitre"] as JObject;
         foreach (var (code, token) in (JObject)Doc["items"]!)
         {
             var item = (JObject)token!;
@@ -93,11 +94,13 @@ public partial class RecipeExportScenarios
             {
                 Assert.Equal((double)v, (double)item["value"]!);
                 Assert.Equal(floorZero.Contains(code), item["floorZero"] != null);
+                Assert.Equal(perLitre?[code] != null, item["valuePerLitre"] != null);
                 Assert.True(JToken.DeepEquals(switches?[code] is JArray { Count: > 0 } s ? s : null, item["valueSwitches"]), code);
             }
             else
             {
                 Assert.Null(item["value"]);
+                Assert.Null(item["valuePerLitre"]);
                 Assert.Null(item["valueSwitches"]);
             }
         }
@@ -111,5 +114,22 @@ public partial class RecipeExportScenarios
         Assert.Contains("GearCutter", depends);
         Assert.Equal(new string?[] { "GearReclamation" }, ((JArray?)Item("seraphhorizons:picklingtub")["valueSwitches"])?.Values<string>().ToArray());
         Assert.Equal(ItemValuesSystem.For(World.Api).Count, values.Count);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Liquids_are_valued_per_litre_and_solids_per_item()
+    {
+        // The table prices liquids by the litre (its perLitre, from the export's
+        // attributes.extra.liquid) and the export says so on the item; the value is as the table has it.
+        var cider = Item("game:ciderportion-apple");
+        Assert.NotNull(cider["value"]);
+        Assert.True((bool?)cider["valuePerLitre"]);
+        var copper = Item("game:ingot-copper");
+        Assert.NotNull(copper["value"]);
+        Assert.Null(copper["valuePerLitre"]);
+        // Every item priced per litre is a liquid.
+        foreach (var (code, token) in (JObject)Doc["items"]!)
+            if (token?["valuePerLitre"] != null)
+                Assert.True(token["attributes"]?["extra"]?["liquid"] != null, $"{code} is valued per litre but is no liquid");
     }
 }

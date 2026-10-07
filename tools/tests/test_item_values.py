@@ -60,6 +60,9 @@ MARKUPS = {
         "grid": {"pct": 0.0, "flat": 0.0},
         "smelting": {"pct": 0.0, "flat": 0.0},
         "barrel": {"pct": 0.5, "flat": 0.0},
+        "pressing": {"pct": 0.0, "flat": 0.5},
+        "curing": {"pct": 0.0, "flat": 0.0, "perItem": 0.01},
+        "distilling": {"pct": 0.5, "flat": 0.0},
         "mod": {"pct": 0.0, "flat": 1.0},
         "lottery": {"pct": 0.0, "flat": 0.0},
     },
@@ -76,6 +79,12 @@ def lottery(rid: str, item_code: str, outcomes: list[tuple[float, list[dict]]], 
         outputs += stacks
     return recipe(rid, "lottery", [st(item_code)], [[st(item_code)]], outputs,
                   lottery={"trigger": "inventory", "outcomes": shaped}, **extra)
+
+
+def liquid(stack: int = 5000, per_litre: float = 100, **attrs) -> dict:
+    """A liquid as the export marks it: extra.liquid.itemsPerLitre (waterTightContainerProps)."""
+    extra = {**attrs.pop("extra", {}), "liquid": {"itemsPerLitre": per_litre}}
+    return item(stack, extra=extra, **attrs)
 
 
 def export(items: dict, recipes: list[dict]) -> dict:
@@ -146,6 +155,99 @@ class ItemValuesTest(unittest.TestCase):
                  "game:ingot": item(16)}
         val, _ = self.solve(export(items, []))
         self.assertAlmostEqual(val.value["game:ingot"], 10.0)
+
+    def test_juicing_attribute_is_a_route_and_ignores_its_byproducts(self):
+        # One log pressed gives 0.25 L = 25 portions: (1.0 + 0.5 pressing flat) / 25. The pressed
+        # mash and the returned gems (worth 50) are not credited, or the juice would be free.
+        juicing = {"litresPerItem": 0.25, "output": st("game:juiceportion", 1, litres=0.01),
+                   "pressed": st("game:pressedmash"), "returned": st("game:gem", 5)}
+        items = {"game:log": item(extra={"juicing": juicing}), "game:juiceportion": item(5000),
+                 "game:pressedmash": item(), "game:gem": item()}
+        val, _ = self.solve(export(items, []))
+        self.assertAlmostEqual(val.value["game:juiceportion"], 1.5 / 25)
+        self.assertEqual(val.source["game:juiceportion"], "pressing|game:log")
+        self.assertNotIn("game:pressedmash", val.value)
+
+    def test_juicing_without_litres_is_no_route(self):
+        # Mash: what is left in it rides on the stack, so the export has no litresPerItem.
+        items = {"game:pressedmash": item(extra={"juicing": {"output": st("game:juiceportion", 1, litres=0.01)}}),
+                 "game:juiceportion": item(5000)}
+        val, _ = self.solve(export(items, []))
+        self.assertNotIn("game:juiceportion", val.value)
+
+    def test_distillation_attribute_is_a_route_by_its_ratio(self):
+        # 1 portion of cider (1.0 / 100 from a log, + 0.01 curing) distils into 0.1 portion of spirit:
+        # 0.02 x 1.5 / 0.1 = 0.3 a portion, so a litre of spirit costs its 10 litres of cider and more.
+        items = {"game:log": item(), "game:spiritportion": item(5000),
+                 "game:ciderportion": item(5000, extra={"distillation": {"ratio": 0.1, "output": st("game:spiritportion", 1, litres=0.01)}})}
+        ex = export(items, [recipe("curing|game:log|0", "curing", [st("game:log")], [[st("game:log")]],
+                                   [st("game:ciderportion", 100, litres=1)])])
+        val, _ = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:ciderportion"], 0.02)
+        self.assertAlmostEqual(val.value["game:spiritportion"], 0.3)
+        self.assertEqual(val.source["game:spiritportion"], "distilling|game:ciderportion")
+
+    def test_distillation_without_a_ratio_is_no_route(self):
+        items = {"game:ciderportion": item(5000, extra={"distillation": {"output": st("game:spiritportion")}}),
+                 "game:spiritportion": item(5000)}
+        val, _ = self.solve(export(items, []))
+        self.assertNotIn("game:spiritportion", val.value)
+
+    def test_min_batch_litres_spreads_the_flat_of_a_liquid_recipe(self):
+        # barrel: flat 1, over at least 1 L. One portion of juice (0.01) ages into one of cider:
+        # (0.01 x 1.5 + 1 x 1/100) / 1 = 0.025, not 1.015; 2 L of tannin (200 portions) from a log
+        # keep the whole flat: (1 x 1.5 + 1) / 200; a solid output (a hide) is never spread.
+        markups = json.loads(json.dumps(MARKUPS))
+        markups["kinds"]["barrel"] = {"pct": 0.5, "flat": 1.0, "minBatchLitres": 1}
+        raws = json.loads(json.dumps(RAWS))
+        raws["groups"]["test"]["game:juiceportion"] = 0.01
+        self.write_rules(raws=raws, markups=markups)
+        items = {c: item(5000) for c in ("game:log", "game:juiceportion", "game:ciderportion", "game:tanninportion", "game:hide")}
+        ex = export(items, [
+            recipe("barrel|c|0", "barrel", [st("game:juiceportion", litres=0.01)],
+                   [[st("game:juiceportion", 1, litres=0.01)]], [st("game:ciderportion", 1, litres=0.01)]),
+            recipe("barrel|t|0", "barrel", [st("game:log")], [[st("game:log")]], [st("game:tanninportion", 200, litres=2)]),
+            recipe("barrel|h|0", "barrel", [st("game:juiceportion", litres=0.01)],
+                   [[st("game:juiceportion", 1, litres=0.01)]], [st("game:hide")]),
+        ])
+        val, rules = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:ciderportion"], 0.025)
+        self.assertAlmostEqual(val.value["game:tanninportion"], 2.5 / 200)
+        self.assertAlmostEqual(val.value["game:hide"], 1.015)
+        self.assertEqual(iv.below_ingredients(ex, val, rules), [])
+        self.assertIn("+ 0.01 + ", "\n".join(iv.explain(ex, val, rules, "game:ciderportion")))
+
+    def test_per_item_charge_is_added_after_the_division(self):
+        # curing: a log ages into 1 L (100 portions): 1.0 / 100 + 0.01 per portion; a portion ages
+        # into another one for 0.01 more. A flat per batch could not do this: 0.01 x 100 = 1 gear.
+        items = {c: item(5000) for c in ("game:log", "game:ciderportion", "game:wineportion")}
+        ex = export(items, [
+            recipe("curing|game:log|0", "curing", [st("game:log")], [[st("game:log")]],
+                   [st("game:ciderportion", 100, litres=1)]),
+            recipe("curing|game:ciderportion|0", "curing", [st("game:ciderportion")], [[st("game:ciderportion")]],
+                   [st("game:wineportion")]),
+        ])
+        val, rules = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:ciderportion"], 0.02)
+        self.assertAlmostEqual(val.value["game:wineportion"], 0.03)
+        self.assertEqual(rules.per_item("curing"), 0.01)
+        self.assertEqual(rules.per_item("grid"), 0.0)
+        self.assertEqual(rules.markup("curing"), (0.0, 0.0))
+        # The charge is labour, not an ingredient: the route is not below its ingredients.
+        self.assertEqual(iv.below_ingredients(ex, val, rules), [])
+        text = "\n".join(iv.explain(ex, val, rules, "game:wineportion"))
+        self.assertIn("/ 1 + 0.01 per item [curing] = 0.0300", text)
+
+    def test_per_item_charge_survives_a_quotient_floored_at_zero(self):
+        # A lottery-style credit can take the quotient below 0; the per-item charge is added after.
+        markups = json.loads(json.dumps(MARKUPS))
+        markups["kinds"]["lottery"]["perItem"] = 0.25
+        self.write_rules(markups=markups)
+        ex = export({"game:log": item(), "game:gem": item(), "game:plank": item()}, [
+            lottery("lottery|x|0", "game:log", [(0.5, [st("game:plank")]), (0.5, [st("game:gem")])])])
+        val, _ = self.solve(ex)
+        # plank: (1.0 - 0.5 x 10) / 0.5 < 0 -> 0, + 0.25.
+        self.assertAlmostEqual(val.value["game:plank"], 0.25)
 
     def test_value_creating_cycle_does_not_pull_prices_down(self):
         # 2 cloth -> 4 sails, 1 sail -> 2 cloth: a loop that doubles cloth. Cloth comes from a log.
@@ -634,6 +736,144 @@ class ItemValuesTest(unittest.TestCase):
         self.assertEqual(iv.table_drift(fresh, shipped), ["a: floorZero added", "a: switches [] -> ['X']"])
         self.assertEqual(iv.table_drift(fresh, fresh), [])
 
+    # ------------------------------------------------------------ liquids per litre
+
+    def liquid_export(self):
+        # A log (1.0) is pressed into 0.8 L (80 portions) of juice: (1.0 + 0.5) / 80 = 0.01875 a
+        # portion, 1.875 a litre. An oil with 50 items a litre (read, not assumed) is a raw at 0.01:
+        # 0.5 a litre. "game:fakeportion" is named like a liquid but not marked one: per item.
+        raws = {**RAWS, "groups": {"test": {**RAWS["groups"]["test"], "game:oilportion": 0.01,
+                                            "game:fakeportion": 0.0012345, "game:dyeportion": 0.0001}}}
+        self.write_rules(raws=raws)
+        items = {"game:log": item(1, extra={"juicing": {"litresPerItem": 0.8, "output": st("game:juiceportion", 1, litres=0.01)}}),
+                 "game:juiceportion": liquid(), "game:oilportion": liquid(per_litre=50),
+                 "game:fakeportion": item(5000), "game:dyeportion": liquid(),
+                 "game:waterportion": liquid()}  # no value: not listed in perLitre either
+        return export(items, [])
+
+    def test_table_stores_liquids_in_gears_per_litre(self):
+        ex = self.liquid_export()
+        val, _ = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:juiceportion"], 0.01875)  # the solver stays per portion
+        out = iv.table(ex, val)
+        self.assertEqual(out["values"]["game:juiceportion"], 1.875)
+        self.assertEqual(out["values"]["game:oilportion"], 0.5)
+        self.assertEqual(out["values"]["game:fakeportion"], 0.001)  # per item, 3 decimals
+        self.assertEqual(out["values"]["game:dyeportion"], 0.01)  # 0.0001 a portion survives as 0.01 a litre
+        self.assertEqual(out["perLitre"], {"game:dyeportion": 100, "game:juiceportion": 100, "game:oilportion": 50})
+        self.assertIn("per litre", out["about"])
+        # floorZero is per item x stack: 0.01875 x 5000 = 93.75 a stack; dye 0.0001 x 5000 = 0.5.
+        self.assertNotIn("game:juiceportion", out["floorZero"])
+        self.assertIn("game:dyeportion", out["floorZero"])
+        self.assertEqual(iv.per_litre(export({"game:log": item()}, [])), {})
+        # Under one item a litre is no liquid (world water: 0.001, written 0); 70 and 5 are read as is.
+        odd = {"game:water-still-7": liquid(per_litre=0), "game:tiny": liquid(per_litre=0.001),
+               "hod:wellwater": liquid(per_litre=70), "game:lard": liquid(per_litre=5)}
+        self.assertEqual(iv.per_litre(export(odd, [])), {"hod:wellwater": 70, "game:lard": 5})
+
+    def test_table_writes_per_litre_one_per_line_between_floor_zero_and_switches(self):
+        ex = self.liquid_export()
+        val, _ = self.solve(ex)
+        path = self.dir / "t.json"
+        iv.write_table(path, iv.table(ex, val))
+        text = path.read_text()
+        self.assertIn('\n  "perLitre": {\n    "game:dyeportion": 100,\n    "game:juiceportion": 100,\n'
+                      '    "game:oilportion": 50\n  },\n  "switches": {}\n}\n', text)
+        self.assertEqual(list(json.loads(text))[-4:], ["values", "floorZero", "perLitre", "switches"])
+        # No liquid: an empty object, still in its place.
+        ex = export({"game:log": item()}, [])
+        val, _ = self.solve(ex)
+        iv.write_table(path, iv.table(ex, val))
+        self.assertIn('\n  "perLitre": {},\n  "switches": {}\n}\n', path.read_text())
+
+    def test_recipe_litres_count_the_liquids_own_items_per_litre(self):
+        # Hardened lard is 5 items a litre: 0.2 L in a recipe is 1 item (0.5 gears), not 20. A
+        # liquid the export does not mark counts 100 a litre. The barrel's 1 gear flat spreads over
+        # at least 1 L of its output: 5 items of lard-oil (a litre at 5), so 0.2 a lard-oil.
+        markups = {**MARKUPS, "kinds": {**MARKUPS["kinds"], "barrel": {"pct": 0.0, "flat": 1.0, "minBatchLitres": 1}}}
+        raws = {**RAWS, "groups": {"test": {**RAWS["groups"]["test"], "game:lard": 0.5, "game:water": 0.001}}}
+        self.write_rules(raws=raws, markups=markups)
+        items = {"game:lard": liquid(32, per_litre=5), "game:water": item(5000),
+                 "game:lardoil": liquid(32, per_litre=5), "game:soap": item()}
+        ex = export(items, [
+            recipe("barrel|soap|0", "barrel", [st("game:lard", litres=0.2), st("game:water", litres=0.5)],
+                   [[st("game:lard", 1, litres=0.2)], [st("game:water", 50, litres=0.5)]], [st("game:soap")]),
+            recipe("barrel|oil|0", "barrel", [st("game:lard", litres=0.2)],
+                   [[st("game:lard", 1, litres=0.2)]], [st("game:lardoil", 1, litres=0.2)]),
+        ])
+        val, _ = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:soap"], 0.5 + 50 * 0.001 + 1.0)
+        self.assertAlmostEqual(val.value["game:lardoil"], 0.5 + 0.2)
+        self.assertEqual(iv.table(ex, val)["values"]["game:lardoil"], 3.5)  # 0.7 x 5 a litre
+
+    def test_check_drift_names_per_litre_changes(self):
+        fresh = {"values": {"a": 1}, "floorZero": [], "perLitre": {"a": 100, "b": 50}, "switches": {}}
+        shipped = {"values": {"a": 1}, "floorZero": [], "perLitre": {"b": 100, "c": 100}, "switches": {}}
+        self.assertEqual(iv.table_drift(fresh, shipped),
+                         ["a: perLitre none -> 100", "b: perLitre 100 -> 50", "c: perLitre 100 -> none"])
+        # A table from before perLitre is stale against a rebuild that has liquids.
+        self.assertEqual(iv.table_drift(fresh, {k: v for k, v in fresh.items() if k != "perLitre"}),
+                         ["a: perLitre none -> 100", "b: perLitre none -> 50"])
+
+    def test_check_fails_on_a_table_with_liquids_per_portion(self):
+        ex = self.liquid_export()
+        path = self.dir / "recipes.json"
+        path.write_text(json.dumps(ex))
+        out = self.dir / "item-values.json"
+        self.run_cli("build", str(path), "--rules", str(self.dir), "--out", str(out), "--report", str(self.dir / "r.md"))
+        args = ("--rules", str(self.dir), "--tradelists", str(self.dir / "none"), "--table", str(out))
+        code, text, err = self.run_cli("check", str(path), *args)
+        self.assertEqual(code, 0, err)
+        # The old shape: per portion, no perLitre.
+        table = json.loads(out.read_text())
+        table["values"]["game:juiceportion"] = 0.019
+        del table["perLitre"]
+        out.write_text(json.dumps(table))
+        code, _, err = self.run_cli("check", str(path), *args)
+        self.assertEqual(code, 1)
+        self.assertIn("is stale: 4 differences", err)
+        self.assertIn("game:juiceportion: 0.019 -> 1.875", err)
+        self.assertIn("game:oilportion: perLitre none -> 50", err)
+
+    def test_explain_prints_a_liquid_per_litre(self):
+        ex = self.liquid_export()
+        val, rules = self.solve(ex)
+        text = "\n".join(iv.explain(ex, val, rules, "game:juiceportion"))
+        self.assertIn("game:juiceportion (x) = 1.8750 gears/L (0.01875 a portion, 100 portions a litre)", text)
+        self.assertIn("/ 80 [pressing] = 0.01875 a portion = 1.8750 gears/L", text)
+        self.assertIn("game:log (x) = 1.0000 gears/item", text)
+        self.assertIn("game:oilportion (x) = 0.5000 gears/L",
+                      "\n".join(iv.explain(ex, val, rules, "game:oilportion")))
+        self.assertIn("game:fakeportion (x) = 0.0012 gears/item",
+                      "\n".join(iv.explain(ex, val, rules, "game:fakeportion")))
+        # A per-item charge on a liquid's route is a portion's.
+        items = {"game:log": item(), "game:ciderportion": liquid(), "game:wineportion": liquid()}
+        ex = export(items, [
+            recipe("curing|game:log|0", "curing", [st("game:log")], [[st("game:log")]],
+                   [st("game:ciderportion", 100, litres=1)]),
+            recipe("curing|game:ciderportion|0", "curing", [st("game:ciderportion")], [[st("game:ciderportion")]],
+                   [st("game:wineportion")]),
+        ])
+        val, rules = self.solve(ex)
+        text = "\n".join(iv.explain(ex, val, rules, "game:wineportion"))
+        self.assertIn("+ 0.01 a portion [curing] = 0.03 a portion = 3.0000 gears/L", text)
+
+    def test_report_ranks_and_prints_liquids_per_litre(self):
+        ex = self.liquid_export()
+        ex["items"]["game:stick"] = item(1)  # 0.01 an item: dearer per item than the juice's portion
+        val, rules = self.solve(ex)
+        rep = iv.report(ex, val, rules)
+        most = [e["code"] for e in rep["mostValuable"]]
+        # Juice 1.875 a litre ranks above the log (1.0); per portion (0.019) it would rank below the stick.
+        self.assertEqual(most[:2], ["game:juiceportion", "game:log"])
+        self.assertLess(most.index("game:stick"), most.index("game:fakeportion"))
+        self.assertEqual(rep["mostValuable"][0], {"code": "game:juiceportion", "value": 1.875, "perLitre": True})
+        self.assertNotIn("perLitre", rep["mostValuable"][1])
+        md = iv.report_markdown(rep, ex, val, ["game:juiceportion", "game:log"])
+        self.assertIn("- `game:juiceportion` 1.875/L", md)
+        self.assertIn("- `game:log` 1.0\n", md)
+        self.assertIn("| `game:juiceportion` | 1.875/L | 5000 |", md)
+
     def test_check_fails_on_a_retired_item_on_a_trade_list(self):
         path, out = self.check_fixture()
         ex = json.loads(path.read_text())
@@ -699,7 +939,23 @@ class ShippedRulesTest(unittest.TestCase):
         self.assertEqual(table["values"]["game:gear-rusty"], 1)
         self.assertTrue(set(table["floorZero"]) <= set(table["values"]))
         self.assertTrue(set(table.get("switches", {})) <= set(table["values"]))
-        self.assertEqual(list(table)[-3:], ["values", "floorZero", "switches"])
+        self.assertTrue(set(table["perLitre"]) <= set(table["values"]))
+        self.assertEqual(list(table)[-4:], ["values", "floorZero", "perLitre", "switches"])
+        self.assertEqual(list(table["perLitre"]), sorted(table["perLitre"]))
+        self.assertIn("per litre", table["about"])
+
+    def test_shipped_table_prices_liquids_per_litre(self):
+        # Every liquid the pack has is 100 portions a litre; a litre of cider is worth tenths of a
+        # gear, not the thousandths a portion is (the table's old unit).
+        if not iv.DEFAULT_OUT.exists():
+            self.skipTest("no shipped table")
+        table = json.loads(iv.DEFAULT_OUT.read_text())
+        litres = table["perLitre"]
+        for code in ("game:juiceportion-apple", "game:ciderportion-apple", "game:spiritportion-apple",
+                     "expandedfoods:foodoilportion-olive"):
+            self.assertEqual(litres.get(code), 100, code)
+        self.assertNotIn("game:gear-rusty", litres)
+        self.assertGreater(table["values"]["game:ciderportion-apple"], 0.1)
 
     def test_schematic_patterns_cover_every_sold_schematic(self):
         # Trading/Schematics' list of every schematic in the pack (and Scrolled's rolled copies).
@@ -711,6 +967,30 @@ class ShippedRulesTest(unittest.TestCase):
             self.assertTrue(rules.is_schematic(pattern.replace("*", "x")), pattern)
         self.assertTrue(rules.is_schematic("scrolled:br-rolled-schematic-bed"))
         self.assertFalse(rules.is_schematic("purposefulstorage:schematicrack-normal-east"))
+
+    def test_per_item_charges(self):
+        # Ageing (curing: cider, wine, spirits, yogurt, jerky) charges per output item, so a litre
+        # of cider costs more than its juice; cooling, drying and the barrel do not (a barrel's
+        # cheap liquids, dyes and tannin, go into other things by the litre).
+        rules = iv.Rules.load()
+        self.assertGreater(rules.per_item("curing"), 0)
+        for kind in ("transition", "barrel", "pressing", "distilling", "grid"):
+            self.assertEqual(rules.per_item(kind), 0.0, kind)
+        self.assertIn("pressing", rules.markups)
+        self.assertIn("distilling", rules.markups)
+        self.assertEqual(rules.markups["barrel"].get("minBatchLitres"), 1)
+
+    def test_shipped_table_beverages_age_upwards(self):
+        # Pressed juice < cider < Expanded Foods' strong < potent wine, each a litre's ageing apart
+        # (all per litre).
+        if not iv.DEFAULT_OUT.exists():
+            self.skipTest("no shipped table")
+        values = json.loads(iv.DEFAULT_OUT.read_text())["values"]
+        chain = ["game:juiceportion-apple", "game:ciderportion-apple",
+                 "expandedfoods:strongwineportion-apple", "expandedfoods:potentwineportion-apple"]
+        got = [values[c] for c in chain]
+        self.assertEqual(got, sorted(got), dict(zip(chain, got)))
+        self.assertLess(got[0], got[1])
 
     def test_lottery_has_no_labour(self):
         # steel gear = 10 x oiled gear - 9 x what a lost one gives, exactly (#523).

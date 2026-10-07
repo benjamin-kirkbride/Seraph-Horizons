@@ -127,7 +127,7 @@ public static class ItemSection
             };
             var description = ItemRecords.Description(c);
             if (description != null) o["description"] = description;
-            o["attributes"] = ItemRecords.Attributes(c);
+            o["attributes"] = ItemRecords.Attributes(api.World, c);
             var from = sources.For(code);
             if (from != null) o["sources"] = from;
             if (extra.Count > 0) o["extra"] = extra;

@@ -1,5 +1,5 @@
 {
-  "about": "Labour markup per recipe kind: a route's value is (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction) / output quantity. Kinds are recipe types (grid, smithing, knapping, clayforming, barrel, cooking, alloy, construction), 'transition' (drying, curing, ripening, smoking, ...), 'lottery' (an item decided by chance: no labour; the other outcomes are credited, see README.md),the item attributes the export carries (smelting, baking, crushing, grinding), and 'mod' for every other mod registry; a mod recipe type can have its own entry by its type code. See README.md.",
+  "about": "Labour markup per recipe kind: a route's value is (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction) / output quantity + perItem. pct and flat are per batch; perItem (optional, default 0) is gears added to each output item after the division, for work that scales with the volume: a liquid is 100 portions a litre, so a flat per batch is nothing per portion, and curing's 0.002 per portion is 0.2 gears a litre of cider or wine. minBatchLitres (optional) spreads the flat of a recipe whose output is a liquid over at least that many litres: the barrel's recipes for cider (a portion), mead (0.1 L), wine vinegar and yogurt starter are run by the barrelful, so their 0.1 is charged per litre, not per portion. Kinds are recipe types (grid, smithing, knapping, clayforming, barrel, cooking, alloy, construction), 'transition' (drying, ripening, smoking, melting, hardening, ...), 'lottery' (an item decided by chance: no labour; the other outcomes are credited, see README.md), the item attributes the export carries (smelting, baking, crushing, grinding, pressing: the fruit press, distilling: the still, whose route is per input portion, so it has no flat), and 'mod' for every other mod registry; any recipe type can have its own entry by its type code, as 'curing' (ageing: cider into wine and spirits, yogurt, jerky) has. The barrel has no perItem: its cheap liquids (dyes, tannin) go into other things by the litre, and a per-portion charge would double dyed leather. See README.md.",
   "toolFraction": 0.02,
   "kinds": {
     "grid": {
@@ -20,7 +20,8 @@
     },
     "barrel": {
       "pct": 0.05,
-      "flat": 0.1
+      "flat": 0.1,
+      "minBatchLitres": 1
     },
     "cooking": {
       "pct": 0.1,
@@ -37,6 +38,11 @@
     "transition": {
       "pct": 0.0,
       "flat": 0.0
+    },
+    "curing": {
+      "pct": 0.0,
+      "flat": 0.0,
+      "perItem": 0.002
     },
     "lottery": {
       "pct": 0.0,
@@ -57,6 +63,14 @@
     "grinding": {
       "pct": 0.05,
       "flat": 0.02
+    },
+    "pressing": {
+      "pct": 0.05,
+      "flat": 0.02
+    },
+    "distilling": {
+      "pct": 0.1,
+      "flat": 0.0
     },
     "mod": {
       "pct": 0.1,

@@ -328,10 +328,10 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
         }
         var below = ValueChecks.Below(values, Recipes());
         output.Summary = L("trading-admin-values-suspicious", below.Count, api.World.GridRecipes.Count);
-        output.Lines.AddRange(Limited(below.Select(b => $"  {b.Code} {F(b.Value, "0.###")} < {F(b.Ingredients, "0.###")} ({b.Recipe})")));
+        output.Lines.AddRange(Limited(below.Select(b => $"  {b.Code} {F(b.Value, "0.#####")} < {F(b.Ingredients, "0.###")} ({b.Recipe})")));
         output.Data["belowIngredients"] = AdminOutput.Rows(below, b => new JsonObject
         {
-            ["code"] = b.Code, ["value"] = Math.Round(b.Value, 3), ["ingredients"] = b.Ingredients, ["recipe"] = b.Recipe,
+            ["code"] = b.Code, ["value"] = Math.Round(b.Value, 6), ["ingredients"] = b.Ingredients, ["recipe"] = b.Recipe,
         });
         return AdminCommands.Answer(args, output);
     }
