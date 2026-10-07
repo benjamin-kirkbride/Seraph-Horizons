@@ -1,0 +1,29 @@
+// Battle Towers' towers, rarer: seraphhorizons' RarerBattleTowers switch (README.md "Rarer battle
+// towers", #519). BattleTowers.cs writes these into Battle Towers' own patch file before the game
+// applies it, each tower found by its code.
+//
+// Engine (GenStructures, 1.22.7): per chunk column (32 x 32 blocks; 977 per km²) each structure
+// gets chance x chanceMultiplier tries at random spots; a try places a tower only where the
+// schematic fits. The multiplier is 0.45 in the pack: BetterRuins sets vanilla's 0.46 to 0.30,
+// and the pack's betterruins.yaml puts it back (x 1.5). minGroupDistance (3D, in blocks) is checked
+// only against towers of the same group in loaded map regions, and never for a cave-attached
+// schematic, which Battle Towers' underground towers are (they have pathways): for them the chance
+// is the only lever.
+//
+// Measured in an Atlas world (seed 436447448, 2026-10-06): a surface tower try places one 20% of
+// the time (245 of 1229), a hard tower try 23% (287 of 1229), an underground try 0.067% (41 towers
+// from 61,440 tries in one km²). So Battle Towers 1.1.0 as the pack had it, per km²:
+//   surface     0.01 (ConfigKit; it ships 0.03), 600 blocks -> 977 x 0.45 x 0.01  x 0.20    = 0.88
+//   hard        0.005, 1000 blocks                         -> 977 x 0.45 x 0.005 x 0.23    = 0.51
+//   underground 200 (90 tries per chunk column)            -> 977 x 0.45 x 200   x 0.00067 = 59,
+// an underground tower every 130 m. Here, a tower being an event (traders are one camp per 4 km²,
+// ore districts one per 120 km²):
+//   surface     0.0007  -> 977 x 0.45 x 0.0007  x 0.20    = 0.062 per km², one per 16 km² (a 4 km square)
+//   hard        0.00015 -> 977 x 0.45 x 0.00015 x 0.23    = 0.015 per km², one per 66 km² (an 8 km square)
+//   underground 0.2     -> 977 x 0.45 x 0.2     x 0.00067 = 0.059 per km², one per 17 km² (a 4 km square)
+// about one tower of any kind per 7.5 km². The distances only keep two from landing side by side.
+{
+  "surfacetowers": { "chance": 0.0007, "minGroupDistance": 1500 },
+  "surfacehardtowers": { "chance": 0.00015, "minGroupDistance": 3000 },
+  "undergroundtowers": { "chance": 0.2 }
+}

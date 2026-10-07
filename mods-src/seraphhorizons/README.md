@@ -80,23 +80,40 @@ including the draught rule, and that a venting chimney's look-at info says so (p
 `chimney-info-venting` line), in every language ppex ships. Text only, as exact-passage `LangEdits`
 like the boiler's; the Russian and Ukrainian passages are the pack's own translations.
 
-### Fewer surface battle towers (ConfigKit settings)
+### Rarer battle towers (`RarerBattleTowers`)
 
-Battle Towers (`battletowers`, 1.1.0) has no settings: a surface tower has a 0.03 chance per chunk
-and only 200 blocks between two of them, so they outnumber every other surface structure.
-`assets/seraphhorizons/config/configlib-patches.json` declares two settings, which ConfigKit writes
-into Battle Towers' own patch file (`patches/survival-worldgen-structures.json`, entry 0) before
-the game applies it:
+Battle Towers (`battletowers`, 1.1.0, #519) has no settings, and its towers were everywhere: in
+the pack's worlds about 0.9 surface towers, 0.5 hard towers and 59 underground towers per km², an
+underground tower every 130 m of cave. With this switch there is about one surface tower per
+16 km² (a 4 km square), one hard tower per 66 km² (an 8 km square) and one underground tower per
+17 km² (a 4 km square): about one tower of any kind per 7.5 km², so finding one is an event.
 
-| Setting (`ModConfig/seraphhorizons.yaml`) | Battle Towers | Here |
-|---|---|---|
-| `battletowers_surface_chance` | 0.03 | 0.01 |
-| `battletowers_surface_min_distance` | 200 | 600 |
+| Tower (`code`) | Battle Towers: chance, spacing | Here | Per km², before → here |
+|---|---|---|---|
+| surface (`surfacetowers`) | 0.03, 200 blocks (0.01, 600 with the pack's old ConfigKit setting) | 0.0007, 1500 | 0.88 → 0.062 |
+| hard (`surfacehardtowers`) | 0.005, 1000 blocks | 0.00015, 3000 | 0.51 → 0.015 |
+| underground (`undergroundtowers`) | 200, 50 blocks | 0.2, 50 | 59 → 0.059 |
 
-The hard and underground towers are left as Battle Towers ships them. This tweak is data, not a
-class: it has no switch in `seraphhorizons.json`, does nothing without ConfigKit, and is changed in
-ConfigKit's settings screen or, for the pack, in `pack/config/ModConfig/seraphhorizons.yaml`. Like
-any worldgen setting it only affects chunks not generated yet.
+The game's `GenStructures` gives each structure chance × chanceMultiplier tries per chunk column (977
+per km²) at random spots, and a try places a tower only where the schematic fits. The multiplier is
+0.45 in the pack (BetterRuins cuts vanilla's 0.46 to 0.30, `pack/config/ModConfig/betterruins.yaml`
+puts it back). The share of tries that place a tower was measured in an Atlas world: 20% for a
+surface tower, 23% for a hard one, 0.067% for an underground one, which must open onto a cave. The
+spacing (`minGroupDistance`) is only checked against towers in loaded map regions, and never for
+the underground towers, whose schematics attach to caves: the chance does the work, and the
+spacings only keep two towers from landing side by side. The figures and the maths are in
+`assets/seraphhorizons/config/battletowers-rates.json`.
+
+Battle Towers appends its towers to `game:worldgen/structures.json` (`/structures/-`), so where they
+end up in that list depends on every other mod adding structures, and a JSON patch of ours could
+not address them; it could not patch Battle Towers' patch file either, as the game reads every patch
+file before it applies any. So `BattleTowers.cs`, on the server in `Start`, before the patch loader
+runs, rewrites Battle Towers' own `patches/survival-worldgen-structures.json` in memory, each tower
+found by its code (`Core/BattleTowerRates.cs`). A tower Battle Towers no longer adds is logged and
+left alone. This replaces the two ConfigKit settings (`battletowers_surface_chance`,
+`battletowers_surface_min_distance`) that thinned only the surface towers. Worldgen only: it changes
+the chunks generated from then on, in any world, and never a tower already placed. With the switch
+off, or without Battle Towers, the towers are as Battle Towers ships them.
 
 ### Creative steam source (`CreativeSteamSource`)
 
@@ -2525,9 +2542,12 @@ bricks, uneven bricks and aged ashlar, 7 in bricks and 10 in ashlar; one rock bl
 shaft caps it at 5 from the third level and at 7 from the eighth; and four springs under a 2x2 shaft
 hold nothing. When it fails, the rules changed: reword the edits.
 
-It also reads the patched `game:worldgen/structures.json` and requires the surface tower's chance
-and spacing above, with the hard tower's unchanged: when that fails after a Battle Towers update,
-match the paths in `configlib-patches.json` to its new patch file.
+It also reads the patched `game:worldgen/structures.json` and requires each battle tower at the
+chance and spacing in `battletowers-rates.json` (`RarerBattleTowers`): when that fails after a
+Battle Towers update, match `BattleTowers.PatchAsset` and the rates' codes to its new patch file.
+With the switch off, `SwitchesOffScenarios` requires the three towers as Battle Towers 1.1.0 ships
+them. `BattleTowerRatesTests` (no game) parses the shipped rates and rewrites a trimmed copy of
+Battle Towers' patch file.
 
 The same class places the creative steam source against a closed iron pipe and requires the pipe
 full of steam at the set pressure, and no higher; it also requires the block in the creative
