@@ -16,7 +16,7 @@ public partial class RecipeExportScenarios
     private JObject VariantGroupSection =>
         Doc["variantGroups"] as JObject ?? throw new Xunit.Sdk.XunitException("no variantGroups");
 
-    // survival/blocktypes/soil/gravel.json: gravel-{rock}, handbook groupBy gravel-*; granite leads
+    // survival/blocktypes/soil/gravel.json: gravel-{rock}, handbook groupBy gravel-*; a granite leads
     // the engine's preferred rock list.
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Gravel_is_one_group_led_by_granite_with_every_rock()
@@ -26,7 +26,10 @@ public partial class RecipeExportScenarios
             .Single(g => g.Group["members"]!.Values<string>().Contains("game:gravel-granite"));
         Assert.Equal("Gravel", (string)group["title"]!);
         var members = group["members"]!.Values<string>().ToList();
-        Assert.Equal("game:gravel-granite", members[0]);
+        // gravel-granite and gravel-granite-land-1 (the land-{layer} family the shipped groupBy pulls in) tie
+        // on their rock, and the engine breaks the tie by creative order, which follows block ids and so
+        // varies between worlds: either may lead.
+        Assert.StartsWith("game:gravel-granite", members[0]);
         foreach (var rock in new[] { "andesite", "basalt", "chalk", "limestone", "sandstone", "slate" })
             Assert.Contains($"game:gravel-{rock}", members);
         Assert.Equal(id, TidyVariantsModSystem.ForSide(EnumAppSide.Server)!.Resolution.GroupById(id)?.Id);
