@@ -49,6 +49,8 @@ public class SeraphHorizonsSystem : ModSystem
     private UnifiedWoodworking? _woodworking;
     // Client side only: Carry On's icon stack fields, cleared again when the client leaves the world.
     private List<System.Reflection.FieldInfo>? _carryOnIconFields;
+    // Client side only: the sun of /clear stay on the client's calendar.
+    private ClearSkyClient? _clearSkyClient;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
     /// <c>Rosser</c> switch on and the patch bound); decided in <see cref="Start"/>. The rosser
@@ -68,6 +70,8 @@ public class SeraphHorizonsSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         Config(api);
+        // On both sides whatever the switch says: the client cannot know the server's.
+        api.Network.RegisterChannel(ClearSkySun.Channel).RegisterMessageType<ClearSkyPacket>();
         CreativeSteamSource.RegisterClasses(api);
         AssembledMachines.RegisterClasses(api);
         // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
@@ -156,7 +160,7 @@ public class SeraphHorizonsSystem : ModSystem
             FellingWear.Patch(_harmony ??= new Harmony(HarmonyId), api, Config(api).FlatFellingWearSettings ?? new FellingWearConfig());
         ClearSky = new ClearSky(api);
         if (Config(api).ClearCommand)
-            ClearSky.Register(_harmony ??= new Harmony(HarmonyId));
+            ClearSky.Register();
         else
             ClearSky.ReleaseLeftoverLock();
     }
@@ -168,6 +172,8 @@ public class SeraphHorizonsSystem : ModSystem
     // arrive from the server, so the matching ones are known once the level is finalized.
     public override void StartClientSide(ICoreClientAPI api)
     {
+        // Always: the server says whether /clear stay holds the sun.
+        _clearSkyClient = new ClearSkyClient(api);
         if (Config(api).CartReach)
             api.Event.LevelFinalize += () => PatchCartReach(api);
         if (Config(api).CarryOnIconsPerWorld && CarryOnIcons.Find(api) is { } iconFields)
@@ -247,9 +253,11 @@ public class SeraphHorizonsSystem : ModSystem
         FellingWear.Unbind();
         if (ClearSky != null)
         {
-            ClearSky.Unbind();
+            ClearSky.Dispose();
             ClearSky = null;
         }
+        _clearSkyClient?.Dispose();
+        _clearSkyClient = null;
         if (_clientHarmony != null)
         {
             _clientHarmony.UnpatchAll(CartReach.HarmonyId);

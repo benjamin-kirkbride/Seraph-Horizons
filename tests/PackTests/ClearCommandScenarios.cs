@@ -98,6 +98,24 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private void AssertDay() =>
         Assert.InRange(Calendar.HourOfDay, ClearSkyPlan.DayFrom, ClearSkyPlan.DayUntil);
 
+    /// <summary>Where the sun stands over the spawn at a number of days from now, and how much
+    /// daylight there is there now.</summary>
+    private Vintagestory.API.MathTools.Vec3f SunIn(double days) =>
+        Calendar.GetSunPosition(World.Api.World.DefaultSpawnPosition.XYZ, Now + days);
+
+    private float Daylight()
+    {
+        var spawn = World.Api.World.DefaultSpawnPosition.XYZ;
+        return Calendar.GetDayLightStrength(spawn.X, spawn.Z);
+    }
+
+    private static void AssertSameSun(Vintagestory.API.MathTools.Vec3f expected, Vintagestory.API.MathTools.Vec3f actual)
+    {
+        Assert.Equal(expected.X, actual.X, 4);
+        Assert.Equal(expected.Y, actual.Y, 4);
+        Assert.Equal(expected.Z, actual.Z, 4);
+    }
+
     private bool StormsRunning() =>
         AccessTools.Field(typeof(SystemTemporalStability), "config").GetValue(Storms) != null
         && (bool)AccessTools.Field(typeof(SystemTemporalStability), "stormsEnabled").GetValue(Storms)!;
@@ -209,7 +227,7 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario(TimeoutMs = 240_000)]
-    public async Task Stay_holds_time_weather_and_storms_and_stop_puts_back_what_was()
+    public async Task Stay_holds_the_sun_weather_and_storms_and_stop_puts_back_what_was()
     {
         await Unlocked();
         var player = await Player("clearstay");
@@ -228,8 +246,7 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var held = Clear.Lock;
         Assert.NotNull(held);
         Assert.Equal(0.3f, held.OverridePrecipitation);
-        Assert.True(held.HadBaseline);
-        Assert.Equal(30, held.Baseline);
+        Assert.False(held.StopsTime);
         // The storm stays where it was; the clock moved on to day, closer to it.
         Assert.Equal(stormAt, Storm.nextStormTotalDays);
         double ahead = stormAt - Now;
@@ -237,7 +254,9 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(ahead, held.StormDaysAhead!.Value, 4);
 
         AssertDay();
-        Assert.Equal(0f, Calendar.SpeedOfTime);
+        // The clock is left running at its speed.
+        Assert.Equal(speeds, Calendar.TimeSpeedModifiers);
+        Assert.True(Calendar.SpeedOfTime > 0);
         Assert.Equal(-1f, Weather.OverridePrecipitation);
         Assert.False(Weather.autoChangePatterns);
         Assert.Equal(0f, Weather.GetPrecipitation(World.Api.World.DefaultSpawnPosition.XYZ));
@@ -248,16 +267,19 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("already", said);
         Assert.Same(held, Clear.Lock);
 
-        // Time stands still, sleeping included (the postfix cancels it as it is set).
+        // Time runs on, but the sun stands at summer noon whatever the hour or the season.
         double hours = Calendar.TotalHours;
         await World.Ticks(90);
-        Assert.Equal(hours, Calendar.TotalHours, 4);
-        Calendar.SetTimeSpeedModifier("sleeping", 5000);
-        Assert.Equal(0f, Calendar.SpeedOfTime);
-        await World.Ticks(30);
-        Calendar.RemoveTimeSpeedModifier("sleeping");
-        Assert.Equal(0f, Calendar.SpeedOfTime);
-        Assert.Equal(hours, Calendar.TotalHours, 4);
+        Assert.True(Calendar.TotalHours > hours, "time stood still under /clear stay");
+        var noon = SunIn(0);
+        float daylight = Daylight();
+        output.WriteLine($"held sun {noon}, daylight {daylight}");
+        Assert.True(noon.Y > 0, $"the held sun is below the horizon: {noon}");
+        foreach (double days in new[] { 0.25, 0.5, 0.75, 100.3 })
+            AssertSameSun(noon, SunIn(days));
+        Calendar.Add(Calendar.HoursPerDay / 2f); // to the night
+        await World.Ticks(5);
+        Assert.Equal(daylight, Daylight(), 3);
 
         // The weather is held: /weather-style changes are undone within the second.
         Weather.autoChangePatterns = true;
@@ -295,8 +317,11 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.NotNull(Clear.Lock);
         Assert.Equal(0.3f, Clear.Lock!.OverridePrecipitation);
         Assert.False(Weather.autoChangePatterns);
+        AssertSameSun(noon, SunIn(0.5));
 
         await Run("/clear stop");
+        // The sun moves again: half a day on, it is somewhere else.
+        Assert.True(Math.Abs(SunIn(0).Y - SunIn(0.5).Y) > 0.1, $"the sun stays put after /clear stop: {SunIn(0)}, {SunIn(0.5)}");
         Assert.Null(Clear.Lock);
         Assert.Equal(0.3f, Weather.OverridePrecipitation);
         Assert.Equal(autoChange, Weather.autoChangePatterns);
@@ -314,6 +339,40 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // Back to the game's defaults for the other scenarios.
         Weather.OverridePrecipitation = null;
         Calendar.SetTimeSpeedModifier(ClearSky.Baseline, 60);
+    }
+
+    /// <summary>A world saved while the version that stopped time held it: the <c>baseline</c>
+    /// time speed is put back once, the lock goes on with the sun held, and is saved without it.</summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_lock_that_stopped_time_gets_its_time_back()
+    {
+        await Unlocked();
+        await Player("clearold");
+        // As that version left it: baseline holding the modifiers' sum at 0.
+        float others = Calendar.TimeSpeedModifiers.Where(m => m.Key != ClearSky.Baseline).Sum(m => m.Value);
+        Calendar.SetTimeSpeedModifier(ClearSky.Baseline, -others);
+        Assert.Equal(0f, Calendar.SpeedOfTime, 3);
+        World.Api.WorldManager.SaveGame.StoreData(ClearSky.SaveKey, System.Text.Encoding.UTF8.GetBytes(
+            """{"HadBaseline":true,"Baseline":60,"OverridePrecipitation":null,"AutoChangePatterns":true,"StormDaysAhead":null}"""));
+
+        Clear.LoadLock();
+        Assert.NotNull(Clear.Lock);
+        await World.Ticks(10);
+
+        Assert.Equal(60f, Calendar.TimeSpeedModifiers[ClearSky.Baseline]);
+        Assert.True(Calendar.SpeedOfTime > 0);
+        Assert.False(Clear.Lock!.StopsTime);
+        string saved = System.Text.Encoding.UTF8.GetString(World.Api.WorldManager.SaveGame.GetData(ClearSky.SaveKey));
+        Assert.DoesNotContain("Baseline", saved);
+        double hours = Calendar.TotalHours;
+        await World.Ticks(30);
+        Assert.True(Calendar.TotalHours > hours, "time stood still after the old lock was read");
+        AssertSameSun(SunIn(0), SunIn(0.5));
+
+        await Run("/clear stop");
+        Assert.Null(Clear.Lock);
+        Assert.Equal(60f, Calendar.TimeSpeedModifiers[ClearSky.Baseline]);
+        await Unlocked();
     }
 
     [AtlasScenario]
