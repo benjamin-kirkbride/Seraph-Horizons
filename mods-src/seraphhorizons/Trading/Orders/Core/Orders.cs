@@ -62,8 +62,10 @@ public sealed record OrderCandidate(string Item, double UnitPrice, int Lot, int 
 /// <summary>The maths of orders: what to order, how many, the premium, the scaling with standing.</summary>
 public static class OrderPlanner
 {
-    /// <summary>What an order is worth at the normal price at standing scale 1, in gears.</summary>
-    public const double BaseGears = 24;
+    /// <summary>What an order is worth at the normal price at standing scale 1, in gears. 5 since the
+    /// buy spread (2026-10-06; 24 before, × 0.2 rounded): the normal price is a fifth of value now, so
+    /// an order asks for as many items as it did.</summary>
+    public const double BaseGears = 5;
     public const double MinFactor = 1.3, MaxFactor = 1.6;
     public const int MinDays = 3, MaxDays = 6;
     /// <summary>At most this many full stacks in one order, whatever the scale.</summary>

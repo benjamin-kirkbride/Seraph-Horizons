@@ -18,11 +18,13 @@
     "game:smallcarpet-brown": 8.4,
     "game:smallcarpet-turqoise": 8.4,
     "game:chandelier-candle0": 12.95,
-    "game:resonator-north": 21
+    "game:resonator-north": 21,
+    "seraphhorizons:gear-steel": 15
   },
   "why": {
     "game:barrel": "three boards and four sticks undervalue a cooper's work; vanilla sells one for 2",
     "game:anvil-*": "cast in a mold from 9 ingots, which the export does not carry (molds are not recipes): 9 ingots plus labour; iron and steel anvils are welded from smithed halves",
-    "traded, no route": "game:coke, ageofflax:flaxbundle-dried, game:ironfence-*-ew, game:smallcarpet-*, game:chandelier-candle0, game:resonator-north: the pack's traders buy them (tradelists/), but the tool finds no route to them in the export (coke oven, drying, fence smithing, found loot) and no vanilla trader prices them; priced by traderFallback's rule over the pack's own trade lists: the mean per item of 0.7 x selling and 1.4 x buying prices"
+    "traded, no route": "game:coke, ageofflax:flaxbundle-dried, game:ironfence-*-ew, game:smallcarpet-*, game:chandelier-candle0, game:resonator-north: the pack's traders buy them (tradelists/), but the tool finds no route to them in the export (coke oven, drying, fence smithing, found loot) and no vanilla trader prices them; priced by traderFallback's rule over the pack's own trade lists: the mean per item of 0.7 x selling and 1.4 x buying prices",
+    "seraphhorizons:gear-steel": "the reclamation line's real cost (#506): one oiled gear in ten rolls sound, the other nine roll into 1 game:metalbit-steel each, so a steel gear costs ten oiled gears less nine bits. An oiled gear, by this tool's markups: boil 1 rusty gear (1) + 0.25 L lye (25 x 0.002 = 0.05) in the pot, cooking +10% + 0.1 a serving of 4: 1.18; pickle in the tub with 1 L sulfuric acid per batch of 8 (12.5 x 0.003 = 0.0375), mod +10% + 0.05 a batch: 1.3455; neutralize with 0.1 L lime water (10 x 0.002 = 0.02), barrel +5% + 0.1: 1.5338; oil with 0.1 L lard (10 x 0.011 = 0.11), barrel +5% + 0.1: 1.826. Ten oiled gears 18.26, less nine bits at 0.4 (20 bits smelt to a steel ingot, 8.0 / 20): 18.26 - 3.6 = 14.66, rounded to 15. The roll is a lottery the solver cannot weigh (it would take one oiled gear for one steel gear), hence the override. The large gear (seraphhorizons:largegear-steel) takes its gear cutter route: the smithed blank, the oil and labour"
   }
 }

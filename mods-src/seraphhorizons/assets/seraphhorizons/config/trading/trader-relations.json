@@ -2,10 +2,12 @@
 // price"). An item's fit at a trader: "listed" when the trader's type buys it, else the best
 // relation between the trader's type and a type that buys it, else "unrelated". A pair without a
 // weight relates at "related"; "toAll" relates a type to every other type, both ways.
+// Flattened 2026-10-06 (was 1 / 0.5 / 0.2, weak links 0.3): with the buy spread (a fifth of value,
+// BuySpread) on top, a poor fit costs a hauler half, not four fifths. A weak link sits at 0.6.
 {
 	"listed": 1.0,
-	"related": 0.5,
-	"unrelated": 0.2,
+	"related": 0.75,
+	"unrelated": 0.5,
 	"pairs": [
 		["smith", "mechanic"],
 		["smith", "prospector"],
@@ -16,12 +18,12 @@
 		["farmer", "animaldealer"],
 		["cook", "animaldealer"],
 		["tailor", "generalstore"],
-		["tailor", "animaldealer", 0.3],
-		["generalstore", "cook", 0.3],
-		["generalstore", "carpenter", 0.3],
+		["tailor", "animaldealer", 0.6],
+		["generalstore", "cook", 0.6],
+		["generalstore", "carpenter", 0.6],
 	],
 	// The curio dealer takes a little interest in anything.
-	"toAll": { "curiodealer": 0.3 },
+	"toAll": { "curiodealer": 0.6 },
 	// Never bought, listed or not: maps and leads (what they point at is the trader's own business),
 	// the pack's and the game's locator maps.
 	"refused": [
