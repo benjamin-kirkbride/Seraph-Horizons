@@ -51,6 +51,33 @@ export interface ValueQuery {
 }
 
 /**
+ * One row of the values page: a single item, the variants of one Tidy Variants group that
+ * share a price, which the game shows as one tile and the page as one row, or items the
+ * reader couldn't tell apart (a block's orientations) folded together.
+ */
+export interface ValueRow {
+  /**
+   * Item indices. One item; the members of `group` at this price, best representative first,
+   * then any variants folded into it; or two or more look-alikes in code order.
+   */
+  items: number[];
+  /** Index of the row's group in search.json's `groups`, for a row of grouped variants. */
+  group?: number;
+  /** How many variants the group has in all, at any price, with those folded into it. */
+  groupSize?: number;
+}
+
+/**
+ * What makes two variants one row: the same value, floorZero and config switches. Variants
+ * without a value share one key, so a group's unvalued members are one row too.
+ */
+function priceKey(file: SearchFile, i: number): string {
+  const v = valueOf(file, i);
+  if (v === undefined) return "none";
+  return `${v}|${isFloorZero(file, i) ? 1 : 0}|${(file.valueSwitches?.[String(i)] ?? []).join(",")}`;
+}
+
+/**
  * The part of an item code its variants share: the domain and the path up to the first "-"
  * (`mpegearbox:gearbox14` for `mpegearbox:gearbox14-north`). Where the variant parts sit
  * after it varies (a door's stone is in the middle of its code), so only the first part is a
@@ -62,88 +89,153 @@ export function codeBase(code: string): string {
 }
 
 /**
- * The values page's table over search.json. Items the reader can't tell apart are one row:
- * a block's orientations and states (`gearbox14-north`, `-east`, ...) have the same name,
- * mod, value and code base (`codeBase`), so they make one group, shown as its first code
- * with the rest counted (`variantsOf`). Floor-zero and the switches a value depends on must
- * match too, since the row shows them. An item whose name is still a lang key (it has a
- * ":") stays its own row: such names say nothing about what the item is. The groups are
- * made once, at construction.
- *
- * Each column's ascending order of rows is computed once, on first use; a query then walks
- * that order (backwards for descending) and keeps the rows whose name, any of its codes, or
- * mod contain every word typed. That is a few milliseconds for 25,000 items, so the page
- * filters as the reader types without a debounce. A row is its group's first item index.
+ * What makes two items look-alikes the reader can't tell apart: the same name, mod, price
+ * and code base. An item whose name is still a lang key (it has a ":") is never one: such a
+ * name says nothing about what the item is, so its key is its own code.
+ */
+function foldKey(file: SearchFile, i: number): string {
+  const name = file.names[i]!;
+  const code = file.codes[i]!;
+  return `${name}\0${file.mod[i]}\0${priceKey(file, i)}\0${name.includes(":") ? code : codeBase(code)}`;
+}
+
+/**
+ * The rows, in three passes. First each Tidy Variants group is split by price, and a part of
+ * two or more members is a row (search.json's `groups`). Then an item outside those rows that
+ * is a look-alike of a member (`foldKey`) joins that member's row: the engine hides a block's
+ * other orientations and states, so only its canonical one is in the group, and the rest
+ * belong with it. Last, the remaining look-alikes fold into rows of their own (a block's
+ * orientations, `gearbox14-north`, `-east`, ...; the codes are sorted, so a folded row is
+ * in code order and its first item has the lowest code), and every other item is a row.
+ */
+export function valueRows(file: SearchFile): ValueRow[] {
+  const rows: ValueRow[] = [];
+  const n = file.codes.length;
+  const rowOf = new Int32Array(n).fill(-1);
+  file.groups?.members.forEach((members, group) => {
+    const byPrice = new Map<string, number[]>();
+    for (const i of members) {
+      const key = priceKey(file, i);
+      const part = byPrice.get(key);
+      if (part) part.push(i);
+      else byPrice.set(key, [i]);
+    }
+    for (const items of byPrice.values()) {
+      if (items.length < 2) continue;
+      for (const i of items) rowOf[i] = rows.length;
+      rows.push({ items, group, groupSize: members.length });
+    }
+  });
+  const grouped = rows.length;
+  // The fold key of every item in a group row, to its row.
+  const joinable = new Map<string, number>();
+  for (let r = 0; r < grouped; r++) for (const i of rows[r]!.items) joinable.set(foldKey(file, i), r);
+  const folds = new Map<string, number>();
+  for (let i = 0; i < n; i++) {
+    if (rowOf[i] !== -1) continue;
+    const key = foldKey(file, i);
+    const join = joinable.get(key);
+    if (join !== undefined) {
+      const row = rows[join]!;
+      row.items.push(i);
+      row.groupSize!++;
+      continue;
+    }
+    const fold = folds.get(key);
+    if (fold !== undefined) rows[fold]!.items.push(i);
+    else {
+      folds.set(key, rows.length);
+      rows.push({ items: [i] });
+    }
+  }
+  return rows;
+}
+
+/**
+ * The values page's table over search.json. The rows (valueRows) are made at construction,
+ * each column's ascending order once, on first use; a query then walks that order (backwards
+ * for descending) and keeps the rows that match every word typed. That is a few milliseconds
+ * for 25,000 items, so the page filters as the reader types without a debounce.
  */
 export class ValueTable {
   private readonly file: SearchFile;
-  private readonly modNames: string[];
+  private readonly mods: Record<string, Pick<MetaMod, "name">>;
+  readonly rows: ValueRow[];
+  /** Each row's sort name: the group's title or the item's name, normalized. */
   private readonly names: string[];
-  /** Each row's first item index, in code order. */
-  private readonly heads: number[] = [];
-  /** The item indices of each row of more than one, by its first. */
-  private readonly members = new Map<number, number[]>();
-  /** What the filter searches, by a row's first item index. */
-  private readonly hay = new Map<number, string>();
+  /** Each row's mod names, normalized and joined as the page shows them. */
+  private readonly modKeys: string[];
+  /**
+   * What the filter searches, per row: each item's name, code, mod id and mod name, after
+   * the group's title for a group row. A row matches when one of them has every word.
+   */
+  private readonly hay: string[][];
   private readonly orders = new Map<string, number[]>();
+  /** Number of items with a value. */
+  readonly valued: number;
 
   constructor(file: SearchFile, mods: Record<string, Pick<MetaMod, "name">>) {
     this.file = file;
-    this.modNames = file.mods.map((id) => normalize(mods[id]?.name || id));
-    this.names = file.names.map((n) => normalize(n));
-    const groups = new Map<string, number[]>();
-    file.codes.forEach((code, i) => {
-      const key = [
-        file.names[i],
-        file.mod[i],
-        valueOf(file, i) ?? "",
-        isFloorZero(file, i) ? 1 : 0,
-        file.valueSwitches?.[String(i)]?.join(",") ?? "",
-        file.names[i]!.includes(":") ? code : codeBase(code),
-      ].join("\u0000");
-      const group = groups.get(key);
-      if (group) group.push(i);
-      else groups.set(key, [i]);
+    this.mods = mods;
+    this.rows = valueRows(file);
+    const modNames = file.mods.map((id) => normalize(mods[id]?.name || id));
+    const itemHay = (i: number) => {
+      const modId = file.mods[file.mod[i]!] ?? "";
+      return `${normalize(file.names[i]!)}\n${normalize(file.codes[i]!)}\n${normalize(modId)}\n${modNames[file.mod[i]!] ?? ""}`;
+    };
+    this.names = this.rows.map((r) => normalize(this.label(r)));
+    this.modKeys = this.rows.map((r) => normalize(this.modsOf(r).map((id) => mods[id]?.name || id).join(", ")));
+    this.hay = this.rows.map((r) => {
+      if (r.group === undefined) return r.items.map(itemHay);
+      const title = normalize(file.groups!.titles[r.group]!);
+      return r.items.map((i) => `${title}\n${itemHay(i)}`);
     });
-    // The codes are sorted, so a group's first index is its lowest code, and the map keeps
-    // the groups in the order of their first index.
-    for (const group of groups.values()) {
-      const head = group[0]!;
-      this.heads.push(head);
-      if (group.length > 1) this.members.set(head, group);
-      const modId = file.mods[file.mod[head]!] ?? "";
-      const codes = group.map((i) => normalize(file.codes[i]!)).join("\n");
-      this.hay.set(head, `${this.names[head]}\n${codes}\n${normalize(modId)}\n${this.modNames[file.mod[head]!] ?? ""}`);
+    this.valued = file.value ? file.value.filter((v) => typeof v === "number").length : 0;
+  }
+
+  /** Whether any row holds more than one item. */
+  get grouped(): boolean {
+    return this.rows.length < this.file.codes.length;
+  }
+
+  /** A row's label: its group's title, or its first item's name (look-alikes share one). */
+  label(row: ValueRow): string {
+    return row.group === undefined ? this.file.names[row.items[0]!]! : this.file.groups!.titles[row.group]!;
+  }
+
+  /** The row's value: every item of a row has the same one. */
+  value(row: ValueRow): number | undefined {
+    return valueOf(this.file, row.items[0]!);
+  }
+
+  /** The distinct mod ids of a row's items, by mod name. */
+  modsOf(row: ValueRow): string[] {
+    const ids = [...new Set(row.items.map((i) => this.file.mods[this.file.mod[i]!]!))];
+    if (ids.length > 1) {
+      const name = (id: string) => normalize(this.mods[id]?.name || id);
+      ids.sort((a, b) => (name(a) < name(b) ? -1 : name(a) > name(b) ? 1 : 0));
     }
-  }
-
-  /** Number of rows with a value. */
-  get valued(): number {
-    return this.valueOrder("asc").length;
-  }
-
-  /** The item indices a row stands for, in code order, the row's own first. */
-  variantsOf(head: number): readonly number[] {
-    return this.members.get(head) ?? [head];
+    return ids;
   }
 
   private byName = (a: number, b: number): number => {
     const na = this.names[a]!;
     const nb = this.names[b]!;
     if (na !== nb) return na < nb ? -1 : 1;
-    return a - b; // codes are sorted, so the index is the code order
+    // Codes are sorted, so the first item's index is the code order.
+    return this.rows[a]!.items[0]! - this.rows[b]!.items[0]!;
   };
 
   /** Ascending order of every row by name, or by mod then name. */
   private order(column: "name" | "mod"): number[] {
     let o = this.orders.get(column);
     if (o) return o;
-    const all = [...this.heads];
+    const all = this.rows.map((_, r) => r);
     if (column === "name") o = all.sort(this.byName);
     else {
       o = all.sort((a, b) => {
-        const ma = this.modNames[this.file.mod[a]!]!;
-        const mb = this.modNames[this.file.mod[b]!]!;
+        const ma = this.modKeys[a]!;
+        const mb = this.modKeys[b]!;
         return ma < mb ? -1 : ma > mb ? 1 : this.byName(a, b);
       });
     }
@@ -156,26 +248,38 @@ export class ValueTable {
     const key = `value|${dir}`;
     let o = this.orders.get(key);
     if (o) return o;
-    o = sortByValue(
-      this.order("name").filter((i) => valueOf(this.file, i) !== undefined),
-      this.file,
-      dir,
-    );
+    const sign = dir === "asc" ? 1 : -1;
+    const values = this.rows.map((r) => this.value(r));
+    // The sort is stable, so ties keep the name order.
+    o = this.order("name")
+      .filter((r) => values[r] !== undefined)
+      .sort((a, b) => sign * (values[a]! - values[b]!));
     this.orders.set(key, o);
     return o;
   }
 
-  /** The rows to show, in order, each as its first item index. */
-  query(q: ValueQuery): number[] {
+  /** The rows to show, in order. */
+  query(q: ValueQuery): ValueRow[] {
     const tokens = tokenize(q.filter);
-    const keep = (i: number) => (q.unvalued || valueOf(this.file, i) !== undefined) && tokens.every((t) => this.hay.get(i)!.includes(t));
+    const keep = (r: number) =>
+      (q.unvalued || this.value(this.rows[r]!) !== undefined) &&
+      (tokens.length === 0 || this.hay[r]!.some((h) => tokens.every((t) => h.includes(t))));
+    let rows: number[];
     if (q.column === "value") {
       // Rows without a value come last in both directions, in name order.
-      const rows = this.valueOrder(q.dir).filter(keep);
-      if (q.unvalued) for (const i of this.order("name")) if (valueOf(this.file, i) === undefined && keep(i)) rows.push(i);
-      return rows;
+      rows = this.valueOrder(q.dir).filter(keep);
+      if (q.unvalued) for (const r of this.order("name")) if (this.value(this.rows[r]!) === undefined && keep(r)) rows.push(r);
+    } else {
+      rows = this.order(q.column).filter(keep);
+      if (q.dir === "desc") rows.reverse();
     }
-    const rows = this.order(q.column).filter(keep);
-    return q.dir === "desc" ? rows.reverse() : rows;
+    return rows.map((r) => this.rows[r]!);
   }
+}
+
+/** How many items the rows hold. */
+export function itemCount(rows: readonly ValueRow[]): number {
+  let n = 0;
+  for (const r of rows) n += r.items.length;
+  return n;
 }

@@ -588,6 +588,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var system = World.Api.ModLoader.GetMod("seraphhorizons").Systems
             .Single(s => s.GetType().FullName == "SeraphHorizons.Mod.TidyVariants.TidyVariantsModSystem");
         Assert.Null(system.GetType().GetProperty("Bridge")!.GetValue(system));
+        // So the recipe export has no variantGroups section.
+        Assert.Null(SeraphHorizons.RecipeExport.Recipes.VariantGroups.Build((ICoreServerAPI)World.Api, new JObject()));
 
         // The mod read the seeded file (and wrote back the settings it lacked, all on by default).
         Assert.True(Off("TidyVariants"));

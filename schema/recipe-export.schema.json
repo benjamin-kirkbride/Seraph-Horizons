@@ -55,6 +55,12 @@
       "type": "array",
       "items": { "$ref": "#/$defs/guide" }
     },
+    "variantGroups": {
+      "description": "The pack's own mod's Tidy Variants groups: variants the game shows as one creative tile and one handbook group. Keyed by the group's id (`auto:<domain>:<base>[/<dim>=<value>...]`, an override rule's id, or `groupby:<block|item>:<domain>:<pattern>`). Absent without the pack's mod, or with Tidy Variants off or unresolved.",
+      "type": "object",
+      "propertyNames": { "type": "string", "minLength": 1 },
+      "additionalProperties": { "$ref": "#/$defs/variantGroup" }
+    },
     "extra": { "$ref": "#/$defs/extra" }
   },
 
@@ -138,6 +144,22 @@
         },
         "switch": { "description": "The config switch that adds the item itself: with it off the item does not exist.", "$ref": "#/$defs/configSwitch" },
         "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+
+    "variantGroup": {
+      "type": "object",
+      "required": ["title", "members"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "description": "The group's English title as the game shows it: its lang title, else one derived from the members' names, else the representative's name.", "type": "string", "minLength": 1 },
+        "members": {
+          "description": "Codes of `items`, best representative first. A code is in at most one group.",
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/code" }
+        }
       }
     },
 
