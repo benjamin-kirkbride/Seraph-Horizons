@@ -239,8 +239,8 @@ public class EntityTrunk : Entity
         }
     }
 
-    // Lifts a trunk being pulled against a rise of at most a block onto it (TrunkStep), a few
-    // ticks at a time. Not afloat (water lifts it) and not while falling.
+    // Lifts a trunk being pulled against a rise of at most a block onto it (TrunkStep), in one
+    // go. Not afloat (water lifts it) and not while falling.
     private void StepUp(double mx, double mz)
     {
         if (Afloat || Pos.Motion.Y < -0.1)
