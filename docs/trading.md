@@ -786,8 +786,10 @@ values") is what off-list prices start from and what the list-pay tests hold the
   but name. The lists hold the final pay (rescaled once by 0.2) rather than the runtime dividing
   them, so a list's numbers are what a player is offered; the runtime spreads off-list goods only.
   The mechanic took in the pack's reclaimed steel gear and large gear (`seraphhorizons:gear-steel`
-  at 15, its value, `largegear-steel` at 19, player-supplied; bought at 3 and 3.8), filling the hole left
-  when ppex's gears were dropped (#507).
+  at 11 and `largegear-steel` at 22, their derived values rounded, player-supplied; bought at 2.2
+  and 4.4, a fifth of that), filling the hole left when ppex's gears were dropped (#507). (These
+  were 15 / 3 and 19 / 3.8 while the steel gear was a hand price of 15; the item-values merge
+  derived it, 10.895, and rescaled both entries.)
 
 ## Extension points for later waves
 

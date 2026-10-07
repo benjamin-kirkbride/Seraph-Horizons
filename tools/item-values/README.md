@@ -142,18 +142,20 @@ which only a raw or override can be: the review list for hand prices.
 
 ## Numbers
 
-From smoke's export of the pack (pack 0.1.0, game 1.22.7, with mods-src/seraphhorizons loaded;
-27,163 items, 11,217 recipes), the export as of the item-values branch at 6de2791:
+From smoke's export of the pack (pack 1.1.0, game 1.22.7, with mods-src/seraphhorizons loaded;
+27,163 items, 10,517 recipes), the export as of the item-values branch at 98db1fb (main merged):
 
-- 21,990 of 27,163 items valued (81.0%); of the 24,023 the handbook shows, 84.8%.
-- 13,837 from recipes, 5,797 raws, 2,338 defaults and fallbacks, 18 overrides.
+- 21,918 of 27,163 items valued (80.7%); of the 24,023 the handbook shows, 84.5%.
+- 13,773 from recipes, 5,797 raws, 2,330 defaults and fallbacks, 18 overrides.
 - 2,044 worthless (under a gear per stack), 9.3% of those valued.
 - 107 valued below their ingredients, all raws (nuggets, which the game hammers from ore chunks of
   more units; boards, wool) and the overrides: by design.
-- No value: 5,173, mostly things no player trades: creatures, loose surface ores, plant and crop
+- No value: 5,245, mostly things no player trades: creatures, loose surface ores, plant and crop
   blocks, rich gravel, coral, butterflies, termite mounds, stalagmites, carcasses (butchery is
   skipped), technical blocks, the schematics (87, by rule), and the retired pit saws and blades.
-- Coverage per domain: game 77.5%, Expanded Foods 98.2%, Door Variants 100%, Tailor's Delight
+  Expanded Foods' sausages (72) lost theirs with main's DuplicateRecipes: the one sausage recipe
+  left is Butchering's kneading, which takes offal, and offal (a butchery output) has no value.
+- Coverage per domain: game 77.5%, Expanded Foods 94.9%, Door Variants 100%, Tailor's Delight
   100%, Alchemy 98.0%, Cartwright's 98.6%, ppex 100%, Butchering 20.4% (carcasses),
   seraphhorizons 71.2% (its schematics, maps and leads have none).
 
