@@ -7,15 +7,20 @@
 export type Route =
   | { view: "root" }
   | { view: "home"; version: string }
-  | { view: "search"; version: string; query: string }
+  | { view: "search"; version: string; query: string; sort?: SearchSort }
   | { view: "item"; version: string; code: string }
   | { view: "type"; version: string; code: string; page?: number }
   | { view: "entities"; version: string }
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
+  | { view: "values"; version: string }
   | { view: "models" }
   | { view: "model"; id: string }
   | { view: "notfound"; version?: string };
+
+/** Search results in their own order (best match first), or by value. */
+export type SearchSort = "value-asc" | "value-desc";
+const SEARCH_SORTS: readonly string[] = ["value-asc", "value-desc"];
 
 // Codes are mostly URL-safe; keep `:` readable instead of %3A.
 const enc = (s: string) => encodeURIComponent(s).replace(/%3A/gi, ":");
@@ -47,7 +52,11 @@ export function parseRoute(hash: string): Route {
   const [, page, ...rest] = parts;
   switch (page) {
     case "search":
-      if (rest.length === 0) return { view: "search", version, query: params.get("q") ?? "" };
+      if (rest.length === 0) {
+        const sort = params.get("sort");
+        const query = params.get("q") ?? "";
+        return sort !== null && SEARCH_SORTS.includes(sort) ? { view: "search", version, query, sort: sort as SearchSort } : { view: "search", version, query };
+      }
       break;
     case "item":
     case "entity": {
@@ -72,6 +81,9 @@ export function parseRoute(hash: string): Route {
     case "credits":
       if (rest.length === 0) return { view: "credits", version };
       break;
+    case "values":
+      if (rest.length === 0) return { view: "values", version };
+      break;
   }
   return { view: "notfound", version };
 }
@@ -83,7 +95,7 @@ export function formatRoute(route: Route): string {
     case "home":
       return `#/${enc(route.version)}`;
     case "search":
-      return `#/${enc(route.version)}/search?${new URLSearchParams({ q: route.query }).toString()}`;
+      return `#/${enc(route.version)}/search?${new URLSearchParams({ q: route.query, ...(route.sort ? { sort: route.sort } : {}) }).toString()}`;
     case "item":
       return `#/${enc(route.version)}/item/${enc(route.code)}`;
     case "type":
@@ -94,6 +106,8 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/entity/${enc(route.code)}${route.variant ? `?${new URLSearchParams({ variant: route.variant }).toString()}` : ""}`;
     case "credits":
       return `#/${enc(route.version)}/credits`;
+    case "values":
+      return `#/${enc(route.version)}/values`;
     case "models":
       return "#/models";
     case "model":

@@ -124,8 +124,27 @@
         "description": { "description": "English handbook or tooltip text. May contain VTML markup.", "type": "string" },
         "attributes": { "$ref": "#/$defs/itemAttributes" },
         "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+        "value": {
+          "description": "Base value in rusty gears per item: the pack's item value table (`values[code]`, seraphhorizons:config/item-values.json). Absent when the table has no value of its own for the code, or without the pack's mod.",
+          "type": "number",
+          "minimum": 0
+        },
+        "floorZero": { "description": "Present, true, when the table lists the code as worth under a gear per full stack.", "const": true },
+        "valueSwitches": {
+          "description": "The table's `switches[code]`: config switches the value exists only with (its cheapest route takes a recipe or item they add).",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/configSwitch" }
+        },
+        "switch": { "description": "The config switch that adds the item itself: with it off the item does not exist.", "$ref": "#/$defs/configSwitch" },
         "extra": { "$ref": "#/$defs/extra" }
       }
+    },
+
+    "configSwitch": {
+      "description": "A switch of the pack's own mod: a bool of ModConfig/seraphhorizons.json, by its name there.",
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$"
     },
 
     "itemAttributes": {
@@ -315,6 +334,7 @@
         "mod": { "description": "Id of the mod whose asset defines the recipe; a key of `mods`.", "$ref": "#/$defs/modId" },
         "source": { "description": "Asset location of the defining file.", "type": "string" },
         "enabled": { "description": "False when the definition is switched off. Absent means true.", "type": "boolean" },
+        "switch": { "description": "The config switch of the pack's own mod that adds the recipe: with it off the recipe does not exist.", "$ref": "#/$defs/configSwitch" },
         "ingredients": { "type": "array", "items": { "$ref": "#/$defs/ingredient" } },
         "outputs": { "type": "array", "items": { "$ref": "#/$defs/output" } },
         "variants": { "type": "array", "items": { "$ref": "#/$defs/variant" } },

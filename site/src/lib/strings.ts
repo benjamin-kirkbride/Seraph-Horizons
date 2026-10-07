@@ -264,6 +264,25 @@ const en = {
   densityHint: (density: number) =>
     `${density <= 1000 ? "Floats" : "Sinks"} in water. Water's density is 1000: dropped items at or below it float, heavier ones sink.`,
   placeholderIcon: "no icon",
+  gears: "rusty gears",
+  noTradeValue: "No trade value",
+  floorZeroHint: "Worth less than a rusty gear per full stack, so traders treat it as worthless.",
+  valueSwitchesHint: (names: string[]) => `With the default config. Depends on ${names.join(", ")}.`,
+  sortLabel: "Order",
+  searchSorts: { best: "Best match", "value-asc": "Value, lowest first", "value-desc": "Value, highest first" },
+  valuesLink: "Values",
+  valuesHomeLink: (n: number) => `See what ${n.toLocaleString("en")} items are worth in rusty gears.`,
+  valuesHeading: "Item values",
+  valuesIntro:
+    "What every item is worth to the pack's traders, in rusty gears, with the pack's default config. A value shown dimmed is under a gear for a whole stack, which traders treat as worthless.",
+  valuesNone: "This version has no item values.",
+  valuesFilter: "Filter",
+  valuesFilterPlaceholder: "Name, code or mod, e.g. copper",
+  valuesUnvalued: "Include items with no value",
+  valuesCount: (n: number) => `${n.toLocaleString("en")} item${n === 1 ? "" : "s"}`,
+  valuesNoMatch: (q: string) => `No item matches “${q}”.`,
+  valuesColumns: { name: "Item", mod: "Mod", value: "Value" },
+  sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,
   modelsLink: "Models",
 };
 

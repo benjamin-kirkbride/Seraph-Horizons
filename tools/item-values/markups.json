@@ -1,5 +1,5 @@
 {
-  "about": "Labour markup per recipe kind: a route's value is (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction) / output quantity. Kinds are recipe types (grid, smithing, knapping, clayforming, barrel, cooking, alloy, construction), 'transition' (drying, curing, ripening, smoking, ...), the item attributes the export carries (smelting, baking, crushing, grinding), and 'mod' for every other mod registry; a mod recipe type can have its own entry by its type code. See README.md.",
+  "about": "Labour markup per recipe kind: a route's value is (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction) / output quantity. Kinds are recipe types (grid, smithing, knapping, clayforming, barrel, cooking, alloy, construction), 'transition' (drying, curing, ripening, smoking, ...), 'lottery' (an item decided by chance: no labour; the other outcomes are credited, see README.md),the item attributes the export carries (smelting, baking, crushing, grinding), and 'mod' for every other mod registry; a mod recipe type can have its own entry by its type code. See README.md.",
   "toolFraction": 0.02,
   "kinds": {
     "grid": {
@@ -38,6 +38,10 @@
       "pct": 0.0,
       "flat": 0.0
     },
+    "lottery": {
+      "pct": 0.0,
+      "flat": 0.0
+    },
     "smelting": {
       "pct": 0.1,
       "flat": 0.2
@@ -72,9 +76,15 @@
   },
   "excludeRecipes": [
     "/destroy",
-    "recycle",
+    "recycl",
     "salvage",
     "uncraft",
     "/disassembl"
-  ]
+  ],
+  "schematics": [
+    "*:schematic-*",
+    "*:*-schematic-*",
+    "cartwrightscaravan:cartschematics-*"
+  ],
+  "schematicsAbout": "Schematics (Trading/Schematics: config/schematic-gates.json's 'sold'; traders are their only source): kept on crafting, worth nothing. A slot that takes only schematics is dropped from the route (it adds nothing and never blocks it), and a schematic is never priced: no raw, default or fallback, and no route makes one."
 }

@@ -680,15 +680,15 @@ unit-tested in `tests/Trading/Economy/`), `Game/` (`EconomySystem`, `EconomyPatc
 The value table (`config/item-values.json`, built by `tools/item-values`; the mod README's "Item base
 values") is what off-list prices start from and what the list-pay tests hold the lists to.
 
-- **Schematics** take their value from the pack's own trade lists. Every code matched by a `sold`
-  pattern in `config/schematic-gates.json` is valued by traderFallback's rule over
-  `config/tradelists/`: the mean per item of the selling price × 0.7 and the buying price / 0.2 × 1.4 (the
-  lists' buying prices hold the buy spread, so the tool divides it out first). A
-  recipe that keeps a schematic is priced by its consumed parts and labour only; the kept schematic
-  adds nothing, not even the 2 % tool share, while hammers and other tools keep that share. (#506)
-- **The steel gear** (`seraphhorizons:gear-steel`) is a hand price of 15, what the reclamation line
-  costs: ten oiled gears at 1.83 each, less nine steel bits at 0.4. The large steel gear
-  (`seraphhorizons:largegear-steel`) takes the value of its gear cutter route. (#506)
+- **Schematics** have no value: they are kept on crafting and traders are their only source, so
+  `tools/item-values` never prices one, and a recipe that uses one (MachineSchematics' gates) is
+  priced by its consumed parts and labour only. A trader sells them at its list's price, and the
+  curio dealer buys back the diving gear schematic at its list's price; the value check exempts
+  them. (#506)
+- **The steel gear** (`seraphhorizons:gear-steel`) takes its cheapest route, like any item: the
+  gear cutter, or the reclamation lottery (ten oiled gears less the nine steel bits the failed
+  rolls give). The large steel gear (`seraphhorizons:largegear-steel`) takes its gear cutter route.
+  Neither is a hand price. (#506, #523)
 
 ### Everything has a price
 
@@ -786,8 +786,10 @@ values") is what off-list prices start from and what the list-pay tests hold the
   but name. The lists hold the final pay (rescaled once by 0.2) rather than the runtime dividing
   them, so a list's numbers are what a player is offered; the runtime spreads off-list goods only.
   The mechanic took in the pack's reclaimed steel gear and large gear (`seraphhorizons:gear-steel`
-  at 15, its value, `largegear-steel` at 19, player-supplied; bought at 3 and 3.8), filling the hole left
-  when ppex's gears were dropped (#507).
+  at 11 and `largegear-steel` at 22, their derived values rounded, player-supplied; bought at 2.2
+  and 4.4, a fifth of that), filling the hole left when ppex's gears were dropped (#507). (These
+  were 15 / 3 and 19 / 3.8 while the steel gear was a hand price of 15; the item-values merge
+  derived it, 10.895, and rescaled both entries.)
 
 ## Extension points for later waves
 

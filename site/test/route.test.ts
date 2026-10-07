@@ -13,6 +13,10 @@ describe("parseRoute", () => {
     expect(parseRoute("#/main/item/game:ingot-copper")).toEqual({ view: "item", version: "main", code: "game:ingot-copper" });
     expect(parseRoute("#/main/search?q=ingot%20cop")).toEqual({ view: "search", version: "main", query: "ingot cop" });
     expect(parseRoute("#/main/entities")).toEqual({ view: "entities", version: "main" });
+    expect(parseRoute("#/main/values")).toEqual({ view: "values", version: "main" });
+    expect(parseRoute("#/main/search?q=gear&sort=value-desc")).toEqual({ view: "search", version: "main", query: "gear", sort: "value-desc" });
+    expect(parseRoute("#/main/search?q=gear&sort=value-asc")).toEqual({ view: "search", version: "main", query: "gear", sort: "value-asc" });
+    expect(parseRoute("#/main/search?q=gear&sort=bogus")).toEqual({ view: "search", version: "main", query: "gear" });
     expect(parseRoute("#/main/entity/game:wolf-eurasian-adult-male")).toEqual({
       view: "entity",
       version: "main",
@@ -62,6 +66,8 @@ describe("formatRoute", () => {
   it("writes the addresses by hand-checked form", () => {
     expect(formatRoute({ view: "item", version: "v0.1.0", code: "game:ingot-copper" })).toBe("#/v0.1.0/item/game:ingot-copper");
     expect(formatRoute({ view: "search", version: "main", query: "ingot cop" })).toBe("#/main/search?q=ingot+cop");
+    expect(formatRoute({ view: "search", version: "main", query: "gear", sort: "value-asc" })).toBe("#/main/search?q=gear&sort=value-asc");
+    expect(formatRoute({ view: "values", version: "main" })).toBe("#/main/values");
     expect(formatRoute({ view: "item", version: "main", code: "a:b/c" })).toBe("#/main/item/a:b%2Fc");
     expect(formatRoute({ view: "type", version: "main", code: "mymod:press", page: 1 })).toBe("#/main/type/mymod:press");
     expect(formatRoute({ view: "type", version: "main", code: "grid", page: 2 })).toBe("#/main/type/grid?page=2");

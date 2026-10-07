@@ -14,6 +14,9 @@
 {#if meta.entityCount > 0}
   <p><a href={formatRoute({ view: "entities", version })}>{t.entitiesHomeLink(meta.entityCount)}</a></p>
 {/if}
+{#if (meta.valueCount ?? 0) > 0}
+  <p><a href={formatRoute({ view: "values", version })}>{t.valuesHomeLink(meta.valueCount!)}</a></p>
+{/if}
 <h2>{t.recipeTypesHeading}</h2>
 <ul class="types">
   {#each types as [code, info] (code)}

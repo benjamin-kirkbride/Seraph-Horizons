@@ -236,6 +236,27 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary>Switch ownership (SwitchRegistry): every switch off here owns nothing that is
+    /// registered, so the registry's "adds it when on" holds; and the server tells clients which
+    /// switches are off, for the handbook's value line.</summary>
+    [AtlasScenario]
+    public void Switches_off_own_nothing_registered_and_are_published()
+    {
+        var registry = SwitchRegistry.For(World.Api);
+        var off = registry.Switches.Where(Off).ToList();
+        Assert.Contains("GearCutter", off);
+        Assert.Contains("Rosser", off);
+        var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
+            .Select(c => (Code: c.Code.ToString(), Owner: registry.SwitchForCode(c.Code.ToString())))
+            .Where(c => c.Owner != null && off.Contains(c.Owner))
+            .Select(c => $"{c.Code} ({c.Owner})").ToList();
+        Assert.True(left.Count == 0, "Registered with their switch off: " + string.Join(", ", left.Take(20)));
+        var published = SwitchOwnership.DecodeOff(World.Api.World.Config.GetString(SeraphHorizons.Mod.Trading.Values.ValueHandbook.OffKey));
+        Assert.Contains("GearCutter", published);
+        Assert.Contains("Rosser", published);
+        Assert.DoesNotContain("BoilerLidBlowsOpen", published);
+    }
+
     /// <summary><c>GearCutter</c>: no gear cutter blocks, none of its new parts and no recipe for
     /// them, and nothing logged about them.</summary>
     [AtlasScenario]
