@@ -90,6 +90,8 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(IrrigationVessel.DisablePatches);
         if (!(Config(api).BloodSausageInMixingBowl && BloodSausage.Applies(api)))
             DisablePatches(BloodSausage.DisablePatches);
+        if (!Config(api).DuplicateRecipes)
+            DisablePatches(DuplicateRecipes.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             DisablePatches(SawmillBladeDurability.DisablePatches);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
@@ -113,6 +115,9 @@ public class SeraphHorizonsSystem : ModSystem
         else if (GearConsumers.BessemerApplies(api) && GearConsumers.Bind(api.Logger))
             GearConsumers.Patch(_gearConsumersHarmony = new Harmony(GearConsumers.HarmonyId));
         _fellingWear = Config(api).FlatFellingWear && FellingWear.Applies(api) && FellingWear.Bind(api.Logger);
+        // Rewrites Battle Towers' own patch file, on the server, before the patch loader reads it.
+        if (api.Side == EnumAppSide.Server && Config(api).RarerBattleTowers && BattleTowers.Applies(api))
+            BattleTowers.MakeRarer(api);
         // Registers its classes whatever the setting; on the server, decides whether it runs and
         // tells clients; sets the two mods' settings and patches. Last, and it catches its own
         // failures, so nothing above depends on it.
@@ -369,6 +374,12 @@ public class SeraphHorizonsConfig
     /// recipes too).</summary>
     public bool BloodSausageInMixingBowl { get; set; } = true;
 
+    /// <summary>Recipes that duplicate or undercut another recipe for the same thing are off:
+    /// Expanded Foods' offal-free kneading sausages and scrap brazier, Material Needs' re-declared
+    /// aged roofing, raft, oar and round shield, the game's barrel cottage cheese and sandstone daub
+    /// (server side; each only with the mod whose recipe stays; off means all as they ship).</summary>
+    public bool DuplicateRecipes { get; set; } = true;
+
     /// <summary>Panning gives no wool (Wool), stitching awls or buttons and clasps (Tailor's Delight)
     /// and no uranium nuggets (Expanded Matter); the rest of each mod's panning drops stay (server
     /// side; off means panning is as the mods ship it).</summary>
@@ -489,6 +500,13 @@ public class SeraphHorizonsConfig
     /// <summary>Interesting Ore Gen's hydrothermal districts about one per 120 km² (7 km tiles) instead of
     /// one per 40–90 km² in new worlds.</summary>
     public bool RarerDistricts { get; set; } = true;
+
+    /// <summary>Battle Towers (#519, README "Rarer battle towers"): its towers rarer, at the chances
+    /// and spacings in <c>config/battletowers-rates.json</c>: about one surface tower per 16 km², one
+    /// hard tower per 66 km² and one underground tower per 17 km², where Battle Towers places dozens
+    /// of underground towers per km² (server side; off means as Battle Towers ships them). Worldgen
+    /// only: it changes the chunks generated from then on.</summary>
+    public bool RarerBattleTowers { get; set; } = true;
 
     /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
     /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
