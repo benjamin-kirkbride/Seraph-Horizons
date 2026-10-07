@@ -18,6 +18,7 @@
   "GearboxSourceRatio": false,
   "GearConsumers": false,
   "HeatingRackKeepsPosition": false,
+  "HeatingRackStandsOnBlock": false,
   "HydrateTunRetired": false,
   "IronWoodworkingMachines": false,
   "IrrigationVesselRetired": false,
