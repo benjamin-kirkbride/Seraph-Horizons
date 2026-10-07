@@ -308,6 +308,33 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(pos.X, stack.Attributes.GetInt("posx", int.MinValue));
     }
 
+    /// <summary><c>HeatingRackStandsOnBlock</c>: nothing is patched, and a heating rack placed from a
+    /// stack onto a floor's top face goes in the cell over it, legs in the floor, as Logging Expanded
+    /// ships it.</summary>
+    [AtlasScenario]
+    public async Task Heating_rack_stands_on_block_off_the_rack_goes_in_the_cell_over_the_floor()
+    {
+        Assert.True(Off("HeatingRackStandsOnBlock"));
+        Assert.False(Harmony.HasAnyPatches(HeatingRackPlacement.HarmonyId));
+        var shop = await Woodshop.Open(World, World.Spawn.AddCopy(80, 3, 110));
+        var to = shop.Cell(2);
+        // Open's floor can be lost in a chunk nothing had loaded; lay it again with the player there.
+        World.SetBlock("game:rock-granite", to.DownCopy());
+        await World.Ticks(2);
+
+        var stack = new ItemStack(W.GetBlock(new AssetLocation("loggingmod:resinrack-fire-north")));
+        var sel = new BlockSelection { Position = to.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 1, 0.5), DidOffset = true };
+        string failure = "";
+        shop.Holding(stack);
+        Assert.True(stack.Block.TryPlaceBlock(W, shop.P, stack, sel, ref failure), $"not placed: {failure}");
+        shop.Holding(null);
+        await World.Ticks(2);
+
+        Assert.Equal(to, sel.Position);
+        Assert.StartsWith("loggingmod:resinrack-fire-", World.BlockAt(to).Code.ToString());
+        Assert.Equal("game:air", World.BlockAt(to.UpCopy()).Code.ToString());
+    }
+
     /// <summary><c>IronWoodworkingMachines</c>: Immersive Woodworking's machine parts keep their own
     /// recipes, of any metal, and the Machines chapter says nothing of iron.</summary>
     [AtlasScenario]
