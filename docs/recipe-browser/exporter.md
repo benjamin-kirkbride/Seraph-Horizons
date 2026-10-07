@@ -39,11 +39,33 @@ The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUn
    are none, it looks for `CombustibleProperties.SmeltedStack` (ACulinaryArtillery
    simmering). The other simple public values of a mod recipe (power, temperature, ...)
    go to `extra`.
-3. **Definitions.** The same reader reads each definition asset of the type, parsed the
+3. **Water copies.** Hydrate or Diedrate (2.5.6, `RecipeGenerator`) copies every
+   registered recipe, in every recipe list, that takes `game:waterportion` in a slot or in
+   a container's `recipeAttributes.requiresContent`: one copy per kind of its clean water
+   (`hydrateordiedrate:waterportion-boiled-natural-clean`, `-boiled-rain-clean`,
+   `-fresh-distilled-clean`, `-fresh-rain-clean`, `-fresh-well-clean`), and for
+   `game:saltwaterportion` one with `-salt-well-clean`. Every water slot of a copy gets the
+   same water, its `Name` becomes `hydrateordiedrate:-HoD-<Name path>-<water path>`, and
+   its liquid quantities are resolved again from their litres; nothing else changes. That
+   is about 700 recipes (barrel, grid, ACulinaryArtillery simmering), each of which looked
+   like its original on the site. `Recipes/WaterClones.cs` folds them before grouping: a
+   recipe with such a `Name` is folded into another recipe of the same registry that is
+   equal to it in everything but the water (slots in order with their codes, quantities,
+   or litres for liquids, attributes and recipe attributes; outputs; the type block),
+   where every slot that differs holds `game:waterportion` (or salt water for the salt
+   kind) in the original and the copy's one water in the copy. The copy's water is
+   appended to the original slot's alternatives, so it shows in the variants; for a
+   container slot (grid) the container is already there and the water is only recorded.
+   The record carries `extra.waterCopies`: `mod`, the number of copies folded into it
+   (`recipes`, over all its variants) and their `water` codes. A copy with no such
+   original stays a record of its own. HoD appends its waters to slots that already list
+   alternatives (ACulinaryArtillery's kneading) instead of copying, which grouping
+   handles.
+4. **Definitions.** The same reader reads each definition asset of the type, parsed the
    way the loaders do (`JsonUtil.ToObject<T>` with the asset's domain) but not expanded.
    The files are `recipes/<type>/` plus every other file a registered recipe's `Name`
    points at. ACulinaryArtillery loads `simmerrecipes` from `recipes/simmering`.
-4. **Grouping.** `Grouper` assigns each registered recipe to the definition it was
+5. **Grouping.** `Grouper` assigns each registered recipe to the definition it was
    generated from. That is the definition in the file its `Name` names, or with that
    explicit `name`, that it matches: ingredient and output code patterns against its
    concrete codes, plus quantities, attributes, recipe attributes, tag conditions,
@@ -55,10 +77,10 @@ The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUn
    alternatives to a slot (hydrateordiedrate's kinds of water), so a registered slot may
    accept more than the definition lists. Definitions are parsed both with the asset's
    domain and with `game` for domain-less codes, because ACulinaryArtillery parses with
-   plain Newtonsoft. Registered recipes that match no definition (made by code, such as
-   hydrateordiedrate's copies per water kind) are grouped by `Name` and slot layout into
-   records `id = <type>|<Name or "code">|r<n>` with `extra.registeredByCode`.
-5. **Records.** One record per definition. `ingredients` and `outputs` come from the
+   plain Newtonsoft. Registered recipes that match no definition (made by code) are
+   grouped by `Name` and slot layout into records `id = <type>|<Name or "code">|r<n>`
+   with `extra.registeredByCode`.
+6. **Records.** One record per definition. `ingredients` and `outputs` come from the
    definition (patterns, `wildcardName`, `allowedVariants`, `skipVariants`). There is one
    `variant` per registered recipe, sorted by content for stable output. Each variant slot
    lists the registered stacks it accepts: an unnamed wildcard (`saw-*`), a tag condition or
