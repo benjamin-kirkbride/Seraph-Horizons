@@ -1,7 +1,8 @@
 <script lang="ts">
   // #/<version>/values: the pack's price table, every item with a value. It reads only
   // search.json, which the app has already loaded, and shows PAGE_SIZE rows at a time: the
-  // filter and the sort run over all 25,000 or so rows (ValueTable), the DOM holds a page.
+  // filter and the sort run over all 25,000 or so items (ValueTable, which folds a block's
+  // variants into one row), the DOM holds a page.
   import type { Meta, SearchFile } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
   import { formatRoute } from "../lib/route.ts";
@@ -122,12 +123,16 @@
             {@const name = file.names[i]!}
             {@const value = valueOf(file, i)}
             {@const switches = switchesOf(i)}
+            {@const variants = table.variantsOf(i)}
             <tr data-code={code}>
               <td class="name">
                 <a class="item" href={formatRoute({ view: "item", version: data.id, code })}>
                   <Icon {code} size={24} label={initials(name)} />
                   <span class="text"><span class="label">{name}</span> <code class="muted">{code}</code></span>
                 </a>
+                {#if variants.length > 1}
+                  <span class="variants muted" title={t.valuesVariantsHint(variants.map((v) => file!.codes[v]!))} data-testid="values-variants">{t.valuesVariants(variants.length)}</span>
+                {/if}
               </td>
               <td class="mod muted"><ModLink id={file.mods[file.mod[i]!]!} mods={meta.mods} /></td>
               <td class="value">
@@ -236,6 +241,11 @@
   }
   .text code {
     font-size: 0.8rem;
+  }
+  .variants {
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
   }
   .mod {
     font-size: 0.85rem;
