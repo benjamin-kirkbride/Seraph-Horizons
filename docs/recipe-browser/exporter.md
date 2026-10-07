@@ -24,8 +24,8 @@ nothing. Smoke then fails and shows that line.
 
 `--local-mod ZIP` (repeatable) also loads a mod built from `mods-src/`. CI passes the pack's
 own mod, `seraphhorizons`, built from the same tree, so the export holds its items, its
-recipes and the schematics it gates other mods' recipes behind; the pinned pack alone does
-not carry it, or carries a ModDB pin that may lag the source (#506). The zip is copied into
+recipes and the schematics it gates other mods' recipes behind; the lock does not carry it
+(it is released with the pack, never pinned) (#506). The zip is copied into
 the smoke run's own `Mods` like the export mod, and any mod already staged there under the
 same modid (its pinned zip) is removed from that copy first, so the game cannot load the pin
 instead. `build/mods`, the lock and `assemble` never see it. Smoke fails if the mod is not
