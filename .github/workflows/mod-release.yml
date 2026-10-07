@@ -2,6 +2,9 @@
 # mods-src/<modid> and attach <modid>_<version>.zip to a GitHub Release, ready to upload
 # to the ModDB by hand (mods-src/<modid>/README.md). These releases are never "latest":
 # that stays the pack's own vX.Y.Z release (release.yml).
+# For the separate mods only (allowedvariantsfix, constructionhelpfix, chiselrotationfix):
+# the pack's own mod, mods-src/seraphhorizons, has the pack's version and is released with
+# the pack, by release.yml on the vX.Y.Z tag, so a seraphhorizons-v* tag is refused here.
 name: Mod release
 
 on:
@@ -26,6 +29,8 @@ jobs:
         run: |
           modid="${GITHUB_REF_NAME%-v*}"
           version="${GITHUB_REF_NAME##*-v}"
+          [ "$modid" != "$(jq -r .pack.id pack/lock.json)" ] \
+            || { echo "$modid is the pack's own mod, released with the pack: tag v$version (release.yml)"; exit 1; }
           info="mods-src/$modid/modinfo.json"
           [ -f "$info" ] || { echo "no $info for tag $GITHUB_REF_NAME"; exit 1; }
           have=$(jq -r .version "$info")

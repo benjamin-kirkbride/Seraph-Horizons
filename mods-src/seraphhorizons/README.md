@@ -1,8 +1,9 @@
 # Seraph Horizons
 
-The pack's own mod, named after the pack: every install of the pack downloads it, so its ModDB
-page shows the pack's download count and is where people browsing the ModDB find the pack. Its
-modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphhorizonspack`.
+The pack's own mod, named after the pack: the pack and it are one thing with one version, released
+together (Releasing, below). Its ModDB page, where it is uploaded after a release, is where people
+browsing the ModDB find the pack. Its modid is the pack's id, so the pack's meta-mod
+(`packtool assemble`) is `seraphhorizonspack`.
 
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
@@ -18,7 +19,7 @@ they live together here and not in a mod each. Every tweak has its own switch in
 One whose mod has changed shape logs a warning and leaves that mod alone.
 
 Only the game's own assemblies are referenced at build time: each tweak to another mod finds what
-it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
+it patches by name, so the mod builds from the game alone (`release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
@@ -2968,8 +2969,8 @@ camp scenarios do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
 nothing changed world-wide.
 
-The test project loads this directory's build as a mod, and leaves out a pinned copy from the
-ModDB (`seraphhorizons_*.zip` in `build/mods`).
+The test project loads this directory's build as a mod, and leaves out any other copy
+(`seraphhorizons_*.zip` in `build/mods`).
 
 `tests/PackTests/OreCellsScenarios.cs` (Atlas, a new standard world with a fixed seed) requires
 the four ore switches read and recorded in the savegame, IOG's `TryApproveOreSpawnSeed` patched,
@@ -2996,10 +2997,16 @@ read their switch with `SeraphHorizonsSystem.ConfigFor(api)`.
 
 ## Releasing
 
-The same as `mods-src/allowedvariantsfix/README.md`: bump the version in `modinfo.json` and
-`SeraphHorizons.csproj`, merge, tag `seraphhorizons-v<version>` on main, upload the zip from the
-GitHub Release to the ModDB (keep the file name), then pin it in `pack/pack.toml` (the first
-release adds the entry, `side = "universal"`) and run `packtool lock`.
+With the pack: one release, one version. Bump `modinfo.json`, `SeraphHorizons.csproj` and
+`pack/pack.toml`'s `[pack] version` together (`tools/tests/test_mods_src.py` requires the three
+equal), run `packtool lock` and cog (`CLAUDE.md`), merge, and tag `v<version>` on main.
+`.github/workflows/release.yml` builds `seraphhorizons_<version>.zip` from the tag and publishes it
+in the pack's release, whose `.cairn` file installs it from there by its sha256 and whose server
+bundle carries it. The mod is never pinned in `pack/pack.toml`, and `mod-release.yml` (the other
+`mods-src/` mods' way) refuses a `seraphhorizons-v*` tag.
+
+Uploading the zip from the release to the ModDB (keep the file name) is optional, for people who
+find mods there; the release never waits on it.
 
 Between releases, every push to main that passes CI republishes the rolling
 [`seraphhorizons-next`](https://github.com/benjamin-kirkbride/Seraph-Horizons/releases/tag/seraphhorizons-next)
@@ -3008,7 +3015,7 @@ after it (`seraphhorizons_<version>_<sha7>.zip`, so that Cairn, which sees a new
 new hash, fetches every build), with its `SHA256SUMS` and the previous build's zip, kept for one
 more publish. The pack's rolling `next` Cairn pack, published right after it from the same
 commit, installs the mod from there by its sha256, so `next` plays with the mod as it is on main
-before any of it reaches the ModDB. The zip keeps `modinfo.json`'s version, so it is not newer
+before any of it is released. The zip keeps `modinfo.json`'s version, so it is not newer
 than the release of that version as far as the game is concerned: swap it in for that copy,
 don't add it next to one.
 

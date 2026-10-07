@@ -61,14 +61,15 @@ Each [GitHub Release](../../releases) has these files:
 | `seraphhorizons_<v>_server.zip` | Plain dedicated servers | `lock.json` + `fetch-mods.sh`, which downloads each mod from the ModDB and checks its sha256 |
 | `seraphhorizons_<v>_metamod.zip` | Casual singleplayer: drop into `Mods/`, then click "Download mods" on world creation | The game treats these versions as **minimums** |
 | `seraphhorizons_<v>_modlist.txt` | `modid@version,...` for launchers that import that format | Exact |
+| `seraphhorizons_<v>.zip` | The pack's own mod (`mods-src/seraphhorizons`), version `<v>` like the pack | The `.cairn` file installs it from the release and checks its sha256; the server bundle carries it; with the meta-mod or the mod list, add it to `Mods/` yourself |
 
-Mod files are never re-hosted here. Everything is fetched from the ModDB CDN, with one exception: the
-rolling [`next`](../../releases/tag/next) pre-release's `.cairn` file also installs the pack's own mod
-(`mods-src/seraphhorizons`) built from the same commit, which it fetches from the
-[`seraphhorizons-next`](../../releases/tag/seraphhorizons-next) pre-release and checks against its sha256.
-That zip is named after the commit (`seraphhorizons_<version>_<sha7>.zip`), so its address changes with
-every build and Cairn, which notices a changed address or version but not a changed hash, downloads it again.
-Versioned releases install it from the ModDB once it is pinned there; `next` keeps installing the commit's build in place of that pin.
+The pack and its own mod are one thing with one version, released together. Other mods' files are never
+re-hosted here: they are fetched from the ModDB CDN. The rolling [`next`](../../releases/tag/next)
+pre-release's `.cairn` file does the same with the pack's own mod built from the same commit, which it
+fetches from the [`seraphhorizons-next`](../../releases/tag/seraphhorizons-next) pre-release and checks
+against its sha256. That zip is named after the commit (`seraphhorizons_<version>_<sha7>.zip`), so its
+address changes with every build and Cairn, which notices a changed address or version but not a changed
+hash, downloads it again.
 
 ## Contributing
 
