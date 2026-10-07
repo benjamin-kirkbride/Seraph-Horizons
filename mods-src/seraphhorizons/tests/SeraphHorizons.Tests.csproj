@@ -11,8 +11,8 @@
        prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
        (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
-       travelling merchants' inns (../Trading/Visitors/Core) and the trunk entities' weights
-       and boxes (../TrunkEntities/Core).
+       travelling merchants' inns (../Trading/Visitors/Core), the trunk entities' weights
+       and boxes (../TrunkEntities/Core) and the pack version check (../PackCheck/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -102,6 +102,9 @@
     <Compile Include="../PicklingTub/Core/**/*.cs" Link="PicklingTub/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Travelling merchants (#456): inn rules, the visit cycle, the conditions. -->
     <Compile Include="../Trading/Visitors/Core/**/*.cs" Link="Trading/Visitors/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Pack version check: the comparison, and the lock the mod embeds, so the tests read the real one. -->
+    <Compile Include="../PackCheck/Core/**/*.cs" Link="PackCheck/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../../../pack/lock.json" Link="pack-lock.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

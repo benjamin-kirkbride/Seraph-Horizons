@@ -750,7 +750,7 @@ def check_clearances(v, poses):
 
 
 # arms ride the trunk within check_arms' tolerances; everything else must clear it
-INTENDED_TRUNK = re.compile(r"^(toproll_\w+_body|botroll_\w+_body|cradle_\w+_skid\d|treadle_plate|tip\d_|arm\d_|breaker_bar_)")
+INTENDED_TRUNK = re.compile(r"^(toproll_(in|out)_body|botroll_(in|out)_body|cradle_\w+_skid\d|treadle_plate|tip\d_|arm\d_|breaker_bar_)")
 
 
 def check_swept(v, step=1 / 16, thetas=(0.0,)):
@@ -832,7 +832,7 @@ def check_anchors(v):
         v.fail("a mill in line is not on our trunk line, or its power feed cell is ours")
 
 
-IRON = re.compile(r"^(tip\d|arm\d|roller\d|ringtyre|toproll_\w+_(body|journal)|botroll_\w+_(body|journal)|worm_|sel_|sellever_|rock_|rocker_|"
+IRON = re.compile(r"^(tip\d|arm\d|roller\d|ringtyre|toproll_(in|out)_(body|journal)|botroll_(in|out)_(body|journal)|worm_|sel_|sellever_|rock_|rocker_|"
                   r"treadlever|pushrod|treadle_stem|breaker_|ring_pin|ring_spring|fr_drip|cradle_\w+_(upright|fulcrum))")
 OAK = re.compile(r"^(fr_post|fr_sill|fr_toprail|fr_cross|fr_topbeam|fr_\w+_shaftbeam|fr_chute|cradle_\w+_(skid|bearer|cheek|tongue|crossbar)|toparm_\w+_(n|s)_bar|treadle_plate)")
 

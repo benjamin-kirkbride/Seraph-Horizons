@@ -13,7 +13,7 @@ into steel gears through the pot, the pickling tub and the barrel (`GearReclamat
 recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
 (`GearCutter`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
-camps, item values, regional supply, standing, schematics, orders, maps and admin tools. These are choices for this pack, not bug fixes, so
+camps, item values, regional supply, standing, schematics, orders, maps and admin tools; and a check that the installed mods are the pack's (`PackVersionCheck`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.
@@ -36,6 +36,8 @@ shafts, the client takes the click, shows the tank and draws the smoke. So are t
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
 tub: the server runs its batches, the client draws the liquid and the gears in it. Steel bits
 recovery patches the stone coffin on both sides: the server fills it, the client predicts the click.
+The pack version check runs on each side for that side's own mods: the server logs and tells
+admins, the client shows its dialog.
 
 ## Tweaks
 
@@ -1968,6 +1970,49 @@ caret in the box, typing works), with an item on the cursor (still held, nothing
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
 
+### The mod checks the installed mods against the pack (`PackVersionCheck`)
+
+The mod is released with the pack, at the pack's version (Releasing, below), and carries the
+pack's `pack/lock.json` inside its DLL (an embedded resource, `seraphhorizons.pack-lock.json`, from
+the csproj). Each side compares what it actually loaded with that lock and reports every
+difference:
+
+- a locked mod loaded at another version than locked, higher or lower (`exlib: expected 1.2.0,
+  found 1.3.0`);
+- a locked mod not loaded (`missing`), counted only on a side it loads on: a dedicated server never
+  loads a `client` mod, nor a client a `server` one;
+- a loaded mod the lock does not have (`not in the pack`). The game's own mods (`game`, `creative`,
+  `survival`), the release meta-mod (`seraphhorizonspack`) and this mod are not counted; there is
+  no allow-list;
+- another game version than the pack's `game_version`;
+- this mod at another version than the pack it was built with.
+
+The server logs one `Warning` per finding (`[seraphhorizons] Pack version check: ...`) and sends the
+list in chat to each player with the `controlserver` privilege as they join. A client logs one
+warning line and, a second after it is in the world, opens a dialog: what the install should be,
+the findings in a scrolled list, and two buttons. **Close** leaves it to come back on the next
+join; **Don't show again until this changes** stores a hash of the findings in the client's own
+`ModConfig/seraphhorizons-packcheck.json` (`DismissedFingerprint`), and the dialog stays away until
+the findings are another set. The list only goes quiet once the install matches the release this
+copy of the mod shipped with: install that release again (Cairn's `.cairn` file does this), or
+update to a newer one. Each side's own `PackVersionCheck` decides for it; off means nothing is
+checked or shown.
+
+Expect findings wherever the install is not a release as shipped: a Cairn local mods folder (its
+mods are extras, or another version of a locked one), and CI's smoke run, which also loads the
+recipe exporter (`seraphexport: not in the pack`, a warning, which smoke does not fail on), and
+Atlas, whose own mod `atlasbridge` is the one finding there (`PackCheckScenarios.cs` requires exactly
+that, and `SwitchesOffScenarios` none with the switch off). The
+`next` build carries main's lock, so it matches the `next` pack.
+
+The comparison is `PackCheck/Core/PackComparison.cs` (unit-tested in `tests/PackCheck/`, including
+against the real lock), the game side `PackCheck/Game/` (`PackCheckSystem`, `PackCheckDialog`).
+
+To check by hand in the game: put a mod the pack does not have in the mods folder and join a world
+(dialog with that line; Close, rejoin: back; Don't show again, rejoin: gone; remove the mod, add
+another, rejoin: back); on a dedicated server, join as an admin (chat lines) and as a player
+(none).
+
 ## Ore
 
 The ore overhaul (epic #435), in `Ore/`: where deposits generate, the gravel fields that give the
@@ -2598,7 +2643,8 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
 and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
-described in `TrunkEntities/README.md`), gear reclamation's roll, flash rust hours, settings and
+described in `TrunkEntities/README.md`), the pack version check's comparison with the
+embedded lock (`PackCheck/Core/`, `tests/PackCheck/`), gear reclamation's roll, flash rust hours, settings and
 optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
 (`GearReclamation/Core/`, `tests/GearReclamation/`), the gear cutter's build order, take-back,
 drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
