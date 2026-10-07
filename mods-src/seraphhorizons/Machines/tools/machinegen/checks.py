@@ -143,16 +143,19 @@ def cell_boxes(els, cell, size=CELL, max_boxes=3, min_gain=0.08):
 LID = 1.0 / 16                                # blocks: a lid's thickness
 
 
-def with_lids(cells):
-    """The rig's cells with a `lid` on the top cell of every column: the cell-local height of the
-    top of a collision-only box over the whole cell, LID thick, so a player walking on the machine
-    cannot drop between its boxes. Every column whose top cell is in the same layer gets one height,
-    the highest top of those cells (1 for a full cube or a hollow cell), so the top walks as one
-    deck. New cell dicts, in the same order; a cell's own `boxes` and `hollow` are kept."""
+def with_lids(cells, columns=None):
+    """The rig's cells with a `lid` on the top cell of every column (or of every column (x, z) for
+    which `columns(x, z)` is true, when given; the rest get none): the cell-local height of the top
+    of a collision-only box over the whole cell, LID thick, so a player walking on the machine
+    cannot drop between its boxes. Every lidded column whose top cell is in the same layer gets one
+    height, the highest top of those cells (1 for a full cube or a hollow cell), so the top walks as
+    one deck. New cell dicts, in the same order; a cell's own `boxes` and `hollow` are kept, and
+    any `lid` it had is replaced."""
     top = {}
     for c in cells:
         x, y, z = c["pos"]
-        top[(x, z)] = max(top.get((x, z), y), y)
+        if columns is None or columns(x, z):
+            top[(x, z)] = max(top.get((x, z), y), y)
 
     def height(c):
         return max(b[4] for b in c["boxes"]) if c.get("boxes") else 1.0
@@ -160,24 +163,34 @@ def with_lids(cells):
     deck = {}
     for c in cells:
         x, y, z = c["pos"]
-        if top[(x, z)] == y:
+        if top.get((x, z)) == y:
             deck[y] = max(deck.get(y, 0.0), height(c))
     out = []
     for c in cells:
         x, y, z = c["pos"]
         c = {k: v for k, v in c.items() if k != "lid"}
-        out.append({**c, "lid": deck[y]} if top[(x, z)] == y else c)
+        out.append({**c, "lid": deck[y]} if top.get((x, z)) == y else c)
     return out
 
 
-def lid_gaps(cells):
-    """Columns (x, z) whose top cell has no lid of at least LID, or a lid above its cell."""
+def lid_gaps(cells, columns=None):
+    """Columns (x, z) whose top cell has no lid of at least LID, or a lid above its cell; with
+    `columns`, only those for which `columns(x, z)` is true, and any other column with a lid on
+    any cell counts as a gap too (it should have none)."""
     top = {}
     for c in cells:
         x, y, z = c["pos"]
         if (x, z) not in top or y > top[(x, z)]["pos"][1]:
             top[(x, z)] = c
-    return sorted(col for col, c in top.items() if not (LID - 1e-9 <= c.get("lid", 0.0) <= 1.0))
+    gaps = set()
+    for c in cells:
+        x, y, z = c["pos"]
+        if columns is not None and not columns(x, z) and "lid" in c:
+            gaps.add((x, z))
+    for col, c in top.items():
+        if (columns is None or columns(*col)) and not (LID - 1e-9 <= c.get("lid", 0.0) <= 1.0):
+            gaps.add(col)
+    return sorted(gaps)
 
 
 # ---------------------------------------------------------------- coplanar faces (z-fighting)

@@ -880,8 +880,9 @@ public partial class WoodworkingScenarios
     }
 
     /// <summary>
-    /// The top of a machine is solid to walk on: every column of its footprint (<paramref name="cells"/>,
-    /// placed by <paramref name="cellPos"/>) has a rig lid on its top cell, and that cell's collision
+    /// The top of a machine is solid to walk on: every column of <paramref name="cells"/> (its whole
+    /// footprint, or the lidded part of it: the rosser's station), placed by <paramref name="cellPos"/>,
+    /// has a rig lid on its top cell, and that cell's collision
     /// boxes, those reaching the lid's height, cover the whole cell, while its selection boxes do
     /// not hold the lid (it is collision only).
     /// </summary>

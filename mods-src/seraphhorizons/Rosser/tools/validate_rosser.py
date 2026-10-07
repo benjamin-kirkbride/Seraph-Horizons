@@ -981,11 +981,11 @@ def validate_files(m, shape, frame_shape, ship):
         if missing:
             print(f"FAIL {label} shape uses undeclared textures {missing}")
             ok = False
-    # a lid on every column's top cell, so nothing falls into the rosser from above
-    gaps = lid_gaps(ship["cells"])
+    # a lid on every station column's top cell, so nothing falls into the rosser from above, and none over the beds
+    gaps = lid_gaps(ship["cells"], m.shipped_station_column)
     decks = sorted({c["lid"] + c["pos"][1] for c in ship["cells"] if "lid" in c})
     print(f"lids: {sum(1 for c in ship['cells'] if 'lid' in c)}, decks at y {decks}")
     if gaps:
-        print(f"FAIL columns with no lid on their top cell: {gaps}")
+        print(f"FAIL station columns with no lid on their top cell, or bed columns with one: {gaps}")
         ok = False
     return ok
