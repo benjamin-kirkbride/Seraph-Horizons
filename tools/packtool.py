@@ -830,7 +830,8 @@ def url_mod(zip_path: Path, url: str) -> dict:
 
     For the pack's own mod (mods-src/seraphhorizons), which is released with the pack rather than
     pinned: a versioned release (release.yml) names its own seraphhorizons_<version>.zip asset, and
-    the rolling `next` build the zip built from the same commit, which CI names after the commit
+    the rolling `next` release the zip built from the same commit, published beside the pack,
+    which CI names after the commit
     (seraphhorizons_<version>_<sha7>.zip) so its address changes with every build: Cairn
     tells a followed pack has changed by its addresses and versions, never by a hash. The modid
     and version come from the zip's modinfo.json, as Cairn reads them (cairn-app ModUrl.Inspect), and the
@@ -1032,8 +1033,9 @@ def main() -> None:
     s.add_argument("--out", default=str(ROOT / "dist"))
     s.add_argument("--url-mod", nargs=2, action="append", metavar=("ZIP", "URL"),
                    help="also put the mod in ZIP in the Cairn pack, fetched from URL (https, ending "
-                        "in the zip's name) and held to the zip's sha256; repeatable. CI uses it for "
-                        "the rolling next build only")
+                        "in the zip's name) and held to the zip's sha256; repeatable. CI (the rolling "
+                        "next build) and release.yml use it for the pack's own mod, published in the "
+                        "same release as the pack")
     s.set_defaults(func=cmd_assemble)
 
     args = p.parse_args()

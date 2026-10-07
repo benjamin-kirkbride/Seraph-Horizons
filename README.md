@@ -72,8 +72,7 @@ in a world. It goes quiet once the install matches that release (or for good wit
 The pack and its own mod are one thing with one version, released together. Other mods' files are never
 re-hosted here: they are fetched from the ModDB CDN. The rolling [`next`](../../releases/tag/next)
 pre-release's `.cairn` file does the same with the pack's own mod built from the same commit, which it
-fetches from the [`seraphhorizons-next`](../../releases/tag/seraphhorizons-next) pre-release and checks
-against its sha256. That zip is named after the commit (`seraphhorizons_<version>_<sha7>.zip`), so its
+fetches from that same pre-release and checks against its sha256. That zip is named after the commit (`seraphhorizons_<version>_<sha7>.zip`), so its
 address changes with every build and Cairn, which notices a changed address or version but not a changed
 hash, downloads it again.
 

@@ -170,7 +170,7 @@ describe("version ids and order", () => {
     ["v1.0.0-rc.1", "v1.0.0-rc.1"],
     ["v1.0.0-alpha.beta-2", "v1.0.0-alpha.beta-2"],
     ["main", undefined],
-    // Mod releases (mod-release.yml, and next.yml's seraphhorizons-next) carry no recipe export and are not site versions.
+    // Mod releases (mod-release.yml, and the retired seraphhorizons-next) carry no recipe export and are not site versions.
     ["allowedvariantsfix-v1.0.0", undefined],
     ["seraphhorizons-next", undefined],
     ["0.1.0", undefined],

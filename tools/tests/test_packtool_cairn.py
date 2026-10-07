@@ -28,7 +28,7 @@ _spec = importlib.util.spec_from_file_location("packtool", ROOT / "tools" / "pac
 packtool = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(packtool)
 
-URL = "https://github.com/owner/repo/releases/download/seraphhorizons-next/seraphhorizons_1.2.3_abc1234.zip"
+URL = "https://github.com/owner/repo/releases/download/next/seraphhorizons_1.2.3_abc1234.zip"
 
 
 def make_zip(dir: Path, name: str = "seraphhorizons_1.2.3_abc1234.zip", **info) -> Path:
