@@ -226,7 +226,7 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Ticks(10);
         output.WriteLine($"walkspeed {before} -> {stats.GetBlended("walkspeed")} with 4 logs");
         Assert.Equal(TrunkWeight.CarrySpeed(4, Mod.Config), stats.GetBlended("walkspeed") - (before - 1f), 3);
-        Assert.Equal(0.25f, TrunkWeight.CarrySpeed(4, Mod.Config), 3);
+        Assert.Equal(0.8f, TrunkWeight.CarrySpeed(4, Mod.Config), 3);
         TrunkCarry.Take(player);
 
         Assert.True(TrunkCarry.TryGive(player, Trunk(40, "xxl")));

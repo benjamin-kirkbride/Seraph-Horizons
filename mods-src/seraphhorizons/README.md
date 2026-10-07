@@ -1213,7 +1213,7 @@ blocks), or tie a rope to it as to any rope-tieable entity. A knife, shears, an 
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
 debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
 trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
-hands, at a walk speed falling from a quarter (4 logs) to 0.2 (48 logs), with Logging Expanded's
+hands, at a walk speed falling from 0.8 (4 logs) to half (48 logs), with Logging Expanded's
 own `trunkcarry` or `trunkcarryheavy` animation; putting it down, or dropping it, lays a trunk
 entity again. Carried, it loads a sawhorse, a Trunk Storage Rack, a heating rack, a rosser or a
 bucking mill, or goes into a cart's or sled's storage slot; unloading any of them, or taking it off
