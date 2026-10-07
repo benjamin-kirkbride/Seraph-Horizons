@@ -1646,6 +1646,35 @@ are lost. The steel gears it makes exist either way. Not yet: the recipe export 
 a schematic for the frame (`MachineSchematics`), and item shapes of the new parts' own (they wear
 the game's hub, rod, bracket, linkage and chisel shapes in steel).
 
+### Felling a tree costs the axe a flat figure (`FlatFellingWear`, `FlatFellingWearSettings`)
+
+Logging Expanded (`loggingmod`, 0.3.6). Felling a tree that leaves a trunk costs the axe
+`ThinTree` (4) durability, or `ThickTree` (8) for a tree with a two-by-two trunk (the game's log
+sections: the redwood), whatever the tree's height, in place of the game's one durability per log
+block. A trunk's logs then cost their own at the stations and the machines: Logging Expanded's
+sawhorses take one per log (the advanced one per two), its axe on a trunk lying there one per
+swing (two logs off while it holds two or more), the splitting block one per log, the bucking
+mill's blade one per log stored, about what the game's felling alone charged, so the whole chain
+costs about what it did before trunks, and most of it is paid working the trunk. A felling that leaves no trunk (fewer logs than Logging Expanded's
+`MinLogsForTrunk`, a wood it does not know, so loose logs drop) costs the game's one per log.
+
+The game's axe (`ItemAxe.OnBlockBrokenWith`) breaks every block of the tree and damages itself once
+per wood block; leaves cost nothing. Logging Expanded fells in the server's `BreakBlock` event,
+which runs first: it marks the tree's blocks to drop nothing, throws the trunk (a trunk entity,
+with `TrunkEntities`) and raises its public `FellingListener.OnTreeFelled` when it made one.
+`FellingWear.cs` (server side, by name): hears that callback and notes the player and the stump; a
+prefix on `ItemAxe.OnBlockBrokenWith` for that player, when the tree the axe is about to break
+holds that stump, takes the note, decides thick or thin from the tree's blocks
+(`Core/FellingWearRules.cs`: any `logsection-` block) and opens a window in which a prefix on
+`CollectibleObject.DamageItem` skips every hit on the axe's slot; a finalizer closes it and charges
+the flat cost with the game's own `DamageItem`, so an axe at or below it fells the whole tree and
+shatters after, as it would on its last block, and an axe that `damagedby` says nothing breaks
+loses nothing. The client predicts the per-log loss on its own copy of the axe; the server's figure
+replaces it as the slot syncs. `FlatFellingWearSettings` holds the two figures (0 to 10000; a value
+out of range falls back to its default with a warning). With the switch off, without Logging
+Expanded, or with its callback not as expected (one warning), nothing is patched and every felling
+costs one per log.
+
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
@@ -2637,6 +2666,16 @@ quantities and metals, and `ItemExportScenarios` its Machines guide to give the 
 switch off, `SwitchesOffScenarios` requires Immersive Woodworking's own counts, of any metal, and
 the chapter without the paragraph. When these fail after an Immersive Woodworking update, compare
 its `recipes/grid/sawmill_*.json` and `chopper_*.json` with the patch.
+
+`tests/PackTests/FellingWearScenarios.cs` (Atlas, in `WoodworkingScenarios`) grows the game's trees
+in the sky (its English oak, its redwood for a thick one) and fells each as the server does, Logging
+Expanded's felling listener and then the axe's own break: an oak costs the axe `ThinTree`, a redwood
+`ThickTree`, both felled whole with every log in trunks; a felling without the listener (no trunk)
+costs the game's one per log and leaves no trunk; and an axe with less durability than the cost
+fells the whole tree, its logs all in trunks, and is gone after. `tests/FellingWearTests.cs`
+(xunit, no game) covers the thick rule, the cost and the settings' range. With the switch off,
+`SwitchesOffScenarios` requires nothing patched and a felling that leaves a trunk to cost one per
+log.
 
 `tests/PackTests/GearBlankScenarios.cs` (Atlas) requires both blanks to stack, be ground storable
 and be named; both molds to be clay-formed from each clay (two and four layers) and fire, in a pit
