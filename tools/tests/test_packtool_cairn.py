@@ -1,4 +1,4 @@
-"""packtool assemble's Cairn pack file, and the mod the rolling `next` build fetches by address.
+"""packtool assemble's Cairn pack file, and the pack's own mod, which it fetches by address.
 
 CI's cairn job assembles with `--url-mod seraphhorizons_<v>_<sha7>.zip <url>` (the build's zip,
 named after the commit so that the address changes with every build: Cairn notices a changed
@@ -6,7 +6,8 @@ address or version, never a changed hash), so the `next` pack carries the pack's
 from the same commit. The entries follow Cairn 0.9.10
 (cairn-app src/Cairn.Core/Packs/PackManifest.cs): the manifest names the address and no
 version, the lock holds the zip's sha256 with `fromUrl`, and there is one entry per modid.
-Versioned releases (release.yml) assemble without the flag, so nothing changes for them.
+Versioned releases (release.yml) do the same with `seraphhorizons_<v>.zip`, the release's own
+asset. The server bundle carries that zip as a file; the meta-mod and the mod list stay ModDB-only.
 
 Run with `python3 -m unittest discover -s tools/tests`.
 """
@@ -163,12 +164,30 @@ class Assemble(unittest.TestCase):
             self.assertEqual(nxt["pack"]["mods"][:-1], plain["pack"]["mods"])
             self.assertEqual(nxt["pack"]["mods"][-1], {"modid": "seraphhorizonstestmod", "url": URL})
             self.assertEqual(nxt["lock"]["mods"][-1]["sha256"], hashlib.sha256(z.read_bytes()).hexdigest())
-            # The other artifacts stay ModDB-only.
+            # The server bundle carries the zip itself; the meta-mod and the mod list stay ModDB-only.
+            with zipfile.ZipFile(tmp / "next" / f"{tag}_server.zip") as a, \
+                    zipfile.ZipFile(tmp / "plain" / f"{tag}_server.zip") as b:
+                self.assertEqual(a.read(f"Mods/{z.name}"), z.read_bytes())
+                self.assertEqual(sorted(a.namelist()), sorted(b.namelist() + [f"Mods/{z.name}"]))
             with zipfile.ZipFile(tmp / "next" / f"{tag}_metamod.zip") as a, \
                     zipfile.ZipFile(tmp / "plain" / f"{tag}_metamod.zip") as b:
                 self.assertEqual(a.read("modinfo.json"), b.read("modinfo.json"))
             self.assertEqual((tmp / "next" / f"{tag}_modlist.txt").read_text(),
                              (tmp / "plain" / f"{tag}_modlist.txt").read_text())
+
+    def test_the_server_bundle_fetches_no_pin_a_url_mod_replaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            meta = packtool.load_pack()["pack"]
+            tag = f"{meta['id']}_{meta['version']}"
+            pinned = packtool.load_lock()["mods"][0]
+            z = make_zip(tmp, name=f"{pinned['id']}_9.9.9.zip", modid=pinned["id"], version="9.9.9")
+            assemble(tmp / "dist", tmp / "cache", [[str(z), URL.rsplit("/", 1)[0] + "/" + z.name]])
+            with zipfile.ZipFile(tmp / "dist" / f"{tag}_server.zip") as a:
+                script = a.read("fetch-mods.sh").decode()
+                self.assertIn(f"Mods/{z.name}", a.namelist())
+            self.assertNotIn(pinned["fileName"], script)
+            self.assertIn(packtool.load_lock()["mods"][1]["fileName"], script)
 
     def test_a_bad_url_mod_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:

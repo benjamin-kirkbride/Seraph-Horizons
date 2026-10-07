@@ -41,6 +41,7 @@ public class SeraphHorizonsSystem : ModSystem
     // Its own id, patched once per process: both sides need it, and singleplayer runs both in one.
     private Harmony? _barrelRackHarmony;
     private Harmony? _heatingRackHarmony;
+    private Harmony? _heatingRackPlacementHarmony;
     // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
     private Harmony? _gearConsumersHarmony;
     private bool _gearConsumers;
@@ -109,6 +110,8 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(BarrelRackKegs.DisablePatches);
         if (Config(api).HeatingRackKeepsPosition && HeatingRackPosition.Applies(api) && HeatingRackPosition.Bind(api.Logger))
             HeatingRackPosition.Patch(_heatingRackHarmony = new Harmony(HeatingRackPosition.HarmonyId));
+        if (Config(api).HeatingRackStandsOnBlock && HeatingRackPlacement.Applies(api) && HeatingRackPlacement.Bind(api.Logger))
+            HeatingRackPlacement.Patch(_heatingRackPlacementHarmony = new Harmony(HeatingRackPlacement.HarmonyId));
         _gearConsumers = Config(api).GearConsumers;
         if (!_gearConsumers)
             DisablePatches(GearConsumers.DisablePatches);
@@ -257,6 +260,8 @@ public class SeraphHorizonsSystem : ModSystem
         _barrelRackHarmony = null;
         _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
         _heatingRackHarmony = null;
+        _heatingRackPlacementHarmony?.UnpatchAll(HeatingRackPlacement.HarmonyId);
+        _heatingRackPlacementHarmony = null;
         _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
         _gearConsumersHarmony = null;
         if (_carryOnIconFields != null)
@@ -406,6 +411,12 @@ public class SeraphHorizonsConfig
     /// client, a creative pick) knows its new position, not the one it was picked up from (both
     /// sides; off means it is as Logging Expanded ships it).</summary>
     public bool HeatingRackKeepsPosition { get; set; } = true;
+
+    /// <summary>Logging Expanded: a Trunk Heating Rack placed onto the top face of a block (from the
+    /// hotbar, a creative pick or Carry On) stands on it, one cell up with the cell between left for
+    /// a firepit, unless the block is a firepit (both sides; off means it stands in the block, legs
+    /// in the floor, as Logging Expanded ships it).</summary>
+    public bool HeatingRackStandsOnBlock { get; set; } = true;
 
     /// <summary>Immersive Woodworking + Logging Expanded: one woodworking system. Immersive
     /// Woodworking's chopping block is the splitting block, made in the world with an axe and

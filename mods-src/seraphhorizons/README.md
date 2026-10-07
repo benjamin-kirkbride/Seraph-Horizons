@@ -1,8 +1,9 @@
 # Seraph Horizons
 
-The pack's own mod, named after the pack: every install of the pack downloads it, so its ModDB
-page shows the pack's download count and is where people browsing the ModDB find the pack. Its
-modid is the pack's id, so the pack's meta-mod (`packtool assemble`) is `seraphhorizonspack`.
+The pack's own mod, named after the pack: the pack and it are one thing with one version, released
+together (Releasing, below). Its ModDB page, where it is uploaded after a release, is where people
+browsing the ModDB find the pack. Its modid is the pack's id, so the pack's meta-mod
+(`packtool assemble`) is `seraphhorizonspack`.
 
 It is a code mod holding the pack's own tweaks: gameplay changes to other mods, Tidy Variants, which
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
@@ -18,7 +19,7 @@ they live together here and not in a mod each. Every tweak has its own switch in
 One whose mod has changed shape logs a warning and leaves that mod alone.
 
 Only the game's own assemblies are referenced at build time: each tweak to another mod finds what
-it patches by name, so the mod builds from the game alone (`mod-release.yml` needs nothing else).
+it patches by name, so the mod builds from the game alone (`release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
@@ -1841,6 +1842,45 @@ creative hotbars, still carry them. With no position in the tree, `BEResinRack.F
 keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
 warning and leaves the rack as it ships.
 
+### The heating rack stands on the block it is placed on (`HeatingRackStandsOnBlock`)
+
+Logging Expanded (`loggingmod` 0.3.6). The Trunk Heating Rack's legs reach a full block below its
+own cell (`shapes/resinrack.json` runs from y -16 to +14), with the bowl on the cell's floor and the
+firepit meant to go in the cell under it: binding a heating rack frame builds the rack one block above
+the ground, and `BEResinRack` reads its firepit from `Pos.DownCopy()`. `BlockResinRack` has no
+placement of its own, so a rack placed from a stack (the hotbar, a creative pick, Carry On's
+place-down, which runs the block's `TryPlaceBlock` too) goes in the cell over the face aimed at, like
+any block, its legs drawn inside the floor.
+
+`HeatingRackPlacement` (Harmony, on both sides, once per process with its own id) prefixes the rack's
+`DoPlaceBlock`, the one method on the rack's own class that every placement from a stack reaches (its
+`HorizontalOrientable` behavior runs `CanPlaceBlock` and then `DoPlaceBlock`). It moves the selection
+one cell up when all of these hold:
+
+- the placement was offset off an up face (`DidOffset` set, face up): aimed at the top face of a
+  block, not at a side, and not at a replaceable block such as grass, where the rack goes into the
+  aimed-at cell as it ships;
+- the block aimed at (the cell below) is not a firepit (`BlockFirepit` or `BlockEntityFirepit`, any
+  stage): over a firepit the rack already goes in the cell right above it, where its firepit check
+  looks;
+- the cell above can take the rack: in the world, replaceable, no entity in it, and the player may
+  build there (the claim is tested, not tried, so no message is sent). If not, the rack goes where it
+  would have gone without the tweak.
+
+The selection's `Position` is moved in place, never replaced, so everyone holding that selection sees
+the lifted cell: the game's client sends it to the server with the placement, and Carry On 2.0's
+`TryPlaceDownAt` (whose `placedAt` is the same `BlockPos` it passes on) reports it, restores the block
+entity's tree there (`RestoreBlockEntityData`) and plays the sound there. The face stays up and
+`DidOffset` stays set, since the rack was still placed off that up face. A server receiving a lifted
+position finds air under it, not a block, so it does not lift again. If the placement fails after the
+lift, a postfix moves the position back down, so the game's client, which undoes its own offset by
+the face, ends where it started. A rack Carry On drops (a dropped carry, not a place-down) goes
+through `ExchangeBlock`, not `DoPlaceBlock`, and is not lifted; nor is the rack the frame binding builds,
+whose selection is not offset. Each side reads its own switch, so the two should agree (both are on
+by default): with it on on the client only, the server places at the client's lifted cell; on the
+server only, the server lifts a rack the client predicted one cell lower. If the rack or the method
+is not as expected, the mod logs a warning and leaves the rack as it ships.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -2829,6 +2869,19 @@ stack carrying the rack's position. When it fails after a Logging Expanded updat
 the rack still writes its tree into the stack, and whether `FromTreeAttributes` still keeps its
 position when the tree has none.
 
+The same file holds `HeatingRackStandsOnBlock`'s scenarios. A rack placed from a stack through
+`TryPlaceBlock`, with the selection the game makes for a click on the granite floor's top face (the
+cell over it, `DidOffset` set), must stand one cell higher, the cell between empty and the block
+entity's `Pos` the rack's, and the selection must say so; aimed at an extinct firepit's top face it
+must stand right above the firepit; with the cell above taken, or aimed at a side face, it goes in
+the cell over the face. Carry On's place-down (the scenario above) must report the lifted cell and
+restore the block entity's tree there (a banked resin figure set before the pickup). With the switch
+off, `SwitchesOffScenarios` requires nothing patched and the rack in the cell over the floor. When
+they fail after a Logging Expanded update, check whether the rack gained a placement of its own
+(`TryPlaceBlock` or a different `DoPlaceBlock`) or a new shape; after a Carry On update, whether
+`TryPlaceDownAt` still hands the block the same `BlockSelection` whose `Position` it reports and
+restores at.
+
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's
 block entity, taking 950 L of water. It requires the tun rack's block, field and liquid slot all at
@@ -2968,8 +3021,8 @@ camp scenarios do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
 nothing changed world-wide.
 
-The test project loads this directory's build as a mod, and leaves out a pinned copy from the
-ModDB (`seraphhorizons_*.zip` in `build/mods`).
+The test project loads this directory's build as a mod, and leaves out any other copy
+(`seraphhorizons_*.zip` in `build/mods`).
 
 `tests/PackTests/OreCellsScenarios.cs` (Atlas, a new standard world with a fixed seed) requires
 the four ore switches read and recorded in the savegame, IOG's `TryApproveOreSpawnSeed` patched,
@@ -2996,10 +3049,16 @@ read their switch with `SeraphHorizonsSystem.ConfigFor(api)`.
 
 ## Releasing
 
-The same as `mods-src/allowedvariantsfix/README.md`: bump the version in `modinfo.json` and
-`SeraphHorizons.csproj`, merge, tag `seraphhorizons-v<version>` on main, upload the zip from the
-GitHub Release to the ModDB (keep the file name), then pin it in `pack/pack.toml` (the first
-release adds the entry, `side = "universal"`) and run `packtool lock`.
+With the pack: one release, one version. Bump `modinfo.json`, `SeraphHorizons.csproj` and
+`pack/pack.toml`'s `[pack] version` together (`tools/tests/test_mods_src.py` requires the three
+equal), run `packtool lock` and cog (`CLAUDE.md`), merge, and tag `v<version>` on main.
+`.github/workflows/release.yml` builds `seraphhorizons_<version>.zip` from the tag and publishes it
+in the pack's release, whose `.cairn` file installs it from there by its sha256 and whose server
+bundle carries it. The mod is never pinned in `pack/pack.toml`, and `mod-release.yml` (the other
+`mods-src/` mods' way) refuses a `seraphhorizons-v*` tag.
+
+Uploading the zip from the release to the ModDB (keep the file name) is optional, for people who
+find mods there; the release never waits on it.
 
 Between releases, every push to main that passes CI republishes the rolling
 [`seraphhorizons-next`](https://github.com/benjamin-kirkbride/Seraph-Horizons/releases/tag/seraphhorizons-next)
@@ -3008,7 +3067,7 @@ after it (`seraphhorizons_<version>_<sha7>.zip`, so that Cairn, which sees a new
 new hash, fetches every build), with its `SHA256SUMS` and the previous build's zip, kept for one
 more publish. The pack's rolling `next` Cairn pack, published right after it from the same
 commit, installs the mod from there by its sha256, so `next` plays with the mod as it is on main
-before any of it reaches the ModDB. The zip keeps `modinfo.json`'s version, so it is not newer
+before any of it is released. The zip keeps `modinfo.json`'s version, so it is not newer
 than the release of that version as far as the game is concerned: swap it in for that copy,
 don't add it next to one.
 
