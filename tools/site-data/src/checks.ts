@@ -30,7 +30,7 @@ export interface ExportV1 {
   schemaVersion: number;
   pack: { id: string; version: string; gameVersion: string };
   mods: Record<string, unknown>;
-  items: Record<string, { mod: string }>;
+  items: Record<string, { mod: string; value?: number }>;
   recipes: Recipe[];
   recipeTypes: Record<string, { count: number }>;
 }
@@ -42,6 +42,10 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
   for (const [code, item] of Object.entries(d.items)) {
     if (!has(d.mods, item.mod)) {
       report.add("item-mod", `/items/${ptr(code)}/mod`, "a key of mods", JSON.stringify(item.mod));
+    }
+    // The pack's item value table: gears per item, never negative or not a number.
+    if (item.value !== undefined && !(Number.isFinite(item.value) && item.value >= 0)) {
+      report.add("item-value", `/items/${ptr(code)}/value`, "a finite number, 0 or more", String(item.value));
     }
   }
 

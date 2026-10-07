@@ -46,6 +46,8 @@ export interface ItemRef {
   name: string;
   mod: string;
   flags: number;
+  /** Value in rusty gears, when the item has one. */
+  value?: number;
 }
 
 export class VersionData {
@@ -97,7 +99,10 @@ export class VersionData {
   ref(index: number): ItemRef | null {
     const f = this.index;
     if (!f || index < 0 || index >= f.codes.length) return null;
-    return { index, code: f.codes[index]!, name: f.names[index]!, mod: f.mods[f.mod[index]!]!, flags: f.flags[index]! };
+    const ref: ItemRef = { index, code: f.codes[index]!, name: f.names[index]!, mod: f.mods[f.mod[index]!]!, flags: f.flags[index]! };
+    const value = f.value?.[index];
+    if (typeof value === "number") ref.value = value;
+    return ref;
   }
 
   /** Display name of a code; the code itself when the export does not list it. */

@@ -8,29 +8,27 @@ facts behind it are in [spike-findings.md](spike-findings.md).
 ## Running it
 
 ```sh
-dotnet build mods-src/seraphhorizons -c Release    # writes build/seraphhorizons_<version>.zip
-python3 tools/packtool.py smoke --export build/recipes.json \
-  --local-mod build/seraphhorizons_<version>.zip
+python3 tools/packtool.py smoke --export build/recipes.json
 ```
 
 This builds `tools/recipe-export` against `$VINTAGE_STORY` and stages it as a folder mod in
 the smoke run's own `Mods` (never in `build/mods`, so it is not part of the lock or of
-`assemble`). It then boots the server with `SERAPH_EXPORT_PATH`, `SERAPH_PACK_ID` and
+`assemble`). The pack's own mod goes there the same way: every smoke run builds
+`mods-src/seraphhorizons` (Release, its `build/seraphhorizons_<version>.zip`) and loads that zip in
+place of any pinned copy of the modid, as `tests/PackTests` does for Atlas, so the export carries
+the mod's items and recipes as the tree has them. It then boots the server with `SERAPH_EXPORT_PATH`, `SERAPH_PACK_ID` and
 `SERAPH_PACK_VERSION` set, from `pack/lock.json`. The smoke check fails if the file was not
 written, is not JSON, or its `recipeTypes` counts disagree with its records. It prints the
 recipe count per type, and the same lines go into the job summary. If the exporter throws
 (a registry it cannot serialise), it logs `[seraphexport] export failed: ...` and writes
 nothing. Smoke then fails and shows that line.
 
-`--local-mod ZIP` (repeatable) also loads a mod built from `mods-src/`. CI passes the pack's
-own mod, `seraphhorizons`, built from the same tree, so the export holds its items, its
-recipes and the schematics it gates other mods' recipes behind; the lock does not carry it
-(it is released with the pack, never pinned) (#506). The zip is copied into
-the smoke run's own `Mods` like the export mod, and any mod already staged there under the
-same modid (its pinned zip) is removed from that copy first, so the game cannot load the pin
-instead. `build/mods`, the lock and `assemble` never see it. Smoke fails if the mod is not
-loaded, and its summary names what the build replaced. Without the flag the export is the
-pinned pack's alone, which is not what CI publishes.
+The lock does not carry the pack's own mod (it is released with the pack, never pinned), so
+without that build the export would miss its items, its recipes and the schematics it gates
+other mods' recipes behind, and the item-values check on it would read the wrong world (#506).
+Any mod already staged under its modid (a pinned zip) is left out of the run's copy, so the game
+cannot load the pin instead. Smoke fails if the build fails or the mod is not loaded, and its
+summary names what the build replaced. There is no flag: every smoke run does this.
 
 The Atlas scenarios call `Exporter.Build` on their own server instead (`ExportUnderTest`).
 One that reads only the guide pages calls `Exporter.Guides`, which returns the `guides`

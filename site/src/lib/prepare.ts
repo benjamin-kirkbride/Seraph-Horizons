@@ -5,6 +5,7 @@ import type { Recipe, RecipeExport, Shape } from "./export.ts";
 import {
   DATA_FORMAT,
   FLAG_BLOCK,
+  FLAG_FLOOR_ZERO,
   type EntityChunk,
   type EntityIndex,
   type EntityVariant,
@@ -276,11 +277,19 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
 
   const search: SearchFile = { mods: modIds, codes, names: [], mod: [], flags: [] };
   const details: ItemDetail[] = [];
+  // Item values: one number (or null) per row, so the item page, search and the values page
+  // read them without fetching a chunk.
+  const values: (number | null)[] = [];
+  const valueSwitches: Record<string, string[]> = {};
   for (const code of codes) {
     const item = exp.items[code]!;
     search.names.push(item.name || code);
     search.mod.push(modIndex.get(item.mod)!);
-    search.flags.push((item.handbookVisible ? FLAG_HANDBOOK : 0) | (item.kind === "block" ? FLAG_BLOCK : 0));
+    search.flags.push(
+      (item.handbookVisible ? FLAG_HANDBOOK : 0) | (item.kind === "block" ? FLAG_BLOCK : 0) | (item.floorZero ? FLAG_FLOOR_ZERO : 0),
+    );
+    values.push(typeof item.value === "number" && Number.isFinite(item.value) ? item.value : null);
+    if (item.valueSwitches && item.valueSwitches.length > 0) valueSwitches[String(values.length - 1)] = item.valueSwitches;
     const d: ItemDetail = {};
     if (item.description) d.description = item.description;
     if (item.attributes && Object.keys(item.attributes).length > 0) d.attributes = item.attributes;
@@ -364,6 +373,12 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     files.set(`entities/${n}.json`, chunk);
   });
 
+  const valueCount = values.filter((v) => v !== null).length;
+  if (valueCount > 0) {
+    search.value = values;
+    if (Object.keys(valueSwitches).length > 0) search.valueSwitches = valueSwitches;
+  }
+
   const meta: Meta = {
     format: DATA_FORMAT,
     pack: exp.pack,
@@ -382,6 +397,7 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     recipeChunks,
     entityCount: entities.index.codes.length,
     entityChunks,
+    ...(valueCount > 0 ? { valueCount } : {}),
   };
   files.set("meta.json", meta);
   files.set("entities.json", entities.index);

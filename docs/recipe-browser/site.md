@@ -2,7 +2,8 @@
 
 The app in `site/`: Vite, Svelte 5 and TypeScript. It is a static single-page app. The
 build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<code>`,
-`#/<version>/type/<code>`, `#/<version>/entity/<type>`, `#/<version>/search?q=`),
+`#/<version>/type/<code>`, `#/<version>/entity/<type>`, `#/<version>/search?q=`,
+`#/<version>/values`),
 so the same `dist/` works at any sub-path and a reload on a deep link only ever asks
 the server for `index.html`.
 
@@ -106,7 +107,11 @@ The end-to-end tests in `site/e2e/` only run against a real export; without
 export (published twice, as versions `next` and `v0.0.0-e2e`, so the version switcher
 can be tested), adds a test icon for `game:ingot-copper` and the real icons committed
 under `site/e2e/icons/` (plain files, not LFS, so CI needs no LFS fetch), and serves the result at
-`http://127.0.0.1:4317/Seraph-Horizons/`. The same build is served at `/noicons/` with no
+`http://127.0.0.1:4317/Seraph-Horizons/`. It
+also writes a few fixed item values over the export's (`E2E_VALUES` in `e2e/config.ts`:
+copper ingot 2.5, a `floorZero` stick, rot without one), and when the export has no values
+of its own it gives nine items in ten a made-up one, so `e2e/values.spec.ts` tests the
+values page at full size; the gear's icon is committed under `site/e2e/icons/` too. The same build is served at `/noicons/` with no
 `icons/` directory. The tests check facts from the vanilla 1.22.7 assets, and each names
 the asset file it relies on. `e2e/icons.spec.ts` screenshots the tile with its contents
 hidden, decodes the PNG (`e2e/png.ts`) and compares the centre and corners with colours
@@ -124,8 +129,8 @@ the current `schemaVersion`, plus the mods' ModDB asset ids from the lock (see M
 and writes:
 
 ```
-<dir>/meta.json          pack, generator, mods (with ModDB asset ids), recipe types (with their first recipe index), item and recipe counts, chunk starts
-<dir>/search.json        every item, column-wise and sorted by code
+<dir>/meta.json          pack, generator, mods (with ModDB asset ids), recipe types (with their first recipe index), item, recipe and valued-item counts, chunk starts
+<dir>/search.json        every item, column-wise and sorted by code, with its value
 <dir>/items/<n>.json     item details and reverse indexes, a few hundred items per file
 <dir>/recipes/<n>.json   recipe records as in the export, up to 60 per file
 <dir>/entities.json      every creature and trader, column-wise and sorted by code
@@ -148,7 +153,17 @@ An item's index in `search.json` is its id everywhere else:
 }
 ```
 
-`mod` indexes `mods`. `flags` has bit 1 for handbook-visible and bit 2 for blocks.
+`mod` indexes `mods`. `flags` has bit 1 for handbook-visible, bit 2 for blocks and bit 4
+for `floorZero` (see Item values).
+
+When the export gives any item a `value`, `search.json` also has `value`, one entry per
+item: its value in rusty gears, or `null`. `valueSwitches` maps an item's index (as a
+string) to the config switches its value depends on, for the items that have any, and
+`meta.json` has `valueCount`, the number of valued items. An export without values gets
+none of the three. A value is one number per row, about a tenth of the file's size before
+compression for a pack where nearly every item has one (2.0 to 2.2 MB for 27,000 items
+with three-decimal values), and the item page, search and the values page then need no
+other file. Item chunks do not repeat it.
 
 `meta.json` has `itemChunks` and `recipeChunks`, the first index held by each chunk file,
 ascending. Item `i` is in `items/<n>.json` for the last `n` whose start is at most `i`,
@@ -212,6 +227,40 @@ expression, and `allowedVariants` and `skipVariants` filter the value of the fir
 So a recipe asking for `game:plank-*` is a use of `game:plank-birch`. An output with a
 `{name}` placeholder is only matched this way when the recipe has no variants, limited to
 the values its named ingredient allows.
+
+### Item values
+
+The pack prices every item in rusty gears (`game:gear-rusty` = 1, three decimals), a
+table its own mod ships; the exporter writes it as `value` on each item of the export
+([schema.md](schema.md)). The site shows the value for the pack's default config; the
+config switches a value depends on (`valueSwitches`) are only named, in the tooltip of the
+value on the values page. A value is the gear's icon followed by the number, with "rusty
+gears" for screen readers only (`GearValue.svelte`, `formatGears` in
+`site/src/lib/values.ts`). A `floorZero` item, worth under a gear for a full stack, which
+traders treat as worthless, still shows its number, dimmed, with the reason on hover.
+
+- Item page: the value sits beside the item's name in the header, or "No trade value" when
+  the item has none. With an export that has no values at all the header says nothing.
+- Search: each result row shows its value, and an Order menu sorts the results by value,
+  lowest or highest first, as well as best match. The order is in the address
+  (`#/<version>/search?q=gear&sort=value-desc`) and a new query keeps it. Sorting by value
+  sorts every match, not just the best hundred, then shows the first hundred; items
+  without a value come last either way, and equal values keep their ranking.
+- Values page (`#/<version>/values`, linked from the header and the start page when the
+  version has values): the whole table, a row per valued item with its icon and name
+  (linking to its page), its mod (the item's `mod`, linked as in Mod links) and its
+  value. A click on a column header sorts by it and a second click turns it round; value
+  starts highest first, item and mod start at A, ties go by name. The filter box keeps the
+  rows whose name, code, mod id and mod name contain every word typed. A checkbox adds
+  the items without a value, which sort last whichever way the value column is sorted.
+
+The values page reads `search.json`, which the app has loaded anyway, instead of a file of
+its own. `ValueTable` (`values.ts`) builds each column's order once, when first sorted on
+(about 35 ms for 27,000 items, value being the slowest), and a query walks that order
+keeping the rows that match, 2 to 30 ms depending on how many pass. The page shows 100
+rows at a time with a pager, so the DOM never holds more than a page of icons and links,
+and it filters as the reader types without a debounce. Sort, filter and page are the
+page's own state, not in the address.
 
 ### Recipe type pages
 
@@ -328,4 +377,6 @@ export (wavy sand) has no page, so nothing shows it.
 
 `DATA_FORMAT` in `format.ts` is written to `meta.json` as `format`. The app and the data
 are always built together, so there is no migration between formats. Format 2 added
-`start` to the recipe types and sorted recipes by type first.
+`start` to the recipe types and sorted recipes by type first. Format 3 added item values:
+`value`, `valueSwitches` and the `floorZero` flag in `search.json`, `valueCount` in
+`meta.json`.

@@ -13,6 +13,7 @@
   import ItemPage from "./components/ItemPage.svelte";
   import SearchResults from "./components/SearchResults.svelte";
   import TypePage from "./components/TypePage.svelte";
+  import ValuesPage from "./components/ValuesPage.svelte";
 
   let route = $state<Route>(parseRoute(location.hash));
   let versions = $state<VersionsFile | null>(null);
@@ -118,7 +119,9 @@
     e?.preventDefault();
     clearTimeout(debounce);
     if (!searchVersion) return;
-    go({ view: "search", version: searchVersion, query }, route.view === "search");
+    // A new query keeps the order the reader picked for the results.
+    const sort = route.view === "search" ? route.sort : undefined;
+    go({ view: "search", version: searchVersion, query, ...(sort ? { sort } : {}) }, route.view === "search");
   }
 
   function switchTheme(e: Event) {
@@ -171,6 +174,9 @@
     </form>
     {#if versionId && known}
       <a class="nav" href={formatRoute({ view: "entities", version: versionId })}>{t.entitiesLink}</a>
+      {#if meta?.id === versionId && (meta.meta.valueCount ?? 0) > 0}
+        <a class="nav" href={formatRoute({ view: "values", version: versionId })} aria-current={route.view === "values" ? "page" : undefined}>{t.valuesLink}</a>
+      {/if}
     {/if}
     <a class="nav" href={formatRoute({ view: "models" })} aria-current={route.view === "models" || route.view === "model" ? "page" : undefined}>{t.modelsLink}</a>
     {#if versions && versions.versions.length > 0}
@@ -225,7 +231,7 @@
   {:else if route.view === "home"}
     <Home meta={meta.meta} version={data.id} />
   {:else if route.view === "search"}
-    <SearchResults {data} meta={meta.meta} query={route.query} />
+    <SearchResults {data} meta={meta.meta} query={route.query} sort={route.sort} />
   {:else if route.view === "item"}
     {#key `${data.id}|${route.code}`}
       <ItemPage {data} meta={meta.meta} code={route.code} />
@@ -242,6 +248,8 @@
     {/key}
   {:else if route.view === "credits"}
     <Credits meta={meta.meta} />
+  {:else if route.view === "values"}
+    <ValuesPage {data} meta={meta.meta} />
   {/if}
 </main>
 

@@ -1,112 +1,139 @@
-"""packtool smoke --local-mod: which mods end up in the smoke run's Mods. No server needed.
+"""packtool smoke: staging the run's mods, and the pack's own mod built from mods-src. No server
+or .NET needed (the build is stubbed).
 
 Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
 import json
+import subprocess
 import tempfile
 import unittest
 import zipfile
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 _spec = importlib.util.spec_from_file_location("packtool", Path(__file__).resolve().parent.parent / "packtool.py")
 packtool = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(packtool)
 
 
-def mod_zip(path: Path, modinfo: dict | None) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def mod_zip(path: Path, modid: str, version: str = "1.0.0") -> Path:
     with zipfile.ZipFile(path, "w") as z:
-        if modinfo is not None:
-            z.writestr("modinfo.json", json.dumps(modinfo))
-        z.writestr("x.dll", "x")
+        z.writestr("modinfo.json", json.dumps({"modid": modid, "version": version}))
     return path
 
 
-class StageLocalMods(unittest.TestCase):
+class StageMods(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.mods = self.tmp / "Mods"
-        self.mods.mkdir()
-        self.built = self.tmp / "build"
-        mod_zip(self.mods / "carryon_1.2.zip", {"modid": "carryon", "version": "1.2"})
-        folder = self.mods / "seraphexport"
+        self.tmp = tempfile.TemporaryDirectory()
+        self.src = Path(self.tmp.name) / "mods"
+        self.dest = Path(self.tmp.name) / "Mods"
+        self.src.mkdir()
+        self.dest.mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_pinned_copy_of_the_pack_mod_is_left_out_by_modid(self):
+        mod_zip(self.src / "seraphhorizons_1.0.0.zip", "seraphhorizons")
+        mod_zip(self.src / "seraphhorizonspack_0.1.0.zip", "seraphhorizonspack")  # the meta-mod stays
+        mod_zip(self.src / "renamed.zip", "seraphhorizons")  # by modid, not file name
+        mod_zip(self.src / "olla_1.2.0.zip", "olla")
+        folder = self.src / "localmod"
         folder.mkdir()
-        (folder / "modinfo.json").write_text(json.dumps({"ModID": "seraphexport", "version": "1"}))
+        (folder / "modinfo.json").write_text('{\n  // a comment\n  "ModID": "localmod",\n}')
+        dropped = packtool.stage_mods(self.src, self.dest, {"seraphhorizons"})
+        self.assertEqual(dropped, ["renamed.zip", "seraphhorizons_1.0.0.zip"])
+        self.assertEqual(sorted(p.name for p in self.dest.iterdir()),
+                         ["localmod", "olla_1.2.0.zip", "seraphhorizonspack_0.1.0.zip"])
+        self.assertTrue((self.dest / "localmod" / "modinfo.json").exists())
 
-    def staged(self):
-        return sorted(p.name for p in self.mods.iterdir())
+    def test_nothing_pinned_drops_nothing(self):
+        mod_zip(self.src / "olla_1.2.0.zip", "olla")
+        (self.src / "notes.txt").write_text("not a mod")
+        self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}), [])
+        self.assertEqual(sorted(p.name for p in self.dest.iterdir()), ["notes.txt", "olla_1.2.0.zip"])
 
-    def test_no_local_mods_leaves_mods_alone(self):
-        self.assertEqual(packtool.stage_local_mods(self.mods, []), {})
-        self.assertEqual(self.staged(), ["carryon_1.2.zip", "seraphexport"])
+    def test_modid_is_matched_without_case(self):
+        mod_zip(self.src / "seraphhorizons_0.9.0.zip", "SeraphHorizons", "0.9.0")
+        self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}),
+                         ["seraphhorizons_0.9.0.zip"])
+        self.assertEqual(list(self.dest.iterdir()), [])
 
-    def test_unpinned_mod_is_added(self):
-        z = mod_zip(self.built / "seraphhorizons_1.0.0.zip", {"modid": "seraphhorizons", "version": "1.0.0"})
-        got = packtool.stage_local_mods(self.mods, [z])
-        self.assertEqual(self.staged(), ["carryon_1.2.zip", "seraphexport", "seraphhorizons_1.0.0.zip"])
-        self.assertEqual(got, {"seraphhorizons": "seraphhorizons 1.0.0 from seraphhorizons_1.0.0.zip"})
-        self.assertTrue(z.exists(), "the build itself is copied, not moved")
+    def test_a_folder_mod_of_the_modid_is_left_out_too(self):
+        folder = self.src / "seraphhorizons"
+        folder.mkdir()
+        (folder / "modinfo.json").write_text(json.dumps({"ModID": "seraphhorizons", "version": "1"}))
+        self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}), ["seraphhorizons"])
 
-    def test_pinned_zip_of_the_same_modid_is_replaced(self):
-        mod_zip(self.mods / "seraphhorizons_0.9.0.zip", {"modid": "SeraphHorizons", "version": "0.9.0"})
-        z = mod_zip(self.built / "seraphhorizons_1.0.0.zip", {"modid": "seraphhorizons", "version": "1.0.0"})
-        got = packtool.stage_local_mods(self.mods, [z])
-        self.assertEqual(self.staged(), ["carryon_1.2.zip", "seraphexport", "seraphhorizons_1.0.0.zip"])
-        self.assertIn("in place of seraphhorizons_0.9.0.zip", got["seraphhorizons"])
+    def test_broken_zips_and_non_mods_are_kept(self):
+        with zipfile.ZipFile(self.src / "broken.zip", "w") as z:
+            z.writestr("x.dll", "x")  # no modinfo.json
+        (self.src / "notzip.zip").write_text("not a zip")
+        self.assertEqual(packtool.stage_mods(self.src, self.dest, {"seraphhorizons"}), [])
+        self.assertEqual(sorted(p.name for p in self.dest.iterdir()), ["broken.zip", "notzip.zip"])
 
-    def test_pin_under_the_builds_own_name_is_replaced_by_the_build(self):
-        mod_zip(self.mods / "seraphhorizons_1.0.0.zip", {"modid": "seraphhorizons", "version": "pinned"})
-        z = mod_zip(self.built / "seraphhorizons_1.0.0.zip", {"modid": "seraphhorizons", "version": "1.0.0"})
-        packtool.stage_local_mods(self.mods, [z])
-        self.assertEqual(packtool.modinfo_from_zip(self.mods / "seraphhorizons_1.0.0.zip")["version"], "1.0.0")
 
-    def test_folder_mod_of_the_same_modid_is_replaced(self):
-        z = mod_zip(self.built / "seraphexport_2.zip", {"modid": "seraphexport", "version": "2"})
-        packtool.stage_local_mods(self.mods, [z])
-        self.assertEqual(self.staged(), ["carryon_1.2.zip", "seraphexport_2.zip"])
+class StagePackMod(unittest.TestCase):
+    def test_zip_is_named_after_modinfo(self):
+        info = json.loads((packtool.PACK_MOD_PROJECT / "modinfo.json").read_text())
+        self.assertEqual(info["modid"], packtool.PACK_MOD_ID)
+        self.assertEqual(packtool.pack_mod_zip(),
+                         packtool.ROOT / "build" / f"{info['modid']}_{info['version']}.zip")
 
-    def test_other_mods_and_non_mods_are_kept(self):
-        (self.mods / "notes.txt").write_text("x")
-        mod_zip(self.mods / "broken.zip", None)
-        z = mod_zip(self.built / "seraphhorizons_1.0.0.zip", {"modid": "seraphhorizons", "version": "1.0.0"})
-        packtool.stage_local_mods(self.mods, [z])
-        self.assertEqual(self.staged(), ["broken.zip", "carryon_1.2.zip", "notes.txt", "seraphexport",
-                                         "seraphhorizons_1.0.0.zip"])
+    def test_builds_release_against_the_server_and_stages_the_zip_in_the_run_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            project = tmp / "mods-src" / "mymod"
+            project.mkdir(parents=True)
+            (project / "modinfo.json").write_text('{"modid": "mymod", "version": "2.0.0"}')
+            data = tmp / "data"
+            (data / "Mods").mkdir(parents=True)
+            built = tmp / "build" / "mymod_2.0.0.zip"
+            calls = []
 
-    def test_missing_zip_dies(self):
-        with self.assertRaises(SystemExit):
-            packtool.stage_local_mods(self.mods, [self.built / "nope.zip"])
+            def fake_build(cmd, env):
+                calls.append((cmd, env["VINTAGE_STORY"]))
+                built.parent.mkdir(exist_ok=True)
+                mod_zip(built, "mymod", "2.0.0")
+                return subprocess.CompletedProcess(cmd, 0)
 
-    def test_zip_without_modinfo_dies_before_anything_changes(self):
-        good = mod_zip(self.built / "a.zip", {"modid": "carryon", "version": "2"})
-        bad = mod_zip(self.built / "b.zip", None)
-        with self.assertRaises(SystemExit):
-            packtool.stage_local_mods(self.mods, [good, bad])
-        self.assertEqual(self.staged(), ["carryon_1.2.zip", "seraphexport"])
+            with mock.patch.object(packtool, "ROOT", tmp), mock.patch.object(packtool.subprocess, "run", fake_build):
+                staged = packtool.stage_pack_mod(tmp / "server", data, project)
+            self.assertEqual(staged, data / "Mods" / "mymod_2.0.0.zip")
+            self.assertTrue(staged.exists())
+            cmd, server = calls[0]
+            self.assertEqual(cmd[:5], ["dotnet", "build", str(project), "-c", "Release"])
+            self.assertEqual(server, str(tmp / "server"))
 
-    def test_same_modid_twice_dies(self):
-        a = mod_zip(self.built / "a.zip", {"modid": "seraphhorizons", "version": "1"})
-        b = mod_zip(self.built / "b.zip", {"modid": "SeraphHorizons", "version": "2"})
-        with self.assertRaises(SystemExit):
-            packtool.stage_local_mods(self.mods, [a, b])
+    def test_a_stale_zip_does_not_hide_a_failed_build(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            project = tmp / "mymod"
+            project.mkdir()
+            (project / "modinfo.json").write_text('{"modid": "mymod", "version": "2.0.0"}')
+            (tmp / "build").mkdir()
+            mod_zip(tmp / "build" / "mymod_2.0.0.zip", "mymod", "2.0.0")  # from an earlier build
+            with mock.patch.object(packtool, "ROOT", tmp), \
+                    mock.patch.object(packtool.subprocess, "run", lambda cmd, env: subprocess.CompletedProcess(cmd, 1)), \
+                    self.assertRaises(SystemExit):
+                packtool.stage_pack_mod(tmp / "server", tmp / "data", project)
 
 
 class SmokeArguments(unittest.TestCase):
-    def test_local_mod_is_repeatable(self):
-        seen = []
-        with mock.patch.object(packtool, "cmd_smoke", seen.append), \
-                mock.patch("sys.argv", ["packtool", "smoke", "--local-mod", "a.zip", "--local-mod", "b.zip"]):
+    def test_there_is_no_local_mod_flag(self):
+        """The pack's own mod is always built and staged; there is nothing to opt into."""
+        with mock.patch.object(packtool, "cmd_smoke", lambda a: None), \
+                mock.patch("sys.argv", ["packtool", "smoke", "--local-mod", "a.zip"]), \
+                mock.patch("sys.stderr"), self.assertRaises(SystemExit):
             packtool.main()
-        self.assertEqual(seen[0].local_mod, ["a.zip", "b.zip"])
 
-    def test_no_local_mod_by_default(self):
+    def test_smoke_parses_without_flags(self):
         seen = []
         with mock.patch.object(packtool, "cmd_smoke", seen.append), mock.patch("sys.argv", ["packtool", "smoke"]):
             packtool.main()
-        self.assertIsNone(seen[0].local_mod)
+        self.assertFalse(hasattr(seen[0], "local_mod"))
 
 
 if __name__ == "__main__":
