@@ -167,7 +167,7 @@ compression for a pack where nearly every item has one (2.0 to 2.2 MB for 27,000
 with three-decimal values), and the item page, search and the values page then need no
 other file. Item chunks do not repeat it.
 
-When the export has `variantGroups` (Tidy Variants' groups, [schema.md](schema.md)),
+When the export has `variantGroups` (Tidy Variants' groups and the handbook's, [schema.md](schema.md)),
 `search.json` also has `groups`: `titles`, one title per group, and `members`, each
 group's item indices, best representative first, groups in id order:
 
@@ -271,8 +271,9 @@ traders treat as worthless, still shows its number, dimmed, with the reason on h
   the items without a value, which sort last whichever way the value column is sorted.
 
 Items the reader couldn't tell apart share a row, in two ways. Variants the game shows as
-one creative-menu tile and one handbook group (Tidy Variants, `search.json`'s `groups`)
-share a row when they share a price, as gravels of every rock or planks of every wood do.
+one creative-menu tile or one handbook page (Tidy Variants, and the handbook's `groupBy` for
+items it never sees, such as juices; `search.json`'s `groups`) share a row when they share a
+price, as gravels of every rock or planks of every wood do.
 `valueRows` (`values.ts`) splits each group by price: value, `floorZero` and `valueSwitches`
 all have to agree, and members with no value make one row of their own, shown with the
 unvalued items. A part of two or more members is one row: the icon of its best-ranked
