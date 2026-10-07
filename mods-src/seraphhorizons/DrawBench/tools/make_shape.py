@@ -2,16 +2,18 @@
 """Generate the draw bench's shapes, rig and reference poses.
 
 The draw bench is a chain draw bench of the kind used from the 1790s to the 1880s to draw lead and
-copper tube. A lead or copper ingot, cast hollow, goes on the bench threaded on a mandrel bar and held
-against the die by a spring follower. Each stroke draws a third of it through the die, over the mandrel's
-plug, into a square chute section half a block long (the game's chute section): the dog (drawing tongs
-on a carriage) grips the section's point at the die mouth, and an endless chain shackled to the dog hauls it along the bed. The chain's drive
-sprocket is turned from the vanilla axle through a rectifier, a cone friction clutch and a two-speed
-change gear (lead fast, copper slow). The operator's start lever throws the clutch in and closes the
-jaws on the point; when the section's tail leaves the die the jaws spring open and the section drops onto
-inclined skids and slides to the rack on the output side; at the end of its travel the dog's lug
+copper tube. A hollow section (the game's chute section, 8 x 8 x 8) goes on the bench threaded on a
+square mandrel bar and held against the die by a spring follower. Each stroke draws a quarter of it
+through the square die, over the mandrel's plug, into a pipe section (a square tube 6 across, the size
+of ppex's pipe, half a block long): the dog (drawing tongs on a portal running on two ways either side
+of the section) grips the section's point at the die mouth, and an endless chain beside the bed,
+shackled to the dog, hauls it along. The chain's drive sprocket is turned from the vanilla axle
+through a rectifier, a cone friction clutch, a two-speed change gear (lead fast, copper slow) and a
+final pair. The operator's start lever throws the clutch in and closes the jaws on the point; when the
+section's tail leaves the die the jaws spring open and the section drops into the trough under the
+bed and slides north down it to queue behind the others; at the end of its travel the dog's lug
 knocks the clutch out. A counterweight, lifted during the draw by a rope on a barrel geared to the
-return sprocket, falls and hauls the chain, and the dog, back to the die. Three strokes, three sections, an ingot.
+return sprocket, falls and hauls the chain, and the dog, back to the die. Four strokes a hollow.
 Everything is built here from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
@@ -33,9 +35,9 @@ The rig's inputs, as this machine uses them (README "Rig"):
 
     theta  the axle angle: the entry shaft, the rectifier's gears
     psi    the axle's travel: the rectified shaft and the clutch's cup
-    W      the rig's work, sections drawn: one unit is one stroke's whole cycle; the job ends at 3
-    k      the ingot's metal: 0 none, 1 lead (thin), 2 copper (thick)
-    p      its presence, 0..1, eased as the ingot is loaded and cleared
+    W      the rig's work, sections drawn: one unit is one stroke's whole cycle; the job ends at 4
+    k      the hollow's metal: 0 none, 1 lead (thin), 2 copper (thick)
+    p      its presence, 0..1, eased as the hollow is loaded and cleared
     oil    the oil tank's fill, 0..1: the oiler's level
 """
 
@@ -94,71 +96,78 @@ TEXTURES = {
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
 # ---------------------------------------------------------------- the draw line, the stock, the section
-DL = (5.5, 11.5)                             # (x, y): the draw line, the section's axis, along z
-PIPE = 8.0                                   # a drawn chute section is half a block long, as the game's
-PIPE_R = 1.3                                 # its half-width (a square tube): the die's square bore
-WALL = 0.35                                  # its wall; the mandrel's plug is its bore
-PLUG_H = PIPE_R - WALL
-MANDREL_R = 0.4
-SLUG_R = 1.7                                 # the cast hollow ingot's outside (apothem of its octagon); its bore fits the bar
-SECTION_BORE = MANDREL_R + 0.02
-OCT = 8 * math.tan(math.pi / 8)              # an octagon's area over its apothem squared
-# A third of the ingot is the metal of a section: (OCT 1.7^2 - OCT 0.42^2) L = (2.6^2 - 1.9^2) 8
-SLUG_L = PIPE * ((2 * PIPE_R) ** 2 - (2 * PLUG_H) ** 2) / (OCT * (SLUG_R ** 2 - SECTION_BORE ** 2))
-SLUGS = 3                                    # an ingot draws into three sections, a third of it a stroke
+DL = (5.0, 11.5)                             # (x, y): the draw line, the section's axis, along z
+PIPE = 8.0                                   # a drawn pipe section is half a block long
+PIPE_R = 3.0                                 # its half-width (a square tube 6 across, ppex's pipe's size): the die's square bore
+WALL = 0.3                                   # its wall; the mandrel's plug is its bore
+PLUG_H = PIPE_R - WALL - 0.01
+HOLLOW_H, HOLLOW_WALL = 4.0, 1.0             # the hollow section (the game's chute section): 8 across, its wall 1
+BAR_H = HOLLOW_H - HOLLOW_WALL - 0.05        # the mandrel bar fills the hollow's bore
+SLUGS = 4                                    # a hollow draws into four pipe sections, a quarter of it a stroke
+HOLLOW_L = 8.0                               # the hollow section is 8 long
+SLUG_L = HOLLOW_L / SLUGS                    # a quarter of it, 2, goes into each section
 SEG = 4.0                                    # a section is drawn as two segments, each hidden in the die stock until it emerges
 NSEG = int(PIPE / SEG)
 POINT = 2.0                                  # the section's point, pushed through the die before its stroke; the jaws bite it
 
-Z_DIE_BACK, Z_DIE_FRONT = 16.0, 21.0         # the die stock (cast iron, on the ways)
-Z_MOUTH = 21.8                               # the die ring's front face: the section emerges here
+Z_MOUTH = 24.2                               # the die plate's front face: the section emerges here
+Z_DIE_BACK, Z_DIE_FRONT = 18.4, 23.4         # the die stock (cast iron, on the ways)
 Z_DIE_RING = (Z_DIE_FRONT, Z_MOUTH)
 Z_TAIL = (0.3, 1.8)                          # the tail stock: the mandrel bar's clamp
 Z_SPRING0 = Z_TAIL[1]
 FOLLOWER_T = 0.6
-Z_SLUGS0 = Z_DIE_BACK - SLUGS * SLUG_L       # the far end of the farthest slug
+Z_SLUGS0 = Z_DIE_BACK - SLUGS * SLUG_L       # the hollow's far end
 Z_FOLLOWER = (Z_SLUGS0 - FOLLOWER_T, Z_SLUGS0)
 COILS = 6
-Z_PLUG = (20.6, 21.6)
+Z_PLUG = (Z_MOUTH - 1.4, Z_MOUTH - 0.2)
 
 S_TUBE = PIPE - POINT                        # how far the dog travels while the section is drawn (6)
 S_DOG = 8.0                                  # the dog's whole stroke: on past the section's tail to the knock-off
 KNOCK = 1.6                                  # the clutch rod's throw: the dog's last 1.6 of travel knocks it out
 
 # ---------------------------------------------------------------- the bed
-WAY_TOP = 10.0
-WAY_W = (1.5, 3.0)                           # the west way, on the oak beam
-WAY_E = (8.0, 9.5)                           # the east way, a cast-iron girder (the sections roll out under it)
-BEAM_W_Y = (5.0, 9.0)
-GIRDER_E_Y = (8.3, WAY_TOP)
-Z_BED = (0.4, 46.0)
-Z_HEAD = (46.0, 58.6)                        # the drive head's bed plate
-TRESTLES = ((0.4, 2.4), (16.5, 18.5), (42.5, 44.5))
-STOCK_X = (2.0, 9.0)
-STOCK_TOP = 14.4
-STOCK_KEEL = 9.2                             # the die stock reaches down between the ways, over the chain
+WAY_TOP = 8.0                                # the ways stand either side of the section, below its middle
+WAY_W = (0.2, 1.6)                           # the west way, on its oak beam
+WAY_E = (8.4, 9.8)                           # the east way, on its oak beam
+BEAM_Y = (1.0, 7.2)                          # the oak beams (full length); the iron ways on them from the die stock on
+Z_BED = (0.4, 41.0)
+Z_HEAD = (41.0, 58.6)                        # the drive head's bed plate
+TRESTLES = ((0.4, 2.4), (39.0, 41.0))
+STOCK_X = (0.6, 9.4)
+STOCK_TOP = 16.0
+STOCK_KEEL = 7.4                             # the die stock reaches down between the ways over the trough
+
+# ---------------------------------------------------------------- the trough: the sections queue in it
+TROUGH_X = (WAY_W[1], WAY_E[0])
+RAILS_X = ((2.3, 2.9), (7.1, 7.7))
+FLOOR0, FLOOR_SLOPE = 0.6, 0.03              # the rails' top: y = FLOOR0 + FLOOR_SLOPE z (it runs down to the north)
+FLOOR_ANG = math.atan(FLOOR_SLOPE)
+STOP_Z = (0.02, 0.14)                        # the trough's north end
+SLOT_GAP = 0.02
 
 # ---------------------------------------------------------------- the dog
-DOG_Z = 23.9                                 # the sled's back face at rest (the point ends at 23.8)
+DOG_Z = Z_MOUTH + POINT + 0.1                # the dog's back face at rest (the point ends just short of it)
 DOG_L = 5.1
-SLED_Y = (WAY_TOP, 10.8)
-TOPPLATE_Y = (12.95, 13.35)
-JAW_PIVOT = (DL[0] + PIPE_R + 0.4, 22.3)     # (x, z): the moving (east) jaw's pin, behind its face
-JAW_FACE_Z = (22.5, 23.7)
-JAW_Y = (10.7, 12.3)
+SLED_Y = (WAY_TOP, 8.8)                      # its shoes on the ways
+CHEEK_DOG = ((WAY_W[0], WAY_W[0] + 0.9), (WAY_E[1] - 0.9, WAY_E[1]))
+CROSSBAR_Y = (15.4, 15.95)
+TOPPLATE_Y = (15.0, 15.4)
+JAW_PIVOT = (DL[0] + PIPE_R + 0.4, Z_MOUTH + 0.5)   # (x, z): the moving (east) jaw's pin, behind its face
+JAW_FACE_Z = (Z_MOUTH + 0.7, Z_MOUTH + 1.9)
+JAW_Y = (10.0, 13.0)
 TAIL_Y = (11.6, 12.4)
 TAIL_Z = (JAW_PIVOT[1] - 0.2, JAW_PIVOT[1] + 0.2)
-SHANK_X = (3.2, 4.0)
+SHANK_X = (10.4, 11.2)
 
 # ---------------------------------------------------------------- the chain and its sprockets
-CHAIN_X = 3.6                                # the chain's plane, beside the west beam
+CHAIN_X = 10.8                               # the chain's plane, outside the east beam
 SPR_TEETH = 10
 SPR_PIN_R = 2.6                              # the pins' circle on a sprocket
 PITCH = 2 * SPR_PIN_R * math.sin(math.pi / SPR_TEETH)
 R_C = SPR_PIN_R * math.cos(math.pi / SPR_TEETH)   # a link's centre on a sprocket: the chain's kinematic radius
-SPR_Y = 6.0                                  # both sprockets' axes
-N_Z = 14.0                                   # the return sprocket, under the slugs
-REAR_PIN_Z = 24.5                            # the chain's rear end, shackled to the dog's shank
+SPR_Y = 4.0                                  # both sprockets' axes
+N_Z = 20.0                                   # the return sprocket, under the die stock's east side
+REAR_PIN_Z = DOG_Z + 0.6                     # the chain's rear end, shackled to the dog's shank
 
 # ---------------------------------------------------------------- the drive head
 ENTRY = (8.0, 56.0)                          # (y, z): the entry shaft, along x from the west face (the power cell's centre)
@@ -182,9 +191,15 @@ CG = {"a": 16, "ap": 24, "b": 10, "bp": 30}  # change gears: lead 16:24, copper 
 CG_R = {k: n * CG_MOD / 2 for k, n in CG.items()}
 CG_D = CG_R["a"] + CG_R["ap"]                # 4.5, the same for both pairs
 RATIO = {"thin": CG["ap"] / CG["a"], "thick": CG["bp"] / CG["b"]}   # sleeve turns per drive-shaft turn
-D_Z = RECT[1] - math.sqrt(CG_D ** 2 - (RECT[0] - SPR_Y) ** 2)   # the drive shaft, under the rectified shaft
+DRAW_SIGN = 1.0                              # the sleeve and the rectified shaft turn + about x in a draw (sprocket +, drive shaft -, sleeve +)
+D_Y = 6.0
+D_Z = RECT[1] - math.sqrt(CG_D ** 2 - (RECT[0] - D_Y) ** 2)   # the drive shaft (the change gear's), under the rectified shaft
+FD_MOD, FD_TEETH = 0.4, 12                   # the final drive: a pinion on the drive shaft's west end, a wheel on the sprocket shaft, 1:1
+FD_R = FD_MOD * FD_TEETH / 2
+X_FD = (2.0, 2.6)
+S_Z = D_Z - math.sqrt((2 * FD_R) ** 2 - (D_Y - SPR_Y) ** 2)   # the drive sprocket's shaft, north of the drive shaft, at the chain's height
 GEAR_W = 0.6
-X_AP, X_BP = (4.6, 5.2), (6.9, 7.5)          # the drive shaft's wheels, east of its sprocket
+X_AP, X_BP = (4.6, 5.2), (6.9, 7.5)          # the drive shaft's change wheels, east of its final-drive pinion
 X_A, X_B = X_AP, (3.5, 4.1)                  # the cluster's pinions, lead position (A in mesh, B free)
 SELECT = X_BP[0] - X_B[0]                    # the selector's throw for copper (B to B', A clear east)
 X_HUB = (X_B[1], X_A[0])                     # the cluster's hub between its pinions, with the selector's groove
@@ -199,20 +214,21 @@ SEL_HANDLE_X = (7.6, 8.0)
 X_RECT_MID = (11.8, 12.4)                    # the rectified shaft's middle bearing, between the cup and B1
 CHEEK_W, CHEEK_E = (0.3, 1.5), (14.65, 15.45)    # the drive head's cheeks (x)
 CHEEK_TOP = 11.8
-CHEEK_W_Z = (46.8, 57.9)
+CHEEK_W_Z = (S_Z - 1.4, 57.9)                # it also carries the sprocket shaft's west end
 CHEEK_E_Z = (50.0, 57.9)                     # clear of the bell crank's swing
 SLEEVE_R = 0.6
 
 # ---------------------------------------------------------------- the return weight
-K_Y = 9.5                                    # the barrel shaft, over the return shaft, 1:1
+K_Y = SPR_Y + 3.5                            # the barrel shaft, over the return shaft, 1:1
 RET_MOD = 0.35
 RET_TEETH = 10
 RET_R = RET_TEETH * RET_MOD / 2
-X_RETGEAR = (10.0, 10.6)
-X_BARREL = (12.8, 14.0)
+X_RETGEAR = (11.7, 12.3)
+X_STANDARD = (12.35, 12.75)                  # one standard carries the return shaft and the barrel shaft
+X_BARREL = (13.0, 14.1)
 BARREL_R = 0.75
 LIFT = S_DOG / R_C * BARREL_R                # the weight rises this much in a stroke
-WEIGHT_X = (12.5, 14.3)
+WEIGHT_X = (12.8, 14.3)
 WEIGHT_Y0 = (0.3, 2.6)
 WEIGHT_Z = (N_Z + BARREL_R - 0.9, N_Z + BARREL_R + 0.9)
 ROPE_Z = N_Z + BARREL_R
@@ -221,7 +237,7 @@ ROPE_W = 0.3
 ROPE_SEGS = 5
 
 # ---------------------------------------------------------------- the controls
-LEVER_Y, LEVER_Z = 9.6, 21.0                 # the start lever's rock shaft (along x), north of the sections on the rack
+LEVER_Y, LEVER_Z = 9.6, Z_MOUTH - 0.8        # the start lever's rock shaft (along x), at the die end
 ROD_GUIDE = (45.6, 46.2)                     # the clutch rod's guide at the head; its stop collar rests against it
 KNUCKLE_X = (10.4, 10.9)                     # the jaw's tail ends in a knuckle reaching north to the lever's finger
 ROD_X, ROD_Y = 15.2, 6.6                     # the clutch rod (along z)
@@ -245,19 +261,14 @@ def _jaw_angle():
 
 
 JAW_ANGLE = _jaw_angle()
-LUG_EYE_Z = (DOG_Z, DOG_Z + 0.6)             # the dog's knock-off lug: an eye round the rod at the sled's back
+LUG_EYE_Z = (DOG_Z, DOG_Z + 0.6)             # the dog's knock-off lug: an eye round the rod at the dog's back
+S_EAST_BEARING = (11.9, 12.5)                # the drive sprocket's shaft's east bearing
+K_EAST_BEARING = (14.45, 15.05)
 COLLAR_Z0 = LUG_EYE_Z[1] + (S_DOG - KNOCK) + KNOCK   # the collar's north face with the rod out (rest)
 CRANK = (X_CONE[0] + 0.3, RECT[1] - 2.2)     # (x, z) of the bell crank's pin (along y), at the rod's height
 CRANK_ROD_R = ROD_X - CRANK[0]
 CRANK_FORK_R = RECT[1] - CRANK[1]
 CRANK_ANGLE = math.asin(KNOCK / CRANK_ROD_R)
-
-# ---------------------------------------------------------------- the skids and the rack
-SKIDS_Z = (24.5, 30.0, 35.5)
-SKID_X = (3.0, 15.4)
-SKID_Y0, SKID_SLOPE = 6.2, 0.36              # the skids' top: y = SKID_Y0 - SKID_SLOPE (x - SKID_X[0])
-LIP_X = (15.4, 16.0)
-SLOT_DX = 2 * PIPE_R + 0.06                  # the sections lie side by side on the rack (along the slope), the first against the lip
 
 # ---------------------------------------------------------------- the cycle, per section (t = frac(W))
 T_START = (0.00, 0.04)                       # the start lever: clutch in, jaws closed on the point
@@ -265,16 +276,17 @@ T_DRAW = (0.04, 0.24)                        # the dog travels S_DOG (the rest o
 T_TUBE = T_DRAW[0] + (T_DRAW[1] - T_DRAW[0]) * S_TUBE / S_DOG   # the section's tail leaves the die (0.19)
 T_OPEN = (T_TUBE, T_TUBE + 0.04)             # the jaws spring open
 T_KNOCK = (T_DRAW[1] - (T_DRAW[1] - T_DRAW[0]) * KNOCK / S_DOG, T_DRAW[1])   # the lug knocks the clutch out
-T_DROP = (T_OPEN[1], T_OPEN[1] + 0.03)       # the section drops onto the skids
-T_ROLL = (T_DROP[1], 0.32)                   # and slides down to the rack
+T_DROP = (T_OPEN[1], T_OPEN[1] + 0.03)       # the section drops into the trough
+T_ROLL = (T_DROP[1], 0.32)                   # and slides north down it to its place in the queue
 T_RETURN = (0.32, 0.52)                      # the weight hauls the dog back (as long as the draw)
 T_POINT = (-0.08, 0.0)                       # the next section's point is through the die before its stroke
 
 # ---------------------------------------------------------------- the oiler
-OILER = {"x": (4.7, 6.3), "y": (STOCK_TOP + 0.25, STOCK_TOP + 1.3), "z": (16.3, 17.5)}
+OILER = {"x": (9.6, 10.8), "y": (12.6, 13.9), "z": (Z_DIE_BACK + 0.1, Z_DIE_BACK + 1.3)}   # on a bracket off the die stock's east face
 OIL_EMPTY = 0.05
 OIL_FULL = OILER["y"][1] - OILER["y"][0] - 0.15
-DRIP = (DL[0], 13.6, 15.35)
+SPOUT_Y = (15.6, 15.85)                      # its spout runs back over the die stock's back face, over the hollow
+DRIP = (DL[0], HOLLOW_H + DL[1] + 0.05, Z_DIE_BACK - 0.35)
 
 
 # ---------------------------------------------------------------- box helpers
@@ -400,30 +412,27 @@ def mesh_phase(c1, phase1, n1, c2, n2):
     return (d + math.pi) + p2 / 2 + off * p2
 
 
-def skid_top(x):
-    return SKID_Y0 - SKID_SLOPE * (x - SKID_X[0])
+def floor_y(z):
+    """The trough rails' top at z."""
+    return FLOOR0 + FLOOR_SLOPE * z
 
 
-SLOPE_ANG = math.atan(SKID_SLOPE)
+def rest_y(z, r=PIPE_R):
+    """A section's axis height lying flat on the rails with its middle at z."""
+    return floor_y(z) + r / math.cos(FLOOR_ANG)
 
 
-def rest_y(x, r=PIPE_R):
-    """A section's axis height lying flat on the skids at x (a face on the slope)."""
-    return skid_top(x) + r / math.cos(SLOPE_ANG)
-
-
-DROP_X = DL[0]
-# it drops level (it falls past the chain's top run close by) and lands on the skids' high, west, edge;
-# it then tips flat as it slides down
-DROP_Y = skid_top(DROP_X - PIPE_R) + PIPE_R + 0.02
-SPREAD = PIPE_R * (math.cos(SLOPE_ANG) + math.sin(SLOPE_ANG))   # a section lying on the slope reaches this far east of its axis
-SLOT_X = [LIP_X[0] - SPREAD - 0.02 - SLOT_DX * math.cos(SLOPE_ANG) * m for m in range(SLUGS)]
+# The sections queue in the trough from its north end: the first slides furthest, the last stays where it drops.
+DROP_Z = Z_MOUTH + PIPE / 2                  # a section's middle as it is drawn (and as it drops)
+SLOT_Z = [STOP_Z[1] + PIPE / 2 + SLOT_GAP + (PIPE + SLOT_GAP) * m for m in range(SLUGS)]
+assert abs(SLOT_Z[-1] - DROP_Z) < 0.05, SLOT_Z
 
 
 # ---------------------------------------------------------------- derived positions
 ENTRY_C = (0.0, ENTRY[0], ENTRY[1])
 RECT_C = (0.0, RECT[0], RECT[1])
-D_C = (0.0, SPR_Y, D_Z)
+D_C = (0.0, D_Y, D_Z)
+S_C = (0.0, SPR_Y, S_Z)
 N_C = (0.0, SPR_Y, N_Z)
 K_C = (0.0, K_Y, N_Z)
 DL_C = (DL[0], DL[1], 0.0)
@@ -499,8 +508,9 @@ def build_gearbox():
     out += disc("x", c, X_HUB[0], X_HUB[0] + 0.12, 1.1, "cluster_hubw", "cluster", "steel")
     out += disc("x", c, X_HUB[0] + 0.12, X_HUB[1] - 0.12, 0.95, "cluster_groove", "cluster", "steel")
     out += disc("x", c, X_HUB[1] - 0.12, X_HUB[1], 1.1, "cluster_hube", "cluster", "steel")
-    # the drive shaft and its wheels (the sprocket is the chain's)
+    # the drive shaft, its change wheels and the final drive's pinion (the sprocket's shaft is the chain's)
     out += rod("x", D_C, CHEEK_W[0] + 0.1, 8.6, 0.45, "driveshaft_rod", "driveshaft", "steel")
+    out += gear("x", D_C, *X_FD, FD_R, FD_TEETH, FD_MOD, "driveshaft_fd", "driveshaft", "steel")
     out += gear("x", D_C, *X_AP, CG_R["ap"], CG["ap"], CG_MOD, "driveshaft_ap", "driveshaft", "steel", body_k=6)
     out += gear("x", D_C, *X_BP, CG_R["bp"], CG["bp"], CG_MOD, "driveshaft_bp", "driveshaft", "steel", body_k=6)
     return out
@@ -510,7 +520,7 @@ def build_gearbox():
 def loop_point(u):
     """The chain's centre line: (y, z, angle about +x of the link's direction from +z), u along the
     loop from the return sprocket's top, round the drive sprocket and back."""
-    L = D_Z - N_Z
+    L = S_Z - N_Z
     arc = math.pi * R_C
     total = 2 * L + 2 * arc
     u %= total
@@ -519,16 +529,16 @@ def loop_point(u):
     u -= L
     if u < arc:
         a = u / R_C
-        return SPR_Y + R_C * math.cos(a), D_Z + R_C * math.sin(a), a
+        return SPR_Y + R_C * math.cos(a), S_Z + R_C * math.sin(a), a
     u -= arc
     if u < L:
-        return SPR_Y - R_C, D_Z - u, math.pi
+        return SPR_Y - R_C, S_Z - u, math.pi
     u -= L
     a = math.pi + u / R_C
     return SPR_Y + R_C * math.cos(a), N_Z + R_C * math.sin(a), a
 
 
-LOOP = 2 * (D_Z - N_Z) + 2 * math.pi * R_C
+LOOP = 2 * (S_Z - N_Z) + 2 * math.pi * R_C
 U_REAR = REAR_PIN_Z - N_Z
 N_LINKS = int((LOOP - 3.5) / PITCH)
 PIN_SPAN = LOOP - N_LINKS * PITCH            # the dog's shank spans the chain's two ends
@@ -542,9 +552,9 @@ def link_u(i):
 
 def segments():
     """The loop's four pieces: (u0, u1, kind, data)."""
-    L = D_Z - N_Z
+    L = S_Z - N_Z
     arc = math.pi * R_C
-    return [(0.0, L, "slide", 1.0), (L, L + arc, "turn", D_Z), (L + arc, 2 * L + arc, "slide", -1.0), (2 * L + arc, 2 * L + 2 * arc, "turn", N_Z)]
+    return [(0.0, L, "slide", 1.0), (L, L + arc, "turn", S_Z), (L + arc, 2 * L + arc, "slide", -1.0), (2 * L + arc, 2 * L + 2 * arc, "turn", N_Z)]
 
 
 def link_moves(i):
@@ -584,7 +594,11 @@ def build_chain():
         if abs(a) > 1e-12:
             rotate([el], "x", math.degrees(a), (0.0, y, z))
         out.append(el)
-    for c, part in ((D_C, "drivesprocket"), (N_C, "returnsprocket")):
+    # the drive sprocket's own shaft, from the west cheek, with the final drive's wheel at its west end
+    out += rod("x", S_C, CHEEK_W[0] + 0.1, S_EAST_BEARING[1] - 0.05, 0.45, "drivesprocket_rod", "drivesprocket", "steel")
+    out += gear("x", S_C, *X_FD, FD_R, FD_TEETH, FD_MOD, "drivesprocket_fd", "drivesprocket", "steel",
+                phase=mesh_phase(D_C, 0.0, FD_TEETH, S_C, FD_TEETH))
+    for c, part in ((S_C, "drivesprocket"), (N_C, "returnsprocket")):
         # a tooth between every two pins on this sprocket's arc at rest
         pins = [loop_point(U_FRONT + i * PITCH) for i in range(N_LINKS + 1)]
         on = [math.atan2(z - c[2], y - c[1]) for y, z, _ in pins if math.hypot(y - c[1], z - c[2]) < R_C + 1e-6]
@@ -599,13 +613,13 @@ def build_chain():
 
 # ---------------------------------------------------------------- the return weight
 def build_return():
-    """The return shaft (under the slugs, through the west beam to a post by the east girder) with the
+    """The return shaft (from the east beam out to the standard beside the chain) with the
     return sprocket (the chain's) and a gear meshing the barrel shaft's, 1:1; the barrel shaft over it
     with the barrel, the counterweight hung from it by a rope that is taken up into the weight as it
     rises."""
-    out = rod("x", N_C, 1.4, X_RETGEAR[1] + 0.3, 0.45, "returnshaft_rod", "returnshaft", "steel")
+    out = rod("x", N_C, WAY_E[0] + 0.2, X_STANDARD[1] + 0.05, 0.45, "returnshaft_rod", "returnshaft", "steel")
     out += gear("x", N_C, *X_RETGEAR, RET_R, RET_TEETH, RET_MOD, "returnshaft_gear", "returnshaft", "steel")
-    out += rod("x", K_C, X_RETGEAR[0] - 0.3, 15.0, 0.45, "barrel_rod", "barrel", "steel")
+    out += rod("x", K_C, X_RETGEAR[0] - 0.3, K_EAST_BEARING[1] - 0.05, 0.45, "barrel_rod", "barrel", "steel")
     out += gear("x", K_C, *X_RETGEAR, RET_R, RET_TEETH, RET_MOD, "barrel_gear", "barrel", "steel",
                 phase=mesh_phase(N_C, 0.0, RET_TEETH, K_C, RET_TEETH))
     out += disc("x", K_C, X_BARREL[0], X_BARREL[1], BARREL_R, "barrel_drum", "barrel", "oak", k=6)
@@ -640,29 +654,33 @@ def build_rope():
 
 # ---------------------------------------------------------------- the dog
 def build_dog():
-    """The dog: a cast sled on the two ways, a head block carrying a top plate cantilevered back over
-    the section's point, the fixed (west) jaw hung from the plate, the moving (east) jaw on a pin through
-    the plate with its tail out east to the start lever's finger and a leaf spring that opens it; the
-    shank down to the chain with its two shackle pins; the knock-off lug round the clutch rod."""
+    """The dog: a portal over the section on the two ways (shoes, cheeks, a crossbar), a top plate
+    cantilevered back over the section's point, the fixed (west) jaw hung from it, the moving (east) jaw on
+    a pin through it with its tail out east to the start lever's finger and a leaf spring that opens it; out
+    east from the east shoe, the shank down to the chain with its two shackle pins and the knock-off lug
+    round the clutch rod."""
     d = "dog"
     z0, z1 = DOG_Z, DOG_Z + DOG_L
-    out = [box([WAY_W[0], SLED_Y[0], z0], [WAY_E[1], SLED_Y[1], z1], "dog_sled", d, "iron"),
-           box([3.8, SLED_Y[1], z0], [7.4, TOPPLATE_Y[1], z0 + 1.1], "dog_head", d, "iron"),
-           box([3.8, TOPPLATE_Y[0], JAW_PIVOT[1] - 0.45], [7.4, TOPPLATE_Y[1], z0], "dog_topplate", d, "iron"),
+    (wx0, wx1), (ex0, ex1) = CHEEK_DOG
+    out = [box([WAY_W[0], SLED_Y[0], z0], [WAY_W[1], SLED_Y[1], z1], "dog_shoe_w", d, "iron"),
+           box([WAY_E[0], SLED_Y[0], z0], [WAY_E[1], SLED_Y[1], z1], "dog_shoe_e", d, "iron"),
+           box([wx0, SLED_Y[1], z0], [wx1, CROSSBAR_Y[0], z1], "dog_cheek_w", d, "iron"),
+           box([ex0, SLED_Y[1], z0], [ex1, CROSSBAR_Y[0], z1], "dog_cheek_e", d, "iron"),
+           box([wx0, CROSSBAR_Y[0], z0], [ex1, CROSSBAR_Y[1], z1], "dog_crossbar", d, "iron"),
+           box([DL[0] - PIPE_R - 0.6, TOPPLATE_Y[0], JAW_PIVOT[1] - 0.45], [JAW_PIVOT[0] + 0.5, TOPPLATE_Y[1], z0 + 1.0], "dog_topplate", d, "iron"),
            box([DL[0] - PIPE_R - 0.5, JAW_Y[0], JAW_FACE_Z[0]], [DL[0] - PIPE_R, JAW_Y[1], z0], "dog_jawfixed", d, "steel"),
            box([DL[0] - PIPE_R - 0.5, JAW_Y[1], JAW_FACE_Z[0]], [DL[0] - PIPE_R - 0.1, TOPPLATE_Y[0], z0], "dog_jawhanger", d, "iron")]
-    out += rod("y", (JAW_PIVOT[0], 0.0, JAW_PIVOT[1]), JAW_Y[1], TOPPLATE_Y[1] + 0.2, 0.18, "dog_jawpin", d, "steel", k=2)
-    # the leaf spring presses the tail towards the die (open): a strip on the top plate's east edge
-    out.append(box([7.75, TAIL_Y[0] + 0.1, TAIL_Z[1]], [7.95, TAIL_Y[1] - 0.1, z0], "dog_spring", d, "steel"))
-    # the shank and its two shackle pins at the chain's ends
+    out += rod("y", (JAW_PIVOT[0], 0.0, JAW_PIVOT[1]), JAW_Y[1], TOPPLATE_Y[1] - 0.05, 0.18, "dog_jawpin", d, "steel", k=2)
+    # the leaf spring presses the tail towards the die (open), from the east cheek's back face
+    out.append(box([ex0 + 0.1, TAIL_Y[0] + 0.1, TAIL_Z[1]], [ex0 + 0.3, TAIL_Y[1] - 0.1, z0], "dog_spring", d, "steel"))
+    # out east from the east shoe: a bracket carrying the shank down to the chain, and the knock-off lug
     y = SPR_Y + R_C
+    out.append(box([WAY_E[1], SLED_Y[0], REAR_PIN_Z - 0.35], [SHANK_X[1], SLED_Y[1], FRONT_PIN_Z + 0.35], "dog_bracket", d, "iron"))
     out.append(box([SHANK_X[0], y - 0.45, REAR_PIN_Z - 0.35], [SHANK_X[1], SLED_Y[0], FRONT_PIN_Z + 0.35], "dog_shank", d, "iron"))
     for tag, z in (("rear", REAR_PIN_Z), ("front", FRONT_PIN_Z)):
-        out += rod("x", (0.0, y, z), SHANK_X[0] - 0.15, SHANK_X[1] + 0.25, 0.18, f"dog_pin{tag}", d, "steel", k=2)
-    # the knock-off lug: east from the sled over the rack, down to an eye round the clutch rod
+        out += rod("x", (0.0, y, z), SHANK_X[0] - 0.25, SHANK_X[1] + 0.15, 0.18, f"dog_pin{tag}", d, "steel", k=2)
     lz0, lz1 = LUG_EYE_Z
-    # (over the rack: out at the sled's height, east over the sections, then down to the rod outside them)
-    out.append(box([WAY_E[1], SLED_Y[0], lz0], [ROD_X - 0.2, SLED_Y[1], lz1], "dog_lugarm", d, "iron"))
+    out.append(box([SHANK_X[1], SLED_Y[0], lz0], [ROD_X - 0.2, SLED_Y[1], lz1], "dog_lugarm", d, "iron"))
     out.append(box([ROD_X - 0.6, ROD_Y + 0.55, lz0], [ROD_X - 0.2, SLED_Y[0], lz1], "dog_lugdrop", d, "iron"))
     out += eye("z", (ROD_X, ROD_Y, 0.0), lz0, lz1, 0.32, 0.6, "dog_lugeye", d, "iron")
     return out
@@ -700,40 +718,41 @@ def build_jaw():
 
 # ---------------------------------------------------------------- the mandrel, follower and spring
 def build_mandrel():
-    c = DL_C
-    out = rod("z", c, Z_TAIL[0] + 0.3, Z_PLUG[0], MANDREL_R, "mandrel_bar", "mandrel", "steel")
-    out.append(box([DL[0] - PLUG_H + 0.01, DL[1] - PLUG_H + 0.01, Z_PLUG[0]], [DL[0] + PLUG_H - 0.01, DL[1] + PLUG_H - 0.01, Z_PLUG[1]],
-                   "mandrel_plug", "mandrel", "steel"))
-    out += disc("z", c, Z_TAIL[1], Z_TAIL[1] + 0.3, 1.0, "mandrel_nut", "mandrel", "steel")
+    """The mandrel: a square bar that fills the hollow's bore, from the tail stock to its plug in the die's
+    throat (the plug is the drawn section's bore); a nut at the tail stock; the follower (a square ring the
+    size of the hollow) and its spring (square coils round the bar)."""
+    x, y = DL
+    out = [box([x - BAR_H, y - BAR_H, Z_TAIL[0] + 0.3], [x + BAR_H, y + BAR_H, Z_PLUG[0]], "mandrel_bar", "mandrel", "steel"),
+           box([x - PLUG_H, y - PLUG_H, Z_PLUG[0]], [x + PLUG_H, y + PLUG_H, Z_PLUG[1]], "mandrel_plug", "mandrel", "steel")]
+    out += eye("z", DL_C, Z_TAIL[1], Z_TAIL[1] + 0.3, BAR_H, BAR_H + 0.4, "mandrel_nut", "mandrel", "steel")
     (f0, f1) = Z_FOLLOWER
-    out.append(box([DL[0] - 1.9, DL[1] - 1.9, f0], [DL[0] + 1.9, DL[1] + 1.9, f1], "follower_plate", "follower", "iron"))
-    out += disc("z", c, f0 - 0.3, f0, 0.85, "follower_boss", "follower", "iron")
+    out += eye("z", DL_C, f0, f1, BAR_H + 0.03, HOLLOW_H - 0.05, "follower_plate", "follower", "iron")
     for i in range(COILS):
         z = coil_z(i)
-        out += annulus("z", c, z - 0.12, z + 0.12, 1.25, 1.5, 8, f"spring{i + 1}_coil", f"spring{i + 1}", "steel", phase=0.15 * i)
+        out += eye("z", DL_C, z - 0.12, z + 0.12, BAR_H + 0.25, BAR_H + 0.5, f"spring{i + 1}_coil", f"spring{i + 1}", "steel")
     return out
 
 
 def coil_z(i):
-    """Coil i's centre at rest: evenly along the compressed spring, from the tail stock to the follower's boss."""
-    a, b = Z_SPRING0, Z_FOLLOWER[0] - 0.3
+    """Coil i's centre at rest: evenly along the compressed spring, from the tail stock's nut to the follower."""
+    a, b = Z_SPRING0 + 0.3, Z_FOLLOWER[0]
     return a + (b - a) * (i + 0.5) / COILS
 
 
 def coil_share(i):
-    a, b = Z_SPRING0, Z_FOLLOWER[0] - 0.3
+    a, b = Z_SPRING0 + 0.3, Z_FOLLOWER[0]
     return (coil_z(i) - a) / (b - a)
 
 
 def build_die():
     c = DL_C
-    out = eye("z", c, Z_DIE_RING[0], Z_DIE_RING[1], PIPE_R, 2.1, "die_plate", "die", "die")   # a square die
+    out = eye("z", c, Z_DIE_RING[0], Z_DIE_RING[1], PIPE_R, DL[1] - WAY_TOP - 0.05, "die_plate", "die", "die")   # a square die, over the ways
     return out
 
 
 # ---------------------------------------------------------------- the work: slugs and sections
 METALS = (("thin", "l", "lead", "billetlead"), ("thick", "c", "copper", "billetcopper"))
-SECTION_TEX = {"lead": "leadsheet", "copper": "coppersheet"}   # the chute section's own sheet, as the game's item
+SHEET_TEX = {"lead": "leadsheet", "copper": "coppersheet"}   # the hollow (the game's chute section) wears its own sheet
 
 
 def pipe_r(m, j):
@@ -758,24 +777,23 @@ def seg_rest(m, j):
     """Pipe m's segment j (j = 0 the point): its front's z at rest, hidden in the die stock. Between strokes
     the die's bore is empty and the frontmost of these faces show in it, so no two lie closer than the
     disc's own 0.012 steps allow (REST_STEP less three of them)."""
-    return Z_MOUTH - REST_STEP * (3 * j + m)
+    return Z_MOUTH - REST_STEP * (SLUGS * j + m)
 
 
 def build_work():
     out = []
     c = DL_C
     for cls, pre, tex, req in METALS:
-        # one hollow section on the mandrel, in thirds end to end (each third goes into the die stock as its
-        # section is drawn, so the section shortens by a third a stroke); the thirds' rings step their ends
-        # differently, so no two ends share a plane
+        # the hollow section on the mandrel (the game's chute section, 8 x 8 x 8), in quarters end to end:
+        # each goes into the die stock as its pipe section is drawn, so the hollow shortens by a quarter a stroke
         for k in range(SLUGS):
             z1 = Z_DIE_BACK - k * SLUG_L
-            out += ring("z", c, z1 - SLUG_L, z1, SECTION_BORE, SLUG_R, 8, f"{pre}slug{k + 1}_ring", f"{pre}slug{k + 1}", tex, odd=k % 2)
+            out += square_tube(c, z1 - SLUG_L, z1, HOLLOW_H, HOLLOW_WALL, f"{pre}slug{k + 1}_wall", f"{pre}slug{k + 1}", SHEET_TEX[tex])
         for m in range(SLUGS):
             for j in range(NSEG):
                 f = seg_rest(m, j)
                 part = f"{pre}sect{m + 1}{'ab'[j]}"
-                out += square_tube(c, f - SEG, f, pipe_r(m, j), WALL, f"{part}_wall", part, SECTION_TEX[tex])
+                out += square_tube(c, f - SEG, f, pipe_r(m, j), WALL, f"{part}_wall", part, tex)
     return out
 
 
@@ -816,19 +834,24 @@ def build_controls():
 
 # ---------------------------------------------------------------- the oiler
 def build_oiler():
-    """The oiler, the frame's: a sight-feed glass cup on the die stock's top, a brass base and cap, a
-    spout back over the slug that drips oil onto it ahead of the die; its oil stretches with the rig's
-    `oil`. No pane on the east (the operator's) side: the block is drawn in one opaque pass."""
+    """The oiler, the frame's: a sight-feed glass cup on a bracket off the die stock's east face, a brass
+    base and cap, and a spout from the cap up and back over the die stock's back face to drip onto the
+    hollow ahead of the die; its oil stretches with the rig's `oil`. No pane on the east side: the block
+    is drawn in one opaque pass."""
     (x0, x1), (y0, y1), (z0, z1) = OILER["x"], OILER["y"], OILER["z"]
     g = 0.15
-    out = [box([x0, STOCK_TOP, z0], [x1, y0, z1], "fr_oiler_base", "frame", "brass"),
+    xm = (x0 + x1) / 2
+    sy0, sy1 = SPOUT_Y
+    out = [box([STOCK_X[1], y0 - 0.3, z0], [x0, y1 + 0.3, z1], "fr_oiler_bracket", "frame", "brass"),
+           box([x0, y0 - 0.3, z0], [x1, y0, z1], "fr_oiler_base", "frame", "brass"),
            box([x0, y1, z0], [x1, y1 + 0.3, z1], "fr_oiler_cap", "frame", "brass"),
            box([x0, y0, z0], [x1, y1, z0 + g], "fr_oiler_glass_n", "frame", "glass"),
            box([x0, y0, z1 - g], [x1, y1, z1], "fr_oiler_glass_s", "frame", "glass"),
            box([x0, y0, z0 + g], [x0 + g, y1, z1 - g], "fr_oiler_glass_w", "frame", "glass"),
-           box([DRIP[0] - 0.15, DRIP[1] + 0.45, DRIP[2] - 0.15], [DRIP[0] + 0.15, DRIP[1] + 0.75, Z_DIE_BACK], "fr_oiler_spout", "frame", "brass"),
-           box([DRIP[0] - 0.15, DRIP[1] + 0.45, Z_DIE_BACK - 0.3], [DRIP[0] + 0.15, STOCK_TOP + 0.01, Z_DIE_BACK], "fr_oiler_feed", "frame", "brass"),
-           box([DRIP[0] - 0.12, DRIP[1], DRIP[2] - 0.12], [DRIP[0] + 0.12, DRIP[1] + 0.45, DRIP[2] + 0.12], "fr_oiler_tip", "frame", "brass")]
+           box([xm - 0.15, y1 + 0.3, (z0 + z1) / 2 - 0.15], [xm + 0.15, sy1, (z0 + z1) / 2 + 0.15], "fr_oiler_riser", "frame", "brass"),
+           box([xm - 0.15, sy0, DRIP[2] - 0.15], [xm + 0.15, sy1, (z0 + z1) / 2 - 0.15], "fr_oiler_spoutn", "frame", "brass"),
+           box([DRIP[0] - 0.15, sy0, DRIP[2] - 0.15], [xm - 0.15, sy1, DRIP[2] + 0.15], "fr_oiler_spout", "frame", "brass"),
+           box([DRIP[0] - 0.12, DRIP[1], DRIP[2] - 0.12], [DRIP[0] + 0.12, sy0, DRIP[2] + 0.12], "fr_oiler_tip", "frame", "brass")]
     out.append(box([x0 + g + 0.02, y0, z0 + g + 0.02], [x1 - g - 0.02, y0 + OIL_EMPTY, z1 - g - 0.02], "oillevel_oil", "oillevel", "oil"))
     return out
 
@@ -847,60 +870,54 @@ def pedestal(name, axis_c, x0, x1, r_box, floor, tex="iron", post_z=None):
 def build_frame():
     f = "frame"
     out = []
-    # sills on the floor along both sides, cross ties at the trestles
-    out += [box([WAY_W[0] - 0.3, 0.0, Z_BED[0]], [WAY_W[1] + 0.3, 1.0, Z_BED[1]], "fr_sill_w", f, "oak"),
-            box([WAY_E[0] - 0.3, 0.0, Z_BED[0]], [WAY_E[1] + 0.3, 1.0, Z_BED[1]], "fr_sill_e", f, "oak")]
-    for i, (z0, z1) in enumerate(TRESTLES, 1):
-        out.append(box([WAY_W[1] + 0.3, 0.0, z0], [WAY_E[0] - 0.3, 1.0, z1], f"fr_tie{i}", f, "oak"))
-        out.append(box([WAY_W[0], 1.0, z0], [WAY_W[1], BEAM_W_Y[0], z1], f"fr_postw{i}", f, "oak"))
-        out.append(box([WAY_E[0], 1.0, z0], [WAY_E[1], GIRDER_E_Y[0], z1], f"fr_poste{i}", f, "oak"))
-    # the return shaft's east bearing: a post under the girder
-    out.append(box([WAY_E[0], 1.0, N_Z - 0.6], [WAY_E[1] - 0.6, GIRDER_E_Y[0], N_Z + 0.6], "fr_postn", f, "oak"))
-    # the west beam (oak) with its iron way, the east girder (iron, the way its top)
-    out += [box([WAY_W[0], BEAM_W_Y[0], Z_BED[0]], [WAY_W[1], BEAM_W_Y[1], Z_BED[1]], "fr_beam_w", f, "oak"),
-            box([WAY_W[0], BEAM_W_Y[1], Z_BED[0]], [WAY_W[1], WAY_TOP, Z_BED[1]], "fr_way_w", f, "iron"),
-            box([WAY_E[0], GIRDER_E_Y[0], Z_BED[0]], [WAY_E[1], GIRDER_E_Y[1], Z_BED[1]], "fr_girder_e", f, "iron")]
-    # the tail stock and the die stock, bolted across the ways
-    out += [box([STOCK_X[0], WAY_TOP, Z_TAIL[0]], [STOCK_X[1], STOCK_TOP, Z_TAIL[1]], "fr_tailstock", f, "iron"),
+    # oak sills on the floor and oak beams on them along both sides; the iron ways on the beams from the
+    # die stock on; the trough between the beams, its rails on ties, running down to a stop at the north end
+    for tag, (x0, x1) in (("w", WAY_W), ("e", WAY_E)):
+        out += [box([max(0.05, x0 - 0.15), 0.0, Z_BED[0]], [x1 + 0.15, BEAM_Y[0], Z_BED[1]], f"fr_sill_{tag}", f, "oak"),
+                box([x0, BEAM_Y[0], Z_BED[0]], [x1, BEAM_Y[1], Z_BED[1]], f"fr_beam_{tag}", f, "oak"),
+                box([x0, BEAM_Y[1], Z_DIE_FRONT], [x1, WAY_TOP, Z_BED[1]], f"fr_way_{tag}", f, "iron"),
+                box([max(x0, STOCK_X[0]), BEAM_Y[1], Z_DIE_BACK], [min(x1, STOCK_X[1]), WAY_TOP, Z_DIE_FRONT], f"fr_diestock_foot{tag}", f, "iron")]
+    z_end = Z_MOUTH + PIPE + 0.4
+    for i, z in enumerate((1.0, 11.0, 21.0, 31.0), 1):
+        out.append(box([WAY_W[1] + 0.15, 0.0, z - 0.4], [WAY_E[0] - 0.15, floor_y(z) - 0.4, z + 0.4], f"fr_tie{i}", f, "oak"))
+    for i, (x0, x1) in enumerate(RAILS_X, 1):
+        xc = (x0 + x1) / 2
+        d = 0.2 / math.cos(FLOOR_ANG)
+        out.append(strut([xc, floor_y(STOP_Z[0]) - d, STOP_Z[0]], [xc, floor_y(z_end) - d, z_end], 0.4, x1 - x0, f"fr_rail{i}", f, "iron", axis="x"))
+    out.append(box([TROUGH_X[0], floor_y(0.0) - 0.4, STOP_Z[0] - 0.02], [TROUGH_X[1], 3.5, STOP_Z[1]], "fr_trough_stop", f, "iron"))
+    # the tail stock and the die stock, across the bed (the die stock on the ways, reaching down between them)
+    out += [box([WAY_W[0], BEAM_Y[1], Z_TAIL[0]], [WAY_E[1], 15.3, Z_TAIL[1]], "fr_tailstock", f, "iron"),
             box([STOCK_X[0], WAY_TOP, Z_DIE_BACK], [STOCK_X[1], STOCK_TOP, Z_DIE_FRONT], "fr_diestock", f, "iron"),
-            box([WAY_W[1], STOCK_KEEL, Z_DIE_BACK], [WAY_E[0], WAY_TOP, Z_DIE_FRONT], "fr_diestock_keel", f, "iron")]
-    # the drive head: a bed plate, the shafts' pedestals, the idler's stud, the crank's post, the rod's guide
+            box([TROUGH_X[0], STOCK_KEEL, Z_DIE_BACK], [TROUGH_X[1], WAY_TOP, Z_DIE_FRONT], "fr_diestock_keel", f, "iron")]
+    # the drive head: a bed plate, two cast cheeks, the shafts' pedestals, the idler's stud, the crank's post, the rod's guide
     out.append(box([0.2, 0.0, Z_HEAD[0]], [15.8, 1.0, Z_HEAD[1]], "fr_head_bed", f, "iron"))
-    # the head's two cast cheeks carry the entry shaft, the rectified shaft and (the west one) the drive shaft
     out.append(box([CHEEK_W[0], 1.0, CHEEK_W_Z[0]], [CHEEK_W[1], CHEEK_TOP, CHEEK_W_Z[1]], "fr_cheek_w", f, "iron"))
     out.append(box([CHEEK_E[0], 1.0, CHEEK_E_Z[0]], [CHEEK_E[1], CHEEK_TOP, CHEEK_E_Z[1]], "fr_cheek_e", f, "iron"))
     out += pedestal("rect2", RECT_C, *X_RECT_MID, 0.9, 1.0, post_z=(RECT[1] + 0.9, RECT[1] + 1.7))
     out += pedestal("drive2", D_C, 7.9, 8.5, 0.9, 1.0)
+    out += pedestal("sprocket", S_C, *S_EAST_BEARING, 0.9, 1.0)
     out.append(box([RECT_X2[1] + 0.3, IDLER[0] - 0.5, IDLER[1] - 0.5], [CHEEK_E[0], IDLER[0] + 0.5, IDLER[1] + 0.5], "fr_idler_arm", f, "iron"))
     out += rod("x", IDLER_C, RECT_X2[0] - 0.2, CHEEK_E[0], 0.3, "fr_idler_stud", f, "steel", k=2)
     cx, cz = CRANK
     out.append(box([cx - 0.3, 1.0, cz - 0.3], [cx + 0.3, ROD_Y - 0.5, cz + 0.3], "fr_crank_post", f, "iron"))
     out += eye("z", (ROD_X, ROD_Y, 0.0), *ROD_GUIDE, 0.27, 0.55, "fr_rod_guide", f, "iron")
     out.append(box([ROD_X - 0.3, 1.0, ROD_GUIDE[0]], [ROD_X + 0.3, ROD_Y - 0.55, ROD_GUIDE[1]], "fr_rod_guidepost", f, "iron"))
-    # the selector's guide eye on the rectified shaft's east pedestal
     for i, (x0, x1) in enumerate((X_RECT_MID, (CHEEK_E[0] + 0.1, CHEEK_E[1] - 0.1)), 1):
         out += eye("x", (0.0, SEL_Y, RECT[1]), x0, x1, 0.24, 0.5, f"fr_selector_guide{i}_", f, "iron")
         base = RECT[0] + 0.9 if i == 1 else CHEEK_TOP
         out.append(box([x0 + 0.05, base, RECT[1] - 0.3], [x1 - 0.05, SEL_Y - 0.5, RECT[1] + 0.3], f"fr_selector_post{i}", f, "iron"))
-    # the start lever's bearings: posts by the girder and at the east edge
-    for i, (x0, x1) in enumerate(((11.2, 11.8), (15.45, 15.95)), 1):
+    # the start lever's bearings
+    for i, (x0, x1) in enumerate(((11.6, 12.2), (15.45, 15.95)), 1):
         out.append(box([x0, LEVER_Y - 0.5, LEVER_Z - 0.5], [x1, LEVER_Y + 0.5, LEVER_Z + 0.5], f"fr_lever_bearing{i}", f, "iron"))
         out.append(box([x0 + 0.05, 0.0, LEVER_Z - 0.4], [x1 - 0.05, LEVER_Y - 0.5, LEVER_Z + 0.4], f"fr_lever_post{i}", f, "iron"))
-    # the barrel shaft's bearings: blocks on posts north of the weight
-    for i, (x0, x1) in enumerate(((11.2, 11.8), (14.4, 15.0)), 1):
-        out.append(box([x0, K_Y - 0.9, N_Z - 0.9], [x1, K_Y + 0.9, N_Z + 0.9], f"fr_barrel_bearing{i}", f, "iron"))
-        out.append(box([x0 + 0.05, 0.0, N_Z - 1.5], [x1 - 0.05, K_Y - 0.9, N_Z - 0.7], f"fr_barrel_post{i}", f, "iron"))
+    # the return shaft runs from the east beam to a standard that also carries the barrel shaft; the barrel
+    # shaft's east bearing; both on posts north of the weight
+    out.append(box([X_STANDARD[0], SPR_Y - 0.9, N_Z - 0.9], [X_STANDARD[1], K_Y + 0.9, N_Z + 0.9], "fr_standard", f, "iron"))
+    out.append(box([X_STANDARD[0] + 0.05, 0.0, N_Z - 1.5], [X_STANDARD[1] - 0.05, K_Y + 0.9, N_Z - 0.85], "fr_standard_post", f, "iron"))
+    out.append(box([K_EAST_BEARING[0], K_Y - 0.9, N_Z - 0.9], [K_EAST_BEARING[1], K_Y + 0.9, N_Z + 0.9], "fr_barrel_bearing", f, "iron"))
+    out.append(box([K_EAST_BEARING[0] + 0.05, 0.0, N_Z - 1.5], [K_EAST_BEARING[1] - 0.05, K_Y + 0.9, N_Z - 0.85], "fr_barrel_post", f, "iron"))
+    out.append(box([X_STANDARD[0], 0.0, N_Z - 1.5], [K_EAST_BEARING[1], 0.4, N_Z - 0.85], "fr_barrel_tie", f, "iron"))
     out.append(box([WEIGHT_X[0] - 0.2, 0.0, WEIGHT_Z[0] - 0.2], [WEIGHT_X[1] + 0.2, WEIGHT_Y0[0], WEIGHT_Z[1] + 0.2], "fr_weight_pad", f, "oak"))
-    out.append(box([11.2, 0.0, N_Z - 1.5], [15.0, 0.4, N_Z - 0.7], "fr_barrel_tie", f, "iron"))
-    # the skids: iron bars from the west beam down to the rack's lip, on posts at their east ends
-    for i, z in enumerate(SKIDS_Z, 1):
-        a = [SKID_X[0], skid_top(SKID_X[0]) - 0.25, z]
-        b = [SKID_X[1], skid_top(SKID_X[1]) - 0.25, z]
-        el = strut(a, b, 0.5 / math.cos(SLOPE_ANG), 1.0, f"fr_skid{i}", f, "iron", axis="z")
-        out.append(el)
-        out.append(box([LIP_X[0] - 0.6, 1.0, z - 0.4], [LIP_X[0], skid_top(LIP_X[0] - 0.6) - 0.3, z + 0.4], f"fr_skidpost{i}", f, "iron"))
-    out.append(box([LIP_X[0], 0.0, SKIDS_Z[0] - 3.0], [LIP_X[1], rest_y(SLOT_X[0]), SKIDS_Z[-1] + 3.0], "fr_lip", f, "iron"))
-    out.append(box([LIP_X[0] - 0.6, 0.0, SKIDS_Z[0] - 3.0], [LIP_X[0], 1.0, SKIDS_Z[-1] + 3.0], "fr_lip_sill", f, "iron"))
     return out
 
 
@@ -989,7 +1006,7 @@ def link_drivers(i):
 
 def _rig_parts():
     turn = S_DOG / R_C                       # the sprockets' turn in a stroke
-    sleeve = {"thin": -RATIO["thin"] * turn, "thick": -RATIO["thick"] * turn}
+    sleeve = {"thin": DRAW_SIGN * RATIO["thin"] * turn, "thick": DRAW_SIGN * RATIO["thick"] * turn}
     sleeve_g = gauge("rotate", "x", per_class(sleeve["thin"], sleeve["thick"]), stroke(), pivot=pt(0.0, *RECT))
     clutch_w = windows(T_START[0], T_START[1], T_KNOCK[0], T_KNOCK[1])
     jaw_w = windows(T_START[0], T_START[1], T_OPEN[0], T_OPEN[1])
@@ -1004,16 +1021,16 @@ def _rig_parts():
          "drivers": [{"type": "rotate", "axis": "x", "pivot": pt(0.0, *RECT), "ratio": r6(RECT_RATIO)}]},
         # the rectified shaft turns the way the sleeve turns in a draw (negative about x), whichever way the axle does
         {"id": "rectshaft", "match": ["rectshaft_*"], "requires": None,
-         "drivers": [{"type": "rotate", "axis": "x", "pivot": pt(0.0, *RECT), "ratio": r6(-RECT_RATIO), "input": "travel"}]},
+         "drivers": [{"type": "rotate", "axis": "x", "pivot": pt(0.0, *RECT), "ratio": r6(DRAW_SIGN * RECT_RATIO), "input": "travel"}]},
         {"id": "cup", "match": ["cup_*"], "requires": "gearbox",
-         "drivers": [{"type": "rotate", "axis": "x", "pivot": pt(0.0, *RECT), "ratio": r6(-RECT_RATIO), "input": "travel"}]},
+         "drivers": [{"type": "rotate", "axis": "x", "pivot": pt(0.0, *RECT), "ratio": r6(DRAW_SIGN * RECT_RATIO), "input": "travel"}]},
         {"id": "cone", "match": ["cone_*"], "requires": "gearbox",
          "drivers": [sleeve_g, gauge("slide", "x", per_class(CONE_THROW / B), clutch_w)]},
         {"id": "sleeve", "match": ["sleeve_*"], "requires": "gearbox", "drivers": [sleeve_g]},
         {"id": "cluster", "match": ["cluster_*"], "requires": "gearbox",
          "drivers": [sleeve_g, gauge("slide", "x", per_class(0.0, SELECT / B), None, mode="present")]},
         {"id": "driveshaft", "match": ["driveshaft_*"], "requires": "gearbox",
-         "drivers": [gauge("rotate", "x", per_class(turn), stroke(), pivot=pt(0.0, SPR_Y, D_Z))]},
+         "drivers": [gauge("rotate", "x", per_class(-turn), stroke(), pivot=pt(0.0, D_Y, D_Z))]},
         {"id": "selector", "match": ["selector_*"], "requires": None,
          "drivers": [gauge("slide", "x", per_class(0.0, SELECT / B), None, mode="present")]},
         {"id": "startlever", "match": ["startlever_*"], "requires": None,
@@ -1023,7 +1040,7 @@ def _rig_parts():
         {"id": "crank", "match": ["crank_*"], "requires": None,
          "drivers": [gauge("rotate", "y", per_class(CRANK_ANGLE), clutch_w, pivot=pt(CRANK[0], 0.0, CRANK[1]))]},
         {"id": "drivesprocket", "match": ["drivesprocket_*"], "requires": "chain",
-         "drivers": [gauge("rotate", "x", per_class(turn), stroke(), pivot=pt(0.0, SPR_Y, D_Z))]},
+         "drivers": [gauge("rotate", "x", per_class(turn), stroke(), pivot=pt(0.0, SPR_Y, S_Z))]},
         {"id": "returnsprocket", "match": ["returnsprocket_*"], "requires": "chain",
          "drivers": [gauge("rotate", "x", per_class(turn), stroke(), pivot=pt(0.0, SPR_Y, N_Z))]},
         {"id": "chaintop", "match": ["chaintop_*"], "requires": "chain",
@@ -1072,7 +1089,7 @@ def _rig_parts():
             parts.append({"id": f"{pre}slug{k + 1}", "match": [f"{pre}slug{k + 1}_*"], "requires": req,
                           "drivers": [gauge("slide", "z", per_class(SLUG_L / B), once(m, T_DRAW[0], T_TUBE)) for m in range(k + 1)]})
         for m in range(SLUGS):
-            dx, dy = SLOT_X[m] - DROP_X, rest_y(SLOT_X[m]) - DROP_Y
+            dz, dy = SLOT_Z[m] - DROP_Z, rest_y(SLOT_Z[m]) - rest_y(DROP_Z)
             for j in range(NSEG):
                 part = f"{pre}sect{m + 1}{'ab'[j]}"
                 drivers = []
@@ -1084,11 +1101,12 @@ def _rig_parts():
                     start = seg_rest(m, j) + SEG * j - (Z_MOUTH + POINT)
                 drivers.append(gauge("slide", "z", per_class((S_TUBE - start) / B),
                                      once(m, T_DRAW[0] + span * start / S_DOG, T_TUBE)))
-                # it drops level, then tips flat about its own axis as it slides down the skids
-                drivers.append(gauge("rotate", "z", per_class(-SLOPE_ANG), once(m, *T_ROLL), pivot=pt(DL[0], DL[1], 0.0)))
-                drivers.append(gauge("slide", "y", per_class((DROP_Y - DL[1]) / B), once(m, *T_DROP)))
-                drivers.append(gauge("slide", "x", per_class(dx / B), once(m, *T_ROLL)))
-                drivers.append(gauge("slide", "y", per_class(dy / B), once(m, *T_ROLL)))
+                # it drops into the trough, tipping to lie flat on its rails, then slides north down them
+                drivers.append(gauge("rotate", "x", per_class(-FLOOR_ANG), once(m, *T_DROP), pivot=pt(0.0, DL[1], DROP_Z)))
+                drivers.append(gauge("slide", "y", per_class((rest_y(DROP_Z) - DL[1]) / B), once(m, *T_DROP)))
+                if abs(dz) > 1e-9:
+                    drivers.append(gauge("slide", "z", per_class(dz / B), once(m, *T_ROLL)))
+                    drivers.append(gauge("slide", "y", per_class(dy / B), once(m, *T_ROLL)))
                 parts.append({"id": part, "match": [f"{part}_*"], "requires": req, "drivers": drivers})
     (ox0, ox1), (oy0, oy1), (oz0, oz1) = OILER["x"], OILER["y"], OILER["z"]
     parts += [
@@ -1106,7 +1124,7 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses
-REST = (0.0, 0.0, 0.0, 0, 0.0, 0.0)          # (theta, travel, W, k, p, oil): no ingot, the tank empty; the authored pose
+REST = (0.0, 0.0, 0.0, 0, 0.0, 0.0)          # (theta, travel, W, k, p, oil): no hollow, the tank empty; the authored pose
 
 
 def inputs_of(pose):
@@ -1144,7 +1162,7 @@ def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the die end, nearest the "
                     "player who placed it; the bench runs south to the drive head. work is the job's progress, W, in sections "
-                    "drawn (a unit is one stroke's whole cycle; 3 an ingot); k is the ingot's metal (1 lead, 2 copper); gauge "
+                    "drawn (a unit is one stroke's whole cycle; 4 a hollow section); k is the hollow's metal (1 lead, 2 copper); gauge "
                     "windows are placed in sections. The oiler's level follows the rig's oil input (the MachineOil tank's fill, "
                     "0..1). See the draw bench's README for the schema.",
         "cells": [],
@@ -1152,17 +1170,18 @@ def make_rig(parts):
         "powerFace": POWER_FACE,
         "infeedSide": "north",
         "outputSide": "east",
-        "output": {"pos": pt(LIP_X[1] - 0.01, rest_y(SLOT_X[0]), Z_MOUTH + PIPE / 2)},
+        "output": {"pos": pt(CELLS_X * B - 0.01, rest_y(SLOT_Z[0]), SLOT_Z[0])},
         "die": {"pos": pt(DL[0], DL[1], Z_MOUTH)},
         "drip": {"pos": pt(*DRIP)},
         "work": dict(WORK),
         "draw": {"turnsPerSection": per_class(turns_per_section("thin"), turns_per_section("thick")),
-                 "sectionsPerIngot": SLUGS,
-                 "ingots": {"thin": "game:ingot-lead", "thick": "game:ingot-copper"},
+                 "sectionsPerHollow": SLUGS,
+                 "hollows": {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"},
                  "_comment": f"turnsPerSection: axle turns per section's cycle as the gearing is drawn (the rectifier's {RECT_A1}:{RECT_B1}, "
                              f"the change gear's {CG['a']}:{CG['ap']} for lead and {CG['b']}:{CG['bp']} for copper, the drive "
-                             f"sprocket's turn over a stroke that is {T_DRAW[1] - T_DRAW[0]:g} of the cycle). sectionsPerIngot: the "
-                             "job's end (each a game:chutesection of the ingot's metal). ingots: what each class's work is."},
+                             f"sprocket's turn over a stroke that is {T_DRAW[1] - T_DRAW[0]:g} of the cycle). sectionsPerHollow: the "
+                             "job's end (each a seraphhorizons:pipesection of the hollow's metal). hollows: what each class's work is "
+                             "(the game's chute section, drawn over the mandrel)."},
         "parts": parts,
     }
 
@@ -1228,7 +1247,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 # ---------------------------------------------------------------- reference poses
 def reference_poses():
     """theta in {0, 1.1, -2.3, 2.9} with psi; for each metal, W over the cycle's edges in the first,
-    second and last section, W at 0 and 3, p at 1 and 0.4; no ingot; the oil at 0, 0.35 and 1 in turn."""
+    second and last section, W at 0 and 4, p at 1 and 0.4; no hollow; the oil at 0, 0.35 and 1 in turn."""
     out = []
     for i, th in enumerate((0.0, 1.1, -2.3, 2.9)):
         for extra in (0.0, 7.3):

@@ -34,6 +34,7 @@
   "PanningDropsTrimmed": false,
   "PlacerFields": false,
   "PressBrake": false,
+  "MandrelStation": false,
   "RarerBattleTowers": false,
   "RarerDistricts": false,
   "RegionalSupply": false,

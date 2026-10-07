@@ -6,12 +6,13 @@ namespace SeraphHorizons.Mod.DrawBench.Core;
 /// </summary>
 public class DrawBenchConfig
 {
-    /// <summary>Ingots a new die draws: its durability, one point an ingot (the die item's
+    /// <summary>Hollow sections a new die draws: its durability, one point a hollow (the die item's
     /// durability is set to it when the game loads).</summary>
     public int DieDurability { get; set; } = 100;
 
-    /// <summary>Durability points a die loses per ingot drawn, whatever the oil.</summary>
-    public int DieWearPerIngot { get; set; } = 1;
+    /// <summary>Durability points a die loses per hollow section drawn (four pipe sections),
+    /// whatever the oil.</summary>
+    public int DieWearPerHollow { get; set; } = 1;
 
     /// <summary>Axle turns per lead section: the bench's fast gear, as the model is drawn (the rig's
     /// <c>draw.turnsPerSection.thin</c>; a test holds the two together).</summary>
@@ -28,7 +29,7 @@ public class DrawBenchConfig
     /// <summary>Resistance while it draws copper, a harder metal.</summary>
     public float ResistanceCopper { get; set; } = 0.35f;
 
-    /// <summary>The shaft speed below which the bench does not draw or take an ingot from its infeed.</summary>
+    /// <summary>The shaft speed below which the bench does not draw or take a hollow from its infeed.</summary>
     public float MinSpeed { get; set; } = 0.05f;
 
     /// <summary>What each die draws, by the die's metal: an iron die lead only, a steel die lead
@@ -59,8 +60,8 @@ public class DrawBenchConfig
         var fixes = new List<string>();
         if (DieDurability < 1 || DieDurability > 100000)
             Fix(nameof(DieDurability), DieDurability, DieDurability = Defaults.DieDurability, fixes);
-        if (DieWearPerIngot < 0 || DieWearPerIngot > 100000)
-            Fix(nameof(DieWearPerIngot), DieWearPerIngot, DieWearPerIngot = Defaults.DieWearPerIngot, fixes);
+        if (DieWearPerHollow < 0 || DieWearPerHollow > 100000)
+            Fix(nameof(DieWearPerHollow), DieWearPerHollow, DieWearPerHollow = Defaults.DieWearPerHollow, fixes);
         if (!float.IsFinite(TurnsPerSectionLead) || TurnsPerSectionLead <= 0 || TurnsPerSectionLead > 1000)
             Fix(nameof(TurnsPerSectionLead), TurnsPerSectionLead, TurnsPerSectionLead = Defaults.TurnsPerSectionLead, fixes);
         if (!float.IsFinite(TurnsPerSectionCopper) || TurnsPerSectionCopper <= 0 || TurnsPerSectionCopper > 1000)

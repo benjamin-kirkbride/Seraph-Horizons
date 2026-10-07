@@ -106,7 +106,7 @@ public class DrawBenchGameplayTests
     }
 
     [Fact]
-    public void The_die_comes_back_only_with_no_ingot_on_the_bench_with_its_durability()
+    public void The_die_comes_back_only_with_no_hollow_on_the_bench_with_its_durability()
     {
         var parts = Complete(DrawBenchParts.DieIronCode, 64);
         Assert.False(parts.CanTakeDie(jobOn: true));
@@ -179,20 +179,26 @@ public class DrawBenchGameplayTests
     // ---- The draw ----
 
     [Fact]
-    public void Ingots_and_sections_by_metal()
+    public void Hollows_and_pipe_sections_by_metal()
     {
-        Assert.Equal(1, Drawing.ClassOfIngot("game:ingot-lead"));
-        Assert.Equal(2, Drawing.ClassOfIngot("game:ingot-copper"));
-        Assert.Equal(0, Drawing.ClassOfIngot("game:ingot-iron"));
-        Assert.Equal(0, Drawing.ClassOfIngot("game:ingot-tinbronze"));
-        // what comes off is never taken as input
-        Assert.Equal(0, Drawing.ClassOfIngot("game:chutesection-lead"));
-        Assert.Equal(0, Drawing.ClassOfIngot("game:chutesection-copper"));
-        Assert.Equal(0, Drawing.ClassOfIngot("game:metalplate-copper"));
-        Assert.Equal(("game:ingot-lead", "game:ingot-copper"), (Drawing.IngotFor(1), Drawing.IngotFor(2)));
-        Assert.Equal("game:chutesection-lead", Drawing.SectionFor(1));
-        Assert.Equal("game:chutesection-copper", Drawing.SectionFor(2));
+        Assert.Equal(1, Drawing.ClassOfHollow("game:chutesection-lead"));
+        Assert.Equal(2, Drawing.ClassOfHollow("game:chutesection-copper"));
+        Assert.Equal(0, Drawing.ClassOfHollow("game:chutesection-iron"));
+        // ingots, angles, plates and what comes off are never taken as input
+        Assert.Equal(0, Drawing.ClassOfHollow("game:ingot-lead"));
+        Assert.Equal(0, Drawing.ClassOfHollow("game:ingot-copper"));
+        Assert.Equal(0, Drawing.ClassOfHollow("seraphhorizons:angle-copper"));
+        Assert.Equal(0, Drawing.ClassOfHollow("seraphhorizons:pipesection-lead"));
+        Assert.Equal(0, Drawing.ClassOfHollow("seraphhorizons:pipesection-copper"));
+        Assert.Equal(0, Drawing.ClassOfHollow("game:metalplate-copper"));
+        Assert.Equal(("game:chutesection-lead", "game:chutesection-copper"), (Drawing.HollowFor(1), Drawing.HollowFor(2)));
+        Assert.Null(Drawing.HollowFor(0));
+        Assert.Equal("seraphhorizons:pipesection-lead", Drawing.SectionFor(1));
+        Assert.Equal("seraphhorizons:pipesection-copper", Drawing.SectionFor(2));
         Assert.Null(Drawing.SectionFor(0));
+        // the chain's figure: four pipe sections a hollow on the bench
+        Assert.Equal(SeraphHorizons.Mod.Pipes.Core.PipeSections.PipeSectionsPerHollowDrawn, Drawing.SectionsPerHollow);
+        Assert.Equal(SeraphHorizons.Mod.Pipes.Core.PipeSections.PipeSection("lead"), Drawing.SectionFor(1));
         Assert.Equal(1, Drawing.SectionsFor(2 * Math.PI * 10.3, 10.3), 9);
         Assert.Equal(0, Drawing.SectionsFor(-1, 10.3));
     }
@@ -205,14 +211,15 @@ public class DrawBenchGameplayTests
         Assert.Equal(["lead"], iron);
         Assert.Equal(["lead", "copper"], steel);
         Assert.Empty(Config.MetalsFor(null));
-        Assert.Equal(DrawLoadVerdict.Loads, Drawing.CanLoad(Drawing.LeadIngot, true, false, iron.ToList()));
-        Assert.Equal(DrawLoadVerdict.DieRefuses, Drawing.CanLoad(Drawing.CopperIngot, true, false, iron.ToList()));
-        Assert.Equal(DrawLoadVerdict.Loads, Drawing.CanLoad(Drawing.CopperIngot, true, false, steel.ToList()));
-        Assert.Equal(DrawLoadVerdict.Loads, Drawing.CanLoad(Drawing.LeadIngot, true, false, steel.ToList()));
-        Assert.Equal(DrawLoadVerdict.Incomplete, Drawing.CanLoad(Drawing.LeadIngot, false, false, steel.ToList()));
-        Assert.Equal(DrawLoadVerdict.Occupied, Drawing.CanLoad(Drawing.LeadIngot, true, true, steel.ToList()));
-        Assert.Equal(DrawLoadVerdict.NotAnIngot, Drawing.CanLoad("game:chutesection-lead", true, false, steel.ToList()));
-        Assert.Equal(DrawLoadVerdict.NotAnIngot, Drawing.CanLoad("game:chutesection-copper", true, false, steel.ToList()));
+        Assert.Equal(DrawLoadVerdict.Loads, Drawing.CanLoad(Drawing.LeadHollow, true, false, iron.ToList()));
+        Assert.Equal(DrawLoadVerdict.DieRefuses, Drawing.CanLoad(Drawing.CopperHollow, true, false, iron.ToList()));
+        Assert.Equal(DrawLoadVerdict.Loads, Drawing.CanLoad(Drawing.CopperHollow, true, false, steel.ToList()));
+        Assert.Equal(DrawLoadVerdict.Loads, Drawing.CanLoad(Drawing.LeadHollow, true, false, steel.ToList()));
+        Assert.Equal(DrawLoadVerdict.Incomplete, Drawing.CanLoad(Drawing.LeadHollow, false, false, steel.ToList()));
+        Assert.Equal(DrawLoadVerdict.Occupied, Drawing.CanLoad(Drawing.LeadHollow, true, true, steel.ToList()));
+        Assert.Equal(DrawLoadVerdict.NotAHollow, Drawing.CanLoad("game:ingot-lead", true, false, steel.ToList()));
+        Assert.Equal(DrawLoadVerdict.NotAHollow, Drawing.CanLoad("seraphhorizons:angle-copper", true, false, steel.ToList()));
+        Assert.Equal(DrawLoadVerdict.NotAHollow, Drawing.CanLoad("seraphhorizons:pipesection-lead", true, false, steel.ToList()));
     }
 
     [Theory]
@@ -226,7 +233,7 @@ public class DrawBenchGameplayTests
         int finished = 0;
         // a tenth of a turn at a time, past the end to show it holds
         double turned = 0;
-        for (int i = 0; i < (int)(turns * 3 * 10) + 20; i++)
+        for (int i = 0; i < (int)(turns * 4 * 10) + 20; i++)
         {
             (job, int sections, bool done) = job.Advance(2 * Math.PI * 0.1, turns);
             turned += 0.1;
@@ -235,33 +242,33 @@ public class DrawBenchGameplayTests
             if (done)
                 finished++;
         }
-        Assert.Equal(3, crossings.Count);
-        for (int m = 1; m <= 3; m++)
+        Assert.Equal(4, crossings.Count);
+        for (int m = 1; m <= 4; m++)
             Assert.InRange(crossings[m - 1], m * turns - 1e-6, m * turns + 0.1 + 1e-6);
         Assert.Equal(1, finished);
-        Assert.Equal(3, job.Work, 9);
+        Assert.Equal(4, job.Work, 9);
         Assert.True(job.Done);
-        Assert.Equal(3, job.SectionsDone);
+        Assert.Equal(4, job.SectionsDone);
     }
 
     [Fact]
     public void One_big_step_gives_every_section_it_crosses()
     {
-        var (job, sections, done) = new DrawJob(1, 0.5).Advance(2 * Math.PI * 10.3 * 2, 10.3);
-        Assert.Equal(2, sections);
+        var (job, sections, done) = new DrawJob(1, 0.5).Advance(2 * Math.PI * 10.3 * 3, 10.3);
+        Assert.Equal(3, sections);
         Assert.False(done);
-        Assert.Equal(2.5, job.Work, 9);
+        Assert.Equal(3.5, job.Work, 9);
         (job, sections, done) = job.Advance(2 * Math.PI * 10.3 * 100, 10.3);
         Assert.Equal(1, sections);
         Assert.True(done);
         Assert.Equal((DrawJob.None, 0, false), DrawJob.None.Advance(100, 10.3));
-        Assert.Equal(new DrawJob(2, 3), DrawJob.Restore(2, 99));
+        Assert.Equal(new DrawJob(2, 4), DrawJob.Restore(2, 99));
         Assert.Equal(DrawJob.None, DrawJob.Restore(3, 1));
         Assert.Equal(new DrawJob(1, 0), DrawJob.Restore(1, double.NaN));
     }
 
     [Fact]
-    public void It_runs_only_complete_with_an_ingot_at_speed()
+    public void It_runs_only_complete_with_a_hollow_at_speed()
     {
         Assert.True(Drawing.Running(true, true, 0.1f, 0.05f));
         Assert.True(Drawing.Running(true, true, -0.1f, 0.05f));
@@ -271,16 +278,16 @@ public class DrawBenchGameplayTests
     }
 
     [Fact]
-    public void A_die_draws_a_hundred_ingots_one_point_each()
+    public void A_die_draws_a_hundred_hollows_one_point_each()
     {
         var parts = Complete(left: Config.DieDurability);
-        int ingots = 0;
+        int hollows = 0;
         while (parts.Complete)
         {
-            parts.WearDie(Config.DieWearPerIngot);
-            ingots++;
+            parts.WearDie(Config.DieWearPerHollow);
+            hollows++;
         }
-        Assert.Equal(100, ingots);
+        Assert.Equal(100, hollows);
     }
 
     // ---- The renderer's clock ----
@@ -289,8 +296,8 @@ public class DrawBenchGameplayTests
     public void The_clock_follows_the_shaft_but_never_strays_from_the_server()
     {
         var clock = new DrawBenchClock();
-        Assert.Equal((3.0, 0f, 0), (clock.Work, clock.Presence, clock.Class));
-        // an ingot of lead goes on: W from the server's 0, p eases in
+        Assert.Equal((4.0, 0f, 0), (clock.Work, clock.Presence, clock.Class));
+        // a lead hollow goes on: W from the server's 0, p eases in
         clock.Advance(0.2f, 0, 1, 0, false, 10.3);
         Assert.Equal((0.0, 0.5f, 1), (clock.Work, clock.Presence, clock.Class));
         Assert.True(clock.ShowsBillet("billetlead"));
@@ -311,13 +318,13 @@ public class DrawBenchGameplayTests
     }
 
     [Fact]
-    public void The_clock_holds_W_at_the_end_and_k_while_p_eases_out_then_takes_a_new_ingot_from_0()
+    public void The_clock_holds_W_at_the_end_and_k_while_p_eases_out_then_takes_a_new_hollow_from_0()
     {
         var clock = new DrawBenchClock();
-        clock.Advance(1f, 0, 2, 2.9, false, 20.6);
+        clock.Advance(1f, 0, 2, 3.9, false, 20.6);
         Assert.Equal(1f, clock.Presence);
         clock.Advance(0.2f, 0, 0, 0, false, 20.6);   // done and cleared
-        Assert.Equal(3.0, clock.Work);
+        Assert.Equal(4.0, clock.Work);
         Assert.Equal(2, clock.Class);
         Assert.Equal(0.5f, clock.Presence, 5);
         Assert.True(clock.ShowsBillet("billetcopper"));
@@ -338,17 +345,17 @@ public class DrawBenchGameplayTests
     {
         var c = new DrawBenchConfig();
         Assert.Equal((100, 1, 7.72f, 15.45f, 0.2f, 0.35f, 0.05f),
-            (c.DieDurability, c.DieWearPerIngot, c.TurnsPerSectionLead, c.TurnsPerSectionCopper, c.ResistanceLead, c.ResistanceCopper, c.MinSpeed));
+            (c.DieDurability, c.DieWearPerHollow, c.TurnsPerSectionLead, c.TurnsPerSectionCopper, c.ResistanceLead, c.ResistanceCopper, c.MinSpeed));
         Assert.Equal(c.TurnsPerSectionLead * 2.0, c.TurnsPerSectionCopper, 0.02);   // copper in the slow gear, twice the turns
         Assert.Empty(c.Sanitise());
         var bad = new DrawBenchConfig
         {
-            DieDurability = 0, DieWearPerIngot = -1, TurnsPerSectionLead = float.NaN, TurnsPerSectionCopper = -3,
+            DieDurability = 0, DieWearPerHollow = -1, TurnsPerSectionLead = float.NaN, TurnsPerSectionCopper = -3,
             ResistanceLead = 99, ResistanceCopper = float.PositiveInfinity, MinSpeed = -1,
         };
         Assert.Equal(7, bad.Sanitise().Count);
         Assert.Equal((100, 1, 7.72f, 15.45f, 0.2f, 0.35f, 0.05f),
-            (bad.DieDurability, bad.DieWearPerIngot, bad.TurnsPerSectionLead, bad.TurnsPerSectionCopper, bad.ResistanceLead, bad.ResistanceCopper, bad.MinSpeed));
+            (bad.DieDurability, bad.DieWearPerHollow, bad.TurnsPerSectionLead, bad.TurnsPerSectionCopper, bad.ResistanceLead, bad.ResistanceCopper, bad.MinSpeed));
         Assert.Equal(0.35f, c.Resistance(2));
         Assert.Equal(0.2f, c.Resistance(1));
         Assert.Equal(0.2f, c.Resistance(0));
@@ -385,10 +392,11 @@ public class DrawBenchGameplayTests
         Assert.Equal(3, rig.GhostCells.Count());
         // a chest in front of the die end feeds it
         Assert.Equal([new Int3(0, 0, -1)], rig.InfeedNeighbours());
-        Assert.Equal(new Int3(1, 0, 1), rig.OutputNeighbour());
+        // the sections come off by the die end's east face
+        Assert.Equal(new Int3(1, 0, 0), rig.OutputNeighbour());
         Assert.Equal(1.15f, rig.OutputDrop().X, 4);
         Assert.Equal(rig.Output.Z, rig.OutputDrop().Z);
-        Assert.Equal(3f, rig.Work.Ends[1]);
+        Assert.Equal(4f, rig.Work.Ends[1]);
         Assert.Equal(rig.TurnsPerSection[1] * 2, rig.TurnsPerSection[2], 4);
         Assert.Equal(8, rig.MovingParts.Parts.Count);
     }
@@ -398,9 +406,13 @@ public class DrawBenchGameplayTests
     {
         var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "drawbench-rig-test.json"));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"billetlead\"", "\"ingot\"")));
-        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"sectionsPerIngot\": 3", "\"sectionsPerIngot\": 2")));
-        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("game:ingot-copper", "game:chutesection-copper")));
-        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("game:ingot-lead", "game:ingot-copper")));
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"sectionsPerHollow\": 4", "\"sectionsPerHollow\": 3")));
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("game:chutesection-copper", "game:ingot-copper")));
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("game:chutesection-lead", "game:chutesection-copper")));
+        // only the new keys: the old ones in their place do not do
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"sectionsPerHollow\"", "\"sectionsPerIngot\"")));
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"hollows\"", "\"ingots\"")));
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"thin\": 4.0", "\"thin\": 3.0")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"infeedSide\": \"north\"", "\"infeedSide\": \"east\"")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"turnsPerSection\"", "\"turnsPerTooth\"")));
     }

@@ -1,15 +1,12 @@
 # Press brake
 
-Part of the Seraph Horizons mod (`../README.md`): the brake rung of the pipe ladder (unified pipes,
-`../Pipes/`). A hand-worked **leaf brake** (a cornice brake) of the early-to-mid 1800s, in oak with iron
-wearing edges and iron clamping screws, folds one lead or copper **plate** (`game:metalplate-lead` or
-`-copper`) into two **open chute sections** (`seraphhorizons:chutesectionopen-{lead,copper}`), which are
-soldered shut on the grid into the game's chute sections. The plate goes on in two halves lying end to
-end along the folding edge, and both halves are folded together, twice. The **clamping bar** is screwed
-down on the sheet and the **leaf** swings up and folds the near flange up. The bar is screwed up, the
-sheet is pulled one panel towards the operator, the bar goes down again and the leaf folds the middle
-panel up. The first flange swings back over the bar's low nose, and the sheet is a U round the bar, open
-towards the far end. The bar is screwed up and the two U sections are slid off it onto the leaf.
+Part of the Seraph Horizons mod (`../README.md`): a rung of the pipe ladder (unified pipes, `../Pipes/`).
+A hand-worked **leaf brake** (a cornice brake) of the early-to-mid 1800s, in oak with iron wearing edges
+and iron clamping screws, folds one lead or copper **plate** (`game:metalplate-lead` or `-copper`) once,
+into one **angle** (`seraphhorizons:angle-{lead,copper}`: an L, two 8-wide legs). Two angles, soldered on
+the grid, make the game's chute section. The plate goes on the bed; the **clamping bar** is screwed down
+on it, the **leaf** swings up and folds its near leg up, over-bent for the spring-back, the bar is screwed
+up and the angle is slid off onto the leaf.
 
 This folder holds the model's generator and its rig (`tools/`); the gameplay is built against the rig
 ("Gameplay" below).
@@ -29,18 +26,22 @@ unchanged by this one (no new driver: every motion is a `gauge`).
 the controller at `[0,0,0]`: x 0, y 0, z 0..1. The controller is the leaf end, `[0,0,0]`, the block
 the player clicks. Placed like the draw bench, the brake extends away from the player along their line
 of sight, the leaf end nearest them: the block's `side` is the way they look. The operator stands at
-the leaf; the U sections come off towards them (native north), and a chest of plates can stand behind
+the leaf; the angle comes off towards them (native north), and a chest of plates can stand behind
 the far end of the bed (native south).
 
 **The folding edge** (the leaf's hinge axis) runs along x at y 4.6, z 10 voxels (in blocks 0.2875,
-0.625): the bed's top and its iron edge. A panel of the sheet is 8 voxels (the game's chute section is 8
-across); the sheet is 1 thick, as the open section item's walls are. Each half is 6.45 long (x 1.45..7.9 and 8.1..14.55), so each section is
-6.45 long with an 8 × 8 U.
+0.625): the bed's top and its iron edge.
+
+**The angle** (the item's shape follows these exact dimensions): an L of two legs, each 8 voxels across
+its outside and 1 thick, 8 long. As delivered on the leaf (build frame): leg M flat, x 4..12, y 4.6..5.6,
+z 2..10; leg A upright at its north end, x 4..12, y 4.6..12.6, z 2..3. The legs share the corner (x 4..12,
+y 4.6..5.6, z 2..3); the inside of the L is 7 × 7. Two of them, turned to face each other, make the
+game's 8 × 8 × 8 chute section.
 
 **Anchors** (in `assets/seraphhorizons/config/pressbrake-rig.json`): `infeedSide` south and `outputSide`
-north; `output.pos` (over the leaf at the near end, where the two U sections lie at W = 1), `plate.pos`
-(the middle of the laid plate on the bed: loading sounds) and `edge.pos` (the middle of the folding edge:
-the bend's sound and dust). There is no `powerCell` or `powerFace`.
+north; `output.pos` (over the leaf at the near end, where the angle lies at W = 1), `plate.pos`
+(the middle of the plate as laid on the bed: loading sounds) and `edge.pos` (the middle of the folding
+edge: the bend's sound and dust). There is no `powerCell` or `powerFace`.
 
 **Fitted parts** (the rig's `requires`). The frame item carries everything with `requires` null: the
 oak end frames (legs and rails), the bed, the iron hinge bearings and pins, the iron gallows with their
@@ -52,7 +53,7 @@ bar), and the clamping bar with its screw cups. The **build order** is the frame
 |---|---|---|---|---|
 | 1 | `screws` | `game:rod-iron`, `-meteoriciron` or `-steel` | The two clamp screws with their tommy bars. Their texture code is `screw`, which the renderer sets to the rods' metal | Only by breaking the frame |
 | 2 | `edge` | `game:metalplate-iron` or `-steel` | The iron wearing edges: the bed's folding edge, the leaf's edge, the bar's nose. Their texture code is `edge`, which the renderer sets to the plate's metal | Only by breaking the frame |
-| — | `platelead` | The work: a lead plate on the brake (k = 1) | The two halves of the sheet, each in three panels, folding into two U sections | The material being worked, not a part |
+| — | `platelead` | The work: a lead plate on the brake (k = 1) | The plate, as laid and as it folds into the angle (legs A and M) | The material being worked, not a part |
 | — | `platecopper` | The work: a copper plate (k = 2) | The same in copper | as above |
 
 Why these items: the game has no screw, so the screws are turned rods, and the wearing edges are strips
@@ -70,9 +71,9 @@ nothing from `build/mods`. The sheet wears the game's plain lead and copper shee
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/pressbrake.json` | The whole machine, every moving part (82 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/pressbrake.json` | The whole machine, every moving part (74 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/pressbrake_frame.json` | The static frame only (37 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/pressbrake-rig.json` | Footprint, anchors, the work, the fold's constants and the part rig (15 parts). |
+| `assets/seraphhorizons/config/pressbrake-rig.json` | Footprint, anchors, the work, the fold's constants and the part rig (13 parts). |
 | `tests/PressBrake/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
 
 ### How the machine works
@@ -94,47 +95,49 @@ bail handle is two iron arms from under the leaf to an oak hand bar 9.2 from the
 horizontal at rest. At copper's throw the hand bar is near the top of the block.
 
 **The clamping bar** is oak (y 1 to 3.5 over its foot, z 11.95..16.4) on an iron nose (z 11.45..12.35, 1
-tall). The nose is set back from the edge, and the oak further still, so a flange over-bent to 100°
-clears them. Each end carries an iron cup for the screw's tip. With no plate on, the bar lies on the
-bed. As a plate goes on, it stands 1 voxel (`LIFT`) over the sheet, lifted by the screws.
+tall). The nose is set back from the edge, and the oak further still, so a leg over-bent to 100° clears
+them. Each end carries an iron cup for the screw's tip. With no plate on, the bar lies on the bed. As a
+plate goes on, it stands 1 voxel (`LIFT`) over the sheet, lifted by the screws.
 
 **The screws** turn in their nuts with a pitch of 0.25 voxels a turn, right-handed. A screw's tip
 stays in its cup, and the bar rises and falls with the screws. To clamp, the screws are turned 4 turns
 down and the bar comes 1 down onto the sheet. Copper is screwed a quarter turn harder, and its tip
 presses 1/16 voxel into the cup.
 
+**The plate as laid.** The plate goes on as the game's square plate item reads: an 8 × 8 square (leg M)
+on the bed, x 4..12, z 10..18, under the bar. Leg A lies hidden inside the leaf (1.05 down, 0.1 south).
+As the bar comes down, A rises out of the leaf's face onto it: the square plate spreads into the
+working sheet. That is the model's one abstraction.
+
 **The cycle** (t = W, one plate; θ, the lever's work, moves nothing):
 
 | t | What moves |
 |---|---|
-| 0.00..0.04 | The plate lies on: flange A over the leaf, panels M and B on the bed (p eases in; the bar stands over it). |
-| 0.04..0.12 | The screws turn down; the bar comes down on M. |
-| 0.13..0.25 | The leaf swings up 95° (lead) or 100° (copper), carrying flange A up against the bar's nose. |
-| 0.25..0.37 | The leaf falls back; A springs back with it to 90° and stays there. |
-| 0.38..0.46 | The screws turn up; the bar rises 1 off the sheet. |
-| 0.46..0.54 | The sheet is pulled 8 north: M lies on the leaf, A stands at the leaf's front edge, B is under the bar. |
-| 0.54..0.62 | The bar comes down on B. |
-| 0.63..0.75 | The leaf swings M up; A swings back over the bar's nose and lies over B (the bar inside the U). |
-| 0.75..0.87 | The leaf falls back; M springs back to 90°. |
-| 0.88..0.96 | The bar rises. |
-| 0.96..1.00 | The two U sections slide 8 north, off the bar onto the leaf: delivered at 1. |
+| 0.00..0.06 | The plate lies on the bed (p eases in; the bar and screws rise off the bed with it). |
+| 0.06..0.18 | The screws turn down; the bar comes down on leg M. From 0.12, leg A rises out of the leaf. |
+| 0.22..0.42 | The leaf swings up 95° (lead) or 100° (copper), carrying leg A up against the bar's nose. |
+| 0.42..0.62 | The leaf falls back; A springs back with it to 90° and stays there. |
+| 0.66..0.78 | The screws turn up; the bar rises 1 off the sheet. |
+| 0.80..0.96 | The angle slides 8 north, under the bar, onto the leaf. |
+| 0.96..1.00 | It lies there: delivered at 1. |
 
-The leaf's throw is the rig's `fold.throwDegrees`. A panel the leaf carries follows it exactly, by the
-same gauge, until the leaf falls back to 90°. From there the spring-back gauge, whose window is copper's
-and whose lead gain matches lead's fall, holds it at 90°.
+The leaf's throw is the rig's `fold.throwDegrees`. Leg A follows the leaf exactly, by the same gauge,
+until the leaf falls back to 90°. From there the spring-back gauge, whose window is copper's and whose
+lead gain matches lead's fall, holds it at 90°.
 
 Every moving part (W the fold cycle, k the metal: 1 lead, 2 copper, p its presence):
 
 | Part (rig id) [requires] | Driven by | Drives | Drivers |
 |---|---|---|---|
-| Leaf: oak, knuckles, straps (`leaf`) | The operator, by its handle | The panel it carries | `gauge` rotate x about the hinge by the throw, one window per fold |
+| Leaf: oak, knuckles, straps (`leaf`) | The operator, by its handle | Leg A | `gauge` rotate x about the hinge by the throw, one window |
 | Leaf's iron edge (`leafedge`) [edge] | Rides the leaf | — | none |
 | Bail handle: arms, hand bar (`lever`) | Rides the leaf | The leaf | `rotate` x ratio 0 on θ (θ's carrier; moves nothing) |
-| Clamping bar, cups (`bar`) | The screws | The sheet (clamped) | `gauge` slide y +2 (`present`); `gauge` slide y −1 in each clamp window |
+| Clamping bar, cups (`bar`) | The screws | The sheet (clamped) | `gauge` slide y +2 (`present`); `gauge` slide y −1 in the clamp window |
 | Bar's iron nose (`baredge`) [edge] | Rides the bar | — | none |
-| Clamp screws (`screww`, `screwe`) [screws] | The operator, by the tommy bars | The bar | `gauge` rotate y about its own axis and slide y, as its thread: +8 turns, +2 (`present`); −4 turns, −1 a clamp (copper −4¼ turns, −1.0625) |
+| Clamp screws (`screww`, `screwe`) [screws] | The operator, by the tommy bars | The bar | `gauge` rotate y about its own axis and slide y, as its thread: +8 turns, +2 (`present`); −4 turns, −1 to clamp (copper −4¼ turns, −1.0625) |
 | Bed's iron edge (`bededge`) [edge] | Fixed | — | none |
-| Sheet panels A, M, B (`la`, `lm`, `lb`) [platelead], (`ca`, `cm`, `cb`) [platecopper] | The leaf; the operator's pull | — | A: the leaf's fold 1 and its spring-back, the pull (slide z −8), fold 2 and its spring-back, the slide off (slide z −8). M: the pull, fold 2 and its spring-back, the slide off. B: the pull, the slide off |
+| Leg A (`la`) [platelead], (`ca`) [platecopper] | The leaf; the operator's pull | — | the spread (slide y +1.05, z −0.1), the fold and its spring-back, the slide off (slide z −8) |
+| Leg M (`lm`) [platelead], (`cm`) [platecopper] | The operator's pull | — | the slide off (slide z −8) |
 | Frame (`frame`) | Static | — | none |
 
 There are no gears, so no toothed wheel meshes with nothing. Every shaft-like part is carried: the
@@ -158,20 +161,21 @@ and exits non-zero if one fails:
 - **Textures** by role: oak timber, the leaf and the hand bar; iron bearings, pins, gallows, nuts,
   knuckles, straps, arms and cups; `edge` for the wearing edges, `screw` for the screws; lead and copper
   sheet.
-- **Sheet:** the panel the leaf carries lies on the leaf's face (within 1e-4) through each fold, until
-  the leaf is back at 90°. From there it holds at 90°, off the leaf. Each fold reaches its metal's throw,
-  and at W = 1 both metals' U sections lie on the leaf, the B, M and A panels where an 8 × 8 U puts them.
-- **Clamp:** the bar lies on the bed with no plate, on the sheet at every point of both folds, and at
-  least `LIFT` over it while the sheet is pulled and slid off. Each screw's tip is in its cup, exactly
-  for lead and within a quarter turn's 1/16 for copper. Every screw's rise is its turn times the pitch.
+- **Sheet:** leg A lies on the leaf's face (within 1e-4) through the fold, until the leaf is back at
+  90°. From there it holds at 90°, off the leaf. The fold reaches its metal's throw. At W = 1 both
+  metals' angles lie on the leaf where the dimensions above put them. Before the clamp, leg A is
+  inside the leaf.
+- **Clamp:** the bar lies on the bed with no plate, on the sheet at every point of the fold, and at least
+  `LIFT` over it while the angle is slid off. Each screw's tip is in its cup, exactly for lead and within
+  a quarter turn's 1/16 for copper. Every screw's rise is its turn times the pitch.
 - **Supports:** each pin in its bearing; the knuckles on their pins at rest and at the throw; each screw
   through its nut's four bars, at rest, raised and clamped; the bar's ends between the uprights.
 - **Lever:** θ moves nothing.
 - **Clearances:** over 103 poses no two parts touch except the intended contacts listed in `ALLOWED`.
 - **Swept paths** (full runs): the same, every 0.0025 of the cycle for both metals (802 poses): the
-  leaf and its handle through both throws, the flange over the bar, the sheet's pull and its slide off.
+  leaf and its handle through the throw, the leg against the bar's nose, the angle's slide off.
 - **Nothing floats:** every frame element joined to the ground.
-- **No z-fighting** (full runs): no coplanar overlapping faces at eight poses over the cycle of both
+- **No z-fighting** (full runs): no coplanar overlapping faces at nine poses over the cycle of both
   metals, of what can be seen (another metal's sheet is left out, `shown`).
 - **Files:** every texture declared; lids over both columns; no power cell; the shipped model is the
   checked one moved.
@@ -185,15 +189,16 @@ The gear cutter's schema (`../GearCutter/README.md`, "Rig schema"), with nothing
 maths: a `work` quantity, gauges, and one θ-driven rotate of ratio 0.
 
 - **The work.** `{ "name": "fold", "unit": "plates", "step": 0.005, "end": { "thin": 1, "thick": 1 } }`.
-  W is one plate's fold cycle, 0..1.
+  W is one plate's fold cycle, 0..1: one fold.
 - **Inputs.** W, k and p, and θ. k is the plate's metal (1 lead, 2 copper, 0 none). p is its presence,
   eased in as the plate goes on (the bar and the screws rise off the bed with it) and out after
   delivery, with k held while p eases out. The gameplay advances W while the player holds right-click on
-  a brake with a plate, at `1 / leverTurnsPerPlate[k]` per turn of its lever clock θ. It delivers two
-  `fold.sections[k]` at W = 1, then clears (p eases out with W held at 1) and starts the next plate at
-  W = 0. θ is that clock and poses nothing.
-- **`fold`**: `leverTurnsPerPlate` (lead 6, copper 9: the pace), `throwDegrees` (95, 100: as drawn),
-  `plates` (each class's work), `sections` (what a plate makes) and `sectionsPerPlate` (2).
+  a brake with a plate, at `1 / leverTurnsPerPlate[k]` per turn of its lever clock θ. It delivers
+  `fold.anglesPerPlate` (1) `fold.angles[k]` at W = 1, then clears (p eases out with W held at 1) and
+  starts the next plate at W = 0. θ is that clock and poses nothing.
+- **`fold`**: `leverTurnsPerPlate` (lead 3, copper 4.5: the pace, halved from the two-fold machine's 6
+  and 9 for one fold), `throwDegrees` (95, 100: as drawn), `plates` (each class's work), `angles` (what a
+  plate makes) and `anglesPerPlate` (1).
 
 **Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `plate`, `edge`, `work`, `fold` and `parts`.
 `requires` values: `screws`, `edge`, `platelead`, `platecopper`, or null. The texture codes the
@@ -208,36 +213,27 @@ half as much again.
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `leaf_*`, `leafedge_*`,
-`lever_*`, `bar_*`, `baredge_*`, `screww_*`, `screwe_*`, `bededge_*`, `la_*`, `lm_*`, `lb_*`, `ca_*`,
-`cm_*`, `cb_*` (each panel `_1` and `_2`, the two halves), and `fr_*` for the frame. Hand edits are lost
-when the script runs again: port them into `make_shape.py`, or stop regenerating.
+`lever_*`, `bar_*`, `baredge_*`, `screww_*`, `screwe_*`, `bededge_*`, `la_*`, `lm_*`, `ca_*`, `cm_*`, and
+`fr_*` for the frame. Hand edits are lost when the script runs again: port them into `make_shape.py`, or
+stop regenerating.
 
 ## Known weak spots, and what is not checked
 
 The model has been reviewed in projections rendered from the written files and in the site's own viewer
 (a standalone copy, `site/scripts/standalone-viewer.ts`). No one has yet looked at it in a client.
 
-1. **No shear.** The plate goes on already in two halves. A shear blade along the bed's centre line
-   would cross the clamping bar, and an 8 × 8 U's sheet (24 deep) does not fit behind the bar to be cut
-   there.
-2. **No turn.** The second fold is made by pulling the sheet one panel forward, the first flange
-   swinging back over the bar's low nose, as a channel is made on a cornice brake. The U comes out open
-   towards the far end, round the bar, and is slid off forwards. A bar lifted clear of an upright U
-   would need 8 voxels of screw travel, which a 1-high machine cannot hold.
-3. **The open section here has no lips, and is 6.45 long.** `seraphhorizons:chutesectionopen`'s item
-   shape (8 long, lips folded in from both walls) cannot be made here: two 8-long sections fill the whole
-   16-voxel edge, leaving no room for bearings, gallows or screws, and lips close the section round the
-   clamping bar, which could then come out only through the 2-voxel slot between them. The brake draws an
-   8 × 8 U with 1-voxel walls, 6.45 long; the item is to follow it (the contract's Changes).
-4. **Square bends.** Each bend is two panels meeting at the corner, overlapping by the sheet's
-   thickness. There is no bend radius.
-5. **Linear ramps.** The gauges move in straight ramps: the leaf, the bar and the sheet start and stop at
+1. **The plate spreads.** The game's plate item is square; the angle's sheet is twice as long. The plate
+   lies as a square (leg M) and leg A rises out of the leaf as the bar comes down. It is the one
+   visible abstraction, and the owner accepts it.
+2. **Square bend.** The bend is two legs meeting at the corner, overlapping by the sheet's thickness.
+   There is no bend radius.
+3. **Linear ramps.** The gauges move in straight ramps: the leaf, the bar and the sheet start and stop at
    full speed.
-6. **θ moves nothing.** A leaf on θ could not hold still between the folds, nor follow the sheet: Play
+4. **θ moves nothing.** A leaf on θ could not hold still between strokes, nor follow the sheet: Play
    advances θ continuously. θ is carried by a ratio-0 rotate so that the viewer offers Play.
-7. **Delivery.** At W = 1 the sections lie on the leaf; as p eases out, every gauge eases back, so a
-   renderer should stop drawing the sheet once the sections are delivered.
-8. **Lead and copper look the same** but for their texture, the copper throw (100°) and the screws'
+5. **Delivery.** At W = 1 the angle lies on the leaf; as p eases out, every gauge eases back, so a
+   renderer should stop drawing the sheet once the angle is delivered.
+6. **Lead and copper look the same** but for their texture, the copper throw (100°) and the screws'
    extra quarter turn.
 
 ## Gameplay
@@ -290,20 +286,21 @@ player counts as holding for 250 ms after its last step, so the renderer answers
 animation of its own: the game's held-interaction pose is used, as the quern's.
 
 **The fold** (`Folding`, `FoldJob`). The work is a plate, `game:metalplate-lead` (k 1) or `-copper`
-(k 2), the rig's `fold.plates`; what comes off is `fold.sections[k]`, `fold.sectionsPerPlate` (2) of
-them. A plate goes on only on a complete brake, one at a time, and only when its section exists (it is
-`UnifiedPipes`' item; with that switch off a plate is refused with a message). At W = 1 the plate is
-used up and the two sections go into a container in `PressBrakeRig.OutputNeighbour()` (the cell beyond
+(k 2), the rig's `fold.plates`, bent once at a right angle; what comes off is `fold.angles[k]`
+(`seraphhorizons:angle-{metal}`), `fold.anglesPerPlate` (1) of it. Nothing else goes on: an angle, a
+hollow (chute) section, a pipe section or an ingot is refused. A plate goes on only on a complete
+brake, one at a time, and only when its angle exists (it is `UnifiedPipes`' item; with that switch off
+a plate is refused with a message). At W = 1 the plate is used up and the angle goes into a container in `PressBrakeRig.OutputNeighbour()` (the cell beyond
 `output.pos` across the output face, native north), else drop at `OutputDrop()`, pushed outward, as the
-draw bench's. The bend (`game:sounds/block/heavymetal-hit`) is heard at the middle of each fold, the
-`leaf` part's gauge windows (`PressBrakeRig.Folds`, `FoldMoments`: 0.25 and 0.75 as generated). The
+draw bench's. The bend (`game:sounds/block/heavymetal-hit`) is heard at the middle of the fold, the
+`leaf` part's one gauge window, up and back (`PressBrakeRig.Folds`, `FoldMoments`: 0.42 as generated). The
 server syncs W every 0.02 plate. **Infeed:** a hand machine takes nothing by itself. A work click on an
 empty bed, or a step held on past a finished plate, takes one plate from a container in the cell beyond
 the far end (`InfeedNeighbours`, native south); after a plate is done the held steps wait 0.6 s
 (`ClearMs`) before the next, so the model eases the bar back first, and the hold goes on through that
 wait while the infeed has a plate.
 
-**Settings** (`PressBrakeSettings`): `LeverTurnsPerPlateLead` 6 and `LeverTurnsPerPlateCopper` 9, the
+**Settings** (`PressBrakeSettings`): `LeverTurnsPerPlateLead` 3 and `LeverTurnsPerPlateCopper` 4.5, the
 rig's `fold.leverTurnsPerPlate` (`PressBrakeRigTests.The_default_pace_is_the_rigs` holds them together);
 the server sends them to clients in the block entity's tree. The edges do not wear (the contract gives
 them none), so there is no durability setting, no tool in the export and no oil.
@@ -313,7 +310,7 @@ edges' metals, the plate's class and the server's W, and whether anyone holds). 
 `requires`, a ride or a driver, from `pressbrake.json`, drawn when its stage is fitted, with the texture
 codes `screw` and `edge` set to the fitted rods' and plates' metals (`MachineMeshes.MetalTexture`, one
 mesh set per pair of metals). The sheet's parts (`platelead`, `platecopper`) are drawn only while that
-metal's plate is on the bed: once the sections are delivered they drop as items, and the sheet is not
+metal's plate is on the bed: once the angle is delivered it drops as an item, and the sheet is not
 drawn while p eases out (weak spot 7 above), though the bar and screws ease back with it.
 `PressBrakeClock` turns θ and advances W at the server's pace while held, never behind the server's W
 and at most 0.06 ahead of it; with no plate on, W is held at 1 while p eases out over 0.4 s and k is
@@ -321,21 +318,22 @@ held; the next plate starts from the server's W. While the leaf swings (`IsFoldi
 held, metal dust at `edge.pos`; while worked, the frame creaks (`game:sounds/block/woodcreak_1..4`).
 
 **Handbook.** Three sections on the frame (`attributes.handbook.extraSections`): assembly, folding
-plates, and sections and pipe (the ladder: two open sections a plate, closed with solder, then pipe or
-chute). With the switch off, `PressBrakeSystem.UnlinkText` strips links to the brake from the mod's own
+plates, and angles and pipe (the ladder: one angle a plate, or one at the anvil; two angles and solder
+make a hollow section; hollow sections make chutes, or pipe sections on the mandrel station or the draw
+bench). With the switch off, `PressBrakeSystem.UnlinkText` strips links to the brake from the mod's own
 text.
 
 **Export.** `tools/recipe-export/Recipes/PressBrakeExport.cs` and `RecipeSection.PressBrake.cs` write
 one `machine` record per metal (`pressbrake|game:metalplate-{metal}|0`): the plate consumed, the screws
-and edges kept, the frame as the station, two open sections out; `power` `hand` (the schema's `power`
-is a free string; its description now names `hand`, and the site says "By hand: 6 turns of the lever a
+and edges kept, the frame as the station, one angle out; `power` `hand` (the schema's `power`
+is a free string; its description now names `hand`, and the site says "By hand: 3 turns of the lever a
 job"), `turns` the lever turns a plate, no `wear` and no `oil`. Type `pressbrake`, owned by `PressBrake`
 (`Core/SwitchOwnership.cs`).
 
 **Tests.** `tests/PressBrake/PressBrakeGameplayTests.cs` (stages, take-back, saves, plates by metal,
-load rules, W only while held and done at 1, folds crossed, lever holds, the clock, settings, placing)
+load rules, one angle a plate, W only while held and done at 1, folds crossed, lever holds, the clock, settings, placing)
 and `PressBrakeRigTests.cs` (the shipped rig through the shared parser and `PressBrakeRig`, its anchors,
-the pace held to the settings, the reader's refusals, and every pose of `tests/PressBrake/rig-reference.json`
+its one fold, the pace held to the settings, the reader's refusals, and every pose of `tests/PressBrake/rig-reference.json`
 replayed through `Machines/Core`); `tests/PackTests/PressBrakeScenarios.cs`,
 `RecipeExportPressBrakeScenarios.cs` and `SwitchesOffScenarios.Press_brake_off_there_is_no_press_brake`
 (Atlas: `FullyQualifiedName~Press_brake`).

@@ -10,8 +10,8 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.PackTests;
 
 // seraphhorizons, CastPipes (mods-src/seraphhorizons/Pipes/Game/CastPipesSystem.cs): Steelmaking
-// Expanded's tool mold with a pipe tool type, casting two of the game's chute sections of iron or
-// steel (states UnifiedPipes adds), and those sections banded into pipe.
+// Expanded's tool mold with a pipe tool type, casting two pipe sections of iron or steel (an item
+// UnifiedPipes adds), and each section banded into a pipe.
 public partial class SharedWorldScenarios
 {
     private static readonly string[] AllMoldColors = ["blue", "fire", "black", "brown", "cream", "earthyorange", "gray", "orange", "red", "tan"];
@@ -69,7 +69,7 @@ public partial class SharedWorldScenarios
     // The fired mold carries the patch's figures and, as smex's own molds, the attributes it shares
     // with them (the game merges attributes and attributes by type); the canal pedestal takes it.
     [AtlasScenario]
-    public void Pipe_mold_takes_one_ingot_and_drops_two_chute_sections()
+    public void Pipe_mold_takes_one_ingot_and_drops_two_pipe_sections()
     {
         var mold = PipeMold(W, "black", "fired");
         Assert.Equal(CastPipeMold.RequiredUnits, mold.Attributes["requiredUnits"].AsInt());
@@ -80,7 +80,9 @@ public partial class SharedWorldScenarios
         Assert.True(mold.Attributes["reinforcable"].AsBool(), "smex's shared attributes are gone from the pipe mold");
         Assert.True(mold.Attributes["handbook"]["extraSections"].Exists, "no handbook section on the pipe mold");
         Assert.Contains("construction", mold.CreativeInventoryTabs);
-        Assert.Contains("chute sections", Lang.GetL("en", "seraphhorizons:castpipes-handbook-mold-text"));
+        Assert.Equal("seraphhorizons:pipesection-{metal}", mold.Attributes["drop"]["code"].AsString());
+        Assert.Contains("pipe sections", Lang.GetL("en", "seraphhorizons:castpipes-handbook-mold-text"));
+        Assert.DoesNotContain("chute", Lang.GetL("en", "seraphhorizons:castpipes-handbook-mold-text"));
 
         var kinds = AccessTools.TypeByName("SteelmakingExpanded.BlockNetworkMolten.Blocks.MoldKinds");
         Assert.NotNull(kinds);
@@ -91,9 +93,9 @@ public partial class SharedWorldScenarios
     }
 
     // On the ground a fired mold takes molten iron and steel as a crucible pours them, refuses a metal
-    // with no chute section (tin bronze), and once full and hardened casts two sections of its metal.
+    // with no pipe section (tin bronze), and once full and hardened casts two sections of its metal.
     [AtlasScenario]
-    public async Task Pipe_mold_casts_chute_sections_from_iron_and_steel()
+    public async Task Pipe_mold_casts_pipe_sections_from_iron_and_steel()
     {
         var origin = World.Spawn.AddCopy(-80, 12, -90);
         GearBlankParts.Room(World, origin);
@@ -123,9 +125,9 @@ public partial class SharedWorldScenarios
 
     // Steelmaking Expanded's canal pedestal, driven by its own members: the pipe mold goes on, molten
     // iron pushed into the pedestal's canal cell drains into it by the mold's requiredUnits while it
-    // pours, and the mold taken off hardened and set down casts two iron chute sections.
+    // pours, and the mold taken off hardened and set down casts two iron pipe sections.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Canal_pedestal_casts_chute_sections()
+    public async Task Canal_pedestal_casts_pipe_sections()
     {
         var origin = World.Spawn.AddCopy(-80, 12, -85);
         GearBlankParts.Room(World, origin);
@@ -177,10 +179,10 @@ public partial class SharedWorldScenarios
         Assert.Equal(CastPipeMold.SectionsPerFill, cast.StackSize);
     }
 
-    // Two cast sections, nails and strips of their metal and a hammer: two straight ppex pipes of that
-    // metal (UnifiedPipes' recipe), so an ingot casts two pipes.
+    // A cast section, nails and strips of its metal and a hammer: a straight ppex pipe of that metal
+    // (UnifiedPipes' recipe), so an ingot casts two pipes.
     [AtlasScenario]
-    public void Cast_chute_sections_are_banded_into_two_pipes()
+    public void Cast_pipe_sections_are_banded_into_pipes()
     {
         foreach (string metal in CastPipeMold.Metals)
         {
@@ -188,11 +190,11 @@ public partial class SharedWorldScenarios
             var recipes = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == CastPipeMold.StraightPipe(metal)
                                                    && r.ResolvedIngredients.Any(i => i != null && i.SatisfiesAsIngredient(section))).ToList();
             var recipe = Assert.Single(recipes);
-            Assert.Equal(2, recipe.Output.Quantity);
-            Assert.Equal(CastPipeMold.PipesPerIngot(), recipe.Output.Quantity / 2.0 * CastPipeMold.SectionsPerFill);
+            Assert.Equal(1, recipe.Output.Quantity);
+            Assert.Equal(CastPipeMold.PipesPerIngot(), recipe.Output.Quantity * (double)CastPipeMold.SectionsPerFill);
             var cells = recipe.ResolvedIngredients.Where(i => i != null).ToList();
-            Assert.Equal(4, cells.Count);
-            Assert.Equal(2, cells.Count(i => i.SatisfiesAsIngredient(section)));
+            Assert.Equal(3, cells.Count);
+            Assert.Equal(1, cells.Count(i => i.SatisfiesAsIngredient(section)));
             Assert.Contains(cells, i => i.SatisfiesAsIngredient(new ItemStack(GearBlankParts.Item(W, $"game:metalnailsandstrips-{metal}"))));
             string other = metal == "iron" ? "steel" : "iron";
             Assert.DoesNotContain(cells, i => i.SatisfiesAsIngredient(new ItemStack(GearBlankParts.Item(W, $"game:metalnailsandstrips-{other}"))));

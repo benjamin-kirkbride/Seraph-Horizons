@@ -3,7 +3,7 @@
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with
 the shared rig maths and uses the `requires` vocabulary of the contract, its reference poses are its own
 maths, the cells are rebuilt from the shipped shape, the work is one plate's fold cycle, theta moves
-nothing, the folds reach the metal's throw and set at 90 degrees, and the anchors are where the contract
+nothing, the fold reaches the metal's throw and sets at 90 degrees, and the anchors are where the contract
 puts them. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
@@ -29,7 +29,7 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "pressbrake-rig
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "pressbrake.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "pressbrake_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "PressBrake" / "rig-reference.json").read_text())
-# the build order: the frame, screws, edge; the work is a lead or a copper plate, folded into two open sections
+# the build order: the frame, screws, edge; the work is a lead or a copper plate, folded once into an angle
 REQUIRES = {"screws", "edge", "platelead", "platecopper", None}
 
 
@@ -99,8 +99,10 @@ class Fold(unittest.TestCase):
         self.assertEqual(w["end"], {"thin": 1.0, "thick": 1.0})
         fold = RIG["fold"]
         self.assertEqual(fold["plates"], {"thin": "game:metalplate-lead", "thick": "game:metalplate-copper"})
-        self.assertEqual(fold["sections"], {"thin": "seraphhorizons:chutesectionopen-lead", "thick": "seraphhorizons:chutesectionopen-copper"})
-        self.assertEqual(fold["sectionsPerPlate"], 2)
+        self.assertEqual(fold["angles"], {"thin": "seraphhorizons:angle-lead", "thick": "seraphhorizons:angle-copper"})
+        self.assertEqual(fold["anglesPerPlate"], 1)
+        for old in ("sections", "sectionsPerPlate"):
+            self.assertNotIn(old, fold)
         # copper takes more lever: more turns a plate, a longer throw
         self.assertGreater(fold["leverTurnsPerPlate"]["thick"], fold["leverTurnsPerPlate"]["thin"])
         self.assertGreater(fold["throwDegrees"]["thick"], fold["throwDegrees"]["thin"])
@@ -113,22 +115,23 @@ class Fold(unittest.TestCase):
 
     def test_the_leaf_throws_to_the_metals_angle_and_comes_back(self):
         for k, cls in ((1, "thin"), (2, "thick")):
-            for t in (make_shape.T_FOLD1, make_shape.T_FOLD2):
+            for t in (make_shape.T_FOLD1,):
                 self.assertAlmostEqual(turn_x(matrix("leaf", work=t[1], size=k, presence=1.0)), RIG["fold"]["throwDegrees"][cls], places=3)
                 self.assertAlmostEqual(turn_x(matrix("leaf", work=t[2], size=k, presence=1.0)), 0.0, places=6)
 
-    def test_flanges_set_at_ninety_and_the_u_is_delivered(self):
+    def test_the_flange_sets_at_ninety_and_the_angle_is_delivered(self):
+        # one fold a plate: leg A sets at 90 degrees, leg M stays flat and both come north a leg onto the leaf
         for k, pre in ((1, "l"), (2, "c")):
-            self.assertAlmostEqual(turn_x(matrix(f"{pre}a", work=0.45, size=k, presence=1.0)), 90.0, places=3)
-            self.assertAlmostEqual(turn_x(matrix(f"{pre}m", work=1.0, size=k, presence=1.0)), 90.0, places=3)
-            # at W 1 the bottom panel has come north twice its panel, onto the leaf
-            self.assertAlmostEqual(matrix(f"{pre}b", work=1.0, size=k, presence=1.0)[2][3] * 16, -2 * make_shape.S, places=4)
+            self.assertAlmostEqual(turn_x(matrix(f"{pre}a", work=0.7, size=k, presence=1.0)), 90.0, places=3)
+            self.assertAlmostEqual(turn_x(matrix(f"{pre}m", work=1.0, size=k, presence=1.0)), 0.0, places=6)
+            self.assertAlmostEqual(matrix(f"{pre}m", work=1.0, size=k, presence=1.0)[2][3] * 16, -make_shape.S, places=4)
+        self.assertEqual({p["id"] for p in RIG["parts"] if p["requires"] == "platelead"}, {"la", "lm"})
 
     def test_the_bar_lies_on_the_sheet_while_the_leaf_moves(self):
         for k in (1, 2):
-            for w in (make_shape.T_FOLD1[1], make_shape.T_FOLD2[1]):
+            for w in (make_shape.T_FOLD1[1],):
                 self.assertAlmostEqual(matrix("bar", work=w, size=k, presence=1.0)[1][3] * 16, make_shape.T, places=4)
-            self.assertAlmostEqual(matrix("bar", work=make_shape.T_SHIFT[1], size=k, presence=1.0)[1][3] * 16, make_shape.T + make_shape.LIFT, places=4)
+            self.assertAlmostEqual(matrix("bar", work=make_shape.T_OFF[1], size=k, presence=1.0)[1][3] * 16, make_shape.T + make_shape.LIFT, places=4)
         self.assertEqual(matrix("bar")[1][3], 0.0)
 
 

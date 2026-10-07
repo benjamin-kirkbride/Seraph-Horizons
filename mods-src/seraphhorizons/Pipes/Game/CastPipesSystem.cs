@@ -12,10 +12,10 @@ namespace SeraphHorizons.Mod.Pipes;
 /// (<c>patches/castpipes-smexmold.json</c>): the state, a shape, and the fired mold's figures, so
 /// it is smex's own <c>BlockToolMold</c> and its canal pedestal, a crucible and smex's mold patches
 /// take it as any other. One fill is one ingot (<see cref="CastPipeMold.RequiredUnits"/>) and
-/// casts two of the game's chute sections, <c>game:chutesection-{iron|steel}</c>, which the grid
-/// bands with nails and strips of their metal into ppex pipe (<c>UnifiedPipes</c>' recipes). Those
-/// states are <c>UnifiedPipes</c>' (<see cref="UnifiedPipesSystem.ChutePatchAsset"/>), so this runs
-/// only while that is on, and after it (<see cref="ExecuteOrder"/>). The raw mold is clay-formed.
+/// casts two pipe sections, <c>seraphhorizons:pipesection-{iron|steel}</c>, which the grid bands
+/// with nails and strips of their metal into ppex pipe (<c>UnifiedPipes</c>' recipes). That item is
+/// <c>UnifiedPipes</c>' (<see cref="UnifiedPipesSystem.TypeAssets"/>), so this runs only while that
+/// is on, and after it (<see cref="ExecuteOrder"/>). The raw mold is clay-formed.
 ///
 /// The patch assumes the shape of smex's two files (<see cref="CastPipeMold.CheckFired"/>,
 /// <see cref="CastPipeMold.CheckRaw"/>), checked in <see cref="Start"/> on the server before the
@@ -34,7 +34,7 @@ public class CastPipesSystem : ModSystem
     public static readonly AssetLocation FiredMoldAsset = new(SmexId, "blocktypes/molds/toolmoldfired.json");
     public static readonly AssetLocation RawMoldAsset = new(SmexId, "blocktypes/molds/toolmoldraw.json");
 
-    /// <summary>None: the mold is smex's, patched, and what it casts is the game's chute section.</summary>
+    /// <summary>None: the mold is smex's, patched, and what it casts is UnifiedPipes' pipe section.</summary>
     public static readonly AssetLocation[] TypeAssets = [];
 
     public static readonly AssetLocation[] RecipeAssets =
@@ -51,7 +51,7 @@ public class CastPipesSystem : ModSystem
     /// False on a client, which gets it from the server.</summary>
     public bool On => _on;
 
-    // After UnifiedPipesSystem (the default 0.1), whose Start decides whether the chute sections the
+    // After UnifiedPipesSystem (the default 0.1), whose Start decides whether the pipe sections the
     // mold casts exist; before the game's type and recipe loaders (0.2), which Disable must precede.
     public override double ExecuteOrder() => 0.11;
 
@@ -71,13 +71,13 @@ public class CastPipesSystem : ModSystem
             DisablePatches(api);
     }
 
-    /// <summary>The iron and steel chute sections the mold casts exist: UnifiedPipes is on here.</summary>
+    /// <summary>The iron and steel pipe sections the mold casts exist: UnifiedPipes is on here.</summary>
     private static bool SectionsExist(ICoreAPI api)
     {
         if (api.ModLoader.GetModSystem<UnifiedPipesSystem>()?.On == true)
             return true;
         api.Logger.Notification("[seraphhorizons] Cast pipes: off, because Unified pipes is (the mold casts the iron and "
-                                + "steel chute sections it adds)");
+                                + "steel pipe sections it adds)");
         return false;
     }
 

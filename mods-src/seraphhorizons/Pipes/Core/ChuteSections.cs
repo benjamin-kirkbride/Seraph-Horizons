@@ -3,40 +3,37 @@ using Newtonsoft.Json.Linq;
 namespace SeraphHorizons.Mod.Pipes.Core;
 
 /// <summary>
-/// The pipe section is the game's chute section (<c>game:chutesection-{material}</c>, a square
-/// tube; the game has copper only). <c>patches/unifiedpipes-chutesection.json</c> adds lead, iron
-/// and steel to its <c>material</c> variant (its texture is by <c>{material}</c>, so each metal gets
-/// its own sheet), lists only copper in the creative inventory's mechanics tab (chutes take copper
-/// only), gives it a handbook section, switches off the game's one-step grid recipe "plate + 2
-/// solder + soldering iron + hammer = 2 copper sections" (the press brake's open sections and the
-/// closing recipe replace it), and makes the game's five chute recipes take a tin or silver solder
-/// bar per section and a soldering iron (<see cref="ChuteRecipes"/>); a pipe recipe is the same plus
-/// a hammer. <c>patches/unifiedpipes-betterruins.json</c> switches off Better Ruins' five bulk chute
-/// recipes on its Machinist's Mechanism Blueprint (<see cref="BetterRuinsChutes"/>), which take no
-/// solder. This checks the files are what the patches assume, and holds the ladder's figures. Game-independent: <c>UnifiedPipesSystem</c> hands it the asset text,
-/// the unit tests a fixture. The game's JSON is lenient (unquoted keys, single quotes), so this
-/// reads it with Newtonsoft.
+/// The hollow section is the game's chute section (<c>game:chutesection-{material}</c>, a square
+/// tube; the game has copper only). <c>patches/unifiedpipes-chutesection.json</c> adds lead to its
+/// <c>material</c> variant (its texture is by <c>{material}</c>, so lead gets its own sheet), lists
+/// only copper in the creative inventory's mechanics tab (chutes take copper only), gives it a
+/// handbook section, switches off the game's two recipes for it, the anvil's (one ingot) and the
+/// grid's "plate + 2 solder + soldering iron + hammer = 2 sections": a section is two angles
+/// (<see cref="PipeSections"/>) soldered together on the grid (<c>recipes/grid/chutesection.json</c>).
+/// The patch also makes the game's five chute recipes take a tin or silver solder bar per section and
+/// a soldering iron (<see cref="ChuteRecipes"/>). <c>patches/unifiedpipes-betterruins.json</c>
+/// switches off Better Ruins' five bulk chute recipes on its Machinist's Mechanism Blueprint
+/// (<see cref="BetterRuinsChutes"/>), which take no solder. This checks the files are what the
+/// patches assume. Game-independent: <c>UnifiedPipesSystem</c> hands it the asset text, the unit
+/// tests a fixture. The game's JSON is lenient (unquoted keys, single quotes), so this reads it
+/// with Newtonsoft.
 /// </summary>
 public static class ChuteSections
 {
     public const string ItemFile = "itemtypes/resource/chutesection.json";
     public const string RecipeFile = "recipes/grid/chute.json";
+    public const string SmithingFile = "recipes/smithing/chutesection.json";
 
     public const string Group = "material";
 
     /// <summary>The material states the game ships.</summary>
     public static readonly string[] GameMetals = [PipeRules.Copper];
 
-    /// <summary>The states the patch adds.</summary>
-    public static readonly string[] AddedMetals = [PipeRules.Lead, PipeRules.Iron, PipeRules.Steel];
+    /// <summary>The states the patch adds: lead (iron and steel never make hollow sections).</summary>
+    public static readonly string[] AddedMetals = [PipeRules.Lead];
 
-    /// <summary>Every section metal, in the handbook's order.</summary>
-    public static readonly string[] Metals = PipeRules.PipeMaterials;
-
-    /// <summary>The metals joined with solder (copper and lead); iron and steel take nails and strips.</summary>
-    public static readonly string[] SolderedMetals = [PipeRules.Copper, PipeRules.Lead];
-
-    public static readonly string[] NailedMetals = [PipeRules.Iron, PipeRules.Steel];
+    /// <summary>Every hollow section metal: the soldered ones.</summary>
+    public static readonly string[] Metals = [PipeRules.Copper, PipeRules.Lead];
 
     /// <summary>The game's plate-and-solder recipe the patch switches off, by index in <see cref="RecipeFile"/>.</summary>
     public const int PlateRecipeIndex = 5;
@@ -75,41 +72,11 @@ public static class ChuteSections
 
     public const string TextureKey = "metaltex";
 
-    /// <summary>Sections by route (the ladder): forged at the anvil, one from an ingot (32 voxels,
-    /// the game's own recipe); two open sections off the press brake from one plate, closed with
-    /// solder (a plate is 81 voxels, two ingots, so this is one section per ingot too); drawn on the
-    /// draw bench, three from an ingot; cast from smex's canal, two from an ingot's 100 units.</summary>
-    public const int ForgedPerIngot = 1;
-    public const int BrakedPerPlate = 2;
-    public const int IngotsPerPlate = 2;
-    public const int DrawnPerIngot = 3;
-    public const int CastPerIngot = 2;
-
-    /// <summary>The closing recipe: open sections in, closed sections out (one for one).</summary>
-    public const int ClosedPerOpen = 1;
-
-    /// <summary>Straight pipes from two sections and their joint (solder, or nails and strips).</summary>
-    public const int StraightPipesPerTwoSections = 2;
-
-    /// <summary>Each pipe shape: the ppex block it makes, as it lists in creative, the sections it
-    /// takes (in the game's chute patterns: two side by side, an elbow, a T, a cross), and how many
-    /// it makes.</summary>
-    public static readonly (string Shape, int Sections, int Pipes)[] PipeShapes =
-    [
-        ("straight-ns", 2, StraightPipesPerTwoSections),
-        ("bend-nw", 2, 1),
-        ("tjunction-uns", 3, 1),
-        ("xjunction-nswe", 4, 1),
-    ];
+    /// <summary>The soldering recipe: two angles and two solder bars make one hollow section.</summary>
+    public const int AnglesPerSection = 2;
+    public const int SolderBarsPerSection = 2;
 
     public static string Section(string metal) => $"game:chutesection-{metal}";
-
-    public static string OpenSection(string metal) => $"seraphhorizons:chutesectionopen-{metal}";
-
-    public static string Pipe(string shape, string metal) => $"ppex:pipe-{shape}-{metal}";
-
-    /// <summary>Solder bars for a copper or lead pipe recipe, as for a chute: one per section.</summary>
-    public static int SolderBars(string shape) => PipeShapes.Single(p => p.Shape == shape).Sections;
 
     private static readonly JsonLoadSettings Lenient = new() { CommentHandling = CommentHandling.Ignore };
 
@@ -184,6 +151,32 @@ public static class ChuteSections
                 || Path((string?)ingredients["I"]?["code"]) != "chutesection-copper")
                 return $"its chute recipes (recipe {chute.Index} is not {chute.Output} from copper sections alone in {chute.Pattern})";
         }
+        return null;
+    }
+
+    /// <summary>What the patch expects of the game's anvil recipe for the chute section
+    /// (<see cref="SmithingFile"/>), or null when it holds: one recipe (an object, not a list) making
+    /// <c>chutesection-copper</c> from a copper ingot, not already switched off. The patch adds
+    /// <c>/enabled</c> false to it.</summary>
+    public static string? CheckSmithing(string json)
+    {
+        JToken root;
+        try
+        {
+            root = JToken.Parse(json, Lenient);
+        }
+        catch (Exception e)
+        {
+            return $"its chute section's anvil recipe ({SmithingFile} does not parse: {e.Message})";
+        }
+        if (root is not JObject recipe)
+            return $"its chute section's anvil recipe ({SmithingFile} is not one recipe)";
+        var ingredient = recipe["ingredient"];
+        if (Path((string?)recipe["output"]?["code"]) != "chutesection-copper"
+            || Path((string?)ingredient?["code"]) != "ingot-*"
+            || ingredient?["allowedVariants"] is not JArray metals || !metals.Select(m => (string?)m).SequenceEqual(GameMetals)
+            || recipe["enabled"] != null)
+            return $"its chute section's anvil recipe ({SmithingFile} is not one copper section from a copper ingot)";
         return null;
     }
 

@@ -12,7 +12,7 @@ into steel gears through the pot, the pickling tub and the barrel (`GearReclamat
 recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
 (`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from ingots on a draw bench (`DrawBench`) or folded from plates on a hand-worked press brake (`PressBrake`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from hollow sections on a draw bench (`DrawBench`) or folded from plates on a hand-worked press brake (`PressBrake`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; and a check that the installed mods are the pack's (`PackVersionCheck`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -1245,7 +1245,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
   log chopped, the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
-  double), and the draw bench per pipe drawn.
+  double), and the draw bench per pipe section drawn.
 - **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
   an empty one 0, not -0), and while dry its load on the shaft now against the load it takes oiled
   (`Dry: a load of 0.51 on its shaft, 3× the 0.17 it takes oiled`). The load is what the shaft last
@@ -1266,7 +1266,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
 | `BuckingMill` | tank 1000, 2 a stored log | |
 | `Rosser` | tank 1000, 2 a stored log | |
 | `GearCutter` | tank 1000, 10 a gear | A large gear drains double; never a dry load ("Gear cutter") |
-| `DrawBench` | tank 1000, 2 a section | Three sections an ingot, 6 points ("Draw bench") |
+| `DrawBench` | tank 1000, 2 a pipe section | Four pipe sections a hollow, 8 points ("Draw bench") |
 
 Each machine's entry is `{ "Tank": points, "DrainPerJob": points }`; a value out of range falls back
 to its default with a warning.
@@ -1777,29 +1777,36 @@ left as they are. The display name is ppex's, with the game's metal name: "Pipin
 (`sheet-plain/<bronze>4`); the creative inventory and the handbook list only those. The iron and steel
 valves stay as blocks, so those already placed keep working, but nothing makes them any more.
 
-**The pipe section is the game's chute section** (`game:chutesection-{material}`, a square tube; the
-game has copper only). `patches/unifiedpipes-chutesection.json` adds `lead`, `iron` and `steel` to its
-`material` variant (its texture is `game:block/metal/sheet/{material}1`, so each takes its own metal's
-sheet), lists only copper in the creative inventory's mechanics tab, gives it a handbook section on the
-ladder (`chutesection-handbook-*`), and switches off the game's one-step grid recipe "copper plate + 2
-solder bars + soldering iron + hammer = 2 sections" (`game:recipes/grid/chute.json` 5, the last). The
-names are `game:item-chutesection-{metal}` keys in this mod's lang file ("Lead Chute Section"; copper's
-becomes "Copper Chute Section" so the four read alike). The game's chutes take `chutesection-copper` by
-name, so the new metals make no chute. Sections per route (the ladder):
+**The chain.** Copper and lead pipe is made in three pieces, iron and steel pipe in one:
 
-| Route | Metals | Sections |
-|---|---|---|
-| Forged on the anvil | copper (the game's recipe), lead (`recipes/smithing/chutesection.json`, the same 32-voxel pattern) | 1 an ingot |
-| Folded on the press brake, then closed | copper, lead | 2 open sections a plate (a plate is two ingots), closed 2 for 2 |
-| Drawn on the draw bench | lead, copper | 3 an ingot |
-| Cast from smex's canal (`CastPipes`) | iron, steel | 2 a fill of 100 units (an ingot) |
+- The **angle**, `seraphhorizons:angle-{copper,lead}` ("Copper angle"): a plate bent once at a right
+  angle, two legs 8 across the outside, 1 voxel thick, 8 long (`shapes/item/angle.json`, the press
+  brake's contract), so two make the chute section's 8 x 8 box. Forged on the anvil from one ingot
+  (`recipes/smithing/angle.json`: a 7 x 4 flange with a 7-long web two layers up its back edge, 42
+  voxels, Hydrate or Diedrate 2.5.6's old pipe section pattern re-authored for this item), or folded
+  from one plate on the press brake (`PressBrake`).
+- The **hollow section** is the game's chute section (`game:chutesection-{material}`, a square tube;
+  the game has copper only). `patches/unifiedpipes-chutesection.json` adds `lead` to its `material`
+  variant (its texture is `game:block/metal/sheet/{material}1`, so lead takes its own sheet; iron and
+  steel never make hollows), lists only copper in the creative inventory's mechanics tab, gives it a
+  handbook section (`chutesection-handbook-*`), and switches off the game's two recipes for it: the
+  anvil's (`game:recipes/smithing/chutesection.json`, one recipe, `/enabled`) and the grid's one-step
+  "copper plate + 2 solder bars + soldering iron + hammer = 2 sections" (`game:recipes/grid/chute.json`
+  5, the last). **2 angles + 2 tin or silver solder bars + a soldering iron (2 durability, as the
+  game's soldering) = 1 chute section** of the metal (`recipes/grid/chutesection.json`) is the only way
+  to one. The names are `game:item-chutesection-{metal}` keys in this mod's lang file ("Lead Chute
+  Section"; copper's becomes "Copper Chute Section" so the two read alike). The game's chutes take
+  `chutesection-copper` by name, so lead makes no chute.
+- The **pipe section**, `seraphhorizons:pipesection-{copper,lead,iron,steel}` ("Copper pipe
+  section"): a square tube 6 voxels across (ppex's pipe is 6/16 wide) with 1-voxel walls, half a block
+  long (`shapes/item/pipesection.json`), textured as ppex's pipes are
+  (`game:block/metal/sheet-plain/{metal}4`). No grid or anvil recipe makes it: copper and lead ones
+  come from a chute section on the mandrel station (2) or the draw bench (4), iron and steel ones from
+  smex's canal in the pipe mold (`CastPipes`, 2 a fill of 100 units).
 
-The **open chute section**, `seraphhorizons:chutesectionopen-{copper,lead}` ("Open Copper Chute
-Section"), is a plate folded into a U, open along the top where the seam goes (the chute section's 8 x 8
-walls without its top, 1 voxel thick and about 6.5 long, so two fold end to end within the brake's
-one-block edge, `shapes/item/chutesectionopen.json`). The press brake is the only thing that makes it. **2 open sections + 2 tin or silver solder bars + a soldering
-iron (2 durability, as the game's soldering) = 2 chute sections** of the metal
-(`recipes/grid/chutesection.json`).
+Per ingot of copper or lead: 1 angle, so half a hollow section, so 1 pipe off the mandrel station
+and 2 off the draw bench; per ingot of iron or steel, 2 cast (`Pipes/Core/PipeSections.cs` holds the
+figures).
 
 **Chutes take solder.** The same patch makes the game's five chute recipes (`chute.json` 0-4:
 elbow, straight, cross, T, 3-way) take a tin or silver solder bar per section (elbow 2, straight 2, T 3,
@@ -1815,8 +1822,9 @@ The guard (`Pipes/Core/ChuteSections.cs`), on the server before the patch loader
 `chutesection` with its first variant group `material` holding copper alone, one `metaltex` texture by
 `{material}` and no texture by type, a creative inventory, and no handbook attributes yet; recipe 5 of
 `chute.json` makes 2 copper sections from a copper plate and solder, no other recipe there makes a
-section, and recipes 0-4 make their chutes from copper sections alone in the game's patterns and sizes.
-If the game has changed either file, one warning (`Unified pipes: the game changed ...`) and the whole
+section, and recipes 0-4 make their chutes from copper sections alone in the game's patterns and sizes;
+the anvil recipe is one recipe making a copper section from a copper ingot, not yet switched off.
+If the game has changed any of the three files, one warning (`Unified pipes: the game changed ...`) and the whole
 switch stands down as if off. With Better Ruins installed, its recipes 6-10 must each make their chute
 from copper sections and the blueprint alone; if not, one warning (`Unified pipes: Better Ruins changed
 ...`) and only its patch is emptied (its chutes stay solderless, the rest goes ahead). `tools/tests/test_unified_pipes.py` holds the patch to the game's files
@@ -1824,27 +1832,27 @@ from copper sections and the blueprint alone; if not, one warning (`Unified pipe
 
 **Recipes.** ppex's plate-and-nails recipes for the straight, bend, T- and X-junction pipes
 (`ppex:recipes/grid/pipes.json` 0-3) and its iron and steel valves and pressure valves (7-10) are
-switched off. Pipe is made from chute sections laid in the game's own chute patterns (two side by side,
-an elbow, a T, a cross) and a hammer, which is what tells a pipe from a chute on the grid: copper and
-lead are soldered as a chute is (a solder bar a section and the soldering iron), iron and steel banded
-with nails and strips of their metal (`recipes/grid/unifiedpipes.json`):
+switched off. Pipe is made from pipe sections laid in the game's chute patterns (one alone, an elbow, a
+T, a cross): copper and lead soldered as a chute is (a solder bar a section and the soldering iron),
+iron and steel banded with one nails and strips of their metal and a hammer
+(`recipes/grid/unifiedpipes.json`). Chute sections make chutes and never pipe:
 
 | Makes | Copper or lead | Iron or steel |
 |---|---|---|
-| 2 straight pipes | 2 sections + 2 solder bars + soldering iron + hammer | 2 sections + 1 nails and strips + hammer |
-| 1 bend | 2 sections (elbow) + 2 solder bars + soldering iron + hammer | 2 sections (elbow) + 1 nails and strips + hammer |
-| 1 T-junction | 3 sections (T) + 3 solder bars + soldering iron + hammer | 3 sections (T) + 1 nails and strips + hammer |
-| 1 X-junction | 4 sections (cross) + 4 solder bars + soldering iron + hammer | 4 sections (cross) + 1 nails and strips + hammer |
+| 1 straight pipe | 1 pipe section + 1 solder bar + soldering iron | 1 pipe section + 1 nails and strips + hammer |
+| 1 bend | 2 pipe sections (elbow) + 2 solder bars + soldering iron | 2 pipe sections (elbow) + 1 nails and strips + hammer |
+| 1 T-junction | 3 pipe sections (T) + 3 solder bars + soldering iron | 3 pipe sections (T) + 1 nails and strips + hammer |
+| 1 X-junction | 4 pipe sections (cross) + 4 solder bars + soldering iron | 4 pipe sections (cross) + 1 nails and strips + hammer |
 | 1 valve, of a bronze | 1 straight pipe of any metal + 1 ingot of that bronze + hammer | |
 | 1 pressure valve, of a bronze | 1 straight pipe of any metal + 1 ingot and 1 plate of that bronze + hammer | |
 
-Solder bars are tin or silver; the soldering iron loses 2 durability a craft. The same grid without
-the hammer is the chute (above), so the press brake's route pays solder twice, closing the fold and
-then joining: that is intended. The sections and the
-nails and strips share the metal; every pipe is the sections' metal. So a section is a straight pipe's
-worth, and a bend, tee or cross costs the sections in it. The valves take no gear (ppex's took two
-rusty gears, the steel gear with `GearConsumers`). exlib's recipe cost levels (`/exmod steam cheap`)
-rewrite only ppex's own recipes (below), so these keep their quantities at every level.
+Solder bars are tin or silver; the soldering iron loses 2 durability a craft. Copper and lead pay
+solder twice, soldering the angles into a hollow and joining the pipe sections: that is intended. The
+sections and the nails and strips share the metal; every pipe is the sections' metal. So a pipe
+section is a straight pipe's worth, and a bend, tee or cross costs the sections in it. The valves
+take no gear (ppex's took two rusty gears, the steel gear with `GearConsumers`). exlib's recipe cost
+levels (`/exmod steam cheap`) rewrite only ppex's own recipes (below), so these keep their quantities
+at every level.
 
 **Burst pressures.** ppex gives iron 5 atm and steel 10 and treats any other metal as iron; here each
 metal has its own figure, the weakest pipe still caps its run, and a gas run held at that figure for
@@ -1886,10 +1894,11 @@ cost levels may change this mod's pipe recipes, and the rest goes ahead.
 operations do not depend on which is applied first, and `tools/tests/test_unified_pipes.py` holds this
 patch to ppex's zip and to that file.
 
-With the switch off, or without ppex, the three patch files are emptied in `Start`, the open section and
-this mod's recipes (pipe, closing, the lead forging) are marked disabled, and nothing is patched: ppex's
-pipes, the game's chute section and its chute and plate recipes, and Better Ruins' chutes are as they ship, and copper, lead and bronze
-pipes and valves already placed, and lead, iron and steel sections, are lost. `CastPipes` then stands
+With the switch off, or without ppex, the three patch files are emptied in `Start`, the angle, the pipe
+section and this mod's recipes (pipe, soldering the hollow, forging the angle) are marked disabled, and
+nothing is patched: ppex's pipes, the game's chute section and its anvil, chute and plate recipes, and
+Better Ruins' chutes are as they ship, and copper, lead and bronze pipes and valves already placed, and
+angles, pipe sections and lead chute sections, are lost. `CastPipes` then stands
 down too.
 
 #### Hydrate or Diedrate's pipes go; its hand pump works on ppex's
@@ -1946,11 +1955,10 @@ the switch off (or ppex's side not bound, or without Hydrate or Diedrate) the pa
 ### Cast pipes (`CastPipes`)
 
 Steelmaking Expanded (`smex` 0.10.1) and Pipes and Power Expanded (`ppex` 0.7.1). The ferrous stage
-of the pipe ladder: iron and steel chute sections, the pipe section, are cast from the molten canal,
-the only way to them (`UnifiedPipes` adds those states and switches off ppex's plate-and-nails
-recipes; this stands down without it, and runs after it, `ExecuteOrder` 0.11). The ladder's sections
-(and straight pipes) per ingot: forged copper or lead 1, drawn 3, **cast iron or steel 2**: casting
-yields less than drawing on purpose, and makes up for it in throughput.
+of the pipe chain: iron and steel pipe sections are cast from the molten canal, the only way to them
+(`UnifiedPipes` adds the pipe section and switches off ppex's plate-and-nails recipes; this stands
+down without it, and runs after it, `ExecuteOrder` 0.11). Straight pipes per ingot: copper or lead
+1 off the mandrel station and 2 off the draw bench, **cast iron or steel 2**.
 
 - **The pipe mold.** smex's tool mold gets a fourth tool type beside plate, double ingot and quad
   rod: `smex:toolmold-{color}-raw-pipe` (blue, red or fire clay) and `smex:toolmold-{color}-fired-pipe`
@@ -1958,15 +1966,15 @@ yields less than drawing on purpose, and makes up for it in throughput.
   a floor, and the walls round a trough closed at both ends with a core down its middle for the bore
   (`recipes/clayforming/pipemold.json`); fire it in a pit kiln or a beehive kiln as smex's molds fire.
 - **Casting.** The fired mold takes `requiredUnits` 100, **one ingot, and casts two
-  `game:chutesection-{metal}`**. smex's canal pedestal takes it as any small tool mold (sneak-click it
+  `seraphhorizons:pipesection-{metal}`**. smex's canal pedestal takes it as any small tool mold (sneak-click it
   on, sprint-click to pour), draws 100 units from the canal and holds it; take it off hardened, set it
   down and take the sections out with an empty hand, as with smex's own molds. A crucible pours into one
   on the ground too. The canal carries iron (blast furnace) and steel (Bessemer converter); the game's
-  mold takes any metal whose drop exists, so it refuses a metal with no chute section (tin bronze, gold)
-  but a crucible could pour copper or lead into it, casting two sections of those as well.
-- **Then pipe.** Iron and steel sections are banded on the grid with nails and strips of their metal
-  and a hammer (`UnifiedPipes`' recipes, "Unified pipes"): **2 sections + 1 nails and strips + a hammer
-  = 2 `ppex:pipe-straight-ns-{metal}`**, so 100 units make 2 pipes.
+  mold takes any metal whose drop exists, so it refuses a metal with no pipe section (tin bronze, gold)
+  but a crucible could pour copper or lead into it, casting two pipe sections of those as well.
+- **Then pipe.** Iron and steel pipe sections are banded on the grid with nails and strips of their
+  metal and a hammer (`UnifiedPipes`' recipes, "Unified pipes"): **1 pipe section + 1 nails and strips
+  + a hammer = 1 `ppex:pipe-straight-ns-{metal}`**, so 100 units make 2 pipes.
 
 The molds are in smex's place (general and construction); the fired mold carries a "Casting pipe"
 handbook section.
@@ -1975,7 +1983,7 @@ handbook section.
 `blocktypes/molds/toolmoldraw.json` and `toolmoldfired.json`: `pipe` to `/variantgroups/2/states`,
 `/shapebytype/*-pipe` (`seraphhorizons:block/clay/mold/pipe`, turned 90 degrees as smex's are), and on
 the fired mold `/attributesByType/toolmold-*-fired-pipe`: `requiredUnits` 100, `fillHeight` 1,
-`fillQuadsByLevel`, `moldrackable`, the drop `game:chutesection-{metal}` (quantity 2) and
+`fillQuadsByLevel`, `moldrackable`, the drop `seraphhorizons:pipesection-{metal}` (quantity 2) and
 the handbook section. The game merges a type's attributes by type into its attributes, so the pipe
 mold keeps what smex's molds share (reinforcing, the tong transforms). The raw mold needs nothing
 more: smex keys its pit kiln and beehive kiln firing by clay colour with `{tooltype}` in the fired
@@ -2003,14 +2011,13 @@ before the game loads it: there is no pipe mold, and those already in a world ar
 
 ### Draw bench (`DrawBench`, `DrawBenchSettings`)
 
-The drawn rung of the pipe ladder: a mechanically powered chain draw bench, as lead and copper pipe was
-drawn from the 1790s to the 1880s, that draws one lead or copper ingot (`game:ingot-lead`, `-copper`,
-taken as cast hollow) into three of the game's chute sections in its metal (`game:chutesection-lead`,
-`-copper`: closed and seamless, the copper the game's own, the lead the state `UnifiedPipes`' patch
-adds). A chute section is what pipe is made from, and the bench is one of four ways to it: forged at the
-anvil (one an ingot), folded from a plate on the press brake into two open sections and closed with solder
-(two a plate), drawn here (three an ingot), or cast in iron or steel in smex's pipe mould (`CastPipes`);
-two sections and solder (iron and steel: nails and strips) then make two pipes. Its model, rig and generator are described in `DrawBench/README.md`, which also records the
+The drawn rung of the pipe chain: a mechanically powered chain draw bench, as lead and copper pipe was
+drawn from the 1790s to the 1880s, that draws one lead or copper hollow section, the game's chute
+section (`game:chutesection-lead`, `-copper`: the copper the game's own, the lead the state
+`UnifiedPipes`' patch adds), over the mandrel into four pipe sections of its metal
+(`seraphhorizons:pipesection-lead`, `-copper`). Two angles and solder make a hollow section on the
+grid; a hollow gives two pipe sections on the mandrel station or four here; a pipe section and solder
+make a pipe ("Unified pipes"). Its model, rig and generator are described in `DrawBench/README.md`, which also records the
 gameplay's decisions; this is the gameplay, in `DrawBench/` (rules in `DrawBench/Core/`, the game side
 in `DrawBench/Game/`).
 
@@ -2034,56 +2041,58 @@ order only; anything of a later stage is refused with a message naming the next:
 
 The die recipe is named `drawdie`, not `plate`, so the helve hammer does not work it. In creative mode
 Ctrl + right-click on an incomplete bench fits its next stage with nothing taken (a steel die last).
-**Ctrl + right-click** takes the die back, with what durability it has left, while no ingot is on the
+**Ctrl + right-click** takes the die back, with what durability it has left, while no hollow is on the
 bench. Every other stage comes back only by breaking the frame, which drops the frame, every fitted
-item, the die with its durability, and an ingot no section has been drawn from yet.
+item, the die with its durability, and a hollow no pipe section has been drawn from yet.
 
-**Work.** A lead or copper ingot goes on by right-click, or from a chest or hopper in front of the die
-end (native north), one at a time while the shaft turns; a chute section, what comes off, is never taken.
+**Work.** A lead or copper hollow section goes on by right-click, or from a chest or hopper in front of
+the die end (native north), one at a time while the shaft turns; an ingot, an angle or a pipe section
+(what comes off) is never taken.
 **The die decides the metal:** an iron die draws lead only, a steel die lead and copper (`DieMetals`);
 copper on an iron die is refused with a message. The draw needs the shaft at `MinSpeed` and advances W,
-the sections drawn, with its angle: one section per `TurnsPerSectionLead` (7.72) turns for lead, the fast
-gear, and `TurnsPerSectionCopper` (15.45) for copper. Each time W passes 1, 2 and 3 a chute section of the
-metal goes into a container against the output face (native east, beside the rack), else drops just
-outside it. At 3 the ingot is used up and the die loses `DieWearPerIngot` (1), whatever the oil; a
-worn-out die is gone (the tool-break sound) and the bench stops until a new one goes in. The next ingot
-comes in from the infeed a moment after.
+the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (7.72) turns for lead, the
+fast gear, and `TurnsPerSectionCopper` (15.45) for copper. Each time W passes 1, 2, 3 and 4 a pipe section
+of the metal goes into a container against the output face by the die end (native east, where the
+trough under the bed brings them), else drops just outside it. At 4 the hollow is used up and the die
+loses `DieWearPerHollow` (1), whatever the oil; a worn-out die is gone (the tool-break sound) and the
+bench stops until a new one goes in. The next hollow comes in from the infeed a moment after.
 
-**Oil.** A MachineOil machine (`MachineOilSettings.DrawBench`: tank 1000, 2 points a section), with the
+**Oil.** A MachineOil machine (`MachineOilSettings.DrawBench`: tank 1000, 2 points a pipe section, 8 a
+hollow), with the
 standard dry load: three times its `ResistanceLead` (0.2) or `ResistanceCopper` (0.35) while dry, and
-it smokes. The block info shows the next stage, the die's metal, what it draws and its ingots left,
-the sections drawn of the ingot on, the oil and the speed.
+it smokes. The block info shows the next stage, the die's metal, what it draws and its hollows left,
+the pipe sections drawn of the hollow on, the oil and the speed.
 
 **Drawn.** The block draws `drawbench_frame.json`; the renderer splits `drawbench.json` into the rig's
-parts and draws each whose stage is fitted, the die in its metal, and the hollow and sections of the job's
-metal while it is on (and while they ease out after). θ is the power ghost's angle about native x; W
+parts and draws each whose stage is fitted, the die in its metal, and the hollow and pipe sections of the
+job's metal while it is on (and while they ease out after). θ is the power ghost's angle about native x; W
 runs on with the shaft between the server's syncs. While it draws: metal dust at the die's mouth, oil
 drips from the oiler with oil in the tank, and the gears' sound.
 
 | Setting | Default | |
 |---|---|---|
-| `DieDurability` | 100 | Ingots a new die draws (the die item's durability) |
-| `DieWearPerIngot` | 1 | Die durability an ingot costs |
-| `TurnsPerSectionLead` | 7.72 | Axle turns per lead section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
-| `TurnsPerSectionCopper` | 15.45 | Axle turns per copper section; the rig's `draw.turnsPerSection.thick` |
+| `DieDurability` | 100 | Hollow sections a new die draws (the die item's durability) |
+| `DieWearPerHollow` | 1 | Die durability a hollow section costs |
+| `TurnsPerSectionLead` | 7.72 | Axle turns per lead pipe section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
+| `TurnsPerSectionCopper` | 15.45 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
 | `ResistanceLead` | 0.2 | The complete bench's load, empty or drawing lead |
 | `ResistanceCopper` | 0.35 | Its load drawing copper |
-| `MinSpeed` | 0.05 | Below it the bench neither draws nor takes an ingot from its infeed |
+| `MinSpeed` | 0.05 | Below it the bench neither draws nor takes a hollow from its infeed |
 | `DieMetals` | iron: lead; steel: lead, copper | What each die draws (lead and copper only) |
 
 With the switch off the server marks the three block types, the die's item type and both recipe files
 disabled before the game loads them, so none of it exists and benches already placed are lost; the
-machine oil page and the mod's own text no longer name it. The ingots and chute sections exist either
-way. With `UnifiedPipes` off there is no lead chute section, so the bench refuses lead ingots (with a
-message) and draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
+machine oil page and the mod's own text no longer name it. The hollow and pipe sections exist either
+way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
 
 ### Press brake (`PressBrake`, `PressBrakeSettings`)
 
 The folded rung of the pipe ladder: a hand-worked leaf brake (a cornice brake) of the early-to-mid
-1800s, oak with iron wearing edges and iron clamp screws, that folds one lead or copper plate
-(`game:metalplate-lead`, `-copper`) into two open chute sections (`seraphhorizons:chutesectionopen-lead`,
-`-copper`, `UnifiedPipes`' item), which two solder bars and a soldering iron close on the grid into two
-of the game's chute sections. Its model, rig and generator are described in `PressBrake/README.md`,
+1800s, oak with iron wearing edges and iron clamp screws, that bends one lead or copper plate
+(`game:metalplate-lead`, `-copper`) once, at a right angle, into one angle (`seraphhorizons:angle-lead`,
+`-copper`, `UnifiedPipes`' item), as the anvil forges one from an ingot. Two angles, two solder bars and
+a soldering iron make a hollow section (the game's chute section) on the grid; hollow sections make
+chutes, or pipe sections on the mandrel station or the draw bench. Its model, rig and generator are described in `PressBrake/README.md`,
 which also records the gameplay's decisions; this is the gameplay, in `PressBrake/` (rules in
 `PressBrake/Core/`, the game side in `PressBrake/Game/`). A hand machine: no mechanical power, no oil,
 and nothing on it wears.
@@ -2107,12 +2116,12 @@ In creative mode Ctrl + right-click on an incomplete brake fits its next stage w
 last part fitted back out (the edges, then the screws). Breaking the frame drops the frame, both parts
 and a plate not yet folded (one being folded is lost).
 
-**Work.** A lead or copper plate goes on the bed by right-click (an open section, what comes off, never
-does). Then the player **holds right-click** on the brake, as on the quern: the fold runs only while
+**Work.** A lead or copper plate goes on the bed by right-click (an angle, what comes off, never does,
+nor a hollow section, a pipe section or an ingot). Then the player **holds right-click** on the brake, as on the quern: the fold runs only while
 someone holds. The lever clock turns a turn a second while held, and the fold cycle W (0..1) advances
-by its turns over the plate's `LeverTurnsPerPlateLead` (6) or `LeverTurnsPerPlateCopper` (9): about six
-seconds of work for lead, nine for copper. The bend is heard at each of the leaf's two folds; at W = 1
-the plate is used up and two open sections of its metal go into a container against the output face
+by its turns over the plate's `LeverTurnsPerPlateLead` (3) or `LeverTurnsPerPlateCopper` (4.5): about
+three seconds of work for lead, four and a half for copper. The bend is heard at the leaf's one fold; at
+W = 1 the plate is used up and one angle of its metal goes into a container against the output face
 (native north, in front of the leaf end), else drop just outside it. Worked with nothing on the bed,
 the brake takes the next plate from a chest or hopper beyond its far end (native south), so a player
 can hold from one plate to the next; it never takes a plate by itself. The block info shows the next
@@ -2125,14 +2134,64 @@ swings: metal dust at the folding edge; while worked: the frame creaks.
 
 | Setting | Default | |
 |---|---|---|
-| `LeverTurnsPerPlateLead` | 6 | Lever turns (seconds held) a lead plate takes; the rig's `fold.leverTurnsPerPlate.thin` (a test holds them together) |
-| `LeverTurnsPerPlateCopper` | 9 | Lever turns a copper plate takes; the rig's `fold.leverTurnsPerPlate.thick` |
+| `LeverTurnsPerPlateLead` | 3 | Lever turns (seconds held) a lead plate takes; the rig's `fold.leverTurnsPerPlate.thin` (a test holds them together) |
+| `LeverTurnsPerPlateCopper` | 4.5 | Lever turns a copper plate takes; the rig's `fold.leverTurnsPerPlate.thick` |
 
 With the switch off the server marks both block types and the recipe file disabled before the game
 loads them, so none of it exists and brakes already placed are lost; the mod's own text no longer
-links it. The plates and the open sections exist either way (the sections are `UnifiedPipes`'; with
-that switch off there are none, and the brake refuses plates with a message). Not yet: a schematic for
+links it. The plates and the angles exist either way (the angles are `UnifiedPipes`'; with that switch
+off there are none, and the brake refuses plates with a message). Not yet: a schematic for
 the frame (`MachineSchematics`).
+
+### Mandrel forging station (`MandrelStation`, `MandrelStationSettings`)
+
+The forged rung of the pipe ladder: a smith's mandrel station of the 1700s, a squared oak stump with an
+iron hoop carrying an iron bracket that holds a square iron mandrel cantilevered over its far end, on
+which one lead or copper hollow section (the game's chute section, `game:chutesection-lead`, `-copper`)
+is hammered down, blow by blow, into two pipe sections (`seraphhorizons:pipesection-lead`, `-copper`,
+`UnifiedPipes`' item). Two angles and solder make a hollow; the draw bench makes four pipe sections of
+one; a pipe section and solder make a pipe. Its model, rig and generator are described in
+`MandrelStation/README.md`, which also records the gameplay's decisions; this is the gameplay, in
+`MandrelStation/` (rules in `MandrelStation/Core/`, the game side in `MandrelStation/Game/`). A hand
+station: no mechanical power, no oil, and nothing of it wears.
+
+**Blocks.** `seraphhorizons:mandrelstation-frame-{side}` is the controller: the stump, the block the
+player clicks, with the station running two blocks away from them along their line of sight and a ghost
+in the far cell, under the mandrel's tip (`mandrelstation-ghost`). The frame is a grid recipe: an oak log
+(the stump), an iron or steel plate (the bracket and the swage), two nails and strips of iron, meteoric
+iron or steel (the hoop and the straps) and a hammer.
+
+**The mandrel.** Fitted by right-click on the stump or the ghost: `game:rod-iron`, `-meteoriciron` or
+`-steel` (smithing, the game's). In creative mode Ctrl + right-click on a station with no mandrel fits an
+iron one with nothing taken. **Ctrl + right-click** takes a hollow back off before its first blow; with
+nothing on, it takes the mandrel back out. Breaking the frame drops the frame, the mandrel and a hollow
+not yet struck (one being forged is lost).
+
+**Work.** A lead or copper hollow section goes on the mandrel by right-click (nothing else does: not an
+angle, a pipe section, an ingot or a plate). Then **each right-click with a hammer** (any of the game's)
+is a blow, as on the anvil, at most one each 0.3 s: the anvil's sound and sparks where it lands, the
+hammer's durability paid (`HammerWearPerBlow`), and the forging W (0..1) advanced by one over the
+hollow's `BlowsPerHollowLead` (6) or `BlowsPerHollowCopper` (9). At the last blow the hollow is used up
+and two pipe sections of its metal go into a container beyond the tip (native south), else drop just
+past it. A blow on a bare mandrel takes the next hollow from a chest or hopper beside the station (native
+west), so a player can keep striking; it never takes one by itself. The block info shows what the
+station needs and the hollow on, its blows struck of those it takes.
+
+**Drawn.** The block draws `mandrelstation_frame.json`; the renderer splits `mandrelstation.json` into
+the rig's parts and draws the mandrel once fitted, in its rod's metal, and the hollow of the metal on
+while it is on, easing to each blow as it lands.
+
+| Setting | Default | |
+|---|---|---|
+| `BlowsPerHollowLead` | 6 | Hammer blows a lead hollow takes; the rig's `forge.blowsPerHollow.thin` (a test holds them together) |
+| `BlowsPerHollowCopper` | 9 | Hammer blows a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
+| `HammerWearPerBlow` | 1 | Durability a blow costs the hammer, as a blow on the anvil does |
+
+With the switch off the server marks both block types and the recipe file disabled before the game
+loads them, so none of it exists and stations already placed are lost; the mod's own text no longer
+links it. The hollows and the pipe sections exist either way (the sections are `UnifiedPipes`'; with
+that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic
+for the frame (`MachineSchematics`).
 
 ### Felling a tree costs the axe a flat figure (`FlatFellingWear`, `FlatFellingWearSettings`)
 
@@ -3107,15 +3166,19 @@ drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/C
 `tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the press brake's build order,
 take-back, plates by metal, fold arithmetic (W only while held, two sections at 1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
-`PressBrakeRigTests.cs`), the pickling tub's rules, timings,
+`PressBrakeRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
+blows (two sections at the last), renderer clock, settings and rig (`MandrelStation/Core/`,
+`tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the pickling tub's rules, timings,
 over-pickling order, early take-out, brine loss and settings (`PicklingTub/Core/`, `tests/PicklingTub/`),
 and the unified pipes' burst figures, lead rule, recipe cost filter and the guard on ppex's assets, held
 to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on the
-game's chute section and chute recipes (held to trimmed copies of 1.22.7's, and to the shipped patch
-applied to them) and the section and pipe recipes held to the ladder (`Pipes/Core/ChuteSections.cs`,
-`tests/Pipes/ChuteSectionsTests.cs`), and the cast pipes' guard on smex's two mold files (held to trimmed
-copies of smex 0.10.1's, and to the shipped patch applied to them) and the ladder's two sections an
-ingot, held to the shipped patch
+game's chute section, its anvil recipe and the chute recipes (held to copies of 1.22.7's, the item and
+chutes trimmed, and to the shipped patch applied to them) and the two-angle soldering recipe
+(`Pipes/Core/ChuteSections.cs`, `tests/Pipes/ChuteSectionsTests.cs`), the angle's item, L shape and
+anvil recipe, the pipe section's item and tube shape, every pipe recipe from pipe sections and the
+chain's figures (`Pipes/Core/PipeSections.cs`, `tests/Pipes/PipeSectionsTests.cs`), and the cast pipes'
+guard on smex's two mold files (held to trimmed copies of smex 0.10.1's, and to the shipped patch
+applied to them) and the chain's two pipe sections an ingot, held to the shipped patch
 (`Pipes/Core/CastPipeMold.cs`, `tests/Pipes/CastPipeMoldTests.cs`), and the hand pump on ppex pipes:
 its spring search, priming count, the intake's scan and allowance and the name fallbacks
 (`Pipes/Core/HandPumpSearch.cs`, `tests/Pipes/HandPumpSearchTests.cs`).
@@ -3364,14 +3427,14 @@ requires no blank, no mold and no recipe for either.
 `tests/PackTests/CastPipesScenarios.cs` (Atlas, the shared world) requires the system on with no
 guard warning and smex's own molds at their units; the raw pipe mold clay-formed from each clay (two
 layers) and fired, in a pit kiln and the beehive kiln's four levels, to a fired pipe mold, which exists
-in all ten colours and is named; the fired mold's `requiredUnits` 100, its drop of two chute sections,
+in all ten colours and is named; the fired mold's `requiredUnits` 100, its drop of two pipe sections,
 smex's shared attributes kept beside the patch's (the game merges them) and its handbook section, and
 `MoldKinds.FitsPedestal` taking it; the iron and steel sections there; a fired mold on the ground
 refusing tin bronze, taking 100 units of iron or steel and, cooled, casting two sections of the metal;
 smex's canal pedestal, driven by its own members (`AddMold`, `TryTogglePouring`, `PushMetal` into its
 cell, `RemoveMold`), filling the mold to 100 units of iron and the mold set down hardened casting two
-iron sections; and the grid recipe, one per metal, making two straight ppex pipes from two sections,
-nails and strips of the same metal (not the other) and a hammer. With the switch off,
+iron sections; and the grid recipe, one per metal, making one straight ppex pipe from one pipe
+section, nails and strips of the same metal (not the other) and a hammer. With the switch off,
 `SwitchesOffScenarios` requires no pipe mold (smex's quad rod mold still there), no recipe for one and
 nothing logged about them.
 
@@ -3391,27 +3454,28 @@ chest at the output. With the switch off, `SwitchesOffScenarios` requires none o
 or recipes.
 
 `tests/PackTests/DrawBenchScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
-the draw bench's blocks, the parts every stage takes, the lead and copper ingots and chute sections (lead
-the state `UnifiedPipes` adds) and the dies (their durability the setting's), its recipes (the die not helve-able), the settings' pace the rig's and the
+the draw bench's blocks, the parts every stage takes, the lead and copper hollow sections (the game's
+chute section, lead the state `UnifiedPipes` adds) and pipe sections and the dies (their durability the
+setting's), its recipes (the die not helve-able), the settings' pace the rig's and the
 machine oil page naming it; placing on all four facings, the bench running away along the facing,
 every ghost pointing home, every cell's lid, the axle face turned, and every cell cleared and the frame
 dropped on breaking; the stages fitted in order by real clicks on the frame and ghosts, a later stage's
-part, a second chain and an ingot before the die refused, and a save keeping every code; the creative
+part, a second chain and a hollow before the die refused, and a save keeping every code; the creative
 shortcut fitting the five stages with a steel die; under a creative rotor, the shaft drawing the first
-lead section by itself from a lead ingot on an iron die, a chute section (lead or copper) and an iron
-ingot never handled, a copper ingot refused by it, the die kept in while the ingot is on, and the three
-sections dropped beyond the output face, the ingot used up (die 99, oil 994); the iron die taken back
-with its durability and a steel die drawing copper at twice the turns and lead too, a point an ingot; a
-die wearing only when an ingot is done and out on its last one, the load three times dry, no ingot
-without a die, a worn-out die refused and a new one drawing again; the die back by Ctrl from a ghost,
-and breaking giving back every part, the die with its wear and an undrawn ingot (not one with a section
-off it); and ingots taken from a chest at the infeed (not while the shaft stands, never copper on an
-iron die nor a chute section, the next a moment after the last) and sections put in a chest at the
-output. With the switch off, `SwitchesOffScenarios` requires none of its blocks,
+lead pipe section by itself from a lead hollow on an iron die, a pipe section (lead or copper), a lead,
+copper or iron ingot and an angle never handled, a copper hollow refused by it, the die kept in while the
+hollow is on, and the four pipe sections dropped beyond the output face, the hollow used up (die 99, oil
+992); the iron die taken back with its durability and a steel die drawing copper at twice the turns and
+lead too, a point a hollow; a die wearing only when a hollow is done and out on its last one, the load
+three times dry, no hollow without a die, a worn-out die refused and a new one drawing again; the die
+back by Ctrl from a ghost, and breaking giving back every part, the die with its wear and an undrawn
+hollow (not one with a pipe section off it); and hollows taken from a chest at the infeed (not while the
+shaft stands, never copper on an iron die, a pipe section or an ingot, the next a moment after the last)
+and pipe sections put in a chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks,
 dies or recipes, no link to them and the machine oil page without it, and nothing logged.
-`RecipeExportDrawBenchScenarios.cs` requires one `machine` record per metal (`drawbench|game:ingot-{metal}|0`):
-the ingot, the four kept stages, the dies that draw it as a tool worn 1 (`fixed`), 6 points of oil, the
-frame, three chute sections.
+`RecipeExportDrawBenchScenarios.cs` requires one `machine` record per metal (`drawbench|game:chutesection-{metal}|0`):
+the hollow, the four kept stages, the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
+frame, four pipe sections.
 
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
 the press brake's blocks, the rods and plates its stages take, the lead and copper plates and open
@@ -3432,22 +3496,42 @@ off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to i
 (`pressbrake|game:metalplate-{metal}|0`): the plate, the two kept stages, the frame, two open sections,
 power `hand` at the lever's 6 or 9 turns, no wear and no oil.
 
+`tests/PackTests/MandrelStationScenarios.cs` (Atlas, the shared world, the gear cutter's player)
+requires the station's blocks, the rods it takes as its mandrel, the lead and copper hollows and pipe
+sections and a hammer, its recipe, its place in the mechanics tab, and the settings' pace the rig's;
+placing on all four facings, the station running away along the facing, the ghost pointing home, both
+cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on breaking; the
+mandrel fitted by a real click on the ghost, a hollow and a blow before it, a copper rod and an empty
+hand refused, a second rod refused, a save keeping it, Ctrl taking it back, and the creative shortcut; a
+lead hollow struck through by real right-clicks with a hammer from the stump and the ghost, a blow a
+sixth, an angle, a pipe section, an ingot and a plate never taken, the hammer paying a point a blow, a
+save keeping the blows, and two lead pipe sections dropped beyond the tip at the sixth, the hollow used
+up; copper at nine blows; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
+breaking giving back the mandrel and an unstruck hollow (not a struck one); and hollows taken from a
+chest beside the stump only when struck (never an ingot, an angle or a pipe section) and sections put in
+a chest beyond the tip. With the switch off, `SwitchesOffScenarios` requires none of its blocks or
+recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios.cs` requires one
+`machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
+the hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 6 or 9 blows, no oil.
+
 `tests/PackTests/UnifiedPipesScenarios.cs` (Atlas, the shared world) requires the switch bound with
 nothing logged; every pipe shape in copper and lead, at the default figures with iron and steel, on
 ppex's model with the metal's texture; the valves and pressure valves in the three bronzes at the
 bronze figure, and the iron and steel ones unlisted; none of ppex's plate-and-nails or valve recipes
-left, and this mod's resolving (every shape in all four metals from chute sections of the metal, in
-the right number, with solder and the soldering iron or nails and strips and a hammer, and the bronze
-valves); the chute section in all four metals, named, only copper in the mechanics tab, with its
-handbook section, the game's plate recipe gone, copper and lead forged from an ingot, the open sections
-named and soldered shut two for two; the game's chutes taking copper sections only, a solder bar a
-section and the soldering iron and no hammer, a copper pipe recipe less its hammer taking what its
-chute takes, Better Ruins' blueprint chutes gone and its riveted block still made; exlib's `GridRecipesFor` patched and seeing only ppex's recipes; the
+left, and this mod's resolving (every shape in all four metals from pipe sections of the metal, in
+the right number, with a solder bar a section and the soldering iron or one nails and strips and a
+hammer, no pipe from a chute section, and the bronze valves); the chain: the angle in copper and lead,
+named, with its handbook section and forged from one ingot of its metal; the chute section in copper
+and lead only, named, only copper in the mechanics tab, with its handbook section, no anvil recipe for
+it and on the grid only two angles, two solder bars and the soldering iron making one; the pipe
+section in all four metals, named, with its handbook section and no grid or anvil recipe; the game's
+chutes taking copper chute sections only, a solder bar a section and the soldering iron and no hammer,
+Better Ruins' blueprint chutes gone and its riveted block still made; exlib's `GridRecipesFor` patched and seeing only ppex's recipes; the
 steam power page's figures and "water only"; and, beside a creative steam source at 2 atm, a lead pipe
 bursting within seconds and dropping as itself while copper holds. With the switch off,
 `SwitchesOffScenarios` requires ppex's pipes as they ship (no new states, its recipes back, its text
-and figures), the chute section copper alone with its plate recipe back, chutes from sections alone
-and Better Ruins' back, no open section and nothing patched. `tools/tests/test_unified_pipes.py` holds the patch to ppex's zip, and the chute section patch
+and figures), the chute section copper alone with its anvil and plate recipes back, chutes from
+sections alone and Better Ruins' back, no angle or pipe section and nothing patched. `tools/tests/test_unified_pipes.py` holds the patch to ppex's zip, and the chute section patch
 to the game's files.
 
 `tests/PackTests/HydratePipesScenarios.cs` (Atlas, the shared world) requires Hydrate or Diedrate's

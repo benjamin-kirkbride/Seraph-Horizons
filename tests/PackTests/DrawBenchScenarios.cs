@@ -12,10 +12,10 @@ using Vintagestory.GameContent.Mechanics;
 namespace SeraphHorizons.PackTests;
 
 // seraphhorizons, DrawBench (mods-src/seraphhorizons/DrawBench/): the draw bench in the plain world,
-// driven by a real mechanical power network (a vanilla creative rotor against its power face). An
-// ingot is three chute sections of about 8 axle turns each (lead; copper twice that), so each scenario
-// that runs it under power waits for the first section to come off the shaft's own turning, then
-// finishes the ingot through BEDrawBench.Draw, as the gear cutter's scenarios finish a gear through Cut. Every
+// driven by a real mechanical power network (a vanilla creative rotor against its power face). A
+// hollow section (the game's chute section) is four pipe sections of about 8 axle turns each (lead;
+// copper twice that), so each scenario that runs it under power waits for the first pipe section to
+// come off the shaft's own turning, then finishes the hollow through BEDrawBench.Draw, as the gear cutter's scenarios finish a gear through Cut. Every
 // scenario builds on a granite floor of its own 40 above spawn at x -240 to -300, z -240 to -260
 // (clear of the gear cutter's at x/z -140 to -200), and they share the gear cutter's player,
 // gearcutterhand (the server takes 16 players at most, and the other scenarios use the rest).
@@ -24,10 +24,10 @@ public partial class SharedWorldScenarios
     private DrawBenchSystem BenchMod => DrawBenchSystem.Of(World.Api);
     private DrawBenchRig BenchRig => BenchMod.Rig ?? throw new Xunit.Sdk.XunitException("the draw bench's rig did not load");
 
-    // What it draws (Drawing.LeadIngot, CopperIngot) and what comes off: the game's chute section,
-    // whose lead state UnifiedPipes' patch adds.
-    private const string LeadSection = "game:chutesection-lead";
-    private const string CopperSection = "game:chutesection-copper";
+    // What it draws (Drawing.LeadHollow, CopperHollow: the game's chute section, whose lead state
+    // UnifiedPipes' patch adds) and what comes off: the pack's pipe section.
+    private const string LeadSection = "seraphhorizons:pipesection-lead";
+    private const string CopperSection = "seraphhorizons:pipesection-copper";
 
     private async Task<BEDrawBench> PlaceBench(BlockPos pos, string side = "north")
     {
@@ -86,7 +86,7 @@ public partial class SharedWorldScenarios
         return rotorPos;
     }
 
-    /// <summary>Radians that bring the ingot on the bench to W = <paramref name="work"/> from where it is.</summary>
+    /// <summary>Radians that bring the hollow on the bench to W = <paramref name="work"/> from where it is.</summary>
     private static double BenchRadiansTo(BEDrawBench bench, double work) =>
         (work - bench.Job.Work) * 2 * Math.PI * bench.TurnsPerSection(bench.Job.Class) + 1e-6;
 
@@ -122,10 +122,10 @@ public partial class SharedWorldScenarios
         foreach (var stage in DrawBenchRequires.Stages)
             foreach (var code in DrawBenchParts.CodesFor(stage))
                 Assert.True(W.GetItem(new AssetLocation(code)) != null, $"no {code} for {stage}");
-        // what it draws, the game's lead and copper ingots, and what comes off: the game's chute
-        // section, copper the game's own and lead the state UnifiedPipes' patch adds
-        foreach (var ingot in new[] { Drawing.LeadIngot, Drawing.CopperIngot })
-            Assert.True(W.GetItem(new AssetLocation(ingot)) is { Id: > 0 }, $"no {ingot}");
+        // what it draws, the game's chute section (copper the game's own and lead the state
+        // UnifiedPipes' patch adds), and what comes off: the pack's pipe section
+        foreach (var hollow in new[] { Drawing.LeadHollow, Drawing.CopperHollow })
+            Assert.True(W.GetItem(new AssetLocation(hollow)) is { Id: > 0, IsMissing: false }, $"no {hollow}");
         foreach (var (k, section) in new[] { (1, LeadSection), (2, CopperSection) })
         {
             Assert.Equal(section, Drawing.SectionFor(k));
@@ -223,8 +223,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, CutterClick(player, ghost, BenchDie(DrawBenchParts.DieSteelCode))?.StackSize);
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:rod-iron"))?.StackSize);
         Assert.False(bench.Parts.Has(DrawBenchStage.Gearbox));
-        // no ingot before the bench is built
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadIngot))?.StackSize);
+        // no hollow before the bench is built
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         Assert.False(bench.JobOn);
         // an item that is no part of it is the item's own business
         Assert.Equal(3, CutterClick(player, pos, CutterItem("game:gear-rusty", 3))?.StackSize);
@@ -245,11 +245,11 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, CutterClick(player, pos, CutterItem("game:metalchain-steel"))?.StackSize);
         Assert.False(bench.Complete);
         Assert.Contains("Next part: die", BenchInfo(bench, player));
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadIngot))?.StackSize);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         Assert.Null(CutterClick(player, ghost, BenchDie(DrawBenchParts.DieIronCode)));
         Assert.True(bench.Complete);
         Assert.Equal("Draw bench", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.Contains("Die: iron die, draws lead; 100 of 100 ingots left", BenchInfo(bench, player));
+        Assert.Contains("Die: iron die, draws lead; 100 of 100 hollow sections left", BenchInfo(bench, player));
         Assert.Contains("Bench empty", BenchInfo(bench, player));
 
         // a save keeps every fitted code
@@ -284,43 +284,43 @@ public partial class SharedWorldScenarios
 
     // ---- Drawing ----
 
-    // Under power a lead ingot on an iron die becomes three lead chute sections at the output face,
-    // the first one by the shaft's own turning; copper is refused by the iron die, and a chute
-    // section is never taken; the die loses a point and the tank 2 points a section.
+    // Under power a lead hollow section on an iron die becomes four lead pipe sections at the output
+    // face, the first one by the shaft's own turning; copper is refused by the iron die, and an ingot,
+    // an angle or a pipe section is never taken; the die loses a point a hollow and the tank 2 points
+    // a pipe section.
     [AtlasScenario(TimeoutMs = 180_000)]
-    public async Task Draw_bench_draws_three_lead_sections_from_an_ingot_with_an_iron_die_under_power()
+    public async Task Draw_bench_draws_four_lead_pipe_sections_from_a_hollow_with_an_iron_die_under_power()
     {
         var pos = await CutterSite(-264, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "south");
         AssembleBench(bench, player);
 
-        // a chute section, what comes off, is not what it draws: the click is the item's own business
-        foreach (var section in new[] { LeadSection, CopperSection })
+        // an ingot, an angle or a pipe section (what comes off) is not what it draws: the click is the
+        // item's own business
+        foreach (var code in new[] { LeadSection, CopperSection, "game:ingot-lead", "game:ingot-copper", "seraphhorizons:angle-lead", "game:ingot-iron" })
         {
-            Assert.Equal(1, CutterClick(player, pos, CutterItem(section))?.StackSize);
-            Assert.False(_cutterHandled);
+            Assert.Equal(1, CutterClick(player, pos, CutterItem(code))?.StackSize);
+            Assert.False(_cutterHandled, $"{code} was the bench's");
         }
-        Assert.Equal(1, CutterClick(player, pos, CutterItem("game:ingot-iron"))?.StackSize);
-        Assert.False(_cutterHandled);
         Assert.False(bench.JobOn);
         // copper is refused by the iron die and stays in hand; lead goes on, one at a time
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.CopperIngot))?.StackSize);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.CopperHollow))?.StackSize);
         Assert.True(_cutterHandled);
         Assert.False(bench.JobOn);
-        Assert.Equal(2, CutterClick(player, pos, CutterItem(Drawing.LeadIngot, 3))?.StackSize);
+        Assert.Equal(2, CutterClick(player, pos, CutterItem(Drawing.LeadHollow, 3))?.StackSize);
         Assert.True(bench.JobOn);
         Assert.Equal(1, bench.Job.Class);
-        Assert.Equal(Drawing.LeadIngot, bench.Ingot?.Collectible.Code.ToString());
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadIngot))?.StackSize);
-        // the die stays in while the ingot is on
+        Assert.Equal(Drawing.LeadHollow, bench.Hollow?.Collectible.Code.ToString());
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
+        // the die stays in while the hollow is on
         CutterClick(player, pos, null, ctrl: true);
         Assert.True(bench.Parts.Has(DrawBenchStage.Die));
 
         // unpowered, nothing moves; powered, the shaft draws the first section off by itself
         await World.Ticks(10);
         Assert.Equal(0, bench.Job.Work);
-        Assert.Contains("Stopped with lead on: 0 of 3 sections", BenchInfo(bench, player));
+        Assert.Contains("Stopped with lead on: 0 of 4 sections", BenchInfo(bench, player));
         var rotor = await PowerBench(bench);
         await World.Until(() => bench.Job.Work > 0.02, 30000);
         Assert.True(bench.Running);
@@ -334,17 +334,20 @@ public partial class SharedWorldScenarios
         var local = Footprint.ToLocal(new Float3((float)(dropped.Pos.X - pos.X), (float)(dropped.Pos.Y - pos.Y), (float)(dropped.Pos.Z - pos.Z)), bench.Side);
         Assert.True(local.X > 1 - 0.01f, $"the section is at native {local}");
 
-        // the other two: just short of the second, then each in turn
+        // the other three: just short of the second, then each in turn
         Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, 2) - 2 * Math.PI * 0.2));
         Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 2)));
         Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 3)));
+        Assert.True(bench.JobOn);
+        Assert.Equal(100, bench.Parts.DieLeft);   // the die wears when the whole hollow is drawn
+        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 4)));
         Assert.False(bench.JobOn);
         await World.Ticks(5);
-        Assert.Equal(3, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
-        Assert.Equal(0, CutterItemsNear(pos).GetValueOrDefault(Drawing.LeadIngot));   // the ingot is used up
+        Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
+        Assert.Equal(0, CutterItemsNear(pos).GetValueOrDefault(Drawing.LeadHollow));   // the hollow is used up
         Assert.Equal(99, bench.Parts.DieLeft);
-        Assert.Equal(994, bench.Oiling!.Tank.Points, 6);
-        Assert.Contains("99 of 100 ingots left", BenchInfo(bench, player));
+        Assert.Equal(992, bench.Oiling!.Tank.Points, 6);   // 2 points a pipe section, 8 a hollow
+        Assert.Contains("99 of 100 hollow sections left", BenchInfo(bench, player));
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }
@@ -357,7 +360,7 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "west");
         AssembleBench(bench, player, BenchDie(DrawBenchParts.DieIronCode, 40));
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.CopperIngot))?.StackSize);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.CopperHollow))?.StackSize);
         Assert.False(bench.JobOn);
 
         // the iron die back out, with its durability, and the steel one in
@@ -367,28 +370,28 @@ public partial class SharedWorldScenarios
         Assert.Equal(40, iron.Collectible.GetRemainingDurability(iron));
         Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieSteelCode)));
         Assert.Contains("Die: steel die, draws lead, copper", BenchInfo(bench, player));
-        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperIngot)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
         Assert.Equal(2, bench.Job.Class);
 
         // a lead section's turns are half a copper section's
         Assert.Equal(bench.TurnsPerSection(1) * 2, bench.TurnsPerSection(2), 0.02);
         Assert.Equal(0, bench.Draw(2 * Math.PI * bench.TurnsPerSection(1)));
         Assert.Equal(0.5, bench.Job.Work, 0.01);
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 3)));
+        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
         await World.Ticks(5);
-        Assert.Equal(3, CutterItemsNear(pos).GetValueOrDefault(CopperSection));
+        Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(CopperSection));
         Assert.Equal(99, bench.Parts.DieLeft);
         // and lead too
-        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadIngot)));
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 3)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
+        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
         await World.Ticks(5);
-        Assert.Equal(3, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
+        Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
         Assert.Equal(98, bench.Parts.DieLeft);
         CutterKillItems(pos);
     }
 
-    // A die wears a point an ingot, oiled or dry; worn out it is gone, the bench stops and takes no
-    // ingot until a new die is fitted. Dry, the bench takes three times the load.
+    // A die wears a point a hollow section, oiled or dry; worn out it is gone, the bench stops and
+    // takes no hollow until a new die is fitted. Dry, the bench takes three times the load.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Draw_bench_die_wears_out_and_the_bench_stops_until_a_new_one_is_fitted()
     {
@@ -399,30 +402,30 @@ public partial class SharedWorldScenarios
         var mp = W.BlockAccessor.GetBlockEntity(bench.CellPos(BenchRig.PowerCell))!.GetBehavior<BEBehaviorDrawBenchMP>()!;
         Assert.Equal(BenchMod.Config.ResistanceLead, mp.GetResistance(), 4);
 
-        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadIngot)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 1)));
-        Assert.Equal(2, bench.Parts.DieLeft);   // nothing until the whole ingot is drawn
-        Assert.Equal(2, bench.Draw(BenchRadiansTo(bench, 3)));
+        Assert.Equal(2, bench.Parts.DieLeft);   // nothing until the whole hollow is drawn
+        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 4)));
         Assert.Equal(1, bench.Parts.DieLeft);
         // dry: the same die wear, three times the load
         FillBenchOil(bench, 0);
         Assert.Equal(BenchMod.Config.ResistanceLead * 3, mp.GetResistance(), 4);
-        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadIngot)));
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 3)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
+        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
         Assert.False(bench.Parts.Has(DrawBenchStage.Die));
         Assert.False(bench.Complete);
         await World.Ticks(5);
-        Assert.Equal(6, CutterItemsNear(pos).GetValueOrDefault(LeadSection));   // the last ingot still came out
+        Assert.Equal(8, CutterItemsNear(pos).GetValueOrDefault(LeadSection));   // the last hollow still came out
         CutterKillItems(pos);
-        // no ingot goes on without a die, and nothing comes back by Ctrl
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadIngot))?.StackSize);
+        // no hollow goes on without a die, and nothing comes back by Ctrl
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(Drawing.LeadHollow))?.StackSize);
         CutterClick(player, pos, null, ctrl: true);
         Assert.Equal(0, BenchHeld(player, DrawBenchParts.DieIronCode));
         // a worn-out die is refused, a new one goes in and it draws again
         Assert.Equal(1, CutterClick(player, pos, BenchDie(DrawBenchParts.DieIronCode, 0))?.StackSize ?? 0);
         Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieIronCode)));
-        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadIngot)));
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 3)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
+        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
         Assert.Equal(99, bench.Parts.DieLeft);
         CutterKillItems(pos);
     }
@@ -444,9 +447,9 @@ public partial class SharedWorldScenarios
         Assert.True(bench.Parts.Has(DrawBenchStage.Mandrel));
         Assert.Equal(4, bench.Parts.Returns().Count);
 
-        // refit and load; broken before a section comes off, the ingot comes back too
+        // refit and load; broken before a pipe section comes off, the hollow comes back too
         Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieSteelCode, 77)));
-        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperIngot)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
         bench.Draw(BenchRadiansTo(bench, 0.5));
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
@@ -455,31 +458,31 @@ public partial class SharedWorldScenarios
         var drops = CutterItemsNear(pos);
         Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:drawbench-frame-north"));
         Assert.Equal(0, drops.GetValueOrDefault(CopperSection));
-        foreach (var code in BenchOrder.Append(DrawBenchParts.DieSteelCode).Append(Drawing.CopperIngot))
+        foreach (var code in BenchOrder.Append(DrawBenchParts.DieSteelCode).Append(Drawing.CopperHollow))
             Assert.True(drops.GetValueOrDefault(code) == 1, $"{code}: {drops.GetValueOrDefault(code)}");
         var die = World.EntitiesIn(new Cuboidi(pos.X - 6, pos.Y - 3, pos.Z - 6, pos.X + 6, pos.Y + 6, pos.Z + 6))
             .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == DrawBenchParts.DieSteelCode).Itemstack;
         Assert.Equal(77, die.Collectible.GetRemainingDurability(die));
         CutterKillItems(pos);
 
-        // broken once a section has come off, the rest of the ingot is lost with it
+        // broken once a pipe section has come off, the rest of the hollow is lost with it
         bench = await PlaceBench(pos, "west");
         AssembleBench(bench, player);
-        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadIngot)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 1.5)));
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
         await World.Ticks(3);
         drops = CutterItemsNear(pos);
         Assert.Equal(1, drops.GetValueOrDefault(DrawBenchParts.DieIronCode));
-        Assert.Equal(0, drops.GetValueOrDefault(Drawing.LeadIngot));
+        Assert.Equal(0, drops.GetValueOrDefault(Drawing.LeadHollow));
         CutterKillItems(pos);
     }
 
     // ---- Infeed and outfeed ----
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Draw_bench_takes_ingots_from_a_chest_and_puts_sections_in_one()
+    public async Task Draw_bench_takes_hollows_from_a_chest_and_puts_pipe_sections_in_one()
     {
         var pos = await CutterSite(-252, -280);
         var player = await CutterPlayer();
@@ -492,10 +495,12 @@ public partial class SharedWorldScenarios
         await World.Ticks(3);
         var source = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(infeed));
         var sink = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(outfeed));
-        // copper the iron die does not draw, then two lead ingots, and a lead chute section it never takes
-        source.Inventory[0].Itemstack = CutterItem(Drawing.CopperIngot);
-        source.Inventory[1].Itemstack = CutterItem(Drawing.LeadIngot, 2);
+        // copper the iron die does not draw, then two lead hollows, and a lead pipe section and a lead
+        // ingot it never takes
+        source.Inventory[0].Itemstack = CutterItem(Drawing.CopperHollow);
+        source.Inventory[1].Itemstack = CutterItem(Drawing.LeadHollow, 2);
         source.Inventory[2].Itemstack = CutterItem(LeadSection);
+        source.Inventory[3].Itemstack = CutterItem("game:ingot-lead");
         source.MarkDirty(true);
 
         // not taken while the shaft stands
@@ -504,20 +509,21 @@ public partial class SharedWorldScenarios
         await PowerBench(bench);
         await World.Until(() => bench.JobOn, 5000);
         Assert.Equal(1, source.Inventory[1].StackSize);
-        Assert.Equal(Drawing.CopperIngot, source.Inventory[0].Itemstack?.Collectible.Code.ToString());
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 3)));
-        Assert.Equal(3, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == LeadSection).Sum(s => s.StackSize));
-        // the next ingot goes on once the bench has cleared
+        Assert.Equal(Drawing.CopperHollow, source.Inventory[0].Itemstack?.Collectible.Code.ToString());
+        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(4, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == LeadSection).Sum(s => s.StackSize));
+        // the next hollow goes on once the bench has cleared
         Assert.False(bench.JobOn);
         await World.Until(() => bench.JobOn, 5000);
         Assert.True(source.Inventory[1].Empty);
-        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 3)));
-        Assert.Equal(6, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == LeadSection).Sum(s => s.StackSize));
+        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(8, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == LeadSection).Sum(s => s.StackSize));
         Assert.DoesNotContain(LeadSection, CutterItemsNear(pos).Keys);
         await World.Ticks(40);
-        Assert.False(bench.JobOn);   // only the copper ingot and the chute section are left
+        Assert.False(bench.JobOn);   // only the copper hollow, the pipe section and the ingot are left
         Assert.Equal(1, source.Inventory[0].StackSize);
         Assert.Equal(1, source.Inventory[2].StackSize);
         Assert.Equal(LeadSection, source.Inventory[2].Itemstack?.Collectible.Code.ToString());
+        Assert.Equal("game:ingot-lead", source.Inventory[3].Itemstack?.Collectible.Code.ToString());
     }
 }

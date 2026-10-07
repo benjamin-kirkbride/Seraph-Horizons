@@ -315,24 +315,37 @@ is left out when its switch is off or what it names is not registered.
   gear's wear is the small one's times its teeth over the small gear's, rounded up, and its oil
   double. The `GearCutter` switch, once there, leaves it out when off.
 - The draw bench (`Recipes/DrawBenchExport.cs`, `RecipeSection.DrawBench.cs`, type `drawbench`, shape
-  `machine`): one record per metal, `drawbench|game:ingot-{metal}|0`. `config/drawbench-rig.json`
-  gives the sections an ingot (`draw.sectionsPerIngot`), each class's ingot (`draw.ingots`) and the turns
-  a section as a fallback; `SeraphHorizonsConfig.DrawBenchSettings` gives the turns a section
-  (`TurnsPerSectionLead`, `TurnsPerSectionCopper`), the die's wear (`DieWearPerIngot`, rule `fixed`) and
-  which dies draw the metal (`DieMetals`); `MachineOilSettings.DrawBench` the oil per section and the
-  tank. The gearbox, chain, dog and mandrel are `kept`, their alternatives the variant's stacks; the
-  output is three of the game's chute sections of the metal (work unit `sections`), and a metal whose
-  chute section is not registered (lead with `UnifiedPipes` off) has no record. The `DrawBench` switch leaves it out when off.
+  `machine`): one record per metal, `drawbench|game:chutesection-{metal}|0`. `config/drawbench-rig.json`
+  gives the pipe sections a hollow (`draw.sectionsPerHollow`), each class's hollow section, the game's
+  chute section (`draw.hollows`), and the turns a section as a fallback;
+  `SeraphHorizonsConfig.DrawBenchSettings` gives the turns a section (`TurnsPerSectionLead`,
+  `TurnsPerSectionCopper`), the die's wear (`DieWearPerHollow`, rule `fixed`) and which dies draw the
+  metal (`DieMetals`); `MachineOilSettings.DrawBench` the oil per pipe section and the tank. The
+  gearbox, chain, dog and mandrel are `kept`, their alternatives the variant's stacks; the output is
+  four pipe sections of the metal (`seraphhorizons:pipesection-{metal}`, work unit `sections`), and a
+  metal whose hollow or pipe section is not registered (lead's chute section with `UnifiedPipes` off)
+  has no record. The `DrawBench` switch leaves it out when off.
 - The press brake (`Recipes/PressBrakeExport.cs`, `RecipeSection.PressBrake.cs`, type `pressbrake`,
   shape `machine`): one record per metal, `pressbrake|game:metalplate-{metal}|0`.
-  `config/pressbrake-rig.json` gives each class's plate and open section (`fold.plates`,
-  `fold.sections`), the sections a plate (`fold.sectionsPerPlate`) and the lever turns a plate as a
+  `config/pressbrake-rig.json` gives each class's plate and angle (`fold.plates`,
+  `fold.angles`), the angles a plate (`fold.anglesPerPlate`, 1) and the lever turns a plate as a
   fallback; `SeraphHorizonsConfig.PressBrakeSettings` gives the lever turns a plate
   (`LeverTurnsPerPlateLead`, `LeverTurnsPerPlateCopper`). A hand machine: `power` is `hand`, `turns`
   the lever's (a turn a second while right-click is held), and there is no `wear` and no `oil`. The
-  screws and edges are `kept`, their alternatives the variant's stacks; the output is two open chute
-  sections of the metal, and a metal whose open section is not registered (`UnifiedPipes` off) has no
+  screws and edges are `kept`, their alternatives the variant's stacks; the output is one angle of the
+  metal (`seraphhorizons:angle-{metal}`), and a metal whose angle is not registered (`UnifiedPipes` off) has no
   record. The `PressBrake` switch leaves it out when off.
+- The mandrel forging station (`Recipes/MandrelStationExport.cs`, `RecipeSection.MandrelStation.cs`,
+  type `mandrelstation`, shape `machine`): one record per metal, `mandrelstation|game:chutesection-{metal}|0`.
+  `config/mandrelstation-rig.json` gives each class's hollow and pipe section (`forge.hollows`,
+  `forge.sections`), the sections a hollow (`forge.sectionsPerHollow`, 2) and the blows a hollow as a
+  fallback; `SeraphHorizonsConfig.MandrelStationSettings` gives the blows a hollow
+  (`BlowsPerHollowLead`, `BlowsPerHollowCopper`) and the hammer's wear a blow (`HammerWearPerBlow`). A
+  hand station: `power` is `hand`, `turns` the blows and `work` `{amount: blows, unit: "blows"}`; the
+  mandrel is `kept` (the three rods the variant's stacks), the hammer a tool worn blows × wear a job
+  (`wear` `fixed`; every `game:hammer-*` in the variant, `game:hammer-iron` the definition's), no `oil`.
+  The output is two pipe sections of the metal, and a metal whose pipe section is not registered
+  (`UnifiedPipes` off) has no record. The `MandrelStation` switch leaves it out when off.
 
 ## Casting in tool molds
 
@@ -401,10 +414,12 @@ Checked in the pack's code (decompiled) and assets; none is exported:
   and failure output, the oiled gear's one in ten, the gear cutter's two blank sizes (turns,
   kept master, kit wear, oil), the gear blank molds and two vanilla tool molds cast, and every
   link of the gear chain's handbook page;
-- the draw bench (`RecipeExportDrawBenchScenarios.cs`): a record per metal, its kept stages, the
-  dies that draw it, the oil and three chute sections;
+- the draw bench (`RecipeExportDrawBenchScenarios.cs`): a record per metal, a hollow section in, its
+  kept stages, the dies that draw it, the oil and four pipe sections;
 - the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, its kept stages,
-  power `hand` at the lever's turns, and two open sections;
+  power `hand` at the lever's turns, and one angle;
+- the mandrel station (`RecipeExportMandrelStationScenarios.cs`): a record per metal, the kept
+  mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections;
 - records per type against the definitions counted with the engine's asset loader, and
   variants per type against the sizes of the engine's registries;
 - the structural rules of the document, schema validation (JsonSchema.Net, draft

@@ -20,9 +20,9 @@ public sealed class PressBrakeRig
     public IReadOnlyList<RigCell> Cells { get; }
     /// <summary>The face a chest or hopper feeds plates through (beyond the far end of the bed).</summary>
     public Side InfeedSide { get; }
-    /// <summary>The face the folded sections leave by (over the leaf, towards the operator).</summary>
+    /// <summary>The face the folded angle leaves by (over the leaf, towards the operator).</summary>
     public Side OutputSide { get; }
-    /// <summary>Where the two sections lie at W = 1.</summary>
+    /// <summary>Where the angle lies at W = 1.</summary>
     public Float3 Output { get; }
     /// <summary>The middle of the laid plate: the loading sound.</summary>
     public Float3 Plate { get; }
@@ -34,7 +34,7 @@ public sealed class PressBrakeRig
     public RigParts MovingParts { get; }
 
     /// <summary>The leaf's swings, as stretches of the fold cycle W (from the <c>leaf</c> part's
-    /// gauge windows): the folds, two a plate. Empty when the rig has no parts.</summary>
+    /// gauge windows): the fold, one a plate. Empty when the rig has no parts.</summary>
     public IReadOnlyList<(float From, float To)> Folds { get; }
 
     /// <summary>The middle of each fold: where the bend is heard.</summary>
@@ -96,7 +96,7 @@ public sealed class PressBrakeRig
     public IEnumerable<Int3> InfeedNeighbours() => Neighbours(InfeedSide);
 
     /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell: a container
-    /// there takes the folded sections.</summary>
+    /// there takes the folded angles.</summary>
     public Int3 OutputNeighbour()
     {
         var cell = new Int3((int)MathF.Floor(Output.X), (int)MathF.Floor(Output.Y), (int)MathF.Floor(Output.Z));
@@ -107,7 +107,7 @@ public sealed class PressBrakeRig
         return cell;
     }
 
-    /// <summary>Where a folded section is dropped when no container takes it: <see cref="Output"/>
+    /// <summary>Where a folded angle is dropped when no container takes it: <see cref="Output"/>
     /// moved out through the output face to <paramref name="beyond"/> blocks past it.</summary>
     public Float3 OutputDrop(float beyond = 0.15f)
     {
@@ -136,8 +136,8 @@ public sealed class PressBrakeRig
         var work = WorkQuantity.Parse(Required(root, "work", JsonValueKind.Object));
         var fold = Required(root, "fold", JsonValueKind.Object);
         var turns = Required(fold, "leverTurnsPerPlate", JsonValueKind.Object);
-        if (fold.TryGetProperty("sectionsPerPlate", out var per) && (per.ValueKind != JsonValueKind.Number || per.GetDouble() != Folding.SectionsPerPlate))
-            throw new FormatException($"fold.sectionsPerPlate must be {Folding.SectionsPerPlate}");
+        if (fold.TryGetProperty("anglesPerPlate", out var per) && (per.ValueKind != JsonValueKind.Number || per.GetDouble() != Folding.AnglesPerPlate))
+            throw new FormatException($"fold.anglesPerPlate must be {Folding.AnglesPerPlate}");
         void Expect(string group, string name, string? expected)
         {
             if (fold.TryGetProperty(group, out var g) && Str(g, name) is { } got && got != expected)
@@ -145,8 +145,8 @@ public sealed class PressBrakeRig
         }
         Expect("plates", "thin", Folding.PlateFor(1));
         Expect("plates", "thick", Folding.PlateFor(2));
-        Expect("sections", "thin", Folding.SectionFor(1));
-        Expect("sections", "thick", Folding.SectionFor(2));
+        Expect("angles", "thin", Folding.AngleFor(1));
+        Expect("angles", "thick", Folding.AngleFor(2));
         RigParts? parts = null;
         if (root.TryGetProperty("parts", out var partsJson))
             parts = partsJson.ValueKind == JsonValueKind.Array

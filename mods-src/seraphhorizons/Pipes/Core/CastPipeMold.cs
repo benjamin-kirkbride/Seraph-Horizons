@@ -9,10 +9,11 @@ namespace SeraphHorizons.Mod.Pipes.Core;
 /// <c>patches/castpipes-smexmold.json</c> assumes. Game-independent: the mod's
 /// <c>Pipes/Game/CastPipesSystem.cs</c> hands it the asset text, the unit tests a fixture.
 ///
-/// The ladder's cast stage: one fill of the mold is one ingot of iron or steel (100 units), and it
-/// casts two of the game's chute sections of that metal (<c>game:chutesection-{iron|steel}</c>,
-/// states <c>UnifiedPipes</c> adds), which the grid bands into pipe with nails and strips. So an
-/// ingot casts two sections, against one forged, two off the press brake and three drawn.
+/// The chain's cast stage: one fill of the mold is one ingot of iron or steel (100 units), and it
+/// casts two pipe sections of that metal (<c>seraphhorizons:pipesection-{iron|steel}</c>, an item
+/// <c>UnifiedPipes</c> adds), each of which the grid bands into a straight pipe with nails and
+/// strips. So an ingot of iron or steel casts two pipes, as many as the draw bench makes from an
+/// ingot of copper or lead, and twice the mandrel station's.
 /// </summary>
 public static class CastPipeMold
 {
@@ -29,22 +30,22 @@ public static class CastPipeMold
     /// <summary>What one fill of the mold takes: one ingot.</summary>
     public const int RequiredUnits = 100;
 
-    /// <summary>What one fill casts: chute sections.</summary>
-    public const int SectionsPerFill = ChuteSections.CastPerIngot;
+    /// <summary>What one fill casts: pipe sections.</summary>
+    public const int SectionsPerFill = 2;
 
     /// <summary>The metals the mold is for: the two the canal carries (blast furnace iron, Bessemer
     /// steel). The game's mold takes any metal whose drop resolves, so a crucible poured by hand
-    /// also casts copper and lead sections (they exist), and refuses every metal without one.</summary>
+    /// also casts copper and lead pipe sections (they exist), and refuses every metal without one.</summary>
     public static readonly string[] Metals = [PipeRules.Iron, PipeRules.Steel];
 
     public const string Domain = "seraphhorizons";
-    public const string SectionCode = "game:chutesection";
+    public const string SectionCode = "seraphhorizons:pipesection";
     public const string SmexId = "smex";
 
     /// <summary>The ppex straight pipe the grid makes, as it lists in creative.</summary>
     public static string StraightPipe(string metal) => $"ppex:pipe-straight-ns-{metal}";
 
-    /// <summary>The chute section the mold casts.</summary>
+    /// <summary>The pipe section the mold casts.</summary>
     public static string Section(string metal) => $"{SectionCode}-{metal}";
 
     /// <summary>The mold's block code in smex's domain.</summary>
@@ -55,9 +56,9 @@ public static class CastPipeMold
     public static double SectionsPerIngot(int requiredUnits = RequiredUnits, int sectionsPerFill = SectionsPerFill) =>
         requiredUnits <= 0 ? 0 : (double)IngotUnits / requiredUnits * sectionsPerFill;
 
-    /// <summary>Straight pipes per ingot: two sections band into two straight pipes.</summary>
+    /// <summary>Straight pipes per ingot: each section bands into one straight pipe.</summary>
     public static double PipesPerIngot(int requiredUnits = RequiredUnits, int sectionsPerFill = SectionsPerFill) =>
-        SectionsPerIngot(requiredUnits, sectionsPerFill) / 2 * ChuteSections.StraightPipesPerTwoSections;
+        SectionsPerIngot(requiredUnits, sectionsPerFill) / PipeSections.PipeShapes.Single(p => p.Shape == "straight-ns").Sections;
 
     private static readonly JsonDocumentOptions Lenient = new()
     {

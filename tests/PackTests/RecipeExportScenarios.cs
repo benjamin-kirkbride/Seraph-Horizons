@@ -906,11 +906,11 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
         Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench and the press brake are the types not
+        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the press brake and the mandrel station are the types not
         // read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
-            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.PressBrakeType))
+            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.PressBrakeType or RecipeSection.MandrelStationType))
             .Where(p => (string)p.Value["shape"]! != "transition")
             .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));

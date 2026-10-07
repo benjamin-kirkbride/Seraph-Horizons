@@ -7,7 +7,8 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// The press brake's process (mods-src/seraphhorizons/PressBrake/): a hand-written <c>machine</c>
 /// record per metal, from config/pressbrake-rig.json and the gameplay's PressBrakeSettings defaults,
-/// written down here. A hand machine: power <c>hand</c>, the lever's turns, no wear and no oil.
+/// written down here. A hand machine: power <c>hand</c>, the lever's turns, no wear and no oil; one
+/// angle of the metal a plate.
 /// </summary>
 public partial class RecipeExportScenarios
 {
@@ -18,7 +19,7 @@ public partial class RecipeExportScenarios
             Doc["recipeTypes"]![RecipeSection.PressBrakeType]!);
         var records = Doc["recipes"]!.Cast<JObject>().Where(r => (string)r["type"]! == RecipeSection.PressBrakeType).ToList();
         Assert.Equal(new[] { "pressbrake|game:metalplate-copper|0", "pressbrake|game:metalplate-lead|0" }, records.Select(r => (string)r["id"]!).Order());
-        foreach (var (metal, turns) in new[] { ("lead", 6.0), ("copper", 9.0) })
+        foreach (var (metal, turns) in new[] { ("lead", 3.0), ("copper", 4.5) })
         {
             var r = Recipe($"pressbrake|game:metalplate-{metal}|0");
             Assert.Equal("seraphhorizons", (string)r["mod"]!);
@@ -28,12 +29,12 @@ public partial class RecipeExportScenarios
             Json("""{ "code": "game:metalplate-iron", "kind": "item", "quantity": 1, "role": "kept" }""", ingredients[2]);
             Json("""{ "code": "seraphhorizons:pressbrake-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[3]);
             Assert.Equal(4, ingredients.Count);
-            Json($$"""[{ "code": "seraphhorizons:chutesectionopen-{{metal}}", "kind": "item", "quantity": 2 }]""", r["outputs"]!);
+            Json($$"""[{ "code": "seraphhorizons:angle-{{metal}}", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
             Json($$"""{ "power": "hand", "turns": {{turns}}, "kept": [1, 2] }""", r["machine"]!);
             var variant = r["variants"]![0]!;
             Assert.Equal(new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" }, Codes(variant["ingredients"]![1]!).Select(c => (string)c!));
             Assert.Equal(new[] { "game:metalplate-iron", "game:metalplate-steel" }, Codes(variant["ingredients"]![2]!).Select(c => (string)c!));
-            Assert.Equal(new[] { $"seraphhorizons:chutesectionopen-{metal}" }, Codes(variant["outputs"]!).Select(c => (string)c!));
+            Assert.Equal(new[] { $"seraphhorizons:angle-{metal}" }, Codes(variant["outputs"]!).Select(c => (string)c!));
         }
     }
 }

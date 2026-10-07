@@ -4,9 +4,9 @@ using Vintagestory.API.Server;
 
 namespace SeraphHorizons.RecipeExport.Recipes;
 
-/// <summary>One metal the press brake folds: the plate (consumed) and the open section it becomes,
-/// two to a plate, at its lever turns a plate.</summary>
-public sealed record FoldClass(string Name, string Metal, Item Plate, Item Section, double LeverTurnsPerPlate);
+/// <summary>One metal the press brake folds: the plate (consumed) and the angle it becomes, one to
+/// a plate, at its lever turns a plate.</summary>
+public sealed record FoldClass(string Name, string Metal, Item Plate, Item Angle, double LeverTurnsPerPlate);
 
 public sealed class PressBrakeData
 {
@@ -15,14 +15,14 @@ public sealed class PressBrakeData
     public Block? Frame;
     /// <summary>The fitted parts the brake keeps, each stage's alternatives: the screws, the edges.</summary>
     public List<(string Template, List<Item> Items)> Kept = new();
-    public required int SectionsPerPlate;
+    public required int AnglesPerPlate;
     public List<FoldClass> Classes = new();
 }
 
 /// <summary>
 /// The press brake (seraphhorizons, PressBrake/): its process, read as the draw bench's is
-/// (<see cref="DrawBenchExport"/>): the rig (config/pressbrake-rig.json) gives the plate and open
-/// section of each class and the sections a plate; the gameplay's PressBrakeSettings
+/// (<see cref="DrawBenchExport"/>): the rig (config/pressbrake-rig.json) gives the plate and angle
+/// of each class and the angles a plate; the gameplay's PressBrakeSettings
 /// (LeverTurnsPerPlateLead, LeverTurnsPerPlateCopper) are read live from the server's config. A hand
 /// machine: no oil and no wear. Null when the mod is not loaded, its switch is off or what it names
 /// is not registered.
@@ -65,7 +65,7 @@ public static class PressBrakeExport
             Mod = GearChain.Mod,
             FrameCode = FrameCode,
             Frame = api.World.GetBlock(new AssetLocation(FrameCode)) is { IsMissing: false, Code: not null } f ? f : null,
-            SectionsPerPlate = (int?)fold?["sectionsPerPlate"] ?? 2,
+            AnglesPerPlate = (int?)fold?["anglesPerPlate"] ?? 1,
         };
         foreach (var (template, codes) in KeptStages)
         {
@@ -76,10 +76,10 @@ public static class PressBrakeExport
         foreach (var (name, metal, turnsKey) in new[] { ("thin", "lead", "LeverTurnsPerPlateLead"), ("thick", "copper", "LeverTurnsPerPlateCopper") })
         {
             if (ItemOf(api, (string?)fold?["plates"]?[name] ?? "game:metalplate-" + metal) is not { } plate) continue;
-            if (ItemOf(api, (string?)fold?["sections"]?[name] ?? "seraphhorizons:chutesectionopen-" + metal) is not { } section) continue;
+            if (ItemOf(api, (string?)fold?["angles"]?[name] ?? "seraphhorizons:angle-" + metal) is not { } angle) continue;
             double turns = Dbl(settings, turnsKey, (double?)fold?["leverTurnsPerPlate"]?[name] ?? 0);
             if (!(turns > 0)) continue;
-            data.Classes.Add(new FoldClass(name, metal, plate, section, turns));
+            data.Classes.Add(new FoldClass(name, metal, plate, angle, turns));
         }
         return data.Classes.Count == 0 ? null : data;
     }

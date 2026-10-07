@@ -716,10 +716,21 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public PressBrake.Core.PressBrakeConfig PressBrakeSettings { get; set; } = new();
 
+    /// <summary>The mandrel forging station (MandrelStation/, README "Mandrel forging station"): an
+    /// oak stump with an iron bracket holding a rod as its mandrel, on which a lead or copper hollow
+    /// section (the game's chute section) is hammered, a right-click with a hammer a blow as on the
+    /// anvil, into two pipe sections of its metal; no power and no oil (off means its blocks and its
+    /// recipe do not exist, and stations already placed are lost). The server's setting decides.</summary>
+    public bool MandrelStation { get; set; } = true;
+
+    /// <summary>The mandrel station's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public MandrelStation.Core.MandrelStationConfig MandrelStationSettings { get; set; } = new();
+
     /// <summary>Cast pipes (Pipes/Game/CastPipesSystem.cs, README "Cast pipes"): Steelmaking
     /// Expanded's tool mold gets a pipe tool type, filled from its canal (or a crucible) with one
-    /// ingot of iron or steel, which casts two of the game's chute sections of that metal, banded into
-    /// ppex pipe on the grid (needs UnifiedPipes, which adds those sections; off, or with smex's mold
+    /// ingot of iron or steel, which casts two pipe sections of that metal, banded into ppex pipe on
+    /// the grid (needs UnifiedPipes, which adds the pipe section; off, or with smex's mold
     /// files not as expected, means there is no pipe mold and no recipe for one, and those already in
     /// a world are lost). The server's setting decides.</summary>
     public bool CastPipes { get; set; } = true;
@@ -736,11 +747,12 @@ public class SeraphHorizonsConfig
     /// <summary>Unified pipes (Pipes/, README "Unified pipes"): one pipe network. Pipes and Power
     /// Expanded's pipes come in copper and lead as well as iron and steel, and its valves and pressure
     /// valves in bronze; its plate-and-nails pipes and iron and steel valves are not made any more;
-    /// pipe of every shape is made from the game's chute sections (which come in lead, iron and steel
-    /// too, the game's plate recipe for them off), soldered or banded with nails, and each metal bursts
+    /// pipe of every shape is made from this mod's pipe sections, soldered or banded with nails; a
+    /// copper or lead pipe section comes from the game's chute section (in lead too), now made only
+    /// from two soldered angles (the game's anvil and plate recipes for it off); and each metal bursts
     /// at its own figure, lead at once on steam or exhaust (off means ppex's pipes and the game's chute
-    /// section are as they ship, and copper, lead and bronze pipes and lead, iron and steel sections
-    /// already in a world are lost). The server's setting decides.</summary>
+    /// section are as they ship, and copper, lead and bronze pipes, angles, pipe sections and lead
+    /// chute sections already in a world are lost). The server's setting decides.</summary>
     public bool UnifiedPipes { get; set; } = true;
 
     /// <summary>The unified pipes' burst figures, in atm; a value out of range falls back to its

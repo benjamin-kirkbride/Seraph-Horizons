@@ -15,11 +15,11 @@ namespace SeraphHorizons.Mod.DrawBench;
 
 /// <summary>
 /// The draw bench's controller. Holds the fitted parts (<see cref="DrawBenchParts"/>: every item's
-/// code and the die's durability), the ingot on the bench as its item stack and the draw
-/// (<see cref="DrawJob"/>: W, the chute sections drawn), and its MachineOil tank. The server draws
-/// from the power ghost's shaft angle, drops a section at the output face (or puts it in a container
-/// there) each time W crosses a whole section, wears the die when the ingot is done, takes the next
-/// ingot from a chest or hopper at the infeed face, and keeps the ghost cells stamped; the client draws it
+/// code and the die's durability), the hollow section on the bench as its item stack and the draw
+/// (<see cref="DrawJob"/>: W, the pipe sections drawn), and its MachineOil tank. The server draws
+/// from the power ghost's shaft angle, drops a pipe section at the output face (or puts it in a
+/// container there) each time W crosses a whole section, wears the die when the hollow is done, takes
+/// the next hollow from a chest or hopper at the infeed face, and keeps the ghost cells stamped; the client draws it
 /// (<see cref="DrawBenchRenderer"/>, through <see cref="IDrawBenchView"/>). The rules are
 /// DrawBench/Core's.
 /// </summary>
@@ -32,12 +32,12 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     private const string PartKeyPrefix = "part-";
     // The server syncs W at least this often (sections); the renderer follows the shaft between.
     private const double SyncStep = 0.05;
-    // After an ingot is done the infeed waits this long, so the drawn sections clear off the bench
-    // (the model eases them out) before the next ingot goes on.
+    // After a hollow is done the infeed waits this long, so the drawn sections clear off the bench
+    // (the model eases them out) before the next hollow goes on.
     private const long ClearMs = 600;
 
     private DrawBenchParts _parts = new();
-    private ItemStack? _ingot;
+    private ItemStack? _hollow;
     private DrawJob _job = DrawJob.None;
     private OilState? _oil;
     private float _lastAngle;
@@ -56,8 +56,8 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     public Side Side { get; private set; } = Side.North;
     public DrawBenchParts Parts => _parts;
     public bool Complete => _parts.Complete;
-    public bool JobOn => _job.On && _ingot != null;
-    public ItemStack? Ingot => _ingot;
+    public bool JobOn => _job.On && _hollow != null;
+    public ItemStack? Hollow => _hollow;
     public DrawJob Job => _job;
     /// <summary>The bench's oil, or null without the <c>MachineOil</c> switch.</summary>
     public OilState? Oiling => _oil;
@@ -75,7 +75,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         _parts.DieMetal == null ? [] : _serverDieDraws ?? Config.MetalsFor(_parts.DieMetal);
     public float ShaftAngle => Power?.AngleRad ?? 0;
     public float ShaftSpeed => Math.Abs(Power?.TrueSpeed ?? 0);
-    /// <summary>Complete, an ingot on and the shaft fast enough: the draw runs.</summary>
+    /// <summary>Complete, a hollow on and the shaft fast enough: the draw runs.</summary>
     public bool Running => Drawing.Running(_parts.Complete, JobOn, ShaftSpeed, MinSpeed);
 
     // IDrawBenchView
@@ -225,8 +225,9 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     /// <summary>
     /// Right-click on the bench or any ghost. Holding oil, it pours (MachineOil). In creative mode,
     /// Ctrl on an incomplete bench fits its next stage with nothing taken. Ctrl takes the die back
-    /// once no ingot is on the bench. A part in hand is fitted if it is the next stage's; a lead or
-    /// copper ingot goes on (a chute section, what comes off, never does). Anything else held is the item's own business. Decided and done on the
+    /// once no hollow is on the bench. A part in hand is fitted if it is the next stage's; a lead or
+    /// copper hollow section (the game's chute section) goes on (an ingot, an angle or a pipe section,
+    /// what comes off, never does). Anything else held is the item's own business. Decided and done on the
     /// server; the client only says whether the click is the bench's.
     /// </summary>
     public bool OnInteract(IPlayer byPlayer)
@@ -238,8 +239,8 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         bool take = controls.CtrlKey && !controls.ShiftKey;
         string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
         bool part = DrawBenchParts.IsPart(code);
-        bool ingot = Drawing.ClassOfIngot(code) != 0;
-        if (!take && !part && !ingot)
+        bool hollow = Drawing.ClassOfHollow(code) != 0;
+        if (!take && !part && !hollow)
             return false;
         if (Api.Side != EnumAppSide.Server)
             return true;
@@ -250,7 +251,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         else if (part)
             TryFitPart(slot!, byPlayer);
         else
-            TryLoadIngot(slot!, byPlayer);
+            TryLoadHollow(slot!, byPlayer);
         return true;
     }
 
@@ -330,7 +331,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         stage is { } s ? Lang.Get(DrawBenchSystem.Domain + ":drawbench-info-stage-" + DrawBenchRequires.Name(s)) : "";
 
     /// <summary>Ctrl + right-click (server side): the die, with what durability it has left, once
-    /// no ingot is on the bench.</summary>
+    /// no hollow is on the bench.</summary>
     public bool TakeBack(IPlayer byPlayer)
     {
         if (!_parts.Has(DrawBenchStage.Die))
@@ -356,13 +357,13 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         return stack;
     }
 
-    /// <summary>The chute section an ingot of class <paramref name="k"/> is drawn into, or null when
-    /// it does not exist in this game (the lead state is the pack's patch on the game's item).</summary>
+    /// <summary>The pipe section a hollow of class <paramref name="k"/> is drawn into, or null when
+    /// it does not exist in this game.</summary>
     private Item? SectionItem(int k) =>
         Drawing.SectionFor(k) is { } code && Api.World.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false } item ? item : null;
 
-    /// <summary>Puts an ingot from <paramref name="slot"/> on the bench, if the bench takes it now.</summary>
-    public bool TryLoadIngot(ItemSlot slot, IPlayer? byPlayer)
+    /// <summary>Puts a hollow section from <paramref name="slot"/> on the bench, if the bench takes it now.</summary>
+    public bool TryLoadHollow(ItemSlot slot, IPlayer? byPlayer)
     {
         string? code = slot.Itemstack?.Collectible?.Code?.ToString();
         switch (Drawing.CanLoad(code, _parts.Complete, JobOn, DieDraws.ToList()))
@@ -374,29 +375,29 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
             case DrawLoadVerdict.Occupied:
                 return Error(byPlayer, "error-occupied");
             case DrawLoadVerdict.DieRefuses:
-                return Error(byPlayer, "error-die-refuses-" + Drawing.MetalOf(Drawing.ClassOfIngot(code)),
+                return Error(byPlayer, "error-die-refuses-" + Drawing.MetalOf(Drawing.ClassOfHollow(code)),
                     Lang.Get(DrawBenchSystem.Domain + ":drawbench-die-" + _parts.DieMetal));
             default:
                 return false;
         }
-        if (SectionItem(Drawing.ClassOfIngot(code)) == null)
+        if (SectionItem(Drawing.ClassOfHollow(code)) == null)
             return Error(byPlayer, "error-no-section");
         Load(slot.TakeOut(1));
         slot.MarkDirty();
         return true;
     }
 
-    private void Load(ItemStack ingot)
+    private void Load(ItemStack hollow)
     {
-        _ingot = ingot;
-        _job = new DrawJob(Drawing.ClassOfIngot(ingot.Collectible.Code.ToString()), 0);
+        _hollow = hollow;
+        _job = new DrawJob(Drawing.ClassOfHollow(hollow.Collectible.Code.ToString()), 0);
         Api.World.PlaySoundAt(LatchSound, Pos, 0);
         MarkDirty(true);
     }
 
     private void ClearJob()
     {
-        _ingot = null;
+        _hollow = null;
         _job = DrawJob.None;
     }
 
@@ -431,8 +432,8 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     }
 
     /// <summary>Draws by <paramref name="radians"/> of shaft rotation (server side; call only while
-    /// running). Each time W crosses a whole section, a chute section comes off and the tank drains
-    /// a section's oil; at the third the die wears and the ingot is done. Returns the sections that
+    /// running). Each time W crosses a whole section, a pipe section comes off and the tank drains
+    /// a section's oil; at the fourth the die wears and the hollow is done. Returns the sections that
     /// came off.</summary>
     public int Draw(double radians)
     {
@@ -453,12 +454,12 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         return sections;
     }
 
-    /// <summary>The ingot is drawn: the die wears its fixed points (a spent die breaks with the
+    /// <summary>The hollow is drawn: the die wears its fixed points (a spent die breaks with the
     /// tool-break sound and the bench stops until a new one goes in), and the bench clears; the
-    /// infeed waits a moment before the next ingot.</summary>
+    /// infeed waits a moment before the next hollow.</summary>
     private void Finish()
     {
-        if (_parts.WearDie(Config.DieWearPerIngot))
+        if (_parts.WearDie(Config.DieWearPerHollow))
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
         ClearJob();
         _finishedAt = Api.World.ElapsedMilliseconds;
@@ -491,8 +492,8 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         Api.World.PlaySoundAt(SectionSound, at.X, at.Y, at.Z);
     }
 
-    /// <summary>A complete bench with nothing on it and its shaft turning takes one ingot its die
-    /// draws from a container at the infeed face, a moment after the last ingot was done. Returns
+    /// <summary>A complete bench with nothing on it and its shaft turning takes one hollow section its
+    /// die draws from a container at the infeed face, a moment after the last hollow was done. Returns
     /// whether one went on.</summary>
     public bool PullFromInfeed()
     {
@@ -508,7 +509,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
             foreach (var slot in container.Inventory)
             {
                 string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-                if (Drawing.CanLoad(code, true, false, draws) != DrawLoadVerdict.Loads || SectionItem(Drawing.ClassOfIngot(code)) == null)
+                if (Drawing.CanLoad(code, true, false, draws) != DrawLoadVerdict.Loads || SectionItem(Drawing.ClassOfHollow(code)) == null)
                     continue;
                 Load(slot.TakeOut(1));
                 slot.MarkDirty();
@@ -563,7 +564,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     // ---- Breaking ----
 
     /// <summary>What breaking the frame gives besides the frame: every fitted part (the die with its
-    /// durability), and the ingot if no section has been drawn from it yet (once one has, the rest of
+    /// durability), and the hollow if no section has been drawn from it yet (once one has, the rest of
     /// it is lost with the bench).</summary>
     public IEnumerable<ItemStack> PartDrops()
     {
@@ -578,7 +579,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
                 yield return new ItemStack(item);
         }
         if (JobOn && _job.SectionsDone == 0)
-            yield return _ingot!.Clone();
+            yield return _hollow!.Clone();
     }
 
     public override void OnBlockRemoved()
@@ -612,9 +613,9 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         tree.SetInt("dieLeft", _parts.DieLeft);
         tree.SetInt("dieCapacity", _parts.DieCapacity);
         if (JobOn)
-            tree.SetItemstack("ingot", _ingot);
+            tree.SetItemstack("hollow", _hollow);
         else
-            tree.RemoveAttribute("ingot");
+            tree.RemoveAttribute("hollow");
         tree.SetInt("class", _job.Class);
         tree.SetDouble("work", _job.Work);
         if (Api?.Side == EnumAppSide.Server)
@@ -636,12 +637,12 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
             if (tree.GetString(PartKeyPrefix + DrawBenchRequires.Name(stage)) is { Length: > 0 } code)
                 fitted[DrawBenchRequires.Name(stage)] = code;
         _parts = DrawBenchParts.Restore(fitted, tree.GetInt("dieLeft"), tree.GetInt("dieCapacity"));
-        _ingot = tree.GetItemstack("ingot");
-        if (_ingot != null && !_ingot.ResolveBlockOrItem(worldForResolving))
-            _ingot = null;
-        _job = _ingot == null ? DrawJob.None : DrawJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
+        _hollow = tree.GetItemstack("hollow");
+        if (_hollow != null && !_hollow.ResolveBlockOrItem(worldForResolving))
+            _hollow = null;
+        _job = _hollow == null ? DrawJob.None : DrawJob.Restore(tree.GetInt("class"), tree.GetDouble("work"));
         if (!_job.On)
-            _ingot = null;
+            _hollow = null;
         _oil = Oil.LoadOwn(tree, worldForResolving, OilMachine.DrawBench);
         if (worldForResolving.Side == EnumAppSide.Client)
         {
@@ -657,14 +658,14 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     public override void OnStoreCollectibleMappings(Dictionary<int, AssetLocation> blockIdMapping, Dictionary<int, AssetLocation> itemIdMapping)
     {
         base.OnStoreCollectibleMappings(blockIdMapping, itemIdMapping);
-        _ingot?.Collectible.OnStoreCollectibleMappings(Api.World, new DummySlot(_ingot), blockIdMapping, itemIdMapping);
+        _hollow?.Collectible.OnStoreCollectibleMappings(Api.World, new DummySlot(_hollow), blockIdMapping, itemIdMapping);
     }
 
     public override void OnLoadCollectibleMappings(IWorldAccessor worldForResolve, Dictionary<int, AssetLocation> oldBlockIdMapping,
                                                    Dictionary<int, AssetLocation> oldItemIdMapping, int schematicSeed, bool resolveImports)
     {
         base.OnLoadCollectibleMappings(worldForResolve, oldBlockIdMapping, oldItemIdMapping, schematicSeed, resolveImports);
-        _ingot?.FixMapping(oldBlockIdMapping, oldItemIdMapping, worldForResolve);
+        _hollow?.FixMapping(oldBlockIdMapping, oldItemIdMapping, worldForResolve);
     }
 
     // ---- Info ----
@@ -690,8 +691,8 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         {
             string metal = L("metal-" + Drawing.MetalOf(_job.Class));
             dsc.AppendLine(Running
-                ? L("info-drawing", metal, _job.SectionsDone, Drawing.SectionsPerIngot)
-                : L("info-stopped", metal, _job.SectionsDone, Drawing.SectionsPerIngot));
+                ? L("info-drawing", metal, _job.SectionsDone, Drawing.SectionsPerHollow)
+                : L("info-stopped", metal, _job.SectionsDone, Drawing.SectionsPerHollow));
         }
         else if (_parts.Complete)
             dsc.AppendLine(L("info-empty"));

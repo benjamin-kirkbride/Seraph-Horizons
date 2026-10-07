@@ -16,8 +16,8 @@ namespace SeraphHorizons.Mod.PressBrake;
 /// The press brake's controller. Holds the fitted parts (<see cref="PressBrakeParts"/>), the plate
 /// on the bed as its item stack and the fold (<see cref="FoldJob"/>: W, 0..1), and who is working the
 /// lever (<see cref="LeverHolds"/>). The player works it by holding right-click on it, as on the
-/// quern: the server advances W while anyone holds, sounds each fold, and at W = 1 drops two open
-/// sections at the output face (or puts them in a container there); a lever worked on an empty bed
+/// quern: the server advances W while anyone holds, sounds the fold, and at W = 1 drops one angle
+/// at the output face (or puts them in a container there); a lever worked on an empty bed
 /// takes the next plate from a chest or hopper at the infeed face. The server keeps the ghost cell
 /// stamped; the client draws the brake (<see cref="PressBrakeRenderer"/>, through
 /// <see cref="IPressBrakeView"/>). The rules are PressBrake/Core's.
@@ -27,13 +27,13 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation PlateSound = new("game", "sounds/block/plate");
     private static readonly AssetLocation BendSound = new("game", "sounds/block/heavymetal-hit");
-    private static readonly AssetLocation SectionSound = new("game", "sounds/block/chute");
+    private static readonly AssetLocation AngleSound = new("game", "sounds/block/chute");
     private static readonly AssetLocation[] CreakSounds =
         [.. Enumerable.Range(1, 4).Select(i => new AssetLocation("game", $"sounds/block/woodcreak_{i}"))];
     private const string PartKeyPrefix = "part-";
     // The server syncs W at least this often (plates); the renderer follows the lever between.
     private const double SyncStep = 0.02;
-    // After a plate is done, the infeed waits this long, so the sections clear off the leaf (the
+    // After a plate is done, the infeed waits this long, so the angle clears off the leaf (the
     // model eases the bar and screws back) before the next plate goes on.
     private const long ClearMs = 600;
     // A client's own player holding right-click counts as working for this long after its last step.
@@ -401,10 +401,10 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         return true;
     }
 
-    /// <summary>The open section a plate of class <paramref name="k"/> is folded into, or null when
-    /// it does not exist in this game (it is UnifiedPipes' item).</summary>
-    private Item? SectionItem(int k) =>
-        Folding.SectionFor(k) is { } code && Api.World.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false } item ? item : null;
+    /// <summary>The angle a plate of class <paramref name="k"/> is folded into, or null when it does
+    /// not exist in this game (it is UnifiedPipes' item).</summary>
+    private Item? AngleItem(int k) =>
+        Folding.AngleFor(k) is { } code && Api.World.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false } item ? item : null;
 
     /// <summary>Puts a plate from <paramref name="slot"/> on the bed, if the brake takes it now.</summary>
     public bool TryLoadPlate(ItemSlot slot, IPlayer? byPlayer)
@@ -421,8 +421,8 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
             default:
                 return false;
         }
-        if (SectionItem(Folding.ClassOfPlate(code)) == null)
-            return Error(byPlayer, "error-no-section");
+        if (AngleItem(Folding.ClassOfPlate(code)) == null)
+            return Error(byPlayer, "error-no-angle");
         Load(slot.TakeOut(1));
         slot.MarkDirty();
         return true;
@@ -466,8 +466,8 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     }
 
     /// <summary>Folds by <paramref name="radians"/> of the lever clock (server side): W advances by
-    /// their turns over the plate's lever turns, the bend is heard at the middle of each fold, and at
-    /// W = 1 the plate is used up and two open sections come off. Returns the sections delivered.</summary>
+    /// their turns over the plate's lever turns, the bend is heard at the middle of the fold, and at
+    /// W = 1 the plate is used up and its angle comes off. Returns the angles delivered.</summary>
     public int Fold(double radians)
     {
         if (!PlateOn || !_parts.Complete)
@@ -484,11 +484,11 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
             int k = _job.Class;
             ClearJob();
             _finishedAt = Api.World.ElapsedMilliseconds;
-            if (SectionItem(k) is { } section)
-                Deliver(new ItemStack(section, Folding.SectionsPerPlate));
+            if (AngleItem(k) is { } angle)
+                Deliver(new ItemStack(angle, Folding.AnglesPerPlate));
             UpdateHeld();
             MarkDirty(true);
-            return Folding.SectionsPerPlate;
+            return Folding.AnglesPerPlate;
         }
         if (Math.Floor(before.Work / SyncStep) != Math.Floor(_job.Work / SyncStep))
             MarkDirty(false);
@@ -518,7 +518,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         var at = WorldPoint(rig.OutputDrop());
         var n = Footprint.ToWorld(rig.OutputSide, Side).Normal();
         Api.World.SpawnItemEntity(dummy.Itemstack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
-        Api.World.PlaySoundAt(SectionSound, at.X, at.Y, at.Z);
+        Api.World.PlaySoundAt(AngleSound, at.X, at.Y, at.Z);
     }
 
     /// <summary>A plate a container at the infeed face holds that the brake would take.</summary>
@@ -533,7 +533,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
             foreach (var slot in container.Inventory)
             {
                 string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-                if (Folding.ClassOfPlate(code) != 0 && SectionItem(Folding.ClassOfPlate(code)) != null)
+                if (Folding.ClassOfPlate(code) != 0 && AngleItem(Folding.ClassOfPlate(code)) != null)
                     yield return (container, slot);
             }
         }

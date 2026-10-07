@@ -1,25 +1,25 @@
-// seraphhorizons' UnifiedPipes switch (README.md "Unified pipes"): the pipe section is the game's
-// chute section. Its material variant (the first group, copper alone in 1.22.7) gets lead, iron and
-// steel; its texture is game:block/metal/sheet/{material}1, so each takes its own metal's sheet. The
-// creative inventory's mechanics tab keeps copper only (chutes take copper sections only); a handbook
-// section tells the ladder. The game's one-step grid recipe "copper plate + 2 solder + soldering iron
-// + hammer = 2 copper sections" (recipes/grid/chute.json, the last, index 5) is switched off: plate
-// goes through the press brake into open sections, closed with solder (recipes/grid/chutesection.json).
-// The game's five chute recipes (indices 0-4: elbow, straight, cross, T, 3-way) take a tin or silver
-// solder bar per section (S) and a soldering iron (T, 2 durability) in their free cells; their yields
-// stay the game's. A pipe is the same sections and solder plus a hammer (grid/unifiedpipes.json).
-// UnifiedPipesSystem checks both files before the patch loader runs (Pipes/Core/ChuteSections.cs)
-// and empties this file with one warning if the game has changed them, or with the switch off.
+// seraphhorizons' UnifiedPipes switch (README.md "Unified pipes"): the game's chute section is the
+// hollow section. Its material variant (the first group, copper alone in 1.22.7) gets lead (iron and
+// steel never make hollows); its texture is game:block/metal/sheet/{material}1, so lead takes its own
+// sheet. The creative inventory's mechanics tab keeps copper only (chutes take copper sections only);
+// a handbook section tells the chain. The game's two recipes for it are switched off: the anvil's
+// (recipes/smithing/chutesection.json, one recipe, so /enabled) and the grid's one-step "copper plate
+// + 2 solder + soldering iron + hammer = 2 copper sections" (recipes/grid/chute.json, the last, index
+// 5). A section is two angles soldered together (recipes/grid/chutesection.json). The game's five
+// chute recipes (indices 0-4: elbow, straight, cross, T, 3-way) take a tin or silver solder bar per
+// section (S) and a soldering iron (T, 2 durability) in their free cells; their yields stay the
+// game's. UnifiedPipesSystem checks the three files before the patch loader runs
+// (Pipes/Core/ChuteSections.cs) and empties this file with one warning if the game has changed them,
+// or with the switch off.
 [
   {"file": "game:itemtypes/resource/chutesection.json", "op": "add", "path": "/variantgroups/0/states/-", "value": "lead", "side": "server"},
-  {"file": "game:itemtypes/resource/chutesection.json", "op": "add", "path": "/variantgroups/0/states/-", "value": "iron", "side": "server"},
-  {"file": "game:itemtypes/resource/chutesection.json", "op": "add", "path": "/variantgroups/0/states/-", "value": "steel", "side": "server"},
   {"file": "game:itemtypes/resource/chutesection.json", "op": "replace", "path": "/creativeinventory", "value": {"general": ["*"], "items": ["*"], "mechanics": ["*-copper"]}, "side": "server"},
   {
     "file": "game:itemtypes/resource/chutesection.json", "op": "add", "path": "/attributes/handbook",
     "value": {"extraSections": [{"title": "seraphhorizons:chutesection-handbook-title", "text": "seraphhorizons:chutesection-handbook-text"}]},
     "side": "server"
   },
+  {"file": "game:recipes/smithing/chutesection.json", "op": "add", "path": "/enabled", "value": false, "side": "server"},
   {"file": "game:recipes/grid/chute.json", "op": "add", "path": "/5/enabled", "value": false, "side": "server"},
   {"file": "game:recipes/grid/chute.json", "op": "replace", "path": "/0/ingredientPattern", "value": "IS,TI", "side": "server"},
   {"file": "game:recipes/grid/chute.json", "op": "replace", "path": "/0/width", "value": 2, "side": "server"},

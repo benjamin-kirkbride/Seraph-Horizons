@@ -3,10 +3,10 @@ using SeraphHorizons.Mod.Pipes.Core;
 
 namespace SeraphHorizons.Tests.Pipes;
 
-/// <summary>The chute section as the pipe section (<c>UnifiedPipes</c>): the guard on the game's
-/// chute section and chute recipes, held to 1.22.7's files (trimmed fixtures) and to the shipped
-/// patch, and the shipped recipes held to the ladder: the forged lead section, the closing recipe,
-/// and every pipe shape from sections and a joint.</summary>
+/// <summary>The chute section as the hollow section (<c>UnifiedPipes</c>): the guard on the game's
+/// chute section, its anvil recipe and the chute recipes, held to 1.22.7's files (the item and chutes
+/// trimmed) and to the shipped patch, and the soldering recipe that makes it from two angles. The
+/// angle, the pipe section and the pipe recipes are in <see cref="PipeSectionsTests"/>.</summary>
 public class ChuteSectionsTests
 {
     private static readonly JsonLoadSettings Lenient = new() { CommentHandling = CommentHandling.Ignore };
@@ -17,6 +17,7 @@ public class ChuteSectionsTests
 
     private static string Item => Text("game-chutesection.json");
     private static string Recipes => Text("game-chute-recipes.json");
+    private static string Smithing => Text("game-chutesection-smithing.json");
 
     private static string EditItem(Action<JObject> edit)
     {
@@ -37,6 +38,25 @@ public class ChuteSectionsTests
     {
         Assert.Null(ChuteSections.CheckItem(Item));
         Assert.Null(ChuteSections.CheckRecipes(Recipes));
+        Assert.Null(ChuteSections.CheckSmithing(Smithing));
+    }
+
+    [Fact]
+    public void A_changed_anvil_recipe_is_refused()
+    {
+        string Edit(Action<JObject> edit)
+        {
+            var root = JObject.Parse(Smithing, Lenient);
+            edit(root);
+            return root.ToString();
+        }
+        Assert.Contains("not one copper section", ChuteSections.CheckSmithing(Edit(r => r["output"]!["code"] = "chute-straight-ns")));
+        Assert.Contains("not one copper section", ChuteSections.CheckSmithing(Edit(r => ((JArray)r["ingredient"]!["allowedVariants"]!).Add("tinbronze"))));
+        Assert.Contains("not one copper section", ChuteSections.CheckSmithing(Edit(r => r["ingredient"]!["code"] = "metalplate-*")));
+        // already switched off: the patch's add would replace it
+        Assert.Contains("not one copper section", ChuteSections.CheckSmithing(Edit(r => r["enabled"] = false)));
+        Assert.Contains("not one recipe", ChuteSections.CheckSmithing($"[{Smithing}]"));
+        Assert.Contains("does not parse", ChuteSections.CheckSmithing("{ ingredient: "));
     }
 
     [Fact]
@@ -109,17 +129,19 @@ public class ChuteSectionsTests
     // The patch, applied to the fixtures as the game's loader applies it: every op lands where it was
     // written for, and after it the guard sees the states and the switched-off recipe.
     [Fact]
-    public void Shipped_patch_adds_the_three_metals_and_switches_off_the_plate_recipe()
+    public void Shipped_patch_adds_lead_and_switches_off_the_anvil_and_plate_recipes()
     {
         var patch = (JArray)Json("unifiedpipes-chutesection.json");
         var item = JObject.Parse(Item, Lenient);
         var recipes = JArray.Parse(Recipes, Lenient);
+        var smithing = JObject.Parse(Smithing, Lenient);
         foreach (var op in patch)
         {
             Assert.Equal("server", (string?)op["side"]);
             var file = (string)op["file"]!;
             JToken root = file == "game:" + ChuteSections.ItemFile ? item
                 : file == "game:" + ChuteSections.RecipeFile ? recipes
+                : file == "game:" + ChuteSections.SmithingFile ? smithing
                 : throw new Xunit.Sdk.XunitException($"the patch targets {file}");
             var path = ((string)op["path"]!).Split('/').Skip(1).ToArray();
             var parent = path[..^1].Aggregate(root, (node, key) => node is JArray a ? a[int.Parse(key)]! : node[key]!);
@@ -140,7 +162,9 @@ public class ChuteSectionsTests
                     throw new Xunit.Sdk.XunitException($"unexpected op {op}");
             }
         }
+        Assert.Equal(["copper", "lead"], item["variantgroups"]![0]!["states"]!.Select(s => (string)s!));
         Assert.Equal(ChuteSections.GameMetals.Concat(ChuteSections.AddedMetals), item["variantgroups"]![0]!["states"]!.Select(s => (string)s!));
+        Assert.False((bool)smithing["enabled"]!);
         Assert.Equal(ChuteSections.Metals.Order(), ChuteSections.GameMetals.Concat(ChuteSections.AddedMetals).Order());
         Assert.Equal(["*-copper"], item["creativeinventory"]!["mechanics"]!.Select(s => (string)s!));
         Assert.Equal("seraphhorizons:chutesection-handbook-text", (string?)item["attributes"]!["handbook"]!["extraSections"]![0]!["text"]);
@@ -170,126 +194,38 @@ public class ChuteSectionsTests
         }
         // the patched files no longer pass the guard: a second application would be refused
         Assert.NotNull(ChuteSections.CheckItem(item.ToString()));
+        Assert.NotNull(ChuteSections.CheckSmithing(smithing.ToString()));
     }
 
     [Fact]
-    public void Lead_is_forged_as_the_game_forges_copper()
-    {
-        var recipe = Assert.Single((JArray)Json("chutesection-smithing.json"))!;
-        Assert.Equal(["lead"], recipe["ingredient"]!["allowedVariants"]!.Select(s => (string)s!));
-        Assert.Equal("game:ingot-*", (string?)recipe["ingredient"]!["code"]);
-        Assert.Equal("game:chutesection-{metal}", (string?)recipe["output"]!["code"]);
-        // the game's pattern: a square tube, 5 x 5 with a 3 x 3 bore, two layers, within one ingot's 42 voxels
-        var layers = recipe["pattern"]!.Select(l => l.Select(r => (string)r!).ToList()).ToList();
-        Assert.Equal(2, layers.Count);
-        Assert.All(layers, l => Assert.Equal(["#####", "#___#", "#___#", "#___#", "#####"], l));
-        Assert.Equal(32, layers.Sum(l => l.Sum(r => r.Count(c => c == '#'))));
-    }
-
-    [Fact]
-    public void Two_open_sections_solder_shut_into_two_sections()
+    public void Two_angles_solder_into_one_section()
     {
         var recipe = Assert.Single((JArray)Json("chutesection-grid.json"))!;
         var ingredients = (JObject)recipe["ingredients"]!;
-        Assert.Equal("seraphhorizons:chutesectionopen-*", (string?)ingredients["O"]!["code"]);
-        Assert.Equal(ChuteSections.SolderedMetals, ingredients["O"]!["allowedVariants"]!.Select(s => (string)s!));
-        Assert.Equal(2, ((string)recipe["ingredientPattern"]!).Count(c => c == 'O'));
-        Assert.Equal(2, (int)ingredients["S"]!["quantity"]!);
+        Assert.Equal("seraphhorizons:angle-*", (string?)ingredients["A"]!["code"]);
+        Assert.Equal("metal", (string?)ingredients["A"]!["name"]);
+        Assert.Equal(ChuteSections.Metals, ingredients["A"]!["allowedVariants"]!.Select(s => (string)s!));
+        Assert.Equal(PipeSections.AngleMetals, ChuteSections.Metals);
+        Assert.Equal(ChuteSections.AnglesPerSection, ((string)recipe["ingredientPattern"]!).Count(c => c == 'A'));
+        Assert.Equal(ChuteSections.SolderBarsPerSection, (int)ingredients["S"]!["quantity"]!);
         Assert.Equal(["tin", "silver"], ingredients["S"]!["allowedVariants"]!.Select(s => (string)s!));
-        Assert.True((bool)ingredients["I"]!["isTool"]!);
-        Assert.Equal(2, (int)ingredients["I"]!["toolDurabilityCost"]!); // as the game's soldering
+        Assert.Equal("game:solderingiron", (string?)ingredients["T"]!["code"]);
+        Assert.True((bool)ingredients["T"]!["isTool"]!);
+        Assert.Equal(2, (int)ingredients["T"]!["toolDurabilityCost"]!); // as the game's soldering
         Assert.Equal("game:chutesection-{metal}", (string?)recipe["output"]!["code"]);
-        Assert.Equal(2 * ChuteSections.ClosedPerOpen, (int)recipe["output"]!["quantity"]!);
-
-        var open = (JObject)Json("chutesectionopen-itemtype.json");
-        Assert.Equal("chutesectionopen", (string?)open["code"]);
-        Assert.Equal(ChuteSections.SolderedMetals, open["variantgroups"]![0]!["states"]!.Select(s => (string)s!));
-        Assert.Equal("game:block/metal/sheet/{metal}1", (string?)open["textures"]!["metaltex"]!["base"]);
+        Assert.Equal(1, (int)recipe["output"]!["quantity"]!);
+        var pattern = ((string)recipe["ingredientPattern"]!).Split(',');
+        Assert.Equal((int)recipe["height"]!, pattern.Length);
+        Assert.All(pattern, row => Assert.Equal((int)recipe["width"]!, row.Length));
+        Assert.Equal("game:chutesection-lead", ChuteSections.Section("lead"));
     }
 
     /// <summary>A pattern's sections alone (<c>P</c>), every other cell blank, empty rows and columns
     /// cut: where the sections lie, whatever else fills the free cells.</summary>
-    private static string[] Trim(IEnumerable<string> pattern)
+    internal static string[] Trim(IEnumerable<string> pattern)
     {
         var rows = pattern.Select(row => new string(row.Select(c => c == 'P' ? 'P' : '_').ToArray())).Where(row => row.Contains('P')).ToList();
         int first = rows.Min(row => row.IndexOf('P')), last = rows.Max(row => row.LastIndexOf('P'));
         return rows.Select(row => row.PadRight(last + 1, '_')[first..(last + 1)]).ToArray();
-    }
-
-    private static readonly Dictionary<string, string[]> ChutePatterns = new()
-    {
-        // the game's chute patterns (recipes/grid/chute.json), the cells a section fills
-        ["straight-ns"] = ["II"],
-        ["bend-nw"] = ["I_", "_I"],
-        ["tjunction-uns"] = ["_I_", "I_I"],
-        ["xjunction-nswe"] = ["_I_", "I_I", "_I_"],
-    };
-
-    [Fact]
-    public void Every_pipe_shape_is_made_from_sections_and_a_joint_for_every_metal()
-    {
-        var recipes = (JArray)Json("unifiedpipes-grid.json");
-        foreach (var (shape, sections, pipes) in ChuteSections.PipeShapes)
-        {
-            var made = recipes.Where(r => (string?)r["output"]!["code"] == $"ppex:pipe-{shape}-{{metal}}").ToList();
-            Assert.Equal(2, made.Count);
-            foreach (var (metals, joint) in new[] { (ChuteSections.SolderedMetals, "game:solderbar-*"), (ChuteSections.NailedMetals, "game:metalnailsandstrips-*") })
-            {
-                var r = Assert.Single(made, r => r["ingredients"]!["P"]!["allowedVariants"]!.Select(s => (string)s!).SequenceEqual(metals));
-                Assert.Equal("game:chutesection-*", (string?)r["ingredients"]!["P"]!["code"]);
-                Assert.Equal("metal", (string?)r["ingredients"]!["P"]!["name"]);
-                Assert.Equal(pipes, (int)r["output"]!["quantity"]!);
-                var pattern = ((string)r["ingredientPattern"]!).Split(',');
-                Assert.Equal(sections, pattern.Sum(row => row.Count(c => c == 'P')));
-                // the sections lie in the game's chute pattern (its other cells hold the joint and the tool)
-                Assert.Equal(Trim(ChutePatterns[shape].Select(row => row.Replace('I', 'P'))), Trim(pattern));
-                Assert.Equal(pattern.Length, (int)r["height"]!);
-                Assert.All(pattern, row => Assert.Equal((int)r["width"]!, row.Length));
-                var ingredients = (JObject)r["ingredients"]!;
-                var jointKey = Assert.Single(ingredients.Properties(), p => (string?)p.Value["code"] == joint).Name;
-                var tools = ingredients.Properties().Where(p => (bool?)p.Value["isTool"] == true).Select(p => p.Value).ToList();
-                // the hammer is in every pipe recipe: it is what tells a pipe from a chute
-                Assert.Single(tools, t => (string?)t["code"] == "game:hammer-*");
-                if (joint == "game:solderbar-*")
-                {
-                    Assert.Equal(sections, (int)ingredients[jointKey]!["quantity"]!); // a bar per section, as a chute
-                    Assert.Equal(ChuteSections.SolderBars(shape), sections);
-                    var iron = Assert.Single(tools, t => (string?)t["code"] == "game:solderingiron");
-                    Assert.Equal(2, (int)iron["toolDurabilityCost"]!);
-                    Assert.Equal(2, tools.Count);
-                }
-                else
-                {
-                    Assert.Single(tools);
-                    // nails and strips of the sections' own metal
-                    Assert.Equal("metal", (string?)ingredients[jointKey]!["name"]);
-                    Assert.Equal(metals, ingredients[jointKey]!["allowedVariants"]!.Select(s => (string)s!));
-                    Assert.Equal(1, (int)ingredients[jointKey]!["quantity"]!);
-                }
-                Assert.Equal(1, pattern.Sum(row => row.Count(c => c.ToString() == jointKey)));
-            }
-        }
-        // nothing else makes pipe from pipe any more, and the valves stay
-        Assert.DoesNotContain(recipes, r => r["ingredients"]!.Children<JProperty>().Any(p => (string?)p.Value["code"] == "ppex:pipe-straight-ns-*")
-                                            && !((string)r["output"]!["code"]!).Contains("valve"));
-        Assert.Equal(2, recipes.Count(r => ((string)r["output"]!["code"]!).Contains("valve")));
-        Assert.Equal(ChuteSections.PipeShapes.Length * 2 + 2, recipes.Count);
-    }
-
-    [Fact]
-    public void Two_sections_make_two_straight_pipes_so_each_route_gives_its_ladder_figure()
-    {
-        Assert.Equal(1, ChuteSections.ForgedPerIngot);
-        Assert.Equal(ChuteSections.BrakedPerPlate / (double)ChuteSections.IngotsPerPlate, 1.0);
-        Assert.Equal(3, ChuteSections.DrawnPerIngot);
-        Assert.Equal(2.0, CastPipeMold.PipesPerIngot());
-        Assert.Equal(ChuteSections.CastPerIngot, CastPipeMold.SectionsPerFill);
-        Assert.Equal(2, ChuteSections.SolderBars("bend-nw"));
-        Assert.Equal(2, ChuteSections.SolderBars("straight-ns"));
-        Assert.Equal(3, ChuteSections.SolderBars("tjunction-uns"));
-        Assert.Equal(4, ChuteSections.SolderBars("xjunction-nswe"));
-        Assert.Equal("game:chutesection-lead", ChuteSections.Section("lead"));
-        Assert.Equal("seraphhorizons:chutesectionopen-copper", ChuteSections.OpenSection("copper"));
-        Assert.Equal("ppex:pipe-bend-nw-steel", ChuteSections.Pipe("bend-nw", "steel"));
     }
 }

@@ -188,7 +188,7 @@ public class MachineOilConfig
     /// never changes with its oil: the oil wears its cutter kit instead (GearCutterSettings).</summary>
     public OilMachineConfig GearCutter { get; set; } = new(1000, 10f);
 
-    /// <summary>Per pipe drawn (three a pipe section).</summary>
+    /// <summary>Per pipe section drawn (four a hollow section).</summary>
     public OilMachineConfig DrawBench { get; set; } = new(1000, 2f);
 
     public static readonly MachineOilConfig Defaults = new();

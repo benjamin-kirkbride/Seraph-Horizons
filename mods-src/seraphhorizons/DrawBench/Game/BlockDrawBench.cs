@@ -13,15 +13,15 @@ namespace SeraphHorizons.Mod.DrawBench;
 /// The draw bench's controller block (<c>drawbench-frame-{side}</c>): the die end, nearest the
 /// player who placed it. Placing it needs room for every cell of the rig and stamps a ghost into
 /// each; breaking it (or a ghost) drops the frame, every fitted part (the die with its durability)
-/// and an ingot no section has been drawn from yet, and clears the ghosts.
+/// and a hollow no section has been drawn from yet, and clears the ghosts.
 /// </summary>
 public class BlockDrawBench : Block
 {
     public static readonly AssetLocation ItemCode = new(DrawBenchSystem.Domain, "drawbench-frame-north");
 
-    // What each stage takes, and the ingots, as stacks that exist in the game being played (help icons).
+    // What each stage takes, and the hollow sections, as stacks that exist in the game being played (help icons).
     private Dictionary<DrawBenchStage, ItemStack[]> _partStacks = [];
-    private ItemStack[] _ingotStacks = [];
+    private ItemStack[] _hollowStacks = [];
 
     public override void OnLoaded(ICoreAPI api)
     {
@@ -30,8 +30,8 @@ public class BlockDrawBench : Block
             DrawBenchRequires.Stages.ToDictionary(s => s, s => DrawBenchParts.CodesFor(s)
                 .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
                 .OfType<ItemStack>().ToArray()));
-        _ingotStacks = ObjectCacheUtil.GetOrCreate(api, "drawbench-ingotstacks", () =>
-            new[] { Drawing.LeadIngot, Drawing.CopperIngot }
+        _hollowStacks = ObjectCacheUtil.GetOrCreate(api, "drawbench-hollowstacks", () =>
+            new[] { Drawing.LeadHollow, Drawing.CopperHollow }
                 .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
                 .OfType<ItemStack>().ToArray());
     }
@@ -121,11 +121,11 @@ public class BlockDrawBench : Block
                 help.Add(new WorldInteraction { ActionLangCode = Key("fitpart"), MouseButton = EnumMouseButton.Right, Itemstacks = stacks });
             else if (parts.Complete && !bench.JobOn)
             {
-                // the ingots the fitted die draws
+                // the hollow sections the fitted die draws
                 var draws = bench.DieDraws;
-                var ingots = _ingotStacks.Where(s => draws.Contains(Drawing.MetalOf(Drawing.ClassOfIngot(s.Collectible.Code.ToString()))!)).ToArray();
-                if (ingots.Length > 0)
-                    help.Add(new WorldInteraction { ActionLangCode = Key("loadingot"), MouseButton = EnumMouseButton.Right, Itemstacks = ingots });
+                var hollows = _hollowStacks.Where(s => draws.Contains(Drawing.MetalOf(Drawing.ClassOfHollow(s.Collectible.Code.ToString()))!)).ToArray();
+                if (hollows.Length > 0)
+                    help.Add(new WorldInteraction { ActionLangCode = Key("loadhollow"), MouseButton = EnumMouseButton.Right, Itemstacks = hollows });
             }
             bool creative = forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative;
             if (parts.CanTakeDie(bench.JobOn) && !(creative && !parts.Complete))

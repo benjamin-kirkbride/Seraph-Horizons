@@ -48,16 +48,17 @@ public sealed class SwitchOwnership
         new("DrawBench", [], [], ["drawbench"]),
         // The exporter's own recipe type for the press brake's process (tools/recipe-export, Recipes/PressBrakeExport.cs).
         new("PressBrake", [], [], ["pressbrake"]),
+        // The exporter's own recipe type for the mandrel station's process (tools/recipe-export, Recipes/MandrelStationExport.cs).
+        new("MandrelStation", [], [], ["mandrelstation"]),
         // The pipe mold is Steelmaking Expanded's own tool mold with a fourth tool type, added by a
         // JSON patch (patches/castpipes-smexmold.json), not a type file of the mod's.
         new("CastPipes", [], ["smex:toolmold-*-pipe"], []),
         // Copper and lead pipes and bronze valves are Pipes and Power Expanded's own blocks with more
-        // material states, added by a JSON patch (patches/unifiedpipes-ppex.json); lead, iron and
-        // steel chute sections are the game's chute section with more states
-        // (patches/unifiedpipes-chutesection.json).
+        // material states, added by a JSON patch (patches/unifiedpipes-ppex.json); the lead chute
+        // section is the game's chute section with another state (patches/unifiedpipes-chutesection.json).
         new("UnifiedPipes", [], ["ppex:pipe-*-copper", "ppex:pipe-*-lead", "ppex:pipe-*-tinbronze",
                                  "ppex:pipe-*-bismuthbronze", "ppex:pipe-*-blackbronze",
-                                 "game:chutesection-lead", "game:chutesection-iron", "game:chutesection-steel"], []),
+                                 "game:chutesection-lead"], []),
     ];
 
     private readonly List<OwnedBySwitch> _owned;

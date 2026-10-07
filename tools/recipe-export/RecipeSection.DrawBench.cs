@@ -20,19 +20,20 @@ public static partial class RecipeSection
     }
 
     /// <summary>
-    /// One metal on the draw bench: the ingot (consumed), the gearbox, chain, dog and mandrel (kept:
-    /// fitted, never consumed), the die (a tool that wears a fixed amount per ingot), the oil
-    /// (drained from the machine's tank per section) and the machine; three chute sections of the metal.
+    /// One metal on the draw bench: the hollow section (the game's chute section, consumed), the
+    /// gearbox, chain, dog and mandrel (kept: fitted, never consumed), the die (a tool that wears a
+    /// fixed amount per hollow), the oil (drained from the machine's tank per pipe section) and the
+    /// machine; four pipe sections of the metal.
     /// </summary>
     private static JObject DrawBenchRecord(Context ctx, DrawBenchData b, DrawClass k)
     {
-        double points = b.DrainPerSection * b.SectionsPerIngot;
+        double points = b.DrainPerSection * b.SectionsPerHollow;
         double litres = points / GearChain.PointsPerLitre;
         var firstOil = b.Oils.FirstOrDefault();
         var die = Def(k.Dies[0].Code.ToString(), "item", 1, "tool");
         die["isTool"] = true;
         die["toolDurabilityCost"] = b.DieWear;
-        var ingredients = new JArray(Def(k.Ingot.Code.ToString(), "item", 1));
+        var ingredients = new JArray(Def(k.Hollow.Code.ToString(), "item", 1));
         foreach (var (template, _) in b.Kept)
             ingredients.Add(Def(template, "item", 1, "kept"));
         int dieAt = ingredients.Count;
@@ -43,7 +44,7 @@ public static partial class RecipeSection
         ingredients.Add(Def(b.FrameCode, "block", 1, "station"));
 
         // (new JArray(JArray) would copy the inner array, not nest it)
-        var stacks = new JArray { new JArray(Stack(ctx, k.Ingot, 1)) };
+        var stacks = new JArray { new JArray(Stack(ctx, k.Hollow, 1)) };
         foreach (var (_, items) in b.Kept)
             stacks.Add(new JArray(items.Select(i => Stack(ctx, i, 1))));
         stacks.Add(new JArray(k.Dies.Select(d => Stack(ctx, d, 1))));
@@ -52,21 +53,21 @@ public static partial class RecipeSection
 
         return new JObject
         {
-            ["id"] = $"{DrawBenchType}|{k.Ingot.Code}|0",
+            ["id"] = $"{DrawBenchType}|{k.Hollow.Code}|0",
             ["type"] = DrawBenchType,
             ["mod"] = b.Mod,
             ["ingredients"] = ingredients,
-            ["outputs"] = new JArray(Def(k.Section.Code.ToString(), "item", b.SectionsPerIngot)),
+            ["outputs"] = new JArray(Def(k.Section.Code.ToString(), "item", b.SectionsPerHollow)),
             ["variants"] = new JArray(new JObject
             {
                 ["ingredients"] = stacks,
-                ["outputs"] = new JArray(Stack(ctx, k.Section, b.SectionsPerIngot)),
+                ["outputs"] = new JArray(Stack(ctx, k.Section, b.SectionsPerHollow)),
             }),
             ["machine"] = new JObject
             {
                 ["power"] = "mechanical",
-                ["turns"] = Num(k.TurnsPerSection * b.SectionsPerIngot),
-                ["work"] = new JObject { ["amount"] = b.SectionsPerIngot, ["unit"] = "sections", ["turnsPerUnit"] = Num(k.TurnsPerSection) },
+                ["turns"] = Num(k.TurnsPerSection * b.SectionsPerHollow),
+                ["work"] = new JObject { ["amount"] = b.SectionsPerHollow, ["unit"] = "sections", ["turnsPerUnit"] = Num(k.TurnsPerSection) },
                 ["kept"] = new JArray(Enumerable.Range(1, b.Kept.Count)),
                 ["wear"] = new JObject { ["ingredient"] = dieAt, ["rule"] = "fixed" },
                 ["oil"] = new JObject { ["ingredient"] = oilAt, ["points"] = Num(points), ["tank"] = Num(b.Tank) },

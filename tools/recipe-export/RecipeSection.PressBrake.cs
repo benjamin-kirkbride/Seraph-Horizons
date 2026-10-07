@@ -21,7 +21,7 @@ public static partial class RecipeSection
 
     /// <summary>
     /// One metal on the press brake: the plate (consumed), the screws and the edges (kept: fitted,
-    /// never consumed) and the machine; two open chute sections of the metal. Worked by hand (power
+    /// never consumed) and the machine; one angle of the metal. Worked by hand (power
     /// <c>hand</c>): its turns are the lever's, a turn a second while the player holds right-click.
     /// No tool wears and there is no oil.
     /// </summary>
@@ -44,11 +44,11 @@ public static partial class RecipeSection
             ["type"] = PressBrakeType,
             ["mod"] = b.Mod,
             ["ingredients"] = ingredients,
-            ["outputs"] = new JArray(Def(k.Section.Code.ToString(), "item", b.SectionsPerPlate)),
+            ["outputs"] = new JArray(Def(k.Angle.Code.ToString(), "item", b.AnglesPerPlate)),
             ["variants"] = new JArray(new JObject
             {
                 ["ingredients"] = stacks,
-                ["outputs"] = new JArray(Stack(ctx, k.Section, b.SectionsPerPlate)),
+                ["outputs"] = new JArray(Stack(ctx, k.Angle, b.AnglesPerPlate)),
             }),
             ["machine"] = new JObject
             {

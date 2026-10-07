@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { compileGlobs, flattenShape, partMatrices, partOf, rigInputs, rideOrder, textureCodes, workEnd, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The draw bench's shipped files, and the poses DrawBench/tools/make_shape.py computes from them with
-// machinegen's reference maths. Its rig reads W, its work (chute sections drawn), k (the ingot's metal), p, the oil
+// machinegen's reference maths. Its rig reads W, its work (chute sections drawn), k (the hollow section's metal), p, the oil
 // and the axle's angle and travel; every motion of a stroke is a gauge with one window per section.
 // tools/tests/test_drawbench_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
@@ -20,11 +20,11 @@ const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 +
 const pose = (p: RefPose): Pose => ({ theta: p.theta, depth: 0, lifting: 0, travel: p.travel, work: p.work, size: p.size, presence: p.presence, feed: 0, oil: p.oil });
 
 describe("the draw bench's rig against its rig-reference.json", () => {
-  it("counts its work in sections, three an ingot of either metal, and has a matrix for every part", () => {
+  it("counts its work in sections, four a hollow of either metal, and has a matrix for every part", () => {
     expect(path).toMatchObject({ kind: "work", name: "sections drawn", unit: "sections" });
     expect(rig.trunkPath).toBeUndefined();
-    expect(workEnd(path, 1)).toBe(3);
-    expect(workEnd(path, 2)).toBe(3);
+    expect(workEnd(path, 1)).toBe(4);
+    expect(workEnd(path, 2)).toBe(4);
     expect(new Set(reference.poses.map((p) => p.size))).toEqual(new Set([0, 1, 2]));
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
     // the viewer shows W, the metal (size), its presence, the axle and the oil; no depth, lifting or feed

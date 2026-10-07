@@ -50,8 +50,11 @@ public class PressBrakeRigTests
         Assert.Equal(1.0, path.End(1), 6);
         Assert.Equal(1.0, path.End(2), 6);
         // the contract's stable part ids
-        foreach (var id in new[] { "leaf", "leafedge", "lever", "bar", "baredge", "screww", "screwe", "bededge", "la", "lm", "lb", "ca", "cm", "cb", "frame" })
+        foreach (var id in new[] { "leaf", "leafedge", "lever", "bar", "baredge", "screww", "screwe", "bededge", "la", "lm", "ca", "cm", "frame" })
             Assert.True(parts.IndexOf(id) >= 0, $"no part {id}");
+        // one fold, two legs: the third panel of the old U is gone
+        foreach (var id in new[] { "lb", "cb" })
+            Assert.True(parts.IndexOf(id) < 0, $"part {id} is still in the rig");
     }
 
     [NeedsPressBrakeFileFact(RigFile)]
@@ -63,7 +66,7 @@ public class PressBrakeRigTests
         Assert.Single(rig.GhostCells);
         Assert.Equal(Side.South, rig.InfeedSide);
         Assert.Equal(Side.North, rig.OutputSide);
-        // a chest beyond the far end of the bed feeds it; the sections come off over the leaf
+        // a chest beyond the far end of the bed feeds it; the angle comes off over the leaf
         Assert.Equal([new Int3(0, 0, 2)], rig.InfeedNeighbours());
         Assert.Equal(new Int3(0, 0, -1), rig.OutputNeighbour());
         Assert.True(rig.OutputDrop().Z < 0);
@@ -74,12 +77,12 @@ public class PressBrakeRigTests
             Assert.InRange(p.Y, 0, 1);
             Assert.InRange(p.Z, 0, 2);
         }
-        // two folds a plate, each heard once, in the leaf's windows
-        Assert.Equal(2, rig.Folds.Count);
-        Assert.All(rig.FoldMoments, m => Assert.InRange(m, 0, 1));
+        // one fold a plate, heard once, in the leaf's window (up and back, the moment about 0.42)
+        Assert.Single(rig.Folds);
+        Assert.InRange(Assert.Single(rig.FoldMoments), 0.3, 0.55);
         Assert.True(rig.IsFolding(rig.FoldMoments[0]));
         Assert.False(rig.IsFolding(0.01));
-        Assert.False(rig.IsFolding(0.5));
+        Assert.False(rig.IsFolding(0.9));
     }
 
     [NeedsPressBrakeFileFact(RigFile)]
@@ -107,9 +110,9 @@ public class PressBrakeRigTests
         var json = Shipped();
         PressBrakeRig.Parse(json);
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"platelead\"", "\"plate\"")));
-        Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"sectionsPerPlate\": 2", "\"sectionsPerPlate\": 3")));
+        Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"anglesPerPlate\": 1", "\"anglesPerPlate\": 2")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"game:metalplate-copper\"", "\"game:metalplate-tin\"")));
-        Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"seraphhorizons:chutesectionopen-lead\"", "\"game:chutesection-lead\"")));
+        Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"seraphhorizons:angle-lead\"", "\"game:chutesection-lead\"")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"infeedSide\": \"south\"", "\"infeedSide\": \"north\"")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"leverTurnsPerPlate\"", "\"turnsPerPlate\"")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"infeedSide\"", "\"powerFace\": \"west\", \"infeedSide\"")));

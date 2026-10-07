@@ -51,14 +51,14 @@ class V:
         return [e for e in src if r.search(e.name)]
 
 
-SHEET = re.compile(r"^[lc][amb]$")
+SHEET = re.compile(r"^[lc][am]$")
 
 
 def present(pid, k):
     """The lead sheet shows only with lead on the brake, the copper sheet only with copper."""
-    if pid in ("la", "lm", "lb"):
+    if pid in ("la", "lm"):
         return k == 1
-    if pid in ("ca", "cm", "cb"):
+    if pid in ("ca", "cm"):
         return k == 2
     return True
 
@@ -127,8 +127,8 @@ ROLES = [
     (r"^bar_cup", {"iron"}),
     (r"^(bededge|leafedge|baredge)_", {"edge"}),
     (r"^screw[we]_", {"screw"}),
-    (r"^l[amb]_", {"lead"}),
-    (r"^c[amb]_", {"copper"}),
+    (r"^l[am]_", {"lead"}),
+    (r"^c[am]_", {"copper"}),
 ]
 
 
@@ -153,9 +153,9 @@ ALLOWED = [
     ("screw[we]", r"_rod", "frame", r"fr_nut"), ("screw[we]", r"_rod", "bar", r"_cup"),
     ("bededge", None, "frame", r"fr_bed"),
     # the sheet: its panels at their bends, lying on the bed, the edges and the leaf, under the bar
-    ("[lc][amb]", None, "[lc][amb]", None),
-    ("[lc][amb]", None, "leaf|leafedge|bededge|bar|baredge", None),
-    ("[lc][amb]", None, "frame", r"fr_bed"),
+    ("[lc][am]", None, "[lc][am]", None),
+    ("[lc][am]", None, "leaf|leafedge|bededge|bar|baredge", None),
+    ("[lc][am]", None, "frame", r"fr_bed"),
     # the bar lying on the bed with no plate
     ("bar|baredge", None, "frame", r"fr_bed"), ("bar|baredge", None, "bededge", None),
 ]
@@ -224,21 +224,20 @@ def face_gap(v, pid, pose, leaf_pose=None):
         lo, hi = el.aabb()
         for x in (lo[0], hi[0]):
             for z in (lo[2], hi[2]):
-                q = v.point(pid, pose, [x, m.YB, z])
+                q = v.point(pid, pose, [x, lo[1], z])
                 worst.append(sum(n[i] * (q[i] - o[i]) for i in range(3)))
     return min(worst), max(worst)
 
 
 def check_sheet(v):
     """The sheet follows the leaf: the carried panel lies on the leaf's face through its rise and while the
-    leaf falls to SET, then stays at SET; the flanges stand at 90 degrees after each fold; at W 1 the two
-    sections are U's lying on the leaf."""
+    leaf falls to SET, then stays at SET; at W 1 the angle (an L, two S-wide legs) lies on the leaf."""
     m = v.m
     worst = 0.0
     for k, cls in ((1, "thin"), (2, "thick")):
         pre = "lc"[k - 1]
         throw = m.THROW[cls]
-        for t, pid in ((m.T_FOLD1, f"{pre}a"), (m.T_FOLD2, f"{pre}m")):
+        for t, pid in ((m.T_FOLD1, f"{pre}a"),):
             t_set = t[1] + (t[2] - t[1]) * (throw - m.SET) / throw
             for i in range(41):
                 w = t[0] + (t_set - t[0]) * i / 40
@@ -253,19 +252,23 @@ def check_sheet(v):
             top = angle_x(v.mat(pid, m.pose_at(k, t[1])))
             if abs(top - throw) > 1e-3:
                 v.fail(f"{pid} reaches {top:.3f} degrees, not the throw {throw}")
-        # the delivered U: B on the leaf's face, M upright at the north, A over B at the U's height
-        b = aabb_of(v.posed(f"{pre}b", m.pose_at(k, 1.0)))
+        # the delivered angle: leg M flat on the leaf's face, leg A upright at its north end
+        x0, x1 = m.SHEET_X
         mm = aabb_of(v.posed(f"{pre}m", m.pose_at(k, 1.0)))
         a = aabb_of(v.posed(f"{pre}a", m.pose_at(k, 1.0)))
-        want_b = ([m.HALVES[0][0], m.YB, m.Z_A0], [m.HALVES[1][1], m.YB + m.T, m.EZ])
-        want_m = ([m.HALVES[0][0], m.YB, m.Z_A0], [m.HALVES[1][1], m.YB + m.S, m.Z_A0 + m.T])
-        want_a = ([m.HALVES[0][0], m.YB + m.S - m.T, m.Z_A0], [m.HALVES[1][1], m.YB + m.S, m.EZ])
-        for got, want, name in ((b, want_b, "B"), (mm, want_m, "M"), (a, want_a, "A")):
+        want_m = ([x0, m.YB, m.Z_A0], [x1, m.YB + m.T, m.EZ])
+        want_a = ([x0, m.YB, m.Z_A0], [x1, m.YB + m.S, m.Z_A0 + m.T])
+        for got, want, name in ((mm, want_m, "M"), (a, want_a, "A")):
             err = max(abs(got[i][q] - want[i][q]) for i in range(2) for q in range(3))
             if err > 0.05:
-                v.fail(f"the delivered U's {name} panel ({cls}) is at {got}, want {want}")
+                v.fail(f"the delivered angle's leg {name} ({cls}) is at {got}, want {want}")
+        # before the bar comes down only the square plate (leg M) shows: leg A lies inside the leaf
+        lead_in = aabb_of(v.posed(f"{pre}a", m.pose_at(k, m.T_SPREAD[0])))
+        leaf = aabb_of(v.named("leaf", r"_body|_heel", m.pose_at(k, m.T_SPREAD[0])))
+        if not (lead_in[1][1] < m.YB - 0.01 and leaf[0][1] < lead_in[0][1]):
+            v.fail(f"leg A is not hidden in the leaf before the clamp ({cls})")
     print(f"sheet: the carried panel on the leaf's face through each fold to {m.SET:g} degrees (worst {worst:.2e}); "
-          f"flanges hold at {m.SET:g}; the delivered U's lie on the leaf")
+          f"the flange holds at {m.SET:g}; the delivered angle lies on the leaf; leg A hidden in the leaf until the clamp")
     if worst > 1e-4:
         v.fail("the carried panel leaves the leaf's face during a fold")
 
@@ -280,20 +283,20 @@ def sheet_top(v, pose, pid):
 
 def check_clamp(v):
     """The bar lies on the bed with no plate, on the sheet whenever the leaf moves, LIFT clear of it while
-    the sheet is pulled or slid off; each screw's tip stays in its cup and its turn is its thread's."""
+    the angle is slid off; each screw's tip stays in its cup and its turn is its thread's."""
     m = v.m
     if abs(bar_bottom(v, m.REST) - m.YB) > 1e-6:
         v.fail("the bar does not lie on the bed at rest")
     for k in (1, 2):
         pre = "lc"[k - 1]
-        for t in (m.T_FOLD1, m.T_FOLD2):
+        for t in (m.T_FOLD1,):
             for w in (t[0], (t[0] + t[1]) / 2, t[1], t[2]):
                 gap = bar_bottom(v, m.pose_at(k, w)) - (m.YB + m.T)
                 if abs(gap) > 1e-6:
                     v.fail(f"the bar is not on the sheet at W {w} (gap {gap:.3f})")
-        for t in (m.T_SHIFT, m.T_OFF):
+        for t in (m.T_OFF,):
             for w in (t[0], (t[0] + t[1]) / 2, t[1]):
-                gap = bar_bottom(v, m.pose_at(k, w)) - max(sheet_top(v, m.pose_at(k, w), f"{pre}b"), m.YB + m.T)
+                gap = bar_bottom(v, m.pose_at(k, w)) - max(sheet_top(v, m.pose_at(k, w), f"{pre}m"), m.YB + m.T)
                 if gap < m.LIFT - 1e-6:
                     v.fail(f"the bar is not clear of the sheet at W {w} (gap {gap:.3f})")
     worst = {1: 0.0, 2: 0.0}

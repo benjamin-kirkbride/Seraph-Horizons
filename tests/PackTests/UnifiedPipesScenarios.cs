@@ -15,8 +15,9 @@ namespace SeraphHorizons.PackTests;
 /// <c>UnifiedPipes</c> (README "Unified pipes"), on as it is by default: Pipes and Power Expanded's
 /// pipes in copper and lead, its valves in bronze, each metal at its burst figure, lead bursting on
 /// steam, ppex's plate-and-nails pipe and iron and steel valve recipes off and this mod's resolving:
-/// pipe from the game's chute section, which comes in lead, iron and steel too, with the game's
-/// plate-and-solder recipe for it off. Its sites are at x 35 to 45, z -95 from the spawn. The off check is in
+/// the chain of angle, hollow section (the game's chute section, in lead too, its anvil and plate
+/// recipes off) and pipe section, and pipe from pipe sections. Its sites are at x 35 to 45, z -95
+/// from the spawn. The off check is in
 /// <see cref="SwitchesOffScenarios"/>; <c>tools/tests/test_unified_pipes.py</c> holds the patch to
 /// ppex's zip.
 /// </summary>
@@ -112,83 +113,119 @@ public partial class SharedWorldScenarios
         Assert.DoesNotContain(ours, r => !r.Output.Code.Path.Contains("valve")
                                          && r.ResolvedIngredients.Any(i => i?.Code?.Path.StartsWith("pipe-straight") == true));
 
-        // Every shape in every metal, from chute sections of that metal and its joint, in the right number.
+        // Every shape in every metal, from pipe sections of that metal and its joint, in the right number.
         foreach (var metal in PipeRules.PipeMaterials)
         {
-            bool soldered = ChuteSections.SolderedMetals.Contains(metal);
-            foreach (var (shape, sections, pipes) in ChuteSections.PipeShapes)
+            bool soldered = PipeSections.SolderedMetals.Contains(metal);
+            foreach (var (shape, sections, pipes) in PipeSections.PipeShapes)
             {
-                var code = ChuteSections.Pipe(shape, metal);
+                var code = PipeSections.Pipe(shape, metal);
                 var made = ours.Where(r => r.Output.Code.ToString() == code).ToList();
-                Assert.True(made.Count > 0, $"nothing makes {code}");
+                // copper and lead: tin or silver solder; iron and steel: one recipe
+                Assert.Equal(soldered ? 2 : 1, made.Count);
                 foreach (var r in made)
                 {
                     Assert.Equal(pipes, r.Output.Quantity);
                     var cells = r.ResolvedIngredients.Where(i => i != null).ToList();
-                    Assert.Equal(sections, cells.Count(i => i.Code?.ToString() == ChuteSections.Section(metal)));
-                    Assert.DoesNotContain(cells, i => i.Code?.Path.StartsWith("chutesection-") == true && i.Code.ToString() != ChuteSections.Section(metal));
-                    // the hammer is in every pipe recipe: it tells a pipe from a chute
-                    Assert.Contains(cells, i => i.IsTool && i.SatisfiesAsIngredient(new ItemStack(W.GetItem(new AssetLocation("game:hammer-iron")))));
+                    Assert.Equal(sections, cells.Count(i => i.Code?.ToString() == PipeSections.PipeSection(metal)));
+                    Assert.DoesNotContain(cells, i => i.Code?.Path.StartsWith("pipesection-") == true && i.Code.ToString() != PipeSections.PipeSection(metal));
                     if (soldered)
                     {
                         var solder = Assert.Single(cells, i => i.Code?.Path.StartsWith("solderbar-") == true);
                         Assert.Equal(sections, solder.Quantity); // a bar per section, as a chute
-                        Assert.Contains(cells, i => i.IsTool && i.Code?.ToString() == "game:solderingiron");
+                        Assert.Single(cells, i => i.IsTool && i.Code?.ToString() == "game:solderingiron");
+                        Assert.DoesNotContain(cells, i => i.Code?.Path.StartsWith("hammer") == true);
+                        Assert.Equal(sections + 2, cells.Count);
                     }
                     else
                     {
-                        Assert.Single(cells, i => i.Code?.ToString() == $"game:metalnailsandstrips-{metal}");
+                        Assert.Equal(1, Assert.Single(cells, i => i.Code?.ToString() == $"game:metalnailsandstrips-{metal}").Quantity);
+                        Assert.Contains(cells, i => i.IsTool && i.SatisfiesAsIngredient(new ItemStack(W.GetItem(new AssetLocation("game:hammer-iron")))));
+                        Assert.Equal(sections + 2, cells.Count);
                     }
                 }
             }
         }
+        // no pipe, of any mod's recipe, is made from a chute section
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Domain == "ppex" && r.Output.Code.Path.StartsWith("pipe-")
+                                                  && r.ResolvedIngredients.Any(i => i?.Code?.Path.StartsWith("chutesection-") == true));
     }
 
-    /// <summary>The pipe section is the game's chute section: it comes in lead, iron and steel, each
-    /// named; the game's plate-and-solder recipe for it is off; lead is forged as copper is; two open
-    /// sections solder shut into two; and the game's chutes still take copper sections only.</summary>
+    /// <summary>The chain: the angle (copper, lead) forged from an ingot; the hollow section, the game's
+    /// chute section in copper and lead (no iron or steel), made only from two angles soldered, the
+    /// game's anvil and plate recipes for it off; the pipe section in every metal, made by no grid or
+    /// anvil recipe; and the game's chutes taking copper chute sections only.</summary>
     [AtlasScenario]
-    public void UnifiedPipes_chute_sections_come_in_every_metal_and_only_copper_makes_chutes()
+    public void UnifiedPipes_the_chain_angle_hollow_section_pipe_section()
     {
+        static string Title(string metal) => $"{char.ToUpperInvariant(metal[0])}{metal[1..]}";
+        var smithing = World.Api.GetSmithingRecipes();
+
+        // the angle: an item per metal, named, with a handbook section, forged from one ingot
+        foreach (var metal in PipeSections.AngleMetals)
+        {
+            var angle = W.GetItem(new AssetLocation(PipeSections.Angle(metal)));
+            Assert.NotNull(angle);
+            Assert.Equal($"{Title(metal)} angle", new ItemStack(angle).GetName());
+            Assert.Contains("items", angle!.CreativeInventoryTabs);
+            Assert.True(angle.Attributes?["handbook"]?["extraSections"].Exists == true, $"no handbook section on {angle.Code}");
+            var forged = Assert.Single(smithing, r => r.Output?.Code?.ToString() == PipeSections.Angle(metal));
+            Assert.Equal($"game:ingot-{metal}", forged.Ingredient.Code.ToString());
+            Assert.NotNull(forged.Output.ResolvedItemStack);
+            Assert.Equal(1, forged.Output.Quantity);
+            Assert.Equal(42, forged.Voxels.Cast<bool>().Count(v => v));
+        }
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("angle-")
+                                            && !PipeSections.AngleMetals.Contains(c.Path["angle-".Length..]));
+        Assert.Contains("press brake", Lang.GetL("en", "seraphhorizons:angle-handbook-text"));
+
+        // the hollow section: copper and lead only, named alike, mechanics lists copper alone
+        Assert.Equal(ChuteSections.Metals.Select(ChuteSections.Section).Order(),
+            W.Items.Where(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith("chutesection-")).Select(i => i.Code.ToString()).Order());
         foreach (var metal in ChuteSections.Metals)
         {
-            var item = W.GetItem(new AssetLocation(ChuteSections.Section(metal)));
-            Assert.NotNull(item);
-            var name = new ItemStack(item).GetName();
-            Assert.Equal($"{char.ToUpperInvariant(metal[0])}{metal[1..]} Chute Section", name);
-            Assert.Contains("items", item!.CreativeInventoryTabs);
+            var item = W.GetItem(new AssetLocation(ChuteSections.Section(metal)))!;
+            Assert.Equal($"{Title(metal)} Chute Section", new ItemStack(item).GetName());
+            Assert.Contains("items", item.CreativeInventoryTabs);
             Assert.Equal(metal == PipeRules.Copper, item.CreativeInventoryTabs.Contains("mechanics"));
             Assert.True(item.Attributes?["handbook"]?["extraSections"].Exists == true, $"no handbook section on {item.Code}");
         }
-        Assert.Contains("press brake", Lang.GetL("en", "seraphhorizons:chutesection-handbook-text"));
+        Assert.Contains("mandrel station", Lang.GetL("en", "seraphhorizons:chutesection-handbook-text"));
+        Assert.Contains("draw bench", Lang.GetL("en", "seraphhorizons:chutesection-handbook-text"));
 
-        // the game's one-step plate recipe is gone; nothing makes a section from a plate on the grid
-        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("chutesection-") == true
-                                                  && r.ResolvedIngredients.Any(i => i?.Code?.Path.StartsWith("metalplate-") == true));
-
-        // forged: copper the game's, lead this mod's, from an ingot of the metal
-        foreach (var metal in ChuteSections.SolderedMetals)
-            Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == ChuteSections.Section(metal)
-                                                                 && r.Ingredient?.Code?.ToString() == $"game:ingot-{metal}");
-
-        // closed: two open sections, two solder bars and a soldering iron, two sections
-        foreach (var metal in ChuteSections.SolderedMetals)
+        // the game's anvil recipe for it is off, and nothing else forges one
+        Assert.DoesNotContain(smithing, r => r.Output?.Code?.Path.StartsWith("chutesection-") == true);
+        // on the grid, only two angles of its metal, two solder bars and a soldering iron make one
+        var hollows = W.GridRecipes.Where(r => r.Output?.Code?.Path.StartsWith("chutesection-") == true).ToList();
+        Assert.Equal(ChuteSections.Metals.Length * 2, hollows.Count); // tin or silver solder
+        foreach (var metal in ChuteSections.Metals)
         {
-            var open = W.GetItem(new AssetLocation(ChuteSections.OpenSection(metal)));
-            Assert.NotNull(open);
-            Assert.Equal($"Open {char.ToUpperInvariant(metal[0])}{metal[1..]} Chute Section", new ItemStack(open).GetName());
-            var closing = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == ChuteSections.Section(metal)
-                                                   && r.ResolvedIngredients.Any(i => i?.Code?.ToString() == ChuteSections.OpenSection(metal))).ToList();
-            Assert.NotEmpty(closing);
-            foreach (var r in closing)
+            var made = hollows.Where(r => r.Output.Code.ToString() == ChuteSections.Section(metal)).ToList();
+            Assert.Equal(2, made.Count);
+            foreach (var r in made)
             {
-                Assert.Equal(2, r.Output.Quantity);
+                Assert.Equal("seraphhorizons", r.Name?.Domain);
+                Assert.Equal(1, r.Output.Quantity);
                 var cells = r.ResolvedIngredients.Where(i => i != null).ToList();
-                Assert.Equal(2, cells.Count(i => i.Code?.ToString() == ChuteSections.OpenSection(metal)));
-                Assert.Equal(2, Assert.Single(cells, i => i.Code?.Path.StartsWith("solderbar-") == true).Quantity);
-                Assert.Contains(cells, i => i.IsTool && i.Code?.ToString() == "game:solderingiron");
+                Assert.Equal(ChuteSections.AnglesPerSection, cells.Count(i => i.Code?.ToString() == PipeSections.Angle(metal)));
+                Assert.Equal(ChuteSections.SolderBarsPerSection, Assert.Single(cells, i => i.Code?.Path.StartsWith("solderbar-") == true).Quantity);
+                Assert.Single(cells, i => i.IsTool && i.Code?.ToString() == "game:solderingiron");
+                Assert.Equal(ChuteSections.AnglesPerSection + 2, cells.Count);
             }
         }
+
+        // the pipe section: every metal, named, with a handbook section; no grid or anvil recipe makes it
+        foreach (var metal in PipeSections.Metals)
+        {
+            var item = W.GetItem(new AssetLocation(PipeSections.PipeSection(metal)));
+            Assert.NotNull(item);
+            Assert.Equal($"{Title(metal)} pipe section", new ItemStack(item).GetName());
+            Assert.Contains("items", item!.CreativeInventoryTabs);
+            Assert.True(item.Attributes?["handbook"]?["extraSections"].Exists == true, $"no handbook section on {item.Code}");
+        }
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("pipesection-") == true);
+        Assert.DoesNotContain(smithing, r => r.Output?.Code?.Path.StartsWith("pipesection-") == true);
+        Assert.Contains("mandrel station", Lang.GetL("en", "seraphhorizons:pipesection-handbook-text"));
 
         // chutes: copper sections only, a solder bar per section and the soldering iron, no hammer, the
         // game's yields; Better Ruins' solderless blueprint chutes are gone
@@ -206,24 +243,11 @@ public partial class SharedWorldScenarios
                 Assert.Equal(chute.Sections, cells.Count(i => i.Code?.ToString() == ChuteSections.Section(PipeRules.Copper)));
                 Assert.All(cells.Where(i => i.Code?.Path.StartsWith("chutesection") == true),
                     i => Assert.Equal(ChuteSections.Section(PipeRules.Copper), i.Code.ToString()));
+                Assert.DoesNotContain(cells, i => i.Code?.Path.StartsWith("pipesection") == true);
                 Assert.Equal(chute.Sections, Assert.Single(cells, i => i.Code?.Path.StartsWith("solderbar-") == true).Quantity);
                 Assert.Contains(cells, i => i.IsTool && i.Code?.ToString() == "game:solderingiron");
                 Assert.DoesNotContain(cells, i => i.Code?.Path.StartsWith("hammer") == true);
             }
-        }
-
-        // The same grid without the hammer is a chute: a copper pipe recipe less its hammer takes what
-        // its chute takes (sections, solder, the soldering iron).
-        foreach (var (shape, chuteCode) in new[] { ("straight-ns", "chute-straight-ns"), ("bend-nw", "chute-elbow-down-east"),
-                                                   ("tjunction-uns", "chute-t-ns"), ("xjunction-nswe", "chute-cross-ground") })
-        {
-            static string Bag(GridRecipe r) => string.Join(",", r.ResolvedIngredients.Where(i => i != null && i.Code?.Path.StartsWith("hammer") != true)
-                .Select(i => $"{i.Code}x{i.Quantity}").Order());
-            var pipe = W.GridRecipes.First(r => r.Name?.Domain == "seraphhorizons" && r.Output?.Code?.ToString() == ChuteSections.Pipe(shape, PipeRules.Copper)
-                                                && r.ResolvedIngredients.Any(i => i?.Code?.ToString() == "game:solderbar-tin"));
-            var chute = chutes.First(r => r.Output.Code.Path == chuteCode && r.ResolvedIngredients.Any(i => i?.Code?.ToString() == "game:solderbar-tin"));
-            Assert.Equal(Bag(chute), Bag(pipe));
-            Assert.Contains(pipe.ResolvedIngredients, i => i?.Code?.Path.StartsWith("hammer") == true || i?.Code?.Path == "hammer-*");
         }
 
         // Better Ruins' blueprint keeps the rest of its recipes: its riveted metal block resolves

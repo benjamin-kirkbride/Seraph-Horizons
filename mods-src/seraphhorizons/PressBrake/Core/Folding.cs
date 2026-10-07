@@ -12,20 +12,20 @@ public enum FoldLoadVerdict
 }
 
 /// <summary>
-/// The fold's arithmetic: a plate of class k (1 lead, 2 copper) goes on the bed and is folded into
-/// <see cref="SectionsPerPlate"/> open chute sections (<c>seraphhorizons:chutesectionopen-{metal}</c>)
-/// by the player working the lever, holding right-click as on the quern. While held, the lever clock
-/// θ turns at <see cref="LeverTurnsPerSecond"/>, and the fold cycle W (0..1) advances by
-/// θ / (2π · leverTurnsPerPlate[k]); at W = 1 the two sections come off and the plate is used up.
+/// The fold's arithmetic: a plate of class k (1 lead, 2 copper) goes on the bed and is bent once, at
+/// a right angle, into <see cref="AnglesPerPlate"/> angle (<c>seraphhorizons:angle-{metal}</c>) by the
+/// player working the lever, holding right-click as on the quern. While held, the lever clock θ turns
+/// at <see cref="LeverTurnsPerSecond"/>, and the fold cycle W (0..1) advances by
+/// θ / (2π · leverTurnsPerPlate[k]); at W = 1 the angle comes off and the plate is used up.
 /// </summary>
 public static class Folding
 {
-    public const int SectionsPerPlate = 2;
+    public const int AnglesPerPlate = 1;
     public const string LeadPlate = "game:metalplate-lead";
     public const string CopperPlate = "game:metalplate-copper";
 
     /// <summary>The lever clock's pace while the player holds right-click: one turn a second, so a
-    /// lead plate takes 6 seconds and a copper one 9 at the default settings.</summary>
+    /// lead plate takes 3 seconds and a copper one 4.5 at the default settings.</summary>
     public const double LeverTurnsPerSecond = 1;
 
     /// <summary>Radians of the lever clock a second while held.</summary>
@@ -40,14 +40,14 @@ public static class Folding
 
     public static string? MetalOf(int k) => k switch { 1 => "lead", 2 => "copper", _ => null };
 
-    /// <summary>The class a plate is folded as: 1 lead, 2 copper, 0 not one the brake folds (an open
-    /// section included: what comes off is never taken back on).</summary>
+    /// <summary>The class a plate is folded as: 1 lead, 2 copper, 0 not one the brake folds (an angle
+    /// or a hollow section included: what comes off is never taken back on).</summary>
     public static int ClassOfPlate(string? code) => code switch { LeadPlate => 1, CopperPlate => 2, _ => 0 };
 
     public static string? PlateFor(int k) => k switch { 1 => LeadPlate, 2 => CopperPlate, _ => null };
 
-    /// <summary>The open section a plate of class <paramref name="k"/> is folded into.</summary>
-    public static string? SectionFor(int k) => MetalOf(k) is { } metal ? "seraphhorizons:chutesectionopen-" + metal : null;
+    /// <summary>The angle a plate of class <paramref name="k"/> is folded into.</summary>
+    public static string? AngleFor(int k) => MetalOf(k) is { } metal ? "seraphhorizons:angle-" + metal : null;
 
     /// <summary>Plates folded by <paramref name="radians"/> of the lever clock.</summary>
     public static double PlatesFor(double radians, double leverTurnsPerPlate) =>

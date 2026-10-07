@@ -19,13 +19,13 @@ public interface IDrawBenchView
     /// <summary>The fitted die's metal (<c>iron</c>, <c>steel</c>), or null.</summary>
     string? DieMetal { get; }
 
-    /// <summary>The ingot on the bench: 1 lead, 2 copper, 0 none.</summary>
+    /// <summary>The hollow section on the bench: 1 lead, 2 copper, 0 none.</summary>
     int JobClass { get; }
 
-    /// <summary>The server's W: sections drawn of this ingot, synced in steps.</summary>
+    /// <summary>The server's W: pipe sections drawn of this hollow, synced in steps.</summary>
     double JobWork { get; }
 
-    /// <summary>Complete, an ingot on and the shaft fast enough.</summary>
+    /// <summary>Complete, a hollow on and the shaft fast enough.</summary>
     bool Running { get; }
 
     float ShaftAngle { get; }
@@ -41,9 +41,9 @@ public interface IDrawBenchView
 /// <summary>
 /// The renderer's own W, presence and class, from the view each frame (the model's contract,
 /// "The work"): W advances with the shaft while the bench runs, never behind the server's and at
-/// most <see cref="Snap"/> ahead of it; with no ingot on it is held at the end, 3, while p eases
-/// out and k is held, so the sections lie on the rack and the hollow, follower and spring come back;
-/// a new ingot starts from the server's W (0) with p easing in.
+/// most <see cref="Snap"/> ahead of it; with no hollow on it is held at the end, 4, while p eases
+/// out and k is held, so the sections lie in the trough and the hollow, follower and spring come back;
+/// a new hollow starts from the server's W (0) with p easing in.
 /// </summary>
 public sealed class DrawBenchClock
 {
@@ -53,7 +53,7 @@ public sealed class DrawBenchClock
     /// <summary>Presence per second, in and out (0.4 s each way).</summary>
     public const float EaseRate = 2.5f;
 
-    public double Work { get; private set; } = Drawing.SectionsPerIngot;
+    public double Work { get; private set; } = Drawing.SectionsPerHollow;
     public float Presence { get; private set; }
     public int Class { get; private set; }
 
@@ -74,10 +74,10 @@ public sealed class DrawBenchClock
                 Work += Drawing.SectionsFor(radians, turnsPerSection);
             if (Work < serverWork || Work > serverWork + Snap)
                 Work = serverWork;
-            Work = Math.Clamp(Work, 0, Drawing.SectionsPerIngot);
+            Work = Math.Clamp(Work, 0, Drawing.SectionsPerHollow);
             return;
         }
-        Work = Drawing.SectionsPerIngot;
+        Work = Drawing.SectionsPerHollow;
         Presence = Math.Max(0, Presence - dt * EaseRate);
         if (Presence <= 0)
             Class = 0;

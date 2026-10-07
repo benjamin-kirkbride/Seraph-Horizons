@@ -14,13 +14,14 @@ namespace SeraphHorizons.Mod.Pipes;
 /// water, steam and exhaust. ppex's straight, bend, T- and X-junction pipes get copper and lead as
 /// material states, and its valves and pressure valves the three bronzes, by JSON patch
 /// (<see cref="PatchAsset"/>), which also switches off ppex's plate-and-nails pipe recipes and its
-/// iron and steel valve recipes. The pipe section is the game's chute section, which gets lead, iron
-/// and steel states by a second JSON patch (<see cref="ChutePatchAsset"/>, checked by
-/// <see cref="ChuteSections"/>), and the game's plate-and-solder recipe for it is switched off. This
-/// mod adds a lead section forged as the game forges the copper one, an open section (copper or lead,
-/// folded on the press brake) and its closing recipe, every pipe shape from sections in the game's
-/// chute patterns with a joint (solder for copper and lead, nails and strips for iron and steel), and
-/// bronze valves.
+/// iron and steel valve recipes. The chain (<see cref="PipeSections"/>): this mod's angle (copper or
+/// lead, forged from an ingot or folded on the press brake); the game's chute section, the hollow
+/// section, which gets a lead state by a second JSON patch (<see cref="ChutePatchAsset"/>, checked by
+/// <see cref="ChuteSections"/>) that also switches off the game's anvil and plate recipes for it, so
+/// two angles soldered on the grid are the only way to one; this mod's pipe section (every metal,
+/// made by the mandrel station, the draw bench or the pipe mold); every pipe shape from pipe sections
+/// in the game's chute patterns with a joint (solder for copper and lead, nails and strips for iron
+/// and steel); and bronze valves.
 ///
 /// By name, with Harmony (own id, patched once per process: both sides read a pipe's figure):
 /// <list type="bullet">
@@ -35,10 +36,10 @@ namespace SeraphHorizons.Mod.Pipes;
 ///
 /// Off, without ppex, or with ppex's assets (<see cref="PipeAssetGuard"/>), the game's chute section
 /// and recipes (<see cref="ChuteSections"/>) or a member the first two patches need not as expected
-/// (one warning): both patch files are emptied in <c>Start</c>, before the game's patch loader runs,
-/// this mod's open section and recipes are marked disabled, nothing is patched, and copper and lead
-/// pipes, bronze valves and lead, iron and steel chute sections do not exist (those already placed
-/// or held are lost).
+/// (one warning): the patch files are emptied in <c>Start</c>, before the game's patch loader runs,
+/// this mod's angle, pipe section and recipes are marked disabled, nothing is patched, and copper
+/// and lead pipes, bronze valves, angles, pipe sections and lead chute sections do not exist (those
+/// already placed or held are lost).
 /// </summary>
 public class UnifiedPipesSystem : ModSystem
 {
@@ -53,19 +54,23 @@ public class UnifiedPipesSystem : ModSystem
 
     public static readonly AssetLocation PatchAsset = new(Domain, "patches/unifiedpipes-ppex.json");
 
-    /// <summary>The game's chute section in lead, iron and steel, and its plate recipe off.</summary>
+    /// <summary>The game's chute section in lead, its anvil and plate recipes off, chutes soldered.</summary>
     public static readonly AssetLocation ChutePatchAsset = new(Domain, "patches/unifiedpipes-chutesection.json");
 
     /// <summary>Better Ruins' five solderless bulk chute recipes off (<see cref="ChuteSections.BetterRuinsChutes"/>).</summary>
     public static readonly AssetLocation BetterRuinsPatchAsset = new(Domain, "patches/unifiedpipes-betterruins.json");
 
-    public static readonly AssetLocation[] TypeAssets = [new(Domain, "itemtypes/chutesectionopen.json")];
+    public static readonly AssetLocation[] TypeAssets =
+    [
+        new(Domain, "itemtypes/angle.json"),
+        new(Domain, "itemtypes/pipesection.json"),
+    ];
 
     public static readonly AssetLocation[] RecipeAssets =
     [
         new(Domain, "recipes/grid/unifiedpipes.json"),
         new(Domain, "recipes/grid/chutesection.json"),
-        new(Domain, "recipes/smithing/chutesection.json"),
+        new(Domain, "recipes/smithing/angle.json"),
     ];
 
     // The type and recipe files open with a comment.
@@ -143,10 +148,11 @@ public class UnifiedPipesSystem : ModSystem
             + "weakest pipe sets the limit for the whole run, a single iron section caps an otherwise steel line. "
             + "<strong>Lead pipe is for water only</strong>: steam or exhaust in a run bursts its lead sections at once, "
             + "whatever the pressure, while water and air are safe in it. Copper carries exhaust and blast air but fails "
-            + "on a stressed boiler. Pipe is made from chute sections with a hammer: copper and lead ones soldered, a "
-            + "solder bar a section, iron and steel ones banded with nails and strips, two to a pair of straight pipes, "
-            + "and two, three or four to a bend, T- or X-junction. Copper and lead sections are forged on the anvil, "
-            + "folded on the press brake or drawn on the draw bench; iron and steel ones are cast."),
+            + "on a stressed boiler. Pipe is made from pipe sections: copper and lead ones soldered, a solder bar a "
+            + "section and a soldering iron, iron and steel ones banded with one nails and strips and a hammer; one "
+            + "section makes a straight pipe, and two, three or four a bend, T- or X-junction. Copper and lead pipe "
+            + "sections come from a chute section, two soldered angles, worked on the mandrel station or drawn on the "
+            + "draw bench; iron and steel ones are cast."),
         new("en", "ppex:handbook-fittings-text",
             "A <strong>Valve</strong> is a hand-operated shut-off in a line.",
             "A <strong>Valve</strong> is a hand-operated shut-off in a line. Valves and pressure valves are bronze (tin, "
@@ -191,7 +197,7 @@ public class UnifiedPipesSystem : ModSystem
                 asset.Data = "[]"u8.ToArray();
     }
 
-    /// <summary>Marks this mod's open section and its recipes disabled before the game loads them.</summary>
+    /// <summary>Marks this mod's angle, pipe section and recipes disabled before the game loads them.</summary>
     public static void Disable(ICoreAPI api)
     {
         foreach (var location in TypeAssets)
@@ -238,14 +244,18 @@ public class UnifiedPipesSystem : ModSystem
 
     private const string GameChanged = "the game changed ";
 
-    /// <summary>The game's chute section and chute recipes, as <see cref="ChutePatchAsset"/> assumes.</summary>
+    /// <summary>The game's chute section, its anvil recipe and the chute recipes, as
+    /// <see cref="ChutePatchAsset"/> assumes.</summary>
     private static string? CheckChuteAssets(ICoreAPI api)
     {
         var item = new AssetLocation("game", ChuteSections.ItemFile);
         var recipes = new AssetLocation("game", ChuteSections.RecipeFile);
+        var smithing = new AssetLocation("game", ChuteSections.SmithingFile);
         var problem = api.Assets.TryGet(item) is not { } itemAsset ? $"{item} (missing)"
             : api.Assets.TryGet(recipes) is not { } recipeAsset ? $"{recipes} (missing)"
-            : ChuteSections.CheckItem(itemAsset.ToText()) ?? ChuteSections.CheckRecipes(recipeAsset.ToText());
+            : api.Assets.TryGet(smithing) is not { } smithingAsset ? $"{smithing} (missing)"
+            : ChuteSections.CheckItem(itemAsset.ToText()) ?? ChuteSections.CheckRecipes(recipeAsset.ToText())
+              ?? ChuteSections.CheckSmithing(smithingAsset.ToText());
         return problem == null ? null : GameChanged + problem;
     }
 

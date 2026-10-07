@@ -141,11 +141,11 @@ public class CastPipeMoldTests
         Assert.Equal(1.0, CastPipeMold.SectionsPerIngot(requiredUnits: 200));
         Assert.Equal(0.0, CastPipeMold.SectionsPerIngot(requiredUnits: 0));
         Assert.Equal(2.0, CastPipeMold.PipesPerIngot());
-        Assert.Equal("game:chutesection-iron", CastPipeMold.Section("iron"));
+        Assert.Equal("seraphhorizons:pipesection-iron", CastPipeMold.Section("iron"));
         Assert.Equal("ppex:pipe-straight-ns-steel", CastPipeMold.StraightPipe("steel"));
-        // the sections it casts are states UnifiedPipes adds, and the metals the grid bands with nails
-        Assert.All(CastPipeMold.Metals, m => Assert.Contains(m, ChuteSections.AddedMetals));
-        Assert.Equal(ChuteSections.NailedMetals, CastPipeMold.Metals);
+        // the sections it casts are UnifiedPipes' pipe section, and the metals the grid bands with nails
+        Assert.All(CastPipeMold.Metals, m => Assert.Contains(m, PipeSections.Metals));
+        Assert.Equal(PipeSections.NailedMetals, CastPipeMold.Metals);
     }
 
     [Fact]

@@ -9,11 +9,11 @@ public class PressBrakeConfig
     /// <summary>Turns of the lever clock (<see cref="Folding.LeverTurnsPerSecond"/> a second while
     /// the player holds right-click) a lead plate takes, as the model is drawn (the rig's
     /// <c>fold.leverTurnsPerPlate.thin</c>; a test holds the two together).</summary>
-    public float LeverTurnsPerPlateLead { get; set; } = 6f;
+    public float LeverTurnsPerPlateLead { get; set; } = 3f;
 
     /// <summary>Lever turns a copper plate takes: half as much again as lead's (the rig's
     /// <c>fold.leverTurnsPerPlate.thick</c>).</summary>
-    public float LeverTurnsPerPlateCopper { get; set; } = 9f;
+    public float LeverTurnsPerPlateCopper { get; set; } = 4.5f;
 
     public static readonly PressBrakeConfig Defaults = new();
 

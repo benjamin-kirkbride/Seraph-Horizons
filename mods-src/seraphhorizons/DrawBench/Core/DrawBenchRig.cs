@@ -16,11 +16,11 @@ public sealed class DrawBenchRig
     public IReadOnlyList<RigCell> Cells { get; }
     public Int3 PowerCell { get; }
     public Side PowerFace { get; }
-    /// <summary>The face a chest or hopper feeds ingots through.</summary>
+    /// <summary>The face a chest or hopper feeds hollow sections through.</summary>
     public Side InfeedSide { get; }
     /// <summary>The face a drawn section leaves by.</summary>
     public Side OutputSide { get; }
-    /// <summary>Where a drawn section drops (the rack's lip, by the output face).</summary>
+    /// <summary>Where a drawn section comes off (the trough's first slot, by the output face).</summary>
     public Float3 Output { get; }
     /// <summary>The die's mouth, on the draw line: metal dust and lubricant smoke.</summary>
     public Float3 Die { get; }
@@ -52,8 +52,8 @@ public sealed class DrawBenchRig
             throw new FormatException("infeedSide and outputSide are the same face");
         if (!(turnsPerSectionLead > 0) || !float.IsFinite(turnsPerSectionLead) || !(turnsPerSectionCopper > 0) || !float.IsFinite(turnsPerSectionCopper))
             throw new FormatException("draw.turnsPerSection must be above 0 for both metals");
-        if (work.Ends[1] != Drawing.SectionsPerIngot || work.Ends[2] != Drawing.SectionsPerIngot)
-            throw new FormatException($"work.end must be {{thin: {Drawing.SectionsPerIngot}, thick: {Drawing.SectionsPerIngot}}}, the sections an ingot draws");
+        if (work.Ends[1] != Drawing.SectionsPerHollow || work.Ends[2] != Drawing.SectionsPerHollow)
+            throw new FormatException($"work.end must be {{thin: {Drawing.SectionsPerHollow}, thick: {Drawing.SectionsPerHollow}}}, the sections a hollow draws");
         Cells = cells;
         PowerCell = powerCell;
         PowerFace = powerFace;
@@ -84,7 +84,7 @@ public sealed class DrawBenchRig
         return Cells.Select(c => c.Pos + step).Where(p => !occupied.Contains(p)).Distinct();
     }
 
-    /// <summary>Where a chest or hopper feeds ingots from (beyond the die end).</summary>
+    /// <summary>Where a chest or hopper feeds hollow sections from (beyond the die end).</summary>
     public IEnumerable<Int3> InfeedNeighbours() => Neighbours(InfeedSide);
 
     /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell: a container
@@ -121,15 +121,14 @@ public sealed class DrawBenchRig
         var work = WorkQuantity.Parse(Required(root, "work", JsonValueKind.Object));
         var draw = Required(root, "draw", JsonValueKind.Object);
         var turns = Required(draw, "turnsPerSection", JsonValueKind.Object);
-        if (draw.TryGetProperty("sectionsPerIngot", out var per) && (per.ValueKind != JsonValueKind.Number || per.GetDouble() != Drawing.SectionsPerIngot))
-            throw new FormatException($"draw.sectionsPerIngot must be {Drawing.SectionsPerIngot}");
-        if (draw.TryGetProperty("ingots", out var ingots))
-        {
-            if (Str(ingots, "thin") is { } thin && thin != Drawing.LeadIngot)
-                throw new FormatException($"draw.ingots.thin is {thin}, the bench draws {Drawing.LeadIngot} as thin");
-            if (Str(ingots, "thick") is { } thick && thick != Drawing.CopperIngot)
-                throw new FormatException($"draw.ingots.thick is {thick}, the bench draws {Drawing.CopperIngot} as thick");
-        }
+        var per = Required(draw, "sectionsPerHollow", JsonValueKind.Number);
+        if (per.GetDouble() != Drawing.SectionsPerHollow)
+            throw new FormatException($"draw.sectionsPerHollow must be {Drawing.SectionsPerHollow}");
+        var hollows = Required(draw, "hollows", JsonValueKind.Object);
+        if (Str(hollows, "thin") is var thin && thin != Drawing.LeadHollow)
+            throw new FormatException($"draw.hollows.thin is {thin ?? "missing"}, the bench draws {Drawing.LeadHollow} as thin");
+        if (Str(hollows, "thick") is var thick && thick != Drawing.CopperHollow)
+            throw new FormatException($"draw.hollows.thick is {thick ?? "missing"}, the bench draws {Drawing.CopperHollow} as thick");
         RigParts? parts = null;
         if (root.TryGetProperty("parts", out var partsJson))
             parts = partsJson.ValueKind == JsonValueKind.Array

@@ -41,7 +41,7 @@
 			"moldrackable": true,
 			"onmoldrackTransform": { "rotation": { "z": 90 } },
 			"fillQuadsByLevel": [{ "x1": 4, "z1": 4, "x2": 12, "z2": 12 }],
-			"drop": { "type": "item", "code": "game:chutesection-{metal}", "quantity": 2 },
+			"drop": { "type": "item", "code": "seraphhorizons:pipesection-{metal}", "quantity": 2 },
 			"handbook": {
 				"groupBy": ["toolmold-*-{materialtype}-{tooltype}"],
 				"extraSections": [{ "title": "seraphhorizons:castpipes-handbook-title", "text": "seraphhorizons:castpipes-handbook-mold-text" }]

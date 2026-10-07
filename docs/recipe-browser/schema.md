@@ -247,20 +247,30 @@ tank's fill, so a dry tank breaks it) and `oil` (`points` drained per gear from 
 100 points to the litre). Until the cutter's own blocks and kit are registered, their slots
 in the variant are empty.
 
-**The draw bench** (type `drawbench`, shape `machine`): one record per ingot metal, id
-`drawbench|game:ingot-<metal>|0`. The ingredients are the ingot (consumed), the fitted parts (the
-Jonas gearbox, chain, bracket and rod, in `machine.kept`), the die (`isTool`, its `toolDurabilityCost`
-one per ingot; an iron die draws lead only, a steel one lead and copper), the oil (each listed oil in
-the variant, with the litres one ingot drains) and the machine (role `station`); the output is three
-chute sections of the metal. `machine` has `power` (`mechanical`), the `turns` of the input shaft one
-ingot takes, the `work` it is made of (3 sections, `turnsPerUnit` each), `kept`, `wear` (`fixed`:
-one point per ingot) and `oil` (`points` drained per section from a `tank`).
+**The draw bench** (type `drawbench`, shape `machine`): one record per metal, id
+`drawbench|game:chutesection-<metal>|0`. The ingredients are the hollow section (the game's chute
+section, consumed), the fitted parts (the Jonas gearbox, chain, bracket and rod, in `machine.kept`),
+the die (`isTool`, its `toolDurabilityCost` one per hollow; an iron die draws lead only, a steel one
+lead and copper), the oil (each listed oil in the variant, with the litres one hollow drains) and the
+machine (role `station`); the output is four pipe sections of the metal
+(`seraphhorizons:pipesection-<metal>`). `machine` has `power` (`mechanical`), the `turns` of the
+input shaft one hollow takes, the `work` it is made of (4 sections, `turnsPerUnit` each), `kept`,
+`wear` (`fixed`: one point per hollow) and `oil` (`points` drained per hollow from a `tank`, 2 a
+pipe section).
 
 **The press brake** (type `pressbrake`, shape `machine`): one record per plate metal, id
 `pressbrake|game:metalplate-<metal>|0`. The ingredients are the plate (consumed), the screws and
-the edges (both in `machine.kept`) and the machine (role `station`); the output is two open chute
-sections. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
+the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
+(`seraphhorizons:angle-<metal>`), the plate bent once. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
 plate takes (a turn a second while the player holds right-click); there is no `wear` and no `oil`.
+
+**The mandrel forging station** (type `mandrelstation`, shape `machine`): one record per hollow metal,
+id `mandrelstation|game:chutesection-<metal>|0`. The ingredients are the hollow section (consumed), the
+mandrel (a rod, in `machine.kept`), the hammer (`isTool`, its `toolDurabilityCost` the blows a hollow
+times the wear a blow; `machine.wear` names it, rule `fixed`) and the machine (role `station`); the
+output is two pipe sections (`seraphhorizons:pipesection-<metal>`). It is worked by hand: `power` is
+`hand`, `turns` the hammer blows one hollow takes, each a right-click with a hammer, and `work` says so
+(`amount` that many, `unit` `blows`, no `turnsPerUnit`); there is no `oil`.
 
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role

@@ -115,7 +115,7 @@ public class DrawBenchSystem : ModSystem
             + "<a href=\"handbook://block-immersivewoodworking:sawmill-frame-north\">",
             "pulverizer</a>, the <a href=\"handbook://block-immersivewoodworking:sawmill-frame-north\">"),
         new("en", Domain + ":machineoil-text",
-            "a pulverizer half a point an item, the draw bench 2 points a section drawn (6 an ingot), the sawmill",
+            "a pulverizer half a point an item, the draw bench 2 points a pipe section drawn (8 a hollow section), the sawmill",
             "a pulverizer half a point an item, the sawmill"),
     ];
 

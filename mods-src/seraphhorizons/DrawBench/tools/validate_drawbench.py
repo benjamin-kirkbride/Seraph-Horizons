@@ -138,8 +138,9 @@ ALLOWED = [
     ("entry", r"_shaft", "frame", r"fr_cheek_[we]"),
     ("rectshaft", None, "frame", r"fr_rect\d_bearing|fr_cheek_[we]"),
     ("driveshaft", r"_rod", "frame", r"fr_drive\d_bearing|fr_cheek_w"),
-    ("returnshaft", r"_rod", "frame", r"fr_(beam_w|postn)"),
-    ("barrel", r"_rod", "frame", r"fr_barrel_bearing"),
+    ("drivesprocket", r"_rod", "frame", r"fr_sprocket_bearing|fr_cheek_w"),
+    ("returnshaft", r"_rod", "frame", r"fr_(beam_e|standard)$"),
+    ("barrel", r"_rod", "frame", r"fr_(barrel_bearing|standard)$"),
     ("idler", None, "frame", r"fr_idler_stud"),
     ("startlever", r"_shaft", "frame", r"fr_lever_bearing"),
     ("crank", r"_boss", "frame", r"fr_crank_post"),
@@ -148,7 +149,7 @@ ALLOWED = [
     # loose wheels, sleeves and keyed fittings on their shafts
     ("rect(b1|b2)", None, "rectshaft", None), ("cup", None, "rectshaft", None), ("sleeve", None, "rectshaft", None),
     ("cone", None, "sleeve|rectshaft", None), ("cluster", None, "sleeve|rectshaft", None),
-    ("drivesprocket", None, "driveshaft", r"_rod"), ("returnsprocket", None, "returnshaft", r"_rod"),
+    ("returnsprocket", None, "returnshaft", r"_rod"), ("driveshaft", r"_fd", "drivesprocket", r"_fd"),
     # meshing wheels (their pitch circles are checked by check_gearing)
     ("entry", r"entry_a1", "rectb1", None), ("entry", r"entry_a2", "idler", None), ("idler", None, "rectb2", None),
     ("cluster", r"cluster_a", "driveshaft", r"_ap"), ("cluster", r"cluster_b", "driveshaft", r"_bp"),
@@ -173,11 +174,11 @@ ALLOWED = [
     ("spring\\d", None, "follower", None),
     ("die", None, "frame", r"fr_diestock"),
     # the work: slugs on the mandrel, against the follower, into the die stock; sections through the die and
-    # over the plug, in the jaws, on the skids and against each other on the rack
+    # over the plug, in the jaws, on the trough's rails and end to end in its queue
     ("[lc]slug\\d", None, "mandrel", None), ("[lc]slug\\d", None, "follower", None), ("[lc]slug\\d", None, "[lc]slug\\d", None),
     ("[lc]slug\\d", None, "frame", r"fr_(diestock|oiler)"), ("[lc]slug\\d", None, "[lc]sect\\d[ab]", None),
     ("[lc]sect\\d[ab]", None, "[lc]sect\\d[ab]", None), ("[lc]sect\\d[ab]", None, "mandrel", None),
-    ("[lc]sect\\d[ab]", None, "die", None), ("[lc]sect\\d[ab]", None, "frame", r"fr_(diestock|skid|lip)"),
+    ("[lc]sect\\d[ab]", None, "die", None), ("[lc]sect\\d[ab]", None, "frame", r"fr_(diestock|rail|trough_stop)"),
     ("[lc]sect\\d[ab]", None, "dog", r"_jawfixed"), ("[lc]sect\\d[ab]", None, "jaw", r"_face"),
     # the oil in its cup
     ("oillevel", None, "frame", r"fr_oiler_(base|glass)"),
@@ -286,14 +287,14 @@ def clearance_poses(m):
 
 TEX_RULES = [
     (r"^(fr_sill|fr_tie|fr_post[wen]|fr_beam|fr_weight_pad|entry_shaft[ab]|barrel_drum)", "oak"),
-    (r"^(fr_way|fr_girder|fr_tailstock|fr_diestock|fr_head|fr_cheek|fr_\w+_(bearing|post)|fr_skid|fr_lip|weight_|dog_(sled|head|topplate)|crank_(boss|rodarm|forkarm)|ch\d\d_|chaintop_|chainbot_|(drive|return)sprocket_)", "iron"),
+    (r"^(fr_way|fr_tailstock|fr_diestock|fr_head|fr_cheek|fr_standard|fr_\w+_(bearing|post)|fr_rail|fr_trough|weight_|dog_(shoe|cheek|crossbar|topplate|bracket|shank|lug)|crank_(boss|rodarm|forkarm)|ch\d\d_|chaintop_|chainbot_|(drive|return)sprocket_(body|tooth|hub))", "iron"),
     (r"^(entry_a|rectb|idler_|rectshaft_|sleeve_|cluster_|driveshaft_|returnshaft_|barrel_(rod|gear)|mandrel_|spring\d|dog_(jawfixed|pin|jawpin|spring)|jaw_(face|boss)|clutchrod_|selector_(rod|fork))", "steel"),
     (r"^(cup_|cone_step)", "cupronickel"),
     (r"^die_", "die"),
-    (r"^lslug", "lead"),
-    (r"^cslug", "copper"),
-    (r"^lsect", "leadsheet"),
-    (r"^csect", "coppersheet"),
+    (r"^lslug", "leadsheet"),
+    (r"^cslug", "coppersheet"),
+    (r"^lsect", "lead"),
+    (r"^csect", "copper"),
     (r"^(rope\d|ropetop|barrel_wraps)", "rope"),
     (r"^fr_oiler_glass", "glass"),
     (r"^fr_oiler_(base|cap|spout|tip|feed)|^(startlever|selector)_knob", "brass"),
@@ -367,6 +368,7 @@ def check_gearing(v):
         ("change gear, lead 16:24", "cluster", m.RECT_C, m.CG_R["a"], "driveshaft", m.D_C, m.CG_R["ap"], 1),
         ("change gear, copper 10:30", "cluster", m.RECT_C, m.CG_R["b"], "driveshaft", m.D_C, m.CG_R["bp"], 2),
         ("return gears 1:1", "returnshaft", m.N_C, m.RET_R, "barrel", m.K_C, m.RET_R, 1),
+        ("final drive 1:1", "driveshaft", m.D_C, m.FD_R, "drivesprocket", m.S_C, m.FD_R, 1),
     ]
     worst = 0.0
     for label, pa, ca, ra, pb, cb, rb, how in pairs:
@@ -393,7 +395,7 @@ def check_gearing(v):
         b1 = angle_x(v, "rectb1", b) - angle_x(v, "rectb1", a)
         b2 = angle_x(v, "rectb2", b) - angle_x(v, "rectb2", a)
         n = sum(abs(q - rs) < 1e-9 for q in (b1, b2))
-        if n != 1 or rs >= 0:
+        if n != 1 or rs * m.DRAW_SIGN <= 0:
             v.fail(f"the rectifier: axle {th:+}, shaft {rs:.3f}, B1 {b1:.3f}, B2 {b2:.3f}")
     print("rectifier: for either sign of the axle exactly one loose wheel turns with the rectified shaft, always the draw's way")
     # the clutch: the cone (on the sleeve) and the cup (on the rectified shaft) together while in, each metal at its pace
@@ -454,7 +456,7 @@ def spans_union(spans):
 def check_work(v):
     """The section being drawn is whole from the die's mouth to its point in the jaws (the rest of it hidden in
     the die stock), the slugs lie end to end from the follower to the die stock, the spring's coils share
-    the follower's travel; the sections on the rack lie flat on the skids, one beside the other."""
+    the follower's travel; the sections in the trough lie flat on its rails, end to end."""
     m = v.m
     worst = 0.0
     for k, pre in ((1, "l"), (2, "c")):
@@ -509,34 +511,40 @@ def check_work(v):
                 v.fail(f"in the die's bore at W {w} ({pre}): {order[1]} stands {min(fronts[first]) - max(fronts[order[1]]):.4f} behind {first}")
     print("bore: the face seen in the empty die's bore stands clear of whatever is behind it")
     # the spring's coils share the follower's travel
-    for w in (0.0, 0.3, 1.39, 3.0):
+    for w in (0.0, 0.15, 1.19, 3.0, 4.0):
         pose = m.pose_at(1, w)
-        fol = min(e.aabb()[0][2] for e in v.posed("follower", pose) if "boss" in e.name)
+        fol = min(e.aabb()[0][2] for e in v.posed("follower", pose))
         for i in range(m.COILS):
             z = sum(e.c[2] for e in v.posed(f"spring{i + 1}", pose)) / len(v.posed(f"spring{i + 1}", pose))
-            want = m.Z_SPRING0 + (fol - m.Z_SPRING0) * (i + 0.5) / m.COILS
+            want = m.Z_SPRING0 + 0.3 + (fol - m.Z_SPRING0 - 0.3) * (i + 0.5) / m.COILS
             if abs(z - want) > 0.01:
                 v.fail(f"spring coil {i + 1} at {z:.3f}, want {want:.3f} (W {w})")
     print(f"spring: {m.COILS} coils evenly between the tail stock and the follower at every W")
-    # the sections on the rack: each in its place, a face flat on the skids, the first against the lip, the
-    # others beside it along the slope
-    pose = m.pose_at(1, 3.0)
+    # the sections in the trough: each in its place in the queue, flat on the rails and touching them, end to
+    # end from the north stop
+    pose = m.pose_at(1, float(m.SLUGS))
+    zs = []
     for mm in range(m.SLUGS):
         els_ = [e for j in range(m.NSEG) for e in v.posed(f"lsect{mm + 1}{'ab'[j]}", pose)]
-        cx = sum(e.c[0] for e in els_) / len(els_)
+        lo, hi = aabb_of(els_)
+        cz = (lo[2] + hi[2]) / 2
         cy = sum(e.c[1] for e in els_) / len(els_)
-        if abs(cx - m.SLOT_X[mm]) > 0.01 or abs(cy - m.rest_y(m.SLOT_X[mm])) > 0.01:
-            v.fail(f"section {mm + 1} lies at ({cx:.2f}, {cy:.2f}), not on its place on the rack")
-        worst = max(abs(math.remainder(math.atan2(e.r[1][1], e.r[0][1]) - (math.pi / 2 - m.SLOPE_ANG), math.pi / 2)) for e in els_)
+        zs.append((lo[2], hi[2]))
+        if abs(cz - m.SLOT_Z[mm]) > 0.02 or abs(cy - m.rest_y(m.SLOT_Z[mm])) > 0.02:
+            v.fail(f"section {mm + 1} lies at (y {cy:.2f}, z {cz:.2f}), not in its place in the trough")
+        worst = max(abs(math.remainder(math.atan2(e.r[2][2], e.r[1][2]) - (math.pi / 2 - m.FLOOR_ANG), math.pi / 2)) for e in els_)
         if worst > 1e-3:
-            v.fail(f"section {mm + 1} does not lie flat on the skids ({math.degrees(worst):.2f} degrees off)")
-        low = min(min(p[1] - m.skid_top(p[0]) for p in e.corners()) for e in els_)
-        if abs(low) > 0.02:
-            v.fail(f"section {mm + 1} stands {low:.3f} off the skids")
-    step = m.SLOT_DX * math.cos(m.SLOPE_ANG)
-    gaps = [math.hypot(m.SLOT_X[mm] - m.SLOT_X[mm + 1], m.rest_y(m.SLOT_X[mm]) - m.rest_y(m.SLOT_X[mm + 1])) - 2 * m.PIPE_R for mm in range(m.SLUGS - 1)]
-    lip = m.LIP_X[0] - (m.SLOT_X[0] + m.SPREAD)
-    print(f"rack: three sections flat on the skids, {lip:.2f} from the lip and {min(gaps):.2f} apart along the slope (steps {step:.2f} in x)")
+            v.fail(f"section {mm + 1} does not lie flat on the rails ({math.degrees(worst):.2f} degrees off)")
+        low = min(min(p[1] - m.floor_y(p[2]) for p in e.corners()) for e in els_)
+        if abs(low) > 0.03:
+            v.fail(f"section {mm + 1} stands {low:.3f} off the rails")
+    # tilted with the rails: end to end along them, and the first's north face clear of the stop below its top
+    gaps = [(m.SLOT_Z[i + 1] - m.SLOT_Z[i]) / math.cos(m.FLOOR_ANG) - m.PIPE for i in range(m.SLUGS - 1)]
+    stop = m.SLOT_Z[0] - m.PIPE / 2 - m.STOP_Z[1]
+    print(f"queue: {m.SLUGS} sections flat on the trough's rails, the first {stop:.3f} from the stop, end to end along the rails "
+          f"{min(gaps):.3f} apart")
+    if stop < 0.0 or min(gaps) < 0.0:
+        v.fail("the sections in the trough run into the stop or each other")
 
 
 def check_weight(v):
@@ -626,9 +634,10 @@ def check_supports(v):
     shafts = [
         ("entry shaft", "entry", r"_shaft", 0, m.ENTRY, r"^fr_cheek_[we]$", 2),
         ("rectified shaft", "rectshaft", r"_rod", 0, m.RECT, r"^(fr_rect\d_bearing|fr_cheek_[we])$", 2),
-        ("drive shaft", "driveshaft", r"_rod", 0, (m.SPR_Y, m.D_Z), r"^(fr_drive\d_bearing|fr_cheek_w)$", 2),
-        ("return shaft", "returnshaft", r"_rod", 0, (m.SPR_Y, m.N_Z), r"^fr_(beam_w|postn)$", 2),
-        ("barrel shaft", "barrel", r"_rod", 0, (m.K_Y, m.N_Z), r"^fr_barrel_bearing", 2),
+        ("drive shaft", "driveshaft", r"_rod", 0, (m.D_Y, m.D_Z), r"^(fr_drive\d_bearing|fr_cheek_w)$", 2),
+        ("sprocket shaft", "drivesprocket", r"_rod", 0, (m.SPR_Y, m.S_Z), r"^(fr_sprocket_bearing|fr_cheek_w)$", 2),
+        ("return shaft", "returnshaft", r"_rod", 0, (m.SPR_Y, m.N_Z), r"^fr_(beam_e|standard)$", 2),
+        ("barrel shaft", "barrel", r"_rod", 0, (m.K_Y, m.N_Z), r"^fr_(barrel_bearing|standard)$", 2),
         ("start lever", "startlever", r"_shaft", 0, (m.LEVER_Y, m.LEVER_Z), r"^fr_lever_bearing", 2),
         ("idler's stud", "frame", r"fr_idler_stud", 0, m.IDLER, r"^(fr_idler_arm|fr_cheek_e)$", 1),
     ]
@@ -685,10 +694,10 @@ def check_oiler(v):
             v.fail("the oil is outside its glass")
     tip = v.named("frame", r"fr_oiler_tip")[0].aabb()
     drip = [c * 16 for c in v.rig["drip"]["pos"]]
-    slug_top = m.DL[1] + m.SLUG_R
-    print(f"oiler: its spout drips {tip[0][1] - slug_top:.2f} over the slug, {m.Z_DIE_BACK - drip[2]:.2f} behind the die stock; the drip anchor at "
+    slug_top = m.DL[1] + m.HOLLOW_H
+    print(f"oiler: its spout drips {tip[0][1] - slug_top:.2f} over the hollow, {m.Z_DIE_BACK - drip[2]:.2f} behind the die stock; the drip anchor at "
           f"{[round(c, 2) for c in drip]}")
-    if abs(drip[1] - tip[0][1]) > 0.01 or not (tip[0][2] <= drip[2] <= tip[1][2]) or not (0.1 < tip[0][1] - slug_top < 1.0):
+    if abs(drip[1] - tip[0][1]) > 0.01 or not (tip[0][2] <= drip[2] <= tip[1][2]) or not (0.02 < tip[0][1] - slug_top < 1.0):
         v.fail("the drip anchor is not at the spout's mouth over the slug")
 
 
@@ -696,7 +705,7 @@ def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
     check_floating(v)
-    poses = [m.REST] + [m.pose_at(k, mm + t) for k in (1, 2) for mm in range(m.SLUGS) for t in (0.0, 0.2, 0.39, 0.44, 0.47, 0.52, 0.7)]
+    poses = [m.REST] + [m.pose_at(k, mm + t) for k in (1, 2) for mm in range(m.SLUGS) for t in (0.0, 0.1, 0.19, 0.24, 0.27, 0.32, 0.5, 0.7)]
     check_containment(v, poses)
     check_anchors(v)
     check_textures(v)

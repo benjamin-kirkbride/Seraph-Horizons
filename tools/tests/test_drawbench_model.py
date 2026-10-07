@@ -28,7 +28,7 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "drawbench-rig.
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "drawbench.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "drawbench_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "DrawBench" / "rig-reference.json").read_text())
-# the build order: the frame, gearbox, chain, dog, mandrel, die; the work is a lead or a copper ingot, drawn into three chute sections
+# the build order: the frame, gearbox, chain, dog, mandrel, die; the work is a lead or a copper hollow section, drawn into four pipe sections
 REQUIRES = {"gearbox", "chain", "dog", "mandrel", "die", "billetlead", "billetcopper", None}
 
 
@@ -89,10 +89,10 @@ class Draw(unittest.TestCase):
         self.assertNotIn("trunkPath", RIG)
         w = rigmath.progress_of(RIG)
         self.assertEqual((w["name"], w["unit"]), ("sections drawn", "sections"))
-        self.assertEqual(w["end"], {"thin": 3.0, "thick": 3.0})
-        self.assertEqual(RIG["draw"]["sectionsPerIngot"], 3)
-        self.assertEqual(RIG["draw"]["ingots"], {"thin": "game:ingot-lead", "thick": "game:ingot-copper"})
-        for old in ("sections", "pipesPerSection", "pipesPerIngot", "turnsPerPipe"):
+        self.assertEqual(w["end"], {"thin": 4.0, "thick": 4.0})
+        self.assertEqual(RIG["draw"]["sectionsPerHollow"], 4)
+        self.assertEqual(RIG["draw"]["hollows"], {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"})
+        for old in ("ingots", "sections", "sectionsPerIngot", "pipesPerSection", "pipesPerIngot", "turnsPerPipe"):
             self.assertNotIn(old, RIG["draw"])
 
     def test_turns_per_section_is_the_drawn_gearing(self):
@@ -108,7 +108,7 @@ class Draw(unittest.TestCase):
             b = matrix("sleeve", work=make_shape.T_DRAW[0] + 0.01, size=k, presence=1.0)
             turned = math.atan2(b[2][1], b[1][1]) - math.atan2(a[2][1], a[1][1])
             axle = 2 * math.pi * tpp[cls] * 0.01
-            self.assertAlmostEqual(-turned, axle * make_shape.RECT_RATIO, places=5, msg=cls)
+            self.assertAlmostEqual(turned, make_shape.DRAW_SIGN * axle * make_shape.RECT_RATIO, places=5, msg=cls)
         self.assertGreater(span, 0)
 
     def test_a_stroke_ends_where_it_started(self):
@@ -117,7 +117,7 @@ class Draw(unittest.TestCase):
                  if p["id"] in ("dog", "jaw", "clutchrod", "startlever", "crank", "cone", "weight", "driveshaft", "returnshaft", "barrel")
                  or p["id"].startswith(("ch", "rope"))]
         for k in (1, 2):
-            for w in (1.0, 2.0, 3.0):
+            for w in (1.0, 2.0, 3.0, 4.0):
                 for pid in cycle:
                     a = matrix(pid, work=0.0, size=k, presence=1.0)
                     b = matrix(pid, work=w, size=k, presence=1.0)
@@ -128,9 +128,10 @@ class Draw(unittest.TestCase):
     def test_the_dog_draws_one_section_a_stroke(self):
         mid = matrix("dog", work=make_shape.T_DRAW[1], size=1, presence=1.0)
         self.assertAlmostEqual(mid[2][3] * 16, make_shape.S_DOG, places=4)
-        # a chute section is half a block long, as the game's; pointed through the die, drawn to its tail and
-        # dropped on the rack
-        self.assertEqual(make_shape.PIPE, 8.0)
+        # a pipe section is half a block long and 6 across (ppex's pipe), drawn from a quarter of the hollow (the
+        # game's chute section, 8 across and 8 long); pointed through the die, drawn to its tail, dropped in the trough
+        self.assertEqual((make_shape.PIPE, 2 * make_shape.PIPE_R), (8.0, 6.0))
+        self.assertEqual((2 * make_shape.HOLLOW_H, make_shape.HOLLOW_L, make_shape.SLUGS), (8.0, 8.0, 4))
         self.assertAlmostEqual(make_shape.S_TUBE + make_shape.POINT, make_shape.PIPE)
 
     def test_copper_moves_the_change_gear_and_lead_does_not(self):
@@ -157,9 +158,9 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual(x, make_shape.DL[0], places=2)
         self.assertAlmostEqual(y, make_shape.DL[1], places=2)
         self.assertAlmostEqual(z, make_shape.Z_MOUTH, places=2)
-        # sections come out at the east face, over the second cell
+        # sections come out at the east face of the die end's cell, beside the trough's north end
         ox, _, oz = RIG["output"]["pos"]
-        self.assertTrue(0.9 < ox < 1.0 and 1.0 < oz < 2.0)
+        self.assertTrue(0.9 < ox < 1.0 and 0.0 < oz < 1.0)
         self.assertNotIn("oil", RIG)        # the oil is MachineOil's tank: no fill anchor
 
     def test_the_oil_level_follows_the_oil_input(self):

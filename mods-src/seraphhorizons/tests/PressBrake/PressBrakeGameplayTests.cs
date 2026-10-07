@@ -5,7 +5,7 @@ using Xunit;
 namespace SeraphHorizons.Tests.PressBrake;
 
 /// <summary>PressBrake/Core: the build order, what each stage takes and take-back; the plates by
-/// metal; the fold's arithmetic (W only while the lever is worked, two sections at W = 1); who holds
+/// metal; the fold's arithmetic (W only while the lever is worked, one angle at W = 1); who holds
 /// the lever; the renderer's clock; and the settings.</summary>
 public class PressBrakeGameplayTests
 {
@@ -105,20 +105,21 @@ public class PressBrakeGameplayTests
     // ---- Plates ----
 
     [Fact]
-    public void Plates_and_sections_by_metal()
+    public void Plates_and_angles_by_metal()
     {
         Assert.Equal(1, Folding.ClassOfPlate("game:metalplate-lead"));
         Assert.Equal(2, Folding.ClassOfPlate("game:metalplate-copper"));
         Assert.Equal(0, Folding.ClassOfPlate("game:metalplate-iron"));
         Assert.Equal(0, Folding.ClassOfPlate("game:ingot-lead"));
-        Assert.Equal(0, Folding.ClassOfPlate("seraphhorizons:chutesectionopen-lead"));   // what comes off never goes back on
+        Assert.Equal(0, Folding.ClassOfPlate("seraphhorizons:angle-lead"));   // what comes off never goes back on
         Assert.Equal(0, Folding.ClassOfPlate("game:chutesection-copper"));
-        Assert.Equal("seraphhorizons:chutesectionopen-lead", Folding.SectionFor(1));
-        Assert.Equal("seraphhorizons:chutesectionopen-copper", Folding.SectionFor(2));
-        Assert.Null(Folding.SectionFor(0));
+        Assert.Equal(0, Folding.ClassOfPlate("seraphhorizons:pipesection-copper"));
+        Assert.Equal("seraphhorizons:angle-lead", Folding.AngleFor(1));
+        Assert.Equal("seraphhorizons:angle-copper", Folding.AngleFor(2));
+        Assert.Null(Folding.AngleFor(0));
         Assert.Equal("game:metalplate-copper", Folding.PlateFor(2));
         Assert.Equal(("lead", "copper"), (Folding.MetalOf(1), Folding.MetalOf(2)));
-        Assert.Equal(2, Folding.SectionsPerPlate);
+        Assert.Equal(1, Folding.AnglesPerPlate);
     }
 
     [Fact]
@@ -129,14 +130,15 @@ public class PressBrakeGameplayTests
         Assert.Equal(FoldLoadVerdict.Incomplete, Folding.CanLoad(Folding.LeadPlate, false, false));
         Assert.Equal(FoldLoadVerdict.Occupied, Folding.CanLoad(Folding.CopperPlate, true, true));
         Assert.Equal(FoldLoadVerdict.NotAPlate, Folding.CanLoad("game:ingot-copper", true, false));
-        Assert.Equal(FoldLoadVerdict.NotAPlate, Folding.CanLoad("seraphhorizons:chutesectionopen-copper", true, false));
+        Assert.Equal(FoldLoadVerdict.NotAPlate, Folding.CanLoad("seraphhorizons:angle-copper", true, false));
+        Assert.Equal(FoldLoadVerdict.NotAPlate, Folding.CanLoad("game:chutesection-lead", true, false));
     }
 
     // ---- The fold ----
 
     [Theory]
-    [InlineData(1, 6.0)]
-    [InlineData(2, 9.0)]
+    [InlineData(1, 3.0)]
+    [InlineData(2, 4.5)]
     public void W_advances_with_the_lever_and_the_plate_is_done_at_1(int k, double turns)
     {
         var job = new FoldJob(k, 0);
@@ -163,11 +165,11 @@ public class PressBrakeGameplayTests
         Assert.False(Folding.Running(true, true, false));
         Assert.False(Folding.Running(true, false, true));
         Assert.False(Folding.Running(false, true, true));
-        // one second of holding is one lever turn: a lead plate takes 6, copper 9
+        // one second of holding is one lever turn: a lead plate takes 3, copper 4.5
         Assert.Equal(2 * Math.PI, Folding.LeverRadiansPerSecond, 9);
         var c = new PressBrakeConfig();
-        Assert.Equal(1 / 6.0, Folding.PlatesFor(Folding.LeverRadiansPerSecond, c.LeverTurnsPerPlate(1)), 9);
-        Assert.Equal(1 / 9.0, Folding.PlatesFor(Folding.LeverRadiansPerSecond, c.LeverTurnsPerPlate(2)), 9);
+        Assert.Equal(1 / 3.0, Folding.PlatesFor(Folding.LeverRadiansPerSecond, c.LeverTurnsPerPlate(1)), 9);
+        Assert.Equal(1 / 4.5, Folding.PlatesFor(Folding.LeverRadiansPerSecond, c.LeverTurnsPerPlate(2)), 9);
         Assert.Equal(0, Folding.PlatesFor(-3, 6));
         Assert.Equal(0, Folding.PlatesFor(3, 0));
     }
@@ -259,13 +261,13 @@ public class PressBrakeGameplayTests
     public void Defaults_are_the_documented_ones_and_out_of_range_values_fall_back()
     {
         var c = new PressBrakeConfig();
-        Assert.Equal((6f, 9f), (c.LeverTurnsPerPlateLead, c.LeverTurnsPerPlateCopper));
+        Assert.Equal((3f, 4.5f), (c.LeverTurnsPerPlateLead, c.LeverTurnsPerPlateCopper));
         Assert.Equal(c.LeverTurnsPerPlateLead * 1.5, c.LeverTurnsPerPlateCopper, 3);   // copper half as much again
         Assert.Equal(0, c.LeverTurnsPerPlate(0));
         Assert.Empty(c.Sanitise());
         var bad = new PressBrakeConfig { LeverTurnsPerPlateLead = float.NaN, LeverTurnsPerPlateCopper = -1 };
         Assert.Equal(2, bad.Sanitise().Count);
-        Assert.Equal((6f, 9f), (bad.LeverTurnsPerPlateLead, bad.LeverTurnsPerPlateCopper));
+        Assert.Equal((3f, 4.5f), (bad.LeverTurnsPerPlateLead, bad.LeverTurnsPerPlateCopper));
     }
 
     // The player looks along the brake: it runs away from them, the leaf end nearest.

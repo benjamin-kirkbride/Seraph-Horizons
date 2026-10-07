@@ -23,7 +23,7 @@ public enum DrawBenchFitVerdict
 public readonly record struct DrawBenchDrop(string Code, int? Durability = null);
 
 /// <summary>The draw bench's <c>requires</c> vocabulary: the five stages, and the work's
-/// (<c>billetlead</c>, <c>billetcopper</c>: an ingot of that metal on the bench).</summary>
+/// (<c>billetlead</c>, <c>billetcopper</c>: a hollow section of that metal on the bench).</summary>
 public static class DrawBenchRequires
 {
     public const string BilletLead = "billetlead";
@@ -197,7 +197,7 @@ public sealed class DrawBenchParts
         DieLeft = DieCapacity = 0;
     }
 
-    /// <summary>Whether Ctrl + right-click takes the die back now: one is fitted and no ingot is on
+    /// <summary>Whether Ctrl + right-click takes the die back now: one is fitted and no hollow is on
     /// the bench (<paramref name="jobOn"/>). Nothing else comes back but by breaking the frame.</summary>
     public bool CanTakeDie(bool jobOn) => Has(DrawBenchStage.Die) && !jobOn;
 

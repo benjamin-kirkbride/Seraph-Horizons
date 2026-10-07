@@ -9,10 +9,10 @@ means. The mod checks the same at run time (Pipes/Core/PipeAssetGuard.cs) and st
 warning; this catches a ppex update before it ships. It also requires the patch to agree with
 gearconsumers-ppex.json, which patches the same valve recipes.
 
-`unifiedpipes-chutesection.json` adds lead, iron and steel to the game's chute section (the pipe
-section), switches off the game's plate-and-solder recipe for it and gives the game's five chute
-recipes a solder bar per section and a soldering iron, all by index; it is held to the game's own
-files. `unifiedpipes-betterruins.json` switches off Better Ruins' five solderless blueprint chutes by
+`unifiedpipes-chutesection.json` adds lead to the game's chute section (the hollow section),
+switches off the game's anvil recipe and its plate-and-solder grid recipe for it and gives the game's
+five chute recipes a solder bar per section and a soldering iron, the grid ones by index; it is held
+to the game's own files, as are the textures of this mod's angle and pipe section. `unifiedpipes-betterruins.json` switches off Better Ruins' five solderless blueprint chutes by
 index; it is held to Better Ruins' zip. Pipes/Core/ChuteSections.cs checks the same at run time.
 
 Needs `python3 tools/packtool.py fetch`; skips without ppex's zip. The chute section checks need
@@ -31,6 +31,8 @@ PATCH = PATCHES / "unifiedpipes-ppex.json"
 CHUTE_PATCH = PATCHES / "unifiedpipes-chutesection.json"
 CHUTE_ITEM = "game:itemtypes/resource/chutesection.json"
 CHUTE_RECIPES = "game:recipes/grid/chute.json"
+CHUTE_SMITHING = "game:recipes/smithing/chutesection.json"
+OWN_ASSETS = PATCHES.parent
 BR_PATCH = PATCHES / "unifiedpipes-betterruins.json"
 BR_RECIPES = "betterruins:recipes/grid/schematic-mechanical/mechanical.json"
 # index: (output, the game's pattern, sections)
@@ -105,7 +107,7 @@ class ChuteSectionPatchFitsTheGame(unittest.TestCase):
     def test_every_op_targets_the_chute_section_or_its_recipes(self):
         for op in self.patch:
             with self.subTest(op=op):
-                self.assertIn(op["file"], (CHUTE_ITEM, CHUTE_RECIPES))
+                self.assertIn(op["file"], (CHUTE_ITEM, CHUTE_RECIPES, CHUTE_SMITHING))
                 self.assertEqual("server", op["side"])
 
     def test_the_material_group_is_copper_alone_and_textured_by_material(self):
@@ -115,9 +117,9 @@ class ChuteSectionPatchFitsTheGame(unittest.TestCase):
         self.assertIn("{material}", doc["textures"]["metaltex"]["base"])
         self.assertNotIn("handbook", doc["attributes"])
         ops = [op for op in self.patch if op["file"] == CHUTE_ITEM]
-        self.assertEqual(["lead", "iron", "steel"], [op["value"] for op in ops if op["path"] == "/variantgroups/0/states/-"])
-        # each new metal has the game's sheet texture the {material} template names
-        for metal in ("lead", "iron", "steel"):
+        self.assertEqual(["lead"], [op["value"] for op in ops if op["path"] == "/variantgroups/0/states/-"])
+        # the new metal has the game's sheet texture the {material} template names
+        for metal in ("lead",):
             sheet = Path(os.environ["VINTAGE_STORY"]) / "assets" / "survival" / "textures" / (
                 doc["textures"]["metaltex"]["base"].replace("{material}", metal) + ".png")
             self.assertTrue(sheet.is_file(), sheet)
@@ -136,6 +138,25 @@ class ChuteSectionPatchFitsTheGame(unittest.TestCase):
         # and the game's chutes take the copper section by name, so the new metals make no chute
         for other in doc[:5]:
             self.assertEqual({"chutesection-copper"}, {ing["code"] for ing in other["ingredients"].values()})
+
+    def test_the_anvil_recipe_switched_off_is_the_copper_section(self):
+        doc = loads(self.assets[CHUTE_SMITHING])
+        self.assertIsInstance(doc, dict)
+        self.assertEqual("chutesection-copper", doc["output"]["code"])
+        self.assertEqual(("ingot-*", ["copper"]), (doc["ingredient"]["code"], doc["ingredient"]["allowedVariants"]))
+        self.assertNotIn("enabled", doc)
+        ops = [op for op in self.patch if op["file"] == CHUTE_SMITHING]
+        self.assertEqual([("add", "/enabled", False)], [(op["op"], op["path"], op["value"]) for op in ops])
+
+    def test_the_angle_and_pipe_section_textures_exist(self):
+        textures = Path(os.environ["VINTAGE_STORY"]) / "assets" / "survival" / "textures"
+        for item, metals in (("angle", ["copper", "lead"]), ("pipesection", ["copper", "lead", "iron", "steel"])):
+            doc = loads((OWN_ASSETS / "itemtypes" / f"{item}.json").read_text())
+            self.assertEqual(metals, doc["variantgroups"][0]["states"])
+            (base,) = [t["base"] for t in doc["textures"].values()]
+            for metal in metals:
+                sheet = textures / (base.removeprefix("game:").replace("{metal}", metal) + ".png")
+                self.assertTrue(sheet.is_file(), sheet)
 
     def test_each_chute_recipe_is_the_one_the_patch_solders(self):
         doc = loads(self.assets[CHUTE_RECIPES])

@@ -266,6 +266,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("GearCutter", off);
         Assert.Contains("DrawBench", off);
         Assert.Contains("PressBrake", off);
+        Assert.Contains("MandrelStation", off);
         Assert.Contains("Rosser", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
             .Select(c => (Code: c.Code.ToString(), Owner: registry.SwitchForCode(c.Code.ToString())))
@@ -368,6 +369,31 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>MandrelStation</c>: no mandrel station blocks and no recipe for its frame, no link
+    /// to it in the mod's own text, and nothing logged about it. The hollows it forges and the pipe
+    /// sections it makes (UnifiedPipes') exist either way.</summary>
+    [AtlasScenario]
+    public void Mandrel_station_off_there_is_no_mandrel_station()
+    {
+        Assert.True(Off("MandrelStation"));
+        Assert.False(SeraphHorizons.Mod.MandrelStation.MandrelStationSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("mandrelstation"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("mandrelstation") == true);
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.MandrelStation.Core.Forging.CopperHollow)));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://block-seraphhorizons:mandrelstation|handbooksearch://mandrel station"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the mandrel station: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("mandrelstation", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("mandrel station", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>GearboxSourceRatio</c>: nothing is patched, and a rotor placed after its gearbox,
     /// on the low side, takes the high side's ratio, as MPE Gearbox ships it (#462). When this fails
     /// with the rotor at 1, MPE Gearbox has fixed it and the tweak can go.</summary>
@@ -413,8 +439,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     /// <summary><c>UnifiedPipes</c>: ppex's pipes are as it ships them (iron and steel, from plate and
     /// nails, iron and steel valves), nothing of ppex or exlib is patched, the game's chute section is
-    /// copper alone and made from a plate again, and there is no open section, copper, lead or bronze
-    /// pipe, or recipe of this mod's for them.</summary>
+    /// copper alone and made on the anvil and from a plate again, and there is no angle, pipe section,
+    /// copper, lead or bronze pipe, or recipe of this mod's for them.</summary>
     [AtlasScenario]
     public void UnifiedPipes_off_ppex_pipes_are_as_they_ship()
     {
@@ -423,7 +449,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Pipes.UnifiedPipesSystem.HarmonyId));
         string[] added = ["copper", "lead", "tinbronze", "bismuthbronze", "blackbronze"];
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "ppex" } c && c.Path.StartsWith("pipe-") && added.Contains(b.Variant?["material"]));
-        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("chutesectionopen"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("angle-") || c.Path.StartsWith("pipesection-")));
         Assert.Equal(["game:chutesection-copper"], W.Items.Where(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith("chutesection-"))
             .Select(i => i.Code.ToString()));
         Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:chutesection-copper"
@@ -431,7 +457,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.GridRecipes, r => r.Name?.Domain == "seraphhorizons" && r.Output?.Code?.Domain == "ppex"
                                                   && r.Output.Code.Path.StartsWith("pipe-"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Name?.Domain == "seraphhorizons" && r.Output?.Code?.Path.StartsWith("chutesection-") == true);
-        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "game:chutesection-lead");
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Path.StartsWith("angle-") == true);
+        Assert.Contains(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.ToString() == "game:chutesection-copper");
         // the game's chutes from sections alone again, and Better Ruins' blueprint chutes back
         Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "game:chute-straight-ns"
                                             && r.ResolvedIngredients.Where(i => i != null).All(i => i.Code?.ToString() == "game:chutesection-copper"));

@@ -1,18 +1,18 @@
-// Open chute section (UnifiedPipes; README "Unified pipes"): a copper or lead plate folded on the
-// press brake into a U, open along the top where the seam will be (the game's chute section's 8 x 8
-// walls without its top, about 6.5 long, so two fold end to end within the brake's one-block edge).
-// Made only on the press brake, two to a plate; two,
-// soldered shut with two solder bars and a soldering iron, make two of the game's chute sections
-// (recipes/grid/chutesection.json). Marked disabled with the switch off.
+// Angle (UnifiedPipes; README "Unified pipes"): a copper or lead plate bent once at a right angle,
+// two legs 8 voxels wide and 1 thick, 8 long (shapes/item/angle.json), so two make the game's chute
+// section's 8 x 8 box. Forged on the anvil from one ingot (recipes/smithing/angle.json) or folded on
+// the press brake from one plate. Two angles, two tin or silver solder bars and a soldering iron make
+// one chute section, the hollow section (recipes/grid/chutesection.json). Marked disabled with the
+// switch off.
 {
-	code: "chutesectionopen",
+	code: "angle",
 	variantgroups: [
 		{ code: "metal", states: ["copper", "lead"] }
 	],
 	behaviors: [
 		{ name: "GroundStorable", properties: { layout: "SingleCenter", collisionBox: { x1: 0.25, y1: 0, z1: 0.25, x2: 0.75, y2: 0.5, z2: 0.75 } } }
 	],
-	shape: { base: "seraphhorizons:item/chutesectionopen" },
+	shape: { base: "seraphhorizons:item/angle" },
 	textures: {
 		metaltex: { base: "game:block/metal/sheet/{metal}1" }
 	},
@@ -27,8 +27,8 @@
 			scale: 0.8
 		},
 		handbook: {
-			groupBy: ["chutesectionopen-*"],
-			extraSections: [{ title: "seraphhorizons:chutesection-handbook-title", text: "seraphhorizons:chutesectionopen-handbook-text" }]
+			groupBy: ["angle-*"],
+			extraSections: [{ title: "seraphhorizons:angle-handbook-title", text: "seraphhorizons:angle-handbook-text" }]
 		}
 	},
 	creativeinventory: { "general": ["*"], "items": ["*"] },

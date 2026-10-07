@@ -46,8 +46,8 @@ public class DrawBenchRigTests
         var work = Assert.IsType<WorkQuantity>(path);
         Assert.Equal("sections", work.Unit);
         Assert.Equal("sections drawn", work.Name);
-        Assert.Equal(3.0, path.End(1), 6);
-        Assert.Equal(3.0, path.End(2), 6);
+        Assert.Equal(4.0, path.End(1), 6);
+        Assert.Equal(4.0, path.End(2), 6);
     }
 
     [NeedsDrawBenchFileFact(RigFile)]
@@ -61,7 +61,8 @@ public class DrawBenchRigTests
         Assert.Equal(Side.North, rig.InfeedSide);
         Assert.Equal(Side.East, rig.OutputSide);
         Assert.Equal([new Int3(0, 0, -1)], rig.InfeedNeighbours());
-        Assert.Equal(1, rig.OutputNeighbour().X);
+        // the pipe sections come off by the die end's east face, from the trough's first slot
+        Assert.Equal(new Int3(1, 0, 0), rig.OutputNeighbour());
         // the anchors lie in the bench
         foreach (var p in new[] { rig.Output, rig.Die, rig.Drip })
         {

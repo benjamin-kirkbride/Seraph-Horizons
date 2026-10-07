@@ -94,8 +94,8 @@ public sealed class PressBrakeClock
     }
 
     /// <summary>Whether a plate part (<c>platelead</c>, <c>platecopper</c>) is drawn: while that
-    /// metal's plate is on the bed. Once the sections are delivered the sheet is gone (they drop as
-    /// items), while the bar and screws ease back with p.</summary>
+    /// metal's plate is on the bed. Once the angle is delivered the sheet is gone (it drops as an
+    /// item), while the bar and screws ease back with p.</summary>
     public bool ShowsPlate(string requires) =>
         PlateOn != 0 && Presence > 0 && PressBrakeRequires.Plate(Class) == requires;
 
