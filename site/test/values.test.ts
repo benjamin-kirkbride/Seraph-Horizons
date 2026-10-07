@@ -5,7 +5,19 @@ import { FLAG_FLOOR_ZERO, type Meta, type SearchFile } from "../src/lib/format.t
 import { prepareData } from "../src/lib/prepare.ts";
 import { formatGears, isFloorZero, sortByValue, valueOf, ValueTable } from "../src/lib/values.ts";
 
-const minimal = JSON.parse(readFileSync(new URL("../../schema/examples/minimal.json", import.meta.url), "utf8")) as RecipeExport;
+/** minimal.json without the value fields it shows off, so each test sets its own. */
+const minimal = withoutValues(
+  JSON.parse(readFileSync(new URL("../../schema/examples/minimal.json", import.meta.url), "utf8")) as RecipeExport,
+);
+
+function withoutValues(exp: RecipeExport): RecipeExport {
+  for (const item of Object.values(exp.items)) {
+    delete item.value;
+    delete item.floorZero;
+    delete item.valueSwitches;
+  }
+  return exp;
+}
 
 /** minimal.json with a value on a few items, as the exporter writes them. */
 function withValues(): RecipeExport {

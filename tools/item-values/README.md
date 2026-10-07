@@ -84,11 +84,13 @@ credited at its value times its own expected items:
 
     value = (input x (1 + pct) + flat - sum over the other outputs of p_other x q_other x their value) / (p x q)
 
-floored at zero. The `lottery` kind has no labour (pct 0, flat 0), so the oiled gear (1.80, one in
-ten a steel gear, else one steel bit at 0.448) prices a steel gear at 10 x 1.80 - 9 x 0.448 = 13.97.
+floored at zero. The `lottery` kind has no labour (pct 0, flat 0), so the oiled gear (1.84, one in
+ten a steel gear, else one steel bit at 0.448) prices a steel gear at 10 x 1.84 - 9 x 0.448 = 14.38.
 A lottery route waits for the other outputs' values as a route waits for its tools; a loser no
 route will ever value is credited 0. Today the gear cutter (10.89) is the cheaper way to a steel
-gear, so that is its value; the lottery is what prices it when the cutter's switch is off.
+gear, so that is its value, and its `switches` are `GearBlanks` and `GearCutter` (below). The table
+is the default config's: it is never rebuilt with a switch off, so with the cutter off the handbook
+shows no value for the steel gear, though the lottery would still price it.
 
 **Schematics** (`schematics` in `markups.json`: `*:schematic-*`, `*:*-schematic-*` for BetterRuins,
 Abyssal Depths and Scrolled's rolled copies, and Cartwright's `cartschematics-*`; the patterns
@@ -136,20 +138,19 @@ which only a raw or override can be: the review list for hand prices.
 ## Numbers
 
 From smoke's export of the pack (pack 0.1.0, game 1.22.7, with mods-src/seraphhorizons loaded;
-27,163 items, 11,217 recipes), the export as of the item-values branch at dbeeac1:
+27,163 items, 11,217 recipes), the export as of the item-values branch at 6de2791:
 
-- 21,987 of 27,163 items valued (80.9%); of the 24,023 the handbook shows, 84.8%.
-- 13,836 from recipes, 5,795 raws, 2,338 defaults and fallbacks, 18 overrides.
+- 21,990 of 27,163 items valued (81.0%); of the 24,023 the handbook shows, 84.8%.
+- 13,837 from recipes, 5,797 raws, 2,338 defaults and fallbacks, 18 overrides.
 - 2,044 worthless (under a gear per stack), 9.3% of those valued.
 - 107 valued below their ingredients, all raws (nuggets, which the game hammers from ore chunks of
   more units; boards, wool) and the overrides: by design.
-- No value: 5,176, mostly things no player trades: creatures, loose surface ores, plant and crop
+- No value: 5,173, mostly things no player trades: creatures, loose surface ores, plant and crop
   blocks, rich gravel, coral, butterflies, termite mounds, stalagmites, carcasses (butchery is
   skipped), technical blocks, the schematics (87, by rule), and the retired pit saws and blades.
 - Coverage per domain: game 77.5%, Expanded Foods 98.2%, Door Variants 100%, Tailor's Delight
   100%, Alchemy 98.0%, Cartwright's 98.6%, ppex 100%, Butchering 20.4% (carcasses),
-  seraphhorizons 69.7% (its schematics, maps and leads; the large steel gear, whose kept master,
-  the large temporal gear, and the pickling tub, whose bark tar, have no value).
+  seraphhorizons 71.2% (its schematics, maps and leads have none).
 
 Samples (gears per item; vanilla trader prices per item for reference, sell / buy):
 
@@ -165,8 +166,8 @@ Samples (gears per item; vanilla trader prices per item for reference, sell / bu
 | rusty gear | 1 | 1000 | | raw (money) |
 | bed (wood) | 1.19 | 2 | 8 / — | grid |
 | barrel | 1.5 | 1 | 2 / — | override |
-| oiled gear | 1.80 | 64 | | rusty gear degreased, pickled, neutralized, oiled |
-| steel gear | 10.89 | 64 | | gear cutter (a cast steel blank, 8.87); 13.97 by the oiled gear's lottery |
+| oiled gear | 1.84 | 64 | | rusty gear degreased, pickled, neutralized, oiled |
+| steel gear | 10.89 | 64 | | gear cutter (a cast steel blank, 8.87); 14.38 by the oiled gear's lottery |
 
 At commit 31052e6, over the 475 items vanilla traders deal in, the median value is 1.2 x vanilla's buy price (266
 entries) and 0.7 x its sell price (346): values sit near what a trader pays, below what it charges.
