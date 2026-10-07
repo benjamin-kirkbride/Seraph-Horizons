@@ -31,7 +31,7 @@ import {
   type Object3D,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SIDE_NORMAL, cellBoxes, sideArrow, type Anchor, type Bounds } from "../lib/model-anchors.ts";
+import { SIDE_NORMAL, cellBoxes, lidBox, sideArrow, type Anchor, type Bounds } from "../lib/model-anchors.ts";
 import type { ModelView } from "../lib/model-view.ts";
 import { FACE_NAMES, corners, type FaceName, type Mat4, type Vec3 } from "../lib/rig.ts";
 
@@ -69,7 +69,7 @@ const EDGES: [number, number][] = [
   [0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7],
 ];
 
-const OVERLAY_COLOURS = { cell: 0xe8590c, side: 0x2f9e44, point: 0x9c36b5, line: 0x8b5a2b, level: 0x1c7ed6, collision: 0x1d9bd6, origin: 0xf08c00 };
+const OVERLAY_COLOURS = { cell: 0xe8590c, side: 0x2f9e44, point: 0x9c36b5, line: 0x8b5a2b, level: 0x1c7ed6, collision: 0x1d9bd6, lid: 0x7048e8, origin: 0xf08c00 };
 
 function boxEdges(lo: readonly number[], hi: readonly number[]): number[] {
   const c = (i: number) => [(i & 1 ? hi : lo)[0]!, (i & 2 ? hi : lo)[1]!, (i & 4 ? hi : lo)[2]!];
@@ -277,20 +277,28 @@ export class ModelScene {
     grid.material = this.gridMaterial;
     this.overlay("cells").add(grid, lines(boxEdges([0, 0, 0], [1, 1, 1]), OVERLAY_COLOURS.origin));
 
-    // Collision boxes: translucent, with outlines.
+    // Collision boxes: translucent, with outlines. The lids (collision-only decks over the
+    // machine's top, which the game adds to the top cell of every column) in their own shade,
+    // so the deck reads apart from the boxes under it.
     const collision = this.overlay("collision");
     const box = new BoxGeometry(1, 1, 1);
     const fill = new MeshBasicMaterial({ color: OVERLAY_COLOURS.collision, transparent: true, opacity: 0.16, depthWrite: false });
+    const lidFill = new MeshBasicMaterial({ color: OVERLAY_COLOURS.lid, transparent: true, opacity: 0.28, depthWrite: false });
     const collisionPts: number[] = [];
-    for (const c of rigCells)
-      for (const b of cellBoxes(c)) {
-        const m = new Mesh(box, fill);
-        m.scale.set(b.hi[0] - b.lo[0], b.hi[1] - b.lo[1], b.hi[2] - b.lo[2]);
-        m.position.set((b.lo[0] + b.hi[0]) / 2, (b.lo[1] + b.hi[1]) / 2, (b.lo[2] + b.hi[2]) / 2);
-        collision.add(m);
-        collisionPts.push(...boxEdges(b.lo, b.hi));
-      }
-    collision.add(lines(collisionPts, OVERLAY_COLOURS.collision, 0.8));
+    const lidPts: number[] = [];
+    const draw = (b: Bounds, material: MeshBasicMaterial, pts: number[]) => {
+      const m = new Mesh(box, material);
+      m.scale.set(b.hi[0] - b.lo[0], b.hi[1] - b.lo[1], b.hi[2] - b.lo[2]);
+      m.position.set((b.lo[0] + b.hi[0]) / 2, (b.lo[1] + b.hi[1]) / 2, (b.lo[2] + b.hi[2]) / 2);
+      collision.add(m);
+      pts.push(...boxEdges(b.lo, b.hi));
+    };
+    for (const c of rigCells) {
+      for (const b of cellBoxes(c)) draw(b, fill, collisionPts);
+      const lid = lidBox(c);
+      if (lid) draw(lid, lidFill, lidPts);
+    }
+    collision.add(lines(collisionPts, OVERLAY_COLOURS.collision, 0.8), lines(lidPts, OVERLAY_COLOURS.lid, 0.8));
 
     for (const a of anchors) {
       const g = this.overlay(a.key);

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { cellBoxes, discoverAnchors, footprintBounds, humanize, sideArrow, type Anchor } from "../src/lib/model-anchors.ts";
+import { cellBoxes, discoverAnchors, footprintBounds, humanize, lidBox, sideArrow, type Anchor } from "../src/lib/model-anchors.ts";
 import { checkManifest, publishModels, type ManifestModel } from "../src/lib/model-manifest.ts";
 import {
   advance,
@@ -33,6 +33,7 @@ const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.u
 const mill = manifest.models.find((m) => m.id === "bucking-sawmill")!;
 const millRig = readRepoJson(mill.rig!) as Rig;
 const millShape = readRepoJson(mill.shape) as Shape;
+const rosserRig = readRepoJson(manifest.models.find((m) => m.id === "rosser")!.rig!) as Rig;
 
 describe("site/models.json", () => {
   it("publishes every model from files that exist and check out", () => {
@@ -129,6 +130,20 @@ describe("anchors", () => {
     expect(footprintBounds([])).toBeNull();
     expect(cellBoxes({ pos: [2, 0, -1], boxes: [[0, 0, 0.5, 1, 0.25, 1]] })).toEqual([{ lo: [2, 0, -0.5], hi: [3, 0.25, 0] }]);
     expect(cellBoxes({ pos: [1, 1, 1] })).toEqual([{ lo: [1, 1, 1], hi: [2, 2, 2] }]);
+  });
+
+  it("turns a cell's lid into a deck over the whole cell, 1/16 thick, and nothing without one", () => {
+    expect(lidBox({ pos: [2, 3, -1], boxes: [[0, 0, 0.5, 1, 0.25, 1]], lid: 1 })).toEqual({ lo: [2, 3.9375, -1], hi: [3, 4, 0] });
+    expect(lidBox({ pos: [0, 2, 0], hollow: true, lid: 0.5 })).toEqual({ lo: [0, 2.4375, 0], hi: [1, 2.5, 1] });
+    expect(lidBox({ pos: [0, 2, 0], hollow: true })).toBeNull();
+    // The lid is collision only: it never joins the cell's own boxes.
+    expect(cellBoxes({ pos: [0, 2, 0], hollow: true, lid: 1 })).toEqual([]);
+    // Every column of the rosser has one, on its top cell and nowhere else.
+    const cells = rosserRig.cells!;
+    const top = new Map<string, number>();
+    for (const c of cells) top.set(`${c.pos[0]},${c.pos[2]}`, Math.max(top.get(`${c.pos[0]},${c.pos[2]}`) ?? -Infinity, c.pos[1]));
+    for (const c of cells) expect(lidBox(c) !== null, `cell ${c.pos.join(",")}`).toBe(top.get(`${c.pos[0]},${c.pos[2]}`) === c.pos[1]);
+    expect(cells.filter((c) => lidBox(c)).length).toBe(66);
   });
 
   it("puts a side's arrow outside that side, on a bed running that way", () => {
