@@ -1,5 +1,6 @@
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.RecipeExport.Items;
+using SeraphHorizons.RecipeExport.Recipes;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 
@@ -16,6 +17,7 @@ public static class ItemSection
 
         root["mods"] = BuildMods(mods);
         root["items"] = BuildItems(api, mods, referenced);
+        Switches.AnnotateItems(api, (JObject)root["items"]!);
         root["guides"] = Guides.Build(api, mods);
     }
 

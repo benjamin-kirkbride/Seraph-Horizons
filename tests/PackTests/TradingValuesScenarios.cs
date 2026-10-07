@@ -55,6 +55,17 @@ public class TradingValuesScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Contains("no value", await Run("/sh trade value game:notanitem"));
     }
 
+    // The handbook's value line (client side, ValueHandbook): the game method it follows is there,
+    // and the server has told clients which switches are off (none, in this default-config world).
+    [AtlasScenario]
+    public void Handbook_line_has_its_hook_and_the_server_publishes_the_off_switches()
+    {
+        Assert.NotNull(ValueHandbook.Target());
+        Assert.Equal("", World.Api.World.Config.GetString(ValueHandbook.OffKey, "missing"));
+        Assert.Equal("1", ValueHandbook.Format(1.0));
+        Assert.Equal("0.125", ValueHandbook.Format(0.125));
+    }
+
     [AtlasScenario(TimeoutMs = 900_000)]
     public void Export_is_written_when_asked()
     {

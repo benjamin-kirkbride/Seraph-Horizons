@@ -130,6 +130,8 @@ export interface Recipe {
   mod: string;
   source?: string;
   enabled?: boolean;
+  /** The config switch of the pack's own mod that adds the recipe. */
+  switch?: string;
   ingredients: Ingredient[];
   outputs: Output[];
   variants: Variant[];

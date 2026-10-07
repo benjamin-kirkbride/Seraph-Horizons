@@ -149,6 +149,7 @@ public static partial class RecipeSection
                 throw new RecipeExportException($"Duplicate recipe id {records[i]["id"]}");
 
         root["recipes"] = new JArray(records);
+        Switches.AnnotateRecipes(api, (JArray)root["recipes"]!);
         root["recipeTypes"] = new JObject(types.Select(kv => new JProperty(kv.Key, kv.Value)));
         return ctx.Referenced;
     }
