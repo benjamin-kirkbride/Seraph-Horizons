@@ -2105,6 +2105,58 @@ After a pack change that adds, removes or re-recipes items, rebuild the table fr
 (`tools/item-values/README.md`). CI's export job fails when an item of this mod's trade lists
 (`config/tradelists/`) has no value, and warns when the shipped table has drifted from the export.
 
+**In the handbook** (#506): every item and block page shows, under its name and description, the
+rusty gear's icon and the item's value (a family fallback shows like a direct value), or "No trade
+value" when the table has none or when a switch its value depends on is off. The table's optional
+`switches` object maps a code to the switches its value exists only with (its cheapest route takes a
+recipe or an item they add; `tools/item-values` works that out from the export's `switch` fields,
+below); `ItemValues.SwitchesOf(code)` reads it and `ItemValues.Shown(code, isOff)` decides the line.
+The server writes its off switches to the world config (`seraphhorizons:switchesOff`) in `Start`,
+as the unified woodworking does its state, and the client reads them from there.
+`Game/ValueHandbook.cs` is a client-side Harmony postfix (own id `seraphhorizons.itemvalues`) on the
+game's private `CollectibleBehaviorHandbookTextAndExtraInfo.addGeneralInfo`, which appends an
+inline item stack component (the rusty gear) and the number; not a collectible behaviour, since the
+handbook calls only the first `ICustomHandbookPageContent` of a collectible and Tidy Variants' groups
+need theirs to be it. The rusty gear's own page adds one sentence saying what the number is. If the
+game's method changes, a warning says so and pages show no value.
+
+#### Switch ownership
+
+Which switch adds a recipe or an item, for the recipe export (`recipes[i].switch`,
+`items[code].switch`, docs/recipe-browser/schema.md) and so for the table's `switches`.
+`SwitchRegistry.cs` builds it from what each feature itself leaves out with its switch off: the
+recipe files and the block and item type files its system disables (`GearCutterSystem.TypeAssets`
+and `RecipeAssets`, `GearBlanks`', `BuckingSawmillSystem`'s and `RosserSystem`'s `BlockAssets` and
+`RecipeAsset`, `PicklingTubSystem`'s tub, bare gear and recipe, `GearReclamationSystem`'s cooking
+and barrel recipes, `SteelBitsSystem.RecipeAsset`, `CreativeSteamSource.BlockAsset`), reading each
+type file's `code` for the codes it defines (`domain:code` and `domain:code-*`). What no such list
+says is hand-listed in `Core/SwitchOwnership.cs` (`HandListed`): the debarked trunks the Rosser
+switch's patch adds to Logging Expanded's trunk (`loggingmod:treetrunk-*-debarked-*`), and the
+exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `GearReclamation`;
+`gearcutter`: `GearCutter`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
+id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
+`SwitchForCode(code)`; the exporter calls `SwitchRegistry.For(api)` by reflection.
+
+| Switch | Owns |
+|---|---|
+| `BuckingSawmill` | the mill's blocks (`seraphhorizons:buckingmill*`) and `recipes/grid/buckingmill.json` |
+| `Rosser` | the rosser's blocks (`seraphhorizons:rosser*`), `recipes/grid/rosser.json`, the debarked trunks |
+| `GearReclamation` | the pickling tub, the bare steel gear, the tub's, degreasing and barrel recipes, the tub and lottery records |
+| `GearBlanks` | the blanks, their molds (`seraphhorizons:toolmold-*`), their clay forming and smithing recipes, the molds' casting |
+| `GearCutter` | the cutter's blocks and parts, its grid and smithing recipes, the cutter records |
+| `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
+| `CreativeSteamSource` | the creative steam source block |
+
+A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
+`BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `TraderSchematics`, the retired stations of
+`UnifiedWoodworking`) or only changes what an existing recipe takes (`GearConsumers`,
+`IronWoodworkingMachines`, `AgeOfFlaxRebalance`, `MachineSchematics`) owns nothing: no value exists
+only because it is on. A new feature that disables its own assets with its switch adds its lists to
+`SwitchRegistry.Features()`. Tested by `tests/SwitchOwnershipTests.cs` (the matching) and, against
+the pack, `RecipeExportValueScenarios` (every listed asset exists, every hand-listed pattern matches
+a registered code, every hand-listed recipe type is in the export) and `SwitchesOffScenarios`
+(nothing a switch owns is registered with it off).
+
 ### Everything has a price (`EverythingHasAPrice`)
 
 The trader overhaul's pricing (#450; `Trading/Economy/`, notes in `docs/trading.md`). A trader of the

@@ -27,7 +27,10 @@ public readonly record struct ValueLookup(string Code, double Value, bool FloorZ
 /// <summary>
 /// The item base value table (#449), as <c>tools/item-values</c> writes it to
 /// <c>assets/seraphhorizons/config/item-values.json</c>: <c>values</c> maps a full code to gears per
-/// item, <c>floorZero</c> lists the codes worth under a gear per full stack.
+/// item, <c>floorZero</c> lists the codes worth under a gear per full stack, and <c>switches</c>
+/// (optional) maps a code whose value exists only with some <c>ModConfig/seraphhorizons.json</c>
+/// switches on to their names (its cheapest route takes a recipe or an item those switches add,
+/// README "Switch ownership").
 ///
 /// A code missing from the table falls back to its variant family: the longest prefix of the code
 /// that ends at a '-' and that table codes share (<c>game:plank-oak</c> falls back to the
@@ -40,15 +43,20 @@ public sealed class ItemValues
 {
     private readonly Dictionary<string, double> _values;
     private readonly HashSet<string> _floorZero;
+    private readonly Dictionary<string, string[]> _switches;
     // Family prefix ("game:plank-") -> (sum, count, zeroed members).
     private readonly Dictionary<string, (double Sum, int Count, int Zero)> _families = new(StringComparer.Ordinal);
 
     public static readonly ItemValues Empty = new(new Dictionary<string, double>(), []);
 
-    public ItemValues(IReadOnlyDictionary<string, double> values, IEnumerable<string> floorZero)
+    public ItemValues(IReadOnlyDictionary<string, double> values, IEnumerable<string> floorZero,
+        IReadOnlyDictionary<string, string[]>? switches = null)
     {
         _values = new Dictionary<string, double>(values, StringComparer.Ordinal);
         _floorZero = new HashSet<string>(floorZero, StringComparer.Ordinal);
+        _switches = switches == null
+            ? new Dictionary<string, string[]>(StringComparer.Ordinal)
+            : new Dictionary<string, string[]>(switches, StringComparer.Ordinal);
         foreach (var (code, value) in _values)
             foreach (var prefix in FamilyPrefixes(code))
             {
@@ -60,6 +68,30 @@ public sealed class ItemValues
     public int Count => _values.Count;
 
     public IEnumerable<string> Codes => _values.Keys;
+
+    /// <summary>The switches a code's own table value depends on (the table's <c>switches</c>);
+    /// empty when none, or when the code is not in the table.</summary>
+    public IReadOnlyList<string> SwitchesOf(string code) =>
+        _switches.TryGetValue(NormalizeCode(code), out var s) ? s : [];
+
+    /// <summary>
+    /// What an item's handbook page shows: its value (direct or family fallback), or null for "No
+    /// trade value" when the code has none or when any switch its value depends on is off
+    /// (<paramref name="isOff"/>, by switch name).
+    /// </summary>
+    public double? Shown(string code, Func<string, bool> isOff)
+    {
+        var l = Lookup(code);
+        if (l.Source == ValueSource.Missing)
+            return null;
+        return SwitchesOf(code).Any(isOff) ? null : l.Value;
+    }
+
+    private static string NormalizeCode(string code)
+    {
+        code = code.ToLowerInvariant();
+        return code.Contains(':') ? code : "game:" + code;
+    }
 
     /// <summary>Gears per item trading should use: 0 when worthless or unknown.</summary>
     public double ValueOf(string code) => Lookup(code).Effective;
@@ -73,8 +105,7 @@ public sealed class ItemValues
 
     public ValueLookup Lookup(string code)
     {
-        code = code.ToLowerInvariant();
-        if (!code.Contains(':')) code = "game:" + code;
+        code = NormalizeCode(code);
         if (code.Contains('*')) return Wildcard(code);
         if (_values.TryGetValue(code, out var v))
             return new ValueLookup(code, v, _floorZero.Contains(code), ValueSource.Direct, null, 1);
@@ -127,6 +158,10 @@ public sealed class ItemValues
         if (root.TryGetProperty("floorZero", out var z))
             foreach (var e in z.EnumerateArray())
                 if (e.GetString() is { } s) zero.Add(s);
-        return new ItemValues(values, zero);
+        var switches = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        if (root.TryGetProperty("switches", out var sw))
+            foreach (var p in sw.EnumerateObject())
+                switches[p.Name] = p.Value.EnumerateArray().Select(e => e.GetString()).OfType<string>().ToArray();
+        return new ItemValues(values, zero, switches);
     }
 }

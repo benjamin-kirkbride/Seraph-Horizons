@@ -1,5 +1,7 @@
 using System.Globalization;
+using HarmonyLib;
 using SeraphHorizons.Mod.Trading.Values.Core;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 
@@ -10,7 +12,8 @@ namespace SeraphHorizons.Mod.Trading.Values;
 /// derives from the pack's recipe export, and serves it to the trading features
 /// (<c>ItemValuesSystem.For(api).ValueOf(code)</c>). Both sides, and with no switch of its own:
 /// it changes nothing in play, it only answers the features that price things and the admin
-/// command <c>/sh trade value [item]</c>.
+/// command <c>/sh trade value [item]</c>. On the client it also puts the value on every handbook
+/// page (<see cref="ValueHandbook"/>).
 /// </summary>
 public class ItemValuesSystem : ModSystem
 {
@@ -24,6 +27,31 @@ public class ItemValuesSystem : ModSystem
 
     // Both sides: the client prices goods off a trader's list itself, to show the offer (#450).
     public override bool ShouldLoad(EnumAppSide forSide) => true;
+
+    private Harmony? _handbookHarmony;
+
+    // The server tells clients which switches are off, for the handbook's value line.
+    public override void Start(ICoreAPI api)
+    {
+        if (api.Side == EnumAppSide.Server)
+            ValueHandbook.Publish(api);
+    }
+
+    public override void StartClientSide(ICoreClientAPI api)
+    {
+        var harmony = new Harmony(ValueHandbook.HarmonyId);
+        if (ValueHandbook.Patch(harmony, api))
+            _handbookHarmony = harmony;
+    }
+
+    public override void Dispose()
+    {
+        if (_handbookHarmony == null)
+            return;
+        _handbookHarmony.UnpatchAll(ValueHandbook.HarmonyId);
+        _handbookHarmony = null;
+        ValueHandbook.Unbind();
+    }
 
     public override void AssetsLoaded(ICoreAPI api)
     {
