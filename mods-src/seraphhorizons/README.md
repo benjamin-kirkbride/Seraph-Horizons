@@ -1842,6 +1842,45 @@ creative hotbars, still carry them. With no position in the tree, `BEResinRack.F
 keeps the one the game gave it. If the rack or either method is not as expected, the mod logs a
 warning and leaves the rack as it ships.
 
+### The heating rack stands on the block it is placed on (`HeatingRackStandsOnBlock`)
+
+Logging Expanded (`loggingmod` 0.3.6). The Trunk Heating Rack's legs reach a full block below its
+own cell (`shapes/resinrack.json` runs from y -16 to +14), with the bowl on the cell's floor and the
+firepit meant to go in the cell under it: binding a heating rack frame builds the rack one block above
+the ground, and `BEResinRack` reads its firepit from `Pos.DownCopy()`. `BlockResinRack` has no
+placement of its own, so a rack placed from a stack (the hotbar, a creative pick, Carry On's
+place-down, which runs the block's `TryPlaceBlock` too) goes in the cell over the face aimed at, like
+any block, its legs drawn inside the floor.
+
+`HeatingRackPlacement` (Harmony, on both sides, once per process with its own id) prefixes the rack's
+`DoPlaceBlock`, the one method on the rack's own class that every placement from a stack reaches (its
+`HorizontalOrientable` behavior runs `CanPlaceBlock` and then `DoPlaceBlock`). It moves the selection
+one cell up when all of these hold:
+
+- the placement was offset off an up face (`DidOffset` set, face up): aimed at the top face of a
+  block, not at a side, and not at a replaceable block such as grass, where the rack goes into the
+  aimed-at cell as it ships;
+- the block aimed at (the cell below) is not a firepit (`BlockFirepit` or `BlockEntityFirepit`, any
+  stage): over a firepit the rack already goes in the cell right above it, where its firepit check
+  looks;
+- the cell above can take the rack: in the world, replaceable, no entity in it, and the player may
+  build there (the claim is tested, not tried, so no message is sent). If not, the rack goes where it
+  would have gone without the tweak.
+
+The selection's `Position` is moved in place, never replaced, so everyone holding that selection sees
+the lifted cell: the game's client sends it to the server with the placement, and Carry On 2.0's
+`TryPlaceDownAt` (whose `placedAt` is the same `BlockPos` it passes on) reports it, restores the block
+entity's tree there (`RestoreBlockEntityData`) and plays the sound there. The face stays up and
+`DidOffset` stays set, since the rack was still placed off that up face. A server receiving a lifted
+position finds air under it, not a block, so it does not lift again. If the placement fails after the
+lift, a postfix moves the position back down, so the game's client, which undoes its own offset by
+the face, ends where it started. A rack Carry On drops (a dropped carry, not a place-down) goes
+through `ExchangeBlock`, not `DoPlaceBlock`, and is not lifted; nor is the rack the frame binding builds,
+whose selection is not offset. Each side reads its own switch, so the two should agree (both are on
+by default): with it on on the client only, the server places at the client's lifted cell; on the
+server only, the server lifts a rack the client predicted one cell lower. If the rack or the method
+is not as expected, the mod logs a warning and leaves the rack as it ships.
+
 ### Tidy Variants (`TidyVariants`)
 
 The pack's creative inventory has about 29,000 entries, mostly variant multiplication (ores ×
@@ -2829,6 +2868,19 @@ in survival. With the switch off, `SwitchesOffScenarios` requires nothing patche
 stack carrying the rack's position. When it fails after a Logging Expanded update, check whether
 the rack still writes its tree into the stack, and whether `FromTreeAttributes` still keeps its
 position when the tree has none.
+
+The same file holds `HeatingRackStandsOnBlock`'s scenarios. A rack placed from a stack through
+`TryPlaceBlock`, with the selection the game makes for a click on the granite floor's top face (the
+cell over it, `DidOffset` set), must stand one cell higher, the cell between empty and the block
+entity's `Pos` the rack's, and the selection must say so; aimed at an extinct firepit's top face it
+must stand right above the firepit; with the cell above taken, or aimed at a side face, it goes in
+the cell over the face. Carry On's place-down (the scenario above) must report the lifted cell and
+restore the block entity's tree there (a banked resin figure set before the pickup). With the switch
+off, `SwitchesOffScenarios` requires nothing patched and the rack in the cell over the floor. When
+they fail after a Logging Expanded update, check whether the rack gained a placement of its own
+(`TryPlaceBlock` or a different `DoPlaceBlock`) or a new shape; after a Carry On update, whether
+`TryPlaceDownAt` still hands the block the same `BlockSelection` whose `Position` it reports and
+restores at.
 
 `tests/PackTests/TunScenarios.cs` (Atlas) requires Hydrate or Diedrate's tun with no recipe, not in
 the creative inventory and excluded from the handbook, and one placed still Hydrate or Diedrate's
