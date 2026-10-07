@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { RecipeExport } from "../src/lib/export.ts";
 import { FLAG_FLOOR_ZERO, type Meta, type SearchFile } from "../src/lib/format.ts";
 import { prepareData } from "../src/lib/prepare.ts";
-import { formatGears, isFloorZero, sortByValue, valueOf, ValueTable } from "../src/lib/values.ts";
+import { codeBase, formatGears, isFloorZero, sortByValue, valueOf, ValueTable, type ValueQuery } from "../src/lib/values.ts";
 
 /** minimal.json without the value fields it shows off, so each test sets its own. */
 const minimal = withoutValues(
@@ -124,7 +124,13 @@ describe("ValueTable", () => {
   it("puts the items without a value last in both directions", () => {
     for (const dir of ["asc", "desc"] as const) {
       const rows = table.query({ ...base, dir, unvalued: true });
-      expect(rows).toHaveLength(search.codes.length);
+      // Every item, the black and blue clay gear blank molds (both "Gear blank mold") in one row.
+      expect(rows.flatMap((i) => table.variantsOf(i))).toHaveLength(search.codes.length);
+      expect(rows).toHaveLength(search.codes.length - 1);
+      expect(table.variantsOf(at("seraphhorizons:toolmold-black-fired-gearblank")).map((i) => search.codes[i])).toEqual([
+        "seraphhorizons:toolmold-black-fired-gearblank",
+        "seraphhorizons:toolmold-blue-fired-gearblank",
+      ]);
       expect(rows.slice(0, 7).every((i) => valueOf(search, i) !== undefined)).toBe(true);
       expect(rows.slice(7).every((i) => valueOf(search, i) === undefined)).toBe(true);
     }
@@ -169,5 +175,93 @@ describe("ValueTable", () => {
     // Generous bounds for a slow CI machine; locally this is a fraction of them.
     expect(built).toBeLessThan(2000);
     expect(perQuery).toBeLessThan(100);
+  });
+});
+
+describe("ValueTable variant rows", () => {
+  // Two mods each have a "Gearbox"; one mod's gearbox comes in five orientations, one of
+  // them (south) priced differently, and another of its blocks shares the name and value.
+  const items: [code: string, name: string, mod: number, value: number | null][] = [
+    ["mpegearbox:gearbox14-down", "Gearbox", 1, 3],
+    ["mpegearbox:gearbox14-east", "Gearbox", 1, 3],
+    ["mpegearbox:gearbox14-north", "Gearbox", 1, 3],
+    ["mpegearbox:gearbox14-south", "Gearbox", 1, 4],
+    ["mpegearbox:gearbox14-up", "Gearbox", 1, 3],
+    ["mpegearbox:gearboxcrate-north", "Gearbox", 1, 3],
+    ["othermod:gearbox-east", "Gearbox", 2, 3],
+    ["othermod:gearbox-west", "Gearbox", 2, 3],
+    ["othermod:rock-granite-east", "Rock", 2, null],
+    ["othermod:rock-granite-west", "Rock", 2, null],
+    ["othermod:rock-basalt-east", "Rock", 2, null],
+  ];
+  items.sort((a, b) => (a[0] < b[0] ? -1 : 1)); // search.json's codes are sorted
+  const file: SearchFile = {
+    mods: ["game", "mpegearbox", "othermod"],
+    codes: items.map((x) => x[0]),
+    names: items.map((x) => x[1]),
+    mod: items.map((x) => x[2]),
+    flags: items.map(() => 1),
+    value: items.map((x) => x[3]),
+  };
+  const table = new ValueTable(file, {});
+  const base: ValueQuery = { filter: "", column: "name", dir: "asc", unvalued: false };
+  const rows = (q: Partial<ValueQuery> = {}, t = table, f = file) =>
+    t.query({ ...base, ...q }).map((i) => [f.codes[i], t.variantsOf(i).length] as const);
+
+  it("folds a block's orientations into one row, under its first code, with the rest counted", () => {
+    expect(codeBase("mpegearbox:gearbox14-north")).toBe("mpegearbox:gearbox14");
+    expect(codeBase("game:stick")).toBe("game:stick");
+    expect(rows()).toEqual([
+      ["mpegearbox:gearbox14-down", 4],
+      ["mpegearbox:gearbox14-south", 1], // another value
+      ["mpegearbox:gearboxcrate-north", 1], // another code base
+      ["othermod:gearbox-east", 2], // another mod
+    ]);
+    const head = file.codes.indexOf("mpegearbox:gearbox14-down");
+    expect(table.variantsOf(head).map((i) => file.codes[i])).toEqual([
+      "mpegearbox:gearbox14-down",
+      "mpegearbox:gearbox14-east",
+      "mpegearbox:gearbox14-north",
+      "mpegearbox:gearbox14-up",
+    ]);
+    expect(table.variantsOf(file.codes.indexOf("mpegearbox:gearbox14-south"))).toHaveLength(1);
+  });
+
+  it("counts rows, not items, and sorts them", () => {
+    expect(table.valued).toBe(4);
+    expect(rows({ column: "value", dir: "desc" }).map(([code]) => code)).toEqual([
+      "mpegearbox:gearbox14-south",
+      "mpegearbox:gearbox14-down",
+      "mpegearbox:gearboxcrate-north",
+      "othermod:gearbox-east",
+    ]);
+    expect(rows({ column: "mod", dir: "desc" })[0]).toEqual(["othermod:gearbox-east", 2]);
+  });
+
+  it("finds a row by any of its codes", () => {
+    expect(rows({ filter: "gearbox14-east" })).toEqual([["mpegearbox:gearbox14-down", 4]]);
+    expect(rows({ filter: "othermod west" })).toEqual([["othermod:gearbox-east", 2]]);
+  });
+
+  it("folds the items without a value the same way", () => {
+    expect(rows({ unvalued: true, filter: "rock" })).toEqual([
+      ["othermod:rock-basalt-east", 3],
+    ]);
+    for (const dir of ["asc", "desc"] as const) {
+      const all = rows({ column: "value", dir, unvalued: true });
+      expect(all).toHaveLength(5);
+      expect(all.at(-1)).toEqual(["othermod:rock-basalt-east", 3]);
+    }
+  });
+
+  it("keeps apart items whose rows would show something else", () => {
+    const west = file.codes.indexOf("othermod:gearbox-west");
+    const floor: SearchFile = { ...file, flags: file.flags.map((f, i) => (i === west ? f | FLAG_FLOOR_ZERO : f)) };
+    expect(rows({ filter: "othermod gearbox" }, new ValueTable(floor, {}), floor)).toEqual([
+      ["othermod:gearbox-east", 1],
+      ["othermod:gearbox-west", 1],
+    ]);
+    const switched: SearchFile = { ...file, valueSwitches: { [String(west)]: ["gears"] } };
+    expect(rows({ filter: "othermod gearbox" }, new ValueTable(switched, {}), switched)).toHaveLength(2);
   });
 });

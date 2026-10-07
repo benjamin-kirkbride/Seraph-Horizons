@@ -280,6 +280,8 @@ const en = {
   valuesFilterPlaceholder: "Name, code or mod, e.g. copper",
   valuesUnvalued: "Include items with no value",
   valuesCount: (n: number) => `${n.toLocaleString("en")} item${n === 1 ? "" : "s"}`,
+  valuesVariants: (n: number) => `${n.toLocaleString("en")} variants`,
+  valuesVariantsHint: (codes: readonly string[]) => `Same name, mod and value:\n${codes.join("\n")}`,
   valuesNoMatch: (q: string) => `No item matches “${q}”.`,
   valuesColumns: { name: "Item", mod: "Mod", value: "Value" },
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,
