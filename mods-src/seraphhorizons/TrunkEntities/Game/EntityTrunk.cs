@@ -324,6 +324,43 @@ public class EntityTrunk : Entity, ISeatInstSupplier
         Entity? want = Api.Side == EnumAppSide.Server ? (ClientPredicting ? Driver : null) : Driver;
         if (seatable.Controller != want)
             seatable.Controller = want;
+        NoteLocalControl();
+    }
+
+    // Client side: whether this client's player ticked the trunk's physics when last looked.
+    private bool _localControl;
+
+    /// <summary>
+    /// Client side, whenever the controller may have changed: when this client's player stops
+    /// ticking the trunk (letting go, or anything else that takes the controller away), its
+    /// <c>interpolateposition</c> is reset to the trunk's pose now, the predicted one. While the
+    /// player predicted, the game sent this client none of the trunk's positions (the server
+    /// relays a driver's mount positions to the other players only) and the interpolation left a
+    /// controlled mount's position alone, so its last two snapshots are where the drive began; the
+    /// first position from the server after letting go would otherwise be eased in from there, a
+    /// dash from the drive's start (the let-go snap). The reset is the interpolation's own
+    /// teleport (<c>OnReceivedServerPos(isTeleport: true)</c>: the queue emptied, both snapshots
+    /// the pose now), so the server's next position eases in from where the trunk is.
+    /// </summary>
+    private void NoteLocalControl()
+    {
+        if (Api is not ICoreClientAPI capi)
+            return;
+        var me = capi.World.Player?.Entity;
+        bool now = me != null && Seatable?.Controller == me;
+        if (_localControl && !now)
+            ResetInterpolation();
+        _localControl = now;
+    }
+
+    private void ResetInterpolation()
+    {
+        if (GetBehavior<EntityBehaviorInterpolatePosition>() is not { } interpolation)
+            return;
+        // The snapshots' interval comes from the last packet's tick gap; one packet's worth.
+        Attributes.SetInt("tickDiff", 1);
+        var handled = EnumHandling.PassThrough;
+        interpolation.OnReceivedServerPos(true, ref handled);
     }
 
     /// <summary>The seat's word that <paramref name="agent"/> took the driver's place: the server
@@ -498,6 +535,8 @@ public class EntityTrunk : Entity, ISeatInstSupplier
         if (Seatable is { } seatable && seatable.Controller == agent)
             seatable.Controller = null;
         Pos.Motion.X = Pos.Motion.Z = 0;
+        // On the driver's client the interpolation starts again from the predicted pose.
+        NoteLocalControl();
         if (Api?.Side == EnumAppSide.Server && GrabbedBy == agent.EntityId)
             ClearDrive();
     }

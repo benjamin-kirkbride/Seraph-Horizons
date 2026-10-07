@@ -89,8 +89,10 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private static object Hands => Enum.Parse(AccessTools.TypeByName("CarryOn.API.Common.Models.CarrySlot"), "Hands");
 
-    /// <summary>The Carryable's Hands slot animation and transform templates on <paramref name="block"/>.</summary>
-    private static (string? Animation, string[] Templates, float WalkSpeed)? HandsSettings(Block block)
+    /// <summary>The Carryable's Hands slot animation, its transform templates, whether it has
+    /// transform groups of its own, its default transform and the slot's walk speed on
+    /// <paramref name="block"/>.</summary>
+    private static (string? Animation, string[] Templates, bool LocalGroups, ModelTransform Transform, float WalkSpeed)? HandsSettings(Block block)
     {
         var carryables = block.BlockBehaviors.Where(TrunkCarry.IsCarryable).ToList();
         if (carryables.Count == 0)
@@ -104,6 +106,8 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
             if (e.Key.ToString() == "Hands")
                 return ((string?)AccessTools.Property(e.Value!.GetType(), "Animation").GetValue(e.Value),
                         templates,
+                        (bool)AccessTools.Property(b.GetType(), "HasLocalTransformGroups").GetValue(b)!,
+                        (ModelTransform)AccessTools.Property(b.GetType(), "DefaultTransform").GetValue(b)!,
                         (float)AccessTools.Property(e.Value.GetType(), "WalkSpeedModifier").GetValue(e.Value)!);
         throw new Xunit.Sdk.XunitException($"{block.Code}'s Carryable has no Hands slot");
     }
@@ -128,11 +132,15 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         {
             var block = BlockOf($"loggingmod:treetrunk-birch-{size}-{branches}-east");
             var settings = HandsSettings(block) ?? throw new Xunit.Sdk.XunitException($"{block.Code} has no Carryable");
-            output.WriteLine($"{block.Code}: {settings.Animation}, [{string.Join(", ", settings.Templates)}], walk {settings.WalkSpeed}");
+            output.WriteLine($"{block.Code}: {settings.Animation}, [{string.Join(", ", settings.Templates)}], groups {settings.LocalGroups}, walk {settings.WalkSpeed}");
             Assert.Equal(animation, settings.Animation);
-            // no template: Carry On's carry-trunk is the game's chest, carried across the front;
-            // the pack's own hands transform in the patch puts the trunk on the shoulder
+            // Carry On's default pose, as with Logging Expanded alone: no template (carry-trunk is
+            // the game's chest, carried across the front), no transform groups, no transform
             Assert.Empty(settings.Templates);
+            Assert.False(settings.LocalGroups);
+            var (move, turn) = (settings.Transform.Translation, settings.Transform.Rotation);
+            Assert.Equal((0f, 0f, 0f), (move.X, move.Y, move.Z));
+            Assert.Equal((0f, 0f, 0f), (turn.X, turn.Y, turn.Z));
             Assert.Equal(0f, settings.WalkSpeed);
         }
     }
@@ -245,6 +253,26 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Ticks(10);
         Assert.False(stats["walkspeed"].ValuesByKey.ContainsKey(TrunkCarry.SpeedCode));
         Assert.Equal(before, stats.GetBlended("walkspeed"), 3);
+    }
+
+    [AtlasScenario]
+    public async Task The_speed_probe_prints_the_walkspeed_stat_and_what_is_carried()
+    {
+        var pos = await Floor(120);
+        var p = await World.JoinPlayer("trunkprobe");
+        await p.TeleportTo(pos.AddCopy(2, 0, 0));
+        await World.Ticks(5);
+        p.Player.InventoryManager.ActiveHotbarSlot.Itemstack = null;
+        Assert.True(TrunkCarry.TryGive(p.Player, Trunk(40, "xxl")));
+        await World.Ticks(10);
+        var result = await p.ExecuteCommand("/sh trunkspeed");
+        output.WriteLine(result.Message);
+        Assert.True(result.Ok, result.Message);
+        Assert.Contains("walkspeed " + TrunkCarry.SpeedCode, result.Message);
+        Assert.Contains("walkspeed blended", result.Message);
+        Assert.Contains("GetWalkSpeedMultiplier", result.Message);
+        Assert.Contains("a trunk of 40 logs", result.Message);
+        TrunkCarry.Take(p.Player);
     }
 
     [AtlasScenario]

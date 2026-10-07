@@ -21,9 +21,10 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// than 4; heating rack: empty, and debranched as its own empty-hand load asks), with its sound.
 /// One that cannot does nothing, so a carried trunk never makes the station unload onto the ground.</item>
 /// <item>Hands and Carry On's hands empty, on a station whose original would give a trunk to the
-/// inventory: the trunk goes into Carry On's hands (<see cref="TrunkCarry.TryGive"/>), else
-/// the hands-full error and it stays. A sawhorse loaded from vanilla logs or firewood gives
-/// those back as Logging Expanded does.</item>
+/// inventory: the right button held starts a hold, timed as a trunk entity's pick-up
+/// (<see cref="StationTake"/>), and at its end the trunk goes into Carry On's hands
+/// (<see cref="TrunkCarry.TryGive"/>); hands full, the hands-full error and it stays. A sawhorse
+/// loaded from vanilla logs or firewood gives those back at once, as Logging Expanded does.</item>
 /// <item>Everything else (a tool, a log, a knife on the heating rack, Carry On's own sneak click)
 /// is the original's.</item>
 /// </list>
@@ -41,6 +42,7 @@ public static class TrunkStations
     private static PropertyInfo? _wsInventory;
     private static MethodInfo? _wsInvalidateMesh, _wsBuildUnload, _invClear, _canStoreTrunk, _resinStore, _resinRetrieve;
     private static PropertyInfo? _resinIsEmpty;
+    private static FieldInfo? _resinTrunk;
 
     /// <summary>Whether trunks go through Carry On's hands on this side: trunk entities run and
     /// Carry On is there.</summary>
@@ -182,6 +184,7 @@ public static class TrunkStations
         _resinIsEmpty = Need(_resinRack?.GetProperty("IsEmpty", Any), "BEResinRack.IsEmpty");
         _resinStore = Need(_resinRack?.GetMethod("TryStoreTrunk", Any, [typeof(ItemStack), typeof(IPlayer)]), "BEResinRack.TryStoreTrunk(ItemStack, IPlayer)");
         _resinRetrieve = Need(_resinRack?.GetMethod("TryRetrieveTrunk", Any, Type.EmptyTypes), "BEResinRack.TryRetrieveTrunk()");
+        _resinTrunk = Need(_resinRack?.GetField("_trunk", Any), "BEResinRack._trunk");
         if (problems.Count == before && resinInteract != null)
         {
             harmony.Patch(resinInteract, prefix: new HarmonyMethod(typeof(TrunkStations), nameof(ResinRackPrefix)));
@@ -214,13 +217,7 @@ public static class TrunkStations
             return true;
         var be = world.BlockAccessor.GetBlockEntity(blockSel.Position);
         var logging = TrunkEntitySystem.Of(world.Api).Logging;
-        bool isStation = station switch
-        {
-            Station.Workstation => be != null && _wsInventory?.DeclaringType?.IsInstanceOfType(be) == true,
-            Station.Rack => logging?.IsRack(be) == true,
-            _ => be != null && _resinRack?.IsInstanceOfType(be) == true,
-        };
-        if (!isStation)
+        if (StationOf(be, logging) != station)
             return true;
 
         if (Carried(world.Api, byPlayer) is { } carried)
@@ -235,39 +232,88 @@ public static class TrunkStations
         if (world.Side != EnumAppSide.Server || byPlayer is not IServerPlayer player
             || byPlayer.InventoryManager.ActiveHotbarSlot?.Itemstack != null || TrunkCarry.Carried(byPlayer) != null)
             return true;
-        switch (station)
-        {
-            case Station.Workstation:
-                if (_wsBuildUnload!.Invoke(be, [world]) is not ItemStack unload || !Trunks.IsTrunk(unload))
-                    return true;   // empty, or logs or firewood: Logging Expanded's
-                if (GiveToHands(player, unload))
-                {
-                    _invClear!.Invoke(_wsInventory!.GetValue(be), null);
-                    _wsInvalidateMesh!.Invoke(be, null);
-                    be!.MarkDirty(true);
-                    Sound(world, blockSel.Position, player);
-                }
-                break;
-            case Station.Rack:
-                if (logging!.PeekTrunk(be!) is not { } top)
-                    return true;
-                // Taken after Carry On's pick-up hold, as a trunk off the ground is (RackTake).
-                if (!TrunkCarry.CanGive(player))
-                    TrunkCarry.HandsFull(player);
-                else
-                    RackTake.Start(player, blockSel.Position.Copy(), TrunkCarry.PickUpSeconds(world.Api, top.Block));
-                break;
-            default:
-                if ((bool)_resinIsEmpty!.GetValue(be)! || _resinRetrieve!.Invoke(be, null) is not ItemStack trunk)
-                    return true;
-                if (GiveToHands(player, trunk))
-                    Sound(world, blockSel.Position, player);
-                else
-                    _resinStore!.Invoke(be, [trunk, byPlayer]);   // back as it was: the retrieve wrote its state into the stack
-                break;
-        }
+        // A trunk is taken after a hold, as one off the ground is (StationTake); logs, firewood or
+        // nothing are Logging Expanded's.
+        if (Offer(world, blockSel.Position) is not { } offer)
+            return true;
+        if (!TrunkCarry.CanGive(player))
+            TrunkCarry.HandsFull(player);
+        else
+            StationTake.Start(player, blockSel.Position.Copy(), TrunkCarry.PickUpSeconds(world.Api, offer.Block));
         __result = true;
         return false;
+    }
+
+    /// <summary>Which of the three stations <paramref name="be"/> is, or null.</summary>
+    private static Station? StationOf(BlockEntity? be, LoggingBridge? logging) =>
+        be == null ? null
+        : _workstation != null && _wsInventory?.DeclaringType?.IsInstanceOfType(be) == true ? Station.Workstation
+        : _rackBlock != null && logging?.IsRack(be) == true ? Station.Rack
+        : _resinRack?.IsInstanceOfType(be) == true ? Station.ResinRack
+        : null;
+
+    /// <summary>
+    /// The trunk an empty hand would take off the station at <paramref name="pos"/> into Carry
+    /// On's hands, without taking it, or null: a sawhorse's trunk (not its logs or firewood), a
+    /// Trunk Storage Rack's top trunk, a heating rack's trunk. Either side: the client's circle
+    /// (<see cref="TrunkHoldCircle"/>) asks it too, for the hold's length.
+    /// </summary>
+    public static ItemStack? Offer(IWorldAccessor world, BlockPos pos)
+    {
+        if (!Hands(world.Api))
+            return null;
+        var be = world.BlockAccessor.GetBlockEntity(pos);
+        var logging = TrunkEntitySystem.Of(world.Api).Logging;
+        ItemStack? trunk = StationOf(be, logging) switch
+        {
+            Station.Workstation => _wsBuildUnload!.Invoke(be, [world]) as ItemStack,
+            Station.Rack => logging!.TrunkCount(be!) > 0 ? logging.PeekTrunk(be!) : null,
+            Station.ResinRack => _resinTrunk!.GetValue(be) as ItemStack,
+            _ => null,
+        };
+        trunk?.ResolveBlockOrItem(world);
+        return trunk != null && Trunks.IsTrunk(trunk) ? trunk : null;
+    }
+
+    /// <summary>Takes the station's trunk at <paramref name="pos"/> into the player's Carry On
+    /// hands (server side), with its sound: the end of a <see cref="StationTake"/> hold. Hands
+    /// full, the hands-full error and the station keeps it. False when nothing was taken.</summary>
+    public static bool TakeInto(IServerPlayer player, BlockPos pos)
+    {
+        var world = player.Entity?.World;
+        if (world == null || Offer(world, pos) == null)
+            return false;
+        var be = world.BlockAccessor.GetBlockEntity(pos)!;
+        var logging = TrunkEntitySystem.Of(world.Api).Logging;
+        switch (StationOf(be, logging))
+        {
+            case Station.Workstation:
+                if (_wsBuildUnload!.Invoke(be, [world]) is not ItemStack unload || !GiveToHands(player, unload))
+                    return false;
+                _invClear!.Invoke(_wsInventory!.GetValue(be), null);
+                _wsInvalidateMesh!.Invoke(be, null);
+                be.MarkDirty(true);
+                break;
+            case Station.Rack:
+                if (logging!.PeekTrunk(be) is not { } top || !GiveToHands(player, top))
+                    return false;
+                logging.PopTrunk(be);
+                be.MarkDirty(true);
+                break;
+            case Station.ResinRack:
+                if (_resinRetrieve!.Invoke(be, null) is not ItemStack trunk)
+                    return false;
+                if (!GiveToHands(player, trunk))
+                {
+                    _resinStore!.Invoke(be, [trunk, player]);   // back as it was: the retrieve wrote its state into the stack
+                    return false;
+                }
+                break;
+            default:
+                return false;
+        }
+        Sound(world, pos, player);
+        return true;
     }
 
     private static void Load(Station station, Block? block, BlockEntity be, LoggingBridge logging, ItemStack carried, IServerPlayer player, BlockPos pos)
@@ -315,13 +361,15 @@ public static class TrunkStations
 }
 
 /// <summary>
-/// Server side: taking the top trunk off a Trunk Storage Rack with an empty hand is a hold, timed as
-/// a trunk entity's pick-up (<see cref="TrunkCarry.PickUpSeconds"/> of the top trunk): the right
-/// button held, both hands empty, nothing carried, within reach, not looking at another block. Let
-/// go early and the trunk stays. The client shows the same circle (<see cref="TrunkHoldCircle"/>).
-/// One hold per player; a new click starts it over.
+/// Server side: taking a trunk off one of Logging Expanded's stations (a sawhorse, the Trunk
+/// Storage Rack, the heating rack) into Carry On's hands with an empty hand is a hold, timed as a
+/// trunk entity's pick-up (<see cref="TrunkCarry.PickUpSeconds"/> of the trunk taken): the right
+/// button held, both hands empty, nothing carried, within reach, not looking at another block, the
+/// station still holding a trunk. Let go early and the trunk stays. At the end the station's take
+/// (<see cref="TrunkStations.TakeInto"/>) runs. The client shows the same circle
+/// (<see cref="TrunkHoldCircle"/>). One hold per player; a new click starts it over.
 /// </summary>
-public static class RackTake
+public static class StationTake
 {
     /// <summary>How often a hold is checked, ms.</summary>
     public const int TickMs = 100;
@@ -330,22 +378,35 @@ public static class RackTake
     {
         public required IServerPlayer Player;
         public required BlockPos Pos;
+        public required System.Func<bool> Has;
+        public required System.Action<IServerPlayer> Take;
         public long NeedMs, HeldMs, Listener;
     }
 
     private static readonly Dictionary<string, Hold> Holds = new();
 
-    /// <summary>Whether <paramref name="player"/> is holding to take a trunk off a rack.</summary>
+    /// <summary>Whether <paramref name="player"/> is holding to take a trunk off a station.</summary>
     public static bool Holding(IPlayer player) => Holds.ContainsKey(player.PlayerUID);
 
+    /// <summary>Starts a hold on the Logging Expanded station at <paramref name="pos"/>.</summary>
     public static void Start(IServerPlayer player, BlockPos pos, float seconds)
     {
         if (player.Entity?.World is not { } world)
             return;
+        Start(player, pos, seconds, () => TrunkStations.Offer(world, pos) != null, p => TrunkStations.TakeInto(p, pos));
+    }
+
+    /// <summary>Starts a hold on whatever is at <paramref name="pos"/>: <paramref name="has"/>
+    /// says whether it still has something to take (else the hold ends), <paramref name="take"/>
+    /// takes it at the end.</summary>
+    public static void Start(IServerPlayer player, BlockPos pos, float seconds, System.Func<bool> has, System.Action<IServerPlayer> take)
+    {
+        if (player.Entity?.World is not { } world)
+            return;
         if (Holds.TryGetValue(player.PlayerUID, out var old) && old.Pos == pos)
-            return;   // already holding on this rack
+            return;   // already holding here
         Stop(player.PlayerUID);
-        var hold = new Hold { Player = player, Pos = pos, NeedMs = (long)(Math.Max(0, seconds) * 1000) };
+        var hold = new Hold { Player = player, Pos = pos, Has = has, Take = take, NeedMs = (long)(Math.Max(0, seconds) * 1000) };
         hold.Listener = world.RegisterGameTickListener(dt => Tick(hold, dt), TickMs);
         Holds[player.PlayerUID] = hold;
     }
@@ -360,10 +421,7 @@ public static class RackTake
     {
         var player = hold.Player;
         var by = player.Entity;
-        var world = by?.World;
-        var logging = world == null ? null : TrunkEntitySystem.Of(world.Api).Logging;
-        var be = world?.BlockAccessor.GetBlockEntity(hold.Pos);
-        if (by == null || world == null || logging == null || !logging.IsRack(be) || logging.PeekTrunk(be!) is not { } top
+        if (by?.World == null || !hold.Has()
             || !by.ServerControls.RightMouseDown || !TrunkCarry.CanGive(player)
             || by.Pos.DistanceTo(hold.Pos.ToVec3d().Add(0.5, 0.5, 0.5)) > TrunkHoldCircle.Reach
             || player.CurrentBlockSelection?.Position is { } looked && looked != hold.Pos)
@@ -375,11 +433,6 @@ public static class RackTake
         if (hold.HeldMs < hold.NeedMs)
             return;
         Stop(player.PlayerUID);
-        if (TrunkStations.GiveToHands(player, top))
-        {
-            logging.PopTrunk(be!);
-            be!.MarkDirty(true);
-            world.PlaySoundAt(new AssetLocation("game", "sounds/block/wood"), hold.Pos, 0, player, true, 16f, 0.75f);
-        }
+        hold.Take(player);
     }
 }
