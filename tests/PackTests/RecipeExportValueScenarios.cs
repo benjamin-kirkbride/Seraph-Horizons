@@ -101,17 +101,15 @@ public partial class RecipeExportScenarios
                 Assert.Null(item["valueSwitches"]);
             }
         }
-        // The steel gear's every route goes through a feature: the gear cutter (blanks too) or
-        // the reclamation line. Once the table prices it (a table built from an export that has
-        // the gear chain), its value says so.
-        if (values["seraphhorizons:gear-steel"] != null)
-        {
-            var gear = Item("seraphhorizons:gear-steel");
-            Assert.NotNull(gear["value"]);
-            var depends = ((JArray?)gear["valueSwitches"])?.Values<string>().ToList() ?? [];
-            Assert.True(depends.Contains("GearCutter") || depends.Contains("GearReclamation"),
-                $"the steel gear's value depends on {string.Join(", ", depends)}");
-        }
+        // The steel gear's every route goes through a feature: the gear cutter (fed by the blanks)
+        // or the reclamation line, and its cheapest is the cutter's. The shipped table is built
+        // from an export that carries the mod, so it prices the gear and says so.
+        Assert.NotNull(values["seraphhorizons:gear-steel"]);
+        var gear = Item("seraphhorizons:gear-steel");
+        Assert.NotNull(gear["value"]);
+        var depends = ((JArray?)gear["valueSwitches"])?.Values<string>().ToList() ?? [];
+        Assert.Contains("GearCutter", depends);
+        Assert.Equal(new string?[] { "GearReclamation" }, ((JArray?)Item("seraphhorizons:picklingtub")["valueSwitches"])?.Values<string>().ToArray());
         Assert.Equal(ItemValuesSystem.For(World.Api).Count, values.Count);
     }
 }
