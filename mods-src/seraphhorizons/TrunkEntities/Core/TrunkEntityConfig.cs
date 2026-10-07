@@ -7,26 +7,21 @@ namespace SeraphHorizons.Mod.TrunkEntities.Core;
 public class TrunkEntityConfig
 {
     /// <summary>Weight a stored log adds to a trunk: its weight is 10 + logs × this, so a 10-log
-    /// trunk (90) weighs about as much as a cart and a 48-log one 394. The weight is what a rope or
-    /// a grab pulls against: the game's pull is 50 / weight, between 0.1 and 2.</summary>
+    /// trunk (90) weighs about as much as a cart and a 48-log one 394. The weight is what a rope pulls
+    /// against: the game's pull is 50 / weight, between 0.1 and 2. (Driving a trunk goes by its
+    /// logs, <see cref="TrunkDrive"/>.)</summary>
     public float WeightPerLog { get; set; } = 8f;
 
-    /// <summary>Walk speed, as a multiple of the normal one, while carrying a trunk of four logs or
-    /// fewer.</summary>
-    public float CarrySpeedAtFourLogs { get; set; } = 0.8f;
+    /// <summary>Walk speed, as a multiple of the normal one, while carrying a trunk of one log (or
+    /// none): 1 is the normal walk.</summary>
+    public float CarrySpeedAtOneLog { get; set; } = 1f;
 
-    /// <summary>Walk speed while carrying a trunk of 48 logs or more; between 4 and 48 logs it goes
-    /// linearly from <see cref="CarrySpeedAtFourLogs"/> to this.</summary>
+    /// <summary>Walk speed while carrying a trunk of 48 logs or more; between 1 and 48 logs it goes
+    /// linearly from <see cref="CarrySpeedAtOneLog"/> to this.</summary>
     public float CarrySpeedAtMaxLogs { get; set; } = 0.5f;
 
     /// <summary>Seconds the bark spud is held per stored log to debark a whole trunk (2 at least).</summary>
     public float SpudSecondsPerLog { get; set; } = 0.5f;
-
-    /// <summary>Blocks from the player beyond which a rope-less grab lets go of the trunk.</summary>
-    public float GrabRange { get; set; } = 3f;
-
-    /// <summary>Trunks heavier than this cannot be grabbed by hand, only roped; 0 means no limit.</summary>
-    public float MaxGrabWeight { get; set; } = 0f;
 
     public static readonly TrunkEntityConfig Defaults = new();
 
@@ -35,11 +30,9 @@ public class TrunkEntityConfig
     {
         var fixes = new List<string>();
         WeightPerLog = Check(nameof(WeightPerLog), WeightPerLog, v => v >= 0 && v <= 1000, Defaults.WeightPerLog, fixes);
-        CarrySpeedAtFourLogs = Check(nameof(CarrySpeedAtFourLogs), CarrySpeedAtFourLogs, v => v >= 0 && v <= 1, Defaults.CarrySpeedAtFourLogs, fixes);
+        CarrySpeedAtOneLog = Check(nameof(CarrySpeedAtOneLog), CarrySpeedAtOneLog, v => v >= 0 && v <= 1, Defaults.CarrySpeedAtOneLog, fixes);
         CarrySpeedAtMaxLogs = Check(nameof(CarrySpeedAtMaxLogs), CarrySpeedAtMaxLogs, v => v >= 0 && v <= 1, Defaults.CarrySpeedAtMaxLogs, fixes);
         SpudSecondsPerLog = Check(nameof(SpudSecondsPerLog), SpudSecondsPerLog, v => v >= 0 && v <= 60, Defaults.SpudSecondsPerLog, fixes);
-        GrabRange = Check(nameof(GrabRange), GrabRange, v => v >= 1 && v <= 10, Defaults.GrabRange, fixes);
-        MaxGrabWeight = Check(nameof(MaxGrabWeight), MaxGrabWeight, v => v >= 0, Defaults.MaxGrabWeight, fixes);
         return fixes;
     }
 

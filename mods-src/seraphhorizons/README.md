@@ -13,7 +13,7 @@ into steel gears through the pot, the pickling tub and the barrel (`GearReclamat
 recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
 (`GearCutter`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
-camps, item values, regional supply, standing, schematics, orders, maps and admin tools. These are choices for this pack, not bug fixes, so
+camps, item values, regional supply, standing, schematics, orders, maps and admin tools; and a check that the installed mods are the pack's (`PackVersionCheck`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.
@@ -36,6 +36,8 @@ shafts, the client takes the click, shows the tank and draws the smoke. So are t
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
 tub: the server runs its batches, the client draws the liquid and the gears in it. Steel bits
 recovery patches the stone coffin on both sides: the server fills it, the client predicts the click.
+The pack version check runs on each side for that side's own mods: the server logs and tells
+admins, the client shows its dialog.
 
 ## Tweaks
 
@@ -1299,11 +1301,13 @@ Logging Expanded (`loggingmod`, 0.3.6); Carry On (`carryon`) optional. Logging E
 trunks are never items in an inventory. A felled tree leaves a trunk entity lying on the ground
 (`seraphhorizons:trunk-thin` or `-thick`, shown, boxed and selected as the machines show trunks:
 Logging Expanded's `lg` model, 1 × 1 × 4, up to 24 logs, its `xxl` model, 2 × 2 × 5, above). It
-holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is shoved by
-walking into it. Hold right-click on it with an empty hand to drag it by that end after you, no
-rope involved (you walk at the trunk's pace, slower the heavier it is, and it steps up one block;
-the grab lets go when the button does, or beyond 3 blocks), or tie a rope to it as to any
-rope-tieable entity, where it pulls from the nearer end. Both are far easier in water. A knife, shears, an axe or a saw held on
+holds the trunk's own stack, weighs 10 + 8 per log, floats and drifts in water, and is solid to
+whoever walks into it. Right-click it with an empty hand to take that end and drive it on foot like a
+sled (you are mounted on it, standing just beyond the end: W moves it with your end leading as you
+back up, S pushes it, A and D turn it about its middle; a walk at one log, half of it at 48, it
+steps up one block, and sneak lets go; no one else can touch a trunk while you drive it), or tie a
+rope to it as to any rope-tieable entity, where it pulls from the nearer end. Both are easier in
+water. A knife, shears, an axe or a saw held on
 it works it by Logging Expanded's rules for a placed trunk, and Immersive Woodworking's bark spud
 debarks the whole trunk in one hold of half a second per log and drops each log's bark (the debarked
 trunk is the `Rosser` switch's). With Carry On, sneak + right-click shoulders it into Carry On's
@@ -1319,7 +1323,7 @@ unloading onto the ground and a broken machine all leave one; a trunk is never g
 player's inventory (picked up, unloaded or taken back), though one already in a slot moves freely
 and thrown out becomes a trunk entity; and **trunk multiblocks already placed in a world are deleted as
 they load, with nothing given back**. Without Carry On (one warning) nothing goes through hands:
-trunks are dragged, roped and worked where they lie, the rosser and mill take them from the ground
+trunks are driven, roped and worked where they lie, the rosser and mill take them from the ground
 and lay them there on Ctrl, and Logging Expanded's stations and the carts take none. With the switch
 off, Logging Expanded missing or not as expected, nothing changes and its trunks are items as it
 ships them (trunk entities already in a world turn back into trunk items as they load); the server
@@ -1327,11 +1331,11 @@ decides and a client follows it through the world config (`seraphhorizons:trunkE
 `UnifiedWoodworking` does. Nothing of Carry On, Logging Expanded or Cartwright's Caravan is
 referenced at build time.
 
-`TrunkEntitiesSettings` holds its figures (weight per log, the carry speeds at 4 and 48 logs, the
-spud's seconds per log, the grab's reach and an optional weight limit for grabbing by hand); values
+`TrunkEntitiesSettings` holds its figures (weight per log, the carry speeds at 1 and 48 logs, the
+spud's seconds per log; the drive's figures are constants); values
 out of range fall back to the default with a warning. Everything else is in
 [`TrunkEntities/README.md`](TrunkEntities/README.md): the entity and its boxes, the spawn swap, the
-grab, Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and the `CarryableInteract`
+drive (and why the server, not the driver's client, moves the trunk), Carry On (pick-up, speed, animation, put-down, drops, racks, carts, and the `CarryableInteract`
 that lets a carried trunk's click through to a station), each tool's rule, the stations and the
 machines' ground pull, old worlds, the settings table, the tests and what is not checked in the game.
 
@@ -1968,6 +1972,49 @@ caret in the box, typing works), with an item on the cursor (still held, nothing
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
 
+### The mod checks the installed mods against the pack (`PackVersionCheck`)
+
+The mod is released with the pack, at the pack's version (Releasing, below), and carries the
+pack's `pack/lock.json` inside its DLL (an embedded resource, `seraphhorizons.pack-lock.json`, from
+the csproj). Each side compares what it actually loaded with that lock and reports every
+difference:
+
+- a locked mod loaded at another version than locked, higher or lower (`exlib: expected 1.2.0,
+  found 1.3.0`);
+- a locked mod not loaded (`missing`), counted only on a side it loads on: a dedicated server never
+  loads a `client` mod, nor a client a `server` one;
+- a loaded mod the lock does not have (`not in the pack`). The game's own mods (`game`, `creative`,
+  `survival`), the release meta-mod (`seraphhorizonspack`) and this mod are not counted; there is
+  no allow-list;
+- another game version than the pack's `game_version`;
+- this mod at another version than the pack it was built with.
+
+The server logs one `Warning` per finding (`[seraphhorizons] Pack version check: ...`) and sends the
+list in chat to each player with the `controlserver` privilege as they join. A client logs one
+warning line and, a second after it is in the world, opens a dialog: what the install should be,
+the findings in a scrolled list, and two buttons. **Close** leaves it to come back on the next
+join; **Don't show again until this changes** stores a hash of the findings in the client's own
+`ModConfig/seraphhorizons-packcheck.json` (`DismissedFingerprint`), and the dialog stays away until
+the findings are another set. The list only goes quiet once the install matches the release this
+copy of the mod shipped with: install that release again (Cairn's `.cairn` file does this), or
+update to a newer one. Each side's own `PackVersionCheck` decides for it; off means nothing is
+checked or shown.
+
+Expect findings wherever the install is not a release as shipped: a Cairn local mods folder (its
+mods are extras, or another version of a locked one), and CI's smoke run, which also loads the
+recipe exporter (`seraphexport: not in the pack`, a warning, which smoke does not fail on), and
+Atlas, whose own mod `atlasbridge` is the one finding there (`PackCheckScenarios.cs` requires exactly
+that, and `SwitchesOffScenarios` none with the switch off). The
+`next` build carries main's lock, so it matches the `next` pack.
+
+The comparison is `PackCheck/Core/PackComparison.cs` (unit-tested in `tests/PackCheck/`, including
+against the real lock), the game side `PackCheck/Game/` (`PackCheckSystem`, `PackCheckDialog`).
+
+To check by hand in the game: put a mod the pack does not have in the mods folder and join a world
+(dialog with that line; Close, rejoin: back; Don't show again, rejoin: gone; remove the mod, add
+another, rejoin: back); on a dedicated server, join as an admin (chat lines) and as a player
+(none).
+
 ## Ore
 
 The ore overhaul (epic #435), in `Ore/`: where deposits generate, the gravel fields that give the
@@ -2598,7 +2645,8 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
 and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
-described in `TrunkEntities/README.md`), gear reclamation's roll, flash rust hours, settings and
+described in `TrunkEntities/README.md`), the pack version check's comparison with the
+embedded lock (`PackCheck/Core/`, `tests/PackCheck/`), gear reclamation's roll, flash rust hours, settings and
 optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
 (`GearReclamation/Core/`, `tests/GearReclamation/`), the gear cutter's build order, take-back,
 drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
@@ -2800,8 +2848,9 @@ update, `DebarkedTrunks.Bind`'s warning names what changed in its trunk blocktyp
 `TrunkStationScenarios.cs` (Atlas) are the trunk entities' (`TrunkEntities/README.md`, "Tests"): a
 spawned trunk item becoming a thin or thick trunk entity, no trunk given to a player, the weight by
 logs, a trunk at rest on the ground, a placed trunk multiblock removed as it loads, a trunk left in
-a hotbar laid down as an entity rather than placed, and the grab dragging a trunk while held, kept
-from another player and cleared when a trunk saved with it loads; each tool on a trunk entity, the
+a hotbar laid down as an entity rather than placed, and the drive (W, S, A and D, a light trunk
+twice as fast as a 48-log one, up a step, faster afloat), kept from another player and cleared when
+a trunk saved with it loads; each tool on a trunk entity, the
 axe and saw refusing a branched one and the spud debarking a clean one whole with its bark, a thick
 trunk cut down to lg becoming a thin one; carrying through the pinned Carry On (the animation by
 size, racks not carryable, an item in either hand refusing a trunk, the speed by logs, sneak to

@@ -203,6 +203,20 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.NotEmpty(Felling.TrunksNear(World, site));
     }
 
+    /// <summary><c>PackVersionCheck</c>: nothing is read or compared, and nothing is logged about it
+    /// but the line that says it is off.</summary>
+    [AtlasScenario]
+    public void Pack_version_check_off_nothing_is_checked()
+    {
+        Assert.True(Off("PackVersionCheck"));
+        var check = World.Api.ModLoader.GetModSystem<SeraphHorizons.Mod.PackCheck.PackCheckSystem>();
+        Assert.NotNull(check);
+        Assert.Null(check.Pack);
+        Assert.Empty(check.Findings);
+        Assert.DoesNotContain(World.BootDiagnostics, e => e.Level is EnumLogType.Warning
+            && e.Message.Contains("Pack version check", StringComparison.Ordinal));
+    }
+
     /// <summary><c>GearBlanks</c>: no gear blanks, no gear blank molds and no recipes for either,
     /// and nothing logged about them.</summary>
     [AtlasScenario]
