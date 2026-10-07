@@ -216,6 +216,14 @@ Expanded's guides when it runs, so the export has its own six pages, and one
 `craftinginfo-woodworking`, and its own six pages when it does not, so the export has the two
 mods' guides.
 
+## variantGroups
+
+`Recipes/VariantGroups.cs`, after the items: the server's Tidy Variants resolution, read by
+reflection from the pack's own mod (`TidyVariantsModSystem.ForSide(Server)`), one entry per group
+whose members come to two or more exported codes. Titles are `GroupTitles.Of`'s, taken inside the
+same English locale scope as the item names. Absent without the mod or with the feature off; see
+[schema.md](schema.md#variant-groups).
+
 ## Proposed schema changes
 
 - `item.untranslated` (bool) and `item.stacks` (array of `$defs/stack`), promoted from
