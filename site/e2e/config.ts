@@ -30,4 +30,9 @@ export const E2E_VALUES: Record<string, { value: number; floorZero?: true } | nu
   "game:ingot-copper": { value: 2.5 },
   "game:stick": { value: 0.002, floorZero: true },
   "game:rot": null,
+  // A block's orientations (blocktypes/wood/chest.json) are one row on the values page.
+  "game:chest-east": { value: 6 },
+  "game:chest-north": { value: 6 },
+  "game:chest-south": { value: 6 },
+  "game:chest-west": { value: 6 },
 };

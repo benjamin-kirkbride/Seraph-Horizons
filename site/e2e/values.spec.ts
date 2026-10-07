@@ -95,6 +95,16 @@ test("the values page lists every valued item, sorts on each column and filters"
   await expect(copper.locator("td.value")).toHaveText("2.5 rusty gears");
   await copper.locator("a.item").click();
   await expect(page).toHaveURL(new RegExp(`#/${V}/item/game:ingot-copper$`));
+
+  // A block's orientations are one row, under the first code, found by any of them.
+  await page.goBack();
+  await page.getByTestId("values-filter").fill("chest-south");
+  await expect(rows).toHaveCount(1);
+  const chest = table.locator('tr[data-code="game:chest-east"]');
+  await expect(chest.locator("td.name .label")).toHaveText("Wooden chest");
+  await expect(chest.getByTestId("values-variants")).toHaveText("4 variants");
+  await expect(chest.getByTestId("values-variants")).toHaveAttribute("title", /game:chest-west$/);
+  await expect(copper).toHaveCount(0);
 });
 
 test("the values page can list the items without a value, last whichever way it sorts", async ({ page }) => {
