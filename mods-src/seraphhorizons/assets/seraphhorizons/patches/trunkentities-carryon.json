@@ -5,7 +5,8 @@
 //   patchPriority, so the order of the two patches does not matter): Logging Expanded's own carry
 //   animations, trunkcarry for thin trunks (sizes xs to lg) and trunkcarryheavy for thick ones
 //   (xl, xxl), a shoulder transform of its own (not Carry On's carry-trunk, which is the template
-//   for the game's storage trunk, a chest carried across the front), no swap to the back (trunks
+//   for the game's storage trunk, a chest carried across the front; the standing trunk block is
+//   tipped over about its centre to lie front to back), no swap to the back (trunks
 //   are Hands only: TrunkCarry also strips any Back slot and lays a trunk found on a back down),
 //   and no walk speed of Carry On's own: the pack
 //   sets the walk speed from the trunk's logs. Server side: the client gets the blocks from it.
@@ -22,7 +23,7 @@
         "overrideExistingProperties": true,
         "preventSwapBack": true,
         "transformGroups": {
-          "hands": [{ "id": "root", "translation": [0.35, 0.6, -0.5], "rotationY": 90.0, "originZ": 1.0 }]
+          "hands": [{ "id": "root", "translation": [0.35, 0.6, -0.5], "rotationZ": 90.0, "origin": [0.5, 0.5, 0.5] }]
         }
       },
       "propertiesByType": {
