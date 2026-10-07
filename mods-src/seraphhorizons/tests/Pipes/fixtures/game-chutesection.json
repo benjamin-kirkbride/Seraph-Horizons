@@ -1,0 +1,20 @@
+// The game's itemtypes/resource/chutesection.json (1.22.7), trimmed to what Pipes/Core/ChuteSections.cs
+// reads, in the game's own lenient JSON (unquoted keys, single quotes, trailing commas).
+{
+	code: "chutesection",
+	variantgroups: [
+		{ code: "material", states: ["copper" ] },
+	],
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: 'SingleCenter' } }
+	],
+	shape: { base: "block/metal/chute/section" },
+	textures: {
+		"metaltex": { base: "block/metal/sheet/{material}1" },
+	},
+	attributes: {
+		tongOpening: "medium",
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"], mechanics: ["*"] },
+	maxstacksize: 64,
+}

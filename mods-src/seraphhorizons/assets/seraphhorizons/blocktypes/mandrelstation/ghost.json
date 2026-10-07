@@ -1,0 +1,23 @@
+// The mandrel station's far cell, under the mandrel's tip (MandrelStation/Game/BlockMandrelStationGhost.cs).
+// The server disables it with MandrelStation off.
+{
+	code: "mandrelstation-ghost",
+	class: "seraphhorizons.MandrelStationGhost",
+	entityClass: "seraphhorizons.MandrelStationGhost",
+	shape: { base: "game:block/basic/nothing" },
+	blockmaterial: "Wood",
+	drops: [],
+	sidesolid: { all: false },
+	sideopaque: { all: false },
+	rainPermeable: true,
+	resistance: 3,
+	lightAbsorption: 0,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

@@ -1,0 +1,55 @@
+// Pipe section (UnifiedPipes; README "Unified pipes"): a short length of pipe-sized tube, a square
+// tube 6 voxels across (Pipes and Power Expanded's pipe is 6/16 wide) with walls 0.3 voxels thick
+// (the draw bench's drawn piece), half a block long (shapes/item/pipesection.json), textured as
+// ppex's pipes are (sheet-plain/<metal>4).
+// No grid or anvil recipe makes it: copper and lead ones come from a chute section on the mandrel
+// station (2) or the draw bench (4), iron and steel ones from Steelmaking Expanded's canal in the
+// pipe mold (CastPipes, 2 a fill). One makes a straight ppex pipe; two, three or four a bend, T- or
+// X-junction (recipes/grid/unifiedpipes.json). Marked disabled with the switch off.
+{
+	code: "pipesection",
+	variantgroups: [
+		{ code: "metal", states: ["copper", "lead", "iron", "steel"] }
+	],
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "SingleCenter", collisionBox: { x1: 0.3125, y1: 0, z1: 0.25, x2: 0.6875, y2: 0.375, z2: 0.75 } } }
+	],
+	shape: { base: "seraphhorizons:item/pipesection" },
+	textures: {
+		metal: { base: "game:block/metal/sheet-plain/{metal}4" }
+	},
+	attributes: {
+		shelvable: true,
+		groundStorageTransform: {
+			translation: { x: 0, y: -0.3125, z: 0 }
+		},
+		onTongTransform: {
+			translation: { x: -1.15, y: -0.97, z: -0.53 },
+			rotation: { x: 22, y: 11, z: -17 },
+			scale: 0.8
+		},
+		handbook: {
+			groupBy: ["pipesection-*"],
+			extraSections: [{ title: "seraphhorizons:pipesection-handbook-title", text: "seraphhorizons:pipesection-handbook-text" }]
+		}
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	maxstacksize: 64,
+	materialDensity: 9000,
+	guiTransform: {
+		rotation: { x: -17, y: -60, z: -48 },
+		origin: { x: 0.5, y: 0.5, z: 0.5 },
+		scale: 1.8
+	},
+	tpHandTransform: {
+		translation: { x: -1.12, y: -1.27, z: -1 },
+		rotation: { x: -8, y: -11, z: -18 },
+		scale: 0.48
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 0, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0.3, z: 0.5 },
+		scale: 3
+	}
+}

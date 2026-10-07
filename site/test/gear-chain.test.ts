@@ -65,6 +65,16 @@ describe("machine", () => {
     ]);
   });
 
+  it("says a hand machine's turns are its lever's", () => {
+    const brake: Recipe = { ...cutter, machine: { power: "hand", turns: 6, kept: [1] } };
+    expect(machineLines(brake)).toEqual(["By hand: 6 turns of the lever a job, a turn a second while right-click is held"]);
+  });
+
+  it("says a hand station's blows are a hammer's", () => {
+    const mandrel: Recipe = { ...cutter, machine: { power: "hand", turns: 9, work: { amount: 9, unit: "blows" }, kept: [1] } };
+    expect(machineLines(mandrel)).toEqual(["By hand: 9 blows a job, each a right-click with a hammer"]);
+  });
+
   it("tells the consumed blank from the kept master, the worn kit, the oil and the machine", () => {
     expect(cutter.ingredients.map((_, i) => machineRole(cutter, i))).toEqual(["consumed", "kept", "wear", "oil", "station"]);
   });

@@ -111,6 +111,7 @@ public class MachineOilTests
         Assert.Equal(2f, c.BuckingMill.DrainPerJob);
         Assert.Equal(2f, c.Rosser.DrainPerJob);
         Assert.Equal(10f, c.GearCutter.DrainPerJob);
+        Assert.Equal(2f, c.DrawBench.DrainPerJob);
         Assert.Empty(c.Sanitise());
     }
 

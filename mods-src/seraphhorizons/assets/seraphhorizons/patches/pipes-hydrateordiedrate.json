@@ -1,0 +1,31 @@
+// Unified pipes (seraphhorizons' UnifiedPipes switch, README "Unified pipes"): Hydrate or Diedrate's
+// copper and lead pipes and shut-off valves go, Pipes and Power Expanded's pipes join its hand pump to
+// a wellspring instead (Pipes/Game/HandPumpBridge.cs), and placed pipes and valves are removed as they
+// load (Pipes/Game/HydratePipes.cs). Here: no recipe for the pipe, the pipe section or the valve; the
+// three out of the creative inventory and the handbook (the block and item types stay registered, so
+// the removal finds them); the hand pump's recipe takes ppex copper or lead straight pipe where it took
+// Hydrate's pipe of the same metal; and the hand pump's handbook page says how it finds a spring.
+// Server side: block types and recipes are loaded on the server, and the client gets them, creative
+// stacks and attributes included, from it. With the switch off (or without Hydrate or Diedrate, or
+// with ppex's pipes not as expected) HydratePipes.DisablePatches empties this file.
+[
+  { "file": "hydrateordiedrate:recipes/grid/pipe.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:recipes/grid/valve.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:recipes/smithing/pipesection.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  {
+    "file": "hydrateordiedrate:recipes/grid/pump.json", "op": "replace", "path": "/ingredients/P",
+    "value": { "type": "block", "code": "ppex:pipe-straight-ns-*", "name": "metal", "allowedVariants": ["copper", "lead"], "quantity": 1 },
+    "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "ppex" }]
+  },
+  { "file": "hydrateordiedrate:blocktypes/metal/pipe.json", "op": "remove", "path": "/creativeinventory", "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:blocktypes/metal/pipe.json", "op": "add", "path": "/attributes/handbook", "value": { "exclude": true }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:blocktypes/metal/shutoffvalve.json", "op": "remove", "path": "/creativeinventory", "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:blocktypes/metal/shutoffvalve.json", "op": "add", "path": "/attributes/handbook", "value": { "exclude": true }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:itemtypes/part/pipesection.json", "op": "remove", "path": "/creativeinventory", "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  { "file": "hydrateordiedrate:itemtypes/part/pipesection.json", "op": "add", "path": "/attributes/handbook", "value": { "exclude": true }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }] },
+  {
+    "file": "hydrateordiedrate:blocktypes/metal/handpump.json", "op": "add", "path": "/attributes/handbook/extraSections",
+    "value": [{ "title": "seraphhorizons:handpump-handbook-title", "text": "seraphhorizons:handpump-handbook-text" }],
+    "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }]
+  }
+]

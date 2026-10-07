@@ -20,6 +20,8 @@ public enum OilMachine
     Rosser,
     /// <summary>This mod's gear cutter: its oil wears the cutter kit, never its shaft load.</summary>
     GearCutter,
+    /// <summary>This mod's draw bench.</summary>
+    DrawBench,
 }
 
 /// <summary>
@@ -186,6 +188,9 @@ public class MachineOilConfig
     /// never changes with its oil: the oil wears its cutter kit instead (GearCutterSettings).</summary>
     public OilMachineConfig GearCutter { get; set; } = new(1000, 10f);
 
+    /// <summary>Per pipe section drawn (four a hollow section).</summary>
+    public OilMachineConfig DrawBench { get; set; } = new(1000, 2f);
+
     public static readonly MachineOilConfig Defaults = new();
 
     public OilMachineConfig For(OilMachine machine) => machine switch
@@ -197,6 +202,7 @@ public class MachineOilConfig
         OilMachine.BuckingMill => BuckingMill,
         OilMachine.Rosser => Rosser,
         OilMachine.GearCutter => GearCutter,
+        OilMachine.DrawBench => DrawBench,
         _ => throw new ArgumentOutOfRangeException(nameof(machine)),
     };
 
@@ -264,6 +270,7 @@ public class MachineOilConfig
             case OilMachine.BuckingMill: BuckingMill = value; break;
             case OilMachine.Rosser: Rosser = value; break;
             case OilMachine.GearCutter: GearCutter = value; break;
+            case OilMachine.DrawBench: DrawBench = value; break;
         }
     }
 }

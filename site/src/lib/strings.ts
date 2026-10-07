@@ -197,8 +197,12 @@ const en = {
   lotteryNothing: "nothing",
   lotteryOutcomes: "Outcomes",
   machineTurns: (power: string, turns: string, work?: { amount: string; unit: string; per?: number }) =>
-    `${power === "mechanical" ? "Mechanical power" : power}: ${turns} turns of the axle a job` +
-    (work ? ` (${work.amount} ${work.unit}${work.per ? `, ${work.per} turns each` : ""})` : ""),
+    power === "hand" && work?.unit === "blows"
+      ? `By hand: ${turns} blows a job, each a right-click with a hammer`
+      : (power === "hand"
+          ? `By hand: ${turns} turns of the lever a job, a turn a second while right-click is held`
+          : `${power === "mechanical" ? "Mechanical power" : power}: ${turns} turns of the axle a job`) +
+        (work ? ` (${work.amount} ${work.unit}${work.per ? `, ${work.per} turns each` : ""})` : ""),
   machineOil: (points: string, tank: number | undefined, litres: string) =>
     `Drains ${points} points of oil (${litres} L) from the machine's tank${tank ? ` of ${tank}` : ""} a job`,
   machineNotes: {

@@ -1,0 +1,48 @@
+// The draw bench's die (DrawBench/, README "Draw bench"; stage 5): a hardened ring the drawn section
+// is pulled through over the mandrel's plug, smithed from one ingot of its metal
+// (recipes/smithing/drawbench.json), the wearing part. It loses one point an ingot drawn; the
+// durability here is DrawBenchSettings' DieDurability default, and the server sets the setting's
+// figure when the game loads. An iron die draws lead only, a steel one lead and copper
+// (DieMetals). The server disables it with DrawBench off.
+{
+	code: "drawdie",
+	variantgroups: [
+		{ code: "metal", states: ["iron", "steel"] }
+	],
+	shape: { base: "seraphhorizons:item/drawdie" },
+	textures: {
+		"metal": { base: "game:block/metal/ingot/{metal}" }
+	},
+	durability: 100,
+	maxstacksize: 1,
+	materialDensityByType: {
+		"*-iron": 7870,
+		"*-steel": 7850
+	},
+	attributes: {
+		handbook: { extraSections: [
+			{ title: "seraphhorizons:drawbench-part-section-title", text: "seraphhorizons:drawbench-die-section-text" }
+		] }
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"], "mechanics": ["*"] },
+	guiTransform: {
+		rotation: { x: -30, y: 45, z: 0 },
+		origin: { x: 0.5, y: 0.15, z: 0.5 },
+		scale: 2.4
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.5
+	},
+	fpHandTransform: {
+		translation: { x: 0, y: 0.1, z: 0 },
+		rotation: { x: 15, y: 15, z: 0 },
+		origin: { x: 0.5, y: 0.2, z: 0.5 },
+		scale: 2
+	},
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.1, z: -0.6 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.8
+	}
+}

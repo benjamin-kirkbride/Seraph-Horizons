@@ -12,7 +12,7 @@
        (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
        travelling merchants' inns (../Trading/Visitors/Core), the trunk entities' weights
-       and boxes (../TrunkEntities/Core) and the pack version check (../PackCheck/Core).
+       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the press brake's (../PressBrake/Core), the mandrel station's (../MandrelStation/Core) and the pack version check (../PackCheck/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -74,6 +74,31 @@
     <!-- The gear cutter's shipped rig and its reference poses (GearCutter/tools/make_shape.py). -->
     <None Include="../assets/seraphhorizons/config/gearcutter-rig.json" Link="gearcutter-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="GearCutter/rig-reference.json" Link="gearcutter-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The draw bench's gameplay rules: parts, the draw, the renderer's clock, settings and its rig;
+         a hand-trimmed test rig; and the shipped rig and its reference poses
+         (DrawBench/tools/make_shape.py), once they exist (the rig tests skip until then). -->
+    <Compile Include="../DrawBench/Core/**/*.cs" Link="DrawBench/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="DrawBench/fixtures/drawbench-rig-test.json" Link="drawbench-rig-test.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/config/drawbench-rig.json" Link="drawbench-rig.json" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('../assets/seraphhorizons/config/drawbench-rig.json')" />
+    <None Include="DrawBench/rig-reference.json" Link="drawbench-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('DrawBench/rig-reference.json')" />
+    <!-- The press brake's gameplay rules: parts, the fold, the renderer's clock, settings and its rig;
+         and the shipped rig and its reference poses (PressBrake/tools/make_shape.py), once they exist
+         (the rig tests skip until then). -->
+    <Compile Include="../PressBrake/Core/**/*.cs" Link="PressBrake/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/pressbrake-rig.json" Link="pressbrake-rig.json" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('../assets/seraphhorizons/config/pressbrake-rig.json')" />
+    <None Include="PressBrake/rig-reference.json" Link="pressbrake-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('PressBrake/rig-reference.json')" />
+    <!-- The mandrel station's gameplay rules: the mandrel, the forging, the renderer's clock, settings
+         and its rig; and the shipped rig and its reference poses (MandrelStation/tools/make_shape.py),
+         once they exist (the rig tests skip until then). -->
+    <Compile Include="../MandrelStation/Core/**/*.cs" Link="MandrelStation/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/mandrelstation-rig.json" Link="mandrelstation-rig.json" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
+    <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
+          Condition="Exists('MandrelStation/rig-reference.json')" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
@@ -105,6 +130,30 @@
     <!-- Pack version check: the comparison, and the lock the mod embeds, so the tests read the real one. -->
     <Compile Include="../PackCheck/Core/**/*.cs" Link="PackCheck/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../../../pack/lock.json" Link="pack-lock.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Pipes (unified pipes, cast pipes, the hand pump bridge): burst figures, the lead rule, the
+         recipe cost filter, the ppex asset guard and the shipped patch it is held to. -->
+    <Compile Include="../Pipes/Core/**/*.cs" Link="Pipes/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/patches/unifiedpipes-ppex.json" Link="unifiedpipes-ppex.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/recipes/grid/unifiedpipes.json" Link="unifiedpipes-grid.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The chain: the patch on the game's chute section (the hollow section), its anvil recipe and
+         the chute recipes; this mod's soldering recipe, the angle (item, anvil recipe) and the pipe
+         section; and the game's three files (1.22.7), the item and chutes trimmed to what the guard reads. -->
+    <None Include="../assets/seraphhorizons/patches/unifiedpipes-chutesection.json" Link="unifiedpipes-chutesection.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/recipes/grid/chutesection.json" Link="chutesection-grid.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/recipes/smithing/angle.json" Link="angle-smithing.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/itemtypes/angle.json" Link="angle-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/itemtypes/pipesection.json" Link="pipesection-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/shapes/item/angle.json" Link="angle-shape.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/shapes/item/pipesection.json" Link="pipesection-shape.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Pipes/fixtures/game-chute*.json" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Better Ruins' blueprint chutes off: the patch and its file (0.6.4) trimmed to what the guard reads. -->
+    <None Include="../assets/seraphhorizons/patches/unifiedpipes-betterruins.json" Link="unifiedpipes-betterruins.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Pipes/fixtures/betterruins-mechanical.json" Link="betterruins-mechanical.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Cast pipes: the smex mold patch, its clay-forming recipe, and smex 0.10.1's two mold
+         blocktypes trimmed to what the guard reads. -->
+    <None Include="../assets/seraphhorizons/patches/castpipes-smexmold.json" Link="castpipes-smexmold.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/recipes/clayforming/pipemold.json" Link="castpipes-pipemold.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Pipes/fixtures/smex-toolmold*.json" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,81 @@
+// The press brake's frame (PressBrake/, README "Press brake"): the controller cell of a 1 x 1 x 2
+// hand-worked leaf brake, at the leaf end, nearest the player who placed it. The server disables it
+// with PressBrake off.
+{
+	code: "pressbrake",
+	class: "seraphhorizons.PressBrake",
+	entityClass: "seraphhorizons.PressBrake",
+	// No HorizontalOrientable: BlockPressBrake.TryPlaceBlock picks the side so the brake extends
+	// away from the player, as the draw bench does.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/pressbrake_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/pressbrake_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/pressbrake_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/pressbrake_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (pressbrake.json), which the
+	// renderer draws with this block's textures; the renderer sets "screw" and "edge" to the fitted
+	// rods' and plates' metals.
+	textures: {
+		"oak":    { base: "game:block/wood/debarked/oak" },
+		"iron":   { base: "game:block/metal/plate/iron" },
+		"edge":   { base: "game:block/metal/plate/iron" },
+		"screw":  { base: "game:block/metal/plate/iron" },
+		"lead":   { base: "game:block/metal/sheet-plain/lead1" },
+		"copper": { base: "game:block/metal/sheet-plain/copper1" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:pressbrake-handbook-assembly-title", text: "seraphhorizons:pressbrake-handbook-assembly-text" },
+				{ title: "seraphhorizons:pressbrake-handbook-work-title", text: "seraphhorizons:pressbrake-handbook-work-text" },
+				{ title: "seraphhorizons:pressbrake-handbook-ladder-title", text: "seraphhorizons:pressbrake-handbook-ladder-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:pressbrake-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The shape fills the brake's 1 x 1 x 2 footprint (native z 0..2 from the controller; z -1..1
+	// once the -north item form turns it 180°), so the item forms are centred on it.
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.4, z: -0.6 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0, z: 0 },
+		scale: 0.45
+	},
+	fpHandTransform: {
+		rotation: { x: 0, y: -45, z: 0 },
+		origin: { x: 0.5, y: 0.4, z: 0 },
+		scale: 0.75
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.4, z: 0 },
+		scale: 0.8
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0 },
+		scale: 1.6
+	},
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

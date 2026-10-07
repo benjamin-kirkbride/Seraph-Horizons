@@ -1,0 +1,79 @@
+// The mandrel forging station (MandrelStation/, README "Mandrel forging station"): the controller
+// cell of a 1 x 1 x 2 hand station, the oak stump, nearest the player who placed it, its mandrel
+// pointing away. The server disables it with MandrelStation off.
+{
+	code: "mandrelstation",
+	class: "seraphhorizons.MandrelStation",
+	entityClass: "seraphhorizons.MandrelStation",
+	// No HorizontalOrientable: BlockMandrelStation.TryPlaceBlock picks the side so the station
+	// extends away from the player, as the press brake does.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/mandrelstation_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/mandrelstation_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/mandrelstation_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/mandrelstation_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (mandrelstation.json), which the
+	// renderer draws with this block's textures; the renderer sets "mandrel" to the fitted rod's metal.
+	textures: {
+		"oak":     { base: "game:block/wood/debarked/oak" },
+		"iron":    { base: "game:block/metal/plate/iron" },
+		"mandrel": { base: "game:block/metal/ingot/iron" },
+		"lead":    { base: "game:block/metal/sheet/lead1" },
+		"copper":  { base: "game:block/metal/sheet/copper1" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:mandrelstation-handbook-assembly-title", text: "seraphhorizons:mandrelstation-handbook-assembly-text" },
+				{ title: "seraphhorizons:mandrelstation-handbook-work-title", text: "seraphhorizons:mandrelstation-handbook-work-text" },
+				{ title: "seraphhorizons:mandrelstation-handbook-ladder-title", text: "seraphhorizons:mandrelstation-handbook-ladder-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:mandrelstation-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The shape fills the station's 1 x 1 x 2 footprint (native z 0..2 from the controller; z -1..1
+	// once the -north item form turns it 180°), so the item forms are centred on it.
+	tpHandTransform: {
+		translation: { x: -0.8, y: -0.4, z: -0.6 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0, z: 0 },
+		scale: 0.45
+	},
+	fpHandTransform: {
+		rotation: { x: 0, y: -45, z: 0 },
+		origin: { x: 0.5, y: 0.4, z: 0 },
+		scale: 0.75
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.4, z: 0 },
+		scale: 0.8
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0 },
+		scale: 1.6
+	},
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

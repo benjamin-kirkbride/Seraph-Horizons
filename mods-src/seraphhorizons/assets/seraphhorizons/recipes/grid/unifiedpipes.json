@@ -1,0 +1,398 @@
+// seraphhorizons' UnifiedPipes switch (README.md "Unified pipes"): the grid recipes of Pipes and
+// Power Expanded's pipes once its plate-and-nails and valve recipes are off. Pipe is made from this
+// mod's pipe sections (seraphhorizons:pipesection-*, from the mandrel station, the draw bench or the
+// pipe mold) in the game's chute patterns: one section alone, two as an elbow, three as a T, four as a
+// cross. Copper and lead ones are soldered, a tin or silver solder bar a section and a soldering iron;
+// iron and steel ones are banded with one nails and strips of their metal and a hammer. One section
+// makes one straight pipe; 2, 3 and 4 make a bend, a T- and an X-junction. Chute sections make chutes,
+// never pipe. Bronze valves from one straight pipe of any metal and a bronze ingot (and a plate of the
+// same bronze for the pressure valve's gate). Marked disabled by UnifiedPipesSystem with the switch off.
+[
+  {
+    "name": "Piping (Straight) soldered from pipe sections",
+    "ingredientPattern": "PST",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "copper",
+          "lead"
+        ],
+        "quantity": 1
+      },
+      "S": {
+        "type": "item",
+        "code": "game:solderbar-*",
+        "name": "solder",
+        "allowedVariants": [
+          "tin",
+          "silver"
+        ],
+        "quantity": 1
+      },
+      "T": {
+        "type": "item",
+        "code": "game:solderingiron",
+        "isTool": true,
+        "toolDurabilityCost": 2
+      }
+    },
+    "width": 3,
+    "height": 1,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-straight-ns-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (Straight) banded from pipe sections",
+    "ingredientPattern": "PNH",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "N": {
+        "type": "item",
+        "code": "game:metalnailsandstrips-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "H": {
+        "type": "item",
+        "code": "game:hammer-*",
+        "isTool": true
+      }
+    },
+    "width": 3,
+    "height": 1,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-straight-ns-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (Bend) soldered from pipe sections",
+    "ingredientPattern": "PS,TP",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "copper",
+          "lead"
+        ],
+        "quantity": 1
+      },
+      "S": {
+        "type": "item",
+        "code": "game:solderbar-*",
+        "name": "solder",
+        "allowedVariants": [
+          "tin",
+          "silver"
+        ],
+        "quantity": 2
+      },
+      "T": {
+        "type": "item",
+        "code": "game:solderingiron",
+        "isTool": true,
+        "toolDurabilityCost": 2
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-bend-nw-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (Bend) banded from pipe sections",
+    "ingredientPattern": "PN,HP",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "N": {
+        "type": "item",
+        "code": "game:metalnailsandstrips-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "H": {
+        "type": "item",
+        "code": "game:hammer-*",
+        "isTool": true
+      }
+    },
+    "width": 2,
+    "height": 2,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-bend-nw-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (TJunction) soldered from pipe sections",
+    "ingredientPattern": "SPT,P_P",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "copper",
+          "lead"
+        ],
+        "quantity": 1
+      },
+      "S": {
+        "type": "item",
+        "code": "game:solderbar-*",
+        "name": "solder",
+        "allowedVariants": [
+          "tin",
+          "silver"
+        ],
+        "quantity": 3
+      },
+      "T": {
+        "type": "item",
+        "code": "game:solderingiron",
+        "isTool": true,
+        "toolDurabilityCost": 2
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-tjunction-uns-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (TJunction) banded from pipe sections",
+    "ingredientPattern": "NPH,P_P",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "N": {
+        "type": "item",
+        "code": "game:metalnailsandstrips-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "H": {
+        "type": "item",
+        "code": "game:hammer-*",
+        "isTool": true
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-tjunction-uns-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (XJunction) soldered from pipe sections",
+    "ingredientPattern": "SPT,P_P,_P_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "copper",
+          "lead"
+        ],
+        "quantity": 1
+      },
+      "S": {
+        "type": "item",
+        "code": "game:solderbar-*",
+        "name": "solder",
+        "allowedVariants": [
+          "tin",
+          "silver"
+        ],
+        "quantity": 4
+      },
+      "T": {
+        "type": "item",
+        "code": "game:solderingiron",
+        "isTool": true,
+        "toolDurabilityCost": 2
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-xjunction-nswe-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (XJunction) banded from pipe sections",
+    "ingredientPattern": "NPH,P_P,_P_",
+    "ingredients": {
+      "P": {
+        "type": "item",
+        "code": "seraphhorizons:pipesection-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "N": {
+        "type": "item",
+        "code": "game:metalnailsandstrips-*",
+        "name": "metal",
+        "allowedVariants": [
+          "iron",
+          "steel"
+        ],
+        "quantity": 1
+      },
+      "H": {
+        "type": "item",
+        "code": "game:hammer-*",
+        "isTool": true
+      }
+    },
+    "width": 3,
+    "height": 3,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-xjunction-nswe-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (Valve) in bronze",
+    "ingredientPattern": "HPB",
+    "ingredients": {
+      "P": {
+        "type": "block",
+        "code": "ppex:pipe-straight-ns-*",
+        "quantity": 1
+      },
+      "B": {
+        "type": "item",
+        "code": "game:ingot-*",
+        "name": "metal",
+        "allowedVariants": [
+          "tinbronze",
+          "bismuthbronze",
+          "blackbronze"
+        ],
+        "quantity": 1
+      },
+      "H": {
+        "type": "item",
+        "code": "game:hammer-*",
+        "isTool": true
+      }
+    },
+    "width": 3,
+    "height": 1,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-valve-sn-{metal}",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Piping (Pressure Valve) in bronze",
+    "ingredientPattern": "_H_,BPL",
+    "ingredients": {
+      "P": {
+        "type": "block",
+        "code": "ppex:pipe-straight-ns-*",
+        "quantity": 1
+      },
+      "B": {
+        "type": "item",
+        "code": "game:ingot-*",
+        "name": "metal",
+        "allowedVariants": [
+          "tinbronze",
+          "bismuthbronze",
+          "blackbronze"
+        ],
+        "quantity": 1
+      },
+      "L": {
+        "type": "item",
+        "code": "game:metalplate-*",
+        "name": "metal",
+        "allowedVariants": [
+          "tinbronze",
+          "bismuthbronze",
+          "blackbronze"
+        ],
+        "quantity": 1
+      },
+      "H": {
+        "type": "item",
+        "code": "game:hammer-*",
+        "isTool": true
+      }
+    },
+    "width": 3,
+    "height": 2,
+    "output": {
+      "type": "block",
+      "code": "ppex:pipe-pressurevalve-sn-{metal}",
+      "quantity": 1
+    }
+  }
+]

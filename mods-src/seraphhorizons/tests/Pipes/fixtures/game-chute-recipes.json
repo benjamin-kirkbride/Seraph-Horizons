@@ -1,0 +1,21 @@
+// The game's recipes/grid/chute.json (1.22.7), each chute recipe on one line: what
+// Pipes/Core/ChuteSections.cs reads.
+[
+	{ ingredientPattern: "I_,_I", ingredients: { "I": { type: "item", code: "chutesection-copper" } }, width: 2, height: 2, output: { type: "block", code: "chute-elbow-down-east" } },
+	{ ingredientPattern: "I,I", ingredients: { "I": { type: "item", code: "chutesection-copper" } }, width: 2, height: 1, output: { type: "block", code: "chute-straight-ns" } },
+	{ ingredientPattern: "_I_,I_I,_I_", ingredients: { "I": { type: "item", code: "chutesection-copper" } }, width: 3, height: 3, output: { type: "block", code: "chute-cross-ground" } },
+	{ ingredientPattern: "_I_,I_I", ingredients: { "I": { type: "item", code: "chutesection-copper" } }, width: 3, height: 2, output: { type: "block", code: "chute-t-ns" } },
+	{ ingredientPattern: "_I_,II_", ingredients: { "I": { type: "item", code: "chutesection-copper" } }, width: 3, height: 2, output: { type: "block", code: "chute-3way-down-east" } },
+	{
+		ingredientPattern: "I_,S_,PH",
+		ingredients: {
+		"I": { type: "item", tags: ["tool-solderingiron"], isTool: true, toolDurabilityCost: 2 },
+		"H": { type: "item", tags: ["tool-hammer"], isTool: true, toolDurabilityCost: 2 },
+		"P": { type: "item", code: "metalplate-copper" },
+		"S": { type: "item", code: "solderbar-*", quantity: 2, name: "mat", allowedVariants: ["tin", "silver"]  }
+		},
+		width: 2,
+		height: 3,
+		output: { type: "item", code: "chutesection-copper", quantity: 2  }
+	}
+]
