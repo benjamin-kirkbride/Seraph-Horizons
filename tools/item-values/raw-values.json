@@ -37,7 +37,7 @@
     "money": {
       "game:gear-rusty": 1,
       "game:gear-temporal": 30,
-      "game:largegear-temporal": 60
+      "game:largegear-temporal": 100
     },
     "gems": {
       "game:gem-diamond-rough": 10, "game:gem-emerald-rough": 9,
