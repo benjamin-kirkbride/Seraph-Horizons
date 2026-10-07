@@ -4,7 +4,7 @@ namespace SeraphHorizons.Mod.Tests.PackCheck;
 
 public class PackComparisonTests
 {
-    private static readonly PackLock Pack = new("seraphhorizons", "1.1.0", "1.22.7",
+    private static readonly PackLock Pack = new("seraphhorizons", "0.1.0", "1.22.7",
     [
         new LockedMod("exlib", "1.2.0", "universal"),
         new LockedMod("ServerOnly", "0.3.0", "server"),
@@ -12,13 +12,13 @@ public class PackComparisonTests
     ]);
 
     private static List<Finding> Compare(CheckSide side, params (string Id, string Version)[] loaded) =>
-        Compare(side, "1.22.7", "1.1.0", loaded);
+        Compare(side, "1.22.7", "0.1.0", loaded);
 
     private static List<Finding> Compare(CheckSide side, string game, string own, params (string Id, string Version)[] loaded) =>
         PackComparison.Compare(Pack, loaded.Select(m => new LoadedMod(m.Id, m.Version)), side, game, "seraphhorizons", own);
 
     private static readonly (string, string)[] AsShippedOnServer =
-        [("game", "1.22.7"), ("creative", "1.22.7"), ("survival", "1.22.7"), ("seraphhorizons", "1.1.0"),
+        [("game", "1.22.7"), ("creative", "1.22.7"), ("survival", "1.22.7"), ("seraphhorizons", "0.1.0"),
          ("exlib", "1.2.0"), ("serveronly", "0.3.0")];
 
     [Fact]
@@ -26,8 +26,8 @@ public class PackComparisonTests
     {
         Assert.Empty(Compare(CheckSide.Server, AsShippedOnServer));
         Assert.Empty(Compare(CheckSide.Client,
-            ("game", "1.22.7"), ("creative", "1.22.7"), ("survival", "1.22.7"), ("seraphhorizons", "1.1.0"),
-            ("exlib", "1.2.0"), ("clientonly", "2.0.0"), ("seraphhorizonspack", "1.1.0")));
+            ("game", "1.22.7"), ("creative", "1.22.7"), ("survival", "1.22.7"), ("seraphhorizons", "0.1.0"),
+            ("exlib", "1.2.0"), ("clientonly", "2.0.0")));
     }
 
     [Fact]
@@ -70,10 +70,12 @@ public class PackComparisonTests
     }
 
     [Fact]
-    public void TheGamesOwnModsTheMetaModAndThisModAreNeverExtras()
+    public void TheGamesOwnModsAndThisModAreNeverExtras()
     {
-        Assert.Empty(Compare(CheckSide.Server,
-            [.. AsShippedOnServer, ("Game", "1.22.7"), ("SeraphHorizonsPack", "1.1.0")]));
+        Assert.Empty(Compare(CheckSide.Server, [.. AsShippedOnServer, ("Game", "1.22.7"), ("SeraphHorizons", "0.1.0")]));
+        // The releases have no meta-mod any more, so its old modid is a mod like any other.
+        Assert.Equal([new Finding(FindingKind.NotInPack, "seraphhorizonspack", null, "0.1.0")],
+            Compare(CheckSide.Server, [.. AsShippedOnServer, ("seraphhorizonspack", "0.1.0")]));
         Assert.True(PackComparison.BuiltIn.SetEquals(["game", "creative", "survival"]));
     }
 
@@ -87,13 +89,13 @@ public class PackComparisonTests
     public void AnotherGameVersion()
     {
         Assert.Equal([new Finding(FindingKind.GameVersion, "game", "1.22.7", "1.22.8")],
-            Compare(CheckSide.Server, "1.22.8", "1.1.0", AsShippedOnServer));
+            Compare(CheckSide.Server, "1.22.8", "0.1.0", AsShippedOnServer));
     }
 
     [Fact]
     public void ThisModAtAnotherVersionThanThePack()
     {
-        Assert.Equal([new Finding(FindingKind.OwnVersion, "seraphhorizons", "1.1.0", "1.0.0")],
+        Assert.Equal([new Finding(FindingKind.OwnVersion, "seraphhorizons", "0.1.0", "1.0.0")],
             Compare(CheckSide.Server, "1.22.7", "1.0.0", AsShippedOnServer));
     }
 
@@ -105,7 +107,7 @@ public class PackComparisonTests
         Assert.Equal(
         [
             new Finding(FindingKind.GameVersion, "game", "1.22.7", "1.22.8"),
-            new Finding(FindingKind.OwnVersion, "seraphhorizons", "1.1.0", "1.0.0"),
+            new Finding(FindingKind.OwnVersion, "seraphhorizons", "0.1.0", "1.0.0"),
             new Finding(FindingKind.WrongVersion, "exlib", "1.2.0", "9.9.9"),
             new Finding(FindingKind.Missing, "ServerOnly", "0.3.0", null),
             new Finding(FindingKind.NotInPack, "Alpha", null, "1"),
@@ -150,7 +152,7 @@ public class PackComparisonTests
         Assert.All(pack.Mods, m => Assert.Contains(m.Side, new[] { "universal", "server", "client" }));
         // The pack's own mod is released with the pack, never locked.
         Assert.DoesNotContain(pack.Mods, m => m.Id.Equals("seraphhorizons", StringComparison.OrdinalIgnoreCase));
-        // As released, with the game's own mods and the meta-mod: nothing to report.
+        // As released, with the game's own mods: nothing to report.
         var asReleased = pack.Mods.Where(m => PackComparison.LoadsOn(m.Side, CheckSide.Server))
             .Select(m => new LoadedMod(m.Id, m.Version))
             .Concat([new LoadedMod("game", pack.GameVersion), new LoadedMod("seraphhorizons", pack.PackVersion)]);

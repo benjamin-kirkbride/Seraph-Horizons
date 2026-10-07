@@ -209,7 +209,8 @@ describe("fetch", () => {
       tags: () => ["next", "v0.2.0", "v0.1.0", "weird/tag"],
       assets: (tag) =>
         ({
-          next: ["seraphhorizons_0.2.0.cairn", "seraphhorizons_0.2.0_recipes.json", "SHA256SUMS"],
+          // next's files say next where a versioned release's say the version; the id is the tag's.
+          next: ["seraphhorizons_next.cairn", "seraphhorizons_next_abc1234.zip", "seraphhorizons_next_recipes.json", "SHA256SUMS"],
           "v0.2.0": ["seraphhorizons_0.2.0_recipes.json"],
           "v0.1.0": ["seraphhorizons_0.1.0.cairn"],
         })[tag] ?? [],
@@ -220,14 +221,14 @@ describe("fetch", () => {
     };
     const releases = fetchReleases(source, out, () => {});
     const expected = [
-      { tag: "next", commit: "sha-of-next", export: "main/seraphhorizons_0.2.0_recipes.json" },
+      { tag: "next", commit: "sha-of-next", export: "main/seraphhorizons_next_recipes.json" },
       { tag: "v0.2.0", commit: "sha-of-v0.2.0", export: "v0.2.0/seraphhorizons_0.2.0_recipes.json" },
       { tag: "v0.1.0", commit: "sha-of-v0.1.0", export: null },
     ];
     expect(releases).toEqual(expected);
     expect(JSON.parse(readFileSync(path.join(out, "releases.json"), "utf8"))).toEqual({ releases: expected });
     expect(downloads).toEqual([
-      ["next", "seraphhorizons_0.2.0_recipes.json", "main"],
+      ["next", "seraphhorizons_next_recipes.json", "main"],
       ["v0.2.0", "seraphhorizons_0.2.0_recipes.json", "v0.2.0"],
     ]);
   });

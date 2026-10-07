@@ -37,7 +37,7 @@ class StageMods(unittest.TestCase):
 
     def test_pinned_copy_of_the_pack_mod_is_left_out_by_modid(self):
         mod_zip(self.src / "seraphhorizons_1.0.0.zip", "seraphhorizons")
-        mod_zip(self.src / "seraphhorizonspack_0.1.0.zip", "seraphhorizonspack")  # the meta-mod stays
+        mod_zip(self.src / "seraphhorizonsaddon_0.1.0.zip", "seraphhorizonsaddon")  # only its modid prefix is the pack mod's: stays
         mod_zip(self.src / "renamed.zip", "seraphhorizons")  # by modid, not file name
         mod_zip(self.src / "olla_1.2.0.zip", "olla")
         folder = self.src / "localmod"
@@ -46,7 +46,7 @@ class StageMods(unittest.TestCase):
         dropped = packtool.stage_mods(self.src, self.dest, {"seraphhorizons"})
         self.assertEqual(dropped, ["renamed.zip", "seraphhorizons_1.0.0.zip"])
         self.assertEqual(sorted(p.name for p in self.dest.iterdir()),
-                         ["localmod", "olla_1.2.0.zip", "seraphhorizonspack_0.1.0.zip"])
+                         ["localmod", "olla_1.2.0.zip", "seraphhorizonsaddon_0.1.0.zip"])
         self.assertTrue((self.dest / "localmod" / "modinfo.json").exists())
 
     def test_nothing_pinned_drops_nothing(self):

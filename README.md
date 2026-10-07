@@ -59,9 +59,8 @@ Each [GitHub Release](../../releases) has these files:
 |---|---|---|
 | `seraphhorizons_<v>.cairn` | Players using [Cairn](https://mods.vintagestory.at/cairn) (open it in the launcher) and servers using `cairn-server install <file>` | Exact versions, sha256-verified; Cairn installs the matching game and .NET |
 | `seraphhorizons_<v>_server.zip` | Plain dedicated servers | `lock.json` + `fetch-mods.sh`, which downloads each mod from the ModDB and checks its sha256 |
-| `seraphhorizons_<v>_metamod.zip` | Casual singleplayer: drop into `Mods/`, then click "Download mods" on world creation | The game treats these versions as **minimums** |
 | `seraphhorizons_<v>_modlist.txt` | `modid@version,...` for launchers that import that format | Exact |
-| `seraphhorizons_<v>.zip` | The pack's own mod (`mods-src/seraphhorizons`), version `<v>` like the pack | The `.cairn` file installs it from the release and checks its sha256; the server bundle carries it; with the meta-mod or the mod list, add it to `Mods/` yourself |
+| `seraphhorizons_<v>.zip` | The pack's own mod (`mods-src/seraphhorizons`), version `<v>` like the pack | The `.cairn` file installs it from the release and checks its sha256; the server bundle carries it; with the mod list, add it to `Mods/` yourself |
 
 The pack's own mod checks each install against the release it came with: if a mod is missing, at
 another version than the pack's, or not in the pack at all, or the game is another version, the
@@ -69,12 +68,17 @@ server logs it and tells admins as they join, and the game shows a dialog listin
 in a world. It goes quiet once the install matches that release (or for good with
 `PackVersionCheck` off in `ModConfig/seraphhorizons.json`).
 
+There is no ModDB meta-mod: it could not carry the pack's own mod, and the game reads a mod's
+dependencies as minimum versions, so it would install neither all of the pack nor the pack's versions.
+
 The pack and its own mod are one thing with one version, released together. Other mods' files are never
 re-hosted here: they are fetched from the ModDB CDN. The rolling [`next`](../../releases/tag/next)
-pre-release's `.cairn` file does the same with the pack's own mod built from the same commit, which it
-fetches from that same pre-release and checks against its sha256. That zip is named after the commit (`seraphhorizons_<version>_<sha7>.zip`), so its
-address changes with every build and Cairn, which notices a changed address or version but not a changed
-hash, downloads it again.
+pre-release has the same files with `next` in place of the version (`seraphhorizons_next.cairn`,
+`seraphhorizons_next_server.zip`, ...), and its `.cairn` file does the same with the pack's own mod
+built from the same commit, which it fetches from that same pre-release and checks against its sha256.
+That zip is named after the commit (`seraphhorizons_next_<sha7>.zip`), so its address changes with
+every build and Cairn, which notices a changed address or version but not a changed hash, downloads
+it again.
 
 ## Contributing
 

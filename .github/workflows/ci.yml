@@ -272,7 +272,7 @@ jobs:
       - uses: ./.github/actions/setup-pack
       # The pack's own mod as a release build makes it: build/seraphhorizons_<version>.zip,
       # the version modinfo.json says, never stamped. next ships it under the commit's name,
-      # seraphhorizons_<version>_<sha7>.zip, which next.yml publishes in the next
+      # seraphhorizons_next_<sha7>.zip, which next.yml publishes in the next
       # release beside the Cairn pack below, which fetches it from there. Cairn
       # sees a followed pack change by its mods' addresses and versions, never their hashes,
       # so a rebuild under an unchanged name would never reach a follower. The name is keyed
@@ -285,18 +285,19 @@ jobs:
           version=$(jq -r .version mods-src/seraphhorizons/modinfo.json)
           built="build/seraphhorizons_${version}.zip"
           [ -f "$built" ] || { echo "the build wrote no $built"; exit 1; }
-          zip="$RUNNER_TEMP/next-mod/seraphhorizons_${version}_${GITHUB_SHA::7}.zip"
+          zip="$RUNNER_TEMP/next-mod/seraphhorizons_next_${GITHUB_SHA::7}.zip"
           mkdir -p "${zip%/*}" && cp "$built" "$zip"
           echo "zip=$zip" >> "$GITHUB_OUTPUT"
       # This dist is what next.yml publishes as next, so its Cairn pack carries the mod by
       # address (the URL is where next.yml puts this very zip; versioned releases assemble
       # their own dist, naming the release's own copy, release.yml). Built the same on every run, PRs included,
-      # so the install below tests what next ships.
+      # so the install below tests what next ships. Its files are named for next, not the
+      # version (seraphhorizons_next.cairn, ...); their contents keep the version.
       - name: Assemble release artifacts
         env:
           ZIP: ${{ steps.mod.outputs.zip }}
         run: >
-          python3 tools/packtool.py assemble --url-mod "$ZIP"
+          python3 tools/packtool.py assemble --label next --url-mod "$ZIP"
           "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/next/${ZIP##*/}"
       # cairn-server is source-available (PolyForm Strict + a run-for-any-purpose grant);
       # we download and run it, never redistribute it.
@@ -315,7 +316,7 @@ jobs:
         env:
           ZIP: ${{ steps.mod.outputs.zip }}
         run: |
-          id=$(jq -r .pack.id pack/lock.json); v=$(jq -r .pack.version pack/lock.json)
+          id=$(jq -r .pack.id pack/lock.json)
           port=8765
           python3 -m http.server "$port" --bind 127.0.0.1 --directory "$(dirname "$ZIP")" >/dev/null 2>&1 &
           srv=$!
@@ -323,15 +324,15 @@ jobs:
           for _ in $(seq 50); do curl -fsI "http://127.0.0.1:$port/${ZIP##*/}" >/dev/null && break; sleep 0.2; done
           jq --arg base "http://127.0.0.1:$port/" \
             '.pack.mods |= map(if .url then .url = $base + (.url | split("/") | last) else . end)' \
-            "dist/${id}_${v}.cairn" > "$RUNNER_TEMP/${id}.cairn"
+            "dist/${id}_next.cairn" > "$RUNNER_TEMP/${id}.cairn"
           "$RUNNER_TEMP/cairn/cairn-server" install "$RUNNER_TEMP/${id}.cairn"
       - name: Cairn's lock matches ours, and the mod it fetched by address is this build
         env:
           ZIP: ${{ steps.mod.outputs.zip }}
         run: |
-          id=$(jq -r .pack.id pack/lock.json); v=$(jq -r .pack.version pack/lock.json)
+          id=$(jq -r .pack.id pack/lock.json)
           # The pack file's lock is lock.json's mods with the address mods in place of any ModDB pin of the same modid (packtool tests).
-          diff <(jq -S '[.lock.mods[] | {id: .modid, version, sha256}] | sort_by(.id)' "dist/${id}_${v}.cairn") \
+          diff <(jq -S '[.lock.mods[] | {id: .modid, version, sha256}] | sort_by(.id)' "dist/${id}_next.cairn") \
                <(jq -S '[.mods[] | {id: .modid, version, sha256}] | sort_by(.id)' "$CAIRN_HOME/packs/$id/pack.lock.json")
           echo "$(sha256sum < "$ZIP" | cut -d' ' -f1)  $CAIRN_HOME/packs/$id/Mods/${ZIP##*/}" | sha256sum -c -
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

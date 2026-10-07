@@ -19,7 +19,7 @@
     <AssemblyName>SeraphHorizons</AssemblyName>
     <RootNamespace>SeraphHorizons.Mod</RootNamespace>
     <!-- Keep equal to modinfo.json's version; tools/tests/test_mods_src.py checks it. -->
-    <Version>1.1.0</Version>
+    <Version>0.1.0</Version>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <!-- Atlas copies a mod folder by its name: a plain bin/Debug would land in the same
