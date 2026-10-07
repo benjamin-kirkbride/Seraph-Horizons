@@ -283,9 +283,14 @@ const en = {
   valuesFilterPlaceholder: "Name, code or mod, e.g. copper",
   valuesUnvalued: "Include items with no value",
   valuesCount: (n: number) => `${n.toLocaleString("en")} row${n === 1 ? "" : "s"}`,
-  valuesVariants: (n: number) => `${n.toLocaleString("en")} variants`,
-  valuesVariantsHint: (codes: readonly string[]) =>
-    `Same name, mod and value:\n${codes.slice(0, VARIANTS_SHOWN).join("\n")}${codes.length > VARIANTS_SHOWN ? `\nand ${codes.length - VARIANTS_SHOWN} more` : ""}`,
+  valuesRowCount: (rows: number, items: number) =>
+    `${rows.toLocaleString("en")} row${rows === 1 ? "" : "s"}, ${items.toLocaleString("en")} item${items === 1 ? "" : "s"}`,
+  valuesGroupedNote:
+    "Variants the game shows as one tile in the creative menu and the handbook share a row when they are worth the same, as do a block's orientations; open a row to list them.",
+  valuesVariants: (n: number, total: number) =>
+    n === total ? `${n.toLocaleString("en")} variants` : `${n.toLocaleString("en")} of ${total.toLocaleString("en")} variants`,
+  valuesVariantsHint: (codes: readonly string[], grouped: boolean) =>
+    `${grouped ? "One tile in the creative menu, worth the same" : "Same name, mod and value"}:\n${codes.slice(0, VARIANTS_SHOWN).join("\n")}${codes.length > VARIANTS_SHOWN ? `\nand ${codes.length - VARIANTS_SHOWN} more` : ""}`,
   valuesNoMatch: (q: string) => `No item matches “${q}”.`,
   valuesColumns: { name: "Item", mod: "Mod", value: "Value" },
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,

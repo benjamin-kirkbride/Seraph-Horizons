@@ -269,5 +269,17 @@ export interface RecipeExport {
   recipes: Recipe[];
   recipeTypes: Record<string, RecipeType>;
   guides: Guide[];
+  /**
+   * Tidy Variants' groups, by group id: the variants the pack shows as one creative-menu
+   * tile and one handbook group. Absent without the pack's own mod or with Tidy Variants off.
+   */
+  variantGroups?: Record<string, VariantGroup>;
   extra?: Record<string, unknown>;
+}
+
+export interface VariantGroup {
+  /** The group's English title, as the game shows it. */
+  title: string;
+  /** Two or more item codes, best representative first. A code is in at most one group. */
+  members: string[];
 }

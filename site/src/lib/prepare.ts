@@ -258,6 +258,33 @@ export function entitiesFrom(
   return { index, types };
 }
 
+/**
+ * The export's Tidy Variants groups as search.json carries them: titles, and member item
+ * indices in the export's rank order, groups in id order. site-data has checked the export,
+ * but an older or hand-made one may still name an unknown item or put an item in two groups;
+ * such members are skipped (an item stays in its first group) and a group left with fewer
+ * than two is dropped, since it groups nothing.
+ */
+function variantGroups(exp: RecipeExport, codes: readonly string[]): SearchFile["groups"] | undefined {
+  const titles: string[] = [];
+  const members: number[][] = [];
+  const taken = new Set<number>();
+  for (const id of Object.keys(exp.variantGroups ?? {}).sort(compareCodes)) {
+    const group = exp.variantGroups![id]!;
+    const items: number[] = [];
+    for (const code of group.members ?? []) {
+      const i = indexOfSorted(codes, code);
+      if (i < 0 || taken.has(i)) continue;
+      taken.add(i);
+      items.push(i);
+    }
+    if (items.length < 2) continue;
+    titles.push(group.title || exp.items[codes[items[0]!]!]!.name || id);
+    members.push(items);
+  }
+  return titles.length > 0 ? { titles, members } : undefined;
+}
+
 export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Prepared {
   const chunkBytes = options.chunkBytes ?? 256_000;
   const maxItems = options.maxItemsPerChunk ?? 400;
@@ -378,6 +405,8 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     search.value = values;
     if (Object.keys(valueSwitches).length > 0) search.valueSwitches = valueSwitches;
   }
+  const groups = variantGroups(exp, codes);
+  if (groups) search.groups = groups;
 
   const meta: Meta = {
     format: DATA_FORMAT,
