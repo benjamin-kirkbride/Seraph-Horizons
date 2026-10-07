@@ -90,6 +90,8 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(IrrigationVessel.DisablePatches);
         if (!(Config(api).BloodSausageInMixingBowl && BloodSausage.Applies(api)))
             DisablePatches(BloodSausage.DisablePatches);
+        if (!Config(api).DuplicateRecipes)
+            DisablePatches(DuplicateRecipes.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             DisablePatches(SawmillBladeDurability.DisablePatches);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
@@ -371,6 +373,12 @@ public class SeraphHorizonsConfig
     /// enables with Expanded Foods (server side; needs all three; off means Butchering's grid
     /// recipes too).</summary>
     public bool BloodSausageInMixingBowl { get; set; } = true;
+
+    /// <summary>Recipes that duplicate or undercut another recipe for the same thing are off:
+    /// Expanded Foods' offal-free kneading sausages and scrap brazier, Material Needs' re-declared
+    /// aged roofing, raft, oar and round shield, the game's barrel cottage cheese and sandstone daub
+    /// (server side; each only with the mod whose recipe stays; off means all as they ship).</summary>
+    public bool DuplicateRecipes { get; set; } = true;
 
     /// <summary>Panning gives no wool (Wool), stitching awls or buttons and clasps (Tailor's Delight)
     /// and no uranium nuggets (Expanded Matter); the rest of each mod's panning drops stay (server
