@@ -1,7 +1,11 @@
 // Trading: BetterRuins gives vanilla's luxuries and agriculture traders dialogues with its map
 // quests (patches/others/trader/dialogue in BetterRuins); the pack's curio dealer and farmer, which
 // take over those trades, get them the same way. "*" is moved past the new keys, since the game
-// takes the first key that matches.
+// takes the first key that matches. Those two dialogues are BetterRuins' copies of the game's trader
+// dialogue, so they also get what the pack's own (config/dialogue/trader.json, made by
+// Trading/tools/make_entities.py) adds to it: the standing option second in the main menu
+// (component 20, "main", in BetterRuins 0.6.4's both files) and its answer. An Atlas scenario
+// (TradingWindowScenarios) checks that every pack trader's dialogue has them.
 [
  {
   "op": "add",
@@ -235,6 +239,88 @@
   "path": "/temp",
   "file": "seraphhorizons:entities/humanoid/trader-female.json",
   "side": "Server",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/components/20/text/1",
+  "value": {
+   "value": "seraphhorizons:dialogue-trader-standing",
+   "jumpTo": "seraphhorizons-standing",
+   "conditions": [
+    {
+     "variable": "entity.shstanding",
+     "isValue": "on"
+    }
+   ]
+  },
+  "file": "betterruins:config/dialogue/luxuries.json",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/components/-",
+  "value": {
+   "code": "seraphhorizons-standing",
+   "owner": "trader",
+   "type": "talk",
+   "text": [
+    {
+     "value": "seraphhorizons:dialogue-standing-plain"
+    }
+   ],
+   "jumpTo": "main"
+  },
+  "file": "betterruins:config/dialogue/luxuries.json",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/components/20/text/1",
+  "value": {
+   "value": "seraphhorizons:dialogue-trader-standing",
+   "jumpTo": "seraphhorizons-standing",
+   "conditions": [
+    {
+     "variable": "entity.shstanding",
+     "isValue": "on"
+    }
+   ]
+  },
+  "file": "betterruins:config/dialogue/agriculture.json",
+  "dependsOn": [
+   {
+    "modid": "betterruins"
+   }
+  ]
+ },
+ {
+  "op": "add",
+  "path": "/components/-",
+  "value": {
+   "code": "seraphhorizons-standing",
+   "owner": "trader",
+   "type": "talk",
+   "text": [
+    {
+     "value": "seraphhorizons:dialogue-standing-plain"
+    }
+   ],
+   "jumpTo": "main"
+  },
+  "file": "betterruins:config/dialogue/agriculture.json",
   "dependsOn": [
    {
     "modid": "betterruins"

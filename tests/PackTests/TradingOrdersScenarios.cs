@@ -7,6 +7,8 @@ using SeraphHorizons.Mod.Trading.Orders;
 using SeraphHorizons.Mod.Trading.Orders.Core;
 using SeraphHorizons.Mod.Trading.Standing;
 using SeraphHorizons.Mod.Trading.Standing.Core;
+using SeraphHorizons.Mod.Trading.Window;
+using SeraphHorizons.Mod.Trading.Window.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
@@ -15,11 +17,11 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// mods-src/seraphhorizons/Trading/Orders and Trading/Deliveries (#453, #454) against the pinned
-/// mods: a spawned trader puts orders on offer at its first restock; an order taken with
-/// <c>/sh order accept</c> and filled through the trade packet (1000, the dialog's button) pays its
-/// premium and standing; <c>/sh trade simulate</c> past the deadline abandons a taken one; a
-/// delivery between two spawned traders handed in on time returns the deposit and a fee, and one
-/// left past its grace fails and keeps the deposit. Atlas' default world: no camps, so traders are
+/// mods: a spawned trader puts orders on offer at its first restock; an order taken in the trade
+/// window (its server side, <see cref="TradeWindowSystem.Handle"/>) and filled by selling the goods
+/// there pays its premium and standing; <c>/sh trade simulate</c> past the deadline abandons a taken
+/// one; a delivery between two spawned traders handed in on time through the receiver's window returns
+/// the deposit and a fee, and one left past its grace fails and keeps the deposit. Atlas' default world: no camps, so traders are
 /// known by their entity and deliveries are made by the admin command.
 /// </summary>
 public partial class TradingScenarios
@@ -27,10 +29,11 @@ public partial class TradingScenarios
     private OrdersSystem Orders => OrdersSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no OrdersSystem");
     private DeliveriesSystem Deliveries => DeliveriesSystem.Of(Api) ?? throw new Xunit.Sdk.XunitException("no DeliveriesSystem");
 
-    /// <summary>The role's player, beside the trader.</summary>
+    /// <summary>The role's player, beside the trader (within vanilla's trading reach: a squared
+    /// distance over 5 closes the trade).</summary>
     private static async Task<ITestPlayer> At(ITestPlayer player, EntitySeraphTrader trader)
     {
-        await player.TeleportTo(trader.Pos.AsBlockPos.AddCopy(2, 0, 0));
+        await player.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
         return player;
     }
 
@@ -70,15 +73,16 @@ public partial class TradingScenarios
         output.WriteLine(made.Message);
         Assert.True(made.Ok, made.Message);
         var order = Orders.Book.Get(before)!;
-        var accept = await at.ExecuteCommand($"/sh order accept {order.Id}");
-        output.WriteLine(accept.Message);
-        Assert.True(accept.Ok, accept.Message);
+        var sp = (IServerPlayer)at.Player;
+        Assert.True(trader.BeginTrade(sp));
+        var accept = WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.TakeOrder, Id = order.Id });
+        Assert.True(accept.Ok, accept.Key);
         Assert.Equal(OrderState.Accepted, order.State);
         return (order, buying);
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Filling_an_order_through_the_trade_dialog_pays_the_premium_and_raises_standing()
+    public async Task Filling_an_order_by_selling_in_the_trade_window_pays_the_premium_and_raises_standing()
     {
         FreshSupply();
         var trader = await SpawnTrader("generalstore", 0, 25);
@@ -91,12 +95,14 @@ public partial class TradingScenarios
         var inv = trader.Inventory;
         var offered = buying.TradeItem.Stack.Clone();
         offered.ResolveBlockOrItem(W);
-        inv.GetSellingCartSlot(0).Itemstack = offered;
-        int received = inv.GetTotalGain();
+        // The window's sell slot, one unit sold by a hold.
+        inv[SeraphTraderInventory.SellSlot].Itemstack = offered;
+        int received = buying.TradeItem.Price;
         int gearsBefore = Gears(sp);
         Assert.True(received > 0);
-        trader.OnReceivedClientPacket(sp, 1000, []);
-        Assert.Null(inv.GetSellingCartSlot(0).Itemstack);
+        var sold = WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.Sell });
+        Assert.True(sold.Ok, sold.Key);
+        Assert.Null(inv[SeraphTraderInventory.SellSlot].Itemstack);
 
         Assert.Equal(OrderState.Done, order.State);
         Assert.Equal(order.Premium, order.PremiumPaid);
@@ -163,12 +169,15 @@ public partial class TradingScenarios
         Assert.False((await World.ExecuteCommand($"/sh trade deliveries create {Id(a)} {Id(b)} {sp.PlayerName}")).Ok);
 
         // Not at the sender.
-        Assert.False((await p.ExecuteCommand("/sh delivery handin")).Ok);
-        await p.TeleportTo(b.Pos.AsBlockPos.AddCopy(2, 0, 0));
+        Assert.True(a.BeginTrade(sp));
+        Assert.False(WindowSystem.Handle(sp, a, new TradeRequest { Action = TradeAction.HandInDelivery }).Ok);
+        await p.TeleportTo(b.Pos.AsBlockPos.AddCopy(1, 0, 0));
         int wallet = b.Inventory.GetTraderAssets();
-        var handin = await p.ExecuteCommand("/sh delivery handin");
-        output.WriteLine(handin.Message);
-        Assert.True(handin.Ok, handin.Message);
+        Assert.True(b.BeginTrade(sp));
+        // The receiver's window knows the package is for it.
+        Assert.Contains(WindowSystem.BuildState(sp, b).Deliveries, r => r.Id == d.Id && r.ForHere && r.Carried);
+        var handin = WindowSystem.Handle(sp, b, new TradeRequest { Action = TradeAction.HandInDelivery });
+        Assert.True(handin.Ok, handin.Key);
         Assert.Equal(DeliveryState.OnTime, d.State);
         Assert.Equal(start + d.Fee, Gears(sp));
         Assert.Equal(wallet - d.Fee, b.Inventory.GetTraderAssets());
@@ -198,8 +207,9 @@ public partial class TradingScenarios
         Assert.Equal(afterDeposit, Gears(sp));
         Assert.Equal(200 - Standing.Rules.Points.DeliveryFailed, Standing.Ledger.Personal(sp.PlayerUID, Id(a))!.Points);
         Assert.True(PackageSlot(sp, d.Id)!.Itemstack.Attributes.GetBool(ItemPackage.AttrFailed));
-        await p.TeleportTo(b.Pos.AsBlockPos.AddCopy(2, 0, 0));
-        Assert.False((await p.ExecuteCommand("/sh delivery handin")).Ok);
+        await p.TeleportTo(b.Pos.AsBlockPos.AddCopy(1, 0, 0));
+        Assert.True(b.BeginTrade(sp));
+        Assert.False(WindowSystem.Handle(sp, b, new TradeRequest { Action = TradeAction.HandInDelivery }).Ok);
         a.Die(EnumDespawnReason.Removed);
         b.Die(EnumDespawnReason.Removed);
     }

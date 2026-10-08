@@ -13,6 +13,14 @@ Trading/Core/TraderTypes.cs holds the same eleven codes.
 It also writes visitor-{male,female}.json: the travelling merchants (#456, Trading/Visitors/),
 code `visitor`, class SeraphHorizons.VisitingTrader, the same humanoid with no revive, no fighting
 back or fleeing (they take no damage), wandering at most 4 blocks from where they arrived.
+
+And the dialogue all of them talk with, assets/seraphhorizons/config/dialogue/trader.json: the
+game's config/dialogue/trader.json with one more option in its main menu, "How do you see me these
+days?" (shown while trader standing is on: the entity variable `shstanding`), answered by the
+component `seraphhorizons-standing`, whose text the mod writes per player (Trading/Window/). Only
+"Got anything to trade?" opens the trade window, the pack's own (the dialogue's `opentrade`).
+BetterRuins' two quest dialogues get the same option and component by
+patches/trading-betterruins-dialogue.json.
 """
 
 import json
@@ -29,6 +37,21 @@ TYPES = [
 FINE_OUTFITS = {"curiodealer": "luxuries"}
 ENTITY_CLASS = "SeraphHorizons.Trader"
 
+# The pack's trader dialogue (the game's, with the standing option), and the option and its answer.
+DIALOGUE = "seraphhorizons:config/dialogue/trader"
+STANDING_OPTION = {
+    "value": "seraphhorizons:dialogue-trader-standing",
+    "jumpTo": "seraphhorizons-standing",
+    "conditions": [{"variable": "entity.shstanding", "isValue": "on"}],
+}
+STANDING_COMPONENT = {
+    "code": "seraphhorizons-standing",
+    "owner": "trader",
+    "type": "talk",
+    "text": [{"value": "seraphhorizons:dialogue-standing-plain"}],
+    "jumpTo": "main",
+}
+
 VISITOR_TYPES = ["travellingmerchant", "travellingcurio"]
 VISITOR_FINE_OUTFITS = {"travellingcurio": "luxuries"}
 VISITOR_CLASS = "SeraphHorizons.VisitingTrader"
@@ -38,6 +61,7 @@ VISITOR_DROPPED_TASKS = {"meleeattack", "seekentity", "fleeentity"}
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent.parent / "assets" / "seraphhorizons" / "entities" / "humanoid"
+DIALOGUE_OUT = HERE.parent.parent / "assets" / "seraphhorizons" / "config" / "dialogue" / "trader.json"
 
 
 def json5(text: str):
@@ -50,6 +74,12 @@ def json5(text: str):
             while text[j] != '"':
                 j += 2 if text[j] == "\\" else 1
             out.append(text[i:j + 1])
+            i = j + 1
+        elif c == "'":
+            j = i + 1
+            while text[j] != "'":
+                j += 2 if text[j] == "\\" else 1
+            out.append(json.dumps(text[i + 1:j]))
             i = j + 1
         elif text.startswith("//", i):
             i = text.index("\n", i)
@@ -103,8 +133,18 @@ def convert(entity: dict, gender: str, code="trader", types=TYPES, fine=FINE_OUT
             if behavior["code"] == "conversable":
                 # BetterRuins gives two types its quest dialogues by a patch of its own
                 # (patches/trading-betterruins-dialogue.json), which needs "*" to stay a key here.
-                behavior["dialogueByType"] = {"*": "game:config/dialogue/trader"}
+                behavior["dialogueByType"] = {"*": DIALOGUE}
     return entity
+
+
+def dialogue(config: dict) -> dict:
+    """The game's trader dialogue with the standing option second in its main menu and its answer."""
+    components = config["components"]
+    main = next(c for c in components if c.get("code") == "main")
+    assert main["text"][0]["jumpTo"] == "opentrade", main["text"][0]
+    main["text"].insert(1, STANDING_OPTION)
+    components.append(STANDING_COMPONENT)
+    return config
 
 
 def visitor(entity: dict, gender: str) -> dict:
@@ -134,6 +174,10 @@ def main() -> int:
             path = OUT / f"{name}-{gender}.json"
             path.write_text(json.dumps(entity, indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
             print(path)
+    vanilla = (Path(game) / "assets" / "survival" / "config" / "dialogue" / "trader.json").read_text(encoding="utf-8")
+    DIALOGUE_OUT.parent.mkdir(parents=True, exist_ok=True)
+    DIALOGUE_OUT.write_text(json.dumps(dialogue(json5(vanilla)), indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
+    print(DIALOGUE_OUT)
     return 0
 
 
