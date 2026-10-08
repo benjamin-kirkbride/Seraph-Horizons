@@ -242,26 +242,26 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, CutterClick(player, pos, CutterItem(Forging.LeadHollow, 2))?.StackSize);
         Assert.Contains("A lead tube blank on the mandrel: 0 blows struck, 0% forged", MandrelInfo(station, player));
 
-        // nothing moves without blows; each blow, from the stump or the ghost, is a sixth
+        // nothing moves without blows; each blow, from the stump or the ghost, is a ninth
         await World.Ticks(10);
         Assert.Equal(0, station.Job.Work);
         var hammer = CutterItem(MandrelHammer);
         int durability = hammer.Collectible.GetRemainingDurability(hammer);
-        for (int b = 1; b <= 5; b++)
+        for (int b = 1; b <= 8; b++)
         {
             await MandrelBlow(station, player, hammer, b % 2 == 0 ? MandrelGhost(station) : pos);
             Assert.Equal(b, station.Job.Blows);
-            Assert.Equal(b / 6.0, station.Job.Work, 6);
+            Assert.Equal(b / 9.0, station.Job.Work, 6);
             Assert.True(station.HollowOn);
         }
-        Assert.Equal(durability - 5 * MandrelMod.Config.HammerWearPerBlow, hammer.Collectible.GetRemainingDurability(hammer));
-        Assert.Contains("5 blows struck, 83% forged", MandrelInfo(station, player));
+        Assert.Equal(durability - 8 * MandrelMod.Config.HammerWearPerBlow, hammer.Collectible.GetRemainingDurability(hammer));
+        Assert.Contains("8 blows struck, 88% forged", MandrelInfo(station, player));
         // a save keeps the blows and W
         var tree = new Vintagestory.API.Datastructures.TreeAttribute();
         station.ToTreeAttributes(tree);
         station.FromTreeAttributes(tree, W);
-        Assert.Equal((1, 5), (station.Job.Class, station.Job.Blows));
-        Assert.Equal(5 / 6.0, station.Job.Work, 6);
+        Assert.Equal((1, 8), (station.Job.Class, station.Job.Blows));
+        Assert.Equal(8 / 9.0, station.Job.Work, 6);
 
         // the last blow: two lead pipe sections drop beyond the tip, the hollow is used up
         await MandrelBlow(station, player, hammer);
@@ -280,7 +280,7 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
-    // Copper forges the same, into two copper pipe sections, at nine blows against lead's six.
+    // Copper forges the same, into two copper pipe sections, at fourteen blows against lead's nine.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Mandrel_station_takes_more_blows_for_copper()
     {
@@ -290,14 +290,14 @@ public partial class SharedWorldScenarios
         FitMandrel(station, player, "game:rod-meteoriciron");
         Assert.Null(CutterClick(player, pos, CutterItem(Forging.CopperHollow)));
         Assert.Equal(2, station.Job.Class);
-        Assert.Equal(9, station.BlowsNeeded);
+        Assert.Equal(14, station.BlowsNeeded);
         var hammer = CutterItem(MandrelHammer);
-        for (int b = 1; b <= 6; b++)
+        for (int b = 1; b <= 9; b++)
             await MandrelBlow(station, player, hammer);
-        // six blows finish a lead hollow, two thirds of a copper one
+        // nine blows finish a lead hollow, nine fourteenths of a copper one
         Assert.True(station.HollowOn);
-        Assert.Equal(6 / 9.0, station.Job.Work, 6);
-        for (int b = 7; b <= 9; b++)
+        Assert.Equal(9 / 14.0, station.Job.Work, 6);
+        for (int b = 10; b <= 14; b++)
             await MandrelBlow(station, player, hammer);
         Assert.False(station.HollowOn);
         await World.Ticks(5);
@@ -306,7 +306,7 @@ public partial class SharedWorldScenarios
     }
 
     // A steel hammer (tier 5) forges two and a half copper blows a blow, the game's ratio: lead in
-    // three blows, copper in four, each costing the hammer its one point.
+    // four blows, copper in six, each costing the hammer its one point.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Mandrel_station_forges_faster_with_a_steel_hammer_by_its_tier()
     {
@@ -321,7 +321,7 @@ public partial class SharedWorldScenarios
         int durability = hammer.Collectible.GetRemainingDurability(hammer);
 
         Assert.Null(CutterClick(player, pos, CutterItem(Forging.LeadHollow)));
-        for (int b = 1; b <= 2; b++)
+        for (int b = 1; b <= 3; b++)
         {
             await MandrelBlow(station, player, hammer);
             Assert.True(station.HollowOn);
@@ -329,14 +329,14 @@ public partial class SharedWorldScenarios
         }
         await MandrelBlow(station, player, hammer);
         Assert.False(station.HollowOn);
-        Assert.Equal(durability - 3 * MandrelMod.Config.HammerWearPerBlow, hammer.Collectible.GetRemainingDurability(hammer));
+        Assert.Equal(durability - 4 * MandrelMod.Config.HammerWearPerBlow, hammer.Collectible.GetRemainingDurability(hammer));
         await World.Ticks(5);
         Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(PipeSectionLead));
         CutterKillItems(pos);
 
-        // copper, nine copper blows: four of steel
+        // copper, fourteen copper blows: six of steel
         Assert.Null(CutterClick(player, pos, CutterItem(Forging.CopperHollow)));
-        for (int b = 1; b <= 3; b++)
+        for (int b = 1; b <= 5; b++)
         {
             await MandrelBlow(station, player, hammer);
             Assert.True(station.HollowOn);
@@ -344,14 +344,14 @@ public partial class SharedWorldScenarios
         }
         await MandrelBlow(station, player, hammer);
         Assert.False(station.HollowOn);
-        Assert.Equal(4, Forging.BlowsWith(MandrelMod.Config.BlowsPerHollowCopper, steel, copper));
+        Assert.Equal(6, Forging.BlowsWith(MandrelMod.Config.BlowsPerHollowCopper, steel, copper));
         await World.Ticks(5);
         Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(PipeSectionCopper));
         CutterKillItems(pos);
     }
 
     // A hammer with no tool tier counts as the base: the steel hammer with its tier taken away for the
-    // scenario (and given back) forges lead in the copper hammer's six blows.
+    // scenario (and given back) forges lead in the copper hammer's nine blows.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Mandrel_station_counts_a_hammer_with_no_tier_as_the_base()
     {
@@ -366,11 +366,11 @@ public partial class SharedWorldScenarios
             item.ToolTier = 0;
             var hammer = CutterItem(MandrelSteelHammer);
             Assert.Null(CutterClick(player, pos, CutterItem(Forging.LeadHollow)));
-            for (int b = 1; b <= 5; b++)
+            for (int b = 1; b <= 8; b++)
             {
                 await MandrelBlow(station, player, hammer);
                 Assert.True(station.HollowOn);
-                Assert.Equal(b / 6.0, station.Job.Work, 6);
+                Assert.Equal(b / 9.0, station.Job.Work, 6);
             }
             await MandrelBlow(station, player, hammer);
             Assert.False(station.HollowOn);

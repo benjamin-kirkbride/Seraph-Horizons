@@ -162,7 +162,7 @@ nothing added to the shared rig maths: a `work` quantity, gauges, and one θ-dri
   W by `1 / blowsPerHollow[k]` a blow, delivers two `forge.sections[k]` at W = 1, then clears. As with
   the press brake, every gauge eases back as p eases out, so a renderer stops drawing the work once its
   sections are delivered.
-- **`forge`**: `blowsPerHollow` (lead 6, copper 9: the pace), `hollows` (each class's work), `sections`
+- **`forge`**: `blowsPerHollow` (lead 9, copper 14: the pace), `hollows` (each class's work), `sections`
   (what a hollow makes) and `sectionsPerHollow` (2).
 - **Anchors**: `output.pos` (on the ground beyond the tip, where gameplay drops the two sections), `strike.pos` (the top of the box's
   middle, where the hammer lands: sparks and the blow's sound), `infeedSide` west, `outputSide` south.
@@ -200,7 +200,7 @@ The model has been reviewed in projections rendered from the written files and i
 4. **No slide-on, no slide-off.** The hollow appears on the mandrel as p eases in; at W 1 the finished tube
    stays on the mandrel and gameplay drops the two sections as items at `output.pos` and stops drawing it.
    Nothing is seen coming off. (Every gauge eases back as p eases out, so the work must not be drawn then.)
-5. **Blows.** The forging is linear in W, so each blow (1/6 of a lead hollow, 1/9 of a copper one) closes and
+5. **Blows.** The forging is linear in W, so each blow (1/9 of a lead hollow, 1/14 of a copper one) closes and
    stretches it by the same amount; the renderer eases W between blows.
 6. **Linear ramps**, as the press brake's: the motion starts and stops at full speed.
 7. **The swage is decoration**: nothing is swaged in it.
@@ -248,9 +248,9 @@ held does not hammer faster than a smith swings. A blow advances W by (the hamme
 `BlowsPerHollow` is the count for the base hammer, the copper one, and the tier is read from the held
 hammer's item (`CollectibleObject.ToolTier`, the game's `tooltierbytype`: copper, gold and silver 2, the
 three bronzes 3, iron and meteoric iron 4, steel 5) at each blow; a hammer with no tier counts as the
-base, and one blow never advances more than half a hollow (`Forging.MaxWorkPerBlow`). So lead takes 6
-blows of a copper hammer, 4 of a bronze one, 3 of an iron or steel one; copper 9, 6, 5 (iron) and 4
-(steel). The blow that brings W to 1 finishes it (the overshoot is dropped). A blow plays the anvil's `game:sounds/effect/anvilhit` and throws a few
+base, and one blow never advances more than half a hollow (`Forging.MaxWorkPerBlow`). So lead takes 9
+blows of a copper hammer, 6 of a bronze one, 5 of an iron one and 4 of a steel one; copper 14, 10, 7
+(iron) and 6 (steel). The blow that brings W to 1 finishes it (the overshoot is dropped). A blow plays the anvil's `game:sounds/effect/anvilhit` and throws a few
 small glowing sparks at `strike.pos`, and costs the hammer `HammerWearPerBlow` durability (not in
 creative mode), one a blow whatever the hammer. At W = 1 the hollow is used up and `forge.sectionsPerHollow` (2)
 `forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) go into a container in
@@ -262,7 +262,7 @@ mandrel takes one hollow from a container in a cell beside the station (`InfeedN
 west: beside the stump or beside the tip's cell) and loads it; that click is not a blow. A save keeps
 the mandrel's code, the hollow, its class, the blows and W.
 
-**Settings** (`MandrelStationSettings`): `BlowsPerHollowLead` 6 and `BlowsPerHollowCopper` 9, the rig's
+**Settings** (`MandrelStationSettings`): `BlowsPerHollowLead` 9 and `BlowsPerHollowCopper` 14, the rig's
 `forge.blowsPerHollow` (`MandrelStationRigTests.The_default_pace_is_the_rigs` holds them together),
 counted for a hammer of `BaseHammerTier` 2 (the game's copper hammer's tier); the block info shows the
 blows struck and W as a percentage, since the blows left depend on the hammer.
@@ -290,13 +290,13 @@ write one `machine` record per metal (`mandrelstation|game:chutesection-{metal}|
 consumed, the mandrel kept, the hammer as a tool worn `HammerWearPerBlow` × blows a job (`wear`
 `fixed`, so the site shows it as the worn tool, not consumed), the frame as the station, two pipe
 sections out; `power` `hand`, `turns` the base (copper) hammer's blows and `work` that many `blows` (the
-site says "By hand: 6 blows a job, each a right-click with a hammer"), the definition's hammer
+site says "By hand: 9 blows a job, each a right-click with a hammer"), the definition's hammer
 `game:hammer-copper`; a better hammer's fewer blows are the handbook's (the schema has no note on a
 recipe); no `oil`. Type `mandrelstation`, owned by
 `MandrelStation` (`Core/SwitchOwnership.cs`).
 
 **Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the mandrel and its take-back, saves,
-hollows by metal and what is refused, hammers, blows and the last one, copper's nine, the blow interval,
+hollows by metal and what is refused, hammers, blows and the last one, copper's fourteen, the blow interval,
 the clock, settings, and the reader on a rig written to the contract with its refusals) and
 `MandrelStationRigTests.cs` (the shipped rig through the shared parser and `MandrelStationRig`, its
 anchors, the pace held to the settings, the reader's refusals, and every pose of

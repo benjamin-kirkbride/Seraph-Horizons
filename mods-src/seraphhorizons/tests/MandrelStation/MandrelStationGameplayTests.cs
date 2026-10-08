@@ -142,8 +142,8 @@ public class MandrelStationGameplayTests
     public void Copper_takes_more_blows_than_lead_at_the_defaults()
     {
         var config = new MandrelStationConfig();
-        Assert.Equal(6, config.BlowsPerHollow(1));
-        Assert.Equal(9, config.BlowsPerHollow(2));
+        Assert.Equal(9, config.BlowsPerHollow(1));
+        Assert.Equal(14, config.BlowsPerHollow(2));
         Assert.Equal(0, config.BlowsPerHollow(0));
         int Blows(int k)
         {
@@ -153,8 +153,8 @@ public class MandrelStationGameplayTests
                 (job, done) = job.Strike(config.BlowsPerHollow(k));
             return n;
         }
-        Assert.Equal(6, Blows(1));
-        Assert.Equal(9, Blows(2));
+        Assert.Equal(9, Blows(1));
+        Assert.Equal(14, Blows(2));
     }
 
     // ---- The hammer's tier ----
@@ -184,11 +184,11 @@ public class MandrelStationGameplayTests
     }
 
     [Theory]
-    // tier, lead's blows, copper's blows at the defaults (6 and 9 for the copper hammer)
-    [InlineData(2, 6, 9)]   // copper, gold, silver
-    [InlineData(3, 4, 6)]   // tin, bismuth and black bronze
-    [InlineData(4, 3, 5)]   // iron, meteoric iron
-    [InlineData(5, 3, 4)]   // steel
+    // tier, lead's blows, copper's blows at the defaults (9 and 14 for the copper hammer)
+    [InlineData(2, 9, 14)]   // copper, gold, silver
+    [InlineData(3, 6, 10)]   // tin, bismuth and black bronze
+    [InlineData(4, 5, 7)]    // iron, meteoric iron
+    [InlineData(5, 4, 6)]    // steel
     public void A_better_hammer_forges_in_fewer_blows_by_its_tier(int tier, int lead, int copper)
     {
         var config = new MandrelStationConfig();
@@ -203,7 +203,7 @@ public class MandrelStationGameplayTests
             return n;
         }
         Assert.Equal((lead, copper), (Blows(1), Blows(2)));
-        Assert.Equal((lead, copper), (Forging.BlowsWith(6, tier, 2), Forging.BlowsWith(9, tier, 2)));
+        Assert.Equal((lead, copper), (Forging.BlowsWith(9, tier, 2), Forging.BlowsWith(14, tier, 2)));
     }
 
     [Fact]
@@ -335,7 +335,7 @@ public class MandrelStationGameplayTests
         var config = new MandrelStationConfig { BlowsPerHollowLead = 0, BlowsPerHollowCopper = 5000, HammerWearPerBlow = -1, BaseHammerTier = 0 };
         var fixes = config.Sanitise();
         Assert.Equal(4, fixes.Count);
-        Assert.Equal((6, 9, 1, 2), (config.BlowsPerHollowLead, config.BlowsPerHollowCopper, config.HammerWearPerBlow, config.BaseHammerTier));
+        Assert.Equal((9, 14, 1, 2), (config.BlowsPerHollowLead, config.BlowsPerHollowCopper, config.HammerWearPerBlow, config.BaseHammerTier));
         Assert.Empty(new MandrelStationConfig { BlowsPerHollowLead = 1, HammerWearPerBlow = 0, BaseHammerTier = 1 }.Sanitise());
     }
 

@@ -288,8 +288,8 @@
   },
   "MandrelStation": true,
   "MandrelStationSettings": {
-    "BlowsPerHollowLead": 6,
-    "BlowsPerHollowCopper": 9,
+    "BlowsPerHollowLead": 9,
+    "BlowsPerHollowCopper": 14,
     "BaseHammerTier": 2,
     "HammerWearPerBlow": 1
   },

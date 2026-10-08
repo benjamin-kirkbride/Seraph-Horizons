@@ -133,7 +133,7 @@ LIFT = HANG0 - HANG1                         # how far the section's centre rise
 
 # ---------------------------------------------------------------- the cycle (t = W, one hollow)
 T_FORGE = (0.0, 1.0)                         # closes from 8 to 6 across and stretches from 8 to 16, evenly, the whole work
-BLOWS = {"thin": 6.0, "thick": 9.0}          # the pace: blows a hollow
+BLOWS = {"thin": 9.0, "thick": 14.0}          # the pace: blows a hollow
 
 METALS = (("thin", "l", "lead", "hollowlead"), ("thick", "c", "copper", "hollowcopper"))
 # a ring's walls and corner bars: (name, x direction to the axis, y direction to the axis)

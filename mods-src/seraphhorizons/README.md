@@ -2377,10 +2377,10 @@ not yet struck (one being forged is lost).
 angle, a pipe section, an ingot or a plate). Then **each right-click with a hammer** (any of the game's)
 is a blow, as on the anvil, at most one each 0.3 s: the anvil's sound and sparks where it lands, the
 hammer's durability paid (`HammerWearPerBlow`), and the forging W (0..1) advanced by the hammer's tool
-tier over `BaseHammerTier` (2, the copper hammer's), over the hollow's `BlowsPerHollowLead` (6) or
-`BlowsPerHollowCopper` (9), at most half a hollow a blow; a hammer with no tier counts as the base. With
-the game's tiers (copper, gold, silver 2; bronzes 3; iron, meteoric iron 4; steel 5) lead takes 6, 4, 3
-and 3 blows and copper 9, 6, 5 and 4. When W reaches 1 the hollow is used up
+tier over `BaseHammerTier` (2, the copper hammer's), over the hollow's `BlowsPerHollowLead` (9) or
+`BlowsPerHollowCopper` (14), at most half a hollow a blow; a hammer with no tier counts as the base. With
+the game's tiers (copper, gold, silver 2; bronzes 3; iron, meteoric iron 4; steel 5) lead takes 9, 6, 5
+and 4 blows and copper 14, 10, 7 and 6. When W reaches 1 the hollow is used up
 and two pipe sections of its metal go into a container beyond the tip (native south), else drop just
 past it. A blow on a bare mandrel takes the next hollow from a chest or hopper beside the station (native
 west), so a player can keep striking; it never takes one by itself. The block info shows what the
@@ -2392,8 +2392,8 @@ while it is on, easing to each blow as it lands.
 
 | Setting | Default | |
 |---|---|---|
-| `BlowsPerHollowLead` | 6 | Blows of the base hammer a lead hollow takes; the rig's `forge.blowsPerHollow.thin` (a test holds them together) |
-| `BlowsPerHollowCopper` | 9 | Blows of the base hammer a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
+| `BlowsPerHollowLead` | 9 | Blows of the base hammer a lead hollow takes; the rig's `forge.blowsPerHollow.thin` (a test holds them together) |
+| `BlowsPerHollowCopper` | 14 | Blows of the base hammer a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
 | `BaseHammerTier` | 2 | The tool tier those blows are counted for, the game's copper hammer's; a blow of a hammer of tier t forges t / this of a base blow |
 | `HammerWearPerBlow` | 1 | Durability a blow costs the hammer, as a blow on the anvil does |
 
@@ -4085,16 +4085,16 @@ cells' lids, the infeed and outfeed cells, and both cells cleared and the frame 
 mandrel fitted by a real click on the ghost, a hollow and a blow before it, a copper rod and an empty
 hand refused, a second rod refused, a save keeping it, Ctrl taking it back, and the creative shortcut; a
 lead hollow struck through by real right-clicks with a hammer from the stump and the ghost, a blow a
-sixth with a copper hammer, an angle, a pipe section, an ingot and a plate never taken, the hammer paying
-a point a blow, a save keeping the blows, and two lead pipe sections dropped beyond the tip at the sixth,
-the hollow used up; copper at nine blows; a steel hammer forging lead in three blows, each two and a half
-of a copper one's, and copper in four; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
+ninth with a copper hammer, an angle, a pipe section, an ingot and a plate never taken, the hammer paying
+a point a blow, a save keeping the blows, and two lead pipe sections dropped beyond the tip at the ninth,
+the hollow used up; copper at fourteen blows; a steel hammer forging lead in four blows, each two and a half
+of a copper one's, and copper in six; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
 breaking giving back the mandrel and an unstruck hollow (not a struck one); and hollows taken from a
 chest beside the stump only when struck (never an ingot, an angle or a pipe section) and sections put in
 a chest beyond the tip. With the switch off, `SwitchesOffScenarios` requires none of its blocks or
 recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios.cs` requires one
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
-the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 6 or 9
+the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 9 or 14
 blows, no oil.
 
 `tests/PackTests/HandcarScenarios.cs` (Atlas, a plain world of its own: it joins four players, and the
