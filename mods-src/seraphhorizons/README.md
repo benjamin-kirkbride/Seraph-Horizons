@@ -23,7 +23,7 @@ it patches by name, so the mod builds from the game alone (`release.yml` needs n
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
-icon reset and the creative search tweaks run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+icon reset, the creative search tweaks and the NaN motion diagnostics run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block).
@@ -280,6 +280,81 @@ restart the client before opening another world.
 
 Remove this tweak once Carry On clears the fields itself (upstream #87) and the pack pins that
 version.
+
+### NaN motion diagnostics (`NanMotionDiagnostics`)
+
+A diagnostic, not a fix, for #405: the client crashes with
+
+```
+System.ArgumentException: Given pos contained NaN: XYZ: 511823.82/114/512083.63, YPR -8.098406/3.5433109/0, Dim 0 for entity game:player
+   at Vintagestory.GameContent.EntityBehaviorPlayerPhysics.SimPhysics_Patch6(EntityBehaviorPlayerPhysics this, Single dt, EntityPos pos)
+   at Vintagestory.GameContent.EntityBehaviorPlayerPhysics.OnRenderFrame(Single dt, EnumRenderStage stage)
+```
+
+The position is finite and the player's `Pos.Motion` is NaN: `EntityBehaviorControlledPhysics.ApplyTests`
+checks both before anything else, and throws (the frame shown is `SimPhysics` because gondolacablecar's
+finalizer on it rethrows, which restarts the trace there). It has happened standing still and AFK, and
+nobody has reproduced it. This finds what made the motion NaN and leaves the crash as it is: nothing is
+repaired, dropped or caught.
+
+`NanMotion/NanMotionDiagnostics.cs` traces, on the client's main thread, every place that can write
+the local player's motion, with a checkpoint at the start of each call (before any other mod's prefix)
+and one at its end (after any other mod's postfix), and keeps the first one that sees the motion go
+from finite to non-finite (`NanMotion/Core/NanTracker.cs`): inside a call (finite at its start, NaN at
+its end: that call, or code it calls that is not traced on its own, made it), or between two
+checkpoints (code that is not traced made it; the record names both ends). Each checkpoint checks the
+player's motion, not its own entity's, because another entity's behavior can push the player. Traced:
+
+- every `EntityBehavior.OnGameTick` and `OnReceivedServerPos` override and every `Entity.OnGameTick`
+  and `OnReceivedServerPos` in every loaded assembly (the game's, every code mod's), found by
+  reflection when the level is final (about 115 methods in the pack);
+- the player's physics: every `PModule.DoApply` override, `EntityBehaviorPlayerPhysics.OnRenderFrame`,
+  `SetState`, `MotionAndCollision`, `ApplyTests`, `AfterPhysicsTick` (the traversed blocks'
+  `OnEntityInside`) and `CollisionTester.ApplyTerrainCollision`; and `SimPhysics` with a checkpoint
+  before every mod's prefix and one after them all, so a NaN made in the physics step, one that arrives
+  from outside and one a mod's patch on `SimPhysics` makes (gondolacablecar's prefix moves the player)
+  are told apart;
+- everything else on the client's main thread that runs mods' code: tick listeners
+  (`GameTickListener.OnTriggered`, naming the handler), each renderer (a transpiler on
+  `ClientEventManager.TriggerRenderStage` calls each `OnRenderFrame` through a traced wrapper), queued
+  main thread tasks, server packets, mods' network messages (naming the channel), and the server's
+  entity positions (`SystemNetworkProcess.HandleSinglePacket`, which also writes the motion it carries
+  into the entity, the local player's included);
+- the player's repulsion: after each neighbour `EntityBehaviorRepulseAgents.WalkEntity` walks, the push
+  is checked, and the first neighbour that leaves it non-finite is named with its position and
+  repulsion position (the game's repulsion takes a NaN neighbour as it is: a NaN distance fails its
+  `>=` range test and goes into the push).
+
+The first trip is logged at once as a warning, with the stack and the patched methods on it, and
+tracing stops. When the crash comes (`ApplyTests` entered with a non-finite position or motion, or,
+as a backstop, an exception about a NaN thrown on the client thread, seen through
+`AppDomain.FirstChanceException` before anything catches it), the full report
+(`NanMotion/NanMotionReport.cs`) goes to the client log as an error and to
+`Logs/seraphhorizons-nanmotion-<time>.txt`, before the exception propagates: the first-NaN record (or a
+statement that nothing traced saw it, which narrows it to what is not traced), the repulsion culprit,
+the player's position, previous server position, motion, flags, mount, controls, walk speed,
+`GetWalkSpeedMultiplier`, game mode and every stat with each of its parts, the player's physics
+behavior and each module's fields (`PModuleOnGround`'s `motionDeltaX`/`Z` are kept between frames), the
+blocks at and under it, every entity within 16 blocks and every entity anywhere with a non-finite
+value, who patches the methods on the physics path, the last 20 physics frames
+(`NanMotion/Core/MotionRing.cs`) and what the diagnostics patched. Each section, and each line about
+the player, is written on its own, so one failure loses only itself. There is no Harmony finalizer: Harmony rethrows a
+finalizer's exception, which would cut the crash log's stack trace short at the patched method.
+
+Cheap while nothing is wrong: a checkpoint reads the thread id, the player's motion and three doubles,
+and allocates nothing (the start's probe is a value type, the site a constant: one trace class per
+site, not `__originalMethod`, which Harmony computes on every call). Calls on other threads (the
+server's, in singleplayer) return after the thread check. Client side only, its own Harmony id
+(`seraphhorizons.nanmotion`), patched when the level is final and unpatched when the world is left.
+On by default: it is meant to be in every player's game until #405 is found. Off, nothing is patched.
+Remove it once #405 is fixed.
+
+What the game's code already suggests (1.22.7): standing still, the player's ground module
+(`PModuleOnGround`) adds `WalkVector * GetWalkSpeedMultiplier()` every frame, and `0 * NaN` is NaN, so
+a NaN walk speed multiplier makes the motion NaN with no input at all. It is the `walkspeed` stat
+(`EntityPlayer.walkSpeed`, read every tick; `GameMath.Clamp` passes NaN through) times the block
+under the feet's `WalkSpeedMultiplier` (in creative, divided by it). The module also keeps
+`motionDeltaX`/`Z` between frames, so once NaN they stay NaN. The report shows each of these.
 
 ### Every food has a hydration value (`FoodHydration`)
 
@@ -3306,7 +3381,8 @@ state exports reading back, a live survey's files, the overlays reaching admins 
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, which panning drops are taken out, where the chopper drops its piles, which ratio a source next to a gearbox takes, `/clear`'s
+cart reach's entity matching and reach rule, the NaN motion diagnostics' first-NaN tracker, frame
+ring and report formatting (`NanMotion/Core/`, `tests/NanMotion/`), which panning drops are taken out, where the chopper drops its piles, which ratio a source next to a gearbox takes, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, the creative mod
