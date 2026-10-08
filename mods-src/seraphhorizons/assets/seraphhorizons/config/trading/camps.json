@@ -10,5 +10,9 @@
 	"dropGroups": ["acatraderclosetospawn"],
 	// Camp-group structures with several traders (vanilla's two- and three-trader outposts): kept for
 	// the settlements (8 km cells, deferred), not placed as lone camps.
-	"settlementSchematics": ["game:trader/outpost/*"]
+	"settlementSchematics": ["game:trader/outpost/*"],
+	// How uneven the ground under a surface camp may be: highest minus lowest of the game's five
+	// terrain samples around its footprint (#599). The camp sits on their median and the ground
+	// under it is levelled. 0 is the game's own rule, exactly level, which rolling terrain rarely has.
+	"slopeTolerance": 2
 }

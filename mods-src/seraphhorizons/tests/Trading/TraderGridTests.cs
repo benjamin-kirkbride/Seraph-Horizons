@@ -194,6 +194,55 @@ public class TraderGridTests
     }
 
     [Fact]
+    public void EverySchematicAndRotationIsACandidateInASeededOrder()
+    {
+        var grid = new TraderGrid(8, Weights);
+        var order = grid.CandidateOrder(new CellKey(2, 3), 1, 4, 5).ToList();
+        Assert.Equal(20, order.Count);
+        Assert.Equal(Enumerable.Range(0, 5).SelectMany(s => Enumerable.Range(0, 4).Select(r => (s, r))),
+            order.OrderBy(c => c.Schematic).ThenBy(c => c.Rotation));
+        Assert.Equal(order, grid.CandidateOrder(new CellKey(2, 3), 1, 4, 5));
+        Assert.NotEqual(order, grid.CandidateOrder(new CellKey(2, 3), 2, 4, 5));
+        Assert.NotEqual(order, grid.CandidateOrder(new CellKey(2, 3), 1, 5, 5));
+        // Not schematic by schematic: the first few come from more than one.
+        Assert.True(order.Take(6).Select(c => c.Schematic).Distinct().Count() > 1);
+    }
+
+    [Fact]
+    public void SecondChancesAreAQuarterOfTheChunksInsideTheMargin()
+    {
+        var grid = new TraderGrid(31, Weights);
+        var cell = new CellKey(5, -3);
+        int per = TraderGrid.CellSize / 32, picked = 0, inner = 0;
+        for (int cx = cell.X * per; cx < (cell.X + 1) * per; cx++)
+            for (int cz = cell.Z * per; cz < (cell.Z + 1) * per; cz++)
+            {
+                int ox = cx * 32 - cell.X * TraderGrid.CellSize, oz = cz * 32 - cell.Z * TraderGrid.CellSize;
+                bool inside = ox >= TraderGrid.Margin && ox + 32 <= TraderGrid.CellSize - TraderGrid.Margin
+                              && oz >= TraderGrid.Margin && oz + 32 <= TraderGrid.CellSize - TraderGrid.Margin;
+                if (inside) inner++;
+                if (!grid.SecondChanceChunk(cx, cz)) continue;
+                picked++;
+                Assert.True(inside, $"{cx},{cz} is in the margin");
+                var spot = TraderGrid.SecondChanceSpot(cx, cz);
+                Assert.Equal((cx, cz), (spot.ChunkX, spot.ChunkZ));
+                Assert.Equal(cell, TraderGrid.CellOf(spot.X, spot.Z));
+            }
+        Assert.InRange(picked, inner / TraderGrid.SecondChanceEvery * 0.8, inner / TraderGrid.SecondChanceEvery * 1.2);
+        Assert.True(picked > TraderGrid.SecondChances * 4, "enough second chances that the cap, not the pick, bounds the cost");
+        // None in a settlement reserve (around the settlement centre at 4096, 4096).
+        int reserved = 0;
+        for (int cx = 4096 / 32 - 20; cx < 4096 / 32 + 20; cx++)
+            for (int cz = 4096 / 32 - 20; cz < 4096 / 32 + 20; cz++)
+            {
+                if (TraderGrid.InSettlementReserve(cx * 32 + 16, cz * 32 + 16)) reserved++;
+                if (grid.SecondChanceChunk(cx, cz))
+                    Assert.False(TraderGrid.InSettlementReserve(cx * 32 + 16, cz * 32 + 16));
+            }
+        Assert.True(reserved > 100);
+    }
+
+    [Fact]
     public void OutfitClimateFollowsVanillasTraderThresholds()
     {
         Assert.Equal("desert", TraderTypes.OutfitClimate(20, 0.3f));
