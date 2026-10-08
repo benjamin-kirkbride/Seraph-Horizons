@@ -2035,15 +2035,16 @@ each of the rig's other three cells (`drawbench-ghost`) and the power ghost
 west). The frame is a grid recipe: two metal plates and four rods of iron, meteoric iron or steel, 12
 nails and strips of the same, two oak logs, oak planks and a hammer (about 11 ingots of iron).
 
-**Stages.** Fitted by right-click on the frame or any ghost with the item, one item each, in this
-order only; anything of a later stage is refused with a message naming the next:
+**Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; anything
+of a later stage is refused with a message naming the next. The chain and the mandrel take two of their
+item, both from the held stack in one click (fewer are refused, and stay in hand); the rest one each:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
 | 1 | `gearbox` | `game:jonasframes-gearbox01` (the clutch and change gear) | Looted, or BetterRuins' conversion |
-| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
+| 2 | `chain` | Two of `game:metalchain-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
+| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
 | 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (100 durability) | Smithing, 2 ingots of its metal (80 voxels) |
 
 The die recipe is named `drawdie`, not `plate`, so the helve hammer does not work it. In creative mode
@@ -3670,7 +3671,7 @@ shaft stands, never copper on an iron die, a pipe section or an ingot, the next 
 and pipe sections put in a chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks,
 dies or recipes, no link to them and the machine oil page without it, and nothing logged.
 `RecipeExportDrawBenchScenarios.cs` requires one `machine` record per metal (`drawbench|game:chutesection-{metal}|0`):
-the hollow, the four kept stages, the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
+the hollow, the four kept stages (two chains and two rods among them), the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
 frame, four pipe sections.
 
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires

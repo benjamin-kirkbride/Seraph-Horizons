@@ -74,9 +74,9 @@ counterweight and its rope, and the oiler). The **build order**: the frame, then
 | Order | `requires` | Item | Draws | Taken back |
 |---|---|---|---|---|
 | 1 | `gearbox` | `game:jonasframes-gearbox01` (Jonas sub-assembly, "Consumately crafted gearbox"), looted or converted | The cone clutch's cup (cupronickel, the Jonas palette) and cone, the sleeve with the sliding change-gear cluster, the drive shaft with its two change wheels and the final drive's pinion | Only by breaking the frame |
-| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` (the game's chain) | The endless drawing chain and its two sprockets: the drive sprocket on its own shaft with the final drive's wheel, and the return sprocket on the return shaft | Only by breaking the frame |
+| 2 | `chain` | Two of `game:metalchain-iron`, `-meteoriciron` or `-steel` (the game's chain) | The endless drawing chain and its two sprockets: the drive sprocket on its own shaft with the final drive's wheel, and the return sprocket on the return shaft | Only by breaking the frame |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` (the game's heavy bracket) | The dog: its portal (shoes on both ways, cheeks, crossbar and top plate over the section), the fixed jaw, the moving jaw with its tail and knuckle and its leaf spring, the bracket and shank with two shackle pins, the knock-off lug | Only by breaking the frame |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` | The square mandrel bar with its plug and nut, the follower and its spring | Only by breaking the frame |
+| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel` | The square mandrel bar with its plug and nut, the follower and its spring | Only by breaking the frame |
 | 5 | `die` | New: `seraphhorizons:drawdie-iron` or `drawdie-steel` (iron: lead only; steel: lead and copper), the wearing part | The die plate with its square eye in the die stock's mouth. Its elements use the texture code `die`, which the renderer sets to the fitted die's metal | When worn out it is spent; unworn, Ctrl + right-click |
 | — | `billetlead` | The work: a lead hollow section on the bench (k = 1) | The lead hollow (in quarters) and the four lead pipe sections drawn from it | The material being worked, not a part |
 | — | `billetcopper` | The work: a copper hollow section (k = 2) | The same in copper | as above |
@@ -387,16 +387,21 @@ same metals, two oak logs (the sills), oak planks (the bed) and a hammer: about 
 2, a rod 1, 12 nails and strips 3), under the steel gear cutter's frame (8 steel ingots and 32 nails and
 strips).
 
-**Stages** (`DrawBenchParts`), one item a stage, in `DrawBenchStage` order, the next missing stage the
-only one a click fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a
-die with no durability `DieSpent`):
+**Stages** (`DrawBenchParts`), in `DrawBenchStage` order, the next missing stage the only one a click
+fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a die with no
+durability `DieSpent`). A stage takes `Needed` of its item, all from the held stack in one click (fewer
+held is `TooFew`, with a message, and nothing is taken): two chains (the endless chain runs round both
+sprockets the bench's length), two rods (the mandrel bar, and the follower's spindle), one of the rest.
+Breaking returns as many as went in; a save keeps one code a stage, as before. With the frame (about 11
+iron ingots) and the die (2), the parts bring the bench to about 21 ingots of iron and a Jonas gearbox:
+the chains 4, the bracket 2, the rods 2.
 
 | # | `requires` | Item (verified in game 1.22.7's `survival/itemtypes`) |
 |---|---|---|
 | 1 | `gearbox` | `game:jonasframes-gearbox01` |
-| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` |
+| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel`, two |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` |
+| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two |
 | 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from two ingots of its metal, 80 voxels (two thick rings and a stepped shoulder), named `drawdie` so the helve hammer leaves it alone) |
 
 The die keeps its durability left and full (`GetRemainingDurability`, `GetMaxDurability`); the die
@@ -470,7 +475,7 @@ recipe type (`SwitchOwnership.HandListed`).
 
 **Export.** `tools/recipe-export/Recipes/DrawBenchExport.cs` and `RecipeSection.DrawBench.cs`: one `machine`
 record per metal (`drawbench|game:chutesection-{metal}|0`): the hollow section, the four kept stages
-(alternatives as variant stacks), the dies that draw the metal as a tool losing `DieWearPerHollow` a
+(alternatives as variant stacks, the chain's and the mandrel's two each), the dies that draw the metal as a tool losing `DieWearPerHollow` a
 hollow (`rule` `fixed`), the oil for four pipe sections, the frame as the station; four
 `seraphhorizons:pipesection-{metal}` out (work unit `sections`, end 4); `turns` and
 `work.turnsPerUnit` from the settings.

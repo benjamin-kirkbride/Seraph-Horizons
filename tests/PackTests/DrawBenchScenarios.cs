@@ -42,6 +42,9 @@ public partial class SharedWorldScenarios
     private static readonly string[] BenchOrder =
         [DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron"];
 
+    /// <summary>How many of a kept part its stage takes from one stack.</summary>
+    private static int BenchCount(string code) => DrawBenchParts.Needed(DrawBenchParts.StagesOf(code)[0]);
+
     /// <summary>A die of <paramref name="code"/> with <paramref name="durability"/> left (full when null).</summary>
     private ItemStack BenchDie(string code, int? durability = null)
     {
@@ -57,7 +60,7 @@ public partial class SharedWorldScenarios
     {
         var ghost = bench.GhostCells().First().Pos;
         int i = 0;
-        foreach (var part in BenchOrder.Select(c => CutterItem(c)).Append(die ?? BenchDie(DrawBenchParts.DieIronCode)))
+        foreach (var part in BenchOrder.Select(c => CutterItem(c, BenchCount(c))).Append(die ?? BenchDie(DrawBenchParts.DieIronCode)))
             Assert.True(CutterClick(player, i++ % 2 == 0 ? bench.Pos : ghost, part) == null, $"{part.Collectible.Code} was not fitted");
         Assert.True(bench.Complete);
         FillBenchOil(bench, 1);
@@ -232,11 +235,18 @@ public partial class SharedWorldScenarios
         Assert.Equal(3, CutterClick(player, pos, CutterItem("game:gear-rusty", 3))?.StackSize);
         Assert.False(_cutterHandled);
 
-        // the parts in order, one each, taken from the hand
+        // the parts in order, as many as each stage takes (two chains, two rods), taken from the hand;
+        // fewer than that are refused and stay there
         for (int i = 0; i < BenchOrder.Length; i++)
         {
             var next = bench.Parts.Next!.Value;
-            var left = CutterClick(player, i % 2 == 0 ? pos : ghost, CutterItem(BenchOrder[i], i == 0 ? 2 : 1));
+            int count = DrawBenchParts.Needed(next);
+            if (count > 1)
+            {
+                Assert.Equal(count - 1, CutterClick(player, pos, CutterItem(BenchOrder[i], count - 1))?.StackSize);
+                Assert.False(bench.Parts.Has(next));
+            }
+            var left = CutterClick(player, i % 2 == 0 ? pos : ghost, CutterItem(BenchOrder[i], count + (i == 0 ? 1 : 0)));
             Assert.True(bench.Parts.Has(next), $"{BenchOrder[i]} did not go in as {next}");
             Assert.Equal(i == 0 ? 1 : 0, left?.StackSize ?? 0);
             // the same part again is refused once its stage is full
@@ -461,7 +471,10 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:drawbench-frame-north"));
         Assert.Equal(0, drops.GetValueOrDefault(CopperSection));
         foreach (var code in BenchOrder.Append(DrawBenchParts.DieSteelCode).Append(Drawing.CopperHollow))
-            Assert.True(drops.GetValueOrDefault(code) == 1, $"{code}: {drops.GetValueOrDefault(code)}");
+        {
+            int want = BenchOrder.Contains(code) ? BenchCount(code) : 1;
+            Assert.True(drops.GetValueOrDefault(code) == want, $"{code}: {drops.GetValueOrDefault(code)}, want {want}");
+        }
         var die = World.EntitiesIn(new Cuboidi(pos.X - 6, pos.Y - 3, pos.Z - 6, pos.X + 6, pos.Y + 6, pos.Z + 6))
             .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == DrawBenchParts.DieSteelCode).Itemstack;
         Assert.Equal(77, die.Collectible.GetRemainingDurability(die));
