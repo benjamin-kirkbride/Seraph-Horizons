@@ -24,7 +24,6 @@ namespace SeraphHorizons.Mod.SquaringShear;
 /// </summary>
 public class BESquaringShear : BlockEntity, ISquaringShearView
 {
-    private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation PlateSound = new("game", "sounds/block/plate");
     private static readonly AssetLocation CutSound = new("game", "sounds/block/heavymetal-hit2");
     private static readonly AssetLocation HalvesSound = new("game", "sounds/block/plate");
@@ -214,9 +213,9 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
     // ---- Interaction ----
 
     /// <summary>
-    /// Right-click on the shear or its ghost. Ctrl takes back: in creative mode on an incomplete
-    /// shear it fits the next stage with nothing taken; else a plate still whole comes off the table, or
-    /// with no plate on the last part fitted comes out. A part in hand is fitted if it is the next
+    /// Right-click on the shear or its ghost. Ctrl: in creative mode on an incomplete shear it
+    /// fits the next stage with nothing taken; with a plate on, that plate comes off the table while it
+    /// is still whole. Fitted parts never come out: only breaking the shear returns them. A part in hand is fitted if it is the next
     /// stage's; a lead or copper plate goes on an empty table. Anything else (an empty hand, a tool, a
     /// plate when one is already on) on a complete shear starts working the treadle, held as on the
     /// quern (<see cref="OnWorkStep"/>); Shift lets a held block be placed against it instead.
@@ -226,17 +225,19 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
     {
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
         string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
         bool server = Api.Side == EnumAppSide.Server;
-        if (take)
+        // Ctrl is the creative shortcut on an incomplete machine, and takes the work off while it is
+        // untouched; fitted parts never come out (only breaking returns them)
+        bool ctrl = controls.CtrlKey && !controls.ShiftKey;
+        if (ctrl && (PlateOn || CreativeShortcutApplies(byPlayer)))
         {
             if (!server)
                 return true;
             if (CreativeShortcutApplies(byPlayer))
                 FitNextPart(byPlayer);
             else
-                TakeBack(byPlayer);
+                TakePlate(byPlayer);
             return true;
         }
         if (SquaringShearParts.IsPart(code))
@@ -378,25 +379,18 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
     public static string StageName(SquaringShearStage? stage) =>
         stage is { } s ? Lang.Get(SquaringShearSystem.Domain + ":squaringshear-info-stage-" + SquaringShearRequires.Name(s)) : "";
 
-    /// <summary>Ctrl + right-click (server side): a plate still whole comes off the table; with no
-    /// plate on, the last part fitted comes out (the gauge, then the blades). A plate being cut stays.</summary>
-    public bool TakeBack(IPlayer byPlayer)
+    /// <summary>Ctrl + right-click (server side): a plate still whole comes off the table; one being
+    /// cut stays.</summary>
+    public bool TakePlate(IPlayer byPlayer)
     {
-        if (PlateOn)
-        {
-            if (!_job.Untouched)
-                return Error(byPlayer, "error-busy");
-            var plate = _plate!;
-            ClearJob();
-            Give(byPlayer, plate);
-            Api.World.PlaySoundAt(PlateSound, Pos, 0, byPlayer);
-            MarkDirty(true);
-            return true;
-        }
-        if (_parts.RemoveLast() is not { } code || Api.World.GetItem(new AssetLocation(code)) is not { } item)
+        if (!PlateOn)
             return false;
-        Give(byPlayer, new ItemStack(item));
-        Api.World.PlaySoundAt(LatchSound, Pos, 0, byPlayer);
+        if (!_job.Untouched)
+            return Error(byPlayer, "error-busy");
+        var plate = _plate!;
+        ClearJob();
+        Give(byPlayer, plate);
+        Api.World.PlaySoundAt(PlateSound, Pos, 0, byPlayer);
         MarkDirty(true);
         return true;
     }

@@ -20,7 +20,7 @@ public partial class RecipeExportScenarios
             Doc["recipeTypes"]![RecipeSection.MandrelStationType]!);
         var records = Doc["recipes"]!.Cast<JObject>().Where(r => (string)r["type"]! == RecipeSection.MandrelStationType).ToList();
         Assert.Equal(new[] { "mandrelstation|game:chutesection-copper|0", "mandrelstation|game:chutesection-lead|0" }, records.Select(r => (string)r["id"]!).Order());
-        foreach (var (metal, blows) in new[] { ("lead", 6), ("copper", 9) })
+        foreach (var (metal, blows) in new[] { ("lead", 9), ("copper", 14) })
         {
             var r = Recipe($"mandrelstation|game:chutesection-{metal}|0");
             Assert.Equal("seraphhorizons", (string)r["mod"]!);

@@ -131,7 +131,7 @@ class Draw(unittest.TestCase):
     def test_the_dog_draws_one_section_a_stroke(self):
         mid = matrix("dog", work=make_shape.T_DRAW[1], size=1, presence=1.0)
         self.assertAlmostEqual(mid[2][3] * 16, make_shape.S_DOG, places=4)
-        # a pipe section is half a block long and 6 across (ppex's pipe), drawn from a quarter of the hollow (the
+        # a pipe section on the bench is half a block long and 6 across (ppex's pipe; the item is a block long), drawn from a quarter of the hollow (the
         # game's chute section, 8 across and 8 long); pointed through the die, drawn to its tail, dropped in the trough
         self.assertEqual((make_shape.PIPE, 2 * make_shape.PIPE_R), (8.0, 6.0))
         self.assertEqual((2 * make_shape.HOLLOW_H, make_shape.HOLLOW_L, make_shape.SLUGS), (8.0, 8.0, 4))

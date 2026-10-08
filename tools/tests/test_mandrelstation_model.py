@@ -110,7 +110,7 @@ class Forge(unittest.TestCase):
         self.assertEqual(forge["hollows"], {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"})
         self.assertEqual(forge["sections"], {"thin": "seraphhorizons:pipesection-lead", "thick": "seraphhorizons:pipesection-copper"})
         self.assertEqual(forge["sectionsPerHollow"], 2)
-        self.assertEqual(forge["blowsPerHollow"], {"thin": 6.0, "thick": 9.0})
+        self.assertEqual(forge["blowsPerHollow"], {"thin": 9.0, "thick": 14.0})
 
     def test_theta_moves_nothing(self):
         for pid in (p["id"] for p in RIG["parts"]):
