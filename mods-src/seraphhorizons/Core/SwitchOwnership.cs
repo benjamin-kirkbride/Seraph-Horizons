@@ -48,6 +48,8 @@ public sealed class SwitchOwnership
         new("DrawBench", [], [], ["drawbench"]),
         // The exporter's own recipe type for the press brake's process (tools/recipe-export, Recipes/PressBrakeExport.cs).
         new("PressBrake", [], [], ["pressbrake"]),
+        // The exporter's own recipe type for the squaring shear's process (tools/recipe-export, Recipes/SquaringShearExport.cs).
+        new("SquaringShear", [], [], ["squaringshear"]),
         // The exporter's own recipe type for the mandrel station's process (tools/recipe-export, Recipes/MandrelStationExport.cs).
         new("MandrelStation", [], [], ["mandrelstation"]),
         // The pipe mold is Steelmaking Expanded's own tool mold with a fourth tool type, added by a

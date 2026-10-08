@@ -3,9 +3,9 @@ namespace SeraphHorizons.Mod.Pipes.Core;
 /// <summary>
 /// The pipe chain's pieces and figures (README "Unified pipes"), game-independent:
 /// <list type="bullet">
-/// <item>the <b>angle</b>, <c>seraphhorizons:angle-{copper,lead}</c>: a plate bent once at a right
-/// angle, forged on the anvil from one ingot (<c>recipes/smithing/angle.json</c>) or folded on the
-/// press brake from one plate;</item>
+/// <item>the <b>angle</b>, <c>seraphhorizons:angle-{copper,lead}</c>: a half plate folded once across
+/// its middle at a right angle, made only on the press brake, from a half plate cut on the squaring
+/// shear;</item>
 /// <item>the <b>hollow section</b>, the game's chute section (<see cref="ChuteSections"/>): two
 /// angles soldered together on the grid (<c>recipes/grid/chutesection.json</c>);</item>
 /// <item>the <b>pipe section</b>, <c>seraphhorizons:pipesection-{copper,lead,iron,steel}</c>: a
@@ -47,8 +47,9 @@ public static class PipeSections
     /// <summary>Nails and strips in an iron or steel pipe recipe, whatever its shape.</summary>
     public const int NailsAndStrips = 1;
 
-    /// <summary>The chain's figures, per ingot of copper or lead: an angle from an ingot (or a plate,
-    /// two ingots, on the press brake); a hollow section from two angles; two pipe sections from a
+    /// <summary>The chain's figures, per ingot of copper or lead: an angle from an ingot (a plate, two
+    /// ingots, cut into two half plates on the squaring shear, each folded into an angle on the press
+    /// brake); a hollow section from two angles; two pipe sections from a
     /// hollow on the mandrel station, four on the draw bench; and a fill of the pipe mold (one ingot
     /// of iron or steel) casts two.</summary>
     public const int AnglesPerIngot = 1;

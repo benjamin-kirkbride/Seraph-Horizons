@@ -75,6 +75,13 @@ describe("machine", () => {
     expect(machineLines(mandrel)).toEqual(["By hand: 9 blows a job, each a right-click with a hammer"]);
   });
 
+  it("says a treadle machine's strokes are its treadle's", () => {
+    const shear: Recipe = { ...cutter, machine: { power: "hand", turns: 1, work: { amount: 1, unit: "strokes" }, kept: [1] } };
+    expect(machineLines(shear)).toEqual(["By hand: 1 stroke of the treadle a job, a stroke a second while right-click is held"]);
+    const copper: Recipe = { ...cutter, machine: { power: "hand", turns: 1.5, work: { amount: 1.5, unit: "strokes" }, kept: [1] } };
+    expect(machineLines(copper)).toEqual(["By hand: 1.5 strokes of the treadle a job, a stroke a second while right-click is held"]);
+  });
+
   it("tells the consumed blank from the kept master, the worn kit, the oil and the machine", () => {
     expect(cutter.ingredients.map((_, i) => machineRole(cutter, i))).toEqual(["consumed", "kept", "wear", "oil", "station"]);
   });

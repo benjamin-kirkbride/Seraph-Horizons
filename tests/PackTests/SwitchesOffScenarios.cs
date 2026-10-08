@@ -293,6 +293,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("GearCutter", off);
         Assert.Contains("DrawBench", off);
         Assert.Contains("PressBrake", off);
+        Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
         Assert.Contains("Rosser", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
@@ -372,8 +373,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
-    /// the mod's own text, and nothing logged about it. The plates it folds and the open sections it
-    /// makes (UnifiedPipes') exist either way.</summary>
+    /// the mod's own text, and nothing logged about it. The angles it makes are UnifiedPipes' items
+    /// (here off too); the half plates it folds are the squaring shear's (here off too).</summary>
     [AtlasScenario]
     public void Press_brake_off_there_is_no_press_brake()
     {
@@ -381,7 +382,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(SeraphHorizons.Mod.PressBrake.PressBrakeSystem.Applies(World.Api));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("pressbrake"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("pressbrake") == true);
-        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.PressBrake.Core.Folding.LeadPlate)));
+        Assert.Null(W.GetItem(new AssetLocation(SeraphHorizons.Mod.PressBrake.Core.Folding.LeadHalfPlate)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
                         && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://block-seraphhorizons:pressbrake"))
@@ -391,6 +392,37 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("pressbrake", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("press brake", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>SquaringShear</c>: no squaring shear blocks, no half plate and no recipe for the
+    /// frame, no link to either in the mod's own text, and nothing logged about them. The plates it
+    /// cuts and the parts it takes (the game's) exist either way.</summary>
+    [AtlasScenario]
+    public void Squaring_shear_off_there_is_no_squaring_shear_and_no_half_plate()
+    {
+        Assert.True(Off("SquaringShear"));
+        Assert.False(SeraphHorizons.Mod.SquaringShear.SquaringShearSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("squaringshear"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("halfplate"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("squaringshear") == true);
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.SquaringShear.Core.Cutting.LeadPlate)));
+        foreach (var code in SeraphHorizons.Mod.SquaringShear.Core.SquaringShearParts.GaugeCodes)
+            Assert.NotNull(W.GetItem(new AssetLocation(code)));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value,
+                            "handbook://(block-seraphhorizons:squaringshear|item-seraphhorizons:halfplate)|handbooksearch://(squaring shear|half plate)"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the squaring shear or the half plate: " + string.Join(", ", linked));
+        Assert.Contains("squaring shear", Lang.Get("seraphhorizons:halfplate-handbook-text"));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("squaringshear", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("squaring shear", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("halfplate", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));

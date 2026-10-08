@@ -111,7 +111,7 @@ public class PressBrakeRigTests
         PressBrakeRig.Parse(json);
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"platelead\"", "\"plate\"")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"anglesPerPlate\": 1", "\"anglesPerPlate\": 2")));
-        Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"game:metalplate-copper\"", "\"game:metalplate-tin\"")));
+        Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"seraphhorizons:halfplate-copper\"", "\"game:metalplate-copper\"")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"seraphhorizons:angle-lead\"", "\"game:chutesection-lead\"")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"infeedSide\": \"south\"", "\"infeedSide\": \"north\"")));
         Assert.Throws<FormatException>(() => PressBrakeRig.Parse(json.Replace("\"leverTurnsPerPlate\"", "\"turnsPerPlate\"")));

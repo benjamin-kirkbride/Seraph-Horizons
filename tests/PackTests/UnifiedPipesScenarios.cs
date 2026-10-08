@@ -151,7 +151,8 @@ public partial class SharedWorldScenarios
                                                   && r.ResolvedIngredients.Any(i => i?.Code?.Path.StartsWith("chutesection-") == true));
     }
 
-    /// <summary>The chain: the angle (copper, lead) forged from an ingot; the hollow section, the game's
+    /// <summary>The chain: the angle (copper, lead), which no recipe makes (only the press brake folds
+    /// one, from a half plate); the hollow section, the game's
     /// chute section in copper and lead (no iron or steel), made only from two angles soldered, the
     /// game's anvil and plate recipes for it off; the pipe section in every metal, made by no grid or
     /// anvil recipe; and the game's chutes taking copper chute sections only.</summary>
@@ -161,7 +162,7 @@ public partial class SharedWorldScenarios
         static string Title(string metal) => $"{char.ToUpperInvariant(metal[0])}{metal[1..]}";
         var smithing = World.Api.GetSmithingRecipes();
 
-        // the angle: an item per metal, named, with a handbook section, forged from one ingot
+        // the angle: an item per metal, named, with a handbook section; no anvil or grid recipe makes it
         foreach (var metal in PipeSections.AngleMetals)
         {
             var angle = W.GetItem(new AssetLocation(PipeSections.Angle(metal)));
@@ -169,11 +170,8 @@ public partial class SharedWorldScenarios
             Assert.Equal($"{Title(metal)} angle", new ItemStack(angle).GetName());
             Assert.Contains("items", angle!.CreativeInventoryTabs);
             Assert.True(angle.Attributes?["handbook"]?["extraSections"].Exists == true, $"no handbook section on {angle.Code}");
-            var forged = Assert.Single(smithing, r => r.Output?.Code?.ToString() == PipeSections.Angle(metal));
-            Assert.Equal($"game:ingot-{metal}", forged.Ingredient.Code.ToString());
-            Assert.NotNull(forged.Output.ResolvedItemStack);
-            Assert.Equal(1, forged.Output.Quantity);
-            Assert.Equal(42, forged.Voxels.Cast<bool>().Count(v => v));
+            Assert.DoesNotContain(smithing, r => r.Output?.Code?.ToString() == PipeSections.Angle(metal));
+            Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == PipeSections.Angle(metal));
         }
         Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("angle-")
                                             && !PipeSections.AngleMetals.Contains(c.Path["angle-".Length..]));

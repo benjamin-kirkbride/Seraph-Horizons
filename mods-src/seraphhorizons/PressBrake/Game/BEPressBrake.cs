@@ -13,12 +13,13 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.PressBrake;
 
 /// <summary>
-/// The press brake's controller. Holds the fitted parts (<see cref="PressBrakeParts"/>), the plate
-/// on the bed as its item stack and the fold (<see cref="FoldJob"/>: W, 0..1), and who is working the
-/// lever (<see cref="LeverHolds"/>). The player works it by holding right-click on it, as on the
+/// The press brake's controller. Holds the fitted parts (<see cref="PressBrakeParts"/>), the half
+/// plate on the bed as its item stack and the fold (<see cref="FoldJob"/>: W, 0..1), and who is working
+/// the lever (<see cref="LeverHolds"/>). The player works it by holding right-click on it, as on the
 /// quern: the server advances W while anyone holds, sounds the fold, and at W = 1 drops one angle
 /// at the output face (or puts them in a container there); a lever worked on an empty bed
-/// takes the next plate from a chest or hopper at the infeed face. The server keeps the ghost cell
+/// takes the next half plate from a chest or hopper at the infeed face. Its work, the half plate, is
+/// the squaring shear's item: with that switch off there is none, and the brake refuses work. The server keeps the ghost cell
 /// stamped; the client draws the brake (<see cref="PressBrakeRenderer"/>, through
 /// <see cref="IPressBrakeView"/>). The rules are PressBrake/Core's.
 /// </summary>
@@ -215,12 +216,14 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
 
     /// <summary>
     /// Right-click on the brake or its ghost. Ctrl takes back: in creative mode on an incomplete
-    /// brake it fits the next stage with nothing taken; else a plate still flat comes off the bed, or
-    /// with no plate on the last part fitted comes out. A part in hand is fitted if it is the next
-    /// stage's; a lead or copper plate goes on an empty bed. Anything else (an empty hand, a tool, a
-    /// plate when one is already on) on a complete brake starts working the lever, held as on the
-    /// quern (<see cref="OnWorkStep"/>); Shift lets a held block be placed against it instead.
-    /// Decided and done on the server; the client says whether the click is the brake's.
+    /// brake it fits the next stage with nothing taken; else a half plate still flat comes off the bed,
+    /// or with none on the last part fitted comes out. A part in hand is fitted if it is the next
+    /// stage's; a lead or copper half plate goes on an empty bed. Anything else (an empty hand, a tool,
+    /// a whole plate, a half plate when one is already on) on a complete brake starts working the
+    /// lever, held as on the quern (<see cref="OnWorkStep"/>); Shift lets a held block be placed
+    /// against it instead. With no half plates in the world (the squaring shear's switch off) a
+    /// complete brake refuses work with a message. Decided and done on the server; the client says
+    /// whether the click is the brake's.
     /// </summary>
     public bool OnInteract(IPlayer byPlayer)
     {
@@ -245,6 +248,8 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
                 TryFitPart(slot!, byPlayer);
             return true;
         }
+        if (_parts.Complete && !controls.ShiftKey && !PlateOn && !HalfPlatesExist())
+            return !server || Error(byPlayer, "error-no-halfplates");
         if (Folding.ClassOfPlate(code) != 0 && !PlateOn)
         {
             // a click loads it; held on, the steps that follow work the lever
@@ -378,8 +383,8 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     public static string StageName(PressBrakeStage? stage) =>
         stage is { } s ? Lang.Get(PressBrakeSystem.Domain + ":pressbrake-info-stage-" + PressBrakeRequires.Name(s)) : "";
 
-    /// <summary>Ctrl + right-click (server side): a plate still flat comes off the bed; with no plate
-    /// on, the last part fitted comes out (the edges, then the screws). A plate being folded stays.</summary>
+    /// <summary>Ctrl + right-click (server side): a half plate still flat comes off the bed; with none
+    /// on, the last part fitted comes out (the edges, then the screws). One being folded stays.</summary>
     public bool TakeBack(IPlayer byPlayer)
     {
         if (PlateOn)
@@ -401,12 +406,17 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         return true;
     }
 
-    /// <summary>The angle a plate of class <paramref name="k"/> is folded into, or null when it does
-    /// not exist in this game (it is UnifiedPipes' item).</summary>
+    /// <summary>Whether the brake has work in this world: the half plates, the squaring shear's item,
+    /// exist (with its <c>SquaringShear</c> switch off they do not, and nothing can go on the bed).</summary>
+    public bool HalfPlatesExist() =>
+        new[] { 1, 2 }.Any(k => Folding.PlateFor(k) is { } code && Api.World.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false });
+
+    /// <summary>The angle a half plate of class <paramref name="k"/> is folded into, or null when it
+    /// does not exist in this game (it is UnifiedPipes' item).</summary>
     private Item? AngleItem(int k) =>
         Folding.AngleFor(k) is { } code && Api.World.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false } item ? item : null;
 
-    /// <summary>Puts a plate from <paramref name="slot"/> on the bed, if the brake takes it now.</summary>
+    /// <summary>Puts a half plate from <paramref name="slot"/> on the bed, if the brake takes it now.</summary>
     public bool TryLoadPlate(ItemSlot slot, IPlayer? byPlayer)
     {
         string? code = slot.Itemstack?.Collectible?.Code?.ToString();
@@ -466,8 +476,8 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     }
 
     /// <summary>Folds by <paramref name="radians"/> of the lever clock (server side): W advances by
-    /// their turns over the plate's lever turns, the bend is heard at the middle of the fold, and at
-    /// W = 1 the plate is used up and its angle comes off. Returns the angles delivered.</summary>
+    /// their turns over the half plate's lever turns, the bend is heard at the middle of the fold, and
+    /// at W = 1 the half plate is used up and its angle comes off. Returns the angles delivered.</summary>
     public int Fold(double radians)
     {
         if (!PlateOn || !_parts.Complete)
@@ -521,7 +531,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         Api.World.PlaySoundAt(AngleSound, at.X, at.Y, at.Z);
     }
 
-    /// <summary>A plate a container at the infeed face holds that the brake would take.</summary>
+    /// <summary>A half plate a container at the infeed face holds that the brake would take.</summary>
     private IEnumerable<(BlockEntityContainer Container, ItemSlot Slot)> InfeedPlates()
     {
         if (Rig is not { } rig)
@@ -541,7 +551,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
 
     private bool InfeedHasPlate() => InfeedPlates().Any();
 
-    /// <summary>A complete brake with nothing on its bed takes one plate from a container at the
+    /// <summary>A complete brake with nothing on its bed takes one half plate from a container at the
     /// infeed face; it does so when the lever is worked on it, and, <paramref name="waitForClear"/>,
     /// only a moment after the last plate was done. Returns whether one went on.</summary>
     public bool PullFromInfeed(bool waitForClear = true)
@@ -590,8 +600,8 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
 
     // ---- Breaking ----
 
-    /// <summary>What breaking the frame gives besides the frame: every fitted part, and the plate if
-    /// it is still flat (once folding has begun, it is lost with the brake).</summary>
+    /// <summary>What breaking the frame gives besides the frame: every fitted part, and the half plate
+    /// if it is still flat (once folding has begun, it is lost with the brake).</summary>
     public IEnumerable<ItemStack> PartDrops()
     {
         foreach (var code in _parts.Returns())

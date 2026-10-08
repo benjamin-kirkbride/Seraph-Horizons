@@ -230,17 +230,27 @@ def face_gap(v, pid, pose, leaf_pose=None):
 
 
 def check_sheet(v):
-    """The sheet follows the leaf: the carried panel lies on the leaf's face through its rise and while the
-    leaf falls to SET, then stays at SET; at W 1 the angle (an L, two S-wide legs) lies on the leaf."""
+    """The sheet is the half plate as laid, 8 deep across the folding edge (leg A over the leaf, leg M on
+    the bed) from the moment it goes on, with nothing hidden; leg A lies on the leaf's face from then,
+    through its rise and while the leaf falls to SET, then stays at SET; at W 1 the angle (an L, two
+    S-wide legs, S long) lies on the leaf."""
     m = v.m
     worst = 0.0
     for k, cls in ((1, "thin"), (2, "thick")):
         pre = "lc"[k - 1]
         throw = m.THROW[cls]
+        # as laid: the half plate, 4 wide along the edge and 8 deep, flat on the leaf and the bed
+        x0, x1 = m.SHEET_X
+        for w in (0.0, m.T_CLAMP1[0], m.T_CLAMP1[1], m.T_FOLD1[0]):
+            laid = aabb_of(v.posed(f"{pre}a", m.pose_at(k, w)) + v.posed(f"{pre}m", m.pose_at(k, w)))
+            want = ([x0, m.YB, m.EZ - m.S], [x1, m.YB + m.T, m.EZ + m.S])
+            err = max(abs(laid[i][q] - want[i][q]) for i in range(2) for q in range(3))
+            if err > 1e-6 or abs((x1 - x0) - 4.0) > 1e-9 or abs(2 * m.S - 8.0) > 1e-9:
+                v.fail(f"the half plate as laid ({cls}, W {w}) is at {laid}, want the 4 x 8 sheet {want}")
         for t, pid in ((m.T_FOLD1, f"{pre}a"),):
             t_set = t[1] + (t[2] - t[1]) * (throw - m.SET) / throw
             for i in range(41):
-                w = t[0] + (t_set - t[0]) * i / 40
+                w = t_set * i / 40
                 lo, hi = face_gap(v, pid, m.pose_at(k, w))
                 worst = max(worst, abs(lo), abs(hi))
             # past SET the leaf falls away and the panel holds at SET
@@ -262,15 +272,10 @@ def check_sheet(v):
             err = max(abs(got[i][q] - want[i][q]) for i in range(2) for q in range(3))
             if err > 0.05:
                 v.fail(f"the delivered angle's leg {name} ({cls}) is at {got}, want {want}")
-        # before the bar comes down only the square plate (leg M) shows: leg A lies inside the leaf
-        lead_in = aabb_of(v.posed(f"{pre}a", m.pose_at(k, m.T_SPREAD[0])))
-        leaf = aabb_of(v.named("leaf", r"_body|_heel", m.pose_at(k, m.T_SPREAD[0])))
-        if not (lead_in[1][1] < m.YB - 0.01 and leaf[0][1] < lead_in[0][1]):
-            v.fail(f"leg A is not hidden in the leaf before the clamp ({cls})")
-    print(f"sheet: the carried panel on the leaf's face through each fold to {m.SET:g} degrees (worst {worst:.2e}); "
-          f"the flange holds at {m.SET:g}; the delivered angle lies on the leaf; leg A hidden in the leaf until the clamp")
+    print(f"sheet: the half plate laid 4 x 8 across the edge, nothing hidden; leg A on the leaf's face from W 0 through the "
+          f"fold to {m.SET:g} degrees (worst {worst:.2e}); it holds at {m.SET:g}; the delivered angle lies on the leaf")
     if worst > 1e-4:
-        v.fail("the carried panel leaves the leaf's face during a fold")
+        v.fail("leg A leaves the leaf's face before or during the fold")
 
 
 def bar_bottom(v, pose):
