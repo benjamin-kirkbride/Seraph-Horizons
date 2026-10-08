@@ -3309,7 +3309,11 @@ guard on smex's two mold files (held to trimmed copies of smex 0.10.1's, and to 
 applied to them) and the chain's two pipe sections an ingot, held to the shipped patch
 (`Pipes/Core/CastPipeMold.cs`, `tests/Pipes/CastPipeMoldTests.cs`), and the hand pump on ppex pipes:
 its spring search, priming count, the intake's scan and allowance and the name fallbacks
-(`Pipes/Core/HandPumpSearch.cs`, `tests/Pipes/HandPumpSearchTests.cs`).
+(`Pipes/Core/HandPumpSearch.cs`, `tests/Pipes/HandPumpSearchTests.cs`), and that every block and
+item drawn with one of the pack's own shapes sits centred held, dropped and in a slot, from its
+transforms and the shape's bounds: held, the game keeps a transform's origin where it is instead of
+moving it to the hand, so a machine's item form, centred on a footprint many blocks long, needs a
+translation of (spot by the hand - origin) / scale to bring it back (`tests/HeldTransformTests.cs`).
 `dotnet test mods-src/seraphhorizons/tests`.
 
 `tests/PackTests/ClearCommandScenarios.cs` (Atlas, a `surviveandbuild` world so temporal storms
