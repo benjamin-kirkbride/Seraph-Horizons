@@ -735,6 +735,18 @@ public class SeraphHorizonsConfig
     /// a world are lost). The server's setting decides.</summary>
     public bool CastPipes { get; set; } = true;
 
+    /// <summary>The handcar (Handcar/, README "Handcar"): a standard-gauge rail car for Yang's Transport
+    /// Tycoon, pumped by hand by up to two riders standing at the ends of its walking beam (forward or
+    /// back pumps, left or right picks the branch at the next switch), with a cargo slot for a chest
+    /// or crate. Off means its entity, its item and its recipe do not exist, and handcars already in a
+    /// world are lost. The server's setting decides; without Yang's Transport Tycoon there is none.</summary>
+    public bool Handcar { get; set; } = true;
+
+    /// <summary>The handcar's figures: speeds, drag, braking, the riders' satiety and the effort's fade;
+    /// a value out of range falls back to its default with a warning. The server's are used for the
+    /// drive.</summary>
+    public SeraphHorizons.Mod.Handcar.Core.HandcarConfig HandcarSettings { get; set; } = new();
+
     /// <summary>Pack version check (PackCheck/, README "Pack version check"): each side compares its
     /// loaded mods and game version with the pack this build was released with (pack/lock.json,
     /// built in): a locked mod at another version or missing, a mod the pack does not have, another

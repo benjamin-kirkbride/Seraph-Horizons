@@ -19,6 +19,7 @@
   "GearReclamation": false,
   "GearboxSourceRatio": false,
   "GearConsumers": false,
+  "Handcar": false,
   "HeatingRackKeepsPosition": false,
   "HeatingRackStandsOnBlock": false,
   "HydrateTunRetired": false,
