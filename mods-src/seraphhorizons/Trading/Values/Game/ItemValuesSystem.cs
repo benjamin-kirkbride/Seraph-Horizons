@@ -99,7 +99,10 @@ public class ItemValuesSystem : ModSystem
         var l = Values.Lookup(code);
         SeraphHorizons.Mod.Admin.AdminCommands.Attach(args, new System.Text.Json.Nodes.JsonObject
         {
-            ["code"] = l.Code, ["value"] = l.Value, ["effective"] = l.Effective, ["floorZero"] = l.FloorZero,
+            // value is in unit (gears per litre for a liquid, else per item); perItem and effective
+            // are always per item, what trading prices with.
+            ["code"] = l.Code, ["value"] = l.Display, ["unit"] = l.PerLitre is null ? "item" : "litre",
+            ["itemsPerLitre"] = l.PerLitre, ["perItem"] = l.Value, ["effective"] = l.Effective, ["floorZero"] = l.FloorZero,
             ["source"] = l.Source.ToString().ToLowerInvariant(), ["family"] = l.Family, ["members"] = l.Members,
         });
         return TextCommandResult.Success(Describe(l));
@@ -108,11 +111,15 @@ public class ItemValuesSystem : ModSystem
     public static string Describe(ValueLookup l)
     {
         var ci = CultureInfo.InvariantCulture;
+        // A liquid: "1.85 gears per litre (0.0185 per item, 100 items per litre)".
+        string amount = l.PerLitre is { } n
+            ? $"{l.Display.ToString("0.###", ci)} gears per litre ({l.Value.ToString("0.######", ci)} per item, {n} items per litre)"
+            : $"{l.Value.ToString("0.###", ci)} gears";
         return l.Source switch
         {
             ValueSource.Missing => $"{l.Code}: no value (missing from the table and from every family)",
-            ValueSource.Direct => $"{l.Code}: {l.Value.ToString("0.###", ci)} gears{(l.FloorZero ? ", worthless (under a gear per stack)" : "")} (direct)",
-            _ => $"{l.Code}: {l.Value.ToString("0.###", ci)} gears{(l.FloorZero ? ", worthless" : "")} (family fallback: average of {l.Members} in {l.Family})",
+            ValueSource.Direct => $"{l.Code}: {amount}{(l.FloorZero ? ", worthless (under a gear per stack)" : "")} (direct)",
+            _ => $"{l.Code}: {amount}{(l.FloorZero ? ", worthless" : "")} (family fallback: average of {l.Members} in {l.Family})",
         };
     }
 }

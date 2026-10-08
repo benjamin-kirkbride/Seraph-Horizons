@@ -1,6 +1,7 @@
 using Atlas.XUnit;
 using Newtonsoft.Json;
 using SeraphHorizons.Mod.Trading.Values;
+using SeraphHorizons.Mod.Trading.Values.Core;
 using Vintagestory.API.Common;
 
 namespace SeraphHorizons.PackTests;
@@ -29,6 +30,26 @@ public partial class TradingScenarios
         Assert.Equal(1.0, values.ValueOf("game:gear-rusty"));
         Assert.InRange(values.ValueOf("game:ingot-copper"), 1, 4);
         Assert.False(values.IsWorthless("game:ingot-copper"));
+    }
+
+    // Liquids are priced per litre in the table (its perLitre) and per item to trading.
+    [AtlasScenario]
+    public void Liquids_are_priced_per_litre()
+    {
+        var values = ItemValuesSystem.For(World.Api);
+        const string cider = "game:ciderportion-apple";
+        var l = values.Lookup(cider);
+        Assert.Equal(ValueSource.Direct, l.Source);
+        Assert.Equal(100, values.PerLitre(cider));
+        Assert.True(l.Display > 0, $"{cider} has no value");
+        Assert.Equal(l.Display / 100, values.ValueOf(cider), 9);
+        Assert.Contains("gears per litre", ItemValuesSystem.Describe(l));
+        // The handbook line, through the lang key (a stand-in for Lang.Get, which is the client's).
+        Assert.Equal($"{ValueHandbook.Format(l.Display)} per litre",
+            ValueHandbook.Text(l, (key, args) => key == "seraphhorizons:itemvalues-handbook-perlitre" ? string.Format("{0} per litre", args) : key));
+        var copper = values.Lookup("game:ingot-copper");
+        Assert.Equal(ValueHandbook.Format(copper.Value), ValueHandbook.Text(copper, (key, _) => key));
+        Assert.Null(values.PerLitre("game:ingot-copper"));
     }
 
     // A table built from an older export lists codes the pack no longer registers. A few stale

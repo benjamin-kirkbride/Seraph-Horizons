@@ -131,11 +131,12 @@
         "attributes": { "$ref": "#/$defs/itemAttributes" },
         "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
         "value": {
-          "description": "Base value in rusty gears per item: the pack's item value table (`values[code]`, seraphhorizons:config/item-values.json). Absent when the table has no value of its own for the code, or without the pack's mod.",
+          "description": "Base value in rusty gears per item, or per litre with `valuePerLitre`: the pack's item value table (`values[code]`, seraphhorizons:config/item-values.json). Absent when the table has no value of its own for the code, or without the pack's mod.",
           "type": "number",
           "minimum": 0
         },
         "floorZero": { "description": "Present, true, when the table lists the code as worth under a gear per full stack.", "const": true },
+        "valuePerLitre": { "description": "Present, true, when `value` is per litre, not per item: a liquid the table prices by the litre (its `perLitre`). Only with a `value`.", "const": true },
         "valueSwitches": {
           "description": "The table's `switches[code]`: config switches the value exists only with (its cheapest route takes a recipe or item they add).",
           "type": "array",
