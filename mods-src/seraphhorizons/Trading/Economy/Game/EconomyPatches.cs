@@ -25,9 +25,10 @@ public sealed class OffListSlot : ItemSlotTrade
 }
 
 /// <summary>
-/// The Harmony patches of the economy (#450, #451), on vanilla's <c>InventoryTrader</c>, its
-/// selling-cart slot and its dialog. Every patch acts only on an inventory whose trader is an
-/// <see cref="EntitySeraphTrader"/> with <see cref="EconomySystem.PricedAttr"/> set, so vanilla's
+/// The Harmony patches of the economy (#450, #451), on vanilla's <c>InventoryTrader</c> and its
+/// selling-cart slot (the pack's traders trade through the pack's own window, which shows the side
+/// budget itself, so vanilla's dialog is no longer patched). Every patch acts only on an inventory
+/// whose trader is an <see cref="EntitySeraphTrader"/> with <see cref="EconomySystem.PricedAttr"/> set, so vanilla's
 /// and other mods' traders are untouched and the server's switch decides for its clients.
 ///
 /// <list type="bullet">
@@ -39,17 +40,12 @@ public sealed class OffListSlot : ItemSlotTrade
 /// <item><c>InventoryTrader.TryBuySell</c> (internal; prefix and postfix): the side budget. The
 /// prefix totals what off-list goods earn; more than the side budget refuses the deal, else (server)
 /// that much moves from the side budget into the money slot for vanilla's own payment to take, and
-/// back if the deal fails. The postfix (server) records supply for everything sold and bought and
+/// back if the deal fails (or throws: a finalizer). The postfix (server) records supply for everything sold and bought and
 /// re-prices the region's traders.</item>
-/// <item><c>InventoryTrader.GetTraderAssets</c> (postfix): on the client, during the deal's own
-/// check, counts that side-budget share as the server will have it.</item>
-/// <item><c>ItemSlot.GetStackDescription</c> (postfix, selling-cart slots only): the price
-/// breakdown and which budget pays.</item>
+/// <item><c>ItemSlot.GetStackDescription</c> (postfix, selling-cart slots only, which is the trade
+/// window's sell slot): the price breakdown and which budget pays.</item>
 /// <item><c>ItemSlotBuying.CanHold</c> (postfix, client): why a refused good is refused, as an
 /// in-game error.</item>
-/// <item><c>GuiDialogTrader.TraderInventory_SlotModified</c> and <c>CalcAndUpdateAssetsDisplay</c>
-/// (private; postfixes): the gain line says how much the side budget pays, the trader's money line
-/// shows the side budget.</item>
 /// </list>
 /// </summary>
 public static class EconomyPatches
@@ -58,11 +54,6 @@ public static class EconomyPatches
 
     private static readonly AccessTools.FieldRef<InventoryTrader, EntityTradingHumanoid> TraderField =
         AccessTools.FieldRefAccess<InventoryTrader, EntityTradingHumanoid>("traderEntity");
-    private static readonly AccessTools.FieldRef<GuiDialogTrader, InventoryTrader> DialogInventory =
-        AccessTools.FieldRefAccess<GuiDialogTrader, InventoryTrader>("traderInventory");
-
-    // The side-budget share of a deal being checked on the client (one deal at a time per thread).
-    [ThreadStatic] private static int s_clientCredit;
     [ThreadStatic] private static long s_lastRefusalMs;
 
     public static void Patch(Harmony harmony)
@@ -72,17 +63,12 @@ public static class EconomyPatches
             postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(BuyingConditionsPostfix)));
         harmony.Patch(AccessTools.Method(inv, "TryBuySell"),
             prefix: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellPrefix)),
-            postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellPostfix)));
-        harmony.Patch(AccessTools.Method(inv, nameof(InventoryTrader.GetTraderAssets)),
-            postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(TraderAssetsPostfix)));
+            postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellPostfix)),
+            finalizer: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellFinalizer)));
         harmony.Patch(AccessTools.Method(typeof(ItemSlot), nameof(ItemSlot.GetStackDescription)),
             postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(StackDescriptionPostfix)));
         harmony.Patch(AccessTools.Method(typeof(ItemSlotBuying), nameof(ItemSlotBuying.CanHold)),
             postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(CanHoldPostfix)));
-        harmony.Patch(AccessTools.Method(typeof(GuiDialogTrader), "TraderInventory_SlotModified"),
-            postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(SlotModifiedPostfix)));
-        harmony.Patch(AccessTools.Method(typeof(GuiDialogTrader), "CalcAndUpdateAssetsDisplay"),
-            postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(AssetsDisplayPostfix)));
     }
 
     /// <summary>Our trader behind an inventory, when the economy prices for it.</summary>
@@ -154,23 +140,28 @@ public static class EconomyPatches
         }
         var state = new DealState { Trader = trader, SideGain = sideGain };
         state.Lines.AddRange(lines);
-        if (trader.Api.Side == EnumAppSide.Server)
+        if (trader.Api.Side == EnumAppSide.Server && sideGain > 0)
         {
-            if (sideGain > 0)
-            {
-                __instance.GiveToTrader(sideGain);
-                EconomySystem.SetSideBudget(trader, budget - sideGain);
-                state.Moved = sideGain;
-            }
+            __instance.GiveToTrader(sideGain);
+            EconomySystem.SetSideBudget(trader, budget - sideGain);
+            state.Moved = sideGain;
         }
-        else s_clientCredit = sideGain;
         __state = state;
         return true;
     }
 
+    /// <summary>A deal that threw (another mod's hook, a map's): the side budget's share moved into
+    /// the money slot goes back, as for a deal that failed. The exception goes on.</summary>
+    public static void TryBuySellFinalizer(InventoryTrader __instance, Exception? __exception, DealState? __state)
+    {
+        if (__exception is null || __state is not { Moved: > 0 } state) return;
+        __instance.DeductFromTrader(state.Moved);
+        EconomySystem.SetSideBudget(state.Trader, EconomySystem.SideBudgetOf(state.Trader) + state.Moved);
+        state.Moved = 0;
+    }
+
     public static void TryBuySellPostfix(InventoryTrader __instance, EnumTransactionResult __result, DealState? __state)
     {
-        s_clientCredit = 0;
         if (__state is null || __state.Trader.Api.Side != EnumAppSide.Server) return;
         var trader = __state.Trader;
         if (__result != EnumTransactionResult.Success)
@@ -199,11 +190,6 @@ public static class EconomyPatches
                 economy.Refresh(other, broadcast: other != trader);
     }
 
-    public static void TraderAssetsPostfix(ref int __result)
-    {
-        if (s_clientCredit > 0) __result += s_clientCredit;
-    }
-
     // ---- Showing it ----
 
     /// <summary>The breakdown of what the trader pays for a stack in the selling cart, and which
@@ -230,15 +216,8 @@ public static class EconomyPatches
         return economy is null ? null : RefusalText(economy.QuoteOffList(trader, stack).Refusal);
     }
 
-    public static string? RefusalText(Refusal refusal) => refusal switch
-    {
-        Refusal.None => null,
-        Refusal.MapOrLead => L("trading-economy-refused-map"),
-        Refusal.Worthless => L("trading-economy-refused-worthless"),
-        Refusal.NoValue => L("trading-economy-refused-novalue"),
-        Refusal.Currency => L("trading-economy-refused-currency"),
-        _ => L("trading-economy-refused-toocheap"),
-    };
+    public static string? RefusalText(Refusal refusal) =>
+        refusal == Refusal.None ? null : L(SeraphHorizons.Mod.Trading.Window.Core.TradeWindowModel.RefusalKey(refusal));
 
     public static void StackDescriptionPostfix(ItemSlot __instance, ref string __result)
     {
@@ -257,23 +236,5 @@ public static class EconomyPatches
         if (now - s_lastRefusalMs < 2000) return;
         s_lastRefusalMs = now;
         capi.TriggerIngameError(__instance, "seraphhorizons-refused", text);
-    }
-
-    public static void SlotModifiedPostfix(GuiDialogTrader __instance)
-    {
-        var inv = DialogInventory(__instance);
-        if (PricedTrader(inv) is null) return;
-        var (main, side, _) = Cart(inv);
-        if (side <= 0) return;
-        __instance.SingleComposer?.GetDynamicText("gainText")?.SetNewText(L("trading-economy-gain", main + side, side));
-    }
-
-    public static void AssetsDisplayPostfix(GuiDialogTrader __instance)
-    {
-        var inv = DialogInventory(__instance);
-        if (PricedTrader(inv) is not { } trader) return;
-        var name = trader.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "";
-        __instance.SingleComposer?.GetDynamicText("traderMoneyText")?.SetNewText(
-            L("trading-economy-tradermoney", name, inv.GetTraderAssets(), EconomySystem.SideBudgetOf(trader)));
     }
 }

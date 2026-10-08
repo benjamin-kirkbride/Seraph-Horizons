@@ -15,13 +15,13 @@ namespace SeraphHorizons.Mod.Trading.Deliveries;
 /// the package item's class is registered on both sides whatever the switch.
 ///
 /// <list type="bullet">
-/// <item><c>/sh delivery</c> next to a trader shows its offer to the player: a placed camp within
+/// <item>The trade window's Deliveries tab shows a trader's offer to the player: a placed camp within
 /// <c>deliveryScale</c> × 3 km (<see cref="DeliveryPlanner.Destination"/>), of another type where
 /// there is one, with a deadline from the walk there, a value, a deposit and a fee
 /// (<see cref="DeliveryPlanner.Offer"/>). The offer is seeded by the trader, the player and the
-/// day, so it stays put until the next day. <c>/sh delivery accept</c> takes the deposit from the
+/// day, so it stays put until the next day. Taking it (<see cref="Begin"/>) takes the deposit from the
 /// player's gears and hands over a <c>seraphhorizons:package</c>.</item>
-/// <item><c>/sh delivery handin</c> next to the receiver: on time, the deposit back plus the fee
+/// <item>Handing it in at the receiver's window (<see cref="HandIn"/>): on time, the deposit back plus the fee
 /// (from the receiver's wallet, as far as it has it) and standing at both ends; late (within
 /// <see cref="DeliveryPlanner.GraceDays"/>), the deposit and half the fee, standing at the receiver.</item>
 /// <item>Past the grace (<see cref="Tick"/>): failed, the deposit kept, standing with the sender
@@ -78,7 +78,6 @@ public class DeliveriesSystem : ModSystem
         api.Event.SaveGameLoaded += Load;
         api.Event.GameWorldSave += Save;
         api.Event.PlayerJoin += MarkFailedPackages;
-        EntitySeraphTrader.TradeOpened += OnTradeOpened;
         if (_economy != null) _economy.SimulatedDay += OnSimulatedDay;
         _tick = api.Event.RegisterGameTickListener(_ => Tick(), 5000);
         DeliveryCommands.Register(api, this);
@@ -87,7 +86,6 @@ public class DeliveriesSystem : ModSystem
 
     public override void Dispose()
     {
-        EntitySeraphTrader.TradeOpened -= OnTradeOpened;
         if (_economy != null) _economy.SimulatedDay -= OnSimulatedDay;
         if (_sapi != null && _tick != 0) _sapi.Event.UnregisterGameTickListener(_tick);
     }
@@ -268,35 +266,5 @@ public class DeliveriesSystem : ModSystem
             slot.Itemstack.Attributes.SetBool(ItemPackage.AttrFailed, true);
             slot.MarkDirty();
         }
-    }
-
-    // ---- Text ----
-
-    public string Line(Delivery d)
-    {
-        double left = d.Deadline - Today;
-        int x = (int)(d.ToX - _sapi!.World.DefaultSpawnPosition.X), z = (int)(d.ToZ - _sapi.World.DefaultSpawnPosition.Z);
-        return L(left >= 0 ? "trading-deliveries-line" : "trading-deliveries-line-late", d.Id, TraderFinder.TypeName(d.ToType), x, z,
-            Math.Round(d.Distance / 1000, 1), Math.Round(Math.Abs(left) * _sapi.World.Calendar.HoursPerDay, 1), d.Deposit, d.Fee);
-    }
-
-    public string OfferLine(DeliveryOffer o)
-    {
-        int x = (int)(o.To.X - _sapi!.World.DefaultSpawnPosition.X), z = (int)(o.To.Z - _sapi.World.DefaultSpawnPosition.Z);
-        return L("trading-deliveries-offer", TraderFinder.TypeName(o.To.Type), x, z, Math.Round(o.Distance / 1000, 1),
-            Math.Round(o.Days * _sapi.World.Calendar.HoursPerDay, 1), o.Deposit, o.Fee);
-    }
-
-    /// <summary>The chat line when the trade dialog opens: packages the player carries for this
-    /// trader, and the trader's offer if it has one for them.</summary>
-    private void OnTradeOpened(IServerPlayer player, EntitySeraphTrader trader)
-    {
-        if (trader.Api != _sapi || !Enabled) return;
-        string id = TraderFinder.IdOf(_sapi!, trader);
-        var lines = new List<string>();
-        foreach (var d in Book.All.Where(d => d.IsActive && d.PlayerUid == player.PlayerUID && d.To == id))
-            lines.Add(L("trading-deliveries-forhere", d.Id));
-        if (OfferFor(player, trader) is { Offer: { } offer }) lines.Add(OfferLine(offer) + " " + L("trading-deliveries-offer-how"));
-        if (lines.Count > 0) player.SendMessage(GlobalConstants.GeneralChatGroup, string.Join("\n", lines), EnumChatType.Notification);
     }
 }
