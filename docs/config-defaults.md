@@ -142,10 +142,11 @@ file none of these places fails the snapshot, to be settled in `[owners]` (exlib
 The values the pack sets instead of a mod's own default are repo data in `pack/config/ModConfig/`:
 a `.yaml` file of `key: scalar` lines for a ConfigKit file, a `.json` object for a JSON one (each
 leaf is a value), named after the file they go into. Today that is BetterRuins' ruin spacing and
-vanilla structure chance (`betterruins.yaml`). They go into each snapshot's `index.json`
-(`packValues`), and a version's defaults are its snapshot's files with its pack values set: so
-changing or adding a value moves untouched installs like any other default change, and a value
-someone set by hand stays.
+vanilla structure chance (`betterruins.yaml`), and Primitive Survival's Living Dead spawn multiplier
+at 0, which turns that creature's spawning off (`primitivesurvival5.json`). They go into each
+snapshot's `index.json` (`packValues`), and a version's defaults are its snapshot's files with its
+pack values set: so changing or adding a value moves untouched installs like any other default
+change, and a value someone set by hand stays.
 
 A fresh install gets them because, on the server, a file the pack sets values in that does not
 exist yet is written whole, as the snapshot has it with the values set, when its owners match. The
