@@ -324,11 +324,24 @@ texture codes `blade` and `gauge` set to the fitted plate's and rod's metals
 (`MachineMeshes.MetalTexture`, one mesh set per pair of metals). The sheet's parts (`platelead`,
 `platecopper`) are drawn only while that metal's plate is on the table: once the halves are delivered
 they drop as items, and the sheet is not drawn while p eases out, though the hold-down eases back with
-it. `SquaringShearClock` turns θ and advances W at the server's pace while held, never behind the
-server's W and at most 0.06 ahead of it; with no plate on, W is held at 1 while p eases out over 0.4 s
-and k is held; the next plate starts from the server's W. While the blade moves (`IsCutting(W)`) and the
+it. `SquaringShearClock` turns θ while held, and shows W through `Machines/Core/HeldWorkFollower`, as the
+press brake's: predicted at the plate's pace every frame while held and eased toward the server's W
+(carried forward at that pace for up to 0.25 s since it last changed), never snapped to it and, while
+held, never run backward; with no plate on, W is held at 1 while p eases out over 0.4 s and k is held;
+the next plate starts from the server's W. While the blade moves (`IsCutting(W)`) and the
 treadle is held, metal dust at `edge.pos`; while worked, the frame creaks
 (`game:sounds/block/woodcreak_1..4`).
+
+**Why the follower** (the cut stuttered while held, as if at a few frames a second). The server cuts
+on its 50 ms tick, which fires only on its own frames, so W moves in uneven steps, synced each step
+and late by the trip to the client. A lead plate is one stroke and a stroke a second, so a tick moves
+W by 0.05, and 0.066 or more on a tick that runs late. The clock used to advance W at the pace and snap
+it to the server's W whenever it fell behind it or ran more than 0.06 ahead: a band no wider than one
+tick's work, so it was thrown out at nearly every packet and the crosshead moved in the server's steps,
+jumping back and forward. (The press brake, slower at 1.5 and 2.25 lever turns a half plate, had some
+slack and only jittered now and then.) The follower keeps W moving every frame and only steers it
+toward the server (`tests/Machines/HeldWorkFollowerTests.cs` plays the server's steps against a 60 fps
+client, and shows the old band snapping the shear).
 
 **Handbook.** Three sections on the frame (`attributes.handbook.extraSections`): assembly, cutting
 plates, and half plates and pipe (the ladder: two half plates a plate, and nothing else makes one; the
@@ -354,4 +367,5 @@ refusals, and every pose of `tests/SquaringShear/rig-reference.json` replayed th
 against their own rules and the site's rig maths); `tests/PackTests/SquaringShearScenarios.cs`,
 `RecipeExportSquaringShearScenarios.cs` and
 `SwitchesOffScenarios.Squaring_shear_off_there_is_no_squaring_shear_and_no_half_plate` (Atlas:
-`FullyQualifiedName~Squaring_shear`).
+`FullyQualifiedName~Squaring_shear`); `tests/Machines/HeldWorkFollowerTests.cs` (the clock's W while
+held).

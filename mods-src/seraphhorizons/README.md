@@ -3684,7 +3684,9 @@ implementation replays (`Machines/Core/`, `tests/Machines/`), the bucking sawmil
 rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 `BuckingSawmill/README.md`), the rosser's rig, parts, pace, trip, water and client-side values
 (`Rosser/Core/`, described in `Rosser/README.md`), machine oil's tank, drain, oil codes and settings
-(`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the trunk code and variant rules of the
+(`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the hand machines' held W, predicted
+at frame rate and eased to the server's (`Machines/Core/HeldWorkFollower.cs`,
+`tests/Machines/HeldWorkFollowerTests.cs`), the trunk code and variant rules of the
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
 and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,

@@ -334,10 +334,22 @@ codes `screw` and `edge` set to the fitted rods' and plates' metals (`MachineMes
 mesh set per pair of metals). The sheet's parts (`platelead`, `platecopper`) are drawn only while that
 metal's half plate is on the bed: once the angle is delivered it drops as an item, and the sheet is not
 drawn while p eases out (weak spot 5 above), though the bar and screws ease back with it.
-`PressBrakeClock` turns θ and advances W at the server's pace while held, never behind the server's W
-and at most 0.06 ahead of it; with no half plate on, W is held at 1 while p eases out over 0.4 s and k
-is held; the next one starts from the server's W. While the leaf swings (`IsFolding(W)`) and the lever is
+`PressBrakeClock` turns θ while held, and shows W through `Machines/Core/HeldWorkFollower`: predicted
+at the half plate's pace every frame while held and eased toward the server's W (carried forward at that
+pace for up to 0.25 s since it last changed), never snapped to it and, while held, never run backward;
+with no half plate on, W is held at 1 while p eases out over 0.4 s and k is held; the next one starts
+from the server's W. While the leaf swings (`IsFolding(W)`) and the lever is
 held, metal dust at `edge.pos`; while worked, the frame creaks (`game:sounds/block/woodcreak_1..4`).
+
+**Why the follower** (the fold jittered while held). The server folds on its 50 ms tick, which fires
+only on its own frames, so W moves in uneven steps of 0.022..0.033 a tick at the default pace (more on
+a tick that runs late), synced each step, and late by the trip to the client. The clock used to advance
+W at the pace and snap it to the server's W whenever it fell behind it or ran more than 0.06 ahead: a
+band only two or three ticks' work wide, so a late tick or packet threw it out and the leaf jumped back
+or forward to the server's step. The brake, at 1.5 and 2.25 lever turns a half plate, had some slack
+in the band and jittered now and then; the squaring shear, faster, had none (see its README). The
+follower keeps W moving every frame and only steers it toward the server
+(`tests/Machines/HeldWorkFollowerTests.cs` plays the server's steps against a 60 fps client).
 
 **Handbook.** Three sections on the frame (`attributes.handbook.extraSections`): assembly, folding
 plates (half plates, from the squaring shear), and angles and pipe (the ladder: one angle a half plate,
@@ -359,4 +371,5 @@ and `PressBrakeRigTests.cs` (the shipped rig through the shared parser and `Pres
 its one fold, the pace held to the settings, the reader's refusals, and every pose of `tests/PressBrake/rig-reference.json`
 replayed through `Machines/Core`); `tests/PackTests/PressBrakeScenarios.cs`,
 `RecipeExportPressBrakeScenarios.cs` and `SwitchesOffScenarios.Press_brake_off_there_is_no_press_brake`
-(Atlas: `FullyQualifiedName~Press_brake`).
+(Atlas: `FullyQualifiedName~Press_brake`); `tests/Machines/HeldWorkFollowerTests.cs` (the clock's W
+while held).
