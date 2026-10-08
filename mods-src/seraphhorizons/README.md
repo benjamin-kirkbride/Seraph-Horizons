@@ -2727,9 +2727,9 @@ radius blocks (default 4096) with their type and camp, or the spot not generated
 
 Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
 state, the shipped lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
-(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere, a
-spawned trader stocking from its list, the game's camps taken over, the spawner rewrite, a cell's
-camp being decided, `/sh trade camps`, and nothing logged);
+(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere,
+every trader's trade window title and name, a spawned trader stocking from its list, the game's camps
+taken over, the spawner rewrite, a cell's camp being decided, `/sh trade camps`, and nothing logged);
 `tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
 treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten).
 
