@@ -82,6 +82,7 @@
   "SmallerDeposits": true,
   "RarerDistricts": true,
   "RarerBattleTowers": true,
+  "RuinsOnMedianGround": true,
   "TraderGrid": true,
   "TraderStanding": true,
   "TraderStandingSpilloverKm": 6.0,

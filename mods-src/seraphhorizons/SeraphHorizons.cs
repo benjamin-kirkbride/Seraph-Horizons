@@ -171,6 +171,8 @@ public class SeraphHorizonsSystem : ModSystem
             FellingWear.Patch(_harmony ??= new Harmony(HarmonyId), api, Config(api).FlatFellingWearSettings ?? new FellingWearConfig());
         if (Config(api).LocomotiveRidersBreathe && LocomotiveSeats.Applies(api))
             LocomotiveSeats.PatchBreathe(_locomotiveBreatheHarmony = new Harmony(LocomotiveSeats.BreatheHarmonyId));
+        if (Config(api).RuinsOnMedianGround)
+            RuinSurfaceMedian.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
         ClearSky = new ClearSky(api);
         if (Config(api).ClearCommand)
             ClearSky.Register();
@@ -281,6 +283,7 @@ public class SeraphHorizonsSystem : ModSystem
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
         FellingWear.Unbind();
+        RuinSurfaceMedian.Unbind();
         if (ClearSky != null)
         {
             ClearSky.Dispose();
@@ -587,6 +590,13 @@ public class SeraphHorizonsConfig
     /// of underground towers per km² (server side; off means as Battle Towers ships them). Worldgen
     /// only: it changes the chunks generated from then on.</summary>
     public bool RarerBattleTowers { get; set; } = true;
+
+    /// <summary>Surface ruins (BetterRuins' and the game's) sit on the median of the ground the game
+    /// samples around them, not its lowest point, so on a slope they are no longer buried on the
+    /// uphill side; the game's limit on how uneven that ground may be is unchanged (server side;
+    /// off means the lowest point, as the game places them). Worldgen only: it changes the chunks
+    /// generated from then on.</summary>
+    public bool RuinsOnMedianGround { get; set; } = true;
 
     /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
     /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
