@@ -1,0 +1,66 @@
+// Half plate (SquaringShear; README "Squaring shear"): a lead or copper plate cut in half across its
+// middle on the squaring shear, 8 voxels long, 4 wide and 1 thick (shapes/item/halfplate.json). The
+// shear is the only way to make one: one plate makes two. The press brake folds one into an angle.
+// Melts back into one ingot, as the plate does into two. Marked disabled with the switch off.
+{
+	code: "halfplate",
+	variantgroups: [
+		{ code: "metal", states: ["copper", "lead"] }
+	],
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "SingleCenter", placeRemoveSound: "sounds/block/plate", collisionBox: { x1: 0.25, y1: 0, z1: 0.375, x2: 0.75, y2: 0.0625, z2: 0.625 } } }
+	],
+	shape: { base: "seraphhorizons:item/halfplate" },
+	textures: {
+		metal: { base: "game:block/metal/ingot/{metal}" }
+	},
+	attributes: {
+		shelvable: true,
+		onTongTransform: {
+			translation: { x: -1.03, y: -0.64, z: -1.015 },
+			rotation: { x: -83, y: -16, z: -3 }
+		},
+		handbook: {
+			groupBy: ["halfplate-*"],
+			extraSections: [{ title: "seraphhorizons:halfplate-handbook-title", text: "seraphhorizons:halfplate-handbook-text" }]
+		}
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	maxstacksize: 16,
+	materialDensityByType: {
+		"*-copper": 8960,
+		"*-lead": 11300
+	},
+	combustiblePropsByType: {
+		"halfplate-copper": {
+			meltingPoint: 1084,
+			meltingDuration: 30,
+			smeltedRatio: 1,
+			smeltedStack: { type: "item", code: "game:ingot-copper", stacksize: 1 }
+		},
+		"halfplate-lead": {
+			meltingPoint: 327,
+			meltingDuration: 30,
+			smeltedRatio: 1,
+			smeltedStack: { type: "item", code: "game:ingot-lead", stacksize: 1 }
+		}
+	},
+	guiTransform: {
+		translation: { x: 3, y: 0, z: 0 },
+		rotation: { x: -30, y: -44, z: -180 },
+		origin: { x: 0.5, y: 0.0625, z: 0.5 },
+		scale: 1.85
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 0, y: 90, z: 0 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 3.31
+	},
+	tpHandTransform: {
+		translation: { x: -0.7, y: 0.1, z: -0.53 },
+		rotation: { x: 94, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0.1, z: 0.5 },
+		scale: 0.75
+	}
+}

@@ -788,6 +788,18 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public PressBrake.Core.PressBrakeConfig PressBrakeSettings { get; set; } = new();
 
+    /// <summary>The squaring shear (SquaringShear/, README "Squaring shear"): a tinsmith's
+    /// foot-treadle squaring shear of oak with iron blades, built on a frame in two stages (a plate as
+    /// its blades, a rod as its back gauge and hold-down), that cuts a lead or copper plate across its
+    /// middle into two half plates while the player holds right-click on it, as on the quern; no power
+    /// and no oil (off means its blocks, the half plate and its recipe do not exist, and shears already
+    /// placed and half plates already made are lost). The server's setting decides.</summary>
+    public bool SquaringShear { get; set; } = true;
+
+    /// <summary>The squaring shear's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public SquaringShear.Core.SquaringShearConfig SquaringShearSettings { get; set; } = new();
+
     /// <summary>The mandrel forging station (MandrelStation/, README "Mandrel forging station"): an
     /// oak stump with an iron bracket holding a rod as its mandrel, on which a lead or copper hollow
     /// section (the game's chute section) is hammered, a right-click with a hammer a blow as on the

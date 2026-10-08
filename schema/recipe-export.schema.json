@@ -584,7 +584,7 @@
           "required": ["power", "turns"],
           "additionalProperties": false,
           "properties": {
-            "power": { "description": "mechanical: the game's mechanical power network, `turns` the input shaft's. hand: worked by a player holding right-click on it, `turns` those of its hand clock (the press brake's lever, a turn a second).", "type": "string", "minLength": 1 },
+            "power": { "description": "mechanical: the game's mechanical power network, `turns` the input shaft's. hand: worked by a player holding right-click on it, `turns` those of its hand clock (the press brake's lever, the squaring shear's treadle, a turn a second).", "type": "string", "minLength": 1 },
             "turns": { "description": "Turns of the machine's input shaft one job takes.", "type": "number", "exclusiveMinimum": 0 },
             "work": {
               "description": "What a job is made of: `amount` of `unit` (12 teeth), `turnsPerUnit` each.",

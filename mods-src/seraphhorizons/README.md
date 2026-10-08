@@ -12,7 +12,7 @@ into steel gears through the pot, the pickling tub and the barrel (`GearReclamat
 recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
 (`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded from plates on a hand-worked press brake (`PressBrake`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -30,7 +30,7 @@ that has it (a server with the steam source switched off, or without ppex, has n
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
-sawmill's, the rosser's, the gear cutter's, the draw bench's and the press brake's blocks: the server runs the machines, the client draws
+sawmill's, the rosser's, the gear cutter's, the draw bench's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
 their moving parts. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
@@ -2203,6 +2203,69 @@ disabled before the game loads them, so none of it exists and benches already pl
 machine oil page and the mod's own text no longer name it. The hollow and pipe sections exist either
 way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
 
+### Squaring shear (`SquaringShear`, `SquaringShearSettings`)
+
+The cut rung of the pipe ladder: a tinsmith's foot-treadle squaring shear of the early-to-mid 1800s,
+framed in oak with iron blades, an iron back gauge and an iron hold-down, that cuts one lead or copper
+plate (`game:metalplate-lead`, `-copper`) once, across its middle, into two half plates
+(`seraphhorizons:halfplate-lead`, `-copper`, its own item, 8 × 4 × 1). The press brake folds a half
+plate into an angle; two angles, two solder bars and a soldering iron make a hollow section on the
+grid. Its model, rig and generator are described in `SquaringShear/README.md`, which also records the
+gameplay's decisions; this is the gameplay, in `SquaringShear/` (rules in `SquaringShear/Core/`, the
+game side in `SquaringShear/Game/`). A hand machine: no mechanical power, no oil, and nothing on it
+wears.
+
+**Blocks and item.** `seraphhorizons:squaringshear-frame-{side}` is the controller: the table end, the
+block the player clicks, with the shear running two blocks away from them along their line of sight
+and a ghost in the far cell (`squaringshear-ghost`). The frame is a grid recipe: three oak planks (the
+table, the crosshead, the treadle), two oak logs (the cheeks and housings), four nails and strips of
+iron, meteoric iron or steel (the treadle's pivots, the links, the crosshead's shoes) and a hammer.
+The half plate (`itemtypes/halfplate.json`) is made only on the shear, stacks to 16 and melts back into
+one ingot.
+
+**Stages.** Fitted by right-click on the frame or the ghost with the item, one item each, in this
+order only; the gauge before the blades is refused with a message naming the next:
+
+| # | Stage (`requires`) | Item | Made |
+|---|---|---|---|
+| 1 | `blade` | `game:metalplate-iron` or `-steel` (ground into the upper and lower blades) | Smithing (the game's) |
+| 2 | `gauge` | `game:rod-iron`, `-meteoriciron` or `-steel` (the back gauge and the hold-down) | Smithing (the game's) |
+
+In creative mode Ctrl + right-click on an incomplete shear fits its next stage with nothing taken.
+**Ctrl + right-click** takes a plate back off while it is still whole; with no plate on, it takes the
+last part fitted back out (the gauge, then the blades). Breaking the frame drops the frame, both parts
+and a plate not yet cut (one being cut is lost).
+
+**Work.** A lead or copper plate goes on the table by right-click (a half plate, what comes off, never
+does, nor an angle or an ingot). Then the player **holds right-click** on the shear, as on the quern:
+the cut runs only while someone holds. The treadle clock makes a stroke a second while held, and the
+cut cycle W (0..1) advances by its strokes over the plate's `StrokesPerPlateLead` (1) or
+`StrokesPerPlateCopper` (1.5): about a second of work for lead, a second and a half for copper. The
+hold-down clamps the plate, the treadle brings the blade down through it (the cut is heard at the
+bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal go into a
+container against the output face (native north, in front of the table end), else drop just outside
+it. Worked with nothing on the table, the shear takes the next plate from a chest or hopper beyond its
+far end (native south), so a player can hold from one plate to the next; it never takes a plate by
+itself. The block info shows the next stage and the plate on, how far cut.
+
+**Drawn.** The block draws `squaringshear_frame.json`; the renderer splits `squaringshear.json` into the
+rig's parts and draws each whose stage is fitted (the blades, the gauge and the hold-down in their
+metal), the crosshead, links and treadle always, and the sheet of the plate's metal while it is on. W
+runs on with the treadle between the server's syncs. While the blade moves: metal dust at the cut;
+while worked: the frame creaks.
+
+| Setting | Default | |
+|---|---|---|
+| `StrokesPerPlateLead` | 1 | Treadle strokes (seconds held) a lead plate takes; the rig's `cut.strokesPerPlate.thin` (a test holds them together) |
+| `StrokesPerPlateCopper` | 1.5 | Treadle strokes a copper plate takes; the rig's `cut.strokesPerPlate.thick` |
+
+With the switch off the server marks both block types, the half plate's item type and the recipe file
+disabled before the game loads them, so none of it exists and shears already placed and half plates
+already made are lost; the mod's own text no longer links the shear or the half plate. The plates and
+the parts it takes are the game's and exist either way. The shear does not need the press brake's
+switch: with `PressBrake` off it still cuts, and its half plates only melt. Not yet: a schematic for
+the frame (`MachineSchematics`).
+
 ### Press brake (`PressBrake`, `PressBrakeSettings`)
 
 The folded rung of the pipe ladder: a hand-worked leaf brake (a cornice brake) of the early-to-mid
@@ -3072,7 +3135,8 @@ the CastPipes switch's patch adds to smex's tool mold (`smex:toolmold-*-pipe`), 
 exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `GearReclamation`;
 `gearcutter`: `GearCutter`; `drawbench`: `DrawBench`, whose type and recipe files are
 `DrawBenchSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
-`PressBrakeSystem.TypeAssets` and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
+`PressBrakeSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
+`SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
 `SwitchForCode(code)`; the exporter calls `SwitchRegistry.For(api)` by reflection.
 
@@ -3085,6 +3149,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `GearCutter` | the cutter's blocks and parts, its grid and smithing recipes, the cutter records |
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
+| `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
@@ -3500,7 +3565,10 @@ drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/C
 `tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the press brake's build order,
 take-back, plates by metal, fold arithmetic (W only while held, two sections at 1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
-`PressBrakeRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
+`PressBrakeRigTests.cs`), the squaring shear's build order, take-back, plates by metal, cut arithmetic
+(W only while held, two half plates at 1), treadle holds, renderer clock, settings and rig
+(`SquaringShear/Core/`, `tests/SquaringShear/SquaringShearGameplayTests.cs`,
+`SquaringShearRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
 blows (two sections at the last), renderer clock, settings and rig (`MandrelStation/Core/`,
 `tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the handcar's drive (pumping by
 facing, solo and pair, braking and holding, load), branch selector, distance rolled, stroke phase, effort fade,
@@ -3849,6 +3917,27 @@ off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to i
 `RecipeExportPressBrakeScenarios.cs` requires one `machine` record per metal
 (`pressbrake|game:metalplate-{metal}|0`): the plate, the two kept stages, the frame, two open sections,
 power `hand` at the lever's 6 or 9 turns, no wear and no oil.
+
+`tests/PackTests/SquaringShearScenarios.cs` (Atlas, the shared world, the gear cutter's player)
+requires the shear's blocks and half plates (their names, a half plate melting into one ingot), the
+plates and rods its stages take, the lead and copper plates, its recipe and no other recipe for a half
+plate, and the settings' pace the rig's; placing on all four facings, the shear running away along the
+facing, the ghost pointing home, both cells' lids, the infeed and outfeed cells, and both cells cleared
+and the frame dropped on breaking; the stages fitted in order by real clicks on the frame and the
+ghost, the gauge before the blades, a plate before both, an empty hand on a bare frame and a copper rod
+refused, a save keeping every code, Ctrl taking the gauge then the blades back, and the creative
+shortcut; a lead plate cut only while right-click is held (the block's own start, steps and stop, from
+the ghost), nothing moving when let go, its own half plates, an angle, an ingot and a tin plate never
+taken, a plate in hand working the treadle on a loaded table, and two half plates dropped beyond the
+output face, the plate used up; copper at half as many strokes again; a whole plate back by Ctrl, a
+half-cut one and the parts staying, and breaking giving back the parts and a whole plate (not a half-cut
+one); and plates taken from a chest at the infeed only when the treadle is worked (never an ingot, a half
+plate or an angle) and half plates put in a chest at the output. With the switch off,
+`SwitchesOffScenarios` requires none of its blocks, no half plate and no recipe, no link to either, and
+nothing logged. `RecipeExportSquaringShearScenarios.cs` requires one `machine` record per metal
+(`squaringshear|game:metalplate-{metal}|0`): the plate, the two kept stages, the frame, two half plates,
+power `hand` at the treadle's 1 or 1.5 strokes (work in strokes), no wear and no oil, and the record,
+the half plates and the frame's recipe owned by `SquaringShear`.
 
 `tests/PackTests/MandrelStationScenarios.cs` (Atlas, the shared world, the gear cutter's player)
 requires the station's blocks, the rods it takes as its mandrel, the lead and copper hollows and pipe
