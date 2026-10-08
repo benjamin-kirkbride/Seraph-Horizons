@@ -90,9 +90,10 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private static object Hands => Enum.Parse(AccessTools.TypeByName("CarryOn.API.Common.Models.CarrySlot"), "Hands");
 
     /// <summary>The Carryable's Hands slot animation, its transform templates, whether it has
-    /// transform groups of its own, its default transform and the slot's walk speed on
-    /// <paramref name="block"/>.</summary>
-    private static (string? Animation, string[] Templates, bool LocalGroups, ModelTransform Transform, float WalkSpeed)? HandsSettings(Block block)
+    /// transform groups of its own, its default transform, the slot's walk speed and its
+    /// properties as Carry On reads its transform groups (<c>propertiesAtString</c>, which the
+    /// client parses) on <paramref name="block"/>.</summary>
+    private static (string? Animation, string[] Templates, bool LocalGroups, ModelTransform Transform, float WalkSpeed, JsonObject Properties)? HandsSettings(Block block)
     {
         var carryables = block.BlockBehaviors.Where(TrunkCarry.IsCarryable).ToList();
         if (carryables.Count == 0)
@@ -108,7 +109,8 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
                         templates,
                         (bool)AccessTools.Property(b.GetType(), "HasLocalTransformGroups").GetValue(b)!,
                         (ModelTransform)AccessTools.Property(b.GetType(), "DefaultTransform").GetValue(b)!,
-                        (float)AccessTools.Property(e.Value.GetType(), "WalkSpeedModifier").GetValue(e.Value)!);
+                        (float)AccessTools.Property(e.Value.GetType(), "WalkSpeedModifier").GetValue(e.Value)!,
+                        JsonObject.FromJson(b.propertiesAtString));
         throw new Xunit.Sdk.XunitException($"{block.Code}'s Carryable has no Hands slot");
     }
 
@@ -134,14 +136,23 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
             var settings = HandsSettings(block) ?? throw new Xunit.Sdk.XunitException($"{block.Code} has no Carryable");
             output.WriteLine($"{block.Code}: {settings.Animation}, [{string.Join(", ", settings.Templates)}], groups {settings.LocalGroups}, walk {settings.WalkSpeed}");
             Assert.Equal(animation, settings.Animation);
-            // Carry On's default pose, as with Logging Expanded alone: no template (carry-trunk is
-            // the game's chest, carried across the front), no transform groups, no transform
+            // No template (carry-trunk is the game's chest, carried across the front) and Carry
+            // On's default transform (half size about the centre), with the shoulder's own hands
+            // root by class: tipped by rotationX 90 so the trunk's length (its z) runs along the
+            // shoulder frame's y, front to back, and moved over the left shoulder (TrunkCarryPose)
             Assert.Empty(settings.Templates);
-            Assert.False(settings.LocalGroups);
             var (move, turn) = (settings.Transform.Translation, settings.Transform.Rotation);
             Assert.Equal((0f, 0f, 0f), (move.X, move.Y, move.Z));
             Assert.Equal((0f, 0f, 0f), (turn.X, turn.Y, turn.Z));
             Assert.Equal(0f, settings.WalkSpeed);
+            Assert.True(settings.LocalGroups);
+            var hands = settings.Properties["transformGroups"]["hands"].AsArray();
+            var root = Assert.Single(hands);
+            output.WriteLine($"  hands root {root.Token.ToString(Newtonsoft.Json.Formatting.None)}");
+            Assert.Equal("root", root["id"].AsString());
+            Assert.Equal(90f, root["rotationX"].AsFloat());
+            float[] expected = animation == "trunkcarry" ? [-0.08f, -0.42f, -0.2f] : [0.02f, 0.12f, -0.65f];
+            Assert.Equal(expected, root["translation"].AsArray<float>());
         }
     }
 
@@ -355,7 +366,7 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var values = stats["walkspeed"].ValuesByKey;
         output.WriteLine($"walkspeed {stats.GetBlended("walkspeed")} carrying 48 logs: {string.Join(", ", values.Select(kv => $"{kv.Key}={kv.Value.Value}*{kv.Value.Weight}"))}");
         output.WriteLine($"player walk multiplier {player.Entity.GetWalkSpeedMultiplier()}");
-        Assert.Equal(0.5f, TrunkWeight.CarrySpeed(48, Mod.Config), 3);
+        Assert.Equal(0.1f, TrunkWeight.CarrySpeed(48, Mod.Config), 3);
         Assert.Equal(TrunkWeight.CarrySpeed(48, Mod.Config), stats.GetBlended("walkspeed") - (before - 1f), 2);
         // nothing but the game's own codes and the pack's: no Carry On slowdown, zero or not
         Assert.DoesNotContain(values.Keys, k => k != TrunkCarry.SpeedCode && !codes.Contains(k));
