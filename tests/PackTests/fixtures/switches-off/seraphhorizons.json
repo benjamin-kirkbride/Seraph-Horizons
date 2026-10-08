@@ -26,6 +26,8 @@
   "IronWoodworkingMachines": false,
   "IrrigationVesselRetired": false,
   "LargerTunRack": false,
+  "LocomotiveRidersBreathe": false,
+  "LocomotiveRidersStayOn": false,
   "MachineSchematics": false,
   "MachineOil": false,
   "MapReveal": false,

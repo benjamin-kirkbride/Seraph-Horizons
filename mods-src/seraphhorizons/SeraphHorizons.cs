@@ -44,6 +44,10 @@ public class SeraphHorizonsSystem : ModSystem
     private Harmony? _heatingRackPlacementHarmony;
     // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
     private Harmony? _gearConsumersHarmony;
+    // Its own id, patched once per process, as the heating rack's: both sides ask Yang's seat check.
+    private Harmony? _locomotiveStayOnHarmony;
+    // Its own id, server side only.
+    private Harmony? _locomotiveBreatheHarmony;
     private bool _gearConsumers;
     private bool _fellingWear;
     private UnifiedWoodworking? _woodworking;
@@ -122,6 +126,8 @@ public class SeraphHorizonsSystem : ModSystem
         else if (GearConsumers.BessemerApplies(api) && GearConsumers.Bind(api.Logger))
             GearConsumers.Patch(_gearConsumersHarmony = new Harmony(GearConsumers.HarmonyId));
         _fellingWear = Config(api).FlatFellingWear && FellingWear.Applies(api) && FellingWear.Bind(api.Logger);
+        if (Config(api).LocomotiveRidersStayOn && LocomotiveSeats.Applies(api) && LocomotiveSeats.BindStayOn(api.Logger))
+            LocomotiveSeats.PatchStayOn(_locomotiveStayOnHarmony = new Harmony(LocomotiveSeats.StayOnHarmonyId));
         // Rewrites Battle Towers' own patch file, on the server, before the patch loader reads it.
         if (api.Side == EnumAppSide.Server && Config(api).RarerBattleTowers && BattleTowers.Applies(api))
             BattleTowers.MakeRarer(api);
@@ -158,6 +164,8 @@ public class SeraphHorizonsSystem : ModSystem
             DebarkedTrunks.Patch(_harmony ??= new Harmony(HarmonyId));
         if (_fellingWear)
             FellingWear.Patch(_harmony ??= new Harmony(HarmonyId), api, Config(api).FlatFellingWearSettings ?? new FellingWearConfig());
+        if (Config(api).LocomotiveRidersBreathe && LocomotiveSeats.Applies(api))
+            LocomotiveSeats.PatchBreathe(_locomotiveBreatheHarmony = new Harmony(LocomotiveSeats.BreatheHarmonyId));
         ClearSky = new ClearSky(api);
         if (Config(api).ClearCommand)
             ClearSky.Register();
@@ -272,6 +280,10 @@ public class SeraphHorizonsSystem : ModSystem
         _heatingRackPlacementHarmony = null;
         _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
         _gearConsumersHarmony = null;
+        _locomotiveStayOnHarmony?.UnpatchAll(LocomotiveSeats.StayOnHarmonyId);
+        _locomotiveStayOnHarmony = null;
+        _locomotiveBreatheHarmony?.UnpatchAll(LocomotiveSeats.BreatheHarmonyId);
+        _locomotiveBreatheHarmony = null;
         if (_carryOnIconFields != null)
         {
             CarryOnIcons.Clear(_carryOnIconFields);
@@ -493,6 +505,16 @@ public class SeraphHorizonsConfig
     /// <summary>The flat felling wear's figures; a value out of range falls back to its default
     /// with a warning. The server's are used.</summary>
     public FellingWearConfig FlatFellingWearSettings { get; set; } = new();
+
+    /// <summary>Yang's Transport Tycoon: blocks beside the track (a tree's leaves) no longer throw a
+    /// rider off a standard-gauge locomotive (<c>yangtransport:sglocomotive-*</c>); its seats'
+    /// collision check is off. Both sides; either side's switch on keeps riders on.</summary>
+    public bool LocomotiveRidersStayOn { get; set; } = true;
+
+    /// <summary>Yang's Transport Tycoon: whoever sits in a standard-gauge locomotive does not
+    /// suffocate in a block their head passes through, though they still drown under water
+    /// (server side).</summary>
+    public bool LocomotiveRidersBreathe { get; set; } = true;
 
     /// <summary>Ore cells (Ore/, README "Ore cells"): Interesting Ore Gen places at most one deposit
     /// of each metal (and of coal and each industrial mineral) per <see cref="OreCellSizeMetres"/>
