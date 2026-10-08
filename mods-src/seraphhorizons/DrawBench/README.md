@@ -2,7 +2,7 @@
 
 Part of the Seraph Horizons mod (`../README.md`): the drawn rung of the pipe ladder (unified pipes,
 `../Pipes/`). A mechanically powered **chain draw bench**, as used for lead and copper pipe from the
-1790s to the 1880s, turns one **hollow section** of lead or copper (the game's chute section,
+1790s to the 1880s, turns one **hollow section** of lead or copper (the game's chute section, named the tube blank in game,
 `game:chutesection-{lead,copper}`, the 8 × 8 × 8 hollow box) into four seamless **pipe sections**
 (`seraphhorizons:pipesection-{lead,copper}`: a square tube the size of ppex's pipe, 6 voxels across,
 half a block long). The hollow goes on the bench threaded on a square **mandrel** bar and held against

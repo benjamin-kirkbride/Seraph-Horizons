@@ -249,7 +249,7 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, ghost, BenchDie(DrawBenchParts.DieIronCode)));
         Assert.True(bench.Complete);
         Assert.Equal("Draw bench", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.Contains("Die: iron die, draws lead; 100 of 100 hollow sections left", BenchInfo(bench, player));
+        Assert.Contains("Die: iron die, draws lead; 100 of 100 tube blanks left", BenchInfo(bench, player));
         Assert.Contains("Bench empty", BenchInfo(bench, player));
 
         // a save keeps every fitted code
@@ -347,7 +347,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(0, CutterItemsNear(pos).GetValueOrDefault(Drawing.LeadHollow));   // the hollow is used up
         Assert.Equal(99, bench.Parts.DieLeft);
         Assert.Equal(992, bench.Oiling!.Tank.Points, 6);   // 2 points a pipe section, 8 a hollow
-        Assert.Contains("99 of 100 hollow sections left", BenchInfo(bench, player));
+        Assert.Contains("99 of 100 tube blanks left", BenchInfo(bench, player));
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }

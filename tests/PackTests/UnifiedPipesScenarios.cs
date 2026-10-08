@@ -179,13 +179,13 @@ public partial class SharedWorldScenarios
                                             && !PipeSections.AngleMetals.Contains(c.Path["angle-".Length..]));
         Assert.Contains("press brake", Lang.GetL("en", "seraphhorizons:angle-handbook-text"));
 
-        // the hollow section: copper and lead only, named alike, mechanics lists copper alone
+        // the hollow section (named the tube blank): copper and lead only, named alike, mechanics lists copper alone
         Assert.Equal(ChuteSections.Metals.Select(ChuteSections.Section).Order(),
             W.Items.Where(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith("chutesection-")).Select(i => i.Code.ToString()).Order());
         foreach (var metal in ChuteSections.Metals)
         {
             var item = W.GetItem(new AssetLocation(ChuteSections.Section(metal)))!;
-            Assert.Equal($"{Title(metal)} Chute Section", new ItemStack(item).GetName());
+            Assert.Equal($"{Title(metal)} Tube Blank", new ItemStack(item).GetName());
             Assert.Contains("items", item.CreativeInventoryTabs);
             Assert.Equal(metal == PipeRules.Copper, item.CreativeInventoryTabs.Contains("mechanics"));
             Assert.True(item.Attributes?["handbook"]?["extraSections"].Exists == true, $"no handbook section on {item.Code}");
