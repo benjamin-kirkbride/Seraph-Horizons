@@ -2032,8 +2032,8 @@ in `DrawBench/Game/`).
 player clicks, with the bench running four blocks away from them along their line of sight, a ghost in
 each of the rig's other three cells (`drawbench-ghost`) and the power ghost
 (`drawbench-ghostpower-{side}`) at the far end, which takes the axle on the player's right (native
-west). The frame is a grid recipe: two metal plates and two rods of iron, meteoric iron or steel, four
-nails and strips of the same, two oak logs, oak planks and a hammer.
+west). The frame is a grid recipe: two metal plates and four rods of iron, meteoric iron or steel, 12
+nails and strips of the same, two oak logs, oak planks and a hammer (about 11 ingots of iron).
 
 **Stages.** Fitted by right-click on the frame or any ghost with the item, one item each, in this
 order only; anything of a later stage is refused with a message naming the next:
