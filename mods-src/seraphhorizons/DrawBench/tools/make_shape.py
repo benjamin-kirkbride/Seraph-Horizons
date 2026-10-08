@@ -773,6 +773,32 @@ def square_tube(c, z0, z1, h, wall, name, part, tex):
             box([x + h - wall, y - h + wall, z0], [x + h, y + h - wall, z1], f"{name}_east", part, tex)]
 
 
+# How the game lays a face's texture on an element (ShapeTesselator with ModelCubeUtilExt.AddFace and
+# CubeMeshUtil's vertices and UVs): for each face, the world axis along which the face's u runs and whether u
+# grows with it (+1) or against it (-1), and the same for v. The texture's u is uv[0] at u's start and uv[2]
+# at its end; its v is uv[3] at v's start and uv[1] at its end (so uv[1] is the face's top on a side face).
+# The down face's u runs along z and its v along x.
+FACE_SHEET = {"north": ((0, -1), (1, 1)), "east": ((2, -1), (1, 1)), "south": ((0, 1), (1, 1)),
+              "west": ((2, 1), (1, 1)), "up": ((0, -1), (2, 1)), "down": ((2, -1), (0, 1))}
+
+
+def sheet_uv(els, lo, hi):
+    """Lay one sheet of texture over `els` as a whole: each face's UVs are its place in the box lo..hi
+    (TEX / 16 texture units a voxel), so a face continues the texture where its neighbour in the same plane
+    leaves off, along the length and across the pieces of a wall, and the seams between them show no break."""
+    k = TEX / 16
+    for el in els:
+        elo, ehi = el.aabb()
+        for d, face in el.faces.items():
+            (ua, us), (va, vs) = FACE_SHEET[d]
+            tu = (lambda w: k * (w - lo[ua])) if us > 0 else (lambda w: k * (hi[ua] - w))   # grows along u
+            tv = (lambda w: k * (hi[va] - w)) if vs > 0 else (lambda w: k * (w - lo[va]))   # grows against v
+            u0, u1 = (elo[ua], ehi[ua]) if us > 0 else (ehi[ua], elo[ua])
+            v0, v1 = (elo[va], ehi[va]) if vs > 0 else (ehi[va], elo[va])
+            face["uv"] = [r6(tu(u0)), r6(tv(v1)), r6(tu(u1)), r6(tv(v0))]
+    return els
+
+
 REST_STEP = 0.06                             # hidden segments rest this far apart: their front faces show in an empty bore
 
 
@@ -789,9 +815,12 @@ def build_work():
     for cls, pre, tex, req in METALS:
         # the hollow section on the mandrel (the game's chute section, 8 x 8 x 8), in quarters end to end:
         # each goes into the die stock as its pipe section is drawn, so the hollow shortens by a quarter a stroke
+        # one sheet of texture runs along the whole hollow, each quarter continuing it from the one before
+        slugs = []
         for k in range(SLUGS):
             z1 = Z_DIE_BACK - k * SLUG_L
-            out += square_tube(c, z1 - SLUG_L, z1, HOLLOW_H, HOLLOW_WALL, f"{pre}slug{k + 1}_wall", f"{pre}slug{k + 1}", SHEET_TEX[tex])
+            slugs += square_tube(c, z1 - SLUG_L, z1, HOLLOW_H, HOLLOW_WALL, f"{pre}slug{k + 1}_wall", f"{pre}slug{k + 1}", SHEET_TEX[tex])
+        out += sheet_uv(slugs, [c[0] - HOLLOW_H, c[1] - HOLLOW_H, Z_SLUGS0], [c[0] + HOLLOW_H, c[1] + HOLLOW_H, Z_DIE_BACK])
         for m in range(SLUGS):
             for j in range(NSEG):
                 f = seg_rest(m, j)

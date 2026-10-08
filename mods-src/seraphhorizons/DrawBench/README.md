@@ -93,7 +93,11 @@ nothing from `build/mods`. The hollow wears the chute section's own sheet (`game
 (`game:block/metal/sheet-plain/lead1`, `copper1`), the rope `game:item/resource/rope`, the oiler's glass
 `game:block/glass/plain` (four panes in the Transparent render pass, `renderPass` 3, so the oil shows from
 every side; the block's own pass is opaque and drew the glass solid) and its oil `game:block/liquid/honey`,
-all referenced. The frame block's `textures` (`assets/seraphhorizons/blocktypes/drawbench/frame.json`) must
+all referenced. The hollow's quarters and the boxes of each quarter's walls wear one sheet: each face's UVs
+are its place on the whole hollow (`sheet_uv`, from the game's own face mapping, `FACE_SHEET`), so the
+texture runs along the hollow and round its corners unbroken and the seams between quarters do not show
+(each piece starting the texture afresh drew it in 2-voxel bands). The drawn sections and the frame keep
+a texture per face from its corner. The frame block's `textures` (`assets/seraphhorizons/blocktypes/drawbench/frame.json`) must
 name every code of `drawbench.json`: the renderer draws the moving parts with the block's texture source,
 and a code the block lacks renders white (`tools/tests/test_drawbench_model.py` holds them together). `tools/make_shape.py`
 writes:
@@ -125,7 +129,7 @@ die's throat (z 22.8..24). Over it: the follower's spring (six coils from the ta
 (z 9.8..10.4) and the hollow section, its bore on the bar, to the die stock's back face (z 10.4..18.4).
 As a section is drawn, the quarter of the hollow at the die goes into the die stock (where it is hidden)
 and the follower pushes the rest up behind it: the hollow shortens by a quarter a stroke. It is drawn as
-four pieces end to end (`lslug1`..`4`), one a quarter. A section is drawn as two segments, each hidden in
+four pieces end to end (`lslug1`..`4`), one a quarter, under one sheet of texture. A section is drawn as two segments, each hidden in
 the die stock until the section's growing length brings it out of the die's mouth (z 24.2). Before its
 stroke, each section's point (2 voxels) is through the die, in the dog's open jaws.
 
