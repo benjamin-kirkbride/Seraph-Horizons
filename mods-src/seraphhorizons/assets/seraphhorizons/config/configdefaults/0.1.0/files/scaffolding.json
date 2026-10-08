@@ -1,0 +1,7 @@
+{
+  "MaxStability": 6,
+  "HorizontalSpeedMult": 1,
+  "ClimbUpSpeedMult": 1,
+  "ClimbDownSpeedMult": 1,
+  "ClimbDistance": 0.5
+}

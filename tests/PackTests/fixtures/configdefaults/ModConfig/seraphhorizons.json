@@ -1,0 +1,8 @@
+{
+  "TrunkEntitiesSettings": {
+    "CarrySpeedAtMaxLogs": 0.02
+  },
+  "BuckingSawmillSettings": {
+    "BladeWearPerStoredLog": 0.7
+  }
+}

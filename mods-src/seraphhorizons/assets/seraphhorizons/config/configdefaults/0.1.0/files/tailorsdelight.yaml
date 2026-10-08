@@ -1,0 +1,11 @@
+version: 1
+
+
+#############
+## Patches ##
+#############
+
+
+# Patch vanilla VS recipes to use Tailor's Delight items like needles or leather?
+enable_vs_recipe_patches: true
+ #  (default: True) 

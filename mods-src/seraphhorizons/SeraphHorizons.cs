@@ -757,6 +757,15 @@ public class SeraphHorizonsConfig
     /// nothing is checked.</summary>
     public bool PackVersionCheck { get; set; } = true;
 
+    /// <summary>Settings follow the pack's defaults (ConfigDefaults/, README "Settings follow the
+    /// pack's defaults", docs/config-defaults.md): at start, before any mod reads its config, every
+    /// setting in ModConfig (any mod's) that still has the default of the pack version the install
+    /// last ran is moved to the current version's default when that changed; a value anyone set is
+    /// kept. A fresh install also gets the values the pack sets instead of a mod's own default
+    /// (pack/config/ModConfig). Each side's own setting decides for its own config folder; off
+    /// means nothing is changed or written.</summary>
+    public bool FollowPackDefaults { get; set; } = true;
+
     /// <summary>Unified pipes (Pipes/, README "Unified pipes"): one pipe network. Pipes and Power
     /// Expanded's pipes come in copper and lead as well as iron and steel, and its valves and pressure
     /// valves in bronze; its plate-and-nails pipes and iron and steel valves are not made any more;

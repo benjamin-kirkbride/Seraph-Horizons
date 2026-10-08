@@ -52,25 +52,24 @@
 	heldRightReadyAnimation: "heldblockready",
 	heldTpUseAnimation: "twohandplaceblock",
 	// The shape fills the cutter's 2 x 2 x 2 footprint (native x -1..1, z 0..2 about the controller;
-	// x 0..2, z -1..1 once the -north item form turns it 180°), so the item forms are centred on it.
+	// its mesh x 0.06..1.88, y 0..2, z -0.94..0.99 once the -north item form turns it 180°), so the
+	// item forms turn about the mesh's middle (0.97, 1, 0.03). Held (first and third person alike)
+	// the game leaves the origin where it is rather than on the hand, so the translation brings the
+	// middle back to vanilla's two-handed crate's spot by the hand, (0.01, 0.14, 0.18):
+	// translation = (that spot - origin) / scale (tests/HeldTransformTests.cs).
 	tpHandTransform: {
-		translation: { x: -0.8, y: -0.4, z: -0.6 },
+		translation: { x: -2.4, y: -2.15, z: 0.37 },
 		rotation: { x: 6, y: 16, z: -77 },
-		origin: { x: 1, y: 0, z: 0 },
+		origin: { x: 0.97, y: 1, z: 0.03 },
 		scale: 0.4
-	},
-	fpHandTransform: {
-		rotation: { x: 0, y: -45, z: 0 },
-		origin: { x: 1, y: 1, z: 0 },
-		scale: 0.6
 	},
 	guiTransform: {
 		rotation: { x: -22.6, y: -45.3, z: 0 },
-		origin: { x: 1, y: 1, z: 0 },
+		origin: { x: 0.97, y: 1, z: 0.03 },
 		scale: 0.6
 	},
 	groundTransform: {
-		origin: { x: 1, y: 0, z: 0 },
+		origin: { x: 0.97, y: 0, z: 0.03 },
 		scale: 1.2
 	},
 	maxStackSize: 1,

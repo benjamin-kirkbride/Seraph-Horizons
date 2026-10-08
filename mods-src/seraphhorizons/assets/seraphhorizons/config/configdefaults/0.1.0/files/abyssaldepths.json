@@ -1,0 +1,6 @@
+{
+  "EnablePressure": true,
+  "EnableSchematicCrafting": false,
+  "EnableLegacyPressure": false,
+  "LegacyBaseSafeDepth": 10
+}

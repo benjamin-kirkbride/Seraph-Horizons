@@ -8,7 +8,9 @@ Stdlib only (Python 3.11+). Subcommands:
   fetch       Download locked mod files into a cache, verify sha256, stage them.
   smoke       Boot a headless dedicated server with the staged mods and scan logs
               (--export PATH: also load tools/recipe-export and check its export). The pack's
-              own mod is always built from mods-src/seraphhorizons and loaded in place of its pin.
+              own mod is always built from mods-src/seraphhorizons and loaded in place of its pin
+              (--config-defaults check|write: also check or write the pack version's config
+              defaults snapshot, tools/configdefaults.py).
   outdated    Report mods with a newer release compatible with the pinned game version.
   assemble    Build release artifacts (Cairn pack, mod list, server bundle)
               (--url-mod ZIP URL: also put a mod Cairn fetches from URL in the Cairn pack).
@@ -34,6 +36,9 @@ import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import configdefaults  # noqa: E402  (tools/configdefaults.py, stdlib only)
 
 ROOT = Path(__file__).resolve().parent.parent
 PACK_TOML = ROOT / "pack" / "pack.toml"
@@ -344,6 +349,10 @@ def cmd_smoke(args) -> None:
         export.unlink(missing_ok=True)
         env = {**os.environ, "SERAPH_EXPORT_PATH": str(export),
                "SERAPH_PACK_ID": lock["pack"]["id"], "SERAPH_PACK_VERSION": lock["pack"]["version"]}
+    if args.config_defaults:
+        # Capture mode: the pack's own mod changes and writes nothing in ModConfig, so this run's
+        # ModConfig is what the pack's mods write on a fresh install (docs/config-defaults.md).
+        env = {**(env or os.environ), configdefaults.CAPTURE_VARIABLE: "capture"}
     # Override on the command line rather than writing serverconfig.json: a partial
     # config file lacks the default player groups and the server refuses to start.
     # Fixed seed + standard worldgen so structure mods actually generate.
@@ -442,6 +451,10 @@ def cmd_smoke(args) -> None:
         export_lines, export_failures = check_export(export, lines)
         summary += export_lines
         failures += export_failures
+    if args.config_defaults and booted:
+        cd_lines, cd_failures = configdefaults.run(args.config_defaults, data)
+        summary += cd_lines
+        failures += cd_failures
     report("Server smoke test", summary, failures)
     if failures:
         sys.exit(1)
@@ -785,7 +798,7 @@ def cmd_assemble(args) -> None:
         ",".join(f"{m['id']}@{m['version']}" for m in lock["mods"]) + "\n")
 
     # (c) Plain server bundle (for hosts not using cairn-server): lockfile + fetch
-    # script. ModConfig overrides are partial merges, so they ship via Cairn only. Mod zips are included
+    # script. The pack's own config values are in its own mod (docs/config-defaults.md). Mod zips are included
     # only when their license allows redistribution; the rest are fetched from
     # the ModDB CDN and checked against the locked sha256. A --url-mod mod is the pack's
     # own (mods-src/seraphhorizons), so its zip is bundled as is, in place of any ModDB pin
@@ -881,9 +894,9 @@ def cairn_bundle(meta: dict, lock: dict, url_mods: list[dict] | None = None) -> 
         "mods": [{"modid": m["id"], "version": m["version"]} for m in moddb]
                 + [{"modid": u["modid"], "url": u["url"]} for u in url_mods],
     }
-    mod_config = collect_mod_config()
-    if mod_config:
-        manifest["modConfig"] = mod_config
+    # No `modConfig`: the values the pack sets instead of a mod's default (pack/config/ModConfig)
+    # ship in the pack's own mod, which writes them on a fresh install and moves untouched ones
+    # when they change (docs/config-defaults.md), for every install, not only Cairn's.
     return {
         "formatVersion": 1,
         "pack": manifest,
@@ -909,57 +922,6 @@ def cairn_bundle(meta: dict, lock: dict, url_mods: list[dict] | None = None) -> 
             } for u in url_mods],
         },
     }
-
-
-def collect_mod_config(base: Path | None = None) -> dict:
-    """pack/config/ModConfig/**/*.{json,yaml} -> {relative/path: {keys to merge}}.
-
-    A .yaml file is the config ConfigLib or ConfigKit generates for a content mod
-    (ModConfig/<domain>.yaml). Cairn seeds that file from the mod's own settings and then
-    sets only the keys named here, so ours lists just the values the pack changes.
-    """
-    base = base or ROOT / "pack" / "config" / "ModConfig"
-    if not base.exists():
-        return {}
-    files = sorted(f for f in base.rglob("*") if f.suffix in (".json", ".yaml"))
-    return {f.relative_to(base).as_posix():
-            json.loads(f.read_text()) if f.suffix == ".json" else flat_yaml(f)
-            for f in files}
-
-
-YAML_SCALAR = re.compile(r"^([A-Za-z0-9_-]+):\s+(.+?)\s*$")
-
-
-def flat_yaml(path: Path) -> dict:
-    """Top-level `key: scalar` lines only, the one shape those generated files have.
-
-    Not a YAML parser: anything else is an error, so a value never reaches the manifest
-    as something other than what the file says.
-    """
-    out: dict = {}
-    for n, line in enumerate(path.read_text().splitlines(), 1):
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        m = YAML_SCALAR.match(line)
-        if not m:
-            die(f"{path}:{n}: expected `key: value`")
-        key, raw = m.groups()
-        if key in out:
-            die(f"{path}:{n}: {key} is set twice")
-        # Cairn refuses it: a version that isn't the mod's own makes the mod reset the file.
-        if key.lower() == "version":
-            die(f"{path}:{n}: don't set version; Cairn takes it from the mod")
-        if raw in ("true", "false"):
-            out[key] = raw == "true"
-        elif re.fullmatch(r"-?\d+", raw):
-            out[key] = int(raw)
-        elif re.fullmatch(r"-?\d+\.\d+", raw):
-            out[key] = float(raw)
-        elif re.fullmatch(r'"[^"\\]*"', raw):
-            out[key] = raw[1:-1]
-        else:
-            die(f"{path}:{n}: {key} must be true, false, a number or a \"quoted string\"")
-    return out
 
 
 def server_fetch_script(lock: dict) -> str:
@@ -1010,6 +972,9 @@ def main() -> None:
     s.add_argument("-v", "--verbose", action="store_true")
     s.add_argument("--export", metavar="PATH",
                    help="also load tools/recipe-export and write the recipe export to PATH")
+    s.add_argument("--config-defaults", choices=("check", "write"),
+                   help="boot with the pack's own mod in capture mode and check (CI) or write the "
+                        "current pack version's config defaults snapshot (docs/config-defaults.md)")
     s.set_defaults(func=cmd_smoke)
 
     s = sub.add_parser("outdated")

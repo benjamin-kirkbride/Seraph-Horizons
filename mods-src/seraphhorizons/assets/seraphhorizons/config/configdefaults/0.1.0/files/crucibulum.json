@@ -1,0 +1,18 @@
+{
+  "CrucibleTempBonus": 400,
+  "MaxCrucibleTemperature": 0,
+  "MeltSpeedMultiplier": 1.0,
+  "MeltIngots": false,
+  "MeltBrokenToolHeads": false,
+  "CrucibleFuelUseVsFirepit": 0.6,
+  "MoltenHoldFuelShare": 0.35,
+  "CrucibleThermalMass": 3.0,
+  "HeatRate": 0.5,
+  "CrucibleOnlyInForge": false,
+  "EnableBlastGate": true,
+  "RequireTongsForGate": false,
+  "GateAirOpen": 1.0,
+  "GateAirHalf": 0.85,
+  "GateAirQuarter": 0.7,
+  "GateAirShut": 0.55
+}

@@ -141,6 +141,10 @@
     <!-- Pack version check: the comparison, and the lock the mod embeds, so the tests read the real one. -->
     <Compile Include="../PackCheck/Core/**/*.cs" Link="PackCheck/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../../../pack/lock.json" Link="pack-lock.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Settings follow the pack's defaults: the readers, the reconciler, the run; and the shipped
+         snapshots, which the tests read with them. -->
+    <Compile Include="../ConfigDefaults/Core/**/*.cs" Link="ConfigDefaults/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/configdefaults/**" Link="configdefaults/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- Pipes (unified pipes, cast pipes, the hand pump bridge): burst figures, the lead rule, the
          recipe cost filter, the ppex asset guard and the shipped patch it is held to. -->
     <Compile Include="../Pipes/Core/**/*.cs" Link="Pipes/Core/%(RecursiveDir)%(Filename)%(Extension)" />

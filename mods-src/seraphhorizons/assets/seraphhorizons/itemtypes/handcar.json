@@ -19,28 +19,27 @@
 	},
 
 	heldTpIdleAnimation: "holdunderarm",
+	// The car's mesh spans x -0.5..3.63, y -0.04..1.93, z 0.03..1.98, so the item forms turn about its
+	// middle (1.56, 0.94, 1). Held (first and third person alike) the game leaves the origin where it
+	// is rather than on the hand, so the translation brings the middle back to vanilla's underarm
+	// large gear's spot by the hand, (0.12, 0.05, 0.07): translation = (that spot - origin) / scale
+	// (tests/HeldTransformTests.cs).
 	tpHandTransform: {
-		translation: { x: -1.6, y: -1.2, z: -0.9 },
+		translation: { x: -6.55, y: -4.05, z: -4.23 },
 		rotation: { x: -90, y: 0, z: 0 },
-		origin: { x: 1.6, y: 0.5, z: 1 },
+		origin: { x: 1.56, y: 0.94, z: 1 },
 		scale: 0.22,
 	},
 	guiTransform: {
 		translation: { x: 2, y: 4, z: 0 },
 		rotation: { x: -30, y: 45, z: 180 },
-		origin: { x: 1.6, y: 0.9, z: 1 },
+		origin: { x: 1.56, y: 0.94, z: 1 },
 		scale: 0.42,
-	},
-	fpHandTransform: {
-		translation: { x: 0, y: 0, z: 0 },
-		rotation: { x: 0, y: 30, z: 0 },
-		origin: { x: 1.6, y: 0.5, z: 1 },
-		scale: 0.5,
 	},
 	groundTransform: {
 		translation: { x: 0, y: 0, z: 0 },
 		rotation: { x: 0, y: 0, z: 0 },
-		origin: { x: 1.6, y: 0, z: 1 },
+		origin: { x: 1.56, y: 0, z: 1 },
 		scale: 1.2,
 	},
 }

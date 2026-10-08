@@ -1,0 +1,10 @@
+{
+  "EnableGearbox1To2": true,
+  "EnableGearbox1To3": true,
+  "EnableGearbox1To4": true,
+  "EnableGearbox1To5": true,
+  "AllowBrassVariants": false,
+  "AllowBrassVariantsDescription": "Enables Brass gearbox recipes and Handbook entries.",
+  "EasierCrafting": false,
+  "EasierCraftingDescription": "Uses metal plates instead of riveted metal blocks in gearbox recipes."
+}
