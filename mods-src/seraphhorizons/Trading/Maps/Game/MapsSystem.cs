@@ -191,17 +191,16 @@ public class MapsSystem : ModSystem
         Optional = optional,
     };
 
-    /// <summary>A camp cell's site for a lead: the placed camp, else the spot it waits for; none if
-    /// every spot failed.</summary>
+    /// <summary>A camp cell's site for a lead: the placed camp, else the spot it waits for next; none
+    /// if every spot missed.</summary>
     private CampSite? Site(CellKey cell)
     {
         var trading = _trading!;
         var record = trading.Camps!.Registry.Get(cell);
         if (record is { Status: CampStatus.Placed }) return new CampSite(cell, record.Type, record.X, record.Z);
-        if (record is { Status: CampStatus.Failed }) return null;
         var spots = trading.Grid!.Spots(cell);
-        if (spots.Count == 0) return null;
-        var spot = spots[Math.Min(record?.Attempt ?? 0, spots.Count - 1)];
+        if (CampRegistry.NextSpot(record, spots.Count) is not { } next) return null;
+        var spot = spots[next];
         return new CampSite(cell, trading.Grid.TypeOf(cell), spot.X, spot.Z);
     }
 
@@ -453,8 +452,8 @@ public class MapsSystem : ModSystem
         return null;
     }
 
-    /// <summary>The camp of a cell, placed if need be: its pending spot's chunk is generated (which
-    /// places the camp or moves to the next spot) until it is placed or failed.</summary>
+    /// <summary>The camp of a cell, placed if need be: its next spot's chunk is generated (which
+    /// places the camp or leaves the next spot) until it is placed or every spot has missed.</summary>
     private void ResolveCamp(CellKey cell, int round, Action<CampRecord?> done)
     {
         var trading = _trading!;
@@ -465,12 +464,12 @@ public class MapsSystem : ModSystem
             return;
         }
         var spots = trading.Grid!.Spots(cell);
-        if (record is { Status: CampStatus.Failed } || spots.Count == 0 || round > TraderGrid.Attempts)
+        if (CampRegistry.NextSpot(record, spots.Count) is not { } next || round > TraderGrid.Attempts)
         {
             done(null);
             return;
         }
-        var spot = spots[Math.Min(record?.Attempt ?? 0, spots.Count - 1)];
+        var spot = spots[next];
         _sapi!.WorldManager.LoadChunkColumnPriority(spot.ChunkX, spot.ChunkZ, new ChunkLoadOptions
         {
             OnLoaded = () => ResolveCamp(cell, round + 1, done),

@@ -24,6 +24,9 @@ public sealed class CampsConfig
     /// <summary>Schematic paths (<c>domain:path</c>, wildcards as in structures.json) of
     /// camp-group structures with several traders: kept for the settlements, not lone camps.</summary>
     public string[] SettlementSchematics { get; set; } = [];
+    /// <summary>How uneven the ground under a surface camp may be (#599): highest minus lowest of the
+    /// game's five samples around its footprint. 0 is the game's own rule (exactly level).</summary>
+    public int SlopeTolerance { get; set; } = CampGround.DefaultTolerance;
 }
 
 /// <summary>
@@ -35,12 +38,18 @@ public sealed class CampsConfig
 /// Domestic Animal Trader's and Culinary Artillery's wagons, all group <c>trader</c>) are taken out of
 /// its list, so its random placement never places them; <see cref="CampsConfig"/> says which.</item>
 /// <item>Each chunk column, after the game's structure passes (TerrainFeatures, this system's
-/// ExecuteOrder after GenStructuresPosPass), checks whether it holds a cell's spot whose turn it is
-/// (<see cref="CampRegistry"/>), and there runs the game's own WorldGenStructure.TryGenerate for the
-/// camp structures in a seeded weighted order: each checks its own climate and forest range and
-/// placement, so the camp is the kind vanilla would put there. Their minimum group distance is set
-/// to 0: the grid spaces camps now. A placed camp is recorded as the game records one (a generated
-/// structure of group <c>trader</c> in the map region, and its land claim).</item>
+/// ExecuteOrder after GenStructuresPosPass), checks whether it holds a spot of a cell still without
+/// a camp, or is one of an open cell's second chances (<see cref="CampRegistry"/>, #599), and there
+/// tries the camp structures in a seeded weighted order, each with every schematic and rotation in
+/// a seeded order, at the spot and then the chunk's other points. The tests are the game's own
+/// (<c>WorldGenStructure.TryGenerate</c> and its surface and shallow-water placements, VSEssentials
+/// 1.22.7): climate and forest range, the five terrain samples, sea depth, liquids, the above- and
+/// underground check positions and overlap with other structures; but a surface camp takes ground
+/// whose samples differ by up to <see cref="CampsConfig.SlopeTolerance"/>, seated on their median,
+/// with the terrain under it levelled (<see cref="CampGround"/>). So the camp is the kind vanilla
+/// would put there. Their minimum group distance is set to 0: the grid spaces camps now. A placed
+/// camp is recorded as the game records one (a generated structure of group <c>trader</c> in the
+/// map region, and its land claim).</item>
 /// <item>Camp schematics hold an entity spawner with vanilla trader codes. The spawner asks the
 /// <c>onattemptspawnerspawn</c> event bus before every spawn (vanilla's
 /// ModSystemClimateSpecificTraderTypes turns <c>-temperate</c> into <c>-cold</c>/<c>-desert</c>
@@ -57,7 +66,9 @@ public sealed class TraderCamps
     public const string CampGroup = "trader";
 
     private static readonly FieldInfo? StructuresConfigField = AccessTools.Field(typeof(GenStructures), "scfg");
-    private static readonly MethodInfo? TryGenerateMethod = AccessTools.Method(typeof(WorldGenStructure), "TryGenerate");
+    private static readonly FieldInfo? SchematicsField = AccessTools.Field(typeof(WorldGenStructure), "schematicDatas");
+    private static readonly FieldInfo? RockRemapsField = AccessTools.Field(typeof(WorldGenStructure), "resolvedRockTypeRemaps");
+    private static readonly FieldInfo? LayerBlocksField = AccessTools.Field(typeof(WorldGenStructure), "replacewithblocklayersBlockids");
 
     private readonly ICoreServerAPI _api;
     private readonly TradingSystem _system;
@@ -66,14 +77,17 @@ public sealed class TraderCamps
     private IWorldGenBlockAccessor? _blocks;
     private GenStructures? _gen;
     private GenStoryStructures? _story;
-    private WorldGenStructure[] _camps = [];
+    private CampKind[] _camps = [];
     private double[] _weights = [];
     private int _regionChunkSize;
 
     public CampRegistry Registry { get; private set; } = new();
 
     /// <summary>The camp structures the grid places, after <see cref="CaptureStructures"/>.</summary>
-    public IReadOnlyList<WorldGenStructure> Structures => _camps;
+    public IReadOnlyList<WorldGenStructure> Structures => _camps.Select(c => c.Structure).ToList();
+
+    /// <summary>The ground tolerance in use (<see cref="CampsConfig.SlopeTolerance"/>).</summary>
+    public int SlopeTolerance => Math.Max(0, _config.SlopeTolerance);
 
     public TraderCamps(ICoreServerAPI api, TradingSystem system)
     {
@@ -117,32 +131,40 @@ public sealed class TraderCamps
     {
         if (!_system.GridActive) return;
         _gen = _api.ModLoader.GetModSystem<GenStructures>();
-        if (StructuresConfigField?.GetValue(_gen) is not WorldGenStructuresConfig scfg || scfg.Structures is null || TryGenerateMethod is null)
+        if (StructuresConfigField?.GetValue(_gen) is not WorldGenStructuresConfig scfg || scfg.Structures is null
+            || SchematicsField is null || RockRemapsField is null || LayerBlocksField is null)
         {
-            _api.Logger.Warning("[seraphhorizons] Trading: the game's GenStructures looks different (no scfg or TryGenerate); trader camps are left to the game");
+            _api.Logger.Warning("[seraphhorizons] Trading: the game's GenStructures looks different (no scfg, or no schematics on its structures); trader camps are left to the game");
             _system.DisableGrid("the game's structure generator looks different");
             return;
         }
         _regionChunkSize = _api.WorldManager.RegionSize / GlobalConstants.ChunkSize;
         var keep = new List<WorldGenStructure>();
-        var camps = new List<WorldGenStructure>();
+        var camps = new List<CampKind>();
         int dropped = 0, settlement = 0;
         foreach (var s in scfg.Structures)
         {
             if (_config.DropGroups.Contains(s.Group)) dropped++;
             else if (!_config.CampGroups.Contains(s.Group)) keep.Add(s);
             else if (s.Schematics?.Any(loc => _config.SettlementSchematics.Any(p => WildcardUtil.Match(new AssetLocation(p), loc))) == true) settlement++;
-            else
+            else if (CampKind.Of(s) is { } kind)
             {
                 s.MinGroupDistance = 0;
-                camps.Add(s);
+                camps.Add(kind);
+            }
+            else
+            {
+                // A placement the grid doesn't place (underground, underwater, ruin): out of the
+                // game's random placement like the rest of the group, and not placed.
+                _api.Logger.Warning("[seraphhorizons] Trading: camp structure {0} is placed {1}, which the grid doesn't place; it is left out", s.Code, s.Placement);
+                dropped++;
             }
         }
         scfg.Structures = keep.ToArray();
         _camps = camps.ToArray();
-        _weights = _camps.Select(s => (double)Math.Max(0, s.Chance)).ToArray();
-        _api.Logger.Notification("[seraphhorizons] Trading: {0} camp structures on the grid ({1}), {2} kept for settlements, {3} dropped",
-            _camps.Length, string.Join(", ", _camps.Select(s => s.Code).Distinct()), settlement, dropped);
+        _weights = _camps.Select(c => (double)Math.Max(0, c.Structure.Chance)).ToArray();
+        _api.Logger.Notification("[seraphhorizons] Trading: {0} camp structures on the grid ({1}), {2} kept for settlements, {3} dropped; ground up to {4} uneven",
+            _camps.Length, string.Join(", ", _camps.Select(c => c.Structure.Code).Distinct()), settlement, dropped, SlopeTolerance);
     }
 
     private void OnChunkColumnGen(IChunkColumnGenerateRequest request)
@@ -152,80 +174,333 @@ public sealed class TraderCamps
         if (grid is null) return;
         var cell = TraderGrid.CellOfChunk(request.ChunkX, request.ChunkZ);
         var spots = grid.Spots(cell);
-        foreach (int attempt in grid.AttemptsInChunk(cell, request.ChunkX, request.ChunkZ))
+        // Any spot of a cell without a camp tries as its chunk generates; the first to place wins.
+        foreach (int spot in grid.AttemptsInChunk(cell, request.ChunkX, request.ChunkZ))
+            if (Registry.OnSpot(cell, spot, spots.Count) == AttemptVerdict.Try)
+                Attempt(request, grid, cell, spot, spot, spots[spot], spots.Count);
+        // Every spot missed: some of the cell's later chunks get a second chance.
+        if (grid.SecondChanceChunk(request.ChunkX, request.ChunkZ) && Registry.OnSecondChance(cell) == AttemptVerdict.Try)
         {
-            if (Registry.OnChunk(cell, attempt, spots.Count) != AttemptVerdict.Try) continue;
-            try
-            {
-                if (!TryPlace(request, grid, cell, attempt, spots[attempt]))
-                    Registry.Missed(cell, attempt, spots.Count);
-            }
-            catch (Exception e)
-            {
-                _api.Logger.Error("[seraphhorizons] Trading: placing the camp of cell {0} failed: {1}", cell, e);
-                Registry.Missed(cell, attempt, spots.Count);
-            }
+            int round = Registry.Get(cell)?.Retries ?? 1;
+            Attempt(request, grid, cell, -1, TraderGrid.Attempts + round, TraderGrid.SecondChanceSpot(request.ChunkX, request.ChunkZ), spots.Count);
         }
     }
 
-    private bool TryPlace(IChunkColumnGenerateRequest request, TraderGrid grid, CellKey cell, int attempt, Spot spot)
+    /// <summary>One try in a chunk: <paramref name="spot"/> is the spot's index or -1 for a second
+    /// chance, <paramref name="seedAttempt"/> what seeds its orders.</summary>
+    private void Attempt(IChunkColumnGenerateRequest request, TraderGrid grid, CellKey cell, int spot, int seedAttempt, Spot at, int spotCount)
+    {
+        try
+        {
+            if (TryPlace(request, grid, cell, seedAttempt, at) is { } placed)
+            {
+                Record(placed.Region, placed.Kind.Structure);
+                var location = placed.Kind.Structure.LastPlacedSchematicLocation;
+                var centre = new BlockPos(location.CenterX, location.Y1, location.CenterZ);
+                var where = RegionProbe.At(_blocks!, centre, _system.Classifier);
+                string name = (placed.Kind.Structure.LastPlacedSchematic?.FromFile?.GetNameWithDomain() ?? "") + "/" + placed.Kind.Structure.Code;
+                Registry.Placed(cell, spot, grid.TypeOf(cell), centre.X, location.Y1, centre.Z, where.ToString(), name, placed.Slope);
+                return;
+            }
+        }
+        catch (Exception e)
+        {
+            _api.Logger.Error("[seraphhorizons] Trading: placing the camp of cell {0} failed: {1}", cell, e);
+        }
+        Registry.Missed(cell, spotCount);
+    }
+
+    private sealed record PlacedCamp(CampKind Kind, IMapRegion Region, int Slope);
+
+    private PlacedCamp? TryPlace(IChunkColumnGenerateRequest request, TraderGrid grid, CellKey cell, int attempt, Spot spot)
     {
         // Story locations (and their exclusion zones) keep other structures out, as in GenStructures.
-        if (_gen!.GetIntersectingStructure(spot.X, spot.Z, ModStdWorldGen.StructuresHashCode) != null) return false;
+        if (_gen!.GetIntersectingStructure(spot.X, spot.Z, ModStdWorldGen.StructuresHashCode) != null) return null;
         var mapChunk = request.Chunks[0].MapChunk;
-        var heights = mapChunk.WorldGenTerrainHeightMap;
-        int sea = _api.World.SeaLevel, top = _api.WorldManager.MapSizeY - 15;
+        int top = _api.WorldManager.MapSizeY - 15;
         var region = mapChunk.MapRegion;
         var (climate, forest) = ClimateCorners(region, request.ChunkX, request.ChunkZ);
         var order = grid.StructureOrder(cell, attempt, _weights);
-        int baseX = request.ChunkX * GlobalConstants.ChunkSize, baseZ = request.ChunkZ * GlobalConstants.ChunkSize;
+        var view = new HeightView(_blocks!, request.ChunkX, request.ChunkZ);
         _blocks!.BeginColumn();
         int tried = 0;
         foreach (var (lx, lz) in grid.PositionsInChunk(spot))
         {
-            int height = heights[lz * 32 + lx];
-            // Shallow-water camps stand a little below sea level.
-            if (height < sea - 4 || height >= top || !Flat(heights, lx, lz, height)) continue;
+            int height = view.Height(lx, lz);
+            if (height <= 0 || height >= top) continue;
+            // Only positions where some camp's ground passes count towards the budget.
+            if (!AnyGround(view, lx, lz, order)) continue;
             if (++tried > MaxPositions) break;
             int forestAt = GameMath.BiLerpRgbColor(lx / 32f, lz / 32f, forest[0], forest[1], forest[2], forest[3]);
-            var pos = new BlockPos(baseX + lx, height, baseZ + lz);
             foreach (int i in order)
             {
-                var structure = _camps[i];
-                bool placed = (bool)TryGenerateMethod!.Invoke(structure,
-                    [_blocks, _api.World, pos.Copy(), climate[0], climate[1], climate[2], climate[3], forestAt, null])!;
-                if (!placed) continue;
-                Record(region, structure);
-                var location = structure.LastPlacedSchematicLocation;
-                var centre = new BlockPos(location.CenterX, location.Y1, location.CenterZ);
-                var where = RegionProbe.At(_blocks, centre, _system.Classifier);
-                string name = (structure.LastPlacedSchematic?.FromFile?.GetNameWithDomain() ?? "") + "/" + structure.Code;
-                Registry.Placed(cell, attempt, grid.TypeOf(cell), centre.X, location.Y1, centre.Z, where.ToString(), name);
-                return true;
+                var kind = _camps[i];
+                if (!kind.ClimateAllows(view.BaseX + lx, height, view.BaseZ + lz, climate, forestAt, _api.World.SeaLevel)) continue;
+                foreach (var (s, r) in grid.CandidateOrder(cell, attempt, i, kind.Schematics.Length))
+                    if (TryCandidate(kind, s, r, view, lx, lz, climate) is { } slope)
+                        return new PlacedCamp(kind, region, slope);
             }
+        }
+        return null;
+    }
+
+    /// <summary>Positions tried per spot, at most, of those whose ground suits some camp: each costs
+    /// every structure's schematics and rotations.</summary>
+    private const int MaxPositions = 48;
+
+    /// <summary>Whether any camp's footprint at a position has ground its placement takes, by the
+    /// five samples and the sea depth alone (the quick test before the budget counts it).</summary>
+    private bool AnyGround(HeightView view, int lx, int lz, int[] order)
+    {
+        int tolerance = SlopeTolerance, sea = _api.World.SeaLevel;
+        foreach (int i in order)
+        {
+            var kind = _camps[i];
+            foreach (var (sx, sz) in kind.Footprints)
+                if (Fit(kind, view, lx, lz, sx, sz, tolerance) is { } fit && !CampGround.TooDeep(fit.Centre, sea, kind.Structure.MaxBelowSealevel))
+                    return true;
         }
         return false;
     }
 
-    /// <summary>Flat positions tried per spot, at most: each costs a TryGenerate per camp structure.</summary>
-    private const int MaxPositions = 48;
-
-    // The game's surface placement wants the terrain under the schematic's corners at one height;
-    // camp schematics are 8 to 16 blocks across. Within the chunk's own heightmap: a quick filter
-    // before asking the game.
-    private static bool Flat(ushort[] heights, int lx, int lz, int height)
+    private static GroundFit? Fit(CampKind kind, HeightView view, int lx, int lz, int sizeX, int sizeZ, int tolerance)
     {
-        foreach (int d in FlatProbe)
-        {
-            int x = lx + d, z = lz + d;
-            if (x < 32 && heights[lz * 32 + x] != height) return false;
-            if (z < 32 && heights[z * 32 + lx] != height) return false;
-            if (x < 32 && z < 32 && heights[z * 32 + x] != height) return false;
-        }
-        return true;
+        if (!CampGround.InNeighbourhood(lx, lz, sizeX, sizeZ)) return null;
+        var points = CampGround.SamplePoints(lx, lz, sizeX, sizeZ);
+        var samples = new int[points.Length];
+        for (int i = 0; i < points.Length; i++) samples[i] = view.Height(points[i].X, points[i].Z);
+        return CampGround.Fit(kind.Placement, samples, tolerance);
     }
 
-    private static readonly int[] FlatProbe = [4, 8, 12];
+    /// <summary>One schematic in one rotation at a position: the game's checks, then levelling and
+    /// placement. The ground's slope if placed, else null.</summary>
+    private int? TryCandidate(CampKind kind, int s, int r, HeightView view, int lx, int lz, int[] climate)
+    {
+        var (sx, sz) = kind.Footprint(s, r);
+        int tolerance = SlopeTolerance, sea = _api.World.SeaLevel;
+        if (Fit(kind, view, lx, lz, sx, sz, tolerance) is null) return null;
+        var schematic = kind.Schematics[s][r];
+        schematic.Unpack(_api, r);
+        if ((schematic.SizeX, schematic.SizeZ) != (sx, sz))
+        {
+            (sx, sz) = (schematic.SizeX, schematic.SizeZ);
+            kind.Learn(s, r, sx, sz);
+        }
+        if (Fit(kind, view, lx, lz, sx, sz, tolerance) is not { } fit) return null;
+        if (CampGround.TooDeep(fit.Centre, sea, kind.Structure.MaxBelowSealevel)) return null;
+        bool surface = kind.Placement == CampPlacement.Surface;
+        int x = view.BaseX + lx, z = view.BaseZ + lz;
+        var pos = new BlockPos(0);
+
+        var liquids = surface
+            ? CampGround.SurfaceLiquidChecks(x, z, sx, sz, fit.Base)
+            : CampGround.ShallowLiquidChecks(x, z, sx, sz, fit.Centre);
+        foreach (var (px, py, pz) in liquids)
+            if (_blocks!.GetBlock(pos.Set(px, py, pz), BlockLayersAccess.Fluid).IsLiquid()) return null;
+        if (!surface)
+            foreach (var (cx, cz) in CampGround.SamplePoints(lx, lz, sx, sz).Skip(1))
+            {
+                int depth = view.Rain(cx, cz) - view.Height(cx, cz);
+                if (depth < 1 || depth > 2) return null;
+            }
+
+        var start = new BlockPos(x, fit.Base + 1 + schematic.OffsetY, z);
+        int Levelled(int px, int pz)
+        {
+            int terrain = view.Height(px - view.BaseX, pz - view.BaseZ);
+            return surface ? CampGround.LevelledHeight(terrain, CampGround.InFootprint(px, pz, x, z, sx, sz), fit.Base) : terrain;
+        }
+        foreach (var d in schematic.AbovegroundCheckPositions ?? [])
+            if (start.Y + d.Y <= Levelled(start.X + d.X, start.Z + d.Z)) return null;
+        foreach (var d in schematic.UndergroundCheckPositions ?? [])
+        {
+            int px = start.X + d.X, py = start.Y + d.Y, pz = start.Z + d.Z;
+            bool? ground = surface
+                ? CampGround.LevelledGround(py, view.Height(px - view.BaseX, pz - view.BaseZ), CampGround.InFootprint(px, pz, x, z, sx, sz), fit.Base)
+                : null;
+            if (!(ground ?? IsGround(_blocks!.GetBlock(pos.Set(px, py, pz))))) return null;
+        }
+        if (WouldOverlap(start, schematic)) return null;
+        if (surface)
+        {
+            var heights = new List<int>(sx * sz);
+            for (int dx = 0; dx < sx; dx++)
+                for (int dz = 0; dz < sz; dz++)
+                    heights.Add(view.Height(lx + dx, lz + dz));
+            if (!CampGround.Levellable(heights, fit.Base)) return null;
+            Level(view, lx, lz, sx, sz, fit.Base);
+        }
+
+        kind.Structure.LastPlacedSchematicLocation.Set(start.X, start.Y, start.Z, start.X + sx, start.Y + schematic.SizeY, start.Z + sz);
+        kind.Structure.LastPlacedSchematic = schematic;
+        schematic.PlaceRespectingBlockLayers(_blocks, _api.World, start, climate[0], climate[1], climate[2], climate[3],
+            kind.RockRemaps, kind.LayerBlocks, Vintagestory.ServerMods.NoObf.GlobalConfig.ReplaceMetaBlocks, replaceBlockEntities: false, suppressSoilIfAirBelow: false,
+            displaceWater: surface);
+        return fit.Slope;
+    }
+
+    /// <summary>The game's overlap test (<c>WorldGenStructure.WouldOverlapAt</c>): no generated
+    /// structure of the map regions around intersects the schematic, and no mod's
+    /// <c>GenStructures.OnPreventSchematicPlaceAt</c> objects.</summary>
+    private bool WouldOverlap(BlockPos start, BlockSchematicStructure schematic)
+    {
+        var blocks = _blocks!;
+        int regionSize = blocks.RegionSize;
+        int maxX = blocks.MapSizeX / regionSize, maxZ = blocks.MapSizeZ / regionSize;
+        var location = new Cuboidi(start.X, start.Y, start.Z, start.X + schematic.SizeX, start.Y + schematic.SizeY, start.Z + schematic.SizeZ);
+        for (int rx = GameMath.Clamp(start.X / regionSize, 0, maxX); rx <= GameMath.Clamp((start.X + schematic.SizeX) / regionSize, 0, maxX); rx++)
+            for (int rz = GameMath.Clamp(start.Z / regionSize, 0, maxZ); rz <= GameMath.Clamp((start.Z + schematic.SizeZ) / regionSize, 0, maxZ); rz++)
+                if (blocks.GetMapRegion(rx, rz)?.GeneratedStructures is { } placed && placed.Any(g => g.Location.Intersects(location)))
+                    return true;
+        return _gen!.WouldSchematicOverlapAt(blocks, start, location, null);
+    }
+
+    /// <summary>Levels the terrain under a footprint to <paramref name="base"/> (#599): lower columns
+    /// filled with their own soil (the block under their top, the top itself put back on top),
+    /// higher ones cut down with their top block put back on the cut; the heightmaps follow, so the
+    /// schematic's soil layers and later passes see the new ground.</summary>
+    private void Level(HeightView view, int lx, int lz, int sizeX, int sizeZ, int @base)
+    {
+        var blocks = _blocks!;
+        var pos = new BlockPos(0);
+        for (int dx = 0; dx < sizeX; dx++)
+            for (int dz = 0; dz < sizeZ; dz++)
+            {
+                int cx = lx + dx, cz = lz + dz, x = view.BaseX + cx, z = view.BaseZ + cz;
+                int height = view.Height(cx, cz);
+                var work = CampGround.Level(height, @base);
+                if (!work.Fills && !work.Cuts) continue;
+                var surface = blocks.GetBlock(pos.Set(x, height, z), BlockLayersAccess.Solid);
+                if (work.Fills)
+                {
+                    var under = blocks.GetBlock(pos.Set(x, height - 1, z), BlockLayersAccess.Solid);
+                    var fill = IsGround(under) ? under : IsGround(surface) ? surface : blocks.GetBlock(view.TopRock(cx, cz));
+                    var cover = IsGround(surface) ? surface : fill;
+                    // The old top is buried: it becomes fill, and the cover goes on the new top.
+                    for (int y = height; y <= @base; y++)
+                    {
+                        pos.Set(x, y, z);
+                        blocks.SetBlock(0, pos, BlockLayersAccess.Fluid);
+                        blocks.SetBlock(y == @base ? cover.Id : fill.Id, pos, BlockLayersAccess.Solid);
+                    }
+                }
+                else
+                {
+                    for (int y = work.CutFrom; y <= work.CutTo; y++)
+                        blocks.SetBlock(0, pos.Set(x, y, z), BlockLayersAccess.Solid);
+                    if (surface.BlockMaterial is EnumBlockMaterial.Soil or EnumBlockMaterial.Sand or EnumBlockMaterial.Gravel
+                        && IsGround(blocks.GetBlock(pos.Set(x, @base, z), BlockLayersAccess.Solid)))
+                        blocks.SetBlock(surface.Id, pos, BlockLayersAccess.Solid);
+                }
+                view.SetHeight(cx, cz, @base, work.Fills);
+            }
+    }
+
+    private static bool IsGround(Block block) =>
+        block.BlockMaterial is EnumBlockMaterial.Stone or EnumBlockMaterial.Soil or EnumBlockMaterial.Sand or EnumBlockMaterial.Gravel;
+
+    /// <summary>A camp structure as the grid places it: the game's structure and what its placement
+    /// reads from it (its schematics in four rotations each, rock remaps, block-layer blocks), and
+    /// its climate range in the game's units.</summary>
+    private sealed class CampKind
+    {
+        public required WorldGenStructure Structure { get; init; }
+        public required CampPlacement Placement { get; init; }
+        public required BlockSchematicStructure[][] Schematics { get; init; }
+        public Dictionary<int, Dictionary<int, int>>? RockRemaps { get; init; }
+        public required int[] LayerBlocks { get; init; }
+        private (int X, int Z)[][] _sizes = [];
+        public (int X, int Z)[] Footprints { get; private set; } = [];
+        private int _minRain, _maxRain, _minTemp, _maxTemp, _minForest, _maxForest;
+
+        public static CampKind? Of(WorldGenStructure s)
+        {
+            CampPlacement placement;
+            if (s.Placement == EnumStructurePlacement.Surface) placement = CampPlacement.Surface;
+            else if (s.Placement == EnumStructurePlacement.Shallowwater) placement = CampPlacement.ShallowWater;
+            else return null;
+            if (SchematicsField!.GetValue(s) is not BlockSchematicStructure[][] schematics || schematics.Length == 0) return null;
+            var kind = new CampKind
+            {
+                Structure = s,
+                Placement = placement,
+                Schematics = schematics,
+                RockRemaps = RockRemapsField!.GetValue(s) as Dictionary<int, Dictionary<int, int>>,
+                LayerBlocks = LayerBlocksField!.GetValue(s) as int[] ?? [],
+                _minRain = (int)(s.MinRain * 255f),
+                _maxRain = (int)(s.MaxRain * 255f),
+                _minTemp = Climate.DescaleTemperature(s.MinTemp),
+                _maxTemp = Climate.DescaleTemperature(s.MaxTemp),
+                _minForest = (int)(s.MinForest * 255f),
+                _maxForest = (int)(s.MaxForest * 255f),
+            };
+            // A quarter turn swaps a footprint's sides; the rotated copies are only sized once
+            // unpacked, which Learn corrects if it ever differs.
+            kind._sizes = schematics.Select(r => Enumerable.Range(0, 4)
+                .Select(n => n % 2 == 0 ? (r[0].SizeX, r[0].SizeZ) : (r[0].SizeZ, r[0].SizeX)).ToArray()).ToArray();
+            kind.Footprints = kind._sizes.SelectMany(x => x).Distinct().ToArray();
+            return kind;
+        }
+
+        public (int X, int Z) Footprint(int schematic, int rotation) => _sizes[schematic][rotation];
+
+        public void Learn(int schematic, int rotation, int sizeX, int sizeZ)
+        {
+            _sizes[schematic][rotation] = (sizeX, sizeZ);
+            Footprints = _sizes.SelectMany(x => x).Distinct().ToArray();
+        }
+
+        /// <summary>The game's climate gate (<c>WorldGenStructure.TryGenerate</c>): rain, temperature
+        /// and forest in range at the position, and no cold camp high above the sea.</summary>
+        public bool ClimateAllows(int x, int y, int z, int[] climate, int forest, int seaLevel)
+        {
+            int c = GameMath.BiLerpRgbColor(x % 32 / 32f, z % 32 / 32f, climate[0], climate[1], climate[2], climate[3]);
+            int rain = Climate.GetRainFall((c >> 8) & 0xFF, y);
+            int temp = Climate.DescaleTemperature(Climate.GetScaledAdjustedTemperature((c >> 16) & 0xFF, y - TerraGenConfig.seaLevel));
+            if (rain < _minRain || rain > _maxRain || temp < _minTemp || temp > _maxTemp || forest < _minForest || forest > _maxForest) return false;
+            return !(temp < 20 && y > seaLevel + 15);
+        }
+    }
+
+    /// <summary>The terrain heights a chunk's placement reads, its own and its +X, +Z and diagonal
+    /// neighbours' (local coordinates 0..63): the TerrainFeatures pass runs only once all eight
+    /// neighbours have finished Terrain, so their <c>WorldGenTerrainHeightMap</c>s are there.</summary>
+    private sealed class HeightView
+    {
+        private readonly IMapChunk?[] _chunks = new IMapChunk?[4];
+        public int BaseX { get; }
+        public int BaseZ { get; }
+
+        public HeightView(IBlockAccessor blocks, int chunkX, int chunkZ)
+        {
+            BaseX = chunkX * GlobalConstants.ChunkSize;
+            BaseZ = chunkZ * GlobalConstants.ChunkSize;
+            for (int i = 0; i < 4; i++) _chunks[i] = blocks.GetMapChunk(chunkX + (i & 1), chunkZ + (i >> 1));
+        }
+
+        private IMapChunk? Chunk(int lx, int lz) =>
+            lx < 0 || lz < 0 || lx >= 64 || lz >= 64 ? null : _chunks[(lx >> 5) + ((lz >> 5) << 1)];
+
+        /// <summary>The terrain height, or 0 outside the view or for a chunk not there (which no
+        /// ground test passes with).</summary>
+        public int Height(int lx, int lz) => Chunk(lx, lz)?.WorldGenTerrainHeightMap[(lz & 31) * 32 + (lx & 31)] ?? 0;
+
+        public int Rain(int lx, int lz) => Chunk(lx, lz)?.RainHeightMap[(lz & 31) * 32 + (lx & 31)] ?? 0;
+
+        public int TopRock(int lx, int lz) => Chunk(lx, lz)?.TopRockIdMap[(lz & 31) * 32 + (lx & 31)] ?? 0;
+
+        /// <summary>A levelled column's new terrain height; its rain height follows (raised by a
+        /// fill, lowered by a cut unless something stood above the old ground).</summary>
+        public void SetHeight(int lx, int lz, int height, bool filled)
+        {
+            if (Chunk(lx, lz) is not { } chunk) return;
+            int i = (lz & 31) * 32 + (lx & 31);
+            int old = chunk.WorldGenTerrainHeightMap[i];
+            chunk.WorldGenTerrainHeightMap[i] = (ushort)height;
+            if (filled) chunk.RainHeightMap[i] = (ushort)Math.Max(chunk.RainHeightMap[i], height);
+            else if (chunk.RainHeightMap[i] <= old) chunk.RainHeightMap[i] = (ushort)height;
+        }
+    }
 
     /// <summary>The four climate and forest map values around a chunk, as GenStructures reads them.</summary>
     private (int[] Climate, int[] Forest) ClimateCorners(IMapRegion region, int chunkX, int chunkZ)

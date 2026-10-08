@@ -545,8 +545,9 @@ store). The tables were written with a one-off script; the JSON is the source.
 ### Camps on a grid (#447)
 
 - **Grid** (`Trading/Core/TraderGrid.cs`): 2048-block cells (whole chunks). A cell's camp goes at the
-  first of 8 seeded spots (≥ 192 from the cell's edge) where a camp fits. Every 8192-block cell is a
-  future settlement: no spot within 512 blocks of its centre (a corner shared by four camp cells).
+  first of 8 seeded spots (≥ 192 from the cell's edge) to take one as their chunks generate, or failing
+  all of them at one of the cell's second chances (below). Every 8192-block cell is a future
+  settlement: no spot within 512 blocks of its centre (a corner shared by four camp cells).
 - **Types per cell**: the prospector on a lattice of 3×3-cell blocks (one per block at a seeded
   offset 0 or 1 on each axis): every cell has one within two cells, and no two touch. Other cells take
   one of the ten other types by `campWeight`, never a neighbour's: greedy colouring in a seeded
@@ -558,16 +559,33 @@ store). The tables were written with a one-off script; the JSON is the source.
   0.6, after GenStructures) the `trader`-group structures are taken out of `GenStructures.scfg`
   (reflection; `config/trading/camps.json` lists the groups, the group dropped outright, and vanilla's
   multi-trader outposts kept back for settlements), their `MinGroupDistance` set to 0. A chunk column
-  holding a cell's spot whose turn it is tries the camp structures in a seeded order weighted by their
-  `chance`, through the game's own `TryGenerate` (reflection), with the climate and forest values
-  GenStructures computes: at the spot, then at the chunk's other points in a seeded order (at most 48
-  that look flat in the chunk's heightmap). The game's surface placement only takes ground whose
-  schematic corners are at one height, which a single point rarely is (vanilla gets there by rolling
-  many structures at random points of every chunk); in the test world a spot's chunk took a camp at
-  the first or second spot, and records a placed camp as GenStructures does (generated structure of group
-  `trader`, land claim). Chunks generate in any order, so each cell's state is saved
-  (`CampRegistry`, savegame key `seraphhorizons:tradercamps`): a spot is tried only when every earlier
-  spot has missed; a spot whose chunk is generated earlier is passed for good.
+  holding a spot of a cell still without a camp tries the camp structures in a seeded order weighted
+  by their `chance`, with the climate and forest values GenStructures computes: at the spot, then at
+  the chunk's other points in a seeded order, at most 48 positions whose ground suits some camp. It
+  records a placed camp as GenStructures does (generated structure of group `trader`, land claim).
+  Since #599 the grid does the game's surface placement itself instead of calling `TryGenerate`; see
+  "Camp placement (#599)" below.
+- **Order** (`CampRegistry`, savegame key `seraphhorizons:tradercamps`, #599): chunks generate in any
+  order, so each cell's state is saved. Any spot whose chunk generates while its cell has no camp tries
+  at once, and the first that places wins; a spot is tried once (claimed before the try, as its chunk
+  generates once). Until #599 spots were tried strictly in order and a spot whose chunk generated
+  before its turn was passed for good: in a real world (issue #599) every good spot of the five cells
+  explored was burnt that way while each cell waited on a spot that couldn't take a camp. Strict order
+  bought no determinism (the outcome already followed the order chunks generate in), only lost spots.
+- **Second chances** (#599): when every spot of a cell has missed, the cell is **open**: chunks of the
+  cell generated from then on may still try, but only those `TraderGrid.SecondChanceChunk` picks (wholly
+  inside the cell's 192-block margin like the spots, their middle out of a settlement reserve, one in
+  four by the seed: about 670 of a cell's 4096 chunks), each at its middle first and then its other
+  points as a spot, and at most 24 of them (`CampRecord.Retries`); after the 24th miss the cell has no
+  camp for good (**failed**). So a cell whose spots all landed on water or crags can still get a camp
+  where players go, at a bounded cost: at most 8 + 24 tries per cell, ever, each at most 48 positions
+  past the quick ground test.
+- **Existing worlds** (#599): records saved before have `Attempt` and `Passed` and no `Tried`, and are
+  migrated on load. A pending cell's spots before the one it waited for and its passed spots count as
+  tried (their chunks are generated; the passed ones are lost, as their chunks can't generate again);
+  the spot it waited for and the later ones not passed try as their chunks generate, in any order. A
+  failed cell (all of its spots generated) becomes open, so its chunks not generated yet get second
+  chances. Placed camps stay as they are; none is moved or added to chunks already generated.
 - **Traders in camps**: an `onattemptspawnerspawn` listener rewrites any other mod's trader code (by
   class `EntityTrader` or a trader code) into ours: the cell's type, the spawner's gender, the outfit
   set by climate as vanilla's. Spawners keep respawning the camp's trader as before. Not a spawner
@@ -582,10 +600,69 @@ store). The tables were written with a one-off script; the JSON is the source.
   keeps vanilla camps and traders. Switching it off later stops the grid (the world's new chunks get
   the game's camps again).
 - **Commands** (`Trading/Game/Commands/TradeCommands.cs`, privilege `controlserver`):
-  `/sh trade camps [radius]` (cells around the caller or the spawn: id `cellX,cellZ`, type, placed camp
-  or the spot it waits for) and `/sh trade tp <id>` (to the camp; a cell not generated yet is
-  generated first). `/sh` is made with `GetOrCreate`; `TradeCommands.Trade` is the `trade` node for
+  `/sh trade camps [radius]` (cells around the caller or the spawn: id `cellX,cellZ`, type, placed camp,
+  the next spot not tried, or an open or failed cell) and `/sh trade tp <id>` (to the camp; a cell not
+  decided yet has its next spot generated first, which tries it; an open cell has nowhere to go). `/sh` is made with `GetOrCreate`; `TradeCommands.Trade` is the `trade` node for
   #459 to add to. The admin tools (#459) are in `Trading/Admin/` and `docs/admin-tools.md`.
+
+### Camp placement (#599)
+
+In a world on Conquest Landform Overhaul terrain five explored cells got no camp (#599). An offline
+replay of every spot against the save (the real `TraderGrid`, the save's seed, heightmaps, climate and
+forest maps, and the 12 surface camp structures' schematic sizes) found three causes, all fixed here:
+the strict spot order (above), a pre-filter that didn't match the game's check, and the game's
+exact-level rule. Climate was never the blocker.
+
+- **The game's check** (`WorldGenStructure.TryGenerateAtSurface`, VSEssentials 1.22.7): one random
+  schematic and one random rotation per call (`rand.NextInt(schematicDatas.Length)`, `rand.NextInt(4)`;
+  `EntranceRotation` schematics excepted), then the terrain height (`GetTerrainMapheightAt`, which
+  reads `WorldGenTerrainHeightMap`) at five points: the centre (start + ceil(size / 2); start is the
+  schematic's min corner) and the four corners at start, +SizeX, +SizeZ and both, one block past the
+  footprint and so often in the next chunk. It rejects unless all five are exactly equal, then rejects
+  a centre deeper than the structure's `MaxBelowSealevel` under the sea, liquid at 13 points around the
+  ground, the schematic's above- and underground check positions, a minimum group distance and an
+  overlap (`WouldOverlapAt`: the map regions' generated structures, and `GenStructures`'
+  `OnPreventSchematicPlaceAt`). It seats the camp at centre + 1 + `OffsetY` and places it with
+  `PlaceRespectingBlockLayers(..., displaceWater: true)`. Vanilla's shallow-water camp
+  (`TryGenerateInShallowWater`) wants the samples exactly one apart and water 1–2 deep at the corners.
+  Before that, `TryGenerate` gates by climate: rain, temperature (at the position's height) and forest
+  within the structure's range, and no cold camp more than 15 above the sea.
+- **Neighbours' heights are there**: the engine runs a chunk column's TerrainFeatures pass only when
+  all eight neighbours have at least finished Terrain (`ServerSystemSupplyChunks.ensurePrettyNeighbourhood`
+  asks `ChunkServerThread.EnsureMinimumWorldgenPassAt` for each neighbour at the column's own pass, and
+  requeues the column until they are), so their `WorldGenTerrainHeightMap`s are filled. Only ±1 chunk:
+  a footprint whose samples would reach two chunks away is not tried (`CampGround.InNeighbourhood`).
+- **The grid's own placement** (`TraderCamps.TryCandidate`, logic in `Trading/Core/CampGround.cs`):
+  the same checks in the same order, for every schematic in all four rotations (a seeded order,
+  `TraderGrid.CandidateOrder`) before moving to the next structure or position, instead of one random
+  draw. The structure's internal `schematicDatas`, `resolvedRockTypeRemaps` and
+  `replacewithblocklayersBlockids` are read by reflection; the rest is public. A rotation's footprint is
+  the schematic's with the sides swapped on a quarter turn (the rotated copies are sized only once
+  unpacked, and the real size is checked after unpacking).
+- **Pre-filter**: a position counts towards the 48 only if some camp structure's footprint (any
+  schematic, any rotation) passes the five samples and the sea-depth limit, read from the chunk's and
+  its neighbours' heightmaps. The old filter probed +4/+8/+12 inside the spot's own chunk, so most of
+  the budget went on positions the game then rejected and many it would take were never tried.
+- **Slope tolerance and levelling**: a surface camp takes ground whose five samples differ by up to
+  `slopeTolerance` (`config/trading/camps.json`, 2; 0 is the game's rule), seated on their median
+  (`RuinSurfaceHeight.Median`, as `RuinsOnMedianGround` seats ruins; with all five equal, the game's
+  own height). The liquid checks and the above- and underground checks are the game's, against the
+  levelled ground (inside the footprint the ground is at the base; a block the levelling fills counts
+  as ground, one it cuts does not). If the checks pass, the terrain under the footprint is levelled
+  to the base first: a lower column is filled with its own soil (the block under its top; the top block
+  goes back on top), a higher one cut down with its top block put back on the cut, and the chunk's
+  `WorldGenTerrainHeightMap` and `RainHeightMap` follow, so the schematic's soil layers and later passes
+  see the new ground. A footprint with a column more than 6 off the base (a ravine or crag the samples
+  missed) is not taken. The shallow-water camp keeps the game's rule exactly.
+- **Why not a switch**: the tolerance and levelling are how the grid places a camp, part of
+  `TraderGrid`, and only exist with it on; `slopeTolerance: 0` gives back the game's ground rule. A
+  separate switch would split the grid into combinations to test for no player-facing gain.
+- **Replay** of the five cells of #599's save with these rules (liquids, check positions and story
+  structures not modelled): of 23 generated land and sea spots, 10 have a position that takes a camp at
+  tolerance 0 and 16 at tolerance 2; 4 of the 5 cells have such a generated spot (the fifth, 249,250,
+  has only its two generated spots in the sea, and its other six are still to generate), where none of
+  them got a camp before. In the Atlas test world (seed 436447448) the spawn's cell and its first
+  neighbour each took a camp at their first spot, both on ground 2 uneven, levelled.
 
 ## Standing and companies (#452, #463)
 
@@ -1041,7 +1118,7 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   (`MapOffers.PickOre`); the gravel map the nearest such field of `GravelFields(x, z, 2000)`. Deposits
   in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game). Leads
   (`LeadTargets.Pick`): camp cells and types come from the grid, sites from the camp registry (the
-  placed camp, else the spot it waits for; cells whose spots all failed are skipped): the nearest
+  placed camp, else the spot it waits for next; open and failed cells are skipped): the nearest
   camp for everyone; with the shelf tier's `mapsToTraders`, the nearest prospector, one camp two or
   three cells out, and the 8 km settlement cell's centre.
 - **Per player.** At a restock offers are priced for nobody (precision 1). When the trading player
