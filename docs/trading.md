@@ -609,16 +609,16 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
 - **Effective standing** = max(personal, company) + `spilloverShare` (0.1) × the best max(personal,
   company) at another trader of the same type within `TraderStandingSpilloverKm` (6). Same-type
   traders come from the grid's placed camps, so only camp traders spill over.
-- **Deal hook** (no Harmony): `EntitySeraphTrader.OnReceivedClientPacket` (public virtual) wraps the
-  game's packet 1000, whose `InventoryTrader.TryBuySell` is internal and reports success only to the
-  base class. It reads `GetTotalCost`/`GetTotalGain` first and compares the carts after: a deal that
-  went through empties the buying cart and takes the sold goods out of the selling cart, a failed one
-  changes neither.
-- **Display**: `Dialog_DialogTriggers` (protected virtual) on `opentrade`, server side, sends the
-  player a chat line with their tier, points, spillover, company share and the next tier, once a
-  visit (6 game hours since the last open), and a line when a deal lifts them a tier.
-  `GuiDialogTrader` is client side with private composition; a line in the dialog would need a
-  client patch on `Compose` and the standing sent to the client, left for later.
+- **Deal hook** (no Harmony): every deal credits standing from `EntitySeraphTrader.AfterDeal`: the
+  trade window's (`BuyUnit`/`SellUnit`, see "The trade window"), and the game's packet 1000 (vanilla's
+  dialog's button, which the pack's traders still honour), whose `InventoryTrader.TryBuySell` is
+  internal and reports success only to the base class, so `OnReceivedClientPacket` reads
+  `GetTotalCost`/`GetTotalGain` first and compares the carts after: a deal that went through empties
+  the buying cart and takes the sold goods out of the selling cart, a failed one changes neither.
+- **Display**: the trade window's header (tier, a bar to the next, the raw numbers) and Standing tab,
+  and the trader's answer to the dialogue's "How do you see me these days?" (see "The trade
+  window"). A deal that lifts the player a tier still says so in chat. (Until the window, opening the
+  trade posted the standing to chat once a visit; that line is gone.)
 - **Wallet**: before vanilla's weekly top-up runs (`OnGameTick`, when `lastRefreshTotalDays` is more
   than 7 days back), `EntitySeraphTrader` sets `TradeProps.Money` to the list's wallet for
   `IStandingSource.WalletTierFor`: the best `walletTier` among players whose own record with the
@@ -736,12 +736,12 @@ values") is what off-list prices start from and what the list-pay tests hold the
     own payment works unchanged. The postfix moves it back if the deal failed; after a deal it
     records supply and re-prices the region's loaded traders before vanilla broadcasts the inventory
     (packet 1234).
-  - `InventoryTrader.GetTraderAssets` postfix: on the client, during the deal's local check, counts
-    that same share.
   - `ItemSlot.GetStackDescription` postfix, selling-cart slots (`ItemSlotBuying`) only: the breakdown
     and which budget pays. `ItemSlotBuying.CanHold` postfix (client): why a good is refused.
-  - `GuiDialogTrader.TraderInventory_SlotModified` / `CalcAndUpdateAssetsDisplay` (private) postfixes:
-    the gain line gets the side budget's share, the money line the side budget.
+  - (Until the trade window, `InventoryTrader.GetTraderAssets` and two of `GuiDialogTrader`'s private
+    methods were patched too, to show the side budget in vanilla's dialog and count it in its local
+    check; the pack's traders no longer use that dialog, and the window shows the side budget
+    itself, so they are gone.)
 - **Both sides compute**: the client needs the price before the server sees the deal (the cart's
   `CanHold`, the gain text). `ItemValuesSystem` loads on both sides; the client loads the lists at
   `LevelFinalize` for the `BuyerIndex`. Per trader the server syncs `everythingpriced`, `sidebudget`
@@ -902,13 +902,12 @@ and `Deliveries/Game/ItemPackage.cs` with `itemtypes/package.json`. Switches `Tr
 `TraderDeliveries`; saved as JSON under `seraphhorizons:orders` and `seraphhorizons:deliveries` (a blob
 that fails to load is kept under `….broken`).
 
-**Chat commands, not dialogue.** Players offer, take and hand in with `/sh order …` and
-`/sh delivery …`. Dialogue would mean the pack shipping its own copy of `config/dialogue/trader.json`
-(the entity's `dialogueByType`), which every wave-3 trader feature (maps and leads, visitors) would
-also edit, and a dialogue line is static text: it can't show an order's item, quantity or premium
-without variables we would have to set per player. The `opentrade` chat summary
-(`EntitySeraphTrader.TradeOpened`) says what is on offer and how to take it. When the notice board
-(settlements) or a shared dialogue file exists, the commands' handlers are what its components call.
+**In the trade window.** Players take orders and hand them in, and take, mark and hand in
+deliveries, in the trade window's Orders and Deliveries tabs (see "The trade window"), whose
+requests call the systems' own handlers (`OrdersSystem.Accept`/`HandIn`, `DeliveriesSystem.Begin`/
+`HandIn`). They were chat commands (`/sh order …`, `/sh delivery …`) until the playtest; those are
+gone, and so is the chat summary of what is on that opening the trade posted. The admin commands
+(`/sh trade orders …`, `/sh trade deliveries …`) stay.
 
 ### Orders
 
@@ -928,10 +927,11 @@ without variables we would have to set per player. The `opentrade` chat summary
   price is the list's buying price, now a fifth of value, so at 24 an order would have asked five
   times the items (up to the four-stack cap) for the same gears; at 5 it asks about as many as before,
   and its premium, a share of that price, is a fifth of what it was.
-- **Delivery**: an item counts when the player sells it through the trade dialog
+- **Delivery**: an item counts when the player sells it to the trader (the trade window)
   (`EntitySeraphTrader.Dealt`, the stacks that left the selling cart in a deal that went through) or
-  hands the held stack over with `/sh order handin` (paid at the order's price per item from the
-  wallet, refused if the wallet can't pay). Each item pays its share of the premium at once
+  hands it in from the Orders tab (what they carry of the item in hotbar and backpack, up to what
+  is still wanted, paid at the order's price per item from the wallet, refused if the wallet can't
+  pay). Each item pays its share of the premium at once
   (floor of premium × delivered / quantity, less what was paid); completion pays the rest and calls
   `OnOrderDone`. Hand-ins by command don't move supply; deals do, as any deal.
 - **Time**: an offer lapses `days` (3–6) after it was made; a taken order's deadline is `days` after
@@ -957,7 +957,7 @@ without variables we would have to set per player. The `opentrade` chat summary
 - **Package**: `seraphhorizons:package`, stack size 1, the linen sack's model without its bag
   behaviours (it can't be opened), attributes `deliveryId`, `from`, `to`, `toType`, `toX`, `toZ`,
   `deadline` (total days), and `failed`. It is not in the value table, so no trader buys it.
-- **Hand-in** (`/sh delivery handin` at the receiver, the player who took it, a live package in their
+- **Hand-in** (the receiver's Deliveries tab, the player who took it, a live package in their
   inventory): on time, the deposit back, the fee from the receiver's wallet (as far as it has it) and
   `OnDeliveryDone(bothEnds: true)`; late, the deposit and half the fee (rounded up) and
   `OnDeliveryDone(bothEnds: false)`. Past the grace (`DeliveryBook.Tick`): `OnDeliveryFailed`, the
@@ -968,14 +968,13 @@ without variables we would have to set per player. The `opentrade` chat summary
 ### For the integrator and later waves
 
 - **Hooks in `EntitySeraphTrader`** (shared with #455 maps/leads, #456 visitors, #459 admin tools):
-  `OnReceivedClientPacket` now always runs for packet 1000 (not only with standing on), snapshots the
-  selling cart, calls standing as before and raises the new static `Dealt(player, trader, sold)`;
-  `Dialog_DialogTriggers` raises the new static `TradeOpened(player, trader)` on `opentrade`, after
-  the standing line. Other features should subscribe to these rather than override the methods
-  again.
+  every deal (the window's, and packet 1000) snapshots the selling cart, calls standing and raises
+  the static `Dealt(player, trader, sold)`; opening the trade window (`opentrade`) raises the static
+  `TradeOpened(player, trader)`. Other features should subscribe to these rather than override the
+  methods again.
 - `OrdersSystem.Book` / `DeliveriesSystem.Book` for inspect and export tools; `OrderCommands.AdminLine`
   and `DeliveryCommands.AdminLine` format one record.
-- Not done: dialogue options; posting to the notice board; deliveries for traders outside camps
+- Not done: posting to the notice board; deliveries for traders outside camps
   (only admins can make those).
 
 ## Wave 2 glue
@@ -988,7 +987,7 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   shelf is priced for that player. `TradingGlueSystem` (both sides, ExecuteOrder 0.67) adds
   `StandingPriceModifier` to `EconomySystem.Modifiers`; on the server it writes the trading player's
   `buyPriceFactor` and `sellPriceFactor` into the trader's watched attribute
-  `seraphhorizons:standingprice` (`uid`, `buy`, `sell`) when the dialog opens
+  `seraphhorizons:standingprice` (`uid`, `buy`, `sell`) when the trade window opens
   (`EntitySeraphTrader.TradeOpened`, raised from `Dialog_DialogTriggers`) and checks it every second
   (a tier reached in a deal, the player gone), re-pricing and sending the shelf through
   `EconomySystem.Refresh` when it changes. The modifier reads that attribute on both sides, for the
@@ -1126,3 +1125,115 @@ together.
 
 Open: visitors only come while the inn's chunk is loaded; the arrival is not announced at the
 camps; a world without the grid skips standing entirely (vanilla camps have no standing ids).
+
+## The trade window
+
+The playtest after the overhaul's waves found vanilla's trade dialog the wrong tool for it: carts and
+a Deal button for one-off trades, the standing in chat, orders and deliveries by chat command, maps
+and leads as odd shelf entries, the side budget squeezed into its money line. The pack's traders
+(`EntitySeraphTrader`, and so `EntityVisitingTrader`) now have a window of their own,
+`Trading/Window/`: `Core/` (`TradeWindowState.cs`, the wire format; `TradeGuard`, `HoldTimer`,
+`LockedStock`, `TradeWindowModel` and `StandingSpeech`; unit-tested in `tests/Trading/Window/`) and
+`Game/` (`TradeWindowSystem`, `GuiDialogSeraphTrade`, its elements, `HoldRingRenderer`,
+`TradeWindowPatches`, `WindowText`). Vanilla's dialog stays for every other trader (story NPCs,
+vanilla worlds' traders): nothing of it is patched any more.
+
+**Opening.** The dialogue's `opentrade` ("Got anything to trade?") is handled in
+`EntitySeraphTrader.Dialog_DialogTriggers` (protected virtual, called on both sides). On the server
+vanilla's own handling runs as before (alive, reach of 7 squared blocks, one trading player at a
+time, `tradingPlayerUID`), then `TradeOpened` and the window's state. On the client vanilla's would
+open `GuiDialogTrader` (its private `TryOpenTradeDialog`); ours does what that does with our window:
+packet 1001 (the server opens the trader's inventory to the player, so the sell slot syncs), the
+inventory opened locally, the window in vanilla's protected `dlg` field and the player in
+`interactingWithPlayer`. So vanilla's tick closes it when the player walks off (past 5 squared
+blocks) or the trader dies, and its packet 1212 closes it from the server, as with its own dialog;
+closing sends 1212 back. Only that option opens the window.
+
+**Inventory.** `SeraphTraderInventory` is vanilla's `InventoryTrader` (same slots, saved and synced
+the same way, so every economy patch and list keeps working), set before vanilla makes its own
+(`Initialize`, `FromBytes`). Its `ActivateSlot` ignores clicks on the shelves and carts (nothing is
+ever put in a cart by a click) and passes the first selling-cart slot through: that is the window's
+sell slot (36). Its `Close` gives what is left there back to the player instead of dropping it.
+
+**Network.** One channel, `seraphhorizons-trade`, one protobuf message (`TradeWindowPacket`: kind,
+trader entity id, JSON). Client to server: a `TradeRequest` (`Refresh`, `Buy` with a selling slot,
+`Sell`, `TakeOrder`/`HandInOrder` with an order id, `TakeDelivery`, `HandInDelivery`,
+`MarkDelivery` with a delivery id or 0 for the offer). Server to client: a `TradeResult` (done or
+refused, a lang key and its arguments, formatted in the player's language) after each, and a
+`TradeWindowState` (standing with every tier, orders, the delivery offer or why there is none, the
+player's deliveries from or to this trader, locked stock, which features are on) after each, when
+the window opens, and when a conversation with the trader starts (for the dialogue). The shelves
+are not in it: the client has them from the trader's inventory (packet 1234 and the watched
+attribute, as vanilla).
+
+**The server's side** (`TradeWindowSystem.Handle`, callable directly, which the Atlas scenarios do):
+every request passes `TradeGuard` (the trader alive, the player its trading player, within 7
+squared blocks), then:
+- **Buy and Sell, one unit each, at once** (`EntitySeraphTrader.BuyUnit`, `SellUnit`): the carts
+  are emptied aside, the unit put alone in the buying cart (one trade stack of the shelf slot, with
+  its `ResolvedTradeItem`) or the selling cart (one unit of the sell slot's stack, the rest held
+  back), and vanilla's own `TryBuySell` (internal, by reflection) runs. Everything vanilla's deal
+  did still happens, through the same code: money both ways, stock and demand, the wallet check,
+  the economy's side budget and supply (its `TryBuySell` patches), the map and lead hooks
+  (`ITradeableCollectible.OnTryTrade` and `OnDidTrade`: pending stacks, refunds), then standing
+  (`AfterDeal`), `Dealt` (orders count their goods), the nod, and the inventory broadcast. The rest
+  of a sold stack goes back in the sell slot.
+- Orders and deliveries call the systems' own handlers; a hand-in takes the order's item from
+  anywhere in the hotbar and backpack. Mark on map adds a waypoint as a lead does.
+
+**Holding.** No carts and no Deal button: every trade is one unit, made when a hold completes
+(`HoldTimer`, 0.8 s, Carry On's default interact delay). Pressing a good selects it (details below
+the shelves); holding the press buys one unit, and holding on buys the next once the server
+confirmed the last; a refusal stops it until the button is let go, and moving off the good cancels
+it. Selling: the stack goes in the sell slot (an ordinary slot: drag from the inventory), its offer
+shows under it, and the Hold to sell button sells one unit a hold. The ring (`HoldRingRenderer`)
+copies Carry On's hold-to-pick-up ring (its `HudOverlayRenderer`, public domain): light grey, 24 px,
+inner edge at three quarters, sixteen steps clockwise from the top, fading in over 0.2 s and out over
+0.4 s, at the mouse; ortho stage, order 1.05, above the dialogs.
+
+**Layout** (the playtest's mockup "A · Tabs"): a header with the trader's name, type and region and
+the player's tier with a bar to the next and the raw numbers ("Regular [310 / 800]"); tabs Trade,
+Orders (n), Deliveries (n), Maps & leads and Standing; a footer with the player's gears, the
+trader's and its side budget ("for goods off her list 21 g"). A feature that is switched off
+(`TraderStanding`, `TraderOrders`, `TraderDeliveries`, `TraderMaps`; the side budget with
+`EverythingHasAPrice`) has no tab or line. The Trade tab's shelves are the trader's own slots (price
+and stock in the tooltip, sold out crossed out as vanilla draws it); map and lead offers are on the
+Maps & leads tab instead, with their metal, size, distance and precision, or target and direction,
+sold out and locked ones saying why. Locked stock (`LockedStock`): what the selling list would shelve
+at the top tier with rare stock, less what the player's own tier gets, less what is on the shelf
+anyway, hatched (`GuiElementSlotHatch`) with the tier that unlocks it (its `standingTier`, or the
+first tier with `rareStock`). The Standing tab lists the five tiers with their thresholds, the
+current one marked, what it gives against the next, and how to earn more.
+
+**Hover price** (`TradeWindowPatches`, `ItemSlot.GetStackDescription` postfix): while the window is
+open, an item in the player's own inventory says in its tooltip what this trader pays for it (the
+list's price, or value × spread × fit × supply and which budget pays) or why not; the client prices
+from the same synced data as the server (see "Everything has a price").
+
+**The standing in the dialogue.** The pack ships its trader dialogue,
+`assets/seraphhorizons/config/dialogue/trader.json`, written by `Trading/tools/make_entities.py` from
+the game's (re-run it after a game update): vanilla's, with "How do you see me these days?" second
+in the main menu, shown on the condition `entity.shstanding` = `on` (the trader's `variables` tree,
+which the server sets while standing is on), answered by the component `seraphhorizons-standing`.
+The entities point at it (`dialogueByType`). BetterRuins' two quest dialogues, which the curio
+dealer and the farmer use (`patches/trading-betterruins-dialogue.json`), get the same option and
+component by patches on their files (component 20, `main`, in BetterRuins 0.6.4; an Atlas scenario
+checks every pack trader's dialogue). The game has no variables in dialogue text, and the answer is
+written client side when the player picks it, so: the server sends the window's state when a
+conversation starts (`EntityBehaviorConversable.OnControllerCreated`, on the right-click), and a
+client postfix on `DlgTalkComponent.genText` (protected) replaces that component's text with
+`StandingSpeech`: in the trader's voice, generic for every type, with the raw numbers in square
+brackets after each line ("You're a regular here now, I'd say. [Regular · 310 points · trusted at
+800]"), covering the tier and progress, what the tier gives and the next unlocks, and how to earn
+standing. Without a state (a race, or a patch that did not bind) the file's own line stays.
+
+**Decisions.**
+- One unit per completed hold, holding on for more, rather than a quantity field: one trade is one
+  of vanilla's deals, so each passes every check the deal has, and a refusal (money, side budget,
+  stock) stops at the unit it hits.
+- The deal stays vanilla's (`TryBuySell` on the carts, stashed around it) rather than a copy of it:
+  the economy, maps and orders already hook into it, and anything another mod hooks there applies.
+- Vanilla's packet 1000 is still honoured for the pack's traders (it credits standing and orders
+  as before), though the window never sends it.
+- The window is client-only code over a tested view model; its look has not been checked by a test
+  (Atlas has no client), only its server side.
