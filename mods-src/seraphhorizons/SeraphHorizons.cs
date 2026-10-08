@@ -4,6 +4,7 @@ using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.GearCutter.Core;
 using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.NanMotion;
 using SeraphHorizons.Mod.PicklingTub.Core;
 using SeraphHorizons.Mod.Rosser;
 using SeraphHorizons.Mod.Rosser.Core;
@@ -51,6 +52,8 @@ public class SeraphHorizonsSystem : ModSystem
     private List<System.Reflection.FieldInfo>? _carryOnIconFields;
     // Client side only: the sun of /clear stay on the client's calendar.
     private ClearSkyClient? _clearSkyClient;
+    // Client side only, its own id: the NaN motion diagnostics' patches (#405).
+    private Harmony? _nanMotionHarmony;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
     /// <c>Rosser</c> switch on and the patch bound); decided in <see cref="Start"/>. The rosser
@@ -178,6 +181,11 @@ public class SeraphHorizonsSystem : ModSystem
         _clearSkyClient = new ClearSkyClient(api);
         if (Config(api).CartReach)
             api.Event.LevelFinalize += () => PatchCartReach(api);
+        // When the level is final: every mod's assemblies are loaded, and the player exists.
+        if (Config(api).NanMotionDiagnostics)
+            api.Event.LevelFinalize += () => PatchNanMotion(api);
+        else
+            api.Logger.Notification("[seraphhorizons] NaN motion diagnostics are switched off; a NaN motion crash (#405) leaves no report");
         if (Config(api).CarryOnIconsPerWorld && CarryOnIcons.Find(api) is { } iconFields)
         {
             _carryOnIconFields = iconFields;
@@ -201,6 +209,18 @@ public class SeraphHorizonsSystem : ModSystem
         if (CartReach.Patch(_clientHarmony, api, rule))
             api.Logger.Notification("[seraphhorizons] Cart reach: far selection boxes of {0} entity types are in reach",
                 types.Count);
+    }
+
+    private void PatchNanMotion(ICoreClientAPI api)
+    {
+        try
+        {
+            NanMotionDiagnostics.PatchClient(_nanMotionHarmony = new Harmony(NanMotionDiagnostics.HarmonyId), api);
+        }
+        catch (Exception e)
+        {
+            api.Logger.Error("[seraphhorizons] NaN motion diagnostics could not start, and are off: {0}", e);
+        }
     }
 
     // Lang files are loaded, mod assets included, before this phase on both sides.
@@ -265,6 +285,12 @@ public class SeraphHorizonsSystem : ModSystem
             _clientHarmony.UnpatchAll(CartReach.HarmonyId);
             _clientHarmony = null;
             CartReach.Unbind();
+        }
+        if (_nanMotionHarmony != null)
+        {
+            NanMotionDiagnostics.Unbind();
+            _nanMotionHarmony.UnpatchAll(NanMotionDiagnostics.HarmonyId);
+            _nanMotionHarmony = null;
         }
         _barrelRackHarmony?.UnpatchAll(BarrelRackKegs.HarmonyId);
         _barrelRackHarmony = null;
@@ -343,6 +369,13 @@ public class SeraphHorizonsConfig
     /// so a second world does not crash the client drawing the first world's (#401, client side;
     /// off means Carry On keeps them, as it ships).</summary>
     public bool CarryOnIconsPerWorld { get; set; } = true;
+
+    /// <summary>NaN motion diagnostics (#405): the client traces every place that can write the
+    /// player's motion and, when it goes NaN and the client crashes, first writes a report of where it
+    /// went NaN and of everything around the player to the client log and to
+    /// <c>Logs/seraphhorizons-nanmotion-*.txt</c> (client side; the crash itself is left as it is; off
+    /// means no tracing and no report).</summary>
+    public bool NanMotionDiagnostics { get; set; } = true;
 
     /// <summary>Hydrate or Diedrate: foods it gives no hydration (vanilla, Biodiversity: Crops,
     /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
