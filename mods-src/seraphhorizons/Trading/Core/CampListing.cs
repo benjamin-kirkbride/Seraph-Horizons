@@ -5,7 +5,8 @@ public readonly record struct CampRow(CellKey Cell, string Type, CampStatus Stat
 
 /// <summary>
 /// The rows and text of <c>/sh trade camps</c>: every cell within the radius, nearest first, with
-/// its type, and either the placed camp or, for a cell not decided yet, the spot it waits for.
+/// its type, and either the placed camp or, for a cell not decided yet, the spot it waits for next
+/// (an open cell, whose spots all missed, and a failed one show the cell's middle).
 /// Positions are shown as players see them, relative to the map's middle (<c>offsetX</c>,
 /// <c>offsetZ</c>), like the game's own coordinates.
 /// </summary>
@@ -22,15 +23,13 @@ public static class CampListing
             CampRow row;
             if (record is { Status: CampStatus.Placed })
                 row = new CampRow(cell, record.Type, CampStatus.Placed, record.X, record.Y, record.Z, 0, record.Region);
-            else if (record is { Status: CampStatus.Failed } || spots.Count == 0)
-            {
-                var c = Centre(cell);
-                row = new CampRow(cell, type, CampStatus.Failed, c.X, null, c.Z, 0, "");
-            }
+            else if (CampRegistry.NextSpot(record, spots.Count) is { } next)
+                row = new CampRow(cell, type, CampStatus.Pending, spots[next].X, null, spots[next].Z, 0, "");
             else
             {
-                var s = spots[Math.Min(record?.Attempt ?? 0, spots.Count - 1)];
-                row = new CampRow(cell, type, CampStatus.Pending, s.X, null, s.Z, 0, "");
+                var c = Centre(cell);
+                var status = record is { Status: CampStatus.Open } ? CampStatus.Open : CampStatus.Failed;
+                row = new CampRow(cell, type, status, c.X, null, c.Z, 0, "");
             }
             double d = Math.Sqrt((double)(row.X - x) * (row.X - x) + (double)(row.Z - z) * (row.Z - z));
             if (d <= radius) rows.Add(row with { Distance = d });
@@ -39,7 +38,7 @@ public static class CampListing
     }
 
     /// <summary>A row as text: <paramref name="text"/> is the game's Lang.Get, given the lang keys
-    /// <c>trading-camp-{placed,pending,failed}</c> and <c>trading-type-{type}</c>.</summary>
+    /// <c>trading-camp-{placed,pending,open,failed}</c> and <c>trading-type-{type}</c>.</summary>
     public static string Line(CampRow row, int offsetX, int offsetZ, Func<string, object[], string> text)
     {
         string where = row.Y is { } y
@@ -51,6 +50,7 @@ public static class CampListing
         {
             CampStatus.Placed => text("seraphhorizons:trading-camp-placed", [row.Cell.ToString(), type, where, row.Region, distance]),
             CampStatus.Pending => text("seraphhorizons:trading-camp-pending", [row.Cell.ToString(), type, where, distance]),
+            CampStatus.Open => text("seraphhorizons:trading-camp-open", [row.Cell.ToString(), type, distance]),
             _ => text("seraphhorizons:trading-camp-failed", [row.Cell.ToString(), type, distance]),
         };
     }

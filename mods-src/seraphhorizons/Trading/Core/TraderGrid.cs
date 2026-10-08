@@ -25,9 +25,10 @@ public readonly record struct Spot(int X, int Z)
 /// <summary>
 /// The camp grid (#447), all of it a function of the world seed. The world is cut into 2 km cells
 /// (<see cref="CellSize"/>, 64 chunks, so a cell is whole chunks); each cell gets at most one lone
-/// camp, at the first of its <see cref="Attempts"/> seeded spots where a camp schematic fits (the
-/// worldgen side decides that, chunk by chunk). Spots keep <see cref="Margin"/> from the cell's edge,
-/// so neighbouring camps are usually about a cell apart.
+/// camp, at the first of its <see cref="Attempts"/> seeded spots to take one as their chunks generate
+/// (the worldgen side decides that, chunk by chunk; <see cref="CampRegistry"/>), or failing all of
+/// them in one of the cell's later chunks (<see cref="SecondChanceChunk"/>). Spots keep
+/// <see cref="Margin"/> from the cell's edge, so neighbouring camps are usually about a cell apart.
 ///
 /// Every 8 km cell (<see cref="SettlementSize"/>, 4×4 camp cells) is reserved for a settlement of
 /// three to five traders (deferred): its centre is a corner shared by four camp cells, and no lone
@@ -49,6 +50,10 @@ public sealed class TraderGrid
     public const int SettlementReserve = 512;
     public const int Attempts = 8;
     public const int ProspectorBlock = 3;
+    /// <summary>Of an open cell's chunks (every spot missed), one in this many is a second chance.</summary>
+    public const int SecondChanceEvery = 4;
+    /// <summary>Second chances a cell gets at most, after which it has no camp for good.</summary>
+    public const int SecondChances = 24;
 
     private const string SpotSalt = "trader";
     private const string ProspectorSalt = "trader-prospector";
@@ -124,10 +129,11 @@ public sealed class TraderGrid
     /// <summary>
     /// Where in a spot's chunk column a camp is tried, in order: the spot itself, then every
     /// <see cref="PositionStep"/>th block of the chunk in a seeded order, as offsets (0..31) from the
-    /// chunk's corner. The game's surface placement wants the ground under a schematic's corners at
-    /// one height, which a single point rarely is; vanilla gets there by rolling many structures at
-    /// random points per chunk, a spot by trying its chunk's points (the worldgen side skips ones
-    /// that aren't flat first).
+    /// chunk's corner, each the corner of a schematic's footprint. A camp needs nearly level ground
+    /// under the game's five sample points (<see cref="CampGround"/>), which a single point rarely
+    /// has; vanilla gets there by rolling many structures at random points per chunk, a spot by
+    /// trying its chunk's points (the worldgen side skips, without counting them, the ones where no
+    /// camp schematic's samples pass).
     /// </summary>
     public IEnumerable<(int X, int Z)> PositionsInChunk(Spot spot)
     {
@@ -142,6 +148,47 @@ public sealed class TraderGrid
     }
 
     public const int PositionStep = 2;
+
+    /// <summary>
+    /// Whether a chunk column is one of the cell's second chances (#599): wholly inside the cell's
+    /// <see cref="Margin"/>, like the spots, its middle out of the settlement reserve, and picked by
+    /// the seed, one chunk in <see cref="SecondChanceEvery"/>. Once every spot of a cell has missed,
+    /// these chunks try the camp as they generate (at their middle first, then the chunk's other
+    /// points, as a spot does), at most <see cref="SecondChances"/> of them, so a cell whose spots
+    /// all landed on bad ground can still get a camp where the player goes, at a bounded cost.
+    /// </summary>
+    public bool SecondChanceChunk(int chunkX, int chunkZ)
+    {
+        var cell = CellOfChunk(chunkX, chunkZ);
+        int x0 = chunkX << 5, z0 = chunkZ << 5;
+        int lo = Margin, hi = CellSize - Margin;
+        int ox = x0 - cell.X * CellSize, oz = z0 - cell.Z * CellSize;
+        if (ox < lo || ox + 32 > hi || oz < lo || oz + 32 > hi) return false;
+        if (InSettlementReserve(x0 + 16, z0 + 16)) return false;
+        return StableHash.Unit(_seed, SecondChanceSalt, chunkX, chunkZ) * SecondChanceEvery < 1;
+    }
+
+    /// <summary>A second chance's stand-in spot: the chunk's middle, tried first.</summary>
+    public static Spot SecondChanceSpot(int chunkX, int chunkZ) => new((chunkX << 5) + 16, (chunkZ << 5) + 16);
+
+    /// <summary>
+    /// The order a camp structure's schematics are tried in at a position (#599): every schematic in
+    /// all four rotations, as (schematic index, rotation 0..3) in a seeded shuffle, where the game's
+    /// own placement draws one schematic and one rotation at random and gives up if that one doesn't
+    /// fit. <paramref name="attempt"/> is the spot (or <see cref="Attempts"/> plus the second chance's
+    /// number).
+    /// </summary>
+    public IEnumerable<(int Schematic, int Rotation)> CandidateOrder(CellKey cell, int attempt, int structure, int schematics)
+    {
+        var keys = new List<(double Key, int Schematic, int Rotation)>(schematics * 4);
+        for (int s = 0; s < schematics; s++)
+            for (int r = 0; r < 4; r++)
+                keys.Add((StableHash.Unit(_seed, CandidateSalt, cell.X, cell.Z, ((attempt * 1000 + structure) * 1000 + s) * 4 + r), s, r));
+        return keys.OrderBy(k => k.Key).ThenBy(k => k.Schematic).ThenBy(k => k.Rotation).Select(k => (k.Schematic, k.Rotation));
+    }
+
+    private const string SecondChanceSalt = "trader-second-chance";
+    private const string CandidateSalt = "trader-candidate";
 
     /// <summary>The order a spot tries the camp structures in: a seeded shuffle weighted by each
     /// structure's chance (Efraimidis–Spirakis), so common camp kinds come up as often as vanilla

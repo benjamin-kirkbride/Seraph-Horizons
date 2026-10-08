@@ -88,14 +88,17 @@ public static class TradeCommands
         var record = system.Camps!.Registry.Get(cell);
         if (spots.Count == 0 || record is { Status: CampStatus.Failed })
             return TextCommandResult.Error(L("trading-tp-nocamp", cell.ToString()));
+        if (record is { Status: CampStatus.Open })
+            return TextCommandResult.Error(L("trading-tp-open", cell.ToString()));
         var entity = args.Caller.Entity;
         if (record is { Status: CampStatus.Placed })
         {
             Go(api, entity, record.X, record.Z);
             return TextCommandResult.Success(L("trading-tp-done", cell.ToString()));
         }
-        // Not generated yet: generating the spot's chunk decides the camp; go once it has.
-        var spot = spots[Math.Min(record?.Attempt ?? 0, spots.Count - 1)];
+        // Not generated yet: generating the next spot's chunk tries it; go once it has (to the camp
+        // if that placed it, else to the spot, and the next tp tries the next spot).
+        var spot = spots[CampRegistry.NextSpot(record, spots.Count) ?? 0];
         api.WorldManager.LoadChunkColumnPriority(spot.ChunkX, spot.ChunkZ, new ChunkLoadOptions
         {
             OnLoaded = () =>
