@@ -55,7 +55,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
-from machinegen.geometry import IDENT, El, flatten, rotate, translate  # noqa: E402
+from machinegen.geometry import IDENT, TRANSPARENT, El, flatten, rotate, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
@@ -836,8 +836,9 @@ def build_controls():
 def build_oiler():
     """The oiler, the frame's: a sight-feed glass cup on a bracket off the die stock's east face, a brass
     base and cap, and a spout from the cap up and back over the die stock's back face to drip onto the
-    hollow ahead of the die; its oil stretches with the rig's `oil`. No pane on the east side: the block
-    is drawn in one opaque pass."""
+    hollow ahead of the die; its oil stretches with the rig's `oil`. The glass is in the Transparent
+    render pass (an opaque one draws its faint texture solid and hides the oil), so the level shows
+    through all four panes."""
     (x0, x1), (y0, y1), (z0, z1) = OILER["x"], OILER["y"], OILER["z"]
     g = 0.15
     xm = (x0 + x1) / 2
@@ -848,11 +849,15 @@ def build_oiler():
            box([x0, y0, z0], [x1, y1, z0 + g], "fr_oiler_glass_n", "frame", "glass"),
            box([x0, y0, z1 - g], [x1, y1, z1], "fr_oiler_glass_s", "frame", "glass"),
            box([x0, y0, z0 + g], [x0 + g, y1, z1 - g], "fr_oiler_glass_w", "frame", "glass"),
+           box([x1 - g, y0, z0 + g], [x1, y1, z1 - g], "fr_oiler_glass_e", "frame", "glass"),
            box([xm - 0.15, y1 + 0.3, (z0 + z1) / 2 - 0.15], [xm + 0.15, sy1, (z0 + z1) / 2 + 0.15], "fr_oiler_riser", "frame", "brass"),
            box([xm - 0.15, sy0, DRIP[2] - 0.15], [xm + 0.15, sy1, (z0 + z1) / 2 - 0.15], "fr_oiler_spoutn", "frame", "brass"),
            box([DRIP[0] - 0.15, sy0, DRIP[2] - 0.15], [xm - 0.15, sy1, DRIP[2] + 0.15], "fr_oiler_spout", "frame", "brass"),
            box([DRIP[0] - 0.12, DRIP[1], DRIP[2] - 0.12], [DRIP[0] + 0.12, sy0, DRIP[2] + 0.12], "fr_oiler_tip", "frame", "brass")]
     out.append(box([x0 + g + 0.02, y0, z0 + g + 0.02], [x1 - g - 0.02, y0 + OIL_EMPTY, z1 - g - 0.02], "oillevel_oil", "oillevel", "oil"))
+    for el in out:
+        if el.name.startswith("fr_oiler_glass"):
+            el.render_pass = TRANSPARENT
     return out
 
 

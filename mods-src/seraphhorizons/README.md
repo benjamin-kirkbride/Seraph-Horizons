@@ -12,7 +12,7 @@ into steel gears through the pot, the pickling tub and the barrel (`GearReclamat
 recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
 (`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from hollow sections on a draw bench (`DrawBench`) or folded from plates on a hand-worked press brake (`PressBrake`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded from plates on a hand-worked press brake (`PressBrake`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -1247,10 +1247,14 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
   double), and the draw bench per pipe section drawn.
 - **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
-  an empty one 0, not -0), and while dry its load on the shaft now against the load it takes oiled
-  (`Dry: a load of 0.51 on its shaft, 3× the 0.17 it takes oiled`). The load is what the shaft last
-  asked of the machine (`OilState.Load`, set in every `GetResistance`; the server syncs it when it
-  changes), so until the network has asked once the line only gives the multiplier. The handbook has a page of its own, "Oiling
+  an empty one 0, not -0), then the load on its shaft: oiled `Load: 17 kN`, and while dry the load
+  now against the load it takes oiled (`Dry: a load of 51 kN on its shaft, 3× the 17 kN it takes
+  oiled`). The load is what the shaft last asked of the machine (`OilState.Load`, set in every
+  `GetResistance`; the server syncs it when it changes), so until the network has asked once there
+  is no load line, and the dry line only gives the multiplier. kN is the game's own scale
+  (`OilText.KiloNewtonsPerUnit`): its creative rotor shows its torque times 100 as `Torque: {0} kN`
+  (its windmill's sails line about the same), and a load is in the same units as a torque. The game
+  shows whole kN; `OilText.Load` keeps one place, so a 0.005 frame load reads 0.5 kN, not 0. The handbook has a page of its own, "Oiling
   machines" (`config/handbook/machineoil.json`): which machines, which oils, what dry means and how
   long a tank lasts. Its text quotes the default settings.
 
@@ -1741,7 +1745,8 @@ was. With MachineOil off there is no tank and the kit wears at its base. Steady 
 kit cuts 50 small gears; cut from full without topping up (the tank falling 10 a gear) about 40. A
 dry cutter smokes while it cuts. The block info shows the next stage, the master, the kit's
 durability and about how many gears it has left at this fill, the cut's teeth, MachineOil's oil
-line (without its dry-load line) and the wear multiplier, or that the next gear breaks the kit.
+line with its load, the same oiled or dry (never the dry line: `Oil.Asked` with `dryLoad: false`
+records it unmultiplied) and the wear multiplier, or that the next gear breaks the kit.
 
 **Drawn.** The block draws `gearcutter_frame.json`; the renderer splits `gearcutter.json` by element
 name into the rig's parts and draws each whose `requires` is fitted: the cover always, a blank's
@@ -1785,7 +1790,8 @@ valves stay as blocks, so those already placed keep working, but nothing makes t
   (`recipes/smithing/angle.json`: a 7 x 4 flange with a 7-long web two layers up its back edge, 42
   voxels, Hydrate or Diedrate 2.5.6's old pipe section pattern re-authored for this item), or folded
   from one plate on the press brake (`PressBrake`).
-- The **hollow section** is the game's chute section (`game:chutesection-{material}`, a square tube;
+- The **hollow section**, named the **tube blank** in game, is the game's chute section
+  (`game:chutesection-{material}`, a square tube;
   the game has copper only). `patches/unifiedpipes-chutesection.json` adds `lead` to its `material`
   variant (its texture is `game:block/metal/sheet/{material}1`, so lead takes its own sheet; iron and
   steel never make hollows), lists only copper in the creative inventory's mechanics tab, gives it a
@@ -1794,8 +1800,9 @@ valves stay as blocks, so those already placed keep working, but nothing makes t
   "copper plate + 2 solder bars + soldering iron + hammer = 2 sections" (`game:recipes/grid/chute.json`
   5, the last). **2 angles + 2 tin or silver solder bars + a soldering iron (2 durability, as the
   game's soldering) = 1 chute section** of the metal (`recipes/grid/chutesection.json`) is the only way
-  to one. The names are `game:item-chutesection-{metal}` keys in this mod's lang file ("Lead Chute
-  Section"; copper's becomes "Copper Chute Section" so the two read alike). The game's chutes take
+  to one. The names are `game:item-chutesection-{metal}` keys in this mod's lang file ("Copper Tube
+  Blank", "Lead Tube Blank": what it is to the player, the blank pipe is made from, though copper's
+  still makes chutes), and the handbook and the machines' text call it the tube blank. The game's chutes take
   `chutesection-copper` by name, so lead makes no chute.
 - The **pipe section**, `seraphhorizons:pipesection-{copper,lead,iron,steel}` ("Copper pipe
   section"): a square tube 6 voxels across (ppex's pipe is 6/16 wide) with 1-voxel walls, half a block
@@ -2012,7 +2019,7 @@ before the game loads it: there is no pipe mold, and those already in a world ar
 ### Draw bench (`DrawBench`, `DrawBenchSettings`)
 
 The drawn rung of the pipe chain: a mechanically powered chain draw bench, as lead and copper pipe was
-drawn from the 1790s to the 1880s, that draws one lead or copper hollow section, the game's chute
+drawn from the 1790s to the 1880s, that draws one lead or copper hollow section (the tube blank in game), the game's chute
 section (`game:chutesection-lead`, `-copper`: the copper the game's own, the lead the state
 `UnifiedPipes`' patch adds), over the mandrel into four pipe sections of its metal
 (`seraphhorizons:pipesection-lead`, `-copper`). Two angles and solder make a hollow section on the
@@ -2025,19 +2032,20 @@ in `DrawBench/Game/`).
 player clicks, with the bench running four blocks away from them along their line of sight, a ghost in
 each of the rig's other three cells (`drawbench-ghost`) and the power ghost
 (`drawbench-ghostpower-{side}`) at the far end, which takes the axle on the player's right (native
-west). The frame is a grid recipe: two metal plates and two rods of iron, meteoric iron or steel, four
-nails and strips of the same, two oak logs, oak planks and a hammer.
+west). The frame is a grid recipe: two metal plates and four rods of iron, meteoric iron or steel, 12
+nails and strips of the same, two oak logs, oak planks and a hammer (about 11 ingots of iron).
 
-**Stages.** Fitted by right-click on the frame or any ghost with the item, one item each, in this
-order only; anything of a later stage is refused with a message naming the next:
+**Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; anything
+of a later stage is refused with a message naming the next. The chain and the mandrel take two of their
+item, both from the held stack in one click (fewer are refused, and stay in hand); the rest one each:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
 | 1 | `gearbox` | `game:jonasframes-gearbox01` (the clutch and change gear) | Looted, or BetterRuins' conversion |
-| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
+| 2 | `chain` | Two of `game:metalchain-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
-| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (100 durability) | Smithing, 1 ingot of its metal |
+| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
+| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (100 durability) | Smithing, 2 ingots of its metal (80 voxels) |
 
 The die recipe is named `drawdie`, not `plate`, so the helve hammer does not work it. In creative mode
 Ctrl + right-click on an incomplete bench fits its next stage with nothing taken (a steel die last).
@@ -2091,7 +2099,7 @@ The folded rung of the pipe ladder: a hand-worked leaf brake (a cornice brake) o
 1800s, oak with iron wearing edges and iron clamp screws, that bends one lead or copper plate
 (`game:metalplate-lead`, `-copper`) once, at a right angle, into one angle (`seraphhorizons:angle-lead`,
 `-copper`, `UnifiedPipes`' item), as the anvil forges one from an ingot. Two angles, two solder bars and
-a soldering iron make a hollow section (the game's chute section) on the grid; hollow sections make
+a soldering iron make a hollow section (the game's chute section, the tube blank in game) on the grid; hollow sections make
 chutes, or pipe sections on the mandrel station or the draw bench. Its model, rig and generator are described in `PressBrake/README.md`,
 which also records the gameplay's decisions; this is the gameplay, in `PressBrake/` (rules in
 `PressBrake/Core/`, the game side in `PressBrake/Game/`). A hand machine: no mechanical power, no oil,
@@ -2147,7 +2155,7 @@ the frame (`MachineSchematics`).
 
 The forged rung of the pipe ladder: a smith's mandrel station of the 1700s, a squared oak stump with an
 iron hoop carrying an iron bracket that holds a square iron mandrel cantilevered over its far end, on
-which one lead or copper hollow section (the game's chute section, `game:chutesection-lead`, `-copper`)
+which one lead or copper hollow section (the game's chute section, the tube blank in game, `game:chutesection-lead`, `-copper`)
 is hammered down, blow by blow, into two pipe sections (`seraphhorizons:pipesection-lead`, `-copper`,
 `UnifiedPipes`' item). Two angles and solder make a hollow; the draw bench makes four pipe sections of
 one; a pipe section and solder make a pipe. Its model, rig and generator are described in
@@ -2291,6 +2299,19 @@ A JSON patch, `patches/sawmillblade-durability.json`, replaces each value of the
 `durabilitybytype` (server side; clients get the items from the server). With the switch off, or
 without Immersive Woodworking, `SawmillBladeDurability.DisablePatches` empties it in `Start`, before
 the game's patch loader runs, as for the tun patches.
+
+### The blueprint makes 4 support chains, not 64 (`FewerSupportChains`)
+
+Better Ruins (`betterruins`, 0.6.4). Its Machinist's Mechanism Blueprint
+(`recipes/grid/schematic-mechanical/mechanical.json`, kept on crafting) makes support chains from a
+solder bar and one or two nails and strips, with a soldering iron: `game:supportchain-twonew` (`/26`)
+and `-fournew` (`/27`) from iron, `game:supportchain-two` (`/28`) and `-four` (`/29`) from black
+bronze. Each gave 64, a stack for next to nothing; they give 4.
+
+A JSON patch, `patches/supportchains-betterruins.json`, `"side": "server"`, replaces the four
+recipes' output quantity by index. With the switch off, or without Better Ruins,
+`SupportChains.DisablePatches` empties it in `Start`, before the game's patch loader runs, as for
+the tun patches. The switch that counts is the server's.
 
 ### The woodworking machines are iron work (`IronWoodworkingMachines`)
 
@@ -3517,6 +3538,11 @@ Immersive Woodworking's durability (`DurableSawmillBlades`); with the switch off
 `SwitchesOffScenarios` requires Immersive Woodworking's own. The rest of its scenarios are the
 bucking sawmill's (`BuckingSawmill/README.md`).
 
+`tests/PackTests/SupportChainsScenarios.cs` (Atlas) requires one grid recipe from Better Ruins'
+mechanical blueprint for each of the four support chains, giving 4 (`FewerSupportChains`); with the
+switch off, `SwitchesOffScenarios` requires each giving 64. When it fails after a Better Ruins
+update, check the file's order (the patch addresses `/26` to `/29`).
+
 `tests/PackTests/RosserScenarios.cs` (Atlas) is the rosser's (`Rosser/README.md`, "Tests"): loading,
 placing and breaking on every facing; assembly, and the creative shortcut fitting one stage per
 click; the power face on every facing and the shaft against a vanilla axle; a ppex pipe watering the
@@ -3645,7 +3671,7 @@ shaft stands, never copper on an iron die, a pipe section or an ingot, the next 
 and pipe sections put in a chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks,
 dies or recipes, no link to them and the machine oil page without it, and nothing logged.
 `RecipeExportDrawBenchScenarios.cs` requires one `machine` record per metal (`drawbench|game:chutesection-{metal}|0`):
-the hollow, the four kept stages, the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
+the hollow, the four kept stages (two chains and two rods among them), the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
 frame, four pipe sections.
 
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires

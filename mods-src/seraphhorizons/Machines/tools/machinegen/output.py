@@ -33,6 +33,8 @@ def element_json(el: El):
         for key, v in zip(("rotationX", "rotationY", "rotationZ"), a):
             if abs(v) > 1e-4:
                 e[key] = r4(v)
+    if el.render_pass is not None:
+        e["renderPass"] = el.render_pass
     faces = {}
     for d in FACE_ORDER:
         if d not in el.faces:

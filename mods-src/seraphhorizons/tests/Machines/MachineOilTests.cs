@@ -165,10 +165,13 @@ public class MachineOilTests
         Assert.Equal(shown, OilText.Points(points));
 
     [Theory]
-    [InlineData(0.255f, "0.255")]
-    [InlineData(0.51f, "0.51")]
-    [InlineData(0.0005f, "0.001")]
-    [InlineData(3f, "3")]
-    public void Loads_are_shown_to_three_places(float load, string shown) =>
+    [InlineData(0.085f, "8.5")]
+    [InlineData(0.255f, "25.5")]
+    [InlineData(0.17f, "17")]
+    [InlineData(0.51f, "51")]
+    [InlineData(0.005f, "0.5")]
+    [InlineData(0f, "0")]
+    [InlineData(3f, "300")]
+    public void Loads_are_shown_in_kN_as_the_game_scales_torque_to_one_place(float load, string shown) =>
         Assert.Equal(shown, OilText.Load(load));
 }

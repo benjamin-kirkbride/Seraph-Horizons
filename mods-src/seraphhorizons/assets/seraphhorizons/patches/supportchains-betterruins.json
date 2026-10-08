@@ -1,0 +1,11 @@
+// seraphhorizons' FewerSupportChains switch (README.md, SupportChains.cs): Better Ruins (0.6.4)'s
+// Machinist's Mechanism Blueprint (recipes/grid/schematic-mechanical/mechanical.json) makes 64
+// support chains from one solder bar and one or two nails and strips, a stack for next to nothing:
+// those four (/26 twonew and /27 fournew from iron, /28 two and /29 four from black bronze) give 4.
+// Server side: the client gets the recipes from it.
+[
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "replace", "path": "/26/output/quantity", "value": 4, "side": "server", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "replace", "path": "/27/output/quantity", "value": 4, "side": "server", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "replace", "path": "/28/output/quantity", "value": 4, "side": "server", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-mechanical/mechanical.json", "op": "replace", "path": "/29/output/quantity", "value": 4, "side": "server", "dependsOn": [{"modid": "betterruins"}]}
+]

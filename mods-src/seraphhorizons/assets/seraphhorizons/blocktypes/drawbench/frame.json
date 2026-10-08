@@ -27,6 +27,8 @@
 		"cupronickel": { base: "game:block/metal/sheet/cupronickel1" },
 		"lead":        { base: "game:block/metal/sheet-plain/lead1" },
 		"copper":      { base: "game:block/metal/sheet-plain/copper1" },
+		"leadsheet":   { base: "game:block/metal/sheet/lead1" },
+		"coppersheet": { base: "game:block/metal/sheet/copper1" },
 		"die":         { base: "game:block/metal/sheet-plain/steel1" },
 		"rope":        { base: "game:item/resource/rope" },
 		"glass":       { base: "game:block/glass/plain" },

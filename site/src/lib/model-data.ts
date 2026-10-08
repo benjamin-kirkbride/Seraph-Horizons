@@ -19,8 +19,20 @@ export function loadModelIndex(): Promise<ModelIndex> {
   return index;
 }
 
-export async function loadModelFiles(model: PublishedModel): Promise<{ shape: Shape; rig: Rig | null }> {
-  const [shape, rig] = await Promise.all([getJson<Shape>(model.shape), model.rig ? getJson<Rig>(model.rig) : Promise.resolve(null)]);
+export interface ModelFiles {
+  shape: Shape;
+  rig: Rig | null;
+  /** A vehicle's bogie shape, or null. */
+  bogie: Shape | null;
+}
+
+export async function loadModelFiles(model: PublishedModel): Promise<ModelFiles> {
+  const [shape, rig, bogie] = await Promise.all([
+    getJson<Shape>(model.shape),
+    model.rig ? getJson<Rig>(model.rig) : Promise.resolve(null),
+    model.bogie ? getJson<Shape>(model.bogie) : Promise.resolve(null),
+  ]);
   if (!Array.isArray(shape.elements)) throw new Error(`${model.shape}: no elements`);
-  return { shape, rig };
+  if (bogie && !Array.isArray(bogie.elements)) throw new Error(`${model.bogie}: no elements`);
+  return { shape, rig, bogie };
 }

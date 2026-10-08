@@ -107,8 +107,8 @@ steel, gold) but is its own geometry, as is the injection valve (cupronickel and
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/gearcutter.json` | The whole machine, every moving part and the cover (1465 elements). The renderer splits it into parts by element name. |
-| `assets/seraphhorizons/shapes/block/gearcutter_frame.json` | The static frame only (101 elements). The block draws it and the inventory shows it. |
+| `assets/seraphhorizons/shapes/block/gearcutter.json` | The whole machine, every moving part and the cover (1466 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/gearcutter_frame.json` | The static frame only (102 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/gearcutter-rig.json` | Footprint, anchors, the work, the cut's constants and the part rig (75 parts, 32 of them gap fills). |
 | `tests/GearCutter/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
 | `assets/seraphhorizons/shapes/item/gearcutter/{spindle,feedscrew,liftcam,index,kit}.json` | The forged parts' item shapes: each the elements of the rig parts its stage draws, as they are at rest (the spindle's head shaft and spindle without the belt; the worm and clutch; the lift cam; the lever, pawls and shield; the cutter), centred on the item box's floor and scaled to fit 16 voxels (`ITEM_SCALE`: the spindle 0.74, the rest 1). The item types (`itemtypes/gearcutter/*.json`) draw them with the machine's textures. |
@@ -181,8 +181,10 @@ the arbor instead of 30°).
 base and cap, a needle valve through the cap with a brass knob, on a brass bracket bolted to the
 cross-head's front (east) face at the cutter's z; the bracket runs down past the base to carry the valve.
 The oil in the cup is one element, `oillevel_oil`, authored 0.05 tall (empty) and stretched up by the
-rig's `oil` input to 1.2 when full. The glass has no pane on the operator's (east) side: the block is
-drawn in one opaque pass, so a pane there would hide the level.
+rig's `oil` input to 1.2 when full. The glass is four panes in the Transparent render pass (their
+elements' `renderPass` 3, machinegen's `TRANSPARENT`; the block's own pass is opaque, which draws the
+glass's faint texture solid and hid the level from every side but an open one), so the level shows from
+every side.
 
 The **injection valve** is the oiler's stage (`oiler`, the Jonas `jonasparts-valve01`), drawn after the
 game's item (its cupronickel body, end bosses, side stem and white marble handle; its own geometry): a
@@ -366,7 +368,7 @@ like the rest:
   shaft 4, camshaft 5, spindle 3, arbor 2), the idler on its stud from the column's front wall, the sun
   shaft through the housing's eye and piloted in the arbor's end.
 - **Oiler:** the oil's height is 0.05 at oil 0, 1.2 at 1 and linear between, inside the glass and under
-  the cap; the cup's z span holds the cutter's plane; the valve's feed reaches the reservoir's base; its
+  the cap; a pane over each side of the oil, every pane in the Transparent pass (`checks.sight_glass`); the cup's z span holds the cutter's plane; the valve's feed reaches the reservoir's base; its
   nozzle's mouth is 0.2 to 0.8 over the cutter's teeth (0.62; the nozzle never closer than 0.25) with the
   drip anchor at its mouth; the plunger pumps 0.3 once a tooth; the tray is under either blank all
   through the pass.
@@ -517,7 +519,7 @@ chips and now and then a spark at `chips.pos`; with oil in the tank, a downward 
 `drip.pos`.
 
 The part meshes come from one tessellation of the shape, not one per part (that froze the client
-for a moment on placing a cutter: 75 clones and tessellations of 1465 elements): every element's
+for a moment on placing a cutter: 75 clones and tessellations of 1466 elements): every element's
 `JointId` is set to its part + 1, `TesselateShapeWithJointIds` writes it per vertex into
 `CustomInts`, and the faces are copied out by that tag (`MachineMeshes.PartMeshes`,
 `Machines/Core/PartSplit.cs`), with a logged fallback to the per-part way if the tags don't check
@@ -599,8 +601,7 @@ client, the particles' placing included.
    and the lever's spring the other, and the sun floats. The housing ends a gear half a turn on.
 8. **The cutter turns with the axle**, either way; a formed cutter cuts one way only. #480 wanted the
    spindle on θ; a reversed axle would rub. The feed is rectified, so the count always advances.
-9. **The oiler's glass** has no operator-side pane (see the oiler above); in a renderer with a
-   translucent pass a full cup would look better with one. The level is a box, not a meniscus.
+9. **The oiler's level is a box**, not a meniscus, seen through four panes of glass.
 10. **The masters and blanks overhang** the pedestal on the arbor's back end, the master 6 to 10 voxels
     west of its bearings, as a gear on a mandrel would be; nothing steadies the arbor's end.
 11. **The cover** is one part (the gearbox's top and the column's door together), drawn with the

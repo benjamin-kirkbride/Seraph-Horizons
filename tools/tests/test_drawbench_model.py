@@ -9,6 +9,8 @@ maths, the cells are rebuilt from the shipped shape, the work counts sections, t
 import importlib.util
 import json
 import math
+import os
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -28,6 +30,7 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "drawbench-rig.
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "drawbench.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "drawbench_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "DrawBench" / "rig-reference.json").read_text())
+BLOCKTYPE = (MOD / "assets" / "seraphhorizons" / "blocktypes" / "drawbench" / "frame.json").read_text()
 # the build order: the frame, gearbox, chain, dog, mandrel, die; the work is a lead or a copper hollow section, drawn into four pipe sections
 REQUIRES = {"gearbox", "chain", "dog", "mandrel", "die", "billetlead", "billetcopper", None}
 
@@ -170,6 +173,36 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual(heights[0], make_shape.OIL_EMPTY, places=5)
         self.assertAlmostEqual(heights[2], make_shape.OIL_FULL, places=5)
         self.assertAlmostEqual(heights[1], (heights[0] + heights[2]) / 2, places=5)
+
+
+class Textures(unittest.TestCase):
+    """The renderer draws every part with the frame block's texture source, so a code the shape uses and the
+    block does not declare renders white (the hollow's `leadsheet` and `coppersheet` once did)."""
+
+    @staticmethod
+    def block_textures():
+        (body,) = re.findall(r"\btextures:\s*\{(.*?)\n\t\}", BLOCKTYPE, re.S)
+        return dict(re.findall(r'"(\w+)":\s*\{\s*base:\s*"([^"]+)"', body))
+
+    def test_the_block_declares_every_texture_of_the_shape(self):
+        self.assertEqual(self.block_textures(), SHAPE["textures"])
+        for code, path in FRAME["textures"].items():
+            self.assertEqual(SHAPE["textures"][code], path, code)
+
+    def test_every_face_uses_a_declared_code(self):
+        for shape in (SHAPE, FRAME):
+            used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
+            self.assertLessEqual(used, set(shape["textures"]))
+
+    def test_every_texture_exists_in_the_game(self):
+        install = os.environ.get("VINTAGE_STORY")
+        if not install:
+            raise unittest.SkipTest("VINTAGE_STORY is not set to a game or server install")
+        assets = Path(install) / "assets"
+        for code, path in SHAPE["textures"].items():
+            domain, rel = path.split(":", 1)
+            self.assertEqual(domain, "game", code)
+            self.assertTrue((assets / "survival" / "textures" / f"{rel}.png").is_file(), f"{code}: {path}")
 
 
 if __name__ == "__main__":
