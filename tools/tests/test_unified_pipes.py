@@ -89,6 +89,18 @@ class UnifiedPipesPatchFitsPpex(unittest.TestCase):
             if i not in DISABLED:
                 self.assertIn("{brick}", recipe["output"]["code"])
 
+    def test_hydrate_patch_opens_well_shafts_to_the_pipes_and_valves(self):
+        # pipes-hydrateordiedrate.json gives ppex's pipes and valves "replaceable": 500, as Hydrate's
+        # own pipe has, so a pipe run down a well shaft leaves the spring its levels.
+        hod = loads((PATCHES / "pipes-hydrateordiedrate.json").read_text())
+        ops = [op for op in hod if op["file"].startswith("ppex:")]
+        self.assertEqual([f"ppex:blocktypes/pipes/{n}.json" for n in PIPES + VALVES], [op["file"] for op in ops])
+        for op in ops:
+            with self.subTest(file=op["file"]):
+                self.assertEqual(("add", "/replaceable", 500), (op["op"], op["path"], op["value"]))
+                self.assertEqual([{"modid": "hydrateordiedrate"}, {"modid": "ppex"}], op["dependsOn"])
+                self.assertNotIn("replaceable", {k.lower() for k in loads(self.assets[op["file"]])})
+
     def test_gear_consumers_patches_the_same_valves(self):
         gears = loads((PATCHES / "gearconsumers-ppex.json").read_text())
         touched = {op["path"].split("/")[1] for op in gears if op["file"] == "ppex:recipes/grid/pipes.json"}

@@ -460,7 +460,8 @@ in `AssetsLoaded`, as for Age of Flax. The switch that counts is the server's.
 
 Hydrate or Diedrate (`hydrateordiedrate` 2.5.6). A well spring counts the shaft above it level by
 level (`BlockEntityWellSpring.OnPeriodicShaftCheck`), and holds 70 liters per counted level. A
-level counts when its cell is open and all four horizontal neighbors are full liquid barriers, so
+level counts when its cell is open (air, or a block of `replaceable` 500 or more, such as a pipe: see
+"Unified pipes") and all four horizontal neighbors are full liquid barriers, so
 a shaft wider than one block counts no levels and the spring reads "Max Well Volume: 0 liters".
 Each wall block is rated for a depth: 5 by default (`WellwaterDepthMaxBase`), 7 for `game:brick*`
 (`WellwaterDepthMaxClay`) and 10 for `game:stonebrick*` (`WellwaterDepthMaxStone`). Those are
@@ -2068,6 +2069,14 @@ The winch, the keg and the wellspring never touch a pipe. With the switch on (an
 - **No leak at the ends.** A pipe's connector against a hand pump's underside, or against a wellspring,
   counts as sealed (a postfix on exlib's `BlockNetworkNode.IsValidNonNetworkConnection`), not as an open
   end leaking the run's water.
+- **Pipes down the shaft.** A spring counts its shaft level by level only while each cell is air or a
+  block of `replaceable` 500 or more (`WellBlockUtils.SolidAllows`, which also bounds the water a spring
+  governs, `FindGoverningSpring`), and Hydrate's own pipe is 500 for that. ppex's are 0, so a pipe run
+  down a shaft to its spring, the plain way to stand a pump over a well, closed the shaft: the spring
+  counted no levels and held nothing. The patch gives ppex's straight pipe, bend, T- and X-junction,
+  valve and pressure valve `"replaceable": 500` (not the brick passthroughs or the outlet, which are
+  walls). 500 is far below 5000 (washed away by water) and 6000 (replaced when a block is placed
+  there), so nothing else about them changes.
 - **The recipe.** The hand pump takes two ppex straight pipes of its metal (copper or lead) where it took
   two of Hydrate's; its handbook page says how it finds a spring (`handpump-handbook-*`).
 - **A fluid intake drains the well.** ppex's fluid intake accepts any water, Hydrate's well water
@@ -4146,7 +4155,10 @@ pump over seven upright ppex pipes of mixed metals finding the spring beside the
 Hydrate primes for seven (2 strokes at its default), the pipe ends under the pump and against the
 spring sealed, the spring lost and found again as a pipe is taken out and put back (Hydrate's network
 version moving) and as a ppex valve in the run is closed and opened, a spring right under a pump still
-found with no priming, and none through a run holding steam; and, over a full well, what a fluid
+found with no priming, and none through a run holding steam; ppex's pipes and valves of
+`replaceable` 500, and a rock well with a copper pipe run down its shaft to the spring and a pump on
+top counting its five levels (none with the pipe's `replaceable` put back to 0, as ppex ships it),
+filling and feeding the pump; and, over a full well, what a fluid
 intake produces taken out of the spring, never more than the spring holds. When it fails after a
 Hydrate or Diedrate or ppex update, check the names in `HandPumpBridge` and `HydratePipes` against the
 new versions.
