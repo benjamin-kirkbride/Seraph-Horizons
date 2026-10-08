@@ -31,6 +31,25 @@ public static class TradeGuard
         return GuardRefusal.None;
     }
 
+    /// <summary>What says the player's bags have no room for what they would buy.</summary>
+    public const string NoRoomKey = "trading-window-noroom";
+
+    /// <summary>
+    /// Whether <paramref name="quantity"/> items fit in the player's bags, given what each slot can
+    /// still take of them (<paramref name="room"/>: an empty slot that holds them, its stack limit; a
+    /// slot whose stack they merge with, what it lacks to its limit; any other, 0). Partial room in
+    /// several slots adds up, as the game spreads a stack it gives. Checked before a buy, so a trade
+    /// that would not fit is refused before any gears move rather than dropped at the player's feet.
+    /// </summary>
+    public static bool Fits(int quantity, IEnumerable<int> room)
+    {
+        if (quantity <= 0) return true;
+        long left = quantity;
+        foreach (int r in room)
+            if ((left -= Math.Max(0, r)) <= 0) return true;
+        return false;
+    }
+
     /// <summary>The lang key (mod domain) that says so.</summary>
     public static string Key(GuardRefusal refusal) => refusal switch
     {

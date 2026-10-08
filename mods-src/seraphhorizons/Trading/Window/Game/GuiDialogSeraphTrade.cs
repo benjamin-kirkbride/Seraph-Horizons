@@ -94,7 +94,8 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
     {
         var slot = (ItemSlotTrade)_inv[slotId];
         var a = slot.Itemstack!.Attributes;
-        return TradeWindowModel.MapStatus(a.GetString(MapOfferAttrs.Offer), a.GetString(MapOfferAttrs.LeadKind), slot.TradeItem?.Stock ?? 0, _state.LeadsToTraders);
+        return TradeWindowModel.MapStatus(a.GetString(MapOfferAttrs.Offer), a.GetString(MapOfferAttrs.LeadKind), slot.TradeItem?.Stock ?? 0, _state.LeadsToTraders,
+            _state.OwnedMaps.Contains(slotId));
     }
 
     /// <summary>What decides the layout: the tab, which slots hold what, and the server's state.</summary>
@@ -332,7 +333,8 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         else
         {
             var grid = AddGrid(gui, _inv, ids, 8, 0, y, "maps", "map");
-            var locked = Enumerable.Range(0, ids.Length).Where(i => StatusOf(ids[i]) == MapOfferStatus.Locked).ToList();
+            // Locked offers and ones the player has already are greyed out (hatched).
+            var locked = Enumerable.Range(0, ids.Length).Where(i => StatusOf(ids[i]) is MapOfferStatus.Locked or MapOfferStatus.Owned).ToList();
             if (locked.Count > 0) gui.AddInteractiveElement(new GuiElementSlotHatch(capi, ElementBounds.Fixed(0, y, width, 10), grid, locked), "hatch-maps");
             y += GridHeight(ids.Length, 8) + 6;
             foreach (int id in ids)
@@ -366,13 +368,10 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                 TradeWindowModel.Direction(a.GetAsInt(MapOfferAttrs.X) - _trader.Pos.X, a.GetAsInt(MapOfferAttrs.Z) - _trader.Pos.Z))),
             _ => stack.GetName(),
         };
-        string status = StatusOf(slotId) switch
-        {
-            MapOfferStatus.SoldOut => L("trading-window-map-soldout"),
-            MapOfferStatus.Locked => L("trading-window-map-locked", _state.Standing?.Tiers.ElementAtOrDefault(_state.LeadsTier) is { } t
-                ? T(TradeWindowModel.TierName(t.Code)) : ""),
-            _ => L("trading-window-map-price", slot.TradeItem?.Price ?? 0),
-        };
+        var lockedTier = _state.Standing?.Tiers.ElementAtOrDefault(_state.LeadsTier) is { } t ? TradeWindowModel.TierName(t.Code) : null;
+        string status = TradeWindowModel.MapStatusText(StatusOf(slotId), lockedTier) is { } why
+            ? T(why)
+            : L("trading-window-map-price", slot.TradeItem?.Price ?? 0);
         return $"{what} — {status}";
     }
 

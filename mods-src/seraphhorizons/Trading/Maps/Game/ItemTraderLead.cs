@@ -13,7 +13,8 @@ namespace SeraphHorizons.Mod.Trading.Maps;
 /// A lead to another trader camp (#455; item <c>seraphhorizons:traderlead</c>), like an ore map:
 /// what it knows is in the stack's attributes (<see cref="MapOfferAttrs"/>: kind, camp type, x, y,
 /// z), written when a trader sells it; right-click puts a pinned waypoint (icon <c>trader</c>,
-/// titled with the camp's type) on the reader's map, once per place, and keeps the lead. A lead
+/// titled with the camp's type and "approximate": a lead marks the camp's site, not its trader) on
+/// the reader's map through <see cref="MapMarksSystem"/>, once per camp, and keeps the lead. A lead
 /// from the creative inventory is blank; offers and leads being drawn read as such
 /// (<see cref="MapTradeHooks"/>).
 /// </summary>
@@ -53,30 +54,22 @@ public class ItemTraderLead : Item, ITradeableCollectible
         var a = stack.Attributes;
         int y = a.GetInt(MapOfferAttrs.Y);
         var pos = new Vec3d(a.GetInt(MapOfferAttrs.X) + 0.5, y > 0 ? y + 0.5 : api.World.SeaLevel, a.GetInt(MapOfferAttrs.Z) + 0.5);
-        string title = Title(lang, stack);
-        var layer = api.ModLoader.GetModSystem<WorldMapManager>()?.MapLayers.OfType<WaypointMapLayer>().FirstOrDefault();
-        if (!byEntity.World.Config.GetBool("allowMap", true) || layer == null)
+        string title = MapMarksSystem.Title(lang, Title(lang, stack), MapMarks.LeadPrecision, lead: true);
+        var outcome = MapMarksSystem.Of(api) is { } marks && MapMarksSystem.TargetOf(stack) is { } target
+            ? marks.Mark(player, target, pos, title, "trader", MapMarksSystem.TraderColor)
+            : MapMarksSystem.Outcome.NoMap;
+        switch (outcome)
         {
-            var d = pos.Clone().Sub(byEntity.Pos.XYZ);
-            d.Y = 0;
-            player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:trading-maps-lead-distance", title, (int)d.Length()),
-                EnumChatType.Notification);
-            return;
+            case MapMarksSystem.Outcome.NoMap:
+                var d = pos.Clone().Sub(byEntity.Pos.XYZ);
+                d.Y = 0;
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:trading-maps-lead-distance", title, (int)d.Length()),
+                    EnumChatType.Notification);
+                return;
+            case MapMarksSystem.Outcome.Already:
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-marked-already"), EnumChatType.Notification);
+                return;
         }
-        if (layer.Waypoints.Any(w => w.OwningPlayerUid == player.PlayerUID && w.Position.X == pos.X && w.Position.Z == pos.Z))
-        {
-            player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-marked-already"), EnumChatType.Notification);
-            return;
-        }
-        layer.AddWaypoint(new Waypoint
-        {
-            Color = ColorUtil.ColorFromRgba(90, 160, 220, 255),
-            Icon = "trader",
-            Pinned = true,
-            Position = pos,
-            OwningPlayerUid = player.PlayerUID,
-            Title = title,
-        }, player);
         player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:trading-maps-lead-marked", title), EnumChatType.Notification);
     }
 

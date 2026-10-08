@@ -21,7 +21,7 @@ namespace SeraphHorizons.PackTests;
 /// <para>As in <see cref="SharedWorldScenarios"/>, every scenario shares the world with every other,
 /// in no set order: its own offsets from <c>World.Spawn</c> (Economy on the diagonals at 30 and 40,
 /// Orders on the axes at 25 and 40, Standing at (±15, ∓35) and (±35, ±15), Window at (±20, ±55) and
-/// (55, ±20), Visitors 50 up at 70 out),
+/// (±55, ±20), Visitors 50 up at 70 out),
 /// nothing changed world-wide left behind, and <see cref="ReadsBootLogAttribute"/> on a scenario that
 /// reads the boot's log. Two things differ from a plain shared class:</para>
 /// <list type="bullet">
