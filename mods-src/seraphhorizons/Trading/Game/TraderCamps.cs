@@ -588,9 +588,7 @@ public sealed class TraderCamps
             if (_traderCodes.TryGetValue(code, out bool known)) return known;
             var loc = new AssetLocation(code);
             var props = _api.World.GetEntityType(loc);
-            bool trader = loc.Domain != SeraphHorizonsSystem.HarmonyId
-                          && props != null
-                          && (props.Class == "EntityTrader" || loc.Path.StartsWith("trader-") || loc.Path.Contains("-trader-"));
+            bool trader = props != null && HandbookTraders.IsOtherTrader(loc.Domain, loc.Path, props.Class);
             _traderCodes[code] = trader;
             return trader;
         }
