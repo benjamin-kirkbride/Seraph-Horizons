@@ -8,13 +8,13 @@ using Vintagestory.API.MathTools;
 namespace SeraphHorizons.Mod.TrunkEntities;
 
 /// <summary>
-/// A trunk as good as solid to whoever walks into it: an agent whose collision box overlaps any of
-/// the trunk's turned boxes is moved out the shortest way (<see cref="TrunkPush"/>), at most
+/// A trunk as good as solid to whoever walks into it: an agent whose collision box (as a cylinder)
+/// is in the trunk's oriented footprint is moved out the shortest way (<see cref="TrunkPush"/>), at most
 /// <see cref="TrunkPush.MaxStep"/> a step, and its motion into the trunk is stopped; one whose
 /// feet are near the top is lifted onto it and stands there. The trunk itself is never moved by
 /// this, and its driver (mounted, standing just beyond its end) is left alone. The game's
 /// <c>repulseagents</c> shoves only by the trunk's square middle hitbox, at most 0.1 blocks per
-/// 1/60 s of motion; this acts on every box, by position.
+/// 1/60 s of motion; this acts on the whole trunk, by position.
 /// <para>Server side every game tick for every agent near a trunk (<see cref="EntityTrunk"/>'s
 /// tick), and on the client every frame for the local player (<see cref="ClientRenderer"/>, right
 /// after the game's player physics), since a player's position is their client's to say: the
@@ -37,7 +37,7 @@ public static class TrunkSolid
             return false;
         var box = new Box((float)(ox + cb.X1), (float)(oy + cb.Y1), (float)(oz + cb.Z1),
                           (float)(ox + cb.X2), (float)(oy + cb.Y2), (float)(oz + cb.Z2));
-        if (TrunkPush.Out(TrunkBoxes.Turned(trunk.TypeClass, tp.Yaw), box) is not { } exit)
+        if (TrunkPush.Out(TrunkPush.Footprint.Of(trunk.TypeClass, tp.Yaw), box) is not { } exit)
             return false;
         // Onto the top: the whole way, so a player standing there stays put.
         var (dx, dy, dz) = exit.Step(exit.Up ? 0 : maxStep);

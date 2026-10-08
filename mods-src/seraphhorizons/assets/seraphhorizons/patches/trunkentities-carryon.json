@@ -2,17 +2,21 @@
 // file while trunk entities do not run.
 // - Logging Expanded's own patch gives the tree trunk a Carryable (slot Hands, server side). This
 //   second one is merged into it by Carry On (overrideExistingProperties with a higher
-//   patchPriority, so the order of the two patches does not matter): Logging Expanded's own carry
-//   animations by size, trunkcarry for sizes xs to lg and trunkcarryheavy for xl and xxl. Only lg
-//   (a thin trunk) and xxl (a thick one) are ever carried: TrunkCarry gives Carry On the block of
-//   the trunk's class's model (TrunkCarry.Shown) and keeps the real one in its attributes, so the
-//   two animations are thin and thick. A shoulder transform of its own (not Carry On's
-//   carry-trunk, which is the template for the game's storage trunk, a chest carried across the
-//   front): the standing trunk block is tipped over about its centre by rotationX, since in Carry
-//   On's hands frame z runs front to back, so it lies front to back on the shoulder. No swap to
-//   the back (trunks are Hands only: TrunkCarry also strips any Back slot and lays a trunk found
-//   on a back down), and no walk speed of Carry On's own: the pack sets the walk speed from the
-//   trunk's logs. Server side: the client gets the blocks from it.
+//   patchPriority, so the order of the two patches does not matter): Logging Expanded's animations
+//   for a trunk held as an item (its heldTpIdleAnimation), trunkcarry for sizes xs to lg and
+//   trunkcarryheavy for xl and xxl, in place of Carry On's holdheavy, which Logging Expanded's own
+//   patch leaves. Only lg (a thin trunk) and xxl (a thick one) are ever carried: TrunkCarry gives
+//   Carry On the block of the trunk's class's model (TrunkCarry.Shown) and keeps the real one in
+//   its attributes, so the two animations are thin and thick. No transform of its own: the block
+//   gets Carry On's default (half size about its centre), as with Logging Expanded alone, whose
+//   patch sets none either. The trunk block already lies along z; the transforms this patch had
+//   before (Carry On's carry-trunk template, then a rotationX of 90 for a trunk wrongly taken to
+//   stand upright) stood it on end in first person and lifted it off the shoulder in third. In
+//   third person Carry On hangs the block on its FrontCarry point, on the left forearm, so the
+//   animation's raised left arm is what puts it at the shoulder. No swap to the back (trunks are
+//   Hands only: TrunkCarry also strips any Back slot and lays a trunk found on a back down), and
+//   no walk speed of Carry On's own: the pack sets the walk speed from the trunk's logs. Server
+//   side: the client gets the blocks from it.
 //   The game merges propertiesByType into properties (arrays concatenated), so the shared settings
 //   are in properties only.
 // - The trunk entity types get the pack's pick-up (sneak + right click, EntityBehaviorTrunkCarry).
@@ -24,10 +28,7 @@
       "properties": {
         "patchPriority": 1,
         "overrideExistingProperties": true,
-        "preventSwapBack": true,
-        "transformGroups": {
-          "hands": [{ "id": "root", "translation": [0.35, 0.6, -0.5], "rotationX": 90.0, "origin": [0.5, 0.5, 0.5] }]
-        }
+        "preventSwapBack": true
       },
       "propertiesByType": {
         "*-xs-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
