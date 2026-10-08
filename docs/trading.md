@@ -52,7 +52,16 @@ Game 1.22.7; decompiled sources of `VSSurvivalMod` (`Vintagestory.GameContent`) 
   `DialogueController.DialogTriggers`) is the clean place for orders and deliveries.
 - **Handbook**: `TradeHandbookInfo` builds "sold by / bought by" from each entity type's
   `tradePropsFile`/`tradeProps`, as does the recipe exporter (`tools/recipe-export/Items/SourceIndex.cs`).
-  Our types have neither (see open problems).
+  It runs at the client's `LevelFinalize` and adds one trader's name to one item's section in the
+  private `AddTraderHandbookInfo(TradeItem, string traderName, string title)`, the name being
+  `Lang.GetMatching("{domain}:item-creature-{path}")`. Our types have neither (see open problems).
+  In a grid world the traders the grid replaces are skipped there (`Trading/Game/TraderHandbook.cs`).
+- **Story schematics**: `WorldGenStoryStructure.schematicData` (internal, VSEssentials) is loaded at
+  `GenStoryStructures.InitWorldGen` for every story structure, and not at all without lore content
+  (`scfg` stays null). A spawner's block entity data decodes (`BlockSchematic.DecodeBlockEntityData`)
+  to a tree with `entityCodes`. Measured 2026-10-08 in a survival world: vanilla's treasure hunter
+  spawns `game:trader-{male,female}-treasurehunter-temperate`; BetterRuins' story ruins name
+  `game:humanoid-trader-{clothing,foods,furniture,treasurehunter}`, codes no entity type has in 1.22.
 
 ### Death and respawn
 
@@ -891,9 +900,10 @@ values") is what off-list prices start from and what the list-pay tests hold the
 ## Open problems
 
 - The handbook's and the recipe browser's "sold by" read vanilla-format lists from entity attributes
-  (`tradePropsFile`/`tradeProps`); our types have none, so neither shows them, and both still show
-  vanilla's traders. Needs either a flattened vanilla-format view per type or the exporter learning
-  our format.
+  (`tradePropsFile`/`tradeProps`); our types have none, so neither shows them. In a grid world both
+  leave out the traders the grid replaces (seraphhorizons README, "Traders"), so they list only the
+  story traders (the treasure hunter) and villagers. Showing ours needs either a flattened
+  vanilla-format view per type or the exporter learning our format.
 - A camp's spots are decided as chunks generate, so two worlds of the same seed explored in different
   orders can end up with a camp at a different spot of the same cell (or none). `/sh trade camps`
   shows what each world did.

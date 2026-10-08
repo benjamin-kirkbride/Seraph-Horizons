@@ -1,7 +1,7 @@
 // Turns one export into the files the app loads (see format.ts). Everything that needs
 // the whole data set, the reverse indexes above all, is computed here so the browser
 // only ever fetches what one page shows.
-import type { Recipe, RecipeExport, Shape } from "./export.ts";
+import type { Recipe, RecipeExport, Shape, Source } from "./export.ts";
 import {
   DATA_FORMAT,
   FLAG_BLOCK,
@@ -149,6 +149,15 @@ function pushTo(map: Record<string, number[]>, key: string, value: number) {
 
 const ENTITY_SOURCES = new Set(["entityDrop", "traderSells", "traderBuys"]);
 
+/**
+ * The sources the site shows: the trades of a trader the pack replaces (`extra.replaced`: its
+ * trader grid turns the spawners of the game's and other mods' traders into its own, so that
+ * trader is never met) are left out, as the pack leaves them out of the handbook.
+ */
+export function shownSources(sources: readonly Source[] | undefined): Source[] {
+  return (sources ?? []).filter((s) => s.extra?.replaced !== true);
+}
+
 /** The mod that owns an asset domain: the mod of that id, else one that lists the domain. */
 function modOfDomain(exp: RecipeExport, domain: string): string {
   if (exp.mods[domain]) return domain;
@@ -216,7 +225,7 @@ export function entitiesFrom(
     recipesOf.set(b.entityType, list);
   });
   codes.forEach((code, item) => {
-    for (const { from, fromName, ...rest } of exp.items[code]!.sources ?? []) {
+    for (const { from, fromName, ...rest } of shownSources(exp.items[code]!.sources)) {
       if (!ENTITY_SOURCES.has(rest.type)) continue;
       const declared = rest.extra?.entityType;
       const type = typeof declared === "string" && declared !== "" ? declared : from;
@@ -322,7 +331,8 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     const d: ItemDetail = {};
     if (item.description) d.description = item.description;
     if (item.attributes && Object.keys(item.attributes).length > 0) d.attributes = item.attributes;
-    if (item.sources && item.sources.length > 0) d.sources = item.sources;
+    const sources = shownSources(item.sources);
+    if (sources.length > 0) d.sources = sources;
     details.push(d);
   }
 

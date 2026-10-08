@@ -232,9 +232,21 @@ internal sealed class SourceIndex
         Add(stack.Collectible.Code.ToString(), s);
     }
 
-    /// <summary>Same lookup as the game's TradeHandbookInfo: a trade list file, or inline tradeProps.</summary>
+    /// <summary>
+    /// The world config key under which seraphhorizons lists the traders its handbook leaves out
+    /// (<c>TraderHandbookSystem.HiddenKey</c>, a string array of entity codes): the game's and
+    /// other mods' traders its trader grid replaces, never met in its worlds.
+    /// </summary>
+    public const string HiddenTradersKey = "seraphhorizons:handbookHiddenTraders";
+
+    private HashSet<string>? _hiddenTraders;
+
+    /// <summary>Same lookup as the game's TradeHandbookInfo: a trade list file, or inline tradeProps.
+    /// The trades of a trader seraphhorizons hides from its handbook carry <c>extra.replaced</c>:
+    /// the site leaves them out, and the item values still read their prices.</summary>
     private void AddTrader(EntityProperties entity, string from, string fromName, string type)
     {
+        _hiddenTraders ??= ((_api.World.Config?[HiddenTradersKey] as StringArrayAttribute)?.value ?? []).ToHashSet(StringComparer.Ordinal);
         var file = entity.Attributes?["tradePropsFile"].AsString(null);
         if (file == null && entity.Attributes?["tradeProps"].Exists != true) return;
         TradeProperties? props;
@@ -250,11 +262,12 @@ internal sealed class SourceIndex
             return;
         }
         if (props == null) return;
-        AddTrades(props.Selling?.List, "traderSells", from, fromName, type);
-        AddTrades(props.Buying?.List, "traderBuys", from, fromName, type);
+        bool replaced = _hiddenTraders.Contains(from);
+        AddTrades(props.Selling?.List, "traderSells", from, fromName, type, replaced);
+        AddTrades(props.Buying?.List, "traderBuys", from, fromName, type, replaced);
     }
 
-    private void AddTrades(TradeItem[]? list, string type, string from, string fromName, string entityType)
+    private void AddTrades(TradeItem[]? list, string type, string from, string fromName, string entityType, bool replaced)
     {
         foreach (var trade in list ?? [])
         {
@@ -268,6 +281,7 @@ internal sealed class SourceIndex
             if (trade.Stock != null) extra["stock"] = Json.Quantity(trade.Stock);
             if (trade.Attributes is { Exists: true } && trade.Attributes.Token is JObject attrs && attrs.Count > 0)
                 extra["attributes"] = attrs.DeepClone();
+            if (replaced) extra["replaced"] = true;
             s["extra"] = extra;
             Add(stack.Collectible.Code.ToString(), s);
         }
