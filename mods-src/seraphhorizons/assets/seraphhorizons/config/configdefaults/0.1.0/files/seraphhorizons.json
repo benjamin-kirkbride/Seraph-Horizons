@@ -72,6 +72,8 @@
     "ThinTree": 4,
     "ThickTree": 8
   },
+  "LocomotiveRidersStayOn": true,
+  "LocomotiveRidersBreathe": true,
   "OreCells": true,
   "OreCellSizeMetres": 5000,
   "OreCellSizeByMetal": {},
