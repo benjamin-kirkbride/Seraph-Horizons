@@ -5,6 +5,8 @@ using SeraphHorizons.Mod.Trading;
 using SeraphHorizons.Mod.Trading.Glue;
 using SeraphHorizons.Mod.Trading.Maps;
 using SeraphHorizons.Mod.Trading.Standing;
+using SeraphHorizons.Mod.Trading.Window;
+using SeraphHorizons.Mod.Trading.Window.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -17,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Trading/Maps (#455) and the wave-2 glue, in a new standard world with a
 /// fixed seed (ore cells, placer fields and the camp grid on): a prospector's shelf offers ore maps
 /// from the deposit registry (which lists deposits whose chunks nobody generated), buying one through
-/// the trader's own trade packet yields a real ore map and marks the deposit sold, another trader
+/// the trade window (its server side: one unit, held) yields a real ore map and marks the deposit sold, another trader
 /// no longer offers it, a general store offers a gravel map exactly when a field is in reach, a lead
 /// marks a camp, and standing changes the prices a trader quotes.
 /// </summary>
@@ -48,7 +50,8 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private async Task<IServerPlayer> Buyer(string name, EntitySeraphTrader trader)
     {
         var p = await World.JoinPlayer(name);
-        await p.TeleportTo(trader.Pos.AsBlockPos.AddCopy(2, 0, 0));
+        // Within vanilla's trading reach (a squared distance of 5 closes the trade).
+        await p.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
         await p.GiveItem("game:gear-rusty", 64);
         var sp = (IServerPlayer)p.Player;
         sp.WorldData.CurrentGameMode = EnumGameMode.Survival;
@@ -71,15 +74,14 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private static List<ItemSlotTrade> Offers(EntitySeraphTrader trader, string offer) =>
         trader.Inventory.SellingSlots.Where(s => s.Itemstack?.Attributes.GetString(MapOfferAttrs.Offer) == offer).ToList();
 
-    /// <summary>Buys one lot of a selling slot through the trade packet (the dialog's button).</summary>
+    /// <summary>Buys one lot of a selling slot through the trade window: its Buy request, as a
+    /// completed hold sends it.</summary>
     private void Buy(EntitySeraphTrader trader, IServerPlayer player, ItemSlotTrade selling)
     {
-        var inv = trader.Inventory;
-        var cart = inv.GetBuyingCartSlot(0);
-        cart.Itemstack = selling.TradeItem.Stack.Clone();
-        cart.Itemstack.ResolveBlockOrItem(W);
-        cart.TradeItem = selling.TradeItem;
-        trader.OnReceivedClientPacket(player, 1000, []);
+        int slot = Array.IndexOf(trader.Inventory.SellingSlots, selling);
+        Assert.True(slot >= 0);
+        var result = TradeWindowSystem.Of(Api)!.Handle(player, trader, new TradeRequest { Action = TradeAction.Buy, Slot = slot });
+        Assert.True(result.Ok, $"{result.Key} {string.Join(",", result.Args)}");
     }
 
     private static ItemSlot? Holding(IServerPlayer player, AssetLocation code, System.Func<ItemStack, bool> match)

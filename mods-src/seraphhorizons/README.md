@@ -2694,8 +2694,58 @@ cut, every rock panning copper, the registry listing from the seed, verifying an
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
-worth, regional supply, standing, schematics, maps, orders and travelling merchants, and the admin
-tools for both overhauls. Design and engine notes are in `docs/trading.md`.
+worth, regional supply, standing, schematics, maps, orders and travelling merchants, the pack's own
+trade window, and the admin tools for both overhauls. Design and engine notes are in
+`docs/trading.md`.
+
+### Trade window (no switch)
+
+The pack's traders trade through a window of their own (`Trading/Window/`), opened by the
+dialogue's "Got anything to trade?"; vanilla's trade dialog stays for every other trader (story
+NPCs, vanilla worlds). The header names the trader, its type and region and shows your standing:
+the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800]"). Tabs:
+
+- **Trade**: what the trader sells and what it buys (item, price and stock on hover), and below,
+  hatched, the goods your standing does not unlock yet with the tier that does (its rare stock,
+  schematics and other gated goods). There are no carts and no Deal button: click a good to see it,
+  hold the mouse on it to buy one lot (a ring fills, as Carry On's hold to pick up), keep holding to
+  buy the next. To sell, put a stack in the sell slot: it shows what the trader pays for it, or why
+  it won't take it; hold Hold to sell to sell one lot, keep holding for more. What is left in the
+  sell slot comes back to you when the window closes. While the window is open, the tooltip of
+  anything in your inventory says what this trader pays for it (with the breakdown and which budget
+  pays) or why not.
+- **Orders (n)**: the trader's orders on offer and yours there: the item, how many and how many
+  delivered, the price per item, the premium and the time left; Take, and Hand in (from anywhere in
+  your inventory).
+- **Deliveries (n)**: the trader's offer (where, how far and which way, the deposit, the fee, the
+  time) with Take and Mark on map, your packages from or for it, and Hand in at the receiver.
+- **Maps & leads**: ore maps (metal, size, distance, precision), the gravel map and leads (target,
+  distance, direction); sold-out and locked ones say why. Bought by holding, as goods.
+- **Standing**: the five tiers with their thresholds, yours marked, what it gives you against the
+  next, and how to earn standing.
+
+The footer shows your gears, the trader's, and its side budget for goods off its list. A feature
+switched off (`TraderStanding`, `TraderOrders`, `TraderDeliveries`, `TraderMaps`,
+`EverythingHasAPrice`) has no tab or line. The window works only next to the trader: it closes when
+you walk away, and the server refuses a trade from anyone but the player trading, from further
+than the trade's reach. Every trade is made at once on the server, one lot at a time, through the
+game's own deal, so money, stock, the wallet and side budget, supply, standing, orders and the map
+checks apply as they did.
+
+Talking to a pack trader also offers "How do you see me these days?" (while `TraderStanding` is
+on): the trader says where you stand, what that gives you and what the next tier unlocks, and how to
+earn more, with the numbers in square brackets after each line. The pack ships the dialogue its
+traders use (`assets/seraphhorizons/config/dialogue/trader.json`, made from the game's by
+`Trading/tools/make_entities.py`); BetterRuins' quest dialogues for the curio dealer and the farmer
+get the same option by patch.
+
+Tests: `tests/Trading/Window/` (tabs, header and footer, every tab's lines, the standing reply, hold
+timing, the request guard, locked stock, the wire format); `tests/PackTests/TradingWindowScenarios.cs`
+(Atlas: one lot bought moving gears, stock and standing; one sold off the list from the side budget,
+an empty side budget and money refused, the rest given back on closing; refused from afar, for
+another player and for a trader gone; an order taken and handed in; a delivery taken and marked on
+the map; every pack trader's dialogue, BetterRuins' included, with the standing option, the reply's
+numbers, and every line the window shows in the lang file).
 
 ### Traders (`TraderGrid`)
 
@@ -2714,8 +2764,9 @@ flux and buys metal.
 `TraderGrid` (server, default on) places lone camps on a seeded 2 km grid, about one per 2 km cell,
 in place of the game's randomly placed ones; the camp kinds are the game's, BetterTraders' and the
 other mods' camp buildings, chosen by climate as the game does, and the trader in a camp is the
-cell's type. Neighbouring cells never have the same type, and a prospector is never more than two
-cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
+cell's type. A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
+keeps its own trader: a story NPC, with its own dialogue. Neighbouring cells never have the same
+type, and a prospector is never more than two cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
 takes the grid at its first start with this mod if the switch is on then, and keeps that; an existing
 world keeps vanilla's camps and traders. Turned off later, the world's new chunks get the game's camps
 again. The trader types and their lists exist either way.
@@ -2726,9 +2777,11 @@ radius blocks (default 4096) with their type and camp, or the spot not generated
 
 Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
 state, the shipped lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
-(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere, a
-spawned trader stocking from its list, the game's camps taken over, the spawner rewrite, a cell's
-camp being decided, `/sh trade camps`, and nothing logged).
+(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere,
+every trader's trade window title and name, a spawned trader stocking from its list, the game's camps
+taken over, the spawner rewrite, a cell's camp being decided, `/sh trade camps`, and nothing logged);
+`tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
+treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten).
 
 ### Item base values (no switch)
 
@@ -2855,9 +2908,9 @@ quarter of the trader's wallet, refilled at every restock. Cheap goods sell by t
 a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot for the
 same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than a gear per
 stack, goods the value table doesn't know, and goods that at this trader come to under a gear per full
-stack. The selling cart's tooltip shows the offer's breakdown (value × spread × fit × supply) and which
-budget pays, a refused good says why, and the dialog's gain and money lines show the side budget's
-share and what is left in it. Switches: `EverythingHasAPrice` (default on) and `BuySpread` (0.01–1,
+stack. The trade window's sell slot and the tooltips of your own items show the offer's breakdown
+(value × spread × fit × supply) and which budget pays, a refused good says why, and the window's
+footer shows what is left in the side budget. Switches: `EverythingHasAPrice` (default on) and `BuySpread` (0.01–1,
 default 0.2); the server's settings go to its clients with each trader.
 
 Admin: `/sh trade price [item]` shows what the nearest trader (16 blocks) pays for an item, or the
@@ -2892,8 +2945,8 @@ once supply is high).
 
 Each trader remembers you (#452, `Trading/Standing/`, server side, default on). Standing is kept per
 player and trader: a camp's trader is its grid cell (`camp:x,z`, so the camp's next trader knows you
-too), any other of the pack's traders its entity (`entity:n`). Every deal through the trade dialog
-earns a point per gear changing hands, either way; orders and deliveries (later waves) earn more, at
+too), any other of the pack's traders its entity (`entity:n`). Every deal in the trade window
+earns a point per gear changing hands, either way; orders and deliveries earn more, at
 both ends of a delivery made on time. Standing is lost only by failing a delivery or abandoning an
 order, never below 0. A tenth of your best standing with another trader of the same type within
 `TraderStandingSpilloverKm` (default 6) counts too, through the grid's placed camps.
@@ -2904,9 +2957,9 @@ map tier and maps to other traders, a price factor each way, the wallet tier, or
 size, rare stock. The wallet and the shelves follow the best tier among players who traded with the
 trader in the last 14 days (its gears are topped up towards that tier's wallet at the weekly
 restock; its rare stock, schematics and further leads are shelved for it), and the player trading
-gets their own tier's prices and map precision (see "Maps and leads"). Opening a
-trader's dialog shows your standing there in chat once a visit (the game's trade dialog is client
-side and closed to additions), with the next tier; reaching a tier says so.
+gets their own tier's prices and map precision (see "Maps and leads"). The trade window's header
+and Standing tab show your standing there, and the trader tells you when you ask "How do you see me
+these days?" (see "Trade window"); reaching a tier says so in chat.
 
 Admin (`controlserver`): `/sh trade standing <player> [trader]` lists a player's standing with every
 trader they or their company have a record with, or one trader in detail with its recent events;
@@ -2936,7 +2989,7 @@ shipped tiers, company choice, merge by max on joining, leaving keeping the pers
 routing, disband); `tests/PackTests/TradingStandingScenarios.cs` (Atlas: a deal through the trade
 packet raises standing by its gears and a failed one does not, a higher tier raising the wallet at the
 next restock, a company made with the server's group manager pooling by max through `/sh company`
-and `/group leave` leaving the player their own, the chat line).
+and `/group leave` leaving the player their own).
 
 ### Schematics (`TraderSchematics`, `MachineSchematics`)
 
@@ -3027,38 +3080,39 @@ or leads back.
 
 The shelf is shared, so it is stocked for the best customer of the last 14 days: the further leads
 (and rare stock) stay on it for a stranger until the next restock after that customer stops coming,
-but a stranger can't buy them. The trade dialog shows the player trading their own prices and map
-precision (one player trades with a trader at a time).
+but a stranger can't buy them (the window shows them hatched, with the tier that sells them). The
+trade window shows the player trading their own prices and map precision (one player trades with a
+trader at a time).
 
 Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
 table, lead targets); `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's
-ore map offers, buying one through the trade packet, the registry marked sold and no other trader
+ore map offers, buying one through the trade window, the registry marked sold and no other trader
 offering it, a gravel map offered exactly when a field is in reach, a lead marking a camp, standing
 changing a trader's prices and map precision).
 
 ### Orders and deliveries (`TraderOrders`, `TraderDeliveries`)
 
 Traders give work (#453, #454; `Trading/Orders/`, `Trading/Deliveries/`, notes in
-`docs/trading.md`), server side, both default on. Players deal by chat command next to a trader
-(within 8 blocks); opening a trade dialog says in chat what is on.
+`docs/trading.md`), server side, both default on. Players take and hand in both in the trade
+window's Orders and Deliveries tabs (see "Trade window").
 
 **Standing orders** (`TraderOrders`): at every restock a trader puts up to one or two orders on
 offer, each for something its list buys where it stands: about 5 gears' worth at its normal price,
 in whole lots, with a premium of 1.3–1.6× over that price, held back from its wallet then (a trader
-too poor makes none). `/sh order` lists them and yours there; `/sh order accept <id>` takes one,
-scaled by your standing's `orderScale` (1 for a stranger, 4 for a partner) as far as the wallet
-covers the bigger premium, and gives you 3–6 days. Sell the goods through the trade dialog as usual,
-or hold them and `/sh order handin`: each item pays its normal price and its share of the premium,
+too poor makes none). The Orders tab lists them and yours there; Take takes one, scaled by your
+standing's `orderScale` (1 for a stranger, 4 for a partner) as far as the wallet covers the bigger
+premium, and gives you 3–6 days. Sell the goods to the trader as usual, or carry them and Hand in:
+each item pays its normal price and its share of the premium,
 the last one the rest and standing (`order` points). An order you took and delivered nothing for by
 the deadline is abandoned and costs standing; delivered in part, it just ends.
 
-**Deliveries** (`TraderDeliveries`): `/sh delivery` next to a trader shows its offer: a package for
+**Deliveries** (`TraderDeliveries`): the Deliveries tab shows a trader's offer: a package for
 another camp within `deliveryScale` × 3 km (none for strangers; a camp of another type where there is
 one), with a deadline from the walk (5 minutes a km, half again as slack, at least 5 minutes, in game
 time at the world's calendar speed: 2 km is 7.5 game hours by default), a deposit of 10–30 % of the
-package's value from your gears and a fee of 20–40 %. `/sh delivery accept` takes it and hands you a
+package's value from your gears and a fee of 20–40 %. Take takes it and hands you a
 `seraphhorizons:package` (can't be opened, says where it goes and how long is left); one at a time
-per sender. `/sh delivery handin` at the receiver: on time, your deposit back, the fee from its
+per sender; Mark on map puts the destination on your world map. Hand in at the receiver: on time, your deposit back, the fee from its
 wallet and standing at both ends; up to a game day late, the deposit and half the fee and standing at
 the receiver; later, the delivery fails: the deposit is gone, standing with the sender drops, and the
 package is junk. Packages go only to the grid's camps, so a world without the grid has no deliveries.
@@ -3072,10 +3126,10 @@ clocks on. Saved with the world (`seraphhorizons:orders`, `seraphhorizons:delive
 
 Tests: `tests/Trading/Orders/`, `tests/Trading/Deliveries/` (generation and scaling, the premium
 maths, deadline conversion, both state machines, which outcome calls which standing hook);
-`tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's orders, one filled through
-the trade packet paying its premium and standing, one abandoned by `simulate`, a delivery between two
-spawned traders handed in on time for deposit and fee, one failing past its grace and keeping the
-deposit).
+`tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's orders, one taken and filled
+by selling in the trade window paying its premium and standing, one abandoned by `simulate`, a
+delivery between two spawned traders handed in on time through the receiver's window for deposit and
+fee, one failing past its grace and keeping the deposit).
 
 ### Travelling merchants (`TravellingMerchants`, `TravellingMerchantMinSupply`)
 

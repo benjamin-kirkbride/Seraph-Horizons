@@ -590,8 +590,9 @@ public class SeraphHorizonsConfig
     public bool MachineSchematics { get; set; } = true;
 
     /// <summary>Standing orders (#453, README "Orders and deliveries"): each trader asks for one or
-    /// two lots of what it buys at a premium, taken with <c>/sh order</c> and delivered through the
-    /// trade dialog or by hand; an order taken and left undelivered costs standing. Server side.</summary>
+    /// two lots of what it buys at a premium, taken in the trade window's Orders tab and delivered by
+    /// selling the goods or handing them in there; an order taken and left undelivered costs standing.
+    /// Server side.</summary>
     public bool TraderOrders { get; set; } = true;
 
     /// <summary>Deliveries (#454, README "Orders and deliveries"): a trader hands a player a package for

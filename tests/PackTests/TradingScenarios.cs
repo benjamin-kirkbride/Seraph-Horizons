@@ -14,13 +14,14 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// The trading scenarios that need nothing but the plain world (no camps, no data files), one
 /// partial file per feature: TradingEconomy, TradingOrders, TradingValues, TradingStanding,
-/// TradingSchematics and TradingVisitors (each <c>Trading*Scenarios.cs</c>), on one server boot
+/// TradingSchematics, TradingVisitors and TradingWindow (each <c>Trading*Scenarios.cs</c>), on one server boot
 /// (Atlas boots one per scenario class, 45 to 55 s each in CI). The trading classes on seeded
 /// standard worlds (<see cref="TradingCoreScenarios"/>, <see cref="TradingMapsScenarios"/>,
 /// <see cref="TradingAdminScenarios"/>) stay classes of their own.
 /// <para>As in <see cref="SharedWorldScenarios"/>, every scenario shares the world with every other,
 /// in no set order: its own offsets from <c>World.Spawn</c> (Economy on the diagonals at 30 and 40,
-/// Orders on the axes at 25 and 40, Standing at (±15, ∓35) and (±35, ±15), Visitors 50 up at 70 out),
+/// Orders on the axes at 25 and 40, Standing at (±15, ∓35) and (±35, ±15), Window at (±20, ±55) and
+/// (55, ±20), Visitors 50 up at 70 out),
 /// nothing changed world-wide left behind, and <see cref="ReadsBootLogAttribute"/> on a scenario that
 /// reads the boot's log. Two things differ from a plain shared class:</para>
 /// <list type="bullet">

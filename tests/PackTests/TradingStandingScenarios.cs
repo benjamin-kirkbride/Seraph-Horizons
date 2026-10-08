@@ -12,8 +12,9 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// mods-src/seraphhorizons/Trading/Standing: standing per trader (#452) and companies (#463)
-/// against the pinned mods. Deals go through the trader's own trade packet (1000, the dialog's
-/// button) with carts filled as the game's dialog fills them; groups are made through the server's
+/// against the pinned mods. Deals go through the trader's own trade packet (1000, vanilla's dialog's
+/// button, which the pack's traders still honour) with carts filled as the game's dialog fills them
+/// (the pack's own window, TradingWindowScenarios, deals one unit at a time through the same deal); groups are made through the server's
 /// group manager and its player data, and left with <c>/group leave</c>. Atlas' default world: no
 /// camps, so traders are known by their entity.
 /// </summary>
@@ -53,6 +54,8 @@ public partial class TradingScenarios
         var sp = (IServerPlayer)p.Player;
         await p.GiveItem("game:gear-rusty", 32);
         var inv = trader.Inventory;
+        // Vanilla's deal packet is honoured only from the trading player.
+        Assert.True(trader.BeginTrade(sp));
 
         // Buy the cheapest thing on the shelf, and sell back something the trader buys.
         var selling = inv.SellingSlots.Where(s => s.TradeItem is { Stock: > 0 }).OrderBy(s => s.TradeItem.Price).First();
@@ -190,19 +193,5 @@ public partial class TradingScenarios
         Assert.Null(Standing.Ledger.Companies.Record(acme.Uid));
         trader.Die(EnumDespawnReason.Removed);
         Api.Groups.RemovePlayerGroup(other);
-    }
-
-    [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Opening_the_trade_dialog_shows_standing_once_a_visit()
-    {
-        FreshSupply();
-        var trader = await SpawnTrader("generalstore", -35, -15);
-        var p = await At(await Customer(), trader);
-        var line = StandingText.Line(trader, Standing.ViewFor(p.Player.PlayerUID, trader));
-        output.WriteLine(line);
-        Assert.Contains("general store", line);
-        Assert.Contains("stranger", line);
-        Assert.Contains("known at 60", line);
-        trader.Die(EnumDespawnReason.Removed);
     }
 }

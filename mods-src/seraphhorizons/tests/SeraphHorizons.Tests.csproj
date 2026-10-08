@@ -11,7 +11,8 @@
        prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
        (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
-       travelling merchants' inns (../Trading/Visitors/Core), the trunk entities' weights
+       travelling merchants' inns (../Trading/Visitors/Core), the trade window's view model
+       (../Trading/Window/Core), the trunk entities' weights
        and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the press brake's (../PressBrake/Core), the mandrel station's (../MandrelStation/Core) and the pack version check (../PackCheck/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
@@ -134,6 +135,9 @@
     <Compile Include="../PicklingTub/Core/**/*.cs" Link="PicklingTub/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Travelling merchants (#456): inn rules, the visit cycle, the conditions. -->
     <Compile Include="../Trading/Visitors/Core/**/*.cs" Link="Trading/Visitors/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The trade window (#436 playtest): its view model, hold timing, request guard, locked stock, the
+         standing speech and the wire format. -->
+    <Compile Include="../Trading/Window/Core/**/*.cs" Link="Trading/Window/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Pack version check: the comparison, and the lock the mod embeds, so the tests read the real one. -->
     <Compile Include="../PackCheck/Core/**/*.cs" Link="PackCheck/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../../../pack/lock.json" Link="pack-lock.json" CopyToOutputDirectory="PreserveNewest" />
