@@ -13,8 +13,10 @@ namespace SeraphHorizons.Mod.Pipes;
 /// <list type="bullet">
 /// <item>A JSON patch, <c>patches/pipes-hydrateordiedrate.json</c>: no recipe for the pipe, the
 /// pipe section or the valve; the three left out of the creative inventory and the handbook; the
-/// hand pump's recipe takes ppex copper or lead straight pipe; and the hand pump's handbook page
-/// says it works on ppex pipes. With the switch off, or without Hydrate or Diedrate,
+/// hand pump's recipe takes ppex copper or lead straight pipe; the hand pump's handbook page
+/// says it works on ppex pipes; and ppex's pipes and valves get <c>"replaceable": 500</c>, as
+/// Hydrate's pipe had, so a pipe run down a well shaft leaves the shaft open to the spring's count
+/// (<c>WellBlockUtils.SolidAllows</c>). With the switch off, or without Hydrate or Diedrate,
 /// <see cref="DisablePatches"/> empties the file in <c>Start</c>, before the patch loader.</item>
 /// <item>Placed pipes and valves are deleted as they load, with nothing given back (the pack's
 /// call): a Harmony postfix on each block entity's <c>Initialize</c> queues the removal for the
