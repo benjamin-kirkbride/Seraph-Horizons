@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { RecipeExport } from "../src/lib/export.ts";
-import { FLAG_FLOOR_ZERO, type Meta, type SearchFile } from "../src/lib/format.ts";
+import { FLAG_FLOOR_ZERO, FLAG_PER_LITRE, type Meta, type SearchFile } from "../src/lib/format.ts";
 import { prepareData } from "../src/lib/prepare.ts";
-import { codeBase, formatGears, isFloorZero, itemCount, sortByValue, valueOf, ValueTable, type ValueQuery, type ValueRow } from "../src/lib/values.ts";
+import { codeBase, formatGears, isFloorZero, isPerLitre, itemCount, sortByValue, valueOf, ValueTable, type ValueQuery, type ValueRow } from "../src/lib/values.ts";
 
 /** minimal.json without the value fields and groups it shows off, so each test sets its own. */
 const minimal = withoutValues(
@@ -15,6 +15,7 @@ function withoutValues(exp: RecipeExport): RecipeExport {
   for (const item of Object.values(exp.items)) {
     delete item.value;
     delete item.floorZero;
+    delete item.valuePerLitre;
     delete item.valueSwitches;
   }
   return exp;
@@ -65,6 +66,75 @@ describe("prepareData with item values", () => {
     expect((files.get("search.json") as SearchFile).value).toBeUndefined();
     expect((files.get("search.json") as SearchFile).valueSwitches).toBeUndefined();
     expect((files.get("meta.json") as Meta).valueCount).toBeUndefined();
+  });
+});
+
+describe("per-litre values", () => {
+  const exp = structuredClone(minimal);
+  Object.assign(exp.items["game:vinegarportion"]!, { value: 1.5, valuePerLitre: true });
+  Object.assign(exp.items["butchering:bloodportion"]!, { value: 1.5 });
+  Object.assign(exp.items["game:ingot-copper"]!, { value: 2.5 });
+  exp.variantGroups = { "e:liquids": { title: "Liquids", members: ["game:vinegarportion", "butchering:bloodportion"] } };
+  const s = prepareData(exp).files.get("search.json") as SearchFile;
+  const i = (code: string) => s.codes.indexOf(code);
+
+  it("flags a liquid's value as per litre and keeps the value as the table has it", () => {
+    expect(s.flags[i("game:vinegarportion")]! & FLAG_PER_LITRE).toBe(FLAG_PER_LITRE);
+    expect(isPerLitre(s, i("game:vinegarportion"))).toBe(true);
+    expect(valueOf(s, i("game:vinegarportion"))).toBe(1.5);
+    expect(isPerLitre(s, i("game:ingot-copper"))).toBe(false);
+  });
+
+  it("keeps a per-litre value apart from a per-item one of the same number", () => {
+    const table = new ValueTable(s, { game: { name: "Vintage Story" }, butchering: { name: "Butchering" } });
+    expect(table.rows.filter((r) => r.group !== undefined)).toEqual([]);
+  });
+
+  it("sorts per-litre and per-item values as the numbers they are", () => {
+    const order = sortByValue([i("game:ingot-copper"), i("game:vinegarportion")], s, "asc");
+    expect(order).toEqual([i("game:vinegarportion"), i("game:ingot-copper")]);
+  });
+});
+
+describe("ValueTable kind and flag filters", () => {
+  const exp = structuredClone(minimal);
+  const set = (code: string, fields: Partial<RecipeExport["items"][string]>) => Object.assign(exp.items[code]!, fields);
+  set("game:vinegarportion", { value: 1.5, valuePerLitre: true });
+  set("game:ladder-wood-north", { value: 3 });
+  set("game:ingot-copper", { value: 2.5 });
+  set("game:stick", { value: 0.002, floorZero: true });
+  set("examplemod:widget", { value: 2 });
+  const s = prepareData(exp).files.get("search.json") as SearchFile;
+  const table = new ValueTable(s, {});
+  const base = { filter: "", column: "name", dir: "asc", unvalued: false } as const;
+  const codes = (q: ValueQuery) => table.query(q).map((r) => s.codes[r.items[0]!]).sort();
+
+  it("keeps every row with the defaults", () => {
+    expect(codes(base)).toEqual(["examplemod:widget", "game:ingot-copper", "game:ladder-wood-north", "game:stick", "game:vinegarportion"]);
+    expect(codes({ ...base, kind: "all", worthless: "any", unlisted: "any" })).toEqual(codes(base));
+  });
+
+  it("splits liquids, blocks and items", () => {
+    expect(codes({ ...base, kind: "liquids" })).toEqual(["game:vinegarportion"]);
+    expect(codes({ ...base, kind: "blocks" })).toEqual(["game:ladder-wood-north"]);
+    expect(codes({ ...base, kind: "items" })).toEqual(["examplemod:widget", "game:ingot-copper", "game:stick"]);
+  });
+
+  it("shows worthless rows alone or hides them", () => {
+    expect(codes({ ...base, worthless: "only" })).toEqual(["game:stick"]);
+    expect(codes({ ...base, worthless: "hide" })).not.toContain("game:stick");
+  });
+
+  it("shows items not in the handbook alone or hides them", () => {
+    expect(codes({ ...base, unlisted: "only" })).toEqual(["examplemod:widget"]);
+    expect(codes({ ...base, unlisted: "hide" })).not.toContain("examplemod:widget");
+  });
+
+  it("combines with the text filter and the unvalued toggle", () => {
+    expect(codes({ ...base, kind: "items", filter: "copper" })).toEqual(["game:ingot-copper"]);
+    const blocks = codes({ ...base, kind: "blocks", unvalued: true });
+    expect(blocks).toContain("game:woodbucket");
+    expect(blocks).not.toContain("game:stick");
   });
 });
 

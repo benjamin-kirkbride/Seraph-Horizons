@@ -25,10 +25,12 @@ export const GEAR_ICON = { code: "game:gear-rusty", file: "gear-rusty.png" };
  * the pack priced its items) gets a made-up value on nine items in ten besides, so the
  * values page is tested at full size. See serve.ts.
  */
-export const E2E_VALUES: Record<string, { value: number; floorZero?: true } | null> = {
+export const E2E_VALUES: Record<string, { value: number; floorZero?: true; valuePerLitre?: true } | null> = {
   "game:gear-rusty": { value: 1 },
   "game:ingot-copper": { value: 2.5 },
   "game:stick": { value: 0.002, floorZero: true },
+  // A liquid, priced per litre.
+  "game:ciderportion-apple": { value: 4, valuePerLitre: true },
   "game:rot": null,
   // A block's orientations (blocktypes/wood/chest.json) are one row on the values page.
   "game:chest-east": { value: 6 },

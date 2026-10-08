@@ -272,6 +272,10 @@ const en = {
     `${density <= 1000 ? "Floats" : "Sinks"} in water. Water's density is 1000: dropped items at or below it float, heavier ones sink.`,
   placeholderIcon: "no icon",
   gears: "rusty gears",
+  gearsPerLitre: "rusty gears per litre",
+  /** After a liquid's value, on screen. */
+  perLitre: "/ L",
+  perLitreHint: "Rusty gears per litre.",
   noTradeValue: "No trade value",
   floorZeroHint: "Worth less than a rusty gear per full stack, so traders treat it as worthless.",
   valueSwitchesHint: (names: string[]) => `With the default config. Depends on ${names.join(", ")}.`,
@@ -281,7 +285,7 @@ const en = {
   valuesHomeLink: (n: number) => `See what ${n.toLocaleString("en")} items are worth in rusty gears.`,
   valuesHeading: "Item values",
   valuesIntro:
-    "What every item is worth to the pack's traders, in rusty gears, with the pack's default config. A value shown dimmed is under a gear for a whole stack, which traders treat as worthless.",
+    "What every item is worth to the pack's traders, in rusty gears, with the pack's default config. A value shown dimmed is under a gear for a whole stack, which traders treat as worthless. Liquids are priced per litre, marked “/ L”.",
   valuesNone: "This version has no item values.",
   valuesFilter: "Filter",
   valuesFilterPlaceholder: "Name, code or mod, e.g. copper",
@@ -296,6 +300,12 @@ const en = {
   valuesVariantsHint: (codes: readonly string[], grouped: boolean) =>
     `${grouped ? "One tile in the creative menu, worth the same" : "Same name, mod and value"}:\n${codes.slice(0, VARIANTS_SHOWN).join("\n")}${codes.length > VARIANTS_SHOWN ? `\nand ${codes.length - VARIANTS_SHOWN} more` : ""}`,
   valuesNoMatch: (q: string) => `No item matches “${q}”.`,
+  valuesNoMatchFilters: "No item matches these filters.",
+  valuesKind: "Kind",
+  valuesKinds: { all: "All", items: "Items", blocks: "Blocks", liquids: "Liquids" },
+  valuesWorthless: "Worthless",
+  valuesUnlisted: "Not in handbook",
+  valuesFlagFilters: { any: "Shown", only: "Only", hide: "Hidden" },
   valuesColumns: { name: "Item", mod: "Mod", value: "Value" },
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,
   modelsLink: "Models",

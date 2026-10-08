@@ -91,7 +91,7 @@ createServer((req, res) => {
  * with E2E_GROUPS added to its variant groups.
  */
 function withValues(path: string): string {
-  type Item = { value?: number; floorZero?: boolean };
+  type Item = { value?: number; floorZero?: boolean; valuePerLitre?: boolean };
   type Group = { title: string; members: string[] };
   const exp = JSON.parse(readFileSync(path, "utf8")) as { items: Record<string, Item>; variantGroups?: Record<string, Group> };
   const items = Object.entries(exp.items);
@@ -106,6 +106,7 @@ function withValues(path: string): string {
     if (!item) throw new Error(`${code} is not in the export; e2e/config.ts E2E_VALUES needs it`);
     delete item.value;
     delete item.floorZero;
+    delete item.valuePerLitre;
     if (fixed) Object.assign(item, fixed);
   }
   // A code is in at most one group, and a group needs two members.

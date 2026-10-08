@@ -13,10 +13,57 @@ export type Route =
   | { view: "entities"; version: string }
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
-  | { view: "values"; version: string }
+  | ({ view: "values"; version: string } & ValuesView)
   | { view: "models" }
   | { view: "model"; id: string }
   | { view: "notfound"; version?: string };
+
+/**
+ * The values page's state, in its address so a link keeps it: the filter text (`q`), the
+ * order (`sort`, `<column>-<dir>`), whether items without a value are listed (`unvalued=1`),
+ * the kind (`kind`) and the worthless and not-in-handbook filters (`worthless`, `unlisted`:
+ * `only` or `hide`). A default is left out: value highest first, every kind, everything shown.
+ */
+export interface ValuesView {
+  q?: string;
+  sort?: ValuesSort;
+  unvalued?: true;
+  kind?: "items" | "blocks" | "liquids";
+  worthless?: "only" | "hide";
+  unlisted?: "only" | "hide";
+}
+export type ValuesSort = "name-asc" | "name-desc" | "mod-asc" | "mod-desc" | "value-asc";
+const VALUES_SORTS: readonly string[] = ["name-asc", "name-desc", "mod-asc", "mod-desc", "value-asc"];
+const VALUES_KINDS: readonly string[] = ["items", "blocks", "liquids"];
+const FLAG_FILTERS: readonly string[] = ["only", "hide"];
+
+function parseValuesView(params: URLSearchParams): ValuesView {
+  const v: ValuesView = {};
+  const q = params.get("q");
+  if (q) v.q = q;
+  const sort = params.get("sort");
+  if (sort !== null && VALUES_SORTS.includes(sort)) v.sort = sort as ValuesSort;
+  if (params.get("unvalued") === "1") v.unvalued = true;
+  const kind = params.get("kind");
+  if (kind !== null && VALUES_KINDS.includes(kind)) v.kind = kind as ValuesView["kind"];
+  for (const key of ["worthless", "unlisted"] as const) {
+    const f = params.get(key);
+    if (f !== null && FLAG_FILTERS.includes(f)) v[key] = f as "only" | "hide";
+  }
+  return v;
+}
+
+function formatValuesView(v: ValuesView): string {
+  const p = new URLSearchParams();
+  if (v.q) p.set("q", v.q);
+  if (v.sort) p.set("sort", v.sort);
+  if (v.unvalued) p.set("unvalued", "1");
+  if (v.kind) p.set("kind", v.kind);
+  if (v.worthless) p.set("worthless", v.worthless);
+  if (v.unlisted) p.set("unlisted", v.unlisted);
+  const s = p.toString();
+  return s ? `?${s}` : "";
+}
 
 /** Search results in their own order (best match first), or by value. */
 export type SearchSort = "value-asc" | "value-desc";
@@ -82,7 +129,7 @@ export function parseRoute(hash: string): Route {
       if (rest.length === 0) return { view: "credits", version };
       break;
     case "values":
-      if (rest.length === 0) return { view: "values", version };
+      if (rest.length === 0) return { view: "values", version, ...parseValuesView(params) };
       break;
   }
   return { view: "notfound", version };
@@ -107,7 +154,7 @@ export function formatRoute(route: Route): string {
     case "credits":
       return `#/${enc(route.version)}/credits`;
     case "values":
-      return `#/${enc(route.version)}/values`;
+      return `#/${enc(route.version)}/values${formatValuesView(route)}`;
     case "models":
       return "#/models";
     case "model":
