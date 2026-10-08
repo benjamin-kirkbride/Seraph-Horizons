@@ -2277,6 +2277,34 @@ out of range falls back to its default with a warning). With the switch off, wit
 Expanded, or with its callback not as expected (one warning), nothing is patched and every felling
 costs one per log.
 
+### A locomotive keeps its riders (`LocomotiveRidersStayOn`, `LocomotiveRidersBreathe`)
+
+Yang's Transport Tycoon (`yangtransport`, 1.0.3), its standard-gauge locomotives
+(`yangtransport:sglocomotive-{tier}`, every tier). Two switches, both in `LocomotiveSeats.cs`.
+
+`LocomotiveRidersStayOn`: blocks beside the track no longer throw a rider off. The standard and
+advanced tiers set `CollisionCheckSeats` in their type's attributes, and while a player rides one
+Yang's `RailVehicleSeat` tests the rider's collision box at the seat every 20 ms on the client; any
+colliding block (a tree's leaves collide) sends the locomotive a packet, and the server unmounts the
+rider. Both ends first ask Yang's `internal static RailVehicleSeat.CollisionChecksEnabled(Entity)`:
+the seat before it starts the client's check, the locomotive before it acts on the packet. A
+postfix answers false for a locomotive, so neither runs; nothing else reads it, and a rider who steps
+off is still put beside the track by Yang's own placement. Patched on both sides, once per process
+with its own Harmony id; either side's switch alone keeps riders on. Other vehicles that set the
+attribute keep the check: this mod's handcar does. Without Yang's mod, or with the method gone or
+changed (one warning), nothing is patched.
+
+`LocomotiveRidersBreathe`: with the check off, a rider's head passes through the leaves and walls
+beside the track, and the game's `EntityBehaviorBreathe.Check` (server side, once a second) takes
+the air of anyone whose eye is inside a block's collision box. A postfix gives the air back to an
+entity seated in a locomotive (its seat's entity's code), unless the eye is under a liquid's
+surface, by the game's own test: a locomotive driven into deep water still drowns its rider.
+Oxygen then refills as it does in the open. Server side; without Yang's mod nothing is patched.
+In game 1.22.7 the game's block test never takes the air away anywhere but near the world's origin
+(it intersects the block's box, in world coordinates, with the entity's selection box, in the
+entity's own), so for now this is a guard for when the game fixes it: the postfix only acts when
+`Check` has taken the air.
+
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
@@ -3648,7 +3676,7 @@ recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 6 or 9
 blows, no oil.
 
-`tests/PackTests/HandcarScenarios.cs` (Atlas, a plain world of its own: it joins three players, and the
+`tests/PackTests/HandcarScenarios.cs` (Atlas, a plain world of its own: it joins four players, and the
 shared world has no slots left) requires the handcar registered with its
 item, recipe, the riders' animations on the seraph and the player, and Yang's wrench patch; placed by its
 item on standard-gauge track, two players mounted on the deck facing each other; one pumping to the solo
@@ -3659,6 +3687,15 @@ sneak click picking it up; and, in the game's own animator on the patched seraph
 each rider's hands on its handles at sampled frames and blends. With the switch off,
 `SwitchesOffScenarios` requires no entity, item, recipe or rider animations, nothing patched, and
 nothing logged.
+
+`tests/PackTests/LocomotiveSeatsScenarios.cs` (Atlas, a part of `HandcarScenarios`, on its track)
+places a standard locomotive and a handcar by their items and requires both patches in, Yang's seat
+check answered no for the locomotive and still yes for the handcar (both types set
+`CollisionCheckSeats`), and the breathing postfix on the game's check giving a survival player
+seated in the locomotive with granite at the eye their air back, but not with water at the eye and
+not once they are off (run on a lost breath: the game's own block test never loses it, above). With the
+switches off, `SwitchesOffScenarios` requires nothing patched and the check answered yes for a
+standard locomotive.
 
 `tests/PackTests/UnifiedPipesScenarios.cs` (Atlas, the shared world) requires the switch bound with
 nothing logged; every pipe shape in copper and lead, at the default figures with iron and steel, on
