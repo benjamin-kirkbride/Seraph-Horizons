@@ -2940,7 +2940,8 @@ not listed.
 **Ore and gravel maps** (#444): `seraphhorizons:oremap` and `seraphhorizons:gravelmap`
 (`Ore/Game/ItemOreMap.cs`, after the game's locator map), stack size 1, ordinary items. A map holds
 its deposit, metal, size tier, precision and marker position; right-click adds a pinned waypoint
-("Copper deposit (large)", "Rich gravel (granite)") and keeps the map. Precision 1 marks within
+titled with its precision ("Copper deposit (large) (precision 1, ±400 m)", "Rich gravel (granite)
+(exact)"; see "Maps and leads" for how a better map replaces a rougher marker) and keeps the map. Precision 1 marks within
 400 m, 2 within 150 m, 3 the deposit itself (its measured centre); the offset is seeded from the
 deposit, so every copy agrees and a better tier's marker lies between the worse one's and the
 deposit (`MapPrecision`). Gravel maps are exact. `OreSystem.Maps.Issue(player, deposit, precision)`
@@ -2989,7 +2990,8 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
 - **Deliveries (n)**: the trader's offer (where, how far and which way, the deposit, the fee, the
   time) with Take and Mark on map, your packages from or for it, and Hand in at the receiver.
 - **Maps & leads**: ore maps (metal, size, distance, precision), the gravel map and leads (target,
-  distance, direction); sold-out and locked ones say why. Bought by holding, as goods.
+  distance, direction); sold-out and locked ones say why, and ones you have already are greyed out,
+  "you have this" (see "Maps and leads"). Bought by holding, as goods.
 - **Standing**: the five tiers with their thresholds, yours marked, what it gives you against the
   next, and how to earn standing.
 
@@ -2999,7 +3001,10 @@ switched off (`TraderStanding`, `TraderOrders`, `TraderDeliveries`, `TraderMaps`
 you walk away, and the server refuses a trade from anyone but the player trading, from further
 than the trade's reach. Every trade is made at once on the server, one lot at a time, through the
 game's own deal, so money, stock, the wallet and side budget, supply, standing, orders and the map
-checks apply as they did.
+checks apply as they did. A buy (goods, a map or lead, a delivery's package) that your hotbar and
+backpack have no room for, counting room left on stacks it merges with, is refused before any gears
+move ("No room in your bags for it"), rather than paid for and dropped at your feet; holding on stops
+there.
 
 Talking to a pack trader also offers "How do you see me these days?" (while `TraderStanding` is
 on): the trader says where you stand, what that gives you and what the next tier unlocks, and how to
@@ -3009,11 +3014,13 @@ traders use (`assets/seraphhorizons/config/dialogue/trader.json`, made from the 
 get the same option by patch.
 
 Tests: `tests/Trading/Window/` (tabs, header and footer, every tab's lines, the standing reply, hold
-timing, the request guard, locked stock, the wire format); `tests/PackTests/TradingWindowScenarios.cs`
+timing, the request guard and the room check, locked stock, maps the player has, the wire format);
+`tests/PackTests/TradingWindowScenarios.cs`
 (Atlas: one lot bought moving gears, stock and standing; one sold off the list from the side budget,
 an empty side budget and money refused, the rest given back on closing; refused from afar, for
-another player and for a trader gone; an order taken and handed in; a delivery taken and marked on
-the map; every pack trader's dialogue, BetterRuins' included, with the standing option, the reply's
+another player and for a trader gone; a buy with full bags refused with no gears taken, and let
+through by room left on a stack it merges with; an order taken and handed in; a delivery taken and
+marked on the map, its deadline a game day a km; every pack trader's dialogue, BetterRuins' included, with the standing option, the reply's
 numbers, and every line the window shows in the lang file).
 
 ### Traders (`TraderGrid`)
@@ -3047,6 +3054,20 @@ takes the grid at its first start with this mod if the switch is on then, and ke
 world keeps vanilla's camps and traders. Turned off later, the world's new chunks get the game's camps
 again. The trader types and their lists exist either way.
 
+In a world with the grid the handbook's "Sold by" and "Purchased by" leave out the traders it
+replaces (`Trading/Game/TraderHandbook.cs`), which are never met there: vanilla's eight camp traders,
+Culinary Artillery's kitchenware trader and Domestic Animal Trader's, in every gender and climate.
+Which ones is derived, not listed: every entity type with a vanilla-format trade list that the
+spawner rewrite takes (`HandbookTraders.IsOtherTrader`), less the traders a story structure's
+spawner spawns (vanilla's treasure hunter, in all three climates), read from the story schematics
+at worldgen init. The server writes their codes to the world config
+(`seraphhorizons:handbookHiddenTraders`), and a client's handbook skips their names (a prefix on the
+game's `TradeHandbookInfo.AddTraderHandbookInfo`); a name a trader still met shares stays. Without
+the grid (the switch off, or a world from before it) nothing is left out. The recipe export marks
+those traders' trades `extra.replaced`, and the site leaves them out too; the item values still
+read their prices. The pack's own traders have no vanilla-format lists, so neither the handbook nor
+the site lists them yet (`docs/trading.md`, open problems).
+
 Admin commands (privilege `controlserver`): `/sh trade camps [radius]` lists the grid cells within
 radius blocks (default 4096) with their type and camp, the next spot not generated yet, or that every
 spot missed; `/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating its next spot first if needed.
@@ -3059,7 +3080,9 @@ every trader's trade window title and name, a spawned trader stocking from its l
 taken over, the spawner rewrite, cells' camps being decided, one on uneven ground with its footprint
 levelled, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
 `tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
-treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten).
+treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten, and the
+traders the handbook leaves out are the replaced ones and not the treasure hunter);
+`tests/Trading/HandbookTradersTests.cs` (which traders and names are left out).
 
 ### Item base values (no switch)
 
@@ -3351,6 +3374,25 @@ on; notes in `docs/trading.md` and `docs/oregen.md`). Prices are in
   camp on your world map (icon `trader`). A lead may point at a camp nobody has generated yet: the
   sale generates its spot's chunk and draws the lead to where the camp was placed.
 
+Every marker a map puts on your world map says how precise it is, in the tiers the Standing tab
+lists: "Copper deposit (large) (precision 1, ±400 m)", "(precision 2, ±150 m)", "(exact)"; a gravel
+field is exact; a lead marks the camp's site, not where its trader stands: "Trader camp (cook)
+(approximate, ±64 m)". Meeting a camp's trader (talking to it, or opening its trade window) marks the
+camp exactly where the trader stands, "Trader camp (cook) (exact)", once, and takes the lead's rougher
+marker of it away (a marker from before this, with the lead's title and icon within 96 blocks,
+too). Travelling merchants and other traders outside the grid's camps are not marked: they move
+on. The mod remembers which marker marks what (by the waypoint's id, saved as
+`seraphhorizons:mapmarks`), so a marker you delete is forgotten and may be made again.
+
+A trader won't sell you a map you have: one whose target is on your map already, as precisely or
+more (from an earlier map or lead, or a camp's trader met), or one you carry a copy of (read or not,
+or still being checked). Its offer is greyed out on the Maps & leads tab, "you have this", and the
+server refuses it before any gears move. A rougher marker or copy does not count: a more precise
+map of the same target is an upgrade, and reading it replaces the rougher marker. An offer whose
+deposit or field turned out to be gone since the shelf was stocked (its cell's every spot failed)
+is refused before payment too and shows sold out; it used to take the gears, find nothing and
+refund them ("fell through"), which read in the playtest as a map that never arrived.
+
 A bought map is checked before it is handed over: the deposit is reserved, verified (its chunks
 generated and its ore counted; the chat says "the prospector is checking the claim" while that
 takes), then marked sold and the map arrives in place of the "being checked" sheet. A deposit sold
@@ -3365,10 +3407,15 @@ trade window shows the player trading their own prices and map precision (one pl
 trader at a time).
 
 Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
-table, lead targets); `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's
-ore map offers, buying one through the trade window, the registry marked sold and no other trader
-offering it, a gravel map offered exactly when a field is in reach, a lead marking a camp, standing
-changing a trader's prices and map precision).
+table, lead targets, which markers mark what: a map marked or carried refused, a better one an
+upgrade, the lead's marker replaced by the met trader's, old markers matched by icon, place and
+title); `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map
+offers, buying one through the trade window, the registry marked sold and no other trader offering
+it, a gravel map offered exactly when a field is in reach, a lead marking a camp, standing changing a
+trader's prices and map precision, the playtest's lead, same lead, gravel map: the copy refused with
+no gears taken and the rest arriving with their precision in the markers' titles, a lead whose camp
+is marked refused, a gravel offer whose field turned out empty refused before payment, meeting a
+camp's trader marking it exactly in place of the lead's marker and an old one, once).
 
 ### Orders and deliveries (`TraderOrders`, `TraderDeliveries`)
 
@@ -3388,11 +3435,12 @@ the deadline is abandoned and costs standing; delivered in part, it just ends.
 
 **Deliveries** (`TraderDeliveries`): the Deliveries tab shows a trader's offer: a package for
 another camp within `deliveryScale` × 3 km (none for strangers; a camp of another type where there is
-one), with a deadline from the walk (5 minutes a km, half again as slack, at least 5 minutes, in game
-time at the world's calendar speed: 2 km is 7.5 game hours by default), a deposit of 10–30 % of the
+one), with a deadline of a game day per km of the straight way, never under a day (2 km is two game
+days; a delivery taken before this rule keeps the deadline it was given), a deposit of 10–30 % of the
 package's value from your gears and a fee of 20–40 %. Take takes it and hands you a
-`seraphhorizons:package` (can't be opened, says where it goes and how long is left); one at a time
-per sender; Mark on map puts the destination on your world map. Hand in at the receiver: on time, your deposit back, the fee from its
+`seraphhorizons:package` (can't be opened, says where it goes and how long is left, in days, or in
+hours under a day); one at a time per sender, and only with a free slot for it (else "no room", and
+no deposit taken); Mark on map puts the destination on your world map. Hand in at the receiver: on time, your deposit back, the fee from its
 wallet and standing at both ends; up to a game day late, the deposit and half the fee and standing at
 the receiver; later, the delivery fails: the deposit is gone, standing with the sender drops, and the
 package is junk. Packages go only to the grid's camps, so a world without the grid has no deliveries.
@@ -3405,7 +3453,8 @@ package is), `fail <id>`, `expire <id>` (the deadline is now). `/sh trade simula
 clocks on. Saved with the world (`seraphhorizons:orders`, `seraphhorizons:deliveries`).
 
 Tests: `tests/Trading/Orders/`, `tests/Trading/Deliveries/` (generation and scaling, the premium
-maths, deadline conversion, both state machines, which outcome calls which standing hook);
+maths, the deadline (a day a km, at least a day, a saved one kept), both state machines, which
+outcome calls which standing hook);
 `tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's orders, one taken and filled
 by selling in the trade window paying its premium and standing, one abandoned by `simulate`, a
 delivery between two spawned traders handed in on time through the receiver's window for deposit and

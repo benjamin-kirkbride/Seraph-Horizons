@@ -80,7 +80,8 @@ public sealed class DeliveryOfferRow
     /// <summary>From the trader to the destination, blocks east (x) and south (z).</summary>
     [JsonPropertyName("dx")] public double Dx { get; set; }
     [JsonPropertyName("dz")] public double Dz { get; set; }
-    [JsonPropertyName("hours")] public double Hours { get; set; }
+    /// <summary>Game days to deliver it once taken.</summary>
+    [JsonPropertyName("days")] public double Days { get; set; }
     [JsonPropertyName("deposit")] public int Deposit { get; set; }
     [JsonPropertyName("fee")] public int Fee { get; set; }
 }
@@ -96,6 +97,8 @@ public sealed class DeliveryRow
     [JsonPropertyName("dz")] public double Dz { get; set; }
     /// <summary>Game hours to the deadline; below 0 it is late (until the grace runs out).</summary>
     [JsonPropertyName("hours")] public double HoursLeft { get; set; }
+    /// <summary>The same in game days.</summary>
+    [JsonPropertyName("days")] public double DaysLeft { get; set; }
     [JsonPropertyName("deposit")] public int Deposit { get; set; }
     [JsonPropertyName("fee")] public int Fee { get; set; }
     /// <summary>The player carries its package (a hand-in is possible here when <see cref="ForHere"/>).</summary>
@@ -142,6 +145,10 @@ public sealed class TradeWindowState
     [JsonPropertyName("leads")] public bool LeadsToTraders { get; set; }
     /// <summary>The tier from which leads past the nearest camp are sold (-1: none).</summary>
     [JsonPropertyName("leadsTier")] public int LeadsTier { get; set; } = -1;
+    /// <summary>The selling slots (0–15) holding a map or lead this player has already: its target on
+    /// their map as precisely or more, or a copy carried. Shown greyed out, "you have this"; the
+    /// server refuses the buy.</summary>
+    [JsonPropertyName("owned")] public List<int> OwnedMaps { get; set; } = [];
 
     private static readonly JsonSerializerOptions Options = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 

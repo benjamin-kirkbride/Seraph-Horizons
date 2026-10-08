@@ -63,4 +63,35 @@ public class TradingStoryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         string type = Trading.Grid!.TypeOf(TraderGrid.CellOf(near.X, near.Z));
         Assert.Matches($"^seraphhorizons:trader-female-{type}-(cold|temperate|desert)$", camp.GetString("type"));
     }
+
+    [AtlasScenario]
+    public void The_handbook_leaves_out_the_traders_the_grid_replaces_but_keeps_the_story_ones()
+    {
+        // Trading/Game/TraderHandbook.cs: the server lists them in the world config for its
+        // clients' handbooks and the recipe exporter.
+        string[] hidden = TraderHandbookSystem.HiddenCodes(Api);
+        output.WriteLine("hidden: " + string.Join(", ", hidden));
+        var story = TraderHandbookSystem.StoryTraderCodes(Api);
+        Assert.NotNull(story);
+        output.WriteLine("story spawners: " + string.Join(", ", story!.Distinct()));
+        // The treasure hunter's house spawns it.
+        Assert.Contains(story, c => c.Contains("trader-male-treasurehunter-temperate"));
+
+        // Vanilla's camp traders, Culinary Artillery's and Domestic Animal Trader's: their
+        // spawners become the pack's traders.
+        Assert.Contains("game:trader-male-agriculture-temperate", hidden);
+        Assert.Contains("game:trader-female-commodities-desert", hidden);
+        Assert.Contains("aculinaryartillery:trader-male-kitchenware-temperate", hidden);
+        Assert.Contains("game:trader-female-domesticanimal-cold", hidden);
+        // The treasure hunter in every climate, the story villagers and the pack's own stay.
+        foreach (string climate in new[] { "temperate", "cold", "desert" })
+        {
+            Assert.DoesNotContain($"game:trader-male-treasurehunter-{climate}", hidden);
+            Assert.DoesNotContain($"game:trader-female-treasurehunter-{climate}", hidden);
+        }
+        Assert.DoesNotContain(hidden, c => c.Contains("villager", StringComparison.Ordinal) || c.StartsWith("seraphhorizons:", StringComparison.Ordinal));
+        // Every hidden one has a trade list the handbook would have read.
+        var listed = TraderHandbookSystem.Listed(Api).Select(t => t.Code.ToString()).ToHashSet();
+        Assert.All(hidden, c => Assert.Contains(c, listed));
+    }
 }

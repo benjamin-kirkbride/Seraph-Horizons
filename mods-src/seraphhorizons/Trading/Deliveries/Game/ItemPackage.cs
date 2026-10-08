@@ -56,8 +56,8 @@ public class ItemPackage : Item
         int x = (int)(a.GetDouble(AttrToX) - (spawn?.X ?? 0)), z = (int)(a.GetDouble(AttrToZ) - (spawn?.Z ?? 0));
         dsc.AppendLine(Lang.Get("seraphhorizons:package-info-to", Lang.Get("seraphhorizons:trading-type-" + a.GetString(AttrToType, "")), x, z));
         double left = a.GetDouble(AttrDeadline) - world.Calendar.TotalDays;
-        dsc.AppendLine(left >= 0
-            ? Lang.Get("seraphhorizons:package-info-due", Math.Round(left * world.Calendar.HoursPerDay, 1))
+        dsc.AppendLine(left >= 1 ? Lang.Get("seraphhorizons:package-info-due-days", Math.Round(left, 1))
+            : left >= 0 ? Lang.Get("seraphhorizons:package-info-due", Math.Round(left * world.Calendar.HoursPerDay, 1))
             : Lang.Get("seraphhorizons:package-info-late"));
         dsc.AppendLine(Lang.Get("seraphhorizons:package-info-use"));
     }

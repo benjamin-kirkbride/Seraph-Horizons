@@ -49,7 +49,7 @@ public class TradeWindowModelTests
             new OrderRow { Id = 3, Item = "game:ingot-copper", Quantity = 4, UnitPrice = 1.4, Premium = 3, Days = 4, DaysLeft = 2.5 },
             new OrderRow { Id = 1, Item = "game:ingot-tin", Quantity = 8, Delivered = 2, UnitPrice = 1.2, Premium = 5, PremiumPaid = 1, DaysLeft = 1.25, Mine = true, Held = 3 },
         ],
-        DeliveryOffer = new DeliveryOfferRow { ToType = "cook", Distance = 2150, Dx = 1500, Dz = -1500, Hours = 7.5, Deposit = 4, Fee = 6 },
+        DeliveryOffer = new DeliveryOfferRow { ToType = "cook", Distance = 2150, Dx = 1500, Dz = -1500, Days = 2.2, Deposit = 4, Fee = 6 },
     };
 
     [Fact]
@@ -146,15 +146,20 @@ public class TradeWindowModelTests
         var state = State();
         state.Deliveries.Add(new DeliveryRow { Id = 9, ToType = "smith", ForHere = true, Carried = true, Deposit = 3, Fee = 5, HoursLeft = 2 });
         state.Deliveries.Add(new DeliveryRow { Id = 4, ToType = "farmer", Distance = 900, Dx = -900, HoursLeft = -1.5 });
+        state.Deliveries.Add(new DeliveryRow { Id = 5, ToType = "mason", Distance = 3000, Dz = 3000, HoursLeft = 60, DaysLeft = 2.5 });
+        state.Deliveries.Add(new DeliveryRow { Id = 6, ToType = "mason", Distance = 1000, Dz = -1000, HoursLeft = 7.5, DaysLeft = 0.3125 });
         var lines = TradeWindowModel.Deliveries(state);
-        Assert.Equal(3, lines.Count);
+        Assert.Equal(5, lines.Count);
         Assert.True(lines[0].CanHandIn);
         Assert.Equal("trading-window-delivery-forhere(9, 3, 5)", lines[0].Line.ToString());
         Assert.Equal("trading-window-delivery-late(4, trading-type-farmer, 0.9, trading-window-dir-w, 1.5)", lines[1].Line.ToString());
         Assert.True(lines[1].CanMark);
-        Assert.Null(lines[2].Row);
-        Assert.True(lines[2].CanTake && lines[2].CanMark);
-        Assert.Equal("trading-window-delivery-offer(trading-type-cook, 2.2, trading-window-dir-ne, 7.5, 4, 6)", lines[2].Line.ToString());
+        // Time left in days, and in hours under a day.
+        Assert.Equal("trading-window-delivery-mine(5, trading-type-mason, 3, trading-window-dir-s, trading-window-days(2.5), 0, 0)", lines[2].Line.ToString());
+        Assert.Equal("trading-window-delivery-mine(6, trading-type-mason, 1, trading-window-dir-n, trading-window-hours(7.5), 0, 0)", lines[3].Line.ToString());
+        Assert.Null(lines[4].Row);
+        Assert.True(lines[4].CanTake && lines[4].CanMark);
+        Assert.Equal("trading-window-delivery-offer(trading-type-cook, 2.2, trading-window-dir-ne, trading-window-days(2.2), 4, 6)", lines[4].Line.ToString());
     }
 
     [Fact]
@@ -178,6 +183,23 @@ public class TradeWindowModelTests
     [InlineData("lead", "far", 2, true, MapOfferStatus.Available)]
     public void MapOffersAreSoldOutLockedOrForSale(string offer, string? kind, int stock, bool leads, MapOfferStatus expected) =>
         Assert.Equal(expected, TradeWindowModel.MapStatus(offer, kind, stock, leads));
+
+    [Fact]
+    public void AMapThePlayerHasIsGreyedOutWithYouHaveThis()
+    {
+        Assert.Equal(MapOfferStatus.Owned, TradeWindowModel.MapStatus("lead", "camp", 2, false, owned: true));
+        Assert.Equal(MapOfferStatus.Owned, TradeWindowModel.MapStatus("gravelmap", null, 1, true, owned: true));
+        // Sold out says so first.
+        Assert.Equal(MapOfferStatus.SoldOut, TradeWindowModel.MapStatus("lead", "camp", 0, true, owned: true));
+        Assert.Equal("trading-window-map-owned", TradeWindowModel.MapStatusText(MapOfferStatus.Owned, null)!.ToString());
+        Assert.Equal("trading-window-map-soldout", TradeWindowModel.MapStatusText(MapOfferStatus.SoldOut, null)!.ToString());
+        Assert.Equal("trading-window-map-locked(trading-standing-tier-trusted)",
+            TradeWindowModel.MapStatusText(MapOfferStatus.Locked, TradeWindowModel.TierName("trusted"))!.ToString());
+        Assert.Null(TradeWindowModel.MapStatusText(MapOfferStatus.Available, null));
+        // The state carries which shelf slots they are.
+        var state = TradeWindowState.FromJson(new TradeWindowState { OwnedMaps = [3, 7] }.ToJson());
+        Assert.Equal([3, 7], state.OwnedMaps);
+    }
 
     [Fact]
     public void TheStandingTabMarksTheCurrentTierWithItsThreshold()
