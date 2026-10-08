@@ -262,11 +262,11 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
             // nothing is buried), with ground under the schematic's bottom layer (so nothing floats;
             // the schematic's own blocks, a basement's air among them, are its business).
             var loc = generated.Location;
-            // The footprint may reach into chunks generated only as far as a neighbour needs, and
-            // with no player near, a loaded chunk is unloaded again soon: load them all, kept loaded,
-            // and wait for their blocks before reading.
-            for (int cx = loc.X1 / 32; cx <= (loc.X2 - 1) / 32; cx++)
-                for (int cz = loc.Z1 / 32; cz <= (loc.Z2 - 1) / 32; cz++)
+            // The footprint and the ring around it may reach into chunks generated only as far as a
+            // neighbour needs, and with no player near, a loaded chunk is unloaded again soon: load
+            // them all, kept loaded, and wait for their blocks before reading.
+            for (int cx = (loc.X1 - 1) / 32; cx <= loc.X2 / 32; cx++)
+                for (int cz = (loc.Z1 - 1) / 32; cz <= loc.Z2 / 32; cz++)
                 {
                     bool loaded = false;
                     Api.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true, OnLoaded = () => loaded = true });
@@ -287,7 +287,13 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
                         Assert.Fail($"camp {record.Structure} at {loc}: air under it at {x},{loc.Y1 - 1},{z}; column {column}");
                     }
                 }
-            output.WriteLine($"camp {record.Structure} at {loc}: ground levelled at {level}");
+            // The skirt blends the pad into the ground around: no step of more than one off it.
+            foreach (var (x, z) in CampGround.Ring(loc.X1, loc.Z1, loc.X2 - loc.X1, loc.Z2 - loc.Z1, 1))
+            {
+                int h = W.BlockAccessor.GetTerrainMapheightAt(new BlockPos(x, 0, z));
+                Assert.True(Math.Abs(h - level!.Value) <= 1, $"camp {record.Structure} at {loc}: the ground at {x},{z} beside the pad is at {h}, the pad at {level}");
+            }
+            output.WriteLine($"camp {record.Structure} at {loc}: ground levelled at {level}, blended into the ground around");
         }
 
         // The admin commands see them: /sh trade camps lists a placed camp, /sh trade tp goes there.
