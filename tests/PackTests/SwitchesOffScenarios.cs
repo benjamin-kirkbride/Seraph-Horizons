@@ -373,8 +373,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
-    /// the mod's own text, and nothing logged about it. The plates it folds and the open sections it
-    /// makes (UnifiedPipes') exist either way.</summary>
+    /// the mod's own text, and nothing logged about it. The angles it makes are UnifiedPipes' items
+    /// (here off too); the half plates it folds are the squaring shear's (here off too).</summary>
     [AtlasScenario]
     public void Press_brake_off_there_is_no_press_brake()
     {
@@ -382,7 +382,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(SeraphHorizons.Mod.PressBrake.PressBrakeSystem.Applies(World.Api));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("pressbrake"));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("pressbrake") == true);
-        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.PressBrake.Core.Folding.LeadPlate)));
+        Assert.Null(W.GetItem(new AssetLocation(SeraphHorizons.Mod.PressBrake.Core.Folding.LeadHalfPlate)));
         var linked = Lang.AvailableLanguages["en"].GetAllEntries()
             .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
                         && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://block-seraphhorizons:pressbrake"))

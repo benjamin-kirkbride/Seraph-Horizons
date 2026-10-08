@@ -20,7 +20,7 @@ public static partial class RecipeSection
     }
 
     /// <summary>
-    /// One metal on the press brake: the plate (consumed), the screws and the edges (kept: fitted,
+    /// One metal on the press brake: the half plate (consumed), the screws and the edges (kept: fitted,
     /// never consumed) and the machine; one angle of the metal. Worked by hand (power
     /// <c>hand</c>): its turns are the lever's, a turn a second while the player holds right-click.
     /// No tool wears and there is no oil.

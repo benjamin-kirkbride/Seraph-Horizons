@@ -1,16 +1,16 @@
-// Angle (UnifiedPipes; README "Unified pipes"): a copper or lead plate bent once at a right angle,
-// two legs 8 voxels wide and 1 thick, 8 long (shapes/item/angle.json), so two make the game's chute
-// section's 8 x 8 box. Forged on the anvil from one ingot (recipes/smithing/angle.json) or folded on
-// the press brake from one plate. Two angles, two tin or silver solder bars and a soldering iron make
-// one chute section, the hollow section (recipes/grid/chutesection.json). Marked disabled with the
-// switch off.
+// Angle (UnifiedPipes; README "Unified pipes"): a copper or lead half plate folded once across its
+// middle at a right angle, two legs 4 voxels wide and 1 thick, 4 long (shapes/item/angle.json, the
+// press brake's contract). Only the press brake makes one, from one half plate (the squaring shear's
+// item). Two angles, two tin or silver solder bars and a soldering iron make one chute section, the
+// hollow section (recipes/grid/chutesection.json): the section is bigger than its two angles, the
+// accepted abstraction of that grid recipe. Marked disabled with the switch off.
 {
 	code: "angle",
 	variantgroups: [
 		{ code: "metal", states: ["copper", "lead"] }
 	],
 	behaviors: [
-		{ name: "GroundStorable", properties: { layout: "SingleCenter", collisionBox: { x1: 0.25, y1: 0, z1: 0.25, x2: 0.75, y2: 0.5, z2: 0.75 } } }
+		{ name: "GroundStorable", properties: { layout: "SingleCenter", collisionBox: { x1: 0.375, y1: 0, z1: 0.375, x2: 0.625, y2: 0.25, z2: 0.625 } } }
 	],
 	shape: { base: "seraphhorizons:item/angle" },
 	textures: {
@@ -19,7 +19,7 @@
 	attributes: {
 		shelvable: true,
 		groundStorageTransform: {
-			translation: { x: 0, y: -0.25, z: 0 }
+			translation: { x: 0, y: -0.375, z: 0 }
 		},
 		onTongTransform: {
 			translation: { x: -1.15, y: -0.97, z: -0.53 },
@@ -37,7 +37,7 @@
 	guiTransform: {
 		rotation: { x: -17, y: -60, z: -48 },
 		origin: { x: 0.5, y: 0.5, z: 0.5 },
-		scale: 1.64
+		scale: 2.6
 	},
 	tpHandTransform: {
 		translation: { x: -1.12, y: -1.27, z: -1 },
@@ -47,7 +47,7 @@
 	groundTransform: {
 		translation: { x: 0, y: 0, z: 0 },
 		rotation: { x: 0, y: 0, z: 0 },
-		origin: { x: 0.5, y: 0.25, z: 0.5 },
+		origin: { x: 0.5, y: 0.375, z: 0.5 },
 		scale: 3
 	}
 }

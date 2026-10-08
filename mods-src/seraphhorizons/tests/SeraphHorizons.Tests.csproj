@@ -161,11 +161,10 @@
     <None Include="../assets/seraphhorizons/patches/unifiedpipes-ppex.json" Link="unifiedpipes-ppex.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/grid/unifiedpipes.json" Link="unifiedpipes-grid.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The chain: the patch on the game's chute section (the hollow section), its anvil recipe and
-         the chute recipes; this mod's soldering recipe, the angle (item, anvil recipe) and the pipe
+         the chute recipes; this mod's soldering recipe, the angle (item and shape) and the pipe
          section; and the game's three files (1.22.7), the item and chutes trimmed to what the guard reads. -->
     <None Include="../assets/seraphhorizons/patches/unifiedpipes-chutesection.json" Link="unifiedpipes-chutesection.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/grid/chutesection.json" Link="chutesection-grid.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../assets/seraphhorizons/recipes/smithing/angle.json" Link="angle-smithing.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/angle.json" Link="angle-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/pipesection.json" Link="pipesection-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/shapes/item/angle.json" Link="angle-shape.json" CopyToOutputDirectory="PreserveNewest" />

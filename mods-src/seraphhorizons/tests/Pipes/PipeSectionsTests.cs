@@ -3,8 +3,8 @@ using SeraphHorizons.Mod.Pipes.Core;
 
 namespace SeraphHorizons.Tests.Pipes;
 
-/// <summary>The pipe chain's own pieces (<c>UnifiedPipes</c>): the angle (item, shape, anvil
-/// recipe), the pipe section (item, shape), every pipe shape from pipe sections and a joint, and the
+/// <summary>The pipe chain's own pieces (<c>UnifiedPipes</c>): the angle (item and shape; the press
+/// brake is its only maker, so it has no recipe), the pipe section (item, shape), every pipe shape from pipe sections and a joint, and the
 /// chain's figures.</summary>
 public class PipeSectionsTests
 {
@@ -30,7 +30,7 @@ public class PipeSectionsTests
     }
 
     [Fact]
-    public void The_angle_is_an_L_forged_from_one_ingot()
+    public void The_angle_is_a_half_plate_folded_into_a_4_by_4_L()
     {
         var item = (JObject)Json("angle-itemtype.json");
         Assert.Equal("angle", (string?)item["code"]);
@@ -39,32 +39,19 @@ public class PipeSectionsTests
         Assert.Equal("game:block/metal/sheet/{metal}1", (string?)item["textures"]!["metaltex"]!["base"]);
         Assert.Equal("seraphhorizons:angle-handbook-text", (string?)item["attributes"]!["handbook"]!["extraSections"]![0]!["text"]);
 
-        // the press brake contract's L: two legs 8 across the outside, 1 thick, 8 long, sharing a corner,
-        // so two make the chute section's 8 x 8 x 8 box
+        // the press brake contract's L: the 8 x 4 half plate folded across its middle, two legs 4 across
+        // the outside, 1 thick, 4 long, sharing a corner, centred in the block
         var voxels = Voxels((JObject)Json("angle-shape.json"));
-        Assert.Equal(8 * 8 + 8 * 7, voxels.Count);
-        Assert.Equal((4, 11), (voxels.Min(v => v.Item1), voxels.Max(v => v.Item1)));
-        Assert.Equal((4, 11), (voxels.Min(v => v.Item2), voxels.Max(v => v.Item2)));
-        Assert.Equal((4, 11), (voxels.Min(v => v.Item3), voxels.Max(v => v.Item3)));
-        Assert.All(voxels, v => Assert.True(v.Item2 == 4 || v.Item3 == 4, $"{v} is off the L"));
-        // turned 180 degrees about its length, the other half of the box (the legs' ends meet at two corners)
-        var other = voxels.Select(v => (v.Item1, 15 - v.Item2, 15 - v.Item3)).ToHashSet();
-        Assert.Equal(8 * 2, voxels.Intersect(other).Count());
-        var box = voxels.Union(other).ToList();
-        Assert.Equal(8 * 8 * 8 - 8 * 6 * 6, box.Count);
-        Assert.All(box, v => Assert.True(v.Item2 is 4 or 11 || v.Item3 is 4 or 11, $"{v} is inside the bore"));
-
-        var recipe = Assert.Single((JArray)Json("angle-smithing.json"))!;
-        Assert.Equal("game:ingot-*", (string?)recipe["ingredient"]!["code"]);
-        Assert.Equal(PipeSections.AngleMetals, recipe["ingredient"]!["allowedVariants"]!.Select(s => (string)s!));
-        Assert.Equal("seraphhorizons:angle-{metal}", (string?)recipe["output"]!["code"]);
-        Assert.Null(recipe["output"]!["quantity"]); // one
-        // Hydrate or Diedrate's L: a 7 x 4 flange and a 7-long web two layers up its back edge, one ingot's 42 voxels
-        var layers = recipe["pattern"]!.Select(l => l.Select(r => (string)r!).ToList()).ToList();
-        Assert.Equal(["#######", "#######", "#######", "#######"], layers[0]);
-        Assert.All(layers.Skip(1), l => Assert.Equal(["#######", "_______", "_______", "_______"], l));
-        Assert.Equal(42, layers.Sum(l => l.Sum(r => r.Count(c => c == '#'))));
-        Assert.Equal(PipeSections.AnglesPerIngot, 1);
+        Assert.Equal(4 * 4 + 4 * 3, voxels.Count);
+        Assert.Equal((6, 9), (voxels.Min(v => v.Item1), voxels.Max(v => v.Item1)));
+        Assert.Equal((6, 9), (voxels.Min(v => v.Item2), voxels.Max(v => v.Item2)));
+        Assert.Equal((6, 9), (voxels.Min(v => v.Item3), voxels.Max(v => v.Item3)));
+        Assert.All(voxels, v => Assert.True(v.Item2 == 6 || v.Item3 == 6, $"{v} is off the L"));
+        // two of them are much less than the chute section's 8 x 8 x 8 box they are soldered into: that
+        // is the grid recipe's accepted abstraction (README "Unified pipes")
+        Assert.True(2 * voxels.Count < 8 * 8 * 8 - 6 * 6 * 8);
+        // a plate (two ingots) cuts into two half plates, each folded into one angle: an angle an ingot
+        Assert.Equal(1, PipeSections.AnglesPerIngot);
     }
 
     [Fact]

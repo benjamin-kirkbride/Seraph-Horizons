@@ -20,7 +20,7 @@ public class BlockPressBrake : Block
 {
     public static readonly AssetLocation ItemCode = new(PressBrakeSystem.Domain, "pressbrake-frame-north");
 
-    // What each stage takes, and the plates, as stacks that exist in the game being played (help icons).
+    // What each stage takes, and the half plates, as stacks that exist in the game being played (help icons).
     private Dictionary<PressBrakeStage, ItemStack[]> _partStacks = [];
     private ItemStack[] _plateStacks = [];
 
@@ -32,7 +32,7 @@ public class BlockPressBrake : Block
                 .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
                 .OfType<ItemStack>().ToArray()));
         _plateStacks = ObjectCacheUtil.GetOrCreate(api, "pressbrake-platestacks", () =>
-            new[] { Folding.LeadPlate, Folding.CopperPlate }
+            new[] { Folding.LeadHalfPlate, Folding.CopperHalfPlate }
                 .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
                 .OfType<ItemStack>().ToArray());
     }

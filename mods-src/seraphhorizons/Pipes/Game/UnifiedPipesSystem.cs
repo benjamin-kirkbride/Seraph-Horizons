@@ -15,7 +15,7 @@ namespace SeraphHorizons.Mod.Pipes;
 /// material states, and its valves and pressure valves the three bronzes, by JSON patch
 /// (<see cref="PatchAsset"/>), which also switches off ppex's plate-and-nails pipe recipes and its
 /// iron and steel valve recipes. The chain (<see cref="PipeSections"/>): this mod's angle (copper or
-/// lead, forged from an ingot or folded on the press brake); the game's chute section, the hollow
+/// lead, folded on the press brake from a half plate cut on the squaring shear); the game's chute section, the hollow
 /// section, which gets a lead state by a second JSON patch (<see cref="ChutePatchAsset"/>, checked by
 /// <see cref="ChuteSections"/>) that also switches off the game's anvil and plate recipes for it, so
 /// two angles soldered on the grid are the only way to one; this mod's pipe section (every metal,
@@ -70,7 +70,6 @@ public class UnifiedPipesSystem : ModSystem
     [
         new(Domain, "recipes/grid/unifiedpipes.json"),
         new(Domain, "recipes/grid/chutesection.json"),
-        new(Domain, "recipes/smithing/angle.json"),
     ];
 
     // The type and recipe files open with a comment.
