@@ -108,6 +108,10 @@ export function checkModelFiles(model: ManifestModel, shape: unknown, rig: unkno
       } catch (e) {
         problems.push(`${model.rig}: ${(e as Error).message}`);
       }
+      // A point that rides a part names one of the rig's.
+      const ids = new Set(ps.map((p) => p.id));
+      for (const a of discoverAnchors(r).anchors)
+        if (a.kind === "point" && a.part !== undefined && !ids.has(a.part)) problems.push(`${model.rig}: ${a.key} rides "${a.part}", which is not one of its parts`);
       if (model.scenario) {
         const { anchors } = discoverAnchors(r);
         problems.push(...checkScenario(model.scenario, r, anchors, requiresValues(ps)).map((p) => `scenario: ${p}`));

@@ -1,0 +1,162 @@
+// The handcar (Handcar/, README "Handcar"): Yang's Transport Tycoon's own standard-gauge vehicle
+// (class yangtransport.sglocomotive and its renderer), pumped by its two riders through this mod's
+// HumanPowered behaviour. The server disables it with Handcar off or without Yang. Its model is
+// generated (Handcar/tools/make_shape.py), as are the bogies' offsets below (handcar-rig.json's
+// "bogies"; a test holds them together). SGLocomotive.Drive's Roll0, RollW and BrakeDecel are written
+// from HandcarSettings when the server loads (HandcarSystem.ApplyDrive).
+{
+	"code": "handcar",
+	"class": "yangtransport.sglocomotive",
+
+	"hitboxSize": { "x": 1.2, "y": 1.2 },
+	"eyeHeight": 1.2,
+
+	"attributes": {
+		"SGLocomotive": {
+			"SelfWeight": 2,
+			"VehicleLength": 4.125,
+			// A chest or crate on the cargo deck weighs 1, as on Yang's carts.
+			"AttachmentWeight": { "Default": 0, "ByCategoryCode": { "chest": 1, "crate": 1 } },
+			"Drive": { "HardMaxSpeed": 200, "Roll0": 0.35, "RollW": 0.05, "BrakeDecel": 2.5, "StopEpsilon": 0.02, "ReverseMaxSpeedMul": 1 },
+			"Render": {
+				"BodyOffsetForward": -0.2125,
+				"BodyOffsetLateral": 0,
+				"BodyOffsetVertical": 0,
+				"Bogies": [
+					{ "Shape": "seraphhorizons:entity/handcar-axlebox", "OffsetForward": 0 },
+					{ "Shape": "seraphhorizons:entity/handcar-axlebox", "OffsetForward": 2.3375 },
+				],
+			},
+		},
+		// Riders standing on the deck are put off when they would run into a block (Yang's seat check).
+		"CollisionCheckSeats": true,
+		// Yang's wrench (with a hammer in the off hand) takes the car apart into itself.
+		"deconstructible": true,
+		"deconstructDrops": [
+			{ "type": "item", "code": "seraphhorizons:handcar", "quantity": 1 },
+		],
+		"DestroyDrops": [
+			{ "type": "item", "code": "game:plank-oak", "quantity": 6 },
+			{ "type": "item", "code": "game:rod-copper", "quantity": 1 },
+		],
+	},
+
+	"client": {
+		"renderer": "yangtransport.sglocomotivebogies",
+		"shape": { "base": "seraphhorizons:entity/handcar" },
+		// Run by the mod by the distance travelled (HandcarAnimator), never by the game: hence the
+		// tiny speed, and the ease speeds scaled to it.
+		"animations": [
+			{ "code": "pump", "animation": "pump", "animationSpeed": 0.0001, "easeInSpeed": 10000, "easeOutSpeed": 10000, "weight": 1, "blendMode": "Average", "clientSide": true },
+		],
+		"behaviors": [
+			{ "code": "interpolateposition" },
+			{ "code": "sglocostats" },
+			{ "code": "seraphhorizons.HumanPowered" },
+			{ "code": "SGBodySelectionBoxes", "SelectionBoxes": [ "SEAT_FRONT_AP", "SEAT_REAR_AP", "CARGO_AP" ] },
+			{
+				"code": "seatable",
+				"interactMountAnySeat": false,
+				"seats": [
+					{
+						"seatId": "front",
+						"apName": "SEAT_FRONT_AP",
+						"selectionBox": "SEAT_FRONT_AP",
+						"controllable": false,
+						"angleMode": "FixateYaw",
+						"mountOffset": { "x": 0, "y": 0, "z": 0 },
+						"mountRotation": { "x": 0, "y": 180, "z": 0 },
+						"eyeHeight": 1.65,
+						"animation": "seraphhorizons-handcar-grip-front",
+					},
+					{
+						"seatId": "rear",
+						"apName": "SEAT_REAR_AP",
+						"selectionBox": "SEAT_REAR_AP",
+						"controllable": false,
+						"angleMode": "FixateYaw",
+						"mountOffset": { "x": 0, "y": 0, "z": 0 },
+						"eyeHeight": 1.65,
+						"animation": "seraphhorizons-handcar-grip-rear",
+					},
+				],
+			},
+			{
+				"code": "attachable",
+				"interactText": "attachable",
+				"wearableSlots": [
+					// Every selection box's attachment point must be a slot (Yang: else the block overlay crashes); no categories.
+					{ "code": "SEAT_FRONT_AP", "forCategoryCodes": [] },
+					{ "code": "SEAT_REAR_AP", "forCategoryCodes": [] },
+					{
+						"code": "CARGO_AP",
+						"forCategoryCodes": [ "chest", "crate" ],
+						"behindSlots": [],
+						"attachmentPointCode": "CARGO_AP",
+						"emptyInteractPassThrough": true,
+						"stepParentTo": {
+							"": { "elementName": "cargo_mount" },
+							"chest": { "elementName": "cargo_mount" },
+							"crate": { "elementName": "cargo_mount" },
+						},
+					},
+				],
+			},
+		],
+	},
+
+	"server": {
+		"behaviors": [
+			{ "code": "sglocostats" },
+			{ "code": "seraphhorizons.HumanPowered" },
+			{ "code": "SGBodySelectionBoxes", "SelectionBoxes": [ "SEAT_FRONT_AP", "SEAT_REAR_AP", "CARGO_AP" ] },
+			{
+				"code": "seatable",
+				"interactMountAnySeat": false,
+				"seats": [
+					{
+						"seatId": "front",
+						"apName": "SEAT_FRONT_AP",
+						"selectionBox": "SEAT_FRONT_AP",
+						"controllable": false,
+						"angleMode": "FixateYaw",
+						"mountOffset": { "x": 0, "y": 0, "z": 0 },
+						"mountRotation": { "x": 0, "y": 180, "z": 0 },
+						"eyeHeight": 1.65,
+						"animation": "seraphhorizons-handcar-grip-front",
+					},
+					{
+						"seatId": "rear",
+						"apName": "SEAT_REAR_AP",
+						"selectionBox": "SEAT_REAR_AP",
+						"controllable": false,
+						"angleMode": "FixateYaw",
+						"mountOffset": { "x": 0, "y": 0, "z": 0 },
+						"eyeHeight": 1.65,
+						"animation": "seraphhorizons-handcar-grip-rear",
+					},
+				],
+			},
+			{
+				"code": "attachable",
+				"interactText": "attachable",
+				"wearableSlots": [
+					{ "code": "SEAT_FRONT_AP", "forCategoryCodes": [] },
+					{ "code": "SEAT_REAR_AP", "forCategoryCodes": [] },
+					{
+						"code": "CARGO_AP",
+						"forCategoryCodes": [ "chest", "crate" ],
+						"behindSlots": [],
+						"attachmentPointCode": "CARGO_AP",
+						"emptyInteractPassThrough": true,
+						"stepParentTo": {
+							"": { "elementName": "cargo_mount" },
+							"chest": { "elementName": "cargo_mount" },
+							"crate": { "elementName": "cargo_mount" },
+						},
+					},
+				],
+			},
+		],
+	},
+}

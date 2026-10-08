@@ -44,6 +44,7 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.PressBrake), PressBrake.PressBrakeSystem.RecipeAssets, PressBrake.PressBrakeSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.MandrelStation), MandrelStation.MandrelStationSystem.RecipeAssets, MandrelStation.MandrelStationSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.SteelBitsRecovery), [SteelBitsSystem.RecipeAsset], []);
+        yield return (nameof(SeraphHorizonsConfig.Handcar), [Handcar.HandcarSystem.RecipeAsset], Handcar.HandcarSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.CreativeSteamSource), [], [CreativeSteamSource.BlockAsset]);
         yield return (nameof(SeraphHorizonsConfig.CastPipes), Pipes.CastPipesSystem.RecipeAssets, Pipes.CastPipesSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.UnifiedPipes), Pipes.UnifiedPipesSystem.RecipeAssets, Pipes.UnifiedPipesSystem.TypeAssets);

@@ -4,7 +4,8 @@
 //
 //   "<name>Cell": [x, y, z]               a cell, outlined (with "<name>Face": a side, that face shaded)
 //   "<name>Side": "west"                  a side of the footprint, an arrow pointing in
-//   "<name>": { "pos": [x, y, z] }        a point (with "<name>Side", an arrow out that way)
+//   "<name>": { "pos": [x, y, z] }        a point (with "<name>Side", an arrow out that way; with
+//                                         "part": "<part id>", it rides that part, posed by its matrix)
 //   "<name>": { "origin", "axis", "length" }   a line along an axis, centred on origin; with
 //                                         "stations": { "<station>": number }, a mark at each
 //                                         place along the axis (a trunk path's stations)
@@ -31,7 +32,7 @@ export const SIDE_NORMAL: Record<Side, Vec3> = {
 export type Anchor =
   | { kind: "cell"; key: string; label: string; pos: Vec3; face?: Side }
   | { kind: "side"; key: string; label: string; side: Side }
-  | { kind: "point"; key: string; label: string; pos: Vec3; side?: Side }
+  | { kind: "point"; key: string; label: string; pos: Vec3; side?: Side; part?: string }
   | { kind: "line"; key: string; label: string; origin: Vec3; axis: Axis; length: number; marks?: LineMark[] }
   | { kind: "level"; key: string; label: string; y: number };
 
@@ -74,7 +75,8 @@ export function discoverAnchors(rig: Rig): { anchors: Anchor[]; unrecognised: st
       anchors.push({ kind: "side", key, label: `${humanize(stem)} (${value})`, side: value });
     } else if (isObject(value) && isVec3(value.pos)) {
       const side = rig[`${key}Side`];
-      anchors.push({ kind: "point", key, label: humanize(key), pos: value.pos, ...(isSide(side) ? { side } : {}) });
+      const part = typeof value.part === "string" ? value.part : undefined;
+      anchors.push({ kind: "point", key, label: humanize(key), pos: value.pos, ...(isSide(side) ? { side } : {}), ...(part ? { part } : {}) });
     } else if (isObject(value) && isVec3(value.origin) && isAxis(value.axis) && typeof value.length === "number") {
       const marks = isObject(value.stations)
         ? Object.entries(value.stations)
