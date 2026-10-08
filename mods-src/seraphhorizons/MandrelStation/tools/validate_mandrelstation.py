@@ -117,6 +117,45 @@ def check_textures(v):
         v.fail(f"textures off their role: {bad[:6]}")
 
 
+def band_offsets(v, k, pre, W):
+    """For each ring of metal `pre`'s work at W, for each of its faces running along the axis: where on the
+    work's sheet the face starts, less where its near edge stands from the work's near end (texture units,
+    4 a voxel). Equal on every face of a ring (it is rigid); equal between two rings, the texture runs on
+    from one to the next with no seam."""
+    m, out = v.m, {}
+    unit = m.TEX / 16
+    far = unit * (m.band_z(m.N_RINGS - 1) + m.RING_L)
+    for i in range(m.N_RINGS):
+        for el in v.group(rf"{pre}{i + 1}[udew]+", m.pose_at(k, W)):
+            lo = el.aabb()[0][2] - m.Z0
+            for d, f in el.faces.items():
+                uv = f["uv"]
+                start = {"up": uv[1], "down": uv[1], "west": uv[0], "east": far - uv[2]}.get(d)
+                if start is not None:
+                    out.setdefault(i, []).append(start - unit * lo)
+    return out
+
+
+def check_banding(v):
+    """The work's faces along its length are one sheet (`band` in make_shape.py): at W_BAND every ring's
+    texture continues the one before it exactly. A ring slides rigidly, so elsewhere two rings' textures are
+    off by how far their spacing has moved; at rest and at W 1 the largest offset between neighbouring rings
+    is reported, and must stay under a voxel's worth (4 texture units)."""
+    m, worst, own = v.m, {}, 0.0
+    for k, pre in ((1, "l"), (2, "c")):
+        for W in (0.0, m.W_BAND, 1.0):
+            offs = band_offsets(v, k, pre, W)
+            own = max([own] + [max(o) - min(o) for o in offs.values()])
+            mean = [sum(offs[i]) / len(offs[i]) for i in range(m.N_RINGS)]
+            worst[W] = max([worst.get(W, 0.0)] + [abs(mean[i + 1] - mean[i]) for i in range(m.N_RINGS - 1)])
+    print(f"banding: one sheet along the work, offset between neighbouring rings {worst[m.W_BAND]:.3f} texture units "
+          f"at W {m.W_BAND}, {worst[0.0]:.2f} at rest, {worst[1.0]:.2f} at W 1 (4 a voxel); within a ring {own:.3f}")
+    if worst[m.W_BAND] > 0.01 or own > 0.01:
+        v.fail(f"the work's rings are not one sheet at W {m.W_BAND}: offset {worst[m.W_BAND]:.3f}, within a ring {own:.3f}")
+    if max(worst[0.0], worst[1.0]) >= m.TEX / 16:
+        v.fail(f"the work's texture jumps by a voxel or more between rings at rest or at W 1: {worst}")
+
+
 RING = re.compile(r"([lc])(\d+)[udew]+")
 
 
@@ -352,6 +391,7 @@ def validate(m, els, parts, rig, quick=False):
     check_basic(v)
     check_floating(v)
     check_textures(v)
+    check_banding(v)
     check_containment(v, [m.REST] + cycle_poses(m, 0.01))
     check_forging(v)
     check_mandrel(v)

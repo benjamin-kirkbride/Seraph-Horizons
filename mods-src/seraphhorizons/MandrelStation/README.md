@@ -87,6 +87,18 @@ their ends, a hairline shows there at W 1). At every tenth of W the work is chec
 continuous square tube of even cross-section, with no gap between rings; the volumes where rings, walls
 and corner bars overlap are never seen.
 
+**One sheet down the tube.** The rings' faces along the length (the walls' and corner bars' sides, top
+and bottom, inside and out) take their UVs from one sheet of the metal's texture running the length of
+the work: each ring's continues where the one before it ends, and across the section each face takes
+the part of the sheet where it stands, so walls and corner bars meet without a seam (the end faces keep
+their own). A ring is rigid and slides, so the sheet can run on exactly from ring to ring at one W only;
+elsewhere two rings' textures are off by 4 texture units a voxel times how far their spacing has moved
+since. It is mapped by **W 0.5** (`W_BAND`), the rings' places halfway through the stretch, not by the
+rest or W 1: the offset at either end is then half what a mapping by one end leaves at the other, 2.25
+texture units (about a pixel of the 32-pixel sheet) between neighbouring rings at rest and at W 1, and
+none at W 0.5. Mapped by the rest it would be none at rest and 4.5 at W 1. So no seams show by design;
+the one line along the work is the part line between the two sections.
+
 **It hangs on the mandrel.** A loose box on a bar hangs from it: at every W the bore's ceiling (the top
 wall's underside) rests on the bar's top face, and the gap is below the bar, never round it. At rest the
 6 bore on the 4 bar puts the box's centre 1 below the mandrel's axis (y 12.6; the box's bottom 0.6 over
@@ -116,6 +128,9 @@ included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py
 - **Frame:** joined to the ground as one piece (the stump, hoop, bracket and swage).
 - **Textures by role:** the stump oak; hoop, bracket and swage iron; the mandrel `mandrel`; each metal's
   work its own sheet.
+- **Banding:** the work's faces along its length one sheet: at W 0.5 no offset between neighbouring rings
+  or within a ring; at rest and at W 1 the largest offset between neighbouring rings reported (2.51
+  texture units, at the part line; 2.25 within a section) and under a voxel's worth (4).
 - **Containment:** nothing leaves the 1 × 1 × 2 box over the whole forging, either metal, every 0.01.
 - **Forging:** at every tenth of W, one continuous square tube of even cross-section (every sample of its
   walls covered, nothing in its bore or outside it, all along it, but for 0.1 either side of the part
@@ -176,9 +191,10 @@ The model has been reviewed in projections rendered from the written files and i
 
 1. **The mandrel is cantilevered** 17.3 voxels past the bracket (10 past the stump): a smith slips the
    hollow on and the tube off over its free end. The bracket holds it at two bands 3.6 apart.
-2. **Ring joints.** The hollow is eight rings, so the game will show seams where their textures meet
-   (like rings of blows), and the stretch is carried by the rings sliding apart, not by the texture
-   stretching. Through the open end the overlapping rings' ends can be seen inside the bore.
+2. **Ring joints.** The hollow is eight rings, banded as one sheet ("One sheet down the tube"), so no
+   seams are drawn between them: only the part line between the two sections shows. The sheet runs on
+   exactly at W 0.5; towards rest and W 1 neighbouring rings' textures drift apart by up to about a pixel,
+   and the stretch is carried by the rings sliding apart, not by the texture stretching. Through the open end the overlapping rings' ends can be seen inside the bore.
 3. **Stepped faces.** The overlapping rings' outer faces are stepped in by up to 0.105 voxels (the
    z-fighting fix); a ring's side walls and corner bars stand back 0.03 and 0.06 at its ends.
 4. **No slide-on, no slide-off.** The hollow appears on the mandrel as p eases in; at W 1 the finished tube
