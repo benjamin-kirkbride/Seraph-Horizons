@@ -24,11 +24,12 @@ namespace SeraphHorizons.PackTests;
 /// run on the patched seraph and on the car's shape at the same frames, puts each hand on its handle.
 /// Each scenario builds on a granite floor of its own, high over the spawn.
 /// <para>Its own class on the plain world rather than a part of <see cref="SharedWorldScenarios"/>:
-/// it joins three players (two riders and one with the wrench), and the shared world has none of
+/// it joins four players (two riders, one with the wrench and the locomotive's driver of
+/// <c>LocomotiveSeatsScenarios.cs</c>, a part of this class), and the shared world has none of
 /// the server's sixteen left.</para>
 /// </summary>
 [AtlasWorld]
-public class HandcarScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public partial class HandcarScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     private IWorldAccessor W => World.Api.World;
 
