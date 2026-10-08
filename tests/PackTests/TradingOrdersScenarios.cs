@@ -201,7 +201,8 @@ public partial class TradingScenarios
         var d = await Create(a, b, sp.PlayerName);
         int afterDeposit = Gears(sp);
 
-        var sim = await World.ExecuteCommand("/sh trade simulate 2");
+        // 80 m: a day to deliver (the least) and a day's grace; the third day fails it.
+        var sim = await World.ExecuteCommand("/sh trade simulate 3");
         Assert.True(sim.Ok, sim.Message);
         Assert.Equal(DeliveryState.Failed, d.State);
         Assert.Equal(afterDeposit, Gears(sp));
