@@ -1,0 +1,80 @@
+// The squaring shear's frame (SquaringShear/, README "Squaring shear"): the controller cell of a 1 x 1 x 2
+// foot-treadle squaring shear, at the table end, nearest the player who placed it. The server disables
+// it with SquaringShear off.
+{
+	code: "squaringshear",
+	class: "seraphhorizons.SquaringShear",
+	entityClass: "seraphhorizons.SquaringShear",
+	// No HorizontalOrientable: BlockSquaringShear.TryPlaceBlock picks the side so the shear extends
+	// away from the player, as the press brake does.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/squaringshear_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/squaringshear_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/squaringshear_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/squaringshear_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (squaringshear.json), which the
+	// renderer draws with this block's textures; the renderer sets "blade" and "gauge" to the fitted
+	// plate's and rods' metals.
+	textures: {
+		"oak":    { base: "game:block/wood/debarked/oak" },
+		"iron":   { base: "game:block/metal/plate/iron" },
+		"blade":  { base: "game:block/metal/plate/iron" },
+		"gauge":  { base: "game:block/metal/plate/iron" },
+		"lead":   { base: "game:block/metal/sheet-plain/lead1" },
+		"copper": { base: "game:block/metal/sheet-plain/copper1" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:squaringshear-handbook-assembly-title", text: "seraphhorizons:squaringshear-handbook-assembly-text" },
+				{ title: "seraphhorizons:squaringshear-handbook-work-title", text: "seraphhorizons:squaringshear-handbook-work-text" },
+				{ title: "seraphhorizons:squaringshear-handbook-ladder-title", text: "seraphhorizons:squaringshear-handbook-ladder-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:squaringshear-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The shear's 1 x 1 x 2 footprint is native z 0..2 from the controller, the frame's shape (the
+	// moving crosshead and treadle are the renderer's) z 0.19..1.96, its mesh z -0.96..0.81 once the
+	// -north item form turns it 180°, so the item forms turn about the mesh's middle (0.5, 0.5,
+	// -0.075). Held (first and third person alike) the game leaves the origin where it is rather than
+	// on the hand, so the translation brings the middle back to vanilla's two-handed crate's spot by
+	// the hand, (0.01, 0.14, 0.18): translation = (that spot - origin) / scale (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: -1.09, y: -0.8, z: 0.57 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.5, z: -0.075 },
+		scale: 0.45
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.5, z: -0.075 },
+		scale: 0.8
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: -0.075 },
+		scale: 1.6
+	},
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

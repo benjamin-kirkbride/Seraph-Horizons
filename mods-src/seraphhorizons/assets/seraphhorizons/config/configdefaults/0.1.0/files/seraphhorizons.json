@@ -278,8 +278,13 @@
   },
   "PressBrake": true,
   "PressBrakeSettings": {
-    "LeverTurnsPerPlateLead": 3.0,
-    "LeverTurnsPerPlateCopper": 4.5
+    "LeverTurnsPerPlateLead": 1.5,
+    "LeverTurnsPerPlateCopper": 2.25
+  },
+  "SquaringShear": true,
+  "SquaringShearSettings": {
+    "StrokesPerPlateLead": 1.0,
+    "StrokesPerPlateCopper": 1.5
   },
   "MandrelStation": true,
   "MandrelStationSettings": {

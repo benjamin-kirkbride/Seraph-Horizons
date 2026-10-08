@@ -275,11 +275,19 @@ input shaft one hollow takes, the `work` it is made of (4 sections, `turnsPerUni
 `wear` (`fixed`: one point per hollow) and `oil` (`points` drained per hollow from a `tank`, 2 a
 pipe section).
 
-**The press brake** (type `pressbrake`, shape `machine`): one record per plate metal, id
-`pressbrake|game:metalplate-<metal>|0`. The ingredients are the plate (consumed), the screws and
-the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
-(`seraphhorizons:angle-<metal>`), the plate bent once. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
-plate takes (a turn a second while the player holds right-click); there is no `wear` and no `oil`.
+**The press brake** (type `pressbrake`, shape `machine`): one record per half plate metal, id
+`pressbrake|seraphhorizons:halfplate-<metal>|0`. The ingredients are the half plate (consumed), the
+screws and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
+(`seraphhorizons:angle-<metal>`), the half plate folded once across its middle. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
+half plate takes (a turn a second while the player holds right-click); there is no `wear` and no `oil`.
+
+**The squaring shear** (type `squaringshear`, shape `machine`): one record per plate metal, id
+`squaringshear|game:metalplate-<metal>|0`. The ingredients are the plate (consumed), the blades and
+the gauge (both in `machine.kept`) and the machine (role `station`); the output is two half plates
+(`seraphhorizons:halfplate-<metal>`), the plate cut once across its middle. It is worked by hand:
+`power` is `hand`, `turns` the strokes of its treadle clock one plate takes (a stroke a second while
+the player holds right-click), and `work` says so (`amount` that many, `unit` `strokes`, no
+`turnsPerUnit`); there is no `wear` and no `oil`.
 
 **The mandrel forging station** (type `mandrelstation`, shape `machine`): one record per hollow metal,
 id `mandrelstation|game:chutesection-<metal>|0`. The ingredients are the hollow section (consumed), the

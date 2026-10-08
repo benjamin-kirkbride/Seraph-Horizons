@@ -45,7 +45,7 @@ public class HeldTransformTests
     {
         var covered = PackShapedFiles().ToHashSet();
         foreach (var f in new[] { "blocktypes/rosser/frame.json", "blocktypes/buckingmill/frame.json", "blocktypes/gearcutter/frame.json",
-                     "blocktypes/drawbench/frame.json", "blocktypes/mandrelstation/frame.json", "blocktypes/pressbrake/frame.json", "itemtypes/handcar.json" })
+                     "blocktypes/drawbench/frame.json", "blocktypes/mandrelstation/frame.json", "blocktypes/pressbrake/frame.json", "blocktypes/squaringshear/frame.json", "itemtypes/handcar.json" })
             Assert.Contains(f, covered);
     }
 
