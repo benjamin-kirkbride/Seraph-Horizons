@@ -125,8 +125,6 @@ public class BlockMandrelStation : Block
                 help.Add(new WorldInteraction { ActionLangCode = Key("strike"), MouseButton = EnumMouseButton.Right, Itemstacks = _hammerStacks });
             if (station.HollowOn && station.Job.Untouched)
                 help.Add(new WorldInteraction { ActionLangCode = Key("takehollow"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
-            else if (MandrelPart.CanTakeBack(station.Mandrel, station.HollowOn))
-                help.Add(new WorldInteraction { ActionLangCode = Key("takemandrel"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
             // the machines' creative shortcut, while the mandrel is still to fit
             if (!station.Complete && creative)
                 help.AddRange(SplittingBlockUpgrades.CreativeUpgradeHelp);

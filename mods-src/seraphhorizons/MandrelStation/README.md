@@ -232,9 +232,10 @@ no rod: the mandrel is the one fitted part.
 
 **The mandrel** (`MandrelPart`): `game:rod-iron`, `-meteoriciron` or `-steel` (verified in game 1.22.7's
 `survival/itemtypes/part/rod.json`), fitted by right-click on the stump or the ghost; a second is
-refused with a message, and a rod of another metal is the item's own business. Ctrl + right-click takes
-it back while nothing is on it (the contract has it back only by breaking; the brief asked for this, as
-on the press brake). The creative shortcut (Ctrl in creative mode with no mandrel) fits an iron one free.
+refused with a message, and a rod of another metal is the item's own business. Once fitted it stays in:
+only breaking the station gives it back, as the contract has it. A machine's parts come out by hand only
+when they are consumables (the draw bench's die), and the mandrel station has none, so there is no
+take-out path, no help line for one and no lang string. The creative shortcut (Ctrl in creative mode with no mandrel) fits an iron one free.
 Breaking drops the frame, the mandrel and a hollow not yet struck (a struck one is lost).
 
 **Blows** (the anvil's pattern: `BlockEntityAnvil` takes a hammer's hits). A hollow section, the game's
@@ -256,10 +257,19 @@ creative mode), one a blow whatever the hammer. At W = 1 the hollow is used up a
 `forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) go into a container in
 `MandrelStationRig.OutputNeighbour()` (the cell beyond the tip, native south), else drop just past it at
 `OutputDrop()`, pushed outward, as the press brake's angle does. Each blow syncs W and the blow count.
-Ctrl + right-click takes a hollow back only before the first blow; after it, it stays (an error says
-so), and so does the mandrel. **Infeed:** a hand station takes nothing by itself. A blow on a bare
+Ctrl + right-click takes a hollow back only before the first blow (the work, not a part); after it, it
+stays (an error says so). **Infeed:** a hand station takes nothing by itself. A blow on a bare
 mandrel takes one hollow from a container in a cell beside the station (`InfeedNeighbours`, native
-west: beside the stump or beside the tip's cell) and loads it; that click is not a blow. A save keeps
+west: beside the stump or beside the tip's cell) and loads it; that click is not a blow. **Hotbar
+refill:** with no hollow from the infeed, a hammer click on a bare mandrel while right-click is held since
+a hollow was finished (the same player's hammer clicks on the station no more than
+`Forging.HeldClickGapMs`, 750, apart: the client repeats a held click every 250 ms) puts another of the
+same item on from the first of the player's hotbar slots holding one (`Forging.RefillSlot`: slots 0..9,
+not the skill slot or the off hand, never the backpack; a hollow of the other metal is left), as a
+right-click with it in hand would (`TryLoadHollow`: the slot's stack less one, the hollow's sound, the
+station synced). It waits for `Forging.BlowIntervalMs` since the last blow, as a blow would, so the
+finished tube is seen delivered first; that click is not a blow either, and the next is struck as usual.
+So hammering carries on without letting go. A save keeps
 the mandrel's code, the hollow, its class, the blows and W.
 
 **Settings** (`MandrelStationSettings`): `BlowsPerHollowLead` 9 and `BlowsPerHollowCopper` 14, the rig's
@@ -295,8 +305,9 @@ site says "By hand: 9 blows a job, each a right-click with a hammer"), the defin
 recipe); no `oil`. Type `mandrelstation`, owned by
 `MandrelStation` (`Core/SwitchOwnership.cs`).
 
-**Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the mandrel and its take-back, saves,
-hollows by metal and what is refused, hammers, blows and the last one, copper's fourteen, the blow interval,
+**Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the mandrel, kept until broken, saves,
+hollows by metal and what is refused, hammers, blows and the last one, copper's fourteen, the blow interval, right-click held and the
+hotbar slot a refill comes from,
 the clock, settings, and the reader on a rig written to the contract with its refusals) and
 `MandrelStationRigTests.cs` (the shipped rig through the shared parser and `MandrelStationRig`, its
 anchors, the pace held to the settings, the reader's refusals, and every pose of

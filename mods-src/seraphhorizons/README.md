@@ -2369,9 +2369,9 @@ iron or steel (the hoop and the straps) and a hammer.
 
 **The mandrel.** Fitted by right-click on the stump or the ghost: `game:rod-iron`, `-meteoriciron` or
 `-steel` (smithing, the game's). In creative mode Ctrl + right-click on a station with no mandrel fits an
-iron one with nothing taken. **Ctrl + right-click** takes a hollow back off before its first blow; with
-nothing on, it takes the mandrel back out. Breaking the frame drops the frame, the mandrel and a hollow
-not yet struck (one being forged is lost).
+iron one with nothing taken. Once fitted, the mandrel stays in: the station has no consumable part to
+take out, and breaking the frame drops the frame, the mandrel and a hollow not yet struck (one being
+forged is lost). **Ctrl + right-click** takes a hollow back off before its first blow.
 
 **Work.** A lead or copper hollow section goes on the mandrel by right-click (nothing else does: not an
 angle, a pipe section, an ingot or a plate). Then **each right-click with a hammer** (any of the game's)
@@ -2383,7 +2383,9 @@ the game's tiers (copper, gold, silver 2; bronzes 3; iron, meteoric iron 4; stee
 and 4 blows and copper 14, 10, 7 and 6. When W reaches 1 the hollow is used up
 and two pipe sections of its metal go into a container beyond the tip (native south), else drop just
 past it. A blow on a bare mandrel takes the next hollow from a chest or hopper beside the station (native
-west), so a player can keep striking; it never takes one by itself. The block info shows what the
+west), so a player can keep striking; it never takes one by itself. Without one there, right-click held
+with the hammer as a hollow is finished puts the next of the same item on from the player's hotbar (not
+the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info shows what the
 station needs and the hollow on, its blows struck and how far it is forged.
 
 **Drawn.** The block draws `mandrelstation_frame.json`; the renderer splits `mandrelstation.json` into
@@ -3703,7 +3705,7 @@ clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGamepla
 `PressBrakeRigTests.cs`), the squaring shear's build order, take-back, plates by metal, cut arithmetic
 (W only while held, two half plates at 1), treadle holds, renderer clock, settings and rig
 (`SquaringShear/Core/`, `tests/SquaringShear/SquaringShearGameplayTests.cs`,
-`SquaringShearRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
+`SquaringShearRigTests.cs`), the mandrel station's mandrel, hollows by metal, the hotbar refill,
 blows (two sections at the last), renderer clock, settings and rig (`MandrelStation/Core/`,
 `tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the handcar's drive (pumping by
 facing, solo and pair, braking and holding, load), branch selector, distance rolled, stroke phase, effort fade,
@@ -4083,12 +4085,14 @@ sections and a hammer, its recipe, its place in the mechanics tab, and the setti
 placing on all four facings, the station running away along the facing, the ghost pointing home, both
 cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on breaking; the
 mandrel fitted by a real click on the ghost, a hollow and a blow before it, a copper rod and an empty
-hand refused, a second rod refused, a save keeping it, Ctrl taking it back, and the creative shortcut; a
+hand refused, a second rod refused, a save keeping it, Ctrl not taking it back (no help line for it), breaking giving it back, and the
+creative shortcut on a new station; a
 lead hollow struck through by real right-clicks with a hammer from the stump and the ghost, a blow a
 ninth with a copper hammer, an angle, a pipe section, an ingot and a plate never taken, the hammer paying
 a point a blow, a save keeping the blows, and two lead pipe sections dropped beyond the tip at the ninth,
 the hollow used up; copper at fourteen blows; a steel hammer forging lead in four blows, each two and a half
-of a copper one's, and copper in six; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
+of a copper one's, and copper in six; right-click held refilling from the hotbar a lead hollow at a time
+once a blow would be struck (never the copper one beside it), and nothing once the lead runs out; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
 breaking giving back the mandrel and an unstruck hollow (not a struck one); and hollows taken from a
 chest beside the stump only when struck (never an ingot, an angle or a pipe section) and sections put in
 a chest beyond the tip. With the switch off, `SwitchesOffScenarios` requires none of its blocks or

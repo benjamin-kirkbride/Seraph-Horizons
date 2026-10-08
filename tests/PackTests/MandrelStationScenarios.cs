@@ -165,7 +165,7 @@ public partial class SharedWorldScenarios
     // ---- The mandrel ----
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Mandrel_station_fits_its_mandrel_and_gives_it_back()
+    public async Task Mandrel_station_fits_its_mandrel_and_keeps_it()
     {
         var pos = await CutterSite(-460, -480);
         var player = await CutterPlayer();
@@ -200,11 +200,26 @@ public partial class SharedWorldScenarios
         station.FromTreeAttributes(tree, W);
         Assert.Equal("game:rod-steel", station.Mandrel);
 
-        // Ctrl takes it back; the creative shortcut fits an iron one free
+        // Ctrl does not take it back, from the stump or the ghost (the station has no consumable part)
+        int held = MandrelHeld(player, "game:rod-steel");
         CutterClick(player, pos, null, ctrl: true);
-        Assert.Equal(1, MandrelHeld(player, "game:rod-steel"));
-        Assert.False(station.Complete);
-        Assert.Null(CutterClick(player, ghost, null, ctrl: true, creative: true));
+        CutterClick(player, ghost, null, ctrl: true);
+        Assert.Equal(held, MandrelHeld(player, "game:rod-steel"));
+        Assert.Equal("game:rod-steel", station.Mandrel);
+        Assert.DoesNotContain(W.BlockAccessor.GetBlock(pos).GetPlacedBlockInteractionHelp(W, new BlockSelection { Position = pos }, player),
+            h => h.ActionLangCode.EndsWith("takemandrel"));
+        // breaking gives it back, with the frame
+        CutterKillItems(pos);
+        W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
+        await World.Ticks(3);
+        var drops = CutterItemsNear(pos);
+        Assert.Equal(1, drops.GetValueOrDefault("game:rod-steel"));
+        Assert.Equal(1, drops.GetValueOrDefault(MandrelFrame));
+        CutterKillItems(pos);
+
+        // the creative shortcut fits an iron one free on a new station
+        station = await PlaceMandrelStation(pos, "east");
+        Assert.Null(CutterClick(player, MandrelGhost(station), null, ctrl: true, creative: true));
         Assert.Equal("game:rod-iron", station.Mandrel);
     }
 
@@ -305,6 +320,80 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
+    // Right-click held with a hammer: once a hollow is finished, the next of the same item from the
+    // player's hotbar goes on by itself (never one of another metal), only once a blow would be struck,
+    // and the hammering carries on; with none left in the hotbar nothing goes on.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Mandrel_station_refills_from_the_hotbar_while_the_hammer_is_held()
+    {
+        var pos = await CutterSite(-484, -500);
+        var player = await CutterPlayer();
+        var station = await PlaceMandrelStation(pos, "south");
+        FitMandrel(station, player);
+        var hotbar = player.InventoryManager.GetHotbarInventory();
+        int active = player.InventoryManager.ActiveHotbarSlotNumber;
+        // the hotbar's own slots but the hand, emptied for the scenario and given back after it
+        var others = Enumerable.Range(0, Forging.HotbarSlots).Where(i => i != active).ToArray();
+        var kept = others.ToDictionary(i => i, i => hotbar[i].Itemstack);
+        var copperSlot = hotbar[others[1]];
+        var leadSlot = hotbar[others[3]];
+        try
+        {
+            foreach (int i in others)
+                hotbar[i].Itemstack = null;
+            copperSlot.Itemstack = CutterItem(Forging.CopperHollow);
+            leadSlot.Itemstack = CutterItem(Forging.LeadHollow, 2);
+            Assert.Null(CutterClick(player, pos, CutterItem(Forging.LeadHollow)));
+            var hammer = CutterItem(MandrelHammer);
+            async Task Finish()
+            {
+                while (station.HollowOn)
+                    await MandrelBlow(station, player, hammer);
+            }
+            async Task<bool> HoldUntilOn()
+            {
+                for (int i = 0; i < 60 && !station.HollowOn; i++)
+                {
+                    await World.Ticks(1);
+                    CutterClick(player, pos, hammer);
+                }
+                return station.HollowOn;
+            }
+
+            await Finish();
+            // the click right after the last blow is too soon for a swing: nothing goes on yet
+            CutterClick(player, pos, hammer);
+            Assert.False(station.HollowOn);
+            Assert.Equal(2, leadSlot.StackSize);
+            // held on, the next lead hollow from the hotbar, not the copper one
+            Assert.True(await HoldUntilOn());
+            Assert.Equal((1, 0), (station.Job.Class, station.Job.Blows));
+            Assert.Equal(1, leadSlot.StackSize);
+            Assert.Equal(1, copperSlot.StackSize);
+            // and the blows go on
+            await MandrelBlow(station, player, hammer);
+            Assert.Equal(1, station.Job.Blows);
+            await Finish();
+            Assert.True(await HoldUntilOn());
+            Assert.True(leadSlot.Empty);
+            await Finish();
+            // none of that metal left: nothing goes on, the copper hollow stays in the hotbar
+            Assert.False(await HoldUntilOn());
+            Assert.Equal(1, copperSlot.StackSize);
+            await World.Ticks(5);
+            Assert.Equal(6, CutterItemsNear(pos).GetValueOrDefault(PipeSectionLead));
+        }
+        finally
+        {
+            foreach (int i in others)
+            {
+                hotbar[i].Itemstack = kept[i];
+                hotbar[i].MarkDirty();
+            }
+            CutterKillItems(pos);
+        }
+    }
+
     // A steel hammer (tier 5) forges two and a half copper blows a blow, the game's ratio: lead in
     // four blows, copper in six, each costing the hammer its one point.
     [AtlasScenario(TimeoutMs = 120_000)]
@@ -394,7 +483,7 @@ public partial class SharedWorldScenarios
         var station = await PlaceMandrelStation(pos, "north");
         FitMandrel(station, player, "game:rod-steel");
 
-        // an unstruck hollow comes back by Ctrl; the mandrel stays while one is on
+        // an unstruck hollow comes back by Ctrl; the mandrel stays
         Assert.Null(CutterClick(player, pos, CutterItem(Forging.CopperHollow)));
         CutterClick(player, pos, null, ctrl: true);
         Assert.False(station.HollowOn);
@@ -468,7 +557,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, station.Job.Class);
         Assert.Equal(0, station.Job.Blows);
         Assert.Equal(1, source.Inventory[2].StackSize);
-        for (int b = 0; b < 6; b++)
+        for (int b = 0; b < MandrelMod.Config.BlowsPerHollowLead; b++)
             await MandrelBlow(station, player, hammer);
         Assert.False(station.HollowOn);
         Assert.Equal(2, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == PipeSectionLead).Sum(s => s.StackSize));
@@ -477,7 +566,7 @@ public partial class SharedWorldScenarios
         CutterClick(player, pos, hammer);
         Assert.True(station.HollowOn);
         Assert.True(source.Inventory[2].Empty);
-        for (int b = 0; b < 6; b++)
+        for (int b = 0; b < MandrelMod.Config.BlowsPerHollowLead; b++)
             await MandrelBlow(station, player, hammer);
         Assert.Equal(4, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == PipeSectionLead).Sum(s => s.StackSize));
         // only the ingot, the angle and the pipe section are left, and nothing goes on
