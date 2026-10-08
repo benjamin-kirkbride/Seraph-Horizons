@@ -36,12 +36,26 @@ references. The second group has `handbookVisible: false` when the handbook hide
 
 An attribute that does not apply is left out. A stick has no `toolTier`.
 
+Processing the schema has no field for yet is in `attributes.extra`: `grinding` (quern) and
+`crushing` (pulverizer), each with its `output` stack, and `juicing`, the fruit press, from
+the item's `juiceableProperties`. `juicing.output` is the liquid as the game gives it, a
+portion with quantity 1 that only names the liquid; the yield is `litresPerItem` litres per
+item pressed (an apple gives 0.3125). `pressed` is the mash left in the press and `returned`
+what comes back besides (honeycomb gives 5 beeswax). Mash has no `litresPerItem`: what is
+left in it rides on the stack, not the item. `distillation`, the still, is on a liquid with
+`distillationProps`: `output` is the distilled liquid, again a portion naming it, and `ratio`
+the litres out per litre in (apple cider gives 0.1, grain cider and mead 0.05). `liquid` marks
+a liquid: the item's `waterTightContainerProps` are `containable`, and `itemsPerLitre` is how
+many of it make a litre (100 for a portion, 5 for Expanded Foods' hard lard). A liquid block in
+the world (water, 0.001 per litre) is containable only through its portion item, so anything
+under one item per litre has no `liquid`.
+
 `sources` lists ways to get the item other than a recipe: block drops, entity drops and
 trader stock. Much of this is driven by code in the game, so the list is best effort.
 
 ### Values and switches
 
-Four optional fields come from the pack's own mod (`seraphhorizons`, #506, #523); without it
+Five optional fields come from the pack's own mod (`seraphhorizons`, #506, #523); without it
 they are all absent, which is valid. They are optional additions, so `schemaVersion` stayed 1.
 
 - `value`: the item's base value in rusty gears (a rusty gear is 1), the table
@@ -50,6 +64,9 @@ they are all absent, which is valid. They are optional additions, so `schemaVers
   of its family) is not exported, so an item without one has no `value`.
 - `floorZero`: `true` when the table lists the code as worth under a gear per full stack
   (traders take it for nothing). Present only then, and only with a `value`.
+- `valuePerLitre`: `true` when `value` is in rusty gears per litre, not per item: a liquid
+  the table prices by the litre (its `perLitre`, `{code: itemsPerLitre}`). A portion is then
+  worth `value / itemsPerLitre`. Present only then, and only with a `value`.
 - `valueSwitches`: the table's `switches[code]`, the config switches the value exists only
   with, because its cheapest route takes a recipe or an item one of them adds. With any of
   them off, the handbook shows "No trade value". The value itself is always the one for the

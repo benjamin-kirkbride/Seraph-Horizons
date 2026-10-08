@@ -1,6 +1,7 @@
 using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.GameContent;
 
 namespace SeraphHorizons.RecipeExport.Items;
 
@@ -80,7 +81,7 @@ internal static class ItemRecords
     /// the game's tooltip uses (durability above 1, attack power above the 0.5 bare-hand
     /// default, tool tier only for tools, mining tools and weapons).
     /// </summary>
-    public static JObject Attributes(CollectibleObject c)
+    public static JObject Attributes(IWorldAccessor world, CollectibleObject c)
     {
         var a = new JObject();
         var stack = new ItemStack(c);
@@ -149,13 +150,13 @@ internal static class ItemRecords
             .ToList();
         if (flags.Count > 0) a["storageFlags"] = new JArray(flags);
 
-        var extra = Extra(c);
+        var extra = Extra(world, c);
         if (extra.Count > 0) a["extra"] = extra;
         return a;
     }
 
     /// <summary>Processing the schema has no field for yet.</summary>
-    private static JObject Extra(CollectibleObject c)
+    private static JObject Extra(IWorldAccessor world, CollectibleObject c)
     {
         var extra = new JObject();
         var ground = Json.Stack(c.GrindingProps?.GroundStack);
@@ -172,12 +173,79 @@ internal static class ItemRecords
             };
         }
 
+        var juicing = Juicing(world, c);
+        if (juicing != null) extra["juicing"] = juicing;
+        var distillation = Distillation(world, c);
+        if (distillation != null) extra["distillation"] = distillation;
+        var liquid = Liquid(c);
+        if (liquid != null) extra["liquid"] = liquid;
+
         // TransitionableProps are recipe records of shape `transition` (Recipes/Transitions.cs).
 
         var food = c.NutritionProps;
         var eaten = Json.Stack(food?.EatenStack);
         if (eaten != null) extra["eatenStack"] = eaten;
         return extra;
+    }
+
+    /// <summary>
+    /// The fruit press: survival's JuiceableProperties, read from the attributes and resolved as
+    /// BlockEntityFruitPress.getJuiceableProps does. LitresPerItem is per input item; mash has
+    /// none (what is left in it rides on the stack), so it is left out there.
+    /// </summary>
+    private static JObject? Juicing(IWorldAccessor world, CollectibleObject c)
+    {
+        var json = c.Attributes?["juiceableProperties"];
+        if (json == null || !json.Exists) return null;
+        var props = Safe(() => json.AsObject<JuiceableProperties>(null!, c.Code.Domain), null);
+        if (props?.LiquidStack == null) return null;
+        JObject? Resolved(JsonItemStack? s) =>
+            s != null && (s.ResolvedItemstack != null || s.Resolve(world, "seraphexport juicing", c.Code, false))
+                ? Json.Stack(s) : null;
+
+        var output = Resolved(props.LiquidStack);
+        if (output == null) return null;
+        var j = new JObject();
+        if (props.LitresPerItem is float litres) j["litresPerItem"] = Json.Round(litres);
+        j["output"] = output;
+        var pressed = Resolved(props.PressedStack);
+        if (pressed != null) j["pressed"] = pressed;
+        var returned = Resolved(props.ReturnStack);
+        if (returned != null) j["returned"] = returned;
+        return j;
+    }
+
+    /// <summary>
+    /// The still: survival's DistillationProps on a liquid, read from the attributes as
+    /// BlockEntityCondenser does. Ratio is litres out per litre in (0.1 for fruit cider).
+    /// </summary>
+    private static JObject? Distillation(IWorldAccessor world, CollectibleObject c)
+    {
+        var json = c.Attributes?["distillationProps"];
+        if (json == null || !json.Exists) return null;
+        var props = Safe(() => json.AsObject<DistillationProps>(null!, c.Code.Domain), null);
+        var stack = props?.DistilledStack;
+        if (stack == null || (stack.ResolvedItemstack == null && !stack.Resolve(world, "seraphexport distillation", c.Code, false)))
+            return null;
+        var output = Json.Stack(stack);
+        if (output == null) return null;
+        return new JObject { ["ratio"] = Json.Round(props!.Ratio), ["output"] = output };
+    }
+
+    /// <summary>
+    /// A liquid: survival's WaterTightContainableProps with Containable set, read from the
+    /// attributes as BlockLiquidContainerBase.GetContainableProps does. ItemsPerLitre is how
+    /// many portion items make a litre (100 for most), so a value per litre is one per that many.
+    /// A liquid block in the world (water, 0.001) is containable only through its portion item
+    /// (whenFilled), so anything under one item per litre is not a liquid here.
+    /// </summary>
+    private static JObject? Liquid(CollectibleObject c)
+    {
+        var json = c.Attributes?["waterTightContainerProps"];
+        if (json == null || !json.Exists) return null;
+        var props = Safe(() => json.AsObject<WaterTightContainableProps>(null!, c.Code.Domain), null);
+        if (props == null || !props.Containable || props.ItemsPerLitre < 1) return null;
+        return new JObject { ["itemsPerLitre"] = (int)Math.Round(props.ItemsPerLitre) };
     }
 
     private static T Safe<T>(Func<T> f, T fallback)

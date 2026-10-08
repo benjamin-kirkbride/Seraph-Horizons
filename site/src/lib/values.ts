@@ -1,8 +1,9 @@
 // Item values: the pack's price table, every item in rusty gears (rusty gear = 1). They
-// ride in search.json (`value`, one number or null per item, and FLAG_FLOOR_ZERO), so the
+// ride in search.json (`value`, one number or null per item, FLAG_FLOOR_ZERO, and
+// FLAG_PER_LITRE for a liquid, whose value is per litre rather than per item), so the
 // item page, the search results and the values page (#/<version>/values) need no other file.
 // See docs/recipe-browser/site.md.
-import { FLAG_FLOOR_ZERO, type MetaMod, type SearchFile } from "./format.ts";
+import { FLAG_BLOCK, FLAG_FLOOR_ZERO, FLAG_HANDBOOK, FLAG_PER_LITRE, type MetaMod, type SearchFile } from "./format.ts";
 import { normalize, tokenize } from "./search.ts";
 
 /** The item every value is counted in. */
@@ -23,11 +24,18 @@ export function isFloorZero(file: SearchFile, index: number): boolean {
   return ((file.flags[index] ?? 0) & FLAG_FLOOR_ZERO) !== 0;
 }
 
+/** The item's value is in rusty gears per litre, not per item (a liquid). */
+export function isPerLitre(file: SearchFile, index: number): boolean {
+  return ((file.flags[index] ?? 0) & FLAG_PER_LITRE) !== 0;
+}
+
 export type SortDir = "asc" | "desc";
 
 /**
  * Orders item indices by value, items without one last in either direction; equal values
- * keep their order (the search ranking, or the name order on the values page).
+ * keep their order (the search ranking, or the name order on the values page). Values are
+ * compared as they are: a liquid's per litre against a solid's per item. Each number is what
+ * the reader sees beside the item, and a litre is the unit a liquid is traded in.
  */
 export function sortByValue(indices: readonly number[], file: SearchFile, dir: SortDir): number[] {
   const sign = dir === "asc" ? 1 : -1;
@@ -42,12 +50,40 @@ export function sortByValue(indices: readonly number[], file: SearchFile, dir: S
 
 export type ValueColumn = "name" | "mod" | "value";
 
+/**
+ * What kind of thing a row is: a liquid (priced per litre), a block, or an item (anything
+ * else). "all" keeps every row.
+ */
+export type ValueKind = "all" | "items" | "blocks" | "liquids";
+export const VALUE_KINDS: readonly ValueKind[] = ["all", "items", "blocks", "liquids"];
+
+/** A flag filter: rows with the flag shown with the rest ("any"), alone ("only") or not at all ("hide"). */
+export type FlagFilter = "any" | "only" | "hide";
+export const FLAG_FILTERS: readonly FlagFilter[] = ["any", "only", "hide"];
+
 export interface ValueQuery {
   filter: string;
   column: ValueColumn;
   dir: SortDir;
   /** Also list items with no value (they sort last by value). */
   unvalued: boolean;
+  /** Only rows of this kind; "all" when absent. */
+  kind?: ValueKind;
+  /** Rows worth under a gear per full stack (floorZero); "any" when absent. */
+  worthless?: FlagFilter;
+  /** Rows none of whose items the handbook shows; "any" when absent. */
+  unlisted?: FlagFilter;
+}
+
+/** Row bits for the kind and flag filters (ValueTable's rowBits). */
+const ROW_ITEM = 1;
+const ROW_BLOCK = 2;
+const ROW_LIQUID = 4;
+const ROW_WORTHLESS = 8;
+const ROW_UNLISTED = 16;
+
+function flagKeeps(filter: FlagFilter | undefined, has: boolean): boolean {
+  return filter === "only" ? has : filter === "hide" ? !has : true;
 }
 
 /**
@@ -68,13 +104,13 @@ export interface ValueRow {
 }
 
 /**
- * What makes two variants one row: the same value, floorZero and config switches. Variants
+ * What makes two variants one row: the same value, floorZero, unit and config switches. Variants
  * without a value share one key, so a group's unvalued members are one row too.
  */
 function priceKey(file: SearchFile, i: number): string {
   const v = valueOf(file, i);
   if (v === undefined) return "none";
-  return `${v}|${isFloorZero(file, i) ? 1 : 0}|${(file.valueSwitches?.[String(i)] ?? []).join(",")}`;
+  return `${v}|${isFloorZero(file, i) ? 1 : 0}|${isPerLitre(file, i) ? 1 : 0}|${(file.valueSwitches?.[String(i)] ?? []).join(",")}`;
 }
 
 /**
@@ -171,6 +207,13 @@ export class ValueTable {
    */
   private readonly hay: string[][];
   private readonly orders = new Map<string, number[]>();
+  /**
+   * Per row, ROW_* bits: the kinds its items are (a liquid is never counted a block or an
+   * item), worthless when its items are (floorZero is part of the price, so they agree), and
+   * unlisted when the handbook shows none of them. A group's other orientations are hidden
+   * from the handbook while its canonical one is shown, so a row is listed if any item is.
+   */
+  private readonly rowBits: Uint8Array;
   /** Number of items with a value. */
   readonly valued: number;
 
@@ -191,6 +234,24 @@ export class ValueTable {
       return r.items.map((i) => `${title}\n${itemHay(i)}`);
     });
     this.valued = file.value ? file.value.filter((v) => typeof v === "number").length : 0;
+    this.rowBits = Uint8Array.from(this.rows, (r) => {
+      let bits = ROW_UNLISTED;
+      for (const i of r.items) {
+        const f = file.flags[i] ?? 0;
+        bits |= f & FLAG_PER_LITRE ? ROW_LIQUID : f & FLAG_BLOCK ? ROW_BLOCK : ROW_ITEM;
+        if (f & FLAG_FLOOR_ZERO) bits |= ROW_WORTHLESS;
+        if (f & FLAG_HANDBOOK) bits &= ~ROW_UNLISTED;
+      }
+      return bits;
+    });
+  }
+
+  /** Whether row `r` passes the kind and flag filters of `q`. */
+  private passes(r: number, q: ValueQuery): boolean {
+    const bits = this.rowBits[r]!;
+    const kind = q.kind ?? "all";
+    if (kind !== "all" && !(bits & (kind === "items" ? ROW_ITEM : kind === "blocks" ? ROW_BLOCK : ROW_LIQUID))) return false;
+    return flagKeeps(q.worthless, (bits & ROW_WORTHLESS) !== 0) && flagKeeps(q.unlisted, (bits & ROW_UNLISTED) !== 0);
   }
 
   /** Whether any row holds more than one item. */
@@ -243,7 +304,10 @@ export class ValueTable {
     return o;
   }
 
-  /** The rows with a value, by value; equal values in name order either way. */
+  /**
+   * The rows with a value, by value; equal values in name order either way. Per-litre and
+   * per-item values are compared as the numbers they are, as in sortByValue.
+   */
   private valueOrder(dir: SortDir): number[] {
     const key = `value|${dir}`;
     let o = this.orders.get(key);
@@ -263,6 +327,7 @@ export class ValueTable {
     const tokens = tokenize(q.filter);
     const keep = (r: number) =>
       (q.unvalued || this.value(this.rows[r]!) !== undefined) &&
+      this.passes(r, q) &&
       (tokens.length === 0 || this.hay[r]!.some((h) => tokens.every((t) => h.includes(t))));
     let rows: number[];
     if (q.column === "value") {

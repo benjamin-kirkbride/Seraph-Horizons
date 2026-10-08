@@ -80,6 +80,14 @@ describe("validate: cross-references", () => {
     expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["item-value", "/items/examplemod:widget/value"]]);
   });
 
+  it("rejects valuePerLitre on an item without a value", () => {
+    const report = new ErrorReport();
+    const d = example();
+    delete d.items["game:vinegarportion"].value;
+    checkCrossReferences(d, report);
+    expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["item-value", "/items/game:vinegarportion/valuePerLitre"]]);
+  });
+
   it("accepts an export without variantGroups", () => {
     const d = example();
     delete d.variantGroups;

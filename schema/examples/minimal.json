@@ -100,7 +100,15 @@
     "game:metalbit-steel": { "kind": "item", "name": "Steel bits", "mod": "game", "handbookVisible": true },
     "seraphhorizons:gear-degreased": { "kind": "item", "name": "Degreased rusty gear", "mod": "seraphhorizons", "handbookVisible": true },
     "seraphhorizons:gear-pickled": { "kind": "item", "name": "Pickled gear", "mod": "seraphhorizons", "handbookVisible": true },
-    "game:vinegarportion": { "kind": "item", "name": "Vinegar", "mod": "game", "handbookVisible": true },
+    "game:vinegarportion": {
+      "kind": "item",
+      "name": "Vinegar",
+      "mod": "game",
+      "handbookVisible": true,
+      "attributes": { "extra": { "liquid": { "itemsPerLitre": 100 } } },
+      "value": 1.5,
+      "valuePerLitre": true
+    },
     "seraphhorizons:picklingtub": { "kind": "block", "name": "Pickling tub", "mod": "seraphhorizons", "handbookVisible": true, "switch": "GearReclamation" }
   },
   "recipes": [

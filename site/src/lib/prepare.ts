@@ -6,6 +6,7 @@ import {
   DATA_FORMAT,
   FLAG_BLOCK,
   FLAG_FLOOR_ZERO,
+  FLAG_PER_LITRE,
   type EntityChunk,
   type EntityIndex,
   type EntityVariant,
@@ -313,7 +314,8 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     search.names.push(item.name || code);
     search.mod.push(modIndex.get(item.mod)!);
     search.flags.push(
-      (item.handbookVisible ? FLAG_HANDBOOK : 0) | (item.kind === "block" ? FLAG_BLOCK : 0) | (item.floorZero ? FLAG_FLOOR_ZERO : 0),
+      (item.handbookVisible ? FLAG_HANDBOOK : 0) | (item.kind === "block" ? FLAG_BLOCK : 0) | (item.floorZero ? FLAG_FLOOR_ZERO : 0) |
+        (item.valuePerLitre ? FLAG_PER_LITRE : 0),
     );
     values.push(typeof item.value === "number" && Number.isFinite(item.value) ? item.value : null);
     if (item.valueSwitches && item.valueSwitches.length > 0) valueSwitches[String(values.length - 1)] = item.valueSwitches;

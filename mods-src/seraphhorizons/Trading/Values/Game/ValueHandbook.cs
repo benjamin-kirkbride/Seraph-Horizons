@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using HarmonyLib;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.Trading.Values.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -11,7 +12,7 @@ namespace SeraphHorizons.Mod.Trading.Values;
 
 /// <summary>
 /// The value line on every item and block handbook page (#506, README "Item base values"): the
-/// rusty gear's icon and the item's base value, or "No trade value" when the table has none (no
+/// rusty gear's icon and the item's base value (gears per litre for a liquid: "1.85 per litre"), or "No trade value" when the table has none (no
 /// direct value and no family) or when a switch its value depends on (the table's
 /// <c>switches</c>) is off on the server. Under the page's general info (name, icon, description),
 /// above its sections: a postfix on the game's private
@@ -92,13 +93,13 @@ public static class ValueHandbook
     public static List<RichTextComponentBase> Line(ICoreClientAPI capi, string code)
     {
         _off ??= SwitchOwnership.DecodeOff(capi.World.Config?.GetString(OffKey));
-        var shown = ItemValuesSystem.For(capi).Shown(code, _off.Contains);
+        var shown = ItemValuesSystem.For(capi).ShownLookup(code, _off.Contains);
         var font = CairoFont.WhiteSmallText();
         var line = new List<RichTextComponentBase> { new ClearFloatTextComponent(capi, 4f) };
         if (shown is { } value && Gear(capi) is { } gear)
         {
             line.Add(new ItemstackTextComponent(capi, gear, 30, 4, EnumFloat.Inline) { VerticalAlign = EnumVerticalAlign.Middle });
-            line.AddRange(VtmlUtil.Richtextify(capi, Format(value) + "\n", font));
+            line.AddRange(VtmlUtil.Richtextify(capi, Escape(Text(value, Lang.Get)) + "\n", font));
         }
         else
         {
@@ -108,6 +109,12 @@ public static class ValueHandbook
             line.AddRange(VtmlUtil.Richtextify(capi, Escape(Lang.Get("seraphhorizons:itemvalues-handbook-explained")) + "\n", font));
         return line;
     }
+
+    /// <summary>The line's text after the gear: the number for an item, "{number} per litre"
+    /// (<c>itemvalues-handbook-perlitre</c>) for a liquid. <paramref name="lang"/> is
+    /// <c>Lang.Get</c> (a parameter for the tests).</summary>
+    public static string Text(ValueLookup value, System.Func<string, object[], string> lang) =>
+        value.PerLitre is null ? Format(value.Display) : lang("seraphhorizons:itemvalues-handbook-perlitre", [Format(value.Display)]);
 
     /// <summary>The value as the page shows it: up to three decimals, as the table has them.</summary>
     public static string Format(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);

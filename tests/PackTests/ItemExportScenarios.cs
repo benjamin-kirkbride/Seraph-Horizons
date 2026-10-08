@@ -107,6 +107,56 @@ public class ItemExportScenarios : AtlasScenarioBase
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
+    public void Apple_and_honeycomb_press_into_juice_and_honey()
+    {
+        // survival/itemtypes/food/fruit.json juiceablePropertiesByType "@*-(pinkapple|redapple|yellowapple)":
+        // 0.3125 L of apple juice per apple, leaving apple mash. resource/honeycomb.json: 0.2 L of
+        // honey, honey mash, and 5 beeswax back.
+        var apple = Attrs(Item(Items, "game:fruit-redapple"))["extra"]?["juicing"];
+        Assert.NotNull(apple);
+        Assert.Equal(0.3125, (double?)apple["litresPerItem"]);
+        Assert.Equal("game:juiceportion-apple", (string?)apple["output"]?["code"]);
+        Assert.Equal("game:pressedmash-apple", (string?)apple["pressed"]?["code"]);
+        Assert.Null(apple["returned"]);
+
+        var comb = Attrs(Item(Items, "game:honeycomb"))["extra"]?["juicing"];
+        Assert.NotNull(comb);
+        Assert.Equal(0.2, (double?)comb["litresPerItem"]);
+        Assert.Equal("game:honeyportion", (string?)comb["output"]?["code"]);
+        Assert.Equal("game:beeswax", (string?)comb["returned"]?["code"]);
+        Assert.Equal(5, (int?)comb["returned"]?["quantity"]);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Ciders_distill_into_spirits_at_their_ratio()
+    {
+        // survival/itemtypes/liquid/cider.json distillationPropsByType: fruit ciders give 0.1 L of
+        // their spirit per litre, grain ciders and mead 0.05.
+        var apple = Attrs(Item(Items, "game:ciderportion-apple"))["extra"]?["distillation"];
+        Assert.NotNull(apple);
+        Assert.Equal(0.1, (double?)apple["ratio"]);
+        Assert.Equal("game:spiritportion-apple", (string?)apple["output"]?["code"]);
+
+        var rye = Attrs(Item(Items, "game:ciderportion-rye"))["extra"]?["distillation"];
+        Assert.NotNull(rye);
+        Assert.Equal(0.05, (double?)rye["ratio"]);
+        Assert.Equal("game:spiritportion-rye", (string?)rye["output"]?["code"]);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Liquids_carry_their_items_per_litre_and_solids_do_not()
+    {
+        // survival/itemtypes/liquid/cider.json waterTightContainerProps: containable, 100 portions
+        // a litre. Water in the world (blocktypes/liquid/water.json, 0.001) is a liquid only as
+        // its portion item.
+        Assert.Equal(100, (int?)Attrs(Item(Items, "game:ciderportion-apple"))["extra"]?["liquid"]?["itemsPerLitre"]);
+        Assert.Equal(100, (int?)Attrs(Item(Items, "game:waterportion"))["extra"]?["liquid"]?["itemsPerLitre"]);
+        Assert.Null(Attrs(Item(Items, "game:ingot-copper"))["extra"]?["liquid"]);
+        Assert.All(Items.Properties(), p =>
+            Assert.True(p.Value["attributes"]?["extra"]?["liquid"]?["itemsPerLitre"] is not { } n || (int)n >= 1, p.Name));
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
     public void Stick_has_its_description_and_no_tool_or_food_fields()
     {
         // en.json "itemdesc-stick"; survival/itemtypes/resource/stick.json burns at 700 for 8 s.
