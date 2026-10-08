@@ -29,6 +29,26 @@ public sealed class TierView
     [JsonPropertyName("unlocks")] public TierUnlocks Unlocks { get; set; } = new();
     /// <summary>The best ore map precision the tier buys (<c>MapOffers.MaxPrecision</c> of its map tier).</summary>
     [JsonPropertyName("precision")] public int MapPrecision { get; set; } = 1;
+    /// <summary>Camp leads on offer at once (0: the stranger's one map per trader).</summary>
+    [JsonPropertyName("leadMaps")] public int LeadMaps { get; set; }
+    /// <summary>How far they reach from the trader, in blocks.</summary>
+    [JsonPropertyName("leadRadius")] public int LeadRadius { get; set; }
+}
+
+/// <summary>A camp lead this trader offers this player (Maps &amp; leads tab): the camp, where it is
+/// from the trader, and its price.</summary>
+public sealed class LeadOfferRow
+{
+    /// <summary>The camp's grid cell (<c>x,z</c>), what a buy names.</summary>
+    [JsonPropertyName("cell")] public string Cell { get; set; } = "";
+    [JsonPropertyName("type")] public string Type { get; set; } = "";
+    [JsonPropertyName("distance")] public double Distance { get; set; }
+    /// <summary>From the trader to the camp, blocks east (x) and south (z).</summary>
+    [JsonPropertyName("dx")] public double Dx { get; set; }
+    [JsonPropertyName("dz")] public double Dz { get; set; }
+    [JsonPropertyName("price")] public int Price { get; set; }
+    /// <summary>The prospector the first slot is kept for.</summary>
+    [JsonPropertyName("prospector")] public bool Prospector { get; set; }
 }
 
 /// <summary>A player's standing at one trader, with every tier, for the header, the Standing tab and
@@ -141,10 +161,17 @@ public sealed class TradeWindowState
     [JsonPropertyName("deliveryWhy")] public string? DeliveryWhy { get; set; }
     [JsonPropertyName("deliveries")] public List<DeliveryRow> Deliveries { get; set; } = [];
     [JsonPropertyName("locked")] public List<LockedRow> Locked { get; set; } = [];
-    /// <summary>Whether this player's own standing here buys leads past the nearest camp.</summary>
+    /// <summary>Whether this player's own standing here buys the settlement ground's lead.</summary>
     [JsonPropertyName("leads")] public bool LeadsToTraders { get; set; }
-    /// <summary>The tier from which leads past the nearest camp are sold (-1: none).</summary>
+    /// <summary>The tier from which the settlement ground's lead is sold (-1: none).</summary>
     [JsonPropertyName("leadsTier")] public int LeadsTier { get; set; } = -1;
+    /// <summary>The camp leads this trader offers this player, nearest first (the prospector kept
+    /// for first).</summary>
+    [JsonPropertyName("leadOffers")] public List<LeadOfferRow> LeadOffers { get; set; } = [];
+    /// <summary>Why there is no camp lead on offer (a lang key), when there is none.</summary>
+    [JsonPropertyName("leadsWhy")] public string? LeadsWhy { get; set; }
+    /// <summary>Maps this player's group has bought from this trader (each one doubles the next price).</summary>
+    [JsonPropertyName("leadsBought")] public int LeadsBought { get; set; }
     /// <summary>The selling slots (0–15) holding a map or lead this player has already: its target on
     /// their map as precisely or more, or a copy carried. Shown greyed out, "you have this"; the
     /// server refuses the buy.</summary>
@@ -175,6 +202,9 @@ public enum TradeAction
     /// <summary>A waypoint for the delivery offer (<see cref="TradeRequest.Id"/> 0) or the player's
     /// delivery <see cref="TradeRequest.Id"/>.</summary>
     MarkDelivery,
+    /// <summary>The camp lead to cell <see cref="TradeRequest.Code"/> (<c>x,z</c>) at
+    /// <see cref="TradeRequest.Price"/>.</summary>
+    BuyLead,
 }
 
 public sealed class TradeRequest
@@ -182,7 +212,8 @@ public sealed class TradeRequest
     [JsonPropertyName("action"), JsonConverter(typeof(JsonStringEnumConverter))] public TradeAction Action { get; set; }
     [JsonPropertyName("slot")] public int Slot { get; set; }
     [JsonPropertyName("id")] public int Id { get; set; }
-    /// <summary>Buy: the item the player saw in the slot (its full code), or null not to check.</summary>
+    /// <summary>Buy: the item the player saw in the slot (its full code), or null not to check; BuyLead:
+    /// the camp's cell.</summary>
     [JsonPropertyName("code")] public string? Code { get; set; }
     /// <summary>Buy: the price the player saw, or null not to check.</summary>
     [JsonPropertyName("price")] public int? Price { get; set; }

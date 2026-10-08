@@ -80,6 +80,25 @@ public class WindowLayoutTests
     }
 
     [Fact]
+    public void CampLeadsSitUnderTheShelfOffersEachWithABuyButtonAndTheNoteBelow()
+    {
+        var flow = new Flow(M, Width);
+        WindowLayout.MapLines(flow, ["Gravel map: a rich field 412 blocks away — 5 g"], null, "details",
+        [
+            new ActionLine("Lead to the prospector's camp (the nearest prospector), 2030 blocks north-east: 3 g", [("Buy", "lead-0", 0)]),
+            new ActionLine(Long("Lead to the tailor's camp", 4), [("Buy", "lead-1", 1)]),
+        ], "Each lead bought here doubles the next one's price (0 bought so far).");
+        NoProblems(flow);
+        var map = flow.Boxes.Single(b => b.Key == "map-0");
+        var first = flow.Boxes.Single(b => b.Key == "line-0");
+        var buy = flow.Boxes.Single(b => b.Key == "lead-0");
+        Assert.True(first.Y >= map.Bottom);
+        Assert.True(buy.X >= first.Right, "the button is beside its lead");
+        Assert.Equal(1, flow.Boxes.Single(b => b.Key == "lead-1").Id);
+        Assert.True(flow.Boxes.Single(b => b.Key == "leadsnote").Y >= flow.Boxes.Single(b => b.Key == "line-1").Bottom);
+    }
+
+    [Fact]
     public void TheTradeTabFitsTheFourSellSlotsTheButtonAndTheOfferWithoutOverlap()
     {
         var flow = WindowLayout.Header(M, Width, "Trader · farmer · cold, igneous", "stranger [0 / 60]");

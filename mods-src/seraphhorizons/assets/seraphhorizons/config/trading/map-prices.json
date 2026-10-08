@@ -1,15 +1,15 @@
 // Maps and leads at traders (#455, README "Maps and leads", docs/trading.md): read by
 // Trading/Maps/Core/MapPrices.cs. Prospectors sell ore maps (one per metal, the nearest unsold
 // deposit within oreRadius, at most maxOreOffers); every trader sells a gravel map to the nearest
-// unsold field within gravelRadius, and leads to other camps within leadCells camp cells.
+// unsold field within gravelRadius, leads to other camps (campLeads) and, from the tier with
+// mapsToTraders, a lead to the nearest settlement ground.
 // An ore map's price: ore[size class][precision − 1] × metalFactor; the size class is the deposit's
-// last measurement, "unsurveyed" until it has one. Prices are before standing's price factor.
+// last measurement, "unsurveyed" until it has one. Ore, gravel and settlement prices are before
+// standing's price factor; camp leads carry their own discount instead (campLeads.tiers).
 {
 	"oreRadius": 5000,
 	"gravelRadius": 2000,
 	"maxOreOffers": 4,
-	"leadCells": 3,
-	"farLeads": 1,
 	"ore": {
 		// precision 1 (within 400 m), 2 (within 150 m), 3 (exact)
 		"unsurveyed": [8, 14, 22],
@@ -21,5 +21,25 @@
 	"metalFactor": {"copper": 1.0, "tin": 1.3, "zinc": 1.1, "bismuth": 1.0, "lead": 0.9, "nickel": 1.2,
 		"iron": 1.4, "silver": 1.6, "gold": 1.8, "platinum": 1.8, "titanium": 1.5, "chromium": 1.5},
 	"gravel": 5,
-	"leads": {"camp": 2, "prospector": 4, "far": 4, "settlement": 6},
+	"settlement": 6,
+	// Leads to other trader camps, per buyer (Trading/Maps/Core/CampLeads.cs). Per standing tier: how
+	// many maps are on the shelf at once and how far from the selling trader they reach (blocks), the
+	// nearest camps the buyer lacks (not on their map, no lead carried), the first a prospector if
+	// they have none in that radius; buying one brings the next-nearest. A stranger (a tier not
+	// listed) gets one map per trader per group, ever, to the nearest camp their group lacks and
+	// has not visited, within strangerReach: they chain from camp to camp.
+	// Price: base × 2^(distance / doublingDistance) × perBought^(maps the group already bought from
+	// this trader, never reset) × the tier's discount, in place of standing's price factor.
+	"campLeads": {
+		"base": 2,
+		"doublingDistance": 2500,
+		"perBought": 2,
+		"strangerReach": 8000,
+		"tiers": {
+			"known":   {"maps": 2, "radius": 3000,  "discount": 0.85},
+			"regular": {"maps": 3, "radius": 5000,  "discount": 0.7},
+			"trusted": {"maps": 5, "radius": 8000,  "discount": 0.55},
+			"partner": {"maps": 8, "radius": 12000, "discount": 0.4},
+		},
+	},
 }

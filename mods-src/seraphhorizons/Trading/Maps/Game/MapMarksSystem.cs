@@ -75,6 +75,16 @@ public class MapMarksSystem : ModSystem
         return MapMarks.MarkedPrecision(key, Book.Of(player.PlayerUID), views);
     }
 
+    /// <summary>The targets the player's map holds a remembered marker of, at any precision.</summary>
+    public HashSet<string> MarkedKeys(IPlayer player)
+    {
+        if (Layer is not { } layer) return [];
+        var views = Views(layer, player.PlayerUID);
+        Book.Prune(player.PlayerUID, views.Select(v => v.Guid));
+        var live = views.Select(v => v.Guid).Where(g => g != null).ToHashSet();
+        return Book.Of(player.PlayerUID).Where(r => live.Contains(r.Guid)).Select(r => r.Key).ToHashSet();
+    }
+
     public enum Outcome { Added, Already, NoMap }
 
     /// <summary>

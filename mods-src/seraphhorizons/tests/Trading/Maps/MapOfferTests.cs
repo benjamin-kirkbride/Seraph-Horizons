@@ -75,61 +75,23 @@ public class MapOfferTests
         Assert.True(t.OrePrice("gold", null, 1) > t.OrePrice("copper", null, 1));
         Assert.Equal(t.OrePrice("copper", "unsurveyed", 2), t.OrePrice("copper", null, 2));
         Assert.Equal(t.OrePrice("copper", "unsurveyed", 2), t.OrePrice("copper", "nonsense", 2));
-        Assert.True(t.LeadPrice(LeadKind.Camp) < t.LeadPrice(LeadKind.Settlement));
-        Assert.InRange(t.LeadPrice(LeadKind.Camp), 1, 4);
+        Assert.Equal(6, t.SettlementPrice());
     }
 
     [Fact]
-    public void ProblemsNameAMissingRowAndLeadPrice()
+    public void ProblemsNameAMissingRowAndTheCampLeadRules()
     {
-        var t = new MapPriceTable { Ore = { ["small"] = [1, 2] } };
+        var t = new MapPriceTable { Ore = { ["small"] = [1, 2] }, Settlement = 0 };
         var problems = t.Problems();
         Assert.Contains(problems, p => p.Contains("unsurveyed"));
         Assert.Contains(problems, p => p.Contains("'small' has 2 prices"));
-        Assert.Contains(problems, p => p.Contains("'camp' leads"));
-    }
-
-    /// <summary>A 7×7 block of camp cells around (0,0): every cell has a camp at its centre, the
-    /// prospectors where <paramref name="prospectors"/> says, (1,0) has none.</summary>
-    private static Func<CellKey, CampSite?> Grid(params CellKey[] prospectors) => cell =>
-        cell == new CellKey(1, 0) ? null
-            : new CampSite(cell, prospectors.Contains(cell) ? TraderTypes.Prospector : TraderTypes.Smith,
-                cell.X * TraderGrid.CellSize + 1024, cell.Z * TraderGrid.CellSize + 1024);
-
-    [Fact]
-    public void AStrangerGetsOnlyTheNearestCamp()
-    {
-        var leads = LeadTargets.Pick(new CellKey(0, 0), 1500, 1024, Grid(), 3, 1, extras: false);
-        var lead = Assert.Single(leads);
-        Assert.Equal(LeadKind.Camp, lead.Kind);
-        // (1,0) is nearest but has no camp: the next nearest is a diagonal or orthogonal neighbour.
-        Assert.NotEqual(new CellKey(1, 0), lead.Cell);
-        Assert.False(lead.Optional);
+        Assert.Contains(problems, p => p.Contains("settlement"));
+        Assert.Contains(problems, p => p.Contains("campLeads has no tiers"));
     }
 
     [Fact]
-    public void MapsToTradersAddsAProspectorAFurtherCampAndTheSettlementGround()
-    {
-        var prospector = new CellKey(-2, 1);
-        var leads = LeadTargets.Pick(new CellKey(0, 0), 1024, 1024, Grid(prospector), 3, 1, extras: true);
-        Assert.Equal([LeadKind.Camp, LeadKind.Prospector, LeadKind.Far, LeadKind.Settlement], leads.Select(l => l.Kind));
-        Assert.Equal(prospector, leads[1].Cell);
-        Assert.True(Math.Max(Math.Abs(leads[2].Cell.X), Math.Abs(leads[2].Cell.Z)) >= 2);
-        Assert.NotEqual(prospector, leads[2].Cell);
-        Assert.Equal(TraderGrid.SettlementCentre(1024, 1024), (leads[3].X, leads[3].Z));
-        Assert.All(leads.Skip(1), l => Assert.True(l.Optional));
-        Assert.Equal(leads.Count, leads.Select(l => (l.Cell, l.Kind)).Distinct().Count());
-    }
-
-    [Fact]
-    public void TheNearestCampBeingAProspectorIsNotLedToTwice()
-    {
-        var near = new CellKey(0, 1);
-        var leads = LeadTargets.Pick(new CellKey(0, 0), 1024, 2000, Grid(near), 2, 1, extras: true);
-        Assert.Equal(near, leads[0].Cell);
-        Assert.DoesNotContain(leads, l => l.Kind == LeadKind.Prospector);
-        Assert.DoesNotContain(leads, l => l.Kind != LeadKind.Settlement && l.Cell == new CellKey(0, 0));
-    }
+    public void TheSettlementLeadGoesToTheCentreOfItsEightKmCell() =>
+        Assert.Equal(TraderGrid.SettlementCentre(1024, -3000), LeadTargets.Settlement(1024, -3000));
 
     [Fact]
     public void LeadKindsRoundTrip()
