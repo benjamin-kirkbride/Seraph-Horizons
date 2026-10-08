@@ -1,0 +1,9 @@
+{
+  "ConfigVersion": 2,
+  "TargetSpeed": 0.5,
+  "TorquePerPlayer": 0.5,
+  "Resistance": 0.003,
+  "AccelerationFactor": 1.0,
+  "HungerCostPerSecond": 2.5,
+  "InteractionTimeoutMilliseconds": 750
+}

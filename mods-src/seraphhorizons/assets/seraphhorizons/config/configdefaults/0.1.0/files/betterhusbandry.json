@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "feedFloor": -3.0,
+  "feedCeiling": 3.0,
+  "feedGrowthPerDay": 0.03,
+  "feedDecayPerDay": 0.2,
+  "feedGoodWeightThreshold": 0.95,
+  "feedOkWeightThreshold": 0.75,
+  "interactFloor": -3.0,
+  "interactCeiling": 3.0,
+  "interactGrowthPerDay": 0.03,
+  "interactDecayPerDay": 0.2,
+  "interactGraceDays": 1.0,
+  "interactgenerationDecayMultiplier": 0.5
+}

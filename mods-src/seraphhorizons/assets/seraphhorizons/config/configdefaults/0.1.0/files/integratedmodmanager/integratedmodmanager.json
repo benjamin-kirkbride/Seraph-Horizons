@@ -1,0 +1,9 @@
+{
+  "ShowNonConfigurableMods": false,
+  "ShowFileLocationButtons": false,
+  "ModSelectorRows": 3,
+  "NudgeBehaviour": "WhenErrorsFound",
+  "SuppressFirstTimeNudges": false,
+  "ImportantInformationHighlight": "Pulsating",
+  "UpdateManagement": "Manual"
+}

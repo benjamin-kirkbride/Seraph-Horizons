@@ -1,0 +1,17 @@
+{
+  "SharpnessSpeedFloor": 0.5,
+  "ChopSharpnessCeiling": 1.4,
+  "XSkillsIntegration": true,
+  "XSkillsSawXpPerSection": 0.075,
+  "XSkillsDebarkXpPerStrip": 0.15,
+  "XSkillsChopXpPerWorkpiece": 0.1,
+  "XSkillsFirewoodChopXp": 0.025,
+  "XSkillsCoopXpFullToBoth": true,
+  "XSkillsSawyerYield": true,
+  "XSkillsSplitterYield": true,
+  "XSkillsCarefulSawyer": true,
+  "XSkillsSwiftsawSpeed": true,
+  "XSkillsSwiftsawMaxChopSpeedBonus": 0.35,
+  "XSkillsSwiftsawMaxSawSpeedBonus": 0.35,
+  "SeraphLevelingIntegration": true
+}

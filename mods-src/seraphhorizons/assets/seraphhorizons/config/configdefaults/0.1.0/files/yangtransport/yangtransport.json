@@ -1,0 +1,10 @@
+{
+  "BackupWhenUpdatingSaves": true,
+  "EngineFuelConsumptionMultiplier": 1.0,
+  "StationarySteamEnginePowerMultiplier": 1.0,
+  "StationarySteamEngineSpeedMultiplier": 1.0,
+  "ContaminatedLiquidHeatingMultiplier": 0.25,
+  "ContaminatedLiquidEvaporationMultiplier": 1.2,
+  "FlammableLiquidHeatingMultiplier": 2.5,
+  "FlammableLiquidEvaporationMultiplier": 4.0
+}

@@ -1,0 +1,18 @@
+{
+  "TrampleGrassBlockChance": 0.800000011920929,
+  "TrampleTallGrassChance": 0.75,
+  "MaxTallGrassTrampleStagesAtOnceWalking": 1,
+  "MaxTallGrassTrampleStagesAtOnceRunning": 3,
+  "TallGrassMinStageWalking": 2,
+  "TallGrassMinStageRunning": 0,
+  "TrampleExculdedPlants": [
+    "fruitingbush",
+    "fruitingbushcutting",
+    "sapling",
+    "pumpkin"
+  ],
+  "HoursGrowthPerStage": 48.0,
+  "HoursGrowthPerStageVariation": 8.0,
+  "TallGrassGrowthChance": 0.25,
+  "DisableForRemoval": false
+}

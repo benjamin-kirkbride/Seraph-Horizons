@@ -1,0 +1,750 @@
+{
+  "format": 1,
+  "packVersion": "0.1.0",
+  "gameVersion": "1.22.7",
+  "generatedBy": "tools/packtool.py smoke --config-defaults write (docs/config-defaults.md)",
+  "mods": {
+    "abyssaldepths": "1.0.20",
+    "aculinaryartillery": "2.0.0-dev.26",
+    "ageofflaxfork": "1.1.6",
+    "alchemy": "2.2.0-rc.12",
+    "allowedvariantsfix": "1.0.1",
+    "battletowers": "1.1.0",
+    "bdcrop": "1.1.1",
+    "bettererprospecting": "3.4.10",
+    "betterhusbandry": "1.3.7",
+    "betterlootplus": "1.0.0",
+    "betterruins": "0.6.4",
+    "bettertraders": "0.2.1",
+    "biodiversity": "1.1.4",
+    "bloodtrail": "1.2.9",
+    "brickyard": "1.0.0",
+    "butchering": "1.14.3",
+    "carryon": "2.0.0-pre.8",
+    "carryonlib": "1.0.0-pre.8",
+    "cartwrightscaravan": "1.9.1",
+    "chiselrotationfix": "1.0.0",
+    "collisionflowfields": "1.2.1",
+    "compostbin": "1.3.15",
+    "configkit": "1.4.1",
+    "constructionhelpfix": "1.0.0",
+    "craftablelocusts": "2.5.0",
+    "craftabletoolbelts": "1.0.0",
+    "cruciblesstayhot": "1.0.2",
+    "crucibulum": "1.5.0",
+    "desirepaths": "0.5.1",
+    "domesticanimaltrader": "1.1.5",
+    "doorvariants": "1.1.4",
+    "dovidarium": "0.9.5",
+    "efchefstricks": "1.0.0-dev.5",
+    "effectlib": "1.1.1",
+    "em": "3.8.1",
+    "evilinteractionrangehack": "6.9.0",
+    "exlib": "0.8.4",
+    "expandedfoods": "2.0.0-dev.15",
+    "flaxtorope": "1.0.0",
+    "fleeexhaustion": "1.2.0",
+    "flyingmachine": "0.1.0",
+    "foodshelves": "3.1.0",
+    "footprints": "1.2.11",
+    "geoaddons": "1.4.8",
+    "gondolacablecar": "0.4.43",
+    "goodhunting": "1.4.7",
+    "grindablebonearrows": "1.0.1",
+    "handcrank": "1.0.1",
+    "hardcorewaterforkedforked": "1.4.7",
+    "hodvisualizer": "1.0.0",
+    "hqzlights": "1.1.3",
+    "hydrateordiedrate": "2.5.6",
+    "immersivefoliage": "0.1.1",
+    "immersivewoodworking": "1.3.11",
+    "industrialdeco": "1.0.8",
+    "integratedmodmanager": "1.1.3",
+    "interestingoregen": "2.3.8",
+    "landformoverhaul": "1.0.4",
+    "loggingmod": "0.3.6",
+    "madfoundation": "1.2.0",
+    "madhoarding": "1.0.1",
+    "madmechanics": "1.0.1",
+    "materialneeds": "2.0.0",
+    "meapineappleturpentine": "1.0.3",
+    "metalpots": "1.8.2",
+    "millwright": "1.3.5",
+    "mnflowers": "2.0.0",
+    "mngeology": "2.0.10",
+    "moreroads": "2.0.0",
+    "mpecenteredspurgear": "1.0.0",
+    "mpegearbox": "1.0.1",
+    "naturalfertilizer": "1.5.1",
+    "nooceantranslocators": "1.0.2",
+    "oilsresoaped": "1.0.3",
+    "olla": "1.4.0",
+    "p1explosives": "1.0.0",
+    "panningmachine": "1.1.4",
+    "plantbasedfat": "1.0.4",
+    "playercorpseforked": "1.15.2",
+    "playerstatusstrip": "1.0.1",
+    "ppex": "0.7.1",
+    "primitivesurvival": "5.1.4",
+    "projectileflee": "1.0.5",
+    "purposefulstorage": "2.1.1",
+    "resinonfell": "1.0.4",
+    "resonatorrangeincrease": "1.0.1",
+    "ricketytranslocation": "1.0.1",
+    "rollupbed": "1.0.4",
+    "saltpeterproductionfork": "1.1.1",
+    "scaffolding": "1.3.1",
+    "scrolled": "1.2.1",
+    "seraphhorizons": "0.1.0",
+    "shearlib": "1.3.0",
+    "shelfobsessed": "2.2.1",
+    "sheltered": "1.0.1",
+    "signals": "0.3.3",
+    "simplehotbarrefill": "1.4.0",
+    "slowtox": "5.0.0",
+    "slowtoxvisualized": "1.1.10",
+    "smex": "0.10.1",
+    "spawnersapi": "1.1.6",
+    "spinningwheel": "1.2.14",
+    "splittablestonepaths": "1.0.1",
+    "sprinklersmod": "1.22.1",
+    "stabilityabove": "1.2.1",
+    "stonebakeoven": "1.4.0",
+    "stonequarryrepckfipil": "3.6.3",
+    "substrate": "2.0.0",
+    "tailorsdelight": "2.2.2",
+    "tankardsandgoblets": "1.4.4",
+    "temporalsymphony": "2.3.2",
+    "toolbelt": "0.3.5",
+    "toomanytabs": "1.0.0",
+    "translocatormap": "1.0.0",
+    "usefuloils": "1.0.0",
+    "vanity": "2.5.1-rc.1",
+    "vcftemporalstabilizer": "1.13.1",
+    "visibleoresandminerals": "1.4.2",
+    "vsroofing": "2.0.5",
+    "walkingstick": "3.0.10",
+    "woodenshuttersandmore": "1.3.3",
+    "wool": "1.9.6",
+    "wpanning": "1.0.9",
+    "yangcoifix": "5.0.0",
+    "yangtransport": "1.0.3",
+    "yttenhancedinteractionfiltering": "1.1.0",
+    "zipline": "1.0.8"
+  },
+  "files": {
+    "BetterErProspecting.json": {
+      "format": "json",
+      "owners": [
+        "bettererprospecting"
+      ]
+    },
+    "BloodTrail-Server.json": {
+      "format": "json",
+      "owners": [
+        "bloodtrail"
+      ]
+    },
+    "ButcheringConfigV3.json": {
+      "format": "json",
+      "owners": [
+        "butchering"
+      ]
+    },
+    "CarryOnConfig.json": {
+      "format": "json",
+      "owners": [
+        "carryon"
+      ]
+    },
+    "DesirePaths.json": {
+      "format": "json",
+      "owners": [
+        "desirepaths"
+      ]
+    },
+    "FoodShelvesServer.json": {
+      "format": "json",
+      "owners": [
+        "foodshelves"
+      ]
+    },
+    "Footprints-Server.json": {
+      "format": "json",
+      "owners": [
+        "footprints"
+      ]
+    },
+    "GondolaCableCarConfig.json": {
+      "format": "json",
+      "owners": [
+        "gondolacablecar"
+      ]
+    },
+    "HardcoreWater.json": {
+      "format": "json",
+      "owners": [
+        "hardcorewaterforkedforked"
+      ]
+    },
+    "HoD.AddBlockHydration.json": {
+      "format": "json",
+      "owners": [
+        "hydrateordiedrate"
+      ]
+    },
+    "HoD.AddCooling.json": {
+      "format": "json",
+      "owners": [
+        "hydrateordiedrate"
+      ]
+    },
+    "HoD.AddItemHydration.json": {
+      "format": "json",
+      "owners": [
+        "hydrateordiedrate"
+      ]
+    },
+    "HydrateOrDiedrateConfig.json": {
+      "format": "json",
+      "owners": [
+        "hydrateordiedrate"
+      ]
+    },
+    "ImmersiveWoodworking/automation.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/bark.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/chopping.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/debarking.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/drops.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/flotsam.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/general.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/integration.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "ImmersiveWoodworking/sawing.json": {
+      "format": "json",
+      "owners": [
+        "immersivewoodworking"
+      ]
+    },
+    "LoggingMod.json": {
+      "format": "json",
+      "owners": [
+        "loggingmod"
+      ]
+    },
+    "MPEGearboxConfig.json": {
+      "format": "json",
+      "owners": [
+        "mpegearbox"
+      ]
+    },
+    "ManualCrank.json": {
+      "format": "json",
+      "owners": [
+        "handcrank"
+      ]
+    },
+    "NoOceanTranslocators.json": {
+      "format": "json",
+      "owners": [
+        "nooceantranslocators"
+      ]
+    },
+    "PanningMachineConfigData.json": {
+      "format": "json",
+      "owners": [
+        "panningmachine"
+      ]
+    },
+    "ProjectileFlee.json": {
+      "format": "json",
+      "owners": [
+        "projectileflee"
+      ]
+    },
+    "RicketyTranslocationConfig.json": {
+      "format": "json",
+      "owners": [
+        "ricketytranslocation"
+      ]
+    },
+    "SimpleRefillConfig.json": {
+      "format": "json",
+      "owners": [
+        "simplehotbarrefill"
+      ]
+    },
+    "SlowTox.json": {
+      "format": "json",
+      "owners": [
+        "slowtox"
+      ]
+    },
+    "StabilityAbove.json": {
+      "format": "json",
+      "owners": [
+        "stabilityabove"
+      ]
+    },
+    "TemporalSymphonyConfig.json": {
+      "format": "json",
+      "owners": [
+        "temporalsymphony"
+      ]
+    },
+    "TemporalSymphonyServerConfig.json": {
+      "format": "json",
+      "owners": [
+        "temporalsymphony"
+      ]
+    },
+    "ToolbeltConfig.json": {
+      "format": "json",
+      "owners": [
+        "toolbelt"
+      ]
+    },
+    "VSRoofingConfig.json": {
+      "format": "json",
+      "owners": [
+        "vsroofing"
+      ]
+    },
+    "Vanity-Server.json": {
+      "format": "json",
+      "owners": [
+        "vanity"
+      ]
+    },
+    "WalkingSticks/walkingstick-architect.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-blackguard.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-blackthorn.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-cowskull.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-crude.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-fine.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-forlorn.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-gas.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-gun-sheath.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-gun-sheathed.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-jonas.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-lantern.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-pathfinder.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-reinforced.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-sheath.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-sheathed.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-shepherds.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-sling.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick-witch.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "WalkingSticks/walkingstick.json": {
+      "format": "json",
+      "owners": [
+        "walkingstick"
+      ]
+    },
+    "ZiplineConfig.json": {
+      "format": "json",
+      "owners": [
+        "zipline"
+      ]
+    },
+    "abyssaldepths.json": {
+      "format": "json",
+      "owners": [
+        "abyssaldepths"
+      ]
+    },
+    "aculinaryartillery.json": {
+      "format": "json",
+      "owners": [
+        "aculinaryartillery"
+      ]
+    },
+    "alchemy.json": {
+      "format": "json",
+      "owners": [
+        "alchemy"
+      ]
+    },
+    "betterhusbandry.json": {
+      "format": "json",
+      "owners": [
+        "betterhusbandry"
+      ]
+    },
+    "betterlootplus.json": {
+      "format": "json",
+      "owners": [
+        "betterlootplus"
+      ]
+    },
+    "betterruins.yaml": {
+      "format": "yaml",
+      "owners": [
+        "betterruins",
+        "configkit"
+      ]
+    },
+    "cartwrightscaravan.yaml": {
+      "format": "yaml",
+      "owners": [
+        "cartwrightscaravan",
+        "configkit"
+      ]
+    },
+    "compostbin.json": {
+      "format": "json",
+      "owners": [
+        "compostbin"
+      ]
+    },
+    "configkit.json": {
+      "format": "json",
+      "owners": [
+        "configkit"
+      ]
+    },
+    "crucibulum.json": {
+      "format": "json",
+      "owners": [
+        "crucibulum"
+      ]
+    },
+    "dovidarium.json": {
+      "format": "json",
+      "owners": [
+        "dovidarium"
+      ]
+    },
+    "effectlib.json": {
+      "format": "json",
+      "owners": [
+        "effectlib"
+      ]
+    },
+    "em.yaml": {
+      "format": "yaml",
+      "owners": [
+        "em",
+        "configkit"
+      ]
+    },
+    "ex_recipes.json": {
+      "format": "json",
+      "owners": [
+        "exlib",
+        "ppex",
+        "smex"
+      ]
+    },
+    "ex_values.json": {
+      "format": "json",
+      "owners": [
+        "exlib",
+        "ppex",
+        "smex"
+      ]
+    },
+    "fleeexhaustion-server.json": {
+      "format": "json",
+      "owners": [
+        "fleeexhaustion"
+      ]
+    },
+    "integratedmodmanager/integratedmodmanager.json": {
+      "format": "json",
+      "owners": [
+        "integratedmodmanager"
+      ]
+    },
+    "interestingoregen/config.json": {
+      "format": "json",
+      "owners": [
+        "interestingoregen"
+      ]
+    },
+    "landformoverhaul.yaml": {
+      "format": "yaml",
+      "owners": [
+        "landformoverhaul",
+        "configkit"
+      ]
+    },
+    "metalpotconfig": {
+      "format": "json",
+      "owners": [
+        "metalpots"
+      ]
+    },
+    "millwright.json": {
+      "format": "json",
+      "owners": [
+        "millwright"
+      ]
+    },
+    "naturalfertilizer-server.json": {
+      "format": "json",
+      "owners": [
+        "naturalfertilizer"
+      ]
+    },
+    "olla.json": {
+      "format": "json",
+      "owners": [
+        "olla"
+      ]
+    },
+    "playercorpseforked.json": {
+      "format": "json",
+      "owners": [
+        "playercorpseforked"
+      ]
+    },
+    "playerstatusstrip-dev.json": {
+      "format": "json",
+      "owners": [
+        "playerstatusstrip"
+      ]
+    },
+    "primitivesurvival5.json": {
+      "format": "json",
+      "owners": [
+        "primitivesurvival"
+      ]
+    },
+    "scaffolding.json": {
+      "format": "json",
+      "owners": [
+        "scaffolding"
+      ]
+    },
+    "seraphhorizons.json": {
+      "format": "json",
+      "owners": [
+        "seraphhorizons"
+      ]
+    },
+    "spinningwheel.json": {
+      "format": "json",
+      "owners": [
+        "spinningwheel"
+      ]
+    },
+    "sprinklersConfig.json": {
+      "format": "json",
+      "owners": [
+        "sprinklersmod"
+      ]
+    },
+    "stonequarry.json": {
+      "format": "json",
+      "owners": [
+        "stonequarryrepckfipil"
+      ]
+    },
+    "tailorsdelight.yaml": {
+      "format": "yaml",
+      "owners": [
+        "tailorsdelight",
+        "configkit"
+      ]
+    },
+    "temporalsymphony.yaml": {
+      "format": "yaml",
+      "owners": [
+        "temporalsymphony",
+        "configkit"
+      ]
+    },
+    "wool.yaml": {
+      "format": "yaml",
+      "owners": [
+        "wool",
+        "configkit"
+      ]
+    },
+    "yangtransport/station_names.json": {
+      "format": "json",
+      "owners": [
+        "yangtransport"
+      ]
+    },
+    "yangtransport/yangtransport.json": {
+      "format": "json",
+      "owners": [
+        "yangtransport"
+      ]
+    }
+  },
+  "packValues": [
+    {
+      "file": "betterruins.yaml",
+      "path": [
+        "largeruins_min_spawn_distance"
+      ],
+      "value": "500"
+    },
+    {
+      "file": "betterruins.yaml",
+      "path": [
+        "largeruins_min_distance"
+      ],
+      "value": "1200"
+    },
+    {
+      "file": "betterruins.yaml",
+      "path": [
+        "megastructures_min_spawn_distance"
+      ],
+      "value": "1000"
+    },
+    {
+      "file": "betterruins.yaml",
+      "path": [
+        "megastructures_min_distance"
+      ],
+      "value": "2500"
+    },
+    {
+      "file": "betterruins.yaml",
+      "path": [
+        "vanilla_structures_spawn_chance"
+      ],
+      "value": "1.5"
+    }
+  ],
+  "renames": []
+}
