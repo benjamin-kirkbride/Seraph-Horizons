@@ -5,15 +5,17 @@
 		// The frame: a cast bed and column, oak sills (planks) and nails and strips to bolt it up, with
 		// a hammer. The pack's machine frames cost iron, but this is the end-game machine of the gears
 		// epic and a cast bed and column are a lot of metal: 8 steel ingots (4 a slot, steel only),
-		// 4 planks and 32 nails and strips of iron, meteoric iron or steel. Every working part goes in
-		// afterwards, fitted by hand.
-		ingredientPattern: "IHI,PNP,P_P",
+		// 4 planks and 32 nails and strips of iron, meteoric iron or steel. Three steel gears pay for
+		// the gearing the frame carries: the feed rectifier's train and the camshaft's worm wheel. Every
+		// other working part goes in afterwards, fitted by hand.
+		ingredientPattern: "IHI,PNP,PGP",
 		width: 3,
 		height: 3,
 		ingredients: {
 			"I": { type: "item", code: "game:ingot-*", allowedVariants: ["steel"], quantity: 4 },
 			"P": { type: "item", code: "game:plank-*" },
 			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 32 },
+			"G": { type: "item", code: "seraphhorizons:gear-steel", quantity: 3 },
 			"H": { type: "item", code: "game:hammer-*", isTool: true }
 		},
 		output: { type: "block", code: "seraphhorizons:gearcutter-frame-north" }

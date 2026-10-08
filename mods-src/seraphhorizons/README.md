@@ -1544,6 +1544,10 @@ number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcu
 | Sprinklers | tier one sprinkler (2), tier two (4) |
 | Butchering | temporal butcher box (16; it ships switched off) |
 
+The pack's own machines pay the same way, in their own recipes rather than a patch (so whatever this
+switch says): the draw bench frame 2, for the gearing it carries ("Draw bench"), and the gear cutter
+frame 3 ("Gear cutter"). The first steel gears come from reclamation, so neither waits on the cutter.
+
 ppex and smex give each machine two recipes, one taking the rusty gear and one ppex's gears
 (`ppex:gear-*`); the first takes the steel gear and the second is switched off. ppex's anvil gears
 and large gears (`ppex:gear-*`, `ppex:largegear-*`) are not smithed any more and are hidden from
@@ -2033,7 +2037,8 @@ player clicks, with the bench running four blocks away from them along their lin
 each of the rig's other three cells (`drawbench-ghost`) and the power ghost
 (`drawbench-ghostpower-{side}`) at the far end, which takes the axle on the player's right (native
 west). The frame is a grid recipe: two metal plates and four rods of iron, meteoric iron or steel, 12
-nails and strips of the same, two oak logs, oak planks and a hammer (about 11 ingots of iron).
+nails and strips of the same, two steel gears (the rectifier's train, the return shaft's gear and the
+barrel gear, which the frame carries), two oak logs, oak planks and a hammer (about 11 ingots of iron).
 
 **Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; anything
 of a later stage is refused with a message naming the next. The chain and the mandrel take two of their
