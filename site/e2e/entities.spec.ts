@@ -33,15 +33,24 @@ test("all variants of a type on one page, merged, with each variant a click away
   await expect(page.getByTestId("variant-codes")).toHaveText("game:drifter-deep");
 });
 
-test("traders of one kind share a variant, and it lists what they sell per trade", async ({ page }) => {
-  // survival/config/tradelists/trader-commodities.json: charcoal is sold 8 at a time. Every
-  // survival/entities/humanoid/trader-*.json is code "trader".
-  await page.goto(`./#/${V}/entity/game:trader?variant=game%3Atrader-male-commodities-temperate`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trader");
-  await expect(page.getByTestId("variants").locator('[aria-current="page"]')).toHaveText("Commodities trader (cold, desert, temperate)");
-  const charcoal = page.locator('[data-section="sells"]').getByRole("row").filter({ has: page.getByRole("link", { name: "Charcoal", exact: true }) });
-  await expect(charcoal.getByRole("cell").nth(1)).toHaveText("8");
+test("a trader's page lists what it sells per trade", async ({ page }) => {
+  // survival/config/tradelists/trader-treasurehunter.json: metal parts are sold 4 at a time. Every
+  // survival/entities/humanoid/trader-*.json is code "trader". The treasure hunter is the only
+  // one left: the pack's trader grid replaces the camp traders, whose trades the export marks
+  // extra.replaced and the site leaves out.
+  await page.goto(`./#/${V}/entity/game:trader?variant=game%3Atrader-male-treasurehunter-temperate`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Treasure hunter trader");
+  // Its six variants (two genders, three climates) trade alike, so there is nothing to pick.
+  await expect(page.getByTestId("variants")).toHaveCount(0);
+  const parts = page.locator('[data-section="sells"]').getByRole("row").filter({ has: page.getByRole("link", { name: "Metal parts", exact: true }) });
+  await expect(parts.getByRole("cell").nth(1)).toHaveText("4");
   await expect(page.locator('[data-section="buys"]')).toBeVisible();
+});
+
+test("a trader the pack replaces is not listed", async ({ page }) => {
+  // trader-commodities.json sells charcoal; the grid's camps have the pack's traders instead.
+  await page.goto(`./#/${V}/entity/game:trader?variant=game%3Atrader-male-commodities-temperate`);
+  await expect(page.getByTestId("variants").getByText("Commodities trader", { exact: false })).toHaveCount(0);
 });
 
 test("the list has every type once, and the filter matches variant names", async ({ page }) => {

@@ -345,6 +345,11 @@ an entity, and each such source becomes a row of that entity, with `from` and `f
 replaced by `item`, the item's index. An entity that gives nothing the export lists is
 therefore missing, and so is what it gives that is not an item of the export.
 
+A trade marked `extra.replaced` is left out everywhere (`shownSources` in `prepare.ts`), on
+the item's page and as a row of its trader: a trader the pack's trader grid replaces, never
+met in its worlds, which the pack's handbook leaves out too (seraphhorizons README,
+"Traders"). A trader with only such trades is not listed at all.
+
 Entities are grouped by type: the entity type file whose variant the entity is
 (`game:wolf` for `game:wolf-eurasian-adult-male`), which the exporter writes as
 `extra.entityType` on each source. An export from before that field makes each entity a

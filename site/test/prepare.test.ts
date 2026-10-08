@@ -344,6 +344,28 @@ describe("wildcards in the reverse indexes", () => {
     ]);
     expect(r.detail("game:flint").gives).toBeUndefined();
   });
+
+  it("leaves out the trades of a trader the pack replaces, on the item and as an entity", () => {
+    const exp = exportWith(["game:fruit-blueberry"], []);
+    const trade = (from: string, fromName: string, replaced: boolean) => ({
+      type: "traderSells" as const,
+      from,
+      fromName,
+      quantity: { avg: 8 },
+      price: 1,
+      extra: { entityType: "game:trader", ...(replaced ? { replaced: true } : {}) },
+    });
+    exp.items["game:fruit-blueberry"]!.sources = [
+      trade("game:trader-male-agriculture-temperate", "Agriculture trader (temperate)", true),
+      trade("game:trader-male-treasurehunter-temperate", "Treasure hunter trader (temperate)", false),
+    ];
+    const prepared = prepareData(exp);
+    const r = reader(prepared.files);
+    expect(r.detail("game:fruit-blueberry").sources!.map((s) => s.from)).toEqual(["game:trader-male-treasurehunter-temperate"]);
+    const index = prepared.files.get("entities.json") as EntityIndex;
+    expect(index.codes).toEqual(["game:trader"]);
+    expect(index.variantNames).toEqual([["Treasure hunter trader (temperate)"]]);
+  });
 });
 
 describe("entities, from the item sources that name them", () => {
