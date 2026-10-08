@@ -145,7 +145,7 @@
   "TrunkEntitiesSettings": {
     "WeightPerLog": 8.0,
     "CarrySpeedAtOneLog": 1.0,
-    "CarrySpeedAtMaxLogs": 0.5,
+    "CarrySpeedAtMaxLogs": 0.1,
     "SpudSecondsPerLog": 0.5
   },
   "GearReclamation": true,
