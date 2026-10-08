@@ -194,7 +194,7 @@ version = "5.1.4"
 side = "universal"
 license = "unknown"
 redistribute = false
-why = "Traps, fishing and other primitive survival content. Its irrigation vessel is retired in favour of Olla, by seraphhorizons (IrrigationVesselRetired)."
+why = "Traps, fishing and other primitive survival content. Its irrigation vessel is retired in favour of Olla, by seraphhorizons (IrrigationVesselRetired); its Living Dead never spawn (SpawnMultiplierLivingDead 0, pack/config/ModConfig) and no trader sells them."
 
 [[mod]]
 id = "butchering"
