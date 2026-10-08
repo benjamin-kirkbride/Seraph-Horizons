@@ -10,6 +10,7 @@
     "cartwrightscaravan:*"
   ],
   "CarryOnIconsPerWorld": true,
+  "NanMotionDiagnostics": true,
   "FoodHydration": true,
   "WellShaftExplained": true,
   "AssembledMachinesInCreative": true,
