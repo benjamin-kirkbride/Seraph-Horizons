@@ -18,11 +18,15 @@
     "game:smallcarpet-brown": 8.4,
     "game:smallcarpet-turqoise": 8.4,
     "game:chandelier-candle0": 12.95,
-    "game:resonator-north": 21
+    "game:resonator-north": 21,
+    "game:clutter-aquatic": 0,
+    "game:clutter-devastation": 0,
+    "game:clutter-elevator-elevatorrail": 0
   },
   "why": {
     "game:barrel": "three boards and four sticks undervalue a cooper's work; vanilla sells one for 2",
     "game:anvil-*": "cast in a mold from 9 ingots, which the export does not carry (molds are not recipes): 9 ingots plus labour; iron and steel anvils are welded from smithed halves",
-    "traded, no route": "game:coke, ageofflax:flaxbundle-dried, game:ironfence-*-ew, game:smallcarpet-*, game:chandelier-candle0, game:resonator-north: the pack's traders buy them (tradelists/), but the tool finds no route to them in the export (coke oven, drying, fence smithing, found loot) and no vanilla trader prices them; priced by traderFallback's rule over the pack's own trade lists: the mean per item of 0.7 x selling and 1.4 x buying prices"
+    "traded, no route": "game:coke, ageofflax:flaxbundle-dried, game:ironfence-*-ew, game:smallcarpet-*, game:chandelier-candle0, game:resonator-north: the pack's traders buy them (tradelists/), but the tool finds no route to them in the export (coke oven, drying, fence smithing, found loot) and no vanilla trader prices them; priced by traderFallback's rule over the pack's own trade lists: the mean per item of 0.7 x selling and 1.4 x buying prices",
+    "game:clutter-aquatic, game:clutter-devastation, game:clutter-elevator-elevatorrail": "decor blocks (anchors, boiler parts, a toothed rail; one code for every type), not curiosities: unvalued, they would take the curiosities' average through the siblings fallback here and the mod's game:clutter- family lookup, so they are pinned at nothing, which traders refuse as they refused them unvalued"
   }
 }
