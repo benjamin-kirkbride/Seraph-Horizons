@@ -82,6 +82,61 @@ public sealed class GuiElementSlotHatch(ICoreClientAPI capi, ElementBounds bound
     }
 }
 
+/// <summary>
+/// "doesn't buy this" over the sell slots holding goods the trader does not buy (or wants no more
+/// of): a dark veil and the words, drawn after the grid at its own slot bounds, for whichever cells
+/// <paramref name="refused"/> says each frame (so it follows the slots without a recompose).
+/// </summary>
+public sealed class GuiElementSlotNote(ICoreClientAPI capi, ElementBounds bounds, GuiElementItemSlotGridBase grid, System.Func<int, bool> refused, string text)
+    : GuiElement(capi, bounds)
+{
+    private LoadedTexture? _texture;
+
+    public override double DrawOrder => 1;
+
+    public override void ComposeElements(Context ctxStatic, ImageSurface surfaceStatic)
+    {
+        Bounds.CalcWorldBounds();
+        int size = (int)Math.Ceiling(scaled(GuiElementPassiveItemSlot.unscaledSlotSize));
+        using var surface = new ImageSurface(Format.Argb32, size, size);
+        using var ctx = genContext(surface);
+        ctx.SetSourceRGBA(0.12, 0.03, 0.02, 0.6);
+        ctx.Rectangle(0, 0, size, size);
+        ctx.Fill();
+        var font = CairoFont.WhiteDetailText().WithFontSize(10).WithColor([1, 0.85, 0.75, 1]);
+        font.SetupContext(ctx);
+        var lines = text.Split('\n');
+        var extents = ctx.FontExtents;
+        double y = (size - extents.Height * lines.Length) / 2 + extents.Ascent;
+        foreach (string line in lines)
+        {
+            double w = ctx.TextExtents(line).XAdvance;
+            ctx.MoveTo(Math.Max(1, (size - w) / 2), y);
+            ctx.ShowText(line);
+            y += extents.Height;
+        }
+        _texture ??= new LoadedTexture(api);
+        generateTexture(surface, ref _texture);
+    }
+
+    public override void RenderInteractiveElements(float deltaTime)
+    {
+        if (_texture is null || grid.SlotBounds is null) return;
+        for (int i = 0; i < grid.SlotBounds.Length; i++)
+        {
+            if (!refused(i)) continue;
+            var b = grid.SlotBounds[i];
+            api.Render.Render2DTexturePremultipliedAlpha(_texture.TextureId, b.renderX, b.renderY, b.OuterWidth, b.OuterHeight, 260);
+        }
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _texture?.Dispose();
+    }
+}
+
 /// <summary>A display-only slot: the trade window's locked goods. Nothing goes in or out; its tooltip
 /// starts with why it is locked.</summary>
 public sealed class LockedSlot(InventoryBase inventory) : ItemSlot(inventory)
