@@ -377,8 +377,10 @@ nearest. (`Footprint.PlacedFacing`, the mills' rule, sends native west along the
 the bench across it.) The axle then comes in at the far end on the player's right, the pipe sections come
 off to their left, and a chest of hollow sections stands in front of the die end. The frame recipe
 (`assets/seraphhorizons/recipes/grid/drawbench.json`): two metal plates (die stock and head pedestals) and two
-rods (the ways) of iron, meteoric iron or steel, four nails and strips of the same metals, two oak logs
-(the sills), oak planks (the bed) and a hammer.
+rods (the ways, in one slot) of iron, meteoric iron or steel, four nails and strips of the same metals,
+two steel gears (`seraphhorizons:gear-steel`, for the gearing the frame carries: the rectifier's A1, A2,
+B1, B2 and idler, the return shaft's gear and the barrel gear; every other machine in the pack pays steel
+gears for its gears, #473), two oak logs (the sills), oak planks (the bed) and a hammer.
 
 **Stages** (`DrawBenchParts`), one item a stage, in `DrawBenchStage` order, the next missing stage the
 only one a click fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a

@@ -215,6 +215,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, ingots.Count);
         Assert.All(ingots, i => { Assert.Equal(new[] { "steel" }, i!.AllowedVariants); Assert.Equal(4, i.Quantity); });
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 32);
+        // 3 steel gears for the gearing the frame carries (the feed rectifier, the camshaft's worm wheel)
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-steel" && i.Quantity == 3);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the spindle and the index: 2 steel rods and 2 steel plates each
         foreach (var output in new[] { "gearcutterspindle", "gearcutterindex" })
