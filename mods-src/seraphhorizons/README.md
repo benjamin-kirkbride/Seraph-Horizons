@@ -1931,8 +1931,8 @@ valves stay as blocks, so those already placed keep working, but nothing makes t
   still makes chutes), and the handbook and the machines' text call it the tube blank. The game's chutes take
   `chutesection-copper` by name, so lead makes no chute.
 - The **pipe section**, `seraphhorizons:pipesection-{copper,lead,iron,steel}` ("Copper pipe
-  section"): a square tube 6 voxels across (ppex's pipe is 6/16 wide) with 1-voxel walls, half a block
-  long (`shapes/item/pipesection.json`), textured as ppex's pipes are
+  section"): ppex's straight pipe's tube, 6 voxels across (6/16 wide) with 1-voxel walls round a 4 x 4
+  bore, a block long (`shapes/item/pipesection.json`), textured as ppex's pipes are
   (`game:block/metal/sheet-plain/{metal}4`). No grid or anvil recipe makes it: copper and lead ones
   come from a chute section on the mandrel station (2) or the draw bench (4), iron and steel ones from
   smex's canal in the pipe mold (`CastPipes`, 2 a fill of 100 units).
@@ -2186,8 +2186,8 @@ the die end (native north), one at a time while the shaft turns; an ingot, an an
 (what comes off) is never taken.
 **The die decides the metal:** an iron die draws lead only, a steel die lead and copper (`DieMetals`);
 copper on an iron die is refused with a message. The draw needs the shaft at `MinSpeed` and advances W,
-the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (7.72) turns for lead, the
-fast gear, and `TurnsPerSectionCopper` (15.45) for copper. Each time W passes 1, 2, 3 and 4 a pipe section
+the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (2.06) turns for lead, the
+fast gear, and `TurnsPerSectionCopper` (4.12) for copper. Each time W passes 1, 2, 3 and 4 a pipe section
 of the metal goes into a container against the output face by the die end (native east, where the
 trough under the bed brings them), else drops just outside it. At 4 the hollow is used up and the die
 loses `DieWearPerHollow` (1), whatever the oil; a worn-out die is gone (the tool-break sound) and the
@@ -2209,8 +2209,8 @@ drips from the oiler with oil in the tank, and the gears' sound.
 |---|---|---|
 | `DieDurability` | 100 | Hollow sections a new die draws (the die item's durability) |
 | `DieWearPerHollow` | 1 | Die durability a hollow section costs |
-| `TurnsPerSectionLead` | 7.72 | Axle turns per lead pipe section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
-| `TurnsPerSectionCopper` | 15.45 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
+| `TurnsPerSectionLead` | 2.06 | Axle turns per lead pipe section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
+| `TurnsPerSectionCopper` | 4.12 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
 | `ResistanceLead` | 0.2 | The complete bench's load, empty or drawing lead |
 | `ResistanceCopper` | 0.35 | Its load drawing copper |
 | `MinSpeed` | 0.05 | Below it the bench neither draws nor takes a hollow from its infeed |
