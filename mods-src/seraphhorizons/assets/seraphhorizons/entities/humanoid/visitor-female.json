@@ -72,7 +72,7 @@
 			{
 				"code": "conversable",
 				"dialogueByType": {
-					"*": "game:config/dialogue/trader"
+					"*": "seraphhorizons:config/dialogue/trader"
 				}
 			}
 		],
@@ -4344,7 +4344,7 @@
 			{
 				"code": "conversable",
 				"dialogueByType": {
-					"*": "game:config/dialogue/trader"
+					"*": "seraphhorizons:config/dialogue/trader"
 				}
 			},
 			{
