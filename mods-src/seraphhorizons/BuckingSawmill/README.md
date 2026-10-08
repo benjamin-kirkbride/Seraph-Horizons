@@ -566,7 +566,8 @@ The model is posed for θ = 0, depth 0 and going down. The exceptions are the yo
 `MillRenderer` (client only, made and disposed by `BEBuckingMill`) draws everything that moves. The static frame comes from the block's own JSON shape, `buckingmill_frame.json`, which holds the same elements as the `frame` part. The renderer skips that part, so the frame is never drawn twice.
 
 The renderer:
-- **Builds one mesh per moving rig part** from `buckingmill.json`, by blanking every other part's elements, as Immersive Woodworking's sawmill renderer does.
+- **Builds one mesh per moving rig part** from `buckingmill.json` in a single tessellation: each element's `JointId` is set to its part + 1, `TesselateShapeWithJointIds` writes it per vertex into `CustomInts`, and the faces are copied out by that tag (`MachineMeshes.PartMeshes`). If the tags don't check out it falls back, logged once, to one tessellation per part with every other part's elements blanked, as Immersive Woodworking's sawmill renderer does.
+- **Shares them**: the uploaded meshes are cached for the session (`MachinePartMeshes`), the plain parts once and the blades once per blade metal, for every mill; they are disposed when the client leaves the world, never by a renderer, which disposes only its trunk's mesh.
 - **Draws each part** with its rig matrix (`RigParts.Matrices(θ, depth, lifting, ψ)` in `../Machines/Core/RigAnimation.cs`), turned to the mill's facing.
   - A part whose `requires` is not fitted is skipped; the levers part is drawn when `HasLevers`.
   - It registers for the opaque pass and both shadow passes, and draws nothing beyond 64 blocks.

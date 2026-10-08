@@ -699,6 +699,11 @@ renderer skips parts with no `requires`, ride or drivers.
 - One mesh per moving rig part from `rosser.json` (`Machines/Game/MachineMeshes.cs`), drawn with its
   rig matrix (`RigParts.Matrices(RigInput)` in `Machines/Core/RigAnimation.cs`) turned to the facing,
   only when its `requires` is fitted. The `heads` parts take `game:block/metal/ingot/{metal}`.
+  The meshes are one tessellation of the shape split by part (each element's `JointId` set to its
+  part + 1, read back per vertex from `TesselateShapeWithJointIds`' `CustomInts`;
+  `MachineMeshes.PartMeshes`), cached for the session by `MachinePartMeshes` and shared by every
+  rosser: the plain parts once, the tips once per head metal. The cache disposes them when the client
+  leaves the world; a renderer disposes only its trunk's segments.
 - The opaque pass and both shadow passes; nothing beyond 64 blocks from the ring; light from the cell
   above the highest cell over the ring's station, outside the model.
 - θ from the power ghost's `AngleRad` (`NativeShaftAngle` about z), accumulated; ψ adds up its size;
@@ -852,8 +857,8 @@ Known compromises in the model and gameplay:
    jump.
 7. **Close contacts.** The arms on a thick trunk stand off up to 0.72 voxels (the rule is 0.8), and
    the arm bodies clear it by 0.55 (the rule 0.5).
-8. **Renderer cost.** About 45 part meshes, 13 gauges per arm, and ten trunk segment meshes per
-   rosser; the box table is rebuilt every 1/16 block of travel. Not profiled.
+8. **Renderer cost.** About 45 part meshes (shared by every rosser, from one tessellation per
+   texture variant), 13 gauges per arm, and ten trunk segment meshes per rosser; the box table is rebuilt every 1/16 block of travel. Not profiled.
 9. **Not built from the design:** fixed side rails along the beds, and a visible water source other
    than the pipe's flange at the south face.
 10. **Hand-off height.** A trunk drops about 4 voxels (thick) or 11.5 (thin) as the mill takes it.

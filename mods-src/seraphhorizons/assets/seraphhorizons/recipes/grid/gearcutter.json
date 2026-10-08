@@ -2,42 +2,44 @@
 // GearCutter off.
 [
 	{
-		// The frame: a cast iron bed and column (two ingots of iron, meteoric iron or steel: machine
-		// frames cost iron), oak sills (planks) and eight iron nails and strips to bolt it up, with a
-		// hammer. Every working part goes in afterwards, fitted by hand.
+		// The frame: a cast bed and column, oak sills (planks) and nails and strips to bolt it up, with
+		// a hammer. The pack's machine frames cost iron, but this is the end-game machine of the gears
+		// epic and a cast bed and column are a lot of metal: 8 steel ingots (4 a slot, steel only),
+		// 4 planks and 32 nails and strips of iron, meteoric iron or steel. Every working part goes in
+		// afterwards, fitted by hand.
 		ingredientPattern: "IHI,PNP,P_P",
 		width: 3,
 		height: 3,
 		ingredients: {
-			"I": { type: "item", code: "game:ingot-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"I": { type: "item", code: "game:ingot-*", allowedVariants: ["steel"], quantity: 4 },
 			"P": { type: "item", code: "game:plank-*" },
-			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 8 },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 32 },
 			"H": { type: "item", code: "game:hammer-*", isTool: true }
 		},
 		output: { type: "block", code: "seraphhorizons:gearcutter-frame-north" }
 	},
 	{
-		// The cutter spindle with its cone pulley: a steel rod for the shaft, a steel plate for the
-		// cone, iron nails and strips for the keys and collars. Upright, so it is not the index.
+		// The cutter spindle with its cone pulley: two steel rods for the shaft, two steel plates for
+		// the cone, iron nails and strips for the keys and collars. Upright, so it is not the index.
 		ingredientPattern: "R,P,N",
 		width: 1,
 		height: 3,
 		ingredients: {
-			"R": { type: "item", code: "game:rod-steel" },
-			"P": { type: "item", code: "game:metalplate-steel" },
+			"R": { type: "item", code: "game:rod-steel", quantity: 2 },
+			"P": { type: "item", code: "game:metalplate-steel", quantity: 2 },
 			"N": { type: "item", code: "game:metalnailsandstrips-iron" }
 		},
 		output: { type: "item", code: "seraphhorizons:gearcutterspindle" }
 	},
 	{
-		// The index: the lever on a steel rod, its pawls and shield cut from a steel plate, pinned
-		// with iron nails and strips. Lying flat, so it is not the spindle.
+		// The index: the lever on two steel rods, its pawls and shield cut from two steel plates,
+		// pinned with iron nails and strips. Lying flat, so it is not the spindle.
 		ingredientPattern: "RPN",
 		width: 3,
 		height: 1,
 		ingredients: {
-			"R": { type: "item", code: "game:rod-steel" },
-			"P": { type: "item", code: "game:metalplate-steel" },
+			"R": { type: "item", code: "game:rod-steel", quantity: 2 },
+			"P": { type: "item", code: "game:metalplate-steel", quantity: 2 },
 			"N": { type: "item", code: "game:metalnailsandstrips-iron" }
 		},
 		output: { type: "item", code: "seraphhorizons:gearcutterindex" }

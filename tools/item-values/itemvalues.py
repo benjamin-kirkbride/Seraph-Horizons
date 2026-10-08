@@ -643,7 +643,7 @@ def solve(export: dict, rules: Rules) -> Valuation:
         return val, src, best_route, settled, picks
 
     # Twice. Settling cheapest first, a route waits for its tools, so one whose tool is worth more
-    # than its output (the gear cutter's frame, 16 gears, cutting a steel gear worth 11) would
+    # than its output (the gear cutter's frame, 103 gears, cutting a steel gear worth 13) would
     # only be priced after that output had settled by a dearer route. The second pass starts from
     # the same raws and takes a tool not yet valued at its first-pass value instead of waiting.
     first = layers(None)[0]

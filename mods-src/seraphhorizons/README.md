@@ -1690,8 +1690,8 @@ gameplay, in `GearCutter/` (rules in `GearCutter/Core/`, the game side in `GearC
 rosser are (`Footprint.PlacedFacing`: the machine runs away from the player), with a ghost in each of
 the rig's other seven cells (`gearcutter-ghost`) and the power ghost
 (`gearcutter-ghostpower-{side}`), which takes the axle on the column's back face (native west).
-The frame is a grid recipe: two ingots of iron, meteoric iron or steel, five planks and eight iron
-(or meteoric iron or steel) nails and strips, with a hammer.
+The frame is a grid recipe: eight steel ingots (four in each ingot slot; steel only, as the end of
+the gears epic), four planks and 32 iron (or meteoric iron or steel) nails and strips, with a hammer.
 
 **Stages.** Fitted by right-click on the frame or any ghost with the item, one item each, in this
 order only; the next missing stage is the only one a click fills, and anything of a later stage is
@@ -1699,12 +1699,12 @@ refused with a message naming the next:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
-| 1 | `spindle` | `seraphhorizons:gearcutterspindle` | Grid: steel rod over steel plate over iron nails and strips |
+| 1 | `spindle` | `seraphhorizons:gearcutterspindle` | Grid: 2 steel rods over 2 steel plates over iron nails and strips |
 | 2 | `feedscrew` | `seraphhorizons:gearcutterfeedscrew` | Smithing, 1 steel ingot |
 | 3 | `camfeed` | `game:jonasframes-gearbox02` | Looted, or BetterRuins' conversion |
 | 4 | `camindex` | `game:jonasframes-gearbox02`, a second | As above |
 | 5 | `liftcam` | `seraphhorizons:gearcutterliftcam` | Smithing, 1 steel ingot |
-| 6 | `index` | `seraphhorizons:gearcutterindex` | Grid: steel rod, steel plate, iron nails and strips in a row |
+| 6 | `index` | `seraphhorizons:gearcutterindex` | Grid: 2 steel rods, 2 steel plates, iron nails and strips in a row |
 | 7 | `oiler` | `game:jonasparts-valve01` | Looted |
 | 8 | `head` | `game:jonasframes-gears02` or `game:jonasframes-gears01` | Looted, or converted |
 | 9 | `cutter` | `seraphhorizons:gearcutterkit-steel` (500 durability) | Smithing, 1 steel ingot |
@@ -1760,8 +1760,8 @@ in the tank a spray from the injection valve's nozzle at `drip.pos`.
 With the switch off the server marks the three block types, the five new item types and both
 recipe files disabled before the game loads them, so none of it exists and cutters already placed
 are lost. The steel gears it makes exist either way. Not yet: the recipe export of the cut (#483),
-a schematic for the frame (`MachineSchematics`), and item shapes of the new parts' own (they wear
-the game's hub, rod, bracket, linkage and chisel shapes in steel).
+and a schematic for the frame (`MachineSchematics`). The five new parts' items are drawn as the parts
+are in the machine (`shapes/item/gearcutter/`, generated with the machine's model).
 
 ### Unified pipes (`UnifiedPipes`, `UnifiedPipesSettings`)
 
