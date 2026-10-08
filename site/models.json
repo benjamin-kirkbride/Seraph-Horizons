@@ -241,17 +241,26 @@
       "creditUrl": "https://github.com/benjamin-kirkbride/Seraph-Horizons/blob/main/mods-src/seraphhorizons/Handcar/README.md",
       "shape": "mods-src/seraphhorizons/assets/seraphhorizons/shapes/entity/handcar.json",
       "rig": "mods-src/seraphhorizons/assets/seraphhorizons/config/handcar-rig.json",
+      "bogie": "mods-src/seraphhorizons/assets/seraphhorizons/shapes/entity/handcar-axlebox.json",
       "scenario": {
         "inputs": {
-          "theta": { "label": "Axle angle", "hint": "The wheels turn by it; one stroke of the beam is three turns, 5.9 blocks of track" },
+          "theta": { "label": "Axle angle", "hint": "The wheels turn by it, the countershaft and crank a third as fast; the pitman rocks the beam." },
           "reverse": { "label": "Rolling backwards" }
         },
         "requires": {
-          "left": "Branch lever: left",
-          "straight": "Branch lever: straight",
-          "right": "Branch lever: right"
+          "left": "Left",
+          "straight": "Straight",
+          "right": "Right"
         },
-        "play": { "secondsPerTurn": 0.6, "phases": [] }
+        "choices": [{ "label": "Branch lever", "values": ["left", "straight", "right"], "default": "straight" }],
+        "vehicle": {
+          "wheelRadius": "cycle.wheelRadius",
+          "front": "-x",
+          "cycle": "stroke",
+          "speed": 4.2,
+          "track": { "gauge": 1.5625, "centre": 1 },
+          "bogies": { "at": ["bogies.front", "bogies.rear"], "offset": "bogies.bodyOffsetForward" }
+        }
       }
     }
   ]

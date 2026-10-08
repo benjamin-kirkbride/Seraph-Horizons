@@ -1,8 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { discoverAnchors } from "../src/lib/model-anchors.ts";
-import { checkModelFiles } from "../src/lib/model-manifest.ts";
-import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
+import { checkModelFiles, type ManifestModel } from "../src/lib/model-manifest.ts";
+import { initialFitted } from "../src/lib/model-scenario.ts";
+import { rolledBy, vehicleOf, withBogies } from "../src/lib/model-vehicle.ts";
+import { buildModelView } from "../src/lib/model-view.ts";
+import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs, thetaTurns, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The handcar's shipped files, and the poses Handcar/tools/make_shape.py computes from them with
 // machinegen's reference maths. Its rig reads one input, θ, the axle's angle: the wheels turn by it,
@@ -15,6 +18,7 @@ const rig = read("assets/seraphhorizons/config/handcar-rig.json") as Rig & Recor
 const shape = read("assets/seraphhorizons/shapes/entity/handcar.json") as Shape;
 type RefPose = { theta: number; matrices: Record<string, number[][]> };
 const reference = read("tests/Handcar/rig-reference.json") as { poses: RefPose[] };
+const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.url), "utf8")) as { models: ManifestModel[] };
 const parts = rig.parts!;
 const order = rideOrder(parts);
 
@@ -81,6 +85,24 @@ describe("the handcar's anchors", () => {
     const travel = (Math.max(...heights) - Math.min(...heights)) * 16;
     expect(travel).toBeGreaterThan(5);
     expect(travel).toBeLessThan(9);
+  });
+
+  it("is a vehicle: its slider spans a stroke, it rolls by its wheels, and its bogies are drawn at the axles", () => {
+    const model = manifest.models.find((m) => m.id === "handcar")!;
+    const cycle = rig.cycle as { axleTurns: number; wheelRadius: number; distancePerCycle: number };
+    expect(thetaTurns(parts)).toBe(cycle.axleTurns);
+    const v = vehicleOf(model.scenario!.vehicle, rig)!;
+    expect(rolledBy(2 * Math.PI * cycle.axleTurns, v)).toBeCloseTo(cycle.distancePerCycle, 5);
+    // Yang's renderer puts the body at the front bogie plus its offset: the axle boxes sit on the axles
+    const bogie = read("assets/seraphhorizons/shapes/entity/handcar-axlebox.json") as Shape;
+    const merged = withBogies(shape, rig, bogie, v);
+    const view = buildModelView(merged.shape, merged.rig, model.scenario);
+    const axles = ["axle_front", "axle_rear"].map((id) => (parts.find((p) => p.id === id)!.drivers![0]!.pivot as number[])[0]!);
+    const journals = view.parts[0]!.elements.map((i) => view.flat[i]!.element).filter((e) => /_journall$/.test(e.name));
+    expect(journals.map((e) => (e.from[0] + e.to[0]) / 32)).toEqual(axles.map((x) => expect.closeTo(x, 3)));
+    // one branch lever of three at a time, straight at first
+    expect(initialFitted(view.requires.map((r) => r.value), model.scenario!.choices)).toEqual({ left: false, straight: true, right: false });
+    expect(() => checkModelFiles(model, shape, rig, bogie)).not.toThrow();
   });
 
   it("refuses a grip that rides a part the rig does not have", () => {
