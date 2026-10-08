@@ -18,7 +18,8 @@ namespace SeraphHorizons.Mod.MandrelStation;
 /// <c>strike.pos</c>, the hammer's durability paid; a hammer of a higher tool tier forges more a blow),
 /// and at the blow that finishes the hollow two pipe sections of the
 /// hollow's metal go into a container beyond the tip, or drop there. A blow on a bare mandrel takes a
-/// hollow from a chest or hopper beside the stump. The server keeps the ghost cell stamped; the client
+/// hollow from a chest or hopper beside the stump, or, with right-click held after a hollow is finished,
+/// another of the same from the player's hotbar. The mandrel, once fitted, comes out only by breaking. The server keeps the ghost cell stamped; the client
 /// draws the station (<see cref="MandrelStationRenderer"/>, through <see cref="IMandrelStationView"/>).
 /// The rules are MandrelStation/Core's.
 /// </summary>
@@ -33,6 +34,9 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     private ItemStack? _hollow;
     private ForgeJob _job = ForgeJob.None;
     private long _lastBlowAt = long.MinValue / 2;
+    private string? _lastFinished;
+    private string? _lastClickBy;
+    private long _lastClickAt = long.MinValue / 2;
     private int? _serverBlowsNeeded;
     private Dictionary<Int3, Cuboidf[]>? _cells;
     private Dictionary<Int3, Cuboidf[]>? _collision;
@@ -189,8 +193,8 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
 
     /// <summary>
     /// Right-click on the station or its ghost. Ctrl takes back: in creative mode with no mandrel it
-    /// fits an iron one with nothing taken; else a hollow not yet struck comes off, or with no hollow
-    /// on the mandrel comes out. A rod of iron, meteoric iron or steel is fitted as the mandrel; a lead
+    /// fits an iron one with nothing taken; else a hollow not yet struck comes off (the mandrel is a part,
+    /// not a consumable: it comes out only by breaking the station). A rod of iron, meteoric iron or steel is fitted as the mandrel; a lead
     /// or copper hollow section goes on a bare mandrel; a hammer strikes a blow (on a bare mandrel it
     /// takes a hollow from the infeed instead). Anything else is the item's own business. Decided and
     /// done on the server; the client says whether the click is the station's.
@@ -277,28 +281,35 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         return true;
     }
 
-    /// <summary>Ctrl + right-click (server side): a hollow not yet struck comes off; with no hollow
-    /// on, the mandrel comes out. A hollow being forged stays, and so does the mandrel under it.</summary>
+    /// <summary>Ctrl + right-click (server side): a hollow not yet struck comes off. A hollow being
+    /// forged stays. The mandrel never comes out this way: the station has no consumable part, and
+    /// breaking it gives the mandrel back.</summary>
     public bool TakeBack(IPlayer byPlayer)
     {
-        if (HollowOn)
-        {
-            if (!_job.Untouched)
-                return Error(byPlayer, "error-busy");
-            var hollow = _hollow!;
-            ClearJob();
-            Give(byPlayer, hollow);
-            Api.World.PlaySoundAt(HollowSound, Pos, 0, byPlayer);
-            MarkDirty(true);
-            return true;
-        }
-        if (!MandrelPart.CanTakeBack(_mandrel, HollowOn) || Api.World.GetItem(new AssetLocation(_mandrel!)) is not { } item)
+        if (!HollowOn)
             return false;
-        _mandrel = null;
-        Give(byPlayer, new ItemStack(item));
-        Api.World.PlaySoundAt(LatchSound, Pos, 0, byPlayer);
+        if (!_job.Untouched)
+            return Error(byPlayer, "error-busy");
+        var hollow = _hollow!;
+        ClearJob();
+        Give(byPlayer, hollow);
+        Api.World.PlaySoundAt(HollowSound, Pos, 0, byPlayer);
         MarkDirty(true);
         return true;
+    }
+
+    /// <summary>With right-click held after a hollow was finished (server side): puts another of the
+    /// same item on from the first of the player's hotbar slots holding one
+    /// (<see cref="Forging.RefillSlot"/>; not the backpack), as a right-click with it in hand would
+    /// (<see cref="TryLoadHollow"/>). Returns whether one went on.</summary>
+    public bool RefillFromHotbar(IPlayer byPlayer)
+    {
+        if (Api.Side != EnumAppSide.Server || HollowOn || !Complete
+            || byPlayer.InventoryManager?.GetHotbarInventory() is not { } hotbar)
+            return false;
+        var codes = Enumerable.Range(0, hotbar.Count).Select(i => hotbar[i]?.Itemstack?.Collectible?.Code?.ToString()).ToList();
+        int at = Forging.RefillSlot(codes, _lastFinished);
+        return at >= 0 && hotbar[at] is { } slot && TryLoadHollow(slot, byPlayer);
     }
 
     /// <summary>The pipe section a hollow of class <paramref name="k"/> is forged into, or null when
@@ -359,18 +370,31 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     // ---- Forging ----
 
     /// <summary>A right-click with a hammer (server side): on a bare mandrel, takes a hollow from the
-    /// infeed; on a hollow, strikes a blow, no faster than <see cref="Forging.BlowIntervalMs"/>.</summary>
+    /// infeed, else, with right-click held since a hollow was finished (<see cref="Forging.Held"/>),
+    /// puts another of the same on from the player's hotbar once a blow would be struck
+    /// (<see cref="RefillFromHotbar"/>); on a hollow, strikes a blow, no faster than
+    /// <see cref="Forging.BlowIntervalMs"/>.</summary>
     public bool StrikeBy(IPlayer byPlayer, ItemSlot hammer)
     {
+        long now = Api.World.ElapsedMilliseconds;
+        bool held = byPlayer.PlayerUID == _lastClickBy && Forging.Held(now - _lastClickAt);
+        _lastClickBy = byPlayer.PlayerUID;
+        _lastClickAt = now;
         if (!Complete)
             return Error(byPlayer, "error-no-mandrel");
         if (!HollowOn)
         {
             if (PullFromInfeed())
                 return true;
+            if (held && _lastFinished != null)
+            {
+                if (!Forging.Ready(now - _lastBlowAt))
+                    return false;
+                if (RefillFromHotbar(byPlayer))
+                    return true;
+            }
             return Error(byPlayer, "error-no-hollow");
         }
-        long now = Api.World.ElapsedMilliseconds;
         if (!Forging.Ready(now - _lastBlowAt))
             return false;
         _lastBlowAt = now;
@@ -403,6 +427,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         if (finished)
         {
             int k = _job.Class;
+            _lastFinished = _hollow?.Collectible?.Code?.ToString();
             ClearJob();
             if (SectionItem(k) is { } section)
                 Deliver(new ItemStack(section, Forging.SectionsPerHollow));

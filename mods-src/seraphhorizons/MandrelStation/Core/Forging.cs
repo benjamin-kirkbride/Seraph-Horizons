@@ -63,9 +63,6 @@ public static class MandrelPart
         : fitted != null ? MandrelFitVerdict.AlreadyFitted
         : MandrelFitVerdict.Fits;
 
-    /// <summary>Whether Ctrl + right-click takes the mandrel back now: one is fitted and no hollow is on.</summary>
-    public static bool CanTakeBack(string? fitted, bool hollowOn) => fitted != null && !hollowOn;
-
     /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn as a part: null
     /// always, the mandrel once fitted. The hollows are the work's, not a part's: never here.</summary>
     public static bool Fitted(string? requires, string? fitted) =>
@@ -148,6 +145,32 @@ public static class Forging
 
     /// <summary>Whether a blow is struck now: <paramref name="sinceLastMs"/> since the last one.</summary>
     public static bool Ready(long sinceLastMs) => sinceLastMs >= BlowIntervalMs;
+
+    /// <summary>The longest gap between two hammer clicks of one player that still counts as right-click
+    /// held: the client repeats a held click every 250 ms (its build repeat delay), and a blow the server
+    /// does not take yet (<see cref="Ready"/>) still counts as a click.</summary>
+    public const long HeldClickGapMs = 750;
+
+    /// <summary>Whether a hammer click <paramref name="sinceLastClickMs"/> after the same player's last
+    /// one on the station is right-click held.</summary>
+    public static bool Held(long sinceLastClickMs) => sinceLastClickMs is >= 0 and <= HeldClickGapMs;
+
+    /// <summary>The hotbar's own slots (the game's hotbar inventory also holds the skill slot, 10, and the
+    /// off hand, 11): the slots a held hammer refills the mandrel from.</summary>
+    public const int HotbarSlots = 10;
+
+    /// <summary>The hotbar slot (of <paramref name="codes"/>, the hotbar's item codes in slot order) to
+    /// put the next hollow on from after <paramref name="finished"/>, the hollow just forged: the first
+    /// of the hotbar's own slots holding the same item; -1 with none (or none finished).</summary>
+    public static int RefillSlot(IReadOnlyList<string?> codes, string? finished)
+    {
+        if (ClassOfHollow(MandrelPart.Normalise(finished)) == 0)
+            return -1;
+        for (int i = 0; i < Math.Min(codes.Count, HotbarSlots); i++)
+            if (MandrelPart.Normalise(codes[i]) == MandrelPart.Normalise(finished))
+                return i;
+        return -1;
+    }
 }
 
 /// <summary>A hollow on the mandrel: its class, the blows struck on it and W, the forging so far (0..1).</summary>

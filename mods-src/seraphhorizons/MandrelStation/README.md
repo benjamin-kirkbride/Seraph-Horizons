@@ -87,6 +87,18 @@ their ends, a hairline shows there at W 1). At every tenth of W the work is chec
 continuous square tube of even cross-section, with no gap between rings; the volumes where rings, walls
 and corner bars overlap are never seen.
 
+**One sheet down the tube.** The rings' faces along the length (the walls' and corner bars' sides, top
+and bottom, inside and out) take their UVs from one sheet of the metal's texture running the length of
+the work: each ring's continues where the one before it ends, and across the section each face takes
+the part of the sheet where it stands, so walls and corner bars meet without a seam (the end faces keep
+their own). A ring is rigid and slides, so the sheet can run on exactly from ring to ring at one W only;
+elsewhere two rings' textures are off by 4 texture units a voxel times how far their spacing has moved
+since. It is mapped by **W 0.5** (`W_BAND`), the rings' places halfway through the stretch, not by the
+rest or W 1: the offset at either end is then half what a mapping by one end leaves at the other, 2.25
+texture units (about a pixel of the 32-pixel sheet) between neighbouring rings at rest and at W 1, and
+none at W 0.5. Mapped by the rest it would be none at rest and 4.5 at W 1. So no seams show by design;
+the one line along the work is the part line between the two sections.
+
 **It hangs on the mandrel.** A loose box on a bar hangs from it: at every W the bore's ceiling (the top
 wall's underside) rests on the bar's top face, and the gap is below the bar, never round it. At rest the
 6 bore on the 4 bar puts the box's centre 1 below the mandrel's axis (y 12.6; the box's bottom 0.6 over
@@ -116,6 +128,9 @@ included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py
 - **Frame:** joined to the ground as one piece (the stump, hoop, bracket and swage).
 - **Textures by role:** the stump oak; hoop, bracket and swage iron; the mandrel `mandrel`; each metal's
   work its own sheet.
+- **Banding:** the work's faces along its length one sheet: at W 0.5 no offset between neighbouring rings
+  or within a ring; at rest and at W 1 the largest offset between neighbouring rings reported (2.51
+  texture units, at the part line; 2.25 within a section) and under a voxel's worth (4).
 - **Containment:** nothing leaves the 1 × 1 × 2 box over the whole forging, either metal, every 0.01.
 - **Forging:** at every tenth of W, one continuous square tube of even cross-section (every sample of its
   walls covered, nothing in its bore or outside it, all along it, but for 0.1 either side of the part
@@ -147,7 +162,7 @@ nothing added to the shared rig maths: a `work` quantity, gauges, and one θ-dri
   W by `1 / blowsPerHollow[k]` a blow, delivers two `forge.sections[k]` at W = 1, then clears. As with
   the press brake, every gauge eases back as p eases out, so a renderer stops drawing the work once its
   sections are delivered.
-- **`forge`**: `blowsPerHollow` (lead 6, copper 9: the pace), `hollows` (each class's work), `sections`
+- **`forge`**: `blowsPerHollow` (lead 9, copper 14: the pace), `hollows` (each class's work), `sections`
   (what a hollow makes) and `sectionsPerHollow` (2).
 - **Anchors**: `output.pos` (on the ground beyond the tip, where gameplay drops the two sections), `strike.pos` (the top of the box's
   middle, where the hammer lands: sparks and the blow's sound), `infeedSide` west, `outputSide` south.
@@ -176,15 +191,16 @@ The model has been reviewed in projections rendered from the written files and i
 
 1. **The mandrel is cantilevered** 17.3 voxels past the bracket (10 past the stump): a smith slips the
    hollow on and the tube off over its free end. The bracket holds it at two bands 3.6 apart.
-2. **Ring joints.** The hollow is eight rings, so the game will show seams where their textures meet
-   (like rings of blows), and the stretch is carried by the rings sliding apart, not by the texture
-   stretching. Through the open end the overlapping rings' ends can be seen inside the bore.
+2. **Ring joints.** The hollow is eight rings, banded as one sheet ("One sheet down the tube"), so no
+   seams are drawn between them: only the part line between the two sections shows. The sheet runs on
+   exactly at W 0.5; towards rest and W 1 neighbouring rings' textures drift apart by up to about a pixel,
+   and the stretch is carried by the rings sliding apart, not by the texture stretching. Through the open end the overlapping rings' ends can be seen inside the bore.
 3. **Stepped faces.** The overlapping rings' outer faces are stepped in by up to 0.105 voxels (the
    z-fighting fix); a ring's side walls and corner bars stand back 0.03 and 0.06 at its ends.
 4. **No slide-on, no slide-off.** The hollow appears on the mandrel as p eases in; at W 1 the finished tube
    stays on the mandrel and gameplay drops the two sections as items at `output.pos` and stops drawing it.
    Nothing is seen coming off. (Every gauge eases back as p eases out, so the work must not be drawn then.)
-5. **Blows.** The forging is linear in W, so each blow (1/6 of a lead hollow, 1/9 of a copper one) closes and
+5. **Blows.** The forging is linear in W, so each blow (1/9 of a lead hollow, 1/14 of a copper one) closes and
    stretches it by the same amount; the renderer eases W between blows.
 6. **Linear ramps**, as the press brake's: the motion starts and stops at full speed.
 7. **The swage is decoration**: nothing is swaged in it.
@@ -216,9 +232,10 @@ no rod: the mandrel is the one fitted part.
 
 **The mandrel** (`MandrelPart`): `game:rod-iron`, `-meteoriciron` or `-steel` (verified in game 1.22.7's
 `survival/itemtypes/part/rod.json`), fitted by right-click on the stump or the ghost; a second is
-refused with a message, and a rod of another metal is the item's own business. Ctrl + right-click takes
-it back while nothing is on it (the contract has it back only by breaking; the brief asked for this, as
-on the press brake). The creative shortcut (Ctrl in creative mode with no mandrel) fits an iron one free.
+refused with a message, and a rod of another metal is the item's own business. Once fitted it stays in:
+only breaking the station gives it back, as the contract has it. A machine's parts come out by hand only
+when they are consumables (the draw bench's die), and the mandrel station has none, so there is no
+take-out path, no help line for one and no lang string. The creative shortcut (Ctrl in creative mode with no mandrel) fits an iron one free.
 Breaking drops the frame, the mandrel and a hollow not yet struck (a struck one is lost).
 
 **Blows** (the anvil's pattern: `BlockEntityAnvil` takes a hammer's hits). A hollow section, the game's
@@ -232,21 +249,30 @@ held does not hammer faster than a smith swings. A blow advances W by (the hamme
 `BlowsPerHollow` is the count for the base hammer, the copper one, and the tier is read from the held
 hammer's item (`CollectibleObject.ToolTier`, the game's `tooltierbytype`: copper, gold and silver 2, the
 three bronzes 3, iron and meteoric iron 4, steel 5) at each blow; a hammer with no tier counts as the
-base, and one blow never advances more than half a hollow (`Forging.MaxWorkPerBlow`). So lead takes 6
-blows of a copper hammer, 4 of a bronze one, 3 of an iron or steel one; copper 9, 6, 5 (iron) and 4
-(steel). The blow that brings W to 1 finishes it (the overshoot is dropped). A blow plays the anvil's `game:sounds/effect/anvilhit` and throws a few
+base, and one blow never advances more than half a hollow (`Forging.MaxWorkPerBlow`). So lead takes 9
+blows of a copper hammer, 6 of a bronze one, 5 of an iron one and 4 of a steel one; copper 14, 10, 7
+(iron) and 6 (steel). The blow that brings W to 1 finishes it (the overshoot is dropped). A blow plays the anvil's `game:sounds/effect/anvilhit` and throws a few
 small glowing sparks at `strike.pos`, and costs the hammer `HammerWearPerBlow` durability (not in
 creative mode), one a blow whatever the hammer. At W = 1 the hollow is used up and `forge.sectionsPerHollow` (2)
 `forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) go into a container in
 `MandrelStationRig.OutputNeighbour()` (the cell beyond the tip, native south), else drop just past it at
 `OutputDrop()`, pushed outward, as the press brake's angle does. Each blow syncs W and the blow count.
-Ctrl + right-click takes a hollow back only before the first blow; after it, it stays (an error says
-so), and so does the mandrel. **Infeed:** a hand station takes nothing by itself. A blow on a bare
+Ctrl + right-click takes a hollow back only before the first blow (the work, not a part); after it, it
+stays (an error says so). **Infeed:** a hand station takes nothing by itself. A blow on a bare
 mandrel takes one hollow from a container in a cell beside the station (`InfeedNeighbours`, native
-west: beside the stump or beside the tip's cell) and loads it; that click is not a blow. A save keeps
+west: beside the stump or beside the tip's cell) and loads it; that click is not a blow. **Hotbar
+refill:** with no hollow from the infeed, a hammer click on a bare mandrel while right-click is held since
+a hollow was finished (the same player's hammer clicks on the station no more than
+`Forging.HeldClickGapMs`, 750, apart: the client repeats a held click every 250 ms) puts another of the
+same item on from the first of the player's hotbar slots holding one (`Forging.RefillSlot`: slots 0..9,
+not the skill slot or the off hand, never the backpack; a hollow of the other metal is left), as a
+right-click with it in hand would (`TryLoadHollow`: the slot's stack less one, the hollow's sound, the
+station synced). It waits for `Forging.BlowIntervalMs` since the last blow, as a blow would, so the
+finished tube is seen delivered first; that click is not a blow either, and the next is struck as usual.
+So hammering carries on without letting go. A save keeps
 the mandrel's code, the hollow, its class, the blows and W.
 
-**Settings** (`MandrelStationSettings`): `BlowsPerHollowLead` 6 and `BlowsPerHollowCopper` 9, the rig's
+**Settings** (`MandrelStationSettings`): `BlowsPerHollowLead` 9 and `BlowsPerHollowCopper` 14, the rig's
 `forge.blowsPerHollow` (`MandrelStationRigTests.The_default_pace_is_the_rigs` holds them together),
 counted for a hammer of `BaseHammerTier` 2 (the game's copper hammer's tier); the block info shows the
 blows struck and W as a percentage, since the blows left depend on the hammer.
@@ -274,13 +300,14 @@ write one `machine` record per metal (`mandrelstation|game:chutesection-{metal}|
 consumed, the mandrel kept, the hammer as a tool worn `HammerWearPerBlow` × blows a job (`wear`
 `fixed`, so the site shows it as the worn tool, not consumed), the frame as the station, two pipe
 sections out; `power` `hand`, `turns` the base (copper) hammer's blows and `work` that many `blows` (the
-site says "By hand: 6 blows a job, each a right-click with a hammer"), the definition's hammer
+site says "By hand: 9 blows a job, each a right-click with a hammer"), the definition's hammer
 `game:hammer-copper`; a better hammer's fewer blows are the handbook's (the schema has no note on a
 recipe); no `oil`. Type `mandrelstation`, owned by
 `MandrelStation` (`Core/SwitchOwnership.cs`).
 
-**Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the mandrel and its take-back, saves,
-hollows by metal and what is refused, hammers, blows and the last one, copper's nine, the blow interval,
+**Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the mandrel, kept until broken, saves,
+hollows by metal and what is refused, hammers, blows and the last one, copper's fourteen, the blow interval, right-click held and the
+hotbar slot a refill comes from,
 the clock, settings, and the reader on a rig written to the contract with its refusals) and
 `MandrelStationRigTests.cs` (the shipped rig through the shared parser and `MandrelStationRig`, its
 anchors, the pace held to the settings, the reader's refusals, and every pose of

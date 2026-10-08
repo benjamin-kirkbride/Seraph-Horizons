@@ -25,7 +25,6 @@ namespace SeraphHorizons.Mod.PressBrake;
 /// </summary>
 public class BEPressBrake : BlockEntity, IPressBrakeView
 {
-    private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation PlateSound = new("game", "sounds/block/plate");
     private static readonly AssetLocation BendSound = new("game", "sounds/block/heavymetal-hit");
     private static readonly AssetLocation AngleSound = new("game", "sounds/block/chute");
@@ -215,9 +214,9 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     // ---- Interaction ----
 
     /// <summary>
-    /// Right-click on the brake or its ghost. Ctrl takes back: in creative mode on an incomplete
-    /// brake it fits the next stage with nothing taken; else a half plate still flat comes off the bed,
-    /// or with none on the last part fitted comes out. A part in hand is fitted if it is the next
+    /// Right-click on the brake or its ghost. Ctrl: in creative mode on an incomplete brake it
+    /// fits the next stage with nothing taken; with a half plate on, that half plate comes off the bed
+    /// while it is still flat. Fitted parts never come out: only breaking the brake returns them. A part in hand is fitted if it is the next
     /// stage's; a lead or copper half plate goes on an empty bed. Anything else (an empty hand, a tool,
     /// a whole plate, a half plate when one is already on) on a complete brake starts working the
     /// lever, held as on the quern (<see cref="OnWorkStep"/>); Shift lets a held block be placed
@@ -229,17 +228,19 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     {
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         var controls = byPlayer.Entity.Controls;
-        bool take = controls.CtrlKey && !controls.ShiftKey;
         string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
         bool server = Api.Side == EnumAppSide.Server;
-        if (take)
+        // Ctrl is the creative shortcut on an incomplete machine, and takes the work off while it is
+        // untouched; fitted parts never come out (only breaking returns them)
+        bool ctrl = controls.CtrlKey && !controls.ShiftKey;
+        if (ctrl && (PlateOn || CreativeShortcutApplies(byPlayer)))
         {
             if (!server)
                 return true;
             if (CreativeShortcutApplies(byPlayer))
                 FitNextPart(byPlayer);
             else
-                TakeBack(byPlayer);
+                TakePlate(byPlayer);
             return true;
         }
         if (PressBrakeParts.IsPart(code))
@@ -383,25 +384,18 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     public static string StageName(PressBrakeStage? stage) =>
         stage is { } s ? Lang.Get(PressBrakeSystem.Domain + ":pressbrake-info-stage-" + PressBrakeRequires.Name(s)) : "";
 
-    /// <summary>Ctrl + right-click (server side): a half plate still flat comes off the bed; with none
-    /// on, the last part fitted comes out (the edges, then the screws). One being folded stays.</summary>
-    public bool TakeBack(IPlayer byPlayer)
+    /// <summary>Ctrl + right-click (server side): a half plate still flat comes off the bed; one being
+    /// folded stays.</summary>
+    public bool TakePlate(IPlayer byPlayer)
     {
-        if (PlateOn)
-        {
-            if (!_job.Untouched)
-                return Error(byPlayer, "error-busy");
-            var plate = _plate!;
-            ClearJob();
-            Give(byPlayer, plate);
-            Api.World.PlaySoundAt(PlateSound, Pos, 0, byPlayer);
-            MarkDirty(true);
-            return true;
-        }
-        if (_parts.RemoveLast() is not { } code || Api.World.GetItem(new AssetLocation(code)) is not { } item)
+        if (!PlateOn)
             return false;
-        Give(byPlayer, new ItemStack(item));
-        Api.World.PlaySoundAt(LatchSound, Pos, 0, byPlayer);
+        if (!_job.Untouched)
+            return Error(byPlayer, "error-busy");
+        var plate = _plate!;
+        ClearJob();
+        Give(byPlayer, plate);
+        Api.World.PlaySoundAt(PlateSound, Pos, 0, byPlayer);
         MarkDirty(true);
         return true;
     }

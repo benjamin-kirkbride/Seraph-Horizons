@@ -10,11 +10,11 @@ public class MandrelStationConfig
 {
     /// <summary>Hammer blows (right-clicks with a hammer of <see cref="BaseHammerTier"/>) a lead hollow
     /// takes: the rig's <c>forge.blowsPerHollow.thin</c>.</summary>
-    public int BlowsPerHollowLead { get; set; } = 6;
+    public int BlowsPerHollowLead { get; set; } = 9;
 
-    /// <summary>Hammer blows a copper hollow takes, half as many again as lead's (harder metal): the
+    /// <summary>Hammer blows a copper hollow takes, about half as many again as lead's (harder metal): the
     /// rig's <c>forge.blowsPerHollow.thick</c>.</summary>
-    public int BlowsPerHollowCopper { get; set; } = 9;
+    public int BlowsPerHollowCopper { get; set; } = 14;
 
     /// <summary>The tool tier the blows above are counted for: the game's copper hammer's (2). A blow of
     /// a hammer of tier t forges t / BaseHammerTier of a base blow (at most half a hollow); a hammer

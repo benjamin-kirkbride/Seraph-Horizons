@@ -278,11 +278,12 @@ only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart` otherwise):
 | 1 | `screws` | `game:rod-iron`, `-meteoriciron` or `-steel` |
 | 2 | `edge` | `game:metalplate-iron` or `-steel` |
 
-**Take-back.** The contract has the parts back only by breaking; the gameplay brief asked for Ctrl +
-right-click to take them back while no half plate is on, and that is what is built: Ctrl takes the last
-stage fitted (the edges, then the screws), and, with a half plate on, the half plate itself while it is
-still flat (W = 0); one being folded stays (an error says so), and so do the parts. Breaking drops every
-part and a flat half plate (a part-folded one is lost). The creative shortcut (Ctrl in creative mode on an
+**Take-back.** As the contract has it, the parts come back only by breaking: once fitted, nothing
+takes them out (only a consumable may be taken out of a built machine, as the draw bench's die is, and
+the brake has none; Ctrl + right-click once took the last stage back out, and no longer does). Ctrl
+takes the half plate off while it is still flat (W = 0); one being folded stays (an error says so).
+With no half plate on, a Ctrl click is an ordinary click. Breaking drops every part and a flat half
+plate (a part-folded one is lost). The creative shortcut (Ctrl in creative mode on an
 incomplete brake) fits each stage's first code. A save restores the stages as a run from the first.
 
 **Hold to work** (the quern's pattern, `BlockQuern`/`BlockEntityQuern`): the block forwards the
@@ -309,7 +310,7 @@ with that switch off a half plate is refused with a message). **With the `Squari
 there are no half plates (they are the shear's item, `../SquaringShear/`), so a complete brake refuses
 every work click, and the load, with `pressbrake-error-no-halfplates` ("the squaring shear that cuts
 them is switched off"; `BEPressBrake.HalfPlatesExist`, which asks the world for either half plate, as
-`AngleItem` asks for the angle). Fitting and taking back parts still work. At W = 1 the half plate is
+`AngleItem` asks for the angle). Fitting parts still works. At W = 1 the half plate is
 used up and the angle goes into a container in `PressBrakeRig.OutputNeighbour()` (the cell beyond
 `output.pos` across the output face, native north), else drop at `OutputDrop()`, pushed outward, as the
 draw bench's. The bend (`game:sounds/block/heavymetal-hit`) is heard at the middle of the fold, the
@@ -333,10 +334,22 @@ codes `screw` and `edge` set to the fitted rods' and plates' metals (`MachineMes
 mesh set per pair of metals). The sheet's parts (`platelead`, `platecopper`) are drawn only while that
 metal's half plate is on the bed: once the angle is delivered it drops as an item, and the sheet is not
 drawn while p eases out (weak spot 5 above), though the bar and screws ease back with it.
-`PressBrakeClock` turns θ and advances W at the server's pace while held, never behind the server's W
-and at most 0.06 ahead of it; with no half plate on, W is held at 1 while p eases out over 0.4 s and k
-is held; the next one starts from the server's W. While the leaf swings (`IsFolding(W)`) and the lever is
+`PressBrakeClock` turns θ while held, and shows W through `Machines/Core/HeldWorkFollower`: predicted
+at the half plate's pace every frame while held and eased toward the server's W (carried forward at that
+pace for up to 0.25 s since it last changed), never snapped to it and, while held, never run backward;
+with no half plate on, W is held at 1 while p eases out over 0.4 s and k is held; the next one starts
+from the server's W. While the leaf swings (`IsFolding(W)`) and the lever is
 held, metal dust at `edge.pos`; while worked, the frame creaks (`game:sounds/block/woodcreak_1..4`).
+
+**Why the follower** (the fold jittered while held). The server folds on its 50 ms tick, which fires
+only on its own frames, so W moves in uneven steps of 0.022..0.033 a tick at the default pace (more on
+a tick that runs late), synced each step, and late by the trip to the client. The clock used to advance
+W at the pace and snap it to the server's W whenever it fell behind it or ran more than 0.06 ahead: a
+band only two or three ticks' work wide, so a late tick or packet threw it out and the leaf jumped back
+or forward to the server's step. The brake, at 1.5 and 2.25 lever turns a half plate, had some slack
+in the band and jittered now and then; the squaring shear, faster, had none (see its README). The
+follower keeps W moving every frame and only steers it toward the server
+(`tests/Machines/HeldWorkFollowerTests.cs` plays the server's steps against a 60 fps client).
 
 **Handbook.** Three sections on the frame (`attributes.handbook.extraSections`): assembly, folding
 plates (half plates, from the squaring shear), and angles and pipe (the ladder: one angle a half plate,
@@ -352,10 +365,11 @@ turns of the lever a job"), `turns` the lever turns a half plate, no `wear` and 
 `SquaringShear` off there is no half plate, so no record. Type `pressbrake`, owned by `PressBrake`
 (`Core/SwitchOwnership.cs`).
 
-**Tests.** `tests/PressBrake/PressBrakeGameplayTests.cs` (stages, take-back, saves, half plates by
+**Tests.** `tests/PressBrake/PressBrakeGameplayTests.cs` (stages, saves, half plates by
 metal and whole plates refused, load rules, one angle a half plate, W only while held and done at 1, folds crossed, lever holds, the clock, settings, placing)
 and `PressBrakeRigTests.cs` (the shipped rig through the shared parser and `PressBrakeRig`, its anchors,
 its one fold, the pace held to the settings, the reader's refusals, and every pose of `tests/PressBrake/rig-reference.json`
 replayed through `Machines/Core`); `tests/PackTests/PressBrakeScenarios.cs`,
 `RecipeExportPressBrakeScenarios.cs` and `SwitchesOffScenarios.Press_brake_off_there_is_no_press_brake`
-(Atlas: `FullyQualifiedName~Press_brake`).
+(Atlas: `FullyQualifiedName~Press_brake`); `tests/Machines/HeldWorkFollowerTests.cs` (the clock's W
+while held).
