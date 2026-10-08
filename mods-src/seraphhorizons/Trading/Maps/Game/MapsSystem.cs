@@ -10,6 +10,7 @@ using SeraphHorizons.Mod.Trading.Maps.Core;
 using SeraphHorizons.Mod.Trading.Orders;
 using SeraphHorizons.Mod.Trading.Standing;
 using SeraphHorizons.Mod.Trading.Standing.Core;
+using SeraphHorizons.Mod.Trading.Values;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -67,6 +68,8 @@ public class MapsSystem : ModSystem
     private readonly HashSet<(string Uid, CellKey Cell)> _drawing = new();
     /// <summary>Cells a sale found no camp for (every spot missed): skipped from then on.</summary>
     private readonly HashSet<CellKey> _noCamp = new();
+    /// <summary>Metals warned about having no size range or no ingot value (not offered).</summary>
+    private readonly HashSet<string> _unpriced = new();
 
     /// <summary>Every group's camp lead history (saved with the world).</summary>
     public LeadBook Leads { get; private set; } = new();
@@ -169,7 +172,8 @@ public class MapsSystem : ModSystem
                 var options = deposits.Candidates(x, z, Prices.OreRadius).Select(Option);
                 var (offers, soldOut) = MapOffers.PickOre(options, Prices.MaxOreOffers, _reserved);
                 foreach (var o in offers)
-                    yield return Entry(OfferOreCode, OreAttrs(o, MapPrecision.Rough), Prices.OrePrice(o.Metal, o.SizeClass, MapPrecision.Rough), 1, false);
+                    if (OrePrice(o.Metal, o.SizeClass, MapPrecision.Rough) is { } price)
+                        yield return Entry(OfferOreCode, OreAttrs(o, MapPrecision.Rough), price, 1, false);
                 if (soldOut) yield return Entry(OfferOreCode, new JObject { [MapOfferAttrs.Offer] = MapOfferAttrs.SoldOut }, 1, 1, false);
                 break;
             }
@@ -200,6 +204,19 @@ public class MapsSystem : ModSystem
                 break;
             }
         }
+    }
+
+    /// <summary>An ore map's price before standing (<see cref="MapPriceTable.OrePrice"/>), from the
+    /// metal's size range (<c>config/ore-sizes.json</c>) and its ingot's item value; null, with a
+    /// warning once per metal, when either is missing.</summary>
+    private int? OrePrice(string metal, string? sizeClass, int precision)
+    {
+        int? price = Prices.OrePrice(metal, sizeClass, precision, Deposits?.TargetsFor(metal),
+            ItemValuesSystem.For(_sapi!).ValueOf(MapPriceTable.IngotCode(metal)));
+        if (price is null && _unpriced.Add(metal))
+            _sapi!.Logger.Warning("[seraphhorizons] Trader maps: no price for {0} ore maps (no size range in ore-sizes.json, or no value for {1}); not offered",
+                metal, MapPriceTable.IngotCode(metal));
+        return price;
     }
 
     private static DepositOption Option(DepositCandidate c) =>
@@ -285,7 +302,13 @@ public class MapsSystem : ModSystem
                     continue;
                 case MapOfferAttrs.OreMap:
                     a.SetInt(MapOfferAttrs.Precision, maxPrecision);
-                    price = Prices.OrePrice(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier), maxPrecision);
+                    if (OrePrice(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier), maxPrecision) is not { } orePrice)
+                    {
+                        item.Stock = 0;
+                        slot.MarkDirty();
+                        continue;
+                    }
+                    price = orePrice;
                     break;
                 case MapOfferAttrs.GravelMap:
                     price = Prices.GravelPrice();

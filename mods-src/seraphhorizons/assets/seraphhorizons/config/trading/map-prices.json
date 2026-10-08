@@ -3,23 +3,22 @@
 // deposit within oreRadius, at most maxOreOffers); every trader sells a gravel map to the nearest
 // unsold field within gravelRadius, leads to other camps (campLeads) and, from the tier with
 // mapsToTraders, a lead to the nearest settlement ground.
-// An ore map's price: ore[size class][precision − 1] × metalFactor; the size class is the deposit's
-// last measurement, "unsurveyed" until it has one. Ore, gravel and settlement prices are before
-// standing's price factor; camp leads carry their own discount instead (campLeads.tiers).
+// An ore map's price (Trading/Maps/Core/MapPrices.cs, OrePrice): the ingots in the middle of the
+// deposit's size band × the item value of the metal's ingot (game:ingot-<metal>, config/item-values.json)
+// × share[precision − 1] × scarcity, rounded, at least 1. The size class is the deposit's last
+// measurement, "unsurveyed" until it has one; the bands are the bottom, middle and top third of the
+// metal's smallIngots..largeIngots (config/ore-sizes.json, DepositSizing), and "unsurveyed" takes the
+// medium band's middle. Always the band's middle, never the measured size.
+// Ore, gravel and settlement prices are before standing's price factor; camp leads carry their own
+// discount instead (campLeads.tiers).
 {
 	"oreRadius": 5000,
 	"gravelRadius": 2000,
 	"maxOreOffers": 4,
-	"ore": {
-		// precision 1 (within 400 m), 2 (within 150 m), 3 (exact)
-		"unsurveyed": [8, 14, 22],
-		"small":      [5, 9, 14],
-		"medium":     [8, 14, 22],
-		"large":      [12, 20, 32],
-	},
-	// Deposits a group sells out of fastest, or that a district hides, cost more.
-	"metalFactor": {"copper": 1.0, "tin": 1.3, "zinc": 1.1, "bismuth": 1.0, "lead": 0.9, "nickel": 1.2,
-		"iron": 1.4, "silver": 1.6, "gold": 1.8, "platinum": 1.8, "titanium": 1.5, "chromium": 1.5},
+	// Share of the ingots' worth by precision 1 (within 400 m), 2 (within 150 m), 3 (exact).
+	"share": [0.03, 0.06, 0.10],
+	// Times the price, by metal (1 when not listed): the metals hydrothermal districts hide.
+	"scarcity": {"gold": 3, "silver": 3, "nickel": 3, "titanium": 3, "chromium": 3, "platinum": 3},
 	"gravel": 5,
 	"settlement": 6,
 	// Leads to other trader camps, per buyer (Trading/Maps/Core/CampLeads.cs). Distance is in rings
