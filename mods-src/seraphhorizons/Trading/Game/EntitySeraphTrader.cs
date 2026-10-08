@@ -2,6 +2,7 @@ using HarmonyLib;
 using SeraphHorizons.Mod.Trading.Core;
 using SeraphHorizons.Mod.Trading.Standing;
 using SeraphHorizons.Mod.Trading.Window;
+using SeraphHorizons.Mod.Trading.Window.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -19,8 +20,8 @@ namespace SeraphHorizons.Mod.Trading;
 /// personality, revive-on-death and weekly wallet top-up, stocked from the pack's lists instead of
 /// vanilla's, talking from the pack's own dialogue file, and trading through the pack's own window
 /// (<see cref="GuiDialogSeraphTrade"/>) instead of vanilla's dialog: the dialogue's <c>opentrade</c>
-/// opens it (<see cref="Dialog_DialogTriggers"/>), and every trade in it is one unit, made at once
-/// on the server (<see cref="BuyUnit"/>, <see cref="SellUnit"/>, through vanilla's own deal).
+/// opens it (<see cref="Dialog_DialogTriggers"/>), and every trade in it is one lot, made at once
+/// on the server (<see cref="BuyUnit"/> through vanilla's own deal, <see cref="SellLot"/> from the pooled sell slots).
 ///
 /// How it hooks in without patching the game: its TradeProps hold the wallet and two empty lists,
 /// so everything vanilla does to stock (on spawn, on import, weekly in OnGameTick) runs and puts
@@ -202,9 +203,11 @@ public class EntitySeraphTrader : EntityTrader
     /// <see cref="Dealt"/>.</summary>
     private void AfterDeal(IServerPlayer player, int paid, int received, ItemStack?[] offered)
     {
-        if (paid + received > 0 && TradingSystem.Of(Api) is { Standing.Enabled: true } system)
-            system.Standing.OnDeal(player, this, paid, received);
-        if (Dealt is null) return;
+        if (Dealt is null)
+        {
+            Credit(player, paid, received, []);
+            return;
+        }
         var sold = new List<ItemStack>();
         for (int i = 0; i < 4; i++)
         {
@@ -216,7 +219,16 @@ public class EntitySeraphTrader : EntityTrader
             stack.StackSize = n;
             sold.Add(stack);
         }
-        if (sold.Count > 0) Dealt.Invoke(player, this, sold);
+        Credit(player, paid, received, sold);
+    }
+
+    /// <summary>Standing for the gears that changed hands, and the goods sold raised as
+    /// <see cref="Dealt"/> (orders count them).</summary>
+    private void Credit(IServerPlayer player, int paid, int received, List<ItemStack> sold)
+    {
+        if (paid + received > 0 && TradingSystem.Of(Api) is { Standing.Enabled: true } system)
+            system.Standing.OnDeal(player, this, paid, received);
+        if (sold.Count > 0) Dealt?.Invoke(player, this, sold);
     }
 
     // ---- The trade window's deals (server) ----
@@ -269,47 +281,78 @@ public class EntitySeraphTrader : EntityTrader
         return Outcome(result, player, buying: true);
     }
 
-    /// <summary>The player sells one trade unit of the stack in the window's sell slot
-    /// (<see cref="SeraphTraderInventory.SellSlot"/>): the unit alone in the selling cart, dealt
-    /// through vanilla's deal; the rest stays in the slot.</summary>
-    public UnitDeal SellUnit(IServerPlayer player)
+    /// <summary>
+    /// The player sells one lot from the window's four sell slots (<see cref="SeraphTraderInventory"/>,
+    /// <see cref="SellPool"/>): everything the trader buys in them valued together, and one hold's lot
+    /// (the first good's unit price in whole gears, the dearest goods first) taken, the rest left. Not
+    /// vanilla's deal, which sells whole units a slot at a time, but everything it does for a sale:
+    /// the trader's wallet and side budget pay (each its share; either short refuses), the listed
+    /// goods' demand drops, the gears go to the player (at their feet if their bags are full), the
+    /// goods' trade hooks run, then supply, standing and orders as after vanilla's deal.
+    /// </summary>
+    public UnitDeal SellLot(IServerPlayer player)
     {
-        if (Inventory is null) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-empty");
-        if (Inventory is SeraphTraderInventory own && own.OwnerUid != player.PlayerUID)
-            return new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-notyours");
-        var sellSlot = Inventory[SeraphTraderInventory.SellSlot];
-        if (sellSlot?.Itemstack is not { } offered) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-empty");
-        var condition = Inventory.GetBuyingConditionsSlot(offered);
-        if (condition?.TradeItem?.Stack is not { } unit)
-            return new UnitDeal(EnumTransactionResult.TraderNotEnoughSupplyOrDemand, "trading-window-sell-refused", [offered.GetName()]);
-        int size = Math.Max(1, unit.StackSize);
-        if (offered.StackSize < size) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-short", [size]);
-        if (condition.TradeItem.Stock <= 0) return new UnitDeal(EnumTransactionResult.TraderNotEnoughSupplyOrDemand, "trading-window-sell-nodemand");
-        // The rest of the stack waits while one unit is dealt.
-        var rest = offered.Clone();
-        rest.StackSize = offered.StackSize - size;
-        offered.StackSize = size;
-        var stash = Stash(keepSellSlot: true);
-        var result = EnumTransactionResult.Failure;
-        try
+        if (Inventory is not SeraphTraderInventory own) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-empty");
+        if (own.OwnerUid != player.PlayerUID) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-notyours");
+        var stacks = own.SellSlotList.Where(s => s.Itemstack != null).ToList();
+        if (stacks.Count == 0) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-empty");
+        var lines = own.SellLines();
+        if (lines.Count == 0)
+            return new UnitDeal(EnumTransactionResult.TraderNotEnoughSupplyOrDemand, "trading-window-sell-refused", [stacks[0].Itemstack!.GetName()]);
+        if (SellPool.NextLot(lines) is not { } lot)
         {
-            result = Deal(player);
+            double value = SellPool.Value(lines);
+            return value <= 0
+                ? new UnitDeal(EnumTransactionResult.TraderNotEnoughSupplyOrDemand, "trading-window-sell-nodemand")
+                : new UnitDeal(EnumTransactionResult.Failure, "trading-window-sell-under", [Window.Core.TradeWindowModel.F(Math.Floor(value * 100) / 100)]);
         }
-        finally
-        {
-            // Whatever happened in the deal, the rest of the stack goes back.
-            var left = sellSlot.Itemstack;
-            if (rest.StackSize > 0)
+        bool priced = Economy.EconomySystem.IsPriced(this);
+        int side = priced ? Economy.EconomySystem.SideBudgetOf(this) : 0;
+        if (lot.MainGears > own.GetTraderAssets() || lot.SideGears > side)
+            return new UnitDeal(EnumTransactionResult.TraderNotEnoughAssets, "trading-window-trader-broke");
+        var perms = new CachedAccessPerms(this, player);
+        if (!perms.IsInteractingPlayerAllowedTo(EnumBlockAccessFlags.None, false, "trader")) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-failed");
+
+        // The goods' own trade hooks (maps and leads are never bought, but a mod's good may say no).
+        foreach (var take in lot.Takes)
+            if (own[take.Slot].Itemstack?.Collectible is ITradeableCollectible tradeable)
             {
-                if (left is null) sellSlot.Itemstack = rest;
-                else if (left.Equals(World, rest, GlobalConstants.IgnoredStackAttributes)) left.StackSize += rest.StackSize;
-                else World.SpawnItemEntity(rest, player.Entity?.Pos.XYZ ?? Pos.XYZ);
+                var copy = own[take.Slot].Itemstack!.Clone();
+                copy.StackSize = take.Items;
+                var probe = new DummySlot(copy);
+                var said = tradeable.OnTryTrade(this, probe, EnumTradeDirection.Sell);
+                if (said != EnumTransactionResult.Success) return Outcome(said, player, buying: false);
             }
-            sellSlot.MarkDirty();
-            Restore(stash);
-            Sync();
+
+        var sold = new List<ItemStack>();
+        var supply = new List<Economy.EconomyPatches.DealLine>();
+        foreach (var take in lot.Takes)
+        {
+            var slot = own[take.Slot];
+            var line = lines.First(l => l.Slot == take.Slot);
+            var taken = slot.TakeOut(take.Items);
+            slot.MarkDirty();
+            sold.Add(taken);
+            supply.Add(new Economy.EconomyPatches.DealLine(taken.Collectible, taken.StackSize, line.Rate, true));
+            if (taken.Collectible is ITradeableCollectible tradeable) tradeable.OnDidTrade(this, taken, EnumTradeDirection.Buy);
         }
-        return Outcome(result, player, buying: false);
+        foreach (var (good, units) in lot.DemandUsed)
+            if (good.StartsWith("slot:", StringComparison.Ordinal) && int.TryParse(good[5..], out int id) && own[id] is ItemSlotTrade { TradeItem: { } item })
+                item.Stock = Math.Max(0, item.Stock - units);
+        if (lot.SideGears > 0) Economy.EconomySystem.SetSideBudget(this, side - lot.SideGears);
+        if (lot.MainGears > 0) own.DeductFromTrader(lot.MainGears);
+        var gear = World.GetItem(new AssetLocation("game:gear-rusty"));
+        if (gear != null) SeraphTraderInventory.GiveOrDrop(player, new ItemStack(gear, lot.Gears));
+        Api.Logger.Audit("{0} sold {1} at trader {2} for {3} gears ({4} from the side budget)", player.PlayerName,
+            string.Join(",", sold.Select(s => $"{s.StackSize}x{s.Collectible.Code}")), Pos.AsBlockPos, lot.Gears, lot.SideGears);
+
+        (Api as ICoreServerAPI)?.WorldManager.GetChunk(Pos.AsBlockPos)?.MarkModified();
+        AnimManager.StopAnimation("idle");
+        AnimManager.StartAnimation(new AnimationMetaData { Animation = "nod", Code = "nod", Weight = 10, EaseOutSpeed = 10000, EaseInSpeed = 10000 });
+        if (priced) Economy.EconomyPatches.RecordSupply(this, supply);
+        Credit(player, 0, lot.Gears, sold);
+        Sync();
+        return new UnitDeal(EnumTransactionResult.Success);
     }
 
     private UnitDeal Outcome(EnumTransactionResult result, IServerPlayer player, bool buying) => result switch
@@ -348,9 +391,8 @@ public class EntitySeraphTrader : EntityTrader
         return result;
     }
 
-    /// <summary>Takes both carts out of the inventory for one of the window's deals (the sell slot
-    /// stays when <paramref name="keepSellSlot"/>: it is the deal).</summary>
-    private (ItemStack? Stack, ResolvedTradeItem? Item)[] Stash(bool keepSellSlot = false)
+    /// <summary>Takes both carts out of the inventory for a buy (the sell slots wait aside).</summary>
+    private (ItemStack? Stack, ResolvedTradeItem? Item)[] Stash()
     {
         var stash = new (ItemStack?, ResolvedTradeItem?)[8];
         for (int i = 0; i < 4; i++)
@@ -359,7 +401,6 @@ public class EntitySeraphTrader : EntityTrader
             stash[i] = (buy.Itemstack, buy.TradeItem);
             buy.Itemstack = null;
             buy.TradeItem = null;
-            if (keepSellSlot && i == 0) continue;
             var sell = Inventory.GetSellingCartSlot(i);
             stash[4 + i] = (sell.Itemstack, null);
             sell.Itemstack = null;

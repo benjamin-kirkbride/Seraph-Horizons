@@ -2978,12 +2978,19 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
 - **Trade**: what the trader sells and what it buys (item, price and stock on hover), and below,
   hatched, the goods your standing does not unlock yet with the tier that does (its rare stock,
   schematics and other gated goods). There are no carts and no Deal button: click a good to see it,
-  hold the mouse on it to buy one lot (a ring fills, as Carry On's hold to pick up), keep holding to
-  buy the next. To sell, put a stack in the sell slot: it shows what the trader pays for it, or why
-  it won't take it; hold Hold to sell to sell one lot, keep holding for more. What is left in the
-  sell slot comes back to you when the window closes. While the window is open, the tooltip of
-  anything in your inventory says what this trader pays for it (with the breakdown and which budget
-  pays) or why not.
+  hold the mouse on it to buy one lot (a ring fills at the cursor and flashes as each lot goes
+  through), keep holding to buy the next. To sell, put goods in the four sell slots (drag them, or
+  shift-click a stack in your inventory: it goes into the first free sell slot, whole; money and
+  delivery packages never go in and stay where they are, and with every sell slot taken nothing
+  moves). A slot whose goods the trader does not buy says "doesn't buy this". Under Hold to sell the
+  window says what the trader pays ("Trader pays 1 g per 28") and what everything in the slots comes
+  to; the breakdown (value, spread, fit, supply, standing, which budget pays) is in its tooltip and
+  each slot's. The slots are valued together: a hold sells one lot, whole gears for as many items as
+  they buy (the dearest goods first), the rest staying in the slots, so goods worth under a gear in
+  one slot sell with the rest (28 dirt to the gear in two slots of 20). Keep holding for more. What
+  is left in the sell slots comes back to you when the window closes, at your feet if your bags are
+  full. While the window is open, the tooltip of anything in your inventory says what this trader
+  pays for it (with the breakdown and which budget pays) or why not.
 - **Orders (n)**: the trader's orders on offer and yours there: the item, how many and how many
   delivered, the price per item, the premium and the time left; Take, and Hand in (from anywhere in
   your inventory).
@@ -2997,14 +3004,17 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
 
 The footer shows your gears, the trader's, and its side budget for goods off its list. A feature
 switched off (`TraderStanding`, `TraderOrders`, `TraderDeliveries`, `TraderMaps`,
-`EverythingHasAPrice`) has no tab or line. The window works only next to the trader: it closes when
+`EverythingHasAPrice`) has no tab or line. Every text wraps within the window and nothing runs into
+the next line or the footer; a long Orders, Deliveries, Maps & leads or Standing tab scrolls. The
+window sits at the right, its tab row below the minimap and its coordinates (and any other HUD in
+that corner); on a screen with no room for it there, it sits left of them instead. The window works only next to the trader: it closes when
 you walk away, and the server refuses a trade from anyone but the player trading, from further
-than the trade's reach. Every trade is made at once on the server, one lot at a time, through the
-game's own deal, so money, stock, the wallet and side budget, supply, standing, orders and the map
-checks apply as they did. A buy (goods, a map or lead, a delivery's package) that your hotbar and
-backpack have no room for, counting room left on stacks it merges with, is refused before any gears
-move ("No room in your bags for it"), rather than paid for and dropped at your feet; holding on stops
-there.
+than the trade's reach. Every trade is made at once on the server, one lot at a time: a buy through the
+game's own deal, a sale from the pooled sell slots with the same bookkeeping, so money, stock and
+demand, the wallet and side budget, supply, standing, orders and the map checks apply as they did. A
+buy (goods, a map or lead, a delivery's package) that your hotbar and backpack have no room for,
+counting room left on stacks it merges with, is refused before any gears move ("No room in your bags
+for it"), rather than paid for and dropped at your feet; holding on stops there.
 
 Talking to a pack trader also offers "How do you see me these days?" (while `TraderStanding` is
 on): the trader says where you stand, what that gives you and what the next tier unlocks, and how to
@@ -3014,14 +3024,18 @@ traders use (`assets/seraphhorizons/config/dialogue/trader.json`, made from the 
 get the same option by patch.
 
 Tests: `tests/Trading/Window/` (tabs, header and footer, every tab's lines, the standing reply, hold
-timing, the request guard and the room check, locked stock, maps the player has, the wire format);
-`tests/PackTests/TradingWindowScenarios.cs`
+timing, the request guard and the room check, locked stock, maps the player has, the wire format,
+the pooled sale, the measured layout with long text on every tab, and the window's place under the
+minimap); `tests/PackTests/TradingWindowScenarios.cs`
 (Atlas: one lot bought moving gears, stock and standing; one sold off the list from the side budget,
-an empty side budget and money refused, the rest given back on closing; refused from afar, for
-another player and for a trader gone; a buy with full bags refused with no gears taken, and let
-through by room left on a stack it merges with; an order taken and handed in; a delivery taken and
-marked on the map, its deadline a game day a km; every pack trader's dialogue, BetterRuins' included, with the standing option, the reply's
-numbers, and every line the window shows in the lang file).
+an empty side budget and money refused, the rest given back on closing; a pooled sale across two sell
+slots paying whole gears and leaving the rest, and closing giving it back; shift-click in creative and
+survival leaving a package and gears where they are, moving goods into the first free sell slot and
+nothing with the slots full; refused from afar, for another player and for a trader gone; a buy with
+full bags refused with no gears taken, and let through by room left on a stack it merges with; an
+order taken and handed in; a delivery taken and marked on the map, its deadline a game day a km;
+every pack trader's dialogue, BetterRuins' included, with the standing option, the reply's numbers,
+and every line the window shows in the lang file).
 
 ### Traders (`TraderGrid`)
 

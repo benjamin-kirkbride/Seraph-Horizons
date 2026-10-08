@@ -2,6 +2,7 @@ using HarmonyLib;
 using SeraphHorizons.Mod.Trading.Window.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Trading.Window;
@@ -48,6 +49,13 @@ public static class TradeWindowPatches
     public static void StackDescriptionPostfix(ItemSlot __instance, ref string __result)
     {
         if (GuiDialogSeraphTrade.Current is not { } window || __instance.Itemstack is not { } stack) return;
+        if (__instance is ItemSlotSell && __instance.Inventory is SeraphTraderInventory own && own.Api?.Side == EnumAppSide.Client)
+        {
+            // A sell slot: why it does not sell, or the whole breakdown of what it fetches.
+            if (own.RefusalOf(stack) is { } why) __result = Lang.Get("seraphhorizons:" + why) + "\n\n" + __result;
+            else if (window.PriceText(stack) is { Length: > 0 } price) __result = price + "\n\n" + __result;
+            return;
+        }
         if (__instance.Inventory is not InventoryBasePlayer || __instance.Inventory.Api?.Side != EnumAppSide.Client) return;
         if (window.PriceText(stack) is { Length: > 0 } text) __result = text + "\n\n" + __result;
     }
