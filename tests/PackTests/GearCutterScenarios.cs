@@ -210,8 +210,19 @@ public partial class SharedWorldScenarios
         foreach (var output in new[] { "gearcutter-frame-north", "gearcutterspindle", "gearcutterindex" })
             Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:" + output && r.Enabled);
         var frame = W.GridRecipes.Single(r => r.Output?.Code?.ToString() == "seraphhorizons:gearcutter-frame-north");
-        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "ingot-*" && i.AllowedVariants!.Contains("iron"));
+        // the end-game machine: 4 steel ingots in each of its two ingot slots (steel only), 32 nails and strips
+        var ingots = frame.ResolvedIngredients!.Where(i => i?.Code?.Path == "ingot-*").ToList();
+        Assert.Equal(2, ingots.Count);
+        Assert.All(ingots, i => { Assert.Equal(new[] { "steel" }, i!.AllowedVariants); Assert.Equal(4, i.Quantity); });
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 32);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
+        // the spindle and the index: 2 steel rods and 2 steel plates each
+        foreach (var output in new[] { "gearcutterspindle", "gearcutterindex" })
+        {
+            var part = W.GridRecipes.Single(r => r.Output?.Code?.ToString() == "seraphhorizons:" + output);
+            Assert.Contains(part.ResolvedIngredients!, i => i?.Code?.Path == "rod-steel" && i.Quantity == 2);
+            Assert.Contains(part.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-steel" && i.Quantity == 2);
+        }
         // the anvil: the feed screw, the lift cam and the kit, each from one steel ingot, none for the helve hammer
         foreach (var output in new[] { GearCutterParts.FeedScrewCode, GearCutterParts.LiftCamCode, GearCutterParts.KitCode })
         {

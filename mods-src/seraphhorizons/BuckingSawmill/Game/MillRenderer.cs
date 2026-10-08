@@ -9,9 +9,9 @@ namespace SeraphHorizons.Mod.BuckingSawmill;
 
 /// <summary>
 /// Draws the mill's moving parts and the loaded trunk (client only; created and disposed by
-/// <see cref="BEBuckingMill"/>). One mesh per rig part from <c>shapes/block/buckingmill.json</c>,
-/// built by blanking every other part's elements, as Immersive Woodworking's sawmill renderer
-/// does; each is drawn with its rig matrix (<see cref="RigParts.Matrices"/>, from the shaft angle,
+/// <see cref="BEBuckingMill"/>). One mesh per rig part from <c>shapes/block/buckingmill.json</c>
+/// (<see cref="MachineMeshes.PartMeshes"/>, one tessellation split by part, shared by every mill
+/// through <see cref="MachinePartMeshes"/>, the blades in a cached set per blade metal); each is drawn with its rig matrix (<see cref="RigParts.Matrices"/>, from the shaft angle,
 /// the saw depth and whether the saws are being raised) turned to the mill's facing. The static frame part is not drawn here: the block's own shape (buckingmill_frame.json,
 /// the same elements) draws it in the chunk mesh. The renderer polls <see cref="IMillVisualState"/>
 /// every frame; there is no change event.
@@ -26,7 +26,7 @@ public sealed class MillRenderer : IRenderer
     private readonly BEBuckingMill _be;
     private readonly RigParts _parts;
     private readonly TrunkBed? _bed;
-    private readonly MultiTextureMeshRef?[] _meshes;
+    private readonly MultiTextureMeshRef?[] _meshes;  // the shared sets' (blades from the metal's); never disposed here
     private readonly bool[] _drawn;                // false for the static frame part(s)
     private readonly bool[] _isBlade;
     private readonly (Float3 Min, Float3 Max)?[] _bounds;
@@ -78,98 +78,34 @@ public sealed class MillRenderer : IRenderer
     private void BuildMeshes()
     {
         _built = true;
-        var master = Shape.TryGet(_capi, ShapeLoc);
-        if (master == null)
-        {
+        if (!SetMeshes(bladesOnly: false))
             _capi.Logger.Error("[seraphhorizons] Bucking sawmill: {0} is missing; the mill's moving parts are not drawn", ShapeLoc);
-            return;
-        }
-        var blockTex = _capi.Tesselator.GetTextureSource(_be.Block);
-        ITexPositionSource bladeTex = new BladeTextureSource(blockTex, BladeMetalTexture(_be.BladeMetal));
+    }
+
+    private void RebuildBlades() => SetMeshes(bladesOnly: true);
+
+    /// <summary>Takes the parts' meshes from the shared sets: the blades' in the blade kit's metal,
+    /// the rest in the block's own textures. False when the shape is missing.</summary>
+    private bool SetMeshes(bool bladesOnly)
+    {
         _bladeMetal = _be.BladeMetal;
+        string? metal = _bladeMetal;
+        var blades = MachinePartMeshes.Get(_capi, "blades|" + (metal ?? ""), ShapeLoc, _parts, i => _drawn[i] && _isBlade[i],
+            () => new MachineMeshes.MetalTextureSource(_capi.Tesselator.GetTextureSource(_be.Block), MachineMeshes.MetalTexture(_capi, metal)),
+            "buckingmill");
+        if (blades == null)
+            return false;
+        var rest = bladesOnly ? null : MachinePartMeshes.Get(_capi, "parts", ShapeLoc, _parts, i => _drawn[i] && !_isBlade[i],
+            () => _capi.Tesselator.GetTextureSource(_be.Block), "buckingmill");
         for (int i = 0; i < _meshes.Length; i++)
         {
-            if (!_drawn[i])
+            if (!_drawn[i] || (bladesOnly && !_isBlade[i]))
                 continue;
-            _meshes[i]?.Dispose();
-            _meshes[i] = null;
-            var mesh = PartMesh(master, i, _isBlade[i] ? bladeTex : blockTex);
-            if (mesh == null)
-                continue;
-            _bounds[i] ??= Bounds(mesh);
-            _meshes[i] = _capi.Render.UploadMultiTextureMesh(mesh);
+            var set = _isBlade[i] ? blades : rest;
+            _meshes[i] = set?.Meshes[i];
+            _bounds[i] ??= set?.Bounds[i];
         }
-    }
-
-    private void RebuildBlades()
-    {
-        var master = Shape.TryGet(_capi, ShapeLoc);
-        if (master == null)
-            return;
-        var tex = new BladeTextureSource(_capi.Tesselator.GetTextureSource(_be.Block), BladeMetalTexture(_be.BladeMetal));
-        _bladeMetal = _be.BladeMetal;
-        for (int i = 0; i < _meshes.Length; i++)
-        {
-            if (!_drawn[i] || !_isBlade[i])
-                continue;
-            _meshes[i]?.Dispose();
-            var mesh = PartMesh(master, i, tex);
-            _meshes[i] = mesh == null ? null : _capi.Render.UploadMultiTextureMesh(mesh);
-        }
-    }
-
-    /// <summary>The part's elements alone, in the native frame (blocks).</summary>
-    private MeshData? PartMesh(Shape master, int part, ITexPositionSource tex)
-    {
-        var shape = master.Clone();
-        int kept = Blank(shape.Elements, [], part);
-        if (kept == 0)
-            return null;
-        _capi.Tesselator.TesselateShape("buckingmill", shape, out var mesh, tex, null, 0, 0, 0, null, null);
-        return mesh.VerticesCount > 0 ? mesh : null;
-    }
-
-    private int Blank(ShapeElement[]? elements, List<string> chain, int keep)
-    {
-        if (elements == null)
-            return 0;
-        int kept = 0;
-        foreach (var el in elements)
-        {
-            chain.Add(el.Name ?? "");
-            if (_parts.PartOf(chain) == keep)
-                kept++;
-            else
-                el.FacesResolved = new ShapeElementFace[6];
-            kept += Blank(el.Children, chain, keep);
-            chain.RemoveAt(chain.Count - 1);
-        }
-        return kept;
-    }
-
-    private TextureAtlasPosition? BladeMetalTexture(string? metal)
-    {
-        if (metal == null)
-            return null;
-        var loc = new AssetLocation("game", "block/metal/ingot/" + metal);
-        var pos = _capi.BlockTextureAtlas[loc];
-        if (pos == null && _capi.Assets.Exists(loc.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png")))
-            _capi.BlockTextureAtlas.GetOrInsertTexture(loc, out _, out pos);
-        return pos;
-    }
-
-    private static (Float3, Float3) Bounds(MeshData mesh)
-    {
-        float[] xyz = mesh.xyz;
-        var min = new Float3(float.MaxValue, float.MaxValue, float.MaxValue);
-        var max = new Float3(float.MinValue, float.MinValue, float.MinValue);
-        for (int v = 0; v < mesh.VerticesCount; v++)
-        {
-            float x = xyz[v * 3], y = xyz[v * 3 + 1], z = xyz[v * 3 + 2];
-            min = new Float3(Math.Min(min.X, x), Math.Min(min.Y, y), Math.Min(min.Z, z));
-            max = new Float3(Math.Max(max.X, x), Math.Max(max.Y, y), Math.Max(max.Z, z));
-        }
-        return (min, max);
+        return true;
     }
 
     private void SyncTrunk()
@@ -199,7 +135,7 @@ public sealed class MillRenderer : IRenderer
         _capi.Tesselator.TesselateBlock(shown, out var mesh);
         if (mesh == null || mesh.VerticesCount == 0)
             return;
-        var (min, max) = Bounds(mesh);
+        var (min, max) = MachineMeshes.Bounds(mesh);
         _trunkMatrix = MillMotion.TrunkPlacement(min, max, _bed);
         _trunkMesh = _capi.Render.UploadMultiTextureMesh(mesh);
     }
@@ -242,7 +178,7 @@ public sealed class MillRenderer : IRenderer
         }
         for (int i = 0; i < _meshes.Length; i++)
         {
-            if (_meshes[i] is not { } mesh || !Fitted(i))
+            if (_meshes[i] is not { Disposed: false } mesh || !Fitted(i))
                 continue;
             Draw(mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, pos);
         }
@@ -363,16 +299,7 @@ public sealed class MillRenderer : IRenderer
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.Opaque);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowFar);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowNear);
-        foreach (var mesh in _meshes)
-            mesh?.Dispose();
+        // the part meshes are MachinePartMeshes', shared with every other mill; the trunk's is this one's
         _trunkMesh?.Dispose();
-    }
-
-    /// <summary>The block's textures, with the blade kit's metal in place of <c>metal</c>.</summary>
-    private sealed class BladeTextureSource(ITexPositionSource inner, TextureAtlasPosition? metal) : ITexPositionSource
-    {
-        public Size2i AtlasSize => inner.AtlasSize!;
-        public TextureAtlasPosition this[string textureCode] =>
-            textureCode == "metal" && metal != null ? metal : inner[textureCode]!;
     }
 }

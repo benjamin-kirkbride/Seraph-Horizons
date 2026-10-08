@@ -136,7 +136,7 @@ make four sails, a sail cuts back into two linen; a lightning rod chisels into f
 cannot pull prices down. A route waits for its tools and its credited outputs when they will get a
 value. When routes wait on each other (a lottery's loser made only from its winner), the cheapest
 of them is settled without waiting and the rest wait again. The whole solve runs twice: a route
-whose tool is worth more than its output (the gear cutter's frame, 16 gears, cutting an 11-gear
+whose tool is worth more than its output (the gear cutter's frame, 103 gears, cutting a 13-gear
 steel gear) could only be priced after that output had settled by a dearer route, so the second
 pass takes a tool not yet valued at its first-pass value.
 
