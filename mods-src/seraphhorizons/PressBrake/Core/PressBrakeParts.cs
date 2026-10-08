@@ -55,8 +55,8 @@ public static class PressBrakeRequires
 /// The press brake's assembly rules: two stages after the frame, fitted one item at a time in
 /// <see cref="PressBrakeStage"/> order (the next missing stage is the only one a click fills),
 /// recognised by full code (<c>domain:path</c>): the clamp screws (a rod) and the wearing edges (a
-/// plate). Every fitted code is kept, so taking back and breaking return exactly what went in. Ctrl
-/// + right-click takes the last stage fitted back out while no plate is on the bed.
+/// plate). Every fitted code is kept, so breaking returns exactly what went in; nothing else takes a
+/// part back out.
 /// </summary>
 public sealed class PressBrakeParts
 {
@@ -99,9 +99,6 @@ public sealed class PressBrakeParts
     /// <summary>The first stage not fitted, in order; null when complete.</summary>
     public PressBrakeStage? Next => PressBrakeRequires.Stages.Cast<PressBrakeStage?>().FirstOrDefault(s => !Has(s!.Value));
 
-    /// <summary>The last stage fitted; null with none.</summary>
-    public PressBrakeStage? Last => PressBrakeRequires.Stages.Cast<PressBrakeStage?>().LastOrDefault(s => Has(s!.Value));
-
     /// <summary>Every stage is in.</summary>
     public bool Complete => Next == null;
 
@@ -137,20 +134,6 @@ public sealed class PressBrakeParts
 
     /// <summary>The creative shortcut's next item: the next stage's first code; null when complete.</summary>
     public string? NextPart => Next is { } next ? CodesFor(next)[0] : null;
-
-    /// <summary>Whether Ctrl + right-click takes a part back now: one is fitted and no plate is on
-    /// the bed (<paramref name="plateOn"/>).</summary>
-    public bool CanTakeBack(bool plateOn) => Last != null && !plateOn;
-
-    /// <summary>Takes the last stage fitted back out: its code; null with none.</summary>
-    public string? RemoveLast()
-    {
-        if (Last is not { } last)
-            return null;
-        var code = _fitted[last];
-        _fitted.Remove(last);
-        return code;
-    }
 
     /// <summary>Every fitted item, in stage order.</summary>
     public IReadOnlyList<string> Returns() => PressBrakeRequires.Stages.Where(Has).Select(s => _fitted[s]).ToList();

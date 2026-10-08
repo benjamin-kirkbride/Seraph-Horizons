@@ -2251,9 +2251,9 @@ order only; the gauge before the blades is refused with a message naming the nex
 | 2 | `gauge` | `game:rod-iron`, `-meteoriciron` or `-steel` (the back gauge and the hold-down) | Smithing (the game's) |
 
 In creative mode Ctrl + right-click on an incomplete shear fits its next stage with nothing taken.
-**Ctrl + right-click** takes a plate back off while it is still whole; with no plate on, it takes the
-last part fitted back out (the gauge, then the blades). Breaking the frame drops the frame, both parts
-and a plate not yet cut (one being cut is lost).
+**Ctrl + right-click** takes a plate back off while it is still whole. Fitted parts never come back
+out: only breaking the frame returns them. It drops the frame, both parts and a plate not yet cut (one
+being cut is lost).
 
 **Work.** A lead or copper plate goes on the table by right-click (a half plate, what comes off, never
 does, nor an angle or an ingot). Then the player **holds right-click** on the shear, as on the quern:
@@ -2314,9 +2314,9 @@ order only; the edges before the screws are refused with a message naming the ne
 | 2 | `edge` | `game:metalplate-iron` or `-steel` (cut into the bed's, leaf's and bar's edges) | Smithing (the game's) |
 
 In creative mode Ctrl + right-click on an incomplete brake fits its next stage with nothing taken.
-**Ctrl + right-click** takes a half plate back off while it is still flat; with none on, it takes the
-last part fitted back out (the edges, then the screws). Breaking the frame drops the frame, both parts
-and a half plate not yet folded (one being folded is lost).
+**Ctrl + right-click** takes a half plate back off while it is still flat. Fitted parts never come back
+out: only breaking the frame returns them. It drops the frame, both parts and a half plate not yet
+folded (one being folded is lost).
 
 **Work.** A lead or copper half plate goes on the bed by right-click, lying across the folding edge, half
 on the bed and half over the leaf (the game's whole plate never does, nor an angle, what comes off, a
@@ -3697,10 +3697,10 @@ drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
 `tests/GearCutter/GearCutterGameplayTests.cs`), the draw bench's build order, die metal, take-back,
 drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/Core/`,
 `tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the press brake's build order,
-take-back, half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
+half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
 1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
-`PressBrakeRigTests.cs`), the squaring shear's build order, take-back, plates by metal, cut arithmetic
+`PressBrakeRigTests.cs`), the squaring shear's build order, plates by metal, cut arithmetic
 (W only while held, two half plates at 1), treadle holds, renderer clock, settings and rig
 (`SquaringShear/Core/`, `tests/SquaringShear/SquaringShearGameplayTests.cs`,
 `SquaringShearRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,

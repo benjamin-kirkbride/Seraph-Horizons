@@ -149,8 +149,6 @@ public class BlockPressBrake : Block
             bool creative = forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative;
             if (brake.PlateOn && brake.Job.Untouched)
                 help.Add(new WorldInteraction { ActionLangCode = Key("takeplate"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
-            else if (parts.CanTakeBack(brake.PlateOn) && !(creative && !parts.Complete))
-                help.Add(new WorldInteraction { ActionLangCode = Key("takepart"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
             // the machines' creative shortcut, while there is a stage to fit
             if (!parts.Complete && creative)
                 help.AddRange(SplittingBlockUpgrades.CreativeUpgradeHelp);

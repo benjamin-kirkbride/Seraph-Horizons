@@ -278,11 +278,12 @@ only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart` otherwise):
 | 1 | `screws` | `game:rod-iron`, `-meteoriciron` or `-steel` |
 | 2 | `edge` | `game:metalplate-iron` or `-steel` |
 
-**Take-back.** The contract has the parts back only by breaking; the gameplay brief asked for Ctrl +
-right-click to take them back while no half plate is on, and that is what is built: Ctrl takes the last
-stage fitted (the edges, then the screws), and, with a half plate on, the half plate itself while it is
-still flat (W = 0); one being folded stays (an error says so), and so do the parts. Breaking drops every
-part and a flat half plate (a part-folded one is lost). The creative shortcut (Ctrl in creative mode on an
+**Take-back.** As the contract has it, the parts come back only by breaking: once fitted, nothing
+takes them out (only a consumable may be taken out of a built machine, as the draw bench's die is, and
+the brake has none; Ctrl + right-click once took the last stage back out, and no longer does). Ctrl
+takes the half plate off while it is still flat (W = 0); one being folded stays (an error says so).
+With no half plate on, a Ctrl click is an ordinary click. Breaking drops every part and a flat half
+plate (a part-folded one is lost). The creative shortcut (Ctrl in creative mode on an
 incomplete brake) fits each stage's first code. A save restores the stages as a run from the first.
 
 **Hold to work** (the quern's pattern, `BlockQuern`/`BlockEntityQuern`): the block forwards the
@@ -309,7 +310,7 @@ with that switch off a half plate is refused with a message). **With the `Squari
 there are no half plates (they are the shear's item, `../SquaringShear/`), so a complete brake refuses
 every work click, and the load, with `pressbrake-error-no-halfplates` ("the squaring shear that cuts
 them is switched off"; `BEPressBrake.HalfPlatesExist`, which asks the world for either half plate, as
-`AngleItem` asks for the angle). Fitting and taking back parts still work. At W = 1 the half plate is
+`AngleItem` asks for the angle). Fitting parts still works. At W = 1 the half plate is
 used up and the angle goes into a container in `PressBrakeRig.OutputNeighbour()` (the cell beyond
 `output.pos` across the output face, native north), else drop at `OutputDrop()`, pushed outward, as the
 draw bench's. The bend (`game:sounds/block/heavymetal-hit`) is heard at the middle of the fold, the
@@ -352,7 +353,7 @@ turns of the lever a job"), `turns` the lever turns a half plate, no `wear` and 
 `SquaringShear` off there is no half plate, so no record. Type `pressbrake`, owned by `PressBrake`
 (`Core/SwitchOwnership.cs`).
 
-**Tests.** `tests/PressBrake/PressBrakeGameplayTests.cs` (stages, take-back, saves, half plates by
+**Tests.** `tests/PressBrake/PressBrakeGameplayTests.cs` (stages, saves, half plates by
 metal and whole plates refused, load rules, one angle a half plate, W only while held and done at 1, folds crossed, lever holds, the clock, settings, placing)
 and `PressBrakeRigTests.cs` (the shipped rig through the shared parser and `PressBrakeRig`, its anchors,
 its one fold, the pace held to the settings, the reader's refusals, and every pose of `tests/PressBrake/rig-reference.json`

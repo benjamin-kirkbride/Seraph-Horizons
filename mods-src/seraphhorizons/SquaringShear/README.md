@@ -274,9 +274,11 @@ stage the only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart` othe
 | 1 | `blade` | `game:metalplate-iron` or `-steel` |
 | 2 | `gauge` | `game:rod-iron`, `-meteoriciron` or `-steel` |
 
-**Take-back**, as the press brake's: Ctrl takes the last stage fitted (the gauge, then the blades), and,
-with a plate on, the plate itself while it is still whole (W = 0); a plate being cut stays (an error
-says so), and so do the parts. Breaking drops every part and a whole plate (a half-cut one is lost). The
+**Take-back**, as the press brake's: the parts come back only by breaking (only a consumable may be
+taken out of a built machine, and the shear has none; Ctrl + right-click once took the last stage back
+out, and no longer does). Ctrl takes the plate off while it is still whole (W = 0); a plate being cut
+stays (an error says so). With no plate on, a Ctrl click is an ordinary click. Breaking drops every part
+and a whole plate (a half-cut one is lost). The
 creative shortcut (Ctrl in creative mode on an incomplete shear) fits each stage's first code. A save
 restores the stages as a run from the first.
 
@@ -343,7 +345,7 @@ job"), no `wear` and no `oil`. Type `squaringshear`, owned by `SquaringShear`
 (`Core/SwitchOwnership.cs`); the half plate's code and the frame's grid recipe are owned through
 `SwitchRegistry` from `SquaringShearSystem`'s asset lists.
 
-**Tests.** `tests/SquaringShear/SquaringShearGameplayTests.cs` (stages, take-back, saves, plates by
+**Tests.** `tests/SquaringShear/SquaringShearGameplayTests.cs` (stages, saves, plates by
 metal, load rules, two half plates a plate, W only while held and done at 1, cuts crossed, treadle
 holds, the clock, settings, placing) and `SquaringShearRigTests.cs` (the shipped rig through the shared
 parser and `SquaringShearRig`, its anchors, its one stroke, the pace held to the settings, the reader's

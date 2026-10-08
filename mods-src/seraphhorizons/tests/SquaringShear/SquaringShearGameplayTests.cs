@@ -4,9 +4,9 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.SquaringShear;
 
-/// <summary>SquaringShear/Core: the build order, what each stage takes and take-back; the plates by
-/// metal; the cut's arithmetic (W only while the treadle is worked, two half plates at W = 1); who
-/// holds the treadle; the renderer's clock; and the settings.</summary>
+/// <summary>SquaringShear/Core: the build order, what each stage takes and that nothing takes a
+/// part back out; the plates by metal; the cut's arithmetic (W only while the treadle is worked, two
+/// half plates at W = 1); who holds the treadle; the renderer's clock; and the settings.</summary>
 public class SquaringShearGameplayTests
 {
     private static SquaringShearParts Complete(string blade = "game:metalplate-iron", string gauge = "game:rod-iron")
@@ -76,18 +76,14 @@ public class SquaringShearGameplayTests
     }
 
     [Fact]
-    public void Take_back_gives_the_last_part_first_and_never_with_a_plate_on()
+    public void Fitted_parts_never_come_back_out()
     {
-        var parts = Complete("game:metalplate-steel", "game:rod-iron");
-        Assert.False(parts.CanTakeBack(plateOn: true));
-        Assert.True(parts.CanTakeBack(plateOn: false));
-        Assert.Equal("game:rod-iron", parts.RemoveLast());
-        Assert.Equal(SquaringShearStage.Gauge, parts.Next);
-        Assert.Equal("game:metalplate-steel", parts.RemoveLast());
-        Assert.Equal(SquaringShearStage.Blade, parts.Next);
-        Assert.False(parts.CanTakeBack(false));
-        Assert.Null(parts.RemoveLast());
-        Assert.Equal(SquaringShearFitVerdict.Fits, parts.Fit("game:metalplate-iron"));
+        // only a consumable may come out of a built machine, and this one has none: breaking is the
+        // only way back to the parts (Returns), so the rules offer no way to take one out
+        var takeOut = typeof(SquaringShearParts).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Where(mi => mi.Name.StartsWith("Remove") || mi.Name.StartsWith("Take"))
+            .Select(mi => mi.Name);
+        Assert.Empty(takeOut);
     }
 
     [Fact]
