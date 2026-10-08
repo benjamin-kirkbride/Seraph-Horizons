@@ -118,6 +118,36 @@ left alone. This replaces the two ConfigKit settings (`battletowers_surface_chan
 the chunks generated from then on, in any world, and never a tower already placed. With the switch
 off, or without Battle Towers, the towers are as Battle Towers ships them.
 
+### Surface ruins sit on the median of their ground (`RuinsOnMedianGround`)
+
+The game seats every ruin placed `surfaceruin` (BetterRuins' and its own) on the lowest of the
+terrain heights it samples around the footprint, so on a slope the uphill side is buried. The
+game's `WorldGenStructure.TryGenerateRuinAtSurface` samples the worldgen terrain height at the four
+corners (which lie one block outside the footprint), at the start corner a second time (it means to
+sample the centre and samples the start instead), and, for a side of 15 blocks or more, at that
+side's midpoints and centre line (more for 30 or more). It gives up when the highest and lowest
+samples differ by more than the schematic's `MaxYDiff` (3 by default), and otherwise sets the
+ruin's base to the lowest. A BetterRuins bakery (`largeruins-shikitochi-o6-tinkersbakery`, 25 by
+25) on ground at 136 to 137 with its south edge at 134 was seated at 134, its floor 2 to 3 blocks
+below the ground around it.
+
+With this switch the base is the median of the same samples (for an even count, the lower of the
+two middle ones, so always a height the game sampled; `Core/RuinSurfaceHeight.cs`). The `MaxYDiff`
+rejection, still on highest minus lowest, and everything after the seating (the liquid, overlap and
+distance checks, the placement) are the game's. On flat ground nothing changes; on a slope the ruin
+sits at the height most of the samples are at, and its low edge, not its high one, is the one off
+the ground.
+
+`RuinSurfaceMedian.cs` is a transpiler on that method, server side: each terrain height call goes
+through a wrapper that returns the game's answer and notes it, and the minimum read where the base
+is set (`startPos.Y = min + OffsetY`) goes through a call that answers the median of the notes. A
+transpiler rather than a prefix copying the method: the method is long and works on the structure's
+private state, and a copy would drift from the game's on an update without a sign, where the
+transpiler checks the exact shape it rewrites before patching (at least five height samples, one
+local holding the minimum, one place storing it plus `OffsetY` into `BlockPos.Y`) and, finding
+anything else, logs a warning and patches nothing. Worldgen only: it changes the ruins of chunks
+generated from then on, never a ruin already placed. With the switch off nothing is patched.
+
 ### Creative steam source (`CreativeSteamSource`)
 
 Pipes and Power Expanded (`ppex`). A creative-only block, `seraphhorizons:creativesteamsource` ("Steam
@@ -3717,6 +3747,15 @@ fells the whole tree, its logs all in trunks, and is gone after. `tests/FellingW
 (xunit, no game) covers the thick rule, the cost and the settings' range. With the switch off,
 `SwitchesOffScenarios` requires nothing patched and a felling that leaves a trunk to cost one per
 log.
+
+`tests/PackTests/RuinSurfaceMedianScenarios.cs` (Atlas, in `SharedWorldScenarios`) runs the
+game's own `TryGenerateRuinAtSurface`, patched, for a synthetic 20 by 20 schematic over a block
+accessor whose terrain is 3 lower at the start column only, and whose first liquid check, right
+after the seating, answers water so the call stops there: the ruin is seated on the higher ground
+(the median), and with the switch off (`SwitchesOffScenarios`, nothing patched) on the start
+column's (the lowest). When the first fails with nothing patched, the game's method changed shape:
+the warning in the log says which part of `RuinSurfaceMedian.Rewrite`'s pattern is missing.
+`tests/RuinSurfaceHeightTests.cs` (xunit, no game) covers the median, its tie rule and its range.
 
 `tests/PackTests/GearBlankScenarios.cs` (Atlas) requires both blanks to stack, be ground storable
 and be named; both molds to be clay-formed from each clay (two and four layers) and fire, in a pit
