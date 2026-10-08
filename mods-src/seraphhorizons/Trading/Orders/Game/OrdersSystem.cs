@@ -1,4 +1,3 @@
-using System.Globalization;
 using SeraphHorizons.Mod.Trading.Core;
 using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Economy.Core;
@@ -6,6 +5,7 @@ using SeraphHorizons.Mod.Trading.Orders.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Trading.Orders;
 
@@ -17,11 +17,11 @@ namespace SeraphHorizons.Mod.Trading.Orders;
 /// orders up to one or two, each for an item its list buys in its region, at standing scale 1,
 /// with its premium (<see cref="OrderPlanner"/>) taken out of its wallet then; a trader whose wallet
 /// can't hold it back makes no order.</item>
-/// <item>A player takes one with <c>/sh order accept</c>: the quantity grows with their
-/// <c>orderScale</c> as far as the wallet covers the larger premium. Items count when sold through
-/// the trade dialog (<see cref="EntitySeraphTrader.Dealt"/>) or handed over with
-/// <c>/sh order handin</c>, which pays the normal price from the wallet; each pays its share of the
-/// premium, completion the rest and standing.</item>
+/// <item>A player takes one in the trade window's Orders tab (<see cref="Accept"/>): the quantity
+/// grows with their <c>orderScale</c> as far as the wallet covers the larger premium. Items count
+/// when sold to the trader (<see cref="EntitySeraphTrader.Dealt"/>) or handed in from the Orders
+/// tab (<see cref="HandIn"/>), which pays the normal price from the wallet; each pays its share of
+/// the premium, completion the rest and standing.</item>
 /// <item>Past the deadline (<see cref="Tick"/>, every few seconds and every simulated day) an
 /// untaken offer lapses, a taken order with nothing delivered is abandoned (standing lost), one
 /// delivered in part just expires; what is left of the premium goes back to the trader's wallet if
@@ -73,7 +73,6 @@ public class OrdersSystem : ModSystem
         api.Event.GameWorldSave += Save;
         EntitySeraphTrader.Restocked += OnRestocked;
         EntitySeraphTrader.Dealt += OnDealt;
-        EntitySeraphTrader.TradeOpened += OnTradeOpened;
         if (_economy != null) _economy.SimulatedDay += OnSimulatedDay;
         _tick = api.Event.RegisterGameTickListener(_ => Tick(), 5000);
         OrderCommands.Register(api, this);
@@ -84,7 +83,6 @@ public class OrdersSystem : ModSystem
     {
         EntitySeraphTrader.Restocked -= OnRestocked;
         EntitySeraphTrader.Dealt -= OnDealt;
-        EntitySeraphTrader.TradeOpened -= OnTradeOpened;
         if (_economy != null) _economy.SimulatedDay -= OnSimulatedDay;
         if (_sapi != null && _tick != 0) _sapi.Event.UnregisterGameTickListener(_tick);
     }
@@ -184,7 +182,7 @@ public class OrdersSystem : ModSystem
         return null;
     }
 
-    /// <summary>Counts goods the player sold through the trade dialog towards their orders here.</summary>
+    /// <summary>Counts goods the player sold to the trader towards their orders here.</summary>
     private void OnDealt(IServerPlayer player, EntitySeraphTrader trader, IReadOnlyList<ItemStack> sold)
     {
         if (trader.Api != _sapi || !Enabled) return;
@@ -202,22 +200,54 @@ public class OrdersSystem : ModSystem
         }
     }
 
-    /// <summary>Hands the held stack over for the player's order at the trader, paid at the order's
-    /// normal price from the wallet; the error's lang key and its arguments, or null.</summary>
-    public (string Key, object[] Args)? HandIn(IServerPlayer player, EntitySeraphTrader trader)
+    /// <summary>The player's own slots (hotbar and backpack) holding <paramref name="code"/>, fresh:
+    /// never a worn bag (the backpack inventory's bag slots) nor a bag with anything in it, so an
+    /// order for sacks never takes the one holding the player's goods.</summary>
+    public static List<ItemSlot> SlotsWith(IPlayer player, string code)
     {
-        var slot = player.InventoryManager.ActiveHotbarSlot;
-        if (slot?.Itemstack is not { } stack) return ("trading-orders-handin-empty", []);
-        string id = TraderFinder.IdOf(_sapi!, trader), code = stack.Collectible.Code.ToString();
-        var o = Book.OpenAt(id).FirstOrDefault(o => o.State == OrderState.Accepted && o.PlayerUid == player.PlayerUID && o.Item == code);
-        if (o is null) return ("trading-orders-handin-none", [stack.GetName()]);
+        var slots = new List<ItemSlot>();
+        foreach (string name in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
+            if (player.InventoryManager.GetOwnInventory(name) is { } inv)
+                foreach (var slot in inv)
+                    if (Offerable(player, slot, code)) slots.Add(slot);
+        return slots;
+    }
+
+    private static bool Offerable(IPlayer player, ItemSlot? slot, string code)
+    {
+        if (slot is null or ItemSlotBackpack || slot.Itemstack is not { } stack || stack.Collectible.Code.ToString() != code) return false;
+        if (!stack.Collectible.IsReasonablyFresh(player.Entity.World, stack)) return false;
+        return stack.Collectible.GetCollectibleInterface<IHeldBag>() is not { } bag || bag.IsEmpty(stack);
+    }
+
+    /// <summary>How many of <paramref name="code"/> the player carries (<see cref="SlotsWith"/>).</summary>
+    public static int Carried(IPlayer player, string code) => SlotsWith(player, code).Sum(s => s.StackSize);
+
+    /// <summary>Hands what the player carries of order <paramref name="orderId"/>'s item over towards
+    /// it (the Orders tab's Hand in), up to what is still wanted, paid at the order's normal price from
+    /// the wallet; the error's lang key and its arguments, or null.</summary>
+    public (string Key, object[] Args)? HandIn(IServerPlayer player, EntitySeraphTrader trader, int orderId)
+    {
+        string id = TraderFinder.IdOf(_sapi!, trader);
+        if (Book.Get(orderId) is not { State: OrderState.Accepted } o || o.TraderId != id || o.PlayerUid != player.PlayerUID)
+            return ("trading-orders-handin-notyours", [orderId]);
         if (Today > o.Deadline) return ("trading-orders-handin-late", []);
-        int n = Math.Min(stack.StackSize, o.Remaining);
+        var slots = SlotsWith(player, o.Item);
+        int carried = slots.Sum(s => s.StackSize);
+        if (carried <= 0) return ("trading-orders-handin-none", [TraderFinder.ItemName(_sapi!.World, o.Item)]);
+        int n = Math.Min(carried, o.Remaining);
         int price = (int)Math.Round(n * o.UnitPrice);
         if (trader.Inventory.GetTraderAssets() < price) return ("trading-orders-handin-broke", [price]);
-        if (Book.Deliver(o.Id, player.PlayerUID, n, Today) is not { } change) return ("trading-orders-handin-none", [stack.GetName()]);
-        slot.TakeOut(change.Taken);
-        slot.MarkDirty();
+        if (Book.Deliver(o.Id, player.PlayerUID, n, Today) is not { } change) return ("trading-orders-handin-none", [TraderFinder.ItemName(_sapi!.World, o.Item)]);
+        int left = change.Taken;
+        foreach (var slot in slots)
+        {
+            if (left <= 0) break;
+            int take = Math.Min(left, slot.StackSize);
+            slot.TakeOut(take);
+            slot.MarkDirty();
+            left -= take;
+        }
         TraderFinder.TakeFromWallet(trader, price);
         TraderFinder.GiveGears(_sapi!, player.Entity, price);
         Settle(change, player, price);
@@ -267,32 +297,5 @@ public class OrdersSystem : ModSystem
             };
             p.SendMessage(GlobalConstants.GeneralChatGroup, L(key, o.Id, item, o.Delivered, o.Quantity), EnumChatType.Notification);
         }
-    }
-
-    // ---- Text ----
-
-    public static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
-
-    /// <summary>One order for a player at its trader: what, how many, the premium, the time left.</summary>
-    public string Line(Order o)
-    {
-        string item = TraderFinder.ItemName(_sapi!.World, o.Item);
-        double left = Math.Max(0, o.Deadline - Today);
-        return o.State == OrderState.Offered
-            ? L("trading-orders-line-offer", o.Id, o.Quantity, item, o.Premium, F(o.Days), F(left))
-            : L("trading-orders-line-taken", o.Id, o.Quantity, item, o.Delivered, o.Premium - o.PremiumPaid, F(left));
-    }
-
-    /// <summary>The chat summary when the trade dialog opens: this trader's offers and the
-    /// player's own orders here. Nothing when there are none.</summary>
-    private void OnTradeOpened(IServerPlayer player, EntitySeraphTrader trader)
-    {
-        if (trader.Api != _sapi || !Enabled) return;
-        string id = TraderFinder.IdOf(_sapi!, trader);
-        var here = Book.OpenAt(id).Where(o => o.State == OrderState.Offered || o.PlayerUid == player.PlayerUID).ToList();
-        if (here.Count == 0) return;
-        var lines = new List<string> { L("trading-orders-header") };
-        lines.AddRange(here.Select(Line));
-        player.SendMessage(GlobalConstants.GeneralChatGroup, string.Join("\n", lines), EnumChatType.Notification);
     }
 }

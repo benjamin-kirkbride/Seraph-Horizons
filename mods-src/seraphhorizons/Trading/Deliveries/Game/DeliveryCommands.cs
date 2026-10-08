@@ -9,12 +9,9 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.Mod.Trading.Deliveries;
 
 /// <summary>
-/// Delivery commands (#454), by chat command rather than dialogue as orders are
-/// (<see cref="OrderCommands"/>).
+/// Delivery admin commands (#454). Players take, mark and hand in deliveries in the trade window's
+/// Deliveries tab (<c>Trading/Window</c>); these are the admin's.
 /// <list type="bullet">
-/// <item><c>/sh delivery</c> (any player, next to one of the pack's traders): your deliveries and
-/// this trader's offer; <c>/sh delivery accept</c> takes the offer; <c>/sh delivery handin</c>
-/// hands over your package for this trader.</item>
 /// <item><c>/sh trade deliveries [player]</c> (controlserver): active deliveries, or a player's;
 /// <c>deliveries create &lt;from&gt; &lt;to&gt; &lt;player&gt;</c> (trader ids or <c>near</c>; the player
 /// online, the deposit from their gears); <c>deliveries complete &lt;id&gt;</c> (handed in on time),
@@ -30,25 +27,6 @@ public static class DeliveryCommands
     {
         var sh = api.ChatCommands.GetOrCreate("sh");
         if (string.IsNullOrEmpty(sh.Description)) sh.WithDescription("Seraph Horizons commands").RequiresPrivilege(Privilege.controlserver);
-        sh.BeginSubCommand("delivery")
-                .WithDescription("Deliveries: delivery (yours, and the offer of the trader next to you), delivery accept, delivery handin")
-                .RequiresPrivilege(Privilege.chat)
-                .RequiresPlayer()
-                .IgnoreAdditionalArgs()
-                .HandleWith(args => Here(api, system, args))
-                .BeginSubCommand("accept")
-                    .WithDescription("Take the delivery the trader next to you offers")
-                    .RequiresPrivilege(Privilege.chat)
-                    .RequiresPlayer()
-                    .HandleWith(args => Accept(api, system, args))
-                .EndSubCommand()
-                .BeginSubCommand("handin")
-                    .WithDescription("Hand your package to the trader next to you, its receiver")
-                    .RequiresPrivilege(Privilege.chat)
-                    .RequiresPlayer()
-                    .HandleWith(args => HandIn(api, system, args))
-                .EndSubCommand()
-            .EndSubCommand();
         var parsers = api.ChatCommands.Parsers;
         var trade = TradeCommands.Trade ?? sh.BeginSubCommand("trade").WithDescription("Traders").RequiresPrivilege(Privilege.controlserver);
         trade.BeginSubCommand("deliveries")
@@ -57,34 +35,6 @@ public static class DeliveryCommands
                 .WithArgs(parsers.OptionalWord("player|create|complete|fail|expire"), parsers.OptionalAll("arguments"))
                 .HandleWith(args => Admin(api, system, args))
             .EndSubCommand();
-    }
-
-    private static TextCommandResult Here(ICoreServerAPI api, DeliveriesSystem system, TextCommandCallingArgs args)
-    {
-        var player = args.Caller.Player;
-        var lines = system.Book.All.Where(d => d.IsActive && d.PlayerUid == player.PlayerUID).Select(system.Line).ToList();
-        if (TraderFinder.Nearest(api, args.Caller.Entity.Pos.XYZ) is { } trader)
-        {
-            var (offer, why) = system.OfferFor(player, trader);
-            lines.Add(offer is null ? L(why!) : system.OfferLine(offer) + " " + L("trading-deliveries-offer-how"));
-        }
-        return TextCommandResult.Success(lines.Count == 0 ? L("trading-deliveries-none") : string.Join("\n", lines));
-    }
-
-    private static TextCommandResult Accept(ICoreServerAPI api, DeliveriesSystem system, TextCommandCallingArgs args)
-    {
-        if (TraderFinder.Nearest(api, args.Caller.Entity.Pos.XYZ) is not { } trader) return TextCommandResult.Error(L("trading-orders-notrader"));
-        var player = (IServerPlayer)args.Caller.Player;
-        var (offer, why) = system.OfferFor(player, trader);
-        if (offer is null) return TextCommandResult.Error(L(why!));
-        if (system.Begin(player, offer, out var d) is { } error) return TextCommandResult.Error(L(error, offer.Deposit));
-        return TextCommandResult.Success(L("trading-deliveries-accepted", system.Line(d!)));
-    }
-
-    private static TextCommandResult HandIn(ICoreServerAPI api, DeliveriesSystem system, TextCommandCallingArgs args)
-    {
-        if (TraderFinder.Nearest(api, args.Caller.Entity.Pos.XYZ) is not { } trader) return TextCommandResult.Error(L("trading-orders-notrader"));
-        return system.HandIn((IServerPlayer)args.Caller.Player, trader) is { } error ? TextCommandResult.Error(L(error)) : TextCommandResult.Success();
     }
 
     // ---- Admin ----

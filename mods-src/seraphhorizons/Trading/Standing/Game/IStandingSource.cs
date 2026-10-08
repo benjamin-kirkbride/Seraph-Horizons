@@ -46,11 +46,8 @@ public interface IStandingSource
     /// <summary>What a tier (index) unlocks.</summary>
     TierUnlocks UnlocksOfTier(int tier);
 
-    /// <summary>A deal went through at the trader (the game's trade packet).</summary>
+    /// <summary>A deal went through at the trader (the trade window's, or the game's trade packet).</summary>
     void OnDeal(IPlayer player, EntitySeraphTrader trader, int gearsPaid, int gearsReceived);
-
-    /// <summary>The player opened the trader's trade dialog (server).</summary>
-    void OnTradeOpened(IPlayer player, EntitySeraphTrader trader);
 
     // Orders and deliveries (wave 3, #456, #457) report here; trader ids from TraderIdOf, as the
     // traders need not be loaded then, and player uids, as the player may be offline.
@@ -80,7 +77,6 @@ public sealed class NoStanding : IStandingSource
     public int ShelfTierFor(EntitySeraphTrader trader) => 0;
     public TierUnlocks UnlocksOfTier(int tier) => new();
     public void OnDeal(IPlayer player, EntitySeraphTrader trader, int gearsPaid, int gearsReceived) { }
-    public void OnTradeOpened(IPlayer player, EntitySeraphTrader trader) { }
     public void OnOrderDone(string playerUid, string traderId) { }
     public void OnDeliveryDone(string playerUid, string fromTraderId, string toTraderId, bool bothEnds) { }
     public void OnDeliveryFailed(string playerUid, string fromTraderId) { }

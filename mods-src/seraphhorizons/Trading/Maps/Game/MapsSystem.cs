@@ -144,6 +144,7 @@ public class MapsSystem : ModSystem
                     yield return Entry(OfferGravelCode, new JObject
                     {
                         [MapOfferAttrs.Offer] = MapOfferAttrs.GravelMap, [MapOfferAttrs.Deposit] = o.Id, [MapOfferAttrs.Metal] = PlacerCells.Kind,
+                        [MapOfferAttrs.Distance] = Math.Round(o.Distance),
                     }, Prices.GravelPrice(), 1, false);
                 else if (soldOut) yield return Entry(OfferGravelCode, new JObject { [MapOfferAttrs.Offer] = MapOfferAttrs.SoldOut }, 1, 1, false);
                 break;
@@ -172,7 +173,7 @@ public class MapsSystem : ModSystem
         var attrs = new JObject
         {
             [MapOfferAttrs.Offer] = MapOfferAttrs.OreMap, [MapOfferAttrs.Deposit] = o.Id, [MapOfferAttrs.Metal] = o.Metal,
-            [MapOfferAttrs.Precision] = precision,
+            [MapOfferAttrs.Precision] = precision, [MapOfferAttrs.Distance] = Math.Round(o.Distance),
         };
         if (o.SizeClass != null) attrs[MapOfferAttrs.SizeTier] = o.SizeClass;
         return attrs;

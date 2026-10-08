@@ -25,9 +25,6 @@ public class StandingSystem : ModSystem, IStandingSource
     public const string SaveKey = "seraphhorizons:standing";
     public const string HarmonyId = "seraphhorizons.standing";
     public static readonly AssetLocation RulesAsset = new("seraphhorizons", "config/standing-tiers.json");
-    /// <summary>How long after the last trade dialog the next one counts as a new visit, which
-    /// shows the standing line again, in game days.</summary>
-    public const double VisitGapDays = 0.25;
     /// <summary>How far a trader's own camp may be from it for the trader to be the camp's.</summary>
     public const int CampReach = 96;
     public const string TraderIdAttr = "seraphhorizons:traderid";
@@ -35,7 +32,6 @@ public class StandingSystem : ModSystem, IStandingSource
     private ICoreServerAPI? _sapi;
     private TradingSystem? _trading;
     private Harmony? _harmony;
-    private readonly Dictionary<(string, string), double> _lastVisit = new();
 
     public static StandingSystem? Of(ICoreAPI api) => api.ModLoader.GetModSystem<StandingSystem>();
 
@@ -259,16 +255,6 @@ public class StandingSystem : ModSystem, IStandingSource
             sp.SendMessage(GlobalConstants.GeneralChatGroup, StandingText.TierUp(trader, after), EnumChatType.Notification);
     }
 
-    public void OnTradeOpened(IPlayer player, EntitySeraphTrader trader)
-    {
-        if (player is not IServerPlayer sp) return;
-        var key = (player.PlayerUID, TraderIdOf(trader));
-        bool newVisit = !_lastVisit.TryGetValue(key, out double last) || Day - last > VisitGapDays;
-        _lastVisit[key] = Day;
-        if (newVisit)
-            sp.SendMessage(GlobalConstants.GeneralChatGroup, StandingText.Line(trader, ViewFor(player.PlayerUID, trader)), EnumChatType.Notification);
-    }
-
     public void OnOrderDone(string playerUid, string traderId) =>
         Ledger.OnOrderDone(playerUid, CompanyOf(playerUid), traderId, Day);
 
@@ -290,16 +276,6 @@ public static class StandingText
     public static string TierName(StandingTier tier) => L("trading-standing-tier-" + tier.Code);
 
     public static string TypeName(EntitySeraphTrader trader) => L("trading-type-" + trader.TraderType);
-
-    /// <summary>"Standing with this smith: regular (300, 12 from nearby smiths). Trusted at 800."</summary>
-    public static string Line(EntitySeraphTrader trader, StandingView v)
-    {
-        string own = L("trading-standing-line", TypeName(trader), TierName(v.Tier), Math.Floor(v.Effective));
-        if (v.Spill >= 1) own += " " + L("trading-standing-spill", Math.Floor(v.Spill));
-        if (v.Company is double c && c > v.Personal) own += " " + L("trading-standing-company", Math.Floor(c));
-        own += " " + (v.Next is { } next ? L("trading-standing-next", TierName(next), next.Points) : L("trading-standing-top"));
-        return own;
-    }
 
     public static string TierUp(EntitySeraphTrader trader, StandingView v) =>
         L("trading-standing-tierup", TypeName(trader), TierName(v.Tier));
