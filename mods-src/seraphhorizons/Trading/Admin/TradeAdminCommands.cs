@@ -445,11 +445,15 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
                 ["bought"] = new JsonObject(g.Bought.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
                 ["strangerMaps"] = new JsonArray(g.StrangerMaps.Order().Select(t => (JsonNode?)t).ToArray()),
                 ["visited"] = new JsonArray(g.Visited.Order().Select(t => (JsonNode?)t).ToArray()),
+                ["pityMap"] = g.PityMap,
             };
         }
+        bool pityUsed = maps.Leads.PityUsed(player.PlayerUID);
         output.Data["player"] = player.PlayerName;
         output.Data["groups"] = groups;
-        output.Summary = L("trading-admin-leads-head", player.PlayerName, string.Join(", ", keys));
+        output.Data["pityUsed"] = pityUsed;
+        output.Summary = L("trading-admin-leads-head", player.PlayerName, string.Join(", ", keys),
+            L(pityUsed ? "trading-admin-leads-pity-used" : "trading-admin-leads-pity-unused"));
         var trader = TraderLookup.Find(api, args, args[1] as string, out _);
         if (trader != null && maps.CampLeadsFor(player, trader) is { } view)
         {
@@ -457,15 +461,16 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
             var offers = new JsonArray();
             foreach (var o in view.Offers)
             {
-                output.Lines.Add($"  {o.Cell} {L("trading-type-" + o.Type)} {o.Distance:0} m ({o.X}, {o.Z}): {o.Price} g{(o.Prospector ? " *" : "")}");
+                output.Lines.Add($"  {(o.Pity ? "first map: " : "")}{o.Cell} ring {o.Ring} {L("trading-type-" + o.Type)} {o.Distance:0} m ({o.X}, {o.Z}): {o.Price} g{(o.Prospector ? " *" : "")}");
                 offers.Add(new JsonObject
                 {
-                    ["cell"] = o.Cell.ToString(), ["type"] = o.Type, ["x"] = o.X, ["z"] = o.Z, ["distance"] = Math.Round(o.Distance),
-                    ["price"] = o.Price, ["prospector"] = o.Prospector,
+                    ["cell"] = o.Cell.ToString(), ["ring"] = o.Ring, ["type"] = o.Type, ["x"] = o.X, ["z"] = o.Z, ["distance"] = Math.Round(o.Distance),
+                    ["price"] = o.Price, ["prospector"] = o.Prospector, ["pity"] = o.Pity,
                 });
             }
             output.Data["trader"] = view.TraderId;
             output.Data["tier"] = view.Buyer.Tier;
+            output.Data["reach"] = view.Reach;
             output.Data["offers"] = offers;
         }
         return AdminCommands.Answer(args, output);

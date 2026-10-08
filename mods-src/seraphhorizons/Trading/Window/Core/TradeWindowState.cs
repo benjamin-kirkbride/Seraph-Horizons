@@ -31,8 +31,8 @@ public sealed class TierView
     [JsonPropertyName("precision")] public int MapPrecision { get; set; } = 1;
     /// <summary>Camp leads on offer at once (0: the stranger's one map per trader).</summary>
     [JsonPropertyName("leadMaps")] public int LeadMaps { get; set; }
-    /// <summary>How far they reach from the trader, in blocks.</summary>
-    [JsonPropertyName("leadRadius")] public int LeadRadius { get; set; }
+    /// <summary>How far they reach from the trader's cell, in rings of grid cells.</summary>
+    [JsonPropertyName("leadReach")] public int LeadReach { get; set; }
 }
 
 /// <summary>A camp lead this trader offers this player (Maps &amp; leads tab): the camp, where it is
@@ -49,6 +49,11 @@ public sealed class LeadOfferRow
     [JsonPropertyName("price")] public int Price { get; set; }
     /// <summary>The prospector the first slot is kept for.</summary>
     [JsonPropertyName("prospector")] public bool Prospector { get; set; }
+    /// <summary>Rings of grid cells from the trader's cell to the camp's (1: next door).</summary>
+    [JsonPropertyName("ring")] public int Ring { get; set; }
+    /// <summary>The player's very first map: a flat price, to the nearest prospector (a buy names
+    /// <c>pity</c>, not the cell, since a cell that places no camp passes it on to the next).</summary>
+    [JsonPropertyName("pity")] public bool Pity { get; set; }
 }
 
 /// <summary>A player's standing at one trader, with every tier, for the header, the Standing tab and

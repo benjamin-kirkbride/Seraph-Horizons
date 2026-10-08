@@ -23,11 +23,13 @@ namespace SeraphHorizons.PackTests;
 /// from the deposit registry (which lists deposits whose chunks nobody generated), buying one through
 /// the trade window (its server side: one unit, held) yields a real ore map and marks the deposit sold, another trader
 /// no longer offers it, a general store offers a gravel map exactly when a field is in reach, and
-/// standing changes the prices a trader quotes. Camp leads (per buyer, off the shelf): a stranger
-/// buys exactly one from a trader and is refused a second, and buys onward at the camp it leads to;
-/// a known customer is offered two within 3 km, buying one brings the next-nearest and doubles the
-/// next price; a partner's lead to a camp nobody generated settles the camp and marks it where it
-/// stands. From the playtest after the trade window: a lead bought is not offered again, carried or
+/// standing changes the prices a trader quotes. Camp leads (per buyer, off the shelf, distance in
+/// rings of grid cells): a fresh player at a trader that is no prospector is offered their first
+/// map alone, 10 gears to a prospector, which generates the camp and marks it, and is that trader's
+/// one stranger map; at the prospector's camp they buy one onward in ring 1; a prospector offers no
+/// first map and a stranger's reach is ring 1; a known customer is offered two in ring 1 at the
+/// formula's price, and buying one brings the next-nearest; a partner's lead to a camp nobody
+/// generated settles the camp and marks it where it stands. From the playtest after the trade window: a lead bought is not offered again, carried or
 /// marked, while the gravel map bought after it arrives; a gravel offer whose field turned out empty
 /// is refused before payment; and meeting a camp's trader marks it exactly in place of the lead's
 /// marker.
@@ -56,13 +58,17 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         return trader;
     }
 
-    private async Task<IServerPlayer> Buyer(string name, EntitySeraphTrader trader)
+    private async Task<IServerPlayer> Buyer(string name, EntitySeraphTrader trader, int gears = 64)
     {
         var p = await World.JoinPlayer(name);
         // Within vanilla's trading reach (a squared distance of 5 closes the trade).
         await p.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
-        await p.GiveItem("game:gear-rusty", 64);
+        await p.GiveItem("game:gear-rusty", Math.Min(64, gears));
         var sp = (IServerPlayer)p.Player;
+        // More than a stack: the rest into their bags as the game gives items.
+        for (int left = gears - 64; left > 0; left -= 64)
+            Assert.True(sp.Entity.TryGiveItemStack(new ItemStack(W.GetItem(new AssetLocation("game:gear-rusty"))!, Math.Min(64, left))));
+        await World.Ticks(2);
         sp.WorldData.CurrentGameMode = EnumGameMode.Survival;
         return sp;
     }
@@ -208,21 +214,41 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private MapsSystem.CampLeadView LeadsAt(IServerPlayer player, EntitySeraphTrader trader)
     {
         var view = Maps.CampLeadsFor(player, trader) ?? throw new Xunit.Sdk.XunitException("no camp leads (maps or the grid off)");
-        output.WriteLine($"{player.PlayerName} at {view.TraderId} as {view.Buyer.Tier} ({view.Buyer.Bought} bought, {view.Why}): "
-                         + string.Join(", ", view.Offers.Select(o => $"{o.Cell} {o.Type} {o.Distance:0} m {o.Price} g{(o.Prospector ? " *" : "")}")));
+        output.WriteLine($"{player.PlayerName} at {view.TraderId} as {view.Buyer.Tier} ({view.Buyer.Bought} bought, reach {view.Reach},"
+                         + $" first map {(view.PityUsed ? "had" : "not yet")}, {view.Why}): "
+                         + string.Join(", ", view.Offers.Select(o => $"{(o.Pity ? "first map " : "")}{o.Cell} ring {o.Ring} {o.Type} {o.Distance:0} m {o.Price} g{(o.Prospector ? " *" : "")}")));
         return view;
     }
+
+    private static List<CampLeadOffer> Plain(MapsSystem.CampLeadView view) => view.Offers.Where(o => !o.Pity).ToList();
 
     private TradeResult BuyLead(IServerPlayer player, EntitySeraphTrader trader, CampLeadOffer offer)
     {
         var result = TradeWindowSystem.Of(Api)!.Handle(player, trader,
-            new TradeRequest { Action = TradeAction.BuyLead, Code = offer.Cell.ToString(), Price = offer.Price });
-        output.WriteLine($"buy lead to {offer.Cell}: {(result.Ok ? "ok" : "refused")} {result.Key} {string.Join(",", result.Args)}");
+            new TradeRequest { Action = TradeAction.BuyLead, Code = offer.Pity ? MapsSystem.PityCode : offer.Cell.ToString(), Price = offer.Price });
+        output.WriteLine($"buy {(offer.Pity ? "first map" : "lead")} to {offer.Cell}: {(result.Ok ? "ok" : "refused")} {result.Key} {string.Join(",", result.Args)}");
         return result;
     }
 
     private static bool LeadTo(ItemStack stack, Mod.Trading.Core.CellKey cell) =>
         ItemTraderLead.IsDrawn(stack) && stack.Attributes.GetString(MapOfferAttrs.Cell) == cell.ToString();
+
+    /// <summary>Waits for the player's first map to be drawn (to its offer's cell, or the next its
+    /// chain settled); returns its slot and cell.</summary>
+    private async Task<(ItemSlot Slot, Mod.Trading.Core.CellKey Cell)> DrawnPity(IServerPlayer player, EntitySeraphTrader? trader = null)
+    {
+        static bool Drawn(ItemStack s) => ItemTraderLead.IsDrawn(s) && !string.IsNullOrEmpty(s.Attributes.GetString(MapOfferAttrs.Cell));
+        await World.Until(() => Holding(player, ItemTraderLead.LeadCode, Drawn) != null, 600_000);
+        var slot = Holding(player, ItemTraderLead.LeadCode, Drawn)!;
+        Assert.True(Mod.Trading.Core.CellKey.TryParse(slot.Itemstack.Attributes.GetString(MapOfferAttrs.Cell), out var cell));
+        if (trader != null && trader.WatchedAttributes.GetString("tradingPlayerUID") != player.PlayerUID)
+        {
+            player.Entity.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
+            await World.Ticks(5);
+            Assert.True(trader.BeginTrade(player));
+        }
+        return (slot, cell);
+    }
 
     /// <summary>Waits for the lead to the cell to be drawn; with <paramref name="trader"/>, the player
     /// is its trading player again after (vanilla ends a trade when the player strays while chunks
@@ -256,8 +282,8 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         return trader;
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public async Task A_stranger_buys_one_lead_per_trader_and_buys_onward_at_the_camp_it_leads_to()
+    [AtlasScenario(TimeoutMs = 900_000)]
+    public async Task A_fresh_players_first_map_is_ten_gears_to_a_prospector_and_they_buy_onward_at_its_camp()
     {
         var store = await SpawnTrader("generalstore", 40, -36);
         // The shelf holds no camp lead: they are per buyer.
@@ -270,31 +296,45 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(store.BeginTrade(buyer));
         var view = LeadsAt(buyer, store);
         Assert.Equal("stranger", view.Buyer.Tier);
+        Assert.False(view.PityUsed);
+        // A fresh player at a trader that is no prospector: the first map, alone, at 10 gears, to the
+        // nearest prospector (the lattice puts one within two rings).
         var offer = Assert.Single(view.Offers);
-        Assert.InRange(offer.Price, 1, 8);
+        Assert.True(offer.Pity);
+        Assert.Equal(10, offer.Price);
+        Assert.Equal("prospector", offer.Type);
+        Assert.True(offer.Prospector);
+        Assert.InRange(offer.Ring, 1, 2);
         var state = WindowSystem.BuildState(buyer, store);
-        Assert.Equal(offer.Cell.ToString(), Assert.Single(state.LeadOffers).Cell);
-        Assert.Equal(offer.Price, state.LeadOffers[0].Price);
+        var row = Assert.Single(state.LeadOffers);
+        Assert.True(row.Pity);
+        Assert.Equal(offer.Cell.ToString(), row.Cell);
+        Assert.Equal(10, row.Price);
+        Assert.Equal("trading-window-lead-offer-pity", Mod.Trading.Window.Core.TradeWindowModel.LeadOfferLine(row).Key);
 
         int gears = InventoryTrader.GetPlayerAssets(buyer.Entity);
         Assert.True(BuyLead(buyer, store, offer).Ok);
-        Assert.Equal(gears - offer.Price, InventoryTrader.GetPlayerAssets(buyer.Entity));
-        var slot = await DrawnLead(buyer, offer.Cell, store);
-        var camp = Camp(offer.Cell)!;
+        Assert.Equal(gears - 10, InventoryTrader.GetPlayerAssets(buyer.Entity));
+        var (slot, cell) = await DrawnPity(buyer, store);
+        var camp = Camp(cell)!;
+        output.WriteLine($"first map: offered {offer.Cell}, settled {cell} ({camp.Type} at {camp.X},{camp.Z})");
         Assert.Equal(Mod.Trading.Core.CampStatus.Placed, camp.Status);
+        Assert.Equal("prospector", camp.Type);
         Assert.Equal(camp.X, slot.Itemstack.Attributes.GetInt(MapOfferAttrs.X));
         Assert.Equal(camp.Type, slot.Itemstack.Attributes.GetString(MapOfferAttrs.Type));
+        Assert.True(Maps.Leads.PityUsed(buyer.PlayerUID));
 
-        // A second from the same trader: none on offer, and a buy naming the first again is refused
-        // with nothing taken.
+        // It was this trader's one stranger map: none more on offer, and a buy naming it again is
+        // refused with nothing taken.
         var again = LeadsAt(buyer, store);
         Assert.Empty(again.Offers);
         Assert.Equal(CampLeadsWhy.StrangerUsed, again.Why);
+        Assert.Equal(1, again.Buyer.Bought);
         Assert.Equal("trading-window-leads-strangerused", WindowSystem.BuildState(buyer, store).LeadsWhy);
         var refused = BuyLead(buyer, store, offer);
         Assert.False(refused.Ok);
         Assert.Equal("trading-window-leads-strangerused", refused.Key);
-        Assert.Equal(gears - offer.Price, InventoryTrader.GetPlayerAssets(buyer.Entity));
+        Assert.Equal(gears - 10, InventoryTrader.GetPlayerAssets(buyer.Entity));
 
         // Read, it marks the camp.
         Read(slot, buyer);
@@ -304,14 +344,18 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Close(store);
         store.WatchedAttributes.RemoveAttribute("tradingPlayerUID");
 
-        // At the camp: its trader sells one onward, to a camp they lack, not back to where they were.
+        // At the prospector's camp: no first map again (had, and a prospector never offers it); its
+        // trader sells one onward in ring 1, to a camp they lack, not back to where they were.
         var trader = await TraderAt(camp, p);
-        Assert.Equal(offer.Cell, Maps.CampOf(trader));
+        Assert.Equal(cell, Maps.CampOf(trader));
         Assert.True(trader.BeginTrade(buyer));
-        Assert.Contains(Mod.Trading.Standing.Core.TraderIds.Camp(offer.Cell.X, offer.Cell.Z), Maps.Leads.Visited(Maps.KeysOf(buyer.PlayerUID)));
-        var onward = Assert.Single(LeadsAt(buyer, trader).Offers);
-        Assert.NotEqual(offer.Cell, onward.Cell);
-        Assert.NotEqual(Maps.CampOf(store), onward.Cell);
+        Assert.Contains(Mod.Trading.Standing.Core.TraderIds.Camp(cell.X, cell.Z), Maps.Leads.Visited(Maps.KeysOf(buyer.PlayerUID)));
+        var onwardView = LeadsAt(buyer, trader);
+        var onward = Assert.Single(onwardView.Offers);
+        Assert.False(onward.Pity);
+        Assert.Equal(1, onward.Ring);
+        Assert.Equal(Maps.Prices.CampLeads.Price(1, 0, "stranger"), onward.Price);
+        Assert.NotEqual(cell, onward.Cell);
         Assert.True(BuyLead(buyer, trader, onward).Ok);
         await DrawnLead(buyer, onward.Cell);
         Assert.Empty(LeadsAt(buyer, trader).Offers);
@@ -320,46 +364,83 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         store.Die(EnumDespawnReason.Removed);
     }
 
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task A_prospector_offers_no_first_map_and_a_strangers_reach_is_ring_one()
+    {
+        var prospector = await SpawnTrader("prospector", -52, 20);
+        var buyer = await Buyer("prospectfresh", prospector);
+        Assert.True(prospector.BeginTrade(buyer));
+        var view = LeadsAt(buyer, prospector);
+        Assert.Equal("stranger", view.Buyer.Tier);
+        Assert.False(view.PityUsed);
+        Assert.Equal(1, view.Reach);
+        Assert.DoesNotContain(view.Offers, o => o.Pity);
+        Assert.DoesNotContain(WindowSystem.BuildState(buyer, prospector).LeadOffers, r => r.Pity);
+        // The stranger's one map: ring 1, at the formula's price.
+        var offer = Assert.Single(view.Offers);
+        Assert.Equal(1, offer.Ring);
+        Assert.Equal(Maps.Prices.CampLeads.Price(1, 0, "stranger"), offer.Price);
+        Assert.Equal(24, offer.Price);
+        // The /sh trade leads output names the ring and the first map's state.
+        var answer = await World.ExecuteCommand($"/sh trade leads prospectfresh entity:{prospector.EntityId}");
+        output.WriteLine(answer.Message);
+        Assert.True(answer.Ok, answer.Message);
+        Assert.Contains("first map: not yet", answer.Message);
+        Assert.Contains($"{offer.Cell} ring 1 ", answer.Message);
+        Close(prospector);
+        prospector.Die(EnumDespawnReason.Removed);
+    }
+
     [AtlasScenario(TimeoutMs = 600_000)]
-    public async Task A_known_customer_sees_two_leads_and_buying_one_brings_the_next_at_double_the_price()
+    public async Task A_known_customer_sees_two_leads_in_ring_one_priced_by_the_formula_and_buying_one_brings_the_next()
     {
         var store = await SpawnTrader("generalstore", -36, -44);
-        var buyer = await Buyer("knownbuyer", store);
+        var buyer = await Buyer("knownbuyer", store, 192);
         Assert.True(store.BeginTrade(buyer));
         Assert.True((await World.ExecuteCommand($"/sh trade standing set knownbuyer {Standing.TraderIdOf(store)} 100")).Ok);
         var rules = Maps.Prices.CampLeads;
         var before = LeadsAt(buyer, store);
         Assert.Equal("known", before.Buyer.Tier);
-        Assert.Equal(2, before.Offers.Count);
-        Assert.All(before.Offers, o => Assert.True(o.Distance <= 3000, $"{o.Cell} at {o.Distance:0} m"));
-        Assert.All(before.Offers, o => Assert.Equal(rules.Price(o.Distance, 0, "known"), o.Price));
+        Assert.Equal(1, before.Reach);
+        // Their first map is on offer first (they have not had it), the tier's two after it.
+        Assert.True(before.Offers[0].Pity);
+        Assert.Equal(10, before.Offers[0].Price);
+        var plain = Plain(before);
+        Assert.Equal(2, plain.Count);
+        Assert.All(plain, o => Assert.Equal(1, o.Ring));
+        // price = round(12 × (1 + 1.5 × 0.85 × ln(1 + ring)) × (1 + 3 × 0.85 × ln(1 + n)) × 0.85)
+        double Formula(int ring, int n) => 12 * (1 + 1.5 * 0.85 * Math.Log(1 + ring)) * (1 + 3 * 0.85 * Math.Log(1 + n)) * 0.85;
+        Assert.All(plain, o => Assert.Equal((int)Math.Round(Formula(o.Ring, 0), MidpointRounding.AwayFromZero), o.Price));
+        Assert.All(plain, o => Assert.Equal(19, o.Price));
 
-        var bought = before.Offers[0];
-        var kept = before.Offers[1];
+        var bought = plain[0];
+        var kept = plain[1];
         Assert.True(BuyLead(buyer, store, bought).Ok);
         await DrawnLead(buyer, bought.Cell, store);
         var after = LeadsAt(buyer, store);
         Assert.Equal(1, after.Buyer.Bought);
+        var plainAfter = Plain(after);
         Assert.DoesNotContain(bought.Cell, after.Offers.Select(o => o.Cell));
-        // The other stays, at twice the price (rounding apart); the next-nearest takes the slot.
-        var keptAfter = after.Offers.Single(o => o.Cell == kept.Cell);
-        Assert.Equal(rules.Price(kept.Distance, 1, "known"), keptAfter.Price);
-        Assert.InRange(keptAfter.Price, 2 * kept.Price - 1, 2 * kept.Price + 1);
-        if (after.Offers.Count == 2)
+        // The other stays, priced for one bought here; the next-nearest takes the slot.
+        var keptAfter = plainAfter.Single(o => o.Cell == kept.Cell);
+        Assert.Equal(rules.Price(kept.Ring, 1, "known"), keptAfter.Price);
+        Assert.Equal((int)Math.Round(Formula(1, 1), MidpointRounding.AwayFromZero), keptAfter.Price);
+        Assert.Equal(53, keptAfter.Price);
+        if (plainAfter.Count == 2)
         {
-            var next = after.Offers.Single(o => o.Cell != kept.Cell);
-            Assert.DoesNotContain(next.Cell, before.Offers.Select(o => o.Cell));
-            Assert.True(next.Prospector || next.Distance >= before.Offers.Where(o => !o.Prospector).Max(o => o.Distance) - 1e-6);
+            var next = plainAfter.Single(o => o.Cell != kept.Cell);
+            Assert.DoesNotContain(next.Cell, plain.Select(o => o.Cell));
+            Assert.Equal(1, next.Ring);
         }
-        else Assert.Single(after.Offers);
+        else Assert.Single(plainAfter);
 
         // Once more: the count goes on, and so does the price.
-        var second = after.Offers[0];
+        var second = plainAfter[0];
         Assert.True(BuyLead(buyer, store, second).Ok);
         await DrawnLead(buyer, second.Cell, store);
         var third = LeadsAt(buyer, store);
         Assert.Equal(2, third.Buyer.Bought);
-        Assert.All(third.Offers, o => Assert.Equal(rules.Price(o.Distance, 2, "known"), o.Price));
+        Assert.All(Plain(third), o => Assert.Equal(rules.Price(o.Ring, 2, "known"), o.Price));
         Close(store);
         store.Die(EnumDespawnReason.Removed);
     }
@@ -373,12 +454,19 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True((await World.ExecuteCommand($"/sh trade standing set partnerbuyer {Standing.TraderIdOf(store)} 2500")).Ok);
         var view = LeadsAt(buyer, store);
         Assert.Equal("partner", view.Buyer.Tier);
-        Assert.InRange(view.Offers.Count, 3, 8);
-        Assert.All(view.Offers, o => Assert.True(o.Distance <= 12000));
-        // From known up, the first slot is the nearest prospector when the buyer has none in reach.
-        if (view.Offers.Any(o => o.Type == "prospector")) Assert.True(view.Offers[0].Prospector);
+        Assert.Equal(5, view.Reach);
+        // Their first map first; the tier's eight after it, within five rings.
+        Assert.True(view.Offers[0].Pity);
+        var plain = Plain(view);
+        Assert.Equal(8, plain.Count);
+        Assert.All(plain, o => Assert.True(o.Ring <= 5, $"{o.Cell} in ring {o.Ring}"));
+        Assert.All(plain, o => Assert.Equal(Maps.Prices.CampLeads.Price(o.Ring, 0, "partner"), o.Price));
+        // From known up, the first slot is the nearest prospector when the buyer has none in reach
+        // (the first map's prospector is not among them, and does not stop it).
+        Assert.True(plain[0].Prospector);
+        Assert.NotEqual(view.Offers[0].Cell, plain[0].Cell);
 
-        foreach (var offer in view.Offers.Where(o => Camp(o.Cell) is not { Status: Mod.Trading.Core.CampStatus.Placed }).OrderBy(o => o.Distance).Take(3))
+        foreach (var offer in plain.Where(o => Camp(o.Cell) is not { Status: Mod.Trading.Core.CampStatus.Placed }).OrderBy(o => o.Distance).Take(3))
         {
             int gears = InventoryTrader.GetPlayerAssets(buyer.Entity);
             Assert.True(BuyLead(buyer, store, offer).Ok);
@@ -522,7 +610,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(trader.BeginTrade(buyer));
         // Known here, so the trader has more than the stranger's one lead for them.
         Assert.True((await World.ExecuteCommand($"/sh trade standing set dupebuyer {Standing.TraderIdOf(trader)} 100")).Ok);
-        var lead = LeadsAt(buyer, trader).Offers[0];
+        var lead = Plain(LeadsAt(buyer, trader))[0];
         Assert.True(BuyLead(buyer, trader, lead).Ok);
         await DrawnLead(buyer, lead.Cell, trader);
 
@@ -619,10 +707,11 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var buyer = (IServerPlayer)p.Player;
         buyer.WorldData.CurrentGameMode = EnumGameMode.Survival;
         Assert.True(store.BeginTrade(buyer));
+        // A fresh player's one map here is their first (to a prospector).
         var lead = Assert.Single(LeadsAt(buyer, store).Offers);
+        Assert.True(lead.Pity);
         Assert.True(BuyLead(buyer, store, lead).Ok);
-        var leadSlot = await DrawnLead(buyer, lead.Cell);
-        var cell = lead.Cell;
+        var (leadSlot, cell) = await DrawnPity(buyer);
         var camp = TradingSystem.Of(Api)!.Camps!.Registry.Get(cell)!;
         Read(leadSlot, buyer);
         string typeTitle = Lang.Get("seraphhorizons:trading-maps-lead-title", Lang.Get("seraphhorizons:trading-type-" + camp.Type));

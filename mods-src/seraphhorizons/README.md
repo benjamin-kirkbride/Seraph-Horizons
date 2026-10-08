@@ -3416,28 +3416,58 @@ carry their own discount instead).
   map to a trader within some radius that you don't already have, and the radius and count grow
   with your standing, so it pays to travel and learn from local traders rather than buy the whole
   map from one. The offers are your own (not on the shelf): the Maps & leads tab lists them with
-  their price and a Buy button.
+  their price, the ring they are in, and a Buy button.
 
-  | Standing | Leads on offer | Within | Price discount |
-  |---|---|---|---|
-  | stranger | 1 per trader, ever (see below) | 8 km (`strangerReach`) | none |
-  | known | 2 | 3 km | 0.85 |
-  | regular | 3 | 5 km | 0.7 |
-  | trusted | 5 | 8 km | 0.55 |
-  | partner | 8 | 12 km | 0.4 |
+  **Distance is in rings of grid cells** (2,048 blocks a cell), from the selling trader's cell to
+  the camp's, diagonals adjacent: ring 1 is the eight cells around the trader's own, ring 2 the
+  sixteen around those, and so on. Reach and price both go by the ring, so both are known before a
+  camp generates, and a price never changes when its camp settles.
+
+  | Standing | Leads on offer | Within | Ease | Discount |
+  |---|---|---|---|---|
+  | stranger | 1 per trader, ever (see below) | 1 ring | 1 | none |
+  | known | 2 | 1 ring | 0.85 | 0.85 |
+  | regular | 3 | 2 rings | 0.7 | 0.7 |
+  | trusted | 5 | 3 rings | 0.6 | 0.55 |
+  | partner | 8 | 5 rings | 0.5 | 0.4 |
 
   The offers are the nearest camps, measured from the selling trader, that you lack: not on your
   map (at any precision) and no lead to it carried. From known up, if you have no prospector marked
-  within the radius, the first offer is the nearest prospector. Buying one brings the next-nearest
-  in its place. A **stranger** gets one lead per trader per group (your company, or you alone),
-  ever: to the nearest camp you lack that your group has not visited either (meeting a camp's
-  trader counts). Each new camp sells you one onward, so a stranger chains from camp to camp, but
-  can't map a region from one trader.
+  within reach, the first offer is the nearest prospector. Buying one brings the next-nearest in
+  its place. A **stranger** gets one lead per trader per group (your company, or you alone), ever:
+  to the nearest camp in ring 1 you lack that your group has not visited either (meeting a camp's
+  trader counts); if ring 1 holds none, that trader has no map for you. Each new camp sells you one
+  onward, so a stranger chains from camp to camp, but can't map a region from one trader.
 
-  **Price** = 2 × 2^(distance / 2.5 km) × 2^(leads your group already bought from this trader) ×
-  the discount, rounded: a stranger's first lead 2 km away is 3 gears; a partner's eighth lead
-  12 km out is about 2,850. The count per trader never resets. The discount takes the place of
+  **Price** = 12 × D × R × the discount, rounded, at least 1 gear, where D = 1 + 1.5 × ease ×
+  ln(1 + ring) and R = 1 + 3 × ease × ln(1 + n), n being the leads your group already bought from
+  this trader (it never resets). Both curves flatten: each further ring or lead adds less than the
+  one before, and better standing flattens them more (the ease) and takes its discount on top, so
+  for the same ring and count better standing never pays more. The discount takes the place of
   standing's price factor for these leads.
+
+  | Buyer | Ring | Bought here before | Price |
+  |---|---|---|---|
+  | stranger | 1 | 0 | 24 |
+  | known | 1 | 0 | 19 |
+  | known | 1 | 1 | 53 |
+  | regular | 2 | 0 | 18 |
+  | regular | 2 | 4 | 79 |
+  | trusted | 3 | 0 | 15 |
+  | trusted | 3 | 9 | 76 |
+  | partner | 5 | 0 | 11 |
+  | partner | 5 | 12 | 55 |
+
+  **Your very first map** is 10 gears and leads to a prospector. Every trader but a prospector
+  offers it, at the top of the Maps & leads tab ("First map's on me: 10 g to the nearest
+  prospector"), until you buy it; it is yours alone, so every new member of a company gets their
+  own. It goes to the nearest prospector cell to the selling trader (the grid puts one within two
+  rings of every cell), generating its camp as you buy; if that cell can't take a camp, the next
+  nearest prospector cell, out to ring 10; and if no prospector camp can be placed that far, the
+  nearest camp of any kind, still 10 gears. No cell's kind is ever changed for it. It is that
+  trader's one stranger map (so a stranger gets nothing more there) and counts as a lead bought
+  there; like any lead, the prospector it leads to is not offered again, and it doesn't stop a
+  later trader keeping its first slot for a prospector if you have none marked in its reach.
 
   A lead may point at a camp nobody has generated yet: buying it settles the cell (its next spots'
   chunks are generated until the camp is placed, as `/sh trade tp` does; the chat says "the trader
@@ -3482,23 +3512,31 @@ trader at a time).
 What each group has bought where, the traders that sold it a stranger's lead and the camps it
 visited are saved with the world (`seraphhorizons:leads`, versioned; a world from before starts
 empty), per player and per company as standing is: both are written, the most of them read, so
-leaving a company keeps what you did. Admin (`controlserver`): `/sh trade leads [player] [trader]`
-shows a player's history and the leads a trader offers them now with their prices (yourself and the
-nearest trader if none given).
+leaving a company keeps what you did. Whether a player has had their first map is saved on their
+own record only (version 2; in a world saved before it, nobody has had theirs yet). Admin
+(`controlserver`): `/sh trade leads [player] [trader]` shows a player's history and whether they
+have had their first map, and the leads a trader offers them now with their ring and price, the
+first map marked (yourself and the nearest trader if none given).
 
 Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
 table, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
 marker replaced by the met trader's, old markers matched by icon, place and title; camp leads
-(`CampLeadsTests`): the shipped tiers, the price doubling per lead bought and per 2.5 km, the
-discounts, count and radius per tier, the prospector first, the refill, the stranger's one lead
-and chaining, the trader's own camp never a target; the lead history (`LeadBookTests`): counts
-that never reset, the stranger's lead, visits, pooling by company, the saved version);
+(`CampLeadsTests`): rings between cells, the shipped tiers, reach in rings, the price by the formula
+in a table, prices never rising with standing, count and reach per tier, the prospector first, the
+refill, the stranger's one lead in ring 1 and chaining, the trader's own camp never a target, the
+first map alone to a stranger and on top from known up, and its target: the nearest seeded
+prospector cell, the next when one can take no camp, out to ring 10, then any camp; the lead
+history (`LeadBookTests`): counts that never reset, the stranger's lead, visits, pooling by company,
+the first map per player and not per company, the saved version and its migration from version 1);
 `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map offers,
 buying one through the trade window, the registry marked sold and no other trader offering it, a
 gravel map offered exactly when a field is in reach, standing changing a trader's prices and map
-precision; a stranger buying exactly one lead from a trader, a second refused, and one onward at the
-camp it led to; a known customer offered two leads within 3 km, buying one bringing the next at
-double the price; a partner's lead to a camp nobody generated settling it and marking it where it
+precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
+buying it generating the camp and marking it, nothing more from that trader, and one onward in
+ring 1 at the prospector's camp; a prospector offering no first map and a stranger's one lead in
+ring 1 at the formula's price, and `/sh trade leads` naming the ring and the first map; a known
+customer offered two leads in ring 1 at the formula's price, buying one bringing the next; a
+partner's lead to a camp nobody generated settling it and marking it where it
 stands; a lead bought not offered again, carried or marked, while the gravel map bought after it
 arrives with the markers' precision in their titles; a gravel offer whose field turned out empty
 refused before payment; meeting a camp's trader marking it exactly in place of the lead's marker and
