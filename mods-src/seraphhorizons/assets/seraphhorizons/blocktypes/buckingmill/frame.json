@@ -39,22 +39,21 @@
 	heldRightReadyAnimation: "heldblockready",
 	heldTpUseAnimation: "twohandplaceblock",
 	// The shape fills the mill's whole 6×4×3 footprint (native x -5..1, z -1..2 about the controller
-	// at the east end; x 0..6, z -1..2 once the -north item form turns it 180°), so the item forms
-	// are centred on it (3, _, 0.5) and scaled well down.
+	// at the east end; its mesh x 0..6, y -0.05..3.97, z -1..2 once the -north item form turns it
+	// 180°), so the item forms turn about the mesh's middle (3, 1.98, 0.5) and are scaled well down.
+	// Held (first and third person alike) the game leaves the origin where it is rather than on the
+	// hand, so the translation brings the middle back to vanilla's two-handed crate's spot by the
+	// hand, (0.01, 0.14, 0.18): translation = (that spot - origin) / scale
+	// (tests/HeldTransformTests.cs).
 	tpHandTransform: {
-		translation: { x: -0.8, y: -0.6, z: -0.6 },
+		translation: { x: -19.93, y: -12.27, z: -2.13 },
 		rotation: { x: 6, y: 16, z: -77 },
-		origin: { x: 3, y: 0, z: 0.5 },
+		origin: { x: 3, y: 1.98, z: 0.5 },
 		scale: 0.15
-	},
-	fpHandTransform: {
-		rotation: { x: 0, y: -45, z: 0 },
-		origin: { x: 3, y: 1, z: 0.5 },
-		scale: 0.3
 	},
 	guiTransform: {
 		rotation: { x: -22.6, y: -45.3, z: 0 },
-		origin: { x: 3, y: 2, z: 0.5 },
+		origin: { x: 3, y: 1.98, z: 0.5 },
 		scale: 0.28
 	},
 	groundTransform: {
