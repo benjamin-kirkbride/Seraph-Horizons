@@ -184,6 +184,24 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>LocomotiveRidersStayOn</c> and <c>LocomotiveRidersBreathe</c>: nothing is
+    /// patched, and Yang's seat check still answers yes for a standard locomotive, as Yang ships it.</summary>
+    [AtlasScenario]
+    public void Locomotive_riders_switches_off_the_seat_check_is_as_Yang_ships_it()
+    {
+        Assert.True(Off("LocomotiveRidersStayOn"));
+        Assert.True(Off("LocomotiveRidersBreathe"));
+        Assert.False(Harmony.HasAnyPatches(LocomotiveSeats.StayOnHarmonyId));
+        Assert.False(Harmony.HasAnyPatches(LocomotiveSeats.BreatheHarmonyId));
+        var type = W.GetEntityType(new AssetLocation("yangtransport:sglocomotive-standard"));
+        Assert.NotNull(type);
+        var loco = W.ClassRegistry.CreateEntity(type);
+        AccessTools.Property(typeof(Entity), nameof(Entity.Properties)).SetValue(loco, type);
+        var check = AccessTools.DeclaredMethod(AccessTools.TypeByName(LocomotiveSeats.SeatType), LocomotiveSeats.CollisionCheckMethod, [typeof(Entity)]);
+        Assert.NotNull(check);
+        Assert.True((bool)check.Invoke(null, [loco])!);
+    }
+
     /// <summary><c>FlatFellingWear</c>: nothing is patched, and felling a tree that leaves a trunk
     /// costs the axe the game's one durability per log.</summary>
     [AtlasScenario(TimeoutMs = 180_000)]
