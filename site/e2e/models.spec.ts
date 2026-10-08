@@ -93,6 +93,27 @@ test("taking a part off greys its legend rows, and Play runs the cycle", async (
   await expect(page.getByTestId("model-status")).toHaveText(/^Paused: /);
 });
 
+test("a vehicle rolls: its slider spans a stroke, Play rolls it along a track, and one branch lever is fitted", async ({ page }) => {
+  await page.goto("./#/models/handcar");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Handcar");
+  await expect(page.getByTestId("model-stage")).toHaveAttribute("data-scene", /^(ready|nowebgl)$/);
+  const controls = page.getByTestId("model-controls");
+  // Three turns of the axle are one stroke of the beam.
+  const theta = controls.locator('[data-input="theta"]');
+  await expect(theta).toHaveAttribute("max", "1079");
+  await expect(controls.locator('[data-overlay="track"]')).toBeChecked();
+  // The branch lever is a choice, not three checkboxes.
+  await expect(controls.locator("[data-requires]")).toHaveCount(0);
+  await expect(controls.locator('[data-choice="Branch lever"]')).toHaveValue("straight");
+  await expect(page.getByTestId("model-legend")).toContainText("bogies");
+  const rolled = page.getByTestId("model-rolled");
+  await expect(rolled).toContainText("0.00 blocks rolled");
+  await expect(page.getByTestId("model-speed")).toContainText("4.2 blocks/s");
+  await controls.getByRole("button", { name: "Play" }).click();
+  await expect(rolled).not.toContainText("0.00 blocks rolled");
+  await controls.getByRole("button", { name: "Pause" }).click();
+});
+
 test("the model page needs no recipe data", async ({ page, problems }) => {
   problems.allow.push(/Failed to load resource.*404.* @ .*\/data\/versions\.json$/);
   await page.route("**/data/versions.json", (route) => route.fulfill({ status: 404, body: "" }));
