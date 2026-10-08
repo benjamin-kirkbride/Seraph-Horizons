@@ -141,12 +141,14 @@ public partial class SharedWorldScenarios
         Assert.Equal("Iron draw die", CutterItem(DrawBenchParts.DieIronCode).GetName());
         Assert.Equal("Steel draw die", CutterItem(DrawBenchParts.DieSteelCode).GetName());
 
-        // the grid: the frame, of oak and iron (two plates, four rods, 12 nails and strips), with a hammer
+        // the grid: the frame, of oak and iron (two plates in one slot, four rods, 12 nails and strips), with a hammer
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:drawbench-frame-north" && r.Enabled);
-        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("iron") && i.Quantity == 1));
+        Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("iron") && i.Quantity == 2);
         Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.Path == "rod-*" && i.Quantity == 2));
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 12);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "game:log-placed-oak-ud");
+        // 2 steel gears for the gearing the frame carries (the rectifier, the return shaft and barrel gears)
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-steel" && i.Quantity == 2);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the anvil: each die from two ingots of its metal (over one ingot's 42 voxels), not for the helve hammer
         foreach (var (die, metal) in new[] { (DrawBenchParts.DieIronCode, "iron"), (DrawBenchParts.DieSteelCode, "steel") })
