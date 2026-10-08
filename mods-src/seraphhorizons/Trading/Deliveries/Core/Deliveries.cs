@@ -66,28 +66,19 @@ public static class DeliveryPlanner
     public const double BaseReach = 3000;
     /// <summary>A camp nearer than this is not worth a delivery.</summary>
     public const double MinDistance = 300;
-    /// <summary>Real walking time, minutes per km (2.5 sprinting, 1.5 on an elk).</summary>
-    public const double WalkMinutesPerKm = 5;
-    /// <summary>The deadline gives this much more than the walk.</summary>
-    public const double Slack = 1.5;
-    /// <summary>Never less than this many real minutes, for the trip out of camp and back on the road.</summary>
-    public const double MinMinutes = 5;
+    /// <summary>Game days allowed per km of the way, straight from sender to receiver.</summary>
+    public const double DaysPerKm = 1;
+    /// <summary>Never less than this many game days, however near the receiver.</summary>
+    public const double MinDays = 1;
     /// <summary>After the deadline, a delivery is late for this many game days, then it fails.</summary>
     public const double GraceDays = 1;
     /// <summary>A package's value at standing scale 1, in gears (±20%).</summary>
     public const double BaseValue = 20;
     public const double MinDeposit = 0.1, MaxDeposit = 0.3, MinFee = 0.2, MaxFee = 0.4;
 
-    /// <summary>Game days per real minute: the calendar moves <c>SpeedOfTime × CalendarSpeedMul</c>
-    /// game seconds per real second (60 × 0.5 by default), and a game day is <c>HoursPerDay</c>
-    /// hours, so by default a day is 48 real minutes.</summary>
-    public static double GameDaysPerRealMinute(double speedOfTime, double calendarSpeedMul, double hoursPerDay) =>
-        hoursPerDay <= 0 ? 0 : 60 * speedOfTime * calendarSpeedMul / 3600 / hoursPerDay;
-
-    /// <summary>Real minutes allowed for <paramref name="distance"/> blocks: walking time × slack.</summary>
-    public static double RealMinutes(double distance) => Math.Max(MinMinutes, distance / 1000 * WalkMinutesPerKm * Slack);
-
-    public static double DeadlineDays(double distance, double gameDaysPerRealMinute) => RealMinutes(distance) * gameDaysPerRealMinute;
+    /// <summary>Game days allowed for <paramref name="distance"/> blocks: <see cref="DaysPerKm"/> a
+    /// km, at least <see cref="MinDays"/>.</summary>
+    public static double DeadlineDays(double distance) => Math.Max(MinDays, distance / 1000 * DaysPerKm);
 
     public static double Reach(double scale) => BaseReach * Math.Max(0, scale);
 
@@ -120,11 +111,11 @@ public static class DeliveryPlanner
 
     /// <summary>The offer between two traders; <paramref name="rolls"/> are three numbers in [0, 1)
     /// for the value, the deposit and the fee.</summary>
-    public static DeliveryOffer Offer(TraderSite from, TraderSite to, double scale, double gameDaysPerRealMinute, double[] rolls)
+    public static DeliveryOffer Offer(TraderSite from, TraderSite to, double scale, double[] rolls)
     {
         double d = Distance(from, to);
         int value = Value(scale, rolls[0]);
-        return new DeliveryOffer(from, to, d, DeadlineDays(d, gameDaysPerRealMinute), value, Deposit(value, rolls[1]), Fee(value, rolls[2]));
+        return new DeliveryOffer(from, to, d, DeadlineDays(d), value, Deposit(value, rolls[1]), Fee(value, rolls[2]));
     }
 }
 

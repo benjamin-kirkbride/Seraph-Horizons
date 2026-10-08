@@ -123,4 +123,23 @@ public class TradeGuardTests
         foreach (var r in Enum.GetValues<GuardRefusal>().Where(r => r != GuardRefusal.None))
             Assert.StartsWith("trading-window-", TradeGuard.Key(r));
     }
+
+    [Theory]
+    // A map (stack limit 1) needs an empty slot.
+    [InlineData(1, new int[0], false)]
+    [InlineData(1, new[] { 0, 0, 0 }, false)]
+    [InlineData(1, new[] { 0, 1, 0 }, true)]
+    // Four bread: partial room merging into stacks counts, across slots.
+    [InlineData(4, new[] { 3 }, false)]
+    [InlineData(4, new[] { 3, 1 }, true)]
+    [InlineData(4, new[] { 2, 0, 2 }, true)]
+    [InlineData(4, new[] { 32 }, true)]
+    // Nothing to give always fits; a negative figure is no room.
+    [InlineData(0, new int[0], true)]
+    [InlineData(2, new[] { -5, 1 }, false)]
+    public void ABuyFitsWhenTheRoomLeftAddsUpToIt(int quantity, int[] room, bool fits) =>
+        Assert.Equal(fits, TradeGuard.Fits(quantity, room));
+
+    [Fact]
+    public void NoRoomIsAWindowString() => Assert.StartsWith("trading-window-", TradeGuard.NoRoomKey);
 }

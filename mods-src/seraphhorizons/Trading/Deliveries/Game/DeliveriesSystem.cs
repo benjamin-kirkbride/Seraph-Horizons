@@ -29,10 +29,9 @@ namespace SeraphHorizons.Mod.Trading.Deliveries;
 /// next join.</item>
 /// </list>
 ///
-/// Deadline conversion: the walk is <see cref="DeliveryPlanner.WalkMinutesPerKm"/> real minutes a km,
-/// times <see cref="DeliveryPlanner.Slack"/>; real minutes become game days at
-/// <c>60 × SpeedOfTime × CalendarSpeedMul / 3600 / HoursPerDay</c> (1/48 by default: a day is 48 real
-/// minutes), read from the world's calendar when the delivery is made.
+/// Deadline: <see cref="DeliveryPlanner.DaysPerKm"/> game day a km of the straight way, at least
+/// <see cref="DeliveryPlanner.MinDays"/> (<see cref="DeliveryPlanner.DeadlineDays"/>), in game time,
+/// so the calendar's speed does not enter. A delivery keeps the deadline it was made with.
 ///
 /// Saved with the world (<see cref="SaveKey"/>). Destinations come from the camp grid's placed
 /// camps; a world without the grid has none, so its traders offer no deliveries (admins can still
@@ -117,15 +116,6 @@ public class DeliveriesSystem : ModSystem
 
     private static string L(string key, params object[] args) => Lang.Get("seraphhorizons:" + key, args);
 
-    public double GameDaysPerRealMinute
-    {
-        get
-        {
-            var c = _sapi!.World.Calendar;
-            return DeliveryPlanner.GameDaysPerRealMinute(c.SpeedOfTime, c.CalendarSpeedMul, c.HoursPerDay);
-        }
-    }
-
     // ---- Where traders are ----
 
     /// <summary>The grid's placed camps, by their standing ids.</summary>
@@ -166,7 +156,7 @@ public class DeliveriesSystem : ModSystem
         if (scale <= 0) return (null, "trading-deliveries-notyet");
         var rolls = Rolls(from.Id, player.PlayerUID, 4);
         if (DeliveryPlanner.Destination(from, Camps(), scale, rolls[0]) is not { } to) return (null, "trading-deliveries-nowhere");
-        return (DeliveryPlanner.Offer(from, to, scale, GameDaysPerRealMinute, rolls[1..]), null);
+        return (DeliveryPlanner.Offer(from, to, scale, rolls[1..]), null);
     }
 
     /// <summary>Takes the deposit, records the delivery and hands over its package; the error's lang

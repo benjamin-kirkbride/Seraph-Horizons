@@ -134,7 +134,7 @@ public class TradeWindowSystem : ModSystem
             case TradeAction.Refresh:
                 return TradeResult.Done(action);
             case TradeAction.Buy:
-                return Unit(action, trader.BuyUnit(player, request.Slot, request.Code, request.Price));
+                return Unit(action, trader.BuyUnit(player, request.Slot, request.Code, request.Price, (shelf, unit) => BeforeBuy(player, trader, shelf, unit)));
             case TradeAction.Sell:
                 return Unit(action, trader.SellUnit(player));
             case TradeAction.TakeOrder:
@@ -154,6 +154,9 @@ public class TradeWindowSystem : ModSystem
                 if (DeliveriesSystem.Of(_sapi!) is not { Enabled: true } deliveries) return TradeResult.Refused(action, "trading-window-off");
                 var (offer, why) = deliveries.OfferFor(player, trader);
                 if (offer is null) return TradeResult.Refused(action, why ?? "trading-deliveries-nowhere");
+                // The package needs a slot of its own; no room, no deposit taken.
+                if (_sapi!.World.GetItem(ItemPackage.PackageCode) is { } package && !HasRoom(player, new ItemStack(package)))
+                    return TradeResult.Refused(action, TradeGuard.NoRoomKey);
                 return deliveries.Begin(player, offer, out var d) is { } error
                     ? TradeResult.Refused(action, error, offer.Deposit)
                     : TradeResult.Done(action, "trading-window-delivery-taken", d!.Id);
@@ -167,6 +170,41 @@ public class TradeWindowSystem : ModSystem
                 return MarkDelivery(player, trader, request.Id);
         }
         return TradeResult.Refused(action, "trading-window-failed");
+    }
+
+    /// <summary>A buy's checks before any gears move: a map or lead the player may not have (sold,
+    /// gone, above their standing, or one they have already: <see cref="MapsSystem.Refusal"/>), then
+    /// room in their bags for the very stack (<see cref="HasRoom"/>). A refusal ends the hold.</summary>
+    private EntitySeraphTrader.UnitDeal? BeforeBuy(IServerPlayer player, EntitySeraphTrader trader, ItemSlotTrade shelf, ItemStack unit)
+    {
+        if (unit.Attributes.GetString(MapOfferAttrs.Offer) != null
+            && _sapi!.ModLoader.GetModSystem<MapsSystem>() is { Active: true } maps
+            && maps.Refusal(trader, player, unit, shelf) is { } refusal)
+            return new EntitySeraphTrader.UnitDeal(EnumTransactionResult.Failure, refusal.Key, refusal.Args);
+        if (!HasRoom(player, unit)) return new EntitySeraphTrader.UnitDeal(EnumTransactionResult.Failure, TradeGuard.NoRoomKey);
+        return null;
+    }
+
+    /// <summary>Whether the whole <paramref name="stack"/> fits in the player's hotbar and backpack
+    /// (bags included) as the game would give it: empty slots that hold it and room in stacks it
+    /// merges with (<see cref="TradeGuard.Fits"/>).</summary>
+    public static bool HasRoom(IPlayer player, ItemStack stack) => TradeGuard.Fits(stack.StackSize, RoomFor(player, stack));
+
+    private static IEnumerable<int> RoomFor(IPlayer player, ItemStack stack)
+    {
+        var source = new DummySlot(stack);
+        foreach (string name in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
+        {
+            if (player.InventoryManager.GetOwnInventory(name) is not { } inv) continue;
+            foreach (var slot in inv)
+            {
+                int limit = Math.Min(stack.Collectible.MaxStackSize, slot.MaxSlotStackSize);
+                if (slot.Empty) yield return slot.CanHold(source) ? limit : 0;
+                else if (slot.Itemstack.Collectible.GetMergableQuantity(slot.Itemstack, stack, EnumMergePriority.AutoMerge) > 0)
+                    yield return Math.Max(0, limit - slot.Itemstack.StackSize);
+                else yield return 0;
+            }
+        }
     }
 
     private static TradeResult Unit(TradeAction action, EntitySeraphTrader.UnitDeal deal) =>
@@ -268,6 +306,13 @@ public class TradeWindowSystem : ModSystem
         }
         else state.LeadsToTraders = true;
 
+        // Map and lead offers this player has already (marked on their map, or a copy carried).
+        if (maps?.Active == true && MapMarksSystem.Of(api) is { } marks)
+            for (int i = 0; i < 16; i++)
+                if (trader.Inventory.GetSellingSlot(i)?.Itemstack is { } offer && offer.Attributes.GetString(MapOfferAttrs.Offer) is not (null or MapOfferAttrs.SoldOut)
+                    && marks.Check(player, offer) != MarkCheck.Free)
+                    state.OwnedMaps.Add(i);
+
         if (orders is { Enabled: true })
             foreach (var o in orders.Book.OpenAt(id).Where(o => o.State == OrderState.Offered || o.PlayerUid == player.PlayerUID))
                 state.Orders.Add(new OrderRow
@@ -285,14 +330,14 @@ public class TradeWindowSystem : ModSystem
                 state.DeliveryOffer = new DeliveryOfferRow
                 {
                     ToType = offer.To.Type, Distance = offer.Distance, Dx = offer.To.X - trader.Pos.X, Dz = offer.To.Z - trader.Pos.Z,
-                    Hours = offer.Days * hoursPerDay, Deposit = offer.Deposit, Fee = offer.Fee,
+                    Days = offer.Days, Deposit = offer.Deposit, Fee = offer.Fee,
                 };
             else if (why != "trading-deliveries-already") state.DeliveryWhy = why;
             foreach (var d in deliveries.Book.All.Where(d => d.IsActive && d.PlayerUid == player.PlayerUID && (d.From == id || d.To == id)))
                 state.Deliveries.Add(new DeliveryRow
                 {
                     Id = d.Id, ToType = d.ToType, ForHere = d.To == id, Distance = d.Distance, Dx = d.ToX - trader.Pos.X, Dz = d.ToZ - trader.Pos.Z,
-                    HoursLeft = (d.Deadline - today) * hoursPerDay, Deposit = d.Deposit, Fee = d.Fee,
+                    HoursLeft = (d.Deadline - today) * hoursPerDay, DaysLeft = d.Deadline - today, Deposit = d.Deposit, Fee = d.Fee,
                     Carried = DeliveriesSystem.PackageSlots(player, d.Id).Any(s => !s.Itemstack!.Attributes.GetBool(ItemPackage.AttrFailed)),
                 });
         }
