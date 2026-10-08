@@ -10,7 +10,8 @@ namespace SeraphHorizons.Mod.GearCutter;
 /// <summary>
 /// Draws the gear cutter's moving parts (client only; created and disposed by
 /// <see cref="BEGearCutter"/>, and only while its block is the cutter). One mesh per rig part from
-/// <c>shapes/block/gearcutter.json</c> (<see cref="MachineMeshes.PartMesh"/>), each drawn with its rig
+/// <c>shapes/block/gearcutter.json</c> (<see cref="MachineMeshes.PartMeshes"/>, one tessellation split
+/// by part, shared by every cutter through <see cref="MachinePartMeshes"/>), each drawn with its rig
 /// matrix turned to the cutter's facing, and only when its <c>requires</c> is fitted (the cover
 /// always, a blank while it is on the arbor, a master while it is the one fitted). The static frame
 /// part is the block's own shape (gearcutter_frame.json) and is not drawn here.
@@ -36,8 +37,8 @@ public sealed class GearCutterRenderer : IRenderer
     private readonly BEGearCutter _be;
     private readonly GearCutterRig _rig;
     private readonly RigParts _parts;
-    private readonly MultiTextureMeshRef?[] _meshes;
     private readonly bool[] _drawn;
+    private MultiTextureMeshRef?[] _meshes = [];   // the shared set's; never disposed here
     private bool _built;
 
     private double _theta;
@@ -62,7 +63,6 @@ public sealed class GearCutterRenderer : IRenderer
         _rig = rig;
         _parts = rig.MovingParts;
         int n = _parts.Parts.Count;
-        _meshes = new MultiTextureMeshRef?[n];
         _drawn = new bool[n];
         for (int i = 0; i < n; i++)
         {
@@ -77,21 +77,14 @@ public sealed class GearCutterRenderer : IRenderer
     private void BuildMeshes()
     {
         _built = true;
-        var master = Shape.TryGet(_capi, ShapeLoc);
-        if (master == null)
+        var set = MachinePartMeshes.Get(_capi, "parts", ShapeLoc, _parts, i => _drawn[i],
+            () => _capi.Tesselator.GetTextureSource(_be.Block), "gearcutter");
+        if (set == null)
         {
             _capi.Logger.Error("[seraphhorizons] Gear cutter: {0} is missing; its moving parts are not drawn", ShapeLoc);
             return;
         }
-        var tex = _capi.Tesselator.GetTextureSource(_be.Block);
-        for (int i = 0; i < _meshes.Length; i++)
-        {
-            if (!_drawn[i])
-                continue;
-            var mesh = MachineMeshes.PartMesh(_capi, master, _parts, i, tex, "gearcutter");
-            if (mesh != null)
-                _meshes[i] = _capi.Render.UploadMultiTextureMesh(mesh);
-        }
+        _meshes = set.Meshes;
     }
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
@@ -125,7 +118,7 @@ public sealed class GearCutterRenderer : IRenderer
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
         for (int i = 0; i < _meshes.Length; i++)
-            if (_meshes[i] is { } mesh && _be.Fitted(_parts.Parts[i].Requires))
+            if (_meshes[i] is { Disposed: false } mesh && _be.Fitted(_parts.Parts[i].Requires))
                 MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
         prog?.Stop();
         rapi.GlEnableCullFace();
@@ -213,7 +206,6 @@ public sealed class GearCutterRenderer : IRenderer
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.Opaque);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowFar);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowNear);
-        foreach (var mesh in _meshes)
-            mesh?.Dispose();
+        // the part meshes are MachinePartMeshes', shared with every other cutter
     }
 }

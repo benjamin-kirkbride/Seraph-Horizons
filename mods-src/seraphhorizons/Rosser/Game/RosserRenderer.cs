@@ -10,9 +10,10 @@ namespace SeraphHorizons.Mod.Rosser;
 /// <summary>
 /// Draws the rosser's moving parts and the travelling trunk (client only; created and disposed by
 /// <see cref="BERosser"/>, and only while its block is the rosser). One mesh per rig part from
-/// <c>shapes/block/rosser.json</c> (<see cref="MachineMeshes.PartMesh"/>), each drawn with its rig
+/// <c>shapes/block/rosser.json</c> (<see cref="MachineMeshes.PartMeshes"/>, one tessellation split
+/// by part, shared by every rosser through <see cref="MachinePartMeshes"/>), each drawn with its rig
 /// matrix turned to the rosser's facing, and only when its <c>requires</c> is fitted; the scraper
-/// tips (<c>heads</c>) take the ingot texture of the heads' metal. The static frame part is not
+/// tips (<c>heads</c>) take the ingot texture of the heads' metal (a cached set per metal). The static frame part is not
 /// drawn here: the block's own shape (rosser_frame.json, the same elements) draws it in the chunk
 /// mesh. Everything is read from the rig at load; no element name or coordinate is known here.
 /// <para>The rig is posed every frame from: θ, the shaft angle about the input shaft's native z
@@ -48,7 +49,7 @@ public sealed class RosserRenderer : IRenderer
     private readonly RosserRig _rig;
     private readonly RigParts _parts;
     private readonly TrunkPath _path;
-    private readonly MultiTextureMeshRef?[] _meshes;
+    private readonly MultiTextureMeshRef?[] _meshes;  // the shared sets' (tips from the metal's); never disposed here
     private readonly bool[] _drawn;                // false for the static frame part(s)
     private readonly bool[] _isTip;
     private string? _headMetal;
@@ -109,25 +110,24 @@ public sealed class RosserRenderer : IRenderer
     private void BuildMeshes(bool tipsOnly)
     {
         _built = true;
-        var master = Shape.TryGet(_capi, ShapeLoc);
-        if (master == null)
+        _headMetal = _be.HeadMetal;
+        string metal = _headMetal ?? "";
+        var tips = MachinePartMeshes.Get(_capi, "tips|" + metal, ShapeLoc, _parts, i => _drawn[i] && _isTip[i],
+            () => new MachineMeshes.MetalTextureSource(_capi.Tesselator.GetTextureSource(_be.Block), MachineMeshes.MetalTexture(_capi, _headMetal)),
+            "rosser");
+        var rest = tipsOnly ? null : MachinePartMeshes.Get(_capi, "parts", ShapeLoc, _parts, i => _drawn[i] && !_isTip[i],
+            () => _capi.Tesselator.GetTextureSource(_be.Block), "rosser");
+        if (tips == null)
         {
             if (!tipsOnly)
                 _capi.Logger.Error("[seraphhorizons] Rosser: {0} is missing; the rosser's moving parts are not drawn", ShapeLoc);
             return;
         }
-        var blockTex = _capi.Tesselator.GetTextureSource(_be.Block);
-        ITexPositionSource tipTex = new MachineMeshes.MetalTextureSource(blockTex, MachineMeshes.MetalTexture(_capi, _be.HeadMetal));
-        _headMetal = _be.HeadMetal;
         for (int i = 0; i < _meshes.Length; i++)
         {
             if (!_drawn[i] || (tipsOnly && !_isTip[i]))
                 continue;
-            _meshes[i]?.Dispose();
-            _meshes[i] = null;
-            var mesh = MachineMeshes.PartMesh(_capi, master, _parts, i, _isTip[i] ? tipTex : blockTex, "rosser");
-            if (mesh != null)
-                _meshes[i] = _capi.Render.UploadMultiTextureMesh(mesh);
+            _meshes[i] = _isTip[i] ? tips.Meshes[i] : rest?.Meshes[i];
         }
     }
 
@@ -219,7 +219,7 @@ public sealed class RosserRenderer : IRenderer
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
         for (int i = 0; i < _meshes.Length; i++)
-            if (_meshes[i] is { } mesh && _be.Fitted(_parts.Parts[i].Requires))
+            if (_meshes[i] is { Disposed: false } mesh && _be.Fitted(_parts.Parts[i].Requires))
                 MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, pos);
         DrawTrunk(facing, prog, camPos, pos);
         prog?.Stop();
@@ -386,8 +386,7 @@ public sealed class RosserRenderer : IRenderer
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.Opaque);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowFar);
         _capi.Event.UnregisterRenderer(this, EnumRenderStage.ShadowNear);
-        foreach (var mesh in _meshes)
-            mesh?.Dispose();
+        // the part meshes are MachinePartMeshes', shared with every other rosser; the trunk's are this one's
         DisposeTrunk();
     }
 }
