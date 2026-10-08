@@ -1273,9 +1273,10 @@ a Deal button for one-off trades, the standing in chat, orders and deliveries by
 and leads as odd shelf entries, the side budget squeezed into its money line. The pack's traders
 (`EntitySeraphTrader`, and so `EntityVisitingTrader`) now have a window of their own,
 `Trading/Window/`: `Core/` (`TradeWindowState.cs`, the wire format; `TradeGuard`, `HoldTimer`,
-`LockedStock`, `TradeWindowModel` and `StandingSpeech`; unit-tested in `tests/Trading/Window/`) and
-`Game/` (`TradeWindowSystem`, `GuiDialogSeraphTrade`, its elements, `HoldRingRenderer`,
-`TradeWindowPatches`, `WindowText`). Vanilla's dialog stays for every other trader (story NPCs,
+`LockedStock`, `TradeWindowModel` and `StandingSpeech`, `SellPool`, `WindowLayout` and
+`WindowPlacement`; unit-tested in `tests/Trading/Window/`) and `Game/` (`TradeWindowSystem`,
+`GuiDialogSeraphTrade`, its elements, `HoldRingRenderer`, `TradeWindowPatches`, `ShiftClick`,
+`WindowText`). Vanilla's dialog stays for every other trader (story NPCs,
 vanilla worlds' traders): nothing of it is patched any more.
 
 **Opening.** The dialogue's `opentrade` ("Got anything to trade?") is handled in
@@ -1291,13 +1292,14 @@ closing sends 1212 back. Only that option opens the window.
 
 **Inventory.** `SeraphTraderInventory` is vanilla's `InventoryTrader` (same slots, saved and synced
 the same way, so every economy patch and list keeps working), set before vanilla makes its own
-(`Initialize`, `FromBytes`). Its `ActivateSlot` ignores clicks on the shelves and carts (nothing is
-ever put in a cart by a click) and passes the first selling-cart slot through: that is the window's
-sell slot (36). The selling cart belongs to its owner, the trading player when the window opened
+(`Initialize`, `FromBytes`). Its `ActivateSlot` ignores clicks on the shelves and the buying cart (nothing is
+ever put in it by a click) and passes the four selling-cart slots through: those are the window's
+sell slots (36 to 39), `ItemSlotSell` (`NewSlot`), which take anything but money and delivery
+packages, whether the trader buys it or not (vanilla's `ItemSlotBuying` takes only what it buys). The selling cart belongs to its owner, the trading player when the window opened
 (`OwnerUid`; vanilla's `tradingPlayerUID` is cleared by the walk-away tick before the inventory
 closes): only they may move stacks in it (slot packets from anyone else are rolled back), sell from
-it or send vanilla's deal packet, and shift-click offers only the sell slot. Closing gives what is
-left to the owner instead of dropping it; anyone else closing leaves the carts alone; a new owner
+it or send vanilla's deal packet. Closing gives what is left to the owner, at their feet what does
+not fit (never into the creative black hole, below), instead of dropping it by the trader; anyone else closing leaves the carts alone; a new owner
 returns a previous one's leftovers (or drops them by the trader), and a trader leaving hands them
 back. A buy carries the item and price the player saw and is refused if the shelf changed meanwhile;
 a deal that throws restores the carts, the rest of a sold stack and the side budget.
@@ -1316,15 +1318,27 @@ attribute, as vanilla).
 **The server's side** (`TradeWindowSystem.Handle`, callable directly, which the Atlas scenarios do):
 every request passes `TradeGuard` (the trader alive, the player its trading player, within 7
 squared blocks), then:
-- **Buy and Sell, one unit each, at once** (`EntitySeraphTrader.BuyUnit`, `SellUnit`): the carts
-  are emptied aside, the unit put alone in the buying cart (one trade stack of the shelf slot, with
-  its `ResolvedTradeItem`) or the selling cart (one unit of the sell slot's stack, the rest held
-  back), and vanilla's own `TryBuySell` (internal, by reflection) runs. Everything vanilla's deal
-  did still happens, through the same code: money both ways, stock and demand, the wallet check,
-  the economy's side budget and supply (its `TryBuySell` patches), the map and lead hooks
-  (`ITradeableCollectible.OnTryTrade` and `OnDidTrade`: pending stacks, refunds), then standing
-  (`AfterDeal`), `Dealt` (orders count their goods), the nod, and the inventory broadcast. The rest
-  of a sold stack goes back in the sell slot.
+- **Buy, one unit, at once** (`EntitySeraphTrader.BuyUnit`): the carts are emptied aside, the unit
+  put alone in the buying cart (one trade stack of the shelf slot, with its `ResolvedTradeItem`), and
+  vanilla's own `TryBuySell` (internal, by reflection) runs. Everything vanilla's deal did still
+  happens, through the same code: money both ways, stock, the wallet check, the economy's patches,
+  the map and lead hooks (`ITradeableCollectible.OnTryTrade` and `OnDidTrade`: pending stacks,
+  refunds), then standing (`AfterDeal`), `Dealt` (orders count their goods), the nod, and the
+  inventory broadcast.
+- **Sell, one lot, pooled** (`EntitySeraphTrader.SellLot`, `SellPool`): the four sell slots are valued
+  together, each good at its listed or off-list offer's gears per item, a listed good only as many
+  as its demand takes. A lot's target is the first good's unit price in whole gears (the dearest
+  goods per item first, then by slot), at most the pool's whole gears; items are taken in that order
+  until they are worth the target, and the trader pays the floor of what it took is worth, never
+  more. The rest stays in the slots: two slots of 20 dirt at 28 to the gear sell one gear's worth,
+  where neither alone could. Vanilla's deal sells whole units a cart slot at a time, so this sale
+  does its bookkeeping itself, the same as the deal and the economy's patches: the wallet and the
+  side budget pay their shares (in proportion to what each budget's goods in the lot are worth;
+  either short refuses, `trading-window-trader-broke`), the listed goods' demand drops (a part unit
+  counts whole), the gears go to the player (`SeraphTraderInventory.GiveOrDrop`), the goods' trade
+  hooks run, then supply (`EconomyPatches.RecordSupply`, shared with the deal's postfix), standing
+  and `Dealt` (`Credit`), the nod and the broadcast. Under a whole gear it refuses with the worth so
+  far (`trading-window-sell-under`).
 - Orders and deliveries call the systems' own handlers; a hand-in takes the order's item from
   anywhere in the hotbar and backpack. Mark on map adds a waypoint as a lead does.
 - **Room** (`TradeWindowSystem.HasRoom`, `TradeGuard.Fits`): a buy, and taking a delivery's
@@ -1337,17 +1351,47 @@ squared blocks), then:
   out to the last one): it refuses then, which errs on the safe side. The client's hold loop stops
   at the first refusal, as at any.
 
-**Holding.** No carts and no Deal button: every trade is one unit, made when a hold completes
+**Holding.** No carts and no Deal button: every trade is one lot, made when a hold completes
 (`HoldTimer`, 0.8 s, Carry On's default interact delay). Pressing a good selects it (details below
 the shelves); holding the press buys one unit, and holding on buys the next once the server
 confirmed the last; a refusal stops it until the button is let go, and moving off the good cancels
-it. Selling: the stack goes in the sell slot (an ordinary slot: drag from the inventory), its offer
-shows under it, and the Hold to sell button sells one unit a hold. The ring (`HoldRingRenderer`)
-copies Carry On's hold-to-pick-up ring (its `HudOverlayRenderer`, public domain): light grey, 24 px,
-inner edge at three quarters, sixteen steps clockwise from the top, fading in over 0.2 s and out over
-0.4 s, at the mouse; ortho stage, order 1.05, above the dialogs.
+it. Selling: goods go in the four sell slots (drag, or shift-click, below), what they fetch shows
+under Hold to sell, and each hold sells one lot. The ring (`HoldRingRenderer`) copies Carry On's
+hold-to-pick-up ring (its `HudOverlayRenderer`, public domain): light grey, 24 px times the GUI
+scale, inner edge at three quarters, sixteen steps clockwise from the top, fading in over 0.2 s and
+out over 0.4 s, at the mouse; each confirmed lot flashes it gold and swells it for 0.35 s. Ortho
+stage, order 1.05, after the dialogs, at depth 19000. The first version drew at depth 600 and never
+showed: the game draws each open dialog further forward (`GuiManager.OnRenderFrameGUI` translates
+by every dialog's `ZSize` in turn, with the depth test on), so the trade window under the mouse sat
+in front of 600 and hid it. The ortho stage's modelview is at -19849 and its far plane at 20001, so
+depth runs to about 19848.
 
-**Layout** (the playtest's mockup "A · Tabs"): a header with the trader's name, type and region and
+**Shift-click** (`ShiftClick`, Harmony, both sides: the client predicts, the server acts on the
+click's packet). The playtest lost a delivery package and a stack of gears shift-clicked with the
+window open, in creative. A shift-click runs `PlayerInventoryManager.TryTransferAway`, which offers
+the stack to every inventory the player has open and moves it to the best-weighted slot. The
+trader's inventory took neither money nor goods it does not buy, and a creative player always has
+the creative inventory open (`InventoryPlayerCreative.HasOpened`), whose black hole slot (weight
+0.01) deletes what goes in: with no room in the hotbar (no bags), the stack went there. In survival
+nothing was lost (an Atlas scenario checks both). Now a shift-click on a hotbar or backpack stack
+with the window open moves the whole stack into the first free sell slot, or nothing moves (money,
+packages, every sell slot taken); a shift-click out of a sell slot runs the game's transfer, and
+that, closing and a sale's gears never feed the black hole (`ShiftClick.KeepOutOfBlackHole`, a
+prefix on `InventoryPlayerCreative.GetBestSuitedSlot`).
+
+**Layout** (the playtest's mockup "A · Tabs"; `WindowLayout`, `Flow`). Every block of text is
+measured wrapped to its width with the game's own text measuring (`TextDrawUtil`, what the static
+texts draw with) and the next row starts below the tallest thing in the one before: the playtest's
+fixed heights cut the footer off at the right, ran the Orders intro into the first order with Take
+on top, and ran the Standing tab into the footer. The window recomposes when anything it shows
+changes, never while a mouse button is down (a drag or a hold would lose its mouse-up). Orders,
+Deliveries, the Maps & leads lines and Standing lay out in a scroll area as tall as the screen has
+room for. **Placement** (`WindowPlacement`): the minimap is 254 px at the right top (unless moved),
+and the coordinates HUD sets its own offset below the first other right-top dialog every 250 ms;
+the window is placed with `EnumDialogArea.None` (a right-top window would push the coordinates
+below itself) at the right edge, its tab row below the lowest right-top HUD; with no room there it
+sits left of them. A local render harness (not in the repository) drew every tab with long content
+at several screen sizes and GUI scales with the game's Cairo text code to check it. A header with the trader's name, type and region and
 the player's tier with a bar to the next and the raw numbers ("Regular [310 / 800]"); tabs Trade,
 Orders (n), Deliveries (n), Maps & leads and Standing; a footer with the player's gears, the
 trader's and its side budget ("for goods off her list 21 g"). A feature that is switched off
@@ -1361,8 +1405,11 @@ anyway, hatched (`GuiElementSlotHatch`) with the tier that unlocks it (its `stan
 first tier with `rareStock`). The Standing tab lists the five tiers with their thresholds, the
 current one marked, what it gives against the next, and how to earn more.
 
-**Hover price** (`TradeWindowPatches`, `ItemSlot.GetStackDescription` postfix): while the window is
-open, an item in the player's own inventory says in its tooltip what this trader pays for it (the
+**Prices shown.** Under Hold to sell, short: "Trader pays 1 g per 28" for the good a hold sells
+first, and what everything in the slots comes to, or its worth so far under a whole gear. The
+breakdown is in tooltips (`TradeWindowPatches`, `ItemSlot.GetStackDescription` postfix): over that
+text, each sell slot (or why it does not sell; such a slot is veiled with "doesn't buy this",
+`GuiElementSlotNote`), and, while the window is open, every item in the player's own inventory (the
 list's price, or value × spread × fit × supply and which budget pays) or why not; the client prices
 from the same synced data as the server (see "Everything has a price").
 
@@ -1384,12 +1431,16 @@ brackets after each line ("You're a regular here now, I'd say. [Regular · 310 p
 standing. Without a state (a race, or a patch that did not bind) the file's own line stays.
 
 **Decisions.**
-- One unit per completed hold, holding on for more, rather than a quantity field: one trade is one
-  of vanilla's deals, so each passes every check the deal has, and a refusal (money, side budget,
-  stock) stops at the unit it hits.
-- The deal stays vanilla's (`TryBuySell` on the carts, stashed around it) rather than a copy of it:
-  the economy, maps and orders already hook into it, and anything another mod hooks there applies.
+- One lot per completed hold, holding on for more, rather than a quantity field: a refusal (money,
+  side budget, stock, demand) stops at the lot it hits.
+- A buy stays vanilla's deal (`TryBuySell` on the carts, stashed around it) rather than a copy of
+  it: the economy, maps and orders already hook into it, and anything another mod hooks there
+  applies. A sale is the pooled lot's own (the playtest asked for four sell slots valued together,
+  and vanilla's deal only sells whole units from one cart slot), with the deal's bookkeeping: the
+  economy's supply recording is the same method, standing and orders the same calls.
 - Vanilla's packet 1000 is still honoured for the pack's traders (it credits standing and orders
   as before), though the window never sends it.
-- The window is client-only code over a tested view model; its look has not been checked by a test
-  (Atlas has no client), only its server side.
+- The window is client-only code over a tested view model and a tested layout (`WindowLayout`: no
+  box overlaps or runs past the width, with long text); its look in the client has not been checked
+  by a test (Atlas has no client, and the client will not start without a login), only its server
+  side and the layout, which a local harness also drew with the game's text code.

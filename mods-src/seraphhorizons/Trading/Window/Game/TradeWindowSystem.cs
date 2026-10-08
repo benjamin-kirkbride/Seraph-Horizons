@@ -39,8 +39,8 @@ public sealed class TradeWindowPacket
 /// <list type="bullet">
 /// <item><b>Server</b>: every request (<see cref="TradeRequest"/>) passes <see cref="TradeGuard"/> (the
 /// trading player, next to a live trader) and is handled by the features' own code: buying and
-/// selling one unit through vanilla's deal (<see cref="EntitySeraphTrader.BuyUnit"/>,
-/// <see cref="EntitySeraphTrader.SellUnit"/>), orders (<see cref="OrdersSystem.Accept"/>,
+/// one unit through vanilla's deal (<see cref="EntitySeraphTrader.BuyUnit"/>) and selling
+/// <see cref="EntitySeraphTrader.SellLot"/>, a lot from the four pooled sell slots), orders (<see cref="OrdersSystem.Accept"/>,
 /// <see cref="OrdersSystem.HandIn"/>), deliveries (<see cref="DeliveriesSystem.Begin"/>,
 /// <see cref="DeliveriesSystem.HandIn"/>, a waypoint). The answer (<see cref="TradeResult"/>) and the
 /// window's state (<see cref="BuildState"/>) go back after each, and the state when the window opens
@@ -69,6 +69,7 @@ public class TradeWindowSystem : ModSystem
     private ICoreServerAPI? _sapi;
     private ICoreClientAPI? _capi;
     private Harmony? _harmony;
+    private bool _shiftPatched;
     private readonly Dictionary<long, TradeWindowState> _states = new();
 
     public static TradeWindowSystem? Of(ICoreAPI? api) => api?.ModLoader.GetModSystem<TradeWindowSystem>();
@@ -79,6 +80,8 @@ public class TradeWindowSystem : ModSystem
     {
         _api = api;
         api.Network.RegisterChannel(Channel).RegisterMessageType<TradeWindowPacket>();
+        ShiftClick.Patch(api);
+        _shiftPatched = true;
     }
 
     // ---- Server ----
@@ -136,7 +139,7 @@ public class TradeWindowSystem : ModSystem
             case TradeAction.Buy:
                 return Unit(action, trader.BuyUnit(player, request.Slot, request.Code, request.Price, (shelf, unit) => BeforeBuy(player, trader, shelf, unit)));
             case TradeAction.Sell:
-                return Unit(action, trader.SellUnit(player));
+                return Unit(action, trader.SellLot(player));
             case TradeAction.TakeOrder:
             {
                 if (OrdersSystem.Of(_sapi!) is not { Enabled: true } orders) return TradeResult.Refused(action, "trading-window-off");
@@ -427,6 +430,8 @@ public class TradeWindowSystem : ModSystem
     public override void Dispose()
     {
         _harmony?.UnpatchAll(HarmonyId);
+        if (_shiftPatched) ShiftClick.Unpatch();
+        _shiftPatched = false;
         _harmony = null;
         _states.Clear();
     }

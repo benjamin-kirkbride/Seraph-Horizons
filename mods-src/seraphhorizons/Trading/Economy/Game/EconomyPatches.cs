@@ -173,9 +173,16 @@ public static class EconomyPatches
             }
             return;
         }
+        RecordSupply(trader, __state.Lines);
+    }
+
+    /// <summary>Server: regional supply for a deal that went through (vanilla's, or the trade window's
+    /// pooled sale), and the region's traders re-priced.</summary>
+    public static void RecordSupply(EntitySeraphTrader trader, IEnumerable<DealLine> lines)
+    {
         if (EconomySystem.Of(trader.Api) is not { RegionalSupply: true } economy) return;
         string region = EconomySystem.RegionOf(trader);
-        foreach (var line in __state.Lines)
+        foreach (var line in lines)
         {
             string code = line.Collectible.Code.ToString();
             double weight = economy.SupplyWeight(trader.Api, line.Collectible, line.PricePerItem);
