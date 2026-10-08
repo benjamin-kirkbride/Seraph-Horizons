@@ -1100,8 +1100,8 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   wallet's `WalletTierFor`. `EntitySeraphTrader.Restock` resolves the list at that tier and with that
   tier's `rareStock` (`IStandingSource.UnlocksOfTier`). A stranger therefore sees what a trusted
   customer unlocked until the first restock after that customer has been away 14 days; prices and
-  map precision are still the stranger's own, and leads past the nearest camp are refused to them at
-  the deal. `EconomySystem.Reprice` resolves the list at the top tier with rare stock, so every entry
+  map precision are still the stranger's own, and the settlement lead is refused to them at the
+  deal (camp leads are per buyer, off the shelf). `EconomySystem.Reprice` resolves the list at the top tier with rare stock, so every entry
   a shelf may hold is priced.
 - **Rare stock.** `"rare": true` on a list entry (`TradeEntry.Rare`): shelved only when the shelf
   tier's `rareStock` is on (trusted and partner). Marked on three selling entries per list (the
@@ -1115,14 +1115,15 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
 
 ## Maps and leads (#455)
 
-`Trading/Maps/`: `Core/` (`MapPrices.cs`, `MapOffers.cs`, `LeadTargets.cs`, `MapMarks.cs`; unit-tested in
-`tests/Trading/Maps/`), `Game/` (`MapsSystem`, `MapTradeHooks`, `ItemTraderLead`, `MapOfferAttrs`, `MapMarksSystem`),
+`Trading/Maps/`: `Core/` (`MapPrices.cs`, `MapOffers.cs`, `LeadTargets.cs`, `MapMarks.cs`,
+`CampLeads.cs`, `LeadBook.cs`; unit-tested in `tests/Trading/Maps/`), `Game/` (`MapsSystem`,
+`MapTradeHooks`, `ItemTraderLead`, `MapOfferAttrs`, `MapMarksSystem`),
 `config/trading/map-prices.json`, item `seraphhorizons:traderlead`. Switch `TraderMaps`.
 
 - **Special entries.** A list entry with `"kind"` (`oremap`, `gravelmap`, `lead`) is not goods: at
   each restock `TradingSystem.Offers` (set by `MapsSystem`) expands it into offers, in place in the
   core (`TradeOffers.Expand`, `Trading/Core/TradeOffers.cs`); with no expander (switch off) it is
-  left out. Offers marked optional (the further leads) give way first when the core is over 16
+  left out. Offers marked optional (the settlement lead) give way first when the core is over 16
   slots; the rotating slots shrink to what is left. Every list sells `gravelmap` and `lead`, the
   prospector `oremap` too; their `price` in the list is a placeholder. To keep two rotating slots at
   the top tier (`SchematicTests`), the carpenter's sticks and aged crate, the mechanic's rope and
@@ -1132,11 +1133,59 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   the kind, cell, camp type and position. One ore map offer per metal, the nearest deposit of
   `DepositService.Candidates(x, z, 5000)` that is unsold and not being sold, at most four metals
   (`MapOffers.PickOre`); the gravel map the nearest such field of `GravelFields(x, z, 2000)`. Deposits
-  in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game). Leads
-  (`LeadTargets.Pick`): camp cells and types come from the grid, sites from the camp registry (the
-  placed camp, else the spot it waits for next; open and failed cells are skipped): the nearest
-  camp for everyone; with the shelf tier's `mapsToTraders`, the nearest prospector, one camp two or
-  three cells out, and the 8 km settlement cell's centre.
+  in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game). The
+  `lead` entry expands to the 8 km settlement cell's centre (`LeadTargets.Settlement`) when the
+  shelf tier has `mapsToTraders`, and to nothing else: camp leads are not shelf offers.
+- **Camp leads** (the user's goal: "you can always buy a map to a trader within some radius that you
+  don't already have"; radius and count grow with standing, so learning from local traders is
+  cheaper than buying the whole map from one). Per buyer, so off the shelf: the shared shelf has 16
+  slots, is stocked with no buyer, and a partner's eight would have crowded out the goods.
+  `MapsSystem.CampLeadsFor(player, trader)` builds a `LeadBuyer` and asks `CampLeads.Pick`:
+  - *Candidates*: every grid cell whose camp could be within the tier's radius
+    (`CampLeads.CellsAround`, one cell more than the reach), its site from the registry (the placed
+    camp, else the spot it waits for next; cells with no spot left, and cells a sale found no camp
+    in, `_noCamp`, are skipped), distance from the trader. The trader's own cell never.
+  - *Have*: the camps the buyer has, `camp:x,z` targets with a remembered live marker at any
+    precision (`MapMarksSystem.MarkedKeys`), carried as a lead (`MapMarksSystem.Held`, pending
+    ones included) or being drawn for them (`_drawing`).
+  - *Tiers* (`map-prices.json` `campLeads.tiers`, by standing tier code; standing off is a
+    stranger): known 2 within 3 km, regular 3 within 5, trusted 5 within 8, partner 8 within 12, the
+    nearest they lack; if they have no prospector within the radius, the first slot is the nearest
+    prospector they lack there (`CampLeadOffer.Prospector`). Recomputed every time, so a lead bought
+    is "had" and the next-nearest fills the slot.
+  - *A stranger* (a tier not listed): one lead per trader per group, ever (`GroupLeads.StrangerMaps`),
+    to the nearest camp they lack that the group has not visited (`GroupLeads.Visited`, fed by
+    `EntitySeraphTrader.Met` through `MapsSystem.OnMet` for grid camps), within `strangerReach`
+    (8 km). So they chain from camp to camp and cannot map a region from one trader.
+  - *Price* (`CampLeadRules.Price`): `base` 2 × 2^(distance / `doublingDistance` 2500) ×
+    `perBought` 2 ^ (leads the group bought from this trader, `GroupLeads.Bought`, never reset) ×
+    the tier's discount (0.85, 0.7, 0.55, 0.4), rounded, at least 1. The discount replaces
+    standing's buy price factor (the economy's modifiers are not applied): one factor for one
+    thing, set where the rest of the lead's price is.
+  - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector),
+    `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab lists them under
+    the shelf's offers with a Buy button (`TradeAction.BuyLead`, the cell as `Code`, the price seen
+    as `Price`). The Standing tab's tier lines say "maps to n traders within r km"
+    (`TierView.LeadMaps`, `LeadRadius`) or, for a stranger, "one map onward".
+  - *The buy* (`MapsSystem.BuyCampLead`): refused, nothing taken, when the cell is not among the
+    buyer's offers at that price (the why key, or `trading-window-changed`), one of theirs is still
+    being drawn, their bags have no room (`TradeWindowSystem.HasRoom`) or they lack the gears. Paid
+    from their gears into the trader's wallet, counted by standing as a deal of that many gears; a
+    pending lead ("being drawn") goes to their bags at once, and the cell is settled by
+    `ResolveCamp` (its next spots' chunks loaded until the camp is placed or none is left, as
+    `/sh trade tp` does). Placed: the group's count here goes up (and a stranger's lead is spent),
+    and the pending lead becomes the lead to where the camp stands. None: the gears come back from
+    the trader, the cell joins `_noCamp` (for the server's run) and the next camp takes its place.
+  - *Saved* (`LeadBook`, savegame key `seraphhorizons:leads`, `{"version": 1, "groups": {...}}`):
+    per group key `player:<uid>` and `company:<group uid>` (standing's company), maps bought per
+    trader id, traders that sold the stranger's lead, camps visited. Written to the player's key and
+    their company's, read as the most of them (the higher count, either's stranger lead, the union
+    of visits), as standing pools. A newer version than the code knows, or a save that does not
+    parse, starts empty with a warning; a world from before has none.
+  - *Admin*: `/sh trade leads [player] [trader]`, the history per group key and the trader's offers
+    to the player with prices (`--json` too).
+  - Leads of the old kinds (`prospector`, `far`) in players' bags still read; old camp lead offers
+    left on a shelf until its next restock show sold out and are refused.
 - **Per player.** At a restock offers are priced for nobody (precision 1). When the trading player
   changes (`TradingPlayerPriced`), every offer is re-priced and an ore map offer's precision set to
   `MapOffers.MaxPrecision(mapTier)` (0 → 1, 1 → 2, 2+ → 3), times standing's factor through the
@@ -1144,12 +1193,11 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
 - **The sale** goes through the game's `ITradeableCollectible` (vanilla's locator maps do the same):
   `ItemOreMap` implements it through its static `Hooks` (set to `MapTradeHooks`), `ItemTraderLead`
   directly. `OnTryTrade` (server, before money) refuses a sold-out offer, a deposit sold or reserved
-  meanwhile (setting the shelf's stock to 0), an ore map above the buyer's precision, and a further
-  lead without the buyer's own `mapsToTraders`; it notes the price. `OnDidTrade` gets the stack about
+  meanwhile (setting the shelf's stock to 0), an ore map above the buyer's precision, and the
+  settlement lead without the buyer's own `mapsToTraders`; it notes the price. `OnDidTrade` gets the stack about
   to be handed over: it is marked pending (a token) and the sale settles. Ore and gravel maps:
   reserve the deposit, `DepositService.Verify` (which may generate up to nine columns), then
-  `MapIssuer.Issue` (marks it sold). Leads to camps: the camp registry, generating the cell's pending
-  spot chunk until it is placed or failed, as `/sh trade tp` does; settlement leads at once. If that
+  `MapIssuer.Issue` (marks it sold). Settlement leads at once (camp leads: above). If that
   finishes inside the deal, the stack handed over is the map; otherwise the pending stack ("being
   checked") is replaced in the buyer's inventory when it does (handed over anew if it moved), with a
   chat line. A failed sale takes the pending stack back and refunds the gears from the trader.
@@ -1181,7 +1229,8 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   more (hotbar, backpack, mouse, character; pending stacks too, by their offer attributes). Only a
   copy as precise counts, so a more precise map of a target marked roughly is sold (an upgrade);
   reading it replaces the rougher marker. Ore deposits and gravel fields are sold once anyway, so in
-  practice this refuses a second lead to the same camp, or one to a camp already marked or met.
+  practice this refused a second lead to the same camp, or one to a camp already marked or met;
+  camp leads now leave such camps out of the offers instead.
 - **A deposit gone since the restock**: a shelf keeps its offers until the next restock, but a
   gravel or ore cell whose spots were all tried meanwhile has none left (`DepositService.Candidate`
   null). The sale used to take the gears, `Verify` found nothing, and the pending sheet was taken
@@ -1198,9 +1247,10 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   `traderlead`, `game:locatormap`) refuse them off-list, and no list buys them
   (`TradingMapsScenarios` checks the quote).
 - **Known limits.** The size class priced is the last measurement (unsurveyed until someone verifies
-  the deposit); the deal's own verify may find it different, and the map says what it found. A lead
-  to a pending cell points at its waiting spot on the shelf; only the sale settles where the camp
-  is. Settlement grounds are reserved but empty until settlements exist (#468). The pending sheet
+  the deposit); the deal's own verify may find it different, and the map says what it found. A camp
+  lead to a pending cell is offered at its waiting spot's distance and price; only the sale settles
+  where the camp is. A cell `_noCamp` skips is forgotten at a restart (its spots are all tried
+  then, so it is skipped anyway unless a second chance places it later). Settlement grounds are reserved but empty until settlements exist (#468). The pending sheet
   reads as a blank map if the server stops before the sale settles; the deposit is not sold then.
 
 ### Edits to shared files (for the integrator)

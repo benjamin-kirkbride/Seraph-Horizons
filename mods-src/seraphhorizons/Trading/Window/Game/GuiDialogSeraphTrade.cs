@@ -222,10 +222,14 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                         f.Element("maps", 0, slots.GridWidth(Math.Min(8, ids.Length)), slots.GridHeight(ids.Length, 8));
                         f.Next(6);
                     };
-                var lines = ids.Length == 0 ? [L("trading-window-maps-none")] : ids.Select(MapLine).ToList();
+                var lines = ids.Length == 0 && _state.LeadOffers.Count == 0 ? [L("trading-window-maps-none")] : ids.Select(MapLine).ToList();
                 string? leads = LeadsLockedText();
                 string details = Details();
-                scrollBuild = f => WindowLayout.MapLines(f, lines, leads, details);
+                // Camp leads: this player's own, off the shelf, each with its price and a Buy button.
+                var campLeads = _state.LeadOffers.Select((row, i) =>
+                    new ActionLine(T(TradeWindowModel.LeadOfferLine(row)), [(L("trading-window-buy"), "lead-" + i, i)])).ToList();
+                string? note = TradeWindowModel.LeadOffersNote(_state) is { } n ? T(n) : null;
+                scrollBuild = f => WindowLayout.MapLines(f, lines, leads, details, campLeads, note);
                 break;
             }
             default:
@@ -441,6 +445,12 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         if (key.StartsWith("dtake-", StringComparison.Ordinal)) return () => Request(TradeAction.TakeDelivery);
         if (key.StartsWith("dhandin-", StringComparison.Ordinal)) return () => Request(TradeAction.HandInDelivery);
         if (key.StartsWith("dmark-", StringComparison.Ordinal)) return () => Request(TradeAction.MarkDelivery, id: id);
+        if (key.StartsWith("lead-", StringComparison.Ordinal) && _state.LeadOffers.ElementAtOrDefault(id) is { } lead)
+        {
+            string cell = lead.Cell;
+            int price = lead.Price;
+            return () => RequestLead(cell, price);
+        }
         return () => true;
     }
 
@@ -651,6 +661,12 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
             _ring.Visible = _hold.State is HoldState.Holding or HoldState.Waiting;
             _ring.Progress = (float)_hold.Progress;
         }
+    }
+
+    private bool RequestLead(string cell, int price)
+    {
+        System?.Request(_trader.EntityId, TradeAction.BuyLead, code: cell, price: price);
+        return true;
     }
 
     private bool Request(TradeAction action, int slot = 0, int id = 0)

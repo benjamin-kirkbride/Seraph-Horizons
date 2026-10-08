@@ -275,6 +275,17 @@ public static class TradeWindowModel
         new("trading-window-map-ore", new Text("oremap-metal-" + metal), sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass),
             F(Math.Round(distance)), precision);
 
+    /// <summary>A camp lead offered to this player: the camp's type, how far and which way from the
+    /// trader, and the price; the prospector kept for first says so.</summary>
+    public static Text LeadOfferLine(LeadOfferRow row) =>
+        new(row.Prospector ? "trading-window-lead-offer-prospector" : "trading-window-lead-offer", TypeName(row.Type),
+            F(Math.Round(row.Distance)), Direction(row.Dx, row.Dz), row.Price);
+
+    /// <summary>Under the camp leads: why there are none, or how buying here raises the next price.</summary>
+    public static Text? LeadOffersNote(TradeWindowState state) =>
+        state.LeadOffers.Count == 0 ? state.LeadsWhy is { } why ? new Text(why) : null
+        : new Text("trading-window-leads-bought", state.LeadsBought);
+
     public static Text LeadLine(string? leadKind, string type, double distance, Text direction) =>
         LeadTargets.TryParse(leadKind, out var kind) && kind == LeadKind.Settlement
             ? new Text("trading-window-map-lead-settlement", F(Math.Round(distance)), direction)
@@ -301,7 +312,9 @@ public static class TradeWindowModel
         if (sw.Maps)
         {
             facts.Add(new Text("trading-window-fact-maps", t.MapPrecision));
-            if (u.MapsToTraders) facts.Add(new Text("trading-window-fact-leads"));
+            facts.Add(t.LeadMaps > 0 ? new Text("trading-window-fact-leads", t.LeadMaps, F(Math.Round(t.LeadRadius / 1000.0, 1)))
+                : new Text("trading-window-fact-leads-stranger"));
+            if (u.MapsToTraders) facts.Add(new Text("trading-window-fact-settlement"));
         }
         if (u.RareStock) facts.Add(new Text("trading-window-fact-rare"));
         return facts;
