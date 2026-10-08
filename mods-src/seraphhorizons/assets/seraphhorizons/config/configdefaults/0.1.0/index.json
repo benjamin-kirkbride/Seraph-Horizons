@@ -744,6 +744,13 @@
         "vanilla_structures_spawn_chance"
       ],
       "value": "1.5"
+    },
+    {
+      "file": "primitivesurvival5.json",
+      "path": [
+        "SpawnMultiplierLivingDead"
+      ],
+      "value": "0.0"
     }
   ],
   "renames": []
