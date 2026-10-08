@@ -24,7 +24,8 @@ namespace SeraphHorizons.PackTests;
 /// and the dialogue it is opened from. One unit bought moves gears, stock and standing; one unit sold
 /// off the list is paid from the side budget and the rest of the stack stays (and goes back to the
 /// player when the window closes); requests from afar, from another player or to a trader gone are
-/// refused; an order taken and handed in; a delivery taken and marked on the map; every pack trader's
+/// refused, and so is a buy the player's bags have no room for, before any gears move; an order taken
+/// and handed in; a delivery taken and marked on the map, due a game day a km; every pack trader's
 /// dialogue (BetterRuins' two included) has the standing option, and the reply carries the player's
 /// numbers. Atlas' default world, offsets on (±20, ±55) and (±55, ±20).
 /// </summary>
@@ -86,6 +87,66 @@ public partial class TradingScenarios
         shelf.TradeItem.Stock = 0;
         Assert.Equal("trading-window-soldout", Window(sp, trader, Req(TradeAction.Buy, slot)).Key);
         shelf.TradeItem.Stock = saved;
+        trader.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_buy_with_full_bags_is_refused_before_any_gears_move()
+    {
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", -55, 20);
+        var sp = await Trading(Customer(), trader);
+        var inv = trader.Inventory;
+        int slot = Enumerable.Range(0, 16).First(i => inv.GetSellingSlot(i) is { Itemstack: { } s, TradeItem: { Stock: > 1, Price: > 0 and <= 30 } t }
+                                                      && s.Attributes.GetString("offer") is null && s.Collectible.MaxStackSize > t.Stack.StackSize);
+        var shelf = inv.GetSellingSlot(slot);
+        var good = shelf.Itemstack;
+        int unit = shelf.TradeItem.Stack.StackSize, price = shelf.TradeItem.Price, stock = shelf.TradeItem.Stock;
+        string code = good.Collectible.Code.ToString();
+        output.WriteLine($"buying {unit} × {code} for {price}, stack limit {good.Collectible.MaxStackSize}");
+
+        // Every slot that takes something holds a full stack of gears.
+        var gear = W.GetItem(new AssetLocation("game:gear-rusty"))!;
+        var slots = new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName }
+            .SelectMany(n => sp.InventoryManager.GetOwnInventory(n) ?? Enumerable.Empty<ItemSlot>()).ToList();
+        foreach (var s in slots)
+        {
+            var full = new ItemStack(gear, gear.MaxStackSize);
+            if (!s.CanHold(new DummySlot(full)))
+            {
+                // A slot that takes only some things (the offhand takes torches): a full stack of the
+                // good itself, which has no room left either.
+                full = good.Clone();
+                full.StackSize = good.Collectible.MaxStackSize;
+                if (!s.CanHold(new DummySlot(full))) continue;
+            }
+            s.Itemstack = full;
+            s.MarkDirty();
+        }
+        int gears = Gears(sp), wallet = inv.GetTraderAssets(), carried = OrdersSystem.Carried(sp, code);
+        var result = Window(sp, trader, Req(TradeAction.Buy, slot));
+        Assert.False(result.Ok);
+        Assert.Equal(TradeGuard.NoRoomKey, result.Key);
+        Assert.Equal(gears, Gears(sp));
+        Assert.Equal(wallet, inv.GetTraderAssets());
+        Assert.Equal(stock, shelf.TradeItem.Stock);
+        Assert.Equal(carried, OrdersSystem.Carried(sp, code));
+        Assert.Empty(W.GetEntitiesAround(sp.Entity.Pos.XYZ, 4, 4, e => e is EntityItem));
+
+        // Room for exactly one lot on a stack of the same good: that counts.
+        var partial = slots.First(s => s.Itemstack?.Collectible == gear);
+        var some = good.Clone();
+        some.StackSize = good.Collectible.MaxStackSize - unit;
+        partial.Itemstack = some;
+        partial.MarkDirty();
+        gears = Gears(sp);
+        Assert.True(Window(sp, trader, Req(TradeAction.Buy, slot)).Ok);
+        Assert.Equal(gears - price, Gears(sp));
+        Assert.Equal(good.Collectible.MaxStackSize, partial.StackSize);
+        Assert.Empty(W.GetEntitiesAround(sp.Entity.Pos.XYZ, 4, 4, e => e is EntityItem));
+        // Full again: refused.
+        Assert.Equal(TradeGuard.NoRoomKey, Window(sp, trader, Req(TradeAction.Buy, slot)).Key);
+        Assert.Equal(gears - price, Gears(sp));
         trader.Die(EnumDespawnReason.Removed);
     }
 
@@ -302,7 +363,7 @@ public partial class TradingScenarios
             var state = WindowSystem.BuildState(sp, trader);
             var offer = state.DeliveryOffer;
             Assert.NotNull(offer);
-            output.WriteLine($"offer: to the {offer!.ToType}, {offer.Distance:0} m, {offer.Hours:0.#} h, deposit {offer.Deposit}, fee {offer.Fee}");
+            output.WriteLine($"offer: to the {offer!.ToType}, {offer.Distance:0} m, {offer.Days:0.##} days, deposit {offer.Deposit}, fee {offer.Fee}");
             Assert.Equal("cook", offer.ToType);
             Assert.Equal("trading-window-dir-e", TradeWindowModel.Direction(offer.Dx, offer.Dz).Key);
 
@@ -319,6 +380,11 @@ public partial class TradingScenarios
             Assert.Equal(TraderIds.Camp(cell.X, cell.Z), d.To);
             Assert.Equal(gears - offer.Deposit, Gears(sp));
             Assert.NotNull(PackageSlot(sp, d.Id));
+            // A game day a km of the way (1.2 km: 1.2 days), never under a day; then a day's grace.
+            Assert.Equal(Math.Max(1, d.Distance / 1000), d.Deadline - d.CreatedDay, 6);
+            Assert.Equal(DeliveryPlanner.DeadlineDays(d.Distance), offer.Days, 6);
+            Assert.Equal(d.Deadline + DeliveryPlanner.GraceDays, d.GraceUntil, 6);
+            Assert.True(d.Deadline - d.CreatedDay > 1.1, $"{d.Deadline - d.CreatedDay} days for {d.Distance:0} m");
             // One at a time from this sender: the offer is gone and the delivery listed.
             var after = WindowSystem.BuildState(sp, trader);
             Assert.Null(after.DeliveryOffer);
@@ -382,6 +448,8 @@ public partial class TradingScenarios
         // Every line the window and the reply can show is in the lang file.
         state.DeliveryOffer = new DeliveryOfferRow { ToType = "cook" };
         state.Deliveries.Add(new DeliveryRow { ToType = "cook", HoursLeft = -1 });
+        state.Deliveries.Add(new DeliveryRow { ToType = "cook", HoursLeft = 30, DaysLeft = 1.25 });
+        state.Deliveries.Add(new DeliveryRow { ToType = "cook", HoursLeft = 3, DaysLeft = 0.125 });
         state.Deliveries.Add(new DeliveryRow { ToType = "cook", ForHere = true, Carried = true });
         state.Orders.Add(new OrderRow { Item = "game:ingot-iron" });
         state.Orders.Add(new OrderRow { Item = "game:ingot-iron", Mine = true });
@@ -404,6 +472,12 @@ public partial class TradingScenarios
         texts.Add(TradeWindowModel.OreMapLine("iron", "large", 10, 3));
         texts.Add(TradeWindowModel.LeadLine("camp", "cook", 10, TradeWindowModel.Direction(1, 1)));
         texts.Add(TradeWindowModel.LeadLine("settlement", "", 10, TradeWindowModel.Direction(-1, 0)));
+        foreach (var status in Enum.GetValues<MapOfferStatus>())
+            if (TradeWindowModel.MapStatusText(status, TradeWindowModel.TierName("trusted")) is { } why) texts.Add(why);
+        texts.Add(new Text(TradeGuard.NoRoomKey));
+        foreach (string key in new[] { "trading-maps-error-gone", "trading-maps-error-marked", "trading-maps-error-held", "trading-maps-met-marked",
+                     "map-waypoint-exact", "map-waypoint-precision", "map-waypoint-lead", "package-info-due-days" })
+            texts.Add(new Text(key));
         foreach (var tier in state.Standing.Tiers)
         {
             state.Standing.TierIndex = state.Standing.Tiers.IndexOf(tier);

@@ -98,7 +98,7 @@ public static class DeliveryCommands
         if (api.World.AllOnlinePlayers.FirstOrDefault(p => p.PlayerName.Equals(rest[2], StringComparison.OrdinalIgnoreCase)) is not IServerPlayer player)
             return TextCommandResult.Error(L("trading-orders-noplayer", rest[2]));
         var rolls = Enumerable.Range(0, 3).Select(_ => api.World.Rand.NextDouble()).ToArray();
-        var offer = DeliveryPlanner.Offer(from.Value, to.Value, 1, system.GameDaysPerRealMinute, rolls);
+        var offer = DeliveryPlanner.Offer(from.Value, to.Value, 1, rolls);
         if (system.Begin(player, offer, out var d) is { } error) return TextCommandResult.Error(L(error, offer.Deposit));
         return TextCommandResult.Success(L("trading-deliveries-created", AdminLine(d!, api.World.Calendar.TotalDays)));
     }

@@ -3,7 +3,7 @@ using SeraphHorizons.Mod.Trading.Standing.Core;
 
 namespace SeraphHorizons.Tests.Trading.Deliveries;
 
-/// <summary>Deliveries (#454): destinations, the deadline conversion, deposit and fee, the state
+/// <summary>Deliveries (#454): destinations, the deadline, deposit and fee, the state
 /// machine and which standing call each outcome makes.</summary>
 public class DeliveriesTests
 {
@@ -13,26 +13,31 @@ public class DeliveriesTests
     private static readonly TraderSite Far = new("camp:3,0", "farmer", 6000, 0);
     private static readonly TraderSite Next = new("camp:9,9", "mason", 100, 100);
 
-    /// <summary>The default calendar: 60 × 0.5 game seconds a real second, 24-hour days.</summary>
-    private static readonly double Default = DeliveryPlanner.GameDaysPerRealMinute(60, 0.5, 24);
-
     [Fact]
-    public void A_game_day_is_48_real_minutes_by_default()
+    public void The_deadline_is_a_game_day_a_km_and_never_under_a_day()
     {
-        Assert.Equal(1 / 48.0, Default, 9);
-        // Twice the calendar speed, twice the game days a minute.
-        Assert.Equal(2 / 48.0, DeliveryPlanner.GameDaysPerRealMinute(60, 1, 24), 9);
-        Assert.Equal(0, DeliveryPlanner.GameDaysPerRealMinute(60, 0.5, 0));
+        // 2 km: two game days.
+        Assert.Equal(2, DeliveryPlanner.DeadlineDays(2000), 9);
+        Assert.Equal(4.5, DeliveryPlanner.DeadlineDays(4500), 9);
+        // Next door: still a whole day.
+        Assert.Equal(DeliveryPlanner.MinDays, DeliveryPlanner.DeadlineDays(300));
+        Assert.Equal(1, DeliveryPlanner.DeadlineDays(1000), 9);
+        // The offer carries it, and a delivery made from it keeps it.
+        var offer = DeliveryPlanner.Offer(Smith, Cook, 1, [0.5, 0.5, 0.5]);
+        Assert.Equal(2, offer.Days, 9);
+        var d = new DeliveryBook().Create(offer, "p", "P", 7);
+        Assert.Equal(9, d.Deadline, 9);
+        Assert.Equal(9 + DeliveryPlanner.GraceDays, d.GraceUntil, 9);
     }
 
     [Fact]
-    public void The_deadline_is_the_walk_with_half_again_as_slack()
+    public void A_saved_delivery_keeps_its_deadline()
     {
-        // 2 km: 10 minutes' walk, 15 with slack, 15/48 of a day.
-        Assert.Equal(15, DeliveryPlanner.RealMinutes(2000), 9);
-        Assert.Equal(15 / 48.0, DeliveryPlanner.DeadlineDays(2000, Default), 9);
-        // Never under five minutes.
-        Assert.Equal(DeliveryPlanner.MinMinutes, DeliveryPlanner.RealMinutes(100));
+        // Saved under the old rule (15 real minutes for 2 km, 0.31 of a day): loaded as it was.
+        const string json = """{"next":2,"deliveries":[{"id":1,"from":"camp:0,0","to":"camp:1,0","distance":2000,"player":"p","created":10,"deadline":10.3125,"grace":11.3125,"state":"Active"}]}""";
+        var d = DeliveryBook.FromJson(json).Get(1)!;
+        Assert.Equal(10.3125, d.Deadline, 9);
+        Assert.Equal(11.3125, d.GraceUntil, 9);
     }
 
     [Fact]
@@ -67,7 +72,7 @@ public class DeliveriesTests
     private static (DeliveryBook Book, Delivery D) Started(double today = 10)
     {
         var book = new DeliveryBook();
-        var offer = DeliveryPlanner.Offer(Smith, Cook, 1, Default, [0.5, 0.5, 0.5]);
+        var offer = DeliveryPlanner.Offer(Smith, Cook, 1, [0.5, 0.5, 0.5]);
         return (book, book.Create(offer, "p", "P", today));
     }
 
@@ -75,7 +80,7 @@ public class DeliveriesTests
     public void On_time_returns_the_deposit_and_fee_with_standing_at_both_ends()
     {
         var (book, d) = Started();
-        Assert.Equal(10 + 15 / 48.0, d.Deadline, 9);
+        Assert.Equal(12, d.Deadline, 9);
         Assert.Equal(d.Deadline + DeliveryPlanner.GraceDays, d.GraceUntil, 9);
         Assert.Null(book.HandIn(d.Id, "q", Cook.Id, 10.1));
         Assert.Null(book.HandIn(d.Id, "p", Smith.Id, 10.1));
@@ -128,7 +133,9 @@ public class DeliveriesTests
         Assert.Equal(DeliveryState.Late, book.HandIn(d.Id, "p", Cook.Id, 10.06)!.To);
 
         var (book2, d2) = Started();
-        book2.Advance(1);
+        // Two days to deliver and one of grace: three simulated days leave it late, a fourth fails it.
+        for (int i = 0; i < 3; i++) book2.Advance(1);
+        Assert.Empty(book2.Tick(10));
         book2.Advance(1);
         Assert.Equal(DeliveryState.Failed, book2.Tick(10).Single().To);
         Assert.Null(book2.Fail(d2.Id, 10));

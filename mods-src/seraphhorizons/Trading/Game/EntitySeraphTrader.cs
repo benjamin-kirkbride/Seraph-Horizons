@@ -53,6 +53,10 @@ public class EntitySeraphTrader : EntityTrader
     /// for that player (#452, #455) are set here, and the window's state is sent.</summary>
     public static event Action<IServerPlayer, EntitySeraphTrader>? TradeOpened;
 
+    /// <summary>Raised on the server when a player meets the trader: a conversation with it starts
+    /// (the right-click) or its trade window opens. Maps (#455) mark its camp on the player's map.</summary>
+    public static event Action<IServerPlayer, EntitySeraphTrader>? Met;
+
     // Vanilla's deal (internal): the pack's window makes every trade through it, so the economy's
     // patches on it, the trade hooks of maps and leads and vanilla's own checks all apply.
     private static readonly System.Reflection.MethodInfo? TryBuySellMethod = AccessTools.Method(typeof(InventoryTrader), "TryBuySell");
@@ -86,7 +90,9 @@ public class EntitySeraphTrader : EntityTrader
             if (GetBehavior<EntityBehaviorConversable>() is { } talk)
                 talk.OnControllerCreated += controller =>
                 {
-                    if (controller.PlayerEntity?.Player is IServerPlayer player) TradeWindowSystem.Of(Api)?.SendState(player, this, forDialogue: true);
+                    if (controller.PlayerEntity?.Player is not IServerPlayer player) return;
+                    TradeWindowSystem.Of(Api)?.SendState(player, this, forDialogue: true);
+                    Met?.Invoke(player, this);
                 };
         }
     }
@@ -225,7 +231,8 @@ public class EntitySeraphTrader : EntityTrader
     /// <summary>The player buys one trade unit of selling slot <paramref name="slot"/> (0–15), goods or
     /// a map or lead offer: put in the buying cart alone and dealt through vanilla's deal, as its
     /// dialog's Buy button would, the window's sell slot kept out of it.</summary>
-    public UnitDeal BuyUnit(IServerPlayer player, int slot, string? expectCode = null, int? expectPrice = null)
+    public UnitDeal BuyUnit(IServerPlayer player, int slot, string? expectCode = null, int? expectPrice = null,
+        System.Func<ItemSlotTrade, ItemStack, UnitDeal?>? check = null)
     {
         if (Inventory is null || slot < 0 || slot > 15) return new UnitDeal(EnumTransactionResult.Failure, "trading-window-noslot");
         var shelf = Inventory.GetSellingSlot(slot);
@@ -235,13 +242,19 @@ public class EntitySeraphTrader : EntityTrader
             || expectPrice is int price && price != shelf.TradeItem.Price)
             return new UnitDeal(EnumTransactionResult.Failure, "trading-window-changed");
         if (shelf.TradeItem.Stock <= 0) return new UnitDeal(EnumTransactionResult.TraderNotEnoughSupplyOrDemand, "trading-window-soldout");
+        var stack = unit.Clone();
+        stack.ResolveBlockOrItem(World);
+        // The caller's checks, before any gears move (room for it, a map the player has already).
+        if (check?.Invoke(shelf, stack) is { } refused)
+        {
+            Sync();
+            return refused;
+        }
         var stash = Stash();
         var cart = Inventory.GetBuyingCartSlot(0);
         EnumTransactionResult result;
         try
         {
-            var stack = unit.Clone();
-            stack.ResolveBlockOrItem(World);
             cart.Itemstack = stack;
             cart.TradeItem = shelf.TradeItem;
             result = Deal(player);
@@ -435,6 +448,7 @@ public class EntitySeraphTrader : EntityTrader
     {
         (Inventory as SeraphTraderInventory)?.TakeOwnership(player, World, Pos.XYZ);
         TradeOpened?.Invoke(player, this);
+        Met?.Invoke(player, this);
         TradeWindowSystem.Of(Api)?.SendState(player, this);
     }
 
