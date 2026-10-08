@@ -638,6 +638,59 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
         double z4 = trunk.Pos.Z;
         await World.Ticks(10);
         Assert.InRange(trunk.Pos.Z - z4, -0.1, 0.1);
+
+        // Letting go mid-drive leaves the trunk where it was driven to. The let-go snap was the
+        // driver's client's interpolation (reset by EntityTrunk.NoteLocalControl), client-only and
+        // not seen here; on the server the position goes on from where the drive left it, with no
+        // jump, whether a client predicted the drive or the server ticked it. (In this scenario
+        // rather than one of its own: the class's world takes 16 players, and players never leave.)
+        async Task LetGo(string what)
+        {
+            var before = trunk.Pos.XYZ;
+            player.Entity.TryUnmount();
+            Assert.False(trunk.Driven);
+            double jump = 0, drift = 0;
+            var last = before;
+            for (int i = 0; i < 15; i++)
+            {
+                await World.Ticks(1);
+                var now = trunk.Pos.XYZ;
+                jump = Math.Max(jump, now.DistanceTo(last));
+                drift = Math.Max(drift, now.DistanceTo(before));
+                last = now;
+            }
+            output.WriteLine($"{what}: let go at {before}, largest step after {jump:F3}, furthest {drift:F3}");
+            Assert.Null(trunk.Seatable!.Controller);
+            Assert.True(jump < 0.3, $"{what}: the trunk jumped {jump:F2} after letting go");
+            Assert.True(drift < 0.3, $"{what}: the trunk went {drift:F2} from where it was let go");
+        }
+
+        // predicted, with W: the played client ticks it and reports it, and lets go mid-drive
+        Click(trunk, player, -1);
+        Assert.True(trunk.Driven);
+        keys = Keys(player);
+        double z5 = trunk.Pos.Z;
+        keys.Forward = true;
+        for (int i = 0; i < 30; i++)
+        {
+            physics.OnReceivedClientPos(0);
+            physics.Step(1 / 60f);
+            physics.Step(1 / 60f);
+            await World.Ticks(1);
+        }
+        Assert.Same(player.Entity, trunk.Seatable!.Controller);
+        Assert.True(z5 - trunk.Pos.Z > 0.5, $"the predicted drive did not move the trunk: {z5:F2} -> {trunk.Pos.Z:F2}");
+        await LetGo("predicted");
+
+        // the server's fallback, with W, let go mid-drive
+        Click(trunk, player, -1);
+        Assert.True(trunk.Driven);
+        keys = Keys(player);
+        double z6 = trunk.Pos.Z;
+        keys.Forward = true;
+        await World.Until(() => !trunk.ClientPredicting && z6 - trunk.Pos.Z > 1, 120);
+        Assert.Null(trunk.Seatable!.Controller);
+        await LetGo("server-driven");
         trunk.Die(EnumDespawnReason.Removed);
     }
 
@@ -713,7 +766,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
             var p = player.Entity.Pos;
             var box = new Box((float)(p.X - trunk.Pos.X + cb.X1), (float)(p.Y - trunk.Pos.Y + cb.Y1), (float)(p.Z - trunk.Pos.Z + cb.Z1),
                               (float)(p.X - trunk.Pos.X + cb.X2), (float)(p.Y - trunk.Pos.Y + cb.Y2), (float)(p.Z - trunk.Pos.Z + cb.Z2));
-            return TrunkBoxes.Turned(trunk.TypeClass, trunk.Pos.Yaw).Any(b => TrunkPush.Overlaps(b, box));
+            return TrunkPush.Inside(TrunkPush.Footprint.Of(trunk.TypeClass, trunk.Pos.Yaw), box);
         }
         await World.Ticks(2);
         Log($"insider at {player.Entity.Pos.XYZ}, inside {Inside()}");

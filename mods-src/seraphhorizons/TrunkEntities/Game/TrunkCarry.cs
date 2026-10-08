@@ -377,6 +377,11 @@ public static class TrunkCarry
         Resolve(api) is { Back: { } back } && block.BlockBehaviors.Concat<CollectibleBehavior>(block.CollectibleBehaviors).Where(IsCarryable)
             .Any(b => AccessTools.Property(b.GetType(), "Slots")?.GetValue(b) is { } slots && HasBack(slots, back));
 
+    /// <summary>The stack in <paramref name="entity"/>'s Carry On hands as Carry On holds it (for a
+    /// trunk, the block shown, <see cref="Shown"/>), or null. For diagnostics.</summary>
+    public static ItemStack? InHandsAsHeld(Entity entity) =>
+        CarriedIn(entity) is { } carried && _members!.Stack.DeclaringType!.IsInstanceOfType(carried) ? _members.Stack.GetValue(carried) as ItemStack : null;
+
     /// <summary>The stack <paramref name="entity"/> carries on its back, or null.</summary>
     public static ItemStack? OnBack(Entity entity) =>
         Manager(entity.Api) is { } manager && _members!.Back is { } back

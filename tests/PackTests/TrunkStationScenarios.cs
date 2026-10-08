@@ -32,6 +32,36 @@ public partial class WoodworkingScenarios
 
     private static Vec3d Middle(BlockPos cell) => new(cell.X + 0.5, cell.Y, cell.Z + 0.5);
 
+    /// <summary>An empty hand held on the station at <paramref name="pos"/> until its take ends
+    /// (<see cref="StationTake"/>); returns how long it held, ms.</summary>
+    private async Task<long> HoldTake(Woodshop shop, BlockPos pos)
+    {
+        var sp = Server(shop.P);
+        var controls = sp.Entity.ServerControls;
+        long start = W.ElapsedMilliseconds;
+        controls.RightMouseDown = true;
+        Assert.True(shop.Click(pos));
+        await World.Until(() => !StationTake.Holding(sp), 600);
+        controls.RightMouseDown = false;
+        return W.ElapsedMilliseconds - start;
+    }
+
+    /// <summary>An empty hand on the station at <paramref name="pos"/> starts a take's hold, let go
+    /// at once: the hold ends and nothing is taken.</summary>
+    private async Task LetGoEarly(Woodshop shop, BlockPos pos)
+    {
+        var sp = Server(shop.P);
+        var controls = sp.Entity.ServerControls;
+        controls.RightMouseDown = true;
+        Assert.True(shop.Click(pos));
+        Assert.True(StationTake.Holding(sp));
+        Assert.Null(TrunkCarry.Carried(shop.P));
+        controls.RightMouseDown = false;
+        await World.Until(() => !StationTake.Holding(sp), 600);
+        await World.Ticks(40);
+        Assert.Null(TrunkCarry.Carried(shop.P));
+    }
+
     [AtlasScenario(TimeoutMs = 180_000)]
     public async Task A_running_rosser_takes_a_trunk_entity_from_its_infeed_cells_only()
     {
@@ -173,7 +203,12 @@ public partial class WoodworkingScenarios
         Assert.True(left < 8);
         await shop.Collect();
         shop.Holding((ItemStack?)null);
-        Assert.True(shop.Click(pos));
+        // after the pick-up hold, as off the ground; let go early, it stays
+        await LetGoEarly(shop, pos);
+        Assert.Equal(left, shop.LogsOn(pos));
+        long held = await HoldTake(shop, pos);
+        output.WriteLine($"sawhorse take held {held} ms");
+        Assert.True(held >= 500);
         var back = TrunkCarry.Take(sp);
         Assert.NotNull(back);
         Assert.Equal(left, Trunks.StoredLogs(back, W));
@@ -209,38 +244,21 @@ public partial class WoodworkingScenarios
 
         // an empty hand held on the rack takes the top one into the hands after the pick-up hold,
         // as off the ground; let go early, it stays
-        var controls = sp.Entity.ServerControls;
-        controls.RightMouseDown = true;
-        Assert.True(shop.Click(pos));
-        Assert.True(RackTake.Holding(sp));
+        await LetGoEarly(shop, pos);
         Assert.Equal(4, logging.TrunkCount(Rack()));
-        Assert.Null(TrunkCarry.Carried(shop.P));
-        controls.RightMouseDown = false;
-        await World.Until(() => !RackTake.Holding(sp), 600);
-        await World.Ticks(40);
-        Assert.Equal(4, logging.TrunkCount(Rack()));
-        Assert.Null(TrunkCarry.Carried(shop.P));
 
-        async Task TakeOff()
-        {
-            controls.RightMouseDown = true;
-            Assert.True(shop.Click(pos));
-            await World.Until(() => !RackTake.Holding(sp), 600);
-            controls.RightMouseDown = false;
-        }
-        long start = W.ElapsedMilliseconds;
-        await TakeOff();
-        output.WriteLine($"rack take held {W.ElapsedMilliseconds - start} ms for {TrunkCarry.PickUpSeconds(World.Api, BlockOf("loggingmod:treetrunk-oak-xs-no-north"))} s");
-        Assert.True(W.ElapsedMilliseconds - start >= 500);
+        long held = await HoldTake(shop, pos);
+        output.WriteLine($"rack take held {held} ms for {TrunkCarry.PickUpSeconds(World.Api, BlockOf("loggingmod:treetrunk-oak-xs-no-north"))} s");
+        Assert.True(held >= 500);
         Assert.Equal(4, Trunks.StoredLogs(TrunkCarry.Carried(shop.P)!, W));
         Assert.Equal(3, logging.TrunkCount(Rack()));
         // carrying it, a click puts it back
         Assert.True(shop.Click(pos));
         Assert.Equal(4, logging.TrunkCount(Rack()));
         Assert.Null(TrunkCarry.Carried(shop.P));
-        await TakeOff();
+        await HoldTake(shop, pos);
         Assert.Equal(4, Trunks.StoredLogs(TrunkCarry.Take(sp)!, W));
-        await TakeOff();
+        await HoldTake(shop, pos);
         Assert.Equal(3, Trunks.StoredLogs(TrunkCarry.Take(sp)!, W));
         Assert.Equal(2, logging.TrunkCount(Rack()));
         Assert.DoesNotContain(await shop.Collect(), kv => kv.Key.StartsWith("loggingmod:treetrunk"));
@@ -277,8 +295,10 @@ public partial class WoodworkingScenarios
         Assert.False(Empty());
         Assert.Equal("oak", Trunks.Wood(TrunkCarry.Take(sp)!, W));
 
-        // empty hands: into them
-        Assert.True(shop.Click(pos));
+        // empty hands: into them after the pick-up hold; let go early, it stays
+        await LetGoEarly(shop, pos);
+        Assert.False(Empty());
+        Assert.True(await HoldTake(shop, pos) >= 500);
         Assert.True(Empty());
         var back = TrunkCarry.Take(sp);
         Assert.NotNull(back);
