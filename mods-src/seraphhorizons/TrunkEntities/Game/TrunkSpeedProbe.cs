@@ -21,7 +21,15 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// server controls) × the block under the feet's and the block at the feet's
 /// <c>WalkSpeedMultiplier</c> (÷ 2.5 with feet in liquid; the blocks left out in creative) ×
 /// <c>EntityPlayer.walkSpeed</c> (the blended <c>walkspeed</c> stat, copied each tick) × the sneak
-/// factor again when it cannot stand up. Each of those is printed.
+/// factor again when it cannot stand up. Each of those is printed. A player driving a trunk
+/// (mounted on its <see cref="TrunkDriveSeat"/>) does not walk: the trunk moves at its own speed
+/// (<see cref="TrunkDrive.Speed"/>) and the seat carries the player along, so the dump then also
+/// prints the driven trunk and everything that sets its speed.
+/// <para>The client's chat reply has its braces doubled (<see cref="ClientChat"/>): the client's
+/// command handler shows a result's message through <c>Lang.Get</c>, which runs it through
+/// <c>string.Format</c>, and the dump's JSON (<c>{ "base": 1 }</c>) is no format string. The
+/// server's handler sends a message with a line break as it is, so the server's reply is left
+/// alone. The logged copies are the dump as it is.</para>
 /// </summary>
 public class TrunkSpeedProbe : ModSystem
 {
@@ -38,7 +46,7 @@ public class TrunkSpeedProbe : ModSystem
                     return TextCommandResult.Error("no player entity");
                 string dump = Dump(api, api.World.Player, entity);
                 api.Logger.Notification("[seraphhorizons] .trunkspeed (client):\n{0}", dump);
-                return TextCommandResult.Success(dump);
+                return TextCommandResult.Success(ClientChat(dump));
             });
     }
 
@@ -57,10 +65,20 @@ public class TrunkSpeedProbe : ModSystem
                         return TextCommandResult.Error("no player entity");
                     string dump = Dump(api, player, entity);
                     api.Logger.Notification("[seraphhorizons] /sh trunkspeed for {0} (server):\n{1}", player.PlayerName, dump);
+                    // Sent as it is: the server's handler (ChatCommandApi.Execute for a player)
+                    // translates and formats a status message only when it is a single line, and
+                    // the dump is many, so doubled braces would show doubled.
                     return TextCommandResult.Success(dump);
                 })
             .EndSubCommand();
     }
+
+    /// <summary><paramref name="text"/> as a client command's result message. The client's handler
+    /// (<c>ChatCommandApi.Execute</c> for an <c>IClientPlayer</c>) shows it as
+    /// <c>Lang.Get(message)</c>, which looks it up as a key (none matches, so the text itself) and
+    /// formats it with <c>string.Format</c> and no arguments, logging an error for a lone brace.
+    /// Doubled braces format back to single ones.</summary>
+    public static string ClientChat(string text) => text.Replace("{", "{{").Replace("}", "}}");
 
     private static string F(double v) => v.ToString("0.####", CultureInfo.InvariantCulture);
 
@@ -91,7 +109,7 @@ public class TrunkSpeedProbe : ModSystem
         sb.AppendLine($"Controls: MovespeedMultiplier {F(c.MovespeedMultiplier)}, Sneak {c.Sneak}, Sprint {c.Sprint}, TriesToMove {c.TriesToMove}, IsFlying {c.IsFlying}, WalkVector {F(c.WalkVector.Length())}");
         sb.AppendLine($"ServerControls: MovespeedMultiplier {F(s.MovespeedMultiplier)}, Sneak {s.Sneak}, Sprint {s.Sprint}, TriesToMove {s.TriesToMove}, IsFlying {s.IsFlying}");
         sb.AppendLine($"WorldData: MoveSpeedMultiplier {F(player.WorldData?.MoveSpeedMultiplier ?? float.NaN)}, game mode {player.WorldData?.CurrentGameMode}");
-        sb.AppendLine($"OnGround {entity.OnGround}, FeetInLiquid {entity.FeetInLiquid}, PrevFrameCanStandUp {entity.PrevFrameCanStandUp}, mounted {entity.MountedOn != null}");
+        sb.AppendLine($"OnGround {entity.OnGround}, FeetInLiquid {entity.FeetInLiquid}, PrevFrameCanStandUp {entity.PrevFrameCanStandUp}, mounted on {entity.MountedOn?.GetType().Name ?? "nothing"}");
         sb.AppendLine($"GlobalConstants: BaseMoveSpeed {F(GlobalConstants.BaseMoveSpeed)}, OverallSpeedMultiplier {F(GlobalConstants.OverallSpeedMultiplier)}, SneakSpeedMultiplier {F(GlobalConstants.SneakSpeedMultiplier)}, SprintSpeedMultiplier {F(GlobalConstants.SprintSpeedMultiplier)}");
 
         // the blocks GetWalkSpeedMultiplier reads
@@ -103,6 +121,10 @@ public class TrunkSpeedProbe : ModSystem
         sb.AppendLine($"block at feet {inside?.Code}: WalkSpeedMultiplier {F(inside?.WalkSpeedMultiplier ?? float.NaN)} ({(below == at ? "same cell, not counted" : "counted")})");
         double multiplier = entity.GetWalkSpeedMultiplier(0.3);
         sb.AppendLine($"GetWalkSpeedMultiplier(0.3): {F(multiplier)}; × MovespeedMultiplier: {F(multiplier * c.MovespeedMultiplier)}");
+
+        // driving a trunk
+        if (entity.MountedOn is TrunkDriveSeat seat)
+            DumpDrive(sb, seat);
 
         // Carry On
         if (TrunkCarry.Available(api))
@@ -128,6 +150,33 @@ public class TrunkSpeedProbe : ModSystem
         // hands
         sb.AppendLine($"active hotbar: {player.InventoryManager?.ActiveHotbarSlot?.Itemstack?.Collectible?.Code?.ToString() ?? "empty"}; offhand: {entity.LeftHandItemSlot?.Itemstack?.Collectible?.Code?.ToString() ?? "empty"}");
         return sb.ToString().TrimEnd();
+    }
+
+    // The trunk a player drives: the speed is the trunk's (EntityTrunk.BeforeCollision sets its
+    // horizontal motion outright from the seat's keys, TrunkDrive.Speed and Turn eased over
+    // TrunkDrive.EaseSeconds; then the step-up and the collision), not the player's walk.
+    private static void DumpDrive(StringBuilder sb, TrunkDriveSeat seat)
+    {
+        if (seat.Entity is not EntityTrunk trunk)
+        {
+            sb.AppendLine($"driving: a trunk seat on {seat.Entity?.Code?.ToString() ?? "nothing"}, not a trunk");
+            return;
+        }
+        int logs = trunk.Logs;
+        bool afloat = trunk.Afloat;
+        double speed = TrunkDrive.Speed(logs, afloat), turn = TrunkDrive.Turn(logs, afloat);
+        var motion = trunk.Pos.Motion;
+        sb.AppendLine($"driving trunk entity {trunk.EntityId} ({trunk.Code}): {trunk.Trunk?.Collectible?.Code?.ToString() ?? "no trunk stack"}, {logs} logs, class {trunk.Class}, boxes {trunk.TypeClass}, drive end {trunk.DriveEnd}");
+        sb.AppendLine($"afloat {afloat} (Swimming {trunk.Swimming}, FeetInLiquid {trunk.FeetInLiquid}), OnGround {trunk.OnGround}");
+        string floor = afloat ? $", afloat at least {F(TrunkDrive.WaterFloorShare * TrunkDrive.RaftBlocksPerSecond)}" : "";
+        sb.AppendLine($"TrunkDrive.Speed({logs}, {afloat}): {F(speed)} blocks/s, {F(speed / TrunkDrive.WalkBlocksPerSecond)} of the walk's {F(TrunkDrive.WalkBlocksPerSecond)} (land share {F(TrunkDrive.Share(logs, TrunkDrive.HeavySpeedShare))}: 1 at 1 log down to {F(TrunkDrive.HeavySpeedShare)} at {TrunkDrive.HeavyLogs}{floor})");
+        sb.AppendLine($"TrunkDrive.Turn({logs}, {afloat}): {F(turn)} rad/s");
+        var keys = seat.Controls;
+        sb.AppendLine($"seat controls: Forward {keys.Forward}, Backward {keys.Backward}, Left {keys.Left}, Right {keys.Right}");
+        sb.AppendLine($"eased drive on this side: along {F(trunk.DriveAlong)} blocks/s, turn {F(trunk.DriveTurn)} rad/s (time constant {F(TrunkDrive.EaseSeconds)} s; 0 on a side that does not tick the trunk)");
+        sb.AppendLine($"trunk motion: {F(Math.Sqrt(motion.X * motion.X + motion.Z * motion.Z) * 60)} blocks/s horizontal, {F(motion.Y * 60)} vertical");
+        string predicting = trunk.Api?.Side == EnumAppSide.Server ? $", client predicting {trunk.ClientPredicting}" : "";
+        sb.AppendLine($"physics ticked by: {trunk.Seatable?.Controller?.Code?.ToString() ?? "no controller (the server)"}{predicting}");
     }
 
     private static string Short(string s) => s.Length > 160 ? s[..160] + "…" : s;
