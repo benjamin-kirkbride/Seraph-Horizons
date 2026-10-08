@@ -2299,6 +2299,19 @@ A JSON patch, `patches/sawmillblade-durability.json`, replaces each value of the
 without Immersive Woodworking, `SawmillBladeDurability.DisablePatches` empties it in `Start`, before
 the game's patch loader runs, as for the tun patches.
 
+### The blueprint makes 4 support chains, not 64 (`FewerSupportChains`)
+
+Better Ruins (`betterruins`, 0.6.4). Its Machinist's Mechanism Blueprint
+(`recipes/grid/schematic-mechanical/mechanical.json`, kept on crafting) makes support chains from a
+solder bar and one or two nails and strips, with a soldering iron: `game:supportchain-twonew` (`/26`)
+and `-fournew` (`/27`) from iron, `game:supportchain-two` (`/28`) and `-four` (`/29`) from black
+bronze. Each gave 64, a stack for next to nothing; they give 4.
+
+A JSON patch, `patches/supportchains-betterruins.json`, `"side": "server"`, replaces the four
+recipes' output quantity by index. With the switch off, or without Better Ruins,
+`SupportChains.DisablePatches` empties it in `Start`, before the game's patch loader runs, as for
+the tun patches. The switch that counts is the server's.
+
 ### The woodworking machines are iron work (`IronWoodworkingMachines`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill and chopper take any metal and
@@ -3523,6 +3536,11 @@ it fails after a mod is added or updated, it lists the foods to give a value in 
 Immersive Woodworking's durability (`DurableSawmillBlades`); with the switch off,
 `SwitchesOffScenarios` requires Immersive Woodworking's own. The rest of its scenarios are the
 bucking sawmill's (`BuckingSawmill/README.md`).
+
+`tests/PackTests/SupportChainsScenarios.cs` (Atlas) requires one grid recipe from Better Ruins'
+mechanical blueprint for each of the four support chains, giving 4 (`FewerSupportChains`); with the
+switch off, `SwitchesOffScenarios` requires each giving 64. When it fails after a Better Ruins
+update, check the file's order (the patch addresses `/26` to `/29`).
 
 `tests/PackTests/RosserScenarios.cs` (Atlas) is the rosser's (`Rosser/README.md`, "Tests"): loading,
 placing and breaking on every facing; assembly, and the creative shortcut fitting one stage per
