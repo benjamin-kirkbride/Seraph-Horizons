@@ -592,6 +592,16 @@ public partial class TradingScenarios
         foreach (var status in Enum.GetValues<MapOfferStatus>())
             if (TradeWindowModel.MapStatusText(status, TradeWindowModel.TierName("trusted")) is { } why) texts.Add(why);
         texts.Add(new Text(TradeGuard.NoRoomKey));
+        // Camp leads (off the shelf): their rows, the notes under them, and the buy's answers.
+        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = 1, Price = 3 }));
+        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Distance = 2000, Dz = -1, Price = 3, Prospector = true }));
+        texts.Add(TradeWindowModel.LeadOffersNote(new TradeWindowState { LeadOffers = [new LeadOfferRow()], LeadsBought = 1 })!);
+        foreach (string why in new[] { "trading-window-leads-strangerused", "trading-window-leads-none" })
+            texts.Add(TradeWindowModel.LeadOffersNote(new TradeWindowState { LeadsWhy = why })!);
+        foreach (string key in new[] { "trading-window-buy", "trading-maps-lead-bought", "trading-maps-error-drawing", "trading-maps-error-gears",
+                     "trading-maps-checking-lead", "trading-admin-leads-noplayer", "trading-admin-leads-head", "trading-admin-leads-group",
+                     "trading-admin-leads-trader" })
+            texts.Add(new Text(key));
         foreach (string key in new[] { "trading-maps-error-gone", "trading-maps-error-marked", "trading-maps-error-held", "trading-maps-met-marked",
                      "map-waypoint-exact", "map-waypoint-precision", "map-waypoint-lead", "package-info-due-days" })
             texts.Add(new Text(key));

@@ -4,6 +4,7 @@ namespace SeraphHorizons.Mod.Trading.Maps.Core;
 /// <c>assets/seraphhorizons/config/trading/map-prices.json</c> (#455): what traders charge for ore
 /// maps, gravel maps and leads, and how far they look. An ore map's price is by size class (the
 /// deposit's last measurement, or <c>unsurveyed</c>) and precision (1–3), times the metal's factor.
+/// Leads to camps are <see cref="CampLeads"/>.
 /// </summary>
 public sealed class MapPriceTable
 {
@@ -15,10 +16,6 @@ public sealed class MapPriceTable
     public int GravelRadius { get; set; } = 2000;
     /// <summary>At most this many ore map offers (one per metal, nearest first).</summary>
     public int MaxOreOffers { get; set; } = 4;
-    /// <summary>How many camp cells away (Chebyshev) leads reach.</summary>
-    public int LeadCells { get; set; } = 3;
-    /// <summary>Leads to further camps (two or more cells away) on a shelf, at most.</summary>
-    public int FarLeads { get; set; } = 1;
 
     /// <summary>Gears by size class (<c>unsurveyed</c>, <c>small</c>, <c>medium</c>, <c>large</c>),
     /// one per precision 1, 2, 3.</summary>
@@ -26,8 +23,10 @@ public sealed class MapPriceTable
     /// <summary>Times the ore price, by metal (1 when not listed).</summary>
     public Dictionary<string, double> MetalFactor { get; set; } = new();
     public double Gravel { get; set; } = 6;
-    /// <summary>Gears by lead kind: <c>camp</c>, <c>prospector</c>, <c>far</c>, <c>settlement</c>.</summary>
-    public Dictionary<string, double> Leads { get; set; } = new();
+    /// <summary>Gears for a lead to the nearest settlement ground (behind <c>mapsToTraders</c>).</summary>
+    public double Settlement { get; set; } = 6;
+    /// <summary>Leads to other trader camps: per tier, and their price (<see cref="CampLeadRules"/>).</summary>
+    public CampLeadRules CampLeads { get; set; } = new();
 
     public int OrePrice(string metal, string? sizeClass, int precision)
     {
@@ -38,7 +37,7 @@ public sealed class MapPriceTable
 
     public int GravelPrice() => Round(Gravel);
 
-    public int LeadPrice(LeadKind kind) => Round(Leads.GetValueOrDefault(LeadTargets.Code(kind), 2));
+    public int SettlementPrice() => Round(Settlement);
 
     public static int Round(double gears) => Math.Max(1, (int)Math.Round(gears, MidpointRounding.AwayFromZero));
 
@@ -52,10 +51,9 @@ public sealed class MapPriceTable
             if (row.Length != 3) problems.Add($"ore '{size}' has {row.Length} prices, not one per precision 1–3");
             if (row.Any(p => p <= 0)) problems.Add($"ore '{size}' has a price of 0 or less");
         }
-        foreach (var kind in Enum.GetValues<LeadKind>())
-            if (!Leads.ContainsKey(LeadTargets.Code(kind))) problems.Add($"no price for '{LeadTargets.Code(kind)}' leads");
+        if (Settlement <= 0) problems.Add("a settlement lead price of 0 or less");
         if (OreRadius <= 0 || GravelRadius <= 0) problems.Add("a radius of 0 or less");
-        if (LeadCells < 1) problems.Add("leadCells under 1");
+        problems.AddRange(CampLeads.Problems());
         return problems;
     }
 }

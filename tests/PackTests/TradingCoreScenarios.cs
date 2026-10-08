@@ -122,13 +122,15 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         foreach (var s in selling.Concat(buying)) output.WriteLine($"{(s.IsBuyingSlot ? "buys" : "sells")} {s.Itemstack!.Collectible.Code} x{s.Itemstack.StackSize} stock {s.TradeItem.Stock} at {s.TradeItem.Price}");
 
         bool Same(ItemSlotTrade slot, TradeEntry e) => slot.Itemstack!.Collectible.Code.Equals(Trading.Lists!.ItemFor(e).Resolve(W).Stack.Collectible.Code);
-        // The whole core that needs no player supply is on the shelf, and nothing player-supplied.
-        foreach (var e in resolved.Selling.Core.Where(e => !e.PlayerSupplied))
+        // The whole core that needs no player supply is on the shelf, and nothing player-supplied. The
+        // lead entry shelves only the settlement lead, from the tier with mapsToTraders (camp leads
+        // are per buyer, off the shelf), so a stranger's shelf has none.
+        foreach (var e in resolved.Selling.Core.Where(e => !e.PlayerSupplied && e.Kind != "lead"))
             Assert.Contains(selling, s => Same(s, e));
         Assert.DoesNotContain(selling, s => resolved.Selling.Core.Concat(resolved.Selling.Rotating).Any(e => e.PlayerSupplied && Same(s, e)));
         Assert.All(selling, s => Assert.Contains(resolved.Selling.Core.Concat(resolved.Selling.Rotating), e => Same(s, e)));
         Assert.All(selling.Concat(buying), s => Assert.True(s.TradeItem.Stock > 0 && s.TradeItem.Price > 0));
-        Assert.True(selling.Count >= resolved.Selling.Core.Count(e => !e.PlayerSupplied) + 1, "no rotating goods");
+        Assert.True(selling.Count >= resolved.Selling.Core.Count(e => !e.PlayerSupplied && e.Kind != "lead") + 1, "no rotating goods");
         foreach (var e in resolved.Buying.Core)
             Assert.Contains(buying, s => Same(s, e));
         Assert.All(buying, s => Assert.Contains(resolved.Buying.Core.Concat(resolved.Buying.Rotating), e => Same(s, e)));
@@ -143,7 +145,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // A restock (as the weekly one does) keeps the core and stays within the list.
         entity.Restock(0.5f);
         selling = entity.Inventory.SellingSlots.Where(s => s.Itemstack != null).ToList();
-        foreach (var e in resolved.Selling.Core.Where(e => !e.PlayerSupplied))
+        foreach (var e in resolved.Selling.Core.Where(e => !e.PlayerSupplied && e.Kind != "lead"))
             Assert.Contains(selling, s => Same(s, e));
         entity.Die(EnumDespawnReason.Removed);
     }
