@@ -2,7 +2,7 @@
 
 Part of the Seraph Horizons mod (`../README.md`): a rung of the pipe ladder (unified pipes, `../Pipes/`).
 A smith's **mandrel station** of the 1700s hammers one lead or copper **hollow section** (vanilla's
-chute section, `game:chutesection-lead` or `-copper`: an 8 × 8 square box, 8 long, 1-voxel walls) down
+chute section, named the tube blank in game, `game:chutesection-lead` or `-copper`: an 8 × 8 square box, 8 long, 1-voxel walls) down
 onto an iron mandrel into a pipe-sized tube, which comes off as two **pipe sections**
 (`seraphhorizons:pipesection-{lead,copper}`: a square tube 6 across, 1-voxel walls, 8 long, half a
 block). One hollow makes two sections; a section with solder makes a straight pipe.

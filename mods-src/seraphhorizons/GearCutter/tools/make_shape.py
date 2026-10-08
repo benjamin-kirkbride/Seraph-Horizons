@@ -57,7 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
-from machinegen.geometry import IDENT, El, flatten, rotate, translate  # noqa: E402
+from machinegen.geometry import IDENT, TRANSPARENT, El, flatten, rotate, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
@@ -1051,8 +1051,9 @@ def build_index():
 def build_oiler():
     """The oiler's reservoir, the frame's: a sight-feed glass cup between a brass base and cap, with a
     needle valve, on a brass bracket on the cross-head's front face over the cutter; its oil (the
-    liquid stretches with the rig's `oil`, the MachineOil tank's fill). The glass has no pane on the
-    operator's (east) side: the block is drawn in one opaque pass, so a pane there would hide the level.
+    liquid stretches with the rig's `oil`, the MachineOil tank's fill). The glass is in the Transparent
+    render pass (an opaque one draws its faint texture solid and hides the oil), so the level shows
+    through all four panes.
     The bracket runs down past the base to carry the injection valve (build_valve)."""
     (x0, x1), (y0, y1), (z0, z1) = OILER["x"], OILER["y"], OILER["z"]
     g = 0.15
@@ -1064,12 +1065,16 @@ def build_oiler():
         box([x0, y0, z0], [x1, y1, z0 + g], "fr_oiler_glass_n", "frame", "glass"),
         box([x0, y0, z1 - g], [x1, y1, z1], "fr_oiler_glass_s", "frame", "glass"),
         box([x0, y0, z0 + g], [x0 + g, y1, z1 - g], "fr_oiler_glass_w", "frame", "glass"),
+        box([x1 - g, y0, z0 + g], [x1, y1, z1 - g], "fr_oiler_glass_e", "frame", "glass"),
     ]
     xm, zm = (x0 + x1) / 2, (z0 + z1) / 2
     out += disc("y", (xm, 0.0, zm), y1 + 0.45, OVERARM_Y[1] - 0.25, 0.12, "fr_oiler_needle", "frame", "steel", k=2)
     out += disc("y", (xm, 0.0, zm), OVERARM_Y[1] - 0.25, OVERARM_Y[1], 0.4, "fr_oiler_knob", "frame", "brass", k=4)
     # the oil: authored empty (OIL_EMPTY tall), stretched up by the rig's `oil`
     out.append(box([x0 + g + 0.02, y0, z0 + g + 0.02], [x1 - g - 0.02, y0 + OIL_EMPTY, z1 - g - 0.02], "oillevel_oil", "oillevel", "oil"))
+    for el in out:
+        if el.name.startswith("fr_oiler_glass"):
+            el.render_pass = TRANSPARENT
     return out
 
 

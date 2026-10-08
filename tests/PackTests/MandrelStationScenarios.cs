@@ -240,7 +240,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, station.HollowClass);
         Assert.Equal(Forging.LeadHollow, station.Hollow?.Collectible.Code.ToString());
         Assert.Equal(2, CutterClick(player, pos, CutterItem(Forging.LeadHollow, 2))?.StackSize);
-        Assert.Contains("A lead hollow section on the mandrel: 0 blows struck, 0% forged", MandrelInfo(station, player));
+        Assert.Contains("A lead tube blank on the mandrel: 0 blows struck, 0% forged", MandrelInfo(station, player));
 
         // nothing moves without blows; each blow, from the stump or the ghost, is a sixth
         await World.Ticks(10);

@@ -99,6 +99,8 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(DuplicateRecipes.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             DisablePatches(SawmillBladeDurability.DisablePatches);
+        if (!(Config(api).FewerSupportChains && SupportChains.Applies(api)))
+            DisablePatches(SupportChains.DisablePatches);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
             DisablePatches(WoodworkingMachineCosts.DisablePatches);
         _debarkedTrunks = Config(api).Rosser && DebarkedTrunks.Applies(api) && DebarkedTrunks.Bind(api);
@@ -457,6 +459,10 @@ public class SeraphHorizonsConfig
     /// <summary>Immersive Woodworking: its sawmill blade kits last three times as long, in the
     /// bucking sawmill and in its own plank sawmill (server side; off means its own durabilities).</summary>
     public bool DurableSawmillBlades { get; set; } = true;
+
+    /// <summary>Better Ruins: its Machinist's Mechanism Blueprint makes 4 support chains a craft,
+    /// not 64 (server side; off means its own 64).</summary>
+    public bool FewerSupportChains { get; set; } = true;
 
     /// <summary>Immersive Woodworking: the sawmill's and the chopper's frames and parts take iron,
     /// meteoric iron or steel, and far more nails and strips (off means its own recipes).</summary>

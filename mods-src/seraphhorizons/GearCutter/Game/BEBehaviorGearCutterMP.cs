@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.BuckingSawmill;
+using SeraphHorizons.Mod.Machines;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent.Mechanics;
@@ -22,8 +23,12 @@ public class BEBehaviorGearCutterMP : BEBehaviorMPConsumer
         base.Initialize(api, properties);
     }
 
-    public override float GetResistance() =>
-        (Blockentity as BEGearCutterGhost)?.Cutter is { Complete: true }
-            ? GearCutterSystem.Of(Api).Config.Resistance
-            : BEBehaviorMillMP.IncompleteResistance;
+    public override float GetResistance()
+    {
+        if ((Blockentity as BEGearCutterGhost)?.Cutter is not { Complete: true } cutter)
+            return BEBehaviorMillMP.IncompleteResistance;
+        float resistance = GearCutterSystem.Of(Api).Config.Resistance;
+        // remembered for the block info's load line, never multiplied
+        return cutter.Oiling is { } oil ? Oil.Asked(oil, resistance, cutter, dryLoad: false) : resistance;
+    }
 }

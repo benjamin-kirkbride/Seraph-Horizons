@@ -34,8 +34,8 @@ public static partial class RecipeSection
         die["isTool"] = true;
         die["toolDurabilityCost"] = b.DieWear;
         var ingredients = new JArray(Def(k.Hollow.Code.ToString(), "item", 1));
-        foreach (var (template, _) in b.Kept)
-            ingredients.Add(Def(template, "item", 1, "kept"));
+        foreach (var (template, _, count) in b.Kept)
+            ingredients.Add(Def(template, "item", count, "kept"));
         int dieAt = ingredients.Count;
         ingredients.Add(die);
         int oilAt = ingredients.Count;
@@ -45,8 +45,8 @@ public static partial class RecipeSection
 
         // (new JArray(JArray) would copy the inner array, not nest it)
         var stacks = new JArray { new JArray(Stack(ctx, k.Hollow, 1)) };
-        foreach (var (_, items) in b.Kept)
-            stacks.Add(new JArray(items.Select(i => Stack(ctx, i, 1))));
+        foreach (var (_, items, count) in b.Kept)
+            stacks.Add(new JArray(items.Select(i => Stack(ctx, i, count))));
         stacks.Add(new JArray(k.Dies.Select(d => Stack(ctx, d, 1))));
         stacks.Add(new JArray(b.Oils.Select(o => Stack(ctx, o.Item, litres / o.LitresPerItem, litres))));
         stacks.Add(b.Frame != null ? new JArray(Stack(ctx, b.Frame, 1)) : new JArray());

@@ -450,6 +450,8 @@ public partial class SharedWorldScenarios
         FillCutterOil(cutter, 0);
         Assert.Equal(oiledLoad, mp.GetResistance());
         Assert.Contains("No oil: the next gear breaks the cutter kit", CutterInfo(cutter, player));
+        Assert.Contains($"Load: {OilText.Load(oiledLoad)} kN", CutterInfo(cutter, player));
+        Assert.DoesNotContain("Dry:", CutterInfo(cutter, player));
         Assert.Null(CutterClick(player, pos, CutterItem(GearCut.Blank)));
         Assert.True(cutter.Cut(RestOfGear(cutter)));
         Assert.False(cutter.Parts.Has(GearCutterStage.Cutter));

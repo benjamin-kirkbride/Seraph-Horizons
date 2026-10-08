@@ -184,6 +184,15 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>FewerSupportChains</c>: Better Ruins' blueprint makes its own 64 chains a craft.</summary>
+    [AtlasScenario]
+    public void Fewer_support_chains_off_the_blueprint_makes_64()
+    {
+        Assert.True(Off("FewerSupportChains"));
+        foreach (var code in SupportChains.Codes)
+            Assert.Equal(SupportChains.Shipped, Assert.Single(SupportChainRecipes.Of(W, code)).Output.Quantity);
+    }
+
     /// <summary><c>FlatFellingWear</c>: nothing is patched, and felling a tree that leaves a trunk
     /// costs the axe the game's one durability per log.</summary>
     [AtlasScenario(TimeoutMs = 180_000)]

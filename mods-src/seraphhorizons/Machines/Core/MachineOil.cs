@@ -282,6 +282,13 @@ public static class OilText
     /// empty one reads 0, never -0.</summary>
     public static string Points(double points) => points <= 1e-9 ? "0" : Math.Ceiling(points - 1e-9).ToString("0");
 
-    /// <summary>A shaft load, to three places.</summary>
-    public static string Load(float load) => load.ToString("0.###");
+    /// <summary>Kilonewtons to a unit of shaft load: the game's own readout of a power network's
+    /// figures (the creative rotor's <c>mechanical-torque-kn</c>, "Torque: {0} kN", is its torque
+    /// times 100; the windmill's sails line about the same), and a load is in the same units as a
+    /// torque. A plank sawmill's 0.085 reads 8.5 kN.</summary>
+    public const float KiloNewtonsPerUnit = 100f;
+
+    /// <summary>A shaft load in kN (the lang string adds the unit), to one place: the game shows
+    /// whole kN, but a machine's load is small enough that a place keeps 0.005 from reading 0.</summary>
+    public static string Load(float load) => (load * KiloNewtonsPerUnit).ToString("0.#");
 }

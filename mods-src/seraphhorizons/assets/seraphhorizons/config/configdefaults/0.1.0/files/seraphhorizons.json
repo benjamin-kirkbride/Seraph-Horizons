@@ -41,6 +41,7 @@
     "AutoPullFromRack": true
   },
   "DurableSawmillBlades": true,
+  "FewerSupportChains": true,
   "IronWoodworkingMachines": true,
   "GearConsumers": true,
   "Rosser": true,
