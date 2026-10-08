@@ -194,10 +194,12 @@ RATIO = {"thin": CG["ap"] / CG["a"], "thick": CG["bp"] / CG["b"]}   # sleeve tur
 DRAW_SIGN = 1.0                              # the sleeve and the rectified shaft turn + about x in a draw (sprocket +, drive shaft -, sleeve +)
 D_Y = 6.0
 D_Z = RECT[1] - math.sqrt(CG_D ** 2 - (RECT[0] - D_Y) ** 2)   # the drive shaft (the change gear's), under the rectified shaft
-FD_MOD, FD_TEETH = 0.4, 12                   # the final drive: a pinion on the drive shaft's west end, a wheel on the sprocket shaft, 1:1
-FD_R = FD_MOD * FD_TEETH / 2
+FD_MOD = 0.4                                 # the final drive: a wheel on the drive shaft's west end, a pinion on the sprocket shaft
+FD_TEETH_D, FD_TEETH_S = 16, 8               # 2:1 up: the sprocket turns twice the drive shaft
+FD_RD, FD_RS = FD_MOD * FD_TEETH_D / 2, FD_MOD * FD_TEETH_S / 2
+FD_RATIO = FD_TEETH_D / FD_TEETH_S           # sprocket turns per drive-shaft turn
 X_FD = (2.0, 2.6)
-S_Z = D_Z - math.sqrt((2 * FD_R) ** 2 - (D_Y - SPR_Y) ** 2)   # the drive sprocket's shaft, north of the drive shaft, at the chain's height
+S_Z = D_Z - math.sqrt((FD_RD + FD_RS) ** 2 - (D_Y - SPR_Y) ** 2)   # the drive sprocket's shaft, north of the drive shaft, at the chain's height
 GEAR_W = 0.6
 X_AP, X_BP = (4.6, 5.2), (6.9, 7.5)          # the drive shaft's change wheels, east of its final-drive pinion
 X_A, X_B = X_AP, (3.5, 4.1)                  # the cluster's pinions, lead position (A in mesh, B free)
@@ -271,14 +273,15 @@ CRANK_FORK_R = RECT[1] - CRANK[1]
 CRANK_ANGLE = math.asin(KNOCK / CRANK_ROD_R)
 
 # ---------------------------------------------------------------- the cycle, per section (t = frac(W))
-T_START = (0.00, 0.04)                       # the start lever: clutch in, jaws closed on the point
-T_DRAW = (0.04, 0.24)                        # the dog travels S_DOG (the rest of the cycle is the return and a dwell)
-T_TUBE = T_DRAW[0] + (T_DRAW[1] - T_DRAW[0]) * S_TUBE / S_DOG   # the section's tail leaves the die (0.19)
-T_OPEN = (T_TUBE, T_TUBE + 0.04)             # the jaws spring open
-T_KNOCK = (T_DRAW[1] - (T_DRAW[1] - T_DRAW[0]) * KNOCK / S_DOG, T_DRAW[1])   # the lug knocks the clutch out
-T_DROP = (T_OPEN[1], T_OPEN[1] + 0.03)       # the section drops into the trough
-T_ROLL = (T_DROP[1], 0.32)                   # and slides north down it to its place in the queue
-T_RETURN = (0.32, 0.52)                      # the weight hauls the dog back (as long as the draw)
+SPAN = 0.375                                 # the draw's share of a section's cycle (the return's too)
+T_START = (0.0, SPAN * KNOCK / S_DOG)        # the start lever: clutch in, jaws closed on the point (as long as the knock-off)
+T_DRAW = (T_START[1], T_START[1] + SPAN)     # the dog travels S_DOG (0.075..0.45; the rest of the cycle is the return and a short dwell)
+T_TUBE = T_DRAW[0] + SPAN * S_TUBE / S_DOG   # the section's tail leaves the die (0.356)
+T_OPEN = (T_TUBE, T_TUBE + T_START[1])       # the jaws spring open (as long as the start: a gauge's two eases are equal)
+T_KNOCK = (T_DRAW[1] - SPAN * KNOCK / S_DOG, T_DRAW[1])   # the lug knocks the clutch out
+T_DROP = (T_OPEN[1], T_OPEN[1] + 0.04)       # the section drops into the trough
+T_ROLL = (T_DROP[1], 0.53)                   # and slides north down it to its place in the queue
+T_RETURN = (0.53, 0.53 + SPAN)               # the weight hauls the dog back (as long as the draw); then a short dwell to 1
 T_POINT = (-0.08, 0.0)                       # the next section's point is through the die before its stroke
 
 # ---------------------------------------------------------------- the oiler
@@ -510,7 +513,7 @@ def build_gearbox():
     out += disc("x", c, X_HUB[1] - 0.12, X_HUB[1], 1.1, "cluster_hube", "cluster", "steel")
     # the drive shaft, its change wheels and the final drive's pinion (the sprocket's shaft is the chain's)
     out += rod("x", D_C, CHEEK_W[0] + 0.1, 8.6, 0.45, "driveshaft_rod", "driveshaft", "steel")
-    out += gear("x", D_C, *X_FD, FD_R, FD_TEETH, FD_MOD, "driveshaft_fd", "driveshaft", "steel")
+    out += gear("x", D_C, *X_FD, FD_RD, FD_TEETH_D, FD_MOD, "driveshaft_fd", "driveshaft", "steel")
     out += gear("x", D_C, *X_AP, CG_R["ap"], CG["ap"], CG_MOD, "driveshaft_ap", "driveshaft", "steel", body_k=6)
     out += gear("x", D_C, *X_BP, CG_R["bp"], CG["bp"], CG_MOD, "driveshaft_bp", "driveshaft", "steel", body_k=6)
     return out
@@ -596,8 +599,8 @@ def build_chain():
         out.append(el)
     # the drive sprocket's own shaft, from the west cheek, with the final drive's wheel at its west end
     out += rod("x", S_C, CHEEK_W[0] + 0.1, S_EAST_BEARING[1] - 0.05, 0.45, "drivesprocket_rod", "drivesprocket", "steel")
-    out += gear("x", S_C, *X_FD, FD_R, FD_TEETH, FD_MOD, "drivesprocket_fd", "drivesprocket", "steel",
-                phase=mesh_phase(D_C, 0.0, FD_TEETH, S_C, FD_TEETH))
+    out += gear("x", S_C, *X_FD, FD_RS, FD_TEETH_S, FD_MOD, "drivesprocket_fd", "drivesprocket", "steel",
+                phase=mesh_phase(D_C, 0.0, FD_TEETH_D, S_C, FD_TEETH_S))
     for c, part in ((S_C, "drivesprocket"), (N_C, "returnsprocket")):
         # a tooth between every two pins on this sprocket's arc at rest
         pins = [loop_point(U_FRONT + i * PITCH) for i in range(N_LINKS + 1)]
@@ -1011,7 +1014,8 @@ def link_drivers(i):
 
 def _rig_parts():
     turn = S_DOG / R_C                       # the sprockets' turn in a stroke
-    sleeve = {"thin": DRAW_SIGN * RATIO["thin"] * turn, "thick": DRAW_SIGN * RATIO["thick"] * turn}
+    dturn = turn / FD_RATIO                  # the drive shaft's
+    sleeve = {"thin": DRAW_SIGN * RATIO["thin"] * dturn, "thick": DRAW_SIGN * RATIO["thick"] * dturn}
     sleeve_g = gauge("rotate", "x", per_class(sleeve["thin"], sleeve["thick"]), stroke(), pivot=pt(0.0, *RECT))
     clutch_w = windows(T_START[0], T_START[1], T_KNOCK[0], T_KNOCK[1])
     jaw_w = windows(T_START[0], T_START[1], T_OPEN[0], T_OPEN[1])
@@ -1035,7 +1039,7 @@ def _rig_parts():
         {"id": "cluster", "match": ["cluster_*"], "requires": "gearbox",
          "drivers": [sleeve_g, gauge("slide", "x", per_class(0.0, SELECT / B), None, mode="present")]},
         {"id": "driveshaft", "match": ["driveshaft_*"], "requires": "gearbox",
-         "drivers": [gauge("rotate", "x", per_class(-turn), stroke(), pivot=pt(0.0, D_Y, D_Z))]},
+         "drivers": [gauge("rotate", "x", per_class(-dturn), stroke(), pivot=pt(0.0, D_Y, D_Z))]},
         {"id": "selector", "match": ["selector_*"], "requires": None,
          "drivers": [gauge("slide", "x", per_class(0.0, SELECT / B), None, mode="present")]},
         {"id": "startlever", "match": ["startlever_*"], "requires": None,
@@ -1143,9 +1147,10 @@ def pm(parts, pid, pose, path=None):
 
 
 def turns_per_section(cls):
-    """Axle turns per section's cycle, as drawn: the sleeve turns RATIO x the sprocket's S_DOG / R_C in a
-    stroke, the rectified shaft half the axle's travel, and the stroke is T_DRAW of the cycle."""
-    return RATIO[cls] * (S_DOG / R_C) / RECT_RATIO / (T_DRAW[1] - T_DRAW[0]) / TAU
+    """Axle turns per section's cycle, as drawn: the sleeve turns RATIO x the drive shaft's turn (the
+    sprocket's S_DOG / R_C over FD_RATIO) in a stroke, the rectified shaft half the axle's travel, and the
+    stroke is T_DRAW of the cycle."""
+    return RATIO[cls] * (S_DOG / R_C) / FD_RATIO / RECT_RATIO / (T_DRAW[1] - T_DRAW[0]) / TAU
 
 
 def pose_at(k, W, theta=None, oil=0.6):
@@ -1183,7 +1188,8 @@ def make_rig(parts):
                  "sectionsPerHollow": SLUGS,
                  "hollows": {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"},
                  "_comment": f"turnsPerSection: axle turns per section's cycle as the gearing is drawn (the rectifier's {RECT_A1}:{RECT_B1}, "
-                             f"the change gear's {CG['a']}:{CG['ap']} for lead and {CG['b']}:{CG['bp']} for copper, the drive "
+                             f"the change gear's {CG['a']}:{CG['ap']} for lead and {CG['b']}:{CG['bp']} for copper, the final drive's "
+                             f"{FD_TEETH_D}:{FD_TEETH_S}, the drive "
                              f"sprocket's turn over a stroke that is {T_DRAW[1] - T_DRAW[0]:g} of the cycle). sectionsPerHollow: the "
                              "job's end (each a seraphhorizons:pipesection of the hollow's metal). hollows: what each class's work is "
                              "(the game's chute section, drawn over the mandrel)."},
@@ -1257,7 +1263,7 @@ def reference_poses():
     for i, th in enumerate((0.0, 1.1, -2.3, 2.9)):
         for extra in (0.0, 7.3):
             out.append((th, round(abs(th) + extra, 6), 0.0, 0, 0.0, (0.0, 0.35, 1.0)[i % 3]))
-    edges = (-0.04, 0.02, 0.05, 0.13, 0.24, 0.33, 0.385, 0.395, 0.41, 0.425, 0.435, 0.445, 0.47, 0.49, 0.515, 0.55, 0.71, 0.88, 0.93, 0.97)
+    edges = (-0.04, 0.02, 0.05, 0.2, 0.345, 0.37, 0.4, 0.43, 0.46, 0.55, 0.62, 0.66, 0.7, 0.74, 0.78, 0.85, 0.89, 0.91, 0.93, 0.97)
     for k in (1, 2):
         ws = {0.0, float(SLUGS)}
         for m, es in ((0, edges), (1, edges[::2]), (SLUGS - 1, edges[1::2])):

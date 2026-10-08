@@ -2186,8 +2186,8 @@ the die end (native north), one at a time while the shaft turns; an ingot, an an
 (what comes off) is never taken.
 **The die decides the metal:** an iron die draws lead only, a steel die lead and copper (`DieMetals`);
 copper on an iron die is refused with a message. The draw needs the shaft at `MinSpeed` and advances W,
-the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (7.72) turns for lead, the
-fast gear, and `TurnsPerSectionCopper` (15.45) for copper. Each time W passes 1, 2, 3 and 4 a pipe section
+the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (2.06) turns for lead, the
+fast gear, and `TurnsPerSectionCopper` (4.12) for copper. Each time W passes 1, 2, 3 and 4 a pipe section
 of the metal goes into a container against the output face by the die end (native east, where the
 trough under the bed brings them), else drops just outside it. At 4 the hollow is used up and the die
 loses `DieWearPerHollow` (1), whatever the oil; a worn-out die is gone (the tool-break sound) and the
@@ -2209,8 +2209,8 @@ drips from the oiler with oil in the tank, and the gears' sound.
 |---|---|---|
 | `DieDurability` | 100 | Hollow sections a new die draws (the die item's durability) |
 | `DieWearPerHollow` | 1 | Die durability a hollow section costs |
-| `TurnsPerSectionLead` | 7.72 | Axle turns per lead pipe section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
-| `TurnsPerSectionCopper` | 15.45 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
+| `TurnsPerSectionLead` | 2.06 | Axle turns per lead pipe section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
+| `TurnsPerSectionCopper` | 4.12 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
 | `ResistanceLead` | 0.2 | The complete bench's load, empty or drawing lead |
 | `ResistanceCopper` | 0.35 | Its load drawing copper |
 | `MinSpeed` | 0.05 | Below it the bench neither draws nor takes a hollow from its infeed |

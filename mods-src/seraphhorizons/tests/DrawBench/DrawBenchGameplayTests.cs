@@ -241,8 +241,8 @@ public class DrawBenchGameplayTests
     }
 
     [Theory]
-    [InlineData(1, 7.72)]
-    [InlineData(2, 15.45)]
+    [InlineData(1, 2.06)]
+    [InlineData(2, 4.12)]
     public void W_advances_with_the_axle_and_a_section_comes_off_at_each_whole_number(int k, double turns)
     {
         Assert.Equal(turns, Config.TurnsPerSection(k), 5);
@@ -362,7 +362,7 @@ public class DrawBenchGameplayTests
     public void Defaults_are_the_documented_ones_and_out_of_range_values_fall_back()
     {
         var c = new DrawBenchConfig();
-        Assert.Equal((100, 1, 7.72f, 15.45f, 0.2f, 0.35f, 0.05f),
+        Assert.Equal((100, 1, 2.06f, 4.12f, 0.2f, 0.35f, 0.05f),
             (c.DieDurability, c.DieWearPerHollow, c.TurnsPerSectionLead, c.TurnsPerSectionCopper, c.ResistanceLead, c.ResistanceCopper, c.MinSpeed));
         Assert.Equal(c.TurnsPerSectionLead * 2.0, c.TurnsPerSectionCopper, 0.02);   // copper in the slow gear, twice the turns
         Assert.Empty(c.Sanitise());
@@ -372,7 +372,7 @@ public class DrawBenchGameplayTests
             ResistanceLead = 99, ResistanceCopper = float.PositiveInfinity, MinSpeed = -1,
         };
         Assert.Equal(7, bad.Sanitise().Count);
-        Assert.Equal((100, 1, 7.72f, 15.45f, 0.2f, 0.35f, 0.05f),
+        Assert.Equal((100, 1, 2.06f, 4.12f, 0.2f, 0.35f, 0.05f),
             (bad.DieDurability, bad.DieWearPerHollow, bad.TurnsPerSectionLead, bad.TurnsPerSectionCopper, bad.ResistanceLead, bad.ResistanceCopper, bad.MinSpeed));
         Assert.Equal(0.35f, c.Resistance(2));
         Assert.Equal(0.2f, c.Resistance(1));

@@ -261,8 +261,8 @@
   "DrawBenchSettings": {
     "DieDurability": 100,
     "DieWearPerHollow": 1,
-    "TurnsPerSectionLead": 7.72,
-    "TurnsPerSectionCopper": 15.45,
+    "TurnsPerSectionLead": 2.06,
+    "TurnsPerSectionCopper": 4.12,
     "ResistanceLead": 0.2,
     "ResistanceCopper": 0.35,
     "MinSpeed": 0.05,

@@ -16,11 +16,11 @@ public class DrawBenchConfig
 
     /// <summary>Axle turns per lead section: the bench's fast gear, as the model is drawn (the rig's
     /// <c>draw.turnsPerSection.thin</c>; a test holds the two together).</summary>
-    public float TurnsPerSectionLead { get; set; } = 7.72f;
+    public float TurnsPerSectionLead { get; set; } = 2.06f;
 
     /// <summary>Axle turns per copper section: the slow gear, twice the lead's (the rig's
     /// <c>draw.turnsPerSection.thick</c>).</summary>
-    public float TurnsPerSectionCopper { get; set; } = 15.45f;
+    public float TurnsPerSectionCopper { get; set; } = 4.12f;
 
     /// <summary>Resistance the assembled bench puts on its shaft while it is empty or draws lead
     /// (times the dry multiplier while its oil tank is dry). An unassembled frame puts 0.005.</summary>
