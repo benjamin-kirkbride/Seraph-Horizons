@@ -593,7 +593,8 @@ public class SeraphHorizonsConfig
 
     /// <summary>Surface ruins (BetterRuins' and the game's) sit on the median of the ground the game
     /// samples around them, not its lowest point, so on a slope they are no longer buried on the
-    /// uphill side; the game's limit on how uneven that ground may be is unchanged (server side;
+    /// uphill side, and the air under their downhill side is filled with the ground there; the
+    /// game's limit on how uneven that ground may be is unchanged (server side;
     /// off means the lowest point, as the game places them). Worldgen only: it changes the chunks
     /// generated from then on.</summary>
     public bool RuinsOnMedianGround { get; set; } = true;

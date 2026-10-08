@@ -135,10 +135,26 @@ With this switch the base is the median of the same samples (for an even count, 
 two middle ones, so always a height the game sampled; `Core/RuinSurfaceHeight.cs`). The `MaxYDiff`
 rejection, still on highest minus lowest, and everything after the seating (the liquid, overlap and
 distance checks, the placement) are the game's. On flat ground nothing changes; on a slope the ruin
-sits at the height most of the samples are at, and its low edge, not its high one, is the one off
-the ground.
+sits at the height most of the samples are at, which leaves its low side off the ground: a BetterRuins
+waystone (`ogdred-waystones`, 6 by 7) with its floor at 140 on ground falling from 141 to 137 had its
+south half on 1 to 3 blocks of air.
 
-`RuinSurfaceMedian.cs` is a transpiler on that method, server side: each terrain height call goes
+So once the game has placed the ruin, the air under it is filled down to the ground
+(`RuinFoundations.cs`, logic in `Core/RuinFoundationColumn.cs`). In each column of the footprint the
+ruin stands on the placed schematic's lowest block with a collision box (meta blocks aside); from just
+under it, and never above the height the ruin was seated on (so under an arch the ground comes up to
+that height and no higher), air and plants are filled down to the first other block, as the trader
+camps' levelling fills: with the block under the column's top, the top block (grass, sand) put back
+on the new top, and the chunk's terrain and rain heightmaps raised so later passes see the new
+ground. A column is left as it is when the gap holds a liquid, when there is no ground within 8
+blocks (a ravine or cave mouth the samples missed), when the gap crosses another generated
+structure, or when it lies past the placing chunk's neighbours (all the worldgen block accessor
+reaches). Columns with nothing solid in the ruin are not filled, and nothing outside the footprint
+is. No switch of its own: the median without it leaves ruins floating, and it without the median
+has little to fill.
+
+`RuinSurfaceMedian.cs` is a transpiler and a postfix (the foundation, when the method placed the
+ruin) on that method, server side: each terrain height call goes
 through a wrapper that returns the game's answer and notes it, and the minimum read where the base
 is set (`startPos.Y = min + OffsetY`) goes through a call that answers the median of the notes. A
 transpiler rather than a prefix copying the method: the method is long and works on the structure's
