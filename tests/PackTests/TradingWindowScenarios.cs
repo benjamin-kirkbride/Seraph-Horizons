@@ -595,12 +595,18 @@ public partial class TradingScenarios
         // Camp leads (off the shelf): their rows, the notes under them, and the buy's answers.
         texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = 1, Price = 3 }));
         texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Distance = 2000, Dz = -1, Price = 3, Prospector = true }));
+        // The first map (pity map): to a prospector, or failing one to any camp.
+        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Prospector = true, Pity = true }));
+        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Pity = true }));
+        // The Standing tab's lead facts: the stranger's, one ring, several rings.
+        foreach (var (maps, reach) in new[] { (0, 1), (2, 1), (3, 2) })
+            texts.AddRange(TradeWindowModel.Facts(new TierView { LeadMaps = maps, LeadReach = reach }, new WindowSwitches { Maps = true }));
         texts.Add(TradeWindowModel.LeadOffersNote(new TradeWindowState { LeadOffers = [new LeadOfferRow()], LeadsBought = 1 })!);
         foreach (string why in new[] { "trading-window-leads-strangerused", "trading-window-leads-none" })
             texts.Add(TradeWindowModel.LeadOffersNote(new TradeWindowState { LeadsWhy = why })!);
         foreach (string key in new[] { "trading-window-buy", "trading-maps-lead-bought", "trading-maps-error-drawing", "trading-maps-error-gears",
                      "trading-maps-checking-lead", "trading-admin-leads-noplayer", "trading-admin-leads-head", "trading-admin-leads-group",
-                     "trading-admin-leads-trader" })
+                     "trading-admin-leads-trader", "trading-admin-leads-pity-used", "trading-admin-leads-pity-unused" })
             texts.Add(new Text(key));
         foreach (string key in new[] { "trading-maps-error-gone", "trading-maps-error-marked", "trading-maps-error-held", "trading-maps-met-marked",
                      "map-waypoint-exact", "map-waypoint-precision", "map-waypoint-lead", "package-info-due-days" })
