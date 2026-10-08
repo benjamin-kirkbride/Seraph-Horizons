@@ -418,7 +418,7 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
 - **Speed.** While a trunk is carried, the player's `walkspeed` stat gets the code
   `seraphhorizons:trunk`, so the walk speed is `TrunkWeight.CarrySpeed` of its logs:
   `CarrySpeedAtOneLog` (1, a normal walk) for a trunk of 1 log, falling linearly to
-  `CarrySpeedAtMaxLogs` (0.5) at 48 logs and beyond. About 0.90 at 10 logs and 0.74 at 25. Carry
+  `CarrySpeedAtMaxLogs` (0.1) at 48 logs and beyond. About 0.83 at 10 logs and 0.54 at 25. Carry
   On's own slot modifier is set to 0 for trunks by the patch and cancelled out in the value
   besides. The server checks every online player every 250 ms (and at once when the pack itself
   gives or takes a trunk) and removes the code once no trunk is carried; the game syncs stats to
@@ -664,7 +664,7 @@ Values out of range fall back to the default with a warning. The server's values
 |---|---|---|---|
 | `WeightPerLog` | 8 | 0..1000 | Weight a stored log adds: weight = 10 + logs × this. What a rope pulls against (the drive goes by logs). |
 | `CarrySpeedAtOneLog` | 1 | 0..1 | Walk speed, as a multiple of the normal one, carrying a trunk of 1 log (1 is a normal walk) |
-| `CarrySpeedAtMaxLogs` | 0.5 | 0..1 | Walk speed carrying one of 48 logs or more; linear in logs between the two |
+| `CarrySpeedAtMaxLogs` | 0.1 | 0..1 | Walk speed carrying one of 48 logs or more; linear in logs between the two |
 | `SpudSecondsPerLog` | 0.5 | 0..60 | The bark spud's hold per stored log, 2 s at least |
 
 The drive's figures are constants in `Core/TrunkDrive.cs`, not settings. (The grab's `GrabRange`

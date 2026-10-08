@@ -11,7 +11,7 @@ public class TrunkEntityConfigTests
         var c = new TrunkEntityConfig();
         Assert.Equal(8f, c.WeightPerLog);
         Assert.Equal(1f, c.CarrySpeedAtOneLog);
-        Assert.Equal(0.5f, c.CarrySpeedAtMaxLogs);
+        Assert.Equal(0.1f, c.CarrySpeedAtMaxLogs);
         Assert.Equal(0.5f, c.SpudSecondsPerLog);
         Assert.Empty(c.Sanitise());
     }
@@ -61,10 +61,10 @@ public class TrunkWeightTests
     [Theory]
     [InlineData(0, 1f)]
     [InlineData(1, 1f)]
-    [InlineData(25, 0.7447f)]
-    [InlineData(48, 0.5f)]
-    [InlineData(100, 0.5f)]
-    public void Carry_speed_runs_linearly_from_a_normal_walk_at_one_log_to_half_at_forty_eight(int logs, float speed) =>
+    [InlineData(25, 0.5404f)]
+    [InlineData(48, 0.1f)]
+    [InlineData(100, 0.1f)]
+    public void Carry_speed_runs_linearly_from_a_normal_walk_at_one_log_to_a_tenth_at_forty_eight(int logs, float speed) =>
         Assert.Equal(speed, TrunkWeight.CarrySpeed(logs, C), 4);
 
     [Fact]
