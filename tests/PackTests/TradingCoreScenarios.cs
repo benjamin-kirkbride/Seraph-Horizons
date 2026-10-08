@@ -211,16 +211,19 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal("game:wolf-eurasian-adult-male", wolf.GetString("type"));
     }
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 1_500_000)]
     public async Task Generating_a_cells_spots_decides_its_camp()
     {
         var spawn = Api.World.DefaultSpawnPosition.AsBlockPos;
         var home = TraderGrid.CellOf(spawn.X, spawn.Z);
         var grid = Trading.Grid!;
-        var registry = Trading.Camps!.Registry;
+        var camps = Trading.Camps!;
+        var registry = camps.Registry;
+        Assert.Equal(CampGround.DefaultTolerance, camps.SlopeTolerance);
         var placed = new List<CampRecord>();
         // The spawn's cell and its neighbours: generate each cell's spots in order until its camp is
-        // placed or every spot is used.
+        // placed or every spot has missed (the cell is then open to second chances), until two camps
+        // are placed and one of them sits on ground the game's own rule (exactly level) rejects.
         foreach (var cell in new[] { home }.Concat(TraderGrid.Neighbours(home)))
         {
             var spots = grid.Spots(cell);
@@ -233,23 +236,69 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 var at = new BlockPos(spot.X, 0, spot.Z);
                 var climate = W.BlockAccessor.GetClimateAt(new BlockPos(spot.X, W.BlockAccessor.GetTerrainMapheightAt(at), spot.Z), EnumGetClimateMode.WorldGenValues);
                 output.WriteLine($"cell {cell} spot {i} at {spot.X},{spot.Z}: height {W.BlockAccessor.GetTerrainMapheightAt(at)} (sea {W.SeaLevel}), "
-                                 + $"{climate?.Temperature:0.0} °C, rain {climate?.Rainfall:0.00}, forest {climate?.ForestDensity:0.00} -> {registry.Get(cell)?.Status} attempt {registry.Get(cell)?.Attempt}");
+                                 + $"{climate?.Temperature:0.0} °C, rain {climate?.Rainfall:0.00}, forest {climate?.ForestDensity:0.00} -> {registry.Get(cell)?.Status} next {registry.Get(cell)?.Attempt}");
             }
             var record = registry.Get(cell);
             Assert.NotNull(record);
             Assert.NotEqual(CampStatus.Pending, record!.Status);
-            output.WriteLine($"cell {cell}: {record.Status} {record.Type} at {record.X},{record.Y},{record.Z} {record.Region} {record.Structure}");
+            output.WriteLine($"cell {cell}: {record.Status} {record.Type} at {record.X},{record.Y},{record.Z} {record.Region} {record.Structure}, slope {record.Slope}");
             if (record.Status == CampStatus.Placed) placed.Add(record);
-            if (placed.Count >= 2) break;
+            if (placed.Count >= 2 && placed.Any(p => p.Slope > 0)) break;
         }
-        Assert.NotEmpty(placed);
+        Assert.True(placed.Count >= 2, $"{placed.Count} camps placed");
+        Assert.Contains(placed, p => p.Slope > 0);
         foreach (var record in placed)
         {
             Assert.Equal(grid.TypeOf(new CellKey(record.CellX, record.CellZ)), record.Type);
             Assert.True(Region.TryParse(record.Region, out _));
+            Assert.InRange(record.Slope, 0, camps.SlopeTolerance);
             // Recorded as the game records a camp: a generated structure of group trader there.
             var region = Api.WorldManager.GetMapRegion(record.X / Api.WorldManager.RegionSize, record.Z / Api.WorldManager.RegionSize);
-            Assert.Contains(region.GeneratedStructures, s => s.Group == "trader" && s.Location.Contains(record.X, s.Location.Y1, record.Z));
+            var generated = region.GeneratedStructures.Single(s => s.Group == "trader" && s.Location.Contains(record.X, s.Location.Y1, record.Z));
+            if (generated.Code.EndsWith("/trader-shallow")) continue;
+            // A surface camp's ground is levelled: every column of the footprint at one height (so
+            // nothing is buried), with ground under the schematic's bottom layer (so nothing floats;
+            // the schematic's own blocks, a basement's air among them, are its business).
+            var loc = generated.Location;
+            // The footprint may reach into chunks generated only as far as a neighbour needs, and
+            // with no player near, a loaded chunk is unloaded again soon: load them all, kept loaded,
+            // and wait for their blocks before reading.
+            for (int cx = loc.X1 / 32; cx <= (loc.X2 - 1) / 32; cx++)
+                for (int cz = loc.Z1 / 32; cz <= (loc.Z2 - 1) / 32; cz++)
+                {
+                    bool loaded = false;
+                    Api.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true, OnLoaded = () => loaded = true });
+                    var probe = new BlockPos(cx * 32, loc.Y1, cz * 32);
+                    await World.Until(() => loaded && W.BlockAccessor.GetChunkAtBlockPos(probe) != null, 120_000);
+                }
+            int? level = null;
+            for (int x = loc.X1; x < loc.X2; x++)
+                for (int z = loc.Z1; z < loc.Z2; z++)
+                {
+                    var pos = new BlockPos(x, 0, z);
+                    int h = W.BlockAccessor.GetTerrainMapheightAt(pos);
+                    level ??= h;
+                    Assert.True(h == level, $"camp {record.Structure} at {loc}: the ground at {x},{z} is at {h}, not {level}");
+                    if (W.BlockAccessor.GetBlock(pos.Set(x, loc.Y1 - 1, z)).Id == 0)
+                    {
+                        var column = string.Join(" ", Enumerable.Range(loc.Y1 - 8, h - loc.Y1 + 11).Select(y => $"{y}:{W.BlockAccessor.GetBlock(new BlockPos(x, y, z)).Code}"));
+                        Assert.Fail($"camp {record.Structure} at {loc}: air under it at {x},{loc.Y1 - 1},{z}; column {column}");
+                    }
+                }
+            output.WriteLine($"camp {record.Structure} at {loc}: ground levelled at {level}");
         }
+
+        // The admin commands see them: /sh trade camps lists a placed camp, /sh trade tp goes there.
+        var camp = placed.First(p => p.Slope > 0);
+        var cellId = new CellKey(camp.CellX, camp.CellZ).ToString();
+        var listing = await World.ExecuteCommand($"/sh trade camps 4000");
+        Assert.True(listing.Ok, listing.Message);
+        Assert.Contains(listing.Message!.Split('\n'), l => l.StartsWith(cellId + " ") && l.Contains("camp at"));
+        var admin = await World.JoinPlayer("camptraveller");
+        Assert.True((await World.ExecuteCommand("/player camptraveller role admin")).Ok);
+        var tp = await admin.ExecuteCommand($"/sh trade tp {cellId}");
+        Assert.True(tp.Ok, tp.Message);
+        Assert.Contains("Teleported", tp.Message);
+        await World.Until(() => admin.Player.Entity.Pos.HorDistanceTo(camp.X + 0.5, camp.Z + 0.5) < 2, 30_000);
     }
 }
