@@ -1,0 +1,10 @@
+{
+  "SawmillSpeed": 1.0,
+  "SawmillMinTorque": 0.05,
+  "SawmillResistance": 0.085,
+  "SawmillBladeWearMultiplier": 1.0,
+  "ChopperSpeed": 1.0,
+  "ChopperMinTorque": 0.05,
+  "ChopperResistance": 0.085,
+  "ChopperHeadWearMultiplier": 1.0
+}

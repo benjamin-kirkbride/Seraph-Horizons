@@ -1,0 +1,18 @@
+{
+  "FirewoodPerLog": 8,
+  "ChopperFirewoodPerLog": -1,
+  "FirewoodDropCount": 4,
+  "ChopperFirewoodDropCount": -1,
+  "SticksPerFirewood": 2,
+  "ChopperSticksPerFirewood": -1,
+  "SticksDropCount": 2,
+  "ChopperSticksDropCount": -1,
+  "PlanksPerLog": 24,
+  "SawmillPlanksPerLog": -1,
+  "PlankDropCount": 4,
+  "SawmillPlankDropCount": -1,
+  "BeamsPerDebarkedLog": 6,
+  "SawmillBeamsPerDebarkedLog": -1,
+  "BeamDropCount": 2,
+  "SawmillBeamDropCount": -1
+}

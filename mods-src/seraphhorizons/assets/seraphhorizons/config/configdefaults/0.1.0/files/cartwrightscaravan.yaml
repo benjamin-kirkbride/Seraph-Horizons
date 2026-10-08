@@ -1,0 +1,143 @@
+version: 7
+
+
+###############
+## Behaviors ##
+###############
+
+
+
+# Item Behavior
+
+flutedurability: 1
+ # from 1 to 500 with step of 1 (default: 1) 
+
+
+# Cart Behavior
+
+cartfalldamage: 0
+ # from 0 to 1 with step of 0.1 (default: 0) 
+cartpitch: false
+ #  (default: False) 
+cartdropContents: true
+ #  (default: True) 
+cartstepheight: 1.2
+ # from 0.2 to 1.2 with step of 0.1 (default: 1.2) 
+cartstepupspeed: 0.2
+ # from 0.1 to 1 with step of 0.01 (default: 0.2) 
+cartcrateable: false
+ #  (default: False) 
+
+
+# Marktestall & Wheelbarrow Behavior
+
+marketstallfalldamage: 0
+ # from 0 to 1 with step of 0.1 (default: 0) 
+marketstallpitch: false
+ #  (default: False) 
+stalldropContents: true
+ #  (default: True) 
+marketstallstepheight: 1.2
+ # from 0.2 to 1.2 with step of 0.1 (default: 1.2) 
+marketstallstepupspeed: 0.2
+ # from 0.1 to 1 with step of 0.01 (default: 0.2) 
+
+
+# Sled Behavior
+
+sledfalldamage: 0
+ # from 0 to 1 with step of 0.1 (default: 0) 
+sledpitch: false
+ #  (default: False) 
+sleddropContents: true
+ #  (default: True) 
+sledstepheight: 1.2
+ # from 0.2 to 1.2 with step of 0.1 (default: 1.2) 
+sledstepupspeed: 0.2
+ # from 0.1 to 1 with step of 0.01 (default: 0.2) 
+sledchestable: false
+ #  (default: False) 
+
+
+############
+## Speeds ##
+############
+
+
+
+# Walk Speed
+
+basiccartwalkspeed: 0.015
+ # from 0.01 to 0.05 with step of 0.001 (default: 0.015) 
+slimcartwalkspeed: 0.016
+ # from 0.01 to 0.05 with step of 0.001 (default: 0.016) 
+marketstallwalkspeed: 0.017
+ # from 0.01 to 0.05 with step of 0.001 (default: 0.017) 
+sledwalkspeed: 0.02
+ # from 0.01 to 0.05 with step of 0.001 (default: 0.02) 
+
+
+# Jog Speed
+
+basiccartjogspeed: 0.03
+ # from 0.01 to 0.1 with step of 0.001 (default: 0.03) 
+slimcartjogspeed: 0.033
+ # from 0.01 to 0.1 with step of 0.001 (default: 0.033) 
+marketstalljogspeed: 0.034
+ # from 0.01 to 0.1 with step of 0.001 (default: 0.034) 
+sledjogspeed: 0.035
+ # from 0.01 to 0.1 with step of 0.001 (default: 0.035) 
+
+
+# Sprint Speed
+
+basiccartsprintspeed: 0.04
+ # from 0.02 to 0.15 with step of 0.001 (default: 0.04) 
+slimcartsprintspeed: 0.045
+ # from 0.02 to 0.15 with step of 0.001 (default: 0.045) 
+marketstallsprintspeed: 0.048
+ # from 0.02 to 0.15 with step of 0.001 (default: 0.048) 
+sledsprintspeed: 0.05
+ # from 0.02 to 0.15 with step of 0.001 (default: 0.05) 
+
+
+# Backwards Speed
+
+basiccartwalkbackspeed: 0.007
+ # from 0.001 to 0.04 with step of 0.001 (default: 0.007) 
+slimcartwalkbackspeed: 0.008
+ # from 0.001 to 0.04 with step of 0.001 (default: 0.008) 
+marketstallwalkbackspeed: 0.01
+ # from 0.001 to 0.04 with step of 0.001 (default: 0.01) 
+sledwalkbackspeed: 0.022
+ # from 0.001 to 0.04 with step of 0.001 (default: 0.022) 
+
+
+# Swim Speed
+
+cartswimspeed: 0.02
+ # from 0.001 to 0.05 with step of 0.001 (default: 0.02) 
+marketstallswimspeed: 0.02
+ # from 0.001 to 0.05 with step of 0.001 (default: 0.02) 
+sledswimspeed: 0.02
+ # from 0.001 to 0.05 with step of 0.001 (default: 0.02) 
+
+
+##################
+## Experimental ##
+##################
+
+allowmarketstallsitting: false
+ #  (default: False) 
+
+
+# Allow Vehicles to be pulled by rope (very janky!)
+
+slimcartropetieable: false
+ #  (default: False) 
+widecartropetieable: false
+ #  (default: False) 
+marketstallropetieable: false
+ #  (default: False) 
+sledropetieable: false
+ #  (default: False) 

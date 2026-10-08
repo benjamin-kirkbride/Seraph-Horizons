@@ -1,0 +1,27 @@
+{
+  "Intoxication": {
+    "Enabled": true,
+    "CommandsAllowed": true,
+    "IntoxicationSpeed": 1.0,
+    "IntakeRate": 0.01,
+    "DecayRate": 0.0021,
+    "HabitualToleranceChangeRate": 1.0,
+    "OverintoxicationThreshold": 1.2,
+    "HealthRegenIntoxRangeBottom": 0.0,
+    "HealthRegenIntoxRangeTop": 0.6,
+    "HealthRegenRateMax": 0.02,
+    "StabilityRegenIntoxRangeBottom": 0.0,
+    "StabilityRegenIntoxRangeTop": 0.6,
+    "StabilityRegenRateMax": 0.00125,
+    "StrengthBonusMultiplierIntoxRangeBottom": 0.2,
+    "StrengthBonusMultiplierIntoxRangeTop": 1.0,
+    "StrengthBonusMultiplierMax": 0.2,
+    "DamageReductionIntoxRangeBottom": 0.2,
+    "DamageReductionIntoxRangeTop": 1.0,
+    "DamageReductionMax": 1.0,
+    "IgnoreSmallDamageChanceMax": 0.67,
+    "WalkSpeedPenaltyIntoxBeginApply": 0.6,
+    "WalkSpeedPenaltyIntoxFullApply": 3.0,
+    "WalkSpeedPenaltyMax": 0.6
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "MinDistance": 1500,
+  "MaxDistance": 8000,
+  "FuelPerGear": 3,
+  "TechnicalTraitFuelBonus": 1,
+  "OnlyPlayersUseFuel": true
+}

@@ -1,0 +1,8 @@
+{
+  "ConfigVersion": 1.3,
+  "GlobalOreDisableChance": 0.0,
+  "depositIndicatorBoulder": true,
+  "depositIndicatorProspectVeins": true,
+  "DistancebetweenAllOres": 100,
+  "DistanceBetweenSameOres": 800
+}

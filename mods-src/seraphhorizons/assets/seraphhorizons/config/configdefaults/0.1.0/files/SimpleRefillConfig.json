@@ -1,0 +1,9 @@
+{
+  "blacklist": [],
+  "refillDelayMs": 0,
+  "useOnlyBiggerStacks": false,
+  "enableSupplyContainers": false,
+  "supplyFromOpenedOnly": false,
+  "supplyMaxContainers": 0,
+  "refillToolsAndWeapons": false
+}

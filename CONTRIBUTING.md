@@ -8,7 +8,8 @@ Installing the pack is in the [README](README.md).
 ```
 pack/pack.toml          what's in the pack (edit this): game version, mods, licenses, why
 pack/lock.json          generated: exact release, file URL, sha256 and ModDB asset id per mod
-pack/config/ModConfig/  per-mod config overrides, .json or ConfigKit .yaml (shipped via the .cairn file)
+pack/config/ModConfig/  values the pack sets instead of a mod's default, .json or ConfigKit .yaml (shipped in the pack's own mod: docs/config-defaults.md)
+pack/config-defaults.toml  config defaults snapshots: files left out, file owners, setting renames
 pack/known-errors.json  understood cross-mod errors the tests tolerate, one issue each
 tools/packtool.py       lock / check / fetch / smoke / outdated / assemble (stdlib Python 3.11+)
 tests/PackTests/        Atlas scenarios: a headless server in `dotnet test` with the whole pack
@@ -34,6 +35,7 @@ uvx --from cogapp==3.6.0 cog -r README.md   # regenerate README's status line (g
 # tests (need the .NET 10 SDK and an extracted vs_server_linux-x64_<ver> archive)
 export VINTAGE_STORY=~/vs
 python3 tools/packtool.py smoke       # build mods-src/seraphhorizons, boot a dedicated server with it on a standard world, scan logs
+python3 tools/packtool.py smoke --config-defaults write   # after a lock change, a mod's or the pack's default change: regenerate the config defaults snapshot
 dotnet test tests/PackTests           # Atlas scenarios
 
 python3 tools/packtool.py outdated    # newer compatible releases / retractions
@@ -53,7 +55,7 @@ first). An IDE test runner needs the variable in its own settings.
 `ci.yml` runs on every PR, fork PRs included. It uses GitHub-hosted runners only and needs no secrets.
 
 - **lock**: `pack.toml` and `lock.json` agree, every declared mod dependency is in the pack, no locked release has been retracted, and README's generated status line (`cog --check`) matches `pack.toml`.
-- **smoke**: boots `VintagestoryServer` with the full pack on a standard world (fixed seed), waits for spawn-chunk worldgen, then runs `/stop`. The pack's own mod is built from `mods-src/seraphhorizons` (Release) and loaded in place of any pinned copy of its modid, staged in the run's own `Mods` only (never `build/mods`, the lock or `assemble`), so the log scan, the export and the item-values check on it see the mod as the tree has it, its items and its schematic gates. It fails on any `[Error]`/`[Fatal]`, failed JSON patch, exception, or a locked mod (or that build) that didn't load, except errors matching an entry in `pack/known-errors.json`. Each entry links the issue that explains it and is removed when that issue is fixed.
+- **smoke**: boots `VintagestoryServer` with the full pack on a standard world (fixed seed), waits for spawn-chunk worldgen, then runs `/stop`. The pack's own mod is built from `mods-src/seraphhorizons` (Release) and loaded in place of any pinned copy of its modid, staged in the run's own `Mods` only (never `build/mods`, the lock or `assemble`), so the log scan, the export and the item-values check on it see the mod as the tree has it, its items and its schematic gates. It fails on any `[Error]`/`[Fatal]`, failed JSON patch, exception, or a locked mod (or that build) that didn't load, except errors matching an entry in `pack/known-errors.json`. Each entry links the issue that explains it and is removed when that issue is fixed. It also fails when what the mods write into a fresh `ModConfig` differs from the current pack version's config defaults snapshot (`--config-defaults check`, [docs/config-defaults.md](docs/config-defaults.md)); regenerate it with `packtool smoke --config-defaults write` and commit.
 - **atlas**: [Atlas](https://github.com/Pixnop/Atlas) scenarios check that each locked mod loads at its locked version, that boot is clean, and that every block BetterRuins' ~800 schematics actually place resolves, after the engine's legacy remaps. The same job runs the game-independent unit tests of the pack-authored mods' logic (`mods-src/seraphhorizons/tests`).
 - **cairn**: builds the pack's own mod (`mods-src/seraphhorizons`), assembles the release with that zip in the Cairn pack the way `next` ships it (`packtool assemble --label next`, so the files are `seraphhorizons_next.cairn`, `seraphhorizons_next_server.zip` and `seraphhorizons_next_modlist.txt`), and installs the `.cairn` file with the real `cairn-server`. Cairn re-downloads and sha256-verifies every mod, and its lock must match ours. The mod's address is the `next` release, beside the pack, under a name carrying the commit (`seraphhorizons_next_<sha7>.zip`), and serves nothing until `next.yml` publishes this build there, so the install reads a copy of the pack that fetches the zip from a loopback web server instead; the lock and hash are the ones that ship.
 - **tools**: unit tests of the Python tools, `tools/site-data` and the site.
