@@ -224,9 +224,18 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private static bool LeadTo(ItemStack stack, Mod.Trading.Core.CellKey cell) =>
         ItemTraderLead.IsDrawn(stack) && stack.Attributes.GetString(MapOfferAttrs.Cell) == cell.ToString();
 
-    private async Task<ItemSlot> DrawnLead(IServerPlayer player, Mod.Trading.Core.CellKey cell)
+    /// <summary>Waits for the lead to the cell to be drawn; with <paramref name="trader"/>, the player
+    /// is its trading player again after (vanilla ends a trade when the player strays while chunks
+    /// generate, as on CI).</summary>
+    private async Task<ItemSlot> DrawnLead(IServerPlayer player, Mod.Trading.Core.CellKey cell, EntitySeraphTrader? trader = null)
     {
         await World.Until(() => Holding(player, ItemTraderLead.LeadCode, s => LeadTo(s, cell)) != null, 300_000);
+        if (trader != null && trader.WatchedAttributes.GetString("tradingPlayerUID") != player.PlayerUID)
+        {
+            player.Entity.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
+            await World.Ticks(5);
+            Assert.True(trader.BeginTrade(player));
+        }
         return Holding(player, ItemTraderLead.LeadCode, s => LeadTo(s, cell))!;
     }
 
@@ -270,7 +279,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         int gears = InventoryTrader.GetPlayerAssets(buyer.Entity);
         Assert.True(BuyLead(buyer, store, offer).Ok);
         Assert.Equal(gears - offer.Price, InventoryTrader.GetPlayerAssets(buyer.Entity));
-        var slot = await DrawnLead(buyer, offer.Cell);
+        var slot = await DrawnLead(buyer, offer.Cell, store);
         var camp = Camp(offer.Cell)!;
         Assert.Equal(Mod.Trading.Core.CampStatus.Placed, camp.Status);
         Assert.Equal(camp.X, slot.Itemstack.Attributes.GetInt(MapOfferAttrs.X));
@@ -328,7 +337,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var bought = before.Offers[0];
         var kept = before.Offers[1];
         Assert.True(BuyLead(buyer, store, bought).Ok);
-        await DrawnLead(buyer, bought.Cell);
+        await DrawnLead(buyer, bought.Cell, store);
         var after = LeadsAt(buyer, store);
         Assert.Equal(1, after.Buyer.Bought);
         Assert.DoesNotContain(bought.Cell, after.Offers.Select(o => o.Cell));
@@ -342,12 +351,12 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             Assert.DoesNotContain(next.Cell, before.Offers.Select(o => o.Cell));
             Assert.True(next.Prospector || next.Distance >= before.Offers.Where(o => !o.Prospector).Max(o => o.Distance) - 1e-6);
         }
-        else Assert.Equal(1, after.Offers.Count);
+        else Assert.Single(after.Offers);
 
         // Once more: the count goes on, and so does the price.
         var second = after.Offers[0];
         Assert.True(BuyLead(buyer, store, second).Ok);
-        await DrawnLead(buyer, second.Cell);
+        await DrawnLead(buyer, second.Cell, store);
         var third = LeadsAt(buyer, store);
         Assert.Equal(2, third.Buyer.Bought);
         Assert.All(third.Offers, o => Assert.Equal(rules.Price(o.Distance, 2, "known"), o.Price));
@@ -515,7 +524,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True((await World.ExecuteCommand($"/sh trade standing set dupebuyer {Standing.TraderIdOf(trader)} 100")).Ok);
         var lead = LeadsAt(buyer, trader).Offers[0];
         Assert.True(BuyLead(buyer, trader, lead).Ok);
-        await DrawnLead(buyer, lead.Cell);
+        await DrawnLead(buyer, lead.Cell, trader);
 
         // The same lead again: no longer offered (a copy carried), and a buy naming it is refused
         // before any gears move.
