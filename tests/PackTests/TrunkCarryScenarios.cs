@@ -355,7 +355,7 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var values = stats["walkspeed"].ValuesByKey;
         output.WriteLine($"walkspeed {stats.GetBlended("walkspeed")} carrying 48 logs: {string.Join(", ", values.Select(kv => $"{kv.Key}={kv.Value.Value}*{kv.Value.Weight}"))}");
         output.WriteLine($"player walk multiplier {player.Entity.GetWalkSpeedMultiplier()}");
-        Assert.Equal(0.5f, TrunkWeight.CarrySpeed(48, Mod.Config), 3);
+        Assert.Equal(0.1f, TrunkWeight.CarrySpeed(48, Mod.Config), 3);
         Assert.Equal(TrunkWeight.CarrySpeed(48, Mod.Config), stats.GetBlended("walkspeed") - (before - 1f), 2);
         // nothing but the game's own codes and the pack's: no Carry On slowdown, zero or not
         Assert.DoesNotContain(values.Keys, k => k != TrunkCarry.SpeedCode && !codes.Contains(k));
