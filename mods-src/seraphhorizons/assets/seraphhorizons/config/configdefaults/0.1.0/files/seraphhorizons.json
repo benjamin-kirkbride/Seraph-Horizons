@@ -73,6 +73,8 @@
     "ThinTree": 4,
     "ThickTree": 8
   },
+  "LocomotiveRidersStayOn": true,
+  "LocomotiveRidersBreathe": true,
   "OreCells": true,
   "OreCellSizeMetres": 5000,
   "OreCellSizeByMetal": {},
@@ -147,7 +149,7 @@
   "TrunkEntitiesSettings": {
     "WeightPerLog": 8.0,
     "CarrySpeedAtOneLog": 1.0,
-    "CarrySpeedAtMaxLogs": 0.5,
+    "CarrySpeedAtMaxLogs": 0.1,
     "SpudSecondsPerLog": 0.5
   },
   "GearReclamation": true,
