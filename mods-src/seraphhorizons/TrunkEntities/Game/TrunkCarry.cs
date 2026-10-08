@@ -37,13 +37,20 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// by Carry On's key or the game's own empty-hand take, puts it in the player's hands.</item>
 /// </list>
 /// The trunk's carry animation (Logging Expanded's <c>trunkcarry</c>, <c>trunkcarryheavy</c> for
-/// thick trunks) and Carry On's <c>carry-trunk</c> transform are a second Carryable merged into
-/// Logging Expanded's by Carry On (<c>patches/trunkentities-carryon.json</c>).
+/// thick trunks) and the pack's shoulder transform are a second Carryable merged into Logging
+/// Expanded's by Carry On (<c>patches/trunkentities-carryon.json</c>); Carry On's first-person
+/// frame is turned into the shoulder frame that transform is made for while a trunk is carried
+/// (<see cref="FirstPersonHandsPostfix"/>, <see cref="TrunkCarryPose"/>).
 /// </summary>
 public static class TrunkCarry
 {
     public const string CarrySystemName = "CarryOn.CarrySystem";
     public const string HarmonyId = "seraphhorizons.trunkcarry";
+
+    /// <summary>Carry On's first-person matrix for a carried block (client side).</summary>
+    public const string FirstPersonTypeName = "CarryOn.Client.Logic.CarryRenderer.CarryFirstPersonTransform";
+
+    private static readonly float[] FirstPersonAdjust = TrunkCarryPose.FirstPersonAdjust();
 
     /// <summary>The player's <c>walkspeed</c> stat code while carrying a trunk.</summary>
     public const string SpeedCode = "seraphhorizons:trunk";
@@ -311,6 +318,15 @@ public static class TrunkCarry
                 api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On's carry manager has no SetCarried, so a trunk put on a back is only laid down by the periodic check");
             else
                 api.Logger.Notification("[seraphhorizons] Trunk entities: a trunk put on a back is laid down at once ({0} SetCarried patched)", setters.Count);
+            // First person: Carry On's frame for the hands is its chest carry's, not the shoulder
+            // frame the trunk's transform is made for (TrunkCarryPose).
+            var firstPerson = AccessTools.TypeByName(FirstPersonTypeName) is { } fpType
+                ? AccessTools.Method(fpType, "GetFirstPersonHandsMatrix", [typeof(EntityAgent), typeof(float[]), typeof(float), typeof(long)])
+                : null;
+            if (firstPerson != null && firstPerson.ReturnType == typeof(float[]))
+                _harmony.Patch(firstPerson, postfix: new HarmonyMethod(typeof(TrunkCarry), nameof(FirstPersonHandsPostfix)));
+            else
+                api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On's {0}.GetFirstPersonHandsMatrix is gone, so a carried trunk lies across the view in first person", FirstPersonTypeName);
             return true;
         }
     }
@@ -544,6 +560,19 @@ public static class TrunkCarry
             api.World.PlaySoundAt(stack.Block?.Sounds?.Place ?? GlobalConstants.DefaultBuildSound, __0, (__0 as EntityPlayer)?.Player);
         __result = true;
         return false;
+    }
+
+    // CarryFirstPersonTransform.GetFirstPersonHandsMatrix(entity, viewMat, deltaTime, renderTick):
+    // Carry On's frame for the hands in first person (not immersive), a fresh array each call,
+    // which the block's hands transform is then applied in. For a carried trunk it becomes the
+    // shoulder frame of third person (TrunkCarryPose), so its transform lays it front to back there
+    // too instead of on end.
+    private static void FirstPersonHandsPostfix(EntityAgent __0, float[] __result)
+    {
+        if (__result is not { Length: 16 } || __0?.World == null || CarriedIn(__0) is not { } carried
+            || StackOf(carried, __0.World) is not { } stack || !Trunks.IsTrunk(stack))
+            return;
+        Mat4f.Mul(__result, __result, FirstPersonAdjust);
     }
 
     // CarryDropService.DropCarriedBlock(entity, carriedBlock, range, blockPlacer): death, damage,
