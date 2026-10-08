@@ -151,7 +151,7 @@ public class UnifiedPipesSystem : ModSystem
             + "on a stressed boiler. Pipe is made from pipe sections: copper and lead ones soldered, a solder bar a "
             + "section and a soldering iron, iron and steel ones banded with one nails and strips and a hammer; one "
             + "section makes a straight pipe, and two, three or four a bend, T- or X-junction. Copper and lead pipe "
-            + "sections come from a chute section, two soldered angles, worked on the mandrel station or drawn on the "
+            + "sections come from a tube blank, two soldered angles, worked on the mandrel station or drawn on the "
             + "draw bench; iron and steel ones are cast."),
         new("en", "ppex:handbook-fittings-text",
             "A <strong>Valve</strong> is a hand-operated shut-off in a line.",

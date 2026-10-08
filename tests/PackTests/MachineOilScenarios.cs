@@ -137,7 +137,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(cfg.Tank, state.Tank.Capacity);
         Assert.Equal(0.085f * 3, mp.GetResistance(), 4);
         // The Dry line gives the load the shaft last asked, against the oiled one.
-        Assert.Contains("Dry: a load of 0.255 on its shaft, 3× the 0.085 it takes oiled", OilSite.Info(be, p.Player));
+        Assert.Contains("Dry: a load of 25.5 kN on its shaft, 3× the 8.5 kN it takes oiled", OilSite.Info(be, p.Player));
 
         // Four lumps of tallow, half a litre each.
         Assert.True(site.RightClick(pos, site.Stack(OilSite.Tallow, 4)));
@@ -146,6 +146,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(0.085f, mp.GetResistance(), 4);
         Assert.Contains("Oil: 200 of 1000", OilSite.Info(be, p.Player));
         Assert.DoesNotContain("Dry", OilSite.Info(be, p.Player));
+        // Oiled, the load line stays, in kN.
+        Assert.Contains("Load: 8.5 kN", OilSite.Info(be, p.Player));
 
         // A full bucket of flax oil: as much as fits, the rest stays in the bucket.
         var bucket = site.BucketOf(OilSite.FlaxOil, 1000);
@@ -207,11 +209,12 @@ public partial class SharedWorldScenarios
         Assert.Equal(0.0005f, toggle.GetResistance(), 5);
         hammer.HammerStack = site.Stack("game:helvehammer-iron");
         Assert.Equal(0.125f * 3, toggle.GetResistance(), 4);
-        Assert.Contains("Dry: a load of 0.375 on its shaft, 3× the 0.125 it takes oiled", OilSite.Info(hammer, p.Player));
+        Assert.Contains("Dry: a load of 37.5 kN on its shaft, 3× the 12.5 kN it takes oiled", OilSite.Info(hammer, p.Player));
 
         Assert.True(site.RightClick(side, site.BucketOf(OilSite.FlaxOil, 300)));
         Assert.Equal(300, ForeignMachines.StateOf(hammer)!.Tank.Points, 3);
         Assert.Equal(0.125f, toggle.GetResistance(), 4);
         Assert.Contains("Oil: 300 of 1000", OilSite.Info(hammer, p.Player));
+        Assert.Contains("Load: 12.5 kN", OilSite.Info(hammer, p.Player));
     }
 }

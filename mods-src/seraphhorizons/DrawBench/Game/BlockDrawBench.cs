@@ -28,7 +28,7 @@ public class BlockDrawBench : Block
         base.OnLoaded(api);
         _partStacks = ObjectCacheUtil.GetOrCreate(api, "drawbench-partstacks", () =>
             DrawBenchRequires.Stages.ToDictionary(s => s, s => DrawBenchParts.CodesFor(s)
-                .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
+                .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item, DrawBenchParts.Needed(s)) : null)
                 .OfType<ItemStack>().ToArray()));
         _hollowStacks = ObjectCacheUtil.GetOrCreate(api, "drawbench-hollowstacks", () =>
             new[] { Drawing.LeadHollow, Drawing.CopperHollow }
