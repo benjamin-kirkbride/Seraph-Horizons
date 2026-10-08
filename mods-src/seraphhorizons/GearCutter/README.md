@@ -468,7 +468,9 @@ with the block's texture source), `gearcutter-ghost` and `gearcutter-ghostpower-
 ghosts, ghost repair, breaking through a ghost and the boxes (selection from the rig's cells, collision
 with their lids) are the rosser's, without the trunk. The frame recipe (`recipes/grid/gearcutter.json`):
 8 steel ingots (4 in each ingot slot, steel only), 4 planks, 32 nails and strips of iron, meteoric
-iron or steel and a hammer. The pack's other machine frames cost iron, but this is the end-game
+iron or steel, 3 steel gears (`seraphhorizons:gear-steel`, in the bottom middle slot, for the gearing
+the frame carries: the feed rectifier's train and the camshaft's worm wheel; every other machine in the
+pack pays steel gears for its gears, #473, and the first come from reclaiming rusty gears) and a hammer. The pack's other machine frames cost iron, but this is the end-game
 machine of the gears epic, and a cast bed and column are a lot of metal. The cost is in the recipe
 itself (the cutter does not need Immersive Woodworking, so it is not in
 `patches/woodworking-machine-costs.json`).
