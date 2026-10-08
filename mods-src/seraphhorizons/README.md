@@ -1931,8 +1931,8 @@ valves stay as blocks, so those already placed keep working, but nothing makes t
   still makes chutes), and the handbook and the machines' text call it the tube blank. The game's chutes take
   `chutesection-copper` by name, so lead makes no chute.
 - The **pipe section**, `seraphhorizons:pipesection-{copper,lead,iron,steel}` ("Copper pipe
-  section"): a square tube 6 voxels across (ppex's pipe is 6/16 wide) with 1-voxel walls, half a block
-  long (`shapes/item/pipesection.json`), textured as ppex's pipes are
+  section"): ppex's straight pipe's tube, 6 voxels across (6/16 wide) with 1-voxel walls round a 4 x 4
+  bore, a block long (`shapes/item/pipesection.json`), textured as ppex's pipes are
   (`game:block/metal/sheet-plain/{metal}4`). No grid or anvil recipe makes it: copper and lead ones
   come from a chute section on the mandrel station (2) or the draw bench (4), iron and steel ones from
   smex's canal in the pipe mold (`CastPipes`, 2 a fill of 100 units).

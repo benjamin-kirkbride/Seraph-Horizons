@@ -9,7 +9,7 @@ namespace SeraphHorizons.Mod.Pipes.Core;
 /// <item>the <b>hollow section</b>, the game's chute section (<see cref="ChuteSections"/>): two
 /// angles soldered together on the grid (<c>recipes/grid/chutesection.json</c>);</item>
 /// <item>the <b>pipe section</b>, <c>seraphhorizons:pipesection-{copper,lead,iron,steel}</c>: a
-/// pipe-sized square tube half a block long, which no grid or anvil recipe makes: the mandrel
+/// length of the pipe's own square tube, a block long, which no grid or anvil recipe makes: the mandrel
 /// station and the draw bench make copper and lead ones from hollow sections, and Steelmaking
 /// Expanded's canal casts iron and steel ones (<see cref="CastPipeMold"/>);</item>
 /// <item>the <b>pipes</b>, Pipes and Power Expanded's, from pipe sections in the game's chute

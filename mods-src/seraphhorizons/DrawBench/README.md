@@ -4,10 +4,10 @@ Part of the Seraph Horizons mod (`../README.md`): the drawn rung of the pipe lad
 `../Pipes/`). A mechanically powered **chain draw bench**, as used for lead and copper pipe from the
 1790s to the 1880s, turns one **hollow section** of lead or copper (the game's chute section, named the tube blank in game,
 `game:chutesection-{lead,copper}`, the 8 × 8 × 8 hollow box) into four seamless **pipe sections**
-(`seraphhorizons:pipesection-{lead,copper}`: a square tube the size of ppex's pipe, 6 voxels across,
-half a block long). The hollow goes on the bench threaded on a square **mandrel** bar and held against
-the **die** by a spring follower. Each stroke draws a quarter of it through the square die, over the
-mandrel's plug, into one section: the **dog** (drawing tongs on a portal that runs on two ways, one
+(`seraphhorizons:pipesection-{lead,copper}`: on the bench a square tube the width of ppex's pipe, 6 voxels
+across, half a block long; the item is the pipe's own tube, a block long, see "The work"). The hollow
+goes on the bench threaded on a square **mandrel** bar and held against the **die** by a spring
+follower. Each stroke draws a quarter of it through the square die, over the mandrel's plug, into one section: the **dog** (drawing tongs on a portal that runs on two ways, one
 either side of the section) grips the section's point at the die's mouth, and an endless **chain**
 beside the bed, shackled to the dog, hauls it along. The chain's drive sprocket is turned from the
 vanilla axle through a **rectifier**, a **cone friction clutch**, a two-speed **change gear** (lead
@@ -43,12 +43,16 @@ front of the die end (native north).
 
 **The draw line** runs along z at x 5, y 11.5 voxels (in blocks 0.3125, 0.719): the section's axis.
 
-**The work, exactly** (voxels; the recipes' item shapes match these):
+**The work, exactly** (voxels). The hollow is the game's item as it is. The pipe section on the bench is
+the metal of a quarter of the hollow drawn out: the item it becomes is the straight pipe's tube, its
+cross-section ppex's (6 × 6, walls 1 round a 4 × 4 bore) and a block long
+(`assets/seraphhorizons/shapes/item/pipesection.json`, held by `tests/Pipes/PipeSectionsTests.cs`), which
+four of would not fit the bench's trough nor come from a hollow's metal. The bench's sections stay as below:
 
 | Piece | Outside | Wall | Bore | Length | On the bench |
 |---|---|---|---|---|---|
 | Hollow section (`game:chutesection-*`, in) | 8 × 8 square | 1 | 6 × 6 | 8 | On the mandrel bar (5.9 square), z 10.4..18.4, against the die stock's back face |
-| Pipe section (`seraphhorizons:pipesection-*`, out) | 6 × 6 square (0.375 block; ppex's pipe, its collision box 0.3125..0.6875) | 0.3 | 5.4 × 5.4 (the plug's 5.38) | 8 (0.5 block) | Axis along z; drawn out of the die's mouth, then queued in the trough |
+| Pipe section (`seraphhorizons:pipesection-*`, out), as drawn on the bench | 6 × 6 square (0.375 block; ppex's pipe, its collision box 0.3125..0.6875) | 0.3 | 5.4 × 5.4 (the plug's 5.38) | 8 (0.5 block) | Axis along z; drawn out of the die's mouth, then queued in the trough |
 
 A quarter of the hollow (2 long) is the metal of a section.
 
@@ -369,6 +373,9 @@ The model has been reviewed in projections rendered from the written files and i
 8. **The change gear's pair not in use** stands clear (a sliding gear's idle pair), and the selector's
    setting is the operator's, eased in with the hollow's presence.
 9. **Lead and copper look the same** but for their texture: the hollow and the sections are one geometry.
+10. **The pipe section item is not the drawn section.** The item is the pipe's tube (6 across, walls 1, a
+    block long); the bench draws and queues a thinner, half-block section, the metal a quarter of the
+    hollow holds.
 
 ## Gameplay
 

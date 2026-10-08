@@ -4,12 +4,12 @@
 The draw bench is a chain draw bench of the kind used from the 1790s to the 1880s to draw lead and
 copper tube. A hollow section (the game's chute section, 8 x 8 x 8) goes on the bench threaded on a
 square mandrel bar and held against the die by a spring follower. Each stroke draws a quarter of it
-through the square die, over the mandrel's plug, into a pipe section (a square tube 6 across, the size
-of ppex's pipe, half a block long): the dog (drawing tongs on a portal running on two ways either side
-of the section) grips the section's point at the die mouth, and an endless chain beside the bed,
+through the square die, over the mandrel's plug, into a pipe section (on the bench a square tube 6
+across, the width of ppex's pipe, half a block long; the item is the pipe's tube, a block long): the
+dog (drawing tongs on a portal running on two ways either side of the section) grips the section's point at the die mouth, and an endless chain beside the bed,
 shackled to the dog, hauls it along. The chain's drive sprocket is turned from the vanilla axle
 through a rectifier, a cone friction clutch, a two-speed change gear (lead fast, copper slow) and a
-final pair. The operator's start lever throws the clutch in and closes the jaws on the point; when the
+final drive. The operator's start lever throws the clutch in and closes the jaws on the point; when the
 section's tail leaves the die the jaws spring open and the section drops into the trough under the
 bed and slides north down it to queue behind the others; at the end of its travel the dog's lug
 knocks the clutch out. A counterweight, lifted during the draw by a rope on a barrel geared to the
