@@ -5,4 +5,5 @@ declare module "virtual:standalone-model" {
   export const model: PublishedModel;
   export const shape: Shape;
   export const rig: Rig | null;
+  export const bogie: Shape | null;
 }

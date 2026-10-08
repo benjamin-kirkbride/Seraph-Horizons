@@ -687,10 +687,29 @@ export function requiresValues(parts: readonly RigPart[]): string[] {
   return out;
 }
 
-/** The shortest signed step from angle `from` to `to`, in (−π, π]. */
-export function wrappedDelta(from: number, to: number): number {
-  let d = (to - from) % (2 * Math.PI);
-  if (d > Math.PI) d -= 2 * Math.PI;
-  else if (d <= -Math.PI) d += 2 * Math.PI;
+/** The shortest signed step from angle `from` to `to` on a circle of `period` (a turn by default), in (−period/2, period/2]. */
+export function wrappedDelta(from: number, to: number, period = 2 * Math.PI): number {
+  let d = (to - from) % period;
+  if (d > period / 2) d -= period;
+  else if (d <= -period / 2) d += period;
   return d;
+}
+
+/** The most shaft turns thetaTurns looks for a cycle in; a longer one is not worth a slider. */
+export const MAX_CYCLE_TURNS = 6;
+
+/**
+ * How many shaft turns it takes for every part that reads θ to come back to the same pose: the
+ * least n (up to MAX_CYCLE_TURNS) for which every θ-reading rotate, slide and swing turns its
+ * ratio × n whole times. 1 when none is that short: a gear train of odd teeth counts, which looks
+ * the same at each turn anyway, as a tooth comes round where a tooth was. The handcar's beam
+ * swings once in 3 turns of its axle (ratio −1/3), so its slider spans 3 turns.
+ */
+export function thetaTurns(parts: readonly RigPart[]): number {
+  const ratios: number[] = [];
+  for (const p of parts)
+    for (const d of p.drivers ?? [])
+      if ((d.type === "rotate" || d.type === "slide" || d.type === "swing") && driverInput(d) === "theta") ratios.push(d.ratio ?? 1);
+  for (let n = 1; n <= MAX_CYCLE_TURNS; n++) if (ratios.every((r) => Math.abs(r * n - Math.round(r * n)) < 1e-4)) return n;
+  return 1;
 }
