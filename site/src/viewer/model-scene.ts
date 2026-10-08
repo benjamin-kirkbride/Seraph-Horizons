@@ -33,6 +33,7 @@ import {
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SIDE_NORMAL, cellBoxes, lidBox, sideArrow, type Anchor, type Bounds } from "../lib/model-anchors.ts";
 import type { ModelView } from "../lib/model-view.ts";
+import { TRACK_OVERLAY, type TrackLayout } from "../lib/model-vehicle.ts";
 import { FACE_NAMES, corners, type FaceName, type Mat4, type Vec3 } from "../lib/rig.ts";
 
 export interface SceneColours {
@@ -70,6 +71,7 @@ const EDGES: [number, number][] = [
 ];
 
 const OVERLAY_COLOURS = { cell: 0xe8590c, side: 0x2f9e44, point: 0x9c36b5, line: 0x8b5a2b, level: 0x1c7ed6, collision: 0x1d9bd6, lid: 0x7048e8, origin: 0xf08c00 };
+const TRACK_COLOURS = { rail: 0x7d828b, sleeper: 0x6b4a2f };
 
 function boxEdges(lo: readonly number[], hi: readonly number[]): number[] {
   const c = (i: number) => [(i & 1 ? hi : lo)[0]!, (i & 2 ? hi : lo)[1]!, (i & 4 ? hi : lo)[2]!];
@@ -108,6 +110,9 @@ export class ModelScene {
   private readonly pickLines: LineSegments;
   private readonly hoverLines: LineSegments;
   private readonly prop = new Group();
+  /** A vehicle's sleepers, which scroll along the track; null without a track. */
+  private sleepers: Group | null = null;
+  private trackAxis: 0 | 2 = 0;
   private readonly target: Vector3;
   private readonly radius: number;
   private matrices: Mat4[] = [];
@@ -126,8 +131,8 @@ export class ModelScene {
   private readonly view: ModelView;
   private edgesOn = true;
 
-  /** Builds the scene into `canvas`, with the overlays' labels in `labelLayer`; throws when WebGL cannot start. */
-  constructor(canvas: HTMLCanvasElement, labelLayer: HTMLElement, view: ModelView, colours: SceneColours, propColour = "#8b5a2b") {
+  /** Builds the scene into `canvas`, with the overlays' labels in `labelLayer` (and a vehicle's track under it); throws when WebGL cannot start. */
+  constructor(canvas: HTMLCanvasElement, labelLayer: HTMLElement, view: ModelView, colours: SceneColours, propColour = "#8b5a2b", track: TrackLayout | null = null) {
     this.canvas = canvas;
     this.labelLayer = labelLayer;
     this.view = view;
@@ -150,6 +155,7 @@ export class ModelScene {
     this.cornersBlocks = view.flat.map((f) => corners(f).map((c) => [c[0] / 16, c[1] / 16, c[2] / 16] as Vec3));
     view.parts.forEach((_, i) => this.partObjects.push(this.buildPart(i)));
     this.buildOverlays(view.bounds, view.anchors);
+    if (track) this.buildTrack(track);
 
     const outline = (opacity: number) => {
       const g = new BufferGeometry();
@@ -385,6 +391,33 @@ export class ModelScene {
         }
       }
     }
+  }
+
+  /** A vehicle's track: the rails, and the sleepers in a group of their own that setTrackScroll moves. */
+  private buildTrack(track: TrackLayout) {
+    const g = this.overlay(TRACK_OVERLAY);
+    const unit = new BoxGeometry(1, 1, 1);
+    const add = (to: Group, boxes: TrackLayout["rails"], colour: number) => {
+      const material = new MeshLambertMaterial({ color: colour });
+      for (const b of boxes) {
+        const m = new Mesh(unit, material);
+        m.position.set(...b.centre);
+        m.scale.set(...b.size);
+        to.add(m);
+      }
+    };
+    add(g, track.rails, TRACK_COLOURS.rail);
+    this.sleepers = new Group();
+    add(this.sleepers, track.sleepers, TRACK_COLOURS.sleeper);
+    g.add(this.sleepers);
+    this.trackAxis = track.axis === "z" ? 2 : 0;
+  }
+
+  /** Shifts the sleepers along the track by `offset` blocks (model-vehicle.ts's trackScroll). */
+  setTrackScroll(offset: number) {
+    if (!this.sleepers) return;
+    this.sleepers.position.set(this.trackAxis === 0 ? offset : 0, 0, this.trackAxis === 2 ? offset : 0);
+    this.dirty = true;
   }
 
   /** Poses each part by its matrix (blocks) and shows the fitted ones. */

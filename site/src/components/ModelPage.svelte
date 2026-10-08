@@ -9,13 +9,16 @@
   import {
     advance,
     classShows,
+    choiceOf,
     contactDepth,
     defaultInputSpeed,
     enterPhase,
     feedAdvance,
     feedBlocksPerRadian,
+    initialFitted,
     INPUT_SPEED_MAX,
     optionClass,
+    pickChoice,
     playTrip,
     propBox,
     rigNumber,
@@ -23,9 +26,21 @@
     type Motion,
     type PlayContext,
   } from "../lib/model-scenario.ts";
+  import {
+    BOGIE_PART,
+    blocksPerSecondAt,
+    rolledBy,
+    TRACK_OVERLAY,
+    trackLayout,
+    trackScroll,
+    turnsPerSecondAt,
+    vehicleOf,
+    withBogies,
+    type Vehicle,
+  } from "../lib/model-vehicle.ts";
   import { buildModelView, elementDetails, type ModelView } from "../lib/model-view.ts";
   import { formatRoute } from "../lib/route.ts";
-  import { classIndex, fitted, partMatrices, workEnd, wrappedDelta, type Rig } from "../lib/rig.ts";
+  import { classIndex, fitted, partMatrices, thetaTurns, workEnd, wrappedDelta, type Rig } from "../lib/rig.ts";
   import { mt } from "../lib/model-strings.ts";
   import { REPO_URL, t } from "../lib/strings.ts";
   import type { ColourMode, ModelScene, SceneColours, ViewName } from "../viewer/model-scene.ts";
@@ -37,6 +52,7 @@
   // ---- data
   let view = $state<ModelView | null>(null);
   let rig = $state<Rig | null>(null);
+  let vehicle = $state<Vehicle | null>(null);
   let failed = $state<string | null>(null);
 
   $effect(() => {
@@ -44,17 +60,25 @@
     loadModelFiles(m).then(
       (files) => {
         try {
-          view = buildModelView(files.shape, files.rig, m.scenario);
-          rig = files.rig;
-          fittedState = Object.fromEntries(view.requires.map((r) => [r.value, true]));
+          // A vehicle's bogies are its own shape, added to the model where the renderer draws them.
+          const v = files.rig ? vehicleOf(m.scenario?.vehicle, files.rig) : null;
+          const merged = files.rig ? withBogies(files.shape, files.rig, files.bogie, v) : { shape: files.shape, rig: null };
+          view = buildModelView(merged.shape, merged.rig, m.scenario);
+          rig = merged.rig;
+          vehicle = v;
+          fittedState = initialFitted(
+            view.requires.map((r) => r.value),
+            m.scenario?.choices,
+          );
           overlays = {
             cells: true,
             collision: false,
+            ...(v?.track ? { [TRACK_OVERLAY]: true } : {}),
             ...Object.fromEntries(view.anchors.map((a) => [a.key, true])),
           };
           colourMode = view.hasRig ? "part" : "texture";
           propChoice = m.scenario?.prop?.default ?? "none";
-          inputSpeed = defaultInputSpeed(m.scenario?.play);
+          inputSpeed = defaultInputSpeed(m.scenario?.play, v?.speed ? turnsPerSecondAt(v.speed, v) : null);
           choose();
         } catch (e) {
           failed = (e as Error).message;
@@ -133,9 +157,19 @@
       ? propBox(propOption, propLine, { placement: propSpec?.placement, ...(trunkProp ? { nose: trunkProp.nose0 + (motion.work ?? 0) } : {}) })
       : null,
   );
-  const thetaDeg = $derived(Math.round((motion.theta * 180) / Math.PI) % 360);
+  // θ runs on unwrapped; its slider spans the rig's cycle, the turns it takes every part reading θ to
+  // come round (the handcar's beam rocks once in three turns of its axle).
+  const cycleTurns = $derived(view ? thetaTurns(view.parts.map((p) => p.part)) : 1);
+  const cycleDeg = $derived(Math.round((((motion.theta * 180) / Math.PI) % (360 * cycleTurns)) + 360 * cycleTurns) % (360 * cycleTurns));
+  const thetaDeg = $derived(cycleDeg % 360);
+  const thetaNote = $derived(
+    cycleTurns === 1 ? "" : vehicle?.cycle ? s.ofCycle(Math.floor((cycleDeg / (360 * cycleTurns)) * 100), vehicle.cycle) : s.turnOf(Math.floor(cycleDeg / 360) + 1, cycleTurns),
+  );
+  // A vehicle: how far it has rolled (towards its front when positive), blocks.
+  let rolled = $state(0);
+  const track = $derived(vehicle?.track && view ? trackLayout(vehicle.track, vehicle, view.bounds) : null);
   const phaseLabel = $derived(motion.phase ? (play?.phases.find((p) => p.id === motion.phase)?.label ?? motion.phase) : null);
-  const status = $derived(playing ? (phaseLabel ?? s.playHintTurn) : phaseLabel ? s.paused(phaseLabel.toLowerCase()) : s.posedByHand);
+  const status = $derived(playing ? (phaseLabel ?? (vehicle ? s.rolling : s.playHintTurn)) : phaseLabel ? s.paused(phaseLabel.toLowerCase()) : s.posedByHand);
 
   // ---- the 3D scene
   let canvas = $state<HTMLCanvasElement>();
@@ -167,7 +201,7 @@
       (mod) => {
         if (gone) return;
         try {
-          made = new mod.ModelScene(c, layer, v, readColours(), propSpec?.colour);
+          made = new mod.ModelScene(c, layer, v, readColours(), propSpec?.colour, track);
           scene = made;
           sceneState = "ready";
         } catch {
@@ -189,6 +223,9 @@
   $effect(() => scene?.colourBy(colourMode));
   $effect(() => scene?.setEdges(edges));
   $effect(() => scene?.setProp(box));
+  $effect(() => {
+    if (vehicle && track) scene?.setTrackScroll(trackScroll(rolled, track.spacing, vehicle));
+  });
   $effect(() => scene?.highlight(picked, hovered));
   $effect(() => {
     const sc = scene;
@@ -254,11 +291,12 @@
     playing = false;
     motion.phase = null;
   }
+  /** Sets θ to a place in the rig's cycle, the shortest way round it from where it is. */
   function setTheta(deg: number) {
-    const next = (deg * Math.PI) / 180;
-    const turned = Math.abs(wrappedDelta(motion.theta, next));
-    motion.travel += turned;
-    motion.theta = next;
+    const turned = wrappedDelta(motion.theta, (deg * Math.PI) / 180, 2 * Math.PI * cycleTurns);
+    motion.travel += Math.abs(turned);
+    motion.theta += turned;
+    if (vehicle) rolled += rolledBy(turned, vehicle);
   }
   /** Posed by hand, the prop's choice is the trunk's class, fully present, kept within its trip. */
   function choose() {
@@ -297,7 +335,9 @@
     frame = requestAnimationFrame(tick);
     const dt = last === null ? 0 : Math.min(0.1, (time - last) / 1000);
     last = time;
-    motion = advance(playContext(), motion, dt);
+    const next = advance(playContext(), motion, dt);
+    if (vehicle) rolled += rolledBy(next.theta - motion.theta, vehicle);
+    motion = next;
   }
   function togglePlay() {
     if (playing) {
@@ -324,7 +364,13 @@
 
   // ---- pinned details
   const pickedPart = $derived(view && picked !== null ? view.parts[view.elementPart[picked]!]! : null);
-  const requiresLabel = (value: string) => view?.requires.find((r) => r.value === value)?.label ?? value;
+  const requiresLabel = (value: string) => {
+    const label = view?.requires.find((r) => r.value === value)?.label ?? value;
+    const choice = choiceOf(scenario?.choices, value);
+    return choice ? `${choice.label}: ${label}` : label;
+  };
+  // The requires values that are not in a choice: a checkbox each.
+  const freeRequires = $derived(view ? view.requires.filter((r) => !choiceOf(scenario?.choices, r.value)) : []);
   let copyState = $state<{ which: string; text: string } | null>(null);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   let nameEl = $state<HTMLElement>();
@@ -377,7 +423,10 @@
             key: `part:${p.id}`,
             colour: p.colour,
             name: p.id,
-            note: [p.id === "unmatched" ? s.unmatched : p.part.requires ? s.needs(requiresLabel(p.part.requires)) : s.always, p.part.ride ? s.rides(p.part.ride) : ""]
+            note: [
+              p.id === "unmatched" ? s.unmatched : vehicle && p.id === BOGIE_PART ? s.bogiesNote : p.part.requires ? s.needs(requiresLabel(p.part.requires)) : s.always,
+              p.part.ride ? s.rides(p.part.ride) : "",
+            ]
               .filter(Boolean)
               .join(" · "),
             elements: p.elements,
@@ -477,8 +526,14 @@
           <legend>{s.motion}</legend>
           {#if view.inputs.theta || view.inputs.travel}
             <label class="slider">
-              <span class="row"><span>{scenario?.inputs?.theta?.label ?? s.shaftAngle}</span><output>{thetaDeg}°</output></span>
-              <input type="range" min="0" max="359" step="1" value={thetaDeg} oninput={(e) => setTheta(+e.currentTarget.value)} data-input="theta" />
+              <span class="row"
+                ><span>{scenario?.inputs?.theta?.label ?? s.shaftAngle}</span><output data-testid="model-theta">{thetaDeg}°{#if thetaNote}<span class="muted">, {thetaNote}</span>{/if}</output></span
+              >
+              <input type="range" min="0" max={360 * cycleTurns - 1} step="1" value={cycleDeg} oninput={(e) => setTheta(+e.currentTarget.value)} data-input="theta" />
+              {#if scenario?.inputs?.theta?.hint}<span class="muted small">{scenario.inputs.theta.hint}</span>{/if}
+              {#if vehicle}
+                <span class="muted small" data-testid="model-rolled">{s.rolled(rolled)}{cycleTurns > 1 && vehicle.cycle ? ` · ${s.cycleDistance(vehicle.cycle, cycleTurns, 2 * Math.PI * vehicle.wheelRadius * cycleTurns)}` : ""}</span>
+              {/if}
               {#if view.inputs.travel}<span class="muted small">{s.shaftTravel(Math.round((motion.travel * 180) / Math.PI))}</span>{/if}
               {#if view.inputs.feed}<span class="muted small" data-testid="model-feed">{s.feedTravel(Math.round(((motion.feed ?? 0) * 180) / Math.PI))}</span>{/if}
             </label>
@@ -588,14 +643,14 @@
           {#if view.inputs.theta || view.inputs.travel || view.inputs.feed}
             <label class="check"><input type="checkbox" bind:checked={reverse} data-input="reverse" /> {scenario?.inputs?.reverse?.label ?? s.reverse}</label>
             <label class="slider">
-              <span class="row"><span>{s.inputSpeed}</span><output data-testid="model-speed">{s.rps(inputSpeed)}</output></span>
+              <span class="row"><span>{s.inputSpeed}</span><output data-testid="model-speed">{s.rps(inputSpeed)}{#if vehicle}<span class="muted">, {s.blocksPerSecond(blocksPerSecondAt(inputSpeed, vehicle))}</span>{/if}</output></span>
               <input type="range" min="0" max={INPUT_SPEED_MAX} step="0.05" bind:value={inputSpeed} data-input="speed" />
             </label>
             <div class="row play-row">
               <button type="button" class="play" aria-pressed={playing} onclick={togglePlay}>{playing ? s.pause : s.play}</button>
               <span class="muted small" role="status" data-testid="model-status">{status}</span>
             </div>
-            <span class="muted small">{play?.phases.length ? s.playHintScript : gearedTurns !== null ? s.playHintGeared : s.playHintTurn}</span>
+            <span class="muted small">{play?.phases.length ? s.playHintScript : gearedTurns !== null ? s.playHintGeared : vehicle ? s.playHintRoll : s.playHintTurn}</span>
 
           {/if}
         </fieldset>
@@ -604,11 +659,25 @@
       {#if view.requires.length > 0}
         <fieldset>
           <legend>{s.fitted}</legend>
-          <div class="checks">
-            {#each view.requires as r (r.value)}
-              <label class="check"><input type="checkbox" bind:checked={fittedState[r.value]} data-requires={r.value} /> {r.label}</label>
-            {/each}
-          </div>
+          {#each scenario?.choices ?? [] as c (c.label)}
+            <label class="stack">
+              <span>{c.label}</span>
+              <select
+                value={c.values.find((v) => fittedState[v]) ?? ""}
+                onchange={(e) => (fittedState = pickChoice(fittedState, c, e.currentTarget.value))}
+                data-choice={c.label}
+              >
+                {#each c.values as v (v)}<option value={v}>{view.requires.find((r) => r.value === v)?.label ?? v}</option>{/each}
+              </select>
+            </label>
+          {/each}
+          {#if freeRequires.length > 0}
+            <div class="checks">
+              {#each freeRequires as r (r.value)}
+                <label class="check"><input type="checkbox" bind:checked={fittedState[r.value]} data-requires={r.value} /> {r.label}</label>
+              {/each}
+            </div>
+          {/if}
         </fieldset>
       {/if}
 
@@ -640,10 +709,14 @@
             <label class="check"><input type="checkbox" bind:checked={overlays.collision} data-overlay="collision" /> {s.overlayCollision}</label>
           {/if}
           <label class="check"><input type="checkbox" bind:checked={edges} data-overlay="edges" /> {s.overlayEdges}</label>
+          {#if track}
+            <label class="check"><input type="checkbox" bind:checked={overlays[TRACK_OVERLAY]} data-overlay="track" /> {s.overlayTrack}</label>
+          {/if}
           {#each view.anchors as a (a.key)}
             <label class="check"><input type="checkbox" bind:checked={overlays[a.key]} data-overlay={a.key} /> {a.label}</label>
           {/each}
         </div>
+        {#if track}<p class="muted small">{s.trackNote}</p>{/if}
         {#if view.unrecognised.length > 0}<p class="muted small">{s.unrecognised(view.unrecognised.join(", "))}</p>{/if}
       </fieldset>
 
@@ -684,7 +757,7 @@
 
       <p class="muted small">
         {s.source}:
-        <a href={sourceUrl(model.source.shape)} rel="noopener noreferrer" target="_blank">{s.shapeFile}</a>{#if model.source.rig}, <a href={sourceUrl(model.source.rig)} rel="noopener noreferrer" target="_blank">{s.rigFile}</a>{/if}
+        <a href={sourceUrl(model.source.shape)} rel="noopener noreferrer" target="_blank">{s.shapeFile}</a>{#if model.source.rig}, <a href={sourceUrl(model.source.rig)} rel="noopener noreferrer" target="_blank">{s.rigFile}</a>{/if}{#if model.source.bogie}, <a href={sourceUrl(model.source.bogie)} rel="noopener noreferrer" target="_blank">{s.bogieFile}</a>{/if}
       </p>
     </aside>
   </div>
