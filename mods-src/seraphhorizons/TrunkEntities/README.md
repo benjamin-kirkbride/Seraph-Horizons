@@ -153,9 +153,14 @@ that end along the axis, feet at the trunk's underside, facing along the trunk o
 end, pushing it from behind; afloat, at the waterline less `SwimFeetBelow` (1), swimming. Their
 body is held to that heading within ±0.3 rad (`BodyYawLimits`, the sled's `bodyYawLimit`) and the
 head may look a quarter turn either way (`HeadYawLimits`); the seat's angle mode is `PushYaw`, so
-the view turns with the trunk. The seat (`TrunkDriveSeat.SeatPosition`) is worked out from the
-trunk's pose on whichever side asks, so on the driver's client it follows the predicted trunk (the
-player physics puts a mounted player there every tick). The game feeds a mounted player's movement
+the view turns with the trunk. Taking the end leaves the view where it was (held within those
+limits): the client pushes the view by each change of the seat's yaw from the last it saw
+(`ClientMain.prevMountAngles`, private, kept from the last mount and 0 the first time), so
+`TrunkDriveSeat.DidMount` sets that to the seat's yaw on the driver's client. A first build set the
+view to the trunk's heading on mounting instead, and the stale angle then pushed it on by the
+difference, so the first drive of a session swung the view as far right or left as the head goes.
+The seat (`TrunkDriveSeat.SeatPosition`) is worked out from the trunk's pose on whichever side
+asks, so on the driver's client it follows the predicted trunk (the player physics puts a mounted player there every tick). The game feeds a mounted player's movement
 keys into the seat's controls on both sides (`ServerMain.HandleMoveKeyChange`,
 `SystemPlayerControl`, and the mount position packet's `MountControls`), and sneak dismounts (the
 game's `EntitySeat`), which is how one lets go.
