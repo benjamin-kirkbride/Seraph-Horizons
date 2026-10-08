@@ -14,9 +14,9 @@ namespace SeraphHorizons.PackTests;
 // Pipes/Game/HandPumpBridge.cs): Hydrate's pipes and valves are gone (no recipe, hidden, removed
 // from the world as they load), and its hand pump finds a wellspring through ppex pipes, primes for
 // their length, loses the spring when the run changes, a closed valve or steam in the run; a ppex
-// fluid intake over a well drains its spring. The pipe scenarios build 40 above spawn at x 300 to
-// 320, z -300 (clear of the other scenarios' sites), the well 30 above it at x -14, z 14; none needs
-// a player.
+// fluid intake over a well drains its spring, and a pipe run down a well shaft leaves it its water.
+// The pipe scenarios build 40 above spawn at x 300 to 320, z -300 (clear of the other scenarios'
+// sites), the wells 30 above it at x -14 and -20, z 14; none needs a player.
 public partial class SharedWorldScenarios
 {
     private const string HodPump = "hydrateordiedrate:handpump-copper-east";
@@ -233,6 +233,66 @@ public partial class SharedWorldScenarios
         Assert.Null(HandPumpBridge.Search(World.Api, pumpPos));
 
         foreach (var pos in new[] { pumpPos, springPos, direct, direct.UpCopy() }.Concat(Enumerable.Range(1, 7).Select(y => origin.AddCopy(0, y, 0))))
+            W.BlockAccessor.SetBlock(0, pos);
+    }
+
+    /// <summary>The hand pump's plain layout: a 5-level rock well with upright copper ppex pipes
+    /// filling its shaft from the spring up and the pump on top. ppex's pipes and valves are
+    /// <c>replaceable</c> 500 (patches/pipes-hydrateordiedrate.json), as Hydrate's own pipe was, so
+    /// the spring still counts the shaft (<c>WellBlockUtils.SolidAllows</c>); with the pipe's 0, as
+    /// ppex ships it, it counts none and holds nothing. Fails when ppex renames its pipe files or
+    /// Hydrate changes what a shaft cell may hold: match the patch to it.</summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_pipe_run_down_a_well_shaft_leaves_the_well_its_water()
+    {
+        string[] patched = ["straight", "bend", "tjunction", "xjunction", "valve", "pressurevalve"];
+        var pipeBlocks = W.Blocks.Where(b => b.Code is { Domain: "ppex" } c
+            && patched.Any(t => c.Path.StartsWith($"pipe-{t}-", StringComparison.Ordinal))).ToList();
+        Assert.NotEmpty(pipeBlocks);
+        Assert.All(pipeBlocks, b => Assert.True(b.Replaceable == 500, $"{b.Code} is replaceable {b.Replaceable}"));
+        foreach (var t in patched)
+            Assert.Contains(pipeBlocks, b => b.Code.Path.StartsWith($"pipe-{t}-", StringComparison.Ordinal));
+
+        // Clear of the other wells (x -9 to 5 and -15 to -13), close enough to spawn to be loaded.
+        var springPos = BuildWell(World.Spawn.AddCopy(-20, 30, 14), 5, (_, _) => Rock);
+        var pipe = PpexPipe("ud", "copper");
+        for (int y = 1; y <= 5; y++)
+            World.SetBlock(pipe, springPos.UpCopy(y));
+        var pumpPos = springPos.UpCopy(6);
+        World.SetBlock(HodPump, pumpPos);
+        for (int y = 7; y <= 8; y++)
+            W.BlockAccessor.SetBlock(0, springPos.UpCopy(y));
+        await World.Ticks(5);
+
+        var pipeBlock = W.BlockAccessor.GetBlock(springPos.UpCopy(1));
+        Assert.Equal(pipe, pipeBlock.Code.ToString());
+        var (levels, capacity) = WellShaft(springPos);
+        output.WriteLine($"piped shaft: {levels} levels, {capacity:0} L");
+        Assert.Equal((5, 350f), (levels, capacity));
+
+        // The pipe as ppex ships it (replaceable 0) closes the shaft: the bug this patch fixes.
+        int was = pipeBlock.Replaceable;
+        try
+        {
+            pipeBlock.Replaceable = 0;
+            Assert.Equal((0, 0f), WellShaft(springPos));
+        }
+        finally
+        {
+            pipeBlock.Replaceable = was;
+        }
+        Assert.Equal((5, 350f), WellShaft(springPos));
+
+        // The spring fills, and the pump on top finds it.
+        var spring = W.BlockAccessor.GetBlockEntity(springPos)!;
+        float Litres() => (float)AccessTools.Property(spring.GetType(), "TotalLiters").GetValue(spring)!;
+        AccessTools.DeclaredMethod(spring.GetType(), "TryChangeVolume", [typeof(float), typeof(bool)]).Invoke(spring, [capacity, true]);
+        await World.Ticks(5);
+        output.WriteLine($"spring: {Litres():0.0} / {capacity:0} L");
+        Assert.True(Litres() > 100, $"the spring holds only {Litres()} L");
+        Assert.Same(spring, SpringOf(PumpAt(pumpPos)));
+
+        foreach (var pos in Enumerable.Range(1, 6).Select(y => springPos.UpCopy(y)))
             W.BlockAccessor.SetBlock(0, pos);
     }
 
