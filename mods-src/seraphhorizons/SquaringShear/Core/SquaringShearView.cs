@@ -38,19 +38,18 @@ public interface ISquaringShearView
 
 /// <summary>
 /// The renderer's own treadle clock θ, W, presence and class, from the view each frame (the model's
-/// contract, "The work"): while the treadle is worked with a plate on, θ turns at
-/// <see cref="Cutting.StrokeRadiansPerSecond"/> and W advances by θ's strokes over the plate's
-/// strokes, never behind the server's and at most <see cref="Snap"/> ahead of it; with no plate on, W
-/// is held at the end, 1, while p eases out and k is held; a new plate starts from the server's W (0)
-/// with p easing in.
+/// contract, "The work"). While the treadle is worked with a plate on, θ turns at
+/// <see cref="Cutting.StrokeRadiansPerSecond"/>, and W is predicted at the plate's pace and eased
+/// toward the server's (<see cref="HeldWorkFollower"/>), so the model moves at frame rate rather
+/// than in the server's synced steps; with no plate on, W is held at the end, 1, while p eases out and k is held; a new
+/// plate starts from the server's W (0) with p easing in.
 /// </summary>
 public sealed class SquaringShearClock
 {
-    /// <summary>How far the shown W may stray ahead of the server's, plates.</summary>
-    public const double Snap = 0.06;
-
     /// <summary>Presence per second, in and out (0.4 s each way).</summary>
     public const float EaseRate = 2.5f;
+
+    private readonly HeldWorkFollower _work = new();
 
     public double Theta { get; private set; }
     public double Work { get; private set; } = 1;
@@ -65,26 +64,28 @@ public sealed class SquaringShearClock
         PlateOn = plateClass is 1 or 2 ? plateClass : 0;
         if (PlateOn != 0)
         {
-            if (Class != PlateOn || serverWork < Work - Snap)
+            if (Class != PlateOn)
             {
-                // a new plate (or the next one of the same metal, which starts again from 0)
+                // a new plate (the next one of the same metal, its W starting again from 0, the
+                // follower takes at once)
                 Class = PlateOn;
-                Work = serverWork;
+                _work.Reset(serverWork);
             }
             Presence = Math.Min(1, Presence + dt * EaseRate);
+            double rate = 0;
             if (held)
             {
                 double radians = Cutting.StrokeRadiansPerSecond * dt;
                 Theta += radians;
-                Work += Cutting.PlatesFor(radians, strokesPerPlate);
+                rate = Cutting.PlatesFor(Cutting.StrokeRadiansPerSecond, strokesPerPlate);
             }
-            if (Work < serverWork || Work > serverWork + Snap)
-                Work = serverWork;
-            Work = Math.Clamp(Work, 0, 1);
+            _work.Advance(dt, serverWork, rate);
+            Work = _work.Work;
         }
         else
         {
             Work = 1;
+            _work.Reset(1);
             Presence = Math.Max(0, Presence - dt * EaseRate);
             if (Presence <= 0)
                 Class = 0;

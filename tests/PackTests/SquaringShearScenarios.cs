@@ -225,13 +225,26 @@ public partial class SharedWorldScenarios
         Assert.True(shear.Complete);
         Assert.Equal(["game:metalplate-steel", "game:rod-meteoriciron"], shear.Parts.Returns());
 
-        // Ctrl takes the last part back first, then the one before; the creative shortcut fits them free
+        // fitted parts never come back out: Ctrl on the frame or the ghost takes nothing
         CutterClick(player, pos, null, ctrl: true);
-        Assert.Equal(1, ShearHeld(player, "game:rod-meteoriciron"));
-        Assert.Equal(SquaringShearStage.Gauge, shear.Parts.Next);
         CutterClick(player, ghost, null, ctrl: true);
-        Assert.Equal(1, ShearHeld(player, "game:metalplate-steel"));
-        Assert.Equal(SquaringShearStage.Blade, shear.Parts.Next);
+        Assert.True(shear.Complete);
+        Assert.Equal(0, ShearHeld(player, "game:rod-meteoriciron"));
+        Assert.Equal(0, ShearHeld(player, "game:metalplate-steel"));
+        Assert.Equal(["game:metalplate-steel", "game:rod-meteoriciron"], shear.Parts.Returns());
+
+        // only breaking gives them back
+        CutterKillItems(pos);
+        W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
+        await World.Ticks(3);
+        var drops = CutterItemsNear(pos);
+        Assert.Equal(1, drops.GetValueOrDefault(ShearFrame));
+        Assert.Equal(1, drops.GetValueOrDefault("game:metalplate-steel"));
+        Assert.Equal(1, drops.GetValueOrDefault("game:rod-meteoriciron"));
+        CutterKillItems(pos);
+
+        // the creative shortcut fits each stage's first code, free
+        shear = await PlaceShear(pos, "east");
         Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
         Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
         Assert.True(shear.Complete);
