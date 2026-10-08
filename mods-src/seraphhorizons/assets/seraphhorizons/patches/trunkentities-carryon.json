@@ -7,16 +7,19 @@
 //   trunkcarryheavy for xl and xxl, in place of Carry On's holdheavy, which Logging Expanded's own
 //   patch leaves. Only lg (a thin trunk) and xxl (a thick one) are ever carried: TrunkCarry gives
 //   Carry On the block of the trunk's class's model (TrunkCarry.Shown) and keeps the real one in
-//   its attributes, so the two animations are thin and thick. No transform of its own: the block
-//   gets Carry On's default (half size about its centre), as with Logging Expanded alone, whose
-//   patch sets none either. The trunk block already lies along z; the transforms this patch had
-//   before (Carry On's carry-trunk template, then a rotationX of 90 for a trunk wrongly taken to
-//   stand upright) stood it on end in first person and lifted it off the shoulder in third. In
-//   third person Carry On hangs the block on its FrontCarry point, on the left forearm, so the
-//   animation's raised left arm is what puts it at the shoulder. No swap to the back (trunks are
-//   Hands only: TrunkCarry also strips any Back slot and lays a trunk found on a back down), and
-//   no walk speed of Carry On's own: the pack sets the walk speed from the trunk's logs. Server
-//   side: the client gets the blocks from it.
+//   its attributes, so the two animations are thin and thick, and so are the transforms. Carry On
+//   draws the block in its hands frame with the block's hands transform (its default: half size
+//   about its centre). In third person that frame hangs on Carry On's FrontCarry point, on the left
+//   forearm, which the trunk animations raise to the shoulder, and there its x points up, y back
+//   and z right. The trunk block lies along its own z, so with no transform it lay across the
+//   shoulders. rotationX 90 turns its z onto the frame's y, front to back; the translation (up,
+//   back, right in that frame) puts its middle over the left shoulder, beside the head (thick:
+//   a little higher and further out). In first person Carry On's frame is its chest carry's (x
+//   forward, y up, z right), where the same transform would stand the trunk on end, so
+//   TrunkCarry turns that frame into the shoulder one while a trunk is carried (TrunkCarryPose).
+//   No swap to the back (trunks are Hands only: TrunkCarry also strips any Back slot and lays a
+//   trunk found on a back down), and no walk speed of Carry On's own: the pack sets the walk speed
+//   from the trunk's logs. Server side: the client gets the blocks from it.
 //   The game merges propertiesByType into properties (arrays concatenated), so the shared settings
 //   are in properties only.
 // - The trunk entity types get the pack's pick-up (sneak + right click, EntityBehaviorTrunkCarry).
@@ -31,12 +34,12 @@
         "preventSwapBack": true
       },
       "propertiesByType": {
-        "*-xs-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
-        "*-sm-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
-        "*-md-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
-        "*-lg-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } } },
-        "*-xl-*": { "slots": { "Hands": { "animation": "trunkcarryheavy", "walkSpeedModifier": 0 } } },
-        "*-xxl-*": { "slots": { "Hands": { "animation": "trunkcarryheavy", "walkSpeedModifier": 0 } } }
+        "*-xs-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } }, "transformGroups": { "hands": [{ "id": "root", "translation": [-0.08, -0.42, -0.2], "rotationX": 90.0 }] } },
+        "*-sm-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } }, "transformGroups": { "hands": [{ "id": "root", "translation": [-0.08, -0.42, -0.2], "rotationX": 90.0 }] } },
+        "*-md-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } }, "transformGroups": { "hands": [{ "id": "root", "translation": [-0.08, -0.42, -0.2], "rotationX": 90.0 }] } },
+        "*-lg-*": { "slots": { "Hands": { "animation": "trunkcarry", "walkSpeedModifier": 0 } }, "transformGroups": { "hands": [{ "id": "root", "translation": [-0.08, -0.42, -0.2], "rotationX": 90.0 }] } },
+        "*-xl-*": { "slots": { "Hands": { "animation": "trunkcarryheavy", "walkSpeedModifier": 0 } }, "transformGroups": { "hands": [{ "id": "root", "translation": [0.02, 0.12, -0.65], "rotationX": 90.0 }] } },
+        "*-xxl-*": { "slots": { "Hands": { "animation": "trunkcarryheavy", "walkSpeedModifier": 0 } }, "transformGroups": { "hands": [{ "id": "root", "translation": [0.02, 0.12, -0.65], "rotationX": 90.0 }] } }
       }
     },
     "dependsOn": [{ "modid": "loggingmod" }, { "modid": "carryon" }]

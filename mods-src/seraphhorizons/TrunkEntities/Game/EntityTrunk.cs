@@ -289,6 +289,13 @@ public class EntityTrunk : Entity, ISeatInstSupplier
     private double _along, _turn;
     private int _logs = -1;
 
+    /// <summary>The drive's eased speed along the axis now, blocks per second, positive away from
+    /// the driver, on this side (0 on a side that does not tick the physics). For the probe.</summary>
+    public double DriveAlong => _along;
+
+    /// <summary>The drive's eased turn now, radians per second, on this side. For the probe.</summary>
+    public double DriveTurn => _turn;
+
     // When the server last heard the trunk's position from the driver's client (or the drive began),
     // the world's ElapsedMilliseconds; long.MinValue: never.
     private long _clientPositionAt = long.MinValue;
