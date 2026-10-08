@@ -1,0 +1,6 @@
+{
+  "SawSeconds": 6.0,
+  "SawDurabilityPerStage": 1,
+  "VanillaSawSpeedMultiplier": 0.5,
+  "SawRestockDelaySeconds": 0.3
+}

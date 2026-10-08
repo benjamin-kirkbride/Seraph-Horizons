@@ -1,0 +1,6 @@
+{
+  "oceanThreshold": 128,
+  "failMaxRangeIncrease": 200,
+  "failMinRangeIncrease": 0,
+  "oceanAcceptChance": 0.0
+}

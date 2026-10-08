@@ -1,0 +1,1768 @@
+{
+  "ppex": {
+    "ConfigVersion": "0.7.1",
+    "Recipes": {
+      "boilercornish-rcc": {
+        "Type": "rcc",
+        "Match": "ppex:boilercornish-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "ppex:rcc-ingredient-metalplate": 6,
+                "ppex:rcc-ingredient-nailsandstrips": 4,
+                "game:burnedbrick-fire": 8
+              },
+              "2": {
+                "ppex:rcc-ingredient-metalplate": 8,
+                "ppex:rcc-ingredient-rod": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 4
+              },
+              "3": {
+                "ppex:rcc-ingredient-metalplate": 8,
+                "ppex:rcc-ingredient-nailsandstrips": 8,
+                "ppex:rcc-ingredient-rod": 4,
+                "game:burnedbrick-fire": 36
+              }
+            },
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "ppex:rcc-ingredient-metalplate": 3,
+                "ppex:rcc-ingredient-nailsandstrips": 2,
+                "game:burnedbrick-fire": 4
+              },
+              "2": {
+                "ppex:rcc-ingredient-metalplate": 4,
+                "ppex:rcc-ingredient-rod": 2,
+                "ppex:rcc-ingredient-nailsandstrips": 2
+              },
+              "3": {
+                "ppex:rcc-ingredient-metalplate": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 4,
+                "ppex:rcc-ingredient-rod": 2,
+                "game:burnedbrick-fire": 18
+              }
+            },
+            "HasContent": true
+          }
+        }
+      },
+      "boilerlancashire-rcc": {
+        "Type": "rcc",
+        "Match": "ppex:boilerlancashire-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "metalplate-steel": 10,
+                "ppex:rcc-ingredient-nailsandstrips": 8,
+                "game:burnedbrick-fire": 12
+              },
+              "2": {
+                "metalplate-steel": 8,
+                "rod-steel": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 8
+              },
+              "3": {
+                "metalplate-steel": 16,
+                "ppex:rcc-ingredient-nailsandstrips": 8,
+                "rod-steel": 6,
+                "game:burnedbrick-fire": 48
+              }
+            },
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "metalplate-steel": 5,
+                "ppex:rcc-ingredient-nailsandstrips": 4,
+                "game:burnedbrick-fire": 6
+              },
+              "2": {
+                "metalplate-steel": 4,
+                "rod-steel": 2,
+                "ppex:rcc-ingredient-nailsandstrips": 4
+              },
+              "3": {
+                "metalplate-steel": 8,
+                "ppex:rcc-ingredient-nailsandstrips": 4,
+                "rod-steel": 3,
+                "game:burnedbrick-fire": 24
+              }
+            },
+            "HasContent": true
+          }
+        }
+      },
+      "enginecornish-rcc": {
+        "Type": "rcc",
+        "Match": "ppex:enginecornish-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "ppex:rcc-ingredient-metalplate": 12,
+                "ppex:rcc-ingredient-rod": 12,
+                "game:burnedbrick-fire": 36
+              },
+              "2": {
+                "ppex:rcc-ingredient-metalplate": 16,
+                "ppex:rcc-ingredient-rod": 8
+              },
+              "3": {
+                "ppex:rcc-ingredient-metalplate": 8,
+                "ppex:rcc-ingredient-rod": 6
+              },
+              "4": {
+                "ppex:rcc-ingredient-metalplate": 6,
+                "ppex:rcc-ingredient-nailsandstrips": 6
+              },
+              "5": {
+                "ppex:rcc-ingredient-metalplate": 4,
+                "ppex:rcc-ingredient-rod": 8
+              },
+              "6": {
+                "ppex:rcc-ingredient-rod": 8,
+                "ppex:rcc-ingredient-nailsandstrips": 8
+              }
+            },
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "ppex:rcc-ingredient-metalplate": 6,
+                "ppex:rcc-ingredient-rod": 6,
+                "game:burnedbrick-fire": 18
+              },
+              "2": {
+                "ppex:rcc-ingredient-metalplate": 8,
+                "ppex:rcc-ingredient-rod": 4
+              },
+              "3": {
+                "ppex:rcc-ingredient-metalplate": 4,
+                "ppex:rcc-ingredient-rod": 3
+              },
+              "4": {
+                "ppex:rcc-ingredient-metalplate": 3,
+                "ppex:rcc-ingredient-nailsandstrips": 3
+              },
+              "5": {
+                "ppex:rcc-ingredient-metalplate": 2,
+                "ppex:rcc-ingredient-rod": 4
+              },
+              "6": {
+                "ppex:rcc-ingredient-rod": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 4
+              }
+            },
+            "HasContent": true
+          }
+        }
+      },
+      "enginewatt-rcc": {
+        "Type": "rcc",
+        "Match": "ppex:enginewatt-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "ppex:rcc-ingredient-metalplate": 2,
+                "ppex:rcc-ingredient-rod": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 4,
+                "game:burnedbrick-fire": 36
+              },
+              "2": {
+                "ppex:rcc-ingredient-rod": 8,
+                "ppex:rcc-ingredient-nailsandstrips": 4
+              },
+              "3": {
+                "ppex:rcc-ingredient-metalplate": 2,
+                "ppex:rcc-ingredient-rod": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 2
+              },
+              "4": {
+                "ppex:rcc-ingredient-rod": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 2
+              },
+              "5": {
+                "ppex:rcc-ingredient-rod": 4
+              }
+            },
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "ppex:rcc-ingredient-metalplate": 1,
+                "ppex:rcc-ingredient-rod": 2,
+                "ppex:rcc-ingredient-nailsandstrips": 2,
+                "game:burnedbrick-fire": 18
+              },
+              "2": {
+                "ppex:rcc-ingredient-rod": 4,
+                "ppex:rcc-ingredient-nailsandstrips": 2
+              },
+              "3": {
+                "ppex:rcc-ingredient-metalplate": 1,
+                "ppex:rcc-ingredient-rod": 2,
+                "ppex:rcc-ingredient-nailsandstrips": 1
+              },
+              "4": {
+                "ppex:rcc-ingredient-rod": 2,
+                "ppex:rcc-ingredient-nailsandstrips": 1
+              },
+              "5": {
+                "ppex:rcc-ingredient-rod": 2
+              }
+            },
+            "HasContent": true
+          }
+        }
+      },
+      "boilercornish-grid": {
+        "Type": "grid",
+        "Match": "ppex:boilercornish-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:burnedbrick-fire": 2,
+              "game:metalnailsandstrips-iron": 2,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:burnedbrick-fire": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "boilerlancashire-grid": {
+        "Type": "grid",
+        "Match": "ppex:boilerlancashire-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-steel": 1,
+              "game:burnedbrick-fire": 2,
+              "game:rod-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-steel": 1,
+              "game:burnedbrick-fire": 1,
+              "game:rod-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "enginecornish-grid": {
+        "Type": "grid",
+        "Match": "ppex:enginecornish-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 4,
+              "seraphhorizons:gear-steel": 4,
+              "ppex:pipe-straight-*-steel": 2,
+              "game:metalnailsandstrips-steel": 4
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 2,
+              "seraphhorizons:gear-steel": 2,
+              "ppex:pipe-straight-*-steel": 1,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "enginewatt-grid": {
+        "Type": "grid",
+        "Match": "ppex:enginewatt-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:rod-iron": 2,
+              "seraphhorizons:gear-steel": 2,
+              "ppex:pipe-straight-*": 1,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:rod-iron": 1,
+              "seraphhorizons:gear-steel": 1,
+              "ppex:pipe-straight-*": 1,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "enginefluidpump-grid": {
+        "Type": "grid",
+        "Match": "ppex:enginefluidpump-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "seraphhorizons:gear-steel": 1,
+              "ppex:pipe-straight-*": 1,
+              "game:rod-iron": 2,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "seraphhorizons:gear-steel": 1,
+              "ppex:pipe-straight-*": 1,
+              "game:rod-iron": 1,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "enginempgenerator-grid": {
+        "Type": "grid",
+        "Match": "ppex:enginempgenerator-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 2,
+              "game:rod-iron": 2,
+              "seraphhorizons:gear-steel": 2,
+              "game:woodenaxle-ud": 1,
+              "game:metalplate-steel": 2,
+              "game:rod-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:rod-iron": 1,
+              "seraphhorizons:gear-steel": 1,
+              "game:woodenaxle-ud": 1,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "manualfluidpump-grid": {
+        "Type": "grid",
+        "Match": "ppex:manualfluidpump-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "seraphhorizons:gear-steel": 2,
+              "ppex:pipe-straight-*": 1,
+              "game:rod-iron": 2,
+              "game:supportbeam-*": 4,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "seraphhorizons:gear-steel": 1,
+              "ppex:pipe-straight-*": 1,
+              "game:rod-iron": 1,
+              "game:supportbeam-*": 2,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "steamcondenser-grid": {
+        "Type": "grid",
+        "Match": "ppex:steamcondenser-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "ppex:pipe-straight-*": 1,
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 2,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "ppex:pipe-straight-*": 1,
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-straight-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-straight-*",
+        "Profiles": {
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": 4,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-bend-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-bend-*",
+        "Profiles": {
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": 2,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-tjunction-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-tjunction-*",
+        "Profiles": {
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": 2,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-xjunction-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-xjunction-*",
+        "Profiles": {
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": 2,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-fluidintake-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-fluidintake-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "ppex:pipe-straight-*": 1,
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 2,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "ppex:pipe-straight-*": 1,
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-outlet-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-outlet-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:burnedbrick-fire": 2,
+              "ppex:pipe-straight-*": 1,
+              "game:metalnailsandstrips-iron": 2,
+              "game:burnedbrick-black": 2,
+              "game:burnedbrick-brown": 2,
+              "game:burnedbrick-cream": 2,
+              "game:burnedbrick-gray": 2,
+              "game:burnedbrick-orange": 2,
+              "game:burnedbrick-red": 2,
+              "game:burnedbrick-tan": 2,
+              "game:metalnailsandstrips-steel": 2,
+              "game:refractorybrick-fired-tier1": 2,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:burnedbrick-fire": 1,
+              "ppex:pipe-straight-*": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "game:burnedbrick-black": 1,
+              "game:burnedbrick-brown": 1,
+              "game:burnedbrick-cream": 1,
+              "game:burnedbrick-gray": 1,
+              "game:burnedbrick-orange": 1,
+              "game:burnedbrick-red": 1,
+              "game:burnedbrick-tan": 1,
+              "game:metalnailsandstrips-steel": 1,
+              "game:refractorybrick-fired-tier1": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-passthrough-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-passthrough-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:burnedbrick-fire": 2,
+              "ppex:pipe-straight-*": 1,
+              "game:burnedbrick-black": 2,
+              "game:burnedbrick-brown": 2,
+              "game:burnedbrick-cream": 2,
+              "game:burnedbrick-gray": 2,
+              "game:burnedbrick-orange": 2,
+              "game:burnedbrick-red": 2,
+              "game:burnedbrick-tan": 2,
+              "game:refractorybrick-fired-tier1": 2,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:burnedbrick-fire": 1,
+              "ppex:pipe-straight-*": 1,
+              "game:burnedbrick-black": 1,
+              "game:burnedbrick-brown": 1,
+              "game:burnedbrick-cream": 1,
+              "game:burnedbrick-gray": 1,
+              "game:burnedbrick-orange": 1,
+              "game:burnedbrick-red": 1,
+              "game:burnedbrick-tan": 1,
+              "game:refractorybrick-fired-tier1": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-passthroughbend-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-passthroughbend-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:burnedbrick-fire": 2,
+              "ppex:pipe-straight-*": 1,
+              "game:burnedbrick-black": 2,
+              "game:burnedbrick-brown": 2,
+              "game:burnedbrick-cream": 2,
+              "game:burnedbrick-gray": 2,
+              "game:burnedbrick-orange": 2,
+              "game:burnedbrick-red": 2,
+              "game:burnedbrick-tan": 2,
+              "game:refractorybrick-fired-tier1": 2,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:burnedbrick-fire": 1,
+              "ppex:pipe-straight-*": 1,
+              "game:burnedbrick-black": 1,
+              "game:burnedbrick-brown": 1,
+              "game:burnedbrick-cream": 1,
+              "game:burnedbrick-gray": 1,
+              "game:burnedbrick-orange": 1,
+              "game:burnedbrick-red": 1,
+              "game:burnedbrick-tan": 1,
+              "game:refractorybrick-fired-tier1": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "pipe-valve-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-valve-*",
+        "Profiles": {}
+      },
+      "pipe-pressurevalve-grid": {
+        "Type": "grid",
+        "Match": "ppex:pipe-pressurevalve-*",
+        "Profiles": {}
+      }
+    }
+  },
+  "smex": {
+    "ConfigVersion": "0.10.1",
+    "Recipes": {
+      "converterbessemer-rcc": {
+        "Type": "rcc",
+        "Match": "smex:converterbessemer-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "smex:rcc-ingredient-metalplate": 24,
+                "smex:rcc-ingredient-nailsandstrips": 24,
+                "smex:rcc-ingredient-rod": 12
+              },
+              "2": {
+                "smex:rcc-ingredient-metalplate": 4,
+                "ppex:pipe-straight-ns-{metal}": 3,
+                "smex:rcc-ingredient-nailsandstrips": 6
+              },
+              "3": {
+                "refractorybrick-fired-tier2": 60,
+                "game:clay-fire": 48
+              },
+              "4": {
+                "refractorybrick-fired-tier2": 24,
+                "game:clay-fire": 24
+              },
+              "5": {
+                "smex:rcc-ingredient-metalplate": 12,
+                "smex:rcc-ingredient-nailsandstrips": 12,
+                "smex:rcc-ingredient-rod": 6
+              },
+              "6": {
+                "game:clay-fire": 12
+              }
+            },
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": null,
+            "Quantity": null,
+            "Stages": {
+              "1": {
+                "smex:rcc-ingredient-metalplate": 12,
+                "smex:rcc-ingredient-nailsandstrips": 12,
+                "smex:rcc-ingredient-rod": 6
+              },
+              "2": {
+                "smex:rcc-ingredient-metalplate": 2,
+                "ppex:pipe-straight-ns-{metal}": 2,
+                "smex:rcc-ingredient-nailsandstrips": 3
+              },
+              "3": {
+                "refractorybrick-fired-tier2": 30,
+                "game:clay-fire": 24
+              },
+              "4": {
+                "refractorybrick-fired-tier2": 12,
+                "game:clay-fire": 12
+              },
+              "5": {
+                "smex:rcc-ingredient-metalplate": 6,
+                "smex:rcc-ingredient-nailsandstrips": 6,
+                "smex:rcc-ingredient-rod": 3
+              },
+              "6": {
+                "game:clay-fire": 6
+              }
+            },
+            "HasContent": true
+          }
+        }
+      },
+      "blastfurnace-tuyere-grid": {
+        "Type": "grid",
+        "Match": "smex:blastfurnace-tuyere-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 2,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 1,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "blastfurnacedoor-grid": {
+        "Type": "grid",
+        "Match": "smex:blastfurnacedoor-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 4,
+              "game:rod-iron": 2,
+              "game:metalnailsandstrips-iron": 4,
+              "game:metalplate-iron": 2,
+              "game:refractorybrick-fired-tier2": 4,
+              "game:refractorybrick-fired-tier3": 4,
+              "game:rod-steel": 2,
+              "game:metalnailsandstrips-steel": 4,
+              "game:metalplate-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 2,
+              "game:rod-iron": 1,
+              "game:metalnailsandstrips-iron": 2,
+              "game:metalplate-iron": 1,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2,
+              "game:rod-steel": 1,
+              "game:metalnailsandstrips-steel": 2,
+              "game:metalplate-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "blastfurnacetap-grid": {
+        "Type": "grid",
+        "Match": "smex:blastfurnacetap-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 2,
+              "game:clay-fire": 12,
+              "game:metalplate-iron": 1,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2,
+              "game:metalplate-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 1,
+              "game:clay-fire": 6,
+              "game:metalplate-iron": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1,
+              "game:metalplate-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "converter-intake-grid": {
+        "Type": "grid",
+        "Match": "smex:converter-intake-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:rod-iron": 16,
+              "game:metalplate-iron": 4,
+              "game:metalnailsandstrips-iron": 8,
+              "ppex:pipe-straight*": 1,
+              "game:rod-steel": 16,
+              "game:metalplate-steel": 4,
+              "game:metalnailsandstrips-steel": 8
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:rod-iron": 8,
+              "game:metalplate-iron": 2,
+              "game:metalnailsandstrips-iron": 4,
+              "ppex:pipe-straight*": 1,
+              "game:rod-steel": 8,
+              "game:metalplate-steel": 2,
+              "game:metalnailsandstrips-steel": 4
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "convertercontrol-grid": {
+        "Type": "grid",
+        "Match": "smex:convertercontrol-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:rod-iron": 12,
+              "game:metalplate-iron": 4,
+              "game:metalnailsandstrips-iron": 8,
+              "game:rod-steel": 12,
+              "game:metalplate-steel": 4,
+              "game:metalnailsandstrips-steel": 8
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:rod-iron": 6,
+              "game:metalplate-iron": 2,
+              "game:metalnailsandstrips-iron": 4,
+              "game:rod-steel": 6,
+              "game:metalplate-steel": 2,
+              "game:metalnailsandstrips-steel": 4
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "convertertransmission-grid": {
+        "Type": "grid",
+        "Match": "smex:convertertransmission-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:rod-iron": 12,
+              "game:metalplate-iron": 4,
+              "game:metalnailsandstrips-iron": 8,
+              "seraphhorizons:gear-steel": 16,
+              "game:woodenaxle-ud": 1,
+              "game:rod-steel": 12,
+              "game:metalplate-steel": 4,
+              "game:metalnailsandstrips-steel": 8
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:rod-iron": 6,
+              "game:metalplate-iron": 2,
+              "game:metalnailsandstrips-iron": 4,
+              "seraphhorizons:gear-steel": 8,
+              "game:woodenaxle-ud": 1,
+              "game:rod-steel": 6,
+              "game:metalplate-steel": 2,
+              "game:metalnailsandstrips-steel": 4
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "cowperstove-intake-grid": {
+        "Type": "grid",
+        "Match": "smex:cowperstove-intake-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 2,
+              "game:metalnailsandstrips-iron": 2,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "cowperstoveheatsink-grid": {
+        "Type": "grid",
+        "Match": "smex:cowperstoveheatsink-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 1,
+              "game:metalnailsandstrips-iron": 2,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 1,
+              "game:refractorybrick-fired-tier3": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "engineairblower-grid": {
+        "Type": "grid",
+        "Match": "smex:engineairblower-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:rod-iron": 2,
+              "seraphhorizons:gear-steel": 2,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:rod-iron": 1,
+              "seraphhorizons:gear-steel": 1,
+              "game:metalplate-steel": 1,
+              "game:rod-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "smokestack-intake-grid": {
+        "Type": "grid",
+        "Match": "smex:smokestack-intake-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 4,
+              "game:metalnailsandstrips-iron": 2,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 4,
+              "game:refractorybrick-fired-tier3": 4,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:refractorybrick-fired-tier1": 2,
+              "game:metalnailsandstrips-iron": 1,
+              "ppex:pipe-straight*": 1,
+              "game:refractorybrick-fired-tier2": 2,
+              "game:refractorybrick-fired-tier3": 2,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "hopperbell-grid": {
+        "Type": "grid",
+        "Match": "smex:hopperbell",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "seraphhorizons:gear-steel": 4,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "seraphhorizons:gear-steel": 2,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "hopperreinforced-grid": {
+        "Type": "grid",
+        "Match": "smex:hopperreinforced",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:metalnailsandstrips-iron": 1,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltenbarrel-grid": {
+        "Type": "grid",
+        "Match": "smex:moltenbarrel",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:clay-fire": 4,
+              "game:metalnailsandstrips-iron": 4,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 4
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:metalplate-iron": 1,
+              "game:clay-fire": 2,
+              "game:metalnailsandstrips-iron": 2,
+              "game:metalplate-steel": 1,
+              "game:metalnailsandstrips-steel": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltencanal-start-grid": {
+        "Type": "grid",
+        "Match": "smex:moltencanal-start-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 2,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 1,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltencanal-straight-grid": {
+        "Type": "grid",
+        "Match": "smex:moltencanal-straight-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 2,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 1,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltencanal-bend-grid": {
+        "Type": "grid",
+        "Match": "smex:moltencanal-bend-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 2,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 1,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltencanal-tjunction-grid": {
+        "Type": "grid",
+        "Match": "smex:moltencanal-tjunction-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 2,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 1,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltencanal-xjunction-grid": {
+        "Type": "grid",
+        "Match": "smex:moltencanal-xjunction-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 2,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 1,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltencanal-tap-grid": {
+        "Type": "grid",
+        "Match": "smex:moltencanal-tap-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:clay-fire": 4
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:clay-fire": 2
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "moltencanal-moldpedestal-grid": {
+        "Type": "grid",
+        "Match": "smex:moltencanal-moldpedestal-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 2,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "game:cobblestone-andesite": 1,
+              "game:clay-fire": 1,
+              "game:cobblestone-chalk": 1,
+              "game:cobblestone-chert": 1,
+              "game:cobblestone-conglomerate": 1,
+              "game:cobblestone-limestone": 1,
+              "game:cobblestone-claystone": 1,
+              "game:cobblestone-granite": 1,
+              "game:cobblestone-sandstone": 1,
+              "game:cobblestone-shale": 1,
+              "game:cobblestone-basalt": 1,
+              "game:cobblestone-peridotite": 1,
+              "game:cobblestone-phyllite": 1,
+              "game:cobblestone-slate": 1,
+              "game:cobblestone-obsidian": 1,
+              "game:cobblestone-kimberlite": 1,
+              "game:cobblestone-bauxite": 1,
+              "game:cobblestone-suevite": 1,
+              "game:cobblestone-whitemarble": 1,
+              "game:cobblestone-redmarble": 1,
+              "game:cobblestone-greenmarble": 1,
+              "game:brickcourse-four-running-black": 1,
+              "game:brickcourse-four-running-brown": 1,
+              "game:brickcourse-four-running-cream": 1,
+              "game:brickcourse-four-running-gray": 1,
+              "game:brickcourse-four-running-orange": 1,
+              "game:brickcourse-four-running-red": 1,
+              "game:brickcourse-four-running-tan": 1,
+              "game:claybricks-good-fire": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "slagpath-grid": {
+        "Type": "grid",
+        "Match": "smex:slagpath-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "smex:slag": 4,
+              "game:gravel-*": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "smex:slag": 2,
+              "game:gravel-*": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "slagpathslab-grid": {
+        "Type": "grid",
+        "Match": "smex:slagpathslab-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "smex:slag": 1,
+              "game:gravel-*": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "smex:slag": 1,
+              "game:gravel-*": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      },
+      "slagpathstairs-grid": {
+        "Type": "grid",
+        "Match": "smex:slagpathstairs-*",
+        "Profiles": {
+          "normal": {
+            "Ingredients": {
+              "smex:slag": 1,
+              "game:gravel-*": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          },
+          "cheap": {
+            "Ingredients": {
+              "smex:slag": 1,
+              "game:gravel-*": 1
+            },
+            "Quantity": null,
+            "Stages": null,
+            "HasContent": true
+          }
+        }
+      }
+    }
+  }
+}

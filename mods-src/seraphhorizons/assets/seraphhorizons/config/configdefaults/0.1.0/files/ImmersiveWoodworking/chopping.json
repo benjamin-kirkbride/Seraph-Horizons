@@ -1,0 +1,12 @@
+{
+  "HalfLogChopStage": true,
+  "AllowFirewoodToSticks": true,
+  "ChopSeconds": 0.75,
+  "ChopSpeedMultiplier": 1.0,
+  "FirewoodChopSpeedMultiplier": 2.25,
+  "HalfLogChopSpeedMultiplier": 2.0,
+  "MaulChopSpeedMultiplier": 1.5,
+  "ChopProgressJitter": 0.2,
+  "AxeDurabilityPerLog": 3,
+  "ChopRestockDelaySeconds": 0.3
+}

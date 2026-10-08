@@ -1,0 +1,13 @@
+{
+  "Version": 1,
+  "BeltSlots": [
+    {
+      "BeltCode": "game:clothes-waist-sturdy-belt",
+      "Slots": 2
+    },
+    {
+      "BeltCode": "game:clothes-waist-heavy-tool-belt",
+      "Slots": 4
+    }
+  ]
+}

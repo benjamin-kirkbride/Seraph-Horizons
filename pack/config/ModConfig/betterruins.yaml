@@ -1,5 +1,7 @@
 # BetterRuins settings the pack changes; everything else keeps the mod's default.
-# Applied by ConfigKit. They shape worldgen, so they only affect chunks not yet generated.
+# Read by ConfigKit. The pack's own mod writes them into a fresh install's ModConfig/betterruins.yaml
+# and moves untouched ones when a value here changes (docs/config-defaults.md). They shape worldgen,
+# so they only affect chunks not yet generated.
 
 # BetterRuins keeps its large ruins and megastructures 2500 blocks from spawn and
 # 2800 / 5000 blocks from each other, which leaves the first few kilometres with none.

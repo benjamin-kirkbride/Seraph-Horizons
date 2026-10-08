@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "packVersion": "0.0.1-test",
+  "gameVersion": "1.22.7",
+  "generatedBy": "by hand: ConfigDefaultsScenarios' made-up earlier pack version, trimmed to the settings it moves",
+  "mods": {
+    "betterruins": "0.6.4",
+    "configkit": "1.4.1",
+    "seraphhorizons": "0.1.0"
+  },
+  "files": {
+    "betterruins.yaml": { "format": "yaml", "owners": ["betterruins", "configkit"] },
+    "seraphhorizons.json": { "format": "json", "owners": ["seraphhorizons"] }
+  },
+  "packValues": [],
+  "renames": []
+}

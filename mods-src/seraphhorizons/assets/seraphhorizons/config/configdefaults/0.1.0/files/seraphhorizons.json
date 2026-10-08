@@ -1,0 +1,311 @@
+{
+  "BoilerLidBlowsOpen": true,
+  "TidyVariants": true,
+  "CreativeModTabs": true,
+  "CreativeSteamSource": true,
+  "AgeOfFlaxRebalance": true,
+  "ChimneyVentingExplained": true,
+  "CartReach": true,
+  "CartReachEntities": [
+    "cartwrightscaravan:*"
+  ],
+  "CarryOnIconsPerWorld": true,
+  "FoodHydration": true,
+  "WellShaftExplained": true,
+  "AssembledMachinesInCreative": true,
+  "ChopperDropsInFront": true,
+  "MapReveal": true,
+  "ClearCommand": true,
+  "HydrateTunRetired": true,
+  "IrrigationVesselRetired": true,
+  "BloodSausageInMixingBowl": true,
+  "DuplicateRecipes": true,
+  "PanningDropsTrimmed": true,
+  "GearboxSourceRatio": true,
+  "LargerTunRack": true,
+  "BarrelRackKegs": true,
+  "HeatingRackKeepsPosition": true,
+  "HeatingRackStandsOnBlock": true,
+  "UnifiedWoodworking": true,
+  "CreativeKeepsPlace": true,
+  "SearchRightClickClears": true,
+  "BuckingSawmill": true,
+  "BuckingSawmillSettings": {
+    "Resistance": 0.17,
+    "MinSpeed": 0.05,
+    "RevolutionsPerStoredLog": 8.0,
+    "RaiseRevolutions": 6.0,
+    "LogsPerStoredLog": 2.0,
+    "BladeWearPerStoredLog": 1.0,
+    "BladeSpeedPerTier": 0.35,
+    "AutoPullFromRack": true
+  },
+  "DurableSawmillBlades": true,
+  "IronWoodworkingMachines": true,
+  "GearConsumers": true,
+  "Rosser": true,
+  "RosserSettings": {
+    "Resistance": 0.2,
+    "MinSpeed": 0.05,
+    "RevolutionsPerStoredLog": 6.0,
+    "RevolutionsPerBranch": 0.316,
+    "TypicalThinLogs": 10,
+    "TypicalThinBranches": 25,
+    "TypicalThickLogs": 25,
+    "TypicalThickBranches": 61,
+    "HeadSpeedPerTier": 0.35,
+    "StickFraction": 0.5,
+    "DryBarkMultiplier": 1.0,
+    "WetBarkMultiplier": 1.5,
+    "WetBarkCountMultiplier": 1.5,
+    "HeadWearMultiple": 4.0,
+    "HeadWearPerStoredLog": 1.0,
+    "WaterPerLog": 2.0,
+    "ReservoirLitres": 20.0,
+    "WaterIntakeLitresPerSecond": 10.0,
+    "AutoPullFromRack": true,
+    "AutoPushToRack": true
+  },
+  "FlatFellingWear": true,
+  "FlatFellingWearSettings": {
+    "ThinTree": 4,
+    "ThickTree": 8
+  },
+  "OreCells": true,
+  "OreCellSizeMetres": 5000,
+  "OreCellSizeByMetal": {},
+  "NoSurfaceCopper": true,
+  "SmallerDeposits": true,
+  "RarerDistricts": true,
+  "RarerBattleTowers": true,
+  "TraderGrid": true,
+  "TraderStanding": true,
+  "TraderStandingSpilloverKm": 6.0,
+  "EverythingHasAPrice": true,
+  "BuySpread": 0.2,
+  "RegionalSupply": true,
+  "SupplyHalfLifeDays": 10.0,
+  "SupplySpreadFraction": 0.1,
+  "PlacerFields": true,
+  "PlacerCellSizeMetres": 1500,
+  "TraderSchematics": true,
+  "MachineSchematics": true,
+  "TraderOrders": true,
+  "TraderDeliveries": true,
+  "TraderMaps": true,
+  "AdminTools": true,
+  "TravellingMerchants": true,
+  "TravellingMerchantMinSupply": 2.0,
+  "MachineOil": true,
+  "MachineOilSettings": {
+    "OilLiquids": [
+      "game:oilportion-*",
+      "expandedfoods:foodoilportion-*",
+      "expandedfoods:lard",
+      "expandedfoods:hardlardliquid"
+    ],
+    "OilLumps": {
+      "game:fat-rendered": 0.5
+    },
+    "DryResistanceMultiplier": 3.0,
+    "HelveHammer": {
+      "Tank": 1000.0,
+      "DrainPerJob": 0.1
+    },
+    "Pulverizer": {
+      "Tank": 1000.0,
+      "DrainPerJob": 0.5
+    },
+    "Sawmill": {
+      "Tank": 1000.0,
+      "DrainPerJob": 2.0
+    },
+    "Chopper": {
+      "Tank": 1000.0,
+      "DrainPerJob": 1.0
+    },
+    "BuckingMill": {
+      "Tank": 1000.0,
+      "DrainPerJob": 2.0
+    },
+    "Rosser": {
+      "Tank": 1000.0,
+      "DrainPerJob": 2.0
+    },
+    "GearCutter": {
+      "Tank": 1000.0,
+      "DrainPerJob": 10.0
+    },
+    "DrawBench": {
+      "Tank": 1000.0,
+      "DrainPerJob": 2.0
+    }
+  },
+  "TrunkEntities": true,
+  "TrunkEntitiesSettings": {
+    "WeightPerLog": 8.0,
+    "CarrySpeedAtOneLog": 1.0,
+    "CarrySpeedAtMaxLogs": 0.5,
+    "SpudSecondsPerLog": 0.5
+  },
+  "GearReclamation": true,
+  "GearReclamationSettings": {
+    "FlashRustHours": 8.0,
+    "UsableGearChance": 0.1,
+    "BitsPerFailedGear": 1,
+    "FlashRustLossChance": 0.25
+  },
+  "PicklingTubSettings": {
+    "BatchSize": 8,
+    "CapacityLitres": 10.0,
+    "LitresPerBatch": 1.0,
+    "AcidRules": [
+      {
+        "Liquid": "game:vinegarportion",
+        "Input": "seraphhorizons:gear-degreased",
+        "Output": "seraphhorizons:gear-pickled",
+        "Hours": 24.0,
+        "Failure": "game:metalbit-steel",
+        "FailureQuantity": 1,
+        "GraceHours": 12.0,
+        "LossEveryHours": 3.0,
+        "LossChance": 0.0,
+        "Kind": 0
+      },
+      {
+        "Liquid": "game:acid-full-sulfuric",
+        "Input": "seraphhorizons:gear-degreased",
+        "Output": "seraphhorizons:gear-pickled",
+        "Hours": 8.0,
+        "Failure": "game:metalbit-steel",
+        "FailureQuantity": 1,
+        "GraceHours": 4.0,
+        "LossEveryHours": 1.0,
+        "LossChance": 0.0,
+        "Kind": 0
+      },
+      {
+        "Liquid": "game:acid-full-hydrochloric",
+        "Input": "seraphhorizons:gear-degreased",
+        "Output": "seraphhorizons:gear-pickled",
+        "Hours": 2.0,
+        "Failure": "game:metalbit-steel",
+        "FailureQuantity": 1,
+        "GraceHours": 1.0,
+        "LossEveryHours": 0.25,
+        "LossChance": 0.0,
+        "Kind": 0
+      },
+      {
+        "Liquid": "game:vinegarportion",
+        "Input": "seraphhorizons:gear-steel",
+        "Output": "seraphhorizons:gear-steel-bare",
+        "Hours": 6.0,
+        "Failure": "game:metalbit-steel",
+        "FailureQuantity": 1,
+        "GraceHours": 3.0,
+        "LossEveryHours": 0.75,
+        "LossChance": 0.0,
+        "Kind": 0
+      },
+      {
+        "Liquid": "game:acid-full-sulfuric",
+        "Input": "seraphhorizons:gear-steel",
+        "Output": "seraphhorizons:gear-steel-bare",
+        "Hours": 2.0,
+        "Failure": "game:metalbit-steel",
+        "FailureQuantity": 1,
+        "GraceHours": 1.0,
+        "LossEveryHours": 0.25,
+        "LossChance": 0.0,
+        "Kind": 0
+      },
+      {
+        "Liquid": "game:acid-full-hydrochloric",
+        "Input": "seraphhorizons:gear-steel",
+        "Output": "seraphhorizons:gear-steel-bare",
+        "Hours": 0.5,
+        "Failure": "game:metalbit-steel",
+        "FailureQuantity": 1,
+        "GraceHours": 0.25,
+        "LossEveryHours": 0.0625,
+        "LossChance": 0.0,
+        "Kind": 0
+      }
+    ],
+    "BrineLiquids": [
+      "game:brineportion"
+    ],
+    "BrineRustHours": 48.0,
+    "BareBrineRustHours": 4.0,
+    "OverRustChance": 0.1,
+    "RefusedGears": [
+      "seraphhorizons:largegear-*"
+    ]
+  },
+  "SteelBitsRecovery": true,
+  "GearBlanks": true,
+  "GearCutter": true,
+  "GearCutterSettings": {
+    "TurnsPerTooth": 12.0,
+    "CutterWearPerGear": 10,
+    "Resistance": 0.2,
+    "MinSpeed": 0.05
+  },
+  "DrawBench": true,
+  "DrawBenchSettings": {
+    "DieDurability": 100,
+    "DieWearPerHollow": 1,
+    "TurnsPerSectionLead": 7.72,
+    "TurnsPerSectionCopper": 15.45,
+    "ResistanceLead": 0.2,
+    "ResistanceCopper": 0.35,
+    "MinSpeed": 0.05,
+    "DieMetals": {
+      "iron": [
+        "lead"
+      ],
+      "steel": [
+        "lead",
+        "copper"
+      ]
+    }
+  },
+  "PressBrake": true,
+  "PressBrakeSettings": {
+    "LeverTurnsPerPlateLead": 3.0,
+    "LeverTurnsPerPlateCopper": 4.5
+  },
+  "MandrelStation": true,
+  "MandrelStationSettings": {
+    "BlowsPerHollowLead": 6,
+    "BlowsPerHollowCopper": 9,
+    "BaseHammerTier": 2,
+    "HammerWearPerBlow": 1
+  },
+  "CastPipes": true,
+  "Handcar": true,
+  "HandcarSettings": {
+    "TopSpeedOne": 4.2,
+    "TopSpeedTwo": 5.95,
+    "AccelerationOne": 0.6,
+    "AccelerationTwo": 0.9,
+    "SpeedLossPerWeight": 0.5,
+    "MinTopSpeed": 0.8,
+    "CoastDrag": 0.35,
+    "DragPerWeight": 0.05,
+    "BrakeDeceleration": 2.5,
+    "SatietyPerPumpSecond": 1.5,
+    "PumpFadeSeconds": 0.35
+  },
+  "PackVersionCheck": true,
+  "FollowPackDefaults": true,
+  "UnifiedPipes": true,
+  "UnifiedPipesSettings": {
+    "LeadBurstPressure": 0.5,
+    "CopperBurstPressure": 3.0,
+    "IronBurstPressure": 5.0,
+    "SteelBurstPressure": 10.0,
+    "BronzeBurstPressure": 5.0
+  }
+}

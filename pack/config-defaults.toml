@@ -1,0 +1,38 @@
+# Config defaults snapshots: the hand-written part (docs/config-defaults.md).
+#
+# `packtool smoke --config-defaults write` snapshots every file a fresh server of the pack writes
+# into ModConfig, for the current [pack] version, into the pack's own mod; the mod then moves a
+# setting nobody changed to the new default when a later version changes it. The values the pack
+# sets instead of a mod's own default are in pack/config/ModConfig, not here.
+
+# Files a fresh server writes into ModConfig that are not settings to follow: left out of the
+# snapshot, so never touched. Each needs a why.
+[[ignore]]
+file = "seraphhorizons-configdefaults.json"
+why = "The pack's own mod's record of which pack version's defaults this install has; never a default."
+
+[[ignore]]
+file = "seraphhorizons-packcheck.json"
+why = "A client's dismissed pack version check findings (client state, written on a client only)."
+
+# The mods whose versions decide what a file holds, when tools/configdefaults.py cannot tell from
+# the file's name or the mods' code. A file is only brought up to date when all of its owners are
+# loaded at the versions the snapshot has.
+[owners]
+# exlib's shared recipe and value tables, which ppex and smex each add their entries to.
+"ex_recipes.json" = ["exlib", "ppex", "smex"]
+"ex_values.json" = ["exlib", "ppex", "smex"]
+
+# A setting a mod renamed, applied before the values are compared, so a value nobody changed
+# follows the default under its new name and a chosen one keeps its value. Same object only:
+# `from` is the full key path, `to` the new last key. For example:
+#
+# [[rename]]
+# file = "seraphhorizons.json"
+# from = ["TrunkEntitiesSettings", "CarrySpeedAtFourLogs"]
+# to = "CarrySpeedAtOneLog"
+# why = "..."
+#
+# That rename is not recorded: it predates the first snapshot (0.1.0), so no install has a baseline
+# with the old key, and the setting changed meaning (four logs to one) and default (0.8 to 1) with
+# it, so a value carried across would not be the player's intent either.

@@ -1,0 +1,12 @@
+{
+  "BarkPerLog": 3,
+  "BarkChanceMultKnife": 0.5,
+  "BarkChanceMultAxeHammer": 0.75,
+  "BarkChanceMultSpud": 1.0,
+  "BarkChanceMultSpudSteelBonus": 0.25,
+  "TarPotCapacityPoints": 64,
+  "TarBirchPointsWet": 1,
+  "TarBirchPointsDry": 2,
+  "TarYield": 8,
+  "BarkDryHours": 96.0
+}

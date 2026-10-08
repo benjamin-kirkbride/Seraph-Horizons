@@ -1,0 +1,8 @@
+{
+  "DebarkSeconds": 1.5,
+  "AllowKnifeDebark": true,
+  "KnifeDebarkSpeedMultiplier": 0.15,
+  "AxeHammerDebarkSpeedMultiplier": 0.3,
+  "DebarkDurabilityPerLog": 1,
+  "DebarkRestockDelaySeconds": 0.3
+}
