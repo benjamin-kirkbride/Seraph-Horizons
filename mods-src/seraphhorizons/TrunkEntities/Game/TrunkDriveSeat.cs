@@ -1,3 +1,4 @@
+using System.Reflection;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.TrunkEntities.Core;
 using Vintagestory.API.Client;
@@ -133,8 +134,14 @@ public class TrunkDriveSeat : EntitySeat
         if (Trunk is not { } trunk)
             return;
         trunk.DriverMounted(entityAgent);
-        if (trunk.Api is ICoreClientAPI capi && capi.World.Player?.Entity?.EntityId == entityAgent.EntityId)
-            capi.Input.MouseYaw = (float)TrunkDrive.FacingYaw(trunk.Pos.Yaw, trunk.DriveEnd);
+        // The view stays where it was. With PushYaw the client turns the view by each change of the
+        // seat's yaw from the one it last saw (ClientMain.prevMountAngles), which it keeps from the
+        // last mount (0 the first time), so it is set to this seat's yaw or the mount itself turns
+        // the view by the difference. Read by name, client side only (verified against 1.22.7; if it
+        // is gone the view turns on mounting).
+        if (trunk.Api is ICoreClientAPI capi && capi.World.Player?.Entity?.EntityId == entityAgent.EntityId
+            && capi.World.GetType().GetField("prevMountAngles", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(capi.World) is Vec3f prev)
+            prev.Y = SeatPosition.Yaw;
         trunk.Api.Event.TriggerEntityMounted(entityAgent, this);
     }
 
