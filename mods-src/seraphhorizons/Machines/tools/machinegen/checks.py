@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 
-from .geometry import El, euler_xyz, from_euler, mvec, scale_uv
+from .geometry import TRANSPARENT, El, euler_xyz, from_euler, mvec, scale_uv
 
 CELL = 16.0                                  # voxels per block
 
@@ -427,3 +427,20 @@ def euler_round_trip(els):
         back = from_euler(*euler_xyz(el.r))
         worst = max(worst, max(abs(back[i][j] - el.r[i][j]) for i in range(3) for j in range(3)))
     return worst
+
+
+def sight_glass(glass, oil: El):
+    """What hides an oiler's level: a pane not in the Transparent pass (an opaque pass draws the glass
+    texture solid), or a side of the oil (north, east, south, west) with no pane over it, its face seen
+    through nothing. Empty when the level shows through glass from every side."""
+    out = [f"{g.name} is not in the Transparent pass" for g in glass if g.render_pass != TRANSPARENT]
+    lo, hi = oil.aabb()
+    for side, axis, sign in (("north", 2, -1), ("east", 0, 1), ("south", 2, 1), ("west", 0, -1)):
+        across = 2 - axis
+        def covers(g):
+            glo, ghi = g.aabb()
+            beyond = glo[axis] >= hi[axis] if sign > 0 else ghi[axis] <= lo[axis]
+            return beyond and glo[across] <= lo[across] and ghi[across] >= hi[across] and glo[1] <= lo[1] and ghi[1] >= hi[1]
+        if not any(covers(g) for g in glass):
+            out.append(f"no pane over the oil's {side} side")
+    return out

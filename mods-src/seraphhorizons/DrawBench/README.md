@@ -2,7 +2,7 @@
 
 Part of the Seraph Horizons mod (`../README.md`): the drawn rung of the pipe ladder (unified pipes,
 `../Pipes/`). A mechanically powered **chain draw bench**, as used for lead and copper pipe from the
-1790s to the 1880s, turns one **hollow section** of lead or copper (the game's chute section,
+1790s to the 1880s, turns one **hollow section** of lead or copper (the game's chute section, named the tube blank in game,
 `game:chutesection-{lead,copper}`, the 8 × 8 × 8 hollow box) into four seamless **pipe sections**
 (`seraphhorizons:pipesection-{lead,copper}`: a square tube the size of ppex's pipe, 6 voxels across,
 half a block long). The hollow goes on the bench threaded on a square **mandrel** bar and held against
@@ -74,9 +74,9 @@ counterweight and its rope, and the oiler). The **build order**: the frame, then
 | Order | `requires` | Item | Draws | Taken back |
 |---|---|---|---|---|
 | 1 | `gearbox` | `game:jonasframes-gearbox01` (Jonas sub-assembly, "Consumately crafted gearbox"), looted or converted | The cone clutch's cup (cupronickel, the Jonas palette) and cone, the sleeve with the sliding change-gear cluster, the drive shaft with its two change wheels and the final drive's pinion | Only by breaking the frame |
-| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` (the game's chain) | The endless drawing chain and its two sprockets: the drive sprocket on its own shaft with the final drive's wheel, and the return sprocket on the return shaft | Only by breaking the frame |
+| 2 | `chain` | Two of `game:metalchain-iron`, `-meteoriciron` or `-steel` (the game's chain) | The endless drawing chain and its two sprockets: the drive sprocket on its own shaft with the final drive's wheel, and the return sprocket on the return shaft | Only by breaking the frame |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` (the game's heavy bracket) | The dog: its portal (shoes on both ways, cheeks, crossbar and top plate over the section), the fixed jaw, the moving jaw with its tail and knuckle and its leaf spring, the bracket and shank with two shackle pins, the knock-off lug | Only by breaking the frame |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` | The square mandrel bar with its plug and nut, the follower and its spring | Only by breaking the frame |
+| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel` | The square mandrel bar with its plug and nut, the follower and its spring | Only by breaking the frame |
 | 5 | `die` | New: `seraphhorizons:drawdie-iron` or `drawdie-steel` (iron: lead only; steel: lead and copper), the wearing part | The die plate with its square eye in the die stock's mouth. Its elements use the texture code `die`, which the renderer sets to the fitted die's metal | When worn out it is spent; unworn, Ctrl + right-click |
 | — | `billetlead` | The work: a lead hollow section on the bench (k = 1) | The lead hollow (in quarters) and the four lead pipe sections drawn from it | The material being worked, not a part |
 | — | `billetcopper` | The work: a copper hollow section (k = 2) | The same in copper | as above |
@@ -91,13 +91,17 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 nothing from `build/mods`. The hollow wears the chute section's own sheet (`game:block/metal/sheet/lead1`,
 `copper1`, as the game's item has it), the pipe sections the plain sheet
 (`game:block/metal/sheet-plain/lead1`, `copper1`), the rope `game:item/resource/rope`, the oiler's glass
-`game:block/glass/plain` and its oil `game:block/liquid/honey`, all referenced. `tools/make_shape.py`
+`game:block/glass/plain` (four panes in the Transparent render pass, `renderPass` 3, so the oil shows from
+every side; the block's own pass is opaque and drew the glass solid) and its oil `game:block/liquid/honey`,
+all referenced. The frame block's `textures` (`assets/seraphhorizons/blocktypes/drawbench/frame.json`) must
+name every code of `drawbench.json`: the renderer draws the moving parts with the block's texture source,
+and a code the block lacks renders white (`tools/tests/test_drawbench_model.py` holds them together). `tools/make_shape.py`
 writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/drawbench.json` | The whole machine, every moving part (738 elements). The renderer splits it into parts by element name. |
-| `assets/seraphhorizons/shapes/block/drawbench_frame.json` | The static frame only (66 elements). The block draws it and the inventory shows it. |
+| `assets/seraphhorizons/shapes/block/drawbench.json` | The whole machine, every moving part (739 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/drawbench_frame.json` | The static frame only (67 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/drawbench-rig.json` | Footprint, anchors, the work, the draw's constants and the part rig (84 parts: 20 chain links of their own, 24 pieces of work). |
 | `tests/DrawBench/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
 
@@ -269,7 +273,8 @@ and exits non-zero if one fails:
   barrel 2, the start lever's rock shaft 2), the idler on its stud, the clutch rod through its guide (its
   north end pinned to the start lever), the selector rod through one guide (two for copper) with its fork
   in the cluster's groove as a pilot.
-- **Oiler:** the oil's height 0.05 at oil 0, 1.15 at 1 and linear between, inside the glass; the spout's
+- **Oiler:** the oil's height 0.05 at oil 0, 1.15 at 1 and linear between, inside the glass; a pane over
+  each side of the oil, every pane in the Transparent pass (`checks.sight_glass`); the spout's
   mouth 0.05 over the hollow, 0.35 behind the die stock, the drip anchor there.
 - **Nothing floats:** every frame element joined to the ground.
 - **No z-fighting** (full runs): no coplanar overlapping faces at five poses of both metals, of what can
@@ -376,21 +381,28 @@ the bench runs along native south, so the `side` placed is the way the player lo
 nearest. (`Footprint.PlacedFacing`, the mills' rule, sends native west along the look, which would lay
 the bench across it.) The axle then comes in at the far end on the player's right, the pipe sections come
 off to their left, and a chest of hollow sections stands in front of the die end. The frame recipe
-(`assets/seraphhorizons/recipes/grid/drawbench.json`): two metal plates (die stock and head pedestals) and two
-rods (the ways) of iron, meteoric iron or steel, four nails and strips of the same metals, two oak logs
-(the sills), oak planks (the bed) and a hammer.
+(`assets/seraphhorizons/recipes/grid/drawbench.json`): two metal plates (die stock and the drive head's bed
+plate) and four rods (the ways, two a side) of iron, meteoric iron or steel, 12 nails and strips of the
+same metals, two oak logs (the sills), oak planks (the bed) and a hammer: about 11 ingots of iron (a plate
+2, a rod 1, 12 nails and strips 3), under the steel gear cutter's frame (8 steel ingots and 32 nails and
+strips).
 
-**Stages** (`DrawBenchParts`), one item a stage, in `DrawBenchStage` order, the next missing stage the
-only one a click fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a
-die with no durability `DieSpent`):
+**Stages** (`DrawBenchParts`), in `DrawBenchStage` order, the next missing stage the only one a click
+fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a die with no
+durability `DieSpent`). A stage takes `Needed` of its item, all from the held stack in one click (fewer
+held is `TooFew`, with a message, and nothing is taken): two chains (the endless chain runs round both
+sprockets the bench's length), two rods (the mandrel bar, and the follower's spindle), one of the rest.
+Breaking returns as many as went in; a save keeps one code a stage, as before. With the frame (about 11
+iron ingots) and the die (2), the parts bring the bench to about 21 ingots of iron and a Jonas gearbox:
+the chains 4, the bracket 2, the rods 2.
 
 | # | `requires` | Item (verified in game 1.22.7's `survival/itemtypes`) |
 |---|---|---|
 | 1 | `gearbox` | `game:jonasframes-gearbox01` |
-| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` |
+| 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel`, two |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` |
-| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from one ingot of its metal, 40 voxels, named `drawdie` so the helve hammer leaves it alone) |
+| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two |
+| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from two ingots of its metal, 80 voxels (two thick rings and a stepped shoulder), named `drawdie` so the helve hammer leaves it alone) |
 
 The die keeps its durability left and full (`GetRemainingDurability`, `GetMaxDurability`); the die
 item's durability is `DieDurability`, set on the server in `AssetsFinalize` before the types go to
@@ -463,7 +475,7 @@ recipe type (`SwitchOwnership.HandListed`).
 
 **Export.** `tools/recipe-export/Recipes/DrawBenchExport.cs` and `RecipeSection.DrawBench.cs`: one `machine`
 record per metal (`drawbench|game:chutesection-{metal}|0`): the hollow section, the four kept stages
-(alternatives as variant stacks), the dies that draw the metal as a tool losing `DieWearPerHollow` a
+(alternatives as variant stacks, the chain's and the mandrel's two each), the dies that draw the metal as a tool losing `DieWearPerHollow` a
 hollow (`rule` `fixed`), the oil for four pipe sections, the frame as the station; four
 `seraphhorizons:pipesection-{metal}` out (work unit `sections`, end 4); `turns` and
 `work.turnsPerUnit` from the settings.

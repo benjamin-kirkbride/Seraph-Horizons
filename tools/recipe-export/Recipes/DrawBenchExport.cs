@@ -14,8 +14,8 @@ public sealed class DrawBenchData
     public required string Mod;
     public required string FrameCode;
     public Block? Frame;
-    /// <summary>The fitted parts the bench keeps, each stage's alternatives: gearbox, chain, dog, mandrel.</summary>
-    public List<(string Template, List<Item> Items)> Kept = new();
+    /// <summary>The fitted parts the bench keeps, each stage's alternatives and how many it takes: gearbox, chain, dog, mandrel.</summary>
+    public List<(string Template, List<Item> Items, int Count)> Kept = new();
     public required int SectionsPerHollow;
     public required int DieWear;
     public required double DrainPerSection;
@@ -40,13 +40,13 @@ public static class DrawBenchExport
     public const string HollowCodePrefix = "game:chutesection-";
     public const string SectionCodePrefix = "seraphhorizons:pipesection-";
 
-    // DrawBench/Core/DrawBenchParts.cs: what each kept stage takes.
-    public static readonly (string Template, string[] Codes)[] KeptStages =
+    // DrawBench/Core/DrawBenchParts.cs: what each kept stage takes, and how many (Needed).
+    public static readonly (string Template, string[] Codes, int Count)[] KeptStages =
     [
-        ("game:jonasframes-gearbox01", ["game:jonasframes-gearbox01"]),
-        ("game:metalchain-iron", ["game:metalchain-iron", "game:metalchain-meteoriciron", "game:metalchain-steel"]),
-        ("game:bracket-heavy-iron", ["game:bracket-heavy-iron", "game:bracket-heavy-meteoriciron", "game:bracket-heavy-steel"]),
-        ("game:rod-iron", ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"]),
+        ("game:jonasframes-gearbox01", ["game:jonasframes-gearbox01"], 1),
+        ("game:metalchain-iron", ["game:metalchain-iron", "game:metalchain-meteoriciron", "game:metalchain-steel"], 2),
+        ("game:bracket-heavy-iron", ["game:bracket-heavy-iron", "game:bracket-heavy-meteoriciron", "game:bracket-heavy-steel"], 1),
+        ("game:rod-iron", ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"], 2),
     ];
 
     private static Item? ItemOf(ICoreServerAPI api, string code) =>
@@ -83,11 +83,11 @@ public static class DrawBenchExport
             DrainPerSection = Dbl(benchOil, "DrainPerJob", 2),
             Tank = Dbl(benchOil, "Tank", GearChain.DefaultTank),
         };
-        foreach (var (template, codes) in KeptStages)
+        foreach (var (template, codes, count) in KeptStages)
         {
             var items = codes.Select(c => ItemOf(api, c)).OfType<Item>().ToList();
             if (items.Count == 0) return null;
-            data.Kept.Add((template, items));
+            data.Kept.Add((template, items, count));
         }
         var dieMetals = GearChain.Prop(settings, "DieMetals") as IDictionary;
         foreach (var (name, metal, turnsKey) in new[] { ("thin", "lead", "TurnsPerSectionLead"), ("thick", "copper", "TurnsPerSectionCopper") })

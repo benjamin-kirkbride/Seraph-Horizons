@@ -26,10 +26,11 @@ public sealed class OilState(OilMachine machine, OilTank tank, float dryMultipli
     /// null until it has. The server syncs it for the block info.</summary>
     public float? Load { get; set; }
 
-    /// <summary>A shaft load as the oil leaves it, remembered as <see cref="Load"/>.</summary>
-    public float Resistance(float resistance)
+    /// <summary>A shaft load as the oil leaves it, remembered as <see cref="Load"/>: as it is for a
+    /// machine whose load the oil leaves alone (<paramref name="dryLoad"/> false).</summary>
+    public float Resistance(float resistance, bool dryLoad = true)
     {
-        float load = Tank.Resistance(resistance, DryMultiplier);
+        float load = dryLoad ? Tank.Resistance(resistance, DryMultiplier) : resistance;
         Load = load;
         return load;
     }
@@ -166,16 +167,21 @@ public static class Oil
     /// it never reads 0 (and an empty one reads 0, never -0).</summary>
     public static string Shown(double points) => OilText.Points(points);
 
-    /// <summary>The block info's oil lines: the tank, and while dry how much harder it turns: its
-    /// load on the shaft now against the load oiled, once the shaft has asked for it (not for a
-    /// machine whose load the oil leaves alone, <paramref name="dryLoad"/> false).</summary>
+    /// <summary>The block info's oil lines: the tank, and once the shaft has asked for it the load
+    /// on the shaft in kN; while dry how much harder it turns, the load now against the load oiled.
+    /// A machine whose load the oil leaves alone (<paramref name="dryLoad"/> false) only has the
+    /// load.</summary>
     public static void Info(OilState? state, StringBuilder dsc, bool dryLoad = true)
     {
         if (state == null)
             return;
         dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-tank", Shown(state.Tank.Points), Shown(state.Tank.Capacity)));
         if (!state.Dry || !dryLoad)
+        {
+            if (state.Load is { } asked)
+                dsc.AppendLine(Lang.Get(Domain + ":machineoil-info-load", OilText.Load(asked)));
             return;
+        }
         string times = state.DryMultiplier.ToString("0.##");
         dsc.AppendLine(state.Load is { } load && state.OiledLoad is { } oiled
             ? Lang.Get(Domain + ":machineoil-info-dry-load", times, OilText.Load(load), OilText.Load(oiled))
@@ -183,12 +189,13 @@ public static class Oil
     }
 
     /// <summary>The shaft asking a machine its load: <paramref name="resistance"/> as the oil leaves
-    /// it, remembered on <paramref name="state"/>; the server marks <paramref name="owner"/> dirty
-    /// when the figure changes, so the client's block info has it.</summary>
-    public static float Asked(OilState state, float resistance, BlockEntity? owner)
+    /// it (left alone with <paramref name="dryLoad"/> false), remembered on <paramref name="state"/>;
+    /// the server marks <paramref name="owner"/> dirty when the figure changes, so the client's block
+    /// info has it.</summary>
+    public static float Asked(OilState state, float resistance, BlockEntity? owner, bool dryLoad = true)
     {
         float? before = state.Load;
-        float load = state.Resistance(resistance);
+        float load = state.Resistance(resistance, dryLoad);
         if (before != load && owner?.Api?.Side == EnumAppSide.Server)
             owner.MarkDirty();
         return load;

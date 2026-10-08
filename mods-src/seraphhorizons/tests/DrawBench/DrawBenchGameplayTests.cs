@@ -66,6 +66,23 @@ public class DrawBenchGameplayTests
         Assert.Equal(DrawBenchStage.Chain, parts.Next);
     }
 
+    [Fact]
+    public void The_chain_and_the_mandrel_take_two_from_one_stack()
+    {
+        Assert.Equal([1, 2, 1, 2, 1], DrawBenchRequires.Stages.Select(DrawBenchParts.Needed));
+        var parts = new DrawBenchParts();
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.GearboxCode, held: 1));
+        Assert.Equal(DrawBenchFitVerdict.TooFew, parts.Fit("game:metalchain-iron", held: 1));
+        Assert.False(parts.Has(DrawBenchStage.Chain));
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:metalchain-iron", held: 2));
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:bracket-heavy-iron", held: 1));
+        Assert.Equal(DrawBenchFitVerdict.TooFew, parts.Fit("game:rod-iron", held: 1));
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:rod-iron", held: 5));
+        // a part already in, or out of order, says so before counting
+        Assert.Equal(DrawBenchFitVerdict.AlreadyFitted, parts.Fit("game:metalchain-iron", held: 1));
+        Assert.Equal([1, 2, 1, 2], parts.Returns().Select(d => d.Count));
+    }
+
     [Theory]
     [InlineData("iron")]
     [InlineData("meteoriciron")]
@@ -144,6 +161,7 @@ public class DrawBenchGameplayTests
         Assert.Equal([.. Order, DrawBenchParts.DieSteelCode], drops.Select(d => d.Code));
         Assert.Equal(new DrawBenchDrop(DrawBenchParts.DieSteelCode, 58), drops[^1]);
         Assert.All(drops.Take(4), d => Assert.Null(d.Durability));
+        Assert.Equal([1, 2, 1, 2, 1], drops.Select(d => d.Count));
         Assert.Empty(new DrawBenchParts().Returns());
     }
 

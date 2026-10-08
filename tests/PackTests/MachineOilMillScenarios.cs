@@ -32,7 +32,7 @@ public partial class WoodworkingScenarios
         Assert.True(mill.Oiling!.Dry);
         Assert.Equal(oil.BuckingMill.Tank, mill.Oiling.Tank.Capacity);
         Assert.Equal(Mod.Config.Resistance * oil.DryResistanceMultiplier, power.GetResistance(), 4);
-        Assert.Contains($"Dry: a load of {OilText.Load(Mod.Config.Resistance * oil.DryResistanceMultiplier)} on its shaft, 3× the {OilText.Load(Mod.Config.Resistance)} it takes oiled", Info(mill, player));
+        Assert.Contains($"Dry: a load of {OilText.Load(Mod.Config.Resistance * oil.DryResistanceMultiplier)} kN on its shaft, 3× the {OilText.Load(Mod.Config.Resistance)} kN it takes oiled", Info(mill, player));
 
         // A bucket of olive oil on the power cell: the click is the oil's, whatever the cell does.
         var bucket = new ItemStack(BlockOf("game:woodbucket"));
