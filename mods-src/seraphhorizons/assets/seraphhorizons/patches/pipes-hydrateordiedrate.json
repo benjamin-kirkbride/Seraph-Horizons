@@ -4,7 +4,13 @@
 // load (Pipes/Game/HydratePipes.cs). Here: no recipe for the pipe, the pipe section or the valve; the
 // three out of the creative inventory and the handbook (the block and item types stay registered, so
 // the removal finds them); the hand pump's recipe takes ppex copper or lead straight pipe where it took
-// Hydrate's pipe of the same metal; and the hand pump's handbook page says how it finds a spring.
+// Hydrate's pipe of the same metal; the hand pump's handbook page says how it finds a spring; and
+// ppex's pipes and valves (straight, bend, T- and X-junction, valve, pressure valve; not the brick
+// passthroughs or the outlet) are "replaceable": 500, as Hydrate's own pipe is, so a pipe run down a
+// well shaft to its spring leaves the shaft open: a spring counts a level only while the cell above
+// is air or a block of replaceable 500 or more (WellBlockUtils.SolidAllows), and with ppex's default
+// of 0 a piped well held nothing. 500 is far below 5000 (washed away by water) and 6000 (replaced
+// when a block is placed there).
 // Server side: block types and recipes are loaded on the server, and the client gets them, creative
 // stacks and attributes included, from it. With the switch off (or without Hydrate or Diedrate, or
 // with ppex's pipes not as expected) HydratePipes.DisablePatches empties this file.
@@ -27,5 +33,11 @@
     "file": "hydrateordiedrate:blocktypes/metal/handpump.json", "op": "add", "path": "/attributes/handbook/extraSections",
     "value": [{ "title": "seraphhorizons:handpump-handbook-title", "text": "seraphhorizons:handpump-handbook-text" }],
     "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }]
-  }
+  },
+  { "file": "ppex:blocktypes/pipes/straight.json", "op": "add", "path": "/replaceable", "value": 500, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "ppex" }] },
+  { "file": "ppex:blocktypes/pipes/bend.json", "op": "add", "path": "/replaceable", "value": 500, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "ppex" }] },
+  { "file": "ppex:blocktypes/pipes/tjunction.json", "op": "add", "path": "/replaceable", "value": 500, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "ppex" }] },
+  { "file": "ppex:blocktypes/pipes/xjunction.json", "op": "add", "path": "/replaceable", "value": 500, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "ppex" }] },
+  { "file": "ppex:blocktypes/pipes/valve.json", "op": "add", "path": "/replaceable", "value": 500, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "ppex" }] },
+  { "file": "ppex:blocktypes/pipes/pressurevalve.json", "op": "add", "path": "/replaceable", "value": 500, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "ppex" }] }
 ]
