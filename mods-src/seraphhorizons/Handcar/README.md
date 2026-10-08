@@ -197,7 +197,10 @@ codes) and `bogies` (Yang's `BodyOffsetForward` and the bogies' offsets, which t
 match). `Core/HandcarRig.cs` reads it for the game; a broken rig is logged and the riders stand still.
 
 The site's model viewer shows it at `#/models/handcar` (`site/models.json`): Play turns θ, the grips
-ride the beam.
+ride the beam. It is shown as a vehicle (`docs/recipe-browser/models.md`, "Vehicles"): the θ slider spans a
+stroke, the distance rolled is θ × `cycle.wheelRadius`, the axle box shape is drawn at `bogies`, the
+track scrolls under it, and the branch lever is a choice of one. It reads those figures from this rig by
+path, so a rig regenerated with new ones needs no change there.
 
 ## Tests
 
