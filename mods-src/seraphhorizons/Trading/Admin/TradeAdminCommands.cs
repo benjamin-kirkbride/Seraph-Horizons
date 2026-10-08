@@ -8,6 +8,8 @@ using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Trading.Core;
 using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Economy.Core;
+using SeraphHorizons.Mod.Trading.Maps;
+using SeraphHorizons.Mod.Trading.Maps.Core;
 using SeraphHorizons.Mod.Trading.Standing;
 using SeraphHorizons.Mod.Trading.Standing.Core;
 using SeraphHorizons.Mod.Trading.Values;
@@ -43,6 +45,9 @@ public sealed class TraderInspection(EntitySeraphTrader trader, string traderId)
 /// <item><c>values missing|suspicious</c>: the item values report's checks on the loaded table.</item>
 /// <item><c>maps [trader]</c>: the deposits and gravel fields around a trader and whether a map of
 /// each could be sold.</item>
+/// <item><c>leads [player] [trader]</c>: a player's camp lead history (their group's maps bought
+/// per trader, the traders that sold them a stranger's map, the camps visited) and the camp leads a
+/// trader offers them now with their prices.</item>
 /// <item><c>export|import &lt;file&gt;</c>: supply, standing, the deposit registry, and what later
 /// waves register (<see cref="TradingSystem.AdminState"/>).</item>
 /// <item><c>log on|off [channel]</c>: <c>Logs/seraphhorizons-trade.log</c>.</item>
@@ -107,6 +112,12 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
                 .RequiresPrivilege(Privilege.controlserver)
                 .WithArgs(parsers.OptionalWord("trader"))
                 .HandleWith(OnMaps)
+            .EndSubCommand()
+            .BeginSubCommand("leads")
+                .WithDescription("A player's camp lead history (their group's) and the camp leads a trader offers them now with prices (yourself and near if none given)")
+                .RequiresPrivilege(Privilege.controlserver)
+                .WithArgs(parsers.OptionalWord("player"), parsers.OptionalWord("trader"))
+                .HandleWith(OnLeads)
             .EndSubCommand()
             .BeginSubCommand("export")
                 .WithDescription($"Write supply, standing, the deposit registry (and orders, deliveries once they exist) to a file in the server's {AdminFiles.Folder} folder")
@@ -407,6 +418,56 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
         output.Summary = L("trading-admin-maps-head", TraderLookup.IdOf(api, trader), L("trading-type-" + trader.TraderType), accepted, candidates.Count, MapsOreRadius, MapsGravelRadius);
         output.Data["candidates"] = rows;
         output.Data["accepted"] = accepted;
+        return AdminCommands.Answer(args, output);
+    }
+
+    // ---- leads ----
+
+    private TextCommandResult OnLeads(TextCommandCallingArgs args)
+    {
+        if (api.ModLoader.GetModSystem<MapsSystem>() is not { Active: true } maps) return TextCommandResult.Error(L("trading-admin-maps-off"));
+        string? name = args[0] as string;
+        var player = name is null or "me" ? args.Caller.Player as IServerPlayer
+            : api.World.AllOnlinePlayers.FirstOrDefault(p => p.PlayerName.Equals(name, StringComparison.OrdinalIgnoreCase)) as IServerPlayer;
+        if (player is null) return TextCommandResult.Error(L("trading-admin-leads-noplayer", name ?? "-"));
+        var output = new AdminOutput("trade leads");
+        var keys = maps.KeysOf(player.PlayerUID);
+        var groups = new JsonObject();
+        foreach (string key in keys)
+        {
+            var g = maps.Leads.Groups.GetValueOrDefault(key) ?? new GroupLeads();
+            output.Lines.Add(L("trading-admin-leads-group", key,
+                g.Bought.Count == 0 ? "-" : string.Join(", ", g.Bought.OrderBy(b => b.Key).Select(b => $"{b.Key} ×{b.Value}")),
+                g.StrangerMaps.Count == 0 ? "-" : string.Join(", ", g.StrangerMaps.Order()),
+                g.Visited.Count));
+            groups[key] = new JsonObject
+            {
+                ["bought"] = new JsonObject(g.Bought.Select(b => KeyValuePair.Create(b.Key, (JsonNode?)b.Value))),
+                ["strangerMaps"] = new JsonArray(g.StrangerMaps.Order().Select(t => (JsonNode?)t).ToArray()),
+                ["visited"] = new JsonArray(g.Visited.Order().Select(t => (JsonNode?)t).ToArray()),
+            };
+        }
+        output.Data["player"] = player.PlayerName;
+        output.Data["groups"] = groups;
+        output.Summary = L("trading-admin-leads-head", player.PlayerName, string.Join(", ", keys));
+        var trader = TraderLookup.Find(api, args, args[1] as string, out _);
+        if (trader != null && maps.CampLeadsFor(player, trader) is { } view)
+        {
+            output.Lines.Add(L("trading-admin-leads-trader", view.TraderId, view.Buyer.Tier, view.Buyer.Bought, view.Reach, view.Why.ToString()));
+            var offers = new JsonArray();
+            foreach (var o in view.Offers)
+            {
+                output.Lines.Add($"  {o.Cell} {L("trading-type-" + o.Type)} {o.Distance:0} m ({o.X}, {o.Z}): {o.Price} g{(o.Prospector ? " *" : "")}");
+                offers.Add(new JsonObject
+                {
+                    ["cell"] = o.Cell.ToString(), ["type"] = o.Type, ["x"] = o.X, ["z"] = o.Z, ["distance"] = Math.Round(o.Distance),
+                    ["price"] = o.Price, ["prospector"] = o.Prospector,
+                });
+            }
+            output.Data["trader"] = view.TraderId;
+            output.Data["tier"] = view.Buyer.Tier;
+            output.Data["offers"] = offers;
+        }
         return AdminCommands.Answer(args, output);
     }
 

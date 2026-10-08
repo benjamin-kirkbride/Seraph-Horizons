@@ -3270,10 +3270,11 @@ order, never below 0. A tenth of your best standing with another trader of the s
 
 Five tiers, in `assets/seraphhorizons/config/standing-tiers.json`: stranger (0), known (60), regular
 (250), trusted (800), partner (2000). Each tier's unlocks are data for the features that read them:
-map tier and maps to other traders, a price factor each way, the wallet tier, order and delivery
-size, rare stock. The wallet and the shelves follow the best tier among players who traded with the
+map tier and the settlement ground's lead (`mapsToTraders`; how many camp leads, and how far, is
+`map-prices.json`'s), a price factor each way, the wallet tier, order and delivery size, rare stock.
+The wallet and the shelves follow the best tier among players who traded with the
 trader in the last 14 days (its gears are topped up towards that tier's wallet at the weekly
-restock; its rare stock, schematics and further leads are shelved for it), and the player trading
+restock; its rare stock, schematics and settlement lead are shelved for it), and the player trading
 gets their own tier's prices and map precision (see "Maps and leads"). The trade window's header
 and Standing tab show your standing there, and the trader tells you when you ask "How do you see me
 these days?" (see "Trade window"); reaching a tier says so in chat.
@@ -3374,7 +3375,8 @@ every sale resolves in its seller's list).
 
 Traders sell maps to deposits and leads to other camps (#455; `Trading/Maps/`, server side, default
 on; notes in `docs/trading.md` and `docs/oregen.md`). Prices are in
-`assets/seraphhorizons/config/trading/map-prices.json`, before standing's price factor.
+`assets/seraphhorizons/config/trading/map-prices.json`, before standing's price factor (camp leads
+carry their own discount instead).
 
 - **Ore maps**, from prospectors: one offer per metal, the nearest unsold deposit of the deposit
   registry within 5 km (whether or not anyone has generated its chunks), at most four metals,
@@ -3382,11 +3384,40 @@ on; notes in `docs/trading.md` and `docs/oregen.md`). Prices are in
   precision 2 (tier 1, "known") and exact maps (tier 2 up). Price by precision and the deposit's
   last measured size (5–32 gears, "unsurveyed" until measured), times the metal's factor.
 - **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
-- **Leads** (`seraphhorizons:traderlead`), from every trader: a lead to the nearest camp for
-  anyone (2 gears); with `mapsToTraders` (tier 2 up), a lead to a prospector, to a camp two or
-  three cells away and to the nearest ground kept for a settlement. Right-click a lead to put the
-  camp on your world map (icon `trader`). A lead may point at a camp nobody has generated yet: the
-  sale generates its spot's chunk and draws the lead to where the camp was placed.
+- **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
+  map to a trader within some radius that you don't already have, and the radius and count grow
+  with your standing, so it pays to travel and learn from local traders rather than buy the whole
+  map from one. The offers are your own (not on the shelf): the Maps & leads tab lists them with
+  their price and a Buy button.
+
+  | Standing | Leads on offer | Within | Price discount |
+  |---|---|---|---|
+  | stranger | 1 per trader, ever (see below) | 8 km (`strangerReach`) | none |
+  | known | 2 | 3 km | 0.85 |
+  | regular | 3 | 5 km | 0.7 |
+  | trusted | 5 | 8 km | 0.55 |
+  | partner | 8 | 12 km | 0.4 |
+
+  The offers are the nearest camps, measured from the selling trader, that you lack: not on your
+  map (at any precision) and no lead to it carried. From known up, if you have no prospector marked
+  within the radius, the first offer is the nearest prospector. Buying one brings the next-nearest
+  in its place. A **stranger** gets one lead per trader per group (your company, or you alone),
+  ever: to the nearest camp you lack that your group has not visited either (meeting a camp's
+  trader counts). Each new camp sells you one onward, so a stranger chains from camp to camp, but
+  can't map a region from one trader.
+
+  **Price** = 2 × 2^(distance / 2.5 km) × 2^(leads your group already bought from this trader) ×
+  the discount, rounded: a stranger's first lead 2 km away is 3 gears; a partner's eighth lead
+  12 km out is about 2,850. The count per trader never resets. The discount takes the place of
+  standing's price factor for these leads.
+
+  A lead may point at a camp nobody has generated yet: buying it settles the cell (its next spots'
+  chunks are generated until the camp is placed, as `/sh trade tp` does; the chat says "the trader
+  is drawing the way"), and the lead arrives drawn to where the camp stands. A cell that places
+  none refunds the gears and is skipped from then on, so the next camp takes its place. Right-click
+  a lead to put the camp on your world map (icon `trader`).
+- **Settlement ground**: with `mapsToTraders` (tier 2 up), a lead to the nearest ground kept for a
+  settlement, on the shelf (6 gears).
 
 Every marker a map puts on your world map says how precise it is, in the tiers the Standing tab
 lists: "Copper deposit (large) (precision 1, ±400 m)", "(precision 2, ±150 m)", "(exact)"; a gravel
@@ -3414,22 +3445,36 @@ meanwhile or worked out refunds the price. No deposit is sold twice, by any trad
 deposit in reach is sold the shelf shows "Ore maps: sold out" (unavailable). Traders never buy maps
 or leads back.
 
-The shelf is shared, so it is stocked for the best customer of the last 14 days: the further leads
-(and rare stock) stay on it for a stranger until the next restock after that customer stops coming,
-but a stranger can't buy them (the window shows them hatched, with the tier that sells them). The
+The shelf is shared, so it is stocked for the best customer of the last 14 days: the settlement
+lead (and rare stock) stays on it for a stranger until the next restock after that customer stops
+coming, but a stranger can't buy it (the window shows it hatched, with the tier that sells it). The
 trade window shows the player trading their own prices and map precision (one player trades with a
 trader at a time).
 
+What each group has bought where, the traders that sold it a stranger's lead and the camps it
+visited are saved with the world (`seraphhorizons:leads`, versioned; a world from before starts
+empty), per player and per company as standing is: both are written, the most of them read, so
+leaving a company keeps what you did. Admin (`controlserver`): `/sh trade leads [player] [trader]`
+shows a player's history and the leads a trader offers them now with their prices (yourself and the
+nearest trader if none given).
+
 Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
-table, lead targets, which markers mark what: a map marked or carried refused, a better one an
-upgrade, the lead's marker replaced by the met trader's, old markers matched by icon, place and
-title); `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map
-offers, buying one through the trade window, the registry marked sold and no other trader offering
-it, a gravel map offered exactly when a field is in reach, a lead marking a camp, standing changing a
-trader's prices and map precision, the playtest's lead, same lead, gravel map: the copy refused with
-no gears taken and the rest arriving with their precision in the markers' titles, a lead whose camp
-is marked refused, a gravel offer whose field turned out empty refused before payment, meeting a
-camp's trader marking it exactly in place of the lead's marker and an old one, once).
+table, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
+marker replaced by the met trader's, old markers matched by icon, place and title; camp leads
+(`CampLeadsTests`): the shipped tiers, the price doubling per lead bought and per 2.5 km, the
+discounts, count and radius per tier, the prospector first, the refill, the stranger's one lead
+and chaining, the trader's own camp never a target; the lead history (`LeadBookTests`): counts
+that never reset, the stranger's lead, visits, pooling by company, the saved version);
+`tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map offers,
+buying one through the trade window, the registry marked sold and no other trader offering it, a
+gravel map offered exactly when a field is in reach, standing changing a trader's prices and map
+precision; a stranger buying exactly one lead from a trader, a second refused, and one onward at the
+camp it led to; a known customer offered two leads within 3 km, buying one bringing the next at
+double the price; a partner's lead to a camp nobody generated settling it and marking it where it
+stands; a lead bought not offered again, carried or marked, while the gravel map bought after it
+arrives with the markers' precision in their titles; a gravel offer whose field turned out empty
+refused before payment; meeting a camp's trader marking it exactly in place of the lead's marker and
+an old one, once).
 
 ### Orders and deliveries (`TraderOrders`, `TraderDeliveries`)
 

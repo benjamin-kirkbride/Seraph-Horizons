@@ -8,6 +8,8 @@ public class TradeWindowModelTests
 {
     private static readonly string[] Codes = ["stranger", "known", "regular", "trusted", "partner"];
     private static readonly double[] Thresholds = [0, 60, 250, 800, 2000];
+    private static readonly int[] LeadMaps = [0, 2, 3, 5, 8];
+    private static readonly int[] LeadRadius = [0, 3000, 5000, 8000, 12000];
 
     /// <summary>The shipped tiers' shape: the five, their thresholds and the unlocks that matter here.</summary>
     internal static StandingSummary Summary(int tier, double points) => new()
@@ -20,6 +22,8 @@ public class TradeWindowModelTests
             Code = c,
             Points = Thresholds[i],
             MapPrecision = Math.Min(3, i + 1),
+            LeadMaps = LeadMaps[i],
+            LeadRadius = LeadRadius[i],
             Unlocks = new TierUnlocks
             {
                 MapTier = i,
@@ -219,6 +223,7 @@ public class TradeWindowModelTests
         Assert.Contains("trading-window-fact-orders", all);
         Assert.Contains("trading-window-fact-deliveries", all);
         Assert.Contains("trading-window-fact-leads", all);
+        Assert.Contains("trading-window-fact-settlement", all);
         Assert.Contains("trading-window-fact-rare", all);
         var few = TradeWindowModel.Facts(tier, new WindowSwitches { Standing = true }).Select(f => f.Key).ToList();
         Assert.DoesNotContain("trading-window-fact-prices", few);
@@ -238,7 +243,35 @@ public class TradeWindowModelTests
         var gains = TradeWindowModel.Gains(s.Tier, s.Next!, AllOn()).Select(f => f.Key).ToList();
         Assert.Contains("trading-window-fact-rare", gains);
         Assert.Contains("trading-window-fact-prices", gains);
-        Assert.DoesNotContain("trading-window-fact-leads", gains);
+        // Regular to trusted: more camp leads further out; the settlement lead both have.
+        Assert.Contains("trading-window-fact-leads(5, 8)", TradeWindowModel.Gains(s.Tier, s.Next!, AllOn()).Select(f => f.ToString()));
+        Assert.DoesNotContain("trading-window-fact-settlement", gains);
+    }
+
+    [Fact]
+    public void CampLeadFactsSayHowManyAndHowFarAndAStrangerGetsOneOnward()
+    {
+        var s = Summary(0, 0);
+        var stranger = TradeWindowModel.Facts(s.Tiers[0], AllOn()).Select(f => f.ToString()).ToList();
+        Assert.Contains("trading-window-fact-leads-stranger", stranger);
+        Assert.DoesNotContain("trading-window-fact-settlement", stranger);
+        Assert.Contains("trading-window-fact-leads(2, 3)", TradeWindowModel.Facts(s.Tiers[1], AllOn()).Select(f => f.ToString()));
+        Assert.Contains("trading-window-fact-leads(8, 12)", TradeWindowModel.Facts(s.Tiers[4], AllOn()).Select(f => f.ToString()));
+    }
+
+    [Fact]
+    public void LeadOfferLinesNameTheCampItsWayAndPriceAndTheNoteSaysWhyNone()
+    {
+        var row = new LeadOfferRow { Cell = "1,0", Type = "smith", Distance = 2210.4, Dx = 2200, Dz = 0, Price = 3 };
+        Assert.Equal("trading-window-lead-offer", TradeWindowModel.LeadOfferLine(row).Key);
+        Assert.Contains("2210", TradeWindowModel.LeadOfferLine(row).ToString());
+        Assert.Equal("trading-window-lead-offer-prospector", TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Prospector = true }).Key);
+        var none = new TradeWindowState { LeadsWhy = "trading-window-leads-strangerused" };
+        Assert.Equal("trading-window-leads-strangerused", TradeWindowModel.LeadOffersNote(none)!.Key);
+        Assert.Null(TradeWindowModel.LeadOffersNote(new TradeWindowState()));
+        var some = TradeWindowState.FromJson(new TradeWindowState { LeadOffers = [row], LeadsBought = 2 }.ToJson());
+        Assert.Equal("1,0", some.LeadOffers.Single().Cell);
+        Assert.Equal("trading-window-leads-bought(2)", TradeWindowModel.LeadOffersNote(some)!.ToString());
     }
 
     [Fact]

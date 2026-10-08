@@ -171,6 +171,12 @@ public class TradeWindowSystem : ModSystem
             }
             case TradeAction.MarkDelivery:
                 return MarkDelivery(player, trader, request.Id);
+            case TradeAction.BuyLead:
+            {
+                if (_sapi!.ModLoader.GetModSystem<MapsSystem>() is not { Active: true } maps) return TradeResult.Refused(action, "trading-window-off");
+                var (ok, key, args) = maps.BuyCampLead(player, trader, request.Code, request.Price);
+                return ok ? TradeResult.Done(action, key, args) : TradeResult.Refused(action, key, args);
+            }
         }
         return TradeResult.Refused(action, "trading-window-failed");
     }
@@ -295,6 +301,7 @@ public class TradeWindowSystem : ModSystem
                 Tiers = system.Rules.Tiers.Select(t => new TierView
                 {
                     Code = t.Code, Points = t.Points, Unlocks = t.Unlocks, MapPrecision = MapOffers.MaxPrecision(t.Unlocks.MapTier),
+                    LeadMaps = maps?.Prices.CampLeads.TierFor(t.Code)?.Maps ?? 0, LeadRadius = maps?.Prices.CampLeads.TierFor(t.Code)?.Radius ?? 0,
                 }).ToList(),
             };
             var leads = system.Rules.Tiers.Select(t => t.Unlocks.MapsToTraders).ToList();
@@ -308,6 +315,19 @@ public class TradeWindowSystem : ModSystem
             }
         }
         else state.LeadsToTraders = true;
+
+        // Camp leads for this player (off the shelf).
+        if (maps?.CampLeadsFor(player, trader) is { } leadView)
+        {
+            foreach (var o in leadView.Offers)
+                state.LeadOffers.Add(new LeadOfferRow
+                {
+                    Cell = o.Cell.ToString(), Type = o.Type, Distance = o.Distance, Dx = o.X - trader.Pos.X, Dz = o.Z - trader.Pos.Z,
+                    Price = o.Price, Prospector = o.Prospector,
+                });
+            state.LeadsBought = leadView.Buyer.Bought;
+            state.LeadsWhy = MapsSystem.WhyKey(leadView.Why);
+        }
 
         // Map and lead offers this player has already (marked on their map, or a copy carried).
         if (maps?.Active == true && MapMarksSystem.Of(api) is { } marks)

@@ -241,13 +241,25 @@ public static class WindowLayout
         }
     }
 
-    /// <summary>The Maps &amp; leads tab below its slot grid: a line per offer, the locked leads' note.</summary>
-    public static void MapLines(Flow flow, IReadOnlyList<string> lines, string? leadsLocked, string details)
+    /// <summary>The Maps &amp; leads tab below its slot grid: a line per offer, then the player's own
+    /// camp leads with a Buy button each and the note under them, the locked leads' note.</summary>
+    public static void MapLines(Flow flow, IReadOnlyList<string> lines, string? leadsLocked, string details,
+        IReadOnlyList<ActionLine>? leads = null, string? leadsNote = null)
     {
         for (int i = 0; i < lines.Count; i++)
         {
             flow.Text("map-" + i, lines[i], UiFont.Detail);
             flow.Next(4);
+        }
+        if (leads is { Count: > 0 })
+        {
+            flow.Next(4);
+            Actions(flow, null, leads, null);
+        }
+        if (leadsNote != null)
+        {
+            flow.Text("leadsnote", leadsNote, UiFont.Detail);
+            flow.Next(6);
         }
         if (leadsLocked != null)
         {
