@@ -62,6 +62,26 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
+    public void Every_pack_trader_has_a_trade_window_title_and_a_name()
+    {
+        // The game's trade dialog titles itself Lang.GetMatching("tradingwindow-" + code path, name):
+        // a game-domain key, whatever the entity's domain, so without one the raw key shows.
+        var traders = W.EntityTypes.Where(t => t.Code.Domain == "seraphhorizons"
+                                               && (t.Code.Path.StartsWith("trader-") || t.Code.Path.StartsWith("visitor-"))).ToList();
+        Assert.Equal((11 + 2) * 2 * 3, traders.Count);
+        foreach (var t in traders)
+        {
+            string type = t.Variant["type"];
+            string title = Vintagestory.API.Config.Lang.GetMatching("tradingwindow-" + t.Code.Path, "Haldor");
+            Assert.True(title.StartsWith("Local goods - Haldor the ", StringComparison.Ordinal), $"{t.Code}: {title}");
+            Assert.Equal(Vintagestory.API.Config.Lang.Get("seraphhorizons:trading-type-" + type).Replace("general store", "general store keeper"),
+                title["Local goods - Haldor the ".Length..]);
+            string name = Vintagestory.API.Config.Lang.GetMatching("seraphhorizons:item-creature-" + t.Code.Path);
+            Assert.False(name.Contains("item-creature", StringComparison.Ordinal), $"{t.Code}: {name}");
+        }
+    }
+
+    [AtlasScenario]
     public void Every_list_resolves_against_the_pack_and_stocks_a_core_everywhere()
     {
         var lists = Trading.Lists ?? throw new Xunit.Sdk.XunitException("the lists did not load");

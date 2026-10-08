@@ -2764,8 +2764,9 @@ flux and buys metal.
 `TraderGrid` (server, default on) places lone camps on a seeded 2 km grid, about one per 2 km cell,
 in place of the game's randomly placed ones; the camp kinds are the game's, BetterTraders' and the
 other mods' camp buildings, chosen by climate as the game does, and the trader in a camp is the
-cell's type. Neighbouring cells never have the same type, and a prospector is never more than two
-cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
+cell's type. A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
+keeps its own trader: a story NPC, with its own dialogue. Neighbouring cells never have the same
+type, and a prospector is never more than two cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
 takes the grid at its first start with this mod if the switch is on then, and keeps that; an existing
 world keeps vanilla's camps and traders. Turned off later, the world's new chunks get the game's camps
 again. The trader types and their lists exist either way.
@@ -2776,9 +2777,11 @@ radius blocks (default 4096) with their type and camp, or the spot not generated
 
 Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
 state, the shipped lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
-(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere, a
-spawned trader stocking from its list, the game's camps taken over, the spawner rewrite, a cell's
-camp being decided, `/sh trade camps`, and nothing logged).
+(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere,
+every trader's trade window title and name, a spawned trader stocking from its list, the game's camps
+taken over, the spawner rewrite, a cell's camp being decided, `/sh trade camps`, and nothing logged);
+`tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
+treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten).
 
 ### Item base values (no switch)
 
