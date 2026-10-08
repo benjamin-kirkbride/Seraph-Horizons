@@ -1,6 +1,6 @@
 # Item values
 
-Every item's base value in rusty gears, derived from the pack's recipe export (#449, part of the
+Every item's base value in rusty gears (a liquid's per litre), derived from the pack's recipe export (#449, part of the
 trader overhaul #436). The output, `mods-src/seraphhorizons/assets/seraphhorizons/config/item-values.json`,
 ships in the pack's own mod, which serves it to the trading features (`Trading/Values/`, see the
 mod's README). Stdlib-only Python 3.11+, like `packtool.py`.
@@ -27,8 +27,8 @@ python3 -m unittest discover -s tools/tests -p test_item_values.py
 
 `check` fails (CI runs it in the export job, on the export smoke dumped) when:
 
-- **The shipped table is stale.** It must equal a rebuild from the export (`values`, `floorZero` and
-  `switches`; the `pack` header is not compared). It prints how many codes differ, the first 25 as
+- **The shipped table is stale.** It must equal a rebuild from the export (`values`, `floorZero`,
+  `perLitre` and `switches`; the `pack` header is not compared). It prints how many codes differ, the first 25 as
   `code: shipped -> rebuilt`, and the command to rebuild. In CI, download the run's
   `recipe-export` artifact and run `build` on it, or run smoke locally; then commit the table.
 - **An item traders buy has no value**, derived from the export or in the shipped table. It reads
@@ -53,27 +53,32 @@ simply absent (but CI's export always has it, and so does the table).
 
 ## Rules
 
-The inputs are the export's recipes (every recipe type, each variant a route) and three item
-attributes it carries: smelting (with firing and baking), crushing and grinding. The rules are data:
+The inputs are the export's recipes (every recipe type, each variant a route) and five item
+attributes it carries: smelting (with firing and baking), crushing, grinding, juicing (the fruit
+press) and distillation (the still). The rules are data:
 
 - `raw-values.json`: hand-priced raws. Exact codes, then globs in file order. Ores are priced by
   metal unit (`ores`: an ingot is 100 units, a nugget 5, a chunk by grade the game's
   `metalUnitsByType`), the metal of an ore being what its nugget smelts into. Raws are fixed: no
   recipe changes them. The rusty gear, the unit, is 1.
 - `markups.json`: a labour markup per recipe kind (`grid`, `smithing`, `knapping`, `clayforming`,
-  `barrel`, `cooking`, `alloy`, `construction`, `transition` for drying/curing/smoking/...,
-  `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `mod` for every other mod registry; a mod
-  type can have an entry of its own by its type code), the tool fraction, recipe ids never used as
+  `barrel`, `cooking`, `alloy`, `construction`, `transition` for drying/smoking/melting/...,
+  `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `pressing`, `distilling`, `mod` for every other mod
+  registry; any recipe type can have an entry of its own by its type code, as `curing` has), the
+  tool fraction, recipe ids never used as
   routes (uncrafting and recycling), how smithing and clay forming use material by volume, and the
   schematic patterns.
 - `overrides.json`: hand overrides, fixed and winning over everything, each with its reason.
 
-A route's value per output item is
+The solver works per item: recipes count a liquid in portions, so a liquid's value is a portion's
+until the table converts it (Values and units, below). A route's value per output item is
 
-    (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction - other outputs) / output quantity
+    (consumed ingredients x (1 + pct) + flat + kept tools x toolFraction - other outputs) / output quantity + perItem
 
-floored at zero, where a slot costs its cheapest accepted stack; a grid ingredient counts once per
-cell of the pattern; a liquid counts 100 portions a litre; smithing uses filled voxels / 42 ingots
+with the quotient floored at zero, where `perItem` (optional, 0 when absent) is the kind's charge
+per output item: work that scales with the volume, which a flat per batch cannot price when the
+batch is thousands of portions. Only `curing` has one ("Why these prices"). A slot costs its
+cheapest accepted stack; a grid ingredient counts once per cell of the pattern; a liquid counts its items per litre (100, Expanded Foods' hardened lard 5); smithing uses filled voxels / 42 ingots
 and clay forming filled voxels / 25 clay; an alloy is its inputs at the middle of their ratios;
 cooking counts only the ingredients a meal needs (`minQuantity`); and a tool or container not
 consumed (`isTool`, a station, a machine's fitted part such as the gear cutter's master: role
@@ -81,6 +86,18 @@ consumed (`isTool`, a station, a machine's fitted part such as the gear cutter's
 `toolFraction` (2%) of its value. A container handed back as something else (a bucket of milk
 gives back the bucket) costs the difference. Butchery, perishing and burning
 are not routes (one carcass gives a dozen things; hides and meat are raws instead).
+
+**The fruit press** (`juicing` on the pressed item: `litresPerItem`, the liquid, and optional
+`pressed` and `returned` stacks) is a route of kind `pressing`: one item makes litresPerItem x 100
+portions. Its by-products are not credited, as butchery's many outputs are not routes: the pressed
+mash (compost and feed) and a returned stack (honeycomb's beeswax; honey is a raw anyway) leave the
+juice carrying the whole input. Mash, which the press can squeeze again, has no `litresPerItem` (what
+is left in it rides on the stack) and is no route.
+
+**The still** (`distillation` on the liquid distilled: `ratio` and the output) is a route of kind
+`distilling`: one portion makes `ratio` portions, so a litre of fruit brandy (0.1) costs ten litres
+of cider and a litre of grain or mead spirit (0.05) twenty. The route is per input portion, so the
+kind has a percentage (fuel) and no flat.
 
 **Lotteries.** A `lottery` record (the oiled gear: one ingredient decided by chance into weighted
 outcomes, `schema.md`) is a route to each output that can come out. The output's quantity is its
@@ -131,10 +148,19 @@ the valued codes that differ from it in one variant segment (a black-glazed mold
 of the blue and red ones; planks facing north take planks facing up). These fallbacks never
 undercut a production chain: they are settled after it.
 
-Values are stored per item as gears with 3 decimals. An item worth under 1 gear per full stack is
-listed in `floorZero`: trading treats it as worthless, and keeps the value for sums. The table's
-keys are `about`, `schemaVersion`, `pack`, `values`, `floorZero`, `switches`, one entry per line in
-code order, so a rebuild diffs cleanly.
+**Values and units.** The table stores gears with 3 decimals: per item, except for liquids, which
+are per litre. A liquid is what the export marks so (`items[code].attributes.extra.liquid.itemsPerLitre`,
+from the game's `waterTightContainerProps`: 100 portions a litre for every liquid in the pack, but
+the tool reads it); the table lists each valued one in `perLitre` (code: items per litre), and its
+`values` entry is the solver's per-portion value times that. So a liquid keeps 3 decimals a litre
+(a portion's 0.001 steps were 0.1 a litre), and a reader multiplies or divides by `perLitre` to
+get a portion's or a stack's worth. A code named like a portion but not marked a liquid stays per
+item. An item worth under 1 gear per full stack (per item value x `maxStackSize`, a liquid's per
+portion) is listed in `floorZero`: trading treats it as worthless, and keeps the value for sums.
+The table's keys are `about`, `schemaVersion`, `pack`, `values`, `floorZero`, `perLitre`,
+`switches`, one entry per line in code order, so a rebuild diffs cleanly. `explain` and the report
+print a liquid per litre too, marked `/L` (explain also gives the portion's value), and the
+report's most and least valuable lists rank liquids by their litre.
 
 The report (`build/item-values-report.md` and `.json`) lists coverage per mod domain, the items with
 no value, the 50 most and least valuable, and items valued below the ingredients of their route,
@@ -143,23 +169,26 @@ which only a raw or override can be: the review list for hand prices.
 ## Numbers
 
 From smoke's export of the pack (pack 0.1.0, game 1.22.7, with mods-src/seraphhorizons loaded;
-27,163 items, 10,517 recipes), the export as of the item-values branch at 98db1fb (main merged):
+27,163 items, 10,517 recipes), the export as of main at ea05320 plus the exporter's juicing and
+distillation attributes:
 
-- 21,918 of 27,163 items valued (80.7%); of the 24,023 the handbook shows, 84.5%.
-- 13,773 from recipes, 5,797 raws, 2,330 defaults and fallbacks, 18 overrides.
+- 21,927 of 27,163 items valued (80.7%); of the 24,023 the handbook shows, 84.5%.
+- 13,871 from recipes, 5,785 raws, 2,253 defaults and fallbacks, 18 overrides.
 - 2,044 worthless (under a gear per stack), 9.3% of those valued.
-- 107 valued below their ingredients, all raws (nuggets, which the game hammers from ore chunks of
-  more units; boards, wool) and the overrides: by design.
+- 111 valued below their ingredients, all raws (nuggets, which the game hammers from ore chunks of
+  more units; boards, wool; honey, cheaper than the honeycomb it is pressed from; melon seeds, cut
+  from a chunk) and the overrides: by design.
 - No value: 5,245, mostly things no player trades: creatures, loose surface ores, plant and crop
   blocks, rich gravel, coral, butterflies, termite mounds, stalagmites, carcasses (butchery is
   skipped), technical blocks, the schematics (87, by rule), and the retired pit saws and blades.
   Expanded Foods' sausages (72) lost theirs with main's DuplicateRecipes: the one sausage recipe
   left is Butchering's kneading, which takes offal, and offal (a butchery output) has no value.
-- Coverage per domain: game 77.5%, Expanded Foods 94.9%, Door Variants 100%, Tailor's Delight
+- Coverage per domain: game 77.5%, Expanded Foods 95.5%, Door Variants 100%, Tailor's Delight
   100%, Alchemy 98.0%, Cartwright's 98.6%, ppex 100%, Butchering 20.4% (carcasses),
   seraphhorizons 71.2% (its schematics, maps and leads have none).
 
-Samples (gears per item; vanilla trader prices per item for reference, sell / buy):
+Samples (gears per item, as the table stores them; vanilla trader prices per item for reference,
+sell / buy):
 
 | item | value | stack | vanilla | route |
 |---|---|---|---|---|
@@ -175,6 +204,22 @@ Samples (gears per item; vanilla trader prices per item for reference, sell / bu
 | barrel | 1.5 | 1 | 2 / — | override |
 | oiled gear | 1.84 | 64 | | rusty gear degreased, pickled, neutralized, oiled |
 | steel gear | 10.89 | 64 | | gear cutter (a cast steel blank, 8.87); 14.38 by the oiled gear's lottery |
+
+Beverages, gears per litre, as the table stores them (`perLitre`: 100 portions a litre).
+Vanilla's Liga sells a 3 L jug of rye or cherry cider for 3 and of apple brandy for 6, and buys the
+empty jug for 1:
+
+| liquid | per litre | route |
+|---|---|---|
+| fruit juice | 0.16 | pressed: 3.2 fruit (0.03 each) a litre |
+| fruit cider | 0.27 | barrel, juice + 0.1 a litre |
+| strong / potent wine (Expanded Foods) | 0.47 / 0.67 | cured, + 0.2 a litre each step |
+| grain cider (rye, spelt) | 0.37 | barrel, 5 flour a litre |
+| mead | 0.52 | barrel, a litre of honey (0.4) |
+| apple brandy | 1.85 | distilled from potent wine (0.4 L a litre) |
+| rye spirit | 4.24 | distilled from potent rye wine |
+| mead spirit | 7.92 | distilled from strong mead (0.1) |
+| melon juice / cider / spirit (bdcrop) | 1.07 / 1.23 / 13.5 | a 0.3 chunk a third of a litre |
 
 At commit 31052e6, over the 475 items vanilla traders deal in, the median value is 1.2 x vanilla's buy price (266
 entries) and 0.7 x its sell price (346): values sit near what a trader pays, below what it charges.
@@ -198,10 +243,26 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   recipes the export does not carry. Logs 0.22, debarked 0.24, support beams 0.3.
 - **Hides and leather.** A medium hide is 2 (hunting is risky), small 1, large 3.5, huge 6; tanning
   takes days in barrels (+5%, 0.1 a batch), so leather ends at about 0.54.
+- **Beverages.** Juice is what it is pressed from (+5%, 0.02 a fruit: a litre of fruit juice
+  0.16). The barrel's 0.1 flat is charged per litre at least (`minBatchLitres`), not per recipe as
+  written: cider is written for one portion and mead for 0.1 L, which charged 10 and 1 gear a
+  litre of labour and, distilled, 100 and 20. Ageing (`curing`: juice into cider, cider into
+  Expanded Foods' strong and potent wines and spirits, yogurt, jerky) adds 0.002 a portion, 0.2 a
+  litre, after the division (`perItem`), so a wine is worth more than the cider it aged from; the
+  barrel has none, because its cheap liquids (dyes at 0.02 a litre, tannin) go into other things
+  by the litre and a per-portion charge would double dyed leather. Fruit cider lands at 0.27, near
+  vanilla's buy price (its jug of cider sells for 3, about 0.67 a litre without the jug). Spirits
+  cost the cider they are distilled from: 10 L of fruit cider or 20 L of grain cider or mead make a
+  litre (Expanded Foods' aged wines distil at up to 0.4), plus 10% fuel, so apple brandy is 1.85
+  against vanilla's 1.7 a litre to sell, and grain and mead spirits, which take 20 litres, cost
+  more than vanilla's single brandy price. A spirit is never below its cider.
 - **Earth and plants** are near worthless on purpose (stone 0.008, sand and gravel 0.01, clay 0.03):
   a full stack is under a gear, so trading ignores them.
 - **Crops and seeds.** Grain 0.03, vegetables 0.04, seeds 0.1, tree seeds 0.25 (vanilla sells exotic
-  tree seeds for 8: those are a trader's margin, not a value).
+  tree seeds for 8: those are a trader's margin, not a value). Better Crops' melons and squashes
+  are 0.3 (the growing melon and its chunk, `bdcrop:*melon-fruit-*` and `bdcrop:fruit-*melon`); the
+  pattern once read `bdcrop:*melon*`, which also fixed the melons' juice, cider and spirit at 0.3 a
+  portion (30 a litre), their mash, and their seeds.
 - **Gems.** Rough gems at vanilla's prices (diamond and emerald about 10, olivine 5, garnet 2.5).
 - **Overrides.** The barrel (3 boards and 4 sticks make it 0.34, a cooper's work is worth more;
   vanilla sells it for 2) and the anvils (cast in molds, which the export does not carry: 9 ingots
@@ -221,5 +282,10 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   gears' flash rust) is not a route.
 - A nugget hammered from a rich chunk carries more metal units in its attributes than the plain
   nugget the table prices; trading reads the code, not the attributes.
-- Values are per item; a stack's attributes (a filled bucket's contents, a meal's ingredients) are
-  not priced.
+- The fruit press's by-products (mash, honeycomb's beeswax) are not credited, and mash, which
+  the press squeezes again, is no route (above).
+- A smelting or cooking attribute on a liquid charges its flat per portion: Expanded Foods' fruit
+  syrup (4 portions of juice boiled into one) is 20 gears a litre, nearly all of it labour. The
+  export's smelting output has no litres for `minBatchLitres` to read.
+- Values are per item (a liquid's per litre); a stack's attributes (a filled bucket's contents, a
+  meal's ingredients) are not priced.

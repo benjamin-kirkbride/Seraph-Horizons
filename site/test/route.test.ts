@@ -14,6 +14,18 @@ describe("parseRoute", () => {
     expect(parseRoute("#/main/search?q=ingot%20cop")).toEqual({ view: "search", version: "main", query: "ingot cop" });
     expect(parseRoute("#/main/entities")).toEqual({ view: "entities", version: "main" });
     expect(parseRoute("#/main/values")).toEqual({ view: "values", version: "main" });
+    expect(parseRoute("#/main/values?q=cider&sort=name-asc&unvalued=1&kind=liquids&worthless=hide&unlisted=only")).toEqual({
+      view: "values",
+      version: "main",
+      q: "cider",
+      sort: "name-asc",
+      unvalued: true,
+      kind: "liquids",
+      worthless: "hide",
+      unlisted: "only",
+    });
+    // Unknown values and defaults spelled out are dropped.
+    expect(parseRoute("#/main/values?sort=value-desc&kind=all&worthless=any&unvalued=0&q=")).toEqual({ view: "values", version: "main" });
     expect(parseRoute("#/main/search?q=gear&sort=value-desc")).toEqual({ view: "search", version: "main", query: "gear", sort: "value-desc" });
     expect(parseRoute("#/main/search?q=gear&sort=value-asc")).toEqual({ view: "search", version: "main", query: "gear", sort: "value-asc" });
     expect(parseRoute("#/main/search?q=gear&sort=bogus")).toEqual({ view: "search", version: "main", query: "gear" });
@@ -68,6 +80,9 @@ describe("formatRoute", () => {
     expect(formatRoute({ view: "search", version: "main", query: "ingot cop" })).toBe("#/main/search?q=ingot+cop");
     expect(formatRoute({ view: "search", version: "main", query: "gear", sort: "value-asc" })).toBe("#/main/search?q=gear&sort=value-asc");
     expect(formatRoute({ view: "values", version: "main" })).toBe("#/main/values");
+    expect(formatRoute({ view: "values", version: "main", q: "apple cider", sort: "value-asc", kind: "liquids", worthless: "only" })).toBe(
+      "#/main/values?q=apple+cider&sort=value-asc&kind=liquids&worthless=only",
+    );
     expect(formatRoute({ view: "item", version: "main", code: "a:b/c" })).toBe("#/main/item/a:b%2Fc");
     expect(formatRoute({ view: "type", version: "main", code: "mymod:press", page: 1 })).toBe("#/main/type/mymod:press");
     expect(formatRoute({ view: "type", version: "main", code: "grid", page: 2 })).toBe("#/main/type/grid?page=2");

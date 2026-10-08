@@ -18,6 +18,28 @@ test("an item's header shows its value after the gear icon, or that it has none"
   await expect(page.getByTestId("item-value")).toHaveText("No trade value");
 });
 
+test("a liquid's value is per litre wherever it is shown", async ({ page }) => {
+  await openItem(page, "game:ciderportion-apple");
+  const value = page.getByTestId("item-value").locator("[data-per-litre]");
+  await expect(value.locator(".n")).toHaveText("4");
+  await expect(value.locator(".unit")).toHaveText("/ L");
+  await expect(value.locator(".visually-hidden")).toHaveText("rusty gears per litre");
+  await expect(value).toHaveAttribute("title", /per litre/);
+  // Copper is per item.
+  await openItem(page, "game:ingot-copper");
+  await expect(page.getByTestId("item-value").locator("[data-per-litre]")).toHaveCount(0);
+
+  await page.goto(`./#/${V}`);
+  await search(page, "apple cider");
+  const row = page.getByTestId("results").locator("li", { has: page.locator('a[data-code="game:ciderportion-apple"]') });
+  await expect(row.getByTestId("result-value").locator(".unit")).toHaveText("/ L");
+
+  await page.goto(`./#/${V}/values`);
+  await expect(page.getByText(/Liquids are priced per litre/)).toBeVisible();
+  await page.getByTestId("values-filter").fill("ciderportion-apple");
+  await expect(page.getByTestId("values").locator('tr[data-code="game:ciderportion-apple"] [data-per-litre] .unit')).toHaveText("/ L");
+});
+
 test("search results carry their value and sort by it", async ({ page }) => {
   await page.goto(`./#/${V}`);
   const results = await search(page, "copper ingot");
@@ -175,4 +197,54 @@ test("the values page shows a group's variants that share a price as one row, wh
   await page.getByTestId("values-filter").fill("E2E ingots");
   await members.nth(1).locator("a.item").click();
   await expect(page).toHaveURL(new RegExp(`#/${V}/item/game:ingot-zinc$`));
+});
+
+test("the values page filters by kind, worthless and handbook, and the address keeps it", async ({ page }) => {
+  await page.goto(`./#/${V}/values`);
+  const table = page.getByTestId("values");
+  const rows = table.locator("tbody tr");
+  await expect(rows).toHaveCount(100);
+
+  // Liquids are the per-litre rows; the radio group works from the keyboard as well.
+  await page.getByTestId("values-kind").getByLabel("Liquids").check();
+  await expect(page).toHaveURL(/values\?kind=liquids$/);
+  await page.getByTestId("values-filter").fill("ciderportion-apple");
+  await expect(table.locator('tr[data-code="game:ciderportion-apple"] [data-per-litre]')).toHaveCount(1);
+  await page.getByTestId("values-filter").fill("");
+  const perLitre = await rows.locator("td.value [data-value]").evaluateAll((els) => els.map((e) => e.hasAttribute("data-per-litre")));
+  expect(perLitre.length).toBeGreaterThan(0);
+  expect(perLitre.every(Boolean)).toBe(true);
+
+  await page.getByTestId("values-kind").getByLabel("Blocks").focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page).toHaveURL(/kind=liquids/);
+  await page.keyboard.press("ArrowLeft");
+  await expect(page).toHaveURL(/kind=blocks/);
+  await expect(table.locator("tbody [data-per-litre]")).toHaveCount(0);
+
+  // Worthless rows alone: every value dimmed. Copper is an item, not a block.
+  await page.getByTestId("values-kind").getByLabel("Items").check();
+  await page.getByTestId("values-worthless").selectOption("only");
+  await expect(page).toHaveURL(/kind=items&worthless=only$/);
+  const floor = await rows.locator("td.value [data-value]").evaluateAll((els) => els.map((e) => e.hasAttribute("data-floor-zero")));
+  expect(floor.length).toBeGreaterThan(0);
+  expect(floor.every(Boolean)).toBe(true);
+  await page.getByTestId("values-worthless").selectOption("hide");
+  await expect(table.locator('tr[data-code="game:stick"]')).toHaveCount(0);
+  await page.getByTestId("values-filter").fill("stick");
+  await expect(table.locator('tr[data-code="game:stick"]')).toHaveCount(0);
+
+  // A reload keeps every filter.
+  await page.reload();
+  await expect(page.getByTestId("values-filter")).toHaveValue("stick");
+  await expect(page.getByTestId("values-kind").getByLabel("Items")).toBeChecked();
+  await expect(page.getByTestId("values-worthless")).toHaveValue("hide");
+
+  // Not in handbook, alone.
+  await page.getByTestId("values-filter").fill("");
+  await page.getByTestId("values-worthless").selectOption("any");
+  await page.getByTestId("values-kind").getByLabel("All").check();
+  await page.getByTestId("values-unlisted").selectOption("only");
+  await expect(page).toHaveURL(/values\?unlisted=only$/);
+  await expect(rows.first()).toBeVisible();
 });

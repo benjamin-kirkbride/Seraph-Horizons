@@ -5,7 +5,7 @@
   import { formatRoute, type SearchSort } from "../lib/route.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
-  import { isFloorZero, sortByValue } from "../lib/values.ts";
+  import { isFloorZero, isPerLitre, sortByValue } from "../lib/values.ts";
   import GearValue from "./GearValue.svelte";
   import Icon from "./Icon.svelte";
   import ModLink from "./ModLink.svelte";
@@ -78,7 +78,7 @@
         </a>
         {#if hasValues}
           <span class="value" data-testid="result-value">
-            {#if r.value !== undefined}<GearValue value={r.value} floorZero={isFloorZero(data.index!, r.index)} />{/if}
+            {#if r.value !== undefined}<GearValue value={r.value} floorZero={isFloorZero(data.index!, r.index)} perLitre={isPerLitre(data.index!, r.index)} />{/if}
           </span>
         {/if}
         <span class="mod muted"><ModLink id={r.mod} mods={meta.mods} /></span>

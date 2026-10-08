@@ -89,6 +89,8 @@ export const FLAG_HANDBOOK = 1;
 export const FLAG_BLOCK = 2;
 /** Worth under a gear per full stack: traders treat it as worthless. */
 export const FLAG_FLOOR_ZERO = 4;
+/** The value is in rusty gears per litre, not per item: a liquid (the export's `valuePerLitre`). */
+export const FLAG_PER_LITRE = 8;
 
 /** data/<version>/items/<n>.json */
 export interface ItemChunk {

@@ -3,15 +3,30 @@
   // search.json, which the app has already loaded, and shows PAGE_SIZE rows at a time: the
   // filter and the sort run over all 25,000 or so items (ValueTable), the DOM holds a page.
   // Variants Tidy Variants groups into one tile are one row when they share a price, as are
-  // look-alikes such as a block's orientations, and the row opens to list them.
+  // look-alikes such as a block's orientations, and the row opens to list them. The filters
+  // and the order are in the address (ValuesView), so a link keeps them; a change replaces
+  // the history entry, as the search page's order does.
+  import { untrack } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import type { Meta, SearchFile } from "../lib/format.ts";
   import type { VersionData } from "../lib/data.ts";
-  import { formatRoute } from "../lib/route.ts";
+  import { formatRoute, type ValuesSort, type ValuesView } from "../lib/route.ts";
   import { pageLinks } from "../lib/recipe-view.ts";
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
-  import { isFloorZero, itemCount, ValueTable, type SortDir, type ValueColumn, type ValueRow } from "../lib/values.ts";
+  import {
+    FLAG_FILTERS,
+    isFloorZero,
+    isPerLitre,
+    itemCount,
+    VALUE_KINDS,
+    ValueTable,
+    type FlagFilter,
+    type SortDir,
+    type ValueColumn,
+    type ValueKind,
+    type ValueRow,
+  } from "../lib/values.ts";
   import GearValue from "./GearValue.svelte";
   import Icon from "./Icon.svelte";
   import ModLink from "./ModLink.svelte";
@@ -19,15 +34,38 @@
   const PAGE_SIZE = 100;
   const COLUMNS: readonly ValueColumn[] = ["name", "mod", "value"];
 
-  let { data, meta }: { data: VersionData; meta: Meta } = $props();
+  let { data, meta, view }: { data: VersionData; meta: Meta; view: ValuesView } = $props();
 
   let table = $state.raw<ValueTable | null>(null);
   let file = $state.raw<SearchFile | null>(null);
   let failed = $state(false);
+  // The box's text. Each keystroke writes the address, and its hashchange comes back a moment
+  // later, maybe after the next keystroke; an address the box wrote itself is not read back,
+  // so a late one never undoes typing. Any other (Back, a link) replaces the text.
   let filter = $state("");
-  let column = $state<ValueColumn>("value");
-  let dir = $state<SortDir>("desc");
-  let unvalued = $state(false);
+  let pending: string[] = [];
+  $effect.pre(() => {
+    const q = view.q ?? "";
+    untrack(() => {
+      const at = pending.indexOf(q);
+      if (at >= 0) pending = pending.slice(at + 1);
+      else {
+        pending = [];
+        filter = q;
+      }
+    });
+  });
+  function type(text: string) {
+    filter = text;
+    pending.push(text);
+    update({ q: text || undefined });
+  }
+  const column = $derived((view.sort ?? "value-desc").split("-")[0] as ValueColumn);
+  const dir = $derived((view.sort ?? "value-desc").split("-")[1] as SortDir);
+  const unvalued = $derived(view.unvalued === true);
+  const kind = $derived<ValueKind>(view.kind ?? "all");
+  const worthless = $derived<FlagFilter>(view.worthless ?? "any");
+  const unlisted = $derived<FlagFilter>(view.unlisted ?? "any");
   let page = $state(1);
   /** Open group rows, by their first item. */
   const open = new SvelteSet<number>();
@@ -42,18 +80,35 @@
     );
   });
 
-  const rows = $derived(table ? table.query({ filter, column, dir, unvalued }) : []);
+  const rows = $derived(table ? table.query({ filter, column, dir, unvalued, kind, worthless, unlisted }) : []);
+  const filtered = $derived(kind !== "all" || worthless !== "any" || unlisted !== "any");
+
+  /** Writes a change to the address (defaults left out) and goes back to the first page. */
+  function update(next: Partial<ValuesView>) {
+    // The box may be ahead of the address while the reader types.
+    const v = { ...view, q: filter || undefined, ...next };
+    page = 1;
+    location.replace(
+      formatRoute({
+        view: "values",
+        version: data.id,
+        ...(v.q ? { q: v.q } : {}),
+        ...(v.sort && v.sort !== ("value-desc" as string) ? { sort: v.sort } : {}),
+        ...(v.unvalued ? { unvalued: true } : {}),
+        ...(v.kind ? { kind: v.kind } : {}),
+        ...(v.worthless ? { worthless: v.worthless } : {}),
+        ...(v.unlisted ? { unlisted: v.unlisted } : {}),
+      }),
+    );
+  }
+  const flagValue = (f: string) => (f === "only" || f === "hide" ? f : undefined);
   const pages = $derived(Math.max(1, Math.ceil(rows.length / PAGE_SIZE)));
   const shown = $derived(rows.slice((Math.min(page, pages) - 1) * PAGE_SIZE, Math.min(page, pages) * PAGE_SIZE));
 
   // Values read best from the top down; names and mods from A.
   function sortOn(c: ValueColumn) {
-    if (c === column) dir = dir === "asc" ? "desc" : "asc";
-    else {
-      column = c;
-      dir = c === "value" ? "desc" : "asc";
-    }
-    page = 1;
+    const next = `${c}-${c === column ? (dir === "asc" ? "desc" : "asc") : c === "value" ? "desc" : "asc"}`;
+    update({ sort: next === "value-desc" ? undefined : (next as ValuesSort) });
   }
 
   const ariaSort = (c: ValueColumn) => (c === column ? (dir === "asc" ? "ascending" : "descending") : "none");
@@ -95,8 +150,8 @@
       <span>{t.valuesFilter}</span>
       <input
         type="search"
-        bind:value={filter}
-        oninput={() => (page = 1)}
+        value={filter}
+        oninput={(e) => type(e.currentTarget.value)}
         placeholder={t.valuesFilterPlaceholder}
         autocomplete="off"
         spellcheck="false"
@@ -104,8 +159,34 @@
       />
     </label>
     <label class="check">
-      <input type="checkbox" bind:checked={unvalued} onchange={() => (page = 1)} />
+      <input type="checkbox" checked={unvalued} onchange={(e) => update({ unvalued: e.currentTarget.checked || undefined })} data-testid="values-unvalued" />
       <span>{t.valuesUnvalued}</span>
+    </label>
+    <fieldset class="kinds" data-testid="values-kind">
+      <legend class="visually-hidden">{t.valuesKind}</legend>
+      {#each VALUE_KINDS as k (k)}
+        <label class:on={kind === k}>
+          <input
+            type="radio"
+            name="values-kind"
+            value={k}
+            checked={kind === k}
+            onchange={() => update({ kind: k === "all" ? undefined : k })}
+          />{t.valuesKinds[k]}
+        </label>
+      {/each}
+    </fieldset>
+    <label class="flag">
+      <span>{t.valuesWorthless}</span>
+      <select value={worthless} onchange={(e) => update({ worthless: flagValue(e.currentTarget.value) })} data-testid="values-worthless">
+        {#each FLAG_FILTERS as f (f)}<option value={f}>{t.valuesFlagFilters[f]}</option>{/each}
+      </select>
+    </label>
+    <label class="flag">
+      <span>{t.valuesUnlisted}</span>
+      <select value={unlisted} onchange={(e) => update({ unlisted: flagValue(e.currentTarget.value) })} data-testid="values-unlisted">
+        {#each FLAG_FILTERS as f (f)}<option value={f}>{t.valuesFlagFilters[f]}</option>{/each}
+      </select>
     </label>
     <p class="muted count" role="status" data-testid="values-count">
       {table.grouped ? t.valuesRowCount(rows.length, itemCount(rows)) : t.valuesCount(rows.length)}
@@ -113,7 +194,7 @@
   </div>
 
   {#if rows.length === 0}
-    <p role="status">{t.valuesNoMatch(filter)}</p>
+    <p role="status">{filter.trim() ? t.valuesNoMatch(filter) : filtered ? t.valuesNoMatchFilters : t.valuesNoMatch(filter)}</p>
   {:else}
     {@render pager("top")}
     <div class="scroll">
@@ -189,7 +270,7 @@
               </td>
               <td class="value">
                 {#if value !== undefined}
-                  <GearValue {value} floorZero={isFloorZero(file, i)} title={switches ? t.valueSwitchesHint(switches) : undefined} />
+                  <GearValue {value} floorZero={isFloorZero(file, i)} perLitre={isPerLitre(file, i)} title={switches ? t.valueSwitchesHint(switches) : undefined} />
                 {:else}
                   <span class="muted">–</span>
                 {/if}
@@ -236,6 +317,50 @@
   }
   .count {
     margin: 0;
+  }
+  .flag {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .flag select {
+    padding: 0.3rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+  /* A segmented control: radios in one bordered strip, the chosen one in the accent colour. */
+  .kinds {
+    display: inline-flex;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .kinds label {
+    position: relative;
+    padding: 0.3rem 0.7rem;
+    background: var(--surface-2);
+    cursor: pointer;
+  }
+  .kinds label + label {
+    border-left: 1px solid var(--border);
+  }
+  .kinds label.on {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+  .kinds input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .kinds label:has(:focus-visible) {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
   }
   .scroll {
     overflow-x: auto;
