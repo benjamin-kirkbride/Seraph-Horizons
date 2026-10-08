@@ -663,6 +663,21 @@ exact-level rule. Climate was never the blocker.
   `WorldGenTerrainHeightMap` and `RainHeightMap` follow, so the schematic's soil layers and later passes
   see the new ground. A footprint with a column more than 6 off the base (a ravine or crag the samples
   missed) is not taken. The shallow-water camp keeps the game's rule exactly.
+- **Skirt** (`CampGround.Skirt`): levelling alone left the pad in a cut or on a plinth, a sheer step
+  at the footprint's edge as tall as the ground was off the base (in a real world the cook's camp sat
+  in a cut with a 2-block rock wall along one side; up to 6 was possible). So the ground around is
+  blended into the pad: a column at Chebyshev distance d from the footprint (its ring) is held to
+  base ± d, cut down or filled up to that the way footprint columns are, ring by ring outward until
+  a ring needs nothing, at most 6 rings. The pad's edge then steps at most 1, and no step around it
+  is made steeper than it was. A camp is not taken where the skirt can't be done: a column more than
+  6 off its bound (a crag or ravine beside the camp), ring 7 still needing work (ground falling or
+  climbing away steeper than 1 in 1), a ring column the view doesn't reach (the chunk and its eight
+  neighbours, whose heights the TerrainFeatures pass is sure to have: the footprint is in the chunk
+  and its +1 neighbours, the skirt may reach the -1 ones), or liquid at or beside a column it works
+  (a fill under water or a cut opening a bank). The overlap test covers the skirt's box with the
+  schematic's, so it never cuts into another generated structure. Plants and snow on a column are
+  cleared first; a column with anything else on it (a tree, in a neighbour chunk already further
+  along) is left as it is. The game's liquid and check positions are not changed by it.
 - **Why not a switch**: the tolerance and levelling are how the grid places a camp, part of
   `TraderGrid`, and only exist with it on; `slopeTolerance: 0` gives back the game's ground rule. A
   separate switch would split the grid into combinations to test for no player-facing gain.
@@ -671,7 +686,8 @@ exact-level rule. Climate was never the blocker.
   tolerance 0 and 16 at tolerance 2; 4 of the 5 cells have such a generated spot (the fifth, 249,250,
   has only its two generated spots in the sea, and its other six are still to generate), where none of
   them got a camp before. In the Atlas test world (seed 436447448) the spawn's cell and its first
-  neighbour each took a camp at their first spot, both on ground 2 uneven, levelled.
+  neighbour each took a camp at their first spot, both on ground 2 uneven, levelled and with the skirt
+  around them (every column beside the pad within 1 of it).
 
 ## Standing and companies (#452, #463)
 

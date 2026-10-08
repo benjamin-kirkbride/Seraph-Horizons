@@ -20,6 +20,10 @@ public readonly record struct ColumnWork(int FillFrom, int FillTo, int CutFrom, 
     public bool Cuts => CutFrom <= CutTo;
 }
 
+/// <summary>A column of the skirt around a levelled footprint (<see cref="CampGround.Skirt"/>): its
+/// terrain height and the height it is cut or filled to.</summary>
+public readonly record struct SkirtColumn(int X, int Z, int Height, int Target);
+
 /// <summary>
 /// The ground test for a trader camp (#599), game-independent. It mirrors the game's own surface
 /// placement (<c>WorldGenStructure.TryGenerateAtSurface</c>, VSEssentials 1.22.7): the terrain height
@@ -31,8 +35,10 @@ public readonly record struct ColumnWork(int FillFrom, int FillTo, int CutFrom, 
 /// <c>config/trading/camps.json</c>, 2 by default; 0 is the game's rule), seated on the median of
 /// the samples as surface ruins are under <c>RuinsOnMedianGround</c> (<see cref="RuinSurfaceHeight"/>),
 /// and the terrain under its footprint is levelled to that height: filled up where lower, cut down
-/// where higher (<see cref="Level"/>), so nothing floats or is buried. The shallow-water camp keeps the
-/// game's own rule (samples exactly one apart, no levelling: it stands in water).
+/// where higher (<see cref="Level"/>), so nothing floats or is buried, and the terrain around it is
+/// blended into the pad (<see cref="Skirt"/>), so it isn't left in a cut or on a plinth. The
+/// shallow-water camp keeps the game's own rule (samples exactly one apart, no levelling: it stands
+/// in water).
 /// </summary>
 public static class CampGround
 {
@@ -106,6 +112,57 @@ public static class CampGround
     /// <summary>Whether every column of a footprint (its terrain heights) is within
     /// <see cref="MaxLevelling"/> of the base.</summary>
     public static bool Levellable(IEnumerable<int> heights, int @base) => heights.All(h => Math.Abs(h - @base) <= MaxLevelling);
+
+    /// <summary>The most rings of skirt around a levelled footprint.</summary>
+    public const int MaxSkirt = MaxLevelling;
+
+    /// <summary>
+    /// The skirt that blends a levelled footprint into the terrain around it, so the pad doesn't
+    /// sit in a cut or on a plinth: a column outside the footprint at Chebyshev distance d (its
+    /// ring) is held to [base − d, base + d], cut down or filled up to that (a slope of at most one
+    /// block per block away from the pad). Rings are worked outward from the footprint until one
+    /// needs nothing; null when the skirt can't be done: a column <paramref name="height"/> doesn't
+    /// reach (null) or has no terrain (0 or below), one more than <see cref="MaxLevelling"/> off its
+    /// bound (a crag or ravine beside the camp), or ring <see cref="MaxSkirt"/> + 1 still needing
+    /// work (the ground falls or climbs away steeper than the skirt can take up). A column worked
+    /// keeps every step to its neighbours no higher than it was, and the pad's edge steps at most one.
+    /// </summary>
+    public static List<SkirtColumn>? Skirt(int x, int z, int sizeX, int sizeZ, int @base, Func<int, int, int?> height)
+    {
+        var work = new List<SkirtColumn>();
+        for (int d = 1; d <= MaxSkirt + 1; d++)
+        {
+            bool any = false;
+            foreach (var (px, pz) in Ring(x, z, sizeX, sizeZ, d))
+            {
+                if (height(px, pz) is not { } h || h <= 0) return null;
+                int target = Math.Clamp(h, @base - d, @base + d);
+                if (target == h) continue;
+                if (d > MaxSkirt || Math.Abs(h - target) > MaxLevelling) return null;
+                work.Add(new SkirtColumn(px, pz, h, target));
+                any = true;
+            }
+            if (!any) return work;
+        }
+        return null;
+    }
+
+    /// <summary>The columns at Chebyshev distance <paramref name="d"/> (1 or more) from the footprint
+    /// [x, x + sizeX) × [z, z + sizeZ).</summary>
+    public static IEnumerable<(int X, int Z)> Ring(int x, int z, int sizeX, int sizeZ, int d)
+    {
+        int x0 = x - d, x1 = x + sizeX - 1 + d, z0 = z - d, z1 = z + sizeZ - 1 + d;
+        for (int px = x0; px <= x1; px++)
+        {
+            yield return (px, z0);
+            yield return (px, z1);
+        }
+        for (int pz = z0 + 1; pz < z1; pz++)
+        {
+            yield return (x0, pz);
+            yield return (x1, pz);
+        }
+    }
 
     /// <summary>The game's underground check (stone, soil, sand or gravel there) against levelled
     /// ground: inside the footprint a block the levelling fills counts as ground, one it clears does

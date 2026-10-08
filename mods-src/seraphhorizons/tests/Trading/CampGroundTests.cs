@@ -79,6 +79,73 @@ public class CampGroundTests
     }
 
     [Fact]
+    public void ARingIsTheColumnsAtThatDistanceFromTheFootprint()
+    {
+        var ring = CampGround.Ring(10, 20, 3, 2, 1).ToList();
+        Assert.Equal(2 * (5 + 4) - 4, ring.Count);
+        Assert.Equal(ring.Count, ring.Distinct().Count());
+        Assert.All(ring, p => Assert.Equal(1, Math.Max(Math.Max(10 - p.X, p.X - 12), Math.Max(20 - p.Z, p.Z - 21))));
+        Assert.Equal(2 * (7 + 6) - 4, CampGround.Ring(10, 20, 3, 2, 2).Count());
+    }
+
+    [Fact]
+    public void FlatGroundAroundThePadNeedsNoSkirt()
+    {
+        Assert.Empty(CampGround.Skirt(0, 0, 10, 8, 120, (_, _) => 120)!);
+        // Ground within one block per block of the pad is left as it is.
+        Assert.Empty(CampGround.Skirt(0, 0, 10, 8, 120, (x, z) => 120 + Ring(x, z, 10, 8))!);
+    }
+
+    [Fact]
+    public void TheSkirtBlendsACutIntoTheGroundAround()
+    {
+        // #599's cook's camp: ground two above the base along the west edge, a sheer step of 2.
+        int Ground(int x, int z) => x < 0 ? 140 : 138;
+        var skirt = CampGround.Skirt(0, 0, 12, 9, 138, (x, z) => Ground(x, z))!;
+        Assert.NotEmpty(skirt);
+        Assert.All(skirt, c => Assert.Equal((-1, 140, 139), (c.X, c.Height, c.Target)));
+        Assert.Equal(9 + 2, skirt.Count);
+    }
+
+    [Fact]
+    public void TheSkirtSlopesAwayAtMostOnePerBlock()
+    {
+        // A hillside: the ground climbs two per block for three blocks to the west, drops as fast to the east.
+        int Ground(int x, int z) => x < 0 ? 120 + 2 * Math.Min(-x, 3) : x > 9 ? 120 - 2 * Math.Min(x - 9, 3) : 120;
+        var skirt = CampGround.Skirt(0, 0, 10, 8, 120, (x, z) => Ground(x, z));
+        Assert.NotNull(skirt);
+        var after = new Dictionary<(int, int), int>();
+        foreach (var c in skirt!) after[(c.X, c.Z)] = c.Target;
+        int Levelled(int x, int z) => CampGround.InFootprint(x, z, 0, 0, 10, 8) ? 120 : after.GetValueOrDefault((x, z), Ground(x, z));
+        Assert.All(skirt, c => Assert.InRange(c.Target, 120 - Ring(c.X, c.Z, 10, 8), 120 + Ring(c.X, c.Z, 10, 8)));
+        // No step steeper than one between the pad and the first ring, and none made steeper anywhere.
+        for (int x = -8; x < 18; x++)
+            for (int z = -8; z < 16; z++)
+                foreach (var (nx, nz) in new[] { (x + 1, z), (x, z + 1) })
+                {
+                    Assert.True(Math.Abs(Levelled(x, z) - Levelled(nx, nz)) <= Math.Max(1, Math.Abs(Ground(x, z) - Ground(nx, nz))), $"{x},{z}");
+                    if (Ring(x, z, 10, 8) + Ring(nx, nz, 10, 8) <= 1) Assert.InRange(Levelled(x, z) - Levelled(nx, nz), -1, 1);
+                }
+    }
+
+    [Fact]
+    public void ASkirtThatCantBeDoneTakesNoCamp()
+    {
+        // A crag beside the camp: more than MaxLevelling to cut.
+        Assert.Null(CampGround.Skirt(0, 0, 10, 8, 120, (x, z) => x == -1 && z == 3 ? 128 : 120));
+        // Ground climbing away steeper than the skirt takes up within its rings.
+        Assert.Null(CampGround.Skirt(0, 0, 10, 8, 120, (x, z) => x < 0 ? 120 - 3 * x : 120));
+        // A column out of reach, or with no terrain, where the skirt has to look.
+        Assert.Null(CampGround.Skirt(0, 0, 10, 8, 120, (x, z) => x < 0 ? null : 120));
+        Assert.Null(CampGround.Skirt(0, 0, 10, 8, 120, (x, z) => x < 0 ? 0 : 120));
+        // Out of reach past the last ring with work is fine.
+        Assert.NotNull(CampGround.Skirt(0, 0, 10, 8, 120, (x, z) => x < -2 ? null : x == -1 ? 122 : 120));
+    }
+
+    private static int Ring(int x, int z, int sizeX, int sizeZ) =>
+        Math.Max(Math.Max(Math.Max(-x, x - (sizeX - 1)), Math.Max(-z, z - (sizeZ - 1))), 0);
+
+    [Fact]
     public void TheChecksSeeTheLevelledGroundInsideTheFootprint()
     {
         Assert.True(CampGround.InFootprint(100, 200, 100, 200, 15, 14));
