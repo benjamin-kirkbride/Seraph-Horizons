@@ -40,7 +40,7 @@ public sealed class OffListSlot : ItemSlotTrade
 /// <item><c>InventoryTrader.TryBuySell</c> (internal; prefix and postfix): the side budget. The
 /// prefix totals what off-list goods earn; more than the side budget refuses the deal, else (server)
 /// that much moves from the side budget into the money slot for vanilla's own payment to take, and
-/// back if the deal fails. The postfix (server) records supply for everything sold and bought and
+/// back if the deal fails (or throws: a finalizer). The postfix (server) records supply for everything sold and bought and
 /// re-prices the region's traders.</item>
 /// <item><c>ItemSlot.GetStackDescription</c> (postfix, selling-cart slots only, which is the trade
 /// window's sell slot): the price breakdown and which budget pays.</item>
@@ -63,7 +63,8 @@ public static class EconomyPatches
             postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(BuyingConditionsPostfix)));
         harmony.Patch(AccessTools.Method(inv, "TryBuySell"),
             prefix: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellPrefix)),
-            postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellPostfix)));
+            postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellPostfix)),
+            finalizer: new HarmonyMethod(typeof(EconomyPatches), nameof(TryBuySellFinalizer)));
         harmony.Patch(AccessTools.Method(typeof(ItemSlot), nameof(ItemSlot.GetStackDescription)),
             postfix: new HarmonyMethod(typeof(EconomyPatches), nameof(StackDescriptionPostfix)));
         harmony.Patch(AccessTools.Method(typeof(ItemSlotBuying), nameof(ItemSlotBuying.CanHold)),
@@ -147,6 +148,16 @@ public static class EconomyPatches
         }
         __state = state;
         return true;
+    }
+
+    /// <summary>A deal that threw (another mod's hook, a map's): the side budget's share moved into
+    /// the money slot goes back, as for a deal that failed. The exception goes on.</summary>
+    public static void TryBuySellFinalizer(InventoryTrader __instance, Exception? __exception, DealState? __state)
+    {
+        if (__exception is null || __state is not { Moved: > 0 } state) return;
+        __instance.DeductFromTrader(state.Moved);
+        EconomySystem.SetSideBudget(state.Trader, EconomySystem.SideBudgetOf(state.Trader) + state.Moved);
+        state.Moved = 0;
     }
 
     public static void TryBuySellPostfix(InventoryTrader __instance, EnumTransactionResult __result, DealState? __state)

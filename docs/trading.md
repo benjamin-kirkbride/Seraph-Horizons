@@ -1159,7 +1159,14 @@ closing sends 1212 back. Only that option opens the window.
 the same way, so every economy patch and list keeps working), set before vanilla makes its own
 (`Initialize`, `FromBytes`). Its `ActivateSlot` ignores clicks on the shelves and carts (nothing is
 ever put in a cart by a click) and passes the first selling-cart slot through: that is the window's
-sell slot (36). Its `Close` gives what is left there back to the player instead of dropping it.
+sell slot (36). The selling cart belongs to its owner, the trading player when the window opened
+(`OwnerUid`; vanilla's `tradingPlayerUID` is cleared by the walk-away tick before the inventory
+closes): only they may move stacks in it (slot packets from anyone else are rolled back), sell from
+it or send vanilla's deal packet, and shift-click offers only the sell slot. Closing gives what is
+left to the owner instead of dropping it; anyone else closing leaves the carts alone; a new owner
+returns a previous one's leftovers (or drops them by the trader), and a trader leaving hands them
+back. A buy carries the item and price the player saw and is refused if the shelf changed meanwhile;
+a deal that throws restores the carts, the rest of a sold stack and the side budget.
 
 **Network.** One channel, `seraphhorizons-trade`, one protobuf message (`TradeWindowPacket`: kind,
 trader entity id, JSON). Client to server: a `TradeRequest` (`Refresh`, `Buy` with a selling slot,

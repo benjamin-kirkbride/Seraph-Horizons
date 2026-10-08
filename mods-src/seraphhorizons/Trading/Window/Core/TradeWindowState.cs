@@ -175,6 +175,10 @@ public sealed class TradeRequest
     [JsonPropertyName("action"), JsonConverter(typeof(JsonStringEnumConverter))] public TradeAction Action { get; set; }
     [JsonPropertyName("slot")] public int Slot { get; set; }
     [JsonPropertyName("id")] public int Id { get; set; }
+    /// <summary>Buy: the item the player saw in the slot (its full code), or null not to check.</summary>
+    [JsonPropertyName("code")] public string? Code { get; set; }
+    /// <summary>Buy: the price the player saw, or null not to check.</summary>
+    [JsonPropertyName("price")] public int? Price { get; set; }
 
     public string ToJson() => JsonSerializer.Serialize(this);
 

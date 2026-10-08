@@ -162,6 +162,80 @@ public partial class TradingScenarios
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task The_sell_slot_is_its_owners_alone()
+    {
+        FreshSupply();
+        var trader = await SpawnTrader("smith", -55, 20);
+        var sp = await Trading(Customer(), trader);
+        var inv = (SeraphTraderInventory)trader.Inventory;
+        Assert.Equal(sp.PlayerUID, inv.OwnerUid);
+        var sellSlot = inv[SeraphTraderInventory.SellSlot];
+        sellSlot.Itemstack = Stack(Iron, 4);
+
+        // Another player with the inventory open (vanilla's packet 1001 opens it to anyone).
+        var other = await Courier();
+        await other.TeleportTo(trader.Pos.AsBlockPos.AddCopy(-1, 0, 0));
+        var osp = (IServerPlayer)other.Player;
+        osp.InventoryManager.OpenInventory(inv);
+        int theirGears = Gears(osp);
+        // Neither vanilla's deal packet nor a sale pays them for the owner's goods.
+        trader.OnReceivedClientPacket(osp, 1000, []);
+        Assert.Equal(4, sellSlot.Itemstack?.StackSize);
+        Assert.False(Window(osp, trader, Req(TradeAction.Sell)).Ok);
+        Assert.Equal(theirGears, Gears(osp));
+        // Shift-click offers them nothing; the owner the sell slot only.
+        var theirs = osp.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName)![0];
+        theirs.Itemstack = Stack(Iron, 2);
+        var op = new ItemStackMoveOperation(W, EnumMouseButton.Left, 0, EnumMergePriority.AutoMerge) { ActingPlayer = osp };
+        Assert.Null(inv.GetBestSuitedSlot(theirs, op).slot);
+        op.ActingPlayer = sp;
+        Assert.Same(sellSlot, inv.GetBestSuitedSlot(theirs, op).slot);
+        theirs.Itemstack = null;
+        // Their closing the inventory neither takes nor drops the owner's goods.
+        inv.Close(osp);
+        Assert.Equal(4, sellSlot.Itemstack?.StackSize);
+        Assert.Equal(0, OrdersSystem.Carried(osp, Iron));
+
+        // A buy of something other than what the player saw is refused.
+        int slot = Enumerable.Range(0, 16).First(i => inv.GetSellingSlot(i) is { TradeItem.Stock: > 0, Itemstack: not null });
+        var shelf = inv.GetSellingSlot(slot);
+        GiveGears(sp, 50);
+        int gears = Gears(sp);
+        Assert.Equal("trading-window-changed", Window(sp, trader, new TradeRequest
+        {
+            Action = TradeAction.Buy, Slot = slot, Code = shelf.Itemstack.Collectible.Code.ToString(), Price = shelf.TradeItem.Price + 1,
+        }).Key);
+        Assert.Equal("trading-window-changed", Window(sp, trader, new TradeRequest { Action = TradeAction.Buy, Slot = slot, Code = "game:nothing" }).Key);
+        Assert.Equal(gears, Gears(sp));
+
+        // The trader leaving hands the sell slot back.
+        int carried = OrdersSystem.Carried(sp, Iron);
+        trader.Die(EnumDespawnReason.Removed);
+        await World.Ticks(2);
+        Assert.Equal(carried + 4, OrdersSystem.Carried(sp, Iron));
+        Assert.Null(sellSlot.Itemstack);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task An_order_hand_in_never_takes_a_worn_bag()
+    {
+        var p = await Customer();
+        var sp = (IServerPlayer)p.Player;
+        var backpack = sp.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName)!;
+        var bagSlot = backpack.First(s => s is ItemSlotBackpack);
+        bagSlot.Itemstack = Stack("game:linensack", 1);
+        bagSlot.MarkDirty();
+        await World.Ticks(2);
+        Assert.Equal(0, OrdersSystem.Carried(sp, "game:linensack"));
+        var loose = sp.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName)![1];
+        loose.Itemstack = Stack("game:linensack", 1);
+        Assert.Equal(1, OrdersSystem.Carried(sp, "game:linensack"));
+        loose.Itemstack = null;
+        bagSlot.Itemstack = null;
+        bagSlot.MarkDirty();
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task An_order_is_taken_and_handed_in_from_the_inventory_in_the_window()
     {
         FreshSupply();

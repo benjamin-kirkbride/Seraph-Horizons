@@ -54,6 +54,8 @@ public partial class TradingScenarios
         var sp = (IServerPlayer)p.Player;
         await p.GiveItem("game:gear-rusty", 32);
         var inv = trader.Inventory;
+        // Vanilla's deal packet is honoured only from the trading player.
+        Assert.True(trader.BeginTrade(sp));
 
         // Buy the cheapest thing on the shelf, and sell back something the trader buys.
         var selling = inv.SellingSlots.Where(s => s.TradeItem is { Stock: > 0 }).OrderBy(s => s.TradeItem.Price).First();

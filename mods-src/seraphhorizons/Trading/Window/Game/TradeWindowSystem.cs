@@ -134,7 +134,7 @@ public class TradeWindowSystem : ModSystem
             case TradeAction.Refresh:
                 return TradeResult.Done(action);
             case TradeAction.Buy:
-                return Unit(action, trader.BuyUnit(player, request.Slot));
+                return Unit(action, trader.BuyUnit(player, request.Slot, request.Code, request.Price));
             case TradeAction.Sell:
                 return Unit(action, trader.SellUnit(player));
             case TradeAction.TakeOrder:
@@ -348,7 +348,16 @@ public class TradeWindowSystem : ModSystem
             }
             case TradeWindowPacket.Result:
             {
-                var result = TradeResult.FromJson(packet.Json);
+                TradeResult result;
+                try
+                {
+                    result = TradeResult.FromJson(packet.Json);
+                }
+                catch (Exception e)
+                {
+                    _capi?.Logger.Warning("[seraphhorizons] Trade window: an answer the client cannot read ({0})", e.Message);
+                    return;
+                }
                 if (GuiDialogSeraphTrade.Current is { } window && window.TraderId == packet.TraderId) window.OnResult(result);
                 else if (!result.Ok && result.Key is { } key) _capi?.TriggerIngameError(this, "seraphhorizons-trade", WindowText.Resolve(_capi, new Text(key, [.. result.Args])));
                 break;
@@ -360,13 +369,13 @@ public class TradeWindowSystem : ModSystem
     public TradeWindowState? StateFor(long traderId) => _states.GetValueOrDefault(traderId);
 
     /// <summary>Client: asks the server to do something at the trader.</summary>
-    public void Request(long traderId, TradeAction action, int slot = 0, int id = 0)
+    public void Request(long traderId, TradeAction action, int slot = 0, int id = 0, string? code = null, int? price = null)
     {
         _capi?.Network.GetChannel(Channel).SendPacket(new TradeWindowPacket
         {
             Kind = TradeWindowPacket.Request,
             TraderId = traderId,
-            Json = new TradeRequest { Action = action, Slot = slot, Id = id }.ToJson(),
+            Json = new TradeRequest { Action = action, Slot = slot, Id = id, Code = code, Price = price }.ToJson(),
         });
     }
 

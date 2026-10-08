@@ -518,7 +518,10 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         if (_hold.Update(deltaTime) && _hold.Target is { } target)
         {
             if (target == SellTarget) Request(TradeAction.Sell);
-            else if (int.TryParse(target[4..], out int slot)) Request(TradeAction.Buy, slot);
+            else if (int.TryParse(target[4..], out int slot) && _inv[slot] is ItemSlotTrade { Itemstack: { } stack, TradeItem: { } item })
+                // What the player sees: the server refuses if the slot was restocked or repriced meanwhile.
+                System?.Request(_trader.EntityId, TradeAction.Buy, slot, code: stack.Collectible.Code.ToString(), price: item.Price);
+            else _hold.Refused();
         }
         if (_ring != null)
         {
@@ -578,6 +581,12 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         _ring = new HoldRingRenderer(capi);
         _tick = capi.Event.RegisterGameTickListener(_ =>
         {
+            // A trader gone (a visitor leaving, killed, unloaded) takes the window with it.
+            if (!_trader.Alive || _trader.State == EnumEntityState.Despawned || capi.World.GetEntityById(_trader.EntityId) != _trader)
+            {
+                TryClose();
+                return;
+            }
             if (Layout() != _layout) Compose();
             else UpdateDynamic();
         }, 250);

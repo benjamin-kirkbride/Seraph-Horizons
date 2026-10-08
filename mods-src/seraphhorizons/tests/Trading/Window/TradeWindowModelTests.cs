@@ -363,6 +363,11 @@ public class WireFormatTests
         var req = TradeRequest.FromJson(new TradeRequest { Action = TradeAction.HandInOrder, Id = 5, Slot = 2 }.ToJson());
         Assert.Equal(TradeAction.HandInOrder, req.Action);
         Assert.Equal(5, req.Id);
+        Assert.Null(req.Code);
+        Assert.Null(req.Price);
+        var buy = TradeRequest.FromJson(new TradeRequest { Action = TradeAction.Buy, Slot = 3, Code = "game:bread", Price = 4 }.ToJson());
+        Assert.Equal("game:bread", buy.Code);
+        Assert.Equal(4, buy.Price);
         var res = TradeResult.FromJson(TradeResult.Refused(TradeAction.Buy, "trading-window-toofar", 2.5, 3).ToJson());
         Assert.False(res.Ok);
         Assert.Equal(["2.5", "3"], res.Args);

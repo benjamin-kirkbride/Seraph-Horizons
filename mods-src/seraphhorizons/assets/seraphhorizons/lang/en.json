@@ -1087,6 +1087,8 @@
   "trading-window-player-broke": "You don't have the gears.",
   "trading-window-trader-broke": "The trader can't pay for that now.",
   "trading-window-failed": "The trade did not go through.",
+  "trading-window-changed": "That has changed on the shelf since you looked: look again.",
+  "trading-window-sell-notyours": "The sell slot holds someone else's goods.",
   "trading-window-off": "That is switched off on this server.",
   "trading-window-order-took": "Order #{0} is yours.",
   "trading-orders-handin-notyours": "Order #{0} is not yours to deliver here.",

@@ -5,6 +5,7 @@ using SeraphHorizons.Mod.Trading.Orders.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Trading.Orders;
 
@@ -199,17 +200,24 @@ public class OrdersSystem : ModSystem
         }
     }
 
-    /// <summary>The player's own slots (hotbar and backpack) holding <paramref name="code"/>, fresh.</summary>
+    /// <summary>The player's own slots (hotbar and backpack) holding <paramref name="code"/>, fresh:
+    /// never a worn bag (the backpack inventory's bag slots) nor a bag with anything in it, so an
+    /// order for sacks never takes the one holding the player's goods.</summary>
     public static List<ItemSlot> SlotsWith(IPlayer player, string code)
     {
         var slots = new List<ItemSlot>();
         foreach (string name in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
             if (player.InventoryManager.GetOwnInventory(name) is { } inv)
                 foreach (var slot in inv)
-                    if (slot?.Itemstack is { } stack && stack.Collectible.Code.ToString() == code
-                        && stack.Collectible.IsReasonablyFresh(player.Entity.World, stack))
-                        slots.Add(slot);
+                    if (Offerable(player, slot, code)) slots.Add(slot);
         return slots;
+    }
+
+    private static bool Offerable(IPlayer player, ItemSlot? slot, string code)
+    {
+        if (slot is null or ItemSlotBackpack || slot.Itemstack is not { } stack || stack.Collectible.Code.ToString() != code) return false;
+        if (!stack.Collectible.IsReasonablyFresh(player.Entity.World, stack)) return false;
+        return stack.Collectible.GetCollectibleInterface<IHeldBag>() is not { } bag || bag.IsEmpty(stack);
     }
 
     /// <summary>How many of <paramref name="code"/> the player carries (<see cref="SlotsWith"/>).</summary>
