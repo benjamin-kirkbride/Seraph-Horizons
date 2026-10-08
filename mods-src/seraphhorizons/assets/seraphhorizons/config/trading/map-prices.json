@@ -22,24 +22,31 @@
 		"iron": 1.4, "silver": 1.6, "gold": 1.8, "platinum": 1.8, "titanium": 1.5, "chromium": 1.5},
 	"gravel": 5,
 	"settlement": 6,
-	// Leads to other trader camps, per buyer (Trading/Maps/Core/CampLeads.cs). Per standing tier: how
-	// many maps are on the shelf at once and how far from the selling trader they reach (blocks), the
-	// nearest camps the buyer lacks (not on their map, no lead carried), the first a prospector if
-	// they have none in that radius; buying one brings the next-nearest. A stranger (a tier not
-	// listed) gets one map per trader per group, ever, to the nearest camp their group lacks and
-	// has not visited, within strangerReach: they chain from camp to camp.
-	// Price: base × 2^(distance / doublingDistance) × perBought^(maps the group already bought from
-	// this trader, never reset) × the tier's discount, in place of standing's price factor.
+	// Leads to other trader camps, per buyer (Trading/Maps/Core/CampLeads.cs). Distance is in rings
+	// of 2,048-block grid cells from the selling trader's cell to the camp's (diagonals adjacent:
+	// ring 1 is the eight cells around the trader's own), so a lead's price and reach are known
+	// before its camp generates. Per standing tier: how many maps are on offer at once and how many
+	// rings out they reach, the nearest camps the buyer lacks (not on their map, no lead carried),
+	// the first a prospector if they have none in reach; buying one brings the next-nearest. A
+	// stranger (or a tier not listed) gets one map per trader per group, ever, to the nearest camp
+	// in reach their group lacks and has not visited: they chain from camp to camp.
+	// Price: base × D × R × the tier's discount (in place of standing's price factor), rounded, at
+	// least 1, where D = 1 + distanceCurve × ease × ln(1 + ring) and R = 1 + repeatCurve × ease ×
+	// ln(1 + maps the group already bought from this trader, never reset).
+	// pity: a player's very first map, from any trader but a prospector: a flat price, to the
+	// nearest prospector cell within reach rings that can take a camp (else the nearest camp of any
+	// type there). It is that trader's one stranger map and counts as a map bought there.
 	"campLeads": {
-		"base": 2,
-		"doublingDistance": 2500,
-		"perBought": 2,
-		"strangerReach": 8000,
+		"base": 12,
+		"distanceCurve": 1.5,
+		"repeatCurve": 3,
+		"pity": {"price": 10, "reach": 10},
 		"tiers": {
-			"known":   {"maps": 2, "radius": 3000,  "discount": 0.85},
-			"regular": {"maps": 3, "radius": 5000,  "discount": 0.7},
-			"trusted": {"maps": 5, "radius": 8000,  "discount": 0.55},
-			"partner": {"maps": 8, "radius": 12000, "discount": 0.4},
+			"stranger": {"maps": 1, "reach": 1, "ease": 1,    "discount": 1},
+			"known":    {"maps": 2, "reach": 1, "ease": 0.85, "discount": 0.85},
+			"regular":  {"maps": 3, "reach": 2, "ease": 0.7,  "discount": 0.7},
+			"trusted":  {"maps": 5, "reach": 3, "ease": 0.6,  "discount": 0.55},
+			"partner":  {"maps": 8, "reach": 5, "ease": 0.5,  "discount": 0.4},
 		},
 	},
 }
