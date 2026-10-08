@@ -364,6 +364,21 @@ class Checks(unittest.TestCase):
         self.assertAlmostEqual(checks.bearing_margin(frame[0], shaft, 0), 1.5)
         self.assertEqual(checks.bearing_margin(frame[2], shaft, 0), 1e9)
 
+    def test_sight_glass_needs_transparent_panes_on_every_side(self):
+        oil = box("oillevel_oil", [1, 0, 1], [3, 2, 3], part="oillevel")
+        panes = {"n": box("fr_oiler_glass_n", [0, 0, 0], [4, 3, 1]), "s": box("fr_oiler_glass_s", [0, 0, 3], [4, 3, 4]),
+                 "w": box("fr_oiler_glass_w", [0, 0, 1], [1, 3, 3]), "e": box("fr_oiler_glass_e", [3, 0, 1], [4, 3, 3])}
+        # the old oiler: three opaque panes, the east side open
+        old = [panes[k] for k in "nsw"]
+        self.assertEqual(len(checks.sight_glass(old, oil)), 4)
+        self.assertIn("no pane over the oil's east side", checks.sight_glass(old, oil))
+        for g in panes.values():
+            g.render_pass = geometry.TRANSPARENT
+        self.assertEqual(checks.sight_glass(list(panes.values()), oil), [])
+        self.assertEqual(output.element_json(panes["n"])["renderPass"], geometry.TRANSPARENT)
+        self.assertEqual(panes["n"].clone().render_pass, geometry.TRANSPARENT)
+        self.assertNotIn("renderPass", output.element_json(oil))
+
 
 class Output(unittest.TestCase):
     def test_writers_are_compact_and_parse(self):

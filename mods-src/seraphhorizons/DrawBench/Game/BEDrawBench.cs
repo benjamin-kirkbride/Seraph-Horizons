@@ -279,8 +279,9 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     }
 
     /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
-    /// false, with an error to the player, when the rules say no. One item is taken from the slot
-    /// unless the player is in creative mode or it is <paramref name="free"/>.</summary>
+    /// false, with an error to the player, when the rules say no. As many as the stage takes
+    /// (<see cref="DrawBenchParts.Needed"/>) are taken from the slot unless the player is in creative
+    /// mode or it is <paramref name="free"/>.</summary>
     public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
     {
         var stack = slot.Itemstack;
@@ -293,7 +294,8 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
             capacity = Math.Max(1, stack.Collectible.GetMaxDurability(stack));
             left = stack.Collectible.GetRemainingDurability(stack);
         }
-        var verdict = _parts.CanFit(code, out _, capacity > 0 ? left : 1);
+        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
+        var verdict = _parts.CanFit(code, out var stage, capacity > 0 ? left : 1, consumes ? stack.StackSize : int.MaxValue);
         if (verdict != DrawBenchFitVerdict.Fits)
         {
             switch (verdict)
@@ -307,6 +309,9 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
                 case DrawBenchFitVerdict.DieSpent:
                     Error(byPlayer, "error-die-spent");
                     break;
+                case DrawBenchFitVerdict.TooFew:
+                    Error(byPlayer, "error-too-few", DrawBenchParts.Needed(_parts.Next!.Value));
+                    break;
                 default:
                     Error(byPlayer, "error-not-a-part");
                     break;
@@ -314,10 +319,9 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
             return false;
         }
         _parts.Fit(code, left, capacity);
-        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
         if (consumes)
         {
-            slot.TakeOut(1);
+            slot.TakeOut(DrawBenchParts.Needed(stage));
             slot.MarkDirty();
         }
         Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
@@ -576,7 +580,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
                     yield return die;
             }
             else if (Api.World.GetItem(new AssetLocation(drop.Code)) is { } item)
-                yield return new ItemStack(item);
+                yield return new ItemStack(item, drop.Count);
         }
         if (JobOn && _job.SectionsDone == 0)
             yield return _hollow!.Clone();

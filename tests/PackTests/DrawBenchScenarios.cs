@@ -42,6 +42,9 @@ public partial class SharedWorldScenarios
     private static readonly string[] BenchOrder =
         [DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron"];
 
+    /// <summary>How many of a kept part its stage takes from one stack.</summary>
+    private static int BenchCount(string code) => DrawBenchParts.Needed(DrawBenchParts.StagesOf(code)[0]);
+
     /// <summary>A die of <paramref name="code"/> with <paramref name="durability"/> left (full when null).</summary>
     private ItemStack BenchDie(string code, int? durability = null)
     {
@@ -57,7 +60,7 @@ public partial class SharedWorldScenarios
     {
         var ghost = bench.GhostCells().First().Pos;
         int i = 0;
-        foreach (var part in BenchOrder.Select(c => CutterItem(c)).Append(die ?? BenchDie(DrawBenchParts.DieIronCode)))
+        foreach (var part in BenchOrder.Select(c => CutterItem(c, BenchCount(c))).Append(die ?? BenchDie(DrawBenchParts.DieIronCode)))
             Assert.True(CutterClick(player, i++ % 2 == 0 ? bench.Pos : ghost, part) == null, $"{part.Collectible.Code} was not fitted");
         Assert.True(bench.Complete);
         FillBenchOil(bench, 1);
@@ -138,19 +141,21 @@ public partial class SharedWorldScenarios
         Assert.Equal("Iron draw die", CutterItem(DrawBenchParts.DieIronCode).GetName());
         Assert.Equal("Steel draw die", CutterItem(DrawBenchParts.DieSteelCode).GetName());
 
-        // the grid: the frame, of oak and iron, with a hammer
+        // the grid: the frame, of oak and iron (two plates, four rods, 12 nails and strips), with a hammer
         var frame = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:drawbench-frame-north" && r.Enabled);
-        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("iron"));
+        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("iron") && i.Quantity == 1));
+        Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.Path == "rod-*" && i.Quantity == 2));
+        Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 12);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "game:log-placed-oak-ud");
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
-        // the anvil: each die from one ingot of its metal, not for the helve hammer
+        // the anvil: each die from two ingots of its metal (over one ingot's 42 voxels), not for the helve hammer
         foreach (var (die, metal) in new[] { (DrawBenchParts.DieIronCode, "iron"), (DrawBenchParts.DieSteelCode, "steel") })
         {
             var recipe = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == die);
             Assert.True(recipe.Ingredient!.SatisfiesAsIngredient(CutterItem("game:ingot-" + metal)));
             Assert.False(recipe.Ingredient.SatisfiesAsIngredient(CutterItem("game:ingot-copper")));
             Assert.DoesNotContain(recipe.Name?.Path, new[] { "plate", "blistersteel" });
-            Assert.InRange(recipe.Voxels.Cast<bool>().Count(v => v), 1, 42);
+            Assert.InRange(recipe.Voxels.Cast<bool>().Count(v => v), 43, 84);
         }
         // the settings and the rig's pace agree
         Assert.Equal(BenchRig.TurnsPerSection[1], BenchMod.Config.TurnsPerSectionLead, 0.01);
@@ -230,11 +235,18 @@ public partial class SharedWorldScenarios
         Assert.Equal(3, CutterClick(player, pos, CutterItem("game:gear-rusty", 3))?.StackSize);
         Assert.False(_cutterHandled);
 
-        // the parts in order, one each, taken from the hand
+        // the parts in order, as many as each stage takes (two chains, two rods), taken from the hand;
+        // fewer than that are refused and stay there
         for (int i = 0; i < BenchOrder.Length; i++)
         {
             var next = bench.Parts.Next!.Value;
-            var left = CutterClick(player, i % 2 == 0 ? pos : ghost, CutterItem(BenchOrder[i], i == 0 ? 2 : 1));
+            int count = DrawBenchParts.Needed(next);
+            if (count > 1)
+            {
+                Assert.Equal(count - 1, CutterClick(player, pos, CutterItem(BenchOrder[i], count - 1))?.StackSize);
+                Assert.False(bench.Parts.Has(next));
+            }
+            var left = CutterClick(player, i % 2 == 0 ? pos : ghost, CutterItem(BenchOrder[i], count + (i == 0 ? 1 : 0)));
             Assert.True(bench.Parts.Has(next), $"{BenchOrder[i]} did not go in as {next}");
             Assert.Equal(i == 0 ? 1 : 0, left?.StackSize ?? 0);
             // the same part again is refused once its stage is full
@@ -249,7 +261,7 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, ghost, BenchDie(DrawBenchParts.DieIronCode)));
         Assert.True(bench.Complete);
         Assert.Equal("Draw bench", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
-        Assert.Contains("Die: iron die, draws lead; 100 of 100 hollow sections left", BenchInfo(bench, player));
+        Assert.Contains("Die: iron die, draws lead; 100 of 100 tube blanks left", BenchInfo(bench, player));
         Assert.Contains("Bench empty", BenchInfo(bench, player));
 
         // a save keeps every fitted code
@@ -347,7 +359,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(0, CutterItemsNear(pos).GetValueOrDefault(Drawing.LeadHollow));   // the hollow is used up
         Assert.Equal(99, bench.Parts.DieLeft);
         Assert.Equal(992, bench.Oiling!.Tank.Points, 6);   // 2 points a pipe section, 8 a hollow
-        Assert.Contains("99 of 100 hollow sections left", BenchInfo(bench, player));
+        Assert.Contains("99 of 100 tube blanks left", BenchInfo(bench, player));
         W.BlockAccessor.SetBlock(0, rotor);
         CutterKillItems(pos);
     }
@@ -459,7 +471,10 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, drops.GetValueOrDefault("seraphhorizons:drawbench-frame-north"));
         Assert.Equal(0, drops.GetValueOrDefault(CopperSection));
         foreach (var code in BenchOrder.Append(DrawBenchParts.DieSteelCode).Append(Drawing.CopperHollow))
-            Assert.True(drops.GetValueOrDefault(code) == 1, $"{code}: {drops.GetValueOrDefault(code)}");
+        {
+            int want = BenchOrder.Contains(code) ? BenchCount(code) : 1;
+            Assert.True(drops.GetValueOrDefault(code) == want, $"{code}: {drops.GetValueOrDefault(code)}, want {want}");
+        }
         var die = World.EntitiesIn(new Cuboidi(pos.X - 6, pos.Y - 3, pos.Z - 6, pos.X + 6, pos.Y + 6, pos.Z + 6))
             .OfType<EntityItem>().Single(e => e.Itemstack.Collectible.Code.ToString() == DrawBenchParts.DieSteelCode).Itemstack;
         Assert.Equal(77, die.Collectible.GetRemainingDurability(die));

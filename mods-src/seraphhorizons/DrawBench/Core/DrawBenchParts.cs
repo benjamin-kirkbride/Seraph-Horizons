@@ -16,11 +16,13 @@ public enum DrawBenchFitVerdict
     AlreadyFitted,
     /// <summary>The die has no durability left.</summary>
     DieSpent,
+    /// <summary>Fewer are held than the stage takes (<see cref="DrawBenchParts.Needed"/>).</summary>
+    TooFew,
 }
 
-/// <summary>A fitted item as breaking the frame gives it back: its code, and the die's durability
-/// left (null for every other part).</summary>
-public readonly record struct DrawBenchDrop(string Code, int? Durability = null);
+/// <summary>A fitted item as breaking the frame gives it back: its code, the die's durability
+/// left (null for every other part), and how many of it the stage took.</summary>
+public readonly record struct DrawBenchDrop(string Code, int? Durability = null, int Count = 1);
 
 /// <summary>The draw bench's <c>requires</c> vocabulary: the five stages, and the work's
 /// (<c>billetlead</c>, <c>billetcopper</c>: a hollow section of that metal on the bench).</summary>
@@ -63,7 +65,8 @@ public static class DrawBenchRequires
 /// <summary>
 /// The draw bench's assembly rules: five stages after the frame, fitted one item at a time in
 /// <see cref="DrawBenchStage"/> order (the next missing stage is the only one a click fills),
-/// recognised by full code (<c>domain:path</c>). The die carries its durability and its metal,
+/// recognised by full code (<c>domain:path</c>). A stage may take several of its item
+/// (<see cref="Needed"/>), all from the held stack in one click. The die carries its durability and its metal,
 /// which decides what the bench draws. Every fitted code is kept, so breaking returns exactly what
 /// went in, the die with what is left of it.
 /// </summary>
@@ -90,6 +93,15 @@ public sealed class DrawBenchParts
         DrawBenchStage.Dog => DogCodes,
         DrawBenchStage.Mandrel => MandrelCodes,
         _ => [DieSteelCode, DieIronCode],
+    };
+
+    /// <summary>How many of its item a stage takes, all at once: the endless chain round both
+    /// sprockets is two of the game's chains, the mandrel bar and the follower's spindle two rods;
+    /// the rest one each.</summary>
+    public static int Needed(DrawBenchStage stage) => stage switch
+    {
+        DrawBenchStage.Chain or DrawBenchStage.Mandrel => 2,
+        _ => 1,
     };
 
     private readonly Dictionary<DrawBenchStage, string> _fitted = [];
@@ -141,8 +153,9 @@ public sealed class DrawBenchParts
     public bool Fitted(string? requires) =>
         requires == null || DrawBenchRequires.TryParse(requires, out var stage) && Has(stage);
 
-    /// <summary>Whether <paramref name="code"/> can be fitted now, and the stage it would go in.</summary>
-    public DrawBenchFitVerdict CanFit(string? code, out DrawBenchStage stage, int dieDurability = 1)
+    /// <summary>Whether <paramref name="code"/> can be fitted now, <paramref name="held"/> of it in
+    /// hand (enough when not given), and the stage it would go in.</summary>
+    public DrawBenchFitVerdict CanFit(string? code, out DrawBenchStage stage, int dieDurability = 1, int held = int.MaxValue)
     {
         stage = default;
         var stages = StagesOf(code);
@@ -155,15 +168,18 @@ public sealed class DrawBenchParts
             return DrawBenchFitVerdict.OutOfOrder;
         if (next == DrawBenchStage.Die && dieDurability <= 0)
             return DrawBenchFitVerdict.DieSpent;
+        if (held < Needed(next))
+            return DrawBenchFitVerdict.TooFew;
         stage = next;
         return DrawBenchFitVerdict.Fits;
     }
 
-    /// <summary>Fits <paramref name="code"/> in the next stage if the rules allow; a die with
+    /// <summary>Fits <paramref name="code"/> in the next stage if the rules allow, <paramref name="held"/>
+    /// of it in hand (the caller takes <see cref="Needed"/> of them); a die with
     /// <paramref name="dieLeft"/> of <paramref name="dieCapacity"/> durability.</summary>
-    public DrawBenchFitVerdict Fit(string? code, int dieLeft = 0, int dieCapacity = 0)
+    public DrawBenchFitVerdict Fit(string? code, int dieLeft = 0, int dieCapacity = 0, int held = int.MaxValue)
     {
-        var verdict = CanFit(code, out var stage, dieLeft);
+        var verdict = CanFit(code, out var stage, dieLeft, held);
         if (verdict != DrawBenchFitVerdict.Fits)
             return verdict;
         _fitted[stage] = Normalise(code)!;
@@ -211,10 +227,10 @@ public sealed class DrawBenchParts
         return die;
     }
 
-    /// <summary>Every fitted item, in stage order, the die with its durability left.</summary>
+    /// <summary>Every fitted item, in stage order, as many as its stage took, the die with its durability left.</summary>
     public IReadOnlyList<DrawBenchDrop> Returns() =>
         DrawBenchRequires.Stages.Where(Has)
-            .Select(s => new DrawBenchDrop(_fitted[s], s == DrawBenchStage.Die ? DieLeft : null))
+            .Select(s => new DrawBenchDrop(_fitted[s], s == DrawBenchStage.Die ? DieLeft : null, Needed(s)))
             .ToList();
 
     /// <summary>Each stage's fitted code by its stage name, for saving.</summary>

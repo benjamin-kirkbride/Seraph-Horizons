@@ -57,15 +57,22 @@ def from_euler(a, b, c):
 
 
 # ---------------------------------------------------------------- flattened elements
+TRANSPARENT = 3                              # EnumChunkRenderPass.Transparent: a glass element's pass in an opaque block
+
+
 class El:
     """A box of `size` (local axes), rotated by `r` about its centre `c` (world voxels)."""
+
+    render_pass = None                       # the element's own chunk render pass (TRANSPARENT for glass), else the block's
 
     def __init__(self, name, size, c, r, faces, part):
         self.name, self.size, self.c, self.r, self.faces, self.part = name, list(size), list(c), r, faces, part
 
     def clone(self, name=None, part=None):
-        return El(name or self.name, self.size, self.c, [row[:] for row in self.r],
-                  copy.deepcopy(self.faces), part or self.part)
+        out = El(name or self.name, self.size, self.c, [row[:] for row in self.r],
+                 copy.deepcopy(self.faces), part or self.part)
+        out.render_pass = self.render_pass
+        return out
 
     def corners(self):
         out = []

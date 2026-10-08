@@ -30,6 +30,8 @@ public partial class RecipeExportScenarios
             Assert.Equal(new[] { $"game:chutesection-{metal}", "game:jonasframes-gearbox01", "game:metalchain-iron", "game:bracket-heavy-iron", "game:rod-iron" },
                 ingredients.Take(5).Select(i => (string)i["code"]!));
             Assert.All(ingredients.Skip(1).Take(4), i => Assert.Equal("kept", (string)i["role"]!));
+            // the chain and the mandrel take two each (DrawBenchParts.Needed)
+            Assert.Equal(new[] { 1.0, 2, 1, 2 }, ingredients.Skip(1).Take(4).Select(i => (double)i["quantity"]!));
             Json($$"""{ "code": "{{dies[0]}}", "kind": "item", "quantity": 1, "role": "tool", "isTool": true, "toolDurabilityCost": 1 }""", ingredients[5]);
             Assert.Equal("oil", (string)ingredients[6]["role"]!);
             Assert.Equal(0.08, (double)ingredients[6]["litres"]!, 6);   // 2 points a pipe section, 8 a hollow

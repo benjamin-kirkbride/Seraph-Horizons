@@ -11,6 +11,7 @@ import math
 import re
 
 from machinegen.checks import box_overhang, coplanar_faces, drawn_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
+from machinegen.checks import sight_glass
 from machinegen.checks import supports as shaft_supports
 from machinegen.checks import bearing_margin
 from machinegen.geometry import aabb_of
@@ -920,6 +921,10 @@ def check_oiler(v):
             v.fail(f"the oil level is wrong at oil {oil}")
         if lo[0] < x0 or hi[0] > x1 or lo[2] < z0 or hi[2] > z1:
             v.fail("the oil is outside its glass")
+    glass = v.named("frame", r"^fr_oiler_glass")
+    for problem in sight_glass(glass, v.named("oillevel", r".", (0.0, 0.0, 0.0, 0, 0.0, 1.0))[0]):
+        v.fail(f"the oiler's level is hidden: {problem}")
+    print(f"oiler: {len(glass)} panes of glass in the Transparent pass, the level seen through one from every side")
     if not (z0 < m.Z_CUT < z1):
         v.fail("the oiler is not over the cutter")
     tip = v.named("valve", r"valve_nozzle_tip")[0]
