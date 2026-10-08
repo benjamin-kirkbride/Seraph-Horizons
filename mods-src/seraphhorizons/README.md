@@ -3590,7 +3590,8 @@ recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 6 or 9
 blows, no oil.
 
-`tests/PackTests/HandcarScenarios.cs` (Atlas, the shared world) requires the handcar registered with its
+`tests/PackTests/HandcarScenarios.cs` (Atlas, a plain world of its own: it joins three players, and the
+shared world has no slots left) requires the handcar registered with its
 item, recipe, the riders' animations on the seraph and the player, and Yang's wrench patch; placed by its
 item on standard-gauge track, two players mounted on the deck facing each other; one pumping to the solo
 top speed and paying satiety over the other; both to the pair speed; pumping back braking and reversing;

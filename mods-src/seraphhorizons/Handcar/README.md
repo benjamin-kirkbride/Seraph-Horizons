@@ -213,7 +213,8 @@ ride the beam.
   (without the game: the rider animations need the seraph), the linkage and gearing hold, the pump
   animation follows the rig, the riders' patch and hand targets agree with the rig.
 - `site/test/handcar.test.ts`: the viewer's rig maths against the reference poses, the anchors.
-- `tests/PackTests/HandcarScenarios.cs` (Atlas, the shared world): the car registered with its item,
+- `tests/PackTests/HandcarScenarios.cs` (Atlas, a plain world of its own, in CI's `switches` shard: the
+  shared world has no player slots left for its three): the car registered with its item,
   recipe, animations and Yang's wrench patch; placed by its item on standard-gauge track, two players
   mounted at the right height, facing each other; one pumping to the solo top speed, rolling forward and
   paying satiety over a rider who does not pump; both to the pair speed; pumping back braking and

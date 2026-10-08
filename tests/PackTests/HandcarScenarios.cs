@@ -9,6 +9,7 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
+using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
 
@@ -22,16 +23,26 @@ namespace SeraphHorizons.PackTests;
 /// apart into its item, and a sneak click picks it up. And the riders' hands: the game's own animator,
 /// run on the patched seraph and on the car's shape at the same frames, puts each hand on its handle.
 /// Each scenario builds on a granite floor of its own, high over the spawn.
+/// <para>Its own class on the plain world rather than a part of <see cref="SharedWorldScenarios"/>:
+/// it joins three players (two riders and one with the wrench), and the shared world has none of
+/// the server's sixteen left.</para>
 /// </summary>
-public partial class SharedWorldScenarios
+[AtlasWorld]
+public class HandcarScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
+    private IWorldAccessor W => World.Api.World;
+
     private static readonly AssetLocation HandcarItem = new("seraphhorizons", "handcar");
     private const string SgRail = "yangtransport:widerails_straight-we-metal";   // runs along z
 
     private HandcarSystem Handcars => HandcarSystem.Of(World.Api);
 
-    // Progress in the server log, live (the test's own output only shows at the end).
-    private void HandcarLog(string what) => W.Logger.Notification("[handcar-test] " + what);
+    // Progress in the server log, live, and in the test's output (which only shows at the end).
+    private void HandcarLog(string what)
+    {
+        W.Logger.Notification("[handcar-test] " + what);
+        output.WriteLine(what);
+    }
 
     /// <summary>A straight standard-gauge track running north to south (+z) from <paramref name="origin"/>,
     /// <paramref name="length"/> long, on granite, with air above; its chunks loaded first (near the
