@@ -4,9 +4,9 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.SquaringShear;
 
-/// <summary>SquaringShear/Core: the build order, what each stage takes and take-back; the plates by
-/// metal; the cut's arithmetic (W only while the treadle is worked, two half plates at W = 1); who
-/// holds the treadle; the renderer's clock; and the settings.</summary>
+/// <summary>SquaringShear/Core: the build order, what each stage takes and that nothing takes a
+/// part back out; the plates by metal; the cut's arithmetic (W only while the treadle is worked, two
+/// half plates at W = 1); who holds the treadle; the renderer's clock; and the settings.</summary>
 public class SquaringShearGameplayTests
 {
     private static SquaringShearParts Complete(string blade = "game:metalplate-iron", string gauge = "game:rod-iron")
@@ -76,18 +76,14 @@ public class SquaringShearGameplayTests
     }
 
     [Fact]
-    public void Take_back_gives_the_last_part_first_and_never_with_a_plate_on()
+    public void Fitted_parts_never_come_back_out()
     {
-        var parts = Complete("game:metalplate-steel", "game:rod-iron");
-        Assert.False(parts.CanTakeBack(plateOn: true));
-        Assert.True(parts.CanTakeBack(plateOn: false));
-        Assert.Equal("game:rod-iron", parts.RemoveLast());
-        Assert.Equal(SquaringShearStage.Gauge, parts.Next);
-        Assert.Equal("game:metalplate-steel", parts.RemoveLast());
-        Assert.Equal(SquaringShearStage.Blade, parts.Next);
-        Assert.False(parts.CanTakeBack(false));
-        Assert.Null(parts.RemoveLast());
-        Assert.Equal(SquaringShearFitVerdict.Fits, parts.Fit("game:metalplate-iron"));
+        // only a consumable may come out of a built machine, and this one has none: breaking is the
+        // only way back to the parts (Returns), so the rules offer no way to take one out
+        var takeOut = typeof(SquaringShearParts).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Where(mi => mi.Name.StartsWith("Remove") || mi.Name.StartsWith("Take"))
+            .Select(mi => mi.Name);
+        Assert.Empty(takeOut);
     }
 
     [Fact]
@@ -211,7 +207,7 @@ public class SquaringShearGameplayTests
     // ---- The renderer's clock ----
 
     [Fact]
-    public void The_clock_turns_theta_and_W_only_while_held_and_never_strays_from_the_server()
+    public void The_clock_turns_theta_and_predicts_W_only_while_held_and_follows_the_server()
     {
         var clock = new SquaringShearClock();
         clock.Advance(0.1f, 1, 0, held: false, 6);
@@ -219,18 +215,48 @@ public class SquaringShearGameplayTests
         Assert.Equal(0.25f, clock.Presence, 5);
         Assert.True(clock.ShowsPlate("platelead"));
         Assert.False(clock.ShowsPlate("platecopper"));
-        // held for 0.1 s: a tenth of a stroke, a sixtieth of a plate at six strokes a plate
+        // held for 0.1 s: a tenth of a stroke, a sixtieth of a plate at six strokes a plate, before the server's W
+        // has moved (it is predicted: HeldWorkFollower)
         clock.Advance(0.1f, 1, 0, held: true, 6);
         Assert.Equal(0.2 * Math.PI, clock.Theta, 6);
         Assert.Equal(1 / 60.0, clock.Work, 6);
-        // never more than Snap ahead of the server
-        clock.Advance(0.5f, 1, 0, true, 6);
-        Assert.Equal(0, clock.Work, 9);
-        // never behind it
+        // held on with the server still at 0, it goes on, never faster than the pace
+        double last = clock.Work;
+        for (int i = 0; i < 30; i++)
+        {
+            clock.Advance(1 / 60f, 1, 0, true, 6);
+            Assert.InRange(clock.Work - last, 0, 1 / 360.0 + 1e-9);
+            last = clock.Work;
+        }
+        // let go, with the server well ahead: W is taken at once; not held, θ stays
+        double theta = clock.Theta;
         clock.Advance(0.01f, 1, 0.4, false, 6);
         Assert.Equal(0.4, clock.Work, 9);
+        Assert.Equal(theta, clock.Theta);
         var input = clock.Input();
         Assert.Equal((clock.Theta, Math.Abs(clock.Theta), 0.4, 1), (input.Theta, input.Psi, input.Work, input.Class));
+    }
+
+    [Fact]
+    public void Held_the_clock_moves_W_every_frame_while_the_servers_W_arrives_in_steps()
+    {
+        // the server's 50 ms tick (here 66 ms, as it fires on the server's frames) moves W in steps;
+        // the shown W moves a little every frame, and never back
+        var clock = new SquaringShearClock();
+        clock.Advance(1f, 1, 0, false, 1);
+        double server = 0, last = 0, sinceTick = 0;
+        for (int frame = 0; frame < 50; frame++)
+        {
+            if ((sinceTick += 1 / 60.0) >= 0.066)
+            {
+                sinceTick -= 0.066;
+                server = Math.Min(1, server + 0.066);
+            }
+            clock.Advance(1 / 60f, 1, server, true, 1);
+            if (frame > 0)
+                Assert.InRange(clock.Work - last, 0.5 / 60 - 1e-9, 1.3 / 60);
+            last = clock.Work;
+        }
     }
 
     [Fact]

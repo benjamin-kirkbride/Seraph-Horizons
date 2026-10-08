@@ -272,15 +272,24 @@ def check_swept(v):
         v.fail("something stands in the dog's or the section's path")
 
 
-def cycle_ts():
-    return (0.0, 0.02, 0.04, 0.1, 0.2, 0.3, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.48, 0.5, 0.52, 0.6, 0.72, 0.85, 0.92, 0.96)
+def cycle_ts(m):
+    """Every phase of a section's cycle: the start, the draw (the tail's release among it), the jaws, the
+    drop and the slide, the return (finely through its middle) and the dwell with the next point."""
+    def at(span, f):
+        return round(span[0] + (span[1] - span[0]) * f, 6)
+    ts = [0.0, 0.02, m.T_START[1]]
+    ts += [at(m.T_DRAW, f) for f in (0.15, 0.4, 0.9)] + [m.T_TUBE]
+    ts += [at(m.T_OPEN, 0.5), at(m.T_DROP, 0.5), at(m.T_ROLL, 0.5)]
+    ts += [at(m.T_RETURN, f / 20) for f in (2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20)]
+    ts += [round((m.T_RETURN[1] + m.T_POINT[0] + 1) / 2, 6), 1 + m.T_POINT[0], 1 + m.T_POINT[0] / 2]
+    return tuple(sorted(set(ts)))
 
 
 def clearance_poses(m):
     out = [m.REST]
     for k in (1, 2):
         for mm in range(m.SLUGS):
-            for t in cycle_ts():
+            for t in cycle_ts(m):
                 out.append(m.pose_at(k, mm + t))
         out.append(m.pose_at(k, float(m.SLUGS)))
     return out
@@ -369,7 +378,7 @@ def check_gearing(v):
         ("change gear, lead 16:24", "cluster", m.RECT_C, m.CG_R["a"], "driveshaft", m.D_C, m.CG_R["ap"], 1),
         ("change gear, copper 10:30", "cluster", m.RECT_C, m.CG_R["b"], "driveshaft", m.D_C, m.CG_R["bp"], 2),
         ("return gears 1:1", "returnshaft", m.N_C, m.RET_R, "barrel", m.K_C, m.RET_R, 1),
-        ("final drive 1:1", "driveshaft", m.D_C, m.FD_R, "drivesprocket", m.S_C, m.FD_R, 1),
+        (f"final drive {m.FD_TEETH_D}:{m.FD_TEETH_S}", "driveshaft", m.D_C, m.FD_RD, "drivesprocket", m.S_C, m.FD_RS, 1),
     ]
     worst = 0.0
     for label, pa, ca, ra, pb, cb, rb, how in pairs:
@@ -379,7 +388,7 @@ def check_gearing(v):
         if how == "theta":
             samples = [((0.3, 0.3, 0, 0, 0, 0), (0.35, 0.35, 0, 0, 0, 0)), ((-0.3, 0.3, 0, 0, 0, 0), (-0.35, 0.35, 0, 0, 0, 0))]
         else:
-            samples = [(m.pose_at(how, w), m.pose_at(how, w + 0.004)) for w in (0.1, 0.3, 1.25, 0.6, 2.8)]
+            samples = [(m.pose_at(how, w), m.pose_at(how, w + 0.004)) for w in (0.1, 0.3, 1.2, 0.7, 2.4)]
         for s1, s2 in samples:
             # an external mesh: the arcs rolled on the two pitch circles are equal and opposite
             arc_a = math.remainder(angle_x(v, pa, s2) - angle_x(v, pa, s1), 2 * math.pi) * ra
@@ -417,7 +426,7 @@ def check_chain(v):
     turn as the links on them."""
     m = v.m
     worst = 0.0
-    poses = [m.REST] + [m.pose_at(k, w) for k in (1, 2) for w in (0.1, 0.25, 0.44, 0.6, 0.8, 1.3, 2.44)]
+    poses = [m.REST] + [m.pose_at(k, w) for k in (1, 2) for w in (0.1, 0.25, 0.44, 0.6, 0.8, 1.3, 2.7)]
     for pose in poses:
         s = dog_s(v, pose)
         for i in range(m.N_LINKS):
@@ -496,7 +505,7 @@ def check_work(v):
     # between strokes the die's bore is empty: what is seen in it is the frontmost hidden segment's face (its
     # four strips, 0.012 apart, cover the bore); the next thing behind it stands at least 0.01 further back
     for k, pre in ((1, "l"), (2, "c")):
-        for w in (0.6, 1.6, 2.6, 0.0):
+        for w in (0.6, 1.7, 2.91, 0.0):
             pose = m.pose_at(k, w)
             fronts = {}
             for pid in [f"{pre}sect{q + 1}{c}" for q in range(m.SLUGS) for c in "ab"] + ["mandrel"]:
@@ -583,8 +592,8 @@ def check_controls(v):
     kn = v.named("jaw", r"_knuckle", rest)[0]
     gap0 = kn.aabb()[0][2] - f.aabb()[1][2]
     worst = 0.0
-    for t in (0.0, 0.01, 0.02, 0.03, 0.04):
-        pose = m.pose_at(1, t)
+    for f in (0.0, 0.25, 0.5, 0.75, 1.0):
+        pose = m.pose_at(1, m.T_START[1] * f)
         fp = v.point("startlever", pose, [10.65, m.LEVER_Y + m.LEVER_FINGER_R, m.LEVER_Z + 0.2])
         kp = v.point("jaw", pose, [10.65, m.LEVER_Y + m.LEVER_FINGER_R, m.LEVER_Z + 0.2])
         worst = max(worst, abs(fp[2] - kp[2]))
@@ -609,7 +618,7 @@ def check_controls(v):
         v.fail(f"the rod's stop ({stop:.2f}) is not on its guide ({guide:.2f}) at rest")
     # the fork and the cone
     worst = 0.0
-    for t in (0.0, 0.02, 0.04, 0.2, 0.41, 0.43, 0.44):
+    for t in (0.0, 0.02, 0.04, 0.2, m.T_KNOCK[0], (m.T_KNOCK[0] + m.T_KNOCK[1]) / 2, m.T_KNOCK[1]):
         pose = m.pose_at(1, t)
         fork = v.point("crank", pose, [m.CRANK[0], m.RECT[0] - m.GROOVE_R, m.RECT[1]])[0]
         cone = v.mat("cone", pose)[0][3] * 16 + m.CRANK[0]
@@ -710,7 +719,7 @@ def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
     check_floating(v)
-    poses = [m.REST] + [m.pose_at(k, mm + t) for k in (1, 2) for mm in range(m.SLUGS) for t in (0.0, 0.1, 0.19, 0.24, 0.27, 0.32, 0.5, 0.7)]
+    poses = [m.REST] + [m.pose_at(k, mm + t) for k in (1, 2) for mm in range(m.SLUGS) for t in (0.0, 0.2, m.T_TUBE, m.T_DRAW[1], 0.4, m.T_ROLL[1], 0.7, m.T_RETURN[1], 0.96)]
     check_containment(v, poses)
     check_anchors(v)
     check_textures(v)

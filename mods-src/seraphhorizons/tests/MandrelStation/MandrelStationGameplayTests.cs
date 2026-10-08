@@ -4,9 +4,10 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.MandrelStation;
 
-/// <summary>MandrelStation/Core: the mandrel and its take-back; the hollows by metal and what is
-/// refused; the forging's arithmetic (a blow at a time, two sections at the last); the renderer's
-/// clock; the settings; and the rig reader, on a rig written to the contract.</summary>
+/// <summary>MandrelStation/Core: the mandrel (no take-back: it comes out only by breaking); the hollows
+/// by metal and what is refused; the forging's arithmetic (a blow at a time, two sections at the last);
+/// right-click held refilling from the hotbar; the renderer's clock; the settings; and the rig reader, on
+/// a rig written to the contract.</summary>
 public class MandrelStationGameplayTests
 {
     // ---- The mandrel ----
@@ -48,14 +49,6 @@ public class MandrelStationGameplayTests
         Assert.Equal("hollowlead", MandrelRequires.Hollow(1));
         Assert.Equal("hollowcopper", MandrelRequires.Hollow(2));
         Assert.Null(MandrelRequires.Hollow(0));
-    }
-
-    [Fact]
-    public void The_mandrel_comes_back_only_with_nothing_on_it()
-    {
-        Assert.True(MandrelPart.CanTakeBack("game:rod-steel", hollowOn: false));
-        Assert.False(MandrelPart.CanTakeBack("game:rod-steel", hollowOn: true));
-        Assert.False(MandrelPart.CanTakeBack(null, hollowOn: false));
     }
 
     [Fact]
@@ -142,8 +135,8 @@ public class MandrelStationGameplayTests
     public void Copper_takes_more_blows_than_lead_at_the_defaults()
     {
         var config = new MandrelStationConfig();
-        Assert.Equal(6, config.BlowsPerHollow(1));
-        Assert.Equal(9, config.BlowsPerHollow(2));
+        Assert.Equal(9, config.BlowsPerHollow(1));
+        Assert.Equal(14, config.BlowsPerHollow(2));
         Assert.Equal(0, config.BlowsPerHollow(0));
         int Blows(int k)
         {
@@ -153,8 +146,8 @@ public class MandrelStationGameplayTests
                 (job, done) = job.Strike(config.BlowsPerHollow(k));
             return n;
         }
-        Assert.Equal(6, Blows(1));
-        Assert.Equal(9, Blows(2));
+        Assert.Equal(9, Blows(1));
+        Assert.Equal(14, Blows(2));
     }
 
     // ---- The hammer's tier ----
@@ -184,11 +177,11 @@ public class MandrelStationGameplayTests
     }
 
     [Theory]
-    // tier, lead's blows, copper's blows at the defaults (6 and 9 for the copper hammer)
-    [InlineData(2, 6, 9)]   // copper, gold, silver
-    [InlineData(3, 4, 6)]   // tin, bismuth and black bronze
-    [InlineData(4, 3, 5)]   // iron, meteoric iron
-    [InlineData(5, 3, 4)]   // steel
+    // tier, lead's blows, copper's blows at the defaults (9 and 14 for the copper hammer)
+    [InlineData(2, 9, 14)]   // copper, gold, silver
+    [InlineData(3, 6, 10)]   // tin, bismuth and black bronze
+    [InlineData(4, 5, 7)]    // iron, meteoric iron
+    [InlineData(5, 4, 6)]    // steel
     public void A_better_hammer_forges_in_fewer_blows_by_its_tier(int tier, int lead, int copper)
     {
         var config = new MandrelStationConfig();
@@ -203,7 +196,7 @@ public class MandrelStationGameplayTests
             return n;
         }
         Assert.Equal((lead, copper), (Blows(1), Blows(2)));
-        Assert.Equal((lead, copper), (Forging.BlowsWith(6, tier, 2), Forging.BlowsWith(9, tier, 2)));
+        Assert.Equal((lead, copper), (Forging.BlowsWith(9, tier, 2), Forging.BlowsWith(14, tier, 2)));
     }
 
     [Fact]
@@ -258,6 +251,42 @@ public class MandrelStationGameplayTests
         Assert.Equal(new ForgeJob(1, 2, 0), ForgeJob.Restore(1, 2, double.NaN));
         Assert.Equal(ForgeJob.None, ForgeJob.Restore(3, 2, 0.5));
         Assert.Equal(ForgeJob.None, ForgeJob.Restore(0, 2, 0.5));
+    }
+
+    // ---- Right-click held: the next hollow from the hotbar ----
+
+    [Fact]
+    public void A_click_counts_as_held_within_the_clients_repeat()
+    {
+        Assert.True(Forging.Held(250));
+        Assert.True(Forging.Held(Forging.HeldClickGapMs));
+        Assert.False(Forging.Held(Forging.HeldClickGapMs + 1));
+        Assert.False(Forging.Held(-1));
+        Assert.True(Forging.HeldClickGapMs > 2 * 250, "two of the client's repeats, one of them not yet a blow");
+    }
+
+    [Fact]
+    public void The_hotbar_refills_with_the_same_hollow_only()
+    {
+        string?[] hotbar = ["game:hammer-copper", null, Forging.CopperHollow, "game:ingot-lead", Forging.LeadHollow, Forging.LeadHollow];
+        Assert.Equal(4, Forging.RefillSlot(hotbar, Forging.LeadHollow));
+        Assert.Equal(4, Forging.RefillSlot(hotbar, "chutesection-lead"));
+        Assert.Equal(2, Forging.RefillSlot(hotbar, Forging.CopperHollow));
+        // nothing finished, or something that is not a hollow
+        Assert.Equal(-1, Forging.RefillSlot(hotbar, null));
+        Assert.Equal(-1, Forging.RefillSlot(hotbar, "game:ingot-lead"));
+        Assert.Equal(-1, Forging.RefillSlot(["game:hammer-copper", Forging.CopperHollow], Forging.LeadHollow));
+    }
+
+    [Fact]
+    public void The_refill_never_takes_from_the_skill_slot_or_the_off_hand()
+    {
+        var hotbar = Enumerable.Repeat<string?>(null, 12).ToArray();
+        hotbar[10] = Forging.LeadHollow;
+        hotbar[11] = Forging.LeadHollow;
+        Assert.Equal(-1, Forging.RefillSlot(hotbar, Forging.LeadHollow));
+        hotbar[9] = Forging.LeadHollow;
+        Assert.Equal(9, Forging.RefillSlot(hotbar, Forging.LeadHollow));
     }
 
     [Fact]
@@ -335,7 +364,7 @@ public class MandrelStationGameplayTests
         var config = new MandrelStationConfig { BlowsPerHollowLead = 0, BlowsPerHollowCopper = 5000, HammerWearPerBlow = -1, BaseHammerTier = 0 };
         var fixes = config.Sanitise();
         Assert.Equal(4, fixes.Count);
-        Assert.Equal((6, 9, 1, 2), (config.BlowsPerHollowLead, config.BlowsPerHollowCopper, config.HammerWearPerBlow, config.BaseHammerTier));
+        Assert.Equal((9, 14, 1, 2), (config.BlowsPerHollowLead, config.BlowsPerHollowCopper, config.HammerWearPerBlow, config.BaseHammerTier));
         Assert.Empty(new MandrelStationConfig { BlowsPerHollowLead = 1, HammerWearPerBlow = 0, BaseHammerTier = 1 }.Sanitise());
     }
 
