@@ -1,0 +1,20 @@
+{
+  "ConfigVersion": 2,
+  "AffectPlayer": true,
+  "AffectAnimals": true,
+  "BroadcastServerConfigs": false,
+  "PlayerFootprintLifespan": 6,
+  "AnimalFootprintLifespan": 6,
+  "SurfaceMaterials": [
+    "game:soil",
+    "game:forestfloor",
+    "game:gravel",
+    "game:muddygravel",
+    "game:sand",
+    "game:rawclay",
+    "game:snow",
+    "game:peat-",
+    "game:flower",
+    "game:tallgrass-"
+  ]
+}

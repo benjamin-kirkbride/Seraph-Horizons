@@ -1,0 +1,8 @@
+{
+  "StatsComment": "Stats applied for this stick. Delete or leave it empty to ignore a stat.'WalkingSpeed': movement speed. 'Hunger': hunger rate. 'AutoStep': Autostep 1 blocks height.",
+  "HideFromCreativeInventory": false,
+  "Stats": {
+    "Hunger": -5.0,
+    "AutoStep": true
+  }
+}

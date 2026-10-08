@@ -1527,6 +1527,8 @@
   "packcheck-dismiss": "Don't show again until this changes",
   "packcheck-chat-header": "This server's mods differ from Seraph Horizons {0} (game {1}) in {2} way(s):",
   "packcheck-chat-footer": "The same is in the server log. PackVersionCheck in ModConfig/seraphhorizons.json turns this off.",
+  "configdefaults-chat-header": "Seraph Horizons {1} changed {2} default setting(s) that this server still had at their {0} defaults, so they now follow the new ones:",
+  "configdefaults-chat-footer": "Settings anyone had changed were kept. The same is in the server log. FollowPackDefaults in ModConfig/seraphhorizons.json turns this off.",
 
   "ppex:blockdesc-pipe-straight-ns-lead": "Carries water. Water only: steam or exhaust in its run bursts it at once.",
   "ppex:blockdesc-pipe-bend-nw-lead": "A 90 degree bend in a pipe run. Water only: steam or exhaust in its run bursts it at once.",

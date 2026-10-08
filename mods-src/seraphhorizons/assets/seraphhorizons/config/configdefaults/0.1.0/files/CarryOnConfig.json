@@ -1,0 +1,163 @@
+{
+  "ConfigVersion": 5,
+  "Carryables": {
+    "Anvil": true,
+    "Barrel": true,
+    "Bookshelf": false,
+    "BunchOCandles": false,
+    "Cabinet": true,
+    "Chandelier": false,
+    "ChestTrunk": false,
+    "Clutter": false,
+    "Chest": true,
+    "Crate": true,
+    "DisplayCase": false,
+    "Flowerpot": true,
+    "Forge": false,
+    "Henbox": false,
+    "LogWithResin": false,
+    "LootVessel": true,
+    "MoldRack": false,
+    "Mold": false,
+    "Oven": false,
+    "Planter": true,
+    "Quern": true,
+    "ReedChest": true,
+    "Resonator": true,
+    "Shelf": false,
+    "Sign": false,
+    "StorageVessel": true,
+    "ToolRack": false,
+    "TorchHolder": false
+  },
+  "CarryablesOnBack": {
+    "Barrel": true,
+    "ChestTrunk": false,
+    "Chest": true,
+    "Crate": false,
+    "Flowerpot": true,
+    "LogWithResin": false,
+    "LootVessel": true,
+    "Planter": true,
+    "ReedChest": true,
+    "Resonator": true,
+    "StorageVessel": true
+  },
+  "Interactables": {
+    "Door": true,
+    "Barrel": true,
+    "Storage": true
+  },
+  "CarryHungerRate": {
+    "HandsEnabled": false,
+    "BackEnabled": true,
+    "MinSaturationThreshold": 150.0,
+    "ModifierOverrides": {
+      "ByBlockCode": [],
+      "ByBlockClass": [],
+      "SlotDefaults": {}
+    },
+    "Multipliers": {
+      "Global": {
+        "Hands": 1.0,
+        "Back": 1.0
+      },
+      "ByBlockMaterial": []
+    }
+  },
+  "CarryWalkSpeed": {
+    "HandsEnabled": true,
+    "BackEnabled": true,
+    "HandsAllowSprint": false,
+    "BackAllowSprint": true,
+    "ModifierOverrides": {
+      "ByBlockCode": [],
+      "ByBlockClass": [],
+      "SlotDefaults": {}
+    },
+    "Multipliers": {
+      "Global": {
+        "Hands": 1.0,
+        "Back": 1.0
+      },
+      "ByBlockMaterial": []
+    }
+  },
+  "DropCarriedOnDamage": {
+    "HandsEnabled": true,
+    "BackEnabled": true,
+    "HandsDamageThreshold": 1.0,
+    "BackDamageThreshold": 6.0,
+    "DropRange": 2
+  },
+  "CarriedBlockEntity": {
+    "DropMode": "EntityOnFailedPlacement",
+    "RandomDropRotation": true,
+    "ShowParticles": true,
+    "DespawnAfterDays": 30.0,
+    "PickupAccess": "OwnerFirst",
+    "GracePeriodSeconds": 300.0,
+    "Scale": 0.6
+  },
+  "CarryOptions": {
+    "RemoveInteractDelayWhileCarrying": false,
+    "InteractSpeedMultiplier": 1.0,
+    "MaxInteractionDistance": 6,
+    "BackSlotEnabled": true,
+    "AllowHighCapacityStorageOnBack": false,
+    "PreventSwapFromBackOnTarget": [
+      "behavior::Container",
+      "behavior::Door",
+      "class::portals.portal",
+      "code::groundstorage",
+      "class::BlockGroundStorage"
+    ],
+    "TooHotToCarry": true,
+    "TooHotToCarryTemperature": 50,
+    "CarryAttachedWallSigns": false,
+    "ClientSidePermissionCheck": true,
+    "TrackDroppedBlocks": false,
+    "BackpackSelectionMode": "LastFound"
+  },
+  "CarryablesFilters": {
+    "AutoMapSimilar": true,
+    "AutoMatchIgnoreMods": [
+      "mcrate"
+    ],
+    "AllowedShapeOnlyMatches": [
+      "block/clay/lootvessel",
+      "block/wood/chest/normal",
+      "block/wood/trunk/normal",
+      "block/reed/basket-normal"
+    ],
+    "RemoveBaseCarryableBehaviour": [
+      "woodchests:wtrunk"
+    ],
+    "RemoveCarryableBehaviour": [
+      "game:banner",
+      "game:clutter-devastation"
+    ]
+  },
+  "BackpackTypes": {
+    "small": [
+      "game:hunterbackpack"
+    ],
+    "large": [
+      "game:backpack-normal",
+      "game:backpack-sturdy"
+    ]
+  },
+  "DebuggingOptions": {
+    "LoggingEnabled": false,
+    "DisableHarmonyPatch": false,
+    "EnablePackAdjustmentTool": false,
+    "DisableConfigWatcher": false,
+    "CarryableReport": {
+      "Enabled": false,
+      "OutputToLog": true,
+      "FileFormat": "Markdown",
+      "BlockFilters": [],
+      "ReportMode": "Full"
+    }
+  }
+}

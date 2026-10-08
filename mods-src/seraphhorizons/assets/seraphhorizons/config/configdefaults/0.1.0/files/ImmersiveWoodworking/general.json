@@ -1,0 +1,14 @@
+{
+  "AutoRestock": true,
+  "DropsAtPlayer": false,
+  "ScaleWorkSpeedByToolTier": true,
+  "DisableVanillaFirewoodCrafting": true,
+  "DisableVanillaPlankCrafting": true,
+  "DisableVanillaDebarkCrafting": true,
+  "DisableVanillaLogTannin": true,
+  "KeepTraitRecipes": true,
+  "AllowVanillaSaw": true,
+  "RemovePitSaw": false,
+  "CraftableSawhorse": false,
+  "LogRecoverThreshold": 0.25
+}

@@ -1,0 +1,14 @@
+{
+  "MinPlayerHeight": 0.2,
+  "MaxPlayerHeight": 10.0,
+  "CoatableWeaponTags": "weapon-melee",
+  "CoatableProjectilesCodes": "*arrow*",
+  "CarryScanDelaySec": 0.5,
+  "CarrySafetyNetIntervalSec": 20.0,
+  "CarryDurabilityCheckIntervalSec": 5.0,
+  "AllowFly": true,
+  "AllowClimb": true,
+  "AllowFall": true,
+  "AllowRefresh": true,
+  "AllowResize": true
+}

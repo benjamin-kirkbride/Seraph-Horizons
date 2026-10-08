@@ -1,0 +1,13 @@
+{
+  "EnableDebugLogging": false,
+  "ForbiddenDefecationBlocks": [
+    "egg",
+    "dung",
+    "smallpoop",
+    "manure"
+  ],
+  "EnableGenelibCompat": true,
+  "GenelibSatietyThreshold": -1.2,
+  "GenelibMinDefecationDelayHours": 18.0,
+  "GenelibMaxDefecationDelayHours": 28.0
+}
