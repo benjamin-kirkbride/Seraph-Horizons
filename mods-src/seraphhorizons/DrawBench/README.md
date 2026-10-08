@@ -91,13 +91,17 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 nothing from `build/mods`. The hollow wears the chute section's own sheet (`game:block/metal/sheet/lead1`,
 `copper1`, as the game's item has it), the pipe sections the plain sheet
 (`game:block/metal/sheet-plain/lead1`, `copper1`), the rope `game:item/resource/rope`, the oiler's glass
-`game:block/glass/plain` and its oil `game:block/liquid/honey`, all referenced. `tools/make_shape.py`
+`game:block/glass/plain` (four panes in the Transparent render pass, `renderPass` 3, so the oil shows from
+every side; the block's own pass is opaque and drew the glass solid) and its oil `game:block/liquid/honey`,
+all referenced. The frame block's `textures` (`assets/seraphhorizons/blocktypes/drawbench/frame.json`) must
+name every code of `drawbench.json`: the renderer draws the moving parts with the block's texture source,
+and a code the block lacks renders white (`tools/tests/test_drawbench_model.py` holds them together). `tools/make_shape.py`
 writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/drawbench.json` | The whole machine, every moving part (738 elements). The renderer splits it into parts by element name. |
-| `assets/seraphhorizons/shapes/block/drawbench_frame.json` | The static frame only (66 elements). The block draws it and the inventory shows it. |
+| `assets/seraphhorizons/shapes/block/drawbench.json` | The whole machine, every moving part (739 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/drawbench_frame.json` | The static frame only (67 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/drawbench-rig.json` | Footprint, anchors, the work, the draw's constants and the part rig (84 parts: 20 chain links of their own, 24 pieces of work). |
 | `tests/DrawBench/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
 
@@ -269,7 +273,8 @@ and exits non-zero if one fails:
   barrel 2, the start lever's rock shaft 2), the idler on its stud, the clutch rod through its guide (its
   north end pinned to the start lever), the selector rod through one guide (two for copper) with its fork
   in the cluster's groove as a pilot.
-- **Oiler:** the oil's height 0.05 at oil 0, 1.15 at 1 and linear between, inside the glass; the spout's
+- **Oiler:** the oil's height 0.05 at oil 0, 1.15 at 1 and linear between, inside the glass; a pane over
+  each side of the oil, every pane in the Transparent pass (`checks.sight_glass`); the spout's
   mouth 0.05 over the hollow, 0.35 behind the die stock, the drip anchor there.
 - **Nothing floats:** every frame element joined to the ground.
 - **No z-fighting** (full runs): no coplanar overlapping faces at five poses of both metals, of what can
