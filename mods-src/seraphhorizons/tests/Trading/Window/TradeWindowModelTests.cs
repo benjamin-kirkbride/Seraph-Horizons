@@ -9,7 +9,7 @@ public class TradeWindowModelTests
     private static readonly string[] Codes = ["stranger", "known", "regular", "trusted", "partner"];
     private static readonly double[] Thresholds = [0, 60, 250, 800, 2000];
     private static readonly int[] LeadMaps = [0, 2, 3, 5, 8];
-    private static readonly int[] LeadRadius = [0, 3000, 5000, 8000, 12000];
+    private static readonly int[] LeadReach = [1, 1, 2, 3, 5];
 
     /// <summary>The shipped tiers' shape: the five, their thresholds and the unlocks that matter here.</summary>
     internal static StandingSummary Summary(int tier, double points) => new()
@@ -23,7 +23,7 @@ public class TradeWindowModelTests
             Points = Thresholds[i],
             MapPrecision = Math.Min(3, i + 1),
             LeadMaps = LeadMaps[i],
-            LeadRadius = LeadRadius[i],
+            LeadReach = LeadReach[i],
             Unlocks = new TierUnlocks
             {
                 MapTier = i,
@@ -244,7 +244,7 @@ public class TradeWindowModelTests
         Assert.Contains("trading-window-fact-rare", gains);
         Assert.Contains("trading-window-fact-prices", gains);
         // Regular to trusted: more camp leads further out; the settlement lead both have.
-        Assert.Contains("trading-window-fact-leads(5, 8)", TradeWindowModel.Gains(s.Tier, s.Next!, AllOn()).Select(f => f.ToString()));
+        Assert.Contains("trading-window-fact-leads(5, 3)", TradeWindowModel.Gains(s.Tier, s.Next!, AllOn()).Select(f => f.ToString()));
         Assert.DoesNotContain("trading-window-fact-settlement", gains);
     }
 
@@ -255,23 +255,36 @@ public class TradeWindowModelTests
         var stranger = TradeWindowModel.Facts(s.Tiers[0], AllOn()).Select(f => f.ToString()).ToList();
         Assert.Contains("trading-window-fact-leads-stranger", stranger);
         Assert.DoesNotContain("trading-window-fact-settlement", stranger);
-        Assert.Contains("trading-window-fact-leads(2, 3)", TradeWindowModel.Facts(s.Tiers[1], AllOn()).Select(f => f.ToString()));
-        Assert.Contains("trading-window-fact-leads(8, 12)", TradeWindowModel.Facts(s.Tiers[4], AllOn()).Select(f => f.ToString()));
+        // In rings of grid cells; one ring reads "within 1 ring".
+        Assert.Contains("trading-window-fact-leads-one(2)", TradeWindowModel.Facts(s.Tiers[1], AllOn()).Select(f => f.ToString()));
+        Assert.Contains("trading-window-fact-leads(3, 2)", TradeWindowModel.Facts(s.Tiers[2], AllOn()).Select(f => f.ToString()));
+        Assert.Contains("trading-window-fact-leads(8, 5)", TradeWindowModel.Facts(s.Tiers[4], AllOn()).Select(f => f.ToString()));
     }
 
     [Fact]
-    public void LeadOfferLinesNameTheCampItsWayAndPriceAndTheNoteSaysWhyNone()
+    public void LeadOfferLinesNameTheCampItsWayRingAndPriceAndTheNoteSaysWhyNone()
     {
-        var row = new LeadOfferRow { Cell = "1,0", Type = "smith", Distance = 2210.4, Dx = 2200, Dz = 0, Price = 3 };
+        var row = new LeadOfferRow { Cell = "1,0", Type = "smith", Distance = 2210.4, Dx = 2200, Dz = 0, Price = 3, Ring = 1 };
         Assert.Equal("trading-window-lead-offer", TradeWindowModel.LeadOfferLine(row).Key);
         Assert.Contains("2210", TradeWindowModel.LeadOfferLine(row).ToString());
+        Assert.EndsWith(", 3, 1)", TradeWindowModel.LeadOfferLine(row).ToString());
         Assert.Equal("trading-window-lead-offer-prospector", TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Prospector = true }).Key);
         var none = new TradeWindowState { LeadsWhy = "trading-window-leads-strangerused" };
         Assert.Equal("trading-window-leads-strangerused", TradeWindowModel.LeadOffersNote(none)!.Key);
         Assert.Null(TradeWindowModel.LeadOffersNote(new TradeWindowState()));
         var some = TradeWindowState.FromJson(new TradeWindowState { LeadOffers = [row], LeadsBought = 2 }.ToJson());
         Assert.Equal("1,0", some.LeadOffers.Single().Cell);
+        Assert.Equal(1, some.LeadOffers.Single().Ring);
         Assert.Equal("trading-window-leads-bought(2)", TradeWindowModel.LeadOffersNote(some)!.ToString());
+    }
+
+    [Fact]
+    public void ThePityMapsLineSaysTheFirstMapIsOnTheTrader()
+    {
+        var pity = new LeadOfferRow { Cell = "1,1", Type = "prospector", Distance = 2900, Dx = 2000, Dz = 2000, Price = 10, Ring = 1, Prospector = true, Pity = true };
+        Assert.Equal("trading-window-lead-offer-pity", TradeWindowModel.LeadOfferLine(pity).Key);
+        Assert.Equal("trading-window-lead-offer-pity-any", TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "cook", Pity = true }).Key);
+        Assert.True(TradeWindowState.FromJson(new TradeWindowState { LeadOffers = [pity] }.ToJson()).LeadOffers.Single().Pity);
     }
 
     [Fact]

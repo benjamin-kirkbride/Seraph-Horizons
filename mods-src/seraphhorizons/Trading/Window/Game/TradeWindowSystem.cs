@@ -301,7 +301,8 @@ public class TradeWindowSystem : ModSystem
                 Tiers = system.Rules.Tiers.Select(t => new TierView
                 {
                     Code = t.Code, Points = t.Points, Unlocks = t.Unlocks, MapPrecision = MapOffers.MaxPrecision(t.Unlocks.MapTier),
-                    LeadMaps = maps?.Prices.CampLeads.TierFor(t.Code)?.Maps ?? 0, LeadRadius = maps?.Prices.CampLeads.TierFor(t.Code)?.Radius ?? 0,
+                    LeadMaps = maps is null || maps.Prices.CampLeads.IsStranger(t.Code) ? 0 : maps.Prices.CampLeads.TierFor(t.Code).Maps,
+                    LeadReach = maps?.Prices.CampLeads.TierFor(t.Code).Reach ?? 0,
                 }).ToList(),
             };
             var leads = system.Rules.Tiers.Select(t => t.Unlocks.MapsToTraders).ToList();
@@ -323,7 +324,7 @@ public class TradeWindowSystem : ModSystem
                 state.LeadOffers.Add(new LeadOfferRow
                 {
                     Cell = o.Cell.ToString(), Type = o.Type, Distance = o.Distance, Dx = o.X - trader.Pos.X, Dz = o.Z - trader.Pos.Z,
-                    Price = o.Price, Prospector = o.Prospector,
+                    Price = o.Price, Prospector = o.Prospector, Ring = o.Ring, Pity = o.Pity,
                 });
             state.LeadsBought = leadView.Buyer.Bought;
             state.LeadsWhy = MapsSystem.WhyKey(leadView.Why);

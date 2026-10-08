@@ -447,7 +447,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         if (key.StartsWith("dmark-", StringComparison.Ordinal)) return () => Request(TradeAction.MarkDelivery, id: id);
         if (key.StartsWith("lead-", StringComparison.Ordinal) && _state.LeadOffers.ElementAtOrDefault(id) is { } lead)
         {
-            string cell = lead.Cell;
+            string cell = lead.Pity ? MapsSystem.PityCode : lead.Cell;
             int price = lead.Price;
             return () => RequestLead(cell, price);
         }
