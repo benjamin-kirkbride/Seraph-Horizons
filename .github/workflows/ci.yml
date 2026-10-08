@@ -151,8 +151,9 @@ jobs:
     # (TradingCoreScenarios, a seeded standard world) with TradingScenarios; `trading-features` is
     # the rest of Trading* (maps and admin, each a seeded standard world), so a new seeded Trading
     # class lands there, and a new plain-world trading feature joins TradingScenarios. `switches`
-    # is the two classes that cannot share the plain world: SwitchesOffScenarios (its own ModConfig)
-    # and ClearCommandScenarios (a survival world). `trunks` is the trunk entity classes and the
+    # is three classes that cannot share the plain world: SwitchesOffScenarios (its own ModConfig),
+    # ClearCommandScenarios (a survival world) and HandcarScenarios (three players, and the shared
+    # world has no slots left). `trunks` is the trunk entity classes and the
     # pickling tub, each joining more players than the plain world has slots left for. `rest` is
     # the complement filter, so any other new class lands there without anyone having to list it.
     # Each shard's dotnet test run should stay under about four minutes, and the job under five.
@@ -179,11 +180,11 @@ jobs:
           - shard: trading-features
             filter: FullyQualifiedName~PackTests.Trading&FullyQualifiedName!~PackTests.TradingCoreScenarios.&FullyQualifiedName!~PackTests.TradingScenarios.
           - shard: switches
-            filter: FullyQualifiedName~PackTests.SwitchesOffScenarios.|FullyQualifiedName~PackTests.ClearCommandScenarios.
+            filter: FullyQualifiedName~PackTests.SwitchesOffScenarios.|FullyQualifiedName~PackTests.ClearCommandScenarios.|FullyQualifiedName~PackTests.HandcarScenarios.
           - shard: trunks
             filter: FullyQualifiedName~PackTests.TrunkEntityScenarios.|FullyQualifiedName~PackTests.TrunkCarryScenarios.|FullyQualifiedName~PackTests.PicklingTubScenarios.
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack

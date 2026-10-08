@@ -99,6 +99,13 @@
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
     <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('MandrelStation/rig-reference.json')" />
+    <!-- The handcar's drive, controls and animation timing, and its generated rig, reference poses,
+         rider targets and entity type (Handcar/tools/make_shape.py), which the tests hold together. -->
+    <Compile Include="../Handcar/Core/**/*.cs" Link="Handcar/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/handcar-rig.json" Link="handcar-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/entities/handcar.json" Link="handcar-entity.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Handcar/rig-reference.json" Link="handcar-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Handcar/rider-reference.json" Link="handcar-rider-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />

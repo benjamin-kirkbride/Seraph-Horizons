@@ -100,7 +100,10 @@ export class ModelScene {
   private readonly edgeMaterial = new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 });
   private readonly gridMaterial = new LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.55 });
   private readonly overlays = new Map<string, Group>();
-  private readonly labels: { el: HTMLElement; at: Vector3; overlay: string }[] = [];
+  private readonly labels: { el: HTMLElement; at: Vector3; overlay: string; ride?: { part: number; pos: Vec3 } }[] = [];
+  /** Point anchors that ride a part: their group, posed with the part. */
+  private readonly riders: { group: Group; part: number }[] = [];
+  private readonly rideMatrix = new Matrix4();
   private readonly cornersBlocks: Vec3[][];
   private readonly pickLines: LineSegments;
   private readonly hoverLines: LineSegments;
@@ -257,12 +260,12 @@ export class ModelScene {
     return g;
   }
 
-  private label(overlay: string, text: string, at: Vec3) {
+  private label(overlay: string, text: string, at: Vec3, ridePart?: number) {
     const el = document.createElement("span");
     el.textContent = text;
     el.hidden = true;
     this.labelLayer.appendChild(el);
-    this.labels.push({ el, at: new Vector3(...at), overlay });
+    this.labels.push({ el, at: new Vector3(...at), overlay, ...(ridePart !== undefined ? { ride: { part: ridePart, pos: at } } : {}) });
   }
 
   private buildOverlays(bounds: Bounds, anchors: readonly Anchor[]) {
@@ -329,12 +332,20 @@ export class ModelScene {
           break;
         }
         case "point": {
+          // A point that rides a part is drawn in a group the part's matrix poses.
+          const part = a.part !== undefined ? this.view.parts.findIndex((p) => p.id === a.part) : -1;
+          const holder = part >= 0 ? new Group() : g;
+          if (part >= 0) {
+            holder.matrixAutoUpdate = false;
+            g.add(holder);
+            this.riders.push({ group: holder, part });
+          }
           const s = new Mesh(new SphereGeometry(0.09, 16, 12), new MeshBasicMaterial({ color: OVERLAY_COLOURS.point }));
           s.position.set(...a.pos);
-          g.add(s);
+          holder.add(s);
           const n = a.side ? SIDE_NORMAL[a.side] : null;
-          if (n) g.add(new ArrowHelper(new Vector3(...n), new Vector3(...a.pos), 0.8, OVERLAY_COLOURS.point, 0.25, 0.15));
-          this.label(a.key, a.label, n ? (a.pos.map((v, k) => v + n[k]! * 0.9) as Vec3) : [a.pos[0], a.pos[1] + 0.4, a.pos[2]]);
+          if (n) holder.add(new ArrowHelper(new Vector3(...n), new Vector3(...a.pos), 0.8, OVERLAY_COLOURS.point, 0.25, 0.15));
+          this.label(a.key, a.label, n ? (a.pos.map((v, k) => v + n[k]! * 0.9) as Vec3) : [a.pos[0], a.pos[1] + 0.4, a.pos[2]], part >= 0 ? part : undefined);
           break;
         }
         case "line": {
@@ -388,6 +399,12 @@ export class ModelScene {
       o.mesh.visible = visible[i]!;
       o.edges.visible = visible[i]! && this.edgesOn;
     });
+    for (const r of this.riders) {
+      r.group.matrix.fromArray(matrices[r.part]!);
+      r.group.matrixWorldNeedsUpdate = true;
+    }
+    for (const l of this.labels)
+      if (l.ride) l.at.set(...l.ride.pos).applyMatrix4(this.rideMatrix.fromArray(matrices[l.ride.part]!));
     this.updateOutline(this.pickLines, this.picked);
     this.updateOutline(this.hoverLines, this.hovered);
     this.dirty = true;
