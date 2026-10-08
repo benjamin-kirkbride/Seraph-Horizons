@@ -107,10 +107,15 @@ jobs:
       # recipes and items the recipe browser shows. release.yml and next.yml publish it.
       # Both mods are staged in this run's Mods only; neither reaches build/mods, the lock or
       # assemble.
+      # --config-defaults check: the pack's own mod runs in capture mode (it changes nothing in
+      # ModConfig), and the run fails when what the mods wrote differs from the current pack
+      # version's committed config defaults snapshot (docs/config-defaults.md; regenerate with
+      # `packtool smoke --config-defaults write`). A released version's snapshot is frozen.
       - name: Boot dedicated server with the full pack
         run: >
           python3 tools/packtool.py smoke --data "$RUNNER_TEMP/smoke-data"
           --export "$RUNNER_TEMP/recipe-export/recipes.json"
+          --config-defaults check
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: recipe-export
@@ -123,6 +128,7 @@ jobs:
           path: |
             ${{ runner.temp }}/smoke-data/Logs/
             ${{ runner.temp }}/smoke-data/smoke-stdout.log
+            ${{ runner.temp }}/smoke-data/ModConfig/
 
   atlas:
     name: Atlas pack scenarios (${{ matrix.shard }})
@@ -151,9 +157,9 @@ jobs:
     # (TradingCoreScenarios, a seeded standard world) with TradingScenarios; `trading-features` is
     # the rest of Trading* (maps and admin, each a seeded standard world), so a new seeded Trading
     # class lands there, and a new plain-world trading feature joins TradingScenarios. `switches`
-    # is three classes that cannot share the plain world: SwitchesOffScenarios (its own ModConfig),
-    # ClearCommandScenarios (a survival world) and HandcarScenarios (three players, and the shared
-    # world has no slots left). `trunks` is the trunk entity classes and the
+    # is four classes that cannot share the plain world: SwitchesOffScenarios and
+    # ConfigDefaultsScenarios (each its own ModConfig), ClearCommandScenarios (a survival world)
+    # and HandcarScenarios (three players, and the shared world has no slots left). `trunks` is the trunk entity classes and the
     # pickling tub, each joining more players than the plain world has slots left for. `rest` is
     # the complement filter, so any other new class lands there without anyone having to list it.
     # Each shard's dotnet test run should stay under about four minutes, and the job under five.
@@ -180,11 +186,11 @@ jobs:
           - shard: trading-features
             filter: FullyQualifiedName~PackTests.Trading&FullyQualifiedName!~PackTests.TradingCoreScenarios.&FullyQualifiedName!~PackTests.TradingScenarios.
           - shard: switches
-            filter: FullyQualifiedName~PackTests.SwitchesOffScenarios.|FullyQualifiedName~PackTests.ClearCommandScenarios.|FullyQualifiedName~PackTests.HandcarScenarios.
+            filter: FullyQualifiedName~PackTests.SwitchesOffScenarios.|FullyQualifiedName~PackTests.ConfigDefaultsScenarios.|FullyQualifiedName~PackTests.ClearCommandScenarios.|FullyQualifiedName~PackTests.HandcarScenarios.
           - shard: trunks
             filter: FullyQualifiedName~PackTests.TrunkEntityScenarios.|FullyQualifiedName~PackTests.TrunkCarryScenarios.|FullyQualifiedName~PackTests.PicklingTubScenarios.
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ConfigDefaultsScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack

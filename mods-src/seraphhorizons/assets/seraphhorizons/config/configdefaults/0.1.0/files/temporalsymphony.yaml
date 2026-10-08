@@ -1,0 +1,45 @@
+version: 1
+
+# Enable Temporal Symphony Bell Rework or use vanilla Bell config?
+Bell Rework: true
+ #  (default: true) 
+
+# Should Bells have an idle sound?
+Sound Tweaks (Bell): true
+ #  (default: true) 
+
+# Should Bellhead Shivers have Bell behavior?
+Bellhead Shivers: true
+ #  (default: true) 
+
+# Should Shiver jaws be open or closed?
+Open-Jaw Shivers: true
+ #  (default: true) 
+
+# Enable Temporal Symphony Drifter sound tweaks or use (lame) vanilla Drifter config?
+Sound Tweaks (Drifter): true
+ #  (default: true) 
+
+# Slightly increase Shiver idle sound chance and range?
+Sound Tweaks (Shiver): true
+ #  (default: true) 
+
+# Slightly increase Bowtorn idle sound chance and range?
+Sound Tweaks (Bowtorn): true
+ #  (default: true) 
+
+# Enable Temporal Symphony rift weather chances or use vanilla chances?
+Riftweather Rework (Chances): true
+ #  (default: true) 
+
+# Enable Temporal Symphony rift weather durations or use vanilla durations?
+Riftweather Rework (Durations): true
+ #  (default: true) 
+
+# Enable Temporal Symphony rift weather start times or use vanilla start times?
+Riftweather Rework (Start Times): true
+ #  (default: true) 
+
+# Enable Temporal Symphony rift enemy spawn multipliers or use vanilla multipliers?
+Riftweather Rework (Spawn Multiplier): true
+ #  (default: true) 

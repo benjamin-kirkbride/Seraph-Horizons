@@ -1,0 +1,74 @@
+version: 1
+
+
+##############
+## Shearing ##
+##############
+
+
+# Can bighorn and mouflon sheep be sheared?
+enable_sheep_shearable: true
+ #  (default: True) 
+
+# Can goats be sheared?
+enable_goat_shearable: true
+ #  (default: True) 
+
+# Can gazelle be sheared?
+enable_gazelle_shearable: true
+ #  (default: True) 
+
+# Can deer including elks be sheared?
+enable_deer_shearable: true
+ #  (default: True) 
+
+# Can moose be sheared?
+enable_moose_shearable: true
+ #  (default: True) 
+
+
+###############################
+## Additional drops on death ##
+###############################
+
+
+# Should dead drifters drop additional items like fleece and sticks?
+# This setting does NOT change the amount of flax fibers dropped by drifters.
+enable_drifter_drops: true
+ #  (default: True) 
+
+# Should dead wild animals like bears, foxes, hares and wolves drop fleece?
+enable_animal_drops: true
+ #  (default: True) 
+
+# Should dead deer, moose & elk drop fleece?
+enable_deer_drops: true
+ #  (default: True) 
+
+# Should dead gazelles drop fleece?
+enable_gazelle_drops: true
+ #  (default: True) 
+
+
+#############
+## Panning ##
+#############
+
+
+# Should panning result in fleece or fibers?
+enable_panning: true
+ #  (default: True) 
+
+
+########################
+## Additional recipes ##
+########################
+
+
+# Can colored fibers be bleached?
+enable_bleach: true
+ #  (default: True) 
+
+# Can higher fertility soil be crafted with organic fertilizer?
+enable_soil: true
+ #  (default: True) 

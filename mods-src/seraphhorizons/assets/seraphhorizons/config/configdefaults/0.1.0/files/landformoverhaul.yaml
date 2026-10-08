@@ -1,0 +1,264 @@
+version: 1
+
+
+##########################
+## READ BEFORE CHANGING ##
+##########################
+# WARNING
+# Modifications to the config can break BOTH existing AND OLD WORLDS!
+# Back up ALL your worlds before making changes and make a NEW WORLD in addition to SAVING THE CONFIG after any changes are made in order for them to be applied properly.
+
+
+
+#####################
+## Mountain Values ##
+#####################
+
+
+# Mountains from sea level to maximum world height.
+Mountain Weight: 5
+ # from 0 to 20000 (default: 5) 
+
+# Mountains from medium world height to maximum world height.
+Mountain Mutation Chance (1): 0.25
+ # from 0 to 1 (default: 0.25) 
+
+# Mountains from sea level to medium world height.
+Mountain Mutation Chance (2): 0.5
+ # from 0 to 1 (default: 0.5) 
+
+# Mountains from below sea level to maximum world height.
+Mountain Mutation Chance (3): 0.25
+ # from 0 to 1 (default: 0.25) 
+
+# Mountains from below sea level to medium world height.
+Mountain Mutation Chance (4): 0.5
+ # from 0 to 1 (default: 0.5) 
+
+# Mountains from deep sea level to maximum world height.
+Mountain Mutation Chance (5): 0.5
+ # from 0 to 1 (default: 0.5) 
+
+# Mountains from deep sea level to medium world height.
+Mountain Mutation Chance (6): 0.75
+ # from 0 to 1 (default: 0.75) 
+
+
+#####################
+## Foothill Values ##
+#####################
+
+
+# Foothills from slightly above sea level to medium world height.
+Foothill Weight: 20
+ # from 0 to 20000 (default: 20) 
+
+# Foothills from slightly above sea level to medium world height. (Small height increase.)
+Foothill Mutation Chance: 0.5
+ # from 0 to 1 (default: 0.5) 
+
+
+#################
+## Hill Values ##
+#################
+
+
+# Hills from slightly above sea level to slightly below medium world height.
+Hill Weight: 10
+ # from 0 to 20000 (default: 10) 
+
+# Hills from slightly above sea level to slightly below medium world height. (Slight height increase.)
+Hill Mutation Chance: 0.5
+ # from 0 to 1 (default: 0.5) 
+
+
+#######################
+## Small Hill Values ##
+#######################
+
+
+# Small hills from slightly below sea level to low world height.
+Small Hill Weight: 8
+ # from 0 to 20000 (default: 8) 
+
+# Small hills from slightly above sea level to low world height.
+Small Hill Mutation Chance: 0.5
+ # from 0 to 1 (default: 0.5) 
+
+
+##################
+## Plain Values ##
+##################
+
+
+# Plains from slightly below sea level to low world height.
+Plains Weight: 7
+ # from 0 to 20000 (default: 7) 
+
+# Plains from slightly above sea level to low world height.
+Plains Mutation Chance: 0.5
+ # from 0 to 1 (default: 0.5) 
+
+
+#################
+## Lake Values ##
+#################
+
+
+# Large lake from slightly below water level to low world height.
+Large Lake Weight: 1.5
+ # from 0 to 20000 (default: 1.5) 
+
+# Small lake from slightly below water level to low world height.
+Small Lake Weight: 0.5
+ # from 0 to 20000 (default: 0.5) 
+
+
+###################
+## Island Values ##
+###################
+
+
+# Island from below sea level to low world height.
+Island Weight: 5
+ # from 0 to 20000 (default: 5) 
+
+# Island from below sea level to low world height. (Larger beaches)
+Island Mutation Chance (1): 0.25
+ # from 0 to 1 (default: 0.25) 
+
+# Island from below sea level to low world height. (Larger beaches with flat top.)
+Island Mutation Chance (2): 0.25
+ # from 0 to 1 (default: 0.25) 
+
+
+##################
+## Cliff Values ##
+##################
+
+
+# Double stepped cliff at medium world height.
+Cliff Weight: 2
+ # from 0 to 20000 (default: 2) 
+
+# Single step cliff at medium world height.
+Cliff (1) Weight: 3
+ # from 0 to 20000 (default: 3) 
+
+# Single step cliff at medium world height. (Slight height reduction.)
+Cliff (2) Weight: 4
+ # from 0 to 20000 (default: 4) 
+
+# Quad stepped cliffs from sea level to medium world height.
+Cliff (3) Weight: 4
+ # from 0 to 20000 (default: 4) 
+
+# Three step cliffs from below sea level to medium world height.
+Cliff (4) Weight: 4
+ # from 0 to 20000 (default: 4) 
+
+# Double stepped cliff from deep sea level to medium world height.
+Cliff (5) Weight: 4
+ # from 0 to 20000 (default: 4) 
+
+
+########################
+## Rough Cliff Values ##
+########################
+
+
+# Double stepped rough cliffs at medium world height.
+Rough Cliff Weight: 1.25
+ # from 0 to 20000 (default: 1.25) 
+
+# Single stepped rough cliffs at medium world height.
+Rough Cliff (1) Weight: 1.3
+ # from 0 to 20000 (default: 1.3) 
+
+# Single stepped rough cliffs at medium world height. (Slight height reduction.)
+Rough Cliff (2) Weight: 2.25
+ # from 0 to 20000 (default: 2.25) 
+
+# Quad stepped rough cliffs from sea level to medium world height.
+Rough Cliff (3) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Tri-stepped rough cliffs from below sea level to medium world height.
+Rough Cliff (4) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Double stepped rough cliffs from deep sea level to medium world height.
+Rough Cliff (5) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+
+###################
+## Canyon Values ##
+###################
+
+
+# Dual stepped canyons from medium world height to near max height.
+Canyon Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Dual stepped canyons from medium world height to near max height. (Steeper steps.)
+Canyon (1) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Tri-stepped canyons from medium world height to near max height.
+Canyon (2) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Dual stepped canyons from medium world height to near max height. (Slight height reduction.)
+Canyon (3) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Single step canyons from medium world height to near max height. (Slight height reduction.)
+Canyon (4) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Tri-stepped canyons from medium world height to near max height. (Slight height reduction.)
+Canyon (5) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Double stepped canyons from medium world height to near max height. (Slight height reduction.)
+Canyon (6) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Tri-stepped canyons from medium world height to near max height. (Slight height reduction.)
+Canyon (7) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+# Quad stepped canyons from medium world height to near max height.
+Canyon (8) Weight: 2.5
+ # from 0 to 20000 (default: 2.5) 
+
+
+#################
+## Dune Values ##
+#################
+
+
+# Dunes from above sea level to below medium world height.
+Dune Weight: 2500
+ # from 0 to 20000 (default: 2500) 
+
+
+###################
+## Pillar Values ##
+###################
+
+
+# Dual stepped pillars from slightly above sea level to slightly below medium world height.
+Pillar Weight: 15
+ # from 0 to 20000 (default: 15) 
+
+
+#####################
+## Crevasse Values ##
+#####################
+
+
+# Crevasses from slightly below sea level to slightly below medium world height.
+Crevasse Weight: 20000
+ # from 0 to 20000 (default: 20000) 

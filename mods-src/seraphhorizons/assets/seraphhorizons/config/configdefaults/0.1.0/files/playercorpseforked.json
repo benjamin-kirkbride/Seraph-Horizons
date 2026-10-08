@@ -1,0 +1,19 @@
+{
+  "CanFired": false,
+  "HasHealth": false,
+  "CreateCorpse": true,
+  "SaveInventoryTypes": [
+    "hotbar",
+    "backpack",
+    "craftinggrid",
+    "mouse",
+    "character"
+  ],
+  "NeedPrivilegeForReturnThings": "gamemode",
+  "MaxDeathContentSavedPerPlayer": 10,
+  "DebugMode": false,
+  "FreeCorpseAfterTime": 240,
+  "CorpseCollectionTime": 1.0,
+  "CorpseCompassEnabled": true,
+  "DropArmorOnDeath": "Vanilla"
+}

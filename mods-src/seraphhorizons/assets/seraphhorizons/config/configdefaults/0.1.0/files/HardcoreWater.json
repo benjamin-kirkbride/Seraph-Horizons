@@ -1,0 +1,5 @@
+{
+  "AqueductUpdateFrequencySeconds": 0.75,
+  "UnresolvedOwnerFallbackMode": 0,
+  "EnableAqueductRapids": true
+}

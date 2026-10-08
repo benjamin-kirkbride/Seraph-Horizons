@@ -1,0 +1,14 @@
+{
+  "tOneSprinklerRange": 2,
+  "tTwoSprinklerRange": 4,
+  "tThreeSprinklerRange": 6,
+  "tFourSprinklerRange": 8,
+  "tOneSprinklerVolume": 200,
+  "tTwoSprinklerVolume": 400,
+  "tThreeSprinklerVolume": 600,
+  "tFourSprinklerVolume": 1000,
+  "waterConsumption": 1,
+  "minIntervalInMillis": 10000,
+  "minActivationThreshold": 0.85,
+  "maxActivationThreshold": 0.95
+}

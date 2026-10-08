@@ -1,0 +1,958 @@
+{
+  "creatures": {
+    "drifter-normal": {
+      "entityAsset": "game:entities/lore/drifter.json",
+      "lootTable": "*-normal",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.01,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flint",
+          "avg": 0.06,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "clay-red",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.01,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.2,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-copper",
+          "avg": 0.3,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stone-limestone",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:cattailtops",
+          "avg": 0.15,
+          "var": 0.0
+        }
+      ]
+    },
+    "drifter-deep": {
+      "entityAsset": "game:entities/lore/drifter.json",
+      "lootTable": "*-deep",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.04,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stone-obsidian",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:salt",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "clay-blue",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.08,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.5,
+          "var": 0.0
+        },
+        {
+          "type": "block",
+          "code": "game:metal-scraps",
+          "avg": 0.2,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 1.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-tin",
+          "avg": 0.5,
+          "var": 0.0
+        }
+      ]
+    },
+    "drifter-tainted": {
+      "entityAsset": "game:entities/lore/drifter.json",
+      "lootTable": "*-tainted",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.05,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.09,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "clay-fire",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.9,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 1.5,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-bismuthbronze",
+          "avg": 0.8,
+          "var": 0.0
+        }
+      ]
+    },
+    "drifter-corrupt": {
+      "entityAsset": "game:entities/lore/drifter.json",
+      "lootTable": "*-corrupt",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.08,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.25,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "clay-fire",
+          "avg": 0.4,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 0.8,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 2.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-iron",
+          "avg": 1.0,
+          "var": 0.5
+        }
+      ]
+    },
+    "drifter-nightmare": {
+      "entityAsset": "game:entities/lore/drifter.json",
+      "lootTable": "*-nightmare",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.5,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.4,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 1.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 3.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-iron",
+          "avg": 3.0,
+          "var": 0.5
+        },
+        {
+          "type": "item",
+          "code": "stackrandomizer-alljonas",
+          "avg": 0.3,
+          "var": 0.0
+        }
+      ]
+    },
+    "drifter-double-headed": {
+      "entityAsset": "game:entities/lore/drifter.json",
+      "lootTable": "*-double-headed",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 2.0,
+          "var": 0.4
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 7.0,
+          "var": 2.5,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 2.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-gold",
+          "avg": 2.0,
+          "var": 0.7
+        },
+        {
+          "type": "item",
+          "code": "stackrandomizer-alljonas",
+          "avg": 0.5,
+          "var": 0.0
+        }
+      ]
+    },
+    "shiver-surface": {
+      "entityAsset": "game:entities/lore/shiver.json",
+      "lootTable": "*-surface",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.015,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flint",
+          "avg": 0.06,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "clay-red",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.01,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.2,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-copper",
+          "avg": 0.3,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stone-limestone",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:cattailtops",
+          "avg": 0.15,
+          "var": 0.0
+        }
+      ]
+    },
+    "shiver-deep": {
+      "entityAsset": "game:entities/lore/shiver.json",
+      "lootTable": "*-deep",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.04,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stone-obsidian",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:salt",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "clay-blue",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.08,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.5,
+          "var": 0.0
+        },
+        {
+          "type": "block",
+          "code": "game:metal-scraps",
+          "avg": 0.2,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 1.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-tin",
+          "avg": 0.5,
+          "var": 0.0
+        }
+      ]
+    },
+    "shiver-tainted": {
+      "entityAsset": "game:entities/lore/shiver.json",
+      "lootTable": "*-tainted",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.05,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.09,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "clay-fire",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.9,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 1.5,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-bismuthbronze",
+          "avg": 0.8,
+          "var": 0.0
+        }
+      ]
+    },
+    "shiver-corrupt": {
+      "entityAsset": "game:entities/lore/shiver.json",
+      "lootTable": "*-corrupt",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.08,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.25,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "clay-fire",
+          "avg": 0.4,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 0.8,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 2.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-iron",
+          "avg": 1.0,
+          "var": 0.5
+        }
+      ]
+    },
+    "shiver-nightmare": {
+      "entityAsset": "game:entities/lore/shiver.json",
+      "lootTable": "*-nightmare",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.5,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.4,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 1.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 3.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-gold",
+          "avg": 1.0,
+          "var": 0.5
+        },
+        {
+          "type": "item",
+          "code": "stackrandomizer-alljonas",
+          "avg": 0.3,
+          "var": 0.0
+        }
+      ]
+    },
+    "shiver-other": {
+      "entityAsset": "game:entities/lore/shiver.json",
+      "lootTable": "*",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 2.0,
+          "var": 0.4
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 7.0,
+          "var": 2.5,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 2.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-gold",
+          "avg": 2.0,
+          "var": 0.7
+        },
+        {
+          "type": "item",
+          "code": "stackrandomizer-alljonas",
+          "avg": 0.7,
+          "var": 0.0
+        }
+      ]
+    },
+    "bowtorn-surface": {
+      "entityAsset": "game:entities/lore/bowtorn.json",
+      "lootTable": "*-surface",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.015,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flint",
+          "avg": 0.06,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "clay-red",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.01,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.2,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-copper",
+          "avg": 0.3,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stone-limestone",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:cattailtops",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "arrow-bone",
+          "avg": 0.9,
+          "var": 0.0
+        }
+      ]
+    },
+    "bowtorn-deep": {
+      "entityAsset": "game:entities/lore/bowtorn.json",
+      "lootTable": "*-deep",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.04,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stone-obsidian",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:salt",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "clay-blue",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.08,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.5,
+          "var": 0.0
+        },
+        {
+          "type": "block",
+          "code": "game:metal-scraps",
+          "avg": 0.2,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 1.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-tin",
+          "avg": 0.5,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "arrow-bone",
+          "avg": 1.3,
+          "var": 0.0
+        }
+      ]
+    },
+    "bowtorn-tainted": {
+      "entityAsset": "game:entities/lore/bowtorn.json",
+      "lootTable": "*-tainted",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.05,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.09,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "clay-fire",
+          "avg": 0.25,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flaxfibers",
+          "avg": 0.9,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 1.5,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-bismuthbronze",
+          "avg": 0.8,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "arrow-bone",
+          "avg": 1.8,
+          "var": 0.0
+        }
+      ]
+    },
+    "bowtorn-corrupt": {
+      "entityAsset": "game:entities/lore/bowtorn.json",
+      "lootTable": "*-corrupt",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.08,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.25,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "clay-fire",
+          "avg": 0.4,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 0.8,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 2.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:stick",
+          "avg": 0.15,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-iron",
+          "avg": 1.0,
+          "var": 0.5
+        },
+        {
+          "type": "item",
+          "code": "arrow-bone",
+          "avg": 2.3,
+          "var": 0.0
+        }
+      ]
+    },
+    "bowtorn-nightmare": {
+      "entityAsset": "game:entities/lore/bowtorn.json",
+      "lootTable": "*-nightmare",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 0.5,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 0.4,
+          "var": 0.0,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 1.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "betterloot:gearpart",
+          "avg": 3.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-gold",
+          "avg": 1.0,
+          "var": 0.5
+        },
+        {
+          "type": "item",
+          "code": "arrow-bone",
+          "avg": 3.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "stackrandomizer-alljonas",
+          "avg": 0.3,
+          "var": 0.0
+        }
+      ]
+    },
+    "bowtorn-gearfoot": {
+      "entityAsset": "game:entities/lore/bowtorn.json",
+      "lootTable": "*-gearfoot",
+      "drops": [
+        {
+          "type": "item",
+          "code": "gear-temporal",
+          "avg": 2.0,
+          "var": 0.4
+        },
+        {
+          "type": "item",
+          "code": "gear-rusty",
+          "avg": 7.0,
+          "var": 2.5,
+          "dropModByStat": "rustyGearDropRate"
+        },
+        {
+          "type": "item",
+          "code": "flaxtwine",
+          "avg": 2.0,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "game:metalbit-gold",
+          "avg": 2.0,
+          "var": 0.7
+        },
+        {
+          "type": "item",
+          "code": "stackrandomizer-alljonas",
+          "avg": 0.6,
+          "var": 0.0
+        },
+        {
+          "type": "item",
+          "code": "arrow-bone",
+          "avg": 3.0,
+          "var": 0.0
+        }
+      ]
+    }
+  }
+}
