@@ -124,7 +124,7 @@ public class MapsSystem : ModSystem
         Active = true;
         api.Logger.Notification("[seraphhorizons] Trader maps: on (ore maps within {0}, gravel maps within {1}, camp leads {2})",
             Prices.OreRadius, Prices.GravelRadius,
-            string.Join(", ", Prices.CampLeads.Tiers.Select(t => $"{t.Key} {t.Value.Maps} within {t.Value.Radius}")));
+            string.Join(", ", Prices.CampLeads.Tiers.Select(t => $"{t.Key} {t.Value.Maps} within {t.Value.Reach} rings")));
     }
 
     private void LoadLeads()
@@ -433,14 +433,49 @@ public class MapsSystem : ModSystem
     };
 
     /// <summary>A buyer's camp leads at a trader: the offers with prices, why there are none, what the
-    /// picker knew of them, the trader's id and how far it looked.</summary>
-    public sealed record CampLeadView(List<CampLeadOffer> Offers, CampLeadsWhy Why, LeadBuyer Buyer, string TraderId, int Reach);
+    /// picker knew of them, the trader's id, how many rings out it looked, and whether the player has
+    /// had their very first map.</summary>
+    public sealed record CampLeadView(List<CampLeadOffer> Offers, CampLeadsWhy Why, LeadBuyer Buyer, string TraderId, int Reach, bool PityUsed);
+
+    /// <summary>The <c>Code</c> a buy of the pity map names (its camp is settled when bought, so it is
+    /// not named by cell).</summary>
+    public const string PityCode = "pity";
+
+    /// <summary>The camps a player has: marked on their map (<see cref="MapMarksSystem.MarkedKeys"/>),
+    /// carried as a lead (<see cref="MapMarksSystem.Held"/>) or being drawn for them.</summary>
+    private HashSet<CellKey> CampsHad(IPlayer player)
+    {
+        var have = new HashSet<CellKey>();
+        var targets = (MapMarksSystem.Of(_sapi!)?.MarkedKeys(player) ?? []).Concat(MapMarksSystem.Held(player).Select(t => t.Key));
+        foreach (string key in targets)
+            if (CampCell(key) is { } c) have.Add(c);
+        foreach (var (u, c) in _drawing)
+            if (u == player.PlayerUID) have.Add(c);
+        return have;
+    }
+
+    /// <summary>A cell's camp as the picker sees it from a trader at (x, z): its site, ring and
+    /// distance, or null if it can take none.</summary>
+    private CampOption? Option(CellKey own, double x, double z, CellKey cell) =>
+        Site(cell) is { } s ? new CampOption(s.Cell, s.Type, s.X, s.Z, CampLeads.Ring(own, s.Cell), CampLeads.Distance(s.X, s.Z, x, z)) : null;
+
+    /// <summary>The pity map's camp from a trader at (x, z) for a buyer who has <paramref name="have"/>
+    /// (<see cref="PityMap.Target"/>: the nearest seeded prospector cell that can take a camp, else
+    /// the nearest camp of any type, within the pity's reach).</summary>
+    private CampOption? PityTarget(double x, double z, ISet<CellKey> have)
+    {
+        var own = TraderGrid.CellOf((int)x, (int)z);
+        var grid = _trading!.Grid!;
+        return PityMap.Target(own, Prices.CampLeads.Pity.Reach, grid.IsProspector, c => Option(own, x, z, c), have);
+    }
 
     /// <summary>
     /// The camp leads this trader offers the player now (<see cref="CampLeads.Pick"/>): the camps
-    /// they have are those marked on their map (<see cref="MapMarksSystem.MarkedKeys"/>), carried as a
-    /// lead (<see cref="MapMarksSystem.Held"/>) or being drawn for them; the camps their group visited
-    /// and its maps bought here are <see cref="Leads"/>'. Null when maps or the grid are off.
+    /// they have are <see cref="CampsHad"/>; the camps their group visited and its maps bought here
+    /// are <see cref="Leads"/>'. The candidates are the cells within the tier's reach in rings of the
+    /// trader's cell. Their very first map (the pity map) is offered first when they have not had it,
+    /// the trader is not a prospector, nothing of theirs is being drawn and, for a stranger, the
+    /// group's one map from this trader is unspent. Null when maps or the grid are off.
     /// </summary>
     public CampLeadView? CampLeadsFor(IPlayer player, EntitySeraphTrader trader)
     {
@@ -449,47 +484,51 @@ public class MapsSystem : ModSystem
         var keys = KeysOf(uid);
         string traderId = TraderFinder.IdOf(_sapi!, trader);
         string tier = TierCode(player, trader);
-        var have = new HashSet<CellKey>();
-        var targets = (MapMarksSystem.Of(_sapi!)?.MarkedKeys(player) ?? []).Concat(MapMarksSystem.Held(player).Select(t => t.Key));
-        foreach (string key in targets)
-            if (CampCell(key) is { } c) have.Add(c);
-        foreach (var (u, c) in _drawing)
-            if (u == uid) have.Add(c);
+        var have = CampsHad(player);
+        var rules = Prices.CampLeads;
+        bool strangerUsed = Leads.StrangerUsed(keys, traderId);
+        bool pityUsed = Leads.PityUsed(uid);
+        bool pityHere = !pityUsed && trader.TraderType != TraderTypes.Prospector && !_drawing.Any(d => d.Uid == uid)
+                        && !(rules.IsStranger(tier) && strangerUsed);
         var buyer = new LeadBuyer
         {
             Tier = tier, Have = have,
             Visited = Leads.Visited(keys).Select(CampCell).Where(c => c.HasValue).Select(c => c!.Value).ToHashSet(),
-            Bought = Leads.Bought(keys, traderId), StrangerUsed = Leads.StrangerUsed(keys, traderId),
+            Bought = Leads.Bought(keys, traderId), StrangerUsed = strangerUsed,
+            Pity = pityHere ? PityTarget(trader.Pos.X, trader.Pos.Z, have) : null,
         };
-        var rules = Prices.CampLeads;
-        int reach = rules.TierFor(tier)?.Radius ?? rules.StrangerReach;
-        int x = (int)trader.Pos.X, z = (int)trader.Pos.Z;
-        var camps = CampLeads.CellsAround(x, z, reach).Select(Site).Where(s => s.HasValue).Select(s => s!.Value)
-            .Select(s => new CampOption(s.Cell, s.Type, s.X, s.Z, CampLeads.Distance(s.X, s.Z, trader.Pos.X, trader.Pos.Z)))
-            .ToList();
-        var (offers, why) = CampLeads.Pick(rules, TraderGrid.CellOf(x, z), camps, buyer);
-        return new CampLeadView(offers, why, buyer, traderId, reach);
+        int reach = rules.TierFor(tier).Reach;
+        var own = TraderGrid.CellOf((int)trader.Pos.X, (int)trader.Pos.Z);
+        var camps = CampLeads.CellsAround(own, reach).Select(c => Option(own, trader.Pos.X, trader.Pos.Z, c))
+            .Where(o => o.HasValue).Select(o => o!.Value).ToList();
+        var (offers, why) = CampLeads.Pick(rules, own, camps, buyer);
+        return new CampLeadView(offers, why, buyer, traderId, reach, pityUsed);
     }
 
     /// <summary>
-    /// The player buys the camp lead to <paramref name="cellCode"/> from the trader's offers to them
-    /// (at <paramref name="expectPrice"/>, if given): refused, as a lang key and its arguments, when it
-    /// is not on offer at that price, their bags have no room, they lack the gears, or a lead of
-    /// theirs is still being drawn. Paid at once (the trader's wallet takes it, standing counts it as
-    /// a deal); the buyer gets a lead "being drawn" while the cell's camp is settled
-    /// (<see cref="ResolveCamp"/>, generating its next spots as <c>/sh trade tp</c> does), then the
-    /// lead to where it stands, and the group's count here goes up (a stranger's map is spent). A
-    /// cell that places no camp refunds the gears and is skipped from then on, so the next camp takes
-    /// its place on the shelf.
+    /// The player buys the camp lead to <paramref name="cellCode"/> (or their pity map,
+    /// <see cref="PityCode"/>) from the trader's offers to them (at <paramref name="expectPrice"/>, if
+    /// given): refused, as a lang key and its arguments, when it is not on offer at that price, their
+    /// bags have no room, they lack the gears, or a lead of theirs is still being drawn. Paid at once
+    /// (the trader's wallet takes it, standing counts it as a deal); the buyer gets a lead "being
+    /// drawn" while the cell's camp is settled (<see cref="ResolveCamp"/>, generating its next spots
+    /// as <c>/sh trade tp</c> does), then the lead to where it stands, and the group's count here goes
+    /// up (a stranger's map is spent). A cell that places no camp is skipped from then on: a camp lead
+    /// refunds the gears, so the next camp takes its place on offer; the pity map goes on to its next
+    /// target (<see cref="PityTarget"/>: the next-nearest prospector cell, then any camp, out to its
+    /// reach) and refunds only when none places. The pity map spends the stranger's map here, counts
+    /// as a lead bought here, and is the player's own (<see cref="LeadBook.RecordPity"/>).
     /// </summary>
     public (bool Ok, string Key, object[] Args) BuyCampLead(IServerPlayer player, EntitySeraphTrader trader, string? cellCode, int? expectPrice)
     {
         if (CampLeadsFor(player, trader) is not { } view) return (false, "trading-window-off", []);
         string uid = player.PlayerUID;
         if (_drawing.Any(d => d.Uid == uid)) return (false, "trading-maps-error-drawing", []);
-        if (!CellKey.TryParse(cellCode ?? "", out var cell) || view.Offers.FindIndex(o => o.Cell == cell) is var i && i < 0)
-            return (false, WhyKey(view.Why) ?? "trading-window-changed", []);
+        int i = cellCode == PityCode ? view.Offers.FindIndex(o => o.Pity)
+            : CellKey.TryParse(cellCode ?? "", out var named) ? view.Offers.FindIndex(o => o.Cell == named && !o.Pity) : -1;
+        if (i < 0) return (false, WhyKey(view.Why) ?? "trading-window-changed", []);
         var offer = view.Offers[i];
+        var cell = offer.Cell;
         if (expectPrice is int seen && seen != offer.Price) return (false, "trading-window-changed", []);
         if (_sapi!.World.GetItem(ItemTraderLead.LeadCode) is not { } item) return (false, "trading-window-failed", []);
         var stack = new ItemStack(item);
@@ -512,20 +551,48 @@ public class MapsSystem : ModSystem
         if (!player.Entity.TryGiveItemStack(stack)) _sapi.World.SpawnItemEntity(stack, player.Entity.Pos.XYZ);
         var keys = KeysOf(uid);
         string traderId = view.TraderId;
-        bool asStranger = Prices.CampLeads.TierFor(view.Buyer.Tier) is null;
+        bool pity = offer.Pity;
+        // The pity map is the trader's one stranger map too.
+        bool asStranger = pity || Prices.CampLeads.IsStranger(view.Buyer.Tier);
+        double tx = trader.Pos.X, tz = trader.Pos.Z;
         _drawing.Add((uid, cell));
-        SeraphHorizons.Mod.Admin.AdminLogs.Trade?.Write("maps", $"{player.PlayerName} buys a lead at {traderId} to {cell} ({offer.Type}, {offer.Distance:0} m) for {offer.Price}"
+        SeraphHorizons.Mod.Admin.AdminLogs.Trade?.Write("maps", $"{player.PlayerName} buys {(pity ? "their first map" : "a lead")} at {traderId} to {cell}"
+                                             + $" ({offer.Type}, ring {offer.Ring}, {offer.Distance:0} m) for {offer.Price}"
                                              + $" ({view.Buyer.Tier}, {view.Buyer.Bought} bought here before)");
-        ResolveCamp(cell, 0, record =>
+        // Settles the cell; a pity map whose cell places none goes on to its next target (at most
+        // PityTries cells), measured from where the trader stood.
+        void Resolve(CellKey at, int tries)
         {
-            _drawing.Remove((uid, cell));
-            if (record is null) _noCamp.Add(cell);
-            else Leads.RecordBought(keys, traderId, asStranger);
-            Settle(sale, record is null ? null : Lead(LeadKind.Camp, record.Type, record.X, record.Y, record.Z, cell.ToString()));
-        });
+            ResolveCamp(at, 0, record =>
+            {
+                _drawing.Remove((uid, at));
+                if (record is null)
+                {
+                    _noCamp.Add(at);
+                    if (pity && tries < PityTries && _sapi!.World.PlayerByUid(uid) is { } p
+                        && PityTarget(tx, tz, CampsHad(p)) is { } next)
+                    {
+                        _drawing.Add((uid, next.Cell));
+                        Resolve(next.Cell, tries + 1);
+                        return;
+                    }
+                }
+                else
+                {
+                    Leads.RecordBought(keys, traderId, asStranger);
+                    if (pity) Leads.RecordPity(uid);
+                }
+                Settle(sale, record is null ? null : Lead(LeadKind.Camp, record.Type, record.X, record.Y, record.Z, at.ToString()));
+            });
+        }
+        Resolve(cell, 1);
         if (!sale.Done) Tell(player, "trading-maps-checking-lead");
         return (true, "trading-maps-lead-bought", [TraderTitle(player.LanguageCode ?? Lang.DefaultLocale, offer.Type), offer.Price]);
     }
+
+    /// <summary>Cells a pity map tries at most before it refunds (each one whose camp places none is
+    /// skipped for the next-nearest).</summary>
+    public const int PityTries = 16;
 
     // ---- Meeting a trader ----
 

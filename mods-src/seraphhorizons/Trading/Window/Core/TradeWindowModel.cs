@@ -276,10 +276,12 @@ public static class TradeWindowModel
             F(Math.Round(distance)), precision);
 
     /// <summary>A camp lead offered to this player: the camp's type, how far and which way from the
-    /// trader, and the price; the prospector kept for first says so.</summary>
+    /// trader, the price and the ring of cells it is in; the prospector kept for first says so, and
+    /// the player's very first map (the pity map) says it is on the trader.</summary>
     public static Text LeadOfferLine(LeadOfferRow row) =>
-        new(row.Prospector ? "trading-window-lead-offer-prospector" : "trading-window-lead-offer", TypeName(row.Type),
-            F(Math.Round(row.Distance)), Direction(row.Dx, row.Dz), row.Price);
+        new(row.Pity ? row.Prospector ? "trading-window-lead-offer-pity" : "trading-window-lead-offer-pity-any"
+            : row.Prospector ? "trading-window-lead-offer-prospector" : "trading-window-lead-offer", TypeName(row.Type),
+            F(Math.Round(row.Distance)), Direction(row.Dx, row.Dz), row.Price, row.Ring);
 
     /// <summary>Under the camp leads: why there are none, or how buying here raises the next price.</summary>
     public static Text? LeadOffersNote(TradeWindowState state) =>
@@ -312,8 +314,9 @@ public static class TradeWindowModel
         if (sw.Maps)
         {
             facts.Add(new Text("trading-window-fact-maps", t.MapPrecision));
-            facts.Add(t.LeadMaps > 0 ? new Text("trading-window-fact-leads", t.LeadMaps, F(Math.Round(t.LeadRadius / 1000.0, 1)))
-                : new Text("trading-window-fact-leads-stranger"));
+            facts.Add(t.LeadMaps <= 0 ? new Text("trading-window-fact-leads-stranger")
+                : t.LeadReach <= 1 ? new Text("trading-window-fact-leads-one", t.LeadMaps)
+                : new Text("trading-window-fact-leads", t.LeadMaps, t.LeadReach));
             if (u.MapsToTraders) facts.Add(new Text("trading-window-fact-settlement"));
         }
         if (u.RareStock) facts.Add(new Text("trading-window-fact-rare"));

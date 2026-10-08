@@ -86,7 +86,7 @@ public class MapOfferTests
         Assert.Contains(problems, p => p.Contains("unsurveyed"));
         Assert.Contains(problems, p => p.Contains("'small' has 2 prices"));
         Assert.Contains(problems, p => p.Contains("settlement"));
-        Assert.Contains(problems, p => p.Contains("campLeads has no tiers"));
+        Assert.Contains(problems, p => p.Contains("campLeads has no 'stranger' tier"));
     }
 
     [Fact]

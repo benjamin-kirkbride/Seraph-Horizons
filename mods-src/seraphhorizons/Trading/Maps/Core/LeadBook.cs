@@ -4,12 +4,14 @@ using System.Text.Json.Serialization;
 namespace SeraphHorizons.Mod.Trading.Maps.Core;
 
 /// <summary>One group's lead history: maps bought per trader (never decays), the traders that sold
-/// it its stranger's map, and the camps it has visited (met the trader at).</summary>
+/// it its stranger's map, and the camps it has visited (met the trader at). On a player's own key
+/// only, whether they have had their very first map (the pity map, since version 2).</summary>
 public sealed class GroupLeads
 {
     [JsonPropertyName("bought")] public Dictionary<string, int> Bought { get; set; } = new();
     [JsonPropertyName("strangerMaps")] public HashSet<string> StrangerMaps { get; set; } = new();
     [JsonPropertyName("visited")] public HashSet<string> Visited { get; set; } = new();
+    [JsonPropertyName("pityMap")] public bool PityMap { get; set; }
 }
 
 /// <summary>
@@ -18,11 +20,14 @@ public sealed class GroupLeads
 /// (<c>player:&lt;uid&gt;</c>). As standing pools by company, every write goes to the player's own
 /// key and their company's, and a read takes the most of them: the higher count, a stranger's map
 /// had by either, the camps visited by either. So leaving a company keeps what the player did, and
-/// joining one does not wipe the slate.
+/// joining one does not wipe the slate. The pity map (a player's very first map) is the player's
+/// alone, kept on their own key only: every new company member gets their own.
+///
+/// Versions: 1 (#615) had no pity map; read as version 2, every player in it has not had theirs yet.
 /// </summary>
 public sealed class LeadBook
 {
-    public const int Version = 1;
+    public const int Version = 2;
 
     [JsonPropertyName("version")] public int SavedVersion { get; set; } = Version;
     [JsonPropertyName("groups")] public Dictionary<string, GroupLeads> Groups { get; set; } = new();
@@ -65,6 +70,13 @@ public sealed class LeadBook
         }
     }
 
+    /// <summary>Whether the player has had their very first map (their own key only, never the
+    /// company's).</summary>
+    public bool PityUsed(string uid) => Get(PlayerKey(uid))?.PityMap == true;
+
+    /// <summary>The player has had their very first map.</summary>
+    public void RecordPity(string uid) => GetOrAdd(PlayerKey(uid)).PityMap = true;
+
     /// <summary>The group met the trader of camp <paramref name="camp"/>; whether that is new.</summary>
     public bool RecordVisit(IEnumerable<string> keys, string camp)
     {
@@ -75,8 +87,8 @@ public sealed class LeadBook
 
     public string ToJson() => JsonSerializer.Serialize(this);
 
-    /// <summary>Reads a saved book. A newer version than this code knows starts empty (with the reason
-    /// for the log), as does nothing saved.</summary>
+    /// <summary>Reads a saved book, migrating an older version (<see cref="Migrate"/>). A newer version
+    /// than this code knows starts empty (with the reason for the log), as does nothing saved.</summary>
     public static LeadBook FromJson(string? json, out string? problem)
     {
         problem = null;
@@ -87,7 +99,18 @@ public sealed class LeadBook
             problem = $"saved as version {book.SavedVersion}, newer than {Version}";
             return new LeadBook();
         }
-        book.SavedVersion = Version;
+        Migrate(book);
         return book;
+    }
+
+    /// <summary>Brings a book read from an older version up to <see cref="Version"/>. 1 to 2: the pity
+    /// map is new, so nobody in a version 1 book has had theirs (<see cref="GroupLeads.PityMap"/>
+    /// false); the rest reads as it was.</summary>
+    public static void Migrate(LeadBook book)
+    {
+        if (book.SavedVersion < 2)
+            foreach (var g in book.Groups.Values)
+                g.PityMap = false;
+        book.SavedVersion = Version;
     }
 }

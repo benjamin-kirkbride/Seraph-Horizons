@@ -1157,32 +1157,76 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   cheaper than buying the whole map from one). Per buyer, so off the shelf: the shared shelf has 16
   slots, is stocked with no buyer, and a partner's eight would have crowded out the goods.
   `MapsSystem.CampLeadsFor(player, trader)` builds a `LeadBuyer` and asks `CampLeads.Pick`:
-  - *Candidates*: every grid cell whose camp could be within the tier's radius
-    (`CampLeads.CellsAround`, one cell more than the reach), its site from the registry (the placed
-    camp, else the spot it waits for next; cells with no spot left, and cells a sale found no camp
-    in, `_noCamp`, are skipped), distance from the trader. The trader's own cell never.
+  - *Rings*: distance is in rings of grid cells, `CampLeads.Ring` (Chebyshev between cells, so a
+    diagonal neighbour is ring 1), from the selling trader's cell to the camp's. Reach and price
+    both use it, so both are known before the camp generates and a price never changes when the
+    camp settles (under #615 the price followed the distance to the spot the camp waited for, and
+    moved when it settled elsewhere in the cell). Within a ring, nearest is by distance to the site.
+  - *Candidates*: every grid cell within the tier's reach in rings (`CampLeads.CellsAround`), its
+    site from the registry (the placed camp, else the spot it waits for next; cells with no spot
+    left, and cells a sale found no camp in, `_noCamp`, are skipped). The trader's own cell never.
   - *Have*: the camps the buyer has, `camp:x,z` targets with a remembered live marker at any
     precision (`MapMarksSystem.MarkedKeys`), carried as a lead (`MapMarksSystem.Held`, pending
     ones included) or being drawn for them (`_drawing`).
-  - *Tiers* (`map-prices.json` `campLeads.tiers`, by standing tier code; standing off is a
-    stranger): known 2 within 3 km, regular 3 within 5, trusted 5 within 8, partner 8 within 12, the
-    nearest they lack; if they have no prospector within the radius, the first slot is the nearest
-    prospector they lack there (`CampLeadOffer.Prospector`). Recomputed every time, so a lead bought
-    is "had" and the next-nearest fills the slot.
-  - *A stranger* (a tier not listed): one lead per trader per group, ever (`GroupLeads.StrangerMaps`),
-    to the nearest camp they lack that the group has not visited (`GroupLeads.Visited`, fed by
-    `EntitySeraphTrader.Met` through `MapsSystem.OnMet` for grid camps), within `strangerReach`
-    (8 km). So they chain from camp to camp and cannot map a region from one trader.
-  - *Price* (`CampLeadRules.Price`): `base` 2 × 2^(distance / `doublingDistance` 2500) ×
-    `perBought` 2 ^ (leads the group bought from this trader, `GroupLeads.Bought`, never reset) ×
-    the tier's discount (0.85, 0.7, 0.55, 0.4), rounded, at least 1. The discount replaces
-    standing's buy price factor (the economy's modifiers are not applied): one factor for one
-    thing, set where the rest of the lead's price is.
-  - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector),
-    `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab lists them under
-    the shelf's offers with a Buy button (`TradeAction.BuyLead`, the cell as `Code`, the price seen
-    as `Price`). The Standing tab's tier lines say "maps to n traders within r km"
-    (`TierView.LeadMaps`, `LeadRadius`) or, for a stranger, "one map onward".
+  - *Tiers* (`map-prices.json` `campLeads.tiers`, by standing tier code, the stranger's included;
+    a code not listed, or standing off, is a stranger): known 2 within 1 ring, regular 3 within 2,
+    trusted 5 within 3, partner 8 within 5, the nearest they lack; if they have no prospector within
+    reach, the first slot is the nearest prospector they lack there (`CampLeadOffer.Prospector`).
+    Recomputed every time, so a lead bought is "had" and the next-nearest fills the slot.
+  - *A stranger*: one lead per trader per group, ever (`GroupLeads.StrangerMaps`), to the nearest
+    camp in ring 1 they lack that the group has not visited (`GroupLeads.Visited`, fed by
+    `EntitySeraphTrader.Met` through `MapsSystem.OnMet` for grid camps); a ring 1 all marked or
+    visited leaves that trader with no map for them. So they chain from camp to camp and cannot map
+    a region from one trader.
+  - *Price* (`CampLeadRules.Price`): `round(base × D × R × discount)`, at least 1 gear, where
+    D = 1 + `distanceCurve` × ease × ln(1 + ring) and R = 1 + `repeatCurve` × ease × ln(1 + n), n
+    the leads the group bought from this trader (`GroupLeads.Bought`, never reset). `base` 12,
+    `distanceCurve` 1.5, `repeatCurve` 3; ease and discount by tier: stranger 1 and 1, known 0.85
+    and 0.85, regular 0.7 and 0.7, trusted 0.6 and 0.55, partner 0.5 and 0.4. Both fall with
+    standing, so for the same ring and n a better tier never pays more (a unit test holds this over
+    rings 0–10 and n 0–40). The log curves replace #615's doubling per 2.5 km and per lead bought,
+    which reached thousands of gears for a partner's eighth lead. The discount replaces standing's
+    buy price factor (the economy's modifiers are not applied): one factor for one thing, set where
+    the rest of the lead's price is.
+
+    | Buyer | Ring | n | D | R | Price |
+    |---|---|---|---|---|---|
+    | stranger | 1 | 0 | 2.04 | 1 | 24 |
+    | known | 1 | 0 | 1.88 | 1 | 19 |
+    | known | 1 | 1 | 1.88 | 2.77 | 53 |
+    | regular | 2 | 0 | 2.15 | 1 | 18 |
+    | regular | 2 | 4 | 2.15 | 4.38 | 79 |
+    | trusted | 3 | 0 | 2.25 | 1 | 15 |
+    | trusted | 3 | 9 | 2.25 | 5.14 | 76 |
+    | partner | 5 | 0 | 2.34 | 1 | 11 |
+    | partner | 5 | 12 | 2.34 | 4.85 | 55 |
+  - *The pity map* (a player's very first map, `campLeads.pity`: `price` 10, `reach` 10 rings): a
+    flat 10 gears, to a prospector. Offered by every trader but a prospector, first on the tab, while
+    the player has not had it (`LeadBook.PityUsed`), nothing of theirs is being drawn, and, for a
+    stranger, the group's stranger map from this trader is unspent. Its camp (`PityMap.Target`): the
+    nearest seeded prospector cell (`TraderGrid.IsProspector`; the lattice puts one within ring 2 of
+    every cell) to the selling trader, ring by ring, that the buyer lacks and that can take a camp
+    or has one (`Site`: placed, or a spot left; Failed and Open cells can't); none out to ring 10,
+    the nearest camp of any type that exists or can be placed. A cell's seeded type is never
+    changed: the search only chooses among cells as seeded. To a stranger it is the trader's only
+    offer; from known up the tier's offers follow it (its camp left out of them). The buy names
+    `pity` as its `Code` (`MapsSystem.PityCode`), not the cell: `ResolveCamp` settles its cell, and
+    if that places none the cell joins `_noCamp` and the next target is settled, from where the
+    trader stood (at most `PityTries`, 16 cells), a refund only when none places. Placed: it counts
+    as a lead bought here and spends this trader's stranger map (`RecordBought(asStranger: true)`
+    whatever the tier), and the player's pity is spent (`RecordPity`). Being a lead like any other,
+    its prospector is had from then on and not offered again; it doesn't hold the prospector-first
+    slot, which still goes to a prospector in reach while the buyer has none marked there. It
+    measures from the selling trader, so it is the same wherever a player spawns. Two players buying
+    at once are safe: buys run on the server thread, the registry (`CampRegistry`) is locked, and a
+    cell settled for both leads both to the one camp.
+  - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector,
+    ring, pity), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab
+    lists them under the shelf's offers with a Buy button (`TradeAction.BuyLead`, the cell, or
+    `pity`, as `Code`, the price seen as `Price`). A lead's line names its ring; the pity map's
+    reads "First map's on me: 10 g to the nearest prospector, ... blocks ...". The Standing tab's
+    tier lines say "maps to n traders within r rings" (`TierView.LeadMaps`, `LeadReach`) or, for a
+    stranger, "one map onward, to the nearest trader you haven't found within 1 ring".
   - *The buy* (`MapsSystem.BuyCampLead`): refused, nothing taken, when the cell is not among the
     buyer's offers at that price (the why key, or `trading-window-changed`), one of theirs is still
     being drawn, their bags have no room (`TradeWindowSystem.HasRoom`) or they lack the gears. Paid
@@ -1191,15 +1235,20 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     `ResolveCamp` (its next spots' chunks loaded until the camp is placed or none is left, as
     `/sh trade tp` does). Placed: the group's count here goes up (and a stranger's lead is spent),
     and the pending lead becomes the lead to where the camp stands. None: the gears come back from
-    the trader, the cell joins `_noCamp` (for the server's run) and the next camp takes its place.
-  - *Saved* (`LeadBook`, savegame key `seraphhorizons:leads`, `{"version": 1, "groups": {...}}`):
+    the trader, the cell joins `_noCamp` (for the server's run) and the next camp takes its place
+    (the pity map goes on to its next target first, above).
+  - *Saved* (`LeadBook`, savegame key `seraphhorizons:leads`, `{"version": 2, "groups": {...}}`):
     per group key `player:<uid>` and `company:<group uid>` (standing's company), maps bought per
-    trader id, traders that sold the stranger's lead, camps visited. Written to the player's key and
-    their company's, read as the most of them (the higher count, either's stranger lead, the union
-    of visits), as standing pools. A newer version than the code knows, or a save that does not
-    parse, starts empty with a warning; a world from before has none.
-  - *Admin*: `/sh trade leads [player] [trader]`, the history per group key and the trader's offers
-    to the player with prices (`--json` too).
+    trader id, traders that sold the stranger's lead, camps visited, and on the player's own key
+    only `pityMap` (their first map had). Written to the player's key and their company's, read as
+    the most of them (the higher count, either's stranger lead, the union of visits), as standing
+    pools; the pity is read from the player's key alone, so a new company member gets their own. A
+    version 1 save (#615) migrates (`LeadBook.Migrate`): nobody in it has had their first map. A
+    newer version than the code knows, or a save that does not parse, starts empty with a warning; a
+    world from before has none.
+  - *Admin*: `/sh trade leads [player] [trader]`, the history per group key, whether the player has
+    had their first map, and the trader's offers to the player with ring and price, the first map
+    marked (`--json` too: `pityUsed`, `reach`, and per offer `ring` and `pity`).
   - Leads of the old kinds (`prospector`, `far`) in players' bags still read; old camp lead offers
     left on a shelf until its next restock show sold out and are refused.
 - **Per player.** At a restock offers are priced for nobody (precision 1). When the trading player
