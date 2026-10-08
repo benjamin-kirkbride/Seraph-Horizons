@@ -1247,10 +1247,14 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
   double), and the draw bench per pipe section drawn.
 - **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
-  an empty one 0, not -0), and while dry its load on the shaft now against the load it takes oiled
-  (`Dry: a load of 0.51 on its shaft, 3× the 0.17 it takes oiled`). The load is what the shaft last
-  asked of the machine (`OilState.Load`, set in every `GetResistance`; the server syncs it when it
-  changes), so until the network has asked once the line only gives the multiplier. The handbook has a page of its own, "Oiling
+  an empty one 0, not -0), then the load on its shaft: oiled `Load: 17 kN`, and while dry the load
+  now against the load it takes oiled (`Dry: a load of 51 kN on its shaft, 3× the 17 kN it takes
+  oiled`). The load is what the shaft last asked of the machine (`OilState.Load`, set in every
+  `GetResistance`; the server syncs it when it changes), so until the network has asked once there
+  is no load line, and the dry line only gives the multiplier. kN is the game's own scale
+  (`OilText.KiloNewtonsPerUnit`): its creative rotor shows its torque times 100 as `Torque: {0} kN`
+  (its windmill's sails line about the same), and a load is in the same units as a torque. The game
+  shows whole kN; `OilText.Load` keeps one place, so a 0.005 frame load reads 0.5 kN, not 0. The handbook has a page of its own, "Oiling
   machines" (`config/handbook/machineoil.json`): which machines, which oils, what dry means and how
   long a tank lasts. Its text quotes the default settings.
 
@@ -1741,7 +1745,8 @@ was. With MachineOil off there is no tank and the kit wears at its base. Steady 
 kit cuts 50 small gears; cut from full without topping up (the tank falling 10 a gear) about 40. A
 dry cutter smokes while it cuts. The block info shows the next stage, the master, the kit's
 durability and about how many gears it has left at this fill, the cut's teeth, MachineOil's oil
-line (without its dry-load line) and the wear multiplier, or that the next gear breaks the kit.
+line with its load, the same oiled or dry (never the dry line: `Oil.Asked` with `dryLoad: false`
+records it unmultiplied) and the wear multiplier, or that the next gear breaks the kit.
 
 **Drawn.** The block draws `gearcutter_frame.json`; the renderer splits `gearcutter.json` by element
 name into the rig's parts and draws each whose `requires` is fitted: the cover always, a blank's
