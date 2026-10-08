@@ -133,7 +133,7 @@ LIFT = HANG0 - HANG1                         # how far the section's centre rise
 
 # ---------------------------------------------------------------- the cycle (t = W, one hollow)
 T_FORGE = (0.0, 1.0)                         # closes from 8 to 6 across and stretches from 8 to 16, evenly, the whole work
-BLOWS = {"thin": 6.0, "thick": 9.0}          # the pace: blows a hollow
+BLOWS = {"thin": 9.0, "thick": 14.0}          # the pace: blows a hollow
 
 METALS = (("thin", "l", "lead", "hollowlead"), ("thick", "c", "copper", "hollowcopper"))
 # a ring's walls and corner bars: (name, x direction to the axis, y direction to the axis)
@@ -223,9 +223,43 @@ def ring_side(side):
     return spans[side]
 
 
+# The work's banding: every ring's faces seen along the length take their UVs from one sheet running the
+# length of the work, each ring's continuing where the one before it ends, so no ring repeats the texture's
+# first strip. A ring is rigid and slides, so the sheet can match from ring to ring at one W only; between
+# two rings the texture is off by 4 texture units a voxel times how far their spacing has moved since that
+# W. Mapped by W_BAND = 0.5, the middle of the stretch, the offset at rest and at W 1 is half the one a
+# mapping by either end leaves at the other (under 0.6 voxels, about a pixel of the 32-pixel sheet).
+W_BAND = 0.5
+
+
+def band_z(i):
+    """Ring i's start on the sheet (in voxels from the work's near end): its place at W_BAND."""
+    return ring_z(i)[0] + W_BAND * stretch(i) - Z0
+
+
+def band(el, i, x0, x1, y0, y1, z0, z1):
+    """Ring i's element at rest (section frame x, y; z along the axis): the faces running along the axis take
+    their UVs from the work's one sheet, along it by the ring's place at W_BAND, across it by the place in the
+    cross-section, so walls and corner bars meet without a seam. Directions are the game's (CubeMeshUtil):
+    up and down run v with +z; west runs u with +z, east against it (mirrored, so it reads on the same way);
+    up runs u with +x, down against it; east and west run v down from the top. The end faces keep `skin`'s."""
+    k = TEX / 16
+    t0, t1 = k * (band_z(i) + z0 - ring_z(i)[0]), k * (band_z(i) + z1 - ring_z(i)[0])
+    mt = k * (band_z(N_RINGS - 1) + RING_L)          # the sheet's far end: east faces count back from it
+    tex = el.faces["up"]["texture"]
+    across_x = (k * (x0 + OUT), k * (x1 + OUT))
+    down_x = (k * (OUT - x1), k * (OUT - x0))
+    across_y = (k * (OUT - y1), k * (OUT - y0))
+    el.faces["up"] = {"texture": tex, "uv": [across_x[0], t0, across_x[1], t1]}
+    el.faces["down"] = {"texture": tex, "uv": [down_x[0], t0, down_x[1], t1]}
+    el.faces["west"] = {"texture": tex, "uv": [t0, across_y[0], t1, across_y[1]]}
+    el.faces["east"] = {"texture": tex, "uv": [mt - t1, across_y[0], mt - t0, across_y[1]]}
+    return el
+
+
 def build_work():
     """For each metal: the box as N_RINGS overlapping rings of four walls and four corner bars each, on the
-    mandrel against the shoulder."""
+    mandrel against the shoulder, banded as one sheet along the work (`band`)."""
     out = []
     for _cls, pre, tex, _req in METALS:
         for i in range(N_RINGS):
@@ -234,7 +268,8 @@ def build_work():
                 (x0, x1), (y0, y1) = ring_side(s)
                 kind = "wall" if len(s) == 1 else "bar"
                 cut = (0.0 if s in ("u", "d") else RECESS) if kind == "wall" else 2 * RECESS
-                out.append(section_box(x0, x1, y0, y1, z0 + cut, z1 - cut, f"{pre}{i + 1}{s}_{kind}", f"{pre}{i + 1}{s}", tex))
+                el = section_box(x0, x1, y0, y1, z0 + cut, z1 - cut, f"{pre}{i + 1}{s}_{kind}", f"{pre}{i + 1}{s}", tex)
+                out.append(band(el, i, x0, x1, y0, y1, z0 + cut, z1 - cut))
     return out
 
 

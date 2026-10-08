@@ -1932,8 +1932,8 @@ valves stay as blocks, so those already placed keep working, but nothing makes t
   still makes chutes), and the handbook and the machines' text call it the tube blank. The game's chutes take
   `chutesection-copper` by name, so lead makes no chute.
 - The **pipe section**, `seraphhorizons:pipesection-{copper,lead,iron,steel}` ("Copper pipe
-  section"): a square tube 6 voxels across (ppex's pipe is 6/16 wide) with 1-voxel walls, half a block
-  long (`shapes/item/pipesection.json`), textured as ppex's pipes are
+  section"): ppex's straight pipe's tube, 6 voxels across (6/16 wide) with 1-voxel walls round a 4 x 4
+  bore, a block long (`shapes/item/pipesection.json`), textured as ppex's pipes are
   (`game:block/metal/sheet-plain/{metal}4`). No grid or anvil recipe makes it: copper and lead ones
   come from a chute section on the mandrel station (2) or the draw bench (4), iron and steel ones from
   smex's canal in the pipe mold (`CastPipes`, 2 a fill of 100 units).
@@ -2195,8 +2195,8 @@ the die end (native north), one at a time while the shaft turns; an ingot, an an
 (what comes off) is never taken.
 **The die decides the metal:** an iron die draws lead only, a steel die lead and copper (`DieMetals`);
 copper on an iron die is refused with a message. The draw needs the shaft at `MinSpeed` and advances W,
-the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (7.72) turns for lead, the
-fast gear, and `TurnsPerSectionCopper` (15.45) for copper. Each time W passes 1, 2, 3 and 4 a pipe section
+the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (2.06) turns for lead, the
+fast gear, and `TurnsPerSectionCopper` (4.12) for copper. Each time W passes 1, 2, 3 and 4 a pipe section
 of the metal goes into a container against the output face by the die end (native east, where the
 trough under the bed brings them), else drops just outside it. At 4 the hollow is used up and the die
 loses `DieWearPerHollow` (1), whatever the oil; a worn-out die is gone (the tool-break sound) and the
@@ -2218,8 +2218,8 @@ drips from the oiler with oil in the tank, and the gears' sound.
 |---|---|---|
 | `DieDurability` | 100 | Hollow sections a new die draws (the die item's durability) |
 | `DieWearPerHollow` | 1 | Die durability a hollow section costs |
-| `TurnsPerSectionLead` | 7.72 | Axle turns per lead pipe section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
-| `TurnsPerSectionCopper` | 15.45 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
+| `TurnsPerSectionLead` | 2.06 | Axle turns per lead pipe section; the rig's `draw.turnsPerSection.thin` (a test holds them together) |
+| `TurnsPerSectionCopper` | 4.12 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
 | `ResistanceLead` | 0.2 | The complete bench's load, empty or drawing lead |
 | `ResistanceCopper` | 0.35 | Its load drawing copper |
 | `MinSpeed` | 0.05 | Below it the bench neither draws nor takes a hollow from its infeed |
@@ -2260,9 +2260,9 @@ order only; the gauge before the blades is refused with a message naming the nex
 | 2 | `gauge` | `game:rod-iron`, `-meteoriciron` or `-steel` (the back gauge and the hold-down) | Smithing (the game's) |
 
 In creative mode Ctrl + right-click on an incomplete shear fits its next stage with nothing taken.
-**Ctrl + right-click** takes a plate back off while it is still whole; with no plate on, it takes the
-last part fitted back out (the gauge, then the blades). Breaking the frame drops the frame, both parts
-and a plate not yet cut (one being cut is lost).
+**Ctrl + right-click** takes a plate back off while it is still whole. Fitted parts never come back
+out: only breaking the frame returns them. It drops the frame, both parts and a plate not yet cut (one
+being cut is lost).
 
 **Work.** A lead or copper plate goes on the table by right-click (a half plate, what comes off, never
 does, nor an angle or an ingot). Then the player **holds right-click** on the shear, as on the quern:
@@ -2323,9 +2323,9 @@ order only; the edges before the screws are refused with a message naming the ne
 | 2 | `edge` | `game:metalplate-iron` or `-steel` (cut into the bed's, leaf's and bar's edges) | Smithing (the game's) |
 
 In creative mode Ctrl + right-click on an incomplete brake fits its next stage with nothing taken.
-**Ctrl + right-click** takes a half plate back off while it is still flat; with none on, it takes the
-last part fitted back out (the edges, then the screws). Breaking the frame drops the frame, both parts
-and a half plate not yet folded (one being folded is lost).
+**Ctrl + right-click** takes a half plate back off while it is still flat. Fitted parts never come back
+out: only breaking the frame returns them. It drops the frame, both parts and a half plate not yet
+folded (one being folded is lost).
 
 **Work.** A lead or copper half plate goes on the bed by right-click, lying across the folding edge, half
 on the bed and half over the leaf (the game's whole plate never does, nor an angle, what comes off, a
@@ -2378,21 +2378,23 @@ iron or steel (the hoop and the straps) and a hammer.
 
 **The mandrel.** Fitted by right-click on the stump or the ghost: `game:rod-iron`, `-meteoriciron` or
 `-steel` (smithing, the game's). In creative mode Ctrl + right-click on a station with no mandrel fits an
-iron one with nothing taken. **Ctrl + right-click** takes a hollow back off before its first blow; with
-nothing on, it takes the mandrel back out. Breaking the frame drops the frame, the mandrel and a hollow
-not yet struck (one being forged is lost).
+iron one with nothing taken. Once fitted, the mandrel stays in: the station has no consumable part to
+take out, and breaking the frame drops the frame, the mandrel and a hollow not yet struck (one being
+forged is lost). **Ctrl + right-click** takes a hollow back off before its first blow.
 
 **Work.** A lead or copper hollow section goes on the mandrel by right-click (nothing else does: not an
 angle, a pipe section, an ingot or a plate). Then **each right-click with a hammer** (any of the game's)
 is a blow, as on the anvil, at most one each 0.3 s: the anvil's sound and sparks where it lands, the
 hammer's durability paid (`HammerWearPerBlow`), and the forging W (0..1) advanced by the hammer's tool
-tier over `BaseHammerTier` (2, the copper hammer's), over the hollow's `BlowsPerHollowLead` (6) or
-`BlowsPerHollowCopper` (9), at most half a hollow a blow; a hammer with no tier counts as the base. With
-the game's tiers (copper, gold, silver 2; bronzes 3; iron, meteoric iron 4; steel 5) lead takes 6, 4, 3
-and 3 blows and copper 9, 6, 5 and 4. When W reaches 1 the hollow is used up
+tier over `BaseHammerTier` (2, the copper hammer's), over the hollow's `BlowsPerHollowLead` (9) or
+`BlowsPerHollowCopper` (14), at most half a hollow a blow; a hammer with no tier counts as the base. With
+the game's tiers (copper, gold, silver 2; bronzes 3; iron, meteoric iron 4; steel 5) lead takes 9, 6, 5
+and 4 blows and copper 14, 10, 7 and 6. When W reaches 1 the hollow is used up
 and two pipe sections of its metal go into a container beyond the tip (native south), else drop just
 past it. A blow on a bare mandrel takes the next hollow from a chest or hopper beside the station (native
-west), so a player can keep striking; it never takes one by itself. The block info shows what the
+west), so a player can keep striking; it never takes one by itself. Without one there, right-click held
+with the hammer as a hollow is finished puts the next of the same item on from the player's hotbar (not
+the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info shows what the
 station needs and the hollow on, its blows struck and how far it is forged.
 
 **Drawn.** The block draws `mandrelstation_frame.json`; the renderer splits `mandrelstation.json` into
@@ -2401,8 +2403,8 @@ while it is on, easing to each blow as it lands.
 
 | Setting | Default | |
 |---|---|---|
-| `BlowsPerHollowLead` | 6 | Blows of the base hammer a lead hollow takes; the rig's `forge.blowsPerHollow.thin` (a test holds them together) |
-| `BlowsPerHollowCopper` | 9 | Blows of the base hammer a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
+| `BlowsPerHollowLead` | 9 | Blows of the base hammer a lead hollow takes; the rig's `forge.blowsPerHollow.thin` (a test holds them together) |
+| `BlowsPerHollowCopper` | 14 | Blows of the base hammer a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
 | `BaseHammerTier` | 2 | The tool tier those blows are counted for, the game's copper hammer's; a blow of a hammer of tier t forges t / this of a base blow |
 | `HammerWearPerBlow` | 1 | Durability a blow costs the hammer, as a blow on the anvil does |
 
@@ -3693,7 +3695,9 @@ implementation replays (`Machines/Core/`, `tests/Machines/`), the bucking sawmil
 rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 `BuckingSawmill/README.md`), the rosser's rig, parts, pace, trip, water and client-side values
 (`Rosser/Core/`, described in `Rosser/README.md`), machine oil's tank, drain, oil codes and settings
-(`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the trunk code and variant rules of the
+(`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the hand machines' held W, predicted
+at frame rate and eased to the server's (`Machines/Core/HeldWorkFollower.cs`,
+`tests/Machines/HeldWorkFollowerTests.cs`), the trunk code and variant rules of the
 debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
 and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
@@ -3706,13 +3710,13 @@ drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
 `tests/GearCutter/GearCutterGameplayTests.cs`), the draw bench's build order, die metal, take-back,
 drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/Core/`,
 `tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the press brake's build order,
-take-back, half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
+half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
 1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
-`PressBrakeRigTests.cs`), the squaring shear's build order, take-back, plates by metal, cut arithmetic
+`PressBrakeRigTests.cs`), the squaring shear's build order, plates by metal, cut arithmetic
 (W only while held, two half plates at 1), treadle holds, renderer clock, settings and rig
 (`SquaringShear/Core/`, `tests/SquaringShear/SquaringShearGameplayTests.cs`,
-`SquaringShearRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
+`SquaringShearRigTests.cs`), the mandrel station's mandrel, hollows by metal, the hotbar refill,
 blows (two sections at the last), renderer clock, settings and rig (`MandrelStation/Core/`,
 `tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the handcar's drive (pumping by
 facing, solo and pair, braking and holding, load), branch selector, distance rolled, stroke phase, effort fade,
@@ -4092,18 +4096,20 @@ sections and a hammer, its recipe, its place in the mechanics tab, and the setti
 placing on all four facings, the station running away along the facing, the ghost pointing home, both
 cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on breaking; the
 mandrel fitted by a real click on the ghost, a hollow and a blow before it, a copper rod and an empty
-hand refused, a second rod refused, a save keeping it, Ctrl taking it back, and the creative shortcut; a
+hand refused, a second rod refused, a save keeping it, Ctrl not taking it back (no help line for it), breaking giving it back, and the
+creative shortcut on a new station; a
 lead hollow struck through by real right-clicks with a hammer from the stump and the ghost, a blow a
-sixth with a copper hammer, an angle, a pipe section, an ingot and a plate never taken, the hammer paying
-a point a blow, a save keeping the blows, and two lead pipe sections dropped beyond the tip at the sixth,
-the hollow used up; copper at nine blows; a steel hammer forging lead in three blows, each two and a half
-of a copper one's, and copper in four; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
+ninth with a copper hammer, an angle, a pipe section, an ingot and a plate never taken, the hammer paying
+a point a blow, a save keeping the blows, and two lead pipe sections dropped beyond the tip at the ninth,
+the hollow used up; copper at fourteen blows; a steel hammer forging lead in four blows, each two and a half
+of a copper one's, and copper in six; right-click held refilling from the hotbar a lead hollow at a time
+once a blow would be struck (never the copper one beside it), and nothing once the lead runs out; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
 breaking giving back the mandrel and an unstruck hollow (not a struck one); and hollows taken from a
 chest beside the stump only when struck (never an ingot, an angle or a pipe section) and sections put in
 a chest beyond the tip. With the switch off, `SwitchesOffScenarios` requires none of its blocks or
 recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios.cs` requires one
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
-the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 6 or 9
+the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 9 or 14
 blows, no oil.
 
 `tests/PackTests/HandcarScenarios.cs` (Atlas, a plain world of its own: it joins four players, and the

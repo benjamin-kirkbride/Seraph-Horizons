@@ -9,7 +9,7 @@
 	"output": {"pos": [0.5, 0.375, 1.75]},
 	"strike": {"pos": [0.5, 0.975, 0.6875]},
 	"work": {"name": "blows", "unit": "hollows", "step": 0.005, "end": {"thin": 1.0, "thick": 1.0}},
-	"forge": {"blowsPerHollow": {"thin": 6.0, "thick": 9.0}, "hollows": {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"}, "sections": {"thin": "seraphhorizons:pipesection-lead", "thick": "seraphhorizons:pipesection-copper"}, "sectionsPerHollow": 2, "_comment": "blowsPerHollow: the pace, hammer blows (right-clicks) a hollow; copper half as much again. hollows: each class's work. sections: what a hollow makes, sectionsPerHollow of them."},
+	"forge": {"blowsPerHollow": {"thin": 9.0, "thick": 14.0}, "hollows": {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"}, "sections": {"thin": "seraphhorizons:pipesection-lead", "thick": "seraphhorizons:pipesection-copper"}, "sectionsPerHollow": 2, "_comment": "blowsPerHollow: the pace, hammer blows (right-clicks) a hollow; copper half as much again. hollows: each class's work. sections: what a hollow makes, sectionsPerHollow of them."},
 	"parts": [
 		{"id": "mandrel", "match": ["mandrel_*"], "requires": "mandrel", "drivers": [{"type": "rotate", "axis": "z", "pivot": [0.5, 0.7875, 0.0], "ratio": 0.0}], "ride": null},
 		{"id": "l1u", "match": ["l1u_*"], "requires": "hollowlead", "drivers": [], "ride": null},

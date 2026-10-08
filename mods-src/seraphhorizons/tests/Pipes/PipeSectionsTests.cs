@@ -55,7 +55,7 @@ public class PipeSectionsTests
     }
 
     [Fact]
-    public void The_pipe_section_is_a_pipe_sized_tube_half_a_block_long()
+    public void The_pipe_section_is_the_pipes_tube_a_block_long()
     {
         var item = (JObject)Json("pipesection-itemtype.json");
         Assert.Equal("pipesection", (string?)item["code"]);
@@ -66,18 +66,19 @@ public class PipeSectionsTests
         Assert.Equal("game:block/metal/sheet-plain/{metal}4", (string?)item["textures"]!["metal"]!["base"]);
         Assert.Equal("seraphhorizons:pipesection-handbook-text", (string?)item["attributes"]!["handbook"]!["extraSections"]![0]!["text"]);
 
-        // the draw bench's drawn piece (its contract, pass 3): 6 across (ppex's pipe is 6/16 wide),
-        // walls 0.3 round a 5.4 x 5.4 bore, 8 long, centred; four walls that do not overlap
+        // the cross-section of ppex's straight pipe (shapes/pipes/straight.json: 6 across, walls 1 round
+        // a 4 x 4 bore), a block long, centred; four walls that do not overlap. The draw bench's
+        // in-machine section is smaller (its README, "The work"): the item is the pipe, not the drawn metal
         var boxes = ((JObject)Json("pipesection-shape.json"))["elements"]!
             .Select(e => (From: e["from"]!.Select(v => (double)v!).ToArray(), To: e["to"]!.Select(v => (double)v!).ToArray())).ToList();
         Assert.Equal(4, boxes.Count);
         for (int axis = 0; axis < 3; axis++)
         {
-            Assert.Equal(axis == 2 ? 4 : 5, boxes.Min(b => b.From[axis]), 6);
-            Assert.Equal(axis == 2 ? 12 : 11, boxes.Max(b => b.To[axis]), 6);
+            Assert.Equal(axis == 2 ? 0 : 5, boxes.Min(b => b.From[axis]), 6);
+            Assert.Equal(axis == 2 ? 16 : 11, boxes.Max(b => b.To[axis]), 6);
         }
-        Assert.All(boxes, b => Assert.Equal(0.3, Enumerable.Range(0, 2).Min(i => b.To[i] - b.From[i]), 6));
-        Assert.Equal(8 * (6 * 6 - 5.4 * 5.4), boxes.Sum(b => Enumerable.Range(0, 3).Aggregate(1.0, (v, i) => v * (b.To[i] - b.From[i]))), 6);
+        Assert.All(boxes, b => Assert.Equal(1, Enumerable.Range(0, 2).Min(i => b.To[i] - b.From[i]), 6));
+        Assert.Equal(16 * (6 * 6 - 4 * 4), boxes.Sum(b => Enumerable.Range(0, 3).Aggregate(1.0, (v, i) => v * (b.To[i] - b.From[i]))), 6);
         Assert.Equal(PipeSections.PipeSection("iron"), CastPipeMold.Section("iron"));
         Assert.Equal("seraphhorizons:pipesection-copper", PipeSections.PipeSection("copper"));
         Assert.Equal("seraphhorizons:angle-lead", PipeSections.Angle("lead"));

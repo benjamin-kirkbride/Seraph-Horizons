@@ -251,7 +251,7 @@
       "rig": "mods-src/seraphhorizons/assets/seraphhorizons/config/mandrelstation-rig.json",
       "scenario": {
         "inputs": {
-          "theta": { "label": "Hammer blows", "hint": "The player's right-clicks with a hammer, one turn a blow; this is that clock. The model is posed by the forging below, which Play moves with it (six blows a lead hollow; nine for copper in the game)" },
+          "theta": { "label": "Hammer blows", "hint": "The player's right-clicks with a hammer, one turn a blow; this is that clock. The model is posed by the forging below, which Play moves with it (nine blows a lead hollow; fourteen for copper in the game)" },
           "reverse": { "label": "Count backwards", "hint": "Play's clock runs either way; the forging only goes forward" },
           "work": { "label": "Forging", "hint": "One hollow: the metal is drawn out towards the tip, the root half of the box closes from 8 to 6 across onto the mandrel, the metal is drawn out again and the tip half closes; the tube is parted, and the two pipe sections slide off the tip and drop, delivered at 1." },
           "size": { "label": "Hollow on the mandrel", "hint": "Copper takes half as many blows again; the model moves the same", "names": ["None", "Lead", "Copper"] },
