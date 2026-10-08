@@ -68,12 +68,12 @@ lower cone). The **build order** (#480): the frame, then `spindle`, `feedscrew`,
 
 | Order | `requires` | Item (#480) | How it is made | Draws | Taken back |
 |---|---|---|---|---|---|
-| 1 | `spindle` | Cutter spindle with cone pulley (new item, steel) | Grid: 1 steel rod, 1 steel plate, iron nails and strips | The head shaft with the upper cone, the belt, the mitre bevels, the spindle | Only by breaking the frame |
+| 1 | `spindle` | Cutter spindle with cone pulley (new item, steel) | Grid: 2 steel rods, 2 steel plates, iron nails and strips | The head shaft with the upper cone, the belt, the mitre bevels, the spindle | Only by breaking the frame |
 | 2 | `feedscrew` | Feed screw (new item, steel) | Smithing: 1 steel ingot | The worm and the clutch sleeve (in the gearbox) | Only by breaking the frame |
 | 3 | `camfeed` | `game:jonasframes-gearbox02` (Jonas "Eccentric gearbox"), looted or converted | One eccentric gearbox | The feed cam drum and its groove | Only by breaking the frame |
 | 4 | `camindex` | `game:jonasframes-gearbox02` (Jonas "Eccentric gearbox"), looted or converted | One eccentric gearbox | The index cam drum and its groove | Only by breaking the frame |
 | 5 | `liftcam` | Lift cam (new item, steel) | Smithing: 1 steel ingot | The lift cam on its hub | Only by breaking the frame |
-| 6 | `index` | Index (new item: lever, pawls, shield) | Grid: 1 steel rod, 1 steel plate, iron nails and strips | The shield, the lever with its roller, the pawl and the check pawl | Only by breaking the frame |
+| 6 | `index` | Index (new item: lever, pawls, shield) | Grid: 2 steel rods, 2 steel plates, iron nails and strips | The shield, the lever with its roller, the pawl and the check pawl | Only by breaking the frame |
 | 7 | `oiler` | `game:jonasparts-valve01` (Jonas "Alternate injection valve"), looted | Looted (Jonas) | The injection valve: its body, the feed from the reservoir, the nozzle over the cutter, and the plunger with its marble handle | Only by breaking the frame |
 | 8 | `head` | Dividing head: `game:jonasframes-gears02` or `gears01` | Looted (Jonas) | The Jonas planetary: the housing (the ring, with the rim ratchet), the planets, the carrier, the sun with its detent disc, and the detent plunger | Only by breaking the frame |
 | 9 | `cutter` | Cutter kit (its own issue), the wearing part | Its own issue | The formed cutter | When worn out it is spent; unworn, Ctrl + right-click |
@@ -107,10 +107,11 @@ steel, gold) but is its own geometry, as is the injection valve (cupronickel and
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/gearcutter.json` | The whole machine, every moving part and the cover (1463 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/gearcutter.json` | The whole machine, every moving part and the cover (1465 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/gearcutter_frame.json` | The static frame only (101 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/gearcutter-rig.json` | Footprint, anchors, the work, the cut's constants and the part rig (75 parts, 32 of them gap fills). |
 | `tests/GearCutter/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
+| `assets/seraphhorizons/shapes/item/gearcutter/{spindle,feedscrew,liftcam,index,kit}.json` | The forged parts' item shapes: each the elements of the rig parts its stage draws, as they are at rest (the spindle's head shaft and spindle without the belt; the worm and clutch; the lift cam; the lever, pawls and shield; the cutter), centred on the item box's floor and scaled to fit 16 voxels (`ITEM_SCALE`: the spindle 0.74, the rest 1). The item types (`itemtypes/gearcutter/*.json`) draw them with the machine's textures. |
 
 ### How the machine works
 
@@ -146,6 +147,26 @@ clear of the blank's tip circle at both ends. The table runs back the same way (
 same gap), the knee drops 1.5, the master leaves the rack and the cutter the blank, and the Jonas head
 indexes the arbor one tooth while it is free. A 12-tooth gear off a 20° rack is undercut at the root
 (fewer than 17 teeth); the small gears' box teeth are drawn 0.1 thinner instead.
+
+**The blank and the cutter.** A blank is drawn as the gear it becomes plus one fill per gap (`gsNN`,
+`glNN`, two boxes each, `_lo` and `_hi`), and until the cutter reaches a gap its fill makes the rim
+there plain disc: the fill runs from 0.15 inside the root to 0.02 past the tip, and each box is as
+wide as it can be without its inner corners passing the middle of the teeth either side, so
+neighbouring fills meet there and hide the teeth's flank edges. Seen face on, depths in from the
+blank's faces: the teeth 0.025 (their outer boxes 0.045), the fills 0 (`_lo`) and 0.025 proud
+(`_hi`), and the body, a polygon just inside the root (inradius root − 0.1), its strips 0.05 to 0.175
+proud (small) or 0.225 (large). Faces that overlap facing the same way are never closer than
+`ZF_GAP`, 0.025: the depth buffer cannot part faces a hundredth of a voxel apart at a few blocks, and
+the blanks z-fought when their round bodies' strips were stepped 0.012. The masters, the hubs and the
+cutter's body are stepped the same way, and what runs into a body (the hubs, the master's bars and
+boss) runs 0.3 into it rather than ending at its face. A fill sinks 1.425
+(addendum + dedendum + 0.3) radially through its pass, which puts it wholly inside the body,
+inside its inradius and behind its faces: the gap opens and the fill is gone, with nothing to
+see on the face. The cutter is an octagonal body 1.2 thick reaching r 2.06, just inside the radius
+at which it would meet the blank's tip circle (3.2 − 1.125), and three bands of 12 teeth, each
+overlapping the next and the body: r 2.8..3.2 at the rack tooth's tip thickness (0.33), 2.25..2.85 at
+its thickness 0.35 up (0.585), and 1.91..2.3 at its pitch-line thickness (0.785), 0.1 inside the
+flanks there because the blank's box teeth are not the generated form.
 
 **The two masters, one station.** Both masters sit at the one station on the arbor. The large one's
 pitch circle is 2 bigger, so for it the knee is set 2 lower: its **elevating screw** (lead 1, two
@@ -298,9 +319,9 @@ from it, or a test should hold the two together, as the rosser's `feed.gear` is 
 ### Regenerating
 
 ```sh
-python3 mods-src/seraphhorizons/GearCutter/tools/make_shape.py              # stdlib only; rewrites the four files
-python3 mods-src/seraphhorizons/GearCutter/tools/make_shape.py --out DIR    # or writes them into DIR
-python3 mods-src/seraphhorizons/GearCutter/tools/make_shape.py --quick      # skips the z-fighting fix and the teeth depths
+python3 mods-src/seraphhorizons/GearCutter/tools/make_shape.py              # stdlib only; rewrites the files above
+python3 mods-src/seraphhorizons/GearCutter/tools/make_shape.py --out DIR    # or writes them into DIR (the items into DIR/item)
+python3 mods-src/seraphhorizons/GearCutter/tools/make_shape.py --quick      # skips the z-fighting fix and checks, the teeth depths and the cutter against the fills
 ```
 
 A full run takes a few minutes, most of it the z-fighting fix. `tools/validate_gearcutter.py` holds the
@@ -325,12 +346,16 @@ like the rest:
   table moves (no slip on the rack, the blank rolling under the cutter as the master under the rack).
 - **Teeth** (full runs): every mesh's worst box-into-box overlap over a tooth's cycle: master on the
   rack 0.1 (measured 0.082 small, 0.061 large), the cutter into a blank's teeth 0 (it only takes
-  fills), the rectifier 0.2 (0.095), the worm, the mitres and the planetary 0.3.
+  fills) and into any fill but the one it is cutting 0 (the fills reach past the tip circle and over
+  the teeth's flanks), the rectifier 0.2 (0.095), the worm, the mitres and the planetary 0.3.
 - **Index:** after every whole tooth the arbor and the housing stand on their steps and the sun at
   home; at the end of a gear the arbor stands as at the start and the housing half a turn on, which
   looks the same, so a new blank (W back to 0) starts without a jump.
 - **Fills:** each gap's fill is under the cutter at the middle of its own pass and sunk below the root
-  after it, for both blanks.
+  after it, for both blanks. Mid-gear (a third of the gaps cut), seen along the arbor: the face inside
+  the root and every uncut gap's sector out to the tip covered (no crack), a fill's face in front at
+  every gap and flank edge, and the middle of every cut gap open from root to tip; a sunk fill inside
+  the body's inradius and behind its faces.
 - **Cams:** both sliders' pins in their grooves at every 1/100 of a tooth (never into a rail); the
   screw's roller on the lift cam (an exact roller envelope) within 0.1; the pusher on the lever's
   roller through the push and the return (within 0.03), clear of it otherwise; the pawl 5° short of a
@@ -355,6 +380,13 @@ like the rest:
   gearbox top's slot for the clutch handle.
 
 - **No z-fighting** (full runs): no coplanar overlapping faces at five poses of both masters.
+- **No close faces on the work** (full runs): at the start, middle and end of a gear for both masters, no
+  two faces of the blanks, their fills, the masters or the cutter (or a face beside one of theirs) that
+  face the same way and overlap where both can be seen are closer than `ZF_GAP` (0.025); a point of a
+  face is out of sight when another element holds the point a gap in front of it, as a sunk fill is
+  inside the body.
+- **Items:** each forged part's item shape inside the 16-voxel item box at its `ITEM_SCALE`, centred on
+  its floor, every element with a textured face, the scale no smaller than it needs.
 - **Clearances:** over 52 poses (both masters, every phase of the cycle, the large master to its 20th
   tooth) no two parts touch except the intended contacts listed in `ALLOWED` (shafts through the
   column's walls and the gearbox's walls among them).
@@ -435,8 +467,10 @@ The mod's README, "Gear cutter", is the player-facing summary; the decisions are
 with the block's texture source), `gearcutter-ghost` and `gearcutter-ghostpower-{side}`. Placement,
 ghosts, ghost repair, breaking through a ghost and the boxes (selection from the rig's cells, collision
 with their lids) are the rosser's, without the trunk. The frame recipe (`recipes/grid/gearcutter.json`):
-2 ingots of iron, meteoric iron or steel, 5 planks, 8 nails and strips of the same metals and a
-hammer, in the recipe itself (the cutter does not need Immersive Woodworking, so it is not in
+8 steel ingots (4 in each ingot slot, steel only), 4 planks, 32 nails and strips of iron, meteoric
+iron or steel and a hammer. The pack's other machine frames cost iron, but this is the end-game
+machine of the gears epic, and a cast bed and column are a lot of metal. The cost is in the recipe
+itself (the cutter does not need Immersive Woodworking, so it is not in
 `patches/woodworking-machine-costs.json`).
 
 **Stages** (`GearCutterParts`). One item a stage, in `GearCutterStage` order, the next missing stage
@@ -473,7 +507,7 @@ line; it adds the wear multiplier (or "the next gear breaks the kit") and the ki
 current fill (`GearsLeft`).
 
 **Renderer.** Every rig part with a `requires`, a ride or a driver, from `gearcutter.json`
-(`MachineMeshes.PartMesh`), drawn when `BEGearCutter.Fitted(requires)`: the parts' rule, `cover`
+(`MachineMeshes.PartMeshes`), drawn when `BEGearCutter.Fitted(requires)`: the parts' rule, `cover`
 always, `blanksmall` / `blanklarge` while that blank is on. Inputs: θ and ψ from the power ghost's
 angle about native x (`MillMotion.NativeShaftAngle(.., Axis.X)`); W advanced per frame by the shaft
 while running, never behind the server's W and at most 0.3 tooth ahead of it, at the master's end
@@ -481,6 +515,15 @@ with no blank on (so the clutch is out and the index stands at rest); k the mast
 p eases out over 0.4 s; `Oil` the tank's fill (1 with MachineOil off). Particles while running: steel
 chips and now and then a spark at `chips.pos`; with oil in the tank, a downward oil spray at
 `drip.pos`.
+
+The part meshes come from one tessellation of the shape, not one per part (that froze the client
+for a moment on placing a cutter: 75 clones and tessellations of 1465 elements): every element's
+`JointId` is set to its part + 1, `TesselateShapeWithJointIds` writes it per vertex into
+`CustomInts`, and the faces are copied out by that tag (`MachineMeshes.PartMeshes`,
+`Machines/Core/PartSplit.cs`), with a logged fallback to the per-part way if the tags don't check
+out. The uploaded meshes are cached for the session (`MachinePartMeshes`) and shared by every cutter,
+so a second one or a chunk reload builds nothing; they are disposed when the client leaves the world,
+never by a renderer.
 
 **Settings** (`GearCutterSettings`): `TurnsPerTooth` 12, `CutterWearPerGear` 10, `Resistance` 0.2 and
 `MinSpeed` 0.05 (the rosser's), each falling back to its default with a warning when out of range;
@@ -495,8 +538,7 @@ either way, as the rosser's are.
 **Open questions, decided the simplest way.** The blank can be taken back by Ctrl + right-click
 (after the kit, before the master), its cut lost, since otherwise only breaking the frame would free
 it to change the master; the kit's wear rounds up per gear; a cutter with no MachineOil tank wears at its base; the
-infeed only feeds while the shaft turns; the frame has no schematic yet; and the new parts wear game
-item shapes, not their own.
+infeed only feeds while the shaft turns; and the frame has no schematic yet.
 
 ## Tests
 
@@ -535,8 +577,8 @@ viewer. The gameplay is tested headless (Atlas): no one has yet looked at the re
 client, the particles' placing included.
 
 1. **Box teeth.** Every tooth is one or two boxes, so meshing teeth overlap a little where real tooth
-   forms would not (the limits above). The cutter is three stepped bands inside the rack tooth's
-   profile, and the blank's teeth are boxes (thinner for 12 teeth, for the undercut), so the
+   forms would not (the limits above). The cutter is a body and three stepped bands inside the rack
+   tooth's profile, and the blank's teeth are boxes (thinner for 12 teeth, for the undercut), so the
    "generated" form is drawn, not computed.
 2. **Linear ramps.** The gauges move in straight ramps, so the table, the knee and the lever start and
    stop sharply; the grooves and the lift cam are drawn from the same ramps, so the followers stay on
@@ -544,7 +586,10 @@ client, the particles' placing included.
 3. **The pusher and the lever.** The pusher moves in a straight line and the roller on an arc; they
    stay within 0.03 through the push.
 4. **Fills sink radially.** A gap's fill sinks into the blank evenly through its pass; a real cut
-   proceeds as the cutter rolls through the gap. Sunk fills overlap each other inside the body.
+   proceeds as the cutter rolls through the gap. Sunk fills overlap each other inside the body. An
+   uncut rim is plain disc only to within 0.07 of the faces: the fills stand up to 0.025 proud, the
+   teeth 0.025 and 0.045 in, and a narrow strip of tooth face shows between neighbouring fills near the tip,
+   where a box fill cannot follow the tooth's taper.
 5. **The clutch's dog faces.** The sleeve turns with ψ and the worm with W; they agree only while the
    gameplay's pace is the drawn 12 turns a tooth. A changed `TurnsPerTooth` would show at the dogs.
 6. **Master changes.** While p eases in or out, the index stack and the knee's setting move with p, so

@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import re
 
-from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
+from machinegen.checks import box_overhang, coplanar_faces, drawn_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
 from machinegen.checks import supports as shaft_supports
 from machinegen.checks import bearing_margin
 from machinegen.geometry import aabb_of
@@ -127,6 +127,91 @@ def check_zfight(v):
     print(f"z-fighting: {bad} coplanar overlapping face pairs over {len(m.coplanar_poses())} poses")
     if bad:
         v.fail("faces z-fight")
+
+
+# The work and the cutter: the parts whose faces are stacked close (a blank's body, teeth and fills, the
+# masters drawn the same way, the cutter's body and bands).
+WORK = re.compile(r"^(blanksmall|blanklarge|g[sl]\d\d|master|masterlarge|cutter)$")
+
+
+def _inside(el, p):
+    d = [p[i] - el.c[i] for i in range(3)]
+    return all(abs(sum(el.r[i][a] * d[i] for i in range(3))) < abs(el.size[a]) / 2 - 1e-6 for a in range(3))
+
+
+def close_faces(v, pose, gap):
+    """Every pair of drawn faces, at least one of them the work's or the cutter's, facing the same way, less
+    than `gap` apart and overlapping where both can be seen: z-fighting the exact-plane check misses (the depth
+    buffer cannot part faces a hundredth of a voxel apart at a few blocks). A point of a face is out of sight
+    when another element holds the point `gap` in front of it: whatever is drawn there is that far in front."""
+    k = pose[3]
+    els = [e for pid in v.by_part if present(pid, k) for e in v.posed(pid, pose)]
+    by_name = {e.name: e for e in els}
+    grid = {}
+    for e in els:
+        lo, hi = e.aabb()
+        for cx in range(int(lo[0] // 2), int(hi[0] // 2) + 1):
+            for cy in range(int(lo[1] // 2), int(hi[1] // 2) + 1):
+                for cz in range(int(lo[2] // 2), int(hi[2] // 2) + 1):
+                    grid.setdefault((cx, cy, cz), []).append(e)
+
+    def hidden(p, n):
+        q = [p[i] + (gap - 0.001) * n[i] for i in range(3)]    # a face exactly a gap behind another is hidden
+        return any(_inside(e, q) for e in grid.get(tuple(int(q[i] // 2) for i in range(3)), ()))
+
+    def quad(el, d):
+        return next((nn, qq) for dd, nn, qq in drawn_faces(el) if dd == d)
+
+    out = []
+    for na, da, nb, db, _area in coplanar_faces(els, eps=gap - 1e-6):
+        a, b = by_name[na], by_name[nb]
+        if not (WORK.match(a.part) or WORK.match(b.part)):
+            continue
+        n, qa = quad(a, da)
+        _, qb = quad(b, db)
+        e1 = [qb[1][i] - qb[0][i] for i in range(3)]
+        e2 = [qb[3][i] - qb[0][i] for i in range(3)]
+        l1, l2 = sum(x * x for x in e1), sum(x * x for x in e2)
+        seen = False
+        for si in range(10):
+            for ti in range(10):
+                s_, t_ = (si + 0.5) / 10, (ti + 0.5) / 10
+                p = [qa[0][i] + s_ * (qa[1][i] - qa[0][i]) + t_ * (qa[3][i] - qa[0][i]) for i in range(3)]
+                d0 = [p[i] - qb[0][i] for i in range(3)]
+                u_ = sum(d0[i] * e1[i] for i in range(3)) / l1
+                w_ = sum(d0[i] * e2[i] for i in range(3)) / l2
+                if not (0.0 < u_ < 1.0 and 0.0 < w_ < 1.0):
+                    continue
+                off = sum(d0[i] * n[i] for i in range(3))
+                pb = [p[i] - off * n[i] for i in range(3)]
+                if not hidden(p, n) and not hidden(pb, n):
+                    seen = True
+                    break
+            if seen:
+                break
+        if seen:
+            sep = abs(sum((qa[0][i] - qb[0][i]) * n[i] for i in range(3)))
+            out.append((na, da, nb, db, round(sep, 4)))
+    return out
+
+
+def check_close_faces(v):
+    """No two faces of the work or the cutter z-fight: at rest (every fill up), mid-gear (some sunk, one
+    sinking) and at the end of a gear (all sunk), for both masters, every pair of same-facing faces that
+    overlap where both can be seen is at least the generator's ZF_GAP apart."""
+    m = v.m
+    poses = [m.pose_at(1, T) for T in (0.0, 4.25, 11.99)] + [m.pose_at(2, T) for T in (0.0, 7.25, 19.99)]
+    found = {}
+    for pose in poses:
+        for f in close_faces(v, pose, m.ZF_GAP):
+            found.setdefault(f[:4], (f[4], pose))
+    print(f"close faces: {len(found)} visible pairs of the work's and the cutter's faces closer than {m.ZF_GAP} over "
+          f"{len(poses)} poses")
+    for (na, da, nb, db), (sep, pose) in sorted(found.items())[:12]:
+        print(f"  CLOSE {na}.{da} / {nb}.{db}: {sep} apart at T {pose[2]} k {pose[3]}")
+    if found:
+        v.fail("faces of the work or the cutter z-fight")
+    return found
 
 
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
@@ -708,6 +793,116 @@ def check_fills(v):
             v.fail(f"{cls}: a gap is not under the cutter at the middle of its pass")
 
 
+def _arbor_centre(v, pose):
+    """The arbor's axis at a pose, (y, z): it moves with the table (which rides the knee) and turns about itself."""
+    t = v.mat("table", pose)
+    return v.m.ARBOR_Y + t[1][3] * 16, v.m.Z_REST + t[2][3] * 16
+
+
+def _covers(el, x, y, z):
+    """Whether the point lies in the element's box, seen along x (the blank's elements turn about x only)."""
+    d = [x - el.c[0], y - el.c[1], z - el.c[2]]
+    q = [sum(el.r[i][a] * d[i] for i in range(3)) for a in range(3)]
+    return abs(q[1]) <= el.size[1] / 2 and abs(q[2]) <= el.size[2] / 2
+
+
+def check_blank_faces(v):
+    """The blank reads as plain disc until it is cut, and each gap opens cleanly as it is. Mid-gear, with a
+    third of the gaps cut, seen along the arbor: every point of the face inside the root, and of an uncut gap's
+    sector out to the tip, is covered (no crack to see through), with a fill's face, standing just proud of the
+    teeth, in front of every tooth's flank edge; the middle of every cut gap, root to tip, is open (nothing of
+    the blank or the fills in it). A sunk fill is wholly inside the body: within its inradius and behind its
+    faces, so it neither shows on a face nor pokes out of the rim."""
+    m = v.m
+    for k, cls, part, pre in ((1, "thin", "blanksmall", "gs"), (2, "thick", "blanklarge", "gl")):
+        n, step = m.TEETH[cls], m.STEP[cls]
+        root, tip = m.PITCH_R[cls] - m.DED, m.PITCH_R[cls] + m.ADD
+        j = n // 3
+        pose = m.pose_at(k, j)
+        yc, zc = _arbor_centre(v, pose)
+        turn = angle_of(v, "arbor", pose)
+        mid = (root + tip) / 2 + 0.1                       # where a box tooth steps from its wide part to its narrow one
+        half_a = (math.pi * m.MODULE / 2 - (m.UNDERCUT if n < 17 else 0.0)) / 2
+        blank = v.posed(part, pose)
+        fills = [e for g in range(n) for e in v.posed(f"{pre}{g + 1:02d}", pose)]
+        els = blank + fills
+        teeth_x0 = min(e.aabb()[0][0] for e in blank if "_tooth" in e.name)
+        x = m.X_BLANK
+        holes, blocked, front = [], [], []
+        for ir in range(1, 160):
+            r = tip * ir / 160 - 0.01
+            if r < 0.7:
+                continue
+            for ia in range(720):
+                a = math.tau * ia / 720
+                y, z = yc + r * math.cos(a), zc + r * math.sin(a)
+                rel = (a - turn - m.gap_angle(cls, 0)) / step
+                g = round(rel) % n
+                off = (rel - round(rel)) * step               # from the gap's centre line, radians
+                cover = [e for e in els if _covers(e, x, y, z)]
+                if g < j and r > root + 0.05 and abs(r * math.sin(off)) < 0.15:
+                    if cover:
+                        blocked.append((round(r, 2), g + 1, cover[0].name))
+                elif r <= root - 0.1 or g >= j:
+                    if not cover:
+                        holes.append((round(r, 2), round(math.degrees(a), 1)))
+                    elif g >= j and r > root and min(e.aabb()[0][0] for e in cover) > teeth_x0 - 0.005 \
+                            and abs(r * math.sin(off)) < (r * math.sin(step / 2) - (half_a if r < mid else 0.225) * math.cos(step / 2)) + 0.03:
+                        front.append((round(r, 2), g + 1))        # a tooth's face, not a fill's, in front at the gap or a flank's edge
+        sunk = []
+        bodies = v.named(part, r"_body", m.REST)
+        inr = min(e.size[1] for e in bodies) / 2
+        bx0, bx1 = max(e.aabb()[0][0] for e in bodies), min(e.aabb()[1][0] for e in bodies)
+        worst_r = 0.0
+        for g in (0, j - 1):
+            after = m.pose_at(k, g + m.T_FWD[1] + 0.01)
+            ay, az = _arbor_centre(v, after)
+            for e in v.posed(f"{pre}{g + 1:02d}", after):
+                lo, hi = e.aabb()
+                rr = max(math.hypot(q[1] - ay, q[2] - az) for q in e.corners())
+                worst_r = max(worst_r, rr)
+                if rr > inr - 0.005 or lo[0] < bx0 + 0.005 or hi[0] > bx1 - 0.005:
+                    sunk.append(e.name)
+        print(f"blank faces, {cls}, {j} of {n} gaps cut: {len(holes)} uncovered points of the uncut face, {len(front)} where a tooth "
+              f"shows in front of an uncut gap's fill, {len(blocked)} points blocked in the cut gaps; sunk fills reach radius "
+              f"{worst_r:.3f} of the body's {inr:.3f}, behind its faces: {'yes' if not sunk else sunk}")
+        if holes:
+            v.fail(f"{cls}: the uncut blank's face has holes, e.g. {holes[:4]}")
+        if front:
+            v.fail(f"{cls}: a tooth's outline shows at an uncut gap, e.g. {front[:4]}")
+        if blocked:
+            v.fail(f"{cls}: a cut gap is not open, e.g. {blocked[:4]}")
+        if sunk:
+            v.fail(f"{cls}: sunk fills show: {sunk[:4]}")
+
+
+def check_cutter_fills(v, steps=40):
+    """The cutter takes only the fill of the gap it is cutting: through a whole tooth's cycle it never runs
+    into another gap's fill, cut or uncut (the fills reach past the tip circle and over the teeth's flanks)."""
+    m = v.m
+    for k, cls, pre in ((1, "thin", "gs"), (2, "thick", "gl")):
+        n = m.TEETH[cls]
+        worst, where = 0.0, None
+        for j in (0, n // 3, n - 1):
+            for i in range(steps + 1):
+                pose = m.pose_at(k, j + i / steps * 0.999)
+                cut = v.posed("cutter", pose)
+                for g in range(n):
+                    if g == j:
+                        continue
+                    for f in v.posed(f"{pre}{g + 1:02d}", pose):
+                        flo, fhi = f.aabb()
+                        for c in cut:
+                            clo, chi = c.aabb()
+                            if all(clo[q] < fhi[q] and flo[q] < chi[q] for q in range(3)):
+                                d = overlap_depth(c, f)
+                                if d > worst:
+                                    worst, where = d, (c.name, f.name, round(j + i / steps, 3))
+        print(f"cutter: into the fills of the gaps it is not cutting, {cls}, worst {worst:.3f}{'' if where is None else f' {where}'}")
+        if worst > 0.0:
+            v.fail(f"{cls}: the cutter runs into a fill it is not cutting")
+
+
 def check_oiler(v):
     """The sight-feed oiler: the cup over the cutter (its z span holds the cutter's plane), the oil
     inside the glass from empty (oil 0) to full (oil 1) and under the cap; the drip tube's end just
@@ -873,6 +1068,9 @@ def validate(m, els, parts, rig, quick=False):
     if not quick:
         check_mesh_depths(v)
     check_fills(v)
+    check_blank_faces(v)
+    if not quick:
+        check_cutter_fills(v)
     check_cams(v)
     check_supports(v)
     check_oiler(v)
@@ -884,7 +1082,32 @@ def validate(m, els, parts, rig, quick=False):
 
     if not quick:
         check_zfight(v)
+        check_close_faces(v)
     return v.ok
+
+
+def check_items(m, items):
+    """Each forged part's item shape: inside the 16-voxel item box at its scale, centred on its floor,
+    every element with a textured face, and its scale no smaller than it needs (1 when it fits as it is)."""
+    ok = True
+    for item, els in items.items():
+        cs = [q for el in els for q in el.corners()]
+        lo = [min(q[i] for q in cs) for i in range(3)]
+        hi = [max(q[i] for q in cs) for i in range(3)]
+        need = min(1.0, 16.0 / (max(hi[i] - lo[i] for i in range(3)) / m.ITEM_SCALE[item]))
+        bare = [el.name for el in els if not any(f.get("texture") for f in el.faces.values())]
+        print(f"item {item}: {len(els)} elements, {' x '.join(f'{hi[i] - lo[i]:.2f}' for i in range(3))} at scale "
+              f"{m.ITEM_SCALE[item]} (fits from {need:.3f})")
+        if min(lo) < -1e-6 or max(hi) > 16 + 1e-6 or abs(lo[1]) > 1e-6 or abs(lo[0] + hi[0] - 16) > 1e-6 or abs(lo[2] + hi[2] - 16) > 1e-6:
+            print(f"FAIL item {item} is not centred on the floor of the item box: {lo} .. {hi}")
+            ok = False
+        if bare or not els:
+            print(f"FAIL item {item} has elements with no textured face: {bare[:4]}")
+            ok = False
+        if m.ITEM_SCALE[item] > need + 1e-9 or m.ITEM_SCALE[item] < need - 0.02:
+            print(f"FAIL item {item}'s scale {m.ITEM_SCALE[item]} is not the scale it needs, {need:.3f}")
+            ok = False
+    return ok
 
 
 def validate_files(m, shape, frame_shape, ship):

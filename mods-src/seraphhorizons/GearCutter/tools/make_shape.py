@@ -20,8 +20,9 @@ It writes, deterministically,
     gearcutter_frame.json   the static frame only (block and item)  (assets/.../shapes/block/)
     gearcutter-rig.json     cells, anchors and the part rig         (assets/.../config/)
     rig-reference.json      every part's matrix at a grid of poses  (tests/GearCutter/)
+    gearcutter/<item>.json  the five forged parts' item shapes      (assets/.../shapes/item/)
 
-or, with `--out DIR`, all four into DIR. It validates its own output (validate_gearcutter.py) and
+or, with `--out DIR`, all of them into DIR (the item shapes into DIR/item/). It validates its own output (validate_gearcutter.py) and
 exits non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from
@@ -68,6 +69,7 @@ MOD = ROOT / "mods-src" / "seraphhorizons"
 SHAPE_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "block"
 RIG_DIR = MOD / "assets" / "seraphhorizons" / "config"
 REFERENCE_OUT = MOD / "tests" / "GearCutter" / "rig-reference.json"
+ITEM_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "item" / "gearcutter"
 SCRIPT = "mods-src/seraphhorizons/GearCutter/tools/make_shape.py"
 
 B = 16.0
@@ -242,6 +244,12 @@ CROSSHEAD_Z0, OVERARM_Z = 6.0, 22.0         # the cross-head over the work, the 
 OILER = {"x": (24.0, 25.6), "y": (29.7, 31.1), "z": (Z_CUT - 0.75, Z_CUT + 0.75)}   # the glass; base under it, cap, needle and knob over it
 OIL_EMPTY = 0.05                             # the cup's liquid element is authored this tall (empty)
 # ---------------------------------------------------------------- box helpers
+# The least gap between two faces that face the same way and overlap where both can be seen. The depth
+# buffer cannot part faces a hundredth of a voxel apart at a few blocks' distance, so the work (blanks,
+# fills, masters) and the cutter stack their faces at least this far apart (validate's close-faces check).
+ZF_GAP = 0.025
+
+
 def skin(el, tex):
     """Every face takes `tex`, its UVs a region of the texture in proportion to the face's size."""
     axes = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
@@ -289,12 +297,13 @@ def radial(axis, c, a0, a1, r0, r1, width, ang, name, part, tex):
     return el
 
 
-def disc(axis, c, a0, a1, r, name, part, tex, k=4, phase=0.0):
-    """A plain round part: k strips as long as the 2k-gon is across, 180/k degrees apart."""
+def disc(axis, c, a0, a1, r, name, part, tex, k=4, phase=0.0, step=None):
+    """A plain round part: k strips as long as the 2k-gon is across, 180/k degrees apart; each strip `step`
+    shorter at both ends than the last (by default a hair, at most 0.012)."""
     a, u, w, _ = frame_of(axis)
     half = r * math.tan(math.pi / (2 * k))
     out = []
-    st = min(0.012, (a1 - a0) / (4 * k))       # each strip a hair shorter than the last, so no two ends share a plane
+    st = min(0.012, (a1 - a0) / (4 * k)) if step is None else step   # each strip shorter than the last, so no two ends share a plane
     for i in range(k):
         lo, hi = [0.0] * 3, [0.0] * 3
         lo[a], hi[a] = a0 + st * i, a1 - st * i
@@ -308,15 +317,15 @@ def disc(axis, c, a0, a1, r, name, part, tex, k=4, phase=0.0):
     return out
 
 
-def annulus(axis, c, a0, a1, r_in, r_out, n, name, part, tex, phase=0.0, skip=()):
+def annulus(axis, c, a0, a1, r_in, r_out, n, name, part, tex, phase=0.0, skip=(), step=0.02):
     """A ring of n boxes from r_in to r_out, each as wide as a side of the n-gon at r_out; every
-    other one a hair shorter along the axis, so their ends never share a plane."""
+    other one `step` shorter at each end, so their ends never share a plane."""
     w = 2 * r_out * math.tan(math.pi / n)
     out = []
     for i in range(n):
         if i in skip:
             continue
-        s = 0.02 if i % 2 else 0.0
+        s = step if i % 2 else 0.0
         out.append(radial(axis, c, a0 + s, a1 - s, r_in, r_out, w, phase + TAU * i / n, f"{name}{i + 1}", part, tex))
     return out
 
@@ -546,15 +555,24 @@ def worm():
 
 
 def cutter():
-    """The formed cutter: one tooth of the rack, gashed: three bands of 12 teeth whose thickness
-    along z steps with the rack tooth's flanks, on a thicker body."""
+    """The formed cutter: one tooth of the rack, gashed: three bands of 12 teeth whose thickness along z
+    steps with the rack tooth's flanks, on a thicker body. The body reaches out to just short of the
+    blank's tip circle at the bottom of the cutter (a box's corner is its lowest point), and each band
+    overlaps the next and the body, so the teeth stand on the body with no gap or seam at any angle."""
     c = (X_BLANK, SPINDLE_Y, Z_CUT)
-    out = disc("z", c, Z_CUT - 0.6, Z_CUT + 0.6, 1.85, "cutter_body", "cutter", "steel", k=6)
+    # the body: an octagon whose corners stay inside CUTTER_R - (ADD + DED), the radius at the blank's tip circle
+    clear = CUTTER_R - ADD - DED - 0.015
+    out = disc("z", c, Z_CUT - 0.6, Z_CUT + 0.6, clear * math.cos(math.pi / 16), "cutter_body", "cutter", "steel", k=8, step=ZF_GAP)
     tw = lambda depth: math.pi * MODULE / 2 - 2 * (DED - depth) * math.tan(20 * DEG)    # noqa: E731  the tooth's width `depth` above its tip
-    # the third band is the gashes' web behind the teeth: it starts past the rack tooth's whole depth, clear of the blank's tips
-    bands = ((CUTTER_R - 0.35, CUTTER_R, tw(0.0)), (CUTTER_R - 0.9, CUTTER_R - 0.35, tw(0.35)), (1.75, CUTTER_R - ADD - DED - 0.1, tw(0.9)))
-    for b, (r0, r1, t) in enumerate(bands, 1):
-        w = TAU * r1 / 12 * 0.62
+    # (r0, r1, thickness, the radius the gash's width is taken at): each band is as thick as the rack tooth at its
+    # outer end's depth or thinner, so it stays inside the tooth's flanks; the tip band runs into the middle one,
+    # the middle one into the inner one, and the inner one into the body. The inner one is the rack tooth's
+    # thickness at its pitch line, 0.1 inside its flanks either side: the blank's box teeth are not the generated
+    # form, and a band as thick as the flanks allow there would graze their tips
+    bands = ((CUTTER_R - 0.4, CUTTER_R, tw(0.0), CUTTER_R), (CUTTER_R - 0.95, CUTTER_R - 0.35, tw(0.35), CUTTER_R - 0.35),
+             (clear - 0.15, CUTTER_R - 0.9, tw(DED), CUTTER_R - 0.35))
+    for b, (r0, r1, t, rw) in enumerate(bands, 1):
+        w = TAU * rw / 12 * 0.62 - (0.02 if b == 3 else 0.0)    # the inner band a hair narrower than the middle one it carries
         for i in range(12):
             out.append(radial("z", c, Z_CUT - t / 2, Z_CUT + t / 2, r0, r1, w, TAU * i / 12 + 0.02 * b, f"cutter_band{b}_{i + 1}", "cutter", "steel"))
     return out
@@ -803,23 +821,30 @@ UNDERCUT = 0.1
 def toothed(cls, prefix, part, x0, x1, tex, body_k):
     """A gear of the class's size: a body to the root and tapered teeth at the generated pitch, gaps at
     gap_angle (the master's teeth are the gear's)."""
+    root = PITCH_R[cls] - DED
+    out = disc("x", ARBOR, x0, x1, root * math.cos(math.pi / (2 * body_k)) - 0.05, f"{prefix}_body", part, tex, k=body_k, step=ZF_GAP)
+    # the teeth's faces a gap in from the body's deepest strip's, where they run into the body
+    return out + gear_teeth(cls, prefix, part, x0, x1, tex, inset=body_k * ZF_GAP)
+
+
+def gear_teeth(cls, prefix, part, x0, x1, tex, inset):
+    """The class's teeth, their faces `inset` in from x0 and x1 (the outer box of each 0.02 further)."""
     r, n = PITCH_R[cls], TEETH[cls]
     root, tip = r - DED, r + ADD
-    out = disc("x", ARBOR, x0, x1, root * math.cos(math.pi / (2 * body_k)) - 0.05, f"{prefix}_body", part, tex, k=body_k)
     # fewer than 17 teeth off a 20-degree rack are undercut at the root: the box teeth are drawn a little thinner instead
     width = math.pi * MODULE / 2 - (UNDERCUT if n < 17 else 0.0)
-    out += teeth("x", ARBOR, x0 + 0.03, x1 - 0.03, root, tip, n, width, f"{prefix}_tooth", part, tex,
+    return teeth("x", ARBOR, x0 + inset, x1 - inset, root, tip, n, width, f"{prefix}_tooth", part, tex,
                  phase=gap_angle(cls, 0) + STEP[cls] / 2, taper=0.45)
-    return out
 
 
 def spacers(cls, kind, prefix, part, tex):
-    """Hubs that fill a thin gear's station to the collars, so it is located on both faces."""
+    """Hubs that fill a thin gear's station to the collars, so it is located on both faces. They run 0.3 into
+    the gear, so their inner ends are inside it, never a face beside the gear's own."""
     out = []
     (s0, s1), (f0, f1) = STATION[kind], face(kind, cls)
     if f0 - s0 > 0.05:
-        out += disc("x", ARBOR, s0, f0, 1.05, f"{prefix}_hub1", part, tex, k=4)
-        out += disc("x", ARBOR, f1, s1, 1.05, f"{prefix}_hub2", part, tex, k=4)
+        out += disc("x", ARBOR, s0, f0 + 0.3, 1.05, f"{prefix}_hub1", part, tex, k=4, step=ZF_GAP)
+        out += disc("x", ARBOR, f1 - 0.3, s1, 1.05, f"{prefix}_hub2", part, tex, k=4, step=ZF_GAP)
     return out
 
 
@@ -831,11 +856,14 @@ def build_masters():
     out = toothed("thin", "master", "master", a, b, "temporal", 6) + spacers("thin", "master", "master", "master", "temporal")
     xa = a - 0.12
     y, z = ARBOR_Y, Z_REST
-    out.append(box([xa, y - 2.3, z - 0.35], [a, y + 2.3, z + 0.35], "master_barv", "master", "temporal"))
-    out.append(box([xa - 0.01, y - 0.35, z - 2.3], [a, y + 0.35, z + 2.3], "master_barh", "master", "temporal"))
+    # the bars and the boss run 0.3 into the body, so none of their inner faces lies by the body's own; their
+    # outer faces are a gap apart where they cross
+    g = ZF_GAP
+    out.append(box([xa, y - 2.3, z - 0.35], [a + 0.3, y + 2.3, z + 0.35], "master_barv", "master", "temporal"))
+    out.append(box([xa - g, y - 0.35, z - 2.3], [a + 0.3, y + 0.35, z + 2.3], "master_barh", "master", "temporal"))
     for i, dz in enumerate((-1.15, 1.15), 1):
-        out.append(box([xa, y - 1.6, z + dz - 0.25], [a - 0.03, y + 1.6, z + dz + 0.25], f"master_barsec{i}", "master", "temporal"))
-    out += disc("x", ARBOR, xa - 0.25, xa, 0.8, "master_boss", "master", "gold", k=4)
+        out.append(box([xa + g, y - 1.6, z + dz - 0.25], [a + 0.3, y + 1.6, z + dz + 0.25], f"master_barsec{i}", "master", "temporal"))
+    out += disc("x", ARBOR, xa - 0.3, a + 0.3, 0.8, "master_boss", "master", "gold", k=4, step=g)
     # the twelve nubs through the body, standing out 0.3 each side as on the game's item
     for i in range(TEETH["thin"]):
         ang = gap_angle("thin", 0) + STEP["thin"] / 2 + i * STEP["thin"]
@@ -847,34 +875,67 @@ def build_masters():
 
     a, b = face("master", "thick")
     out += toothed("thick", "mastl", "masterlarge", a, b, "temporal", 8)
-    out += annulus("x", ARBOR, a - 0.15, a, 3.0, 3.9, 8, "mastl_rim", "masterlarge", "temporal", phase=math.pi / 8)
+    out += annulus("x", ARBOR, a - 0.15, a + 0.3, 3.0, 3.9, 8, "mastl_rim", "masterlarge", "temporal", phase=math.pi / 8, step=g)
     for i in range(4):
-        out.append(radial("x", ARBOR, a - 0.13, a, 0.9, 3.05, 0.8, math.pi * i / 2, f"mastl_web{i + 1}", "masterlarge", "temporal"))
-    out += disc("x", ARBOR, a - 0.4, a - 0.1, 1.0, "mastl_boss", "masterlarge", "gold", k=4)
+        out.append(radial("x", ARBOR, a - 0.15 + 2 * g, a + 0.3, 0.9, 3.05, 0.8, math.pi * i / 2, f"mastl_web{i + 1}", "masterlarge", "temporal"))
+    out += disc("x", ARBOR, a - 0.4, a + 0.3, 1.0, "mastl_boss", "masterlarge", "gold", k=4, step=g)
     return out
 
 
-SINK = ADD + DED + 0.2                        # how far a gap's fill sinks into the blank as the cutter takes it
+# The blank's faces, as depths in from its nominal faces (negative: standing proud), each stack a gap
+# (ZF_GAP) apart where they overlap: the teeth one gap in, the fills at the face (`lo`) and a gap proud
+# (`hi`), in front of the teeth's flanks, so before its gap is cut the rim reads as solid disc with no tooth
+# outline; and the body's strips from two gaps proud outwards, so a sunk fill is behind every one of them.
+FILL_DEPTH = {"lo": 0.0, "hi": -ZF_GAP}
+TEETH_DEPTH = ZF_GAP
+BODY_DEPTH, BODY_STEP = -2 * ZF_GAP, -ZF_GAP   # the body's most-inset strip, and each further strip's step out
+FILL_MARGIN = 0.005                           # how far short of the middle of the teeth either side a fill's inner corners stop
+SINK = ADD + DED + 0.3                        # how far a gap's fill sinks into the blank as the cutter takes it
+
+
+def body_r(cls):
+    """The blank body's inradius: just inside the root, its corners too, so they stay under the teeth and fills."""
+    return PITCH_R[cls] - DED - 0.1
+
+
+def fill_boxes(cls):
+    """A gap's fill as (tag, r0, r1, width): from inside the root to just past the tip, each box as wide as it
+    can be without its inner corners reaching past the middle of the neighbouring teeth, so it covers the whole
+    gap and the teeth's flank edges either side (a neighbour's fill meets it there); the outer box runs into the
+    inner one."""
+    r = PITCH_R[cls]
+    root, tip = r - DED, r + ADD
+    mid = (root + tip) / 2 + 0.1
+    out = []
+    for tag, r0, r1 in (("lo", root - 0.15, mid + 0.05), ("hi", mid - 0.05, tip + 0.02)):
+        out.append((tag, r0, r1, 2 * (r0 * math.tan(STEP[cls] / 2) - FILL_MARGIN)))
+    return out
 
 
 def build_blanks():
-    """The two blanks, steel, with one fill per tooth gap (two boxes): a fill sinks into the body as the
-    cutter generates that gap, so the gear appears tooth by tooth."""
+    """The two blanks, steel, with one fill per tooth gap (two boxes): until the cutter reaches a gap its
+    fill makes the rim there plain disc, face to face and root to tip; it sinks into the body as the cutter
+    generates that gap, so the gear appears tooth by tooth, and once sunk it is wholly inside the body."""
     out = []
     for cls, prefix, part, gprefix in (("thin", "blanks", "blanksmall", "gs"), ("thick", "blankl", "blanklarge", "gl")):
         f0, f1 = face("blank", cls)
-        out += toothed(cls, prefix, part, f0, f1, "steel", 6 if cls == "thin" else 8)
+        k = 6 if cls == "thin" else 8
+        rb = body_r(cls)
+        half = rb * math.tan(math.pi / (2 * k))
+        phase = gap_angle(cls, 0) + STEP[cls] / 2
+        for i in range(k):
+            d = BODY_DEPTH + BODY_STEP * (k - 1 - i)
+            el = box([f0 + d, ARBOR[1] - rb, ARBOR[2] - half], [f1 - d, ARBOR[1] + rb, ARBOR[2] + half], f"{prefix}_body_{i + 1}", part, "steel")
+            rotate([el], "x", math.degrees(phase + math.pi * i / k), ARBOR)
+            out.append(el)
+        out += gear_teeth(cls, prefix, part, f0, f1, "steel", inset=TEETH_DEPTH)
         out += spacers(cls, "blank", prefix, part, "steel")
-        r, n = PITCH_R[cls], TEETH[cls]
-        root, tip = r - DED, r + ADD
-        for j in range(n):
+        for j in range(TEETH[cls]):
             ang = gap_angle(cls, j)
-            mid = (root + tip) / 2 + 0.1
-            w_lo = 2 * ((root + mid) / 2) * math.sin(STEP[cls] / 2) - math.pi * MODULE / 2
-            w_hi = 2 * ((mid + tip) / 2) * math.sin(STEP[cls] / 2) - 0.45
             pid = f"{gprefix}{j + 1:02d}"
-            out.append(radial("x", ARBOR, f0 + 0.05, f1 - 0.05, root + 0.02, mid, max(0.3, w_lo - 0.02), ang, f"{pid}_lo", pid, "steel"))
-            out.append(radial("x", ARBOR, f0 + 0.07, f1 - 0.07, mid, tip - 0.01, max(0.3, w_hi - 0.02), ang, f"{pid}_hi", pid, "steel"))
+            for tag, r0, r1, w in fill_boxes(cls):
+                d = FILL_DEPTH[tag]
+                out.append(radial("x", ARBOR, f0 + d, f1 - d, r0, r1, w, ang, f"{pid}_{tag}", pid, "steel"))
     return out
 
 
@@ -1548,6 +1609,48 @@ def reference_json(ship_parts, sp):
             "poses": poses}
 
 
+# ---------------------------------------------------------------- the forged parts' item shapes
+# Each stage's item looks as its part does in the machine: the rig parts it draws (README "Fitted parts",
+# without the belt, which is the spindle stage's but no part of the forging), their elements as they are
+# at rest, centred on the item box's floor (x and z on 8, the bottom at y 0) and scaled down uniformly
+# when they would not fit in 16 voxels. The scales are fixed here, so an item does not change size
+# because a part moved; validate checks each item fits at its scale.
+ITEM_PARTS = {
+    "spindle": ("headshaft", "spindle"),               # the head shaft with the upper cone and its mitre, the spindle with its own
+    "feedscrew": ("worm", "clutch"),                   # the worm and the clutch sleeve
+    "liftcam": ("liftcam",),                           # the lift cam on its hub
+    "index": ("lever", "pawl", "checkpawl", "shield"),  # the lever with its roller, the pawls and the shield
+    "kit": ("cutter",),                                # the formed cutter
+}
+ITEM_SCALE = {"spindle": 0.74, "feedscrew": 1.0, "liftcam": 1.0, "index": 1.0, "kit": 1.0}   # the spindle is 21.5 long
+
+
+def item_elements(els, parts, item):
+    """The item's elements: its parts' at rest, every face kept that the machine draws (an element with
+    none left is dropped), moved and scaled into the item box; the UVs scale with the faces."""
+    src = [posed(el, pm(parts, el.part, REST)) for el in els if el.part in ITEM_PARTS[item] and el.faces]
+    cs = [q for el in src for q in el.corners()]
+    lo = [min(q[i] for q in cs) for i in range(3)]
+    hi = [max(q[i] for q in cs) for i in range(3)]
+    sc = ITEM_SCALE[item]
+    anchor = ((lo[0] + hi[0]) / 2, lo[1], (lo[2] + hi[2]) / 2)
+    out = []
+    for el in src:
+        e = el.clone()
+        e.c = [8.0 + (el.c[0] - anchor[0]) * sc, (el.c[1] - anchor[1]) * sc, 8.0 + (el.c[2] - anchor[2]) * sc]
+        e.size = [v * sc for v in el.size]
+        for f in e.faces.values():
+            f["uv"] = [v * sc for v in f["uv"]]
+        out.append(e)
+    return out
+
+
+def item_shape_json(els, item):
+    return machine_shape_json(
+        els, f"Generated by {SCRIPT}: the gear cutter's {item} item, its parts' elements from gearcutter.json at rest "
+             f"(scale {ITEM_SCALE[item]}). Every element was made for the Seraph Horizons mod.", TEXTURES, tex_size=TEX)
+
+
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
@@ -1560,12 +1663,19 @@ def coplanar_poses():
 
 
 def fix_coplanar(els, parts):
-    return fix_coplanar_posed(els, lambda es, pose: [posed(el, pm(parts, el.part, pose)) for el in es], coplanar_poses())
+    """The z-fighting fix over the poses, with the parts not fitted at a pose (the other master's set-up,
+    or both at rest) moved well away: faces of parts never seen together are not worth moving."""
+    from validate_gearcutter import present
+    away = [[1.0, 0.0, 0.0, 1000.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]]
+
+    def posed_fn(es, pose):
+        return [posed(el, pm(parts, el.part, pose) if present(el.part, pose[3]) else away) for el in es]
+    return fix_coplanar_posed(els, posed_fn, coplanar_poses())
 
 
 def main():
     ap = argparse.ArgumentParser(description="Generate the gear cutter's shapes, rig and reference poses.")
-    ap.add_argument("--out", type=Path, help="write the four files into this directory instead of the mod's assets and tests")
+    ap.add_argument("--out", type=Path, help="write the files into this directory instead of the mod's assets and tests")
     ap.add_argument("--quick", action="store_true", help="skip the z-fighting fix and the slow checks (not for files that ship)")
     args = ap.parse_args()
     import validate_gearcutter
@@ -1589,6 +1699,11 @@ def main():
     ship["cells"] = shipped_cells(shape, ship_parts, ship["work"])
     ok = validate_gearcutter.validate_files(sys.modules[__name__], shape, frame_shape, ship) and ok
     texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship), reference_dumps(reference_json(ship_parts, ship["work"])))
+    items = {item: item_elements(els, parts, item) for item in ITEM_PARTS}
+    ok = validate_gearcutter.check_items(sys.modules[__name__], items) and ok
+    item_dir = args.out / "item" if args.out else ITEM_DIR
+    outs += tuple(item_dir / f"{item}.json" for item in items)
+    texts += tuple(shape_dumps(item_shape_json(es, item)) for item, es in items.items())
 
     for path, text in zip(outs, texts):
         path.parent.mkdir(parents=True, exist_ok=True)
