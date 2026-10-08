@@ -570,7 +570,13 @@ store). The tables were written with a one-off script; the JSON is the source.
   spot has missed; a spot whose chunk is generated earlier is passed for good.
 - **Traders in camps**: an `onattemptspawnerspawn` listener rewrites any other mod's trader code (by
   class `EntityTrader` or a trader code) into ours: the cell's type, the spawner's gender, the outfit
-  set by climate as vanilla's. Spawners keep respawning the camp's trader as before.
+  set by climate as vanilla's. Spawners keep respawning the camp's trader as before. Not a spawner
+  inside a story structure (its schematic's area in `GenStoryStructures.Structures`): vanilla's
+  treasure hunter is a trader by code and class, and rewritten it lost its story dialogue (and, made a
+  prospector, sold a map to the treasure hunter that led to its own house); a mod's story NPCs keep
+  theirs the same way. Not the landform radius around the structure (200 blocks for the treasure
+  hunter), which reaches over camps the grid may place 100 blocks off. Worlds that already rewrote
+  theirs keep them.
 - **New worlds only**: whether a world has the grid is decided at its first start with the mod
   (new world and switch `TraderGrid` on) and saved (`seraphhorizons:tradergrid`); an existing world
   keeps vanilla camps and traders. Switching it off later stops the grid (the world's new chunks get

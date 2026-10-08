@@ -8,6 +8,7 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
+using Vintagestory.GameContent;
 using Vintagestory.ServerMods;
 
 namespace SeraphHorizons.Mod.Trading;
@@ -44,7 +45,9 @@ public sealed class CampsConfig
 /// <c>onattemptspawnerspawn</c> event bus before every spawn (vanilla's
 /// ModSystemClimateSpecificTraderTypes turns <c>-temperate</c> into <c>-cold</c>/<c>-desert</c>
 /// there); this class answers with the pack's trader of the cell's type, same gender, outfit set
-/// by climate as vanilla's. The spawner keeps one trader, and spawns again when it is gone.</item>
+/// by climate as vanilla's. The spawner keeps one trader, and spawns again when it is gone. A spawner
+/// inside a story structure (vanilla's treasure hunter, or a mod's) is left alone: its trader is a
+/// story NPC.</item>
 /// </list>
 /// Only in worlds that had the grid from their first start (<see cref="TradingSystem.GridActive"/>).
 /// </summary>
@@ -62,6 +65,7 @@ public sealed class TraderCamps
     private readonly Dictionary<string, bool> _traderCodes = new();
     private IWorldGenBlockAccessor? _blocks;
     private GenStructures? _gen;
+    private GenStoryStructures? _story;
     private WorldGenStructure[] _camps = [];
     private double[] _weights = [];
     private int _regionChunkSize;
@@ -278,12 +282,26 @@ public sealed class TraderCamps
         string? code = tree.GetString("type");
         if (code is null || !IsOtherTrader(code)) return;
         var pos = tree.GetBlockPos("pos");
-        if (pos is null) return;
+        if (pos is null || InStoryStructure(pos)) return;
         string type = grid.TypeOf(TraderGrid.CellOf(pos.X, pos.Z));
         var climate = _api.World.BlockAccessor.GetClimateAt(pos, EnumGetClimateMode.WorldGenValues);
         string outfit = climate is null ? "temperate" : TraderTypes.OutfitClimate(climate.Temperature, climate.Rainfall);
         string gender = code.Contains("-female") ? "female" : code.Contains("-male") ? "male" : ((pos.X ^ pos.Z) & 1) == 0 ? "male" : "female";
         tree.SetString("type", $"{SeraphHorizonsSystem.HarmonyId}:{TraderTypes.EntityPath(gender, type, outfit)}");
+    }
+
+    /// <summary>Whether a position lies inside a story structure's schematic (vanilla's treasure
+    /// hunter, or one a mod adds): its traders are story NPCs, with their own dialogue, and keep
+    /// their code. The schematic's own area, not its landform radius, which reaches far past it
+    /// (200 blocks for the treasure hunter) and over camps the grid placed.</summary>
+    private bool InStoryStructure(BlockPos pos)
+    {
+        _story ??= _api.ModLoader.GetModSystem<GenStoryStructures>();
+        if (_story?.Structures is not { } structures) return false;
+        // Set at worldgen init and by /wgen story setpos, both on the main thread, as spawners spawn.
+        foreach (var (_, location) in structures)
+            if (location.Location is { } area && area.Contains(pos.X, pos.Z)) return true;
+        return false;
     }
 
     /// <summary>A trader entity code that is not the pack's: vanilla's, Culinary Artillery's,
