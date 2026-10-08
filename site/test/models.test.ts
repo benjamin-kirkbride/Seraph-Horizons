@@ -249,7 +249,8 @@ describe("scenario", () => {
 
   it("turns the shaft either way, its travel always growing", () => {
     const back = advance(ctx(false, -1), { ...rest, theta: 1 }, 0.3);
-    expect(back.theta).toBeCloseTo(1 - (0.3 * 2 * Math.PI) / 1.2 + 2 * Math.PI); // kept in 0..2π
+    // not wrapped: a part geared below the shaft (a third, the handcar's beam) would jump at each turn
+    expect(back.theta).toBeCloseTo(1 - (0.3 * 2 * Math.PI) / 1.2);
     expect(back.travel).toBeCloseTo((0.3 * 2 * Math.PI) / 1.2);
     // without a script Play only turns the shaft
     const plain = advance({ play: undefined, direction: 1, propChosen: false, contact: 0 }, { ...rest, depth: 0.3 }, 0.6);
