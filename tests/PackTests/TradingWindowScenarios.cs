@@ -244,13 +244,13 @@ public partial class TradingScenarios
         Assert.Equal(4, sellSlot.Itemstack?.StackSize);
         Assert.False(Window(osp, trader, Req(TradeAction.Sell)).Ok);
         Assert.Equal(theirGears, Gears(osp));
-        // Shift-click offers them nothing; the owner the sell slot only.
+        // Shift-click offers them nothing; the owner the first free sell slot.
         var theirs = osp.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName)![0];
         theirs.Itemstack = Stack(Iron, 2);
         var op = new ItemStackMoveOperation(W, EnumMouseButton.Left, 0, EnumMergePriority.AutoMerge) { ActingPlayer = osp };
         Assert.Null(inv.GetBestSuitedSlot(theirs, op).slot);
         op.ActingPlayer = sp;
-        Assert.Same(sellSlot, inv.GetBestSuitedSlot(theirs, op).slot);
+        Assert.Same(inv[SeraphTraderInventory.SellSlot + 1], inv.GetBestSuitedSlot(theirs, op).slot);
         theirs.Itemstack = null;
         // Their closing the inventory neither takes nor drops the owner's goods.
         inv.Close(osp);
@@ -275,6 +275,117 @@ public partial class TradingScenarios
         await World.Ticks(2);
         Assert.Equal(carried + 4, OrdersSystem.Carried(sp, Iron));
         Assert.Null(sellSlot.Itemstack);
+    }
+
+    /// <summary>A shift-click on a hotbar slot, as the client's packet makes the server do it.</summary>
+    private static void ShiftClick(IServerPlayer player, int slot)
+    {
+        var hotbar = player.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName)!;
+        var op = new ItemStackMoveOperation(player.Entity.World, EnumMouseButton.Left, EnumModifierKey.SHIFT, EnumMergePriority.AutoMerge)
+        {
+            ActingPlayer = player,
+        };
+        hotbar.ActivateSlot(slot, hotbar[slot], ref op);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Shift_click_moves_goods_into_a_sell_slot_and_never_loses_money_or_a_package()
+    {
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", 55, -55);
+        var sp = await Trading(Customer(), trader);
+        var inv = (SeraphTraderInventory)trader.Inventory;
+        var hotbar = sp.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName)!;
+        var saved = Enumerable.Range(0, 10).Select(i => hotbar[i].Itemstack).ToArray();
+        try
+        {
+            foreach (var mode in new[] { EnumGameMode.Creative, EnumGameMode.Survival })
+            {
+                sp.WorldData.CurrentGameMode = mode;
+                // A full hotbar and no bags: with no room left, creative's black hole was where a
+                // shift-clicked stack went.
+                for (int i = 0; i < 10; i++) hotbar[i].Itemstack = Stack("game:stick", 1);
+                hotbar[0].Itemstack = new ItemStack(W.GetItem(SeraphHorizons.Mod.Trading.Deliveries.ItemPackage.PackageCode), 1);
+                hotbar[1].Itemstack = Stack("game:gear-rusty", 7);
+                hotbar[2].Itemstack = Stack(Iron, 3);
+                foreach (var s in inv.SellSlotList) s.Itemstack = null;
+
+                ShiftClick(sp, 0);
+                ShiftClick(sp, 1);
+                Assert.Equal("seraphhorizons:package", hotbar[0].Itemstack?.Collectible.Code.ToString());
+                Assert.Equal(7, hotbar[1].Itemstack?.StackSize);
+                Assert.All(inv.SellSlotList, s => Assert.Null(s.Itemstack));
+
+                // Goods go into the first free sell slot, whole.
+                ShiftClick(sp, 2);
+                Assert.Null(hotbar[2].Itemstack);
+                Assert.Equal(3, inv[SeraphTraderInventory.SellSlot].Itemstack?.StackSize);
+
+                // With every sell slot taken, nothing moves.
+                foreach (var s in inv.SellSlotList.Skip(1)) s.Itemstack = Stack("game:stick", 1);
+                hotbar[2].Itemstack = Stack(Iron, 2);
+                ShiftClick(sp, 2);
+                Assert.Equal(2, hotbar[2].Itemstack?.StackSize);
+                output.WriteLine($"{mode}: the package and gears stayed, the iron went into the sell slot");
+            }
+        }
+        finally
+        {
+            sp.WorldData.CurrentGameMode = EnumGameMode.Survival;
+            for (int i = 0; i < 10; i++) hotbar[i].Itemstack = saved[i];
+            foreach (var s in inv.SellSlotList) s.Itemstack = null;
+        }
+        trader.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_pooled_sale_across_the_sell_slots_pays_whole_gears_and_closing_gives_the_rest_back()
+    {
+        FreshSupply();
+        var trader = await SpawnTrader("generalstore", -55, -55);
+        var sp = await Trading(Customer(), trader);
+        var inv = (SeraphTraderInventory)trader.Inventory;
+        // A good the trader takes off its list by the several items to the gear.
+        string? code = null;
+        Offer? offer = null;
+        foreach (var c in W.Items.Cast<CollectibleObject>().Concat(W.Blocks))
+        {
+            if (c?.Code is null || c.Id == 0 || c.MaxStackSize < 16 || c.TransitionableProps is { Length: > 0 }) continue;
+            if (inv.GetBuyingConditionsSlot(new ItemStack(c, 1)) is not OffListSlot { Offer: { Accepted: true, UnitSize: >= 3 } o }) continue;
+            if (o.UnitSize > c.MaxStackSize) continue;
+            code = c.Code.ToString();
+            offer = o;
+            break;
+        }
+        Assert.True(code != null, "no cheap off-list good to pool");
+        int u = offer!.UnitSize, p = offer.UnitPrice;
+        output.WriteLine($"{code}: {p} g per {u}");
+        // Neither slot alone makes a unit; the two together do.
+        inv[SeraphTraderInventory.SellSlot].Itemstack = Stack(code!, u - 1);
+        inv[SeraphTraderInventory.SellSlot + 1].Itemstack = Stack(code!, u - 1);
+        int gears = Gears(sp), side = EconomySystem.SideBudgetOf(trader);
+        Assert.True(Window(sp, trader, Req(TradeAction.Sell)).Ok);
+        Assert.Equal(gears + p, Gears(sp));
+        Assert.Equal(side - p, EconomySystem.SideBudgetOf(trader));
+        Assert.Null(inv[SeraphTraderInventory.SellSlot].Itemstack);
+        Assert.Equal(u - 2, inv[SeraphTraderInventory.SellSlot + 1].Itemstack?.StackSize ?? 0);
+        Assert.True(Economy.Supply.Level(EconomySystem.RegionOf(trader), code!) > 0);
+        Assert.Equal(p * Standing.Rules.Points.PerGear, Standing.Ledger.Personal(sp.PlayerUID, Standing.TraderIdOf(trader))!.Points);
+
+        // Under a whole gear: refused, nothing taken.
+        inv[SeraphTraderInventory.SellSlot + 1].Itemstack = Stack(code!, 1);
+        if (p * 1.0 / u < 1)
+        {
+            Assert.Equal("trading-window-sell-under", Window(sp, trader, Req(TradeAction.Sell)).Key);
+            Assert.Equal(1, inv[SeraphTraderInventory.SellSlot + 1].Itemstack?.StackSize);
+        }
+
+        // Closing gives back what is left.
+        int carried = OrdersSystem.Carried(sp, code!);
+        inv.Close(sp);
+        Assert.All(inv.SellSlotList, s => Assert.Null(s.Itemstack));
+        Assert.Equal(carried + 1, OrdersSystem.Carried(sp, code!));
+        trader.Die(EnumDespawnReason.Removed);
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
@@ -468,6 +579,12 @@ public partial class TradingScenarios
         texts.AddRange(TradeWindowModel.ShelfDetails("x", 1, 1, 0, true, false));
         texts.AddRange(TradeWindowModel.ShelfDetails("x", 1, 1, 1, false, false));
         texts.AddRange(TradeWindowModel.OfferLines(Pricing.OffList(10, false, 0.5, 1, 1.1, 64), false, 3, 0));
+        var dirt = new SellLine(36, 20, 28, 1, Budget.Side, "off:soil");
+        texts.AddRange(TradeWindowModel.SellOffer([], false));
+        texts.AddRange(TradeWindowModel.SellOffer([], true));
+        texts.AddRange(TradeWindowModel.SellOffer([dirt], true));
+        texts.AddRange(TradeWindowModel.SellOffer([dirt, dirt with { Slot = 37 }], true));
+        texts.AddRange(new[] { "trading-window-sell-wontbuy", "trading-window-sell-breakdown", "trading-window-sell-never", "trading-window-sell-under" }.Select(k => new Text(k)));
         texts.Add(TradeWindowModel.OreMapLine("copper", null, 10, 1));
         texts.Add(TradeWindowModel.OreMapLine("iron", "large", 10, 3));
         texts.Add(TradeWindowModel.LeadLine("camp", "cook", 10, TradeWindowModel.Direction(1, 1)));
