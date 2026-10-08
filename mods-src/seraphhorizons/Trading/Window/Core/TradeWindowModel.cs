@@ -167,6 +167,26 @@ public static class TradeWindowModel
         return lines;
     }
 
+    /// <summary>What the sell slots fetch, short (the breakdown is the slots' and this text's tooltip,
+    /// <see cref="OfferLines"/>): "Trader pays 1 g per 28" for the good a hold sells first, and what
+    /// everything in the slots comes to, or how much more a whole gear needs.</summary>
+    /// <param name="lines">The slots' goods the trader buys (<see cref="SellPool"/>).</param>
+    /// <param name="anyGoods">Whether the slots hold anything at all.</param>
+    public static List<Text> SellOffer(IReadOnlyList<SellLine> lines, bool anyGoods)
+    {
+        if (!anyGoods) return [new Text("trading-window-sell-hint")];
+        var sellable = SellPool.Sellable(lines);
+        if (sellable.Count == 0) return [new Text(lines.Count == 0 ? "trading-window-sell-none" : "trading-window-selected-nodemand")];
+        var first = sellable[0].Line;
+        var result = new List<Text> { new("trading-window-sell-pays", first.UnitPrice, first.UnitSize) };
+        double value = SellPool.Value(lines);
+        int gears = SellPool.Gears(lines);
+        result.Add(gears >= 1
+            ? new Text("trading-window-sell-total", gears)
+            : new Text("trading-window-sell-under", F(Math.Floor(value * 100) / 100)));
+        return result;
+    }
+
     /// <summary>The lang key for why a trader will not take something.</summary>
     public static string RefusalKey(Refusal refusal) => refusal switch
     {
