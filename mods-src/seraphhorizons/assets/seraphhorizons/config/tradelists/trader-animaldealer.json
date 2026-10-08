@@ -48,7 +48,6 @@
 				{"code": "primitivesurvival:snake-coachwhip", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 20, "var": 5}},
 				{"code": "primitivesurvival:snake-pitviper", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 20, "var": 5}},
 				{"code": "primitivesurvival:snake-chainviper", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 20, "var": 5}},
-				{"code": "primitivesurvival:livingdead-normal", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "price": {"avg": 100, "var": 20}, "rare": true},
 				{"code": "creature-hare-european-baby-male", "stacksize": 1, "stock": {"avg": 5, "var": 1}, "price": {"avg": 7, "var": 3}},
 				{"code": "creature-hare-european-baby-female", "stacksize": 1, "stock": {"avg": 5, "var": 1}, "price": {"avg": 7, "var": 3}},
 				{"code": "creature-raccoon-common-baby-female", "stacksize": 1, "stock": {"avg": 3, "var": 1}, "price": {"avg": 7, "var": 3}},
