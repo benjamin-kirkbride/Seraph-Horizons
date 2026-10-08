@@ -27,13 +27,12 @@ function modelModule(id: string): Plugin {
   const read = (path: string | undefined) => (path ? (JSON.parse(readFileSync(resolve(repo, path), "utf8")) as unknown) : null);
   const shape = read(source(model.shape));
   const rig = read(source(model.rig));
+  const bogie = read(source(model.bogie));
+  const json = (name: string, value: unknown) => `export const ${name} = JSON.parse(${JSON.stringify(JSON.stringify(value))});\n`;
   return {
     name: "standalone-model",
     resolveId: (id) => (id === VIRTUAL ? `\0${VIRTUAL}` : null),
-    load: (id) =>
-      id === `\0${VIRTUAL}`
-        ? `export const model = ${JSON.stringify(model)};\nexport const shape = JSON.parse(${JSON.stringify(JSON.stringify(shape))});\nexport const rig = JSON.parse(${JSON.stringify(JSON.stringify(rig))});\n`
-        : null,
+    load: (id) => (id === `\0${VIRTUAL}` ? `export const model = ${JSON.stringify(model)};\n${json("shape", shape)}${json("rig", rig)}${json("bogie", bogie)}` : null),
   };
 }
 

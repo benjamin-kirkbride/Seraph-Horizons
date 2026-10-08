@@ -6,6 +6,7 @@
 // reader's input speed), and moves the rig's work with it when the script gears it.
 // docs/recipe-browser/models.md describes the format.
 import type { Anchor } from "./model-anchors.ts";
+import type { VehicleSpec } from "./model-vehicle.ts";
 import { TRUNK_CLASSES, workEnd, workOf, type Rig, type TrunkClass, type Vec3, type Work } from "./rig.ts";
 
 export interface InputLabel {
@@ -108,8 +109,37 @@ export interface Scenario {
   requires?: Record<string, string>;
   /** Requires values that belong to one class only (one master's set-up, say): shown only while that class is chosen. */
   requiresClass?: Record<string, TrunkClass>;
+  /** Requires values of which exactly one is fitted at a time (the handcar's branch lever): a select, not checkboxes. */
+  choices?: RequiresChoice[];
   prop?: PropSpec;
   play?: PlaySpec;
+  /** The model is a vehicle on a track (model-vehicle.ts). */
+  vehicle?: VehicleSpec;
+}
+
+export interface RequiresChoice {
+  label: string;
+  /** Requires values, at least two; each in one choice only. */
+  values: string[];
+  /** The value fitted at first (default the first). */
+  default?: string;
+}
+
+/** What is fitted at first: every requires value, except that of each choice only its default. */
+export function initialFitted(requires: readonly string[], choices: readonly RequiresChoice[] = []): Record<string, boolean> {
+  const fitted = Object.fromEntries(requires.map((r) => [r, true]));
+  for (const c of choices) for (const v of c.values) fitted[v] = v === (c.default ?? c.values[0]);
+  return fitted;
+}
+
+/** Fits `value` and no other of its choice's. */
+export function pickChoice(fitted: Readonly<Record<string, boolean>>, choice: RequiresChoice, value: string): Record<string, boolean> {
+  return { ...fitted, ...Object.fromEntries(choice.values.map((v) => [v, v === value])) };
+}
+
+/** The choice a requires value belongs to, if any. */
+export function choiceOf(choices: readonly RequiresChoice[] | undefined, value: string): RequiresChoice | null {
+  return choices?.find((c) => c.values.includes(value)) ?? null;
 }
 
 export const DEFAULT_SECONDS_PER_TURN = 1.2;
@@ -117,10 +147,13 @@ export const DEFAULT_SECONDS_PER_TURN = 1.2;
 export const INPUT_SPEED_MAX = 5;
 export const DEFAULT_INPUT_SPEED = 1;
 
-/** The input speed Play starts at: the script's secondsPerTurn as turns a second, else 1, within 0..INPUT_SPEED_MAX. */
-export function defaultInputSpeed(play: PlaySpec | undefined): number {
+/**
+ * The input speed Play starts at: `turnsPerSecond` when given (a vehicle's speed, as axle turns),
+ * else the script's secondsPerTurn as turns a second, else 1; within 0..INPUT_SPEED_MAX.
+ */
+export function defaultInputSpeed(play: PlaySpec | undefined, turnsPerSecond?: number | null): number {
   const spt = play?.secondsPerTurn;
-  const rps = spt !== undefined && spt > 0 ? 1 / spt : DEFAULT_INPUT_SPEED;
+  const rps = turnsPerSecond != null && turnsPerSecond > 0 ? turnsPerSecond : spt !== undefined && spt > 0 ? 1 / spt : DEFAULT_INPUT_SPEED;
   return Math.min(INPUT_SPEED_MAX, Math.max(0, Math.round(rps * 100) / 100));
 }
 
@@ -316,7 +349,9 @@ function run(ctx: PlayContext, m: Motion, dt: number): Motion {
   const dTheta = (ctx.direction * dt * 2 * Math.PI) / secondsPerTurn;
   let turns = Math.abs(dTheta) / (2 * Math.PI);
   let seconds = dt;
-  let next: Motion = { ...m, theta: wrapAngle(m.theta + dTheta), travel: m.travel + Math.abs(dTheta) };
+  // θ is not wrapped: a part that turns at a fraction of the shaft's speed (the handcar's beam, a
+  // third) would jump back at each turn. The page shows it within the rig's cycle (thetaTurns).
+  let next: Motion = { ...m, theta: m.theta + dTheta, travel: m.travel + Math.abs(dTheta) };
   if (ctx.geared && next.phase === null && ctx.geared.turns > 0) {
     const w = next.work ?? 0;
     if (w < ctx.geared.end) next.work = Math.min(ctx.geared.end, w + turns / ctx.geared.turns);
@@ -364,11 +399,6 @@ function run(ctx: PlayContext, m: Motion, dt: number): Motion {
   return next;
 }
 
-function wrapAngle(a: number): number {
-  const t = 2 * Math.PI;
-  return ((a % t) + t) % t;
-}
-
 /** Problems with a scenario against its rig's anchors, as messages; empty when it is sound. */
 export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly Anchor[], requires: readonly string[]): string[] {
   const out: string[] = [];
@@ -376,6 +406,18 @@ export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly An
   for (const [key, cls] of Object.entries(s.requiresClass ?? {})) {
     if (!requires.includes(key)) out.push(`requiresClass "${key}" names no part's requires value`);
     if (!(TRUNK_CLASSES as readonly string[]).includes(cls)) out.push(`requiresClass "${key}": class must be "thin" or "thick"`);
+  }
+  const chosen = new Set<string>();
+  for (const c of s.choices ?? []) {
+    if (typeof c.label !== "string" || c.label === "") out.push("a choice needs a label");
+    if (!Array.isArray(c.values) || c.values.length < 2) out.push(`choice "${c.label}" needs two values or more`);
+    for (const v of c.values ?? []) {
+      if (!requires.includes(v)) out.push(`choice "${c.label}": "${v}" is no part's requires value`);
+      if (chosen.has(v)) out.push(`choice "${c.label}": "${v}" is in another choice too`);
+      if (s.requiresClass?.[v] !== undefined) out.push(`choice "${c.label}": "${v}" belongs to a class (requiresClass), so it cannot be chosen`);
+      chosen.add(v);
+    }
+    if (c.default !== undefined && !c.values?.includes(c.default)) out.push(`choice "${c.label}": default "${c.default}" is not one of its values`);
   }
   let path: Work | null = null;
   try {
