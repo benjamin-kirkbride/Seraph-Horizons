@@ -3047,6 +3047,20 @@ takes the grid at its first start with this mod if the switch is on then, and ke
 world keeps vanilla's camps and traders. Turned off later, the world's new chunks get the game's camps
 again. The trader types and their lists exist either way.
 
+In a world with the grid the handbook's "Sold by" and "Purchased by" leave out the traders it
+replaces (`Trading/Game/TraderHandbook.cs`), which are never met there: vanilla's eight camp traders,
+Culinary Artillery's kitchenware trader and Domestic Animal Trader's, in every gender and climate.
+Which ones is derived, not listed: every entity type with a vanilla-format trade list that the
+spawner rewrite takes (`HandbookTraders.IsOtherTrader`), less the traders a story structure's
+spawner spawns (vanilla's treasure hunter, in all three climates), read from the story schematics
+at worldgen init. The server writes their codes to the world config
+(`seraphhorizons:handbookHiddenTraders`), and a client's handbook skips their names (a prefix on the
+game's `TradeHandbookInfo.AddTraderHandbookInfo`); a name a trader still met shares stays. Without
+the grid (the switch off, or a world from before it) nothing is left out. The recipe export marks
+those traders' trades `extra.replaced`, and the site leaves them out too; the item values still
+read their prices. The pack's own traders have no vanilla-format lists, so neither the handbook nor
+the site lists them yet (`docs/trading.md`, open problems).
+
 Admin commands (privilege `controlserver`): `/sh trade camps [radius]` lists the grid cells within
 radius blocks (default 4096) with their type and camp, the next spot not generated yet, or that every
 spot missed; `/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating its next spot first if needed.
@@ -3059,7 +3073,9 @@ every trader's trade window title and name, a spawned trader stocking from its l
 taken over, the spawner rewrite, cells' camps being decided, one on uneven ground with its footprint
 levelled, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
 `tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
-treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten).
+treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten, and the
+traders the handbook leaves out are the replaced ones and not the treasure hunter);
+`tests/Trading/HandbookTradersTests.cs` (which traders and names are left out).
 
 ### Item base values (no switch)
 
