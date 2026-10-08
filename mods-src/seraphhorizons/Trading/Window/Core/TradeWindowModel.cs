@@ -42,7 +42,7 @@ public sealed record TierLine(Text Line, bool Current);
 public sealed record SpeechLine(Text Voice, IReadOnlyList<Text> Facts);
 
 /// <summary>What a map or lead offer on the shelf is to this player.</summary>
-public enum MapOfferStatus { Available, SoldOut, Locked }
+public enum MapOfferStatus { Available, SoldOut, Locked, Owned }
 
 /// <summary>
 /// The trade window's view model (#436, the playtest's mockup "A · Tabs"): tabs, header, footer, and
@@ -209,29 +209,46 @@ public static class TradeWindowModel
             Text line = d.ForHere
                 ? new Text(d.Carried ? "trading-window-delivery-forhere" : "trading-window-delivery-forhere-nopackage", d.Id, d.Deposit, d.Fee)
                 : d.HoursLeft >= 0
-                    ? new Text("trading-window-delivery-mine", d.Id, TypeName(d.ToType), F(Math.Round(d.Distance / 1000, 1)), Direction(d.Dx, d.Dz), F(Math.Round(d.HoursLeft, 1)), d.Deposit, d.Fee)
+                    ? new Text("trading-window-delivery-mine", d.Id, TypeName(d.ToType), F(Math.Round(d.Distance / 1000, 1)), Direction(d.Dx, d.Dz), TimeLeft(d.DaysLeft, d.HoursLeft), d.Deposit, d.Fee)
                     : new Text("trading-window-delivery-late", d.Id, TypeName(d.ToType), F(Math.Round(d.Distance / 1000, 1)), Direction(d.Dx, d.Dz), F(Math.Round(-d.HoursLeft, 1)));
             lines.Add(new DeliveryLine(d, line, false, d.ForHere && d.Carried, !d.ForHere));
         }
         if (state.DeliveryOffer is { } o)
             lines.Add(new DeliveryLine(null, new Text("trading-window-delivery-offer", TypeName(o.ToType), F(Math.Round(o.Distance / 1000, 1)),
-                Direction(o.Dx, o.Dz), F(Math.Round(o.Hours, 1)), o.Deposit, o.Fee), true, false, true));
+                Direction(o.Dx, o.Dz), new Text("trading-window-days", F(Math.Round(o.Days, 1))), o.Deposit, o.Fee), true, false, true));
         else if (state.DeliveryWhy is { Length: > 0 } why)
             lines.Add(new DeliveryLine(null, new Text(why), false, false, false));
         return lines;
     }
 
+    /// <summary>"2.5 days", or under a day "7.5 hours".</summary>
+    public static Text TimeLeft(double days, double hours) =>
+        days >= 1 ? new Text("trading-window-days", F(Math.Round(days, 1))) : new Text("trading-window-hours", F(Math.Round(Math.Max(0, hours), 1)));
+
     // ---- Maps & leads tab ----
 
     /// <summary>A map or lead offer on the shelf, to this player: sold out (stock gone or the sold-out
     /// marker), locked (a lead past the nearest camp, which their own standing does not buy), or for
-    /// sale.</summary>
-    public static MapOfferStatus MapStatus(string? offer, string? leadKind, int stock, bool playerLeads)
+    /// sale. One the player has already (<paramref name="owned"/>: <see cref="TradeWindowState.OwnedMaps"/>)
+    /// is shown as such, unless it is sold out anyway.</summary>
+    public static MapOfferStatus MapStatus(string? offer, string? leadKind, int stock, bool playerLeads, bool owned = false)
     {
         if (offer == "soldout" || stock <= 0) return MapOfferStatus.SoldOut;
+        if (owned) return MapOfferStatus.Owned;
         if (offer == "lead" && LeadTargets.TryParse(leadKind, out var kind) && kind != LeadKind.Camp && !playerLeads) return MapOfferStatus.Locked;
         return MapOfferStatus.Available;
     }
+
+    /// <summary>What the Maps &amp; leads tab says in place of an offer's price when it cannot be
+    /// bought (sold out, locked with the tier that sells it, the player has it), or null for the
+    /// price.</summary>
+    public static Text? MapStatusText(MapOfferStatus status, Text? lockedTier) => status switch
+    {
+        MapOfferStatus.SoldOut => new Text("trading-window-map-soldout"),
+        MapOfferStatus.Locked => new Text("trading-window-map-locked", (object?)lockedTier ?? ""),
+        MapOfferStatus.Owned => new Text("trading-window-map-owned"),
+        _ => null,
+    };
 
     /// <summary>An ore map offer: metal, size class, distance, precision.</summary>
     public static Text OreMapLine(string metal, string? sizeClass, double distance, int precision) =>

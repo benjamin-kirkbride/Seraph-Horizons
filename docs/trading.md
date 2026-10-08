@@ -1042,11 +1042,16 @@ gone, and so is the chat summary of what is on that opening the trade posted. Th
   the sender where any is in reach. Value 20 × max(1, scale) gears ±20 %; deposit 10–30 % and fee
   20–40 % of it, at least a gear each. `deliveryScale` 0 (strangers) gets no offer; standing off
   counts as 1. One active delivery per player per sender.
-- **Deadline**: real minutes = max(5, km × 5 min/km × 1.5 slack); game days per real minute =
-  60 × `SpeedOfTime` × `CalendarSpeedMul` / 3600 / `HoursPerDay` from the world's calendar when the
-  delivery is made (1/48 by default, a game day being 48 real minutes). So 2 km gives 15 real
-  minutes, 0.31 of a game day, 7.5 game hours. Then a grace of one game day in which it is late.
-  Sleeping skips game time and so eats into the deadline, as it would for walking.
+- **Deadline**: `DeliveryPlanner.DeadlineDays` = max(1, km × 1) game days (`DaysPerKm`, `MinDays`),
+  km being the straight distance from sender to receiver. So 2 km gives two game days, 300 m one.
+  Then a grace of one game day (`GraceDays`) in which it is late. Sleeping skips game time and so
+  eats into the deadline, as it would for walking.
+- **Since the playtest** (2026-10-08): the deadline was the walk in real time, 5 minutes a km with
+  half again as slack and at least 5 minutes, turned into game days at the world's calendar speed
+  (`GameDaysPerRealMinute`, now gone): 2 km gave 7.5 game hours, a night's sleep. Game days a km
+  need no calendar. A delivery keeps the deadline it was made with (`deadline` and `grace` are
+  saved as total days), so ones taken before the change run out as they would have. The window and
+  the package say the time left in days, or in hours under a day.
 - **Package**: `seraphhorizons:package`, stack size 1, the linen sack's model without its bag
   behaviours (it can't be opened), attributes `deliveryId`, `from`, `to`, `toType`, `toX`, `toZ`,
   `deadline` (total days), and `failed`. It is not in the value table, so no trader buys it.
@@ -1063,8 +1068,9 @@ gone, and so is the chat summary of what is on that opening the trade posted. Th
 - **Hooks in `EntitySeraphTrader`** (shared with #455 maps/leads, #456 visitors, #459 admin tools):
   every deal (the window's, and packet 1000) snapshots the selling cart, calls standing and raises
   the static `Dealt(player, trader, sold)`; opening the trade window (`opentrade`) raises the static
-  `TradeOpened(player, trader)`. Other features should subscribe to these rather than override the
-  methods again.
+  `TradeOpened(player, trader)`; meeting the trader (a conversation starting, or the window
+  opening) raises `Met(player, trader)`. Other features should subscribe to these rather than
+  override the methods again.
 - `OrdersSystem.Book` / `DeliveriesSystem.Book` for inspect and export tools; `OrderCommands.AdminLine`
   and `DeliveryCommands.AdminLine` format one record.
 - Not done: posting to the notice board; deliveries for traders outside camps
@@ -1109,8 +1115,8 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
 
 ## Maps and leads (#455)
 
-`Trading/Maps/`: `Core/` (`MapPrices.cs`, `MapOffers.cs`, `LeadTargets.cs`; unit-tested in
-`tests/Trading/Maps/`), `Game/` (`MapsSystem`, `MapTradeHooks`, `ItemTraderLead`, `MapOfferAttrs`),
+`Trading/Maps/`: `Core/` (`MapPrices.cs`, `MapOffers.cs`, `LeadTargets.cs`, `MapMarks.cs`; unit-tested in
+`tests/Trading/Maps/`), `Game/` (`MapsSystem`, `MapTradeHooks`, `ItemTraderLead`, `MapOfferAttrs`, `MapMarksSystem`),
 `config/trading/map-prices.json`, item `seraphhorizons:traderlead`. Switch `TraderMaps`.
 
 - **Special entries.** A list entry with `"kind"` (`oremap`, `gravelmap`, `lead`) is not goods: at
@@ -1147,6 +1153,47 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   finishes inside the deal, the stack handed over is the map; otherwise the pending stack ("being
   checked") is replaced in the buyer's inventory when it does (handed over anew if it moved), with a
   chat line. A failed sale takes the pending stack back and refunds the gears from the trader.
+- **Markers** (`Core/MapMarks.cs`, `Game/MapMarksSystem.cs`, the playtest after the trade window).
+  Ore maps, gravel maps and leads put their waypoints on the reader's map through
+  `MapMarksSystem.Mark`, which sets the waypoint's `Guid` and remembers it with the target and
+  precision (`MarkBook`, saved as `seraphhorizons:mapmarks`; records whose waypoint is gone are
+  pruned). Targets: `deposit:<id>` (ore or gravel), the camp's standing id `camp:x,z`,
+  `settlement:x,z`. Precision is the ore maps' (1 ±400 m, 2 ±150 m, 3 exact); a gravel map is 3,
+  a lead `LeadPrecision` (2: the camp's site, the trader within about `LeadReach`, 64 blocks), a met
+  trader 3. Titles carry it: `map-waypoint-precision` "{name} (precision n, ±r m)",
+  `map-waypoint-lead` "{name} (approximate, ±64 m)", `map-waypoint-exact` "{name} (exact)". Marking
+  a target that has a marker as precise or better adds nothing ("already marked"); a rougher one is
+  removed and replaced. An unremembered waypoint with the same icon on the very spot (made before
+  this) is adopted. The waypoint layer's private `ResendWaypoints` is called by reflection only to
+  remove without adding (`Unmark`); `AddWaypoint` resends anyway.
+- **Meeting a trader**: `EntitySeraphTrader.Met` (raised on the server when a conversation starts,
+  `EntityBehaviorConversable.OnControllerCreated`, and when the trade window opens). With maps on,
+  a trader of a placed camp of the grid (`MapsSystem.CampOf`: the cell's placed camp within
+  `StandingSystem.CampReach` of the trader, so it works with standing off too) gets an exact marker
+  where it stands, "Trader camp (cook) (exact)", target `camp:x,z`, once. Its lead's remembered
+  marker goes by target; an older unremembered one by `MapMarks.LegacyMatches`: icon `trader`,
+  within `LegacyReach` (96, the camp reach) of the trader, title starting with the lead's title for
+  the type in the player's language or English. Traders outside camps (visitors, story NPCs) are
+  not marked: they move on. Delivery markers ("Delivery: cook") are left alone: they are not maps.
+- **Maps the player has** (`MapsSystem.Refusal`, `MapMarks.Check`): an offer is refused (and the
+  Maps & leads tab greys it out, "you have this", from `TradeWindowState.OwnedMaps`) when its
+  target is marked as precisely or more, or the player carries a map or lead of it as precise or
+  more (hotbar, backpack, mouse, character; pending stacks too, by their offer attributes). Only a
+  copy as precise counts, so a more precise map of a target marked roughly is sold (an upgrade);
+  reading it replaces the rougher marker. Ore deposits and gravel fields are sold once anyway, so in
+  practice this refuses a second lead to the same camp, or one to a camp already marked or met.
+- **A deposit gone since the restock**: a shelf keeps its offers until the next restock, but a
+  gravel or ore cell whose spots were all tried meanwhile has none left (`DepositService.Candidate`
+  null). The sale used to take the gears, `Verify` found nothing, and the pending sheet was taken
+  back with a refund: in the playtest a gravel map bought after two leads "never arrived" (the chat
+  said "fell through: the claim is gone. 5 gears back"; its cell had failed every spot ten minutes
+  before). Now `Refusal` checks the candidate before payment ("trading-maps-error-gone") and sets
+  the stock to 0, and `Price` (when the trading player changes) zeroes the stock of any deposit
+  offer sold, reserved or gone, so the window shows it sold out.
+- **Before the deal**: the trade window's buy asks `MapsSystem.Refusal` and the room check
+  (`TradeWindowSystem.BeforeBuy`, passed to `EntitySeraphTrader.BuyUnit` as its check) before the
+  carts are touched, so a refusal says why (the lang key in the result) and takes nothing.
+  `OnTryBuy` asks `Refusal` again inside the deal for vanilla's deal packet.
 - **Never bought back**: the economy's `refused` prefixes (`seraphhorizons:oremap`, `gravelmap`,
   `traderlead`, `game:locatormap`) refuse them off-list, and no list buys them
   (`TradingMapsScenarios` checks the quote).
@@ -1280,6 +1327,15 @@ squared blocks), then:
   of a sold stack goes back in the sell slot.
 - Orders and deliveries call the systems' own handlers; a hand-in takes the order's item from
   anywhere in the hotbar and backpack. Mark on map adds a waypoint as a lead does.
+- **Room** (`TradeWindowSystem.HasRoom`, `TradeGuard.Fits`): a buy, and taking a delivery's
+  package, is refused before any gears move ("trading-window-noroom") unless the whole stack fits
+  in the hotbar and backpack (bags included) as the game would give it: per slot, an empty slot
+  that `CanHold` it gives the stack limit (the item's and the slot's), a stack it merges with
+  (`GetMergableQuantity`) what that stack lacks to the limit, any other nothing; partial room adds
+  up across slots. Vanilla's deal gives what does not fit by dropping it at the player's feet
+  (`GiveOrDrop`). The check does not count gears the payment would free (a slot of gears paid
+  out to the last one): it refuses then, which errs on the safe side. The client's hold loop stops
+  at the first refusal, as at any.
 
 **Holding.** No carts and no Deal button: every trade is one unit, made when a hold completes
 (`HoldTimer`, 0.8 s, Carry On's default interact delay). Pressing a good selects it (details below

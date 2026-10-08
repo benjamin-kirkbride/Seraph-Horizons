@@ -68,32 +68,27 @@ public class ItemOreMap : Item, ITradeableCollectible
         }
         int y = a.GetInt(AttrY);
         var pos = new Vec3d(a.GetInt(AttrX) + 0.5, y > 0 ? y + 0.5 : api.World.SeaLevel, a.GetInt(AttrZ) + 0.5);
-        string title = WaypointTitle(lang, a);
-        var layer = api.ModLoader.GetModSystem<WorldMapManager>()?.MapLayers.OfType<WaypointMapLayer>().FirstOrDefault();
-        if (!byEntity.World.Config.GetBool("allowMap", true) || layer == null)
-        {
-            var d = pos.Clone().Sub(byEntity.Pos.XYZ);
-            d.Y = 0;
-            player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-distance", title, (int)d.Length()),
-                EnumChatType.Notification);
-            return;
-        }
-        if (layer.Waypoints.Any(w => w.OwningPlayerUid == player.PlayerUID && w.Position.X == pos.X && w.Position.Z == pos.Z))
-        {
-            player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-marked-already"), EnumChatType.Notification);
-            return;
-        }
         bool gravel = metal == PlacerCells.Kind;
-        layer.AddWaypoint(new Waypoint
+        int precision = gravel ? MapPrecision.Exact : a.GetInt(AttrPrecision, MapPrecision.Exact);
+        string title = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Title(lang, WaypointTitle(lang, a), precision);
+        var marks = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Of(api);
+        var target = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.TargetOf(slot.Itemstack);
+        var outcome = marks is null || target is null
+            ? SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Outcome.NoMap
+            : marks.Mark(player, target.Value, pos, title, gravel ? "rocks" : "pick",
+                gravel ? ColorUtil.ColorFromRgba(220, 190, 90, 255) : ColorUtil.ColorFromRgba(200, 110, 60, 255));
+        switch (outcome)
         {
-            Color = gravel ? ColorUtil.ColorFromRgba(220, 190, 90, 255) : ColorUtil.ColorFromRgba(200, 110, 60, 255),
-            Icon = gravel ? "rocks" : "pick",
-            Pinned = true,
-            Position = pos,
-            OwningPlayerUid = player.PlayerUID,
-            Title = title,
-        }, player);
-        int precision = a.GetInt(AttrPrecision, MapPrecision.Exact);
+            case SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Outcome.NoMap:
+                var d = pos.Clone().Sub(byEntity.Pos.XYZ);
+                d.Y = 0;
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-distance", title, (int)d.Length()),
+                    EnumChatType.Notification);
+                return;
+            case SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Outcome.Already:
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-marked-already"), EnumChatType.Notification);
+                return;
+        }
         player.SendMessage(GlobalConstants.GeneralChatGroup,
             Lang.GetL(lang, precision == MapPrecision.Exact ? "seraphhorizons:oremap-marked" : "seraphhorizons:oremap-marked-near", title),
             EnumChatType.Notification);

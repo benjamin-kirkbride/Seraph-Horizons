@@ -7,6 +7,9 @@ using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Economy.Core;
 using SeraphHorizons.Mod.Trading.Glue;
 using SeraphHorizons.Mod.Trading.Maps.Core;
+using SeraphHorizons.Mod.Trading.Standing;
+using SeraphHorizons.Mod.Trading.Standing.Core;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
@@ -101,6 +104,7 @@ public class MapsSystem : ModSystem
         _trading.Offers = Expand;
         EntitySeraphTrader.Restocked += OnRestocked;
         TradingGlueSystem.TradingPlayerPriced += OnPriced;
+        EntitySeraphTrader.Met += OnMet;
         Active = true;
         api.Logger.Notification("[seraphhorizons] Trader maps: on (ore maps within {0}, gravel maps within {1}, leads {2} cells out)",
             Prices.OreRadius, Prices.GravelRadius, Prices.LeadCells);
@@ -110,6 +114,7 @@ public class MapsSystem : ModSystem
     {
         EntitySeraphTrader.Restocked -= OnRestocked;
         TradingGlueSystem.TradingPlayerPriced -= OnPriced;
+        EntitySeraphTrader.Met -= OnMet;
         if (_trading?.Offers == Expand) _trading.Offers = null;
         ItemOreMap.Hooks = null;
     }
@@ -240,6 +245,11 @@ public class MapsSystem : ModSystem
             int price;
             switch (a.GetString(MapOfferAttrs.Offer))
             {
+                case MapOfferAttrs.OreMap or MapOfferAttrs.GravelMap when Gone(a):
+                    // Sold, being sold, or the cell turned out to have none since the restock.
+                    item.Stock = 0;
+                    slot.MarkDirty();
+                    continue;
                 case MapOfferAttrs.OreMap:
                     a.SetInt(MapOfferAttrs.Precision, maxPrecision);
                     price = Prices.OrePrice(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier), maxPrecision);
@@ -278,53 +288,118 @@ public class MapsSystem : ModSystem
             ? $"lead:{a.GetString(MapOfferAttrs.LeadKind)}:{a.GetAsInt(MapOfferAttrs.X)},{a.GetAsInt(MapOfferAttrs.Z)}"
             : a.GetString(MapOfferAttrs.Deposit) ?? "";
 
-    /// <summary>Before the money moves: whether this offer may be sold to the player trading.</summary>
-    public EnumTransactionResult OnTryBuy(EntitySeraphTrader trader, ItemSlot cartSlot)
+    /// <summary>Whether a deposit offer's deposit is no longer to be had: sold, being sold, or its
+    /// cell turned out to have none (every spot failed) since the shelf was stocked.</summary>
+    private bool Gone(ITreeAttribute a) =>
+        DepositKey.TryParse(a.GetString(MapOfferAttrs.Deposit), out var key) && Deposits is { } deposits
+        && (_reserved.Contains(key.Id) || deposits.Registry.Get(key).State != DepositState.Unsold || deposits.Candidate(key) is null);
+
+    /// <summary>
+    /// Why this map or lead offer may not be sold to <paramref name="player"/> now, as a lang key (mod
+    /// domain) and its arguments, or null: sold out; the deposit sold, being sold, or gone (the shelf's
+    /// stock is set to 0 then); an ore map above the player's precision; a further lead without their
+    /// own <c>mapsToTraders</c>; or a map they have already (<see cref="MapMarksSystem.Check"/>: its
+    /// target marked on their map as precisely or more, or a copy carried). The trade window asks
+    /// before a buy (so nothing is paid), and the deal's own hook (<see cref="OnTryBuy"/>) again.
+    /// </summary>
+    public (string Key, object[] Args)? Refusal(EntitySeraphTrader trader, IPlayer player, ItemStack stack, ItemSlotTrade? shelf)
     {
-        var a = cartSlot.Itemstack!.Attributes;
+        var a = stack.Attributes;
         string offer = a.GetString(MapOfferAttrs.Offer) ?? "";
-        var player = PlayerTrading(trader);
-        if (player is null || _trading is null) return EnumTransactionResult.Failure;
-        if (offer == MapOfferAttrs.SoldOut)
-        {
-            Error(player, "trading-maps-error-soldout");
-            return EnumTransactionResult.TraderNotEnoughSupplyOrDemand;
-        }
+        if (_trading is null) return ("trading-window-failed", []);
+        if (offer == MapOfferAttrs.SoldOut) return ("trading-maps-error-soldout", []);
         var unlocks = _trading.Standing.UnlocksFor(player, trader);
         switch (offer)
         {
             case MapOfferAttrs.OreMap or MapOfferAttrs.GravelMap:
             {
                 if (!DepositKey.TryParse(a.GetString(MapOfferAttrs.Deposit), out var key) || Deposits is not { } deposits || Issuer is null)
-                    return EnumTransactionResult.Failure;
+                    return ("trading-window-failed", []);
                 if (_reserved.Contains(key.Id) || deposits.Registry.Get(key).State != DepositState.Unsold)
                 {
-                    if (cartSlot is ItemSlotTrade { TradeItem: { } item }) item.Stock = 0;
-                    Error(player, "trading-maps-error-sold");
-                    return EnumTransactionResult.TraderNotEnoughSupplyOrDemand;
+                    if (shelf?.TradeItem is { } item) item.Stock = 0;
+                    return ("trading-maps-error-sold", []);
+                }
+                if (deposits.Candidate(key) is null)
+                {
+                    // The cell turned out to have none since the shelf was stocked (#playtest: a
+                    // gravel map paid for, then refunded as "fell through").
+                    if (shelf?.TradeItem is { } item) item.Stock = 0;
+                    return ("trading-maps-error-gone", []);
                 }
                 int max = MapOffers.MaxPrecision(unlocks.MapTier);
                 if (offer == MapOfferAttrs.OreMap && a.GetAsInt(MapOfferAttrs.Precision, MapPrecision.Rough) > max)
-                {
-                    Error(player, "trading-maps-error-precision", max);
-                    return EnumTransactionResult.Failure;
-                }
+                    return ("trading-maps-error-precision", [max]);
                 break;
             }
             case MapOfferAttrs.Lead:
-                if (!LeadTargets.TryParse(a.GetString(MapOfferAttrs.LeadKind), out var kind)) return EnumTransactionResult.Failure;
-                if (kind != LeadKind.Camp && !unlocks.MapsToTraders)
-                {
-                    Error(player, "trading-maps-error-lead");
-                    return EnumTransactionResult.Failure;
-                }
+                if (!LeadTargets.TryParse(a.GetString(MapOfferAttrs.LeadKind), out var kind)) return ("trading-window-failed", []);
+                if (kind != LeadKind.Camp && !unlocks.MapsToTraders) return ("trading-maps-error-lead", []);
                 break;
             default:
-                return EnumTransactionResult.Failure;
+                return ("trading-window-failed", []);
+        }
+        return MapMarksSystem.Of(_sapi!)?.Check(player, stack) switch
+        {
+            MarkCheck.Marked => ("trading-maps-error-marked", []),
+            MarkCheck.Held => ("trading-maps-error-held", []),
+            _ => null,
+        };
+    }
+
+    /// <summary>Before the money moves (the deal's hook): whether this offer may be sold to the player
+    /// trading (<see cref="Refusal"/>); notes the price for a refund.</summary>
+    public EnumTransactionResult OnTryBuy(EntitySeraphTrader trader, ItemSlot cartSlot)
+    {
+        var a = cartSlot.Itemstack!.Attributes;
+        var player = PlayerTrading(trader);
+        if (player is null || _trading is null) return EnumTransactionResult.Failure;
+        if (Refusal(trader, player, cartSlot.Itemstack, cartSlot as ItemSlotTrade) is { } refusal)
+        {
+            Error(player, refusal.Key, refusal.Args);
+            return refusal.Key is "trading-maps-error-soldout" or "trading-maps-error-sold" or "trading-maps-error-gone"
+                ? EnumTransactionResult.TraderNotEnoughSupplyOrDemand
+                : EnumTransactionResult.Failure;
         }
         int price = cartSlot is ItemSlotTrade { TradeItem: { } t } ? t.Price : 0;
         _quotes[(trader.EntityId, OfferId(a))] = (price, player.PlayerUID);
         return EnumTransactionResult.Success;
+    }
+
+    // ---- Meeting a trader ----
+
+    /// <summary>A player meets a camp's trader (talks to it or opens its trade): the camp goes on
+    /// their map exactly, at the trader, titled with its type, once; a lead's rougher marker of it
+    /// goes (remembered ones by the camp's id, older ones by icon, place and title). Traders outside
+    /// the grid's camps (travelling merchants, story traders) move on, so they are not marked.</summary>
+    private void OnMet(IServerPlayer player, EntitySeraphTrader trader)
+    {
+        if (trader.Api != _sapi || MapMarksSystem.Of(_sapi!) is not { } marks || CampOf(trader) is not { } cell) return;
+        string lang = player.LanguageCode ?? Lang.DefaultLocale;
+        string name = TraderTitle(lang, trader.TraderType);
+        string title = MapMarksSystem.Title(lang, name, MapMarks.Exact);
+        double x = Math.Floor(trader.Pos.X) + 0.5, z = Math.Floor(trader.Pos.Z) + 0.5;
+        var pos = new Vec3d(x, Math.Floor(trader.Pos.Y) + 0.5, z);
+        var titles = new[] { name, TraderTitle(Lang.DefaultLocale, trader.TraderType) }.Distinct().ToList();
+        var outcome = marks.Mark(player, new MarkTarget(TraderIds.Camp(cell.X, cell.Z), MapMarks.Exact), pos, title, "trader", MapMarksSystem.TraderColor,
+            views => MapMarks.LegacyMatches(views, marks.Book.Of(player.PlayerUID), x, z, MapMarks.LegacyReach, "trader", titles));
+        if (outcome == MapMarksSystem.Outcome.Added) Tell(player, "trading-maps-met-marked", title);
+    }
+
+    /// <summary>"Trader camp (cook)", as a lead to the camp is titled.</summary>
+    private static string TraderTitle(string lang, string type) =>
+        Lang.GetL(lang, "seraphhorizons:trading-maps-lead-title", Lang.GetL(lang, "seraphhorizons:trading-type-" + type));
+
+    /// <summary>The grid cell of the placed camp the trader belongs to (within the camp reach standing
+    /// uses), or null.</summary>
+    public CellKey? CampOf(EntitySeraphTrader trader)
+    {
+        if (_trading?.Camps?.Registry is not { } registry) return null;
+        var cell = TraderGrid.CellOf((int)trader.Pos.X, (int)trader.Pos.Z);
+        return registry.Get(cell) is { Status: CampStatus.Placed } camp
+               && Math.Abs(camp.X - trader.Pos.X) <= StandingSystem.CampReach && Math.Abs(camp.Z - trader.Pos.Z) <= StandingSystem.CampReach
+            ? cell
+            : null;
     }
 
     private static void Error(IServerPlayer player, string key, params object[] args) =>
