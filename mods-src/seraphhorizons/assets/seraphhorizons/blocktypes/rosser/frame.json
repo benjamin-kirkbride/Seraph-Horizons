@@ -39,26 +39,25 @@
 	heldRightReadyAnimation: "heldblockready",
 	heldTpUseAnimation: "twohandplaceblock",
 	// The shape fills the rosser's whole 16×4×5 footprint (native x -15..1, z -2..3 about the
-	// controller at the east end; x 0..16, z -2..3 once the -north item form turns it 180°), so the
-	// item forms are centred on it (8, _, 0.5) and scaled well down.
+	// controller at the east end; its mesh x 0.13..15.63, y 0..4, z -2..3 once the -north item form
+	// turns it 180°), so the item forms turn about the mesh's middle (7.88, 2, 0.5) and are scaled
+	// well down. Held (first and third person alike) the game leaves the origin where it is rather
+	// than on the hand, so the translation brings the middle back to vanilla's two-handed crate's
+	// spot by the hand, (0.01, 0.14, 0.18): translation = (that spot - origin) / scale
+	// (tests/HeldTransformTests.cs).
 	tpHandTransform: {
-		translation: { x: -0.8, y: -0.6, z: -0.6 },
+		translation: { x: -131.17, y: -31, z: -5.33 },
 		rotation: { x: 6, y: 16, z: -77 },
-		origin: { x: 8, y: 0, z: 0.5 },
+		origin: { x: 7.88, y: 2, z: 0.5 },
 		scale: 0.06
-	},
-	fpHandTransform: {
-		rotation: { x: 0, y: -45, z: 0 },
-		origin: { x: 8, y: 1, z: 0.5 },
-		scale: 0.12
 	},
 	guiTransform: {
 		rotation: { x: -22.6, y: -45.3, z: 0 },
-		origin: { x: 8, y: 2, z: 0.5 },
+		origin: { x: 7.88, y: 2, z: 0.5 },
 		scale: 0.11
 	},
 	groundTransform: {
-		origin: { x: 8, y: 0, z: 0.5 },
+		origin: { x: 7.88, y: 0, z: 0.5 },
 		scale: 0.24
 	},
 	maxStackSize: 1,
