@@ -20,6 +20,7 @@ public class TradeWindowModelTests
         Tiers = Codes.Select((c, i) => new TierView
         {
             Code = c,
+            Number = i + 1,
             Points = Thresholds[i],
             MapPrecision = Math.Min(3, i + 1),
             LeadMaps = LeadMaps[i],
@@ -31,7 +32,6 @@ public class TradeWindowModelTests
                 BuyPriceFactor = i == 0 ? 1 : 1 - 0.03 * i,
                 SellPriceFactor = i == 0 ? 1 : 1 + 0.02 * i,
                 WalletTier = Math.Max(0, i - 1),
-                OrderScale = i == 0 ? 1 : 1 + 0.5 * i,
                 DeliveryScale = i == 0 ? 0 : 0.5 + 0.5 * i,
                 RareStock = i >= 3,
             },
@@ -50,8 +50,8 @@ public class TradeWindowModelTests
         Standing = Summary(2, 310),
         Orders =
         [
-            new OrderRow { Id = 3, Item = "game:ingot-copper", Quantity = 4, UnitPrice = 1.4, Premium = 3, Days = 4, DaysLeft = 2.5 },
-            new OrderRow { Id = 1, Item = "game:ingot-tin", Quantity = 8, Delivered = 2, UnitPrice = 1.2, Premium = 5, PremiumPaid = 1, DaysLeft = 1.25, Mine = true, Held = 3 },
+            new OrderRow { Id = 3, Item = "game:ingot-copper", Quantity = 4, Value = 1.4, Payout = 56, Days = 4, DaysLeft = 2.5 },
+            new OrderRow { Id = 1, Item = "game:ingot-tin", Quantity = 8, Delivered = 2, Value = 1.2, Payout = 96, PayoutPaid = 24, DaysLeft = 1.25, Mine = true, Held = 3 },
         ],
         DeliveryOffer = new DeliveryOfferRow { ToType = "cook", Distance = 2150, Dx = 1500, Dz = -1500, Days = 2.2, Deposit = 4, Fee = 6 },
     };
@@ -115,9 +115,9 @@ public class TradeWindowModelTests
         Assert.Equal([1, 3], lines.Select(l => l.Row.Id));
         Assert.True(lines[0].CanHandIn);
         Assert.False(lines[0].CanTake);
-        Assert.Equal("trading-window-order-taken(8, game:ingot-tin, 2, 1.2, 4, 1.25)", lines[0].Line.ToString());
+        Assert.Equal("trading-window-order-taken(8, game:ingot-tin, 2, 72, 1.25)", lines[0].Line.ToString());
         Assert.True(lines[1].CanTake);
-        Assert.Equal("trading-window-order-offer(4, game:ingot-copper, 1.4, 3, 4, 2.5)", lines[1].Line.ToString());
+        Assert.Equal("trading-window-order-offer(4, game:ingot-copper, 5.6, 56, 4, 2.5)", lines[1].Line.ToString());
     }
 
     [Fact]
@@ -221,6 +221,8 @@ public class TradeWindowModelTests
         var all = TradeWindowModel.Facts(tier, AllOn()).Select(f => f.Key).ToList();
         Assert.Contains("trading-window-fact-prices", all);
         Assert.Contains("trading-window-fact-orders", all);
+        // Trusted, n = 4: 2.125–10 gears of goods, paid ×17.5.
+        Assert.Contains("trading-window-fact-orders(2.13, 10, 17.5)", TradeWindowModel.Facts(tier, AllOn()).Select(f => f.ToString()));
         Assert.Contains("trading-window-fact-deliveries", all);
         Assert.Contains("trading-window-fact-leads", all);
         Assert.Contains("trading-window-fact-settlement", all);
@@ -406,7 +408,7 @@ public class WireFormatTests
             TraderId = 42,
             Switches = TradeWindowModelTests.AllOn(),
             Standing = TradeWindowModelTests.Summary(2, 310.5),
-            Orders = [new OrderRow { Id = 3, Item = "game:ingot-copper", Quantity = 4, UnitPrice = 1.4, Mine = true, Held = 2 }],
+            Orders = [new OrderRow { Id = 3, Item = "game:ingot-copper", Quantity = 4, Value = 1.4, Mine = true, Held = 2 }],
             DeliveryWhy = "trading-deliveries-notyet",
             Locked = [new LockedRow { Code = "game:anvil-iron", Tier = 3, Reason = LockReason.Rare, Rotating = true, Attributes = "{\"a\":1}" }],
             LeadsTier = 2,

@@ -3019,8 +3019,8 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
   full. While the window is open, the tooltip of anything in your inventory says what this trader
   pays for it (with the breakdown and which budget pays) or why not.
 - **Orders (n)**: the trader's orders on offer and yours there: the item, how many and how many
-  delivered, the price per item, the premium and the time left; Take, and Hand in (from anywhere in
-  your inventory).
+  delivered, the goods' worth, the pay (an offer's at your tier) and the time left; Take, and Hand in
+  (from anywhere in your inventory).
 - **Deliveries (n)**: the trader's offer (where, how far and which way, the deposit, the fee, the
   time) with Take and Mark on map, your packages from or for it, and Hand in at the receiver.
 - **Maps & leads**: ore maps (metal, size, distance, precision), the gravel map and leads (target,
@@ -3299,7 +3299,8 @@ order, never below 0. A tenth of your best standing with another trader of the s
 Five tiers, in `assets/seraphhorizons/config/standing-tiers.json`: stranger (0), known (60), regular
 (250), trusted (800), partner (2000). Each tier's unlocks are data for the features that read them:
 map tier and the settlement ground's lead (`mapsToTraders`; how many camp leads, and how far, is
-`map-prices.json`'s), a price factor each way, the wallet tier, order and delivery size, rare stock.
+`map-prices.json`'s), a price factor each way, the wallet tier, delivery reach, rare stock. Orders
+follow the tier itself (see "Orders and deliveries").
 The wallet and the shelves follow the best tier among players who traded with the
 trader in the last 14 days (its gears are topped up towards that tier's wallet at the weekly
 restock; its rare stock, schematics and settlement lead are shelved for it), and the player trading
@@ -3548,42 +3549,50 @@ Traders give work (#453, #454; `Trading/Orders/`, `Trading/Deliveries/`, notes i
 `docs/trading.md`), server side, both default on. Players take and hand in both in the trade
 window's Orders and Deliveries tabs (see "Trade window").
 
-**Standing orders** (`TraderOrders`): at every restock a trader puts up to one or two orders on
-offer, each for something its list buys where it stands: about 5 gears' worth at its normal price,
-in whole lots, with a premium of 1.3–1.6× over that price, held back from its wallet then (a trader
-too poor makes none). The Orders tab lists them and yours there; Take takes one, scaled by your
-standing's `orderScale` (1 for a stranger, 4 for a partner) as far as the wallet covers the bigger
-premium, and gives you 3–6 days. Sell the goods to the trader as usual, or carry them and Hand in:
-each item pays its normal price and its share of the premium,
-the last one the rest and standing (`order` points). An order you took and delivered nothing for by
-the deadline is abandoned and costs standing; delivered in part, it just ends.
+**Standing orders** (`TraderOrders`): with n a standing tier's number (stranger 1, known 2,
+regular 3, trusted 4, partner 5), a trader puts 2n orders on offer at its weekly restock, n being
+its shelf tier (the best tier among players who traded with it lately, as for its wallet and
+shelves), each for something its list buys where it stands that has an item value. Your own tier at
+the trader sizes an order when you take it: a random 1 + 0.375 (n − 1) to 2.5n gears' worth of the
+goods at their item value (stranger 1–2.5, known 1.375–5, regular 1.75–7.5, trusted 2.125–10,
+partner 2.5–12.5), in whole items rounded up (at least one, at most four stacks), and it pays that
+worth (after the rounding) × (10 + 2.5 (n − 1)): ×10 for a stranger up to ×20 for a partner. The
+pay is new money, never the trader's wallet. The Orders tab lists the offers, each at what it would
+ask of and pay you, and yours there; Take takes one and gives you 3–6 days. Carry the goods and Hand
+in: each item pays its share of the pay, the last one the rest and standing (`order` points).
+Selling the goods to the trader is a sale like any other and does not count towards the order. An
+order you took and delivered nothing for by the deadline is abandoned and costs standing; delivered
+in part, it just ends. (Until 2026-10-08 an order was about 5 gears at the list's price with a
+1.3–1.6× premium held back from the wallet; an order taken before then keeps those terms.)
 
 **Deliveries** (`TraderDeliveries`): the Deliveries tab shows a trader's offer: a package for
 another camp within `deliveryScale` × 3 km (none for strangers; a camp of another type where there is
 one), with a deadline of a game day per km of the straight way, never under a day (2 km is two game
 days; a delivery taken before this rule keeps the deadline it was given), a deposit of 10–30 % of the
-package's value from your gears and a fee of 20–40 %. Take takes it and hands you a
+package's value from your gears and a fee of 200–400 % (20–40 % until 2026-10-08), new money like an
+order's pay. Take takes it and hands you a
 `seraphhorizons:package` (can't be opened, says where it goes and how long is left, in days, or in
 hours under a day); one at a time per sender, and only with a free slot for it (else "no room", and
-no deposit taken); Mark on map puts the destination on your world map. Hand in at the receiver: on time, your deposit back, the fee from its
-wallet and standing at both ends; up to a game day late, the deposit and half the fee and standing at
+no deposit taken); Mark on map puts the destination on your world map. Hand in at the receiver: on time, your deposit back, the fee and
+standing at both ends; up to a game day late, the deposit and half the fee and standing at
 the receiver; later, the delivery fails: the deposit is gone, standing with the sender drops, and the
 package is junk. Packages go only to the grid's camps, so a world without the grid has no deliveries.
 
 Admin (`controlserver`): `/sh trade orders [trader|player]` (open orders, a trader's by id or `near`,
-or a player's), `orders create <trader> <item> <qty> <days>`, `orders complete|cancel <id>`;
+or a player's), `orders create <trader> <item> <qty> <days>` (that many of the item at its value, whoever takes
+it; the pay follows the taker's tier), `orders complete|cancel <id>`;
 `/sh trade deliveries [player]`, `deliveries create <from> <to> <player>` (any two loaded traders or
 placed camps; the deposit comes from the player), `deliveries complete <id>` (on time, wherever the
 package is), `fail <id>`, `expire <id>` (the deadline is now). `/sh trade simulate <days>` runs both
 clocks on. Saved with the world (`seraphhorizons:orders`, `seraphhorizons:deliveries`).
 
-Tests: `tests/Trading/Orders/`, `tests/Trading/Deliveries/` (generation and scaling, the premium
-maths, the deadline (a day a km, at least a day, a saved one kept), both state machines, which
+Tests: `tests/Trading/Orders/`, `tests/Trading/Deliveries/` (offers, size and pay by tier, the
+payout maths, an order taken before the change, the deadline (a day a km, at least a day, a saved one kept), both state machines, which
 outcome calls which standing hook);
-`tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's orders, one taken and filled
-by selling in the trade window paying its premium and standing, one abandoned by `simulate`, a
-delivery between two spawned traders handed in on time through the receiver's window for deposit and
-fee, one failing past its grace and keeping the deposit).
+`tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's stranger offers, one taken
+by a regular at their tier and handed in for its pay and standing with the wallet untouched, one
+abandoned by `simulate`, a delivery between two spawned traders handed in on time through the
+receiver's window for deposit and fee, one failing past its grace and keeping the deposit).
 
 ### Travelling merchants (`TravellingMerchants`, `TravellingMerchantMinSupply`)
 

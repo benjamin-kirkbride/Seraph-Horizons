@@ -64,8 +64,6 @@ public sealed class TierUnlocks
     public double SellPriceFactor { get; set; } = 1;
     /// <summary>Index into the trade list's <c>wallet</c> (<c>TradeListDef.WalletFor</c>).</summary>
     public int WalletTier { get; set; }
-    /// <summary>How large an order the trader offers, times the order's base size (0: none).</summary>
-    public double OrderScale { get; set; }
     /// <summary>How large a delivery the trader hands over, times the base size (0: none).</summary>
     public double DeliveryScale { get; set; }
     /// <summary>Whether the trader shelves its rare stock for this player.</summary>

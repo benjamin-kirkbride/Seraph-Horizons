@@ -2,6 +2,7 @@ using System.Globalization;
 using SeraphHorizons.Mod.Trading.Deliveries.Core;
 using SeraphHorizons.Mod.Trading.Economy.Core;
 using SeraphHorizons.Mod.Trading.Maps.Core;
+using SeraphHorizons.Mod.Trading.Orders.Core;
 
 namespace SeraphHorizons.Mod.Trading.Window.Core;
 
@@ -202,9 +203,9 @@ public static class TradeWindowModel
     public static List<OrderLine> Orders(TradeWindowState state) => state.Orders
         .OrderBy(o => o.Mine ? 0 : 1).ThenBy(o => o.Id)
         .Select(o => o.Mine
-            ? new OrderLine(o, new Text("trading-window-order-taken", o.Quantity, new ItemRef(o.Item), o.Delivered, F(o.UnitPrice),
-                Math.Max(0, o.Premium - o.PremiumPaid), F(Math.Max(0, o.DaysLeft))), false, o.Held > 0 && o.Remaining > 0 && o.DaysLeft >= 0)
-            : new OrderLine(o, new Text("trading-window-order-offer", o.Quantity, new ItemRef(o.Item), F(o.UnitPrice), o.Premium,
+            ? new OrderLine(o, new Text("trading-window-order-taken", o.Quantity, new ItemRef(o.Item), o.Delivered,
+                Math.Max(0, o.Payout - o.PayoutPaid), F(Math.Max(0, o.DaysLeft))), false, o.Held > 0 && o.Remaining > 0 && o.DaysLeft >= 0)
+            : new OrderLine(o, new Text("trading-window-order-offer", o.Quantity, new ItemRef(o.Item), F(o.Quantity * o.Value), o.Payout,
                 F(o.Days), F(Math.Max(0, o.DaysLeft))), true, false))
         .ToList();
 
@@ -307,7 +308,8 @@ public static class TradeWindowModel
         if (sw.StandingPrices && (Math.Abs(u.BuyPriceFactor - 1) > 1e-6 || Math.Abs(u.SellPriceFactor - 1) > 1e-6))
             facts.Add(new Text("trading-window-fact-prices", F(u.BuyPriceFactor), F(u.SellPriceFactor)));
         if (u.WalletTier > 0) facts.Add(new Text("trading-window-fact-wallet", u.WalletTier));
-        if (sw.Orders) facts.Add(u.OrderScale <= 0 ? new Text("trading-window-fact-noorders") : new Text("trading-window-fact-orders", F(u.OrderScale)));
+        if (sw.Orders)
+            facts.Add(new Text("trading-window-fact-orders", F(OrderPlanner.MinWorth(t.Number)), F(OrderPlanner.MaxWorth(t.Number)), F(OrderPlanner.Multiplier(t.Number))));
         if (sw.Deliveries)
             facts.Add(u.DeliveryScale <= 0 ? new Text("trading-window-fact-nodeliveries")
                 : new Text("trading-window-fact-deliveries", F(DeliveryPlanner.Reach(u.DeliveryScale) / 1000)));

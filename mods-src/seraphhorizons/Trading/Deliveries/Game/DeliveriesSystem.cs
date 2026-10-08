@@ -22,7 +22,7 @@ namespace SeraphHorizons.Mod.Trading.Deliveries;
 /// day, so it stays put until the next day. Taking it (<see cref="Begin"/>) takes the deposit from the
 /// player's gears and hands over a <c>seraphhorizons:package</c>.</item>
 /// <item>Handing it in at the receiver's window (<see cref="HandIn"/>): on time, the deposit back plus the fee
-/// (from the receiver's wallet, as far as it has it) and standing at both ends; late (within
+/// (new money, not the receiver's wallet) and standing at both ends; late (within
 /// <see cref="DeliveryPlanner.GraceDays"/>), the deposit and half the fee, standing at the receiver.</item>
 /// <item>Past the grace (<see cref="Tick"/>): failed, the deposit kept, standing with the sender
 /// lost; the package in the player's inventory turns to junk now if they are online, else when they
@@ -202,12 +202,12 @@ public class DeliveriesSystem : ModSystem
         var slot = PackageSlots(player, mine.Id).First();
         slot.TakeOut(1);
         slot.MarkDirty();
-        Settle(change, trader);
+        Settle(change);
         return null;
     }
 
     /// <summary>Pays out a settled or failed delivery and applies its standing call.</summary>
-    public void Settle(DeliveryChange change, EntitySeraphTrader? receiver)
+    public void Settle(DeliveryChange change)
     {
         var d = change.Delivery;
         var player = _sapi!.World.PlayerByUid(d.PlayerUid) as IServerPlayer;
@@ -215,10 +215,8 @@ public class DeliveriesSystem : ModSystem
         int fee = 0;
         if (!change.Standing.Failed)
         {
-            receiver ??= TraderFinder.ById(_sapi, d.To);
-            // The fee is the receiver's to pay, from its wallet as far as it goes; an admin's
-            // completion with the receiver not loaded pays it in full.
-            fee = receiver is null ? change.Fee : TraderFinder.TakeFromWallet(receiver, change.Fee);
+            // The fee is new money, as an order's payout: never the receiver's wallet.
+            fee = change.Fee;
             if (online) TraderFinder.GiveGears(_sapi, player!.Entity, change.DepositBack + fee);
         }
         var s = change.Standing;
@@ -240,7 +238,7 @@ public class DeliveriesSystem : ModSystem
     public void Tick()
     {
         if (!Enabled || _sapi is null) return;
-        foreach (var change in Book.Tick(Today)) Settle(change, null);
+        foreach (var change in Book.Tick(Today)) Settle(change);
     }
 
     /// <summary>Turns the player's packages of deliveries that are no longer active to junk.</summary>
