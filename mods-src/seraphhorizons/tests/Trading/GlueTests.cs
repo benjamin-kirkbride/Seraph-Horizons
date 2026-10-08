@@ -13,7 +13,7 @@ public class GlueTests
 
     private static TradeEntry Rare(string code) { var e = E(code); e.Rare = true; return e; }
 
-    private static TradeEntry Special(string kind) => new() { Code = "seraphhorizons:" + kind, Kind = kind, Price = new NatSpec(1, 0) };
+    private static TradeEntry Special(string kind) => new() { Code = "seraphhorizons:" + kind, Kind = kind };
 
     [Fact]
     public void RareEntriesAreShelvedOnlyWithRareStock()
@@ -52,9 +52,9 @@ public class GlueTests
         var expanded = TradeOffers.Expand(side, _ =>
         [
             E("basic"),
-            new TradeEntry { Code = "far1", Price = new NatSpec(1, 0), Optional = true },
-            new TradeEntry { Code = "far2", Price = new NatSpec(1, 0), Optional = true },
-            new TradeEntry { Code = "far3", Price = new NatSpec(1, 0), Optional = true },
+            new TradeEntry { Code = "far1", Optional = true },
+            new TradeEntry { Code = "far2", Optional = true },
+            new TradeEntry { Code = "far3", Optional = true },
         ]);
         Assert.Equal(TradeListResolver.Slots, expanded.Core.Count);
         Assert.Contains(expanded.Core, e => e.Code == "basic");

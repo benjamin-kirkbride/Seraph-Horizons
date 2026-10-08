@@ -54,6 +54,13 @@ public sealed class TraderRelations
         return best;
     }
 
+    /// <summary>Whether a trader of <paramref name="type"/> pays for an item off its shelf's list
+    /// from its main wallet: its own type buys the item (in another region's list), or a type it is
+    /// related to does (a pair, with or without its own weight; not a <see cref="ToAll"/> link).
+    /// Everything else it takes off its list is paid from its side budget.</summary>
+    public bool PaysFromMain(string type, IReadOnlyCollection<string> buyers) =>
+        buyers.Contains(type) || buyers.Any(other => _pairs.ContainsKey((type, other)));
+
     public bool IsRefused(string code) => Refused.Any(p => code.StartsWith(p, StringComparison.Ordinal));
 
     /// <summary>

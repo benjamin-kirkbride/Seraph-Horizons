@@ -1,0 +1,12 @@
+// How listed goods are priced from the item value table (docs/trading.md, "Trade list format").
+// A trader asks an item's value x "sell" and its list buys it at value x "buy", both x one roll per
+// item per trader per restock, uniform within "roll" either way, the same on both sides of its list.
+// What a trader has on its own selling shelf it buys only off-market, at value x "ownShelf", from
+// its side budget. "buy" stays at the lists' former level (a fifth of value, the buy spread) until
+// the rebalance decides it.
+{
+	"sell": 1.0,
+	"buy": 0.2,
+	"roll": 0.25,
+	"ownShelf": 0.2,
+}

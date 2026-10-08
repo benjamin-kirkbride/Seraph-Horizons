@@ -72,8 +72,10 @@ public static class TradeListResolver
                     problems.Add($"{table}: an entry has no code");
                 foreach (var dup in entries.GroupBy(e => e.Key).Where(g => g.Count() > 1))
                     problems.Add($"{table}: {dup.Key} is listed {dup.Count()} times");
-                foreach (var e in entries.Where(e => e.Price is null || e.Price.Avg <= 0))
-                    problems.Add($"{table}: {e.Key} has no price");
+                foreach (var e in entries.Where(e => e.Price is not null && string.IsNullOrWhiteSpace(e.PriceReason)))
+                    problems.Add($"{table}: {e.Key} overrides its price without a priceReason");
+                foreach (var e in entries.Where(e => e.Price is <= 0))
+                    problems.Add($"{table}: {e.Key} has a price override of {e.Price}");
             }
             foreach (var region in Region.All)
             {

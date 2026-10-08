@@ -65,6 +65,22 @@ public class TraderRelationsTests
     }
 
     [Fact]
+    public void RelatedGoodsArePaidFromTheMainWalletTheRestFromTheSideBudget()
+    {
+        var rel = Shipped();
+        Assert.True(rel.PaysFromMain("smith", ["mechanic"]));
+        // A pair with its own weight is related too.
+        Assert.True(rel.PaysFromMain("tailor", ["animaldealer"]));
+        // Its own type's list elsewhere.
+        Assert.True(rel.PaysFromMain("smith", ["smith"]));
+        Assert.False(rel.PaysFromMain("tailor", ["smith"]));
+        Assert.False(rel.PaysFromMain("smith", []));
+        // The curio dealer's interest in everything is no relation.
+        Assert.False(rel.PaysFromMain("curiodealer", ["smith"]));
+        Assert.False(rel.PaysFromMain("smith", ["curiodealer"]));
+    }
+
+    [Fact]
     public void TheBuyerIndexTakesCodesWithOrWithoutTheirDomain()
     {
         var index = new BuyerIndex();
@@ -178,6 +194,76 @@ public class PricingTests
         Assert.Equal(10, Pricing.Listed(10, 1, 1, 1).UnitPrice);
         Assert.Equal(8, Pricing.Listed(10, 1, PriceCurve.Default.Factor(2.5), 1).UnitPrice); // 0.767
         Assert.Equal(1, Pricing.Listed(1, 1, 0.3, 1).UnitPrice);
+    }
+
+    private static readonly ListPriceRules Rules = new() { Sell = 1.0, Buy = 1.5, Roll = 0.25, OwnShelf = 0.2 };
+
+    [Fact]
+    public void TheShippedListPriceRulesParseAndAreSane()
+    {
+        var rules = ListPriceRules.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "list-prices.json")));
+        Assert.Empty(rules.Problems());
+        Assert.Equal(1.0, rules.Sell);
+        Assert.Equal(0.25, rules.Roll);
+        Assert.True(rules.OwnShelf <= rules.Sell);
+        Assert.Equal(ListPriceRules.Default, ListPriceRules.Parse("// none\n{ }"));
+        Assert.Equal(4, new ListPriceRules { Sell = 0, Buy = -1, OwnShelf = 0, Roll = 1 }.Problems().Count);
+    }
+
+    [Fact]
+    public void AListedGoodIsItsValueTimesTheSellOrBuyFactor()
+    {
+        var iron = new TradeEntry { Code = "ingot-iron", StackSize = 2 };
+        Assert.Equal(20, Pricing.ListBase(iron, 10, traderBuys: false, roll: 1, Rules));
+        Assert.Equal(30, Pricing.ListBase(iron, 10, traderBuys: true, roll: 1, Rules));
+        // The roll scales both sides alike.
+        Assert.Equal(25, Pricing.ListBase(iron, 10, traderBuys: false, roll: 1.25, Rules));
+        Assert.Equal(22.5, Pricing.ListBase(iron, 10, traderBuys: true, roll: 0.75, Rules));
+        // No value, no price: the slot keeps its placeholder.
+        Assert.Null(Pricing.ListBase(iron, 0, traderBuys: false, roll: 1, Rules));
+    }
+
+    [Fact]
+    public void AnOverrideIsItsOwnPriceUnrolledOnBothSides()
+    {
+        var schematic = new TradeEntry { Code = "seraphhorizons:schematic-gearbox", Price = 45, PriceReason = "a gate" };
+        Assert.Equal(45, Pricing.ListBase(schematic, 0, traderBuys: false, roll: 1.2, Rules));
+        Assert.Equal(45, Pricing.ListBase(schematic, 99, traderBuys: true, roll: 0.8, Rules));
+    }
+
+    [Fact]
+    public void ARollIsWithinItsSpreadEitherWay()
+    {
+        var rng = new Random(7);
+        var rolls = Enumerable.Range(0, 2000).Select(_ => Pricing.Roll(rng, 0.25)).ToList();
+        Assert.All(rolls, r => Assert.InRange(r, 0.75, 1.25));
+        Assert.True(rolls.Min() < 0.77 && rolls.Max() > 1.23);
+        Assert.InRange(rolls.Average(), 0.98, 1.02);
+        Assert.Equal(1, Pricing.Roll(rng, 0));
+    }
+
+    [Fact]
+    public void ATraderBuysBackWhatItSellsItselfAtTheOwnShelfRateFromTheSideBudget()
+    {
+        var o = Pricing.OwnShelf(valuePerItem: 10, worthless: false, rate: 0.2, supply: 1, modifiers: 1, maxStackSize: 64);
+        Assert.True(o.Accepted);
+        Assert.True(o.OwnShelf);
+        Assert.Equal(2, o.UnitPrice);
+        Assert.Equal(1, o.UnitSize);
+        // The rate is the whole share: no buy spread on top.
+        Assert.Equal(0.2, o.Fit);
+        Assert.Equal(1, o.Spread);
+        Assert.Equal(Budget.Side, o.Budget);
+        // Cheap goods by the fewest worth a gear, as off-list goods; worthless ones refused.
+        Assert.Equal(10, Pricing.OwnShelf(0.5, false, 0.2, 1, 1, 64).UnitSize);
+        Assert.Equal(Refusal.Worthless, Pricing.OwnShelf(5, true, 0.2, 1, 1, 64).Refusal);
+    }
+
+    [Fact]
+    public void AnOffListOfferIsPaidFromTheBudgetItIsGiven()
+    {
+        Assert.Equal(Budget.Side, Pricing.OffList(10, false, 0.75, 1, 1, 64).Budget);
+        Assert.Equal(Budget.Main, Pricing.OffList(10, false, 0.75, 1, 1, 64, budget: Budget.Main).Budget);
     }
 
     private sealed class Fixed(double f) : IPriceModifier

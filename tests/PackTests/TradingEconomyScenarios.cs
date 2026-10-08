@@ -171,6 +171,13 @@ public partial class TradingScenarios
         Assert.True(shelf != null, "no iron on the shelf after the restock");
         output.WriteLine($"iron on the shelf: stock {shelf!.TradeItem.Stock} at {shelf.TradeItem.Price}");
         Assert.Equal(Economy.Supply.ShelfStock(level, Economy.ValueOf(Iron), 4), shelf.TradeItem.Stock);
+        // On its own shelf now: the smith no longer pays its list's price for iron, but buys it back
+        // off-market at the own-shelf rate, from the side budget.
+        var own = inv.GetBuyingConditionsSlot(Stack(Iron, 1));
+        Assert.True(own is OffListSlot { Offer.OwnShelf: true }, $"iron on the shelf is still bought at {own?.TradeItem.Price}");
+        Assert.Equal(Budget.Side, ((OffListSlot)own!).Offer.Budget);
+        Assert.Equal(Economy.ListPrices.OwnShelf, ((OffListSlot)own).Offer.Fit, 3);
+        Assert.Contains("sells this itself", EconomyPatches.Describe(inv, Stack(Iron, 1)));
 
         // An admin sets steel high: it is shelved too, with stock scaling with the level.
         string steel = "game:ingot-steel";

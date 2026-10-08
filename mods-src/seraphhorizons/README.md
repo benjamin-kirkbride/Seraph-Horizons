@@ -3073,7 +3073,12 @@ dealer (`seraphhorizons:trader-{gender}-{type}-{climate}`, vanilla's trader with
 Each stocks from its own list (`assets/seraphhorizons/config/tradelists/trader-{type}.json`): a core
 always on the shelf, a few rotating slots, more by the camp's climate (cold, temperate, hot) and rock
 (sedimentary, igneous, metamorphic), and a bigger wallet than vanilla's (60–150 gears). Every good
-vanilla's lists and the pack's mods trade has a place in one of them. Metal and metal goods, glass and
+vanilla's lists and the pack's mods trade has a place in one of them. The lists hold no prices: a
+trader prices each good from the item value table (below), asking its value and paying a share of
+it for what its list buys, each varied by a roll per item at every restock ("Everything has a
+price"); only
+schematics and the maps' and leads' entries set a price of their own, each with its reason
+(`price` and `priceReason`). Metal and metal goods, glass and
 fired goods, leather and fine cloth and machine parts are player-supplied: listed, but never on a
 shelf until the supply system (a later wave) puts them there, so a fresh world's smith sells fuel and
 flux and buys metal.
@@ -3163,16 +3168,18 @@ reads "1.85 gears per litre (0.0185 per item, 100 items per litre)"; the JSON ha
 root and its `trade` branch are shared with the other trading features (`GetOrCreate`).
 
 Schematics have no value in `item-values.json` (`tools/item-values`, #506): they are kept on
-crafting and traders are their only source, at their lists' prices. A machine gated behind a
+crafting and traders are their only source, at the prices their list entries set by hand. A machine gated behind a
 schematic is worth its consumed parts and labour. `seraphhorizons:gear-steel` takes its cheapest
 route (the gear cutter, or the reclamation lottery: ten oiled gears less the nine steel bits the
 failed rolls give), and `seraphhorizons:largegear-steel` its gear cutter route; neither is a hand
 price.
 
 After a pack change that adds, removes or re-recipes items, rebuild the table from a fresh export
-(`tools/item-values/README.md`). CI's export job fails when an item of this mod's trade lists
-(`config/tradelists/`) has no value or is retired with nothing valuing it, and when the shipped
-table differs from a rebuild from the export (smoke loads this mod, so the export has its items).
+(`tools/item-values/README.md`). Every trade list entry is priced from this table, so CI's export
+job fails when an item of this mod's trade lists (`config/tradelists/`), bought or sold, has no value
+and no price override with a reason, or is retired with nothing valuing it, and when the shipped
+table differs from a rebuild from the export (smoke loads this mod, so the export has its items);
+`ShippedListValueTests` holds the shipped lists to the shipped table without an export.
 The table's `switches` names, per code, the config switches its value exists by (#523).
 
 **In the handbook** (#506): every item and block page shows, under its name and description, the
@@ -3241,14 +3248,19 @@ a registered code, every hand-listed recipe type is in the export) and `Switches
 
 ### Everything has a price (`EverythingHasAPrice`, `BuySpread`)
 
-The trader overhaul's pricing (#450; `Trading/Economy/`, notes in `docs/trading.md`). A trader of the
-pack takes any item, not only what its list buys, and pays a fifth of what it is worth, a pawnshop's
-spread (`BuySpread`, default 0.2); what it asks when it sells is unchanged. Listed goods keep the
-list's price, which already holds the spread (the lists' buying prices were divided by five on
-2026-10-06, and do not follow `BuySpread`), and are paid from the trader's wallet. Anything else is
-priced from the item's base value × the spread × the fit: three quarters for goods a related trader
-buys, 0.6 for a weak link (and the curio dealer for anything another trader buys), half otherwise
-(`assets/seraphhorizons/config/trading/trader-relations.json`). It is paid from a **side budget**, a
+The trader overhaul's pricing (#450; `Trading/Economy/`, notes in `docs/trading.md`). Every listed
+good is priced from the item value table (below), by `assets/seraphhorizons/config/trading/list-prices.json`:
+a trader asks its value × `sell` (1) and its list buys it at its value × `buy` (0.2, a fifth, the
+level the lists' own prices were written at), each × a roll drawn per item per trader at every
+restock, within `roll` (a quarter) either way and the same on both sides of that trader's list;
+prices are in whole gears, at least one. A trader does not pay its list's price for what is on its
+own selling shelf: while it has an item in stock it buys it back only off-market, at its value ×
+`ownShelf` (a fifth), from its side budget. (Hauling goods from one trader to another that wants
+them is fine.) With this switch on, a trader also takes any item its list does not buy, and pays a
+fifth of what it is worth, a pawnshop's spread (`BuySpread`, default 0.2), × the fit: three quarters
+for goods a related trader buys, 0.6 for a weak link (and the curio dealer for anything another
+trader buys), half otherwise (`assets/seraphhorizons/config/trading/trader-relations.json`). Goods a
+related trader buys are paid from its wallet, as listed goods are; the rest from a **side budget**, a
 quarter of the trader's wallet, refilled at every restock. Cheap goods sell by the fewest items worth
 a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot for the
 same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than a gear per
@@ -3279,12 +3291,13 @@ Admin (privilege `controlserver`, in the caller's region or the spawn's): `/sh t
 `trace <item>` (its last changes), and `/sh trade simulate <days>` (supply decays and spreads for
 that many days, and the loaded traders' restock clocks move on as much).
 
-Tests: `tests/Trading/Economy/` (the fit table, the price curve and offers, the buy spread, the side
-budget, supply decay, spread, shelving and saving, and the shipped lists' buying prices held to a
-fifth of the value table and under 0.6 × the lowest ask, `ShippedListPayTests`); `tests/PackTests/TradingEconomyScenarios.cs` (Atlas: an off-list
+Tests: `tests/Trading/Economy/` (the fit table and which budget pays, the price curve and offers,
+list prices from values and their rolls, the own-shelf rule, the buy spread, the side budget, supply decay, spread,
+shelving and saving, and every shipped list entry valued or overriding its price with a reason,
+`ShippedListValueTests`); `tests/PackTests/TradingEconomyScenarios.cs` (Atlas: an off-list
 sale paid from the side budget through vanilla's own deal, worthless goods, money and an overdrawn side
-budget refused, supply rising, falling over `simulate 20`, and player-supplied iron and steel shelved
-once supply is high).
+budget refused, supply rising, falling over `simulate 20`, player-supplied iron and steel shelved
+once supply is high, and the smith buying back the iron on its shelf off-market).
 
 ### Standing (`TraderStanding`)
 

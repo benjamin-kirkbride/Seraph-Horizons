@@ -2,6 +2,7 @@ using HarmonyLib;
 using SeraphHorizons.Mod.Trading.Core;
 using SeraphHorizons.Mod.Trading.Economy.Core;
 using SeraphHorizons.Mod.Trading.Values;
+using SeraphHorizons.Mod.Trading.Values.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -35,12 +36,16 @@ public class EconomySystem : ModSystem
     public const string PricedAttr = "seraphhorizons:everythingpriced";
     public const string SideBudgetAttr = "seraphhorizons:sidebudget";
     public const string SupplyFactorsAttr = "seraphhorizons:supplyfactors";
+    /// <summary>Server, in the trader's (unsynced, saved) attributes: each listed item's price roll
+    /// since its last restock, by full code.</summary>
+    public const string PriceRollsAttr = "seraphhorizons:pricerolls";
     /// <summary>The server's <see cref="SeraphHorizonsConfig.BuySpread"/>, per trader, for the client's
     /// off-list prices.</summary>
     public const string BuySpreadAttr = "seraphhorizons:buyspread";
     public const string SaveKey = "seraphhorizons:supply";
     public const string SaveDayKey = "seraphhorizons:supplyday";
     public static readonly AssetLocation RelationsAsset = new("seraphhorizons", "config/trading/trader-relations.json");
+    public static readonly AssetLocation ListPricesAsset = new("seraphhorizons", "config/trading/list-prices.json");
 
     // Patched once per process (singleplayer runs both sides in one) and unpatched by the last side out.
     private static readonly object PatchLock = new();
@@ -76,6 +81,10 @@ public class EconomySystem : ModSystem
     /// it from each trader, <see cref="BuySpreadAttr"/>).</summary>
     public double BuySpread { get; private set; } = Pricing.DefaultBuySpread;
 
+    /// <summary>How listed goods are priced from their values, and the own-shelf rate (both sides:
+    /// a config asset).</summary>
+    public ListPriceRules ListPrices { get; private set; } = ListPriceRules.Default;
+
     /// <summary>Raised for every simulated day of <c>/sh trade simulate</c>, after supply has ticked,
     /// with the book's day: orders and deliveries (#453, #454) advance their own clocks here.</summary>
     public event Action<int>? SimulatedDay;
@@ -96,6 +105,7 @@ public class EconomySystem : ModSystem
 
     public override void AssetsLoaded(ICoreAPI api)
     {
+        LoadListPrices(api);
         var asset = api.Assets.TryGet(RelationsAsset);
         if (asset is null)
         {
@@ -111,6 +121,27 @@ public class EconomySystem : ModSystem
         catch (Exception e)
         {
             api.Logger.Error("[seraphhorizons] Trading economy: {0} does not parse: {1}", RelationsAsset, e.Message);
+        }
+    }
+
+    private void LoadListPrices(ICoreAPI api)
+    {
+        if (api.Assets.TryGet(ListPricesAsset) is not { } asset)
+        {
+            api.Logger.Warning("[seraphhorizons] Trading economy: {0} is missing; list prices take the defaults", ListPricesAsset);
+            return;
+        }
+        try
+        {
+            var rules = ListPriceRules.Parse(asset.ToText());
+            var problems = rules.Problems();
+            foreach (string problem in problems)
+                api.Logger.Warning("[seraphhorizons] Trading economy: list prices: {0}", problem);
+            if (problems.Count == 0) ListPrices = rules;
+        }
+        catch (Exception e)
+        {
+            api.Logger.Error("[seraphhorizons] Trading economy: {0} does not parse: {1}", ListPricesAsset, e.Message);
         }
     }
 
@@ -235,6 +266,8 @@ public class EconomySystem : ModSystem
     private void OnRestocked(EntitySeraphTrader trader)
     {
         if (trader.Api != _sapi) return;
+        // A new restock, new price rolls (Reprice draws them as it meets each item).
+        trader.Attributes.RemoveAttribute(PriceRollsAttr);
         trader.WatchedAttributes.SetBool(PricedAttr, EverythingHasAPrice);
         if (EverythingHasAPrice)
         {
@@ -253,7 +286,7 @@ public class EconomySystem : ModSystem
             trader.WatchedAttributes.SetDouble(BuySpreadAttr, BuySpread);
             trader.WatchedAttributes.MarkPathDirty(BuySpreadAttr);
         }
-        if (!EverythingHasAPrice && !RegionalSupply) return;
+        // Listed goods are priced from the value table whatever the switches (the lists hold no prices).
         Reprice(trader);
         var store = new TreeAttribute();
         trader.Inventory.ToTreeAttributes(store);
@@ -279,10 +312,10 @@ public class EconomySystem : ModSystem
         trader.WatchedAttributes.MarkPathDirty(SupplyFactorsAttr);
     }
 
-    /// <summary>Prices every listed slot from its entry: list price × supply × modifiers (a list's
-    /// buying prices already hold the buy spread), a cheap buying entry by a bigger unit
-    /// (<see cref="Pricing.Listed"/>). Vanilla's rolled spread is dropped: a listed price is its list
-    /// average.</summary>
+    /// <summary>Prices every listed slot from its entry: the item's value × its stack × the list
+    /// price rules' sell or buy factor × the item's roll at this trader this restock (an override as it stands,
+    /// <see cref="Pricing.ListBase"/>), × supply × modifiers, a cheap buying entry by a bigger unit
+    /// (<see cref="Pricing.Listed"/>). Vanilla's rolled spread is dropped.</summary>
     private void Reprice(EntitySeraphTrader trader)
     {
         var system = TradingSystem.Of(trader.Api);
@@ -298,15 +331,19 @@ public class EconomySystem : ModSystem
 
     private void Price(EntitySeraphTrader trader, ItemSlotTrade[] slots, string keysAttr, string prefix, Dictionary<string, TradeEntry> entries, bool traderBuys)
     {
+        var values = ItemValuesSystem.For(trader.Api);
         var keys = (trader.WatchedAttributes[keysAttr] as StringArrayAttribute)?.value ?? [];
         for (int i = 0; i < slots.Length && i < keys.Length; i++)
         {
             var slot = slots[i];
-            if (slot.Itemstack is null || slot.TradeItem is null || !entries.TryGetValue(prefix + keys[i], out var entry) || entry.Price is null) continue;
+            if (slot.Itemstack is null || slot.TradeItem is null || !entries.TryGetValue(prefix + keys[i], out var entry)) continue;
             string code = slot.Itemstack.Collectible.Code.ToString();
-            var context = Context(trader, code, traderBuys, null);
+            var lookup = values.Lookup(code);
+            double value = lookup.Source == ValueSource.Missing ? 0 : lookup.Value;
             // From the entry's own stack, not the slot's: an earlier pricing may have grown the unit.
-            var offer = Pricing.Listed(entry.Price.Avg, entry.StackSize, SupplyFactor(trader, code),
+            if (Pricing.ListBase(entry, value, traderBuys, RollOf(trader, code), ListPrices) is not double listPrice) continue;
+            var context = Context(trader, code, traderBuys, null);
+            var offer = Pricing.Listed(listPrice, entry.StackSize, SupplyFactor(trader, code),
                 Pricing.Modifiers(Modifiers, context), traderBuys, slot.Itemstack.Collectible.MaxStackSize);
             slot.TradeItem.Price = offer.UnitPrice;
             if (traderBuys && slot.TradeItem.Stack is { } unit && unit.StackSize != offer.UnitSize)
@@ -315,6 +352,18 @@ public class EconomySystem : ModSystem
                 slot.Itemstack.StackSize = offer.UnitSize;
             }
         }
+    }
+
+    /// <summary>Server: the item's price roll at this trader since its last restock
+    /// (<see cref="Pricing.Roll"/>), drawn the first time it is asked for and kept with the entity, so
+    /// the same item on both sides of a list shares it and a reload keeps it.</summary>
+    private double RollOf(EntitySeraphTrader trader, string code)
+    {
+        var rolls = trader.Attributes.GetOrAddTreeAttribute(PriceRollsAttr);
+        if (rolls.HasAttribute(code)) return rolls.GetDouble(code, 1);
+        double roll = Math.Round(Pricing.Roll(trader.World.Rand, ListPrices.Roll), 4);
+        rolls.SetDouble(code, roll);
+        return roll;
     }
 
     // ---- Prices, on both sides ----
@@ -343,7 +392,8 @@ public class EconomySystem : ModSystem
     public PriceContext Context(EntitySeraphTrader trader, string code, bool traderBuys, string? playerUid) =>
         new(code, trader.TraderType, RegionOf(trader), traderBuys, trader.EntityId, playerUid);
 
-    /// <summary>What the trader offers for a stack its list does not buy.</summary>
+    /// <summary>What the trader offers for a stack its list does not buy, or one it has on its own
+    /// selling shelf (whether its list buys it or not).</summary>
     public Offer QuoteOffList(EntitySeraphTrader trader, ItemStack stack, string? playerUid = null)
     {
         var collectible = stack.Collectible;
@@ -356,9 +406,19 @@ public class EconomySystem : ModSystem
         int max = collectible.GetMaxDurability(stack);
         if (max > 1) value *= Math.Clamp(collectible.GetRemainingDurability(stack) / (double)max, 0, 1);
         var context = Context(trader, code, true, playerUid);
-        return Pricing.OffList(value, values.IsWorthless(code), Relations.Fit(trader.TraderType, Buyers.BuyersOf(code)),
-            SupplyFactor(trader, code), Pricing.Modifiers(Modifiers, context), collectible.MaxStackSize, BuySpreadOf(trader));
+        double supply = SupplyFactor(trader, code), modifiers = Pricing.Modifiers(Modifiers, context);
+        if (OnOwnShelf(trader, collectible))
+            return Pricing.OwnShelf(value, values.IsWorthless(code), ListPrices.OwnShelf, supply, modifiers, collectible.MaxStackSize);
+        var buyers = Buyers.BuyersOf(code);
+        return Pricing.OffList(value, values.IsWorthless(code), Relations.Fit(trader.TraderType, buyers), supply, modifiers,
+            collectible.MaxStackSize, BuySpreadOf(trader), Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
     }
+
+    /// <summary>Whether the trader has the item on its selling shelf, in stock (by code; attributes
+    /// are ignored): it then buys it back only off-market (<see cref="Pricing.OwnShelf"/>). Both
+    /// sides know the shelf.</summary>
+    public static bool OnOwnShelf(EntitySeraphTrader trader, CollectibleObject collectible) =>
+        trader.Inventory?.SellingSlots.Any(s => s.Itemstack?.Collectible?.Code == collectible.Code && s.TradeItem is { Stock: > 0 }) == true;
 
     /// <summary>An item's value in the table (0 when worthless or unknown).</summary>
     public double ValueOf(string code) => _api is null ? 0 : ItemValuesSystem.For(_api).ValueOf(code);
@@ -400,7 +460,7 @@ public sealed class RegionalSupplyGate(EconomySystem economy) : ISupplyGate
         double level = economy.Supply.Level(SupplyRegion.KeyOf(trader.X, trader.Z), code);
         if (level <= 0) return 0;
         double value = economy.ValueOf(code);
-        if (value <= 0 && entry.Price is { Avg: > 0 } price) value = price.Avg / Math.Max(1, entry.StackSize);
+        if (value <= 0 && entry.Price is > 0 and double price) value = price / Math.Max(1, entry.StackSize);
         return economy.Supply.ShelfStock(level, value * Math.Max(1, entry.StackSize), entry.Stock?.Avg ?? 1);
     }
 }

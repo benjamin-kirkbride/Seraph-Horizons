@@ -224,7 +224,8 @@ public class MapsSystem : ModSystem
         AttributesKey = attrs.ToString(Formatting.None),
         StackSize = 1,
         Stock = new NatSpec(stock, 0),
-        Price = new NatSpec(price, 0),
+        Price = price,
+        PriceReason = "a map offer, priced by the maps system",
         Optional = optional,
     };
 

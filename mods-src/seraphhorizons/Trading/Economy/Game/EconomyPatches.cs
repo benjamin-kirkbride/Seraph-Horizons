@@ -28,12 +28,15 @@ public sealed class OffListSlot : ItemSlotTrade
 /// The Harmony patches of the economy (#450, #451), on vanilla's <c>InventoryTrader</c> and its
 /// selling-cart slot (the pack's traders trade through the pack's own window, which shows the side
 /// budget itself, so vanilla's dialog is no longer patched). Every patch acts only on an inventory
-/// whose trader is an <see cref="EntitySeraphTrader"/> with <see cref="EconomySystem.PricedAttr"/> set, so vanilla's
-/// and other mods' traders are untouched and the server's switch decides for its clients.
+/// whose trader is an <see cref="EntitySeraphTrader"/> with <see cref="EconomySystem.PricedAttr"/> set (but the
+/// own-shelf rule, on any of ours), so vanilla's and other mods' traders are untouched and the
+/// server's switch decides for its clients.
 ///
 /// <list type="bullet">
 /// <item><c>InventoryTrader.GetBuyingConditionsSlot</c> (postfix): where the list has no buying
-/// slot for a stack, an <see cref="OffListSlot"/> with the computed offer. That one method decides
+/// slot for a stack, or the trader has the good on its own selling shelf, an
+/// <see cref="OffListSlot"/> with the computed offer (on any of our traders, priced or not, a
+/// listed slot for a good on its own shelf is dropped). That one method decides
 /// everything about a sale in vanilla (<c>IsTraderInterestedIn</c>, so the selling cart's
 /// <c>CanHold</c> and shift-click; <c>HasTraderEnoughDemand</c>; <c>GetTotalGain</c>; the deal), so
 /// an off-list good is sold exactly like a listed one.</item>
@@ -81,7 +84,13 @@ public static class EconomyPatches
 
     public static void BuyingConditionsPostfix(InventoryTrader __instance, ItemStack forStack, ref ItemSlotTrade? __result)
     {
-        if (__result != null || forStack?.Collectible is null || PricedTrader(__instance) is not { } trader) return;
+        if (forStack?.Collectible is null || TraderField(__instance) is not EntitySeraphTrader trader) return;
+        // A listed good the trader has on its own selling shelf is never bought at its list's price:
+        // it is bought back off-market instead, or, without the economy's side budget, not at all.
+        bool ownShelf = EconomySystem.OnOwnShelf(trader, forStack.Collectible);
+        if (__result != null && !ownShelf) return;
+        __result = null;
+        if (!EconomySystem.IsPriced(trader)) return;
         if (EconomySystem.Of(trader.Api) is not { } economy) return;
         var offer = economy.QuoteOffList(trader, forStack);
         if (!offer.Accepted || !forStack.Collectible.IsReasonablyFresh(trader.World, forStack)) return;
@@ -112,7 +121,7 @@ public static class EconomyPatches
             if (condition?.TradeItem?.Stack is not { } unit) continue;
             int units = stack.StackSize / Math.Max(1, unit.StackSize);
             if (units <= 0) continue;
-            parts.Add((condition.TradeItem.Price, units, condition is OffListSlot ? Budget.Side : Budget.Main));
+            parts.Add((condition.TradeItem.Price, units, condition is OffListSlot off ? off.Offer.Budget : Budget.Main));
             lines.Add(new DealLine(stack.Collectible, units * unit.StackSize, condition.TradeItem.Price / (double)unit.StackSize, true));
         }
         for (int i = 0; i < 4; i++)
@@ -211,8 +220,10 @@ public static class EconomyPatches
             var o = off.Offer;
             string line = L("trading-economy-offer-offlist", o.UnitPrice, o.UnitSize,
                 o.Base.ToString("0.##", ci), o.Spread.ToString("0.##", ci), o.Fit.ToString("0.##", ci), o.Supply.ToString("0.##", ci));
+            if (o.OwnShelf) line = L("trading-economy-offer-ownshelf", o.UnitPrice, o.UnitSize, o.Base.ToString("0.##", ci), o.Fit.ToString("0.##", ci), o.Supply.ToString("0.##", ci));
             if (Math.Abs(o.Modifiers - 1) > 1e-3) line += " " + L("trading-economy-offer-modifiers", o.Modifiers.ToString("0.##", ci));
-            return line + "\n" + L("trading-economy-offer-sidebudget", EconomySystem.SideBudgetOf(trader));
+            return o.Budget == Budget.Main ? line + "\n" + L("trading-economy-offer-mainwallet")
+                : line + "\n" + L("trading-economy-offer-sidebudget", EconomySystem.SideBudgetOf(trader));
         }
         if (condition?.TradeItem is { } listed)
         {

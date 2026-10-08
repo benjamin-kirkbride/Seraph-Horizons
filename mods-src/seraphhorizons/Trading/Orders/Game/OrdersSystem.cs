@@ -117,18 +117,25 @@ public class OrdersSystem : ModSystem
     // ---- Making orders ----
 
     /// <summary>What the trader would order: its list's buying side for its region, plain stacks with
-    /// a price, at the list price per item times the region's supply factor.</summary>
+    /// a value, at the list's buying price per item times the region's supply factor.</summary>
     public List<OrderCandidate> Candidates(EntitySeraphTrader trader)
     {
         if (_trading?.Lists?.For(trader.TraderType) is not { } def) return [];
         var side = TradeListResolver.Resolve(def, trader.Region).Buying;
+        var values = Values.ItemValuesSystem.For(trader.Api);
+        var rules = EconomySystem.Of(trader.Api)?.ListPrices ?? ListPriceRules.Default;
         var list = new List<OrderCandidate>();
         foreach (var e in side.Core.Concat(side.Rotating))
         {
-            if (e.Price is not { Avg: > 0 } price || e.AttributesKey.Length > 0) continue;
+            if (e.AttributesKey.Length > 0) continue;
             string code = BuyerIndex.FullCode(e.Code);
+            // The list's buying price before its roll (Pricing.ListBase: value × the buy factor, or an override).
+            // The table's value as the shelf prices it (Lookup, so a good under a gear a stack has one too).
+            var lookup = values.Lookup(code);
+            double value = lookup.Source == Values.Core.ValueSource.Missing ? 0 : lookup.Value;
+            if (Pricing.ListBase(e, value, traderBuys: true, roll: 1, rules) is not double price || price <= 0) continue;
             if (TraderFinder.Collectible(trader.World, code) is not { } c) continue;
-            double unit = price.Avg / Math.Max(1, e.StackSize) * EconomySystem.SupplyFactor(trader, code);
+            double unit = price / Math.Max(1, e.StackSize) * EconomySystem.SupplyFactor(trader, code);
             list.Add(new OrderCandidate(code, unit, Math.Max(1, e.StackSize), Math.Max(1, c.MaxStackSize)));
         }
         return list;

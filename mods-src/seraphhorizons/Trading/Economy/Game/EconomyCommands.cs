@@ -193,7 +193,8 @@ public static class EconomyCommands
                 F(EconomySystem.SupplyFactor(trader, code))));
         var o = economy.QuoteOffList(trader, stack, args.Caller.Player?.PlayerUID);
         if (!o.Accepted) return TextCommandResult.Success(L("trading-price-refused", type, code, EconomyPatches.RefusalText(o.Refusal) ?? ""));
-        return TextCommandResult.Success(L("trading-price-offlist", type, code, o.UnitPrice, o.UnitSize, F(o.Base), F(o.Fit), F(o.Supply), F(o.Modifiers),
+        string key = o.OwnShelf ? "trading-price-ownshelf" : o.Budget == Budget.Main ? "trading-price-offlist-main" : "trading-price-offlist";
+        return TextCommandResult.Success(L(key, type, code, o.UnitPrice, o.UnitSize, F(o.Base), F(o.Fit), F(o.Supply), F(o.Modifiers),
             F(o.Spread), EconomySystem.SideBudgetOf(trader)));
     }
 

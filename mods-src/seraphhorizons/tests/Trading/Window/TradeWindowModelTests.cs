@@ -309,6 +309,12 @@ public class TradeWindowModelTests
         Assert.Equal("trading-economy-offer-modifiers(1.05)", lines[1]);
         Assert.Equal("trading-economy-offer-sidebudget(21)", lines[2]);
         Assert.Equal("trading-window-sell-short(1)", lines[3]);
+        // Goods a related trader buys come from the wallet; its own shelf's goods are bought back cheap.
+        var related = Pricing.OffList(10, false, 0.75, 1, 1, 64, budget: Budget.Main);
+        Assert.Equal("trading-economy-offer-mainwallet", TradeWindowModel.OfferLines(related, false, 21)[1].ToString());
+        var own = Pricing.OwnShelf(10, false, 0.2, 1, 1, 64);
+        Assert.Equal(["trading-economy-offer-ownshelf(2, 1, 10, 0.2, 1)", "trading-economy-offer-sidebudget(21)"],
+            TradeWindowModel.OfferLines(own, false, 21).Select(t => t.ToString()));
     }
 
     [Fact]

@@ -528,10 +528,40 @@ into `Trading/Core/TradeList.cs`:
 }
 ```
 
-An entry is vanilla's (`type`, `code`, `attributes`, `stacksize`, `stock`, `price`) plus
+An entry is vanilla's (`type`, `code`, `attributes`, `stacksize`, `stock`) without a price, plus
 `"playerSupplied": true` for metal and metal goods, glass and fired goods, leather and fine cloth,
-and machine parts. Unknown fields are ignored, so later waves add theirs (value overrides, standing
-gates). A trader's list for its region (`TradeListResolver`): the core, then its climate key's core,
+and machine parts. Unknown fields are ignored, so later waves add theirs (standing gates, `rare`,
+`kind`).
+
+**Prices** (2026-10-08) come from the item value table, not the list, by
+`config/trading/list-prices.json` (`ListPriceRules`, loaded on both sides): right after every restock
+(`EconomySystem.Reprice`, whatever the economy's switches) a selling entry is priced at the item's
+value × its stack × `sell` (1), and a buying entry at the same × `buy` (0.2 for now, the level the
+lists' own buying prices were written at; the rebalance will set it), `Pricing.ListBase`, both × one
+roll per item per trader per restock, uniform within `roll` (0.25) either way (`Pricing.Roll`; drawn
+as the item is first priced and kept in the
+trader's unsynced attributes, `seraphhorizons:pricerolls`, until its next restock, so the item's sell
+and buy prices at that trader move together), × the regional supply factor × the modifiers, in whole
+gears per unit, at least one (`Pricing.Listed`). Loops between two traders (buy at one, sell to
+another whose list wants it) pay by design: trekking for profit is part of the game. A trader does
+not pay its list's price for an item it has on its own selling shelf, in stock (by code, attributes
+ignored, `EconomySystem.OnOwnShelf`): `GetBuyingConditionsSlot`'s postfix replaces the listed slot
+with an off-market offer at value × `ownShelf` (0.2), with no spread or fit, from the side budget
+(`Pricing.OwnShelf`), so a trader never buys back its own goods at its list's price, whatever the
+buy factor. On one of ours without the economy (`EverythingHasAPrice` off, no side budget) such a
+good is not bought at all. This replaced the runtime cap of 0.6 × its own price that a test had
+stood in for since 2026-10-06 (`ShippedListPayTests` and its outlier fixture are gone).
+
+`price` survives only as an override, gears per entry stack, that must carry a `priceReason`
+(`TradeListResolver.Problems` reports one without; `ShippedListValueTests` holds the shipped lists to
+it): schematics (hand-set gates, 10–250 gears; they have no value by rule), the special `kind`
+entries (maps and leads, priced by the maps system; the 1 there is a placeholder), the curio
+dealer's found tapestries (one code for every picture, not in the recipe export) and BetterRuins'
+locator maps (priced by what they lead to). An override is not rolled. Every other entry needs a
+value, direct or by its variant family as `ItemValues.Lookup` finds one; `tools/item-values check`
+fails CI otherwise, and the fix is a raw value or an override in `tools/item-values` (2026-10-08:
+Logging Expanded's sawhorse and stick storage, the iron and steel axle hubs and Culinary
+Artillery's chef's hats got overrides at 0.7 × the list's former price, traderFallback's rule). A trader's list for its region (`TradeListResolver`): the core, then its climate key's core,
 then its rock key's; the rotating pool likewise; an entry once (first wins, core over rotating); at
 most 16 slots a side. Each restock (`RestockPlanner`): the core first, fresh; a player-supplied
 selling entry only if the supply gate gives it stock; rotating goods still in stock stay with chance
@@ -543,9 +573,8 @@ with a single warning naming it (none in the pack: `TradingCoreScenarios`). A `T
 afresh from each entry's JSON for every restock.
 
 **Curation.** Every entry of vanilla's nine trader lists and of the table above is in at least one of
-our lists, keeping vanilla's price, stack and stock (a good moved from selling to buying is priced
-×0.6, the other way ×1.6; every buying price was later divided by five for the buy spread, see
-"Everything has a price"), and the pack's own goods are added where the vanilla lists had none:
+our lists, keeping vanilla's stack and stock (and its price until 2026-10-08, when the lists' prices
+gave way to the value table, above), and the pack's own goods are added where the vanilla lists had none:
 mechanical power, pipes and steam (mechanic), ore samples and mining supplies by rock group
 (prospector), seeds and saplings by climate (farmer), planks and logs by climate (carpenter), stone by
 rock group (mason), young animals by climate and tack (animal dealer), everyday supplies (general
@@ -786,13 +815,14 @@ unit-tested in `tests/Trading/Economy/`), `Game/` (`EconomySystem`, `EconomyPatc
 ### Values (#449)
 
 The value table (`config/item-values.json`, built by `tools/item-values`; the mod README's "Item base
-values") is what off-list prices start from and what the list-pay tests hold the lists to.
+values") is what every price starts from: listed goods (× the list price rules' factors) and
+off-list goods (× the spread × the fit).
 
 - **Schematics** have no value: they are kept on crafting and traders are their only source, so
   `tools/item-values` never prices one, and a recipe that uses one (MachineSchematics' gates) is
-  priced by its consumed parts and labour only. A trader sells them at its list's price, and the
-  curio dealer buys back the diving gear schematic at its list's price; the value check exempts
-  them. (#506)
+  priced by its consumed parts and labour only. A trader sells them at the price its list entry
+  overrides by hand (`price`, `priceReason`), and the curio dealer buys back the diving gear
+  schematic at its entry's price; the value check asks them for that override instead. (#506)
 - **The steel gear** (`seraphhorizons:gear-steel`) takes its cheapest route, like any item: the
   gear cutter, or the reclamation lottery (ten oiled gears less the nine steel bits the failed
   rolls give). The large steel gear (`seraphhorizons:largegear-steel`) takes its gear cutter route.
@@ -802,42 +832,43 @@ values") is what off-list prices start from and what the list-pay tests hold the
 
 - **Buy spread**: a trader pays a fifth of what goods are worth (`BuySpread`, default 0.2, server
   config, synced to clients per trader as `seraphhorizons:buyspread`), a pawnshop's spread, and asks
-  the full price when it sells. It applies to everything a trader buys from a player: off-list goods
-  at runtime, and list entries because the lists hold the final pay (below).
+  the full price when it sells. It applies to off-list goods; listed goods are paid by the list
+  price rules' buy factor (0.2 for now, the same level).
 - **Fit**: `config/trading/trader-relations.json`. Listed 1, a related type 0.75, otherwise 0.5. The
   relations are smith–mechanic, smith–prospector, prospector–mason, carpenter–mason,
   carpenter–mechanic, farmer–cook, farmer–animal dealer, cook–animal dealer and tailor–general store
   at 0.75; tailor–animal dealer, general store–cook and general store–carpenter at 0.6; and the curio
   dealer with everyone at 0.6. An item's fit at a trader is the best relation between its type and
   any type whose list buys the item (any region, core or rotating; `BuyerIndex`).
-- **Prices** (`Pricing`): a listed entry is its list average (vanilla's rolled spread is dropped once
-  the economy prices a trader) × supply × modifiers. An off-list good is the value table's value
-  (scaled by remaining durability) × spread × fit × supply × modifiers. Listed goods keep the list's
-  price because the lists are curated and already hold the spread: their buying prices were rescaled
-  by 0.2 (`Trading/tools/rescale_buying.py`, 2026-10-06), so they sit at 0.19 × the table's value at
-  the median, and `BuySpread` does not touch them. `tests/Trading/Economy/ShippedListPayTests.cs`
-  holds the two together: the median in 0.15–0.25, every entry at most 0.3 × value except the
-  outliers the rescale found (`tests/Trading/fixtures/list-pay-outliers.json`, mostly items the
-  table prices low, each held to 1.25 × its share then), and no list paying more than 0.6 × the
-  lowest list ask for the same item (the rule a runtime cap used to enforce). The game prices a
-  trade in whole gears per trade-item stack, so an off-list good of less than a gear an item is sold
-  by the fewest items worth a gear (`UnitSize`); under a gear per full stack it is refused
-  (`TooCheap`). A listed buying entry under a gear per stack is bought by the fewest whole multiples
-  of its stack worth a gear, up to the item's stack size (`Pricing.Listed`; the slot's trade stack is
-  resized at every reprice), rather than rounding a fifth of a gear up to a whole one.
+- **Budget**: goods a related type buys (any pair, with or without its own weight) or the trader's
+  own type buys in another region's list are paid from the main wallet, as listed goods are
+  (`TraderRelations.PaysFromMain`); everything else off the list (unrelated, the curio dealer's
+  interest in everything, the own-shelf buy-back) from the side budget.
+- **Prices** (`Pricing`): a listed entry is priced from the value table (see "Trade list format":
+  value × stack × the sell or buy factor × the roll; vanilla's rolled spread is dropped) × supply ×
+  modifiers. An off-list good is the value table's value (scaled by remaining durability) × spread
+  × fit × supply × modifiers; one on the trader's own shelf is value × the own-shelf rate × supply ×
+  modifiers. The game prices a trade in whole gears per trade-item stack, so an off-list good of
+  less than a gear an item is sold by the fewest items worth a gear (`UnitSize`); under a gear per
+  full stack it is refused (`TooCheap`). A listed buying entry under a gear per stack is bought by
+  the fewest whole multiples of its stack worth a gear, up to the item's stack size
+  (`Pricing.Listed`; the slot's trade stack is resized at every reprice), rather than rounding a
+  fraction of a gear up to a whole one.
 - **Refusals**: code prefixes under `refused` (`seraphhorizons:oremap`, `gravelmap`, `traderlead`,
   `game:locatormap`), items with a `currency` attribute, `IsWorthless` items (floorZero), items with
   no value or family value. The prefixes apply only to off-list goods; a list that names one buys it.
 - **Side budget**: `WatchedAttributes["seraphhorizons:sidebudget"]`, set to ¼ of the list's tier-0
   wallet average at every restock (`EntitySeraphTrader.Restocked`). The main wallet stays vanilla's
-  money slot.
+  money slot. An `OffListSlot` carries its offer's budget, and the deal (`EconomyPatches.Cart`) and the
+  window's sale (`SeraphTraderInventory.SellLines`) split by it.
 - **Hook points** (Harmony, `EconomyPatches`, id `seraphhorizons.economy`, patched once per process,
   acting only on an `InventoryTrader` whose trader is ours with `seraphhorizons:everythingpriced` set):
   - `InventoryTrader.GetBuyingConditionsSlot` postfix. Vanilla decides everything about a sale
     through it: `IsTraderInterestedIn` (so `ItemSlotBuying.CanHold` and shift-click),
     `HasTraderEnoughDemand`, `GetTotalGain`, and the deal's own loop. Where it finds no buying slot,
-    the postfix returns an `OffListSlot` (an `ItemSlotTrade` outside the inventory, stock 9999) with
-    the offer, and the good then sells exactly like a listed one.
+    or the good is on the trader's own selling shelf (the listed slot is then dropped), the postfix
+    returns an `OffListSlot` (an `ItemSlotTrade` outside the inventory, stock 9999) with the offer,
+    and the good then sells exactly like a listed one.
   - `InventoryTrader.TryBuySell` (internal) prefix and postfix. The prefix totals the off-list gain,
     refuses the deal (`TraderNotEnoughAssets`, with an in-game error) when it is more than the side
     budget, and on the server moves that much from the side budget into the money slot, so vanilla's
@@ -852,8 +883,10 @@ values") is what off-list prices start from and what the list-pay tests hold the
     itself, so they are gone.)
 - **Both sides compute**: the client needs the price before the server sees the deal (the cart's
   `CanHold`, the gain text). `ItemValuesSystem` loads on both sides; the client loads the lists at
-  `LevelFinalize` for the `BuyerIndex`. Per trader the server syncs `everythingpriced`, `sidebudget`
-  and `supplyfactors` (every item of the trader's supply region whose factor is under 0.999). The
+  `LevelFinalize` for the `BuyerIndex`, and knows the shelf (the own-shelf rule). Per trader the
+  server syncs `everythingpriced`, `sidebudget` and `supplyfactors` (every item of the trader's
+  supply region whose factor is under 0.999). Listed prices are the server's alone, in the synced
+  inventory. The
   server prices from the same synced factors, so both sides agree. The factors are refreshed at a
   restock, at the daily tick, after any deal in the region, and on `/sh trade supply` changes.
 - **`IPriceModifier`** (`EconomySystem.Modifiers`): `double Factor(in PriceContext)` with item code,
@@ -899,6 +932,17 @@ values") is what off-list prices start from and what the list-pay tests hold the
   were 15 / 3 and 19 / 3.8 while the steel gear was a hand price of 15; the item-values merge
   derived it, 10.895, and rescaled both entries to 11 / 2.2 and 22 / 4.4; the gear cutter's
   dearer frame and parts then moved the derived values to 12.6 and 23.7.)
+
+- **2026-10-08: list prices come from item values.** The lists' hand prices (vanilla's, carried
+  over, then divided by five for buying) gave way to the value table, by factors in
+  `config/trading/list-prices.json` (sell 1, buy 0.2 for now, a roll of ±25 % per item per trader
+  per restock on both), and `price` stays only as an override with a `priceReason`. A trader buys
+  what is on its own shelf only off-market (at 0.2 × value), which replaced the 0.6 × cap; between
+  two different traders a loop is fine (trekking for profit). Off-list goods a related trader buys
+  are paid from the main wallet. The buy factor, `BuySpread` and the fit weights are held at their
+  levels until the rebalance settles them. Seven items the lists sell had no value and got
+  overrides in `tools/item-values/overrides.json` (above); the tapestries and BetterRuins' locator
+  maps kept their list price as an override.
 
 ## Extension points for later waves
 
@@ -1526,7 +1570,8 @@ first, and what everything in the slots comes to, or its worth so far under a wh
 breakdown is in tooltips (`TradeWindowPatches`, `ItemSlot.GetStackDescription` postfix): over that
 text, each sell slot (or why it does not sell; such a slot is veiled with "doesn't buy this",
 `GuiElementSlotNote`), and, while the window is open, every item in the player's own inventory (the
-list's price, or value × spread × fit × supply and which budget pays) or why not; the client prices
+list's price, value × spread × fit × supply, or value × the own-shelf rate for what is on the
+trader's own shelf, and which budget pays) or why not; the client prices
 from the same synced data as the server (see "Everything has a price").
 
 **The standing in the dialogue.** The pack ships its trader dialogue,

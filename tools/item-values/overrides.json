@@ -19,6 +19,13 @@
     "game:smallcarpet-turqoise": 8.4,
     "game:chandelier-candle0": 12.95,
     "game:resonator-north": 21,
+    "loggingmod:sawhorse-north": 2.8,
+    "loggingmod:stickstorage": 2.8,
+    "game:woodenaxlehub-iron-ud": 2.1,
+    "game:woodenaxlehub-steel-ud": 2.1,
+    "aculinaryartillery:clothes-head-c-hat": 7,
+    "aculinaryartillery:clothes-head-c-hat1": 7,
+    "aculinaryartillery:clothes-head-c-hat2": 7,
     "game:clutter-aquatic": 0,
     "game:clutter-devastation": 0,
     "game:clutter-elevator-elevatorrail": 0
@@ -27,6 +34,7 @@
     "game:barrel": "three boards and four sticks undervalue a cooper's work; vanilla sells one for 2",
     "game:anvil-*": "cast in a mold from 9 ingots, which the export does not carry (molds are not recipes): 9 ingots plus labour; iron and steel anvils are welded from smithed halves",
     "traded, no route": "game:coke, ageofflax:flaxbundle-dried, game:ironfence-*-ew, game:smallcarpet-*, game:chandelier-candle0, game:resonator-north: the pack's traders buy them (tradelists/), but the tool finds no route to them in the export (coke oven, drying, fence smithing, found loot) and no vanilla trader prices them; priced by traderFallback's rule over the pack's own trade lists: the mean per item of 0.7 x selling and 1.4 x buying prices",
+    "sold, no route": "loggingmod:sawhorse-north, loggingmod:stickstorage (placed in the world, not crafted), game:woodenaxlehub-iron-ud, game:woodenaxlehub-steel-ud (no recipe in the export), aculinaryartillery:clothes-head-c-hat* (only swapped into one another, so no leaf for traderFallback): the pack's traders sell them and price every listed good from its value (2026-10-08), so each needs one; 0.7 x the per-item price the lists had then (4, 4, 3 and 3, 10), traderFallback's selling factor",
     "game:clutter-aquatic, game:clutter-devastation, game:clutter-elevator-elevatorrail": "decor blocks (anchors, boiler parts, a toothed rail; one code for every type), not curiosities: unvalued, they would take the curiosities' average through the siblings fallback here and the mod's game:clutter- family lookup, so they are pinned at nothing, which traders refuse as they refused them unvalued"
   }
 }

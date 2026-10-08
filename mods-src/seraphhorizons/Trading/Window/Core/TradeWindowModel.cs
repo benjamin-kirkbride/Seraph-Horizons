@@ -156,9 +156,11 @@ public static class TradeWindowModel
             lines.Add(new Text("trading-economy-offer-listed", offer.UnitPrice, offer.UnitSize, F(offer.Supply)));
         else
         {
-            lines.Add(new Text("trading-economy-offer-offlist", offer.UnitPrice, offer.UnitSize, F(offer.Base), F(offer.Spread), F(offer.Fit), F(offer.Supply)));
+            lines.Add(offer.OwnShelf
+                ? new Text("trading-economy-offer-ownshelf", offer.UnitPrice, offer.UnitSize, F(offer.Base), F(offer.Fit), F(offer.Supply))
+                : new Text("trading-economy-offer-offlist", offer.UnitPrice, offer.UnitSize, F(offer.Base), F(offer.Spread), F(offer.Fit), F(offer.Supply)));
             if (Math.Abs(offer.Modifiers - 1) > 1e-3) lines.Add(new Text("trading-economy-offer-modifiers", F(offer.Modifiers)));
-            lines.Add(new Text("trading-economy-offer-sidebudget", sideBudget));
+            lines.Add(offer.Budget == Budget.Main ? new Text("trading-economy-offer-mainwallet") : new Text("trading-economy-offer-sidebudget", sideBudget));
         }
         if (stackSize is int n)
             lines.Add(n < offer.UnitSize

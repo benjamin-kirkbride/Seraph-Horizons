@@ -1,6 +1,7 @@
 using Atlas.Api;
 using Atlas.XUnit;
 using SeraphHorizons.Mod.Trading;
+using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Deliveries;
 using SeraphHorizons.Mod.Trading.Deliveries.Core;
 using SeraphHorizons.Mod.Trading.Orders;
@@ -65,7 +66,9 @@ public partial class TradingScenarios
     /// buying shelf, so a deal can fill it.</summary>
     private async Task<(Order Order, ItemSlotTrade Buying)> OrderOnShelf(EntitySeraphTrader trader, ITestPlayer at, int days)
     {
-        var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null);
+        // Not something on its own shelf, which it only buys back off-market.
+        var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null
+            && !EconomySystem.OnOwnShelf(trader, s.Itemstack.Collectible));
         string code = buying.Itemstack.Collectible.Code.ToString();
         int lot = buying.TradeItem.Stack.StackSize;
         int before = Orders.Book.NextId;
