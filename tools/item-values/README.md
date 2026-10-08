@@ -66,7 +66,7 @@ press) and distillation (the still). The rules are data:
   `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `pressing`, `distilling`, `mod` for every other mod
   registry; any recipe type can have an entry of its own by its type code, as `curing` has), the
   tool fraction, recipe ids never used as
-  routes (uncrafting and recycling), how smithing and clay forming use material by volume, and the
+  routes (uncrafting and recycling, among them chiselling found jewellery and curiosities into metal bits), how smithing and clay forming use material by volume, and the
   schematic patterns.
 - `overrides.json`: hand overrides, fixed and winning over everything, each with its reason.
 
@@ -264,6 +264,18 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   pattern once read `bdcrop:*melon*`, which also fixed the melons' juice, cider and spirit at 0.3 a
   portion (30 a litre), their mash, and their seeds.
 - **Gems.** Rough gems at vanilla's prices (diamond and emerald about 10, olivine 5, garnet 2.5).
+- **Curiosities** (`game:clutter-*` items: found relics, statuettes, skulls and what fishing drags
+  up) are raws, priced generously, as a collector would pay, since a trader pays a fifth of value:
+  the crystal skull and the Forlorn Hope reliquary 150 (a 30-gear sale, a temporal gear's worth),
+  the king statuette and the device prototype 100, statuettes 50 to 80, fossils and amber 30 to
+  40, a human skull 8, fishing's oddities 4 to 6. No vanilla trader deals in them. Each is worth
+  well over its metal (the reliquary chisels into 80 gold bits, about 36 gears), and that
+  chiselling (`metalbit-jewelryscrap`) is excluded as recycling: settling cheapest first, brass and
+  tin bronze bits would otherwise settle at a statuette's or tablet's twentieth before the alloy
+  ingot that makes them at 0.16 and 0.2. The counterfeit rusty gear, the heavily worn underwear and
+  the old boot are worth nothing. The decor blocks sharing the `game:clutter-` prefix (aquatic and
+  devastation clutter, the toothed rail) are overridden to nothing, so they do not inherit the
+  curiosities' average.
 - **Overrides.** The barrel (3 boards and 4 sticks make it 0.34, a cooper's work is worth more;
   vanilla sells it for 2) and the anvils (cast in molds, which the export does not carry: 9 ingots
   plus labour). No gear is overridden: the steel gear takes its cheapest route (the gear cutter,
