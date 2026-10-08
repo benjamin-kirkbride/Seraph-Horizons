@@ -23,6 +23,8 @@ public static class MapOfferAttrs
     public const string X = "x";
     public const string Y = "y";
     public const string Z = "z";
+    /// <summary>How far the deposit is from the trader, in blocks (ore and gravel map offers).</summary>
+    public const string Distance = "distance";
 
     public const string OreMap = "oremap";
     public const string GravelMap = "gravelmap";

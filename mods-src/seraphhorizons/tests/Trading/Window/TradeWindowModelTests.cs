@@ -256,10 +256,10 @@ public class TradeWindowModelTests
     public void ShelfDetailsSayHowToTrade()
     {
         Assert.Equal(["trading-window-selected(2, game:bread)", "trading-window-selected-price(3, 2)", "trading-window-selected-stock(5)", "trading-window-hold-buy"],
-            TradeWindowModel.ShelfDetails("game:bread", 2, 3, 5, traderSells: true, lockedForMe: false).Select(t => t.ToString()));
-        Assert.Contains("trading-window-selected-soldout", TradeWindowModel.ShelfDetails("game:bread", 2, 3, 0, true, false).Select(t => t.Key));
-        Assert.DoesNotContain("trading-window-hold-buy", TradeWindowModel.ShelfDetails("game:bread", 2, 3, 0, true, false).Select(t => t.Key));
-        Assert.Contains("trading-window-selected-pays", TradeWindowModel.ShelfDetails("game:ingot-iron", 1, 2, 9, false, false).Select(t => t.Key));
+            TradeWindowModel.ShelfDetails(new ItemRef("game:bread"), 2, 3, 5, traderSells: true, lockedForMe: false).Select(t => t.ToString()));
+        Assert.Contains("trading-window-selected-soldout", TradeWindowModel.ShelfDetails(new ItemRef("game:bread"), 2, 3, 0, true, false).Select(t => t.Key));
+        Assert.DoesNotContain("trading-window-hold-buy", TradeWindowModel.ShelfDetails(new ItemRef("game:bread"), 2, 3, 0, true, false).Select(t => t.Key));
+        Assert.Contains("trading-window-selected-pays", TradeWindowModel.ShelfDetails(new ItemRef("game:ingot-iron"), 1, 2, 9, false, false).Select(t => t.Key));
     }
 
     [Fact]

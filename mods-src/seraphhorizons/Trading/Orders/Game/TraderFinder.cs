@@ -12,7 +12,7 @@ namespace SeraphHorizons.Mod.Trading.Orders;
 /// <c>camp:x,z</c> or <c>entity:n</c>), so it need not be loaded for the books.</summary>
 public static class TraderFinder
 {
-    /// <summary>How near a player must stand to a trader to deal with it by command.</summary>
+    /// <summary>How far the admin commands look for the trader nearest the caller.</summary>
     public const double NearRange = 8;
 
     public static IEnumerable<EntitySeraphTrader> Loaded(ICoreServerAPI api) =>

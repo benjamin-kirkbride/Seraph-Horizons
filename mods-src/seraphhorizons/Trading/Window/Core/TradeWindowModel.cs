@@ -106,10 +106,11 @@ public static class TradeWindowModel
 
     // ---- Trade tab ----
 
-    /// <summary>The selected good on a shelf: what it is, its price and stock, and how to trade it.</summary>
-    public static List<Text> ShelfDetails(string code, int unitSize, int price, int stock, bool traderSells, bool lockedForMe)
+    /// <summary>The selected good on a shelf: what it is (<paramref name="item"/>, its name or an
+    /// <see cref="ItemRef"/>), its price and stock, and how to trade it.</summary>
+    public static List<Text> ShelfDetails(object item, int unitSize, int price, int stock, bool traderSells, bool lockedForMe)
     {
-        var lines = new List<Text> { new("trading-window-selected", unitSize, new ItemRef(code)) };
+        var lines = new List<Text> { new("trading-window-selected", unitSize, item) };
         if (traderSells)
         {
             lines.Add(new Text("trading-window-selected-price", price, unitSize));
@@ -234,7 +235,7 @@ public static class TradeWindowModel
 
     /// <summary>An ore map offer: metal, size class, distance, precision.</summary>
     public static Text OreMapLine(string metal, string? sizeClass, double distance, int precision) =>
-        new("trading-window-map-ore", new Text("ore-metal-" + metal), sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass),
+        new("trading-window-map-ore", new Text("oremap-metal-" + metal), sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass),
             F(Math.Round(distance)), precision);
 
     public static Text LeadLine(string? leadKind, string type, double distance, Text direction) =>
