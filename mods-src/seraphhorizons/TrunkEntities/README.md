@@ -418,7 +418,7 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
 - **Speed.** While a trunk is carried, the player's `walkspeed` stat gets the code
   `seraphhorizons:trunk`, so the walk speed is `TrunkWeight.CarrySpeed` of its logs:
   `CarrySpeedAtOneLog` (1, a normal walk) for a trunk of 1 log, falling linearly to
-  `CarrySpeedAtMaxLogs` (0.5) at 48 logs and beyond. About 0.90 at 10 logs and 0.74 at 25. Carry
+  `CarrySpeedAtMaxLogs` (0.1) at 48 logs and beyond. About 0.83 at 10 logs and 0.54 at 25. Carry
   On's own slot modifier is set to 0 for trunks by the patch and cancelled out in the value
   besides. The server checks every online player every 250 ms (and at once when the pack itself
   gives or takes a trunk) and removes the code once no trunk is carried; the game syncs stats to
@@ -436,34 +436,40 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   `xxl` carried they go by class, thin and thick; and `walkSpeedModifier` 0. Those two are Logging
   Expanded's animations for a trunk held as an item (`heldTpIdleAnimationByType`, its player
   patches add both); its own Carry On patch gives the trunk a bare `Hands` slot, so with Logging
-  Expanded alone a carried trunk plays Carry On's `holdheavy`. **No transform**: no
-  `transformTemplates`, no `transformGroups`, no `translation` or `rotation`, so the trunk gets Carry
-  On's default block transform (`BlockBehaviorCarryable.DefaultBlockTransform`: scale 0.5 about the
-  block's centre, nothing else), as with Logging Expanded alone. Carry On's renderer
-  (`CarryRenderDispatcher.RenderCarried`) puts it, in third person, on its `carryon:FrontCarry`
-  attachment point, which hangs on the left forearm (its `HandL` element under `LowerArmL`), plus
-  the hands offset (−0.3, −0.6, −0.5); in first person (not immersive) on
-  `GetFirstPersonHandsMatrix`, a frame from the camera that ends turned 90° about y, so the trunk
-  block, which lies along its z, lies across the view; the transform is applied after either
-  (`CarryTransformResolver.ApplyTransformInPlace`: translate, origin, rotate x, z, y, scale,
-  −origin). The pack had a transform before (Carry On's `carry-trunk` template, the game's chest
-  carried across the front; then a `rotationX` of 90 for a trunk wrongly taken to stand upright,
-  with `translation` [0.35, 0.6, −0.5]), which stood it on end in the middle of a first-person view
-  and lifted it off the shoulder in third. Two ways the pose can still differ from what a player
-  saw with Logging Expanded alone: the animation (`trunkcarry` raises the left forearm, and with it
-  the attachment point, to the shoulder, where `holdheavy` holds it in front), and the size shown.
-  The shapes do not share a centre: `xs`, `sm` and `md` run from z 0 to 16, 32 and 48 (in 1/16
-  block), `lg` from −32 to 32 and `xxl` from −32 to 48, and the thick ones are two blocks wide and
-  high (x 0 to 31, y 0 to 30) where the thin are one. At half scale about the block's centre a
-  thin trunk is therefore always drawn as `lg` is, 0.25 to 0.75 of a block further back along its
-  length than a vanilla `xs` to `md` would be, and a thick one as `xxl`, reaching up and out to one
-  side from the same underside. Neither is a reason for a transform of its own: an `lg` carried
-  with Logging Expanded alone sits the same. If the trunk proves to sit a little high or low on the
-  shoulder, a `transformGroups` `hands` root with only a translation (e.g. `{ "id": "root",
-  "translationY": -0.1 }`) in the patch's `properties` moves it, in block units of the hands frame
-  before the half scale; and then the animation scenario's no-groups check goes. The game merges
-  `propertiesByType` into `properties` with arrays concatenated, so the shared settings sit in
-  `properties` only.
+  Expanded alone a carried trunk plays Carry On's `holdheavy`. **A shoulder transform by class**:
+  a `transformGroups` `hands` root in each size's `propertiesByType`, `rotationX` 90 with a
+  `translation` of (−0.08, −0.42, −0.2) for the thin sizes and (0.02, 0.12, −0.65) for the thick,
+  everything else Carry On's default block transform (`BlockBehaviorCarryable.DefaultBlockTransform`:
+  scale 0.5 about the block's centre); no `transformTemplates`. Carry On's renderer
+  (`CarryRenderDispatcher.RenderCarried`) draws the block in a hands frame and applies the
+  transform in it (`CarryTransformResolver.ApplyTransformInPlace`: the hands offset (−0.3, −0.6,
+  −0.5), translate, origin, rotate x, z, y, scale, −origin). In third person (and immersive first
+  person) the frame is its `carryon:FrontCarry` attachment point, on the left forearm (its `HandL`
+  element under `LowerArmL`), which `trunkcarry` and `trunkcarryheavy` raise to the shoulder;
+  worked through the player shape (`seraph-faceless`, whose front is −x and left +z) with the
+  animations' frame-0 poses, the frame's x then points up, y back (with `trunkcarry`, about 20°
+  down too) and z right. The trunk block lies along its own z, so with no transform (the pose from
+  ce73233 until this) it lay across the shoulders, and `rotationX` 90 turns its z onto the frame's
+  y: front to back. The translations put the trunk's middle over the left shoulder, beside the head
+  (thin: about 0.37 left of the eye, 0.16 below it, 0.16 forward; thick: 0.67 left, level, its 0.47
+  radius clear of the head), worked out from the shapes' own extents (`lg` x 2 to 14, y 1 to 13, z
+  −32 to 32; `xxl` about x 1 to 31, y 0 to 30, z −32 to 48, in 1/16 block). In first person (not
+  immersive) the frame is Carry On's `CarryFirstPersonTransform.GetFirstPersonHandsMatrix`, made
+  for its chest carry: from the camera 0.35 down and 0.4 ahead, ending in a quarter turn about y,
+  so x forward, y up, z right, where the same transform would stand the trunk on end (as the
+  earlier `rotationX` 90 did) and no transform lays it across the view. So `TrunkCarry` patches
+  that method with a postfix that, while the entity carries a trunk, multiplies
+  `TrunkCarryPose.FirstPersonAdjust` onto the matrix: a move 0.55 back, 0.05 up and 0.15 left, then
+  a quarter turn about z, giving the shoulder frame (x up, y back, z right) about where the forearm
+  is from the eye in third person, so the one transform puts the trunk on the left shoulder, front
+  to back, in both views. Carry On's first-person wobble and its following the pitch at a quarter
+  stay. The pack's earlier transforms: Carry On's `carry-trunk` template (the game's chest carried
+  across the front), then `rotationY` 90, `rotationZ` 90 and `rotationX` 90 with `translation`
+  [0.35, 0.6, −0.5], the last right in third person but lifted off the shoulder (0.35 up and 0.6
+  back in that frame) and on end in first person; none was worked out against Carry On's frames.
+  The game merges `propertiesByType` into `properties` with arrays concatenated, so the shared
+  settings sit in `properties` only, and the client parses the transform groups from the merged
+  properties (`propertiesAtString`).
 - **Hands only, never the back.** The patch sets `preventSwapBack`, and `StripBackSlots` removes any
   `Back` slot from a trunk's Carryables in code (`HasBackSlot` checks it). Whatever still puts a
   trunk on a back (Carry On's swap key, an old save) has it laid down at the player's feet as a
@@ -516,7 +522,17 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   the sneak and sprint factors (from the server controls) × the two blocks' `WalkSpeedMultiplier`
   (÷ 2.5 in liquid; the blocks left out in creative) × `walkSpeed` × the sneak factor again when
   the player cannot stand up (`PrevFrameCanStandUp` false). Compare the client's dump with the
-  server's while walking with a heavy trunk.
+  server's while walking with a heavy trunk. A driver (mounted on a trunk's `TrunkDriveSeat`) does
+  not walk at all: the seat carries them, and the trunk moves at its own speed. So for a driver
+  the probe also prints the driven trunk: its stack's code, stored logs, class, the end taken,
+  afloat (and why), `TrunkDrive.Speed(logs, afloat)` and `Turn` with the share they come from, the
+  seat's keys, the drive's eased speed and turn on that side (0 on the side that does not tick the
+  trunk), the trunk's motion, and who ticks its physics. A carried trunk's walk speed comes from
+  `CarrySpeedAtOneLog` and `CarrySpeedAtMaxLogs` (Settings); a driven one's from `TrunkDrive`'s
+  constants, which no setting changes. The client's chat copy has its braces doubled, since the
+  client shows a command's reply through `Lang.Get`, which formats it (a lone brace logs an
+  "Expected an ASCII digit" error); the server sends a reply of more than one line as it is, and
+  the logged copies are unchanged.
 - **Clicks while carrying.** Carry On lets a right-click through to a block while something is
   carried only if the block has its `CarryableInteract` behaviour, after its short hold (0.8 s by
   default, unless Carry On's `RemoveInteractDelayWhileCarrying` is on), and sends it on to the server.
@@ -654,7 +670,7 @@ Values out of range fall back to the default with a warning. The server's values
 |---|---|---|---|
 | `WeightPerLog` | 8 | 0..1000 | Weight a stored log adds: weight = 10 + logs × this. What a rope pulls against (the drive goes by logs). |
 | `CarrySpeedAtOneLog` | 1 | 0..1 | Walk speed, as a multiple of the normal one, carrying a trunk of 1 log (1 is a normal walk) |
-| `CarrySpeedAtMaxLogs` | 0.5 | 0..1 | Walk speed carrying one of 48 logs or more; linear in logs between the two |
+| `CarrySpeedAtMaxLogs` | 0.1 | 0..1 | Walk speed carrying one of 48 logs or more; linear in logs between the two |
 | `SpudSecondsPerLog` | 0.5 | 0..60 | The bark spud's hold per stored log, 2 s at least |
 
 The drive's figures are constants in `Core/TrunkDrive.cs`, not settings. (The grab's `GrabRange`
@@ -750,8 +766,8 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
     a clean trunk in one hold and drops bark; an xl trunk sawn to 24 logs becomes a thin lg trunk
     entity in its place; a trunk at its last log is gone after the axe.
   - `TrunkCarryScenarios.cs`: carrying runs; a carried trunk has Logging Expanded's animation by
-    size and Carry On's default pose (no templates, no transform groups, no translation or
-    rotation); Trunk Storage Racks cannot be carried; a trunk given goes into empty hands and back out;
+    size, no templates and Carry On's default transform, and the shoulder's `hands` root by class
+    (`rotationX` 90, the thin and thick translations); Trunk Storage Racks cannot be carried; a trunk given goes into empty hands and back out;
     an item in either hand refuses it; carrying slows by the logs and the speed goes when it is put
     away; `/sh trunkspeed` prints the pack's `walkspeed` entry, the blend, the walk multiplier and
     the trunk carried; sneak-clicking a trunk entity starts a hold and shoulders it only when the hold ends
@@ -794,9 +810,9 @@ unseen: the renderer (the trunk's place, turn and texture against its boxes, the
 shadow pass), the client's picking along the turned boxes, the interaction help, the tools' swing,
 progress bar and the spud's animation, the client's repeat pause, Carry On's client prediction of
 a put-down (the same patched method, which a server cannot run), the carry animations and the
-pose with Carry On's default transform (see Animation and pose above; whether a slight
-`translationY` would sit the trunk better on the shoulder is not checked, and the same section says
-how to add one), the client side of the 5 % walk with a heavy trunk (`.trunkspeed` is there to
+shoulder pose (see Animation and pose above: the frames are worked out from the shapes and the
+animations' first frames, not seen, so the translations may want a nudge; a carried trunk should
+lie front to back on the left shoulder in both views), the client side of the 5 % walk with a heavy trunk (`.trunkspeed` is there to
 find it), how the pick-up hold feels
 with no progress ring and whether a real client's held button reaches the server for its whole
 length, Carry On's swap key with a trunk in the hands, and everything of the drive a client shows: the driver's place,
