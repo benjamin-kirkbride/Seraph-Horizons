@@ -1,5 +1,5 @@
 // The draw bench's die (DrawBench/, README "Draw bench"; stage 5): a hardened ring the drawn section
-// is pulled through over the mandrel's plug, smithed from one ingot of its metal
+// is pulled through over the mandrel's plug, smithed from two ingots of its metal
 // (recipes/smithing/drawbench.json), the wearing part. It loses one point an ingot drawn; the
 // durability here is DrawBenchSettings' DieDurability default, and the server sets the setting's
 // figure when the game loads. An iron die draws lead only, a steel one lead and copper

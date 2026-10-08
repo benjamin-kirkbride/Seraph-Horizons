@@ -395,7 +395,7 @@ die with no durability `DieSpent`):
 | 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` |
 | 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` |
-| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from one ingot of its metal, 40 voxels, named `drawdie` so the helve hammer leaves it alone) |
+| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from two ingots of its metal, 80 voxels (two thick rings and a stepped shoulder), named `drawdie` so the helve hammer leaves it alone) |
 
 The die keeps its durability left and full (`GetRemainingDurability`, `GetMaxDurability`); the die
 item's durability is `DieDurability`, set on the server in `AssetsFinalize` before the types go to

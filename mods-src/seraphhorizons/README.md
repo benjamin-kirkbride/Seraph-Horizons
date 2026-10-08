@@ -2044,7 +2044,7 @@ order only; anything of a later stage is refused with a message naming the next:
 | 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
 | 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
-| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (100 durability) | Smithing, 1 ingot of its metal |
+| 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (100 durability) | Smithing, 2 ingots of its metal (80 voxels) |
 
 The die recipe is named `drawdie`, not `plate`, so the helve hammer does not work it. In creative mode
 Ctrl + right-click on an incomplete bench fits its next stage with nothing taken (a steel die last).

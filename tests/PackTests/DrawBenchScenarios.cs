@@ -143,14 +143,14 @@ public partial class SharedWorldScenarios
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-*" && i.AllowedVariants!.Contains("iron"));
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "game:log-placed-oak-ud");
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
-        // the anvil: each die from one ingot of its metal, not for the helve hammer
+        // the anvil: each die from two ingots of its metal (over one ingot's 42 voxels), not for the helve hammer
         foreach (var (die, metal) in new[] { (DrawBenchParts.DieIronCode, "iron"), (DrawBenchParts.DieSteelCode, "steel") })
         {
             var recipe = Assert.Single(World.Api.GetSmithingRecipes(), r => r.Output?.ResolvedItemstack?.Collectible.Code.ToString() == die);
             Assert.True(recipe.Ingredient!.SatisfiesAsIngredient(CutterItem("game:ingot-" + metal)));
             Assert.False(recipe.Ingredient.SatisfiesAsIngredient(CutterItem("game:ingot-copper")));
             Assert.DoesNotContain(recipe.Name?.Path, new[] { "plate", "blistersteel" });
-            Assert.InRange(recipe.Voxels.Cast<bool>().Count(v => v), 1, 42);
+            Assert.InRange(recipe.Voxels.Cast<bool>().Count(v => v), 43, 84);
         }
         // the settings and the rig's pace agree
         Assert.Equal(BenchRig.TurnsPerSection[1], BenchMod.Config.TurnsPerSectionLead, 0.01);
