@@ -37,6 +37,12 @@ namespace SeraphHorizons.Mod;
 /// <c>BlockPos.Y</c>) or, finding anything else, logs a warning and patches nothing. The notes are
 /// per thread, as worldgen runs on its own thread.
 ///
+/// Seated on the median, a ruin on a slope has its low side off the ground; a postfix, when the
+/// method placed the ruin, fills the air under it down to the ground (<see cref="RuinFoundations"/>).
+/// Part of the same switch: the median without the foundation leaves ruins floating, and the
+/// foundation without the median has little to fill (on the lowest sample a ruin is off the ground
+/// only where the samples missed a dip).
+///
 /// Server side only. Worldgen only: it changes the ruins of chunks generated from then on, never a
 /// ruin already placed. With the switch off nothing is patched.
 /// </summary>
@@ -76,6 +82,7 @@ public static class RuinSurfaceMedian
         {
             harmony.Patch(target,
                 prefix: new HarmonyMethod(typeof(RuinSurfaceMedian), nameof(Prefix)),
+                postfix: new HarmonyMethod(typeof(RuinSurfaceMedian), nameof(Postfix)),
                 transpiler: new HarmonyMethod(typeof(RuinSurfaceMedian), nameof(Transpiler)));
         }
         catch (Exception e)
@@ -84,7 +91,7 @@ public static class RuinSurfaceMedian
             return false;
         }
         Patched = true;
-        logger.Notification("[seraphhorizons] Ruins on median ground: surface ruins sit on the median of the sampled ground");
+        logger.Notification("[seraphhorizons] Ruins on median ground: surface ruins sit on the median of the sampled ground, on a foundation");
         return true;
     }
 
@@ -92,6 +99,13 @@ public static class RuinSurfaceMedian
     public static void Unbind() => Patched = false;
 
     public static void Prefix() => (_samples ??= []).Clear();
+
+    /// <summary>The foundation under a ruin the method placed.</summary>
+    public static void Postfix(WorldGenStructure __instance, bool __result, IBlockAccessor blockAccessor)
+    {
+        if (__result && __instance.LastPlacedSchematic is { } schematic)
+            RuinFoundations.Lay(blockAccessor, __instance.LastPlacedSchematicLocation, schematic);
+    }
 
     public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
