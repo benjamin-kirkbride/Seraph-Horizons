@@ -13,7 +13,7 @@
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
        travelling merchants' inns (../Trading/Visitors/Core), the trade window's view model
        (../Trading/Window/Core), the trunk entities' weights
-       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the press brake's (../PressBrake/Core), the mandrel station's (../MandrelStation/Core) and the pack version check (../PackCheck/Core).
+       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the press brake's (../PressBrake/Core), the mandrel station's (../MandrelStation/Core), the pack version check (../PackCheck/Core) and the NaN motion diagnostics' tracker and report formatting (../NanMotion/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -140,6 +140,8 @@
     <Compile Include="../Trading/Window/Core/**/*.cs" Link="Trading/Window/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Pack version check: the comparison, and the lock the mod embeds, so the tests read the real one. -->
     <Compile Include="../PackCheck/Core/**/*.cs" Link="PackCheck/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- NaN motion diagnostics (#405): the first-NaN tracker, the frame ring and the report's formatting. -->
+    <Compile Include="../NanMotion/Core/**/*.cs" Link="NanMotion/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../../../pack/lock.json" Link="pack-lock.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Settings follow the pack's defaults: the readers, the reconciler, the run; and the shipped
          snapshots, which the tests read with them. -->
