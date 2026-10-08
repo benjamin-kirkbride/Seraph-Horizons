@@ -23,7 +23,10 @@ recipe data is published. A version can therefore never be called `models`.
   empty space clears it. The legend lists every element of each part (or texture), and picking
   one there does the same, which is also how it works without WebGL.
 - **Controls generated from the rig**: a slider or toggle for each input the rig's drivers read
-  (below), a checkbox per distinct `requires` value, and an overlay checkbox per anchor.
+  (below), a checkbox per distinct `requires` value (or a select for a scenario's choice of them),
+  and an overlay checkbox per anchor.
+- **A vehicle** (the handcar; [Vehicles](#vehicles)): the distance rolled and the speed in blocks a
+  second, a track under it whose sleepers scroll as it rolls, and its bogies drawn on the axles.
 - **The credit line** from the manifest, always shown above the stage.
 
 ### Inputs
@@ -34,7 +37,7 @@ drivers read up to nine inputs, and the viewer shows a control only for those so
 
 | Input | Read by | Control |
 |---|---|---|
-| θ, the shaft angle | `rotate`, `slide`, `swing` | Slider, 0 to 359° |
+| θ, the shaft angle | `rotate`, `slide`, `swing` | Slider over the rig's cycle (below): 0 to 359°, or 0 to 1079° for the handcar's three-turn stroke |
 | ψ, the shaft's travel | `rotate`, `slide`, `swing` with `rectified` or `"input": "travel"`; a `gauge`'s `lobes` | Added up from every change of θ, shown under the slider |
 | depth, 0..1 | `feed`, `step`, `stretch` (unless its `input` is `"oil"`) | Slider |
 | lifting, 0 or 1 | `step` with a `lifting` gate | Checkbox |
@@ -48,7 +51,17 @@ When θ, ψ or φ is read there is also a Play button, a "turn backwards" toggle
 slider, 0 to 5 RPS (shaft revolutions per second of real time; 0 stops Play, waits included). Play
 turns the shaft at that speed; with a play script (below) it also runs the inputs through the model's
 cycle, a phase's `turns` at that speed (its `seconds` are real time). The slider starts at 1 RPS, or
-at the script's `secondsPerTurn` as turns a second.
+at the script's `secondsPerTurn` as turns a second, or at a vehicle's `speed`.
+
+θ is never wrapped, by Play or by hand. A part geared below the shaft (the handcar's beam rocks once
+in three turns of its axle, ratio −1/3) would jump back at each turn if it were: that was the viewer's
+handcar until the standalone review copy kept θ running on. The θ slider spans the rig's **cycle**,
+the least whole turns (up to 6) in which every θ-reading `rotate`, `slide` and `swing` turns its ratio
+whole times (`thetaTurns` in `site/src/lib/rig.ts`): 1 for the mill, 2 for the draw bench (ratio ½),
+3 for the handcar. A rig with no cycle that short (a gear train of odd teeth: the gear cutter's 19/13)
+gets one turn, which is enough, as a gear looks the same when a tooth comes round where a tooth was.
+Dragging the slider moves θ the short way round the cycle. The readout says which turn of the cycle
+it is at, or how far through a vehicle's `cycle` ("92 % of the stroke").
 
 φ is worked out as the game does: the rosser's feed is geared and never slips, so φ grows by the
 trunk's advance over the rig's `feed.blocksPerRadian` and never goes back (`feedAdvance` in
@@ -110,7 +123,8 @@ Anchors are recognised by their shape, so a new rig gets overlays without code c
 
 Keys starting with `_` are comments. Any other key is listed under the overlays as not drawn
 (the rosser's `feed`, its gearing figures, is one: the viewer reads its `blocksPerRadian` for φ
-but draws nothing for it; the handcar's `cycle`, `riders` and `bogies` are others).
+but draws nothing for it; the handcar's `cycle`, `riders` and `bogies` are others, though its
+scenario's `vehicle` reads figures from `cycle` and `bogies` by rig path).
 
 ## The manifest: `site/models.json`
 
@@ -138,6 +152,7 @@ but draws nothing for it; the handcar's `cycle`, `riders` and `bogies` are other
 | `creditUrl` | Optional, https: a link after the credit. |
 | `shape` | Required: the shape file, as a path from the repository's root. Strict JSON (a generated shape is; a hand-edited one with comments or trailing commas is not read). |
 | `rig` | Optional: the rig. Without one the model is shown still, coloured by texture, as one part. |
+| `bogie` | Optional: a vehicle's bogie shape, drawn at each of its `scenario.vehicle.bogies` places ([Vehicles](#vehicles)); needs that. |
 | `scenario` | Optional, needs a rig: what the viewer cannot know from the rig (below). |
 
 ### Scenario
@@ -153,6 +168,12 @@ Everything specific to one machine lives here, as data; the viewer has no machin
 - `requiresClass`: `{ "<requires value>": "thin" | "thick" }`, parts that belong to one class's set-up
   (the gear cutter's master and blank for each size): shown only while that class is chosen, and not
   with none, whatever their checkbox says, as the game only ever has one fitted.
+- `choices`: `[{ "label", "values": ["<requires value>", ...], "default" }]`, requires values of which
+  exactly one is fitted at a time, shown as a select (labelled `label`, its options by `requires`) in
+  place of their checkboxes: the handcar's branch lever, whose three `TNL_*` levers Yang's renderer
+  draws one of. `default` (else the first) is fitted at first. A value is in one choice at most, and
+  not in `requiresClass`. The legend says "needs Branch lever: Left".
+- `vehicle`: the model is a vehicle on a track ([Vehicles](#vehicles)).
 - `prop`: a box laid on one of the rig's line anchors, such as a trunk on the bed.
   - `label`; `on`, the anchor's key; `colour`; `default`, an option id or `"none"`.
   - `options`: `{ "id", "label", "size": [length along the line, width, height], "class" }`, in blocks. The box is centred on the line's origin with its underside on it.
@@ -211,6 +232,44 @@ it away (a wait while p eases out), and load the next; with no trunk chosen, tur
 ]
 ```
 
+### Vehicles
+
+A tracked vehicle (the handcar, and the cars after it) is a model whose rig reads θ as its **axle's
+angle**, growing as it rolls towards its front, plus a `vehicle` in its scenario saying what the rig
+does not: nothing about it is the handcar's in code (`site/src/lib/model-vehicle.ts`). It came from a
+standalone review copy of the handcar the owner preferred to the viewer: its rolling, track, bogies and
+branch lever, made generic here.
+
+```json
+"bogie": "mods-src/seraphhorizons/assets/seraphhorizons/shapes/entity/handcar-axlebox.json",
+"scenario": {
+  "choices": [{ "label": "Branch lever", "values": ["left", "straight", "right"], "default": "straight" }],
+  "vehicle": {
+    "wheelRadius": "cycle.wheelRadius",
+    "front": "-x",
+    "cycle": "stroke",
+    "speed": 4.2,
+    "track": { "gauge": 1.5625, "centre": 1 },
+    "bogies": { "at": ["bogies.front", "bogies.rear"], "offset": "bogies.bodyOffsetForward" }
+  }
+}
+```
+
+| Field | |
+|---|---|
+| `wheelRadius` | Required, above 0: blocks, or a rig path. The distance rolled is θ × it, signed (forwards positive): shown under the θ slider, with the speed in blocks a second beside the input speed. |
+| `front` | Required: `-x`, `+x`, `-z` or `+z`, the axis the vehicle runs along in its model frame and the way its front faces (Yang's standard-gauge frame: the front towards −x). |
+| `cycle` | Optional: what one cycle of θ is called ("stroke"): the readout gives how far through it θ is, and its length in blocks. |
+| `speed` | Optional, above 0: blocks a second Play starts at (the handcar's one-rider top speed, `TopSpeedOne`), as axle turns over `play.secondsPerTurn`. |
+| `track` | Optional: `{ "gauge", "centre", "top", "sleeperSpacing", "sleeperLength" }`, blocks: rails `gauge` apart (centre to centre) either side of `centre` (the coordinate across the axis), their top at `top` (0), and sleepers every `sleeperSpacing` (0.5), `sleeperLength` long (the gauge and 0.75). Drawn 5 blocks beyond the model at each end, as the **Track** overlay. It is a backdrop: the vehicle stays put and the sleepers scroll by the distance rolled, backwards as it rolls forwards (`trackLayout`, `trackScroll`). Standard gauge's rails are 25 voxels apart about the track's centre line, z 16 in the handcar's frame. |
+| `bogies` | Optional, needs the manifest's `bogie` shape, which needs it: `{ "at": [...], "offset" }`, numbers or rig paths. A copy of the bogie shape is drawn at each place `offset` + `at` along the axis (blocks; Yang's renderer puts the body at the front bogie plus `BodyOffsetForward`), its elements named `bogie_<name>_<element>` (a path's last key, else the place's number) in a static part `bogies` ahead of the rig's own. No element of the body may be named `bogie_*`. |
+
+The rig's own figures stay where the game reads them (`handcar-rig.json`'s `cycle` and `bogies`); the
+vehicle names them by path, so the viewer follows a regenerated rig. Nothing here is a driver input:
+the drivers read θ as before, and `tests/Machines/driver-fixture.json` is unchanged. A future vehicle
+needs a rig whose parts read θ as the axle, a `vehicle` (at least `wheelRadius` and `front`), and for
+the rest of the page a `bogie` shape and `bogies`, a `track`, and `choices` for its levers.
+
 ## The data step
 
 `site/scripts/models.ts` is a Vite plugin (`vite.config.ts`). It reads the manifest, checks it
@@ -221,6 +280,7 @@ the rig: `site/src/lib/model-manifest.ts`), and publishes
 models/index.json              the manifest as the app reads it, with element and part counts
 models/<id>/shape.json         copied from the shape's path
 models/<id>/rig.json           copied from the rig's path
+models/<id>/bogie.json         copied from the bogie shape's path (a vehicle's)
 ```
 
 - `npm --prefix site run build` writes them into `dist/`, so `pages.yml` (which runs the
@@ -251,8 +311,8 @@ Nothing else: no component, route or workflow changes.
 ## A standalone copy for review
 
 `site/scripts/standalone-viewer.ts` builds one model of the manifest into a single self-contained HTML
-file: the model page itself (`ModelPage.svelte`, `rig.ts`, the three.js scene), the model's shape and
-rig built in, three.js bundled, scripts and styles inlined, so it opens from a file and fetches nothing.
+file: the model page itself (`ModelPage.svelte`, `rig.ts`, the three.js scene), the model's shape,
+rig and bogie shape built in, three.js bundled, scripts and styles inlined, so it opens from a file and fetches nothing.
 It is how a new model is shown to the owner for review before it is published (the draw bench was).
 It is a separate Vite build with its own entry (`site/scripts/standalone/`), whose data module stands in
 for `src/lib/model-data.ts`; the site's build, check and tests do not use it.
@@ -267,7 +327,8 @@ cd site && node --import tsx scripts/standalone-viewer.ts draw-bench ../build/dr
 |---|---|
 | `site/src/lib/rig.ts` | Shape flattening (VS's rotation order and child frames) and the rig maths: globs, drivers (with the trunk path's), ride order, part matrices. Pure. |
 | `site/src/lib/model-anchors.ts` | Anchor discovery, footprint, side arrows. |
-| `site/src/lib/model-scenario.ts` | Scenario types, props, contact depth and the play state machine. |
+| `site/src/lib/model-scenario.ts` | Scenario types, props, choices, contact depth and the play state machine. |
+| `site/src/lib/model-vehicle.ts` | Vehicles: distance rolled, speed, bogies added to the model, the track's layout and scroll. |
 | `site/src/lib/model-view.ts` | What the page shows for a shape and rig: parts, textures, colours, controls. |
 | `site/src/lib/model-manifest.ts` | Manifest and model checks, what the build publishes. |
 | `site/src/components/ModelsRoute.svelte`, `ModelPage.svelte` | The index and the model page. |
@@ -285,7 +346,9 @@ collision boxes the way `make_shape.py` does, which must give back the rig file'
 `mods-src/seraphhorizons/tests/Rosser/rig-reference.json` (with T, k, p and φ), and every cell's boxes
 rebuilt from the shipped shape, hollow cells with none.
 `site/test/handcar.test.ts` replays `mods-src/seraphhorizons/tests/Handcar/rig-reference.json` (θ alone) and
-checks the handcar's anchors, its grips riding the beam.
+checks the handcar's anchors, its grips riding the beam, and the handcar as a vehicle: a stroke's
+three turns, `distancePerCycle` rolled in one, and its axle boxes on its axles.
+`site/test/vehicle.test.ts` covers the vehicle, the θ cycle and choices on a small rig.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL.
