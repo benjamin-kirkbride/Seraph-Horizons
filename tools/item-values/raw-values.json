@@ -54,6 +54,22 @@
       "game:ore-high-spinelred-*": 3, "game:ore-low-spinelred-*": 1.5,
       "game:ore-high-garnet*-*": 2.5, "game:ore-low-garnet*-*": 1.25
     },
+    "curiosities": {
+      "game:clutter-art/gear3": 150, "game:clutter-skull/human-crystal": 150,
+      "game:clutter-art/statuette-ife-head": 100, "game:clutter-deviceproto": 100,
+      "game:clutter-art/statuette-horus": 80, "game:clutter-art/statuette-boddhisatva": 80,
+      "game:clutter-art/natufian-stone": 60, "game:clutter-art/gear1": 60,
+      "game:clutter-art/statuette-monkey": 50, "game:clutter-device1": 50,
+      "game:clutter-art/bronze-tablet": 40, "game:clutter-art/gear2": 40,
+      "game:clutter-amber-insect": 40, "game:clutter-sabretooth": 40,
+      "game:clutter-art/zoolite1": 30, "game:clutter-art/zoolite2": 30, "game:clutter-gunbai": 30,
+      "game:clutter-skull/mummified-head": 30, "game:clutter-hourglass": 25, "game:clutter-army-tool": 20,
+      "game:clutter-art/bottle": 15, "game:clutter-skull/humanoid-deformed": 15, "game:clutter-skull/humanoid": 8,
+      "game:clutter-fishing/coprolite": 6, "game:clutter-fishing/brokensword": 5,
+      "game:clutter-fishing/oversizedspoon": 4, "game:clutter-fishing/redherring": 4,
+      "game:clutter-fishing/counterfeitgear": 0, "game:clutter-fishing/heavilywornunderwear": 0,
+      "game:clutter-fishing/oldboot": 0
+    },
     "minerals": {
       "game:ore-flint-*": 0.03, "game:flint": 0.03,
       "game:ore-quartz-*": 0.05,

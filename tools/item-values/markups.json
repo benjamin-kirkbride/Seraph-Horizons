@@ -91,6 +91,7 @@
   "excludeRecipes": [
     "/destroy",
     "recycl",
+    "jewelryscrap",
     "salvage",
     "uncraft",
     "/disassembl"
