@@ -3059,7 +3059,8 @@ camp tries, and the first to place wins; if all eight miss, up to 24 of the cell
 second chance. A spot's chunk tries every camp kind, schematic and rotation at its positions with
 the game's own checks, but on ground up to 2 blocks uneven (`slopeTolerance` in
 `config/trading/camps.json`; 0 is the game's rule of exactly level ground), the camp seated on the
-median of the game's samples and the ground under it levelled (#599; `docs/trading.md`, "Camp
+median of the game's samples, the ground under it levelled and the ground around blended into it at
+most one block per block, so it sits in no cut and on no plinth (#599; `docs/trading.md`, "Camp
 placement"). Worlds saved before keep their camps; a cell still waiting tries its spots not yet
 generated in any order, and a cell that had given up gets second chances in its new chunks. A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
 keeps its own trader: a story NPC, with its own dialogue. Neighbouring cells never have the same
@@ -3087,12 +3088,12 @@ radius blocks (default 4096) with their type and camp, the next spot not generat
 spot missed; `/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating its next spot first if needed.
 
 Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
-state with its order, second chances and old saves, the camp ground test and levelling, the shipped
+state with its order, second chances and old saves, the camp ground test, levelling and skirt, the shipped
 lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
 (Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere,
 every trader's trade window title and name, a spawned trader stocking from its list, the game's camps
 taken over, the spawner rewrite, cells' camps being decided, one on uneven ground with its footprint
-levelled, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
+levelled and no step of more than one off it, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
 `tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
 treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten, and the
 traders the handbook leaves out are the replaced ones and not the treasure hunter);

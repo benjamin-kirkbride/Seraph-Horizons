@@ -320,7 +320,8 @@ public sealed class TraderCamps
                 : null;
             if (!(ground ?? IsGround(_blocks!.GetBlock(pos.Set(px, py, pz))))) return null;
         }
-        if (WouldOverlap(start, schematic)) return null;
+        var location = new Cuboidi(start.X, start.Y, start.Z, start.X + schematic.SizeX, start.Y + schematic.SizeY, start.Z + schematic.SizeZ);
+        List<SkirtColumn>? skirt = null;
         if (surface)
         {
             var heights = new List<int>(sx * sz);
@@ -328,7 +329,25 @@ public sealed class TraderCamps
                 for (int dz = 0; dz < sz; dz++)
                     heights.Add(view.Height(lx + dx, lz + dz));
             if (!CampGround.Levellable(heights, fit.Base)) return null;
+            skirt = CampGround.Skirt(lx, lz, sx, sz, fit.Base, (px, pz) => view.Reaches(px, pz) ? view.Height(px, pz) : null);
+            if (skirt is null || SkirtWet(view, skirt)) return null;
+            // The overlap test covers the skirt too: it cuts and fills terrain outside the schematic.
+            foreach (var c in skirt)
+            {
+                int px = view.BaseX + c.X, pz = view.BaseZ + c.Z;
+                location.X1 = Math.Min(location.X1, px);
+                location.X2 = Math.Max(location.X2, px + 1);
+                location.Z1 = Math.Min(location.Z1, pz);
+                location.Z2 = Math.Max(location.Z2, pz + 1);
+                location.Y1 = Math.Min(location.Y1, Math.Min(c.Height, c.Target));
+                location.Y2 = Math.Max(location.Y2, Math.Max(c.Height, c.Target) + 1);
+            }
+        }
+        if (WouldOverlap(start, location)) return null;
+        if (surface)
+        {
             Level(view, lx, lz, sx, sz, fit.Base);
+            Blend(view, skirt!);
         }
 
         kind.Structure.LastPlacedSchematicLocation.Set(start.X, start.Y, start.Z, start.X + sx, start.Y + schematic.SizeY, start.Z + sz);
@@ -339,17 +358,17 @@ public sealed class TraderCamps
         return fit.Slope;
     }
 
-    /// <summary>The game's overlap test (<c>WorldGenStructure.WouldOverlapAt</c>): no generated
-    /// structure of the map regions around intersects the schematic, and no mod's
+    /// <summary>The game's overlap test (<c>WorldGenStructure.WouldOverlapAt</c>) over
+    /// <paramref name="location"/> (the schematic's, with a surface camp's skirt): no generated
+    /// structure of the map regions around intersects it, and no mod's
     /// <c>GenStructures.OnPreventSchematicPlaceAt</c> objects.</summary>
-    private bool WouldOverlap(BlockPos start, BlockSchematicStructure schematic)
+    private bool WouldOverlap(BlockPos start, Cuboidi location)
     {
         var blocks = _blocks!;
         int regionSize = blocks.RegionSize;
         int maxX = blocks.MapSizeX / regionSize, maxZ = blocks.MapSizeZ / regionSize;
-        var location = new Cuboidi(start.X, start.Y, start.Z, start.X + schematic.SizeX, start.Y + schematic.SizeY, start.Z + schematic.SizeZ);
-        for (int rx = GameMath.Clamp(start.X / regionSize, 0, maxX); rx <= GameMath.Clamp((start.X + schematic.SizeX) / regionSize, 0, maxX); rx++)
-            for (int rz = GameMath.Clamp(start.Z / regionSize, 0, maxZ); rz <= GameMath.Clamp((start.Z + schematic.SizeZ) / regionSize, 0, maxZ); rz++)
+        for (int rx = GameMath.Clamp(location.X1 / regionSize, 0, maxX); rx <= GameMath.Clamp(location.X2 / regionSize, 0, maxX); rx++)
+            for (int rz = GameMath.Clamp(location.Z1 / regionSize, 0, maxZ); rz <= GameMath.Clamp(location.Z2 / regionSize, 0, maxZ); rz++)
                 if (blocks.GetMapRegion(rx, rz)?.GeneratedStructures is { } placed && placed.Any(g => g.Location.Intersects(location)))
                     return true;
         return _gen!.WouldSchematicOverlapAt(blocks, start, location, null);
@@ -361,40 +380,84 @@ public sealed class TraderCamps
     /// schematic's soil layers and later passes see the new ground.</summary>
     private void Level(HeightView view, int lx, int lz, int sizeX, int sizeZ, int @base)
     {
-        var blocks = _blocks!;
         var pos = new BlockPos(0);
         for (int dx = 0; dx < sizeX; dx++)
             for (int dz = 0; dz < sizeZ; dz++)
-            {
-                int cx = lx + dx, cz = lz + dz, x = view.BaseX + cx, z = view.BaseZ + cz;
-                int height = view.Height(cx, cz);
-                var work = CampGround.Level(height, @base);
-                if (!work.Fills && !work.Cuts) continue;
-                var surface = blocks.GetBlock(pos.Set(x, height, z), BlockLayersAccess.Solid);
-                if (work.Fills)
-                {
-                    var under = blocks.GetBlock(pos.Set(x, height - 1, z), BlockLayersAccess.Solid);
-                    var fill = IsGround(under) ? under : IsGround(surface) ? surface : blocks.GetBlock(view.TopRock(cx, cz));
-                    var cover = IsGround(surface) ? surface : fill;
-                    // The old top is buried: it becomes fill, and the cover goes on the new top.
-                    for (int y = height; y <= @base; y++)
-                    {
-                        pos.Set(x, y, z);
-                        blocks.SetBlock(0, pos, BlockLayersAccess.Fluid);
-                        blocks.SetBlock(y == @base ? cover.Id : fill.Id, pos, BlockLayersAccess.Solid);
-                    }
-                }
-                else
-                {
-                    for (int y = work.CutFrom; y <= work.CutTo; y++)
-                        blocks.SetBlock(0, pos.Set(x, y, z), BlockLayersAccess.Solid);
-                    if (surface.BlockMaterial is EnumBlockMaterial.Soil or EnumBlockMaterial.Sand or EnumBlockMaterial.Gravel
-                        && IsGround(blocks.GetBlock(pos.Set(x, @base, z), BlockLayersAccess.Solid)))
-                        blocks.SetBlock(surface.Id, pos, BlockLayersAccess.Solid);
-                }
-                view.SetHeight(cx, cz, @base, work.Fills);
-            }
+                LevelColumn(view, pos, lx + dx, lz + dz, @base);
     }
+
+    /// <summary>Levels one column (view-local <paramref name="cx"/>, <paramref name="cz"/>) to
+    /// <paramref name="base"/>, as <see cref="Level"/> does.</summary>
+    private void LevelColumn(HeightView view, BlockPos pos, int cx, int cz, int @base)
+    {
+        var blocks = _blocks!;
+        int x = view.BaseX + cx, z = view.BaseZ + cz;
+        int height = view.Height(cx, cz);
+        var work = CampGround.Level(height, @base);
+        if (!work.Fills && !work.Cuts) return;
+        var surface = blocks.GetBlock(pos.Set(x, height, z), BlockLayersAccess.Solid);
+        if (work.Fills)
+        {
+            var under = blocks.GetBlock(pos.Set(x, height - 1, z), BlockLayersAccess.Solid);
+            var fill = IsGround(under) ? under : IsGround(surface) ? surface : blocks.GetBlock(view.TopRock(cx, cz));
+            var cover = IsGround(surface) ? surface : fill;
+            // The old top is buried: it becomes fill, and the cover goes on the new top.
+            for (int y = height; y <= @base; y++)
+            {
+                pos.Set(x, y, z);
+                blocks.SetBlock(0, pos, BlockLayersAccess.Fluid);
+                blocks.SetBlock(y == @base ? cover.Id : fill.Id, pos, BlockLayersAccess.Solid);
+            }
+        }
+        else
+        {
+            for (int y = work.CutFrom; y <= work.CutTo; y++)
+                blocks.SetBlock(0, pos.Set(x, y, z), BlockLayersAccess.Solid);
+            if (surface.BlockMaterial is EnumBlockMaterial.Soil or EnumBlockMaterial.Sand or EnumBlockMaterial.Gravel
+                && IsGround(blocks.GetBlock(pos.Set(x, @base, z), BlockLayersAccess.Solid)))
+                blocks.SetBlock(surface.Id, pos, BlockLayersAccess.Solid);
+        }
+        view.SetHeight(cx, cz, @base, work.Fills);
+    }
+
+    /// <summary>Blends the terrain around a levelled footprint into it (<see cref="CampGround.Skirt"/>):
+    /// each skirt column cut or filled to its target as a footprint column is. Plants and snow on a
+    /// column are cleared off it first; a column with anything else standing on it (a tree, in a
+    /// neighbour chunk further along) is left as it is.</summary>
+    private void Blend(HeightView view, List<SkirtColumn> skirt)
+    {
+        var blocks = _blocks!;
+        var pos = new BlockPos(0);
+        foreach (var c in skirt)
+        {
+            int x = view.BaseX + c.X, z = view.BaseZ + c.Z;
+            if (!Clearable(blocks.GetBlock(pos.Set(x, c.Height + 1, z), BlockLayersAccess.Solid))) continue;
+            for (int y = c.Height + 1; y <= c.Height + 2; y++)
+                if (blocks.GetBlock(pos.Set(x, y, z), BlockLayersAccess.Solid) is { Id: not 0 } above && Clearable(above))
+                    blocks.SetBlock(0, pos, BlockLayersAccess.Solid);
+            LevelColumn(view, pos, c.X, c.Z, c.Target);
+        }
+    }
+
+    private static bool Clearable(Block block) => block.Id == 0 || block.BlockMaterial is EnumBlockMaterial.Plant or EnumBlockMaterial.Snow;
+
+    /// <summary>Whether liquid is in a skirt column or beside it, from its lower height to one above
+    /// its higher (a fill under water, a cut that would open a bank): the camp isn't placed.</summary>
+    private bool SkirtWet(HeightView view, List<SkirtColumn> skirt)
+    {
+        var blocks = _blocks!;
+        var pos = new BlockPos(0);
+        foreach (var c in skirt)
+        {
+            int x = view.BaseX + c.X, z = view.BaseZ + c.Z;
+            for (int y = Math.Min(c.Height, c.Target); y <= Math.Max(c.Height, c.Target) + 1; y++)
+                foreach (var (dx, dz) in Beside)
+                    if (blocks.GetBlock(pos.Set(x + dx, y, z + dz), BlockLayersAccess.Fluid).IsLiquid()) return true;
+        }
+        return false;
+    }
+
+    private static readonly (int X, int Z)[] Beside = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)];
 
     private static bool IsGround(Block block) =>
         block.BlockMaterial is EnumBlockMaterial.Stone or EnumBlockMaterial.Soil or EnumBlockMaterial.Sand or EnumBlockMaterial.Gravel;
@@ -462,12 +525,13 @@ public sealed class TraderCamps
         }
     }
 
-    /// <summary>The terrain heights a chunk's placement reads, its own and its +X, +Z and diagonal
-    /// neighbours' (local coordinates 0..63): the TerrainFeatures pass runs only once all eight
+    /// <summary>The terrain heights a chunk's placement reads, its own and its eight neighbours'
+    /// (local coordinates -32..63: the footprint and its samples are in the chunk and its +X, +Z and
+    /// diagonal neighbours, a skirt may reach any): the TerrainFeatures pass runs only once all eight
     /// neighbours have finished Terrain, so their <c>WorldGenTerrainHeightMap</c>s are there.</summary>
     private sealed class HeightView
     {
-        private readonly IMapChunk?[] _chunks = new IMapChunk?[4];
+        private readonly IMapChunk?[] _chunks = new IMapChunk?[9];
         public int BaseX { get; }
         public int BaseZ { get; }
 
@@ -475,11 +539,14 @@ public sealed class TraderCamps
         {
             BaseX = chunkX * GlobalConstants.ChunkSize;
             BaseZ = chunkZ * GlobalConstants.ChunkSize;
-            for (int i = 0; i < 4; i++) _chunks[i] = blocks.GetMapChunk(chunkX + (i & 1), chunkZ + (i >> 1));
+            for (int i = 0; i < 9; i++) _chunks[i] = blocks.GetMapChunk(chunkX + i % 3 - 1, chunkZ + i / 3 - 1);
         }
 
+        /// <summary>Whether a column is in the view, its chunk there.</summary>
+        public bool Reaches(int lx, int lz) => Chunk(lx, lz) != null;
+
         private IMapChunk? Chunk(int lx, int lz) =>
-            lx < 0 || lz < 0 || lx >= 64 || lz >= 64 ? null : _chunks[(lx >> 5) + ((lz >> 5) << 1)];
+            lx < -32 || lz < -32 || lx >= 64 || lz >= 64 ? null : _chunks[((lx + 32) >> 5) + ((lz + 32) >> 5) * 3];
 
         /// <summary>The terrain height, or 0 outside the view or for a chunk not there (which no
         /// ground test passes with).</summary>
