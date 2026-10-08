@@ -918,6 +918,18 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>RuinsOnMedianGround</c>: nothing is patched, and a surface ruin sits on the lowest
+    /// sample, as the game places it.</summary>
+    [AtlasScenario]
+    public void Ruins_on_median_ground_off_a_surface_ruin_sits_on_the_lowest_sample()
+    {
+        Assert.True(Off("RuinsOnMedianGround"));
+        Assert.False(RuinSurfaceMedian.Patched);
+        Assert.False(Harmony.GetPatchInfo(RuinSurfaceMedian.Target)?.Transpilers.Any(p => p.owner == SeraphHorizonsSystem.HarmonyId) ?? false);
+        var (low, high) = RuinSeating.Heights(W);
+        Assert.Equal(low, RuinSeating.SeatedHeight(W, low, high));
+    }
+
     /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,
     /// <c>RarerDistricts</c>, <c>PlacerFields</c>: a world created with them off records them off,
     /// Interesting Ore Gen's spacing filter is not patched, and the deposits are as the mods ship
