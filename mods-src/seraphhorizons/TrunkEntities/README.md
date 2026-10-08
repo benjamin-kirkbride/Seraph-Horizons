@@ -516,7 +516,17 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   the sneak and sprint factors (from the server controls) × the two blocks' `WalkSpeedMultiplier`
   (÷ 2.5 in liquid; the blocks left out in creative) × `walkSpeed` × the sneak factor again when
   the player cannot stand up (`PrevFrameCanStandUp` false). Compare the client's dump with the
-  server's while walking with a heavy trunk.
+  server's while walking with a heavy trunk. A driver (mounted on a trunk's `TrunkDriveSeat`) does
+  not walk at all: the seat carries them, and the trunk moves at its own speed. So for a driver
+  the probe also prints the driven trunk: its stack's code, stored logs, class, the end taken,
+  afloat (and why), `TrunkDrive.Speed(logs, afloat)` and `Turn` with the share they come from, the
+  seat's keys, the drive's eased speed and turn on that side (0 on the side that does not tick the
+  trunk), the trunk's motion, and who ticks its physics. A carried trunk's walk speed comes from
+  `CarrySpeedAtOneLog` and `CarrySpeedAtMaxLogs` (Settings); a driven one's from `TrunkDrive`'s
+  constants, which no setting changes. The client's chat copy has its braces doubled, since the
+  client shows a command's reply through `Lang.Get`, which formats it (a lone brace logs an
+  "Expected an ASCII digit" error); the server sends a reply of more than one line as it is, and
+  the logged copies are unchanged.
 - **Clicks while carrying.** Carry On lets a right-click through to a block while something is
   carried only if the block has its `CarryableInteract` behaviour, after its short hold (0.8 s by
   default, unless Carry On's `RemoveInteractDelayWhileCarrying` is on), and sends it on to the server.
