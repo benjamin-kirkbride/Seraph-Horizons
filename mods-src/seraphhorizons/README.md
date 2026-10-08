@@ -2961,7 +2961,14 @@ flux and buys metal.
 `TraderGrid` (server, default on) places lone camps on a seeded 2 km grid, about one per 2 km cell,
 in place of the game's randomly placed ones; the camp kinds are the game's, BetterTraders' and the
 other mods' camp buildings, chosen by climate as the game does, and the trader in a camp is the
-cell's type. A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
+cell's type. Each cell has eight seeded spots: any spot whose chunk generates while the cell has no
+camp tries, and the first to place wins; if all eight miss, up to 24 of the cell's later chunks get a
+second chance. A spot's chunk tries every camp kind, schematic and rotation at its positions with
+the game's own checks, but on ground up to 2 blocks uneven (`slopeTolerance` in
+`config/trading/camps.json`; 0 is the game's rule of exactly level ground), the camp seated on the
+median of the game's samples and the ground under it levelled (#599; `docs/trading.md`, "Camp
+placement"). Worlds saved before keep their camps; a cell still waiting tries its spots not yet
+generated in any order, and a cell that had given up gets second chances in its new chunks. A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
 keeps its own trader: a story NPC, with its own dialogue. Neighbouring cells never have the same
 type, and a prospector is never more than two cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
 takes the grid at its first start with this mod if the switch is on then, and keeps that; an existing
@@ -2969,14 +2976,16 @@ world keeps vanilla's camps and traders. Turned off later, the world's new chunk
 again. The trader types and their lists exist either way.
 
 Admin commands (privilege `controlserver`): `/sh trade camps [radius]` lists the grid cells within
-radius blocks (default 4096) with their type and camp, or the spot not generated yet;
-`/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating it first if needed.
+radius blocks (default 4096) with their type and camp, the next spot not generated yet, or that every
+spot missed; `/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating its next spot first if needed.
 
 Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
-state, the shipped lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
+state with its order, second chances and old saves, the camp ground test and levelling, the shipped
+lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
 (Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere,
 every trader's trade window title and name, a spawned trader stocking from its list, the game's camps
-taken over, the spawner rewrite, a cell's camp being decided, `/sh trade camps`, and nothing logged);
+taken over, the spawner rewrite, cells' camps being decided, one on uneven ground with its footprint
+levelled, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
 `tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
 treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten).
 
@@ -3427,7 +3436,7 @@ extension.
 | `/sh ore givemap <player> <metal\|gravel> <1-3>` | a map to the nearest unsold deposit, sold to the player |
 | `/sh ore log on\|off` | every ore cell and placer field decision and every verification to `Logs/seraphhorizons-ore.log` |
 | `/sh ore map on\|off [radius]` | the ore overlay on your world map (radius 12,000) |
-| `/sh trade camps [radius]` | camp cells: type, placed camp or the spot it waits for |
+| `/sh trade camps [radius]` | camp cells: type, placed camp, the next spot, or open (every spot missed) |
 | `/sh trade tp <camp>` | to a cell's camp (generated first) |
 | `/sh trade inspect [trader]` | type, region, list core and pool, current slots (core or rotating), wallet and its target, side budget, next restock, every player's and company's standing with it |
 | `/sh trade restock [trader] [--full]` | the weekly restock now; `--full` draws every rotating slot anew and refills the wallet |
