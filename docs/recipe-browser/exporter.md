@@ -326,15 +326,26 @@ is left out when its switch is off or what it names is not registered.
   metal whose hollow or pipe section is not registered (lead's chute section with `UnifiedPipes` off)
   has no record. The `DrawBench` switch leaves it out when off.
 - The press brake (`Recipes/PressBrakeExport.cs`, `RecipeSection.PressBrake.cs`, type `pressbrake`,
-  shape `machine`): one record per metal, `pressbrake|game:metalplate-{metal}|0`.
-  `config/pressbrake-rig.json` gives each class's plate and angle (`fold.plates`,
-  `fold.angles`), the angles a plate (`fold.anglesPerPlate`, 1) and the lever turns a plate as a
-  fallback; `SeraphHorizonsConfig.PressBrakeSettings` gives the lever turns a plate
+  shape `machine`): one record per metal, `pressbrake|seraphhorizons:halfplate-{metal}|0`.
+  `config/pressbrake-rig.json` gives each class's half plate and angle (`fold.plates`,
+  `fold.angles`), the angles a half plate (`fold.anglesPerPlate`, 1) and the lever turns a half plate
+  as a fallback; `SeraphHorizonsConfig.PressBrakeSettings` gives the lever turns a half plate
   (`LeverTurnsPerPlateLead`, `LeverTurnsPerPlateCopper`). A hand machine: `power` is `hand`, `turns`
   the lever's (a turn a second while right-click is held), and there is no `wear` and no `oil`. The
   screws and edges are `kept`, their alternatives the variant's stacks; the output is one angle of the
-  metal (`seraphhorizons:angle-{metal}`), and a metal whose angle is not registered (`UnifiedPipes` off) has no
-  record. The `PressBrake` switch leaves it out when off.
+  metal (`seraphhorizons:angle-{metal}`), and a metal whose half plate or angle is not registered
+  (`SquaringShear` or `UnifiedPipes` off) has no record. The `PressBrake` switch leaves it out when off.
+- The squaring shear (`Recipes/SquaringShearExport.cs`, `RecipeSection.SquaringShear.cs`, type
+  `squaringshear`, shape `machine`): one record per metal, `squaringshear|game:metalplate-{metal}|0`.
+  `config/squaringshear-rig.json` gives each class's plate and half plate (`cut.plates`,
+  `cut.halfPlates`), the half plates a plate (`cut.halfPlatesPerPlate`, 2) and the treadle strokes a
+  plate as a fallback; `SeraphHorizonsConfig.SquaringShearSettings` gives the strokes a plate
+  (`StrokesPerPlateLead`, `StrokesPerPlateCopper`). A hand machine: `power` is `hand`, `turns` the
+  treadle's strokes (a stroke a second while right-click is held) and `work`
+  `{amount: strokes, unit: "strokes"}`, and there is no `wear` and no `oil`. The blades and the gauge
+  are `kept`, their alternatives the variant's stacks; the output is two half plates of the metal
+  (`seraphhorizons:halfplate-{metal}`). The `SquaringShear` switch leaves it out when off (and the
+  half plate with it).
 - The mandrel forging station (`Recipes/MandrelStationExport.cs`, `RecipeSection.MandrelStation.cs`,
   type `mandrelstation`, shape `machine`): one record per metal, `mandrelstation|game:chutesection-{metal}|0`.
   `config/mandrelstation-rig.json` gives each class's hollow and pipe section (`forge.hollows`,
@@ -418,8 +429,11 @@ Checked in the pack's code (decompiled) and assets; none is exported:
   link of the gear chain's handbook page;
 - the draw bench (`RecipeExportDrawBenchScenarios.cs`): a record per metal, a hollow section in, its
   kept stages, the dies that draw it, the oil and four pipe sections;
-- the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, its kept stages,
-  power `hand` at the lever's turns, and one angle;
+- the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, a half plate in, its
+  kept stages, power `hand` at the lever's turns, and one angle;
+- the squaring shear (`RecipeExportSquaringShearScenarios.cs`): a record per metal, its kept stages,
+  power `hand` at the treadle's strokes, two half plates, and its switch on the record, the half plates
+  and the frame's recipe;
 - the mandrel station (`RecipeExportMandrelStationScenarios.cs`): a record per metal, the kept
   mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections;
 - records per type against the definitions counted with the engine's asset loader, and

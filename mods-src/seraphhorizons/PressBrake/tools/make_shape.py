@@ -5,11 +5,11 @@ The press brake is a hand-worked leaf brake (a cornice brake) of the early-to-mi
 iron wearing edges and iron clamping screws: an oak bed with an iron folding edge along its near end;
 an oak clamping bar with an iron nose, brought down on the sheet by two iron screws threaded through
 nuts in iron gallows on the oak end cheeks; and an oak folding leaf with an iron edge, hinged on pins in
-the cheeks at the folding edge and swung up by its bail handle. A lead or copper plate goes on the bed,
-square as the game's plate item; as the bar comes down on it, its north half rises out of the leaf (the
-one abstraction: the square plate spreads into the working sheet). The leaf folds it once, over-bent for
-its spring-back, into an angle (an L, two 8-wide legs, 8 long); the bar is screwed up and the angle slid
-north onto the leaf. Everything is built here from plain boxes; no other mod's model is used.
+the cheeks at the folding edge and swung up by its bail handle. A lead or copper half plate (8 x 4, cut
+on the squaring shear) goes on 8 deep across the folding edge: 4 on the bed under the bar, 4 over the
+leaf. The leaf folds it once across its middle, over-bent for its spring-back, into an angle (an L, two
+4-wide legs, 4 long); the bar is screwed up and the angle slid north onto the leaf. Everything is built
+here from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
 
@@ -29,9 +29,9 @@ leaf at the north end (the controller, nearest the player), the bed extending so
 The rig's inputs, as this machine uses them (README "Rig schema"):
 
     theta  the lever's work, the hold-to-work clock: read by a ratio-0 rotate on the lever, it moves nothing
-    W      the rig's work, the fold cycle of one plate, 0..1
-    k      the plate's metal: 0 none, 1 lead (thin), 2 copper (thick)
-    p      its presence, 0..1, eased as the plate goes on and after it is delivered
+    W      the rig's work, the fold cycle of one half plate, 0..1
+    k      the half plate's metal: 0 none, 1 lead (thin), 2 copper (thick)
+    p      its presence, 0..1, eased as the half plate goes on and after it is delivered
 """
 
 from __future__ import annotations
@@ -84,11 +84,10 @@ TEX = 64                                     # shape texture units; 4 per voxel,
 YB = 4.6                                     # the bed's top and the leaf's face at rest
 EZ = 10.0                                    # the folding edge: the leaf's hinge axis runs along x at (YB, EZ)
 HINGE = (YB, EZ)
-T = 1.0                                      # the sheet's thickness: the open section item's walls
-S = 8.0                                      # a panel: the U's outside, the game's chute section is 8 across
-SHEET_X = (4.0, 12.0)                        # the plate, 8 long along the edge (x): the angle's length
-Z_A0 = EZ - S                                # the sheet laid on: flange A over the leaf, M and B on the bed
-HIDE = (T + 0.05, 0.1)                       # before the clamp, leg A lies this far down (y) and south (z), inside the leaf
+T = 1.0                                      # the sheet's thickness: the half plate's
+S = 4.0                                      # a leg: half the half plate's 8, folded across its middle
+SHEET_X = (6.0, 10.0)                        # the half plate, 4 wide along the edge (x): the angle's length
+Z_A0 = EZ - S                                # the half plate laid on: leg A over the leaf, leg M on the bed
 THROW = {"thin": 95.0, "thick": 100.0}       # the leaf's throw (degrees): over-bent for the spring-back
 SET = 90.0                                   # where a flange springs back to
 
@@ -104,7 +103,7 @@ BOSS_Y = (YB - 1.0, YB + 1.0)                          # the hinge bearings on t
 BOSS_Z = (CHEEK_Z[0], EZ + 0.45)
 PIN_R = 0.3
 LEAF_Y0 = YB - 2.0                           # the leaf is two voxels of oak under its face
-LEAF_Z0 = EZ - S                             # it is as wide as a panel
+LEAF_Z0 = EZ - 8.0                           # it is 8 wide, twice a leg: the angle comes off onto it
 UP_FRONT_Z = (9.3, 10.3)                     # the gallows' uprights, either side of the bar's ends
 UP_BACK_Z = (16.6, 17.6)
 UP_X = (0.05, 0.95)                           # west; mirrored east
@@ -137,10 +136,9 @@ ARMS_X = ((2.6, 3.2), (12.8, 13.4))
 
 # ---------------------------------------------------------------- the cycle (t = W, one plate)
 T_CLAMP1, T_UNCLAMP1 = (0.06, 0.18), (0.66, 0.78)
-T_SPREAD = (0.12, 0.18)                      # leg A rises out of the leaf as the bar comes down
 T_FOLD1 = (0.22, 0.42, 0.62)                 # rise from, top, back down
 T_OFF = (0.80, 0.96)                         # the angle slides north onto the leaf
-LEVER_TURNS = {"thin": 3.0, "thick": 4.5}    # the pace: lever turns (theta / 2 pi) a plate
+LEVER_TURNS = {"thin": 1.5, "thick": 2.25}   # the pace: lever turns (theta / 2 pi) a half plate
 
 METALS = (("thin", "l", "lead", "platelead"), ("thick", "c", "copper", "platecopper"))
 
@@ -261,7 +259,7 @@ def build_edges():
 
 
 def build_leaf():
-    """The folding leaf: oak, as wide as a panel, its iron edge along the hinge (a rebate in the oak),
+    """The folding leaf: oak, 8 wide, its iron edge along the hinge (a rebate in the oak),
     iron knuckles at its ends round the pins; and its bail handle (the lever): two iron arms under the
     leaf and an oak hand bar."""
     out = [box([EDGE_X[0], LEAF_Y0, LEAF_Z0], [EDGE_X[1], YB, EZ - 1.0], "leaf_body", "leaf", "oak"),
@@ -315,12 +313,12 @@ def build_screws():
 
 
 def build_work():
-    """The plate, lead and copper: leg M on the bed (the square plate as loaded) and leg A, hidden in the
-    leaf until the bar comes down, then over the leaf."""
+    """The half plate, lead and copper, as laid 8 deep across the folding edge: leg M on the bed under the
+    bar, leg A over the leaf. Both are the half plate's own sheet from the moment it goes on."""
     out = []
     x0, x1 = SHEET_X
     for _cls, pre, tex, _req in METALS:
-        out.append(box([x0, YB - HIDE[0], Z_A0 + HIDE[1]], [x1, YB + T - HIDE[0], EZ + HIDE[1]], f"{pre}a_1", f"{pre}a", tex))
+        out.append(box([x0, YB, Z_A0], [x1, YB + T, EZ], f"{pre}a_1", f"{pre}a", tex))
         out.append(box([x0, YB, EZ], [x1, YB + T, EZ + S], f"{pre}m_1", f"{pre}m", tex))
     return out
 
@@ -377,7 +375,7 @@ def fold(t):
 
 
 def flange(t):
-    """A panel carried by the leaf: up with it, then it springs back to SET as the leaf leaves it. The
+    """A leg carried by the leaf: up with it, then it springs back to SET as the leaf leaves it. The
     spring-back's window is copper's; lead's gain makes it as long as lead's leaf takes to fall to SET."""
     up = gauge("rotate", "x", per_class(THROW["thin"] * DEG, THROW["thick"] * DEG), [win(t[0], t[1])], pivot=hinge_pt())
     fall = t[2] - t[1]
@@ -406,7 +404,7 @@ def clamp_windows():
 
 
 def _rig_parts():
-    up = T + LIFT                            # the bar's rise off the bed as a plate goes on
+    up = T + LIFT                            # the bar's rise off the bed as a half plate goes on
     parts = [
         {"id": "leaf", "match": ["leaf_*"], "requires": None, "drivers": [fold(T_FOLD1)]},
         {"id": "leafedge", "match": ["leafedge_*"], "requires": "edge", "ride": "leaf", "drivers": []},
@@ -429,8 +427,7 @@ def _rig_parts():
             gauge("slide", "y", per_class(-down["thin"] / B, -down["thick"] / B), clamp_windows())]})
     parts.append({"id": "bededge", "match": ["bededge_*"], "requires": "edge", "drivers": []})
     for _cls, pre, _tex, req in METALS:
-        spread = [gauge("slide", "y", per_class(HIDE[0] / B), [win(*T_SPREAD)]), slide_z(-HIDE[1], T_SPREAD)]
-        a = spread + flange(T_FOLD1) + [slide_z(-S, T_OFF)]
+        a = flange(T_FOLD1) + [slide_z(-S, T_OFF)]
         m = [slide_z(-S, T_OFF)]
         for n, drv in (("a", a), ("m", m)):
             parts.append({"id": f"{pre}{n}", "match": [f"{pre}{n}_*"], "requires": req, "drivers": drv})
@@ -443,7 +440,7 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses
-REST = (0.0, 0.0, 0, 0.0)                     # (theta, W, k, p): no plate; the authored pose
+REST = (0.0, 0.0, 0, 0.0)                     # (theta, W, k, p): no half plate; the authored pose
 
 
 def inputs_of(pose):
@@ -456,7 +453,7 @@ def pm(parts, pid, pose, path=None):
 
 
 def pose_at(k, W, theta=None, p=1.0):
-    """A plate of metal k at W, the lever at its pace."""
+    """A half plate of metal k at W, the lever at its pace."""
     th = TAU * LEVER_TURNS[("thin", "thick")[k - 1]] * W if theta is None else theta
     return (th, W, k, p)
 
@@ -474,25 +471,25 @@ def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the leaf end, nearest the "
                     "player who placed it; the bed runs south. A hand machine: no power cell. work is the fold cycle of one "
-                    "plate, W 0..1; k is the plate's metal (1 lead, 2 copper); gauge windows are placed in plates. theta is "
+                    "half plate, W 0..1; k is its metal (1 lead, 2 copper); gauge windows are placed in plates. theta is "
                     "the lever's work (the hold-to-work clock), carried by a ratio-0 rotate on the lever. See the press "
                     "brake's README for the schema.",
         "cells": [],
         "infeedSide": "south",
         "outputSide": "north",
         "output": {"pos": pt(8.0, YB + S / 2, Z_A0)},
-        "plate": {"pos": pt(8.0, YB + T, EZ + S / 2)},
+        "plate": {"pos": pt(8.0, YB + T, EZ)},
         "edge": {"pos": pt(8.0, YB, EZ)},
         "work": dict(WORK),
         "fold": {"leverTurnsPerPlate": per_class(LEVER_TURNS["thin"], LEVER_TURNS["thick"]),
                  "throwDegrees": per_class(THROW["thin"], THROW["thick"]),
-                 "plates": {"thin": "game:metalplate-lead", "thick": "game:metalplate-copper"},
+                 "plates": {"thin": "seraphhorizons:halfplate-lead", "thick": "seraphhorizons:halfplate-copper"},
                  "angles": {"thin": "seraphhorizons:angle-lead", "thick": "seraphhorizons:angle-copper"},
                  "anglesPerPlate": 1,
-                 "_comment": "leverTurnsPerPlate: the pace, lever turns (theta / 2 pi) a plate; copper half as much again "
+                 "_comment": "leverTurnsPerPlate: the pace, lever turns (theta / 2 pi) a half plate; copper half as much again "
                              f"(screwed down a quarter turn harder each clamp, thrown {THROW['thick']:g} degrees against lead's "
-                             f"{THROW['thin']:g}). throwDegrees: the leaf's throw as drawn. plates: each class's work. angles: "
-                             "what a plate makes, anglesPerPlate of them (one fold)."},
+                             f"{THROW['thin']:g}). throwDegrees: the leaf's throw as drawn. plates: each class's work, a half plate. "
+                             "angles: what a half plate makes, anglesPerPlate of them (one fold, across its middle)."},
         "parts": parts,
     }
 
@@ -556,7 +553,7 @@ REF_EDGES = (0.0, 0.04, 0.08, 0.12, 0.15, 0.18, 0.2, 0.25, 0.32, 0.42, 0.425, 0.
 
 
 def reference_poses():
-    """theta in {0, 1.1, -2.3, 2.9} with no plate; for each metal, W over the cycle's edges with p 1, and
+    """theta in {0, 1.1, -2.3, 2.9} with no half plate; for each metal, W over the cycle's edges with p 1, and
     every fifth also at p 0.4."""
     out = [(th, 0.0, 0, 0.0) for th in (0.0, 1.1, -2.3, 2.9)]
     for k in (1, 2):

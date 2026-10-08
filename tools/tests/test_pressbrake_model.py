@@ -2,7 +2,7 @@
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with
 the shared rig maths and uses the `requires` vocabulary of the contract, its reference poses are its own
-maths, the cells are rebuilt from the shipped shape, the work is one plate's fold cycle, theta moves
+maths, the cells are rebuilt from the shipped shape, the work is one half plate's fold cycle, theta moves
 nothing, the fold reaches the metal's throw and sets at 90 degrees, and the anchors are where the contract
 puts them. Run with `python3 -m unittest discover -s tools/tests`.
 """
@@ -29,7 +29,7 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "pressbrake-rig
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "pressbrake.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "pressbrake_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "PressBrake" / "rig-reference.json").read_text())
-# the build order: the frame, screws, edge; the work is a lead or a copper plate, folded once into an angle
+# the build order: the frame, screws, edge; the work is a lead or a copper half plate, folded once into an angle
 REQUIRES = {"screws", "edge", "platelead", "platecopper", None}
 
 
@@ -98,7 +98,8 @@ class Fold(unittest.TestCase):
         self.assertEqual((w["name"], w["unit"]), ("fold", "plates"))
         self.assertEqual(w["end"], {"thin": 1.0, "thick": 1.0})
         fold = RIG["fold"]
-        self.assertEqual(fold["plates"], {"thin": "game:metalplate-lead", "thick": "game:metalplate-copper"})
+        self.assertEqual(fold["plates"], {"thin": "seraphhorizons:halfplate-lead", "thick": "seraphhorizons:halfplate-copper"})
+        self.assertEqual(fold["leverTurnsPerPlate"], {"thin": 1.5, "thick": 2.25})
         self.assertEqual(fold["angles"], {"thin": "seraphhorizons:angle-lead", "thick": "seraphhorizons:angle-copper"})
         self.assertEqual(fold["anglesPerPlate"], 1)
         for old in ("sections", "sectionsPerPlate"):
@@ -120,12 +121,36 @@ class Fold(unittest.TestCase):
                 self.assertAlmostEqual(turn_x(matrix("leaf", work=t[2], size=k, presence=1.0)), 0.0, places=6)
 
     def test_the_flange_sets_at_ninety_and_the_angle_is_delivered(self):
-        # one fold a plate: leg A sets at 90 degrees, leg M stays flat and both come north a leg onto the leaf
+        # one fold a half plate: leg A sets at 90 degrees, leg M stays flat and both come north a leg onto the leaf
         for k, pre in ((1, "l"), (2, "c")):
             self.assertAlmostEqual(turn_x(matrix(f"{pre}a", work=0.7, size=k, presence=1.0)), 90.0, places=3)
             self.assertAlmostEqual(turn_x(matrix(f"{pre}m", work=1.0, size=k, presence=1.0)), 0.0, places=6)
             self.assertAlmostEqual(matrix(f"{pre}m", work=1.0, size=k, presence=1.0)[2][3] * 16, -make_shape.S, places=4)
         self.assertEqual({p["id"] for p in RIG["parts"] if p["requires"] == "platelead"}, {"la", "lm"})
+
+    def test_the_half_plate_lies_whole_across_the_edge_and_folds_into_a_4_by_4_L(self):
+        # no spread: leg A is the half plate's own sheet over the leaf from the moment it goes on, and
+        # the two legs together are the 8 x 4 half plate, folded across its middle
+        legs = {}
+        for e in SHAPE["elements"]:
+            pid = rigmath.part_of(RIG["parts"], e["name"])
+            if pid in ("la", "lm"):
+                legs[pid] = [[v * 1.0 for v in e["from"]], [v * 1.0 for v in e["to"]]]
+        (a0, a1), (m0, m1) = legs["la"], legs["lm"]
+        # (the z-fighting fix trims a sheet's edges by hundredths where the two legs meet)
+        for lo, hi in ((a0, a1), (m0, m1)):
+            for got, want in zip([hi[i] - lo[i] for i in range(3)], [4.0, make_shape.T, 4.0]):
+                self.assertAlmostEqual(got, want, delta=0.05)
+        self.assertEqual((a0[1], m0[1]), (make_shape.YB, make_shape.YB))
+        self.assertAlmostEqual(a0[2], make_shape.EZ - 4.0, delta=0.05)
+        self.assertAlmostEqual(m1[2], make_shape.EZ + 4.0, delta=0.05)
+        self.assertAlmostEqual(a1[2], make_shape.EZ, delta=0.05)
+        self.assertAlmostEqual(m0[2], make_shape.EZ, delta=0.05)
+        for k in (1, 2):
+            pre = "lc"[k - 1]
+            for w in (0.0, 0.1, make_shape.T_FOLD1[0]):
+                m = matrix(f"{pre}a", work=w, size=k, presence=1.0)
+                self.assertEqual([[round(v, 9) for v in r] for r in m[:3]], [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
 
     def test_the_bar_lies_on_the_sheet_while_the_leaf_moves(self):
         for k in (1, 2):

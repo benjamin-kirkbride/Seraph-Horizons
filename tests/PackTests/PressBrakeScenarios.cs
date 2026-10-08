@@ -13,8 +13,8 @@ namespace SeraphHorizons.PackTests;
 // seraphhorizons, PressBrake (mods-src/seraphhorizons/PressBrake/): the press brake in the plain
 // world, worked by hand. The player's right-click held on it is played through the block's own
 // interaction calls (start, a step each tick, stop), as the game makes them, so each scenario that
-// folds shows W moving only while held; a plate takes 3 seconds of holding (copper 4.5), so they then
-// finish it through BEPressBrake.Fold, as the draw bench's scenarios finish an ingot through Draw. Every
+// folds shows W moving only while held; a half plate takes 1.5 seconds of holding (copper 2.25), so
+// they then finish it through BEPressBrake.Fold, as the draw bench's scenarios finish an ingot through Draw. Every
 // scenario builds on a granite floor of its own 40 above spawn at x -320 to -368, z -320 to -340
 // (clear of the draw bench's at x -240 to -300, z -240 to -280), and they share the gear cutter's
 // player, gearcutterhand (the server takes 16 players at most, and the other scenarios use the rest).
@@ -23,7 +23,7 @@ public partial class SharedWorldScenarios
     private PressBrakeSystem BrakeMod => PressBrakeSystem.Of(World.Api);
     private PressBrakeRig BrakeRig => BrakeMod.Rig ?? throw new Xunit.Sdk.XunitException("the press brake's rig did not load");
 
-    // What it makes: the angle, UnifiedPipes' item, one a plate.
+    // What it makes: the angle, UnifiedPipes' item, one a half plate (the squaring shear's item).
     private const string AngleLead = "seraphhorizons:angle-lead";
     private const string AngleCopper = "seraphhorizons:angle-copper";
     private const string BrakeFrame = "seraphhorizons:pressbrake-frame-north";
@@ -109,13 +109,17 @@ public partial class SharedWorldScenarios
         foreach (var stage in PressBrakeRequires.Stages)
             foreach (var code in PressBrakeParts.CodesFor(stage))
                 Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false }, $"no {code} for {stage}");
-        // what it folds, the game's lead and copper plates, and what comes off: UnifiedPipes' angles
+        // what it folds, the squaring shear's lead and copper half plates, and what comes off: UnifiedPipes' angles
         foreach (var k in new[] { 1, 2 })
         {
             Assert.True(W.GetItem(new AssetLocation(Folding.PlateFor(k)!)) is { Id: > 0, IsMissing: false }, $"no {Folding.PlateFor(k)}");
             Assert.True(W.GetItem(new AssetLocation(Folding.AngleFor(k)!)) is { Id: > 0, IsMissing: false }, $"no {Folding.AngleFor(k)}");
         }
         Assert.Equal((AngleLead, AngleCopper), (Folding.AngleFor(1), Folding.AngleFor(2)));
+        Assert.Equal(("seraphhorizons:halfplate-lead", "seraphhorizons:halfplate-copper"), (Folding.PlateFor(1), Folding.PlateFor(2)));
+        // the brake is the only maker of angles: no anvil recipe, no grid recipe
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code?.Domain == "seraphhorizons" && r.Output.Code.Path.StartsWith("angle-"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Domain == "seraphhorizons" && r.Output.Code.Path.StartsWith("angle-"));
         Assert.Equal("Press brake frame", new ItemStack(W.GetBlock(BlockPressBrake.ItemCode)).GetName());
 
         // the grid: the frame, of oak and iron fittings, with a hammer
@@ -189,8 +193,8 @@ public partial class SharedWorldScenarios
         Assert.True(_cutterHandled);
         Assert.Equal(1, CutterClick(player, ghost, CutterItem("game:metalplate-steel"))?.StackSize);
         Assert.False(brake.Parts.Has(PressBrakeStage.Edge));
-        // no plate before the brake is built, and an empty hand works no lever on a bare frame
-        Assert.Equal(1, CutterClick(player, pos, CutterItem(Folding.LeadPlate))?.StackSize);
+        // no half plate before the brake is built, and an empty hand works no lever on a bare frame
+        Assert.Equal(1, CutterClick(player, pos, CutterItem(Folding.LeadHalfPlate))?.StackSize);
         Assert.False(brake.PlateOn);
         Assert.Null(CutterClick(player, pos, null));
         Assert.False(_cutterHandled);
@@ -234,21 +238,21 @@ public partial class SharedWorldScenarios
 
     // ---- Folding ----
 
-    // A lead plate goes on by hand and is folded only while the lever is worked (right-click held, as
-    // on the quern); at W = 1 one lead angle comes off over the leaf, beyond the output face, and the
-    // plate is used up. A hollow (chute) section, a pipe section, an angle, an ingot and another
-    // metal's plate never go on.
+    // A lead half plate goes on by hand and is folded only while the lever is worked (right-click held,
+    // as on the quern); at W = 1 one lead angle comes off over the leaf, beyond the output face, and the
+    // half plate is used up. A whole plate (the squaring shear's work), a hollow (chute) section, a pipe
+    // section, an angle, an ingot and another metal's plate never go on.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Press_brake_folds_a_lead_plate_into_one_angle_while_the_lever_is_held()
+    public async Task Press_brake_folds_a_lead_half_plate_into_one_angle_while_the_lever_is_held()
     {
         var pos = await CutterSite(-332, -340);
         var player = await CutterPlayer();
         var brake = await PlaceBrake(pos, "south");
         AssembleBrake(brake, player);
 
-        // not what it folds: a hollow section, a pipe section, an ingot, a tin plate and its own angle stay in hand
+        // not what it folds: a whole plate, a hollow section, a pipe section, an ingot, a tin plate and its own angle stay in hand
         Assert.True(W.GetItem(new AssetLocation(AngleLead)) is { Id: > 0, IsMissing: false }, $"no {AngleLead}");
-        foreach (var code in new[] { "game:chutesection-copper", "game:chutesection-lead", "seraphhorizons:pipesection-lead", "game:ingot-lead", "game:metalplate-tin", AngleLead, AngleCopper })
+        foreach (var code in new[] { "game:metalplate-lead", "game:metalplate-copper", "game:chutesection-copper", "game:chutesection-lead", "seraphhorizons:pipesection-lead", "game:ingot-lead", "game:metalplate-tin", AngleLead, AngleCopper })
         {
             Assert.Equal(1, CutterClick(player, pos, CutterItem(code))?.StackSize);
             Assert.False(brake.PlateOn, $"{code} went on");
@@ -256,26 +260,26 @@ public partial class SharedWorldScenarios
         // with nothing on the bed, the lever is not worked
         Assert.False((await BrakeHold(player, pos, 3)).Started);
 
-        // a lead plate goes on, one from the stack; another in hand works the lever instead
-        Assert.Equal(2, CutterClick(player, pos, CutterItem(Folding.LeadPlate, 3))?.StackSize);
+        // a lead half plate goes on, one from the stack; another in hand works the lever instead
+        Assert.Equal(2, CutterClick(player, pos, CutterItem(Folding.LeadHalfPlate, 3))?.StackSize);
         Assert.True(brake.PlateOn);
         Assert.Equal(1, brake.Job.Class);
-        Assert.Equal(Folding.LeadPlate, brake.Plate?.Collectible.Code.ToString());
-        Assert.Contains("A lead plate on the bed, 0% folded", BrakeInfo(brake, player));
+        Assert.Equal(Folding.LeadHalfPlate, brake.Plate?.Collectible.Code.ToString());
+        Assert.Contains("A lead half plate on the bed, 0% folded", BrakeInfo(brake, player));
 
         // nothing moves until the lever is worked; held from the ghost, it folds; let go, it stops
         await World.Ticks(10);
         Assert.Equal(0, brake.Job.Work);
-        var (started, steps) = await BrakeHold(player, BrakeGhost(brake), 20);
+        var (started, steps) = await BrakeHold(player, BrakeGhost(brake), 10);
         Assert.True(started);
-        Assert.Equal(20, steps);
+        Assert.Equal(10, steps);
         double held = brake.Job.Work;
-        Assert.InRange(held, 0.01, 0.7);
+        Assert.InRange(held, 0.01, 0.6);
         Assert.False(brake.Running);
         await World.Ticks(20);
         Assert.Equal(held, brake.Job.Work);
-        // held again with a plate in hand: it works the lever, the plate stays in hand
-        (started, _) = await BrakeHold(player, pos, 5, CutterItem(Folding.LeadPlate));
+        // held again with a half plate in hand: it works the lever, the half plate stays in hand
+        (started, _) = await BrakeHold(player, pos, 5, CutterItem(Folding.LeadHalfPlate));
         Assert.True(started);
         Assert.True(brake.Job.Work > held);
         Assert.Equal(1, player.InventoryManager.ActiveHotbarSlot.StackSize);
@@ -288,7 +292,7 @@ public partial class SharedWorldScenarios
         await World.Ticks(5);
         var near = CutterItemsNear(pos);
         Assert.Equal(1, near.GetValueOrDefault(AngleLead));
-        Assert.Equal(0, near.GetValueOrDefault(Folding.LeadPlate));   // the plate is used up
+        Assert.Equal(0, near.GetValueOrDefault(Folding.LeadHalfPlate));   // the half plate is used up
         // it dropped beyond the output face (native north), in front of the leaf end
         foreach (var e in World.EntitiesIn(new Cuboidi(pos.X - 6, pos.Y - 3, pos.Z - 6, pos.X + 6, pos.Y + 6, pos.Z + 6))
                      .OfType<EntityItem>().Where(e => e.Itemstack.Collectible.Code.ToString() == AngleLead))
@@ -300,7 +304,7 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
-    // Copper folds the same, into one copper angle, at four and a half lever turns a plate against lead's three.
+    // Copper folds the same, into one copper angle, at two and a quarter lever turns a half plate against lead's one and a half.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Press_brake_folds_copper_at_its_own_pace()
     {
@@ -308,10 +312,10 @@ public partial class SharedWorldScenarios
         var player = await CutterPlayer();
         var brake = await PlaceBrake(pos, "west");
         AssembleBrake(brake, player, "game:rod-steel", "game:metalplate-steel");
-        Assert.Null(CutterClick(player, pos, CutterItem(Folding.CopperPlate)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Folding.CopperHalfPlate)));
         Assert.Equal(2, brake.Job.Class);
         Assert.Equal(brake.LeverTurnsPerPlate(1) * 1.5, brake.LeverTurnsPerPlate(2), 3);
-        // three lever turns fold a lead plate, two thirds of a copper one
+        // a lead half plate's lever turns (1.5) fold two thirds of a copper one
         Assert.Equal(0, brake.Fold(2 * Math.PI * brake.LeverTurnsPerPlate(1)));
         Assert.Equal(2 / 3.0, brake.Job.Work, 3);
         Assert.Equal(1, brake.Fold(BrakeRadiansTo(brake, 1)));
@@ -323,28 +327,28 @@ public partial class SharedWorldScenarios
     // ---- Taking back and breaking ----
 
     [AtlasScenario(TimeoutMs = 60_000)]
-    public async Task Press_brake_gives_back_a_flat_plate_and_its_parts_and_everything_when_broken()
+    public async Task Press_brake_gives_back_a_flat_half_plate_and_its_parts_and_everything_when_broken()
     {
         var pos = await CutterSite(-356, -340);
         var player = await CutterPlayer();
         var brake = await PlaceBrake(pos, "north");
         AssembleBrake(brake, player, "game:rod-steel", "game:metalplate-iron");
 
-        // a flat plate comes back by Ctrl; the parts stay while one is on
-        Assert.Null(CutterClick(player, pos, CutterItem(Folding.CopperPlate)));
+        // a flat half plate comes back by Ctrl; the parts stay while one is on
+        Assert.Null(CutterClick(player, pos, CutterItem(Folding.CopperHalfPlate)));
         CutterClick(player, pos, null, ctrl: true);
         Assert.False(brake.PlateOn);
-        Assert.Equal(1, BrakeHeld(player, Folding.CopperPlate));
+        Assert.Equal(1, BrakeHeld(player, Folding.CopperHalfPlate));
         Assert.True(brake.Complete);
         // once folding has begun it stays, and so do the parts
-        Assert.Null(CutterClick(player, pos, CutterItem(Folding.LeadPlate)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Folding.LeadHalfPlate)));
         brake.Fold(BrakeRadiansTo(brake, 0.3));
         CutterClick(player, BrakeGhost(brake), null, ctrl: true);
         Assert.True(brake.PlateOn);
         Assert.True(brake.Complete);
-        Assert.Equal(0, BrakeHeld(player, Folding.LeadPlate));
+        Assert.Equal(0, BrakeHeld(player, Folding.LeadHalfPlate));
 
-        // broken with a plate half folded: the frame and both parts, and the plate is lost
+        // broken with a half plate part folded: the frame and both parts, and the half plate is lost
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(BrakeGhost(brake)).OnBlockBroken(W, BrakeGhost(brake), player);
         await World.Ticks(3);
@@ -353,29 +357,29 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, drops.GetValueOrDefault(BrakeFrame));
         Assert.Equal(1, drops.GetValueOrDefault("game:rod-steel"));
         Assert.Equal(1, drops.GetValueOrDefault("game:metalplate-iron"));
-        Assert.Equal(0, drops.GetValueOrDefault(Folding.LeadPlate));
+        Assert.Equal(0, drops.GetValueOrDefault(Folding.LeadHalfPlate));
         Assert.Equal(0, drops.GetValueOrDefault(AngleLead));
         CutterKillItems(pos);
 
-        // broken with a flat plate on, the plate comes back too
+        // broken with a flat half plate on, it comes back too
         brake = await PlaceBrake(pos, "north");
         AssembleBrake(brake, player);
-        Assert.Null(CutterClick(player, pos, CutterItem(Folding.LeadPlate)));
+        Assert.Null(CutterClick(player, pos, CutterItem(Folding.LeadHalfPlate)));
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
         await World.Ticks(3);
         drops = CutterItemsNear(pos);
-        Assert.Equal(1, drops.GetValueOrDefault(Folding.LeadPlate));
+        Assert.Equal(1, drops.GetValueOrDefault(Folding.LeadHalfPlate));
         Assert.Equal(1, drops.GetValueOrDefault("game:rod-iron"));
         CutterKillItems(pos);
     }
 
     // ---- Infeed and outfeed ----
 
-    // Worked on an empty bed, the brake takes a plate from a chest beyond its far end, never
-    // anything else (an ingot, an angle, a hollow section), and puts the angles in a chest in front of
-    // the leaf end.
+    // Worked on an empty bed, the brake takes a half plate from a chest beyond its far end, never
+    // anything else (a whole plate, an ingot, an angle, a hollow section), and puts the angles in a
+    // chest in front of the leaf end.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Press_brake_takes_plates_from_a_chest_when_worked_and_puts_angles_in_one()
+    public async Task Press_brake_takes_half_plates_from_a_chest_when_worked_and_puts_angles_in_one()
     {
         var pos = await CutterSite(-368, -340);
         var player = await CutterPlayer();
@@ -390,8 +394,9 @@ public partial class SharedWorldScenarios
         var sink = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(outfeed));
         source.Inventory[0].Itemstack = CutterItem("game:ingot-copper");
         source.Inventory[1].Itemstack = CutterItem(AngleLead);
-        source.Inventory[2].Itemstack = CutterItem(Folding.CopperPlate, 2);
+        source.Inventory[2].Itemstack = CutterItem(Folding.CopperHalfPlate, 2);
         source.Inventory[3].Itemstack = CutterItem("game:chutesection-copper");
+        source.Inventory[4].Itemstack = CutterItem("game:metalplate-copper");
         source.MarkDirty(true);
 
         // a hand machine: nothing is taken while no one works it
@@ -405,7 +410,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, brake.Fold(BrakeRadiansTo(brake, 1)));
         Assert.Equal(1, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == AngleCopper).Sum(s => s.StackSize));
         Assert.DoesNotContain(AngleCopper, CutterItemsNear(pos).Keys);
-        // worked again once the leaf has cleared, the next plate goes on
+        // worked again once the leaf has cleared, the next half plate goes on
         await World.Ticks(20);
         (started, _) = await BrakeHold(player, pos, 4);
         Assert.True(started);
@@ -413,12 +418,13 @@ public partial class SharedWorldScenarios
         Assert.True(source.Inventory[2].Empty);
         Assert.Equal(1, brake.Fold(BrakeRadiansTo(brake, 1)));
         Assert.Equal(2, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == AngleCopper).Sum(s => s.StackSize));
-        // only the ingot, the angle and the hollow section are left, and the lever is not worked on them
+        // only the ingot, the angle, the hollow section and the whole plate are left, and the lever is not worked on them
         await World.Ticks(20);
         Assert.False((await BrakeHold(player, pos, 4)).Started);
         Assert.False(brake.PlateOn);
         Assert.Equal(1, source.Inventory[0].StackSize);
         Assert.Equal(AngleLead, source.Inventory[1].Itemstack?.Collectible.Code.ToString());
         Assert.Equal(1, source.Inventory[3].StackSize);
+        Assert.Equal("game:metalplate-copper", source.Inventory[4].Itemstack?.Collectible.Code.ToString());
     }
 }

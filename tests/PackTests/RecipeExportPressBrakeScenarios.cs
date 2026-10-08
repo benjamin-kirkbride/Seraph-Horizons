@@ -8,7 +8,7 @@ namespace SeraphHorizons.PackTests;
 /// The press brake's process (mods-src/seraphhorizons/PressBrake/): a hand-written <c>machine</c>
 /// record per metal, from config/pressbrake-rig.json and the gameplay's PressBrakeSettings defaults,
 /// written down here. A hand machine: power <c>hand</c>, the lever's turns, no wear and no oil; one
-/// angle of the metal a plate.
+/// angle of the metal a half plate (the squaring shear's item; the game's plate never goes on).
 /// </summary>
 public partial class RecipeExportScenarios
 {
@@ -18,13 +18,13 @@ public partial class RecipeExportScenarios
         Json("""{ "name": "Press brake", "count": 2, "shape": "machine", "registry": "PressBrakeSettings", "mod": "seraphhorizons" }""",
             Doc["recipeTypes"]![RecipeSection.PressBrakeType]!);
         var records = Doc["recipes"]!.Cast<JObject>().Where(r => (string)r["type"]! == RecipeSection.PressBrakeType).ToList();
-        Assert.Equal(new[] { "pressbrake|game:metalplate-copper|0", "pressbrake|game:metalplate-lead|0" }, records.Select(r => (string)r["id"]!).Order());
-        foreach (var (metal, turns) in new[] { ("lead", 3.0), ("copper", 4.5) })
+        Assert.Equal(new[] { "pressbrake|seraphhorizons:halfplate-copper|0", "pressbrake|seraphhorizons:halfplate-lead|0" }, records.Select(r => (string)r["id"]!).Order());
+        foreach (var (metal, turns) in new[] { ("lead", 1.5), ("copper", 2.25) })
         {
-            var r = Recipe($"pressbrake|game:metalplate-{metal}|0");
+            var r = Recipe($"pressbrake|seraphhorizons:halfplate-{metal}|0");
             Assert.Equal("seraphhorizons", (string)r["mod"]!);
             var ingredients = (JArray)r["ingredients"]!;
-            Json($$"""{ "code": "game:metalplate-{{metal}}", "kind": "item", "quantity": 1 }""", ingredients[0]);
+            Json($$"""{ "code": "seraphhorizons:halfplate-{{metal}}", "kind": "item", "quantity": 1 }""", ingredients[0]);
             Json("""{ "code": "game:rod-iron", "kind": "item", "quantity": 1, "role": "kept" }""", ingredients[1]);
             Json("""{ "code": "game:metalplate-iron", "kind": "item", "quantity": 1, "role": "kept" }""", ingredients[2]);
             Json("""{ "code": "seraphhorizons:pressbrake-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[3]);

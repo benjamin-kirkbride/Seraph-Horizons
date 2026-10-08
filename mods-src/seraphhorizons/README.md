@@ -12,7 +12,7 @@ into steel gears through the pot, the pickling tub and the barrel (`GearReclamat
 recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
 (`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded from plates on a hand-worked press brake (`PressBrake`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -30,7 +30,7 @@ that has it (a server with the steam source switched off, or without ppex, has n
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
-sawmill's, the rosser's, the gear cutter's, the draw bench's and the press brake's blocks: the server runs the machines, the client draws
+sawmill's, the rosser's, the gear cutter's, the draw bench's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
 their moving parts. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
@@ -1893,12 +1893,13 @@ valves stay as blocks, so those already placed keep working, but nothing makes t
 
 **The chain.** Copper and lead pipe is made in three pieces, iron and steel pipe in one:
 
-- The **angle**, `seraphhorizons:angle-{copper,lead}` ("Copper angle"): a plate bent once at a right
-  angle, two legs 8 across the outside, 1 voxel thick, 8 long (`shapes/item/angle.json`, the press
-  brake's contract), so two make the chute section's 8 x 8 box. Forged on the anvil from one ingot
-  (`recipes/smithing/angle.json`: a 7 x 4 flange with a 7-long web two layers up its back edge, 42
-  voxels, Hydrate or Diedrate 2.5.6's old pipe section pattern re-authored for this item), or folded
-  from one plate on the press brake (`PressBrake`).
+- The **angle**, `seraphhorizons:angle-{copper,lead}` ("Copper angle"): a half plate folded once
+  across its middle at a right angle, two legs 4 across the outside, 1 voxel thick, 4 long
+  (`shapes/item/angle.json`, the press brake's contract). Only the press brake (`PressBrake`) makes
+  one, from one half plate (`seraphhorizons:halfplate-*`, cut from the game's plate on the squaring
+  shear, `SquaringShear`); there is no anvil or grid recipe for it, so with either machine's switch off
+  no angle can be made. Two angles soldered make the 8 x 8 x 8 chute section below, bigger than its two
+  4 x 4 x 4 angles: the owner accepts that as the grid recipe's abstraction.
 - The **hollow section**, named the **tube blank** in game, is the game's chute section
   (`game:chutesection-{material}`, a square tube;
   the game has copper only). `patches/unifiedpipes-chutesection.json` adds `lead` to its `material`
@@ -1920,7 +1921,8 @@ valves stay as blocks, so those already placed keep working, but nothing makes t
   come from a chute section on the mandrel station (2) or the draw bench (4), iron and steel ones from
   smex's canal in the pipe mold (`CastPipes`, 2 a fill of 100 units).
 
-Per ingot of copper or lead: 1 angle, so half a hollow section, so 1 pipe off the mandrel station
+Per ingot of copper or lead: 1 angle (a plate, two ingots, cuts into two half plates, each folded into
+an angle), so half a hollow section, so 1 pipe off the mandrel station
 and 2 off the draw bench; per ingot of iron or steel, 2 cast (`Pipes/Core/PipeSections.cs` holds the
 figures).
 
@@ -2011,7 +2013,7 @@ operations do not depend on which is applied first, and `tools/tests/test_unifie
 patch to ppex's zip and to that file.
 
 With the switch off, or without ppex, the three patch files are emptied in `Start`, the angle, the pipe
-section and this mod's recipes (pipe, soldering the hollow, forging the angle) are marked disabled, and
+section and this mod's recipes (pipe, soldering the hollow) are marked disabled, and
 nothing is patched: ppex's pipes, the game's chute section and its anvil, chute and plate recipes, and
 Better Ruins' chutes are as they ship, and copper, lead and bronze pipes and valves already placed, and
 angles, pipe sections and lead chute sections, are lost. `CastPipes` then stands
@@ -2203,12 +2205,78 @@ disabled before the game loads them, so none of it exists and benches already pl
 machine oil page and the mod's own text no longer name it. The hollow and pipe sections exist either
 way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
 
+### Squaring shear (`SquaringShear`, `SquaringShearSettings`)
+
+The cut rung of the pipe ladder: a tinsmith's foot-treadle squaring shear of the early-to-mid 1800s,
+framed in oak with iron blades, an iron back gauge and an iron hold-down, that cuts one lead or copper
+plate (`game:metalplate-lead`, `-copper`) once, across its middle, into two half plates
+(`seraphhorizons:halfplate-lead`, `-copper`, its own item, 8 × 4 × 1). The press brake folds a half
+plate into an angle; two angles, two solder bars and a soldering iron make a hollow section on the
+grid; the brake takes nothing else, so the shear is the only way to an angle. Its model, rig and
+generator are described in `SquaringShear/README.md`, which also records the
+gameplay's decisions; this is the gameplay, in `SquaringShear/` (rules in `SquaringShear/Core/`, the
+game side in `SquaringShear/Game/`). A hand machine: no mechanical power, no oil, and nothing on it
+wears.
+
+**Blocks and item.** `seraphhorizons:squaringshear-frame-{side}` is the controller: the table end, the
+block the player clicks, with the shear running two blocks away from them along their line of sight
+and a ghost in the far cell (`squaringshear-ghost`). The frame is a grid recipe: three oak planks (the
+table, the crosshead, the treadle), two oak logs (the cheeks and housings), four nails and strips of
+iron, meteoric iron or steel (the treadle's pivots, the links, the crosshead's shoes) and a hammer.
+The half plate (`itemtypes/halfplate.json`) is made only on the shear, stacks to 16 and melts back into
+one ingot.
+
+**Stages.** Fitted by right-click on the frame or the ghost with the item, one item each, in this
+order only; the gauge before the blades is refused with a message naming the next:
+
+| # | Stage (`requires`) | Item | Made |
+|---|---|---|---|
+| 1 | `blade` | `game:metalplate-iron` or `-steel` (ground into the upper and lower blades) | Smithing (the game's) |
+| 2 | `gauge` | `game:rod-iron`, `-meteoriciron` or `-steel` (the back gauge and the hold-down) | Smithing (the game's) |
+
+In creative mode Ctrl + right-click on an incomplete shear fits its next stage with nothing taken.
+**Ctrl + right-click** takes a plate back off while it is still whole; with no plate on, it takes the
+last part fitted back out (the gauge, then the blades). Breaking the frame drops the frame, both parts
+and a plate not yet cut (one being cut is lost).
+
+**Work.** A lead or copper plate goes on the table by right-click (a half plate, what comes off, never
+does, nor an angle or an ingot). Then the player **holds right-click** on the shear, as on the quern:
+the cut runs only while someone holds. The treadle clock makes a stroke a second while held, and the
+cut cycle W (0..1) advances by its strokes over the plate's `StrokesPerPlateLead` (1) or
+`StrokesPerPlateCopper` (1.5): about a second of work for lead, a second and a half for copper. The
+hold-down clamps the plate, the treadle brings the blade down through it (the cut is heard at the
+bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal go into a
+container against the output face (native north, in front of the table end), else drop just outside
+it. Worked with nothing on the table, the shear takes the next plate from a chest or hopper beyond its
+far end (native south), so a player can hold from one plate to the next; it never takes a plate by
+itself. The block info shows the next stage and the plate on, how far cut.
+
+**Drawn.** The block draws `squaringshear_frame.json`; the renderer splits `squaringshear.json` into the
+rig's parts and draws each whose stage is fitted (the blades, the gauge and the hold-down in their
+metal), the crosshead, links and treadle always, and the sheet of the plate's metal while it is on. W
+runs on with the treadle between the server's syncs. While the blade moves: metal dust at the cut;
+while worked: the frame creaks.
+
+| Setting | Default | |
+|---|---|---|
+| `StrokesPerPlateLead` | 1 | Treadle strokes (seconds held) a lead plate takes; the rig's `cut.strokesPerPlate.thin` (a test holds them together) |
+| `StrokesPerPlateCopper` | 1.5 | Treadle strokes a copper plate takes; the rig's `cut.strokesPerPlate.thick` |
+
+With the switch off the server marks both block types, the half plate's item type and the recipe file
+disabled before the game loads them, so none of it exists and shears already placed and half plates
+already made are lost; the mod's own text no longer links the shear or the half plate. The plates and
+the parts it takes are the game's and exist either way. With the shear off, the press brake has nothing
+to fold and refuses work with a message, so no angle can be made. The shear does not need the press
+brake's switch: with `PressBrake` off it still cuts, and its half plates only melt. Not yet: a schematic for
+the frame (`MachineSchematics`).
+
 ### Press brake (`PressBrake`, `PressBrakeSettings`)
 
 The folded rung of the pipe ladder: a hand-worked leaf brake (a cornice brake) of the early-to-mid
-1800s, oak with iron wearing edges and iron clamp screws, that bends one lead or copper plate
-(`game:metalplate-lead`, `-copper`) once, at a right angle, into one angle (`seraphhorizons:angle-lead`,
-`-copper`, `UnifiedPipes`' item), as the anvil forges one from an ingot. Two angles, two solder bars and
+1800s, oak with iron wearing edges and iron clamp screws, that folds one lead or copper half plate
+(`seraphhorizons:halfplate-lead`, `-copper`, cut from the game's plate on the squaring shear) once,
+across its middle, at a right angle, into one angle (`seraphhorizons:angle-lead`, `-copper`,
+`UnifiedPipes`' item): the only way to an angle. Two angles, two solder bars and
 a soldering iron make a hollow section (the game's chute section, the tube blank in game) on the grid; hollow sections make
 chutes, or pipe sections on the mandrel station or the draw bench. Its model, rig and generator are described in `PressBrake/README.md`,
 which also records the gameplay's decisions; this is the gameplay, in `PressBrake/` (rules in
@@ -2230,36 +2298,40 @@ order only; the edges before the screws are refused with a message naming the ne
 | 2 | `edge` | `game:metalplate-iron` or `-steel` (cut into the bed's, leaf's and bar's edges) | Smithing (the game's) |
 
 In creative mode Ctrl + right-click on an incomplete brake fits its next stage with nothing taken.
-**Ctrl + right-click** takes a plate back off while it is still flat; with no plate on, it takes the
+**Ctrl + right-click** takes a half plate back off while it is still flat; with none on, it takes the
 last part fitted back out (the edges, then the screws). Breaking the frame drops the frame, both parts
-and a plate not yet folded (one being folded is lost).
+and a half plate not yet folded (one being folded is lost).
 
-**Work.** A lead or copper plate goes on the bed by right-click (an angle, what comes off, never does,
-nor a hollow section, a pipe section or an ingot). Then the player **holds right-click** on the brake, as on the quern: the fold runs only while
-someone holds. The lever clock turns a turn a second while held, and the fold cycle W (0..1) advances
-by its turns over the plate's `LeverTurnsPerPlateLead` (3) or `LeverTurnsPerPlateCopper` (4.5): about
-three seconds of work for lead, four and a half for copper. The bend is heard at the leaf's one fold; at
-W = 1 the plate is used up and one angle of its metal goes into a container against the output face
-(native north, in front of the leaf end), else drop just outside it. Worked with nothing on the bed,
-the brake takes the next plate from a chest or hopper beyond its far end (native south), so a player
-can hold from one plate to the next; it never takes a plate by itself. The block info shows the next
-stage and the plate on, how far folded.
+**Work.** A lead or copper half plate goes on the bed by right-click, lying across the folding edge, half
+on the bed and half over the leaf (the game's whole plate never does, nor an angle, what comes off, a
+hollow section, a pipe section or an ingot). Then the player **holds right-click** on the brake, as on
+the quern: the fold runs only while someone holds. The lever clock turns a turn a second while held, and
+the fold cycle W (0..1) advances by its turns over the half plate's `LeverTurnsPerPlateLead` (1.5) or
+`LeverTurnsPerPlateCopper` (2.25): about a second and a half of work for lead, two and a quarter for
+copper. The bar clamps the half on the bed and the leaf folds the other half up; the bend is heard at
+the leaf's one fold; at W = 1 the half plate is used up and one angle of its metal (two 4-wide legs, 4
+long) goes into a container against the output face (native north, in front of the leaf end), else drop
+just outside it. Worked with nothing on the bed, the brake takes the next half plate from a chest or
+hopper beyond its far end (native south), so a player can hold from one to the next; it never takes one
+by itself. The block info shows the next stage and the half plate on, how far folded.
 
 **Drawn.** The block draws `pressbrake_frame.json`; the renderer splits `pressbrake.json` into the
 rig's parts and draws each whose stage is fitted (the screws and edges in their metal) and the sheet of
-the plate's metal while it is on. W runs on with the lever between the server's syncs. While the leaf
+the half plate's metal while it is on. W runs on with the lever between the server's syncs. While the leaf
 swings: metal dust at the folding edge; while worked: the frame creaks.
 
 | Setting | Default | |
 |---|---|---|
-| `LeverTurnsPerPlateLead` | 3 | Lever turns (seconds held) a lead plate takes; the rig's `fold.leverTurnsPerPlate.thin` (a test holds them together) |
-| `LeverTurnsPerPlateCopper` | 4.5 | Lever turns a copper plate takes; the rig's `fold.leverTurnsPerPlate.thick` |
+| `LeverTurnsPerPlateLead` | 1.5 | Lever turns (seconds held) a lead half plate takes; the rig's `fold.leverTurnsPerPlate.thin` (a test holds them together) |
+| `LeverTurnsPerPlateCopper` | 2.25 | Lever turns a copper half plate takes; the rig's `fold.leverTurnsPerPlate.thick` |
 
 With the switch off the server marks both block types and the recipe file disabled before the game
 loads them, so none of it exists and brakes already placed are lost; the mod's own text no longer
-links it. The plates and the angles exist either way (the angles are `UnifiedPipes`'; with that switch
-off there are none, and the brake refuses plates with a message). Not yet: a schematic for
-the frame (`MachineSchematics`).
+links it, and no angle can be made. The half plates and the angles exist either way. The half plates
+are `SquaringShear`'s: with that switch off there are none, and a complete brake refuses work with a
+message saying the shear is switched off. The angles are `UnifiedPipes`'; with that switch off there
+are none, and the brake refuses half plates with a message. Not yet: a schematic for the frame
+(`MachineSchematics`).
 
 ### Mandrel forging station (`MandrelStation`, `MandrelStationSettings`)
 
@@ -3072,7 +3144,8 @@ the CastPipes switch's patch adds to smex's tool mold (`smex:toolmold-*-pipe`), 
 exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `GearReclamation`;
 `gearcutter`: `GearCutter`; `drawbench`: `DrawBench`, whose type and recipe files are
 `DrawBenchSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
-`PressBrakeSystem.TypeAssets` and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
+`PressBrakeSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
+`SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
 `SwitchForCode(code)`; the exporter calls `SwitchRegistry.For(api)` by reflection.
 
@@ -3085,6 +3158,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `GearCutter` | the cutter's blocks and parts, its grid and smithing recipes, the cutter records |
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
+| `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
@@ -3498,9 +3572,13 @@ drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
 `tests/GearCutter/GearCutterGameplayTests.cs`), the draw bench's build order, die metal, take-back,
 drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/Core/`,
 `tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the press brake's build order,
-take-back, plates by metal, fold arithmetic (W only while held, two sections at 1), lever holds, renderer
+take-back, half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
+1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
-`PressBrakeRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
+`PressBrakeRigTests.cs`), the squaring shear's build order, take-back, plates by metal, cut arithmetic
+(W only while held, two half plates at 1), treadle holds, renderer clock, settings and rig
+(`SquaringShear/Core/`, `tests/SquaringShear/SquaringShearGameplayTests.cs`,
+`SquaringShearRigTests.cs`), the mandrel station's mandrel, take-back, hollows by metal,
 blows (two sections at the last), renderer clock, settings and rig (`MandrelStation/Core/`,
 `tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the handcar's drive (pumping by
 facing, solo and pair, braking and holding, load), branch selector, distance rolled, stroke phase, effort fade,
@@ -3510,8 +3588,8 @@ and the unified pipes' burst figures, lead rule, recipe cost filter and the guar
 to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on the
 game's chute section, its anvil recipe and the chute recipes (held to copies of 1.22.7's, the item and
 chutes trimmed, and to the shipped patch applied to them) and the two-angle soldering recipe
-(`Pipes/Core/ChuteSections.cs`, `tests/Pipes/ChuteSectionsTests.cs`), the angle's item, L shape and
-anvil recipe, the pipe section's item and tube shape, every pipe recipe from pipe sections and the
+(`Pipes/Core/ChuteSections.cs`, `tests/Pipes/ChuteSectionsTests.cs`), the angle's item and 4 + 4
+L shape (no recipe makes it), the pipe section's item and tube shape, every pipe recipe from pipe sections and the
 chain's figures (`Pipes/Core/PipeSections.cs`, `tests/Pipes/PipeSectionsTests.cs`), and the cast pipes'
 guard on smex's two mold files (held to trimmed copies of smex 0.10.1's, and to the shipped patch
 applied to them) and the chain's two pipe sections an ingot, held to the shipped patch
@@ -3832,23 +3910,47 @@ the hollow, the four kept stages (two chains and two rods among them), the dies 
 frame, four pipe sections.
 
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
-the press brake's blocks, the rods and plates its stages take, the lead and copper plates and open
-sections, its recipe, and the settings' pace the rig's; placing on all four facings, the brake running
-away along the facing, the ghost pointing home, both cells' lids, the infeed and outfeed cells, and both
-cells cleared and the frame dropped on breaking; the stages fitted in order by real clicks on the frame
-and the ghost, the edges before the screws, a plate before both, an empty hand on a bare frame and a
-copper rod refused, a save keeping every code, Ctrl taking the edges then the screws back, and the
-creative shortcut; a lead plate folded only while right-click is held (the block's own start, steps
-and stop, from the ghost), nothing moving when let go, a closed chute section, an ingot, a tin plate and
-an open section never taken, a plate in hand working the lever on a loaded bed, and two open sections
-dropped beyond the output face, the plate used up; copper at half as many turns again; a flat plate
-back by Ctrl, a half-folded one and the parts staying, and breaking giving back the parts and a flat
-plate (not a half-folded one); and plates taken from a chest at the infeed only when the lever is
-worked (never an ingot or an open section) and sections put in a chest at the output. With the switch
-off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to it, and nothing logged.
+the press brake's blocks, the rods and plates its stages take, the lead and copper half plates it folds
+and the angles it makes, no anvil or grid recipe for an angle, its recipe, and the settings' pace the
+rig's; placing on all four facings, the brake running away along the facing, the ghost pointing home,
+both cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on
+breaking; the stages fitted in order by real clicks on the frame and the ghost, the edges before the
+screws, a half plate before both, an empty hand on a bare frame and a copper rod refused, a save keeping
+every code, Ctrl taking the edges then the screws back, and the creative shortcut; a lead half plate
+folded only while right-click is held (the block's own start, steps and stop, from the ghost), nothing
+moving when let go, a whole lead or copper plate, a chute section, a pipe section, an ingot, a tin plate
+and an angle never taken, a half plate in hand working the lever on a loaded bed, and one angle dropped
+beyond the output face, the half plate used up; copper at half as many turns again; a flat half plate
+back by Ctrl, a part-folded one and the parts staying, and breaking giving back the parts and a flat
+half plate (not a part-folded one); and half plates taken from a chest at the infeed only when the lever
+is worked (never an ingot, an angle, a chute section or a whole plate) and angles put in a chest at the
+output. With the switch off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to
+it, no half plate (`SquaringShear` is off there too), and nothing logged. No Atlas world has the brake on
+and the shear off, so the brake's refusal there (`pressbrake-error-no-halfplates`) is not run.
 `RecipeExportPressBrakeScenarios.cs` requires one `machine` record per metal
-(`pressbrake|game:metalplate-{metal}|0`): the plate, the two kept stages, the frame, two open sections,
-power `hand` at the lever's 6 or 9 turns, no wear and no oil.
+(`pressbrake|seraphhorizons:halfplate-{metal}|0`): the half plate, the two kept stages, the frame, one
+angle, power `hand` at the lever's 1.5 or 2.25 turns, no wear and no oil.
+
+`tests/PackTests/SquaringShearScenarios.cs` (Atlas, the shared world, the gear cutter's player)
+requires the shear's blocks and half plates (their names, a half plate melting into one ingot), the
+plates and rods its stages take, the lead and copper plates, its recipe and no other recipe for a half
+plate, and the settings' pace the rig's; placing on all four facings, the shear running away along the
+facing, the ghost pointing home, both cells' lids, the infeed and outfeed cells, and both cells cleared
+and the frame dropped on breaking; the stages fitted in order by real clicks on the frame and the
+ghost, the gauge before the blades, a plate before both, an empty hand on a bare frame and a copper rod
+refused, a save keeping every code, Ctrl taking the gauge then the blades back, and the creative
+shortcut; a lead plate cut only while right-click is held (the block's own start, steps and stop, from
+the ghost), nothing moving when let go, its own half plates, an angle, an ingot and a tin plate never
+taken, a plate in hand working the treadle on a loaded table, and two half plates dropped beyond the
+output face, the plate used up; copper at half as many strokes again; a whole plate back by Ctrl, a
+half-cut one and the parts staying, and breaking giving back the parts and a whole plate (not a half-cut
+one); and plates taken from a chest at the infeed only when the treadle is worked (never an ingot, a half
+plate or an angle) and half plates put in a chest at the output. With the switch off,
+`SwitchesOffScenarios` requires none of its blocks, no half plate and no recipe, no link to either, and
+nothing logged. `RecipeExportSquaringShearScenarios.cs` requires one `machine` record per metal
+(`squaringshear|game:metalplate-{metal}|0`): the plate, the two kept stages, the frame, two half plates,
+power `hand` at the treadle's 1 or 1.5 strokes (work in strokes), no wear and no oil, and the record,
+the half plates and the frame's recipe owned by `SquaringShear`.
 
 `tests/PackTests/MandrelStationScenarios.cs` (Atlas, the shared world, the gear cutter's player)
 requires the station's blocks, the rods it takes as its mandrel, the lead and copper hollows and pipe
@@ -3898,7 +4000,7 @@ bronze figure, and the iron and steel ones unlisted; none of ppex's plate-and-na
 left, and this mod's resolving (every shape in all four metals from pipe sections of the metal, in
 the right number, with a solder bar a section and the soldering iron or one nails and strips and a
 hammer, no pipe from a chute section, and the bronze valves); the chain: the angle in copper and lead,
-named, with its handbook section and forged from one ingot of its metal; the chute section in copper
+named, with its handbook section and no anvil or grid recipe (the press brake alone makes one); the chute section in copper
 and lead only, named, only copper in the mechanics tab, with its handbook section, no anvil recipe for
 it and on the grid only two angles, two solder bars and the soldering iron making one; the pipe
 section in all four metals, named, with its handbook section and no grid or anvil recipe; the game's

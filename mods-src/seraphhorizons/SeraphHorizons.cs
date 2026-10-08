@@ -777,16 +777,29 @@ public class SeraphHorizonsConfig
     public DrawBench.Core.DrawBenchConfig DrawBenchSettings { get; set; } = new();
 
     /// <summary>The press brake (PressBrake/, README "Press brake"): a hand-worked leaf brake of oak
-    /// with iron edges and screws, built on a frame in two stages (two rods as its clamp screws, a
-    /// plate as its wearing edges), that folds a lead or copper plate into two open chute sections
-    /// while the player holds right-click on it, as on the quern; no power and no oil (off means its
-    /// blocks and its recipe do not exist, and brakes already placed are lost). The server's setting
-    /// decides.</summary>
+    /// with iron edges and screws, built on a frame in two stages (a rod as its clamp screws, a plate
+    /// as its wearing edges), that folds a lead or copper half plate (the squaring shear's) once across
+    /// its middle into an angle while the player holds right-click on it, as on the quern: the only
+    /// maker of angles; no power and no oil (off means its blocks and its recipe do not exist, and
+    /// brakes already placed are lost; with <see cref="SquaringShear"/> off it has no half plates and
+    /// refuses work). The server's setting decides.</summary>
     public bool PressBrake { get; set; } = true;
 
     /// <summary>The press brake's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public PressBrake.Core.PressBrakeConfig PressBrakeSettings { get; set; } = new();
+
+    /// <summary>The squaring shear (SquaringShear/, README "Squaring shear"): a tinsmith's
+    /// foot-treadle squaring shear of oak with iron blades, built on a frame in two stages (a plate as
+    /// its blades, a rod as its back gauge and hold-down), that cuts a lead or copper plate across its
+    /// middle into two half plates while the player holds right-click on it, as on the quern; no power
+    /// and no oil (off means its blocks, the half plate and its recipe do not exist, and shears already
+    /// placed and half plates already made are lost). The server's setting decides.</summary>
+    public bool SquaringShear { get; set; } = true;
+
+    /// <summary>The squaring shear's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public SquaringShear.Core.SquaringShearConfig SquaringShearSettings { get; set; } = new();
 
     /// <summary>The mandrel forging station (MandrelStation/, README "Mandrel forging station"): an
     /// oak stump with an iron bracket holding a rod as its mandrel, on which a lead or copper hollow

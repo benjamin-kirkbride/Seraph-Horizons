@@ -1,7 +1,9 @@
 // seraphhorizons' UnifiedPipes switch (README.md "Unified pipes"): the hollow section. Two copper or
-// lead angles (seraphhorizons:angle-*, forged or folded on the press brake), soldered together along
-// both seams with two tin or silver solder bars and a soldering iron (2 durability, as the game's own
-// soldering), make one of the game's chute sections of that metal. This is the only way to one: the
+// lead angles (seraphhorizons:angle-*, folded on the press brake from half plates), soldered together
+// along both seams with two tin or silver solder bars and a soldering iron (2 durability, as the game's
+// own soldering), make one of the game's chute sections of that metal. The section (8 x 8 x 8) is
+// bigger than its two 4 x 4 x 4 angles: the accepted abstraction of this recipe (PressBrake/README.md,
+// "Known weak spots" 1). This is the only way to one: the
 // game's anvil recipe and its one-step "plate + solder + soldering iron + hammer" recipe are switched
 // off (patches/unifiedpipes-chutesection.json). Marked disabled by UnifiedPipesSystem with the switch off.
 [

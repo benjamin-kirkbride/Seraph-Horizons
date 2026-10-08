@@ -1,0 +1,22 @@
+// The squaring shear (SquaringShear/, README "Squaring shear"). The server disables it with
+// SquaringShear off.
+[
+	{
+		// The frame: a tinsmith's treadle shear of the early 1800s, framed in wood. Oak planks for the
+		// table, the crosshead and the treadle, oak logs for the end cheeks and their housings, and iron
+		// fittings (the treadle's pivot pins and bosses, the links, the crosshead's shoes) from nails and
+		// strips of iron, meteoric iron or steel, put together with a hammer. Its working iron goes in
+		// afterwards, fitted by hand: a plate for the blades, then a rod for the back gauge and the
+		// hold-down. Iron throughout, so the shear is an iron-age machine, as the press brake is.
+		ingredientPattern: "PPP,NHN,L_L",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
+			"P": { type: "item", code: "game:plank-oak" },
+			"L": { type: "block", code: "game:log-placed-oak-ud" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:squaringshear-frame-north" }
+	}
+]

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { compileGlobs, flattenShape, partMatrices, partOf, rigInputs, rideOrder, textureCodes, workEnd, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The press brake's shipped files, and the poses PressBrake/tools/make_shape.py computes from them with
-// machinegen's reference maths. Its rig reads W (the fold cycle of one plate: one fold, one angle), k (the plate's metal), p and θ
+// machinegen's reference maths. Its rig reads W (the fold cycle of one half plate: one fold, one angle), k (its metal), p and θ
 // (the lever's work, carried by a ratio-0 rotate so the viewer offers Play); every motion is a gauge.
 // tools/tests/test_pressbrake_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
@@ -78,8 +78,9 @@ describe("the press brake's rig against its rig-reference.json", () => {
     expect([...codes.screws!]).toEqual(["screw"]);
     expect([...codes.platelead!]).toEqual(["lead"]);
     expect([...codes.platecopper!]).toEqual(["copper"]);
-    const fold = (rig as unknown as { fold: { leverTurnsPerPlate: { thin: number; thick: number }; anglesPerPlate: number; angles: Record<string, string> } }).fold;
-    expect(fold.leverTurnsPerPlate.thick).toBeGreaterThan(fold.leverTurnsPerPlate.thin);
+    const fold = (rig as unknown as { fold: { leverTurnsPerPlate: { thin: number; thick: number }; anglesPerPlate: number; plates: Record<string, string>; angles: Record<string, string> } }).fold;
+    expect(fold.leverTurnsPerPlate).toEqual({ thin: 1.5, thick: 2.25 });
+    expect(fold.plates).toEqual({ thin: "seraphhorizons:halfplate-lead", thick: "seraphhorizons:halfplate-copper" });
     expect(fold.anglesPerPlate).toBe(1);
     expect(fold.angles).toEqual({ thin: "seraphhorizons:angle-lead", thick: "seraphhorizons:angle-copper" });
   });

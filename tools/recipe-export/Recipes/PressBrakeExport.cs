@@ -4,8 +4,8 @@ using Vintagestory.API.Server;
 
 namespace SeraphHorizons.RecipeExport.Recipes;
 
-/// <summary>One metal the press brake folds: the plate (consumed) and the angle it becomes, one to
-/// a plate, at its lever turns a plate.</summary>
+/// <summary>One metal the press brake folds: the half plate (consumed) and the angle it becomes, one
+/// to a half plate, at its lever turns a half plate.</summary>
 public sealed record FoldClass(string Name, string Metal, Item Plate, Item Angle, double LeverTurnsPerPlate);
 
 public sealed class PressBrakeData
@@ -21,11 +21,11 @@ public sealed class PressBrakeData
 
 /// <summary>
 /// The press brake (seraphhorizons, PressBrake/): its process, read as the draw bench's is
-/// (<see cref="DrawBenchExport"/>): the rig (config/pressbrake-rig.json) gives the plate and angle
-/// of each class and the angles a plate; the gameplay's PressBrakeSettings
+/// (<see cref="DrawBenchExport"/>): the rig (config/pressbrake-rig.json) gives the half plate and
+/// angle of each class and the angles a half plate; the gameplay's PressBrakeSettings
 /// (LeverTurnsPerPlateLead, LeverTurnsPerPlateCopper) are read live from the server's config. A hand
 /// machine: no oil and no wear. Null when the mod is not loaded, its switch is off or what it names
-/// is not registered.
+/// is not registered (with the SquaringShear switch off there is no half plate, so no record).
 /// </summary>
 public static class PressBrakeExport
 {
@@ -75,7 +75,7 @@ public static class PressBrakeExport
         }
         foreach (var (name, metal, turnsKey) in new[] { ("thin", "lead", "LeverTurnsPerPlateLead"), ("thick", "copper", "LeverTurnsPerPlateCopper") })
         {
-            if (ItemOf(api, (string?)fold?["plates"]?[name] ?? "game:metalplate-" + metal) is not { } plate) continue;
+            if (ItemOf(api, (string?)fold?["plates"]?[name] ?? "seraphhorizons:halfplate-" + metal) is not { } plate) continue;
             if (ItemOf(api, (string?)fold?["angles"]?[name] ?? "seraphhorizons:angle-" + metal) is not { } angle) continue;
             double turns = Dbl(settings, turnsKey, (double?)fold?["leverTurnsPerPlate"]?[name] ?? 0);
             if (!(turns > 0)) continue;

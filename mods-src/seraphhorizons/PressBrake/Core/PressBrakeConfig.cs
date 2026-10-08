@@ -7,17 +7,17 @@ namespace SeraphHorizons.Mod.PressBrake.Core;
 public class PressBrakeConfig
 {
     /// <summary>Turns of the lever clock (<see cref="Folding.LeverTurnsPerSecond"/> a second while
-    /// the player holds right-click) a lead plate takes, as the model is drawn (the rig's
+    /// the player holds right-click) a lead half plate takes, as the model is drawn (the rig's
     /// <c>fold.leverTurnsPerPlate.thin</c>; a test holds the two together).</summary>
-    public float LeverTurnsPerPlateLead { get; set; } = 3f;
+    public float LeverTurnsPerPlateLead { get; set; } = 1.5f;
 
-    /// <summary>Lever turns a copper plate takes: half as much again as lead's (the rig's
+    /// <summary>Lever turns a copper half plate takes: half as much again as lead's (the rig's
     /// <c>fold.leverTurnsPerPlate.thick</c>).</summary>
-    public float LeverTurnsPerPlateCopper { get; set; } = 4.5f;
+    public float LeverTurnsPerPlateCopper { get; set; } = 2.25f;
 
     public static readonly PressBrakeConfig Defaults = new();
 
-    /// <summary>Lever turns a plate of class <paramref name="k"/> takes (1 lead, 2 copper); 0 else.</summary>
+    /// <summary>Lever turns a half plate of class <paramref name="k"/> takes (1 lead, 2 copper); 0 else.</summary>
     public double LeverTurnsPerPlate(int k) => k switch { 1 => LeverTurnsPerPlateLead, 2 => LeverTurnsPerPlateCopper, _ => 0 };
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
