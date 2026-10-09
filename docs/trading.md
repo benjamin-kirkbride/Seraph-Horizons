@@ -1252,6 +1252,18 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     marked (`--json` too: `pityUsed`, `reach`, and per offer `ring` and `pity`).
   - Leads of the old kinds (`prospector`, `far`) in players' bags still read; old camp lead offers
     left on a shelf until its next restock show sold out and are refused.
+- **Ore map prices** (`MapPriceTable.OrePrice`): `bandMiddleIngots × ingotValue × share[precision] ×
+  scarcity`, rounded, at least 1 gear, no other floor. `bandMiddleIngots` is the middle of the size
+  class's third of the metal's `smallIngots..largeIngots` (`config/ore-sizes.json`, read through
+  `DepositService.TargetsFor`; the thirds are `DepositSizing.Classify`'s), the medium band for
+  `unsurveyed`: the class, never the measured size, so the price tells the buyer no more than the
+  offer's size class does. `ingotValue` is `game:ingot-<metal>`'s item value
+  (`ItemValuesSystem`), passed in so the core stays game-independent. `share` (0.03 / 0.06 / 0.10)
+  and `scarcity` (3 for gold, silver, nickel, titanium, chromium and platinum, the metals districts
+  hide; 1 otherwise) are in `map-prices.json`. A metal with no size range or no ingot value has no
+  price: its offers are left out, with one warning per metal (a test holds every ranged metal to a
+  value). This replaced a hand table by size and precision (5–32 gears) times a metal factor
+  (0.9–1.8), which did not follow the metals' values.
 - **Per player.** At a restock offers are priced for nobody (precision 1). When the trading player
   changes (`TradingPlayerPriced`), every offer is re-priced and an ore map offer's precision set to
   `MapOffers.MaxPrecision(mapTier)` (0 → 1, 1 → 2, 2+ → 3), times standing's factor through the

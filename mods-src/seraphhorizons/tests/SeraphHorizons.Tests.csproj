@@ -130,6 +130,7 @@
     <!-- Maps and leads at traders (#455): offer selection, tier gating, lead targets, and the shipped price table. -->
     <Compile Include="../Trading/Maps/Core/**/*.cs" Link="Trading/Maps/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/trading/map-prices.json" Link="map-prices.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/config/ore-sizes.json" Link="ore-sizes.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Gear reclamation (#474, #475, #477): the roll, flash rust hours, settings, optional
          ingredients; and the shipped item types and recipes held to them. -->
     <Compile Include="../GearReclamation/Core/**/*.cs" Link="GearReclamation/Core/%(RecursiveDir)%(Filename)%(Extension)" />

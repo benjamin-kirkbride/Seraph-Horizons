@@ -3409,8 +3409,13 @@ carry their own discount instead).
 - **Ore maps**, from prospectors: one offer per metal, the nearest unsold deposit of the deposit
   registry within 5 km (whether or not anyone has generated its chunks), at most four metals,
   nearest first. A stranger is offered precision 1 (within 400 m); standing's map tier buys
-  precision 2 (tier 1, "known") and exact maps (tier 2 up). Price by precision and the deposit's
-  last measured size (5–32 gears, "unsurveyed" until measured), times the metal's factor.
+  precision 2 (tier 1, "known") and exact maps (tier 2 up). The price is a share of the deposit's
+  worth: the ingots in the middle of its size class's band (small, medium and large are the bottom,
+  middle and top third of the metal's range in `config/ore-sizes.json`; a deposit not yet measured
+  counts as medium) times the item value of the metal's ingot, times 3% (precision 1), 6% (2) or 10%
+  (exact), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
+  middle, never the measured size. A medium copper deposit's map costs 36, 71 or 119 gears, a medium
+  gold one's 93, 186 or 311.
 - **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
 - **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
   map to a trader within some radius that you don't already have, and the radius and count grow
@@ -3519,7 +3524,7 @@ have had their first map, and the leads a trader offers them now with their ring
 first map marked (yourself and the nearest trader if none given).
 
 Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
-table, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
+table, ore map prices by the formula against the shipped ore sizes and item values, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
 marker replaced by the met trader's, old markers matched by icon, place and title; camp leads
 (`CampLeadsTests`): rings between cells, the shipped tiers, reach in rings, the price by the formula
 in a table, prices never rising with standing, count and reach per tier, the prospector first, the
