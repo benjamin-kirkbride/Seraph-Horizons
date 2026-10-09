@@ -32,6 +32,10 @@ export interface ShapeElement {
   rotationX?: number;
   rotationY?: number;
   rotationZ?: number;
+  /** The element's scale about its rotation origin (1 when not given); no generated shape has one. */
+  scaleX?: number;
+  scaleY?: number;
+  scaleZ?: number;
   faces?: Partial<Record<FaceName, ShapeFace>>;
   children?: ShapeElement[];
 }
@@ -39,6 +43,8 @@ export interface ShapeElement {
 export interface Shape {
   textures?: Record<string, string>;
   elements: ShapeElement[];
+  /** Keyframe animations (keyframes.ts reads them). */
+  animations?: unknown;
 }
 
 export const FACE_NAMES = ["north", "east", "south", "west", "up", "down"] as const;
@@ -354,11 +360,21 @@ function along(axis: Axis, offset: number): Mat4 {
 
 // ---- shapes
 
-/** An element's own transform: Rx·Ry·Rz (degrees) about its rotationOrigin, the order VS applies them in. */
+/** An element's own transform: Rx·Ry·Rz (degrees), then its scale, about its rotationOrigin, the order VS applies them in (ShapeElement.GetLocalTransformMatrix). */
 export function elementLocal(e: ShapeElement): Mat4 {
   const o = e.rotationOrigin ?? [0, 0, 0];
   const deg = Math.PI / 180;
-  const r = multiply(rotation("x", (e.rotationX ?? 0) * deg), multiply(rotation("y", (e.rotationY ?? 0) * deg), rotation("z", (e.rotationZ ?? 0) * deg)));
+  let r = multiply(rotation("x", (e.rotationX ?? 0) * deg), multiply(rotation("y", (e.rotationY ?? 0) * deg), rotation("z", (e.rotationZ ?? 0) * deg)));
+  const sx = e.scaleX ?? 1;
+  const sy = e.scaleY ?? 1;
+  const sz = e.scaleZ ?? 1;
+  if (sx !== 1 || sy !== 1 || sz !== 1) {
+    const s = identity();
+    s[0] = sx;
+    s[5] = sy;
+    s[10] = sz;
+    r = multiply(r, s);
+  }
   return about(r, o);
 }
 

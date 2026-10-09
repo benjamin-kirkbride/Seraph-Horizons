@@ -4,6 +4,7 @@
   // the list work without WebGL. The maths is in src/lib/ (rig.ts, model-view.ts,
   // model-scenario.ts); the scene in src/viewer/model-scene.ts.
   import { onDestroy } from "svelte";
+  import { advanceFrame, animationOptions, animationSpeed, FRAMES_PER_SECOND, jointDeltas, loopsByDefault } from "../lib/keyframes.ts";
   import { loadModelFiles } from "../lib/model-data.ts";
   import type { PublishedModel } from "../lib/model-manifest.ts";
   import {
@@ -80,6 +81,7 @@
           propChoice = m.scenario?.prop?.default ?? "none";
           inputSpeed = defaultInputSpeed(m.scenario?.play, v?.speed ? turnsPerSecondAt(v.speed, v) : null);
           choose();
+          selectAnimation(m.scenario?.animations?.default?.toLowerCase() ?? "");
         } catch (e) {
           failed = (e as Error).message;
         }
@@ -171,6 +173,18 @@
   const phaseLabel = $derived(motion.phase ? (play?.phases.find((p) => p.id === motion.phase)?.label ?? motion.phase) : null);
   const status = $derived(playing ? (phaseLabel ?? (vehicle ? s.rolling : s.playHintTurn)) : phaseLabel ? s.paused(phaseLabel.toLowerCase()) : s.posedByHand);
 
+  // ---- the shape's own keyframe animations (keyframes.ts): one at a time, posed at a frame
+  let animCode = $state("");
+  let animFrame = $state(0);
+  let animPlaying = $state(false);
+  let animSpeed = $state(1);
+  let animLoop = $state(true);
+  const animations = $derived(view?.animation.animations ?? []);
+  const currentAnim = $derived(animations.find((a) => a.code === animCode) ?? null);
+  const animGroups = $derived(animationOptions(animations, scenario?.animations));
+  // Each joint's motion at the frame; null at rest. The rig's part matrices pose the parts around them.
+  const jointMatrices = $derived(view && currentAnim ? jointDeltas(view.animation, view.flat, currentAnim, animFrame) : null);
+
   // ---- the 3D scene
   let canvas = $state<HTMLCanvasElement>();
   let labelLayer = $state<HTMLElement>();
@@ -219,7 +233,7 @@
     };
   });
 
-  $effect(() => scene?.pose(matrices, visible));
+  $effect(() => scene?.pose(matrices, visible, jointMatrices));
   $effect(() => scene?.colourBy(colourMode));
   $effect(() => scene?.setEdges(edges));
   $effect(() => scene?.setProp(box));
@@ -357,7 +371,43 @@
     last = null;
     frame = requestAnimationFrame(tick);
   }
+  /** Selects an animation by code ("" for none), at its first frame, looping as the game does and at its speed. */
+  function selectAnimation(code: string) {
+    const a = animations.find((x) => x.code === code) ?? null;
+    animCode = a ? a.code : "";
+    animFrame = 0;
+    if (!a) stopAnimation();
+    else {
+      animLoop = loopsByDefault(a);
+      animSpeed = animationSpeed(scenario?.animations, a.code);
+    }
+  }
+  let animRaf = 0;
+  let animLast: number | null = null;
+  function animTick(time: number) {
+    animRaf = requestAnimationFrame(animTick);
+    const dt = animLast === null ? 0 : Math.min(0.1, (time - animLast) / 1000);
+    animLast = time;
+    if (!currentAnim) return stopAnimation();
+    const next = advanceFrame(currentAnim, animFrame, dt, animSpeed, animLoop);
+    animFrame = next.frame;
+    if (next.ended) stopAnimation();
+  }
+  function stopAnimation() {
+    animPlaying = false;
+    cancelAnimationFrame(animRaf);
+    animLast = null;
+  }
+  function toggleAnimation() {
+    if (animPlaying || !currentAnim) return stopAnimation();
+    // Played to its end without looping: Play starts it again.
+    if (!animLoop && animFrame >= currentAnim.frames - 1) animFrame = 0;
+    animPlaying = true;
+    animLast = null;
+    animRaf = requestAnimationFrame(animTick);
+  }
   onDestroy(() => {
+    cancelAnimationFrame(animRaf);
     cancelAnimationFrame(frame);
     cancelAnimationFrame(hoverFrame);
   });
@@ -521,6 +571,50 @@
     </div>
 
     <aside class="controls" data-testid="model-controls">
+      {#if animations.length > 0}
+        <fieldset data-testid="model-animation">
+          <legend>{s.animation}</legend>
+          <select aria-label={s.animation} value={animCode} onchange={(e) => selectAnimation(e.currentTarget.value)} data-input="animation">
+            <option value="">{s.animationNone}</option>
+            {#each animGroups as g, gi (gi)}
+              {#if g.label === null && animGroups.length === 1}
+                {#each g.options as o (o.code)}<option value={o.code}>{o.label}</option>{/each}
+              {:else}
+                <optgroup label={g.label ?? s.animationOther}>
+                  {#each g.options as o (o.code)}<option value={o.code}>{o.label}</option>{/each}
+                </optgroup>
+              {/if}
+            {/each}
+          </select>
+          {#if currentAnim}
+            <label class="slider">
+              <span class="row"><span>{s.animationFrame}</span><output data-testid="model-anim-frame">{s.frameOf(Math.floor(animFrame), currentAnim.frames - 1)}</output></span>
+              <input
+                type="range"
+                min="0"
+                max={currentAnim.frames - 1}
+                step="1"
+                value={Math.floor(animFrame)}
+                oninput={(e) => {
+                  stopAnimation();
+                  animFrame = +e.currentTarget.value;
+                }}
+                data-input="anim-frame"
+              />
+            </label>
+            <div class="row play-row">
+              <button type="button" class="play" aria-pressed={animPlaying} onclick={toggleAnimation} data-input="anim-play">{animPlaying ? s.pause : s.play}</button>
+              <label class="check"><input type="checkbox" bind:checked={animLoop} data-input="anim-loop" /> {s.animationLoop}</label>
+            </div>
+            <label class="slider">
+              <span class="row"><span>{s.animationSpeed}</span><output data-testid="model-anim-speed">{s.animationSpeedOf(animSpeed)}</output></span>
+              <input type="range" min="0" max="4" step="0.05" bind:value={animSpeed} data-input="anim-speed" />
+            </label>
+            <span class="muted small">{s.animationLength(currentAnim.frames, currentAnim.frames / FRAMES_PER_SECOND)}. {s.animationEnds[currentAnim.onAnimationEnd] ?? ""}</span>
+          {/if}
+          <span class="muted small">{s.animationHint}</span>
+        </fieldset>
+      {/if}
       {#if view.inputs.theta || view.inputs.travel || view.inputs.depth || view.inputs.lifting || view.inputs.work || view.inputs.size || view.inputs.presence || view.inputs.feed || view.inputs.oil}
         <fieldset>
           <legend>{s.motion}</legend>

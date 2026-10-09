@@ -1,6 +1,7 @@
 // What the model page shows for a shape and an optional rig: elements grouped into the rig's
 // parts (or one part without a rig), texture groups, colours, the controls the rig's inputs
 // need, and its overlays. Pure, so the page and the tests read the same thing.
+import { animateShape, type AnimatedShape } from "./keyframes.ts";
 import { discoverAnchors, footprintBounds, type Anchor, type Bounds } from "./model-anchors.ts";
 import type { Scenario } from "./model-scenario.ts";
 import {
@@ -61,6 +62,8 @@ export interface ModelView {
   hasRig: boolean;
   /** The rig's progress (its work or trunkPath), which gauge and roll drivers and a travelling prop read; null without one. */
   path: Work | null;
+  /** The shape's own keyframe animations, resolved, and each element's joint (keyframes.ts); no animations when it has none. */
+  animation: AnimatedShape;
 }
 
 export const STATIC_COLOUR = "#c8b090";
@@ -160,6 +163,7 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     bounds,
     hasRig: rig !== null,
     path: workOf(rig),
+    animation: animateShape(shape, flat),
   };
 }
 

@@ -114,6 +114,26 @@ test("a vehicle rolls: its slider spans a stroke, Play rolls it along a track, a
   await controls.getByRole("button", { name: "Pause" }).click();
 });
 
+test("a shape's own animation plays, and stopped, its frame slider poses it", async ({ page }) => {
+  // The handcar's shape has a keyframe animation (pump) besides its rig.
+  await page.goto("./#/models/handcar");
+  await expect(page.getByTestId("model-stage")).toHaveAttribute("data-scene", /^(ready|nowebgl)$/);
+  const anim = page.getByTestId("model-animation");
+  await expect(anim.locator('[data-input="anim-frame"]')).toHaveCount(0);
+  await anim.locator('[data-input="animation"]').selectOption("pump");
+  const frame = page.getByTestId("model-anim-frame");
+  await expect(frame).toHaveText("0 / 59");
+  await anim.locator('[data-input="anim-frame"]').fill("15");
+  await expect(frame).toHaveText("15 / 59");
+  await expect(anim.locator('[data-input="anim-loop"]')).toBeChecked();
+  const play = anim.locator('[data-input="anim-play"]');
+  await play.click();
+  await expect(play).toHaveAttribute("aria-pressed", "true");
+  await expect(frame).not.toHaveText("15 / 59");
+  await play.click();
+  await expect(play).toHaveAttribute("aria-pressed", "false");
+});
+
 test("the model page needs no recipe data", async ({ page, problems }) => {
   problems.allow.push(/Failed to load resource.*404.* @ .*\/data\/versions\.json$/);
   await page.route("**/data/versions.json", (route) => route.fulfill({ status: 404, body: "" }));

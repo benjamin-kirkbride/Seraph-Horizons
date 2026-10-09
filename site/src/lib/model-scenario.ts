@@ -5,6 +5,7 @@
 // through when the reader presses Play. Without one, Play only turns the shaft (at the
 // reader's input speed), and moves the rig's work with it when the script gears it.
 // docs/recipe-browser/models.md describes the format.
+import type { AnimationsSpec } from "./keyframes.ts";
 import type { Anchor } from "./model-anchors.ts";
 import type { VehicleSpec } from "./model-vehicle.ts";
 import { TRUNK_CLASSES, workEnd, workOf, type Rig, type TrunkClass, type Vec3, type Work } from "./rig.ts";
@@ -115,6 +116,8 @@ export interface Scenario {
   play?: PlaySpec;
   /** The model is a vehicle on a track (model-vehicle.ts). */
   vehicle?: VehicleSpec;
+  /** The shape's own keyframe animations: which is selected first, labels, speeds and groups (keyframes.ts). The only key a model without a rig may have. */
+  animations?: AnimationsSpec;
 }
 
 export interface RequiresChoice {
