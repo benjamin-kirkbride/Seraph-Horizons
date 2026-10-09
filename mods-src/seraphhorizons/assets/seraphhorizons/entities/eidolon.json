@@ -30,6 +30,8 @@
 			{ code: "interpolateposition" },
 			{ code: "health", currenthealth: 300, maxhealth: 300 },
 			{ code: "seraphhorizons.eidolonCharge" },
+			{ code: "seraphhorizons.eidolonOil" },
+			{ code: "seraphhorizons.eidolonRepair" },
 			{ code: "seraphhorizons.eidolonOrders" },
 		],
 		// Codes are the shape's animation names, so later orders start them by name; walk, run and
@@ -74,6 +76,8 @@
 			{ code: "health", currenthealth: 300, maxhealth: 300 },
 			// Upkeeps and interactions in this order: a right-click goes to each in turn.
 			{ code: "seraphhorizons.eidolonCharge", initialGears: 1 },
+			{ code: "seraphhorizons.eidolonOil" },
+			{ code: "seraphhorizons.eidolonRepair" },
 			{ code: "seraphhorizons.eidolonOrders" },
 			{
 				code: "taskai",

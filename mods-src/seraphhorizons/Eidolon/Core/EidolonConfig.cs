@@ -31,6 +31,30 @@ public class EidolonConfig
     /// <summary>The highest drop it walks off on a path, in blocks.</summary>
     public int MaxFallBlocks { get; set; } = 3;
 
+    // ---- Oil and repair (#674; Eidolon/README.md, "Oil", "Repair") ----
+
+    /// <summary>Points its oil reservoir holds, 100 to the litre as the machines' tanks
+    /// (MachineOilSettings): 1000 is a full bucket. With the MachineOil switch off it has none.</summary>
+    public double OilTank { get; set; } = 1000;
+
+    /// <summary>The share of its reservoir a new eidolon wakes with.</summary>
+    public double InitialOilShare { get; set; } = 0.25;
+
+    /// <summary>Points a tree it fells costs.</summary>
+    public double OilPerTreeFelled { get; set; } = 5;
+
+    /// <summary>Points a trunk it delivers costs.</summary>
+    public double OilPerTrunkDelivered { get; set; } = 3;
+
+    /// <summary>Points a load it carries somewhere and sets down costs.</summary>
+    public double OilPerLoadCarried { get; set; } = 2;
+
+    /// <summary>The share of its most health one item of metal parts or one iron plate restores.</summary>
+    public double RepairShare { get; set; } = 0.1;
+
+    /// <summary>What a repair is multiplied by while it stands inside a gantry, its dock.</summary>
+    public double GantryRepairMultiplier { get; set; } = 2;
+
     public static readonly EidolonConfig Defaults = new();
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
@@ -52,6 +76,13 @@ public class EidolonConfig
         Check(nameof(RunSpeed), RunSpeed, 0.001, 0.5, () => RunSpeed = Defaults.RunSpeed, Defaults.RunSpeed);
         Check(nameof(PathSearchNodes), PathSearchNodes, 50, 100000, () => PathSearchNodes = Defaults.PathSearchNodes, Defaults.PathSearchNodes);
         Check(nameof(MaxFallBlocks), MaxFallBlocks, 0, 16, () => MaxFallBlocks = Defaults.MaxFallBlocks, Defaults.MaxFallBlocks);
+        Check(nameof(OilTank), OilTank, 1, 1_000_000, () => OilTank = Defaults.OilTank, Defaults.OilTank);
+        Check(nameof(InitialOilShare), InitialOilShare, 0, 1, () => InitialOilShare = Defaults.InitialOilShare, Defaults.InitialOilShare);
+        Check(nameof(OilPerTreeFelled), OilPerTreeFelled, 0, OilTank, () => OilPerTreeFelled = Defaults.OilPerTreeFelled, Defaults.OilPerTreeFelled);
+        Check(nameof(OilPerTrunkDelivered), OilPerTrunkDelivered, 0, OilTank, () => OilPerTrunkDelivered = Defaults.OilPerTrunkDelivered, Defaults.OilPerTrunkDelivered);
+        Check(nameof(OilPerLoadCarried), OilPerLoadCarried, 0, OilTank, () => OilPerLoadCarried = Defaults.OilPerLoadCarried, Defaults.OilPerLoadCarried);
+        Check(nameof(RepairShare), RepairShare, 0.001, 1, () => RepairShare = Defaults.RepairShare, Defaults.RepairShare);
+        Check(nameof(GantryRepairMultiplier), GantryRepairMultiplier, 1, 100, () => GantryRepairMultiplier = Defaults.GantryRepairMultiplier, Defaults.GantryRepairMultiplier);
         return fixes;
     }
 }

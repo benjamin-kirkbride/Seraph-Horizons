@@ -13,6 +13,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <summary>
 /// The player-built eidolon (Eidolon/README.md): its entity type <c>seraphhorizons:eidolon</c>
 /// (<see cref="EntityLaborEidolon"/>, with <see cref="EntityBehaviorEidolonCharge"/>,
+/// <see cref="EntityBehaviorEidolonOil"/>, <see cref="EntityBehaviorEidolonRepair"/>,
 /// <see cref="EntityBehaviorEidolonOrders"/> and <see cref="AiTaskEidolonOrder"/>), the creative
 /// spawner <c>seraphhorizons:creature-eidolon</c>, the built-in orders <c>stay</c> and <c>goto</c>,
 /// and the admin command <c>/sh eidolon</c>.
@@ -56,6 +57,8 @@ public class EidolonSystem : ModSystem
         api.RegisterEntity("seraphhorizons.EntityLaborEidolon", typeof(EntityLaborEidolon));
         api.RegisterEntityBehaviorClass(EntityBehaviorEidolonCharge.Code, typeof(EntityBehaviorEidolonCharge));
         api.RegisterEntityBehaviorClass(EntityBehaviorEidolonOrders.Code, typeof(EntityBehaviorEidolonOrders));
+        api.RegisterEntityBehaviorClass(EntityBehaviorEidolonOil.Code, typeof(EntityBehaviorEidolonOil));
+        api.RegisterEntityBehaviorClass(EntityBehaviorEidolonRepair.Code, typeof(EntityBehaviorEidolonRepair));
         AiTaskRegistry.Register<AiTaskEidolonOrder>(AiTaskEidolonOrder.Code);
         EidolonOrders.Register(StayOrder.OrderCode, (_, _) => new StayOrder());
         EidolonOrders.Register(GoToOrder.OrderCode, (_, args) => GoToOrder.From(args));

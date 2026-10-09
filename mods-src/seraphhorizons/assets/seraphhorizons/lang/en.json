@@ -1761,5 +1761,9 @@
   "eidolon-order": "Order: {0}",
   "eidolon-order-stay": "stay",
   "eidolon-order-goto": "go to a place",
-  "eidolon-status-nopath": "It can find no way there"
+  "eidolon-status-nopath": "It can find no way there",
+  "eidolon-stop-dry": "Out of oil: pour in oil or put in rendered fat",
+  "eidolon-help-oil": "Oil",
+  "eidolon-help-repair": "Repair",
+  "eidolon-repair-full": "It needs no repair"
 }
