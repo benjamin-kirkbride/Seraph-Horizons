@@ -54,3 +54,16 @@ public static class EidolonOrders
     public static IEidolonOrder? Create(EntityLaborEidolon eidolon, string code, ITreeAttribute args) =>
         Factories.TryGetValue(code, out var create) ? create(eidolon, args) : null;
 }
+
+/// <summary>
+/// What the eidolon holds sets how it walks and stands (#676 on): an entity behaviour implementing
+/// this, while it holds something, names the animation it walks (and runs) with in place of the
+/// game's <c>walk</c> and <c>run</c> (<see cref="EntityLaborEidolon.MoveAnimation"/>, used by
+/// <see cref="EidolonNavigator"/>): <c>carry-walk</c> with a block, <c>trunk-carry-walk</c> with a
+/// trunk. The first behaviour that answers counts.
+/// </summary>
+public interface IEidolonStance
+{
+    /// <summary>The animation code to move with, or null when this behaviour holds nothing.</summary>
+    string? MoveAnimation(bool run);
+}

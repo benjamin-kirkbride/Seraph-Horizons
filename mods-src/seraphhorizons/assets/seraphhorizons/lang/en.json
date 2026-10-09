@@ -1809,5 +1809,20 @@
   "eidolon-order-follow": "follow",
   "eidolon-status-follow-noway": "It can find no way to {0} and waits",
   "eidolon-status-follow-gone": "Waiting for {0}",
-  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can"
+  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can",
+  "eidoloncommander-mode-carry": "Carry that",
+  "eidoloncommander-mode-setdown": "Set it down there",
+  "eidolon-order-carry": "carry a block",
+  "eidolon-order-setdown": "set its load down",
+  "eidolon-info-load": "Carrying: {0}",
+  "eidolon-help-openload": "Open what it carries",
+  "eidolon-carry-nocarryon": "An eidolon carries only what Carry On lets a player carry, and Carry On is not installed",
+  "eidolon-carry-full": "It already carries {0}: have it set that down first",
+  "eidolon-carry-notcarryable": "That block cannot be carried",
+  "eidolon-carry-noperm": "You may not move blocks there",
+  "eidolon-carry-gone": "Your eidolon found nothing there to carry any more",
+  "eidolon-carry-failed": "Your eidolon could not lift {0} ({1})",
+  "eidolon-setdown-empty": "It carries nothing",
+  "eidolon-setdown-noroom": "There is no room to set its load down there",
+  "eidolon-setdown-failed": "Your eidolon could not set its load down: the place is taken"
 }

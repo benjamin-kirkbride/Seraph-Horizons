@@ -33,6 +33,7 @@
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
 			{ code: "seraphhorizons.eidolonOrders" },
+			{ code: "seraphhorizons.eidolonCarry" },
 		],
 		// Codes are the shape's animation names, so later orders start them by name; walk, run and
 		// idle are the game's codes for moving and standing. One-shots and holds suppress the idle.
@@ -79,6 +80,9 @@
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
 			{ code: "seraphhorizons.eidolonOrders" },
+			// The load it carries (#676): last, so a right-click opens a carried container only when
+			// nothing above takes it.
+			{ code: "seraphhorizons.eidolonCarry" },
 			{
 				code: "taskai",
 				aitasks: [
