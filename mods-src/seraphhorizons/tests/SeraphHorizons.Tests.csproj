@@ -104,6 +104,8 @@
     <!-- The mandrel station's gameplay rules: the mandrel, the forging, the renderer's clock, settings
          and its rig; and the shipped rig and its reference poses (MandrelStation/tools/make_shape.py),
          once they exist (the rig tests skip until then). -->
+    <!-- The crucible furnace's rules: pot recipes and charging, the heat model, the row, the pour window. -->
+    <Compile Include="../CrucibleFurnace/Core/**/*.cs" Link="CrucibleFurnace/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../MandrelStation/Core/**/*.cs" Link="MandrelStation/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/mandrelstation-rig.json" Link="mandrelstation-rig.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
