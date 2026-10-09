@@ -55,6 +55,22 @@ public class EidolonConfig
     /// <summary>What a repair is multiplied by while it stands inside a gantry, its dock.</summary>
     public double GantryRepairMultiplier { get; set; } = 2;
 
+    // ---- Commanding (#675; README "Eidolon", "Commanding") ----
+
+    /// <summary>How far a command tool's orders reach, in blocks: a bound eidolon further from its
+    /// holder is not ordered.</summary>
+    public double CommandRange { get; set; } = 64;
+
+    /// <summary>Following, it keeps this many blocks from the one it follows.</summary>
+    public double FollowDistance { get; set; } = 4;
+
+    /// <summary>Following, it runs while further than this, in blocks.</summary>
+    public double FollowRunDistance { get; set; } = 10;
+
+    /// <summary>The damage of each punch or kick when it defends itself (before the world's creature
+    /// damage multiplier, as a creature's).</summary>
+    public float DefenceDamage { get; set; } = 10;
+
     public static readonly EidolonConfig Defaults = new();
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
@@ -83,6 +99,11 @@ public class EidolonConfig
         Check(nameof(OilPerLoadCarried), OilPerLoadCarried, 0, OilTank, () => OilPerLoadCarried = Defaults.OilPerLoadCarried, Defaults.OilPerLoadCarried);
         Check(nameof(RepairShare), RepairShare, 0.001, 1, () => RepairShare = Defaults.RepairShare, Defaults.RepairShare);
         Check(nameof(GantryRepairMultiplier), GantryRepairMultiplier, 1, 100, () => GantryRepairMultiplier = Defaults.GantryRepairMultiplier, Defaults.GantryRepairMultiplier);
+
+        Check(nameof(CommandRange), CommandRange, 1, 1024, () => CommandRange = Defaults.CommandRange, Defaults.CommandRange);
+        Check(nameof(FollowDistance), FollowDistance, 2, 32, () => FollowDistance = Defaults.FollowDistance, Defaults.FollowDistance);
+        Check(nameof(FollowRunDistance), FollowRunDistance, 2, 256, () => FollowRunDistance = Defaults.FollowRunDistance, Defaults.FollowRunDistance);
+        Check(nameof(DefenceDamage), DefenceDamage, 0, 1000, () => DefenceDamage = Defaults.DefenceDamage, Defaults.DefenceDamage);
         return fixes;
     }
 }

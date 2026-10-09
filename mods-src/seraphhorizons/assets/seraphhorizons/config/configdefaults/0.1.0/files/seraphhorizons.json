@@ -276,7 +276,11 @@
     "OilPerTrunkDelivered": 3.0,
     "OilPerLoadCarried": 2.0,
     "RepairShare": 0.1,
-    "GantryRepairMultiplier": 2.0
+    "GantryRepairMultiplier": 2.0,
+    "CommandRange": 64.0,
+    "FollowDistance": 4.0,
+    "FollowRunDistance": 10.0,
+    "DefenceDamage": 10.0
   },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {
