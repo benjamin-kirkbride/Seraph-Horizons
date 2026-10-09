@@ -13,8 +13,16 @@ namespace SeraphHorizons.PackTests;
 internal static class GearParts
 {
     public static IEnumerable<GridRecipe> Recipes(IWorldAccessor world) =>
-        world.GridRecipes.Where(r => r.Output?.Code?.ToString() == GearPartDropRules.GearPart
-                                     || r.Ingredients?.Values.Any(i => i.Code?.ToString() == GearPartDropRules.GearPart) == true);
+        world.GridRecipes.Where(r => Makes(r) || Takes(r));
+
+    /// <summary>A recipe that makes gear parts (a rusty gear split into four).</summary>
+    public static bool Makes(GridRecipe r) => r.Output?.Code?.ToString() == GearPartDropRules.GearPart;
+
+    /// <summary>A recipe that takes gear parts (four make a rusty gear), by its ingredients as written
+    /// or as resolved.</summary>
+    public static bool Takes(GridRecipe r) =>
+        r.Ingredients?.Values.Any(i => i?.Code?.ToString() == GearPartDropRules.GearPart) == true
+        || r.ResolvedIngredients?.Any(i => i?.Code?.ToString() == GearPartDropRules.GearPart) == true;
 
     /// <summary>An entity type's harvestable drops: (code, avg, var).</summary>
     public static List<(string Code, double Avg, double Var)> Drops(IWorldAccessor world, string entity)

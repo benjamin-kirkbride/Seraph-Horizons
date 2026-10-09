@@ -691,7 +691,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(Off("GearPartsRemoved"));
         Assert.False(Harmony.HasAnyPatches(GearPartsRemoved.HarmonyId));
         Assert.NotNull(W.GetItem(new AssetLocation(GearPartDropRules.GearPart)));
-        Assert.Equal(2, GearParts.Recipes(W).Count());
+        Assert.Contains(W.GridRecipes, GearParts.Makes);
+        Assert.Contains(W.GridRecipes, r => GearParts.Takes(r) && r.Output?.Code?.ToString() == GearPartDropRules.RustyGear);
         Assert.Contains(GearParts.Drops(W, "game:drifter-normal"),
             d => d.Code == GearPartDropRules.GearPart && Math.Abs(d.Avg - 0.25) < 1e-9);
     }
