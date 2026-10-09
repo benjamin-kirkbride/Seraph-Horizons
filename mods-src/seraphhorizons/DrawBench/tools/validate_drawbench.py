@@ -175,11 +175,11 @@ ALLOWED = [
     ("spring\\d", None, "follower", None),
     ("die", None, "frame", r"fr_diestock"),
     # the work: slugs on the mandrel, against the follower, into the die stock; sections through the die and
-    # over the plug, in the jaws, on the trough's rails and end to end in its queue
+    # over the plug, in the jaws, and back in the die stock once handed out
     ("[lc]slug\\d", None, "mandrel", None), ("[lc]slug\\d", None, "follower", None), ("[lc]slug\\d", None, "[lc]slug\\d", None),
     ("[lc]slug\\d", None, "frame", r"fr_(diestock|oiler)"), ("[lc]slug\\d", None, "[lc]sect\\d[ab]", None),
     ("[lc]sect\\d[ab]", None, "[lc]sect\\d[ab]", None), ("[lc]sect\\d[ab]", None, "mandrel", None),
-    ("[lc]sect\\d[ab]", None, "die", None), ("[lc]sect\\d[ab]", None, "frame", r"fr_(diestock|rail|trough_stop)"),
+    ("[lc]sect\\d[ab]", None, "die", None), ("[lc]sect\\d[ab]", None, "frame", r"fr_diestock"),
     ("[lc]sect\\d[ab]", None, "dog", r"_jawfixed"), ("[lc]sect\\d[ab]", None, "jaw", r"_face"),
     # the oil in its cup
     ("oillevel", None, "frame", r"fr_oiler_(base|glass)"),
@@ -247,13 +247,15 @@ def check_clearances(v, poses):
 
 def check_swept(v):
     """Swept paths: the dog through its whole stroke and back, every quarter voxel of its travel, and the
-    section through its drop and roll, every 0.005 of a cycle, touch nothing but their intended contacts
-    (both metals, the first and the last section)."""
+    section from its release through the jaws' opening to its hand-out, every 0.005 of a cycle (and every
+    0.001 of its way back into the die stock), touch nothing but their intended contacts (both metals, the
+    first and the last section)."""
     m = v.m
     span = m.T_DRAW[1] - m.T_DRAW[0]
     ts = [m.T_DRAW[0] + span * i / 64 for i in range(65)]
     ts += [m.T_RETURN[0] + (m.T_RETURN[1] - m.T_RETURN[0]) * i / 32 for i in range(33)]
-    ts += [m.T_OPEN[0] + 0.005 * i for i in range(int((m.T_ROLL[1] - m.T_OPEN[0]) / 0.005) + 1)]
+    ts += [m.T_OPEN[0] + 0.005 * i for i in range(int((m.T_OUT - m.T_OPEN[0]) / 0.005) + 1)]
+    ts += [m.T_OUT - m.OUT_EASE * i / 5 for i in range(6)]
     n = 0
     hits = {}
     for k in (1, 2):
@@ -274,12 +276,12 @@ def check_swept(v):
 
 def cycle_ts(m):
     """Every phase of a section's cycle: the start, the draw (the tail's release among it), the jaws, the
-    drop and the slide, the return (finely through its middle) and the dwell with the next point."""
+    hand-out, the dog standing at the end of its stroke, the return (finely through its middle) and the dwell with the next point."""
     def at(span, f):
         return round(span[0] + (span[1] - span[0]) * f, 6)
     ts = [0.0, 0.02, m.T_START[1]]
     ts += [at(m.T_DRAW, f) for f in (0.15, 0.4, 0.9)] + [m.T_TUBE]
-    ts += [at(m.T_OPEN, 0.5), at(m.T_DROP, 0.5), at(m.T_ROLL, 0.5)]
+    ts += [at(m.T_OPEN, 0.5), round(m.T_OUT - m.OUT_EASE / 2, 6), m.T_OUT, round((m.T_OUT + m.T_RETURN[0]) / 2, 6)]
     ts += [at(m.T_RETURN, f / 20) for f in (2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20)]
     ts += [round((m.T_RETURN[1] + m.T_POINT[0] + 1) / 2, 6), 1 + m.T_POINT[0], 1 + m.T_POINT[0] / 2]
     return tuple(sorted(set(ts)))
@@ -466,7 +468,7 @@ def spans_union(spans):
 def check_work(v):
     """The section being drawn is whole from the die's mouth to its point in the jaws (the rest of it hidden in
     the die stock), the slugs lie end to end from the follower to the die stock, the spring's coils share
-    the follower's travel; the sections in the trough lie flat on its rails, end to end."""
+    the follower's travel; each section, handed out, is back at its rest place, hidden in the die stock."""
     m = v.m
     worst = 0.0
     for k, pre in ((1, "l"), (2, "c")):
@@ -530,31 +532,30 @@ def check_work(v):
             if abs(z - want) > 0.01:
                 v.fail(f"spring coil {i + 1} at {z:.3f}, want {want:.3f} (W {w})")
     print(f"spring: {m.COILS} coils evenly between the tail stock and the follower at every W")
-    # the sections in the trough: each in its place in the queue, flat on the rails and touching them, end to
-    # end from the north stop
-    pose = m.pose_at(1, float(m.SLUGS))
-    zs = []
-    for mm in range(m.SLUGS):
-        els_ = [e for j in range(m.NSEG) for e in v.posed(f"lsect{mm + 1}{'ab'[j]}", pose)]
-        lo, hi = aabb_of(els_)
-        cz = (lo[2] + hi[2]) / 2
-        cy = sum(e.c[1] for e in els_) / len(els_)
-        zs.append((lo[2], hi[2]))
-        if abs(cz - m.SLOT_Z[mm]) > 0.02 or abs(cy - m.rest_y(m.SLOT_Z[mm])) > 0.02:
-            v.fail(f"section {mm + 1} lies at (y {cy:.2f}, z {cz:.2f}), not in its place in the trough")
-        worst = max(abs(math.remainder(math.atan2(e.r[2][2], e.r[1][2]) - (math.pi / 2 - m.FLOOR_ANG), math.pi / 2)) for e in els_)
-        if worst > 1e-3:
-            v.fail(f"section {mm + 1} does not lie flat on the rails ({math.degrees(worst):.2f} degrees off)")
-        low = min(min(p[1] - m.floor_y(p[2]) for p in e.corners()) for e in els_)
-        if abs(low) > 0.03:
-            v.fail(f"section {mm + 1} stands {low:.3f} off the rails")
-    # tilted with the rails: end to end along them, and the first's north face clear of the stop below its top
-    gaps = [(m.SLOT_Z[i + 1] - m.SLOT_Z[i]) / math.cos(m.FLOOR_ANG) - m.PIPE for i in range(m.SLUGS - 1)]
-    stop = m.SLOT_Z[0] - m.PIPE / 2 - m.STOP_Z[1]
-    print(f"queue: {m.SLUGS} sections flat on the trough's rails, the first {stop:.3f} from the stop, end to end along the rails "
-          f"{min(gaps):.3f} apart")
-    if stop < 0.0 or min(gaps) < 0.0:
-        v.fail("the sections in the trough run into the stop or each other")
+    # the hand-out: a section lies where it was drawn, out of the die's mouth, until just before T_OUT; from
+    # T_OUT on it is back where it rested before its stroke, hidden in the die stock, to the end of the job
+    lo_h, hi_h = m.HIDER
+    for k, pre in ((1, "l"), (2, "c")):
+        for mm in range(m.SLUGS):
+            pose = m.pose_at(k, mm + m.T_OUT - m.OUT_EASE)
+            els_ = [e for j in range(m.NSEG) for e in v.posed(f"{pre}sect{mm + 1}{'ab'[j]}", pose)]
+            lo, hi = aabb_of(els_)
+            if abs(lo[2] - m.Z_MOUTH) > 0.03 or abs(hi[2] - (m.Z_MOUTH + m.PIPE)) > 0.03:
+                v.fail(f"section {mm + 1} ({pre}) just before its hand-out spans z {lo[2]:.2f}..{hi[2]:.2f}, not the die's mouth on")
+            for w in (mm + m.T_OUT, mm + 1.0, float(m.SLUGS)):
+                pose = m.pose_at(k, w)
+                for j in range(m.NSEG):
+                    pid = f"{pre}sect{mm + 1}{'ab'[j]}"
+                    mat = v.mat(pid, pose)
+                    moved = max(abs(mat[r][c] - (1.0 if r == c else 0.0)) for r in range(3) for c in range(4))
+                    if moved > 1e-6:
+                        v.fail(f"{pid} at W {w} is not back at its rest place (off by {moved:.2e})")
+                    for e in v.posed(pid, pose):
+                        elo, ehi = e.aabb()
+                        if not all(lo_h[q] - 1e-6 <= elo[q] and ehi[q] <= hi_h[q] + 1e-6 for q in range(3)):
+                            v.fail(f"{e.name} at W {w} shows outside the die stock after its hand-out")
+    print(f"hand-out: each section lies out of the die's mouth until W = m + {m.T_OUT:g}, then back at its rest place, hidden in "
+          f"the die stock, to the end of the job")
 
 
 def check_weight(v):
@@ -719,7 +720,7 @@ def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
     check_floating(v)
-    poses = [m.REST] + [m.pose_at(k, mm + t) for k in (1, 2) for mm in range(m.SLUGS) for t in (0.0, 0.2, m.T_TUBE, m.T_DRAW[1], 0.4, m.T_ROLL[1], 0.7, m.T_RETURN[1], 0.96)]
+    poses = [m.REST] + [m.pose_at(k, mm + t) for k in (1, 2) for mm in range(m.SLUGS) for t in (0.0, 0.2, m.T_TUBE, m.T_DRAW[1], 0.4, m.T_OUT, m.T_RETURN[0], 0.7, m.T_RETURN[1], 0.96)]
     check_containment(v, poses)
     check_anchors(v)
     check_textures(v)

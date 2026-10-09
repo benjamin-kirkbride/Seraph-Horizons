@@ -42,7 +42,7 @@ public interface IDrawBenchView
 /// The renderer's own W, presence and class, from the view each frame (the model's contract,
 /// "The work"): W advances with the shaft while the bench runs, never behind the server's and at
 /// most <see cref="Snap"/> ahead of it; with no hollow on it is held at the end, 4, while p eases
-/// out and k is held, so the sections lie in the trough and the hollow, follower and spring come back;
+/// out and k is held, so the hollow, follower and spring come back (the sections, handed out, are hidden);
 /// a new hollow starts from the server's W (0) with p easing in.
 /// </summary>
 public sealed class DrawBenchClock

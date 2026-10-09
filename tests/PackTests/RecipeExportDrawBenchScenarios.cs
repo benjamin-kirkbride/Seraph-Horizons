@@ -20,8 +20,8 @@ public partial class RecipeExportScenarios
         Assert.Equal(new[] { "drawbench|game:chutesection-copper|0", "drawbench|game:chutesection-lead|0" }, records.Select(r => (string)r["id"]!).Order());
         foreach (var (metal, dies, turns) in new[]
                  {
-                     ("lead", new[] { "seraphhorizons:drawdie-iron", "seraphhorizons:drawdie-steel" }, 2.06),
-                     ("copper", new[] { "seraphhorizons:drawdie-steel" }, 4.12),
+                     ("lead", new[] { "seraphhorizons:drawdie-iron", "seraphhorizons:drawdie-steel" }, 1.373),
+                     ("copper", new[] { "seraphhorizons:drawdie-steel" }, 2.746),
                  })
         {
             var r = Recipe($"drawbench|game:chutesection-{metal}|0");
