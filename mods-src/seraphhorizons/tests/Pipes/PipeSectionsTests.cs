@@ -65,6 +65,8 @@ public class PipeSectionsTests
         // as ppex's pipes are textured (patches/unifiedpipes-ppex.json: sheet-plain/<metal>4)
         Assert.Equal("game:block/metal/sheet-plain/{metal}4", (string?)item["textures"]!["metal"]!["base"]);
         Assert.Equal("seraphhorizons:pipesection-handbook-text", (string?)item["attributes"]!["handbook"]!["extraSections"]![0]!["text"]);
+        // on the ground its box, a block long and narrow, turns with the model (GroundBoxTurns)
+        Assert.True((bool?)item["attributes"]![GroundBoxTurns.Attribute]);
 
         // the cross-section of ppex's straight pipe (shapes/pipes/straight.json: 6 across, walls 1 round
         // a 4 x 4 bore), a block long, centred; four walls that do not overlap. The draw bench's
