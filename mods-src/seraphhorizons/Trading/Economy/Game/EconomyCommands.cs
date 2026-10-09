@@ -195,7 +195,7 @@ public static class EconomyCommands
         if (!o.Accepted) return TextCommandResult.Success(L("trading-price-refused", type, code, EconomyPatches.RefusalText(o.Refusal) ?? ""));
         string key = o.OwnShelf ? "trading-price-ownshelf" : o.Budget == Budget.Main ? "trading-price-offlist-main" : "trading-price-offlist";
         return TextCommandResult.Success(L(key, type, code, o.UnitPrice, o.UnitSize, F(o.Base), F(o.Fit), F(o.Supply), F(o.Modifiers),
-            F(o.Spread), EconomySystem.SideBudgetOf(trader)));
+            EconomySystem.SideBudgetOf(trader)));
     }
 
     private static TextCommandResult Simulate(EconomySystem economy, TextCommandCallingArgs args)

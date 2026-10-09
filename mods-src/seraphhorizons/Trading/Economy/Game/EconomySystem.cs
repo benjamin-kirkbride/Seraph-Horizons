@@ -39,9 +39,9 @@ public class EconomySystem : ModSystem
     /// <summary>Server, in the trader's (unsynced, saved) attributes: each listed item's price roll
     /// since its last restock, by full code.</summary>
     public const string PriceRollsAttr = "seraphhorizons:pricerolls";
-    /// <summary>The server's <see cref="SeraphHorizonsConfig.BuySpread"/>, per trader, for the client's
-    /// off-list prices.</summary>
-    public const string BuySpreadAttr = "seraphhorizons:buyspread";
+    /// <summary>Where the server synced its buy spread per trader until 2026-10-08 (the spread is
+    /// gone: the fit is the whole share); taken off a trader at its next refresh.</summary>
+    private const string RetiredBuySpreadAttr = "seraphhorizons:buyspread";
     public const string SaveKey = "seraphhorizons:supply";
     public const string SaveDayKey = "seraphhorizons:supplyday";
     public static readonly AssetLocation RelationsAsset = new("seraphhorizons", "config/trading/trader-relations.json");
@@ -76,10 +76,6 @@ public class EconomySystem : ModSystem
     /// <summary>The switches as this server has them.</summary>
     public bool EverythingHasAPrice { get; private set; }
     public bool RegionalSupply { get; private set; }
-
-    /// <summary>What a trader pays for off-list goods, as a share of value (server; the client reads
-    /// it from each trader, <see cref="BuySpreadAttr"/>).</summary>
-    public double BuySpread { get; private set; } = Pricing.DefaultBuySpread;
 
     /// <summary>How listed goods are priced from their values, and the own-shelf rate (both sides:
     /// a config asset).</summary>
@@ -158,7 +154,6 @@ public class EconomySystem : ModSystem
         var config = SeraphHorizonsSystem.ConfigFor(api);
         EverythingHasAPrice = config.EverythingHasAPrice;
         RegionalSupply = config.RegionalSupply;
-        BuySpread = Math.Clamp(config.BuySpread, 0.01, 1);
         Supply = new SupplyBook(Settings(config));
         api.Event.SaveGameLoaded += LoadSupply;
         api.Event.GameWorldSave += SaveSupply;
@@ -281,11 +276,7 @@ public class EconomySystem : ModSystem
     public void Refresh(EntitySeraphTrader trader, bool broadcast)
     {
         SyncSupply(trader);
-        if (!trader.WatchedAttributes.HasAttribute(BuySpreadAttr) || trader.WatchedAttributes.GetDouble(BuySpreadAttr) != BuySpread)
-        {
-            trader.WatchedAttributes.SetDouble(BuySpreadAttr, BuySpread);
-            trader.WatchedAttributes.MarkPathDirty(BuySpreadAttr);
-        }
+        if (trader.WatchedAttributes.HasAttribute(RetiredBuySpreadAttr)) trader.WatchedAttributes.RemoveAttribute(RetiredBuySpreadAttr);
         // Listed goods are priced from the value table whatever the switches (the lists hold no prices).
         Reprice(trader);
         var store = new TreeAttribute();
@@ -384,11 +375,6 @@ public class EconomySystem : ModSystem
     public static double SupplyFactor(EntitySeraphTrader trader, string code) =>
         trader.WatchedAttributes[SupplyFactorsAttr] is ITreeAttribute tree && tree.HasAttribute(code) ? tree.GetDouble(code, 1) : 1;
 
-    /// <summary>The buy spread a trader pays off-list goods at: the server's setting, which the
-    /// client has from the trader (the default until the trader's first refresh reaches it).</summary>
-    public double BuySpreadOf(EntitySeraphTrader trader) =>
-        trader.Api.Side == EnumAppSide.Server ? BuySpread : trader.WatchedAttributes.GetDouble(BuySpreadAttr, Pricing.DefaultBuySpread);
-
     public PriceContext Context(EntitySeraphTrader trader, string code, bool traderBuys, string? playerUid) =>
         new(code, trader.TraderType, RegionOf(trader), traderBuys, trader.EntityId, playerUid);
 
@@ -411,7 +397,7 @@ public class EconomySystem : ModSystem
             return Pricing.OwnShelf(value, values.IsWorthless(code), ListPrices.OwnShelf, supply, modifiers, collectible.MaxStackSize);
         var buyers = Buyers.BuyersOf(code);
         return Pricing.OffList(value, values.IsWorthless(code), Relations.Fit(trader.TraderType, buyers), supply, modifiers,
-            collectible.MaxStackSize, BuySpreadOf(trader), Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
+            collectible.MaxStackSize, Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
     }
 
     /// <summary>Whether the trader has the item on its selling shelf, in stock (by code; attributes

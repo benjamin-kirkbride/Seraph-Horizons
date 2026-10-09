@@ -219,7 +219,7 @@ public static class EconomyPatches
         {
             var o = off.Offer;
             string line = L("trading-economy-offer-offlist", o.UnitPrice, o.UnitSize,
-                o.Base.ToString("0.##", ci), o.Spread.ToString("0.##", ci), o.Fit.ToString("0.##", ci), o.Supply.ToString("0.##", ci));
+                o.Base.ToString("0.##", ci), o.Fit.ToString("0.##", ci), o.Supply.ToString("0.##", ci));
             if (o.OwnShelf) line = L("trading-economy-offer-ownshelf", o.UnitPrice, o.UnitSize, o.Base.ToString("0.##", ci), o.Fit.ToString("0.##", ci), o.Supply.ToString("0.##", ci));
             if (Math.Abs(o.Modifiers - 1) > 1e-3) line += " " + L("trading-economy-offer-modifiers", o.Modifiers.ToString("0.##", ci));
             return o.Budget == Budget.Main ? line + "\n" + L("trading-economy-offer-mainwallet")

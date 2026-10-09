@@ -303,9 +303,9 @@ public class TradeWindowModelTests
         var listed = Pricing.Listed(2, 4, 1, 1);
         Assert.Equal(["trading-economy-offer-listed(2, 4, 1)", "trading-window-sell-lots(2, 4)"],
             TradeWindowModel.OfferLines(listed, true, 20, stackSize: 9).Select(t => t.ToString()));
-        var off = Pricing.OffList(10, false, 0.75, 1, 1.05, 64);
+        var off = Pricing.OffList(10, false, 0.2, 1, 1.05, 64);
         var lines = TradeWindowModel.OfferLines(off, false, 21, stackSize: 0).Select(t => t.ToString()).ToList();
-        Assert.Equal("trading-economy-offer-offlist(2, 1, 10, 0.2, 0.75, 1)", lines[0]);
+        Assert.Equal("trading-economy-offer-offlist(2, 1, 10, 0.2, 1)", lines[0]);
         Assert.Equal("trading-economy-offer-modifiers(1.05)", lines[1]);
         Assert.Equal("trading-economy-offer-sidebudget(21)", lines[2]);
         Assert.Equal("trading-window-sell-short(1)", lines[3]);

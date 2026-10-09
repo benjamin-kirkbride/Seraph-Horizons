@@ -230,9 +230,9 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   about half what they sell for. A value is the item's worth on the table's scale, calibrated to
   what a vanilla trader that wants the item pays (#436), so the target is vanilla's buy price, or
   between buy and sell where vanilla only sells. What the pack's traders ask is the value, and
-  what they pay is a fifth of it, for their lists' goods (the buy factor in
-  `config/trading/list-prices.json`) and off their lists (`BuySpread`, #506, times the fit); list
-  prices vary by a roll of a quarter either way.
+  what their lists buy they pay 1.5 x the value for (2026-10-08, `config/trading/list-prices.json`),
+  each varied by a roll of a quarter either way; off their lists they pay a share of it by fit
+  (docs/trading.md).
 - **Metal.** Vanilla sells 16 copper nuggets for 2 gears (0.125 each, 2.5 an ingot's worth) and buys
   a copper ingot for 1. Copper is 0.017 a unit: a nugget 0.085, an ingot 2.07 after smelting
   (+10%, +0.2 fuel). Vanilla buys tin at 2x copper, silver 3x, gold 4x; tin 0.035 (ingot 4.05), zinc
@@ -267,7 +267,8 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   portion (30 a litre), their mash, and their seeds.
 - **Gems.** Rough gems at vanilla's prices (diamond and emerald about 10, olivine 5, garnet 2.5).
 - **Curiosities** (`game:clutter-*` items: found relics, statuettes, skulls and what fishing drags
-  up) are raws, priced generously, as a collector would pay, since a trader pays a fifth of value:
+  up) are raws, priced generously, as a collector would pay, since a trader that does not deal in
+  them pays a fifth of value:
   the crystal skull and the Forlorn Hope reliquary 150 (a 30-gear sale, a temporal gear's worth),
   the king statuette and the device prototype 100, statuettes 50 to 80, fossils and amber 30 to
   40, a human skull 8, fishing's oddities 4 to 6. No vanilla trader deals in them. Each is worth

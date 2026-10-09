@@ -62,23 +62,22 @@ public readonly record struct PriceCurve(double Floor = 0.3, double HalfLevel = 
 /// <summary>A price with what went into it, for the price breakdown and the deal.</summary>
 /// <param name="Refusal">Why not, or <see cref="Refusal.None"/>.</param>
 /// <param name="Base">Base price per item (value table) or per list stack (list price).</param>
-/// <param name="Fit">Fit factor (1 for listed goods; for goods on the trader's own shelf, the
-/// own-shelf rate, <see cref="ListPriceRules.OwnShelf"/>).</param>
+/// <param name="Fit">The share of value paid: the fit off the list (<see cref="TraderRelations"/>), the
+/// own-shelf rate (<see cref="ListPriceRules.OwnShelf"/>) for goods on the trader's own shelf, 1 for
+/// listed goods.</param>
 /// <param name="Supply">Supply factor (<see cref="PriceCurve"/>).</param>
 /// <param name="Modifiers">The product of every <see cref="IPriceModifier"/>.</param>
 /// <param name="UnitSize">Items per price unit: the trade item's stack size.</param>
 /// <param name="UnitPrice">Gears per unit, the ResolvedTradeItem's Price.</param>
-/// <param name="Spread">The buy spread on the base (<see cref="Pricing.DefaultBuySpread"/>; 1 for
-/// listed goods, whose list factors are their own, and for goods on the trader's own shelf).</param>
 /// <param name="Budget">Which wallet pays.</param>
 /// <param name="OwnShelf">Bought back off-market because the trader has it on its own selling shelf
 /// (<see cref="Pricing.OwnShelf"/>).</param>
-public sealed record Offer(Refusal Refusal, double Base, double Fit, double Supply, double Modifiers, int UnitSize, int UnitPrice, double Spread, Budget Budget,
+public sealed record Offer(Refusal Refusal, double Base, double Fit, double Supply, double Modifiers, int UnitSize, int UnitPrice, Budget Budget,
     bool OwnShelf = false)
 {
     public bool Accepted => Refusal == Refusal.None;
 
-    public static Offer Refused(Refusal why) => new(why, 0, 0, 1, 1, 1, 0, 1, Budget.Side);
+    public static Offer Refused(Refusal why) => new(why, 0, 0, 1, 1, 1, 0, Budget.Side);
 }
 
 /// <summary>
@@ -97,7 +96,7 @@ public sealed record ListPriceRules
     public double Sell { get; init; } = 1.0;
 
     /// <summary>What a trader pays for the goods its list buys, as a share of their value.</summary>
-    public double Buy { get; init; } = 0.2;
+    public double Buy { get; init; } = 1.5;
 
     /// <summary>A listed item's price varies by up to this share either way.</summary>
     public double Roll { get; init; } = 0.25;
@@ -138,20 +137,17 @@ public sealed record ListPriceRules
 }
 
 /// <summary>
-/// Prices (#450, #451). A listed good is priced from the item value table (#449) by the list price
-/// rules (<see cref="ListPriceRules"/>: its value × a sell or a buy factor × a roll per item per
-/// trader per restock); a list entry may override its price with a reason (schematics, maps). A
-/// trader pays a fifth of what goods off its list are worth (<see cref="DefaultBuySpread"/>, config
-/// <c>BuySpread</c>), a pawnshop's spread, × the fit; goods a related trader buys come from its main
-/// wallet, the rest from its side budget, and what it has on its own shelf it only buys back
+/// Prices (#450, #451; 2026-10-08), all from the item value table (#449). A listed good is priced
+/// by the list price rules (<see cref="ListPriceRules"/>: its value × 1 to sell, × 1.5 to buy, × a
+/// roll per item per trader per restock); a list entry may override its price with a reason
+/// (schematics, maps). Goods off a trader's list are their value × the fit (three quarters for goods
+/// a related trader buys, paid from its main wallet; a fifth for anything else and three tenths at
+/// the curio dealer, from its side budget), and what it has on its own shelf it only buys back
 /// off-market (<see cref="OwnShelf"/>). All are then scaled by the regional supply factor and the
 /// modifiers.
 /// </summary>
 public static class Pricing
 {
-    /// <summary>What a trader pays for goods off its list, as a share of their value (2026-10-06).</summary>
-    public const double DefaultBuySpread = 0.2;
-
     /// <summary>A price roll, uniform in [1 − <paramref name="spread"/>, 1 + <paramref name="spread"/>].</summary>
     public static double Roll(Random rng, double spread) => 1 - spread + 2 * spread * rng.NextDouble();
 
@@ -190,39 +186,39 @@ public static class Pricing
             }
         }
         int unitPrice = Math.Max(1, (int)Math.Round(price, MidpointRounding.AwayFromZero));
-        return new Offer(Refusal.None, listPrice, 1, supply, modifiers, unit, unitPrice, 1, Budget.Main);
+        return new Offer(Refusal.None, listPrice, 1, supply, modifiers, unit, unitPrice, Budget.Main);
     }
 
     /// <summary>
-    /// What a trader offers for goods off its list. Per item: value × spread × fit × supply ×
+    /// What a trader offers for goods off its list. Per item: value × fit × supply ×
     /// modifiers. The unit is one item when that is a gear or more, else the fewest items worth a gear
     /// (so a stack of planks sells by the 17, at one gear): the game prices trades in whole gears per
     /// unit. Under a gear per full stack it is <see cref="Refusal.TooCheap"/>. <paramref name="budget"/>
     /// is the wallet that pays (<see cref="TraderRelations.PaysFromMain"/>).
     /// </summary>
     public static Offer OffList(double valuePerItem, bool worthless, double fit, double supply, double modifiers, int maxStackSize,
-        double spread = DefaultBuySpread, Budget budget = Budget.Side)
+        Budget budget = Budget.Side)
     {
         if (worthless) return Offer.Refused(Refusal.Worthless);
         if (valuePerItem <= 0) return Offer.Refused(Refusal.NoValue);
-        double perItem = valuePerItem * spread * fit * supply * modifiers;
+        double perItem = valuePerItem * fit * supply * modifiers;
         int maxStack = Math.Max(1, maxStackSize);
         if (perItem * maxStack < 1 - 1e-9)
-            return Offer.Refused(Refusal.TooCheap) with { Base = valuePerItem, Fit = fit, Supply = supply, Modifiers = modifiers, Spread = spread };
+            return Offer.Refused(Refusal.TooCheap) with { Base = valuePerItem, Fit = fit, Supply = supply, Modifiers = modifiers };
         int unit = perItem >= 1 ? 1 : Math.Min(maxStack, (int)Math.Ceiling(1 / perItem - 1e-9));
         int unitPrice = Math.Max(1, (int)Math.Round(unit * perItem, MidpointRounding.AwayFromZero));
-        return new Offer(Refusal.None, valuePerItem, fit, supply, modifiers, unit, unitPrice, spread, budget);
+        return new Offer(Refusal.None, valuePerItem, fit, supply, modifiers, unit, unitPrice, budget);
     }
 
     /// <summary>
     /// What a trader pays for goods it has on its own selling shelf (in stock), listed or not: it
     /// does not pay its list's price for what it is selling itself, but buys it back off-market at
     /// <paramref name="rate"/> (<see cref="ListPriceRules.OwnShelf"/>) of value × supply ×
-    /// modifiers, with no spread or fit, from the side budget. Priced and refused as
+    /// modifiers, with no fit, from the side budget. Priced and refused as
     /// <see cref="OffList"/>, with the rate as its fit.
     /// </summary>
     public static Offer OwnShelf(double valuePerItem, bool worthless, double rate, double supply, double modifiers, int maxStackSize) =>
-        OffList(valuePerItem, worthless, rate, supply, modifiers, maxStackSize, spread: 1) with { OwnShelf = true };
+        OffList(valuePerItem, worthless, rate, supply, modifiers, maxStackSize) with { OwnShelf = true };
 
     /// <summary>The product of the modifiers' factors (1 with none); a factor below 0 counts as 0.</summary>
     public static double Modifiers(IEnumerable<IPriceModifier> modifiers, in PriceContext context)

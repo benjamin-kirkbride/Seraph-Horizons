@@ -55,8 +55,8 @@ public partial class TradingScenarios
         output.WriteLine($"offer for iron at the general store: {before}");
         Assert.True(before.Accepted, before.Refusal.ToString());
         Assert.Equal(Budget.Side, before.Budget);
-        Assert.Equal(0.5, before.Fit, 3);
-        Assert.Equal(Pricing.DefaultBuySpread, before.Spread, 3);
+        // Unrelated to the smith, who buys iron: a fifth of its value.
+        Assert.Equal(0.2, before.Fit, 3);
         Assert.True(before.UnitPrice > 0);
         Assert.True(inv.IsTraderInterestedIn(ingots), "the selling cart would not take an off-list good");
         Assert.Contains("side budget", EconomyPatches.Describe(inv, ingots));
@@ -161,7 +161,7 @@ public partial class TradingScenarios
         var now = inv.GetBuyingConditionsSlot(Stack(Iron, 1))!;
         output.WriteLine($"sold 8 iron at {price}: level {level:0.###}; buying price now {now.TradeItem.Price} per {now.TradeItem.Stack.StackSize}");
         Assert.True(level >= Economy.Supply.Settings.ShelfMinLevel, $"level {level}");
-        // The pay is a fifth of value, a gear or so an ingot, so whole gears may hide the fall: the
+        // The pay is half again the value, a few gears an ingot, so whole gears may hide the fall: the
         // factor shows it, and the price per item never rises.
         Assert.True(EconomySystem.SupplyFactor(smith, Iron) < 1, "the listed price did not fall");
         Assert.True(PerItemOf(now) <= perItem, $"{PerItemOf(now)} an ingot is over {perItem}");

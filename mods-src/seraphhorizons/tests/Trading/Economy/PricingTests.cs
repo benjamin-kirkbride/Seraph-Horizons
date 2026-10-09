@@ -15,12 +15,12 @@ public class TraderRelationsTests
         Assert.Empty(rel.Problems(TraderTypes.All.ToList()));
         Assert.Equal(1.0, rel.Listed);
         Assert.Equal(0.75, rel.Related);
-        Assert.Equal(0.5, rel.Unrelated);
+        Assert.Equal(0.2, rel.Unrelated);
         Assert.Contains("seraphhorizons:oremap", rel.Refused);
     }
 
     [Fact]
-    public void FitIsFullListedThreeQuartersRelatedHalfOtherwise()
+    public void FitIsFullListedThreeQuartersRelatedAFifthOtherwise()
     {
         var rel = Shipped();
         Assert.Equal(1.0, rel.Fit("smith", ["smith", "mechanic"]));
@@ -30,23 +30,23 @@ public class TraderRelationsTests
         Assert.Equal(0.75, rel.Fit("cook", ["farmer"]));
         Assert.Equal(0.75, rel.Fit("animaldealer", ["cook"]));
         Assert.Equal(0.75, rel.Fit("generalstore", ["tailor"]));
-        Assert.Equal(0.5, rel.Fit("tailor", ["smith"]));
+        Assert.Equal(0.2, rel.Fit("tailor", ["smith"]));
         // A weak link sits between.
         Assert.Equal(0.6, rel.Fit("tailor", ["animaldealer"]));
         // The best relation among the buyers counts.
         Assert.Equal(0.75, rel.Fit("tailor", ["smith", "generalstore"]));
         // Nobody buys it: unrelated everywhere, the curio dealer included.
-        Assert.Equal(0.5, rel.Fit("smith", []));
-        Assert.Equal(0.5, rel.Fit("curiodealer", []));
+        Assert.Equal(0.2, rel.Fit("smith", []));
+        Assert.Equal(0.2, rel.Fit("curiodealer", []));
     }
 
     [Fact]
     public void TheCurioDealerRelatesToEveryoneAtItsOwnWeight()
     {
         var rel = Shipped();
-        Assert.Equal(0.6, rel.Fit("curiodealer", ["smith"]));
-        Assert.Equal(0.6, rel.Fit("smith", ["curiodealer"]));
-        Assert.Equal(0.6, rel.Relation("mason", "curiodealer"));
+        Assert.Equal(0.3, rel.Fit("curiodealer", ["smith"]));
+        Assert.Equal(0.3, rel.Fit("smith", ["curiodealer"]));
+        Assert.Equal(0.3, rel.Relation("mason", "curiodealer"));
     }
 
     [Fact]
@@ -108,35 +108,29 @@ public class PricingTests
     [Fact]
     public void AnOffListGoodWorthAGearOrMoreIsPricedPerItem()
     {
-        // Iron at 4 a bar, a fifth of it, at a related trader: 4 × 0.2 × 0.75 = 0.6, two bars a gear.
-        var o = Pricing.OffList(valuePerItem: 17.5, worthless: false, fit: 0.5, supply: 1, modifiers: 1, maxStackSize: 64);
+        // Value 8.75, unrelated, a fifth of it: 1.75 rounds to 2.
+        var o = Pricing.OffList(valuePerItem: 8.75, worthless: false, fit: 0.2, supply: 1, modifiers: 1, maxStackSize: 64);
         Assert.True(o.Accepted);
         Assert.Equal(1, o.UnitSize);
-        Assert.Equal(2, o.UnitPrice); // 17.5 × 0.2 × 0.5 = 1.75 rounds to 2
-        Assert.Equal(0.2, o.Spread);
+        Assert.Equal(2, o.UnitPrice);
+        Assert.Equal(0.2, o.Fit);
         Assert.Equal(Budget.Side, o.Budget);
-    }
-
-    [Fact]
-    public void ATraderPaysAFifthOfValueByDefaultAndTheSpreadIsAKnob()
-    {
-        Assert.Equal(0.2, Pricing.DefaultBuySpread);
-        Assert.Equal(2, Pricing.OffList(10, false, 1, 1, 1, 1).UnitPrice);
-        Assert.Equal(5, Pricing.OffList(10, false, 1, 1, 1, 1, spread: 0.5).UnitPrice);
-        Assert.Equal(10, Pricing.OffList(10, false, 1, 1, 1, 1, spread: 1).UnitPrice);
+        // The fit is the whole share: no spread on top.
+        Assert.Equal(10, Pricing.OffList(10, false, 1, 1, 1, 1).UnitPrice);
+        Assert.Equal(8, Pricing.OffList(10, false, 0.75, 1, 1, 1).UnitPrice);
     }
 
     [Fact]
     public void ACheapGoodIsSoldByTheFewestItemsWorthAGear()
     {
-        // Planks: 0.3 a plank, a fifth of it, to the carpenter's relation at 0.75: 0.045 a plank, so 23 for a gear.
-        var o = Pricing.OffList(0.3, false, 0.75, 1, 1, 64);
+        // Planks: 0.06 a plank to a related trader at 0.75: 0.045 a plank, so 23 for a gear.
+        var o = Pricing.OffList(0.06, false, 0.75, 1, 1, 64);
         Assert.Equal(23, o.UnitSize);
         Assert.Equal(1, o.UnitPrice);
-        // Unrelated, at a tenth of value, a full stack is worth under a gear: refused.
-        var low = Pricing.OffList(0.15, false, 0.5, 1, 1, 64);
+        // Unrelated, at a fifth of value, a full stack is worth under a gear: refused.
+        var low = Pricing.OffList(0.06, false, 0.2, 1, 1, 64);
         Assert.Equal(Refusal.TooCheap, low.Refusal);
-        Assert.Equal(0.2, low.Spread);
+        Assert.Equal(0.2, low.Fit);
     }
 
     [Fact]
@@ -149,9 +143,9 @@ public class PricingTests
     [Fact]
     public void SupplyAndModifiersScaleTheOffer()
     {
-        var full = Pricing.OffList(50, false, 1, 1, 1, 1);
-        var glut = Pricing.OffList(50, false, 1, 0.5, 1, 1);
-        var standing = Pricing.OffList(50, false, 1, 0.5, 1.2, 1);
+        var full = Pricing.OffList(10, false, 1, 1, 1, 1);
+        var glut = Pricing.OffList(10, false, 1, 0.5, 1, 1);
+        var standing = Pricing.OffList(10, false, 1, 0.5, 1.2, 1);
         Assert.Equal(10, full.UnitPrice);
         Assert.Equal(5, glut.UnitPrice);
         Assert.Equal(6, standing.UnitPrice);
@@ -160,11 +154,11 @@ public class PricingTests
     [Fact]
     public void AListedPriceIsTheListsWithNoSpreadOnTop()
     {
-        // The list holds the final pay: no spread, no cap against the trader's own price.
+        // The list price as given: no fit, no cap against the trader's own price.
         var listed = Pricing.Listed(listPrice: 9, stackSize: 2, supply: 1, modifiers: 1);
         Assert.Equal(9, listed.UnitPrice);
         Assert.Equal(2, listed.UnitSize);
-        Assert.Equal(1, listed.Spread);
+        Assert.Equal(1, listed.Fit);
         Assert.Equal(Budget.Main, listed.Budget);
         Assert.Equal(9, Pricing.Listed(9, 2, 1, 1, traderBuys: false).UnitPrice);
     }
@@ -204,7 +198,9 @@ public class PricingTests
         var rules = ListPriceRules.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "list-prices.json")));
         Assert.Empty(rules.Problems());
         Assert.Equal(1.0, rules.Sell);
+        Assert.Equal(1.5, rules.Buy);
         Assert.Equal(0.25, rules.Roll);
+        Assert.Equal(0.2, rules.OwnShelf);
         Assert.True(rules.OwnShelf <= rules.Sell);
         Assert.Equal(ListPriceRules.Default, ListPriceRules.Parse("// none\n{ }"));
         Assert.Equal(4, new ListPriceRules { Sell = 0, Buy = -1, OwnShelf = 0, Roll = 1 }.Problems().Count);
@@ -250,9 +246,8 @@ public class PricingTests
         Assert.True(o.OwnShelf);
         Assert.Equal(2, o.UnitPrice);
         Assert.Equal(1, o.UnitSize);
-        // The rate is the whole share: no buy spread on top.
+        // The rate is the whole share.
         Assert.Equal(0.2, o.Fit);
-        Assert.Equal(1, o.Spread);
         Assert.Equal(Budget.Side, o.Budget);
         // Cheap goods by the fewest worth a gear, as off-list goods; worthless ones refused.
         Assert.Equal(10, Pricing.OwnShelf(0.5, false, 0.2, 1, 1, 64).UnitSize);
