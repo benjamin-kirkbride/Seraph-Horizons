@@ -1835,5 +1835,7 @@
   "eidolon-carry-failed": "Your eidolon could not lift {0} ({1})",
   "eidolon-setdown-empty": "It carries nothing",
   "eidolon-setdown-noroom": "There is no room to set its load down there",
-  "eidolon-setdown-failed": "Your eidolon could not set its load down: the place is taken"
+  "eidolon-setdown-failed": "Your eidolon could not set its load down: the place is taken",
+  "eidoloncommander-mode-guard": "Guard this place",
+  "eidolon-order-guard": "guard"
 }

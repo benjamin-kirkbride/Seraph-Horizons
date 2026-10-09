@@ -67,8 +67,8 @@ public static class EidolonFollow
 /// <summary>
 /// Self-defence (README "Eidolon", self-defence): it strikes back at a creature that hurt it, never
 /// a player or another eidolon, while the creature lives, is within <c>range</c> and hurt it no longer
-/// than <c>memory</c> seconds ago (each blow it lands keeps the fight going). Blows alternate a punch
-/// and a kick.
+/// than <c>memory</c> seconds ago (each blow it lands keeps the fight going). Blows go a punch, a
+/// kick and a slam in turn.
 /// </summary>
 public static class EidolonDefence
 {
@@ -77,8 +77,15 @@ public static class EidolonDefence
         !attackerIsPlayer && !attackerIsEidolon && attackerAlive && secondsSinceHurt >= 0 && secondsSinceHurt <= memory && distance <= range;
 
     /// <summary>The <paramref name="n"/>th blow: its animation code (the entity type's), its length and
-    /// when in it the blow lands, in seconds (the shape's <c>stand-punch</c>, 45 frames, and
-    /// <c>stand-kick</c>, 35, both landing on frame 20, at 30 frames a second).</summary>
-    public static (string Animation, double Seconds, double HitAt) Blow(int n) =>
-        n % 2 == 0 ? ("punch", 45 / 30.0, 20 / 30.0) : ("kick", 35 / 30.0, 20 / 30.0);
+    /// when in it the blow lands, in seconds, and whether it is the heavy one. A punch, a kick and a
+    /// slam in turn (the shape's <c>stand-punch</c>, 45 frames, and <c>stand-kick</c>, 35, both landing
+    /// on frame 20; <c>stand-slam</c>, 45 frames, both fists coming down on frame 40, where the
+    /// archives' eidolon's own slam lets go), at 30 frames a second.</summary>
+    public static (string Animation, double Seconds, double HitAt, bool Slam) Blow(int n) =>
+        (n % 3) switch
+        {
+            0 => ("punch", 45 / 30.0, 20 / 30.0, false),
+            1 => ("kick", 35 / 30.0, 20 / 30.0, false),
+            _ => ("slam", 45 / 30.0, 40 / 30.0, true),
+        };
 }

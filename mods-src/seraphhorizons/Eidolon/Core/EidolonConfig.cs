@@ -71,6 +71,15 @@ public class EidolonConfig
     /// damage multiplier, as a creature's).</summary>
     public float DefenceDamage { get; set; } = 10;
 
+    // ---- Guarding (#680; README "Eidolon", "Guarding") ----
+
+    /// <summary>The damage of each slam, every third blow in a fight (before the world's creature
+    /// damage multiplier); the punches and kicks are <see cref="DefenceDamage"/>.</summary>
+    public float SlamDamage { get; set; } = 16;
+
+    /// <summary>Guarding, how far from its point, in blocks, it goes for a hostile creature.</summary>
+    public double GuardRadius { get; set; } = 16;
+
     public static readonly EidolonConfig Defaults = new();
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
@@ -104,6 +113,9 @@ public class EidolonConfig
         Check(nameof(FollowDistance), FollowDistance, 2, 32, () => FollowDistance = Defaults.FollowDistance, Defaults.FollowDistance);
         Check(nameof(FollowRunDistance), FollowRunDistance, 2, 256, () => FollowRunDistance = Defaults.FollowRunDistance, Defaults.FollowRunDistance);
         Check(nameof(DefenceDamage), DefenceDamage, 0, 1000, () => DefenceDamage = Defaults.DefenceDamage, Defaults.DefenceDamage);
+
+        Check(nameof(SlamDamage), SlamDamage, 0, 1000, () => SlamDamage = Defaults.SlamDamage, Defaults.SlamDamage);
+        Check(nameof(GuardRadius), GuardRadius, 2, 64, () => GuardRadius = Defaults.GuardRadius, Defaults.GuardRadius);
         return fixes;
     }
 }
