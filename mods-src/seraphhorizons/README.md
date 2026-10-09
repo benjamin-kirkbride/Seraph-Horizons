@@ -2632,9 +2632,9 @@ its last heat, takes back an unmelted pot and breaks a hole, and finds a ppex pi
 `BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise no whole converter (vessel
 stages, transmission, steam, blast), so it places a lone control block, sets its heat as smex leaves
 it and runs smex's own methods through the patches: a blow completing with ferrochrome scrap, the save,
-the block info, a stainless pour, an off-ratio and a too-cold one, ferrochrome into molten steel, and a
-charge refused (with smex's word) while the plant is incomplete; a real blow, the canal run and the
-client's view are not driven. `tests/BessemerHeatTests.cs` covers the decision. `SwitchesOffScenarios`
+the block info, a stainless pour, an off-ratio and a too-cold one, and ferrochrome into molten steel;
+a real blow, a player's click at the hatch (smex's checks before it), the canal run and the client's
+view are not driven. `tests/BessemerHeatTests.cs` covers the decision. `SwitchesOffScenarios`
 requires none of it with the switch off.
 
 ### Handcar (`Handcar`, `HandcarSettings`)

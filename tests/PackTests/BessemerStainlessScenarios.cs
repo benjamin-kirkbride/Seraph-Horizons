@@ -19,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 /// vessel built through its stages, transmission, intake, canals, steam and blast) is more than a
 /// scenario can raise, so a lone control block is placed and its heat set as smex's own code leaves
 /// it, then smex's own methods are run (by reflection, through the patches): the blow completing,
-/// the pour, the save, the block info, and a charge refused while the plant is not complete.
+/// the pour, the save, the block info, and ferrochrome into molten steel.
 /// </summary>
 public partial class SharedWorldScenarios
 {
@@ -121,22 +121,16 @@ public partial class SharedWorldScenarios
             Assert.Equal(800, BessemerStainless.ContentUnits(control));
 
             // After the blow, ferrochrome goes straight into the molten steel (smex refuses it as
-            // scrap there). The plant here is not complete, so the click is refused with smex's word
-            // and nothing taken; the charge itself, past those checks, books it in the heat.
+            // scrap there): the charge, past smex's checks (power, a complete plant), books it in the
+            // heat. (No player joins here: the shared world's server takes 16 at most, all spoken for.)
             SetHeat("game:ingot-steel", 800, 1700f);
             BessemerStainless.SetHeat(control, 0);
-            var player = (await World.JoinPlayer("bessemerhand")).Player;
-            var hand = player.InventoryManager.ActiveHotbarSlot;
-            hand.Itemstack = new ItemStack(W.GetItem(new AssetLocation(Stainless.Ferrochrome))!, 40);
-            object?[] args = [player, null];
-            Assert.True((bool)AccessTools.Method(type, "TryChargeScrap").Invoke(control, args)!);
-            Assert.Equal(Lang.Get("smex:bessemer-err-incomplete"), args[1]);
-            Assert.Equal(40, hand.StackSize);
+            var hand = new DummySlot(new ItemStack(W.GetItem(new AssetLocation(Stainless.Ferrochrome))!, 40));
             Assert.Equal(40, BessemerStainless.ChargeIntoHeat(control, hand, 100));
+            Assert.True(hand.Empty);
             Assert.Equal(1000, BessemerStainless.ContentUnits(control));
             Assert.Equal(200, BessemerStainless.Heat(control));
             Assert.Equal(BessemerHeat.Outcome.Stainless, BessemerStainless.Outcome(control));
-            hand.Itemstack = null;
 
             // Emptied, the ledger reads as none.
             AccessTools.Field(type, "_content").SetValue(control, null);
