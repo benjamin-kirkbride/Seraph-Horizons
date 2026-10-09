@@ -9,6 +9,8 @@ import {
   type ItemChunk,
   type ItemDetail,
   type Meta,
+  type MultiblockFile,
+  type MultiblockIndex,
   type RecipeChunk,
   type SearchFile,
   type VersionsFile,
@@ -62,6 +64,8 @@ export class VersionData {
   private entitiesP: Promise<EntityIndex> | null = null;
   private powerP: Promise<PowerData | null> | null = null;
   private readonly entityChunks = new Map<number, Promise<EntityChunk>>();
+  private multiblocksP: Promise<MultiblockIndex> | null = null;
+  private readonly multiblockFiles = new Map<number, Promise<MultiblockFile>>();
   /** Loaded search.json, for synchronous lookups once `ready` resolved. */
   index: SearchFile | null = null;
 
@@ -152,6 +156,22 @@ export class VersionData {
     }
     const chunk = await p;
     return chunk.entities[index - chunk.start] ?? [];
+  }
+
+  /** multiblocks.json; only the multiblock pages need it. */
+  multiblocks(): Promise<MultiblockIndex> {
+    this.multiblocksP ??= getJson<MultiblockIndex>(`${this.base}multiblocks.json`);
+    return this.multiblocksP;
+  }
+
+  /** One structure's file, multiblocks/<file>.json. */
+  multiblock(file: number): Promise<MultiblockFile> {
+    let p = this.multiblockFiles.get(file);
+    if (!p) {
+      p = getJson<MultiblockFile>(`${this.base}multiblocks/${file}.json`);
+      this.multiblockFiles.set(file, p);
+    }
+    return p;
   }
 
   async recipes(indices: readonly number[]): Promise<Recipe[]> {
