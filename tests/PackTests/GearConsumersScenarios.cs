@@ -32,13 +32,13 @@ internal static class GearConsumerUses
         "seraphhorizons:recipes/cooking/gear-degrease.json",
     ];
 
-    /// <summary>Recipes that take the steel gear, by the start of their output's code, and how many a
+    /// <summary>Recipes that take the stainless gear, by the start of their output's code, and how many a
     /// slot takes (patches/gearconsumers-*.json).</summary>
     internal static readonly (string Output, int PerSlot)[] SteelGearRecipes =
     [
         ("ppex:enginecornish-north", 4), ("ppex:enginewatt-north", 2), ("ppex:enginefluidpump-north", 1),
         ("ppex:manualfluidpump-north", 2), ("ppex:enginempgenerator-north", 2),
-        // ppex's valve and pressure valve (pipes.json /7, /8) take the steel gear too, but UnifiedPipes,
+        // ppex's valve and pressure valve (pipes.json /7, /8) take the stainless gear too, but UnifiedPipes,
         // on here, switches both off: its bronze valves take none (UnifiedPipesScenarios.cs).
         ("smex:hopperbell", 4), ("smex:engineairblower-north", 2), ("smex:convertertransmission-north", 16),
         ("game:glider", 1),
@@ -66,8 +66,8 @@ internal static class GearConsumerUses
 
 /// <summary>
 /// <c>GearConsumers</c> (#473), on as it is by default: every recipe that took a rusty gear (or one of
-/// ppex's anvil gears) takes the steel gear, ppex's anvil gears are gone, and smex's Bessemer converter
-/// is raised with the steel large gear. Read from the game's registries here, and from the recipe export in
+/// ppex's anvil gears) takes the stainless gear, ppex's anvil gears are gone, and smex's Bessemer converter
+/// is raised with the stainless large gear. Read from the game's registries here, and from the recipe export in
 /// <see cref="RecipeExportScenarios"/> (RecipeExportGearChainScenarios.cs).
 /// The off check is in <see cref="SwitchesOffScenarios"/>; <c>tools/tests/test_gear_consumers.py</c>
 /// holds the patch files to every locked mod's recipe files.
@@ -85,8 +85,8 @@ public partial class SharedWorldScenarios
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
-        Assert.NotNull(W.GetItem(new AssetLocation(GearConsumers.SteelGear)));
-        Assert.NotNull(W.GetItem(new AssetLocation(GearConsumers.SteelLargeGear)));
+        Assert.NotNull(W.GetItem(new AssetLocation(GearConsumers.StainlessGear)));
+        Assert.NotNull(W.GetItem(new AssetLocation(GearConsumers.StainlessLargeGear)));
     }
 
     [AtlasScenario]
@@ -112,12 +112,12 @@ public partial class SharedWorldScenarios
         {
             var recipes = W.GridRecipes.Where(r => r.Output?.Code?.ToString().StartsWith(prefix) == true).ToList();
             var steel = recipes
-                .SelectMany(r => r.ResolvedIngredients?.Where(i => i?.Code?.ToString() == GearConsumers.SteelGear) ?? [])
+                .SelectMany(r => r.ResolvedIngredients?.Where(i => i?.Code?.ToString() == GearConsumers.StainlessGear) ?? [])
                 .ToList();
-            output.WriteLine($"{prefix}: {recipes.Count} recipes, {steel.Count} steel gear slots");
-            Assert.True(steel.Count > 0, $"no registered recipe for {prefix} takes {GearConsumers.SteelGear}");
+            output.WriteLine($"{prefix}: {recipes.Count} recipes, {steel.Count} stainless gear slots");
+            Assert.True(steel.Count > 0, $"no registered recipe for {prefix} takes {GearConsumers.StainlessGear}");
             Assert.All(steel, i => Assert.Equal(perSlot, i.Quantity));
-            Assert.All(steel, i => Assert.Equal(GearConsumers.SteelGear, i.ResolvedItemStack?.Collectible?.Code?.ToString()));
+            Assert.All(steel, i => Assert.Equal(GearConsumers.StainlessGear, i.ResolvedItemStack?.Collectible?.Code?.ToString()));
         }
         // Each ppex and smex machine is left with the recipe that took the rusty gear (one per metal
         // where it names one): its twin taking ppex's gears is switched off.
@@ -130,7 +130,7 @@ public partial class SharedWorldScenarios
             // The resolved ingredients, as the loop above reads: the server drops a grid recipe's keyed
             // ones once recipes are sent to a client (SchematicRecipes.cs), so after a scenario joins a
             // player there are none.
-            Assert.All(found, r => Assert.Contains(r.ResolvedIngredients ?? [], i => i?.Code?.ToString() == GearConsumers.SteelGear));
+            Assert.All(found, r => Assert.Contains(r.ResolvedIngredients ?? [], i => i?.Code?.ToString() == GearConsumers.StainlessGear));
             Assert.All(found, r => Assert.DoesNotContain(r.ResolvedIngredients ?? [], i => IsOldGear(i?.Code?.ToString())));
         }
     }
@@ -155,17 +155,17 @@ public partial class SharedWorldScenarios
         Assert.True(Harmony.HasAnyPatches(GearConsumers.HarmonyId));
         var isSpawnGear = AccessTools.Method(AccessTools.TypeByName(GearConsumers.ControlType), GearConsumers.SpawnGearMethod);
         bool Raises(string code) => (bool)isSpawnGear.Invoke(null, [new ItemStack(W.GetItem(new AssetLocation(code)))])!;
-        Assert.True(Raises(GearConsumers.SteelLargeGear));
+        Assert.True(Raises(GearConsumers.StainlessLargeGear));
         Assert.False(Raises("ppex:largegear-steel"));
         Assert.False(Raises("ppex:largegear-iron"));
 
         var converter = W.GetBlock(new AssetLocation("smex:converterbessemer-north"));
         Assert.NotNull(converter);
         var drops = converter!.GetDrops(W, World.Spawn, null, 1f);
-        Assert.Contains(drops, s => s.Collectible.Code.ToString() == GearConsumers.SteelLargeGear && s.StackSize == 1);
+        Assert.Contains(drops, s => s.Collectible.Code.ToString() == GearConsumers.StainlessLargeGear && s.StackSize == 1);
         Assert.DoesNotContain(drops, s => IsOldGear(s.Collectible.Code.ToString()));
 
-        Assert.Contains("steel large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
-        Assert.Contains("one steel large gear", Lang.GetL("en", "smex:handbook-bessemer-text"));
+        Assert.Contains("stainless large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
+        Assert.Contains("one stainless large gear", Lang.GetL("en", "smex:handbook-bessemer-text"));
     }
 }

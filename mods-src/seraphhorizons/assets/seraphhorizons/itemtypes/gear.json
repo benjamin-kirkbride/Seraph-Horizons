@@ -2,7 +2,7 @@
 	"code": "gear",
 	"class": "seraphhorizons.ReclaimedGear",
 	"variantgroups": [
-		{ "code": "type", "states": ["steel", "degreased", "pickled", "neutralized", "oiled"] }
+		{ "code": "type", "states": ["stainless", "degreased", "pickled", "passivated", "neutralized"] }
 	],
 	"behaviors": [
 		{ "name": "GroundStorable",
@@ -22,11 +22,11 @@
 	],
 	"shape": { "base": "game:item/gear-rusty" },
 	"texturesByType": {
-		"*-steel": { "rusty-iron": { "base": "game:block/metal/ingot/steel" } },
+		"*-stainless": { "rusty-iron": { "base": "game:block/metal/ingot/stainlesssteel" } },
 		"*-degreased": { "rusty-iron": { "base": "game:block/metal/corroded/normal1" } },
 		"*-pickled": { "rusty-iron": { "base": "game:block/metal/ingot/iron" } },
-		"*-neutralized": { "rusty-iron": { "base": "game:block/metal/ingot/blistersteel" } },
-		"*-oiled": { "rusty-iron": { "base": "game:block/metal/ingot/stainlesssteel" } }
+		"*-passivated": { "rusty-iron": { "base": "game:block/metal/sheet-plain/steel1" } },
+		"*-neutralized": { "rusty-iron": { "base": "game:block/metal/ingot/blistersteel" } }
 	},
 	"attributes": {
 		"displaycaseable": true,
@@ -54,26 +54,6 @@
 				{ "title": "seraphhorizons:gearreclamation-section-title", "text": "seraphhorizons:gearreclamation-section-text" }
 			]
 		}
-	},
-	"attributesByType": {
-		"*-pickled": { "seraphhorizonsFlashRust": true },
-		"*-neutralized": { "seraphhorizonsFlashRust": true }
-	},
-	"transitionablePropsByType": {
-		"*-pickled": [{
-			"type": "Perish",
-			"freshHours": { "avg": 8 },
-			"transitionHours": { "avg": 2 },
-			"transitionedStack": { "type": "item", "code": "game:gear-rusty" },
-			"transitionRatio": 1
-		}],
-		"*-neutralized": [{
-			"type": "Perish",
-			"freshHours": { "avg": 8 },
-			"transitionHours": { "avg": 2 },
-			"transitionedStack": { "type": "item", "code": "game:gear-rusty" },
-			"transitionRatio": 1
-		}]
 	},
 	"creativeinventory": { "general": ["*"], "items": ["*"] },
 	"maxstacksize": 64,

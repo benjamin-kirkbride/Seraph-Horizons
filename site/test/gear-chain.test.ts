@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The gear chain's recipe shapes (#483): the pickling tub, the oiled gear's lottery and the
+// The gear chain's recipe shapes (#483): the pickling tub, the neutralized gear's lottery and the
 // gear cutter, from schema/examples/minimal.json, as helpers and as rendered cards.
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -16,8 +16,8 @@ const minimal = JSON.parse(
 ) as RecipeExport;
 const byId = (id: string) => minimal.recipes.find((r) => r.id === id)!;
 const tub = byId("picklingtub|seraphhorizons:gear-degreased|game:vinegarportion");
-const lottery = byId("lottery|seraphhorizons:gear-oiled|0");
-const cutter = byId("gearcutter|seraphhorizons:gearblank-steel|0");
+const lottery = byId("lottery|seraphhorizons:gear-neutralized|0");
+const cutter = byId("gearcutter|seraphhorizons:gearblank-stainlesssteel|0");
 
 describe("tub", () => {
   it("says how long, the batch, and when the acid starts eating", () => {
@@ -37,7 +37,12 @@ describe("tub", () => {
     ]);
   });
 
-  it("heads the card with the pickled gear only, not the steel bits", () => {
+  it("says nitric acid passivates", () => {
+    const nitric: Recipe = { ...tub, tub: { ...tub.tub!, kind: "passivate", hours: 6 } };
+    expect(tubLines(nitric)[0]).toBe("Passivated in 6 hours of game time");
+  });
+
+  it("heads the card with the pickled gear only, not the stainless bits", () => {
     expect(tubOutputs(tub)).toEqual({ made: [0], failure: 1 });
     expect(cardOutputs(tub, 0).map((s) => s.code)).toEqual(["seraphhorizons:gear-pickled"]);
   });
@@ -46,8 +51,8 @@ describe("tub", () => {
 describe("lottery", () => {
   it("lists the outcomes likeliest first with their stacks", () => {
     expect(lotteryOutcomes(lottery, 0).map((o) => [o.label, o.stacks.map((s) => s.code)])).toEqual([
-      ["90%", ["game:metalbit-steel"]],
-      ["10%", ["seraphhorizons:gear-steel"]],
+      ["90%", ["game:metalbit-stainlesssteel"]],
+      ["10%", ["seraphhorizons:gear-stainless"]],
     ]);
   });
 
@@ -113,7 +118,7 @@ describe("renderers", () => {
     expect(el.querySelector("[data-shape]")!.getAttribute("data-shape")).toBe("tub");
     expect(el.querySelector("[data-tub]")!.getAttribute("data-hours")).toBe("24");
     expect([...el.querySelectorAll("[data-role]")].map((e) => e.getAttribute("data-role"))).toEqual(["batch", "liquid", "station"]);
-    expect(el.querySelector("[data-failure] [data-code]")!.getAttribute("data-code")).toBe("game:metalbit-steel");
+    expect(el.querySelector("[data-failure] [data-code]")!.getAttribute("data-code")).toBe("game:metalbit-stainlesssteel");
     expect(el.textContent).toContain("Pickled clean in 24 hours");
   });
 
@@ -121,7 +126,7 @@ describe("renderers", () => {
     const el = render(lottery, "lottery");
     const outcomes = [...el.querySelectorAll("[data-outcome]")];
     expect(outcomes.map((o) => o.getAttribute("data-chance"))).toEqual(["0.9", "0.1"]);
-    expect(outcomes[1]!.querySelector("[data-code]")!.getAttribute("data-code")).toBe("seraphhorizons:gear-steel");
+    expect(outcomes[1]!.querySelector("[data-code]")!.getAttribute("data-code")).toBe("seraphhorizons:gear-stainless");
     expect(el.textContent).toContain("lands in a player's inventory");
   });
 

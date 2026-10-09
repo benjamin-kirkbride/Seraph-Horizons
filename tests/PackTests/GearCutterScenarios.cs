@@ -217,8 +217,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, ingots.Count);
         Assert.All(ingots, i => { Assert.Equal(new[] { "steel" }, i!.AllowedVariants); Assert.Equal(4, i.Quantity); });
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 32);
-        // 3 steel gears for the gearing the frame carries (the feed rectifier, the camshaft's worm wheel)
-        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-steel" && i.Quantity == 3);
+        // 3 stainless gears for the gearing the frame carries (the feed rectifier, the camshaft's worm wheel)
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 3);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the spindle and the index: 2 steel rods, 2 steel plates and the game's metal parts (a block:
         // the spindle's keys and collars, the index's pawls, pins and roller) each, no nails; the
@@ -364,7 +364,7 @@ public partial class SharedWorldScenarios
 
     // ---- Cutting ----
 
-    // Under power a small blank turns into a steel gear at the output face, the large master takes a
+    // Under power a small blank turns into a stainless gear at the output face, the large master takes a
     // large blank to a large gear, each master refuses the other size, and the cut advances with the
     // shaft only.
     [AtlasScenario(TimeoutMs = 180_000)]

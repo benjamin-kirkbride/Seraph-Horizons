@@ -4,7 +4,7 @@ using Vintagestory.API.Common;
 
 namespace SeraphHorizons.RecipeExport;
 
-/// <summary>The gear chain (pickling tub, oiled gear lottery, gear cutter) and tool mold casting.
+/// <summary>The gear chain (pickling tub, neutralized gear lottery, gear cutter) and tool mold casting.
 /// See docs/recipe-browser/schema.md.</summary>
 public static partial class RecipeSection
 {
@@ -132,8 +132,8 @@ public static partial class RecipeSection
         };
     }
 
-    /// <summary>The oiled gear: each one is decided when it lands in a player's inventory, a sound
-    /// gear with the chance, else steel bits.</summary>
+    /// <summary>The neutralized gear: each one is decided when it lands in a player's inventory, a
+    /// sound stainless gear with the chance, else stainless bits.</summary>
     private static JObject LotteryRecord(Context ctx, LotteryData l)
     {
         var item = l.Item.Code.ToString();

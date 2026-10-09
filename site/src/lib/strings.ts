@@ -184,7 +184,7 @@ const en = {
     "At the usual rate, in an inventory, a chest or on the ground. Where it is kept can change that: a cellar slows spoiling, and some containers speed drying or stop it. Once a stack has started to spoil, it no longer dries or cures.",
   transitionRatio: (ratio: string) => `Stack size ×${ratio}`,
   tubDone: (kind: string, when: string) =>
-    kind === "rust" ? `Rusts through in ${when} of game time` : kind === "pickle" ? `Pickled clean in ${when} of game time` : `Done in ${when} of game time`,
+    kind === "rust" ? `Rusts through in ${when} of game time` : kind === "pickle" ? `Pickled clean in ${when} of game time` : kind === "passivate" ? `Passivated in ${when} of game time` : `Done in ${when} of game time`,
   tubBatch: (n: number, litres: number | undefined) =>
     `A batch of up to ${n} gear${n === 1 ? "" : "s"}${litres ? `; a finished batch uses up ${litres} L` : ""}`,
   tubEats: (grace: string, every: string) =>

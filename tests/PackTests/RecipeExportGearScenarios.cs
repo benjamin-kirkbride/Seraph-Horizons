@@ -7,7 +7,7 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// The gear chain's shapes (#483): the pickling tub's rules (PicklingTubSettings' defaults in
-/// mods-src/seraphhorizons/PicklingTub/Core/TubConfig.cs), the oiled gear's lottery
+/// mods-src/seraphhorizons/PicklingTub/Core/TubConfig.cs), the neutralized gear's lottery
 /// (GearReclamationSettings), the gear cutter's process (config/gearcutter-rig.json and the
 /// cutter's agreed defaults) and casting in tool molds (the molds' blocktypes). Values are written
 /// down from those files.
@@ -39,40 +39,45 @@ public partial class RecipeExportScenarios
         Json("""
             [
               { "code": "seraphhorizons:gear-pickled", "kind": "item", "quantity": 1 },
-              { "code": "game:metalbit-steel", "kind": "item", "quantity": 1 }
+              { "code": "game:metalbit-stainlesssteel", "kind": "item", "quantity": 1 }
             ]
             """, vinegar["outputs"]!);
         Json("""{ "kind": "pickle", "hours": 24, "batchSize": 8, "litresPerBatch": 1, "graceHours": 12, "lossEveryHours": 3, "failure": 1 }""",
             vinegar["tub"]!);
-        Assert.Equal(new[] { "seraphhorizons:gear-pickled", "game:metalbit-steel" }, Codes(vinegar["variants"]![0]!["outputs"]!).Select(c => (string)c!));
+        Assert.Equal(new[] { "seraphhorizons:gear-pickled", "game:metalbit-stainlesssteel" }, Codes(vinegar["variants"]![0]!["outputs"]!).Select(c => (string)c!));
 
-        // Sulfuric is 8 hours; the dip that takes a steel gear bare, 2.
+        // Sulfuric is 8 hours.
         Assert.Equal(8, (double)Recipe("picklingtub|seraphhorizons:gear-degreased|game:acid-full-sulfuric")["tub"]!["hours"]!);
-        Assert.Equal(2, (double)Recipe("picklingtub|seraphhorizons:gear-steel|game:acid-full-sulfuric")["tub"]!["hours"]!);
         // Hydrochloric acid is Expanded Matter's; its rule is exported when the acid is registered.
         var hcl = OfType(RecipeSection.TubType).SingleOrDefault(r => (string)r["id"]! == "picklingtub|seraphhorizons:gear-degreased|game:acid-full-hydrochloric");
         Assert.Equal(Registered("game:acid-full-hydrochloric"), hcl != null);
         if (hcl != null) Assert.Equal(2, (double)hcl["tub"]!["hours"]!);
 
-        // The brine bath: 48 hours, 4 for bare gears, each gear 10% to bits, no loss by time.
-        Json("""{ "kind": "rust", "hours": 48, "batchSize": 8, "litresPerBatch": 1, "lossChance": 0.1, "failure": 1 }""",
-            Recipe("picklingtub|seraphhorizons:gear-steel|game:brineportion")["tub"]!);
-        Json("""{ "kind": "rust", "hours": 4, "batchSize": 8, "litresPerBatch": 1, "lossChance": 0.1, "failure": 1 }""",
-            Recipe("picklingtub|seraphhorizons:gear-steel-bare|game:brineportion")["tub"]!);
-        Assert.Equal(new[] { "game:gear-rusty", "game:metalbit-steel" }, Codes(Recipe("picklingtub|seraphhorizons:gear-steel|game:brineportion")["outputs"]!).Select(c => (string)c!));
+        // Passivating: pickled gears in Expanded Matter's nitric acid, 6 hours, a gear an hour after 3.
+        var nitric = OfType(RecipeSection.TubType).SingleOrDefault(r => (string)r["id"]! == "picklingtub|seraphhorizons:gear-pickled|game:acid-full-nitric");
+        Assert.Equal(Registered("game:acid-full-nitric"), nitric != null);
+        if (nitric != null)
+        {
+            Json("""{ "kind": "passivate", "hours": 6, "batchSize": 8, "litresPerBatch": 1, "graceHours": 3, "lossEveryHours": 1, "failure": 1 }""",
+                nitric["tub"]!);
+            Assert.Equal(new[] { "seraphhorizons:gear-passivated", "game:metalbit-stainlesssteel" }, Codes(nitric["outputs"]!).Select(c => (string)c!));
+        }
+        // No brine bath and no acid dip: vinegar, sulfuric, hydrochloric and nitric acid (#484's stainless rework).
+        Assert.DoesNotContain(OfType(RecipeSection.TubType), r => ((string)r["id"]!).Contains("brineportion"));
+        Assert.Equal(2 + (hcl != null ? 1 : 0) + (nitric != null ? 1 : 0), OfType(RecipeSection.TubType).Count());
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
-    public void Oiled_gear_is_a_lottery_of_one_in_ten()
+    public void Neutralized_gear_is_a_lottery_of_one_in_ten()
     {
         Json("""{ "name": "Decided on pickup", "count": 1, "shape": "lottery", "registry": "GearReclamationSettings", "mod": "seraphhorizons" }""",
             Doc["recipeTypes"]![RecipeSection.LotteryType]!);
-        var r = Recipe("lottery|seraphhorizons:gear-oiled|0");
-        Json("""[{ "code": "seraphhorizons:gear-oiled", "kind": "item", "quantity": 1 }]""", r["ingredients"]!);
+        var r = Recipe("lottery|seraphhorizons:gear-neutralized|0");
+        Json("""[{ "code": "seraphhorizons:gear-neutralized", "kind": "item", "quantity": 1 }]""", r["ingredients"]!);
         Json("""
             [
-              { "code": "seraphhorizons:gear-steel", "kind": "item", "quantity": 1 },
-              { "code": "game:metalbit-steel", "kind": "item", "quantity": 1 }
+              { "code": "seraphhorizons:gear-stainless", "kind": "item", "quantity": 1 },
+              { "code": "game:metalbit-stainlesssteel", "kind": "item", "quantity": 1 }
             ]
             """, r["outputs"]!);
         Json("""{ "trigger": "inventory", "outcomes": [{ "chance": 0.1, "outputs": [0] }, { "chance": 0.9, "outputs": [1] }] }""", r["lottery"]!);
@@ -82,7 +87,7 @@ public partial class RecipeExportScenarios
     public void Gear_cutter_process_is_a_machine_record_per_blank_size()
     {
         var records = OfType(RecipeSection.CutterType).ToList();
-        Assert.Equal(new[] { "gearcutter|seraphhorizons:gearblank-steel|0", "gearcutter|seraphhorizons:largegearblank-steel|0" },
+        Assert.Equal(new[] { "gearcutter|seraphhorizons:gearblank-stainlesssteel|0", "gearcutter|seraphhorizons:largegearblank-stainlesssteel|0" },
             records.Select(r => (string)r["id"]!));
         Assert.Equal("machine", (string)Doc["recipeTypes"]![RecipeSection.CutterType]!["shape"]!);
 
@@ -91,8 +96,8 @@ public partial class RecipeExportScenarios
         // oil 10 points a small gear, double a large, from a 1000-point tank.
         foreach (var (r, blank, master, gear, teeth, wear, oil) in new[]
                  {
-                     (records[0], "seraphhorizons:gearblank-steel", "game:gear-temporal", "seraphhorizons:gear-steel", 12, 10, 10),
-                     (records[1], "seraphhorizons:largegearblank-steel", "game:largegear-temporal", "seraphhorizons:largegear-steel", 20, 17, 20),
+                     (records[0], "seraphhorizons:gearblank-stainlesssteel", "game:gear-temporal", "seraphhorizons:gear-stainless", 12, 10, 10),
+                     (records[1], "seraphhorizons:largegearblank-stainlesssteel", "game:largegear-temporal", "seraphhorizons:largegear-stainless", 20, 17, 20),
                  })
         {
             var ingredients = (JArray)r["ingredients"]!;
@@ -160,8 +165,10 @@ public partial class RecipeExportScenarios
         Assert.Empty(broken);
 
         var guide = Assert.Single(Doc["guides"]!, g => (string?)g["code"] == "seraphhorizons-gearreclamation");
-        Assert.Equal("Gears: reclaiming, cutting, rusting", (string)guide["title"]!);
+        Assert.Equal("Gears: reclaiming and cutting", (string)guide["title"]!);
         Assert.Contains("grey and clean", (string)guide["text"]!);
+        Assert.Contains("passive skin", (string)guide["text"]!);
+        Assert.DoesNotContain("brine", (string)guide["text"]!);
         Assert.DoesNotContain("furnace", (string)guide["text"]!);
     }
 
@@ -171,25 +178,26 @@ public partial class RecipeExportScenarios
         Json("""{ "name": "Casting", "shape": "generic", "registry": "BlockToolMold", "mod": "game" }""",
             new JObject(((JObject)Doc["recipeTypes"]![RecipeSection.CastingType]!).Properties().Where(p => p.Name != "count")));
 
-        // seraphhorizons blocktypes/clay/gearblankmold-fired.json: 100 units, steel only, ten colours.
+        // seraphhorizons blocktypes/clay/gearblankmold-fired.json: 25 units, a quarter ingot, stainless
+        // steel only, ten colours.
         var blank = Recipe("casting|seraphhorizons:toolmold-black-fired-gearblank|0");
         Assert.Equal("seraphhorizons", (string)blank["mod"]!);
         Json("""
             [
               { "code": "seraphhorizons:toolmold-*-fired-gearblank", "kind": "block", "quantity": 1, "role": "station" },
-              { "code": "game:ingot-*", "kind": "item", "quantity": 1, "role": "metal", "wildcardName": "metal", "extra": { "units": 100 } }
+              { "code": "game:ingot-*", "kind": "item", "quantity": 0.25, "role": "metal", "wildcardName": "metal", "extra": { "units": 25 } }
             ]
             """, blank["ingredients"]!);
         Json("""[{ "code": "seraphhorizons:gearblank-{metal}", "kind": "item", "quantity": 1 }]""", blank["outputs"]!);
-        var steel = Assert.Single(blank["variants"]!);
-        Json("""{ "metal": "steel" }""", steel["bindings"]!);
-        Assert.Equal(10, steel["ingredients"]![0]!.Count());
-        Json("""[{ "code": "game:ingot-steel", "kind": "item", "quantity": 1 }]""", steel["ingredients"]![1]!);
-        Json("""[{ "code": "seraphhorizons:gearblank-steel", "kind": "item", "quantity": 1 }]""", steel["outputs"]!);
+        var stainless = Assert.Single(blank["variants"]!);
+        Json("""{ "metal": "stainlesssteel" }""", stainless["bindings"]!);
+        Assert.Equal(10, stainless["ingredients"]![0]!.Count());
+        Json("""[{ "code": "game:ingot-stainlesssteel", "kind": "item", "quantity": 0.25 }]""", stainless["ingredients"]![1]!);
+        Json("""[{ "code": "seraphhorizons:gearblank-stainlesssteel", "kind": "item", "quantity": 1 }]""", stainless["outputs"]!);
 
         // The large blank mold takes 200 units: two ingots.
         var large = Recipe("casting|seraphhorizons:toolmold-black-fired-largegearblank|0");
-        Json("""[{ "code": "game:ingot-steel", "kind": "item", "quantity": 2 }]""", Assert.Single(large["variants"]!)["ingredients"]![1]!);
+        Json("""[{ "code": "game:ingot-stainlesssteel", "kind": "item", "quantity": 2 }]""", Assert.Single(large["variants"]!)["ingredients"]![1]!);
 
         // survival blocktypes/clay/fired/toolmold.json: the anvil mold takes 900 units, and copper
         // casts an axe head ({tooltype}head-{metal}).

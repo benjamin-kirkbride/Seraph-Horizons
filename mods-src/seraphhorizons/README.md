@@ -8,9 +8,9 @@ It is a code mod holding the pack's own tweaks: gameplay changes to other mods, 
 tidies the creative inventory and the handbook, Map Reveal, which shows already generated
 terrain on the world map, and two machines: the bucking sawmill, which cuts tree trunks into logs,
 and the rosser, which strips their branches and bark first; the gears (#484): rusty gears reclaimed
-into steel gears through the pot, the pickling tub and the barrel (`GearReclamation`), every machine
-recipe taking the steel gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
-steel gear blanks (`GearBlanks`) and the gear cutter that cuts them into steel gears
+into stainless gears through the pot, the pickling tub and the barrel (`GearReclamation`), every machine
+recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
+stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
 (`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
 bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
@@ -1486,45 +1486,45 @@ machines' ground pull, old worlds, the settings table, the tests and what is not
 
 ### Gear reclamation (`GearReclamation`, `GearReclamationSettings`)
 
-The gears epic (#484): the gear items (#474), degreasing (#475), and neutralizing, oiling and the
-roll (#477). The pickling tub and brine bath, the consumer patches, steel bits recovery and the gear
-blanks follow in sections of their own; the gear cutter is still to come. Rusty gears are salvage.
-They are reclaimed a batch at a time into steel gears, one in ten sound, the rest steel bits:
+The gears epic (#484): the gear items (#474), degreasing (#475), and neutralizing and the roll
+(#477). The pickling tub, the consumer patches, steel bits recovery, the gear blanks and the gear
+cutter follow in sections of their own.
+
+Rusty gears (`game:gear-rusty`) are stainless steel gears, corroded by the Rust dimension's
+incursion and by whatever the Jonas devices did to time around them: stainless does not rust on its
+own, so nothing in the pack turns a gear into a rusty gear (making them is #640). They are salvage,
+and stay currency (an item value of 1). They are reclaimed a batch at a time into stainless gears,
+one in ten sound, the rest stainless bits, by the steps a real stainless steel part is cleaned by
+(ASTM A380, A967): degrease, pickle, passivate, neutralize.
 
 | Step | Where | In | Out |
 |---|---|---|---|
 | Boil | cooking pot over a fire | rusty gears + 0.25 L of an alkali a gear | `seraphhorizons:gear-degreased` |
-| Pickle | the pickling tub (its own step) | degreased gears + acid | `seraphhorizons:gear-pickled` |
-| Neutralize | barrel, sealed 2 h | pickled gears + 0.1 L lime water (`game:limewaterportion`) a gear | `seraphhorizons:gear-neutralized` |
-| Oil | barrel, sealed 4 h | neutralized gears + 0.1 L lard (`expandedfoods:lard`) or 0.2 L hardened lard (`expandedfoods:hardlardliquid`, 1 item) a gear | `seraphhorizons:gear-oiled` |
-| Roll | a player's inventory | oiled gears | `seraphhorizons:gear-steel` with `UsableGearChance`, else `BitsPerFailedGear` × `game:metalbit-steel` |
+| Pickle | the pickling tub (its own section) | degreased gears + acid | `seraphhorizons:gear-pickled` |
+| Passivate | the pickling tub | pickled gears + nitric acid (`game:acid-full-nitric`, Expanded Matter's) | `seraphhorizons:gear-passivated` |
+| Neutralize | barrel, sealed 2 h | passivated gears + 0.1 L lime water (`game:limewaterportion`) a gear | `seraphhorizons:gear-neutralized` |
+| Roll | a player's inventory | neutralized gears | `seraphhorizons:gear-stainless` with `UsableGearChance`, else `BitsPerFailedGear` × `game:metalbit-stainlesssteel` |
 
-**The gears** (`itemtypes/gear.json`, one item type `gear` with `type` steel, degreased, pickled,
-neutralized, oiled) are the game's rusty gear shape (`game:item/gear-rusty`) with its one texture,
-`rusty-iron`, replaced: the steel gear with the steel ingot's (as ppex's steel gear does),
-degreased with the game's dull corroded metal, pickled with the iron ingot's bare grey,
-neutralized with blister steel's darker grey, oiled with stainless steel's sheen. No new textures.
+**The gears** (`itemtypes/gear.json`, one item type `gear` with `type` stainless, degreased,
+pickled, passivated, neutralized) are the game's rusty gear shape (`game:item/gear-rusty`) with its
+one texture, `rusty-iron`, replaced: the stainless gear with the stainless steel ingot's, degreased
+with the game's dull corroded metal, pickled with the iron ingot's bare grey, passivated with the
+plain steel sheet's brighter grey, neutralized with blister steel's darker grey. No new textures.
 They stack 64, are ground-storable in the rusty gear's pile, shelvable and display-caseable like
-it, and are in the general and items tabs. `largegear-steel` (`itemtypes/largegear.json`) is the
-game's large temporal gear shape (`block/machine/jonas/tempgear`) with both its textures steel; it
-has no recipe yet (the cutter makes it). The rusty gear itself is unchanged except for a handbook
-section (`patches/gearreclamation-rustygear.json`): "Boil, pickle, neutralize, oil. One in ten
-comes out sound." Each reclaimed gear's handbook page has a section pointing to the guide page
-"Gears: reclaiming, cutting, rusting" (`config/handbook/gearreclamation.json`, #483), which tells
-the whole chain with the chemistry as its story (degrease, pickle, neutralize, oil, the one in ten,
-steel bits back through the coffin or the Bessemer, blanks, the gear cutter's ten stages and master,
-the brine bath) and quotes the default settings; so do the bare steel gear, the blanks, their molds
-and the pickling tub. Tidy Variants leaves the five gears as single tiles (its Atlas report;
-they are not variants of one thing to the player, so no override groups them).
-
-**Flash rust.** Pickled and neutralized gears carry the game's Perish transition to
-`game:gear-rusty`, ratio 1: fresh for `FlashRustHours`, then rusting over a quarter of that again
-(8 and 2 hours by default), after which the stack is a stack of rusty gears. Perish runs at the
-game's rates, so a cellar slows it as it slows food. The barrel carries the pickled gears' freshness
-over to the neutralized ones (vanilla `CarryOverFreshness`), so the clock runs from the tub, not
-from the barrel. The hours are set on the server after the items load
-(`GearReclamationSystem.AssetsFinalize`) for every item with the attribute
-`seraphhorizonsFlashRust: true`, so another step's bare gear follows the setting by carrying it.
+it, and are in the general and items tabs. `largegear-stainless` (`itemtypes/largegear.json`) is
+the game's large temporal gear shape (`block/machine/jonas/tempgear`) with both its textures
+stainless steel; the gear cutter cuts it. None of them keeps time: a pickled, passivated or
+neutralized gear keeps as long as it is left (the flash rust of earlier builds is gone, with its
+settings). The rusty gear's description gains a line, that it is stainless steel under the
+corrosion (`game:itemdesc-gear-rusty` in this mod's lang file, the game's text kept), and a handbook
+section (`patches/gearreclamation-rustygear.json`): "Degrease, pickle, passivate, neutralize. One
+in ten comes out sound." Each reclaimed gear's handbook page has a section pointing to the guide
+page "Gears: reclaiming and cutting" (`config/handbook/gearreclamation.json`, #483), which tells
+the whole chain with the chemistry as its story (the Rust's corrosion, degrease, pickle, passivate,
+rinse, the one in ten, stainless bits back into a melting pot, stainless blanks, the gear cutter's
+ten stages and master) and quotes the default settings; so do the blanks, their molds and the
+pickling tub. Tidy Variants leaves the five gears as single tiles (its Atlas report; they are not
+variants of one thing to the player, so no override groups them).
 
 **Degreasing is a cooking recipe** (`recipes/cooking/gear-degrease.json`): the game's cooking pot
 returns a plain item stack cleanly (`cooksInto`, as the game's candles and glue do), so no barrel
@@ -1536,42 +1536,46 @@ slots), a metal pot 24. The liquid must be exact, as for every cooking recipe. A
 dirty, as after candles. The game has no lye of its own: the alkalis are Oils Resoaped's lye
 (`oils:lyeportion`) and Expanded Matter's caustic soda and washing soda (`em:causticsodaportion`,
 `em:washingsodaportion`, the issue's `em:washingsoda`). Each is dropped from the recipe when its
-mod is not loaded (no domain), and a recipe left with none is left out with a warning.
+mod is not loaded (no domain), and a recipe left with none is left out with a warning. The
+neutralizing barrel recipe (`recipes/barrel/gear-neutralize.json`) is left out the same way when
+its liquid's mod is not loaded.
 
-**The oil step.** The game's tallow, rendered fat, is a solid item with no liquid form in the
-game, and a barrel holds one solid and one liquid, so it cannot go in by the lump beside the gears.
-Expanded Foods' lard is the liquid form of rendered fat (melted, or hardened, which spills as
-rendered fat), so both lards oil. A barrel recipe whose liquid's mod is not loaded is left out.
-
-**The roll.** A barrel recipe cannot roll dice, so `gear-oiled` is a lottery item. Its item class
-(`ItemReclaimedGear`) hooks `OnModifiedInInventorySlot`, which the game calls whenever a stack's slot
-changes (taken from the barrel, picked up, moved, merged, given): on the server, in a slot of a
-player's own inventory (`InventoryBasePlayer`, the mouse cursor included, the creative inventory
-not), the slot is resolved on the next tick, after the move that put it there is done. Each gear is
-one draw of the server world's random: sound gears stay in the slot, bits go to the player's
-inventory or drop at their feet, so nothing is lost and no oiled gear is left. Every 2 seconds the
-server also looks through every online player's inventories, and through a player's when they join,
-for an oiled gear the hook missed (a direct write to a slot). The game's stack randomizer resolves
-through `IResolvableCollectible`, which only fills one slot; the oiled gear does not implement it,
-as it needs to give two stacks (an oiled gear in a chest, on the ground or in a barrel stays oiled
-until a player takes it). The arithmetic is in `GearReclamation/Core/GearReclamation.cs`.
+**The roll.** A barrel recipe cannot roll dice, so `gear-neutralized`, the barrel's output, is a
+lottery item. Its item class (`ItemReclaimedGear`) hooks `OnModifiedInInventorySlot`, which the game
+calls whenever a stack's slot changes (taken from the barrel, picked up, moved, merged, given): on
+the server, in a slot of a player's own inventory (`InventoryBasePlayer`, the mouse cursor included,
+the creative inventory not), the slot is resolved on the next tick, after the move that put it
+there is done. Each gear is one draw of the server world's random: sound gears stay in the slot,
+stainless bits go to the player's inventory or drop at their feet, so nothing is lost and no
+neutralized gear is left. Every 2 seconds the server also looks through every online player's
+inventories, and through a player's when they join, for a neutralized gear the hook missed (a
+direct write to a slot). The game's stack randomizer resolves through `IResolvableCollectible`,
+which only fills one slot; the neutralized gear does not implement it, as it needs to give two
+stacks (a neutralized gear in a chest, on the ground or in a barrel stays neutralized until a player
+takes it). The arithmetic is in `GearReclamation/Core/GearReclamation.cs`. Stainless bits
+(`game:metalbit-stainlesssteel`) are the game's own item; they go back into stainless steel in a
+melting pot (the crucible furnace, `StainlessSteel`), not through steel bits recovery below.
 
 | Setting | Default | |
 |---|---|---|
-| `FlashRustHours` | 8 | In-game hours a pickled or neutralized gear stays bare before it rusts (0.5 to 8760); it is rusty a quarter as long again after |
-| `UsableGearChance` | 0.1 | Chance each oiled gear is sound (0 to 1) |
-| `BitsPerFailedGear` | 1 | Steel bits for each oiled gear that is not, and for each bare steel gear that rusts through (0 to 20) |
-| `FlashRustLossChance` | 0.25 | Chance each bare steel gear that flash-rusts rusts through to steel bits instead of into a rusty gear (0 to 1) |
+| `UsableGearChance` | 0.1 | Chance each neutralized gear is sound (0 to 1) |
+| `BitsPerFailedGear` | 1 | Stainless bits for each neutralized gear that is not (0 to 20) |
 
 With the switch off (the server decides), the gear items still exist, since other steps and
-mods' recipes name them, but the three steps' recipes are left out, oiled gears are never rolled,
+mods' recipes name them, but the steps' recipes are left out, neutralized gears are never rolled,
 the rusty gear has no salvage section and the guide page is hidden (from the client's handbook, and
 from the recipe export through the hidden guides key, as machine oil does).
 
-### The pickling tub and the brine bath (`PicklingTubSettings`)
+Before the stainless rework the sound gear was `gear-steel`, there was an oil step (lard, giving
+`gear-oiled`, the lottery item), the bare gears flash-rusted back into rusty gears
+(`FlashRustHours`, `FlashRustLossChance`), and the pickling tub had a brine bath that rusted steel
+gears into currency and an acid dip that took a steel gear bare (`gear-steel-bare`). All of that is
+gone; the codes were renamed with no remapping, as the pack is not released yet.
 
-Part of gear reclamation (#484), under its switch: the tub is its pickling step (#476) and the end
-game's brine bath (#482). `seraphhorizons:picklingtub` is a wooden tub lined with pitch, one block, open at the top,
+### The pickling tub (`PicklingTubSettings`)
+
+Part of gear reclamation (#484), under its switch: the tub is its pickling step (#476) and its
+passivating step. `seraphhorizons:picklingtub` is a wooden tub lined with pitch, one block, open at the top,
 crafted from six boards, a nails and strips and two of Immersive Woodworking's bark tar
 (`immersivewoodworking:barktar`, the lining); without Immersive Woodworking the tub has no recipe.
 It holds one liquid, up to `CapacityLitres` (10), and one batch of up to `BatchSize` (8) gears, and
@@ -1585,48 +1589,34 @@ shows both: the liquid's surface at its level and the gears lying in it, as they
   starts when the tub holds a liquid with a rule for it and a litre of it (`LitresPerBatch`), which
   goes into the batch. Gears with no liquid for them wait. More of the same gears added to a running
   batch start its clock again; other gears are refused until the batch is out, and so is more for a
-  finished batch. The large steel gear (`RefusedGears`, `seraphhorizons:largegear-*`) is refused
-  with a word: it has no currency form.
+  finished batch. A large gear (`RefusedGears`, `seraphhorizons:largegear-*`) is refused with a
+  word: it is cut new, never reclaimed.
 - **Taking out.** Right-click with an empty hand. Before done, the gears that went in come back
   unchanged and the batch's litre goes back into the tub. From done, what the batch became: its
   litre is used up. Breaking the tub drops the batch the same way and spills the liquid.
 - **Block info:** the liquid, the batch and its progress; at done "the metal looks grey and clean"
-  (a pickle) or "rusted through" (brine), and how many gears the acid has eaten. The tub's handbook
-  page says how it works and that the acids are one part to ten of water.
+  (a pickle) or "the surface has gone passive" (a passivation), and how many gears the acid has
+  eaten. The tub's handbook page says how it works and that the acids are one part to ten of water.
 
 The rules are a table (`AcidRules`): a liquid code pattern, the gear in and the gear out, the hours
-to done, a grace after done, the hours between gears lost after the grace, and what a lost gear
-becomes (`Failure`, `FailureQuantity` of it). The defaults:
+to done, a grace after done, the hours between gears lost after the grace, what a lost gear
+becomes (`Failure`, `FailureQuantity` of it), an optional chance for each gear to be lost at done
+(`LossChance`, rolled when the batch starts; no default rule has one) and the kind (`Kind`,
+`Pickle` or `Passivate`, which only picks the block info's words). The defaults:
 
 | Liquid | In | Out | Hours | Grace | A gear lost every |
 |---|---|---|---|---|---|
 | vinegar (`game:vinegarportion`; Expanded Foods makes it) | `gear-degreased` | `gear-pickled` | 24 | 12 | 3 h |
 | sulfuric acid (`game:acid-full-sulfuric`) | `gear-degreased` | `gear-pickled` | 8 | 4 | 1 h |
 | hydrochloric acid (`game:acid-full-hydrochloric`; Expanded Matter) | `gear-degreased` | `gear-pickled` | 2 | 1 | 15 min |
-| vinegar | `gear-steel` | `gear-steel-bare` | 6 | 3 | 45 min |
-| sulfuric acid | `gear-steel` | `gear-steel-bare` | 2 | 1 | 15 min |
-| hydrochloric acid | `gear-steel` | `gear-steel-bare` | 0.5 | 0.25 | 3.75 min |
+| nitric acid (`game:acid-full-nitric`; Expanded Matter) | `gear-pickled` | `gear-passivated` | 6 | 3 | 1 h |
 
-Every lost gear is one `game:metalbit-steel`. Past done plus the grace, the first gear goes and then
-one every interval, until only bits are left: an hour of game time is two real minutes at the
-default speed, so a batch of eight in hydrochloric acid is gone a quarter of an hour of play after
-its grace. Brine (`BrineLiquids`, `game:brineportion`) has two rules of its own, built from three
-settings: `gear-steel` rusts into the game's `gear-rusty` in `BrineRustHours` (48), a bare steel
-gear in `BareBrineRustHours` (4), and each gear has `OverRustChance` (0.1) of over-rusting to a
-steel bit instead, rolled when the batch starts and shown at done. Brine eats nothing by time. The
-rusty gear is the game's own, full currency.
-
-`seraphhorizons:gear-steel-bare` is the one item the tub adds: a steel gear after the dip, the
-rusty gear's model in bright steel, with the bare gears' flash rust (a perish transition to
-`game:gear-rusty`, its hours from `GearReclamationSettings.FlashRustHours` through the
-`seraphhorizonsFlashRust` attribute). A steel gear must not become a rusty gear for nothing, so its
-flash rust loses a share (#477, #482): when the transition completes, the gear reclamation item
-class it shares (`ItemReclaimedGear.OnTransitionNow`) rolls each gear as the oiled gears are rolled,
-a rusty gear with 1 − `GearReclamationSettings.FlashRustLossChance` (0.75) and otherwise
-`BitsPerFailedGear` steel bits. The rusty gears keep the slot (the bits, if none is); the bits go to
-the player whose inventory it is, else to another slot of the same inventory, and what does not fit
-drops at the player, the container's block or the dropped stack. The other gear items are gear
-reclamation's; the tub only names their codes.
+Every lost gear is one `game:metalbit-stainlesssteel`. Past done plus the grace, the first gear goes
+and then one every interval, until only bits are left: an hour of game time is two real minutes at
+the default speed, so a batch of eight in hydrochloric acid is gone a quarter of an hour of play
+after its grace. Nitric acid is the game's unused acid variant, which Expanded Matter turns on and
+makes; without Expanded Matter the passivating rule has no liquid, and the line stops at the
+pickled gear. The gear items are gear reclamation's; the tub only names their codes.
 
 **How.** `PicklingTub/Core/` holds the rules and the batch, with no game: `TubConfig.cs` (the
 settings and their sanitising: a value out of range falls back to its default, a broken rule is
@@ -1634,26 +1624,27 @@ dropped, each with a warning), `TubRules.cs` (matching a liquid and a gear to a 
 and `TubBatch.cs` (a batch is its gears, its liquid, its start hour, its litre and the loss rolled at
 the start, and its stage at any hour is a function of those: waiting, soaking, done, eating,
 dissolved). `PicklingTub/Game/` holds the system (registration; on the server, with the switch off,
-the tub, its recipe and the bare gear are disabled before the game loads them), the block, the block
-entity and the meshes of the gears in the tub. The block entity keeps the batch's rule with it, so a
-running batch keeps its timings when the settings change and a client reads them from the tree. Its
-server tick only starts a waiting batch and resends the tree when the stage changes; the clock is
-the calendar's total hours. The liquid in the tub does not perish.
+the tub and its recipe are disabled before the game loads them), the block, the block entity and
+the meshes of the gears in the tub. The block entity keeps the batch's rule with it, so a running
+batch keeps its timings when the settings change and a client reads them from the tree. Its server
+tick only starts a waiting batch and resends the tree when the stage changes; the clock is the
+calendar's total hours. The liquid in the tub does not perish.
 
-With the switch off, the tub, its recipe and the bare steel gear do not exist, and tubs already
-placed are lost. The server's setting decides. `tests/PackTests/PicklingTubScenarios.cs` (Atlas)
-fills a tub with each acid and brine, adds gears, ages the batch by moving its start back, and takes
-it out early, at done and eaten; rusts steel gears both ways; and counts the over-rusted share of
-320 gears. `SwitchesOffScenarios` requires no tub, bare gear or recipe with the switch off.
+With the switch off, the tub and its recipe do not exist, and tubs already placed are lost. The
+server's setting decides. `tests/PackTests/PicklingTubScenarios.cs` (Atlas) fills a tub with each
+acid, adds gears, ages the batch by moving its start back, and takes it out early, at done and
+eaten; passivates pickled gears in nitric acid and has it eat them left too long; and requires no
+brine rule and no bare steel gear. `SwitchesOffScenarios` requires no tub or recipe with the
+switch off.
 
-### Machines take the steel gear, not the rusty gear (`GearConsumers`)
+### Machines take the stainless gear, not the rusty gear (`GearConsumers`)
 
 The gears epic (#484), its first step (#473). A rusty gear (`game:gear-rusty`) is salvage and
 money: traders still take it at its currency value, but nothing is built from one. Every recipe in
-the pack that took one takes the pack's steel gear (`seraphhorizons:gear-steel`, #474) in the same
+the pack that took one takes the pack's stainless gear (`seraphhorizons:gear-stainless`, #474) in the same
 number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcut remains:
 
-| Mod | Recipes (steel gears per recipe) |
+| Mod | Recipes (stainless gears per recipe) |
 |---|---|
 | The game | glider (2) |
 | Pipes and Power Expanded | Cornish engine (4), Watt engine (2), fluid pump (1), manual fluid pump (2), mechanical power generator (4), valve (2), pressure valve (4; both off with `UnifiedPipes`, whose bronze valves take no gear) |
@@ -1668,15 +1659,15 @@ number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcu
 
 The pack's own machines pay the same way, in their own recipes rather than a patch (so whatever this
 switch says): the draw bench frame 2, for the gearing it carries ("Draw bench"), and the gear cutter
-frame 3 ("Gear cutter"). The first steel gears come from reclamation, so neither waits on the cutter.
+frame 3 ("Gear cutter"). The first stainless gears come from reclamation, so neither waits on the cutter.
 
 ppex and smex give each machine two recipes, one taking the rusty gear and one ppex's gears
-(`ppex:gear-*`); the first takes the steel gear and the second is switched off. ppex's anvil gears
+(`ppex:gear-*`); the first takes the stainless gear and the second is switched off. ppex's anvil gears
 and large gears (`ppex:gear-*`, `ppex:largegear-*`) are not smithed any more and are hidden from
 the creative inventory and the handbook. Smex's Bessemer converter is raised from its control block
 with a large gear in the hotbar, named in its code (`BlockEntityConverterControl.IsSpawnGear`, and
 `BlockConverterBessemer.GetDrops` gives it back when the vessel is broken): Harmony postfixes make it
-take, and give back, the steel large gear (`seraphhorizons:largegear-steel`, cut on the gear cutter,
+take, and give back, the stainless large gear (`seraphhorizons:largegear-stainless`, cut on the gear cutter,
 #480) instead, on both sides (the client checks the hotbar before it sends the click), and the
 converter's refusal and its handbook page say so. If smex has changed those methods, a warning is
 logged and the converter keeps taking ppex's large gears, which are no longer made.
@@ -1700,16 +1691,17 @@ target has moved, so a mod update that adds a use fails it. CI runs it on the At
 shard, where the mods are fetched; it skips without them. `tests/PackTests/GearConsumersScenarios.cs`
 (Atlas, `SharedWorldScenarios`) requires every patch to apply and resolve, no registered grid or barrel recipe and no
 exported recipe of any type to take a rusty or ppex gear outside the exemptions, the patched recipes
-to take the steel gear in their numbers, ppex's gears to be neither smithed nor shown, and the
-converter to take and give back the steel large gear; `SwitchesOffScenarios` requires all of it
+to take the stainless gear in their numbers, ppex's gears to be neither smithed nor shown, and the
+converter to take and give back the stainless large gear; `SwitchesOffScenarios` requires all of it
 undone with the switch off.
 
 ### Steel bits back into steel (`SteelBitsRecovery`)
 
 The game and Steelmaking Expanded (`smex` 0.10.1), part of the gears epic (#484, #478). A steel bit
 (`game:metalbit-steel`) melts at 1502 °C, and the hottest fuel the game has, coke, burns at 1340 °C:
-no forge, firepit or crucible melts one, so in the game steel bits are dead ends. Reclaiming rusty
-gears leaves mostly steel bits, so two ways take them back into steel.
+no forge, firepit or crucible melts one, so in the game steel bits are dead ends. Two ways
+take them back into steel. (Reclaimed gears, being stainless, fail to stainless bits, which a
+melting pot takes back; these two are for steel bits from anywhere else.)
 
 **The cementation furnace** (the game's stone coffin). What the coffin takes as an ingot is data,
 not code: any item whose attributes have `carburizableProps` (in the game only the iron ingot),
@@ -1759,42 +1751,51 @@ the steel bit's section are left out (the patch file emptied and the recipe disa
 and smex's setting is as its file says. Packed steel bits made before still go into a coffin by
 their own attribute.
 
-### Steel gear blanks (`GearBlanks`)
+### Stainless gear blanks (`GearBlanks`)
 
-Stock for the gear cutter (gears epic #484, #479): `seraphhorizons:gearblank-steel`, a steel disc
-with a bore the size of the game's rusty gear (6.7 voxels across, 1.4 thick), and
-`seraphhorizons:largegearblank-steel`, one the size of the large temporal gear (10.2 across, 2
-thick). Both stack (32 and 8), go on a shelf or in a display case, and can be set on the ground
-(small ones in quadrants, a large one in the middle). They sit in the creative inventory's items
-tab, the molds in its construction tab, as the game's molds do. Two ways to make one:
+Stock for the gear cutter (gears epic #484, #479): `seraphhorizons:gearblank-stainlesssteel`, a
+stainless steel disc with a bore the size of the game's rusty gear (6.7 voxels across, 1.4 thick),
+and `seraphhorizons:largegearblank-stainlesssteel`, one the size of the large temporal gear (10.2
+across, 2 thick). Their variant is the game's metal code, `stainlesssteel` (not `stainless`, as the
+gears'), because the molds' drop fills it in from the poured metal. Both stack (32 and 8), go on a
+shelf or in a display case, and can be set on the ground (small ones in quadrants, a large one in
+the middle). They sit in the creative inventory's items tab, the molds in its construction tab, as
+the game's molds do. Two ways to make one:
 
 - **Cast.** Clay-form a gear blank mold (a floor and the walls round a round cavity with a core for
   the bore, one layer deep) or a large one (two layers deep) from blue, red or fire clay, and fire
-  it in a pit kiln or a beehive kiln as the game's tool molds fire. Pour 100 units of molten steel
-  (one ingot) into the small mold from a crucible, 200 into the large one, and right-click the blank
-  out once it has hardened; the mold stays. A mold takes steel only: there is no blank of any other
-  metal, and the game's mold refuses a metal its drop has no item for.
-- **Forged.** Smith one at the anvil from a steel ingot (36 voxels of the ingot's 42), or a large
-  one from two (84 voxels, exactly two ingots: put the second hot ingot on the work piece). The
-  helve hammer forges both, as it forges a plate.
+  it in a pit kiln or a beehive kiln as the game's tool molds fire. Pour 25 units of molten
+  stainless steel into the small mold, a quarter of an ingot, so an ingot casts four; 200 units, two
+  ingots, into the large one; and right-click the blank out once it has hardened; the mold stays. A
+  mold takes stainless steel only: there is no blank of any other metal, and the game's mold
+  refuses a metal its drop has no item for. The game's crucible does not melt stainless steel
+  (1530 °C, hotter than coke burns): the molten metal comes from a melting pot (the crucible
+  furnace, `StainlessSteel`). The game gives the stainless steel ingot no melting point, and a mold
+  counts as hardened only below a fifth of its metal's, so `patches/stainless-ingot-melting.json`
+  (whatever the switches) gives it the metal's 1530 °C as `combustibleProps`.
+- **Forged.** Smith two at the anvil from a stainless steel ingot (36 voxels of the ingot's 42; the
+  recipe gives two), or a large one from two (84 voxels, exactly two ingots: put the second hot
+  ingot on the work piece). Stainless steel is a tier 5 metal, and the game asks for an anvil one
+  tier below a metal's (`ItemIngot.GetRequiredAnvilTier`): a steel anvil (tier 4) works it, an iron
+  one does not (`GearBlankScenarios` holds both). The helve hammer forges both, as it forges a plate.
 
 The molds are the game's own: `seraphhorizons:toolmold-{color}-{raw|fired}-{gearblank|largegearblank}`,
 on its `BlockToolMold` and `ToolMold` block entity, with the attributes its tool molds have
-(`requiredUnits` 100 and 200, `fillHeight` 1 and 2, `drop` `seraphhorizons:gearblank-{metal}`, the
-pit kiln's `combustibleProps` and the `beehivekiln` table). So the crucible pours into them as into
-any tool mold (`ILiquidMetalSink`), and Steelmaking Expanded's canal pedestal, which takes any small
+(`requiredUnits` 25 and 200, `fillHeight` 1 and 2, `drop` `seraphhorizons:gearblank-{metal}`, the
+pit kiln's `combustibleProps` and the `beehivekiln` table). So anything that pours as a crucible
+does pours into them (`ILiquidMetalSink`), and Steelmaking Expanded's canal pedestal, which takes any small
 `BlockToolMold` (any but the anvil and helve hammer molds, which go on its tap), takes both and casts
 in them; by smex's source, its own patches on the tool mold (the held metal's render, a hardened
 casting handed over, an unfinished one picked up with its metal) apply to them as to the game's.
 Nothing of smex is referenced. Unlike a crucible, smex's pedestal does not check the metal against
-the mold's drop, so a canal of iron fills a gear blank mold with iron that casts nothing; smex then
-lets the mold be picked up with its metal. A crucible held over a gear blank mold with any metal
-but steel logs a warning from the game each time it asks (it resolves the drop to ask), as it does
-for the game's molds with a metal they have no item for.
+the mold's drop, so a canal of iron or steel fills a gear blank mold with metal that casts nothing;
+smex then lets the mold be picked up with its metal. A crucible held over a gear blank mold with any
+metal but stainless steel logs a warning from the game each time it asks (it resolves the drop to
+ask), as it does for the game's molds with a metal they have no item for.
 
 The handbook text is under the key the handbook builds for an item of another domain,
-`seraphhorizons:item-handbooktext-seraphhorizons:gearblank-steel`: a lang key with a colon is taken
-as it is, so the file carries the domain twice.
+`seraphhorizons:item-handbooktext-seraphhorizons:gearblank-stainlesssteel`: a lang key with a colon
+is taken as it is, so the file carries the domain twice.
 
 The helve hammer works a work item only when the selected smithing recipe's name is `plate` or
 `blistersteel` (`ItemWorkItem.GetHelveWorkableMode`, which the anvil asks on every helve hit; any
@@ -1812,8 +1813,8 @@ are lost.
 ### Gear cutter (`GearCutter`, `GearCutterSettings`)
 
 The end of the gears epic (#484; the machine is #480, its cutter kit and oil #481): a mechanically
-powered generating gear cutter that cuts steel gear blanks into steel gears (12 teeth) and large
-steel gears (20). Its model, rig and generator are described in `GearCutter/README.md`; this is the
+powered generating gear cutter that cuts stainless gear blanks into stainless gears (12 teeth) and large
+stainless gears (20). Its model, rig and generator are described in `GearCutter/README.md`; this is the
 gameplay, in `GearCutter/` (rules in `GearCutter/Core/`, the game side in `GearCutter/Game/`).
 
 **Blocks.** `seraphhorizons:gearcutter-frame-{side}` is the controller, placed as the mill and the
@@ -1851,9 +1852,9 @@ keeps every fitted code and the kit's durability.
 **Work.** Complete is every stage in, the kit with durability left. A blank goes on the arbor by
 right-click, or from a chest or hopper (any container) against the infeed face (native north, the
 gearbox end, the end nearest the placed block), one at a time while the shaft turns. The master
-decides the size: the temporal gear takes `seraphhorizons:gearblank-steel` and cuts
-`seraphhorizons:gear-steel`, the large temporal gear takes `seraphhorizons:largegearblank-steel` and
-cuts `seraphhorizons:largegear-steel`; the other size is refused with a message. The cut needs the
+decides the size: the temporal gear takes `seraphhorizons:gearblank-stainlesssteel` and cuts
+`seraphhorizons:gear-stainless`, the large temporal gear takes `seraphhorizons:largegearblank-stainlesssteel` and
+cuts `seraphhorizons:largegear-stainless`; the other size is refused with a message. The cut needs the
 shaft at `MinSpeed` and advances by its angle as the mill's saws do (`ShaftClock.AngleAdvance`), one
 tooth per `TurnsPerTooth` turns: 144 turns a small gear and 240 a large one at 12. The finished gear
 goes into a container against the output face (native south, the cell beyond `output.pos`), else
@@ -1890,7 +1891,7 @@ in the tank a spray from the injection valve's nozzle at `drip.pos`.
 
 With the switch off the server marks the three block types, the five new item types and both
 recipe files disabled before the game loads them, so none of it exists and cutters already placed
-are lost. The steel gears it makes exist either way. Not yet: the recipe export of the cut (#483),
+are lost. The stainless gears it makes exist either way. Not yet: the recipe export of the cut (#483),
 and a schematic for the frame (`MachineSchematics`). The five new parts' items are drawn as the parts
 are in the machine (`shapes/item/gearcutter/`, generated with the machine's model).
 
@@ -1985,7 +1986,7 @@ Solder bars are tin or silver; the soldering iron loses 2 durability a craft. Co
 solder twice, soldering the angles into a hollow and joining the pipe sections: that is intended. The
 sections and the nails and strips share the metal; every pipe is the sections' metal. So a pipe
 section is a straight pipe's worth, and a bend, tee or cross costs the sections in it. The valves
-take no gear (ppex's took two rusty gears, the steel gear with `GearConsumers`). exlib's recipe cost
+take no gear (ppex's took two rusty gears, the stainless gear with `GearConsumers`). exlib's recipe cost
 levels (`/exmod steam cheap`) rewrite only ppex's own recipes (below), so these keep their quantities
 at every level.
 
@@ -2180,7 +2181,7 @@ player clicks, with the bench running four blocks away from them along their lin
 each of the rig's other three cells (`drawbench-ghost`) and the power ghost
 (`drawbench-ghostpower-{side}`) at the far end, which takes the axle on the player's right (native
 west). The frame is a grid recipe: two metal plates and four rods of iron, meteoric iron or steel, 12
-nails and strips of the same, two steel gears (the rectifier's train, the return shaft's gear and the
+nails and strips of the same, two stainless gears (the rectifier's train, the return shaft's gear and the
 barrel gear, which the frame carries), two oak logs, oak planks and a hammer (about 11 ingots of iron).
 
 **Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; anything
@@ -2585,7 +2586,7 @@ chopper. With this, the two frames and the six fitted parts take iron, meteoric 
 
 A sawmill is 48 nails and strips, 1 plate and 2 rods in all (about 16 ingots, at 4 nails and strips
 to an ingot); a chopper 24 nails and strips, 4 plates and 1 rod (about 15). Wood, resin, rope, the
-carriage's gear (a steel gear with `GearConsumers`, above) and the tools stay as they are. The blade kit and the chopper head keep their recipes and
+carriage's gear (a stainless gear with `GearConsumers`, above) and the tools stay as they are. The blade kit and the chopper head keep their recipes and
 take any metal: their metal already sets the machine's durability and speed. The bucking sawmill is
 built from two sawmill frames and 8 nails and strips of its own, and takes two sashes, a crankshaft
 and feed levers, so it comes to 72 nails and strips, 1 plate and 3 rods. The rosser is built from
@@ -3183,9 +3184,9 @@ root and its `trade` branch are shared with the other trading features (`GetOrCr
 
 Schematics have no value in `item-values.json` (`tools/item-values`, #506): they are kept on
 crafting and traders are their only source, at the prices their list entries set by hand. A machine gated behind a
-schematic is worth its consumed parts and labour. `seraphhorizons:gear-steel` takes its cheapest
-route (the gear cutter, or the reclamation lottery: ten oiled gears less the nine steel bits the
-failed rolls give), and `seraphhorizons:largegear-steel` its gear cutter route; neither is a hand
+schematic is worth its consumed parts and labour. `seraphhorizons:gear-stainless` takes its cheapest
+route (the gear cutter, or the reclamation lottery: ten neutralized gears less the nine stainless
+bits the failed rolls give), and `seraphhorizons:largegear-stainless` its gear cutter route; neither is a hand
 price.
 
 After a pack change that adds, removes or re-recipes items, rebuild the table from a fresh export
@@ -3239,7 +3240,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 |---|---|
 | `BuckingSawmill` | the mill's blocks (`seraphhorizons:buckingmill*`) and `recipes/grid/buckingmill.json` |
 | `Rosser` | the rosser's blocks (`seraphhorizons:rosser*`), `recipes/grid/rosser.json`, the debarked trunks |
-| `GearReclamation` | the pickling tub, the bare steel gear, the tub's, degreasing and barrel recipes, the tub and lottery records |
+| `GearReclamation` | the pickling tub, the tub's, degreasing and barrel recipes, the tub and lottery records |
 | `GearBlanks` | the blanks, their molds (`seraphhorizons:toolmold-*`), their clay forming and smithing recipes, the molds' casting |
 | `GearCutter` | the cutter's blocks and parts, its grid and smithing recipes, the cutter records |
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
@@ -3784,8 +3785,8 @@ and family fallback, that its wildcard cache answers as the uncached scan does, 
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
 described in `TrunkEntities/README.md`), the pack version check's comparison with the
 embedded lock (`PackCheck/Core/`, `tests/PackCheck/`), the config defaults' JSON and YAML readers,
-reconciler and run, held to the shipped snapshots (`ConfigDefaults/Core/`, `tests/ConfigDefaults/`), gear reclamation's roll, flash rust hours, settings and
-optional ingredients, held to the shipped gear item types, degreasing recipes and lang entries
+reconciler and run, held to the shipped snapshots (`ConfigDefaults/Core/`, `tests/ConfigDefaults/`), gear reclamation's roll, settings and
+optional ingredients, held to the shipped gear item types (none of which rusts), degreasing and neutralizing recipes and lang entries
 (`GearReclamation/Core/`, `tests/GearReclamation/`), the gear cutter's build order, take-back,
 drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
 `tests/GearCutter/GearCutterGameplayTests.cs`), the draw bench's build order, die metal, take-back,
@@ -3802,7 +3803,7 @@ blows (two sections at the last), renderer clock, settings and rig (`MandrelStat
 `tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the handcar's drive (pumping by
 facing, solo and pair, braking and holding, load), branch selector, distance rolled, stroke phase, effort fade,
 easing, settings and rig, held to its entity type and rider reference (`Handcar/Core/`, `tests/Handcar/`), the pickling tub's rules, timings,
-over-pickling order, early take-out, brine loss and settings (`PicklingTub/Core/`, `tests/PicklingTub/`),
+over-pickling order, early take-out, passivation, a rule's loss at done and settings (`PicklingTub/Core/`, `tests/PicklingTub/`),
 and the unified pipes' burst figures, lead rule, recipe cost filter and the guard on ppex's assets, held
 to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on the
 game's chute section, its anvil recipe and the chute recipes (held to copies of 1.22.7's, the item and
@@ -3956,22 +3957,23 @@ the client's side of the click need a client and are checked by hand in the game
 
 `tests/PackTests/GearReclamationScenarios.cs` (Atlas, `SharedWorldScenarios`) requires the five
 gears on the rusty gear's shape with the item class, ground storage, shelf and display case, a
-name and the general tab, every texture they name present (under a full install), the large steel
-gear on the temporal gear's shape, and the rusty gear's currency value kept with the salvage
-section added. Flash rust: the pickled and neutralized gears' Perish hours are the setting's, half
-the fresh time leaves a stack as it was, and past fresh and rusting it is a stack of the same number
-of rusty gears. The pot: three degreasing recipes with every alkali of the pack resolved; 4 gears
+name and the general tab, every texture they name present (under a full install), the large
+stainless gear on the temporal gear's shape, no oiled or bare steel gear, and the rusty gear's
+currency value kept with the salvage section added and its description saying it is stainless
+steel. No gear of the line has a transition (no flash rust). The pot: three degreasing recipes with every alkali of the pack resolved; 4 gears
 and 1 litre of lye in one slot, 2 + 2 with washing soda, and 3 × 2 with caustic soda match their
 recipe at the right servings and `DoSmelt` leaves that many degreased gears and a dirty pot; the
-wrong amount of lye is the pot's recipe error. The barrels: 20 pickled gears in 3 litres of lime
+wrong amount of lye is the pot's recipe error. The barrel: 20 passivated gears in 3 litres of lime
 water are not done half an hour short of 2 hours sealed and are 20 neutralized gears with a litre
-left at 2; those in lard are oiled at 4 hours, hardened lard too. Taking the 20 oiled gears from the
-barrel into a hand (`TryPutInto`) leaves, a few ticks later, only steel gears and bits that add up
-to 20. 40 stacks of 64 oiled gears put in a hotbar slot come out within four standard deviations of
+left at 2; no barrel recipe takes pickled gears, and there is no oil recipe. Taking the 20
+neutralized gears from the barrel into a hand (`TryPutInto`) leaves, a few ticks later, only
+stainless gears and stainless bits that add up to 20. 40 stacks of 64 neutralized gears put in a
+hotbar slot come out within four standard deviations of
 one in ten sound, with one bit for every other gear; a stack written into a slot without the hook
 is resolved by `ResolveAll` (as on login) and by the sweep. `The_gear_recipes_export` requires the
-three steps' recipes in the export. With the switch off, `SwitchesOffScenarios` requires the items
-still there, none of the recipes, no salvage section, and an oiled gear in a hand left oiled. The
+steps' recipes in the export and no oil recipe. With the switch off, `SwitchesOffScenarios` requires
+the items still there, none of the recipes, no salvage section, and a neutralized gear in a hand
+left as it is. The
 handbook pages, the item colours and the shelf and ground piles need a client and are checked by hand.
 
 `tests/PackTests/HydrationCoverageScenarios.cs` (Atlas) requires a `hydration` attribute on every
@@ -4066,12 +4068,14 @@ the warning in the log says which part of `RuinSurfaceMedian.Rewrite`'s pattern 
 `tests/PackTests/GearBlankScenarios.cs` (Atlas) requires both blanks to stack, be ground storable
 and be named; both molds to be clay-formed from each clay (two and four layers) and fire, in a pit
 kiln and in the beehive kiln's four levels, to fired molds of the same kind; a fired mold placed in
-the world to refuse copper, take steel 100 units at a time as a crucible pours it, give nothing while
-hot, and give the blank to a player's empty hand once hardened, through the block's own right-click;
+the world to refuse copper and plain steel, take stainless steel as a crucible pours it (the small
+mold 25 units of a 100 unit pour, the large one 200), give nothing while hot, and give the blank to a
+player's empty hand once hardened, through the block's own right-click;
 Steelmaking Expanded's `MoldKinds.FitsPedestal` to take both molds on its canal pedestal (and not the
-game's anvil mold); the two smithing recipes to take steel and not iron, at 36 and 84 voxels, named `plate`; the helve
-hammer, hit by hit on a steel anvil, to finish the small blank from one ingot and the large one from
-two but not from one; and the export to carry both smithing recipes, both clay-forming recipes, the
+game's anvil mold); the two smithing recipes to take stainless steel and not steel, at 36 and 84
+voxels, named `plate`, the small one giving two, and stainless steel to need a tier 4 anvil; the helve
+hammer, hit by hit on a steel anvil (an iron anvil's tier too low), to finish two small blanks from
+one ingot and the large one from two but not from one; and the export to carry both smithing recipes, both clay-forming recipes, the
 raw molds' firing and the blanks' handbook text. With the switch off, `SwitchesOffScenarios`
 requires no blank, no mold and no recipe for either.
 
@@ -4094,7 +4098,7 @@ blocks, parts and recipes (none of its smithing recipes helve-able); placing on 
 with every ghost, the axle face turned and every cell cleared on breaking; the stages fitted in
 order by real clicks on the frame and ghosts, a later stage's part, a third gearbox and a blank
 before the master refused, and a save keeping every code; the creative shortcut fitting the ten
-stages one per click; under a creative rotor, the shaft cutting, a small blank to a steel gear
+stages one per click; under a creative rotor, the shaft cutting, a small blank to a stainless gear
 dropped beyond the output face, the master changed over, the wrong size refused and a large blank
 to a large gear (oil drained 10 and 20, kit worn 10 and 17); the kit's wear at full, half and a
 tenth of a tank, the load the same dry, a dry gear breaking the kit and no blank going on after, and

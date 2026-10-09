@@ -2,7 +2,7 @@
 	"code": "largegear",
 	"heldTpIdleAnimation": "holdunderarm",
 	"variantgroups": [
-		{ "code": "type", "states": ["steel"] }
+		{ "code": "type", "states": ["stainless"] }
 	],
 	"behaviors": [{
 		"name": "GroundStorable",
@@ -14,8 +14,8 @@
 	}],
 	"shape": { "base": "game:block/machine/jonas/tempgear" },
 	"textures": {
-		"gold": { "base": "game:block/metal/ingot/steel" },
-		"temporalgear": { "base": "game:block/metal/ingot/steel" }
+		"gold": { "base": "game:block/metal/ingot/stainlesssteel" },
+		"temporalgear": { "base": "game:block/metal/ingot/stainlesssteel" }
 	},
 	"attributes": {
 		"handbook": {
