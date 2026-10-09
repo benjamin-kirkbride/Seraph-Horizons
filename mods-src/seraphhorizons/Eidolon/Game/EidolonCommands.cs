@@ -17,6 +17,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <item><c>stay</c>, <c>clear</c>: the stay order; no order.</item>
 /// <item><c>charge &lt;days&gt;</c>: sets its charge.</item>
 /// <item><c>health &lt;hp&gt;</c>: sets its health (0 slumps it).</item>
+/// <item><c>oil &lt;points&gt;</c>: sets its oil (0 leaves it dry).</item>
 /// <item><c>info</c>: its state.</item>
 /// </list>
 /// </summary>
@@ -31,10 +32,10 @@ public static class EidolonCommands
             sh.WithDescription("Seraph Horizons commands");
         var parsers = api.ChatCommands.Parsers;
         sh.BeginSubCommand("eidolon")
-                .WithDescription("Eidolons (testing): spawn [player], come [run], stay, clear, charge <days>, health <hp>, info")
+                .WithDescription("Eidolons (testing): spawn [player], come [run], stay, clear, charge <days>, health <hp>, oil <points>, info")
                 .RequiresPrivilege(Privilege.controlserver)
                 .RequiresPlayer()
-                .WithArgs(parsers.Word("spawn|come|stay|clear|charge|health|info"), parsers.OptionalAll("argument"))
+                .WithArgs(parsers.Word("spawn|come|stay|clear|charge|health|oil|info"), parsers.OptionalAll("argument"))
                 .HandleWith(args => Run(api, system, args))
             .EndSubCommand();
     }
@@ -89,6 +90,13 @@ public static class EidolonCommands
                     health.Health = Math.Min(hp, health.MaxHealth);
                 e.Check();
                 return TextCommandResult.Success($"Eidolon {e.EntityId} has {hp} HP");
+            case "oil":
+                if (!double.TryParse(rest, NumberStyles.Float, CultureInfo.InvariantCulture, out double points) || points < 0)
+                    return TextCommandResult.Error("oil <points>");
+                if (e.Oil?.Tank == null)
+                    return TextCommandResult.Error("It has no oil reservoir (MachineOil is off)");
+                e.Oil.SetPoints(points);
+                return TextCommandResult.Success($"Eidolon {e.EntityId} has {e.Oil.Tank?.Points:0.#} points of oil");
             default:
                 return TextCommandResult.Success(Describe(e));
         }
@@ -102,6 +110,7 @@ public static class EidolonCommands
         var charge = e.GetBehavior<EntityBehaviorEidolonCharge>();
         s.AppendLine(CultureInfo.InvariantCulture, $"Eidolon {e.EntityId} at {Pos(e.Pos.XYZ)}, owner {e.OwnerName ?? "none"}");
         s.AppendLine(CultureInfo.InvariantCulture, $"health {health?.Health:0.#}/{health?.MaxHealth:0.#}, charge {charge?.ChargeDays:0.###} days");
+        s.AppendLine(CultureInfo.InvariantCulture, $"oil {(e.Oil?.Tank is { } tank ? $"{tank.Points:0.#}/{tank.Capacity:0.#}" : "none")}");
         s.AppendLine(CultureInfo.InvariantCulture, $"pose {e.Pose.State}, stop {e.Stop?.Code ?? "none"}, can work {e.CanWork}");
         s.Append(CultureInfo.InvariantCulture, $"order {e.Orders?.OrderCode ?? "none"}, walking {e.TaskAi?.PathTraverser?.Active}");
         return s.ToString();

@@ -2544,7 +2544,7 @@ while a player is within the server's simulation range.
 creative spawner sets the player who used it. The owner and their company (the trading standing's
 company; with standing off, any group the two share) command it and open what it carries
 (`EntityLaborEidolon.MayCommand`, `RefuseUnlessCommander`, which tells anyone else whose it is). One
-with no owner answers anyone. Recharging (and later oiling and repairing) is open to all.
+with no owner answers anyone. Recharging, oiling and repairing are open to all.
 
 **Charge.** A temporal gear runs it a quarter of the world's year (27 days at 9 days a month,
 `ChargeYearsPerGear`). Right-click it with a gear anywhere to add a gear's worth, up to
@@ -2555,6 +2555,22 @@ and holds there until recharged, then plays `standup`. Its info shows the days l
 **Never killed.** At 0 HP it slumps disabled instead of dying: no drops, no corpse, and a `Die` for
 death or lava does nothing but that. Down, it takes no more damage but heals, and stands up once
 repaired to `StandUpHealthShare` of its health. Its info says why it is stopped.
+
+**Oil** (#674, `EntityBehaviorEidolonOil`). With the `MachineOil` switch on it has a reservoir like a
+machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by right-click with what
+oils a machine (MachineOil's oils from any liquid container, or rendered fat; `MachineOilSettings`'
+lists), as much as fits, refused when full. It wakes with `InitialOilShare` of it (a quarter). Each job
+done drains it: a tree felled `OilPerTreeFelled` (5), a trunk delivered `OilPerTrunkDelivered` (3), a
+load carried somewhere and set down `OilPerLoadCarried` (2), so a full reservoir fells 200 trees;
+idling, following, staying and guarding cost nothing. Dry, it stops and waits standing (no slump; its
+order is kept) until oiled, then carries on. Its info shows the reservoir. With `MachineOil` off it has
+none, is never dry and takes no oil; turned on later, it starts as a new one.
+
+**Repair** (#674, `EntityBehaviorEidolonRepair`). Right-click with `game:metal-parts` or
+`game:metalplate-iron`, one item a click: each restores `RepairShare` (a tenth) of its most health,
+`GantryRepairMultiplier` (2) times that while it stands inside a gantry (its feet in one of the gantry's
+cells). A slumped one is repaired where it lies and stands up past `StandUpHealthShare`: three items
+from 0 HP in the open, two in a gantry. A whole one refuses the item.
 
 **Orders.** One at a time, in its watched attributes (saved with it, shown in its info with how it is
 going): `stay` holds, `goto` walks to a point and is done on arrival. No order: it stands at rest.
@@ -2569,7 +2585,7 @@ traverser then walks the path. A first pass: following (#675) proves it on real 
 **For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
 recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
 (one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
-`health <hp>`, `info`.
+`health <hp>`, `oil <points>`, `info`.
 
 **Seams for the next tasks.**
 - Spawning (#672): `EidolonSystem.Of(api).Spawn(world, pos, yaw, owner, activate: true, gears: 1)`
@@ -2579,7 +2595,12 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   second) is weighed with damage and charge into `Stop` and `CanWork`; nothing works while one stops
   it. Repair: heal through `ReceiveDamage` with `EnumDamageType.Heal`, then `Check()`; the stand-up
   threshold is `StandUpHealthShare`. Right-clicks reach each behaviour's `OnInteract` in the entity
-  type's order (charge first), so oil and repair are behaviours listed after it.
+  type's order: charge, oil, repair, then orders.
+- Oil (#676 on): a job order calls `eidolon.SpendOil(EidolonJob.X)` as each job finishes (a tree
+  felled, a trunk delivered, a load set down); a new kind of job adds an `EidolonJob` value and its
+  figure in `EidolonSettings`. Dry stops the eidolon at once; the order is kept and resumes when oiled.
+- Inside a gantry: `EntityBehaviorEidolonRepair.GantryAround(entity)` (the gantry whose cell its feet
+  are in, or null) is the one lookup.
 - Orders (#675 on): `EidolonOrders.Register(code, (eidolon, args) => new MyOrder(...))`, an
   `IEidolonOrder` (`Start`, `Continue` each tick, `Stop` when done, replaced or interrupted);
   `eidolon.Orders.SetOrder(code, args)` gives one, `SetStatus(langKey, args)` says how it goes.
@@ -2598,15 +2619,24 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
 | `RunSpeed` | 0.04 | Its running speed |
 | `PathSearchNodes` | 3000 | The most nodes one path search visits |
 | `MaxFallBlocks` | 3 | The highest drop it walks off on a path |
+| `OilTank` | 1000 | Points its oil reservoir holds (100 to the litre); none with `MachineOil` off |
+| `InitialOilShare` | 0.25 | The share of the reservoir a new eidolon wakes with |
+| `OilPerTreeFelled` | 5 | Oil points a tree felled costs |
+| `OilPerTrunkDelivered` | 3 | Oil points a trunk delivered costs |
+| `OilPerLoadCarried` | 2 | Oil points a load carried and set down costs |
+| `RepairShare` | 0.1 | The share of its most health one item of metal parts or iron plate restores |
+| `GantryRepairMultiplier` | 2 | What a repair is multiplied by inside a gantry |
 
 With the switch off the server marks the entity type and the spawner disabled before the game loads
 them and registers no command, so none of it exists; eidolons already in a world are lost. A client
-follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, ownership and the
-pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
+follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, ownership, oil per job,
+repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
 node budget); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
 stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
 knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and walks it through a
-2 × 4 gate and not through a 1 × 4 one; `SwitchesOffScenarios` requires none of it with the switch
+2 × 4 gate and not through a 1 × 4 one, drains its oil with a stand-in job until dry stops it standing
+(tallow starts it again), repairs it in a gantry (double) and in the open (a slumped one stands after
+three items, a whole one refuses), and flips `MachineOil` off (no reservoir, never dry); `SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: an icon for the spawner.
 
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)

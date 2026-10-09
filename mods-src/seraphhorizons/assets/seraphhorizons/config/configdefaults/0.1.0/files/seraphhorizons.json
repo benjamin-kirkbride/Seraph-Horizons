@@ -269,7 +269,14 @@
     "WalkSpeed": 0.022,
     "RunSpeed": 0.04,
     "PathSearchNodes": 3000,
-    "MaxFallBlocks": 3
+    "MaxFallBlocks": 3,
+    "OilTank": 1000.0,
+    "InitialOilShare": 0.25,
+    "OilPerTreeFelled": 5.0,
+    "OilPerTrunkDelivered": 3.0,
+    "OilPerLoadCarried": 2.0,
+    "RepairShare": 0.1,
+    "GantryRepairMultiplier": 2.0
   },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {

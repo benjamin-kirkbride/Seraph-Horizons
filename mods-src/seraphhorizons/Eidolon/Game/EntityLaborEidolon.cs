@@ -17,7 +17,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// command it (<see cref="MayCommand"/>).
 ///
 /// <para>The seams for what comes later: upkeeps are entity behaviours implementing
-/// <see cref="IEidolonUpkeep"/> (charge now, oil later), checked together here into <see cref="Stop"/>
+/// <see cref="IEidolonUpkeep"/> (charge, oil), checked together here into <see cref="Stop"/>
 /// and <see cref="CanWork"/>; right-clicks reach each behaviour's <c>OnInteract</c> in the order the
 /// entity type lists them (the game's dispatch), and a behaviour that commands checks
 /// <see cref="MayCommand"/> or <see cref="RefuseUnlessCommander"/>; orders run through
@@ -62,6 +62,13 @@ public class EntityLaborEidolon : EntityAgent
     public EntityBehaviorEidolonOrders? Orders => GetBehavior<EntityBehaviorEidolonOrders>();
 
     private EidolonConfig Settings => EidolonSystem.Of(Api)?.Config ?? EidolonConfig.Defaults;
+
+    /// <summary>Its oil (null without the behaviour; its <c>Tank</c> null with MachineOil off).</summary>
+    public EntityBehaviorEidolonOil? Oil => GetBehavior<EntityBehaviorEidolonOil>();
+
+    /// <summary>A job done: drains its oil by the job's cost (EidolonSettings), and stops it at once if
+    /// that leaves it dry. Job orders call this as each job finishes (server side).</summary>
+    public void SpendOil(EidolonJob job) => Oil?.Spend(job);
 
     public override bool IsInteractable => true;
 
