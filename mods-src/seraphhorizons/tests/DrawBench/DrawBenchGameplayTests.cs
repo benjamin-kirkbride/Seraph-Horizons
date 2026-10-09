@@ -5,7 +5,7 @@ using Xunit;
 namespace SeraphHorizons.Tests.DrawBench;
 
 /// <summary>DrawBench/Core: the build order, what each stage takes, the die's metal and take-back;
-/// the draw's arithmetic (W with the axle, a section at each whole number, the die's wear); the
+/// the draw's arithmetic (W with the axle, a section at each hand-out, the die's wear); the
 /// renderer's clock; the settings; and the rig's reader on a hand-trimmed test rig.</summary>
 public class DrawBenchGameplayTests
 {
@@ -241,9 +241,9 @@ public class DrawBenchGameplayTests
     }
 
     [Theory]
-    [InlineData(1, 2.06)]
-    [InlineData(2, 4.12)]
-    public void W_advances_with_the_axle_and_a_section_comes_off_at_each_whole_number(int k, double turns)
+    [InlineData(1, 1.373)]
+    [InlineData(2, 2.746)]
+    public void W_advances_with_the_axle_and_a_section_comes_off_at_each_hand_out(int k, double turns)
     {
         Assert.Equal(turns, Config.TurnsPerSection(k), 5);
         var job = new DrawJob(k, 0);
@@ -261,8 +261,9 @@ public class DrawBenchGameplayTests
                 finished++;
         }
         Assert.Equal(4, crossings.Count);
-        for (int m = 1; m <= 4; m++)
-            Assert.InRange(crossings[m - 1], m * turns - 1e-6, m * turns + 0.1 + 1e-6);
+        // section m + 1 comes off as its draw finishes, at W = m + 0.43125, not a return and a pause later
+        for (int m = 0; m < 4; m++)
+            Assert.InRange(crossings[m], (m + Drawing.HandOut) * turns - 1e-6, (m + Drawing.HandOut) * turns + 0.1 + 1e-6);
         Assert.Equal(1, finished);
         Assert.Equal(4, job.Work, 9);
         Assert.True(job.Done);
@@ -276,10 +277,16 @@ public class DrawBenchGameplayTests
         Assert.Equal(3, sections);
         Assert.False(done);
         Assert.Equal(3.5, job.Work, 9);
+        // all four are out by 3.5, but the hollow is done only at 4, the dog back at the die
+        Assert.Equal(4, job.SectionsDone);
         (job, sections, done) = job.Advance(2 * Math.PI * 10.3 * 100, 10.3);
-        Assert.Equal(1, sections);
+        Assert.Equal(0, sections);
         Assert.True(done);
+        Assert.Equal(4, job.SectionsDone);
         Assert.Equal((DrawJob.None, 0, false), DrawJob.None.Advance(100, 10.3));
+        // what has come off, by W: none before the first hand-out, one from it to the second, all four from the fourth
+        foreach (var (w, n) in new[] { (0.0, 0), (0.43, 0), (Drawing.HandOut, 1), (1.0, 1), (1.43125, 2), (3.4, 3), (3.43125, 4), (4.0, 4) })
+            Assert.Equal(n, new DrawJob(2, w).SectionsDone);
         Assert.Equal(new DrawJob(2, 4), DrawJob.Restore(2, 99));
         Assert.Equal(DrawJob.None, DrawJob.Restore(3, 1));
         Assert.Equal(new DrawJob(1, 0), DrawJob.Restore(1, double.NaN));
@@ -362,7 +369,7 @@ public class DrawBenchGameplayTests
     public void Defaults_are_the_documented_ones_and_out_of_range_values_fall_back()
     {
         var c = new DrawBenchConfig();
-        Assert.Equal((100, 1, 2.06f, 4.12f, 0.2f, 0.35f, 0.05f),
+        Assert.Equal((100, 1, 1.373f, 2.746f, 0.2f, 0.35f, 0.05f),
             (c.DieDurability, c.DieWearPerHollow, c.TurnsPerSectionLead, c.TurnsPerSectionCopper, c.ResistanceLead, c.ResistanceCopper, c.MinSpeed));
         Assert.Equal(c.TurnsPerSectionLead * 2.0, c.TurnsPerSectionCopper, 0.02);   // copper in the slow gear, twice the turns
         Assert.Empty(c.Sanitise());
@@ -372,7 +379,7 @@ public class DrawBenchGameplayTests
             ResistanceLead = 99, ResistanceCopper = float.PositiveInfinity, MinSpeed = -1,
         };
         Assert.Equal(7, bad.Sanitise().Count);
-        Assert.Equal((100, 1, 2.06f, 4.12f, 0.2f, 0.35f, 0.05f),
+        Assert.Equal((100, 1, 1.373f, 2.746f, 0.2f, 0.35f, 0.05f),
             (bad.DieDurability, bad.DieWearPerHollow, bad.TurnsPerSectionLead, bad.TurnsPerSectionCopper, bad.ResistanceLead, bad.ResistanceCopper, bad.MinSpeed));
         Assert.Equal(0.35f, c.Resistance(2));
         Assert.Equal(0.2f, c.Resistance(1));
@@ -425,6 +432,9 @@ public class DrawBenchGameplayTests
         var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "drawbench-rig-test.json"));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"billetlead\"", "\"ingot\"")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"sectionsPerHollow\": 4", "\"sectionsPerHollow\": 3")));
+        // the hand-out is the gameplay's: a rig that hides its sections elsewhere in the cycle is refused
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"handOut\": 0.43125", "\"handOut\": 1.0")));
+        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"handOut\": 0.43125,", "")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("game:chutesection-copper", "game:ingot-copper")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("game:chutesection-lead", "game:chutesection-copper")));
         // only the new keys: the old ones in their place do not do

@@ -158,6 +158,7 @@
    "thick": 20.596358
   },
   "sectionsPerHollow": 4,
+  "handOut": 0.43125,
   "hollows": {
    "thin": "game:chutesection-lead",
    "thick": "game:chutesection-copper"

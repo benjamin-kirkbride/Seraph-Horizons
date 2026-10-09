@@ -18,12 +18,18 @@ public enum DrawLoadVerdict
 /// (<c>game:chutesection-{metal}</c>), threaded on the mandrel, is drawn into
 /// <see cref="SectionsPerHollow"/> pipe sections (<c>seraphhorizons:pipesection-{metal}</c>), one per
 /// stroke cycle of <c>TurnsPerSection(k)</c> axle turns, its progress W in sections advancing with the
-/// shaft's angle as the gear cutter's teeth do. A pipe section comes off each time W crosses a whole
-/// number; the job ends at W = 4.
+/// shaft's angle as the gear cutter's teeth do. Pipe section m + 1 comes off as W crosses
+/// m + <see cref="HandOut"/>, as its draw finishes and the jaws open; the job ends at W = 4, the dog
+/// back at the die.
 /// </summary>
 public static class Drawing
 {
     public const int SectionsPerHollow = 4;
+
+    /// <summary>Where in a section's cycle (W = m + this) the section is handed out: its tail has left the
+    /// die and the jaws have sprung open. The model hides the section from there (the rig's
+    /// <c>draw.handOut</c>, which the reader holds to this).</summary>
+    public const double HandOut = 0.43125;
     public const string LeadHollow = "game:chutesection-lead";
     public const string CopperHollow = "game:chutesection-copper";
 
@@ -83,12 +89,13 @@ public readonly record struct DrawJob(int Class, double Work)
 
     public bool Done => On && Work >= End - 1e-9;
 
-    /// <summary>Whole sections drawn so far.</summary>
-    public int SectionsDone => On ? (int)Math.Floor(Math.Min(Work, End) + 1e-9) : 0;
+    /// <summary>Sections handed out so far: those whose hand-out, m + <see cref="Drawing.HandOut"/>,
+    /// W has reached.</summary>
+    public int SectionsDone => On ? Math.Clamp((int)Math.Floor(Math.Min(Work, End) - Drawing.HandOut + 1 + 1e-9), 0, End) : 0;
 
     /// <summary>The draw after <paramref name="radians"/> more of the axle, W held at the end;
-    /// how many sections came off in this step (W crossing 1, 2, 3 or 4); and whether it finished the
-    /// hollow.</summary>
+    /// how many sections came off in this step (W crossing 0.43125, 1.43125, 2.43125 or 3.43125); and
+    /// whether it finished the hollow (W reaching 4).</summary>
     public (DrawJob Job, int Sections, bool Finished) Advance(double radians, double turnsPerSection)
     {
         if (!On || Done)

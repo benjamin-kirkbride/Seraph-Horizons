@@ -18,7 +18,8 @@ namespace SeraphHorizons.Mod.DrawBench;
 /// code and the die's durability), the hollow section on the bench as its item stack and the draw
 /// (<see cref="DrawJob"/>: W, the pipe sections drawn), and its MachineOil tank. The server draws
 /// from the power ghost's shaft angle, drops a pipe section at the output face (or puts it in a
-/// container there) each time W crosses a whole section, wears the die when the hollow is done, takes
+/// container there) as each section's draw finishes (W crossing m + <see cref="Drawing.HandOut"/>), wears
+/// the die when the hollow is done (W = 4), takes
 /// the next hollow from a chest or hopper at the infeed face, and keeps the ghost cells stamped; the client draws it
 /// (<see cref="DrawBenchRenderer"/>, through <see cref="IDrawBenchView"/>). The rules are
 /// DrawBench/Core's.
@@ -436,9 +437,10 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     }
 
     /// <summary>Draws by <paramref name="radians"/> of shaft rotation (server side; call only while
-    /// running). Each time W crosses a whole section, a pipe section comes off and the tank drains
-    /// a section's oil; at the fourth the die wears and the hollow is done. Returns the sections that
-    /// came off.</summary>
+    /// running). Each time W crosses a section's hand-out (m + <see cref="Drawing.HandOut"/>, the jaws
+    /// open on the drawn section), a pipe section comes off and the tank drains a section's oil; at
+    /// W = 4, the dog back at the die after the fourth, the die wears and the hollow is done. Returns the
+    /// sections that came off.</summary>
     public int Draw(double radians)
     {
         if (!JobOn || !_parts.Complete)
