@@ -25,14 +25,14 @@ public partial class RecipeExportScenarios
             Assert.Equal("seraphhorizons", (string)r["mod"]!);
             var ingredients = (JArray)r["ingredients"]!;
             Json($$"""{ "code": "seraphhorizons:halfplate-{{metal}}", "kind": "item", "quantity": 1 }""", ingredients[0]);
-            Json("""{ "code": "game:rod-iron", "kind": "item", "quantity": 1, "role": "kept" }""", ingredients[1]);
+            Json("""{ "code": "game:metal-parts", "kind": "block", "quantity": 1, "role": "kept" }""", ingredients[1]);
             Json("""{ "code": "game:metalplate-iron", "kind": "item", "quantity": 1, "role": "kept" }""", ingredients[2]);
             Json("""{ "code": "seraphhorizons:pressbrake-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[3]);
             Assert.Equal(4, ingredients.Count);
             Json($$"""[{ "code": "seraphhorizons:angle-{{metal}}", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
             Json($$"""{ "power": "hand", "turns": {{turns}}, "kept": [1, 2] }""", r["machine"]!);
             var variant = r["variants"]![0]!;
-            Assert.Equal(new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" }, Codes(variant["ingredients"]![1]!).Select(c => (string)c!));
+            Assert.Equal(new[] { "game:metal-parts" }, Codes(variant["ingredients"]![1]!).Select(c => (string)c!));
             Assert.Equal(new[] { "game:metalplate-iron", "game:metalplate-steel" }, Codes(variant["ingredients"]![2]!).Select(c => (string)c!));
             Assert.Equal(new[] { $"seraphhorizons:angle-{metal}" }, Codes(variant["outputs"]!).Select(c => (string)c!));
         }

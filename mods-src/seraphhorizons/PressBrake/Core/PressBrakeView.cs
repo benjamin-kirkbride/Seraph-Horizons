@@ -4,7 +4,7 @@ namespace SeraphHorizons.Mod.PressBrake.Core;
 
 /// <summary>
 /// What the press brake's renderer reads of the brake, and nothing else: its facing, the parts
-/// fitted and their metals, the plate on the bed (class k and the server's W), and whether someone
+/// fitted and the edges' metal, the plate on the bed (class k and the server's W), and whether someone
 /// works the lever. The block entity implements it; the renderer turns it into the rig's inputs
 /// through <see cref="PressBrakeClock"/>.
 /// </summary>
@@ -15,9 +15,6 @@ public interface IPressBrakeView
     /// <summary>Whether a part needing a stage's <c>requires</c> (or null) is drawn. The plates are
     /// the clock's (<see cref="PressBrakeClock.ShowsPlate"/>).</summary>
     bool PartFitted(string? requires);
-
-    /// <summary>The fitted screws' metal (<c>iron</c>, <c>meteoriciron</c>, <c>steel</c>), or null.</summary>
-    string? ScrewMetal { get; }
 
     /// <summary>The fitted edges' metal (<c>iron</c>, <c>steel</c>), or null.</summary>
     string? EdgeMetal { get; }

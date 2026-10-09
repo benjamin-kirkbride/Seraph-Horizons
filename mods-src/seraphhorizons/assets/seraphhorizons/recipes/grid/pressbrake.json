@@ -5,8 +5,9 @@
 		// planks for the folding leaf, the clamping bar and the lever's hand bar, and iron fittings
 		// (the gallows and their nuts, the hinge pins, the bail handle's arms) from nails and strips
 		// of iron, meteoric iron or steel, put together with a hammer. Its working iron goes in
-		// afterwards, fitted by hand: two rods as the clamp screws, then a plate for the wearing
-		// edges. Iron throughout, so the brake is an iron-age machine.
+		// afterwards, fitted by hand: metal parts as the clamp screws, then a plate for the wearing
+		// edges. Its own iron is iron throughout, so the brake is an iron-age machine (the metal parts
+		// are salvage or the mechanic's, not smithed).
 		ingredientPattern: "NHN,PPP,L_L",
 		width: 3,
 		height: 3,

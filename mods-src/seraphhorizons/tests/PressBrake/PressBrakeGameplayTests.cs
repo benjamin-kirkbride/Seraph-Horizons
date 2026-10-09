@@ -9,7 +9,7 @@ namespace SeraphHorizons.Tests.PressBrake;
 /// angle at W = 1); who holds the lever; the renderer's clock; and the settings.</summary>
 public class PressBrakeGameplayTests
 {
-    private static PressBrakeParts Complete(string screws = "game:rod-iron", string edge = "game:metalplate-iron")
+    private static PressBrakeParts Complete(string screws = "game:metal-parts", string edge = "game:metalplate-iron")
     {
         var parts = new PressBrakeParts();
         Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit(screws));
@@ -25,14 +25,18 @@ public class PressBrakeGameplayTests
         Assert.Equal(["screws", "edge"], PressBrakeRequires.Stages.Select(PressBrakeRequires.Name));
         var parts = new PressBrakeParts();
         Assert.Equal(PressBrakeStage.Screws, parts.Next);
-        Assert.Equal("game:rod-iron", parts.NextPart);
-        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("game:rod-steel"));
+        Assert.Equal("game:metal-parts", parts.NextPart);
+        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("game:metal-parts"));
         Assert.Equal(PressBrakeStage.Edge, parts.Next);
+        Assert.Equal("game:metalplate-iron", parts.NextPart);
         Assert.False(parts.Complete);
         Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("game:metalplate-steel"));
         Assert.True(parts.Complete);
         Assert.Null(parts.NextPart);
-        Assert.Equal(("steel", "steel"), (PressBrakeParts.MetalOf(parts.FittedIn(PressBrakeStage.Screws)), PressBrakeParts.MetalOf(parts.FittedIn(PressBrakeStage.Edge))));
+        // only the edges have a metal of their own: the screws are always cupronickel
+        Assert.Null(PressBrakeParts.MetalOf(parts.FittedIn(PressBrakeStage.Screws)));
+        Assert.Equal("steel", PressBrakeParts.MetalOf(parts.FittedIn(PressBrakeStage.Edge)));
+        Assert.Null(PressBrakeParts.MetalOf("game:rod-steel"));
     }
 
     [Fact]
@@ -41,19 +45,22 @@ public class PressBrakeGameplayTests
         var parts = new PressBrakeParts();
         Assert.Equal(PressBrakeFitVerdict.OutOfOrder, parts.Fit("game:metalplate-iron"));
         Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:rod-copper"));
+        // the screws were once a rod: none fits now
+        foreach (var rod in PressBrakeParts.LegacyScrewCodes)
+            Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit(rod));
+        Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:metal-scraps"));
         Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:metalplate-meteoriciron"));
         Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit("game:metalplate-lead"));   // the work, not a part
         Assert.Equal(PressBrakeFitVerdict.NotAPart, parts.Fit(null));
-        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("rod-meteoriciron"));   // a code with no domain is the game's
-        Assert.Equal(PressBrakeFitVerdict.AlreadyFitted, parts.Fit("game:rod-iron"));
+        Assert.Equal(PressBrakeFitVerdict.Fits, parts.Fit("metal-parts"));   // a code with no domain is the game's
+        Assert.Equal(PressBrakeFitVerdict.AlreadyFitted, parts.Fit("game:metal-parts"));
         Assert.Equal(PressBrakeStage.Edge, parts.Next);
     }
 
     [Theory]
-    [InlineData("game:rod-iron", "game:metalplate-iron")]
-    [InlineData("game:rod-meteoriciron", "game:metalplate-steel")]
-    [InlineData("game:rod-steel", "game:metalplate-iron")]
-    public void Each_rod_and_edge_plate_fits(string rod, string plate) => Assert.True(Complete(rod, plate).Complete);
+    [InlineData("game:metalplate-iron")]
+    [InlineData("game:metalplate-steel")]
+    public void Metal_parts_and_each_edge_plate_fit(string plate) => Assert.True(Complete(edge: plate).Complete);
 
     [Fact]
     public void Fitted_draws_each_stage_once_it_is_in_and_never_the_plates()
@@ -61,7 +68,7 @@ public class PressBrakeGameplayTests
         var parts = new PressBrakeParts();
         Assert.True(parts.Fitted(null));
         Assert.False(parts.Fitted("screws"));
-        parts.Fit("game:rod-iron");
+        parts.Fit("game:metal-parts");
         Assert.True(parts.Fitted("screws"));
         Assert.False(parts.Fitted("edge"));
         Assert.True(Complete().Fitted("edge"));
@@ -87,8 +94,8 @@ public class PressBrakeGameplayTests
     [Fact]
     public void Breaking_returns_every_fitted_item_and_a_save_keeps_them()
     {
-        var parts = Complete("game:rod-meteoriciron", "game:metalplate-steel");
-        Assert.Equal(["game:rod-meteoriciron", "game:metalplate-steel"], parts.Returns());
+        var parts = Complete(edge: "game:metalplate-steel");
+        Assert.Equal(["game:metal-parts", "game:metalplate-steel"], parts.Returns());
         var restored = PressBrakeParts.Restore(parts.Snapshot());
         Assert.True(restored.Complete);
         Assert.Equal(parts.Returns(), restored.Returns());
@@ -96,6 +103,21 @@ public class PressBrakeGameplayTests
         Assert.False(PressBrakeParts.Restore(new Dictionary<string, string> { ["edge"] = "game:metalplate-iron" }).Has(PressBrakeStage.Edge));
         var wrong = PressBrakeParts.Restore(new Dictionary<string, string> { ["screws"] = "game:rod-copper", ["edge"] = "game:metalplate-iron" });
         Assert.Empty(wrong.Returns());
+    }
+
+    [Theory]
+    [InlineData("game:rod-iron")]
+    [InlineData("game:rod-meteoriciron")]
+    [InlineData("rod-steel")]
+    public void A_brake_saved_with_rod_screws_keeps_them_and_breaking_gives_the_rod_back(string rod)
+    {
+        // the screws took a rod before they took metal parts: such a save loads complete, its rod
+        // drawn in cupronickel like metal parts (no metal of its own), and is given back on breaking
+        var restored = PressBrakeParts.Restore(new Dictionary<string, string> { ["screws"] = rod, ["edge"] = "game:metalplate-iron" });
+        Assert.True(restored.Complete);
+        Assert.Equal([PressBrakeParts.Normalise(rod)!, "game:metalplate-iron"], restored.Returns());
+        Assert.Null(PressBrakeParts.MetalOf(restored.FittedIn(PressBrakeStage.Screws)));
+        Assert.Equal(PressBrakeParts.Normalise(rod), PressBrakeParts.Restore(restored.Snapshot()).FittedIn(PressBrakeStage.Screws));
     }
 
     // ---- Half plates ----

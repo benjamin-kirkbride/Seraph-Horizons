@@ -18,13 +18,13 @@
 		"*-west":  { base: "seraphhorizons:block/pressbrake_frame", rotateY: 270 }
 	},
 	// Every texture of the frame's shape and of the moving parts' (pressbrake.json), which the
-	// renderer draws with this block's textures; the renderer sets "screw" and "edge" to the fitted
-	// rods' and plates' metals.
+	// renderer draws with this block's textures; the renderer sets "edge" to the fitted plates' metal.
+	// The screws, made from metal parts, are always cupronickel.
 	textures: {
 		"oak":    { base: "game:block/wood/debarked/oak" },
 		"iron":   { base: "game:block/metal/plate/iron" },
 		"edge":   { base: "game:block/metal/plate/iron" },
-		"screw":  { base: "game:block/metal/plate/iron" },
+		"cupronickel": { base: "game:block/metal/sheet/cupronickel1" },
 		"lead":   { base: "game:block/metal/sheet-plain/lead1" },
 		"copper": { base: "game:block/metal/sheet-plain/copper1" }
 	},

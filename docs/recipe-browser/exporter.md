@@ -332,7 +332,7 @@ is left out when its switch is off or what it names is not registered.
   as a fallback; `SeraphHorizonsConfig.PressBrakeSettings` gives the lever turns a half plate
   (`LeverTurnsPerPlateLead`, `LeverTurnsPerPlateCopper`). A hand machine: `power` is `hand`, `turns`
   the lever's (a turn a second while right-click is held), and there is no `wear` and no `oil`. The
-  screws and edges are `kept`, their alternatives the variant's stacks; the output is one angle of the
+  screws (`game:metal-parts`, a block) and edges are `kept`, their alternatives the variant's stacks; the output is one angle of the
   metal (`seraphhorizons:angle-{metal}`), and a metal whose half plate or angle is not registered
   (`SquaringShear` or `UnifiedPipes` off) has no record. The `PressBrake` switch leaves it out when off.
 - The squaring shear (`Recipes/SquaringShearExport.cs`, `RecipeSection.SquaringShear.cs`, type

@@ -742,7 +742,8 @@ TEX_RULES = [
     (r"^(master_|mastl_)(tooth|body|bar|rim|web)", "temporal"),
     (r"^(master_boss|mastl_boss|jring_band|jring_rivet|jcarrier_pin)", "gold"),
     (r"^(jring_(back|drum)|jcarrier_(arm|hub))", "cupronickel"),
-    (r"^(blanks_|blankl_|g[sl]\d\d_|cutter_|spindle_rod|arbor_rod|sun_gear|jplanet|jring_rim|pawl_|checkpawl_|worm_thread|cam_wheel|fr_rack_tooth)", "steel"),
+    (r"^(pawl_|checkpawl_|lever_roller|spindle_collar)", "cupronickel"),   # made from metal parts
+    (r"^(blanks_|blankl_|g[sl]\d\d_|cutter_|spindle_rod|arbor_rod|sun_gear|jplanet|jring_rim|worm_thread|cam_wheel|fr_rack_tooth)", "steel"),
     (r"^belt_", "leather"),
     (r"^(valve_|valveplunger_stem)", "cupronickel"),
     (r"^valveplunger_handle", "marble"),
@@ -763,7 +764,8 @@ def check_textures(v):
                     bad.append((el.name, sorted(got), tex))
                 break
     print(f"textures: {len(TEX_RULES)} rules (oak for the sills and the axle's continuation, iron castings, steel wearing parts and "
-          f"gears, temporal masters, cupronickel and gold Jonas head, leather belt, a glass and brass oiler with oil in it): "
+          f"gears, temporal masters, cupronickel and gold Jonas head, cupronickel pawls, roller and spindle collars (metal parts), "
+          f"leather belt, a glass and brass oiler with oil in it): "
           f"{len(bad)} elements break them")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")

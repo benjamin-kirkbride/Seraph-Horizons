@@ -67,13 +67,15 @@ class Rig(unittest.TestCase):
         self.assertEqual(frame, {n for n in names if rigmath.part_of(RIG["parts"], n) == "frame"})
 
     def test_the_fitted_metals_wear_their_own_texture_codes(self):
-        # the renderer sets "edge" to the fitted plate's metal and "screw" to the rods'
-        for req, code in (("edge", "#edge"), ("screws", "#screw"), ("platelead", "#lead"), ("platecopper", "#copper")):
+        # the renderer sets "edge" to the fitted plate's metal; the screws, made from metal parts, are
+        # always cupronickel
+        for req, code in (("edge", "#edge"), ("screws", "#cupronickel"), ("platelead", "#lead"), ("platecopper", "#copper")):
             pids = {p["id"] for p in RIG["parts"] if p["requires"] == req}
             els = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) in pids]
             self.assertTrue(els, req)
             self.assertEqual({f["texture"] for e in els for f in e["faces"].values()}, {code}, req)
-        self.assertTrue({"edge", "screw"} <= set(SHAPE["textures"]))
+        self.assertTrue({"edge", "cupronickel"} <= set(SHAPE["textures"]))
+        self.assertNotIn("screw", SHAPE["textures"])
 
     def test_reference_poses_are_the_rigs_own_maths(self):
         poses = REFERENCE["poses"]

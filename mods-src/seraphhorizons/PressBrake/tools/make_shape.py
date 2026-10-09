@@ -2,9 +2,9 @@
 """Generate the press brake's shapes, rig and reference poses.
 
 The press brake is a hand-worked leaf brake (a cornice brake) of the early-to-mid 1800s, in oak with
-iron wearing edges and iron clamping screws: an oak bed with an iron folding edge along its near end;
-an oak clamping bar with an iron nose, brought down on the sheet by two iron screws threaded through
-nuts in iron gallows on the oak end cheeks; and an oak folding leaf with an iron edge, hinged on pins in
+iron wearing edges and cupronickel clamping screws (made from metal parts): an oak bed with an iron
+folding edge along its near end; an oak clamping bar with an iron nose, brought down on the sheet by
+two screws threaded through nuts in iron gallows on the oak end cheeks; and an oak folding leaf with an iron edge, hinged on pins in
 the cheeks at the folding edge and swung up by its bail handle. A lead or copper half plate (8 x 4, cut
 on the squaring shear) goes on 8 deep across the folding edge: 4 on the bed under the bar, 4 over the
 leaf. The leaf folds it once across its middle, over-bent for its spring-back, into an angle (an L, two
@@ -74,7 +74,7 @@ TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "iron": "game:block/metal/plate/iron",
     "edge": "game:block/metal/plate/iron",      # the wearing edges: the renderer sets it to the fitted plate's metal
-    "screw": "game:block/metal/plate/iron",     # the clamp screws: the renderer sets it to the fitted rods' metal
+    "cupronickel": "game:block/metal/sheet/cupronickel1",   # the clamp screws, made from metal parts: the Jonas palette, fixed
     "lead": "game:block/metal/sheet-plain/lead1",
     "copper": "game:block/metal/sheet-plain/copper1",
 }
@@ -305,10 +305,10 @@ def build_screws():
     for s, _ in sides():
         x = screw_x(s)
         pid = f"screw{s}"
-        out += disc("y", (x, 0.0, SCREW_Z), y0, y0 + SCREW_L, SCREW_R, f"{pid}_rod", pid, "screw")
+        out += disc("y", (x, 0.0, SCREW_Z), y0, y0 + SCREW_L, SCREW_R, f"{pid}_rod", pid, "cupronickel")
         top = y0 + SCREW_L
-        out.append(box([x - TOMMY, top - TOMMY_H, SCREW_Z - 0.18], [x + TOMMY, top, SCREW_Z + 0.18], f"{pid}_tommy", pid, "screw"))
-        out.append(box([x - 0.42, top - TOMMY_H - 0.3, SCREW_Z - 0.42], [x + 0.42, top - TOMMY_H, SCREW_Z + 0.42], f"{pid}_head", pid, "screw"))
+        out.append(box([x - TOMMY, top - TOMMY_H, SCREW_Z - 0.18], [x + TOMMY, top, SCREW_Z + 0.18], f"{pid}_tommy", pid, "cupronickel"))
+        out.append(box([x - 0.42, top - TOMMY_H - 0.3, SCREW_Z - 0.42], [x + 0.42, top - TOMMY_H, SCREW_Z + 0.42], f"{pid}_head", pid, "cupronickel"))
     return out
 
 
