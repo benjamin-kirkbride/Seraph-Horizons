@@ -71,6 +71,12 @@ public class EidolonConfig
     /// damage multiplier, as a creature's).</summary>
     public float DefenceDamage { get; set; } = 10;
 
+    // ---- Felling (#677; README "Eidolon", felling) ----
+
+    /// <summary>Felling an area, the fewest logs a tree has to be grown: younger ones are left
+    /// standing (a sapling is no log at all).</summary>
+    public int FellMinLogs { get; set; } = 5;
+
     public static readonly EidolonConfig Defaults = new();
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
@@ -104,6 +110,8 @@ public class EidolonConfig
         Check(nameof(FollowDistance), FollowDistance, 2, 32, () => FollowDistance = Defaults.FollowDistance, Defaults.FollowDistance);
         Check(nameof(FollowRunDistance), FollowRunDistance, 2, 256, () => FollowRunDistance = Defaults.FollowRunDistance, Defaults.FollowRunDistance);
         Check(nameof(DefenceDamage), DefenceDamage, 0, 1000, () => DefenceDamage = Defaults.DefenceDamage, Defaults.DefenceDamage);
+
+        Check(nameof(FellMinLogs), FellMinLogs, 1, 1000, () => FellMinLogs = Defaults.FellMinLogs, Defaults.FellMinLogs);
         return fixes;
     }
 }

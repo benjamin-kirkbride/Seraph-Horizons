@@ -72,6 +72,14 @@ public class EntityLaborEidolon : EntityAgent
 
     public override bool IsInteractable => true;
 
+    /// <summary>Its right hand: the axe it fells with (<see cref="EntityBehaviorEidolonAxe"/>, #677),
+    /// which the game's shape renderer draws at the shape's <c>RightHand</c> point.</summary>
+    public override ItemSlot? RightHandItemSlot
+    {
+        get => GetBehavior<EntityBehaviorEidolonAxe>()?.Slot;
+        set { }
+    }
+
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
     {
         base.Initialize(properties, api, InChunkIndex3d);

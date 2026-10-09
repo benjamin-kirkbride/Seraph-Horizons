@@ -32,6 +32,8 @@
 			{ code: "seraphhorizons.eidolonCharge" },
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
+			// The axe in its right hand (#677), drawn by the shape renderer at RightHand.
+			{ code: "seraphhorizons.eidolonAxe" },
 			{ code: "seraphhorizons.eidolonOrders" },
 		],
 		// Codes are the shape's animation names, so later orders start them by name; walk, run and
@@ -78,6 +80,8 @@
 			{ code: "seraphhorizons.eidolonCharge", initialGears: 1 },
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
+			// Giving it an axe and taking it back (#677).
+			{ code: "seraphhorizons.eidolonAxe" },
 			{ code: "seraphhorizons.eidolonOrders" },
 			{
 				code: "taskai",

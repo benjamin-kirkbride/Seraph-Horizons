@@ -1809,5 +1809,22 @@
   "eidolon-order-follow": "follow",
   "eidolon-status-follow-noway": "It can find no way to {0} and waits",
   "eidolon-status-follow-gone": "Waiting for {0}",
-  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can"
+  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can",
+  "eidoloncommander-mode-fell": "Fell trees here",
+  "eidolon-order-fell": "fell trees",
+  "eidolon-fell-noaxe": "It has no axe: give it one first (right-click it with an axe)",
+  "eidolon-fell-noaxe-told": "Your eidolon has no axe to fell with: it waits for one",
+  "eidolon-fell-axe-broke": "Your eidolon's axe broke: it waits for another",
+  "eidolon-fell-done": "Your eidolon has felled every grown tree in its area ({0} felled)",
+  "eidolon-fell-done-unreachable": "Your eidolon has felled every grown tree it can reach in its area ({0} felled, {1} out of its reach)",
+  "eidolon-status-fell-seeking": "Looking for a grown tree",
+  "eidolon-status-fell-walking": "Walking to a tree",
+  "eidolon-status-fell-felling": "Felling a tree",
+  "eidolon-status-fell-noaxe": "It has no axe and waits: give it one",
+  "eidolon-axe-has": "It already holds an axe: sneak and right-click it with an empty hand to take that one back",
+  "eidolon-info-axe": "Holds {0} ({1}/{2})",
+  "eidolon-info-axe-unbreaking": "Holds {0}",
+  "eidolon-info-noaxe": "Holds no axe",
+  "eidolon-help-axe-give": "Give it the axe",
+  "eidolon-help-axe-take": "Take its axe back"
 }

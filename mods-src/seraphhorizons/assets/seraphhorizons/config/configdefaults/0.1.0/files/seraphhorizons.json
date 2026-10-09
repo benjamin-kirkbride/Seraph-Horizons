@@ -280,7 +280,8 @@
     "CommandRange": 64.0,
     "FollowDistance": 4.0,
     "FollowRunDistance": 10.0,
-    "DefenceDamage": 10.0
+    "DefenceDamage": 10.0,
+    "FellMinLogs": 5
   },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {
