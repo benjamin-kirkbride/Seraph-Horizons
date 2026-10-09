@@ -349,12 +349,12 @@ class ItemValuesTest(unittest.TestCase):
         "trader-carpenter.json": """{
           // the pack's own list
           selling: { list: [
-            { code: "seraphhorizons:schematic-windmill", stacksize: 1, price: { avg: 30, var: 3 } },
-            { code: "game:schematic-glider", stacksize: 1, price: { avg: 20 } },
-            { code: "game:log", stacksize: 4, price: { avg: 8 } },
+            { code: "seraphhorizons:schematic-windmill", stacksize: 1, price: 30, priceReason: "a gate" },
+            { code: "game:schematic-glider", stacksize: 1, price: 20, priceReason: "a gate" },
+            { code: "game:log", stacksize: 4 },
           ] },
           buying: { list: [
-            { code: "game:schematic-glider", type: "item", stacksize: 1, price: { avg: 10 } },
+            { code: "game:schematic-glider", type: "item", stacksize: 1, price: 10, priceReason: "a gate" },
           ] }
         }""",
     }
@@ -409,7 +409,7 @@ class ItemValuesTest(unittest.TestCase):
     def test_check_with_and_without_the_mod(self):
         lists = self.write_lists()
         (lists / "trader-smith.json").write_text("""{
-          buying: { list: [ { code: "game:ingot", type: "item", price: { avg: 2 } } ] }
+          buying: { list: [ { code: "game:ingot", type: "item" } ] }
         }""")
         # With the mod: the schematics are in the export.
         path = self.dir / "with.json"
@@ -418,7 +418,7 @@ class ItemValuesTest(unittest.TestCase):
                 "--table", str(self.dir / "absent.json"))
         code, text, err = self.run_cli("check", str(path), *args)
         self.assertEqual(code, 1)  # game:ingot has no value
-        self.assertIn("validated 2 trade list items traders buy (2 distinct codes) in 2 lists", text)
+        self.assertIn("validated 2 trade list items priced from values (2 distinct codes) in 2 lists", text)
         self.assertIn("trader-smith.json: game:ingot has no value", err)
         self.assertNotIn("glider", err)
         # Without the mod: no seraphhorizons codes in the export, and the check still runs.
@@ -431,7 +431,7 @@ class ItemValuesTest(unittest.TestCase):
         code, text, err = self.run_cli("check", str(path), *args)
         self.assertEqual(code, 0, err)
         self.assertIn("validated 2 trade list items", text)
-        self.assertIn("every item traders buy has a value", text)
+        self.assertIn("every trade list item has a value", text)
 
     # ------------------------------------------------------------ CLI
 
@@ -468,22 +468,26 @@ class ItemValuesTest(unittest.TestCase):
           // vanilla style
           money: { avg: 20 },
           selling: { list: [
-            { code: "plank", type: "item", stacksize: 4, price: { avg: 1 } },
-            { code: "game:soldonly", type: "item", price: { avg: 5 } },
-            { code: "game:cast", type: "item", price: { avg: 5 }, playerSupplied: true },
+            { code: "plank", type: "item", stacksize: 4 },
+            { code: "game:soldonly", type: "item" },
+            { code: "game:cast", type: "item", playerSupplied: true },
+            { code: "game:special", type: "item", price: 7, priceReason: "found, never made" },
+            { code: "game:noreason", type: "item", price: 7 },
           ] },
           buying: { list: [
-            { code: "game:unobtainium", type: "item", price: { avg: 5 } },
-            { code: "game:ore-copper", type: "item", price: { avg: 1 } },
+            { code: "game:unobtainium", type: "item" },
+            { code: "game:ore-copper", type: "item" },
           ] }
         }""")
         code, _, err = self.run_cli("check", str(path), "--rules", str(self.dir), "--tradelists", str(lists), "--table", str(out))
         self.assertEqual(code, 1)
         self.assertIn("smith.json: game:unobtainium has no value", err)
-        # Player-supplied goods are bought (off the list, at their value) as well as sold.
+        # Every entry is priced from its value, sold or bought...
         self.assertIn("smith.json: game:cast has no value", err)
-        # What a trader only sells is priced by its list.
-        self.assertNotIn("soldonly", err)
+        self.assertIn("smith.json: game:soldonly has no value", err)
+        # ...but a price override with its reason; one without a reason is no override.
+        self.assertNotIn("game:special", err)
+        self.assertIn("smith.json: game:noreason has no value", err)
         # A code missing from the table takes its family's value, as the mod looks it up.
         self.assertNotIn("plank", err)
         self.assertNotIn("ore-copper", err)
@@ -885,28 +889,35 @@ class ItemValuesTest(unittest.TestCase):
         lists.mkdir()
         (lists / "carpenter.json").write_text("""{
           selling: { list: [
-            { code: "game:pitsaw-iron", type: "item", price: { avg: 5 } },
-            { code: "game:creature-goat", type: "item", price: { avg: 5 } },
-            { code: "sh:schematic-mill", type: "item", price: { avg: 30 } },
-            { kind: "lead", code: "sh:traderlead", price: { avg: 1 } },
+            { code: "game:pitsaw-iron", type: "item" },
+            { code: "game:creature-goat", type: "item", price: 5, priceReason: "a creature, never made" },
+            { code: "sh:schematic-mill", type: "item", price: 30, priceReason: "a gate" },
+            { kind: "lead", code: "sh:traderlead", price: 1, priceReason: "the maps system's" },
           ] },
           buying: { list: [
-            { code: "sh:schematic-mill", type: "item", price: { avg: 10 } },
+            { code: "sh:schematic-mill", type: "item", price: 10, priceReason: "a gate" },
           ] }
         }""")
         code, text, err = self.run_cli("check", str(path), "--rules", str(self.dir), "--tradelists", str(lists), "--table", str(out))
         self.assertEqual(code, 1)
         self.assertIn("carpenter.json: game:pitsaw-iron (sold) is retired", err)
         self.assertIn("1 trade list entries name items nothing values", err)
-        # A creature a trader sells is priced by its list; schematics are bought at their list price.
+        # A creature priced by hand and schematics with their price overrides need no value.
         self.assertNotIn("creature-goat", err)
         self.assertNotIn("schematic", err)
 
         (lists / "carpenter.json").write_text((lists / "carpenter.json").read_text().replace(
-            '{ code: "game:pitsaw-iron", type: "item", price: { avg: 5 } },', ""))
+            '{ code: "game:pitsaw-iron", type: "item" },', ""))
         code, text, err = self.run_cli("check", str(path), "--rules", str(self.dir), "--tradelists", str(lists), "--table", str(out))
         self.assertEqual(code, 0, err)
-        self.assertIn("1 entries traders only sell have no value", text)
+        self.assertIn("every trade list item has a value", text)
+
+        # A schematic without its price override has nothing to be priced by.
+        (lists / "carpenter.json").write_text((lists / "carpenter.json").read_text().replace(
+            'price: 10, priceReason: "a gate" ', ""))
+        code, text, err = self.run_cli("check", str(path), "--rules", str(self.dir), "--tradelists", str(lists), "--table", str(out))
+        self.assertEqual(code, 1)
+        self.assertIn("carpenter.json: sh:schematic-mill is a schematic", err)
 
 
 class ShippedRulesTest(unittest.TestCase):

@@ -82,12 +82,15 @@ public static class OrderCommands
     }
 
     public static string AdminLine(ICoreServerAPI api, Order o, double today) =>
-        string.Format(CultureInfo.InvariantCulture, "#{0} {1} {2} ({3}) {4}/{5} {6} @{7:0.##} ×{8:0.##}, premium {9} (paid {10}), {11} {12:0.#} d{13}",
-            o.Id, o.State.ToString().ToLowerInvariant(), o.TraderId, o.TraderType, o.Delivered, o.Quantity,
-            TraderFinder.ItemName(api.World, o.Item), o.UnitPrice, o.PremiumFactor, o.Premium, o.PremiumPaid,
+        string.Format(CultureInfo.InvariantCulture, "#{0} {1} {2} ({3}) {4}/{5} {6} @{7:0.###}{8}, pays {9} (paid {10}){11}, {12} {13:0.#} d{14}",
+            o.Id, o.State.ToString().ToLowerInvariant(), o.TraderId, o.TraderType, o.Delivered, o.Quantity > 0 ? (object)o.Quantity : "?",
+            TraderFinder.ItemName(api.World, o.Item), o.Value, o.Tier > 0 ? string.Format(CultureInfo.InvariantCulture, " ×{0:0.##} (tier {1})", o.Multiplier, o.Tier) : "",
+            o.Payout, o.PayoutPaid, o.Reserved > 0 ? $", reserve {o.Reserved}" : "",
             o.IsOpen ? "due in" : "closed", o.IsOpen ? o.Deadline - today : today - (o.ClosedDay ?? today),
             o.PlayerName is { } n ? ", " + n : "");
 
+    /// <summary>Puts an order for <c>qty</c> of the item on offer at the trader, at the item's value,
+    /// whatever its list buys; whoever takes it gets their tier's payout for that many.</summary>
     private static TextCommandResult Create(ICoreServerAPI api, OrdersSystem system, TextCommandCallingArgs args, string[] rest)
     {
         if (rest.Length < 4 || !int.TryParse(rest[2], out int qty) || qty < 1
@@ -96,14 +99,10 @@ public static class OrderCommands
         if (TraderFinder.Named(api, rest[0], args.Caller.Entity) is not { } trader) return TextCommandResult.Error(L("trading-orders-notrader"));
         string code = BuyerIndex.FullCode(rest[1].ToLowerInvariant());
         if (TraderFinder.Collectible(api.World, code) is not { } collectible) return TextCommandResult.Error(L("trading-orders-noitem", rest[1]));
-        // The trader's own price if its list buys the item, else the value table's.
-        var listed = system.Candidates(trader).FirstOrDefault(c => c.Item == code);
-        double unit = listed?.UnitPrice ?? ItemValuesSystem.For(api).ValueOf(code);
-        if (unit <= 0) return TextCommandResult.Error(L("trading-orders-noprice", rest[1]));
-        var candidate = new OrderCandidate(code, unit, listed?.Lot ?? 1, Math.Max(1, collectible.MaxStackSize));
-        string id = TraderFinder.IdOf(api, trader);
-        var o = system.MakeOffer(trader, id, candidate, qty, OrderPlanner.Factor(api.World.Rand.NextDouble()), days);
-        if (o is null) return TextCommandResult.Error(L("trading-orders-create-broke", OrderPlanner.Premium(qty, unit, OrderPlanner.MaxFactor)));
+        double value = ItemValuesSystem.For(api).ValueOf(code);
+        if (value <= 0) return TextCommandResult.Error(L("trading-orders-noprice", rest[1]));
+        var candidate = new OrderCandidate(code, value, Math.Max(1, collectible.MaxStackSize));
+        var o = system.Book.Offer(TraderFinder.IdOf(api, trader), trader.TraderType, candidate, 0, days, api.World.Calendar.TotalDays, qty);
         return TextCommandResult.Success(L("trading-orders-created", AdminLine(api, o, api.World.Calendar.TotalDays)));
     }
 }

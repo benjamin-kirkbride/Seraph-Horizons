@@ -65,14 +65,13 @@ public class ShippedTradeListsTests
     }
 
     [Fact]
-    public void WalletsAreBiggerThanVanillasAndGrowWithStanding()
+    public void WalletsAreBiggerThanVanillas()
     {
         foreach (var (type, def) in Lists.Value)
         {
-            Assert.InRange(def.Wallet[0].Avg, 60, 150);
-            Assert.True(def.Wallet.Count >= 2, type);
-            for (int i = 1; i < def.Wallet.Count; i++)
-                Assert.True(def.Wallet[i].Avg > def.Wallet[i - 1].Avg, $"{type} tier {i}");
+            Assert.NotNull(def.Wallet);
+            Assert.InRange(def.Wallet!.Avg, 60, 180);
+            Assert.InRange(def.Wallet.Var, 0, def.Wallet.Avg / 2);
             Assert.True(def.CampWeight > 0, type);
         }
     }

@@ -45,8 +45,9 @@ public class EntitySeraphTrader : EntityTrader
     public static event Action<EntitySeraphTrader>? Restocked;
 
     /// <summary>Raised on the server after a deal went through (the trade window's buy or sell, or
-    /// vanilla's deal packet), with what the player sold (what left the selling cart): orders (#453)
-    /// count their deliveries here.</summary>
+    /// vanilla's deal packet), with what the player sold (what left the selling cart). Orders (#453)
+    /// counted their deliveries here until they took hand-ins only (2026-10-08); nothing listens now,
+    /// and with no listener the cart is not snapshotted.</summary>
     public static event Action<IServerPlayer, EntitySeraphTrader, IReadOnlyList<ItemStack>>? Dealt;
 
     /// <summary>Raised on the server when the trading player opens the trade window (the dialogue's
@@ -140,8 +141,9 @@ public class EntitySeraphTrader : EntityTrader
     }
 
     /// <summary>Standing (#452): before vanilla's weekly top-up, the wallet it tops up towards is the
-    /// list's for the best standing tier among players who traded here recently (a trader that does
-    /// well with someone keeps more gears for everyone). Asked once per due restock.</summary>
+    /// list's base wallet times the best <c>walletFactor</c> among players who traded here recently
+    /// (a trader that does well with someone keeps more gears for everyone). Asked once per due
+    /// restock.</summary>
     private void UpdateWallet(double lastRefresh)
     {
         double last = double.IsNaN(lastRefresh) ? World.Calendar.TotalDays - 10 : lastRefresh;
@@ -149,7 +151,7 @@ public class EntitySeraphTrader : EntityTrader
         _walletSetFor = last;
         var system = TradingSystem.Of(Api);
         if (system?.Lists?.For(TraderType) is not { } def || !system.Standing.Enabled) return;
-        var wallet = def.WalletFor(system.Standing.WalletTierFor(this));
+        var wallet = def.WalletAt(system.Standing.WalletFactorFor(this));
         TradeProps.Money = NatFloat.createUniform(wallet.Avg, wallet.Var);
     }
 
@@ -198,7 +200,7 @@ public class EntitySeraphTrader : EntityTrader
         return offered;
     }
 
-    /// <summary>Standing (#452) and orders (#453) for a deal that went through: the player is
+    /// <summary>Standing (#452) for a deal that went through: the player is
     /// credited with its gear value, and what left the selling cart is raised as
     /// <see cref="Dealt"/>.</summary>
     private void AfterDeal(IServerPlayer player, int paid, int received, ItemStack?[] offered)
@@ -223,7 +225,7 @@ public class EntitySeraphTrader : EntityTrader
     }
 
     /// <summary>Standing for the gears that changed hands, and the goods sold raised as
-    /// <see cref="Dealt"/> (orders count them).</summary>
+    /// <see cref="Dealt"/>.</summary>
     private void Credit(IServerPlayer player, int paid, int received, List<ItemStack> sold)
     {
         if (paid + received > 0 && TradingSystem.Of(Api) is { Standing.Enabled: true } system)

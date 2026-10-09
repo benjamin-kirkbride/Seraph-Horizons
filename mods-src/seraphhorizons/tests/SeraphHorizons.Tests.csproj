@@ -53,6 +53,7 @@
     <!-- The trading economy (#450, #451): fit, prices, side budget, supply; and the shipped relations. -->
     <Compile Include="../Trading/Economy/Core/**/*.cs" Link="Trading/Economy/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/trading/trader-relations.json" Link="trader-relations.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/config/trading/list-prices.json" Link="list-prices.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../TrunkEntities/Core/**/*.cs" Link="TrunkEntities/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- The bucking sawmill's shipped rig, so the tests check that it parses and is consistent,
          and every part's matrix at a grid of poses, from BuckingSawmill/tools/make_shape.py's
@@ -118,7 +119,6 @@
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Trading/fixtures/list-pay-outliers.json" Link="list-pay-outliers.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Schematics (#468, #469): the table, the item type and the lang file it is held to. -->
     <Compile Include="../Trading/Schematics/Core/**/*.cs" Link="Trading/Schematics/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/schematic-gates.json" Link="schematic-gates.json" CopyToOutputDirectory="PreserveNewest" />
@@ -130,6 +130,7 @@
     <!-- Maps and leads at traders (#455): offer selection, tier gating, lead targets, and the shipped price table. -->
     <Compile Include="../Trading/Maps/Core/**/*.cs" Link="Trading/Maps/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/trading/map-prices.json" Link="map-prices.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/config/ore-sizes.json" Link="ore-sizes.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Gear reclamation (#474, #475, #477): the roll, flash rust hours, settings, optional
          ingredients; and the shipped item types and recipes held to them. -->
     <Compile Include="../GearReclamation/Core/**/*.cs" Link="GearReclamation/Core/%(RecursiveDir)%(Filename)%(Extension)" />

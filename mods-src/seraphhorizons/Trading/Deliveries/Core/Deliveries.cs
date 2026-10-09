@@ -18,8 +18,8 @@ public enum DeliveryState
 /// <summary>
 /// A delivery (#454): trader <see cref="From"/> hands a player a package for trader
 /// <see cref="To"/> and holds <see cref="Deposit"/> of the player's gears. Handed in by
-/// <see cref="Deadline"/>: the deposit back, <see cref="Fee"/> from the receiver's wallet, standing at
-/// both ends. By <see cref="GraceUntil"/>: the deposit and half the fee, standing at the receiver.
+/// <see cref="Deadline"/>: the deposit back, <see cref="Fee"/> (new money, not the receiver's
+/// wallet), standing at both ends. By <see cref="GraceUntil"/>: the deposit and half the fee, standing at the receiver.
 /// Later: failed, the deposit kept, standing with the sender lost.
 /// </summary>
 public sealed class Delivery
@@ -74,7 +74,9 @@ public static class DeliveryPlanner
     public const double GraceDays = 1;
     /// <summary>A package's value at standing scale 1, in gears (±20%).</summary>
     public const double BaseValue = 20;
-    public const double MinDeposit = 0.1, MaxDeposit = 0.3, MinFee = 0.2, MaxFee = 0.4;
+    /// <summary>The deposit and the fee as shares of the value. The fee went ×10 (2026-10-08; 20–40 %
+    /// before) when it stopped coming out of the receiver's wallet.</summary>
+    public const double MinDeposit = 0.1, MaxDeposit = 0.3, MinFee = 2.0, MaxFee = 4.0;
 
     /// <summary>Game days allowed for <paramref name="distance"/> blocks: <see cref="DaysPerKm"/> a
     /// km, at least <see cref="MinDays"/>.</summary>

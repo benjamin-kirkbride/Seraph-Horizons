@@ -135,9 +135,9 @@ public sealed class SeraphTraderInventory : InventoryTrader
             if (this[id].Itemstack is not { } stack || !MaySell(stack)) continue;
             var condition = GetBuyingConditionsSlot(stack);
             if (condition?.TradeItem is not { Stack: { } unit } item) continue;
-            bool off = condition is OffListSlot;
-            lines.Add(new SellLine(id, stack.StackSize, Math.Max(1, unit.StackSize), item.Price, off ? Budget.Side : Budget.Main,
-                off ? "off:" + stack.Collectible.Code : "slot:" + GetSlotId(condition), off ? null : item.Stock));
+            var off = condition as OffListSlot;
+            lines.Add(new SellLine(id, stack.StackSize, Math.Max(1, unit.StackSize), item.Price, off?.Offer.Budget ?? Budget.Main,
+                off != null ? "off:" + stack.Collectible.Code : "slot:" + GetSlotId(condition), off != null ? null : item.Stock));
         }
         return lines;
     }
