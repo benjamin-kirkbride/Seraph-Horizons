@@ -15,7 +15,8 @@ its consumed ingredients (each slot at its cheapest accepted stack) times the ki
 divided by the output quantity, plus the kind's charge per output item (`perItem`: what ageing in
 a barrel or a cellar adds to each portion, which a flat per batch of thousands cannot). Schematics are free kept tools. Items settle cheapest first, so
 chains of any length and cycles resolve; the table also records the config switches each value
-exists by. The solver works per item (recipes count portions); the table stores liquids, the
+exists by. The scrap floor then raises an item to what breaking it down gives back (5 x for a found
+item, 1 x for a made one; scrapFloor in markups.json), and what is made from it with it. The solver works per item (recipes count portions); the table stores liquids, the
 codes the export marks `extra.liquid`, in gears per litre (`perLitre`).
 """
 
@@ -70,6 +71,8 @@ class Rules:
     ores: dict = field(default_factory=dict)
     trader_fallback: dict = field(default_factory=dict)
     schematics: list[str] = field(default_factory=list)  # globs: kept, worth nothing, never block
+    # The scrap floor's multipliers of salvage: {"found": x, "made": y}; none, no floor.
+    scrap_floor: dict = field(default_factory=dict)
 
     @staticmethod
     def load(directory: Path = HERE) -> "Rules":
@@ -97,6 +100,7 @@ class Rules:
             ores=raw.get("ores", {}),
             trader_fallback=raw.get("traderFallback", {}),
             schematics=list(mk.get("schematics", [])),
+            scrap_floor={k: float(v) for k, v in (mk.get("scrapFloor") or {}).items() if k in ("found", "made")},
         )
 
     def is_schematic(self, code: str) -> bool:
@@ -189,7 +193,10 @@ def kind_of(rtype: str, shape: str) -> str:
     return "mod"
 
 
-def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counter]:
+def routes_from_recipes(export: dict, rules: Rules, breakdown: bool = False) -> tuple[list[Route], Counter]:
+    """The routes the export's recipes give. With breakdown, only the excluded recipes instead
+    (recycling, uncrafting, chiselling jewellery into bits), each variant one route whose every
+    output after the first is a byproduct: the scrap floor's salvage routes (salvage)."""
     routes: list[Route] = []
     skipped: Counter = Counter()
     types = export.get("recipeTypes", {})
@@ -202,8 +209,8 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
         if r.get("enabled") is False:
             skipped["disabled"] += 1
             continue
-        if any(p.search(r["id"]) for p in rules.exclude):
-            skipped["excluded"] += 1
+        if any(p.search(r["id"]) for p in rules.exclude) != breakdown:
+            skipped["excluded" if not breakdown else "ordinary"] += 1
             continue
         shape = types.get(rtype, {}).get("shape", "generic")
         kind = rtype if rtype in rules.markups else kind_of(rtype, shape)
@@ -264,6 +271,11 @@ def routes_from_recipes(export: dict, rules: Rules) -> tuple[list[Route], Counte
                         ret = (rc, _items(d["returned"], litres))
                 slots.append(Slot([(a["code"], _items(a, litres) * factor) for a in accepted], consumed, ret))
             if not ok:
+                continue
+            if breakdown:
+                shares = lottery or [1.0] * len(v["outputs"])
+                expected = [(o["code"], _items(o, litres) * share) for o, share in zip(v["outputs"], shares)]
+                routes.append(Route(kind, r["id"], expected[0][0], expected[0][1], slots, expected[1:], r.get("switch")))
                 continue
             if lottery is None:
                 routes.append(Route(kind, r["id"], out["code"], _items(out, litres), slots, switch=r.get("switch"),
@@ -400,6 +412,28 @@ class Valuation:
     passes: int
     # Codes whose value exists only with these seraphhorizons config switches on (sorted).
     switches: dict[str, list[str]] = field(default_factory=dict)
+    # The scrap floor: every code with a salvage route's floor (an override's too, never applied),
+    # the values before any floor, and the solves it took to settle.
+    floors: dict[str, "Floor"] = field(default_factory=dict)
+    unfloored: dict[str, float] = field(default_factory=dict)
+    floor_rounds: int = 0
+    picks: dict[str, list[str]] = field(default_factory=dict)  # what each routed value was priced from
+
+
+@dataclass
+class Floor:
+    """The scrap floor of one item: what its best break-down route gives back per item (salvage),
+    times the multiplier for a found item (no ordinary route makes it) or a made one."""
+
+    value: float  # gears per item (a liquid's per portion) the item is worth at least
+    salvage: float
+    multiplier: float
+    recipe: str
+    uses: list[str]  # what the salvage was priced from: the route's outputs and other inputs
+
+    @property
+    def label(self) -> str:
+        return f"floor:{self.multiplier:g}x {self.recipe}"
 
 
 def route_eval(route: Route, value: dict[str, float], rules: Rules,
@@ -506,11 +540,15 @@ class Siblings:
 
 def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: dict[str, str], rules: Rules,
             picks: dict[str, list[str]] | None = None, hint: dict[str, float] | None = None,
+            floors: dict[str, "Floor"] | None = None,
             ) -> tuple[dict[str, float], dict[str, str], dict[str, Route], int]:
     """Knuth's generalisation of Dijkstra: settle items cheapest first, each at its cheapest route over
     items already settled. A settled value never drops again, so a cycle that makes more than it
     consumes (two linen -> four sails -> eight linen) cannot pull prices down: the sail is priced
-    from settled linen, and the linen was settled before any sail existed."""
+    from settled linen, and the linen was settled before any sail existed. A route's cost is at
+    least its output's scrap floor (`floors`), and an item settled at its floor has the floor as
+    its source."""
+    floors = floors or {}
     value = dict(fixed_value)
     source = dict(fixed_source)
     best_route: dict[str, Route] = {}
@@ -534,7 +572,7 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
                     not slot.consumed or any(c in reachable for c, _ in slot.alternatives) for slot in rt.slots):
                 reachable.add(rt.output)
                 grew = True
-    tentative: dict[str, tuple[float, int, list[str]]] = {}
+    tentative: dict[str, tuple[float, int, list[str], bool]] = {}
     heap: list[tuple[float, str, int]] = []
     picks = {} if picks is None else picks
 
@@ -546,9 +584,13 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
         if got is None:
             return
         cost, used = got
+        fl = floors.get(rt.output)
+        bound = fl is not None and fl.value > cost
+        if bound:
+            cost = fl.value
         cur = tentative.get(rt.output)
         if cur is None or cost < cur[0] - EPS * max(1.0, cur[0]):
-            tentative[rt.output] = (cost, i, used)
+            tentative[rt.output] = (cost, i, used, bound)
             heapq.heappush(heap, (cost, rt.output, i))
 
     settled = 0
@@ -560,7 +602,7 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
             if code in value or tentative.get(code, (None, None))[1] != i or tentative[code][0] != cost:
                 continue
             value[code] = cost
-            source[code] = routes[i].recipe
+            source[code] = floors[code].label if tentative[code][3] else routes[i].recipe
             best_route[code] = routes[i]
             picks[code] = tentative[code][2]
             settled += 1
@@ -574,23 +616,142 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
             if rt.output in value:
                 continue
             got = route_eval(rt, value, rules, None, hint, True)
-            if got is not None and (knot is None or got[0] < knot[0]):
-                knot = (got[0], i, got[1])
+            if got is None:
+                continue
+            fl = floors.get(rt.output)
+            bound = fl is not None and fl.value > got[0]
+            cost = fl.value if bound else got[0]
+            if knot is None or cost < knot[0]:
+                knot = (cost, i, got[1], bound)
         if knot is None:
             break
-        cost, i, used = knot
-        tentative[routes[i].output] = (cost, i, used)
+        cost, i, used, bound = knot
+        tentative[routes[i].output] = (cost, i, used, bound)
         heapq.heappush(heap, (cost, routes[i].output, i))
     return value, source, best_route, settled
 
 
+MAX_FLOOR_ROUNDS = 50
+
+
 def solve(export: dict, rules: Rules) -> Valuation:
+    """Every item's value: the cheapest route over hand prices and fallbacks (_solve), then the
+    scrap floor. An item is worth at least multiplier x its salvage (scrapFloor in markups.json:
+    `found` for an item no ordinary route makes, `made` for one that is), where salvage is what its
+    best break-down route (an excluded recipe: recycling, uncrafting, chiselling jewellery) gives
+    back per item. A raised item raises what is made from it, which can raise another's salvage, so
+    the solve repeats with the floors found until none grows: values only rise, and a salvage priced
+    from the item itself is never used, so it ends. Overrides keep their value."""
     items = export["items"]
     recipe_routes, _ = routes_from_recipes(export, rules)
     routes = recipe_routes + routes_from_attributes(export)
     by_out: dict[str, list[Route]] = defaultdict(list)
     for rt in routes:
         by_out[rt.output].append(rt)
+    scrap = routes_from_recipes(export, rules, breakdown=True)[0] if rules.scrap_floor else []
+
+    floors: dict[str, Floor] = {}
+    val = _solve(export, rules, routes, by_out, floors)
+    unfloored = dict(val.value)
+    rounds = 1
+    while scrap:
+        found = scrap_floors(scrap, val, by_out, rules)
+        grew = {c: f for c, f in found.items()
+                if c not in floors or f.value > floors[c].value + EPS * max(1.0, f.value)}
+        if not grew:
+            break
+        if rounds >= MAX_FLOOR_ROUNDS:
+            raise RuntimeError(f"the scrap floor did not settle in {MAX_FLOOR_ROUNDS} solves; still rising: "
+                               + ", ".join(sorted(grew)[:10]))
+        floors = {**floors, **grew}
+        val = _solve(export, rules, routes, by_out, floors)
+        rounds += 1
+    # Every floor the last values give, for the report (an override's, which is never applied).
+    for c, f in (scrap_floors(scrap, val, by_out, rules) if scrap else {}).items():
+        if c not in floors or f.value > floors[c].value:
+            floors[c] = f
+    val.floors, val.unfloored, val.floor_rounds = floors, unfloored, rounds
+    return val
+
+
+def scrap_floors(scrap: list[Route], val: Valuation, by_out: dict[str, list[Route]], rules: Rules) -> dict[str, Floor]:
+    """Each item's best scrap floor over the break-down routes that consume it: the outputs' value
+    (byproducts and handed-back containers included) less the other consumed inputs (tools are
+    kept), per item consumed, times the found or made multiplier. A route whose outputs or other
+    inputs are priced, through any chain, from the item itself is skipped: it would feed on itself."""
+    value = val.value
+    found_x, made_x = rules.scrap_floor.get("found", 1.0), rules.scrap_floor.get("made", 1.0)
+    reach_memo: dict[str, set[str]] = {}
+
+    def edges(code: str) -> list[str]:
+        out = list(val.picks.get(code, ()))
+        rt = val.route.get(code)
+        if rt is not None:  # the whole route, not only its picks: another alternative may win later
+            for slot in rt.slots:
+                out += [c for c, _ in slot.alternatives]
+        if (f := val.floors.get(code)) is not None:
+            out += f.uses
+        return out
+
+    def reach(code: str) -> set[str]:
+        """Everything code's value is priced from, itself included."""
+        if code in reach_memo:
+            return reach_memo[code]
+        seen = {code}
+        todo = [code]
+        while todo:
+            for c in edges(todo.pop()):
+                if c not in seen:
+                    seen.add(c)
+                    todo.append(c)
+        reach_memo[code] = seen
+        return seen
+
+    best: dict[str, Floor] = {}
+    for rt in scrap:
+        back = 0.0
+        uses: list[str] = []
+        for code, n in [(rt.output, rt.quantity)] + rt.byproducts:
+            if (v := value.get(code)) is not None:
+                back += v * n
+                uses.append(code)
+        cheapest: list[tuple[float, str] | None] = []
+        for slot in rt.slots:
+            got = [(value[c] * n, c) for c, n in slot.alternatives if c in value]
+            cheapest.append(min(got) if got else None)
+            if slot.consumed and slot.returned and (v := value.get(slot.returned[0])) is not None:
+                back += v * slot.returned[1]
+                uses.append(slot.returned[0])
+        for i, slot in enumerate(rt.slots):
+            if not slot.consumed:
+                continue
+            others = [cheapest[j] for j, o in enumerate(rt.slots) if j != i and o.consumed]
+            if any(o is None for o in others):
+                continue
+            spent = sum(o[0] for o in others)
+            fed = uses + [o[1] for o in others]
+            for code, n in slot.alternatives:
+                if n <= EPS:
+                    continue
+                salvage = (back - spent) / n
+                if salvage <= EPS or any(code in reach(c) for c in fed):
+                    continue
+                mult = made_x if code in by_out else found_x
+                if code not in best or mult * salvage > best[code].value:
+                    best[code] = Floor(mult * salvage, salvage, mult, rt.recipe, fed)
+    return best
+
+
+def _solve(export: dict, rules: Rules, routes: list[Route], by_out: dict[str, list[Route]],
+           floors: dict[str, Floor]) -> Valuation:
+    items = export["items"]
+
+    def floored(code: str, got: tuple[float, str] | None) -> tuple[float, str] | None:
+        """A fixed value (raw, default, fallback) raised to the code's scrap floor."""
+        fl = floors.get(code)
+        if fl is not None and (got is None or fl.value > got[0]):
+            return fl.value, fl.label
+        return got
 
     value: dict[str, float] = {}
     source: dict[str, str] = {}
@@ -605,7 +766,7 @@ def solve(export: dict, rules: Rules) -> Valuation:
             continue
         raw = (rules.raws[code], "raw") if code in rules.raws else ores.get(code) or rules.raw_value(code)
         if raw is not None:
-            value[code], source[code] = raw
+            value[code], source[code] = floored(code, raw)
     # Overrides for codes the export lacks still count, so a typo shows in the report.
     for code, v in rules.overrides.items():
         value.setdefault(code, v)
@@ -614,15 +775,17 @@ def solve(export: dict, rules: Rules) -> Valuation:
     for code in items:
         if code not in value and code not in by_out and code not in schematic \
                 and (dv := rules.default_value(code)) is not None:
-            value[code], source[code] = dv
+            value[code], source[code] = floored(code, dv)
 
     # Settled in two layers. The fallbacks of the second, vanilla trader prices of leaves and category
     # defaults of items made only from unpriced things, are guesses, so they only price what the
     # first layer left unpriced and never undercut a production chain (copper buttons a trader
-    # sells cheaply do not make copper ingots cheaper).
+    # sells cheaply do not make copper ingots cheaper). The second layer raises a leaf's fallback
+    # to its scrap floor, or gives a leaf with none its floor; a third gives an item whose routes
+    # still cannot be priced its floor (only then: a route the fallbacks make priceable wins).
     def layers(hint: dict[str, float] | None):
         picks: dict[str, list[str]] = {}
-        val, src, best_route, settled = _settle(routes, dict(value), dict(source), rules, picks, hint)
+        val, src, best_route, settled = _settle(routes, dict(value), dict(source), rules, picks, hint, floors)
         sibling = Siblings(val)
         late = 0
         for code in items:
@@ -633,11 +796,19 @@ def solve(export: dict, rules: Rules) -> Valuation:
                 dv = (tv, "default:trader")
             elif (sv := sibling.average(code)) is not None:
                 dv = (sv[0], f"default:siblings {sv[1]} ({sv[2]})")
+            dv = floored(code, dv)
             if dv is not None:
                 val[code], src[code] = dv
                 late += 1
         if late:
-            val, src, more, n = _settle(routes, val, src, rules, picks, hint)
+            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors)
+            best_route.update(more)
+            settled += n
+        unrouted = [c for c in floors if c in by_out and c not in val and c in items and c not in schematic]
+        for code in unrouted:
+            val[code], src[code] = floors[code].value, floors[code].label
+        if unrouted:
+            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors)
             best_route.update(more)
             settled += n
         return val, src, best_route, settled, picks
@@ -648,7 +819,8 @@ def solve(export: dict, rules: Rules) -> Valuation:
     # the same raws and takes a tool not yet valued at its first-pass value instead of waiting.
     first = layers(None)[0]
     value, source, best_route, settled, picks = layers(first)
-    return Valuation(value, source, best_route, by_out, settled, switch_dependencies(items, value, best_route, picks))
+    return Valuation(value, source, best_route, by_out, settled, switch_dependencies(items, value, best_route, picks),
+                     floors=dict(floors), picks=picks)
 
 
 def switch_dependencies(items: dict, value: dict[str, float], best_route: dict[str, Route],
@@ -833,7 +1005,7 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
     src = Counter()
     for c in priced:
         s = val.source[c]
-        src["override" if s == "override" else s.split(":")[0] if s.startswith(("raw", "default")) else "recipe"] += 1
+        src["override" if s == "override" else s.split(":")[0] if s.startswith(("raw", "default", "floor")) else "recipe"] += 1
     return {
         "items": len(codes),
         "valued": len(priced),
@@ -844,6 +1016,12 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
         "sources": dict(src),
         "missing": missing,
         "belowIngredients": [entry(c, v, ingredients=i, recipe=r) for c, v, i, r in below_ingredients(export, val, rules)],
+        "floorRounds": val.floor_rounds,
+        "raisedByFloor": raised_by_floor(export, val),
+        "overridesBelowFloor": [
+            {"code": c, "value": round(shown(export, c, val.value[c], litres)[0], 3),
+             "floor": round(shown(export, c, f.value, litres)[0], 3), "multiplier": f.multiplier, "recipe": f.recipe}
+            for c, f in sorted(val.floors.items()) if val.source.get(c) == "override" and f.value > val.value[c] + EPS],
         "mostValuable": [entry(c, val.value[c]) for c in reversed(by_value[-50:])],
         "leastValuable": [entry(c, val.value[c]) for c in nonzero[:50]],
         "domains": {
@@ -851,6 +1029,33 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
             for d, (n, v, z) in sorted(per_domain.items())
         },
     }
+
+
+def raised_by_floor(export: dict, val: Valuation) -> list[dict]:
+    """Every item the scrap floor raised, the most raised first: its value before the floor (None:
+    it had none), its salvage, its value now, and either the floor's multiplier and break-down
+    recipe (raised to its own floor) or `via`, the route or fallback it was raised through."""
+    litres = per_litre(export)
+    out = []
+    for c, new in val.value.items():
+        old = val.unfloored.get(c)
+        if old is not None and new <= old + EPS * max(1.0, old):
+            continue
+        e = {"code": c, "old": None if old is None else round(shown(export, c, old, litres)[0], 3),
+             "value": round(shown(export, c, new, litres)[0], 3)}
+        if c in litres:
+            e["perLitre"] = True
+        f = val.floors.get(c)
+        if val.source.get(c, "").startswith("floor:") and f is not None:
+            e.update(salvage=round(shown(export, c, f.salvage, litres)[0], 3), multiplier=f.multiplier, recipe=f.recipe)
+        else:
+            e["via"] = val.source.get(c)
+        e["_rise"] = shown(export, c, new - (old or 0.0), litres)[0]
+        out.append(e)
+    out.sort(key=lambda e: (-e["_rise"], e["code"]))
+    for e in out:
+        del e["_rise"]
+    return out
 
 
 def _unit(e: dict) -> str:
@@ -882,6 +1087,18 @@ def report_markdown(rep: dict, export: dict, val: Valuation, samples: list[str])
     lines += ["", "## Valued below their ingredients", ""]
     lines += [f"- `{e['code']}` {e['value']}{_unit(e)} < {e['ingredients']}{_unit(e)} ({e['recipe']})"
               for e in rep["belowIngredients"]]
+    lines += ["", "## Raised by the scrap floor", "",
+              f"{len(rep['raisedByFloor'])} items, the most raised first ({rep['floorRounds']} solves): before -> after. "
+              "Raised to its own floor: salvage x multiplier (5 found, 1 made) and the break-down recipe; "
+              "otherwise the route or fallback it was raised through.", ""]
+    for e in rep["raisedByFloor"]:
+        old = "none" if e["old"] is None else f"{e['old']}{_unit(e)}"
+        how = (f"salvage {e['salvage']}{_unit(e)} x {e['multiplier']:g} ({e['recipe']})" if "recipe" in e
+               else f"via {e['via']}")
+        lines.append(f"- `{e['code']}` {old} -> {e['value']}{_unit(e)}: {how}")
+    lines += ["", "## Overrides below their scrap floor", ""]
+    lines += [f"- `{e['code']}` {e['value']} < {e['floor']} ({e['multiplier']:g} x salvage, {e['recipe']})"
+              for e in rep["overridesBelowFloor"]] or ["None."]
     lines += ["", "## No value", ""]
     lines += [f"- `{c}`" for c in rep["missing"]]
     return "\n".join(lines) + "\n"
@@ -913,6 +1130,12 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
     each = (f"{litre:.4f} gears/L ({v:.6g} a portion, {per_litre(export)[code]:g} portions a litre)"
             if unit else f"{v:.4f} gears/item")
     out.append(f"{pad}{code} ({name}) = {each}, stack {stack_size(export, code)}{zero}  <- {src}")
+    if (fl := val.floors.get(code)) is not None:
+        sv, unit_ = shown(export, code, fl.salvage)
+        fv, _ = shown(export, code, fl.value)
+        bound = "raised to it" if src.startswith("floor:") else "not binding" if src != "override" else "an override: not applied"
+        out.append(f"{pad}  scrap floor: {fl.multiplier:g} x salvage {sv:.4f}{unit_} = {fv:.4f}{unit_} "
+                   f"({fl.recipe}; {bound})")
     rt = val.route.get(code)
     if rt is None or code in seen or depth >= max_depth:
         return out

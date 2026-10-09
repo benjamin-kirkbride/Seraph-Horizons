@@ -96,6 +96,11 @@
     "uncraft",
     "/disassembl"
   ],
+  "scrapFloor": {
+    "found": 5,
+    "made": 1
+  },
+  "scrapFloorAbout": "An item is worth at least its salvage times 'found' when no ordinary route makes it (a found item: curiosities, jewellery, raws), or times 'made' when one does. Salvage is the best that the excludeRecipes break-down routes give back per item consumed: their outputs (byproducts included) less their other consumed inputs. Raised values propagate up the recipe tree; overrides keep theirs. See README.md, Scrap floor.",
   "schematics": [
     "*:schematic-*",
     "*:*-schematic-*",

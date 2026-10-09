@@ -66,7 +66,8 @@ press) and distillation (the still). The rules are data:
   `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `pressing`, `distilling`, `mod` for every other mod
   registry; any recipe type can have an entry of its own by its type code, as `curing` has), the
   tool fraction, recipe ids never used as
-  routes (uncrafting and recycling, among them chiselling found jewellery and curiosities into metal bits), how smithing and clay forming use material by volume, and the
+  routes (uncrafting and recycling, among them chiselling found jewellery and curiosities into metal bits),
+  the scrap floor's multipliers (`scrapFloor`, below), how smithing and clay forming use material by volume, and the
   schematic patterns.
 - `overrides.json`: hand overrides, fixed and winning over everything, each with its reason.
 
@@ -148,6 +149,24 @@ the valued codes that differ from it in one variant segment (a black-glazed mold
 of the blue and red ones; planks facing north take planks facing up). These fallbacks never
 undercut a production chain: they are settled after it.
 
+**The scrap floor.** Values flow upward, so a hand price or a fallback is never checked against
+what the item breaks down into, and the break-down recipes (`excludeRecipes`) are no routes. Since
+gold went to 0.5 a unit, buying jewellery and chiselling it into bits was a money loop. So every
+item is worth at least a multiple of its salvage: what its best break-down route gives back per
+item consumed, the outputs' value (byproducts and handed-back containers included) less the other
+consumed inputs (tools are kept and cost nothing). The multiple (`scrapFloor` in `markups.json`)
+is 5 (`found`) for an item no ordinary route makes (a curiosity, found jewellery, a raw or fallback
+leaf) and 1 (`made`) for one an ordinary route makes (a raw too, when a recipe also makes it). A
+floor only raises: a value already above it stays, and an item nothing valued gets its floor. A
+raised item raises what is made from it (a route costs at least its output's floor, and the solve
+is rerun with the floors until none grows; values only rise, so it ends), and a break-down route
+whose outputs or other inputs are priced, through any chain, from the item itself counts for
+nothing, so two items breaking into each other cannot climb each other forever. Overrides keep
+their value; the report lists one below its floor. Salvage is per item, a liquid's per portion
+(a broken-down liquid in litres counts the export's items per litre, as every recipe does), and
+the report shows it per litre. A value raised to its own floor has `floor:<multiple>x <recipe>`
+as its source.
+
 **Values and units.** The table stores gears with 3 decimals: per item, except for liquids, which
 are per litre. A liquid is what the export marks so (`items[code].attributes.extra.liquid.itemsPerLitre`,
 from the game's `waterTightContainerProps`: 100 portions a litre for every liquid in the pack, but
@@ -164,7 +183,10 @@ report's most and least valuable lists rank liquids by their litre.
 
 The report (`build/item-values-report.md` and `.json`) lists coverage per mod domain, the items with
 no value, the 50 most and least valuable, and items valued below the ingredients of their route,
-which only a raw or override can be: the review list for hand prices.
+which only a raw or override can be: the review list for hand prices. It also lists every item the
+scrap floor raised, the most raised first, with its value before and after and either its salvage,
+multiple and break-down recipe or the route it was raised through, and the overrides below their
+floor.
 
 ## Numbers
 
@@ -272,9 +294,12 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   them pays a fifth of value:
   the crystal skull and the Forlorn Hope reliquary 150 (a 30-gear sale, a temporal gear's worth),
   the king statuette and the device prototype 100, statuettes 50 to 80, fossils and amber 30 to
-  40, a human skull 8, fishing's oddities 4 to 6. No vanilla trader deals in them. Each is worth
-  well over its metal but the reliquary, which chisels into 80 gold bits, about 240 gears since gold
-  went to 0.5 a unit (it was 40); that chiselling (`metalbit-jewelryscrap`) is excluded as recycling: settling cheapest first, brass and
+  40, a human skull 8, fishing's oddities 4 to 6. No vanilla trader deals in them. The ones that
+  chisel into precious metal are worth more than that, by the scrap floor (above): the reliquary
+  (`clutter-art/gear3`), 80 gold bits, about 243 gears since gold went to 0.5 a unit, is 5 x that,
+  about 1,217; the monkey statuette (20 gold bits) about 304; the other clutter gears, and the
+  gold and silver jewellery and funeral masks, the same way. That chiselling
+  (`metalbit-jewelryscrap`) is still no route: settling cheapest first, brass and
   tin bronze bits would otherwise settle at a statuette's or tablet's twentieth before the alloy
   ingot that makes them at 0.16 and 0.2. The counterfeit rusty gear, the heavily worn underwear and
   the old boot are worth nothing. The decor blocks sharing the `game:clutter-` prefix (aquatic and

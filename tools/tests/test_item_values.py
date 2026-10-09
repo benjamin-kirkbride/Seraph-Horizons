@@ -67,6 +67,7 @@ MARKUPS = {
         "lottery": {"pct": 0.0, "flat": 0.0},
     },
     "excludeRecipes": ["/destroy"],
+    "scrapFloor": {"found": 5, "made": 1},
     "schematics": ["*:schematic-*", "*:*-schematic-*"],
 }
 
@@ -405,6 +406,156 @@ class ItemValuesTest(unittest.TestCase):
         val, _ = self.solve(ex)
         self.assertAlmostEqual(val.value["game:out"], 1.0 + 10 * 0.1)
         self.assertAlmostEqual(val.value["game:cut"], 1.0 + 1.0 + 10 * 0.1)  # mod: +1 flat
+
+    # ------------------------------------------------------------ scrap floor
+
+    @staticmethod
+    def destroy(name: str, code: str, out: dict, *more: dict, chisel: bool = True) -> dict:
+        """A break-down recipe (excluded: /destroy): one code chiselled into the outputs."""
+        ings = [{"key": "I", "code": code, "kind": "item", "quantity": 1}]
+        slots = [[st(code)]]
+        pattern = ["I"]
+        if chisel:
+            ings.insert(0, {"key": "C", "code": "game:chisel", "kind": "item", "quantity": 1, "isTool": True})
+            slots.insert(0, [st("game:chisel")])
+            pattern = ["CI"]
+        return recipe(f"grid|game:recipes/destroy/{name}.json|0", "grid", ings, slots, [out, *more],
+                      grid={"width": len(pattern[0]), "height": 1, "shapeless": False, "pattern": pattern})
+
+    def test_scrap_floor_raises_a_found_item_to_five_times_its_salvage(self):
+        # A gem (raw 10, no route makes it) chisels into 3 logs (3.0): at least 5 x 3 = 15. The chisel is kept.
+        items = {c: item() for c in ("game:gem", "game:log", "game:chisel")}
+        val, rules = self.solve(export(items, [self.destroy("gem", "game:gem", st("game:log", 3))]))
+        self.assertAlmostEqual(val.value["game:gem"], 15.0)
+        self.assertEqual(val.source["game:gem"], "floor:5x grid|game:recipes/destroy/gem.json|0")
+        self.assertAlmostEqual(val.unfloored["game:gem"], 10.0)
+        self.assertAlmostEqual(val.floors["game:gem"].salvage, 3.0)
+
+    def test_scrap_floor_counts_byproducts_less_other_inputs_and_prices_an_unvalued_leaf(self):
+        # A relic nothing prices breaks down, with a stick spent, into a log and 2 ore (0.5 each):
+        # 1 + 1 - 0.01 = 1.99 salvage, 5 x 1.99.
+        items = {c: item() for c in ("game:relic", "game:log", "game:stick", "game:ore-x")}
+        r = self.destroy("relic", "game:relic", st("game:log"), st("game:ore-x", 2), chisel=False)
+        r["ingredients"].append({"key": "S", "code": "game:stick", "kind": "item", "quantity": 1})
+        r["variants"][0]["ingredients"].append([st("game:stick")])
+        r["grid"]["pattern"] = ["IS"]
+        val, _ = self.solve(export(items, [r]))
+        self.assertAlmostEqual(val.value["game:relic"], 5 * 1.99)
+        self.assertNotIn("game:relic", val.unfloored)
+
+    def test_scrap_floor_raises_a_made_item_to_its_salvage(self):
+        # A box made from a stick (0.01) breaks back down into a log (1.0): at least 1 x 1.0.
+        items = {c: item() for c in ("game:stick", "game:log", "game:box", "game:chisel")}
+        val, _ = self.solve(export(items, [
+            grid("grid|box|0", ["S"], {"S": ["game:stick"]}, st("game:box")),
+            self.destroy("box", "game:box", st("game:log")),
+        ]))
+        self.assertAlmostEqual(val.value["game:box"], 1.0)
+        self.assertEqual(val.source["game:box"], "floor:1x grid|game:recipes/destroy/box.json|0")
+        self.assertAlmostEqual(val.unfloored["game:box"], 0.01)
+
+    def test_scrap_floor_never_lowers_a_value(self):
+        # The gem (10) chisels into one log: 5 x 1 = 5 < 10, so it stays a raw at 10.
+        items = {c: item() for c in ("game:gem", "game:log", "game:chisel")}
+        val, _ = self.solve(export(items, [self.destroy("gem", "game:gem", st("game:log"))]))
+        self.assertAlmostEqual(val.value["game:gem"], 10.0)
+        self.assertEqual(val.source["game:gem"], "raw")
+        self.assertAlmostEqual(val.floors["game:gem"].value, 5.0)
+
+    def test_scrap_floor_propagates_up_the_routes_and_is_reported(self):
+        # The gem rises to 15 (3 logs), so a ring of one gem rises from 10 to 15 with it, and a
+        # crown of two rings from 20 to 30.
+        items = {c: item() for c in ("game:gem", "game:log", "game:chisel", "game:ring", "game:crown")}
+        ex = export(items, [
+            self.destroy("gem", "game:gem", st("game:log", 3)),
+            grid("grid|ring|0", ["G"], {"G": ["game:gem"]}, st("game:ring")),
+            grid("grid|crown|0", ["RR"], {"R": ["game:ring"]}, st("game:crown")),
+        ])
+        val, rules = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:ring"], 15.0)
+        self.assertAlmostEqual(val.value["game:crown"], 30.0)
+        self.assertEqual(val.source["game:crown"], "grid|crown|0")
+        raised = {e["code"]: e for e in iv.report(ex, val, rules)["raisedByFloor"]}
+        self.assertEqual(list(raised), ["game:crown", "game:gem", "game:ring"])  # most raised first, ties by code
+        self.assertEqual(raised["game:gem"], {"code": "game:gem", "old": 10.0, "value": 15.0, "salvage": 3.0,
+                                              "multiplier": 5.0, "recipe": "grid|game:recipes/destroy/gem.json|0"})
+        self.assertEqual(raised["game:crown"]["via"], "grid|crown|0")
+        md = iv.report_markdown(iv.report(ex, val, rules), ex, val, [])
+        self.assertIn("- `game:gem` 10.0 -> 15.0: salvage 3.0 x 5 (grid|game:recipes/destroy/gem.json|0)", md)
+        self.assertIn("- `game:ring` 10.0 -> 15.0: via grid|ring|0", md)
+        self.assertIn("scrap floor: 5 x salvage 3.0000 = 15.0000", "\n".join(iv.explain(ex, val, rules, "game:gem")))
+
+    def test_scrap_floor_leaves_overrides_and_reports_them(self):
+        items = {c: item() for c in ("game:gem", "game:log", "game:chisel", "game:ring")}
+        self.write_rules(overrides={"game:gem": 2.0})
+        ex = export(items, [
+            self.destroy("gem", "game:gem", st("game:log", 3)),
+            grid("grid|ring|0", ["G"], {"G": ["game:gem"]}, st("game:ring")),
+        ])
+        val, rules = self.solve(ex)
+        self.assertEqual(val.value["game:gem"], 2.0)
+        self.assertEqual(val.source["game:gem"], "override")
+        self.assertAlmostEqual(val.value["game:ring"], 2.0)
+        rep = iv.report(ex, val, rules)
+        self.assertEqual(rep["raisedByFloor"], [])
+        self.assertEqual(rep["overridesBelowFloor"], [{"code": "game:gem", "value": 2.0, "floor": 15.0, "multiplier": 5.0,
+                                                       "recipe": "grid|game:recipes/destroy/gem.json|0"}])
+
+    def test_scrap_floor_of_a_liquid_counts_portions(self):
+        # A jug (a found item, raw 1) is broken into 2 L of oil, 0.02 a portion: 200 portions are 4
+        # gears of salvage, so the jug is 20; the oil in the table is 2 a litre. Read as 2 items the
+        # oil would give 0.04 and leave the jug at 1.
+        raws = {**RAWS, "groups": {"test": {**RAWS["groups"]["test"], "game:jug": 1.0, "game:oilportion": 0.02}}}
+        self.write_rules(raws=raws)
+        items = {"game:jug": item(1), "game:oilportion": liquid(), "game:chisel": item()}
+        ex = export(items, [self.destroy("jug", "game:jug", st("game:oilportion", litres=2))])
+        val, rules = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:jug"], 20.0)
+        self.assertEqual(iv.table(ex, val)["values"]["game:oilportion"], 2.0)
+        # A liquid broken down: its salvage and floor are per portion, shown per litre.
+        raws["groups"]["test"]["game:oilportion"] = 0.0001
+        self.write_rules(raws=raws)
+        ex = export(items, [self.destroy("oil", "game:oilportion", st("game:log"), chisel=False)])
+        ex["recipes"][0]["variants"][0]["ingredients"][0] = [st("game:oilportion", litres=1)]
+        items["game:log"] = item()
+        val, rules = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:oilportion"], 5 * 1.0 / 100)  # a litre gives a log
+        e = iv.report(ex, val, rules)["raisedByFloor"][0]
+        self.assertEqual((e["code"], e["old"], e["value"], e["salvage"], e["perLitre"]),
+                         ("game:oilportion", 0.01, 5.0, 1.0, True))
+
+    def test_scrap_floor_ignores_salvage_priced_from_the_item_itself(self):
+        # A gem breaks down into two dusts, but dust is made from gems (a gem makes one), so its
+        # salvage feeds on itself: no floor, and no endless rise.
+        items = {c: item() for c in ("game:gem", "game:dust", "game:chisel")}
+        ex = export(items, [
+            grid("grid|dust|0", ["G"], {"G": ["game:gem"]}, st("game:dust")),
+            self.destroy("gem", "game:gem", st("game:dust", 2)),
+        ])
+        val, _ = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:gem"], 10.0)
+        self.assertAlmostEqual(val.value["game:dust"], 10.0)
+        self.assertNotIn("game:gem", val.floors)
+
+    def test_scrap_floor_of_two_items_breaking_into_each_other_settles(self):
+        # Two found raws, each broken into two of the other: each is raised once (5 x 2 x 1), then
+        # each salvage is priced from the item itself and the floor stops rising.
+        raws = {**RAWS, "groups": {"test": {"game:a": 1.0, "game:b": 1.0}}}
+        self.write_rules(raws=raws)
+        items = {c: item() for c in ("game:a", "game:b", "game:chisel")}
+        val, _ = self.solve(export(items, [self.destroy("a", "game:a", st("game:b", 2)),
+                                           self.destroy("b", "game:b", st("game:a", 2))]))
+        self.assertAlmostEqual(val.value["game:a"], 10.0)
+        self.assertAlmostEqual(val.value["game:b"], 10.0)
+        self.assertLess(val.floor_rounds, iv.MAX_FLOOR_ROUNDS)
+
+    def test_no_scrap_floor_without_its_rule(self):
+        markups = {k: v for k, v in MARKUPS.items() if k != "scrapFloor"}
+        self.write_rules(markups=markups)
+        items = {c: item() for c in ("game:gem", "game:log", "game:chisel")}
+        val, _ = self.solve(export(items, [self.destroy("gem", "game:gem", st("game:log", 3))]))
+        self.assertAlmostEqual(val.value["game:gem"], 10.0)
+        self.assertEqual(val.floors, {})
 
     def test_check_with_and_without_the_mod(self):
         lists = self.write_lists()
