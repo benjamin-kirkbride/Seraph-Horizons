@@ -825,6 +825,22 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public MandrelStation.Core.MandrelStationConfig MandrelStationSettings { get; set; } = new();
 
+    /// <summary>Stainless steel (#484, CrucibleFurnace/, README "Crucible furnace"): a crucible
+    /// furnace of melting holes lined with tier-3 refractory brick, in a row of up to four on a brick
+    /// chimney at least six blocks tall, fired with coke under iron lids (faster with forced air piped
+    /// in from Steelmaking Expanded's blowers), each holding a fireclay melting pot of 200 units that
+    /// lasts three heats. Its charges, by ratio: quartz, iron bits and coke into ferrosilicon; chromite,
+    /// ferrosilicon and lime into ferrochrome and slag; iron and ferrochrome, about 4 to 1, into
+    /// stainless steel; stainless bits back into stainless. A pulled pot of stainless pours like the
+    /// game's crucible into any mold, for about 20 seconds before it freezes and the pot is lost (off
+    /// means the holes, the pots, the ferroalloys and their recipes do not exist, and those already in
+    /// a world are lost). The server's setting decides.</summary>
+    public bool StainlessSteel { get; set; } = true;
+
+    /// <summary>The crucible furnace's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public CrucibleFurnace.Core.CrucibleFurnaceConfig CrucibleFurnaceSettings { get; set; } = new();
+
     /// <summary>Cast pipes (Pipes/Game/CastPipesSystem.cs, README "Cast pipes"): Steelmaking
     /// Expanded's tool mold gets a pipe tool type, filled from its canal (or a crucible) with one
     /// ingot of iron or steel, which casts two pipe sections of that metal, banded into ppex pipe on

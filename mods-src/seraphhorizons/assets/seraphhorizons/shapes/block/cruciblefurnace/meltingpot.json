@@ -1,0 +1,357 @@
+{
+ "editor": {
+  "allAngles": false
+ },
+ "textureWidth": 16,
+ "textureHeight": 16,
+ "textures": {
+  "clay": "game:block/clay/fireclay"
+ },
+ "elements": [
+  {
+   "name": "Base",
+   "from": [
+    4,
+    0,
+    4
+   ],
+   "to": [
+    12,
+    1,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      15,
+      12,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      15,
+      12,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      15,
+      12,
+      16
+     ]
+    },
+    "west": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      15,
+      12,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      4,
+      12,
+      12
+     ]
+    },
+    "down": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      4,
+      12,
+      12
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallWest",
+   "from": [
+    4,
+    1,
+    4
+   ],
+   "to": [
+    5,
+    11,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      5,
+      15
+     ]
+    },
+    "south": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      5,
+      15
+     ]
+    },
+    "east": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      12,
+      15
+     ]
+    },
+    "west": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      12,
+      15
+     ]
+    },
+    "up": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      4,
+      5,
+      12
+     ]
+    },
+    "down": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      4,
+      5,
+      12
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallEast",
+   "from": [
+    11,
+    1,
+    4
+   ],
+   "to": [
+    12,
+    11,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#clay",
+     "uv": [
+      11,
+      5,
+      12,
+      15
+     ]
+    },
+    "south": {
+     "texture": "#clay",
+     "uv": [
+      11,
+      5,
+      12,
+      15
+     ]
+    },
+    "east": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      12,
+      15
+     ]
+    },
+    "west": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      12,
+      15
+     ]
+    },
+    "up": {
+     "texture": "#clay",
+     "uv": [
+      11,
+      4,
+      12,
+      12
+     ]
+    },
+    "down": {
+     "texture": "#clay",
+     "uv": [
+      11,
+      4,
+      12,
+      12
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallNorth",
+   "from": [
+    5,
+    1,
+    4
+   ],
+   "to": [
+    11,
+    11,
+    5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      5,
+      11,
+      15
+     ]
+    },
+    "south": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      5,
+      11,
+      15
+     ]
+    },
+    "east": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      5,
+      15
+     ]
+    },
+    "west": {
+     "texture": "#clay",
+     "uv": [
+      4,
+      5,
+      5,
+      15
+     ]
+    },
+    "up": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      4,
+      11,
+      5
+     ]
+    },
+    "down": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      4,
+      11,
+      5
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallSouth",
+   "from": [
+    5,
+    1,
+    11
+   ],
+   "to": [
+    11,
+    11,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      5,
+      11,
+      15
+     ]
+    },
+    "south": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      5,
+      11,
+      15
+     ]
+    },
+    "east": {
+     "texture": "#clay",
+     "uv": [
+      11,
+      5,
+      12,
+      15
+     ]
+    },
+    "west": {
+     "texture": "#clay",
+     "uv": [
+      11,
+      5,
+      12,
+      15
+     ]
+    },
+    "up": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      11,
+      11,
+      12
+     ]
+    },
+    "down": {
+     "texture": "#clay",
+     "uv": [
+      5,
+      11,
+      11,
+      12
+     ]
+    }
+   }
+  }
+ ]
+}
