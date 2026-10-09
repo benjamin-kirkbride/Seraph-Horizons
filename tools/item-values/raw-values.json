@@ -71,6 +71,10 @@
       "game:clutter-fishing/counterfeitgear": 0, "game:clutter-fishing/heavilywornunderwear": 0,
       "game:clutter-fishing/oldboot": 0
     },
+    "jonas": {
+      "game:jonasparts-*": 10,
+      "game:jonasframes-*": 10
+    },
     "minerals": {
       "game:ore-flint-*": 0.03, "game:flint": 0.03,
       "game:ore-quartz-*": 0.05,
