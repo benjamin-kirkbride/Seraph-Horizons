@@ -3,7 +3,7 @@
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with
 the shared rig maths and uses the `requires` vocabulary of the contract, its reference poses are its own
 maths, the cells are rebuilt from the shipped shape, the work counts sections, the drawn pace is the rig's
-`draw.turnsPerSection`, and a stroke ends where it started. Run with `python3 -m unittest discover -s tools/tests`.
+`draw.turnsPerSection`, a stroke ends where it started, and each section leaves the model at `draw.handOut`. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -132,10 +132,31 @@ class Draw(unittest.TestCase):
         mid = matrix("dog", work=make_shape.T_DRAW[1], size=1, presence=1.0)
         self.assertAlmostEqual(mid[2][3] * 16, make_shape.S_DOG, places=4)
         # a pipe section on the bench is half a block long and 6 across (ppex's pipe; the item is a block long), drawn from a quarter of the hollow (the
-        # game's chute section, 8 across and 8 long); pointed through the die, drawn to its tail, dropped in the trough
+        # game's chute section, 8 across and 8 long); pointed through the die, drawn to its tail, handed out as the jaws open
         self.assertEqual((make_shape.PIPE, 2 * make_shape.PIPE_R), (8.0, 6.0))
         self.assertEqual((2 * make_shape.HOLLOW_H, make_shape.HOLLOW_L, make_shape.SLUGS), (8.0, 8.0, 4))
         self.assertAlmostEqual(make_shape.S_TUBE + make_shape.POINT, make_shape.PIPE)
+
+    def test_each_section_leaves_the_model_at_its_hand_out(self):
+        # gameplay hands section m + 1 out at W = m + draw.handOut, as the jaws finish opening; from there its
+        # parts stand at their rest place, hidden in the die stock (identity), so the item and the model never
+        # both show it; just before, it lies where it was drawn
+        out = RIG["draw"]["handOut"]
+        self.assertAlmostEqual(out, make_shape.T_OUT, places=6)
+        self.assertLess(make_shape.T_TUBE, out)
+        self.assertLess(out, make_shape.T_RETURN[0])
+        ident = [[1.0 if r == c else 0.0 for c in range(4)] for r in range(3)]
+        for k, pre in ((1, "l"), (2, "c")):
+            for m in range(4):
+                for seg in "ab":
+                    pid = f"{pre}sect{m + 1}{seg}"
+                    before = matrix(pid, work=m + out - make_shape.OUT_EASE, size=k, presence=1.0)
+                    self.assertGreater(abs(before[2][3]), 0.1, pid)
+                    for w in (m + out, m + 1.0, 4.0):
+                        got = matrix(pid, work=w, size=k, presence=1.0)
+                        for r in range(3):
+                            for c in range(4):
+                                self.assertAlmostEqual(got[r][c], ident[r][c], places=6, msg=f"{pid} at W {w}")
 
     def test_copper_moves_the_change_gear_and_lead_does_not(self):
         lead = matrix("cluster", work=0.0, size=1, presence=1.0)
@@ -161,7 +182,7 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual(x, make_shape.DL[0], places=2)
         self.assertAlmostEqual(y, make_shape.DL[1], places=2)
         self.assertAlmostEqual(z, make_shape.Z_MOUTH, places=2)
-        # sections come out at the east face of the die end's cell, beside the trough's north end
+        # sections are handed out at the east face of the die end's cell, beside the trough's north end
         ox, _, oz = RIG["output"]["pos"]
         self.assertTrue(0.9 < ox < 1.0 and 0.0 < oz < 1.0)
         self.assertNotIn("oil", RIG)        # the oil is MachineOil's tank: no fill anchor
