@@ -42,7 +42,11 @@ public static class SmexScrap
         AccessTools.TypeByName(ValuesType)?.GetProperty(Setting, BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as string;
 
     /// <summary>Makes sure the live setting lists the steel bit.</summary>
-    public static Status Ensure(ILogger logger)
+    public static Status Ensure(ILogger logger) => EnsureListed(logger, SteelBitsRules.SteelBit, "Steel bits recovery", "steel bits");
+
+    /// <summary>Makes sure the live setting lists <paramref name="code"/>, logging as
+    /// <paramref name="feature"/>; <paramref name="what"/> names the item in the warning.</summary>
+    public static Status EnsureListed(ILogger logger, string code, string feature, string what)
     {
         var values = AccessTools.TypeByName(ValuesType);
         var codes = values?.GetProperty(Setting, BindingFlags.Public | BindingFlags.Static);
@@ -51,17 +55,17 @@ public static class SmexScrap
         var setting = config?.GetType().GetProperty(Setting, BindingFlags.Public | BindingFlags.Instance);
         if (codes?.PropertyType != typeof(string) || setting?.PropertyType != typeof(string) || !setting.CanWrite)
         {
-            logger.Warning("[seraphhorizons] Steel bits recovery: Steelmaking Expanded's {0}.{1} or its config store is not as expected; "
-                           + "smex changed, so whether its Bessemer converter takes steel bits is up to its own setting", ValuesType, Setting);
+            logger.Warning("[seraphhorizons] {0}: Steelmaking Expanded's {1}.{2} or its config store is not as expected; "
+                           + "smex changed, so whether its Bessemer converter takes {3} is up to its own setting", feature, ValuesType, Setting, what);
             return Status.Changed;
         }
         var current = (string?)codes.GetValue(null);
-        var added = SteelBitsRules.WithSteelBit(current);
+        var added = SteelBitsRules.With(current, code);
         if (added == null)
             return Status.Listed;
         setting.SetValue(config, added);
-        logger.Notification("[seraphhorizons] Steel bits recovery: Steelmaking Expanded's {0} did not list {1}; added for this run "
-                            + "(the file is unchanged)", Setting, SteelBitsRules.SteelBit);
+        logger.Notification("[seraphhorizons] {0}: Steelmaking Expanded's {1} did not list {2}; added for this run "
+                            + "(the file is unchanged)", feature, Setting, code);
         return Status.Added;
     }
 }
