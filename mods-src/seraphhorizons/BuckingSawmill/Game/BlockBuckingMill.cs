@@ -131,6 +131,10 @@ public class BlockBuckingMill : Block
             ? Lang.Get(BuckingSawmillSystem.Domain + ":block-buckingmill")
             : base.GetPlacedBlockName(world, pos);
 
+    // The description (what it is built of, how to assemble it) stays in the tooltip and handbook.
+    public override string GetPlacedBlockInfo(IWorldAccessor world, BlockPos pos, IPlayer forPlayer) =>
+        this.WithoutDescription(base.GetPlacedBlockInfo(world, pos, forPlayer));
+
     public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer)
     {
         var help = new List<WorldInteraction>();
