@@ -186,6 +186,8 @@
     <None Include="../assets/seraphhorizons/patches/castpipes-smexmold.json" Link="castpipes-smexmold.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/clayforming/pipemold.json" Link="castpipes-pipemold.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Pipes/fixtures/smex-toolmold*.json" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The eidolon (#673): charge, stops, the slump pose, ownership and the wide pathfinder. -->
+    <Compile Include="../Eidolon/Core/**/*.cs" Link="Eidolon/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

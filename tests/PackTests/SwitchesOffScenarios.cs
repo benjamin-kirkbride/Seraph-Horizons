@@ -559,6 +559,28 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>Eidolon</c>: no eidolon entity type, no creative spawner, no <c>/sh eidolon</c>, and
+    /// nothing logged about it.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_eidolon()
+    {
+        Assert.True(Off("Eidolon"));
+        var eidolons = SeraphHorizons.Mod.Eidolon.EidolonSystem.Of(World.Api)!;
+        Assert.False(eidolons.Enabled);
+        Assert.False(World.Api.World.Config.GetBool(SeraphHorizons.Mod.Eidolon.EidolonSystem.RunningKey, true));
+        Assert.Null(W.GetEntityType(SeraphHorizons.Mod.Eidolon.EidolonSystem.EntityCode));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path == "creature-eidolon");
+        Assert.Null(eidolons.Spawn(W, World.Spawn.ToVec3d(), 0, null, activate: false));
+        var sh = ((Vintagestory.API.Server.ICoreServerAPI)World.Api).ChatCommands.Get("sh");
+        Assert.True(sh == null || !sh.AllSubcommands.ContainsKey("eidolon"));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("eidolon", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>GearboxSourceRatio</c>: nothing is patched, and a rotor placed after its gearbox,
     /// on the low side, takes the high side's ratio, as MPE Gearbox ships it (#462). When this fails
     /// with the rotor at 1, MPE Gearbox has fixed it and the tweak can go.</summary>
