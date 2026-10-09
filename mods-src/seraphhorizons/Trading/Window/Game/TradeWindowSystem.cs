@@ -298,9 +298,9 @@ public class TradeWindowSystem : ModSystem
                 Spill = view.Spill,
                 Company = view.Company is double c && c > view.Personal ? c : null,
                 Earn = system.Rules.Points,
-                Tiers = system.Rules.Tiers.Select(t => new TierView
+                Tiers = system.Rules.Tiers.Select((t, i) => new TierView
                 {
-                    Code = t.Code, Points = t.Points, Unlocks = t.Unlocks, MapPrecision = MapOffers.MaxPrecision(t.Unlocks.MapTier),
+                    Code = t.Code, Number = i + 1, Points = t.Points, Unlocks = t.Unlocks, MapPrecision = MapOffers.MaxPrecision(t.Unlocks.MapTier),
                     LeadMaps = maps is null || maps.Prices.CampLeads.IsStranger(t.Code) ? 0 : maps.Prices.CampLeads.TierFor(t.Code).Maps,
                     LeadReach = maps?.Prices.CampLeads.TierFor(t.Code).Reach ?? 0,
                 }).ToList(),
@@ -339,12 +339,17 @@ public class TradeWindowSystem : ModSystem
 
         if (orders is { Enabled: true })
             foreach (var o in orders.Book.OpenAt(id).Where(o => o.State == OrderState.Offered || o.PlayerUid == player.PlayerUID))
+            {
+                bool mine = o.State == OrderState.Accepted;
+                // An offer shows what it would ask of and pay this player, at their tier.
+                var (qty, payout) = mine ? (o.Quantity, o.Payout) : OrderPlanner.Terms(o, tier + 1, orders.MaxStackOf(o.Item));
                 state.Orders.Add(new OrderRow
                 {
-                    Id = o.Id, Item = o.Item, Quantity = o.Quantity, Delivered = o.Delivered, Lot = o.Lot, UnitPrice = o.UnitPrice,
-                    Premium = o.Premium, PremiumPaid = o.PremiumPaid, DaysLeft = o.Deadline - today, Days = o.Days,
-                    Mine = o.State == OrderState.Accepted, Held = o.State == OrderState.Accepted ? OrdersSystem.Carried(player, o.Item) : 0,
+                    Id = o.Id, Item = o.Item, Quantity = qty, Delivered = o.Delivered, Value = o.Value,
+                    Payout = payout, PayoutPaid = o.PayoutPaid, DaysLeft = o.Deadline - today, Days = o.Days,
+                    Mine = mine, Held = mine ? OrdersSystem.Carried(player, o.Item) : 0,
                 });
+            }
 
         if (deliveries is { Enabled: true })
         {

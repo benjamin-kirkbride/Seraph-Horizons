@@ -414,7 +414,10 @@ public partial class TradingScenarios
         var trader = await SpawnTrader("generalstore", -20, -55);
         var sp = await Trading(Customer(), trader);
         string id = Standing.TraderIdOf(trader);
-        var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null);
+        // Orders are valued at the item value table, so a good with a value.
+        var values = SeraphHorizons.Mod.Trading.Values.ItemValuesSystem.For(Api);
+        var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null
+            && values.ValueOf(s.Itemstack.Collectible.Code.ToString()) > 0);
         string code = buying.Itemstack.Collectible.Code.ToString();
         int lot = buying.TradeItem.Stack.StackSize;
         int next = OrdersSystem.Of(Api)!.Book.NextId;
@@ -434,11 +437,12 @@ public partial class TradingScenarios
         var row = WindowSystem.BuildState(sp, trader).Orders.Single(o => o.Id == order.Id);
         Assert.True(row.Mine);
         Assert.Equal(order.Quantity, row.Held);
-        int gears = Gears(sp);
-        int price = (int)Math.Round(order.Quantity * order.UnitPrice);
+        int gears = Gears(sp), wallet = trader.Inventory.GetTraderAssets();
         Assert.True(Window(sp, trader, Req(TradeAction.HandInOrder, id: order.Id)).Ok);
         Assert.Equal(OrderState.Done, order.State);
-        Assert.Equal(gears + price + order.Premium, Gears(sp));
+        // The payout only, new money: the goods are not also bought from the wallet.
+        Assert.Equal(gears + order.Payout, Gears(sp));
+        Assert.Equal(wallet, trader.Inventory.GetTraderAssets());
         Assert.Equal(0, OrdersSystem.Carried(sp, code));
         Assert.Contains(Standing.Ledger.Personal(sp.PlayerUID, id)!.Events, e => e.Kind == StandingKinds.Order);
         trader.Die(EnumDespawnReason.Removed);

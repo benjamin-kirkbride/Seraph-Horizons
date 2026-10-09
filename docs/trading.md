@@ -710,10 +710,11 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
   abandoned order `orderAbandoned`.
 - **Tiers**: stranger 0, known 60, regular 250, trusted 800, partner 2000 points of effective
   standing. Unlocks (`TierUnlocks`): `mapTier`, `mapsToTraders`, `buyPriceFactor`, `sellPriceFactor`,
-  `walletTier`, `orderScale`, `deliveryScale`, `rareStock`. Consumers: the wallet and the shelf
+  `walletTier`, `deliveryScale`, `rareStock`. Consumers: the wallet and the shelf
   (`walletTier`, `rareStock`, and every entry's `standingTier`), prices (`buyPriceFactor`,
-  `sellPriceFactor`), maps (`mapTier`, `mapsToTraders`), orders (`orderScale`) and deliveries
-  (`deliveryScale`); every unlock has a consumer.
+  `sellPriceFactor`), maps (`mapTier`, `mapsToTraders`) and deliveries (`deliveryScale`); every
+  unlock has a consumer. Orders read the tier's number n (index + 1) instead of an unlock (see
+  "Orders"); `orderScale` (1, 1.5, 2, 3, 4) was removed with that (2026-10-08).
 - **Effective standing** = max(personal, company) + `spilloverShare` (0.1) × the best max(personal,
   company) at another trader of the same type within `TraderStandingSpilloverKm` (6). Same-type
   traders come from the grid's placed camps, so only camp traders spill over.
@@ -1020,34 +1021,43 @@ gone, and so is the chat summary of what is on that opening the trade posted. Th
 
 ### Orders
 
+Below, n is a standing tier's 1-based number (stranger 1 … partner 5, `OrderPlanner`).
+
 - **Generation**: on `EntitySeraphTrader.Restocked` (spawn, import, every weekly restock) a trader
-  tops its open orders (offered or taken) up to 1 or 2 (a coin flip each restock). Candidates are its
-  list's buying side for its region (`TradeListResolver.Resolve`, core and rotating pool, so the
-  region's goods too), plain stacks with a price; the price per item is the list average over its
-  stack size times the region's supply factor. Never two open orders for one item at one trader.
-- **Size and premium**: at standing scale 1 an order is worth `BaseGears` (5) at that price, in whole
-  lots of the list's stack size, at most four stacks; the premium factor is 1.3–1.6 (steps of 0.05),
-  the premium (factor − 1) × quantity × price, at least a gear. It is taken out of the trader's wallet
-  (`InventoryTrader.DeductFromTrader`) when the order is made; a wallet that can't cover it makes no
-  order. Taking an order scales its quantity by the player's `orderScale` (in lots, up to four
-  stacks) and holds back the larger premium, shrinking the order back towards the offer as far as the
-  wallet falls short. `orderScale` 0 gives that player no orders; standing off counts as 1.
-- **Since the buy spread** (2026-10-06): `BaseGears` went from 24 to 5 (24 × 0.2, rounded). The normal
-  price is the list's buying price, now a fifth of value, so at 24 an order would have asked five
-  times the items (up to the four-stack cap) for the same gears; at 5 it asks about as many as before,
-  and its premium, a share of that price, is a fifth of what it was.
-- **Delivery**: an item counts when the player sells it to the trader (the trade window)
-  (`EntitySeraphTrader.Dealt`, the stacks that left the selling cart in a deal that went through) or
-  hands it in from the Orders tab (what they carry of the item in hotbar and backpack, up to what
-  is still wanted, paid at the order's price per item from the wallet, refused if the wallet can't
-  pay). Each item pays its share of the premium at once
-  (floor of premium × delivered / quantity, less what was paid); completion pays the rest and calls
-  `OnOrderDone`. Hand-ins by command don't move supply; deals do, as any deal.
+  tops its offers (untaken orders) up to 2n (`PerWeek`), n from its shelf tier
+  (`IStandingSource.ShelfTierFor`: the best tier among players who traded with it in the last
+  `recentDays`, as its wallet and shelves; standing off, 1). Offers lapse in 3–6 days, before the
+  next weekly restock, so that is 2n new offers a week. Candidates are its list's buying side for its
+  region (`TradeListResolver.Resolve`, core and rotating pool, so the region's goods too), plain
+  stacks whose item has a value (`ItemValues.ValueOf` > 0; floor-zero and unknown items never),
+  valued at that value per item (no list price, no supply factor). Never two open orders for one item
+  at one trader. Nothing comes out of the wallet.
+- **Size and pay**: an offer stores a roll in [0, 1) and no quantity. Taking it (`OrderBook.Accept`)
+  sizes it for the taker's own tier n (`IStandingSource.TierFor` + 1; standing off, 1): worth
+  lo(n) + roll × (2.5n − lo(n)) gears, lo(n) = 1 + 0.375 (n − 1), in whole items rounded up, at
+  least one and at most four stacks (`Quantity`; the cap bites only under 0.05 gear an item). The
+  payout is that quantity × value × m(n), m(n) = 10 + 2.5 (n − 1), rounded, at least a gear
+  (`Payout`). The trade window shows each offer at the viewing player's terms (`Terms`). An admin's
+  order (`orders create`) fixes its quantity (`base`); its pay still follows the taker's tier.
+- **New money**: the payout is not taken from or held back from the trader's wallet, and a hand-in
+  pays nothing from it; nor do delivery fees (see "Deliveries").
+- **Since 2026-10-08**: an order was worth `BaseGears` (5) at the list's buying price (a fifth of
+  value since the buy spread), in lots of the list's stack size, grown by the taker's `orderScale`
+  (1–4), with a premium of 1.3–1.6× held back from the wallet when it was made, and the goods were
+  also paid at that price from the wallet as they came in; one or two offers per restock. A saved
+  order keeps its JSON (`premium` is the payout, `unit` the value). One taken before keeps its terms
+  (`reserved` > 0: the goods paid from the wallet on hand-in, its unpaid reserve back on close); an
+  old offer taken now gives its reserve back to the wallet and keeps its quantity and its old price
+  as value, so it pays little, and lapses within days anyway.
+- **Delivery**: items count only when handed in from the Orders tab (what they carry of the item in
+  hotbar and backpack, up to what is still wanted). Each item pays its share of the payout at once
+  (floor of payout × delivered / quantity, less what was paid); completion pays the rest and calls
+  `OnOrderDone`. Selling the goods to the trader (`EntitySeraphTrader.Dealt`) no longer counts: the
+  payout prices the goods, and a sale on top would pay them twice. Hand-ins don't move supply.
 - **Time**: an offer lapses `days` (3–6) after it was made; a taken order's deadline is `days` after
   it was taken. Past it (`OrderBook.Tick`, a 5 s listener and every simulated day): an offer expires,
   a taken order with nothing delivered is abandoned (`OnOrderAbandoned`), one delivered in part
-  expires without penalty. The premium not yet paid goes back to the trader's wallet if it is loaded,
-  else it is gone (the weekly top-up refills the wallet). Closed orders are dropped after 30 days.
+  expires without penalty. Closed orders are dropped after 30 days.
 - **Simulate**: `EconomySystem.SimulatedDay` moves every open order's dates back a day and ticks.
 
 ### Deliveries
@@ -1056,7 +1066,8 @@ gone, and so is the chat summary of what is on that opening the trade posted. Th
   doesn't change while the player decides. Destinations are the grid's placed camps
   (`TraderCamps.Registry`) between 300 blocks and `deliveryScale` × 3 km away, of another type than
   the sender where any is in reach. Value 20 × max(1, scale) gears ±20 %; deposit 10–30 % and fee
-  20–40 % of it, at least a gear each. `deliveryScale` 0 (strangers) gets no offer; standing off
+  200–400 % of it (`MinFee`, `MaxFee`; 20–40 % until 2026-10-08, when it went ×10 and stopped
+  coming from the receiver's wallet), at least a gear each. `deliveryScale` 0 (strangers) gets no offer; standing off
   counts as 1. One active delivery per player per sender.
 - **Deadline**: `DeliveryPlanner.DeadlineDays` = max(1, km × 1) game days (`DaysPerKm`, `MinDays`),
   km being the straight distance from sender to receiver. So 2 km gives two game days, 300 m one.
@@ -1072,7 +1083,7 @@ gone, and so is the chat summary of what is on that opening the trade posted. Th
   behaviours (it can't be opened), attributes `deliveryId`, `from`, `to`, `toType`, `toX`, `toZ`,
   `deadline` (total days), and `failed`. It is not in the value table, so no trader buys it.
 - **Hand-in** (the receiver's Deliveries tab, the player who took it, a live package in their
-  inventory): on time, the deposit back, the fee from the receiver's wallet (as far as it has it) and
+  inventory): on time, the deposit back, the fee (new money, never the receiver's wallet) and
   `OnDeliveryDone(bothEnds: true)`; late, the deposit and half the fee (rounded up) and
   `OnDeliveryDone(bothEnds: false)`. Past the grace (`DeliveryBook.Tick`): `OnDeliveryFailed`, the
   deposit is kept by nobody, and the package turns to junk (`failed`) in the player's inventory now
@@ -1451,8 +1462,8 @@ squared blocks), then:
   vanilla's own `TryBuySell` (internal, by reflection) runs. Everything vanilla's deal did still
   happens, through the same code: money both ways, stock, the wallet check, the economy's patches,
   the map and lead hooks (`ITradeableCollectible.OnTryTrade` and `OnDidTrade`: pending stacks,
-  refunds), then standing (`AfterDeal`), `Dealt` (orders count their goods), the nod, and the
-  inventory broadcast.
+  refunds), then standing (`AfterDeal`), `Dealt` (no listener since orders took hand-ins only), the
+  nod, and the inventory broadcast.
 - **Sell, one lot, pooled** (`EntitySeraphTrader.SellLot`, `SellPool`): the four sell slots are valued
   together, each good at its listed or off-list offer's gears per item, a listed good only as many
   as its demand takes. A lot's target is the first good's unit price in whole gears (the dearest
