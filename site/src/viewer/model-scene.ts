@@ -1,7 +1,8 @@
 // The model viewer's three.js scene. Only the model page loads this module (a dynamic import),
 // so three.js never reaches the recipe browser's bundle. Everything it draws comes from a
-// ModelView (src/lib/model-view.ts): one mesh per rig part, posed by the part's matrix, and
-// the rig's overlays. Units are blocks; the rig's frame is three's (y up, VS north is −z).
+// ModelView (src/lib/model-view.ts): one mesh per rig part and animation joint, posed by the
+// part's matrix times the joint's (a shape's keyframe animation; keyframes.ts), and the rig's
+// overlays. Posing only sets matrices: the geometry is built once. Units are blocks; the rig's frame is three's (y up, VS north is −z).
 import {
   ArrowHelper,
   BoxGeometry,
@@ -31,6 +32,7 @@ import {
   type Object3D,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { pieceMatrix } from "../lib/keyframes.ts";
 import { SIDE_NORMAL, cellBoxes, lidBox, sideArrow, type Anchor, type Bounds } from "../lib/model-anchors.ts";
 import type { ModelView } from "../lib/model-view.ts";
 import { TRACK_OVERLAY, type TrackLayout } from "../lib/model-vehicle.ts";
@@ -72,6 +74,7 @@ const EDGES: [number, number][] = [
 
 const OVERLAY_COLOURS = { cell: 0xe8590c, side: 0x2f9e44, point: 0x9c36b5, line: 0x8b5a2b, level: 0x1c7ed6, collision: 0x1d9bd6, lid: 0x7048e8, origin: 0xf08c00 };
 const TRACK_COLOURS = { rail: 0x7d828b, sleeper: 0x6b4a2f };
+const IDENTITY: readonly number[] = new Matrix4().elements;
 
 function boxEdges(lo: readonly number[], hi: readonly number[]): number[] {
   const c = (i: number) => [(i & 1 ? hi : lo)[0]!, (i & 2 ? hi : lo)[1]!, (i & 4 ? hi : lo)[2]!];
@@ -84,7 +87,10 @@ function lines(points: number[], colour: number | Color, opacity = 1): LineSegme
   return new LineSegments(g, new LineBasicMaterial({ color: colour, transparent: opacity < 1, opacity }));
 }
 
+/** The elements of one rig part that move with one animation joint (-1: none), drawn as one mesh. */
 interface PartObject {
+  part: number;
+  joint: number;
   mesh: Mesh;
   edges: LineSegments;
   colourPart: Float32Array;
@@ -116,7 +122,11 @@ export class ModelScene {
   private readonly target: Vector3;
   private readonly radius: number;
   private matrices: Mat4[] = [];
+  /** Each joint's motion, voxels (keyframes.ts's jointDeltas); empty at rest. */
+  private joints: ReadonlyMap<number, Mat4> = new Map();
   private visible: boolean[] = [];
+  /** The piece (index into partObjects) each element is drawn in. */
+  private readonly elementObject: number[] = [];
   private picked: number | null = null;
   private hovered: number | null = null;
   private dirty = true;
@@ -153,7 +163,22 @@ export class ModelScene {
     this.scene.add(sun, fill);
 
     this.cornersBlocks = view.flat.map((f) => corners(f).map((c) => [c[0] / 16, c[1] / 16, c[2] / 16] as Vec3));
-    view.parts.forEach((_, i) => this.partObjects.push(this.buildPart(i)));
+    // One piece per part and joint: elements that move together are one mesh, so a shape with no
+    // animations has one per part, and the eidolon one per animated limb.
+    const joints = view.animation.joints;
+    view.parts.forEach((vp, pi) => {
+      const byJoint = new Map<number, number[]>();
+      for (const ei of vp.elements) {
+        const j = joints[ei] ?? -1;
+        let list = byJoint.get(j);
+        if (!list) byJoint.set(j, (list = []));
+        list.push(ei);
+      }
+      for (const [j, elements] of byJoint) {
+        for (const ei of elements) this.elementObject[ei] = this.partObjects.length;
+        this.partObjects.push(this.buildPart(pi, j, elements));
+      }
+    });
     this.buildOverlays(view.bounds, view.anchors);
     if (track) this.buildTrack(track);
 
@@ -198,7 +223,7 @@ export class ModelScene {
     this.frame = requestAnimationFrame(loop);
   }
 
-  private buildPart(pi: number): PartObject {
+  private buildPart(pi: number, joint: number, elements: readonly number[]): PartObject {
     const vp = this.view.parts[pi]!;
     const partColour = new Color(vp.colour);
     const textureColour = new Map(this.view.textures.map((t) => [t.code, new Color(t.colour)]));
@@ -208,7 +233,7 @@ export class ModelScene {
     const colTex: number[] = [];
     const tri: number[] = [];
     const edge: number[] = [];
-    for (const ei of vp.elements) {
+    for (const ei of elements) {
       const cs = this.cornersBlocks[ei]!;
       const e = this.view.flat[ei]!.element;
       const centre = cs.reduce((a, c) => [a[0] + c[0] / 8, a[1] + c[1] / 8, a[2] + c[2] / 8], [0, 0, 0]);
@@ -251,8 +276,8 @@ export class ModelScene {
       o.matrixAutoUpdate = false;
       this.scene.add(o);
     }
-    mesh.userData.part = pi;
-    return { mesh, edges, colourPart, colourTexture: new Float32Array(colTex), triangles: new Int32Array(tri) };
+    mesh.userData.object = this.partObjects.length;
+    return { part: pi, joint, mesh, edges, colourPart, colourTexture: new Float32Array(colTex), triangles: new Int32Array(tri) };
   }
 
   private overlay(id: string): Group {
@@ -420,18 +445,28 @@ export class ModelScene {
     this.dirty = true;
   }
 
-  /** Poses each part by its matrix (blocks) and shows the fitted ones. */
-  pose(matrices: Mat4[], visible: boolean[]) {
+  /** A piece's matrix, blocks: its part's, times its joint's motion (voxels) when it has one. */
+  private objectMatrix(o: PartObject, out: Matrix4): Matrix4 {
+    const part = (this.matrices[o.part] ?? IDENTITY) as Mat4;
+    const d = o.joint >= 0 ? this.joints.get(o.joint) : undefined;
+    return d ? out.fromArray(pieceMatrix(part, d)) : out.fromArray(part);
+  }
+
+  /**
+   * Poses each part by its matrix (blocks) and shows the fitted ones; `joints`, each animation
+   * joint's motion (voxels, keyframes.ts's jointDeltas), moves its elements within their part.
+   */
+  pose(matrices: Mat4[], visible: boolean[], joints: ReadonlyMap<number, Mat4> | null = null) {
     this.matrices = matrices;
     this.visible = visible;
-    this.partObjects.forEach((o, i) => {
-      for (const obj of [o.mesh, o.edges] as Object3D[]) {
-        obj.matrix.fromArray(matrices[i]!);
-        obj.matrixWorldNeedsUpdate = true;
-      }
-      o.mesh.visible = visible[i]!;
-      o.edges.visible = visible[i]! && this.edgesOn;
-    });
+    this.joints = joints ?? new Map();
+    for (const o of this.partObjects) {
+      this.objectMatrix(o, o.mesh.matrix);
+      o.edges.matrix.copy(o.mesh.matrix);
+      for (const obj of [o.mesh, o.edges] as Object3D[]) obj.matrixWorldNeedsUpdate = true;
+      o.mesh.visible = visible[o.part]!;
+      o.edges.visible = visible[o.part]! && this.edgesOn;
+    }
     for (const r of this.riders) {
       r.group.matrix.fromArray(matrices[r.part]!);
       r.group.matrixWorldNeedsUpdate = true;
@@ -445,7 +480,7 @@ export class ModelScene {
 
   setEdges(on: boolean) {
     this.edgesOn = on;
-    this.partObjects.forEach((o, i) => (o.edges.visible = on && (this.visible[i] ?? true)));
+    for (const o of this.partObjects) o.edges.visible = on && (this.visible[o.part] ?? true);
     this.dirty = true;
   }
 
@@ -489,7 +524,7 @@ export class ModelScene {
       target.visible = false;
       return;
     }
-    const part = this.view.elementPart[element]!;
+    const o = this.partObjects[this.elementObject[element]!]!;
     const cs = this.cornersBlocks[element]!;
     const attr = target.geometry.getAttribute("position") as BufferAttribute;
     const arr = attr.array as Float32Array;
@@ -499,9 +534,9 @@ export class ModelScene {
     });
     attr.needsUpdate = true;
     target.geometry.computeBoundingSphere();
-    target.matrix.fromArray(this.matrices[part] ?? new Matrix4().elements);
+    this.objectMatrix(o, target.matrix);
     target.matrixWorldNeedsUpdate = true;
-    target.visible = this.visible[part] ?? true;
+    target.visible = this.visible[o.part] ?? true;
   }
 
   /** The element under a point of the canvas, or null. */
@@ -512,7 +547,7 @@ export class ModelScene {
     const meshes = this.partObjects.filter((o) => o.mesh.visible).map((o) => o.mesh);
     const hit = this.ray.intersectObjects(meshes, false)[0];
     if (!hit || hit.faceIndex == null) return null;
-    const o = this.partObjects[hit.object.userData.part as number]!;
+    const o = this.partObjects[hit.object.userData.object as number]!;
     return o.triangles[hit.faceIndex] ?? null;
   }
 

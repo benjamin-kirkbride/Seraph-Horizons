@@ -4,10 +4,12 @@
   // the list work without WebGL. The maths is in src/lib/ (rig.ts, model-view.ts,
   // model-scenario.ts); the scene in src/viewer/model-scene.ts.
   import { onDestroy } from "svelte";
+  import { advanceFrame, animationOptions, animationSpeed, FRAMES_PER_SECOND, jointDeltas, loopsByDefault } from "../lib/keyframes.ts";
   import { loadModelFiles } from "../lib/model-data.ts";
   import type { PublishedModel } from "../lib/model-manifest.ts";
   import {
     advance,
+    applyState,
     classShows,
     choiceOf,
     contactDepth,
@@ -15,14 +17,18 @@
     enterPhase,
     feedAdvance,
     feedBlocksPerRadian,
-    initialFitted,
     INPUT_SPEED_MAX,
+    needsMet,
+    openingFitted,
     optionClass,
     pickChoice,
     playTrip,
     propBox,
     rigNumber,
     startPhase,
+    stateGroups,
+    stateOf,
+    statesShow,
     type Motion,
     type PlayContext,
   } from "../lib/model-scenario.ts";
@@ -66,20 +72,22 @@
           view = buildModelView(merged.shape, merged.rig, m.scenario);
           rig = merged.rig;
           vehicle = v;
-          fittedState = initialFitted(
-            view.requires.map((r) => r.value),
-            m.scenario?.choices,
-          );
+          const values = view.requires.map((r) => r.value);
+          const opening = openingFitted(values, m.scenario?.choices, stateGroups(m.scenario?.states, values));
+          fittedState = opening.fitted;
+          pickedStates = opening.picked;
           overlays = {
             cells: true,
             collision: false,
             ...(v?.track ? { [TRACK_OVERLAY]: true } : {}),
             ...Object.fromEntries(view.anchors.map((a) => [a.key, true])),
           };
-          colourMode = view.hasRig ? "part" : "texture";
+          // A rig whose parts all stand still (the eidolon's stages) opens in its textures, as one without a rig.
+          colourMode = view.hasRig && view.parts.some((p) => p.moving) ? "part" : "texture";
           propChoice = m.scenario?.prop?.default ?? "none";
           inputSpeed = defaultInputSpeed(m.scenario?.play, v?.speed ? turnsPerSecondAt(v.speed, v) : null);
           choose();
+          selectAnimation(m.scenario?.animations?.default?.toLowerCase() ?? "");
         } catch (e) {
           failed = (e as Error).message;
         }
@@ -101,6 +109,8 @@
   let reverse = $state(false);
   let playing = $state(false);
   let fittedState = $state<Record<string, boolean>>({});
+  // The state last picked in each group of the scenario's states: two states may fit the same parts (built empty, and left empty).
+  let pickedStates = $state<Record<string, string | null>>({});
   let overlays = $state<Record<string, boolean>>({});
   let edges = $state(true);
   let colourMode = $state<ColourMode>("part");
@@ -149,7 +159,15 @@
         )
       : [],
   );
-  const visible = $derived(view ? view.parts.map((p) => fitted(p.part.requires, fittedState) && classShows(p.part.requires, classIndex(motion.size), scenario)) : []);
+  // The scenario's groups of states, each owning its requires values (a lone group owns them all).
+  const groupsOfStates = $derived(view ? stateGroups(scenario?.states, view.requires.map((r) => r.value)) : []);
+  const visible = $derived(
+    view
+      ? view.parts.map(
+          (p) => fitted(p.part.requires, fittedState) && classShows(p.part.requires, classIndex(motion.size), scenario) && statesShow(p.part.requires, fittedState, groupsOfStates),
+        )
+      : [],
+  );
   // While a cycle runs (or is paused part-way) it decides whether the prop is on; posed by hand, the choice does.
   const propShown = $derived(motion.phase !== null ? motion.propOn : propOption !== null);
   const box = $derived(
@@ -170,6 +188,18 @@
   const track = $derived(vehicle?.track && view ? trackLayout(vehicle.track, vehicle, view.bounds) : null);
   const phaseLabel = $derived(motion.phase ? (play?.phases.find((p) => p.id === motion.phase)?.label ?? motion.phase) : null);
   const status = $derived(playing ? (phaseLabel ?? (vehicle ? s.rolling : s.playHintTurn)) : phaseLabel ? s.paused(phaseLabel.toLowerCase()) : s.posedByHand);
+
+  // ---- the shape's own keyframe animations (keyframes.ts): one at a time, posed at a frame
+  let animCode = $state("");
+  let animFrame = $state(0);
+  let animPlaying = $state(false);
+  let animSpeed = $state(1);
+  let animLoop = $state(true);
+  const animations = $derived(view?.animation.animations ?? []);
+  const currentAnim = $derived(animations.find((a) => a.code === animCode) ?? null);
+  const animGroups = $derived(animationOptions(animations, scenario?.animations));
+  // Each joint's motion at the frame; null at rest. The rig's part matrices pose the parts around them.
+  const jointMatrices = $derived(view && currentAnim ? jointDeltas(view.animation, view.flat, currentAnim, animFrame) : null);
 
   // ---- the 3D scene
   let canvas = $state<HTMLCanvasElement>();
@@ -219,7 +249,7 @@
     };
   });
 
-  $effect(() => scene?.pose(matrices, visible));
+  $effect(() => scene?.pose(matrices, visible, jointMatrices));
   $effect(() => scene?.colourBy(colourMode));
   $effect(() => scene?.setEdges(edges));
   $effect(() => scene?.setProp(box));
@@ -357,7 +387,43 @@
     last = null;
     frame = requestAnimationFrame(tick);
   }
+  /** Selects an animation by code ("" for none), at its first frame, looping as the game does and at its speed. */
+  function selectAnimation(code: string) {
+    const a = animations.find((x) => x.code === code) ?? null;
+    animCode = a ? a.code : "";
+    animFrame = 0;
+    if (!a) stopAnimation();
+    else {
+      animLoop = loopsByDefault(a);
+      animSpeed = animationSpeed(scenario?.animations, a.code);
+    }
+  }
+  let animRaf = 0;
+  let animLast: number | null = null;
+  function animTick(time: number) {
+    animRaf = requestAnimationFrame(animTick);
+    const dt = animLast === null ? 0 : Math.min(0.1, (time - animLast) / 1000);
+    animLast = time;
+    if (!currentAnim) return stopAnimation();
+    const next = advanceFrame(currentAnim, animFrame, dt, animSpeed, animLoop);
+    animFrame = next.frame;
+    if (next.ended) stopAnimation();
+  }
+  function stopAnimation() {
+    animPlaying = false;
+    cancelAnimationFrame(animRaf);
+    animLast = null;
+  }
+  function toggleAnimation() {
+    if (animPlaying || !currentAnim) return stopAnimation();
+    // Played to its end without looping: Play starts it again.
+    if (!animLoop && animFrame >= currentAnim.frames - 1) animFrame = 0;
+    animPlaying = true;
+    animLast = null;
+    animRaf = requestAnimationFrame(animTick);
+  }
   onDestroy(() => {
+    cancelAnimationFrame(animRaf);
     cancelAnimationFrame(frame);
     cancelAnimationFrame(hoverFrame);
   });
@@ -369,8 +435,36 @@
     const choice = choiceOf(scenario?.choices, value);
     return choice ? `${choice.label}: ${label}` : label;
   };
-  // The requires values that are not in a choice: a checkbox each.
-  const freeRequires = $derived(view ? view.requires.filter((r) => !choiceOf(scenario?.choices, r.value)) : []);
+  // Each group of states: the state its values are in (null when ticked by hand), its hint, whether it waits
+  // on its needs, and its values' checkboxes (not a choice's), listed under its select.
+  const stateRows = $derived(
+    view
+      ? groupsOfStates.map((g) => {
+          const current = stateOf(fittedState, g.spec, pickedStates[g.id] ?? null, g.owns, scenario?.choices);
+          const waiting = !needsMet(g, fittedState);
+          return {
+            group: g,
+            current,
+            hint: waiting
+              ? (g.spec.needsHint ?? s.stateNeeds((g.spec.needs ?? []).map(requiresLabel)))
+              : (g.spec.options.find((o) => o.id === current)?.hint ?? null),
+            waiting,
+            checks: g.owns.filter((v) => !choiceOf(scenario?.choices, v)).map((v) => view!.requires.find((r) => r.value === v)!),
+          };
+        })
+      : [],
+  );
+  function pickState(group: string, id: string) {
+    const g = groupsOfStates.find((x) => x.id === group);
+    const state = g?.spec.options.find((o) => o.id === id);
+    if (!g || !state) return;
+    fittedState = applyState(fittedState, state, g.owns, scenario?.choices);
+    pickedStates = { ...pickedStates, [group]: id };
+  }
+  // The requires values in no choice and no group of states: a checkbox each, after the groups'.
+  const freeRequires = $derived(
+    view ? view.requires.filter((r) => !choiceOf(scenario?.choices, r.value) && !groupsOfStates.some((g) => g.owns.includes(r.value))) : [],
+  );
   let copyState = $state<{ which: string; text: string } | null>(null);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   let nameEl = $state<HTMLElement>();
@@ -521,6 +615,50 @@
     </div>
 
     <aside class="controls" data-testid="model-controls">
+      {#if animations.length > 0}
+        <fieldset data-testid="model-animation">
+          <legend>{s.animation}</legend>
+          <select aria-label={s.animation} value={animCode} onchange={(e) => selectAnimation(e.currentTarget.value)} data-input="animation">
+            <option value="">{s.animationNone}</option>
+            {#each animGroups as g, gi (gi)}
+              {#if g.label === null && animGroups.length === 1}
+                {#each g.options as o (o.code)}<option value={o.code}>{o.label}</option>{/each}
+              {:else}
+                <optgroup label={g.label ?? s.animationOther}>
+                  {#each g.options as o (o.code)}<option value={o.code}>{o.label}</option>{/each}
+                </optgroup>
+              {/if}
+            {/each}
+          </select>
+          {#if currentAnim}
+            <label class="slider">
+              <span class="row"><span>{s.animationFrame}</span><output data-testid="model-anim-frame">{s.frameOf(Math.floor(animFrame), currentAnim.frames - 1)}</output></span>
+              <input
+                type="range"
+                min="0"
+                max={currentAnim.frames - 1}
+                step="1"
+                value={Math.floor(animFrame)}
+                oninput={(e) => {
+                  stopAnimation();
+                  animFrame = +e.currentTarget.value;
+                }}
+                data-input="anim-frame"
+              />
+            </label>
+            <div class="row play-row">
+              <button type="button" class="play" aria-pressed={animPlaying} onclick={toggleAnimation} data-input="anim-play">{animPlaying ? s.pause : s.play}</button>
+              <label class="check"><input type="checkbox" bind:checked={animLoop} data-input="anim-loop" /> {s.animationLoop}</label>
+            </div>
+            <label class="slider">
+              <span class="row"><span>{s.animationSpeed}</span><output data-testid="model-anim-speed">{s.animationSpeedOf(animSpeed)}</output></span>
+              <input type="range" min="0" max="4" step="0.05" bind:value={animSpeed} data-input="anim-speed" />
+            </label>
+            <span class="muted small">{s.animationLength(currentAnim.frames, currentAnim.frames / FRAMES_PER_SECOND)}. {s.animationEnds[currentAnim.onAnimationEnd] ?? ""}</span>
+          {/if}
+          <span class="muted small">{s.animationHint}</span>
+        </fieldset>
+      {/if}
       {#if view.inputs.theta || view.inputs.travel || view.inputs.depth || view.inputs.lifting || view.inputs.work || view.inputs.size || view.inputs.presence || view.inputs.feed || view.inputs.oil}
         <fieldset>
           <legend>{s.motion}</legend>
@@ -659,6 +797,28 @@
       {#if view.requires.length > 0}
         <fieldset>
           <legend>{s.fitted}</legend>
+          {#each stateRows as row (row.group.id)}
+            <div class="state-group" data-state-group={row.group.id} data-waiting={row.waiting}>
+              <label class="stack">
+                <span>{row.group.spec.label}</span>
+                <select value={row.current ?? ""} onchange={(e) => pickState(row.group.id, e.currentTarget.value)} disabled={row.waiting} data-input="state">
+                  {#if row.current === null}<option value="" disabled>{s.stateByHand}</option>{/if}
+                  {#each row.group.spec.options as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+                </select>
+              </label>
+              {#if row.hint}<span class="muted small" class:waiting={row.waiting} data-testid="model-state-hint">{row.hint}</span>{/if}
+              {#if row.checks.length > 0}
+                <div class="checks">
+                  {#each row.checks as r (r.value)}
+                    <label class="check" class:off={row.waiting}>
+                      <input type="checkbox" bind:checked={fittedState[r.value]} disabled={row.waiting} data-requires={r.value} />
+                      {r.label}
+                    </label>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/each}
           {#each scenario?.choices ?? [] as c (c.label)}
             <label class="stack">
               <span>{c.label}</span>
@@ -979,6 +1139,27 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
     gap: 0.3rem 0.75rem;
+  }
+  .state-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .state-group + .state-group {
+    border-top: 1px solid var(--border);
+    padding-top: 0.5rem;
+    margin-top: 0.15rem;
+  }
+  .state-group select {
+    max-width: 100%;
+  }
+  .waiting {
+    font-style: italic;
+  }
+  .check.off {
+    opacity: 0.55;
+    cursor: default;
   }
   .stack {
     display: flex;
