@@ -435,7 +435,7 @@ public partial class TradingScenarios
         Assert.Equal("trading-orders-handin-none", Window(sp, trader, Req(TradeAction.HandInOrder, id: order.Id)).Key);
 
         // The goods in the backpack or hotbar, wherever: handed in from the inventory.
-        InventoryTrader.GiveOrDrop(sp.Entity, Stack(code, 1), order.Quantity, null);
+        GiveLoose(sp, code, order.Quantity);
         var row = WindowSystem.BuildState(sp, trader).Orders.Single(o => o.Id == order.Id);
         Assert.True(row.Mine);
         Assert.Equal(order.Quantity, row.Held);

@@ -136,8 +136,7 @@
       "game:papyrustops": 0.01,
       "game:drygrass": 0.003,
       "game:spiderweb": 0.05,
-      "wool:fleece-*": 0.25,
-      "wool:wool-*": 0.25
+      "wool:fleece-*": 0.08
     },
     "animal": {
       "game:hide-raw-small": 1,
