@@ -241,8 +241,8 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   draws one of. `default` (else the first) is fitted at first. A value is in one choice at most, and
   not in `requiresClass`. The legend says "needs Branch lever: Left".
 - `states`: named sets of fitted parts, picked from one select above the checkboxes: the eidolon
-  gantry's build, from the empty gantry stage by stage to the eidolon fully built, and "Departed",
-  the eidolon woken and gone. A `requires` can only add parts, so a state in which a model has lost
+  gantry's build, from the bare frame through each stage of its winch, the spine hung on the chain and
+  each stage of the body to the eidolon fully built, and "Departed", the eidolon woken and gone. A `requires` can only add parts, so a state in which a model has lost
   them (the body gone, the spine left hanging) is a set of what is still fitted, and it is the
   scenario's, not the rig's.
 
@@ -251,9 +251,9 @@ Everything specific to one machine lives here, as data; the viewer has no machin
     "label": "Build state",
     "default": "built",
     "options": [
-      { "id": "empty", "label": "Stage 1: the gantry, the spine hung empty", "fitted": [] },
-      { "id": "torso", "label": "Stage 2: torso", "fitted": ["torso"] },
-      { "id": "departed", "label": "Departed: awake and gone", "fitted": [], "hint": "The eidolon has woken…" }
+      { "id": "frame", "label": "The frame", "fitted": [] },
+      { "id": "axles", "label": "Winch 1: axles (8 wooden axles)", "fitted": ["axles"] },
+      { "id": "departed", "label": "Departed: awake and gone", "fitted": ["axles", "…", "chain", "spine"], "hint": "The eidolon has woken…" }
     ]
   }
   ```
@@ -265,8 +265,9 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   | `default` | The state the page opens in. Without one it opens as without `states`: everything fitted, each choice at its default. |
 
   The checkboxes stay, and ticking one by hand leaves the states: the select then reads "As ticked
-  below" until a state is picked again. Two states may fit the same parts (the gantry before the build
-  and after the awakening): the select keeps the one picked, and otherwise names the first.
+  below" until a state is picked again. Two states may fit the same parts (the gantry's spine hung on the
+  chain before the body is built, and after the awakening): the select keeps the one picked, and
+  otherwise names the first.
 - `vehicle`: the model is a vehicle on a track ([Vehicles](#vehicles)).
 - `animations`: the shape's own animations ([Keyframe animations](#keyframe-animations)), the one
   scenario key a model without a rig may have. Codes are the animations' (`code`, else `name`), in
@@ -469,8 +470,8 @@ the element matrix to a line-by-line port of the game's `Mat4f` calls in `GetLoc
 both versions. It also checks the manifest's `animations`.
 `site/test/vehicle.test.ts` covers the vehicle, the θ cycle and choices on a small rig.
 `site/test/model-states.test.ts` covers states: applying one, naming the one the parts are in, their
-checks, and the eidolon gantry's build, whose "Departed" shows the spine, ring and frame and no stage
-of the body.
+checks, and the eidolon gantry's build: the bare frame, the winch stage by stage, and "Departed",
+which shows the winch, the ring and the spine and no stage of the body.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL (the handcar's `pump` for the

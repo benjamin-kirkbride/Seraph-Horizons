@@ -88,19 +88,34 @@ describe("the eidolon gantry's build states", () => {
     return view.parts.filter((p) => fitted(p.part.requires, ticked)).map((p) => p.part.id);
   };
 
+  const winch = ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain"];
+  const body = ["torso", "pelvis", "legs", "arms", "head", "mind"];
+
   it("steps through the build, one stage at a time, opening fully built", () => {
     const st = gantry.scenario!.states!;
     expect(st.default).toBe("built");
-    const counts = st.options.map((o) => o.fitted.length);
-    expect(counts).toEqual([0, 1, 2, 3, 4, 5, 6, 0]);
+    expect(st.options.map((o) => o.id)).toEqual(["frame", ...winch, "spine", ...body.slice(0, -1), "built", "departed"]);
+    // the frame alone, then each stage added to the ones before, fully built last before "departed"
+    expect(st.options.slice(0, -1).map((o) => o.fitted.length)).toEqual(st.options.slice(0, -1).map((_, i) => i));
     expect(st.options.at(-2)!.fitted).toEqual(values);
+    expect(values).toEqual([...winch, "spine", ...body]);
+  });
+
+  it("shows the bare frame, then the winch stage by stage", () => {
+    expect(shown("frame")).toEqual(["frame"]);
+    expect(shown("axles")).toEqual(expect.arrayContaining(["frame", "layshaft", "drumshaft"]));
+    expect(shown("axles")).not.toContain("laygears");
+    expect(shown("gears")).toEqual(expect.arrayContaining(["crank", "cranklantern", "laygears", "drumwheel"]));
+    expect(shown("gears")).not.toContain("drum");
+    expect(shown("chain")).toEqual(expect.arrayContaining(["ring", "hook", "fall", "lead", "coil"]));
+    expect(shown("chain")).not.toContain("spine");
   });
 
   it("shows the spine hanging empty from the ring once the eidolon has departed", () => {
     const departed = shown("departed");
-    expect(departed).toEqual(expect.arrayContaining(["spine", "ring", "hook", "frame", "crank", "drum"]));
-    for (const stage of values) expect(departed).not.toContain(stage);
-    expect(departed).toEqual(shown("empty"));
-    expect(shown("built")).toEqual(expect.arrayContaining(values));
+    expect(departed).toEqual(expect.arrayContaining(["spine", "ring", "hook", "frame", "crank", "drum", "sheave"]));
+    for (const stage of body) expect(departed).not.toContain(stage);
+    expect(departed).toEqual(shown("spine"));
+    expect(shown("built")).toEqual(expect.arrayContaining(body));
   });
 });

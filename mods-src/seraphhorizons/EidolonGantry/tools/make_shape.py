@@ -11,8 +11,11 @@ down to the body, its crank outside the frame on the south side, where a player 
 turns it. The front (west, -x, the way the body faces)
 is open from the ground to the front beam, so the eidolon walks out of it when it wakes.
 
-The chain hangs the gantry's spine (vanilla's eidolon's mast, cut off the body by the eidolon's
-generator into ../spine.json) by a ring over its top peg (`spine-hook1`), there from the first stage
+The frame is crafted; the winch is fitted onto it stage by stage (`winch_stages`: wooden axles, the iron crank
+shaft, spur gears, planks for the drum and sheave, nails and strips for the bands, a plate for the ratchet and pawl,
+a rod for the crank, the chain), each stage one rig `requires`, so the frame alone and every step of the build can be
+shown. The chain then hangs the gantry's spine (vanilla's eidolon's mast, cut off the body by the eidolon's
+generator into ../spine.json) by a ring over its top peg (`spine-hook1`), there before the body's first stage
 and after the eidolon has woken and stepped off it. The body is clamped to it, in the eidolon's `hung`
 pose, baked: every element of the eidolon's shape (eidolon.json, read from the repository) and of the
 spine, hung back on the chest block, is posed by `Eidolon/tools/kin.py`, the game's pose maths, at
@@ -88,10 +91,14 @@ ORIGIN_CELL = (0, 0, 0)                      # the controller: the front right (
 GANTRY_TEXTURES = {
     "wood": "game:block/wood/debarked/oak",
     "wood-end": "game:block/wood/treetrunk/debarked/oak",
+    "mechanics": "game:block/wood/planks/generic",
     "iron": "game:block/metal/plate/iron",
     "chain": "game:block/metal/armor-generic/chain-iron",
 }
 WOOD_CODES = ("wood", "wood-end")          # the wood-variant codes
+# The parts fitted from vanilla's mechanical power blocks (the wooden axles, the spur gears) keep those blocks' own
+# texture, generic planks, as the game draws them whatever wood they were made of: `mechanics`, not wood-variant.
+MECHANICS = "mechanics"
 
 # ---------------------------------------------------------------- the body's place
 BODY_AT = (30.0, 0.0, 40.0)                  # the entity's position (model (8, 0, 8)), where it stands once awake: the
@@ -156,7 +163,25 @@ CHEEK_X = (74.0, CELLS_X * B)
 BEARING = 2.5                                # a bearing plate's half side
 CHEEK_Y = (CRANK_AXIS[1] - 6.0, DRUM[1] + BEARING)         # the top under the back knees
 AXLE_R = 1.0                                 # the iron crank shaft's apothem
-SHAFT_R = {"ls": 1.4, "dr": 1.6}             # the wooden shafts' apothems: the layshaft's clears the drum wheel's cogs
+# The wooden shafts are vanilla's wooden axles (game:woodenaxle-ud) laid end to end, one a block, as the game runs an
+# axle: its section is a cross of two 4 x 2 boards (shapes/block/wood/mechanics/axle.json). The drum's shaft has it
+# full size; the layshaft's is 0.7 of it, as the drum wheel's cogs run within 2 voxels of its axis inside its
+# lantern (the cross's corners reach 1.57).
+SHAFT = {"ls": (2.8, 1.4), "dr": (4.0, 2.0)}  # the cross's width and thickness
+AXLE_LEN = 16.0                              # one wooden axle a block of shaft
+
+
+def shaft_r(name):
+    """How far a wooden shaft's flats stand from its axis (its cross's half width): the clasp arms close on them."""
+    return SHAFT[name][0] / 2
+
+
+def shaft_apothem(name):
+    """The apothem of the octagon round a wooden shaft's cross (turned with it): what a collar closes round."""
+    w, t = SHAFT[name]
+    return max(w / 2, (w / 2 + t / 2) / math.sqrt(2))
+
+
 GUDGEON_R = 0.8                              # the iron gudgeons in their ends, which run in the bearings
 COLLAR = (0.25, 0.8)                         # an iron collar's stand-off from its shaft and its width
 # The crank is outside the frame, on the left (south) side: the crank shaft runs on past the left cheek, beside
@@ -496,31 +521,33 @@ def stage_phase(a, b):
     return math.atan2(b[1] - a[1], b[0] - a[0])
 
 
-def lantern_z(c, gap, name, part, phase):
+def lantern_z(c, gap, name, part, hoops, phase):
     """A lantern pinion about z: PINION_TEETH round staves on the pitch circle, one at `phase`, between two board
-    discs bound with iron hoops, the gap between them `gap` (z), where the wheel's cogs run. The staves' ends
-    are let into the discs."""
+    discs, the gap between them `gap` (z), where the wheel's cogs run. The staves' ends are let into the discs. The
+    discs and staves (part `part`) are a vanilla spur gear's work, in its texture; the iron hoops binding the discs
+    are part `hoops`, the strapping's."""
     z0, z1 = gap
     out = []
     for i, (a, b) in enumerate(((z0 - DISC_T, z0), (z1, z1 + DISC_T)), 1):
-        out += octagon_z(a, b, c[0], c[1], DISC_R, f"{name}_disc{i}", part, "wood", phase, ends=False)
-        out += octagon_z(a + 0.2, b - 0.2, c[0], c[1], DISC_R + 0.2, f"{name}_hoop{i}", part, "iron", phase)
+        out += octagon_z(a, b, c[0], c[1], DISC_R, f"{name}_disc{i}", part, MECHANICS, phase, ends=False)
+        out += octagon_z(a + 0.2, b - 0.2, c[0], c[1], DISC_R + 0.2, f"{name}_hoop{i}", hoops, "iron", phase)
     for k in range(PINION_TEETH):
         a = phase + 2 * math.pi * k / PINION_TEETH
         out += octagon_z(z0 - 0.4, z1 + 0.4, c[0] + R_PINION * math.cos(a), c[1] + R_PINION * math.sin(a), STAVE_R,
-                         f"{name}_stave{k + 1}", part, "wood", ends=False)
+                         f"{name}_stave{k + 1}", part, MECHANICS, ends=False)
     return out
 
 
 def wheel_z(c, z0, z1, name, part, phase, shaft_r):
-    """A wooden cog wheel about z: a rim of RIM_SEGMENTS felloes, four clasp arms crossing in a square round the
-    shaft's flats (its octagon turned to `phase`), and WHEEL_TEETH cogs pegged into the rim, a gap at `phase`.
-    A cog is two boxes: COG_W wide from inside the rim to the pitch circle, COG_TIP_W out to its tip."""
+    """A wooden cog wheel about z, a vanilla spur gear's work in its texture: a rim of RIM_SEGMENTS felloes, four
+    clasp arms crossing in a square round the shaft's flats (its axle's cross turned to `phase`), and WHEEL_TEETH
+    cogs pegged into the rim, a gap at `phase`. A cog is two boxes: COG_W wide from inside the rim to the pitch
+    circle, COG_TIP_W out to its tip."""
     root, tip = R_WHEEL - DEDENDUM, R_WHEEL + ADDENDUM
     n = RIM_SEGMENTS
     half = root * math.tan(math.pi / n) * 0.98
     out = [radial_z(c, z0 + (0.03 if i % 2 else 0.0), z1 - (0.03 if i % 2 else 0.0), RIM_IN, root, -half, half,
-                    phase + 2 * math.pi * (i + 0.5) / n, f"{name}_rim{i + 1}", part, "wood") for i in range(n)]
+                    phase + 2 * math.pi * (i + 0.5) / n, f"{name}_rim{i + 1}", part, MECHANICS) for i in range(n)]
     o = shaft_r + ARM_W / 2
     reach = math.sqrt((RIM_IN + 0.6) ** 2 - (o + ARM_W / 2) ** 2)
     for i in range(4):
@@ -529,15 +556,15 @@ def wheel_z(c, z0, z1, name, part, phase, shaft_r):
         side = o if i % 2 else -o
         inset = 0.15 if i >= 2 else 0.1
         el = box([c[0] - reach, c[1] + side - ARM_W / 2, z0 + inset], [c[0] + reach, c[1] + side + ARM_W / 2, z1 - inset],
-                 f"{name}_arm{i + 1}", part, "wood", end=0)
+                 f"{name}_arm{i + 1}", part, MECHANICS)
         rotate([el], "z", math.degrees(along), (c[0], c[1], 0.0))
         out.append(el)
     for i in range(WHEEL_TEETH):
         a = phase + 2 * math.pi * (i + 0.5) / WHEEL_TEETH
         out.append(radial_z(c, z0 + 0.1, z1 - 0.1, root - 0.4, R_WHEEL, -COG_W / 2, COG_W / 2, a,
-                            f"{name}_cog{i + 1}a", part, "wood"))
+                            f"{name}_cog{i + 1}a", part, MECHANICS))
         out.append(radial_z(c, z0 + 0.15, z1 - 0.15, R_WHEEL - 0.05, tip, -COG_TIP_W / 2, COG_TIP_W / 2, a,
-                            f"{name}_cog{i + 1}b", part, "wood"))
+                            f"{name}_cog{i + 1}b", part, MECHANICS))
     return out
 
 
@@ -571,25 +598,25 @@ def build_ratchet():
     c = CRANK_AXIS
     z0, z1 = RATCHET_Z
     _, _, _, face = pawl_geometry()
-    out = octagon_z(z0, z1, c[0], c[1], RATCHET_R[0] + 0.05, "ck_ratchet_body", "crank", "iron")
+    out = octagon_z(z0, z1, c[0], c[1], RATCHET_R[0] + 0.05, "ck_ratchet_body", "ratchet", "iron")
     for i in range(RATCHET_TEETH):
         out.append(radial_z(c, z0 + 0.03, z1 - 0.03, RATCHET_R[0] - 0.2, RATCHET_R[1], -RATCHET_TOOTH_W, 0.0,
-                            face + 2 * math.pi * i / RATCHET_TEETH, f"ck_ratchet_tooth{i + 1}", "crank", "iron"))
+                            face + 2 * math.pi * i / RATCHET_TEETH, f"ck_ratchet_tooth{i + 1}", "ratchet", "iron"))
     return out
 
 
 def build_pawl():
     """The pawl (its own part, thrown off as the winch lets down), its pin and the bracket that carries it,
-    bolted to the back left post's outer face (frame)."""
+    bolted to the back left post's outer face (`pawlmount`: fitted with the ratchet, fixed)."""
     nose, d, pin, _ = pawl_geometry()
     mid = ((nose[0] + pin[0]) / 2, (nose[1] + pin[1]) / 2, (PAWL_Z[0] + PAWL_Z[1]) / 2)
     el = box([mid[0] - PAWL_LEN / 2, mid[1] - PAWL_W / 2, PAWL_Z[0]], [mid[0] + PAWL_LEN / 2 + 0.6, mid[1] + PAWL_W / 2, PAWL_Z[1]],
              "pw_pawl", "pawl", "iron")
     rotate([el], "z", math.degrees(math.atan2(d[1], d[0])), mid)
     out = [el]
-    out += octagon_z(BRACKET_Z[0], PAWL_Z[1] + 0.3, pin[0], pin[1], 0.45, "fr_iron_pawlpin", "frame", "iron")
+    out += octagon_z(BRACKET_Z[0], PAWL_Z[1] + 0.3, pin[0], pin[1], 0.45, "pm_pin", "pawlmount", "iron")
     out.append(box([pin[0] - 1.0, pin[1] - 0.9, BRACKET_Z[0]], [X_BACK[1] - 0.5, pin[1] + 1.1, BRACKET_Z[1]],
-                   "fr_iron_pawlbracket", "frame", "iron"))
+                   "pm_bracket", "pawlmount", "iron"))
     return out
 
 
@@ -599,19 +626,53 @@ def wheel_span(gap):
     return m - WHEEL_W / 2, m + WHEEL_W / 2
 
 
-def wooden_shaft(c, z, name, part, phase):
-    """A wooden shaft between the cheeks: an octagon of SHAFT_R from z[0] to z[1], its flats turned to its wheel's
-    arms, an iron gudgeon driven into each end and running on into the cheek's bearing, and an iron collar round
-    each end so the gudgeon does not split it."""
-    r = SHAFT_R[name[:2]]
+def axles(z):
+    """How many wooden axles a shaft from z[0] to z[1] takes: one a block, as the game lays them end to end."""
+    return max(1, math.ceil((z[1] - z[0]) / AXLE_LEN - 1e-9))
+
+
+def axle_z(z, c, name, part, phase):
+    """A wooden shaft along z of vanilla's wooden axles laid end to end, `axles(z)` equal lengths: each the axle's
+    cross of two boards (SHAFT[name]), turned to `phase`, in the axle's texture."""
+    w, t = SHAFT[name[:2]]
+    n = axles(z)
+    out = []
+    for i in range(n):
+        z0 = z[0] + (z[1] - z[0]) * i / n
+        z1 = z[0] + (z[1] - z[0]) * (i + 1) / n
+        for k, (sx, sy) in enumerate(((w, t), (t, w)), 1):
+            el = box([c[0] - sx / 2, c[1] - sy / 2, z0], [c[0] + sx / 2, c[1] + sy / 2, z1], f"{name}_shaft{i + 1}_{k}", part, MECHANICS)
+            if abs(phase) > 1e-12:
+                rotate([el], "z", math.degrees(phase), (c[0], c[1], 0.0))
+            out.append(el)
+    return out
+
+
+def wooden_shaft(c, z, name, part, straps, phase):
+    """A wooden shaft between the cheeks (part `part`): vanilla's wooden axles from z[0] to z[1], their flats turned
+    to its wheel's arms, an iron gudgeon driven into each end and running on into the cheek's bearing (fitted with
+    the axles: the gudgeons are what the shaft turns on), and an iron collar round each end so the gudgeon does
+    not split it (part `straps`, the strapping's)."""
     cz = cheek_z()
-    out = octagon_z(z[0], z[1], c[0], c[1], r, f"{name}_shaft", part, "wood", phase)
+    out = axle_z(z, c, name, part, phase)
     for i, (a, b) in enumerate(((cz[0][0] + 1.0, z[0] + 0.6), (z[1] - 0.6, cz[1][1] - 1.0)), 1):
         out += octagon_z(a, b, c[0], c[1], GUDGEON_R, f"{name}_gudgeon{i}", part, "iron", phase)
     w = COLLAR[1]
     for i, (a, b) in enumerate(((z[0] + 0.2, z[0] + 0.2 + w), (z[1] - 0.2 - w, z[1] - 0.2)), 1):
-        out += octagon_z(a, b, c[0], c[1], r + COLLAR[0], f"{name}_collar{i}", part, "iron", phase)
+        out += octagon_z(a, b, c[0], c[1], shaft_apothem(name) + COLLAR[0], f"{name}_collar{i}", straps, "iron", phase)
     return out
+
+
+def shaft_spans():
+    """The two wooden shafts' z: the layshaft's from cheek to cheek, the drum's ending past its wheel (its gudgeon
+    runs on through stage 1, clear of the layshaft's wheel)."""
+    cz = cheek_z()
+    return {"ls": (cz[0][1] + 1.0, cz[1][0] - 1.0), "dr": (cz[0][1] + 1.0, STAGE2_Z[1] + 0.8)}
+
+
+def axle_count():
+    """The wooden axles the axles stage takes: one a block of both wooden shafts."""
+    return sum(axles(z) for z in shaft_spans().values())
 
 
 def build_winch():
@@ -636,26 +697,27 @@ def build_winch():
     # the crank: its iron shaft from the stage-1 lantern out to the crank, the lantern, the ratchet, the web and
     # the handle
     out += octagon_z(STAGE1_Z[0] - DISC_T + 0.1, AXLE_END, cx, cy, AXLE_R, "ck_shaft", "crank", "iron")
-    out += lantern_z(CRANK_AXIS, STAGE1_Z, "ck_lantern", "crank", stage_phase(CRANK_AXIS, LAY))
+    out += lantern_z(CRANK_AXIS, STAGE1_Z, "ck_lantern", "cranklantern", "crankhoops", stage_phase(CRANK_AXIS, LAY))
     out += build_ratchet()
-    out.append(box([cx - 1.25, cy - 1.75, CRANK_Z[0]], [cx + 1.25, cy + CRANK_R + 1.0, CRANK_Z[1]], "ck_web", "crank", "iron"))
+    out.append(box([cx - 1.25, cy - 1.75, CRANK_Z[0]], [cx + 1.25, cy + CRANK_R + 1.0, CRANK_Z[1]], "ck_web", "crankarm", "iron"))
     hw = HANDLE_W / 2
-    out.append(box([cx - hw, cy + CRANK_R - hw, HANDLE[0]], [cx + hw, cy + CRANK_R + hw, HANDLE[1]], "ck_handle", "crank", "wood", end=2))
+    out.append(box([cx - hw, cy + CRANK_R - hw, HANDLE[0]], [cx + hw, cy + CRANK_R + hw, HANDLE[1]], "ck_handle", "crankarm", "wood", end=2))
+    spans = shaft_spans()
     # the layshaft: the stage-1 wheel and the stage-2 lantern
     w1 = wheel_span(STAGE1_Z)
     ph = stage_phase(LAY, CRANK_AXIS)
-    out += wooden_shaft(LAY, (cz[0][1] + 1.0, cz[1][0] - 1.0), "ls", "layshaft", ph)
-    out += wheel_z(LAY, w1[0], w1[1], "ls_wheel", "layshaft", ph, SHAFT_R["ls"])
-    out += lantern_z(LAY, STAGE2_Z, "ls_lantern", "layshaft", stage_phase(LAY, DRUM))
+    out += wooden_shaft(LAY, spans["ls"], "ls", "layshaft", "laystraps", ph)
+    out += wheel_z(LAY, w1[0], w1[1], "ls_wheel", "laygears", ph, shaft_r("ls"))
+    out += lantern_z(LAY, STAGE2_Z, "ls_lantern", "laygears", "laystraps", stage_phase(LAY, DRUM))
     # the drum, its shaft (ending past the stage-2 wheel: the gudgeon runs on through stage 1, clear of its wheel)
     w2 = wheel_span(STAGE2_Z)
     ph = stage_phase(DRUM, LAY)
-    out += wooden_shaft(DRUM, (cz[0][1] + 1.0, STAGE2_Z[1] + 0.8), "dr", "drum", ph)
-    out += wheel_z(DRUM, w2[0], w2[1], "dr_wheel", "drum", ph, SHAFT_R["dr"])
+    out += wooden_shaft(DRUM, spans["dr"], "dr", "drumshaft", "drumstraps", ph)
+    out += wheel_z(DRUM, w2[0], w2[1], "dr_wheel", "drumwheel", ph, shaft_r("dr"))
     out += octagon_z(DRUM_Z[0], DRUM_Z[1], DRUM[0], DRUM[1], DRUM_R, "dr_drum", "drum", "wood")
     for i, z0 in enumerate((DRUM_Z[0] + 1.0, DRUM_Z[1] - 2.0), 1):
-        out += octagon_z(z0, z0 + 1.0, DRUM[0], DRUM[1], DRUM_R + 0.3, f"dr_hoop{i}", "drum", "iron")
-    out += octagon_z(BODY_AT[2] - COIL_W / 2, BODY_AT[2] + COIL_W / 2, DRUM[0], DRUM[1], COIL_R, "dr_coil", "drum", "chain")
+        out += octagon_z(z0, z0 + 1.0, DRUM[0], DRUM[1], DRUM_R + 0.3, f"dr_hoop{i}", "drumstraps", "iron")
+    out += octagon_z(BODY_AT[2] - COIL_W / 2, BODY_AT[2] + COIL_W / 2, DRUM[0], DRUM[1], COIL_R, "dr_coil", "coil", "chain")
     out += build_pawl()
     return out
 
@@ -697,7 +759,7 @@ def build_sheave():
     sx, sy = sheave_x(), SHEAVE_Y
     for i, z in enumerate(HANGER_Z, 1):
         out.append(box([sx - 2.0, sy - 2.0, z[0]], [sx + 2.0, HEAD[0], z[1]], f"fr_hanger{i}", "frame", "iron"))
-    out += octagon_z(HANGER_Z[0][0] - 0.5, HANGER_Z[1][1] + 0.5, sx, sy, 0.8, "sv_pin", "sheave", "iron")
+    out += octagon_z(HANGER_Z[0][0] - 0.5, HANGER_Z[1][1] + 0.5, sx, sy, 0.8, "fr_iron_sheavepin", "frame", "iron")   # fixed: the sheave turns on it
     out += octagon_z(HUB_Z[0], HUB_Z[1], sx, sy, SHEAVE_R, "sv_hub", "sheave", "wood", ends=False)
     for i, z in enumerate(FLANGE_Z, 1):
         out += octagon_z(z[0], z[1], sx, sy, FLANGE_R, f"sv_flange{i}", "sheave", "wood", ends=False)
@@ -755,49 +817,132 @@ def drop():
     return lowest([el for el in bake_body(shape, stages)[0] if el.part != "spine"])
 
 
+# ---------------------------------------------------------------- the build (a proposal for the gameplay to come)
+# The frame is a grid recipe (FRAME_RECIPE); the winch is fitted onto the placed frame stage by stage, in this order, as
+# the pack's other machines are (DrawBench/README.md, "Stages"): a right-click with the stage's item takes `count` of it
+# from the held stack, the next missing stage the only one a click fills. Each stage is one rig `requires` value; every
+# part of the winch is in exactly one stage. Then the spine is hung on the chain, and the body built on the spine
+# (eidolon-stages.json).
+METALS = ("iron", "meteoriciron", "steel")   # the metals the pack's machines take nails and strips, rods, plates, chain in
+FRAME_NAILS = 16                             # the frame's iron: 20 straps, plates and bearings and 12 trenail heads
+
+
+def frame_timbers(frame):
+    """The frame's timbers, each one support beam: its wooden elements by name, the block-long pieces of one timber
+    (fr_post_fr1, fr_post_fr2, ...) counted once."""
+    return sorted({el.name.rstrip("0123456789") for el in frame
+                   if el.part == "frame" and any(f["texture"] in ("#wood", "#wood-end") for f in el.faces.values())})
+
+
+def frame_recipe(frame):
+    return {"schematic": "seraphhorizons:schematic-eidolon", "beams": ("game:supportbeam-{wood}", len(frame_timbers(frame))),
+            "nails": ("game:metalnailsandstrips-{metal}", FRAME_NAILS), "tools": ("hammer", "saw"),
+            "output": "seraphhorizons:eidolongantry-{wood}"}
+
+
+def chain_length():
+    """The chain's working length (voxels): the lead from the drum to the sheave, over the sheave to the fall's line,
+    the fall to the eye and the let-down's drop."""
+    (ax, ay), (bx, by) = lead_tangents()
+    wrap = math.pi - math.atan2(by - SHEAVE_Y, bx - sheave_x())           # from the lead's tangent round the front
+    return math.hypot(bx - ax, by - ay) + wrap * SHEAVE_R + (SHEAVE_Y - eye_top()) + drop()
+
+
+def winch_stages():
+    """The winch's stages in build order: (requires, item, count, the rig parts it fits)."""
+    return [
+        ("axles", "game:woodenaxle-ud", axle_count(), ("layshaft", "drumshaft")),
+        ("crankshaft", "game:rod-{metal}", 1, ("crank",)),
+        ("gears", "game:spurgear-s", 2 * GEAR_STAGES, ("cranklantern", "laygears", "drumwheel")),
+        ("drum", "game:plank-{wood}", 10, ("drum", "sheave")),
+        ("strapping", "game:metalnailsandstrips-{metal}", strap_count(), ("crankhoops", "laystraps", "drumstraps")),
+        ("ratchet", "game:metalplate-{metal}", 1, ("ratchet", "pawl", "pawlmount")),
+        ("crank", "game:rod-{metal}", 1, ("crankarm",)),
+        ("chain", "game:metalchain-{metal}", math.ceil(chain_length() / B), ("coil", "lead", "fall", "hook", "ring")),
+    ]
+
+
+SPINE_STAGE = "spine"                        # the spine, hung on the chain's ring: after the winch, before the body
+
+
+def strap_count():
+    """One nails and strips a band: the lanterns' four hoops, the drum's two, the wooden shafts' four collars."""
+    return 2 * GEAR_STAGES + 2 + 2 * len(SHAFT)
+
+
+def stage_of_part():
+    out = {pid: code for code, _, _, pids in winch_stages() for pid in pids}
+    out["spine"] = SPINE_STAGE
+    return out
+
+
+def build_order(stages):
+    """Every requires value in build order: the winch's stages, the spine, the body's."""
+    return [code for code, *_ in winch_stages()] + [SPINE_STAGE] + body_codes(stages)
+
+
 def rig_parts(stages):
     d = drop()
     zc = BODY_AT[2]
     turn = d / DRUM_R                         # the drum's turn over the let-down (radians)
     parts = [
         # the gear train, by depth: the drum pays out the drop and the layshaft and the crank turn by the tooth
-        # counts, each the other way to the gear it meshes with; the crank's clock (theta) rides on the crank
-        # and moves nothing
-        {"id": "crank", "match": ["ck_*"], "requires": None,
+        # counts, each the other way to the gear it meshes with; the crank's clock (theta) rides on the crank shaft
+        # and moves nothing. Each shaft is the part that turns; what is fitted on it in later stages rides it.
+        {"id": "crank", "match": ["ck_shaft*"],
          "drivers": [{"type": "rotate", "axis": "z", "pivot": pt(*CRANK_AXIS, zc), "ratio": 0.0},
                      {"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*CRANK_AXIS, zc),
                       "from": 0.0, "to": 1.0, "amount": r6(turn * RATIO)}]},
-        {"id": "layshaft", "match": ["ls_*"], "requires": None,
+        {"id": "cranklantern", "match": ["ck_lantern_disc*", "ck_lantern_stave*"], "ride": "crank", "drivers": []},
+        {"id": "crankhoops", "match": ["ck_lantern_hoop*"], "ride": "crank", "drivers": []},
+        {"id": "ratchet", "match": ["ck_ratchet*"], "ride": "crank", "drivers": []},
+        {"id": "crankarm", "match": ["ck_web*", "ck_handle*"], "ride": "crank", "drivers": []},
+        {"id": "layshaft", "match": ["ls_shaft*", "ls_gudgeon*"],
          "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*LAY, zc),
                       "from": 0.0, "to": 1.0, "amount": r6(-turn * WHEEL_TEETH / PINION_TEETH)}]},
-        {"id": "drum", "match": ["dr_*"], "requires": None,
+        {"id": "laygears", "match": ["ls_wheel*", "ls_lantern_disc*", "ls_lantern_stave*"], "ride": "layshaft", "drivers": []},
+        {"id": "laystraps", "match": ["ls_collar*", "ls_lantern_hoop*"], "ride": "layshaft", "drivers": []},
+        {"id": "drumshaft", "match": ["dr_shaft*", "dr_gudgeon*"],
          "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*DRUM, zc),
                       "from": 0.0, "to": 1.0, "amount": r6(turn)}]},
-        # the pawl, thrown off the ratchet as the let-down starts, back on when the body is wound up to hung
-        {"id": "pawl", "match": ["pw_*"], "requires": None,
+        {"id": "drumwheel", "match": ["dr_wheel*"], "ride": "drumshaft", "drivers": []},
+        {"id": "drum", "match": ["dr_drum*"], "ride": "drumshaft", "drivers": []},
+        {"id": "drumstraps", "match": ["dr_collar*", "dr_hoop*"], "ride": "drumshaft", "drivers": []},
+        {"id": "coil", "match": ["dr_coil*"], "ride": "drumshaft", "drivers": []},
+        # the pawl, thrown off the ratchet as the let-down starts, back on when the body is wound up to hung; its pin
+        # and bracket, fixed
+        {"id": "pawl", "match": ["pw_*"],
          "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*pawl_geometry()[2], zc),
                       "from": 0.0, "to": PAWL_LIFT_TO, "amount": PAWL_LIFT}]},
-        {"id": "sheave", "match": ["sv_*"], "requires": None,
+        {"id": "pawlmount", "match": ["pm_*"], "drivers": []},
+        {"id": "sheave", "match": ["sv_*"],
          "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(sheave_x(), SHEAVE_Y, zc),
                       "from": 0.0, "to": 1.0, "amount": r6(d / SHEAVE_R)}]},
-        {"id": "lead", "match": ["ld_*"], "requires": None, "drivers": []},
-        {"id": "fall", "match": ["fl_*"], "requires": None,
+        {"id": "lead", "match": ["ld_*"], "drivers": []},
+        {"id": "fall", "match": ["fl_*"],
          "drivers": [{"type": "stretch", "axis": "y", "anchor": pt(drop_x(), SHEAVE_Y, zc),
                       "length": r6((SHEAVE_Y - eye_top()) / B), "travel": r6(d / B)}]},
-        {"id": "hook", "match": ["hk_*"], "requires": None, "drivers": [{"type": "feed", "axis": "y", "travel": r6(-d / B)}]},
-        # the ring over the spine's top peg, and the spine: the gantry's, there from the first stage on,
-        # empty before the torso is clamped to it and again once the eidolon has woken and stepped off
-        {"id": "ring", "match": ["rg_*"], "requires": None, "ride": "hook", "drivers": []},
-        {"id": "spine", "match": ["sp_*"], "requires": None, "ride": "hook", "drivers": []},
+        {"id": "hook", "match": ["hk_*"], "drivers": [{"type": "feed", "axis": "y", "travel": r6(-d / B)}]},
+        # the ring over the spine's top peg, with the chain; the spine, hung on it once the winch is built, empty
+        # before the torso is clamped to it and again once the eidolon has woken and stepped off
+        {"id": "ring", "match": ["rg_*"], "ride": "hook", "drivers": []},
+        {"id": "spine", "match": ["sp_*"], "ride": "hook", "drivers": []},
     ]
     for code in body_codes(stages):
         parts.append({"id": code, "match": [f"b_{code}_*"], "requires": code, "ride": "hook", "drivers": []})
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []})
+    staged = stage_of_part()
     for p in parts:
+        p.setdefault("requires", staged.get(p["id"]))
         p.setdefault("ride", None)
         for drv in p["drivers"]:
             validate_driver(drv)
-    return parts
+    # in build order (the viewer lists the requires values in the order the parts first need them; the matches are
+    # specific, so the order matches nothing differently), the frame last; the keys in the order the other rigs write them
+    order = build_order(stages)
+    parts.sort(key=lambda p: len(order) if p["requires"] is None else order.index(p["requires"]))
+    return [{"id": p["id"], "match": p["match"], "requires": p["requires"], "drivers": p["drivers"], "ride": p["ride"]}
+            for p in parts]
 
 
 def pm(parts, pid, depth, theta=0.0):
@@ -817,7 +962,8 @@ def regions():
             ((cx * B, cy * B, 0.0), ((cx + 1) * B, (cy + 1) * B, (cz + 1) * B))]
 
 
-CELL_PARTS = ("frame", "crank", "layshaft", "drum", "pawl", "sheave")   # what the cells' boxes are made of: the gantry; the body's
+CELL_PARTS = ("frame", "crank", "cranklantern", "crankhoops", "ratchet", "crankarm", "layshaft", "laygears", "laystraps",
+              "drumshaft", "drumwheel", "drum", "drumstraps", "coil", "pawl", "pawlmount", "sheave")   # what the cells' boxes are made of: the gantry; the body's
 #                                              are gameplay's
 #                                              (the spine's too: it hangs, and goes up and down with the body)
 
@@ -855,11 +1001,13 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the foot of the front "
                     "right (north-west) post. The body faces west (-x), the exit; its right is north. Inputs: depth, the winch "
                     "let down 0..1 (the body comes down until its lowest toe is on the floor); theta, the crank's clock, moves "
-                    "nothing. requires: one value per build stage (eidolon-stages.json) for the body's parts; the spine and the "
-                    "ring over its top peg are the gantry's, always there (with no stage fitted: the gantry built, or the "
-                    "eidolon woken and gone). body: the entity's position, where it stands once awake; hang: where the ring "
+                    "nothing. requires: one value per build stage, in build order: the winch's (axles, crankshaft, gears, drum, "
+                    "strapping, ratchet, crank, chain: the frame alone needs none), the spine hung on the chain's ring, then the "
+                    "body's (eidolon-stages.json); with the winch and spine and no body, the gantry is built and waiting, or the "
+                    "eidolon has woken and gone. body: the entity's position, where it stands once awake; hang: where the ring "
                     "bears on the peg; fit: the chest's middle; crankCell and crankFace: the crank, outside the frame, turned "
-                    "from the south (its cell reserves the room and is hollow: no boxes). The cells' boxes are the gantry's; the body's are gameplay's. See EidolonGantry/README.md.",
+                    "from the south (its cell reserves the room and is hollow: no boxes). The cells' boxes are the gantry's, "
+                    "every stage of the winch fitted; the body's are gameplay's. See EidolonGantry/README.md.",
         "cells": [],
         "body": {"pos": pt(*BODY_AT)},
         "hang": {"pos": pt(*peg)},

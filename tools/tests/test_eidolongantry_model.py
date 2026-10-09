@@ -4,17 +4,21 @@ These hold what the generator wrote to its own rules: it reproduces the committe
 eidolon's shape as the repository has it now (so a changed eidolon.json fails here until the gantry is
 regenerated); the body in the written shape is the eidolon's `hung` pose, element for element, by the
 game's pose maths (Eidolon/tools/kin.py), each element under its build stage's part; the rig's
-`requires` are one per stage, while the spine (vanilla's, cut off the eidolon: the gantry's) and the ring over its top
-peg need nothing, there from the start and after the eidolon has woken; the let-down brings the lowest toe from 3
+`requires` are one per stage of the build, in order: the frame needs none, the winch is fitted in stages (axles, the crank
+shaft, gears, the drum, strapping, the ratchet, the crank, the chain with the ring), then the spine (vanilla's, cut off
+the eidolon: the gantry's) is hung on the ring, then the body; the let-down brings the lowest toe from 3
 voxels to the floor, the spine with it; the cells are rebuilt from the shipped shape; the front is open; the crank
 is outside the frame, in its own cell, which is hollow; the winch is geared in wood, lantern pinions driving cog wheels, its
-parts turning by their stave and cog counts; and every wooden face takes one of the two wood-variant texture codes. Run with
+parts turning by their stave and cog counts; every wooden face of the frame, drum and sheave takes one of the two
+wood-variant texture codes, and the axles and gears vanilla's mechanical power texture; and the README's stage table is
+the generator's. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
 import json
 import math
+import re
 import subprocess
 import sys
 import tempfile
@@ -45,7 +49,14 @@ RIG = json.loads(RIG_PATH.read_text())
 EIDOLON = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "entity" / "eidolon" / "eidolon.json").read_text())
 STAGES = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "eidolon-stages.json").read_text())
 STAGE_CODES = [s["code"] for s in STAGES["stages"] if s["elements"]]
+WINCH_STAGES = make_shape.winch_stages()
+BUILD = [code for code, *_ in WINCH_STAGES] + ["spine"] + STAGE_CODES
 OFF = make_shape.OFF
+README = (MOD / "EidolonGantry" / "README.md").read_text()
+
+
+def part(pid):
+    return next(p for p in RIG["parts"] if p["id"] == pid)
 
 
 def matrix(pid, depth):
@@ -83,17 +94,16 @@ class Rig(unittest.TestCase):
         for p in RIG["parts"]:
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
-        self.assertEqual({p["requires"] for p in RIG["parts"]}, set(STAGE_CODES) | {None})
+        self.assertEqual({p["requires"] for p in RIG["parts"]}, set(BUILD) | {None})
         self.assertEqual(STAGE_CODES[0], "torso")
-        for pid in ("ring", "spine"):
-            part = next(p for p in RIG["parts"] if p["id"] == pid)
-            self.assertEqual((part["requires"], part["ride"]), (None, "hook"), pid)
+        self.assertEqual([p["id"] for p in RIG["parts"] if p["requires"] is None], ["frame"])
+        for pid, want in (("ring", "chain"), ("spine", "spine")):
+            self.assertEqual((part(pid)["requires"], part(pid)["ride"]), (want, "hook"), pid)
         staged = {n for st in STAGES["stages"] for n in st["elements"]}
         self.assertIn("spine-hook1", make_shape.spine_names())
         self.assertFalse(staged & make_shape.spine_names())
         for code in STAGE_CODES:
-            part = next(p for p in RIG["parts"] if p["id"] == code)
-            self.assertEqual((part["requires"], part["match"], part["ride"]), (code, [f"b_{code}_*"], "hook"))
+            self.assertEqual((part(code)["requires"], part(code)["match"], part(code)["ride"]), (code, [f"b_{code}_*"], "hook"))
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
@@ -113,13 +123,18 @@ class Rig(unittest.TestCase):
         self.assertEqual(SHAPE["textures"]["wood-end"], "game:block/wood/treetrunk/debarked/oak")
         self.assertNotIn("oak", SHAPE["textures"])
         wooden = ("fr_post", "fr_head", "fr_beam", "fr_hoist", "fr_sill", "fr_rail", "fr_knee", "fr_cheek",
-                  "ck_lantern_disc", "ck_lantern_stave", "ls_shaft", "ls_wheel", "ls_lantern_stave", "dr_shaft", "dr_wheel",
-                  "dr_drum", "ck_handle", "sv_hub")
+                  "dr_drum", "ck_handle", "sv_hub", "sv_flange")
+        # vanilla's wooden axles and spur gears are drawn as the game draws them, whatever the frame's wood
+        self.assertEqual(SHAPE["textures"]["mechanics"], "game:block/wood/planks/generic")
+        mechanics = ("ls_shaft", "dr_shaft", "ck_lantern_disc", "ck_lantern_stave", "ls_wheel", "ls_lantern_disc",
+                     "ls_lantern_stave", "dr_wheel")
         for e in SHAPE["elements"]:
             if e["name"].startswith(wooden):
                 self.assertLessEqual({f["texture"] for f in e["faces"].values()}, {"#wood", "#wood-end"}, e["name"])
+            if e["name"].startswith(mechanics):
+                self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#mechanics"}, e["name"])
         self.assertTrue(any(f["texture"] == "#wood-end" for e in FRAME["elements"] for f in e["faces"].values()))
-        for name in ("ck_ratchet_tooth1", "pw_pawl", "ck_lantern_hoop1_1", "ls_gudgeon1_1", "dr_collar2_1"):
+        for name in ("ck_ratchet_tooth1", "pw_pawl", "ck_lantern_hoop1_1", "ls_gudgeon1_1", "dr_collar2_1", "ck_shaft_1"):
             e = next(e for e in SHAPE["elements"] if e["name"] == name)
             self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#iron"}, name)
 
@@ -187,7 +202,7 @@ class Frame(unittest.TestCase):
     def test_the_front_is_open(self):
         # nothing of the gantry below the front beam between the front posts, across the front cell row
         z0, z1 = make_shape.Z_RIGHT[1], make_shape.Z_LEFT[0]
-        for el in posed_written(0.0, {"frame", "winch", "sheave", "lead"}):
+        for el in posed_written(0.0, {p["id"] for p in RIG["parts"] if p["ride"] != "hook"} - {"fall", "hook"}):
             lo, hi = el.aabb()
             if lo[0] < 16 and lo[2] < z1 - 0.01 and hi[2] > z0 + 0.01:
                 self.assertGreaterEqual(lo[1], 64.0, el.name)
@@ -202,7 +217,7 @@ class Frame(unittest.TestCase):
 
     def test_the_crank_is_outside_the_frame_in_a_hollow_cell(self):
         outer = make_shape.CELLS_Z * 16
-        els = {el.name: el for el in posed_written(0.0, {"crank", "pawl"})}
+        els = {el.name: el for el in posed_written(0.0, {p["id"] for p in RIG["parts"]})}
         for name in ("ck_web", "ck_handle", "ck_ratchet_tooth1", "pw_pawl"):
             self.assertGreater(els[name].aabb()[0][2], outer, name)
         # the crank's cell is in the footprint, reserving its room, but has no collision or selection boxes
@@ -212,8 +227,9 @@ class Frame(unittest.TestCase):
 
 class Winch(unittest.TestCase):
     def amounts(self):
-        return {p["id"]: next(d for d in p["drivers"] if d["type"] == "step")["amount"] for p in RIG["parts"]
-                if p["id"] in ("crank", "layshaft", "drum")}
+        names = {"crank": "crank", "layshaft": "layshaft", "drumshaft": "drum"}
+        return {names[p["id"]]: next(d for d in p["drivers"] if d["type"] == "step")["amount"] for p in RIG["parts"]
+                if p["id"] in names}
 
     def test_the_train_is_geared_by_its_tooth_counts(self):
         gearing = RIG["winch"]["gearing"]
@@ -225,19 +241,28 @@ class Winch(unittest.TestCase):
         self.assertAlmostEqual(a["layshaft"] / a["drum"], -5.0, places=4)
         self.assertAlmostEqual(a["drum"] * RIG["winch"]["drumRadius"], RIG["winch"]["drop"], places=5)
         self.assertGreater(a["crank"] / (2 * math.pi), 2.5)          # the crank turns several times over the let-down
-        for name, pid in (("ck_lantern_stave1_1", "crank"), ("ck_handle", "crank"), ("ck_ratchet_tooth1", "crank"),
-                          ("ls_wheel_cog1a", "layshaft"), ("ls_lantern_stave1_1", "layshaft"), ("ls_gudgeon1_1", "layshaft"),
-                          ("dr_wheel_cog1a", "drum"), ("dr_drum_1", "drum"), ("dr_gudgeon2_1", "drum"), ("pw_pawl", "pawl")):
+        for name, pid in (("ck_shaft_1", "crank"), ("ck_lantern_stave1_1", "cranklantern"), ("ck_handle", "crankarm"),
+                          ("ck_ratchet_tooth1", "ratchet"), ("ls_wheel_cog1a", "laygears"), ("ls_lantern_stave1_1", "laygears"),
+                          ("ls_gudgeon1_1", "layshaft"), ("ls_shaft1_1", "layshaft"), ("dr_wheel_cog1a", "drumwheel"),
+                          ("dr_drum_1", "drum"), ("dr_gudgeon2_1", "drumshaft"), ("dr_hoop1_1", "drumstraps"), ("pw_pawl", "pawl"),
+                          ("pm_pin_1", "pawlmount"), ("fr_iron_sheavepin_1", "frame")):
             self.assertEqual(rigmath.part_of(RIG["parts"], name), pid, name)
+        # what is fitted on a shaft rides it, turning with it at any depth
+        for shaft, riders in (("crank", ("cranklantern", "crankhoops", "ratchet", "crankarm")),
+                              ("layshaft", ("laygears", "laystraps")), ("drumshaft", ("drumwheel", "drum", "drumstraps", "coil"))):
+            for pid in riders:
+                self.assertEqual((part(pid)["ride"], part(pid)["drivers"]), (shaft, []), pid)
+                self.assertEqual(matrix(pid, 0.6), matrix(shaft, 0.6), pid)
 
     def test_meshing_centre_distances_are_the_pitch_radii(self):
-        written = {el.name: el for el in posed_written(0.0, {"crank", "layshaft", "drum"})}
+        written = {el.name: el for el in posed_written(0.0, {"crank", "layshaft", "drumshaft"})}
 
         def centre(prefix):
             lo = [min(el.aabb()[0][k] for n, el in written.items() if n.startswith(prefix)) for k in range(2)]
             hi = [max(el.aabb()[1][k] for n, el in written.items() if n.startswith(prefix)) for k in range(2)]
             return [(lo[k] + hi[k]) / 2 for k in range(2)]
-        pivots = {p["id"]: [v * 16 for v in p["drivers"][-1]["pivot"][:2]] for p in RIG["parts"] if p["id"] in ("crank", "layshaft", "drum")}
+        names = {"crank": "crank", "layshaft": "layshaft", "drumshaft": "drum"}
+        pivots = {names[p["id"]]: [v * 16 for v in p["drivers"][-1]["pivot"][:2]] for p in RIG["parts"] if p["id"] in names}
         for prefix, pid in (("ck_shaft", "crank"), ("ls_shaft", "layshaft"), ("dr_shaft", "drum")):
             for k in range(2):
                 self.assertAlmostEqual(centre(prefix)[k], pivots[pid][k], delta=0.01)
@@ -252,6 +277,46 @@ class Winch(unittest.TestCase):
         self.assertLess(d["to"], 0.01)
         hung = matrix("pawl", 0.0)
         self.assertEqual([row[:3] for row in hung[:3]], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+
+class Build(unittest.TestCase):
+    def test_the_winch_is_fitted_in_stages_after_the_frame(self):
+        codes = [code for code, *_ in WINCH_STAGES]
+        self.assertEqual(codes, ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain"])
+        fitted = {pid: code for code, _, _, pids in WINCH_STAGES for pid in pids}
+        for p in RIG["parts"]:
+            if p["id"] in fitted:
+                self.assertEqual(p["requires"], fitted[p["id"]], p["id"])
+        # the frame alone is the frame part and nothing else; each stage adds elements
+        self.assertEqual({rigmath.part_of(RIG["parts"], e["name"]) for e in FRAME["elements"]}, {"frame"})
+        for code in BUILD:
+            self.assertTrue(any(rigmath.part_of(RIG["parts"], e["name"]) in {p["id"] for p in RIG["parts"] if p["requires"] == code}
+                                for e in SHAPE["elements"]), code)
+
+    def test_each_part_comes_after_what_it_is_fitted_onto(self):
+        need = {"cranklantern": "crank", "laygears": "layshaft", "drumwheel": "drumshaft", "drum": "drumshaft",
+                "ratchet": "crank", "crankarm": "ratchet", "coil": "drum", "lead": "sheave", "spine": "ring", "torso": "spine"}
+        for pid, under in need.items():
+            self.assertLessEqual(BUILD.index(part(under)["requires"]), BUILD.index(part(pid)["requires"]), pid)
+        self.assertLess(BUILD.index("chain"), BUILD.index("spine"))
+        self.assertLess(BUILD.index("spine"), BUILD.index(STAGE_CODES[0]))
+
+    def test_the_stage_items_are_plain_existing_items(self):
+        items = {code: (item, count) for code, item, count, _ in WINCH_STAGES}
+        self.assertEqual(items["axles"], ("game:woodenaxle-ud", 8))         # one a block of the two wooden shafts
+        self.assertEqual(items["gears"], ("game:spurgear-s", 4))            # two lanterns and two wheels
+        self.assertEqual(items["chain"][0], "game:metalchain-{metal}")
+        for code, (item, count) in items.items():
+            self.assertTrue(item.startswith("game:") and count >= 1, code)
+
+    def test_the_readme_holds_the_generators_stages(self):
+        rows = re.findall(r"^\| (\d+) \| `(\w+)` \| (\d+) × `([^`]+)`", README, re.M)
+        self.assertEqual([(code, int(count), item) for _, code, count, item in rows if code in dict((c, 1) for c, *_ in WINCH_STAGES)],
+                         [(code, count, item) for code, item, count, _ in WINCH_STAGES])
+        beams = len(make_shape.frame_timbers([make_shape.El(e["name"], [1, 1, 1], [0, 0, 0], [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                                                              e["faces"], "frame") for e in FRAME["elements"]]))
+        self.assertEqual(beams, 24)
+        self.assertIn(f"| {beams} × `game:supportbeam-{{wood}}`", README)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,10 +16,23 @@ from machinegen.geometry import El, aabb_of, flatten, rotate
 from machinegen.rigmath import part_of, posed
 
 TOL = 0.01                                    # voxels: the baked body against kin's hung pose, the floor
-WINCH = ("crank", "layshaft", "drum", "pawl")                           # the winch's moving parts
+# the train's three shafts, each the part that turns and the parts fitted on it in later stages, riding it
+TRAIN = {"crank": ("crank", "cranklantern", "crankhoops", "ratchet", "crankarm"),
+         "layshaft": ("layshaft", "laygears", "laystraps"),
+         "drum": ("drumshaft", "drumwheel", "drum", "drumstraps", "coil")}
+WINCH = (*(pid for pids in TRAIN.values() for pid in pids), "pawl", "pawlmount")   # the winch but the sheave and chains
 GANTRY = ("frame", *WINCH, "sheave", "lead", "fall", "hook", "ring")    # made for the gantry (the spine is vanilla's)
 FIXED = ("frame", *WINCH, "sheave", "lead", "fall", "hook")             # what nothing hung may touch
-OUTSIDE = ("ck_web", "ck_handle", "ck_ratchet", "pw_", "fr_iron_pawl")  # the crank, its ratchet and pawl, outside the frame
+OUTSIDE = ("ck_web", "ck_handle", "ck_ratchet", "pw_", "pm_")           # the crank, its ratchet and pawl, outside the frame
+# What each part is fitted onto: it may not come in an earlier stage than these (the same stage is fine). A gear
+# needs its shaft, the drum its shaft, a band what it binds, the ratchet and the crank the crank shaft (the ratchet
+# slid on before the crank's web), the pawl its pin, the chain the drum and the sheave, the spine the chain's ring,
+# and the body the spine.
+NEEDS = {"cranklantern": ("crank",), "laygears": ("layshaft",), "drumwheel": ("drumshaft",), "drum": ("drumshaft",),
+         "crankhoops": ("cranklantern",), "laystraps": ("layshaft", "laygears"), "drumstraps": ("drumshaft", "drum"),
+         "ratchet": ("crank",), "pawl": ("pawlmount", "ratchet"), "crankarm": ("crank", "ratchet"),
+         "coil": ("drum",), "lead": ("drum", "sheave", "coil"), "fall": ("sheave", "lead"), "hook": ("fall",),
+         "ring": ("hook",), "spine": ("ring",)}
 MESH_LIMIT = 0.25                             # voxels: cogs and staves run into each other this far at most (box cogs, octagon staves)
 ENGAGE = 0.4                                  # voxels: at every moment a stave of each lantern is this close to a cog of its wheel at most
 
@@ -74,7 +87,7 @@ def check_baked(v, body_shape):
 
 def check_stages(v, body_shape, stages):
     """Every drawn element of the eidolon is in the gantry once, in its stage's part, and the spine's in the
-    spine part; the spine and the ring over its top peg are there from the start, needing nothing; after every
+    spine part; the ring over its top peg comes with the chain and the spine with its own stage; after every
     stage what hangs so far, the spine and the body, is one piece (the eidolon's own rule, with the spine
     there from the first: the torso, the first stage, is clamped to it, and comes before the pelvis it hangs
     from in the shape's hierarchy, which the baked pose makes harmless; nothing may float); and the torso is
@@ -101,10 +114,10 @@ def check_stages(v, body_shape, stages):
             v.fail(f"after {s['code']} the spine and body are in {len(tops)} pieces, from {tops[:6]}")
     if "spine-hook1" not in spine:
         v.fail("the spine's peg (spine-hook1) is not the spine's")
-    for pid in ("ring", "spine"):
+    for pid, want in (("ring", "chain"), ("spine", v.m.SPINE_STAGE)):
         part = next(p for p in v.parts if p["id"] == pid)
-        if part["requires"] is not None or part["ride"] != "hook":
-            v.fail(f"the {pid} needs {part['requires']!r} and rides {part['ride']!r}: it is the gantry's, there from the start, on the hook")
+        if part["requires"] != want or part["ride"] != "hook":
+            v.fail(f"the {pid} needs {part['requires']!r} and rides {part['ride']!r}: it comes with {want!r}, on the hook")
     first = v.m.body_codes(stages)[0]
     clamps = touching(v.posed([first], 0.0), v.posed(["spine"], 0.0))
     print(f"the {first} on the spine: {len(clamps)} contacts, the spine's {sorted({b for _, b in clamps})}")
@@ -112,6 +125,90 @@ def check_stages(v, body_shape, stages):
         v.fail(f"the first stage, {first}, does not touch the spine it is clamped to")
     counts = {code: len(v.by_part.get(code, [])) for code in [*v.m.body_codes(stages), "spine"]}
     print(f"stages: {counts}; {len(have)} of {len(rig.order)} eidolon and spine elements (left out, no drawn face: {faceless})")
+
+
+def joined(a, b, la, lb, aligned_a, aligned_b):
+    """Whether two elements hold each other: machinegen's frame_floating rule (a shared face between two
+    axis-aligned boxes, else an overlap)."""
+    ov = [min(la[1][k], lb[1][k]) - max(la[0][k], lb[0][k]) for k in range(3)]
+    if min(ov) < -0.02:
+        return False
+    if aligned_a and aligned_b:
+        return sum(o > 0.05 for o in ov) >= 2
+    return obb_obb(a, b, eps=-0.03)
+
+
+def stage_floating(groups, ground=0.01):
+    """Each stage's elements (`groups`: [(stage, elements)], in build order) joined to the ground through what is
+    already there and itself: {stage: the names of its elements that float}. An element of an earlier stage is
+    never held up by a later one."""
+    placed, boxes, aligned, seen, out = [], [], [], [], {}
+    for stage, els in groups:
+        new = list(range(len(placed), len(placed) + len(els)))
+        for el in els:
+            placed.append(el)
+            boxes.append(el.aabb())
+            aligned.append(all(el.local_axis_for(k) is not None for k in range(3)))
+            seen.append(False)
+        todo = []
+        for j in new:
+            if boxes[j][0][1] <= ground or any(seen[i] and joined(placed[i], placed[j], boxes[i], boxes[j], aligned[i], aligned[j])
+                                               for i in range(new[0]) if seen[i]):
+                seen[j] = True
+                todo.append(j)
+        while todo:
+            i = todo.pop()
+            for j in new:
+                if not seen[j] and joined(placed[i], placed[j], boxes[i], boxes[j], aligned[i], aligned[j]):
+                    seen[j] = True
+                    todo.append(j)
+        out[stage] = sorted(placed[j].name for j in new if not seen[j])
+    return out
+
+
+def check_build(v, stages):
+    """The build: the frame needs nothing; every other part needs one value, the winch's stages in their order, then
+    the spine, then the body's stages; nothing comes before what it is fitted onto (NEEDS); and every step can be
+    built, nothing floating: at rest, the frame and each winch stage in turn joined to the ground through what is
+    already there (a gear through its shaft, the drum through its shaft, the chain through the drum and the sheave),
+    the spine hung on the ring and the torso clamped to the spine (check_stages)."""
+    m = v.m
+    order = m.build_order(stages)
+    staged = m.stage_of_part()
+    req = {p["id"]: p["requires"] for p in v.parts}
+    bad = [(pid, r) for pid, r in req.items() if r != (None if pid == "frame" else staged.get(pid, pid))]
+    if bad:
+        v.fail(f"parts needing the wrong stage: {bad[:6]}")
+    if sorted({r for r in req.values() if r}, key=order.index) != order:
+        v.fail(f"stages with no part: {sorted(set(order) - set(req.values()))}")
+    late = [(pid, need) for pid, needs in [*NEEDS.items(), (m.body_codes(stages)[0], ("spine",))] for need in needs
+            if order.index(req[need]) > order.index(req[pid])]
+    if late:
+        v.fail(f"parts fitted before what they are fitted onto: {late}")
+    groups = [("frame", v.posed(["frame"], 0.0))]
+    for code, _, _, pids in m.winch_stages():
+        groups.append((code, v.posed(list(pids), 0.0)))
+    loose = {k: n for k, n in stage_floating(groups).items() if n}
+    hung = {(a.name, b.name) for a in v.posed(["spine"], 0.0) for b in v.posed(["ring"], 0.0)
+            if obb_obb(a, b, eps=-0.02)}            # resting on it: touching, not in it
+    print("build: " + " > ".join(f"{code} ({len(els)})" for code, els in groups) + f" > spine on the ring {sorted(hung)}"
+          + f" > {' > '.join(m.body_codes(stages))}; floating: {loose or 'nothing'}")
+    if loose:
+        v.fail(f"a stage of the build floats: {loose}")
+    if not hung:
+        v.fail("the spine does not hang on the ring")
+    for code, item, count, pids in m.winch_stages():
+        if count < 1 or not item.startswith("game:"):
+            v.fail(f"stage {code} takes {count} of {item}")
+    timbers = m.frame_timbers(v.by_part["frame"])
+    straps = {re.sub(r"_\d+$", "", el.name) for pid in ("crankhoops", "laystraps", "drumstraps") for el in v.by_part[pid]}
+    axles = sum(1 for pid in ("layshaft", "drumshaft") for el in v.by_part[pid] if re.search(r"_shaft\d+_1$", el.name))
+    want = {c: n for c, _, n, _ in m.winch_stages()}
+    print(f"build counts: {len(timbers)} timbers in the frame (a support beam each), {axles} axle lengths "
+          f"(axles {want['axles']}), {len(straps)} iron bands (strapping {want['strapping']}), the chain "
+          f"{m.chain_length() / m.B:.2f} blocks (chain {want['chain']})")
+    if axles != want["axles"] or len(straps) != want["strapping"] or m.frame_recipe(v.by_part["frame"])["beams"][1] != len(timbers):
+        v.fail("a stage's count is not what the model has")
 
 
 def check_floor(v, stages):
@@ -146,31 +243,35 @@ def check_containment(v):
 
 
 def train(m):
-    """The gear train: (part, axis (x, y), its turn per turn of the crank), the crank first."""
+    """The gear train: (shaft, axis (x, y), its turn per turn of the crank), the crank first."""
     k = m.PINION_TEETH / m.WHEEL_TEETH
     return (("crank", m.CRANK_AXIS, 1.0), ("layshaft", m.LAY, -k), ("drum", m.DRUM, k * k))
 
 
+RUNS_IN_BEARINGS = re.compile(r"^(ck_shaft|\w\w_gudgeon)")   # what runs in the frame's bearings and pillow block
+
+
 def turned_train(v, crank_deg, shafts=False):
-    """The train's elements turned as the crank turns `crank_deg` from rest (shafts left out unless asked:
-    they run in their bearings)."""
+    """The train's elements by shaft, turned as the crank turns `crank_deg` from rest (the crank shaft and the
+    gudgeons left out unless asked: they run in the frame's bearings)."""
     m = v.m
     zc = m.BODY_AT[2]
     out = {}
-    for pid, c, share in train(m):
-        els = [el.clone() for el in v.by_part[pid] if shafts or not re.match(r"^\w\w_(shaft|gudgeon)", el.name)]
+    for shaft, c, share in train(m):
+        els = [el.clone() for pid in TRAIN[shaft] for el in v.by_part[pid] if shafts or not RUNS_IN_BEARINGS.match(el.name)]
         rotate(els, "z", crank_deg * share, (c[0], c[1], zc))
-        out[pid] = els
+        out[shaft] = els
     return out
 
 
 def check_crank(v):
     """The crank is outside the frame, where a player can work it, and the train turns free: through a full
-    turn of the crank (the layshaft and the drum turning by the tooth counts) no gear, the drum, the ratchet or
-    the crank touches the frame or the thrown-off pawl, no two shafts' parts touch but meshing teeth, and the
-    crank, its ratchet and handle stay south of the frame's outer face, in the crank's cell."""
+    turn of the crank (the layshaft and the drum turning by the tooth counts) no gear, axle, the drum, the ratchet or
+    the crank touches the frame, the pawl's mount or the thrown-off pawl, no two shafts' parts touch but meshing
+    teeth (the shafts and gudgeons included), and the crank, its ratchet and handle stay south of the frame's outer
+    face, in the crank's cell."""
     m = v.m
-    frame = v.by_part["frame"]
+    frame = v.by_part["frame"] + v.by_part["pawlmount"]
     pawl = v.posed(["pawl"], 1.0)
     cx, cy, cz = m.CRANK_CELL
     cell = ((cx * m.B, cy * m.B, cz * m.B), ((cx + 1) * m.B, (cy + 1) * m.B, (cz + 1) * m.B))
@@ -179,6 +280,7 @@ def check_crank(v):
         t = turned_train(v, float(deg))
         every = [el for els in t.values() for el in els]
         hits |= touching(every, frame) | touching(every, pawl)
+        t = turned_train(v, float(deg), shafts=True)
         cross |= {h for h in touching(t["crank"], t["drum"])}
         cross |= {h for a, b in (("crank", "layshaft"), ("layshaft", "drum"))
                   for h in touching(t[a], t[b]) if not meshing(*h)}
@@ -186,7 +288,7 @@ def check_crank(v):
             if el.name.startswith(OUTSIDE):
                 lo, hi = el.aabb()
                 out = max(out, max(max(cell[0][k] - lo[k], hi[k] - cell[1][k]) for k in range(3)))
-    handle = next(el for el in v.by_part["crank"] if el.name == "ck_handle")
+    handle = next(el for el in v.by_part["crankarm"] if el.name == "ck_handle")
     print(f"crank: a full turn touches {len(hits)} frame or pawl elements and {len(cross)} pairs across shafts but "
           f"meshing teeth; the crank out of its cell by {out:.2f}; the handle at z {handle.aabb()[0][2]:.1f}.."
           f"{handle.aabb()[1][2]:.1f} (the frame's outer face at {m.CELLS_Z * m.B:.0f})")
@@ -196,7 +298,7 @@ def check_crank(v):
         v.fail(f"the train's shafts touch each other but at the teeth: {sorted(cross)[:6]}")
     if out > 0.01:
         v.fail("the crank leaves its cell as it turns")
-    inside = sorted(el.name for pid in ("crank", "pawl") for el in v.by_part[pid]
+    inside = sorted(el.name for pid in (*TRAIN["crank"], "pawl", "pawlmount") for el in v.by_part[pid]
                     if el.name.startswith(OUTSIDE) and el.aabb()[0][2] < m.CELLS_Z * m.B - 0.01)
     if inside:
         v.fail(f"parts of the crank or the pawl are inside the frame: {inside}")
@@ -236,8 +338,13 @@ def check_gearing(v, rig):
     m = v.m
     errs = [abs(m.R_PINION - m.MODULE * m.PINION_TEETH / 2), abs(m.R_WHEEL - m.MODULE * m.WHEEL_TEETH / 2),
             abs(math.dist(m.CRANK_AXIS, m.LAY) - m.MESH), abs(math.dist(m.LAY, m.DRUM) - m.MESH)]
-    amount = {p["id"]: next(d["amount"] for d in p["drivers"] if d["type"] == "step") for p in rig["parts"]
-              if p["id"] in ("crank", "layshaft", "drum")}
+    shafts = {TRAIN[k][0]: k for k in TRAIN}
+    amount = {shafts[p["id"]]: next(d["amount"] for d in p["drivers"] if d["type"] == "step") for p in rig["parts"]
+              if p["id"] in shafts}
+    riders = [p["id"] for p in rig["parts"] if p["id"] in WINCH and p["id"] not in shafts and p["id"] not in ("pawl", "pawlmount")
+              and (p["ride"] != next(TRAIN[k][0] for k in TRAIN if p["id"] in TRAIN[k]) or p["drivers"])]
+    if riders:
+        v.fail(f"parts fitted on a shaft that do not ride it alone: {riders}")
     k = m.WHEEL_TEETH / m.PINION_TEETH
     ratio_errs = [abs(amount["crank"] / amount["layshaft"] + k), abs(amount["layshaft"] / amount["drum"] + k),
                   abs(amount["crank"] / amount["drum"] - m.RATIO), abs(amount["drum"] * m.DRUM_R - m.drop())]
@@ -297,7 +404,7 @@ def check_ratchet(v):
     m = v.m
     nose, _, _, _ = m.pawl_geometry()
     r = math.dist(nose, m.CRANK_AXIS)
-    ratchet = [el for el in v.by_part["crank"] if el.name.startswith("ck_ratchet")]
+    ratchet = v.by_part["ratchet"]
     zc = m.BODY_AT[2]
     pivot = (m.CRANK_AXIS[0], m.CRANK_AXIS[1], zc)
     if not m.RATCHET_R[0] < r < m.RATCHET_R[1]:
@@ -308,7 +415,7 @@ def check_ratchet(v):
     depths = [i * m.PAWL_LIFT_TO / 20 for i in range(41)] + [0.25, 0.5, 0.75, 1.0]
     hits = set()
     for dpt in depths:
-        hits |= touching(v.posed(["crank"], dpt), v.posed(["pawl"], dpt))
+        hits |= touching(v.posed(list(TRAIN["crank"]), dpt), v.posed(["pawl"], dpt))
     print(f"ratchet: {m.RATCHET_TEETH} teeth, the pawl's nose at radius {r:.2f} (root {m.RATCHET_R[0]}, tip {m.RATCHET_R[1]}); "
           f"turned the let-down way it {'runs into' if blocks else 'misses'} the pawl; thrown off over depth 0..{m.PAWL_LIFT_TO}: "
           f"{len(hits)} contacts")
@@ -444,15 +551,15 @@ def check_supports(v):
         return [el.aabb() for el in v.by_part[pid] if el.name.startswith(prefix)][0]
     def gudgeons(pid, prefix):
         return aabb_of([el for el in v.by_part[pid] if el.name.startswith(prefix)])
-    crank, lay, axle = shaft("crank", "ck_shaft"), gudgeons("layshaft", "ls_gudgeon"), gudgeons("drum", "dr_gudgeon")
-    pin = [el.aabb() for el in v.by_part["sheave"] if el.name.startswith("sv_pin")][0]
+    crank, lay, axle = shaft("crank", "ck_shaft"), gudgeons("layshaft", "ls_gudgeon"), gudgeons("drumshaft", "dr_gudgeon")
+    pin = aabb_of([el for el in v.by_part["frame"] if el.name.startswith("fr_iron_sheavepin")])
     left = [c for c in cheeks if c.startswith("fr_cheek_l")]
     for name, s, holders, through in (("crank shaft", crank, ["fr_bearing_ckl", "fr_bearing_post"], left),
                                       ("layshaft", lay, ["fr_bearing_lsr", "fr_bearing_lsl"], cheeks),
                                       ("drum's shaft", axle, ["fr_bearing_drr", "fr_bearing_drl"], cheeks)):
         if not held(s, holders) or not all(s[0][2] < frame[c][1][2] and frame[c][0][2] < s[1][2] for c in through):
             v.fail(f"the {name} does not run in its bearings ({', '.join(holders)}) and through its cheeks")
-    for pid, pre in (("layshaft", "ls_"), ("drum", "dr_")):
+    for pid, pre in (("layshaft", "ls_"), ("drumshaft", "dr_")):
         wood = aabb_of([el for el in v.by_part[pid] if el.name.startswith(pre + "shaft")])
         for g in ("1", "2"):
             gl, gh = aabb_of([el for el in v.by_part[pid] if el.name.startswith(f"{pre}gudgeon{g}_")])
@@ -461,12 +568,15 @@ def check_supports(v):
     pb = frame["fr_bearing_post"]
     if not all(pb[0][k] < crank[0][k] and crank[1][k] < pb[1][k] for k in (0, 1)) or crank[1][2] <= v.m.CELLS_Z * v.m.B:
         v.fail("the crank shaft does not pass through the pillow block and out of the frame to the crank")
-    pp = aabb_of([el for el in v.by_part["frame"] if el.name.startswith("fr_iron_pawlpin")])
+    pp = aabb_of([el for el in v.by_part["pawlmount"] if el.name.startswith("pm_pin")])
     pawl = v.by_part["pawl"][0].aabb()
     if not (pp[0][2] < pawl[0][2] and pawl[1][2] < pp[1][2]):
         v.fail("the pawl is not on its pin")
     if not held(pin, ["fr_hanger1", "fr_hanger2"]):
         v.fail("the sheave's pin does not run in both hangers")
+    hub = aabb_of([el for el in v.by_part["sheave"] if el.name.startswith("sv_hub")])
+    if not (pin[0][2] < hub[0][2] and hub[1][2] < pin[1][2]):
+        v.fail("the sheave does not turn on its pin")
 
 
 def check_exit(v, body_shape):
@@ -516,10 +626,11 @@ WOOD = {"wood", "wood-end"}                    # the gantry's wood-variant codes
 ROLES = [
     (r"^fr_(post|head|beam|hoist|sill|rail|knee|cheek)", WOOD),
     (r"^fr_(iron|bearing|hanger)", {"iron"}),
-    (r"^ck_(shaft|ratchet|web)|^pw_|^\w\w_(lantern_hoop|gudgeon|collar)|^dr_hoop", {"iron"}),
-    (r"^ck_handle|^\w\w_(lantern_(disc|stave)|wheel_|shaft)|^dr_drum", WOOD),
+    (r"^ck_(shaft|ratchet|web)|^pw_|^pm_|^\w\w_(lantern_hoop|gudgeon|collar)|^dr_hoop", {"iron"}),
+    (r"^\w\w_(lantern_(disc|stave)|wheel_|shaft\d)", {"mechanics"}),   # vanilla's axles and spur gears, as the game draws them
+    (r"^ck_handle|^dr_drum", WOOD),
     (r"^dr_coil|^ld_|^fl_", {"chain"}),
-    (r"^sv_pin|^hk_|^rg_", {"iron"}),
+    (r"^hk_|^rg_", {"iron"}),
     (r"^sv_(hub|flange)", WOOD),
 ]
 
@@ -533,7 +644,7 @@ def check_textures(v):
         rule = next((want for rx, want in ROLES if re.match(rx, el.name)), None)
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
-    if set(v.m.WOOD_CODES) != WOOD or not WOOD <= set(v.m.GANTRY_TEXTURES):
+    if set(v.m.WOOD_CODES) != WOOD or not WOOD <= set(v.m.GANTRY_TEXTURES) or v.m.MECHANICS not in v.m.GANTRY_TEXTURES:
         bad.append(("wood codes", sorted(v.m.WOOD_CODES), sorted(WOOD)))
     ends = sum(1 for el in v.els if el.part in GANTRY for f in el.faces.values() if f["texture"] == "#wood-end")
     print(f"textures by role: {sum(el.part in GANTRY for el in v.els) - len(bad)} gantry elements as their role says, "
@@ -557,6 +668,7 @@ def validate(m, els, parts, rig, body_shape, stages):
     check_basic(v)
     check_baked(v, body_shape)
     check_stages(v, body_shape, stages)
+    check_build(v, stages)
     check_floor(v, stages)
     check_containment(v)
     check_crank(v)
