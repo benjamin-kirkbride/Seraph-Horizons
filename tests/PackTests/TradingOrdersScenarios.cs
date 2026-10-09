@@ -99,7 +99,9 @@ public partial class TradingScenarios
         var sp = (IServerPlayer)p.Player;
         string id = Id(trader);
         Assert.True((await World.ExecuteCommand($"/sh trade standing set {sp.PlayerName} {id} 300")).Ok);
-        var order = Orders.Book.OpenAt(id).First(o => o.State == OrderState.Offered);
+        // Not a bag: given to the player it would go into a worn bag slot, which a hand-in never takes.
+        var order = Orders.Book.OpenAt(id).First(o => o.State == OrderState.Offered
+            && TraderFinder.Collectible(W, o.Item)?.GetCollectibleInterface<IHeldBag>() is null);
         Assert.True(trader.BeginTrade(sp));
         // The window shows the offer at the player's own tier: a regular, n = 3.
         var (qty, payout) = OrderPlanner.Terms(order, 3, Orders.MaxStackOf(order.Item));
