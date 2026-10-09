@@ -147,8 +147,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.Path == "rod-*" && i.Quantity == 2));
         Assert.Single(frame.ResolvedIngredients!, i => i?.Code?.Path == "metalnailsandstrips-*" && i.Quantity == 12);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "game:log-placed-oak-ud");
-        // 2 steel gears for the gearing the frame carries (the rectifier, the return shaft and barrel gears)
-        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-steel" && i.Quantity == 2);
+        // 2 stainless gears for the gearing the frame carries (the rectifier, the return shaft and barrel gears)
+        Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 2);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
         // the anvil: each die from two ingots of its metal (over one ingot's 42 voxels), not for the helve hammer
         foreach (var (die, metal) in new[] { (DrawBenchParts.DieIronCode, "iron"), (DrawBenchParts.DieSteelCode, "steel") })

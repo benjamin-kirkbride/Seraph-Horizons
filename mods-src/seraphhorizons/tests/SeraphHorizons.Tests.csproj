@@ -139,7 +139,7 @@
     <None Include="../assets/seraphhorizons/itemtypes/gear.json" Link="gear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/largegear.json" Link="largegear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/cooking/gear-degrease.json" Link="gear-degrease-recipes.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../assets/seraphhorizons/itemtypes/gear-steel-bare.json" Link="gear-steel-bare-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/recipes/barrel/gear-neutralize.json" Link="gear-neutralize-recipes.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The gear codes' readers, which must take them from GearCodes rather than spell them out. -->
     <None Include="../GearConsumers.cs;../PicklingTub/Core/TubConfig.cs" Link="gear-code-readers/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- The pickling tub (#476) and the brine bath (#482): rules, batches, loss. -->

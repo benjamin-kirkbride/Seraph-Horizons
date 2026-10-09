@@ -12,19 +12,19 @@ using C = SeraphHorizons.Mod.PicklingTub.Core.PicklingTubConfig;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
-/// mods-src/seraphhorizons/PicklingTub: the pickling tub (#476) and its brine bath (#482), with the
-/// default <c>PicklingTubSettings</c>. A player pours liquids in and gears in and takes them out by
+/// mods-src/seraphhorizons/PicklingTub: the pickling tub (#476), which pickles degreased gears and
+/// passivates pickled ones in nitric acid, with the default <c>PicklingTubSettings</c>. A player pours liquids in and gears in and takes them out by
 /// right-clicks, through the block's <c>OnBlockInteractStart</c> as the game calls it. The clock is
 /// the world's, which a scenario must not move, so a batch is aged by moving its start back
 /// (<see cref="BEPicklingTub.Batch"/>): the tub reads its batch from the time alone.
 /// <para>Its own class on the plain world rather than a part of <see cref="SharedWorldScenarios"/>:
-/// it joins nine players, and the shared world already has fourteen of the server's sixteen.</para>
+/// it joins seven players, and the shared world already has fourteen of the server's sixteen.</para>
 /// </summary>
 [AtlasWorld]
 public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     private const string Tub = "seraphhorizons:picklingtub";
-    private const string LargeGear = GearCodes.LargeSteel;
+    private const string LargeGear = GearCodes.LargeStainless;
     private IWorldAccessor W => World.Api.World;
 
     private sealed class Site(PicklingTubScenarios s, BlockPos pos, IPlayer player)
@@ -122,20 +122,18 @@ public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private static TubRuleConfig RuleFor(BEPicklingTub tub) => tub.Rule ?? throw new Xunit.Sdk.XunitException("the batch has no rule");
 
     [AtlasScenario]
-    public void The_tub_its_recipe_and_the_bare_gear_exist()
+    public void The_tub_and_its_recipe_exist_and_brine_and_the_bare_gear_do_not()
     {
         Assert.True(W.GetBlock(new AssetLocation(Tub)) is { Id: > 0 }, "no tub");
         var recipe = Assert.Single(W.GridRecipes, r => r.Output.Code?.ToString() == Tub && r.Enabled);
         Assert.Contains(recipe.ResolvedIngredients, i => i?.Code?.ToString() == "immersivewoodworking:barktar" && i.Quantity == 2);
-        var bare = W.GetItem(new AssetLocation(C.SteelBare));
-        Assert.NotNull(bare);
-        Assert.True(bare!.Attributes["seraphhorizonsFlashRust"].AsBool());
-        var perish = Assert.Single(bare.TransitionableProps!, t => t.Type == EnumTransitionType.Perish);
-        Assert.Equal(C.Rusty, perish.TransitionedStack.Code.ToString());
-        // The liquids and items the default rules name exist in the pack.
-        foreach (var code in new[] { C.Vinegar, C.Sulfuric, C.Hydrochloric, C.Brine, C.Bits, C.Rusty, C.Steel, C.Degreased, C.Pickled })
+        // The liquids and items the default rules name exist in the pack (nitric acid by Expanded Matter).
+        foreach (var code in new[] { C.Vinegar, C.Sulfuric, C.Hydrochloric, C.Nitric, C.Bits, C.Degreased, C.Pickled, C.Passivated })
             Assert.True(W.GetItem(new AssetLocation(code)) != null, $"no {code}");
         Assert.Empty(PicklingTubSystem.Of(World.Api).Config.Sanitise());
+        // Stainless does not rust: no brine bath and no bare steel gear (#484's stainless rework).
+        Assert.False(PicklingTubSystem.Of(World.Api).Rules.IsLiquid("game:brineportion"));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:gear-steel-bare")));
     }
 
     [AtlasScenario]
@@ -190,7 +188,7 @@ public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
-    public async Task Left_too_long_the_acid_eats_the_batch_to_steel_bits_a_gear_at_a_time()
+    public async Task Left_too_long_the_acid_eats_the_batch_to_stainless_bits_a_gear_at_a_time()
     {
         var site = await Build("overpickler", 330);
         Assert.True(site.RightClick(site.BucketOf(C.Sulfuric, 500)));
@@ -207,7 +205,7 @@ public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(site.RightClick(site.Stack(C.Degreased, 8)));
         site.Age(100);
         Assert.Equal(TubPhase.Dissolved, tub.Stage!.Value.Phase);
-        Assert.Contains("Nothing left but steel bits", site.Info());
+        Assert.Contains("Nothing left but stainless bits", site.Info());
         site.TakeOut();
         Assert.Equal(0, site.Count(C.Pickled));
         Assert.Equal(8, site.Count(C.Bits));
@@ -215,100 +213,77 @@ public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     [AtlasScenario]
-    public async Task Brine_rusts_steel_gears_in_days_and_bare_ones_in_hours()
+    public async Task Nitric_acid_passivates_pickled_gears_and_eats_them_left_too_long()
     {
-        var site = await Build("rustbather", 340);
-        Assert.True(site.RightClick(site.BucketOf(C.Brine, 1000)));
+        var site = await Build("passivator", 340);
+        Assert.True(site.RightClick(site.BucketOf(C.Nitric, 1000)));
         var tub = site.Tub;
+        Assert.Equal(10, tub.FreeLitres, 3);
 
-        // The slow way: steel gears, two days.
-        Assert.True(site.RightClick(site.Stack(C.Steel, 8)));
-        Assert.Equal(48, RuleFor(tub).Hours);
-        Assert.Equal(0.1, RuleFor(tub).LossChance);
-        site.Age(24);
-        Assert.Contains("rusting: 50%", site.Info());
-        site.Age(24);
-        Assert.True(tub.Stage!.Value.Finished);
-        Assert.Contains("rusted through", site.Info());
-        int lost = tub.Stage!.Value.Lost;
-        // Rusty gears are left alone however long they lie in brine: none are eaten by time.
-        Assert.Equal(0, RuleFor(tub).LossEveryHours);
-        site.Age(1000);
-        Assert.Equal(lost, tub.Stage!.Value.Lost);
+        // Degreased gears are not for nitric acid: they are pickled first.
+        Assert.True(site.RightClick(site.Stack(C.Degreased, 4)));
+        Assert.Equal(4, site.Hand.StackSize);
+        Assert.Null(tub.Batch);
+
+        Assert.True(site.RightClick(site.Stack(C.Pickled, 8)));
+        var rule = RuleFor(tub);
+        Assert.Equal(C.Passivated, rule.Output);
+        Assert.Equal(TubRuleKind.Passivate, rule.Kind);
+        Assert.Equal(6, rule.Hours);
+        Assert.Equal(3, rule.GraceHours);
+        Assert.Equal(1, rule.LossEveryHours);
+        Assert.Equal(C.Bits, rule.Failure);
+        site.Age(3);
+        Assert.Contains("passivating: 50%", site.Info());
+        site.Age(3);
+        Assert.Equal(TubPhase.Done, tub.Stage!.Value.Phase);
+        Assert.Contains("gone passive", site.Info());
         site.TakeOut();
-        Assert.Equal(8 - lost, site.Count(C.Rusty));
-        Assert.Equal(lost, site.Count(C.Bits));
+        Assert.Equal(8, site.Count(C.Passivated));
+        Assert.Equal(9, tub.FreeLitres, 3);
 
-        // The quick way: a short dip in acid takes steel gears bare, and brine rusts those in hours.
-        var acid = await Build("rustdipper", 350);
-        Assert.True(acid.RightClick(acid.BucketOf(C.Hydrochloric, 200)));
-        Assert.True(acid.RightClick(acid.Stack(C.Steel, 8)));
-        Assert.Equal(C.SteelBare, RuleFor(acid.Tub).Output);
-        acid.Age(RuleFor(acid.Tub).Hours);
-        acid.TakeOut();
-        Assert.Equal(8, acid.Count(C.SteelBare));
-
-        Assert.True(site.RightClick(site.Stack(C.SteelBare, 8)));
-        Assert.Equal(4, RuleFor(tub).Hours);
-        site.Age(4);
-        lost = tub.Stage!.Value.Lost;
+        // Past done and the grace, a gear an hour goes to a stainless bit: 2 hours on, three are gone.
+        Assert.True(site.RightClick(site.Stack(C.Pickled, 8)));
+        site.Age(rule.Hours + rule.GraceHours + 2);
+        Assert.Equal(new TubStage(TubPhase.Eating, 1, 0, 5, 3), tub.Stage);
+        Assert.Contains("gone to stainless bits", site.Info());
         site.TakeOut();
-        Assert.Equal(8 - lost, site.Count(C.Rusty));
-        Assert.Equal(lost, site.Count(C.Bits));
-        Assert.Equal(8, tub.FreeLitres, 3);
-    }
-
-    [AtlasScenario]
-    public async Task About_one_brine_rusted_gear_in_ten_over_rusts_to_bits()
-    {
-        var site = await Build("rustsampler", 360);
-        int rusty = 0, bits = 0;
-        for (int i = 0; i < 40; i++)
-        {
-            if (site.Tub.FreeLitres < 1)
-                Assert.True(site.RightClick(site.BucketOf(C.Brine, 1000)));
-            Assert.True(site.RightClick(site.Stack(C.SteelBare, 8)));
-            site.Age(4);
-            site.TakeOut();
-            rusty += site.Count(C.Rusty);
-            bits += site.Count(C.Bits);
-        }
-        output.WriteLine($"320 bare gears in brine: {rusty} rusty, {bits} over-rusted");
-        Assert.Equal(320, rusty + bits);
-        // Binomial(320, 0.1): mean 32, sd about 5.4; this range is about ±4 sd.
-        Assert.InRange(bits, 11, 56);
+        Assert.Equal(5, site.Count(C.Passivated));
+        Assert.Equal(3, site.Count(C.Bits));
     }
 
     [AtlasScenario]
     public async Task The_tub_refuses_large_gears_wrong_liquids_and_mixed_batches()
     {
         var site = await Build("refuser", 370);
-        // A large steel gear: refused with a word, the click is the tub's, the gear stays in hand.
+        // A large stainless gear: refused with a word, the click is the tub's, the gear stays in hand.
         Assert.True(site.RightClick(site.Stack(LargeGear, 1)));
         Assert.Equal(1, site.Hand.StackSize);
         Assert.Null(site.Tub.Batch);
 
-        // Degreased gears wait without liquid, and brine does nothing for them.
+        // Degreased gears wait without liquid, and nitric acid does nothing for them.
         Assert.True(site.RightClick(site.Stack(C.Degreased, 4)));
         Assert.False(site.Tub.Batch!.Started);
         Assert.Contains("waiting", site.Info());
-        Assert.True(site.RightClick(site.BucketOf(C.Brine, 500)));
+        Assert.True(site.RightClick(site.BucketOf(C.Nitric, 500)));
         Assert.Equal(0, site.Tub.TotalLitres);
         Assert.Equal(5, ((BlockLiquidContainerBase)site.Hand.Itemstack!.Block).GetCurrentLitres(site.Hand.Itemstack), 3);
 
-        // Vinegar starts them; steel gears are another batch; brine on vinegar is refused.
+        // Vinegar starts them; pickled gears are another batch; nitric acid on vinegar is refused.
         Assert.True(site.RightClick(site.BucketOf(C.Vinegar, 300)));
         Assert.True(site.Tub.Batch!.Started);
         Assert.Equal(2, site.Tub.FreeLitres, 3);
-        Assert.True(site.RightClick(site.Stack(C.Steel, 2)));
+        Assert.True(site.RightClick(site.Stack(C.Pickled, 2)));
         Assert.Equal(2, site.Hand.StackSize);
         Assert.Equal(4, site.Tub.Batch!.Count);
-        Assert.True(site.RightClick(site.BucketOf(C.Brine, 100)));
+        Assert.True(site.RightClick(site.BucketOf(C.Nitric, 100)));
         Assert.Equal(2, site.Tub.FreeLitres, 3);
 
-        // Water and other liquids are not the tub's at all; nor is a rusty gear.
+        // Water, brine and other liquids are not the tub's at all; nor is a rusty gear or a stainless one.
         Assert.False(site.RightClick(site.BucketOf("game:waterportion", 100)));
-        Assert.False(site.RightClick(site.Stack(C.Rusty, 3)));
+        Assert.False(site.RightClick(site.BucketOf("game:brineportion", 100)));
+        Assert.False(site.RightClick(site.Stack(GearCodes.Rusty, 3)));
+        Assert.False(site.RightClick(site.Stack(GearCodes.Stainless, 3)));
 
         // More degreased gears start the batch's clock again.
         site.Age(10);
@@ -329,26 +304,27 @@ public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task A_running_batch_is_saved_with_its_rule_and_read_back()
     {
         var site = await Build("tubsaver", 380);
-        Assert.True(site.RightClick(site.BucketOf(C.Sulfuric, 300)));
-        Assert.True(site.RightClick(site.Stack(C.Steel, 5)));
+        Assert.True(site.RightClick(site.BucketOf(C.Nitric, 300)));
+        Assert.True(site.RightClick(site.Stack(C.Pickled, 5)));
         site.Age(1);
         var tree = new TreeAttribute();
         site.Tub.ToTreeAttributes(tree);
         var before = site.Tub.Stage;
         site.Tub.FromTreeAttributes(tree, W);
         Assert.Equal(5, site.Tub.Batch!.Count);
-        Assert.Equal(C.Sulfuric, site.Tub.Batch.Liquid);
-        Assert.Equal(C.SteelBare, RuleFor(site.Tub).Output);
-        Assert.Equal(2, RuleFor(site.Tub).Hours);
+        Assert.Equal(C.Nitric, site.Tub.Batch.Liquid);
+        Assert.Equal(C.Passivated, RuleFor(site.Tub).Output);
+        Assert.Equal(6, RuleFor(site.Tub).Hours);
+        Assert.Equal(TubRuleKind.Passivate, RuleFor(site.Tub).Kind);
         Assert.Equal(before!.Value.Phase, site.Tub.Stage!.Value.Phase);
         Assert.Equal(2, site.Tub.FreeLitres, 3);
-        Assert.Equal(C.Sulfuric, site.Tub.Liquid!.Collectible.Code.ToString());
+        Assert.Equal(C.Nitric, site.Tub.Liquid!.Collectible.Code.ToString());
 
         // Broken, the tub drops its batch as it is.
         W.BlockAccessor.BreakBlock(site.Pos, site.Player);
         await World.Ticks(2);
         int dropped = W.GetEntitiesAround(site.Pos.ToVec3d().Add(0.5, 0.5, 0.5), 3, 3,
-                e => e is EntityItem item && item.Itemstack?.Collectible?.Code?.ToString() == C.Steel)
+                e => e is EntityItem item && item.Itemstack?.Collectible?.Code?.ToString() == C.Pickled)
             .Sum(e => ((EntityItem)e).Itemstack.StackSize);
         Assert.Equal(5, dropped);
     }

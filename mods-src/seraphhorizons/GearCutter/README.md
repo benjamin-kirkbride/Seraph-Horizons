@@ -2,7 +2,7 @@
 
 Part of the Seraph Horizons mod (`../README.md`): the end-game machine of the gears epic (#484, the
 machine is #480). A mechanically powered generating gear cutter on a knee-and-column bench frame turns
-steel gear blanks into steel gears. A **temporal gear master** on the arbor rolls on a fixed rack as
+stainless gear blanks into stainless gears. A **temporal gear master** on the arbor rolls on a fixed rack as
 the table feeds, so the blank beside it rolls under a cutter that is one tooth of the same rack, and
 the cutter generates the master's tooth form in the blank (Bilgram 1884, Fellows 1896). A looted
 **Jonas sub-assembly** is the dividing head: a planetary that indexes the arbor one tooth per pass. A
@@ -79,7 +79,7 @@ lower cone). The **build order** (#480): the frame, then `spindle`, `feedscrew`,
 | 9 | `cutter` | Cutter kit (its own issue), the wearing part | Its own issue | The formed cutter | When worn out it is spent; unworn, Ctrl + right-click |
 | 10 | `master` | `game:gear-temporal`, the master for a 12-tooth gear | The game's | The temporal gear master | Ctrl + right-click after the cutter kit; breaking the frame drops it |
 | 10 | `masterlarge` | `game:largegear-temporal`, the master for a 20-tooth gear | The game's | The large temporal gear master | Ctrl + right-click after the cutter kit; breaking the frame drops it |
-| — | `blanksmall`, `blanklarge` | The steel gear blank, the two-ingot large blank | Their own issues | The blank and its gap fills | The material being worked, not a part |
+| — | `blanksmall`, `blanklarge` | The stainless gear blank, the two-ingot large blank | Their own issues | The blank and its gap fills | The material being worked, not a part |
 | — | `cover` | None: part of the frame as built | — | The gearbox's top and the column's door | Proposal: shown always in the game (a renderer may hide it to show the works); the viewer's checkbox hides it |
 
 Two cam drums, two eccentric gearboxes, so a half-built cutter can show one drum; the lift cam is a
@@ -337,7 +337,7 @@ like the rest:
   empty part.
 - **Containment:** nothing leaves the 2 × 2 × 2 box over 29 poses of both masters.
 - **Anchors:** the entry shaft meets the power face at the power cell's centre.
-- **Textures** by role: oak sills and the axle's continuation; iron castings; steel gears, shafts and
+- **Textures** by role: oak sills and the axle's continuation; iron castings; stainless gears, shafts and
   wearing parts (the rim ratchet among them); temporal masters; cupronickel and gold Jonas head;
   cupronickel pawls, pins, roller and spindle collars (metal parts); a leather belt; a glass and brass oiler with oil in it.
 - **Gearing:** every meshing pair's centre distance is the sum (or, internal, the difference) of the
@@ -473,9 +473,9 @@ with the block's texture source), `gearcutter-ghost` and `gearcutter-ghostpower-
 ghosts, ghost repair, breaking through a ghost and the boxes (selection from the rig's cells, collision
 with their lids) are the rosser's, without the trunk. The frame recipe (`recipes/grid/gearcutter.json`):
 8 steel ingots (4 in each ingot slot, steel only), 4 planks, 32 nails and strips of iron, meteoric
-iron or steel, 3 steel gears (`seraphhorizons:gear-steel`, in the bottom middle slot, for the gearing
+iron or steel, 3 stainless gears (`seraphhorizons:gear-stainless`, in the bottom middle slot, for the gearing
 the frame carries: the feed rectifier's train and the camshaft's worm wheel; every other machine in the
-pack pays steel gears for its gears, #473, and the first come from reclaiming rusty gears) and a hammer. The pack's other machine frames cost iron, but this is the end-game
+pack pays stainless gears for its gears, #473, and the first come from reclaiming rusty gears) and a hammer. The pack's other machine frames cost iron, but this is the end-game
 machine of the gears epic, and a cast bed and column are a lot of metal. The cost is in the recipe
 itself (the cutter does not need Immersive Woodworking, so it is not in
 `patches/woodworking-machine-costs.json`).

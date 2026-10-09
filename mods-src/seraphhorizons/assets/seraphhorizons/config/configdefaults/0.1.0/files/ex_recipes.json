@@ -304,7 +304,7 @@
             "Ingredients": {
               "game:metalplate-steel": 1,
               "game:rod-steel": 4,
-              "seraphhorizons:gear-steel": 4,
+              "seraphhorizons:gear-stainless": 4,
               "ppex:pipe-straight-*-steel": 2,
               "game:metalnailsandstrips-steel": 4
             },
@@ -316,7 +316,7 @@
             "Ingredients": {
               "game:metalplate-steel": 1,
               "game:rod-steel": 2,
-              "seraphhorizons:gear-steel": 2,
+              "seraphhorizons:gear-stainless": 2,
               "ppex:pipe-straight-*-steel": 1,
               "game:metalnailsandstrips-steel": 2
             },
@@ -334,7 +334,7 @@
             "Ingredients": {
               "game:metalplate-iron": 1,
               "game:rod-iron": 2,
-              "seraphhorizons:gear-steel": 2,
+              "seraphhorizons:gear-stainless": 2,
               "ppex:pipe-straight-*": 1,
               "game:metalplate-steel": 1,
               "game:rod-steel": 2
@@ -347,7 +347,7 @@
             "Ingredients": {
               "game:metalplate-iron": 1,
               "game:rod-iron": 1,
-              "seraphhorizons:gear-steel": 1,
+              "seraphhorizons:gear-stainless": 1,
               "ppex:pipe-straight-*": 1,
               "game:metalplate-steel": 1,
               "game:rod-steel": 1
@@ -365,7 +365,7 @@
           "normal": {
             "Ingredients": {
               "game:metalplate-iron": 1,
-              "seraphhorizons:gear-steel": 1,
+              "seraphhorizons:gear-stainless": 1,
               "ppex:pipe-straight-*": 1,
               "game:rod-iron": 2,
               "game:metalplate-steel": 1,
@@ -378,7 +378,7 @@
           "cheap": {
             "Ingredients": {
               "game:metalplate-iron": 1,
-              "seraphhorizons:gear-steel": 1,
+              "seraphhorizons:gear-stainless": 1,
               "ppex:pipe-straight-*": 1,
               "game:rod-iron": 1,
               "game:metalplate-steel": 1,
@@ -398,7 +398,7 @@
             "Ingredients": {
               "game:metalplate-iron": 2,
               "game:rod-iron": 2,
-              "seraphhorizons:gear-steel": 2,
+              "seraphhorizons:gear-stainless": 2,
               "game:woodenaxle-ud": 1,
               "game:metalplate-steel": 2,
               "game:rod-steel": 2
@@ -411,7 +411,7 @@
             "Ingredients": {
               "game:metalplate-iron": 1,
               "game:rod-iron": 1,
-              "seraphhorizons:gear-steel": 1,
+              "seraphhorizons:gear-stainless": 1,
               "game:woodenaxle-ud": 1,
               "game:metalplate-steel": 1,
               "game:rod-steel": 1
@@ -429,7 +429,7 @@
           "normal": {
             "Ingredients": {
               "game:metalplate-iron": 1,
-              "seraphhorizons:gear-steel": 2,
+              "seraphhorizons:gear-stainless": 2,
               "ppex:pipe-straight-*": 1,
               "game:rod-iron": 2,
               "game:supportbeam-*": 4,
@@ -443,7 +443,7 @@
           "cheap": {
             "Ingredients": {
               "game:metalplate-iron": 1,
-              "seraphhorizons:gear-steel": 1,
+              "seraphhorizons:gear-stainless": 1,
               "ppex:pipe-straight-*": 1,
               "game:rod-iron": 1,
               "game:supportbeam-*": 2,
@@ -960,7 +960,7 @@
               "game:rod-iron": 12,
               "game:metalplate-iron": 4,
               "game:metalnailsandstrips-iron": 8,
-              "seraphhorizons:gear-steel": 16,
+              "seraphhorizons:gear-stainless": 16,
               "game:woodenaxle-ud": 1,
               "game:rod-steel": 12,
               "game:metalplate-steel": 4,
@@ -975,7 +975,7 @@
               "game:rod-iron": 6,
               "game:metalplate-iron": 2,
               "game:metalnailsandstrips-iron": 4,
-              "seraphhorizons:gear-steel": 8,
+              "seraphhorizons:gear-stainless": 8,
               "game:woodenaxle-ud": 1,
               "game:rod-steel": 6,
               "game:metalplate-steel": 2,
@@ -1059,7 +1059,7 @@
             "Ingredients": {
               "game:metalplate-iron": 1,
               "game:rod-iron": 2,
-              "seraphhorizons:gear-steel": 2,
+              "seraphhorizons:gear-stainless": 2,
               "game:metalplate-steel": 1,
               "game:rod-steel": 2
             },
@@ -1071,7 +1071,7 @@
             "Ingredients": {
               "game:metalplate-iron": 1,
               "game:rod-iron": 1,
-              "seraphhorizons:gear-steel": 1,
+              "seraphhorizons:gear-stainless": 1,
               "game:metalplate-steel": 1,
               "game:rod-steel": 1
             },
@@ -1121,7 +1121,7 @@
             "Ingredients": {
               "game:metalplate-iron": 1,
               "game:metalnailsandstrips-iron": 1,
-              "seraphhorizons:gear-steel": 4,
+              "seraphhorizons:gear-stainless": 4,
               "game:metalplate-steel": 1,
               "game:metalnailsandstrips-steel": 1
             },
@@ -1133,7 +1133,7 @@
             "Ingredients": {
               "game:metalplate-iron": 1,
               "game:metalnailsandstrips-iron": 1,
-              "seraphhorizons:gear-steel": 2,
+              "seraphhorizons:gear-stainless": 2,
               "game:metalplate-steel": 1,
               "game:metalnailsandstrips-steel": 1
             },

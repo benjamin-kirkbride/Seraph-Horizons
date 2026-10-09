@@ -1,8 +1,8 @@
 // seraphhorizons' GearConsumers switch (README.md, GearConsumers.cs; #473): the rusty gear is salvage
-// and money, so every recipe that took one takes the pack's steel gear (seraphhorizons:gear-steel),
+// and money, so every recipe that took one takes the pack's stainless gear (seraphhorizons:gear-stainless),
 // in the same number (counts below are per recipe, all slots). tools/tests/test_gear_consumers.py
 // holds this file to the mod's recipes.
 // Spinning Wheel (1.2.14): the wheel's mechanism (hpmoaitem), 1.
 [
-  {"file": "spinningwheel:recipes/grid/hpmoaitem.json", "op": "replace", "path": "/ingredients/B/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "spinningwheel"}]}
+  {"file": "spinningwheel:recipes/grid/hpmoaitem.json", "op": "replace", "path": "/ingredients/B/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "spinningwheel"}]}
 ]

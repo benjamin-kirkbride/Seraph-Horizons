@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.PicklingTub.Core;
+using SeraphHorizons.Mod.GearReclamation.Core;
 using C = SeraphHorizons.Mod.PicklingTub.Core.PicklingTubConfig;
 
 namespace SeraphHorizons.Mod.Tests;
@@ -27,46 +28,43 @@ public class PicklingTubTests
             Assert.Equal(TubRuleKind.Pickle, rule.Kind);
             Assert.Equal(0, rule.LossChance);
         }
-        // Brine pickles nothing, and the acids do not rust.
-        Assert.Null(Book.For(C.Brine, C.Degreased));
-        Assert.Null(Book.For(C.Sulfuric, C.Rusty));
+        // Brine pickles nothing, and the acids take no rusty or sound gear.
+        Assert.Null(Book.For("game:brineportion", C.Degreased));
+        Assert.Null(Book.For(C.Sulfuric, GearCodes.Rusty));
+        Assert.Null(Book.For(C.Sulfuric, GearCodes.Stainless));
     }
 
     [Fact]
-    public void A_short_acid_dip_takes_a_steel_gear_bare_and_brine_rusts_both()
+    public void Nitric_acid_passivates_pickled_gears_and_nothing_else()
     {
+        var rule = Rule(C.Nitric, C.Pickled);
+        Assert.Equal(C.Passivated, rule.Output);
+        Assert.Equal(TubRuleKind.Passivate, rule.Kind);
+        Assert.Equal((6.0, 3.0, 1.0), (rule.Hours, rule.GraceHours, rule.LossEveryHours));
+        Assert.Equal(C.Bits, rule.Failure);
+        Assert.Equal("game:metalbit-stainlesssteel", rule.Failure);
+        Assert.Equal(0, rule.LossChance);
+        Assert.Null(Book.For(C.Nitric, C.Degreased));
+        Assert.Null(Book.For(C.Nitric, C.Passivated));
         foreach (string acid in new[] { C.Vinegar, C.Sulfuric, C.Hydrochloric })
-        {
-            Assert.Equal(C.SteelBare, Rule(acid, C.Steel).Output);
-            Assert.True(Rule(acid, C.Steel).Hours < Rule(acid, C.Degreased).Hours);
-            Assert.Null(Book.For(acid, C.SteelBare));
-        }
-        var steel = Rule(C.Brine, C.Steel);
-        var bare = Rule(C.Brine, C.SteelBare);
-        Assert.Equal((C.Rusty, C.Rusty), (steel.Output, bare.Output));
-        Assert.Equal(48, steel.Hours);
-        Assert.Equal(4, bare.Hours);
-        Assert.Equal((0.1, 0.1), (steel.LossChance, bare.LossChance));
-        Assert.Equal(TubRuleKind.Rust, steel.Kind);
-        Assert.Equal(0, steel.LossEveryHours);
-        // Pickled gears and degreased ones are not brine's.
-        Assert.Null(Book.For(C.Brine, C.Pickled));
+            Assert.Null(Book.For(acid, C.Pickled));
     }
 
+    // The stainless rework (#484): no brine bath, no acid dip of a sound gear.
     [Fact]
-    public void The_brine_settings_feed_its_rules()
+    public void The_default_rules_are_three_pickles_and_a_passivation()
     {
-        var book = new TubRuleBook(new C { BrineRustHours = 100, BareBrineRustHours = 7, OverRustChance = 0.25, BrineLiquids = ["game:brine*"] });
-        Assert.Equal(100, book.For("game:brineportion", C.Steel)!.Hours);
-        Assert.Equal(7, book.For("game:brineportion", C.SteelBare)!.Hours);
-        Assert.Equal(0.25, book.For("game:brineportion", C.SteelBare)!.LossChance);
+        Assert.Equal(4, Book.Rules.Count);
+        Assert.False(Book.IsLiquid("game:brineportion"));
+        Assert.False(Book.IsInput(GearCodes.Stainless));
+        Assert.Equal([C.Pickled, C.Pickled, C.Pickled, C.Passivated], Book.Rules.Select(r => r.Output));
     }
 
     [Fact]
     public void Codes_match_without_case_or_domain_and_the_first_rule_wins()
     {
         Assert.NotNull(Book.For("Acid-Full-Sulfuric", "seraphhorizons:GEAR-DEGREASED"));
-        Assert.NotNull(Book.For("brineportion", C.Steel));
+        Assert.NotNull(Book.For("acid-full-nitric", C.Pickled));
         var book = new TubRuleBook(new C
         {
             AcidRules = [new("game:acid-full-*", C.Degreased, C.Pickled, 5, 1, 1), new(C.Sulfuric, C.Degreased, C.Pickled, 9, 1, 1)],
@@ -145,46 +143,38 @@ public class PicklingTubTests
         Assert.Equal([(C.Pickled, 1), (C.Bits, 3)], new TubBatch(C.Degreased, 2).Start(lumpy, C.Sulfuric, 1, 0, Always(1)).TakeOut(lumpy, 1).Items);
     }
 
-    [Fact]
-    public void Brine_over_rusts_its_share_at_done_and_never_eats_more_by_time()
-    {
-        var rule = Rule(C.Brine, C.Steel);
-        // Draws below the chance are lost: 0.05 < 0.1 for every gear, 0.5 for none.
-        var all = new TubBatch(C.Steel, 8).Start(rule, C.Brine, 1, 0, Always(0.05));
-        Assert.Equal(8, all.LossAtDone);
-        var none = new TubBatch(C.Steel, 8).Start(rule, C.Brine, 1, 0, Always(0.5));
-        Assert.Equal([(C.Rusty, 8)], none.TakeOut(rule, 48).Items);
-        Assert.Equal([(C.Rusty, 8)], none.TakeOut(rule, 48 * 100).Items);
-        var draws = new Queue<double>([0.01, 0.9, 0.9, 0.09, 0.9, 0.9, 0.9, 0.9]);
-        var two = new TubBatch(C.Steel, 8).Start(rule, C.Brine, 1, 0, draws.Dequeue);
-        Assert.Equal(new TubStage(TubPhase.Done, 1, 0, 6, 2), two.StageAt(rule, 48));
-        Assert.Equal([(C.Rusty, 6), (C.Bits, 2)], two.TakeOut(rule, 60).Items);
-        // Hidden until done: early it is the steel gears back, all of them.
-        Assert.Equal([(C.Steel, 8)], two.TakeOut(rule, 47).Items);
-    }
+    // No default rule loses gears at done, but a rule may: each gear on its own draw at the start,
+    // shown only from done, and never more by time when it has no LossEveryHours.
+    private static readonly TubRuleConfig Lossy = new(C.Nitric, C.Pickled, C.Passivated, 6, 0, 0) { LossChance = 0.1 };
 
     [Fact]
-    public void A_pickle_first_rusts_in_hours_not_days()
+    public void A_loss_chance_takes_its_share_at_done_and_never_more_by_time()
     {
-        var steel = Rule(C.Brine, C.Steel);
-        var bare = Rule(C.Brine, C.SteelBare);
-        var dip = Rule(C.Hydrochloric, C.Steel);
-        Assert.True(dip.Hours + bare.Hours < steel.Hours / 4);
-        var batch = new TubBatch(C.SteelBare, 8).Start(bare, C.Brine, 1, 0, Always(0.5));
-        Assert.True(batch.StageAt(bare, 4).Finished);
-        Assert.False(new TubBatch(C.Steel, 8).Start(steel, C.Brine, 1, 0, Always(0.5)).StageAt(steel, 4).Finished);
+        var rule = Lossy;
+        // Draws below the chance are lost: 0.05 < 0.1 for every gear, 0.5 for none.
+        var all = new TubBatch(C.Pickled, 8).Start(rule, C.Nitric, 1, 0, Always(0.05));
+        Assert.Equal(8, all.LossAtDone);
+        var none = new TubBatch(C.Pickled, 8).Start(rule, C.Nitric, 1, 0, Always(0.5));
+        Assert.Equal([(C.Passivated, 8)], none.TakeOut(rule, 6).Items);
+        Assert.Equal([(C.Passivated, 8)], none.TakeOut(rule, 600).Items);
+        var draws = new Queue<double>([0.01, 0.9, 0.9, 0.09, 0.9, 0.9, 0.9, 0.9]);
+        var two = new TubBatch(C.Pickled, 8).Start(rule, C.Nitric, 1, 0, draws.Dequeue);
+        Assert.Equal(new TubStage(TubPhase.Done, 1, 0, 6, 2), two.StageAt(rule, 6));
+        Assert.Equal([(C.Passivated, 6), (C.Bits, 2)], two.TakeOut(rule, 60).Items);
+        // Hidden until done: early it is the pickled gears back, all of them.
+        Assert.Equal([(C.Pickled, 8)], two.TakeOut(rule, 5).Items);
     }
 
     [Fact]
     public void The_loss_share_over_a_sample_is_near_the_chance()
     {
-        var rule = Rule(C.Brine, C.Steel);
+        var rule = Lossy;
         var random = new Random(4821);
         int lost = 0, total = 0;
         for (int i = 0; i < 2000; i++)
         {
-            var batch = new TubBatch(C.Steel, 8).Start(rule, C.Brine, 1, 0, random.NextDouble);
-            lost += batch.StageAt(rule, 48).Lost;
+            var batch = new TubBatch(C.Pickled, 8).Start(rule, C.Nitric, 1, 0, random.NextDouble);
+            lost += batch.StageAt(rule, 6).Lost;
             total += 8;
         }
         Assert.InRange(lost / (double)total, 0.09, 0.11);
@@ -209,14 +199,15 @@ public class PicklingTubTests
         var sulfuric = Rule(C.Sulfuric, C.Degreased);
         Assert.Equal(TubRefusal.None, Book.CanAdd(C.Degreased, null, null, 0));
         Assert.Equal(TubRefusal.None, Book.CanAdd(C.Degreased, C.Sulfuric, null, 0));
-        Assert.Equal(TubRefusal.WrongLiquid, Book.CanAdd(C.Degreased, C.Brine, null, 0));
-        Assert.Equal(TubRefusal.None, Book.CanAdd(C.Steel, C.Brine, null, 0));
+        Assert.Equal(TubRefusal.WrongLiquid, Book.CanAdd(C.Degreased, C.Nitric, null, 0));
+        Assert.Equal(TubRefusal.None, Book.CanAdd(C.Pickled, C.Nitric, null, 0));
         Assert.Equal(TubRefusal.NotAGear, Book.CanAdd("game:gear-temporal", null, null, 0));
-        Assert.Equal(TubRefusal.NotAGear, Book.CanAdd(C.Rusty, C.Brine, null, 0));
-        Assert.Equal(TubRefusal.Refused, Book.CanAdd("seraphhorizons:largegear-steel", C.Brine, null, 0));
+        Assert.Equal(TubRefusal.NotAGear, Book.CanAdd(GearCodes.Rusty, C.Nitric, null, 0));
+        Assert.Equal(TubRefusal.NotAGear, Book.CanAdd(GearCodes.Stainless, C.Nitric, null, 0));
+        Assert.Equal(TubRefusal.Refused, Book.CanAdd("seraphhorizons:largegear-stainless", C.Nitric, null, 0));
         var batch = new TubBatch(C.Degreased, 6).Start(sulfuric, C.Sulfuric, 1, 0, Always(0.5));
         Assert.Equal(TubRefusal.None, Book.CanAdd(C.Degreased, C.Sulfuric, batch, 1));
-        Assert.Equal(TubRefusal.OtherBatch, Book.CanAdd(C.Steel, C.Sulfuric, batch, 1));
+        Assert.Equal(TubRefusal.OtherBatch, Book.CanAdd(C.Pickled, C.Sulfuric, batch, 1));
         Assert.Equal(TubRefusal.BatchFinished, Book.CanAdd(C.Degreased, C.Sulfuric, batch, 8));
         Assert.Equal(TubRefusal.Full, Book.CanAdd(C.Degreased, C.Sulfuric, batch with { Count = 8 }, 1));
         // The batch's own liquid decides, even when the tub's free liquid is gone.
@@ -226,10 +217,12 @@ public class PicklingTubTests
     [Fact]
     public void Liquids_pour_on_gears_they_have_a_rule_for()
     {
-        Assert.True(Book.CanPour(C.Brine, null));
+        Assert.True(Book.CanPour(C.Nitric, null));
         Assert.True(Book.CanPour(C.Vinegar, null));
         Assert.False(Book.CanPour("game:waterportion", null));
-        Assert.False(Book.CanPour(C.Brine, new TubBatch(C.Degreased, 2)));
+        Assert.False(Book.CanPour("game:brineportion", null));
+        Assert.False(Book.CanPour(C.Nitric, new TubBatch(C.Degreased, 2)));
+        Assert.True(Book.CanPour(C.Nitric, new TubBatch(C.Pickled, 2)));
         Assert.True(Book.CanPour(C.Hydrochloric, new TubBatch(C.Degreased, 2)));
     }
 
@@ -251,16 +244,12 @@ public class PicklingTubTests
             BatchSize = 0,
             CapacityLitres = -1,
             LitresPerBatch = 50,
-            BrineRustHours = double.NaN,
-            BareBrineRustHours = 0,
-            OverRustChance = 2,
             AcidRules = [new(C.Vinegar, C.Degreased, C.Pickled, 0, 1, 1), new("", C.Degreased, C.Pickled, 1, 1, 1),
                 new(C.Vinegar, C.Degreased, C.Pickled, 2, 1, 1) { LossChance = -0.5 }, new(C.Sulfuric, C.Degreased, C.Pickled, 3, 1, 1)],
         };
         var fixes = config.Sanitise();
-        Assert.Equal(9, fixes.Count);
-        Assert.Equal((8, 10.0, 1.0, 48.0, 4.0, 0.1), (config.BatchSize, config.CapacityLitres, config.LitresPerBatch,
-            config.BrineRustHours, config.BareBrineRustHours, config.OverRustChance));
+        Assert.Equal(6, fixes.Count);
+        Assert.Equal((8, 10.0, 1.0), (config.BatchSize, config.CapacityLitres, config.LitresPerBatch));
         Assert.Equal(C.Sulfuric, Assert.Single(config.AcidRules).Liquid);
         Assert.Empty(new C().Sanitise());
     }

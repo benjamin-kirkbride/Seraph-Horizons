@@ -288,15 +288,15 @@ public class ItemValuesTests
     private static readonly ItemValues Switched = ItemValues.Parse("""
         {
           "values": {
-            "seraphhorizons:gear-steel": 14.2,
-            "seraphhorizons:largegear-steel": 40.5,
+            "seraphhorizons:gear-stainless": 14.2,
+            "seraphhorizons:largegear-stainless": 40.5,
             "game:gear-rusty": 1.0,
             "game:plank-pine": 0.08
           },
           "floorZero": [],
           "switches": {
-            "seraphhorizons:gear-steel": ["GearCutter", "GearBlanks"],
-            "seraphhorizons:largegear-steel": ["GearCutter"]
+            "seraphhorizons:gear-stainless": ["GearCutter", "GearBlanks"],
+            "seraphhorizons:largegear-stainless": ["GearCutter"]
           }
         }
         """);
@@ -304,7 +304,7 @@ public class ItemValuesTests
     [Fact]
     public void SwitchesParse()
     {
-        Assert.Equal(["GearCutter", "GearBlanks"], Switched.SwitchesOf("seraphhorizons:gear-steel"));
+        Assert.Equal(["GearCutter", "GearBlanks"], Switched.SwitchesOf("seraphhorizons:gear-stainless"));
         Assert.Empty(Switched.SwitchesOf("game:gear-rusty"));
         Assert.Empty(Switched.SwitchesOf("game:nothing"));
         Assert.Empty(Table.SwitchesOf("game:ingot-copper"));
@@ -313,9 +313,9 @@ public class ItemValuesTests
     [Fact]
     public void ShownHidesAValueWhoseSwitchIsOff()
     {
-        Assert.Equal(14.2, Switched.Shown("seraphhorizons:gear-steel", _ => false));
-        Assert.Null(Switched.Shown("seraphhorizons:gear-steel", s => s == "GearBlanks"));
-        Assert.Equal(14.2, Switched.Shown("seraphhorizons:gear-steel", s => s == "Rosser"));
+        Assert.Equal(14.2, Switched.Shown("seraphhorizons:gear-stainless", _ => false));
+        Assert.Null(Switched.Shown("seraphhorizons:gear-stainless", s => s == "GearBlanks"));
+        Assert.Equal(14.2, Switched.Shown("seraphhorizons:gear-stainless", s => s == "Rosser"));
         Assert.Equal(1.0, Switched.Shown("gear-rusty", _ => true));
     }
 
