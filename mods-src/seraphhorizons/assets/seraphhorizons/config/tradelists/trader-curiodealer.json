@@ -1,4 +1,4 @@
-// Curio dealer: relics, art, lore, maps, gems and jewelry, exotic schematics.
+// Curio dealer: relics, art, maps, gems and jewelry, exotic schematics.
 // Format: docs/trading.md (Trade lists). Jewelry and fine metalwork are player-supplied; the
 // schematics wave (#457) puts every exotic schematic here.
 // Prices come from the item value table by config/trading/list-prices.json (docs/trading.md, "Trade list format").
@@ -11,7 +11,6 @@
 		"core": [
 			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": 1, "priceReason": "priced by the maps system at each restock"},
 			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": 1, "priceReason": "priced by the maps system at each restock"},
-			{"code": "lore-scroll", "attributes": {"category": "villager"}, "stacksize": 1, "stock": {"avg": 1, "var": 0}},
 			{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 180, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
 			{"code": "walkingstick:schematic-flintlock", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 128, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
 			{"code": "game:schematic-glider", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 150, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
@@ -222,7 +221,6 @@
 				{"type": "block", "code": "painting-prey-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
 				{"type": "block", "code": "painting-forestdawn-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
 				{"type": "block", "code": "omoktabletop", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
-				{"code": "lore-book-aged-orange", "attributes": {"category": "diaries"}, "stacksize": 1, "stock": {"avg": 3, "var": 0.75}},
 				{"type": "block", "code": "painting-fishandtherain-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
 				{"code": "butchering:ivory-raw", "stacksize": 1, "stock": {"avg": 3, "var": 1}},
 				{"code": "creature-locust-bronze-hacked", "stacksize": 1, "stock": {"avg": 1, "var": 0}},
