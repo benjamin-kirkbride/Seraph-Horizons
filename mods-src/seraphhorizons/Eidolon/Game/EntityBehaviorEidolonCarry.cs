@@ -29,7 +29,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// on the load's own contents, which it writes back into the load as it changes, and tells the
 /// client to show it (<see cref="OpenPacket"/>).</para>
 /// </summary>
-public class EntityBehaviorEidolonCarry(Entity entity) : EntityBehavior(entity), IEidolonStance
+public class EntityBehaviorEidolonCarry(Entity entity) : EntityBehavior(entity), IEidolonStance, IEidolonCarrier
 {
     public const string Code = "seraphhorizons.eidolonCarry";
     public const string LoadKey = "seraphhorizons:load";
@@ -294,6 +294,10 @@ public class EntityBehaviorEidolonCarry(Entity entity) : EntityBehavior(entity),
         var type = entity.Api.ClassRegistry.GetBlockEntity(beClass);
         return type != null && typeof(BlockEntityGenericTypedContainer).IsAssignableFrom(type);
     }
+
+    /// <summary>A carried container's contents (server side), for the jobs that take from it
+    /// (<see cref="IEidolonCarrier"/>: the fell order's replanting); taking out writes back into the load.</summary>
+    public IInventory? CarriedInventory => entity.Api?.Side == EnumAppSide.Server ? Inventory() : null;
 
     private string InventoryId => "eidolonload-" + entity.EntityId;
 

@@ -282,7 +282,8 @@
     "FollowRunDistance": 10.0,
     "DefenceDamage": 10.0,
     "SlamDamage": 16.0,
-    "GuardRadius": 16.0
+    "GuardRadius": 16.0,
+    "FellMinLogs": 5
   },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {

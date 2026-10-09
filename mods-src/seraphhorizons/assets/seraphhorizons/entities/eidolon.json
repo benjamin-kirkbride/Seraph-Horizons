@@ -33,6 +33,8 @@
 			{ code: "seraphhorizons.eidolonCharge" },
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
+			// The axe in its right hand (#677), drawn by the shape renderer at RightHand.
+			{ code: "seraphhorizons.eidolonAxe" },
 			{ code: "seraphhorizons.eidolonOrders" },
 			{ code: "seraphhorizons.eidolonTrunk" },
 			{ code: "seraphhorizons.eidolonCarry" },
@@ -81,6 +83,8 @@
 			{ code: "seraphhorizons.eidolonCharge", initialGears: 1 },
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
+			// Giving it an axe and taking it back (#677).
+			{ code: "seraphhorizons.eidolonAxe" },
 			{ code: "seraphhorizons.eidolonOrders" },
 			// The trunk it hauls (EntityBehaviorEidolonTrunk), saved with it.
 			{ code: "seraphhorizons.eidolonTrunk" },

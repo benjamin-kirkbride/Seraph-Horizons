@@ -80,6 +80,12 @@ public class EidolonConfig
     /// <summary>Guarding, how far from its point, in blocks, it goes for a hostile creature.</summary>
     public double GuardRadius { get; set; } = 16;
 
+    // ---- Felling (#677; README "Eidolon", felling) ----
+
+    /// <summary>Felling an area, the fewest logs a tree has to be grown: younger ones are left
+    /// standing (a sapling is no log at all).</summary>
+    public int FellMinLogs { get; set; } = 5;
+
     public static readonly EidolonConfig Defaults = new();
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
@@ -116,6 +122,8 @@ public class EidolonConfig
 
         Check(nameof(SlamDamage), SlamDamage, 0, 1000, () => SlamDamage = Defaults.SlamDamage, Defaults.SlamDamage);
         Check(nameof(GuardRadius), GuardRadius, 2, 64, () => GuardRadius = Defaults.GuardRadius, Defaults.GuardRadius);
+
+        Check(nameof(FellMinLogs), FellMinLogs, 1, 1000, () => FellMinLogs = Defaults.FellMinLogs, Defaults.FellMinLogs);
         return fixes;
     }
 }

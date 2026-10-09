@@ -2736,6 +2736,53 @@ players (`generation` 1 and on), a player, an eidolon, or a person (`EntityDress
 traders and villagers, angry by their tasks once a player hits one). The world's `creatureHostility` holds as the
 game's targeting reads it: `passive`, only angry ones; `off`, none.
 
+**Felling** (#677; `Eidolon/Game/FellOrder.cs`, `EidolonFeller.cs`, `EntityBehaviorEidolonAxe.cs`,
+`EidolonFellSystem.cs`, rules in `Eidolon/Core/EidolonFelling.cs`). *The axe*: one who may command it
+gives it an axe (the game's `ItemAxe`, any metal) by right-clicking it with one; it holds one at a time,
+in its right hand, where the game's shape renderer draws it (`RightHandItemSlot`, the shape's
+`RightHand` point; the axe is kept in its watched attributes, saved and sent to clients). Its commander
+takes it back by sneaking and right-clicking it with an empty hand. Its info shows the axe and its
+durability. *Fell trees here* (wheel order 50) marks an area (two corners, at most
+32 blocks a side) and gives the `fell` order; without an axe it is refused. It looks for the nearest
+grown wild tree whose stump stands in the area (between 8 blocks below the lower corner and 8 above the
+higher), at most every 2 seconds, weighing at most 24 a search (the axe's own tree search). A wild log
+is one with the game's tree felling group that is grown, not placed (`log-grown-*`, `logsection-grown-*`,
+`lognarrow-grown-*`, the resin logs), never a fruit tree; a stump is such a log upright with no log of the
+same tree under it. A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
+(5) wood blocks: a sapling is no log, and a small young tree is left. A player's log building (placed
+logs, which have no felling group) is never touched, and neither is a tree in a land claim its owner may
+not break in (or, its owner unknown to the server, any claimed one). It walks to a place beside the trunk
+(a block corner 1.5 to 3.6 blocks from the trunk's centre, those within 2.8 and nearest it first, its
+box free and on the ground; three tried by the wide pathfinder before the tree is given up), faces it and
+swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A tree it cannot reach is
+given up for the order's life. Done when no grown tree it can reach is left, when it tells its owner how
+many it felled (and how many were out of reach).
+
+*Felled as a player's axe fells.* The server raises its `BreakBlock` event only for players, which
+is where Logging Expanded fells, its handler starting from the player's hotbar, and no stand-in player
+can be made (the game's `IPlayer` has an internal member). So `EidolonFeller` runs that handler's steps
+itself with Logging Expanded's own members, found by name on its listener
+(`LoggingMod.Core._fellingListener`): its tree manager's `GetWoodType` and `IsResinBearingLog`, its
+`FindTreeCompat`, `IsLeafBlock`, `IsBranchyLeaf` and `SpawnTrunk` (with no player), its
+`FellingDropSuppression.MarkRange` and its config's `MinLogsForTrunk` and `StickYieldRatio`, counting
+as the handler counts; then it calls the axe's own `ItemAxe.OnBlockBrokenWith` with the eidolon as the
+entity, the order the server uses for a player. Left out is what needs a player: Logging Expanded's
+`LogYieldModifier` and `OnTreeFelled` callbacks (no mod in the pack sets the modifier; `FellingWear`,
+the one listener, is told directly with `FellingWear.NoteFelled` and knows the felling by
+`FellingWear.FellerId` of the eidolon). The trunk falls as a trunk entity (`TrunkEntities`), and the axe
+wears as a player's: `FellingWear` charges its flat figure (4, or 8 for a thick tree). Without Logging
+Expanded (or its members not as expected: one warning) the axe alone fells it and the game's logs drop.
+An axe that breaks stops the job: it waits, its info says it has no axe,
+its owner is told once, and it goes on when given another.
+
+*Replanting.* After each tree, if what it carries (`IEidolonCarrier`, below) holds a sapling of that
+tree's wood (`game:sapling-{wood}-*`) or its seed (`game:treeseed-{wood}`), it takes one and plants
+`game:sapling-{wood}-free` in the stump's place, as a tree seed plants one (where the sapling can
+stand: on soil). Leaves drop their saplings and seeds as the game's felling does.
+
+*Oil*: each tree costs `OilPerTreeFelled` (`SpendOil(EidolonJob.TreeFelled)`), after the felling and
+replanting. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh.
+
 **Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
 spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
 corners instead, testing the whole box with the game's collision tester at each step (level, up one
@@ -2795,6 +2842,14 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   `EntityBehaviorEidolonTrunk` holds the carried trunk (`Carrying`, `Trunk`, `TakeUp`, `Hold`,
   `LayDown`); an order that may hold one adds its code to `EntityBehaviorEidolonTrunk.Holders`.
   Carrying, it walks with `trunk-carry-walk` (its `IEidolonStance`, below).
+- Carrying (#676) and replanting: an entity behaviour that carries a container implements
+  `IEidolonCarrier` (`CarriedInventory`, null while it carries none); `eidolon.CarriedInventory()` is
+  the first one carrying something: a carried container (`EntityBehaviorEidolonCarry`, #676). The fell
+  order replants from it (`EidolonFeller.Replant`).
+- Felling (#679's crew order): `new FellOrder(area, once: true)` (or `FellOrder.Args(area, once: true)`)
+  fells one tree and is done, its stump in `LastStump`; `Felled` and `Unreachable` count the order's
+  trees. `EidolonFeller.Fell(eidolon, hand, stump)` fells one tree as the eidolon;
+  `GetBehavior<EntityBehaviorEidolonAxe>()` holds the axe (`Axe`, `Hold`, `Save`).
 - The game's `commandable` and `openablecontainer` entity behaviours (the hacked locust's and the mech
   helper's) may serve the command tool and the carried container.
 - Holding something (#676 on): an entity behaviour implementing `IEidolonStance` names the animation it
@@ -2833,6 +2888,7 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
 | `DefenceDamage` | 10 | Each punch or kick when it defends itself (times the world's creature damage multiplier) |
 | `SlamDamage` | 16 | Each slam, every third blow (the same multiplier) |
 | `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
+| `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
 
 With the switch off the server marks the entity type and the spawner disabled before the game loads
 them and registers no command, so none of it exists; eidolons already in a world are lost. A client
@@ -2860,7 +2916,14 @@ creature types (drifters, bowtorns, shivers, locusts, wolves, bears and hyenas h
 chickens, foxes, deer, the mech helper, hacked locusts and tamed elk not; a sheep hostile when
 angry; a trader never) and guards a point given with the tool: a drifter 10 blocks off is gone for and killed, one 25
 off and a bred wolf 6 off are left alone, it stands at its point again after, and the wolf, unbred,
-is gone for; `SwitchesOffScenarios` requires none of it with the switch
+is gone for;
+`tests/Eidolon/EidolonFellingTests.cs` covers felling's rules (wild logs and
+stumps, grown trees, where it stands, the swing, what replants) and
+`tests/PackTests/EidolonFellScenarios.cs` (Atlas) orders it with the tool: refused without an axe,
+then given one it fells an area of three grown oaks (three trunks holding every log, the axe worn by
+the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
+player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
+`SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: an icon for the spawner.
 
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)
@@ -3104,7 +3167,8 @@ per wood block; leaves cost nothing. Logging Expanded fells in the server's `Bre
 which runs first: it marks the tree's blocks to drop nothing, throws the trunk (a trunk entity,
 with `TrunkEntities`) and raises its public `FellingListener.OnTreeFelled` when it made one.
 `FellingWear.cs` (server side, by name): hears that callback and notes the player and the stump; a
-prefix on `ItemAxe.OnBlockBrokenWith` for that player, when the tree the axe is about to break
+prefix on `ItemAxe.OnBlockBrokenWith` for that player (or an eidolon felling as one, known by
+`FellingWear.FellerId`: "Eidolon", felling), when the tree the axe is about to break
 holds that stump, takes the note, decides thick or thin from the tree's blocks
 (`Core/FellingWearRules.cs`: any `logsection-` block) and opens a window in which a prefix on
 `CollectibleObject.DamageItem` skips every hit on the axe's slot; a finalizer closes it and charges
