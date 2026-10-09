@@ -2638,6 +2638,39 @@ every 3 seconds; logged off, dead or more than twice `CommandRange` away, it wai
 *Stay here* gives `stay` with the eidolon's position: it holds that place and walks back to it if drawn
 off (by self-defence). Following drains no oil (#674's oil drains per job).
 
+**Hauling** (#678; `Eidolon/Game/HaulOrder.cs`, `TrunkHauler.cs`, `EntityBehaviorEidolonTrunk.cs`,
+`MachineInfeeds.cs`, `EidolonShapeRenderer.cs`; rules in `Eidolon/Core/HaulPlan.cs`). *Haul trunks*
+(wheel place 60) marks an area, then a machine: two corners as for any area, then a right-click on any
+cell of a rosser or a bucking mill (another block is refused and the area kept, so a misclick costs
+nothing). It gives `haul` (the area's corners and the machine's cell). Every `ScanSeconds` (2) it looks
+over the area for a trunk entity whose middle's column is inside it (from the area's lowest mark to 4
+above its highest), that the machine takes at all (the rosser none already debarked, the mill none
+branched while Logging Expanded requires debranching; any with logs) and that nobody is driving, and
+goes for the nearest. It stands square to the trunk, either side, 1.4 blocks off a thin one and 2 off a
+thick one (clear of the trunk, so TrunkEntities' solidity leaves it be), and takes it up: a thin trunk
+(Logging Expanded's xs to lg) onto its left shoulder (`trunk-pickup`, taken on frame 24), a thick one
+(xl, xxl) in both arms in front (`trunk-thick-pickup`, frame 26). The trunk entity is removed and its
+stack, unchanged, is kept in the eidolon's watched attribute `seraphhorizons:carriedTrunk`
+(`EntityBehaviorEidolonTrunk`), so it is saved with the eidolon and shown in its info. It walks to the
+machine with `trunk-carry-walk` (or `trunk-thick-carry-walk`), never running, to stand `Reach` beyond
+the infeed cell nearest the middle of the machine's infeed cells (the ground cells the machine takes a
+trunk lying in), facing the machine. While any trunk lies in those cells it waits there holding its
+own (`trunk-carry-idle`, "Waiting for the infeed to clear"); then it lays it down (`trunk-setdown`, let
+go on frame 36; thick, frame 32) as a trunk entity in the middle of that cell, across the machine's
+line, where the machine takes it as it takes any trunk lying there (`PullFromGround`), and spends
+`OilPerTrunkDelivered`. A trunk it cannot reach is left alone for 30 seconds; with none left it says so
+and waits, still looking, so trunks felled into the area later are hauled too. The order is never done.
+Interrupted (self-defence, dry, out of charge), it keeps a trunk it has taken up and carries on with it;
+given any order that does not haul (`EntityBehaviorEidolonTrunk.Holders`), or none, it lays a carried
+trunk down in front of it at once. Without trunk entities the mode refuses. Clients draw the carried
+trunk with the eidolon's renderer (`seraphhorizons.EidolonShape`, the game's shape renderer plus the
+trunk): Logging Expanded's block of its display class (lg, xxl, debarked if it is), as TrunkEntities
+draws a trunk lying, at the shape's `Trunk` or `ThickTrunk` attachment point, by the matrix the game
+uses for a held item. `tests/Eidolon/EidolonHaulTests.cs` covers the marking, the stands, the drop, the
+area and the event frames; `tests/PackTests/EidolonHaulScenarios.cs` (Atlas, the woodworking world)
+marks an area and a rosser with the tool, and the eidolon delivers a thin and a thick trunk, the second
+once the first is off the infeed, its trunk kept through a save, and the rosser takes both.
+
 **Self-defence** (`AiTaskEidolonDefend`, `seraphhorizons-eidolondefend`, priority 1.6 above the order
 task's 1.5). When something hurts it, the cause of the damage (the archer, not the arrow) is
 remembered unless it is a player or another eidolon. While that creature lives, is within 24 blocks
@@ -2676,10 +2709,14 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
 - Inside a gantry: `EntityBehaviorEidolonRepair.GantryAround(entity)` (the gantry whose dock it
   stands in, or null, by `BEEidolonGantry.DockAt`) is the one lookup.
 - Command tool modes (#676 on): `EidolonCommandModes.Register(new EidolonCommandMode { Code, Order,
-  Icon, Mark, MaxAreaSide, Command })` in a mod system's `Start` (both sides: the wheel is chosen by
+  Icon, Mark, MaxAreaSide, CheckTarget, Command })` in a mod system's `Start` (both sides: the wheel is chosen by
   index). `Code` names it (lang `seraphhorizons:eidoloncommander-mode-{code}`); `Order` places it on the
   wheel (follow 10, stay 20; carry 30, set down 40, fell 50, haul 60, crew 70, guard 80 suggested);
-  `Icon` is an SVG (the game's are `game:textures/icons/...`); `Mark` is `None`, `Block` or `Area`;
+  `Icon` is an SVG (the game's are `game:textures/icons/...`); `Mark` is `None`, `Block`, `Area` or
+  `AreaThenBlock` (an area's two corners, then a block: the third click gives the order, and the
+  context has both `Area` and `Target`; a fourth click starts a new area; haul uses it, and the crew
+  order's fell area and infeed should); `CheckTarget(world, pos)` may refuse a marked block (return
+  `EidolonCommand.Refuse(key)`) before it is kept, the area staying;
   `Command(context)` gets the eidolon, the player, and the marked block (`Target`) or area (`Area`,
   a `MarkArea` with `Min`, `Max`, `Contains`) and returns `EidolonCommand.Order(code, args)` or
   `EidolonCommand.Refuse(langKey, args)` (a mode whose bridge's mod is missing refuses here; it stays on
@@ -2692,6 +2729,14 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   `AiTaskEidolonOrder` runs it at priority 1.5; self-defence runs above it, and the order is
   stopped (`Stop(cancelled: true)`) and started again after, so an order keeps what it needs to resume. `EidolonNavigator.GoTo(target, run, onArrived, onStuck, tolerance)` walks
   it by the wide pathfinder.
+- Hauling (#678; the crew order, #679): `new TrunkHauler(eidolon, machinePos)` moves one trunk entity
+  to a machine's infeed: `Fetch(trunk)`, then `Step()` each tick of the order (`HaulStep.Working`,
+  `Delivered` with the oil spent, `Lost` when the trunk is gone or unreachable, `Idle`), `Interrupt()`
+  in the order's `Stop`; a trunk already carried is delivered without fetching. `MachineInfeeds.Find(world,
+  pos)` resolves a rosser or mill from any of its cells (its infeed cells, way out and `Takes`).
+  `EntityBehaviorEidolonTrunk` holds the carried trunk (`Carrying`, `Trunk`, `TakeUp`, `Hold`,
+  `LayDown`); an order that may hold one adds its code to `EntityBehaviorEidolonTrunk.Holders`.
+  `EidolonNavigator.MoveAnimation` walks with another animation (`trunk-carry-walk`).
 - The game's `commandable` and `openablecontainer` entity behaviours (the hacked locust's and the mech
   helper's) may serve the command tool and the carried container.
 

@@ -7,7 +7,8 @@ using Vintagestory.API.Server;
 namespace SeraphHorizons.Mod.Eidolon;
 
 /// <summary>What a mode is given to make one eidolon's order: who orders, and what they marked (the
-/// block for <see cref="EidolonMarkKind.Block"/>, the area for <see cref="EidolonMarkKind.Area"/>).</summary>
+/// block for <see cref="EidolonMarkKind.Block"/>, the area for <see cref="EidolonMarkKind.Area"/>,
+/// both for <see cref="EidolonMarkKind.AreaThenBlock"/>).</summary>
 public sealed record EidolonCommandContext(EntityLaborEidolon Eidolon, IServerPlayer Player, BlockPos? Target, MarkArea? Area);
 
 /// <summary>A mode's answer for one eidolon: the order to give it (code as registered with
@@ -42,6 +43,12 @@ public sealed class EidolonCommandMode
     public int MaxAreaSide { get; init; } = 48;
 
     public required System.Func<EidolonCommandContext, EidolonCommand> Command { get; init; }
+
+    /// <summary>For a mode that marks a block (<see cref="EidolonMarkKind.Block"/>,
+    /// <see cref="EidolonMarkKind.AreaThenBlock"/>): whether the clicked block will do, null when it
+    /// will, else a lang key (with arguments) told to the player; the block is then not marked and the
+    /// area is kept, so a misclick costs nothing. Server side. Null: any block.</summary>
+    public System.Func<IWorldAccessor, BlockPos, EidolonCommand?>? CheckTarget { get; init; }
 
     public string NameKey => "seraphhorizons:eidoloncommander-mode-" + Code;
 }

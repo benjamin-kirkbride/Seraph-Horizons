@@ -11,7 +11,8 @@ entity (#673): its type, ownership, charge, slumping and a first pathfinder for 
 and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantry, upkeep, command tool
 and jobs plug into; the body stages and the waking (#672: the gantry's `BEBehaviorEidolonBody`,
 `../EidolonGantry/`), oil and repair (#674), and the command tool's binding, mode wheel and marking,
-following, staying and self-defence (#675) are built too. The jobs are not built yet.
+following, staying and self-defence (#675) are built too, and hauling trunks to the rosser and the
+bucking mill (#678). The other jobs are not built yet.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.

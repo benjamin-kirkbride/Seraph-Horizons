@@ -63,7 +63,7 @@ public class ItemEidolonCommander : Item
             return Marks.None;
         static MarkPos? Read(ITreeAttribute t, string p) =>
             t.HasAttribute(p + "x") ? new MarkPos(t.GetInt(p + "x"), t.GetInt(p + "y"), t.GetInt(p + "z")) : null;
-        return new Marks(Read(tree, "a"), Read(tree, "b"));
+        return new Marks(Read(tree, "a"), Read(tree, "b"), Read(tree, "c"));
     }
 
     public static void SetMarks(ItemStack stack, string mode, Marks marks)
@@ -85,6 +85,7 @@ public class ItemEidolonCommander : Item
         }
         Write(tree, "a", marks.First);
         Write(tree, "b", marks.Second);
+        Write(tree, "c", marks.Third);
         all[mode] = tree;
     }
 
@@ -226,16 +227,26 @@ public class ItemEidolonCommander : Item
         {
             if (clicked == null)
             {
-                Error(player, mode.Mark == EidolonMarkKind.Area ? "eidoloncommander-mark-corner" : "eidoloncommander-mark-block");
+                bool corner = mode.Mark == EidolonMarkKind.Area
+                              || (mode.Mark == EidolonMarkKind.AreaThenBlock && GetMarks(stack, mode.Code) is not { Second: not null, Third: null });
+                Error(player, corner ? "eidoloncommander-mark-corner" : "eidoloncommander-mark-block");
                 return 0;
             }
             var (marks, step) = EidolonMarking.Click(mode.Mark, GetMarks(stack, mode.Code), new MarkPos(clicked.X, clicked.Y, clicked.Z), mode.MaxAreaSide);
+            if (step == MarkStep.Target && mode.CheckTarget?.Invoke(api.World, clicked) is { RefusalKey: { } refusal } badTarget)
+            {
+                Error(player, refusal, badTarget.RefusalArgs ?? []);
+                return 0;
+            }
             SetMarks(stack, mode.Code, marks);
             slot.MarkDirty();
             switch (step)
             {
                 case MarkStep.FirstCorner:
                     Tell(player, "eidoloncommander-corner-first");
+                    return 0;
+                case MarkStep.AreaThenBlock:
+                    Tell(player, "eidoloncommander-area-then-block");
                     return 0;
                 case MarkStep.TooLarge:
                     Error(player, "eidoloncommander-area-toolarge", mode.MaxAreaSide);
@@ -245,6 +256,7 @@ public class ItemEidolonCommander : Item
                     break;
                 default:
                     target = clicked.Copy();
+                    area = marks.Area;
                     break;
             }
         }

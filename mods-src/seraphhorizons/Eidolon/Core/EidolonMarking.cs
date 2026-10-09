@@ -33,6 +33,11 @@ public enum EidolonMarkKind
     /// <summary>An area: a right-click marks its first corner, a second its opposite corner and gives
     /// the order (fell an area).</summary>
     Area,
+
+    /// <summary>An area, then a block: two clicks mark the area as for <see cref="Area"/>, a third
+    /// marks the block and gives the order (haul from an area to a machine's infeed; the crew order's
+    /// fell area and infeed). The order gets both.</summary>
+    AreaThenBlock,
 }
 
 public enum MarkStep
@@ -49,11 +54,16 @@ public enum MarkStep
     /// <summary>The opposite corner would make the area larger than the mode allows: refused, the
     /// first corner kept.</summary>
     TooLarge,
+
+    /// <summary>For <see cref="EidolonMarkKind.AreaThenBlock"/>: the area closed, and the next click
+    /// marks the block (which gives the order, as <see cref="Target"/>).</summary>
+    AreaThenBlock,
 }
 
-/// <summary>A mode's marks as the tool keeps them: the first corner (or the block), and for an area
-/// its opposite corner once closed.</summary>
-public readonly record struct Marks(MarkPos? First, MarkPos? Second)
+/// <summary>A mode's marks as the tool keeps them: the first corner (or the block), for an area
+/// its opposite corner once closed, and for <see cref="EidolonMarkKind.AreaThenBlock"/> the block
+/// marked after the area (<see cref="Third"/>).</summary>
+public readonly record struct Marks(MarkPos? First, MarkPos? Second, MarkPos? Third = null)
 {
     public static readonly Marks None = new(null, null);
 
@@ -65,7 +75,8 @@ public readonly record struct Marks(MarkPos? First, MarkPos? Second)
 /// Marking with the command tool, one click at a time. An area takes two clicks: the first marks a
 /// corner, the second the opposite corner and closes it; a click after a closed area starts a new one.
 /// An opposite corner that makes the area wider than <c>maxSide</c> blocks is refused and the first
-/// corner kept, so the player can mark a nearer one.
+/// corner kept, so the player can mark a nearer one. An area then a block takes three clicks: the area's
+/// two, then the block; a click after the block starts a new area.
 /// </summary>
 public static class EidolonMarking
 {
@@ -81,6 +92,14 @@ public static class EidolonMarking
                 if (MarkArea.Between(first, clicked).LongestSide > maxSide)
                     return (marks, MarkStep.TooLarge);
                 return (new Marks(first, clicked), MarkStep.Area);
+            case EidolonMarkKind.AreaThenBlock:
+                if (marks.First is not { } start || marks.Third != null)
+                    return (new Marks(clicked, null), MarkStep.FirstCorner);
+                if (marks.Second == null)
+                    return MarkArea.Between(start, clicked).LongestSide > maxSide
+                        ? (marks, MarkStep.TooLarge)
+                        : (new Marks(start, clicked), MarkStep.AreaThenBlock);
+                return (marks with { Third = clicked }, MarkStep.Target);
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "this mode marks nothing");
         }

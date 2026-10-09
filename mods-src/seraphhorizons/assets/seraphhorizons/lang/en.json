@@ -1809,5 +1809,16 @@
   "eidolon-order-follow": "follow",
   "eidolon-status-follow-noway": "It can find no way to {0} and waits",
   "eidolon-status-follow-gone": "Waiting for {0}",
-  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can"
+  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can",
+  "eidoloncommander-mode-haul": "Haul trunks",
+  "eidoloncommander-area-then-block": "Area marked: now mark the block it works at",
+  "eidolon-order-haul": "haul trunks",
+  "eidolon-haul-notmachine": "Mark a rosser or a bucking mill: the eidolon lays the trunks at its infeed",
+  "eidolon-haul-notrunks": "Trunks are not entities on this server: there is nothing for an eidolon to haul",
+  "eidolon-status-haul-totrunk": "Going for a trunk",
+  "eidolon-status-haul-toinfeed": "Carrying a trunk to the machine",
+  "eidolon-status-haul-busy": "Waiting for the infeed to clear",
+  "eidolon-status-haul-clear": "No trunk left in its area that the machine takes: it waits",
+  "eidolon-status-haul-nomachine": "The machine it hauls to is gone",
+  "eidolon-info-trunk": "Carrying: {0}"
 }

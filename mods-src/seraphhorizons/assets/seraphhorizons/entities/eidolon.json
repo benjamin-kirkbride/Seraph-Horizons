@@ -20,7 +20,8 @@
 	},
 	drops: [],
 	client: {
-		renderer: "Shape",
+		// The game's shape renderer, and the trunk it carries at its attachment point (EidolonShapeRenderer).
+		renderer: "seraphhorizons.EidolonShape",
 		pitchStep: false,
 		size: 1,
 		shape: { base: "seraphhorizons:entity/eidolon/eidolon" },
@@ -33,6 +34,7 @@
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
 			{ code: "seraphhorizons.eidolonOrders" },
+			{ code: "seraphhorizons.eidolonTrunk" },
 		],
 		// Codes are the shape's animation names, so later orders start them by name; walk, run and
 		// idle are the game's codes for moving and standing. One-shots and holds suppress the idle.
@@ -79,6 +81,8 @@
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
 			{ code: "seraphhorizons.eidolonOrders" },
+			// The trunk it hauls (EntityBehaviorEidolonTrunk), saved with it.
+			{ code: "seraphhorizons.eidolonTrunk" },
 			{
 				code: "taskai",
 				aitasks: [
