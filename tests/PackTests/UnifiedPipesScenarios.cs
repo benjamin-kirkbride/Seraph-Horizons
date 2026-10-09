@@ -320,4 +320,37 @@ public partial class SharedWorldScenarios
             for (int dx = 0; dx <= 3; dx++)
                 World.SetBlock("game:air", at.EastCopy(dx));
     }
+
+    // A pipe section set down on the ground is drawn turned by the ground storage's MeshAngle, a
+    // quarter turn for each way the player faces; its collision and selection boxes turn with it
+    // (GroundStorageBoxes): along z facing north or south, along x facing east or west.
+    [AtlasScenario]
+    public void UnifiedPipes_a_pipe_section_on_the_ground_is_boxed_the_way_it_lies()
+    {
+        var pos = World.Spawn.AddCopy(45, 2, -95);
+        // Filled before the next tick, which removes an empty ground storage.
+        W.BlockAccessor.SetBlock(GearBlankParts.Block(W, "game:groundstorage").Id, pos);
+        var storage = W.BlockAccessor.GetBlockEntity<BlockEntityGroundStorage>(pos)
+                      ?? throw new Xunit.Sdk.XunitException($"no ground storage at {pos}: {W.BlockAccessor.GetBlock(pos).Code}");
+        storage.Inventory[0].Itemstack = new ItemStack(GearBlankParts.Item(W, PipeSections.PipeSection("lead")));
+        var block = W.BlockAccessor.GetBlock(pos);
+        // the item type's box: 6/16 wide in x, a block long in z
+        var alongZ = new Cuboidf(0.3125f, 0, 0, 0.6875f, 0.375f, 1);
+        var alongX = new Cuboidf(0, 0, 0.3125f, 1, 0.375f, 0.6875f);
+        foreach (var (angle, box) in new[]
+                 {
+                     (0f, alongZ), (GameMath.PIHALF, alongX), (GameMath.PI, alongZ), (-GameMath.PIHALF, alongX), (-GameMath.PI, alongZ),
+                 })
+        {
+            storage.MeshAngle = angle;
+            storage.DetermineStorageProperties(null);
+            foreach (var boxes in new[] { block.GetCollisionBoxes(W.BlockAccessor, pos), block.GetSelectionBoxes(W.BlockAccessor, pos) })
+            {
+                var got = Assert.Single(boxes);
+                foreach (var (want, have) in new[] { (box.X1, got.X1), (box.Y1, got.Y1), (box.Z1, got.Z1), (box.X2, got.X2), (box.Y2, got.Y2), (box.Z2, got.Z2) })
+                    Assert.True(Math.Abs(want - have) < 1e-4, $"at {angle} rad: want {box}, got {got}");
+            }
+        }
+        World.SetBlock("game:air", pos);
+    }
 }

@@ -5,7 +5,8 @@
 // No grid or anvil recipe makes it: copper and lead ones come from a chute section on the mandrel
 // station (2) or the draw bench (4), iron and steel ones from Steelmaking Expanded's canal in the
 // pipe mold (CastPipes, 2 a fill). One makes a straight ppex pipe; two, three or four a bend, T- or
-// X-junction (recipes/grid/unifiedpipes.json). Marked disabled with the switch off.
+// X-junction (recipes/grid/unifiedpipes.json). Marked disabled with the switch off. On the ground
+// its box, a block long along z, turns with the model (groundStorageTurnsBoxes, Pipes/Core/GroundBoxTurns.cs).
 {
 	code: "pipesection",
 	variantgroups: [
@@ -20,6 +21,7 @@
 	},
 	attributes: {
 		shelvable: true,
+		groundStorageTurnsBoxes: true,
 		groundStorageTransform: {
 			translation: { x: 0, y: -0.3125, z: 0 }
 		},

@@ -31,6 +31,9 @@ namespace SeraphHorizons.Mod.Pipes;
 /// pipe a second of any run holding steam or exhaust (<see cref="PipeRules.LeadBursts"/>);</item>
 /// <item>a postfix on exlib's private <c>ExRecipeCosts.GridRecipesFor</c> keeps ppex's recipe cost
 /// levels to ppex's own recipes, so this mod's pipe recipes keep their quantities.</item>
+/// <item>postfixes on the game's ground storage's <c>GetCollisionBoxes</c> and
+/// <c>GetSelectionBoxes</c> turn a pipe section's boxes with its model
+/// (<see cref="GroundStorageBoxes"/>).</item>
 /// </list>
 /// ppex's steam power page says the four figures and that lead is for water only.
 ///
@@ -313,6 +316,7 @@ public class UnifiedPipesSystem : ModSystem
         _logger = logger;
         harmony.Patch(_burstGetter, postfix: new HarmonyMethod(typeof(UnifiedPipesSystem), nameof(BurstPressurePostfix)));
         harmony.Patch(_onTick, postfix: new HarmonyMethod(typeof(UnifiedPipesSystem), nameof(OnTickPostfix)));
+        GroundStorageBoxes.Patch(harmony);
         var costs = AccessTools.TypeByName(RecipeCostsType);
         _gridRecipesFor = costs == null ? null : AccessTools.DeclaredMethod(costs, "GridRecipesFor", [typeof(ICoreAPI), typeof(AssetLocation)]);
         if (_gridRecipesFor is { IsStatic: true } && _gridRecipesFor.ReturnType == typeof(IEnumerable<GridRecipe>))
