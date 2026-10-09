@@ -2,7 +2,7 @@
 
 Part of the Seraph Horizons mod (`../README.md`): a rung of the pipe ladder (unified pipes, `../Pipes/`).
 A hand-worked **leaf brake** (a cornice brake) of the early-to-mid 1800s, in oak with iron wearing edges
-and iron clamping screws, folds one lead or copper **half plate** (`seraphhorizons:halfplate-lead` or
+and cupronickel clamping screws, folds one lead or copper **half plate** (`seraphhorizons:halfplate-lead` or
 `-copper`, 8 × 4, cut from the game's plate on the squaring shear, `../SquaringShear/`) once across its
 middle, into one **angle** (`seraphhorizons:angle-{lead,copper}`: an L, two 4-wide legs, 4 long). It is
 the only maker of angles. Two angles, soldered on the grid, make the game's chute section. The half plate
@@ -58,16 +58,22 @@ bar), and the clamping bar with its screw cups. The **build order** is the frame
 
 | Order | `requires` | Item | Draws | Taken back |
 |---|---|---|---|---|
-| 1 | `screws` | `game:rod-iron`, `-meteoriciron` or `-steel` | The two clamp screws with their tommy bars. Their texture code is `screw`, which the renderer sets to the rods' metal | Only by breaking the frame |
+| 1 | `screws` | `game:metal-parts` (a block), one | The two clamp screws with their tommy bars, always in cupronickel (texture code `cupronickel`, `game:block/metal/sheet/cupronickel1`, the Jonas palette) | Only by breaking the frame |
 | 2 | `edge` | `game:metalplate-iron` or `-steel` | The iron wearing edges: the bed's folding edge, the leaf's edge, the bar's nose. Their texture code is `edge`, which the renderer sets to the plate's metal | Only by breaking the frame |
 | — | `platelead` | The work: a lead half plate on the brake (k = 1) | The half plate, as laid and as it folds into the angle (legs A and M) | The material being worked, not a part |
 | — | `platecopper` | The work: a copper half plate (k = 2) | The same in copper | as above |
 
-Why these items: the game has no screw, so the screws are turned rods, and the wearing edges are strips
-of plate. No game item reads as a brake's lever (the crowbar is a tool the player would lose), so the
-lever is the frame's. Until the edges are fitted, the bed's front, the leaf's heel and the bar's foot
-show their rebates. The viewer shows `platelead` only with lead chosen and `platecopper` only with copper
-(`requiresClass`).
+Why these items: the game has no screw, but its metal parts (salvage, and sold by the pack's mechanic)
+are the small made-up mechanism a pair of clamp screws and their tommy bars is, so the screws are made
+from them; and the wearing edges are strips of plate. One lot of metal parts makes both screws: the
+brake takes one item a stage (`Stages` below), and a lot is a handful of parts, enough for two screws
+and two short bars. The screws are drawn in the parts' cupronickel, whatever was salvaged. They were
+once a turned rod of iron, meteoric iron or steel, drawn in the rod's metal: a brake saved with a rod
+fitted keeps it, drawn in cupronickel, and breaking it gives the rod back
+(`PressBrakeParts.LegacyScrewCodes`), but no rod fits any more. No game item reads as a brake's lever
+(the crowbar is a tool the player would lose), so the lever is the frame's. Until the edges are fitted,
+the bed's front, the leaf's heel and the bar's foot show their rebates. The viewer shows `platelead`
+only with lead chosen and `platecopper` only with copper (`requiresClass`).
 
 ## Model
 
@@ -168,7 +174,7 @@ and exits non-zero if one fails:
 - **Containment:** nothing leaves the 1 × 1 × 2 box over the whole cycle of both metals, the hand bar
   at copper's throw included.
 - **Textures** by role: oak timber, the leaf and the hand bar; iron bearings, pins, gallows, nuts,
-  knuckles, straps, arms and cups; `edge` for the wearing edges, `screw` for the screws; lead and copper
+  knuckles, straps, arms and cups; `edge` for the wearing edges, `cupronickel` for the screws; lead and copper
   sheet.
 - **Sheet:** the half plate as laid is 4 wide and 8 deep across the folding edge, flat, from W = 0
   through the clamp (nothing hidden, nothing spreading). Leg A lies on the leaf's face (within 1e-4)
@@ -213,7 +219,7 @@ maths: a `work` quantity, gauges, and one θ-driven rotate of ratio 0.
 
 **Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `plate`, `edge`, `work`, `fold` and `parts`.
 `requires` values: `screws`, `edge`, `platelead`, `platecopper`, or null. The texture codes the
-renderer sets: `edge` (the fitted plate's metal) and `screw` (the rods' metal).
+renderer sets: `edge` (the fitted plate's metal); the screws' `cupronickel` is fixed.
 
 **In the viewer** (`site/models.json`, the site's model page): the lever's work is the θ slider, and it
 moves nothing. The fold cycle's slider reads in plates (half plates) and stops at 1. The size select
@@ -260,22 +266,22 @@ oil. The mod's README, "Press brake", is the player-facing summary; the decision
 is read from the rig through its anchors, `requires` and the stable part id `leaf`, never element names.
 
 **Blocks.** `seraphhorizons:pressbrake-frame-{side}` (`assets/seraphhorizons/blocktypes/pressbrake/frame.json`,
-drawing `pressbrake_frame.json`; its textures are every texture of both shapes, `edge` and `screw`
+drawing `pressbrake_frame.json`; its textures are every texture of both shapes, `edge` and `cupronickel`
 included) and `pressbrake-ghost` for the far cell. Placement (`side` = the player's look,
 `PressBrakeRig.PlacedSide`, so the brake runs away from them with the leaf end nearest), the ghost, its
 repair, breaking through it and the boxes (selection from the rig's cells, collision with their lids)
 are the draw bench's. The frame recipe (`assets/seraphhorizons/recipes/grid/pressbrake.json`): three oak
 planks, two oak logs, four nails and strips of iron, meteoric iron or steel, and a hammer. It takes no
-plate and no rod: the contract puts the frame's own iron (gallows, nuts, hinge pins, bail arms) in the
-frame, and the screws and edges are the stages, so the nails and strips stand for the frame's iron and
-the rods and plate are fitted.
+plate and no metal parts: the contract puts the frame's own iron (gallows, nuts, hinge pins, bail arms)
+in the frame, and the screws and edges are the stages, so the nails and strips stand for the frame's
+iron and the metal parts and plate are fitted.
 
 **Stages** (`PressBrakeParts`), one item a stage, in `PressBrakeStage` order, the next missing stage the
 only one a click fills (`OutOfOrder`, `AlreadyFitted`, `NotAPart` otherwise):
 
-| # | `requires` | Item (verified in game 1.22.7's `survival/itemtypes`: `part/rod.json`, `resource/metalplate.json`) |
+| # | `requires` | Item (verified in game 1.22.7's `survival/blocktypes/metal/metalpartsandscraps.json` and `survival/itemtypes/resource/metalplate.json`) |
 |---|---|---|
-| 1 | `screws` | `game:rod-iron`, `-meteoriciron` or `-steel` |
+| 1 | `screws` | `game:metal-parts` (a block; one) |
 | 2 | `edge` | `game:metalplate-iron` or `-steel` |
 
 **Take-back.** As the contract has it, the parts come back only by breaking: once fitted, nothing
@@ -284,7 +290,9 @@ the brake has none; Ctrl + right-click once took the last stage back out, and no
 takes the half plate off while it is still flat (W = 0); one being folded stays (an error says so).
 With no half plate on, a Ctrl click is an ordinary click. Breaking drops every part and a flat half
 plate (a part-folded one is lost). The creative shortcut (Ctrl in creative mode on an
-incomplete brake) fits each stage's first code. A save restores the stages as a run from the first.
+incomplete brake) fits each stage's first code (metal parts, then an iron plate). A save restores the stages as a run
+from the first; a save's screws may also be a rod, from before they were metal parts (kept, and given
+back on breaking).
 
 **Hold to work** (the quern's pattern, `BlockQuern`/`BlockEntityQuern`): the block forwards the
 interaction's start, every step, the stop and the cancel to the block entity (the ghost forwards them
@@ -327,11 +335,11 @@ rig's `fold.leverTurnsPerPlate` (`PressBrakeRigTests.The_default_pace_is_the_rig
 the server sends them to clients in the block entity's tree. The edges do not wear (the contract gives
 them none), so there is no durability setting, no tool in the export and no oil.
 
-**Renderer** (`PressBrakeRenderer`, through `IPressBrakeView`: facing, fitted parts, the screws' and
-edges' metals, the half plate's class and the server's W, and whether anyone holds). Every rig part with a
+**Renderer** (`PressBrakeRenderer`, through `IPressBrakeView`: facing, fitted parts, the edges'
+metal, the half plate's class and the server's W, and whether anyone holds). Every rig part with a
 `requires`, a ride or a driver, from `pressbrake.json`, drawn when its stage is fitted, with the texture
-codes `screw` and `edge` set to the fitted rods' and plates' metals (`MachineMeshes.MetalTexture`, one
-mesh set per pair of metals). The sheet's parts (`platelead`, `platecopper`) are drawn only while that
+code `edge` set to the fitted plates' metal (`MachineMeshes.MetalTexture`, one mesh set per metal); the
+screws are the block's own `cupronickel`, whatever was fitted. The sheet's parts (`platelead`, `platecopper`) are drawn only while that
 metal's half plate is on the bed: once the angle is delivered it drops as an item, and the sheet is not
 drawn while p eases out (weak spot 5 above), though the bar and screws ease back with it.
 `PressBrakeClock` turns θ while held, and shows W through `Machines/Core/HeldWorkFollower`: predicted

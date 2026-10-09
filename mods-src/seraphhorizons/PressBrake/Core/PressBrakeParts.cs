@@ -54,14 +54,23 @@ public static class PressBrakeRequires
 /// <summary>
 /// The press brake's assembly rules: two stages after the frame, fitted one item at a time in
 /// <see cref="PressBrakeStage"/> order (the next missing stage is the only one a click fills),
-/// recognised by full code (<c>domain:path</c>): the clamp screws (a rod) and the wearing edges (a
-/// plate). Every fitted code is kept, so breaking returns exactly what went in; nothing else takes a
-/// part back out.
+/// recognised by full code (<c>domain:path</c>): the clamp screws (metal parts) and the wearing edges
+/// (a plate). Every fitted code is kept, so breaking returns exactly what went in; nothing else takes
+/// a part back out.
 /// </summary>
 public sealed class PressBrakeParts
 {
-    /// <summary>The clamp screws: a turned rod of iron, meteoric iron or steel, iron first.</summary>
-    public static readonly IReadOnlyList<string> ScrewCodes = ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"];
+    /// <summary>The clamp screws with their tommy bars: one lot of the game's metal parts (a block,
+    /// salvaged or bought from the mechanic). One lot is both screws: one item a stage, as every
+    /// stage is. They are drawn in cupronickel, whatever was fitted.</summary>
+    public const string ScrewCode = "game:metal-parts";
+
+    public static readonly IReadOnlyList<string> ScrewCodes = [ScrewCode];
+
+    /// <summary>What the screws took before they were metal parts: a turned rod of iron, meteoric iron or
+    /// steel. None fits any more, but a brake saved with one keeps it (<see cref="Restore"/>), and
+    /// breaking it gives the rod back.</summary>
+    public static readonly IReadOnlyList<string> LegacyScrewCodes = ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"];
 
     /// <summary>The wearing edges: plate strips of iron or steel, iron first.</summary>
     public static readonly IReadOnlyList<string> EdgeCodes = ["game:metalplate-iron", "game:metalplate-steel"];
@@ -70,6 +79,13 @@ public sealed class PressBrakeParts
     public static IReadOnlyList<string> CodesFor(PressBrakeStage stage) => stage switch
     {
         PressBrakeStage.Screws => ScrewCodes,
+        _ => EdgeCodes,
+    };
+
+    /// <summary>The codes a save may hold for a stage: what it takes now, and what it once took.</summary>
+    public static IEnumerable<string> RestorableFor(PressBrakeStage stage) => stage switch
+    {
+        PressBrakeStage.Screws => ScrewCodes.Concat(LegacyScrewCodes),
         _ => EdgeCodes,
     };
 
@@ -88,9 +104,10 @@ public sealed class PressBrakeParts
 
     public static bool IsPart(string? code) => StagesOf(code).Count > 0;
 
-    /// <summary>The metal of a part's code (<c>game:rod-steel</c> is <c>steel</c>); null for anything else.</summary>
+    /// <summary>The metal of an edge plate's code (<c>game:metalplate-steel</c> is <c>steel</c>); null for
+    /// anything else, the screws' metal parts among them (they are always cupronickel).</summary>
     public static string? MetalOf(string? code) =>
-        Normalise(code) is { } c && IsPart(c) ? c[(c.LastIndexOf('-') + 1)..] : null;
+        Normalise(code) is { } c && EdgeCodes.Contains(c) ? c[(c.LastIndexOf('-') + 1)..] : null;
 
     public bool Has(PressBrakeStage stage) => _fitted.ContainsKey(stage);
 
@@ -144,13 +161,13 @@ public sealed class PressBrakeParts
 
     /// <summary>Restored state, as <see cref="Snapshot"/> gave it. The stages must be a run from
     /// the first (what follows a gap is dropped, as it could not have been fitted); a code that is
-    /// not its stage's part is dropped.</summary>
+    /// not its stage's part, now or before (<see cref="RestorableFor"/>), is dropped.</summary>
     public static PressBrakeParts Restore(IReadOnlyDictionary<string, string> fitted)
     {
         var parts = new PressBrakeParts();
         foreach (var stage in PressBrakeRequires.Stages)
         {
-            if (!fitted.TryGetValue(PressBrakeRequires.Name(stage), out var code) || !CodesFor(stage).Contains(Normalise(code)!))
+            if (!fitted.TryGetValue(PressBrakeRequires.Name(stage), out var code) || !RestorableFor(stage).Contains(Normalise(code)!))
                 break;
             parts._fitted[stage] = Normalise(code)!;
         }

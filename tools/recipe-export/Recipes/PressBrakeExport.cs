@@ -13,8 +13,9 @@ public sealed class PressBrakeData
     public required string Mod;
     public required string FrameCode;
     public Block? Frame;
-    /// <summary>The fitted parts the brake keeps, each stage's alternatives: the screws, the edges.</summary>
-    public List<(string Template, List<Item> Items)> Kept = new();
+    /// <summary>The fitted parts the brake keeps, each stage's template, its kind (<c>item</c> or
+    /// <c>block</c>) and its alternatives: the screws (metal parts, a block), the edges.</summary>
+    public List<(string Template, string Kind, List<CollectibleObject> Stacks)> Kept = new();
     public required int AnglesPerPlate;
     public List<FoldClass> Classes = new();
 }
@@ -32,15 +33,19 @@ public static class PressBrakeExport
     public static readonly AssetLocation RigAsset = new(GearChain.Mod, "config/pressbrake-rig.json");
     public const string FrameCode = "seraphhorizons:pressbrake-frame-north";
 
-    // PressBrake/Core/PressBrakeParts.cs: what each kept stage takes.
-    public static readonly (string Template, string[] Codes)[] KeptStages =
+    // PressBrake/Core/PressBrakeParts.cs: what each kept stage takes (the screws are metal parts, a block).
+    public static readonly (string Template, string Kind, string[] Codes)[] KeptStages =
     [
-        ("game:rod-iron", ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"]),
-        ("game:metalplate-iron", ["game:metalplate-iron", "game:metalplate-steel"]),
+        ("game:metal-parts", "block", ["game:metal-parts"]),
+        ("game:metalplate-iron", "item", ["game:metalplate-iron", "game:metalplate-steel"]),
     ];
 
     private static Item? ItemOf(ICoreServerAPI api, string code) =>
         api.World.GetItem(new AssetLocation(code)) is { IsMissing: false } i && i.Code != null ? i : null;
+
+    private static CollectibleObject? Of(ICoreServerAPI api, string kind, string code) => kind == "block"
+        ? api.World.GetBlock(new AssetLocation(code)) is { IsMissing: false, Id: > 0 } b && b.Code != null ? b : null
+        : ItemOf(api, code);
 
     private static double Dbl(object? o, string name, double fallback) =>
         GearChain.Prop(o, name) is { } v ? Convert.ToDouble(v) : fallback;
@@ -67,11 +72,11 @@ public static class PressBrakeExport
             Frame = api.World.GetBlock(new AssetLocation(FrameCode)) is { IsMissing: false, Code: not null } f ? f : null,
             AnglesPerPlate = (int?)fold?["anglesPerPlate"] ?? 1,
         };
-        foreach (var (template, codes) in KeptStages)
+        foreach (var (template, kind, codes) in KeptStages)
         {
-            var items = codes.Select(c => ItemOf(api, c)).OfType<Item>().ToList();
-            if (items.Count == 0) return null;
-            data.Kept.Add((template, items));
+            var stacks = codes.Select(c => Of(api, kind, c)).OfType<CollectibleObject>().ToList();
+            if (stacks.Count == 0) return null;
+            data.Kept.Add((template, kind, stacks));
         }
         foreach (var (name, metal, turnsKey) in new[] { ("thin", "lead", "LeverTurnsPerPlateLead"), ("thick", "copper", "LeverTurnsPerPlateCopper") })
         {
