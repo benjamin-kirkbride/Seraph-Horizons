@@ -26,6 +26,25 @@ export interface Stack {
   name?: string;
 }
 
+/** The game's ground storage layouts, lower case. */
+export type GroundStorageLayout = "singlecenter" | "halves" | "wallhalves" | "quadrants" | "messy12" | "stacking";
+
+export interface GroundStorage {
+  layout: GroundStorageLayout;
+  /** Items one block holds. */
+  capacity: number;
+  /** Items per click and per Ctrl click: messy12 and stacking only. */
+  transfer?: number;
+  bulkTransfer?: number;
+  /** Ctrl must be held as well to put it down. */
+  requiresCtrl?: true;
+  /** A full pile can be built on. */
+  solidTop?: true;
+  maxPilesHigh?: number;
+  /** A full pile's height in blocks. */
+  fullHeight?: number;
+}
+
 export interface ItemAttributes {
   maxStackSize?: number;
   durability?: number;
@@ -47,6 +66,8 @@ export interface ItemAttributes {
     output?: Stack;
   };
   storageFlags?: string[];
+  /** Putting the item down on the ground (the game's GroundStorable behavior). */
+  groundStorage?: GroundStorage;
   extra?: Record<string, unknown>;
 }
 

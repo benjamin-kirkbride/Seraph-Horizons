@@ -32,6 +32,19 @@ function reader(files: Map<string, unknown>) {
 describe("prepareData on schema/examples/minimal.json", () => {
   const r = reader(prepareData(minimal).files);
 
+  it("carries ground storage into the item chunks", () => {
+    expect(r.detail("game:ingot-copper").attributes?.groundStorage).toEqual({
+      layout: "stacking",
+      capacity: 64,
+      transfer: 1,
+      bulkTransfer: 4,
+      solidTop: true,
+      fullHeight: 1,
+    });
+    expect(r.detail("game:saw-copper").attributes?.groundStorage).toEqual({ layout: "wallhalves", capacity: 2 });
+    expect(r.detail("game:stick").attributes?.groundStorage).toBeUndefined();
+  });
+
   it("lists birch plank as used by the ladder recipe although the recipe says game:plank-*", () => {
     expect(r.ids(r.detail("game:plank-birch").usedIn)).toEqual({
       construction: ["construction|game:waterwheel-3m-north|2"],
