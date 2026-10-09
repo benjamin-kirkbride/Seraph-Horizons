@@ -132,7 +132,7 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task Generated_anchors_hold_their_deposit()
     {
         var sapi = (ICoreServerAPI)World.Api;
-        await World.JoinPlayer("surveyor");
+        await World.JoinAtSpawn("surveyor");
         var spawn = sapi.World.DefaultSpawnPosition.AsBlockPos;
         int placed = 0;
         foreach (var metal in new[] { "copper", "iron", "tin" })
@@ -206,7 +206,7 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task Ore_here_lists_every_managed_metal()
     {
-        var player = await World.JoinPlayer("prospector");
+        var player = await World.JoinAtSpawn("prospector");
         var result = await player.ExecuteCommand("/sh ore here");
         output.WriteLine(result.Message);
         Assert.True(result.Ok, result.Message);
