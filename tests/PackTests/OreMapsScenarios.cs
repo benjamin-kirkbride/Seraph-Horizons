@@ -155,7 +155,7 @@ public partial class OreMapsScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 600_000)]
     public async Task Givemap_gives_a_map_that_places_a_waypoint()
     {
-        var player = await World.JoinPlayer("cartographer");
+        var player = await World.JoinAtSpawn("cartographer");
         var sp = (IServerPlayer)player.Player;
         // The admin scenarios may have sold copper deposits near the spawn.
         await Run("/sh ore registry clear copper");
