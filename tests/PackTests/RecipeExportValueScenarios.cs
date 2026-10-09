@@ -105,13 +105,14 @@ public partial class RecipeExportScenarios
             }
         }
         // The steel gear's every route goes through a feature: the gear cutter (fed by the blanks)
-        // or the reclamation line, and its cheapest is the cutter's. The shipped table is built
-        // from an export that carries the mod, so it prices the gear and says so.
+        // or the reclamation line, whichever is cheaper (the line since the barrel's flat is charged
+        // over a stack). The shipped table is built from an export that carries the mod, so it
+        // prices the gear and says so.
         Assert.NotNull(values["seraphhorizons:gear-steel"]);
         var gear = Item("seraphhorizons:gear-steel");
         Assert.NotNull(gear["value"]);
         var depends = ((JArray?)gear["valueSwitches"])?.Values<string>().ToList() ?? [];
-        Assert.Contains("GearCutter", depends);
+        Assert.True(depends.Contains("GearCutter") || depends.Contains("GearReclamation"), string.Join(", ", depends));
         Assert.Equal(new string?[] { "GearReclamation" }, ((JArray?)Item("seraphhorizons:picklingtub")["valueSwitches"])?.Values<string>().ToArray());
         Assert.Equal(ItemValuesSystem.For(World.Api).Count, values.Count);
     }
