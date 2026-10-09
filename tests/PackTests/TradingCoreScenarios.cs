@@ -134,13 +134,9 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         foreach (var e in resolved.Buying.Core)
             Assert.Contains(buying, s => Same(s, e));
         Assert.All(buying, s => Assert.Contains(resolved.Buying.Core.Concat(resolved.Buying.Rotating), e => Same(s, e)));
-        // The wallet is the list's, not vanilla's 30. The orders it posts on a restock (a random
-        // number, #453) each hold their premium back from it.
-        int held = SeraphHorizons.Mod.Trading.Orders.OrdersSystem.Of(Api) is { } orders
-            ? orders.Book.OpenAt(SeraphHorizons.Mod.Trading.Orders.TraderFinder.IdOf(Api, entity)).Sum(o => o.Reserved)
-            : 0;
-        output.WriteLine($"wallet {entity.Inventory.GetTraderAssets()}, held for orders {held}");
-        Assert.InRange(entity.Inventory.GetTraderAssets() + held, 60, 100);
+        // The wallet is the list's, not vanilla's 30 (orders, #453, hold nothing back from it).
+        output.WriteLine($"wallet {entity.Inventory.GetTraderAssets()}");
+        Assert.InRange(entity.Inventory.GetTraderAssets(), 60, 100);
 
         // A restock (as the weekly one does) keeps the core and stays within the list.
         entity.Restock(0.5f);

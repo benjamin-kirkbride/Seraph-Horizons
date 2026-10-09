@@ -68,7 +68,9 @@ public class SchematicTests
                 var entry = List(seller).Selling.Core.SingleOrDefault(e => CodePattern.Normalise(e.Code) == sale.Code);
                 Assert.True(entry != null, $"{seller} does not sell {sale.Code}");
                 Assert.Equal(sale.Tier, entry!.StandingTier);
-                Assert.True(entry.Price!.Avg >= 10, $"{sale.Code} at {entry.Price.Avg} gears");
+                // Schematics have no value: their price is a hand-set gate.
+                Assert.True(entry.Price >= 10, $"{sale.Code} at {entry.Price} gears");
+                Assert.False(string.IsNullOrWhiteSpace(entry.PriceReason), sale.Code);
             }
         // And nothing is sold as a schematic that the table doesn't know.
         foreach (string type in TraderTypes.All)
@@ -187,12 +189,12 @@ public class SchematicTests
     public void StandingTierIsParsedAndGatesTheCore()
     {
         var def = JsonSerializer.Deserialize<TradeListDef>("""
-            { "type": "mechanic", "wallet": [{"avg": 100, "var": 0}],
+            { "type": "mechanic", "wallet": {"avg": 100, "var": 0},
               "selling": { "core": [
-                {"code": "rope", "price": {"avg": 2, "var": 0}},
-                {"code": "seraphhorizons:schematic-biplane", "price": {"avg": 250, "var": 0}, "standingTier": 4},
-                {"code": "seraphhorizons:schematic-windmill", "price": {"avg": 30, "var": 0}, "standingTier": 1}
-              ], "rotating": { "maxItems": 2, "list": [ {"code": "stick", "price": {"avg": 1, "var": 0}, "standingTier": 2} ] } } }
+                {"code": "rope"},
+                {"code": "seraphhorizons:schematic-biplane", "price": 250, "priceReason": "a gate", "standingTier": 4},
+                {"code": "seraphhorizons:schematic-windmill", "price": 30, "priceReason": "a gate", "standingTier": 1}
+              ], "rotating": { "maxItems": 2, "list": [ {"code": "stick", "standingTier": 2} ] } } }
             """, Options)!;
         Assert.Equal([0, 4, 1], def.Selling.Core.Select(e => e.StandingTier));
         var region = Region.All.First();

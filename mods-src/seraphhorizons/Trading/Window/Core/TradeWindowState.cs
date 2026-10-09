@@ -25,6 +25,8 @@ public sealed class WindowSwitches
 public sealed class TierView
 {
     [JsonPropertyName("code")] public string Code { get; set; } = "";
+    /// <summary>The tier's 1-based number (stranger 1 … partner 5), which sizes and pays orders.</summary>
+    [JsonPropertyName("n")] public int Number { get; set; } = 1;
     [JsonPropertyName("points")] public double Points { get; set; }
     [JsonPropertyName("unlocks")] public TierUnlocks Unlocks { get; set; } = new();
     /// <summary>The best ore map precision the tier buys (<c>MapOffers.MaxPrecision</c> of its map tier).</summary>
@@ -81,10 +83,11 @@ public sealed class OrderRow
     [JsonPropertyName("item")] public string Item { get; set; } = "";
     [JsonPropertyName("qty")] public int Quantity { get; set; }
     [JsonPropertyName("delivered")] public int Delivered { get; set; }
-    [JsonPropertyName("lot")] public int Lot { get; set; } = 1;
-    [JsonPropertyName("unit")] public double UnitPrice { get; set; }
-    [JsonPropertyName("premium")] public int Premium { get; set; }
-    [JsonPropertyName("paid")] public int PremiumPaid { get; set; }
+    /// <summary>The item's value per item, in gears.</summary>
+    [JsonPropertyName("unit")] public double Value { get; set; }
+    /// <summary>What the order pays in all: for an offer, what it would pay this player.</summary>
+    [JsonPropertyName("pay")] public int Payout { get; set; }
+    [JsonPropertyName("paid")] public int PayoutPaid { get; set; }
     /// <summary>Game days until the offer lapses (offered) or the deadline (taken).</summary>
     [JsonPropertyName("left")] public double DaysLeft { get; set; }
     /// <summary>Days to deliver once taken.</summary>

@@ -144,7 +144,7 @@ public class TradingSystem : ModSystem
     /// own stocking runs and adds nothing (<see cref="EntitySeraphTrader"/>).</summary>
     public TradeProperties TradePropsFor(string type)
     {
-        var wallet = Lists?.For(type)?.WalletFor(0) ?? new NatSpec(60, 10);
+        var wallet = Lists?.For(type)?.WalletAt() ?? new NatSpec(60, 10);
         return EmptyTradeProps(wallet.Avg, wallet.Var);
     }
 

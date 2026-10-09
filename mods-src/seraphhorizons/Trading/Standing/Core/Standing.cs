@@ -62,10 +62,9 @@ public sealed class TierUnlocks
     public double BuyPriceFactor { get; set; } = 1;
     /// <summary>Times what the trader pays for the player's goods.</summary>
     public double SellPriceFactor { get; set; } = 1;
-    /// <summary>Index into the trade list's <c>wallet</c> (<c>TradeListDef.WalletFor</c>).</summary>
-    public int WalletTier { get; set; }
-    /// <summary>How large an order the trader offers, times the order's base size (0: none).</summary>
-    public double OrderScale { get; set; }
+    /// <summary>Times the trade list's base <c>wallet</c> the trader restocks to
+    /// (<c>TradeListDef.WalletAt</c>).</summary>
+    public double WalletFactor { get; set; } = 1;
     /// <summary>How large a delivery the trader hands over, times the base size (0: none).</summary>
     public double DeliveryScale { get; set; }
     /// <summary>Whether the trader shelves its rare stock for this player.</summary>
@@ -136,7 +135,7 @@ public sealed class StandingRules
         {
             if (string.IsNullOrWhiteSpace(t.Code)) problems.Add("a tier has no code");
             if (t.Unlocks.BuyPriceFactor <= 0 || t.Unlocks.SellPriceFactor <= 0) problems.Add($"tier {t.Code} has a price factor of 0 or less");
-            if (t.Unlocks.WalletTier < 0) problems.Add($"tier {t.Code} has a negative wallet tier");
+            if (t.Unlocks.WalletFactor <= 0) problems.Add($"tier {t.Code} has a wallet factor of 0 or less");
         }
         if (SpilloverShare < 0 || SpilloverShare > 1) problems.Add($"spilloverShare {SpilloverShare} is not within 0–1");
         if (Points.PerGear < 0 || Points.Order < 0 || Points.Delivery < 0 || Points.DeliveryFailed < 0 || Points.OrderAbandoned < 0)

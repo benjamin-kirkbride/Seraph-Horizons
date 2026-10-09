@@ -1,19 +1,22 @@
 // Trader standing (#452, README "Standing", docs/trading.md): tiers in ascending order of points,
-// what each unlocks, points per event, spillover and the wallet's memory. A trader reads
+// what each unlocks, points per event, spillover and the wallet's memory. walletFactor multiplies
+// the trade list's base wallet (and so the side budget, a quarter of it). Orders follow a tier's
+// number n (stranger 1 ... partner 5), not an unlock: 2n offers a week, lo(n)-2.5n gears' worth of
+// goods each, paid ×(10 + 2.5(n - 1)) (Trading/Orders/Core OrderPlanner). A trader reads
 // max(personal, company) standing plus spilloverShare × the best standing with another trader of
 // its type within TraderStandingSpilloverKm (ModConfig/seraphhorizons.json).
 {
 	"tiers": [
 		{"code": "stranger", "points": 0,
-			"unlocks": {"mapTier": 0, "mapsToTraders": false, "buyPriceFactor": 1.0, "sellPriceFactor": 1.0, "walletTier": 0, "orderScale": 1.0, "deliveryScale": 0, "rareStock": false}},
+			"unlocks": {"mapTier": 0, "mapsToTraders": false, "buyPriceFactor": 1.0, "sellPriceFactor": 1.0, "walletFactor": 1, "deliveryScale": 0, "rareStock": false}},
 		{"code": "known", "points": 60,
-			"unlocks": {"mapTier": 1, "mapsToTraders": false, "buyPriceFactor": 0.97, "sellPriceFactor": 1.02, "walletTier": 0, "orderScale": 1.5, "deliveryScale": 1.0, "rareStock": false}},
+			"unlocks": {"mapTier": 1, "mapsToTraders": false, "buyPriceFactor": 0.97, "sellPriceFactor": 1.02, "walletFactor": 2, "deliveryScale": 1.0, "rareStock": false}},
 		{"code": "regular", "points": 250,
-			"unlocks": {"mapTier": 2, "mapsToTraders": true, "buyPriceFactor": 0.94, "sellPriceFactor": 1.05, "walletTier": 1, "orderScale": 2.0, "deliveryScale": 1.5, "rareStock": false}},
+			"unlocks": {"mapTier": 2, "mapsToTraders": true, "buyPriceFactor": 0.94, "sellPriceFactor": 1.05, "walletFactor": 5, "deliveryScale": 1.5, "rareStock": false}},
 		{"code": "trusted", "points": 800,
-			"unlocks": {"mapTier": 3, "mapsToTraders": true, "buyPriceFactor": 0.9, "sellPriceFactor": 1.08, "walletTier": 2, "orderScale": 3.0, "deliveryScale": 2.0, "rareStock": true}},
+			"unlocks": {"mapTier": 3, "mapsToTraders": true, "buyPriceFactor": 0.9, "sellPriceFactor": 1.08, "walletFactor": 15, "deliveryScale": 2.0, "rareStock": true}},
 		{"code": "partner", "points": 2000,
-			"unlocks": {"mapTier": 4, "mapsToTraders": true, "buyPriceFactor": 0.85, "sellPriceFactor": 1.12, "walletTier": 3, "orderScale": 4.0, "deliveryScale": 3.0, "rareStock": true}},
+			"unlocks": {"mapTier": 4, "mapsToTraders": true, "buyPriceFactor": 0.85, "sellPriceFactor": 1.12, "walletFactor": 40, "deliveryScale": 3.0, "rareStock": true}},
 	],
 	// Deals: per gear changing hands either way. Orders and deliveries (per end) add; a failed
 	// delivery or an abandoned order takes off (from the player who took the job and their company).

@@ -617,17 +617,12 @@ public class SeraphHorizonsConfig
     public double TraderStandingSpilloverKm { get; set; } = 6;
 
     /// <summary>Traders: the pack's traders take any item, not only what their list buys: off-list
-    /// goods at <see cref="BuySpread"/> of their value × three quarters for goods a related type buys,
-    /// half otherwise (config/trading/trader-relations.json), paid from a side budget of a quarter of
-    /// their wallet, refilled at restock. Maps, leads, money and worthless goods are refused. Both
-    /// sides follow the server's setting.</summary>
-    public bool EverythingHasAPrice { get; set; } = true;
-
-    /// <summary>Traders: what a trader pays for goods off its list, as a share of their value (a
-    /// pawnshop's spread; selling prices are not touched). The lists' own buying prices are written at
-    /// the default 0.2 and do not follow this setting. Clamped to 0.01–1; both sides follow the
+    /// goods at three quarters of their value for goods a related type buys, paid from the wallet, a
+    /// fifth otherwise (the curio dealer three tenths; config/trading/trader-relations.json), paid
+    /// from a side budget of a quarter of their wallet, refilled at restock, as is what they buy back
+    /// off their own shelf. Maps, leads, money and worthless goods are refused. Both sides follow the
     /// server's setting.</summary>
-    public double BuySpread { get; set; } = 0.2;
+    public bool EverythingHasAPrice { get; set; } = true;
 
     /// <summary>Traders: a supply level per item and 8 km region, raised by selling, drained by buying
     /// and by time, spreading to neighbouring regions; it lowers the price of plentiful goods and puts
@@ -661,10 +656,10 @@ public class SeraphHorizonsConfig
     /// the recipes are as their mods ship them and nobody sells the schematics. Server side.</summary>
     public bool MachineSchematics { get; set; } = true;
 
-    /// <summary>Standing orders (#453, README "Orders and deliveries"): each trader asks for one or
-    /// two lots of what it buys at a premium, taken in the trade window's Orders tab and delivered by
-    /// selling the goods or handing them in there; an order taken and left undelivered costs standing.
-    /// Server side.</summary>
+    /// <summary>Standing orders (#453, README "Orders and deliveries"): each trader asks for some of
+    /// what it buys, more and better paid the higher the standing, taken in the trade window's Orders
+    /// tab and delivered by handing the goods in there for many times their value (new money); an
+    /// order taken and left undelivered costs standing. Server side.</summary>
     public bool TraderOrders { get; set; } = true;
 
     /// <summary>Deliveries (#454, README "Orders and deliveries"): a trader hands a player a package for
