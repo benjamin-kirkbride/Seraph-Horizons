@@ -1,0 +1,25 @@
+// Ferrosilicon (StainlessSteel, CrucibleFurnace/, README "Crucible furnace"): quartz reduced with coke
+// on iron in the crucible furnace's pot; the reducing agent that makes low-carbon ferrochrome. A lump
+// is 5 units.
+{
+	code: "ferrosilicon",
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "Messy12", collisionBox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.125, z2: 1 } } }
+	],
+	shape: { base: "game:item/nugget" },
+	textures: {
+		"ore": { base: "game:block/metal/ingot/titanium" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:cruciblefurnace-handbook-title", text: "seraphhorizons:cruciblefurnace-handbook-text" }
+			]
+		},
+		displaycaseable: true,
+		shelvable: true
+	},
+	maxstacksize: 64,
+	materialDensity: 5000,
+	creativeinventory: { "general": ["*"], "items": ["*"] }
+}

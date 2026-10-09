@@ -1,0 +1,14 @@
+// The crucible furnace's melting hole (StainlessSteel, README "Crucible furnace"): eight fired tier-3
+// refractory bricks (the game's, made with chromite) round an iron plate, its lid.
+[
+	{
+		ingredientPattern: "BBB,BPB,BBB",
+		ingredients: {
+			"B": { type: "item", code: "game:refractorybrick-fired-tier3" },
+			"P": { type: "item", code: "game:metalplate-iron" }
+		},
+		width: 3,
+		height: 3,
+		output: { type: "block", code: "seraphhorizons:meltinghole-closed" }
+	}
+]

@@ -831,5 +831,45 @@
         { "what": "next pattern chosen uniformly, Rand.NextInt(patterns); weight not used", "from": "code constant (WeatherSimulationRegion)" }
       ]
     }
+  },
+  "multiblocks": {
+    "structures": [
+      {
+        "id": "examplemod:kiln",
+        "code": "examplemod:kiln-north",
+        "name": "Kiln",
+        "mod": "examplemod",
+        "codes": ["examplemod:kiln-east", "examplemod:kiln-north"],
+        "parts": [
+          { "pattern": "examplemod:kiln-*", "block": "examplemod:kiln-north", "name": "Kiln", "accepts": ["examplemod:kiln-north", "examplemod:kiln-east"] },
+          { "pattern": "game:claybricks-*", "block": "game:claybricks-fire", "name": "Fire bricks", "accepts": ["game:claybricks-fire"], "acceptsMore": 3 },
+          { "pattern": "game:air", "air": true },
+          { "pattern": "game:multiblock-monolithic-0-p1-0", "block": "game:multiblock-monolithic-0-p1-0" }
+        ],
+        "sizes": [
+          { "label": "Short", "cells": [[0, 0, 0, 0], [0, 1, 0, 3], [0, 0, 1, 1], [0, 1, 1, 2], [0, 2, 1, 1]] },
+          { "label": "Tall", "cells": [[0, 0, 0, 0], [0, 1, 0, 3], [0, 0, 1, 1], [0, 1, 1, 2], [0, 2, 1, 2], [0, 3, 1, 1]] }
+        ],
+        "sizeLabel": "Chimney",
+        "defaultSize": 1
+      }
+    ],
+    "shapes": {
+      "examplemod:kiln-north": {
+        "draw": "shape",
+        "shapes": [
+          {
+            "elements": [
+              { "name": "Base", "from": [0, 0, 0], "to": [16, 8, 16], "children": [
+                { "name": "Lid", "from": [2, 8, 2], "to": [14, 10, 14], "rotationOrigin": [8, 8, 8], "rotationY": 45, "faces": ["up"] }
+              ] }
+            ],
+            "rotateY": 180
+          }
+        ]
+      },
+      "game:claybricks-fire": { "draw": "cube" },
+      "game:multiblock-monolithic-0-p1-0": { "draw": "none" }
+    }
   }
 }
