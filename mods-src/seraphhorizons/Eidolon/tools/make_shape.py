@@ -7,10 +7,14 @@ see ../../CREDITS.md). This script reads it from a game install and writes
 
     assets/seraphhorizons/shapes/entity/eidolon/eidolon.json   the shape
     assets/seraphhorizons/config/eidolon-stages.json            the build stages, element by element
+    EidolonGantry/spine.json                                    vanilla's spine, cut off the body for the gantry
 
 The vanilla file is pinned by sha256: a game update that changes it stops the script instead of
 silently changing the snapshot. Elements, their geometry and the vanilla animations it keeps are
-copied unchanged; textures point at the game's own files by `game:` path (none are copied), with
+copied unchanged, but for the spine (`SPINE_ROOT` and everything under it: the charred-wood mast
+down the back with its pulley, ropes, staples, hooks and clamps), which is cut off: it belongs to
+the gantry, which the body is clamped to while it is built and which it leaves behind when it wakes.
+The spine goes to EidolonGantry/spine.json as it is and out of every animation. Textures point at the game's own files by `game:` path (none are copied), with
 one restyle (`RESTYLE`, undone by --vanilla-look). Everything else is authored here: three anchor
 elements, five attachment points and the laborer's animations, posed by `kin.py`'s copy of the
 game's pose maths (arms reach their grips by a deterministic solver, feet are flattened and set on
@@ -41,6 +45,7 @@ HERE = Path(__file__).resolve().parent
 MOD = HERE.parents[1]
 SHAPE_OUT = MOD / "assets" / "seraphhorizons" / "shapes" / "entity" / "eidolon" / "eidolon.json"
 STAGES_OUT = MOD / "assets" / "seraphhorizons" / "config" / "eidolon-stages.json"
+SPINE_OUT = MOD / "EidolonGantry" / "spine.json"   # the gantry generator's input; not shipped
 VANILLA_REL = Path("assets") / "survival" / "shapes" / "entity" / "lore" / "eidolon" / "normal.json"
 VANILLA_SHA256 = "534f1c0810b10208b11198c04f962add636b95eccd3ea9255d0f4f72228293db"  # game 1.22.7
 FPS = 30
@@ -125,20 +130,26 @@ THICK_RISEN = (-24.5, 17.5, CENTRE_Z)         # on the way up, standing
 THICK_GRIPS = {"R": ("ThickTrunk", (THICK_WIDTH / 2 + 1.0, 3.0, -11.0)),
                "L": ("ThickTrunk", (THICK_WIDTH / 2 + 1.0, 3.0, 11.0))}
 HUNG_CLEAR = 3.0  # hung in the gantry, the lowest toe this far above the floor
+HUNG_BACK = 10.0  # hung, the body is this far behind the entity's position, clamped to the gantry's spine;
+#                   activate steps forward off it to stand at the position (at rest it would touch the spine
+#                   up to 7 voxels forward)
+ACTIVATE_LAND = 8  # activate: the frame its feet are on the floor, after the clamps let go
 # Felling: the hands meet on the handle here at the moment of the cut.
 FELL_IMPACT_R = (-13.0, 31.0, 7.0)
 FELL_IMPACT_L = (-9.0, 29.5, 8.5)
 
-# The elements the vanilla animations move (the joints the game builds). The new animations move
-# only these and the three anchors, so the joint count stays at 39.
+# The elements the vanilla animations move (the joints the game builds), less the spine (below). The new
+# animations move only these and the three anchors, so the joint count stays at 38.
 VANILLA_JOINTS = {
-    "origin", "hip-inside", "chest-inside", "head-inside", "Eye-bracket", "Eye-out", "spine1",
+    "origin", "hip-inside", "chest-inside", "head-inside", "Eye-bracket", "Eye-out",
     "upper-armR", "lower-armR", "wristR", "palmR", "fingerR1", "fingerR2", "fingerR3", "thumbR1", "thumbR2",
     "upperarmL", "lower-armL", "wristL", "palmL", "fingerL1", "fingerL2", "fingerL3", "thumbL1", "thumbL2",
     "upperlegR", "lowerlegR", "footR", "upperlegL", "lowerlegL", "footL",
     "chainskirt-back1", "chainskirt-back2", "chainskirt-back3", "chainskirt-front1", "chainskirt-front2",
 }
 ANCHORS = ("carry-anchor", "trunk-anchor", "thick-trunk-anchor")
+# The spine: vanilla's mast down the back, a child of the chest block. It is the gantry's (see the docstring).
+SPINE_ROOT, SPINE_PARENT = "spine1", "chest-inside"
 
 ARM = {"R": ("upper-armR", "lower-armR", "wristR"), "L": ("upperarmL", "lower-armL", "wristL")}
 LEG = {"R": ("upperlegR", "lowerlegR", "footR", ("soleR1", "soleR2")),
@@ -160,7 +171,7 @@ STAGES = [
                      "game:jonasparts-pumphead", "2 game:metalplate-steel"],
      "roots": ["chest-inside", "collar-front", "collar-R", "collar-L", "chest-plateR", "chest-plateL",
                "chest-backplate", "chest-sideplateR", "chest-sideplateL", "chest-sash2",
-               "bar-chestR1", "bar-chestR2", "bar-chestL1", "bar-chestL2", "spine1",
+               "bar-chestR1", "bar-chestR2", "bar-chestL1", "bar-chestL2",
                "carry-anchor", "trunk-anchor", "thick-trunk-anchor"]},
     {"stage": 3, "code": "pelvis", "name": "Pelvis",
      "ingredients": ["game:eidolongearbox", "game:jonasframes-gearbox02", "2 game:metalplate-steel"],
@@ -220,8 +231,11 @@ HAND_ELEMENTS = {s: set(p) for s, p in FIST.items()}
 class Key:
     """One authored key: a base pose and what to solve for it."""
 
-    def __init__(self, frame, pose=None, plant=None, grips=None, anchors=None, hint=None, clear=0.0):
+    def __init__(self, frame, pose=None, plant=None, grips=None, anchors=None, hint=None, clear=0.0, shift=None,
+                 feet=None):
         self.frame = frame
+        self.shift = shift            # the hips moved this far (model x, y, z) from where the pose puts them
+        self.feet = feet or {}        # {"R"|"L": xyz}: the foot's sole centre put there (model), flat
         self.clear = clear            # with plant: the lowest point this far above the ground instead
         self.pose = merge(pose or {})
         self.plant = plant            # None; "feet": flatten the feet, lowest sole on the ground; "sole": the
@@ -278,6 +292,43 @@ class Builder:
         (x, z), _ = kin.solve(cost, [start[0], start[2]], [(-60, 60), (-90, 90)],
                               steps=(8.0, 4.0, 2.0, 1.0, 0.5, 0.25, 0.1, 0.05))
         pose[foot] = dict(pose.get(foot, {}), rot=(x, start[1], z))
+
+    def foot_point(self, side, pose):
+        """The middle of a foot's two soles' undersides (model voxels)."""
+        cs = self.sole_corners(side, pose)
+        return tuple(sum(c[k] for c in cs) / len(cs) for k in range(3))
+
+    def place_foot(self, side, target, pose):
+        """Thigh (out and forward), knee and foot solved for the foot's sole centre to be at target, flat."""
+        thigh, knee, foot, _ = LEG[side]
+        t0 = pose.get(thigh, {}).get("rot", (0.0, 0.0, 0.0))
+        k0 = pose.get(knee, {}).get("rot", (0.0, 0.0, 0.0))
+        f0 = pose.get(foot, {}).get("rot", (0.0, 0.0, 0.0))
+        start = [t0[0], t0[2], k0[2], f0[0], f0[2]]
+
+        def setp(v):
+            p = dict(pose)
+            p[thigh] = dict(pose.get(thigh, {}), rot=(v[0], t0[1], v[1]))
+            p[knee] = dict(pose.get(knee, {}), rot=(k0[0], k0[1], v[2]))
+            p[foot] = dict(pose.get(foot, {}), rot=(v[3], f0[1], v[4]))
+            return p
+
+        def cost(v):
+            p = setp(v)
+            ys = [c[1] for c in self.sole_corners(side, p)]
+            return (kin.dist(self.foot_point(side, p), target) ** 2 + 10 * (max(ys) - min(ys)) ** 2
+                    + 0.00002 * sum((v[i] - start[i]) ** 2 for i in range(5)))
+
+        v, _ = kin.solve(cost, start, [(-30, 30), (-110, 50), (0, 140), (-45, 45), (-70, 70)])
+        pose.update(setp(v))
+
+    def shift_hips(self, pose, d):
+        """Move the hips by d (model voxels) from where the pose has them, in the hips' own turned frame."""
+        hip = pose.setdefault("hip-inside", {})
+        hip.setdefault("rot", (0.0, 0.0, 0.0))
+        rt = kin.transpose3(kin.rotation_of(self.rig.matrix("hip-inside", pose)))
+        off = hip.get("off", (0.0, 0.0, 0.0))
+        hip["off"] = tuple(off[i] + sum(rt[i][k] * d[k] for k in range(3)) for i in range(3))
 
     def lowest(self, pose, how):
         if how in ("feet", "sole"):
@@ -341,11 +392,28 @@ class Builder:
     # -- keys and animations ------------------------------------------------------------------
     def build_key(self, key):
         pose = merge(key.pose)
+        if key.shift:
+            self.shift_hips(pose, key.shift)
         if key.plant:
             for s in "RL":
                 if key.plant == "feet":
                     self.flatten_foot(s, pose)
             self.ground(pose, key.plant, key.clear)
+        if key.feet:
+            down = [(sd, t) for sd, t in key.feet.items() if t[1] <= 0.01]
+            if down and not key.shift:
+                # the hips over the feet on the ground: moved (x, z) so the planted feet, as the legs are
+                # posed, land on their targets; the solver below only corrects what is left
+                d = [sum(t[k] - self.foot_point(sd, pose)[k] for sd, t in down) / len(down) for k in range(3)]
+                self.shift_hips(pose, (d[0], 0.0, d[2]))
+            for _ in range(8):           # the feet; where a planted one cannot reach, the hips move down (or up)
+                for side, target in sorted(key.feet.items()):
+                    self.place_foot(side, target, pose)
+                errs = [self.foot_point(sd, pose)[1] - t[1] for sd, t in down] or [0.0]
+                dy = -max(errs) if max(errs) > 0.01 else -min(errs) if min(errs) < -0.01 else 0.0
+                if not dy:
+                    break
+                self.shift_hips(pose, (0.0, dy, 0.0))
         for name, spec in key.anchors.items():
             self.place_anchor(name, pose, spec)
         for side, spec in key.grips.items():
@@ -366,6 +434,9 @@ class Builder:
         for side, spec in key0.grips.items():
             if key1.grips.get(side) == spec:
                 worst = max(worst, kin.dist(self.grip_point(side, pose), self.grip_target(spec, pose)))
+        for side, target in key0.feet.items():
+            if key1.feet.get(side) == target:
+                worst = max(worst, kin.dist(self.foot_point(side, pose), target))
         return worst
 
     def refine(self, k0, p0, k1, p1, depth=0, tolerance=0.4):
@@ -386,6 +457,7 @@ class Builder:
                  plant=k0.plant if k0.plant == k1.plant and k0.clear == k1.clear else None, clear=k0.clear,
                  anchors={n: sp for n, sp in k0.anchors.items() if sp[0] == "world" and k1.anchors.get(n) == sp},
                  grips={s: sp for s, sp in k0.grips.items() if k1.grips.get(s) == sp},
+                 feet={s: t for s, t in k0.feet.items() if k1.feet.get(s) == t},
                  hint=hint)
         pmb = self.build_key(km)
         return (self.refine(k0, p0, km, pmb, depth + 1, tolerance) + [(km, pmb)]
@@ -716,28 +788,67 @@ def authored(b: Builder, vanilla_anims):
                              [g(0, 0, 4, 0), g(16, 32, 4, 1), g(30, 32, 4.5, 1.5), g(40, 0, 4, 0.5),
                               g(56, -32, 4, 1), g(70, -32, 4.5, 1.5)], "Repeat", "EaseOut"))
 
-    # hung: limp in the gantry, held up by the back, feet clear of the floor. One frame, held.
+    # hung: limp in the gantry, clamped by the back to its spine (the gantry's), feet clear of the floor,
+    # HUNG_BACK behind the entity's position. One frame, held.
     hung = merge(LIMP["R"], LIMP["L"], {
         "hip-inside": r(0, 0, 4), "chest-inside": r(0, 0, 14), "head-inside": r(0, 0, 32),
         "upper-armR": r(4, 0, -12), "lower-armR": r(0, 0, -8), "upperarmL": r(-4, 0, -12), "lower-armL": r(0, 0, -8),
         "upperlegR": r(0, 0, -6), "lowerlegR": r(0, 0, 12), "footR": r(0, 0, 34),
         "upperlegL": r(0, 0, -2), "lowerlegL": r(0, 0, 8), "footL": r(0, 0, 30),
         "chainskirt-front1": r(0, 0, 4), "chainskirt-back1": r(0, 0, -4)})
-    anims.append(b.animation("hung", "Hung", 1, [Key(0, hung, plant="sole", clear=HUNG_CLEAR)], "Hold", "EaseOut"))
+    k_hung = Key(0, hung, plant="sole", clear=HUNG_CLEAR, shift=(HUNG_BACK, 0, 0))
+    anims.append(b.animation("hung", "Hung", 1, [k_hung], "Hold", "EaseOut"))
 
-    # activate: the first awakening in the gantry, from hung to standing.
+    # activate: the first awakening in the gantry. From hung, the spine's clamps let go: the body lurches
+    # forward off the mast at its back (frame 3) and drops the 3 voxels onto its feet, knees giving
+    # (ACTIVATE_LAND), and sinks into them (12). It stirs (head 22), the hands open (32), it straightens
+    # (40), steps forward away from the spine, right foot (48, 56) then left (64, 72), to stand where the
+    # entity is, and looks left and right (78, 84) before standing at rest (89).
+    rest = b.build_key(Key(0, {}, plant="feet"))
+    home = {sd: tuple(round(v, 3) for v in b.foot_point(sd, rest)) for sd in "RL"}
+    limp_arms = {"upper-armR": r(4, 0, -14), "lower-armR": r(0, 0, -10), "upperarmL": r(-4, 0, -14),
+                 "lower-armL": r(0, 0, -10)}
+    land = merge(LIMP["R"], LIMP["L"], bent_legs(-34, 58), limp_arms, {
+        "hip-inside": r(0, 0, 12), "chest-inside": r(0, 0, 20), "head-inside": r(0, 0, 34),
+        "chainskirt-front1": r(0, 0, -12)})
+    k_land = Key(ACTIVATE_LAND, land, plant="feet", shift=(HUNG_BACK - 5.0, 0, 0))
+    landed = b.build_key(k_land)
+    planted = {sd: tuple(round(v, 3) for v in b.foot_point(sd, landed)) for sd in "RL"}
+
+    def lifted(sd, f):
+        """The foot on its way from where it landed to its place at rest, f of the way, raised."""
+        return tuple(round(planted[sd][k] + (home[sd][k] - planted[sd][k]) * f + (3.5 if k == 1 else 0.0), 3)
+                     for k in range(3))
+
+    walk_arms = lambda sw: {"upper-armR": r(4, 0, 12 * sw), "lower-armR": r(0, 0, -12),  # noqa: E731
+                            "upperarmL": r(-4, 0, -12 * sw), "lower-armL": r(0, 0, -12)}
+    lift_r = {"upperlegR": r(0, 0, -34), "lowerlegR": r(0, 0, 56), "footR": r(0, 0, -16),
+              "upperlegL": r(0, 0, 6), "lowerlegL": r(0, 0, 14)}
+    lift_l = {"upperlegL": r(0, 0, -34), "lowerlegL": r(0, 0, 56), "footL": r(0, 0, -16),
+              "upperlegR": r(0, 0, 6), "lowerlegR": r(0, 0, 14)}
     anims.append(b.animation("activate", "Activate", 90, [
-        Key(0, hung, plant="sole", clear=HUNG_CLEAR),
-        Key(14, merge(hung, {"head-inside": r(0, 8, 26)}), plant="sole", clear=HUNG_CLEAR),
-        Key(26, merge(hung, {"head-inside": r(0, -6, 20)}, scaled(LIMP["R"], 0.2), scaled(LIMP["L"], 0.2)),
-            plant="sole", clear=HUNG_CLEAR),
-        Key(44, merge(bent_legs(-24, 40, 3), {"hip-inside": r(0, 0, 10), "chest-inside": r(0, 0, 14),
-                                             "head-inside": r(0, 0, 18), "upper-armR": r(4, 0, -6),
-                                             "upperarmL": r(-4, 0, -6)}), plant="feet"),
-        Key(60, merge(bent_legs(-12, 20, 2), {"hip-inside": r(0, 0, 4), "chest-inside": r(0, 0, 4),
-                                             "head-inside": r(0, 0, 0)}), plant="feet"),
-        Key(74, merge({"head-inside": r(0, 28, -4), "chest-inside": r(0, 6, 0)}), plant="feet"),
-        Key(82, merge({"head-inside": r(0, -20, -2), "chest-inside": r(0, -4, 0)}), plant="feet"),
+        k_hung,
+        Key(3, merge(hung, {"chest-inside": r(0, 0, 20), "head-inside": r(0, 0, 40), "upper-armR": r(6, 0, -24),
+                            "upperarmL": r(-6, 0, -24), "chainskirt-back1": r(0, 0, -10)}),
+            plant="sole", clear=HUNG_CLEAR - 0.6, shift=(HUNG_BACK - 2.5, 0, 0)),
+        k_land,
+        Key(12, merge(land, bent_legs(-40, 68), {"hip-inside": r(0, 0, 14), "chest-inside": r(0, 0, 22)}),
+            plant="feet", feet=planted),
+        Key(22, merge(land, bent_legs(-36, 62), {"head-inside": r(0, 8, 24)}), plant="feet", feet=planted),
+        Key(32, merge(land, bent_legs(-26, 44), scaled(LIMP["R"], 0.2), scaled(LIMP["L"], 0.2), {
+            "hip-inside": r(0, 0, 8), "chest-inside": r(0, 0, 12), "head-inside": r(0, -6, 14)}),
+            plant="feet", feet=planted),
+        Key(40, merge(bent_legs(-14, 24), {"hip-inside": r(0, 0, 4), "chest-inside": r(0, 0, 6),
+                                          "head-inside": r(0, 0, 4)}), plant="feet", feet=planted),
+        Key(48, merge(lift_r, walk_arms(1), {"chest-inside": r(0, 0, 6), "head-inside": r(0, 0, 2)}),
+            plant="feet", shift=(HUNG_BACK * 0.6, 0, 0), feet={"R": lifted("R", 0.5), "L": planted["L"]}),
+        Key(56, merge(bent_legs(-8, 14), walk_arms(0.5), {"chest-inside": r(0, 0, 5)}),
+            plant="feet", shift=(HUNG_BACK * 0.4, 0, 0), feet={"R": home["R"], "L": planted["L"]}),
+        Key(64, merge(lift_l, walk_arms(-1), {"chest-inside": r(0, 0, 5)}),
+            plant="feet", shift=(HUNG_BACK * 0.2, 0, 0), feet={"R": home["R"], "L": lifted("L", 0.5)}),
+        Key(72, merge(walk_arms(-0.2)), plant="feet", feet=home),
+        Key(78, merge({"head-inside": r(0, 28, -4), "chest-inside": r(0, 6, 0)}), plant="feet", feet=home),
+        Key(84, merge({"head-inside": r(0, -20, -2), "chest-inside": r(0, -4, 0)}), plant="feet", feet=home),
         Key(89, {}, plant="feet"),
     ], "Stop", "PlayTillEnd"))
 
@@ -802,9 +913,39 @@ def round_list(v, places=3):
     return [num(x, places) for x in v]
 
 
+def subtree(e):
+    return [e["name"]] + [n for c in e.get("children", []) for n in subtree(c)]
+
+
+def cut_spine(shape):
+    """Take the spine (SPINE_ROOT and everything under it) off the chest block and out of every
+    animation's keyframes; return it as it was."""
+    chest = kin.Rig(shape).elements[SPINE_PARENT]
+    spine = next(c for c in chest["children"] if c["name"] == SPINE_ROOT)
+    chest["children"].remove(spine)
+    names = set(subtree(spine))
+    for a in shape["animations"]:
+        for k in a["keyframes"]:
+            for n in names:
+                k["elements"].pop(n, None)
+    return spine
+
+
+def spine_file(vanilla):
+    """The gantry's input: vanilla's spine as it is, and the element it hangs from in the body."""
+    spine = cut_spine(copy.deepcopy(vanilla))
+    return {"_comment": "Generated by mods-src/seraphhorizons/Eidolon/tools/make_shape.py: the spine of Vintage Story's "
+                        "mobile eidolon (entity/lore/eidolon/normal.json, game 1.22.7, Anego Studios' model; see "
+                        "CREDITS.md), cut off the eidolon's shape unchanged. It is the gantry's: "
+                        "EidolonGantry/tools/make_shape.py hangs it as a child of `parent` in the eidolon's shape and "
+                        "bakes it in the hung pose. Its textures are the eidolon's codes. Not shipped. Do not edit by hand.",
+            "parent": SPINE_PARENT, "elements": [spine]}
+
+
 def build(vanilla, vanilla_look=False):
     shape = copy.deepcopy(vanilla)
     shape.pop("editor", None)
+    cut_spine(shape)
     codes = [a["code"] for a in vanilla["animations"]]
     if sorted(codes) != sorted(KEEP + list(DROP)):
         raise SystemExit(f"vanilla animations changed: {sorted(set(codes) ^ set(KEEP + list(DROP)))}")
@@ -812,7 +953,7 @@ def build(vanilla, vanilla_look=False):
             shape["textures"][k] != v for k, v in VANILLA_TEXTURES.items()):
         raise SystemExit("vanilla texture map changed")
     shape["textures"] = {k: "game:" + (v if vanilla_look else RESTYLE.get(k, v)) for k, v in VANILLA_TEXTURES.items()}
-    shape["animations"] = [a for a in vanilla["animations"] if a["code"] in KEEP]
+    shape["animations"] = [a for a in shape["animations"] if a["code"] in KEEP]
 
     rig = kin.Rig(shape)
     rest = rig.all_matrices({})
@@ -843,13 +984,13 @@ def build(vanilla, vanilla_look=False):
         {"code": "ThickTrunk", "posX": 0.0, "posY": 0.0, "posZ": 0.0, "rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0}]
 
     b = Builder(shape)
-    shape["animations"] += authored(b, {a["code"]: a for a in vanilla["animations"]})
+    shape["animations"] += authored(b, {a["code"]: a for a in shape["animations"]})
 
     restyle = "" if vanilla_look else (" Restyled: " + ", ".join(
         f"#{k} {VANILLA_TEXTURES[k]} -> {v}" for k, v in RESTYLE.items()) + " (make_shape.py --vanilla-look undoes it).")
     out = {"_comment": "Generated by mods-src/seraphhorizons/Eidolon/tools/make_shape.py from Vintage Story's "
-                       "entity/lore/eidolon/normal.json (game 1.22.7, Anego Studios' model; see CREDITS.md). "
-                       "Do not edit by hand." + restyle}
+                       "entity/lore/eidolon/normal.json (game 1.22.7, Anego Studios' model; see CREDITS.md), "
+                       "less its spine, which is the gantry's (EidolonGantry/spine.json). Do not edit by hand." + restyle}
     out.update(shape)
     return out
 
@@ -967,7 +1108,9 @@ def report(shape):
             ys = feet(p)
             if code in ("standup",) and f < 44:
                 continue
-            if code == "activate" and f < 44:
+            if code == "activate":
+                if f >= ACTIVATE_LAND:     # stepping, one foot may be up: the lower on the ground
+                    worst = max(worst, abs(min(ys)))
                 continue
             worst = max(worst, max(abs(y) for y in ys))
         out[code + ": worst sole height at planted keys"] = round(worst, 2)
@@ -1169,7 +1312,8 @@ def main(argv=None):
     problems = check_stages(shape, stages)
     if problems:
         raise SystemExit("stage map: " + "; ".join(problems))
-    files = {SHAPE_OUT: render(shape), STAGES_OUT: render(stages)}
+    vanilla = load_vanilla(path)
+    files = {SHAPE_OUT: render(shape), STAGES_OUT: render(stages), SPINE_OUT: render(spine_file(vanilla))}
     if args.check:
         stale = [str(p.relative_to(MOD)) for p, text in files.items() if not p.exists() or p.read_text() != text]
         if stale:

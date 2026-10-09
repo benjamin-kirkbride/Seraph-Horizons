@@ -22,8 +22,20 @@ against the 1.22.7 file (`VANILLA_SHA256`; a different file stops the script) an
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/entity/eidolon/eidolon.json` | The shape: vanilla's 218 elements unchanged, three anchor elements, five new attachment points, 23 vanilla animations and 18 authored ones. Strict JSON. |
+| `assets/seraphhorizons/shapes/entity/eidolon/eidolon.json` | The shape: vanilla's 218 elements unchanged but for the spine's 29, cut off (below), so 189, and three anchor elements, five new attachment points, 23 vanilla animations and 18 authored ones. Strict JSON. |
 | `assets/seraphhorizons/config/eidolon-stages.json` | The build stages, each with its ingredients (proposal) and the element names it adds. |
+| `../EidolonGantry/spine.json` | The spine, as vanilla has it, and the element it hangs from (`chest-inside`): the gantry generator's input. Not shipped. |
+
+**The spine is the gantry's.** Vanilla's model has a charred-wood mast down its back, `spine1` (a
+child of `chest-inside`) and everything under it: `spine1`..`3`, the pulley (`pulley-rope`,
+`pulley-capL`/`R`) with its small winch handle (`winch-handle1`..`3`), the ropes (`spine-rope1`..`3`),
+staples (`spine-staple1`..`8`), hooks (`spine-hook1`..`4`), platforms (`spine-platformL`/`R`) and three
+steel clamps (`bar-spine1`..`3`), 29 elements. Here it belongs to the gantry: the body is clamped to it
+while it is built, hanging from the gantry's chain by a ring over its top peg (`spine-hook1`), and when
+the eidolon wakes it unclamps and steps off, leaving the spine hanging in the gantry. So the generator
+cuts it off the shape (`SPINE_ROOT`), takes it out of every animation's keyframes (vanilla animates
+`spine1` in most of them; nothing else of it), and writes it unchanged to `../EidolonGantry/spine.json`,
+which the gantry hangs back on the chest block to pose it with the body (`../EidolonGantry/README.md`).
 
 **Size and axes.** At entity size 1 the model is 60 voxels (3.75 blocks) tall and its feet are at
 y 0. It faces **−x**; its right side is **−z**; the entity's position is model (8, 0, 8). Vanilla's
@@ -33,9 +45,9 @@ made for size 1 (`SIZE` in the generator); see "Open questions".
 **Textures.** Nothing is copied. Vanilla's texture map has no domain, so from our namespace each
 path would resolve to `seraphhorizons:`; every path is written `game:` explicit. One restyle reads
 the body as player-built: the rusty iron armour (`#rusty-iron`: the hood, chest and shoulder plates,
-tassets, bracers, finger plates and the spine's staples, 95 elements) becomes the game's tarnished
-brass, Jonas's metal (`game:block/metal/tarnished/brass`). The joints and bars are already the
-game's tarnished steel. `make_shape.py --vanilla-look` writes vanilla's map instead; `RESTYLE` is the
+tassets, bracers and finger plates) becomes the game's tarnished
+brass, Jonas's metal (`game:block/metal/tarnished/brass`), 87 elements, and the gantry's spine's
+staples, drawn from the same map. The joints and bars are already the game's tarnished steel. `make_shape.py --vanilla-look` writes vanilla's map instead; `RESTYLE` is the
 one place to change it.
 
 **Anchors.** Three invisible elements, children of `chest-inside` and built like vanilla's own `origin`
@@ -50,7 +62,7 @@ before that pose's backward lean (which brings it to (−25.2, 24, 8)).
 Thick trunks have their own anchor rather than sharing `trunk-anchor`: the two are held in different
 places (on the shoulder, front to back; low in front, across), so each anchor's rest is its own idle
 pose, the gameplay picks the point by the trunk's size and draws the trunk there the same way, and
-neither set of animations has to move the other's anchor away from rest. It costs one joint (39).
+neither set of animations has to move the other's anchor away from rest. It costs one joint (38).
 
 ## Attachment points
 
@@ -71,10 +83,10 @@ eidolon's gameplay will draw its carried block itself at `Carry`.
 30 frames a second. In the game's format an element's offset, rotation and stretch are each
 interpolated linearly between the nearest keys that set them, wrapping from the last key round to
 the first; a one-shot's last key is on its last frame so nothing wraps. The new animations move only
-the 36 elements vanilla's animations move plus the three anchors (39 joints; the game's cap is 230 and
-its warning threshold 46).
+the 35 elements vanilla's animations move (less `spine1`, which is the gantry's) plus the three anchors
+(38 joints; the game's cap is 230 and its warning threshold 46).
 
-### Kept from vanilla (unchanged)
+### Kept from vanilla (unchanged but for the spine)
 
 `stand-walk`, `stand-run`, `stand-idle1`, `stand-idle2`, `stand-alert` (walking, running, idling, a
 look round: the laborer's own); `stand-punch`, `stand-kick`, `stand-slam`, `stand-slash`,
@@ -83,7 +95,8 @@ claw slash, throw, the stagger when hit); `weapon-walk`, `weapon-run`, `weapon-i
 `weapon-alert`, `weapon-stab`, `weapon-kick`, `weapon-stagger` (the same with the right hand
 holding something: walking and idling with the axe); `stand-inactive`, `stand-activate` (vanilla's
 own dormant pose and 10-frame wake-up); `stand-die`, `weapon-die`, `toppleover` (kept, though the
-laborer never dies: `slump` is its 0 HP; die pitches it face down and 29 voxels forward).
+laborer never dies: `slump` is its 0 HP; die pitches it face down and 29 voxels forward). Their keys for
+`spine1` are taken out with the spine; nothing else in them changes.
 
 ### Dropped
 
@@ -111,8 +124,8 @@ laborer never dies: `slump` is its 0 HP; die pitches it face down and 29 voxels 
 | `trunk-thick-pickup` | 60 | **Hold** | PlayTillEnd | A thick trunk lying across in front of the feet (its underside middle at (−26, 0, 8), the near side 10 voxels past the toes): a deep squat with the knees out and the head up (bowing over it would put the head into a trunk 32 voxels high), take it by its near side low down (grab on frame 26), lift it with the legs and stand, leaning back as it comes up against the belly, ending in trunk-thick-carry-idle's first frame. |
 | `trunk-thick-setdown` | 50 | Stop | PlayTillEnd | The reverse: from trunk-thick-carry-idle's first frame down into the squat, the trunk on the ground where pickup takes it from (released on frame 32), then up to rest. |
 | `guard-idle` | 80 | Repeat | EaseOut | An alert stance: feet apart, knees bent, leaning in, the axe hand up and the left fist raised, the head sweeping 32° each way. |
-| `hung` | 1 | Hold | EaseOut | Limp in the gantry: head down, arms hanging, hands loosely curled, toes pointing down, **the lowest toe 3 voxels off the floor** (`HUNG_CLEAR`). For the gantry to show while building. |
-| `activate` | 90 (3 s) | Stop | PlayTillEnd | The first awakening: from `hung`, the head twitches (frame 14), the hands open (26), it is let down onto bent knees (44), straightens (60), looks left and right (74, 82) and stands at rest (89). |
+| `hung` | 1 | Hold | EaseOut | Limp in the gantry, clamped by the back to its spine: head down, arms hanging, hands loosely curled, toes pointing down, **the lowest toe 3 voxels off the floor** (`HUNG_CLEAR`), **10 voxels behind the entity's position** (`HUNG_BACK`). For the gantry to show while building. |
+| `activate` | 90 (3 s) | Stop | PlayTillEnd | The first awakening, from `hung`: the spine's clamps let go and the body lurches forward off the mast at its back (frame 3) and drops onto its feet, knees giving (8, `ACTIVATE_LAND`), sinking into them (12); it stirs (22), the hands open (32), it straightens (40), steps forward away from the spine, right foot (lifted 48, down 56) then left (lifted 64, down 72), to stand where the entity is, looks left and right (78, 84) and stands at rest (89). |
 | `slump` | 50 | **Hold** | PlayTillEnd | At 0 HP: the knees give (8), it drops onto its knees (20) and sinks forward, head down and arms limp (32), with a settle (40); held on frame 49, kneeling on the ground. |
 | `standup` | 60 | Stop | PlayTillEnd | From slump's last frame: straightens on its knees (14), up onto the right knee with the left foot planted (30), rising (44), standing at rest (59). Start it before stopping slump. |
 
@@ -133,7 +146,12 @@ where the walk's knees swing.
 its keys, which reproduces it exactly) and change only the arms and head. `fell`'s two-arm raise
 follows `stand-slam`'s, which lunges far too hard (hips pitched 80°, 19 voxels forward) to loop at
 a trunk. `hung` and `activate` take their curled hands from `stand-inactive` and `stand-activate`,
-whose 10-frame wake-up starts from a standing pose, not a hung one. `stand-die` was the candidate for
+whose 10-frame wake-up starts from a standing pose, not a hung one. `activate` is played in the gantry,
+where the spine still hangs behind the body; on its own (the model viewer) there is nothing at its back
+for the first frames, so the clamps let go at once (the body is moving from frame 1 and on its feet by
+frame 8). It steps forward because standing at rest where it hung it would be inside the spine (the
+hood touches the top clamp until 7 voxels forward): the hung pose is `HUNG_BACK` behind the entity's
+position, and the steps bring it there. `stand-die` was the candidate for
 `slump` but ends face down far forward, a poor pose to repair or stand up from. `weapon-walk`,
 `weapon-idle1` and `weapon-run` already hold something in the right hand and serve for walking with
 the axe as they are; `stand-alert` and `weapon-alert` are 80-frame one-shots (they stop), not loops, so `guard-idle`
@@ -145,7 +163,9 @@ of the game's pose maths (`ShapeElement.GetLocalTransformMatrix`, `Mat4f.RotateB
 and the hips moved so the lowest sole is on the ground (or the lowest leg part, kneeling); the anchors
 are set to their world place (a block or trunk on the ground stays put while the body bows over it);
 and each arm (shoulder in three axes, elbow) is solved by a deterministic search for its palm to reach
-its grip, starting from and preferring a hinted pose. Where the game's interpolation between two keys
+its grip, starting from and preferring a hinted pose; a foot set on a place (activate's steps) is
+solved the same way, thigh, knee and foot, flat, the hips moved over the planted feet and lowered until
+both reach. Where the game's interpolation between two keys
 would let a planted foot, a grounded object or a grip drift by more than 0.4 voxel, keys are added
 between them. Elements at rest in every key are left out of an animation, so other animations blend
 through them. Angles, for reading the keys: rotation z bows the hips, chest and head forward when
@@ -160,7 +180,8 @@ when negative; rotation x moves the right arm or leg out when positive, the left
 | Check | Result |
 |---|---|
 | Lowest sole, every frame of `carry-walk`, `trunk-carry-walk` and `trunk-thick-carry-walk` (vanilla `stand-walk` for reference) | −0.24 .. 0.41 (vanilla −2.3 .. 0.61) |
-| Soles at every planted key of `fell`, `guard-idle`, `lift`, `setdown`, `trunk-pickup`, `trunk-setdown`, `trunk-thick-pickup`, `trunk-thick-setdown`, `trunk-thick-carry-idle`, `standup`, `activate` | within 0.01 of the ground |
+| Soles at every planted key of `fell`, `guard-idle`, `lift`, `setdown`, `trunk-pickup`, `trunk-setdown`, `trunk-thick-pickup`, `trunk-thick-setdown`, `trunk-thick-carry-idle`, `standup` | within 0.01 of the ground |
+| `activate`: the lower sole at every key from the landing (8) on (one foot is up while it steps); every frame from 8 on | within 0.01; within 0.3 (the planted foot, between keys) |
 | `hung`'s lowest toe | 3.0 above the floor |
 | `slump`'s held frame | lowest leg part on the ground; the hood's top at 40.7 (from 60) |
 | Hands to their grips, every frame they hold: block (carry, lift, setdown), trunk on the shoulder, trunk on the ground | ≤ 0.34 |
@@ -175,9 +196,10 @@ when negative; rotation x moves the right arm or leg out when positive, the left
 
 The gantry shows the body cumulatively, stage by stage, by element name; `eidolon-stages.json`
 lists each stage's elements. Each stage claims some root elements and everything under them that no
-other root claims, so every element is in exactly one stage. The torso comes first: the chest block
-with its plates, the spine with its winch, ropes and hooks, and the spine's top peg (`spine-hook1`),
-which the gantry's ring goes over, so the ring holds the body from the first part fitted on. The
+other root claims, so every element is in exactly one stage. The spine is in none: it is the gantry's,
+hanging in it by the ring over its top peg before anything is fitted. The torso comes first, the chest
+block with its plates, clamped onto the spine by the spine's steel clamps, so the spine holds the body
+from the first part fitted on. The
 ingredients are the first proposal, matched to the model's parts; the steel comes to **20 ingots** (a
 `metalplate` is 2 ingots, a `rod` 1).
 
@@ -187,7 +209,8 @@ after it. That is harmless: the entity only exists built whole, and the gantry d
 in the `hung` pose, each element a static box at its posed place, so no element shown depends on a
 hidden one for where it is drawn. What the order must not do is leave a piece floating, so the rule
 (checked in the generator and the tests) is that **after every stage, the elements shown so far are
-one connected piece of the hierarchy**, its links taken either way: each stage fits onto what is
+one connected piece of the hierarchy**, its links taken either way (the gantry checks the same with
+the spine there from the start, the torso joined to it): each stage fits onto what is
 already there (the pelvis under the chest, the legs on the hip block, the arms and head on the chest,
 the cores into chest and head). Re-rooting the claims instead (the torso owning `origin` and
 `hip-inside` down to the chest) would have put the hip block, a pelvis part, in the torso.
@@ -195,7 +218,7 @@ the cores into chest and head). Re-rooting the claims instead (the torso owning 
 | Stage | Ingredients | Elements (claim roots; the full list is in the stages file) | What they are in the model |
 |---|---|---|---|
 | 1 Gantry | Wood: the gantry's own model | None | The frame it hangs in. |
-| 2 Torso (47) | `game:eidolongearbox` (disabled in vanilla; to be enabled), `game:jonasparts-tank01`, `game:jonasparts-tank02`, `game:jonasparts-pumphead`, 2 `game:metalplate-steel` (4 ingots) | `chest-inside`, `collar-front`, `collar-R`, `collar-L`, `chest-plateR`, `chest-plateL`, `chest-backplate`, `chest-sideplateR`, `chest-sideplateL`, `chest-sash2`, `bar-chestR1`, `bar-chestR2`, `bar-chestL1`, `bar-chestL2`, `spine1`, `carry-anchor`, `trunk-anchor`, `thick-trunk-anchor` | The lattice chest block, its plates, collar and sashes, and the wooden spine with its winch, ropes and hooks (and the three invisible anchors). |
+| 2 Torso (18) | `game:eidolongearbox` (disabled in vanilla; to be enabled), `game:jonasparts-tank01`, `game:jonasparts-tank02`, `game:jonasparts-pumphead`, 2 `game:metalplate-steel` (4 ingots) | `chest-inside`, `collar-front`, `collar-R`, `collar-L`, `chest-plateR`, `chest-plateL`, `chest-backplate`, `chest-sideplateR`, `chest-sideplateL`, `chest-sash2`, `bar-chestR1`, `bar-chestR2`, `bar-chestL1`, `bar-chestL2`, `carry-anchor`, `trunk-anchor`, `thick-trunk-anchor` | The lattice chest block, its plates, collar and sashes (and the three invisible anchors), clamped to the gantry's spine. |
 | 3 Pelvis (15) | `game:eidolongearbox`, `game:jonasframes-gearbox02`, 2 `game:metalplate-steel` (4 ingots) | `origin`, `hip-inside`, `hip-tassetR`, `hip-tassetL`, `back-tassetR`, `back-tassetL`, `waist-fauld`, `chainskirt-back1`, `chainskirt-front1`, `bar-hip` | The lattice hip block under the chest block (the gearbox), the leather fauld with its tassets, the brass hip and back tassets, the chain skirts. |
 | 4 Legs (55) | 2 `game:jonasframes-joint01` (the knees), `game:jonasframes-spring01`, 2 `game:rod-steel`, 2 `game:metalplate-steel` (6 ingots) | `bar-legs`, `upperlegR`, `upperlegL` | The hip axle and both legs: wooden thighs and shins, steel knees (`kneeR`, `kneeL`), brass shin and knee plates, feet. |
 | 5 Arms (77) | `game:eidolongearbox` (the shoulders), `game:jonasframes-gears01`, `game:jonasframes-gears02`, `game:jonasparts-cylinder01`, `game:jonasparts-valve01`, 2 `game:rod-steel`, `game:metalplate-steel` (4 ingots) | `bar-arms`, `upper-armR`, `upperarmL` | The shoulder axle and both arms: shoulder plates, wooden arm bones, elbows (`elbowR`, `elbowL`), bracers, wrists and hands. |
@@ -211,12 +234,13 @@ the mind; and the chest block itself (under `hip-inside`) arrives before its par
 ## Regenerating
 
 ```sh
-VINTAGE_STORY=$HOME/Games/vintagestory python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py          # write both files (about 25 s)
+VINTAGE_STORY=$HOME/Games/vintagestory python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py          # write the three files (about 70 s)
 VINTAGE_STORY=$HOME/Games/vintagestory python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py --check  # compare only
 python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py --report                                         # the pose checks
 ```
 
-The output is deterministic (no randomness, values rounded to 0.001). Edit the generator, not the
+The output is deterministic (no randomness, values rounded to 0.001). Regenerate the gantry after it
+(`../EidolonGantry/README.md`): it bakes this shape and the spine. Edit the generator, not the
 shape: the authored animations are in `authored()`, the geometry constants (grips, where a block or
 trunk is held and set down, the cut) at the top.
 
@@ -224,16 +248,18 @@ trunk is held and set down, the cut) at the top.
 
 `tools/tests/test_eidolon_model.py` (stdlib unittest): the committed files are strict JSON (no
 NaN, no duplicate keys) and written as the generator writes them; with `$VINTAGE_STORY` set the
-generator runs and must reproduce them exactly; element names are unique; every texture is
+generator runs and must reproduce them (and `spine.json`) exactly; element names are unique; the spine is
+in neither the shape nor any animation, and is in `spine.json` whole; every texture is
 `game:` and every enabled face's texture is in the map; the attachment points are on their elements;
 the kept, dropped and authored codes and their lengths and end handling; every animation names only
 existing elements and fields, with each offset, rotation or stretch set as a whole; the moved
 elements stay vanilla's joints plus the anchors; one-shots end on their last frame and meet the
 poses they lead to (`lift` → `carry-idle`, `slump` → `standup`, `hung` → `activate`, …) and the
-setdowns, `standup` and `activate` end at rest; the pose checks above within 0.5 voxel (and for a
+setdowns, `standup` and `activate` end at rest; `activate` starts `HUNG_BACK` behind the entity's position,
+is moving by frame 3 and has a foot on the ground every frame from the landing on; the pose checks above within 0.5 voxel (and for a
 thick trunk: nothing of the body inside it, the head and hood over 1 voxel away, the trunk on the
 ground at the grab and release); and the stage map covers every element exactly once, the body one piece after every stage (a stage
-that would leave a piece floating is caught), the torso first with the spine's peg, as the stages file has it.
+that would leave a piece floating is caught), the torso first, as the stages file has it.
 
 ## Open questions
 

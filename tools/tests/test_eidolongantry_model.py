@@ -4,8 +4,10 @@ These hold what the generator wrote to its own rules: it reproduces the committe
 eidolon's shape as the repository has it now (so a changed eidolon.json fails here until the gantry is
 regenerated); the body in the written shape is the eidolon's `hung` pose, element for element, by the
 game's pose maths (Eidolon/tools/kin.py), each element under its build stage's part; the rig's
-`requires` are one per stage, the ring coming with the first (the torso, whose spine's peg it holds); the let-down brings the lowest toe from 3
-voxels to the floor; the cells are rebuilt from the shipped shape; and the front is open. Run with
+`requires` are one per stage, while the spine (vanilla's, cut off the eidolon: the gantry's) and the ring over its top
+peg need nothing, there from the start and after the eidolon has woken; the let-down brings the lowest toe from 3
+voxels to the floor, the spine with it; the cells are rebuilt from the shipped shape; the front is open; and the crank
+is outside the frame, in its own cell. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
 
@@ -81,10 +83,13 @@ class Rig(unittest.TestCase):
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
         self.assertEqual({p["requires"] for p in RIG["parts"]}, set(STAGE_CODES) | {None})
-        ring = next(p for p in RIG["parts"] if p["id"] == "ring")
         self.assertEqual(STAGE_CODES[0], "torso")
-        self.assertEqual(ring["requires"], STAGE_CODES[0])
-        self.assertIn("spine-hook1", STAGES["stages"][1]["elements"])
+        for pid in ("ring", "spine"):
+            part = next(p for p in RIG["parts"] if p["id"] == pid)
+            self.assertEqual((part["requires"], part["ride"]), (None, "hook"), pid)
+        staged = {n for st in STAGES["stages"] for n in st["elements"]}
+        self.assertIn("spine-hook1", make_shape.spine_names())
+        self.assertFalse(staged & make_shape.spine_names())
         for code in STAGE_CODES:
             part = next(p for p in RIG["parts"] if p["id"] == code)
             self.assertEqual((part["requires"], part["match"], part["ride"]), (code, [f"b_{code}_*"], "hook"))
@@ -103,11 +108,13 @@ class Rig(unittest.TestCase):
 
     def test_cells_are_rebuilt_from_the_shipped_shape(self):
         self.assertEqual(make_shape.shipped_cells(SHAPE, RIG["parts"]), RIG["cells"])
-        self.assertEqual(len(RIG["cells"]), make_shape.CELLS_X * make_shape.CELLS_Y * make_shape.CELLS_Z)
+        self.assertEqual(len(RIG["cells"]), make_shape.CELLS_X * make_shape.CELLS_Y * make_shape.CELLS_Z + 1)  # and the crank's
         self.assertIn("boxes", RIG["cells"][0])
 
     def test_anchors(self):
         self.assertEqual(RIG["exitSide"], "west")
+        self.assertEqual((RIG["crankCell"], RIG["crankFace"]), ([5, 1, 5], "south"))
+        self.assertNotIn("winchCell", RIG)
         self.assertEqual(RIG["body"]["pos"], [v / 16 for v in make_shape.BODY_AT])
         for key in ("hang", "fit", "exit"):
             self.assertEqual(len(RIG[key]["pos"]), 3)
@@ -116,13 +123,14 @@ class Rig(unittest.TestCase):
 class Body(unittest.TestCase):
     def test_the_written_body_is_the_hung_pose(self):
         # flattened as the game reads the shape, against kin's pose of the current eidolon.json at hung's frame
-        rig = kin.Rig(EIDOLON)
+        rig = kin.Rig(make_shape.with_spine(EIDOLON))
         anim = next(a for a in EIDOLON["animations"] if a["code"] == "hung")
         mats = rig.all_matrices(kin.sample(anim, 0))
-        written = {el.name: el for el in flatten(SHAPE["elements"], textures={}) if el.name.startswith("b_")}
+        written = {el.name: el for el in flatten(SHAPE["elements"], textures={}) if el.name.startswith(("b_", "sp_"))}
+        self.assertTrue(any(n.startswith("sp_") for n in written))
         worst = 0.0
         for name, el in written.items():
-            src = name.split("_", 2)[2]
+            src = make_shape.source_name(name)
             want = [[p[k] + OFF[k] for k in range(3)] for p in rig.corners(src, mats[src])]
             worst = max(worst, max(min(math.dist(p, q) for q in el.corners()) for p in want))
         self.assertLess(worst, 0.01)
@@ -135,6 +143,10 @@ class Body(unittest.TestCase):
         self.assertEqual(have, want)
         for name in have:
             self.assertEqual(rigmath.part_of(RIG["parts"], name), name.split("_", 2)[1])
+        spine = {e["name"] for e in SHAPE["elements"] if e["name"].startswith("sp_")}
+        self.assertEqual(spine, {f"sp_{n}" for n in make_shape.spine_names()})
+        for name in spine:
+            self.assertEqual(rigmath.part_of(RIG["parts"], name), "spine")
 
     def test_the_mind_glows(self):
         glowing = {e["name"] for e in SHAPE["elements"] if any(f.get("glow") for f in e["faces"].values())}
@@ -149,7 +161,7 @@ class Body(unittest.TestCase):
         self.assertAlmostEqual(RIG["winch"]["drop"], 3.0 / 16, places=4)
 
     def test_the_hook_and_ring_come_down_with_the_body(self):
-        for pid in ("hook", "ring", *STAGE_CODES):
+        for pid in ("hook", "ring", "spine", *STAGE_CODES):
             m = matrix(pid, 1.0)
             self.assertAlmostEqual(m[1][3], -3.0 / 16, places=4, msg=pid)
 
@@ -163,14 +175,25 @@ class Frame(unittest.TestCase):
             if lo[0] < 16 and lo[2] < z1 - 0.01 and hi[2] > z0 + 0.01:
                 self.assertGreaterEqual(lo[1], 64.0, el.name)
 
-    def test_inside_the_machine_box(self):
-        size = (make_shape.CELLS_X * 16, make_shape.CELLS_Y * 16, make_shape.CELLS_Z * 16)
+    def test_inside_the_machine_box_or_the_cranks_cell(self):
+        regions = make_shape.regions()
         for depth in (0.0, 1.0):
             for el in posed_written(depth, {p["id"] for p in RIG["parts"]}):
                 lo, hi = el.aabb()
-                for k in range(3):
-                    self.assertGreaterEqual(lo[k], -0.01, el.name)
-                    self.assertLessEqual(hi[k], size[k] + 0.01, el.name)
+                self.assertTrue(any(all(r[0][k] - 0.01 <= lo[k] and hi[k] <= r[1][k] + 0.01 for k in range(3)) for r in regions),
+                                el.name)
+
+    def test_the_crank_is_outside_the_frame_and_turns_with_the_drum(self):
+        outer = make_shape.CELLS_Z * 16
+        els = {el.name: el for el in posed_written(0.0, {"winch"})}
+        for name in ("wn_crank", "wn_handle"):
+            self.assertGreater(els[name].aabb()[0][2], outer, name)
+        self.assertIn(list(make_shape.CRANK_CELL), [c["pos"] for c in RIG["cells"]])
+        self.assertIn("boxes", next(c for c in RIG["cells"] if c["pos"] == list(make_shape.CRANK_CELL)))
+        # one part: the drum, its axle and the crank turn together as the winch lets down
+        self.assertEqual({rigmath.part_of(RIG["parts"], n) for n in ("wn_drum_1", "wn_axle_1", "wn_crank", "wn_handle")}, {"winch"})
+        turned = matrix("winch", 1.0)
+        self.assertGreater(abs(turned[0][1]), 0.5)   # turned well over half a radian
 
 
 if __name__ == "__main__":

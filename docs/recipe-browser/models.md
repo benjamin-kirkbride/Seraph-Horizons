@@ -174,7 +174,7 @@ The rest pose (the game's inverse model matrices) is always version 0's. The sce
 per rig part and joint, built once at rest, and an animation only sets each mesh's matrix: the
 part's matrix (the rig) times the joint's motion, its animated model matrix times the inverse of
 its rest one. So a model can have both: the rig moves its parts, the keyframes the elements within
-them. The eidolon (218 elements, 36 joints) draws as about forty meshes and plays at the display's
+them. The eidolon (192 elements, 38 joints) draws as about forty meshes and plays at the display's
 frame rate.
 
 What is not the game's: one animation plays at a time, at full weight. The game blends several

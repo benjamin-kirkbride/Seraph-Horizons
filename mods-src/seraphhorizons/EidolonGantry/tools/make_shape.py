@@ -4,17 +4,19 @@
 The gantry is where the player-built eidolon (../../Eidolon/README.md) is assembled, stage by stage,
 and where it docks afterwards for repair and recharge: an open oak frame six blocks deep, five wide
 and five and a half high, with iron plates, brackets and pegs, and a hand winch at the back whose
-chain runs up over one sheave on the hoist beam and down to the body. The front (west, -x, the way
-the body faces) is open from the ground to the front beam, so the eidolon walks out of it when it
-wakes.
+chain runs up over one sheave on the hoist beam and down to the body, its crank outside the frame on
+the south side, where a player standing outside turns it. The front (west, -x, the way the body faces)
+is open from the ground to the front beam, so the eidolon walks out of it when it wakes.
 
-The body hangs in it in the eidolon's `hung` pose, baked: every element of the eidolon's shape
-(eidolon.json, read from the repository) is posed by `Eidolon/tools/kin.py`, the game's pose maths,
-at `hung`'s one frame and written as a plain static element, renamed `b_<stage>_<name>` by its build
-stage (`config/eidolon-stages.json`), so the rig's `requires` shows the body stage by stage. Its
-weight is taken by a ring over the top peg of its own spine (`spine-hook1`), fitted with the torso,
-the first stage, so the ring holds the body from the first part on. Everything else was made for the Seraph Horizons mod; the body's elements
-are Anego Studios' model (../../CREDITS.md).
+The chain hangs the gantry's spine (vanilla's eidolon's mast, cut off the body by the eidolon's
+generator into ../spine.json) by a ring over its top peg (`spine-hook1`), there from the first stage
+and after the eidolon has woken and stepped off it. The body is clamped to it, in the eidolon's `hung`
+pose, baked: every element of the eidolon's shape (eidolon.json, read from the repository) and of the
+spine, hung back on the chest block, is posed by `Eidolon/tools/kin.py`, the game's pose maths, at
+`hung`'s one frame and written as a plain static element, the body's renamed `b_<stage>_<name>` by its
+build stage (`config/eidolon-stages.json`), so the rig's `requires` shows the body stage by stage, and
+the spine's `sp_<name>`. Everything else was made for the Seraph Horizons mod; the body's and the
+spine's elements are Anego Studios' model (../../CREDITS.md).
 
 It writes, deterministically,
 
@@ -66,6 +68,7 @@ SHAPE_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "block"
 RIG_DIR = MOD / "assets" / "seraphhorizons" / "config"
 EIDOLON = MOD / "assets" / "seraphhorizons" / "shapes" / "entity" / "eidolon" / "eidolon.json"
 STAGES = RIG_DIR / "eidolon-stages.json"
+SPINE = HERE.parent / "spine.json"            # vanilla's spine, cut off the eidolon by its generator: the gantry's
 SCRIPT = "mods-src/seraphhorizons/EidolonGantry/tools/make_shape.py"
 
 B = 16.0
@@ -82,7 +85,9 @@ GANTRY_TEXTURES = {
 }
 
 # ---------------------------------------------------------------- the body's place
-BODY_AT = (40.0, 0.0, 40.0)                  # the entity's position (model (8, 0, 8)): the middle of cell (2, 0, 2)
+BODY_AT = (30.0, 0.0, 40.0)                  # the entity's position (model (8, 0, 8)), where it stands once awake: the
+#                                              hung body is the eidolon's HUNG_BACK (10 voxels) behind it, clamped to
+#                                              the spine, round the middle of cell (2, 0, 2)
 OFF = (BODY_AT[0] - 8.0, BODY_AT[1], BODY_AT[2] - 8.0)   # model voxels to build voxels
 HUNG = "hung"                                # the animation the body is baked in (its one frame)
 
@@ -108,9 +113,17 @@ DRUM_Z = (16.0, 64.0)                        # the barrel
 CHEEK_X, CHEEK_Y = (80.0, CELLS_X * B), (18.0, 30.0)   # the two cheeks the axle runs in, bolted to the back posts
 CHEEK_W = 4.0                                # their thickness (z), against the posts' inner faces
 AXLE_R = 1.0
-CRANK_Z = (11.0, 12.0)                       # the crank's web, between the right cheek and the drum
-CRANK_R = 6.0                                # the handle's radius about the axle
-HANDLE = (12.0, 15.5)                        # the handle runs this far along z, towards the drum (clear of its end at 16)
+# The crank is outside the frame, on the left (south) side: the axle runs on past the left cheek, beside the
+# back left post's front face in an iron pillow block bolted to it, and out past the post's outer face
+# (z 80) into the crank's own cell (CRANK_CELL), where a player standing south of the gantry turns it.
+AXLE_END = 85.0                              # the axle's outer end (z)
+PILLOW = (2.5, (75.0, 79.0))                 # the pillow block: its half-height and -depth (x, y) round the axle, z
+COLLAR_Z = (80.5, 81.5)                      # an iron collar on the axle outside the post, so it cannot slide in
+CRANK_Z = (82.0, 83.0)                       # the crank's web, outside the frame
+CRANK_R = 6.5                                # the handle's radius about the axle
+HANDLE = (83.0, 88.0)                        # the handle runs this far along z, outwards, to the player's hand
+HANDLE_W = 1.5                               # its section
+CRANK_CELL = (5, 1, 5)                       # the crank's cell, south of the back left post, a block up
 COIL_R = 4.6                                 # the chain wound on the drum, at its middle
 COIL_W = 2.0
 
@@ -192,6 +205,39 @@ def load_body():
     return json.loads(EIDOLON.read_text()), json.loads(STAGES.read_text())
 
 
+@functools.cache
+def load_spine():
+    return json.loads(SPINE.read_text())
+
+
+def subtree(e):
+    return [e["name"]] + [n for c in e.get("children", []) for n in subtree(c)]
+
+
+@functools.cache
+def spine_names():
+    return frozenset(n for e in load_spine()["elements"] for n in subtree(e))
+
+
+def with_spine(shape):
+    """The eidolon's shape with the gantry's spine hung back where vanilla has it (a child of the chest
+    block): how the two are posed together, the body clamped to the spine."""
+    out = json.loads(json.dumps(shape))
+    spine = load_spine()
+    parent = kin.Rig(out).elements[spine["parent"]]
+    parent.setdefault("children", []).extend(json.loads(json.dumps(spine["elements"])))
+    return out
+
+
+def baked_name(n, st):
+    """A baked element's name: sp_<name> for the spine (the gantry's), b_<stage>_<name> for the body."""
+    return f"sp_{n}" if n in spine_names() else f"b_{st[n]}_{n}"
+
+
+def source_name(name):
+    return name[3:] if name.startswith("sp_") else name.split("_", 2)[2]
+
+
 def stage_of(stages):
     return {n: s["code"] for s in stages["stages"] for n in s["elements"]}
 
@@ -209,18 +255,18 @@ _HUNG = {}
 
 
 def hung_matrices(shape):
-    """kin's Rig of the shape and every element's model matrix (blocks) in the hung pose: the game's pose
-    at its one frame."""
+    """kin's Rig of the shape with the spine on it and every element's model matrix (blocks) in the hung
+    pose: the game's pose at its one frame (it does not move the spine, which is clamped to the chest)."""
     if id(shape) not in _HUNG:
-        rig = kin.Rig(shape)
+        rig = kin.Rig(with_spine(shape))
         anim = next(a for a in shape["animations"] if a["code"] == HUNG)
         _HUNG[id(shape)] = (rig, rig.all_matrices(kin.sample(anim, 0)), shape)
     return _HUNG[id(shape)][:2]
 
 
 def bake_body(shape, stages):
-    """The body's elements in the hung pose as static boxes (build voxels), named b_<stage>_<name>, in
-    the shape's order. Elements with no drawn face (vanilla's `origin`, the anchors) draw nothing and
+    """The body's elements and the spine's in the hung pose as static boxes (build voxels), named
+    b_<stage>_<name> and sp_<name>, in the shape's order. Elements with no drawn face (vanilla's `origin`, the anchors) draw nothing and
     are left out. Disabled faces are dropped and so is wind data (a block's wind is its own); glow is
     kept, returned as {(name, face): glow} for `shape_json` to write back."""
     rig, mats = hung_matrices(shape)
@@ -243,8 +289,9 @@ def bake_body(shape, stages):
                 face["rotation"] = f["rotation"]
             faces[d] = face
             if f.get("glow"):
-                glow[(f"b_{st[n]}_{n}", d)] = f["glow"]
-        out.append(El(f"b_{st[n]}_{n}", size, [c[k] + OFF[k] for k in range(3)], r, faces, st[n]))
+                glow[(baked_name(n, st), d)] = f["glow"]
+        part = "spine" if n in spine_names() else st[n]
+        out.append(El(baked_name(n, st), size, [c[k] + OFF[k] for k in range(3)], r, faces, part))
     return out, glow
 
 
@@ -372,14 +419,19 @@ def build_winch():
         out += timber([CHEEK_X[0], CHEEK_Y[0], z[0]], [CHEEK_X[1], CHEEK_Y[1], z[1]], f"fr_cheek_{zn}")
         zp = (z[1], z[1] + 0.6) if zn == "r" else (z[0] - 0.6, z[0])
         out.append(box([DRUM[0] - 3.0, DRUM[1] - 3.0, zp[0]], [DRUM[0] + 3.0, DRUM[1] + 3.0, zp[1]], f"fr_bearing_{zn}", "frame", "iron"))
+    # the pillow block the axle runs in where it passes the back left post, bolted to the post's front face
+    hp, (pz0, pz1) = PILLOW
+    out.append(box([DRUM[0] - hp, DRUM[1] - hp, pz0], [X_BACK[0], DRUM[1] + hp, pz1], "fr_bearing_post", "frame", "iron"))
     w = "winch"
-    out += octagon_z(cz[0][0] + 1.0, cz[1][1] - 1.0, DRUM[0], DRUM[1], AXLE_R, "wn_axle", w, "iron")
+    out += octagon_z(cz[0][0] + 1.0, AXLE_END, DRUM[0], DRUM[1], AXLE_R, "wn_axle", w, "iron")
     out += octagon_z(DRUM_Z[0], DRUM_Z[1], DRUM[0], DRUM[1], DRUM_R, "wn_drum", w, "oak")
     for i, z0 in enumerate((DRUM_Z[0] + 1.0, DRUM_Z[1] - 2.0), 1):
         out += octagon_z(z0, z0 + 1.0, DRUM[0], DRUM[1], DRUM_R + 0.3, f"wn_hoop{i}", w, "iron")
     out += octagon_z(BODY_AT[2] - COIL_W / 2, BODY_AT[2] + COIL_W / 2, DRUM[0], DRUM[1], COIL_R, "wn_coil", w, "chain")
-    out.append(box([DRUM[0] - 1.0, DRUM[1] - 1.5, CRANK_Z[0]], [DRUM[0] + 1.0, DRUM[1] + CRANK_R + 1.0, CRANK_Z[1]], "wn_crank", w, "iron"))
-    out.append(box([DRUM[0] - 0.75, DRUM[1] + CRANK_R - 0.75, HANDLE[0]], [DRUM[0] + 0.75, DRUM[1] + CRANK_R + 0.75, HANDLE[1]], "wn_handle", w, "oak"))
+    out += octagon_z(COLLAR_Z[0], COLLAR_Z[1], DRUM[0], DRUM[1], AXLE_R + 0.6, "wn_collar", w, "iron")
+    out.append(box([DRUM[0] - 1.25, DRUM[1] - 1.75, CRANK_Z[0]], [DRUM[0] + 1.25, DRUM[1] + CRANK_R + 1.0, CRANK_Z[1]], "wn_crank", w, "iron"))
+    hw = HANDLE_W / 2
+    out.append(box([DRUM[0] - hw, DRUM[1] + CRANK_R - hw, HANDLE[0]], [DRUM[0] + hw, DRUM[1] + CRANK_R + hw, HANDLE[1]], "wn_handle", w, "oak"))
     return out
 
 
@@ -475,7 +527,7 @@ def pt(*v):
 def drop():
     """How far the body comes down at depth 1 (voxels): until its lowest toe is on the floor."""
     shape, stages = load_body()
-    return lowest(bake_body(shape, stages)[0])
+    return lowest([el for el in bake_body(shape, stages)[0] if el.part != "spine"])
 
 
 def rig_parts(stages):
@@ -495,8 +547,10 @@ def rig_parts(stages):
          "drivers": [{"type": "stretch", "axis": "y", "anchor": pt(drop_x(), SHEAVE_Y, zc),
                       "length": r6((SHEAVE_Y - eye_top()) / B), "travel": r6(d / B)}]},
         {"id": "hook", "match": ["hk_*"], "requires": None, "drivers": [{"type": "feed", "axis": "y", "travel": r6(-d / B)}]},
-        # fitted with the torso, the first stage: the spine's peg it goes over is the torso's
-        {"id": "ring", "match": ["rg_*"], "requires": body_codes(stages)[0], "ride": "hook", "drivers": []},
+        # the ring over the spine's top peg, and the spine: the gantry's, there from the first stage on,
+        # empty before the torso is clamped to it and again once the eidolon has woken and stepped off
+        {"id": "ring", "match": ["rg_*"], "requires": None, "ride": "hook", "drivers": []},
+        {"id": "spine", "match": ["sp_*"], "requires": None, "ride": "hook", "drivers": []},
     ]
     for code in body_codes(stages):
         parts.append({"id": code, "match": [f"b_{code}_*"], "requires": code, "ride": "hook", "drivers": []})
@@ -513,10 +567,20 @@ def pm(parts, pid, depth, theta=0.0):
 
 
 def footprint():
-    return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
+    """The machine box's cells and the crank's, outside it."""
+    return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)] + [CRANK_CELL]
+
+
+def regions():
+    """Where the model may be (voxels, (lo, hi)): the machine box, and the crank's column, from the drum
+    out through the crank's cell."""
+    cx, cy, cz = CRANK_CELL
+    return [((0.0, 0.0, 0.0), (CELLS_X * B, CELLS_Y * B, CELLS_Z * B)),
+            ((cx * B, cy * B, 0.0), ((cx + 1) * B, (cy + 1) * B, (cz + 1) * B))]
 
 
 CELL_PARTS = ("frame", "winch", "sheave")    # what the cells' boxes are made of: the gantry; the body's are gameplay's
+#                                              (the spine's too: it hangs, and goes up and down with the body)
 
 
 def shipped_cells(shape, parts):
@@ -551,17 +615,19 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the foot of the front "
                     "right (north-west) post. The body faces west (-x), the exit; its right is north. Inputs: depth, the winch "
                     "let down 0..1 (the body comes down until its lowest toe is on the floor); theta, the crank's clock, moves "
-                    "nothing. requires: one value per build stage (eidolon-stages.json) for the body's parts; the ring on the "
-                    "spine's peg comes with the first, the torso. body: the "
-                    "entity's position; hang: where the ring bears on the peg; fit: the chest's middle. The cells' boxes are the "
-                    "gantry's; the body's are gameplay's. See EidolonGantry/README.md.",
+                    "nothing. requires: one value per build stage (eidolon-stages.json) for the body's parts; the spine and the "
+                    "ring over its top peg are the gantry's, always there (with no stage fitted: the gantry built, or the "
+                    "eidolon woken and gone). body: the entity's position, where it stands once awake; hang: where the ring "
+                    "bears on the peg; fit: the chest's middle; crankCell and crankFace: the crank, outside the frame, turned "
+                    "from the south. The cells' boxes are the gantry's; the body's are gameplay's. See EidolonGantry/README.md.",
         "cells": [],
         "body": {"pos": pt(*BODY_AT)},
         "hang": {"pos": pt(*peg)},
         "fit": {"pos": pt(*fit_point())},
         "exit": {"pos": pt(0.0, 0.0, BODY_AT[2])},
         "exitSide": "west",
-        "winchCell": [int(DRUM[0] // B), int(DRUM[1] // B), int(CRANK_Z[0] // B)],
+        "crankCell": list(CRANK_CELL),
+        "crankFace": "south",
         "winch": {"drop": r6(drop() / B), "drumRadius": r6(DRUM_R / B),
                   "_comment": "drop: how far the body comes down at depth 1 (blocks), its hung toe's height above the floor; "
                               "drumRadius: the chain's radius on the drum (blocks)."},
@@ -573,8 +639,9 @@ def make_rig(parts):
 def shape_json(els, glow, textures):
     shape = machine_shape_json(
         els, f"Generated by {SCRIPT}. The gantry, its winch and chains were made for the Seraph Horizons mod. The "
-             "elements named b_<stage>_<name> are the eidolon's body (Anego Studios' model, Vintage Story's mobile "
-             "eidolon; see CREDITS.md), posed in its 'hung' animation and baked into static boxes, renamed by build stage. "
+             "elements named b_<stage>_<name> are the eidolon's body and those named sp_<name> its spine, the gantry's "
+             "(Anego Studios' model, Vintage Story's mobile eidolon; see CREDITS.md), posed in the eidolon's 'hung' "
+             "animation and baked into static boxes, the body's renamed by build stage. "
              "Keep element names when editing: the rig finds its parts by them.",
         textures, tex_size=TEX)
     for e in shape["elements"]:

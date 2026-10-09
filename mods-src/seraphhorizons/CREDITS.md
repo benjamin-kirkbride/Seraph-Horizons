@@ -80,9 +80,11 @@ own mobile eidolon by Anego Studios, the game's `shapes/entity/lore/eidolon/norm
 1.22.7), copied into this mod as a snapshot by `Eidolon/tools/make_shape.py`. Its elements and their
 geometry, and the vanilla animations the file keeps (`stand-*`, `weapon-*`, `toppleover`), are that
 model's, unchanged. Its textures are not copied: the shape points at the game's own files, one of
-them swapped for another of the game's (rusty iron for tarnished brass). Added for this mod: the two
-anchor elements (`carry-anchor`, `trunk-anchor`), the `RightHand`, `LeftHand`, `Carry` and `Trunk`
-attachment points and the laborer's animations (`fell`, `carry-*`, `lift`, `setdown`, `trunk-*`,
+them swapped for another of the game's (rusty iron for tarnished brass). Its spine (`spine1` and
+everything under it) is cut off the eidolon unchanged and drawn as part of the gantry (below); its
+copy, `EidolonGantry/spine.json`, is that model's too. Added for this mod: the three
+anchor elements (`carry-anchor`, `trunk-anchor`, `thick-trunk-anchor`), the `RightHand`, `LeftHand`,
+`Carry`, `Trunk` and `ThickTrunk` attachment points and the laborer's animations (`fell`, `carry-*`, `lift`, `setdown`, `trunk-*`,
 `guard-idle`, `hung`, `activate`, `slump`, `standup`).
 
 The model belongs to Anego Studios and is not covered by this repository's Apache License; it is
@@ -90,5 +92,6 @@ used here as part of a mod for their game. The additions are covered by the repo
 
 The eidolon gantry's model (`assets/seraphhorizons/shapes/block/eidolongantry.json`) was made for this
 mod, and is covered by the repository's license, except for the body hung in it: the elements named
-`b_<stage>_<name>` are a copy of the eidolon's elements above (Anego Studios' model), posed in the
+`b_<stage>_<name>` are a copy of the eidolon's elements above, and those named `sp_<name>` the
+eidolon's spine, which this mod draws as part of the gantry (Anego Studios' model, both), posed in the
 `hung` animation by `EidolonGantry/tools/make_shape.py`, and are that model's as above.

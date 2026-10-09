@@ -40,6 +40,7 @@ def strict_load(path):
 
 
 SHAPE = strict_load(make_shape.SHAPE_OUT)
+SPINE = strict_load(make_shape.SPINE_OUT)
 STAGES = strict_load(make_shape.STAGES_OUT)
 RIG = kin.Rig(SHAPE)
 ANIMS = {a["code"]: a for a in SHAPE["animations"]}
@@ -62,6 +63,7 @@ class Files(unittest.TestCase):
         # parsed strictly above; and written exactly as render() writes it
         self.assertEqual(make_shape.SHAPE_OUT.read_text(encoding="utf-8"), make_shape.render(SHAPE))
         self.assertEqual(make_shape.STAGES_OUT.read_text(encoding="utf-8"), make_shape.render(STAGES))
+        self.assertEqual(make_shape.SPINE_OUT.read_text(encoding="utf-8"), make_shape.render(SPINE))
 
     def test_regenerates_unchanged(self):
         path = make_shape.vanilla_path(None)
@@ -72,12 +74,25 @@ class Files(unittest.TestCase):
                          "eidolon.json is stale: run Eidolon/tools/make_shape.py")
         self.assertEqual(make_shape.render(make_shape.stages_file(shape)),
                          make_shape.STAGES_OUT.read_text(encoding="utf-8"), "eidolon-stages.json is stale")
+        self.assertEqual(make_shape.render(make_shape.spine_file(make_shape.load_vanilla(path))),
+                         make_shape.SPINE_OUT.read_text(encoding="utf-8"), "EidolonGantry/spine.json is stale")
 
 
 class Shape(unittest.TestCase):
     def test_element_names_are_unique(self):
         self.assertEqual(len(RIG.order), len(set(RIG.order)))
-        self.assertEqual(len(RIG.order), 221)
+        self.assertEqual(len(RIG.order), 192)  # vanilla's 218, less the spine's 29, and the three anchors
+
+    def test_the_spine_is_the_gantrys(self):
+        # cut off the chest block whole: not in the shape, in no animation, and in the gantry's file as it was
+        self.assertEqual(SPINE["parent"], make_shape.SPINE_PARENT)
+        self.assertEqual([e["name"] for e in SPINE["elements"]], [make_shape.SPINE_ROOT])
+        names = set(make_shape.subtree(SPINE["elements"][0]))
+        self.assertEqual(len(names), 29)
+        self.assertLessEqual({"spine-hook1", "bar-spine1", "bar-spine2", "bar-spine3", "winch-handle1"}, names)
+        self.assertFalse(names & set(RIG.order))
+        keyed = {n for a in SHAPE["animations"] for k in a["keyframes"] for n in k["elements"]}
+        self.assertFalse(names & keyed)
 
     def test_textures_are_the_games(self):
         self.assertEqual(set(SHAPE["textures"]), set(make_shape.VANILLA_TEXTURES))
@@ -180,6 +195,23 @@ class Poses(unittest.TestCase):
         self.assertAlmostEqual(r["hung: lowest sole y"], make_shape.HUNG_CLEAR, delta=0.05)
         self.assertAlmostEqual(r["slump (held frame): lowest leg point y"], 0.0, delta=0.05)
 
+    def test_activate_drops_off_the_spine_and_steps_forward(self):
+        # hung HUNG_BACK behind the entity's position (against the gantry's spine); moving from the first
+        # frames (the clamps let go), on its feet from ACTIVATE_LAND, then one foot down at every frame
+        # while it steps forward to stand at rest where the entity is
+        a, b = ANIMS["activate"], make_shape.Builder(SHAPE)
+
+        def hip_x(f):
+            return RIG.matrix("hip-inside", kin.sample(a, f))[0][3] * 16
+
+        rest = RIG.matrix("hip-inside", {})[0][3] * 16
+        self.assertAlmostEqual(hip_x(0) - rest, make_shape.HUNG_BACK, delta=1.0)
+        self.assertLess(hip_x(3), hip_x(0) - 1.0)
+        self.assertAlmostEqual(hip_x(89), rest, delta=0.01)
+        for f in range(make_shape.ACTIVATE_LAND, 90):
+            low = min(c[1] for sd in "RL" for c in b.sole_corners(sd, kin.sample(a, f)))
+            self.assertLess(abs(low), 0.4, f"activate frame {f}: lowest sole {low:.2f}")
+
     def test_hands_on_their_grips(self):
         for k, v in self.report.items():
             if "grip" in k:
@@ -227,9 +259,10 @@ class Stages(unittest.TestCase):
         bad["stages"][2]["elements"].append("chest-inside")
         self.assertTrue(any("pieces" in p for p in make_shape.check_stages(SHAPE, bad)))
 
-    def test_the_torso_comes_first_with_the_spines_peg(self):
+    def test_the_torso_comes_first(self):
         torso = set(STAGES["stages"][1]["elements"])
-        self.assertLessEqual({"chest-inside", "spine1", "spine-hook1"}, torso)
+        self.assertLessEqual({"chest-inside", "chest-backplate", *make_shape.ANCHORS}, torso)
+        self.assertEqual(make_shape.SPINE_PARENT, "chest-inside")  # the gantry's spine is clamped to the torso
         # before its parent: the chest block hangs off the hip block in the shape's hierarchy
         self.assertEqual(RIG.parent["chest-inside"], "hip-inside")
         self.assertIn("hip-inside", STAGES["stages"][2]["elements"])
