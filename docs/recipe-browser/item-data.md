@@ -98,6 +98,7 @@ tooltip.
 | `burn` | burn temperature and duration above 0 | `CombustibleProps` |
 | `smelting` | a smelted stack resolves | `CombustibleProps`: melting point, melting duration, `smeltedRatio` as `inputQuantity`, `requiresContainer`, `smeltingType` as `method` (smelt, cook, bake, convert, fire), output stack |
 | `storageFlags` | always | `StorageFlags`, lower case names |
+| `groundStorage` | the item has the `GroundStorable` behavior | `StorageProps` of the loaded collectible (More Piles adds the behavior in code, so the type files are not enough). See [Ground storage](#ground-storage). |
 | `extra.grinding` | `GrindingProps` | output stack |
 | `extra.crushing` | `CrushingProps` | output stack, quantity, hardness tier |
 | `extra.eatenStack` | food leaves something behind | `NutritionProps.EatenStack` |
@@ -105,6 +106,27 @@ tooltip.
 The values are the collectible's defaults, not those of a particular stack. Overrides that
 depend on stack attributes (`GetNutritionProperties`, `GetCombustibleProperties` for
 meals, pies and liquids) are not called.
+
+### Ground storage
+
+`groundStorage` says how the item is put down on the ground with Shift + right click, as
+survival's `BlockEntityGroundStorage` of game 1.22.7 handles it (decompiled from
+`Mods/VSSurvivalMod.dll`). Its numbers are the ones that block uses, not the raw properties:
+
+| Layout | Kind | `capacity` (items per block) | Per click |
+|---|---|---|---|
+| `singlecenter` | placed | 1 | one |
+| `halves`, `wallhalves` | placed (`wallhalves` against a wall) | 2 | one |
+| `quadrants` | placed | 4 | one |
+| `messy12` | loose pile (gems, nuggets, ore chunks) | 12 | `transfer`, `bulkTransfer` with Ctrl (at most 12) |
+| `stacking` | pile | the item's `stackingCapacity` | `transfer`, `bulkTransfer` with Ctrl |
+
+`requiresCtrl` is the item's `ctrlKey` (or the older `sprintKey`, which the behavior folds into
+it): Ctrl must be held as well to put it down. For a pile, `solidTop` is `upSolid` (a full pile
+can be built on, more piles of the item included), `maxPilesHigh` its `maxStackingHeight`
+when set, and `fullHeight` the top of a full pile's collision box in blocks: the props'
+`collisionBox`, else the block's own, its top multiplied by `ceil(cbScaleYByLayer * capacity)`
+when `cbScaleYByLayer` is set (a copper ingot pile: 0.125 * 8 = 1 block).
 
 ### Sources (best effort)
 

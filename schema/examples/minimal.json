@@ -32,7 +32,13 @@
       "name": "Copper saw",
       "mod": "game",
       "handbookVisible": true,
-      "attributes": { "maxStackSize": 1, "durability": 250, "tool": "saw", "toolTier": 2 }
+      "attributes": {
+        "maxStackSize": 1,
+        "durability": 250,
+        "tool": "saw",
+        "toolTier": 2,
+        "groundStorage": { "layout": "wallhalves", "capacity": 2 }
+      }
     },
     "game:ladder-wood-north": { "kind": "block", "name": "Wooden ladder", "mod": "game", "handbookVisible": true },
     "game:flint": { "kind": "item", "name": "Flint", "mod": "game", "handbookVisible": true },
@@ -46,7 +52,11 @@
       "mod": "game",
       "handbookVisible": true,
       "description": "A bar of copper.",
-      "attributes": { "maxStackSize": 16, "materialDensity": 8920 }
+      "attributes": {
+        "maxStackSize": 16,
+        "materialDensity": 8920,
+        "groundStorage": { "layout": "stacking", "capacity": 64, "transfer": 1, "bulkTransfer": 4, "solidTop": true, "fullHeight": 1 }
+      }
     },
     "game:ingot-tin": { "kind": "item", "name": "Tin ingot", "mod": "game", "handbookVisible": true },
     "game:ingot-tinbronze": { "kind": "item", "name": "Tin bronze ingot", "mod": "game", "handbookVisible": true },

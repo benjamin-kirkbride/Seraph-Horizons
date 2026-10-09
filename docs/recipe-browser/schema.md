@@ -52,6 +52,10 @@ many of it make a litre (100 for a portion, 5 for Expanded Foods' hard lard). A 
 the world (water, 0.001 per litre) is containable only through its portion item, so anything
 under one item per litre has no `liquid`.
 
+`attributes.groundStorage`, optional, says how the item is put down on the ground (placed, a
+loose pile or a pile) and how many one block holds ([item-data.md](item-data.md#ground-storage)).
+It is an optional addition, so `schemaVersion` stayed 1.
+
 `sources` lists ways to get the item other than a recipe: block drops, entity drops and
 trader stock. Much of this is driven by code in the game, so the list is best effort.
 
