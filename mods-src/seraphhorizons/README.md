@@ -2014,11 +2014,22 @@ for water only; its fittings page says the valves are bronze, made from any pipe
 pressure valve's highest gate (English; ppex's Russian and Ukrainian pages still name only iron and
 steel). The lead pipes' descriptions say "water only".
 
+**On the ground.** A pipe section set down (`GroundStorable`, `SingleCenter`) lies the way the player
+faced, drawn turned by the ground storage's `MeshAngle` in quarter turns, but the game returns its
+collision and selection boxes as the item type declares them (6/16 wide in x, a block long in z),
+unturned, so one lying east-west was boxed north-south. `Pipes/Game/GroundStorageBoxes.cs` turns both
+boxes about the block's centre by the same angle for an item with the attribute
+`groundStorageTurnsBoxes: true` (the pipe section's only), when the angle is a whole number of quarter
+turns (`Pipes/Core/GroundBoxTurns.cs`); every other ground-stored stack keeps the game's boxes. The
+turned boxes are kept per ground storage and remade only when its box or angle changes.
+
 **By name, with Harmony** (its own id, `seraphhorizons.unifiedpipes`, patched once per process): a
 postfix on ppex's `BlockPipe.BurstPressure` getter gives each metal its figure; a postfix on exlib's
 `PipeNetwork.OnTick` bursts a lead pipe through exlib's own private `ExecuteBurst` while the run's
 medium is `Steam` or `Exhaust`; a postfix on exlib's private `ExRecipeCosts.GridRecipesFor` keeps
-ppex's recipe cost levels to recipes from ppex's own files. Before the patch loader runs, the server
+ppex's recipe cost levels to recipes from ppex's own files; postfixes on the game's
+`BlockEntityGroundStorage.GetCollisionBoxes` and `GetSelectionBoxes` turn a pipe section's boxes on
+the ground (below). Before the patch loader runs, the server
 checks ppex's six pipe and valve blocktypes and its pipe recipes against the patch
 (`Pipes/Core/PipeAssetGuard.cs`: the `material` group third with states iron and steel, an `iron4`
 texture by type, and the recipes at indices 0-3 and 7-10 making the pipes and valves the patch
