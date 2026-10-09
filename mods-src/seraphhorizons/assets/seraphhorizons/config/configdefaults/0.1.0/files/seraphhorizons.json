@@ -269,7 +269,11 @@
     "WalkSpeed": 0.022,
     "RunSpeed": 0.04,
     "PathSearchNodes": 3000,
-    "MaxFallBlocks": 3
+    "MaxFallBlocks": 3,
+    "CommandRange": 64.0,
+    "FollowDistance": 4.0,
+    "FollowRunDistance": 10.0,
+    "DefenceDamage": 10.0
   },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {
