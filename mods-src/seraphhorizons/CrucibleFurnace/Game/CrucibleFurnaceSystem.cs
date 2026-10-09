@@ -52,6 +52,10 @@ public class CrucibleFurnaceSystem : ModSystem
     private PotRecipes? _recipes;
     private ModSystemSurvivalHandbook? _handbook;
     private InitCustomPagesDelegate? _hidePage;
+    private HarmonyLib.Harmony? _bessemerHarmony;
+
+    /// <summary>What <see cref="BessemerStainless.EnsureScrap"/> found on this side (the Bessemer route).</summary>
+    public SteelBits.SmexScrap.Status BessemerScrapStatus { get; private set; } = SteelBits.SmexScrap.Status.NotChecked;
 
     public static CrucibleFurnaceSystem Of(ICoreAPI api) => api.ModLoader.GetModSystem<CrucibleFurnaceSystem>();
 
@@ -76,6 +80,9 @@ public class CrucibleFurnaceSystem : ModSystem
         // only: a client has no assets in Start.
         if (!Applies(api) && api.Side == EnumAppSide.Server && api.Assets.TryGet(PatchAsset) is { } patch)
             patch.Data = "[]"u8.ToArray();
+        // The Bessemer route: smex's converter, patched on both sides, once per process.
+        if (BessemerStainless.Applies(api) && (BessemerStainless.Bound || BessemerStainless.Bind(api.Logger)))
+            _bessemerHarmony = BessemerStainless.Patch();
     }
 
     // Types and recipes are read from the assets later in this phase (the game's loaders run at 0.2
@@ -84,6 +91,21 @@ public class CrucibleFurnaceSystem : ModSystem
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
             Disable(api);
+        if (BessemerStainless.Applies(api) && BessemerStainless.Bound)
+            LangText.Apply(BessemerStainless.LangEdits, BessemerStainless.SmexId, api.Logger);
+    }
+
+    // After every mod's Start, where smex loads its settings.
+    public override void AssetsFinalize(ICoreAPI api)
+    {
+        if (!Applies(api))
+            BessemerScrapStatus = SteelBits.SmexScrap.Status.Off;
+        else if (!api.ModLoader.IsModEnabled(BessemerStainless.SmexId))
+            BessemerScrapStatus = SteelBits.SmexScrap.Status.Absent;
+        else if (!BessemerStainless.Bound)
+            BessemerScrapStatus = SteelBits.SmexScrap.Status.Changed;
+        else
+            BessemerScrapStatus = BessemerStainless.EnsureScrap(api.Logger);
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -110,6 +132,12 @@ public class CrucibleFurnaceSystem : ModSystem
 
     public override void Dispose()
     {
+        if (_bessemerHarmony != null)
+        {
+            _bessemerHarmony.UnpatchAll(BessemerStainless.HarmonyId);
+            _bessemerHarmony = null;
+            BessemerStainless.Unbind();
+        }
         if (_handbook != null && _hidePage != null)
             _handbook.OnInitCustomPages -= _hidePage;
         _handbook = null;
