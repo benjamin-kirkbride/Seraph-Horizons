@@ -1,13 +1,14 @@
 // What a trader pays for goods off its own buying list (#450, docs/trading.md "Everything has a
-// price"). An item's fit at a trader: "listed" when the trader's type buys it, else the best
-// relation between the trader's type and a type that buys it, else "unrelated". A pair without a
-// weight relates at "related"; "toAll" relates a type to every other type, both ways.
-// Flattened 2026-10-06 (was 1 / 0.5 / 0.2, weak links 0.3): with the buy spread (a fifth of value,
-// BuySpread) on top, a poor fit costs a hauler half, not four fifths. A weak link sits at 0.6.
+// price"), as a share of their value. An item's fit at a trader: "listed" when the trader's type
+// buys it, else the best relation between the trader's type and a type that buys it, else
+// "unrelated". A pair without a weight relates at "related"; "toAll" relates a type to every other
+// type, both ways. Goods a related type buys (any pair) are paid from the trader's wallet, the rest
+// from its side budget. 2026-10-08: the fit is the whole share (the buy spread is gone): related
+// 0.75, unrelated 0.2, the curio dealer 0.3; a weak link keeps its 0.6.
 {
 	"listed": 1.0,
 	"related": 0.75,
-	"unrelated": 0.5,
+	"unrelated": 0.2,
 	"pairs": [
 		["smith", "mechanic"],
 		["smith", "prospector"],
@@ -23,7 +24,7 @@
 		["generalstore", "carpenter", 0.6],
 	],
 	// The curio dealer takes a little interest in anything.
-	"toAll": { "curiodealer": 0.6 },
+	"toAll": { "curiodealer": 0.3 },
 	// Never bought, listed or not: maps and leads (what they point at is the trader's own business),
 	// the pack's and the game's locator maps.
 	"refused": [

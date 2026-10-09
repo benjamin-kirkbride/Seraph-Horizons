@@ -5,7 +5,7 @@ namespace SeraphHorizons.Mod.Trading.Core;
 public sealed record ResolvedSide(IReadOnlyList<TradeEntry> Core, IReadOnlyList<TradeEntry> Rotating, int MaxRotating);
 
 /// <summary>A whole list for one region.</summary>
-public sealed record ResolvedList(string Type, Region Region, ResolvedSide Selling, ResolvedSide Buying, NatSpec Wallet);
+public sealed record ResolvedList(string Type, Region Region, ResolvedSide Selling, ResolvedSide Buying);
 
 /// <summary>
 /// Turns a <see cref="TradeListDef"/> into what a trader in a given <see cref="Region"/> stocks.
@@ -25,8 +25,7 @@ public static class TradeListResolver
     public const int MaxStandingTier = 4;
 
     public static ResolvedList Resolve(TradeListDef def, Region region, int standingTier = 0, bool rareStock = false) =>
-        new(def.Type, region, Resolve(def.Selling, region, standingTier, rareStock), Resolve(def.Buying, region, standingTier, rareStock),
-            def.WalletFor(standingTier));
+        new(def.Type, region, Resolve(def.Selling, region, standingTier, rareStock), Resolve(def.Buying, region, standingTier, rareStock));
 
     public static ResolvedSide Resolve(TradeSide side, Region region, int standingTier = 0, bool rareStock = false)
     {
@@ -58,7 +57,7 @@ public static class TradeListResolver
         var problems = new List<string>();
         if (!TraderTypes.All.Contains(def.Type) && !TraderTypes.Visitors.Contains(def.Type))
             problems.Add($"type '{def.Type}' is not one of the eleven or a visitor");
-        if (def.Wallet.Count == 0) problems.Add("no wallet");
+        if (def.Wallet is null) problems.Add("no wallet");
         foreach (var (name, side) in new[] { ("selling", def.Selling), ("buying", def.Buying) })
         {
             foreach (string key in side.Regional.Keys)
@@ -72,8 +71,10 @@ public static class TradeListResolver
                     problems.Add($"{table}: an entry has no code");
                 foreach (var dup in entries.GroupBy(e => e.Key).Where(g => g.Count() > 1))
                     problems.Add($"{table}: {dup.Key} is listed {dup.Count()} times");
-                foreach (var e in entries.Where(e => e.Price is null || e.Price.Avg <= 0))
-                    problems.Add($"{table}: {e.Key} has no price");
+                foreach (var e in entries.Where(e => e.Price is not null && string.IsNullOrWhiteSpace(e.PriceReason)))
+                    problems.Add($"{table}: {e.Key} overrides its price without a priceReason");
+                foreach (var e in entries.Where(e => e.Price is <= 0))
+                    problems.Add($"{table}: {e.Key} has a price override of {e.Price}");
             }
             foreach (var region in Region.All)
             {

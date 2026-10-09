@@ -6,7 +6,7 @@ Stdlib only, Python 3.11+. See README.md next to this file for the rules and the
   python3 tools/item-values/itemvalues.py build   build/recipes.json   # writes the mod's item-values.json and a report
   python3 tools/item-values/itemvalues.py report  build/recipes.json   # the report only (stdout)
   python3 tools/item-values/itemvalues.py explain build/recipes.json game:pickaxe-tinbronze
-  python3 tools/item-values/itemvalues.py check   build/recipes.json   # fails on a stale table, an unvalued bought item, a retired item listed
+  python3 tools/item-values/itemvalues.py check   build/recipes.json   # fails on a stale table, an unvalued trade list item, a retired item listed
 
 Every item's value is the cheapest route to it: hand-priced raws (raw-values.json) and overrides
 (overrides.json) are fixed; every other item is the cheapest of its recipes, where a recipe costs
@@ -988,11 +988,17 @@ class TradeEntry:
     code: str  # with its domain
     side: str  # "buying" or "selling"
     player_supplied: bool = False
-    special: bool = False  # a "kind" entry (a map, a lead): a service the list prices itself
+    special: bool = False  # a "kind" entry (a map, a lead): a service the maps system prices
+    override: bool = False  # a "price" with a "priceReason": priced by hand, not from the table
 
     @property
     def bought(self) -> bool:
         return self.side == "buying" or (self.side == "selling" and self.player_supplied)
+
+    @property
+    def valued(self) -> bool:
+        """Priced from the value table: every entry but a special one or a price override."""
+        return not self.special and not self.override
 
 
 def trade_list_entries(directory: Path) -> dict[str, list[TradeEntry]]:
@@ -1005,9 +1011,11 @@ def trade_list_entries(directory: Path) -> dict[str, list[TradeEntry]]:
     def walk(node, side, acc):
         if isinstance(node, dict):
             code = node.get("code")
-            if side and isinstance(code, str) and ("type" in node or "price" in node or "stacksize" in node):
+            if side and isinstance(code, str) and any(k in node for k in ("type", "price", "stacksize", "stock", "kind")):
+                reason = node.get("priceReason")
                 acc.append(TradeEntry(code if ":" in code else "game:" + code, side,
-                                      node.get("playerSupplied") is True, "kind" in node))
+                                      node.get("playerSupplied") is True, "kind" in node,
+                                      "price" in node and isinstance(reason, str) and bool(reason.strip())))
             for k, v in node.items():
                 walk(v, side or (k if k in ("buying", "selling") else None), acc)
         elif isinstance(node, list):
@@ -1022,11 +1030,11 @@ def trade_list_entries(directory: Path) -> dict[str, list[TradeEntry]]:
 
 
 def trade_list_codes(directory: Path) -> dict[str, list[str]]:
-    """The item codes traders can buy, per trade list file: every `buying` entry, and every
-    `selling` entry marked `playerSupplied`, whose stock comes from players selling it to the trader
-    (off its list, at its value, when the buying side does not list it). What a trader only sells
-    is priced by its list and needs no value."""
-    return {name: sorted({e.code for e in entries if e.bought})
+    """The item codes the trade lists price from the value table, per trade list file: every entry,
+    bought or sold, but the special ones (maps and leads, which the maps system prices) and those
+    with a price override (`price` with a `priceReason`: schematics). A trader asks an item's value
+    and pays 1.5 x it (docs/trading.md, "Trade list format"), so each needs one."""
+    return {name: sorted({e.code for e in entries if e.valued})
             for name, entries in trade_list_entries(directory).items()}
 
 
@@ -1042,17 +1050,15 @@ def family_prefixes(code: str):
         i = code.rfind("-", 0, i)
 
 
-def unrouted(export: dict, val: Valuation, rules: Rules, tradelists: Path) -> tuple[list[str], list[str]]:
+def unrouted(export: dict, val: Valuation, rules: Rules, tradelists: Path) -> list[str]:
     """Dead trade list entries (#506): an item of the export that nothing values (no route makes
     it, and no raw, override or fallback prices it) and the handbook hides: retired by the pack
     (Immersive Woodworking's pit saws and blades) or technical. Bought or sold, such an entry comes
     off the list, even when the item's variant family has a value the mod would fall back to.
     (What the pack removes outright, Hydrate or Diedrate's tun, is not in the export at all.)
-    Returns (dead entries, entries traders only sell whose item has no value although the handbook
-    shows it: creatures, maps, found goods, priced by their lists). Schematics are worth nothing by
-    rule and traders are their only source, and a special entry (a map, a lead) is a service:
-    neither counts."""
-    dead, sold = [], []
+    Schematics are worth nothing by rule and traders are their only source, and a special entry (a
+    map, a lead) is a service: neither counts."""
+    dead = []
     items = export["items"]
     for name, entries in trade_list_entries(tradelists).items():
         for e in entries:
@@ -1061,9 +1067,7 @@ def unrouted(export: dict, val: Valuation, rules: Rules, tradelists: Path) -> tu
             if items[e.code].get("handbookVisible") is False:
                 dead.append(f"{name}: {e.code} ({'bought' if e.bought else 'sold'}) is retired: hidden from "
                             f"the handbook and nothing values it; take it off the trade list")
-            elif not e.bought:
-                sold.append(f"{name}: {e.code}")
-    return dead, sold
+    return dead
 
 
 def table_drift(fresh: dict, shipped: dict) -> list[str]:
@@ -1093,15 +1097,18 @@ DRIFT_SAMPLE = 25
 
 def check(values: dict[str, float] | set[str], tradelists: Path, what: str = "",
           exempt=lambda code: False) -> list[str]:
-    """Trade list entries without a value in `values` (derived values, or the shipped table). As the
-    mod looks values up (ItemValues.Lookup): a code missing from the table takes its variant family's
-    average, and a code with * the average of what it matches; only a code with neither is missing.
-    `exempt` codes (schematics, worth nothing by rule) are bought at their list's price."""
+    """Trade list entries priced from the table without a value in `values` (derived values, or the
+    shipped table). As the mod looks values up (ItemValues.Lookup): a code missing from the table
+    takes its variant family's average, and a code with * the average of what it matches; only a
+    code with neither is missing. `exempt` codes (schematics, worth nothing by rule) need a price
+    override (`price` with a `priceReason`) instead."""
     families = {p for c in values for p in family_prefixes(c)}
     problems = []
     for name, codes in trade_list_codes(tradelists).items():
         for code in codes:
             if exempt(code):
+                problems.append(f"{name}: {code} is a schematic, which has no value: give it a price "
+                                f"override with a priceReason")
                 continue
             if "*" in code:
                 if not any(fnmatch.fnmatchcase(c, code) for c in values):
@@ -1190,20 +1197,18 @@ def main(argv: list[str] | None = None) -> int:
         if lists:
             n = sum(len(v) for v in lists.values())
             distinct = len({c for v in lists.values() for c in v})
-            print(f"validated {n} trade list items traders buy ({distinct} distinct codes) in {len(lists)} lists")
-        dead, sold_only = unrouted(export, val, rules, args.tradelists)
+            print(f"validated {n} trade list items priced from values ({distinct} distinct codes) in {len(lists)} lists")
+        dead = unrouted(export, val, rules, args.tradelists)
         for p in problems + dead:
             print(p, file=sys.stderr)
         if problems:
-            print(f"{annotate}{len(problems)} trade list entries traders buy lack a value", file=sys.stderr)
+            print(f"{annotate}{len(problems)} trade list entries lack a value (or a price override with a priceReason)", file=sys.stderr)
         if dead:
             print(f"{annotate}{len(dead)} trade list entries name items nothing values (no route)", file=sys.stderr)
         if failed or problems or dead:
             return 1
-        n = sum(len(v) for v in trade_list_codes(args.tradelists).values())
-        print(f"every item traders buy has a value ({n} entries)" if n else "no trade lists: nothing to check")
-        if sold_only:
-            print(f"{len(sold_only)} entries traders only sell have no value (priced by their lists; fine)")
+        print(f"every trade list item has a value ({sum(len(v) for v in lists.values())} entries)" if lists
+              else "no trade lists: nothing to check")
         if args.table.exists():
             print("the shipped table matches this export")
     return 0

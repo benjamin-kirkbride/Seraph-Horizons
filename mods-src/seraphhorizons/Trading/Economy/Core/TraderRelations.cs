@@ -8,13 +8,13 @@ namespace SeraphHorizons.Mod.Trading.Economy.Core;
 /// <see cref="Listed"/> if the trader's type buys it (any region of its list), else the best
 /// relation between that type and a type that does buy it (<see cref="Related"/> for a listed pair,
 /// or a pair's own weight), else <see cref="Unrelated"/>. A type in <see cref="ToAll"/> relates to
-/// every other type at its weight, both ways (the curio dealer, who takes anything another type buys at 0.6).
+/// every other type at its weight, both ways (the curio dealer, who takes anything another type buys at 0.3).
 /// </summary>
 public sealed class TraderRelations
 {
     public double Listed { get; init; } = 1.0;
     public double Related { get; init; } = 0.75;
-    public double Unrelated { get; init; } = 0.5;
+    public double Unrelated { get; init; } = 0.2;
 
     /// <summary>Code prefixes that are refused outright, wherever listed or not: maps and leads.</summary>
     public IReadOnlyList<string> Refused { get; init; } = [];
@@ -54,11 +54,18 @@ public sealed class TraderRelations
         return best;
     }
 
+    /// <summary>Whether a trader of <paramref name="type"/> pays for an item off its shelf's list
+    /// from its main wallet: its own type buys the item (in another region's list), or a type it is
+    /// related to does (a pair, with or without its own weight; not a <see cref="ToAll"/> link).
+    /// Everything else it takes off its list is paid from its side budget.</summary>
+    public bool PaysFromMain(string type, IReadOnlyCollection<string> buyers) =>
+        buyers.Contains(type) || buyers.Any(other => _pairs.ContainsKey((type, other)));
+
     public bool IsRefused(string code) => Refused.Any(p => code.StartsWith(p, StringComparison.Ordinal));
 
     /// <summary>
     /// Reads the file: <c>{ "listed", "related", "unrelated", "pairs": [["smith", "mechanic"], …
-    /// or ["a", "b", 0.6]], "toAll": { "curiodealer": 0.6 }, "refused": ["seraphhorizons:oremap", …] }</c>.
+    /// or ["a", "b", 0.6]], "toAll": { "curiodealer": 0.3 }, "refused": ["seraphhorizons:oremap", …] }</c>.
     /// Comments and trailing commas are allowed, as in the game's own JSON.
     /// </summary>
     public static TraderRelations Parse(string json)
@@ -78,7 +85,7 @@ public sealed class TraderRelations
         {
             Listed = Num("listed", 1.0),
             Related = Num("related", 0.75),
-            Unrelated = Num("unrelated", 0.5),
+            Unrelated = Num("unrelated", 0.2),
             Refused = refused,
         };
         if (root.TryGetProperty("pairs", out var pairs))

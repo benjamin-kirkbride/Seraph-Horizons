@@ -64,7 +64,7 @@ public static class DeliveryCommands
                         slot.TakeOut(1);
                         slot.MarkDirty();
                     }
-                system.Settle(change, null);
+                system.Settle(change);
                 return TextCommandResult.Success(L("trading-deliveries-admin-" + word, id));
             }
         }

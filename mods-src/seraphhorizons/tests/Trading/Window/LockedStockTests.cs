@@ -6,7 +6,7 @@ namespace SeraphHorizons.Mod.Tests.Trading.Window;
 public class LockedStockTests
 {
     private static TradeEntry E(string code, int tier = 0, bool rare = false, string? kind = null) =>
-        new() { Code = code, Price = new NatSpec(2, 0), Stock = new NatSpec(1, 0), StandingTier = tier, Rare = rare, Kind = kind };
+        new() { Code = code, Stock = new NatSpec(1, 0), StandingTier = tier, Rare = rare, Kind = kind };
 
     private static readonly bool[] Rare = [false, false, false, true, true];
 
