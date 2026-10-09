@@ -1,0 +1,4 @@
+[
+	{ "op": "add", "path": "/combustiblePropsByType/ingot-stainlesssteel", "file": "game:itemtypes/resource/ingot.json",
+	  "value": { "meltingPoint": 1530, "meltingDuration": 30, "smeltedRatio": 1, "smeltedStack": { "type": "item", "code": "ingot-stainlesssteel" } } }
+]
