@@ -738,6 +738,39 @@ taken out in each language it ships (en, de, fr, pl, ru; `LangEdits`), on each s
 off, panning and that text are as the mods ship them. The switch that counts for panning is the
 server's.
 
+### BetterLoot+'s gear parts are rusty gears (`GearPartsRemoved`)
+
+BetterLoot+ (`betterlootplus` 1.0.0, domain `betterloot`) drops a rusty gear part
+(`betterloot:gearpart`) from drifters, shivers and bowtorns, 0.25 a surface creature up to 3 a
+nightmare one, beside the rusty gears they already drop; four parts craft into a rusty gear
+(`recipes/grid/rustygear.json`) and a rusty gear splits into four (`rustygearpart.json`). The pack's
+rusty gear is a whole gear and its money (#484), so the part goes:
+
+- the item type and both recipes are disabled (`enabled: false`), so the part does not exist and
+  parts already in a world vanish when it loads (no remap: the pack is pre-release);
+- every gear part drop in BetterLoot+'s loot becomes rusty gears at a quarter of its average and
+  variance (`Core/GearPartDropRules.cs`), so as many gears come in, on average, as the parts made.
+  They are added to the creature's own rusty gear drop, so the handbook and the recipe browser
+  list one rusty gear drop per creature: a normal drifter's 0.01 gears and 0.25 parts are 0.0725
+  gears, a nightmare one's 0.4 and 3 are 1.15. That drop keeps its `rustyGearDropRate` stat, which
+  now scales the parts' share too. A creature with parts and no rusty gear drop (none in BetterLoot+
+  1.0.0) gets its part drop turned into one. The part drop's slot is freed.
+
+BetterLoot+ reads its loot from `ModConfig/betterlootplus.json`, which it writes from its bundled
+`config/betterlootplus.default.json` when there is none, on the server in its system's
+`AssetsLoaded` (0.25, after the item types are registered at 0.2), and writes each creature's drops
+into its `harvestable` behaviour in a private static `ApplyConfig(ICoreAPI, BetterLootConfig)`. A
+Harmony prefix on that method (server side, found by name) rewrites the loaded config's drops in
+memory just before they are applied, so the file stays as BetterLoot+ wrote it, a player's edits
+too, and the change follows every creature the file lists, whatever it says; the server logs how
+many creatures it changed. If BetterLoot+'s types or `ApplyConfig` changed, a warning is logged and the
+drops are not rewritten: the item being gone, BetterLoot+ itself then skips them as unknown.
+
+The item and recipes are a JSON patch, `assets/seraphhorizons/patches/gearparts-betterlootplus.json`,
+`"side": "server"` and `dependsOn` betterlootplus. With the switch off, or without BetterLoot+, the
+system empties that patch file in `Start`, as for Hydrate or Diedrate's tun, and the loot is left as
+BetterLoot+ ships it. The switch that counts is the server's.
+
 ### Map Reveal (`MapReveal`)
 
 `/revealmap <radius>` shows on your world map (M) the terrain already generated within radius
@@ -1682,8 +1715,9 @@ converter's refusal and its handbook page say so. If smex has changed those meth
 logged and the converter keeps taking ppex's large gears, which are no longer made.
 
 Left alone: the rusty gear amulet (the gear on a string, uncrafted back into it), the game's gray and
-black barrel dyes (the rust is the pigment), BetterLoot's gear parts (change: four make a gear) and
-Cartwright's rusty gear sign (decoration). The game's own Jonas devices, and Abyssal Depths, Rickety
+black barrel dyes (the rust is the pigment) and
+Cartwright's rusty gear sign (decoration). BetterLoot+'s gear parts, which split a rusty gear into
+four, are gone with `GearPartsRemoved` (above). The game's own Jonas devices, and Abyssal Depths, Rickety
 Translocation, Industrial Deco and the walking stick, take temporal gears or Jonas parts, no rusty
 gear, so they are not patched. The rusty gear stays currency, and the mechanic no longer buys or
 sells ppex's gears (#436).
@@ -2428,6 +2462,126 @@ loads them, so none of it exists and stations already placed are lost; the mod's
 links it. The hollows and the pipe sections exist either way (the sections are `UnifiedPipes`'; with
 that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic
 for the frame (`MachineSchematics`).
+
+### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)
+
+Stainless steel, the gears epic's metal (#484): the Huntsman (Sheffield) crucible furnace, the
+mid-game route, small batches in clay pots. Stainless melts at 1530 °C and coke burns at 1340 °C, so
+no forge or crucible melts it; the furnace's own temperature model, a stack's draft through a bed of
+coke, is what gets there. In `CrucibleFurnace/` (rules in `CrucibleFurnace/Core/`, the game side in
+`CrucibleFurnace/Game/`).
+
+**Build.** `seraphhorizons:meltinghole-{closed|open}` is one block set into the floor: eight fired
+tier-3 refractory bricks (the game's, made with chromite) round an iron plate, its lid, in the grid.
+The lid is the block's variant (Shift and right-click with an empty hand opens and shuts it). Holes
+stand side by side in a row along x or z, up to `MaxHolesInRow` (4), and the row needs a stack at one
+end: a chimney block in line with the holes at their level, with at least `MinChimneyHeight` (6)
+chimney blocks in a column from it up (`ChimneyBlocks`: the game's clay bricks, clay brick chimney,
+refractory bricks and stone bricks, and smex's smoke stack). The flue runs under the floor, so it is
+not built. `Core/FurnaceRow.cs` finds a hole's row (x first, then z) or says what is wrong: no
+chimney, a chimney too short, or too many holes; the block info shows it. The hole's block type
+carries a `multiblockStructure` and `multiblockSizes` (1 to 4 holes, the shortest chimney) for the
+recipe browser's multiblock viewer; nothing in the game reads them.
+
+**The pot.** `seraphhorizons:meltingpot-raw` is clay-formed from fire clay only (a deep pot 7 voxels
+across and 10 high) and fired in a pit kiln or a beehive kiln, as the game's crucible is, into
+`meltingpot-fired`. A pot holds `PotCapacityUnits` (200, two ingots) and lasts `PotHeats` (3) heats:
+its heats are an attribute of the stack, and it cracks when the last is emptied (or broken out). One
+pot goes in a hole, by right-click with the lid open.
+
+**Charging.** With the lid open and a pot in, a right-click with anything a pot recipe takes puts as
+much of the stack in as fits: a recipe must take every item already in the pot and this one, the pot
+must not go over its capacity, and this ingredient not over its largest share of a full pot
+(`PotRecipes.CanAdd`). Anything else is refused with a word: no recipe takes it, it does not go with
+what is in, the pot is full, or more would spoil the ratio. An ingot is 100 units, anything else 5. A
+right-click with coke puts it on the fire, up to `CokeCapacity` (6); with Shift, into the pot. The
+recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built in, not settings); a recipe
+naming an item not in the game is left out with a log line:
+
+| Recipe | Charge (share of the units) | Melts at | Gives | Full pot |
+|---|---|---|---|---|
+| Ferrosilicon | crushed quartz 45-55 %, iron bits 25-35 %, coke 15-25 % | 1400 °C | `seraphhorizons:ferrosilicon`, half the units in lumps of 5 | 20 quartz, 12 iron bits, 8 coke: 20 ferrosilicon |
+| Ferrochrome (low carbon, silicon reduction) | crushed chromite 45-55 %, ferrosilicon 25-35 %, lime 15-25 % | 1550 °C | `seraphhorizons:ferrochrome`, half the units in lumps; `smex:slag`, one per 25 units | 20 chromite, 12 ferrosilicon, 8 lime: 20 ferrochrome, 8 slag |
+| Stainless | iron (ingots or bits; no steel) 78-82 %, ferrochrome 18-22 % | 1530 °C | molten `game:ingot-stainlesssteel`, unit for unit | 1 iron ingot, 12 iron bits, 8 ferrochrome: 200 units |
+| Stainless remelt | stainless bits or ingots, all of it | 1530 °C | molten stainless, unit for unit | 40 bits: 200 units (20 bits = 100) |
+
+The game has no crushed coke (smex retired it), so ferrosilicon takes the game's coke. Ferrochrome is
+about two thirds chromium, so 4 iron to 1 ferrochrome by units is about 13 % chromium. The ratio is in
+`Core/Stainless.cs` (`Stainless.FerrochromeMin`/`Max`, `RatioMet`), with the ferrochrome code
+(`Stainless.Ferrochrome`, `seraphhorizons:ferrochrome`), for anything else that makes stainless from
+ferrochrome to share (smex's Bessemer converter, next).
+
+**Firing.** A firestarter or a lit torch (Shift) lights the coke as it lights a forge, with the lid
+open; it will not light with no coke, or with a charge in the pot that makes nothing (the block info
+gives each ingredient's share and the range it needs). Each piece of coke burns `HoursPerCoke` (1)
+hour, lit whatever the lid; a fire out of coke goes out. Under a closed lid with a working stack a lit
+hole heats at `ChimneyHeatingPerHour` (200 °C) up to `ChimneyMaxTemperature` (1600 °C) on the
+chimney's draft, and at `ForcedHeatingPerHour` (400 °C) up to `ForcedMaxTemperature` (1650 °C) with
+forced air; otherwise it cools at `CoolingPerHour` (300 °C), with its lid open at
+`LidOpenCoolingPerHour` (600 °C) (`Core/FurnaceHeat.cs`, piecewise linear, run each second by the
+calendar's hours since the last). From cold, stainless melts in about 3.8 hours with forced air and
+7.6 on the chimney alone, so a chimney firing needs its coke topped up. When the fire reaches the
+charge's recipe temperature the charge melts.
+
+**Forced air.** A lit, lidded hole draws `AirLitresPerSecond` (10 L a real second) from the first
+pipe beside (or under) any hole of its row that carries air, through exlib's pipe node
+(`ExpandedLib.Industry.Pipes.IPipeNode`: `Medium`, `TryConsume`, found by name, as smex's blast
+furnace draws its blast through its tuyeres), and runs on forced air while it gets half of it, for
+five seconds after. A pipe end against a hole is not open to the air, so it does not leak. The air
+comes from smex's twin-tub blower (up to 110 L/s) or its steam engine's air blower, piped in with
+ppex pipe. Without exlib, or with its interface changed (logged once), there is none.
+
+**Pulling and teeming.** With the lid open, an empty hand and tongs (any `heatResistant` item) in the
+off hand, a right-click pulls the pot; without tongs a pot hotter than the game's too-hot-to-touch is
+refused. A pot not yet melted comes back with its charge (and goes back in with it). A ferroalloy is
+broken out of the pot: its lumps and slag go into the inventory, hot, and the pot, a heat older, into
+the hand (or it cracks on its last). Molten stainless comes out as `meltingpot-smelted`, on the game's
+smelted crucible class (`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot
+molds, tool molds, the gear blank molds) exactly as a crucible does, and emptied it is a fired pot a
+heat older, or cracks. It is given the cooldown speed that takes it from the furnace's temperature to
+the game's solid point (0.9 of the melting point) in `PourWindowSeconds` (20) real seconds
+(`Core/FurnaceHeat.cs`, `PourWindow`); frozen, a right-click breaks the pot, which is lost, and knocks
+the metal out as stainless bits (a bit per 5 units), which go back in a pot. A pot left in the hole
+until the fire falls below that point is lost the same way when pulled. Breaking a hole drops it, the
+unburnt coke and its pot with its charge; a melted charge drops as its products (stainless as bits),
+the pot lost.
+
+**The game's stainless.** The game gives `game:ingot-stainlesssteel` no melting point, so molds never
+count it hardened: `patches/stainless-ingot-melting.json` adds 1530 °C (unswitched; the stainless gear
+blanks need it too). `patches/stainless-steel.json` shows the stainless ingot and bits in the
+handbook, which the game hides; with the switch off it is emptied.
+
+**Handbook.** A guide page, "Making stainless steel" (`config/handbook/cruciblefurnace.json`), and a
+section linking it on the hole, the pots and the two ferroalloys.
+
+| Setting | Default | |
+|---|---|---|
+| `PotCapacityUnits` | 200 | Units a pot holds |
+| `PotHeats` | 3 | Heats a pot lasts |
+| `PourWindowSeconds` | 20 | Real seconds a pulled pot of stainless pours before it freezes |
+| `CokeCapacity` | 6 | Coke a hole holds |
+| `HoursPerCoke` | 1 | Game hours a coke burns |
+| `ChimneyHeatingPerHour` | 200 | °C an hour on the chimney's draft |
+| `ForcedHeatingPerHour` | 400 | °C an hour with forced air |
+| `ChimneyMaxTemperature` | 1600 | The hottest on the chimney |
+| `ForcedMaxTemperature` | 1650 | The hottest with forced air |
+| `CoolingPerHour` | 300 | °C an hour a hole cools, lid closed |
+| `LidOpenCoolingPerHour` | 600 | °C an hour it cools, lid open |
+| `MinChimneyHeight` | 6 | Chimney blocks a row's stack needs |
+| `MaxHolesInRow` | 4 | Holes a stack serves |
+| `AirLitresPerSecond` | 10 | Air a hole draws for forced air, L a real second |
+| `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks, smex's smoke stack | What a chimney is built of |
+
+With the switch off the server marks the hole, the pots, the two ferroalloys and both recipe files
+disabled before the game loads them, empties the handbook patch and hides the guide page, so none of
+it exists and holes and pots already in a world are lost. Not yet: the pot recipes in the recipe
+export (the hole and the pot's own recipes are there), a model past simple boxes (no coke or glow
+drawn in the hole), and smex's Bessemer route (ferrochrome as scrap). `tests/PackTests/CrucibleFurnaceScenarios.cs`
+(Atlas) builds a row and breaks its stack, melts stainless from a charge on the chimney's draft with a
+top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
+bits, refuses wrong charges and an unlit bad ratio, breaks out both ferroalloys and cracks a pot on
+its last heat, takes back an unmelted pot and breaks a hole, and finds a ppex pipe as an air source;
+`SwitchesOffScenarios` requires none of it with the switch off.
 
 ### Handcar (`Handcar`, `HandcarSettings`)
 
@@ -3251,7 +3405,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
-`BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `TraderSchematics`, the retired stations of
+`BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `GearPartsRemoved`, `TraderSchematics`, the retired stations of
 `UnifiedWoodworking`) or only changes what an existing recipe takes (`GearConsumers`,
 `IronWoodworkingMachines`, `AgeOfFlaxRebalance`, `MachineSchematics`) owns nothing: no value exists
 only because it is on. A new feature that disables its own assets with its switch adds its lists to
@@ -3799,7 +3953,7 @@ clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGamepla
 (`SquaringShear/Core/`, `tests/SquaringShear/SquaringShearGameplayTests.cs`,
 `SquaringShearRigTests.cs`), the mandrel station's mandrel, hollows by metal, the hotbar refill,
 blows (two sections at the last), renderer clock, settings and rig (`MandrelStation/Core/`,
-`tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the handcar's drive (pumping by
+`tests/MandrelStation/MandrelStationGameplayTests.cs`, `MandrelStationRigTests.cs`), the crucible furnace's charging, recipe matching and products, the shared stainless ratio, heat model, row and chimney, pour window and settings (`CrucibleFurnace/Core/`, `tests/CrucibleFurnace/CrucibleFurnaceTests.cs`), the handcar's drive (pumping by
 facing, solo and pair, braking and holding, load), branch selector, distance rolled, stroke phase, effort fade,
 easing, settings and rig, held to its entity type and rider reference (`Handcar/Core/`, `tests/Handcar/`), the pickling tub's rules, timings,
 over-pickling order, early take-out, brine loss and settings (`PicklingTub/Core/`, `tests/PicklingTub/`),
@@ -4314,6 +4468,15 @@ there. It also requires the buttons text reworded in every language Tailor's Del
 When it fails after a mod update, check whether a mod adds one of them another way, or whether one
 stopped adding its own (then its pattern can go). With the switch off, `SwitchesOffScenarios`
 requires all four groups in the pan's table and the text as it ships.
+
+For the gear parts, `tests/GearPartDropRulesTests.cs` checks which codes are parts and the quarter,
+and `tests/PackTests/GearPartsRemovedScenarios.cs` (Atlas, `SharedWorldScenarios`) requires the
+prefix in, no gear part item, no grid recipe making or taking one, no creature's harvestable drops
+naming one, and a normal and a nightmare drifter each with one rusty gear drop, their old rate plus
+a quarter of their old parts'. When it fails after a BetterLoot+ update, check `ApplyConfig` and
+its config types, and the default loot. With the switch off, `SwitchesOffScenarios` requires the
+item, both recipes and the normal drifter's 0.25 parts back. `tools/tests/test_gear_consumers.py`
+counts the patch's disabled splitting recipe as covering its rusty gear (`REMOVALS`).
 
 `tests/PackTests/BarrelRackKegsScenarios.cs` (Atlas) places a barrel rack and has a player
 right-click it through the rack block's own `OnBlockInteractStart`: an untapped keg holding 80 L

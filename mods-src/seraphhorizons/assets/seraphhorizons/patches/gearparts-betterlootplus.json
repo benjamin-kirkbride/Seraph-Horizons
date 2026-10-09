@@ -1,0 +1,9 @@
+// BetterLoot+'s gear part, seraphhorizons' GearPartsRemoved switch (README.md): the item and both its
+// grid recipes (four parts make a rusty gear, a rusty gear splits into four) are gone; its loot drops
+// become rusty gears (GearPartsRemoved.cs). Server side: item types and recipes are loaded on the
+// server, and clients get the items from it.
+[
+  { "file": "betterloot:itemtypes/resource/gearpart.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "betterlootplus" }] },
+  { "file": "betterloot:recipes/grid/rustygear.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "betterlootplus" }] },
+  { "file": "betterloot:recipes/grid/rustygearpart.json", "op": "add", "path": "/enabled", "value": false, "side": "server", "dependsOn": [{ "modid": "betterlootplus" }] }
+]

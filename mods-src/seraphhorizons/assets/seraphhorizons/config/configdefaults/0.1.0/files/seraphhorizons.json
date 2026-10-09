@@ -45,6 +45,7 @@
   "FewerSupportChains": true,
   "IronWoodworkingMachines": true,
   "GearConsumers": true,
+  "GearPartsRemoved": true,
   "Rosser": true,
   "RosserSettings": {
     "Resistance": 0.2,
@@ -291,6 +292,30 @@
     "BlowsPerHollowCopper": 14,
     "BaseHammerTier": 2,
     "HammerWearPerBlow": 1
+  },
+  "StainlessSteel": true,
+  "CrucibleFurnaceSettings": {
+    "PotCapacityUnits": 200,
+    "PotHeats": 3,
+    "PourWindowSeconds": 20.0,
+    "CokeCapacity": 6,
+    "HoursPerCoke": 1.0,
+    "ChimneyHeatingPerHour": 200.0,
+    "ForcedHeatingPerHour": 400.0,
+    "ChimneyMaxTemperature": 1600.0,
+    "ForcedMaxTemperature": 1650.0,
+    "CoolingPerHour": 300.0,
+    "LidOpenCoolingPerHour": 600.0,
+    "MinChimneyHeight": 6,
+    "MaxHolesInRow": 4,
+    "AirLitresPerSecond": 10.0,
+    "ChimneyBlocks": [
+      "game:claybricks-*",
+      "game:claybrickchimney-*",
+      "game:refractorybricks-*",
+      "game:stonebricks-*",
+      "smex:smokestack-*"
+    ]
   },
   "CastPipes": true,
   "Handcar": true,

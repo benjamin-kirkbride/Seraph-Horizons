@@ -453,6 +453,35 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>StainlessSteel</c>: no melting holes or melting pots, no ferroalloys, no recipe for
+    /// any of them, the game's stainless ingot and bits hidden from the handbook as it ships them, the
+    /// guide page hidden, and nothing logged about it.</summary>
+    [AtlasScenario]
+    public void Stainless_steel_off_there_is_no_crucible_furnace()
+    {
+        Assert.True(Off("StainlessSteel"));
+        Assert.False(SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("meltinghole") || c.Path.StartsWith("meltingpot")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrochrome")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrosilicon")));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("meltinghole") == true);
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Path?.StartsWith("meltingpot") == true);
+        Assert.True(W.GetItem(new AssetLocation("game:ingot-stainlesssteel"))!.Attributes["handbook"]["exclude"].AsBool());
+        var hidden = World.Api.ObjectCache.TryGetValue(WoodworkingGuide.HiddenGuidesKey, out var listed) && listed is IEnumerable<(string, string)> pages
+            ? pages.Select(p => p.Item1).ToList()
+            : [];
+        Assert.Contains(SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, hidden);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("meltinghole", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("meltingpot", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("stainless-steel", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("Crucible furnace", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>Handcar</c>: no handcar entity, item or recipe, the riders' animations not added to
     /// the seraph or the player, the drive not patched into Yang's, and nothing logged about it.</summary>
     [AtlasScenario]
@@ -683,6 +712,20 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(W.GridRecipes, r => Duplicates.SandstoneDaub(r) && r.Output.Quantity == 8);
     }
 
+    /// <summary><c>GearPartsRemoved</c>: BetterLoot+'s gear part, its recipes and its drops as it
+    /// ships them.</summary>
+    [AtlasScenario]
+    public void Gear_parts_removed_off_gear_parts_are_as_BetterLoot_ships_them()
+    {
+        Assert.True(Off("GearPartsRemoved"));
+        Assert.False(Harmony.HasAnyPatches(GearPartsRemoved.HarmonyId));
+        Assert.NotNull(W.GetItem(new AssetLocation(GearPartDropRules.GearPart)));
+        Assert.Contains(W.GridRecipes, GearParts.Makes);
+        Assert.Contains(W.GridRecipes, r => GearParts.Takes(r) && r.Output?.Code?.ToString() == GearPartDropRules.RustyGear);
+        Assert.Contains(GearParts.Drops(W, "game:drifter-normal"),
+            d => d.Code == GearPartDropRules.GearPart && Math.Abs(d.Avg - 0.25) < 1e-9);
+    }
+
     /// <summary><c>PanningDropsTrimmed</c>: panning as Wool, Tailor's Delight and Expanded Matter ship
     /// it, and their text as it ships.</summary>
     [AtlasScenario]
@@ -878,10 +921,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's and gear reclamation's pages, whose switches are off here too).
+        // machine oil's, gear reclamation's and the crucible furnace's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
-                .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey)).Order(),
+                .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
+                .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 

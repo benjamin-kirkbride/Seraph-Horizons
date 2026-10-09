@@ -19,7 +19,7 @@ namespace SeraphHorizons.Mod;
 /// reflection (<c>tools/recipe-export</c>, <c>Recipes/Switches.cs</c>).
 ///
 /// A switch that only takes things away (<c>HydrateTunRetired</c>, <c>IrrigationVesselRetired</c>,
-/// <c>BloodSausageInMixingBowl</c>, <c>PanningDropsTrimmed</c>, <c>TraderSchematics</c>), or only
+/// <c>BloodSausageInMixingBowl</c>, <c>PanningDropsTrimmed</c>, <c>GearPartsRemoved</c>, <c>TraderSchematics</c>), or only
 /// changes what an existing recipe takes (<c>GearConsumers</c>, <c>IronWoodworkingMachines</c>,
 /// <c>AgeOfFlaxRebalance</c>, <c>MachineSchematics</c>), owns nothing here: no value exists only
 /// because it is on.
@@ -44,6 +44,7 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.PressBrake), PressBrake.PressBrakeSystem.RecipeAssets, PressBrake.PressBrakeSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.SquaringShear), SquaringShear.SquaringShearSystem.RecipeAssets, SquaringShear.SquaringShearSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.MandrelStation), MandrelStation.MandrelStationSystem.RecipeAssets, MandrelStation.MandrelStationSystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.StainlessSteel), CrucibleFurnace.CrucibleFurnaceSystem.RecipeAssets, CrucibleFurnace.CrucibleFurnaceSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.SteelBitsRecovery), [SteelBitsSystem.RecipeAsset], []);
         yield return (nameof(SeraphHorizonsConfig.Handcar), [Handcar.HandcarSystem.RecipeAsset], Handcar.HandcarSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.CreativeSteamSource), [], [CreativeSteamSource.BlockAsset]);

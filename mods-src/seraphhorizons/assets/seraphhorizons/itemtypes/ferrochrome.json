@@ -1,0 +1,25 @@
+// Low-carbon ferrochrome (StainlessSteel, CrucibleFurnace/, README "Crucible furnace"): chromite
+// reduced with ferrosilicon under lime in the crucible furnace's pot, about two thirds chromium. A lump
+// is 5 units; with iron, about 4 to 1 by units (Core/Stainless.cs), it makes stainless steel.
+{
+	code: "ferrochrome",
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "Messy12", collisionBox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.125, z2: 1 } } }
+	],
+	shape: { base: "game:item/nugget" },
+	textures: {
+		"ore": { base: "game:block/metal/ingot/chromium" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:cruciblefurnace-handbook-title", text: "seraphhorizons:cruciblefurnace-handbook-text" }
+			]
+		},
+		displaycaseable: true,
+		shelvable: true
+	},
+	maxstacksize: 64,
+	materialDensity: 7000,
+	creativeinventory: { "general": ["*"], "items": ["*"] }
+}
