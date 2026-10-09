@@ -2464,6 +2464,54 @@ links it. The hollows and the pipe sections exist either way (the sections are `
 that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic
 for the frame (`MachineSchematics`).
 
+### Eidolon (`Eidolon`)
+
+The player-built eidolon (#668): a laborer automaton built in a wooden gantry from Jonas parts, steel,
+stainless gears and the Resonance Archives' eidolon's elucidatory vessel. One switch covers all of it.
+Its models are described in `EidolonGantry/README.md` and `Eidolon/README.md`.
+
+**The gantry** (#671, `EidolonGantry/`: rules in `EidolonGantry/Core/`, the game side in
+`EidolonGantry/Game/`). `seraphhorizons:eidolongantry-{wood}-{side}`, a wood-typed block (the game's
+`block/wood` woods; its timbers drawn in that wood), is the controller, the foot of the front right post
+of a frame 6 deep, 5 wide and 5.5 high, plus a ghost (`eidolongantryghost`) in each of the rig's other
+180 cells. 88 of them are hollow, with no boxes (the space the body hangs in and walks out of, and the
+crank's cell outside the box, south of the back left post, a block up), so nothing can be built there. It
+is placed with its open front towards the player, its middle on the block they click. The frame is a
+grid recipe: 24 `game:supportbeam-{wood}` of one wood (two slots of 12), 16 nails and strips of iron,
+meteoric iron or steel, a hammer and a saw; the eidolon schematic's gate (`config/schematic-gates.json`,
+machine `eidolon`) adds the schematic, kept. The gantry takes the beams' wood.
+
+Then nine stages are fitted by right-click on any of its cells, in order, each taking its whole count
+from the held stack in one click (fewer is refused, as is a later stage's item, and nothing is taken):
+8 `game:woodenaxle-ud`, a `game:rod-{metal}` (the crank shaft), 4 `game:spurgear-s`, 10
+`game:plank-{wood}`, 10 `game:metalnailsandstrips-{metal}`, a `game:metalplate-{metal}` (the ratchet and
+pawl), a `game:rod-{metal}` (the crank), 4 `game:metalchain-{metal}` and 3 `game:supportbeam-{wood}` (the
+spine), `{metal}` iron, meteoric iron or steel. The drum's planks and the spine's beams must be of the
+gantry's own wood (the epic's decision; the model's README allowed any). Nothing comes back but by
+breaking the gantry, which drops the frame and every item that went in. In creative mode Ctrl +
+right-click fits the next stage with nothing taken, and the creative inventory has an assembled oak
+gantry (the stack attribute `assembled`) that places with the winch and spine fitted. The block info
+names the next stage and what it takes.
+
+**Drawn.** The block draws `eidolongantry_frame.json`; the renderer splits `eidolongantry.json` by the
+rig's parts (one mesh set per wood, shared) and draws each winch stage once fitted, posed by the winch's
+depth (`BEEidolonGantry.WinchDepth`, 0 hung, 1 let down: the crank, layshaft, drum and sheave turn, the
+pawl is thrown off, the chain pays out and the spine comes down; nothing drives it yet). The body's
+baked stages (`torso` to `mind`) are drawn only when a gantry extension says so.
+
+**Extending it** (the body stages, #672): a block entity behavior on the gantry's controller that
+implements `IEidolonGantryExtension` is asked, after the winch, for every click the winch does not take
+(`OnGantryInteract`), for the creative shortcut once the winch is complete (`CreativeFitNext`,
+`Complete`), whether a body stage's rig parts are drawn (`Shows`), what breaking returns (`Drops`) and its
+help lines (`Help`); it saves its own state and writes its own block info as a behavior does.
+
+With the switch off the server marks the gantry's block types and recipe file disabled before the game
+loads them, so none of it exists and gantries already placed are lost; the mod's own text no longer
+links it. The parts it takes are the game's and exist either way. Tests: `tests/EidolonGantry/`
+(stages, returns, the rig, held to `EidolonGantry/README.md`'s stage table) and
+`tests/PackTests/EidolonGantryScenarios.cs` (Atlas: placing, stages in and out of order, returns, the
+creative shortcut and the assembled stack).
+
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)
 
 Stainless steel, the gears epic's metal (#484): the Huntsman (Sheffield) crucible furnace, the

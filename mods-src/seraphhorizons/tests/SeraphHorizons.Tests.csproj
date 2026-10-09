@@ -111,6 +111,11 @@
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
     <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('MandrelStation/rig-reference.json')" />
+    <!-- The eidolon gantry's winch stages and rig reader, its shipped rig, and its README, whose
+         stage table the stages are held to. -->
+    <Compile Include="../EidolonGantry/Core/**/*.cs" Link="EidolonGantry/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/eidolongantry-rig.json" Link="eidolongantry-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../EidolonGantry/README.md" Link="eidolongantry-readme.md" CopyToOutputDirectory="PreserveNewest" />
     <!-- The handcar's drive, controls and animation timing, and its generated rig, reference poses,
          rider targets and entity type (Handcar/tools/make_shape.py), which the tests hold together. -->
     <Compile Include="../Handcar/Core/**/*.cs" Link="Handcar/Core/%(RecursiveDir)%(Filename)%(Extension)" />

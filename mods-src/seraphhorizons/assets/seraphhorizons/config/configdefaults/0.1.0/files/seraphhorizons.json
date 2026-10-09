@@ -261,6 +261,7 @@
     "BaseHammerTier": 2,
     "HammerWearPerBlow": 1
   },
+  "Eidolon": true,
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {
     "PotCapacityUnits": 200,

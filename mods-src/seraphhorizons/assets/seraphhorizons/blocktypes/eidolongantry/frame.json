@@ -1,0 +1,100 @@
+// The eidolon gantry (EidolonGantry/, README "Eidolon gantry"): the controller cell of the 6 x 6 x 5
+// gantry the eidolon is built in, the foot of its front right post; the open front faces the player
+// who placed it. It takes the wood it is built from (EidolonGantry/README.md, "Wood"). Part of the
+// eidolon: the server disables it with Eidolon off.
+{
+	code: "eidolongantry",
+	class: "seraphhorizons.EidolonGantry",
+	entityClass: "seraphhorizons.EidolonGantry",
+	// No HorizontalOrientable: BlockEidolonGantry.TryPlaceBlock picks the side so the open front faces
+	// the player, and places the controller so the front's middle is the block they clicked.
+	variantgroups: [
+		{ code: "wood", loadFromProperties: "block/wood" },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/eidolongantry_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/eidolongantry_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/eidolongantry_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/eidolongantry_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the whole gantry's (eidolongantry.json: the winch,
+	// the spine and the hung body), which the renderer draws with this block's textures. The two
+	// wood codes take the gantry's wood; the rest are the shape's own.
+	textures: {
+		"wood":       { base: "game:block/wood/debarked/{wood}" },
+		"wood-end":   { base: "game:block/wood/treetrunk/debarked/{wood}" },
+		"mechanics":  { base: "game:block/wood/planks/generic" },
+		"iron":       { base: "game:block/metal/plate/iron" },
+		"chain":      { base: "game:block/metal/armor-generic/chain-iron" },
+		"steel":      { base: "game:block/metal/tarnished/steel" },
+		"lattice":    { base: "game:block/machine/lattice" },
+		"charred":    { base: "game:block/wood/charred" },
+		"poor":       { base: "game:block/leather/poor" },
+		"chain-rust": { base: "game:block/metal/tarnished/chain-rust" },
+		"rustyglow":  { base: "game:block/machine/statictranslocator/rustyglow" },
+		"rusty-iron": { base: "game:block/metal/tarnished/brass" },
+		"fire-red":   { base: "game:block/fire-red" },
+		"reedrope":   { base: "game:block/cloth/reedrope" }
+	},
+	attributes: {
+		handbook: {
+			groupBy: ["eidolongantry-*"],
+			extraSections: [
+				{ title: "seraphhorizons:eidolongantry-handbook-build-title", text: "seraphhorizons:eidolongantry-handbook-build-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:eidolongantry-{wood}-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	// A plain frame of each wood, and one oak gantry that places with its winch and spine fitted
+	// (BlockEidolonGantry.AssembledAttribute).
+	creativeinventoryStacksByType: {
+		"*-oak-north": [ {
+			tabs: [ "general", "mechanics" ],
+			stacks: [
+				{ type: "block", code: "seraphhorizons:eidolongantry-oak-north" },
+				{ type: "block", code: "seraphhorizons:eidolongantry-oak-north", attributes: { assembled: true } }
+			]
+		} ],
+		"*-north": [ {
+			tabs: [ "general", "mechanics" ],
+			stacks: [ { type: "block", code: "seraphhorizons:eidolongantry-{wood}-north" } ]
+		} ]
+	},
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame's shape spans the gantry (its mesh -5..1, 0..5.5, -4..1 once the -north item form
+	// turns it 180°), so the item forms turn about the mesh's middle (-2, 2.76, -1.5). Held the
+	// translation brings it back to vanilla's two-handed crate's spot by the hand, (0, 0.14, 0.18):
+	// translation = (that spot - origin) / scale (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: 66.67, y: -87.42, z: 56 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: -2, y: 2.76, z: -1.5 },
+		scale: 0.03
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: -2, y: 2.76, z: -1.5 },
+		scale: 0.1
+	},
+	groundTransform: {
+		origin: { x: -2, y: 0, z: -1.5 },
+		scale: 0.2
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
