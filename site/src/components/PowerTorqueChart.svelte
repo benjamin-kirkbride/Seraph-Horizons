@@ -4,6 +4,8 @@
   export interface Curve {
     id: string;
     name: string;
+    /** The name of the mod it comes from. */
+    mod?: string;
     /** A CSS colour (a --series token). */
     color: string;
     model: ProducerModel;
@@ -137,7 +139,7 @@
             {#each shown as r (r.id)}
               <li class:near={r.id === nearest}>
                 <span class="key" style:background={r.color}></span><strong>{fmt(r.torque)}</strong>
-                <span class="name">{r.name}</span>
+                <span class="name">{r.name}</span>{#if r.mod}<span class="mod muted">{r.mod}</span>{/if}
               </li>
             {/each}
           </ul>
@@ -252,6 +254,12 @@
   }
   .tip strong {
     font-variant-numeric: tabular-nums;
+  }
+  .mod {
+    flex: none;
+    white-space: nowrap;
+    font-size: 0.8em;
+    font-style: italic;
   }
   .name {
     color: var(--muted);
