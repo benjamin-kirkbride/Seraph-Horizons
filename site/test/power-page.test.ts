@@ -120,7 +120,12 @@ describe("PowerPage", () => {
     // Two bars for each windmill: averaged and at full wind.
     expect(el.querySelectorAll('[data-testid="explorer-chart"] li.row')).toHaveLength(7);
 
+    const row = el.querySelector('[data-testid="explorer"] tr[data-producer="game:handcrank"]')!;
+    expect(row.querySelector("a.item-link")?.getAttribute("href")).toBe("#/main/item/game:handcrank-north");
+    expect(row.querySelector("[data-mod]")?.textContent).toBe("Vintage Story");
+
     const select = el.querySelector<HTMLSelectElement>('[data-testid="picks"] select')!;
+    expect([...select.querySelectorAll("optgroup")].map((g) => g.label)).toEqual(["ppex", "seraphhorizons", "Vintage Story"]);
     select.value = "seraphhorizons:millframe";
     select.dispatchEvent(new Event("change", { bubbles: true }));
     flushSync();
@@ -130,13 +135,30 @@ describe("PowerPage", () => {
     expect(el.querySelector('[data-testid="total-load"]')?.textContent).toBe("Total load 3.2");
   });
 
+  it("links every producer to its item and names its mod, in the charts and tables", async () => {
+    const el = await render(POWER);
+    const peak = el.querySelector('[data-testid="peak-chart"] li[data-key="millwright:windmilldouble"] .label')!;
+    expect(peak.querySelector("a")?.getAttribute("href")).toBe("#/main/item/millwright:windmilldouble-north");
+    expect(peak.querySelector(".mod")?.textContent).toBe("Millwright");
+    // No item, no link; the mod is still named.
+    const wheel = el.querySelector('[data-testid="peak-chart"] li[data-key="game:waterwheel"] .label')!;
+    expect(wheel.querySelector("a")).toBeNull();
+    expect(wheel.querySelector(".mod")?.textContent).toBe("waterwheels");
+    const avg = el.querySelector('[data-testid="wind-averages"] tr[data-producer="millwright:windmilldouble"]')!;
+    expect(avg.querySelector("a.item-link")?.getAttribute("href")).toBe("#/main/item/millwright:windmilldouble-north");
+    expect(avg.querySelector("[data-mod]")?.textContent).toBe("Millwright");
+    const sources = el.querySelector('[data-testid="power-producers"] [data-testid="sources"] dt a');
+    expect(sources?.getAttribute("href")).toMatch(/^#\/main\/item\//);
+  });
+
   it("charts machines by mod and keeps transmission parts apart", async () => {
     const el = await render(POWER);
     expect(el.querySelectorAll('[data-testid="consumers"] tbody tr')).toHaveLength(4);
     expect(el.querySelectorAll('[data-testid="transmission"] tbody tr')).toHaveLength(1);
     const chart = el.querySelector('[data-testid="consumers-chart"]')!;
     expect([...chart.querySelectorAll(".group")].map((g) => g.textContent)).toEqual(["ppex", "seraphhorizons", "Vintage Story"]);
-    expect(chart.querySelector('li[data-key="ppex:blower"]')?.getAttribute("aria-label")).toBe("Blower: 0.05–0.15");
+    expect(chart.querySelector('li[data-key="ppex:blower"] .label')?.textContent).toBe("Blower: 0.05–0.15");
+    expect(chart.querySelector('li[data-key="game:quern"] .label a')?.getAttribute("href")).toBe("#/main/item/game:quern-granite");
     expect(chart.querySelector('li[data-key="seraphhorizons:millframe"] .hatch')).not.toBeNull();
     expect(el.querySelector('[data-testid="consumers"] tr[data-consumer="ppex:blower"] [data-col="load"]')?.textContent).toBe("0.05–0.15");
   });
