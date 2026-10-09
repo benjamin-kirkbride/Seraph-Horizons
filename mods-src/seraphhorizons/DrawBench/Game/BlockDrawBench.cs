@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.DrawBench.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
@@ -109,6 +110,10 @@ public class BlockDrawBench : Block
         world.BlockAccessor.GetBlockEntity(pos) is BEDrawBench { Complete: true }
             ? Lang.Get(DrawBenchSystem.Domain + ":block-drawbench")
             : base.GetPlacedBlockName(world, pos);
+
+    // The description (what it is built of, how to assemble it) stays in the tooltip and handbook.
+    public override string GetPlacedBlockInfo(IWorldAccessor world, BlockPos pos, IPlayer forPlayer) =>
+        this.WithoutDescription(base.GetPlacedBlockInfo(world, pos, forPlayer));
 
     public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer)
     {
