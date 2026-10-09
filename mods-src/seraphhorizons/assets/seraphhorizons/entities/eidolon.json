@@ -78,8 +78,10 @@
 			{
 				code: "taskai",
 				aitasks: [
-					// The current order (EntityBehaviorEidolonOrders), while it can work. Self-defence
-					// (#675) goes above it.
+					// Self-defence (AiTaskEidolonDefend): strikes back at a creature that hurt it, above
+					// the order, which starts again after.
+					{ code: "seraphhorizons-eidolondefend", priority: 1.6 },
+					// The current order (EntityBehaviorEidolonOrders), while it can work.
 					{ code: "seraphhorizons-eidolonorder", priority: 1.5 },
 				],
 			},

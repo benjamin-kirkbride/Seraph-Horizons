@@ -57,7 +57,7 @@ public class EidolonSystem : ModSystem
         api.RegisterEntityBehaviorClass(EntityBehaviorEidolonCharge.Code, typeof(EntityBehaviorEidolonCharge));
         api.RegisterEntityBehaviorClass(EntityBehaviorEidolonOrders.Code, typeof(EntityBehaviorEidolonOrders));
         AiTaskRegistry.Register<AiTaskEidolonOrder>(AiTaskEidolonOrder.Code);
-        EidolonOrders.Register(StayOrder.OrderCode, (_, _) => new StayOrder());
+        EidolonOrders.Register(StayOrder.OrderCode, (_, args) => StayOrder.From(args));
         EidolonOrders.Register(GoToOrder.OrderCode, (_, args) => GoToOrder.From(args));
         if (api.Side == EnumAppSide.Server)
         {

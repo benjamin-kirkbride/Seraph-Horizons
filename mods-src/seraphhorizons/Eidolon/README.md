@@ -9,7 +9,8 @@ It is built stage by stage in a mostly wooden gantry.
 **Status: the model and the entity.** This folder holds the shape's generator (`tools/`) and the
 entity (#673): its type, ownership, charge, slumping and a first pathfinder for its size, in `Core/`
 and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantry, upkeep, command tool
-and jobs plug into. Those are not built yet. The stage map and its ingredients below are a
+and jobs plug into; and the command tool's binding, mode wheel and marking, following, staying and
+self-defence (#675), there too. The jobs are not built yet. The stage map and its ingredients below are a
 **proposal for review**.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's

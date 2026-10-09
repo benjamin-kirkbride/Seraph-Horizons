@@ -31,6 +31,20 @@ public class EidolonConfig
     /// <summary>The highest drop it walks off on a path, in blocks.</summary>
     public int MaxFallBlocks { get; set; } = 3;
 
+    /// <summary>How far a command tool's orders reach, in blocks: a bound eidolon further from its
+    /// holder is not ordered.</summary>
+    public double CommandRange { get; set; } = 64;
+
+    /// <summary>Following, it keeps this many blocks from the one it follows.</summary>
+    public double FollowDistance { get; set; } = 4;
+
+    /// <summary>Following, it runs while further than this, in blocks.</summary>
+    public double FollowRunDistance { get; set; } = 10;
+
+    /// <summary>The damage of each punch or kick when it defends itself (before the world's creature
+    /// damage multiplier, as a creature's).</summary>
+    public float DefenceDamage { get; set; } = 10;
+
     public static readonly EidolonConfig Defaults = new();
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
@@ -52,6 +66,10 @@ public class EidolonConfig
         Check(nameof(RunSpeed), RunSpeed, 0.001, 0.5, () => RunSpeed = Defaults.RunSpeed, Defaults.RunSpeed);
         Check(nameof(PathSearchNodes), PathSearchNodes, 50, 100000, () => PathSearchNodes = Defaults.PathSearchNodes, Defaults.PathSearchNodes);
         Check(nameof(MaxFallBlocks), MaxFallBlocks, 0, 16, () => MaxFallBlocks = Defaults.MaxFallBlocks, Defaults.MaxFallBlocks);
+        Check(nameof(CommandRange), CommandRange, 1, 1024, () => CommandRange = Defaults.CommandRange, Defaults.CommandRange);
+        Check(nameof(FollowDistance), FollowDistance, 2, 32, () => FollowDistance = Defaults.FollowDistance, Defaults.FollowDistance);
+        Check(nameof(FollowRunDistance), FollowRunDistance, 2, 256, () => FollowRunDistance = Defaults.FollowRunDistance, Defaults.FollowRunDistance);
+        Check(nameof(DefenceDamage), DefenceDamage, 0, 1000, () => DefenceDamage = Defaults.DefenceDamage, Defaults.DefenceDamage);
         return fixes;
     }
 }
