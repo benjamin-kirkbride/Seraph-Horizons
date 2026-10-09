@@ -968,6 +968,15 @@ why = "Pick up and carry blocks and containers. 2.0 pre-release for transform gr
 # --- Quality of life and cosmetics (#3)
 
 [[mod]]
+id = "morepiles"
+version = "3.0.1"
+side = "universal"
+license = "MIT"
+license_source = "https://github.com/Craluminum2413/Craluminum-Mods"
+redistribute = false
+why = "Lets many more items and blocks be stacked on the ground as piles (planks, logs, slabs, stairs, ladders, rope, chains, arrows, cube blocks...). Investigated in #141."
+
+[[mod]]
 id = "toolbelt"
 version = "0.3.5"
 side = "universal"

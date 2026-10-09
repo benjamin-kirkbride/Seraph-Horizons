@@ -3929,6 +3929,28 @@
       }
     },
     {
+      "id": "morepiles",
+      "version": "3.0.1",
+      "assetId": 941,
+      "releaseId": 41003,
+      "fileId": 91027,
+      "fileName": "MorePiles-v3.0.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/MorePiles-v3.0.1_8fc4bbe53103345c253ab42e15a39c51.zip?dl=MorePiles-v3.0.1.zip",
+      "sha256": "878ed3ecff17661e8a2f9b9155cffa4779e6b7970df0f2f5ce13d83dcbdc0755",
+      "size": 226620,
+      "side": "universal",
+      "license": "MIT",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "toolbelt",
       "version": "0.3.5",
       "assetId": 37790,
