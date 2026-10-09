@@ -100,20 +100,21 @@ is left in it rides on the stack) and is no route.
 of cider and a litre of grain or mead spirit (0.05) twenty. The route is per input portion, so the
 kind has a percentage (fuel) and no flat.
 
-**Lotteries.** A `lottery` record (the oiled gear: one ingredient decided by chance into weighted
+**Lotteries.** A `lottery` record (the neutralized gear: one ingredient decided by chance into weighted
 outcomes, `schema.md`) is a route to each output that can come out. The output's quantity is its
 expected items per input, p x q (its outcome's chance times its stack), and every other output is
 credited at its value times its own expected items:
 
     value = (input x (1 + pct) + flat - sum over the other outputs of p_other x q_other x their value) / (p x q)
 
-floored at zero. The `lottery` kind has no labour (pct 0, flat 0), so the oiled gear (1.84, one in
-ten a steel gear, else one steel bit at 0.448) prices a steel gear at 10 x 1.84 - 9 x 0.448 = 14.38.
+floored at zero. The `lottery` kind has no labour (pct 0, flat 0), so the neutralized gear (2.18,
+one in ten a stainless gear, else one stainless bit at 0.668) prices a stainless gear at
+10 x 2.18 - 9 x 0.668 = 15.78.
 A lottery route waits for the other outputs' values as a route waits for its tools; a loser no
-route will ever value is credited 0. Today the gear cutter (10.89) is the cheaper way to a steel
-gear, so that is its value, and its `switches` are `GearBlanks` and `GearCutter` (below). The table
+route will ever value is credited 0. Today the gear cutter (7.62) is the cheaper way to a
+stainless gear, so that is its value, and its `switches` are `GearBlanks` and `GearCutter` (below). The table
 is the default config's: it is never rebuilt with a switch off, so with the cutter off the handbook
-shows no value for the steel gear, though the lottery would still price it.
+shows no value for the stainless gear, though the lottery would still price it.
 
 **Schematics** (`schematics` in `markups.json`: `*:schematic-*`, `*:*-schematic-*` for BetterRuins,
 Abyssal Depths and Scrolled's rolled copies, and Cartwright's `cartschematics-*`; the patterns
@@ -138,7 +139,7 @@ cannot pull prices down. A route waits for its tools and its credited outputs wh
 value. When routes wait on each other (a lottery's loser made only from its winner), the cheapest
 of them is settled without waiting and the rest wait again. The whole solve runs twice: a route
 whose tool is worth more than its output (the gear cutter's frame, 103 gears, cutting a 13-gear
-steel gear) could only be priced after that output had settled by a dearer route, so the second
+steel gear, as it was then) could only be priced after that output had settled by a dearer route, so the second
 pass takes a tool not yet valued at its first-pass value.
 
 What no recipe makes and nothing prices (a leaf) gets, in this order: a category default by a regex
@@ -224,8 +225,8 @@ sell / buy):
 | rusty gear | 1 | 1000 | | raw (money) |
 | bed (wood) | 1.19 | 2 | 8 / — | grid |
 | barrel | 1.5 | 1 | 2 / — | override |
-| oiled gear | 1.84 | 64 | | rusty gear degreased, pickled, neutralized, oiled |
-| steel gear | 10.89 | 64 | | gear cutter (a cast steel blank, 8.87); 14.38 by the oiled gear's lottery |
+| neutralized gear | 2.18 | 64 | | rusty gear degreased, pickled, passivated, neutralized |
+| stainless gear | 7.62 | 64 | | gear cutter (a cast stainless blank, 3.36); 15.78 by the neutralized gear's lottery |
 
 Beverages, gears per litre, as the table stores them (`perLitre`: 100 portions a litre).
 Vanilla's Liga sells a 3 L jug of rye or cherry cider for 3 and of apple brandy for 6, and buys the
@@ -261,7 +262,9 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   and bismuth 0.03, lead 0.015, nickel 0.05, chromium 0.07, titanium 0.08. The precious metals are
   priced well above vanilla's ratios, to be worth the hunt: silver 0.2 (22.2), gold 0.5 (55.2),
   platinum 0.4 (44.2); electrum, half gold and half silver, comes to 40.7. Iron comes from a bloom
-  forged on the anvil (ingot 3.5); blister steel, made in the cementation furnace the export does not carry, is a raw at 5 (steel ingot 8).
+  forged on the anvil (ingot 3.5); blister steel, made in the cementation furnace the export does not carry, is a raw at 5 (steel ingot 8). Stainless steel, which no recipe of the export makes yet (the
+  gears epic #484 reclaims and cuts stainless gears), is a raw at 12, half again a steel ingot,
+  until the crucible furnace gives it a route.
 - **Smithing** carries the most labour (+30% and 1.5 gears a piece): a tin bronze pickaxe head is
   0.57 ingot and lands at 4.6 with the stick, against vanilla's 4 to buy and 11 to sell.
 - **Wood.** Boards are raws at vanilla's 0.0625: the pack saws them with Immersive Woodworking, whose
@@ -317,8 +320,8 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   plus labour). Goods the pack's traders sell that nothing else prices (2026-10-08, when the lists
   dropped their prices for values): Logging Expanded's sawhorse and stick storage (placed, not
   crafted), the iron and steel axle hubs (no recipe in the export) and Culinary Artillery's chef's
-  hats (only swapped into one another), at 0.7 x the per-item price the lists had, traderFallback's rule. No gear is overridden: the steel gear takes its cheapest route (the gear cutter,
-  or the oiled gear's lottery, Lotteries above), and the large steel gear its gear cutter route.
+  hats (only swapped into one another), at 0.7 x the per-item price the lists had, traderFallback's rule. No gear is overridden: the stainless gear takes its cheapest route (the gear cutter,
+  or the neutralized gear's lottery, Lotteries above), and the large stainless gear its gear cutter route.
 - **Schematics** have no value: they are kept on crafting, and traders are their only source, at
   the prices their list entries set by hand (`price` and `priceReason`; the curio dealer, which
   also buys back Abyssal Depths' diving gear schematic at its entry's price, the mechanic, the
@@ -328,9 +331,8 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 
 - The pack's woodworking machines, kiln glazing, bread baking stages and the cementation furnace are
   not in the export; items made only that way are raws, overrides, or take a fallback.
-- A pickling tub record's `failure` output (gears an acid eats, brine's `lossChance`) is not
-  credited or charged: the tub prices its first output as if no gear were lost. Perishing (the bare
-  gears' flash rust) is not a route.
+- A pickling tub record's `failure` output (gears an acid eats, a rule's `lossChance`) is not
+  credited or charged: the tub prices its first output as if no gear were lost.
 - A nugget hammered from a rich chunk carries more metal units in its attributes than the plain
   nugget the table prices; trading reads the code, not the attributes.
 - The fruit press's by-products (mash, honeycomb's beeswax) are not credited, and mash, which

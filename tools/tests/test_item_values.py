@@ -670,20 +670,20 @@ class ItemValuesTest(unittest.TestCase):
     # ------------------------------------------------------------ lotteries
 
     def lottery_items(self, *extra):
-        return {c: item() for c in ("sh:gear-oiled", "sh:gear-steel", "game:metalbit-steel", "game:log", "game:gem", *extra)}
+        return {c: item() for c in ("sh:gear-neutralized", "sh:gear-stainless", "game:metalbit-steel", "game:log", "game:gem", *extra)}
 
     def test_lottery_winner_is_priced_with_the_losers_credited(self):
-        # The oiled gear: 1 in 10 a steel gear, else one steel bit. Oiled 2.0, a bit 0.5 (raws):
-        # steel gear = (2.0 - 0.9 x 0.5) / 0.1 = 15.5, i.e. 10 x oiled - 9 x bit.
+        # The neutralized gear: 1 in 10 a stainless gear, else one steel bit. Neutralized 2.0, a bit 0.5 (raws):
+        # stainless gear = (2.0 - 0.9 x 0.5) / 0.1 = 15.5, i.e. 10 x neutralized - 9 x bit.
         raws = json.loads(json.dumps(RAWS))
-        raws["groups"]["test"].update({"sh:gear-oiled": 2.0, "game:metalbit-steel": 0.5})
+        raws["groups"]["test"].update({"sh:gear-neutralized": 2.0, "game:metalbit-steel": 0.5})
         self.write_rules(raws=raws)
-        ex = export(self.lottery_items(), [lottery("lottery|sh:gear-oiled|0", "sh:gear-oiled",
-                                                   [(0.1, [st("sh:gear-steel")]), (0.9, [st("game:metalbit-steel")])])])
+        ex = export(self.lottery_items(), [lottery("lottery|sh:gear-neutralized|0", "sh:gear-neutralized",
+                                                   [(0.1, [st("sh:gear-stainless")]), (0.9, [st("game:metalbit-steel")])])])
         val, _ = self.solve(ex)
-        self.assertAlmostEqual(val.value["sh:gear-steel"], 15.5)
-        self.assertAlmostEqual(val.value["sh:gear-steel"], 10 * 2.0 - 9 * 0.5)
-        self.assertEqual(val.source["sh:gear-steel"], "lottery|sh:gear-oiled|0")
+        self.assertAlmostEqual(val.value["sh:gear-stainless"], 15.5)
+        self.assertAlmostEqual(val.value["sh:gear-stainless"], 10 * 2.0 - 9 * 0.5)
+        self.assertEqual(val.source["sh:gear-stainless"], "lottery|sh:gear-neutralized|0")
 
     def test_lottery_markup_quantities_and_several_losers(self):
         # Through the 'mod' kind (+1 flat) with a lottery type of its own markup removed: an item
@@ -703,54 +703,54 @@ class ItemValuesTest(unittest.TestCase):
 
     def test_lottery_waits_for_a_loser_valued_later(self):
         # The bit is made from a log (1.0) after the gear would otherwise settle: the gear waits for
-        # it, as a route waits for its tools. oiled 2.0: (2.0 - 0.9 x 1.0) / 0.1 = 11.
+        # it, as a route waits for its tools. neutralized 2.0: (2.0 - 0.9 x 1.0) / 0.1 = 11.
         raws = json.loads(json.dumps(RAWS))
-        raws["groups"]["test"]["sh:gear-oiled"] = 2.0
+        raws["groups"]["test"]["sh:gear-neutralized"] = 2.0
         self.write_rules(raws=raws)
         ex = export(self.lottery_items(), [
-            lottery("lottery|sh:gear-oiled|0", "sh:gear-oiled",
-                    [(0.1, [st("sh:gear-steel")]), (0.9, [st("game:metalbit-steel")])]),
+            lottery("lottery|sh:gear-neutralized|0", "sh:gear-neutralized",
+                    [(0.1, [st("sh:gear-stainless")]), (0.9, [st("game:metalbit-steel")])]),
             grid("grid|bit|0", ["L"], {"L": ["game:log"]}, st("game:metalbit-steel")),
         ])
         val, _ = self.solve(ex)
         self.assertAlmostEqual(val.value["game:metalbit-steel"], 1.0)
-        self.assertAlmostEqual(val.value["sh:gear-steel"], 11.0)
+        self.assertAlmostEqual(val.value["sh:gear-stainless"], 11.0)
 
     def test_lottery_loser_priced_only_through_the_winner_does_not_deadlock(self):
-        # Bits only from the steel gear (a grid makes 4) and the gear only from the lottery, which
+        # Bits only from the stainless gear (a grid makes 4) and the gear only from the lottery, which
         # waits for the bits: a knot. The cheapest is settled without waiting (no credit: 20),
         # then the bits from it (5); the bits' own lottery route, (2 - 0.1 x 20) / 0.9 = 0, is
         # cheaper still but the bits were not valued when the gear settled, so it never waited.
         raws = json.loads(json.dumps(RAWS))
-        raws["groups"]["test"]["sh:gear-oiled"] = 2.0
+        raws["groups"]["test"]["sh:gear-neutralized"] = 2.0
         self.write_rules(raws=raws)
         ex = export(self.lottery_items(), [
-            lottery("lottery|sh:gear-oiled|0", "sh:gear-oiled",
-                    [(0.1, [st("sh:gear-steel")]), (0.9, [st("game:metalbit-steel")])]),
-            grid("grid|bits|0", ["G"], {"G": ["sh:gear-steel"]}, st("game:metalbit-steel", 4)),
+            lottery("lottery|sh:gear-neutralized|0", "sh:gear-neutralized",
+                    [(0.1, [st("sh:gear-stainless")]), (0.9, [st("game:metalbit-steel")])]),
+            grid("grid|bits|0", ["G"], {"G": ["sh:gear-stainless"]}, st("game:metalbit-steel", 4)),
         ])
         val, _ = self.solve(ex)
-        self.assertIn("sh:gear-steel", val.value)
+        self.assertIn("sh:gear-stainless", val.value)
         self.assertIn("game:metalbit-steel", val.value)
 
     def test_lottery_value_is_floored_at_zero(self):
         # Losers worth more than the input: the winner is worth nothing, never negative.
         raws = json.loads(json.dumps(RAWS))
-        raws["groups"]["test"].update({"sh:gear-oiled": 1.0, "game:metalbit-steel": 5.0})
+        raws["groups"]["test"].update({"sh:gear-neutralized": 1.0, "game:metalbit-steel": 5.0})
         self.write_rules(raws=raws)
-        ex = export(self.lottery_items(), [lottery("lottery|sh:gear-oiled|0", "sh:gear-oiled",
-                                                   [(0.1, [st("sh:gear-steel")]), (0.9, [st("game:metalbit-steel")])])])
+        ex = export(self.lottery_items(), [lottery("lottery|sh:gear-neutralized|0", "sh:gear-neutralized",
+                                                   [(0.1, [st("sh:gear-stainless")]), (0.9, [st("game:metalbit-steel")])])])
         val, _ = self.solve(ex)
-        self.assertEqual(val.value["sh:gear-steel"], 0.0)
+        self.assertEqual(val.value["sh:gear-stainless"], 0.0)
 
     def test_explain_shows_the_credited_outcomes(self):
         raws = json.loads(json.dumps(RAWS))
-        raws["groups"]["test"].update({"sh:gear-oiled": 2.0, "game:metalbit-steel": 0.5})
+        raws["groups"]["test"].update({"sh:gear-neutralized": 2.0, "game:metalbit-steel": 0.5})
         self.write_rules(raws=raws)
-        ex = export(self.lottery_items(), [lottery("lottery|sh:gear-oiled|0", "sh:gear-oiled",
-                                                   [(0.1, [st("sh:gear-steel")]), (0.9, [st("game:metalbit-steel")])])])
+        ex = export(self.lottery_items(), [lottery("lottery|sh:gear-neutralized|0", "sh:gear-neutralized",
+                                                   [(0.1, [st("sh:gear-stainless")]), (0.9, [st("game:metalbit-steel")])])])
         val, rules = self.solve(ex)
-        text = "\n".join(iv.explain(ex, val, rules, "sh:gear-steel"))
+        text = "\n".join(iv.explain(ex, val, rules, "sh:gear-stainless"))
         self.assertIn("other outcome 0.9 x game:metalbit-steel = 0.4500, credited", text)
         self.assertIn("- 0.4500) / 0.1 [lottery] = 15.5000", text)
 
@@ -845,18 +845,18 @@ class ItemValuesTest(unittest.TestCase):
     def test_switches_through_tools_and_credited_losers(self):
         # A switched tool and a lottery loser made by a switched recipe both carry their switch.
         raws = json.loads(json.dumps(RAWS))
-        raws["groups"]["test"]["sh:gear-oiled"] = 2.0
+        raws["groups"]["test"]["sh:gear-neutralized"] = 2.0
         self.write_rules(raws=raws)
         items = self.lottery_items("sh:tool", "game:thing")
         ex = export(items, [
-            lottery("lottery|sh:gear-oiled|0", "sh:gear-oiled",
-                    [(0.1, [st("sh:gear-steel")]), (0.9, [st("game:metalbit-steel")])]),
+            lottery("lottery|sh:gear-neutralized|0", "sh:gear-neutralized",
+                    [(0.1, [st("sh:gear-stainless")]), (0.9, [st("game:metalbit-steel")])]),
             grid("grid|bit|0", ["L"], {"L": ["game:log"]}, st("game:metalbit-steel")) | {"switch": "GearReclamation"},
             grid("grid|tool|0", ["G"], {"G": ["game:gem"]}, st("sh:tool")) | {"switch": "Tools"},
             grid("grid|thing|0", ["TL"], {"T": ["sh:tool"], "L": ["game:log"]}, st("game:thing"), T={"isTool": True}),
         ])
         val, _ = self.solve(ex)
-        self.assertEqual(val.switches["sh:gear-steel"], ["GearReclamation"])
+        self.assertEqual(val.switches["sh:gear-stainless"], ["GearReclamation"])
         self.assertEqual(val.switches["game:thing"], ["Tools"])
 
     def test_table_writes_switches_one_per_line_after_floor_zero(self):
@@ -1098,12 +1098,12 @@ class ShippedRulesTest(unittest.TestCase):
         self.assertEqual(rules.raws["game:gear-rusty"], 1)
         self.assertIn("grid", rules.markups)
 
-    def test_steel_gears_are_derived_not_overridden(self):
-        # The steel gear takes its cheapest route (the reclamation lottery or the gear cutter), and
+    def test_stainless_gears_are_derived_not_overridden(self):
+        # The stainless gear takes its cheapest route (the reclamation lottery or the gear cutter), and
         # the large gear its gear cutter route (#506, #523): neither is pinned by hand.
         rules = iv.Rules.load()
-        self.assertNotIn("seraphhorizons:gear-steel", rules.overrides)
-        self.assertNotIn("seraphhorizons:largegear-steel", rules.overrides)
+        self.assertNotIn("seraphhorizons:gear-stainless", rules.overrides)
+        self.assertNotIn("seraphhorizons:largegear-stainless", rules.overrides)
 
     def test_shipped_table_values_no_schematic(self):
         # Schematics are free and never consumed: the table has none, though traders sell them.
@@ -1174,7 +1174,7 @@ class ShippedRulesTest(unittest.TestCase):
         self.assertLess(got[0], got[1])
 
     def test_lottery_has_no_labour(self):
-        # steel gear = 10 x oiled gear - 9 x what a lost one gives, exactly (#523).
+        # stainless gear = 10 x neutralized gear - 9 x what a lost one gives, exactly (#523).
         self.assertEqual(iv.Rules.load().markup("lottery"), (0.0, 0.0))
 
 

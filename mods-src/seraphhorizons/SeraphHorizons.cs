@@ -529,9 +529,9 @@ public class SeraphHorizonsConfig
     public bool IronWoodworkingMachines { get; set; } = true;
 
     /// <summary>Gears (#473): the rusty gear is salvage and money. Every recipe that took one (ppex's
-    /// and smex's machines, the glider, BetterRuins' Jonas parts and lamps, ...) takes the steel gear
-    /// in the same number, ppex's anvil gears and large gears are no longer made and are hidden, and
-    /// smex's Bessemer converter is raised with the steel large gear (off means every recipe as its
+    /// and smex's machines, the glider, BetterRuins' Jonas parts and lamps, ...) takes the stainless
+    /// gear in the same number, ppex's anvil gears and large gears are no longer made and are hidden,
+    /// and smex's Bessemer converter is raised with the stainless large gear (off means every recipe as its
     /// mod ships it). The server's recipes are used; both sides patch the converter.</summary>
     public bool GearConsumers { get; set; } = true;
 
@@ -734,19 +734,19 @@ public class SeraphHorizonsConfig
     public TrunkEntityConfig TrunkEntitiesSettings { get; set; } = new();
 
     /// <summary>Gear reclamation (#484, GearReclamation/, PicklingTub/, README "Gear reclamation"):
-    /// rusty gears are salvage, reclaimed into steel gears by boiling in lye, pickling in the
-    /// pickling tub, neutralizing in lime water and oiling in lard, one in ten sound and the rest
-    /// steel bits; bare gears flash-rust back, and steel gears rust back into currency in the tub's
-    /// brine bath. Off means none of the steps' recipes, no roll, no salvage text, no pickling tub
-    /// and no bare steel gear; the other gear items exist either way. The server's setting decides.</summary>
+    /// rusty gears are corroded stainless steel, reclaimed into stainless gears by boiling in lye,
+    /// pickling and then passivating in nitric acid in the pickling tub, and neutralizing in lime
+    /// water, one in ten sound and the rest stainless bits. Off means none of the steps' recipes, no
+    /// roll, no salvage text and no pickling tub; the gear items exist either way. The server's
+    /// setting decides.</summary>
     public bool GearReclamation { get; set; } = true;
 
     /// <summary>Gear reclamation's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public GearReclamationConfig GearReclamationSettings { get; set; } = new();
 
-    /// <summary>The pickling tub's figures (#476, #482): batch size, capacity, the acid rule table
-    /// and the brine bath; a value out of range falls back to its default with a warning, a broken
+    /// <summary>The pickling tub's figures (#476): batch size, capacity and the acid rule table
+    /// (pickling and passivating); a value out of range falls back to its default with a warning, a broken
     /// rule is dropped. The server's are used.</summary>
     public PicklingTubConfig PicklingTubSettings { get; set; } = new();
 
@@ -758,17 +758,18 @@ public class SeraphHorizonsConfig
     /// coffin is not patched, there is no packing recipe and smex's setting is as its file says.</summary>
     public bool SteelBitsRecovery { get; set; } = true;
 
-    /// <summary>Steel gear blanks (#479, Gears/, README "Steel gear blanks"): a steel gear blank and a
-    /// large one, cast in clay-formed gear blank molds filled from a crucible (or smex's canal
-    /// pedestal) or smithed from one and two steel ingots, by hand or with the helve hammer (off means
+    /// <summary>Stainless gear blanks (#479, Gears/, README "Stainless gear blanks"): a stainless gear
+    /// blank and a large one, cast in clay-formed gear blank molds (four small ones to an ingot) or
+    /// smithed, two small ones from a stainless steel ingot and a large one from two, by hand or with
+    /// the helve hammer (off means
     /// the blanks, their molds and their recipes do not exist, and those already in a world are
     /// lost). The server's setting decides.</summary>
     public bool GearBlanks { get; set; } = true;
 
     /// <summary>The gear cutter (#480, #481, GearCutter/, README "Gear cutter"): a mechanically
     /// powered generating gear cutter, built on a frame in ten stages from steel parts, Jonas parts
-    /// and a temporal gear master, that cuts steel gear blanks into steel gears and large steel
-    /// gears; a MachineOil machine whose oil wears its cutter kit, not its shaft load (off means its
+    /// and a temporal gear master, that cuts stainless gear blanks into stainless gears and large
+    /// stainless gears; a MachineOil machine whose oil wears its cutter kit, not its shaft load (off means its
     /// blocks, its parts and their recipes do not exist, and cutters already placed are lost). The
     /// server's setting decides.</summary>
     public bool GearCutter { get; set; } = true;
@@ -824,6 +825,22 @@ public class SeraphHorizonsConfig
     /// <summary>The mandrel station's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public MandrelStation.Core.MandrelStationConfig MandrelStationSettings { get; set; } = new();
+
+    /// <summary>Stainless steel (#484, CrucibleFurnace/, README "Crucible furnace"): a crucible
+    /// furnace of melting holes lined with tier-3 refractory brick, in a row of up to four on a brick
+    /// chimney at least six blocks tall, fired with coke under iron lids (faster with forced air piped
+    /// in from Steelmaking Expanded's blowers), each holding a fireclay melting pot of 200 units that
+    /// lasts three heats. Its charges, by ratio: quartz, iron bits and coke into ferrosilicon; chromite,
+    /// ferrosilicon and lime into ferrochrome and slag; iron and ferrochrome, about 4 to 1, into
+    /// stainless steel; stainless bits back into stainless. A pulled pot of stainless pours like the
+    /// game's crucible into any mold, for about 20 seconds before it freezes and the pot is lost (off
+    /// means the holes, the pots, the ferroalloys and their recipes do not exist, and those already in
+    /// a world are lost). The server's setting decides.</summary>
+    public bool StainlessSteel { get; set; } = true;
+
+    /// <summary>The crucible furnace's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public CrucibleFurnace.Core.CrucibleFurnaceConfig CrucibleFurnaceSettings { get; set; } = new();
 
     /// <summary>Cast pipes (Pipes/Game/CastPipesSystem.cs, README "Cast pipes"): Steelmaking
     /// Expanded's tool mold gets a pipe tool type, filled from its canal (or a crucible) with one

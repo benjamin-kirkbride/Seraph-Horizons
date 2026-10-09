@@ -1,11 +1,12 @@
-// Steel gear blanks at the anvil (#479, GearBlanks; README "Steel gear blanks"). A flat disc with a
-// bore: 36 voxels for the small blank (one ingot, 42 voxels), 84 for the large one (two ingots, put
-// on the anvil one after the other). Both are named "plate": the game's helve hammer works a
+// Stainless gear blanks at the anvil (#479, GearBlanks; README "Stainless gear blanks"). A flat disc with a
+// bore: 36 voxels for the small blanks (one stainless steel ingot, 42 voxels, gives two), 84 for the
+// large one (two ingots, put on the anvil one after the other). Stainless steel is a tier 5 metal,
+// so it needs a steel anvil (tier 4) or the helve hammer on one. Both are named "plate": the game's helve hammer works a
 // smithing recipe only when its name is plate or blistersteel (ItemWorkItem.GetHelveWorkableMode),
 // so with that name the helve hammer forges a blank as it forges a plate.
 [
 	{
-		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["stainlesssteel"] },
 		name: "plate",
 		pattern: [[
 			"__###__",
@@ -17,10 +18,10 @@
 			"__###__"
 		]],
 		code: "gearblank-{metal}",
-		output: { type: "item", code: "seraphhorizons:gearblank-{metal}" }
+		output: { type: "item", code: "seraphhorizons:gearblank-{metal}", stacksize: 2 }
 	},
 	{
-		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["stainlesssteel"] },
 		name: "plate",
 		pattern: [[
 			"__######__",

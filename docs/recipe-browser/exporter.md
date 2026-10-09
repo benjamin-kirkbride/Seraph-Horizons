@@ -299,11 +299,11 @@ loaded systems by reflection, by type name, since the exporter is built on its o
 reference the mod; what it reads is the server's own settings, `ModConfig` included. Each one
 is left out when its switch is off or what it names is not registered.
 
-- The pickling tub: `PicklingTubSystem.Rules.Rules`, the acid table and the brine bath's two
-  rules per brine, each a `picklingtub` record; `Config.BatchSize` and `LitresPerBatch`. A
-  rule whose liquid matches no registered item (hydrochloric acid without Expanded Matter) is
+- The pickling tub: `PicklingTubSystem.Rules.Rules`, the acid table (pickling and
+  passivating), each rule a `picklingtub` record; `Config.BatchSize` and `LitresPerBatch`. A
+  rule whose liquid matches no registered item (hydrochloric or nitric acid without Expanded Matter) is
   skipped with a note in the log.
-- The oiled gear: `GearReclamationSystem.Config.UsableGearChance` and `BitsPerFailedGear`, one
+- The neutralized gear: `GearReclamationSystem.Config.UsableGearChance` and `BitsPerFailedGear`, one
   `lottery` record.
 - The gear cutter: `config/gearcutter-rig.json` gives the turns per tooth (`cut.turnsPerTooth`),
   the masters (`cut.masters`) and the teeth (`work.end`) of each class (`thin`, `thick`); the
@@ -386,6 +386,14 @@ Checked in the pack's code (decompiled) and assets; none is exported:
 | Compost Bin 1.3.15 | A bin that composts perishables, with a Harmony patch on `GetTransitionRateMul` for perishing | Composting, not drying; not examined further |
 | Stone Bake Oven 1.4.0 | "Smoke" on the oven grill | Only the grill block's hot/cold look, not a process |
 
+## Multiblocks
+
+`MultiblockSection` writes `multiblocks`: every block whose resolved attributes carry the game's
+`multiblockStructure` (vanilla's kiln and stone coffin, every smex and ppex structure through
+exlib) or the pack's `multiblockSizes`, one structure per distinct layout, with the shape of a
+block that fits each cell. It needs no code per mod. [multiblocks.md](multiblocks.md) has the
+details and the limits (facing, connectors).
+
 ## Where the schema does not fit (data in `extra`)
 
 - Cooking slots accept several stacks, but an ingredient has one `code`. The record keeps
@@ -424,7 +432,7 @@ Checked in the pack's code (decompiled) and assets; none is exported:
 - the smoking rack: prime meat and patched-in vanilla red meat, 4 hours, both racks as
   stations, and every item with `transformsWhenSmoked` in exactly one record;
 - the gear chain (`RecipeExportGearScenarios.cs`): the tub's rules with their hours, losses
-  and failure output, the oiled gear's one in ten, the gear cutter's two blank sizes (turns,
+  and failure output, the neutralized gear's one in ten, the gear cutter's two blank sizes (turns,
   kept master, kit wear, oil), the gear blank molds and two vanilla tool molds cast, and every
   link of the gear chain's handbook page;
 - the draw bench (`RecipeExportDrawBenchScenarios.cs`): a record per metal, a hollow section in, its

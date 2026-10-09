@@ -104,6 +104,8 @@
     <!-- The mandrel station's gameplay rules: the mandrel, the forging, the renderer's clock, settings
          and its rig; and the shipped rig and its reference poses (MandrelStation/tools/make_shape.py),
          once they exist (the rig tests skip until then). -->
+    <!-- The crucible furnace's rules: pot recipes and charging, the heat model, the row, the pour window. -->
+    <Compile Include="../CrucibleFurnace/Core/**/*.cs" Link="CrucibleFurnace/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../MandrelStation/Core/**/*.cs" Link="MandrelStation/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/mandrelstation-rig.json" Link="mandrelstation-rig.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
@@ -137,7 +139,7 @@
     <None Include="../assets/seraphhorizons/itemtypes/gear.json" Link="gear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/itemtypes/largegear.json" Link="largegear-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/cooking/gear-degrease.json" Link="gear-degrease-recipes.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../assets/seraphhorizons/itemtypes/gear-steel-bare.json" Link="gear-steel-bare-itemtype.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/recipes/barrel/gear-neutralize.json" Link="gear-neutralize-recipes.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The gear codes' readers, which must take them from GearCodes rather than spell them out. -->
     <None Include="../GearConsumers.cs;../PicklingTub/Core/TubConfig.cs" Link="gear-code-readers/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- The pickling tub (#476) and the brine bath (#482): rules, batches, loss. -->

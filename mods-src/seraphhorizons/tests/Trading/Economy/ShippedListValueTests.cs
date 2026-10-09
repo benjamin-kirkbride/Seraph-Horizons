@@ -82,7 +82,7 @@ public class ShippedListValueTests
     public void ListedGoodsArePricedFromTheirValueByTheShippedRules()
     {
         var rules = ListPriceRules.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "list-prices.json")));
-        foreach (var code in new[] { "game:ingot-iron", "seraphhorizons:gear-steel" })
+        foreach (var code in new[] { "game:ingot-iron", "seraphhorizons:gear-stainless" })
         {
             var entry = Entries().First(t => BuyerIndex.FullCode(t.Entry.Code) == code && t.Entry.Price is null).Entry;
             double value = Table.Value.ValueOf(code);

@@ -155,10 +155,8 @@
   },
   "GearReclamation": true,
   "GearReclamationSettings": {
-    "FlashRustHours": 8.0,
     "UsableGearChance": 0.1,
-    "BitsPerFailedGear": 1,
-    "FlashRustLossChance": 0.25
+    "BitsPerFailedGear": 1
   },
   "PicklingTubSettings": {
     "BatchSize": 8,
@@ -170,7 +168,7 @@
         "Input": "seraphhorizons:gear-degreased",
         "Output": "seraphhorizons:gear-pickled",
         "Hours": 24.0,
-        "Failure": "game:metalbit-steel",
+        "Failure": "game:metalbit-stainlesssteel",
         "FailureQuantity": 1,
         "GraceHours": 12.0,
         "LossEveryHours": 3.0,
@@ -182,7 +180,7 @@
         "Input": "seraphhorizons:gear-degreased",
         "Output": "seraphhorizons:gear-pickled",
         "Hours": 8.0,
-        "Failure": "game:metalbit-steel",
+        "Failure": "game:metalbit-stainlesssteel",
         "FailureQuantity": 1,
         "GraceHours": 4.0,
         "LossEveryHours": 1.0,
@@ -194,7 +192,7 @@
         "Input": "seraphhorizons:gear-degreased",
         "Output": "seraphhorizons:gear-pickled",
         "Hours": 2.0,
-        "Failure": "game:metalbit-steel",
+        "Failure": "game:metalbit-stainlesssteel",
         "FailureQuantity": 1,
         "GraceHours": 1.0,
         "LossEveryHours": 0.25,
@@ -202,48 +200,18 @@
         "Kind": 0
       },
       {
-        "Liquid": "game:vinegarportion",
-        "Input": "seraphhorizons:gear-steel",
-        "Output": "seraphhorizons:gear-steel-bare",
+        "Liquid": "game:acid-full-nitric",
+        "Input": "seraphhorizons:gear-pickled",
+        "Output": "seraphhorizons:gear-passivated",
         "Hours": 6.0,
-        "Failure": "game:metalbit-steel",
+        "Failure": "game:metalbit-stainlesssteel",
         "FailureQuantity": 1,
         "GraceHours": 3.0,
-        "LossEveryHours": 0.75,
+        "LossEveryHours": 1.0,
         "LossChance": 0.0,
-        "Kind": 0
-      },
-      {
-        "Liquid": "game:acid-full-sulfuric",
-        "Input": "seraphhorizons:gear-steel",
-        "Output": "seraphhorizons:gear-steel-bare",
-        "Hours": 2.0,
-        "Failure": "game:metalbit-steel",
-        "FailureQuantity": 1,
-        "GraceHours": 1.0,
-        "LossEveryHours": 0.25,
-        "LossChance": 0.0,
-        "Kind": 0
-      },
-      {
-        "Liquid": "game:acid-full-hydrochloric",
-        "Input": "seraphhorizons:gear-steel",
-        "Output": "seraphhorizons:gear-steel-bare",
-        "Hours": 0.5,
-        "Failure": "game:metalbit-steel",
-        "FailureQuantity": 1,
-        "GraceHours": 0.25,
-        "LossEveryHours": 0.0625,
-        "LossChance": 0.0,
-        "Kind": 0
+        "Kind": 1
       }
     ],
-    "BrineLiquids": [
-      "game:brineportion"
-    ],
-    "BrineRustHours": 48.0,
-    "BareBrineRustHours": 4.0,
-    "OverRustChance": 0.1,
     "RefusedGears": [
       "seraphhorizons:largegear-*"
     ]
@@ -292,6 +260,30 @@
     "BlowsPerHollowCopper": 14,
     "BaseHammerTier": 2,
     "HammerWearPerBlow": 1
+  },
+  "StainlessSteel": true,
+  "CrucibleFurnaceSettings": {
+    "PotCapacityUnits": 200,
+    "PotHeats": 3,
+    "PourWindowSeconds": 20.0,
+    "CokeCapacity": 6,
+    "HoursPerCoke": 1.0,
+    "ChimneyHeatingPerHour": 200.0,
+    "ForcedHeatingPerHour": 400.0,
+    "ChimneyMaxTemperature": 1600.0,
+    "ForcedMaxTemperature": 1650.0,
+    "CoolingPerHour": 300.0,
+    "LidOpenCoolingPerHour": 600.0,
+    "MinChimneyHeight": 6,
+    "MaxHolesInRow": 4,
+    "AirLitresPerSecond": 10.0,
+    "ChimneyBlocks": [
+      "game:claybricks-*",
+      "game:claybrickchimney-*",
+      "game:refractorybricks-*",
+      "game:stonebricks-*",
+      "smex:smokestack-*"
+    ]
   },
   "CastPipes": true,
   "Handcar": true,

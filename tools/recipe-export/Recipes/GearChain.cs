@@ -54,7 +54,7 @@ public sealed class CutterData
 
 /// <summary>
 /// The gear chain of the pack's own mod (seraphhorizons, epic #484): the pickling tub's rules,
-/// the oiled gear's lottery and the gear cutter's process. The exporter cannot reference the mod
+/// the neutralized gear's lottery and the gear cutter's process. The exporter cannot reference the mod
 /// (it is built on its own against the game), so its settings are read by reflection from the
 /// mod's loaded systems: what the server runs with, ModConfig included. Each part is null when the
 /// mod is not loaded, its switch is off or what it names is not registered.
@@ -68,10 +68,10 @@ public static class GearChain
     public const string MainSystem = "SeraphHorizons.Mod.SeraphHorizonsSystem";
 
     // GearReclamation/Core/GearReclamation.cs, GearCodes.
-    public const string Oiled = "seraphhorizons:gear-oiled";
-    public const string Steel = "seraphhorizons:gear-steel";
-    public const string LargeSteel = "seraphhorizons:largegear-steel";
-    public const string SteelBit = "game:metalbit-steel";
+    public const string Neutralized = "seraphhorizons:gear-neutralized";
+    public const string Stainless = "seraphhorizons:gear-stainless";
+    public const string LargeStainless = "seraphhorizons:largegear-stainless";
+    public const string StainlessBit = "game:metalbit-stainlesssteel";
     public const string TubBlock = "seraphhorizons:picklingtub";
 
     // The gear cutter (#480, #481). The rig (config/gearcutter-rig.json) gives the turns per tooth,
@@ -90,8 +90,8 @@ public static class GearChain
     /// thick: the large one).</summary>
     public static readonly Dictionary<string, (string Blank, string Gear)> ClassStock = new()
     {
-        ["thin"] = ("seraphhorizons:gearblank-steel", Steel),
-        ["thick"] = ("seraphhorizons:largegearblank-steel", LargeSteel),
+        ["thin"] = ("seraphhorizons:gearblank-stainlesssteel", Stainless),
+        ["thick"] = ("seraphhorizons:largegearblank-stainlesssteel", LargeStainless),
     };
 
     public static ModSystem? System(ICoreServerAPI api, string fullName) =>
@@ -172,14 +172,14 @@ public static class GearChain
     {
         var system = System(api, ReclamationSystem);
         if (system == null || !On(system)) return null;
-        Item? oiled = ItemOf(api, Oiled), steel = ItemOf(api, Steel), bits = ItemOf(api, SteelBit);
-        if (oiled == null || steel == null || bits == null) return null;
+        Item? neutralized = ItemOf(api, Neutralized), sound = ItemOf(api, Stainless), bits = ItemOf(api, StainlessBit);
+        if (neutralized == null || sound == null || bits == null) return null;
         var config = Prop(system, "Config");
         return new LotteryData
         {
             Mod = Mod,
-            Item = oiled,
-            Win = steel,
+            Item = neutralized,
+            Win = sound,
             Lose = bits,
             Chance = Dbl(config, "UsableGearChance", 0.1),
             LosePerItem = (int)Dbl(config, "BitsPerFailedGear", 1),

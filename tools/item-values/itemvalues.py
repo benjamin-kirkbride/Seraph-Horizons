@@ -1118,8 +1118,8 @@ def report_markdown(rep: dict, export: dict, val: Valuation, samples: list[str])
 SAMPLES = [
     "game:ingot-copper", "game:pickaxe-tinbronze", "game:bread-spelt-perfect", "game:linen-normal-down",
     "game:plank-oak", "game:glass-plain", "game:leather-normal-plain", "game:gear-rusty",
-    "game:bed-wood-head-north", "game:barrel", "seraphhorizons:gear-oiled", "game:metalbit-steel",
-    "seraphhorizons:gear-steel", "seraphhorizons:gear-steel-bare",
+    "game:bed-wood-head-north", "game:barrel", "seraphhorizons:gear-neutralized", "game:metalbit-stainlesssteel",
+    "seraphhorizons:gear-stainless", "seraphhorizons:largegear-stainless",
     "game:juiceportion-apple", "game:ciderportion-apple", "game:spiritportion-apple", "game:ciderportion-mead",
     "expandedfoods:foodoilportion-olive",
 ]

@@ -211,7 +211,7 @@ export interface Transition {
  * turns into the first output; with `failure`, gears can be lost to that output.
  */
 export interface Tub {
-  /** pickle: an acid leaves the metal clean. rust: brine rusts it through. */
+  /** pickle: an acid leaves the metal clean. passivate: nitric acid leaves it passive. (rust: brine, in older exports.) */
   kind: string;
   hours: number;
   batchSize: number;
@@ -280,7 +280,79 @@ export interface RecipeExport {
   variantGroups?: Record<string, VariantGroup>;
   /** Mechanical power producers, consumers and the wind (power-data.ts). Absent in older exports. */
   power?: PowerData;
+  /** Structures built block by block (docs/recipe-browser/multiblocks.md); absent from older exports. */
+  multiblocks?: Multiblocks;
   extra?: Record<string, unknown>;
+}
+
+export interface Multiblocks {
+  structures: Multiblock[];
+  /** How each block a part is drawn with looks, by code. */
+  shapes: Record<string, BlockShape>;
+}
+
+export interface Multiblock {
+  /** `<domain>:<first code part>` of the block that checks the layout, unique. */
+  id: string;
+  /** The block that checks the layout, at [0, 0, 0]. */
+  code: string;
+  name: string;
+  mod: string;
+  /** Every block carrying this layout. */
+  codes: string[];
+  parts: MultiblockPart[];
+  /** One layout, or one per size. */
+  sizes: MultiblockSize[];
+  sizeLabel?: string;
+  defaultSize?: number;
+}
+
+export interface MultiblockSize {
+  label?: string;
+  /** [x, y, z, part], blocks from the checking block: x east, y up, z south. */
+  cells: [number, number, number, number][];
+}
+
+export interface MultiblockPart {
+  /** The layout's code pattern: a game wildcard, or a regular expression after `@`. */
+  pattern: string;
+  /** The cell may be empty; with no `block`, it must be. */
+  air?: true;
+  /** The block the cell is drawn with, a key of `shapes`. */
+  block?: string;
+  name?: string;
+  /** Blocks that fit, at most 24. */
+  accepts?: string[];
+  acceptsMore?: number;
+}
+
+export interface BlockShape {
+  draw: "cube" | "none" | "shape";
+  shapes?: CompositeShape[];
+}
+
+export interface CompositeShape {
+  elements: ExportShapeElement[];
+  rotateX?: number;
+  rotateY?: number;
+  rotateZ?: number;
+  /** Blocks. */
+  offset?: [number, number, number];
+  scale?: number;
+}
+
+/** A shape file's element as the export has it: voxels, children relative to the parent's `from`. */
+export interface ExportShapeElement {
+  name: string;
+  from: [number, number, number];
+  to: [number, number, number];
+  rotationOrigin?: [number, number, number];
+  rotationX?: number;
+  rotationY?: number;
+  rotationZ?: number;
+  /** The faces drawn, when not all six. */
+  faces?: ("north" | "east" | "south" | "west" | "up" | "down")[];
+  children?: ExportShapeElement[];
 }
 
 export interface VariantGroup {

@@ -1,0 +1,496 @@
+{
+ "editor": {
+  "allAngles": false
+ },
+ "textureWidth": 16,
+ "textureHeight": 16,
+ "textures": {
+  "brick": "game:block/clay/refractory/tier3/front1",
+  "lid": "game:block/metal/ingot/iron"
+ },
+ "elements": [
+  {
+   "name": "Floor",
+   "from": [
+    0,
+    0,
+    0
+   ],
+   "to": [
+    16,
+    2,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      14,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      14,
+      16,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      14,
+      16,
+      16
+     ]
+    },
+    "west": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      14,
+      16,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    },
+    "down": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallWest",
+   "from": [
+    0,
+    2,
+    0
+   ],
+   "to": [
+    3,
+    16,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      3,
+      14
+     ]
+    },
+    "south": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      3,
+      14
+     ]
+    },
+    "east": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      16,
+      14
+     ]
+    },
+    "west": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      16,
+      14
+     ]
+    },
+    "up": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      3,
+      16
+     ]
+    },
+    "down": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      3,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallEast",
+   "from": [
+    13,
+    2,
+    0
+   ],
+   "to": [
+    16,
+    16,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#brick",
+     "uv": [
+      13,
+      0,
+      16,
+      14
+     ]
+    },
+    "south": {
+     "texture": "#brick",
+     "uv": [
+      13,
+      0,
+      16,
+      14
+     ]
+    },
+    "east": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      16,
+      14
+     ]
+    },
+    "west": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      16,
+      14
+     ]
+    },
+    "up": {
+     "texture": "#brick",
+     "uv": [
+      13,
+      0,
+      16,
+      16
+     ]
+    },
+    "down": {
+     "texture": "#brick",
+     "uv": [
+      13,
+      0,
+      16,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallNorth",
+   "from": [
+    3,
+    2,
+    0
+   ],
+   "to": [
+    13,
+    16,
+    3
+   ],
+   "faces": {
+    "north": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      0,
+      13,
+      14
+     ]
+    },
+    "south": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      0,
+      13,
+      14
+     ]
+    },
+    "east": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      3,
+      14
+     ]
+    },
+    "west": {
+     "texture": "#brick",
+     "uv": [
+      0,
+      0,
+      3,
+      14
+     ]
+    },
+    "up": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      0,
+      13,
+      3
+     ]
+    },
+    "down": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      0,
+      13,
+      3
+     ]
+    }
+   }
+  },
+  {
+   "name": "WallSouth",
+   "from": [
+    3,
+    2,
+    13
+   ],
+   "to": [
+    13,
+    16,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      0,
+      13,
+      14
+     ]
+    },
+    "south": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      0,
+      13,
+      14
+     ]
+    },
+    "east": {
+     "texture": "#brick",
+     "uv": [
+      13,
+      0,
+      16,
+      14
+     ]
+    },
+    "west": {
+     "texture": "#brick",
+     "uv": [
+      13,
+      0,
+      16,
+      14
+     ]
+    },
+    "up": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      13,
+      13,
+      16
+     ]
+    },
+    "down": {
+     "texture": "#brick",
+     "uv": [
+      3,
+      13,
+      13,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "name": "Lid",
+   "from": [
+    3,
+    15,
+    3
+   ],
+   "to": [
+    13,
+    16,
+    13
+   ],
+   "faces": {
+    "north": {
+     "texture": "#lid",
+     "uv": [
+      3,
+      0,
+      13,
+      1
+     ]
+    },
+    "south": {
+     "texture": "#lid",
+     "uv": [
+      3,
+      0,
+      13,
+      1
+     ]
+    },
+    "east": {
+     "texture": "#lid",
+     "uv": [
+      3,
+      0,
+      13,
+      1
+     ]
+    },
+    "west": {
+     "texture": "#lid",
+     "uv": [
+      3,
+      0,
+      13,
+      1
+     ]
+    },
+    "up": {
+     "texture": "#lid",
+     "uv": [
+      3,
+      3,
+      13,
+      13
+     ]
+    },
+    "down": {
+     "texture": "#lid",
+     "uv": [
+      3,
+      3,
+      13,
+      13
+     ]
+    }
+   }
+  },
+  {
+   "name": "Handle",
+   "from": [
+    7,
+    16,
+    5
+   ],
+   "to": [
+    9,
+    16.5,
+    11
+   ],
+   "faces": {
+    "north": {
+     "texture": "#lid",
+     "uv": [
+      7,
+      -0.5,
+      9,
+      0
+     ]
+    },
+    "south": {
+     "texture": "#lid",
+     "uv": [
+      7,
+      -0.5,
+      9,
+      0
+     ]
+    },
+    "east": {
+     "texture": "#lid",
+     "uv": [
+      5,
+      -0.5,
+      11,
+      0
+     ]
+    },
+    "west": {
+     "texture": "#lid",
+     "uv": [
+      5,
+      -0.5,
+      11,
+      0
+     ]
+    },
+    "up": {
+     "texture": "#lid",
+     "uv": [
+      7,
+      5,
+      9,
+      11
+     ]
+    },
+    "down": {
+     "texture": "#lid",
+     "uv": [
+      7,
+      5,
+      9,
+      11
+     ]
+    }
+   }
+  }
+ ]
+}

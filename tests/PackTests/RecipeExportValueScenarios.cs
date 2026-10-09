@@ -57,14 +57,14 @@ public partial class RecipeExportScenarios
     {
         // recipes/grid/gearcutter.json, entry 0: the frame.
         Assert.Equal("GearCutter", (string?)Recipe("grid|seraphhorizons:recipes/grid/gearcutter.json|0")["switch"]);
-        Assert.Equal("GearCutter", (string?)Recipe("gearcutter|seraphhorizons:gearblank-steel|0")["switch"]);
-        Assert.Equal("GearReclamation", (string?)Recipe("lottery|seraphhorizons:gear-oiled|0")["switch"]);
+        Assert.Equal("GearCutter", (string?)Recipe("gearcutter|seraphhorizons:gearblank-stainlesssteel|0")["switch"]);
+        Assert.Equal("GearReclamation", (string?)Recipe("lottery|seraphhorizons:gear-neutralized|0")["switch"]);
         Assert.Equal("GearReclamation", (string?)Recipe("picklingtub|seraphhorizons:gear-degreased|game:vinegarportion")["switch"]);
         Assert.Equal("GearBlanks", (string?)Recipe("casting|seraphhorizons:toolmold-black-fired-gearblank|0")["switch"]);
         Assert.Null(Recipe("grid|game:recipes/grid/ladder.json|0")["switch"]);
 
         Assert.Equal("GearCutter", (string?)Item("seraphhorizons:gearcutter-frame-north")["switch"]);
-        Assert.Equal("GearBlanks", (string?)Item("seraphhorizons:gearblank-steel")["switch"]);
+        Assert.Equal("GearBlanks", (string?)Item("seraphhorizons:gearblank-stainlesssteel")["switch"]);
         Assert.Equal("GearReclamation", (string?)Item("seraphhorizons:picklingtub")["switch"]);
         // The debarked trunks: Logging Expanded's trunk with the state the Rosser switch's patch adds.
         var debarked = World.Api.World.Blocks.Where(b => b?.Code != null && b.Code.Domain == "loggingmod"
@@ -73,8 +73,8 @@ public partial class RecipeExportScenarios
         Assert.All(debarked, b => Assert.Equal("Rosser", SwitchRegistry.For(World.Api).SwitchForCode(b.Code.ToString())));
         foreach (var b in debarked.Where(b => Doc["items"]![b.Code.ToString()] != null))
             Assert.Equal("Rosser", (string?)Item(b.Code.ToString())["switch"]);
-        // The steel gear exists whatever the switches: made by the cutter or reclaimed, it is not owned.
-        Assert.Null(Item("seraphhorizons:gear-steel")["switch"]);
+        // The stainless gear exists whatever the switches: made by the cutter or reclaimed, it is not owned.
+        Assert.Null(Item("seraphhorizons:gear-stainless")["switch"]);
         Assert.Null(Item("game:gear-rusty")["switch"]);
     }
 
@@ -104,12 +104,11 @@ public partial class RecipeExportScenarios
                 Assert.Null(item["valueSwitches"]);
             }
         }
-        // The steel gear's every route goes through a feature: the gear cutter (fed by the blanks)
-        // or the reclamation line, whichever is cheaper (the line since the barrel's flat is charged
-        // over a stack). The shipped table is built from an export that carries the mod, so it
-        // prices the gear and says so.
-        Assert.NotNull(values["seraphhorizons:gear-steel"]);
-        var gear = Item("seraphhorizons:gear-steel");
+        // The stainless gear's every route goes through a feature: the gear cutter (fed by the blanks)
+        // or the reclamation line, whichever is cheaper. The shipped table is built from an export
+        // that carries the mod, so it prices the gear and says so.
+        Assert.NotNull(values["seraphhorizons:gear-stainless"]);
+        var gear = Item("seraphhorizons:gear-stainless");
         Assert.NotNull(gear["value"]);
         var depends = ((JArray?)gear["valueSwitches"])?.Values<string>().ToList() ?? [];
         Assert.True(depends.Contains("GearCutter") || depends.Contains("GearReclamation"), string.Join(", ", depends));

@@ -1,10 +1,10 @@
 // seraphhorizons' GearConsumers switch (README.md, GearConsumers.cs; #473): the rusty gear is salvage
-// and money, so every recipe that took one takes the pack's steel gear (seraphhorizons:gear-steel),
+// and money, so every recipe that took one takes the pack's stainless gear (seraphhorizons:gear-stainless),
 // in the same number (counts below are per recipe, all slots). tools/tests/test_gear_consumers.py
 // holds this file to the mod's recipes.
 // The game (1.22.7): the glider, 2. Its Jonas devices take temporal gears and sub-assemblies, no rusty
 // gear. Left alone (test_gear_consumers.py's EXEMPT): the rusty gear amulet, which uncrafts back
 // into the gear, and the gray and black barrel dyes, which use the rust as pigment.
 [
-  {"file": "game:recipes/grid/glider.json", "op": "replace", "path": "/ingredients/G/code", "value": "seraphhorizons:gear-steel"}
+  {"file": "game:recipes/grid/glider.json", "op": "replace", "path": "/ingredients/G/code", "value": "seraphhorizons:gear-stainless"}
 ]

@@ -74,9 +74,9 @@
     "seraphhorizons:toolmold-black-fired-gearblank": { "kind": "block", "name": "Gear blank mold", "mod": "seraphhorizons", "handbookVisible": true },
     "seraphhorizons:toolmold-blue-fired-gearblank": { "kind": "block", "name": "Gear blank mold", "mod": "seraphhorizons", "handbookVisible": true },
     "game:ingot-steel": { "kind": "item", "name": "Steel ingot", "mod": "game", "handbookVisible": true },
-    "seraphhorizons:gearblank-steel": {
+    "seraphhorizons:gearblank-stainlesssteel": {
       "kind": "item",
-      "name": "Steel gear blank",
+      "name": "Stainless gear blank",
       "mod": "seraphhorizons",
       "handbookVisible": true,
       "value": 6.5,
@@ -88,16 +88,16 @@
     "game:oilportion-flax": { "kind": "item", "name": "Flax oil", "mod": "game", "handbookVisible": true },
     "game:fat-rendered": { "kind": "item", "name": "Tallow", "mod": "game", "handbookVisible": true },
     "seraphhorizons:gearcutter-frame-north": { "kind": "block", "name": "Gear cutter frame", "mod": "seraphhorizons", "handbookVisible": true, "switch": "GearCutter" },
-    "seraphhorizons:gear-steel": {
+    "seraphhorizons:gear-stainless": {
       "kind": "item",
-      "name": "Steel gear",
+      "name": "Stainless gear",
       "mod": "seraphhorizons",
       "handbookVisible": true,
       "value": 9.25,
       "valueSwitches": ["GearBlanks", "GearCutter"]
     },
-    "seraphhorizons:gear-oiled": { "kind": "item", "name": "Oiled gear", "mod": "seraphhorizons", "handbookVisible": true },
-    "game:metalbit-steel": { "kind": "item", "name": "Steel bits", "mod": "game", "handbookVisible": true },
+    "seraphhorizons:gear-neutralized": { "kind": "item", "name": "Neutralized gear", "mod": "seraphhorizons", "handbookVisible": true },
+    "game:metalbit-stainlesssteel": { "kind": "item", "name": "Stainless steel bits", "mod": "game", "handbookVisible": true },
     "seraphhorizons:gear-degreased": { "kind": "item", "name": "Degreased rusty gear", "mod": "seraphhorizons", "handbookVisible": true },
     "seraphhorizons:gear-pickled": { "kind": "item", "name": "Pickled gear", "mod": "seraphhorizons", "handbookVisible": true },
     "game:vinegarportion": {
@@ -326,7 +326,7 @@
           ],
           "outputs": [
             {
-              "code": "seraphhorizons:gearblank-steel",
+              "code": "seraphhorizons:gearblank-stainlesssteel",
               "kind": "item",
               "quantity": 1
             }
@@ -414,13 +414,13 @@
       "requirements": ["Needs a powered press"]
     },
     {
-      "id": "gearcutter|seraphhorizons:gearblank-steel|0",
+      "id": "gearcutter|seraphhorizons:gearblank-stainlesssteel|0",
       "type": "gearcutter",
       "mod": "seraphhorizons",
       "switch": "GearCutter",
       "ingredients": [
         {
-          "code": "seraphhorizons:gearblank-steel",
+          "code": "seraphhorizons:gearblank-stainlesssteel",
           "kind": "item",
           "quantity": 1
         },
@@ -454,7 +454,7 @@
       ],
       "outputs": [
         {
-          "code": "seraphhorizons:gear-steel",
+          "code": "seraphhorizons:gear-stainless",
           "kind": "item",
           "quantity": 1
         }
@@ -464,7 +464,7 @@
           "ingredients": [
             [
               {
-                "code": "seraphhorizons:gearblank-steel",
+                "code": "seraphhorizons:gearblank-stainlesssteel",
                 "kind": "item",
                 "quantity": 1
               }
@@ -507,7 +507,7 @@
           ],
           "outputs": [
             {
-              "code": "seraphhorizons:gear-steel",
+              "code": "seraphhorizons:gear-stainless",
               "kind": "item",
               "quantity": 1
             }
@@ -585,25 +585,25 @@
       "voxels": [["__#__", "_###_", "_###_", "_###_", "__#__"]]
     },
     {
-      "id": "lottery|seraphhorizons:gear-oiled|0",
+      "id": "lottery|seraphhorizons:gear-neutralized|0",
       "type": "lottery",
       "mod": "seraphhorizons",
       "switch": "GearReclamation",
       "ingredients": [
         {
-          "code": "seraphhorizons:gear-oiled",
+          "code": "seraphhorizons:gear-neutralized",
           "kind": "item",
           "quantity": 1
         }
       ],
       "outputs": [
         {
-          "code": "seraphhorizons:gear-steel",
+          "code": "seraphhorizons:gear-stainless",
           "kind": "item",
           "quantity": 1
         },
         {
-          "code": "game:metalbit-steel",
+          "code": "game:metalbit-stainlesssteel",
           "kind": "item",
           "quantity": 1
         }
@@ -613,7 +613,7 @@
           "ingredients": [
             [
               {
-                "code": "seraphhorizons:gear-oiled",
+                "code": "seraphhorizons:gear-neutralized",
                 "kind": "item",
                 "quantity": 1
               }
@@ -621,12 +621,12 @@
           ],
           "outputs": [
             {
-              "code": "seraphhorizons:gear-steel",
+              "code": "seraphhorizons:gear-stainless",
               "kind": "item",
               "quantity": 1
             },
             {
-              "code": "game:metalbit-steel",
+              "code": "game:metalbit-stainlesssteel",
               "kind": "item",
               "quantity": 1
             }
@@ -684,7 +684,7 @@
           "quantity": 1
         },
         {
-          "code": "game:metalbit-steel",
+          "code": "game:metalbit-stainlesssteel",
           "kind": "item",
           "quantity": 1
         }
@@ -722,7 +722,7 @@
               "quantity": 1
             },
             {
-              "code": "game:metalbit-steel",
+              "code": "game:metalbit-stainlesssteel",
               "kind": "item",
               "quantity": 1
             }
@@ -830,6 +830,46 @@
         { "what": "wind pattern still", "from": "game:config/windpatterns/still.json" },
         { "what": "next pattern chosen uniformly, Rand.NextInt(patterns); weight not used", "from": "code constant (WeatherSimulationRegion)" }
       ]
+    }
+  },
+  "multiblocks": {
+    "structures": [
+      {
+        "id": "examplemod:kiln",
+        "code": "examplemod:kiln-north",
+        "name": "Kiln",
+        "mod": "examplemod",
+        "codes": ["examplemod:kiln-east", "examplemod:kiln-north"],
+        "parts": [
+          { "pattern": "examplemod:kiln-*", "block": "examplemod:kiln-north", "name": "Kiln", "accepts": ["examplemod:kiln-north", "examplemod:kiln-east"] },
+          { "pattern": "game:claybricks-*", "block": "game:claybricks-fire", "name": "Fire bricks", "accepts": ["game:claybricks-fire"], "acceptsMore": 3 },
+          { "pattern": "game:air", "air": true },
+          { "pattern": "game:multiblock-monolithic-0-p1-0", "block": "game:multiblock-monolithic-0-p1-0" }
+        ],
+        "sizes": [
+          { "label": "Short", "cells": [[0, 0, 0, 0], [0, 1, 0, 3], [0, 0, 1, 1], [0, 1, 1, 2], [0, 2, 1, 1]] },
+          { "label": "Tall", "cells": [[0, 0, 0, 0], [0, 1, 0, 3], [0, 0, 1, 1], [0, 1, 1, 2], [0, 2, 1, 2], [0, 3, 1, 1]] }
+        ],
+        "sizeLabel": "Chimney",
+        "defaultSize": 1
+      }
+    ],
+    "shapes": {
+      "examplemod:kiln-north": {
+        "draw": "shape",
+        "shapes": [
+          {
+            "elements": [
+              { "name": "Base", "from": [0, 0, 0], "to": [16, 8, 16], "children": [
+                { "name": "Lid", "from": [2, 8, 2], "to": [14, 10, 14], "rotationOrigin": [8, 8, 8], "rotationY": 45, "faces": ["up"] }
+              ] }
+            ],
+            "rotateY": 180
+          }
+        ]
+      },
+      "game:claybricks-fire": { "draw": "cube" },
+      "game:multiblock-monolithic-0-p1-0": { "draw": "none" }
     }
   }
 }

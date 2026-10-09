@@ -2,12 +2,12 @@ using SeraphHorizons.Mod.GearReclamation.Core;
 
 namespace SeraphHorizons.Mod.PicklingTub.Core;
 
-/// <summary>What a finished batch is, for the block info's words: an acid pickle (the metal looks
-/// grey and clean) or a brine rust (the gears are rusted through).</summary>
+/// <summary>What a finished batch is, for the block info's words: a pickle (the scale is off and the
+/// metal looks grey and clean) or a passivation (the nitric acid has left the surface passive).</summary>
 public enum TubRuleKind
 {
     Pickle,
-    Rust,
+    Passivate,
 }
 
 /// <summary>
@@ -48,7 +48,7 @@ public class TubRuleConfig
     public double Hours { get; set; }
 
     /// <summary>What a lost gear becomes.</summary>
-    public string Failure { get; set; } = GearCodes.SteelBit;
+    public string Failure { get; set; } = GearCodes.StainlessBit;
 
     /// <summary>Failure items per lost gear.</summary>
     public int FailureQuantity { get; set; } = 1;
@@ -72,15 +72,15 @@ public class PicklingTubConfig
     public const string Vinegar = "game:vinegarportion";
     public const string Sulfuric = "game:acid-full-sulfuric";
     public const string Hydrochloric = "game:acid-full-hydrochloric";
-    public const string Brine = "game:brineportion";
+
+    /// <summary>Expanded Matter's nitric acid (it adds the game's unused acid variant).</summary>
+    public const string Nitric = "game:acid-full-nitric";
 
     // The gears are GearCodes' (the reclamation line's contract); the tub's rules name them by these.
-    public const string Bits = GearCodes.SteelBit;
+    public const string Bits = GearCodes.StainlessBit;
     public const string Degreased = GearCodes.Degreased;
     public const string Pickled = GearCodes.Pickled;
-    public const string Steel = GearCodes.Steel;
-    public const string SteelBare = GearCodes.SteelBare;
-    public const string Rusty = GearCodes.Rusty;
+    public const string Passivated = GearCodes.Passivated;
 
     /// <summary>Gears a batch holds.</summary>
     public int BatchSize { get; set; } = 8;
@@ -92,47 +92,24 @@ public class PicklingTubConfig
     public double LitresPerBatch { get; set; } = 1;
 
     /// <summary>The acid table: degreased gears to pickled ones (vinegar slowest, hydrochloric
-    /// fastest), and a short dip that takes a steel gear bare. The acid eats a batch left past
-    /// done plus its grace, a gear at a time.</summary>
+    /// fastest), then pickled gears to passivated ones in nitric acid. The acid eats a batch left
+    /// past done plus its grace, a gear at a time, to stainless bits.</summary>
     public TubRuleConfig[] AcidRules { get; set; } =
     [
         new(Vinegar, Degreased, Pickled, 24, 12, 3),
         new(Sulfuric, Degreased, Pickled, 8, 4, 1),
         new(Hydrochloric, Degreased, Pickled, 2, 1, 0.25),
-        new(Vinegar, Steel, SteelBare, 6, 3, 0.75),
-        new(Sulfuric, Steel, SteelBare, 2, 1, 0.25),
-        new(Hydrochloric, Steel, SteelBare, 0.5, 0.25, 0.0625),
+        new(Nitric, Pickled, Passivated, 6, 3, 1, TubRuleKind.Passivate),
     ];
 
-    /// <summary>Liquid code patterns of the brine bath.</summary>
-    public string[] BrineLiquids { get; set; } = [Brine];
-
-    /// <summary>In-game hours brine takes to rust a batch of steel gears.</summary>
-    public double BrineRustHours { get; set; } = 48;
-
-    /// <summary>In-game hours brine takes to rust a batch of bare (acid-dipped) steel gears.</summary>
-    public double BareBrineRustHours { get; set; } = 4;
-
-    /// <summary>Each brine-rusted gear's chance to over-rust to steel bits.</summary>
-    public double OverRustChance { get; set; } = 0.1;
-
-    /// <summary>Gear code patterns the tub refuses with a word (the large steel gear has no
-    /// currency form).</summary>
+    /// <summary>Gear code patterns the tub refuses with a word (a large gear is cut new, never
+    /// reclaimed).</summary>
     public string[] RefusedGears { get; set; } = ["seraphhorizons:largegear-*"];
 
     public static readonly PicklingTubConfig Defaults = new();
 
-    /// <summary>Every rule the tub knows: the acid table, then the brine bath's two per brine.</summary>
-    public IEnumerable<TubRuleConfig> AllRules()
-    {
-        foreach (var rule in AcidRules ?? [])
-            yield return rule;
-        foreach (string liquid in BrineLiquids ?? [])
-        {
-            yield return new TubRuleConfig(liquid, Steel, Rusty, BrineRustHours, 0, 0, TubRuleKind.Rust) { LossChance = OverRustChance };
-            yield return new TubRuleConfig(liquid, SteelBare, Rusty, BareBrineRustHours, 0, 0, TubRuleKind.Rust) { LossChance = OverRustChance };
-        }
-    }
+    /// <summary>Every rule the tub knows: the acid table.</summary>
+    public IEnumerable<TubRuleConfig> AllRules() => AcidRules ?? [];
 
     /// <summary>Replaces values out of range with the default and drops broken rules; returns a
     /// line per fix.</summary>
@@ -154,22 +131,6 @@ public class PicklingTubConfig
             fixes.Add($"LitresPerBatch {LitresPerBatch} is out of range, using {Defaults.LitresPerBatch}");
             LitresPerBatch = Math.Min(Defaults.LitresPerBatch, CapacityLitres);
         }
-        if (!double.IsFinite(BrineRustHours) || BrineRustHours <= 0 || BrineRustHours > 24 * 365)
-        {
-            fixes.Add($"BrineRustHours {BrineRustHours} is out of range, using {Defaults.BrineRustHours}");
-            BrineRustHours = Defaults.BrineRustHours;
-        }
-        if (!double.IsFinite(BareBrineRustHours) || BareBrineRustHours <= 0 || BareBrineRustHours > 24 * 365)
-        {
-            fixes.Add($"BareBrineRustHours {BareBrineRustHours} is out of range, using {Defaults.BareBrineRustHours}");
-            BareBrineRustHours = Defaults.BareBrineRustHours;
-        }
-        if (!double.IsFinite(OverRustChance) || OverRustChance < 0 || OverRustChance > 1)
-        {
-            fixes.Add($"OverRustChance {OverRustChance} is out of range, using {Defaults.OverRustChance}");
-            OverRustChance = Defaults.OverRustChance;
-        }
-        BrineLiquids = (BrineLiquids ?? []).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
         RefusedGears = (RefusedGears ?? []).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
         var kept = new List<TubRuleConfig>();
         var rules = AcidRules ?? [];

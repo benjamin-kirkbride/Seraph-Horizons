@@ -29,6 +29,9 @@
   // The model viewer is loaded only when a reader opens it, with three.js after it.
   let modelsView: Promise<typeof import("./components/ModelsRoute.svelte")> | null = null;
   const loadModelsView = () => (modelsView ??= import("./components/ModelsRoute.svelte"));
+  // So is the multiblock viewer.
+  let multiblocksView: Promise<typeof import("./components/MultiblocksRoute.svelte")> | null = null;
+  const loadMultiblocksView = () => (multiblocksView ??= import("./components/MultiblocksRoute.svelte"));
 
   const versionId = $derived("version" in route ? (route.version ?? null) : null);
   const known = $derived(versions !== null && versionId !== null && versions.versions.some((v) => v.id === versionId));
@@ -109,7 +112,7 @@
   });
 
   $effect(() => {
-    if (route.view !== "item" && route.view !== "type" && route.view !== "entity" && route.view !== "models" && route.view !== "model") document.title = t.siteTitle;
+    if (!["item", "type", "entity", "models", "model", "multiblocks", "multiblock"].includes(route.view)) document.title = t.siteTitle;
   });
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -176,6 +179,9 @@
     </form>
     {#if versionId && known}
       <a class="nav" href={formatRoute({ view: "entities", version: versionId })}>{t.entitiesLink}</a>
+      {#if meta?.id === versionId && (meta.meta.multiblockCount ?? 0) > 0}
+        <a class="nav" href={formatRoute({ view: "multiblocks", version: versionId })} aria-current={route.view === "multiblocks" || route.view === "multiblock" ? "page" : undefined}>{t.multiblocksLink}</a>
+      {/if}
       {#if meta?.id === versionId && (meta.meta.valueCount ?? 0) > 0}
         <a class="nav" href={formatRoute({ view: "values", version: versionId })} aria-current={route.view === "values" ? "page" : undefined}>{t.valuesLink}</a>
       {/if}
@@ -251,6 +257,14 @@
     {#key `${data.id}|${route.code}`}
       <EntityPage {data} meta={meta.meta} code={route.code} variant={route.variant} />
     {/key}
+  {:else if route.view === "multiblocks" || route.view === "multiblock"}
+    {#await loadMultiblocksView()}
+      <p class="muted">{t.loading}</p>
+    {:then mod}
+      <mod.default {data} meta={meta.meta} id={route.view === "multiblock" ? route.id : null} />
+    {:catch}
+      <p role="alert">{t.loadFailed}</p>
+    {/await}
   {:else if route.view === "credits"}
     <Credits meta={meta.meta} />
   {:else if route.view === "power"}

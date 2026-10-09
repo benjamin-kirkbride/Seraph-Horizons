@@ -23,6 +23,7 @@ below that JSON Schema cannot express.
 | `guides` | Handbook guide pages that are not tied to one item. |
 | `variantGroups` | Optional. The pack's own mod's Tidy Variants groups, keyed by group id. |
 | `power` | Optional. Mechanical power producers, consumers and the wind ([power.md](power.md)). |
+| `multiblocks` | Optional. Structures built block by block, with the shapes of their blocks ([multiblocks.md](multiblocks.md)). |
 
 ## Codes
 
@@ -73,13 +74,12 @@ they are all absent, which is valid. They are optional additions, so `schemaVers
   them off, the handbook shows "No trade value". The value itself is always the one for the
   default config.
 - `switch`: the config switch that adds the item itself (the gear cutter's blocks and parts,
-  the gear blanks and their molds, the pickling tub, the bare steel gear, the debarked trunks,
+  the gear blanks and their molds, the pickling tub, the debarked trunks,
   ...). With it off the item does not exist.
 
 Recipes have `switch` too: the switch that adds the recipe (its file is one the switch leaves
 out when off, its type is one only that feature has, such as `picklingtub`, `lottery` and
-`gearcutter`, or it is keyed by an item the switch adds, such as the bare steel gear's flash
-rust). Which switch owns what is the mod's switch ownership registry (its README, "Switch
+`gearcutter`, or it is keyed by an item the switch adds, such as a transition of one). Which switch owns what is the mod's switch ownership registry (its README, "Switch
 ownership"), read by reflection. A switch is named as in `ModConfig/seraphhorizons.json`.
 
 ### Variant groups
@@ -122,6 +122,16 @@ patterns (Tidy Variants rewrites `groupBy` on the client only), and skips patter
 placeholder, which the game expands per stack for clutter and shields, both in Tidy Variants'
 groups anyway.
 
+## Multiblocks
+
+`multiblocks`, an optional top-level object, holds the structures a player builds block by block
+and a block checks against a layout (every block whose attributes carry the game's
+`multiblockStructure`, or the pack's `multiblockSizes`), for the site's multiblock viewer:
+`structures`, each with its cells (`[x, y, z, part]` per size) and parts (a code pattern, and the
+block a cell is drawn with), and `shapes`, how each of those blocks is drawn (`cube`, `none`, or
+its shape's elements). It is an optional addition, and `schemaVersion` stayed 1; older exports
+lack it. [multiblocks.md](multiblocks.md) describes every field and how the exporter fills them.
+
 ## Recipes
 
 A recipe record describes the **definition**, as the mod author wrote it, and lists the
@@ -154,8 +164,8 @@ the output item.
 | `construction` | `construction`: stages, each listing the ingredients it consumes | Blocks built in place |
 | `butchery` | `butchery`: stages with what each needs and gives, yields per variant | The Butchering mod |
 | `transition` | `transition`: kind, fresh hours and transition hours | Items that turn into others over time: drying, curing, perishing, ..., and the smoking rack |
-| `tub` | `tub`: kind, hours, batch size, litres, and how gears are lost | The pickling tub's acids and brine bath (seraphhorizons) |
-| `lottery` | `lottery`: when it is decided, and outcomes with chances | The oiled gear (seraphhorizons) |
+| `tub` | `tub`: kind, hours, batch size, litres, and how gears are lost | The pickling tub's acids: pickling and passivating (seraphhorizons) |
+| `lottery` | `lottery`: when it is decided, and outcomes with chances | The neutralized gear (seraphhorizons) |
 | `machine` | `machine`: power, shaft turns, work, kept parts, wear and oil | The gear cutter (seraphhorizons) |
 | `generic` | none | Every type without a dedicated serialiser, and casting in tool molds |
 
@@ -234,7 +244,7 @@ dropped with no bump, since readers ignore `extra` ([deploy.md](deploy.md#changi
 
 ### The gear chain
 
-The pack's own mod reclaims rusty gears, cuts new ones and rusts them back into money
+The pack's own mod reclaims rusty gears (corroded stainless steel) and cuts new ones
 (epic #484). Three of its processes have shapes of their own; the cooking pot and barrel
 steps are ordinary `cooking` and `barrel` records.
 
@@ -243,13 +253,14 @@ table (`PicklingTubSettings`), id `picklingtub|<gear>|<liquid pattern>`. The ing
 the gear (role `batch`), the liquid (role `liquid`; its `litres` are what a finished batch
 uses up; the code may be a pattern, and the variant lists every liquid it matches) and the
 tub (role `station`). The first output is what the batch becomes. `tub` has the `kind`
-(`pickle` for an acid, `rust` for brine), the `hours` to done and the `batchSize`; when the
-liquid can lose gears, `failure` is the index of the output a lost gear becomes (steel bits),
-`graceHours` and `lossEveryHours` say when an acid starts eating a batch left past done and
-how fast, and `lossChance` is each gear's chance to come out lost at done (brine's
-over-rusting).
+(`pickle` for an acid that takes the scale off, `passivate` for the nitric acid that
+passivates; any other string a reader shows plainly), the `hours` to done and the `batchSize`;
+when the liquid can lose gears, `failure` is the index of the output a lost gear becomes
+(stainless bits), `graceHours` and `lossEveryHours` say when an acid starts eating a batch left
+past done and how fast, and `lossChance` is each gear's chance to come out lost at done (no
+default rule has one; the brine bath of earlier exports had, with the kind `rust`).
 
-**The oiled gear** (type `lottery`, shape `lottery`): an item decided by chance, one at a time.
+**The neutralized gear** (type `lottery`, shape `lottery`): an item decided by chance, one at a time.
 The one ingredient is the item; `lottery.trigger` says when (`inventory`: when it lands in a
 player's inventory) and `lottery.outcomes` lists each outcome's `chance` and the `outputs`
 indices it gives (none: it is lost). Chances add up to 1.
@@ -346,6 +357,9 @@ prepare-data writes the section as it is to `power.json`; an export without it g
 - An item's `value` is a finite number, 0 or more.
 - Every member of a `variantGroups` entry is a key of `items`, a group has two or more
   distinct members and a non-empty title, and no code is in two groups.
+- In `multiblocks`: structure ids are unique and their `mod` a key of `mods`; every cell names
+  an existing part and no two cells of a size share a place; a part has a `block` or `air`, and
+  its `block` is a key of `multiblocks.shapes`; `defaultSize` is a size that exists.
 - `variants[].ingredients` is as long as `ingredients`.
 - Power entry ids are unique within `producers` and within `consumers`; an entry's `item` is a
   key of `items` (or null) and its `mod` a key of `mods`; `loadMax` is at least `load`, a wind

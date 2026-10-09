@@ -14,6 +14,8 @@ import {
   type ItemChunk,
   type ItemDetail,
   type Meta,
+  type MultiblockFile,
+  type MultiblockIndex,
   type RecipeChunk,
   type SearchFile,
   type TypeInfo,
@@ -420,6 +422,9 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
   const groups = variantGroups(exp, codes);
   if (groups) search.groups = groups;
 
+  const multiblocks = multiblockFiles(exp);
+  for (const [path, file] of multiblocks.files) files.set(path, file);
+
   const meta: Meta = {
     format: DATA_FORMAT,
     pack: exp.pack,
@@ -440,12 +445,43 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     entityChunks,
     ...(valueCount > 0 ? { valueCount } : {}),
     ...(exp.power ? { power: true } : {}),
+    ...(multiblocks.index.multiblocks.length > 0 ? { multiblockCount: multiblocks.index.multiblocks.length } : {}),
   };
   files.set("meta.json", meta);
   files.set("entities.json", entities.index);
+  if (multiblocks.index.multiblocks.length > 0) files.set("multiblocks.json", multiblocks.index);
   files.set("search.json", search);
   // The power page's data, as the export has it (power-data.ts). An export without it, such as
   // every one made before it existed, gives no power.json, which the app reads as none.
   if (exp.power) files.set("power.json", exp.power);
   return { files, meta };
+}
+
+/**
+ * multiblocks.json and a file per structure, with the shapes of only the blocks it is drawn
+ * with: a structure's page fetches its own file and nothing else.
+ */
+export function multiblockFiles(exp: RecipeExport): { index: MultiblockIndex; files: Map<string, MultiblockFile> } {
+  const index: MultiblockIndex = { multiblocks: [] };
+  const files = new Map<string, MultiblockFile>();
+  const all = exp.multiblocks;
+  if (!all) return { index, files };
+  all.structures.forEach((structure, file) => {
+    const shapes: MultiblockFile["shapes"] = {};
+    for (const p of structure.parts) {
+      const shape = p.block !== undefined ? all.shapes[p.block] : undefined;
+      if (shape) shapes[p.block!] = shape;
+    }
+    files.set(`multiblocks/${file}.json`, { structure, shapes });
+    const first = structure.sizes[structure.defaultSize ?? 0] ?? structure.sizes[0]!;
+    index.multiblocks.push({
+      id: structure.id,
+      name: structure.name,
+      mod: structure.mod,
+      cells: first.cells.length,
+      ...(structure.sizes.length > 1 ? { sizes: structure.sizes.map((s, i) => s.label ?? String(i + 1)) } : {}),
+      file,
+    });
+  });
+  return { index, files };
 }

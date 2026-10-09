@@ -5,23 +5,25 @@ using Vintagestory.API.Common;
 namespace SeraphHorizons.Mod.Gears;
 
 /// <summary>
-/// Steel gear blanks (#479, README "Steel gear blanks"): <c>seraphhorizons:gearblank-steel</c> and
-/// <c>seraphhorizons:largegearblank-steel</c>, cast in clay-formed gear blank molds or smithed from
-/// one and two steel ingots. All of it is assets on the game's own classes (the molds are
+/// Stainless gear blanks (#479, README "Stainless gear blanks"):
+/// <c>seraphhorizons:gearblank-stainlesssteel</c> and <c>seraphhorizons:largegearblank-stainlesssteel</c>
+/// (the variant is the game's metal code, which the molds' drop fills in), cast in clay-formed gear
+/// blank molds, four small ones to an ingot, or smithed two small ones from a stainless steel ingot
+/// and a large one from two. All of it is assets on the game's own classes (the molds are
 /// <c>BlockToolMold</c>s), so the switch only decides whether those assets load: with it off the
 /// server marks them disabled before the game reads them, and the blanks and molds do not exist.
 /// </summary>
 public static class GearBlanks
 {
     public const string Domain = "seraphhorizons";
-    public const string Blank = Domain + ":gearblank-steel";
-    public const string LargeBlank = Domain + ":largegearblank-steel";
+    public const string Blank = Domain + ":gearblank-stainlesssteel";
+    public const string LargeBlank = Domain + ":largegearblank-stainlesssteel";
 
     /// <summary>The molds' tool types, the third part of <c>seraphhorizons:toolmold-{color}-{raw|fired}-{tooltype}</c>.</summary>
     public const string MoldType = "gearblank", LargeMoldType = "largegearblank";
 
     /// <summary>Units of molten metal a mold takes (an ingot is 100).</summary>
-    public const int MoldUnits = 100, LargeMoldUnits = 200;
+    public const int MoldUnits = 25, LargeMoldUnits = 200;
 
     public static readonly AssetLocation[] TypeAssets =
     [

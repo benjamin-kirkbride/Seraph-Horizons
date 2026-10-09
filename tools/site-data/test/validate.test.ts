@@ -64,7 +64,7 @@ describe("validate: cross-references", () => {
 
   it("takes item values, switches and recipe switches, and rejects a negative value", () => {
     const d = example();
-    expect(d.items["seraphhorizons:gear-steel"].valueSwitches).toEqual(["GearBlanks", "GearCutter"]);
+    expect(d.items["seraphhorizons:gear-stainless"].valueSwitches).toEqual(["GearBlanks", "GearCutter"]);
     d.items["examplemod:widget"].value = -1;
     expect(problems(d).length).toBeGreaterThan(0);
     d.items["examplemod:widget"].value = 0;
@@ -188,6 +188,49 @@ describe("validate: cross-references", () => {
     const d = example();
     d.power.producers[0].model.kind = "turbine";
     expect(problems(d).length).toBeGreaterThan(0);
+  });
+
+  it("passes an export without multiblocks", () => {
+    const d = example();
+    delete d.multiblocks;
+    expect(problems(d)).toEqual([]);
+  });
+
+  it("rejects a multiblock cell whose part does not exist", () => {
+    const d = example();
+    d.multiblocks.structures[0].sizes[1].cells[2][3] = 4;
+    expect(problems(d)).toEqual([["multiblock-cell", "/multiblocks/structures/0/sizes/1/cells/2/3"]]);
+  });
+
+  it("rejects two multiblock cells at one place", () => {
+    const d = example();
+    d.multiblocks.structures[0].sizes[0].cells.push([0, 0, 1, 2]);
+    expect(problems(d)).toEqual([["multiblock-cell", "/multiblocks/structures/0/sizes/0/cells/5"]]);
+  });
+
+  it("rejects a multiblock part drawn with a block that has no shape", () => {
+    const d = example();
+    delete d.multiblocks.shapes["game:claybricks-fire"];
+    expect(problems(d)).toEqual([["multiblock-shape", "/multiblocks/structures/0/parts/1/block"]]);
+  });
+
+  it("rejects a multiblock part with neither a block nor air", () => {
+    const d = example();
+    delete d.multiblocks.structures[0].parts[2].air;
+    expect(problems(d)).toEqual([["multiblock-part", "/multiblocks/structures/0/parts/2"]]);
+  });
+
+  it("rejects a repeated multiblock id, an unknown mod and a missing default size", () => {
+    const d = example();
+    const copy = structuredClone(d.multiblocks.structures[0]);
+    copy.mod = "nomod";
+    copy.defaultSize = 2;
+    d.multiblocks.structures.push(copy);
+    expect(problems(d)).toEqual([
+      ["multiblock-id", "/multiblocks/structures/1/id"],
+      ["multiblock-mod", "/multiblocks/structures/1/mod"],
+      ["multiblock-size", "/multiblocks/structures/1/defaultSize"],
+    ]);
   });
 
   it("rejects a variant ingredient code that is not an item", () => {
@@ -360,7 +403,7 @@ describe("validate: cross-references", () => {
     expect(problems(d)).toEqual([["schema:required", "/recipes/5/transition/transitionHours/avg"]]);
   });
 
-  // recipes[11] is degreased gears pickling in vinegar, recipes[10] the oiled gear's lottery,
+  // recipes[11] is degreased gears pickling in vinegar, recipes[10] the neutralized gear's lottery,
   // recipes[7] a gear cut on the gear cutter.
   it("rejects a tub whose failure is missing, past the outputs, or whose roles are not one each", () => {
     const d = example();
