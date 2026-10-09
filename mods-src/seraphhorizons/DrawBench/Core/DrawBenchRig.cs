@@ -20,7 +20,7 @@ public sealed class DrawBenchRig
     public Side InfeedSide { get; }
     /// <summary>The face a drawn section leaves by.</summary>
     public Side OutputSide { get; }
-    /// <summary>Where a drawn section comes off (the trough's first slot, by the output face).</summary>
+    /// <summary>Where a drawn section comes off (on the output face, by the trough's north end).</summary>
     public Float3 Output { get; }
     /// <summary>The die's mouth, on the draw line: metal dust and lubricant smoke.</summary>
     public Float3 Die { get; }
@@ -124,6 +124,9 @@ public sealed class DrawBenchRig
         var per = Required(draw, "sectionsPerHollow", JsonValueKind.Number);
         if (per.GetDouble() != Drawing.SectionsPerHollow)
             throw new FormatException($"draw.sectionsPerHollow must be {Drawing.SectionsPerHollow}");
+        var handOut = Required(draw, "handOut", JsonValueKind.Number);
+        if (Math.Abs(handOut.GetDouble() - Drawing.HandOut) > 1e-6)
+            throw new FormatException($"draw.handOut must be {Drawing.HandOut}, where the gameplay hands a section out");
         var hollows = Required(draw, "hollows", JsonValueKind.Object);
         if (Str(hollows, "thin") is var thin && thin != Drawing.LeadHollow)
             throw new FormatException($"draw.hollows.thin is {thin ?? "missing"}, the bench draws {Drawing.LeadHollow} as thin");

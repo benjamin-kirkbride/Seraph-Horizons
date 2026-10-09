@@ -339,7 +339,8 @@ public partial class SharedWorldScenarios
         await World.Until(() => bench.Job.Work > 0.02, 30000);
         Assert.True(bench.Running);
         Assert.Contains("Drawing lead:", BenchInfo(bench, player));
-        await World.Until(() => bench.Job.Work >= 1, 120000);
+        // the first comes off as its draw finishes, the jaws open, before the dog goes back
+        await World.Until(() => bench.Job.Work >= Drawing.HandOut, 120000);
         await World.Ticks(3);
         Assert.Equal(1, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
         // it dropped beyond the output face (native east), not inside the bench
@@ -348,13 +349,15 @@ public partial class SharedWorldScenarios
         var local = Footprint.ToLocal(new Float3((float)(dropped.Pos.X - pos.X), (float)(dropped.Pos.Y - pos.Y), (float)(dropped.Pos.Z - pos.Z)), bench.Side);
         Assert.True(local.X > 1 - 0.01f, $"the section is at native {local}");
 
-        // the other three: just short of the second, then each in turn
-        Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, 2) - 2 * Math.PI * 0.2));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 2)));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 3)));
+        // the other three: just short of the second's hand-out, then each in turn
+        Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, 1 + Drawing.HandOut) - 2 * Math.PI * 0.2));
+        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 1 + Drawing.HandOut)));
+        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 2 + Drawing.HandOut)));
+        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 3 + Drawing.HandOut)));
+        // all four are out, but the hollow is done, and the die worn, only once the dog is back at the die
         Assert.True(bench.JobOn);
-        Assert.Equal(100, bench.Parts.DieLeft);   // the die wears when the whole hollow is drawn
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(100, bench.Parts.DieLeft);
+        Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, 4)));
         Assert.False(bench.JobOn);
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
@@ -387,11 +390,11 @@ public partial class SharedWorldScenarios
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
         Assert.Equal(2, bench.Job.Class);
 
-        // a lead section's turns are half a copper section's
+        // a lead section's turns are half a copper section's: past the first copper section's hand-out
         Assert.Equal(bench.TurnsPerSection(1) * 2, bench.TurnsPerSection(2), 0.02);
-        Assert.Equal(0, bench.Draw(2 * Math.PI * bench.TurnsPerSection(1)));
+        Assert.Equal(1, bench.Draw(2 * Math.PI * bench.TurnsPerSection(1)));
         Assert.Equal(0.5, bench.Job.Work, 0.01);
-        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
+        Assert.Equal(3, bench.Draw(BenchRadiansTo(bench, 4)));
         await World.Ticks(5);
         Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(CopperSection));
         Assert.Equal(99, bench.Parts.DieLeft);
@@ -464,7 +467,7 @@ public partial class SharedWorldScenarios
         // refit and load; broken before a pipe section comes off, the hollow comes back too
         Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieSteelCode, 77)));
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.CopperHollow)));
-        bench.Draw(BenchRadiansTo(bench, 0.5));
+        Assert.Equal(0, bench.Draw(BenchRadiansTo(bench, Drawing.HandOut) - 2 * Math.PI * 0.05));
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
         await World.Ticks(3);
@@ -482,11 +485,12 @@ public partial class SharedWorldScenarios
         Assert.Equal(77, die.Collectible.GetRemainingDurability(die));
         CutterKillItems(pos);
 
-        // broken once a pipe section has come off, the rest of the hollow is lost with it
+        // broken once a pipe section has come off (the first, as its draw finished), the rest of the hollow is
+        // lost with it
         bench = await PlaceBench(pos, "west");
         AssembleBench(bench, player);
         Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
-        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 1.5)));
+        Assert.Equal(1, bench.Draw(BenchRadiansTo(bench, 0.5)));
         CutterKillItems(pos);
         W.BlockAccessor.GetBlock(pos).OnBlockBroken(W, pos, player);
         await World.Ticks(3);

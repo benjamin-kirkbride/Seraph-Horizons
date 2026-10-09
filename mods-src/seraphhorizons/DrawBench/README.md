@@ -12,9 +12,9 @@ either side of the section) grips the section's point at the die's mouth, and an
 beside the bed, shackled to the dog, hauls it along. The chain's drive sprocket is turned from the
 vanilla axle through a **rectifier**, a **cone friction clutch**, a two-speed **change gear** (lead
 fast, copper at half the speed) and a **final drive**. The operator's **start lever** throws the clutch
-in and shuts the jaws on the point; when the section's tail leaves the die the jaws spring open, the
-section drops into the **trough** under the bed and slides north down it to queue behind the others,
-and at the end of its travel the dog's lug knocks the clutch out. A **counterweight**, lifted during the
+in and shuts the jaws on the point; when the section's tail leaves the die the jaws spring open and the
+section is handed out (it leaves the model there), and at the end of its travel the dog's lug knocks
+the clutch out. A **counterweight**, lifted during the
 draw by a rope on a barrel geared to the return sprocket, falls and hauls the chain, and the dog, back
 to the die.
 
@@ -47,12 +47,12 @@ front of the die end (native north).
 the metal of a quarter of the hollow drawn out: the item it becomes is the straight pipe's tube, its
 cross-section ppex's (6 × 6, walls 1 round a 4 × 4 bore) and a block long
 (`assets/seraphhorizons/shapes/item/pipesection.json`, held by `tests/Pipes/PipeSectionsTests.cs`), which
-four of would not fit the bench's trough nor come from a hollow's metal. The bench's sections stay as below:
+four of would not come from a hollow's metal. The bench's sections stay as below:
 
 | Piece | Outside | Wall | Bore | Length | On the bench |
 |---|---|---|---|---|---|
 | Hollow section (`game:chutesection-*`, in) | 8 × 8 square | 1 | 6 × 6 | 8 | On the mandrel bar (5.9 square), z 10.4..18.4, against the die stock's back face |
-| Pipe section (`seraphhorizons:pipesection-*`, out), as drawn on the bench | 6 × 6 square (0.375 block; ppex's pipe, its collision box 0.3125..0.6875) | 0.3 | 5.4 × 5.4 (the plug's 5.38) | 8 (0.5 block) | Axis along z; drawn out of the die's mouth, then queued in the trough |
+| Pipe section (`seraphhorizons:pipesection-*`, out), as drawn on the bench | 6 × 6 square (0.375 block; ppex's pipe, its collision box 0.3125..0.6875) | 0.3 | 5.4 × 5.4 (the plug's 5.38) | 8 (0.5 block) | Axis along z; drawn out of the die's mouth and handed out there as the jaws open |
 
 A quarter of the hollow (2 long) is the metal of a section.
 
@@ -63,8 +63,9 @@ the clutch's cup the draw's way; the draw itself is always forward.
 **Anchors** (in `assets/seraphhorizons/config/drawbench-rig.json`): `powerCell` and `powerFace`;
 `infeedSide` north (a chest or hopper beyond the die end's north face feeds hollow sections) and
 `outputSide` east with `output.pos` (`[0.9994, 0.2329, 0.26]`: the east face of the die end's cell
-`[0,0,0]`, level with the first section in the trough, at the middle of its length; a finished section
-leaves the east face there); `die.pos` (the die's mouth on the draw line, where the section emerges: dust
+`[0,0,0]`, level with a section lying on the trough's rails at its north end, where the queue's first
+section lay before sections were handed out as drawn; a finished section leaves the east face there, so
+a chest beside the die end takes it); `die.pos` (the die's mouth on the draw line, where the section emerges: dust
 and lubricant smoke) and `drip.pos` (`[0.3125, 0.9719, 1.1281]`: the oiler's spout over the hollow, just
 behind the die stock). There is no oil anchor: the oil is MachineOil's.
 
@@ -123,7 +124,9 @@ controller is the build frame's own corner cell, so the shipped files are the bu
 on each (to y 8) from the die stock on: the dog's portal runs on them, either side of the section. Oak
 ties join them at two trestles (the tail end and before the head). Between and under them is the
 **trough**: two iron rails (x 2.3..2.9 and 7.1..7.7) whose top runs down to the north (y 0.6 + 0.03 z)
-to a stop at the tail end. The **tail stock** (z 0.3..1.8) holds the mandrel bar; the **die stock** (z
+to a stop at the tail end. No section goes into it any more (each is handed out as its draw finishes);
+it stays as the frame's, unchanged, rather than reshape the bed, its cells' boxes and the output anchor
+beside it. The **tail stock** (z 0.3..1.8) holds the mandrel bar; the **die stock** (z
 18.4..23.4, x 0.6..9.4, up to y 16, its keel down between the ways to y 7.4) is a cast-iron block on
 feet on the beams, with the die plate (z 23.4..24.2) in its mouth. The **drive head** (z 41..58.6) is an
 iron bed plate with two cast cheeks and bearings on posts.
@@ -141,11 +144,12 @@ stroke, each section's point (2 voxels) is through the die, in the dog's open ja
 knuckle) and the dog travels 8 voxels south: 6 draw the section (its tail leaves the die), 2 more carry
 the dog on. When the pull goes, the leaf spring opens the jaw; over the last 1.6 the dog's lug (an arm out
 east from the dog's shank, down to an eye round the clutch rod) carries the rod's collar south and the
-clutch goes out. The free section tips to the trough's slope and drops about 7 between the ways onto the
-rails, then slides north down them to its place in the queue: the first 0.02 from the stop, the others
-end to end behind it 0.024 apart along the rails (their centres at z 4.16, 12.18, 20.2 and 28.22). The counterweight then
-falls and the dog runs back to the die, and after a short pause the next section's point comes through
-(see below).
+clutch goes out. The free section lies out of the die's mouth (z 24.2..32.2) until the jaws are open, and
+is then handed out: gameplay gives it out at that moment, and the model takes it back over the last 0.005
+of a cycle before it to where it rested before its stroke, hidden in the die stock, where it stays to the
+end of the job, so the item and the model never both show it. The dog stands at the end of its stroke a
+moment, the counterweight then falls and the dog runs back to the die, and after a short pause the next
+section's point comes through (see below).
 
 **The cycle, per section** (t is the fraction of a section's cycle, W = m + t for the m-th section):
 
@@ -157,8 +161,8 @@ falls and the dog runs back to the die, and after a short pause the next section
 | 0.356 | The section's tail leaves the die. |
 | 0.356..0.431 | The jaws spring open. |
 | 0.375..0.450 | The lug carries the clutch rod's collar 1.6 south: the clutch goes out, the start lever comes back. |
-| 0.431..0.471 | The section drops into the trough, tipping to its slope. |
-| 0.471..0.530 | It slides north down the rails to its place in the queue. |
+| 0.42625..0.43125 | The jaws open, the section is handed out (`draw.handOut`, 0.43125): it goes back into the die stock, where it rested, and shows no more. |
+| 0.450..0.530 | The dog stands at the end of its stroke. |
 | 0.530..0.905 | The weight falls 2.43 and hauls the chain, and the dog, back to the die (the clutch's sleeve and change gears turn back with the chain; the cup turns on, out of engagement). |
 | 0.905..1.000 | A short pause; the next point comes through the die from 0.92. |
 
@@ -181,21 +185,21 @@ jaws' opening are as long as the knock-off (0.075, a gauge's two eases being equ
   shaft, A' (24) and B' (30). For lead the cluster stands west, A in mesh with A' (the sleeve turns 1.5
   times the drive shaft); for copper the selector slides it 3.4 east, B in mesh with B' (3 times), so a
   copper section takes twice the axle's turns. The pair not in use stands clear.
-- *The final drive.* A wheel (16 teeth, module 0.4) on the drive shaft's west end meshes a pinion of 8 on
+- *The final drive.* A wheel (18 teeth, module 0.4) on the drive shaft's west end meshes a pinion of 6 on
   the sprocket shaft (y 4, z 44.4), which runs east under the head, in the west cheek and a bearing on a
-  post, to the drive sprocket outside the east beam: 2:1 up, the sprocket turning twice the drive shaft,
-  against it. (The pair's centre distance is the old 12:12's, so nothing else moved.)
+  post, to the drive sprocket outside the east beam: 3:1 up, the sprocket turning three times the drive
+  shaft, against it. (The pair's centre distance is the old 12:12's and 16:8's, so nothing else moved.)
 - *The chain.* The drive sprocket (10 teeth, the pins on a circle of 2.6) and the return sprocket (on the
   return shaft, under the die stock's east side, z 20) carry an endless chain of 37 links (pitch 1.607)
   at x 10.8, outside the east beam, both ends shackled to the dog's shank 4.93 apart. The return shaft's
   gear turns the barrel shaft over it 1:1; the counterweight's rope is wound on the barrel (radius 0.75),
   the weight hanging east of the chain.
 
-The axle turns **2.06 times a lead section** and **4.12 times a copper section** at the drawn gearing
-(the rig's `draw.turnsPerSection`): four sections, a hollow, in 8.2 turns (lead) or 16.5 (copper). The
-stroke takes 0.375 of a section's cycle and the return as long; the pause is under a tenth. (It was 7.72
-and 15.45 with a 1:1 final drive and a stroke of 0.2 of the cycle, half of it a dwell: the regearing
-halves the turns a stroke, the shorter dwell takes the rest, 3.75 times as fast.)
+The axle turns **1.373 times a lead section** and **2.746 times a copper section** at the drawn gearing
+(the rig's `draw.turnsPerSection`): four sections, a hollow, in 5.5 turns (lead) or 11.0 (copper). The
+stroke takes 0.375 of a section's cycle and the return as long; the pause is under a tenth. (It was 2.06
+and 4.12 with a 2:1 final drive: the 3:1 takes two thirds of the turns a stroke, 1.5 times as fast. Before
+that it was 7.72 and 15.45 with a 1:1 final drive and a stroke of 0.2 of the cycle, half of it a dwell.)
 
 Every moving part (θ the axle angle, ψ its travel, W sections drawn, k the metal: 1 lead, 2 copper, p
 its presence, oil the tank's fill). A gauge's windows are one per section:
@@ -211,7 +215,7 @@ its presence, oil the tank's fill). A gauge's windows are one per section:
 | Cone (`cone`) [gearbox] | The cup (friction); the crank's fork | The sleeve (a feather) | the sleeve's `gauge`; `gauge` slide x 0.6, in at the start, out at the knock-off |
 | Sleeve (`sleeve`) [gearbox] | The cone | The cluster | `gauge` rotate x 1.5 or 3 × the drive shaft's turn, out in the draw and back in the return |
 | Change-gear cluster (`cluster`) [gearbox] | The sleeve (a feather); the selector's fork | A' (lead) or B' (copper) | the sleeve's `gauge`; `gauge` slide x 3.4 for copper (`present`) |
-| Drive shaft, A', B', the final drive's wheel (`driveshaft`) [gearbox] | The cluster | The final drive's pinion | `gauge` rotate x −1.62 rad (half the sprocket's turn), the draw and back |
+| Drive shaft, A', B', the final drive's wheel (`driveshaft`) [gearbox] | The cluster | The final drive's pinion | `gauge` rotate x −1.08 rad (a third of the sprocket's turn), the draw and back |
 | Sprocket shaft, the final drive's pinion, the drive sprocket (`drivesprocket`) [chain] | The final drive | The chain | `gauge` rotate x 3.24 rad (8 / the chain's radius) |
 | Chain's links on the top run (`chaintop`), on the bottom run (`chainbottom`) [chain] | The dog's shank / the loop | — | `gauge` slide z ±8, the draw and back |
 | Chain links that go round a sprocket in a stroke (`ch04`..`ch13`, `ch24`..`ch33`) [chain] | The loop | — | one `gauge` per piece of the loop crossed: slide along a run, rotate round a sprocket's centre |
@@ -231,12 +235,14 @@ its presence, oil the tank's fill). A gauge's windows are one per section:
 | Spring coils (`spring1`..`spring6`) [mandrel] | The follower | — | `gauge` slide z, each its share of the follower's travel |
 | Die (`die`) [die] | Fixed | — | none |
 | The hollow's quarters (`lslug1`..`4`) [billetlead], (`cslug1`..`4`) [billetcopper] | The follower; the die | — | `gauge` slide z 2 a stroke, one stroke more each quarter, into the die stock |
-| Section segments (`lsect1a`..`lsect4b`) [billetlead], (`csect1a`..`csect4b`) [billetcopper]: section 1..4, segment a, b | The dog (drawn out of the die); the trough | — | point: `gauge` slide z 2 before the stroke; `gauge` slide z with the dog from when the segment reaches the mouth; the drop: `gauge` rotate x to the trough's slope and slide y; then slides z and y north down the rails to its slot |
+| Section segments (`lsect1a`..`lsect4b`) [billetlead], (`csect1a`..`csect4b`) [billetcopper]: section 1..4, segment a, b | The dog (drawn out of the die) | — | point: `gauge` slide z 2 before the stroke; `gauge` slide z with the dog from when the segment reaches the mouth; the hand-out: `gauge` slide z back by all of that over 0.42625..0.43125, to its rest place in the die stock, open to the end |
 | Oil in the cup (`oillevel`) | The machine's oil tank (MachineOil) | (shows it) | `stretch` y, 0.05 → 1.15 tall (oil) |
 | Frame (`frame`) | Static | — | none |
 
 The rig's `draw` holds `turnsPerSection` (per metal), `sectionsPerHollow` (4; each a
-`seraphhorizons:pipesection` of the hollow's metal) and the hollow each metal's work is (`hollows`:
+`seraphhorizons:pipesection` of the hollow's metal), `handOut` (0.43125: section m + 1 is handed out at W =
+m + `handOut`, where the model hides it; the gameplay's `Drawing.HandOut`, and the reader refuses a rig
+whose value differs) and the hollow each metal's work is (`hollows`:
 `game:chutesection-lead`, `game:chutesection-copper`). The gameplay's pace should take its default from
 `turnsPerSection`, or a test should hold the two together, as the gear cutter's `cut.turnsPerTooth` and the
 rosser's `feed.gear` are.
@@ -273,8 +279,9 @@ and exits non-zero if one fails:
   sprockets turning with the chain.
 - **Work:** the section being drawn whole from the die's mouth to its point in the jaws, the rest of it in
   the die stock; the hollow's quarters end to end from the follower to the die stock; the spring's coils
-  sharing the follower's travel; the four sections in the trough, each in its slot, a face flat on the
-  rails and touching them, the first 0.02 from the stop and the others end to end behind it.
+  sharing the follower's travel; each section out of the die's mouth, its tail at the mouth, until just
+  before its hand-out, and from W = m + 0.43125 to the job's end back at its rest place (its matrix the
+  identity), wholly inside the die stock.
 - **Bore:** between strokes the die's bore is empty, and the face seen in it (the frontmost hidden
   segment's) stands at least 0.01 clear of whatever is behind it.
 - **Weight:** it rises as the barrel winds its rope, and the rope reaches from the barrel to the weight's
@@ -294,9 +301,10 @@ and exits non-zero if one fails:
 - **No z-fighting** (full runs): no coplanar overlapping faces at five poses of both metals, of what can
   be seen: another metal's work, the work hidden in the die stock and the rope taken up into the weight
   are left out of both the fix and the check (`shown`).
-- **Swept paths** (full runs): the dog through its whole stroke and back, finely, and the section through
-  its drop and slide, every 0.005 of a cycle, for both metals and the first and last section (532 poses).
-- **Clearances:** over 211 poses (both metals, every phase of the cycle, all four sections) no two parts
+- **Swept paths** (full runs): the dog through its whole stroke and back, finely, and the section from its
+  release through the jaws' opening, every 0.005 of a cycle, and through its way back into the die stock,
+  every 0.001, for both metals and the first and last section (480 poses).
+- **Clearances:** over 219 poses (both metals, every phase of the cycle, all four sections) no two parts
   touch except the intended contacts listed in `ALLOWED`.
 - **Files:** every texture declared; lids over every column; the shipped model is the checked one moved.
 
@@ -314,8 +322,8 @@ maths: a `work` quantity, gauges, rotations on θ and ψ, and a `stretch` on the
 - **Inputs.** θ and ψ as the mill's; W, k and p; and the oil. k is the hollow's metal (1 lead, 2 copper,
   0 none); p its presence, eased as the hollow is loaded and cleared, k held while p eases out. The
   gameplay advances W with the shaft at `1 / turnsPerSection[k]` per turn from 0 when a hollow goes on, and
-  holds it at 4 when the job is done; it delivers the sections (each drops into the trough at W = m +
-  0.43..0.53), clears the bench (p eases out with W held at 4: the follower and its spring go back) and
+  holds it at 4 when the job is done; it delivers section m + 1 at W = m + `draw.handOut` (0.43125), as
+  the model hides it, clears the bench (p eases out with W held at 4: the follower and its spring go back) and
   starts the next hollow at W = 0.
 - Every motion of a stroke is a `gauge` with one window per section, rising over the draw and falling over the
   return (the return is as long as the draw, so a window's two eases are equal); parts that go one way
@@ -323,7 +331,7 @@ maths: a `work` quantity, gauges, rotations on θ and ψ, and a `stretch` on the
   end of the job (`to` 1000) and come back with p. The change gear's setting is a `present` gauge.
 
 **Keys.** `cells`, `powerCell` and `powerFace`, `infeedSide`, `outputSide`, `output`, `die`, `drip`,
-`work`, `draw` (`turnsPerSection`, `sectionsPerHollow`, `hollows`) and `parts`. `requires` values:
+`work`, `draw` (`turnsPerSection`, `sectionsPerHollow`, `handOut`, `hollows`) and `parts`. `requires` values:
 `gearbox`, `chain`, `dog`, `mandrel`, `die`, `billetlead`, `billetcopper`, or null. The die's texture code
 is `die`.
 
@@ -359,7 +367,7 @@ The model has been reviewed in projections rendered from the written files and i
    width between the ways; the chain, the weight and the controls stand outside the east beam, in the same
    one-block cell, so the bench is crowded on that side.
 3. **Linear ramps.** The gauges move in straight ramps: the dog starts and stops at full speed, the jaws and
-   the start lever snap over 0.075 of a cycle, the section drops and slides in straight lines.
+   the start lever snap over 0.075 of a cycle.
 4. **Box teeth and links.** The gears' teeth, the sprockets' teeth and the chain's links are boxes; the
    links are drawn round a sprocket at the chain's kinematic radius, so their pins sit on the pitch circle
    only at a link's ends.
@@ -374,8 +382,12 @@ The model has been reviewed in projections rendered from the written files and i
    setting is the operator's, eased in with the hollow's presence.
 9. **Lead and copper look the same** but for their texture: the hollow and the sections are one geometry.
 10. **The pipe section item is not the drawn section.** The item is the pipe's tube (6 across, walls 1, a
-    block long); the bench draws and queues a thinner, half-block section, the metal a quarter of the
-    hollow holds.
+    block long); the bench draws a thinner, half-block section, the metal a quarter of the hollow holds.
+11. **A handed-out section is hidden, not carried off.** Nothing shows it leaving the bench: over the 0.005
+    of a cycle before its hand-out it goes back through the die to where it rested in the die stock, and
+    stays there unseen (a frame or two in the game; one step of the viewer's slider). The item appears at
+    the output face by the die end, about a block and a half north of where the section lay, and the
+    trough under the bed is left idle.
 
 ## Gameplay
 
@@ -428,7 +440,8 @@ item's durability is `DieDurability`, set on the server in `AssetsFinalize` befo
 clients (the file's 100 is the default). Ctrl + right-click takes the die back, with a `durability`
 attribute when worn, and only while no hollow is on the bench (`CanTakeDie`; with one on, an error); the
 other stages come back only by breaking the frame, which drops every part, the die with its wear, and the
-hollow if no pipe section has come off it yet (once one has, the rest of it is lost). The creative shortcut
+hollow if no pipe section has come off it yet (the first comes off at W = 0.43125; once one has, the rest of
+it is lost; broken after the fourth's hand-out, before W = 4, nothing is lost and the die is not worn). The creative shortcut
 (Ctrl in creative mode on an incomplete bench) fits each stage's first code, the steel die last. A save
 restores the stages as a run from the first; a die with nothing left is dropped.
 
@@ -447,13 +460,16 @@ is 1 for a lead hollow, 2 for a copper one (the rig's `draw.hollows`; `draw.sect
 the reader takes only these keys, and refuses a rig without them). W runs from 0 to 4 by
 `SectionsFor(radians, TurnsPerSection(k))` while `Drawing.Running` (complete, a hollow on, the shaft at
 `MinSpeed`); `BEDrawBench.Draw(radians)` is the step (the server's 50 ms tick calls it with the shaft's
-advance; the Atlas scenarios call it to finish a hollow). Each time W crosses 1, 2, 3 and 4 one pipe
-section goes into a container in `DrawBenchRig.OutputNeighbour()` (the cell beyond `output.pos` across the
-output face: native east of the die end's cell, where the model's trough brings them), else drops at
+advance; the Atlas scenarios call it to finish a hollow). Each time W crosses a section's hand-out, m +
+`Drawing.HandOut` (0.43125, 1.43125, 2.43125 and 3.43125: the section's tail has left the die and the
+jaws have sprung open), one pipe section goes into a container in `DrawBenchRig.OutputNeighbour()` (the
+cell beyond `output.pos` across the output face: native east of the die end's cell), else drops at
 `OutputDrop()`, pushed outward, as the gear cutter's gears do; the tank drains `DrainPerJob` (2) a pipe
-section, 8 a hollow. (The model drops each section into its trough from W = m + 0.43; gameplay delivers at
-the whole number, a stroke's return and dwell later, so a section is never handed out before its cycle
-is over, and the count is the job's own `SectionsDone`.) At W = 4 the hollow is used up and the die wears
+section, 8 a hollow. The model hides the section at the same W (the rig's `draw.handOut`, which the reader
+holds to `Drawing.HandOut`), and the renderer's W is never behind the server's, so the item and the
+model never both show it; `SectionsDone` counts the hand-outs W has reached. (Before, the model dropped
+each section into the trough to queue there and gameplay delivered at the whole number, a return and a
+pause later.) At W = 4, the dog back at the die after the fourth stroke, the hollow is used up and the die wears
 `DieWearPerHollow` (1), whatever the oil (the export's `wear.rule` `fixed`): at 0 it is gone with the
 tool-break sound and the bench stops until a new die is fitted. The bench then clears, and the infeed
 (the cell in front of the die end, `InfeedNeighbours`, a container slot holding a hollow the die draws)
@@ -478,8 +494,8 @@ from the power ghost's angle about native x (`MillMotion.NativeShaftAngle(.., Ax
 metal dust (lead grey, copper red) and, oiled, a wisp of burning lubricant at `die.pos`, drips from the
 oiler at `drip.pos`, and the gears' sound every 1.8 s; a dry bench smokes at the die.
 
-**Settings** (`DrawBenchSettings`): `DieDurability` 100 (hollows a die draws), `DieWearPerHollow` 1, `TurnsPerSectionLead` 2.06 and
-`TurnsPerSectionCopper` 4.12 (the rig's `draw.turnsPerSection`, held to it within 0.01 by
+**Settings** (`DrawBenchSettings`): `DieDurability` 100 (hollows a die draws), `DieWearPerHollow` 1, `TurnsPerSectionLead` 1.373 and
+`TurnsPerSectionCopper` 2.746 (the rig's `draw.turnsPerSection`, held to it within 0.01 by
 `DrawBenchRigTests.The_default_pace_is_the_rigs`), `ResistanceLead` 0.2, `ResistanceCopper` 0.35, `MinSpeed`
 0.05 and `DieMetals`; each falls back to its default with a warning when out of range, and `DieMetals`
 keeps only lead and copper and both dies. The oil's are `MachineOilSettings.DrawBench` (tank 1000, 2 a
@@ -507,9 +523,9 @@ for the frame and the dies come from the next `itemvalues.py build`.
 
 **Tests.** `tests/DrawBench/DrawBenchGameplayTests.cs` (no game): the build order and what each stage takes,
 order and repeats refused, the die's metal, durability, take-back and wear, drops and saves, the creative
-order, the draw's arithmetic (a section at each whole W to 4, big steps, the end held), hollows in and
+order, the draw's arithmetic (a section at each hand-out, W = m + 0.43125, the job done at 4, big steps, the end held), hollows in and
 ingots, angles and pipe sections never, the die gating, a die's 100 hollows, the renderer's clock, the settings and their sanitising, and the rig reader on a hand-trimmed
-rig (`tests/DrawBench/fixtures/drawbench-rig-test.json`). `tests/DrawBench/DrawBenchRigTests.cs` parses the
+rig (`tests/DrawBench/fixtures/drawbench-rig-test.json`, refused with a `handOut` other than the gameplay's). `tests/DrawBench/DrawBenchRigTests.cs` parses the
 shipped rig with the shared `RigParts` and `RigProgress` and the gameplay's reader, checks the
 vocabulary both ways, replays every reference pose of `tests/DrawBench/rig-reference.json`, and holds the
 settings' pace to `draw.turnsPerSection` (each test skips, saying why, while its file is not generated).

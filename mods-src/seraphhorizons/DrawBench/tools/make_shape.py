@@ -10,8 +10,8 @@ dog (drawing tongs on a portal running on two ways either side of the section) g
 shackled to the dog, hauls it along. The chain's drive sprocket is turned from the vanilla axle
 through a rectifier, a cone friction clutch, a two-speed change gear (lead fast, copper slow) and a
 final drive. The operator's start lever throws the clutch in and closes the jaws on the point; when the
-section's tail leaves the die the jaws spring open and the section drops into the trough under the
-bed and slides north down it to queue behind the others; at the end of its travel the dog's lug
+section's tail leaves the die the jaws spring open and the section is handed out (the model hides it
+then, back where it rested in the die stock before its stroke); at the end of its travel the dog's lug
 knocks the clutch out. A counterweight, lifted during the draw by a rope on a barrel geared to the
 return sprocket, falls and hauls the chain, and the dog, back to the die. Four strokes a hollow.
 Everything is built here from plain boxes; no other mod's model is used.
@@ -137,7 +137,7 @@ STOCK_X = (0.6, 9.4)
 STOCK_TOP = 16.0
 STOCK_KEEL = 7.4                             # the die stock reaches down between the ways over the trough
 
-# ---------------------------------------------------------------- the trough: the sections queue in it
+# ---------------------------------------------------------------- the trough (the frame's; no section goes into it)
 TROUGH_X = (WAY_W[1], WAY_E[0])
 RAILS_X = ((2.3, 2.9), (7.1, 7.7))
 FLOOR0, FLOOR_SLOPE = 0.6, 0.03              # the rails' top: y = FLOOR0 + FLOOR_SLOPE z (it runs down to the north)
@@ -195,7 +195,7 @@ DRAW_SIGN = 1.0                              # the sleeve and the rectified shaf
 D_Y = 6.0
 D_Z = RECT[1] - math.sqrt(CG_D ** 2 - (RECT[0] - D_Y) ** 2)   # the drive shaft (the change gear's), under the rectified shaft
 FD_MOD = 0.4                                 # the final drive: a wheel on the drive shaft's west end, a pinion on the sprocket shaft
-FD_TEETH_D, FD_TEETH_S = 16, 8               # 2:1 up: the sprocket turns twice the drive shaft
+FD_TEETH_D, FD_TEETH_S = 18, 6               # 3:1 up: the sprocket turns three times the drive shaft (the old 16:8's centres)
 FD_RD, FD_RS = FD_MOD * FD_TEETH_D / 2, FD_MOD * FD_TEETH_S / 2
 FD_RATIO = FD_TEETH_D / FD_TEETH_S           # sprocket turns per drive-shaft turn
 X_FD = (2.0, 2.6)
@@ -279,8 +279,8 @@ T_DRAW = (T_START[1], T_START[1] + SPAN)     # the dog travels S_DOG (0.075..0.4
 T_TUBE = T_DRAW[0] + SPAN * S_TUBE / S_DOG   # the section's tail leaves the die (0.356)
 T_OPEN = (T_TUBE, T_TUBE + T_START[1])       # the jaws spring open (as long as the start: a gauge's two eases are equal)
 T_KNOCK = (T_DRAW[1] - SPAN * KNOCK / S_DOG, T_DRAW[1])   # the lug knocks the clutch out
-T_DROP = (T_OPEN[1], T_OPEN[1] + 0.04)       # the section drops into the trough
-T_ROLL = (T_DROP[1], 0.53)                   # and slides north down it to its place in the queue
+T_OUT = T_OPEN[1]                            # the jaws are open: the section is handed out (draw.handOut) and leaves the model
+OUT_EASE = 0.005                             # it goes back to where it rested, hidden in the die stock, over the last 0.005 before
 T_RETURN = (0.53, 0.53 + SPAN)               # the weight hauls the dog back (as long as the draw); then a short dwell to 1
 T_POINT = (-0.08, 0.0)                       # the next section's point is through the die before its stroke
 
@@ -425,10 +425,8 @@ def rest_y(z, r=PIPE_R):
     return floor_y(z) + r / math.cos(FLOOR_ANG)
 
 
-# The sections queue in the trough from its north end: the first slides furthest, the last stays where it drops.
-DROP_Z = Z_MOUTH + PIPE / 2                  # a section's middle as it is drawn (and as it drops)
-SLOT_Z = [STOP_Z[1] + PIPE / 2 + SLOT_GAP + (PIPE + SLOT_GAP) * m for m in range(SLUGS)]
-assert abs(SLOT_Z[-1] - DROP_Z) < 0.05, SLOT_Z
+# The output anchor: the east face, level with a section lying on the trough's rails at its north end.
+OUTPUT_Z = STOP_Z[1] + PIPE / 2 + SLOT_GAP
 
 
 # ---------------------------------------------------------------- derived positions
@@ -1127,24 +1125,22 @@ def _rig_parts():
             parts.append({"id": f"{pre}slug{k + 1}", "match": [f"{pre}slug{k + 1}_*"], "requires": req,
                           "drivers": [gauge("slide", "z", per_class(SLUG_L / B), once(m, T_DRAW[0], T_TUBE)) for m in range(k + 1)]})
         for m in range(SLUGS):
-            dz, dy = SLOT_Z[m] - DROP_Z, rest_y(SLOT_Z[m]) - rest_y(DROP_Z)
             for j in range(NSEG):
                 part = f"{pre}sect{m + 1}{'ab'[j]}"
                 drivers = []
+                moved = 0.0
                 if j == 0:
                     # every point comes to the same place in the jaws, from however deep it rested
-                    drivers.append(gauge("slide", "z", per_class((Z_MOUTH + POINT - seg_rest(m, 0)) / B), once(m, *T_POINT)))
+                    moved += Z_MOUTH + POINT - seg_rest(m, 0)
+                    drivers.append(gauge("slide", "z", per_class(moved / B), once(m, *T_POINT)))
                     start = 0.0
                 else:
                     start = seg_rest(m, j) + SEG * j - (Z_MOUTH + POINT)
+                moved += S_TUBE - start
                 drivers.append(gauge("slide", "z", per_class((S_TUBE - start) / B),
                                      once(m, T_DRAW[0] + span * start / S_DOG, T_TUBE)))
-                # it drops into the trough, tipping to lie flat on its rails, then slides north down them
-                drivers.append(gauge("rotate", "x", per_class(-FLOOR_ANG), once(m, *T_DROP), pivot=pt(0.0, DL[1], DROP_Z)))
-                drivers.append(gauge("slide", "y", per_class((rest_y(DROP_Z) - DL[1]) / B), once(m, *T_DROP)))
-                if abs(dz) > 1e-9:
-                    drivers.append(gauge("slide", "z", per_class(dz / B), once(m, *T_ROLL)))
-                    drivers.append(gauge("slide", "y", per_class(dy / B), once(m, *T_ROLL)))
+                # handed out as the jaws finish opening: it goes back to its rest place, hidden in the die stock
+                drivers.append(gauge("slide", "z", per_class(-moved / B), once(m, T_OUT - OUT_EASE, T_OUT)))
                 parts.append({"id": part, "match": [f"{part}_*"], "requires": req, "drivers": drivers})
     (ox0, ox1), (oy0, oy1), (oz0, oz1) = OILER["x"], OILER["y"], OILER["z"]
     parts += [
@@ -1209,18 +1205,21 @@ def make_rig(parts):
         "powerFace": POWER_FACE,
         "infeedSide": "north",
         "outputSide": "east",
-        "output": {"pos": pt(CELLS_X * B - 0.01, rest_y(SLOT_Z[0]), SLOT_Z[0])},
+        "output": {"pos": pt(CELLS_X * B - 0.01, rest_y(OUTPUT_Z), OUTPUT_Z)},
         "die": {"pos": pt(DL[0], DL[1], Z_MOUTH)},
         "drip": {"pos": pt(*DRIP)},
         "work": dict(WORK),
         "draw": {"turnsPerSection": per_class(turns_per_section("thin"), turns_per_section("thick")),
                  "sectionsPerHollow": SLUGS,
+                 "handOut": r6(T_OUT),
                  "hollows": {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"},
                  "_comment": f"turnsPerSection: axle turns per section's cycle as the gearing is drawn (the rectifier's {RECT_A1}:{RECT_B1}, "
                              f"the change gear's {CG['a']}:{CG['ap']} for lead and {CG['b']}:{CG['bp']} for copper, the final drive's "
                              f"{FD_TEETH_D}:{FD_TEETH_S}, the drive "
                              f"sprocket's turn over a stroke that is {T_DRAW[1] - T_DRAW[0]:g} of the cycle). sectionsPerHollow: the "
-                             "job's end (each a seraphhorizons:pipesection of the hollow's metal). hollows: what each class's work is "
+                             "job's end (each a seraphhorizons:pipesection of the hollow's metal). handOut: the point in a section's "
+                             "cycle (W = m + handOut) where the jaws are open and section m + 1 is handed out; the model hides it "
+                             "from there. hollows: what each class's work is "
                              "(the game's chute section, drawn over the mandrel)."},
         "parts": parts,
     }
