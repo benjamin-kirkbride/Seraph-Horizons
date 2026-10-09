@@ -23,6 +23,7 @@ below that JSON Schema cannot express.
 | `guides` | Handbook guide pages that are not tied to one item. |
 | `variantGroups` | Optional. The pack's own mod's Tidy Variants groups, keyed by group id. |
 | `power` | Optional. Mechanical power producers, consumers and the wind ([power.md](power.md)). |
+| `multiblocks` | Optional. Structures built block by block, with the shapes of their blocks ([multiblocks.md](multiblocks.md)). |
 
 ## Codes
 
@@ -121,6 +122,16 @@ the export runs. The handbook pass matches with the game's own `WildcardUtil`, o
 patterns (Tidy Variants rewrites `groupBy` on the client only), and skips patterns with a `{`
 placeholder, which the game expands per stack for clutter and shields, both in Tidy Variants'
 groups anyway.
+
+## Multiblocks
+
+`multiblocks`, an optional top-level object, holds the structures a player builds block by block
+and a block checks against a layout (every block whose attributes carry the game's
+`multiblockStructure`, or the pack's `multiblockSizes`), for the site's multiblock viewer:
+`structures`, each with its cells (`[x, y, z, part]` per size) and parts (a code pattern, and the
+block a cell is drawn with), and `shapes`, how each of those blocks is drawn (`cube`, `none`, or
+its shape's elements). It is an optional addition, and `schemaVersion` stayed 1; older exports
+lack it. [multiblocks.md](multiblocks.md) describes every field and how the exporter fills them.
 
 ## Recipes
 
@@ -346,6 +357,9 @@ prepare-data writes the section as it is to `power.json`; an export without it g
 - An item's `value` is a finite number, 0 or more.
 - Every member of a `variantGroups` entry is a key of `items`, a group has two or more
   distinct members and a non-empty title, and no code is in two groups.
+- In `multiblocks`: structure ids are unique and their `mod` a key of `mods`; every cell names
+  an existing part and no two cells of a size share a place; a part has a `block` or `air`, and
+  its `block` is a key of `multiblocks.shapes`; `defaultSize` is a size that exists.
 - `variants[].ingredients` is as long as `ingredients`.
 - Power entry ids are unique within `producers` and within `consumers`; an entry's `item` is a
   key of `items` (or null) and its `mod` a key of `mods`; `loadMax` is at least `load`, a wind

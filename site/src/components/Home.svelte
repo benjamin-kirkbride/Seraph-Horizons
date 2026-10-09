@@ -14,6 +14,9 @@
 {#if meta.entityCount > 0}
   <p><a href={formatRoute({ view: "entities", version })}>{t.entitiesHomeLink(meta.entityCount)}</a></p>
 {/if}
+{#if (meta.multiblockCount ?? 0) > 0}
+  <p><a href={formatRoute({ view: "multiblocks", version })}>{t.multiblocksHomeLink(meta.multiblockCount!)}</a></p>
+{/if}
 {#if (meta.valueCount ?? 0) > 0}
   <p><a href={formatRoute({ view: "values", version })}>{t.valuesHomeLink(meta.valueCount!)}</a></p>
 {/if}

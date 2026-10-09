@@ -386,6 +386,14 @@ Checked in the pack's code (decompiled) and assets; none is exported:
 | Compost Bin 1.3.15 | A bin that composts perishables, with a Harmony patch on `GetTransitionRateMul` for perishing | Composting, not drying; not examined further |
 | Stone Bake Oven 1.4.0 | "Smoke" on the oven grill | Only the grill block's hot/cold look, not a process |
 
+## Multiblocks
+
+`MultiblockSection` writes `multiblocks`: every block whose resolved attributes carry the game's
+`multiblockStructure` (vanilla's kiln and stone coffin, every smex and ppex structure through
+exlib) or the pack's `multiblockSizes`, one structure per distinct layout, with the shape of a
+block that fits each cell. It needs no code per mod. [multiblocks.md](multiblocks.md) has the
+details and the limits (facing, connectors).
+
 ## Where the schema does not fit (data in `extra`)
 
 - Cooking slots accept several stacks, but an ingredient has one `code`. The record keeps
