@@ -5,7 +5,7 @@
 		// side) carry the die stock and the drive head's bed plate (two plates, in one slot), bolted
 		// up with 12 nails and strips, with a hammer: iron, meteoric iron or steel, as the other
 		// frames. About 11 ingots of iron (a plate 2, a rod 1, 12 nails and strips 3), under the steel
-		// gear cutter's 8 steel ingots and 32 nails and strips. Two steel gears pay for the gearing the
+		// gear cutter's 8 steel ingots and 32 nails and strips. Two stainless gears pay for the gearing the
 		// frame carries: the rectifier's train (A1, A2, B1, B2 and the idler), the return shaft's gear
 		// and the barrel gear. Every other working part goes in afterwards, fitted by hand.
 		ingredientPattern: "MHG,RNR,LPL",
@@ -13,7 +13,7 @@
 		height: 3,
 		ingredients: {
 			"M": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
-			"G": { type: "item", code: "seraphhorizons:gear-steel", quantity: 2 },
+			"G": { type: "item", code: "seraphhorizons:gear-stainless", quantity: 2 },
 			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
 			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 12 },
 			"L": { type: "block", code: "game:log-placed-oak-ud" },

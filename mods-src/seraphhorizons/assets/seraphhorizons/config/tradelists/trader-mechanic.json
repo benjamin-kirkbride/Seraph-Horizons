@@ -58,8 +58,8 @@
 				{"type": "block", "code": "mpegearbox:gearbox13brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
 				{"type": "block", "code": "mpegearbox:gearbox14brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
 				{"type": "block", "code": "mpegearbox:gearbox15brass-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
-				{"code": "seraphhorizons:gear-steel", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "playerSupplied": true},
-				{"code": "seraphhorizons:largegear-steel", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
+				{"code": "seraphhorizons:gear-stainless", "stacksize": 1, "stock": {"avg": 2, "var": 1}, "playerSupplied": true},
+				{"code": "seraphhorizons:largegear-stainless", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-straight-ns-iron", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-bend-nw-iron", "stacksize": 4, "stock": {"avg": 4, "var": 1}, "playerSupplied": true},
 				{"type": "block", "code": "ppex:pipe-tjunction-uns-iron", "stacksize": 2, "stock": {"avg": 3, "var": 1}, "playerSupplied": true},
@@ -89,7 +89,7 @@
 		"core": [
 			{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 12, "var": 3}},
 			{"code": "rope", "stacksize": 4, "stock": {"avg": 8, "var": 2}},
-			{"code": "seraphhorizons:gear-steel", "stacksize": 1, "stock": {"avg": 6, "var": 2}}
+			{"code": "seraphhorizons:gear-stainless", "stacksize": 1, "stock": {"avg": 6, "var": 2}}
 		],
 		"rotating": { "maxItems": 8,
 			"list": [
@@ -108,7 +108,7 @@
 				{"code": "sail", "stacksize": 4, "stock": {"avg": 8, "var": 2}},
 				{"type": "block", "code": "woodenaxle-ud", "stacksize": 8, "stock": {"avg": 12, "var": 3}},
 				{"type": "block", "code": "angledgears-s", "stacksize": 2, "stock": {"avg": 6, "var": 2}},
-				{"code": "seraphhorizons:largegear-steel", "stacksize": 1, "stock": {"avg": 3, "var": 1}},
+				{"code": "seraphhorizons:largegear-stainless", "stacksize": 1, "stock": {"avg": 3, "var": 1}},
 				{"code": "gear-temporal", "stacksize": 1, "stock": {"avg": 2, "var": 1}},
 				{"code": "flaxtwine", "stacksize": 8, "stock": {"avg": 8, "var": 2}},
 				{"type": "block", "code": "metal-scraps", "stacksize": 5, "stock": {"avg": 3, "var": 0.75}},

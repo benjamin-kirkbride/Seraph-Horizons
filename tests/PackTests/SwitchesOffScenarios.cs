@@ -506,7 +506,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         Assert.True(Off("GearConsumers"));
         Assert.False(Harmony.HasAnyPatches(GearConsumers.HarmonyId));
-        Assert.DoesNotContain(W.GridRecipes, r => r.Ingredients?.Values.Any(i => i.Code?.ToString() == GearConsumers.SteelGear) == true);
+        Assert.DoesNotContain(W.GridRecipes, r => r.Ingredients?.Values.Any(i => i.Code?.ToString() == GearConsumers.StainlessGear) == true);
         // ppex's Cornish engine: one recipe with the rusty gear, its twin with ppex's gears.
         var cornish = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == "ppex:enginecornish-north").ToList();
         // Keyed and resolved ingredients both (GearConsumerUses.Codes): the server drops a grid recipe's
@@ -520,7 +520,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var gear = W.GetItem(new AssetLocation("ppex:gear-steel"))!;
         Assert.True(gear.CreativeInventoryTabs is { Length: > 0 });
         Assert.False(gear.Attributes?["handbook"]?["exclude"].AsBool() == true);
-        Assert.DoesNotContain("steel large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
+        Assert.DoesNotContain("stainless large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
     }
 
     /// <summary><c>UnifiedPipes</c>: ppex's pipes are as it ships them (iron and steel, from plate and
@@ -1118,33 +1118,32 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>GearReclamation</c>: the gear items exist, but none of the steps' recipes, no
-    /// salvage section on the rusty gear, and an oiled gear in a hand stays as it is.</summary>
+    /// salvage section on the rusty gear, and a neutralized gear in a hand stays as it is.</summary>
     [AtlasScenario]
     public async Task Gear_reclamation_off_no_recipes_no_roll()
     {
         Assert.True(Off("GearReclamation"));
-        foreach (var code in new[] { GearCodes.Steel, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Neutralized, GearCodes.Oiled, GearCodes.LargeSteel })
+        foreach (var code in new[] { GearCodes.Stainless, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Passivated, GearCodes.Neutralized, GearCodes.LargeStainless })
             Assert.NotNull(W.GetItem(new AssetLocation(code)));
         Assert.DoesNotContain(World.Api.GetCookingRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
         Assert.DoesNotContain(World.Api.GetBarrelRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
         Assert.False(W.GetItem(new AssetLocation(GearCodes.Rusty))!.Attributes["handbook"].Exists);
         var p = await World.JoinPlayer("nogears");
         var hand = p.Player.InventoryManager.ActiveHotbarSlot;
-        hand.Itemstack = new ItemStack(W.GetItem(new AssetLocation(GearCodes.Oiled))!, 10);
+        hand.Itemstack = new ItemStack(W.GetItem(new AssetLocation(GearCodes.Neutralized))!, 10);
         hand.MarkDirty();
         await World.Ticks(10);
-        Assert.Equal(GearCodes.Oiled, hand.Itemstack?.Collectible.Code.ToString());
+        Assert.Equal(GearCodes.Neutralized, hand.Itemstack?.Collectible.Code.ToString());
         Assert.Equal(0, GearReclamationSystem.Of(World.Api).ResolveAll(p.Player));
         Assert.Equal(10, hand.StackSize);
     }
 
-    /// <summary><c>GearReclamation</c>: no pickling tub, no bare steel gear, no tub recipe.</summary>
+    /// <summary><c>GearReclamation</c>: no pickling tub and no tub recipe.</summary>
     [AtlasScenario]
     public void Gear_reclamation_off_there_is_no_pickling_tub()
     {
         Assert.True(Off("GearReclamation"));
         Assert.False(W.GetBlock(new AssetLocation("seraphhorizons:picklingtub")) is { Id: > 0 }, "the tub exists");
-        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:gear-steel-bare")));
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == "seraphhorizons:picklingtub" && r.Enabled);
     }
 

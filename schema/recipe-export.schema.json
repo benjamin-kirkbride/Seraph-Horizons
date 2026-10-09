@@ -550,7 +550,7 @@
           "required": ["kind", "hours", "batchSize"],
           "additionalProperties": false,
           "properties": {
-            "kind": { "description": "pickle: the metal comes out clean (an acid). rust: it rusts through (brine).", "type": "string", "minLength": 1 },
+            "kind": { "description": "pickle: the metal comes out clean (an acid). passivate: the surface comes out passive (nitric acid). rust: it rusts through (brine, older exports).", "type": "string", "minLength": 1 },
             "hours": { "description": "In-game hours from the batch going in with the liquid to done.", "type": "number", "exclusiveMinimum": 0 },
             "batchSize": { "description": "Most gears a batch holds.", "type": "integer", "minimum": 1 },
             "litresPerBatch": { "description": "Litres of the liquid a finished batch uses up.", "type": "number", "minimum": 0 },

@@ -37,7 +37,7 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.Rosser), [RosserSystem.RecipeAsset], RosserSystem.BlockAssets);
         yield return (nameof(SeraphHorizonsConfig.GearReclamation),
             [PicklingTubSystem.RecipeAsset, GearReclamationSystem.CookingAsset, .. GearReclamationSystem.BarrelAssets],
-            [PicklingTubSystem.BlockAsset, PicklingTubSystem.BareGearAsset]);
+            [PicklingTubSystem.BlockAsset]);
         yield return (nameof(SeraphHorizonsConfig.GearBlanks), GearBlanks.RecipeAssets, GearBlanks.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.GearCutter), GearCutterSystem.RecipeAssets, GearCutterSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.DrawBench), DrawBench.DrawBenchSystem.RecipeAssets, DrawBench.DrawBenchSystem.TypeAssets);

@@ -1,4 +1,4 @@
-// Gear blank molds, raw (#479, GearBlanks; README "Steel gear blanks"): clay-formed
+// Gear blank molds, raw (#479, GearBlanks; README "Stainless gear blanks"): clay-formed
 // (recipes/clayforming/gearblankmold*.json) and fired like the game's tool molds, in a pit kiln
 // (ground stored, combustibleProps) or a beehive kiln (beehivekiln), into gearblankmold-fired.json.
 {

@@ -1,11 +1,11 @@
-// Steel gear blank (#479, GearBlanks; README "Steel gear blanks"): a disc with a bore, the size of
-// the game's rusty gear, stock for the gear cutter. Cast in a gear blank mold (100 units) or smithed
-// from one ingot (recipes/smithing/gearblank.json). The metal variant is what the mold's drop and
-// the smithing recipe fill in; only steel exists.
+// Stainless gear blank (#479, GearBlanks; README "Stainless gear blanks"): a disc with a bore, the size of
+// the game's rusty gear, stock for the gear cutter. Cast in a gear blank mold (25 units, four to an
+// ingot) or smithed two to an ingot (recipes/smithing/gearblank.json). The metal variant is what the
+// mold's drop and the smithing recipe fill in, the game's metal code; only stainless steel exists.
 {
 	code: "gearblank",
 	variantgroups: [
-		{ code: "metal", states: ["steel"] }
+		{ code: "metal", states: ["stainlesssteel"] }
 	],
 	behaviors: [
 		{ name: "GroundStorable", properties: { layout: "Quadrants", placeRemoveSound: "game:sounds/block/plate", collisionBox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.0625, z2: 1 } } }

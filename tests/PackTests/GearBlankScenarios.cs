@@ -9,12 +9,12 @@ using Vintagestory.GameContent;
 
 namespace SeraphHorizons.PackTests;
 
-/// <summary>The steel gear blanks and their molds as these scenarios read them (seraphhorizons,
+/// <summary>The stainless gear blanks and their molds as these scenarios read them (seraphhorizons,
 /// <c>GearBlanks</c>, mods-src/seraphhorizons/Gears/GearBlanks.cs). Shared with
 /// <see cref="SwitchesOffScenarios"/>.</summary>
 internal static class GearBlankParts
 {
-    public const string Steel = "game:ingot-steel";
+    public const string Stainless = "game:ingot-stainlesssteel";
 
     public static string Mold(string color, string state, string type) => $"seraphhorizons:toolmold-{color}-{state}-{type}";
 
@@ -47,10 +47,10 @@ internal static class GearBlankParts
         }
     }
 
-    /// <summary>A hot steel ingot, workable at the anvil and liquid enough to pour.</summary>
+    /// <summary>A hot stainless steel ingot, workable at the anvil and liquid enough to pour.</summary>
     public static ItemStack HotIngot(IWorldAccessor world, float temperature = 1300f)
     {
-        var stack = new ItemStack(Item(world, Steel));
+        var stack = new ItemStack(Item(world, Stainless));
         stack.Collectible.SetTemperature(world, stack, temperature, false);
         return stack;
     }
@@ -73,8 +73,8 @@ public partial class SharedWorldScenarios
     {
         foreach (var (code, name, layout) in new[]
                  {
-                     (GearBlanks.Blank, "Steel gear blank", EnumGroundStorageLayout.Quadrants),
-                     (GearBlanks.LargeBlank, "Large steel gear blank", EnumGroundStorageLayout.SingleCenter),
+                     (GearBlanks.Blank, "Stainless gear blank", EnumGroundStorageLayout.Quadrants),
+                     (GearBlanks.LargeBlank, "Large stainless gear blank", EnumGroundStorageLayout.SingleCenter),
                  })
         {
             var item = GearBlankParts.Item(W, code);
@@ -123,11 +123,12 @@ public partial class SharedWorldScenarios
         Assert.Equal("Large gear blank mold", new ItemStack(GearBlankParts.Block(W, GearBlankParts.Mold("tan", "fired", GearBlanks.LargeMoldType))).GetName());
     }
 
-    // A fired mold on the ground takes molten steel as a crucible pours it (ILiquidMetalSink), refuses
-    // copper (there is no copper blank), and once full and hardened gives the blank to a player's
-    // empty hand through the block's own right-click, leaving the empty mold in place.
+    // A fired mold on the ground takes molten stainless steel as a crucible pours it
+    // (ILiquidMetalSink), refuses copper and plain steel (there is no blank of either), and once full
+    // and hardened gives the blank to a player's empty hand through the block's own right-click,
+    // leaving the empty mold in place. The small mold takes a quarter of an ingot, four to an ingot.
     [AtlasScenario]
-    public async Task Gear_blank_mold_casts_a_blank_from_steel()
+    public async Task Gear_blank_mold_casts_a_blank_from_stainless_steel()
     {
         var player = (await World.JoinPlayer("blankcaster")).Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
@@ -149,15 +150,17 @@ public partial class SharedWorldScenarios
                        ?? throw new Xunit.Sdk.XunitException($"no mold at {pos}: {W.BlockAccessor.GetBlock(pos).Code} on {W.BlockAccessor.GetBlock(pos.DownCopy()).Code}, entity {W.BlockAccessor.GetBlockEntity(pos)?.GetType().Name}");
             Assert.True(mold.CanReceiveAny);
             Assert.False(mold.CanReceive(new ItemStack(GearBlankParts.Item(W, "game:ingot-copper"))));
-            Assert.True(mold.CanReceive(new ItemStack(GearBlankParts.Item(W, GearBlankParts.Steel))));
+            Assert.False(mold.CanReceive(new ItemStack(GearBlankParts.Item(W, "game:ingot-steel"))));
+            Assert.True(mold.CanReceive(new ItemStack(GearBlankParts.Item(W, GearBlankParts.Stainless))));
 
-            // As a crucible pours: an ingot's worth (100 units) at a time.
+            // As a crucible pours: up to an ingot's worth (100 units) at a time; the small mold takes
+            // 25 of an ingot's 100 and leaves the rest in the pour.
             for (int poured = 0; poured < units; poured += 100)
             {
                 Assert.False(mold.IsFull);
                 int amount = 100;
                 mold.ReceiveLiquidMetal(GearBlankParts.HotIngot(W, 1600f), ref amount, 1600f);
-                Assert.Equal(0, amount);
+                Assert.Equal(Math.Max(0, 100 - (units - poured)), amount);
             }
             Assert.True(mold.IsFull);
             Assert.Equal(units, mold.FillLevel);
@@ -191,13 +194,14 @@ public partial class SharedWorldScenarios
         Assert.False((bool)fits.Invoke(null, [GearBlankParts.Block(W, "game:toolmold-black-fired-anvil")])!);
     }
 
-    // One steel ingot to a blank, two to a large one: the large blank's 84 voxels are exactly two
-    // ingots' worth, more than one gives (42), so the second ingot has to go on the work piece.
+    // One stainless steel ingot to two blanks, two to a large one: the large blank's 84 voxels are
+    // exactly two ingots' worth, more than one gives (42), so the second ingot has to go on the work
+    // piece. Stainless steel (tier 5) needs a tier 4 anvil: steel works it, iron does not.
     [AtlasScenario]
-    public void Gear_blanks_are_smithed_from_steel_ingots()
+    public void Gear_blanks_are_smithed_from_stainless_steel_ingots()
     {
-        var steel = new ItemStack(GearBlankParts.Item(W, GearBlankParts.Steel));
-        var iron = new ItemStack(GearBlankParts.Item(W, "game:ingot-iron"));
+        var steel = new ItemStack(GearBlankParts.Item(W, GearBlankParts.Stainless));
+        var iron = new ItemStack(GearBlankParts.Item(W, "game:ingot-steel"));
         var small = GearBlankParts.Smithing(World.Api, GearBlanks.Blank);
         var large = GearBlankParts.Smithing(World.Api, GearBlanks.LargeBlank);
         foreach (var recipe in new[] { small, large })
@@ -207,24 +211,42 @@ public partial class SharedWorldScenarios
             Assert.Equal("plate", recipe.Name.Path); // what lets the helve hammer work it
             Assert.Equal(1, GearBlankParts.Layers(recipe));
         }
+        Assert.Equal(2, small.Output.ResolvedItemstack.StackSize);
+        Assert.Equal(1, large.Output.ResolvedItemstack.StackSize);
         Assert.Equal(36, GearBlankParts.Voxels(small));
         Assert.Equal(84, GearBlankParts.Voxels(large));
+        int tier = ((IAnvilWorkable)steel.Collectible).GetRequiredAnvilTier(steel);
+        Assert.Equal(4, tier);
+
         Assert.True(GearBlankParts.Voxels(small) <= 42 && GearBlankParts.Voxels(large) > 42);
     }
 
     // The helve hammer works both blanks as it works a plate (ItemWorkItem.GetHelveWorkableMode):
-    // from hot steel on a steel anvil, hit after hit, to the finished blank. The large blank does not
+    // from hot stainless steel on a steel anvil, hit after hit, to the finished blanks (two small
+    // ones from an ingot). The large blank does not
     // finish from one ingot, and does once a second ingot is added to the work piece.
     [AtlasScenario]
     public async Task Helve_hammer_forges_gear_blanks()
     {
         var origin = World.Spawn.AddCopy(-90, 12, -100);
+        // No player stands here, so make sure the chunk column is loaded before building in it.
+        var sapi = (Vintagestory.API.Server.ICoreServerAPI)World.Api;
+        int size = sapi.WorldManager.ChunkSize;
+        sapi.WorldManager.LoadChunkColumnPriority(origin.X / size, origin.Z / size);
+        await World.Until(() => W.BlockAccessor.GetChunkAtBlockPos(origin) != null
+                                && W.BlockAccessor.GetChunkAtBlockPos(origin.AddCopy(2, 0, 0)) != null, 30000);
         GearBlankParts.Room(World, origin);
         var pos = origin.Copy();
         World.SetBlock("game:anvil-steel", pos);
         await World.Ticks(2);
         var anvil = Assert.IsType<BlockEntityAnvil>(W.BlockAccessor.GetBlockEntity(pos));
-        var ingot = (ItemIngot)GearBlankParts.Item(W, GearBlankParts.Steel);
+        var ingot = (ItemIngot)GearBlankParts.Item(W, GearBlankParts.Stainless);
+        int required = ((IAnvilWorkable)ingot).GetRequiredAnvilTier(GearBlankParts.HotIngot(W));
+        Assert.True(anvil.OwnMetalTier >= required, $"a steel anvil is tier {anvil.OwnMetalTier}, stainless steel needs {required}");
+        World.SetBlock("game:anvil-iron", pos.AddCopy(2, 0, 0));
+        await World.Ticks(2);
+        var ironAnvil = Assert.IsType<BlockEntityAnvil>(W.BlockAccessor.GetBlockEntity(pos.AddCopy(2, 0, 0)));
+        Assert.True(ironAnvil.OwnMetalTier < required, $"an iron anvil is tier {ironAnvil.OwnMetalTier}, stainless steel needs {required}");
 
         void Start(SmithingRecipe recipe)
         {
@@ -259,7 +281,7 @@ public partial class SharedWorldScenarios
         Start(GearBlankParts.Smithing(World.Api, GearBlanks.Blank));
         Assert.True(Hammer(), "the small blank did not finish under the helve");
         await World.Ticks(2);
-        Assert.Contains(Dropped(), s => s.Collectible.Code.ToString() == GearBlanks.Blank);
+        Assert.Contains(Dropped(), s => s.Collectible.Code.ToString() == GearBlanks.Blank && s.StackSize == 2);
 
         Start(GearBlankParts.Smithing(World.Api, GearBlanks.LargeBlank));
         Assert.False(Hammer(), "the large blank finished from one ingot");

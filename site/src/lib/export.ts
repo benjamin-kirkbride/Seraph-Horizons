@@ -211,7 +211,7 @@ export interface Transition {
  * turns into the first output; with `failure`, gears can be lost to that output.
  */
 export interface Tub {
-  /** pickle: an acid leaves the metal clean. rust: brine rusts it through. */
+  /** pickle: an acid leaves the metal clean. passivate: nitric acid leaves it passive. (rust: brine, in older exports.) */
   kind: string;
   hours: number;
   batchSize: number;

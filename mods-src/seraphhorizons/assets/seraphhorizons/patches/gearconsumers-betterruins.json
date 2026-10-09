@@ -1,5 +1,5 @@
 // seraphhorizons' GearConsumers switch (README.md, GearConsumers.cs; #473): the rusty gear is salvage
-// and money, so every recipe that took one takes the pack's steel gear (seraphhorizons:gear-steel),
+// and money, so every recipe that took one takes the pack's stainless gear (seraphhorizons:gear-stainless),
 // in the same number (counts below are per recipe, all slots). tools/tests/test_gear_consumers.py
 // holds this file to the mod's recipes.
 // BetterRuins (0.6.4). Jonas assembly schematic (assembly.json): gearbox 3 (/0) and 5 (/1),
@@ -7,18 +7,18 @@
 // the unlit lamps that take one rusty gear (/0, /14, /16, /18, /20 and the uncollected /34, /36,
 // /38); the lit ones take a temporal gear.
 [
-  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/0/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/1/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/2/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/3/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/5/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/6/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/0/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/14/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/16/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/18/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/20/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/34/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/36/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]},
-  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/38/ingredients/R/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "betterruins"}]}
+  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/0/ingredients/G/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/1/ingredients/G/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/2/ingredients/G/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/3/ingredients/G/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/5/ingredients/G/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-jonasassembly/assembly.json", "op": "replace", "path": "/6/ingredients/G/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/0/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/14/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/16/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/18/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/20/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/34/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/36/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]},
+  {"file": "betterruins:recipes/grid/schematic-lights/lights1.json", "op": "replace", "path": "/38/ingredients/R/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "betterruins"}]}
 ]

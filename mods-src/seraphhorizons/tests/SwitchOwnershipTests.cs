@@ -9,21 +9,21 @@ public class SwitchOwnershipTests
         new OwnedBySwitch("GearCutter", ["seraphhorizons:recipes/grid/gearcutter.json"],
             [.. SwitchOwnership.TypeCodePatterns("seraphhorizons", "gearcutter"),
              .. SwitchOwnership.TypeCodePatterns("seraphhorizons", "gearcutterkit")], ["gearcutter"]),
-        new OwnedBySwitch("GearReclamation", ["seraphhorizons:recipes/barrel/gear-oil.json"],
-            SwitchOwnership.TypeCodePatterns("seraphhorizons", "gear-steel-bare"), ["picklingtub", "lottery"]),
+        new OwnedBySwitch("GearReclamation", ["seraphhorizons:recipes/barrel/gear-neutralize.json"],
+            SwitchOwnership.TypeCodePatterns("seraphhorizons", "picklingtub"), ["picklingtub", "lottery"]),
         new OwnedBySwitch("Rosser", [], ["loggingmod:treetrunk-*-debarked-*"], []),
     ]);
 
     [Theory]
     [InlineData("seraphhorizons:gearcutter-frame-north", "GearCutter")]
     [InlineData("seraphhorizons:gearcutterkit-steel", "GearCutter")]
-    [InlineData("seraphhorizons:gear-steel-bare", "GearReclamation")]
+    [InlineData("seraphhorizons:picklingtub", "GearReclamation")]
     [InlineData("loggingmod:treetrunk-oak-thin-debarked-north", "Rosser")]
     [InlineData("SeraphHorizons:GearCutter-Frame-North", "GearCutter")]
     public void OwnedCodes(string code, string owner) => Assert.Equal(owner, Registry.SwitchForCode(code));
 
     [Theory]
-    [InlineData("seraphhorizons:gear-steel")]
+    [InlineData("seraphhorizons:gear-stainless")]
     [InlineData("seraphhorizons:gearcutterspindle")]
     [InlineData("loggingmod:treetrunk-oak-thin-no-north")]
     [InlineData("gear-rusty")]
@@ -31,18 +31,18 @@ public class SwitchOwnershipTests
 
     [Theory]
     [InlineData("grid|seraphhorizons:recipes/grid/gearcutter.json|3", "GearCutter")]
-    [InlineData("barrel|seraphhorizons:recipes/barrel/gear-oil.json|0", "GearReclamation")]
+    [InlineData("barrel|seraphhorizons:recipes/barrel/gear-neutralize.json|0", "GearReclamation")]
     [InlineData("picklingtub|seraphhorizons:gear-degreased|game:vinegarportion", "GearReclamation")]
-    [InlineData("lottery|seraphhorizons:gear-oiled|0", "GearReclamation")]
-    [InlineData("gearcutter|seraphhorizons:gearblank-steel|0", "GearCutter")]
-    // Keyed by the code it starts from: the bare gear's flash rust exists only with the bare gear.
-    [InlineData("perish|seraphhorizons:gear-steel-bare|0", "GearReclamation")]
+    [InlineData("lottery|seraphhorizons:gear-neutralized|0", "GearReclamation")]
+    [InlineData("gearcutter|seraphhorizons:gearblank-stainlesssteel|0", "GearCutter")]
+    // Keyed by the code it starts from: a transition of an owned item exists only with the item.
+    [InlineData("perish|seraphhorizons:picklingtub|0", "GearReclamation")]
     public void OwnedRecipes(string id, string owner) => Assert.Equal(owner, Registry.SwitchForRecipe(id));
 
     [Theory]
     [InlineData("grid|game:recipes/grid/gearbox.json|0")]
     [InlineData("grid|code|r12")]
-    [InlineData("perish|seraphhorizons:gear-steel|0")]
+    [InlineData("perish|seraphhorizons:gear-stainless|0")]
     [InlineData("casting")]
     public void UnownedRecipes(string id) => Assert.Null(Registry.SwitchForRecipe(id));
 
