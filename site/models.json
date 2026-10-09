@@ -68,8 +68,13 @@
           "rollsout": "Outfeed rolls and gearing (rods)",
           "breaker": "Limb breaker (plates)",
           "levers": "Treadle, rock shaft and selector levers (sawmill feed levers)",
+          "pipecopper": "Copper (four straight copper pipes)",
+          "pipelead": "Lead (four straight lead pipes)",
           "heads": "Scraper heads (bark spud heads)"
         },
+        "choices": [
+          { "label": "Drip pipes", "values": ["pipecopper", "pipelead"], "default": "pipecopper" }
+        ],
         "prop": {
           "label": "Trunk",
           "on": "trunkPath",

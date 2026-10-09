@@ -29,6 +29,10 @@ class V:
         self.by_part = {}
         for el in els:
             self.by_part.setdefault(el.part, []).append(el)
+        # The pipes in the other metals are the first metal's, copied (check_pipes): only one metal's
+        # are ever drawn, so the checks of what meets what see the first metal's alone.
+        self.copies = {f"pipe{x}" for x in m.PIPE_METALS[1:]}
+        self.shown = [el for el in els if el.part not in self.copies]
         self.cache = {}
         self.ok = True
 
@@ -169,7 +173,7 @@ def check_containment(v, poses):
 
 def check_zfight(v):
     for ps in v.m.COPLANAR_POSES:
-        pairs = coplanar_faces([posed(el, v.mat(el.part, ps)) for el in v.els])
+        pairs = coplanar_faces([posed(el, v.mat(el.part, ps)) for el in v.shown])
         print(f"coplanar faces at {ps}: {len(pairs)} pairs")
         for na, da, nb, db, area in pairs[:12]:
             v.fail(f"{na} {da} and {nb} {db} share a plane over {area} sq voxels (z-fighting)")
@@ -714,6 +718,8 @@ def check_clearances(v, poses):
     for ps in poses:
         items = []
         for pid in v.by_part:
+            if pid in v.copies:
+                continue
             src = frame if pid == "frame" else v.posed(pid, ps)
             for el in src:
                 items.append((pid, el, el.aabb()))
@@ -776,6 +782,8 @@ def check_swept(v, step=1 / 16, thetas=(0.0,)):
             for th in thetas:
                 ps = (th, abs(th) + 2.0, 10.0, T, k, 1.0)
                 for pid in v.by_part:
+                    if pid in v.copies:
+                        continue
                     src = frame if pid == "frame" else v.posed(pid, ps)
                     for el in src:
                         if INTENDED_TRUNK.match(el.name):
@@ -817,12 +825,20 @@ def check_anchors(v):
         v.fail("the power cell is at ground level")
     if beyond_p in cells or beyond_w in cells or beyond_p == beyond_w or {beyond_p, beyond_w} & racks or chute in (beyond_p, beyond_w):
         v.fail("the cells beyond the power and water faces clash")
-    # the axle reaches the entry shaft through the power face; the pipe reaches the drip through the water face
+    # the axle reaches the entry shaft through the power face; the drip's inlet meets the pipe beyond the
+    # water face end to end: it reaches the face, on the middle of the cell's face, in ppex's section
     entry_end = min(e.aabb()[0][2] for e in v.by_part["entry"])
-    pipe_end = max(e.aabb()[1][2] for e in v.by_part["frame"] if e.name == "fr_drip_pipe")
-    print(f"  the entry shaft starts {entry_end:.2f} from the north face; the drip pipe ends {m.CELLS_Z * 16 - pipe_end:.2f} from the south face")
-    if entry_end > 0.05 or m.CELLS_Z * 16 - pipe_end > 0.05:
-        v.fail("the entry shaft or the drip pipe does not reach its face")
+    inlet = [e for e in v.by_part[f"pipe{m.PIPE_METALS[0]}"] if e.name.startswith(f"pipe{m.PIPE_METALS[0]}_inlet")]
+    ilo, ihi = aabb_of(inlet)
+    middle = [(wc[k] + 0.5) * 16 for k in (0, 1)]
+    off = max(abs((ilo[k] + ihi[k]) / 2 - middle[k]) for k in (0, 1))
+    across = [ihi[k] - ilo[k] for k in (0, 1)]
+    print(f"  the entry shaft starts {entry_end:.2f} from the north face; the drip's inlet ends {m.CELLS_Z * 16 - ihi[2]:.2f} from the south face, "
+          f"{off:.2f} off the middle of the water cell's face, {across[0]:g} x {across[1]:g} across")
+    if entry_end > 0.05 or m.CELLS_Z * 16 - ihi[2] > 0.05:
+        v.fail("the entry shaft or the drip's inlet does not reach its face")
+    if off > 0.01 or any(abs(a - 2 * m.PIPE_HALF) > 0.01 for a in across):
+        v.fail("the drip's inlet does not meet a pipe on the water face end to end")
     # the mill in line: its controller 6 blocks east of ours on the same line, its power feed cell [-6,3,0] = our east end's top
     mill_feed = (m.ORIGIN_CELL[0], 3, m.ORIGIN_CELL[2])
     print(f"  a mill in line: its bed centreline z {16 * 0.6875:.2f} (ours {m.TZ:.2f} in the controller's column); "
@@ -847,9 +863,43 @@ def check_textures(v):
             bad.append(f"{el.name} (should be iron)")
         if OAK.match(el.name) and tex - {"#oak"}:
             bad.append(f"{el.name} (should be oak)")
-    print(f"textures: {'iron and oak where they belong' if not bad else 'WRONG: ' + ', '.join(bad[:8])}")
+        if el.part.startswith("pipe") and tex != {"#" + el.part}:
+            bad.append(f"{el.name} (should be {el.part[4:]} pipe)")
+        elif not el.part.startswith("pipe") and any(t.startswith("#pipe") for t in tex):
+            bad.append(f"{el.name} (wears a pipe's metal)")
+    print(f"textures: {'iron, oak and the pipes in their metals where they belong' if not bad else 'WRONG: ' + ', '.join(bad[:8])}")
     if bad:
         v.fail("an element has the wrong material")
+
+
+def check_pipes(v):
+    """The drip's pipes: one part per metal the rosser takes, each the first metal's elements
+    exactly (the same boxes and faces, renamed, in its own texture), so whichever is fitted draws
+    the same pipes; the header lies across the whole width a thin trunk's top takes."""
+    m = v.m
+    first = sorted(v.by_part[f"pipe{m.PIPE_METALS[0]}"], key=lambda e: e.name)
+    bad = []
+    for metal in m.PIPE_METALS[1:]:
+        pid = f"pipe{metal}"
+        copies = sorted(v.by_part.get(pid, []), key=lambda e: e.name)
+        if len(copies) != len(first):
+            bad.append(f"{pid} has {len(copies)} elements, {len(first)} wanted")
+            continue
+        for a, b in zip(first, copies):
+            faces = {d: {**f, "texture": "#" + pid} for d, f in a.faces.items()}
+            if (b.name != pid + a.name[len(first[0].part):] or b.size != a.size or b.c != a.c or b.r != a.r
+                    or b.faces != faces):
+                bad.append(f"{b.name} is not {a.name}")
+    head = [e for e in first if "_header" in e.name]
+    hlo, hhi = aabb_of(head)
+    thin = m.TRUNK_RADII["thin"][1]
+    print(f"pipes: {len(first)} elements a metal in {', '.join(m.PIPE_METALS)}; the header z {hlo[2]:.1f}..{hhi[2]:.1f} "
+          f"(a thin trunk's corners {m.TZ - thin:.1f}..{m.TZ + thin:.1f}), its underside {hlo[1]:.2f}"
+          + ("" if not bad else "; WRONG: " + ", ".join(bad[:6])))
+    if bad:
+        v.fail("the pipes are not the same in every metal")
+    if hlo[2] > m.TZ - thin or hhi[2] < m.TZ + thin:
+        v.fail("the drip's header does not span a thin trunk")
 
 
 def check_chute(v):
@@ -940,6 +990,7 @@ def validate(m, els, parts, rig, le, quick=False):
     check_floating(v)
     check_bearings(v)
     check_textures(v)
+    check_pipes(v)
     check_chute(v)
     check_stops(v)
     if not quick:

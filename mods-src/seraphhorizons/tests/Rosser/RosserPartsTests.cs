@@ -7,13 +7,16 @@ public class RosserPartsTests
     private const string Shaft = "immersivewoodworking:sawmillcrankshaft";
     private const string Ring = "game:largegearsection-wood";
     private const string Levers = "immersivewoodworking:sawmilllevers";
+    private const string CopperPipe = "ppex:pipe-straight-ns-copper";
+    private const string LeadPipe = "ppex:pipe-straight-ns-lead";
 
-    /// <summary>Fits every stage with iron and <paramref name="heads"/> heads.</summary>
-    private static RosserParts Complete(string heads = "steel", int capacity = 9000)
+    /// <summary>Fits every stage with iron, <paramref name="pipes"/> pipes and <paramref name="heads"/> heads.</summary>
+    private static RosserParts Complete(string heads = "steel", int capacity = 9000, string pipes = "copper")
     {
         var parts = new RosserParts();
         foreach (var (code, count) in new[] { (Shaft, 1), (Ring, 4), ("game:hoop-iron", 2), ("game:rod-iron", 4),
-                                              ("game:metalplate-iron", 2), (Levers, 1), ($"immersivewoodworking:barkspudhead-{heads}", 4) })
+                                              ("game:metalplate-iron", 2), (Levers, 1), ($"ppex:pipe-straight-ns-{pipes}", 4),
+                                              ($"immersivewoodworking:barkspudhead-{heads}", 4) })
             Assert.Equal(new RosserFit(RosserFitVerdict.Fits, count), parts.Fit(code, count, capacity));
         Assert.True(parts.Complete);
         return parts;
@@ -28,6 +31,9 @@ public class RosserPartsTests
     [InlineData("game:rod-meteoriciron", RosserStage.RollsIn, "meteoriciron")]
     [InlineData("game:metalplate-copper", RosserStage.Breaker, "copper")]
     [InlineData("immersivewoodworking:barkspudhead-tinbronze", RosserStage.Heads, "tinbronze")]
+    [InlineData(CopperPipe, RosserStage.Pipes, "copper")]
+    [InlineData("ppex:pipe-straight-we-lead", RosserStage.Pipes, "lead")]
+    [InlineData("ppex:pipe-straight-ud-iron", RosserStage.Pipes, "iron")]
     public void Recognises_the_parts(string code, RosserStage stage, string? metal)
     {
         Assert.Equal(stage, RosserParts.StageOf(code, out var m));
@@ -46,10 +52,18 @@ public class RosserPartsTests
     [InlineData("game:metalplate")]
     [InlineData("game:barkspudhead-iron")]
     [InlineData("immersivewoodworking:barkspud-iron")]
+    [InlineData("ppex:pipe-straight-ns")]
+    [InlineData("ppex:pipe-straight-xy-copper")]
+    [InlineData("ppex:pipe-straight-ns-copper-extra")]
+    [InlineData("ppex:pipe-bend-nw-copper")]
+    [InlineData("ppex:valve-sn-tinbronze")]
+    [InlineData("pipe-straight-ns-copper")]
+    [InlineData("seraphhorizons:pipesection-copper")]
     public void Other_items_are_not_parts(string? code)
     {
         Assert.Null(RosserParts.StageOf(code, out _));
         Assert.Equal(RosserFitVerdict.NotAPart, new RosserParts().CanFit(code, 4).Verdict);
+        Assert.False(new RosserParts().TakesClick(code));
     }
 
     [Fact]
@@ -105,6 +119,69 @@ public class RosserPartsTests
         Assert.Equal(RosserFitVerdict.AlreadyFitted, parts.CanFit("immersivewoodworking:barkspudhead-steel", 4).Verdict);
     }
 
+    [Fact]
+    public void Pipes_go_on_as_four_of_copper_or_lead()
+    {
+        var parts = new RosserParts();
+        Assert.True(parts.TakesClick(CopperPipe));
+        // not iron or steel, whatever the rule for the iron work; and four from one stack
+        Assert.Equal(RosserFitVerdict.WrongMetal, parts.CanFit("ppex:pipe-straight-ns-iron", 4).Verdict);
+        Assert.Equal(RosserFitVerdict.WrongMetal, new RosserParts(anyMetal: true).CanFit("ppex:pipe-straight-ns-steel", 4).Verdict);
+        Assert.Equal(RosserFitVerdict.NeedsFullSet, parts.Fit(LeadPipe, 3).Verdict);
+        Assert.Null(parts.PipeMetal);
+        Assert.False(parts.Fitted("pipelead"));
+        // no ring needed, and a click takes four of a bigger stack
+        Assert.Equal(new RosserFit(RosserFitVerdict.Fits, 4), parts.Fit(LeadPipe, 16));
+        Assert.Equal("lead", parts.PipeMetal);
+        Assert.True(parts.Has(RosserStage.Pipes));
+        Assert.True(parts.Fitted("pipelead"));
+        Assert.False(parts.Fitted("pipecopper"));
+        Assert.Equal(RosserFitVerdict.AlreadyFitted, parts.CanFit(CopperPipe, 4).Verdict);
+        // once in, a pipe in hand is not the rosser's: it is placed against it, as on the water face
+        Assert.False(parts.TakesClick(CopperPipe));
+        Assert.False(parts.TakesClick("ppex:pipe-straight-ns-iron"));
+        Assert.True(parts.TakesClick(Ring));
+        // any orientation of the straight pipe is the pipe, and goes back as it came
+        var we = new RosserParts();
+        Assert.True(we.Fit("ppex:pipe-straight-we-copper", 4).Fitted);
+        Assert.Equal("copper", we.PipeMetal);
+        Assert.Equal(new[] { ("ppex:pipe-straight-we-copper", 4) }, we.Returns());
+    }
+
+    [Fact]
+    public void Without_the_copper_and_lead_pipes_the_rosser_is_built_without_them()
+    {
+        var parts = new RosserParts(pipesNeeded: false);
+        Assert.False(parts.Required(RosserStage.Pipes));
+        Assert.DoesNotContain(parts.Missing(), m => m.Stage == RosserStage.Pipes);
+        Assert.Equal(RosserFitVerdict.NotAPart, parts.CanFit(CopperPipe, 4).Verdict);
+        Assert.False(parts.TakesClick(CopperPipe));
+        foreach (var (code, count) in new[] { (Shaft, 1), (Ring, 4), ("game:hoop-iron", 2), ("game:rod-iron", 4),
+                                              ("game:metalplate-iron", 2), (Levers, 1), ("immersivewoodworking:barkspudhead-iron", 4) })
+            Assert.True(parts.Fit(code, count, 3600).Fitted);
+        Assert.True(parts.Complete);
+        Assert.Null(parts.PipeMetal);
+        Assert.Null(parts.NextPart("steel"));
+        // the rule survives a change of metal rule, and a restore
+        Assert.False(parts.WithMetals(anyMetal: true).PipesNeeded);
+        Assert.True(parts.WithMetals(anyMetal: true, pipesNeeded: true).PipesNeeded);
+        Assert.False(parts.WithMetals(anyMetal: true, pipesNeeded: true).Complete);
+        Assert.True(RosserParts.Restore(parts.Snapshot(), parts.HeadsLeft, parts.HeadsCapacity, pipesNeeded: false).Complete);
+    }
+
+    [Fact]
+    public void A_rosser_saved_before_the_pipes_needs_them()
+    {
+        var saved = Complete().Snapshot().Where(kv => kv.Key != "pipes").ToDictionary(kv => kv.Key, kv => kv.Value);
+        var parts = RosserParts.Restore(saved, 9000, 9000);
+        Assert.False(parts.Complete);
+        Assert.Equal(new[] { (RosserStage.Pipes, "ppex:pipe-straight-ns-*", 4) }, parts.Missing());
+        Assert.Equal((CopperPipe, 4), parts.NextPart("steel"));
+        Assert.Equal((LeadPipe, 4), parts.NextPart("lead"));
+        Assert.True(parts.Fit(LeadPipe, 4).Fitted);
+        Assert.True(parts.Complete);
+    }
+
     [Theory]
     [InlineData("game:hoop-tinbronze")]
     [InlineData("game:rod-copper")]
@@ -152,16 +229,22 @@ public class RosserPartsTests
     [Fact]
     public void Requires_vocabulary()
     {
-        Assert.Equal(new[] { "breaker", "heads", "levers", "ring", "rollsin", "rollsout", "shaft", "tyres" }, RosserRequires.KnownRequires.Order());
+        Assert.Equal(new[] { "breaker", "heads", "levers", "pipecopper", "pipelead", "ring", "rollsin", "rollsout", "shaft", "tyres" },
+                     RosserRequires.KnownRequires.Order());
         var parts = new RosserParts();
         Assert.True(parts.Fitted(null));
         Assert.False(parts.Fitted("shaft"));
         Assert.False(parts.Fitted("crankshaft"));
         parts.Fit(Shaft, 1);
         Assert.True(parts.Fitted("shaft"));
-        var complete = Complete();
-        Assert.All(RosserRequires.KnownRequires, r => Assert.True(complete.Fitted(r)));
-        Assert.False(complete.Fitted("blade"));
+        // complete, every requires value is drawn but the other metal's pipes
+        foreach (var (metal, other) in new[] { ("copper", "lead"), ("lead", "copper") })
+        {
+            var complete = Complete(pipes: metal);
+            Assert.All(RosserRequires.KnownRequires.Where(r => r != RosserRequires.Pipe(other)), r => Assert.True(complete.Fitted(r), r));
+            Assert.False(complete.Fitted(RosserRequires.Pipe(other)));
+            Assert.False(complete.Fitted("blade"));
+        }
     }
 
     [Fact]
@@ -172,9 +255,9 @@ public class RosserPartsTests
         {
             (RosserStage.Shaft, Shaft, 1), (RosserStage.Ring, Ring, 4), (RosserStage.Tyres, "game:hoop-*", 2),
             (RosserStage.RollsIn, "game:rod-*", 2), (RosserStage.RollsOut, "game:rod-*", 2), (RosserStage.Breaker, "game:metalplate-*", 2),
-            (RosserStage.Levers, Levers, 1), (RosserStage.Heads, "immersivewoodworking:barkspudhead-*", 4),
+            (RosserStage.Levers, Levers, 1), (RosserStage.Pipes, "ppex:pipe-straight-ns-*", 4), (RosserStage.Heads, "immersivewoodworking:barkspudhead-*", 4),
         }, parts.Missing());
-        // the shortcut fits stage by stage, always successfully
+        // the shortcut fits stage by stage, always successfully: the pipes copper, steel being no pipe metal
         var fitted = new List<string>();
         while (parts.NextPart("steel") is var (code, count))
         {
@@ -183,7 +266,8 @@ public class RosserPartsTests
         }
         Assert.Equal(new[]
         {
-            Shaft, Ring, "game:hoop-steel", "game:rod-steel", "game:rod-steel", "game:metalplate-steel", Levers, "immersivewoodworking:barkspudhead-steel",
+            Shaft, Ring, "game:hoop-steel", "game:rod-steel", "game:rod-steel", "game:metalplate-steel", Levers, CopperPipe,
+            "immersivewoodworking:barkspudhead-steel",
         }, fitted);
         Assert.True(parts.Complete);
         Assert.Empty(parts.Missing());
@@ -264,7 +348,8 @@ public class RosserPartsTests
                      parts.Returns());
         parts.WearHeads(1);
         Assert.Equal(new[] { (Ring, 4), ("game:hoop-steel", 2), ("game:rod-iron", 1), ("game:rod-steel", 2) }, parts.Returns());
-        Assert.Equal(new[] { (Shaft, 1), (Ring, 4), ("game:hoop-iron", 2), ("game:rod-iron", 4), ("game:metalplate-iron", 2), (Levers, 1), ("immersivewoodworking:barkspudhead-steel", 4) },
+        Assert.Equal(new[] { (Shaft, 1), (Ring, 4), ("game:hoop-iron", 2), ("game:rod-iron", 4), ("game:metalplate-iron", 2), (Levers, 1), (CopperPipe, 4),
+                             ("immersivewoodworking:barkspudhead-steel", 4) },
                      Complete().Returns());
         Assert.Empty(new RosserParts().Returns());
     }
@@ -272,13 +357,14 @@ public class RosserPartsTests
     [Fact]
     public void Save_and_restore_round_trip()
     {
-        var parts = Complete("iron", 3600);
+        var parts = Complete("iron", 3600, "lead");
         parts.WearHeads(100);
         var snapshot = parts.Snapshot();
-        Assert.Equal(RosserRequires.KnownRequires.Order(), snapshot.Keys.Order());
+        Assert.Equal(RosserRequires.Stages.Select(RosserRequires.Name).Order(), snapshot.Keys.Order());
         var restored = RosserParts.Restore(snapshot, parts.HeadsLeft, parts.HeadsCapacity);
         Assert.True(restored.Complete);
         Assert.Equal("iron", restored.HeadMetal);
+        Assert.Equal("lead", restored.PipeMetal);
         Assert.Equal(3500, restored.HeadsLeft);
         Assert.Equal(3600, restored.HeadsCapacity);
         Assert.Equal(parts.Returns(), restored.Returns());
@@ -299,6 +385,7 @@ public class RosserPartsTests
             ["rollsout"] = ["game:rod-iron", "game:rod-iron", "game:rod-iron"],
             ["breaker"] = ["game:metalplate-iron"],
             ["levers"] = ["nonsense"],
+            ["pipes"] = [CopperPipe, CopperPipe, LeadPipe, LeadPipe],             // two metals
             ["unknown"] = ["x"],
         };
         var parts = RosserParts.Restore(saved, 100, 3600);
@@ -311,6 +398,12 @@ public class RosserPartsTests
         Assert.Equal(2, parts.FittedIn(RosserStage.RollsOut).Count);
         Assert.Single(parts.FittedIn(RosserStage.Breaker));
         Assert.Empty(parts.FittedIn(RosserStage.Levers));
+        Assert.Empty(parts.FittedIn(RosserStage.Pipes));
+        // and pipes of another metal or a part set
+        var iron = new Dictionary<string, IReadOnlyList<string>> { ["pipes"] = Enumerable.Repeat("ppex:pipe-straight-ns-iron", 4).ToArray() };
+        Assert.Empty(RosserParts.Restore(iron, 0, 0).FittedIn(RosserStage.Pipes));
+        var three = new Dictionary<string, IReadOnlyList<string>> { ["pipes"] = Enumerable.Repeat(CopperPipe, 3).ToArray() };
+        Assert.Empty(RosserParts.Restore(three, 0, 0).FittedIn(RosserStage.Pipes));
     }
 
     [Fact]
