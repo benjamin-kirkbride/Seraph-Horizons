@@ -121,9 +121,13 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     });
   }
   let colourIndex = 0;
+  const moves = (p: RigPart) => (p.drivers?.length ?? 0) > 0 || p.ride != null;
+  // A rig of static parts only (the eidolon's build stages) gives each its own colour, as there is no
+  // moving part for the static colour to stand apart from.
+  const allStatic = rigParts.length > 1 && !rigParts.some(moves);
   const view: ViewPart[] = parts.map((p, i) => {
-    const moving = (p.drivers?.length ?? 0) > 0 || p.ride != null;
-    const colour = unmatched && i === parts.length - 1 ? UNMATCHED_COLOUR : moving ? partColour(colourIndex++) : STATIC_COLOUR;
+    const moving = moves(p);
+    const colour = unmatched && i === parts.length - 1 ? UNMATCHED_COLOUR : moving || allStatic ? partColour(colourIndex++) : STATIC_COLOUR;
     return { id: p.id, part: p, colour, elements: [], moving };
   });
   elementPart.forEach((p, i) => view[p]!.elements.push(i));

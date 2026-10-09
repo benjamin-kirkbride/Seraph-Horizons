@@ -360,6 +360,37 @@ def hung_matrices(shape):
     return _HUNG[id(shape)][:2]
 
 
+# The spine is the gantry's, so its wood is the gantry's: vanilla's mast is charred wood, here it is made from three
+# support beams of the gantry's wood (its three lengths, `spine_stage()`), and its charred faces take the gantry's wood
+# codes, side grain and the two ends of each length end grain, as the frame's timbers do. The two little platforms
+# are cut from the same beams. The pulley's caps and its little winch handle and the hooks keep vanilla's look, and the
+# ropes, staples and steel clamps theirs.
+SPINE_TIMBERS = ("spine1", "spine2", "spine3")     # the mast's three lengths: a support beam each
+SPINE_WOODEN = SPINE_TIMBERS + ("spine-platformL", "spine-platformR")
+SPINE_CHARRED = "#charred"
+
+
+def spine_wood(name, size, faces):
+    """A spine element's faces in the gantry's wood: its charred faces `wood`, those across its longest axis `wood-end`
+    (UVs the middle of the texture, the rings), as `skin` draws a timber. Other elements' faces are returned as they are."""
+    if name not in SPINE_WOODEN:
+        return faces
+    end = max(range(3), key=lambda k: abs(size[k]))
+    axes = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
+    out = {}
+    for d, f in faces.items():
+        if f["texture"] != SPINE_CHARRED:
+            out[d] = f
+            continue
+        u, v = axes[d]
+        w, h = min(abs(size[u]) * TEX / 16, TEX), min(abs(size[v]) * TEX / 16, TEX)
+        if d in END_FACES[end]:
+            out[d] = {"texture": "#wood-end", "uv": [(TEX - w) / 2, (TEX - h) / 2, (TEX + w) / 2, (TEX + h) / 2]}
+        else:
+            out[d] = {"texture": "#wood", "uv": [0.0, 0.0, w, h]}
+    return out
+
+
 def bake_body(shape, stages):
     """The body's elements and the spine's in the hung pose as static boxes (build voxels), named
     b_<stage>_<name> and sp_<name>, in the shape's order. Elements with no drawn face (vanilla's `origin`, the anchors) draw nothing and
@@ -387,6 +418,8 @@ def bake_body(shape, stages):
             if f.get("glow"):
                 glow[(baked_name(n, st), d)] = f["glow"]
         part = "spine" if n in spine_names() else st[n]
+        if part == "spine":
+            faces = spine_wood(n, size, faces)
         out.append(El(baked_name(n, st), size, [c[k] + OFF[k] for k in range(3)], r, faces, part))
     return out, glow
 
@@ -863,6 +896,12 @@ def winch_stages():
 
 
 SPINE_STAGE = "spine"                        # the spine, hung on the chain's ring: after the winch, before the body
+
+
+def spine_stage():
+    """The spine's stage, after the winch's: (requires, item, count, the rig parts it fits). A support beam of the
+    gantry's wood for each of the mast's lengths."""
+    return (SPINE_STAGE, "game:supportbeam-{wood}", len(SPINE_TIMBERS), ("spine",))
 
 
 def strap_count():

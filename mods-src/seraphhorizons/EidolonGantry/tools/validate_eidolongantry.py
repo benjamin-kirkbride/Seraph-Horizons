@@ -200,6 +200,11 @@ def check_build(v, stages):
     for code, item, count, pids in m.winch_stages():
         if count < 1 or not item.startswith("game:"):
             v.fail(f"stage {code} takes {count} of {item}")
+    code, item, count, pids = m.spine_stage()
+    mast = [el for el in v.by_part["spine"] if el.name[3:] in m.SPINE_TIMBERS]
+    print(f"spine stage: {count} × {item}, the mast in {len(mast)} lengths")
+    if (code, item, pids) != (m.SPINE_STAGE, "game:supportbeam-{wood}", ("spine",)) or count != len(mast) or count < 1:
+        v.fail(f"the spine's stage takes {count} of {item}, its mast is {len(mast)} lengths")
     timbers = m.frame_timbers(v.by_part["frame"])
     straps = {re.sub(r"_\d+$", "", el.name) for pid in ("crankhoops", "laystraps", "drumstraps") for el in v.by_part[pid]}
     axles = sum(1 for pid in ("layshaft", "drumshaft") for el in v.by_part[pid] if re.search(r"_shaft\d+_1$", el.name))
@@ -646,6 +651,11 @@ def check_textures(v):
             bad.append((el.name, sorted(tex), sorted(rule or [])))
     if set(v.m.WOOD_CODES) != WOOD or not WOOD <= set(v.m.GANTRY_TEXTURES) or v.m.MECHANICS not in v.m.GANTRY_TEXTURES:
         bad.append(("wood codes", sorted(v.m.WOOD_CODES), sorted(WOOD)))
+    for el in v.by_part.get("spine", []):
+        tex = {f["texture"].lstrip("#") for f in el.faces.values()}
+        wooden = el.name[3:] in v.m.SPINE_WOODEN
+        if wooden and not tex <= WOOD or not wooden and tex & WOOD:
+            bad.append((el.name, sorted(tex), sorted(WOOD) if wooden else ["not wood"]))
     ends = sum(1 for el in v.els if el.part in GANTRY for f in el.faces.values() if f["texture"] == "#wood-end")
     print(f"textures by role: {sum(el.part in GANTRY for el in v.els) - len(bad)} gantry elements as their role says, "
           f"{ends} end-grain faces")

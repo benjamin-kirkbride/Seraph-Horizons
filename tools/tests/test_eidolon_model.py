@@ -3,7 +3,8 @@
 The committed files are checked as they are: strict JSON, every animation naming only elements that
 exist and moving only the joints the vanilla animations move (plus the three anchors), the textures
 the game's own, the attachment points in place, the build stages covering every element exactly once
-with the body one piece after every stage, and the poses doing what they are for (feet on the ground, hands on their grips,
+with the body one piece after every stage, the viewer's rig a part per stage that puts every element in
+its own stage's part, and the poses doing what they are for (feet on the ground, hands on their grips,
 objects on the ground staying put). With a game install ($VINTAGE_STORY) the generator is run too
 and its output must equal the committed files. Run with `python3 -m unittest discover -s tools/tests`.
 """
@@ -42,6 +43,7 @@ def strict_load(path):
 SHAPE = strict_load(make_shape.SHAPE_OUT)
 SPINE = strict_load(make_shape.SPINE_OUT)
 STAGES = strict_load(make_shape.STAGES_OUT)
+STAGE_RIG = strict_load(make_shape.RIG_OUT)
 RIG = kin.Rig(SHAPE)
 ANIMS = {a["code"]: a for a in SHAPE["animations"]}
 AUTHORED = {
@@ -64,6 +66,7 @@ class Files(unittest.TestCase):
         self.assertEqual(make_shape.SHAPE_OUT.read_text(encoding="utf-8"), make_shape.render(SHAPE))
         self.assertEqual(make_shape.STAGES_OUT.read_text(encoding="utf-8"), make_shape.render(STAGES))
         self.assertEqual(make_shape.SPINE_OUT.read_text(encoding="utf-8"), make_shape.render(SPINE))
+        self.assertEqual(make_shape.RIG_OUT.read_text(encoding="utf-8"), make_shape.render(STAGE_RIG))
 
     def test_regenerates_unchanged(self):
         path = make_shape.vanilla_path(None)
@@ -76,6 +79,8 @@ class Files(unittest.TestCase):
                          make_shape.STAGES_OUT.read_text(encoding="utf-8"), "eidolon-stages.json is stale")
         self.assertEqual(make_shape.render(make_shape.spine_file(make_shape.load_vanilla(path))),
                          make_shape.SPINE_OUT.read_text(encoding="utf-8"), "EidolonGantry/spine.json is stale")
+        self.assertEqual(make_shape.render(make_shape.rig_file(shape, make_shape.stages_file(shape))),
+                         make_shape.RIG_OUT.read_text(encoding="utf-8"), "eidolon-rig.json is stale")
 
 
 class Shape(unittest.TestCase):
@@ -276,6 +281,50 @@ class Stages(unittest.TestCase):
 
     def test_the_stage_file_is_the_stage_map(self):
         self.assertEqual(STAGES, make_shape.stages_file(SHAPE))
+
+
+class StageRig(unittest.TestCase):
+    """The model viewer's rig (eidolon-rig.json): a part per stage, so the page shows any of them."""
+
+    def part_of(self, name):
+        # the viewer's rule (site/src/lib/rig.ts partOf, machinegen's part_of): the first part with a
+        # name matching any name in the element's chain, itself or an ancestor
+        chain = []
+        while name is not None:
+            chain.append(name)
+            name = RIG.parent[name]
+        return next((p["id"] for p in STAGE_RIG["parts"] if any(n in p["match"] for n in chain)), None)
+
+    def test_a_part_per_stage_with_no_drivers(self):
+        codes = [s["code"] for s in STAGES["stages"] if s["elements"]]
+        self.assertEqual(sorted(p["id"] for p in STAGE_RIG["parts"]), sorted(codes))
+        for p in STAGE_RIG["parts"]:
+            self.assertEqual(p["requires"], p["id"])
+            self.assertEqual(p["drivers"], [])
+            self.assertNotIn("ride", p)
+            self.assertEqual(p["match"], next(s["elements"] for s in STAGES["stages"] if s["code"] == p["id"]))
+            self.assertFalse(any("*" in n for n in p["match"]), "exact names, no globs")
+        self.assertEqual(set(STAGE_RIG) - {"_comment"}, {"parts"}, "no cells or anchors: an entity, not a block")
+
+    def test_every_element_is_in_its_own_stages_part(self):
+        stage = {n: s["code"] for s in STAGES["stages"] for n in s["elements"]}
+        for n in RIG.order:
+            self.assertEqual(self.part_of(n), stage[n], n)
+
+    def test_listed_with_each_stage_before_those_its_elements_hang_from(self):
+        order = [p["id"] for p in STAGE_RIG["parts"]]
+        for deep, under in (("mind", "head"), ("mind", "torso"), ("head", "torso"), ("arms", "torso"),
+                            ("torso", "pelvis"), ("legs", "pelvis")):
+            self.assertLess(order.index(deep), order.index(under), (deep, under))
+
+    def test_the_order_check_catches_a_part_listed_too_late(self):
+        bad = json.loads(json.dumps(STAGE_RIG))
+        bad["parts"].sort(key=lambda p: p["id"] != "pelvis")     # the pelvis first: it would take everything
+        saved, STAGE_RIG["parts"] = STAGE_RIG["parts"], bad["parts"]
+        try:
+            self.assertEqual(self.part_of("neck"), "pelvis")
+        finally:
+            STAGE_RIG["parts"] = saved
 
 
 if __name__ == "__main__":

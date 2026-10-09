@@ -32,6 +32,7 @@ import {
   type Object3D,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { pieceMatrix } from "../lib/keyframes.ts";
 import { SIDE_NORMAL, cellBoxes, lidBox, sideArrow, type Anchor, type Bounds } from "../lib/model-anchors.ts";
 import type { ModelView } from "../lib/model-view.ts";
 import { TRACK_OVERLAY, type TrackLayout } from "../lib/model-vehicle.ts";
@@ -126,7 +127,6 @@ export class ModelScene {
   private visible: boolean[] = [];
   /** The piece (index into partObjects) each element is drawn in. */
   private readonly elementObject: number[] = [];
-  private readonly jointMatrix = new Matrix4();
   private picked: number | null = null;
   private hovered: number | null = null;
   private dirty = true;
@@ -447,17 +447,9 @@ export class ModelScene {
 
   /** A piece's matrix, blocks: its part's, times its joint's motion (voxels) when it has one. */
   private objectMatrix(o: PartObject, out: Matrix4): Matrix4 {
-    out.fromArray(this.matrices[o.part] ?? IDENTITY);
+    const part = (this.matrices[o.part] ?? IDENTITY) as Mat4;
     const d = o.joint >= 0 ? this.joints.get(o.joint) : undefined;
-    if (d) {
-      this.jointMatrix.fromArray(d);
-      const e = this.jointMatrix.elements;
-      e[12] /= 16;
-      e[13] /= 16;
-      e[14] /= 16;
-      out.multiply(this.jointMatrix);
-    }
-    return out;
+    return d ? out.fromArray(pieceMatrix(part, d)) : out.fromArray(part);
   }
 
   /**

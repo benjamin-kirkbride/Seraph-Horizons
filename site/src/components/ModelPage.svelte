@@ -17,15 +17,18 @@
     enterPhase,
     feedAdvance,
     feedBlocksPerRadian,
-    initialFitted,
     INPUT_SPEED_MAX,
+    needsMet,
+    openingFitted,
     optionClass,
     pickChoice,
     playTrip,
     propBox,
     rigNumber,
     startPhase,
+    stateGroups,
     stateOf,
+    statesShow,
     type Motion,
     type PlayContext,
   } from "../lib/model-scenario.ts";
@@ -70,17 +73,17 @@
           rig = merged.rig;
           vehicle = v;
           const values = view.requires.map((r) => r.value);
-          fittedState = initialFitted(values, m.scenario?.choices);
-          const opening = m.scenario?.states?.options.find((o) => o.id === m.scenario?.states?.default);
-          if (opening) fittedState = applyState(fittedState, opening, values, m.scenario?.choices);
-          pickedState = opening?.id ?? null;
+          const opening = openingFitted(values, m.scenario?.choices, stateGroups(m.scenario?.states, values));
+          fittedState = opening.fitted;
+          pickedStates = opening.picked;
           overlays = {
             cells: true,
             collision: false,
             ...(v?.track ? { [TRACK_OVERLAY]: true } : {}),
             ...Object.fromEntries(view.anchors.map((a) => [a.key, true])),
           };
-          colourMode = view.hasRig ? "part" : "texture";
+          // A rig whose parts all stand still (the eidolon's stages) opens in its textures, as one without a rig.
+          colourMode = view.hasRig && view.parts.some((p) => p.moving) ? "part" : "texture";
           propChoice = m.scenario?.prop?.default ?? "none";
           inputSpeed = defaultInputSpeed(m.scenario?.play, v?.speed ? turnsPerSecondAt(v.speed, v) : null);
           choose();
@@ -106,8 +109,8 @@
   let reverse = $state(false);
   let playing = $state(false);
   let fittedState = $state<Record<string, boolean>>({});
-  // The state last picked from the scenario's states: two states may fit the same parts (built empty, and left empty).
-  let pickedState = $state<string | null>(null);
+  // The state last picked in each group of the scenario's states: two states may fit the same parts (built empty, and left empty).
+  let pickedStates = $state<Record<string, string | null>>({});
   let overlays = $state<Record<string, boolean>>({});
   let edges = $state(true);
   let colourMode = $state<ColourMode>("part");
@@ -156,7 +159,15 @@
         )
       : [],
   );
-  const visible = $derived(view ? view.parts.map((p) => fitted(p.part.requires, fittedState) && classShows(p.part.requires, classIndex(motion.size), scenario)) : []);
+  // The scenario's groups of states, each owning its requires values (a lone group owns them all).
+  const groupsOfStates = $derived(view ? stateGroups(scenario?.states, view.requires.map((r) => r.value)) : []);
+  const visible = $derived(
+    view
+      ? view.parts.map(
+          (p) => fitted(p.part.requires, fittedState) && classShows(p.part.requires, classIndex(motion.size), scenario) && statesShow(p.part.requires, fittedState, groupsOfStates),
+        )
+      : [],
+  );
   // While a cycle runs (or is paused part-way) it decides whether the prop is on; posed by hand, the choice does.
   const propShown = $derived(motion.phase !== null ? motion.propOn : propOption !== null);
   const box = $derived(
@@ -424,20 +435,36 @@
     const choice = choiceOf(scenario?.choices, value);
     return choice ? `${choice.label}: ${label}` : label;
   };
-  // The scenario's state the fitted parts are in, or null when they were set by hand.
-  const statesSpec = $derived(scenario?.states);
-  const currentState = $derived(
-    view && statesSpec ? stateOf(fittedState, statesSpec, pickedState, view.requires.map((r) => r.value), scenario?.choices) : null,
+  // Each group of states: the state its values are in (null when ticked by hand), its hint, whether it waits
+  // on its needs, and its values' checkboxes (not a choice's), listed under its select.
+  const stateRows = $derived(
+    view
+      ? groupsOfStates.map((g) => {
+          const current = stateOf(fittedState, g.spec, pickedStates[g.id] ?? null, g.owns, scenario?.choices);
+          const waiting = !needsMet(g, fittedState);
+          return {
+            group: g,
+            current,
+            hint: waiting
+              ? (g.spec.needsHint ?? s.stateNeeds((g.spec.needs ?? []).map(requiresLabel)))
+              : (g.spec.options.find((o) => o.id === current)?.hint ?? null),
+            waiting,
+            checks: g.owns.filter((v) => !choiceOf(scenario?.choices, v)).map((v) => view!.requires.find((r) => r.value === v)!),
+          };
+        })
+      : [],
   );
-  const currentStateHint = $derived(statesSpec?.options.find((o) => o.id === currentState)?.hint ?? null);
-  function pickState(id: string) {
-    const state = statesSpec?.options.find((o) => o.id === id);
-    if (!view || !state) return;
-    fittedState = applyState(fittedState, state, view.requires.map((r) => r.value), scenario?.choices);
-    pickedState = id;
+  function pickState(group: string, id: string) {
+    const g = groupsOfStates.find((x) => x.id === group);
+    const state = g?.spec.options.find((o) => o.id === id);
+    if (!g || !state) return;
+    fittedState = applyState(fittedState, state, g.owns, scenario?.choices);
+    pickedStates = { ...pickedStates, [group]: id };
   }
-  // The requires values that are not in a choice: a checkbox each.
-  const freeRequires = $derived(view ? view.requires.filter((r) => !choiceOf(scenario?.choices, r.value)) : []);
+  // The requires values in no choice and no group of states: a checkbox each, after the groups'.
+  const freeRequires = $derived(
+    view ? view.requires.filter((r) => !choiceOf(scenario?.choices, r.value) && !groupsOfStates.some((g) => g.owns.includes(r.value))) : [],
+  );
   let copyState = $state<{ which: string; text: string } | null>(null);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   let nameEl = $state<HTMLElement>();
@@ -770,16 +797,28 @@
       {#if view.requires.length > 0}
         <fieldset>
           <legend>{s.fitted}</legend>
-          {#if statesSpec}
-            <label class="stack">
-              <span>{statesSpec.label}</span>
-              <select value={currentState ?? ""} onchange={(e) => pickState(e.currentTarget.value)} data-input="state">
-                {#if currentState === null}<option value="" disabled>{s.stateByHand}</option>{/if}
-                {#each statesSpec.options as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
-              </select>
-              {#if currentStateHint}<span class="muted small" data-testid="model-state-hint">{currentStateHint}</span>{/if}
-            </label>
-          {/if}
+          {#each stateRows as row (row.group.id)}
+            <div class="state-group" data-state-group={row.group.id} data-waiting={row.waiting}>
+              <label class="stack">
+                <span>{row.group.spec.label}</span>
+                <select value={row.current ?? ""} onchange={(e) => pickState(row.group.id, e.currentTarget.value)} disabled={row.waiting} data-input="state">
+                  {#if row.current === null}<option value="" disabled>{s.stateByHand}</option>{/if}
+                  {#each row.group.spec.options as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+                </select>
+              </label>
+              {#if row.hint}<span class="muted small" class:waiting={row.waiting} data-testid="model-state-hint">{row.hint}</span>{/if}
+              {#if row.checks.length > 0}
+                <div class="checks">
+                  {#each row.checks as r (r.value)}
+                    <label class="check" class:off={row.waiting}>
+                      <input type="checkbox" bind:checked={fittedState[r.value]} disabled={row.waiting} data-requires={r.value} />
+                      {r.label}
+                    </label>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/each}
           {#each scenario?.choices ?? [] as c (c.label)}
             <label class="stack">
               <span>{c.label}</span>
@@ -1100,6 +1139,27 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
     gap: 0.3rem 0.75rem;
+  }
+  .state-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .state-group + .state-group {
+    border-top: 1px solid var(--border);
+    padding-top: 0.5rem;
+    margin-top: 0.15rem;
+  }
+  .state-group select {
+    max-width: 100%;
+  }
+  .waiting {
+    font-style: italic;
+  }
+  .check.off {
+    opacity: 0.55;
+    cursor: default;
   }
   .stack {
     display: flex;

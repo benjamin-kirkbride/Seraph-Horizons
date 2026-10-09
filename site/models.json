@@ -303,7 +303,25 @@
       "credit": "The body is Anego Studios' model, Vintage Story's mobile eidolon (game 1.22.7), with its vanilla animations; it is not covered by the repository's license. The anchors, attachment points and the laborer's animations were made for the Seraph Horizons mod.",
       "creditUrl": "https://github.com/benjamin-kirkbride/Seraph-Horizons/blob/main/mods-src/seraphhorizons/CREDITS.md",
       "shape": "mods-src/seraphhorizons/assets/seraphhorizons/shapes/entity/eidolon/eidolon.json",
+      "rig": "mods-src/seraphhorizons/assets/seraphhorizons/config/eidolon-rig.json",
       "scenario": {
+        "requires": {"torso": "Torso", "pelvis": "Pelvis", "legs": "Legs", "arms": "Arms", "head": "Head", "mind": "Mind (the glowing cores)"},
+        "states": [
+          {
+            "id": "build",
+            "label": "Build state",
+            "default": "built",
+            "values": ["torso", "pelvis", "legs", "arms", "head", "mind"],
+            "options": [
+              {"id": "torso", "label": "1: torso", "fitted": ["torso"], "hint": "The chest block with its plates, collar and sashes: the first part, clamped onto the gantry's spine (not drawn here)."},
+              {"id": "pelvis", "label": "2: pelvis", "fitted": ["torso", "pelvis"]},
+              {"id": "legs", "label": "3: legs", "fitted": ["torso", "pelvis", "legs"]},
+              {"id": "arms", "label": "4: arms", "fitted": ["torso", "pelvis", "legs", "arms"]},
+              {"id": "head", "label": "5: head", "fitted": ["torso", "pelvis", "legs", "arms", "head"]},
+              {"id": "built", "label": "6: mind, fully built", "fitted": ["torso", "pelvis", "legs", "arms", "head", "mind"]}
+            ]
+          }
+        ],
         "animations": {
           "default": "fell",
           "labels": {"fell": "Felling a tree", "lift": "Lifting a block", "setdown": "Setting a block down", "trunk-pickup": "Picking up a trunk", "trunk-setdown": "Setting a trunk down", "carry-idle": "Holding a block", "carry-walk": "Walking with a block", "trunk-carry-idle": "Standing with a trunk on the shoulder", "trunk-carry-walk": "Walking with a trunk on the shoulder", "trunk-thick-pickup": "Picking up a thick trunk", "trunk-thick-setdown": "Setting a thick trunk down", "trunk-thick-carry-idle": "Standing with a thick trunk", "trunk-thick-carry-walk": "Walking with a thick trunk", "guard-idle": "Standing guard", "slump": "Slumping at 0 HP", "standup": "Standing up after repair", "hung": "Hung in the gantry (clamped by the back to the gantry's spine, which is not drawn here)", "activate": "First awakening: unclamps from the spine and steps off it"},
@@ -348,29 +366,44 @@
           "head": "Body: head",
           "mind": "Body: mind (the glowing cores)"
         },
-        "states": {
-          "label": "Build state",
-          "default": "built",
-          "options": [
-            {"id": "frame", "label": "The frame", "fitted": [], "hint": "Crafted and placed: the frame, its bearings empty, before any of the winch is fitted."},
-            {"id": "axles", "label": "Winch 1: axles (8 wooden axles)", "fitted": ["axles"], "hint": "The layshaft and the drum's shaft, vanilla's wooden axles laid end to end, on iron gudgeons in the cheeks' bearings."},
-            {"id": "crankshaft", "label": "Winch 2: crank shaft (an iron rod)", "fitted": ["axles", "crankshaft"], "hint": "The iron crank shaft, in the left cheek's bearing and the pillow block beside the back left post."},
-            {"id": "gears", "label": "Winch 3: gears (4 spur gears)", "fitted": ["axles", "crankshaft", "gears"], "hint": "Two stages of a 6-stave lantern driving a 30-cog wheel: 25 to 1."},
-            {"id": "drum", "label": "Winch 4: drum and sheave (10 planks)", "fitted": ["axles", "crankshaft", "gears", "drum"]},
-            {"id": "strapping", "label": "Winch 5: strapping (10 nails and strips)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping"], "hint": "The lanterns' and the drum's hoops and the wooden shafts' collars."},
-            {"id": "ratchet", "label": "Winch 6: ratchet and pawl (a plate)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet"]},
-            {"id": "crank", "label": "Winch 7: crank (an iron rod)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank"]},
-            {"id": "chain", "label": "Winch 8: chain and ring (4 chains)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain"]},
-            {"id": "spine", "label": "The spine on the chain", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine"], "hint": "The winch built and the spine hung empty from the ring, for the torso to be clamped onto it."},
-            {"id": "torso", "label": "Body 1: torso", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine", "torso"]},
-            {"id": "pelvis", "label": "Body 2: pelvis", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine", "torso", "pelvis"]},
-            {"id": "legs", "label": "Body 3: legs", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine", "torso", "pelvis", "legs"]},
-            {"id": "arms", "label": "Body 4: arms", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine", "torso", "pelvis", "legs", "arms"]},
-            {"id": "head", "label": "Body 5: head", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine", "torso", "pelvis", "legs", "arms", "head"]},
-            {"id": "built", "label": "Body 6: mind, fully built", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine", "torso", "pelvis", "legs", "arms", "head", "mind"]},
-            {"id": "departed", "label": "Departed: awake and gone", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine"], "hint": "The eidolon has woken, let go of the spine and walked out of the open front: the spine hangs empty from the ring, as it did before the body was built, and the gantry waits as its dock."}
-          ]
-        },
+        "states": [
+          {
+            "id": "gantry",
+            "label": "Gantry",
+            "default": "spine",
+            "values": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine"],
+            "options": [
+              {"id": "frame", "label": "The frame", "fitted": [], "hint": "Crafted and placed: the frame, its bearings empty, before any of the winch is fitted."},
+              {"id": "axles", "label": "Winch 1: axles (8 wooden axles)", "fitted": ["axles"], "hint": "The layshaft and the drum's shaft, vanilla's wooden axles laid end to end, on iron gudgeons in the cheeks' bearings."},
+              {"id": "crankshaft", "label": "Winch 2: crank shaft (an iron rod)", "fitted": ["axles", "crankshaft"], "hint": "The iron crank shaft, in the left cheek's bearing and the pillow block beside the back left post."},
+              {"id": "gears", "label": "Winch 3: gears (4 spur gears)", "fitted": ["axles", "crankshaft", "gears"], "hint": "Two stages of a 6-stave lantern driving a 30-cog wheel: 25 to 1."},
+              {"id": "drum", "label": "Winch 4: drum and sheave (10 planks)", "fitted": ["axles", "crankshaft", "gears", "drum"]},
+              {"id": "strapping", "label": "Winch 5: strapping (10 nails and strips)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping"], "hint": "The lanterns' and the drum's hoops and the wooden shafts' collars."},
+              {"id": "ratchet", "label": "Winch 6: ratchet and pawl (a plate)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet"]},
+              {"id": "crank", "label": "Winch 7: crank (an iron rod)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank"]},
+              {"id": "chain", "label": "Winch 8: chain and ring (4 chains)", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain"]},
+              {"id": "spine", "label": "The spine on the chain", "fitted": ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain", "spine"], "hint": "The winch built and the spine hung from the ring, made from three support beams (one a length of its mast) of the gantry's wood and drawn in it: what the torso is clamped onto."}
+            ]
+          },
+          {
+            "id": "eidolon",
+            "label": "Eidolon",
+            "default": "built",
+            "values": ["torso", "pelvis", "legs", "arms", "head", "mind"],
+            "needs": ["chain", "spine"],
+            "needsHint": "The body is built on the spine: fit the gantry up to “The spine on the chain” first.",
+            "options": [
+              {"id": "none", "label": "None", "fitted": [], "hint": "The spine hangs empty from the ring, waiting for the torso to be clamped onto it."},
+              {"id": "torso", "label": "Body 1: torso", "fitted": ["torso"], "hint": "The chest block and its plates, clamped onto the spine by its steel clamps."},
+              {"id": "pelvis", "label": "Body 2: pelvis", "fitted": ["torso", "pelvis"]},
+              {"id": "legs", "label": "Body 3: legs", "fitted": ["torso", "pelvis", "legs"]},
+              {"id": "arms", "label": "Body 4: arms", "fitted": ["torso", "pelvis", "legs", "arms"]},
+              {"id": "head", "label": "Body 5: head", "fitted": ["torso", "pelvis", "legs", "arms", "head"]},
+              {"id": "built", "label": "Body 6: mind, fully built", "fitted": ["torso", "pelvis", "legs", "arms", "head", "mind"]},
+              {"id": "departed", "label": "Departed: awake and gone", "fitted": [], "hint": "The eidolon has woken, let go of the spine and walked out of the open front: the spine hangs empty from the ring, as it did before the body was built, and the gantry waits as its dock."}
+            ]
+          }
+        ],
         "play": {
           "secondsPerTurn": 1,
           "phases": [

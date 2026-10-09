@@ -85,7 +85,8 @@ corner, iron fish plates and angle brackets at the post tops and trenail heads o
 - **The spine is the gantry's, and holds the body**: vanilla's eidolon has a charred-wood mast down
   its back (`spine1` and its 28 children: the mast in three lengths, a pulley with a small winch handle,
   ropes, staples, hooks, two little platforms and three steel clamps). Here it is cut off the eidolon
-  (`../Eidolon/README.md`, "The spine is the gantry's") and is hung on the chain once the winch is built,
+  (`../Eidolon/README.md`, "The spine is the gantry's"), made from three support beams of the gantry's
+  wood, its mast and platforms drawn in that wood ("Wood", below), and is hung on the chain once the winch is built,
   empty, in `hung`'s pose: an iron ring from the eye over its top peg (`spine-hook1`), the ring's bottom bar
   under the peg. The torso, the first stage, is clamped onto it: the spine's steel clamps (`bar-spine1` and
   `bar-spine2`) run forward through the chest's backplate, and every stage after fits onto what already
@@ -104,10 +105,11 @@ maps per wood; the shape's own map points them at oak, so the model renders as o
 
 | Code | What | The shape's map | A wood-typed blockType's |
 |---|---|---|---|
-| `wood` | Side grain: the frame's timbers, knees and cheeks, the drum, the crank's handle, the sheave | `game:block/wood/debarked/oak` | `game:block/wood/debarked/{wood}` |
-| `wood-end` | End grain, the rings: the two ends of every timber, knee and cheek, of the drum and the handle (UVs the middle of the texture) | `game:block/wood/treetrunk/debarked/oak` | `game:block/wood/treetrunk/debarked/{wood}` |
+| `wood` | Side grain: the frame's timbers, knees and cheeks, the drum, the crank's handle, the sheave; the spine's mast and its two platforms | `game:block/wood/debarked/oak` | `game:block/wood/debarked/{wood}` |
+| `wood-end` | End grain, the rings: the two ends of every timber, knee and cheek, of the drum and the handle, and of each of the mast's three lengths and the platforms (UVs the middle of the texture) | `game:block/wood/treetrunk/debarked/oak` | `game:block/wood/treetrunk/debarked/{wood}` |
 | `mechanics` | What is fitted from vanilla's mechanical power blocks, drawn as the game draws them whatever their wood: the wooden shafts (wooden axles), the lanterns' discs and staves and the wheels' rims, arms and cogs (spur gears) | `game:block/wood/planks/generic` | the same: not wood-typed |
 | `iron`, `chain` | Plates, brackets, pegs, bearings, hangers, the sheave's pin, hoops, collars, gudgeons, the crank shaft, ratchet, pawl and its pin and bracket, crank web, ring, eye; the chains | iron plate, iron chain | the same: not wood-typed |
+| The eidolon's | The body, and the rest of the spine as vanilla draws it: its steel clamps (`steel`), its staples (`rusty-iron`, restyled to tarnished brass with the body), its ropes (`reedrope`), and the small pulley, its winch handle and the four hooks (`charred`) | the eidolon's map | the same: not wood-typed |
 
 The blockType, when it is written, takes a `wood` variant group from the game's wood properties
 (`{ code: "wood", loadFromProperties: "block/wood" }`: birch, oak, maple, pine, acacia, kapok, baldcypress,
@@ -124,6 +126,14 @@ textures: {
 A renderer drawing the moving parts (the winch, the sheave) tessellates them with the same map. The model
 viewer colours by texture code, not by the textures, so it cannot show another wood: its Texture colouring
 shows which faces are `wood`, `wood-end` and iron.
+
+**The spine is in the gantry's wood too.** Vanilla's mast is charred wood (`#charred`); the spine stage makes it
+from support beams of the gantry's wood, so the generator (`spine_wood()`) redraws the charred faces of the mast's
+three lengths (`spine1`..`3`, `SPINE_TIMBERS`) and of the two platforms cut from the same beams in `wood`, and
+the two faces across each one's long axis in `wood-end`, as the frame's timbers are drawn. The pulley's caps, its
+winch handle and the hooks are small vanilla fittings, not the mast's timber, and keep vanilla's charred texture,
+as the clamps, staples and ropes keep theirs. The body's own charred parts (its wooden bones) are the eidolon's
+and are unchanged.
 
 ## The build (proposal)
 
@@ -179,7 +189,7 @@ is any wood (the frame's would match).
 | 6 | `ratchet` | 1 × `game:metalplate-{metal}` | The 8-tooth ratchet keyed on the crank shaft, the pawl, its pin and its bracket on the post | Only by breaking the frame |
 | 7 | `crank` | 1 × `game:rod-{metal}` | The crank's web on the shaft's end (outside the ratchet, so after it) and its wooden handle | Only by breaking the frame |
 | 8 | `chain` | 4 × `game:metalchain-{metal}` | The chain: its turn on the drum, the lead to the sheave, the fall, the swivel eye and the ring (its working length, drum to eye with the drop, is 3.5 blocks: a chain a block) | Only by breaking the frame |
-| — | `spine` | To be decided (open question) | The spine, hung on the ring by its top peg: what the torso is clamped to | — |
+| 9 | `spine` | 3 × `game:supportbeam-{wood}` | The spine, a beam for each of the mast's three lengths (`SPINE_TIMBERS`), drawn in that wood, with its platforms, vanilla's pulley, ropes, staples, hooks and steel clamps; hung on the ring by its top peg: what the torso is clamped to | Only by breaking the frame |
 
 **Why these items.**
 
@@ -199,6 +209,11 @@ is any wood (the frame's would match).
   echoes them: the lanterns are the spur gear's two platters with pegs between, the wheels its radial cogs,
   in its texture. The model keeps its own sizes (the wheels are 2 blocks across, the spur gear 1.25) and
   its mill pattern (a lantern of six staves into a 30-cog wheel), which the gearing checks hold.
+- **Spine.** Vanilla's mast is three lengths of timber (2 × 2 voxels, 16, 16 and 11 long) pegged end to end, so
+  the stage takes a support beam for each (`spine_stage()` counts `SPINE_TIMBERS`), of the gantry's wood
+  (`{wood}`, the frame's would match): the mast is drawn in it. Its small fittings (the steel clamps, staples,
+  hooks, pulley, handle and ropes) are not paid for, as the frame's trenail heads are not: one item a stage. A
+  steel plate for the clamps would be a second stage of a part the player hangs as one.
 - **Drum, strapping, ratchet, crank, chain.** Planks of a wood for the drum and the sheave; one nails and
   strips a band, as the woodworking machines pay for their iron; a plate for the ratchet and pawl (the
   pawl's pin and bracket from the offcut); a rod for the crank (the web forged from it; the handle is
@@ -262,10 +277,11 @@ What is fitted onto a shaft in a later stage rides the shaft's part, so it turns
 **Before the body and after the awakening** the gantry looks the same: the winch built and the spine
 hanging empty from the ring. There is no `departed` value in the rig: a `requires` can only add a part,
 and gameplay draws the body's stages only while the eidolon is in it. The model viewer's entry gives the
-build names: its **Build state** select (the scenario's `states`, `docs/recipe-browser/models.md`)
-steps from "The frame" through each winch stage, "The spine on the chain" and each stage of the body to
-"Mind: fully built", where the page opens, and has "Departed: awake and gone", which fits the winch and
-the spine and none of the body.
+build names in two selects (the scenario's `states`, two groups, `docs/recipe-browser/models.md`): **Gantry**
+steps from "The frame" through each winch stage to "The spine on the chain", and **Eidolon** from "None"
+through each stage of the body to "Mind: fully built", then "Departed: awake and gone", none of the body.
+The page opens with both fully built. The body hangs on the spine, so the Eidolon select waits, disabled with
+a note and the body not drawn, until the chain and the spine are fitted.
 
 **depth** is the winch let down, 0..1: 0 hung, 1 the lowest toe on the floor (`winch.drop`, 3 voxels).
 The cells are the 6×6×5 machine box and one more outside it, **the crank's cell `[5, 1, 5]`**, south
@@ -305,7 +321,7 @@ every drawn eidolon element in the gantry once, in its stage, and the spine's in
 ring with the chain and the spine with its own stage, both on the hook; the build ("The build": every
 part but the frame in one stage, the stages in order, nothing before what it is fitted onto, each winch
 stage at rest joined to the ground through what is there, the spine resting on the ring; the stages'
-counts the model's: the frame's timbers, the axles' lengths, the bands); the spine and body one piece
+counts the model's: the frame's timbers, the axles' lengths, the bands, the spine's beams its mast's lengths); the spine and body one piece
 after every stage (the eidolon's rule; the chest is shown before the hip block it hangs from in the hierarchy,
 which baking makes harmless), and the torso touching the spine (its clamps); the lowest toe at 3 voxels
 at depth 0 and on the floor at depth 1; everything in the machine box or the crank's cell; a full turn
@@ -326,22 +342,13 @@ depth, drum and sheave turning with the chain; the frame one piece from the grou
 the drum's shaft on their gudgeons in both cheeks' bearings, each gudgeon driven into its shaft, the crank
 shaft in the left's and the pillow block and out of the frame, the pawl on its pin, the sheave's pin in both hangers and the sheave on it; the eidolon
 standing where it woke (vanilla's rest pose) walking out west touching nothing, the empty spine included; at least a block to walk past the body on every side; textures by
-role (the wood-variant codes on the frame, drum, sheave and handle, `wood-end` only on wood, `mechanics` on the axles and gears); no z-fighting among the gantry's own faces (after `fix_coplanar`); and in the written rig, the
+role (the wood-variant codes on the frame, drum, sheave and handle, `wood-end` only on wood, `mechanics` on the axles and gears; the spine's mast and platforms in the wood codes and nothing else of it); no z-fighting among the gantry's own faces (after `fix_coplanar`); and in the written rig, the
 crank's cell in the footprint, hollow, with no boxes. `tools/tests/test_eidolongantry_model.py`
 holds the written files to these without the generator's state, and this README's stage table to the
 generator's.
 
 ## Open questions
 
-- **The body's stages are not one item each.** The eidolon's stages (`../Eidolon/README.md`, "Build
-  stages") each list several ingredients (the torso a gearbox, two tanks, a pump head and two steel
-  plates), which does not follow the machines' pattern of one plain item a stage, a click taking all of
-  it. Fitted that way they would need splitting into one-item stages (the torso's gearbox, then its tanks,
-  ...), each its own `requires` with what it draws, or a different interaction for the body. The body's
-  stages are unchanged here.
-- **The spine's item.** The spine stage has no item yet: vanilla's mast is charred wood with three steel
-  clamps, a pulley and ropes, none of which the game has as a plain item. It could take support beams and a
-  steel plate as two stages, or come with the chain stage (the chain hanging it as it goes on).
 - **The gudgeons' iron** is not paid by the stage that fits them (the axles stage takes wooden axles): it
   is counted in the frame recipe's nails and strips. A rod in the axles stage would break one item a stage.
 - **Counts by piece, not by wood.** A support beam a timber, a wooden axle a block of shaft, a spur gear

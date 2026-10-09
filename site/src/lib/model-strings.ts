@@ -77,6 +77,8 @@ const en = {
   animationHint: "The shape's own keyframes, posed as the game poses them, 30 frames a second at speed 1. Stopped, the frame slider poses it.",
   fitted: "Fitted parts",
   stateByHand: "As ticked below",
+  stateNeeds: (what: readonly string[]) =>
+    `Waits for ${what.length > 1 ? `${what.slice(0, -1).join(", ")} and ${what.at(-1)}` : (what[0] ?? "")}: none of this is drawn until ${what.length > 1 ? "they are" : "it is"} fitted.`,
   prop: "Prop",
   propNone: "None",
   overlays: "Overlays",

@@ -14,7 +14,8 @@ recipe data is published. A version can therefore never be called `models`.
 ## What it shows
 
 - **The model**: every element of the shape as a box, coloured by rig part or by texture code,
-  with optional box edges. Drag to orbit, right-drag or two fingers to pan, scroll or pinch to
+  with optional box edges. Moving parts take a colour each and static ones share one; a rig whose
+  parts all stand still (the eidolon's stages) gives each its own and opens coloured by texture. Drag to orbit, right-drag or two fingers to pan, scroll or pinch to
   zoom; buttons give angled, opposite, front (from the south), side (from the west) and top
   views.
 - **Picking**: hovering outlines an element and names it; a click or tap pins its details below
@@ -24,8 +25,8 @@ recipe data is published. A version can therefore never be called `models`.
   one there does the same, which is also how it works without WebGL.
 - **Controls generated from the rig**: a slider or toggle for each input the rig's drivers read
   (below), a checkbox per distinct `requires` value (or a select for a scenario's choice of them),
-  a select of the scenario's named states of them when it has some (a build, stage by stage), and an
-  overlay checkbox per anchor.
+  a select for each group of the scenario's named states of them when it has some (a build, stage by
+  stage: the gantry's and the eidolon's), and an overlay checkbox per anchor.
 - **The shape's own animations** (its `animations`, [below](#keyframe-animations)), when it has any:
   a select, Play and Pause, a frame slider, a speed and a loop toggle.
 - **A vehicle** (the handcar; [Vehicles](#vehicles)): the distance rolled and the speed in blocks a
@@ -178,6 +179,22 @@ its rest one. So a model can have both: the rig moves its parts, the keyframes t
 them. The eidolon (192 elements, 38 joints) draws as about forty meshes and plays at the display's
 frame rate.
 
+A piece's matrix (`pieceMatrix` in `keyframes.ts`, which the scene calls) depends on nothing but its
+part's matrix and its joint's motion, and a joint's motion is worked out from the whole hierarchy,
+drawn or not. So hiding parts never moves what is shown: the eidolon's page has a rig of static parts,
+one per build stage (`mods-src/seraphhorizons/assets/seraphhorizons/config/eidolon-rig.json`, written by
+the eidolon's generator: each part matches its stage's elements by name and needs its stage's
+`requires`, with no drivers, so every part's matrix is the identity), and any set of stages plays any
+animation as the whole body does. The head alone still moves with the chest and hip blocks it hangs
+from, which are hidden, and the torso alone still carries the joint the head and arms hang from.
+`site/test/model-states.test.ts` holds every shown element's corners to the game's pose of the whole
+body, frame by frame, with several sets of stages hidden.
+
+An element is in the first part with a glob matching any name in its chain, so a part whose elements
+hang from another part's must be listed before it: the eidolon's rig lists the mind before the head, and
+the torso before the pelvis (the chest block hangs from the hip block). Its generator orders the parts
+so and checks that every element lands in its own stage.
+
 What is not the game's: one animation plays at a time, at full weight. The game blends several
 running animations by their weights and eases one in and out (`EaseInSpeed`, `EaseOutSpeed`,
 `ElementWeight`, `BlendMode`, all in the entity's JSON, not the shape); with one animation the
@@ -240,34 +257,62 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   place of their checkboxes: the handcar's branch lever, whose three `TNL_*` levers Yang's renderer
   draws one of. `default` (else the first) is fitted at first. A value is in one choice at most, and
   not in `requiresClass`. The legend says "needs Branch lever: Left".
-- `states`: named sets of fitted parts, picked from one select above the checkboxes: the eidolon
-  gantry's build, from the bare frame through each stage of its winch, the spine hung on the chain and
-  each stage of the body to the eidolon fully built, and "Departed", the eidolon woken and gone. A `requires` can only add parts, so a state in which a model has lost
-  them (the body gone, the spine left hanging) is a set of what is still fitted, and it is the
-  scenario's, not the rig's.
+- `states`: named sets of fitted parts, picked from selects above the checkboxes. A `requires` can only
+  add parts, so a state in which a model has lost them (the body gone, the spine left hanging) is a set
+  of what is still fitted, and it is the scenario's, not the rig's. It is one group (one select, as the
+  eidolon gantry first had: its whole build in one list) or **a list of independent groups**, one select
+  each: the eidolon gantry's **Gantry**, from the bare frame through each stage of its winch to the spine
+  hung on the chain, and **Eidolon**, from none through each stage of the body to fully built and
+  "Departed", the eidolon woken and gone; the eidolon's own page has one group, its build state.
 
   ```json
-  "states": {
-    "label": "Build state",
-    "default": "built",
-    "options": [
-      { "id": "frame", "label": "The frame", "fitted": [] },
-      { "id": "axles", "label": "Winch 1: axles (8 wooden axles)", "fitted": ["axles"] },
-      { "id": "departed", "label": "Departed: awake and gone", "fitted": ["axles", "…", "chain", "spine"], "hint": "The eidolon has woken…" }
-    ]
-  }
+  "states": [
+    {
+      "id": "gantry", "label": "Gantry", "default": "spine",
+      "values": ["axles", "…", "chain", "spine"],
+      "options": [
+        { "id": "frame", "label": "The frame", "fitted": [] },
+        { "id": "axles", "label": "Winch 1: axles (8 wooden axles)", "fitted": ["axles"] },
+        { "id": "spine", "label": "The spine on the chain", "fitted": ["axles", "…", "chain", "spine"] }
+      ]
+    },
+    {
+      "id": "eidolon", "label": "Eidolon", "default": "built",
+      "values": ["torso", "pelvis", "legs", "arms", "head", "mind"],
+      "needs": ["chain", "spine"],
+      "needsHint": "The body is built on the spine: fit the gantry up to “The spine on the chain” first.",
+      "options": [
+        { "id": "none", "label": "None", "fitted": [] },
+        { "id": "torso", "label": "Body 1: torso", "fitted": ["torso"] },
+        { "id": "departed", "label": "Departed: awake and gone", "fitted": [], "hint": "The eidolon has woken…" }
+      ]
+    }
+  ]
   ```
 
   | Field | |
   |---|---|
+  | `id` | In a list, required and unique: the group's key. |
   | `label` | The select's label. |
-  | `options` | Two or more, in the select's order. `id` is unique; `fitted` lists the requires values fitted in that state (empty for none), and picking it takes every other off. A choice is set to the value a state lists (one at most) and left as it is when the state lists none of its values. `hint`, optional, is shown under the select while the state is picked. |
-  | `default` | The state the page opens in. Without one it opens as without `states`: everything fitted, each choice at its default. |
+  | `values` | In a list, required: the requires values the group owns, each in one group at most, in the order its checkboxes are listed under its select. A lone group owns every requires value. |
+  | `options` | Two or more, in the select's order. `id` is unique in the group; `fitted` lists the values fitted in that state (empty for none), only the group's own, and picking it takes the group's others off, leaving every other group's as they are. A choice is set to the value a state lists (one at most) and left as it is when the state lists none of its values. `hint`, optional, is shown under the select while the state is picked. |
+  | `default` | The state the page opens in. Without one the group opens as without `states`: its values all fitted, each choice at its default. |
+  | `needs` | In a list, optional: requires values of other groups without which this group's are not drawn. Until they are all fitted, its select and checkboxes are disabled and `needsHint` (else a sentence naming them) is shown under it. |
+  | `needsHint` | With `needs`: the note shown while the group waits. |
 
-  The checkboxes stay, and ticking one by hand leaves the states: the select then reads "As ticked
-  below" until a state is picked again. Two states may fit the same parts (the gantry's spine hung on the
-  chain before the body is built, and after the awakening): the select keeps the one picked, and
-  otherwise names the first.
+  Each group's checkboxes are listed under its select, and ticking one by hand leaves that group's
+  states only: its select then reads "As ticked below" until a state is picked again, and the other
+  groups keep theirs. Two states may fit the same parts (the eidolon's "None" and "Departed"): the
+  select keeps the one picked, and otherwise names the first.
+
+  **A group that waits rather than one that fits the other.** The body cannot hang without the chain
+  and the spine, so the gantry's Eidolon group `needs` them. The other way would be for picking a body
+  stage to fit the gantry up to the spine itself; the viewer waits instead, because a select that moves
+  another select the reader did not touch hides the build's order, while a disabled select with the note
+  under it states it, and nothing is lost: the Eidolon select keeps its state while it waits (its body is
+  simply not drawn), so taking the gantry back to its frame and building it up again brings the body back
+  as it was. The checks (`checkScenario`): every value in one group at most, an option naming only its
+  group's values, `needs` naming requires values outside the group, and each default one of its states.
 - `vehicle`: the model is a vehicle on a track ([Vehicles](#vehicles)).
 - `animations`: the shape's own animations ([Keyframe animations](#keyframe-animations)), the one
   scenario key a model without a rig may have. Codes are the animations' (`code`, else `name`), in
@@ -442,7 +487,7 @@ cd site && node --import tsx scripts/standalone-viewer.ts draw-bench ../build/dr
 | `site/src/lib/rig.ts` | Shape flattening (VS's rotation order, element scale and child frames) and the rig maths: globs, drivers (with the trunk path's), ride order, part matrices. Pure. |
 | `site/src/lib/keyframes.ts` | A shape's keyframe animations: reading them, resolving keyframes, the pose at a frame, element and joint matrices, Play's frame, and the scenario's `animations`. Pure. |
 | `site/src/lib/model-anchors.ts` | Anchor discovery, footprint, side arrows. |
-| `site/src/lib/model-scenario.ts` | Scenario types, props, choices, states, contact depth and the play state machine. |
+| `site/src/lib/model-scenario.ts` | Scenario types, props, choices, groups of states, contact depth and the play state machine. |
 | `site/src/lib/model-vehicle.ts` | Vehicles: distance rolled, speed, bogies added to the model, the track's layout and scroll. |
 | `site/src/lib/model-view.ts` | What the page shows for a shape and rig: parts, textures, colours, controls. |
 | `site/src/lib/model-manifest.ts` | Manifest and model checks, what the build publishes. |
@@ -470,8 +515,11 @@ the element matrix to a line-by-line port of the game's `Mat4f` calls in `GetLoc
 both versions. It also checks the manifest's `animations`.
 `site/test/vehicle.test.ts` covers the vehicle, the θ cycle and choices on a small rig.
 `site/test/model-states.test.ts` covers states: applying one, naming the one the parts are in, their
-checks, and the eidolon gantry's build: the bare frame, the winch stage by stage, and "Departed",
-which shows the winch, the ring and the spine and no stage of the body.
+checks, a lone group and independent groups (each over its own values, a group waiting on its needs);
+the eidolon gantry's two selects: the bare frame, the winch stage by stage, no body before the spine,
+and "Departed", which shows the winch, the ring and the spine and no stage of the body; and the
+eidolon's page, a part per stage, every shown element where the game poses it in four animations with
+several sets of stages hidden.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL (the handcar's `pump` for the

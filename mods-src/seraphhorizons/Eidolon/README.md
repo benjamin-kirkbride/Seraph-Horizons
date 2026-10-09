@@ -24,6 +24,7 @@ against the 1.22.7 file (`VANILLA_SHA256`; a different file stops the script) an
 |---|---|
 | `assets/seraphhorizons/shapes/entity/eidolon/eidolon.json` | The shape: vanilla's 218 elements unchanged but for the spine's 29, cut off (below), so 189, and three anchor elements, five new attachment points, 23 vanilla animations and 18 authored ones. Strict JSON. |
 | `assets/seraphhorizons/config/eidolon-stages.json` | The build stages, each with its ingredients (proposal) and the element names it adds. |
+| `assets/seraphhorizons/config/eidolon-rig.json` | For the model viewer: a part per build stage, matching its elements by name, needing its own `requires`, with no drivers (below). Not read by the game. |
 | `../EidolonGantry/spine.json` | The spine, as vanilla has it, and the element it hangs from (`chest-inside`): the gantry generator's input. Not shipped. |
 
 **The spine is the gantry's.** Vanilla's model has a charred-wood mast down its back, `spine1` (a
@@ -225,6 +226,16 @@ the cores into chest and head). Re-rooting the claims instead (the torso owning 
 | 6 Head (21) | `game:jonasframes-oscillator01`, `game:jonasparts-cylinder02`, `game:jonasframes-gearbox01`, `game:jonasparts-connector01`, `game:metalplate-steel` (2 ingots) | `neck`, `head-inside`, `hood-back3`, `hood-back4` | The neck, the lattice head block, the wooden face and head plates, the brass hood, and the eye's bracket (`Eye-bracket`), without the eye's light. |
 | 7 Mind (6) | `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel), `game:gear-temporal` (its charge, a quarter in-game year) | `brain`, `heart`, `Eye-out` | The two glowing cores, the brain in the head (the vessel) and the heart in the chest (the temporal gear), with their bars, and the eye's red light: what lights up when it wakes. |
 
+**In the model viewer** the eidolon's page shows the stages too: a **Build state** select (torso, pelvis,
+legs, arms, head, mind: fully built, where it opens) and a checkbox per stage, from
+`eidolon-rig.json`, a part per stage (`rig_file()`). Its parts have no drivers, so each part's matrix is
+the identity and the shape's animations move the elements within them as they do the whole body: any set
+of stages plays any animation, the elements shown where the game poses them however many of the joints
+above or below them are hidden (`docs/recipe-browser/models.md`, "Keyframe animations"). An element is
+in the first part matching a name in its chain, so the rig lists each stage before those its elements
+hang from (`rig_order()`: the legs, arms, mind and head before the torso, the torso before the pelvis),
+and the generator checks every element lands in its own stage.
+
 Some elements under the hip and chest blocks belong to other stages by design: `bar-legs` (the
 legs' axle, under `hip-inside`) and `bar-arms` (the arms', under `chest-inside`) arrive with their
 limbs; `neck`, `hood-back3` and `hood-back4` (under `chest-inside`) arrive with the head; `heart`
@@ -234,7 +245,7 @@ the mind; and the chest block itself (under `hip-inside`) arrives before its par
 ## Regenerating
 
 ```sh
-VINTAGE_STORY=$HOME/Games/vintagestory python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py          # write the three files (about 70 s)
+VINTAGE_STORY=$HOME/Games/vintagestory python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py          # write the four files (about 70 s)
 VINTAGE_STORY=$HOME/Games/vintagestory python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py --check  # compare only
 python3 mods-src/seraphhorizons/Eidolon/tools/make_shape.py --report                                         # the pose checks
 ```
@@ -248,7 +259,7 @@ trunk is held and set down, the cut) at the top.
 
 `tools/tests/test_eidolon_model.py` (stdlib unittest): the committed files are strict JSON (no
 NaN, no duplicate keys) and written as the generator writes them; with `$VINTAGE_STORY` set the
-generator runs and must reproduce them (and `spine.json`) exactly; element names are unique; the spine is
+generator runs and must reproduce them (and `spine.json` and `eidolon-rig.json`) exactly; element names are unique; the spine is
 in neither the shape nor any animation, and is in `spine.json` whole; every texture is
 `game:` and every enabled face's texture is in the map; the attachment points are on their elements;
 the kept, dropped and authored codes and their lengths and end handling; every animation names only
@@ -259,7 +270,9 @@ setdowns, `standup` and `activate` end at rest; `activate` starts `HUNG_BACK` be
 is moving by frame 3 and has a foot on the ground every frame from the landing on; the pose checks above within 0.5 voxel (and for a
 thick trunk: nothing of the body inside it, the head and hood over 1 voxel away, the trunk on the
 ground at the grab and release); and the stage map covers every element exactly once, the body one piece after every stage (a stage
-that would leave a piece floating is caught), the torso first, as the stages file has it.
+that would leave a piece floating is caught), the torso first, as the stages file has it; and the viewer's
+rig a part per stage with no drivers, every element in its own stage's part by the viewer's rule (a
+part listed too late is caught).
 
 ## Open questions
 

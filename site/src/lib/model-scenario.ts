@@ -112,8 +112,11 @@ export interface Scenario {
   requiresClass?: Record<string, TrunkClass>;
   /** Requires values of which exactly one is fitted at a time (the handcar's branch lever): a select, not checkboxes. */
   choices?: RequiresChoice[];
-  /** Named sets of fitted parts, picked from one select: a build stage by stage, the model emptied. */
-  states?: FittedStates;
+  /**
+   * Named sets of fitted parts, picked from a select: a build stage by stage, the model emptied. One group
+   * (its select owns every requires value), or a list of independent groups, each owning its `values`.
+   */
+  states?: StatesSpec;
   prop?: PropSpec;
   play?: PlaySpec;
   /** The model is a vehicle on a track (model-vehicle.ts). */
@@ -147,24 +150,53 @@ export function choiceOf(choices: readonly RequiresChoice[] | undefined, value: 
   return choices?.find((c) => c.values.includes(value)) ?? null;
 }
 
+/**
+ * One select of named states. Written alone as `states` it owns every requires value (picking a state takes
+ * every value it does not list off); in a list of groups each owns its `values` and leaves the rest alone.
+ */
 export interface FittedStates {
+  /** In a list of groups: unique, the group's key. */
+  id?: string;
   label: string;
   /** Two or more. */
   options: FittedState[];
   /** The state the page opens in (without one: everything fitted, each choice at its default). */
   default?: string;
+  /** In a list of groups, required: the requires values this group's states fit or take off, each in one group only. */
+  values?: string[];
+  /** In a list of groups: requires values (another group's) without which this group's are not drawn, its select waiting. */
+  needs?: string[];
+  /** Shown under the select while it waits on `needs` (else a sentence naming them). */
+  needsHint?: string;
 }
+
+/** The scenario's `states`: one group, or a list of independent ones. */
+export type StatesSpec = FittedStates | FittedStates[];
 
 export interface FittedState {
   id: string;
   label: string;
-  /** The requires values fitted in this state; every other is taken off. A choice none of whose values is listed is left as it is. */
+  /** The requires values fitted in this state; every other its group owns is taken off. A choice none of whose values is listed is left as it is. */
   fitted: string[];
   /** Shown under the select while this state is picked. */
   hint?: string;
 }
 
-/** `fitted` with `state` applied: its values fitted, every other requires value off, a choice it names set to that value. */
+/** A group of states as the page uses it: its key, its spec and the requires values it owns, in order. */
+export interface StateGroup {
+  id: string;
+  spec: FittedStates;
+  owns: string[];
+}
+
+/** The groups of `states`: a lone group owns every requires value (keyed "states"), a listed one its `values`. */
+export function stateGroups(states: StatesSpec | undefined, requires: readonly string[]): StateGroup[] {
+  if (!states) return [];
+  if (!Array.isArray(states)) return [{ id: states.id ?? "states", spec: states, owns: [...requires] }];
+  return states.map((g) => ({ id: g.id ?? "", spec: g, owns: (g.values ?? []).filter((v) => requires.includes(v)) }));
+}
+
+/** `fitted` with `state` applied over `requires` (the values its group owns): its values fitted, every other off, a choice it names set to that value. */
 export function applyState(
   fitted: Readonly<Record<string, boolean>>,
   state: FittedState,
@@ -179,30 +211,102 @@ export function applyState(
   return out;
 }
 
-function checkStates(st: FittedStates, requires: readonly string[], choices: readonly RequiresChoice[]): string[] {
+/** What the page opens with: every value fitted (each choice at its default), then each group's default state applied. */
+export function openingFitted(
+  requires: readonly string[],
+  choices: readonly RequiresChoice[] = [],
+  groups: readonly StateGroup[] = [],
+): { fitted: Record<string, boolean>; picked: Record<string, string | null> } {
+  let fitted = initialFitted(requires, choices);
+  const picked: Record<string, string | null> = {};
+  for (const g of groups) {
+    const opening = g.spec.options.find((o) => o.id === g.spec.default);
+    if (opening) fitted = applyState(fitted, opening, g.owns, choices);
+    picked[g.id] = opening?.id ?? null;
+  }
+  return { fitted, picked };
+}
+
+/** Whether a group's `needs` are all fitted: until they are, its values are not drawn and its select waits. */
+export function needsMet(group: StateGroup, fitted: Readonly<Record<string, boolean>>): boolean {
+  return (group.spec.needs ?? []).every((v) => fitted[v] === true);
+}
+
+/** Whether parts needing `requires` may be drawn as far as the states go: not while its group waits on its needs. */
+export function statesShow(requires: string | null | undefined, fitted: Readonly<Record<string, boolean>>, groups: readonly StateGroup[]): boolean {
+  if (requires == null) return true;
+  const group = groups.find((g) => g.owns.includes(requires));
+  return !group || needsMet(group, fitted);
+}
+
+const groupName = (g: FittedStates) => (typeof g.id === "string" && g.id !== "" ? `state group "${g.id}"` : "a state group with no id");
+
+function checkGroup(st: FittedStates, requires: readonly string[], choices: readonly RequiresChoice[], listed: boolean): string[] {
   const out: string[] = [];
-  if (typeof st.label !== "string" || st.label === "") out.push("states need a label");
+  // A lone group's messages name "states"; a listed group's are prefixed with its id.
+  const at = listed ? `${groupName(st)}: ` : "";
+  const values = listed ? (Array.isArray(st.values) ? st.values : []) : requires;
+  if (typeof st.label !== "string" || st.label === "") out.push(listed ? `${at}needs a label` : "states need a label");
   const options = Array.isArray(st.options) ? st.options : [];
-  if (options.length < 2) out.push("states need two options or more");
+  if (options.length < 2) out.push(listed ? `${at}needs two options or more` : "states need two options or more");
   const ids = new Set<string>();
   for (const o of options) {
-    if (typeof o.id !== "string" || o.id === "") out.push("a state needs an id");
-    else if (ids.has(o.id)) out.push(`state "${o.id}" is there twice`);
+    if (typeof o.id !== "string" || o.id === "") out.push(`${at}a state needs an id`);
+    else if (ids.has(o.id)) out.push(`${at}state "${o.id}" is there twice`);
     ids.add(o.id);
-    if (typeof o.label !== "string" || o.label === "") out.push(`state "${o.id}" needs a label`);
-    if (o.hint !== undefined && (typeof o.hint !== "string" || o.hint === "")) out.push(`state "${o.id}": its hint must be text`);
+    if (typeof o.label !== "string" || o.label === "") out.push(`${at}state "${o.id}" needs a label`);
+    if (o.hint !== undefined && (typeof o.hint !== "string" || o.hint === "")) out.push(`${at}state "${o.id}": its hint must be text`);
     if (!Array.isArray(o.fitted)) {
-      out.push(`state "${o.id}" needs a fitted list (empty for nothing fitted)`);
+      out.push(`${at}state "${o.id}" needs a fitted list (empty for nothing fitted)`);
       continue;
     }
-    for (const v of o.fitted) if (!requires.includes(v)) out.push(`state "${o.id}": "${v}" is no part's requires value`);
-    for (const c of choices) if (c.values.filter((v) => o.fitted.includes(v)).length > 1) out.push(`state "${o.id}" fits more than one value of choice "${c.label}"`);
+    for (const v of o.fitted) {
+      if (!requires.includes(v)) out.push(`${at}state "${o.id}": "${v}" is no part's requires value`);
+      else if (!values.includes(v)) out.push(`${at}state "${o.id}": "${v}" is not one of the group's values`);
+    }
+    for (const c of choices) if (c.values.filter((v) => o.fitted.includes(v)).length > 1) out.push(`${at}state "${o.id}" fits more than one value of choice "${c.label}"`);
   }
-  if (st.default !== undefined && !ids.has(st.default)) out.push(`states: default "${st.default}" is not one of the states`);
+  if (st.default !== undefined && !ids.has(st.default))
+    out.push(listed ? `${at}default "${st.default}" is not one of its states` : `states: default "${st.default}" is not one of the states`);
   return out;
 }
 
-/** The state the fitted parts are in: `picked` while they still match it (two states may fit the same parts), else the first that matches, else null (set by hand). */
+function checkStates(st: StatesSpec, requires: readonly string[], choices: readonly RequiresChoice[]): string[] {
+  if (!Array.isArray(st)) {
+    const out = checkGroup(st, requires, choices, false);
+    if (st.values !== undefined || st.needs !== undefined || st.needsHint !== undefined) out.push("states: values, needs and needsHint are for a list of groups");
+    return out;
+  }
+  const out: string[] = [];
+  if (st.length === 0) out.push("states: a list needs one group or more");
+  const ids = new Set<string>();
+  const owner = new Map<string, string>();
+  for (const g of st) {
+    if (typeof g.id !== "string" || g.id === "") out.push("a state group needs an id");
+    else if (ids.has(g.id)) out.push(`state group "${g.id}" is there twice`);
+    else ids.add(g.id);
+    const at = `${groupName(g)}: `;
+    if (!Array.isArray(g.values) || g.values.length === 0) out.push(`${at}needs its values, the requires values its states fit or take off`);
+    for (const v of Array.isArray(g.values) ? g.values : []) {
+      if (!requires.includes(v)) out.push(`${at}"${v}" is no part's requires value`);
+      else if (owner.has(v)) out.push(`${at}"${v}" is group "${owner.get(v)}"'s too`);
+      else owner.set(v, g.id ?? "");
+    }
+    out.push(...checkGroup(g, requires, choices, true));
+  }
+  for (const g of st) {
+    const at = `${groupName(g)}: `;
+    if (g.needs !== undefined && !Array.isArray(g.needs)) out.push(`${at}needs must be a list of requires values`);
+    for (const v of Array.isArray(g.needs) ? g.needs : []) {
+      if (!requires.includes(v)) out.push(`${at}it needs "${v}", which is no part's requires value`);
+      else if (g.values?.includes(v)) out.push(`${at}it needs "${v}", one of its own values`);
+    }
+    if (g.needsHint !== undefined && (typeof g.needsHint !== "string" || g.needsHint === "" || !g.needs?.length)) out.push(`${at}needsHint must be text, with needs`);
+  }
+  return out;
+}
+
+/** The state a group's values are in: `picked` while they still match it (two states may fit the same parts), else the first that matches, else null (set by hand). `requires` is what the group owns. */
 export function stateOf(
   fitted: Readonly<Record<string, boolean>>,
   states: FittedStates | undefined,

@@ -480,6 +480,21 @@ export function jointDeltas(shape: AnimatedShape, flat: readonly FlatElement[], 
   return out;
 }
 
+/**
+ * A piece's matrix as the scene poses it, blocks: its rig part's matrix (blocks) times its joint's
+ * motion (voxels, jointDeltas; its translation rescaled to blocks), or the part's alone without one.
+ * Neither depends on what else is drawn: a joint's motion comes from the whole hierarchy, so an
+ * element moves the same whether the elements above or below it are shown or not.
+ */
+export function pieceMatrix(part: Mat4, joint: Mat4 | undefined): Mat4 {
+  if (!joint) return part.slice();
+  const j = joint.slice();
+  j[12]! /= 16;
+  j[13]! /= 16;
+  j[14]! /= 16;
+  return multiply(part, j);
+}
+
 /** Whether Play keeps going round by default: the animation repeats in the game. */
 export function loopsByDefault(anim: CompiledAnimation): boolean {
   return anim.onAnimationEnd === "Repeat";

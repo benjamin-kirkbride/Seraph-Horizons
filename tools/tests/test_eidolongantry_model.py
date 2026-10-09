@@ -10,7 +10,8 @@ the eidolon: the gantry's) is hung on the ring, then the body; the let-down brin
 voxels to the floor, the spine with it; the cells are rebuilt from the shipped shape; the front is open; the crank
 is outside the frame, in its own cell, which is hollow; the winch is geared in wood, lantern pinions driving cog wheels, its
 parts turning by their stave and cog counts; every wooden face of the frame, drum and sheave takes one of the two
-wood-variant texture codes, and the axles and gears vanilla's mechanical power texture; and the README's stage table is
+wood-variant texture codes, and the axles and gears vanilla's mechanical power texture; the spine takes a support
+beam for each of its mast's three lengths and is drawn in the gantry's wood; and the README's stage table is
 the generator's. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
@@ -308,10 +309,31 @@ class Build(unittest.TestCase):
         for code, (item, count) in items.items():
             self.assertTrue(item.startswith("game:") and count >= 1, code)
 
+    def test_the_spine_takes_a_support_beam_a_length_of_its_mast(self):
+        code, item, count, pids = make_shape.spine_stage()
+        self.assertEqual((code, item, pids), ("spine", "game:supportbeam-{wood}", ("spine",)))
+        mast = [e for e in SHAPE["elements"] if e["name"][3:] in make_shape.SPINE_TIMBERS]
+        self.assertEqual(count, len(mast))
+        self.assertEqual(count, 3)
+
+    def test_the_spine_is_in_the_gantrys_wood(self):
+        spine = {e["name"][3:]: {f["texture"] for f in e["faces"].values()} for e in SHAPE["elements"] if e["name"].startswith("sp_")}
+        for name in make_shape.SPINE_WOODEN:
+            self.assertLessEqual(spine[name], {"#wood", "#wood-end"}, name)
+        for name in make_shape.SPINE_TIMBERS:
+            self.assertEqual(spine[name], {"#wood", "#wood-end"}, name)       # side grain and its two ends
+        # the pulley, its handle and the hooks keep vanilla's charred look; the clamps, staples and ropes theirs
+        for name in ("pulley-capL", "winch-handle1", "spine-hook1"):
+            self.assertEqual(spine[name], {"#charred"}, name)
+        self.assertEqual(spine["bar-spine1"], {"#steel"})
+        self.assertEqual(spine["spine-rope1"], {"#reedrope"})
+        self.assertEqual(spine["spine-staple1"], {"#rusty-iron"})
+
     def test_the_readme_holds_the_generators_stages(self):
         rows = re.findall(r"^\| (\d+) \| `(\w+)` \| (\d+) × `([^`]+)`", README, re.M)
-        self.assertEqual([(code, int(count), item) for _, code, count, item in rows if code in dict((c, 1) for c, *_ in WINCH_STAGES)],
-                         [(code, count, item) for code, item, count, _ in WINCH_STAGES])
+        stages = [*WINCH_STAGES, make_shape.spine_stage()]
+        self.assertEqual([(code, int(count), item) for _, code, count, item in rows if code in {c for c, *_ in stages}],
+                         [(code, count, item) for code, item, count, _ in stages])
         beams = len(make_shape.frame_timbers([make_shape.El(e["name"], [1, 1, 1], [0, 0, 0], [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
                                                               e["faces"], "frame") for e in FRAME["elements"]]))
         self.assertEqual(beams, 24)
