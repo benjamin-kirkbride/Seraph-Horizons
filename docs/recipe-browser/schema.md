@@ -74,13 +74,12 @@ they are all absent, which is valid. They are optional additions, so `schemaVers
   them off, the handbook shows "No trade value". The value itself is always the one for the
   default config.
 - `switch`: the config switch that adds the item itself (the gear cutter's blocks and parts,
-  the gear blanks and their molds, the pickling tub, the bare steel gear, the debarked trunks,
+  the gear blanks and their molds, the pickling tub, the debarked trunks,
   ...). With it off the item does not exist.
 
 Recipes have `switch` too: the switch that adds the recipe (its file is one the switch leaves
 out when off, its type is one only that feature has, such as `picklingtub`, `lottery` and
-`gearcutter`, or it is keyed by an item the switch adds, such as the bare steel gear's flash
-rust). Which switch owns what is the mod's switch ownership registry (its README, "Switch
+`gearcutter`, or it is keyed by an item the switch adds, such as a transition of one). Which switch owns what is the mod's switch ownership registry (its README, "Switch
 ownership"), read by reflection. A switch is named as in `ModConfig/seraphhorizons.json`.
 
 ### Variant groups
@@ -165,8 +164,8 @@ the output item.
 | `construction` | `construction`: stages, each listing the ingredients it consumes | Blocks built in place |
 | `butchery` | `butchery`: stages with what each needs and gives, yields per variant | The Butchering mod |
 | `transition` | `transition`: kind, fresh hours and transition hours | Items that turn into others over time: drying, curing, perishing, ..., and the smoking rack |
-| `tub` | `tub`: kind, hours, batch size, litres, and how gears are lost | The pickling tub's acids and brine bath (seraphhorizons) |
-| `lottery` | `lottery`: when it is decided, and outcomes with chances | The oiled gear (seraphhorizons) |
+| `tub` | `tub`: kind, hours, batch size, litres, and how gears are lost | The pickling tub's acids: pickling and passivating (seraphhorizons) |
+| `lottery` | `lottery`: when it is decided, and outcomes with chances | The neutralized gear (seraphhorizons) |
 | `machine` | `machine`: power, shaft turns, work, kept parts, wear and oil | The gear cutter (seraphhorizons) |
 | `generic` | none | Every type without a dedicated serialiser, and casting in tool molds |
 
@@ -245,7 +244,7 @@ dropped with no bump, since readers ignore `extra` ([deploy.md](deploy.md#changi
 
 ### The gear chain
 
-The pack's own mod reclaims rusty gears, cuts new ones and rusts them back into money
+The pack's own mod reclaims rusty gears (corroded stainless steel) and cuts new ones
 (epic #484). Three of its processes have shapes of their own; the cooking pot and barrel
 steps are ordinary `cooking` and `barrel` records.
 
@@ -254,13 +253,14 @@ table (`PicklingTubSettings`), id `picklingtub|<gear>|<liquid pattern>`. The ing
 the gear (role `batch`), the liquid (role `liquid`; its `litres` are what a finished batch
 uses up; the code may be a pattern, and the variant lists every liquid it matches) and the
 tub (role `station`). The first output is what the batch becomes. `tub` has the `kind`
-(`pickle` for an acid, `rust` for brine), the `hours` to done and the `batchSize`; when the
-liquid can lose gears, `failure` is the index of the output a lost gear becomes (steel bits),
-`graceHours` and `lossEveryHours` say when an acid starts eating a batch left past done and
-how fast, and `lossChance` is each gear's chance to come out lost at done (brine's
-over-rusting).
+(`pickle` for an acid that takes the scale off, `passivate` for the nitric acid that
+passivates; any other string a reader shows plainly), the `hours` to done and the `batchSize`;
+when the liquid can lose gears, `failure` is the index of the output a lost gear becomes
+(stainless bits), `graceHours` and `lossEveryHours` say when an acid starts eating a batch left
+past done and how fast, and `lossChance` is each gear's chance to come out lost at done (no
+default rule has one; the brine bath of earlier exports had, with the kind `rust`).
 
-**The oiled gear** (type `lottery`, shape `lottery`): an item decided by chance, one at a time.
+**The neutralized gear** (type `lottery`, shape `lottery`): an item decided by chance, one at a time.
 The one ingredient is the item; `lottery.trigger` says when (`inventory`: when it lands in a
 player's inventory) and `lottery.outcomes` lists each outcome's `chance` and the `outputs`
 indices it gives (none: it is lost). Chances add up to 1.

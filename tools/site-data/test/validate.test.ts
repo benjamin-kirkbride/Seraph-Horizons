@@ -64,7 +64,7 @@ describe("validate: cross-references", () => {
 
   it("takes item values, switches and recipe switches, and rejects a negative value", () => {
     const d = example();
-    expect(d.items["seraphhorizons:gear-steel"].valueSwitches).toEqual(["GearBlanks", "GearCutter"]);
+    expect(d.items["seraphhorizons:gear-stainless"].valueSwitches).toEqual(["GearBlanks", "GearCutter"]);
     d.items["examplemod:widget"].value = -1;
     expect(problems(d).length).toBeGreaterThan(0);
     d.items["examplemod:widget"].value = 0;
@@ -403,7 +403,7 @@ describe("validate: cross-references", () => {
     expect(problems(d)).toEqual([["schema:required", "/recipes/5/transition/transitionHours/avg"]]);
   });
 
-  // recipes[11] is degreased gears pickling in vinegar, recipes[10] the oiled gear's lottery,
+  // recipes[11] is degreased gears pickling in vinegar, recipes[10] the neutralized gear's lottery,
   // recipes[7] a gear cut on the gear cutter.
   it("rejects a tub whose failure is missing, past the outputs, or whose roles are not one each", () => {
     const d = example();

@@ -9,11 +9,11 @@ namespace SeraphHorizons.Mod;
 /// <summary>
 /// Gears (#473, epic #484): the rusty gear (<c>game:gear-rusty</c>) is salvage and money, so
 /// nothing is built from one. Every recipe in the pack that took a rusty gear takes the pack's
-/// steel gear (<see cref="SteelGear"/>) in the same number, by JSON patches,
+/// stainless gear (<see cref="StainlessGear"/>) in the same number, by JSON patches,
 /// <c>patches/gearconsumers-{modid}.json</c> (<see cref="PatchAssets"/>), one per mod patched,
 /// each <c>dependsOn</c> that mod. Pipes and Power Expanded's machines and valves, and Steelmaking
 /// Expanded's, come in pairs, one recipe taking the rusty gear and one ppex's anvil gears
-/// (<c>ppex:gear-*</c>): the first takes the steel gear and the second is switched off. ppex's
+/// (<c>ppex:gear-*</c>): the first takes the stainless gear and the second is switched off. ppex's
 /// anvil gears and large gears are no longer smithed and are hidden from the creative inventory and
 /// the handbook. A few uses are left alone (the rusty gear amulet, the barrel dyes that use the
 /// rust and Cartwright's gear sign; BetterLoot+'s gear parts are gone, <see cref="GearPartsRemoved"/>): <c>tools/tests/test_gear_consumers.py</c>
@@ -23,7 +23,7 @@ namespace SeraphHorizons.Mod;
 /// the hotbar, named in its code, not in a recipe: <c>BlockEntityConverterControl.IsSpawnGear</c>
 /// takes <c>ppex:largegear-iron</c> or <c>-steel</c>, and <c>BlockConverterBessemer.GetDrops</c>
 /// gives a <c>ppex:largegear-iron</c> back when the vessel is broken. Postfixes make the first take
-/// only <see cref="SteelLargeGear"/> and the second give that back instead (both sides: the client
+/// only <see cref="StainlessLargeGear"/> and the second give that back instead (both sides: the client
 /// checks the hotbar before it sends the click). If either method is gone, a warning is logged and
 /// the converter keeps taking ppex's large gears, which are no longer made.
 ///
@@ -35,11 +35,11 @@ public static class GearConsumers
 {
     public const string HarmonyId = "seraphhorizons.gearconsumers";
 
-    /// <summary>The pack's steel gear, what every rusty gear use now takes (#474 adds the item).</summary>
-    public const string SteelGear = GearCodes.Steel;
+    /// <summary>The pack's stainless gear, what every rusty gear use now takes (#474 adds the item).</summary>
+    public const string StainlessGear = GearCodes.Stainless;
 
-    /// <summary>The pack's steel large gear, cut on the gear cutter (#480).</summary>
-    public const string SteelLargeGear = GearCodes.LargeSteel;
+    /// <summary>The pack's stainless large gear, cut on the gear cutter (#480).</summary>
+    public const string StainlessLargeGear = GearCodes.LargeStainless;
 
     public const string SmexId = "smex";
     public const string ControlType = "SteelmakingExpanded.BlockStructures.Converter.BlockEntities.BlockEntityConverterControl";
@@ -59,11 +59,11 @@ public static class GearConsumers
     public static readonly AssetLocation[] PatchAssets =
         PatchedMods.Select(mod => new AssetLocation("seraphhorizons", $"patches/gearconsumers-{mod}.json")).ToArray();
 
-    /// <summary>Steelmaking Expanded's handbook and its converter's refusal name the steel large gear.</summary>
+    /// <summary>Steelmaking Expanded's handbook and its converter's refusal name the stainless large gear.</summary>
     public static readonly LangEdit[] LangEdits =
     [
-        new("en", "smex:bessemer-err-materials", "Needs {0} large gear and", "Needs {0} steel large gear and"),
-        new("en", "smex:handbook-bessemer-text", "it with one large gear and eight", "it with one steel large gear and eight"),
+        new("en", "smex:bessemer-err-materials", "Needs {0} large gear and", "Needs {0} stainless large gear and"),
+        new("en", "smex:handbook-bessemer-text", "it with one large gear and eight", "it with one stainless large gear and eight"),
     ];
 
     private static MethodInfo? _isSpawnGear;
@@ -113,18 +113,18 @@ public static class GearConsumers
         harmony.Patch(_getDrops, postfix: new HarmonyMethod(typeof(GearConsumers), nameof(GetDropsPostfix)));
     }
 
-    /// <summary>Whether a hotbar stack raises the converter: the steel large gear only.</summary>
-    public static bool RaisesConverter(ItemStack? stack) => stack?.Collectible?.Code?.ToString() == SteelLargeGear;
+    /// <summary>Whether a hotbar stack raises the converter: the stainless large gear only.</summary>
+    public static bool RaisesConverter(ItemStack? stack) => stack?.Collectible?.Code?.ToString() == StainlessLargeGear;
 
     public static void IsSpawnGearPostfix(ItemStack stack, ref bool __result) => __result = RaisesConverter(stack);
 
-    /// <summary>The broken vessel gives the steel large gear back in place of smex's large gear,
-    /// or nothing for it if the steel large gear does not exist.</summary>
+    /// <summary>The broken vessel gives the stainless large gear back in place of smex's large gear,
+    /// or nothing for it if the stainless large gear does not exist.</summary>
     public static void GetDropsPostfix(IWorldAccessor world, ref ItemStack[] __result)
     {
         if (__result == null || !__result.Any(s => SmexLargeGears.Contains(s?.Collectible?.Code?.ToString())))
             return;
-        var steel = world.GetItem(new AssetLocation(SteelLargeGear));
+        var steel = world.GetItem(new AssetLocation(StainlessLargeGear));
         __result = __result
             .Select(s => SmexLargeGears.Contains(s?.Collectible?.Code?.ToString()) ? steel == null ? null : new ItemStack(steel, s!.StackSize) : s)
             .Where(s => s != null)

@@ -1,11 +1,11 @@
-// Large steel gear blank (#479, GearBlanks; README "Steel gear blanks"): a disc with a bore, the
+// Large stainless gear blank (#479, GearBlanks; README "Stainless gear blanks"): a disc with a bore, the
 // size of the game's large temporal gear (2 voxels thick, as it is), stock for the gear cutter's
 // large gears. Cast in a large gear blank mold (200 units) or smithed from two ingots
 // (recipes/smithing/gearblank.json).
 {
 	code: "largegearblank",
 	variantgroups: [
-		{ code: "metal", states: ["steel"] }
+		{ code: "metal", states: ["stainlesssteel"] }
 	],
 	behaviors: [
 		{ name: "GroundStorable", properties: { layout: "SingleCenter", placeRemoveSound: "game:sounds/block/plate", collisionBox: { x1: 0.1875, y1: 0, z1: 0.1875, x2: 0.8125, y2: 0.125, z2: 0.8125 } } }

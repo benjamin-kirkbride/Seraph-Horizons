@@ -1,5 +1,5 @@
-// The pickling tub (#476, #482, PicklingTub/): a wooden tub lined with pitch that holds a liquid and
-// a batch of gears. The acids pickle degreased gears and dip steel ones bare; brine rusts steel gears.
+// The pickling tub (#476, PicklingTub/): a wooden tub lined with pitch that holds a liquid and
+// a batch of gears. The acids pickle degreased gears, and nitric acid passivates pickled ones.
 // Its rules are in PicklingTubSettings; the server leaves it out with GearReclamation off.
 {
 	code: "picklingtub",
