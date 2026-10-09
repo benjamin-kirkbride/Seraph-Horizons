@@ -56,15 +56,15 @@ public class DeliveriesTests
     }
 
     [Fact]
-    public void Deposit_is_10_to_30_and_fee_20_to_40_percent_of_the_value()
+    public void Deposit_is_10_to_30_and_fee_200_to_400_percent_of_the_value()
     {
         Assert.Equal(16, DeliveryPlanner.Value(1, 0));
         Assert.Equal(24, DeliveryPlanner.Value(1, 1));
         Assert.Equal(40, DeliveryPlanner.Value(2, 0.5));
         Assert.Equal(2, DeliveryPlanner.Deposit(20, 0));
         Assert.Equal(6, DeliveryPlanner.Deposit(20, 1));
-        Assert.Equal(4, DeliveryPlanner.Fee(20, 0));
-        Assert.Equal(8, DeliveryPlanner.Fee(20, 1));
+        Assert.Equal(40, DeliveryPlanner.Fee(20, 0));
+        Assert.Equal(80, DeliveryPlanner.Fee(20, 1));
         Assert.Equal(1, DeliveryPlanner.Deposit(1, 0));
         Assert.Equal(3, DeliveryPlanner.LateFee(5));
     }

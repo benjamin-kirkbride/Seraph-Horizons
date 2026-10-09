@@ -580,7 +580,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         {
             listed = true;
             offer = new Offer(Refusal.None, item.Price, 1, EconomySystem.SupplyFactor(_trader, stack.Collectible.Code.ToString()), 1,
-                Math.Max(1, unit.StackSize), item.Price, 1, Budget.Main);
+                Math.Max(1, unit.StackSize), item.Price, Budget.Main);
         }
         else if (EconomySystem.IsPriced(_trader) && EconomySystem.Of(capi) is { } economy)
             offer = economy.QuoteOffList(_trader, stack, capi.World.Player.PlayerUID);

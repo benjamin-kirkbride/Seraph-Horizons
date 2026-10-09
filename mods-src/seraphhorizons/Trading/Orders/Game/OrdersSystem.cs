@@ -2,6 +2,7 @@ using SeraphHorizons.Mod.Trading.Core;
 using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Economy.Core;
 using SeraphHorizons.Mod.Trading.Orders.Core;
+using SeraphHorizons.Mod.Trading.Values;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -13,19 +14,17 @@ namespace SeraphHorizons.Mod.Trading.Orders;
 /// Standing orders (#453), server side, switch <see cref="SeraphHorizonsConfig.TraderOrders"/>.
 ///
 /// <list type="bullet">
-/// <item>At every restock (<see cref="EntitySeraphTrader.Restocked"/>) a trader tops its open
-/// orders up to one or two, each for an item its list buys in its region, at standing scale 1,
-/// with its premium (<see cref="OrderPlanner"/>) taken out of its wallet then; a trader whose wallet
-/// can't hold it back makes no order.</item>
-/// <item>A player takes one in the trade window's Orders tab (<see cref="Accept"/>): the quantity
-/// grows with their <c>orderScale</c> as far as the wallet covers the larger premium. Items count
-/// when sold to the trader (<see cref="EntitySeraphTrader.Dealt"/>) or handed in from the Orders
-/// tab (<see cref="HandIn"/>), which pays the normal price from the wallet; each pays its share of
-/// the premium, completion the rest and standing.</item>
+/// <item>At every restock (<see cref="EntitySeraphTrader.Restocked"/>) a trader tops its offers
+/// up to 2n (<see cref="OrderPlanner.PerWeek"/>, n its shelf tier's number), each for an item its
+/// list buys in its region that has a value. Nothing comes out of its wallet.</item>
+/// <item>A player takes one in the trade window's Orders tab (<see cref="Accept"/>): their own
+/// tier sizes it and sets its payout (<see cref="OrderPlanner.Terms"/>). Items count when handed
+/// in from the Orders tab (<see cref="HandIn"/>); each pays its share of the payout, new money, and
+/// completion the rest and standing. Selling the goods to the trader is a sale, not a delivery.</item>
 /// <item>Past the deadline (<see cref="Tick"/>, every few seconds and every simulated day) an
 /// untaken offer lapses, a taken order with nothing delivered is abandoned (standing lost), one
-/// delivered in part just expires; what is left of the premium goes back to the trader's wallet if
-/// it is loaded (else it is gone: the weekly top-up refills the wallet anyway).</item>
+/// delivered in part just expires. An order taken before payouts were new money gives what is left
+/// of its reserve back to the trader's wallet if it is loaded.</item>
 /// </list>
 ///
 /// Saved with the world (<see cref="SaveKey"/>). ExecuteOrder after the economy (0.65), whose
@@ -72,7 +71,6 @@ public class OrdersSystem : ModSystem
         api.Event.SaveGameLoaded += Load;
         api.Event.GameWorldSave += Save;
         EntitySeraphTrader.Restocked += OnRestocked;
-        EntitySeraphTrader.Dealt += OnDealt;
         if (_economy != null) _economy.SimulatedDay += OnSimulatedDay;
         _tick = api.Event.RegisterGameTickListener(_ => Tick(), 5000);
         OrderCommands.Register(api, this);
@@ -82,7 +80,6 @@ public class OrdersSystem : ModSystem
     public override void Dispose()
     {
         EntitySeraphTrader.Restocked -= OnRestocked;
-        EntitySeraphTrader.Dealt -= OnDealt;
         if (_economy != null) _economy.SimulatedDay -= OnSimulatedDay;
         if (_sapi != null && _tick != 0) _sapi.Event.UnregisterGameTickListener(_tick);
     }
@@ -116,20 +113,21 @@ public class OrdersSystem : ModSystem
 
     // ---- Making orders ----
 
-    /// <summary>What the trader would order: its list's buying side for its region, plain stacks with
-    /// a price, at the list price per item times the region's supply factor.</summary>
+    /// <summary>What the trader would order: its list's buying side for its region, plain stacks
+    /// whose item has a value (<see cref="ItemValuesSystem"/>), at that value per item.</summary>
     public List<OrderCandidate> Candidates(EntitySeraphTrader trader)
     {
         if (_trading?.Lists?.For(trader.TraderType) is not { } def) return [];
+        var values = ItemValuesSystem.For(trader.Api);
         var side = TradeListResolver.Resolve(def, trader.Region).Buying;
         var list = new List<OrderCandidate>();
         foreach (var e in side.Core.Concat(side.Rotating))
         {
-            if (e.Price is not { Avg: > 0 } price || e.AttributesKey.Length > 0) continue;
+            if (e.AttributesKey.Length > 0) continue;
             string code = BuyerIndex.FullCode(e.Code);
-            if (TraderFinder.Collectible(trader.World, code) is not { } c) continue;
-            double unit = price.Avg / Math.Max(1, e.StackSize) * EconomySystem.SupplyFactor(trader, code);
-            list.Add(new OrderCandidate(code, unit, Math.Max(1, e.StackSize), Math.Max(1, c.MaxStackSize)));
+            if (list.Any(c => c.Item == code) || TraderFinder.Collectible(trader.World, code) is not { } c) continue;
+            double value = values.ValueOf(code);
+            if (value > 0) list.Add(new OrderCandidate(code, value, Math.Max(1, c.MaxStackSize)));
         }
         return list;
     }
@@ -138,66 +136,38 @@ public class OrdersSystem : ModSystem
     {
         if (trader.Api != _sapi || !Enabled) return;
         string id = TraderFinder.IdOf(_sapi!, trader);
-        int target = OrderPlanner.TargetOpen(trader.World.Rand.NextDouble());
+        int target = OrderPlanner.PerWeek(_trading!.Standing.ShelfTierFor(trader) + 1);
         var candidates = Candidates(trader);
-        while (Book.OpenAt(id).Count() < target)
+        while (Book.OpenAt(id).Count(o => o.State == OrderState.Offered) < target)
         {
             var onOrder = Book.OpenAt(id).Select(o => o.Item).ToHashSet();
             if (OrderPlanner.Pick(candidates, onOrder, trader.World.Rand.NextDouble()) is not { } c) break;
-            if (MakeOffer(trader, id, c, OrderPlanner.Quantity(c.UnitPrice, c.Lot, c.MaxStack, 1),
-                    OrderPlanner.Factor(trader.World.Rand.NextDouble()), OrderPlanner.Days(trader.World.Rand.NextDouble())) is null)
-                break;
+            Book.Offer(id, trader.TraderType, c, trader.World.Rand.NextDouble(), OrderPlanner.Days(trader.World.Rand.NextDouble()), Today);
         }
-    }
-
-    /// <summary>An offer at the trader, its premium held back from the wallet; null when the wallet
-    /// can't hold it.</summary>
-    public Order? MakeOffer(EntitySeraphTrader trader, string id, OrderCandidate c, int quantity, double factor, double days)
-    {
-        int premium = OrderPlanner.Premium(quantity, c.UnitPrice, factor);
-        if (trader.Inventory is null || trader.Inventory.GetTraderAssets() < premium) return null;
-        TraderFinder.TakeFromWallet(trader, premium);
-        return Book.Offer(id, trader.TraderType, c, quantity, factor, days, Today);
     }
 
     // ---- Taking and delivering ----
 
-    public double ScaleFor(IPlayer player, EntitySeraphTrader trader)
+    /// <summary>The player's standing tier at the trader as a number, 1 (stranger) to 5 (partner);
+    /// 1 with standing off.</summary>
+    public int TierFor(IPlayer player, EntitySeraphTrader trader)
     {
         var standing = _trading!.Standing;
-        return standing.Enabled ? standing.UnlocksFor(player, trader).OrderScale : 1;
+        return standing.Enabled ? standing.TierFor(player, trader) + 1 : 1;
     }
+
+    public int MaxStackOf(string code) => TraderFinder.Collectible(_sapi!.World, code)?.MaxStackSize ?? 64;
 
     /// <summary>The player takes an offer at the trader; the error's lang key, or null.</summary>
     public string? Accept(IServerPlayer player, EntitySeraphTrader trader, int orderId)
     {
         string id = TraderFinder.IdOf(_sapi!, trader);
         if (Book.Get(orderId) is not { State: OrderState.Offered } o || o.TraderId != id) return "trading-orders-notoffered";
-        double scale = ScaleFor(player, trader);
-        if (scale <= 0) return "trading-orders-notyet";
-        int maxStack = TraderFinder.Collectible(_sapi!.World, o.Item)?.MaxStackSize ?? 64;
-        var (qty, premium) = OrderPlanner.Scaled(o, scale, maxStack, trader.Inventory.GetTraderAssets());
-        TraderFinder.TakeFromWallet(trader, premium - o.Reserved);
-        Book.Accept(orderId, player.PlayerUID, player.PlayerName, qty, premium, Today);
+        // An offer made before payouts were new money gives its reserve back.
+        int reserve = o.Reserved;
+        Book.Accept(orderId, player.PlayerUID, player.PlayerName, TierFor(player, trader), MaxStackOf(o.Item), Today);
+        if (reserve > 0) TraderFinder.ReturnToWallet(trader, reserve);
         return null;
-    }
-
-    /// <summary>Counts goods the player sold to the trader towards their orders here.</summary>
-    private void OnDealt(IServerPlayer player, EntitySeraphTrader trader, IReadOnlyList<ItemStack> sold)
-    {
-        if (trader.Api != _sapi || !Enabled) return;
-        string id = TraderFinder.IdOf(_sapi!, trader);
-        foreach (var group in sold.GroupBy(s => s.Collectible.Code.ToString()))
-        {
-            int n = group.Sum(s => s.StackSize);
-            foreach (var o in Book.OpenAt(id).Where(o => o.State == OrderState.Accepted && o.PlayerUid == player.PlayerUID && o.Item == group.Key).ToList())
-            {
-                if (n <= 0) break;
-                if (Book.Deliver(o.Id, player.PlayerUID, n, Today) is not { } change) continue;
-                n -= change.Taken;
-                Settle(change, player);
-            }
-        }
     }
 
     /// <summary>The player's own slots (hotbar and backpack) holding <paramref name="code"/>, fresh:
@@ -224,8 +194,9 @@ public class OrdersSystem : ModSystem
     public static int Carried(IPlayer player, string code) => SlotsWith(player, code).Sum(s => s.StackSize);
 
     /// <summary>Hands what the player carries of order <paramref name="orderId"/>'s item over towards
-    /// it (the Orders tab's Hand in), up to what is still wanted, paid at the order's normal price from
-    /// the wallet; the error's lang key and its arguments, or null.</summary>
+    /// it (the Orders tab's Hand in), up to what is still wanted; the error's lang key and its
+    /// arguments, or null. An order taken before payouts were new money also pays the goods at its
+    /// price from the wallet, as it did then.</summary>
     public (string Key, object[] Args)? HandIn(IServerPlayer player, EntitySeraphTrader trader, int orderId)
     {
         string id = TraderFinder.IdOf(_sapi!, trader);
@@ -236,7 +207,7 @@ public class OrdersSystem : ModSystem
         int carried = slots.Sum(s => s.StackSize);
         if (carried <= 0) return ("trading-orders-handin-none", [TraderFinder.ItemName(_sapi!.World, o.Item)]);
         int n = Math.Min(carried, o.Remaining);
-        int price = (int)Math.Round(n * o.UnitPrice);
+        int price = o.Reserved > 0 ? (int)Math.Round(n * o.Value) : 0;
         if (trader.Inventory.GetTraderAssets() < price) return ("trading-orders-handin-broke", [price]);
         if (Book.Deliver(o.Id, player.PlayerUID, n, Today) is not { } change) return ("trading-orders-handin-none", [TraderFinder.ItemName(_sapi!.World, o.Item)]);
         int left = change.Taken;
@@ -248,23 +219,26 @@ public class OrdersSystem : ModSystem
             slot.MarkDirty();
             left -= take;
         }
-        TraderFinder.TakeFromWallet(trader, price);
-        TraderFinder.GiveGears(_sapi!, player.Entity, price);
+        if (price > 0)
+        {
+            TraderFinder.TakeFromWallet(trader, price);
+            TraderFinder.GiveGears(_sapi!, player.Entity, price);
+        }
         Settle(change, player, price);
         return null;
     }
 
-    /// <summary>Pays a delivery's premium and, on completion, standing; tells the player.</summary>
+    /// <summary>Pays a delivery's share of the payout and, on completion, standing; tells the player.</summary>
     public void Settle(OrderChange change, IServerPlayer? player, int pricePaid = 0)
     {
         var o = change.Order;
-        if (player?.Entity != null) TraderFinder.GiveGears(_sapi!, player.Entity, change.PremiumToPlayer);
+        if (player?.Entity != null) TraderFinder.GiveGears(_sapi!, player.Entity, change.PayoutToPlayer);
         if (change.Completed && o.PlayerUid != null) _trading!.Standing.OnOrderDone(o.PlayerUid, o.TraderId);
         if (player is null) return;
         string item = TraderFinder.ItemName(_sapi!.World, o.Item);
         string msg = change.Completed
-            ? L("trading-orders-done", o.Id, o.Quantity, item, change.PremiumToPlayer)
-            : L("trading-orders-progress", o.Id, change.Taken, item, o.Delivered, o.Quantity, change.PremiumToPlayer);
+            ? L("trading-orders-done", o.Id, o.Quantity, item, change.PayoutToPlayer)
+            : L("trading-orders-progress", o.Id, change.Taken, item, o.Delivered, o.Quantity, change.PayoutToPlayer);
         if (pricePaid > 0) msg += " " + L("trading-orders-paid", pricePaid);
         player.SendMessage(GlobalConstants.GeneralChatGroup, msg, EnumChatType.Notification);
     }
@@ -277,7 +251,7 @@ public class OrdersSystem : ModSystem
         foreach (var change in Book.Tick(Today)) Close(change);
     }
 
-    /// <summary>Settles an order closed by time or by an admin: what is left of the premium back
+    /// <summary>Settles an order closed by time or by an admin: an old order's unpaid reserve back
     /// to the trader if it is loaded, standing for an abandoned one.</summary>
     public void Close(OrderChange change)
     {

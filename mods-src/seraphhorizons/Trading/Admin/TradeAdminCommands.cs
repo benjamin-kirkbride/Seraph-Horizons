@@ -193,10 +193,10 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
         };
         if (trading.Lists?.For(trader.TraderType) is { } def)
         {
-            int tier = trading.Standing.Enabled ? trading.Standing.WalletTierFor(trader) : 0;
+            double factor = trading.Standing.Enabled ? trading.Standing.WalletFactorFor(trader) : 1;
             var resolved = TradeListResolver.Resolve(def, region);
-            var wallet = def.WalletFor(tier);
-            output.Lines.Add(L("trading-admin-inspect-wallet", F(wallet.Avg, "0"), F(wallet.Var, "0"), tier));
+            var wallet = def.WalletAt(factor);
+            output.Lines.Add(L("trading-admin-inspect-wallet", F(wallet.Avg, "0"), F(wallet.Var, "0"), F(factor, "0.##")));
             foreach (var (name, side, slots, keysAttr) in new[]
                      {
                          ("selling", resolved.Selling, trader.Inventory.SellingSlots, EntitySeraphTrader.SellingKeysAttr),
