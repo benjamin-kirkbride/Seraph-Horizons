@@ -18,10 +18,12 @@ public enum OrderState
 }
 
 /// <summary>
-/// A standing order (#453): a trader asks for <see cref="Quantity"/> of an item and pays, on top of
-/// its normal price for each item (paid as it is handed over, by the deal or the hand-in), a premium
-/// reserved from its wallet when the order is made (<see cref="Reserved"/>), paid out pro rata as
-/// items come in and in full on completion.
+/// A standing order (#453): a trader asks for <see cref="Quantity"/> of an item and pays
+/// <see cref="Payout"/>, the goods' worth at their value times the taker's standing multiplier
+/// (<see cref="OrderPlanner.Multiplier"/>), paid out pro rata as items are handed in and in full on
+/// completion. The payout is new money, never the trader's wallet. An offer has no size until it is
+/// taken: the taker's standing tier sizes it from <see cref="Roll"/>, unless an admin fixed it
+/// (<see cref="BaseQuantity"/>).
 /// </summary>
 public sealed class Order
 {
@@ -29,19 +31,26 @@ public sealed class Order
     [JsonPropertyName("trader")] public string TraderId { get; set; } = "";
     [JsonPropertyName("type")] public string TraderType { get; set; } = "";
     [JsonPropertyName("item")] public string Item { get; set; } = "";
-    /// <summary>The quantity at standing scale 1, as offered.</summary>
+    /// <summary>A quantity fixed when the order was made (an admin's), kept whoever takes it; 0: the
+    /// taker's tier sizes it.</summary>
     [JsonPropertyName("base")] public int BaseQuantity { get; set; }
+    /// <summary>Where in its tier's range of worth the order falls, in [0, 1).</summary>
+    [JsonPropertyName("roll")] public double Roll { get; set; }
+    /// <summary>0 until taken (unless fixed).</summary>
     [JsonPropertyName("qty")] public int Quantity { get; set; }
-    /// <summary>Items come in multiples of this (the list's stack size).</summary>
-    [JsonPropertyName("lot")] public int Lot { get; set; } = 1;
     [JsonPropertyName("delivered")] public int Delivered { get; set; }
-    /// <summary>The trader's normal price per item when the order was made, in gears.</summary>
-    [JsonPropertyName("unit")] public double UnitPrice { get; set; }
-    [JsonPropertyName("factor")] public double PremiumFactor { get; set; }
-    /// <summary>The whole premium, in gears, held back from the trader's wallet.</summary>
-    [JsonPropertyName("premium")] public int Premium { get; set; }
+    /// <summary>The item's value when the order was made, in gears per item.</summary>
+    [JsonPropertyName("unit")] public double Value { get; set; }
+    /// <summary>The taker's standing tier, 1 (stranger) to 5 (partner), and the multiplier it gave.</summary>
+    [JsonPropertyName("tier")] public int Tier { get; set; }
+    [JsonPropertyName("factor")] public double Multiplier { get; set; }
+    /// <summary>The whole payout, in gears.</summary>
+    [JsonPropertyName("premium")] public int Payout { get; set; }
+    /// <summary>Only an order taken before payouts were new money (2026-10-08): its premium, held
+    /// back from the trader's wallet then, and it pays its goods at <see cref="Value"/> (then the
+    /// list's price) from the wallet on hand-in. 0 for every order since.</summary>
     [JsonPropertyName("reserved")] public int Reserved { get; set; }
-    [JsonPropertyName("paid")] public int PremiumPaid { get; set; }
+    [JsonPropertyName("paid")] public int PayoutPaid { get; set; }
     [JsonPropertyName("days")] public double Days { get; set; }
     [JsonPropertyName("created")] public double CreatedDay { get; set; }
     /// <summary>Offered: when the offer lapses; accepted: the delivery deadline.</summary>
@@ -56,51 +65,66 @@ public sealed class Order
     [JsonIgnore] public int Remaining => Math.Max(0, Quantity - Delivered);
 }
 
-/// <summary>Something the trader would order: an item it buys, its price and lot.</summary>
-public sealed record OrderCandidate(string Item, double UnitPrice, int Lot, int MaxStack);
+/// <summary>Something the trader would order: an item it buys, its value per item and stack size.</summary>
+public sealed record OrderCandidate(string Item, double Value, int MaxStack);
 
-/// <summary>The maths of orders: what to order, how many, the premium, the scaling with standing.</summary>
+/// <summary>
+/// The maths of orders. <c>n</c> is a standing tier's 1-based number (stranger 1 … partner 5): a
+/// trader offers 2n orders a week for its shelf tier; an order is worth a random lo(n)–2.5n gears of
+/// goods, lo(n) = 1 + 0.375 (n − 1), and pays that worth × (10 + 2.5 (n − 1)), n being the taker's.
+/// </summary>
 public static class OrderPlanner
 {
-    /// <summary>What an order is worth at the normal price at standing scale 1, in gears. 5 since the
-    /// buy spread (2026-10-06; 24 before, × 0.2 rounded): the normal price is a fifth of value now, so
-    /// an order asks for as many items as it did.</summary>
-    public const double BaseGears = 5;
-    public const double MinFactor = 1.3, MaxFactor = 1.6;
     public const int MinDays = 3, MaxDays = 6;
-    /// <summary>At most this many full stacks in one order, whatever the scale.</summary>
+    /// <summary>At most this many full stacks in one order, whatever its worth.</summary>
     public const int MaxStacks = 4;
 
-    /// <summary>How many open orders a trader keeps after a restock: one or two.</summary>
-    public static int TargetOpen(double roll) => roll < 0.5 ? 1 : 2;
+    private static int N(int n) => Math.Max(1, n);
 
-    public static double Factor(double roll) => Math.Round((MinFactor + (MaxFactor - MinFactor) * Math.Clamp(roll, 0, 1)) * 20) / 20;
+    /// <summary>How many offers a trader puts up at its weekly restock: 2n for its shelf tier.</summary>
+    public static int PerWeek(int n) => 2 * N(n);
+
+    /// <summary>The least an order asks, in gears' worth of goods: 1 for a stranger, 2.5 for a partner.</summary>
+    public static double MinWorth(int n) => 1 + 0.375 * (N(n) - 1);
+
+    /// <summary>The most: 2.5n.</summary>
+    public static double MaxWorth(int n) => 2.5 * N(n);
+
+    /// <summary>The payout per gear of goods' worth: 10 for a stranger, 20 for a partner.</summary>
+    public static double Multiplier(int n) => 10 + 2.5 * (N(n) - 1);
+
+    public static double Worth(int n, double roll) => MinWorth(n) + (MaxWorth(n) - MinWorth(n)) * Math.Clamp(roll, 0, 1);
 
     public static int Days(double roll) => MinDays + (int)Math.Floor(Math.Clamp(roll, 0, 0.9999) * (MaxDays - MinDays + 1));
 
-    /// <summary>Items in an order worth <see cref="BaseGears"/> × <paramref name="scale"/> at
-    /// <paramref name="unitPrice"/>, in whole lots, at least one lot and at most
-    /// <see cref="MaxStacks"/> stacks.</summary>
-    public static int Quantity(double unitPrice, int lot, int maxStack, double scale)
+    /// <summary>Items worth <paramref name="worth"/> gears at <paramref name="value"/> each, rounded
+    /// up, at least one and at most <see cref="MaxStacks"/> stacks.</summary>
+    public static int Quantity(double value, double worth, int maxStack)
     {
-        lot = Math.Max(1, lot);
-        int max = Math.Max(lot, MaxStacks * Math.Max(1, maxStack) / lot * lot);
-        if (unitPrice <= 0) return lot;
-        double items = BaseGears * Math.Max(0, scale) / unitPrice;
-        int lots = (int)Math.Ceiling(items / lot - 1e-9);
-        return Math.Clamp(lots * lot, lot, max);
+        int max = MaxStacks * Math.Max(1, maxStack);
+        if (value <= 0) return 1;
+        return Math.Clamp((int)Math.Ceiling(worth / value - 1e-9), 1, max);
     }
 
-    /// <summary>The premium over the normal price for the whole order, at least a gear.</summary>
-    public static int Premium(int quantity, double unitPrice, double factor) =>
-        Math.Max(1, (int)Math.Round(quantity * unitPrice * (factor - 1)));
+    /// <summary>What <paramref name="quantity"/> items at <paramref name="value"/> pay at tier
+    /// <paramref name="n"/>, at least a gear.</summary>
+    public static int Payout(int quantity, double value, int n) =>
+        Math.Max(1, (int)Math.Round(quantity * value * Multiplier(n)));
 
-    /// <summary>The premium due when the delivered count goes to <paramref name="deliveredAfter"/>:
+    /// <summary>The order's quantity and payout for a taker at tier <paramref name="n"/>: a fixed
+    /// quantity as it is, else sized from the offer's roll.</summary>
+    public static (int Quantity, int Payout) Terms(Order offer, int n, int maxStack)
+    {
+        int qty = offer.BaseQuantity > 0 ? offer.BaseQuantity : Quantity(offer.Value, Worth(n, offer.Roll), maxStack);
+        return (qty, Payout(qty, offer.Value, n));
+    }
+
+    /// <summary>The payout due when the delivered count goes to <paramref name="deliveredAfter"/>:
     /// the pro-rata share not yet paid, and the rest of it on completion.</summary>
-    public static int PremiumDue(int premium, int quantity, int deliveredAfter, int alreadyPaid)
+    public static int PayoutDue(int payout, int quantity, int deliveredAfter, int alreadyPaid)
     {
         if (quantity <= 0) return 0;
-        int owed = deliveredAfter >= quantity ? premium : (int)Math.Floor((double)premium * deliveredAfter / quantity);
+        int owed = deliveredAfter >= quantity ? payout : (int)Math.Floor((double)payout * deliveredAfter / quantity);
         return Math.Max(0, owed - alreadyPaid);
     }
 
@@ -108,35 +132,15 @@ public static class OrderPlanner
     /// order at the trader; null when none is left.</summary>
     public static OrderCandidate? Pick(IReadOnlyList<OrderCandidate> candidates, ISet<string> onOrder, double roll)
     {
-        var free = candidates.Where(c => c.UnitPrice > 0 && !onOrder.Contains(c.Item)).ToList();
+        var free = candidates.Where(c => c.Value > 0 && !onOrder.Contains(c.Item)).ToList();
         if (free.Count == 0) return null;
         return free[Math.Min(free.Count - 1, (int)Math.Floor(Math.Clamp(roll, 0, 1) * free.Count))];
-    }
-
-    /// <summary>The order for a player at <paramref name="scale"/> (their standing's
-    /// <c>orderScale</c>): the offered quantity times the scale in whole lots (at most
-    /// <see cref="MaxStacks"/> stacks), and the premium with it, as far as
-    /// <paramref name="affordableExtra"/> gears more than the order already holds back allow (down to
-    /// the offered quantity). A scale under 1 keeps the offer as it is.</summary>
-    public static (int Quantity, int Premium) Scaled(Order offer, double scale, int maxStack, int affordableExtra)
-    {
-        int lot = Math.Max(1, offer.Lot);
-        int max = Math.Max(offer.BaseQuantity, MaxStacks * Math.Max(1, maxStack) / lot * lot);
-        int qty = Math.Min(max, (int)Math.Ceiling(offer.BaseQuantity * Math.Max(1, scale) / lot - 1e-9) * lot);
-        qty = Math.Max(offer.BaseQuantity, qty);
-        while (true)
-        {
-            int premium = Math.Max(offer.Reserved, Premium(qty, offer.UnitPrice, offer.PremiumFactor));
-            if (premium - offer.Reserved <= Math.Max(0, affordableExtra) || qty <= offer.BaseQuantity)
-                return qty <= offer.BaseQuantity ? (offer.BaseQuantity, offer.Reserved) : (qty, premium);
-            qty -= lot;
-        }
     }
 }
 
 /// <summary>What changed for one order, for the game side to settle: gears back to the trader's
-/// wallet, a premium to the player, standing.</summary>
-public sealed record OrderChange(Order Order, OrderState From, OrderState To, int RefundToTrader, int PremiumToPlayer, int Taken)
+/// wallet (an old order's reserve), a payout to the player, standing.</summary>
+public sealed record OrderChange(Order Order, OrderState From, OrderState To, int RefundToTrader, int PayoutToPlayer, int Taken)
 {
     public bool Abandoned => To == OrderState.Abandoned;
     public bool Completed => To == OrderState.Done && From != OrderState.Done;
@@ -160,9 +164,9 @@ public sealed class OrderBook
 
     public IEnumerable<Order> OfPlayer(string playerUid) => All.Where(o => o.PlayerUid == playerUid);
 
-    /// <summary>A new offer at the trader, its premium for <paramref name="baseQuantity"/> already
-    /// held back from the trader's wallet by the caller.</summary>
-    public Order Offer(string traderId, string traderType, OrderCandidate c, int baseQuantity, double factor, double days, double today)
+    /// <summary>A new offer at the trader, sized when taken (<paramref name="roll"/>), or of
+    /// <paramref name="fixedQuantity"/> items when that is positive.</summary>
+    public Order Offer(string traderId, string traderType, OrderCandidate c, double roll, double days, double today, int fixedQuantity = 0)
     {
         var o = new Order
         {
@@ -170,49 +174,50 @@ public sealed class OrderBook
             TraderId = traderId,
             TraderType = traderType,
             Item = c.Item,
-            BaseQuantity = baseQuantity,
-            Quantity = baseQuantity,
-            Lot = Math.Max(1, c.Lot),
-            UnitPrice = c.UnitPrice,
-            PremiumFactor = factor,
-            Premium = OrderPlanner.Premium(baseQuantity, c.UnitPrice, factor),
+            BaseQuantity = Math.Max(0, fixedQuantity),
+            Quantity = Math.Max(0, fixedQuantity),
+            Roll = Math.Clamp(roll, 0, 1),
+            Value = c.Value,
             Days = days,
             CreatedDay = today,
             Deadline = today + days,
             State = OrderState.Offered,
         };
-        o.Reserved = o.Premium;
         _orders[o.Id] = o;
         return o;
     }
 
-    /// <summary>The player takes an offer, at the quantity and premium <see cref="OrderPlanner.Scaled"/>
-    /// gave; the deadline runs from now. False when it is not on offer.</summary>
-    public bool Accept(int id, string playerUid, string playerName, int quantity, int premium, double today)
+    /// <summary>The player, at standing tier <paramref name="n"/>, takes an offer, at the quantity and
+    /// payout <see cref="OrderPlanner.Terms"/> gives; the deadline runs from now. An old offer's
+    /// reserve is let go (the caller returns it to the wallet first). False when it is not on offer.</summary>
+    public bool Accept(int id, string playerUid, string playerName, int n, int maxStack, double today)
     {
         if (Get(id) is not { State: OrderState.Offered } o) return false;
+        var (qty, payout) = OrderPlanner.Terms(o, n, maxStack);
         o.State = OrderState.Accepted;
         o.PlayerUid = playerUid;
         o.PlayerName = playerName;
         o.AcceptedDay = today;
-        o.Quantity = Math.Max(o.BaseQuantity, quantity);
-        o.Premium = Math.Max(o.Reserved, premium);
-        o.Reserved = o.Premium;
+        o.Tier = Math.Max(1, n);
+        o.Multiplier = OrderPlanner.Multiplier(n);
+        o.Quantity = qty;
+        o.Payout = payout;
+        o.Reserved = 0;
         o.Deadline = today + o.Days;
         return true;
     }
 
-    /// <summary>The player hands over <paramref name="count"/> of the item (by a deal or the
-    /// hand-in): up to what is still wanted counts, with its share of the premium. Null when the
-    /// order is not theirs to deliver or is past its deadline.</summary>
+    /// <summary>The player hands over <paramref name="count"/> of the item: up to what is still
+    /// wanted counts, with its share of the payout. Null when the order is not theirs to deliver or is
+    /// past its deadline.</summary>
     public OrderChange? Deliver(int id, string playerUid, int count, double today)
     {
         if (Get(id) is not { State: OrderState.Accepted } o || o.PlayerUid != playerUid || today > o.Deadline || count <= 0) return null;
         int taken = Math.Min(count, o.Remaining);
         if (taken <= 0) return null;
         o.Delivered += taken;
-        int due = OrderPlanner.PremiumDue(o.Premium, o.Quantity, o.Delivered, o.PremiumPaid);
-        o.PremiumPaid += due;
+        int due = OrderPlanner.PayoutDue(o.Payout, o.Quantity, o.Delivered, o.PayoutPaid);
+        o.PayoutPaid += due;
         var from = o.State;
         if (o.Remaining == 0) Close(o, OrderState.Done, today);
         return new OrderChange(o, from, o.State, 0, due, taken);
@@ -222,26 +227,25 @@ public sealed class OrderBook
     public OrderChange? Complete(int id, double today)
     {
         if (Get(id) is not { State: OrderState.Accepted } o) return null;
-        int due = OrderPlanner.PremiumDue(o.Premium, o.Quantity, o.Quantity, o.PremiumPaid);
-        o.PremiumPaid += due;
+        int due = OrderPlanner.PayoutDue(o.Payout, o.Quantity, o.Quantity, o.PayoutPaid);
+        o.PayoutPaid += due;
         o.Delivered = o.Quantity;
         Close(o, OrderState.Done, today);
         return new OrderChange(o, OrderState.Accepted, OrderState.Done, 0, due, 0);
     }
 
-    /// <summary>Admin: closes an open order without penalty; the unpaid premium goes back.</summary>
+    /// <summary>Admin: closes an open order without penalty; an old order's unpaid reserve goes back.</summary>
     public OrderChange? Cancel(int id, double today)
     {
         if (Get(id) is not { IsOpen: true } o) return null;
         var from = o.State;
-        int refund = Math.Max(0, o.Reserved - o.PremiumPaid);
         Close(o, OrderState.Cancelled, today);
-        return new OrderChange(o, from, OrderState.Cancelled, refund, 0, 0);
+        return new OrderChange(o, from, OrderState.Cancelled, Unpaid(o), 0, 0);
     }
 
     /// <summary>Closes what is past its deadline: an untaken offer expires, a taken order with
-    /// nothing delivered is abandoned, one delivered in part expires; the unpaid premium goes back
-    /// to the trader.</summary>
+    /// nothing delivered is abandoned, one delivered in part expires; an old order's unpaid reserve
+    /// goes back to the trader.</summary>
     public List<OrderChange> Tick(double today)
     {
         var changes = new List<OrderChange>();
@@ -249,14 +253,15 @@ public sealed class OrderBook
         {
             var from = o.State;
             var to = from == OrderState.Accepted && o.Delivered == 0 ? OrderState.Abandoned : OrderState.Expired;
-            int refund = Math.Max(0, o.Reserved - o.PremiumPaid);
             Close(o, to, today);
-            changes.Add(new OrderChange(o, from, to, refund, 0, 0));
+            changes.Add(new OrderChange(o, from, to, Unpaid(o), 0, 0));
         }
         foreach (var o in _orders.Values.Where(o => !o.IsOpen && o.ClosedDay is double c && today - c > KeepClosedDays).ToList())
             _orders.Remove(o.Id);
         return changes;
     }
+
+    private static int Unpaid(Order o) => o.Reserved > 0 ? Math.Max(0, o.Reserved - o.PayoutPaid) : 0;
 
     /// <summary>Moves every open order's clock on by <paramref name="days"/> (the economy's
     /// simulate): its deadline comes that much closer.</summary>
@@ -268,14 +273,6 @@ public sealed class OrderBook
             o.CreatedDay -= days;
             if (o.AcceptedDay is double a) o.AcceptedDay = a - days;
         }
-    }
-
-    /// <summary>Admin: makes a taken order (or an offer) by hand, its premium reserved by the caller.</summary>
-    public Order Add(Order o)
-    {
-        o.Id = NextId++;
-        _orders[o.Id] = o;
-        return o;
     }
 
     private static void Close(Order o, OrderState to, double today)

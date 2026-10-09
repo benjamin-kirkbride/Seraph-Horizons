@@ -20,8 +20,8 @@ public class StandingTests
         Tiers =
         [
             new() { Code = "stranger", Points = 0 },
-            new() { Code = "known", Points = 100, Unlocks = new() { WalletTier = 0, BuyPriceFactor = 0.95 } },
-            new() { Code = "regular", Points = 300, Unlocks = new() { WalletTier = 1 } },
+            new() { Code = "known", Points = 100, Unlocks = new() { WalletFactor = 2, BuyPriceFactor = 0.95 } },
+            new() { Code = "regular", Points = 300, Unlocks = new() { WalletFactor = 5 } },
         ],
         Points = new() { PerGear = 1, Order = 40, Delivery = 30, DeliveryFailed = 150, OrderAbandoned = 60 },
         SpilloverShare = 0.1,
@@ -38,10 +38,10 @@ public class StandingTests
         {
             var (a, b) = (rules.Tiers[i - 1].Unlocks, rules.Tiers[i].Unlocks);
             Assert.True(b.BuyPriceFactor <= a.BuyPriceFactor && b.SellPriceFactor >= a.SellPriceFactor);
-            Assert.True(b.WalletTier >= a.WalletTier && b.MapTier >= a.MapTier && b.OrderScale >= a.OrderScale);
+            Assert.True(b.WalletFactor > a.WalletFactor && b.MapTier >= a.MapTier && b.DeliveryScale >= a.DeliveryScale);
         }
-        // Wallet tiers index the lists' four wallets.
-        Assert.InRange(rules.Tiers.Max(t => t.Unlocks.WalletTier), 0, 3);
+        // The wallet is the list's base times 1 / 2 / 5 / 15 / 40.
+        Assert.Equal([1.0, 2, 5, 15, 40], rules.Tiers.Select(t => t.Unlocks.WalletFactor));
         Assert.Equal(0.1, rules.SpilloverShare);
     }
 

@@ -12,7 +12,7 @@ namespace SeraphHorizons.Mod.Trading;
 /// once: one the game can't resolve (a mod missing, a code wrong) is dropped with a warning naming
 /// it, so a restock never meets it. Each kept entry also gets its game TradeItem, made the way
 /// vanilla makes its own (Newtonsoft from the entry's JSON), so stack, attributes, price and stock
-/// mean exactly what they mean in a vanilla list.
+/// mean exactly what they mean in a vanilla list (but the price, which the economy sets).
 /// </summary>
 public sealed class TradeLists
 {
@@ -124,7 +124,9 @@ public sealed class TradeLists
             ["type"] = entry.Type,
             ["code"] = entry.Code,
             ["stacksize"] = entry.StackSize,
-            ["price"] = new JObject { ["avg"] = entry.Price?.Avg ?? 1, ["var"] = entry.Price?.Var ?? 0 },
+            // A placeholder unless overridden: the economy prices the slot from the value table
+            // right after every restock (EconomySystem.Reprice).
+            ["price"] = new JObject { ["avg"] = entry.Price ?? 1, ["var"] = 0 },
             ["stock"] = new JObject { ["avg"] = entry.Stock?.Avg ?? 1, ["var"] = entry.Stock?.Var ?? 0 },
         };
         if (entry.Attributes is JToken attributes) json["attributes"] = attributes.DeepClone();

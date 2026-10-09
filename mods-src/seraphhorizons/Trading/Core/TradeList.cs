@@ -12,8 +12,11 @@ public sealed class NatSpec
 
 /// <summary>
 /// One trade entry: vanilla's trade item fields (<c>type</c>, <c>code</c>, <c>attributes</c>,
-/// <c>stacksize</c>, <c>stock</c>, <c>price</c>), so an entry turns into the game's TradeItem as it
-/// is, plus <c>playerSupplied</c>: goods that exist at traders only because players sold them
+/// <c>stacksize</c>, <c>stock</c>), so an entry turns into the game's TradeItem as it is, but no
+/// price: a listed good is priced from the item value table at every restock
+/// (<see cref="SeraphHorizons.Mod.Trading.Economy.Core.Pricing.ListBase"/>). <c>price</c> is an
+/// override, gears per the entry's stack, that must say why in <c>priceReason</c>: schematics (hand-set
+/// gates) and the special entries the maps system prices. Plus <c>playerSupplied</c>: goods that exist at traders only because players sold them
 /// (metal and metal goods, glass and fired goods, leather and fine cloth, machine parts). A
 /// player-supplied entry on the selling side is never stocked from the list; it is shelved only when
 /// the <see cref="ISupplyGate"/> says so, with the stock it gives. On the buying side the flag is
@@ -29,7 +32,11 @@ public sealed class TradeEntry
     public object? Attributes { get; set; }
     public int StackSize { get; set; } = 1;
     public NatSpec? Stock { get; set; }
-    public NatSpec? Price { get; set; }
+    /// <summary>An override: gears per <see cref="StackSize"/>, in place of the value table's. Only with
+    /// a <see cref="PriceReason"/> (<see cref="TradeListResolver.Problems"/>).</summary>
+    public double? Price { get; set; }
+    /// <summary>Why <see cref="Price"/> overrides the value table.</summary>
+    public string? PriceReason { get; set; }
     public bool PlayerSupplied { get; set; }
     /// <summary>The buyer's standing tier from which the entry is in the core (#452, #468): 0, the
     /// default, for everyone. Schematics carry it; their price is the rest of the gate.</summary>
@@ -80,7 +87,7 @@ public sealed class TradeSide
 /// <summary>
 /// A trader type's list, <c>assets/seraphhorizons/config/tradelists/trader-{type}.json</c>. The format
 /// (docs/trading.md) extends vanilla's: a core always in stock, rotating slots drawn from a pool,
-/// regional additions, player-supplied entries, and a wallet per standing tier.
+/// regional additions, player-supplied entries, and a base wallet that standing multiplies.
 /// </summary>
 public sealed class TradeListDef
 {
@@ -89,11 +96,16 @@ public sealed class TradeListDef
     /// <summary>How often the grid picks this type for a cell, against the others (the prospector's
     /// lattice ignores it).</summary>
     public double CampWeight { get; set; } = 1;
-    /// <summary>Gears the trader restocks to, by standing tier (index 0 for everyone until standing
-    /// exists, #452).</summary>
-    public List<NatSpec> Wallet { get; set; } = [];
+    /// <summary>Gears the trader restocks to with strangers; a standing tier's <c>walletFactor</c>
+    /// multiplies it (#452).</summary>
+    public NatSpec? Wallet { get; set; }
     public TradeSide Selling { get; set; } = new();
     public TradeSide Buying { get; set; } = new();
 
-    public NatSpec WalletFor(int tier) => Wallet.Count == 0 ? new NatSpec(60, 10) : Wallet[Math.Clamp(tier, 0, Wallet.Count - 1)];
+    /// <summary>The wallet times a standing tier's <paramref name="factor"/>, its spread with it.</summary>
+    public NatSpec WalletAt(double factor = 1)
+    {
+        var w = Wallet ?? new NatSpec(60, 10);
+        return new NatSpec((float)(w.Avg * factor), (float)(w.Var * factor));
+    }
 }

@@ -3022,7 +3022,7 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
   delivery packages never go in and stay where they are, and with every sell slot taken nothing
   moves). A slot whose goods the trader does not buy says "doesn't buy this". Under Hold to sell the
   window says what the trader pays ("Trader pays 1 g per 28") and what everything in the slots comes
-  to; the breakdown (value, spread, fit, supply, standing, which budget pays) is in its tooltip and
+  to; the breakdown (value, fit, supply, standing, which budget pays) is in its tooltip and
   each slot's. The slots are valued together: a hold sells one lot, whole gears for as many items as
   they buy (the dearest goods first), the rest staying in the slots, so goods worth under a gear in
   one slot sell with the rest (28 dirt to the gear in two slots of 20). Keep holding for more. What
@@ -3030,8 +3030,8 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
   full. While the window is open, the tooltip of anything in your inventory says what this trader
   pays for it (with the breakdown and which budget pays) or why not.
 - **Orders (n)**: the trader's orders on offer and yours there: the item, how many and how many
-  delivered, the price per item, the premium and the time left; Take, and Hand in (from anywhere in
-  your inventory).
+  delivered, the goods' worth, the pay (an offer's at your tier) and the time left; Take, and Hand in
+  (from anywhere in your inventory).
 - **Deliveries (n)**: the trader's offer (where, how far and which way, the deposit, the fee, the
   time) with Take and Mark on map, your packages from or for it, and Hand in at the receiver.
 - **Maps & leads**: ore maps (metal, size, distance, precision), the gravel map and leads (target,
@@ -3083,8 +3083,12 @@ mechanic, prospector, farmer, cook, tailor, carpenter, mason, animal dealer, gen
 dealer (`seraphhorizons:trader-{gender}-{type}-{climate}`, vanilla's trader with the pack's class).
 Each stocks from its own list (`assets/seraphhorizons/config/tradelists/trader-{type}.json`): a core
 always on the shelf, a few rotating slots, more by the camp's climate (cold, temperate, hot) and rock
-(sedimentary, igneous, metamorphic), and a bigger wallet than vanilla's (60–150 gears). Every good
-vanilla's lists and the pack's mods trade has a place in one of them. Metal and metal goods, glass and
+(sedimentary, igneous, metamorphic), and a bigger wallet than vanilla's (60–180 gears with
+strangers, growing with standing to 40 times that). Every good vanilla's lists and the pack's mods
+trade has a place in one of them. The lists hold no prices: a trader asks an item's value from the item value table (below) and pays half again its value for what
+its list buys, each varied by a roll per item at every restock ("Everything has a price"); only
+schematics and the maps' and leads' entries set a price of their own, each with its reason
+(`price` and `priceReason`). Metal and metal goods, glass and
 fired goods, leather and fine cloth and machine parts are player-supplied: listed, but never on a
 shelf until the supply system (a later wave) puts them there, so a fresh world's smith sells fuel and
 flux and buys metal.
@@ -3174,16 +3178,18 @@ reads "1.85 gears per litre (0.0185 per item, 100 items per litre)"; the JSON ha
 root and its `trade` branch are shared with the other trading features (`GetOrCreate`).
 
 Schematics have no value in `item-values.json` (`tools/item-values`, #506): they are kept on
-crafting and traders are their only source, at their lists' prices. A machine gated behind a
+crafting and traders are their only source, at the prices their list entries set by hand. A machine gated behind a
 schematic is worth its consumed parts and labour. `seraphhorizons:gear-steel` takes its cheapest
 route (the gear cutter, or the reclamation lottery: ten oiled gears less the nine steel bits the
 failed rolls give), and `seraphhorizons:largegear-steel` its gear cutter route; neither is a hand
 price.
 
 After a pack change that adds, removes or re-recipes items, rebuild the table from a fresh export
-(`tools/item-values/README.md`). CI's export job fails when an item of this mod's trade lists
-(`config/tradelists/`) has no value or is retired with nothing valuing it, and when the shipped
-table differs from a rebuild from the export (smoke loads this mod, so the export has its items).
+(`tools/item-values/README.md`). Every trade list entry is priced from this table, so CI's export
+job fails when an item of this mod's trade lists (`config/tradelists/`), bought or sold, has no value
+and no price override with a reason, or is retired with nothing valuing it, and when the shipped
+table differs from a rebuild from the export (smoke loads this mod, so the export has its items);
+`ShippedListValueTests` holds the shipped lists to the shipped table without an export.
 The table's `switches` names, per code, the config switches its value exists by (#523).
 
 **In the handbook** (#506): every item and block page shows, under its name and description, the
@@ -3250,24 +3256,30 @@ the pack, `RecipeExportValueScenarios` (every listed asset exists, every hand-li
 a registered code, every hand-listed recipe type is in the export) and `SwitchesOffScenarios`
 (nothing a switch owns is registered with it off).
 
-### Everything has a price (`EverythingHasAPrice`, `BuySpread`)
+### Everything has a price (`EverythingHasAPrice`)
 
-The trader overhaul's pricing (#450; `Trading/Economy/`, notes in `docs/trading.md`). A trader of the
-pack takes any item, not only what its list buys, and pays a fifth of what it is worth, a pawnshop's
-spread (`BuySpread`, default 0.2); what it asks when it sells is unchanged. Listed goods keep the
-list's price, which already holds the spread (the lists' buying prices were divided by five on
-2026-10-06, and do not follow `BuySpread`), and are paid from the trader's wallet. Anything else is
-priced from the item's base value × the spread × the fit: three quarters for goods a related trader
-buys, 0.6 for a weak link (and the curio dealer for anything another trader buys), half otherwise
-(`assets/seraphhorizons/config/trading/trader-relations.json`). It is paid from a **side budget**, a
-quarter of the trader's wallet, refilled at every restock. Cheap goods sell by the fewest items worth
-a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot for the
-same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than a gear per
-stack, goods the value table doesn't know, and goods that at this trader come to under a gear per full
-stack. The trade window's sell slot and the tooltips of your own items show the offer's breakdown
-(value × spread × fit × supply) and which budget pays, a refused good says why, and the window's
-footer shows what is left in the side budget. Switches: `EverythingHasAPrice` (default on) and `BuySpread` (0.01–1,
-default 0.2); the server's settings go to its clients with each trader.
+The trader overhaul's pricing (#450; `Trading/Economy/`, notes in `docs/trading.md`). Every price
+comes from the item value table (below). A listed good costs its value when a trader sells it, and
+its list buys it (goods in high demand) at half again its value, each × a roll drawn per item per
+trader at every restock, within a quarter either way and the same on both sides of that trader's
+list (`assets/seraphhorizons/config/trading/list-prices.json`); prices are in whole gears, at least
+one. A trader does not pay its list's price for what is on its own selling shelf: while it has an
+item in stock it buys it back only off-market, at a fifth of its value, from its side budget.
+(Hauling goods from one trader to another that wants them pays, by design.) With this switch on, a
+trader also takes any item its list does not buy, at its value × the fit: three quarters for goods
+a related trader buys (0.6 for a weak link), paid from its wallet as listed goods are, and a fifth
+for anything else (the curio dealer three tenths for anything another trader buys;
+`assets/seraphhorizons/config/trading/trader-relations.json`), paid from a **side budget**, a
+quarter of the trader's wallet (standing's factor and all), refilled at every restock. Cheap goods
+sell by the fewest items worth a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot
+for the same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than
+a gear per stack, goods the value table doesn't know, and goods that at this trader come to under a
+gear per full stack. The trade window's sell slot and the tooltips of your own items show the
+offer's breakdown (value × fit × supply) and which budget pays, a refused good says why, and the
+window's footer shows what is left in the side budget. Switch: `EverythingHasAPrice` (default on);
+the server's setting goes to its clients with each trader. (`BuySpread`, a fifth of value on
+everything a trader bought, went on 2026-10-08: the fit is the whole share now, and a stale
+`BuySpread` in an old `seraphhorizons.json` is ignored.)
 
 Admin: `/sh trade price [item]` shows what the nearest trader (16 blocks) pays for an item, or the
 held one, and why.
@@ -3290,12 +3302,13 @@ Admin (privilege `controlserver`, in the caller's region or the spawn's): `/sh t
 `trace <item>` (its last changes), and `/sh trade simulate <days>` (supply decays and spreads for
 that many days, and the loaded traders' restock clocks move on as much).
 
-Tests: `tests/Trading/Economy/` (the fit table, the price curve and offers, the buy spread, the side
-budget, supply decay, spread, shelving and saving, and the shipped lists' buying prices held to a
-fifth of the value table and under 0.6 × the lowest ask, `ShippedListPayTests`); `tests/PackTests/TradingEconomyScenarios.cs` (Atlas: an off-list
+Tests: `tests/Trading/Economy/` (the fit table and which budget pays, the price curve and offers,
+list prices from values and their rolls, the own-shelf rule, the side budget, supply decay, spread,
+shelving and saving, and every shipped list entry valued or overriding its price with a reason,
+`ShippedListValueTests`); `tests/PackTests/TradingEconomyScenarios.cs` (Atlas: an off-list
 sale paid from the side budget through vanilla's own deal, worthless goods, money and an overdrawn side
-budget refused, supply rising, falling over `simulate 20`, and player-supplied iron and steel shelved
-once supply is high).
+budget refused, supply rising, falling over `simulate 20`, player-supplied iron and steel shelved
+once supply is high, and the smith buying back the iron on its shelf off-market).
 
 ### Standing (`TraderStanding`)
 
@@ -3310,11 +3323,13 @@ order, never below 0. A tenth of your best standing with another trader of the s
 Five tiers, in `assets/seraphhorizons/config/standing-tiers.json`: stranger (0), known (60), regular
 (250), trusted (800), partner (2000). Each tier's unlocks are data for the features that read them:
 map tier and the settlement ground's lead (`mapsToTraders`; how many camp leads, and how far, is
-`map-prices.json`'s), a price factor each way, the wallet tier, order and delivery size, rare stock.
+`map-prices.json`'s), a price factor each way, a wallet factor, delivery reach, rare stock. Orders
+follow the tier itself (see "Orders and deliveries").
 The wallet and the shelves follow the best tier among players who traded with the
-trader in the last 14 days (its gears are topped up towards that tier's wallet at the weekly
-restock; its rare stock, schematics and settlement lead are shelved for it), and the player trading
-gets their own tier's prices and map precision (see "Maps and leads"). The trade window's header
+trader in the last 14 days (its gears are topped up at the weekly restock towards its list's wallet
+times that tier's wallet factor: 1, 2, 5, 15 and 40 from stranger to partner, and its side budget is
+a quarter of that; its rare stock, schematics and settlement lead are shelved for it), and the
+player trading gets their own tier's prices and map precision (see "Maps and leads"). The trade window's header
 and Standing tab show your standing there, and the trader tells you when you ask "How do you see me
 these days?" (see "Trade window"); reaching a tier says so in chat.
 
@@ -3420,8 +3435,13 @@ carry their own discount instead).
 - **Ore maps**, from prospectors: one offer per metal, the nearest unsold deposit of the deposit
   registry within 5 km (whether or not anyone has generated its chunks), at most four metals,
   nearest first. A stranger is offered precision 1 (within 400 m); standing's map tier buys
-  precision 2 (tier 1, "known") and exact maps (tier 2 up). Price by precision and the deposit's
-  last measured size (5–32 gears, "unsurveyed" until measured), times the metal's factor.
+  precision 2 (tier 1, "known") and exact maps (tier 2 up). The price is a share of the deposit's
+  worth: the ingots in the middle of its size class's band (small, medium and large are the bottom,
+  middle and top third of the metal's range in `config/ore-sizes.json`; a deposit not yet measured
+  counts as medium) times the item value of the metal's ingot, times 3% (precision 1), 6% (2) or 10%
+  (exact), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
+  middle, never the measured size. A medium copper deposit's map costs 36, 71 or 119 gears, a medium
+  gold one's 571, 1143 or 1904.
 - **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
 - **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
   map to a trader within some radius that you don't already have, and the radius and count grow
@@ -3530,7 +3550,7 @@ have had their first map, and the leads a trader offers them now with their ring
 first map marked (yourself and the nearest trader if none given).
 
 Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
-table, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
+table, ore map prices by the formula against the shipped ore sizes and item values, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
 marker replaced by the met trader's, old markers matched by icon, place and title; camp leads
 (`CampLeadsTests`): rings between cells, the shipped tiers, reach in rings, the price by the formula
 in a table, prices never rising with standing, count and reach per tier, the prospector first, the
@@ -3559,42 +3579,50 @@ Traders give work (#453, #454; `Trading/Orders/`, `Trading/Deliveries/`, notes i
 `docs/trading.md`), server side, both default on. Players take and hand in both in the trade
 window's Orders and Deliveries tabs (see "Trade window").
 
-**Standing orders** (`TraderOrders`): at every restock a trader puts up to one or two orders on
-offer, each for something its list buys where it stands: about 5 gears' worth at its normal price,
-in whole lots, with a premium of 1.3–1.6× over that price, held back from its wallet then (a trader
-too poor makes none). The Orders tab lists them and yours there; Take takes one, scaled by your
-standing's `orderScale` (1 for a stranger, 4 for a partner) as far as the wallet covers the bigger
-premium, and gives you 3–6 days. Sell the goods to the trader as usual, or carry them and Hand in:
-each item pays its normal price and its share of the premium,
-the last one the rest and standing (`order` points). An order you took and delivered nothing for by
-the deadline is abandoned and costs standing; delivered in part, it just ends.
+**Standing orders** (`TraderOrders`): with n a standing tier's number (stranger 1, known 2,
+regular 3, trusted 4, partner 5), a trader puts 2n orders on offer at its weekly restock, n being
+its shelf tier (the best tier among players who traded with it lately, as for its wallet and
+shelves), each for something its list buys where it stands that has an item value. Your own tier at
+the trader sizes an order when you take it: a random 1 + 0.375 (n − 1) to 2.5n gears' worth of the
+goods at their item value (stranger 1–2.5, known 1.375–5, regular 1.75–7.5, trusted 2.125–10,
+partner 2.5–12.5), in whole items rounded up (at least one, at most four stacks), and it pays that
+worth (after the rounding) × (10 + 2.5 (n − 1)): ×10 for a stranger up to ×20 for a partner. The
+pay is new money, never the trader's wallet. The Orders tab lists the offers, each at what it would
+ask of and pay you, and yours there; Take takes one and gives you 3–6 days. Carry the goods and Hand
+in: each item pays its share of the pay, the last one the rest and standing (`order` points).
+Selling the goods to the trader is a sale like any other and does not count towards the order. An
+order you took and delivered nothing for by the deadline is abandoned and costs standing; delivered
+in part, it just ends. (Until 2026-10-08 an order was about 5 gears at the list's price with a
+1.3–1.6× premium held back from the wallet; an order taken before then keeps those terms.)
 
 **Deliveries** (`TraderDeliveries`): the Deliveries tab shows a trader's offer: a package for
 another camp within `deliveryScale` × 3 km (none for strangers; a camp of another type where there is
 one), with a deadline of a game day per km of the straight way, never under a day (2 km is two game
 days; a delivery taken before this rule keeps the deadline it was given), a deposit of 10–30 % of the
-package's value from your gears and a fee of 20–40 %. Take takes it and hands you a
+package's value from your gears and a fee of 200–400 % (20–40 % until 2026-10-08), new money like an
+order's pay. Take takes it and hands you a
 `seraphhorizons:package` (can't be opened, says where it goes and how long is left, in days, or in
 hours under a day); one at a time per sender, and only with a free slot for it (else "no room", and
-no deposit taken); Mark on map puts the destination on your world map. Hand in at the receiver: on time, your deposit back, the fee from its
-wallet and standing at both ends; up to a game day late, the deposit and half the fee and standing at
+no deposit taken); Mark on map puts the destination on your world map. Hand in at the receiver: on time, your deposit back, the fee and
+standing at both ends; up to a game day late, the deposit and half the fee and standing at
 the receiver; later, the delivery fails: the deposit is gone, standing with the sender drops, and the
 package is junk. Packages go only to the grid's camps, so a world without the grid has no deliveries.
 
 Admin (`controlserver`): `/sh trade orders [trader|player]` (open orders, a trader's by id or `near`,
-or a player's), `orders create <trader> <item> <qty> <days>`, `orders complete|cancel <id>`;
+or a player's), `orders create <trader> <item> <qty> <days>` (that many of the item at its value, whoever takes
+it; the pay follows the taker's tier), `orders complete|cancel <id>`;
 `/sh trade deliveries [player]`, `deliveries create <from> <to> <player>` (any two loaded traders or
 placed camps; the deposit comes from the player), `deliveries complete <id>` (on time, wherever the
 package is), `fail <id>`, `expire <id>` (the deadline is now). `/sh trade simulate <days>` runs both
 clocks on. Saved with the world (`seraphhorizons:orders`, `seraphhorizons:deliveries`).
 
-Tests: `tests/Trading/Orders/`, `tests/Trading/Deliveries/` (generation and scaling, the premium
-maths, the deadline (a day a km, at least a day, a saved one kept), both state machines, which
+Tests: `tests/Trading/Orders/`, `tests/Trading/Deliveries/` (offers, size and pay by tier, the
+payout maths, an order taken before the change, the deadline (a day a km, at least a day, a saved one kept), both state machines, which
 outcome calls which standing hook);
-`tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's orders, one taken and filled
-by selling in the trade window paying its premium and standing, one abandoned by `simulate`, a
-delivery between two spawned traders handed in on time through the receiver's window for deposit and
-fee, one failing past its grace and keeping the deposit).
+`tests/PackTests/TradingOrdersScenarios.cs` (Atlas: a spawned trader's stranger offers, one taken
+by a regular at their tier and handed in for its pay and standing with the wallet untouched, one
+abandoned by `simulate`, a delivery between two spawned traders handed in on time through the
+receiver's window for deposit and fee, one failing past its grace and keeping the deposit).
 
 ### Travelling merchants (`TravellingMerchants`, `TravellingMerchantMinSupply`)
 

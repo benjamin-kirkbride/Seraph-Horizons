@@ -87,7 +87,6 @@
   "TraderStanding": true,
   "TraderStandingSpilloverKm": 6.0,
   "EverythingHasAPrice": true,
-  "BuySpread": 0.2,
   "RegionalSupply": true,
   "SupplyHalfLifeDays": 10.0,
   "SupplySpreadFraction": 0.1,

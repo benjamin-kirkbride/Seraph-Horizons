@@ -34,12 +34,13 @@ public interface IStandingSource
     /// <summary>The factor standing puts on a price for this player (pricing multiplies by it).</summary>
     double PriceFactorFor(IPlayer player, EntitySeraphTrader trader, PriceSide side);
 
-    /// <summary>The wallet tier (index into the list's <c>wallet</c>) the trader restocks to: the best
-    /// tier among players who traded with it recently.</summary>
-    int WalletTierFor(EntitySeraphTrader trader);
+    /// <summary>The factor on the list's base <c>wallet</c> the trader restocks to (and its side
+    /// budget, a quarter of that): the best tier's <c>walletFactor</c> among players who traded with it
+    /// recently.</summary>
+    double WalletFactorFor(EntitySeraphTrader trader);
 
     /// <summary>The standing tier (index) a trader's shelves are stocked for: the best tier among
-    /// players who traded with it recently, as <see cref="WalletTierFor"/>. Shelves are shared, so a
+    /// players who traded with it recently, as <see cref="WalletFactorFor"/>. Shelves are shared, so a
     /// stranger sees what a trusted customer unlocked until the next restock after they stop coming.</summary>
     int ShelfTierFor(EntitySeraphTrader trader);
 
@@ -73,7 +74,7 @@ public sealed class NoStanding : IStandingSource
     public int TierFor(IPlayer player, EntitySeraphTrader trader) => 0;
     public TierUnlocks UnlocksFor(IPlayer player, EntitySeraphTrader trader) => new();
     public double PriceFactorFor(IPlayer player, EntitySeraphTrader trader, PriceSide side) => 1;
-    public int WalletTierFor(EntitySeraphTrader trader) => 0;
+    public double WalletFactorFor(EntitySeraphTrader trader) => 1;
     public int ShelfTierFor(EntitySeraphTrader trader) => 0;
     public TierUnlocks UnlocksOfTier(int tier) => new();
     public void OnDeal(IPlayer player, EntitySeraphTrader trader, int gearsPaid, int gearsReceived) { }
