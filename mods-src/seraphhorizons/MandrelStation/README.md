@@ -7,17 +7,25 @@ onto an iron mandrel into a pipe-sized tube, which comes off as two **pipe secti
 (`seraphhorizons:pipesection-{lead,copper}`: a square tube 6 across, 1-voxel walls, 8 long, half a
 block). One hollow makes two sections; a section with solder makes a straight pipe.
 
+**Its second job winds a coil spring** on the same mandrel: one hot **steel rod** (`game:rod-steel`) is
+pulled round the fixed mandrel by hand, with tongs, into one **spring** (`seraphhorizons:spring-steel`), a
+square coil of six turns that follows the square mandrel. The draw bench's follower spring is this spring
+(`../DrawBench/README.md`). The model of that job is in "The spring job"; what gameplay has to build for it
+is in "Gameplay: the spring job (to build)".
+
 This folder holds the model's generator and its rig (`tools/`); the gameplay is built against the rig
 ("Gameplay" below).
 
 **A hand station.** It has no mechanical power, no power cell and no oil. The blows are the player's
 right-clicks with a hammer, as at the anvil; no hammer is modelled, since the player holds it. The rig's
-θ is the hammer's clock: every motion is posed by the forging W, and θ moves nothing.
+θ is the hammer's clock: every motion is posed by the forging W, and θ moves nothing. A spring is wound
+with right-click held, as the press brake is worked; θ is then that clock, and moves nothing either.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's
-generator; the generic half of it is `Machines/tools/machinegen/`, shared with the other machines and
-unchanged by this one (no new driver: every motion is a `gauge`).
+generator; the generic half of it is `Machines/tools/machinegen/`, shared with the other machines. This one
+added `machinegen/coil.py` (the square coil spring, which the draw bench draws too) and nothing to the rig
+maths (no new driver: every motion is a `gauge`, and the spring's pieces ride each other).
 
 ## The station
 
@@ -43,6 +51,7 @@ item:
 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel` | the mandrel: root in the bracket, collar (the shoulder), square body, tapered nose |
 | `hollowlead` | the work, a lead hollow (k 1) | the hollow and the two lead sections it becomes |
 | `hollowcopper` | the work, a copper hollow (k 2) | the same in copper |
+| `rodsteel` | the work, a steel rod (k 1) | the rod and the spring it is wound into |
 
 Why one stage: the bracket and the swage are forged with the station, as the brake's gallows are; the
 mandrel is a bar, the game's bar is the rod, and it is the part a smith would take out and swap.
@@ -51,9 +60,11 @@ mandrel is a bar, the game's bar is the rod, and it is the part a smith would ta
 
 `assets/seraphhorizons/shapes/block/mandrelstation.json` (the whole station, every moving part) and
 `mandrelstation_frame.json` (the frame only: the block draws it, the inventory shows it), the rig
-`assets/seraphhorizons/config/mandrelstation-rig.json` and the reference poses
-`tests/MandrelStation/rig-reference.json`. All four are written by `tools/make_shape.py`; nothing is
-taken from another mod's model.
+`assets/seraphhorizons/config/mandrelstation-rig.json`, the reference poses
+`tests/MandrelStation/rig-reference.json` and the spring item's shape
+`assets/seraphhorizons/shapes/item/spring.json` (the coil as the station leaves it wound). All five are
+written by `tools/make_shape.py`; nothing is taken from another mod's model. The coil's geometry is
+`Machines/tools/machinegen/coil.py`, which the draw bench's follower spring is drawn by too.
 
 ### How the station works
 
@@ -64,12 +75,15 @@ taken from another mod's model.
 | The mandrel (`mandrel`) | fixed in the bracket | takes the blows: the hollow is hammered onto it |
 | The swage (a block with a square groove) | fixed | none: a tool beside the mandrel, not animated |
 | The hollow (eight rings `1`..`8`: four walls and four corner bars each) | the blows, the mandrel under them | closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly, in one motion over the whole work; at W 1 it stays on the mandrel (rings 1..4 and 5..8 are the two sections) |
+| The spring's sides (`sp1u`..`sp6e`: turn 1..6, face `u` top, `w` west, `d` bottom, `e` east) | the smith's pull on the rod (not modelled), round the mandrel's edge | each, in its twenty-fourth of the work, swings from along the mandrel's edge across its face into the coil, about that edge, and stays; each rides the one before it |
+| The rod's next piece (the side after the one being bent: the follower) | the end of the side being bent | stays along the mandrel, its start on that end, round a quarter circle to the next edge; comes out of the head as it goes |
+| The head (the last side, `sp6e`, a hair bigger) | the follower | runs on along the edge ahead of the follower, carrying the sides still to come inside it, out of sight, and the rod's far end; is itself bent last |
+| The rod's far end (`sptail`) | the head | runs back into the head over the first 22 sides: the straight rod shortens |
 
 The forging (t = W, one hollow; the rig holds none of these times):
 
 | t | |
 |---|---|
-| 0.00..0.02 | the hollow lies on the mandrel against the shoulder (p eases in) |
 | 0 | the hollow lies on the mandrel against the shoulder, 8 × 8, 8 long (p eases in) |
 | 0..1 | forged: it closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly along its whole length, together, in proportion to W |
 | 1 | one 6 × 6 tube, 16 long, its far end at the tip, the part line between rings 4 and 5 showing; it stays on the mandrel. Gameplay delivers the two sections and stops drawing the work; nothing slides or drops |
@@ -113,25 +127,81 @@ z-fighting fix steps them in by 0.015 each, up to 0.105 deep for a stack of eigh
 plane (a ring's side walls stand back 0.03 at its ends and its corner bars 0.06), so the joints between
 rings are not opened by the fix.
 
+### The spring job
+
+**The spring.** A square coil (`Machines/tools/machinegen/coil.py`, `Coil`) round the 4 × 4 mandrel: six
+turns of square wire 0.6 across, wound free at a pitch of 2.4, a right-hand helix (seen from the shoulder its
+corners go top east, top west, bottom west, bottom east). It is 24 straight sides, four a turn, each running
+along one face from corner to corner of the coil's centre line (a square 4.6 across) and rising 0.6, so it
+leans 7.4°; each is the centre line's length (4.64) and the wire's width long, so neighbouring sides fill the
+corner between them. Outside it is 5.2 square (the collar's size) and 15.1 long, from the shoulder (its first
+side 0.1 off it) to 0.1 short of the nose. Six turns of 0.6 wire are 40 voxels of steel, as the game's rod
+(2 × 2 × 10) is. The spring item's shape is this coil as the station leaves it (`spring.json`, 5.3 × 5.3 ×
+15.1, along z, centred on the item box's floor, at scale 1).
+
+**How it is wound.** No driver bends a part, and the rod a coil this long would take (110 voxels) does not fit
+the station's two blocks, so the rod is drawn as the coil's sides and a short straight end, and wound a side
+at a time:
+
+- At W 0 the rod lies straight along the mandrel's top east edge, from the shoulder to just short of the nose
+  (z 7.13..22.22, 15.1 long). Its first piece is the coil's first side (`sp1u`); then the **head** (`sp6e`,
+  the coil's last side, 0.015 bigger all round), with every other side inside it, out of sight; then the
+  rod's **far end** (`sptail`).
+- In its twenty-fourth of the work, side j **swings** about the mandrel's edge it lies on, in the plane of
+  the next face, from along the edge across the face into its place in the coil (a `gauge` rotate about the
+  face's normal through its start, 90° less the lean), and stays there.
+- Meanwhile the side after it (the **follower**, side j + 1) stays along the mandrel with its start on the
+  swinging side's end: it rides side j and turns back by the same angle about that end (a second `gauge`),
+  so it is carried round a quarter circle in the face's plane to the next edge, still straight along the
+  mandrel. The head runs on ahead of it along the edge (four straight `gauge` slides, fitted to the quarter
+  circle within 0.08), so the follower comes out of the head as it goes, and is out by the end of the
+  quarter: it is the next to be bent.
+- So the straight rod goes round the mandrel a face at a time, along its edges, as the coil grows from the
+  shoulder towards the tip; the far end runs back into the head over the first 22 sides, so the rod
+  shortens (15.1 long as the first side is bent, 9.9 as the 23rd is, 5.3 as the last), and at W 1 nothing
+  of it is left: the spring is wound, on the mandrel. As the coil nears the tip the straight rod reaches
+  past it, up to 6.7 beyond the nose (z 30.2 at most), the smith's end of it, inside the station's two
+  blocks.
+
+Every side rides the one before it (`sp1w` rides `sp1u`, ..., `sp6e` rides `sp6d`; `sptail` rides `sp6e`):
+a chain 25 deep, which the shared rig maths composes as it does any ride. Each side's own drivers, in order:
+its run ahead (sides 3 on, in the side before the one before it), its swing, and its turn back (sides 2 on, in
+the side before it). Every amount is the same for both classes, so the spring poses alike for k 1 and 2.
+The sides alternate full and 0.015 thinner on each face (and the head is 0.015 bigger), so no two
+neighbours' faces share a plane while one swings past the other.
+
+The winding (t = W, one rod; Q = 1/24, side j from 0; the rig holds none of these times):
+
+| t | |
+|---|---|
+| 0 | the rod lies straight along the mandrel's top east edge from the shoulder, 15.1 long (p eases in) |
+| j Q .. (j + 1) Q | side j swings across its face into the coil; the follower (side j + 1) goes round a quarter circle to the next edge and comes out of the head, which runs on along the edge; the far end runs back into the head |
+| 0 .. 22 Q | the far end runs back into the head, evenly |
+| 22 Q .. 23 Q | the head is the follower, the far end inside it |
+| 23 Q .. 1 | the head, the last side, swings into the coil |
+| 1 | the spring is wound: six turns on the mandrel from the shoulder; gameplay delivers it and stops drawing it; nothing slides or drops |
+
 ### Regenerating
 
 ```sh
-python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py             # the assets and the reference poses
-python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py --out DIR   # all four into DIR
+python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py             # the assets, the reference poses and the item
+python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py --out DIR   # all of them into DIR (the item into DIR/item/)
 python3 mods-src/seraphhorizons/MandrelStation/tools/make_shape.py --quick     # skips the z-fighting fix and the swept paths
 ```
 
-A full run takes about 20 s and is deterministic (two runs into two folders are byte-identical, logs
-included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py`):
+A full run takes about 2 min 15 s (the spring's swept paths and its z-fighting poses; `--quick` about 30 s) and
+is deterministic (two runs into two folders are byte-identical). It exits non-zero if a check fails
+(`tools/validate_mandrelstation.py`):
 
 - **Parts:** every element in its intended part; no part without elements; Euler angles round-trip.
 - **Frame:** joined to the ground as one piece (the stump, hoop, bracket and swage).
 - **Textures by role:** the stump oak; hoop, bracket and swage iron; the mandrel `mandrel`; each metal's
-  work its own sheet.
+  work its own sheet; the spring `spring`.
 - **Banding:** the work's faces along its length one sheet: at W 0.5 no offset between neighbouring rings
   or within a ring; at rest and at W 1 the largest offset between neighbouring rings reported (2.51
   texture units, at the part line; 2.25 within a section) and under a voxel's worth (4).
-- **Containment:** nothing leaves the 1 × 1 × 2 box over the whole forging, either metal, every 0.01.
+- **Containment:** nothing leaves the 1 × 1 × 2 box over the whole forging, either metal, every 0.01, or
+  over the winding every 0.0025.
 - **Forging:** at every tenth of W, one continuous square tube of even cross-section (every sample of its
   walls covered, nothing in its bore or outside it, all along it, but for 0.1 either side of the part
   line), (8 − 2W) across and (8 + 8W) long, with no gap between rings; at W 1 closed onto the mandrel and
@@ -141,22 +211,40 @@ included). It exits non-zero if a check fails (`tools/validate_mandrelstation.py
   ring's within 0.15), nothing of the work into the bar by more than 0.01.
 - **Mandrel:** through both bands of the bracket, each band's saddle, cheeks and cap bearing on it; the
   hollow against the shoulder; θ moves no part.
-- **Clearances:** no two parts overlap at any pose every 0.02 of the forging (the work's own rings,
-  walls and corner bars excepted), and the **swept paths** every 0.0025: the hollow stretching along the
-  mandrel.
-- **No z-fighting** at twelve poses, rest to delivered, after the fix (21 faces pressed against their own
-  part removed, the rest stepped in by 0.015; the fix runs up to 40 rounds for the stacks of rings).
+- **Spring, wound** (W 1): every side where `machinegen.coil` puts it (within 2e-5: the rig's numbers are
+  rounded to 6 places), on the mandrel's faces, the coil between the shoulder and the nose (z 7.10..22.19),
+  the rod's far end inside the last side.
+- **Spring, at W 0:** one straight rod along the mandrel's top east edge, unbroken, from 0.13 off the
+  shoulder, 15.1 long.
+- **Spring, winding** (every 1/96 of W): one wire, each side's centre line starting where the one before it
+  ends (within 1e-4; the rounding adds up along the chain of 25 rides), the follower along the mandrel's edge,
+  the head on the follower and coaxial with it, the far end along the head; the sides still to come, and the
+  far end once run back, inside the head; no two pieces that are not joined overlapping; the straight rod
+  never longer as one side is bent than as the one before it was. Classes 1 and 2 pose it alike.
+- **Clearances:** no two parts overlap at any pose every 0.02 of the forging or 0.01 of the winding (the
+  work's own rings, walls and corner bars, and the spring's own pieces, excepted), and the **swept paths**:
+  the hollow stretching along the mandrel every 0.0025, the rod going round it and the coil growing every
+  0.001.
+- **No z-fighting** at 51 poses after the fix: twelve of the forging, rest to delivered (21 faces pressed
+  against their own part removed, the rest stepped in by 0.015; the fix runs up to 40 rounds for the stacks
+  of rings), and 39 of the winding (W 0, a quarter into every side's swing, halfway into every third, three
+  quarters into five, and wound), of what can be seen: the sides hidden in the head are left out. The
+  spring needs no step: its sides alternate in size.
+- **Item:** the spring item is the wound coil's 24 sides, each textured, centred on the item box's floor
+  inside its 16 voxels.
 - **Files:** every texture code declared; no `lid` on any cell (a hand station is not walked on); no
   power cell; the shipped files are the
-  checked model (no move: the build frame's corner is the controller's).
+  checked model (no move: the build frame's corner is the controller's). The cells' boxes are the frame,
+  the mandrel and the hollows at rest, as before: the spring's rod is left out of them.
 
 ### Rig schema (`mandrelstation-rig.json`)
 
 The gear cutter's schema (`../GearCutter/README.md`, "Rig schema") as the press brake uses it, with
-nothing added to the shared rig maths: a `work` quantity, gauges, and one θ-driven rotate of ratio 0.
+nothing added to the shared rig maths: a `work` quantity, gauges, rides, and one θ-driven rotate of ratio 0.
 
 - **The work.** `{ "name": "blows", "unit": "hollows", "step": 0.005, "end": { "thin": 1, "thick": 1 } }`.
-  W is one hollow's forging, 0..1: blows struck over blows needed.
+  W is one hollow's forging, 0..1: blows struck over blows needed; or one spring's winding, 0..1 (the unit
+  still reads "hollows").
 - **Inputs.** W, k and p, and θ. k is the hollow's metal (1 lead, 2 copper, 0 none). p is its presence,
   eased in as the hollow goes on and out after delivery, with k held while p eases out. Gameplay advances
   W by `1 / blowsPerHollow[k]` a blow, delivers two `forge.sections[k]` at W = 1, then clears. As with
@@ -164,25 +252,42 @@ nothing added to the shared rig maths: a `work` quantity, gauges, and one θ-dri
   sections are delivered.
 - **`forge`**: `blowsPerHollow` (lead 9, copper 14: the pace), `hollows` (each class's work), `sections`
   (what a hollow makes) and `sectionsPerHollow` (2).
-- **Anchors**: `output.pos` (on the ground beyond the tip, where gameplay drops the two sections), `strike.pos` (the top of the box's
-  middle, where the hammer lands: sparks and the blow's sound), `infeedSide` west, `outputSide` south.
+- **`wind`**, the spring job: `rod` (`game:rod-steel`, its work), `class` (1: the k gameplay gives a spring
+  job), `turnsPerRod` (4: the pace, turns of the held right-click's clock, a turn a second), `spring`
+  (`seraphhorizons:spring-steel`, what a rod makes) and `springsPerRod` (1). Scalars, not per class: a spring
+  has one class.
+- **Anchors**: `output.pos` (on the ground beyond the tip, where gameplay drops the two sections or the
+  spring), `strike.pos` (the top of the box's middle, where the hammer lands: sparks and the blow's sound),
+  `infeedSide` west, `outputSide` south.
+- **The spring's parts** (`requires` `rodsteel`): `sp1u` .. `sp6e`, each riding the one before it, and
+  `sptail` riding `sp6e`; every driver a `gauge` (rotations about the mandrel's edges, slides along it) with
+  windows in twenty-fourths of W, the same amount for both classes.
 
-**Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `strike`, `work`, `forge` and `parts`.
-`requires` values: `mandrel`, `hollowlead`, `hollowcopper`, or null. The texture code the renderer sets:
-`mandrel` (the fitted rod's metal; iron plate in the shape).
+**Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `strike`, `work`, `forge`, `wind` and `parts`.
+`requires` values: `mandrel`, `hollowlead`, `hollowcopper`, `rodsteel`, or null. The texture code the renderer
+sets: `mandrel` (the fitted rod's metal; iron plate in the shape). The spring's elements wear `spring`
+(`game:block/metal/sheet-plain/steel1`, declared on the block too), so a renderer can tint or swap them while
+the rod is hot; nothing in this mod's renderers draws heat yet.
 
-**In the viewer** (`site/models.json`, `mandrel-station`): the θ slider is the hammer's blows and moves
-nothing; the forging's slider reads in hollows; the size select names the hollows ("Lead", "Copper"), and
-each metal's work shows only with its own metal (`requiresClass`). Play moves W with θ at lead's pace, a
-turn a blow (`play.turnsPerWork` `"forge.blowsPerHollow.thin"`).
+**In the viewer** (`site/models.json`, `mandrel-station`): the θ slider is the hammer's blows (or the held
+click) and moves nothing; the work's slider reads in hollows; the size select names the work ("Lead hollow,
+or the steel rod", "Copper hollow"), and each metal's work, and the spring, shows only with its own class
+(`requiresClass`: the spring with class 1, as in the game). A **Job** select (the scenario's `states`) picks
+"Pipe sections from a hollow" or "A spring from a steel rod"; with the spring picked and the first class, the
+work's slider and Play wind it. Play moves W with θ at lead's pace, a turn a blow (`play.turnsPerWork`
+`"forge.blowsPerHollow.thin"`), so a spring takes nine turns there; 2.25 RPS shows it at the game's four
+seconds.
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `mandrel_*`; per metal
 (`l`, `c`) and ring (`1` at the shoulder .. `8`; `1`..`4` are the near section, `5`..`8` the far one) the
-walls `l1u_*`, `l1d_*`, `l1e_*`, `l1w_*` and the corner bars `l1ue_*`, `l1uw_*`, `l1de_*`, `l1dw_*`; and
-`fr_*` for the frame. Hand edits are lost when the
-script runs again: port them into `make_shape.py`, or stop regenerating.
+walls `l1u_*`, `l1d_*`, `l1e_*`, `l1w_*` and the corner bars `l1ue_*`, `l1uw_*`, `l1de_*`, `l1dw_*`; the
+spring's sides `sp1u_*` .. `sp6e_*` (turn 1..6, face `u`, `w`, `d`, `e` in winding order) and the rod's far
+end `sptail_*`; and `fr_*` for the frame. The spring's elements are written lying along the mandrel's top east
+edge (their place at W 0, coincident in the head but for the first), not where they end up: the rig swings
+them into the coil. Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop
+regenerating.
 
 ## Known weak spots, and what is not checked
 
@@ -206,6 +311,28 @@ The model has been reviewed in projections rendered from the written files and i
 7. **The swage is decoration**: nothing is swaged in it.
 8. **Lead and copper look the same** but for their texture.
 9. **No lids.** The cells have their boxes and no collision-only deck: a player cannot walk across the top.
+10. **The rod is drawn as the spring's wire**, 0.6 square, not as the game's rod (2 × 2 × 10, whose metal the
+    six turns hold), and it is not as long as the coil takes (110): it is 15.1 at W 0 and shortens by its far
+    end running back into the head, not by what the coil uses.
+11. **A side swings, it does not wrap.** Each side swings rigidly about the mandrel's edge from along it to
+    across the face; a real rod wraps progressively and bends at the corner. The bend is a hard corner where
+    two sides' bars overlap, and the rod is fed along the mandrel's edge rather than pulled off tangentially
+    (a straight end pulled round the top would rise into the block above).
+12. **The straight rod reaches past the tip** in the last turns, up to 6.7 beyond the nose, unsupported (the
+    smith holds it): the head always runs a side ahead of the follower.
+13. **Sizes that keep faces apart.** Every other side is 0.03 thinner (0.57) and its inner face 0.015 off the
+    mandrel; the last side, which carries the sides still to come hidden inside it, is 0.03 bigger (0.63) and
+    0.03 longer, and sits 0.015 into the mandrel. The first side starts 0.1 off the shoulder, so its corner
+    clears the collar mid-swing.
+14. **Hidden sides.** The sides still to come lie coincident inside the head; the game draws them there,
+    unseen. Rounding the rig's numbers to 6 places leaves the wound sides up to 2e-5 off the coil and the
+    joints up to 1e-4 apart.
+15. **The head runs ahead in four straight ramps a side**, fitted to the quarter circle the follower goes
+    round within 0.074, so the follower comes out of it slightly unevenly.
+16. **Linear ramps, a side at a time.** Each side swings at an even rate in its twenty-fourth of the work and
+    the next starts as it stops: the rod goes round without a pause, but turns sharply at each edge.
+17. **p unwinds it.** Every gauge eases back with p, so a spring drawn while p eases out after delivery
+    would unwind back to a rod: the renderer must stop drawing the work at delivery, as for the hollows.
 
 ## Gameplay
 
@@ -318,3 +445,77 @@ anchors, the pace held to the settings, the reader's refusals, and every pose of
 
 **Not done.** No hand animation of its own: the click plays the game's default use pose. No schematic
 for the frame (`MachineSchematics`).
+
+## Gameplay: the spring job (to build)
+
+The model and rig of the spring job are done ("The spring job", "Rig schema"); none of its gameplay is.
+This is the contract for it, everything read from the rig (`wind`, `requires`, the anchors), never element
+names. Settled with the owner: steel rods only, one rod a spring, wound on the mandrel already fitted, by hand
+with tongs, right-click held, about 4 s; heat by the anvil's rules.
+
+- **The vocabulary first.** The shipped rig now uses `requires` `rodsteel`, which `MandrelRequires.KnownRequires`
+  (`Core/Forging.cs`) does not know: `RigParts.Parse` refuses the rig, so the game's reader and
+  `MandrelStationRigTests` fail until it is added. Add it (with a `MandrelRequires.Rod` or the like), and read
+  `wind` in `MandrelStationRig` (`rod`, `class`, `turnsPerRod`, `spring`, `springsPerRod`).
+- **The item.** `seraphhorizons:spring-steel`, a new item type (gameplay's), shape
+  `seraphhorizons:item/spring` (`assets/seraphhorizons/shapes/item/spring.json`: the wound coil along z, 5.3
+  × 5.3 × 15.1, centred on the item box's floor, texture code `spring`, the game's plain steel sheet). Its
+  GUI, hand and ground transforms are the item type's.
+- **The work.** A steel rod (`wind.rod`, `game:rod-steel`; no other metal) goes on a fitted, bare mandrel by
+  right-click, as a hollow does, and only when the spring item exists. It must be hot enough to work by the
+  anvil's rules (the item's temperature against its working range); a cold rod is refused with a message.
+  Steel rods are also mandrels: a station with no mandrel takes a steel rod as its mandrel, as now; only on
+  a fitted, bare mandrel is it a spring job (see "Open for the owner").
+- **Its class.** A spring job is k = `wind.class` (1) for the rig and the clock. Every spring part poses
+  alike for k 1 and 2, so the class only has to be non-zero; the job type, not k, says hollow or spring.
+- **Winding.** Right-click held on the station with a rod on (tongs in hand, if the owner wants them) turns
+  the held clock θ a turn a second, as the press brake's lever (`Folding.LeverTurnsPerSecond`), and W advances
+  by `1 / wind.turnsPerRod` a turn: 4 turns, 4 s, a twenty-fourth of W (a side of the coil) every 1/6 s.
+  Follow the press brake's `HeldWorkFollower` for the client's W, so the rod goes round smoothly. The model
+  moves only with W; θ moves nothing.
+- **Drawn.** The `rodsteel` parts (every part with that `requires`: `sp1u` .. `sp6e`, `sptail`) are drawn only
+  while a spring job is on and p > 0, as `ShowsHollow` draws a hollow's; never the hollows' parts during a
+  spring job, nor the spring's during a hollow's. They ride each other: the shared `RigAnimation` composes the
+  chain (25 deep) as it does any ride. Their texture code is `spring`, declared on the block
+  (`blocktypes/mandrelstation/frame.json`); a renderer that wants the rod to glow while hot can do it per part
+  or by swapping that code, but nothing in this mod draws heat yet.
+- **Delivery.** At W = 1 the rod is used up and `wind.springsPerRod` (1) `wind.spring` goes into a container
+  in `OutputNeighbour()`, else drops at `OutputDrop()`, as the sections do; then the station clears. The
+  spring is wound on the mandrel at W 1, and nothing slides off: the renderer stops drawing the work at
+  delivery (W held at 1, k held, p easing out, the parts not drawn: every gauge eases back with p, so a
+  spring drawn then would unwind into a rod).
+- **Taking back, breaking, saving.** As a hollow: Ctrl + right-click takes the rod back before W moves; a
+  station broken mid-winding loses the part-wound rod, and one with an unwound rod drops it; a save keeps the
+  job, W and the rod's stack (its temperature).
+- **Infeed.** None suggested: a rod must come hot from the forge, so a container's cold rods are no use.
+- **Sounds and particles** (gameplay's choice): none are in the rig. `strike.pos` is the hollow's; a
+  creak of the rod at each side, or a hiss of the hot rod, would be at the coil's growing end.
+- **Export and handbook.** A `machine` record like the hollows' (`mandrelstation|game:rod-steel|0`): the rod
+  in, the mandrel kept, the frame as the station, one spring out, `power` `hand`, `turns` `wind.turnsPerRod`.
+  The handbook's work and ladder sections should name the spring and the draw bench's use of it.
+- **The draw bench** now needs one spring in its fourth stage (`../DrawBench/README.md`, "Stages").
+
+## Open for the owner
+
+1. **The spring job's class.** The brief asked for a k distinct from the hollows' 1 and 2. The shared rig
+   maths has three classes only (0 none, 1 thin, 2 thick: per-class arrays in the Python, the C# and the
+   TypeScript, and the driver fixture), so a fourth would be a change to the shared maths in three places,
+   which the brief ruled out for drivers. The spring job is class 1 instead, told apart by its `requires`
+   (`rodsteel`), with every spring part posed alike for 1 and 2. In the viewer it shows with the first class
+   ("Lead hollow, or the steel rod").
+2. **The bench's spring is bigger than the item.** The coil wound on the station's 4 × 4 mandrel has a 4 bore;
+   the draw bench's spring goes round its 5.9 mandrel bar, so the bench draws the same coil (six turns, 0.6
+   wire, steel) with a 6.0 bore. Keep it, or change the bench (a 4 × 4 spindle for the spring behind the
+   follower) or wind springs on a bigger arbor?
+3. **How the rod is wound.** It is fed along the mandrel's edge and bent across one face at a time, the rest
+   following round the edges, rather than pulled off tangentially: a tangential end pulled over the top face
+   would rise past the station's block (the mandrel's top is 1.4 below it). Acceptable?
+4. **A steel rod is a mandrel too.** The suggested rule: a bare station fits it as the mandrel; a fitted,
+   bare mandrel takes it as a spring job. Or keep steel out of the mandrels?
+5. **Tongs and heat.** Should winding need tongs in hand, and a hot rod (the anvil's working range)? Should
+   the renderer draw the hot rod glowing?
+6. **Pace.** 4 s for any player and any tongs; nothing like the hammer's tier speeds it.
+7. **The work's unit** still reads "hollows" (in the rig and the viewer) for a spring too.
+8. **The rod past the tip.** In the last turns the straight rod reaches up to 6.7 voxels beyond the nose.
+9. **Free length.** The free spring is 15.1 long (pitch 2.4, to fit the station's mandrel); at the end of a
+   draw bench job its spring is stretched to 15.7 between the nut and the follower, 4 % past free.

@@ -21,7 +21,7 @@ MOD = ROOT / "mods-src" / "seraphhorizons"
 TOOLS = MOD / "Machines" / "tools"
 sys.path.insert(0, str(TOOLS))
 
-from machinegen import checks, geometry, output, rigmath  # noqa: E402
+from machinegen import checks, coil, geometry, output, rigmath  # noqa: E402
 from machinegen.geometry import El  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("make_fixture", TOOLS / "make_fixture.py")
@@ -291,6 +291,47 @@ class Geometry(unittest.TestCase):
         el = geometry.strut(t, [0.0, 0.0, 0.0], [0.0, 3.0, 4.0], 1.0, 1.0, "s", "rod")
         self.assertAlmostEqual(abs(el.size[1]), 5.0)
         close(self, [el.c], [[0.0, 1.5, 2.0]])
+
+
+class SquareCoil(unittest.TestCase):
+    """machinegen.coil: the square coil spring the mandrel station winds and the draw bench's follower spring is."""
+
+    C = coil.Coil((8.0, 12.6), 2.0, 0.6, 2.4, 7.4, 6)
+
+    def test_its_sides_run_corner_to_corner_round_the_bar(self):
+        C = self.C
+        self.assertEqual(C.sides, 24)
+        self.assertEqual([C.name(j) for j in range(5)], ["1u", "1w", "1d", "1e", "2u"])
+        for j in range(C.sides):
+            el = C.side(j, "s", "spring", "spring")
+            ax = [el.r[i][2] for i in range(3)]
+            start = [el.c[i] - ax[i] * C.length / 2 for i in range(3)]
+            end = [el.c[i] + ax[i] * C.length / 2 for i in range(3)]
+            close(self, [start, end], [list(C.corner(j)), list(C.end(j))], 1e-9)
+            # its inner face on the bar's face: the centre a half wire off it, along the face's outward normal
+            axis, sign = C.normal(j)
+            k = "xyz".index(axis)
+            self.assertAlmostEqual(sign * (el.c[k] - (8.0, 12.6)[k]) - 0.3, 2.0, places=9)
+
+    def test_a_right_hand_helix_a_pitch_a_turn(self):
+        C = self.C
+        angles = [math.atan2(C.corner(j)[1] - 12.6, C.corner(j)[0] - 8.0) for j in range(5)]
+        for a, b in zip(angles, angles[1:]):
+            self.assertAlmostEqual((b - a) % (2 * math.pi), math.pi / 2)        # from +x towards +y as z grows
+        self.assertAlmostEqual(C.corner(4)[2] - C.corner(0)[2], 2.4)
+        self.assertAlmostEqual(math.tan(C.tilt), 0.6 / 4.6)
+
+    def test_the_swing_takes_a_side_from_along_the_bar_into_place(self):
+        C = self.C
+        for j in range(4):
+            axis, ang = C.swing(j)
+            self.assertEqual(axis, C.normal(j)[0])
+            self.assertAlmostEqual(abs(ang), math.pi / 2 - C.tilt)
+            close(self, [geometry.mvec(geometry.rot(axis, math.degrees(ang)), [0.0, 0.0, 1.0])], [list(C.direction(j))], 1e-12)
+        flat = C.axial(5, "a", "spring", "spring")
+        lo, hi = flat.aabb()
+        close(self, [lo, hi], [[C.corner(5)[0] - 0.3, C.corner(5)[1] - 0.3, C.corner(5)[2] - 0.3],
+                               [C.corner(5)[0] + 0.3, C.corner(5)[1] + 0.3, C.corner(5)[2] + C.length + 0.3]], 1e-9)
 
 
 class Checks(unittest.TestCase):

@@ -55,6 +55,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
+from machinegen.coil import Coil  # noqa: E402
 from machinegen.geometry import IDENT, TRANSPARENT, El, flatten, rotate, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
@@ -118,7 +119,6 @@ Z_SPRING0 = Z_TAIL[1]
 FOLLOWER_T = 0.6
 Z_SLUGS0 = Z_DIE_BACK - SLUGS * SLUG_L       # the hollow's far end
 Z_FOLLOWER = (Z_SLUGS0 - FOLLOWER_T, Z_SLUGS0)
-COILS = 6
 Z_PLUG = (Z_MOUTH - 1.4, Z_MOUTH - 0.2)
 
 S_TUBE = PIPE - POINT                        # how far the dog travels while the section is drawn (6)
@@ -438,6 +438,39 @@ N_C = (0.0, SPR_Y, N_Z)
 K_C = (0.0, K_Y, N_Z)
 DL_C = (DL[0], DL[1], 0.0)
 
+# ---------------------------------------------------------------- the follower's spring
+# The spring item (seraphhorizons:spring-steel), the square coil the mandrel station winds from a steel rod
+# (machinegen.coil): six turns of 0.6 wire, its sides tilted with the pitch. Here it is drawn round the mandrel bar
+# (5.9 across) where the station's mandrel is 4: the same coil, its bore the bar's and a hair over. It reaches from the
+# nut to the follower, compressed at rest (pitch 1.18 against the item's 2.4) and stretched with the follower's travel
+# to 2.5 at the end of the job: each side slides along the bar by its share of that travel and leans with the pitch.
+SPRING_WIRE = 0.6
+SPRING_TURNS = 6
+SPRING_BORE = BAR_H + 0.05                   # the coil's bore (half), clear of the bar
+SPRING_SPAN = (Z_SPRING0 + 0.3, Z_FOLLOWER[0])   # the nut's face to the follower's, at rest
+SPRING_TRAVEL = SLUGS * SLUG_L               # the follower's travel over a job: the spring's stretch
+
+
+def _fit_coil(length):
+    """The coil (rest pitch) whose bars reach exactly `length` from its first side's lowest corner to its last side's highest."""
+    lo, hi = 0.0, 4.0
+    for _ in range(80):
+        p = (lo + hi) / 2
+        c = Coil(DL, SPRING_BORE, SPRING_WIRE, p, 0.0, SPRING_TURNS)
+        lo, hi = (p, hi) if c.sides * c.rise + 2 * c.span() < length else (lo, p)
+    c = Coil(DL, SPRING_BORE, SPRING_WIRE, (lo + hi) / 2, 0.0, SPRING_TURNS)
+    return Coil(DL, SPRING_BORE, SPRING_WIRE, c.pitch, SPRING_SPAN[0] + c.span(), SPRING_TURNS)
+
+
+SPRING = _fit_coil(SPRING_SPAN[1] - SPRING_SPAN[0])
+# at the end of a job the follower has gone SPRING_TRAVEL on: the coil's centre line, its first corner fixed on the nut,
+# is that much longer
+SPRING_END = Coil(DL, SPRING_BORE, SPRING_WIRE, SPRING.pitch + 4 * SPRING_TRAVEL / SPRING.sides, SPRING.z0, SPRING_TURNS)
+
+
+def spring_id(j):
+    return f"spring{SPRING.name(j)}"
+
 
 def _idler():
     """The rectifier's idler: RECT_R a2 + i from the entry shaft, i + b2 from the rectified shaft, above."""
@@ -721,28 +754,21 @@ def build_jaw():
 def build_mandrel():
     """The mandrel: a square bar that fills the hollow's bore, from the tail stock to its plug in the die's
     throat (the plug is the drawn section's bore); a nut at the tail stock; the follower (a square ring the
-    size of the hollow) and its spring (square coils round the bar)."""
+    size of the hollow) and its spring (the spring item's square coil round the bar, compressed)."""
     x, y = DL
     out = [box([x - BAR_H, y - BAR_H, Z_TAIL[0] + 0.3], [x + BAR_H, y + BAR_H, Z_PLUG[0]], "mandrel_bar", "mandrel", "steel"),
            box([x - PLUG_H, y - PLUG_H, Z_PLUG[0]], [x + PLUG_H, y + PLUG_H, Z_PLUG[1]], "mandrel_plug", "mandrel", "steel")]
     out += eye("z", DL_C, Z_TAIL[1], Z_TAIL[1] + 0.3, BAR_H, BAR_H + 0.4, "mandrel_nut", "mandrel", "steel")
     (f0, f1) = Z_FOLLOWER
     out += eye("z", DL_C, f0, f1, BAR_H + 0.03, HOLLOW_H - 0.05, "follower_plate", "follower", "iron")
-    for i in range(COILS):
-        z = coil_z(i)
-        out += eye("z", DL_C, z - 0.12, z + 0.12, BAR_H + 0.25, BAR_H + 0.5, f"spring{i + 1}_coil", f"spring{i + 1}", "steel")
+    for j in range(SPRING.sides):
+        out.append(SPRING.side(j, f"{spring_id(j)}_wire", spring_id(j), "steel", tex_size=TEX))
     return out
 
 
-def coil_z(i):
-    """Coil i's centre at rest: evenly along the compressed spring, from the tail stock's nut to the follower."""
-    a, b = Z_SPRING0 + 0.3, Z_FOLLOWER[0]
-    return a + (b - a) * (i + 0.5) / COILS
-
-
-def coil_share(i):
-    a, b = Z_SPRING0 + 0.3, Z_FOLLOWER[0]
-    return (coil_z(i) - a) / (b - a)
+def spring_share(j):
+    """Side j's share of the follower's travel: where its centre lies along the coil, from the nut (0) to the follower (1)."""
+    return (j + 0.5) / SPRING.sides
 
 
 def build_die():
@@ -1115,9 +1141,15 @@ def _rig_parts():
         {"id": "follower", "match": ["follower_*"], "requires": "mandrel",
          "drivers": [gauge("slide", "z", per_class(SLUG_L / B), once(m, T_DRAW[0], T_TUBE)) for m in range(SLUGS)]},
     ]
-    for i in range(COILS):
-        parts.append({"id": f"spring{i + 1}", "match": [f"spring{i + 1}_*"], "requires": "mandrel",
-                      "drivers": [gauge("slide", "z", per_class(SLUG_L * coil_share(i) / B), once(m, T_DRAW[0], T_TUBE)) for m in range(SLUGS)]})
+    # the spring's sides: each leans on with the pitch about its centre (all four strokes' turns first, about the same
+    # point), then slides along the bar by its share of the follower's travel
+    for j in range(SPRING.sides):
+        axis, a0 = SPRING.swing(j)
+        lean = SPRING_END.swing(j)[1] - a0
+        centre = SPRING.side(j, "x", "x", "steel").c
+        drv = [gauge("rotate", axis, per_class(lean / SLUGS), once(m, T_DRAW[0], T_TUBE), pivot=pt(*centre)) for m in range(SLUGS)]
+        drv += [gauge("slide", "z", per_class(SLUG_L * spring_share(j) / B), once(m, T_DRAW[0], T_TUBE)) for m in range(SLUGS)]
+        parts.append({"id": spring_id(j), "match": [f"{spring_id(j)}_*"], "requires": "mandrel", "drivers": drv})
     parts.append({"id": "die", "match": ["die_*"], "requires": "die", "drivers": []})
     span = T_DRAW[1] - T_DRAW[0]
     for cls, pre, tex, req in METALS:

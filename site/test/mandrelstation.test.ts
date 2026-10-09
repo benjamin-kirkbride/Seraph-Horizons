@@ -61,9 +61,9 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     a.forEach((m, i) => m.forEach((v, j) => expect(Math.abs(v - b[i]![j]!)).toBeLessThan(1e-12)));
   });
 
-  it("fits the mandrel, the work by metal, and gives the mandrel its own texture code", () => {
+  it("fits the mandrel, the work by metal or the spring's rod, and gives the mandrel and the spring their own texture codes", () => {
     const req = new Set(parts.map((p) => p.requires ?? null));
-    expect(req).toEqual(new Set([null, "mandrel", "hollowlead", "hollowcopper"]));
+    expect(req).toEqual(new Set([null, "mandrel", "hollowlead", "hollowcopper", "rodsteel"]));
     const codes: Record<string, Set<string>> = {};
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);
@@ -74,7 +74,14 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     expect([...codes.mandrel!]).toEqual(["mandrel"]);
     expect([...codes.hollowlead!]).toEqual(["lead"]);
     expect([...codes.hollowcopper!]).toEqual(["copper"]);
+    expect([...codes.rodsteel!]).toEqual(["spring"]);
     expect(new Set(codes.frame!)).toEqual(new Set(["oak", "iron"]));
+    // the spring: one steel rod wound into one spring, its sides a chain of rides (each on the one before it)
+    const wind = (rig as unknown as { wind: { rod: string; spring: string; springsPerRod: number; class: number } }).wind;
+    expect(wind).toMatchObject({ rod: "game:rod-steel", spring: "seraphhorizons:spring-steel", springsPerRod: 1, class: 1 });
+    const spring = parts.filter((p) => p.requires === "rodsteel");
+    expect(spring).toHaveLength(25);
+    spring.slice(1).forEach((p, i) => expect(p.ride).toBe(spring[i]!.id));
     const forge = (rig as unknown as { forge: { blowsPerHollow: { thin: number; thick: number }; sectionsPerHollow: number; sections: Record<string, string>; hollows: Record<string, string> } }).forge;
     expect(forge.blowsPerHollow.thick).toBeGreaterThan(forge.blowsPerHollow.thin);
     expect(forge.sectionsPerHollow).toBe(2);
