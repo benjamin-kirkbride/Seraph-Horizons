@@ -3,7 +3,7 @@
 The committed files are checked as they are: strict JSON, every animation naming only elements that
 exist and moving only the joints the vanilla animations move (plus the three anchors), the textures
 the game's own, the attachment points in place, the build stages covering every element exactly once
-with parents first, and the poses doing what they are for (feet on the ground, hands on their grips,
+with the body one piece after every stage, and the poses doing what they are for (feet on the ground, hands on their grips,
 objects on the ground staying put). With a game install ($VINTAGE_STORY) the generator is run too
 and its output must equal the committed files. Run with `python3 -m unittest discover -s tools/tests`.
 """
@@ -215,14 +215,28 @@ class Poses(unittest.TestCase):
 
 
 class Stages(unittest.TestCase):
-    def test_every_element_in_exactly_one_stage_parents_first(self):
+    def test_every_element_in_exactly_one_stage_one_piece_after_each(self):
         self.assertEqual(make_shape.check_stages(SHAPE, STAGES), [])
         counted = [n for st in STAGES["stages"] for n in st["elements"]]
         self.assertEqual(sorted(counted), sorted(RIG.order))
 
+    def test_the_check_catches_a_floating_stage(self):
+        # the torso's plates without the chest block they are on: two pieces after the torso
+        bad = json.loads(json.dumps(STAGES))
+        bad["stages"][1]["elements"].remove("chest-inside")
+        bad["stages"][2]["elements"].append("chest-inside")
+        self.assertTrue(any("pieces" in p for p in make_shape.check_stages(SHAPE, bad)))
+
+    def test_the_torso_comes_first_with_the_spines_peg(self):
+        torso = set(STAGES["stages"][1]["elements"])
+        self.assertLessEqual({"chest-inside", "spine1", "spine-hook1"}, torso)
+        # before its parent: the chest block hangs off the hip block in the shape's hierarchy
+        self.assertEqual(RIG.parent["chest-inside"], "hip-inside")
+        self.assertIn("hip-inside", STAGES["stages"][2]["elements"])
+
     def test_stages_are_the_proposal(self):
         self.assertEqual([s["code"] for s in STAGES["stages"]],
-                         ["gantry", "pelvis", "legs", "torso", "arms", "head", "mind"])
+                         ["gantry", "torso", "pelvis", "legs", "arms", "head", "mind"])
         self.assertEqual(STAGES["stages"][0]["elements"], [])
         mind = set(STAGES["stages"][-1]["elements"])
         self.assertEqual(mind, {"brain", "bar-head1", "heart", "bar-heart1", "bar-heart2", "Eye-out"})

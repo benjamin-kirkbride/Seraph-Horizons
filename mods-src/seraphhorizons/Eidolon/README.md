@@ -175,26 +175,38 @@ when negative; rotation x moves the right arm or leg out when positive, the left
 
 The gantry shows the body cumulatively, stage by stage, by element name; `eidolon-stages.json`
 lists each stage's elements. Each stage claims some root elements and everything under them that no
-other root claims, so every element is in exactly one stage and an element's parent is always in
-its own stage or an earlier one (checked in the generator and the tests). The ingredients are the
-first proposal, matched to the model's parts; the steel comes to **20 ingots** (a `metalplate` is
-2 ingots, a `rod` 1).
+other root claims, so every element is in exactly one stage. The torso comes first: the chest block
+with its plates, the spine with its winch, ropes and hooks, and the spine's top peg (`spine-hook1`),
+which the gantry's ring goes over, so the ring holds the body from the first part fitted on. The
+ingredients are the first proposal, matched to the model's parts; the steel comes to **20 ingots** (a
+`metalplate` is 2 ingots, a `rod` 1).
+
+**Attached, not parents first.** In the shape's hierarchy the chest block hangs off the hip block
+(`origin` > `hip-inside` > `chest-inside`), so with the torso first the chest's parent arrives a stage
+after it. That is harmless: the entity only exists built whole, and the gantry draws the body baked
+in the `hung` pose, each element a static box at its posed place, so no element shown depends on a
+hidden one for where it is drawn. What the order must not do is leave a piece floating, so the rule
+(checked in the generator and the tests) is that **after every stage, the elements shown so far are
+one connected piece of the hierarchy**, its links taken either way: each stage fits onto what is
+already there (the pelvis under the chest, the legs on the hip block, the arms and head on the chest,
+the cores into chest and head). Re-rooting the claims instead (the torso owning `origin` and
+`hip-inside` down to the chest) would have put the hip block, a pelvis part, in the torso.
 
 | Stage | Ingredients | Elements (claim roots; the full list is in the stages file) | What they are in the model |
 |---|---|---|---|
 | 1 Gantry | Wood: the gantry's own model | None | The frame it hangs in. |
-| 2 Pelvis (15) | `game:eidolongearbox` (disabled in vanilla; to be enabled), `game:jonasframes-gearbox02`, 2 `game:metalplate-steel` (4 ingots) | `origin`, `hip-inside`, `hip-tassetR`, `hip-tassetL`, `back-tassetR`, `back-tassetL`, `waist-fauld`, `chainskirt-back1`, `chainskirt-front1`, `bar-hip` | The lattice hip block (the gearbox), the leather fauld with its tassets, the brass hip and back tassets, the chain skirts. |
-| 3 Legs (55) | 2 `game:jonasframes-joint01` (the knees), `game:jonasframes-spring01`, 2 `game:rod-steel`, 2 `game:metalplate-steel` (6 ingots) | `bar-legs`, `upperlegR`, `upperlegL` | The hip axle and both legs: wooden thighs and shins, steel knees (`kneeR`, `kneeL`), brass shin and knee plates, feet. |
-| 4 Torso (47) | `game:eidolongearbox`, `game:jonasparts-tank01`, `game:jonasparts-tank02`, `game:jonasparts-pumphead`, 2 `game:metalplate-steel` (4 ingots) | `chest-inside`, `collar-front`, `collar-R`, `collar-L`, `chest-plateR`, `chest-plateL`, `chest-backplate`, `chest-sideplateR`, `chest-sideplateL`, `chest-sash2`, `bar-chestR1`, `bar-chestR2`, `bar-chestL1`, `bar-chestL2`, `spine1`, `carry-anchor`, `trunk-anchor`, `thick-trunk-anchor` | The lattice chest block, its plates, collar and sashes, and the wooden spine with its winch, ropes and hooks (and the three invisible anchors). |
+| 2 Torso (47) | `game:eidolongearbox` (disabled in vanilla; to be enabled), `game:jonasparts-tank01`, `game:jonasparts-tank02`, `game:jonasparts-pumphead`, 2 `game:metalplate-steel` (4 ingots) | `chest-inside`, `collar-front`, `collar-R`, `collar-L`, `chest-plateR`, `chest-plateL`, `chest-backplate`, `chest-sideplateR`, `chest-sideplateL`, `chest-sash2`, `bar-chestR1`, `bar-chestR2`, `bar-chestL1`, `bar-chestL2`, `spine1`, `carry-anchor`, `trunk-anchor`, `thick-trunk-anchor` | The lattice chest block, its plates, collar and sashes, and the wooden spine with its winch, ropes and hooks (and the three invisible anchors). |
+| 3 Pelvis (15) | `game:eidolongearbox`, `game:jonasframes-gearbox02`, 2 `game:metalplate-steel` (4 ingots) | `origin`, `hip-inside`, `hip-tassetR`, `hip-tassetL`, `back-tassetR`, `back-tassetL`, `waist-fauld`, `chainskirt-back1`, `chainskirt-front1`, `bar-hip` | The lattice hip block under the chest block (the gearbox), the leather fauld with its tassets, the brass hip and back tassets, the chain skirts. |
+| 4 Legs (55) | 2 `game:jonasframes-joint01` (the knees), `game:jonasframes-spring01`, 2 `game:rod-steel`, 2 `game:metalplate-steel` (6 ingots) | `bar-legs`, `upperlegR`, `upperlegL` | The hip axle and both legs: wooden thighs and shins, steel knees (`kneeR`, `kneeL`), brass shin and knee plates, feet. |
 | 5 Arms (77) | `game:eidolongearbox` (the shoulders), `game:jonasframes-gears01`, `game:jonasframes-gears02`, `game:jonasparts-cylinder01`, `game:jonasparts-valve01`, 2 `game:rod-steel`, `game:metalplate-steel` (4 ingots) | `bar-arms`, `upper-armR`, `upperarmL` | The shoulder axle and both arms: shoulder plates, wooden arm bones, elbows (`elbowR`, `elbowL`), bracers, wrists and hands. |
 | 6 Head (21) | `game:jonasframes-oscillator01`, `game:jonasparts-cylinder02`, `game:jonasframes-gearbox01`, `game:jonasparts-connector01`, `game:metalplate-steel` (2 ingots) | `neck`, `head-inside`, `hood-back3`, `hood-back4` | The neck, the lattice head block, the wooden face and head plates, the brass hood, and the eye's bracket (`Eye-bracket`), without the eye's light. |
 | 7 Mind (6) | `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel), `game:gear-temporal` (its charge, a quarter in-game year) | `brain`, `heart`, `Eye-out` | The two glowing cores, the brain in the head (the vessel) and the heart in the chest (the temporal gear), with their bars, and the eye's red light: what lights up when it wakes. |
 
-Two elements under the hip and chest blocks belong to later stages by design: `bar-legs` (the legs'
-axle, under `hip-inside`) and `bar-arms` (the arms', under `chest-inside`) arrive with their limbs;
-`neck`, `hood-back3` and `hood-back4` (under `chest-inside`) arrive with the head; `heart` (under
-`chest-inside`), `brain` (under `head-inside`) and `Eye-out` (under `Eye-bracket`) arrive with the
-mind.
+Some elements under the hip and chest blocks belong to other stages by design: `bar-legs` (the
+legs' axle, under `hip-inside`) and `bar-arms` (the arms', under `chest-inside`) arrive with their
+limbs; `neck`, `hood-back3` and `hood-back4` (under `chest-inside`) arrive with the head; `heart`
+(under `chest-inside`), `brain` (under `head-inside`) and `Eye-out` (under `Eye-bracket`) arrive with
+the mind; and the chest block itself (under `hip-inside`) arrives before its parent, as above.
 
 ## Regenerating
 
@@ -220,7 +232,8 @@ elements stay vanilla's joints plus the anchors; one-shots end on their last fra
 poses they lead to (`lift` → `carry-idle`, `slump` → `standup`, `hung` → `activate`, …) and the
 setdowns, `standup` and `activate` end at rest; the pose checks above within 0.5 voxel (and for a
 thick trunk: nothing of the body inside it, the head and hood over 1 voxel away, the trunk on the
-ground at the grab and release); and the stage map covers every element exactly once, parents first, as the stages file has it.
+ground at the grab and release); and the stage map covers every element exactly once, the body one piece after every stage (a stage
+that would leave a piece floating is caught), the torso first with the spine's peg, as the stages file has it.
 
 ## Open questions
 

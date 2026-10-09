@@ -4,7 +4,7 @@ These hold what the generator wrote to its own rules: it reproduces the committe
 eidolon's shape as the repository has it now (so a changed eidolon.json fails here until the gantry is
 regenerated); the body in the written shape is the eidolon's `hung` pose, element for element, by the
 game's pose maths (Eidolon/tools/kin.py), each element under its build stage's part; the rig's
-`requires` are one per stage plus the two ways it is hung; the let-down brings the lowest toe from 3
+`requires` are one per stage, the ring coming with the first (the torso, whose spine's peg it holds); the let-down brings the lowest toe from 3
 voxels to the floor; the cells are rebuilt from the shipped shape; and the front is open. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
@@ -73,14 +73,18 @@ class Generator(unittest.TestCase):
 
 
 class Rig(unittest.TestCase):
-    def test_parts_parse_and_requires_are_the_stages_and_the_hang(self):
+    def test_parts_parse_and_requires_are_the_stages(self):
         ids = [p["id"] for p in RIG["parts"]]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(ids[-1], "frame")
         for p in RIG["parts"]:
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
-        self.assertEqual({p["requires"] for p in RIG["parts"]}, set(STAGE_CODES) | {"sling", "spinehook", None})
+        self.assertEqual({p["requires"] for p in RIG["parts"]}, set(STAGE_CODES) | {None})
+        ring = next(p for p in RIG["parts"] if p["id"] == "ring")
+        self.assertEqual(STAGE_CODES[0], "torso")
+        self.assertEqual(ring["requires"], STAGE_CODES[0])
+        self.assertIn("spine-hook1", STAGES["stages"][1]["elements"])
         for code in STAGE_CODES:
             part = next(p for p in RIG["parts"] if p["id"] == code)
             self.assertEqual((part["requires"], part["match"], part["ride"]), (code, [f"b_{code}_*"], "hook"))
@@ -144,8 +148,8 @@ class Body(unittest.TestCase):
             self.assertAlmostEqual(low, want, delta=0.01)
         self.assertAlmostEqual(RIG["winch"]["drop"], 3.0 / 16, places=4)
 
-    def test_the_hook_ring_and_sling_come_down_with_the_body(self):
-        for pid in ("ring", "sling", *STAGE_CODES):
+    def test_the_hook_and_ring_come_down_with_the_body(self):
+        for pid in ("hook", "ring", *STAGE_CODES):
             m = matrix(pid, 1.0)
             self.assertAlmostEqual(m[1][3], -3.0 / 16, places=4, msg=pid)
 

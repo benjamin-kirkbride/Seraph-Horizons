@@ -12,9 +12,8 @@ The body hangs in it in the eidolon's `hung` pose, baked: every element of the e
 (eidolon.json, read from the repository) is posed by `Eidolon/tools/kin.py`, the game's pose maths,
 at `hung`'s one frame and written as a plain static element, renamed `b_<stage>_<name>` by its build
 stage (`config/eidolon-stages.json`), so the rig's `requires` shows the body stage by stage. Its
-weight is taken by a ring over the top peg of its own spine (`spine-hook1`) once the torso is on,
-and before that by a rope sling to two eyebolts on the waist (the rig's `spinehook` and `sling`,
-one fitted at a time). Everything else was made for the Seraph Horizons mod; the body's elements
+weight is taken by a ring over the top peg of its own spine (`spine-hook1`), fitted with the torso,
+the first stage, so the ring holds the body from the first part on. Everything else was made for the Seraph Horizons mod; the body's elements
 are Anego Studios' model (../../CREDITS.md).
 
 It writes, deterministically,
@@ -80,7 +79,6 @@ GANTRY_TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "iron": "game:block/metal/plate/iron",
     "chain": "game:block/metal/armor-generic/chain-iron",
-    "reedrope": "game:block/cloth/reedrope",  # the eidolon's own rope code and texture
 }
 
 # ---------------------------------------------------------------- the body's place
@@ -116,7 +114,7 @@ HANDLE = (12.0, 15.5)                        # the handle runs this far along z,
 COIL_R = 4.6                                 # the chain wound on the drum, at its middle
 COIL_W = 2.0
 
-# ---------------------------------------------------------------- the sheave, the chains, the ring, the sling
+# ---------------------------------------------------------------- the sheave, the chains, the ring
 RING_X = 0.5                                 # the ring's bar thickness (x and the bars' depth)
 RING_IN_Z = 2.1                              # its inside width (z): the peg (1.6 wide) passes through
 RING_TOP_GAP = 1.55                          # its top bar stands this far above the peg's top
@@ -128,9 +126,6 @@ HUB_Z = (38.0, 42.0)
 HANGER_Z = ((35.5, 36.5), (43.5, 44.5))      # the iron hangers either side, from the hoist beam
 CHAIN_W = 1.0                                # a chain's section
 EYE = (1.0, 1.0)                             # the swivel eye at the fall's foot: height, side
-EYEBOLT = (1.2, 1.0, 0.5)                    # an eyebolt on the waist: side along x, height, thickness (z)
-SLING_LOCAL = ((6.8, 2.5), (6.8, 10.5))      # where the eyebolts stand on waist-fauld's top (its local x, z)
-ROPE_W = 0.8
 
 
 # ---------------------------------------------------------------- box helpers
@@ -272,16 +267,6 @@ def hang_point(shape):
     return p, (p1[1] - p0[1]) / (p1[0] - p0[0]), size
 
 
-def fauld_point(shape, lx, lz, up=0.0):
-    """A point on waist-fauld's top face (its own x, z), `up` voxels above it along its normal (build
-    voxels), and the fauld's rotation."""
-    rig, mats = hung_matrices(shape)
-    e = rig.elements["waist-fauld"]
-    h = e["to"][1] - e["from"][1]
-    p = kin.apply(mats["waist-fauld"], (lx, h + up, lz))
-    return [p[k] + OFF[k] for k in range(3)], [list(row) for row in kin.rotation_of(mats["waist-fauld"])]
-
-
 def lowest(els):
     return min(min(c[1] for c in el.corners()) for el in els)
 
@@ -398,7 +383,7 @@ def build_winch():
     return out
 
 
-# ---------------------------------------------------------------- the sheave, the chains, the ring, the sling
+# ---------------------------------------------------------------- the sheave, the chains, the ring
 def drop_x():
     """The fall's line (x): straight above the ring on the peg."""
     return hang_point(load_body()[0])[0][0]
@@ -461,36 +446,16 @@ def build_ring():
     ]
 
 
-def sling_points():
-    """The eyebolts' tops on the waist and the eye's foot, build voxels."""
-    shape = load_body()[0]
-    bolts = [fauld_point(shape, lx, lz, EYEBOLT[1])[0] for lx, lz in SLING_LOCAL]
-    return bolts, (drop_x(), eye_top() - EYE[0], BODY_AT[2])
-
-
-def build_sling():
-    """Before the torso is on: two eyebolts on the waist (through the fauld into the hip block) and a rope
-    leg from each up to the eye."""
-    shape = load_body()[0]
-    out = []
-    bolts, foot = sling_points()
-    for i, (lx, lz) in enumerate(SLING_LOCAL, 1):
-        c, r = fauld_point(shape, lx, lz, EYEBOLT[1] / 2)
-        out.append(skin(El(f"sl_eyebolt{i}", list(EYEBOLT), c, r, {}, "sling"), "iron"))
-        out.append(rod(bolts[i - 1], foot, ROPE_W, ROPE_W, f"sl_rope{i}", "sling", "reedrope"))
-    return out
-
-
 def build_chains():
     """The lead chain (drum to sheave, fixed), the fall (sheave to the eye, stretched as the drum pays
-    out), the swivel eye at its foot, the ring over the spine's peg and the sling to the waist."""
+    out), the swivel eye at its foot and the ring over the spine's peg."""
     zc = BODY_AT[2]
     (ax, ay), (bx, by) = lead_tangents()
     x, top = drop_x(), eye_top()
     out = [rod((ax, ay, zc), (bx, by, zc), CHAIN_W, CHAIN_W, "ld_chain", "lead", "chain"),
            box([x - CHAIN_W / 2, top, zc - CHAIN_W / 2], [x + CHAIN_W / 2, SHEAVE_Y, zc + CHAIN_W / 2], "fl_chain", "fall", "chain"),
            box([x - EYE[1] / 2, top - EYE[0], zc - EYE[1] / 2], [x + EYE[1] / 2, top, zc + EYE[1] / 2], "hk_eye", "hook", "iron")]
-    return out + build_ring() + build_sling()
+    return out + build_ring()
 
 
 def build_gantry():
@@ -530,8 +495,8 @@ def rig_parts(stages):
          "drivers": [{"type": "stretch", "axis": "y", "anchor": pt(drop_x(), SHEAVE_Y, zc),
                       "length": r6((SHEAVE_Y - eye_top()) / B), "travel": r6(d / B)}]},
         {"id": "hook", "match": ["hk_*"], "requires": None, "drivers": [{"type": "feed", "axis": "y", "travel": r6(-d / B)}]},
-        {"id": "ring", "match": ["rg_*"], "requires": "spinehook", "ride": "hook", "drivers": []},
-        {"id": "sling", "match": ["sl_*"], "requires": "sling", "ride": "hook", "drivers": []},
+        # fitted with the torso, the first stage: the spine's peg it goes over is the torso's
+        {"id": "ring", "match": ["rg_*"], "requires": body_codes(stages)[0], "ride": "hook", "drivers": []},
     ]
     for code in body_codes(stages):
         parts.append({"id": code, "match": [f"b_{code}_*"], "requires": code, "ride": "hook", "drivers": []})
@@ -586,8 +551,8 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the foot of the front "
                     "right (north-west) post. The body faces west (-x), the exit; its right is north. Inputs: depth, the winch "
                     "let down 0..1 (the body comes down until its lowest toe is on the floor); theta, the crank's clock, moves "
-                    "nothing. requires: one value per build stage (eidolon-stages.json) for the body's parts, and 'sling' or "
-                    "'spinehook', one at a time (the sling before the torso is on, the ring on the spine's peg after). body: the "
+                    "nothing. requires: one value per build stage (eidolon-stages.json) for the body's parts; the ring on the "
+                    "spine's peg comes with the first, the torso. body: the "
                     "entity's position; hang: where the ring bears on the peg; fit: the chest's middle. The cells' boxes are the "
                     "gantry's; the body's are gameplay's. See EidolonGantry/README.md.",
         "cells": [],

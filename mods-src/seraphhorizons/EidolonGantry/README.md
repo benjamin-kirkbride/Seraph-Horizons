@@ -27,11 +27,13 @@ corner, iron fish plates and angle brackets at the post tops and trenail heads o
   oak handle on the right (north) side, worked from inside the gantry. The chain leaves the drum's top
   and runs up and forward, tangent to both, onto one oak sheave hung in iron hangers under the hoist
   beam, and drops from it straight down to a swivel eye over the body.
-- **What holds the body**: from the torso on, an iron ring from the eye over the top peg of the body's
-  own spine (`spine-hook1`, the spine's top hook between the shoulder blades), its bottom bar under the
-  peg. Before the torso is on there is no spine, so a rope sling runs from the eye to two eyebolts on
-  the waist (on `waist-fauld`'s top, into the hip block). The two are the rig's `spinehook` and `sling`;
-  gameplay fits one at a time.
+- **What holds the body**: an iron ring from the eye over the top peg of the body's own spine
+  (`spine-hook1`, the spine's top hook between the shoulder blades), its bottom bar under the peg. The
+  torso is the first stage (`../Eidolon/README.md`, "Build stages"), so the peg is there from the first
+  part fitted on: the ring is fitted with the torso (the rig's `torso` value) and holds the body
+  through every stage after it, each fitting onto what already hangs. (While the pelvis came first the
+  gantry also had a rope sling from the eye to two eyebolts on the waist, for the stages before the
+  spine; with the torso first nothing needs it, and it is gone.)
 
 The body's pose is `hung` (limp, head down, the lowest toe 3 voxels off the floor). Searching the posed
 body for a way to hang it showed why the spine's peg: no straight line reaches the hip block from above
@@ -71,8 +73,8 @@ units, controller cell `[0,0,0]` the foot of the front right (north-west) post.
 | `lead` (the drum-to-sheave chain) | | none: its ends do not move |
 | `fall` (the hanging chain) | | `stretch` by depth about the sheave: it lengthens by the drop |
 | `hook` (the swivel eye) | | `feed`: down by the drop at depth 1 |
-| `ring`, `sling` | `spinehook`, `sling` | ride `hook` |
-| `pelvis`, `legs`, `torso`, `arms`, `head`, `mind` | the same | ride `hook`: the body comes down with the eye |
+| `ring` | `torso` | ride `hook` |
+| `torso`, `pelvis`, `legs`, `arms`, `head`, `mind` | the same | ride `hook`: the body comes down with the eye |
 | `frame` | | |
 
 **depth** is the winch let down, 0..1: 0 hung, 1 the lowest toe on the floor (`winch.drop`, 3 voxels).
@@ -98,10 +100,12 @@ every change to the eidolon's shape or stages.
 ## Validation (`tools/validate_eidolongantry.py`)
 
 Every run: elements in their parts, Euler round trip; the baked body against kin's hung pose; every
-drawn eidolon element in the gantry once, in its stage, parents no later than children; the lowest toe
+drawn eidolon element in the gantry once, in its stage, the body one piece after every stage (the
+eidolon's rule; the chest is shown before the hip block it hangs from in the hierarchy, which baking
+makes harmless), the spine's peg in the first stage and the ring fitted with it; the lowest toe
 at 3 voxels at depth 0 and on the floor at depth 1; everything in the machine box; the body touching
-nothing of the gantry (but the ring's bottom bar under the peg, or the eyebolts on the waist) at depth
-0, 0.5 and 1, the ring clear of the body and the sling of the pelvis and legs; the peg inside the ring;
+nothing of the gantry (but the ring's bottom bar under the peg) at depth 0, 0.5 and 1, the ring clear
+of the rest of the body; the peg inside the ring;
 the lead chain tangent to drum and sheave, the fall on the sheave's tangent and on the eye at every
 depth, drum and sheave turning with the chain; the frame one piece from the ground, the axle in both
 cheeks and the sheave's pin in both hangers; the eidolon standing where it hung (vanilla's rest pose)

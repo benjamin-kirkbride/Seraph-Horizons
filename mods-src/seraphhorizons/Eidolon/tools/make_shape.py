@@ -146,26 +146,30 @@ LEG = {"R": ("upperlegR", "lowerlegR", "footR", ("soleR1", "soleR2")),
 
 # ---------------------------------------------------------------------------------------------
 # Build stages. Each lists the elements it adds, as claim roots: a root and everything under it
-# that no other root claims. The gantry shows stages cumulatively, so an element's parent is in its
-# own stage or an earlier one. Ingredients are the proposal (README); the gantry agent owns them.
+# that no other root claims. The gantry shows stages cumulatively. The torso comes first, before the
+# pelvis it hangs from in the shape's hierarchy (origin > hip-inside > chest-inside), so the rule is not
+# parents first but attachment: after every stage, the elements shown so far are one connected piece
+# of the hierarchy, its links taken either way (a stage fits onto what is there; nothing floats). The
+# gantry bakes the body's pose, so no shown element's place depends on a hidden one at draw time.
+# Ingredients are the proposal (README); the gantry agent owns them.
 STAGES = [
     {"stage": 1, "code": "gantry", "name": "Gantry",
      "ingredients": ["wood (the gantry's own model)"], "roots": []},
-    {"stage": 2, "code": "pelvis", "name": "Pelvis",
-     "ingredients": ["game:eidolongearbox", "game:jonasframes-gearbox02", "2 game:metalplate-steel"],
-     "roots": ["origin", "hip-inside", "hip-tassetR", "hip-tassetL", "back-tassetR", "back-tassetL",
-               "waist-fauld", "chainskirt-back1", "chainskirt-front1", "bar-hip"]},
-    {"stage": 3, "code": "legs", "name": "Legs",
-     "ingredients": ["2 game:jonasframes-joint01", "game:jonasframes-spring01", "2 game:rod-steel",
-                     "2 game:metalplate-steel"],
-     "roots": ["bar-legs", "upperlegR", "upperlegL"]},
-    {"stage": 4, "code": "torso", "name": "Torso",
+    {"stage": 2, "code": "torso", "name": "Torso",
      "ingredients": ["game:eidolongearbox", "game:jonasparts-tank01", "game:jonasparts-tank02",
                      "game:jonasparts-pumphead", "2 game:metalplate-steel"],
      "roots": ["chest-inside", "collar-front", "collar-R", "collar-L", "chest-plateR", "chest-plateL",
                "chest-backplate", "chest-sideplateR", "chest-sideplateL", "chest-sash2",
                "bar-chestR1", "bar-chestR2", "bar-chestL1", "bar-chestL2", "spine1",
                "carry-anchor", "trunk-anchor", "thick-trunk-anchor"]},
+    {"stage": 3, "code": "pelvis", "name": "Pelvis",
+     "ingredients": ["game:eidolongearbox", "game:jonasframes-gearbox02", "2 game:metalplate-steel"],
+     "roots": ["origin", "hip-inside", "hip-tassetR", "hip-tassetL", "back-tassetR", "back-tassetL",
+               "waist-fauld", "chainskirt-back1", "chainskirt-front1", "bar-hip"]},
+    {"stage": 4, "code": "legs", "name": "Legs",
+     "ingredients": ["2 game:jonasframes-joint01", "game:jonasframes-spring01", "2 game:rod-steel",
+                     "2 game:metalplate-steel"],
+     "roots": ["bar-legs", "upperlegR", "upperlegL"]},
     {"stage": 5, "code": "arms", "name": "Arms",
      "ingredients": ["game:eidolongearbox", "game:jonasframes-gears01", "game:jonasframes-gears02",
                      "game:jonasparts-cylinder01", "game:jonasparts-valve01", "2 game:rod-steel",
@@ -884,7 +888,9 @@ def stages_file(shape):
 
 
 def check_stages(shape, stages):
-    """Problems with a stages file against a shape: every element in exactly one stage, parents first."""
+    """Problems with a stages file against a shape: every element in exactly one stage, and after every
+    stage the elements shown so far one connected piece of the hierarchy (links taken either way: in a
+    tree, a set is connected when exactly one of its elements has its parent outside it)."""
     rig = kin.Rig(shape)
     problems = []
     where = {}
@@ -893,13 +899,17 @@ def check_stages(shape, stages):
             if n not in rig.elements:
                 problems.append(f"{st['code']}: no element {n}")
             if n in where:
-                problems.append(f"{n} in {where[n][1]} and {st['code']}")
-            where[n] = (st["stage"], st["code"])
+                problems.append(f"{n} in {where[n]} and {st['code']}")
+            where[n] = st["code"]
     for n in rig.order:
         if n not in where:
             problems.append(f"{n} is in no stage")
-        elif rig.parent[n] is not None and rig.parent[n] in where and where[rig.parent[n]][0] > where[n][0]:
-            problems.append(f"{n} ({where[n][1]}) comes before its parent {rig.parent[n]} ({where[rig.parent[n]][1]})")
+    shown = set()
+    for st in stages["stages"]:
+        shown |= {n for n in st["elements"] if n in rig.elements}
+        tops = [n for n in rig.order if n in shown and rig.parent[n] not in shown]
+        if len(tops) > 1:
+            problems.append(f"after {st['code']} the body is in {len(tops)} pieces, from {', '.join(tops)}")
     return problems
 
 

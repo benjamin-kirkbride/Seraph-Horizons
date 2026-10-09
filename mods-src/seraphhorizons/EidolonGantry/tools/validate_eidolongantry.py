@@ -16,7 +16,7 @@ from machinegen.geometry import El, flatten
 from machinegen.rigmath import part_of, posed
 
 TOL = 0.01                                    # voxels: the baked body against kin's hung pose, the floor
-GANTRY = ("frame", "winch", "sheave", "lead", "fall", "hook", "ring", "sling")
+GANTRY = ("frame", "winch", "sheave", "lead", "fall", "hook", "ring")
 
 
 class V:
@@ -68,8 +68,10 @@ def check_baked(v, body_shape):
 
 
 def check_stages(v, body_shape, stages):
-    """Every drawn element of the eidolon is in the gantry once, in its stage's part; parents come no later
-    than their children (the eidolon's own rule, which the gantry relies on to show stages cumulatively)."""
+    """Every drawn element of the eidolon is in the gantry once, in its stage's part; after every stage the
+    body shown so far is one piece (the eidolon's own rule: the torso comes before the pelvis it hangs from
+    in the shape's hierarchy, which the baked pose makes harmless, but nothing may float); the first stage
+    holds the spine's peg, so the ring, fitted with it, holds the body from the first part on."""
     st = v.m.stage_of(stages)
     rig = kin.Rig(body_shape)
     drawn = [n for n in rig.order if v.m.drawn(rig.elements[n])]
@@ -81,11 +83,18 @@ def check_stages(v, body_shape, stages):
     want = {f"b_{st[n]}_{n}" for n in drawn if n in st}
     if have != want:
         v.fail(f"stage coverage: missing {sorted(want - have)[:6]}, extra {sorted(have - want)[:6]}")
-    order = [s["code"] for s in stages["stages"]]
-    late = [n for n in rig.order if rig.parent[n] and n in st and rig.parent[n] in st
-            and order.index(st[rig.parent[n]]) > order.index(st[n])]
-    if late:
-        v.fail(f"elements before their parents' stage: {late[:6]}")
+    shown = set()
+    for s in stages["stages"]:
+        shown |= set(s["elements"])
+        tops = [n for n in rig.order if n in shown and rig.parent[n] not in shown]
+        if len(tops) > 1:
+            v.fail(f"after {s['code']} the body is in {len(tops)} pieces, from {tops[:6]}")
+    first = v.m.body_codes(stages)[0]
+    if st.get("spine-hook1") != first:
+        v.fail(f"the spine's peg (spine-hook1) is not in the first stage, {first}")
+    ring = next(p for p in v.parts if p["id"] == "ring")
+    if ring["requires"] != first:
+        v.fail(f"the ring requires {ring['requires']!r}, not the first stage {first!r}")
     counts = {code: len(v.by_part.get(code, [])) for code in v.m.body_codes(stages)}
     print(f"stages: {counts}; {len(have)} of {len(rig.order)} eidolon elements (left out, no drawn face: {faceless})")
 
@@ -116,19 +125,15 @@ def check_containment(v):
 
 
 def check_clearances(v, stages):
-    """The body touches nothing of the gantry but the ring's bottom bar, under the peg (stages after the
-    torso), or the sling's eyebolts on the waist (before it); the sling clears the pelvis and legs."""
+    """The body touches nothing of the gantry but the ring's bottom bar, under the peg."""
     body = list(v.m.body_codes(stages))
-    early = [c for c in body if c in ("pelvis", "legs")]
     for depth in (0.0, 0.5, 1.0):
         fixed = v.posed(["frame", "winch", "sheave", "lead", "fall", "hook"], depth)
         hits = touching(v.posed(body, depth), fixed)
         ring = touching(v.posed(body, depth), v.posed(["ring"], depth))
         ring = {h for h in ring if not (h[0] == "b_torso_spine-hook1" and h[1] == "rg_bottom")}
-        sling = touching(v.posed(early, depth), v.posed(["sling"], depth))
-        sling = {h for h in sling if not (h[0] == "b_pelvis_waist-fauld" and h[1].startswith("sl_eyebolt"))}
-        print(f"clearances at depth {depth}: body-gantry {len(hits)}, body-ring {len(ring)}, sling-pelvis/legs {len(sling)}")
-        for what, h in (("the body touches the gantry", hits), ("the ring touches the body", ring), ("the sling touches the body", sling)):
+        print(f"clearances at depth {depth}: body-gantry {len(hits)}, body-ring {len(ring)}")
+        for what, h in (("the body touches the gantry", hits), ("the ring touches the body", ring)):
             if h:
                 v.fail(f"{what} at depth {depth}: {sorted(h)[:6]}")
 
@@ -262,9 +267,8 @@ ROLES = [
     (r"^wn_(axle|hoop|crank)", {"iron"}),
     (r"^wn_(drum|handle)", {"oak"}),
     (r"^wn_coil|^ld_|^fl_", {"chain"}),
-    (r"^sv_pin|^hk_|^rg_|^sl_eyebolt", {"iron"}),
+    (r"^sv_pin|^hk_|^rg_", {"iron"}),
     (r"^sv_(hub|flange)", {"oak"}),
-    (r"^sl_rope", {"reedrope"}),
 ]
 
 
