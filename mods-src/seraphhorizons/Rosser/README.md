@@ -7,7 +7,8 @@ snaps off the branches, which fall as sticks; four scraper arms on the ring, tip
 heads, strip the bark, which falls as Immersive Woodworking's (`immersivewoodworking`) bark; and the
 trunk comes out as Logging Expanded's own trunk in a third, debarked state. It is built in the
 world from a frame and existing items (Immersive Woodworking's sawmill crankshaft and levers, the
-game's large gear sections, hoops, rods and plates, and four bark spud heads), and it hands the
+game's large gear sections, hoops, rods and plates, four straight copper or lead pipes of Pipes and
+Power Expanded's for the drip, and four bark spud heads), and it hands the
 debarked trunk on to a Trunk Storage Rack or to a bucking mill (`../BuckingSawmill/README.md`)
 placed in line. Neither mod is referenced at build time.
 
@@ -24,8 +25,10 @@ off, either mod not installed, or the debarked trunk not there (Logging Expanded
 patch expects), the server marks the rosser's four blocktypes and its recipe disabled before the
 game loads them (`RosserSystem.Disable`), so the blocks do not exist at all; rossers already placed
 in a world are then lost, and so are debarked trunks. Pipes and Power Expanded (`ppex`) is
-optional: it waters the drip. The classes are registered on both sides whatever the setting, and a
-client follows the server.
+optional: it waters the drip, and its straight pipe in copper and lead (the metals the `UnifiedPipes`
+switch adds) is the drip's pipes, a stage of the build. Without ppex, or with `UnifiedPipes` off,
+there are no such pipes, and the rosser is built without them (**Assembly**). The classes are
+registered on both sides whatever the setting, and a client follows the server.
 
 ## The debarked trunk
 
@@ -103,7 +106,8 @@ side under the ring. Turning to a facing is the mill's (`Machines/Core/Footprint
 turns by rotateY north 180, east 90, south 0, west 270. `Core/RosserRig.cs` parses the file.
 
 **Assembly.** Right-click the frame or any ghost holding a part, recognised by full code
-(`Core/RosserParts.cs`). Eight stages, each a `requires` name of the rig:
+(`Core/RosserParts.cs`). Nine stages, each a `requires` name of the rig but the pipes, whose parts
+are one per metal:
 
 | Stage | `requires` | Items | Draws |
 |---|---|---|---|
@@ -114,16 +118,34 @@ turns by rotateY north 180, east 90, south 0, west 270. `Core/RosserRig.cs` pars
 | Outfeed rolls | `rollsout` | 2 `game:rod-{metal}` | The same at the outfeed |
 | Limb breaker | `breaker` | 2 `game:metalplate-{metal}` | The V bars |
 | Levers | `levers` | 1 `immersivewoodworking:sawmilllevers` | The treadle, its lever and the pushrod, the rock shaft, and both selector levers |
+| Pipes | `pipecopper` or `pipelead` (the stage is `pipes`) | 4 `ppex:pipe-straight-*-copper` or `-lead`, one metal, from one stack | The drip's water line, in that metal's pipe texture: the inlet from the water face, the riser beside the ring, the run over the roller's bracket and the header across the trunk with its nozzles |
 | Heads | `heads` | 4 `immersivewoodworking:barkspudhead-{metal}`, one metal, from one stack | The scraper tips, in that metal. Needs the ring. |
 
 - Any order, except that the tyres and the heads go on the ring (`NeedsRing`).
 - A click takes from the held stack as many as the stage still needs: rods fill the infeed rolls
-  first, then the outfeed rolls, up to four from one stack. The heads need a stack of four
-  (`NeedsFullSet`), so they are always one metal.
+  first, then the outfeed rolls, up to four from one stack. The heads and the pipes need a stack of
+  four (`NeedsFullSet`), so they are always one metal.
 - Hoops, rods and plates must be iron, meteoric iron or steel while the woodworking machines are
   iron work (`IronWoodworkingMachines` on, as it is by default; `RosserSystem.PartMetals`), and may
   be any metal with it off. The heads may be any metal. A save keeps every fitted item's code, and
   is restored with any metal, so turning that switch on never takes a fitted part away.
+- **The pipes** are Pipes and Power Expanded's straight pipe (`ppex:pipe-straight-{ns,we,ud}-{metal}`,
+  any orientation; it goes back as it came) in copper or lead, the metals `UnifiedPipes` adds to ppex's
+  pipes (`patches/unifiedpipes-ppex.json`), whatever `IronWoodworkingMachines` says: iron and steel
+  pipes are refused (`error-wrong-pipe-metal`). The model draws them in that metal: the rig has a part
+  per metal, `pipecopper` and `pipelead`, the same elements in `game:block/metal/sheet-plain/copper4`
+  and `lead4`, the textures `UnifiedPipes` gives ppex's copper and lead pipes, and the renderer draws
+  the fitted metal's (`RosserParts.Fitted`, `PipeMetal`; the block info names it). Until they are in,
+  a straight pipe in hand is a part, so a click on the water face fits it (sneak to place one there);
+  once they are in, the click is not the rosser's and places the pipe against it as against any
+  block, as a player connects the water face (`RosserParts.TakesClick`). Water comes in only
+  through them (**Water**).
+- **Without the pipes.** The pipes are a stage only while ppex's straight pipe exists in copper and
+  lead (`RosserSystem.PipesNeeded`, which each side asks of its own world: ppex installed and
+  `UnifiedPipes` on). Without them the stage is left out (`RosserParts.PipesNeeded`): the rosser is
+  complete without pipes, draws none, refuses none (a pipe in hand is never a part), and takes water
+  from a pipe on the water face as before. A rosser saved before the pipes were a stage has none:
+  it stops, its block info lists them, and it runs again once they are fitted.
 - Parts are used up outside creative mode. In creative mode one item fits all its stages take
   (a single rod fills both roll sets), and nothing is taken.
 - Ctrl + right-click takes the trunk back if it is waiting or delivered, refuses while it is in the
@@ -139,8 +161,9 @@ frame are always drawn: the frame item carries them.
 **Creative shortcut.** The woodworking stations' (the mod README's unified woodworking section,
 `Core/CreativeUpgrades.cs`): a player in creative mode who right-clicks an unassembled rosser with
 Ctrl held and not Shift gets its next stage fitted at once, whatever they hold, with nothing
-taken: drive, ring, tyres, infeed rolls, outfeed rolls, limb breaker, levers, then four steel heads
-(`AssembledMachines.DefaultMetal`; steel for the hoops, rods and plates too), one stage per click
+taken: drive, ring, tyres, infeed rolls, outfeed rolls, limb breaker, levers, four copper pipes
+(while the pipes are a stage), then four steel heads (`AssembledMachines.DefaultMetal`; steel for
+the hoops, rods and plates too; the pipes copper, steel being no pipe metal), one stage per click
 (`RosserParts.NextPart`). On an assembled rosser Ctrl does what it does in survival. It runs while
 `UnifiedWoodworking` does (`BERosser.CreativeShortcut`); the server decides, from its own player
 data, and a player in creative sees the help line
@@ -236,7 +259,10 @@ rig's chute (`chute.pos`, turned to the facing), pushed out of its side:
   without the counts takes everything due at its T as dropped.
 
 **Water.** Optional, from a Pipes and Power Expanded water pipe on the water ghost's water face
-(`Game/PpexWater.cs`). Once a second the controller asks the pipe's network for what the reservoir
+(`Game/PpexWater.cs`), through the drip's own pipes: while they are a stage, the reservoir takes no
+water until they are fitted (`BERosser.DrawWater`). The drip's inlet ends at the water face on the
+middle of the cell's face, in ppex's 6 x 6 section, so a pipe there meets it end to end. Once a
+second the controller asks the pipe's network for what the reservoir
 lacks, at most `WaterIntakeLitresPerSecond` (10) a second up to `ReservoirLitres` (20). Each log
 scraped while the reservoir holds `WaterPerLog` (2) is wet and spends that much, so a full
 reservoir wets ten logs. A wet log's roll uses `WetBarkMultiplier` (1.5, so the special kinds of
@@ -395,9 +421,9 @@ from one of that model's teeth (`../CREDITS.md`). It is generated, not drawn:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/rosser.json` | The whole machine, every moving part (1473 elements). The renderer splits it into parts by element name. |
-| `assets/seraphhorizons/shapes/block/rosser_frame.json` | The static frame only (283 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/rosser-rig.json` | Footprint, anchors, the trunk path, the feed constants and the part rig (45 parts). |
+| `assets/seraphhorizons/shapes/block/rosser.json` | The whole machine, every moving part and both metals' pipes (1489 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/rosser_frame.json` | The static frame only (277 elements). The block draws it and the inventory shows it. |
+| `assets/seraphhorizons/config/rosser-rig.json` | Footprint, anchors, the trunk path, the feed constants and the part rig (47 parts). |
 | `tests/Rosser/rig-reference.json` | Every part's matrix at a grid of poses (197), from the reference maths. |
 
 ### How the machine works
@@ -416,7 +442,12 @@ centreline, so a mill in line has its trunk on the same line). Going east:
    cradle.
 3. **Limb breaker** (x 104): two iron V bars on a cross pin, hanging in the throat; the trunk's nose
    rides under them and lifts them, and they snap the branches off.
-4. **Drip** (x 112.4): a pipe across the path with drip nozzles, from the water face on the south.
+4. **Drip** (x 112.4): the drip's pipes, ppex's 6 x 6 section in the fitted metal. The inlet comes
+   in from the water face on the south on the axis of a pipe beyond it (x 120, y 40), between the
+   ring's south posts; a riser goes up beside the ring, south of its upper roller (z 72.5); a run
+   goes west at y 52 over that roller's bracket; and the header crosses the trunk from z 69.5 to its
+   capped north end at z 33, its underside at 49, over the breaker bars a thick trunk lifts, with
+   five nozzles under it. Two iron straps of the frame hang it from the top beams.
 5. **Ring** (x 118..124, plane x 121): the cutter ring, 3.25 blocks across its teeth, with a bore of
    radius 20.5 that clears a thick trunk's knots (19.45) by 1.05. Its scraper arms reach downstream
    into x 124..140.
@@ -512,6 +543,7 @@ travel, φ the feed, T the trunk's travel, k its class, p its presence):
 | Treadle lever, axle, tail roller, counterweight (`treadlever`) [levers] | The plate (down); its counterweight (back up) | The pushrod's stirrup | `gauge` rotate x (treadle window) |
 | Pushrod with its stirrup (`pushrod`) [levers] | The lever's tail roller, up to the rock's stop; gravity | The rock's tappet | `gauge` slide y, gain 6.03 for thick (the lost motion) |
 | Rock shaft: tappet, lever arms and pins, hold fingers, throw-out weight (`rock`) [levers] | Thrown in by the pushrod; held by either arc; thrown out by its weight; stopped at full throw | Both selector levers | `gauge` rotate x 12°, windows: the treadle, then a rise and a drop window per station and class (max) |
+| Drip pipes: inlet, riser, run, header and nozzles (`pipecopper`, `pipelead`) [pipecopper, pipelead] | Static; only the fitted metal's is drawn | — | none |
 | Frame (`frame`) | Static | — | none |
 
 Toothed wheels and what they mesh (nothing toothed meshes nothing; the selector, flywheel, rollers,
@@ -577,8 +609,13 @@ because a review of the renders found a fault:
   poses.
 - **Anchors:** the power and water cells are cells, not at ground level, on opposite faces, with the
   cells beyond them outside the footprint and away from the racks' cells and the chute; the entry
-  shaft reaches the power face and the drip pipe the water face; a mill in line keeps its power feed
-  cell, and both trunk heights are printed.
+  shaft reaches the power face, and the drip's inlet reaches the water face on the middle of the
+  cell's face in ppex's 6 x 6 section, so a pipe there meets it end to end; a mill in line keeps its
+  power feed cell, and both trunk heights are printed.
+- **Pipes:** each metal's pipes are the first metal's elements exactly (the same boxes and faces,
+  renamed, in their own texture), made after the z-fighting fix so they get its insets too; the
+  header spans a thin trunk's width. Only one metal's are ever drawn, so the z-fighting, clearance
+  and swept-path checks see copper's alone.
 - **Gearing:** every meshing pair (ring pinion and rim, rollers and tyres, both change pairs, the
   banjos at thin and thick, the worms by lead and centre distance) has tangent pitch circles, and its
   contact points move together, by finite differences of the posed rig, with the shaft turning either
@@ -605,12 +642,13 @@ because a review of the renders found a fault:
   the rock fully in for the whole trip of both classes and out exactly at T_end.
 - **Breaker:** resting on both classes; the nose lifting it presses in at most 0.3; at rest it hangs
   below a thin trunk's top.
-- **Nothing floats:** all 283 frame elements joined to the ground.
+- **Nothing floats:** all 277 frame elements joined to the ground.
 - **Supports and bearings:** every shaft in at least two bearings (main shaft 7, entry 2, rock 4,
   rocker 2, breaker pin 2, treadle axle 2, each lay and cross shaft 2, each roller pin 2), each
   bearing enclosing its shaft at rest and turned 45°, loose wheels located on both faces.
 - **Textures** *(review)*: iron for the wearing surfaces and linkage (feed rolls, tips, worms,
-  selectors, levers, pins), oak for structure.
+  selectors, levers, pins, the drip's straps), oak for structure, each metal's pipe texture on that
+  metal's pipes and nowhere else.
 - **Chute** *(review)*: the boards fall to the south face under the anchor, and the mouth is clear.
 - **Stops** *(review)*: the top-roll arms rest on their brackets; the rock's tappet meets its stop
   when in and clears it when out.
@@ -640,9 +678,13 @@ mill's, so every reader (the Python test, the site's test) gets the same split.
   `MainRotor_twoway_021` (gear bodies, collars, the flywheel, roll bodies).
 - **Not used:** IW's spring, crank and ratchet.
 
-Texture codes are `oak` and `metal`. The tips use `metal`, which the renderer swaps for the heads'
-metal; everything else that is `metal` stays the block's iron plate. Iron for the wearing surfaces
-and linkage, oak for structure, as the mill's rule.
+Texture codes are `oak`, `metal`, `pipecopper` and `pipelead`. The tips use `metal`, which the
+renderer swaps for the heads' metal; everything else that is `metal` stays the block's iron plate.
+Iron for the wearing surfaces and linkage, oak for structure, as the mill's rule. The pipes wear
+`pipecopper` (`game:block/metal/sheet-plain/copper4`) or `pipelead` (`lead4`), the textures
+`UnifiedPipes` gives ppex's copper and lead pipes. The frame block (`blocktypes/rosser/frame.json`)
+declares all four: the renderer draws the moving parts with the block's textures, and a code the
+block lacks would render white (`tools/tests/test_rosser_model.py` holds them together).
 
 ### Rig schema (`rosser-rig.json`)
 
@@ -659,7 +701,7 @@ schema (`../BuckingSawmill/README.md`, "Rig schema") with these differences, par
 | `chute` | `{ "pos": [-6.5, 0.1125, 3.05], "side": "south" }`: where bark and sticks spawn, and the face they are pushed out of, which must be opposite `powerFace`. The top-level `chuteSide` is for the site's viewer only. |
 | `trunkPath` | `origin` `[-15, 1.6875, 0.6875]`, `axis` `x`, `length` 16 (the line the viewer draws), `nose0` −9.625, `lengths` `{thin 4, thick 5}`, `tailStop` −4.03125, `radius` `{thin [7.5, 9.0], thick [15.05, 18.5]}` (flats and corners, voxels, for drawing), and `stations` along the axis: `treadle` −11.125, `infeed` −9.0625, `breaker` −8.5, `drip` −7.975, `ring` −7.4375, `outfeed` −4.40625. `breaker` and `ring` are required, with `nose0` < `breaker` < `ring` ≤ `tailStop`, so every stick and log's bark is due by the end of the trip. `tips` `{thin, thick}` (optional; the ring's position without it) is where the spud heads touch a trunk of each class along the axis: the tip block's centre with the arm at the class's mean opening, downstream of the ring's plane and further for the thick trunk; `ring` ≤ `tips` ≤ `tailStop`. The bark switch, the scraping sound and the chips are there, not at the ring's plane. |
 | `feed` | `blocksPerRadian` 0.1 (trunk travel per radian of φ) and `gear` `{thin 0.221175, thick 0.10029}` (the drawn change gears, feed radians per axle radian; thick below thin). |
-| `parts` | As the mill's, with the new inputs and drivers below, and the rosser's `requires` vocabulary: `shaft`, `ring`, `tyres`, `rollsin`, `rollsout`, `breaker`, `levers`, `heads`, or null. |
+| `parts` | As the mill's, with the new inputs and drivers below, and the rosser's `requires` vocabulary: `shaft`, `ring`, `tyres`, `rollsin`, `rollsout`, `breaker`, `levers`, `pipecopper`, `pipelead`, `heads`, or null (`RosserRequires.KnownRequires`; a metal's pipes are drawn while the pipes fitted are that metal). |
 
 The rosser's `trunkPath` is the trunk-flavoured case of a rig's generic **work** (a named progress
 quantity with a unit, a step and an end per class; `docs/recipe-browser/models.md`, "The work and its
@@ -698,7 +740,9 @@ renderer skips parts with no `requires`, ride or drivers.
 
 - One mesh per moving rig part from `rosser.json` (`Machines/Game/MachineMeshes.cs`), drawn with its
   rig matrix (`RigParts.Matrices(RigInput)` in `Machines/Core/RigAnimation.cs`) turned to the facing,
-  only when its `requires` is fitted. The `heads` parts take `game:block/metal/ingot/{metal}`.
+  only when its `requires` is fitted. The `heads` parts take `game:block/metal/ingot/{metal}`. The
+  pipes are drawn as they are, in the block's pipe textures: `pipecopper` while copper pipes are
+  fitted, `pipelead` while lead ones are.
   The meshes are one tessellation of the shape split by part (each element's `JointId` set to its
   part + 1, read back per vertex from `TesselateShapeWithJointIds`' `CustomInts`;
   `MachineMeshes.PartMeshes`), cached for the session by `MachinePartMeshes` and shared by every
@@ -731,6 +775,7 @@ them (first-match globs, in this order).
 | `breaker_*` | `breaker` |
 | `lay_<s>_*`, `fast_<s>_*`, `slow_<s>_*`, `sel_<s>_*`, `sellever_<s>_*`, `cross_<s>_*`, `toproll_<s>_*`, `toparm_<s>_*`, `botroll_<s>_*`, `cradle_<s>_*` (s `in` or `out`) | the part of the same name |
 | `rocker_*`, `treadle_*`, `treadlever_*`, `pushrod_*`, `rock_*` | the part of the same name |
+| `pipecopper_*`, `pipelead_*` | `pipecopper`, `pipelead` (the drip's pipes, one copy per metal) |
 | `fr_*` | `frame` (every frame element) |
 
 Hand edits are lost when the script runs again. Either port them into `make_shape.py`, or stop
@@ -742,9 +787,11 @@ regenerating.
   needed) compiles `Core/` and tests: the rig parser (its own fixture,
   `tests/Rosser/fixtures/rosser-rig-test.json`, hollow cells, anchors, both ends' neighbours, 24
   broken rigs, and the shipped `rosser-rig.json`, whose `feed.gear` must match the default pace within
-  3 %); the parts rules (recognition, quantities, the ring first, heads as a set of four, the metal
-  rule and `WithMetals`, the creative order, wear and capacity, unworn heads out, breaking returns,
-  save and restore); the pace (class speeds, tiers, settings, the feed ratio, and one rosser keeping
+  3 %); the parts rules (recognition, quantities, the ring first, heads as a set of four, the pipes
+  as four of copper or lead with a pipe's click passing to placement once they are in, the build
+  without them when they do not exist and a save from before them, the metal rule and `WithMetals`,
+  the requires vocabulary and each metal's pipes drawn only with that metal, the creative order, wear
+  and capacity, unworn heads out, breaking returns, save and restore); the pace (class speeds, tiers, settings, the feed ratio, and one rosser keeping
   one mill of the same metal fed at tiers 2 to 5); the trip (every stick and log's bark dropped once
   and delivered once, at several step sizes and trunk shapes; the thresholds; nothing twice across a
   save and reload at several points, and a save without counters; breaking per T; states, load
@@ -762,8 +809,10 @@ regenerating.
   at the mill's tolerance. `site/test/rosser.test.ts` replays every pose in TypeScript and rebuilds the cells' boxes from the shipped shape;
   `tools/tests/test_rosser_model.py` (no fetched mods needed, so CI runs it) replays every fifth pose
   in Python and checks the parts and their globs, the cells rebuilt from the shape, the anchors, the
-  trunk path against the generator's constants, the feed constants against the drawn gears, and the
-  gears' pitch and centre distances. `tools/tests/test_machinegen.py` tests the shared generator
+  trunk path against the generator's constants, the feed constants against the drawn gears, the
+  gears' pitch and centre distances, and the pipes: the same elements in each metal, each in the
+  texture `patches/unifiedpipes-ppex.json` gives that metal's ppex pipes, the inlet on the water
+  face's middle, and the frame block declaring every texture code of the shape. `tools/tests/test_machinegen.py` tests the shared generator
   package and that the driver fixture is what its maths writes.
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
 - `tests/PackTests/RosserScenarios.cs` (Atlas, part of `WoodworkingRosserScenarios`, its ModConfig seeded
@@ -774,7 +823,8 @@ regenerating.
     binding; a player looking each way places one that extends away, with every ghost; breaking it
     clears the cells and drops the frame and parts.
   - Assembly follows the rules, and in creative mode Ctrl + right-click fits the next stage, one per
-    click, in order.
+    click, in order. The pipes go on as four copper or lead straight pipes from one stack (iron, or
+    three, are refused), and once they are in a pipe in hand is not the rosser's.
   - Power, on every facing: the power face alone takes an axle (an axle against any other face turns
     nothing), the shaft turns as the axle beside it is drawn, and the trunk feeds forward with the
     network turning either way.
@@ -823,7 +873,10 @@ particles, sounds, help icons, item transforms and the feel of the hitboxes are 
 unseen. Before release, play it through the modelling guide's list
 (`docs/modeling/pitfalls.md`, "What no check covers"), and in particular:
 
-- the moving parts' textures (no white question marks), the tips in the heads' metal;
+- the moving parts' textures (no white question marks), the tips in the heads' metal, the drip's
+  pipes in copper and in lead, and the inlet meeting a ppex pipe on the water face;
+- a pipe placed against the water face by a click once the pipes are in, and by a sneak-click
+  before;
 - the shaft's direction on every facing against a vanilla axle (unit-tested and checked in Atlas
   against the axle's own angle, but not seen);
 - the trunk's segments changing from bark to debarked inside the ring, and a delivered trunk wholly
@@ -837,6 +890,8 @@ unseen. Before release, play it through the modelling guide's list
 
 Also not checked: the rosser without Pipes and Power Expanded. The pack always loads it, so Atlas
 never sees the dry fallback's "no ppex" path; it is a few lines (`PpexWater.Bound`) and runs dry.
+Nor the rosser built without pipes (ppex missing, or `UnifiedPipes` off): the unit tests hold the
+parts rule (`RosserParts.PipesNeeded`), and Atlas only ever has the pipes.
 And water from a real pump: the Atlas pipe is filled through its network directly.
 
 Known compromises in the model and gameplay:
@@ -857,12 +912,13 @@ Known compromises in the model and gameplay:
    jump.
 7. **Close contacts.** The arms on a thick trunk stand off up to 0.72 voxels (the rule is 0.8), and
    the arm bodies clear it by 0.55 (the rule 0.5).
-8. **Renderer cost.** About 45 part meshes (shared by every rosser, from one tessellation per
+8. **Renderer cost.** About 47 part meshes (shared by every rosser, from one tessellation per
    texture variant), 13 gauges per arm, and ten trunk segment meshes per rosser; the box table is rebuilt every 1/16 block of travel. Not profiled.
-9. **Not built from the design:** fixed side rails along the beds, and a visible water source other
-   than the pipe's flange at the south face.
+9. **Not built from the design:** fixed side rails along the beds.
 10. **Hand-off height.** A trunk drops about 4 voxels (thick) or 11.5 (thin) as the mill takes it.
 11. **The rack draws debarked trunks with bark**: it draws stored trunks from placed log meshes
     of its own, not from the trunk block.
 12. **Pace.** Small thin trunks (under 8 logs) feed slower than the mill cuts them. The typical
     trunks' branch counts come from 18 generated trees; real worlds vary.
+13. **The pipes' cells.** The cells' boxes come from the whole model at rest, the pipes included, so
+    the boxes over the drip's pipes are there before the pipes are fitted, as every part's are.

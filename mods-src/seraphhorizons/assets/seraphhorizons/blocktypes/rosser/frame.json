@@ -15,9 +15,14 @@
 		"*-south": { base: "seraphhorizons:block/rosser_frame", rotateY: 0 },
 		"*-west":  { base: "seraphhorizons:block/rosser_frame", rotateY: 270 }
 	},
+	// Every texture code of rosser.json: the renderer draws the moving parts with this block's
+	// textures. The drip's pipes wear Pipes and Power Expanded's pipe textures as UnifiedPipes gives
+	// its copper and lead pipes (patches/unifiedpipes-ppex.json); the renderer draws the fitted metal's.
 	textures: {
-		"oak":   { base: "game:block/wood/debarked/oak" },
-		"metal": { base: "game:block/metal/plate/iron" }
+		"oak":        { base: "game:block/wood/debarked/oak" },
+		"metal":      { base: "game:block/metal/plate/iron" },
+		"pipecopper": { base: "game:block/metal/sheet-plain/copper4" },
+		"pipelead":   { base: "game:block/metal/sheet-plain/lead4" }
 	},
 	attributes: {
 		handbook: {
