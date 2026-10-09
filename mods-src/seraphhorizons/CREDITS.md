@@ -76,7 +76,7 @@ before reusing or redistributing them. The rest of the model is covered by the r
 ## The eidolon's body, from Vintage Story
 
 The eidolon's model (`assets/seraphhorizons/shapes/entity/eidolon/eidolon.json`) is Vintage Story's
-own mobile eidolon by Anomalous Games, the game's `shapes/entity/lore/eidolon/normal.json` (game
+own mobile eidolon by Anego Studios, the game's `shapes/entity/lore/eidolon/normal.json` (game
 1.22.7), copied into this mod as a snapshot by `Eidolon/tools/make_shape.py`. Its elements and their
 geometry, and the vanilla animations the file keeps (`stand-*`, `weapon-*`, `toppleover`), are that
 model's, unchanged. Its textures are not copied: the shape points at the game's own files, one of
@@ -85,10 +85,10 @@ anchor elements (`carry-anchor`, `trunk-anchor`), the `RightHand`, `LeftHand`, `
 attachment points and the laborer's animations (`fell`, `carry-*`, `lift`, `setdown`, `trunk-*`,
 `guard-idle`, `hung`, `activate`, `slump`, `standup`).
 
-The model belongs to Anomalous Games and is not covered by this repository's Apache License; it is
+The model belongs to Anego Studios and is not covered by this repository's Apache License; it is
 used here as part of a mod for their game. The additions are covered by the repository's license.
 
 The eidolon gantry's model (`assets/seraphhorizons/shapes/block/eidolongantry.json`) was made for this
 mod, and is covered by the repository's license, except for the body hung in it: the elements named
-`b_<stage>_<name>` are a copy of the eidolon's elements above (Anomalous Games' model), posed in the
+`b_<stage>_<name>` are a copy of the eidolon's elements above (Anego Studios' model), posed in the
 `hung` animation by `EidolonGantry/tools/make_shape.py`, and are that model's as above.

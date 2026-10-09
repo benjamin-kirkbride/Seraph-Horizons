@@ -16,7 +16,7 @@ Paths here are from this folder unless they start with `assets/` or `tests/`, wh
 ## The shape
 
 The body is the game's unused mobile eidolon, `game:shapes/entity/lore/eidolon/normal.json`
-(Anomalous Games' model; credited in `../CREDITS.md`), frozen into our namespace so a game update
+(Anego Studios' model; credited in `../CREDITS.md`), frozen into our namespace so a game update
 cannot change it under us. `tools/make_shape.py` reads it from a game install, checks its sha256
 against the 1.22.7 file (`VANILLA_SHA256`; a different file stops the script) and writes:
 
