@@ -4,6 +4,10 @@
     label: string;
     /** A second, quieter line under the label ("full wind"). */
     sub?: string;
+    /** The item page the label links to. */
+    href?: string;
+    /** The name of the mod it comes from, shown under the label. */
+    mod?: string;
     value: number;
     /** End of a lighter extension: the high end of a ranged value. */
     range?: number;
@@ -71,8 +75,13 @@
     {#if g.name}<p class="group">{g.name}</p>{/if}
     <ul class="rows" aria-label={g.name ?? title}>
       {#each g.bars as b (b.key)}
-        <li class="row" class:light={b.light} aria-label="{b.label}{b.sub ? ` (${b.sub})` : ''}: {b.status ?? b.spoken ?? b.text}" data-key={b.key}>
-          <span class="label" aria-hidden="true">{b.label}{#if b.sub}<span class="sub muted">{b.sub}</span>{/if}</span>
+        <li class="row" class:light={b.light} data-key={b.key}>
+          <!-- The label is read out with the value after it, so a link in it stays reachable. -->
+          <span class="label"
+            >{#if b.href}<a href={b.href}>{b.label}</a>{:else}{b.label}{/if}{#if b.mod}<span class="sub mod muted">{b.mod}</span>{/if}{#if b.sub}<span
+                class="sub muted">{b.sub}</span
+              >{/if}<span class="visually-hidden">: {b.status ?? b.spoken ?? b.text}</span></span
+          >
           <span class="track" aria-hidden="true">
             {#each ticks as tk (tk)}<span class="grid" style:left={pos(tk)}></span>{/each}
             {#if b.status}
@@ -174,6 +183,9 @@
   .sub {
     display: block;
     font-size: 0.75rem;
+  }
+  .mod {
+    font-style: italic;
   }
   /* The scale ends 4.5rem short of the track, so the value at a full bar's tip still fits. */
   .track {

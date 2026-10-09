@@ -4,7 +4,7 @@
   import type { PowerSource } from "../lib/power-data.ts";
   import { t } from "../lib/strings.ts";
 
-  let { entries }: { entries: { name: string; sources: PowerSource[] }[] } = $props();
+  let { entries }: { entries: { name: string; href?: string; mod?: string; sources: PowerSource[] }[] } = $props();
 
   const listed = $derived(entries.filter((e) => e.sources.length > 0));
   const count = $derived(listed.reduce((n, e) => n + e.sources.length, 0));
@@ -16,7 +16,7 @@
     <summary>{t.power.sourcesSummary(count, fallbacks)}</summary>
     <dl>
       {#each listed as e, i (i)}
-        <dt>{e.name}</dt>
+        <dt>{#if e.href}<a href={e.href}>{e.name}</a>{:else}{e.name}{/if}{#if e.mod} <span class="muted mod">({e.mod})</span>{/if}</dt>
         {#each e.sources as s, j (j)}
           <dd>
             {s.what}: <span class="muted">{s.from}</span>
@@ -46,6 +46,10 @@
     font-weight: 600;
     break-after: avoid;
     margin-top: 0.3rem;
+  }
+  .mod {
+    font-weight: normal;
+    font-style: italic;
   }
   dd {
     margin: 0 0 0 1rem;
