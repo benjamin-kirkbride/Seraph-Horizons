@@ -11,6 +11,7 @@ using SeraphHorizons.Mod.Trading.Standing.Core;
 using SeraphHorizons.Mod.Trading.Window;
 using SeraphHorizons.Mod.Trading.Window.Core;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
@@ -63,6 +64,24 @@ public partial class TradingScenarios
         trader.Die(EnumDespawnReason.Removed);
     }
 
+    /// <summary>Puts <paramref name="qty"/> of <paramref name="code"/> in the player's hotbar and backpack
+    /// slots, never a worn bag slot (where GiveOrDrop puts a bag, and which a hand-in never takes).</summary>
+    private void GiveLoose(IServerPlayer sp, string code, int qty)
+    {
+        var collectible = TraderFinder.Collectible(W, code)!;
+        foreach (string name in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
+            foreach (var slot in sp.InventoryManager.GetOwnInventory(name)!)
+            {
+                if (qty <= 0) return;
+                if (slot is ItemSlotBackpack || !slot.Empty) continue;
+                int n = Math.Min(qty, Math.Max(1, collectible.MaxStackSize));
+                slot.Itemstack = new ItemStack(collectible, n);
+                slot.MarkDirty();
+                qty -= n;
+            }
+        Assert.Equal(0, qty);
+    }
+
     private string OrderCommandsLine(Order o) => OrderCommands.AdminLine(Api, o, W.Calendar.TotalDays);
 
     /// <summary>An order made by the admin command for one lot of the first thing on the trader's
@@ -99,9 +118,7 @@ public partial class TradingScenarios
         var sp = (IServerPlayer)p.Player;
         string id = Id(trader);
         Assert.True((await World.ExecuteCommand($"/sh trade standing set {sp.PlayerName} {id} 300")).Ok);
-        // Not a bag: given to the player it would go into a worn bag slot, which a hand-in never takes.
-        var order = Orders.Book.OpenAt(id).First(o => o.State == OrderState.Offered
-            && TraderFinder.Collectible(W, o.Item)?.GetCollectibleInterface<IHeldBag>() is null);
+        var order = Orders.Book.OpenAt(id).First(o => o.State == OrderState.Offered);
         Assert.True(trader.BeginTrade(sp));
         // The window shows the offer at the player's own tier: a regular, n = 3.
         var (qty, payout) = OrderPlanner.Terms(order, 3, Orders.MaxStackOf(order.Item));
@@ -112,7 +129,7 @@ public partial class TradingScenarios
         Assert.InRange(order.Quantity * order.Value, OrderPlanner.MinWorth(3) - 1e-9, OrderPlanner.MaxWorth(3) + order.Value);
         output.WriteLine(OrderCommandsLine(order));
 
-        InventoryTrader.GiveOrDrop(sp.Entity, new ItemStack(TraderFinder.Collectible(W, order.Item)!, 1), order.Quantity, null);
+        GiveLoose(sp, order.Item, order.Quantity);
         int gears = Gears(sp), wallet = trader.Inventory.GetTraderAssets();
         var handin = WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.HandInOrder, Id = order.Id });
         Assert.True(handin.Ok, handin.Key);
