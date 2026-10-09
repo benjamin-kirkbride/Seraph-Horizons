@@ -748,11 +748,13 @@ rusty gear is a whole gear and its money (#484), so the part goes:
 
 - the item type and both recipes are disabled (`enabled: false`), so the part does not exist and
   parts already in a world vanish when it loads (no remap: the pack is pre-release);
-- every gear part drop in BetterLoot+'s loot becomes a rusty gear drop at a quarter of its average
-  and variance (`Core/GearPartDropRules.cs`): a normal drifter's 0.25 parts are 0.0625 gears, a
-  nightmare one's 3 are 0.75, so as many gears come in, on average, as the parts made. They are
-  their own entries, beside the creature's rusty gear drop, and without its `rustyGearDropRate`
-  stat, as the parts had none; BetterLoot+'s twelve drop slots are unchanged.
+- every gear part drop in BetterLoot+'s loot becomes rusty gears at a quarter of its average and
+  variance (`Core/GearPartDropRules.cs`), so as many gears come in, on average, as the parts made.
+  They are added to the creature's own rusty gear drop, so the handbook and the recipe browser
+  list one rusty gear drop per creature: a normal drifter's 0.01 gears and 0.25 parts are 0.0725
+  gears, a nightmare one's 0.4 and 3 are 1.15. That drop keeps its `rustyGearDropRate` stat, which
+  now scales the parts' share too. A creature with parts and no rusty gear drop (none in BetterLoot+
+  1.0.0) gets its part drop turned into one. The part drop's slot is freed.
 
 BetterLoot+ reads its loot from `ModConfig/betterlootplus.json`, which it writes from its bundled
 `config/betterlootplus.default.json` when there is none, on the server in its system's
@@ -761,7 +763,7 @@ into its `harvestable` behaviour in a private static `ApplyConfig(ICoreAPI, Bett
 Harmony prefix on that method (server side, found by name) rewrites the loaded config's drops in
 memory just before they are applied, so the file stays as BetterLoot+ wrote it, a player's edits
 too, and the change follows every creature the file lists, whatever it says; the server logs how
-many drops it turned. If BetterLoot+'s types or `ApplyConfig` changed, a warning is logged and the
+many creatures it changed. If BetterLoot+'s types or `ApplyConfig` changed, a warning is logged and the
 drops are not rewritten: the item being gone, BetterLoot+ itself then skips them as unknown.
 
 The item and recipes are a JSON patch, `assets/seraphhorizons/patches/gearparts-betterlootplus.json`,
@@ -4350,7 +4352,7 @@ requires all four groups in the pan's table and the text as it ships.
 For the gear parts, `tests/GearPartDropRulesTests.cs` checks which codes are parts and the quarter,
 and `tests/PackTests/GearPartsRemovedScenarios.cs` (Atlas, `SharedWorldScenarios`) requires the
 prefix in, no gear part item, no grid recipe making or taking one, no creature's harvestable drops
-naming one, and a normal and a nightmare drifter each dropping rusty gears at their old rate and at
+naming one, and a normal and a nightmare drifter each with one rusty gear drop, their old rate plus
 a quarter of their old parts'. When it fails after a BetterLoot+ update, check `ApplyConfig` and
 its config types, and the default loot. With the switch off, `SwitchesOffScenarios` requires the
 item, both recipes and the normal drifter's 0.25 parts back. `tools/tests/test_gear_consumers.py`

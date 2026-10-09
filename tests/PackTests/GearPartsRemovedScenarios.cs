@@ -54,13 +54,12 @@ public partial class SharedWorldScenarios
         Assert.DoesNotContain(GearParts.AllDrops(W), d => d.Code == GearPartDropRules.GearPart);
 
         // BetterLoot+ 1.0.0: a normal drifter dropped 0.25 parts, a nightmare one 3, beside the
-        // rusty gears they already dropped (0.01 and 0.4, by the rustyGearDropRate stat).
+        // rusty gears they already dropped (0.01 and 0.4): one rusty gear drop, the parts added at a
+        // quarter.
         foreach (var (entity, parts, gears) in new[] { ("game:drifter-normal", 0.25, 0.01), ("game:drifter-nightmare", 3.0, 0.4) })
         {
-            var rusty = GearParts.Drops(W, entity).Where(d => d.Code == GearPartDropRules.RustyGear).ToList();
-            Assert.Equal(2, rusty.Count);
-            Assert.Contains(rusty, d => Math.Abs(d.Avg - gears) < 1e-9);
-            Assert.Contains(rusty, d => Math.Abs(d.Avg - parts / GearPartDropRules.PartsPerGear) < 1e-9);
+            var rusty = Assert.Single(GearParts.Drops(W, entity), d => d.Code == GearPartDropRules.RustyGear);
+            Assert.Equal(gears + parts / GearPartDropRules.PartsPerGear, rusty.Avg, 9);
         }
     }
 }

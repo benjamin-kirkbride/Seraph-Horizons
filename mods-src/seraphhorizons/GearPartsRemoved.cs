@@ -14,8 +14,9 @@ namespace SeraphHorizons.Mod;
 /// <list type="bullet">
 /// <item>the item type and both grid recipes are disabled (<c>enabled: false</c>) by a JSON patch,
 /// <c>patches/gearparts-betterlootplus.json</c>; parts already in a world vanish when it loads;</item>
-/// <item>every gear part drop in BetterLoot+'s loot config becomes a rusty gear drop at a quarter of
-/// its average and variance (<see cref="GearPartDropRules"/>), so the same rusty gears come in.</item>
+/// <item>every gear part drop in BetterLoot+'s loot config becomes rusty gears at a quarter of its
+/// average and variance, added to the creature's own rusty gear drop (or, without one, in its
+/// place; <see cref="GearPartDropRules"/>), so the same rusty gears come in.</item>
 /// </list>
 ///
 /// BetterLoot+ reads its loot from <c>ModConfig/betterlootplus.json</c> (written from its bundled
@@ -98,22 +99,30 @@ public static class GearPartsRemoved
         if (__1 == null || _drops == null || _code == null || _avg == null || _var == null
             || _creatures?.GetValue(__1) is not IDictionary creatures)
             return;
-        int replaced = 0;
+        int changed = 0;
         foreach (var creature in creatures.Values)
         {
             if (creature == null || _drops.GetValue(creature) is not IList drops)
                 continue;
+            var read = new List<GearPartDropRules.Drop>(drops.Count);
             foreach (var drop in drops)
+                read.Add(drop == null
+                    ? new GearPartDropRules.Drop(null, 0, 0)
+                    : new((string?)_code.GetValue(drop), (double)_avg.GetValue(drop)!, (double)_var.GetValue(drop)!));
+            var (edits, removed) = GearPartDropRules.Plan(read);
+            if (edits.Count == 0)
+                continue;
+            foreach (var edit in edits)
             {
-                if (drop == null || !GearPartDropRules.IsGearPart((string?)_code.GetValue(drop)))
-                    continue;
-                var (code, avg, var) = GearPartDropRules.Replacement((double)_avg.GetValue(drop)!, (double)_var.GetValue(drop)!);
-                _code.SetValue(drop, code);
-                _avg.SetValue(drop, avg);
-                _var.SetValue(drop, var);
-                replaced++;
+                var drop = drops[edit.Index]!;
+                _code.SetValue(drop, edit.Code);
+                _avg.SetValue(drop, edit.Avg);
+                _var.SetValue(drop, edit.Var);
             }
+            foreach (int index in removed)
+                drops.RemoveAt(index);
+            changed++;
         }
-        _logger?.Notification($"[seraphhorizons] Gear parts removed: {replaced} BetterLoot+ gear part drops are rusty gears at a quarter of the rate");
+        _logger?.Notification($"[seraphhorizons] Gear parts removed: the gear parts of {changed} BetterLoot+ creatures drop as rusty gears at a quarter of the rate");
     }
 }
