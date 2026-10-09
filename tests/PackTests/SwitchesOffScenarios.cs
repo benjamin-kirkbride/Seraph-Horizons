@@ -296,6 +296,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
         Assert.Contains("Rosser", off);
+        Assert.Contains("Eidolon", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
             .Select(c => (Code: c.Code.ToString(), Owner: registry.SwitchForCode(c.Code.ToString())))
             .Where(c => c.Owner != null && off.Contains(c.Owner))
@@ -367,6 +368,30 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Message.Contains("drawbench", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("draw bench", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Eidolon</c>: no eidolon gantry blocks and no recipe for its frame, no link to it in
+    /// the mod's own text, and nothing logged about it. The parts it takes are the game's.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_gantry()
+    {
+        Assert.True(Off("Eidolon"));
+        Assert.False(SeraphHorizons.Mod.EidolonGantry.EidolonGantrySystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("eidolongantry"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("eidolongantry") == true);
+        Assert.True(W.GetBlock(new AssetLocation(SeraphHorizons.Mod.EidolonGantry.Core.GantryParts.AxleCode)) is { Id: > 0 });
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && e.Value.Contains("handbook://block-seraphhorizons:eidolongantry", StringComparison.Ordinal))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the gantry: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("eidolongantry", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("eidolon gantry", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
