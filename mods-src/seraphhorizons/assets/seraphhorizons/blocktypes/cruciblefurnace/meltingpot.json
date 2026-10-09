@@ -1,0 +1,103 @@
+// The fireclay melting pot of the crucible furnace (StainlessSteel, CrucibleFurnace/, README "Crucible
+// furnace"): clay-formed raw, fired in a pit kiln (ground stored) or a beehive kiln like the game's
+// crucible; a fired pot goes into a melting hole, holds 200 units and lasts three heats. Pulled full of
+// molten metal it is meltingpot-smelted, on the game's smelted crucible class (it pours into any mold),
+// and emptied it is a fired pot again.
+{
+	code: "meltingpot",
+	classByType: {
+		"*-raw": "Block",
+		"*-fired": "seraphhorizons.MeltingPot",
+		"*-smelted": "seraphhorizons.MeltingPotSmelted"
+	},
+	behaviorsByType: {
+		"*-smelted": [
+			{ name: "Unplaceable" }
+		],
+		"*": [
+			{ name: "GroundStorable", properties: { layout: "SingleCenter", placeRemoveSound: "game:sounds/player/build", collisionBox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.6875, z2: 1 } } },
+			{ name: "Unplaceable" },
+			{ name: "RightClickPickup" }
+		]
+	},
+	variantgroups: [
+		{ code: "type", states: ["raw", "fired", "smelted"] }
+	],
+	shapeByType: {
+		"*-smelted": { base: "seraphhorizons:block/cruciblefurnace/meltingpot-smelted" },
+		"*": { base: "seraphhorizons:block/cruciblefurnace/meltingpot" }
+	},
+	texturesByType: {
+		"*-raw": { "clay": { base: "game:block/clay/fireclay" } },
+		"*": { "clay": { base: "game:block/clay/hardened/fire" } }
+	},
+	attributes: {
+		tempGlowMode: 1,
+		shelvable: true,
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:cruciblefurnace-handbook-title", text: "seraphhorizons:cruciblefurnace-handbook-text" }
+			]
+		},
+		tongOpening: "wide",
+		onTongTransform: {
+			translation: { x: -1.4, y: -1.04, z: -1.11 },
+			rotation: { x: -83, y: -19, z: -4 },
+			scale: 0.63
+		},
+		onMetalTongTransform: {
+			translation: { x: -1.025, y: -0.12, z: -0.31 },
+			rotation: { x: -90, y: -9, z: 0 },
+			origin: { x: 0.5, y: 0, z: 0.5 }
+		}
+	},
+	attributesByType: {
+		"*-raw": {
+			beehivekiln: {
+				"0": { type: "block", code: "seraphhorizons:meltingpot-fired" },
+				"1": { type: "block", code: "seraphhorizons:meltingpot-fired" },
+				"2": { type: "block", code: "seraphhorizons:meltingpot-fired" },
+				"3": { type: "block", code: "seraphhorizons:meltingpot-fired" }
+			}
+		},
+		"*-smelted": {
+			emptiedBlockCode: "seraphhorizons:meltingpot-fired",
+			handbook: { exclude: true }
+		}
+	},
+	combustiblePropsByType: {
+		"*-raw": {
+			meltingPoint: 650,
+			meltingDuration: 45,
+			smeltedRatio: 1,
+			smeltingType: "fire",
+			smeltedStack: { type: "block", code: "seraphhorizons:meltingpot-fired" },
+			requiresContainer: false
+		}
+	},
+	heldTpIdleAnimation: "holdbothhandslarge",
+	doNotRenderAtLod2: true,
+	blockmaterial: "Ceramic",
+	creativeinventory: { "general": ["*-raw", "*-fired"], "decorative": ["*-raw", "*-fired"] },
+	replaceable: 300,
+	resistance: 2,
+	maxStackSizeByType: {
+		"*-smelted": 1,
+		"*": 4
+	},
+	lightAbsorption: 0,
+	sounds: { walk: "game:walk/stone" },
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	emitsideao: { all: false },
+	collisionbox: { x1: 0.25, y1: 0, z1: 0.25, x2: 0.75, y2: 0.6875, z2: 0.75 },
+	selectionbox: { x1: 0.25, y1: 0, z1: 0.25, x2: 0.75, y2: 0.6875, z2: 0.75 },
+	guiTransform: { origin: { x: 0.5, y: 0.3, z: 0.5 }, scale: 2 },
+	groundTransform: { origin: { x: 0.5, y: 0, z: 0.5 }, scale: 2.5 },
+	tpHandTransform: {
+		translation: { x: -0.5, y: 0, z: -0.4 },
+		rotation: { x: 13, y: 11, z: -76 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.82
+	}
+}
