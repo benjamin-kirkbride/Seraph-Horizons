@@ -2,6 +2,7 @@
 // manifest names each model's shape and rig by their path in the repository (their source of
 // truth, under mods-src/); scripts/models.ts copies them into the site at build time and serves
 // them in dev, so the site never keeps a second copy in git. See docs/recipe-browser/models.md.
+import { animateShape, checkAnimations } from "./keyframes.ts";
 import { discoverAnchors } from "./model-anchors.ts";
 import { checkScenario, type Scenario } from "./model-scenario.ts";
 import { checkVehicle, vehicleOf, withBogies } from "./model-vehicle.ts";
@@ -80,7 +81,9 @@ export function checkManifest(raw: unknown): Manifest {
     if (model.rig !== undefined && (typeof model.rig !== "string" || !REPO_PATH.test(model.rig))) problems.push(`${at}: rig must be a .json path inside the repository`);
     if (model.bogie !== undefined && (typeof model.bogie !== "string" || !REPO_PATH.test(model.bogie))) problems.push(`${at}: bogie must be a .json path inside the repository`);
     if (model.bogie !== undefined && model.scenario?.vehicle === undefined) problems.push(`${at}: a bogie shape needs the scenario's vehicle`);
-    if (model.scenario !== undefined && model.rig === undefined) problems.push(`${at}: a scenario needs a rig`);
+    // Only the shape's animations can be described without a rig.
+    if (model.scenario !== undefined && model.rig === undefined && (model.scenario.animations === undefined || Object.keys(model.scenario).some((k) => k !== "animations")))
+      problems.push(`${at}: a scenario needs a rig, unless it only describes the shape's animations`);
   });
   if (problems.length > 0) throw new Error(`site/models.json:\n  ${problems.join("\n  ")}`);
   return m;
@@ -101,6 +104,14 @@ export function checkModelFiles(model: ManifestModel, shape: unknown, rig: unkno
   };
   const flat = elementsOf(shape, model.shape);
   if (bogie !== undefined) elementsOf(bogie, model.bogie ?? "the bogie shape");
+  // Every animation must resolve as the game resolves it (keyframes.ts), and the scenario name only animations there are.
+  let codes: string[] = [];
+  try {
+    codes = animateShape(shape as Shape, flat).animations.map((a) => a.code);
+  } catch (e) {
+    problems.push(`${model.shape}: ${(e as Error).message}`);
+  }
+  if (model.scenario?.animations !== undefined && problems.length === 0) problems.push(...checkAnimations(model.scenario.animations, codes).map((p) => `scenario: ${p}`));
   let parts = 0;
   if (rig !== undefined) {
     const r = rig as Rig;

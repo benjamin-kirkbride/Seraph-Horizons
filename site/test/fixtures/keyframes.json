@@ -1,0 +1,82 @@
+{
+  "textureWidth": 16,
+  "textureHeight": 16,
+  "textures": { "metal": "block/metal/plate/iron", "wood": "block/wood/planks/oak" },
+  "elements": [
+    {
+      "name": "base",
+      "from": [0, 0, 0],
+      "to": [16, 2, 16],
+      "faces": { "north": { "texture": "#wood" }, "east": { "texture": "#wood" }, "south": { "texture": "#wood" }, "west": { "texture": "#wood" }, "up": { "texture": "#wood" }, "down": { "texture": "#wood" } },
+      "children": [
+        {
+          "name": "arm",
+          "from": [7, 2, 7],
+          "to": [9, 12, 9],
+          "rotationOrigin": [8, 2, 8],
+          "faces": { "north": { "texture": "#metal" }, "east": { "texture": "#metal" }, "south": { "texture": "#metal" }, "west": { "texture": "#metal" }, "up": { "texture": "#metal" }, "down": { "texture": "#metal" } },
+          "children": [
+            {
+              "name": "hand",
+              "from": [0, 10, 0],
+              "to": [2, 12, 4],
+              "rotationOrigin": [1, 10, 1],
+              "faces": { "north": { "texture": "#metal" }, "east": { "texture": "#metal" }, "south": { "texture": "#metal" }, "west": { "texture": "#metal" }, "up": { "texture": "#metal" }, "down": { "texture": "#metal" } },
+              "children": [
+                {
+                  "name": "finger",
+                  "from": [0, 2, 3],
+                  "to": [2, 4, 4],
+                  "faces": { "north": { "texture": "#metal" }, "east": { "texture": "#metal" }, "south": { "texture": "#metal" }, "west": { "texture": "#metal" }, "up": { "texture": "#metal" }, "down": { "texture": "#metal" } }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wheel",
+      "from": [20, 0, 0],
+      "to": [22, 8, 8],
+      "rotationOrigin": [21, 4, 4],
+      "faces": { "north": { "texture": "#wood" }, "east": { "texture": "#wood" }, "south": { "texture": "#wood" }, "west": { "texture": "#wood" }, "up": { "texture": "#wood" }, "down": { "texture": "#wood" } }
+    }
+  ],
+  "animations": [
+    {
+      "name": "Swing",
+      "code": "swing",
+      "quantityframes": 20,
+      "onActivityStopped": "EaseOut",
+      "onAnimationEnd": "Repeat",
+      "keyframes": [
+        { "frame": 0, "elements": { "arm": { "rotationX": 0, "rotationY": 0, "rotationZ": 0 } } },
+        { "frame": 10, "elements": { "arm": { "rotationX": 0, "rotationY": 0, "rotationZ": 90 }, "hand": { "rotationX": 0, "rotationY": 0, "rotationZ": -90 } } },
+        { "frame": 15, "elements": { "arm": { "offsetX": 0, "offsetY": 2, "offsetZ": 0 }, "nosuchelement": { "offsetX": 1, "offsetY": 1, "offsetZ": 1 } } }
+      ]
+    },
+    {
+      "name": "Spin",
+      "code": "spin",
+      "quantityframes": 40,
+      "onActivityStopped": "Stop",
+      "onAnimationEnd": "Repeat",
+      "keyframes": [
+        { "frame": 0, "elements": { "wheel": { "rotationX": 350, "rotationY": 0, "rotationZ": 0, "rotShortestDistanceX": true, "stretchX": 1, "stretchY": 1, "stretchZ": 1 }, "arm": { "rotationX": 0, "rotationY": 350, "rotationZ": 0 } } },
+        { "frame": 20, "elements": { "wheel": { "rotationX": 10, "rotationY": 0, "rotationZ": 0, "rotShortestDistanceX": true, "stretchX": 1, "stretchY": 2, "stretchZ": 1 }, "arm": { "rotationX": 0, "rotationY": 10, "rotationZ": 0 } } }
+      ]
+    },
+    {
+      "name": "Drop",
+      "code": "drop",
+      "quantityframes": 10,
+      "onActivityStopped": "PlayTillEnd",
+      "onAnimationEnd": "Hold",
+      "keyframes": [
+        { "frame": 0, "elements": { "base": { "offsetX": 0, "offsetY": 0, "offsetZ": 0 } } },
+        { "frame": 9, "elements": { "base": { "offsetX": 0, "offsetY": -4, "offsetZ": 0 } } }
+      ]
+    }
+  ]
+}
