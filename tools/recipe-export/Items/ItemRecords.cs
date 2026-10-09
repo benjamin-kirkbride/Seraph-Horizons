@@ -150,9 +150,63 @@ internal static class ItemRecords
             .ToList();
         if (flags.Count > 0) a["storageFlags"] = new JArray(flags);
 
+        var ground = GroundStorage(c);
+        if (ground != null) a["groundStorage"] = ground;
+
         var extra = Extra(world, c);
         if (extra.Count > 0) a["extra"] = extra;
         return a;
+    }
+
+    /// <summary>
+    /// Putting the item down on the ground: survival's CollectibleBehaviorGroundStorable, read from
+    /// the loaded collectible (More Piles adds the behavior in code, not in the type files). The
+    /// numbers are the ones BlockEntityGroundStorage of 1.22.7 uses, not the raw properties:
+    /// Capacity is 1, 2, 2, 4 and 12 for the placed layouts and StackingCapacity for a pile, and
+    /// only the two one-slot layouts (messy12, stacking) move more than one item a click, messy12
+    /// at most 12. SprintKey is folded into CtrlKey by the behavior's Initialize.
+    /// </summary>
+    private static JObject? GroundStorage(CollectibleObject c)
+    {
+        var props = Safe(() => c.GetBehavior<CollectibleBehaviorGroundStorable>()?.StorageProps, null);
+        if (props == null) return null;
+        var layout = props.Layout;
+        var pile = layout == EnumGroundStorageLayout.Stacking;
+        var g = new JObject
+        {
+            ["layout"] = Json.Lower(layout),
+            ["capacity"] = layout switch
+            {
+                EnumGroundStorageLayout.SingleCenter => 1,
+                EnumGroundStorageLayout.Halves or EnumGroundStorageLayout.WallHalves => 2,
+                EnumGroundStorageLayout.Quadrants => 4,
+                EnumGroundStorageLayout.Messy12 => 12,
+                _ => Math.Max(1, props.StackingCapacity),
+            },
+        };
+        if (pile || layout == EnumGroundStorageLayout.Messy12)
+        {
+            g["transfer"] = Math.Max(1, props.TransferQuantity);
+            g["bulkTransfer"] = Math.Max(1, pile ? props.BulkTransferQuantity : Math.Min(props.BulkTransferQuantity, 12));
+        }
+        if (props.CtrlKey) g["requiresCtrl"] = true;
+        if (pile)
+        {
+            // A full pile with upSolid can be built on, more piles of the same item included.
+            if (props.UpSolid) g["solidTop"] = true;
+            if (props.UpSolid && props.MaxStackingHeight > 0) g["maxPilesHigh"] = props.MaxStackingHeight;
+            // regenCollisionSelectionBox: the props' collision box, else the block's own, its top
+            // scaled by ceil(cbScaleYByLayer * items) when that is set.
+            var box = props.CollisionBox ?? (c is Block b && b.CollisionBoxes is { Length: > 0 } boxes ? boxes[0] : null);
+            if (box != null)
+            {
+                var top = props.CbScaleYByLayer != 0
+                    ? box.Y2 * (int)Math.Ceiling(props.CbScaleYByLayer * (float)(int)g["capacity"]!)
+                    : box.Y2;
+                if (top > 0) g["fullHeight"] = Json.Round(top);
+            }
+        }
+        return g;
     }
 
     /// <summary>Processing the schema has no field for yet.</summary>
