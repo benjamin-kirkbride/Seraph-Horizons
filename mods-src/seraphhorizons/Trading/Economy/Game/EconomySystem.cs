@@ -266,7 +266,10 @@ public class EconomySystem : ModSystem
         trader.WatchedAttributes.SetBool(PricedAttr, EverythingHasAPrice);
         if (EverythingHasAPrice)
         {
-            var wallet = TradingSystem.Of(trader.Api)?.Lists?.For(trader.TraderType)?.WalletFor(0) ?? new NatSpec(60, 10);
+            // A quarter of the wallet the trader restocks to, standing's factor and all.
+            var trading = TradingSystem.Of(trader.Api);
+            double factor = trading is { Standing.Enabled: true } ? trading.Standing.WalletFactorFor(trader) : 1;
+            var wallet = trading?.Lists?.For(trader.TraderType)?.WalletAt(factor) ?? new NatSpec(60, 10);
             SetSideBudget(trader, SideBudget.RefillTo(wallet.Avg));
         }
         Refresh(trader, broadcast: false);

@@ -236,9 +236,10 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 - **Metal.** Vanilla sells 16 copper nuggets for 2 gears (0.125 each, 2.5 an ingot's worth) and buys
   a copper ingot for 1. Copper is 0.017 a unit: a nugget 0.085, an ingot 2.07 after smelting
   (+10%, +0.2 fuel). Vanilla buys tin at 2x copper, silver 3x, gold 4x; tin 0.035 (ingot 4.05), zinc
-  and bismuth 0.03, lead 0.015, silver 0.06 (6.8), gold 0.08 (9), nickel 0.05, chromium 0.07,
-  titanium 0.08, platinum 0.2. Iron comes from a bloom forged on the anvil (ingot 3.5); blister
-  steel, made in the cementation furnace the export does not carry, is a raw at 5 (steel ingot 8).
+  and bismuth 0.03, lead 0.015, nickel 0.05, chromium 0.07, titanium 0.08. The precious metals are
+  priced well above vanilla's ratios, to be worth the hunt: silver 0.2 (22.2), gold 0.5 (55.2),
+  platinum 0.4 (44.2); electrum, half gold and half silver, comes to 40.7. Iron comes from a bloom
+  forged on the anvil (ingot 3.5); blister steel, made in the cementation furnace the export does not carry, is a raw at 5 (steel ingot 8).
 - **Smithing** carries the most labour (+30% and 1.5 gears a piece): a tin bronze pickaxe head is
   0.57 ingot and lands at 4.6 with the stick, against vanilla's 4 to buy and 11 to sell.
 - **Wood.** Boards are raws at vanilla's 0.0625: the pack saws them with Immersive Woodworking, whose
@@ -272,8 +273,8 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   the crystal skull and the Forlorn Hope reliquary 150 (a 30-gear sale, a temporal gear's worth),
   the king statuette and the device prototype 100, statuettes 50 to 80, fossils and amber 30 to
   40, a human skull 8, fishing's oddities 4 to 6. No vanilla trader deals in them. Each is worth
-  well over its metal (the reliquary chisels into 80 gold bits, about 36 gears), and that
-  chiselling (`metalbit-jewelryscrap`) is excluded as recycling: settling cheapest first, brass and
+  well over its metal but the reliquary, which chisels into 80 gold bits, about 240 gears since gold
+  went to 0.5 a unit (it was 40); that chiselling (`metalbit-jewelryscrap`) is excluded as recycling: settling cheapest first, brass and
   tin bronze bits would otherwise settle at a statuette's or tablet's twentieth before the alloy
   ingot that makes them at 0.16 and 0.2. The counterfeit rusty gear, the heavily worn underwear and
   the old boot are worth nothing. The decor blocks sharing the `game:clutter-` prefix (aquatic and

@@ -5,8 +5,8 @@
 {
 	"type": "animaldealer",
 	"campWeight": 0.9,
-	// Gears restocked to, by standing tier (tier 0 until standing exists).
-	"wallet": [{"avg": 100, "var": 18}, {"avg": 125, "var": 18}, {"avg": 160, "var": 22}, {"avg": 200, "var": 25}],
+	// Gears restocked to with strangers; times the standing tier's walletFactor (standing-tiers.json).
+	"wallet": {"avg": 100, "var": 18},
 	"selling": {
 		"core": [
 			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": 1, "priceReason": "priced by the maps system at each restock"},

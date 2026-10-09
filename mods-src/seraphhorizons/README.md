@@ -3072,9 +3072,9 @@ mechanic, prospector, farmer, cook, tailor, carpenter, mason, animal dealer, gen
 dealer (`seraphhorizons:trader-{gender}-{type}-{climate}`, vanilla's trader with the pack's class).
 Each stocks from its own list (`assets/seraphhorizons/config/tradelists/trader-{type}.json`): a core
 always on the shelf, a few rotating slots, more by the camp's climate (cold, temperate, hot) and rock
-(sedimentary, igneous, metamorphic), and a bigger wallet than vanilla's (60–150 gears). Every good
-vanilla's lists and the pack's mods trade has a place in one of them. The lists hold no prices: a
-trader asks an item's value from the item value table (below) and pays half again its value for what
+(sedimentary, igneous, metamorphic), and a bigger wallet than vanilla's (60–180 gears with
+strangers, growing with standing to 40 times that). Every good vanilla's lists and the pack's mods
+trade has a place in one of them. The lists hold no prices: a trader asks an item's value from the item value table (below) and pays half again its value for what
 its list buys, each varied by a roll per item at every restock ("Everything has a price"); only
 schematics and the maps' and leads' entries set a price of their own, each with its reason
 (`price` and `priceReason`). Metal and metal goods, glass and
@@ -3259,8 +3259,8 @@ trader also takes any item its list does not buy, at its value × the fit: three
 a related trader buys (0.6 for a weak link), paid from its wallet as listed goods are, and a fifth
 for anything else (the curio dealer three tenths for anything another trader buys;
 `assets/seraphhorizons/config/trading/trader-relations.json`), paid from a **side budget**, a
-quarter of the trader's wallet, refilled at every restock. Cheap goods sell by the fewest items
-worth a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot
+quarter of the trader's wallet (standing's factor and all), refilled at every restock. Cheap goods
+sell by the fewest items worth a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot
 for the same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than
 a gear per stack, goods the value table doesn't know, and goods that at this trader come to under a
 gear per full stack. The trade window's sell slot and the tooltips of your own items show the
@@ -3312,12 +3312,13 @@ order, never below 0. A tenth of your best standing with another trader of the s
 Five tiers, in `assets/seraphhorizons/config/standing-tiers.json`: stranger (0), known (60), regular
 (250), trusted (800), partner (2000). Each tier's unlocks are data for the features that read them:
 map tier and the settlement ground's lead (`mapsToTraders`; how many camp leads, and how far, is
-`map-prices.json`'s), a price factor each way, the wallet tier, delivery reach, rare stock. Orders
+`map-prices.json`'s), a price factor each way, a wallet factor, delivery reach, rare stock. Orders
 follow the tier itself (see "Orders and deliveries").
 The wallet and the shelves follow the best tier among players who traded with the
-trader in the last 14 days (its gears are topped up towards that tier's wallet at the weekly
-restock; its rare stock, schematics and settlement lead are shelved for it), and the player trading
-gets their own tier's prices and map precision (see "Maps and leads"). The trade window's header
+trader in the last 14 days (its gears are topped up at the weekly restock towards its list's wallet
+times that tier's wallet factor: 1, 2, 5, 15 and 40 from stranger to partner, and its side budget is
+a quarter of that; its rare stock, schematics and settlement lead are shelved for it), and the
+player trading gets their own tier's prices and map precision (see "Maps and leads"). The trade window's header
 and Standing tab show your standing there, and the trader tells you when you ask "How do you see me
 these days?" (see "Trade window"); reaching a tier says so in chat.
 
@@ -3429,7 +3430,7 @@ carry their own discount instead).
   counts as medium) times the item value of the metal's ingot, times 3% (precision 1), 6% (2) or 10%
   (exact), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
   middle, never the measured size. A medium copper deposit's map costs 36, 71 or 119 gears, a medium
-  gold one's 93, 186 or 311.
+  gold one's 571, 1143 or 1904.
 - **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
 - **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
   map to a trader within some radius that you don't already have, and the radius and count grow

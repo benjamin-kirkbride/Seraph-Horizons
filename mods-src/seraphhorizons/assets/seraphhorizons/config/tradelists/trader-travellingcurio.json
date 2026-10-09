@@ -7,7 +7,7 @@
 {
 	"type": "travellingcurio",
 	"campWeight": 0,
-	"wallet": [{"avg": 180, "var": 25}, {"avg": 220, "var": 30}, {"avg": 270, "var": 35}, {"avg": 330, "var": 40}],
+	"wallet": {"avg": 180, "var": 25},
 	"selling": {
 		"core": [
 			{"type": "block", "code": "painting-butterfly-north", "stacksize": 1, "stock": {"avg": 1, "var": 0}},

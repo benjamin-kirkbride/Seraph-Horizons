@@ -515,7 +515,7 @@ into `Trading/Core/TradeList.cs`:
 {
   "type": "smith",
   "campWeight": 1.0,                      // how often the grid picks this type (prospector: ignored)
-  "wallet": [{ "avg": 110, "var": 20 }, …], // gears by standing tier; tier 0 for now (#452)
+  "wallet": { "avg": 110, "var": 20 },    // gears with strangers; × the standing tier's walletFactor
   "selling": {
     "core": [ entry, … ],                 // always stocked, list order, fresh at every restock
     "rotating": { "maxItems": 6, "list": [ entry, … ] },
@@ -739,8 +739,8 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
   abandoned order `orderAbandoned`.
 - **Tiers**: stranger 0, known 60, regular 250, trusted 800, partner 2000 points of effective
   standing. Unlocks (`TierUnlocks`): `mapTier`, `mapsToTraders`, `buyPriceFactor`, `sellPriceFactor`,
-  `walletTier`, `deliveryScale`, `rareStock`. Consumers: the wallet and the shelf
-  (`walletTier`, `rareStock`, and every entry's `standingTier`), prices (`buyPriceFactor`,
+  `walletFactor`, `deliveryScale`, `rareStock`. Consumers: the wallet and the shelf
+  (`walletFactor`, `rareStock`, and every entry's `standingTier`), prices (`buyPriceFactor`,
   `sellPriceFactor`), maps (`mapTier`, `mapsToTraders`) and deliveries (`deliveryScale`); every
   unlock has a consumer. Orders read the tier's number n (index + 1) instead of an unlock (see
   "Orders"); `orderScale` (1, 1.5, 2, 3, 4) was removed with that (2026-10-08).
@@ -758,9 +758,13 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
   window"). A deal that lifts the player a tier still says so in chat. (Until the window, opening the
   trade posted the standing to chat once a visit; that line is gone.)
 - **Wallet**: before vanilla's weekly top-up runs (`OnGameTick`, when `lastRefreshTotalDays` is more
-  than 7 days back), `EntitySeraphTrader` sets `TradeProps.Money` to the list's wallet for
-  `IStandingSource.WalletTierFor`: the best `walletTier` among players whose own record with the
-  trader changed in the last `recentDays` (14). Chosen over the interacting player's tier because the
+  than 7 days back), `EntitySeraphTrader` sets `TradeProps.Money` to the list's base wallet (avg
+  and var) times `IStandingSource.WalletFactorFor` (`TradeListDef.WalletAt`): the best
+  `walletFactor` among players whose own record with the trader changed in the last `recentDays`
+  (14). The factors are 1 / 2 / 5 / 15 / 40 (stranger … partner): 60–180 gears with strangers,
+  thousands with partners, which gold and silver goods (priced from 0.5 and 0.2 gears a unit) need.
+  Until 2026-10-08 each list had four wallets indexed by a `walletTier` unlock (stranger and known
+  sharing the first), rising only about 2× to partner. Chosen over the interacting player's tier because the
   top-up happens with nobody there; vanilla's top-up only moves 7–28 % towards the target a week, so
   a trader's wallet grows over a few weeks of trading.
 - **Companies**: a player's company is the group they chose (`/sh company`), if they are still in
@@ -784,7 +788,7 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
 
 - `TradingSystem.Standing` (`IStandingSource`, `Trading/Standing/Game/IStandingSource.cs`):
   `TraderIdOf(trader)`, `TierFor(player, trader)`, `UnlocksFor(player, trader)`,
-  `PriceFactorFor(player, trader, PriceSide.PlayerBuys|PlayerSells)`, `WalletTierFor(trader)`,
+  `PriceFactorFor(player, trader, PriceSide.PlayerBuys|PlayerSells)`, `WalletFactorFor(trader)`,
   and the wave 3 hooks `OnOrderDone(playerUid, traderId)`,
   `OnDeliveryDone(playerUid, fromTraderId, toTraderId, bothEnds)`,
   `OnDeliveryFailed(playerUid, fromTraderId)`, `OnOrderAbandoned(playerUid, traderId)`. With the
@@ -855,9 +859,9 @@ goods (× the fit).
 - **Refusals**: code prefixes under `refused` (`seraphhorizons:oremap`, `gravelmap`, `traderlead`,
   `game:locatormap`), items with a `currency` attribute, `IsWorthless` items (floorZero), items with
   no value or family value. The prefixes apply only to off-list goods; a list that names one buys it.
-- **Side budget**: `WatchedAttributes["seraphhorizons:sidebudget"]`, set to ¼ of the list's tier-0
-  wallet average at every restock (`EntitySeraphTrader.Restocked`). The main wallet stays vanilla's
-  money slot. An `OffListSlot` carries its offer's budget, and the deal (`EconomyPatches.Cart`) and the
+- **Side budget**: `WatchedAttributes["seraphhorizons:sidebudget"]`, set to ¼ of the wallet
+  average the trader restocks to (the list's times `WalletFactorFor`, as the main wallet) at every
+  restock (`EntitySeraphTrader.Restocked`). The main wallet stays vanilla's money slot. An `OffListSlot` carries its offer's budget, and the deal (`EconomyPatches.Cart`) and the
   window's sale (`SeraphTraderInventory.SellLines`) split by it.
 - **Hook points** (Harmony, `EconomyPatches`, id `seraphhorizons.economy`, patched once per process,
   acting only on an `InventoryTrader` whose trader is ours with `seraphhorizons:everythingpriced` set):
@@ -953,7 +957,7 @@ goods (× the fit).
 - **Pricing** (#450, done): `EconomySystem.Modifiers` (`IPriceModifier`) for standing;
   `EntitySeraphTrader.Restocked` for anything that must follow a restock;
   `EconomySystem.SimulatedDay` for clocks that `/sh trade simulate` should advance.
-- **Standing** (#452, #463): `TradeListDef.WalletFor(tier)`, `TradeListResolver.Resolve(def, region, tier)`;
+- **Standing** (#452, #463): `TradeListDef.WalletAt(factor)`, `TradeListResolver.Resolve(def, region, tier)`;
   per-trader data can live in the entity's `WatchedAttributes` like the region.
 - **Orders, deliveries, maps**: dialogue components on the trader (`Dialog_DialogTriggers` is
   protected virtual: override in `EntitySeraphTrader`).
@@ -1170,7 +1174,7 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   for anything else priced per player (map precision).
 - **Shelves follow the best recent customer.** `IStandingSource.ShelfTierFor(trader)`: the highest
   tier index among players whose record with the trader changed within `recentDays` (14), as the
-  wallet's `WalletTierFor`. `EntitySeraphTrader.Restock` resolves the list at that tier and with that
+  wallet's `WalletFactorFor`. `EntitySeraphTrader.Restock` resolves the list at that tier and with that
   tier's `rareStock` (`IStandingSource.UnlocksOfTier`). A stranger therefore sees what a trusted
   customer unlocked until the first restock after that customer has been away 14 days; prices and
   map precision are still the stranger's own, and the settlement lead is refused to them at the

@@ -189,7 +189,7 @@ public class SchematicTests
     public void StandingTierIsParsedAndGatesTheCore()
     {
         var def = JsonSerializer.Deserialize<TradeListDef>("""
-            { "type": "mechanic", "wallet": [{"avg": 100, "var": 0}],
+            { "type": "mechanic", "wallet": {"avg": 100, "var": 0},
               "selling": { "core": [
                 {"code": "rope"},
                 {"code": "seraphhorizons:schematic-biplane", "price": 250, "priceReason": "a gate", "standingTier": 4},

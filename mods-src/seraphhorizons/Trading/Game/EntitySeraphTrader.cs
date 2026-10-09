@@ -141,8 +141,9 @@ public class EntitySeraphTrader : EntityTrader
     }
 
     /// <summary>Standing (#452): before vanilla's weekly top-up, the wallet it tops up towards is the
-    /// list's for the best standing tier among players who traded here recently (a trader that does
-    /// well with someone keeps more gears for everyone). Asked once per due restock.</summary>
+    /// list's base wallet times the best <c>walletFactor</c> among players who traded here recently
+    /// (a trader that does well with someone keeps more gears for everyone). Asked once per due
+    /// restock.</summary>
     private void UpdateWallet(double lastRefresh)
     {
         double last = double.IsNaN(lastRefresh) ? World.Calendar.TotalDays - 10 : lastRefresh;
@@ -150,7 +151,7 @@ public class EntitySeraphTrader : EntityTrader
         _walletSetFor = last;
         var system = TradingSystem.Of(Api);
         if (system?.Lists?.For(TraderType) is not { } def || !system.Standing.Enabled) return;
-        var wallet = def.WalletFor(system.Standing.WalletTierFor(this));
+        var wallet = def.WalletAt(system.Standing.WalletFactorFor(this));
         TradeProps.Money = NatFloat.createUniform(wallet.Avg, wallet.Var);
     }
 

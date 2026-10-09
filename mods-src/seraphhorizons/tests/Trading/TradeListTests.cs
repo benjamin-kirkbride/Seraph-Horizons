@@ -10,7 +10,7 @@ public class TradeListTests
     private static TradeListDef Def() => new()
     {
         Type = "smith",
-        Wallet = [new NatSpec(100, 10), new NatSpec(130, 10)],
+        Wallet = new NatSpec(100, 10),
         Selling = new TradeSide
         {
             Core = [E("coke"), E("ingot-iron", ps: true)],
@@ -40,13 +40,13 @@ public class TradeListTests
     }
 
     [Fact]
-    public void TheWalletIsByStandingTierAndTheLastTierHolds()
+    public void TheWalletIsTheBaseTimesTheTiersFactorSpreadAndAll()
     {
-        var list = TradeListResolver.Resolve(Def(), new Region(Region.Hot, Region.Metamorphic));
-        Assert.Equal(100, list.Wallet.Avg);
-        Assert.Equal(130, Def().WalletFor(1).Avg);
-        Assert.Equal(130, Def().WalletFor(9).Avg);
-        Assert.Equal(60, new TradeListDef().WalletFor(0).Avg);
+        Assert.Equal(100, Def().WalletAt().Avg);
+        var partner = Def().WalletAt(40);
+        Assert.Equal(4000, partner.Avg);
+        Assert.Equal(400, partner.Var);
+        Assert.Equal(60, new TradeListDef().WalletAt().Avg);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class TradeListTests
         Assert.Empty(TradeListResolver.Problems(Def()));
         var bad = Def();
         bad.Type = "banker";
-        bad.Wallet.Clear();
+        bad.Wallet = null;
         bad.Selling.Regional["arctic"] = new RegionalList();
         bad.Selling.Rotating.List.Add(E("charcoal"));
         bad.Buying.Core.Add(E(""));

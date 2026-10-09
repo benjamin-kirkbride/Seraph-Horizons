@@ -87,7 +87,7 @@ public sealed class TradeSide
 /// <summary>
 /// A trader type's list, <c>assets/seraphhorizons/config/tradelists/trader-{type}.json</c>. The format
 /// (docs/trading.md) extends vanilla's: a core always in stock, rotating slots drawn from a pool,
-/// regional additions, player-supplied entries, and a wallet per standing tier.
+/// regional additions, player-supplied entries, and a base wallet that standing multiplies.
 /// </summary>
 public sealed class TradeListDef
 {
@@ -96,11 +96,16 @@ public sealed class TradeListDef
     /// <summary>How often the grid picks this type for a cell, against the others (the prospector's
     /// lattice ignores it).</summary>
     public double CampWeight { get; set; } = 1;
-    /// <summary>Gears the trader restocks to, by standing tier (index 0 for everyone until standing
-    /// exists, #452).</summary>
-    public List<NatSpec> Wallet { get; set; } = [];
+    /// <summary>Gears the trader restocks to with strangers; a standing tier's <c>walletFactor</c>
+    /// multiplies it (#452).</summary>
+    public NatSpec? Wallet { get; set; }
     public TradeSide Selling { get; set; } = new();
     public TradeSide Buying { get; set; } = new();
 
-    public NatSpec WalletFor(int tier) => Wallet.Count == 0 ? new NatSpec(60, 10) : Wallet[Math.Clamp(tier, 0, Wallet.Count - 1)];
+    /// <summary>The wallet times a standing tier's <paramref name="factor"/>, its spread with it.</summary>
+    public NatSpec WalletAt(double factor = 1)
+    {
+        var w = Wallet ?? new NatSpec(60, 10);
+        return new NatSpec((float)(w.Avg * factor), (float)(w.Var * factor));
+    }
 }

@@ -7,7 +7,7 @@
 {
 	"type": "travellingmerchant",
 	"campWeight": 0,
-	"wallet": [{"avg": 150, "var": 20}, {"avg": 180, "var": 25}, {"avg": 220, "var": 30}, {"avg": 270, "var": 35}],
+	"wallet": {"avg": 150, "var": 20},
 	"selling": {
 		"core": [
 			{"code": "seeds-bellpepper", "stacksize": 4, "stock": {"avg": 4, "var": 1}},

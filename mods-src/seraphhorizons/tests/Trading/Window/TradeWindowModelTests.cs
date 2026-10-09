@@ -31,7 +31,7 @@ public class TradeWindowModelTests
                 MapsToTraders = i >= 2,
                 BuyPriceFactor = i == 0 ? 1 : 1 - 0.03 * i,
                 SellPriceFactor = i == 0 ? 1 : 1 + 0.02 * i,
-                WalletTier = Math.Max(0, i - 1),
+                WalletFactor = new[] { 1.0, 2, 5, 15, 40 }[i],
                 DeliveryScale = i == 0 ? 0 : 0.5 + 0.5 * i,
                 RareStock = i >= 3,
             },
@@ -223,6 +223,9 @@ public class TradeWindowModelTests
         Assert.Contains("trading-window-fact-orders", all);
         // Trusted, n = 4: 2.125–10 gears of goods, paid ×17.5.
         Assert.Contains("trading-window-fact-orders(2.13, 10, 17.5)", TradeWindowModel.Facts(tier, AllOn()).Select(f => f.ToString()));
+        // A trusted customer's trader restocks to 15 times its wallet; a stranger's to the wallet.
+        Assert.Contains("trading-window-fact-wallet(15)", TradeWindowModel.Facts(tier, AllOn()).Select(f => f.ToString()));
+        Assert.DoesNotContain("trading-window-fact-wallet", TradeWindowModel.Facts(Summary(0, 0).Tier, AllOn()).Select(f => f.Key));
         Assert.Contains("trading-window-fact-deliveries", all);
         Assert.Contains("trading-window-fact-leads", all);
         Assert.Contains("trading-window-fact-settlement", all);

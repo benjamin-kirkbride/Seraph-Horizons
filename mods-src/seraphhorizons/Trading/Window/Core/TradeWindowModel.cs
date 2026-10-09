@@ -309,7 +309,7 @@ public static class TradeWindowModel
         var facts = new List<Text>();
         if (sw.StandingPrices && (Math.Abs(u.BuyPriceFactor - 1) > 1e-6 || Math.Abs(u.SellPriceFactor - 1) > 1e-6))
             facts.Add(new Text("trading-window-fact-prices", F(u.BuyPriceFactor), F(u.SellPriceFactor)));
-        if (u.WalletTier > 0) facts.Add(new Text("trading-window-fact-wallet", u.WalletTier));
+        if (u.WalletFactor > 1 + 1e-6) facts.Add(new Text("trading-window-fact-wallet", F(u.WalletFactor)));
         if (sw.Orders)
             facts.Add(new Text("trading-window-fact-orders", F(OrderPlanner.MinWorth(t.Number)), F(OrderPlanner.MaxWorth(t.Number)), F(OrderPlanner.Multiplier(t.Number))));
         if (sw.Deliveries)
