@@ -414,10 +414,12 @@ public partial class TradingScenarios
         var trader = await SpawnTrader("generalstore", -20, -55);
         var sp = await Trading(Customer(), trader);
         string id = Standing.TraderIdOf(trader);
-        // Orders are valued at the item value table, so a good with a value.
+        // Orders are valued at the item value table, so a good with a value; and not something on its
+        // own shelf, which it only buys back off-market.
         var values = SeraphHorizons.Mod.Trading.Values.ItemValuesSystem.For(Api);
         var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null
-            && values.ValueOf(s.Itemstack.Collectible.Code.ToString()) > 0);
+            && values.ValueOf(s.Itemstack.Collectible.Code.ToString()) > 0
+            && !EconomySystem.OnOwnShelf(trader, s.Itemstack.Collectible));
         string code = buying.Itemstack.Collectible.Code.ToString();
         int lot = buying.TradeItem.Stack.StackSize;
         int next = OrdersSystem.Of(Api)!.Book.NextId;

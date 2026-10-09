@@ -4,8 +4,8 @@ namespace SeraphHorizons.Mod.Tests.Trading;
 
 public class TradeListTests
 {
-    internal static TradeEntry E(string code, float price = 2, bool ps = false, string attrs = "") =>
-        new() { Code = code, Price = new NatSpec(price, 0), Stock = new NatSpec(4, 0), PlayerSupplied = ps, AttributesKey = attrs };
+    internal static TradeEntry E(string code, bool ps = false, string attrs = "") =>
+        new() { Code = code, Stock = new NatSpec(4, 0), PlayerSupplied = ps, AttributesKey = attrs };
 
     private static TradeListDef Def() => new()
     {
@@ -13,7 +13,7 @@ public class TradeListTests
         Wallet = [new NatSpec(100, 10), new NatSpec(130, 10)],
         Selling = new TradeSide
         {
-            Core = [E("coke"), E("ingot-iron", 10, ps: true)],
+            Core = [E("coke"), E("ingot-iron", ps: true)],
             Rotating = new RotatingList { MaxItems = 3, List = [E("chisel-iron", ps: true), E("charcoal"), E("ore-borax"), E("anvil-iron", ps: true)] },
             Regional = new()
             {
@@ -86,8 +86,14 @@ public class TradeListTests
         bad.Wallet.Clear();
         bad.Selling.Regional["arctic"] = new RegionalList();
         bad.Selling.Rotating.List.Add(E("charcoal"));
-        bad.Buying.Core.Add(E("", 1));
-        bad.Buying.Core.Add(E("ingot-gold", 0));
+        bad.Buying.Core.Add(E(""));
+        var gold = E("ingot-gold");
+        gold.Price = 12;
+        bad.Buying.Core.Add(gold);
+        var silver = E("ingot-silver");
+        silver.Price = 0;
+        silver.PriceReason = "free";
+        bad.Buying.Core.Add(silver);
         bad.Buying.Core.AddRange(Enumerable.Range(0, 16).Select(i => E($"x{i}")));
         var problems = TradeListResolver.Problems(bad);
         Assert.Contains(problems, p => p.Contains("'banker'"));
@@ -95,7 +101,9 @@ public class TradeListTests
         Assert.Contains(problems, p => p.Contains("unknown region key 'arctic'"));
         Assert.Contains(problems, p => p.Contains("selling.rotating: item:game:charcoal is listed 2 times"));
         Assert.Contains(problems, p => p.Contains("buying.core: an entry has no code"));
-        Assert.Contains(problems, p => p.Contains("item:game:ingot-gold has no price"));
+        // A price override needs its reason, and a positive price.
+        Assert.Contains(problems, p => p.Contains("item:game:ingot-gold overrides its price without a priceReason"));
+        Assert.Contains(problems, p => p.Contains("item:game:ingot-silver has a price override of 0"));
         Assert.Contains(problems, p => p.Contains("more than the 16 slots"));
     }
 

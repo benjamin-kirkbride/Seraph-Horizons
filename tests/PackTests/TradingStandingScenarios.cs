@@ -2,6 +2,7 @@ using Atlas.Api;
 using Atlas.XUnit;
 using HarmonyLib;
 using SeraphHorizons.Mod.Trading;
+using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Standing;
 using SeraphHorizons.Mod.Trading.Standing.Core;
 using Vintagestory.API.Common;
@@ -60,7 +61,9 @@ public partial class TradingScenarios
         // Buy the cheapest thing on the shelf, and sell back something the trader buys.
         var selling = inv.SellingSlots.Where(s => s.TradeItem is { Stock: > 0 }).OrderBy(s => s.TradeItem.Price).First();
         AddToBuyingCart(inv, selling, 0);
-        var buying = inv.BuyingSlots.Where(s => s.TradeItem is { Stock: > 0 }).OrderBy(s => s.TradeItem.Price).First();
+        // Not something on its own shelf, which it only buys back off-market.
+        var buying = inv.BuyingSlots.Where(s => s.TradeItem is { Stock: > 0 } && s.Itemstack != null && !EconomySystem.OnOwnShelf(trader, s.Itemstack.Collectible))
+            .OrderBy(s => s.TradeItem.Price).First();
         var offered = buying.TradeItem.Stack.Clone();
         offered.ResolveBlockOrItem(W);
         inv.GetSellingCartSlot(0).Itemstack = offered;

@@ -31,24 +31,24 @@ python3 -m unittest discover -s tools/tests -p test_item_values.py
   `perLitre` and `switches`; the `pack` header is not compared). It prints how many codes differ, the first 25 as
   `code: shipped -> rebuilt`, and the command to rebuild. In CI, download the run's
   `recipe-export` artifact and run `build` on it, or run smoke locally; then commit the table.
-- **An item traders buy has no value**, derived from the export or in the shipped table. It reads
-  the mod's trade lists (`mods-src/seraphhorizons/assets/seraphhorizons/config/tradelists/*.json`,
-  vanilla's trade list format; no folder means nothing to check). Traders buy their `buying`
-  entries and their `playerSupplied` selling entries (players sell those to them, off the list at
-  their value when the buying side does not list them); what a trader only sells is priced by its
-  list and needs none. A code counts as valued the way the mod looks it up (`ItemValues.Lookup`):
-  directly, or through its variant family's average, or for a code with `*`, the average of what
-  it matches. Schematics are exempt: worth nothing by rule, they are bought at their list's price.
+- **A trade list item has no value**, derived from the export or in the shipped table. It reads
+  the mod's trade lists (`mods-src/seraphhorizons/assets/seraphhorizons/config/tradelists/*.json`;
+  no folder means nothing to check). The lists hold no prices: every entry, bought or sold, is
+  priced from its value (by `config/trading/list-prices.json`, docs/trading.md "Trade list
+  format"), except the special `kind` entries (maps and leads, the maps system's) and an entry with
+  a price override (`price` with a non-empty `priceReason`). A code counts as valued the way the mod
+  looks it up (`ItemValues.Lookup`): directly, or through its variant family's average, or for a
+  code with `*`, the average of what it matches. Schematics are worth nothing by rule, so one
+  without a price override fails too. Fix an unvalued item with a raw value or an override here
+  (and rebuild), or, if it is truly special, a price override with its reason on the list.
 - **A trade list names a retired item** (#506): an item of the export that nothing values (no
   route, raw, override or fallback) and the handbook hides, bought or sold, even when its family
   has a value. Take the entry off the list. What the pack removes outright (Hydrate or Diedrate's
   tun, Primitive Survival's irrigation vessels, ppex's gears) is not in the export at all; Immersive
-  Woodworking's pit saws and blades are hidden and unvalued. Entries traders only sell whose item
-  has no value although the handbook shows it (baby animals, locator maps, found hats) are counted
-  and allowed: their lists price them.
+  Woodworking's pit saws and blades are hidden and unvalued.
 
-It prints how many trade list items traders buy it validated (and how many distinct codes, in how
-many lists). It works on an export with or without the pack's own mod: what the mod adds is then
+It prints how many trade list items priced from values it validated (and how many distinct codes,
+in how many lists). It works on an export with or without the pack's own mod: what the mod adds is then
 simply absent (but CI's export always has it, and so does the table).
 
 ## Rules
@@ -229,8 +229,10 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 - **Reference.** Vanilla trade lists (`assets/survival/config/tradelists/`), where traders buy at
   about half what they sell for. A value is the item's worth on the table's scale, calibrated to
   what a vanilla trader that wants the item pays (#436), so the target is vanilla's buy price, or
-  between buy and sell where vanilla only sells. What the pack's traders actually pay is a fifth of the value
-  (`BuySpread`, #506); what they ask is the value.
+  between buy and sell where vanilla only sells. What the pack's traders ask is the value, and
+  what their lists buy they pay 1.5 x the value for (2026-10-08, `config/trading/list-prices.json`),
+  each varied by a roll of a quarter either way; off their lists they pay a share of it by fit
+  (docs/trading.md).
 - **Metal.** Vanilla sells 16 copper nuggets for 2 gears (0.125 each, 2.5 an ingot's worth) and buys
   a copper ingot for 1. Copper is 0.017 a unit: a nugget 0.085, an ingot 2.07 after smelting
   (+10%, +0.2 fuel). Vanilla buys tin at 2x copper, silver 3x, gold 4x; tin 0.035 (ingot 4.05), zinc
@@ -265,7 +267,8 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   portion (30 a litre), their mash, and their seeds.
 - **Gems.** Rough gems at vanilla's prices (diamond and emerald about 10, olivine 5, garnet 2.5).
 - **Curiosities** (`game:clutter-*` items: found relics, statuettes, skulls and what fishing drags
-  up) are raws, priced generously, as a collector would pay, since a trader pays a fifth of value:
+  up) are raws, priced generously, as a collector would pay, since a trader that does not deal in
+  them pays a fifth of value:
   the crystal skull and the Forlorn Hope reliquary 150 (a 30-gear sale, a temporal gear's worth),
   the king statuette and the device prototype 100, statuettes 50 to 80, fossils and amber 30 to
   40, a human skull 8, fishing's oddities 4 to 6. No vanilla trader deals in them. Each is worth
@@ -278,12 +281,15 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   curiosities' average.
 - **Overrides.** The barrel (3 boards and 4 sticks make it 0.34, a cooper's work is worth more;
   vanilla sells it for 2) and the anvils (cast in molds, which the export does not carry: 9 ingots
-  plus labour). No gear is overridden: the steel gear takes its cheapest route (the gear cutter,
+  plus labour). Goods the pack's traders sell that nothing else prices (2026-10-08, when the lists
+  dropped their prices for values): Logging Expanded's sawhorse and stick storage (placed, not
+  crafted), the iron and steel axle hubs (no recipe in the export) and Culinary Artillery's chef's
+  hats (only swapped into one another), at 0.7 x the per-item price the lists had, traderFallback's rule. No gear is overridden: the steel gear takes its cheapest route (the gear cutter,
   or the oiled gear's lottery, Lotteries above), and the large steel gear its gear cutter route.
 - **Schematics** have no value: they are kept on crafting, and traders are their only source, at
-  their lists' prices (the curio dealer, which also buys back Abyssal Depths' diving gear schematic
-  at its list's price, the mechanic, the smith, ...). A machine built with one is worth its parts
-  and labour.
+  the prices their list entries set by hand (`price` and `priceReason`; the curio dealer, which
+  also buys back Abyssal Depths' diving gear schematic at its entry's price, the mechanic, the
+  smith, ...). A machine built with one is worth its parts and labour.
 
 ## Known gaps
 
