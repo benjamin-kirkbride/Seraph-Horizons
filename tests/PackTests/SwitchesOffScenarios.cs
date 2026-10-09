@@ -455,12 +455,17 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     /// <summary><c>StainlessSteel</c>: no melting holes or melting pots, no ferroalloys, no recipe for
     /// any of them, the game's stainless ingot and bits hidden from the handbook as it ships them, the
-    /// guide page hidden, and nothing logged about it.</summary>
+    /// guide page hidden, smex's converter not patched and its handbook page as it ships, and nothing
+    /// logged about it.</summary>
     [AtlasScenario]
     public void Stainless_steel_off_there_is_no_crucible_furnace()
     {
         Assert.True(Off("StainlessSteel"));
         Assert.False(SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.Applies(World.Api));
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.CrucibleFurnace.BessemerStainless.HarmonyId));
+        Assert.Equal(SeraphHorizons.Mod.SteelBits.SmexScrap.Status.Off,
+            SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.Of(World.Api).BessemerScrapStatus);
+        Assert.DoesNotContain("Ferrochrome makes it stainless", Lang.GetL("en", "smex:handbook-bessemer-text"));
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("meltinghole") || c.Path.StartsWith("meltingpot")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrochrome")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrosilicon")));
