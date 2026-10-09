@@ -65,6 +65,21 @@
       "description": "Mechanical power producers, consumers and the wind (docs/recipe-browser/power.md). Optional: absent in exports made before it existed.",
       "$ref": "#/$defs/power"
     },
+    "multiblocks": {
+      "description": "Structures a player builds block by block, which a block checks against a layout (the game's `multiblockStructure` attribute), with the shape of a block that fits each cell. Absent from older exports. See docs/recipe-browser/multiblocks.md.",
+      "type": "object",
+      "required": ["structures", "shapes"],
+      "additionalProperties": false,
+      "properties": {
+        "structures": { "type": "array", "items": { "$ref": "#/$defs/multiblock" } },
+        "shapes": {
+          "description": "How each block a part is drawn with (`multiblockPart.block`) looks, by code.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/code" },
+          "additionalProperties": { "$ref": "#/$defs/blockShape" }
+        }
+      }
+    },
     "extra": { "$ref": "#/$defs/extra" }
   },
 
@@ -151,6 +166,101 @@
         "extra": { "$ref": "#/$defs/extra" }
       }
     },
+
+    "multiblock": {
+      "type": "object",
+      "required": ["id", "code", "name", "mod", "codes", "parts", "sizes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "description": "Unique: the checking block's domain and first code part, with -2, -3... on a clash.", "type": "string", "pattern": "^[a-z0-9_-]+:[a-z0-9_-]+$" },
+        "code": { "description": "The block that checks the layout, the one drawn at [0, 0, 0] (a north-facing variant when there is one).", "$ref": "#/$defs/code" },
+        "name": { "description": "That block's English name.", "type": "string", "minLength": 1 },
+        "mod": { "$ref": "#/$defs/modId" },
+        "codes": { "description": "Every block that carries this same layout (its variants).", "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/code" } },
+        "parts": { "description": "What a cell takes; a cell names one by index.", "type": "array", "items": { "$ref": "#/$defs/multiblockPart" } },
+        "sizes": {
+          "description": "The layout; several for a structure that comes in sizes (`multiblockSizes`), smallest first as the block lists them.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["cells"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "cells": {
+                "description": "[x, y, z, part]: blocks from the checking block (x east, y up, z south), in the layout's own frame, unturned.",
+                "type": "array",
+                "items": { "type": "array", "prefixItems": [{ "type": "integer" }, { "type": "integer" }, { "type": "integer" }, { "type": "integer", "minimum": 0 }], "items": false, "minItems": 4 }
+              }
+            }
+          }
+        },
+        "sizeLabel": { "description": "What the sizes count (\"Melting holes\").", "type": "string", "minLength": 1 },
+        "defaultSize": { "description": "Index of the size shown first; 0 when absent.", "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "multiblockPart": {
+      "type": "object",
+      "required": ["pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "pattern": { "description": "The layout's block code pattern: a game wildcard, or a regular expression after `@`.", "type": "string", "minLength": 1 },
+        "air": { "description": "The cell may (or, without `block`, must) be empty.", "const": true },
+        "block": { "description": "The block the cell is drawn with, a key of `multiblocks.shapes`. Absent when only air fits.", "$ref": "#/$defs/code" },
+        "name": { "description": "Its English name; absent when it has none of its own.", "type": "string", "minLength": 1 },
+        "accepts": { "description": "Blocks that fit, in registry order, at most 24.", "type": "array", "items": { "$ref": "#/$defs/code" } },
+        "acceptsMore": { "description": "How many more fit than `accepts` lists.", "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "blockShape": {
+      "type": "object",
+      "required": ["draw"],
+      "additionalProperties": false,
+      "properties": {
+        "draw": { "description": "`cube`: a full block; `none`: nothing to draw (an invisible part of a bigger block); `shape`: `shapes`.", "enum": ["cube", "none", "shape"] },
+        "shapes": {
+          "description": "The block's shape and its overlays, as the block turns them.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["elements"],
+            "additionalProperties": false,
+            "properties": {
+              "elements": { "type": "array", "items": { "$ref": "#/$defs/shapeElement" } },
+              "rotateX": { "type": "number" },
+              "rotateY": { "type": "number" },
+              "rotateZ": { "type": "number" },
+              "offset": { "description": "Blocks.", "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+              "scale": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+
+    "shapeElement": {
+      "description": "A shape file's element, in voxels (16 a block), children relative to their parent's `from`: only what places its box.",
+      "type": "object",
+      "required": ["name", "from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "from": { "$ref": "#/$defs/vec3" },
+        "to": { "$ref": "#/$defs/vec3" },
+        "rotationOrigin": { "$ref": "#/$defs/vec3" },
+        "rotationX": { "type": "number" },
+        "rotationY": { "type": "number" },
+        "rotationZ": { "type": "number" },
+        "faces": { "description": "The faces drawn, when not all six.", "type": "array", "uniqueItems": true, "items": { "enum": ["north", "east", "south", "west", "up", "down"] } },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/shapeElement" } }
+      }
+    },
+
+    "vec3": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
 
     "variantGroup": {
       "type": "object",

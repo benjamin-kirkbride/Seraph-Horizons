@@ -1,7 +1,7 @@
 // The files prepare-data writes under data/<version id>/ and the app reads. See
 // docs/recipe-browser/site.md. Bump DATA_FORMAT when this changes incompatibly; the app
 // and the data are always built together, so there is no migration.
-import type { ItemAttributes, Mod, Recipe, Shape, Source } from "./export.ts";
+import type { BlockShape, ItemAttributes, Mod, Multiblock, Recipe, Shape, Source } from "./export.ts";
 
 export const DATA_FORMAT = 4;
 
@@ -46,6 +46,8 @@ export interface Meta {
   valueCount?: number;
   /** True when the export has a power section, written to power.json; absent otherwise. */
   power?: boolean;
+  /** Number of structures in multiblocks.json; absent when the export has none. */
+  multiblockCount?: number;
 }
 
 export interface TypeInfo {
@@ -179,4 +181,27 @@ export function chunkOf(starts: readonly number[], index: number): number {
     else hi = mid - 1;
   }
   return lo;
+}
+
+/** data/<version>/multiblocks.json: the multiblock list, in the export's order (by id). */
+export interface MultiblockIndex {
+  multiblocks: MultiblockEntry[];
+}
+
+export interface MultiblockEntry {
+  id: string;
+  name: string;
+  mod: string;
+  /** Cells of the size shown first, air cells included. */
+  cells: number;
+  /** Labels of the sizes, when there are several. */
+  sizes?: string[];
+  /** Its file: multiblocks/<file>.json. */
+  file: number;
+}
+
+/** data/<version>/multiblocks/<n>.json: one structure with the shapes of the blocks it is drawn with. */
+export interface MultiblockFile {
+  structure: Multiblock;
+  shapes: Record<string, BlockShape>;
 }

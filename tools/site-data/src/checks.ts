@@ -35,6 +35,10 @@ export interface ExportV1 {
   recipeTypes: Record<string, { count: number }>;
   variantGroups?: Record<string, { title: string; members: string[] }>;
   power?: Power;
+  multiblocks?: {
+    structures: { id: string; mod: string; parts: { block?: string; air?: true }[]; sizes: { cells: number[][] }[]; defaultSize?: number }[];
+    shapes: Record<string, unknown>;
+  };
 }
 interface PowerEntry {
   id: string;
@@ -138,6 +142,7 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
 
   if (d.variantGroups) checkVariantGroups(d, report);
   if (d.power) checkPower(d, report);
+  if (d.multiblocks) checkMultiblocks(d, report);
 }
 
 // The power section (docs/recipe-browser/power.md): ids unique per list, links to items and
@@ -193,6 +198,37 @@ function checkPower(d: ExportV1, report: ErrorReport): void {
       report.add("power-wind-share", "/power/wind/patterns", "pattern shares adding up to 1", String(patterns));
     }
   }
+}
+
+// Multiblocks: a cell names a part, a part's block has a shape, an id is an address and appears
+// once, and the size shown first exists. The site draws from these without checking again.
+function checkMultiblocks(d: ExportV1, report: ErrorReport): void {
+  const { structures, shapes } = d.multiblocks!;
+  const ids = new Set<string>();
+  structures.forEach((s, si) => {
+    const at = `/multiblocks/structures/${si}`;
+    if (ids.has(s.id)) report.add("multiblock-id", `${at}/id`, "an id no other structure has", JSON.stringify(s.id));
+    ids.add(s.id);
+    if (!Object.hasOwn(d.mods, s.mod)) report.add("multiblock-mod", `${at}/mod`, "a key of mods", JSON.stringify(s.mod));
+    s.parts.forEach((p, pi) => {
+      if (p.block !== undefined && !Object.hasOwn(shapes, p.block)) {
+        report.add("multiblock-shape", `${at}/parts/${pi}/block`, "a key of multiblocks.shapes", JSON.stringify(p.block));
+      }
+      if (p.block === undefined && !p.air) report.add("multiblock-part", `${at}/parts/${pi}`, "a block, or air", "neither");
+    });
+    s.sizes.forEach((size, zi) => {
+      const seen = new Set<string>();
+      size.cells.forEach((c, ci) => {
+        if (c[3]! >= s.parts.length) report.add("multiblock-cell", `${at}/sizes/${zi}/cells/${ci}/3`, `a part index below ${s.parts.length}`, String(c[3]));
+        const key = `${c[0]},${c[1]},${c[2]}`;
+        if (seen.has(key)) report.add("multiblock-cell", `${at}/sizes/${zi}/cells/${ci}`, "a cell no other cell of the size is at", key);
+        seen.add(key);
+      });
+    });
+    if (s.defaultSize !== undefined && s.defaultSize >= s.sizes.length) {
+      report.add("multiblock-size", `${at}/defaultSize`, `below ${s.sizes.length}`, String(s.defaultSize));
+    }
+  });
 }
 
 // Tidy Variants groups: the site folds each into one row, so a member must be an item, and an

@@ -14,6 +14,8 @@ export type Route =
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
   | { view: "power"; version: string }
+  | { view: "multiblocks"; version: string }
+  | { view: "multiblock"; version: string; id: string }
   | ({ view: "values"; version: string } & ValuesView)
   | { view: "models" }
   | { view: "model"; id: string }
@@ -132,6 +134,15 @@ export function parseRoute(hash: string): Route {
     case "power":
       if (rest.length === 0) return { view: "power", version };
       break;
+    case "multiblocks":
+      if (rest.length === 0) return { view: "multiblocks", version };
+      break;
+    case "multiblock": {
+      // A multiblock's id is `<domain>:<code part>`.
+      const id = dec(rest.join("/"));
+      if (id && /^[a-z0-9_-]+:[a-z0-9_-]+$/.test(id)) return { view: "multiblock", version, id };
+      break;
+    }
     case "values":
       if (rest.length === 0) return { view: "values", version, ...parseValuesView(params) };
       break;
@@ -159,6 +170,10 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/credits`;
     case "power":
       return `#/${enc(route.version)}/power`;
+    case "multiblocks":
+      return `#/${enc(route.version)}/multiblocks`;
+    case "multiblock":
+      return `#/${enc(route.version)}/multiblock/${enc(route.id)}`;
     case "values":
       return `#/${enc(route.version)}/values${formatValuesView(route)}`;
     case "models":
