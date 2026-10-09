@@ -12,8 +12,9 @@ namespace SeraphHorizons.Mod.PressBrake;
 /// <see cref="BEPressBrake"/>, and only while its block is the brake). One mesh per rig part from
 /// <c>shapes/block/pressbrake.json</c> (<see cref="MachineMeshes.PartMesh"/>), each drawn with its rig
 /// matrix turned to the brake's facing, and only when its <c>requires</c> is fitted, or, for the
-/// sheet, while that metal's plate is on the bed. The texture codes <c>edge</c> and <c>screw</c> are
-/// set to the fitted edges' and screws' metals (one mesh per part and metal). The static frame part is
+/// sheet, while that metal's plate is on the bed. The texture code <c>edge</c> is set to the fitted
+/// edges' metal (one mesh per part and metal); the screws, made from metal parts, are always the
+/// block's own <c>cupronickel</c>. The static frame part is
 /// the block's own shape (pressbrake_frame.json) and is not drawn here.
 /// <para>The rig is posed every frame from the view (<see cref="IPressBrakeView"/>) through
 /// <see cref="PressBrakeClock"/>: θ the lever clock, turning while the lever is worked; W, k and p.
@@ -31,8 +32,8 @@ public sealed class PressBrakeRenderer : IRenderer
     private readonly PressBrakeRig _rig;
     private readonly RigParts _parts;
     private readonly bool[] _drawn;
-    // each part's meshes by the (screw metal, edge metal) they were textured with
-    private readonly Dictionary<(string?, string?), MultiTextureMeshRef?[]> _meshes = [];
+    // each part's meshes by the edge metal they were textured with ("" for none)
+    private readonly Dictionary<string, MultiTextureMeshRef?[]> _meshes = [];
     private Shape? _master;
     private bool _built;
 
@@ -57,14 +58,14 @@ public sealed class PressBrakeRenderer : IRenderer
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowNear, "pressbrake");
     }
 
-    /// <summary>The parts' meshes with the screws in <paramref name="screw"/> and the edges in
-    /// <paramref name="edge"/>, built the first time they are asked for.</summary>
-    private MultiTextureMeshRef?[] Meshes(string? screw, string? edge)
+    /// <summary>The parts' meshes with the edges in <paramref name="edge"/>, built the first time they
+    /// are asked for.</summary>
+    private MultiTextureMeshRef?[] Meshes(string? edge)
     {
-        if (_meshes.TryGetValue((screw, edge), out var meshes))
+        if (_meshes.TryGetValue(edge ?? "", out var meshes))
             return meshes;
         meshes = new MultiTextureMeshRef?[_drawn.Length];
-        _meshes[(screw, edge)] = meshes;
+        _meshes[edge ?? ""] = meshes;
         if (!_built)
         {
             _built = true;
@@ -74,8 +75,7 @@ public sealed class PressBrakeRenderer : IRenderer
         }
         if (_master == null)
             return meshes;
-        var tex = new FittedTextureSource(_capi.Tesselator.GetTextureSource(_be.Block),
-            MachineMeshes.MetalTexture(_capi, screw), MachineMeshes.MetalTexture(_capi, edge));
+        var tex = new FittedTextureSource(_capi.Tesselator.GetTextureSource(_be.Block), MachineMeshes.MetalTexture(_capi, edge));
         for (int i = 0; i < meshes.Length; i++)
             if (_drawn[i] && MachineMeshes.PartMesh(_capi, _master, _parts, i, tex, "pressbrake") is { } mesh)
                 meshes[i] = _capi.Render.UploadMultiTextureMesh(mesh);
@@ -94,7 +94,7 @@ public sealed class PressBrakeRenderer : IRenderer
         if (far)
             return;
 
-        var meshes = Meshes(_view.ScrewMetal, _view.EdgeMetal);
+        var meshes = Meshes(_view.EdgeMetal);
         var mats = _parts.Matrices(_clock.Input());
         var facing = Mat4.Facing(_view.Side);
         var rapi = _capi.Render;
@@ -152,15 +152,11 @@ public sealed class PressBrakeRenderer : IRenderer
                 mesh?.Dispose();
     }
 
-    /// <summary>The block's textures with the screws' and edges' metals in place of <c>screw</c> and <c>edge</c>.</summary>
-    private sealed class FittedTextureSource(ITexPositionSource inner, TextureAtlasPosition? screw, TextureAtlasPosition? edge) : ITexPositionSource
+    /// <summary>The block's textures with the edges' metal in place of <c>edge</c>.</summary>
+    private sealed class FittedTextureSource(ITexPositionSource inner, TextureAtlasPosition? edge) : ITexPositionSource
     {
         public Size2i AtlasSize => inner.AtlasSize!;
-        public TextureAtlasPosition this[string textureCode] => textureCode switch
-        {
-            "screw" when screw != null => screw,
-            "edge" when edge != null => edge,
-            _ => inner[textureCode]!,
-        };
+        public TextureAtlasPosition this[string textureCode] =>
+            textureCode == "edge" && edge != null ? edge : inner[textureCode]!;
     }
 }

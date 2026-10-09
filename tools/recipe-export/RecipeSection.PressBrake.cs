@@ -28,14 +28,14 @@ public static partial class RecipeSection
     private static JObject PressBrakeRecord(Context ctx, PressBrakeData b, FoldClass k)
     {
         var ingredients = new JArray(Def(k.Plate.Code.ToString(), "item", 1));
-        foreach (var (template, _) in b.Kept)
-            ingredients.Add(Def(template, "item", 1, "kept"));
+        foreach (var (template, kind, _) in b.Kept)
+            ingredients.Add(Def(template, kind, 1, "kept"));
         ingredients.Add(Def(b.FrameCode, "block", 1, "station"));
 
         // (new JArray(JArray) would copy the inner array, not nest it)
         var stacks = new JArray { new JArray(Stack(ctx, k.Plate, 1)) };
-        foreach (var (_, items) in b.Kept)
-            stacks.Add(new JArray(items.Select(i => Stack(ctx, i, 1))));
+        foreach (var (_, _, alternatives) in b.Kept)
+            stacks.Add(new JArray(alternatives.Select(c => Stack(ctx, c, 1))));
         stacks.Add(b.Frame != null ? new JArray(Stack(ctx, b.Frame, 1)) : new JArray());
 
         return new JObject

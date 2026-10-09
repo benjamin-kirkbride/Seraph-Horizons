@@ -511,7 +511,7 @@ def build_drive():
     out += bevel("z", SPINDLE_C, HEAD_Z - MITRE_R - 0.05, HEAD_Z - MITRE_R + 0.7, MITRE_R, 10, "spindle_bevel", "spindle", "steel",
                  toward=1.0, phase=math.pi / 10)
     for i, (a0, a1) in enumerate(((Z_CUT - 1.75, Z_CUT - 1.1), (Z_CUT + 1.1, Z_CUT + 1.75)), 1):
-        out += disc("z", SPINDLE_C, a0, a1, 0.9, f"spindle_collar{i}", "spindle", "steel", k=4)
+        out += disc("z", SPINDLE_C, a0, a1, 0.9, f"spindle_collar{i}", "spindle", "cupronickel", k=4)
     out += cutter()
     out += belt()
     return out
@@ -1029,17 +1029,17 @@ def build_index():
     out[-1].c[0] = (LEVER_X[0] + LEVER_X[1]) / 2
     out.append(strut(on_axis(c, d0, -0.7), on_axis(c, d0, -1.2), 0.45, LEVER_X[1] - LEVER_X[0], "lever_tail", "lever", "steel"))
     out[-1].c[0] = (LEVER_X[0] + LEVER_X[1]) / 2
-    out += rod("x", (0.0, ROLLER[1], ROLLER[2]), LEVER_X[0] + 0.05, 30.9, ROLLER_R, "lever_roller", "lever", "steel", k=4)
-    out += rod("x", (0.0, PAWL_PIN[1], PAWL_PIN[2]), J_BAND[0], LEVER_X[1], 0.18, "pawl_pin", "pawl", "steel", k=2)
+    out += rod("x", (0.0, ROLLER[1], ROLLER[2]), LEVER_X[0] + 0.05, 30.9, ROLLER_R, "lever_roller", "lever", "cupronickel", k=4)
+    out += rod("x", (0.0, PAWL_PIN[1], PAWL_PIN[2]), J_BAND[0], LEVER_X[1], 0.18, "pawl_pin", "pawl", "cupronickel", k=2)
     tip = ring_point(c, PAWL_TIP_R + 0.1, PAWL_TIP_ANG)
-    el = strut([0.0, PAWL_PIN[1], PAWL_PIN[2]], tip, 0.35, SHIELD_X[1] - J_BAND[0] - 0.05, "pawl_body", "pawl", "steel")
+    el = strut([0.0, PAWL_PIN[1], PAWL_PIN[2]], tip, 0.35, SHIELD_X[1] - J_BAND[0] - 0.05, "pawl_body", "pawl", "cupronickel")
     el.c[0] = (J_BAND[0] + SHIELD_X[1]) / 2 - 0.02
     out.append(el)
     ctip = ring_point(c, CHECK_TIP_R + 0.1, CHECK_ANG)
-    el = strut([0.0, CHECK_PIN[1], CHECK_PIN[2]], ctip, 0.35, J_BAND[1] - J_BAND[0] - 0.06, "checkpawl_body", "checkpawl", "steel")
+    el = strut([0.0, CHECK_PIN[1], CHECK_PIN[2]], ctip, 0.35, J_BAND[1] - J_BAND[0] - 0.06, "checkpawl_body", "checkpawl", "cupronickel")
     el.c[0] = (J_BAND[0] + J_BAND[1]) / 2
     out.append(el)
-    out += rod("x", CHECK_PIN, J_BAND[0], J_BAND[1], 0.2, "checkpawl_pin", "checkpawl", "steel", k=2)
+    out += rod("x", CHECK_PIN, J_BAND[0], J_BAND[1], 0.2, "checkpawl_pin", "checkpawl", "cupronickel", k=2)
     # the detent plunger: along z, from its post, its tip in the sun disc's notch
     out.append(box([DETENT_X[0] + 0.05, ARBOR_Y - 0.12, Z_REST + NOTCH_R + 0.03], [DETENT_X[1] - 0.05, ARBOR_Y + 0.12, Z_REST + 6.6],
                    "detent_plunger", "detent", "steel"))

@@ -277,7 +277,7 @@ pipe section).
 
 **The press brake** (type `pressbrake`, shape `machine`): one record per half plate metal, id
 `pressbrake|seraphhorizons:halfplate-<metal>|0`. The ingredients are the half plate (consumed), the
-screws and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
+screws (`game:metal-parts`, a block) and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
 (`seraphhorizons:angle-<metal>`), the half plate folded once across its middle. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
 half plate takes (a turn a second while the player holds right-click); there is no `wear` and no `oil`.
 

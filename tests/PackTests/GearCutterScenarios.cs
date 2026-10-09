@@ -56,7 +56,9 @@ public partial class SharedWorldScenarios
     private async Task<IPlayer> CutterPlayer() => (await CutterHand()).Player;
 
     private ItemStack CutterItem(string code, int size = 1) =>
-        W.GetItem(new AssetLocation(code)) is { } item ? new ItemStack(item, size) : throw new Xunit.Sdk.XunitException($"no item {code}");
+        W.GetItem(new AssetLocation(code)) is { } item ? new ItemStack(item, size)
+        : W.GetBlock(new AssetLocation(code)) is { Id: > 0 } block ? new ItemStack(block, size)   // metal parts are a block
+        : throw new Xunit.Sdk.XunitException($"no item {code}");
 
     /// <summary>A spot 40 above spawn, its chunk columns loaded, cleared around on a granite floor.</summary>
     private async Task<BlockPos> CutterSite(int dx, int dz, int reach = 5)
@@ -218,12 +220,18 @@ public partial class SharedWorldScenarios
         // 3 steel gears for the gearing the frame carries (the feed rectifier, the camshaft's worm wheel)
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-steel" && i.Quantity == 3);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
-        // the spindle and the index: 2 steel rods and 2 steel plates each
-        foreach (var output in new[] { "gearcutterspindle", "gearcutterindex" })
+        // the spindle and the index: 2 steel rods, 2 steel plates and the game's metal parts (a block:
+        // the spindle's keys and collars, the index's pawls, pins and roller) each, no nails; the
+        // spindle upright and the index flat, so the two never match the same grid
+        foreach (var (output, width, height) in new[] { ("gearcutterspindle", 1, 3), ("gearcutterindex", 3, 1) })
         {
             var part = W.GridRecipes.Single(r => r.Output?.Code?.ToString() == "seraphhorizons:" + output);
+            Assert.Equal((width, height), (part.Width, part.Height));
             Assert.Contains(part.ResolvedIngredients!, i => i?.Code?.Path == "rod-steel" && i.Quantity == 2);
             Assert.Contains(part.ResolvedIngredients!, i => i?.Code?.Path == "metalplate-steel" && i.Quantity == 2);
+            Assert.Contains(part.ResolvedIngredients!, i => i?.Code?.ToString() == "game:metal-parts" && i.Type == EnumItemClass.Block && i.Quantity == 1);
+            Assert.DoesNotContain(part.ResolvedIngredients!, i => i?.Code?.Path.StartsWith("metalnailsandstrips") == true);
+            Assert.True(part.ResolvedIngredients!.Single(i => i?.Code?.ToString() == "game:metal-parts")!.SatisfiesAsIngredient(CutterItem("game:metal-parts")));
         }
         // the anvil: the feed screw, the lift cam and the kit, each from one steel ingot, none for the helve hammer
         foreach (var output in new[] { GearCutterParts.FeedScrewCode, GearCutterParts.LiftCamCode, GearCutterParts.KitCode })

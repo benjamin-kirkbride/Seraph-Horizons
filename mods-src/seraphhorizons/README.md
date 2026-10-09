@@ -1829,12 +1829,12 @@ refused with a message naming the next:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
-| 1 | `spindle` | `seraphhorizons:gearcutterspindle` | Grid: 2 steel rods over 2 steel plates over iron nails and strips |
+| 1 | `spindle` | `seraphhorizons:gearcutterspindle` | Grid: 2 steel rods over 2 steel plates over metal parts (the keys and collars; the collars drawn in cupronickel) |
 | 2 | `feedscrew` | `seraphhorizons:gearcutterfeedscrew` | Smithing, 1 steel ingot |
 | 3 | `camfeed` | `game:jonasframes-gearbox02` | Looted, or BetterRuins' conversion |
 | 4 | `camindex` | `game:jonasframes-gearbox02`, a second | As above |
 | 5 | `liftcam` | `seraphhorizons:gearcutterliftcam` | Smithing, 1 steel ingot |
-| 6 | `index` | `seraphhorizons:gearcutterindex` | Grid: 2 steel rods, 2 steel plates, iron nails and strips in a row |
+| 6 | `index` | `seraphhorizons:gearcutterindex` | Grid: 2 steel rods, 2 steel plates, metal parts in a row (the pawls, their pins and the roller, drawn in cupronickel) |
 | 7 | `oiler` | `game:jonasparts-valve01` | Looted |
 | 8 | `head` | `game:jonasframes-gears02` or `game:jonasframes-gears01` | Looted, or converted |
 | 9 | `cutter` | `seraphhorizons:gearcutterkit-steel` (500 durability) | Smithing, 1 steel ingot |
@@ -2309,7 +2309,7 @@ the frame (`MachineSchematics`).
 ### Press brake (`PressBrake`, `PressBrakeSettings`)
 
 The folded rung of the pipe ladder: a hand-worked leaf brake (a cornice brake) of the early-to-mid
-1800s, oak with iron wearing edges and iron clamp screws, that folds one lead or copper half plate
+1800s, oak with iron wearing edges and cupronickel clamp screws, that folds one lead or copper half plate
 (`seraphhorizons:halfplate-lead`, `-copper`, cut from the game's plate on the squaring shear) once,
 across its middle, at a right angle, into one angle (`seraphhorizons:angle-lead`, `-copper`,
 `UnifiedPipes`' item): the only way to an angle. Two angles, two solder bars and
@@ -2330,10 +2330,12 @@ order only; the edges before the screws are refused with a message naming the ne
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
-| 1 | `screws` | `game:rod-iron`, `-meteoriciron` or `-steel` (turned into the two clamp screws) | Smithing (the game's) |
+| 1 | `screws` | `game:metal-parts`, one (made up into the two clamp screws and their tommy bars, drawn in cupronickel) | Salvage, or the mechanic trader |
 | 2 | `edge` | `game:metalplate-iron` or `-steel` (cut into the bed's, leaf's and bar's edges) | Smithing (the game's) |
 
 In creative mode Ctrl + right-click on an incomplete brake fits its next stage with nothing taken.
+The screws were once a rod: a brake saved with a rod fitted keeps it (drawn in cupronickel) and gives
+it back when broken, but no rod fits now.
 **Ctrl + right-click** takes a half plate back off while it is still flat. Fitted parts never come back
 out: only breaking the frame returns them. It drops the frame, both parts and a half plate not yet
 folded (one being folded is lost).
@@ -2352,7 +2354,7 @@ hopper beyond its far end (native south), so a player can hold from one to the n
 by itself. The block info shows the next stage and the half plate on, how far folded.
 
 **Drawn.** The block draws `pressbrake_frame.json`; the renderer splits `pressbrake.json` into the
-rig's parts and draws each whose stage is fitted (the screws and edges in their metal) and the sheet of
+rig's parts and draws each whose stage is fitted (the edges in their plate's metal, the screws always cupronickel) and the sheet of
 the half plate's metal while it is on. W runs on with the lever between the server's syncs. While the leaf
 swings: metal dust at the folding edge; while worked: the frame creaks.
 
@@ -4097,12 +4099,12 @@ the hollow, the four kept stages (two chains and two rods among them), the dies 
 frame, four pipe sections.
 
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
-the press brake's blocks, the rods and plates its stages take, the lead and copper half plates it folds
+the press brake's blocks, the metal parts and plates its stages take, the lead and copper half plates it folds
 and the angles it makes, no anvil or grid recipe for an angle, its recipe, and the settings' pace the
 rig's; placing on all four facings, the brake running away along the facing, the ghost pointing home,
 both cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on
 breaking; the stages fitted in order by real clicks on the frame and the ghost, the edges before the
-screws, a half plate before both, an empty hand on a bare frame and a copper rod refused, a save keeping
+screws, a half plate before both, an empty hand on a bare frame and a rod (the screws' old part) refused, a save keeping
 every code, Ctrl taking the edges then the screws back, and the creative shortcut; a lead half plate
 folded only while right-click is held (the block's own start, steps and stop, from the ghost), nothing
 moving when let go, a whole lead or copper plate, a chute section, a pipe section, an ingot, a tin plate

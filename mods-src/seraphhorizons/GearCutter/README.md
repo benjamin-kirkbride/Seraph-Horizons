@@ -68,12 +68,12 @@ lower cone). The **build order** (#480): the frame, then `spindle`, `feedscrew`,
 
 | Order | `requires` | Item (#480) | How it is made | Draws | Taken back |
 |---|---|---|---|---|---|
-| 1 | `spindle` | Cutter spindle with cone pulley (new item, steel) | Grid: 2 steel rods, 2 steel plates, iron nails and strips | The head shaft with the upper cone, the belt, the mitre bevels, the spindle | Only by breaking the frame |
+| 1 | `spindle` | Cutter spindle with cone pulley (new item, steel) | Grid: 2 steel rods, 2 steel plates, metal parts (`game:metal-parts`: the keys and collars) | The head shaft with the upper cone, the belt, the mitre bevels, the spindle | Only by breaking the frame |
 | 2 | `feedscrew` | Feed screw (new item, steel) | Smithing: 1 steel ingot | The worm and the clutch sleeve (in the gearbox) | Only by breaking the frame |
 | 3 | `camfeed` | `game:jonasframes-gearbox02` (Jonas "Eccentric gearbox"), looted or converted | One eccentric gearbox | The feed cam drum and its groove | Only by breaking the frame |
 | 4 | `camindex` | `game:jonasframes-gearbox02` (Jonas "Eccentric gearbox"), looted or converted | One eccentric gearbox | The index cam drum and its groove | Only by breaking the frame |
 | 5 | `liftcam` | Lift cam (new item, steel) | Smithing: 1 steel ingot | The lift cam on its hub | Only by breaking the frame |
-| 6 | `index` | Index (new item: lever, pawls, shield) | Grid: 2 steel rods, 2 steel plates, iron nails and strips | The shield, the lever with its roller, the pawl and the check pawl | Only by breaking the frame |
+| 6 | `index` | Index (new item: lever, pawls, shield) | Grid: 2 steel rods, 2 steel plates, metal parts (`game:metal-parts`: the pawls, their pins and the lever's roller) | The shield, the lever with its roller, the pawl and the check pawl | Only by breaking the frame |
 | 7 | `oiler` | `game:jonasparts-valve01` (Jonas "Alternate injection valve"), looted | Looted (Jonas) | The injection valve: its body, the feed from the reservoir, the nozzle over the cutter, and the plunger with its marble handle | Only by breaking the frame |
 | 8 | `head` | Dividing head: `game:jonasframes-gears02` or `gears01` | Looted (Jonas) | The Jonas planetary: the housing (the ring, with the rim ratchet), the planets, the carrier, the sun with its detent disc, and the detent plunger | Only by breaking the frame |
 | 9 | `cutter` | Cutter kit (its own issue), the wearing part | Its own issue | The formed cutter | When worn out it is spent; unworn, Ctrl + right-click |
@@ -102,7 +102,10 @@ nothing from `build/mods`. The masters wear the game's temporal gear texture
 drawn after the vanilla items' look (the small one's crossed bars, the large one's octagonal rim and
 cross web, a gold boss). The Jonas head is drawn in the vanilla Jonas items' palette (cupronickel,
 steel, gold) but is its own geometry, as is the injection valve (cupronickel and the game's
-`block/stone/rock/whitemarble2`, after the Jonas valve item). The oiler's glass is
+`block/stone/rock/whitemarble2`, after the Jonas valve item). What is made from the game's metal
+parts is drawn in the same cupronickel (`game:block/metal/sheet/cupronickel1`): the index's pawl and
+check pawl with their pins and the lever's roller, and the spindle's two collars. The spindle's keys
+are not drawn (no element stands for them), so only its collars show the metal parts. The oiler's glass is
 `game:block/glass/plain` and its oil `game:block/liquid/honey`, all referenced. `tools/make_shape.py` writes:
 
 | File | What it holds |
@@ -335,8 +338,8 @@ like the rest:
 - **Containment:** nothing leaves the 2 × 2 × 2 box over 29 poses of both masters.
 - **Anchors:** the entry shaft meets the power face at the power cell's centre.
 - **Textures** by role: oak sills and the axle's continuation; iron castings; steel gears, shafts and
-  wearing parts (the rim ratchet among them); temporal masters; cupronickel and gold Jonas head; a
-  leather belt; a glass and brass oiler with oil in it.
+  wearing parts (the rim ratchet among them); temporal masters; cupronickel and gold Jonas head;
+  cupronickel pawls, pins, roller and spindle collars (metal parts); a leather belt; a glass and brass oiler with oil in it.
 - **Gearing:** every meshing pair's centre distance is the sum (or, internal, the difference) of the
   pitch radii, and its contact point moves alike on both wheels (finite differences of the posed rig),
   for the axle either way: the rectifier's three meshes, the mitre pair, the belt's rims, the worm (its

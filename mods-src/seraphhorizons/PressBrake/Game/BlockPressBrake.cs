@@ -29,7 +29,7 @@ public class BlockPressBrake : Block
         base.OnLoaded(api);
         _partStacks = ObjectCacheUtil.GetOrCreate(api, "pressbrake-partstacks", () =>
             PressBrakeRequires.Stages.ToDictionary(s => s, s => PressBrakeParts.CodesFor(s)
-                .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
+                .Select(c => BEPressBrake.PartStack(api.World, c))
                 .OfType<ItemStack>().ToArray()));
         _plateStacks = ObjectCacheUtil.GetOrCreate(api, "pressbrake-platestacks", () =>
             new[] { Folding.LeadHalfPlate, Folding.CopperHalfPlate }

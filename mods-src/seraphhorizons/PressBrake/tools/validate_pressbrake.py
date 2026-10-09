@@ -126,7 +126,7 @@ ROLES = [
     (r"^bar_(sole|body)", {"oak"}),
     (r"^bar_cup", {"iron"}),
     (r"^(bededge|leafedge|baredge)_", {"edge"}),
-    (r"^screw[we]_", {"screw"}),
+    (r"^screw[we]_", {"cupronickel"}),
     (r"^l[am]_", {"lead"}),
     (r"^c[am]_", {"copper"}),
 ]
