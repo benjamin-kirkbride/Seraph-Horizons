@@ -108,6 +108,12 @@ public class EidolonCommanderSystem : ModSystem
                 positions.Add(new BlockPos(area.Min.X, area.Min.Y, area.Min.Z));
                 positions.Add(new BlockPos(area.Max.X + 1, area.Max.Y + 1, area.Max.Z + 1));
                 colors.Add(ColorUtil.ToRgba(60, 80, 200, 120));
+                if (marks.Third is { } block)
+                {
+                    positions.Add(new BlockPos(block.X, block.Y, block.Z));
+                    positions.Add(new BlockPos(block.X + 1, block.Y + 1, block.Z + 1));
+                    colors.Add(ColorUtil.ToRgba(90, 230, 190, 60));
+                }
             }
             else if (marks.First is { } first)
             {
