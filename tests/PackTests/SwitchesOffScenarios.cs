@@ -683,6 +683,20 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(W.GridRecipes, r => Duplicates.SandstoneDaub(r) && r.Output.Quantity == 8);
     }
 
+    /// <summary><c>GearPartsRemoved</c>: BetterLoot+'s gear part, its recipes and its drops as it
+    /// ships them.</summary>
+    [AtlasScenario]
+    public void Gear_parts_removed_off_gear_parts_are_as_BetterLoot_ships_them()
+    {
+        Assert.True(Off("GearPartsRemoved"));
+        Assert.False(Harmony.HasAnyPatches(GearPartsRemoved.HarmonyId));
+        Assert.NotNull(W.GetItem(new AssetLocation(GearPartDropRules.GearPart)));
+        Assert.Contains(W.GridRecipes, GearParts.Makes);
+        Assert.Contains(W.GridRecipes, r => GearParts.Takes(r) && r.Output?.Code?.ToString() == GearPartDropRules.RustyGear);
+        Assert.Contains(GearParts.Drops(W, "game:drifter-normal"),
+            d => d.Code == GearPartDropRules.GearPart && Math.Abs(d.Avg - 0.25) < 1e-9);
+    }
+
     /// <summary><c>PanningDropsTrimmed</c>: panning as Wool, Tailor's Delight and Expanded Matter ship
     /// it, and their text as it ships.</summary>
     [AtlasScenario]
