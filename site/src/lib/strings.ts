@@ -421,6 +421,8 @@ const en = {
     range: (a: string, b: string) => `${a}–${b}`,
     table: "Table",
   },
+  multiblocksLink: "Multiblocks",
+  multiblocksHomeLink: (n: number) => `See the ${n.toLocaleString("en")} structures built block by block, layer by layer.`,
 };
 
 export type Strings = typeof en;

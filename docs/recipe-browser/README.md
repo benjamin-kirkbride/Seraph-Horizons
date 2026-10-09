@@ -15,6 +15,7 @@ tools/icons.py                     turns an icon export into content-addressed i
 icons/                             icon files (Git LFS) and icons/index.json
 site/                              the app: Vite + Svelte + TypeScript
 site/models.json                   the model viewer's models (models.md)
+                                   (the multiblock viewer's structures come in the export: multiblocks.md)
 tests/PackTests/                   Atlas scenarios, the exporter's included
 .github/workflows/pages.yml        builds and deploys the site
 ```

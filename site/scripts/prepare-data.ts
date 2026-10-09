@@ -64,6 +64,8 @@ rmSync(join(outDir, "recipes"), { recursive: true, force: true });
 rmSync(join(outDir, "entities"), { recursive: true, force: true });
 // An earlier export's power.json would otherwise outlive one without a power section.
 rmSync(join(outDir, "power.json"), { force: true });
+rmSync(join(outDir, "multiblocks"), { recursive: true, force: true });
+rmSync(join(outDir, "multiblocks.json"), { force: true });
 let bytes = 0;
 for (const [path, value] of files) {
   const target = join(outDir, path);

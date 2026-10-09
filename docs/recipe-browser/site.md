@@ -3,12 +3,13 @@
 The app in `site/`: Vite, Svelte 5 and TypeScript. It is a static single-page app. The
 build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<code>`,
 `#/<version>/type/<code>`, `#/<version>/entity/<type>`, `#/<version>/search?q=`,
-`#/<version>/values`, `#/<version>/power`),
+`#/<version>/values`, `#/<version>/power`, `#/<version>/multiblock/<id>`),
 so the same `dist/` works at any sub-path and a reload on a deep link only ever asks
 the server for `index.html`.
 
 The model viewer (`#/models`, [models.md](models.md)) is part of the same app but reads no
-recipe data, so its routes carry no version.
+recipe data, so its routes carry no version. The multiblock viewer
+(`#/<version>/multiblocks`, [multiblocks.md](multiblocks.md)) reads the export, so its do.
 
 ## Running it locally
 
@@ -138,6 +139,8 @@ and writes:
 <dir>/entities.json      every creature and trader, column-wise and sorted by code
 <dir>/entities/<n>.json  what each entity gives, a few hundred entities per file
 <dir>/power.json         the export's power section as it is (absent when the export has none)
+<dir>/multiblocks.json   the multiblocks, when the export has any (multiblocks.md)
+<dir>/multiblocks/<n>.json  one multiblock with the shapes of its blocks
 ```
 
 The app loads `data/versions.json` (written by `tools/site-data`, see README.md) and, for
