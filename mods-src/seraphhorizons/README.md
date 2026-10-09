@@ -2510,7 +2510,7 @@ The game has no crushed coke (smex retired it), so ferrosilicon takes the game's
 about two thirds chromium, so 4 iron to 1 ferrochrome by units is about 13 % chromium. The ratio is in
 `Core/Stainless.cs` (`Stainless.FerrochromeMin`/`Max`, `RatioMet`), with the ferrochrome code
 (`Stainless.Ferrochrome`, `seraphhorizons:ferrochrome`), for anything else that makes stainless from
-ferrochrome to share (smex's Bessemer converter, next).
+ferrochrome to share (smex's Bessemer converter, below).
 
 **Firing.** A firestarter or a lit torch (Shift) lights the coke as it lights a forge, with the lid
 open; it will not light with no coke, or with a charge in the pot that makes nothing (the block info
@@ -2552,6 +2552,52 @@ count it hardened: `patches/stainless-ingot-melting.json` adds 1530 °C (unswitc
 blanks need it too). `patches/stainless-steel.json` shows the stainless ingot and bits in the
 handbook, which the game hides; with the switch off it is emptied.
 
+**In bulk: the Bessemer converter** (#484 part D). Steelmaking Expanded's (`smex` 0.10.1) converter
+blows up to 2400 units a heat, so ferrochrome is a scrap item of its own there, charged at the vessel's
+hatch **any time**: with the raw iron before the blow, during it, or into the finished steel after it.
+When the heat starts to pour, `Core/BessemerHeat.cs` (`Judge`) decides: if ferrochrome is 18-22 % of
+the heat's metal (`Stainless.RatioMet`, the pot's ratio) and the bath is at least stainless's melting
+point (1530 °C), the heat pours **molten stainless steel** (`game:ingot-stainlesssteel`'s metal), unit
+for unit; otherwise it pours steel as usual and **the ferrochrome is lost to the slag** (the heat's
+units less the ferrochrome's). Too cold counts as off: the converter cannot reheat a finished heat, so
+a stainless heat that would freeze in the vessel pours as steel instead, and its panel says so before
+the pour. smex holds a blow at whatever its blast pressure buys (at least its 1500 °C to refine at
+all), and scrap costs the bath 0.8 °C a unit, so a full heat of 20 % ferrochrome charged before the
+blow needs a little more pressure than steel; ferrochrome charged after the blow goes into the molten
+steel without chilling it (smex has no heat balance after the blow). Downstream nothing changes: smex's
+canals, taps and pedestals carry any metal by its code and set it solid below that metal's own melting
+point (the 1530 °C the pack patches in, against steel's 1502 °C), a canal cooling it 24 °C a game
+hour; and ingot molds and the gear blank molds take the stainless pour as they take a pot's.
+
+`CrucibleFurnace/Game/BessemerStainless.cs`, Harmony (own id `seraphhorizons.bessemerstainless`, both
+sides, once per process) on smex's `BlockEntityConverterControl`, found by name:
+
+- In `AssetsFinalize`, ferrochrome is added to smex's live `BessemerScrapCodes`, not its file, as
+  "Steel bits back into steel" adds the steel bit (`SteelBits/SmexScrap.cs`, `EnsureListed`). Before
+  and during the blow smex books it as scrap under its own code: it costs the bath its heat, counts
+  against the vessel's capacity, comes back as ferrochrome from a broken vessel, and melts into the
+  heat when the blow completes (`CompleteRefining`: a prefix reads the ferrochrome in the scrap, a
+  postfix counts it in the heat once the steel is made).
+- After the blow smex refuses scrap (it goes in with raw iron): a prefix on `TryChargeScrap` puts
+  ferrochrome straight into a molten steel heat, after smex's own checks (power, a complete plant,
+  not set solid, room), and counts it in the heat.
+- A prefix on `TickPouring` decides the heat as it pours, swapping its stack for the stainless
+  ingot's at the same temperature, or taking the ferrochrome's units out; the heat's count is then
+  spent.
+- The heat's ferrochrome is saved in the control's tree (`seraphhorizonsFerrochrome`, by postfixes on
+  `ToTreeAttributes`/`FromTreeAttributes`), so it survives a reload and reaches clients, and a
+  postfix on `AppendStructureState` adds a line to the vessel's block info: "Ferrochrome: N units,
+  P % of the heat:" and whether it pours stainless, is on the ratio (before the blow, the
+  temperature still to come), off it, or too cold. It counts only while the heat is molten steel;
+  emptied, chiselled or broken out it reads as none.
+
+smex's handbook page on the converter gets a paragraph on ferrochrome (a lang edit), and the guide
+page one, "In bulk". If any of smex's members is missing or changed, a warning is logged, nothing is
+patched and ferrochrome stays off its scrap list. A heat that sets solid in the vessel before it pours
+comes out as smex makes it, steel bits, its ferrochrome with them; ferrochrome charged as scrap into a
+vessel that is then filled with molten steel (not blown) stays cold scrap, as smex keeps any scrap
+until a blow.
+
 **Handbook.** A guide page, "Making stainless steel" (`config/handbook/cruciblefurnace.json`), and a
 section linking it on the hole, the pots and the two ferroalloys.
 
@@ -2575,14 +2621,21 @@ section linking it on the hole, the pots and the two ferroalloys.
 
 With the switch off the server marks the hole, the pots, the two ferroalloys and both recipe files
 disabled before the game loads them, empties the handbook patch and hides the guide page, so none of
-it exists and holes and pots already in a world are lost. Not yet: the pot recipes in the recipe
-export (the hole and the pot's own recipes are there), a model past simple boxes (no coke or glow
-drawn in the hole), and smex's Bessemer route (ferrochrome as scrap). `tests/PackTests/CrucibleFurnaceScenarios.cs`
+it exists and holes and pots already in a world are lost, and smex's converter is not patched and
+its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
+export (the hole and the pot's own recipes are there), and a model past simple boxes (no coke or glow
+drawn in the hole). `tests/PackTests/CrucibleFurnaceScenarios.cs`
 (Atlas) builds a row and breaks its stack, melts stainless from a charge on the chimney's draft with a
 top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
 bits, refuses wrong charges and an unlit bad ratio, breaks out both ferroalloys and cracks a pot on
-its last heat, takes back an unmelted pot and breaks a hole, and finds a ppex pipe as an air source;
-`SwitchesOffScenarios` requires none of it with the switch off.
+its last heat, takes back an unmelted pot and breaks a hole, and finds a ppex pipe as an air source.
+`BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise no whole converter (vessel
+stages, transmission, steam, blast), so it places a lone control block, sets its heat as smex leaves
+it and runs smex's own methods through the patches: a blow completing with ferrochrome scrap, the save,
+the block info, a stainless pour, an off-ratio and a too-cold one, and ferrochrome into molten steel;
+a real blow, a player's click at the hatch (smex's checks before it), the canal run and the client's
+view are not driven. `tests/BessemerHeatTests.cs` covers the decision. `SwitchesOffScenarios`
+requires none of it with the switch off.
 
 ### Handcar (`Handcar`, `HandcarSettings`)
 
@@ -3304,7 +3357,8 @@ traders the handbook leaves out are the replaced ones and not the treasure hunte
 
 Every item's base value in rusty gears (#449, part of the trader overhaul #436), for the trading
 features to price with: `config/item-values.json`, generated by `tools/item-values` from the pack's
-recipe export (raws priced by hand, everything else from its cheapest recipe plus a labour markup;
+recipe export (raws priced by hand, everything else from its cheapest recipe plus a labour markup,
+and nothing below what breaking it down gives back, five times that for a found item: the scrap floor;
 the rules and the numbers are in `tools/item-values/README.md`). It changes nothing in play by
 itself, so it has no switch.
 
@@ -4087,6 +4141,16 @@ iron only get the steel bit back from `SmexScrap.Ensure` (the setting put back a
 it passes saying so. With the switch off, `SwitchesOffScenarios` requires nothing patched, no
 recipe or section, smex's setting untouched, the packed item still there, and a coffin that keeps
 40 held bits and takes an iron ingot.
+
+`tests/PackTests/BessemerStainlessScenarios.cs` (Atlas) is smex's converter's fragility guard for
+the Bessemer stainless route: every member `BessemerStainless.Bind` looks for (the control's
+`_content`, `_contentUnits`, `_scrap`, `_solidified`, `CanOperate`, `SetStatus`, `SyncConverter`,
+`CompleteRefining`, `TickPouring`, `TryChargeScrap`, `AppendStructureState`, its tree methods, and
+`SmexValues.BessemerConverterCapacity`/`MoltenUnitsPerBit`) is found and patched, ferrochrome is on
+the live scrap list and smex's `IsScrap` takes it, and a lone control block, its heat set by hand,
+completes a blow with ferrochrome scrap, saves and loads the heat's ferrochrome, pours stainless,
+pours steel off the ratio and too cold, and takes ferrochrome into molten steel. When it fails after
+a smex update, look at what the converter's control now does with its scrap and its pour.
 
 `tests/PackTests/MachineOilScenarios.cs` (Atlas) is the fragility guard and the game's machines:
 every patch target in `ForeignMachines.Targets` (27: the helve hammer's and pulverizer's 13 and
