@@ -34,27 +34,10 @@ public class EntityBehaviorEidolonRepair(Entity entity) : EntityBehavior(entity)
     /// <summary>Whether <paramref name="stack"/> repairs it.</summary>
     public static bool Repairs(ItemStack? stack) => stack?.Collectible?.Code is { } code && RepairItems.Any(code.Equals);
 
-    /// <summary>
-    /// The gantry <paramref name="eidolon"/> stands inside, or null: a gantry cell (the controller's
-    /// or a ghost) where its feet are, or the block above (its feet a hair below a cell's floor). The
-    /// one lookup of "inside a gantry"; anything else needing it calls this.
-    /// </summary>
-    public static BEEidolonGantry? GantryAround(Entity eidolon)
-    {
-        var accessor = eidolon.World.BlockAccessor;
-        var feet = eidolon.Pos.AsBlockPos;
-        for (int dy = 0; dy <= 1; dy++)
-        {
-            switch (accessor.GetBlockEntity(feet.UpCopy(dy)))
-            {
-                case BEEidolonGantry gantry:
-                    return gantry;
-                case BEEidolonGantryGhost { Gantry: { } owner }:
-                    return owner;
-            }
-        }
-        return null;
-    }
+    /// <summary>The gantry whose dock <paramref name="eidolon"/> stands in, or null
+    /// (<see cref="BEEidolonGantry.DockAt"/>, the one lookup of "in a gantry").</summary>
+    public static BEEidolonGantry? GantryAround(Entity eidolon) =>
+        BEEidolonGantry.DockAt(eidolon.World.BlockAccessor, eidolon.Pos.XYZ);
 
     /// <summary>The health one item restores now (server side): 0 when it is whole.</summary>
     public float HealPerItem()

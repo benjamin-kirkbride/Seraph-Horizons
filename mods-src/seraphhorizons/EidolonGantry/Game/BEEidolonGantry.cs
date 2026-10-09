@@ -102,6 +102,31 @@ public class BEEidolonGantry : BlockEntity
         return new Vec3d(Pos.X + w.X, Pos.Y + w.Y, Pos.Z + w.Z);
     }
 
+    /// <summary>How far from where the body hangs (the rig's <c>body</c> point) an eidolon counts as
+    /// standing in the gantry, its dock (<see cref="Docks"/>), blocks.</summary>
+    public const double DockRadius = 1.25;
+
+    /// <summary>Whether an entity at <paramref name="pos"/> stands in this gantry's dock: within
+    /// <see cref="DockRadius"/> of where the body hangs, level with the gantry's floor (within a block).</summary>
+    public bool Docks(Vec3d pos)
+    {
+        if (Rig is not { } rig)
+            return false;
+        var body = WorldPoint(rig.Body);
+        return pos.HorizontalSquareDistanceTo(body) <= DockRadius * DockRadius && Math.Abs(pos.Y - body.Y) <= 1;
+    }
+
+    /// <summary>The gantry whose dock <paramref name="pos"/> (an entity's feet) is in, or null: the
+    /// gantry cell there (a ghost, or the controller) and <see cref="Docks"/>. For repair in the
+    /// gantry (#674, <c>EntityBehaviorEidolonRepair.GantryAround</c>). Server or client, wherever the cell's block entity is loaded.</summary>
+    public static BEEidolonGantry? DockAt(IBlockAccessor blockAccessor, Vec3d pos)
+    {
+        var be = blockAccessor.GetBlockEntity(pos.AsBlockPos);
+        var gantry = be as BEEidolonGantry
+                     ?? ((be as BEEidolonGantryGhost)?.Principal is { } principal ? blockAccessor.GetBlockEntity(principal) as BEEidolonGantry : null);
+        return gantry != null && gantry.Docks(pos) ? gantry : null;
+    }
+
     /// <summary>The world side a native side is turned to (the rig's <c>exitSide</c>, west).</summary>
     public Side WorldSide(Side native) => Footprint.ToWorld(native, Side);
 

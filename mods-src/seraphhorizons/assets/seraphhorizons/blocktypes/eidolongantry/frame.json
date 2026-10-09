@@ -6,6 +6,8 @@
 	code: "eidolongantry",
 	class: "seraphhorizons.EidolonGantry",
 	entityClass: "seraphhorizons.EidolonGantry",
+	// The eidolon's body stages on the spine, and waking it (BEBehaviorEidolonBody, #672).
+	entityBehaviors: [ { name: "seraphhorizons.EidolonBody" } ],
 	// No HorizontalOrientable: BlockEidolonGantry.TryPlaceBlock picks the side so the open front faces
 	// the player, and places the controller so the front's middle is the block they clicked.
 	variantgroups: [

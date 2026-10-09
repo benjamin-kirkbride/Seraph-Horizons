@@ -5,8 +5,9 @@ is assembled in, stage by stage, and its dock afterwards, for repair and recharg
 
 **Status: the gantry and its winch are built** (#671): the block, its ghost cells, the frame's recipe,
 the nine winch stages and the renderer are in `Core/` and `Game/` ("Gameplay", below, and the mod's
-README, "Eidolon"). The body's stages on the spine are the next task's (#672). This folder also holds
-the model's generator (`tools/`).
+README, "Eidolon"). The body's stages on the spine and the waking are built too (#672:
+`Game/BEBehaviorEidolonBody.cs`, `Core/BodyParts.cs`; the mod's README, "The body and waking it"). This
+folder also holds the model's generator (`tools/`).
 
 Paths here are from this folder unless they start with `assets/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.
@@ -248,6 +249,12 @@ What the gameplay holds to here, beyond the mod's README ("Eidolon"):
   behavior of the controller, asked after the winch for clicks, the creative shortcut, which body stages
   are drawn, drops and help. `BEEidolonGantry.WinchComplete` is the spine fitted; `WorldPoint` turns the
   rig's anchors (`body`, `hang`, `fit`, `exit`) to the world; ghosts implement `IMachineGhost`.
+- **The body.** `BEBehaviorEidolonBody`, the one extension: six stages after the spine (`BodyParts`,
+  `BodyBill`), drawn when each is complete; the mind spawns the eidolon at `body`, facing `exitSide`,
+  sends it 3 blocks past `exit` and clears the body. `BEEidolonGantry.DockAt`/`Docks`: whether a point
+  is in the dock (1.25 blocks round `body`).
+- **Hand-off at activation** (below, "Open questions"): the eidolon is spawned standing at `body`
+  whatever the winch's depth (nothing drives the depth yet), and `activate` plays from `hung`.
 
 ## The body: baked, not animated
 

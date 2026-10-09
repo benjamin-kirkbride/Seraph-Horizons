@@ -65,6 +65,7 @@ public class EidolonGantrySystem : ModSystem
         api.RegisterBlockClass("seraphhorizons.EidolonGantryGhost", typeof(BlockEidolonGantryGhost));
         api.RegisterBlockEntityClass("seraphhorizons.EidolonGantry", typeof(BEEidolonGantry));
         api.RegisterBlockEntityClass("seraphhorizons.EidolonGantryGhost", typeof(BEEidolonGantryGhost));
+        api.RegisterBlockEntityBehaviorClass(BEBehaviorEidolonBody.Code, typeof(BEBehaviorEidolonBody));
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find
