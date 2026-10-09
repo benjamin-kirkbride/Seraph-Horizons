@@ -4,7 +4,8 @@ The rusty gear is salvage and money only (#473, epic #484): every recipe that ta
 `game:gear-rusty`, or one of ppex's hand-forged gears (`ppex:gear-*`, `ppex:largegear-*`), is
 patched by `mods-src/seraphhorizons/assets/seraphhorizons/patches/gearconsumers-<modid>.json` to
 take the pack's steel gear, or switched off, unless it is one of the few uses listed in EXEMPT
-below, each with its reason. These tests read every locked mod's zip in build/mods (and the game's
+below, each with its reason, or another switch's patch takes it away with what it makes
+(REMOVALS: BetterLoot+'s gear part and its recipes, `GearPartsRemoved`). These tests read every locked mod's zip in build/mods (and the game's
 own assets when VINTAGE_STORY is set), so a mod update that adds a use, or moves a patched recipe,
 fails here. The Atlas scenario (tests/PackTests/GearConsumersScenarios.cs) checks the same from
 the running game's recipe export.
@@ -43,8 +44,6 @@ EXEMPT = {
         "rust as pigment: the gear is consumed as salvage, nothing is built from it",
     ("game:recipes/barrel/dye/black.json", "/0/ingredients/1"):
         "rust as pigment: the gear is consumed as salvage, nothing is built from it",
-    ("betterloot:recipes/grid/rustygearpart.json", "/ingredients/G"):
-        "change: a gear broken into four gear parts, which craft back into the gear (money)",
     ("cartwrightscaravan:recipes/grid/signs.json", "/7/ingredients/M"):
         "a shop sign showing a rusty gear: decoration",
 }
@@ -268,6 +267,17 @@ def resolve(doc, pointer: str):
     return node
 
 
+# Other switches' patch files that disable recipes taking a rusty gear along with what they make:
+# GearPartsRemoved removes BetterLoot+'s gear part (a rusty gear split into four).
+REMOVALS = ("gearparts-*.json",)
+
+
+def load_removals() -> dict[str, list[dict]]:
+    """Every REMOVALS patch file, by modid (the part after the first dash)."""
+    return {p.stem.split("-", 1)[1]: loads(p.read_text())
+            for pattern in REMOVALS for p in sorted(PATCHES.glob(pattern))}
+
+
 def load_patches() -> dict[str, list[dict]]:
     """Every gearconsumers-<modid>.json, by modid."""
     return {p.stem.removeprefix("gearconsumers-"): loads(p.read_text())
@@ -346,11 +356,13 @@ class ModsTakeTheSteelGear(Coverage, unittest.TestCase):
         if missing:
             raise AssertionError(f"build/mods is missing {missing}: run `python3 tools/packtool.py fetch`")
         cls.patches = load_patches()
+        cls.removals = load_removals()
         cls.assets = {m["id"]: mod_assets(MODS_DIR / m["fileName"]) for m in cls.mods}
 
     def test_every_use_is_patched_or_exempt(self):
         for mod in self.mods:
-            self.check_source(mod["id"], self.assets[mod["id"]], self.patches.get(mod["id"], []))
+            self.check_source(mod["id"], self.assets[mod["id"]],
+                              self.patches.get(mod["id"], []) + self.removals.get(mod["id"], []))
 
     def test_every_patch_still_hits_its_recipe(self):
         for modid, patches in self.patches.items():

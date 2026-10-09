@@ -16,7 +16,7 @@ namespace SeraphHorizons.Mod;
 /// (<c>ppex:gear-*</c>): the first takes the steel gear and the second is switched off. ppex's
 /// anvil gears and large gears are no longer smithed and are hidden from the creative inventory and
 /// the handbook. A few uses are left alone (the rusty gear amulet, the barrel dyes that use the
-/// rust, BetterLoot's gear parts and Cartwright's gear sign): <c>tools/tests/test_gear_consumers.py</c>
+/// rust and Cartwright's gear sign; BetterLoot+'s gear parts are gone, <see cref="GearPartsRemoved"/>): <c>tools/tests/test_gear_consumers.py</c>
 /// lists them, and fails on any other use, so a mod update that adds one is caught.
 ///
 /// Steelmaking Expanded's Bessemer converter is raised from its control block with a large gear in
