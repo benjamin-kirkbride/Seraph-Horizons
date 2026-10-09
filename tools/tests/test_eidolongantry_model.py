@@ -322,8 +322,10 @@ class Build(unittest.TestCase):
             self.assertLessEqual(spine[name], {"#wood", "#wood-end"}, name)
         for name in make_shape.SPINE_TIMBERS:
             self.assertEqual(spine[name], {"#wood", "#wood-end"}, name)       # side grain and its two ends
-        # the pulley, its handle and the hooks keep vanilla's charred look; the clamps, staples and ropes theirs
-        for name in ("pulley-capL", "winch-handle1", "spine-hook1"):
+        # the four hooks are iron; the pulley and its handle keep vanilla's charred look; the clamps, staples and ropes theirs
+        for name in make_shape.SPINE_IRON:
+            self.assertEqual(spine[name], {"#iron"}, name)
+        for name in ("pulley-capL", "winch-handle1"):
             self.assertEqual(spine[name], {"#charred"}, name)
         self.assertEqual(spine["bar-spine1"], {"#steel"})
         self.assertEqual(spine["spine-rope1"], {"#reedrope"})

@@ -109,7 +109,7 @@ maps per wood; the shape's own map points them at oak, so the model renders as o
 | `wood-end` | End grain, the rings: the two ends of every timber, knee and cheek, of the drum and the handle, and of each of the mast's three lengths and the platforms (UVs the middle of the texture) | `game:block/wood/treetrunk/debarked/oak` | `game:block/wood/treetrunk/debarked/{wood}` |
 | `mechanics` | What is fitted from vanilla's mechanical power blocks, drawn as the game draws them whatever their wood: the wooden shafts (wooden axles), the lanterns' discs and staves and the wheels' rims, arms and cogs (spur gears) | `game:block/wood/planks/generic` | the same: not wood-typed |
 | `iron`, `chain` | Plates, brackets, pegs, bearings, hangers, the sheave's pin, hoops, collars, gudgeons, the crank shaft, ratchet, pawl and its pin and bracket, crank web, ring, eye; the chains | iron plate, iron chain | the same: not wood-typed |
-| The eidolon's | The body, and the rest of the spine as vanilla draws it: its steel clamps (`steel`), its staples (`rusty-iron`, restyled to tarnished brass with the body), its ropes (`reedrope`), and the small pulley, its winch handle and the four hooks (`charred`) | the eidolon's map | the same: not wood-typed |
+| The eidolon's | The body, and the rest of the spine as vanilla draws it: its steel clamps (`steel`), its staples (`rusty-iron`, restyled to tarnished brass with the body), its ropes (`reedrope`), and the small pulley and its winch handle (`charred`); its four hooks are drawn in the gantry's `iron` | the eidolon's map | the same: not wood-typed |
 
 The blockType, when it is written, takes a `wood` variant group from the game's wood properties
 (`{ code: "wood", loadFromProperties: "block/wood" }`: birch, oak, maple, pine, acacia, kapok, baldcypress,
@@ -130,9 +130,10 @@ shows which faces are `wood`, `wood-end` and iron.
 **The spine is in the gantry's wood too.** Vanilla's mast is charred wood (`#charred`); the spine stage makes it
 from support beams of the gantry's wood, so the generator (`spine_wood()`) redraws the charred faces of the mast's
 three lengths (`spine1`..`3`, `SPINE_TIMBERS`) and of the two platforms cut from the same beams in `wood`, and
-the two faces across each one's long axis in `wood-end`, as the frame's timbers are drawn. The pulley's caps, its
-winch handle and the hooks are small vanilla fittings, not the mast's timber, and keep vanilla's charred texture,
-as the clamps, staples and ropes keep theirs. The body's own charred parts (its wooden bones) are the eidolon's
+the two faces across each one's long axis in `wood-end`, as the frame's timbers are drawn. Its four hooks
+(`spine-hook1`..`4`, `SPINE_IRON`) are iron, the frame's `iron` plate: the top one carries the body on the ring.
+The pulley's caps and its winch handle are small vanilla fittings, not the mast's timber, and keep vanilla's
+charred texture, as the clamps, staples and ropes keep theirs. The body's own charred parts (its wooden bones) are the eidolon's
 and are unchanged.
 
 ## The build (proposal)

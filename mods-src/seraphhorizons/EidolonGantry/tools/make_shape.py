@@ -363,20 +363,26 @@ def hung_matrices(shape):
 # The spine is the gantry's, so its wood is the gantry's: vanilla's mast is charred wood, here it is made from three
 # support beams of the gantry's wood (its three lengths, `spine_stage()`), and its charred faces take the gantry's wood
 # codes, side grain and the two ends of each length end grain, as the frame's timbers do. The two little platforms
-# are cut from the same beams. The pulley's caps and its little winch handle and the hooks keep vanilla's look, and the
-# ropes, staples and steel clamps theirs.
+# are cut from the same beams. The four hooks are iron, the gantry's plate (the top one, `spine-hook1`, carries the
+# body on the ring). The pulley's caps and its little winch handle keep vanilla's look, and the ropes, staples and
+# steel clamps theirs.
 SPINE_TIMBERS = ("spine1", "spine2", "spine3")     # the mast's three lengths: a support beam each
 SPINE_WOODEN = SPINE_TIMBERS + ("spine-platformL", "spine-platformR")
+SPINE_IRON = ("spine-hook1", "spine-hook2", "spine-hook3", "spine-hook4")
 SPINE_CHARRED = "#charred"
 
 
 def spine_wood(name, size, faces):
-    """A spine element's faces in the gantry's wood: its charred faces `wood`, those across its longest axis `wood-end`
-    (UVs the middle of the texture, the rings), as `skin` draws a timber. Other elements' faces are returned as they are."""
+    """A spine element's faces in the gantry's materials: a hook's faces all `iron`; a timber's charred faces `wood`,
+    those across its longest axis `wood-end` (UVs the middle of the texture, the rings), as `skin` draws a timber.
+    Other elements' faces are returned as they are."""
+    axes = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
+    if name in SPINE_IRON:
+        return {d: {"texture": "#iron", "uv": [0.0, 0.0, min(abs(size[axes[d][0]]) * TEX / 16, TEX),
+                                               min(abs(size[axes[d][1]]) * TEX / 16, TEX)]} for d in faces}
     if name not in SPINE_WOODEN:
         return faces
     end = max(range(3), key=lambda k: abs(size[k]))
-    axes = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
     out = {}
     for d, f in faces.items():
         if f["texture"] != SPINE_CHARRED:
