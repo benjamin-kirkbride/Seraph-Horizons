@@ -1,0 +1,91 @@
+// The player-built eidolon (Eidolon/, README "Eidolon"): a laborer automaton, the game's unused
+// mobile eidolon model frozen into this mod (shapes/entity/eidolon/eidolon.json) at size 1, 3.75
+// blocks tall. Mechanical: it does not breathe, eat or take fall damage. It is never killed: at 0 HP
+// it slumps (class seraphhorizons.EntityLaborEidolon) and drops nothing. The server disables it with the
+// Eidolon switch off.
+{
+	code: "eidolon",
+	class: "seraphhorizons.EntityLaborEidolon",
+	tags: ["mechanical", "habitat-land"],
+	weight: 2500,
+	canClimb: false,
+	fallDamageMultiplier: 0.0,
+	knockbackResistance: 1,
+	hitboxSize: { x: 1.7, y: 3.75 },
+	deadHitboxSize: { x: 1.7, y: 2.5 },
+	eyeHeight: 3.3,
+	attributes: {
+		isMechanical: true,
+		spawnDamageParticles: true,
+	},
+	drops: [],
+	client: {
+		renderer: "Shape",
+		pitchStep: false,
+		size: 1,
+		shape: { base: "seraphhorizons:entity/eidolon/eidolon" },
+		behaviors: [
+			{ code: "repulseagents", movable: false },
+			{ code: "controlledphysics", stepHeight: 1.1251 },
+			{ code: "interpolateposition" },
+			{ code: "health", currenthealth: 300, maxhealth: 300 },
+			{ code: "seraphhorizons.eidolonCharge" },
+			{ code: "seraphhorizons.eidolonOrders" },
+		],
+		// Codes are the shape's animation names, so later orders start them by name; walk, run and
+		// idle are the game's codes for moving and standing. One-shots and holds suppress the idle.
+		animations: [
+			{ code: "idle", animation: "stand-idle1", blendMode: "Average", triggeredBy: { defaultAnim: true } },
+			{ code: "idle2", animation: "stand-idle2", blendMode: "Average" },
+			{ code: "walk", animation: "stand-walk", blendMode: "Average", easeInSpeed: 4, easeOutSpeed: 4, supressDefaultAnimation: true },
+			{ code: "run", animation: "stand-run", blendMode: "Average", easeInSpeed: 4, easeOutSpeed: 4, supressDefaultAnimation: true },
+			{ code: "hurt", animation: "stand-stagger", animationSpeed: 1.5, weight: 5, blendMode: "AddAverage" },
+			{ code: "slump", animation: "slump", weight: 100, blendMode: "Average", easeInSpeed: 10, supressDefaultAnimation: true },
+			{ code: "standup", animation: "standup", weight: 100, blendMode: "Average", easeOutSpeed: 4, supressDefaultAnimation: true },
+			{ code: "hung", animation: "hung", weight: 100, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "activate", animation: "activate", weight: 100, blendMode: "Average", easeOutSpeed: 4, supressDefaultAnimation: true },
+			{ code: "alert", animation: "stand-alert", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "punch", animation: "stand-punch", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "kick", animation: "stand-kick", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "slam", animation: "stand-slam", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "weapon-walk", animation: "weapon-walk", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "weapon-run", animation: "weapon-run", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "weapon-idle", animation: "weapon-idle1", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "fell", animation: "fell", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "guard-idle", animation: "guard-idle", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "lift", animation: "lift", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "setdown", animation: "setdown", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "carry-idle", animation: "carry-idle", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "carry-walk", animation: "carry-walk", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-pickup", animation: "trunk-pickup", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-setdown", animation: "trunk-setdown", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-carry-idle", animation: "trunk-carry-idle", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-carry-walk", animation: "trunk-carry-walk", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-thick-pickup", animation: "trunk-thick-pickup", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-thick-setdown", animation: "trunk-thick-setdown", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-thick-carry-idle", animation: "trunk-thick-carry-idle", blendMode: "Average", supressDefaultAnimation: true },
+			{ code: "trunk-thick-carry-walk", animation: "trunk-thick-carry-walk", blendMode: "Average", supressDefaultAnimation: true },
+		],
+	},
+	server: {
+		behaviors: [
+			{ code: "repulseagents", movable: false },
+			{ code: "controlledphysics", stepHeight: 1.1251 },
+			{ code: "health", currenthealth: 300, maxhealth: 300 },
+			// Upkeeps and interactions in this order: a right-click goes to each in turn.
+			{ code: "seraphhorizons.eidolonCharge", initialGears: 1 },
+			{ code: "seraphhorizons.eidolonOrders" },
+			{
+				code: "taskai",
+				aitasks: [
+					// The current order (EntityBehaviorEidolonOrders), while it can work. Self-defence
+					// (#675) goes above it.
+					{ code: "seraphhorizons-eidolonorder", priority: 1.5 },
+				],
+			},
+		],
+	},
+	sounds: {
+		hurt: "game:creature/eidolon/hit",
+	},
+}

@@ -14,6 +14,10 @@ public class EidolonConfig
     /// charge above this.</summary>
     public double MaxChargeGears { get; set; } = 2;
 
+    /// <summary>At 0 HP it slumps; repaired, it stands up once its health is back to this share of its
+    /// most.</summary>
+    public double StandUpHealthShare { get; set; } = 0.25;
+
     /// <summary>Its walking speed, on the game's scale for creatures (a player walks at about 0.03).</summary>
     public float WalkSpeed { get; set; } = 0.022f;
 
@@ -43,6 +47,7 @@ public class EidolonConfig
         }
         Check(nameof(ChargeYearsPerGear), ChargeYearsPerGear, 0.001, 100, () => ChargeYearsPerGear = Defaults.ChargeYearsPerGear, Defaults.ChargeYearsPerGear);
         Check(nameof(MaxChargeGears), MaxChargeGears, 1, 100, () => MaxChargeGears = Defaults.MaxChargeGears, Defaults.MaxChargeGears);
+        Check(nameof(StandUpHealthShare), StandUpHealthShare, 0.001, 1, () => StandUpHealthShare = Defaults.StandUpHealthShare, Defaults.StandUpHealthShare);
         Check(nameof(WalkSpeed), WalkSpeed, 0.001, 0.5, () => WalkSpeed = Defaults.WalkSpeed, Defaults.WalkSpeed);
         Check(nameof(RunSpeed), RunSpeed, 0.001, 0.5, () => RunSpeed = Defaults.RunSpeed, Defaults.RunSpeed);
         Check(nameof(PathSearchNodes), PathSearchNodes, 50, 100000, () => PathSearchNodes = Defaults.PathSearchNodes, Defaults.PathSearchNodes);

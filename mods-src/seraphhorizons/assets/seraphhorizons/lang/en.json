@@ -1707,5 +1707,20 @@
   "handcar-branch-straight": "straight on",
   "handcar-branch-right": "right",
   "handcar-handbook-title": "Riding a handcar",
-  "handcar-handbook-text": "Place the handcar on standard-gauge track as you would a wagon. Two can ride, one at each end of the walking beam, facing each other across it: press <hk>rightmouse</hk> on the deck at either end to step on, and <hk>sneak</hk> to step off.\n\n<strong>Pumping</strong>\nHold <hk>walkforward</hk> to pump the car the way you face, <hk>walkbackward</hk> to pump it the way your back is to. Let go and it coasts, slowing as it rolls. Pump against the way it rolls and it brakes to a stop before it starts back. One rider alone gets the car to about 4 blocks a second, two pumping together to about 6: each rider adds thrust, and the other only rides until they pump too. Two pumping against each other lock the beam. A chest on board, or a wagon coupled behind, slows it. Pumping is as hungry work as running.\n\n<strong>Switches</strong>\nPress <hk>walkleft</hk> or <hk>walkright</hk> to throw the branch selector beside the pump stand one place that way, as you face: left, straight on, right. The car takes that branch at the next switch, and the selector stays where it is put.\n\n<strong>Cargo</strong>\nThe deck behind the rear rider takes a chest or a crate.\n\n<strong>Taking it up</strong>\nWith nobody on board and the car stopped, press <hk>sneak</hk> and <hk>rightmouse</hk> with an empty hand to pick it up, or take it apart with a wrench, holding a hammer in your other hand. Either way it comes back whole."
+  "handcar-handbook-text": "Place the handcar on standard-gauge track as you would a wagon. Two can ride, one at each end of the walking beam, facing each other across it: press <hk>rightmouse</hk> on the deck at either end to step on, and <hk>sneak</hk> to step off.\n\n<strong>Pumping</strong>\nHold <hk>walkforward</hk> to pump the car the way you face, <hk>walkbackward</hk> to pump it the way your back is to. Let go and it coasts, slowing as it rolls. Pump against the way it rolls and it brakes to a stop before it starts back. One rider alone gets the car to about 4 blocks a second, two pumping together to about 6: each rider adds thrust, and the other only rides until they pump too. Two pumping against each other lock the beam. A chest on board, or a wagon coupled behind, slows it. Pumping is as hungry work as running.\n\n<strong>Switches</strong>\nPress <hk>walkleft</hk> or <hk>walkright</hk> to throw the branch selector beside the pump stand one place that way, as you face: left, straight on, right. The car takes that branch at the next switch, and the selector stays where it is put.\n\n<strong>Cargo</strong>\nThe deck behind the rear rider takes a chest or a crate.\n\n<strong>Taking it up</strong>\nWith nobody on board and the car stopped, press <hk>sneak</hk> and <hk>rightmouse</hk> with an empty hand to pick it up, or take it apart with a wrench, holding a hammer in your other hand. Either way it comes back whole.",
+  "item-creature-eidolon": "Eidolon",
+  "itemdesc-creature-eidolon": "Creative only: places an eidolon owned by you, charged with one temporal gear.",
+  "eidolon-info-owner": "Owner: {0}",
+  "eidolon-info-noowner": "Owner: none",
+  "eidolon-info-charge": "Charge: {0:0.#} days ({1:0}% of a gear)",
+  "eidolon-stop-damaged": "Disabled: repair it",
+  "eidolon-stop-nocharge": "Out of charge: give it a temporal gear",
+  "eidolon-charge-full": "It is fully charged",
+  "eidolon-notyours": "This eidolon answers only to {0} and their company",
+  "eidolon-help-recharge": "Recharge",
+  "eidolon-order-none": "Order: none",
+  "eidolon-order": "Order: {0}",
+  "eidolon-order-stay": "stay",
+  "eidolon-order-goto": "go to a place",
+  "eidolon-status-nopath": "It can find no way there"
 }

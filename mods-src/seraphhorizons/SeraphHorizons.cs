@@ -894,4 +894,15 @@ public class SeraphHorizonsConfig
     /// <summary>The unified pipes' burst figures, in atm; a value out of range falls back to its
     /// default with a warning. Each side uses its own for the text, the server's for the pipes.</summary>
     public Pipes.Core.UnifiedPipesConfig UnifiedPipesSettings { get; set; } = new();
+
+    /// <summary>The eidolon (Eidolon/, README "Eidolon"): a player-built laborer automaton, the entity
+    /// <c>seraphhorizons:eidolon</c>, owned by a player and their company, run by temporal gear charge,
+    /// slumping disabled at 0 HP or out of charge and never killed, and its creative spawner (off means
+    /// the entity and the spawner do not exist, and eidolons already in a world are lost). The server's
+    /// setting decides.</summary>
+    public bool Eidolon { get; set; } = true;
+
+    /// <summary>The eidolon's figures; a value out of range falls back to its default with a warning.
+    /// The server's are used.</summary>
+    public SeraphHorizons.Mod.Eidolon.Core.EidolonConfig EidolonSettings { get; set; } = new();
 }
