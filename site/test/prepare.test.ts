@@ -500,3 +500,19 @@ describe("variant groups", () => {
     expect((prepareData(plain).files.get("search.json") as SearchFile).groups).toBeUndefined();
   });
 });
+
+describe("power.json", () => {
+  it("is the export's power section as it is", () => {
+    const files = prepareData(minimal).files;
+    expect(files.get("power.json")).toEqual(minimal.power);
+    expect((files.get("meta.json") as Meta).power).toBe(true);
+    expect(minimal.power?.producers.length).toBeGreaterThan(0);
+  });
+
+  it("is not written for an export without a power section", () => {
+    const { power: _power, ...older } = minimal;
+    const files = prepareData(older as RecipeExport).files;
+    expect(files.has("power.json")).toBe(false);
+    expect("power" in (files.get("meta.json") as Meta)).toBe(false);
+  });
+});
