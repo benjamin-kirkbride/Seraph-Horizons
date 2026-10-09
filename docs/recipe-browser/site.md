@@ -371,13 +371,17 @@ windmill averaged at the chosen height and at full wind); and consumers (load by
 grouped by mod, a ranged load's high end lighter, a dry load hatched, with transmission
 parts and brakes in a collapsed table). Each section's sources are behind a "where these
 numbers come from" disclosure, and a figure the exporter had to default (`fallback`) is
-marked "default".
+marked "default". Every producer and machine names its mod and links to its item's page
+wherever it appears: a Mod column in each table, the mod under its name in a bar chart (the
+consumers chart groups by mod instead) and in the torque readout, the explorer's machine
+picker grouped by mod, and the name linked in the tables, bar charts and sources wherever
+the export gives an `item`.
 
 The charts are hand-written: an SVG for the torque curves (`PowerTorqueChart.svelte`,
 drawn at its measured width; a crosshair readout follows the pointer, or the arrow keys
 once the chart has focus) and the wind histogram, and plain HTML for the bar charts
 (`PowerBars.svelte`), so their rows reflow on a phone and read as "name: value" to a screen
-reader. Families keep fixed colours, the `--series-*` tokens in `app.css` (checked for
+reader (the value is visually hidden text in the label, not an `aria-label`, so a linked name stays reachable). Families keep fixed colours, the `--series-*` tokens in `app.css` (checked for
 colour-blind separation against both themes' surfaces); every value is written beside its
 mark or in a table, so none depends on colour or hover. The page's state is not in the
 address.
