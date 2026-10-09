@@ -19,7 +19,6 @@ internal static class GearConsumerUses
     [
         "game:clothes-neck-gear-amulet-rusty", // the gear on a string; uncrafts back into the gear
         "game:dye-gray", "game:dye-black", // rust as pigment
-        "betterloot:gearpart", // change: four parts craft back into the gear
         "cartwrightscaravan:cartsign-single-oak-wood-rustygear", // a sign showing the gear
     ];
 
@@ -27,7 +26,7 @@ internal static class GearConsumerUses
     internal static readonly string[] ExemptSources =
     [
         "game:recipes/grid/clothes/neck.json", "game:recipes/barrel/dye/gray.json", "game:recipes/barrel/dye/black.json",
-        "betterloot:recipes/grid/rustygearpart.json", "cartwrightscaravan:recipes/grid/signs.json",
+        "cartwrightscaravan:recipes/grid/signs.json",
         // Gear reclamation's first step boils the rusty gears themselves: salvage, not a machine part.
         "seraphhorizons:recipes/cooking/gear-degrease.json",
     ];

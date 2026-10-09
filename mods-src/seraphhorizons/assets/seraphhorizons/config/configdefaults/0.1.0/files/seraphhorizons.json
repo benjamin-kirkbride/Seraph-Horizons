@@ -45,6 +45,7 @@
   "FewerSupportChains": true,
   "IronWoodworkingMachines": true,
   "GearConsumers": true,
+  "GearPartsRemoved": true,
   "Rosser": true,
   "RosserSettings": {
     "Resistance": 0.2,
