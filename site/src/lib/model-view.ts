@@ -1,6 +1,7 @@
 // What the model page shows for a shape and an optional rig: elements grouped into the rig's
 // parts (or one part without a rig), texture groups, colours, the controls the rig's inputs
 // need, and its overlays. Pure, so the page and the tests read the same thing.
+import { animateShape, type AnimatedShape } from "./keyframes.ts";
 import { discoverAnchors, footprintBounds, type Anchor, type Bounds } from "./model-anchors.ts";
 import type { Scenario } from "./model-scenario.ts";
 import {
@@ -61,6 +62,8 @@ export interface ModelView {
   hasRig: boolean;
   /** The rig's progress (its work or trunkPath), which gauge and roll drivers and a travelling prop read; null without one. */
   path: Work | null;
+  /** The shape's own keyframe animations, resolved, and each element's joint (keyframes.ts); no animations when it has none. */
+  animation: AnimatedShape;
 }
 
 export const STATIC_COLOUR = "#c8b090";
@@ -118,9 +121,13 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     });
   }
   let colourIndex = 0;
+  const moves = (p: RigPart) => (p.drivers?.length ?? 0) > 0 || p.ride != null;
+  // A rig of static parts only (the eidolon's build stages) gives each its own colour, as there is no
+  // moving part for the static colour to stand apart from.
+  const allStatic = rigParts.length > 1 && !rigParts.some(moves);
   const view: ViewPart[] = parts.map((p, i) => {
-    const moving = (p.drivers?.length ?? 0) > 0 || p.ride != null;
-    const colour = unmatched && i === parts.length - 1 ? UNMATCHED_COLOUR : moving ? partColour(colourIndex++) : STATIC_COLOUR;
+    const moving = moves(p);
+    const colour = unmatched && i === parts.length - 1 ? UNMATCHED_COLOUR : moving || allStatic ? partColour(colourIndex++) : STATIC_COLOUR;
     return { id: p.id, part: p, colour, elements: [], moving };
   });
   elementPart.forEach((p, i) => view[p]!.elements.push(i));
@@ -160,6 +167,7 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     bounds,
     hasRig: rig !== null,
     path: workOf(rig),
+    animation: animateShape(shape, flat),
   };
 }
 
