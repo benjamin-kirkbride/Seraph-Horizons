@@ -116,6 +116,8 @@
     <Compile Include="../EidolonGantry/Core/**/*.cs" Link="EidolonGantry/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/eidolongantry-rig.json" Link="eidolongantry-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../EidolonGantry/README.md" Link="eidolongantry-readme.md" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The body bill (#672), held to the eidolon's stages file. -->
+    <None Include="../assets/seraphhorizons/config/eidolon-stages.json" Link="eidolon-stages.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The handcar's drive, controls and animation timing, and its generated rig, reference poses,
          rider targets and entity type (Handcar/tools/make_shape.py), which the tests hold together. -->
     <Compile Include="../Handcar/Core/**/*.cs" Link="Handcar/Core/%(RecursiveDir)%(Filename)%(Extension)" />

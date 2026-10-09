@@ -2505,12 +2505,47 @@ implements `IEidolonGantryExtension` is asked, after the winch, for every click 
 `Complete`), whether a body stage's rig parts are drawn (`Shows`), what breaking returns (`Drops`) and its
 help lines (`Help`); it saves its own state and writes its own block info as a behavior does.
 
+**The body and waking it** (#672, `EidolonGantry/Game/BEBehaviorEidolonBody.cs`, the gantry's one
+extension; rules in `EidolonGantry/Core/BodyParts.cs`). Once the spine hangs, the body is built on it in
+six stages, in order: torso, pelvis, legs, arms, head, mind (`BodyBill`, the epic's bill; the stages file
+`config/eidolon-stages.json` lists the same and a test holds the two together). Each stage is finished
+before the next takes anything; within a stage any order, and each right-click fits what the held
+stack can give toward one item the stage still needs (all of it, up to what is missing). A later stage's
+item is refused as out of order, one the stage has all of as already in, and nothing is taken. Steel
+rods, plates and nails go to the body once the winch is done (before, they are winch parts).
+
+| Stage | Takes |
+|---|---|
+| Torso | Jonas tank 1, tank 2 and pump head; 4 steel plates, 8 steel nails and strips, 4 metal parts, 3 stainless gears |
+| Pelvis | Jonas gearbox 2; 3 steel plates, 8 nails and strips, 3 metal parts, 2 stainless gears |
+| Legs | 2 Jonas joints (the knees), 2 Jonas springs; 4 steel rods, 3 plates, 8 nails and strips, 3 metal parts, 2 stainless gears |
+| Arms | Jonas gears 1 and 2, cylinder 1, valve; 4 steel rods, 2 plates, 8 nails and strips, 4 metal parts, 3 stainless gears |
+| Head | The Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain), Jonas oscillator, gearbox 1, cylinder 2, connector; a steel plate, 4 nails and strips, 2 metal parts, 2 stainless gears |
+| Mind | A temporal gear, which wakes it |
+
+The block info lists the stages fitted, what the next one still needs, and those after. Each finished
+stage is drawn on the spine (`Shows`). Fitting the mind wakes it: `EidolonSystem.Spawn` puts the eidolon
+at the rig's `body` point, facing out of the open front, owned by the player who fitted the mind (and so
+their company), charged with that gear, playing `activate`; it is given a `goto` order 3 blocks past the
+front's middle (`exit`), which it starts once `activate` has played, and walks out. The body stages are
+cleared, so the gantry is an empty dock with its spine again, and another eidolon can be built in it.
+If the eidolon cannot be spawned the gear is refused and kept. Breaking the gantry mid-build returns every
+item fitted to the body, with the winch's. In creative mode Ctrl + right-click fits the winch's next stage,
+then the body's, the last waking it (owned by that player). The body has no settings.
+
+**The dock.** `BEEidolonGantry.DockAt(blockAccessor, pos)` is the gantry whose dock an entity standing at
+`pos` is in (within `DockRadius`, 1.25 blocks, of the `body` point, level with its floor), or null;
+`gantry.Docks(pos)` asks one gantry. For repair in the gantry (#674).
+
 With the switch off the server marks the gantry's block types and recipe file disabled before the game
 loads them, so none of it exists and gantries already placed are lost; the mod's own text no longer
 links it. The parts it takes are the game's and exist either way. Tests: `tests/EidolonGantry/`
 (stages, returns, the rig, held to `EidolonGantry/README.md`'s stage table) and
 `tests/PackTests/EidolonGantryScenarios.cs` (Atlas: placing, stages in and out of order, returns, the
-creative shortcut and the assembled stack).
+creative shortcut and the assembled stack); the body's in `tests/EidolonGantry/EidolonBodyTests.cs` (the
+bill, its order and counts, held to the stages file) and `tests/PackTests/EidolonBodyScenarios.cs` (Atlas:
+a full build from real stacks ends with one owned eidolon outside the gantry and the spine empty, and a
+partial build broken returns everything).
 
 **The gate** (#670). The eidolon schematic, `seraphhorizons:schematic-eidolon` (a `machine` variant of
 the machines' schematic item, the translocator's drawing), is sold only by the curio dealer, from
@@ -2572,8 +2607,9 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
 `health <hp>`, `info`.
 
 **Seams for the next tasks.**
-- Spawning (#672): `EidolonSystem.Of(api).Spawn(world, pos, yaw, owner, activate: true, gears: 1)`
-  spawns it owned and charged and plays `activate`; it cannot work until that has played.
+- Spawning: `EidolonSystem.Of(api).Spawn(world, pos, yaw, owner, activate: true, gears: 1)`
+  spawns it owned and charged and plays `activate`; it cannot work until that has played. The gantry's
+  mind stage uses it (above).
 - Upkeep (#674): an entity behaviour implementing `IEidolonUpkeep` (`Stop`: an `EidolonStop`, slumping
   or only waiting, e.g. `new EidolonStop("dry", false, 20)`; `OnCheck(eidolon, running)`, four times a
   second) is weighed with damage and charge into `Stop` and `CanWork`; nothing works while one stops
