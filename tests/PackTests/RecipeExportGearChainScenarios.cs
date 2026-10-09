@@ -19,7 +19,7 @@ public partial class RecipeExportScenarios
     // ------------------------------------------------------ GearConsumers (GearConsumersScenarios.cs)
 
     [AtlasScenario(TimeoutMs = Timeout)]
-    public void Export_lists_the_steel_gear_and_no_recipe_takes_a_rusty_gear()
+    public void Export_lists_the_stainless_gear_and_no_recipe_takes_a_rusty_gear()
     {
         var doc = ExportUnderTest.Get(World.Api);
         var records = doc["recipes"]!.Cast<JObject>().Where(r => (bool?)r["enabled"] != false).ToList();
@@ -37,9 +37,9 @@ public partial class RecipeExportScenarios
         void TakesSteel(string id, int perSlot)
         {
             var r = Record(id);
-            Assert.Contains(r["ingredients"]!, i => (string?)i["code"] == GearConsumers.SteelGear && (int)i["quantity"]! == perSlot);
+            Assert.Contains(r["ingredients"]!, i => (string?)i["code"] == GearConsumers.StainlessGear && (int)i["quantity"]! == perSlot);
             Assert.NotEqual(false, (bool?)r["extra"]?["resolved"]);
-            Assert.All(r["variants"]!, v => Assert.Contains(GearConsumers.SteelGear,
+            Assert.All(r["variants"]!, v => Assert.Contains(GearConsumers.StainlessGear,
                 v["ingredients"]!.SelectMany(slot => slot).Select(s => (string?)s["code"])));
         }
         TakesSteel("grid|ppex:recipes/grid/machines.json|4", 4); // Cornish engine
@@ -60,7 +60,7 @@ public partial class RecipeExportScenarios
         // Immersive Woodworking registers the carriage itself, once per wood.
         var carriages = records.Where(r => r["outputs"]!.Any(o => (string?)o["code"] == "immersivewoodworking:sawmillcarriage")).ToList();
         Assert.NotEmpty(carriages);
-        Assert.All(carriages, r => Assert.Contains(GearConsumers.SteelGear, ExportedCodes(r)));
+        Assert.All(carriages, r => Assert.Contains(GearConsumers.StainlessGear, ExportedCodes(r)));
     }
 
     // ------------------------------------------------------ GearBlank (GearBlankScenarios.cs)
@@ -81,7 +81,7 @@ public partial class RecipeExportScenarios
         foreach (var r in new[] { smallSmith, largeSmith })
         {
             Assert.Equal("seraphhorizons", (string?)r["mod"]);
-            Assert.Equal("game:ingot-steel", (string?)Assert.Single(r["variants"]!)["ingredients"]![0]![0]!["code"]);
+            Assert.Equal("game:ingot-stainlesssteel", (string?)Assert.Single(r["variants"]!)["ingredients"]![0]![0]!["code"]);
         }
         foreach (string type in GearMoldTypes)
         {
@@ -110,8 +110,8 @@ public partial class RecipeExportScenarios
         Assert.Contains(cook["outputs"]!, o => (string)o["code"]! == GearCodes.Degreased);
         var neutralize = Recipe("barrel|seraphhorizons:recipes/barrel/gear-neutralize.json|0");
         Assert.Contains(neutralize["outputs"]!, o => (string)o["code"]! == GearCodes.Neutralized);
-        foreach (int i in new[] { 0, 1 })
-            Assert.Contains(Recipe($"barrel|seraphhorizons:recipes/barrel/gear-oil.json|{i}")["outputs"]!,
-                o => (string)o["code"]! == GearCodes.Oiled);
+        Assert.Contains(neutralize["ingredients"]!, i => (string)i["code"]! == GearCodes.Passivated);
+        // The oil step is gone: the neutralized gear is the lottery.
+        Assert.DoesNotContain(doc["recipes"]!.Cast<JObject>(), r => ((string)r["id"]!).Contains("gear-oil.json"));
     }
 }

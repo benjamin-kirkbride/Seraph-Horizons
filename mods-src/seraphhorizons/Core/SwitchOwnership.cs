@@ -29,8 +29,8 @@ public sealed record OwnedBySwitch(
 /// A recipe id is the exporter's <c>&lt;type&gt;|&lt;source&gt;|&lt;index&gt;</c>. It is owned by a
 /// switch when its type is one of the switch's <see cref="OwnedBySwitch.RecipeTypes"/>, when its
 /// source is one of the switch's recipe files, or when its source is a code the switch owns (the
-/// exporter keys transitions, casting and in-place builds by the code they start from: a bare steel
-/// gear's flash rust exists only with the bare gear).
+/// exporter keys transitions, casting and in-place builds by the code they start from: a transition
+/// of an item a switch adds exists only with the item).
 /// </summary>
 public sealed class SwitchOwnership
 {

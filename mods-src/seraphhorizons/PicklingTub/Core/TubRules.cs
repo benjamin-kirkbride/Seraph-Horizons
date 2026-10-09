@@ -9,7 +9,7 @@ public enum TubRefusal
     None,
     /// <summary>Not a gear the tub knows in any liquid: the click is not the tub's.</summary>
     NotAGear,
-    /// <summary>A refused gear (the large steel gear): the tub says so.</summary>
+    /// <summary>A refused gear (a large gear): the tub says so.</summary>
     Refused,
     /// <summary>A known gear, but not in the liquid the tub holds.</summary>
     WrongLiquid,

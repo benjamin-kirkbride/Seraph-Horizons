@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Text.RegularExpressions;
 using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.PicklingTub.Core;
 
@@ -20,10 +19,9 @@ public class GearCodesTests
     public void The_tub_names_the_gears_by_GearCodes()
     {
         Assert.Equal(
-            [GearCodes.SteelBit, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Steel, GearCodes.SteelBare, GearCodes.Rusty],
-            [PicklingTubConfig.Bits, PicklingTubConfig.Degreased, PicklingTubConfig.Pickled, PicklingTubConfig.Steel,
-                PicklingTubConfig.SteelBare, PicklingTubConfig.Rusty]);
-        Assert.Equal(GearCodes.SteelBit, new TubRuleConfig().Failure);
+            [GearCodes.StainlessBit, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Passivated],
+            [PicklingTubConfig.Bits, PicklingTubConfig.Degreased, PicklingTubConfig.Pickled, PicklingTubConfig.Passivated]);
+        Assert.Equal(GearCodes.StainlessBit, new TubRuleConfig().Failure);
     }
 
     [Theory]
@@ -36,13 +34,5 @@ public class GearCodesTests
         Assert.NotEmpty(ItemCodes());
         foreach (string code in ItemCodes())
             Assert.DoesNotContain($"\"{code}\"", source);
-    }
-
-    [Fact]
-    public void The_bare_steel_gear_item_type_makes_its_code()
-    {
-        string json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "gear-steel-bare-itemtype.json"));
-        string code = Regex.Match(json, @"^\s*code:\s*""([^""]+)""", RegexOptions.Multiline).Groups[1].Value;
-        Assert.Equal(GearCodes.SteelBare, $"{GearCodes.Domain}:{code}");
     }
 }

@@ -4,7 +4,7 @@
 		"sealHours": 2,
 		"ingredients": [
 			{ "type": "item", "code": "game:limewaterportion", "litres": 0.1, "consumeLitres": 0.1 },
-			{ "type": "item", "code": "seraphhorizons:gear-pickled", "quantity": 1 }
+			{ "type": "item", "code": "seraphhorizons:gear-passivated", "quantity": 1 }
 		],
 		"output": { "type": "item", "code": "seraphhorizons:gear-neutralized", "stackSize": 1 }
 	}

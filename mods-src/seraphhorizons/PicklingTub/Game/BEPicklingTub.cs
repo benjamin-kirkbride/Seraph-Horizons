@@ -471,14 +471,14 @@ public class BEPicklingTub : BlockEntity
                 dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-waiting", _batch.Count, Name(_batch.Input)));
                 break;
             case TubPhase.Soaking:
-                dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-{(_rule!.Kind == TubRuleKind.Rust ? "rusting" : "pickling")}",
+                dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-{(_rule!.Kind == TubRuleKind.Passivate ? "passivating" : "pickling")}",
                     _batch.Count, Name(_batch.Input), (int)Math.Floor(stage.Progress * 100)));
                 break;
             case TubPhase.Done:
-                dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-{(_rule!.Kind == TubRuleKind.Rust ? "rusted" : "pickled")}",
+                dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-{(_rule!.Kind == TubRuleKind.Passivate ? "passivated" : "pickled")}",
                     stage.Outputs, Name(_rule.Output)));
                 if (stage.Lost > 0)
-                    dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-overrusted", stage.Lost));
+                    dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-lostatdone", stage.Lost));
                 break;
             case TubPhase.Eating:
                 dsc.AppendLine(Lang.Get($"{Domain}:picklingtub-info-eating", stage.Outputs, Name(_rule!.Output), stage.Lost));
