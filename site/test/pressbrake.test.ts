@@ -60,7 +60,7 @@ describe("the press brake's rig against its rig-reference.json", () => {
     a.forEach((m, i) => m.forEach((v, j) => expect(Math.abs(v - b[i]![j]!)).toBeLessThan(1e-12)));
   });
 
-  it("fits the parts in build order, the sheet by metal, and gives the edges and screws their own texture codes", () => {
+  it("fits the parts in build order, the sheet by metal, and gives the edges their own texture code and the screws (metal parts) cupronickel", () => {
     const req = new Set(parts.map((p) => p.requires ?? null));
     expect(req).toEqual(new Set([null, "screws", "edge", "platelead", "platecopper"]));
     const byId = Object.fromEntries(parts.map((p) => [p.id, p]));
@@ -75,7 +75,7 @@ describe("the press brake's rig against its rig-reference.json", () => {
       for (const code of textureCodes(f.element)) (codes[r] ??= new Set()).add(code);
     }
     expect([...codes.edge!]).toEqual(["edge"]);
-    expect([...codes.screws!]).toEqual(["screw"]);
+    expect([...codes.screws!]).toEqual(["cupronickel"]);
     expect([...codes.platelead!]).toEqual(["lead"]);
     expect([...codes.platecopper!]).toEqual(["copper"]);
     const fold = (rig as unknown as { fold: { leverTurnsPerPlate: { thin: number; thick: number }; anglesPerPlate: number; plates: Record<string, string>; angles: Record<string, string> } }).fold;
