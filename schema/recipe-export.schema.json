@@ -61,6 +61,10 @@
       "propertyNames": { "type": "string", "minLength": 1 },
       "additionalProperties": { "$ref": "#/$defs/variantGroup" }
     },
+    "power": {
+      "description": "Mechanical power producers, consumers and the wind (docs/recipe-browser/power.md). Optional: absent in exports made before it existed.",
+      "$ref": "#/$defs/power"
+    },
     "extra": { "$ref": "#/$defs/extra" }
   },
 
@@ -655,6 +659,187 @@
         "title": { "type": "string" },
         "text": { "description": "English text. May contain VTML markup.", "type": "string" },
         "mod": { "$ref": "#/$defs/modId" }
+      }
+    },
+
+    "power": {
+      "description": "Mechanical power: producers, consumers and the wind (docs/recipe-browser/power.md). Parameters only; the app derives torque, power and equilibria. Absent in exports made before it existed.",
+      "type": "object",
+      "required": ["producers", "consumers", "wind"],
+      "additionalProperties": false,
+      "properties": {
+        "producers": { "type": "array", "items": { "$ref": "#/$defs/powerProducer" } },
+        "consumers": { "type": "array", "items": { "$ref": "#/$defs/powerConsumer" } },
+        "wind": { "oneOf": [{ "$ref": "#/$defs/wind" }, { "type": "null" }] }
+      }
+    },
+
+    "powerSource": {
+      "description": "Where a power figure was read from.",
+      "type": "object",
+      "required": ["what", "from"],
+      "additionalProperties": false,
+      "properties": {
+        "what": { "description": "What the figure is, e.g. `SailCenteredModifier`.", "type": "string", "minLength": 1 },
+        "from": { "description": "Where it came from: a config file, `block attributes ...`, `code constant (<class>)` or `code default (<class>)`.", "type": "string", "minLength": 1 },
+        "fallback": { "description": "True when the exporter could not read the live value and used its built-in default.", "type": "boolean" }
+      }
+    },
+
+    "powerModel": {
+      "description": "A producer's torque model. `rotor`: torque(s) = max(0, targetSpeed − s) × torqueFactor. `wind`: a rotor whose target speed is min(speedCap, wind × speedPerWind). `constantPower`: torque(s) = budget / max(s, minSpeed) up to taperFrom, then falling linearly to 0 at shaftSpeed.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "targetSpeed", "torqueFactor"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "rotor" },
+            "targetSpeed": { "type": "number", "minimum": 0 },
+            "torqueFactor": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "speedPerWind", "speedCap", "torqueFactor", "turbulencePenalty"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "wind" },
+            "speedPerWind": { "type": "number", "minimum": 0 },
+            "speedCap": { "type": "number", "minimum": 0 },
+            "torqueFactor": { "type": "number", "minimum": 0 },
+            "turbulencePenalty": { "description": "The game halves a vanilla windmill's torque factor when another windmill is within 1.5 × sails blocks.", "type": "boolean" },
+            "sails": {
+              "type": "object",
+              "required": ["count", "max", "torqueFactorPerSail"],
+              "additionalProperties": false,
+              "properties": {
+                "count": { "type": "integer", "minimum": 0 },
+                "max": { "type": "integer", "minimum": 1 },
+                "torqueFactorPerSail": { "type": "number", "minimum": 0 }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "budget", "shaftSpeed", "minSpeed", "taperFrom"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "constantPower" },
+            "budget": { "type": "number", "minimum": 0 },
+            "shaftSpeed": { "type": "number", "exclusiveMinimum": 0 },
+            "minSpeed": { "type": "number", "exclusiveMinimum": 0 },
+            "taperFrom": { "type": "number", "minimum": 0 }
+          }
+        }
+      ]
+    },
+
+    "powerProducer": {
+      "type": "object",
+      "required": ["id", "item", "mod", "name", "family", "model", "shownKN", "conditions", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "description": "Unique within the export, stable across versions: `game:windmillrotor-metal@10`.", "type": "string", "minLength": 1 },
+        "item": { "description": "The item the page links to (a key of `items`), or null.", "oneOf": [{ "$ref": "#/$defs/code" }, { "type": "null" }] },
+        "mod": { "$ref": "#/$defs/modId" },
+        "name": { "description": "English name with its setup.", "type": "string", "minLength": 1 },
+        "family": { "enum": ["wind", "water", "steam", "muscle"] },
+        "model": { "$ref": "#/$defs/powerModel" },
+        "shownKN": { "description": "What the game's block info reads as \"Sails power output\" (kN), or null where it shows none.", "type": ["number", "null"] },
+        "conditions": { "description": "The conditions the figures assume.", "type": "string", "minLength": 1 },
+        "cost": { "description": "Running cost, if any.", "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/powerSource" } }
+      }
+    },
+
+    "powerConsumer": {
+      "type": "object",
+      "required": ["id", "item", "mod", "name", "category", "load", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "description": "Unique within the export: `game:quern`.", "type": "string", "minLength": 1 },
+        "item": { "description": "The item the page links to (a key of `items`), or null.", "oneOf": [{ "$ref": "#/$defs/code" }, { "type": "null" }] },
+        "mod": { "$ref": "#/$defs/modId" },
+        "name": { "type": "string", "minLength": 1 },
+        "category": { "description": "`machine` works, `transmission` only passes power (friction), `brake` stops it.", "enum": ["machine", "transmission", "brake"] },
+        "load": { "description": "Load while working, fully oiled; the low end of a ranged load.", "type": "number", "minimum": 0 },
+        "loadMax": { "description": "The high end of a ranged load.", "type": "number", "minimum": 0 },
+        "idleLoad": { "description": "Load while idle, unfinished or empty, where the game sets one.", "type": "number", "minimum": 0 },
+        "oil": {
+          "description": "A machine with a seraphhorizons MachineOil tank: dry load = load × dryMultiplier; `tank` in litres.",
+          "type": "object",
+          "required": ["dryMultiplier", "tank"],
+          "additionalProperties": false,
+          "properties": {
+            "dryMultiplier": { "type": "number", "minimum": 1 },
+            "tank": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "note": { "description": "How the load is made up.", "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/powerSource" } }
+      }
+    },
+
+    "wind": {
+      "type": "object",
+      "required": ["simulation", "patterns", "altitude", "histogram", "mean"],
+      "additionalProperties": false,
+      "properties": {
+        "simulation": {
+          "description": "Game years run, samples per game hour and RNG seed. Deterministic.",
+          "type": "object",
+          "required": ["years", "samplesPerHour", "seed"],
+          "additionalProperties": false,
+          "properties": {
+            "years": { "type": "integer", "minimum": 1 },
+            "samplesPerHour": { "type": "integer", "minimum": 1 },
+            "seed": { "type": "integer" }
+          }
+        },
+        "patterns": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/windPattern" } },
+        "altitude": {
+          "description": "Wind at height = sea-level wind × max(1, base + blocks above sea level / divisor), capped at `cap`.",
+          "type": "object",
+          "required": ["base", "divisor", "cap"],
+          "additionalProperties": false,
+          "properties": {
+            "base": { "type": "number" },
+            "divisor": { "type": "number", "exclusiveMinimum": 0 },
+            "cap": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "histogram": {
+          "description": "Sea-level wind, share of time per bin of `binWidth` from 0; negative strengths count in the first bin. Shares sum to 1.",
+          "type": "object",
+          "required": ["binWidth", "shares"],
+          "additionalProperties": false,
+          "properties": {
+            "binWidth": { "type": "number", "exclusiveMinimum": 0 },
+            "shares": { "type": "array", "minItems": 1, "items": { "type": "number", "minimum": 0, "maximum": 1 } }
+          }
+        },
+        "mean": { "description": "Mean sea-level wind over the simulation, negative strengths counted as 0.", "type": "number", "minimum": 0 },
+        "sources": { "description": "The asset each pattern was read from, and the model's code constants.", "type": "array", "items": { "$ref": "#/$defs/powerSource" } }
+      }
+    },
+
+    "windPattern": {
+      "type": "object",
+      "required": ["code", "name", "strengthAvg", "strengthVar", "durationAvgHours", "durationVarHours", "durationMeanHours", "durationDist", "share", "gusts"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "strengthAvg": { "type": "number" },
+        "strengthVar": { "type": "number", "minimum": 0 },
+        "durationAvgHours": { "type": "number", "minimum": 0 },
+        "durationVarHours": { "type": "number", "minimum": 0 },
+        "durationMeanHours": { "description": "Mean duration in hours, from the distribution: invexp's is durationAvgHours + durationVarHours / 4.", "type": "number", "minimum": 0 },
+        "durationDist": { "description": "The duration's NatFloat distribution, lower case: `invexp`, `uniform`, ...", "type": "string", "minLength": 1 },
+        "share": { "description": "Share of game time the pattern is active in the simulation.", "type": "number", "minimum": 0, "maximum": 1 },
+        "gusts": { "description": "True when the pattern adds the game's gust noise to its base strength.", "type": "boolean" }
       }
     }
   }

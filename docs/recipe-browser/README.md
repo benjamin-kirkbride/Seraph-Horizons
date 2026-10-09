@@ -8,7 +8,7 @@ dumped from a running dedicated server, so it matches what the pinned pack loads
 ```
 schema/recipe-export.schema.json   the export format (JSON Schema, draft 2020-12)
 schema/examples/minimal.json       a small hand-written export that validates
-tools/recipe-export/               CI-only server mod that writes the export (C#)
+tools/recipe-export/               CI-only server mod that writes the export (C#; power.md for its power section)
 tools/site-data/                   validates, migrates and assembles exports for the site (TypeScript)
 tools/icon-export/                 local client mod that renders the icons (C#; never shipped)
 tools/icons.py                     turns an icon export into content-addressed icons

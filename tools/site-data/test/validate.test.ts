@@ -129,6 +129,67 @@ describe("validate: cross-references", () => {
     expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["variant-group-size", "/variantGroups/auto:game:plank/members"]]);
   });
 
+  it("accepts an export without power, and power without wind", () => {
+    const d = example();
+    d.power.wind = null;
+    expect(problems(d)).toEqual([]);
+    delete d.power;
+    expect(problems(d)).toEqual([]);
+  });
+
+  it("rejects a power entry whose item is not an item", () => {
+    const d = example();
+    d.power.consumers[1].item = "game:woodenaxle-ns";
+    const p = only(d);
+    expect([p.kind, p.path, p.found]).toEqual(["power-item", "/power/consumers/1/item", '"game:woodenaxle-ns"']);
+  });
+
+  it("rejects a power entry whose mod is not a mod", () => {
+    const d = example();
+    d.power.producers[2].mod = "ppex";
+    expect(problems(d)).toEqual([["power-mod", "/power/producers/2/mod"]]);
+  });
+
+  it("rejects a duplicate power id", () => {
+    const d = example();
+    d.power.producers[1].id = d.power.producers[0].id;
+    const p = only(d);
+    expect([p.kind, p.path]).toEqual(["power-id-duplicate", "/power/producers/1/id"]);
+    expect(p.found).toContain("/power/producers/0");
+  });
+
+  it("rejects a ranged load upside down", () => {
+    const d = example();
+    d.power.consumers[0].loadMax = 0.1;
+    expect(problems(d)).toEqual([["power-load", "/power/consumers/0/loadMax"]]);
+  });
+
+  it("rejects more sails than the rotor takes and a taper past the shaft speed", () => {
+    const d = example();
+    d.power.producers[1].model.sails.count = 6;
+    d.power.producers[2].model.taperFrom = 0.6;
+    expect(problems(d)).toEqual([
+      ["power-model", "/power/producers/1/model/sails/count"],
+      ["power-model", "/power/producers/2/model/taperFrom"],
+    ]);
+  });
+
+  it("rejects wind shares that do not add up to 1", () => {
+    const d = example();
+    d.power.wind.histogram.shares[2] = 0.5;
+    d.power.wind.patterns[0].share = 0.3;
+    expect(problems(d)).toEqual([
+      ["power-wind-share", "/power/wind/histogram/shares"],
+      ["power-wind-share", "/power/wind/patterns"],
+    ]);
+  });
+
+  it("rejects a power model of an unknown kind (schema)", () => {
+    const d = example();
+    d.power.producers[0].model.kind = "turbine";
+    expect(problems(d).length).toBeGreaterThan(0);
+  });
+
   it("rejects a variant ingredient code that is not an item", () => {
     const d = example();
     d.recipes[8].variants[1].ingredients[0][0].code = "game:plank-pine";

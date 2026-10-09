@@ -439,9 +439,13 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     entityCount: entities.index.codes.length,
     entityChunks,
     ...(valueCount > 0 ? { valueCount } : {}),
+    ...(exp.power ? { power: true } : {}),
   };
   files.set("meta.json", meta);
   files.set("entities.json", entities.index);
   files.set("search.json", search);
+  // The power page's data, as the export has it (power-data.ts). An export without it, such as
+  // every one made before it existed, gives no power.json, which the app reads as none.
+  if (exp.power) files.set("power.json", exp.power);
   return { files, meta };
 }
