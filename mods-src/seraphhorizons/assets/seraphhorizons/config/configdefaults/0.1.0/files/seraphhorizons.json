@@ -309,5 +309,15 @@
     "IronBurstPressure": 5.0,
     "SteelBurstPressure": 10.0,
     "BronzeBurstPressure": 5.0
+  },
+  "Eidolon": true,
+  "EidolonSettings": {
+    "ChargeYearsPerGear": 0.25,
+    "MaxChargeGears": 2.0,
+    "StandUpHealthShare": 0.25,
+    "WalkSpeed": 0.022,
+    "RunSpeed": 0.04,
+    "PathSearchNodes": 3000,
+    "MaxFallBlocks": 3
   }
 }
