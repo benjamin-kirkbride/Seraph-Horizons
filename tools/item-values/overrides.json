@@ -26,6 +26,7 @@
     "aculinaryartillery:clothes-head-c-hat": 7,
     "aculinaryartillery:clothes-head-c-hat1": 7,
     "aculinaryartillery:clothes-head-c-hat2": 7,
+    "aculinaryartillery:cauldron-iron": 56,
     "game:clutter-aquatic": 0,
     "game:clutter-devastation": 0,
     "game:clutter-elevator-elevatorrail": 0
@@ -35,6 +36,7 @@
     "game:anvil-*": "cast in a mold from 9 ingots, which the export does not carry (molds are not recipes): 9 ingots plus labour; iron and steel anvils are welded from smithed halves",
     "traded, no route": "game:coke, ageofflax:flaxbundle-dried, game:ironfence-*-ew, game:smallcarpet-*, game:chandelier-candle0, game:resonator-north: the pack's traders buy them (tradelists/), but the tool finds no route to them in the export (coke oven, drying, fence smithing, found loot) and no vanilla trader prices them; priced by traderFallback's rule over the pack's own trade lists: the mean per item of 0.7 x selling and 1.4 x buying prices",
     "sold, no route": "loggingmod:sawhorse-north, loggingmod:stickstorage (placed in the world, not crafted), game:woodenaxlehub-iron-ud, game:woodenaxlehub-steel-ud (no recipe in the export), aculinaryartillery:clothes-head-c-hat* (only swapped into one another, so no leaf for traderFallback): the pack's traders sell them and price every listed good from its value (2026-10-08), so each needs one; 0.7 x the per-item price the lists had then (4, 4, 3 and 3, 10), traderFallback's selling factor",
+    "aculinaryartillery:cauldron-iron": "Culinary Artillery's cauldron recipe has six metals but no iron (vanilla's kitchenware trader sells the iron one), so no route makes it and the scrap floor would take it to 5 x its 9 iron ingots as a found item; priced like the tin bronze cauldron, whose ingot is worth about the same: 9 ingots plus the smithing the other metals' routes carry",
     "game:clutter-aquatic, game:clutter-devastation, game:clutter-elevator-elevatorrail": "decor blocks (anchors, boiler parts, a toothed rail; one code for every type), not curiosities: unvalued, they would take the curiosities' average through the siblings fallback here and the mod's game:clutter- family lookup, so they are pinned at nothing, which traders refuse as they refused them unvalued"
   }
 }
