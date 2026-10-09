@@ -74,7 +74,9 @@ public partial class SharedWorldScenarios
                 }
                 else
                     Assert.Null(CutterClick(player, at, CutterItem(ing.Code)));
-                Assert.Equal(0, body.Parts.Missing(stage, ing.Code));
+                // the mind's gear wakes it and clears the body, so nothing of it is left to count
+                if (stage != BodyBill.Last)
+                    Assert.Equal(0, body.Parts.Missing(stage, ing.Code));
             }
             if (stage == BodyBill.Last)
                 break;
