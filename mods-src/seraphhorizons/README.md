@@ -2642,11 +2642,37 @@ off (by self-defence). Following drains no oil (#674's oil drains per job).
 task's 1.5). When something hurts it, the cause of the damage (the archer, not the arrow) is
 remembered unless it is a player or another eidolon. While that creature lives, is within 24 blocks
 and hurt it within the last 12 seconds (each blow landed renews that), the task runs: it goes for it at
-a run by the wide pathfinder and, once their boxes are within 1.6 blocks, strikes, alternating the
-shape's `stand-punch` and `stand-kick` (both land on frame 20; `EidolonDefence.Blow`), each blow
-`DefenceDamage` × the world's creature damage multiplier, blunt, tier 3. Then the order task starts its
+a run by the wide pathfinder and, once their boxes are within 1.6 blocks, strikes, a punch, a kick
+and a slam in turn (the shape's `stand-punch` and `stand-kick`, landing on frame 20, and `stand-slam`,
+both fists down on frame 40, where the archives' eidolon's own slam lets go; `EidolonDefence.Blow`),
+each punch or kick `DefenceDamage` and each slam `SlamDamage` × the world's creature damage
+multiplier, blunt, tier 3. Then the order task starts its
 order again (a stay walks back to its place, a follow picks up the player). It starts only while the
 eidolon can work, and never strikes a player, whoever hurts it.
+
+**Guarding** (#680; `Eidolon/Game/GuardOrder.cs`, `EidolonGuardSystem.cs`, rules in
+`Eidolon/Core/EidolonGuarding.cs`). The tool's *Guard this place* mode (wheel place 80) marks a block:
+the `guard` order holds the point on top of it, standing there in its guard stance (`guard-idle`).
+Once a second it looks about the point, and the nearest hostile creature within `GuardRadius` of it
+(nearest to the eidolon) goes to self-defence (`Engage`, above), leashed to the point: it lets one go
+that gets more than `GuardRadius` + 4 blocks from it. After the fight the order starts again, the next
+hostile one or the walk back to the point. Guarding drains no oil.
+
+*Hostile* is read from the game's own data for the creature, its entity type's AI tasks (the
+`taskai` behaviour's `aitasks`, as its variant resolves them; `EidolonHostiles`): one is hostile when
+one of its attack tasks (a code with "attack" in it, or `throwatentity`, `shootatentity`,
+`turretmode`, `eidolonslam`; not the mech helper's `meleeattacktargetingentity`, which strikes only what
+its owner fights) targets players (`entityCodes`, the game's default `player`, wildcards as the game
+reads them) and may run now: its `whenInEmotionState` and `whenNotInEmotionState` against the
+creature's emotion states, its `minGeneration` and `maxGeneration`. So drifters, bowtorns, shivers,
+locusts, wolves, bears, hyenas and moose are; sheep, boars, foxes, raccoons, chickens and deer are only
+while angry (`aggressiveondamage`, or `aggressivearoundentities`, a sow by her piglets). An attack the game drops as a species is bred (a
+task with a `maxGeneration`: the wild sheep's and boar's charge at a player who comes too close) counts
+only while angry, so wild animals just penned are safe. Never: a creature with an owner (`ownedby`, a
+mount or a hacked locust; `guardedPlayerUid`/`guardedEntityId`), a type marked `tamed`, one bred by
+players (`generation` 1 and on), a player, an eidolon, or a person (`EntityDressedHumanoid`:
+traders and villagers, angry by their tasks once a player hits one). The world's `creatureHostility` holds as the
+game's targeting reads it: `passive`, only angry ones; `off`, none.
 
 **Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
 spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
@@ -2684,8 +2710,11 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   a `MarkArea` with `Min`, `Max`, `Contains`) and returns `EidolonCommand.Order(code, args)` or
   `EidolonCommand.Refuse(langKey, args)` (a mode whose bridge's mod is missing refuses here; it stays on
   the wheel). `ItemEidolonCommander.GetMarks(stack, mode)` reads a tool's marks.
-- Self-defence: `TaskManager.GetTask<AiTaskEidolonDefend>().Engage(creature)` sends it after a creature
-  as if it had been hurt by it (the guard order, #680); `DefenceDamage` is the blow.
+- Self-defence: `TaskManager.GetTask<AiTaskEidolonDefend>().Engage(creature, leashPoint, leash)` sends
+  it after a creature as if it had been hurt by it, letting it go past `leash` blocks from `leashPoint`
+  when given (the guard order uses it); `DefenceDamage` and `SlamDamage` are the blows.
+- Hostility (#680): `EidolonHostiles.IsHostile(entity, EidolonHostiles.WorldHostility(world))` says
+  whether a creature would attack a player now, by its type's data (above).
 - Orders (#675 on): `EidolonOrders.Register(code, (eidolon, args) => new MyOrder(...))`, an
   `IEidolonOrder` (`Start`, `Continue` each tick, `Stop` when done, replaced or interrupted);
   `eidolon.Orders.SetOrder(code, args)` gives one, `SetStatus(langKey, args)` says how it goes.
@@ -2715,6 +2744,8 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
 | `FollowDistance` | 4 | Following, how many blocks it keeps off the player |
 | `FollowRunDistance` | 10 | Following, it runs while further than this |
 | `DefenceDamage` | 10 | Each punch or kick when it defends itself (times the world's creature damage multiplier) |
+| `SlamDamage` | 16 | Each slam, every third blow (the same multiplier) |
+| `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
 
 With the switch off the server marks the entity type and the spawner disabled before the game loads
 them and registers no command, so none of it exists; eidolons already in a world are lost. A client
@@ -2731,7 +2762,14 @@ rules, and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool 
 bound by its owner it follows them over rough ground (steps of one and two, a pillar) and then stays,
 waits and says so at a doorway too narrow, a stranger can neither bind it nor order it with a tool
 bound to it, and it strikes a wolf that hurt it until dead, never the player who hurt it, and walks
-back to its stay; `SwitchesOffScenarios` requires none of it with the switch
+back to its stay; `tests/Eidolon/EidolonGuardingTests.cs` covers hostility (vanilla's task shapes:
+drifter, bowtorn, wolf, sheep, fox, the mech helper; owned, tamed and bred ones; the world's setting)
+and the guard's radius, and `tests/PackTests/EidolonGuardScenarios.cs` (Atlas) reads the game's own
+creature types (drifters, bowtorns, shivers, locusts, wolves, bears and hyenas hostile; sheep, boars,
+chickens, foxes, deer, the mech helper, hacked locusts and tamed elk not; a sheep hostile when
+angry; a trader never) and guards a point given with the tool: a drifter 10 blocks off is gone for and killed, one 25
+off and a bred wolf 6 off are left alone, it stands at its point again after, and the wolf, unbred,
+is gone for; `SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: an icon for the spawner.
 
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)

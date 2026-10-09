@@ -3,6 +3,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Eidolon;
@@ -10,8 +11,9 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <summary>
 /// Self-defence (#675; README "Eidolon", self-defence): when a creature hurts the eidolon (the
 /// cause of the damage, so an archer too), this task, above the order task (priority 1.6 to its 1.5),
-/// goes for it at a run by the wide pathfinder and strikes it with alternate punches and kicks
-/// (<see cref="EidolonDefence.Blow"/>), each for <see cref="EidolonConfig.DefenceDamage"/>, until it
+/// goes for it at a run by the wide pathfinder and strikes it with a punch, a kick and a slam in turn
+/// (<see cref="EidolonDefence.Blow"/>), each for <see cref="EidolonConfig.DefenceDamage"/> (a slam
+/// <see cref="EidolonConfig.SlamDamage"/>), until it
 /// is dead, gone out of range, or has not hurt it for a while; the order task then starts its order
 /// again. Never a player or another eidolon (<see cref="EidolonDefence.Engages"/>). Like every task it
 /// starts only while the eidolon can work.
@@ -42,6 +44,9 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
     private bool _struck;
     private double _giveUpAt;
     private double _nextPath;
+    private bool _slam;
+    private Vec3d? _leashPoint;
+    private double _leash;
 
     /// <summary>The creature it is after, or null.</summary>
     public EntityAgent? Attacker => _attacker;
@@ -61,20 +66,25 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
     }
 
     /// <summary>Goes after <paramref name="target"/> as if it had just hurt the eidolon, unless it is
-    /// a player or an eidolon (the guard order's seam, #680).</summary>
-    public bool Engage(EntityAgent target)
+    /// a player or an eidolon (the guard order's seam, #680). With a <paramref name="leashPoint"/> it
+    /// lets the creature go once it is more than <paramref name="leash"/> blocks from that point (the
+    /// guard's: it does not chase off its post); a creature that hurts it is fought without one.</summary>
+    public bool Engage(EntityAgent target, Vec3d? leashPoint = null, double leash = 0)
     {
         if (target is EntityPlayer or EntityLaborEidolon || !target.Alive)
             return false;
         _attacker = target;
         _hurtAt = Now;
+        _leashPoint = leashPoint?.Clone();
+        _leash = leash;
         return true;
     }
 
     private bool Engaging(EntityAgent? a) =>
         a != null && a.Pos.Dimension == entity.Pos.Dimension
                   && EidolonDefence.Engages(a is EntityPlayer, a is EntityLaborEidolon, a.Alive, Now - _hurtAt, a.Pos.DistanceTo(entity.Pos.XYZ),
-                      MemorySeconds, Range);
+                      MemorySeconds, Range)
+                  && (_leashPoint == null || a.Pos.DistanceTo(_leashPoint) <= _leash);
 
     public override bool ShouldExecute()
     {
@@ -123,7 +133,8 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
             if (_nav.Active)
                 _nav.Stop();
             Face(target);
-            var (animation, seconds, hitAt) = EidolonDefence.Blow(_blows++);
+            var (animation, seconds, hitAt, slam) = EidolonDefence.Blow(_blows++);
+            _slam = slam;
             entity.AnimManager.StartAnimation(animation);
             _animation = animation;
             _blowEnds = Now + seconds;
@@ -157,7 +168,7 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
             Type = EnumDamageType.BluntAttack,
             DamageTier = 3,
             KnockbackStrength = 1,
-        }, Settings.DefenceDamage * GlobalConstants.CreatureDamageModifier);
+        }, (_slam ? Settings.SlamDamage : Settings.DefenceDamage) * GlobalConstants.CreatureDamageModifier);
         BlowsLanded++;
         _hurtAt = Now;
     }

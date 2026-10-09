@@ -110,14 +110,13 @@ public class EidolonCommandingTests
     }
 
     [Fact]
-    public void BlowsAlternatePunchAndKickLandingWithinTheirAnimation()
+    public void BlowsGoPunchKickSlamLandingWithinTheirAnimation()
     {
-        Assert.Equal("punch", EidolonDefence.Blow(0).Animation);
-        Assert.Equal("kick", EidolonDefence.Blow(1).Animation);
-        Assert.Equal("punch", EidolonDefence.Blow(2).Animation);
-        for (int n = 0; n < 2; n++)
+        Assert.Equal(["punch", "kick", "slam", "punch"], Enumerable.Range(0, 4).Select(n => EidolonDefence.Blow(n).Animation));
+        Assert.Equal([false, false, true], Enumerable.Range(0, 3).Select(n => EidolonDefence.Blow(n).Slam));
+        for (int n = 0; n < 3; n++)
         {
-            var (_, seconds, hitAt) = EidolonDefence.Blow(n);
+            var (_, seconds, hitAt, _) = EidolonDefence.Blow(n);
             Assert.InRange(hitAt, 0.1, seconds);
         }
     }

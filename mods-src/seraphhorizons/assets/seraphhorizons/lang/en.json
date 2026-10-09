@@ -1809,5 +1809,7 @@
   "eidolon-order-follow": "follow",
   "eidolon-status-follow-noway": "It can find no way to {0} and waits",
   "eidolon-status-follow-gone": "Waiting for {0}",
-  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can"
+  "eidolon-follow-waiting": "Your eidolon can find no way to you: it waits, and comes on once it can",
+  "eidoloncommander-mode-guard": "Guard this place",
+  "eidolon-order-guard": "guard"
 }
