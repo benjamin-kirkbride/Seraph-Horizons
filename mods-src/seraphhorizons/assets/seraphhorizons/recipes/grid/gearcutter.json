@@ -22,27 +22,29 @@
 	},
 	{
 		// The cutter spindle with its cone pulley: two steel rods for the shaft, two steel plates for
-		// the cone, iron nails and strips for the keys and collars. Upright, so it is not the index.
-		ingredientPattern: "R,P,N",
+		// the cone, metal parts for the keys and collars (the collars are drawn in cupronickel).
+		// Upright, so it is not the index.
+		ingredientPattern: "R,P,M",
 		width: 1,
 		height: 3,
 		ingredients: {
 			"R": { type: "item", code: "game:rod-steel", quantity: 2 },
 			"P": { type: "item", code: "game:metalplate-steel", quantity: 2 },
-			"N": { type: "item", code: "game:metalnailsandstrips-iron" }
+			"M": { type: "block", code: "game:metal-parts" }
 		},
 		output: { type: "item", code: "seraphhorizons:gearcutterspindle" }
 	},
 	{
-		// The index: the lever on two steel rods, its pawls and shield cut from two steel plates,
-		// pinned with iron nails and strips. Lying flat, so it is not the spindle.
-		ingredientPattern: "RPN",
+		// The index: the lever on two steel rods, its shield cut from two steel plates, and its pawls,
+		// their pins and the lever's roller from metal parts (drawn in cupronickel). Lying flat, so it
+		// is not the spindle.
+		ingredientPattern: "RPM",
 		width: 3,
 		height: 1,
 		ingredients: {
 			"R": { type: "item", code: "game:rod-steel", quantity: 2 },
 			"P": { type: "item", code: "game:metalplate-steel", quantity: 2 },
-			"N": { type: "item", code: "game:metalnailsandstrips-iron" }
+			"M": { type: "block", code: "game:metal-parts" }
 		},
 		output: { type: "item", code: "seraphhorizons:gearcutterindex" }
 	}

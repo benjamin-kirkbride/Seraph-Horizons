@@ -77,7 +77,6 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
 
     // IPressBrakeView
     public bool PartFitted(string? requires) => _parts.Fitted(requires);
-    public string? ScrewMetal => PressBrakeParts.MetalOf(_parts.FittedIn(PressBrakeStage.Screws));
     public string? EdgeMetal => PressBrakeParts.MetalOf(_parts.FittedIn(PressBrakeStage.Edge));
     public int PlateClass => PlateOn ? _job.Class : 0;
     public double FoldWork => _job.Work;
@@ -342,12 +341,12 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     {
         if (_parts.NextPart is not { } next)
             return false;
-        if (Api.World.GetItem(new AssetLocation(next)) is not { } item)
+        if (PartStack(Api.World, next) is not { } stack)
         {
             Api.Logger.Warning("[seraphhorizons] Press brake: no {0} for the creative shortcut", next);
             return false;
         }
-        return TryFitPart(new DummySlot(new ItemStack(item)), byPlayer, free: true);
+        return TryFitPart(new DummySlot(stack), byPlayer, free: true);
     }
 
     /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
@@ -599,10 +598,20 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     public IEnumerable<ItemStack> PartDrops()
     {
         foreach (var code in _parts.Returns())
-            if (Api.World.GetItem(new AssetLocation(code)) is { } item)
-                yield return new ItemStack(item);
+            if (PartStack(Api.World, code) is { } stack)
+                yield return stack;
         if (PlateOn && _job.Untouched)
             yield return _plate!.Clone();
+    }
+
+    /// <summary>One of a part, by its code: an item, or a block (the screws' metal parts are one);
+    /// null when the game has neither.</summary>
+    public static ItemStack? PartStack(IWorldAccessor world, string code)
+    {
+        var loc = new AssetLocation(code);
+        if (world.GetItem(loc) is { } item)
+            return new ItemStack(item);
+        return world.GetBlock(loc) is { Id: > 0 } block ? new ItemStack(block) : null;
     }
 
     public override void OnBlockRemoved()
