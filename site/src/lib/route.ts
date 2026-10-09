@@ -13,6 +13,7 @@ export type Route =
   | { view: "entities"; version: string }
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
+  | { view: "power"; version: string }
   | ({ view: "values"; version: string } & ValuesView)
   | { view: "models" }
   | { view: "model"; id: string }
@@ -128,6 +129,9 @@ export function parseRoute(hash: string): Route {
     case "credits":
       if (rest.length === 0) return { view: "credits", version };
       break;
+    case "power":
+      if (rest.length === 0) return { view: "power", version };
+      break;
     case "values":
       if (rest.length === 0) return { view: "values", version, ...parseValuesView(params) };
       break;
@@ -153,6 +157,8 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/entity/${enc(route.code)}${route.variant ? `?${new URLSearchParams({ variant: route.variant }).toString()}` : ""}`;
     case "credits":
       return `#/${enc(route.version)}/credits`;
+    case "power":
+      return `#/${enc(route.version)}/power`;
     case "values":
       return `#/${enc(route.version)}/values${formatValuesView(route)}`;
     case "models":

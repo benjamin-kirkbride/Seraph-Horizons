@@ -783,5 +783,53 @@
   "variantGroups": {
     "auto:game:plank": { "title": "Plank", "members": ["game:plank-oak", "game:plank-birch"] },
     "auto:game:supportbeam": { "title": "Support beam", "members": ["game:supportbeam-oak", "game:supportbeam-birch"] }
+  },
+  "power": {
+    "producers": [
+      {
+        "id": "game:waterwheel@1", "item": "game:waterwheel-3m-north", "mod": "survival", "name": "Water wheel, 1 rapid water cell", "family": "water",
+        "model": { "kind": "rotor", "targetSpeed": 0.3, "torqueFactor": 3 },
+        "shownKN": null, "conditions": "1 rapid water cell under the wheel",
+        "sources": [{ "what": "flow × 750", "from": "code constant (BEBehaviorMPWaterWheel)" }]
+      },
+      {
+        "id": "game:windmillrotor-wood@5", "item": null, "mod": "survival", "name": "Windmill rotor (wood), 5 sails", "family": "wind",
+        "model": { "kind": "wind", "speedPerWind": 1, "speedCap": 0.6, "torqueFactor": 1.25, "turbulencePenalty": true, "sails": { "count": 5, "max": 5, "torqueFactorPerSail": 0.25 } },
+        "shownKN": 100, "conditions": "wind at the rotor",
+        "sources": [{ "what": "maxLength", "from": "block attributes sailedShapesByType" }]
+      },
+      {
+        "id": "ppex:enginewatt", "item": null, "mod": "examplemod", "name": "Watt engine", "family": "steam",
+        "model": { "kind": "constantPower", "budget": 0.6, "shaftSpeed": 0.502655, "minSpeed": 0.25, "taperFrom": 0.335103 },
+        "shownKN": null, "conditions": "steam at the inlet between 2 and 4 atm", "cost": "30 L/s of steam",
+        "sources": [{ "what": "WattEngineMaxPower", "from": "ModConfig (ppex)" }]
+      }
+    ],
+    "consumers": [
+      {
+        "id": "seraphhorizons:gearcutter", "item": null, "mod": "seraphhorizons", "name": "Gear cutter", "category": "machine",
+        "load": 0.2, "idleLoad": 0.005, "oil": { "dryMultiplier": 1, "tank": 10 },
+        "note": "a dry tank does not raise its load: it wears the cutter kit faster instead",
+        "sources": [{ "what": "Resistance", "from": "ModConfig/seraphhorizons.json (GearCutterSettings)" }]
+      },
+      {
+        "id": "game:woodenaxle", "item": null, "mod": "survival", "name": "Wooden axle", "category": "transmission", "load": 0.0005,
+        "sources": [{ "what": "friction", "from": "code constant (BEBehaviorMPAxle)" }]
+      }
+    ],
+    "wind": {
+      "simulation": { "years": 1, "samplesPerHour": 60, "seed": 1 },
+      "patterns": [
+        { "code": "still", "name": "Still", "strengthAvg": 0, "strengthVar": 0.05, "durationAvgHours": 6, "durationVarHours": 12, "durationMeanHours": 9, "durationDist": "invexp", "share": 0.25, "gusts": false },
+        { "code": "storm", "name": "Storm", "strengthAvg": 1, "strengthVar": 0.1, "durationAvgHours": 4, "durationVarHours": 6, "durationMeanHours": 5.5, "durationDist": "invexp", "share": 0.75, "gusts": true }
+      ],
+      "altitude": { "base": 0.9, "divisor": 100, "cap": 1.5 },
+      "histogram": { "binWidth": 0.5, "shares": [0.25, 0, 0.75] },
+      "mean": 0.8,
+      "sources": [
+        { "what": "wind pattern still", "from": "game:config/windpatterns/still.json" },
+        { "what": "next pattern chosen uniformly, Rand.NextInt(patterns); weight not used", "from": "code constant (WeatherSimulationRegion)" }
+      ]
+    }
   }
 }

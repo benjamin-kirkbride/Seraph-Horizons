@@ -13,6 +13,7 @@ import {
   type SearchFile,
   type VersionsFile,
 } from "./format.ts";
+import type { PowerData } from "./power-data.ts";
 import { readIconIndex, type IconIndex } from "./icons.ts";
 import { ItemSearch } from "./search.ts";
 import { indexOfSorted } from "./wildcard.ts";
@@ -59,6 +60,7 @@ export class VersionData {
   private readonly itemChunks = new Map<number, Promise<ItemChunk>>();
   private readonly recipeChunks = new Map<number, Promise<RecipeChunk>>();
   private entitiesP: Promise<EntityIndex> | null = null;
+  private powerP: Promise<PowerData | null> | null = null;
   private readonly entityChunks = new Map<number, Promise<EntityChunk>>();
   /** Loaded search.json, for synchronous lookups once `ready` resolved. */
   index: SearchFile | null = null;
@@ -127,6 +129,16 @@ export class VersionData {
   entities(): Promise<EntityIndex> {
     this.entitiesP ??= getJson<EntityIndex>(`${this.base}entities.json`);
     return this.entitiesP;
+  }
+
+  /** power.json; null for a version whose export had no power section (no file, or null). */
+  power(): Promise<PowerData | null> {
+    this.powerP ??= fetch(`${this.base}power.json`).then(async (res) => {
+      if (res.status === 404) return null;
+      if (!res.ok) throw new LoadError(`${this.base}power.json: HTTP ${res.status}`);
+      return ((await res.json()) as PowerData | null) ?? null;
+    });
+    return this.powerP;
   }
 
   /** The variants of entity type `index` of entities.json, with what each gives. */

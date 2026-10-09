@@ -3,7 +3,7 @@
 The app in `site/`: Vite, Svelte 5 and TypeScript. It is a static single-page app. The
 build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<code>`,
 `#/<version>/type/<code>`, `#/<version>/entity/<type>`, `#/<version>/search?q=`,
-`#/<version>/values`),
+`#/<version>/values`, `#/<version>/power`),
 so the same `dist/` works at any sub-path and a reload on a deep link only ever asks
 the server for `index.html`.
 
@@ -137,6 +137,7 @@ and writes:
 <dir>/recipes/<n>.json   recipe records as in the export, up to 60 per file
 <dir>/entities.json      every creature and trader, column-wise and sorted by code
 <dir>/entities/<n>.json  what each entity gives, a few hundred entities per file
+<dir>/power.json         the export's power section as it is (absent when the export has none)
 ```
 
 The app loads `data/versions.json` (written by `tools/site-data`, see README.md) and, for
@@ -180,6 +181,10 @@ file carrying a column for every item. The group ids are left out: nothing reads
 member the export does not have, or one already in an earlier group, is skipped, and a
 group left with fewer than two members is dropped (site-data rejects both, but an older
 export may predate the check). An export without groups gets no `groups`.
+
+An export with a `power` section ([power.md](power.md)) gets `power.json`, the section as it
+is, and `power: true` in `meta.json`, so the app shows its Power link only for versions that
+have one; an older export gets neither.
 
 `meta.json` has `itemChunks` and `recipeChunks`, the first index held by each chunk file,
 ascending. Item `i` is in `items/<n>.json` for the last `n` whose start is at most `i`,
@@ -323,6 +328,56 @@ keeping the rows that match, 2 to 35 ms depending on how many pass. The page sho
 rows at a time with a pager, so the DOM never holds more than a page of icons and links,
 and it filters as the reader types without a debounce. Sort, filter and page are the
 page's own state, not in the address.
+
+### Power
+
+`#/<version>/power`, linked from the header when the version's `meta.json` has `power`, is
+the mechanical power page (`PowerPage.svelte`). It reads `power.json` (`VersionData.power()`),
+whose shape is `PowerData` in `site/src/lib/power-data.ts`; a version without one (no
+`power` in `meta.json`, a 404, or `null`) says its export has no power data. The export carries only parameters read from the game
+([power.md](power.md) has the models and where each number comes from); every figure on the
+page is worked out by `site/src/lib/power.ts`, tested in `site/test/power.test.ts` against
+hand-worked reference figures:
+
+- `torqueAt(model, speed, wind)`: a rotor gives `max(0, target − s) × torqueFactor`; a
+  windmill is a rotor aiming for `min(speedCap, wind × speedPerWind)`, with
+  `torqueFactorPerSail` taken off per missing sail (`withSails`); a constant-power engine
+  gives `budget / max(s, minSpeed)` up to `taperFrom`, then that times
+  `(shaftSpeed − s) / (shaftSpeed − taperFrom)`, 0 from `shaftSpeed`.
+- Free speed (torque 0), stall torque (torque at 0), peak power (the most torque × speed,
+  sampled and then refined, since a curve can have plateaus and kinks) and the equilibrium
+  speed under a load: the highest speed where the torque still meets it, by bisection, 0
+  when the stall torque is below it. Producers on one shaft add their torques at one speed
+  (no gearing).
+- Wind: above sea level the wind is multiplied by `max(1, base + h / divisor)` and capped
+  at `cap`; at or below sea level the page uses the sea-level wind (the game weakens it
+  further down). The distribution at a height is the sea-level histogram with each bin's
+  centre carried up. A windmill's averages weight its peak power, free speed, equilibrium
+  speed (stalled time counting 0) and stalled share by that distribution.
+
+The page has five sections: an overview (units, and a helve hammer's load for scale);
+producers (a table at full wind with the sails listed, a torque–speed chart with family
+and mod toggles whose axes fit the curves left on, a wind control from 0 to 1.5 and a sail count, and a peak power bar chart); wind
+(the simulated patterns, each with its mean duration, `durationMeanHours`, and the range its
+`durationDist` can draw, `patternDuration` in `power.ts`: the game's "invexp" adds var × U1 × U2
+to avg, so it runs from avg to avg + var with a mean of avg + var / 4; a height slider from sea level to 150 blocks, the wind histogram
+at that height with its table, and each windmill averaged over it); a load explorer
+(machines and counts, quick picks, a dry-machine toggle that multiplies an oil-tank
+machine's load by its `dryMultiplier`, then each producer's speed under the total, a
+windmill averaged at the chosen height and at full wind); and consumers (load by machine
+grouped by mod, a ranged load's high end lighter, a dry load hatched, with transmission
+parts and brakes in a collapsed table). Each section's sources are behind a "where these
+numbers come from" disclosure, and a figure the exporter had to default (`fallback`) is
+marked "default".
+
+The charts are hand-written: an SVG for the torque curves (`PowerTorqueChart.svelte`,
+drawn at its measured width; a crosshair readout follows the pointer, or the arrow keys
+once the chart has focus) and the wind histogram, and plain HTML for the bar charts
+(`PowerBars.svelte`), so their rows reflow on a phone and read as "name: value" to a screen
+reader. Families keep fixed colours, the `--series-*` tokens in `app.css` (checked for
+colour-blind separation against both themes' surfaces); every value is written beside its
+mark or in a table, so none depends on colour or hover. The page's state is not in the
+address.
 
 ### Recipe type pages
 

@@ -34,6 +34,22 @@ export interface ExportV1 {
   recipes: Recipe[];
   recipeTypes: Record<string, { count: number }>;
   variantGroups?: Record<string, { title: string; members: string[] }>;
+  power?: Power;
+}
+interface PowerEntry {
+  id: string;
+  item: string | null;
+  mod: string;
+}
+interface Power {
+  producers: (PowerEntry & {
+    model:
+      | { kind: "rotor" }
+      | { kind: "wind"; sails?: { count: number; max: number } }
+      | { kind: "constantPower"; shaftSpeed: number; taperFrom: number };
+  })[];
+  consumers: (PowerEntry & { load: number; loadMax?: number })[];
+  wind: { patterns: { code: string; share: number }[]; histogram: { shares: number[] } } | null;
 }
 
 export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
@@ -121,6 +137,62 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
   }
 
   if (d.variantGroups) checkVariantGroups(d, report);
+  if (d.power) checkPower(d, report);
+}
+
+// The power section (docs/recipe-browser/power.md): ids unique per list, links to items and
+// mods that exist, a ranged load not upside down, and the wind's shares adding up to 1. The
+// exporter rounds each share to 6 places, so the sums are allowed 1e-3.
+function checkPower(d: ExportV1, report: ErrorReport): void {
+  const p = d.power!;
+  const entries = (list: "producers" | "consumers", rows: PowerEntry[]) => {
+    const firstIndex = new Map<string, number>();
+    rows.forEach((e, i) => {
+      const at = `/power/${list}/${i}`;
+      const seen = firstIndex.get(e.id);
+      if (seen !== undefined) {
+        report.add("power-id-duplicate", `${at}/id`, "a unique id", `${JSON.stringify(e.id)}, also at /power/${list}/${seen}`);
+      } else {
+        firstIndex.set(e.id, i);
+      }
+      if (e.item !== null && !Object.hasOwn(d.items, e.item)) {
+        report.add("power-item", `${at}/item`, "a key of items, or null", JSON.stringify(e.item));
+      }
+      if (!Object.hasOwn(d.mods, e.mod)) {
+        report.add("power-mod", `${at}/mod`, "a key of mods", JSON.stringify(e.mod));
+      }
+    });
+  };
+  entries("producers", p.producers);
+  entries("consumers", p.consumers);
+
+  p.producers.forEach((e, i) => {
+    const at = `/power/producers/${i}/model`;
+    const m = e.model;
+    if (m.kind === "wind" && m.sails && m.sails.count > m.sails.max) {
+      report.add("power-model", `${at}/sails/count`, `at most ${m.sails.max} (max)`, String(m.sails.count));
+    }
+    if (m.kind === "constantPower" && m.taperFrom > m.shaftSpeed) {
+      report.add("power-model", `${at}/taperFrom`, `at most ${m.shaftSpeed} (shaftSpeed)`, String(m.taperFrom));
+    }
+  });
+  p.consumers.forEach((e, i) => {
+    if (e.loadMax !== undefined && e.loadMax < e.load) {
+      report.add("power-load", `/power/consumers/${i}/loadMax`, `at least ${e.load} (load)`, String(e.loadMax));
+    }
+  });
+
+  if (p.wind) {
+    const sum = (xs: number[]) => xs.reduce((n, x) => n + x, 0);
+    const bins = sum(p.wind.histogram.shares);
+    if (Math.abs(bins - 1) > 1e-3) {
+      report.add("power-wind-share", "/power/wind/histogram/shares", "shares adding up to 1", String(bins));
+    }
+    const patterns = sum(p.wind.patterns.map((w) => w.share));
+    if (Math.abs(patterns - 1) > 1e-3) {
+      report.add("power-wind-share", "/power/wind/patterns", "pattern shares adding up to 1", String(patterns));
+    }
+  }
 }
 
 // Tidy Variants groups: the site folds each into one row, so a member must be an item, and an

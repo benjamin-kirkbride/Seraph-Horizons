@@ -44,6 +44,8 @@ export interface Meta {
   entityChunks: number[];
   /** Number of items with a value (search.json's `value`); 0 or absent when the export has none. */
   valueCount?: number;
+  /** True when the export has a power section, written to power.json; absent otherwise. */
+  power?: boolean;
 }
 
 export interface TypeInfo {
