@@ -1,0 +1,53 @@
+// A melting hole of the crucible furnace (StainlessSteel, CrucibleFurnace/, README "Crucible furnace"):
+// set into the floor, lined with tier-3 refractory brick, an iron lid flush with its top; a row of up to
+// four holes shares a brick chimney at least six blocks tall at one end. Holds one fireclay melting pot
+// and up to six coke. multiblockStructure and multiblockSizes are for the recipe browser's multiblock
+// viewer only (the shortest chimney, drawn as clay bricks); nothing in the game reads them on this class.
+{
+	code: "meltinghole",
+	class: "seraphhorizons.MeltingHole",
+	entityClass: "seraphhorizons.MeltingHole",
+	variantgroups: [
+		{ code: "lid", states: ["closed", "open"] }
+	],
+	shapeByType: {
+		"*-closed": { base: "seraphhorizons:block/cruciblefurnace/meltinghole-closed" },
+		"*-open": { base: "seraphhorizons:block/cruciblefurnace/meltinghole-open" }
+	},
+	textures: {
+		"brick": { base: "game:block/clay/refractory/tier3/front1" },
+		"lid": { base: "game:block/metal/ingot/iron" }
+	},
+	attributes: {
+		handbook: {
+			groupBy: ["meltinghole-*"],
+			extraSections: [
+				{ title: "seraphhorizons:cruciblefurnace-handbook-title", text: "seraphhorizons:cruciblefurnace-handbook-text" }
+			]
+		},
+		multiblockStructure: {"blockNumbers": {"seraphhorizons:meltinghole-*": 1, "game:claybricks-*": 2}, "offsets": [{"x": 0, "y": 0, "z": 0, "w": 1}, {"x": 1, "y": 0, "z": 0, "w": 2}, {"x": 1, "y": 1, "z": 0, "w": 2}, {"x": 1, "y": 2, "z": 0, "w": 2}, {"x": 1, "y": 3, "z": 0, "w": 2}, {"x": 1, "y": 4, "z": 0, "w": 2}, {"x": 1, "y": 5, "z": 0, "w": 2}]},
+		multiblockSizes: {"label": "Melting holes", "default": 0, "sizes": [
+			{"label": "1 hole", "multiblockStructure": {"blockNumbers": {"seraphhorizons:meltinghole-*": 1, "game:claybricks-*": 2}, "offsets": [{"x": 0, "y": 0, "z": 0, "w": 1}, {"x": 1, "y": 0, "z": 0, "w": 2}, {"x": 1, "y": 1, "z": 0, "w": 2}, {"x": 1, "y": 2, "z": 0, "w": 2}, {"x": 1, "y": 3, "z": 0, "w": 2}, {"x": 1, "y": 4, "z": 0, "w": 2}, {"x": 1, "y": 5, "z": 0, "w": 2}]}},
+			{"label": "2 holes", "multiblockStructure": {"blockNumbers": {"seraphhorizons:meltinghole-*": 1, "game:claybricks-*": 2}, "offsets": [{"x": 0, "y": 0, "z": 0, "w": 1}, {"x": 1, "y": 0, "z": 0, "w": 1}, {"x": 2, "y": 0, "z": 0, "w": 2}, {"x": 2, "y": 1, "z": 0, "w": 2}, {"x": 2, "y": 2, "z": 0, "w": 2}, {"x": 2, "y": 3, "z": 0, "w": 2}, {"x": 2, "y": 4, "z": 0, "w": 2}, {"x": 2, "y": 5, "z": 0, "w": 2}]}},
+			{"label": "3 holes", "multiblockStructure": {"blockNumbers": {"seraphhorizons:meltinghole-*": 1, "game:claybricks-*": 2}, "offsets": [{"x": 0, "y": 0, "z": 0, "w": 1}, {"x": 1, "y": 0, "z": 0, "w": 1}, {"x": 2, "y": 0, "z": 0, "w": 1}, {"x": 3, "y": 0, "z": 0, "w": 2}, {"x": 3, "y": 1, "z": 0, "w": 2}, {"x": 3, "y": 2, "z": 0, "w": 2}, {"x": 3, "y": 3, "z": 0, "w": 2}, {"x": 3, "y": 4, "z": 0, "w": 2}, {"x": 3, "y": 5, "z": 0, "w": 2}]}},
+			{"label": "4 holes", "multiblockStructure": {"blockNumbers": {"seraphhorizons:meltinghole-*": 1, "game:claybricks-*": 2}, "offsets": [{"x": 0, "y": 0, "z": 0, "w": 1}, {"x": 1, "y": 0, "z": 0, "w": 1}, {"x": 2, "y": 0, "z": 0, "w": 1}, {"x": 3, "y": 0, "z": 0, "w": 1}, {"x": 4, "y": 0, "z": 0, "w": 2}, {"x": 4, "y": 1, "z": 0, "w": 2}, {"x": 4, "y": 2, "z": 0, "w": 2}, {"x": 4, "y": 3, "z": 0, "w": 2}, {"x": 4, "y": 4, "z": 0, "w": 2}, {"x": 4, "y": 5, "z": 0, "w": 2}]}}
+		]}
+	},
+	creativeinventory: { "general": ["*-closed"], "construction": ["*-closed"] },
+	drops: [{ type: "block", code: "seraphhorizons:meltinghole-closed" }],
+	blockmaterial: "Ceramic",
+	lightAbsorption: 99,
+	sidesolidByType: {
+		"*-closed": { all: true },
+		"*-open": { all: true, up: false }
+	},
+	sideopaque: { all: true, up: false },
+	replaceable: 600,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/ceramicplace",
+		"hit": "game:block/ceramichit",
+		"break": "game:block/ceramicbreak",
+		"walk": "game:walk/stone"
+	}
+}

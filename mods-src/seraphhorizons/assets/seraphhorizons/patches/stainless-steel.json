@@ -1,0 +1,4 @@
+[
+	{ "op": "remove", "path": "/attributes/handbook/excludeByType/*-stainlesssteel", "file": "game:itemtypes/resource/ingot.json" },
+	{ "op": "remove", "path": "/attributes/handbook/excludeByType/*-stainlesssteel", "file": "game:itemtypes/resource/metalbit.json" }
+]
