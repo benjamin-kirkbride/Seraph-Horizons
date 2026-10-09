@@ -87,7 +87,6 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
     public void Interrupt()
     {
         _nav.Stop();
-        _nav.MoveAnimation = null;
         if (_move.Animation != null)
             eidolon.AnimManager.StopAnimation(_move.Animation);
         _move = default;
@@ -146,7 +145,6 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
                 return HaulStep.Working;
             _stuck = false;
             _retryAt = Now + RetrySeconds;
-            _nav.MoveAnimation = null;
             foreach (var stand in HaulPlan.PickupStands(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, thick, eidolon.Pos.X, eidolon.Pos.Z))
             {
                 if (_nav.GoTo(new Vec3d(stand.X, trunk.Pos.Y, stand.Z), false, () => _arrived = true, () => _stuck = true))
@@ -225,7 +223,6 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
             return HaulStep.Working;
         }
         _drop = found;
-        _nav.MoveAnimation = HaulPlan.CarryWalk(Thick);
         if (_nav.GoTo(new Vec3d(found.Stand.X, found.Y, found.Stand.Z), false, () => _arrived = true, () => _stuck = true))
         {
             Pose(null);
@@ -280,7 +277,6 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
         if (Now < _moveStarted + _move.Ends)
             return HaulStep.Working;
         StopMove();
-        _nav.MoveAnimation = null;
         _phase = Phase.Idle;
         return HaulStep.Delivered;
     }

@@ -47,11 +47,6 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
     /// <summary>Whether it is walking a path now.</summary>
     public bool Active => eidolon.TaskAi?.PathTraverser?.Active == true;
 
-    /// <summary>The animation it moves with in place of <c>walk</c> or <c>run</c> (null: those), for a
-    /// job that carries something (hauling a trunk walks with <c>trunk-carry-walk</c>). Read when it
-    /// sets off.</summary>
-    public string? MoveAnimation { get; set; }
-
     /// <summary>The nodes the last search visited.</summary>
     public int LastVisited { get; private set; }
 
@@ -68,9 +63,11 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         return path;
     }
 
-    /// <summary>Sets off for <paramref name="target"/>, walking or running; false (and standing) when
-    /// there is no path. <paramref name="tolerance"/>: stop this many blocks short (following).</summary>
-    public bool GoTo(Vec3d target, bool run, Action onArrived, Action onStuck, int tolerance = 0)
+    /// <summary>Sets off for <paramref name="target"/>, walking or running (with the animation its
+    /// stance gives, <see cref="EntityLaborEidolon.MoveAnimation"/>); false (and standing) when
+    /// there is no path. <paramref name="tolerance"/>: stop this many blocks short (following);
+    /// <paramref name="arriveWithin"/>: how near the last waypoint counts as there.</summary>
+    public bool GoTo(Vec3d target, bool run, Action onArrived, Action onStuck, int tolerance = 0, float arriveWithin = 0.5f)
     {
         var traverser = eidolon.TaskAi?.PathTraverser;
         if (traverser == null || FindPath(target, tolerance) is not { } path)
@@ -84,8 +81,8 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             return true;
         }
         var config = EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults;
-        Animate(MoveAnimation ?? (run ? "run" : "walk"));
-        traverser.FollowRoute(waypoints, run ? config.RunSpeed : config.WalkSpeed, 0.5f,
+        Animate(eidolon.MoveAnimation(run));
+        traverser.FollowRoute(waypoints, run ? config.RunSpeed : config.WalkSpeed, arriveWithin,
             () => { Animate(null); onArrived(); },
             () => { Animate(null); onStuck(); });
         return true;

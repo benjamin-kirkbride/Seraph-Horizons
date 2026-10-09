@@ -70,6 +70,12 @@ public class EntityLaborEidolon : EntityAgent
     /// that leaves it dry. Job orders call this as each job finishes (server side).</summary>
     public void SpendOil(EidolonJob job) => Oil?.Spend(job);
 
+    /// <summary>The animation it walks (or runs) with: what a behaviour holding something says
+    /// (<see cref="IEidolonStance"/>, a carried block's <c>carry-walk</c>), else <c>walk</c> or <c>run</c>.</summary>
+    public string MoveAnimation(bool run) =>
+        SidedProperties.Behaviors.OfType<IEidolonStance>().Select(s => s.MoveAnimation(run)).FirstOrDefault(a => a != null)
+        ?? (run ? "run" : "walk");
+
     public override bool IsInteractable => true;
 
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)

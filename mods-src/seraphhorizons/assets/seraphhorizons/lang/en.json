@@ -1820,5 +1820,20 @@
   "eidolon-status-haul-busy": "Waiting for the infeed to clear",
   "eidolon-status-haul-clear": "No trunk left in its area that the machine takes: it waits",
   "eidolon-status-haul-nomachine": "The machine it hauls to is gone",
-  "eidolon-info-trunk": "Carrying: {0}"
+  "eidolon-info-trunk": "Carrying: {0}",
+  "eidoloncommander-mode-carry": "Carry that",
+  "eidoloncommander-mode-setdown": "Set it down there",
+  "eidolon-order-carry": "carry a block",
+  "eidolon-order-setdown": "set its load down",
+  "eidolon-info-load": "Carrying: {0}",
+  "eidolon-help-openload": "Open what it carries",
+  "eidolon-carry-nocarryon": "An eidolon carries only what Carry On lets a player carry, and Carry On is not installed",
+  "eidolon-carry-full": "It already carries {0}: have it set that down first",
+  "eidolon-carry-notcarryable": "That block cannot be carried",
+  "eidolon-carry-noperm": "You may not move blocks there",
+  "eidolon-carry-gone": "Your eidolon found nothing there to carry any more",
+  "eidolon-carry-failed": "Your eidolon could not lift {0} ({1})",
+  "eidolon-setdown-empty": "It carries nothing",
+  "eidolon-setdown-noroom": "There is no room to set its load down there",
+  "eidolon-setdown-failed": "Your eidolon could not set its load down: the place is taken"
 }

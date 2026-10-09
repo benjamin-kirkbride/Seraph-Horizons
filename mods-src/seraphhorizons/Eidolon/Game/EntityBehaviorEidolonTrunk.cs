@@ -19,7 +19,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// (<see cref="Holders"/>): with any other order, or none, a carried trunk is laid down in front
 /// of it, at once and without the animation, so a trunk is never stuck on a shoulder.
 /// </summary>
-public class EntityBehaviorEidolonTrunk(Entity entity) : EntityBehavior(entity)
+public class EntityBehaviorEidolonTrunk(Entity entity) : EntityBehavior(entity), IEidolonStance
 {
     public const string Code = "seraphhorizons.eidolonTrunk";
     public const string TrunkKey = "seraphhorizons:carriedTrunk";
@@ -48,6 +48,10 @@ public class EntityBehaviorEidolonTrunk(Entity entity) : EntityBehavior(entity)
 
     /// <summary>Whether the carried trunk is a thick one (Logging Expanded's xl and xxl).</summary>
     public bool Thick => Trunk is { } stack && IsThick(stack);
+
+    /// <summary>Carrying, it walks with <c>trunk-carry-walk</c> or <c>trunk-thick-carry-walk</c>
+    /// (<see cref="IEidolonStance"/>).</summary>
+    public string? MoveAnimation(bool run) => Carrying ? HaulPlan.CarryWalk(Thick) : null;
 
     public static bool IsThick(ItemStack trunk) => TrunkBox.ClassOf(trunk.Block?.Variant["size"]) == TrunkClass.Thick;
 

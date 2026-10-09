@@ -2681,6 +2681,35 @@ shape's `stand-punch` and `stand-kick` (both land on frame 20; `EidolonDefence.B
 order again (a stay walks back to its place, a follow picks up the player). It starts only while the
 eidolon can work, and never strikes a player, whoever hurts it.
 
+**Carrying** (#676; `Eidolon/Game/EidolonCarrySystem.cs`, `CarryOrders.cs`, `EntityBehaviorEidolonCarry.cs`,
+the Carry On bridge `EidolonCarryOn.cs`; rules in `Eidolon/Core/EidolonCarrying.cs`). Two modes, each
+marking a block. *Carry that* (`carry`): the eidolon walks up to the block (to one of its four sides,
+`EidolonCarrying.Reach` from its centre, its box clear of the block's cell, nearest first), turns to it,
+plays `lift` and takes it out of the world on the grab frame (22), then carries it with `carry-idle`
+standing and `carry-walk` moving, following the player who gave the order as *Follow me* does, until told
+to set it down. It carries any block Carry On lets a player carry (in the hands or on the back), lifted
+through Carry On's own `GetCarriedFromWorld` (its checks, too hot to carry among them, and its block entity
+data and wall signs with it) and kept in Carry On's carried form in its watched attributes, so the load
+saves with the entity and outlives a chunk unload. A multiblock's part stands for the whole. Refused (the
+order is not given) without Carry On, for a block Carry On does not carry, one the player may not take
+(Carry On's permission check: claims, reinforcement), or while it already carries something. *Set it
+down there* (`setdown`): on the marked block if the load can replace it (grass), else on the block above
+it; it walks up the same way, plays `setdown` and on the release frame (28) puts the block back as it
+stood when lifted (its own block and turn, its block entity's data, so a container's contents, and its
+wall signs), which costs `OilPerLoadCarried`. Setting down needs no Carry On, so a load outlives the
+mod. Refused while it carries nothing or with no room there. The animations reach 1.09 blocks and the box
+needs 1.35, so the block is taken and set down 0.31 blocks beyond the hands. A job that fails on the way
+(the block gone or no longer liftable, the place taken) ends and tells its commander in chat.
+
+The owner and their company open a carried container (a generic typed container: a chest, a trunk, a
+storage vessel) by right-click with an empty hand on the eidolon, when no other interaction takes the
+click (charge, oil, repair and the command tool come first): the load's own contents, written back
+into the load as they change; the dialog closes when it walks out of reach or sets the load down.
+Removed from the world for good (anything but an unload) while carrying, it sets its load down on the
+nearest free cell with ground within 3 blocks, or drops it and its contents there. Each client draws
+the load at the shape's `Carry` point, following its animation (`EidolonCarryRenderer`, the block's own
+mesh as its stack draws, its corner origin set half a block back), through `EidolonAttachmentRender`.
+
 **Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
 spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
 corners instead, testing the whole box with the game's collision tester at each step (level, up one
@@ -2736,9 +2765,22 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   pos)` resolves a rosser or mill from any of its cells (its infeed cells, way out and `Takes`).
   `EntityBehaviorEidolonTrunk` holds the carried trunk (`Carrying`, `Trunk`, `TakeUp`, `Hold`,
   `LayDown`); an order that may hold one adds its code to `EntityBehaviorEidolonTrunk.Holders`.
-  `EidolonNavigator.MoveAnimation` walks with another animation (`trunk-carry-walk`).
+  Carrying, it walks with `trunk-carry-walk` (its `IEidolonStance`, below).
 - The game's `commandable` and `openablecontainer` entity behaviours (the hacked locust's and the mech
   helper's) may serve the command tool and the carried container.
+- Holding something (#676 on): an entity behaviour implementing `IEidolonStance` names the animation it
+  moves with while it holds something (`carry-walk`); `eidolon.MoveAnimation(run)` asks them and
+  `EidolonNavigator.GoTo` uses it, so following with a load walks with it. `GoTo`'s `arriveWithin` sets
+  how near the last waypoint counts as there.
+- Drawing at an attachment point (client): `EidolonAttachmentRender.TryGetMatrix(entity, "Carry" |
+  "Trunk" | "ThickTrunk", matrix)` is the point's model matrix as drawn this frame (the entity
+  renderer's, the animator's pose, the point's offset and turn; opaque stage, render order above 0.5),
+  and `Draw(capi, meshRef, matrix, litAt)` draws a mesh with it.
+- Working at a block: `BlockApproach(pos).Step(eidolon, navigator, now)` walks it to a side of a
+  block (`EidolonCarrying.Stands`) and puts it there facing it; `CarryOrderBase` holds the walk-up,
+  one-shot and tell-the-commander parts of the carry orders.
+- The carried load: `eidolon.GetBehavior<EntityBehaviorEidolonCarry>()` (`Carrying`, `LoadStack`,
+  `Hold(load)`, `TryPlace(pos)`, `Release()`; the tree under `LoadKey` is Carry On's carried form).
 
 | Setting | Default | |
 |---|---|---|
@@ -2776,7 +2818,11 @@ rules, and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool 
 bound by its owner it follows them over rough ground (steps of one and two, a pillar) and then stays,
 waits and says so at a doorway too narrow, a stranger can neither bind it nor order it with a tool
 bound to it, and it strikes a wolf that hurt it until dead, never the player who hurt it, and walks
-back to its stay; `SwitchesOffScenarios` requires none of it with the switch
+back to its stay; `tests/Eidolon/EidolonCarryingTests.cs` covers the carry timings and stand points,
+and `tests/PackTests/EidolonCarryScenarios.cs` (Atlas) has it lift a chest of flint, refuse granite,
+open the chest while carried (what goes in stays in, and the load is in the entity's saved bytes),
+follow its commander 20 blocks and set the chest down with everything in it for a load's oil, and set
+its load down where it stood when removed; `SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: an icon for the spawner.
 
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)

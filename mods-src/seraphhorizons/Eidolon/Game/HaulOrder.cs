@@ -133,6 +133,9 @@ public class EidolonHaulSystem : ModSystem
             Command = c =>
                 !TrunkEntitySystem.Of(c.Eidolon.Api).Enabled ? EidolonCommand.Refuse("eidolon-haul-notrunks")
                 : c.Area is not { } area || c.Target is not { } target ? EidolonCommand.Refuse("eidolon-haul-notmachine")
+                // Its arms are full: a block it carries (#676) is set down first.
+                : c.Eidolon.GetBehavior<EntityBehaviorEidolonCarry>()?.LoadStack is { } held
+                    ? EidolonCommand.Refuse("eidolon-carry-full", held.GetName())
                 : EidolonCommand.Order(HaulOrder.OrderCode, HaulOrder.Args(area, target)),
         });
     }
