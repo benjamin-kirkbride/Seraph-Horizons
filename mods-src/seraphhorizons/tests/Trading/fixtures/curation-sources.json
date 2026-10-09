@@ -1,5 +1,5 @@
 {
- "//": "Every entry of vanilla's nine trader lists and every trade entry the pack's mods add (docs/trading.md), with the pack's trader types that took it in ('type side'). ShippedTradeListsTests holds the shipped lists to it. 'not in the pack' marks entries naming mods the pack does not have; 'cook buy (as its kind)' a Culinary Artillery colour or metal variant whose kind the cook buys under its first variant.",
+ "//": "Every entry of vanilla's nine trader lists and every trade entry the pack's mods add (docs/trading.md), with the pack's trader types that took it in ('type side'). ShippedTradeListsTests holds the shipped lists to it. 'not for trade (lore is never priced)' marks the lore books and scrolls the pack keeps off every list; 'not in the pack' marks entries naming mods the pack does not have; 'cook buy (as its kind)' a Culinary Artillery colour or metal variant whose kind the cook buys under its first variant.",
  "entries": [
   {
    "source": "vanilla",
@@ -4453,7 +4453,7 @@
     "category": "diaries"
    },
    "homes": [
-    "curiodealer buy"
+    "not for trade (lore is never priced)"
    ]
   },
   {
@@ -5155,7 +5155,7 @@
     "category": "villager"
    },
    "homes": [
-    "curiodealer sell"
+    "not for trade (lore is never priced)"
    ]
   },
   {
