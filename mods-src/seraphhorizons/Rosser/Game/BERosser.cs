@@ -125,8 +125,10 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     {
         base.Initialize(api);
         Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
-        if (api.Side == EnumAppSide.Server)
-            _parts = _parts.WithMetals(System.PartMetals, System.PartMetals == null);
+        // (a new rosser's parts have not been through FromTreeAttributes: whether it needs pipes is set here)
+        _parts = api.Side == EnumAppSide.Server
+            ? _parts.WithMetals(System.PartMetals, System.PartMetals == null, System.PipesNeeded)
+            : _parts.WithMetals(anyMetal: true, pipesNeeded: System.PipesNeeded);
         RebuildBoxes(force: true);
         if (api.Side == EnumAppSide.Server)
         {
@@ -289,9 +291,10 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     /// empty hand the trunk carried in Carry On's hands (with trunk entities), else a trunk in hand
     /// or one from the hotbar or backpack, is loaded onto the infeed bed. Anything else held is the item's own
     /// business, except on the trunk, where the click is the rosser's and does nothing (a block
-    /// would be placed inside the trunk). In creative mode, Ctrl on an unassembled rosser fits its
-    /// next stage instead. Decided and done on the server; the client only says whether the click
-    /// is the rosser's.</summary>
+    /// would be placed inside the trunk); so is a straight pipe once the drip's pipes are in, which
+    /// is then placed against the rosser (<see cref="RosserParts.TakesClick"/>), as on the water
+    /// face. In creative mode, Ctrl on an unassembled rosser fits its next stage instead. Decided
+    /// and done on the server; the client only says whether the click is the rosser's.</summary>
     public bool OnInteract(IPlayer byPlayer, bool onTrunk = false)
     {
         // Holding oil, a click anywhere on the rosser pours it.
@@ -301,7 +304,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         var controls = byPlayer.Entity.Controls;
         bool take = controls.CtrlKey && !controls.ShiftKey;
         var held = slot?.Itemstack;
-        bool part = RosserParts.StageOf(held?.Collectible?.Code?.ToString(), out _) != null;
+        bool part = _parts.TakesClick(held?.Collectible?.Code?.ToString());
         bool trunk = Trunks.IsTrunk(held);
         if (!take && !part && !trunk && held != null)
             return onTrunk;
@@ -335,18 +338,27 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     }
 
     /// <summary>The creative shortcut (server side): fits the next missing stage (in
-    /// <see cref="RosserStage"/> order, metal parts and heads of <see cref="AssembledMachines.DefaultMetal"/>)
-    /// with nothing taken from the player.</summary>
+    /// <see cref="RosserStage"/> order, metal parts and heads of <see cref="AssembledMachines.DefaultMetal"/>,
+    /// the pipes copper) with nothing taken from the player.</summary>
     public bool FitNextPart(IPlayer byPlayer)
     {
         if (_parts.NextPart(AssembledMachines.DefaultMetal) is not { } next)
             return false;
-        if (Api.World.GetItem(new AssetLocation(next.Code)) is not { } item)
+        if (Collectible(next.Code) is not { } part)
         {
             Api.Logger.Warning("[seraphhorizons] Rosser: no {0} for the creative shortcut", next.Code);
             return false;
         }
-        return TryFitPart(new DummySlot(new ItemStack(item, next.Count)), byPlayer, free: true);
+        return TryFitPart(new DummySlot(new ItemStack(part, next.Count)), byPlayer, free: true);
+    }
+
+    /// <summary>A part by its code: an item, or a block (the pipes); null when the game has neither.</summary>
+    private CollectibleObject? Collectible(string code)
+    {
+        var location = new AssetLocation(code);
+        if (Api.World.GetItem(location) is { } item)
+            return item;
+        return Api.World.GetBlock(location) is { Id: > 0 } block ? block : null;
     }
 
     /// <summary>Fits as many of the part in <paramref name="slot"/> as its stage(s) still need
@@ -366,12 +378,13 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         var check = _parts.CanFit(code, available);
         if (!check.Fitted)
         {
+            bool pipes = stage == RosserStage.Pipes;
             Error(byPlayer, check.Verdict switch
             {
                 RosserFitVerdict.AlreadyFitted => "error-part-fitted",
                 RosserFitVerdict.NeedsRing => "error-needs-ring",
-                RosserFitVerdict.WrongMetal => "error-wrong-metal",
-                RosserFitVerdict.NeedsFullSet => "error-needs-full-set",
+                RosserFitVerdict.WrongMetal => pipes ? "error-wrong-pipe-metal" : "error-wrong-metal",
+                RosserFitVerdict.NeedsFullSet => pipes ? "error-needs-all-pipes" : "error-needs-full-set",
                 _ => "error-not-a-part",
             });
             return false;
@@ -713,10 +726,11 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         }
     }
 
-    /// <summary>Tops the reservoir up from a water pipe on the water face (server side).</summary>
+    /// <summary>Tops the reservoir up from a water pipe on the water face (server side), through the
+    /// drip's own pipes: none come in until they are fitted (while the rosser needs them).</summary>
     private void DrawWater(float seconds)
     {
-        if (Rig is not { } rig)
+        if (Rig is not { } rig || _parts.PipesNeeded && !_parts.Has(RosserStage.Pipes))
             return;
         double wanted = _water.Wanted(Config, seconds);
         if (wanted <= 0)
@@ -896,9 +910,9 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     public IEnumerable<ItemStack> PartDrops()
     {
         foreach (var (code, count) in _parts.Returns())
-            if (Api.World.GetItem(new AssetLocation(code)) is { } item)
-                for (int left = count; left > 0; left -= Math.Max(1, item.MaxStackSize))
-                    yield return new ItemStack(item, Math.Min(left, Math.Max(1, item.MaxStackSize)));
+            if (Collectible(code) is { } part)
+                for (int left = count; left > 0; left -= Math.Max(1, part.MaxStackSize))
+                    yield return new ItemStack(part, Math.Min(left, Math.Max(1, part.MaxStackSize)));
         if (_trunk == null)
             yield break;
         var broken = Pace is { } pace ? _trip.Broken(pace) : RosserBrokenTrunk.AsLoaded;
@@ -968,8 +982,10 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         var system = RosserSystem.Of(worldForResolving.Api);
         var fitted = RosserRequires.Stages.Select(RosserRequires.Name).ToDictionary(n => n, n =>
             (IReadOnlyList<string>)(tree.GetString(PartKeyPrefix + n) ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries));
-        // What went in passed the metal rule of its day; what goes in next follows today's.
-        _parts = RosserParts.Restore(fitted, tree.GetInt("headsLeft"), tree.GetInt("headsCapacity"), anyMetal: true);
+        // What went in passed the metal rule of its day; what goes in next follows today's. A save
+        // from before the drip's pipes has none: they go in as a stage like any other.
+        _parts = RosserParts.Restore(fitted, tree.GetInt("headsLeft"), tree.GetInt("headsCapacity"), anyMetal: true,
+                                     pipesNeeded: system.PipesNeeded);
         if (worldForResolving.Side == EnumAppSide.Server)
             _parts = _parts.WithMetals(system.PartMetals, system.PartMetals == null);
 
@@ -1034,6 +1050,8 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
                 dsc.AppendLine("• " + (count > 1 ? L("info-count", count, name) : name));
             }
         }
+        if (_parts.PipeMetal is { } pipes)
+            dsc.AppendLine(L("info-pipes", Lang.Get("material-" + pipes)));
         if (_parts.HeadMetal is { } metal)
         {
             dsc.AppendLine(L("info-heads", Lang.Get("material-" + metal), _parts.HeadsLeft, _parts.HeadsCapacity));

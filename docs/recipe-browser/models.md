@@ -255,7 +255,8 @@ Everything specific to one machine lives here, as data; the viewer has no machin
 - `choices`: `[{ "label", "values": ["<requires value>", ...], "default" }]`, requires values of which
   exactly one is fitted at a time, shown as a select (labelled `label`, its options by `requires`) in
   place of their checkboxes: the handcar's branch lever, whose three `TNL_*` levers Yang's renderer
-  draws one of. `default` (else the first) is fitted at first. A value is in one choice at most, and
+  draws one of, and the rosser's drip pipes, copper or lead (`pipecopper`, `pipelead`: the same
+  pipes in each metal's texture, the fitted metal's drawn). `default` (else the first) is fitted at first. A value is in one choice at most, and
   not in `requiresClass`. The legend says "needs Branch lever: Left".
 - `states`: named sets of fitted parts, picked from selects above the checkboxes. A `requires` can only
   add parts, so a state in which a model has lost them (the body gone, the spine left hanging) is a set
