@@ -194,6 +194,25 @@ class ItemValuesTest(unittest.TestCase):
         val, _ = self.solve(export(items, []))
         self.assertNotIn("game:spiritportion", val.value)
 
+    def test_min_batch_items_spreads_the_flat_of_a_solid_recipe(self):
+        # barrel: flat 1.6, over at least 16 items or the output's stack. A fleece washed into one
+        # fibre (stack 64): (0.1 x 1 + 1.6 x 1/16) / 1 = 0.2, not 1.7; a hide (stack 4) is spread
+        # over its stack only: 0.1 + 1.6 / 4 = 0.5.
+        markups = json.loads(json.dumps(MARKUPS))
+        markups["kinds"]["barrel"] = {"pct": 0.0, "flat": 1.6, "minBatchItems": 16}
+        raws = json.loads(json.dumps(RAWS))
+        raws["groups"]["test"]["game:fleece"] = 0.1
+        raws["groups"]["test"]["game:hide-raw"] = 0.1
+        self.write_rules(raws=raws, markups=markups)
+        items = {"game:fleece": item(64), "game:fibers": item(64), "game:hide-raw": item(4), "game:hide": item(4)}
+        ex = export(items, [
+            recipe("barrel|w|0", "barrel", [st("game:fleece")], [[st("game:fleece")]], [st("game:fibers")]),
+            recipe("barrel|h|0", "barrel", [st("game:hide-raw")], [[st("game:hide-raw")]], [st("game:hide")]),
+        ])
+        val, rules = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:fibers"], 0.2)
+        self.assertAlmostEqual(val.value["game:hide"], 0.5)
+
     def test_min_batch_litres_spreads_the_flat_of_a_liquid_recipe(self):
         # barrel: flat 1, over at least 1 L. One portion of juice (0.01) ages into one of cider:
         # (0.01 x 1.5 + 1 x 1/100) / 1 = 0.025, not 1.015; 2 L of tannin (200 portions) from a log

@@ -267,7 +267,14 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
 - **Wood.** Boards are raws at vanilla's 0.0625: the pack saws them with Immersive Woodworking, whose
   recipes the export does not carry. Logs 0.22, debarked 0.24, support beams 0.3.
 - **Hides and leather.** A medium hide is 2 (hunting is risky), small 1, large 3.5, huge 6; tanning
-  takes days in barrels (+5%, 0.1 a batch), so leather ends at about 0.54.
+  takes days in barrels (+5%, 0.1 a batch), so leather ends at about 0.38. The barrel's flat is
+  charged over a stack at least (`minBatchItems` 64, or the output's stack if smaller), not per
+  item as the recipes are written: a barrel soaks a whole stack of hides or fleece at once.
+- **Wool.** Fleece is 0.08, near flax fibres. Washed (a barrel, the flat spread over a stack) it is
+  a fibre at about 0.1, spun three to a twine at about 0.4, and woven four twine to a wool cloth at
+  about 1.9. Wool cloth has no raw price: it was once priced like fleece (0.25), under the three
+  twine it unpicks into, which the scrap floor then lifted to that twine and, with the barrel's
+  flat charged per fleece, every wool good 3 to 10 times over.
 - **Beverages.** Juice is what it is pressed from (+5%, 0.02 a fruit: a litre of fruit juice
   0.16). The barrel's 0.1 flat is charged per litre at least (`minBatchLitres`), not per recipe as
   written: cider is written for one portion and mead for 0.1 L, which charged 10 and 1 gear a

@@ -113,12 +113,18 @@ class Rules:
     def flat(self, route: "Route") -> float:
         """The kind's flat for this route's batch. With minBatchLitres, a recipe making a liquid is
         charged its flat over at least that many litres: a barrel recipe written for 0.1 L (mead)
-        or one portion (cider) is run by the barrelful, not one labour charge per portion."""
+        or one portion (cider) is run by the barrelful, not one labour charge per portion. With
+        minBatchItems, a recipe making a solid likewise, over that many items or a stack."""
         m = self.markups.get(route.kind) or self.markups["mod"]
         flat = float(m.get("flat", 0))
         least = float(m.get("minBatchLitres", 0)) * route.liquid
         if route.liquid and route.quantity < least:
             flat *= route.quantity / least
+        # minBatchItems: a recipe making a solid is charged its flat over at least that many items,
+        # or the output's stack if smaller: a barrel washes or soaks a whole stack at once.
+        items = min(float(m.get("minBatchItems", 0)), float(route.stack or 0))
+        if not route.liquid and route.quantity < items:
+            flat *= route.quantity / items
         return flat
 
     def per_item(self, kind: str) -> float:
@@ -166,6 +172,8 @@ class Route:
     switch: str | None = None  # the seraphhorizons config switch that owns the recipe
     # The output stack is in litres (a recipe's): its items per litre, for the kind's minBatchLitres; 0 if not.
     liquid: float = 0.0
+    # A solid output's stack size (the export's maxStackSize), for the kind's minBatchItems; 0 if unknown.
+    stack: int = 0
 
 
 def _items(stack: dict, litres: dict[str, float] | None = None) -> float:
@@ -288,6 +296,9 @@ def routes_from_recipes(export: dict, rules: Rules, breakdown: bool = False) -> 
                     continue
                 others = [(c, n) for k, (c, n) in enumerate(expected) if k != j and n > EPS]
                 routes.append(Route(kind, r["id"], code, q, slots, others, r.get("switch")))
+    for rt in routes:
+        if not rt.liquid:
+            rt.stack = stack_size(export, rt.output)
     return routes, skipped
 
 
