@@ -327,7 +327,7 @@
       "rig": "mods-src/seraphhorizons/assets/seraphhorizons/config/eidolongantry-rig.json",
       "scenario": {
         "inputs": {
-          "theta": {"label": "Crank worked", "hint": "The player turning the winch's crank, outside the frame on the south side; this is that clock. The model is posed by the let-down below, which Play runs with it: the crank, axle and drum turn together"},
+          "theta": {"label": "Crank worked", "hint": "The player turning the winch's crank, outside the frame on the south side; this is that clock. The model is posed by the let-down below, which Play runs with it: the crank turns a two-stage spur train (10 to 50 teeth, twice: 25 to 1) to the drum, about three turns over the let-down, and the pawl is thrown off its ratchet as it starts"},
           "reverse": {"label": "Crank backwards", "hint": "Play's clock runs either way; the let-down runs down, waits and winds back up"},
           "depth": {"label": "Let down", "hint": "0 is hung, the lowest toe 3 voxels off the floor; 1 is let down onto the floor. The spine comes down with the body. The eidolon wakes from 0: it unclamps from the spine and drops onto its feet"}
         },

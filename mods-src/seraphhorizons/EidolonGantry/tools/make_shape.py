@@ -3,9 +3,10 @@
 
 The gantry is where the player-built eidolon (../../Eidolon/README.md) is assembled, stage by stage,
 and where it docks afterwards for repair and recharge: an open oak frame six blocks deep, five wide
-and five and a half high, with iron plates, brackets and pegs, and a hand winch at the back whose
-chain runs up over one sheave on the hoist beam and down to the body, its crank outside the frame on
-the south side, where a player standing outside turns it. The front (west, -x, the way the body faces)
+and five and a half high, with iron plates, brackets and pegs, and a geared hand winch at the back
+(two spur stages, 25 to 1, and a ratchet) whose chain runs up over one sheave on the hoist beam and
+down to the body, its crank outside the frame on the south side, where a player standing outside
+turns it. The front (west, -x, the way the body faces)
 is open from the ground to the front beam, so the eidolon walks out of it when it wakes.
 
 The chain hangs the gantry's spine (vanilla's eidolon's mast, cut off the body by the eidolon's
@@ -36,8 +37,8 @@ The rig's inputs, as the gantry uses them:
 
     depth  the winch let down, 0..1: the drum pays out `drop()` voxels of chain and the body comes
            down until its lowest toe is on the floor
-    theta  the crank's clock, read by a ratio-0 rotate on the winch: it moves nothing (the viewer's
-           Play runs the let-down by it)
+    theta  the crank's clock, read by a ratio-0 rotate on the crank: it moves nothing (the viewer's
+           Play runs the let-down by it; the let-down turns the crank RATIO times the drum)
 """
 
 from __future__ import annotations
@@ -107,25 +108,64 @@ PEG = (1.2, 0.4)                             # an iron peg head's side and how f
 STRAP = (1.0, 0.3)                           # an iron plate's or bracket's width and thickness
 
 # ---------------------------------------------------------------- the winch (at the back)
-DRUM = (88.0, 24.0)                          # the drum's axis (x, y), along z; within reach of the crank
+# A geared crab winch: the body is heavy (about 2,500 kg), so the crank turns a pinion that drives the drum
+# through two spur stages, 10 to 50 teeth each, 25 to 1 in all. Three iron shafts run across the back in iron
+# bearing plates on two tall oak cheeks bolted to the back posts: the crank shaft at the bottom (only on the
+# left, where it runs on out through the pillow block to the crank), the layshaft above it and the drum's
+# axle at the top. Both stages sit at the left end, between the drum and the left cheek: stage 1 (the crank's
+# pinion and the layshaft's wheel) against the cheek, stage 2 (the layshaft's pinion and the drum's wheel)
+# against the drum. A pawl on an iron bracket bolted to the back left post's outer face drops onto a ratchet
+# on the crank shaft, outside the frame beside the crank, so the load cannot run back.
+MODULE = 0.4                                 # the gears' module (voxels): pitch radius = MODULE * teeth / 2
+PINION_TEETH, WHEEL_TEETH = 10, 50           # both stages
+GEAR_STAGES = 2
+RATIO = (WHEEL_TEETH / PINION_TEETH) ** GEAR_STAGES         # crank turns per drum turn: 25
+R_PINION = MODULE * PINION_TEETH / 2         # 2
+R_WHEEL = MODULE * WHEEL_TEETH / 2           # 10
+MESH = R_PINION + R_WHEEL                    # a stage's centre distance
+CRANK_AXIS = (88.0, 24.0)                    # the crank shaft (x, y), along z: the middle of the crank's cell
+LAY = (85.0, CRANK_AXIS[1] + math.sqrt(MESH ** 2 - (CRANK_AXIS[0] - 85.0) ** 2))   # the layshaft, up and a little forward
+DRUM = (LAY[0], LAY[1] + MESH)               # the drum's axle, straight above the layshaft
 DRUM_R = 4.0                                 # its apothem (an octagon)
 DRUM_Z = (16.0, 64.0)                        # the barrel
-CHEEK_X, CHEEK_Y = (80.0, CELLS_X * B), (18.0, 30.0)   # the two cheeks the axle runs in, bolted to the back posts
-CHEEK_W = 4.0                                # their thickness (z), against the posts' inner faces
+STAGE2_Z = (64.4, 66.2)                      # the drum's wheel and the layshaft's pinion
+STAGE1_Z = (66.8, 68.6)                      # the layshaft's wheel and the crank's pinion
+TOOTH_W = 0.5                                # a box tooth's width: under half the pitch at the meshing wheel's root, so
+#                                              a tooth stands clear in the gap it turns into
+PINION_PROUD = 0.1                           # a pinion is a little wider than its wheel, each side
+CHEEK_W = 4.0                                # the cheeks' thickness (z), against the posts' inner faces
+CHEEK_X = (80.0, CELLS_X * B)
+CHEEK_Y = (CRANK_AXIS[1] - 6.0, DRUM[1] + 5.0)
+BEARING = 2.5                                # a bearing plate's half side
 AXLE_R = 1.0
-# The crank is outside the frame, on the left (south) side: the axle runs on past the left cheek, beside the
-# back left post's front face in an iron pillow block bolted to it, and out past the post's outer face
+# The crank is outside the frame, on the left (south) side: the crank shaft runs on past the left cheek, beside
+# the back left post's front face in an iron pillow block bolted to it, and out past the post's outer face
 # (z 80) into the crank's own cell (CRANK_CELL), where a player standing south of the gantry turns it.
-AXLE_END = 85.0                              # the axle's outer end (z)
-PILLOW = (2.5, (75.0, 79.0))                 # the pillow block: its half-height and -depth (x, y) round the axle, z
-COLLAR_Z = (80.5, 81.5)                      # an iron collar on the axle outside the post, so it cannot slide in
+AXLE_END = 85.0                              # the crank shaft's outer end (z)
+PILLOW = (2.5, (75.0, 79.0))                 # the pillow block: its half-height and -depth (x, y) round the shaft, z
 CRANK_Z = (82.0, 83.0)                       # the crank's web, outside the frame
-CRANK_R = 6.5                                # the handle's radius about the axle
+CRANK_R = 6.5                                # the handle's radius about the shaft
 HANDLE = (83.0, 88.0)                        # the handle runs this far along z, outwards, to the player's hand
 HANDLE_W = 1.5                               # its section
 CRANK_CELL = (5, 1, 5)                       # the crank's cell, south of the back left post, a block up
 COIL_R = 4.6                                 # the chain wound on the drum, at its middle
 COIL_W = 2.0
+# The ratchet and its pawl, between the post's outer face and the crank's web. Letting down turns the crank
+# shaft positive (about +z), which the pawl blocks: its nose sits in a gap, against a tooth's radial face. The
+# pawl hangs from its pin on the bracket and falls onto the ratchet by its own weight; it is thrown off over
+# the first PAWL_LIFT_TO of the let-down (the viewer shows it off while the winch is let down, on at hung).
+RATCHET_TEETH = 8
+RATCHET_R = (2.8, 4.0)                       # root and tip radius
+RATCHET_TOOTH_W = 0.9                        # a tooth's width across, behind its radial face
+RATCHET_Z = (80.65, 81.55)
+PAWL_AT = (3.4, 105.0)                       # the pawl's nose: its middle's radius and angle (degrees from +x) about the shaft
+PAWL_TILT = 25.0                             # the pawl leans this far outwards from the ratchet's tangent at its nose
+PAWL_LEN, PAWL_W = 3.0, 0.8                  # nose to pin, and across
+PAWL_GAP = 0.15                              # the nose's inner corner stands this far ahead of the tooth's face, at rest
+PAWL_Z = (80.7, 81.5)
+PAWL_LIFT = 0.5                              # radians the pawl is thrown off
+PAWL_LIFT_TO = 0.003                         # over this much of the let-down
+BRACKET_Z = (80.0, 80.5)                     # the pawl's bracket, on the post's outer face
 
 # ---------------------------------------------------------------- the sheave, the chains, the ring
 RING_X = 0.5                                 # the ring's bar thickness (x and the bars' depth)
@@ -410,28 +450,139 @@ def cheek_z():
     return (Z_RIGHT[1], Z_RIGHT[1] + CHEEK_W), (Z_LEFT[0] - CHEEK_W, Z_LEFT[0])
 
 
+def radial_z(c, z0, z1, r0, r1, y0, y1, ang, name, part, tex):
+    """A box from radius r0 to r1 about the z axis through c, y0..y1 across (tangentially), turned `ang`
+    radians from +x."""
+    el = box([c[0] + r0, c[1] + y0, z0], [c[0] + r1, c[1] + y1, z1], name, part, tex)
+    if abs(ang) > 1e-12:
+        rotate([el], "z", math.degrees(ang), (c[0], c[1], 0.0))
+    return el
+
+
+def stage_phase(a, b):
+    """The angle (radians) of the line of centres from a to b: a's pinion has a tooth on it at rest and b's
+    wheel a gap, so the teeth sit meshed, not in each other."""
+    return math.atan2(b[1] - a[1], b[0] - a[0])
+
+
+def spur_z(c, z0, z1, pitch_r, teeth, name, part, tex, phase, spokes=0):
+    """An iron spur gear about z: `teeth` box teeth of MODULE on its root circle, one at `phase`. A pinion is
+    solid (an octagon to the root circle); a wheel (`spokes`) a rim, spokes and a hub."""
+    root, tip = pitch_r - 1.25 * MODULE, pitch_r + MODULE
+    w = TOOTH_W
+    if spokes:
+        rim_in, n = root - 1.3, 24
+        half = root * math.tan(math.pi / n)
+        out = [radial_z(c, z0 + (0.02 if i % 2 else 0.0), z1 - (0.02 if i % 2 else 0.0), rim_in, root - 0.1, -half, half,
+                        phase + 2 * math.pi * (i + 0.5) / n, f"{name}_rim{i + 1}", part, tex) for i in range(n)]
+        sw = 1.2
+        out += [radial_z(c, z0 + 0.25, z1 - 0.25, 1.8, rim_in + 0.1, -sw / 2, sw / 2, phase + 2 * math.pi * (i + 0.5) / spokes,
+                         f"{name}_spoke{i + 1}", part, tex) for i in range(spokes)]
+        out += octagon_z(z0 - 0.15, z1 + 0.15, c[0], c[1], 2.2, f"{name}_hub", part, tex)
+    else:
+        out = octagon_z(z0, z1, c[0], c[1], root - 0.15, f"{name}_body", part, tex)   # its corners clear the wheel's tips
+    for i in range(teeth):
+        out.append(radial_z(c, z0 + 0.03, z1 - 0.03, root - 0.2, tip, -w / 2, w / 2, phase + 2 * math.pi * i / teeth,
+                            f"{name}_tooth{i + 1}", part, tex))
+    return out
+
+
+def pawl_geometry():
+    """The pawl at rest: its nose's middle, the unit vector along it from the nose to the pin, the pin (x, y),
+    and the angle (radians) of the radial face of the ratchet tooth the nose bears against."""
+    cx, cy = CRANK_AXIS
+    r, a = PAWL_AT[0], math.radians(PAWL_AT[1])
+    nose = (cx + r * math.cos(a), cy + r * math.sin(a))
+    t = (-math.sin(a), math.cos(a))           # the way a tooth moves as the winch lets down (+z)
+    n = (math.cos(a), math.sin(a))
+    k = math.radians(PAWL_TILT)
+    d = (math.cos(k) * t[0] + math.sin(k) * n[0], math.cos(k) * t[1] + math.sin(k) * n[1])
+    pin = (nose[0] + PAWL_LEN * d[0], nose[1] + PAWL_LEN * d[1])
+    perp = (-d[1], d[0])
+    corners = [(nose[0] + s * PAWL_W / 2 * perp[0], nose[1] + s * PAWL_W / 2 * perp[1]) for s in (-1, 1)]
+    inner = min(corners, key=lambda q: math.hypot(q[0] - cx, q[1] - cy))
+    ri = math.hypot(inner[0] - cx, inner[1] - cy)
+    face = math.atan2(inner[1] - cy, inner[0] - cx) - PAWL_GAP / ri
+    # the nose's other corner may be further back: the face behind the further-back one
+    for q in corners:
+        rq = math.hypot(q[0] - cx, q[1] - cy)
+        if rq < RATCHET_R[1]:
+            face = min(face, math.atan2(q[1] - cy, q[0] - cx) - PAWL_GAP / rq)
+    return nose, d, pin, face
+
+
+def build_ratchet():
+    """The ratchet on the crank shaft: a hub and RATCHET_TEETH teeth, each a box behind its radial face (the
+    face the pawl stops), one tooth's face just behind the pawl's nose."""
+    c = CRANK_AXIS
+    z0, z1 = RATCHET_Z
+    _, _, _, face = pawl_geometry()
+    out = octagon_z(z0, z1, c[0], c[1], RATCHET_R[0] + 0.05, "ck_ratchet_body", "crank", "iron")
+    for i in range(RATCHET_TEETH):
+        out.append(radial_z(c, z0 + 0.03, z1 - 0.03, RATCHET_R[0] - 0.2, RATCHET_R[1], -RATCHET_TOOTH_W, 0.0,
+                            face + 2 * math.pi * i / RATCHET_TEETH, f"ck_ratchet_tooth{i + 1}", "crank", "iron"))
+    return out
+
+
+def build_pawl():
+    """The pawl (its own part, thrown off as the winch lets down), its pin and the bracket that carries it,
+    bolted to the back left post's outer face (frame)."""
+    nose, d, pin, _ = pawl_geometry()
+    mid = ((nose[0] + pin[0]) / 2, (nose[1] + pin[1]) / 2, (PAWL_Z[0] + PAWL_Z[1]) / 2)
+    el = box([mid[0] - PAWL_LEN / 2, mid[1] - PAWL_W / 2, PAWL_Z[0]], [mid[0] + PAWL_LEN / 2 + 0.6, mid[1] + PAWL_W / 2, PAWL_Z[1]],
+             "pw_pawl", "pawl", "iron")
+    rotate([el], "z", math.degrees(math.atan2(d[1], d[0])), mid)
+    out = [el]
+    out += octagon_z(BRACKET_Z[0], PAWL_Z[1] + 0.3, pin[0], pin[1], 0.45, "fr_iron_pawlpin", "frame", "iron")
+    out.append(box([pin[0] - 1.0, pin[1] - 0.9, BRACKET_Z[0]], [X_BACK[1] - 0.5, pin[1] + 1.1, BRACKET_Z[1]],
+                   "fr_iron_pawlbracket", "frame", "iron"))
+    return out
+
+
 def build_winch():
-    """The winch: two oak cheeks bolted to the back posts, an iron axle in iron bearing plates, the oak
-    drum with iron hoops and the chain coiled on it, and an iron crank with an oak handle."""
+    """The winch: two tall oak cheeks bolted to the back posts, three iron shafts in iron bearing plates (the
+    crank shaft, the layshaft, the drum's axle), the two gear stages, the oak drum with iron hoops and the
+    chain coiled on it, the pillow block, and outside the frame the ratchet, its pawl and an iron crank with
+    an oak handle."""
     out = []
     cz = cheek_z()
     for zn, z in zip("rl", cz):
         out += timber([CHEEK_X[0], CHEEK_Y[0], z[0]], [CHEEK_X[1], CHEEK_Y[1], z[1]], f"fr_cheek_{zn}")
         zp = (z[1], z[1] + 0.6) if zn == "r" else (z[0] - 0.6, z[0])
-        out.append(box([DRUM[0] - 3.0, DRUM[1] - 3.0, zp[0]], [DRUM[0] + 3.0, DRUM[1] + 3.0, zp[1]], f"fr_bearing_{zn}", "frame", "iron"))
-    # the pillow block the axle runs in where it passes the back left post, bolted to the post's front face
+        for sn, c in (("ck", CRANK_AXIS), ("ls", LAY), ("dr", DRUM)):
+            if sn == "ck" and zn == "r":
+                continue                     # the crank shaft is only on the left
+            out.append(box([c[0] - BEARING, c[1] - BEARING, zp[0]], [c[0] + BEARING, c[1] + BEARING, zp[1]],
+                           f"fr_bearing_{sn}{zn}", "frame", "iron"))
+    # the pillow block the crank shaft runs in where it passes the back left post, bolted to the post's front face
     hp, (pz0, pz1) = PILLOW
-    out.append(box([DRUM[0] - hp, DRUM[1] - hp, pz0], [X_BACK[0], DRUM[1] + hp, pz1], "fr_bearing_post", "frame", "iron"))
-    w = "winch"
-    out += octagon_z(cz[0][0] + 1.0, AXLE_END, DRUM[0], DRUM[1], AXLE_R, "wn_axle", w, "iron")
-    out += octagon_z(DRUM_Z[0], DRUM_Z[1], DRUM[0], DRUM[1], DRUM_R, "wn_drum", w, "oak")
-    for i, z0 in enumerate((DRUM_Z[0] + 1.0, DRUM_Z[1] - 2.0), 1):
-        out += octagon_z(z0, z0 + 1.0, DRUM[0], DRUM[1], DRUM_R + 0.3, f"wn_hoop{i}", w, "iron")
-    out += octagon_z(BODY_AT[2] - COIL_W / 2, BODY_AT[2] + COIL_W / 2, DRUM[0], DRUM[1], COIL_R, "wn_coil", w, "chain")
-    out += octagon_z(COLLAR_Z[0], COLLAR_Z[1], DRUM[0], DRUM[1], AXLE_R + 0.6, "wn_collar", w, "iron")
-    out.append(box([DRUM[0] - 1.25, DRUM[1] - 1.75, CRANK_Z[0]], [DRUM[0] + 1.25, DRUM[1] + CRANK_R + 1.0, CRANK_Z[1]], "wn_crank", w, "iron"))
+    cx, cy = CRANK_AXIS
+    out.append(box([cx - hp, cy - hp, pz0], [X_BACK[0], cy + hp, pz1], "fr_bearing_post", "frame", "iron"))
+    p = PINION_PROUD
+    # the crank: its shaft from the stage-1 pinion out to the crank, the ratchet, the web and the handle
+    out += octagon_z(STAGE1_Z[0] - p, AXLE_END, cx, cy, AXLE_R, "ck_shaft", "crank", "iron")
+    out += spur_z(CRANK_AXIS, STAGE1_Z[0] - p, STAGE1_Z[1] + p, R_PINION, PINION_TEETH, "ck_pinion", "crank", "iron",
+                  stage_phase(CRANK_AXIS, LAY))
+    out += build_ratchet()
+    out.append(box([cx - 1.25, cy - 1.75, CRANK_Z[0]], [cx + 1.25, cy + CRANK_R + 1.0, CRANK_Z[1]], "ck_web", "crank", "iron"))
     hw = HANDLE_W / 2
-    out.append(box([DRUM[0] - hw, DRUM[1] + CRANK_R - hw, HANDLE[0]], [DRUM[0] + hw, DRUM[1] + CRANK_R + hw, HANDLE[1]], "wn_handle", w, "oak"))
+    out.append(box([cx - hw, cy + CRANK_R - hw, HANDLE[0]], [cx + hw, cy + CRANK_R + hw, HANDLE[1]], "ck_handle", "crank", "oak"))
+    # the layshaft: the stage-1 wheel and the stage-2 pinion
+    shaft_z = (cz[0][0] + 1.0, cz[1][1] - 1.0)
+    out += octagon_z(shaft_z[0], shaft_z[1], LAY[0], LAY[1], AXLE_R, "ls_shaft", "layshaft", "iron")
+    out += spur_z(LAY, STAGE1_Z[0], STAGE1_Z[1], R_WHEEL, WHEEL_TEETH, "ls_wheel", "layshaft", "iron",
+                  stage_phase(LAY, CRANK_AXIS) + math.pi / WHEEL_TEETH, spokes=6)
+    out += spur_z(LAY, STAGE2_Z[0] - p, STAGE2_Z[1] + p, R_PINION, PINION_TEETH, "ls_pinion", "layshaft", "iron",
+                  stage_phase(LAY, DRUM))
+    # the drum, its axle and the stage-2 wheel
+    out += octagon_z(shaft_z[0], shaft_z[1], DRUM[0], DRUM[1], AXLE_R, "dr_axle", "drum", "iron")
+    out += spur_z(DRUM, STAGE2_Z[0], STAGE2_Z[1], R_WHEEL, WHEEL_TEETH, "dr_wheel", "drum", "iron",
+                  stage_phase(DRUM, LAY) + math.pi / WHEEL_TEETH, spokes=6)
+    out += octagon_z(DRUM_Z[0], DRUM_Z[1], DRUM[0], DRUM[1], DRUM_R, "dr_drum", "drum", "oak")
+    for i, z0 in enumerate((DRUM_Z[0] + 1.0, DRUM_Z[1] - 2.0), 1):
+        out += octagon_z(z0, z0 + 1.0, DRUM[0], DRUM[1], DRUM_R + 0.3, f"dr_hoop{i}", "drum", "iron")
+    out += octagon_z(BODY_AT[2] - COIL_W / 2, BODY_AT[2] + COIL_W / 2, DRUM[0], DRUM[1], COIL_R, "dr_coil", "drum", "chain")
+    out += build_pawl()
     return out
 
 
@@ -533,12 +684,25 @@ def drop():
 def rig_parts(stages):
     d = drop()
     zc = BODY_AT[2]
+    turn = d / DRUM_R                         # the drum's turn over the let-down (radians)
     parts = [
-        # the crank's clock (theta) rides here and moves nothing; the let-down turns the drum and crank together
-        {"id": "winch", "match": ["wn_*"], "requires": None,
-         "drivers": [{"type": "rotate", "axis": "z", "pivot": pt(DRUM[0], DRUM[1], zc), "ratio": 0.0},
-                     {"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(DRUM[0], DRUM[1], zc),
-                      "from": 0.0, "to": 1.0, "amount": r6(d / DRUM_R)}]},
+        # the gear train, by depth: the drum pays out the drop and the layshaft and the crank turn by the tooth
+        # counts, each the other way to the gear it meshes with; the crank's clock (theta) rides on the crank
+        # and moves nothing
+        {"id": "crank", "match": ["ck_*"], "requires": None,
+         "drivers": [{"type": "rotate", "axis": "z", "pivot": pt(*CRANK_AXIS, zc), "ratio": 0.0},
+                     {"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*CRANK_AXIS, zc),
+                      "from": 0.0, "to": 1.0, "amount": r6(turn * RATIO)}]},
+        {"id": "layshaft", "match": ["ls_*"], "requires": None,
+         "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*LAY, zc),
+                      "from": 0.0, "to": 1.0, "amount": r6(-turn * WHEEL_TEETH / PINION_TEETH)}]},
+        {"id": "drum", "match": ["dr_*"], "requires": None,
+         "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*DRUM, zc),
+                      "from": 0.0, "to": 1.0, "amount": r6(turn)}]},
+        # the pawl, thrown off the ratchet as the let-down starts, back on when the body is wound up to hung
+        {"id": "pawl", "match": ["pw_*"], "requires": None,
+         "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(*pawl_geometry()[2], zc),
+                      "from": 0.0, "to": PAWL_LIFT_TO, "amount": PAWL_LIFT}]},
         {"id": "sheave", "match": ["sv_*"], "requires": None,
          "drivers": [{"type": "step", "motion": "rotate", "axis": "z", "pivot": pt(sheave_x(), SHEAVE_Y, zc),
                       "from": 0.0, "to": 1.0, "amount": r6(d / SHEAVE_R)}]},
@@ -579,13 +743,14 @@ def regions():
             ((cx * B, cy * B, 0.0), ((cx + 1) * B, (cy + 1) * B, (cz + 1) * B))]
 
 
-CELL_PARTS = ("frame", "winch", "sheave")    # what the cells' boxes are made of: the gantry; the body's are gameplay's
+CELL_PARTS = ("frame", "crank", "layshaft", "drum", "pawl", "sheave")   # what the cells' boxes are made of: the gantry; the body's
+#                                              are gameplay's
 #                                              (the spine's too: it hangs, and goes up and down with the body)
 
 
 def shipped_cells(shape, parts):
     """The cells' boxes from the shipped shape as written, at rest; cells with none of the gantry in them
-    are hollow (the walk-in space, the body's room and the exit)."""
+    are hollow (the walk-in space, the body's room and the exit), and so is the crank's, outside the frame."""
     by_cell = {}
     for w in flatten(shape["elements"], textures={}):
         pid = part_of(parts, w.name)
@@ -597,7 +762,8 @@ def shipped_cells(shape, parts):
             by_cell.setdefault(c, []).append(el)
     out = []
     for c in footprint():
-        boxes = cell_boxes(by_cell[c], c) if c in by_cell else None
+        # the crank's cell reserves the crank's room but has no boxes: nothing there to walk into or select
+        boxes = cell_boxes(by_cell[c], c) if c in by_cell and c != CRANK_CELL else None
         out.append({"pos": list(c), "boxes": boxes} if boxes else {"pos": list(c), "hollow": True})
     return out
 
@@ -619,7 +785,7 @@ def make_rig(parts):
                     "ring over its top peg are the gantry's, always there (with no stage fitted: the gantry built, or the "
                     "eidolon woken and gone). body: the entity's position, where it stands once awake; hang: where the ring "
                     "bears on the peg; fit: the chest's middle; crankCell and crankFace: the crank, outside the frame, turned "
-                    "from the south. The cells' boxes are the gantry's; the body's are gameplay's. See EidolonGantry/README.md.",
+                    "from the south (its cell reserves the room and is hollow: no boxes). The cells' boxes are the gantry's; the body's are gameplay's. See EidolonGantry/README.md.",
         "cells": [],
         "body": {"pos": pt(*BODY_AT)},
         "hang": {"pos": pt(*peg)},
@@ -629,8 +795,10 @@ def make_rig(parts):
         "crankCell": list(CRANK_CELL),
         "crankFace": "south",
         "winch": {"drop": r6(drop() / B), "drumRadius": r6(DRUM_R / B),
+                  "gearing": {"stages": [[PINION_TEETH, WHEEL_TEETH]] * GEAR_STAGES, "ratio": RATIO},
                   "_comment": "drop: how far the body comes down at depth 1 (blocks), its hung toe's height above the floor; "
-                              "drumRadius: the chain's radius on the drum (blocks)."},
+                              "drumRadius: the chain's radius on the drum (blocks); gearing: the crank's train to the drum, "
+                              "[pinion, wheel] teeth per stage, crank turns per drum turn."},
         "parts": parts,
     }
 

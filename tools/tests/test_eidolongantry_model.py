@@ -6,8 +6,8 @@ regenerated); the body in the written shape is the eidolon's `hung` pose, elemen
 game's pose maths (Eidolon/tools/kin.py), each element under its build stage's part; the rig's
 `requires` are one per stage, while the spine (vanilla's, cut off the eidolon: the gantry's) and the ring over its top
 peg need nothing, there from the start and after the eidolon has woken; the let-down brings the lowest toe from 3
-voxels to the floor, the spine with it; the cells are rebuilt from the shipped shape; the front is open; and the crank
-is outside the frame, in its own cell. Run with
+voxels to the floor, the spine with it; the cells are rebuilt from the shipped shape; the front is open; the crank
+is outside the frame, in its own cell, which is hollow; and the winch is geared, its parts turning by their tooth counts. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
 
@@ -183,18 +183,58 @@ class Frame(unittest.TestCase):
                 self.assertTrue(any(all(r[0][k] - 0.01 <= lo[k] and hi[k] <= r[1][k] + 0.01 for k in range(3)) for r in regions),
                                 el.name)
 
-    def test_the_crank_is_outside_the_frame_and_turns_with_the_drum(self):
+    def test_the_crank_is_outside_the_frame_in_a_hollow_cell(self):
         outer = make_shape.CELLS_Z * 16
-        els = {el.name: el for el in posed_written(0.0, {"winch"})}
-        for name in ("wn_crank", "wn_handle"):
+        els = {el.name: el for el in posed_written(0.0, {"crank", "pawl"})}
+        for name in ("ck_web", "ck_handle", "ck_ratchet_tooth1", "pw_pawl"):
             self.assertGreater(els[name].aabb()[0][2], outer, name)
-        self.assertIn(list(make_shape.CRANK_CELL), [c["pos"] for c in RIG["cells"]])
-        self.assertIn("boxes", next(c for c in RIG["cells"] if c["pos"] == list(make_shape.CRANK_CELL)))
-        # one part: the drum, its axle and the crank turn together as the winch lets down
-        self.assertEqual({rigmath.part_of(RIG["parts"], n) for n in ("wn_drum_1", "wn_axle_1", "wn_crank", "wn_handle")}, {"winch"})
-        turned = matrix("winch", 1.0)
-        self.assertGreater(abs(turned[0][1]), 0.5)   # turned well over half a radian
+        # the crank's cell is in the footprint, reserving its room, but has no collision or selection boxes
+        cell = next(c for c in RIG["cells"] if c["pos"] == list(make_shape.CRANK_CELL))
+        self.assertEqual(cell, {"pos": list(make_shape.CRANK_CELL), "hollow": True})
 
+
+class Winch(unittest.TestCase):
+    def amounts(self):
+        return {p["id"]: next(d for d in p["drivers"] if d["type"] == "step")["amount"] for p in RIG["parts"]
+                if p["id"] in ("crank", "layshaft", "drum")}
+
+    def test_the_train_is_geared_by_its_tooth_counts(self):
+        gearing = RIG["winch"]["gearing"]
+        self.assertEqual(gearing["stages"], [[10, 50], [10, 50]])
+        self.assertEqual(gearing["ratio"], 25)
+        a = self.amounts()
+        # meshing shafts turn opposite ways, by the tooth counts; the drum pays out the drop
+        self.assertAlmostEqual(a["crank"] / a["layshaft"], -5.0, places=4)
+        self.assertAlmostEqual(a["layshaft"] / a["drum"], -5.0, places=4)
+        self.assertAlmostEqual(a["drum"] * RIG["winch"]["drumRadius"], RIG["winch"]["drop"], places=5)
+        self.assertGreater(a["crank"] / (2 * math.pi), 2.5)          # the crank turns several times over the let-down
+        for name, pid in (("ck_pinion_tooth1", "crank"), ("ck_handle", "crank"), ("ck_ratchet_tooth1", "crank"),
+                          ("ls_wheel_tooth1", "layshaft"), ("ls_pinion_tooth1", "layshaft"),
+                          ("dr_wheel_tooth1", "drum"), ("dr_drum_1", "drum"), ("pw_pawl", "pawl")):
+            self.assertEqual(rigmath.part_of(RIG["parts"], name), pid, name)
+
+    def test_meshing_centre_distances_are_the_pitch_radii(self):
+        written = {el.name: el for el in posed_written(0.0, {"crank", "layshaft", "drum"})}
+
+        def centre(prefix):
+            lo = [min(el.aabb()[0][k] for n, el in written.items() if n.startswith(prefix)) for k in range(2)]
+            hi = [max(el.aabb()[1][k] for n, el in written.items() if n.startswith(prefix)) for k in range(2)]
+            return [(lo[k] + hi[k]) / 2 for k in range(2)]
+        pivots = {p["id"]: [v * 16 for v in p["drivers"][-1]["pivot"][:2]] for p in RIG["parts"] if p["id"] in ("crank", "layshaft", "drum")}
+        for prefix, pid in (("ck_shaft", "crank"), ("ls_shaft", "layshaft"), ("dr_axle", "drum")):
+            for k in range(2):
+                self.assertAlmostEqual(centre(prefix)[k], pivots[pid][k], delta=0.01)
+        pitch = (0.4 * 10 / 2) + (0.4 * 50 / 2)
+        self.assertAlmostEqual(math.dist(pivots["crank"], pivots["layshaft"]), pitch, delta=1e-3)
+        self.assertAlmostEqual(math.dist(pivots["layshaft"], pivots["drum"]), pitch, delta=1e-3)
+
+    def test_the_pawl_is_thrown_off_as_the_let_down_starts(self):
+        pawl = next(p for p in RIG["parts"] if p["id"] == "pawl")
+        d = pawl["drivers"][0]
+        self.assertEqual((d["type"], d["from"]), ("step", 0.0))
+        self.assertLess(d["to"], 0.01)
+        hung = matrix("pawl", 0.0)
+        self.assertEqual([row[:3] for row in hung[:3]], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
 if __name__ == "__main__":
     unittest.main()

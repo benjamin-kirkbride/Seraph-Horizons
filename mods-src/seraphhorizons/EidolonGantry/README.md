@@ -22,16 +22,34 @@ corner, iron fish plates and angle brackets at the post tops and trenail heads o
 - **The body hangs round the middle of cell (2, 0, 2)**, the eidolon's `hung` pose 10 voxels
   (`HUNG_BACK`) behind the entity's position, model (8, 0, 8), which is the build frame's (30, 0, 40):
   where it stands once it has woken and stepped off the spine. Round the hung body there is 1.28 blocks
-  to the front posts, 1.13 and 1.14 to the side posts and 1.44 to the winch at the back, to walk round
+  to the front posts, 1.13 and 1.14 to the side posts and 1.44 to the winch's cheeks at the back, to walk round
   it and fit parts.
-- **The winch is at the back**: two oak cheeks bolted to the back posts carry an iron axle in iron
-  bearing plates, with an oak drum (iron hoops, the chain coiled at its middle). **The crank is outside
-  the frame**: on the left (south) the axle runs on past its cheek, through an iron pillow block bolted
-  to the back left post's front face, and out past the post's outer face (z 80) by 5 voxels, where an
-  iron collar keeps it from sliding in and an iron crank (radius 6.5 voxels) with an oak handle pointing
-  outwards is turned by a player standing south of the gantry, about 1.5 blocks up. A full turn clears
-  the frame (checked every 10°): the crank turns 2 voxels outside the post. Drum, axle and crank are one
-  part and turn together. The chain leaves the drum's top
+- **The winch is at the back, and geared: the eidolon is heavy** (about 2,500 kg). It is a crab winch:
+  two tall oak cheeks bolted to the back posts carry three iron shafts in iron bearing plates, the crank
+  shaft at the bottom (only in the left cheek), the layshaft above it and the drum's axle at the top, with
+  an oak drum (iron hoops, the chain coiled at its middle). Two spur stages of module 0.4, each a **10-tooth
+  pinion driving a 50-tooth wheel**, sit at the left (south) end between the drum and the left cheek: stage 1,
+  against the cheek, the crank shaft's pinion and the layshaft's wheel; stage 2, against the drum, the
+  layshaft's pinion and the drum's wheel. That is **25 to 1**: the 3-voxel let-down turns the drum 43° and
+  the crank 2.98 turns. With the crank's 6.5-voxel radius and the drum's 4, the handle sees about a 40th of
+  the load (some 600 N for 2,500 kg before friction, heavy work); the gearing is the model's, not
+  gameplay's. The pitch circles touch (centre distances 12 voxels, the pitch radii 2 and 10), the wheels
+  are spoked (six arms, a rim, a hub), and the box teeth are 0.5 wide, under half the wheel's pitch at its root,
+  phased to sit meshed at rest (a pinion's tooth on the line of centres, the wheel's gap there): through a
+  turn they run into each other at most 0.03 voxels. The crank's axis is the middle of its cell, (88, 24),
+  the layshaft (85, 35.6) and the drum (85, 47.6), 12 apart up the back post.
+- **The crank is outside the frame**: the crank shaft runs on past the left cheek, through an iron pillow
+  block bolted to the back left post's front face, and out past the post's outer face (z 80) by 5 voxels,
+  where an iron crank (radius 6.5 voxels) with an oak handle pointing outwards is turned by a player
+  standing south of the gantry, about 1.5 blocks up. A full turn clears the frame (checked every 5°, the
+  layshaft and drum turning with it): the crank turns 2 voxels outside the post.
+- **A ratchet and pawl hold the load.** Between the post's outer face and the crank's web, an 8-tooth iron
+  ratchet (tips at 4 voxels, roots at 2.8) is keyed on the crank shaft; each tooth's radial face is the side
+  letting down turns into. An iron pawl hangs from a pin on an iron bracket bolted to the post's outer face,
+  forward of the shaft, and lies over the ratchet's top with its nose down in a gap, 0.15 from the face
+  behind it: the load cannot run back, and it falls in by its own weight. Turning to wind up rides the
+  teeth under it. To let down it is thrown off: the rig lifts it 0.5 rad over the first 0.3% of the let-down
+  and drops it back at hung. The chain leaves the drum's top
   and runs up and forward, tangent to both, onto one oak sheave hung in iron hangers under the hoist
   beam, and drops from it straight down to a swivel eye over the body.
 - **The spine is the gantry's, and holds the body**: vanilla's eidolon has a charred-wood mast down
@@ -80,7 +98,10 @@ units, controller cell `[0,0,0]` the foot of the front right (north-west) post.
 
 | Part | Requires | Drivers |
 |---|---|---|
-| `winch` (drum, axle, hoops, coil, collar, crank, handle) | | `rotate` θ at ratio 0 (the crank's clock; moves nothing), `step` rotate by depth: the drum pays out the drop, drum, axle and crank turning together, 0.75 rad (43°) over the let-down (the drum's radius is 4 voxels, the drop 3) |
+| `crank` (`ck_*`: the crank shaft, its 10-tooth pinion, the ratchet, the web and the handle) | | `rotate` θ at ratio 0 (the crank's clock; moves nothing), `step` rotate by depth about the crank's axis: +18.75 rad (2.98 turns, 25 × the drum) over the let-down |
+| `layshaft` (`ls_*`: the shaft, its 50-tooth wheel and 10-tooth pinion) | | `step` rotate by depth: −3.75 rad (5 × the drum, the other way: it meshes with both) |
+| `drum` (`dr_*`: the axle, its 50-tooth wheel, the drum, hoops and coil) | | `step` rotate by depth: +0.75 rad (43°): the drum pays out the drop (its radius is 4 voxels, the drop 3) |
+| `pawl` (`pw_*`) | | `step` rotate by depth about its pin, 0.5 rad over depth 0..0.003: thrown off the ratchet as the let-down starts |
 | `sheave` | | `step` rotate by depth, the same chain |
 | `lead` (the drum-to-sheave chain) | | none: its ends do not move |
 | `fall` (the hanging chain) | | `stretch` by depth about the sheave: it lengthens by the drop |
@@ -96,10 +117,12 @@ stage-1 gantry already shows; gameplay draws the body's stages only while the ei
 
 **depth** is the winch let down, 0..1: 0 hung, 1 the lowest toe on the floor (`winch.drop`, 3 voxels).
 The cells are the 6×6×5 machine box and one more outside it, **the crank's cell `[5, 1, 5]`**, south
-of the back left post, a block up (the axle's end, the collar, the crank and its handle): 181 in all. The
-cells' boxes are built from the gantry's own parts at rest (frame, winch, sheave; the crank's cell gets
-the crank pointing up); the body's and the spine's collision and selection are gameplay's (they hang and
-move with the winch). Cells with none of the gantry are `hollow`.
+of the back left post, a block up (the crank shaft's end, the ratchet and pawl, the crank and its handle): 181
+in all. The crank's cell is in the footprint so that nothing is placed where the crank turns, but it is
+**`hollow`, with no boxes**: nothing in it to collide with or select. The other cells' boxes are built from
+the gantry's own parts at rest (the frame, the crank, layshaft, drum and pawl, the sheave); the body's and
+the spine's collision and selection are gameplay's (they hang and move with the winch). Cells with none of
+the gantry are `hollow`.
 
 Anchors: `body` (the entity's position, where it stands once awake), `hang` (where the ring bears on the
 spine's peg), `fit` (the chest's middle, where parts are fitted), `exit` with `exitSide: "west"`, and
@@ -127,15 +150,22 @@ spine and ring needing nothing; the spine and body one piece after every stage, 
 the start (the eidolon's rule; the chest is shown before the hip block it hangs from in the hierarchy,
 which baking makes harmless), and the torso touching the spine (its clamps); the lowest toe at 3 voxels
 at depth 0 and on the floor at depth 1; everything in the machine box or the crank's cell; a full turn
-of the winch clearing the frame, the crank in its cell; the body touching nothing of the gantry but the
-spine, and the spine nothing but the ring's bottom bar under its peg, at depth 0, 0.5 and 1; the
+of the crank (the layshaft and drum turning by their tooth counts) clearing the frame and the thrown-off
+pawl, nothing of one shaft touching another's but meshing teeth, the crank, ratchet and pawl outside the
+frame in their cell; the gearing (pitch radii the module's, centre distances their sums, the rig's turns
+the tooth counts', each meshing pair the other way, the drum paying out the drop, the teeth meshed at rest
+and at most 0.25 into each other through a turn); the ratchet (the pawl's nose in a gap at hung, the
+ratchet turned the let-down way running into it, and no contact as it is thrown off and after); the
+body touching nothing of the gantry but the spine, and the spine nothing but the ring's bottom bar under its peg, at depth 0, 0.5 and 1; the
 eidolon's `activate`, frame by frame where it hung, touching nothing of the gantry and clear of the
 spine by frame 56 (it is from 51); the peg inside the ring;
 the lead chain tangent to drum and sheave, the fall on the sheave's tangent and on the eye at every
-depth, drum and sheave turning with the chain; the frame one piece from the ground, the axle in both
-cheeks and the pillow block and out of the frame, and the sheave's pin in both hangers; the eidolon
+depth, drum and sheave turning with the chain; the frame one piece from the ground, the layshaft and
+the drum's axle in both cheeks' bearings, the crank shaft in the left's and the pillow block and out of
+the frame, the pawl on its pin, and the sheave's pin in both hangers; the eidolon
 standing where it woke (vanilla's rest pose) walking out west touching nothing, the empty spine included; at least a block to walk past the body on every side; textures by
-role; no z-fighting among the gantry's own faces (after `fix_coplanar`). `tools/tests/test_eidolongantry_model.py`
+role; no z-fighting among the gantry's own faces (after `fix_coplanar`); and in the written rig, the
+crank's cell in the footprint, hollow, with no boxes. `tools/tests/test_eidolongantry_model.py`
 holds the written files to these without the generator's state.
 
 ## Open questions
@@ -151,8 +181,6 @@ holds the written files to these without the generator's state.
 - **The empty spine's lean.** Baked in `hung`'s pose, the spine keeps the chest's lean (about 18°) when
   the body has gone; a mast hung by its top peg would swing plumb. Hanging it plumb when empty would need
   a second baked copy (or a renderer turning it), and is left for now.
-- **The crank's gearing.** The crank is on the drum's axle, so the let-down turns it only 43°. A geared
-  winch (a pinion on the crank's shaft driving a gear on the drum) would turn it several times.
 - **The hang's balance.** The peg is behind the body's centre of mass, so a real body hung there would
   swing back; the `hung` pose leans forward. A second line to the shoulders, or a hung pose that leans
   less, would make it hang true.

@@ -11,14 +11,16 @@ import math
 import re
 
 import kin
-from machinegen.checks import coplanar_faces, euler_round_trip, frame_floating, touching
-from machinegen.geometry import El, flatten, rotate
+from machinegen.checks import coplanar_faces, euler_round_trip, frame_floating, obb_obb, touching
+from machinegen.geometry import El, aabb_of, flatten, rotate
 from machinegen.rigmath import part_of, posed
 
 TOL = 0.01                                    # voxels: the baked body against kin's hung pose, the floor
-GANTRY = ("frame", "winch", "sheave", "lead", "fall", "hook", "ring")   # made for the gantry (the spine is vanilla's)
-FIXED = ("frame", "winch", "sheave", "lead", "fall", "hook")            # what nothing hung may touch
-CRANK = ("wn_crank", "wn_handle", "wn_collar")                          # the crank, outside the frame
+WINCH = ("crank", "layshaft", "drum", "pawl")                           # the winch's moving parts
+GANTRY = ("frame", *WINCH, "sheave", "lead", "fall", "hook", "ring")    # made for the gantry (the spine is vanilla's)
+FIXED = ("frame", *WINCH, "sheave", "lead", "fall", "hook")             # what nothing hung may touch
+OUTSIDE = ("ck_web", "ck_handle", "ck_ratchet", "pw_", "fr_iron_pawl")  # the crank, its ratchet and pawl, outside the frame
+MESH_LIMIT = 0.25                             # voxels: box teeth run into each other this far at most (a real tooth form would not)
 
 
 class V:
@@ -142,33 +144,150 @@ def check_containment(v):
     print(f"outside the frame, in the crank's cell: {outside}")
 
 
-def check_crank(v):
-    """The crank is outside the frame, where a player can work it: a full turn of the winch (the crank, the
-    collar, the drum and its hoops; the axle runs in its bearings) clears the frame, and the crank and its
-    handle stay south of the frame's outer face, in the crank's cell."""
+def train(m):
+    """The gear train: (part, axis (x, y), its turn per turn of the crank), the crank first."""
+    k = m.PINION_TEETH / m.WHEEL_TEETH
+    return (("crank", m.CRANK_AXIS, 1.0), ("layshaft", m.LAY, -k), ("drum", m.DRUM, k * k))
+
+
+def turned_train(v, crank_deg, shafts=False):
+    """The train's elements turned as the crank turns `crank_deg` from rest (shafts left out unless asked:
+    they run in their bearings)."""
     m = v.m
     zc = m.BODY_AT[2]
-    pivot = (m.DRUM[0], m.DRUM[1], zc)
-    winch = [el for el in v.by_part["winch"] if not el.name.startswith("wn_axle")]
+    out = {}
+    for pid, c, share in train(m):
+        els = [el.clone() for el in v.by_part[pid] if shafts or not re.match(r"^\w\w_(shaft|axle)", el.name)]
+        rotate(els, "z", crank_deg * share, (c[0], c[1], zc))
+        out[pid] = els
+    return out
+
+
+def check_crank(v):
+    """The crank is outside the frame, where a player can work it, and the train turns free: through a full
+    turn of the crank (the layshaft and the drum turning by the tooth counts) no gear, the drum, the ratchet or
+    the crank touches the frame or the thrown-off pawl, no two shafts' parts touch but meshing teeth, and the
+    crank, its ratchet and handle stay south of the frame's outer face, in the crank's cell."""
+    m = v.m
     frame = v.by_part["frame"]
+    pawl = v.posed(["pawl"], 1.0)
     cx, cy, cz = m.CRANK_CELL
     cell = ((cx * m.B, cy * m.B, cz * m.B), ((cx + 1) * m.B, (cy + 1) * m.B, (cz + 1) * m.B))
-    hits, out = set(), 0.0
-    for deg in range(0, 360, 10):
-        turned = [el.clone() for el in winch]
-        rotate(turned, "z", float(deg), pivot)
-        hits |= touching(turned, frame)
-        for el in turned:
-            if el.name.startswith(CRANK):
+    hits, cross, out = set(), set(), 0.0
+    for deg in range(0, 360, 5):
+        t = turned_train(v, float(deg))
+        every = [el for els in t.values() for el in els]
+        hits |= touching(every, frame) | touching(every, pawl)
+        cross |= {h for h in touching(t["crank"], t["drum"])}
+        cross |= {h for a, b in (("crank", "layshaft"), ("layshaft", "drum"))
+                  for h in touching(t[a], t[b]) if not ("_tooth" in h[0] and "_tooth" in h[1])}
+        for el in t["crank"]:
+            if el.name.startswith(OUTSIDE):
                 lo, hi = el.aabb()
                 out = max(out, max(max(cell[0][k] - lo[k], hi[k] - cell[1][k]) for k in range(3)))
-    handle = next(el for el in v.by_part["winch"] if el.name == "wn_handle")
-    print(f"crank: a full turn touches {len(hits)} frame elements; the crank out of its cell by {out:.2f}; "
-          f"the handle at z {handle.aabb()[0][2]:.1f}..{handle.aabb()[1][2]:.1f} (the frame's outer face at {m.CELLS_Z * m.B:.0f})")
+    handle = next(el for el in v.by_part["crank"] if el.name == "ck_handle")
+    print(f"crank: a full turn touches {len(hits)} frame or pawl elements and {len(cross)} pairs across shafts but "
+          f"meshing teeth; the crank out of its cell by {out:.2f}; the handle at z {handle.aabb()[0][2]:.1f}.."
+          f"{handle.aabb()[1][2]:.1f} (the frame's outer face at {m.CELLS_Z * m.B:.0f})")
     if hits:
-        v.fail(f"the winch, turned, touches the frame: {sorted(hits)[:6]}")
+        v.fail(f"the winch, turned, touches the frame or the pawl: {sorted(hits)[:6]}")
+    if cross:
+        v.fail(f"the train's shafts touch each other but at the teeth: {sorted(cross)[:6]}")
     if out > 0.01:
         v.fail("the crank leaves its cell as it turns")
+    inside = sorted(el.name for pid in ("crank", "pawl") for el in v.by_part[pid]
+                    if el.name.startswith(OUTSIDE) and el.aabb()[0][2] < m.CELLS_Z * m.B - 0.01)
+    if inside:
+        v.fail(f"parts of the crank or the pawl are inside the frame: {inside}")
+
+
+def overlap_depth(a, b):
+    """How far two boxes run into each other: the shrink at which obb_obb stops finding an overlap, twice."""
+    if not obb_obb(a, b, eps=0.0):
+        return 0.0
+    lo, hi = 0.0, 1.5
+    for _ in range(18):
+        mid = (lo + hi) / 2
+        if obb_obb(a, b, eps=mid):
+            lo = mid
+        else:
+            hi = mid
+    return 2 * lo
+
+
+def check_gearing(v, rig):
+    """The train: every gear's pitch radius is the module's for its teeth, each stage's centre distance the
+    sum of its pitch radii, the rig's turns the tooth counts' (each shaft the other way to the one it meshes
+    with, the crank RATIO times the drum, which pays out the drop), the teeth meshed at rest (no tooth in
+    another), and through a tooth's turn the box teeth run into each other at most MESH_LIMIT."""
+    m = v.m
+    errs = [abs(m.R_PINION - m.MODULE * m.PINION_TEETH / 2), abs(m.R_WHEEL - m.MODULE * m.WHEEL_TEETH / 2),
+            abs(math.dist(m.CRANK_AXIS, m.LAY) - m.MESH), abs(math.dist(m.LAY, m.DRUM) - m.MESH)]
+    amount = {p["id"]: next(d["amount"] for d in p["drivers"] if d["type"] == "step") for p in rig["parts"]
+              if p["id"] in ("crank", "layshaft", "drum")}
+    k = m.WHEEL_TEETH / m.PINION_TEETH
+    ratio_errs = [abs(amount["crank"] / amount["layshaft"] + k), abs(amount["layshaft"] / amount["drum"] + k),
+                  abs(amount["crank"] / amount["drum"] - m.RATIO), abs(amount["drum"] * m.DRUM_R - m.drop())]
+    print(f"gearing: {m.PINION_TEETH}:{m.WHEEL_TEETH} twice, {m.RATIO:g} to 1, module {m.MODULE}; centre distances off "
+          f"{max(errs):.1e}, rig turns off the tooth counts {max(ratio_errs):.1e}; the let-down turns the drum "
+          f"{math.degrees(amount['drum']):.1f} degrees and the crank {amount['crank'] / (2 * math.pi):.2f} turns")
+    if max(errs) > 1e-9:
+        v.fail("a stage's centre distance is not the sum of its pitch radii")
+    if max(ratio_errs) > 1e-4:
+        v.fail("the rig's turns are not the tooth counts' (or the drum does not pay out the drop)")
+    pairs = (("crank", "ck_pinion_tooth", "layshaft", "ls_wheel_tooth"), ("layshaft", "ls_pinion_tooth", "drum", "dr_wheel_tooth"))
+    rest = turned_train(v, 0.0)
+    for pa, na, pb, nb in pairs:
+        a = [el for el in rest[pa] if el.name.startswith(na)]
+        b = [el for el in rest[pb] if el.name.startswith(nb)]
+        if touching(a, b):
+            v.fail(f"{na} and {nb} are in each other at rest")
+    steps = 90                                  # half a crank turn: a tooth of each pinion's cycle, the layshaft's 1/10 turn
+    worst = {}
+    for i in range(steps):
+        t = turned_train(v, 180.0 * i / steps)
+        for pa, na, pb, nb in pairs:
+            a = [el for el in t[pa] if el.name.startswith(na)]
+            b = [el for el in t[pb] if el.name.startswith(nb)]
+            d = 0.0
+            for x in a:
+                xl, xh = x.aabb()
+                for y in b:
+                    yl, yh = y.aabb()
+                    if all(xl[q] < yh[q] and yl[q] < xh[q] for q in range(3)):
+                        d = max(d, overlap_depth(x, y))
+            worst[na] = max(worst.get(na, 0.0), d)
+    print("teeth: " + ", ".join(f"{n} into its wheel at most {d:.3f}" for n, d in worst.items()) + f" (limit {MESH_LIMIT})")
+    if max(worst.values()) > MESH_LIMIT:
+        v.fail("a pinion's teeth run too far into its wheel's")
+
+
+def check_ratchet(v):
+    """The pawl holds the load: at hung its nose is down in a gap of the ratchet, between root and tip, clear of
+    the tooth behind it by PAWL_GAP, and the ratchet turned the let-down way by a little more runs into it; it is
+    thrown off as the let-down starts without the ratchet touching it, and stays clear to the floor."""
+    m = v.m
+    nose, _, _, _ = m.pawl_geometry()
+    r = math.dist(nose, m.CRANK_AXIS)
+    ratchet = [el for el in v.by_part["crank"] if el.name.startswith("ck_ratchet")]
+    zc = m.BODY_AT[2]
+    pivot = (m.CRANK_AXIS[0], m.CRANK_AXIS[1], zc)
+    if not m.RATCHET_R[0] < r < m.RATCHET_R[1]:
+        v.fail(f"the pawl's nose is at radius {r:.2f}, not between the ratchet's root and tip")
+    turned = [el.clone() for el in ratchet]
+    rotate(turned, "z", math.degrees((m.PAWL_GAP + 0.2) / m.RATCHET_R[0]), pivot)
+    blocks = bool(touching(turned, v.posed(["pawl"], 0.0)))
+    depths = [i * m.PAWL_LIFT_TO / 20 for i in range(41)] + [0.25, 0.5, 0.75, 1.0]
+    hits = set()
+    for dpt in depths:
+        hits |= touching(v.posed(["crank"], dpt), v.posed(["pawl"], dpt))
+    print(f"ratchet: {m.RATCHET_TEETH} teeth, the pawl's nose at radius {r:.2f} (root {m.RATCHET_R[0]}, tip {m.RATCHET_R[1]}); "
+          f"turned the let-down way it {'runs into' if blocks else 'misses'} the pawl; thrown off over depth 0..{m.PAWL_LIFT_TO}: "
+          f"{len(hits)} contacts")
+    if not blocks:
+        v.fail("the pawl does not stop the ratchet turning the let-down way")
+    if hits:
+        v.fail(f"the ratchet runs into the pawl as the winch lets down: {sorted(hits)[:6]}")
 
 
 def check_clearances(v, stages):
@@ -279,8 +398,9 @@ def check_chains(v):
 
 
 def check_supports(v):
-    """Nothing floats: the frame is one piece from the ground, the winch's axle runs in both cheeks and
-    the sheave's pin in both hangers."""
+    """Nothing floats: the frame is one piece from the ground; the layshaft and the drum's axle run in both
+    cheeks' bearings and the crank shaft in the left's and the pillow block, out to the crank; the pawl is on
+    its pin; and the sheave's pin is in both hangers."""
     seen, loose = frame_floating(v.by_part["frame"])
     print(f"frame: {len(seen)} elements joined to the ground, {len(loose)} not")
     if loose:
@@ -290,14 +410,25 @@ def check_supports(v):
     def held(shaft, holders):
         lo, hi = shaft
         return all(lo[2] < frame[h][0][2] and frame[h][1][2] < hi[2] for h in holders)
-    axle = [el.aabb() for el in v.by_part["winch"] if el.name.startswith("wn_axle")][0]
-    pin = [el.aabb() for el in v.by_part["sheave"] if el.name.startswith("sv_pin")][0]
     cheeks = [n for n in frame if n.startswith("fr_cheek_")]
-    if not held(axle, ["fr_bearing_r", "fr_bearing_l", "fr_bearing_post"]) or not all(axle[0][2] < frame[c][1][2] and frame[c][0][2] < axle[1][2] for c in cheeks):
-        v.fail("the winch's axle does not run in both cheeks and the pillow block")
+
+    def shaft(pid, prefix):
+        return [el.aabb() for el in v.by_part[pid] if el.name.startswith(prefix)][0]
+    crank, lay, axle = shaft("crank", "ck_shaft"), shaft("layshaft", "ls_shaft"), shaft("drum", "dr_axle")
+    pin = [el.aabb() for el in v.by_part["sheave"] if el.name.startswith("sv_pin")][0]
+    left = [c for c in cheeks if c.startswith("fr_cheek_l")]
+    for name, s, holders, through in (("crank shaft", crank, ["fr_bearing_ckl", "fr_bearing_post"], left),
+                                      ("layshaft", lay, ["fr_bearing_lsr", "fr_bearing_lsl"], cheeks),
+                                      ("drum's axle", axle, ["fr_bearing_drr", "fr_bearing_drl"], cheeks)):
+        if not held(s, holders) or not all(s[0][2] < frame[c][1][2] and frame[c][0][2] < s[1][2] for c in through):
+            v.fail(f"the {name} does not run in its bearings ({', '.join(holders)}) and through its cheeks")
     pb = frame["fr_bearing_post"]
-    if not all(pb[0][k] < axle[0][k] and axle[1][k] < pb[1][k] for k in (0, 1)) or axle[1][2] <= v.m.CELLS_Z * v.m.B:
-        v.fail("the axle does not pass through the pillow block and out of the frame to the crank")
+    if not all(pb[0][k] < crank[0][k] and crank[1][k] < pb[1][k] for k in (0, 1)) or crank[1][2] <= v.m.CELLS_Z * v.m.B:
+        v.fail("the crank shaft does not pass through the pillow block and out of the frame to the crank")
+    pp = aabb_of([el for el in v.by_part["frame"] if el.name.startswith("fr_iron_pawlpin")])
+    pawl = v.by_part["pawl"][0].aabb()
+    if not (pp[0][2] < pawl[0][2] and pawl[1][2] < pp[1][2]):
+        v.fail("the pawl is not on its pin")
     if not held(pin, ["fr_hanger1", "fr_hanger2"]):
         v.fail("the sheave's pin does not run in both hangers")
 
@@ -348,9 +479,9 @@ def check_room(v, stages):
 ROLES = [
     (r"^fr_(post|head|beam|hoist|sill|rail|knee|cheek)", {"oak"}),
     (r"^fr_(iron|bearing|hanger)", {"iron"}),
-    (r"^wn_(axle|hoop|crank|collar)", {"iron"}),
-    (r"^wn_(drum|handle)", {"oak"}),
-    (r"^wn_coil|^ld_|^fl_", {"chain"}),
+    (r"^ck_(shaft|pinion|ratchet|web)|^ls_|^dr_(axle|wheel|hoop)|^pw_", {"iron"}),
+    (r"^ck_handle|^dr_drum", {"oak"}),
+    (r"^dr_coil|^ld_|^fl_", {"chain"}),
     (r"^sv_pin|^hk_|^rg_", {"iron"}),
     (r"^sv_(hub|flange)", {"oak"}),
 ]
@@ -388,6 +519,8 @@ def validate(m, els, parts, rig, body_shape, stages):
     check_floor(v, stages)
     check_containment(v)
     check_crank(v)
+    check_gearing(v, rig)
+    check_ratchet(v)
     check_clearances(v, stages)
     check_awakening(v, body_shape)
     check_ring(v, body_shape)
@@ -428,5 +561,9 @@ def validate_files(m, shape, frame_shape, rig, body_shape, stages):
     print(f"cells: {len(rig['cells'])}, {hollow} hollow")
     if [0, 0, 0] not in [c["pos"] for c in rig["cells"]] or rig["cells"][0].get("hollow"):
         print("FAIL the controller cell is not solid")
+        ok = False
+    crank = next((c for c in rig["cells"] if c["pos"] == list(m.CRANK_CELL)), None)
+    if crank is None or not crank.get("hollow") or "boxes" in crank:
+        print("FAIL the crank's cell is not in the footprint, hollow, with no boxes")
         ok = False
     return ok
