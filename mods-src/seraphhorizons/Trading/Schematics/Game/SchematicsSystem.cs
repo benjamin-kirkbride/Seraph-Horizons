@@ -85,7 +85,7 @@ public class SchematicsSystem : ModSystem
         if (Table is not { } table) return;
         if (_trader) LootScrub.Bind(_harmony ??= new Harmony(HarmonyId), table);
         if (!_machine && TradingSystem.Of(api) is { } trading)
-            trading.ExcludeEntry = e => table.IsMachineSchematic(e.Code);
+            trading.Exclude(e => table.IsMachineSchematic(e.Code));
         if (_trader || _machine)
             api.Event.ServerRunPhase(EnumServerRunPhase.ModsAndConfigReady, () => ApplyRecipes(api, table));
     }

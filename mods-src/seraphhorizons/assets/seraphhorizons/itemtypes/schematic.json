@@ -12,7 +12,7 @@
 		{ code: "machine", states: [
 			"windmill", "waterwheel", "handcrank", "transmission", "helvehammer", "pulverizer",
 			"sawmill", "chopper", "buckingmill", "rosser", "gearbox", "centeredspurgear",
-			"panningmachine", "cablecar", "biplane"
+			"panningmachine", "cablecar", "biplane", "eidolon"
 		] }
 	],
 	attributes: {
@@ -31,6 +31,7 @@
 		"*-gearbox": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-centeredspurgear": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-panningmachine": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
+		"*-eidolon": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*-handcrank": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-customtranslocator" } },
 		"*": { "map-blank": { base: "game:item/utility/map-blank" }, "schematic": { base: "game:item/utility/schematic-glider" } }
 	},

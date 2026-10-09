@@ -422,6 +422,26 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>Eidolon</c>: no command tool and no recipe for it, and the curio dealer stocks
+    /// neither the eidolon schematic nor the Jonas pump head (the pump head is left out by the
+    /// eidolon's own rule: MachineSchematics, off here too, only takes the schematic). The schematic
+    /// item and the pump head still exist.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_command_tool_and_no_eidolon_stock()
+    {
+        Assert.True(Off("Eidolon"));
+        Assert.False(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path == "eidoloncommander");
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.CommanderCode);
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.SchematicCode)));
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.PumpHeadCode)));
+        var lists = SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Lists!;
+        var core = lists.For("curiodealer")!.Selling.Core;
+        Assert.DoesNotContain(core, e => SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.IsTradeStock(e.Code));
+        Assert.Contains(core, e => e.Code == "game:schematic-glider");
+        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead") || u.Contains("schematic-eidolon"));
+    }
+
     /// <summary><c>SquaringShear</c>: no squaring shear blocks, no half plate and no recipe for the
     /// frame, no link to either in the mod's own text, and nothing logged about them. The plates it
     /// cuts and the parts it takes (the game's) exist either way.</summary>

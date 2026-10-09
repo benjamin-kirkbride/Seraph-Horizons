@@ -50,7 +50,9 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.CreativeSteamSource), [], [CreativeSteamSource.BlockAsset]);
         yield return (nameof(SeraphHorizonsConfig.CastPipes), Pipes.CastPipesSystem.RecipeAssets, Pipes.CastPipesSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.UnifiedPipes), Pipes.UnifiedPipesSystem.RecipeAssets, Pipes.UnifiedPipesSystem.TypeAssets);
-        yield return (nameof(SeraphHorizonsConfig.Eidolon), EidolonGantry.EidolonGantrySystem.RecipeAssets, EidolonGantry.EidolonGantrySystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.Eidolon),
+            [.. EidolonGantry.EidolonGantrySystem.RecipeAssets, .. Eidolon.EidolonCommanderSystem.RecipeAssets],
+            [.. EidolonGantry.EidolonGantrySystem.TypeAssets, .. Eidolon.EidolonCommanderSystem.TypeAssets]);
     }
 
     /// <summary>The registry, its codes read from this side's type assets (a type file that is

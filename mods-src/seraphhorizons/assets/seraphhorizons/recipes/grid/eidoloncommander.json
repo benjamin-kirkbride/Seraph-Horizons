@@ -1,0 +1,23 @@
+// The eidolon command tool (Eidolon/, README "Eidolon"). The server disables it with Eidolon off.
+// The eidolon schematic gates it (config/schematic-gates.json, machine "eidolon"): with
+// MachineSchematics on the server puts the schematic in the first empty slot, kept on crafting.
+[
+	{
+		// A Jonas connector (the emitter) on a Jonas cylinder (the temporal core), in a casing of
+		// one brass or steel plate bound with four nails and strips of the same metal, with a hammer.
+		ingredientPattern: "_J_,NCH,_P_",
+		// Both metal slots are {metal} wildcards, which the game expands over the recipe's
+		// allowedVariants (an ingredient's own allowedVariants would not narrow the other slot).
+		allowedVariants: { metal: ["brass", "steel"] },
+		width: 3,
+		height: 3,
+		ingredients: {
+			"J": { type: "item", code: "game:jonasparts-connector01" },
+			"C": { type: "item", code: "game:jonasparts-cylinder01" },
+			"P": { type: "item", code: "game:metalplate-{metal}" },
+			"N": { type: "item", code: "game:metalnailsandstrips-{metal}", quantity: 4 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "item", code: "seraphhorizons:eidoloncommander" }
+	}
+]

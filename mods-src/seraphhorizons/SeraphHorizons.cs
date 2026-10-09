@@ -826,11 +826,12 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public MandrelStation.Core.MandrelStationConfig MandrelStationSettings { get; set; } = new();
 
-    /// <summary>The player-built eidolon (#668, EidolonGantry/, Eidolon/, README "Eidolon"): a wooden
-    /// gantry built from support beams and fitted with a winch and a spine in nine stages, the
-    /// eidolon's body built on the spine and woken, and everything it needs (off means the gantry,
-    /// the eidolon and their items and recipes do not exist, and gantries already placed are lost).
-    /// The server's setting decides.</summary>
+    /// <summary>The player-built eidolon (#668; EidolonGantry/, Eidolon/, README "Eidolon"): a laborer
+    /// automaton behind the eidolon schematic the curio dealer sells, raised in a wooden gantry built
+    /// from support beams and fitted with a winch and a spine in nine stages, its body built on the
+    /// spine and woken, and ordered with a command tool (off means the gantry, the eidolon, the
+    /// command tool and their recipes do not exist, those already in a world are lost, and the curio
+    /// dealer does not stock the schematic or the Jonas pump head). The server's setting decides.</summary>
     public bool Eidolon { get; set; } = true;
 
     /// <summary>Stainless steel (#484, CrucibleFurnace/, README "Crucible furnace"): a crucible
