@@ -47,6 +47,16 @@
   --icon-border: light-dark(#845c43, #403529);
   /* The game's dialog panel colour. */
   --icon-text: #403529;
+  /* Chart series (the power page), in this order and never cycled. Each mode's steps are
+     checked against its --surface for colour-blind separation; the light mode's 3rd and 4th
+     are under 3:1, so every chart that uses them is labelled and has a table. */
+  --series-1: light-dark(#2a78d6, #3987e5);
+  --series-2: light-dark(#eb6834, #d95926);
+  --series-3: light-dark(#1baf7a, #199e70);
+  --series-4: light-dark(#eda100, #c98500);
+  --chart-grid: light-dark(#e6e3db, #34322c);
+  --chart-axis: light-dark(#bdb8ac, #55524a);
+  --critical: #d03b3b;
   --radius: 6px;
   --slot: 44px;
   /* Every light-dark() pair above follows this: the reader's system setting, unless they

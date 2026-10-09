@@ -1,6 +1,8 @@
 // Types for schema/recipe-export.schema.json (schemaVersion 1). The schema is the
 // contract; these mirror it and are only as strict as the app needs.
 
+import type { PowerData } from "./power-data.ts";
+
 export type Kind = "item" | "block";
 export type Shape = "grid" | "voxels" | "barrel" | "alloy" | "cooking" | "construction" | "butchery" | "transition" | "tub" | "lottery" | "machine" | "generic";
 
@@ -276,6 +278,8 @@ export interface RecipeExport {
    * tile and one handbook group. Absent without the pack's own mod or with Tidy Variants off.
    */
   variantGroups?: Record<string, VariantGroup>;
+  /** Mechanical power producers, consumers and the wind (power-data.ts). Absent in older exports. */
+  power?: PowerData;
   extra?: Record<string, unknown>;
 }
 

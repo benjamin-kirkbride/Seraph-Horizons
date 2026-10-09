@@ -436,6 +436,10 @@ Checked in the pack's code (decompiled) and assets; none is exported:
   and the frame's recipe;
 - the mandrel station (`RecipeExportMandrelStationScenarios.cs`): a record per metal, the kept
   mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections;
+- the power section (`RecipeExportPowerScenarios.cs`): the producers' models and the
+  consumers' loads against figures worked out from the code, no figure a fallback, a quern's and
+  a grinding wheel's exported load against the placed block's `GetResistance`, and the wind
+  close to an independent simulation ([power.md](power.md));
 - records per type against the definitions counted with the engine's asset loader, and
   variants per type against the sizes of the engine's registries;
 - the structural rules of the document, schema validation (JsonSchema.Net, draft

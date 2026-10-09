@@ -13,6 +13,7 @@ describe("parseRoute", () => {
     expect(parseRoute("#/main/item/game:ingot-copper")).toEqual({ view: "item", version: "main", code: "game:ingot-copper" });
     expect(parseRoute("#/main/search?q=ingot%20cop")).toEqual({ view: "search", version: "main", query: "ingot cop" });
     expect(parseRoute("#/main/entities")).toEqual({ view: "entities", version: "main" });
+    expect(parseRoute("#/main/power")).toEqual({ view: "power", version: "main" });
     expect(parseRoute("#/main/values")).toEqual({ view: "values", version: "main" });
     expect(parseRoute("#/main/values?q=cider&sort=name-asc&unvalued=1&kind=liquids&worthless=hide&unlisted=only")).toEqual({
       view: "values",
@@ -71,6 +72,7 @@ describe("parseRoute", () => {
   it("reports anything else as not found, keeping the version", () => {
     expect(parseRoute("#/main/nowhere")).toEqual({ view: "notfound", version: "main" });
     expect(parseRoute("#/main/credits/extra")).toEqual({ view: "notfound", version: "main" });
+    expect(parseRoute("#/main/power/wind")).toEqual({ view: "notfound", version: "main" });
   });
 });
 
@@ -89,7 +91,7 @@ describe("formatRoute", () => {
   });
 
   it("round-trips through parseRoute", () => {
-    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits", "#/main/entities", "#/main/entity/game:wolf", "#/main/entity/game:wolf?variant=game%3Awolf-male", "#/main/type/grid", "#/main/type/aculinaryartillery:simmer?page=2", "#/models", "#/models/bucking-sawmill"]) {
+    for (const hash of ["#/main/item/mymod:thing-1", "#/v1/search?q=a+%26+b", "#/main/credits", "#/main/power", "#/main/entities", "#/main/entity/game:wolf", "#/main/entity/game:wolf?variant=game%3Awolf-male", "#/main/type/grid", "#/main/type/aculinaryartillery:simmer?page=2", "#/models", "#/models/bucking-sawmill"]) {
       expect(formatRoute(parseRoute(hash))).toBe(hash);
     }
     expect(parseRoute(formatRoute({ view: "item", version: "main", code: "a:b/c" }))).toEqual({ view: "item", version: "main", code: "a:b/c" });
@@ -101,6 +103,7 @@ describe("withVersion", () => {
     expect(withVersion({ view: "item", version: "main", code: "game:stick" }, "v1")).toEqual({ view: "item", version: "v1", code: "game:stick" });
     expect(withVersion({ view: "notfound", version: "main" }, "v1")).toEqual({ view: "home", version: "v1" });
     expect(withVersion({ view: "entity", version: "main", code: "game:wolf-male" }, "v1")).toEqual({ view: "entity", version: "v1", code: "game:wolf-male" });
+    expect(withVersion({ view: "power", version: "main" }, "v1")).toEqual({ view: "power", version: "v1" });
     // The other version may have fewer pages of the type.
     expect(withVersion({ view: "type", version: "main", code: "grid", page: 40 }, "v1")).toEqual({ view: "type", version: "v1", code: "grid" });
   });

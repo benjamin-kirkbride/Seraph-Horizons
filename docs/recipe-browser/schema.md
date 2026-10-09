@@ -22,6 +22,7 @@ below that JSON Schema cannot express.
 | `recipeTypes` | One entry per recipe type, keyed by type code. |
 | `guides` | Handbook guide pages that are not tied to one item. |
 | `variantGroups` | Optional. The pack's own mod's Tidy Variants groups, keyed by group id. |
+| `power` | Optional. Mechanical power producers, consumers and the wind ([power.md](power.md)). |
 
 ## Codes
 
@@ -310,6 +311,32 @@ These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an 
 lacks them is still valid, and the site falls back to the generic card for a record of a
 shape it has no layout for.
 
+## Mechanical power
+
+`power`, an optional top-level object, holds the pack's mechanical power producers and
+consumers and the wind, for the site's Power page. It carries parameters only; the app derives
+torque, power and equilibria. [power.md](power.md) gives the models and where every figure
+comes from. Like the other optional additions it left `schemaVersion` at 1, and exports made
+before it lack it.
+
+- `producers`: `id` (unique, stable: `game:windmillrotor-metal@10`), `item` (a key of `items`
+  or null), `mod`, `name` (with its setup), `family` (`wind`, `water`, `steam`, `muscle`),
+  `model` (`rotor`, `wind` or `constantPower`), `shownKN` (the kN a windmill's block info shows,
+  else null), `conditions`, optional `cost`, and `sources`.
+- `consumers`: `id`, `item`, `mod`, `name`, `category` (`machine`, `transmission`, `brake`),
+  `load` (working, oiled), optional `loadMax`, `idleLoad`, `oil` (`dryMultiplier`, `tank` in
+  litres) and `note`, and `sources`.
+- `sources`: each figure's `what` and `from` (a config file, the block's JSON, `code constant
+  (<class>)` or `code default (<class>)`), with `fallback: true` when the exporter could not
+  read it and used its own default.
+- `wind`: the simulation's `years`, `samplesPerHour` and `seed`; the `patterns` with their
+  strength and duration (with `durationMeanHours` and `durationDist`) and their `share` of the time; the `altitude` factor; a `histogram` of
+  sea-level wind (`binWidth`, `shares`); the `mean`; and optional `sources` (each pattern's asset,
+  the model's code constants). Null when the server has no wind
+  patterns.
+
+prepare-data writes the section as it is to `power.json`; an export without it gives no file.
+
 ## Rules beyond the schema
 
 - Every recipe `type` is a key of `recipeTypes`, and `count` equals the number of records.
@@ -320,6 +347,10 @@ shape it has no layout for.
 - Every member of a `variantGroups` entry is a key of `items`, a group has two or more
   distinct members and a non-empty title, and no code is in two groups.
 - `variants[].ingredients` is as long as `ingredients`.
+- Power entry ids are unique within `producers` and within `consumers`; an entry's `item` is a
+  key of `items` (or null) and its `mod` a key of `mods`; `loadMax` is at least `load`, a wind
+  model's `sails.count` at most its `max` and a constant-power model's `taperFrom` at most its
+  `shaftSpeed`; the wind's pattern shares and histogram shares each add up to 1 (within 0.001).
 - A grid pattern has `height` rows of `width` characters and uses only keys that exist.
 - Each ingredient of a `construction` record is consumed by exactly one stage.
 - Each ingredient and each output of a `butchery` record belongs to exactly one stage;
