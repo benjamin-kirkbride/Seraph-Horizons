@@ -20,7 +20,8 @@ WINCH = ("crank", "layshaft", "drum", "pawl")                           # the wi
 GANTRY = ("frame", *WINCH, "sheave", "lead", "fall", "hook", "ring")    # made for the gantry (the spine is vanilla's)
 FIXED = ("frame", *WINCH, "sheave", "lead", "fall", "hook")             # what nothing hung may touch
 OUTSIDE = ("ck_web", "ck_handle", "ck_ratchet", "pw_", "fr_iron_pawl")  # the crank, its ratchet and pawl, outside the frame
-MESH_LIMIT = 0.25                             # voxels: box teeth run into each other this far at most (a real tooth form would not)
+MESH_LIMIT = 0.25                             # voxels: cogs and staves run into each other this far at most (box cogs, octagon staves)
+ENGAGE = 0.4                                  # voxels: at every moment a stave of each lantern is this close to a cog of its wheel at most
 
 
 class V:
@@ -157,7 +158,7 @@ def turned_train(v, crank_deg, shafts=False):
     zc = m.BODY_AT[2]
     out = {}
     for pid, c, share in train(m):
-        els = [el.clone() for el in v.by_part[pid] if shafts or not re.match(r"^\w\w_(shaft|axle)", el.name)]
+        els = [el.clone() for el in v.by_part[pid] if shafts or not re.match(r"^\w\w_(shaft|gudgeon)", el.name)]
         rotate(els, "z", crank_deg * share, (c[0], c[1], zc))
         out[pid] = els
     return out
@@ -180,7 +181,7 @@ def check_crank(v):
         hits |= touching(every, frame) | touching(every, pawl)
         cross |= {h for h in touching(t["crank"], t["drum"])}
         cross |= {h for a, b in (("crank", "layshaft"), ("layshaft", "drum"))
-                  for h in touching(t[a], t[b]) if not ("_tooth" in h[0] and "_tooth" in h[1])}
+                  for h in touching(t[a], t[b]) if not meshing(*h)}
         for el in t["crank"]:
             if el.name.startswith(OUTSIDE):
                 lo, hi = el.aabb()
@@ -201,6 +202,18 @@ def check_crank(v):
         v.fail(f"parts of the crank or the pawl are inside the frame: {inside}")
 
 
+def meshing(a, b):
+    """Whether two elements are a lantern's stave and a wheel's cog (they may touch as they mesh)."""
+    return ("_stave" in a and "_cog" in b) or ("_cog" in a and "_stave" in b)
+
+
+def point_box(p, el):
+    """The distance from a point to a box (0 inside it)."""
+    d = [p[k] - el.c[k] for k in range(3)]
+    q = [sum(el.r[k][j] * d[k] for k in range(3)) for j in range(3)]       # into the box's own axes
+    return math.sqrt(sum(max(abs(q[j]) - el.size[j] / 2, 0.0) ** 2 for j in range(3)))
+
+
 def overlap_depth(a, b):
     """How far two boxes run into each other: the shrink at which obb_obb stops finding an overlap, twice."""
     if not obb_obb(a, b, eps=0.0):
@@ -216,10 +229,10 @@ def overlap_depth(a, b):
 
 
 def check_gearing(v, rig):
-    """The train: every gear's pitch radius is the module's for its teeth, each stage's centre distance the
-    sum of its pitch radii, the rig's turns the tooth counts' (each shaft the other way to the one it meshes
-    with, the crank RATIO times the drum, which pays out the drop), the teeth meshed at rest (no tooth in
-    another), and through a tooth's turn the box teeth run into each other at most MESH_LIMIT."""
+    """The train: every lantern's and wheel's pitch radius is the module's for its staves or cogs, each stage's
+    centre distance the sum of its pitch radii, the rig's turns the counts' (each shaft the other way to the one it
+    meshes with, the crank RATIO times the drum, which pays out the drop), the staves among the cogs at rest (none
+    in a cog), and through a full turn of the crank the staves engaged and in the cogs at most MESH_LIMIT."""
     m = v.m
     errs = [abs(m.R_PINION - m.MODULE * m.PINION_TEETH / 2), abs(m.R_WHEEL - m.MODULE * m.WHEEL_TEETH / 2),
             abs(math.dist(m.CRANK_AXIS, m.LAY) - m.MESH), abs(math.dist(m.LAY, m.DRUM) - m.MESH)]
@@ -228,25 +241,30 @@ def check_gearing(v, rig):
     k = m.WHEEL_TEETH / m.PINION_TEETH
     ratio_errs = [abs(amount["crank"] / amount["layshaft"] + k), abs(amount["layshaft"] / amount["drum"] + k),
                   abs(amount["crank"] / amount["drum"] - m.RATIO), abs(amount["drum"] * m.DRUM_R - m.drop())]
-    print(f"gearing: {m.PINION_TEETH}:{m.WHEEL_TEETH} twice, {m.RATIO:g} to 1, module {m.MODULE}; centre distances off "
+    print(f"gearing: {m.PINION_TEETH} staves to {m.WHEEL_TEETH} cogs twice, {m.RATIO:g} to 1, module {m.MODULE}; centre distances off "
           f"{max(errs):.1e}, rig turns off the tooth counts {max(ratio_errs):.1e}; the let-down turns the drum "
           f"{math.degrees(amount['drum']):.1f} degrees and the crank {amount['crank'] / (2 * math.pi):.2f} turns")
     if max(errs) > 1e-9:
         v.fail("a stage's centre distance is not the sum of its pitch radii")
     if max(ratio_errs) > 1e-4:
         v.fail("the rig's turns are not the tooth counts' (or the drum does not pay out the drop)")
-    pairs = (("crank", "ck_pinion_tooth", "layshaft", "ls_wheel_tooth"), ("layshaft", "ls_pinion_tooth", "drum", "dr_wheel_tooth"))
+    pairs = (("crank", "ck_lantern_stave", "layshaft", "ls_wheel_cog", m.LAY),
+             ("layshaft", "ls_lantern_stave", "drum", "dr_wheel_cog", m.DRUM))
     rest = turned_train(v, 0.0)
-    for pa, na, pb, nb in pairs:
+    for pa, na, pb, nb, _ in pairs:
         a = [el for el in rest[pa] if el.name.startswith(na)]
         b = [el for el in rest[pb] if el.name.startswith(nb)]
         if touching(a, b):
             v.fail(f"{na} and {nb} are in each other at rest")
-    steps = 90                                  # half a crank turn: a tooth of each pinion's cycle, the layshaft's 1/10 turn
-    worst = {}
+    # a full crank turn: six staves of the crank's lantern, and more than one stave pitch of the layshaft's (72 of 60
+    # degrees). At every step the staves and cogs run into each other at most MESH_LIMIT, and the lantern is engaged:
+    # a stave inside the wheel's tip circle within ENGAGE of a cog, so the wheel is always driven
+    steps = 180
+    tip = m.R_WHEEL + m.ADDENDUM
+    worst, slack, inside = {}, {}, {}
     for i in range(steps):
-        t = turned_train(v, 180.0 * i / steps)
-        for pa, na, pb, nb in pairs:
+        t = turned_train(v, 360.0 * i / steps)
+        for pa, na, pb, nb, centre in pairs:
             a = [el for el in t[pa] if el.name.startswith(na)]
             b = [el for el in t[pb] if el.name.startswith(nb)]
             d = 0.0
@@ -257,9 +275,19 @@ def check_gearing(v, rig):
                     if all(xl[q] < yh[q] and yl[q] < xh[q] for q in range(3)):
                         d = max(d, overlap_depth(x, y))
             worst[na] = max(worst.get(na, 0.0), d)
-    print("teeth: " + ", ".join(f"{n} into its wheel at most {d:.3f}" for n, d in worst.items()) + f" (limit {MESH_LIMIT})")
+            zm = sum(el.c[2] for el in b) / len(b)
+            staves = [el.c[:2] + [zm] for el in a if el.name.endswith("_1")]
+            engaged = [s for s in staves if math.dist(s[:2], centre) < tip]
+            gap = min((min(point_box(s, y) for y in b) - m.STAVE_R for s in engaged), default=math.inf)
+            slack[na] = max(slack.get(na, 0.0), gap)
+            inside[na] = min(inside.get(na, len(staves)), len(engaged))
+    print("staves: " + ", ".join(f"{n} into its wheel's cogs at most {worst[n]:.3f}, at least {inside[n]} inside the cogs' tips, "
+                                 f"the nearest at most {slack[n]:.3f} from a cog" for n in worst)
+          + f" (limits {MESH_LIMIT}, {ENGAGE})")
     if max(worst.values()) > MESH_LIMIT:
-        v.fail("a pinion's teeth run too far into its wheel's")
+        v.fail("a lantern's staves run too far into its wheel's cogs")
+    if min(inside.values()) < 1 or max(slack.values()) > ENGAGE:
+        v.fail("a lantern's staves leave its wheel's cogs: the wheel is not always driven")
 
 
 def check_ratchet(v):
@@ -398,9 +426,9 @@ def check_chains(v):
 
 
 def check_supports(v):
-    """Nothing floats: the frame is one piece from the ground; the layshaft and the drum's axle run in both
-    cheeks' bearings and the crank shaft in the left's and the pillow block, out to the crank; the pawl is on
-    its pin; and the sheave's pin is in both hangers."""
+    """Nothing floats: the frame is one piece from the ground; the layshaft's and the drum's shafts run on their
+    gudgeons in both cheeks' bearings, and the crank shaft in the left's and the pillow block, out to the crank;
+    the wooden shafts reach their gudgeons; the pawl is on its pin; and the sheave's pin is in both hangers."""
     seen, loose = frame_floating(v.by_part["frame"])
     print(f"frame: {len(seen)} elements joined to the ground, {len(loose)} not")
     if loose:
@@ -414,14 +442,22 @@ def check_supports(v):
 
     def shaft(pid, prefix):
         return [el.aabb() for el in v.by_part[pid] if el.name.startswith(prefix)][0]
-    crank, lay, axle = shaft("crank", "ck_shaft"), shaft("layshaft", "ls_shaft"), shaft("drum", "dr_axle")
+    def gudgeons(pid, prefix):
+        return aabb_of([el for el in v.by_part[pid] if el.name.startswith(prefix)])
+    crank, lay, axle = shaft("crank", "ck_shaft"), gudgeons("layshaft", "ls_gudgeon"), gudgeons("drum", "dr_gudgeon")
     pin = [el.aabb() for el in v.by_part["sheave"] if el.name.startswith("sv_pin")][0]
     left = [c for c in cheeks if c.startswith("fr_cheek_l")]
     for name, s, holders, through in (("crank shaft", crank, ["fr_bearing_ckl", "fr_bearing_post"], left),
                                       ("layshaft", lay, ["fr_bearing_lsr", "fr_bearing_lsl"], cheeks),
-                                      ("drum's axle", axle, ["fr_bearing_drr", "fr_bearing_drl"], cheeks)):
+                                      ("drum's shaft", axle, ["fr_bearing_drr", "fr_bearing_drl"], cheeks)):
         if not held(s, holders) or not all(s[0][2] < frame[c][1][2] and frame[c][0][2] < s[1][2] for c in through):
             v.fail(f"the {name} does not run in its bearings ({', '.join(holders)}) and through its cheeks")
+    for pid, pre in (("layshaft", "ls_"), ("drum", "dr_")):
+        wood = aabb_of([el for el in v.by_part[pid] if el.name.startswith(pre + "shaft")])
+        for g in ("1", "2"):
+            gl, gh = aabb_of([el for el in v.by_part[pid] if el.name.startswith(f"{pre}gudgeon{g}_")])
+            if not (gl[2] < wood[1][2] and wood[0][2] < gh[2]):
+                v.fail(f"the {pid}'s gudgeon {g} is not driven into its shaft")
     pb = frame["fr_bearing_post"]
     if not all(pb[0][k] < crank[0][k] and crank[1][k] < pb[1][k] for k in (0, 1)) or crank[1][2] <= v.m.CELLS_Z * v.m.B:
         v.fail("the crank shaft does not pass through the pillow block and out of the frame to the crank")
@@ -476,14 +512,15 @@ def check_room(v, stages):
         v.fail("the sheave is on the body's head")
 
 
+WOOD = {"wood", "wood-end"}                    # the gantry's wood-variant codes (make_shape.WOOD_CODES)
 ROLES = [
-    (r"^fr_(post|head|beam|hoist|sill|rail|knee|cheek)", {"oak"}),
+    (r"^fr_(post|head|beam|hoist|sill|rail|knee|cheek)", WOOD),
     (r"^fr_(iron|bearing|hanger)", {"iron"}),
-    (r"^ck_(shaft|pinion|ratchet|web)|^ls_|^dr_(axle|wheel|hoop)|^pw_", {"iron"}),
-    (r"^ck_handle|^dr_drum", {"oak"}),
+    (r"^ck_(shaft|ratchet|web)|^pw_|^\w\w_(lantern_hoop|gudgeon|collar)|^dr_hoop", {"iron"}),
+    (r"^ck_handle|^\w\w_(lantern_(disc|stave)|wheel_|shaft)|^dr_drum", WOOD),
     (r"^dr_coil|^ld_|^fl_", {"chain"}),
     (r"^sv_pin|^hk_|^rg_", {"iron"}),
-    (r"^sv_(hub|flange)", {"oak"}),
+    (r"^sv_(hub|flange)", WOOD),
 ]
 
 
@@ -496,7 +533,11 @@ def check_textures(v):
         rule = next((want for rx, want in ROLES if re.match(rx, el.name)), None)
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
-    print(f"textures by role: {sum(el.part in GANTRY for el in v.els) - len(bad)} gantry elements as their role says")
+    if set(v.m.WOOD_CODES) != WOOD or not WOOD <= set(v.m.GANTRY_TEXTURES):
+        bad.append(("wood codes", sorted(v.m.WOOD_CODES), sorted(WOOD)))
+    ends = sum(1 for el in v.els if el.part in GANTRY for f in el.faces.values() if f["texture"] == "#wood-end")
+    print(f"textures by role: {sum(el.part in GANTRY for el in v.els) - len(bad)} gantry elements as their role says, "
+          f"{ends} end-grain faces")
     if bad:
         v.fail(f"textures off their role: {bad[:6]}")
 

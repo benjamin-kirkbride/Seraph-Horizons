@@ -9,6 +9,7 @@
   import type { PublishedModel } from "../lib/model-manifest.ts";
   import {
     advance,
+    applyState,
     classShows,
     choiceOf,
     contactDepth,
@@ -24,6 +25,7 @@
     propBox,
     rigNumber,
     startPhase,
+    stateOf,
     type Motion,
     type PlayContext,
   } from "../lib/model-scenario.ts";
@@ -67,10 +69,11 @@
           view = buildModelView(merged.shape, merged.rig, m.scenario);
           rig = merged.rig;
           vehicle = v;
-          fittedState = initialFitted(
-            view.requires.map((r) => r.value),
-            m.scenario?.choices,
-          );
+          const values = view.requires.map((r) => r.value);
+          fittedState = initialFitted(values, m.scenario?.choices);
+          const opening = m.scenario?.states?.options.find((o) => o.id === m.scenario?.states?.default);
+          if (opening) fittedState = applyState(fittedState, opening, values, m.scenario?.choices);
+          pickedState = opening?.id ?? null;
           overlays = {
             cells: true,
             collision: false,
@@ -103,6 +106,8 @@
   let reverse = $state(false);
   let playing = $state(false);
   let fittedState = $state<Record<string, boolean>>({});
+  // The state last picked from the scenario's states: two states may fit the same parts (built empty, and left empty).
+  let pickedState = $state<string | null>(null);
   let overlays = $state<Record<string, boolean>>({});
   let edges = $state(true);
   let colourMode = $state<ColourMode>("part");
@@ -419,6 +424,18 @@
     const choice = choiceOf(scenario?.choices, value);
     return choice ? `${choice.label}: ${label}` : label;
   };
+  // The scenario's state the fitted parts are in, or null when they were set by hand.
+  const statesSpec = $derived(scenario?.states);
+  const currentState = $derived(
+    view && statesSpec ? stateOf(fittedState, statesSpec, pickedState, view.requires.map((r) => r.value), scenario?.choices) : null,
+  );
+  const currentStateHint = $derived(statesSpec?.options.find((o) => o.id === currentState)?.hint ?? null);
+  function pickState(id: string) {
+    const state = statesSpec?.options.find((o) => o.id === id);
+    if (!view || !state) return;
+    fittedState = applyState(fittedState, state, view.requires.map((r) => r.value), scenario?.choices);
+    pickedState = id;
+  }
   // The requires values that are not in a choice: a checkbox each.
   const freeRequires = $derived(view ? view.requires.filter((r) => !choiceOf(scenario?.choices, r.value)) : []);
   let copyState = $state<{ which: string; text: string } | null>(null);
@@ -753,6 +770,16 @@
       {#if view.requires.length > 0}
         <fieldset>
           <legend>{s.fitted}</legend>
+          {#if statesSpec}
+            <label class="stack">
+              <span>{statesSpec.label}</span>
+              <select value={currentState ?? ""} onchange={(e) => pickState(e.currentTarget.value)} data-input="state">
+                {#if currentState === null}<option value="" disabled>{s.stateByHand}</option>{/if}
+                {#each statesSpec.options as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+              </select>
+              {#if currentStateHint}<span class="muted small" data-testid="model-state-hint">{currentStateHint}</span>{/if}
+            </label>
+          {/if}
           {#each scenario?.choices ?? [] as c (c.label)}
             <label class="stack">
               <span>{c.label}</span>

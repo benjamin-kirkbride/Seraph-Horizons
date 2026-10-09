@@ -7,7 +7,8 @@ game's pose maths (Eidolon/tools/kin.py), each element under its build stage's p
 `requires` are one per stage, while the spine (vanilla's, cut off the eidolon: the gantry's) and the ring over its top
 peg need nothing, there from the start and after the eidolon has woken; the let-down brings the lowest toe from 3
 voxels to the floor, the spine with it; the cells are rebuilt from the shipped shape; the front is open; the crank
-is outside the frame, in its own cell, which is hollow; and the winch is geared, its parts turning by their tooth counts. Run with
+is outside the frame, in its own cell, which is hollow; the winch is geared in wood, lantern pinions driving cog wheels, its
+parts turning by their stave and cog counts; and every wooden face takes one of the two wood-variant texture codes. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
 
@@ -106,6 +107,22 @@ class Rig(unittest.TestCase):
         for code, path in EIDOLON["textures"].items():
             self.assertEqual(SHAPE["textures"].get(code, path), path, code)
 
+    def test_the_wood_is_a_variant(self):
+        # the gantry's wood is two codes a blockType maps per wood; the shape maps them to oak
+        self.assertEqual(SHAPE["textures"]["wood"], "game:block/wood/debarked/oak")
+        self.assertEqual(SHAPE["textures"]["wood-end"], "game:block/wood/treetrunk/debarked/oak")
+        self.assertNotIn("oak", SHAPE["textures"])
+        wooden = ("fr_post", "fr_head", "fr_beam", "fr_hoist", "fr_sill", "fr_rail", "fr_knee", "fr_cheek",
+                  "ck_lantern_disc", "ck_lantern_stave", "ls_shaft", "ls_wheel", "ls_lantern_stave", "dr_shaft", "dr_wheel",
+                  "dr_drum", "ck_handle", "sv_hub")
+        for e in SHAPE["elements"]:
+            if e["name"].startswith(wooden):
+                self.assertLessEqual({f["texture"] for f in e["faces"].values()}, {"#wood", "#wood-end"}, e["name"])
+        self.assertTrue(any(f["texture"] == "#wood-end" for e in FRAME["elements"] for f in e["faces"].values()))
+        for name in ("ck_ratchet_tooth1", "pw_pawl", "ck_lantern_hoop1_1", "ls_gudgeon1_1", "dr_collar2_1"):
+            e = next(e for e in SHAPE["elements"] if e["name"] == name)
+            self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#iron"}, name)
+
     def test_cells_are_rebuilt_from_the_shipped_shape(self):
         self.assertEqual(make_shape.shipped_cells(SHAPE, RIG["parts"]), RIG["cells"])
         self.assertEqual(len(RIG["cells"]), make_shape.CELLS_X * make_shape.CELLS_Y * make_shape.CELLS_Z + 1)  # and the crank's
@@ -200,7 +217,7 @@ class Winch(unittest.TestCase):
 
     def test_the_train_is_geared_by_its_tooth_counts(self):
         gearing = RIG["winch"]["gearing"]
-        self.assertEqual(gearing["stages"], [[10, 50], [10, 50]])
+        self.assertEqual(gearing["stages"], [[6, 30], [6, 30]])
         self.assertEqual(gearing["ratio"], 25)
         a = self.amounts()
         # meshing shafts turn opposite ways, by the tooth counts; the drum pays out the drop
@@ -208,9 +225,9 @@ class Winch(unittest.TestCase):
         self.assertAlmostEqual(a["layshaft"] / a["drum"], -5.0, places=4)
         self.assertAlmostEqual(a["drum"] * RIG["winch"]["drumRadius"], RIG["winch"]["drop"], places=5)
         self.assertGreater(a["crank"] / (2 * math.pi), 2.5)          # the crank turns several times over the let-down
-        for name, pid in (("ck_pinion_tooth1", "crank"), ("ck_handle", "crank"), ("ck_ratchet_tooth1", "crank"),
-                          ("ls_wheel_tooth1", "layshaft"), ("ls_pinion_tooth1", "layshaft"),
-                          ("dr_wheel_tooth1", "drum"), ("dr_drum_1", "drum"), ("pw_pawl", "pawl")):
+        for name, pid in (("ck_lantern_stave1_1", "crank"), ("ck_handle", "crank"), ("ck_ratchet_tooth1", "crank"),
+                          ("ls_wheel_cog1a", "layshaft"), ("ls_lantern_stave1_1", "layshaft"), ("ls_gudgeon1_1", "layshaft"),
+                          ("dr_wheel_cog1a", "drum"), ("dr_drum_1", "drum"), ("dr_gudgeon2_1", "drum"), ("pw_pawl", "pawl")):
             self.assertEqual(rigmath.part_of(RIG["parts"], name), pid, name)
 
     def test_meshing_centre_distances_are_the_pitch_radii(self):
@@ -221,10 +238,10 @@ class Winch(unittest.TestCase):
             hi = [max(el.aabb()[1][k] for n, el in written.items() if n.startswith(prefix)) for k in range(2)]
             return [(lo[k] + hi[k]) / 2 for k in range(2)]
         pivots = {p["id"]: [v * 16 for v in p["drivers"][-1]["pivot"][:2]] for p in RIG["parts"] if p["id"] in ("crank", "layshaft", "drum")}
-        for prefix, pid in (("ck_shaft", "crank"), ("ls_shaft", "layshaft"), ("dr_axle", "drum")):
+        for prefix, pid in (("ck_shaft", "crank"), ("ls_shaft", "layshaft"), ("dr_shaft", "drum")):
             for k in range(2):
                 self.assertAlmostEqual(centre(prefix)[k], pivots[pid][k], delta=0.01)
-        pitch = (0.4 * 10 / 2) + (0.4 * 50 / 2)
+        pitch = (1.0 * 6 / 2) + (1.0 * 30 / 2)      # a 6-stave lantern and a 30-cog wheel, module 1
         self.assertAlmostEqual(math.dist(pivots["crank"], pivots["layshaft"]), pitch, delta=1e-3)
         self.assertAlmostEqual(math.dist(pivots["layshaft"], pivots["drum"]), pitch, delta=1e-3)
 

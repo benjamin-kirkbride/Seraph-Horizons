@@ -76,6 +76,7 @@ const en = {
   } as Record<string, string>,
   animationHint: "The shape's own keyframes, posed as the game poses them, 30 frames a second at speed 1. Stopped, the frame slider poses it.",
   fitted: "Fitted parts",
+  stateByHand: "As ticked below",
   prop: "Prop",
   propNone: "None",
   overlays: "Overlays",

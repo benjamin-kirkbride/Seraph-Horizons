@@ -24,7 +24,8 @@ recipe data is published. A version can therefore never be called `models`.
   one there does the same, which is also how it works without WebGL.
 - **Controls generated from the rig**: a slider or toggle for each input the rig's drivers read
   (below), a checkbox per distinct `requires` value (or a select for a scenario's choice of them),
-  and an overlay checkbox per anchor.
+  a select of the scenario's named states of them when it has some (a build, stage by stage), and an
+  overlay checkbox per anchor.
 - **The shape's own animations** (its `animations`, [below](#keyframe-animations)), when it has any:
   a select, Play and Pause, a frame slider, a speed and a loop toggle.
 - **A vehicle** (the handcar; [Vehicles](#vehicles)): the distance rolled and the speed in blocks a
@@ -239,6 +240,33 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   place of their checkboxes: the handcar's branch lever, whose three `TNL_*` levers Yang's renderer
   draws one of. `default` (else the first) is fitted at first. A value is in one choice at most, and
   not in `requiresClass`. The legend says "needs Branch lever: Left".
+- `states`: named sets of fitted parts, picked from one select above the checkboxes: the eidolon
+  gantry's build, from the empty gantry stage by stage to the eidolon fully built, and "Departed",
+  the eidolon woken and gone. A `requires` can only add parts, so a state in which a model has lost
+  them (the body gone, the spine left hanging) is a set of what is still fitted, and it is the
+  scenario's, not the rig's.
+
+  ```json
+  "states": {
+    "label": "Build state",
+    "default": "built",
+    "options": [
+      { "id": "empty", "label": "Stage 1: the gantry, the spine hung empty", "fitted": [] },
+      { "id": "torso", "label": "Stage 2: torso", "fitted": ["torso"] },
+      { "id": "departed", "label": "Departed: awake and gone", "fitted": [], "hint": "The eidolon has woken…" }
+    ]
+  }
+  ```
+
+  | Field | |
+  |---|---|
+  | `label` | The select's label. |
+  | `options` | Two or more, in the select's order. `id` is unique; `fitted` lists the requires values fitted in that state (empty for none), and picking it takes every other off. A choice is set to the value a state lists (one at most) and left as it is when the state lists none of its values. `hint`, optional, is shown under the select while the state is picked. |
+  | `default` | The state the page opens in. Without one it opens as without `states`: everything fitted, each choice at its default. |
+
+  The checkboxes stay, and ticking one by hand leaves the states: the select then reads "As ticked
+  below" until a state is picked again. Two states may fit the same parts (the gantry before the build
+  and after the awakening): the select keeps the one picked, and otherwise names the first.
 - `vehicle`: the model is a vehicle on a track ([Vehicles](#vehicles)).
 - `animations`: the shape's own animations ([Keyframe animations](#keyframe-animations)), the one
   scenario key a model without a rig may have. Codes are the animations' (`code`, else `name`), in
@@ -413,7 +441,7 @@ cd site && node --import tsx scripts/standalone-viewer.ts draw-bench ../build/dr
 | `site/src/lib/rig.ts` | Shape flattening (VS's rotation order, element scale and child frames) and the rig maths: globs, drivers (with the trunk path's), ride order, part matrices. Pure. |
 | `site/src/lib/keyframes.ts` | A shape's keyframe animations: reading them, resolving keyframes, the pose at a frame, element and joint matrices, Play's frame, and the scenario's `animations`. Pure. |
 | `site/src/lib/model-anchors.ts` | Anchor discovery, footprint, side arrows. |
-| `site/src/lib/model-scenario.ts` | Scenario types, props, choices, contact depth and the play state machine. |
+| `site/src/lib/model-scenario.ts` | Scenario types, props, choices, states, contact depth and the play state machine. |
 | `site/src/lib/model-vehicle.ts` | Vehicles: distance rolled, speed, bogies added to the model, the track's layout and scroll. |
 | `site/src/lib/model-view.ts` | What the page shows for a shape and rig: parts, textures, colours, controls. |
 | `site/src/lib/model-manifest.ts` | Manifest and model checks, what the build publishes. |
@@ -440,6 +468,9 @@ shape with three animations (a channel set on one keyframe only, wrapping round 
 the element matrix to a line-by-line port of the game's `Mat4f` calls in `GetLocalTransformMatrix`,
 both versions. It also checks the manifest's `animations`.
 `site/test/vehicle.test.ts` covers the vehicle, the θ cycle and choices on a small rig.
+`site/test/model-states.test.ts` covers states: applying one, naming the one the parts are in, their
+checks, and the eidolon gantry's build, whose "Departed" shows the spine, ring and frame and no stage
+of the body.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL (the handcar's `pump` for the

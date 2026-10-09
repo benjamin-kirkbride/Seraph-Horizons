@@ -2,9 +2,11 @@
 """Generate the eidolon gantry's shapes and rig (Python 3.11 stdlib only).
 
 The gantry is where the player-built eidolon (../../Eidolon/README.md) is assembled, stage by stage,
-and where it docks afterwards for repair and recharge: an open oak frame six blocks deep, five wide
-and five and a half high, with iron plates, brackets and pegs, and a geared hand winch at the back
-(two spur stages, 25 to 1, and a ratchet) whose chain runs up over one sheave on the hoist beam and
+and where it docks afterwards for repair and recharge: an open timber frame six blocks deep, five wide
+and five and a half high, in the wood it is built from (the wood-variant texture codes `wood` and
+`wood-end`, oak in the shape), with iron plates, brackets and pegs, and a geared hand winch at the back
+(two stages of wooden mill gearing, lantern pinions driving cog wheels, 25 to 1, and an iron ratchet)
+whose chain runs up over one sheave on the hoist beam and
 down to the body, its crank outside the frame on the south side, where a player standing outside
 turns it. The front (west, -x, the way the body faces)
 is open from the ground to the front beam, so the eidolon walks out of it when it wakes.
@@ -79,11 +81,17 @@ TEX = 16                                     # shape texture units: one per voxe
 CELLS_X, CELLS_Y, CELLS_Z = 6, 6, 5          # six deep (x), six high (the top row half used), five wide (z)
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the front right (north-west) post's foot
 
+# The gantry takes the wood it is built from: every wooden face is one of the two wood-variant codes, `wood`
+# (side grain, debarked) and `wood-end` (end grain, the timbers', shafts' and drum's ends), which the shape maps
+# to oak and a blockType will map per wood ({wood} from block/wood's properties, as vanilla's support beam:
+# block/wood/debarked/{wood} and block/wood/treetrunk/debarked/{wood}). Iron and chain stay what they are.
 GANTRY_TEXTURES = {
-    "oak": "game:block/wood/debarked/oak",
+    "wood": "game:block/wood/debarked/oak",
+    "wood-end": "game:block/wood/treetrunk/debarked/oak",
     "iron": "game:block/metal/plate/iron",
     "chain": "game:block/metal/armor-generic/chain-iron",
 }
+WOOD_CODES = ("wood", "wood-end")          # the wood-variant codes
 
 # ---------------------------------------------------------------- the body's place
 BODY_AT = (30.0, 0.0, 40.0)                  # the entity's position (model (8, 0, 8)), where it stands once awake: the
@@ -92,7 +100,7 @@ BODY_AT = (30.0, 0.0, 40.0)                  # the entity's position (model (8, 
 OFF = (BODY_AT[0] - 8.0, BODY_AT[1], BODY_AT[2] - 8.0)   # model voxels to build voxels
 HUNG = "hung"                                # the animation the body is baked in (its one frame)
 
-# ---------------------------------------------------------------- the frame (oak, 6 x 6 timbers)
+# ---------------------------------------------------------------- the frame (6 x 6 timbers)
 T = 6.0                                      # a timber's section
 X_FRONT, X_BACK = (0.0, T), (CELLS_X * B - T, CELLS_X * B)            # front (west) and back post lines
 Z_RIGHT, Z_LEFT = (0.0, T), (CELLS_Z * B - T, CELLS_Z * B)            # right (north) and left (south) post lines
@@ -108,36 +116,49 @@ PEG = (1.2, 0.4)                             # an iron peg head's side and how f
 STRAP = (1.0, 0.3)                           # an iron plate's or bracket's width and thickness
 
 # ---------------------------------------------------------------- the winch (at the back)
-# A geared crab winch: the body is heavy (about 2,500 kg), so the crank turns a pinion that drives the drum
-# through two spur stages, 10 to 50 teeth each, 25 to 1 in all. Three iron shafts run across the back in iron
-# bearing plates on two tall oak cheeks bolted to the back posts: the crank shaft at the bottom (only on the
-# left, where it runs on out through the pillow block to the crank), the layshaft above it and the drum's
-# axle at the top. Both stages sit at the left end, between the drum and the left cheek: stage 1 (the crank's
-# pinion and the layshaft's wheel) against the cheek, stage 2 (the layshaft's pinion and the drum's wheel)
-# against the drum. A pawl on an iron bracket bolted to the back left post's outer face drops onto a ratchet
-# on the crank shaft, outside the frame beside the crank, so the load cannot run back.
-MODULE = 0.4                                 # the gears' module (voxels): pitch radius = MODULE * teeth / 2
-PINION_TEETH, WHEEL_TEETH = 10, 50           # both stages
+# A geared crab winch: the body is heavy (about 2,500 kg), so the crank turns a lantern pinion that drives the drum
+# through two stages of wooden mill gearing, 6 staves to 30 cogs each, 25 to 1 in all. Each stage is a lantern
+# pinion (round staves between two discs bound with iron hoops) driving a cog wheel (a segmented rim on four clasp
+# arms round its square-flatted shaft, its cogs pegged into the rim, tapered at the tip). Three shafts run across
+# the back in iron bearing plates on two tall cheeks bolted to the back posts: the crank shaft at the bottom, iron
+# (only on the left, where it runs on out through the pillow block to the crank), the layshaft above it and the
+# drum's shaft at the top, both wooden, with iron gudgeons driven into their ends and iron collars round them. Both
+# stages sit at the left end, between the drum and the left cheek: stage 1 (the crank's lantern and the layshaft's
+# wheel) against the cheek, stage 2 (the layshaft's lantern and the drum's wheel) against the drum. A pawl on an
+# iron bracket bolted to the back left post's outer face drops onto an iron ratchet on the crank shaft, outside the
+# frame beside the crank, so the load cannot run back.
+MODULE = 1.0                                 # the gears' module (voxels): pitch radius = MODULE * teeth / 2
+PINION_TEETH, WHEEL_TEETH = 6, 30            # both stages: a lantern's staves, a wheel's cogs
 GEAR_STAGES = 2
 RATIO = (WHEEL_TEETH / PINION_TEETH) ** GEAR_STAGES         # crank turns per drum turn: 25
-R_PINION = MODULE * PINION_TEETH / 2         # 2
-R_WHEEL = MODULE * WHEEL_TEETH / 2           # 10
-MESH = R_PINION + R_WHEEL                    # a stage's centre distance
+R_PINION = MODULE * PINION_TEETH / 2         # 3: the staves' circle
+R_WHEEL = MODULE * WHEEL_TEETH / 2           # 15
+MESH = R_PINION + R_WHEEL                    # a stage's centre distance: 18
+ADDENDUM, DEDENDUM = 1.0 * MODULE, 1.2 * MODULE    # a cog's tip past the pitch circle, the rim's face inside it
+COG_W, COG_TIP_W = 1.4, 1.0                  # a cog's width across: at its root, to the pitch circle, and its tip
+STAVE_R = 0.6                                # a stave's apothem (an octagon)
+DISC_T = 1.0                                 # a lantern disc's thickness
+DISC_R = R_PINION + STAVE_R + 0.6            # its apothem: the staves stand inside it
+LANTERN_GAP = 3.0                            # between a lantern's discs, where the wheel's cogs run
+WHEEL_W = 2.4                                # a wheel's thickness (z), inside its lantern's gap
+RIM_IN, RIM_SEGMENTS = 11.0, 20              # the rim's inside radius, and its felloes
+ARM_W = 1.6                                  # a clasp arm's width
 CRANK_AXIS = (88.0, 24.0)                    # the crank shaft (x, y), along z: the middle of the crank's cell
-LAY = (85.0, CRANK_AXIS[1] + math.sqrt(MESH ** 2 - (CRANK_AXIS[0] - 85.0) ** 2))   # the layshaft, up and a little forward
-DRUM = (LAY[0], LAY[1] + MESH)               # the drum's axle, straight above the layshaft
+_WHEEL_X = CELLS_X * B - (R_WHEEL + ADDENDUM) - 0.3        # a wheel's axis as far back as its cogs clear the box
+LAY = (_WHEEL_X, CRANK_AXIS[1] + math.sqrt(MESH ** 2 - (CRANK_AXIS[0] - _WHEEL_X) ** 2))   # up and forward
+DRUM = (LAY[0], LAY[1] + MESH)               # the drum's shaft, straight above the layshaft
 DRUM_R = 4.0                                 # its apothem (an octagon)
-DRUM_Z = (16.0, 64.0)                        # the barrel
-STAGE2_Z = (64.4, 66.2)                      # the drum's wheel and the layshaft's pinion
-STAGE1_Z = (66.8, 68.6)                      # the layshaft's wheel and the crank's pinion
-TOOTH_W = 0.5                                # a box tooth's width: under half the pitch at the meshing wheel's root, so
-#                                              a tooth stands clear in the gap it turns into
-PINION_PROUD = 0.1                           # a pinion is a little wider than its wheel, each side
+DRUM_Z = (20.0, 60.5)                        # the barrel
+STAGE1_Z = (65.2, 68.2)                      # the crank's lantern's gap, its discs either side, the layshaft's wheel in it
+STAGE2_Z = (60.6, 63.6)                      # the layshaft's lantern's gap, the drum's wheel in it
 CHEEK_W = 4.0                                # the cheeks' thickness (z), against the posts' inner faces
-CHEEK_X = (80.0, CELLS_X * B)
-CHEEK_Y = (CRANK_AXIS[1] - 6.0, DRUM[1] + 5.0)
+CHEEK_X = (74.0, CELLS_X * B)
 BEARING = 2.5                                # a bearing plate's half side
-AXLE_R = 1.0
+CHEEK_Y = (CRANK_AXIS[1] - 6.0, DRUM[1] + BEARING)         # the top under the back knees
+AXLE_R = 1.0                                 # the iron crank shaft's apothem
+SHAFT_R = {"ls": 1.4, "dr": 1.6}             # the wooden shafts' apothems: the layshaft's clears the drum wheel's cogs
+GUDGEON_R = 0.8                              # the iron gudgeons in their ends, which run in the bearings
+COLLAR = (0.25, 0.8)                         # an iron collar's stand-off from its shaft and its width
 # The crank is outside the frame, on the left (south) side: the crank shaft runs on past the left cheek, beside
 # the back left post's front face in an iron pillow block bolted to it, and out past the post's outer face
 # (z 80) into the crank's own cell (CRANK_CELL), where a player standing south of the gantry turns it.
@@ -182,24 +203,32 @@ EYE = (1.0, 1.0)                             # the swivel eye at the fall's foot
 
 
 # ---------------------------------------------------------------- box helpers
-def skin(el, tex):
-    """Every face takes `tex`, its UVs a region of the texture in proportion to the face's size."""
+END_FACES = {0: ("east", "west"), 1: ("up", "down"), 2: ("north", "south")}
+
+
+def skin(el, tex, end=None):
+    """Every face takes `tex`, its UVs a region of the texture in proportion to the face's size. A wooden box's two
+    faces across local axis `end` are end grain (`wood-end`), their UVs the middle of the texture: the rings."""
     axes = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
     el.faces = {}
     for d, (u, v) in axes.items():
         w = min(abs(el.size[u]) * TEX / 16, TEX)
         h = min(abs(el.size[v]) * TEX / 16, TEX)
-        el.faces[d] = {"texture": "#" + tex, "uv": [0.0, 0.0, w, h]}
+        if tex == "wood" and end is not None and d in END_FACES[end]:
+            el.faces[d] = {"texture": "#wood-end", "uv": [(TEX - w) / 2, (TEX - h) / 2, (TEX + w) / 2, (TEX + h) / 2]}
+        else:
+            el.faces[d] = {"texture": "#" + tex, "uv": [0.0, 0.0, w, h]}
     return el
 
 
-def box(lo, hi, name, part, tex):
+def box(lo, hi, name, part, tex, end=None):
     c = [(lo[k] + hi[k]) / 2 for k in range(3)]
-    return skin(El(name, [hi[k] - lo[k] for k in range(3)], c, [r[:] for r in IDENT], {}, part), tex)
+    return skin(El(name, [hi[k] - lo[k] for k in range(3)], c, [r[:] for r in IDENT], {}, part), tex, end)
 
 
-def timber(lo, hi, name, part="frame", tex="oak", seg=16.0):
-    """A long box split into block-long pieces along its longest axis, so the texture is not stretched."""
+def timber(lo, hi, name, part="frame", tex="wood", seg=16.0):
+    """A long box split into block-long pieces along its longest axis, so the texture is not stretched; its ends
+    are end grain."""
     axis = max(range(3), key=lambda a: hi[a] - lo[a])
     n = max(1, math.ceil((hi[axis] - lo[axis]) / seg - 1e-9))
     out = []
@@ -207,12 +236,12 @@ def timber(lo, hi, name, part="frame", tex="oak", seg=16.0):
         l2, h2 = list(lo), list(hi)
         l2[axis] = lo[axis] + (hi[axis] - lo[axis]) * i / n
         h2[axis] = lo[axis] + (hi[axis] - lo[axis]) * (i + 1) / n
-        out.append(box(l2, h2, f"{name}{i + 1}" if n > 1 else name, part, tex))
+        out.append(box(l2, h2, f"{name}{i + 1}" if n > 1 else name, part, tex, end=axis))
     return out
 
 
 def rod(a, b, w, d, name, part, tex):
-    """A bar of section w x d from point a to point b, any direction: its local y along a->b."""
+    """A bar of section w x d from point a to point b, any direction: its local y along a->b (its ends' grain)."""
     u = [b[k] - a[k] for k in range(3)]
     length = math.sqrt(sum(x * x for x in u))
     u = [x / length for x in u]
@@ -223,17 +252,19 @@ def rod(a, b, w, d, name, part, tex):
     za = [xa[1] * u[2] - xa[2] * u[1], xa[2] * u[0] - xa[0] * u[2], xa[0] * u[1] - xa[1] * u[0]]
     r = [[xa[i], u[i], za[i]] for i in range(3)]
     mid = [(a[k] + b[k]) / 2 for k in range(3)]
-    return skin(El(name, [w, length, d], mid, r, {}, part), tex)
+    return skin(El(name, [w, length, d], mid, r, {}, part), tex, end=1)
 
 
-def octagon_z(z0, z1, cx, cy, apothem, name, part, tex):
-    """A plain octagonal disc or drum along z: four strips turned 0, 45, 90 and 135 degrees about z."""
+def octagon_z(z0, z1, cx, cy, apothem, name, part, tex, phase=0.0, ends=True):
+    """A plain octagonal disc, drum or shaft along z: four strips turned 0, 45, 90 and 135 degrees about z (and
+    `phase` radians more); a wooden one's ends are end grain unless `ends` is false (a disc built of boards)."""
     half = apothem * math.tan(math.pi / 8)
     out = []
     for i in range(4):
-        el = box([cx - apothem, cy - half, z0], [cx + apothem, cy + half, z1], f"{name}_{i + 1}", part, tex)
-        if i:
-            rotate([el], "z", 45.0 * i, (cx, cy, 0.0))
+        el = box([cx - apothem, cy - half, z0], [cx + apothem, cy + half, z1], f"{name}_{i + 1}", part, tex, end=2 if ends else None)
+        ang = 45.0 * i + math.degrees(phase)
+        if abs(ang) > 1e-12:
+            rotate([el], "z", ang, (cx, cy, 0.0))
         out.append(el)
     return out
 
@@ -409,7 +440,7 @@ def build_knees():
             p, q = (a[0], a[1], mid), (b[0], b[1], mid)
         else:
             p, q = (mid, a[0], a[1]), (mid, b[0], b[1])
-        out.append(rod(p, q, KNEE, KNEE, name, "frame", "oak"))
+        out.append(rod(p, q, KNEE, KNEE, name, "frame", "wood"))
     return out
 
 
@@ -465,25 +496,48 @@ def stage_phase(a, b):
     return math.atan2(b[1] - a[1], b[0] - a[0])
 
 
-def spur_z(c, z0, z1, pitch_r, teeth, name, part, tex, phase, spokes=0):
-    """An iron spur gear about z: `teeth` box teeth of MODULE on its root circle, one at `phase`. A pinion is
-    solid (an octagon to the root circle); a wheel (`spokes`) a rim, spokes and a hub."""
-    root, tip = pitch_r - 1.25 * MODULE, pitch_r + MODULE
-    w = TOOTH_W
-    if spokes:
-        rim_in, n = root - 1.3, 24
-        half = root * math.tan(math.pi / n)
-        out = [radial_z(c, z0 + (0.02 if i % 2 else 0.0), z1 - (0.02 if i % 2 else 0.0), rim_in, root - 0.1, -half, half,
-                        phase + 2 * math.pi * (i + 0.5) / n, f"{name}_rim{i + 1}", part, tex) for i in range(n)]
-        sw = 1.2
-        out += [radial_z(c, z0 + 0.25, z1 - 0.25, 1.8, rim_in + 0.1, -sw / 2, sw / 2, phase + 2 * math.pi * (i + 0.5) / spokes,
-                         f"{name}_spoke{i + 1}", part, tex) for i in range(spokes)]
-        out += octagon_z(z0 - 0.15, z1 + 0.15, c[0], c[1], 2.2, f"{name}_hub", part, tex)
-    else:
-        out = octagon_z(z0, z1, c[0], c[1], root - 0.15, f"{name}_body", part, tex)   # its corners clear the wheel's tips
-    for i in range(teeth):
-        out.append(radial_z(c, z0 + 0.03, z1 - 0.03, root - 0.2, tip, -w / 2, w / 2, phase + 2 * math.pi * i / teeth,
-                            f"{name}_tooth{i + 1}", part, tex))
+def lantern_z(c, gap, name, part, phase):
+    """A lantern pinion about z: PINION_TEETH round staves on the pitch circle, one at `phase`, between two board
+    discs bound with iron hoops, the gap between them `gap` (z), where the wheel's cogs run. The staves' ends
+    are let into the discs."""
+    z0, z1 = gap
+    out = []
+    for i, (a, b) in enumerate(((z0 - DISC_T, z0), (z1, z1 + DISC_T)), 1):
+        out += octagon_z(a, b, c[0], c[1], DISC_R, f"{name}_disc{i}", part, "wood", phase, ends=False)
+        out += octagon_z(a + 0.2, b - 0.2, c[0], c[1], DISC_R + 0.2, f"{name}_hoop{i}", part, "iron", phase)
+    for k in range(PINION_TEETH):
+        a = phase + 2 * math.pi * k / PINION_TEETH
+        out += octagon_z(z0 - 0.4, z1 + 0.4, c[0] + R_PINION * math.cos(a), c[1] + R_PINION * math.sin(a), STAVE_R,
+                         f"{name}_stave{k + 1}", part, "wood", ends=False)
+    return out
+
+
+def wheel_z(c, z0, z1, name, part, phase, shaft_r):
+    """A wooden cog wheel about z: a rim of RIM_SEGMENTS felloes, four clasp arms crossing in a square round the
+    shaft's flats (its octagon turned to `phase`), and WHEEL_TEETH cogs pegged into the rim, a gap at `phase`.
+    A cog is two boxes: COG_W wide from inside the rim to the pitch circle, COG_TIP_W out to its tip."""
+    root, tip = R_WHEEL - DEDENDUM, R_WHEEL + ADDENDUM
+    n = RIM_SEGMENTS
+    half = root * math.tan(math.pi / n) * 0.98
+    out = [radial_z(c, z0 + (0.03 if i % 2 else 0.0), z1 - (0.03 if i % 2 else 0.0), RIM_IN, root, -half, half,
+                    phase + 2 * math.pi * (i + 0.5) / n, f"{name}_rim{i + 1}", part, "wood") for i in range(n)]
+    o = shaft_r + ARM_W / 2
+    reach = math.sqrt((RIM_IN + 0.6) ** 2 - (o + ARM_W / 2) ** 2)
+    for i in range(4):
+        # two arms along `phase`, two across it, each pair either side of the shaft; the pairs half-lapped
+        along = phase + (math.pi / 2 if i >= 2 else 0.0)
+        side = o if i % 2 else -o
+        inset = 0.15 if i >= 2 else 0.1
+        el = box([c[0] - reach, c[1] + side - ARM_W / 2, z0 + inset], [c[0] + reach, c[1] + side + ARM_W / 2, z1 - inset],
+                 f"{name}_arm{i + 1}", part, "wood", end=0)
+        rotate([el], "z", math.degrees(along), (c[0], c[1], 0.0))
+        out.append(el)
+    for i in range(WHEEL_TEETH):
+        a = phase + 2 * math.pi * (i + 0.5) / WHEEL_TEETH
+        out.append(radial_z(c, z0 + 0.1, z1 - 0.1, root - 0.4, R_WHEEL, -COG_W / 2, COG_W / 2, a,
+                            f"{name}_cog{i + 1}a", part, "wood"))
+        out.append(radial_z(c, z0 + 0.15, z1 - 0.15, R_WHEEL - 0.05, tip, -COG_TIP_W / 2, COG_TIP_W / 2, a,
+                            f"{name}_cog{i + 1}b", part, "wood"))
     return out
 
 
@@ -539,11 +593,32 @@ def build_pawl():
     return out
 
 
+def wheel_span(gap):
+    """A wheel's z in its lantern's gap, in the middle."""
+    m = (gap[0] + gap[1]) / 2
+    return m - WHEEL_W / 2, m + WHEEL_W / 2
+
+
+def wooden_shaft(c, z, name, part, phase):
+    """A wooden shaft between the cheeks: an octagon of SHAFT_R from z[0] to z[1], its flats turned to its wheel's
+    arms, an iron gudgeon driven into each end and running on into the cheek's bearing, and an iron collar round
+    each end so the gudgeon does not split it."""
+    r = SHAFT_R[name[:2]]
+    cz = cheek_z()
+    out = octagon_z(z[0], z[1], c[0], c[1], r, f"{name}_shaft", part, "wood", phase)
+    for i, (a, b) in enumerate(((cz[0][0] + 1.0, z[0] + 0.6), (z[1] - 0.6, cz[1][1] - 1.0)), 1):
+        out += octagon_z(a, b, c[0], c[1], GUDGEON_R, f"{name}_gudgeon{i}", part, "iron", phase)
+    w = COLLAR[1]
+    for i, (a, b) in enumerate(((z[0] + 0.2, z[0] + 0.2 + w), (z[1] - 0.2 - w, z[1] - 0.2)), 1):
+        out += octagon_z(a, b, c[0], c[1], r + COLLAR[0], f"{name}_collar{i}", part, "iron", phase)
+    return out
+
+
 def build_winch():
-    """The winch: two tall oak cheeks bolted to the back posts, three iron shafts in iron bearing plates (the
-    crank shaft, the layshaft, the drum's axle), the two gear stages, the oak drum with iron hoops and the
-    chain coiled on it, the pillow block, and outside the frame the ratchet, its pawl and an iron crank with
-    an oak handle."""
+    """The winch: two tall cheeks bolted to the back posts, three shafts in iron bearing plates (the iron crank
+    shaft, the wooden layshaft and drum's shaft on iron gudgeons), the two stages of wooden gearing (a lantern
+    driving a cog wheel), the wooden drum with iron hoops and the chain coiled on it, the pillow block, and
+    outside the frame the iron ratchet, its pawl and an iron crank with a wooden handle."""
     out = []
     cz = cheek_z()
     for zn, z in zip("rl", cz):
@@ -558,27 +633,26 @@ def build_winch():
     hp, (pz0, pz1) = PILLOW
     cx, cy = CRANK_AXIS
     out.append(box([cx - hp, cy - hp, pz0], [X_BACK[0], cy + hp, pz1], "fr_bearing_post", "frame", "iron"))
-    p = PINION_PROUD
-    # the crank: its shaft from the stage-1 pinion out to the crank, the ratchet, the web and the handle
-    out += octagon_z(STAGE1_Z[0] - p, AXLE_END, cx, cy, AXLE_R, "ck_shaft", "crank", "iron")
-    out += spur_z(CRANK_AXIS, STAGE1_Z[0] - p, STAGE1_Z[1] + p, R_PINION, PINION_TEETH, "ck_pinion", "crank", "iron",
-                  stage_phase(CRANK_AXIS, LAY))
+    # the crank: its iron shaft from the stage-1 lantern out to the crank, the lantern, the ratchet, the web and
+    # the handle
+    out += octagon_z(STAGE1_Z[0] - DISC_T + 0.1, AXLE_END, cx, cy, AXLE_R, "ck_shaft", "crank", "iron")
+    out += lantern_z(CRANK_AXIS, STAGE1_Z, "ck_lantern", "crank", stage_phase(CRANK_AXIS, LAY))
     out += build_ratchet()
     out.append(box([cx - 1.25, cy - 1.75, CRANK_Z[0]], [cx + 1.25, cy + CRANK_R + 1.0, CRANK_Z[1]], "ck_web", "crank", "iron"))
     hw = HANDLE_W / 2
-    out.append(box([cx - hw, cy + CRANK_R - hw, HANDLE[0]], [cx + hw, cy + CRANK_R + hw, HANDLE[1]], "ck_handle", "crank", "oak"))
-    # the layshaft: the stage-1 wheel and the stage-2 pinion
-    shaft_z = (cz[0][0] + 1.0, cz[1][1] - 1.0)
-    out += octagon_z(shaft_z[0], shaft_z[1], LAY[0], LAY[1], AXLE_R, "ls_shaft", "layshaft", "iron")
-    out += spur_z(LAY, STAGE1_Z[0], STAGE1_Z[1], R_WHEEL, WHEEL_TEETH, "ls_wheel", "layshaft", "iron",
-                  stage_phase(LAY, CRANK_AXIS) + math.pi / WHEEL_TEETH, spokes=6)
-    out += spur_z(LAY, STAGE2_Z[0] - p, STAGE2_Z[1] + p, R_PINION, PINION_TEETH, "ls_pinion", "layshaft", "iron",
-                  stage_phase(LAY, DRUM))
-    # the drum, its axle and the stage-2 wheel
-    out += octagon_z(shaft_z[0], shaft_z[1], DRUM[0], DRUM[1], AXLE_R, "dr_axle", "drum", "iron")
-    out += spur_z(DRUM, STAGE2_Z[0], STAGE2_Z[1], R_WHEEL, WHEEL_TEETH, "dr_wheel", "drum", "iron",
-                  stage_phase(DRUM, LAY) + math.pi / WHEEL_TEETH, spokes=6)
-    out += octagon_z(DRUM_Z[0], DRUM_Z[1], DRUM[0], DRUM[1], DRUM_R, "dr_drum", "drum", "oak")
+    out.append(box([cx - hw, cy + CRANK_R - hw, HANDLE[0]], [cx + hw, cy + CRANK_R + hw, HANDLE[1]], "ck_handle", "crank", "wood", end=2))
+    # the layshaft: the stage-1 wheel and the stage-2 lantern
+    w1 = wheel_span(STAGE1_Z)
+    ph = stage_phase(LAY, CRANK_AXIS)
+    out += wooden_shaft(LAY, (cz[0][1] + 1.0, cz[1][0] - 1.0), "ls", "layshaft", ph)
+    out += wheel_z(LAY, w1[0], w1[1], "ls_wheel", "layshaft", ph, SHAFT_R["ls"])
+    out += lantern_z(LAY, STAGE2_Z, "ls_lantern", "layshaft", stage_phase(LAY, DRUM))
+    # the drum, its shaft (ending past the stage-2 wheel: the gudgeon runs on through stage 1, clear of its wheel)
+    w2 = wheel_span(STAGE2_Z)
+    ph = stage_phase(DRUM, LAY)
+    out += wooden_shaft(DRUM, (cz[0][1] + 1.0, STAGE2_Z[1] + 0.8), "dr", "drum", ph)
+    out += wheel_z(DRUM, w2[0], w2[1], "dr_wheel", "drum", ph, SHAFT_R["dr"])
+    out += octagon_z(DRUM_Z[0], DRUM_Z[1], DRUM[0], DRUM[1], DRUM_R, "dr_drum", "drum", "wood")
     for i, z0 in enumerate((DRUM_Z[0] + 1.0, DRUM_Z[1] - 2.0), 1):
         out += octagon_z(z0, z0 + 1.0, DRUM[0], DRUM[1], DRUM_R + 0.3, f"dr_hoop{i}", "drum", "iron")
     out += octagon_z(BODY_AT[2] - COIL_W / 2, BODY_AT[2] + COIL_W / 2, DRUM[0], DRUM[1], COIL_R, "dr_coil", "drum", "chain")
@@ -624,9 +698,9 @@ def build_sheave():
     for i, z in enumerate(HANGER_Z, 1):
         out.append(box([sx - 2.0, sy - 2.0, z[0]], [sx + 2.0, HEAD[0], z[1]], f"fr_hanger{i}", "frame", "iron"))
     out += octagon_z(HANGER_Z[0][0] - 0.5, HANGER_Z[1][1] + 0.5, sx, sy, 0.8, "sv_pin", "sheave", "iron")
-    out += octagon_z(HUB_Z[0], HUB_Z[1], sx, sy, SHEAVE_R, "sv_hub", "sheave", "oak")
+    out += octagon_z(HUB_Z[0], HUB_Z[1], sx, sy, SHEAVE_R, "sv_hub", "sheave", "wood", ends=False)
     for i, z in enumerate(FLANGE_Z, 1):
-        out += octagon_z(z[0], z[1], sx, sy, FLANGE_R, f"sv_flange{i}", "sheave", "oak")
+        out += octagon_z(z[0], z[1], sx, sy, FLANGE_R, f"sv_flange{i}", "sheave", "wood", ends=False)
     return out
 
 
@@ -798,7 +872,7 @@ def make_rig(parts):
                   "gearing": {"stages": [[PINION_TEETH, WHEEL_TEETH]] * GEAR_STAGES, "ratio": RATIO},
                   "_comment": "drop: how far the body comes down at depth 1 (blocks), its hung toe's height above the floor; "
                               "drumRadius: the chain's radius on the drum (blocks); gearing: the crank's train to the drum, "
-                              "[pinion, wheel] teeth per stage, crank turns per drum turn."},
+                              "[lantern staves, wheel cogs] per stage (wooden mill gearing), crank turns per drum turn."},
         "parts": parts,
     }
 

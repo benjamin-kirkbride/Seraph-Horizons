@@ -112,6 +112,8 @@ export interface Scenario {
   requiresClass?: Record<string, TrunkClass>;
   /** Requires values of which exactly one is fitted at a time (the handcar's branch lever): a select, not checkboxes. */
   choices?: RequiresChoice[];
+  /** Named sets of fitted parts, picked from one select: a build stage by stage, the model emptied. */
+  states?: FittedStates;
   prop?: PropSpec;
   play?: PlaySpec;
   /** The model is a vehicle on a track (model-vehicle.ts). */
@@ -143,6 +145,79 @@ export function pickChoice(fitted: Readonly<Record<string, boolean>>, choice: Re
 /** The choice a requires value belongs to, if any. */
 export function choiceOf(choices: readonly RequiresChoice[] | undefined, value: string): RequiresChoice | null {
   return choices?.find((c) => c.values.includes(value)) ?? null;
+}
+
+export interface FittedStates {
+  label: string;
+  /** Two or more. */
+  options: FittedState[];
+  /** The state the page opens in (without one: everything fitted, each choice at its default). */
+  default?: string;
+}
+
+export interface FittedState {
+  id: string;
+  label: string;
+  /** The requires values fitted in this state; every other is taken off. A choice none of whose values is listed is left as it is. */
+  fitted: string[];
+  /** Shown under the select while this state is picked. */
+  hint?: string;
+}
+
+/** `fitted` with `state` applied: its values fitted, every other requires value off, a choice it names set to that value. */
+export function applyState(
+  fitted: Readonly<Record<string, boolean>>,
+  state: FittedState,
+  requires: readonly string[],
+  choices: readonly RequiresChoice[] = [],
+): Record<string, boolean> {
+  const out = { ...fitted };
+  for (const r of requires) {
+    const choice = choiceOf(choices, r);
+    if (!choice || choice.values.some((v) => state.fitted.includes(v))) out[r] = state.fitted.includes(r);
+  }
+  return out;
+}
+
+function checkStates(st: FittedStates, requires: readonly string[], choices: readonly RequiresChoice[]): string[] {
+  const out: string[] = [];
+  if (typeof st.label !== "string" || st.label === "") out.push("states need a label");
+  const options = Array.isArray(st.options) ? st.options : [];
+  if (options.length < 2) out.push("states need two options or more");
+  const ids = new Set<string>();
+  for (const o of options) {
+    if (typeof o.id !== "string" || o.id === "") out.push("a state needs an id");
+    else if (ids.has(o.id)) out.push(`state "${o.id}" is there twice`);
+    ids.add(o.id);
+    if (typeof o.label !== "string" || o.label === "") out.push(`state "${o.id}" needs a label`);
+    if (o.hint !== undefined && (typeof o.hint !== "string" || o.hint === "")) out.push(`state "${o.id}": its hint must be text`);
+    if (!Array.isArray(o.fitted)) {
+      out.push(`state "${o.id}" needs a fitted list (empty for nothing fitted)`);
+      continue;
+    }
+    for (const v of o.fitted) if (!requires.includes(v)) out.push(`state "${o.id}": "${v}" is no part's requires value`);
+    for (const c of choices) if (c.values.filter((v) => o.fitted.includes(v)).length > 1) out.push(`state "${o.id}" fits more than one value of choice "${c.label}"`);
+  }
+  if (st.default !== undefined && !ids.has(st.default)) out.push(`states: default "${st.default}" is not one of the states`);
+  return out;
+}
+
+/** The state the fitted parts are in: `picked` while they still match it (two states may fit the same parts), else the first that matches, else null (set by hand). */
+export function stateOf(
+  fitted: Readonly<Record<string, boolean>>,
+  states: FittedStates | undefined,
+  picked: string | null,
+  requires: readonly string[],
+  choices: readonly RequiresChoice[] = [],
+): string | null {
+  if (!states) return null;
+  const matches = (s: FittedState) => {
+    const applied = applyState(fitted, s, requires, choices);
+    return requires.every((r) => !!applied[r] === !!fitted[r]);
+  };
+  const mine = states.options.find((s) => s.id === picked);
+  if (mine && matches(mine)) return mine.id;
+  return states.options.find(matches)?.id ?? null;
 }
 
 export const DEFAULT_SECONDS_PER_TURN = 1.2;
@@ -422,6 +497,7 @@ export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly An
     }
     if (c.default !== undefined && !c.values?.includes(c.default)) out.push(`choice "${c.label}": default "${c.default}" is not one of its values`);
   }
+  if (s.states !== undefined) out.push(...checkStates(s.states, requires, s.choices ?? []));
   let path: Work | null = null;
   try {
     path = workOf(rig);
