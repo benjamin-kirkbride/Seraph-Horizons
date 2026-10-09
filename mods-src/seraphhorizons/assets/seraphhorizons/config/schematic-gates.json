@@ -61,7 +61,13 @@
 		// recipes ship disabled.
 		{ "machine": "cablecar", "outputs": [ { "mod": "gondolacablecar", "code": "gondolacablecar:routeplanner" } ] },
 		// The trestles are the first stage; the airframe is built on them.
-		{ "machine": "biplane", "outputs": [ { "mod": "flyingmachine", "code": "flyingmachine:trestles" } ] }
+		{ "machine": "biplane", "outputs": [ { "mod": "flyingmachine", "code": "flyingmachine:trestles" } ] },
+		// The eidolon (#668): the gantry frame, its first stage, in which the body is built, and the
+		// command tool that orders it.
+		{ "machine": "eidolon", "outputs": [
+			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidolongantry-*" },
+			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidoloncommander" }
+		] }
 	],
 	"sales": [
 		// The game's.
@@ -119,6 +125,8 @@
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-gearbox", "sellers": ["smith"], "tier": 2 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-centeredspurgear", "sellers": ["smith"], "tier": 2 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-cablecar", "sellers": ["mechanic"], "tier": 4 },
-		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-biplane", "sellers": ["mechanic"], "tier": 4 }
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-biplane", "sellers": ["mechanic"], "tier": 4 },
+		// The eidolon's, with the game's other exotic schematics.
+		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-eidolon", "sellers": ["curiodealer"], "tier": 3 }
 	]
 }

@@ -894,4 +894,11 @@ public class SeraphHorizonsConfig
     /// <summary>The unified pipes' burst figures, in atm; a value out of range falls back to its
     /// default with a warning. Each side uses its own for the text, the server's for the pipes.</summary>
     public Pipes.Core.UnifiedPipesConfig UnifiedPipesSettings { get; set; } = new();
+
+    /// <summary>The eidolon (#668; Eidolon/, EidolonGantry/, README "Eidolon"): a player-built laborer
+    /// automaton raised in a wooden gantry, behind the eidolon schematic the curio dealer sells, and
+    /// ordered with a command tool (off means the command tool and its recipe do not exist, those
+    /// already in a world are lost, and the curio dealer does not stock the schematic or the Jonas
+    /// pump head). The server's setting decides.</summary>
+    public bool Eidolon { get; set; } = true;
 }
