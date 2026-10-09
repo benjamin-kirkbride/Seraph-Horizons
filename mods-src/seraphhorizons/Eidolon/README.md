@@ -6,9 +6,11 @@ sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On
 defends itself and stands guard. At 0 HP it slumps disabled and can be repaired; it is never killed.
 It is built stage by stage in a mostly wooden gantry.
 
-**Status: the model only.** This folder holds the shape's generator (`tools/`). There is no gameplay
-yet: no entity type, no AI, no gantry. The shape and the stage map below are what those will be
-built against, and the stage map and its ingredients are a **proposal for review**.
+**Status: the model and the entity.** This folder holds the shape's generator (`tools/`) and the
+entity (#673): its type, ownership, charge, slumping and a first pathfinder for its size, in `Core/`
+and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantry, upkeep, command tool
+and jobs plug into. Those are not built yet. The stage map and its ingredients below are a
+**proposal for review**.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.

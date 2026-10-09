@@ -2688,6 +2688,90 @@ loads them and empties the riders' patch, so none of it exists, in the handbook 
 handcars already in a world are lost. A client follows the server. Not yet: an icon for the recipe
 browser.
 
+### Eidolon (`Eidolon`, `EidolonSettings`)
+
+A player-built eidolon, a laborer automaton (epic #668; its model and build stages are in
+`Eidolon/README.md`). This part is the entity itself (#673), in `Eidolon/` (rules in `Eidolon/Core/`,
+the game side in `Eidolon/Game/`): the gantry that builds it, the command tool, oil, repair and the
+jobs come with their own tasks and plug into the seams below.
+
+**The entity.** `seraphhorizons:eidolon` (class `seraphhorizons.EntityLaborEidolon`; the game's own
+`EntityEidolon` is the boss's), the frozen mobile eidolon at size 1: a 1.7 × 3.75 box, 300 HP,
+mechanical (no breathing, hunger or fall damage), knockback-proof, its hurt sound the boss's. Its
+animation codes are the shape's (`slump`, `standup`, `activate`, `fell`, `carry-walk`, ...), with
+`idle`, `walk`, `run` and `hurt` mapped to `stand-idle1`, `stand-walk`, `stand-run` and
+`stand-stagger`. It is saved with its chunk and never despawns. Its AI runs, as any creature's, only
+while a player is within the server's simulation range.
+
+**Ownership.** An owner (uid and name, in its watched attributes): `EidolonSystem.Spawn` sets it, the
+creative spawner sets the player who used it. The owner and their company (the trading standing's
+company; with standing off, any group the two share) command it and open what it carries
+(`EntityLaborEidolon.MayCommand`, `RefuseUnlessCommander`, which tells anyone else whose it is). One
+with no owner answers anyone. Recharging (and later oiling and repairing) is open to all.
+
+**Charge.** A temporal gear runs it a quarter of the world's year (27 days at 9 days a month,
+`ChargeYearsPerGear`). Right-click it with a gear anywhere to add a gear's worth, up to
+`MaxChargeGears` (a gear that would go over is refused and kept). Charge drains with game time while
+it stands and its chunk is loaded, not while it is slumped. Out of charge it slumps where it stands
+and holds there until recharged, then plays `standup`. Its info shows the days left.
+
+**Never killed.** At 0 HP it slumps disabled instead of dying: no drops, no corpse, and a `Die` for
+death or lava does nothing but that. Down, it takes no more damage but heals, and stands up once
+repaired to `StandUpHealthShare` of its health. Its info says why it is stopped.
+
+**Orders.** One at a time, in its watched attributes (saved with it, shown in its info with how it is
+going): `stay` holds, `goto` walks to a point and is done on arrival. No order: it stands at rest.
+
+**Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
+spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
+corners instead, testing the whole box with the game's collision tester at each step (level, up one
+block, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like refused, water
+and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's own waypoint
+traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+
+**For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
+recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
+(one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
+`health <hp>`, `info`.
+
+**Seams for the next tasks.**
+- Spawning (#672): `EidolonSystem.Of(api).Spawn(world, pos, yaw, owner, activate: true, gears: 1)`
+  spawns it owned and charged and plays `activate`; it cannot work until that has played.
+- Upkeep (#674): an entity behaviour implementing `IEidolonUpkeep` (`Stop`: an `EidolonStop`, slumping
+  or only waiting, e.g. `new EidolonStop("dry", false, 20)`; `OnCheck(eidolon, running)`, four times a
+  second) is weighed with damage and charge into `Stop` and `CanWork`; nothing works while one stops
+  it. Repair: heal through `ReceiveDamage` with `EnumDamageType.Heal`, then `Check()`; the stand-up
+  threshold is `StandUpHealthShare`. Right-clicks reach each behaviour's `OnInteract` in the entity
+  type's order (charge first), so oil and repair are behaviours listed after it.
+- Orders (#675 on): `EidolonOrders.Register(code, (eidolon, args) => new MyOrder(...))`, an
+  `IEidolonOrder` (`Start`, `Continue` each tick, `Stop` when done, replaced or interrupted);
+  `eidolon.Orders.SetOrder(code, args)` gives one, `SetStatus(langKey, args)` says how it goes.
+  `AiTaskEidolonOrder` runs it at priority 1.5; self-defence goes in the task AI above it, and the
+  order starts again after. `EidolonNavigator.GoTo(target, run, onArrived, onStuck, tolerance)` walks
+  it by the wide pathfinder.
+- The game's `commandable` and `openablecontainer` entity behaviours (the hacked locust's and the mech
+  helper's) may serve the command tool and the carried container.
+
+| Setting | Default | |
+|---|---|---|
+| `ChargeYearsPerGear` | 0.25 | Years of the world's calendar one temporal gear runs it |
+| `MaxChargeGears` | 2 | The most charge it holds, in gears' worth |
+| `StandUpHealthShare` | 0.25 | Down at 0 HP, it stands up once repaired to this share of its health |
+| `WalkSpeed` | 0.022 | Its walking speed (creature scale; a player walks at about 0.03) |
+| `RunSpeed` | 0.04 | Its running speed |
+| `PathSearchNodes` | 3000 | The most nodes one path search visits |
+| `MaxFallBlocks` | 3 | The highest drop it walks off on a path |
+
+With the switch off the server marks the entity type and the spawner disabled before the game loads
+them and registers no command, so none of it exists; eidolons already in a world are lost. A client
+follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, ownership and the
+pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
+node budget); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
+stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
+knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and walks it through a
+2 × 4 gate and not through a 1 × 4 one; `SwitchesOffScenarios` requires none of it with the switch
+off. Not yet: an icon for the spawner.
+
 ### Felling a tree costs the axe a flat figure (`FlatFellingWear`, `FlatFellingWearSettings`)
 
 Logging Expanded (`loggingmod`, 0.3.6). Felling a tree that leaves a trunk costs the axe
