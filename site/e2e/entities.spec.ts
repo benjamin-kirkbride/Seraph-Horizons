@@ -2,7 +2,8 @@ import { V, card, expect, openItem, pause, test } from "./fixtures.ts";
 
 test("an item's creature source opens its type's page on that variant, which links back", async ({ page }) => {
   // survival/entities/lore/drifter.json: code "drifter", variant type "normal" (Surface
-  // Drifter); harvesting it gives a rusty gear at avg 0.01.
+  // Drifter); harvesting it gives rusty gears at avg 0.0725: BetterLoot+'s 0.01, plus its 0.25 gear
+  // parts at a quarter (seraphhorizons' GearPartsRemoved).
   await openItem(page, "game:gear-rusty");
   await page.locator('a[data-entity-link="game:drifter-normal"]').click();
   await expect(page).toHaveURL(new RegExp(`#/${V}/entity/game:drifter\\?variant=game%3Adrifter-normal$`));
@@ -13,20 +14,20 @@ test("an item's creature source opens its type's page on that variant, which lin
   const harvest = page.locator('[data-section="harvest"]');
   await expect(harvest.getByRole("heading")).toHaveText("Harvested from the body");
   const gear = harvest.getByRole("row").filter({ has: page.getByRole("link", { name: "Rusty gear", exact: true }) });
-  await expect(gear.getByRole("cell").nth(1)).toHaveText("0.01");
+  await expect(gear.getByRole("cell").nth(1)).toHaveText("0.07");
   await gear.getByRole("link", { name: "Rusty gear", exact: true }).click();
   await expect(page.locator('article[data-item="game:gear-rusty"]')).toBeVisible();
 });
 
 test("all variants of a type on one page, merged, with each variant a click away", async ({ page }) => {
-  // drifter.json: six variant types; rusty gear from 0.01 (normal) to 7 (double-headed).
+  // drifter.json: six variant types; rusty gear from 0.0725 (normal) to 7 (double-headed).
   await page.goto(`./#/${V}/entity/game:drifter`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Drifter");
   const chips = page.getByTestId("variants").getByRole("link");
   await expect(chips).toHaveCount(7);
   await expect(chips.first()).toHaveAttribute("aria-current", "page");
   const gear = page.locator('[data-section="harvest"]').getByRole("row").filter({ has: page.getByRole("link", { name: "Rusty gear", exact: true }) });
-  await expect(gear.getByRole("cell").nth(1)).toHaveText("0.01–7");
+  await expect(gear.getByRole("cell").nth(1)).toHaveText("0.07–7");
   await expect(gear.getByRole("cell").nth(2)).toHaveText("all");
   await chips.filter({ hasText: "Deep Drifter" }).click();
   await expect(page).toHaveURL(/variant=game%3Adrifter-deep$/);

@@ -45,6 +45,7 @@ public class SeraphHorizonsSystem : ModSystem
     private Harmony? _heatingRackPlacementHarmony;
     // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
     private Harmony? _gearConsumersHarmony;
+    private Harmony? _gearPartsHarmony;
     // Its own id, patched once per process, as the heating rack's: both sides ask Yang's seat check.
     private Harmony? _locomotiveStayOnHarmony;
     // Its own id, server side only.
@@ -130,6 +131,11 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(GearConsumers.DisablePatches);
         else if (GearConsumers.BessemerApplies(api) && GearConsumers.Bind(api.Logger))
             GearConsumers.Patch(_gearConsumersHarmony = new Harmony(GearConsumers.HarmonyId));
+        // BetterLoot+ applies its loot on the server only, in AssetsLoaded.
+        if (!(Config(api).GearPartsRemoved && GearPartsRemoved.Applies(api)))
+            DisablePatches(GearPartsRemoved.DisablePatches);
+        else if (api.Side == EnumAppSide.Server)
+            GearPartsRemoved.Patch(_gearPartsHarmony = new Harmony(GearPartsRemoved.HarmonyId), api.Logger);
         _fellingWear = Config(api).FlatFellingWear && FellingWear.Applies(api) && FellingWear.Bind(api.Logger);
         if (Config(api).LocomotiveRidersStayOn && LocomotiveSeats.Applies(api) && LocomotiveSeats.BindStayOn(api.Logger))
             LocomotiveSeats.PatchStayOn(_locomotiveStayOnHarmony = new Harmony(LocomotiveSeats.StayOnHarmonyId));
@@ -311,6 +317,12 @@ public class SeraphHorizonsSystem : ModSystem
         _heatingRackPlacementHarmony = null;
         _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
         _gearConsumersHarmony = null;
+        if (_gearPartsHarmony != null)
+        {
+            _gearPartsHarmony.UnpatchAll(GearPartsRemoved.HarmonyId);
+            _gearPartsHarmony = null;
+            GearPartsRemoved.Unbind();
+        }
         _locomotiveStayOnHarmony?.UnpatchAll(LocomotiveSeats.StayOnHarmonyId);
         _locomotiveStayOnHarmony = null;
         _locomotiveBreatheHarmony?.UnpatchAll(LocomotiveSeats.BreatheHarmonyId);
@@ -522,6 +534,11 @@ public class SeraphHorizonsConfig
     /// smex's Bessemer converter is raised with the steel large gear (off means every recipe as its
     /// mod ships it). The server's recipes are used; both sides patch the converter.</summary>
     public bool GearConsumers { get; set; } = true;
+
+    /// <summary>BetterLoot+: its rusty gear part is gone (the item and both its grid recipes; parts in
+    /// a world vanish), and every gear part drop in its loot is a rusty gear drop at a quarter of the
+    /// average, the same gears on average (server side; off means as BetterLoot+ ships it).</summary>
+    public bool GearPartsRemoved { get; set; } = true;
 
     /// <summary>The rosser: a mechanically powered ring debarker, built from a frame and Immersive
     /// Woodworking's and the game's parts, that strips the bark and branches off Logging Expanded
