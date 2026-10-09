@@ -1,7 +1,7 @@
-// Gear blank molds, fired (#479, GearBlanks; README "Steel gear blanks"). The game's own tool mold
+// Gear blank molds, fired (#479, GearBlanks; README "Stainless gear blanks"). The game's own tool mold
 // classes, as smex's molds are: a crucible pours into one (ILiquidMetalSink), smex's canal pedestal
 // takes one as any small tool mold, and the casting is the drop below with {metal} the poured
-// metal's last code part. Only steel has a blank, so any other metal is refused (the game's
+// metal's last code part. Only stainless steel (stainlesssteel) has a blank, so any other metal is refused (the game's
 // CanReceive asks for the drop first). The code is "toolmold" in this domain so the game's mold
 // code (it reads the materialtype and tooltype variants) and the handbook treat it as one of its own.
 {
@@ -44,7 +44,7 @@
 	},
 	attributesByType: {
 		"*-gearblank": {
-			requiredUnits: 100,
+			requiredUnits: 25,
 			fillHeight: 1,
 			moldrackable: true,
 			onmoldrackTransform: { rotation: { z: 90 } },

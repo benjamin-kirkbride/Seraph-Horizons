@@ -412,11 +412,11 @@ the bench across it.) The axle then comes in at the far end on the player's righ
 off to their left, and a chest of hollow sections stands in front of the die end. The frame recipe
 (`assets/seraphhorizons/recipes/grid/drawbench.json`): two metal plates (die stock and the drive head's bed
 plate, in one slot) and four rods (the ways, two a side) of iron, meteoric iron or steel, 12 nails and
-strips of the same metals, two steel gears (`seraphhorizons:gear-steel`, for the gearing the frame carries:
+strips of the same metals, two stainless gears (`seraphhorizons:gear-stainless`, for the gearing the frame carries:
 the rectifier's A1, A2, B1, B2 and idler, the return shaft's gear and the barrel gear; every other machine
-in the pack pays steel gears for its gears, #473), two oak logs (the sills), oak planks (the bed) and a
-hammer: about 11 ingots of iron (a plate 2, a rod 1, 12 nails and strips 3), under the steel gear cutter's
-frame (8 steel ingots, 32 nails and strips and 3 steel gears).
+in the pack pays stainless gears for its gears, #473), two oak logs (the sills), oak planks (the bed) and a
+hammer: about 11 ingots of iron (a plate 2, a rod 1, 12 nails and strips 3), under the gear cutter's
+frame (8 steel ingots, 32 nails and strips and 3 stainless gears).
 
 **Stages** (`DrawBenchParts`), in `DrawBenchStage` order, the next missing stage the only one a click
 fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a die with no

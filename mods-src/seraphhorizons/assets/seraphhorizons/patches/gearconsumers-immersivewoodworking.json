@@ -1,10 +1,10 @@
 // seraphhorizons' GearConsumers switch (README.md, GearConsumers.cs; #473): the rusty gear is salvage
-// and money, so every recipe that took one takes the pack's steel gear (seraphhorizons:gear-steel),
+// and money, so every recipe that took one takes the pack's stainless gear (seraphhorizons:gear-stainless),
 // in the same number (counts below are per recipe, all slots). tools/tests/test_gear_consumers.py
 // holds this file to the mod's recipes.
 // Immersive Woodworking (1.3.11): the sawmill carriage, 1. The file ships disabled and the mod
 // registers the recipe itself from it, once per wood, after the patch loader, as
 // woodworking-machine-costs.json relies on.
 [
-  {"file": "immersivewoodworking:recipes/grid/sawmill_carriage.json", "op": "replace", "path": "/ingredients/G/code", "value": "seraphhorizons:gear-steel", "dependsOn": [{"modid": "immersivewoodworking"}]}
+  {"file": "immersivewoodworking:recipes/grid/sawmill_carriage.json", "op": "replace", "path": "/ingredients/G/code", "value": "seraphhorizons:gear-stainless", "dependsOn": [{"modid": "immersivewoodworking"}]}
 ]

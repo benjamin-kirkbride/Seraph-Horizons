@@ -828,10 +828,12 @@ goods (× the fit).
   priced by its consumed parts and labour only. A trader sells them at the price its list entry
   overrides by hand (`price`, `priceReason`), and the curio dealer buys back the diving gear
   schematic at its entry's price; the value check asks them for that override instead. (#506)
-- **The steel gear** (`seraphhorizons:gear-steel`) takes its cheapest route, like any item: the
-  gear cutter, or the reclamation lottery (ten oiled gears less the nine steel bits the failed
-  rolls give). The large steel gear (`seraphhorizons:largegear-steel`) takes its gear cutter route.
-  Neither is a hand price. (#506, #523)
+- **The stainless gear** (`seraphhorizons:gear-stainless`, the steel gear until the stainless
+  rework) takes its cheapest route, like any item: the gear cutter, or the reclamation lottery (ten
+  neutralized gears less the nine stainless bits the failed rolls give). The large stainless gear
+  (`seraphhorizons:largegear-stainless`) takes its gear cutter route. Neither is a hand price.
+  Stainless steel itself is a raw at 12 an ingot until the crucible furnace gives it a route.
+  (#506, #523, #484)
 
 ### Everything has a price
 

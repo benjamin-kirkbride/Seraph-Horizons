@@ -31,7 +31,7 @@ function withValues(): RecipeExport {
   set("game:flint", { value: 0.05 });
   set("game:saw-copper", { value: 7.5, valueSwitches: ["toolValues"] });
   set("examplemod:widget", { value: 2.5 });
-  set("seraphhorizons:gearblank-steel", { value: 1234.5, switch: "gears" });
+  set("seraphhorizons:gearblank-stainlesssteel", { value: 1234.5, switch: "gears" });
   return exp;
 }
 
@@ -43,7 +43,7 @@ describe("prepareData with item values", () => {
   it("writes one value or null per search.json row", () => {
     expect(search.value).toHaveLength(search.codes.length);
     expect(search.value![at("game:ingot-copper")]).toBe(2.5);
-    expect(search.value![at("seraphhorizons:gearblank-steel")]).toBe(1234.5);
+    expect(search.value![at("seraphhorizons:gearblank-stainlesssteel")]).toBe(1234.5);
     expect(search.value![at("game:plank-oak")]).toBeNull();
   });
 
@@ -199,7 +199,7 @@ describe("ValueTable", () => {
     expect(table.valued).toBe(7);
     const rows = query(base);
     expect(rows).toHaveLength(7);
-    expect(codes(rows).slice(0, 4)).toEqual(["seraphhorizons:gearblank-steel", "game:saw-copper", "game:ingot-tin", "game:ingot-copper"]);
+    expect(codes(rows).slice(0, 4)).toEqual(["seraphhorizons:gearblank-stainlesssteel", "game:saw-copper", "game:ingot-tin", "game:ingot-copper"]);
     // Copper ingot and Widget are both 2.5: name order in both directions.
     const asc = codes(query({ ...base, dir: "asc" }));
     expect(asc.slice(0, 4)).toEqual(["game:stick", "game:flint", "game:ingot-copper", "examplemod:widget"]);
@@ -229,7 +229,7 @@ describe("ValueTable", () => {
     expect(codes(query({ ...base, filter: "copper" }))).toEqual(["game:saw-copper", "game:ingot-copper"]);
     expect(codes(query({ ...base, filter: "INGOT tin" }))).toEqual(["game:ingot-tin"]);
     expect(codes(query({ ...base, filter: "example mod" }))).toEqual(["examplemod:widget"]);
-    expect(codes(query({ ...base, filter: "seraphhorizons" }))).toEqual(["seraphhorizons:gearblank-steel"]);
+    expect(codes(query({ ...base, filter: "seraphhorizons" }))).toEqual(["seraphhorizons:gearblank-stainlesssteel"]);
     expect(query({ ...base, filter: "nothing like this" })).toEqual([]);
   });
 

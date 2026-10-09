@@ -3,7 +3,7 @@
 The rusty gear is salvage and money only (#473, epic #484): every recipe that takes
 `game:gear-rusty`, or one of ppex's hand-forged gears (`ppex:gear-*`, `ppex:largegear-*`), is
 patched by `mods-src/seraphhorizons/assets/seraphhorizons/patches/gearconsumers-<modid>.json` to
-take the pack's steel gear, or switched off, unless it is one of the few uses listed in EXEMPT
+take the pack's stainless gear, or switched off, unless it is one of the few uses listed in EXEMPT
 below, each with its reason. These tests read every locked mod's zip in build/mods (and the game's
 own assets when VINTAGE_STORY is set), so a mod update that adds a use, or moves a patched recipe,
 fails here. The Atlas scenario (tests/PackTests/GearConsumersScenarios.cs) checks the same from
@@ -28,8 +28,8 @@ LOCK = ROOT / "pack" / "lock.json"
 MODS_DIR = ROOT / "build" / "mods"
 PATCHES = ROOT / "mods-src" / "seraphhorizons" / "assets" / "seraphhorizons" / "patches"
 
-STEEL_GEAR = "seraphhorizons:gear-steel"
-STEEL_LARGE_GEAR = "seraphhorizons:largegear-steel"
+STAINLESS_GEAR = "seraphhorizons:gear-stainless"
+STAINLESS_LARGE_GEAR = "seraphhorizons:largegear-stainless"
 
 # What a use is a use of: the rusty gear, and ppex's anvil gears and large gears.
 SMALL_GEARS = ("game:gear-rusty", "ppex:gear-iron", "ppex:gear-steel")
@@ -289,7 +289,7 @@ class Coverage:
                     if (asset, pointer) in EXEMPT:
                         continue
                     root = recipe_root(doc, pointer)
-                    want = STEEL_GEAR if kind == "small" else STEEL_LARGE_GEAR
+                    want = STAINLESS_GEAR if kind == "small" else STAINLESS_LARGE_GEAR
                     replaced = any(p["file"] == asset and p["op"] == "replace" and p["path"] == f"{pointer}/code"
                                    and p["value"] == want for p in patches)
                     disabled = any(p["file"] == asset and p["op"] in ("add", "replace")
@@ -321,7 +321,7 @@ class Coverage:
                     code = _code(resolve(doc, p["path"]), p["file"].split(":", 1)[0])
                     kind = gear_kind(code)
                     self.assertIsNotNone(kind, f"{p['path']} is {code}, not a gear: the recipe moved")
-                    self.assertEqual(STEEL_GEAR if kind == "small" else STEEL_LARGE_GEAR, p["value"])
+                    self.assertEqual(STAINLESS_GEAR if kind == "small" else STAINLESS_LARGE_GEAR, p["value"])
                 elif last == "enabled":
                     recipe = resolve(doc, parent) if parent else doc
                     uses = find_uses(p["file"], recipe)
