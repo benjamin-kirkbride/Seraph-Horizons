@@ -26,6 +26,7 @@
     withSails,
     type LoadPick,
   } from "../lib/power.ts";
+  import { formatRoute } from "../lib/route.ts";
   import { t } from "../lib/strings.ts";
   import ItemLink from "./ItemLink.svelte";
   import ModLink from "./ModLink.svelte";
@@ -76,6 +77,12 @@
   const reference = $derived(referenceLoad(consumers));
   const machines = $derived(consumers.filter((c) => c.category === "machine"));
   const others = $derived(consumers.filter((c) => c.category !== "machine"));
+  // The load explorer's machine picker, grouped under each mod's name.
+  const machinesByMod = $derived.by(() => {
+    const groups = new Map<string, Consumer[]>();
+    for (const c of machines) groups.set(c.mod, [...(groups.get(c.mod) ?? []), c]);
+    return [...groups].sort(([a], [b]) => modName(a).localeCompare(modName(b), "en"));
+  });
   const hasOil = $derived(consumers.some((c) => (c.oil?.dryMultiplier ?? 1) !== 1));
   const dryMultiplier = $derived(Math.max(1, ...consumers.map((c) => c.oil?.dryMultiplier ?? 1)));
 
@@ -84,14 +91,16 @@
   let hiddenMods = $state<string[]>([]);
   const producerMods = $derived([...new Set(producers.map((p) => p.mod))]);
   const modName = (id: string) => meta.mods[id]?.name || id;
+  // A chart row's link to the item's page, where there is an item.
+  const link = (item: string | null) => (item ? { href: formatRoute({ view: "item", version: data.id, code: item }) } : {});
   const visible = $derived(producers.filter((p) => shown[p.family] && !hiddenMods.includes(p.mod)));
-  const curves = $derived<Curve[]>(visible.map((p) => ({ id: p.id, name: p.name, color: COLOR[p.family], model: sailed(p), wind })));
+  const curves = $derived<Curve[]>(visible.map((p) => ({ id: p.id, name: p.name, mod: modName(p.mod), color: COLOR[p.family], model: sailed(p), wind })));
   const peakBars = $derived<BarGroup[]>([
     {
       bars: visible
         .map((p) => ({ p, peak: producerFigures(sailed(p), wind).peak }))
         .sort((a, b) => b.peak - a.peak)
-        .map(({ p, peak }): Bar => ({ key: p.id, label: p.name, value: peak, color: COLOR[p.family], text: fmt(peak) })),
+        .map(({ p, peak }): Bar => ({ key: p.id, label: p.name, ...link(p.item), mod: modName(p.mod), value: peak, color: COLOR[p.family], text: fmt(peak) })),
     },
   ]);
   const windText = $derived(wind === FULL_WIND ? `${fmt(wind)} (${t.power.windFull})` : fmt(wind));
@@ -120,6 +129,8 @@
           bars.push({
             key: `${p.id}|avg`,
             label: p.name,
+            ...link(p.item),
+            mod: modName(p.mod),
             sub: t.power.averaged,
             value: avg.speed,
             color: COLOR[p.family],
@@ -129,6 +140,8 @@
         bars.push({
           key: `${p.id}|full`,
           label: p.name,
+          ...link(p.item),
+          mod: modName(p.mod),
           ...(avg ? { sub: t.power.atFull, light: true } : {}),
           value: full.speed,
           color: COLOR[p.family],
@@ -156,13 +169,14 @@
     for (const c of machines) groups.set(c.mod, [...(groups.get(c.mod) ?? []), c]);
     return [...groups]
       .map(([mod, list]) => ({
-        name: meta.mods[mod]?.name || mod,
+        name: modName(mod),
         bars: list
           .sort((a, b) => consumerLoad(b, false) - consumerLoad(a, false))
           .map(
             (c): Bar => ({
               key: c.id,
               label: c.name,
+              ...link(c.item),
               value: c.load,
               ...(c.loadMax !== undefined ? { range: c.loadMax } : {}),
               ...(c.oil ? { dry: consumerLoad(c, true) } : {}),
@@ -293,7 +307,7 @@
     </div>
     <PowerTorqueChart {curves} title={t.power.torqueTitle} desc={t.power.torqueDesc(windText)} />
     <PowerBars title={t.power.peakTitle} desc={t.power.peakDesc} axis={t.power.powerAxis} groups={peakBars} testid="peak-chart" />
-    <PowerSources entries={producers.map((p) => ({ name: p.name, sources: p.sources }))} />
+    <PowerSources entries={producers.map((p) => ({ name: p.name, ...link(p.item), mod: modName(p.mod), sources: p.sources }))} />
   </section>
 
   <section aria-labelledby="power-wind" data-testid="power-wind">
@@ -354,6 +368,7 @@
             <thead>
               <tr>
                 <th scope="col">{t.power.cols.name}</th>
+                <th scope="col">{t.power.cols.mod}</th>
                 <th scope="col" class="num">{t.power.cols.avgPeak}</th>
                 <th scope="col" class="num">{t.power.cols.ofFull}</th>
                 <th scope="col" class="num">{t.power.cols.avgFree}</th>
@@ -363,7 +378,8 @@
               {#each windmills as p (p.id)}
                 {@const a = windAverages(sailed(p) as WindModel, dist)}
                 <tr data-producer={p.id}>
-                  <td>{p.name}{#if p.model.turbulencePenalty}<span class="muted turb" title={t.power.turbulence}>*</span>{/if}</td>
+                  <td>{@render name(p.item, p.name, [])}{#if p.model.turbulencePenalty}<span class="muted turb" title={t.power.turbulence}>*</span>{/if}</td>
+                  <td><ModLink id={p.mod} mods={meta.mods} /></td>
                   <td class="num" data-col="avg-peak">{fmt(a.peakPower)}</td>
                   <td class="num" data-col="of-full">{pct(a.ofFull)}</td>
                   <td class="num">{fmt(a.freeSpeed)}</td>
@@ -395,7 +411,11 @@
             <tr>
               <td>
                 <select bind:value={pick.id} aria-label={t.power.machine}>
-                  {#each machines as c (c.id)}<option value={c.id}>{c.name} ({loadText(c)})</option>{/each}
+                  {#each machinesByMod as [mod, list] (mod)}
+                    <optgroup label={modName(mod)}>
+                      {#each list as c (c.id)}<option value={c.id}>{c.name} ({loadText(c)})</option>{/each}
+                    </optgroup>
+                  {/each}
                 </select>
               </td>
               <td><input type="number" min="0" max="999" step="1" bind:value={pick.count} aria-label={t.power.count} /></td>
@@ -437,6 +457,7 @@
           <thead>
             <tr>
               <th scope="col">{t.power.cols.producer}</th>
+              <th scope="col">{t.power.cols.mod}</th>
               <th scope="col" class="num">{t.power.cols.speed}</th>
               <th scope="col" class="num">{t.power.cols.avgSpeed}</th>
               <th scope="col" class="num">{t.power.cols.stalled}</th>
@@ -445,7 +466,8 @@
           <tbody>
             {#each results as r (r.p.id)}
               <tr data-producer={r.p.id}>
-                <td>{r.p.name}</td>
+                <td>{@render name(r.p.item, r.p.name, [])}</td>
+                <td><ModLink id={r.p.mod} mods={meta.mods} /></td>
                 <td class="num" data-col="speed">{r.full.stalled ? t.power.stalls : fmt(r.full.speed)}</td>
                 <td class="num">{r.avg ? fmt(r.avg.speed) : "–"}</td>
                 <td class="num">{r.avg ? pct(r.avg.stalled) : r.full.stalled ? pct(1) : pct(0)}</td>
@@ -499,7 +521,7 @@
         {@render consumerTable(others, "transmission")}
       </details>
     {/if}
-    <PowerSources entries={consumers.map((c) => ({ name: c.name, sources: c.sources }))} />
+    <PowerSources entries={consumers.map((c) => ({ name: c.name, ...link(c.item), mod: modName(c.mod), sources: c.sources }))} />
   </section>
 {/if}
 
