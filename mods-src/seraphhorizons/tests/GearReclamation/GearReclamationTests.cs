@@ -34,8 +34,8 @@ public class GearLotteryTests
     [InlineData(1, 10)]
     [InlineData(-1, 0)]
     [InlineData(2, 10)]
-    public void The_chance_is_clamped(double chance, int expectedSteel) =>
-        Assert.Equal(expectedSteel, GearLottery.Roll(10, chance, 1, Draws(0.0, 0.5, 0.999)).Steel);
+    public void The_chance_is_clamped(double chance, int expectedSound) =>
+        Assert.Equal(expectedSound, GearLottery.Roll(10, chance, 1, Draws(0.0, 0.5, 0.999)).Sound);
 
     [Fact]
     public void Nothing_in_nothing_out()
@@ -58,13 +58,13 @@ public class GearLotteryTests
     {
         const int gears = 100_000;
         var r = GearLottery.Roll(gears, 0.1, 1, new Random(42).NextDouble);
-        var (steel, bits) = GearLottery.Expected(gears, 0.1, 1);
-        Assert.Equal(10_000, steel, 6);
+        var (sound, bits) = GearLottery.Expected(gears, 0.1, 1);
+        Assert.Equal(10_000, sound, 6);
         Assert.Equal(90_000, bits, 6);
-        double sd = GearLottery.SteelDeviation(gears, 0.1);
+        double sd = GearLottery.SoundDeviation(gears, 0.1);
         Assert.Equal(Math.Sqrt(9000), sd, 6);
-        Assert.InRange(r.Steel, steel - 4 * sd, steel + 4 * sd);
-        Assert.Equal(gears - r.Steel, r.Bits);
+        Assert.InRange(r.Sound, sound - 4 * sd, sound + 4 * sd);
+        Assert.Equal(gears - r.Sound, r.Bits);
     }
 
     [Fact]
@@ -84,66 +84,6 @@ public class GearLotteryTests
         Assert.Equal(expected, GearLottery.Stacks(count, max));
 }
 
-public class FlashRustTests
-{
-    [Fact]
-    public void The_setting_is_the_fresh_time_and_rusting_takes_a_quarter_more()
-    {
-        var h = FlashRustHours.For(8);
-        Assert.Equal(8, h.Fresh);
-        Assert.Equal(2, h.Transition);
-        Assert.Equal(10, h.Total);
-        Assert.Equal(new FlashRustHours(12, 3), FlashRustHours.For(12));
-    }
-
-    private static Func<double> Sequence(params double[] values)
-    {
-        int i = 0;
-        return () => values[i++];
-    }
-
-    // A draw below 1 - loss chance keeps the gear as a rusty gear; at or above it, it rusts through.
-    [Fact]
-    public void A_bare_gear_rusts_through_to_bits_with_the_loss_chance()
-    {
-        var r = FlashRustLoss.Roll(4, 0.25, 1, Sequence(0.0, 0.74, 0.75, 0.99));
-        Assert.Equal(new LotteryResult(4, 2, 2), r);
-        Assert.Equal(2, r.Failed);
-        Assert.Equal(new LotteryResult(3, 1, 6), FlashRustLoss.Roll(3, 0.25, 3, Sequence(0.9, 0.1, 0.8)));
-    }
-
-    [Theory]
-    [InlineData(0.0, 1.0)]
-    [InlineData(0.25, 0.75)]
-    [InlineData(1.0, 0.0)]
-    [InlineData(-1.0, 1.0)]
-    [InlineData(2.0, 0.0)]
-    [InlineData(double.NaN, 1.0)]
-    public void The_keep_chance_is_one_less_the_clamped_loss_chance(double loss, double keep) =>
-        Assert.Equal(keep, FlashRustLoss.KeepChance(loss), 12);
-
-    [Fact]
-    public void No_loss_keeps_every_gear_and_full_loss_keeps_none()
-    {
-        Assert.Equal(new LotteryResult(5, 5, 0), FlashRustLoss.Roll(5, 0, 1, () => 0.999));
-        Assert.Equal(new LotteryResult(5, 0, 5), FlashRustLoss.Roll(5, 1, 1, () => 0.0));
-        Assert.Equal(new LotteryResult(0, 0, 0), FlashRustLoss.Roll(0, 0.25, 1, () => 0.0));
-    }
-
-    [Fact]
-    public void A_quarter_lost_is_three_rusty_gears_and_one_bit_in_four()
-    {
-        var (rusty, bits) = FlashRustLoss.Expected(64, 0.25, 1);
-        Assert.Equal(48, rusty, 9);
-        Assert.Equal(16, bits, 9);
-        var rand = new Random(477);
-        var r = FlashRustLoss.Roll(10_000, 0.25, 1, rand.NextDouble);
-        double sd = GearLottery.SteelDeviation(10_000, 0.75);
-        Assert.InRange(r.Steel, 7500 - 4 * sd, 7500 + 4 * sd);
-        Assert.Equal(r.Failed, r.Bits);
-    }
-}
-
 public class GearReclamationConfigTests
 {
     [Fact]
@@ -151,28 +91,28 @@ public class GearReclamationConfigTests
     {
         var c = new GearReclamationConfig();
         Assert.Empty(c.Sanitise());
-        Assert.Equal(8, c.FlashRustHours);
         Assert.Equal(0.1, c.UsableGearChance);
         Assert.Equal(1, c.BitsPerFailedGear);
-        Assert.Equal(0.25, c.FlashRustLossChance);
     }
 
     [Fact]
     public void Out_of_range_values_fall_back_with_a_line_each()
     {
-        var c = new GearReclamationConfig { FlashRustHours = 0, UsableGearChance = 1.5, BitsPerFailedGear = -1, FlashRustLossChance = -0.1 };
-        Assert.Equal(4, c.Sanitise().Count);
-        Assert.Equal(8, c.FlashRustHours);
+        var c = new GearReclamationConfig { UsableGearChance = 1.5, BitsPerFailedGear = -1 };
+        Assert.Equal(2, c.Sanitise().Count);
         Assert.Equal(0.1, c.UsableGearChance);
         Assert.Equal(1, c.BitsPerFailedGear);
-        Assert.Equal(0.25, c.FlashRustLossChance);
-        c = new GearReclamationConfig { FlashRustHours = double.NaN, UsableGearChance = 1, BitsPerFailedGear = 20, FlashRustLossChance = 1 };
-        Assert.Single(c.Sanitise());
-        Assert.Equal(1, c.UsableGearChance);
-        Assert.Equal(1, c.FlashRustLossChance);
-        c = new GearReclamationConfig { FlashRustLossChance = double.PositiveInfinity };
-        Assert.Contains("FlashRustLossChance", Assert.Single(c.Sanitise()));
-        Assert.Equal(0.25, c.FlashRustLossChance);
+        c = new GearReclamationConfig { UsableGearChance = double.NaN, BitsPerFailedGear = 20 };
+        Assert.Contains("UsableGearChance", Assert.Single(c.Sanitise()));
+        Assert.Equal(20, c.BitsPerFailedGear);
+    }
+
+    // Flash rust is gone with the stainless rework: no setting is left for it.
+    [Fact]
+    public void There_is_no_flash_rust_setting()
+    {
+        Assert.Equal(["BitsPerFailedGear", "UsableGearChance"],
+            typeof(GearReclamationConfig).GetProperties().Select(p => p.Name).Order());
     }
 }
 
@@ -210,7 +150,7 @@ public class GearReclamationAssetTests
     private static JsonArray JsonArr(string name) => JsonNode.Parse(Shipped(name),
         documentOptions: new System.Text.Json.JsonDocumentOptions { CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true })!.AsArray();
 
-    private static readonly string[] Types = ["steel", "degreased", "pickled", "neutralized", "oiled"];
+    private static readonly string[] Types = ["stainless", "degreased", "pickled", "passivated", "neutralized"];
 
     [Fact]
     public void The_gear_item_type_makes_the_contract_codes()
@@ -220,45 +160,43 @@ public class GearReclamationAssetTests
         var states = gear["variantgroups"]![0]!["states"]!.AsArray().Select(s => (string)s!).ToArray();
         Assert.Equal(Types, states);
         Assert.Equal(
-            new[] { GearCodes.Steel, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Neutralized, GearCodes.Oiled },
+            new[] { GearCodes.Stainless, GearCodes.Degreased, GearCodes.Pickled, GearCodes.Passivated, GearCodes.Neutralized },
             states.Select(s => $"{GearCodes.Domain}:gear-{s}"));
         Assert.Equal("largegear", (string?)Json("largegear-itemtype.json")["code"]);
-        Assert.Equal(GearCodes.LargeSteel, $"{GearCodes.Domain}:largegear-" + (string?)Json("largegear-itemtype.json")["variantgroups"]![0]!["states"]![0]);
-    }
-
-    [Theory]
-    [InlineData("*-pickled")]
-    [InlineData("*-neutralized")]
-    public void The_bare_gears_flash_rust_at_the_default_hours(string type)
-    {
-        var gear = Json("gear-itemtype.json");
-        Assert.True((bool)gear["attributesByType"]![type]![GearCodes.FlashRustAttribute]!);
-        var t = gear["transitionablePropsByType"]![type]![0]!;
-        var hours = FlashRustHours.For(GearReclamationConfig.Defaults.FlashRustHours);
-        Assert.Equal("Perish", (string?)t["type"]);
-        Assert.Equal(hours.Fresh, (double)t["freshHours"]!["avg"]!);
-        Assert.Equal(hours.Transition, (double)t["transitionHours"]!["avg"]!);
-        Assert.Equal(GearCodes.Rusty, (string?)t["transitionedStack"]!["code"]);
-        Assert.Equal(1, (double)t["transitionRatio"]!);
+        Assert.Equal(GearCodes.LargeStainless, $"{GearCodes.Domain}:largegear-" + (string?)Json("largegear-itemtype.json")["variantgroups"]![0]!["states"]![0]);
     }
 
     [Fact]
-    public void Only_the_bare_gears_flash_rust()
+    public void No_gear_rusts()
     {
         var gear = Json("gear-itemtype.json");
-        Assert.Equal(["*-pickled", "*-neutralized"], gear["transitionablePropsByType"]!.AsObject().Select(p => p.Key));
+        Assert.Null(gear["transitionablePropsByType"]);
+        Assert.Null(gear["transitionableProps"]);
+        Assert.Null(gear["attributesByType"]);
+        Assert.Equal("game:block/metal/ingot/stainlesssteel", (string?)gear["texturesByType"]!["*-stainless"]!["rusty-iron"]!["base"]);
+    }
+
+    [Fact]
+    public void The_neutralizing_barrel_takes_passivated_gears()
+    {
+        var r = Assert.Single(JsonArr("gear-neutralize-recipes.json"));
+        Assert.Equal(GearCodes.Passivated, (string?)r!["ingredients"]![1]!["code"]);
+        Assert.Equal(GearCodes.Neutralized, (string?)r["output"]!["code"]);
     }
 
     [Fact]
     public void Every_gear_has_a_name_and_a_description()
     {
         var lang = Json("lang-en.json");
-        foreach (var code in Types.Select(t => "gear-" + t).Append("largegear-steel"))
+        foreach (var code in Types.Select(t => "gear-" + t).Append("largegear-stainless"))
         {
             Assert.False(string.IsNullOrWhiteSpace((string?)lang["item-" + code]), $"item-{code}");
             Assert.False(string.IsNullOrWhiteSpace((string?)lang["itemdesc-" + code]), $"itemdesc-{code}");
         }
         Assert.Contains("One in ten comes out sound.", (string?)lang["gearreclamation-rusty-text"]);
+        Assert.Contains("stainless steel", (string?)lang["game:itemdesc-gear-rusty"]);
+        foreach (var key in new[] { "item-gear-oiled", "item-gear-steel-bare", "picklingtub-info-rusted" })
+            Assert.Null(lang[key]);
     }
 
     [Fact]

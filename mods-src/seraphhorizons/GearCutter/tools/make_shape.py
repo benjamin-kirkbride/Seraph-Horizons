@@ -5,7 +5,7 @@ The gear cutter is an 1880s-style generating gear cutter on a knee-and-column be
 on a horizontal arbor rolls under a cutter whose edge is one tooth of a rack, as a master gear on the
 same arbor rolls under a fixed rack: the master sets the blank's angle at every point of the pass, so
 the cutter generates the master's tooth form in the blank (Bilgram 1884, Fellows 1896). The master is a
-vanilla temporal gear (12 teeth, for the steel gear, the size of the game's gear items) or a large
+vanilla temporal gear (12 teeth, for the stainless gear, the size of the game's gear items) or a large
 temporal gear (20 teeth, for the large gear, the size of the game's large temporal gear): one master
 station, either master. Between passes the knee drops, taking the master out of the rack and the blank
 off the cutter, and a Jonas planetary head (a looted sub-assembly) indexes the arbor one tooth. A
@@ -102,7 +102,7 @@ TEX = 64                                     # shape texture units; 4 per voxel,
 # 20 at 5 (the large temporal gear's 11 chunky teeth cannot share a module with the small gear's 12).
 MODULE = 0.5
 ADD, DED = 1.0 * MODULE, 1.25 * MODULE
-TEETH = {"thin": 12, "thick": 20}            # k = 1: the temporal gear master, the steel gear; k = 2: the large ones
+TEETH = {"thin": 12, "thick": 20}            # k = 1: the temporal gear master, the stainless gear; k = 2: the large ones
 PITCH_R = {c: n * MODULE / 2 for c, n in TEETH.items()}         # 3 and 5
 STEP = {c: TAU / n for c, n in TEETH.items()}                    # the arbor's index per tooth: 30 and 18 degrees
 CLASSES = ("thin", "thick")

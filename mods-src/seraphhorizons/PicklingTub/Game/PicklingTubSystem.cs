@@ -6,20 +6,18 @@ using Vintagestory.API.Common;
 namespace SeraphHorizons.Mod.PicklingTub;
 
 /// <summary>
-/// The pickling tub (#476) and its brine bath (#482), part of gear reclamation
-/// (<c>GearReclamation</c>): a pitch-lined wooden tub that holds a liquid and a batch of gears, and
-/// turns them by the rules in <c>PicklingTubSettings</c> (<see cref="PicklingTubConfig"/>): the
-/// acids pickle degreased gears and dip steel ones bare, and eat a batch left too long; brine rusts
-/// steel gears into the game's rusty gears, a share of them to bits. Registers the classes on both
-/// sides; on the server, with the switch off, leaves the tub, its recipe and the bare steel gear
-/// out of the game, and without Immersive Woodworking (whose bark tar lines it) only the recipe.
+/// The pickling tub (#476), part of gear reclamation (<c>GearReclamation</c>): a pitch-lined wooden
+/// tub that holds a liquid and a batch of gears, and turns them by the rules in
+/// <c>PicklingTubSettings</c> (<see cref="PicklingTubConfig"/>): the acids pickle degreased gears,
+/// nitric acid passivates pickled ones, and an acid eats a batch left too long. Registers the
+/// classes on both sides; on the server, with the switch off, leaves the tub and its recipe out of
+/// the game, and without Immersive Woodworking (whose bark tar lines it) only the recipe.
 /// </summary>
 public class PicklingTubSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
     public const string IwModId = "immersivewoodworking";
     public static readonly AssetLocation BlockAsset = new(Domain, "blocktypes/picklingtub.json");
-    public static readonly AssetLocation BareGearAsset = new(Domain, "itemtypes/gear-steel-bare.json");
     public static readonly AssetLocation RecipeAsset = new(Domain, "recipes/grid/picklingtub.json");
 
     private ICoreAPI? _api;
@@ -52,7 +50,6 @@ public class PicklingTubSystem : ModSystem
         if (!On)
         {
             SetEnabled(api, BlockAsset, false);
-            SetEnabled(api, BareGearAsset, false);
             DisableRecipes(api);
         }
         else if (!api.ModLoader.IsModEnabled(IwModId))

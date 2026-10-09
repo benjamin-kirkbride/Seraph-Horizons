@@ -21,10 +21,10 @@ public enum GearCutterBlankVerdict
 /// </summary>
 public static class GearCut
 {
-    public const string Blank = "seraphhorizons:gearblank-steel";
-    public const string LargeBlank = "seraphhorizons:largegearblank-steel";
-    public const string Gear = "seraphhorizons:gear-steel";
-    public const string LargeGear = "seraphhorizons:largegear-steel";
+    public const string Blank = "seraphhorizons:gearblank-stainlesssteel";
+    public const string LargeBlank = "seraphhorizons:largegearblank-stainlesssteel";
+    public const string Gear = "seraphhorizons:gear-stainless";
+    public const string LargeGear = "seraphhorizons:largegear-stainless";
 
     /// <summary>Teeth a gear of class <paramref name="k"/> gets: 12 small, 20 large, 0 else.</summary>
     public static int Teeth(int k) => k switch { 1 => 12, 2 => 20, _ => 0 };

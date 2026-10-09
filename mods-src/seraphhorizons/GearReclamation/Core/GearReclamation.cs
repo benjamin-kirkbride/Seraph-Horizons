@@ -1,51 +1,46 @@
 namespace SeraphHorizons.Mod.GearReclamation.Core;
 
 /// <summary>The gear codes of the reclamation line (#474): the contract the other gear steps (the
-/// pickling tub, the consumer patches, the brine bath) are written against, and the one place they
-/// are spelled out (<c>PicklingTubConfig</c> and <c>GearConsumers</c> read them from here).</summary>
+/// pickling tub, the consumer patches) are written against, and the one place they are spelled out
+/// (<c>PicklingTubConfig</c> and <c>GearConsumers</c> read them from here). The rusty gear is a
+/// stainless steel gear corroded by the Rust dimension's incursion, so what comes back out of one
+/// is stainless.</summary>
 public static class GearCodes
 {
     public const string Domain = "seraphhorizons";
 
     /// <summary>The usable gear: the only one any recipe wants.</summary>
-    public const string Steel = "seraphhorizons:gear-steel";
+    public const string Stainless = "seraphhorizons:gear-stainless";
 
     /// <summary>Out of the degreasing pot.</summary>
     public const string Degreased = "seraphhorizons:gear-degreased";
 
-    /// <summary>Out of the pickling tub; flash-rusts.</summary>
+    /// <summary>Out of the pickling tub's pickle.</summary>
     public const string Pickled = "seraphhorizons:gear-pickled";
 
-    /// <summary>Out of the lime water barrel; flash-rusts.</summary>
+    /// <summary>Out of the pickling tub's nitric acid.</summary>
+    public const string Passivated = "seraphhorizons:gear-passivated";
+
+    /// <summary>Out of the lime water barrel: the lottery item, resolved in a player's inventory.</summary>
     public const string Neutralized = "seraphhorizons:gear-neutralized";
 
-    /// <summary>Out of the oil barrel: the lottery item, resolved in a player's inventory.</summary>
-    public const string Oiled = "seraphhorizons:gear-oiled";
-
-    /// <summary>A steel gear after a short acid dip in the pickling tub (#482); flash-rusts.</summary>
-    public const string SteelBare = "seraphhorizons:gear-steel-bare";
-
     /// <summary>The large usable gear, on the large temporal gear's shape.</summary>
-    public const string LargeSteel = "seraphhorizons:largegear-steel";
+    public const string LargeStainless = "seraphhorizons:largegear-stainless";
 
     public const string Rusty = "game:gear-rusty";
 
     /// <summary>What a gear that does not come out sound is worth.</summary>
-    public const string SteelBit = "game:metalbit-steel";
-
-    /// <summary>An item attribute: its Perish transition to the rusty gear follows
-    /// <see cref="GearReclamationConfig.FlashRustHours"/>. Any item of any step may carry it.</summary>
-    public const string FlashRustAttribute = "seraphhorizonsFlashRust";
+    public const string StainlessBit = "game:metalbit-stainlesssteel";
 }
 
-/// <summary>What a stack of oiled gears resolves into.</summary>
-public readonly record struct LotteryResult(int Gears, int Steel, int Bits)
+/// <summary>What a stack of neutralized gears resolves into.</summary>
+public readonly record struct LotteryResult(int Gears, int Sound, int Bits)
 {
     /// <summary>Gears that did not come out sound.</summary>
-    public int Failed => Gears - Steel;
+    public int Failed => Gears - Sound;
 }
 
-/// <summary>The oil step's roll (#477): each oiled gear is sound with a chance, else scrap to steel
+/// <summary>The roll (#477): each neutralized gear is sound with a chance, else scrap to stainless
 /// bits.</summary>
 public static class GearLottery
 {
@@ -59,15 +54,15 @@ public static class GearLottery
             return new LotteryResult(0, 0, 0);
         chance = Math.Clamp(double.IsFinite(chance) ? chance : 0, 0, 1);
         bitsPerFailure = Math.Max(0, bitsPerFailure);
-        int steel = 0;
+        int sound = 0;
         for (int i = 0; i < gears; i++)
             if (next() < chance)
-                steel++;
-        return new LotteryResult(gears, steel, (gears - steel) * bitsPerFailure);
+                sound++;
+        return new LotteryResult(gears, sound, (gears - sound) * bitsPerFailure);
     }
 
     /// <summary>The mean result of <see cref="Roll"/>: sound gears and bits.</summary>
-    public static (double Steel, double Bits) Expected(int gears, double chance, int bitsPerFailure)
+    public static (double Sound, double Bits) Expected(int gears, double chance, int bitsPerFailure)
     {
         if (gears <= 0)
             return (0, 0);
@@ -77,7 +72,7 @@ public static class GearLottery
 
     /// <summary>The standard deviation of the sound gears out of <paramref name="gears"/>
     /// (binomial), for the tests' tolerance.</summary>
-    public static double SteelDeviation(int gears, double chance) =>
+    public static double SoundDeviation(int gears, double chance) =>
         gears <= 0 ? 0 : Math.Sqrt(gears * chance * (1 - chance));
 
     /// <summary>Splits <paramref name="count"/> items into stacks of at most
@@ -88,37 +83,6 @@ public static class GearLottery
         for (int left = count; left > 0; left -= maxStack)
             yield return Math.Min(left, maxStack);
     }
-}
-
-/// <summary>A bare steel gear's flash rust (#477, #482): a steel gear dipped bare in the pickling tub
-/// must not rust into a rusty gear for free, so each gear that flash-rusts is a rusty gear with
-/// 1 - <c>FlashRustLossChance</c> and otherwise rusts through to steel bits, the bits a failed oiled
-/// gear gives. Rolled as the oiled gears are (<see cref="GearLottery.Roll"/>), sound meaning rusty.</summary>
-public static class FlashRustLoss
-{
-    /// <summary>Rolls <paramref name="gears"/> bare steel gears: <see cref="LotteryResult.Steel"/>
-    /// is the rusty gears, <see cref="LotteryResult.Bits"/> the steel bits of the rest.</summary>
-    public static LotteryResult Roll(int gears, double lossChance, int bitsPerFailure, Func<double> next) =>
-        GearLottery.Roll(gears, KeepChance(lossChance), bitsPerFailure, next);
-
-    /// <summary>The mean rusty gears and bits of <see cref="Roll"/>.</summary>
-    public static (double Rusty, double Bits) Expected(int gears, double lossChance, int bitsPerFailure) =>
-        GearLottery.Expected(gears, KeepChance(lossChance), bitsPerFailure);
-
-    /// <summary>Each gear's chance to come out a rusty gear.</summary>
-    public static double KeepChance(double lossChance) => 1 - Math.Clamp(double.IsFinite(lossChance) ? lossChance : 0, 0, 1);
-}
-
-/// <summary>The flash rust of the bare gears (#474): a vanilla Perish transition to the rusty
-/// gear, fresh for <see cref="Fresh"/> hours, then rusting over <see cref="Transition"/>.</summary>
-public readonly record struct FlashRustHours(double Fresh, double Transition)
-{
-    /// <summary>The setting's hours are the fresh time; the rusting itself takes a quarter as long
-    /// again, so a batch reads "fresh for 8 hours", then visibly goes, and is rusty 10 hours in.</summary>
-    public static FlashRustHours For(double hours) => new(hours, hours / 4);
-
-    /// <summary>Hours from bare to rusty.</summary>
-    public double Total => Fresh + Transition;
 }
 
 /// <summary>Recipes with ingredients from optional mods (#475, #477): an ingredient whose code is
@@ -142,19 +106,11 @@ public static class OptionalIngredients
 /// <summary>GearReclamationSettings in ModConfig/seraphhorizons.json.</summary>
 public class GearReclamationConfig
 {
-    /// <summary>In-game hours a pickled or neutralized gear stays bare before it starts to rust.</summary>
-    public double FlashRustHours { get; set; } = 8;
-
-    /// <summary>The chance each oiled gear is sound.</summary>
+    /// <summary>The chance each neutralized gear is sound.</summary>
     public double UsableGearChance { get; set; } = 0.1;
 
-    /// <summary>Steel bits for each oiled gear that is not, and for each bare steel gear that rusts
-    /// through.</summary>
+    /// <summary>Stainless bits for each neutralized gear that is not sound.</summary>
     public int BitsPerFailedGear { get; set; } = 1;
-
-    /// <summary>The chance each bare steel gear (the pickling tub's dip) that flash-rusts rusts
-    /// through to <see cref="BitsPerFailedGear"/> steel bits instead of into a rusty gear.</summary>
-    public double FlashRustLossChance { get; set; } = 0.25;
 
     public static readonly GearReclamationConfig Defaults = new();
 
@@ -162,11 +118,6 @@ public class GearReclamationConfig
     public IReadOnlyList<string> Sanitise()
     {
         var fixes = new List<string>();
-        if (!double.IsFinite(FlashRustHours) || FlashRustHours < 0.5 || FlashRustHours > 24 * 365)
-        {
-            fixes.Add($"FlashRustHours {FlashRustHours} is out of range (0.5 to 8760), using {Defaults.FlashRustHours}");
-            FlashRustHours = Defaults.FlashRustHours;
-        }
         if (!double.IsFinite(UsableGearChance) || UsableGearChance < 0 || UsableGearChance > 1)
         {
             fixes.Add($"UsableGearChance {UsableGearChance} is out of range (0 to 1), using {Defaults.UsableGearChance}");
@@ -176,11 +127,6 @@ public class GearReclamationConfig
         {
             fixes.Add($"BitsPerFailedGear {BitsPerFailedGear} is out of range (0 to 20), using {Defaults.BitsPerFailedGear}");
             BitsPerFailedGear = Defaults.BitsPerFailedGear;
-        }
-        if (!double.IsFinite(FlashRustLossChance) || FlashRustLossChance < 0 || FlashRustLossChance > 1)
-        {
-            fixes.Add($"FlashRustLossChance {FlashRustLossChance} is out of range (0 to 1), using {Defaults.FlashRustLossChance}");
-            FlashRustLossChance = Defaults.FlashRustLossChance;
         }
         return fixes;
     }
