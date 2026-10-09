@@ -36,6 +36,8 @@ public static class Exporter
         // Recipes first: the item section needs to know which codes they reference.
         referenced = RecipeSection.Fill(api, root);
         ItemSection.Fill(api, root, referenced);
+        // After the items: a power entry links only to an item the export holds.
+        Power.PowerSection.Fill(api, root);
         return root;
     }
 

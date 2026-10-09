@@ -19,7 +19,7 @@ namespace SeraphHorizons.Mod;
 /// reflection (<c>tools/recipe-export</c>, <c>Recipes/Switches.cs</c>).
 ///
 /// A switch that only takes things away (<c>HydrateTunRetired</c>, <c>IrrigationVesselRetired</c>,
-/// <c>BloodSausageInMixingBowl</c>, <c>PanningDropsTrimmed</c>, <c>TraderSchematics</c>), or only
+/// <c>BloodSausageInMixingBowl</c>, <c>PanningDropsTrimmed</c>, <c>GearPartsRemoved</c>, <c>TraderSchematics</c>), or only
 /// changes what an existing recipe takes (<c>GearConsumers</c>, <c>IronWoodworkingMachines</c>,
 /// <c>AgeOfFlaxRebalance</c>, <c>MachineSchematics</c>), owns nothing here: no value exists only
 /// because it is on.

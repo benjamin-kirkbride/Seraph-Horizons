@@ -738,6 +738,39 @@ taken out in each language it ships (en, de, fr, pl, ru; `LangEdits`), on each s
 off, panning and that text are as the mods ship them. The switch that counts for panning is the
 server's.
 
+### BetterLoot+'s gear parts are rusty gears (`GearPartsRemoved`)
+
+BetterLoot+ (`betterlootplus` 1.0.0, domain `betterloot`) drops a rusty gear part
+(`betterloot:gearpart`) from drifters, shivers and bowtorns, 0.25 a surface creature up to 3 a
+nightmare one, beside the rusty gears they already drop; four parts craft into a rusty gear
+(`recipes/grid/rustygear.json`) and a rusty gear splits into four (`rustygearpart.json`). The pack's
+rusty gear is a whole gear and its money (#484), so the part goes:
+
+- the item type and both recipes are disabled (`enabled: false`), so the part does not exist and
+  parts already in a world vanish when it loads (no remap: the pack is pre-release);
+- every gear part drop in BetterLoot+'s loot becomes rusty gears at a quarter of its average and
+  variance (`Core/GearPartDropRules.cs`), so as many gears come in, on average, as the parts made.
+  They are added to the creature's own rusty gear drop, so the handbook and the recipe browser
+  list one rusty gear drop per creature: a normal drifter's 0.01 gears and 0.25 parts are 0.0725
+  gears, a nightmare one's 0.4 and 3 are 1.15. That drop keeps its `rustyGearDropRate` stat, which
+  now scales the parts' share too. A creature with parts and no rusty gear drop (none in BetterLoot+
+  1.0.0) gets its part drop turned into one. The part drop's slot is freed.
+
+BetterLoot+ reads its loot from `ModConfig/betterlootplus.json`, which it writes from its bundled
+`config/betterlootplus.default.json` when there is none, on the server in its system's
+`AssetsLoaded` (0.25, after the item types are registered at 0.2), and writes each creature's drops
+into its `harvestable` behaviour in a private static `ApplyConfig(ICoreAPI, BetterLootConfig)`. A
+Harmony prefix on that method (server side, found by name) rewrites the loaded config's drops in
+memory just before they are applied, so the file stays as BetterLoot+ wrote it, a player's edits
+too, and the change follows every creature the file lists, whatever it says; the server logs how
+many creatures it changed. If BetterLoot+'s types or `ApplyConfig` changed, a warning is logged and the
+drops are not rewritten: the item being gone, BetterLoot+ itself then skips them as unknown.
+
+The item and recipes are a JSON patch, `assets/seraphhorizons/patches/gearparts-betterlootplus.json`,
+`"side": "server"` and `dependsOn` betterlootplus. With the switch off, or without BetterLoot+, the
+system empties that patch file in `Start`, as for Hydrate or Diedrate's tun, and the loot is left as
+BetterLoot+ ships it. The switch that counts is the server's.
+
 ### Map Reveal (`MapReveal`)
 
 `/revealmap <radius>` shows on your world map (M) the terrain already generated within radius
@@ -1682,8 +1715,9 @@ converter's refusal and its handbook page say so. If smex has changed those meth
 logged and the converter keeps taking ppex's large gears, which are no longer made.
 
 Left alone: the rusty gear amulet (the gear on a string, uncrafted back into it), the game's gray and
-black barrel dyes (the rust is the pigment), BetterLoot's gear parts (change: four make a gear) and
-Cartwright's rusty gear sign (decoration). The game's own Jonas devices, and Abyssal Depths, Rickety
+black barrel dyes (the rust is the pigment) and
+Cartwright's rusty gear sign (decoration). BetterLoot+'s gear parts, which split a rusty gear into
+four, are gone with `GearPartsRemoved` (above). The game's own Jonas devices, and Abyssal Depths, Rickety
 Translocation, Industrial Deco and the walking stick, take temporal gears or Jonas parts, no rusty
 gear, so they are not patched. The rusty gear stays currency, and the mechanic no longer buys or
 sells ppex's gears (#436).
@@ -3252,7 +3286,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
-`BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `TraderSchematics`, the retired stations of
+`BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `GearPartsRemoved`, `TraderSchematics`, the retired stations of
 `UnifiedWoodworking`) or only changes what an existing recipe takes (`GearConsumers`,
 `IronWoodworkingMachines`, `AgeOfFlaxRebalance`, `MachineSchematics`) owns nothing: no value exists
 only because it is on. A new feature that disables its own assets with its switch adds its lists to
@@ -4315,6 +4349,15 @@ there. It also requires the buttons text reworded in every language Tailor's Del
 When it fails after a mod update, check whether a mod adds one of them another way, or whether one
 stopped adding its own (then its pattern can go). With the switch off, `SwitchesOffScenarios`
 requires all four groups in the pan's table and the text as it ships.
+
+For the gear parts, `tests/GearPartDropRulesTests.cs` checks which codes are parts and the quarter,
+and `tests/PackTests/GearPartsRemovedScenarios.cs` (Atlas, `SharedWorldScenarios`) requires the
+prefix in, no gear part item, no grid recipe making or taking one, no creature's harvestable drops
+naming one, and a normal and a nightmare drifter each with one rusty gear drop, their old rate plus
+a quarter of their old parts'. When it fails after a BetterLoot+ update, check `ApplyConfig` and
+its config types, and the default loot. With the switch off, `SwitchesOffScenarios` requires the
+item, both recipes and the normal drifter's 0.25 parts back. `tools/tests/test_gear_consumers.py`
+counts the patch's disabled splitting recipe as covering its rusty gear (`REMOVALS`).
 
 `tests/PackTests/BarrelRackKegsScenarios.cs` (Atlas) places a barrel rack and has a player
 right-click it through the rack block's own `OnBlockInteractStart`: an untapped keg holding 80 L
