@@ -1,0 +1,13 @@
+// How listed goods are priced from the item value table (docs/trading.md, "Trade list format").
+// A trader asks an item's value x "sell" and its list buys it at value x "buy", both x one roll per
+// item per trader per restock, uniform within "roll" either way, the same on both sides of its list.
+// What a trader has on its own selling shelf it buys only off-market, at value x "ownShelf", from
+// its side budget. Decided 2026-10-08: a trader asks the value and pays half again for what its
+// list wants; a loop between two traders pays by design, and the own-shelf rule closes the one at a
+// single trader.
+{
+	"sell": 1.0,
+	"buy": 1.5,
+	"roll": 0.25,
+	"ownShelf": 0.2,
+}

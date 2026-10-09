@@ -225,12 +225,12 @@ public class StandingSystem : ModSystem, IStandingSource
         return side == PriceSide.PlayerBuys ? unlocks.BuyPriceFactor : unlocks.SellPriceFactor;
     }
 
-    public int WalletTierFor(EntitySeraphTrader trader)
+    public double WalletFactorFor(EntitySeraphTrader trader)
     {
         string id = TraderIdOf(trader);
-        int best = 0;
+        double best = Rules.Tier(0).Unlocks.WalletFactor;
         foreach (string player in Ledger.RecentPlayers(id, Day - Rules.RecentDays).ToList())
-            best = Math.Max(best, ViewFor(player, trader).Tier.Unlocks.WalletTier);
+            best = Math.Max(best, ViewFor(player, trader).Tier.Unlocks.WalletFactor);
         return best;
     }
 

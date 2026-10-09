@@ -1,6 +1,7 @@
 using Atlas.Api;
 using Atlas.XUnit;
 using SeraphHorizons.Mod.Trading;
+using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Deliveries;
 using SeraphHorizons.Mod.Trading.Deliveries.Core;
 using SeraphHorizons.Mod.Trading.Orders;
@@ -17,11 +18,12 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// mods-src/seraphhorizons/Trading/Orders and Trading/Deliveries (#453, #454) against the pinned
-/// mods: a spawned trader puts orders on offer at its first restock; an order taken in the trade
-/// window (its server side, <see cref="TradeWindowSystem.Handle"/>) and filled by selling the goods
-/// there pays its premium and standing; <c>/sh trade simulate</c> past the deadline abandons a taken
-/// one; a delivery between two spawned traders handed in on time through the receiver's window returns
-/// the deposit and a fee, and one left past its grace fails and keeps the deposit. Atlas' default world: no camps, so traders are
+/// mods: a spawned trader puts orders on offer at its first restock; one taken in the trade window
+/// (its server side, <see cref="TradeWindowSystem.Handle"/>) is sized by the taker's tier and, handed
+/// in, pays its payout (new money, the wallet untouched) and standing; <c>/sh trade simulate</c> past
+/// the deadline abandons a taken one; a delivery between two spawned traders handed in on time
+/// through the receiver's window returns the deposit and a fee (new money too), and one left past its
+/// grace fails and keeps the deposit. Atlas' default world: no camps, so traders are
 /// known by their entity and deliveries are made by the admin command.
 /// </summary>
 public partial class TradingScenarios
@@ -40,21 +42,23 @@ public partial class TradingScenarios
     private string Id(EntitySeraphTrader trader) => Standing.TraderIdOf(trader);
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task A_spawned_trader_puts_one_or_two_orders_on_offer_from_what_it_buys()
+    public async Task A_spawned_trader_puts_a_stranger_s_two_orders_on_offer_from_what_it_buys()
     {
         Assert.True(Orders.Enabled && Deliveries.Enabled);
         FreshSupply();
         var trader = await SpawnTrader("smith", 0, -25);
         var open = Orders.Book.OpenAt(Id(trader)).ToList();
         foreach (var o in open) output.WriteLine(OrderCommandsLine(o));
-        Assert.InRange(open.Count, 1, 2);
-        var buys = Orders.Candidates(trader).Select(c => c.Item).ToHashSet();
+        // Nobody has traded here: its shelf tier is a stranger's, 2 offers (fewer only if it buys
+        // fewer things with a value).
+        var buys = Orders.Candidates(trader).ToDictionary(c => c.Item, c => c.Value);
+        Assert.Equal(Math.Min(OrderPlanner.PerWeek(1), buys.Count), open.Count);
         Assert.All(open, o =>
         {
             Assert.Equal(OrderState.Offered, o.State);
-            Assert.Contains(o.Item, buys);
-            Assert.InRange(o.PremiumFactor, 1.3, 1.6);
-            Assert.True(o.Reserved > 0 && o.Reserved == o.Premium);
+            Assert.Equal(buys[o.Item], o.Value);
+            // Unsized until taken, and nothing held back from the wallet.
+            Assert.Equal((0, 0), (o.Quantity, o.Reserved));
         });
         trader.Die(EnumDespawnReason.Removed);
     }
@@ -62,10 +66,15 @@ public partial class TradingScenarios
     private string OrderCommandsLine(Order o) => OrderCommands.AdminLine(Api, o, W.Calendar.TotalDays);
 
     /// <summary>An order made by the admin command for one lot of the first thing on the trader's
-    /// buying shelf, so a deal can fill it.</summary>
+    /// buying shelf, taken in the window.</summary>
     private async Task<(Order Order, ItemSlotTrade Buying)> OrderOnShelf(EntitySeraphTrader trader, ITestPlayer at, int days)
     {
-        var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null);
+        // Orders are valued at the item value table, so a good with a value; and not something on its
+        // own shelf, which it only buys back off-market.
+        var values = SeraphHorizons.Mod.Trading.Values.ItemValuesSystem.For(Api);
+        var buying = trader.Inventory.BuyingSlots.First(s => s.TradeItem is { Stock: > 0, Price: > 0 } && s.Itemstack != null
+            && values.ValueOf(s.Itemstack.Collectible.Code.ToString()) > 0
+            && !EconomySystem.OnOwnShelf(trader, s.Itemstack.Collectible));
         string code = buying.Itemstack.Collectible.Code.ToString();
         int lot = buying.TradeItem.Stack.StackSize;
         int before = Orders.Book.NextId;
@@ -82,34 +91,37 @@ public partial class TradingScenarios
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Filling_an_order_by_selling_in_the_trade_window_pays_the_premium_and_raises_standing()
+    public async Task A_regular_takes_an_order_at_their_tier_and_handing_it_in_pays_new_money_and_standing()
     {
         FreshSupply();
         var trader = await SpawnTrader("generalstore", 0, 25);
         var p = await At(await Customer(), trader);
         var sp = (IServerPlayer)p.Player;
-        var (order, buying) = await OrderOnShelf(trader, p, 4);
-        // A stranger's orderScale is 1: the order stays one lot.
-        Assert.Equal(order.BaseQuantity, order.Quantity);
+        string id = Id(trader);
+        Assert.True((await World.ExecuteCommand($"/sh trade standing set {sp.PlayerName} {id} 300")).Ok);
+        // Not a bag: given to the player it would go into a worn bag slot, which a hand-in never takes.
+        var order = Orders.Book.OpenAt(id).First(o => o.State == OrderState.Offered
+            && TraderFinder.Collectible(W, o.Item)?.GetCollectibleInterface<IHeldBag>() is null);
+        Assert.True(trader.BeginTrade(sp));
+        // The window shows the offer at the player's own tier: a regular, n = 3.
+        var (qty, payout) = OrderPlanner.Terms(order, 3, Orders.MaxStackOf(order.Item));
+        var row = WindowSystem.BuildState(sp, trader).Orders.Single(r => r.Id == order.Id);
+        Assert.Equal((qty, payout), (row.Quantity, row.Payout));
+        Assert.True(WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.TakeOrder, Id = order.Id }).Ok);
+        Assert.Equal((OrderState.Accepted, 3, 15.0, qty, payout), (order.State, order.Tier, order.Multiplier, order.Quantity, order.Payout));
+        Assert.InRange(order.Quantity * order.Value, OrderPlanner.MinWorth(3) - 1e-9, OrderPlanner.MaxWorth(3) + order.Value);
+        output.WriteLine(OrderCommandsLine(order));
 
-        var inv = trader.Inventory;
-        var offered = buying.TradeItem.Stack.Clone();
-        offered.ResolveBlockOrItem(W);
-        // The window's sell slot, one unit sold by a hold.
-        inv[SeraphTraderInventory.SellSlot].Itemstack = offered;
-        int received = buying.TradeItem.Price;
-        int gearsBefore = Gears(sp);
-        Assert.True(received > 0);
-        var sold = WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.Sell });
-        Assert.True(sold.Ok, sold.Key);
-        Assert.Null(inv[SeraphTraderInventory.SellSlot].Itemstack);
-
+        InventoryTrader.GiveOrDrop(sp.Entity, new ItemStack(TraderFinder.Collectible(W, order.Item)!, 1), order.Quantity, null);
+        int gears = Gears(sp), wallet = trader.Inventory.GetTraderAssets();
+        var handin = WindowSystem.Handle(sp, trader, new TradeRequest { Action = TradeAction.HandInOrder, Id = order.Id });
+        Assert.True(handin.Ok, handin.Key);
         Assert.Equal(OrderState.Done, order.State);
-        Assert.Equal(order.Premium, order.PremiumPaid);
-        Assert.Equal(gearsBefore + received + order.Premium, Gears(sp));
-        var record = Standing.Ledger.Personal(sp.PlayerUID, Id(trader))!;
+        Assert.Equal(gears + order.Payout, Gears(sp));
+        Assert.Equal(wallet, trader.Inventory.GetTraderAssets());
+        var record = Standing.Ledger.Personal(sp.PlayerUID, id)!;
         Assert.Contains(record.Events, e => e.Kind == StandingKinds.Order);
-        Assert.Equal(received + Standing.Rules.Points.Order, record.Points);
+        Assert.Equal(300 + Standing.Rules.Points.Order, record.Points);
 
         var list = await World.ExecuteCommand($"/sh trade orders {sp.PlayerName}");
         output.WriteLine(list.Message);
@@ -180,7 +192,8 @@ public partial class TradingScenarios
         Assert.True(handin.Ok, handin.Key);
         Assert.Equal(DeliveryState.OnTime, d.State);
         Assert.Equal(start + d.Fee, Gears(sp));
-        Assert.Equal(wallet - d.Fee, b.Inventory.GetTraderAssets());
+        // The fee is new money: the receiver's wallet stays as it was.
+        Assert.Equal(wallet, b.Inventory.GetTraderAssets());
         Assert.Null(PackageSlot(sp, d.Id));
         Assert.Equal(Standing.Rules.Points.Delivery, Standing.Ledger.Personal(sp.PlayerUID, Id(a))!.Points);
         Assert.Equal(Standing.Rules.Points.Delivery, Standing.Ledger.Personal(sp.PlayerUID, Id(b))!.Points);

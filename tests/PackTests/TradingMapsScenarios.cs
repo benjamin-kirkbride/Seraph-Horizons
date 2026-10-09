@@ -519,8 +519,8 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(0.9, tree.GetDouble("buy"), 6);
         int trusted = trader.Inventory.SellingSlots.First(s => s.Itemstack?.Collectible.Code.ToString() == code).TradeItem.Price;
         output.WriteLine($"{code}: {stranger} for a stranger, {trusted} for a trusted customer");
-        // 0.9 of a price under 5 may round back to it.
-        if (stranger >= 5) Assert.True(trusted < stranger, $"{code}: {trusted} is not under {stranger}");
+        // 0.9 of a price under 10 may round back to it (8.4 and 7.56 are both 8 gears).
+        if (stranger >= 10) Assert.True(trusted < stranger, $"{code}: {trusted} is not under {stranger}");
         else Assert.True(trusted <= stranger, $"{code}: {trusted} is over {stranger}");
         // A trusted customer is shown (and sold) exact ore maps.
         foreach (var o in Offers(trader, MapOfferAttrs.OreMap))

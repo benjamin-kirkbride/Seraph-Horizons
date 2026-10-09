@@ -2,6 +2,8 @@ using Atlas.Api;
 using Atlas.XUnit;
 using HarmonyLib;
 using SeraphHorizons.Mod.Trading;
+using SeraphHorizons.Mod.Trading.Economy;
+using SeraphHorizons.Mod.Trading.Economy.Core;
 using SeraphHorizons.Mod.Trading.Standing;
 using SeraphHorizons.Mod.Trading.Standing.Core;
 using Vintagestory.API.Common;
@@ -60,7 +62,9 @@ public partial class TradingScenarios
         // Buy the cheapest thing on the shelf, and sell back something the trader buys.
         var selling = inv.SellingSlots.Where(s => s.TradeItem is { Stock: > 0 }).OrderBy(s => s.TradeItem.Price).First();
         AddToBuyingCart(inv, selling, 0);
-        var buying = inv.BuyingSlots.Where(s => s.TradeItem is { Stock: > 0 }).OrderBy(s => s.TradeItem.Price).First();
+        // Not something on its own shelf, which it only buys back off-market.
+        var buying = inv.BuyingSlots.Where(s => s.TradeItem is { Stock: > 0 } && s.Itemstack != null && !EconomySystem.OnOwnShelf(trader, s.Itemstack.Collectible))
+            .OrderBy(s => s.TradeItem.Price).First();
         var offered = buying.TradeItem.Stack.Clone();
         offered.ResolveBlockOrItem(W);
         inv.GetSellingCartSlot(0).Itemstack = offered;
@@ -102,21 +106,23 @@ public partial class TradingScenarios
         var trader = await SpawnTrader("generalstore", -15, 35);
         var p = await At(await Customer(), trader);
         var def = TradingSystem.Of(Api)!.Lists!.For("generalstore")!;
-        Assert.Equal(def.WalletFor(0).Avg, trader.TradeProps.Money.avg);
+        Assert.Equal(def.WalletAt().Avg, trader.TradeProps.Money.avg);
         string id = Standing.TraderIdOf(trader);
-        Assert.Equal(0, Standing.WalletTierFor(trader));
+        Assert.Equal(1, Standing.WalletFactorFor(trader));
 
         var set = await World.ExecuteCommand($"/sh trade standing set {p.Player.PlayerName} {id} 300");
         output.WriteLine(set.Message);
         Assert.True(set.Ok, set.Message);
         Assert.Equal("regular", Standing.ViewFor(p.Player.PlayerUID, trader).Tier.Code);
-        Assert.Equal(1, Standing.WalletTierFor(trader));
+        Assert.Equal(5, Standing.WalletFactorFor(trader));
 
-        // The weekly restock is due: the wallet vanilla tops up towards is the regular tier's.
+        // The weekly restock is due: the wallet vanilla tops up towards is the regular tier's, five
+        // times the list's, and the side budget a quarter of that.
         double due = W.Calendar.TotalDays - 8;
         trader.WatchedAttributes.SetDouble("lastRefreshTotalDays", due);
         await World.Until(() => trader.WatchedAttributes.GetDouble("lastRefreshTotalDays") > due, 60_000);
-        Assert.Equal(def.WalletFor(1).Avg, trader.TradeProps.Money.avg);
+        Assert.Equal(def.WalletAt(5).Avg, trader.TradeProps.Money.avg);
+        Assert.Equal(SideBudget.RefillTo(def.WalletAt(5).Avg), EconomySystem.SideBudgetOf(trader));
         trader.Die(EnumDespawnReason.Removed);
     }
 
