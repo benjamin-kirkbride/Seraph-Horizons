@@ -28,6 +28,16 @@ public class SteelBitsRulesTests
         Assert.Equal(expected, SteelBitsRules.WithSteelBit(codes));
     }
 
+    [Theory]
+    [InlineData("game:metalbit-iron,game:metalbit-steel", "game:metalbit-iron,game:metalbit-steel,seraphhorizons:ferrochrome")]
+    [InlineData("game:metalbit-iron,SeraphHorizons:Ferrochrome", null)]
+    [InlineData("", "seraphhorizons:ferrochrome")]
+    public void Any_other_code_goes_in_the_same_way(string codes, string? expected)
+    {
+        Assert.Equal(expected == null, SteelBitsRules.Lists(codes, "seraphhorizons:ferrochrome"));
+        Assert.Equal(expected, SteelBitsRules.With(codes, "seraphhorizons:ferrochrome"));
+    }
+
     [Fact]
     public void A_full_coffin_takes_sixteen_ingots_worth_of_bits()
     {

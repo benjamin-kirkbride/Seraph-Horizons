@@ -20,18 +20,26 @@ public static class SteelBitsRules
     /// <summary>Whether Steelmaking Expanded's comma-separated <c>BessemerScrapCodes</c> lists the
     /// steel bit. Entries are matched as it matches them, as asset locations: trimmed, no domain
     /// meaning <c>game</c>, case-insensitive.</summary>
-    public static bool ListsSteelBit(string? codes) =>
-        (codes ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Any(code => Normalise(code) == SteelBit);
+    public static bool ListsSteelBit(string? codes) => Lists(codes, SteelBit);
 
     /// <summary>The list with the steel bit added at the end, or <c>null</c> when it already lists
     /// it.</summary>
-    public static string? WithSteelBit(string? codes)
+    public static string? WithSteelBit(string? codes) => With(codes, SteelBit);
+
+    /// <summary>Whether the comma-separated <paramref name="codes"/> list <paramref name="code"/>,
+    /// matched as <see cref="ListsSteelBit"/> matches.</summary>
+    public static bool Lists(string? codes, string code) =>
+        (codes ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Any(listed => Normalise(listed) == Normalise(code));
+
+    /// <summary>The list with <paramref name="code"/> added at the end, or <c>null</c> when it already
+    /// lists it (the pack's ferrochrome goes into smex's list the same way, #484 part D).</summary>
+    public static string? With(string? codes, string code)
     {
-        if (ListsSteelBit(codes))
+        if (Lists(codes, code))
             return null;
         var trimmed = (codes ?? "").Trim().TrimEnd(',').Trim();
-        return trimmed.Length == 0 ? SteelBit : trimmed + "," + SteelBit;
+        return trimmed.Length == 0 ? code : trimmed + "," + code;
     }
 
     private static string Normalise(string code)
