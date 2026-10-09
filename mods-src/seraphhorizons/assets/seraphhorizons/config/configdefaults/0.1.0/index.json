@@ -72,6 +72,7 @@
     "millwright": "1.3.5",
     "mnflowers": "2.0.0",
     "mngeology": "2.0.10",
+    "morepiles": "3.0.1",
     "moreroads": "2.0.0",
     "mpecenteredspurgear": "1.0.0",
     "mpegearbox": "1.0.1",
@@ -281,6 +282,12 @@
       "format": "json",
       "owners": [
         "handcrank"
+      ]
+    },
+    "MorePilesConfig.json": {
+      "format": "json",
+      "owners": [
+        "morepiles"
       ]
     },
     "NoOceanTranslocators.json": {
