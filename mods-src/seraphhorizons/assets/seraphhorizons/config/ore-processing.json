@@ -25,8 +25,16 @@
 //   oxide); "density" (default 1) multiplies concentration; "free": gold or silver that wants
 //   amalgamation; "unparted": the share of the main metal a smelt gives without parting (gold
 //   quartz 0.85, default 1); "byProducts": a second metal as a share of the main metal's recovered
-//   units, won only at a parting step ("districtShare" for ore from a hydrothermal district).
-//   Unparted, a by-product is lost. Ores not listed are oxides at density 1.
+//   units, won only at a parting step. Unparted, a by-product is lost. Ores not listed are oxides at
+//   density 1. Argentiferous galena (galena_nativesilver) is a lead ore whose silver share is the
+//   silver-rich galena's (#690): galena 3 %, argentiferous galena 38 %. Silver galena was 4.6 % of
+//   galena blocks in the survey of #445 and all silver, so 0.954 x 3 % + 0.046 x 38 % = 4.6 % of
+//   galena's metal keeps the world's silver.
+// - cupel: the bone-ash cupel at the forge (#722; README "Cupellation"). capacityUnits: the most
+//   metal units a charge holds (ore and lead added); leadPerOreUnit: lead units a charge needs per
+//   unit of an ore whose main metal is not lead (tetrahedrite, freibergite); meltingPoint: the heat
+//   (°C) the forge must hold the cupel at; secondsPerIngot: the time per 100 units of charge with the
+//   blast gate open (divided by the gate's air: half 0.85, quarter 0.7; shut, nothing happens).
 {
   "concentrateUnits": 5,
   "concentrators": { "pan": 0.45, "rocker": 0.55, "sluice": 0.65, "jig": 0.80, "table": 0.92, "tableandvanner": 0.99 },
@@ -39,6 +47,7 @@
     "liquation":   { "hand": 0.85, "tier1": 0.85, "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 },
     "acidparting": { "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 }
   },
+  "cupel": { "capacityUnits": 200, "leadPerOreUnit": 1, "meltingPoint": 950, "secondsPerIngot": 60 },
   "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0, "concentrate": 1.0, "roastedconcentrate": 1.0 },
   "ores": {
     "hematite": {}, "magnetite": {}, "limonite": {}, "malachite": {}, "azurite": {},
@@ -48,8 +57,8 @@
     "smithsonite": { "density": 0.9 },
     "hemimorphite": {}, "cerussite": {}, "vanadinite": {}, "wulfenite": {}, "uranium": {}, "rhodochrosite": {},
 
-    "galena": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.03, "districtShare": 0.15, "partedBy": "cupellation" } ] },
-    "galena_nativesilver": { "class": "sulfide" },
+    "galena": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.03, "partedBy": "cupellation" } ] },
+    "galena_nativesilver": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.38, "partedBy": "cupellation" } ] },
     "chalcopyrite": { "class": "sulfide" },
     "chalcocite": { "class": "sulfide" },
     "tetrahedrite": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.05, "partedBy": "cupellation" } ] },

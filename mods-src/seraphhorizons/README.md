@@ -3806,11 +3806,11 @@ lists what is wrong with the file (`Problems`, for the server log; a missing fig
   reverberatory at 3 and 4; grinding from tier 2.
 - Smelting (`SmeltShare(ore, form)`): concentrate and roasted concentrate 100 %, crushed ore and
   chunks 50 %, raw and ground ore nothing, sulfide concentrate nothing until roasted.
-- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier, district)`): a
+- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier)`): a
   by-product is a share of the main metal's recovered units, won only at a parting step at
   cupellation or liquation 85 / 95 / 100 % (hand and tier 1 / tiers 2–3 / tier 4) or acid
-  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 % (15 % in a
-  district's ore), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
+  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 %, argentiferous
+  galena 38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
   franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
   metal comes out at the ore's `unparted` share (gold quartz 85 %).
 - Units: raw ore and chunks keep their grade's units (`ore-graded.json`'s `metalUnitsByType`);
@@ -3870,11 +3870,11 @@ nugget texture retinted by a blended overlay of a vanilla texture (no texture of
 
 Crushed ore is vanilla's crushed item with a grain: an item type of the pack's in the game's domain
 (`assets/game/itemtypes/resource/crushedore.json`), next to vanilla's `game:crushed-{material}`, which
-stays. Argentiferous galena (`galena_nativesilver`) is a sulfide like galena; it smelts to silver as
-vanilla has it until #690 gives it lead and a silver share.
+stays. Argentiferous galena (`galena_nativesilver`) is a sulfide like galena, and a lead ore (#690,
+"Cupellation" below): every form of it smelts to lead.
 
 **Smelting** (#688). What every form smelts to is what the ore's nugget smelts to (metal, melting
-point, smelting type; `nugget-{ore}` without `quartz_` or `galena_`), at #685's share
+point, smelting type; `nugget-{ore}` without `quartz_`, argentiferous galena's galena's), at #685's share
 (`OreRecovery.SmeltShare`: concentrate and roasted concentrate 1, crushed ore and chunks 0.5, raw and
 ground ore 0, a sulfide's concentrate 0 until roasted). The game's rate is a whole number of items per
 ingot, so the rate is the smallest exact one (`OreProducts.Rate`): a 25-unit chunk 1 ingot per 8, a
@@ -4009,6 +4009,69 @@ priced by their barrel routes (`tools/item-values/ore-processing.json`'s `single
 Code: `Ore/Processing/Leaching.cs`, `Ore/Core/OreLeaching.cs`. Tests: `tests/Ore/OreLeachingTests.cs`;
 `OreProcessingScenarios` (the raw forms, the saltpeter drops, a barrel of alum, the pot, diluted alum)
 and `SwitchesOffScenarios`.
+
+### Cupellation (`OreProcessing`)
+
+Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
+with ore processing (the switch above; off by default, and with it off nothing here exists and
+vanilla's silver galena hammers into native silver as before). Rules in `Ore/Core/Cupellation.cs`,
+the game side in `Ore/Processing/` (`BlockCupel`, `BlockCupelBead`, `CupelForge`, `CupelText`).
+
+**Argentiferous galena.** Vanilla's silver galena (`galena_nativesilver`) is renamed "Argentiferous
+galena" (its ore, raw ore, chunks, crystallised ore, loose bits and processing forms; lang overrides
+of the game's keys and the Tidy Variants groups) and is a lead ore: `OreMetals` lists it under lead
+(lead deposits and maps count and name it, silver deposits are silver quartz and freibergite), every
+form of it smelts to lead (its nugget is galena's), its loose bits drop a galena nugget, and its
+silver is lost unless cupelled. Plain galena carries 3 % silver, argentiferous galena 38 %
+(`config/ore-processing.json`, by-products of the ore; the `districtShare` of #756 is gone): with
+silver galena 4.6 % of galena blocks in the survey of #435, 0.954 × 3 % + 0.046 × 38 % ≈ 4.6 % of
+galena's metal, the world's silver as it was. Worldgen is unchanged: the district rules and the ore
+cells' anchor check still count it as silver (`OreMetals.WorldgenMetalOf`), so its felsic-district
+lenses stay. `docs/oregen.md`, "Argentiferous galena", has the details and why the survey was not
+rerun.
+
+**The cupel** (`seraphhorizons:cupel-{raw,fired,bead}`, `blocktypes/oreprocessing/cupel.json`, a
+small dish kept a block as the game's crucible is): four bone meal in the grid make a raw cupel,
+fired like clay in a pit kiln or a beehive kiln. The fired cupel is a smelting container
+(`BlockCupel`, on the game's `BlockSmeltingContainer`), and crucibulum's forge takes it as a
+crucible with no change to crucibulum: crucibulum tests the class, not the code
+(`BlockEntityCrucibulumForge.IsCrucible`, `ItemSlotCrucibleCharge.IsFiredCrucible`). It is loaded
+like the crucible, through the forge's four charge slots, at most 200 units of metal:
+
+- roasted galena or argentiferous galena concentrate; or roasted tetrahedrite or freibergite
+  concentrate with at least as many units of lead (lead bits, a galena nugget, roasted galena:
+  anything that smelts to lead, except litharge). Anything else is refused.
+- The forge must hold it at 950 °C (the forge's 400 °C crucible bonus reaches it with the blast
+  gate open, half or a quarter), and it takes 60 s per 100 units of charge, divided by the gate's
+  air (open 1, half 0.85, quarter 0.7, crucibulum's figures); shut, nothing happens. Its own
+  `CanSmelt` refuses anywhere but a forge (a firepit). Which forge its charge slots belong to is
+  not on the slots, so a postfix on crucibulum's `BlockEntityCrucibulumForge.Initialize` (found by
+  name, Harmony id `seraphhorizons.oreprocessing`) notes each forge by its charge slots
+  (`CupelForge`); without crucibulum (or with it changed) the server warns and the cupel works
+  nowhere. The forge's dialog line ("Will part 64.6 units of silver, the 200 units of lead going
+  into litharge", or why not) is the cupel's: a postfix on the game's `GetOutputText` (`CupelText`).
+- Done, it is a **cupel with silver bead**, holding what it breaks into: the lead (the ore's and
+  the added) as litharge, 5 units each, and each other metal as metal bits, 5 units each: the
+  silver at 85 % of the charge's (`OreRecovery.Smelted` at the hand tier: galena 3 %, argentiferous
+  galena 38 %, tetrahedrite 5 % of its units; freibergite all of it, its main metal), and copper
+  (tetrahedrite all of its own, freibergite 30 % at 85 %). Copper does not stay in a real bead, it
+  oxidises with the lead; the pack gives it back as copper bits beside the litharge instead of
+  losing it. Units to items: the whole ones, and one more at the chance of the fraction left, drawn
+  once when the cupel is done, so a charge gives its units on average (`Cupellation.Whole`): a full
+  cupel of argentiferous galena 64.6 units of silver (12 or 13 bits) and 40 litharge, of plain
+  galena 5.1 units (one bit, a second at 2 %).
+- Broken with a hammer in the grid (`recipes/grid/cupel.json`), the bead's litharge is the output
+  (`ItemOreProduct.OnCreatedByCrafting` sets the count) and its bits go to the player
+  (`BlockCupelBead.OnConsumedByCrafting`). Litharge smelts back to lead at 20 in 21. The cupel is
+  used up.
+
+The figures are `cupel` in `config/ore-processing.json` (`capacityUnits`, `leadPerOreUnit`,
+`meltingPoint`, `secondsPerIngot`). The handbook has a Cupellation section on each cupel. The
+recipe browser has a `cupellation` record per ore (`tools/recipe-export/RecipeSection.Cupellation.cs`)
+when the switch is on. Tests: `tests/Ore/CupellationTests.cs` (the ores it takes, yields, refusals,
+the rounding), `OreRecoveryTests`, `OreProductsTests`, `DepositMakeupTests`;
+`tests/PackTests/OreProcessingScenarios.cs` (Atlas: the names, the smelting to lead, the loose
+bits, the cupel in crucibulum's forge with the gate, the bead and breaking it).
 
 ## Trading
 

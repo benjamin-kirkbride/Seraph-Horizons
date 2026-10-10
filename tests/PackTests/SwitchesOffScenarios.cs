@@ -1296,6 +1296,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(W.GetItem(new AssetLocation("game:crushed-galena-coarse")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:concentrate-galena")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:litharge")));
+        // No cupel (#722) nor its recipes; argentiferous galena is hammered into native silver as vanilla has it.
+        Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons:cupel-fired")));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Domain == "seraphhorizons" && r.Output.Code.Path.StartsWith("cupel-"));
+        Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path == "nugget-nativesilver");
+        Assert.Equal("game:nugget-nativesilver",
+            W.GetBlock(new AssetLocation("game:looseores-galena_nativesilver-shale-free"))?.Drops?[0].ResolvedItemstack?.Collectible.Code.ToString());
         Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path?.StartsWith("nugget-") == true);
         Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.HarmonyId));
         Assert.Null(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.Of(World.Api).Applied);

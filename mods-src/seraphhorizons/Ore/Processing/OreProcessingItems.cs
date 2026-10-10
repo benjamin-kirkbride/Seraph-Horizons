@@ -29,7 +29,7 @@ public static class OreProcessingItems
     /// <summary>What was set, for the log and the scenarios.</summary>
     public sealed class Report
     {
-        public int OreItems, CrystallisedOre, Nuggets, Crushed, Concentrate, Roasted, Litharge;
+        public int OreItems, CrystallisedOre, Nuggets, Crushed, Concentrate, Roasted, Litharge, LooseOres;
         /// <summary>Ores whose nugget does not smelt (or is missing): their forms do not smelt.</summary>
         public SortedSet<string> NoSmeltTarget = new(StringComparer.Ordinal);
         /// <summary>Ore items with no <c>metalUnits</c>: left as they are.</summary>
@@ -123,6 +123,15 @@ public static class OreProcessingItems
                     break;
             }
         }
+        // Loose argentiferous galena gave a native silver nugget (vanilla's "*_nativesilver-*" drop); a
+        // lead ore now (#690), it gives a galena nugget, its silver left to cupellation.
+        if (world.GetItem(new AssetLocation("game", "nugget-" + OreProducts.NuggetOf(OreProducts.Argentiferous))) is { } leadNugget)
+            foreach (var block in world.Blocks)
+                if (block?.Code is { Domain: "game" } bc && bc.Path.StartsWith("looseores-" + OreProducts.Argentiferous + "-", StringComparison.Ordinal))
+                {
+                    block.Drops = [new BlockDropItemStack(new ItemStack(leadNugget))];
+                    report.LooseOres++;
+                }
         logger.Notification("[seraphhorizons] Ore processing: {0} ore items and {1} crystallised ore by grade, {2} nuggets, "
                             + "{3} crushed, {4} concentrate, {5} roasted concentrate, {6} litharge set; forms of {7} do not smelt "
                             + "(their nugget does not)",

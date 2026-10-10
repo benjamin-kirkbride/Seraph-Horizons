@@ -46,7 +46,7 @@ public class OreProductsTests
         Assert.Equal("seraphhorizons:concentrate-galena", OreProducts.ConcentrateCode("galena"));
         Assert.Equal("seraphhorizons:roastedconcentrate-galena", OreProducts.RoastedCode("galena"));
         Assert.Equal("nativegold", OreProducts.NuggetOf("quartz_nativegold"));
-        Assert.Equal("nativesilver", OreProducts.NuggetOf("galena_nativesilver"));
+        Assert.Equal("galena", OreProducts.NuggetOf("galena_nativesilver"));
         Assert.Equal("quartz_nativegold", OreProducts.OreOfNugget("nativegold"));
         Assert.Equal("hematite", OreProducts.OreOfNugget("hematite"));
         Assert.Null(OreProducts.OreOfNugget("wolframite"));
