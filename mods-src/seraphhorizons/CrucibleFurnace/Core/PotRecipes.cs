@@ -93,7 +93,9 @@ public sealed class PotRecipes(IReadOnlyList<PotRecipe> recipes)
 
     public static readonly PotRecipe FerrochromeRecipe = new("ferrochrome",
     [
-        new("crushedchromite", ["game:crushed-chromite"], 0.45, 0.55),
+        // Chromite concentrate with ore processing on (OreProcessing, #688): 5 units, as the game's
+        // crushed chromite counts here; the item exists only with that switch.
+        new("crushedchromite", ["game:crushed-chromite", "seraphhorizons:concentrate-chromite"], 0.45, 0.55),
         new("ferrosilicon", [Stainless.Ferrosilicon], 0.25, 0.35),
         new("lime", ["game:lime"], 0.15, 0.25),
     ], Stainless.Ferrochrome, Pourable: false, Yield: 0.5, Temperature: 1550, Byproduct: "smex:slag", UnitsPerByproduct: 25);

@@ -191,6 +191,8 @@ public class OreRecoveryTests
         Assert.Equal(0.5, R.SmeltShare(hematite, OreForm.Crushed));
         Assert.Equal(1, R.SmeltShare(hematite, OreForm.Concentrate));
         Assert.Equal(0.5, R.SmeltShare(R.Ore("galena"), OreForm.Chunk));
+        // Ground ore goes on to the concentrator; it does not smelt (#686).
+        Assert.Equal(0, R.SmeltShare(hematite, OreForm.Ground));
     }
 
     [Fact]

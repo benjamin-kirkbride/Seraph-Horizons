@@ -6,7 +6,7 @@
 // base times the feed's factors and the ore's density, capped at 1; crushing and grinding never
 // lose metal. A fraction is of the ore's metal units (ore-graded.json's metalUnitsByType for raw
 // ore and chunks; crushed, ground and concentrate hold concentrateUnits), and output carries its
-// fraction over from one item to the next (OreUnits.cs), so nothing is lost to rounding.
+// fraction over from one item to the next (UnitCarry.cs), so nothing is lost to rounding.
 //
 // - concentrators: base recovery per device (hand: pan, rocker; tiers 1-4: sluice, jig, table,
 //   tableandvanner).
@@ -18,8 +18,9 @@
 //   reverberatory). Unroasted sulfide concentrate does not smelt at all (#720).
 // - parting: a by-product's recovery per method and tier (hand, tier1..tier4); a tier left out has
 //   no station for it (acid parting starts at tier 2).
-// - smelt: what share of its units each form gives in a furnace. Raw ore not at all; sulfide
-//   concentrate only once roasted (that rule is in the code, not here).
+// - smelt: what share of its units each form gives in a furnace. Raw and ground ore not at all
+//   (ground ore goes on to the concentrator); sulfide concentrate only once roasted (that rule is in
+//   the code, not here).
 // - ores: per ore (the ore part of its code). "class": oxide, sulfide, native, placer (default
 //   oxide); "density" (default 1) multiplies concentration; "free": gold or silver that wants
 //   amalgamation; "unparted": the share of the main metal a smelt gives without parting (gold
@@ -38,7 +39,7 @@
     "liquation":   { "hand": 0.85, "tier1": 0.85, "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 },
     "acidparting": { "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 }
   },
-  "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0.5, "concentrate": 1.0, "roastedconcentrate": 1.0 },
+  "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0, "concentrate": 1.0, "roastedconcentrate": 1.0 },
   "ores": {
     "hematite": {}, "magnetite": {}, "limonite": {}, "malachite": {}, "azurite": {},
     "cassiterite": { "density": 1.05 },
@@ -48,6 +49,7 @@
     "hemimorphite": {}, "cerussite": {}, "vanadinite": {}, "wulfenite": {}, "uranium": {}, "rhodochrosite": {},
 
     "galena": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.03, "districtShare": 0.15, "partedBy": "cupellation" } ] },
+    "galena_nativesilver": { "class": "sulfide" },
     "chalcopyrite": { "class": "sulfide" },
     "chalcocite": { "class": "sulfide" },
     "tetrahedrite": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.05, "partedBy": "cupellation" } ] },
