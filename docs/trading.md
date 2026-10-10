@@ -832,8 +832,9 @@ goods (× the fit).
   rework) takes its cheapest route, like any item: the gear cutter, or the reclamation lottery (ten
   neutralized gears less the nine stainless bits the failed rolls give). The large stainless gear
   (`seraphhorizons:largegear-stainless`) takes its gear cutter route. Neither is a hand price.
-  Stainless steel itself is a raw at 12 an ingot until the crucible furnace gives it a route.
-  (#506, #523, #484)
+  Stainless steel itself is the crucible furnace's (its pot recipes are `tools/item-values/routes.json`),
+  about 8.3 an ingot, from crushed chromite counted at the 5 units the pot takes it for (#689; it
+  was a raw at 12 before). (#506, #523, #484, #689)
 
 ### Everything has a price
 
