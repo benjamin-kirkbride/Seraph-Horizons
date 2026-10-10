@@ -2862,6 +2862,14 @@ block, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and th
 and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's own waypoint
 traverser then walks the path. A first pass: following (#675) proves it on real terrain.
 
+**Spacing** (`Eidolon/Core/EidolonSpacing.cs`). Its `repulseagents` is `movable: false`, so nothing
+shoves it, another eidolon included: two spawned in one place, or following one player to the same
+spot, stood wholly inside each other for good. Each now pushes itself away from any other eidolon
+whose circle (half its box's width) overlaps its own, every server tick, by motion (so blocks still
+stop it), harder the deeper, at most 0.05 blocks per 1/60 s, a little under a walk; two in the very
+same place go opposite ways along a direction both work out alike from their ids. Not while either is
+mounted. Players and creatures still do not move it.
+
 **The guide** (#681, `Eidolon/Game/EidolonGuideSystem.cs`). The handbook has a page of its own,
 "Building and commanding an eidolon" (`config/handbook/eidolon.json`, page code
 `seraphhorizons-eidolon`, text `eidolon-guide-text`): the schematic, the gantry and its nine winch
@@ -3015,7 +3023,13 @@ creature types (drifters, bowtorns, shivers, locusts, wolves, bears and hyenas h
 chickens, foxes, deer, the mech helper, hacked locusts and tamed elk not; a sheep hostile when
 angry; a trader never) and guards a point given with the tool: a drifter 10 blocks off is gone for and killed, one 25
 off and a bred wolf 6 off are left alone, it stands at its point again after, and the wolf, unbred,
-is gone for;
+is gone for; `tests/Eidolon/EidolonSpacingTests.cs` covers the spacing (no push apart or touching,
+straight away and harder the deeper, capped, two in one place opposite ways and clear in a few dozen
+ticks), and `tests/PackTests/EidolonFootingScenarios.cs` (Atlas) walks one off a thin and a thick trunk
+to the floor beside it, and to a point close beside a thin one (where it hung on the edge), two
+together off a thin trunk to their own points and following their leader, two spawned in one place
+apart and each to its own point, and one and two together up a one-block step and down it, by order
+and following, logging where each is as it goes;
 `tests/Eidolon/EidolonFellingTests.cs` covers felling's rules (wild logs and
 stumps, grown trees, where it stands, the swing, what replants) and
 `tests/PackTests/EidolonFellScenarios.cs` (Atlas) orders it with the tool: refused without an axe,

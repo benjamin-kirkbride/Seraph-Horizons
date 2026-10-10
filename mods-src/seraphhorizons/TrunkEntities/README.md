@@ -354,8 +354,14 @@ three times a walk (about 0.07 blocks per 1/60 s), so a walking player is held a
 found deep inside slides out over a few steps. The game's `repulseagents` pushes by motion, at most
 0.1 blocks per 1/60 s, by the trunk's middle hitbox only (`EntityBehaviorRepulseAgents`: its push
 vector clamped to ±3 and divided by 30); this works by position, on the whole trunk. An agent whose feet
-are within `StandMargin` (0.4) of the top is lifted onto it the whole way, its fall stopped and
-`OnGround` set, so a player can stand on a trunk. The trunk itself is never moved by this, and its
+are within `StandMargin` (0.4) of the top, its middle over the trunk or within `StandReach` (0.3)
+of its outline, is lifted onto it the whole way, its fall stopped and `OnGround` set, so a player can
+stand on a trunk; `StandReach` is a player's radius, so a player overlapping the trunk at all steps
+onto it. A wider agent whose middle is further out has its weight off the trunk and is pushed off the
+side instead, and falls. A first build lifted any agent overlapping the trunk: an eidolon (radius
+0.85) walking off one was held up on the edge until its middle was 0.85 past it, its middle over the
+floor, never falling and never on the ground in the game's physics, so it crept at the speed it has in
+the air, and a walk to a point beside the trunk ended there, standing on nothing. The trunk itself is never moved by this, and its
 driver (mounted, and standing beyond its end) is left alone. Driven into a bystander, the same push
 moves them out of its way. It runs on the server every game tick for every agent near a trunk
 (`EntityTrunk.OnGameTick`), and on the client every frame for the local player, right after the
@@ -712,7 +718,9 @@ spawned) turn back into the trunk items they hold, the tick after they load: the
   `tests/TrunkEntities/TrunkPushTests.cs` checks the solidity's geometry (`TrunkPush`): nothing
   outside or touching (nor diagonally off a corner, where a box's corner would touch), across
   rather than along from the middle (thin and thick), past the end near an end, straight away from
-  a grazed side and diagonally from a grazed corner, up onto the top only within the margin, capped
+  a grazed side and diagonally from a grazed corner, up onto the top only within the margin, a
+  player overlapping the side at all lifted, an eidolon with its middle off the edge pushed off
+  rather than held up (and within `StandReach` of it lifted), capped
   steps getting out in a few, motion into the trunk stopped (on a slanted wall only the part into
   it), a quarter-turned trunk lying along x, and a trunk at yaw 0.6: along its whole side, sampled
   every 0.05, the way out within 5° of square to its axis and the depth the same (no staircase:
