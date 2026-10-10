@@ -289,8 +289,8 @@ def check_supports(v):
     print(f"support line shaft: {len(bearings)} pedestal bearings ({', '.join(bearings)}), shaft z {span}")
     if len(bearings) < 2:
         v.fail("the line shaft is not carried by two bearings")
-    ends = [e for e in v.named("feeder", r"_casing_[ns]") if e.aabb()[0][2] < span[1] - 1e-6 < e.aabb()[1][2] or e.aabb()[0][2] < span[1] - 1.5 < e.aabb()[1][2]]
-    if len(v.named("feeder", r"_casing_[ns]")) != 2 or span[1] > max(e.aabb()[1][2] for e in v.named("feeder", r"_casing_s")) + 1e-6:
+    walls = sorted((e.aabb() for e in v.named("feeder", r"_casing_[ns]")), key=lambda b: b[0][2])
+    if len(walls) != 2 or not all(b[0][2] < span[1] and span[0] < b[1][2] for b in walls) or span[1] > walls[1][1][2] + 1e-6:
         v.fail("the line shaft's end does not run in the feeder casing's end walls")
     for k, zs in enumerate(m.RABBLE_Z, 1):
         found, span = supports(statics + v.by_part["arch"], v.named(f"rabble{k}", r"_spindle"), 1, (m.SHAFT[0], zs))
@@ -302,7 +302,6 @@ def check_supports(v):
         seat = max(e.aabb()[1][1] for e in v.by_part["rabblemounts"] if e.name == f"rabblemount{k}_bearing")
         if abs(hub - seat) > 1e-6:
             v.fail(f"rabble {k}'s wheel hub does not rest on its bearing ({hub:.3f} against {seat:.3f})")
-    del ends
 
 
 def overlap_depth(a, b):
