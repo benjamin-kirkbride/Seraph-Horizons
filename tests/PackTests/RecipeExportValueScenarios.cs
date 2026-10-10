@@ -33,8 +33,8 @@ public partial class RecipeExportScenarios
         var registry = SwitchRegistry.For(api);
         var codes = api.World.Collectibles.Where(c => c?.Code != null && !c.IsMissing).Select(c => c.Code.ToString()).ToList();
         bool Matches(string pattern) => codes.Any(c => WildcardUtil.Match(new AssetLocation(pattern), new AssetLocation(c)));
-        // A switch off by default (OreProcessing) registers nothing in this world; its codes are
-        // checked where it is on (OreProcessingScenarios).
+        // A switch off by default would register nothing in this world (none is today; OreProcessing
+        // was until #684's hand tier landed), so only the switches on here are checked.
         var config = SeraphHorizonsSystem.ConfigFor(api);
         bool On(string name) => typeof(SeraphHorizonsConfig).GetProperty(name)?.GetValue(config) is true;
         // Each type file defines registered codes: its code itself or variants of it.
@@ -49,8 +49,8 @@ public partial class RecipeExportScenarios
         foreach (var hand in SeraphHorizons.Mod.Core.SwitchOwnership.HandListed.Where(h => On(h.Switch)))
             foreach (var pattern in hand.CodePatterns)
                 Assert.True(Matches(pattern), $"{hand.Switch}: no registered code matches {pattern}");
-        // A recipe type of a switch off here (OreProcessing's oreroasting) is checked where it is on
-        // (OreProcessingScenarios.Roasting_is_exported).
+        // Every switch on here has its recipe types in the export (OreProcessing's oreroasting,
+        // oreretorting, cupellation and liquation among them).
         foreach (var owned in registry.Owned.Where(o => On(o.Switch)))
         {
             foreach (var type in owned.RecipeTypes)

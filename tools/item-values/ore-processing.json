@@ -1,5 +1,5 @@
 {
-  "about": "Ore processing's items (#684, #689), priced on concentrate: every form from its metal units (config/ore-processing.json's concentrateUnits, 5) and the labour of each stage to reach it, along one reference line of devices. The figures (concentrators, roasters, parting, ore classes, densities, by-products) are the mod's own config/ore-processing.json, read from 'config'; this file only says which device of each stage the reference line has, which markup kind (markups.json) each stage charges, the items, and which parting methods have a station. The switch's items are absent from an export made with the switch off (the default), so the tool adds them to the export as items of 'switch' when it lacks them: their value then exists only by that switch, and nothing the switch does not add is priced from them unless it is cheaper (the ferrochrome pot's chromite takes the legacy crushed chromite first). See README.md, Ore processing.",
+  "about": "Ore processing's items (#684, #689), priced on concentrate: every form from its metal units (config/ore-processing.json's concentrateUnits, 5) and the labour of each stage to reach it, along one reference line of devices. The figures (concentrators, roasters, parting, ore classes, densities, by-products) are the mod's own config/ore-processing.json, read from 'config'; this file only says which device of each stage the reference line has, which markup kind (markups.json) each stage charges, the items, and which parting methods have a station. The switch is on by default, so the default export the table is built from carries its items, each an item of 'switch'; an export made with it off lacks them, and the tool adds them to it as items of 'switch' when it lacks them, so check and build still work on one. See README.md, Ore processing.",
   "switch": "OreProcessing",
   "config": "mods-src/seraphhorizons/assets/seraphhorizons/config/ore-processing.json",
 
@@ -39,7 +39,7 @@
     "stack": 64,
     "name": "Litharge",
     "metal": "game:ingot-lead",
-    "units": 4.7619
+    "units": 4.761904761904762
   },
 
   "singles": {
@@ -53,7 +53,7 @@
   },
 
   "legacyCrushed": {
-    "about": "The game's crushed ores that recipes and the crucible furnace take (OreProcessingSystem.LegacyCrushed; PotRecipes counts one as 5 units). With the switch off Expanded Matter's crushing makes them, a bountiful chromite chunk 2.33 of them (15 units each), but every use counts one as 5 units, so they are priced as the coarse crushed ore of their ore: 5 units and the crushing.",
+    "about": "The game's crushed ores that recipes and the crucible furnace take (OreProcessingSystem.LegacyCrushed; PotRecipes counts one as 5 units). With the switch off Expanded Matter's crushing makes them, a bountiful chromite chunk 2.33 of them (15 units each), but every use counts one as 5 units, so they are priced as the coarse crushed ore of their ore: 5 units and the crushing. With the switch on nothing makes them (an old stack keeps this price), and the ferrochrome pot's route (routes.json) takes only chromite concentrate.",
     "ores": ["chromite", "cassiterite", "galena", "ilmenite", "sphalerite"]
   },
 
