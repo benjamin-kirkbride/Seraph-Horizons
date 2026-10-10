@@ -120,6 +120,10 @@
     <None Include="../assets/seraphhorizons/entities/handcar.json" Link="handcar-entity.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Handcar/rig-reference.json" Link="handcar-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Handcar/rider-reference.json" Link="handcar-rider-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The amalgam pan's shipped rig and its reference poses (AmalgamPan/tools/make_shape.py): a model
+         with no gameplay yet, held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/amalgampan-rig.json" Link="amalgampan-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="AmalgamPan/rig-reference.json" Link="amalgampan-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
