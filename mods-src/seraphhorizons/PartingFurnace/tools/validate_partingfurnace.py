@@ -209,9 +209,9 @@ TEX_RULES = [
     (r"^sh_oak", "oak"),
     (r"^(sh_shaft|sh_pin|yk_rod|yk_slipper|st_shaft|st_wheel|bp_|en_gland)", "steel"),
     (r"^(sh_web|yk_(top|bottom|side)|en_(ped|cyl|cover|valvechest|guide|foot|elbow|main)"
-     r"|cp_(grate|ring|channel|pot_|tuyere|firedoor|ashdoor|buck|tie|lintel_iron)|lq_(plate|rim|spout|pot_|firedoor|buck|tie)"
+     r"|cp_(grate|ring|channel|pot_|tuyere|firedoor|firehinge|ashdoor|buck|tie|lintel_iron)|lq_(plate|rim|spout|pot_|firedoor|buck|tie)"
      r"|ac_(firedoor|tray)|kt_(flange|skimmer|firedoor|ashdoor)|gl_|ch_|st_paddle)", "iron"),
-    (r"^(cp_(hearth|wall|lintel$|vault|haunch|gable)|lq_(base|wall|vault|haunch|gable)|ac_(pier|hood|firebox)|kt_setting"
+    (r"^(cp_(hearth|wall|vault|haunch|gable)|lq_(base|wall|vault|haunch|gable)|ac_(pier|hood|firebox)|kt_setting"
      r"|fr_stack_(base|shaft))", "brick"),
     (r"^(cp_bridge|lq_step|fr_stack_cap)", "firebrick"),
     (r"^fr_floor", "paving"),

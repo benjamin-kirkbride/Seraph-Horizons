@@ -81,6 +81,22 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   // Contents that would otherwise take the metal colour of the pan they lie in (the amalgam pan's).
   [/mercury|quicksilver/, "#dce2ea"],
   [/amalgam/, "#b0aa9c"],
+  // The parting furnace's works: brickwork, fires and the charges in each furnace, each told apart from the
+  // brick and iron round it (texture paths no other model uses).
+  [/clay\/brick\/.*cream/, "#dccaa0"],
+  [/clay\/brick\/.*red\d/, "#8f4a36"],
+  [/clay\/brick/, "#b0603f"],
+  [/ingot\/lead(?!solder)/, "#5f6875"],
+  [/ingot\/tin\b/, "#d0d5d9"],
+  [/ingot\/zinc/, "#a3b4bb"],
+  [/coal\/ember/, "#e2622a"],
+  [/coal\/|block\/black/, "#34302e"],
+  [/rock\/chalk/, "#eeece4"],
+  [/hardened\/orange/, "#d98a2b"],
+  [/ceramic-dark/, "#5b473b"],
+  [/stone\/sand\//, "#d6c58f"],
+  [/dilutedalum/, "#b9dcc0"],
+  [/plate\/brass/, "#c9a53a"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],

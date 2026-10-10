@@ -1,11 +1,12 @@
 """The parting furnace's generated model files (mods-src/seraphhorizons/PartingFurnace/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules: it reproduces the committed files; the shipped rig parses
-with the shared rig maths, reads theta alone, and its `requires` are one per fitted set, named for its tier and
-listed tier by tier (the rig's `tiers`), the frame needing none; its reference poses are its own maths; the cells
-are rebuilt from the shipped shape; the anchors are the generator's cells and faces, with the chutes' ends on
-them; the stirrer turns at the bevel pair's ratio and the yoke rises with the crank; and the site's scenario
-states are the rig's tiers, cumulative. Run with `python3 -m unittest discover -s tools/tests`.
+with the shared rig maths, reads theta alone, and its `requires` are one per fitted set, each in one level and
+listed level by level (the rig's `levels`), the frame needing none; its reference poses are its own maths; the
+cells are rebuilt from the shipped shape, the frame's boxes apart from each fitted set's; the anchors are the
+generator's cells and faces, with the chutes' ends and the water pipe on them; the stirrer turns with the shaft
+through the mitre pair and the yoke rises with the crank; and the site's scenario states are the rig's levels,
+cumulative. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -38,7 +39,8 @@ FRAME = json.loads(FRAME_PATH.read_text())
 RIG = json.loads(RIG_PATH.read_text())
 REFERENCE = json.loads(REFERENCE_PATH.read_text())
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
-TIERS = {"2": ["t2blast", "t2cupel", "t2liquation"], "3": ["t3acid", "t3precip"], "4": ["t4kettle", "t4stirrer", "t4chutes"]}
+LEVELS = {"1": ["blast", "cupel", "liquation", "acid"], "2": ["kettle", "stirrer", "chutes"]}
+REQUIRES = [v for k in sorted(LEVELS) for v in LEVELS[k]]
 
 
 def matrix(pid, theta):
@@ -46,9 +48,9 @@ def matrix(pid, theta):
 
 
 def angle_about(m, axis):
-    """A pure rotation's angle about x or y, from its matrix."""
-    if axis == "x":
-        return math.atan2(m[2][1], m[1][1])
+    """A pure rotation's angle about y or z, from its matrix."""
+    if axis == "z":
+        return math.atan2(m[1][0], m[0][0])
     return math.atan2(m[0][2], m[0][0])
 
 
@@ -62,8 +64,9 @@ class Generator(unittest.TestCase):
 
 
 class Rig(unittest.TestCase):
-    def test_parts_parse_and_requires_are_the_tiers_sets(self):
-        self.assertEqual(RIG["tiers"], TIERS)
+    def test_parts_parse_and_requires_are_the_levels_sets(self):
+        self.assertEqual(RIG["levels"], LEVELS)
+        self.assertNotIn("tiers", RIG)
         ids = [p["id"] for p in RIG["parts"]]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(ids[-1], "frame")
@@ -75,12 +78,11 @@ class Rig(unittest.TestCase):
             self.assertIsNone(p.get("ride"))
             r = p["requires"]
             if r is not None:
-                tier = next(k for k, vs in TIERS.items() if r in vs)
-                self.assertTrue(r.startswith(f"t{tier}"), r)
+                self.assertEqual(sum(r in vs for vs in LEVELS.values()), 1, r)
                 if r not in order:
                     order.append(r)
-        # listed tier by tier, every set used
-        self.assertEqual(order, [v for k in sorted(TIERS) for v in TIERS[k]])
+        # listed level by level, every set used
+        self.assertEqual(order, REQUIRES)
 
     def test_theta_is_the_only_input(self):
         self.assertNotIn("work", RIG)
@@ -90,7 +92,7 @@ class Rig(unittest.TestCase):
                 self.assertIn(d["type"], ("rotate", "slide"))
                 self.assertEqual(rigmath.driver_input(d), "theta")
         moving = {p["id"] for p in RIG["parts"] if p["drivers"]}
-        self.assertEqual(moving, {"lineshaft", "yoke", "stirrer", "bevelpinion"})
+        self.assertEqual(moving, {"shaft", "yoke", "stirrer", "bevelpinion"})
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
@@ -119,60 +121,106 @@ class Rig(unittest.TestCase):
                     for c in range(4):
                         self.assertAlmostEqual(got[r][c], want[r][c], places=5, msg=f"{pid} at theta {pose['theta']}")
 
+
+class Cells(unittest.TestCase):
     def test_cells_are_rebuilt_from_the_shipped_shape(self):
         self.assertEqual(make_shape.shipped_cells(SHAPE, RIG["parts"]), RIG["cells"])
         self.assertFalse(any(c.get("hollow") or "lid" in c for c in RIG["cells"]))
 
+    def test_frame_boxes_and_fitted_boxes(self):
+        """A cell's boxes are the frame's; its fitted boxes are keyed by requires values in the levels' order, each a
+        box inside the cell; and the footprint is compact: 4 x 2 by 2 high, the stack's column 2 higher."""
+        cells = RIG["cells"]
+        self.assertEqual(len(cells), 18)
+        for c in cells:
+            keys = list(c.get("fitted", {}))
+            self.assertEqual(keys, [r for r in REQUIRES if r in keys], c["pos"])
+            for b in c.get("boxes", []) + [b for bs in c.get("fitted", {}).values() for b in bs]:
+                self.assertEqual(len(b), 6)
+                for k in range(3):
+                    self.assertTrue(0 <= b[k] < b[k + 3] <= 1, (c["pos"], b))
+        # the frame alone (the floor and the stack) leaves the kettle's upper cell empty, and level 1 has only the
+        # engine shaft's end in it, where the pinion goes: it collides with what is fitted
+        kettle_top = next(c for c in cells if c["pos"] == RIG["inputCell"])
+        self.assertNotIn("boxes", kettle_top)
+        self.assertEqual(set(kettle_top["fitted"]) & set(LEVELS["1"]), {"blast"})
+        (shaft_end,) = kettle_top["fitted"]["blast"]
+        self.assertLess(math.prod(shaft_end[k + 3] - shaft_end[k] for k in range(3)), 0.01)
+
+    def test_every_ground_cell_has_the_floor(self):
+        for c in RIG["cells"]:
+            if c["pos"][1] == 0:
+                self.assertIn([0.0, 0.0, 0.0, 1.0, 0.125, 1.0], c["boxes"], c["pos"])
+
+
+class Anchors(unittest.TestCase):
     def test_anchors_are_the_generators(self):
         o = make_shape.ORIGIN_CELL
-        for key, cell in (("powerCell", make_shape.POWER_CELL), ("inputCell", make_shape.INPUT_CELL), ("outputCell", make_shape.OUTPUT_CELL)):
+        for key, cell in (("powerCell", make_shape.POWER_CELL), ("waterCell", make_shape.WATER_CELL),
+                          ("inputCell", make_shape.INPUT_CELL), ("outputCell", make_shape.OUTPUT_CELL)):
             self.assertEqual(RIG[key], [cell[k] - o[k] for k in range(3)], key)
             self.assertIn(RIG[key], [c["pos"] for c in RIG["cells"]], key)
-        self.assertEqual((RIG["powerFace"], RIG["inputFace"], RIG["outputFace"]), ("east", "north", "south"))
+        self.assertEqual((RIG["powerFace"], RIG["waterFace"], RIG["inputFace"], RIG["outputFace"]), ("north", "south", "east", "south"))
         self.assertIn([0, 0, 0], [c["pos"] for c in RIG["cells"]])
         # each chute's anchor point is on its cell's face
-        for key, face, k, side in (("input", "inputCell", 2, 0), ("output", "outputCell", 2, 1)):
+        for key, face, k, side in (("input", "inputCell", 0, 1), ("output", "outputCell", 2, 1)):
             pos, cell = RIG[key]["pos"], RIG[face]
             self.assertAlmostEqual(pos[k], cell[k] + side, places=6, msg=key)
-            for q in (0, 1):
-                self.assertTrue(cell[q] <= pos[q] <= cell[q] + 1, key)
+            for q in range(3):
+                if q != k:
+                    self.assertTrue(cell[q] <= pos[q] <= cell[q] + 1, key)
+
+    def test_the_water_pipe_meets_the_water_face_in_ppexs_section(self):
+        cell = RIG["waterCell"]
+        pipe = [e for e in SHAPE["elements"] if e["name"].startswith("ac_pipe")]
+        lo = [min(e["from"][k] for e in pipe) for k in range(3)]
+        hi = [max(e["to"][k] for e in pipe) for k in range(3)]
+        self.assertAlmostEqual(hi[2], (cell[2] + 1) * 16, places=4)
+        self.assertAlmostEqual(hi[0] - lo[0], 6.0, places=4)
+        self.assertAlmostEqual(hi[1] - lo[1], 6.0, places=4)
+        self.assertAlmostEqual((lo[0] + hi[0]) / 2, cell[0] * 16 + 8, places=4)
+        self.assertAlmostEqual((lo[1] + hi[1]) / 2, cell[1] * 16 + 8, places=4)
 
 
 class Mechanism(unittest.TestCase):
-    def test_the_stirrer_turns_at_the_bevel_pairs_ratio(self):
-        self.assertEqual(make_shape.PINION_TEETH * 2, make_shape.WHEEL_TEETH)
+    def test_the_stirrer_turns_with_the_shaft_through_the_mitre_pair(self):
+        self.assertEqual(make_shape.PINION_TEETH, make_shape.WHEEL_TEETH)
         for th in (0.3, 1.2, -0.8):
-            shaft = angle_about(matrix("lineshaft", th), "x")
-            pinion = angle_about(matrix("bevelpinion", th), "x")
+            shaft = angle_about(matrix("shaft", th), "z")
+            pinion = angle_about(matrix("bevelpinion", th), "z")
             stirrer = angle_about(matrix("stirrer", th), "y")
             self.assertAlmostEqual(pinion, shaft, places=9)
-            self.assertAlmostEqual(stirrer, th * make_shape.PINION_TEETH / make_shape.WHEEL_TEETH, places=9)
+            self.assertAlmostEqual(shaft, th, places=9)
+            self.assertAlmostEqual(stirrer, -th, places=9)
 
     def test_the_yoke_rises_with_the_crank(self):
-        # the crank pin is north of the shaft at theta 0: its height is the shaft's plus r sin(theta), and the
-        # yoke's slot rides it
+        # the crank pin is east of the shaft at theta 0: its height is the shaft's plus r sin(theta), and the yoke's
+        # slot rides it
         r = make_shape.CRANK_R / 16
         o = make_shape.ORIGIN_CELL               # the shipped rig is the build frame moved by the controller cell
-        axis = (make_shape.LS[0] / 16 - o[1], make_shape.LS[1] / 16 - o[2])
+        axis = (make_shape.SHAFT[0] / 16 - o[0], make_shape.SHAFT[1] / 16 - o[1])
         for th in (0.0, 0.7, 1.5708, 3.0, -2.2):
             self.assertAlmostEqual(matrix("yoke", th)[1][3], r * math.sin(th), places=9)
-            pin = rigmath.apply(matrix("lineshaft", th), [0.5 - o[0], axis[0], axis[1] - r])
-            self.assertAlmostEqual(pin[1] - axis[0], r * math.sin(th), places=9)
+            pin = rigmath.apply(matrix("shaft", th), [axis[0] + r, axis[1], 0.5 - o[2]])
+            self.assertAlmostEqual(pin[1] - axis[1], r * math.sin(th), places=9)
 
 
 class Scenario(unittest.TestCase):
-    def test_the_viewers_states_are_the_tiers(self):
+    def test_the_viewers_states_are_the_levels(self):
         model = next(m for m in MANIFEST["models"] if m["id"] == "parting-furnace")
         self.assertEqual(model["rig"], str(RIG_PATH.relative_to(ROOT)))
         self.assertEqual(model["shape"], str(SHAPE_PATH.relative_to(ROOT)))
         states = model["scenario"]["states"]
         fitted, want = [], [[]]
-        for k in sorted(TIERS):
-            fitted = fitted + TIERS[k]
+        for k in sorted(LEVELS):
+            fitted = fitted + LEVELS[k]
             want.append(fitted)
         self.assertEqual([o["fitted"] for o in states["options"]], want)
         self.assertEqual(states["default"], states["options"][-1]["id"])
-        self.assertEqual(set(model["scenario"]["requires"]), {v for vs in TIERS.values() for v in vs})
+        self.assertEqual(set(model["scenario"]["requires"]), set(REQUIRES))
+        for value, label in model["scenario"]["requires"].items():
+            level = next(k for k, vs in LEVELS.items() if value in vs)
+            self.assertTrue(label.startswith(f"Level {level}: "), label)
 
 
 if __name__ == "__main__":

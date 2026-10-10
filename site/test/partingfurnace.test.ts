@@ -1,14 +1,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { discoverAnchors } from "../src/lib/model-anchors.ts";
+import { cellBoxes, discoverAnchors } from "../src/lib/model-anchors.ts";
 import type { ManifestModel } from "../src/lib/model-manifest.ts";
 import { applyState, checkScenario, initialFitted, stateGroups, type FittedStates, type Scenario } from "../src/lib/model-scenario.ts";
+import { textureColour } from "../src/lib/model-view.ts";
 import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs, thetaTurns, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The parting furnace's shipped files, and the poses PartingFurnace/tools/make_shape.py computes from them with
-// machinegen's reference maths. Its rig reads theta alone: the line shaft and the bevel pinion turn with it, the
-// blowing tub's yoke slides with the crank, the stirrer turns at half the shaft's speed; every other part stands
-// still and is fitted by tier. tools/tests/test_partingfurnace_model.py replays the same file in Python.
+// machinegen's reference maths. Its rig reads theta alone: the engine shaft and the bevel pinion turn with it, the
+// yoke slides with the crank, the stirrer turns with the shaft the other way through a mitre pair; every other part
+// stands still and is fitted by level. tools/tests/test_partingfurnace_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 const rig = read("assets/seraphhorizons/config/partingfurnace-rig.json") as Rig;
@@ -19,15 +20,15 @@ const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.u
 const model = manifest.models.find((m) => m.id === "parting-furnace")!;
 const parts = rig.parts!;
 const order = rideOrder(parts);
-const tiers = (rig as unknown as { tiers: Record<string, string[]> }).tiers;
+const levels = (rig as unknown as { levels: Record<string, string[]> }).levels;
 
 const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
 const pose = (p: { theta: number; travel: number }): Pose => ({ theta: p.theta, depth: 0, lifting: 0, travel: p.travel, work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
 
 describe("the parting furnace's rig against its rig-reference.json", () => {
-  it("reads theta alone, over a two-turn cycle (the stirrer turns once in two), and has a matrix for every part", () => {
+  it("reads theta alone, over one turn (the stirrer turns with the shaft), and has a matrix for every part", () => {
     expect(rigInputs(parts)).toEqual({ theta: true, travel: false, depth: false, lifting: false });
-    expect(thetaTurns(parts)).toBe(2);
+    expect(thetaTurns(parts)).toBe(1);
     expect(new Set(reference.poses.map((p) => Math.sign(p.theta)))).toEqual(new Set([-1, 0, 1]));
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
   });
@@ -50,17 +51,16 @@ describe("the parting furnace's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("gives every element a part and every part an element, and fits its sets tier by tier", () => {
+  it("gives every element a part and every part an element, and fits its sets level by level", () => {
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);
     const used = new Set(flat.map((f) => partOf(globs, f.chain)));
     expect(used.has(-1)).toBe(false);
     expect(used.size).toBe(parts.length);
-    const byTier = Object.keys(tiers).sort().flatMap((k) => tiers[k]!);
+    const byLevel = Object.keys(levels).sort().flatMap((k) => levels[k]!);
     const seen: string[] = [];
     for (const p of parts) if (p.requires && !seen.includes(p.requires)) seen.push(p.requires);
-    expect(seen).toEqual(byTier);
-    for (const [k, values] of Object.entries(tiers)) for (const v of values) expect(v.startsWith(`t${k}`)).toBe(true);
+    expect(seen).toEqual(byLevel);
     expect(parts.at(-1)).toMatchObject({ id: "frame", requires: null });
   });
 });
@@ -69,30 +69,48 @@ describe("the parting furnace in the viewer", () => {
   const requires = [...new Set(parts.map((p) => p.requires).filter((r): r is string => !!r))];
   const scenario = model.scenario as Scenario;
 
-  it("draws its power cell, its chutes' cells and their ends, and lists its tiers as not drawn", () => {
+  it("draws its power, water, input and output cells and the chutes' ends, and lists its levels as not drawn", () => {
     const { anchors, unrecognised } = discoverAnchors(rig);
     expect(anchors.map((a) => [a.kind, a.key])).toEqual([
       ["cell", "powerCell"],
+      ["cell", "waterCell"],
       ["cell", "inputCell"],
       ["cell", "outputCell"],
       ["point", "input"],
       ["point", "output"],
     ]);
-    expect(unrecognised).toEqual(["tiers"]);
+    expect(unrecognised).toEqual(["levels"]);
     expect(checkScenario(scenario, rig, anchors, requires)).toEqual([]);
   });
 
-  it("builds up tier by tier: the frame, then each tier with all before it", () => {
+  it("builds up level by level: the frame, then each level with all before it", () => {
     const states = scenario.states as FittedStates;
     const groups = stateGroups(states, requires);
     expect(groups).toHaveLength(1);
     let want: string[] = [];
     const cumulative = [[] as string[]];
-    for (const k of Object.keys(tiers).sort()) cumulative.push((want = [...want, ...tiers[k]!]));
+    for (const k of Object.keys(levels).sort()) cumulative.push((want = [...want, ...levels[k]!]));
     expect(states.options.map((o) => o.fitted)).toEqual(cumulative);
-    expect(states.default).toBe("tier4");
+    expect(states.default).toBe("level2");
     const start = initialFitted(requires);
-    const tier3 = applyState(start, states.options.find((o) => o.id === "tier3")!, requires);
-    expect(Object.entries(tier3).filter(([, on]) => on).map(([r]) => r)).toEqual([...tiers["2"]!, ...tiers["3"]!]);
+    const level1 = applyState(start, states.options.find((o) => o.id === "level1")!, requires);
+    expect(Object.entries(level1).filter(([, on]) => on).map(([r]) => r)).toEqual(levels["1"]);
+  });
+
+  it("collides with what is fitted: the kettle's cells are empty until level 2", () => {
+    const cells = rig.cells!;
+    const count = (fitted: string[]) => cells.filter((c) => cellBoxes(c, new Set(fitted)).length > 0).length;
+    expect(count([])).toBe(cells.filter((c) => c.boxes?.length).length);
+    const kettleTop = cells.find((c) => c.pos.join() === (rig as unknown as { inputCell: number[] }).inputCell.join())!;
+    expect(cellBoxes(kettleTop, new Set([])).length).toBe(0);
+    expect(cellBoxes(kettleTop, new Set(levels["1"])).length).toBe(1); // the engine shaft's end, where the pinion goes
+    expect(cellBoxes(kettleTop, new Set([...levels["1"]!, ...levels["2"]!])).length).toBeGreaterThan(1);
+  });
+
+  it("colours its brickwork, fires and charges apart from the iron round them", () => {
+    const tex = shape.textures as Record<string, string>;
+    const colours = new Set(["brick", "firebrick", "paving", "ember", "coke", "boneash", "lead", "litharge", "stoneware", "acid", "sand", "brass"].map((c) => textureColour(c, tex[c]!)));
+    expect(colours.size).toBe(12);
+    expect(colours.has(textureColour("iron", tex.iron!))).toBe(false);
   });
 });

@@ -33,8 +33,8 @@ box's north-west-bottom corner (the "build frame"); `shipped()` moves it so the 
 furnace's front cell at ground level, is [0,0,0].
 
 The rig reads one input, theta, the axle's angle: the engine shaft and (level 2) the bevel pinion turn with it,
-the yoke rises and falls with the crank, and the stirrer turns at half the shaft's speed. Every other part stands
-still.
+the yoke rises and falls with the crank, and the stirrer turns with it the other way through a mitre pair. Every
+other part stands still.
 """
 
 from __future__ import annotations
@@ -122,14 +122,14 @@ YOKE_BAR, YOKE_SIDE, SLIPPER, GUIDE_T = 1.2, 1.0, 0.6, 0.6
 ROD_LOW = 13.4                               # the piston rod's foot at rest (in the gland at the top of the stroke)
 GUIDE_TOP = 30.0                             # the guides' cap
 BEARINGS = (("n", (1.8, 3.4)), ("s", (12.6, 14.0)))   # the two pedestal bearings (z)
-SHAFT_END = 15.6                             # the shaft's south end, in the bevel pinion's body (level 2)
-BLAST_Y = 12.0                               # the blast pipe's axis height
+SHAFT_END = 18.4                             # the shaft's south end, in the bevel pinion's body (level 2)
+BLAST_Y = 11.8                               # the blast pipe's axis height
 BLAST_R = 1.1
 BLAST_BACK_Z = 1.4                           # it runs along the back at z 1.4
 ELBOW = 1.2                                  # an elbow's half size
 
 # ---------------------------------------------------------------- the cupellation furnace (level 1)
-CUP_X = (28.0, 48.5)
+CUP_X = (28.0, 48.0)
 CUP_Z = (3.0, 21.0)
 CUP_WALL = 2.5
 CUP_HEARTH = 9.5                             # the hearth's top: the test's floor
@@ -140,14 +140,14 @@ GRATE_Y = 5.0
 SILL_Y = 8.0                                 # the breast's sill: the working opening comes down to it
 BRIDGE_X = (40.8, 42.4)                      # the fire bridge
 FIRE_X = (BRIDGE_X[1], CUP_X[1] - CUP_WALL)  # the fireplace, at the east end, sunk below the hearth
-TEST_C = (35.6, 12.0)                        # (x, z): the test's centre
+TEST_C = (35.6, 13.4)                        # (x, z): the test's centre, forward, under the working door
 TEST_A = (4.4, 3.4)                          # its half axes: an oval of bone ash in an iron ring
 TEST_RING = 0.9
 TEST_SEGS = 8
 TEST_GAP = (2,)                              # the ring's front segment is left out: the breast
 OPENING_X = (31.2, BRIDGE_X[0])              # the working opening in the front wall, over the breast
-OPENING_TOP = 15.2
-FIRE_HOLE_X, FIRE_HOLE_Y = (42.8, 45.6), (CUP_HEARTH, 13.6)   # the fire hole, over the grate
+OPENING_TOP = CUP_SPRING                     # the working door runs up to the vault's springing: the test shows through it
+FIRE_HOLE_X, FIRE_HOLE_Y = (42.7, 45.3), (CUP_HEARTH, 13.6)   # the fire hole, over the grate
 FIRE_DOOR_OPEN = 100.0                       # degrees the fire door stands open
 TUYERE_Y = BLAST_Y                           # the blast comes in through the back wall over the test
 POT_L = (TEST_C[0], 25.6)                    # (x, z): the litharge pot
@@ -157,16 +157,16 @@ POT_L = (TEST_C[0], 25.6)                    # (x, z): the litharge pot
 # then turned a quarter about y onto the works' west end: the open end and the receiving pot face the front
 # (south), the firebox door the west face.
 LIQ_X = (24.0, 46.0)
-LIQ_Z = (45.5, 58.5)
+LIQ_Z = (45.0, 58.0)
 LIQ_BASE = 8.0
 LIQ_WALL = 2.0
 LIQ_SPRING, LIQ_RISE = 15.0, 2.5
 LIQ_STAVES, LIQ_T = 4, 1.8
 PLATE = ((24.8, 8.7), (41.5, 12.0))          # ((x, y), (x, y)): the inclined hearth plate's top, low end west
 PLATE_T = 0.7
-POT_Q = (20.5, 52.0)                         # (x, z): the receiving pot, at the low end
-LIQ_PIVOT = (35.0, 52.0)                     # (x, z) in its own frame ...
-LIQ_AT = (9.0, 14.0)                         # ... goes here in the works' (x, z), turned +90 degrees about y
+POT_Q = (20.5, 51.5)                         # (x, z): the receiving pot, at the low end
+LIQ_PIVOT = (35.0, 51.5)                     # (x, z) in its own frame ...
+LIQ_AT = (8.5, 14.0)                         # ... goes here in the works' (x, z), turned +90 degrees about y
 
 
 def liq_world(p):
@@ -178,7 +178,8 @@ def liq_world(p):
 # ---------------------------------------------------------------- the acid parting (level 1)
 AC_X = (16.0, 28.0)
 AC_PIER = 1.5
-AC_BACK = 13.0                               # the hood stands against the stack's front
+AC_BACK = 11.6                               # the hood stands against the stack's shaft ...
+AC_FIRE_BACK = 12.2                          # ... and the firebox against its base
 AC_FRONT = 30.0
 AC_FIRE_TOP = 8.5                            # the firebox's top: the sand bath's tray on it
 TRAY_Y = (AC_FIRE_TOP, 10.6)
@@ -187,13 +188,14 @@ VESSEL_R = 3.6
 VESSEL_Y = (9.6, 15.4)                       # its body; the rim over it
 RIM_Y = (15.4, 16.6)
 RIM_R = (2.9, 3.8)
-HOOD_Y = (28.0, 30.0)
+HOOD_Y = (28.0, 29.6)
+HOOD_FRONT = 26.0                            # the hood covers the vessel; in front of it the sand bath is open
 WATER = (24.0, 24.0)                         # (x, y): the process-water pipe's axis, along z from the water face
 PIPE_HALF = 3.0                              # ppex's pipe: 6 voxels across
 COCK_Z = (21.8, 23.4)
 
 # ---------------------------------------------------------------- the stack (frame)
-STACK_X, STACK_Z = (16.4, 27.6), (1.0, 12.2)
+STACK_X, STACK_Z = (16.4, 28.0), (1.0, 12.2)
 STACK_SHAFT = 0.6                            # the shaft is set in this far from the base and the cap
 STACK_Y = (8.0, 58.0, 62.0)                  # the base's top, the cap's foot, the top
 FLUE = 2.2                                   # the flue's half width at the top
@@ -206,20 +208,22 @@ KET_R = 5.0                                  # the kettle's mouth: the flange ri
 KET_FLANGE = 6.3
 FLANGE_Y = (SET_TOP, 12.8)
 BATH_Y = (11.6, 12.4)                        # the molten lead's surface layer
-STIR_RATIO = -0.5                            # the stirrer turns at half the shaft's speed (the other way, seen from above)
-GEAR_MOD = 1.0
-PINION_TEETH, WHEEL_TEETH = 6, 12
+STIR_RATIO = -1.0                            # a mitre pair: the stirrer turns at the shaft's speed (the other way, seen from above)
+GEAR_MOD = 1.2
+PINION_TEETH, WHEEL_TEETH = 6, 6
 GEAR_FACE = 2.0
 APEX = (KET_C[0], SHAFT[1], KET_C[1])        # the bevel pair's cone apex: where the two axes cross
 GAL_Z = (15.7, 16.9, 27.1, 28.3)             # the gallows' standards (z), on the kettle's flange
-GAL_UP = (17.6, 18.6)                        # its upper crossbeam
-GAL_LOW = (14.2, 15.2)                       # its lower crossbeam
-STIR_Y = (11.0, 21.4)                        # the stirrer's shaft
+GAL_UP = (16.8, 17.8)                        # its upper crossbeam
+GAL_LOW = (14.0, 15.0)                       # its lower crossbeam
+STIR_Y = (11.0, 20.4)                        # the stirrer's shaft
 PADDLE = (11.8, 12.9, 3.4)                   # the paddles: their y span (they break the surface) and reach
-SIPHON = (53.0, 25.6)                        # (x, z): the siphon's leg in the kettle
+SIPHON = (58.4, 25.4)                        # (x, z): the siphon's leg in the kettle
 SIPHON_TOP = 15.6
 SIPHON_OUT = 30.4                            # its outer leg (z), in front of the setting
-SPOUT_Y = 5.6                                # the output spout's bottom
+SPOUT_Y = 5.6                                # the output spout's bottom, at its head
+CRUST_R = (4.0, 4.95)                        # the zinc crust gathers round the kettle's edge, beyond the paddles
+CRUST_AT = (110.0, 200.0, 320.0)             # degrees round from south towards east: clear of the siphon and the chute
 
 
 # ---------------------------------------------------------------- box helpers
@@ -422,7 +426,7 @@ def crossed_oval(c, y0, y1, a, b, name, part, tex):
 # ---------------------------------------------------------------- bevel gears
 TIP, ROOT = 0.5, 0.625                       # addendum and dedendum, in modules (stub teeth, as cast)
 BODY_TIERS, BODY_K = 2, 4                    # a gear's body: discs (octagons) stepping in under the root cone
-TOOTH_SHARE = 0.36                           # a tooth's share of the circular pitch at mid face: cast teeth, with backlash
+TOOTH_SHARE = 0.30                           # a tooth's share of the circular pitch at mid face: cast teeth, with backlash
 BODY_GAP = 0.1                               # how far a body tier stays under the root cone
 
 
@@ -572,8 +576,8 @@ def build_engine():
     x, y = SHAFT
     out = []
     for tag, (z0, z1) in BEARINGS:
-        out.append(box([x - 3.0, FLOOR, z0 - 0.4], [x + 3.0, FLOOR + 0.8, z1 + 0.4], f"en_ped{tag}_foot", p, "iron"))
-        out.append(box([x - 1.8, FLOOR + 0.8, z0], [x + 1.8, y - 2.4, z1], f"en_ped{tag}", p, "iron"))
+        out.append(box([x - 2.2, FLOOR, z0 - 0.4], [x + 2.2, FLOOR + 0.8, z1 + 0.4], f"en_ped{tag}_foot", p, "iron"))
+        out.append(box([x - 1.0, FLOOR + 0.8, z0], [x + 1.0, y - 2.4, z1], f"en_ped{tag}", p, "iron"))
         out.append(box([x - 2.2, y - 2.4, z0], [x + 2.2, y + 2.6, z1], f"en_ped{tag}_bearing", p, "iron"))
     cx, cz = CYL_C
     c = (cx, 0.0, cz)
@@ -646,7 +650,6 @@ def build_cupel():
     out += tiles([x0, h, z0], [x1, CUP_SPRING, z0 + w], "cp_wall_n", p, "brick")
     hx0, hx1 = FIRE_HOLE_X
     out.append(box([x0, h, z1 - w], [ox0, CUP_SPRING, z1], "cp_wall_sw", p, "brick"))
-    out.append(box([ox0, OPENING_TOP, z1 - w], [ox1, CUP_SPRING, z1], "cp_lintel", p, "brick"))
     out.append(box([ox1, h, z1 - w], [hx0, CUP_SPRING, z1], "cp_wall_sm", p, "brick"))
     out.append(box([hx0, FIRE_HOLE_Y[1], z1 - w], [hx1, CUP_SPRING, z1], "cp_wall_firelintel", p, "brick"))
     out.append(box([hx1, h, z1 - w], [x1, CUP_SPRING, z1], "cp_wall_se", p, "brick"))
@@ -692,6 +695,7 @@ def build_cupel():
     door = [box([hx0, hy0, z1], [hx1 + 0.3, hy1 + 0.3, z1 + 0.6], "cp_firedoor", p, "iron")]
     rotate(door, "y", -FIRE_DOOR_OPEN, (hx0, 0.0, z1 + 0.3))
     out += door
+    out.append(box([hx0 - 0.6, hy0 + 0.6, z1], [hx0 + 0.4, hy1 - 0.6, z1 + 0.9], "cp_firehinge", p, "iron"))
     out.append(box([fx0 + 0.6, FLOOR + 0.6, z1], [fx1 - 0.6, GRATE_Y - 0.4, z1 + 0.4], "cp_ashdoor", p, "iron"))
     # the binding: buckstays on the long faces and tie rods over the vault
     top = cy + r + CUP_T + 0.4
@@ -787,37 +791,43 @@ def build_liquation():
 
 # ---------------------------------------------------------------- level 1: the acid parting vessel
 def build_acid():
-    """The parting vessel: a brick firebox between two brick piers, a cast-iron tray of sand on it, the
-    stoneware vessel set in the sand with the aqua fortis in it, and a brick hood over all against the stack,
-    which takes the fumes. The process water comes in from the water face by a lead pipe to a brass cock over
-    the vessel: it dilutes the silver solution and washes the gold left in the vessel."""
+    """The parting vessel: a brick firebox, a cast-iron tray of sand on it, the stoneware vessel set in the sand
+    with the aqua fortis in it, and a brick hood over the vessel, two piers and a top against the stack, which
+    takes the fumes. The process water comes in from the water face by a lead pipe to a brass cock over the
+    vessel: it dilutes the silver solution and washes the gold left in the vessel."""
     p = "acid"
     x0, x1 = AC_X
     fx0, fx1 = x0 + AC_PIER, x1 - AC_PIER
-    zb, zf = AC_BACK, AC_FRONT
-    out = tiles([x0, FLOOR, zb], [fx0, HOOD_Y[0], zf], "ac_pierw", p, "brick", seg=16.0)
-    out += tiles([fx1, FLOOR, zb], [x1, HOOD_Y[0], zf], "ac_piere", p, "brick", seg=16.0)
-    out += tiles([x0, HOOD_Y[0], zb], [x1, HOOD_Y[1], zf], "ac_hood", p, "brick", seg=16.0)
-    out.append(box([fx0, FLOOR, zb], [fx1, AC_FIRE_TOP, zf], "ac_firebox", p, "brick"))
-    out.append(box([fx0 + 2.4, FLOOR + 1.0, zf], [fx1 - 2.4, FLOOR + 5.0, zf + 0.5], "ac_firedoor", p, "iron"))
+    zb, zf, zh = AC_BACK, AC_FRONT, HOOD_FRONT
+    out = [box([x0, FLOOR, AC_FIRE_BACK], [x1, AC_FIRE_TOP, zf], "ac_firebox", p, "brick")]
+    out.append(box([fx0 + 1.9, FLOOR + 1.0, zf], [fx1 - 1.9, FLOOR + 5.0, zf + 0.5], "ac_firedoor", p, "iron"))
+    out += tiles([x0, AC_FIRE_TOP, zb], [fx0, HOOD_Y[0], zh], "ac_pierw", p, "brick", seg=16.0)
+    out += tiles([fx1, AC_FIRE_TOP, zb], [x1, HOOD_Y[0], zh], "ac_piere", p, "brick", seg=16.0)
+    out.append(box([x0, HOOD_Y[0], zb], [x1, HOOD_Y[1], zh + 1.0], "ac_hood", p, "brick"))
     ty0, ty1 = TRAY_Y
     rim = 0.5
-    out.append(box([fx0, ty0, zb], [fx1, ty0 + 0.6, zf], "ac_tray", p, "iron"))
-    out += [box([fx0, ty0 + 0.6, zb], [fx1, ty1, zb + rim], "ac_trayn", p, "iron"),
-            box([fx0, ty0 + 0.6, zf - rim], [fx1, ty1, zf], "ac_trays", p, "iron"),
-            box([fx0, ty0 + 0.6, zb + rim], [fx0 + rim, ty1, zf - rim], "ac_trayw", p, "iron"),
-            box([fx1 - rim, ty0 + 0.6, zb + rim], [fx1, ty1, zf - rim], "ac_traye", p, "iron")]
-    out.append(box([fx0 + rim, ty0 + 0.6, zb + rim], [fx1 - rim, ty1 - 0.4, zf - rim], "ac_sand", p, "sand"))
+    tz0, tz1 = AC_FIRE_BACK + 0.5, zf - 0.5
+    out.append(box([fx0, ty0, tz0], [fx1, ty0 + 0.6, tz1], "ac_tray", p, "iron"))
+    out += [box([fx0, ty0 + 0.6, tz0], [fx1, ty1, tz0 + rim], "ac_trayn", p, "iron"),
+            box([fx0, ty0 + 0.6, tz1 - rim], [fx1, ty1, tz1], "ac_trays", p, "iron"),
+            box([fx0, ty0 + 0.6, tz0 + rim], [fx0 + rim, ty1, tz1 - rim], "ac_trayw", p, "iron"),
+            box([fx1 - rim, ty0 + 0.6, tz0 + rim], [fx1, ty1, tz1 - rim], "ac_traye", p, "iron")]
+    out.append(box([fx0 + rim, ty0 + 0.6, tz0 + rim], [fx1 - rim, ty1 - 0.4, tz1 - rim], "ac_sand", p, "sand"))
     vc = (VESSEL_C[0], 0.0, VESSEL_C[1])
     out += disc("y", vc, VESSEL_Y[0], VESSEL_Y[1], VESSEL_R, "ac_vessel", p, "stoneware", k=4, phase=math.pi / 8)
     out += ring("y", vc, RIM_Y[0], RIM_Y[1], RIM_R[0], RIM_R[1], 8, "ac_rim", p, "stoneware")
     out += disc("y", vc, RIM_Y[0] + 0.1, RIM_Y[0] + 0.4, RIM_R[0] + 0.05, "ac_acid", p, "acid", k=4, phase=math.pi / 8)
-    # the process water: a lead pipe (ppex's 6 x 6 section) from the water face to a brass cock over the vessel
+    # the process water: a lead pipe in ppex's section (a 6 x 6 square tube round a 4 x 4 bore) from the water
+    # face to a brass cock over the vessel, a nozzle down from it
     wx, wy = WATER
-    h = PIPE_HALF
-    out.append(box([wx - h, wy - h, COCK_Z[1]], [wx + h, wy + h, CELLS_Z * B], "ac_pipe", p, "leadpipe"))
-    out.append(box([wx - 1.6, wy - 3.4, COCK_Z[0]], [wx + 1.6, wy + 2.6, COCK_Z[1]], "ac_cock", p, "brass"))
-    out.append(box([wx - 0.6, RIM_Y[1] + 0.9, COCK_Z[0] + 0.2], [wx + 0.6, wy - 3.4, COCK_Z[0] + 1.4], "ac_nozzle", p, "brass"))
+    h, t = PIPE_HALF, 1.0
+    za, zo = COCK_Z[1], CELLS_Z * B
+    out += [box([wx - h, wy + h - t, za], [wx + h, wy + h, zo], "ac_pipe_top", p, "leadpipe"),
+            box([wx - h, wy - h, za], [wx + h, wy - h + t, zo], "ac_pipe_bottom", p, "leadpipe"),
+            box([wx - h, wy - h + t, za], [wx - h + t, wy + h - t, zo], "ac_pipe_w", p, "leadpipe"),
+            box([wx + h - t, wy - h + t, za], [wx + h, wy + h - t, zo], "ac_pipe_e", p, "leadpipe")]
+    out.append(box([wx - h + 0.4, wy - h - 0.6, COCK_Z[0]], [wx + h - 0.4, wy + h - 0.4, za], "ac_cock", p, "brass"))
+    out.append(box([wx - 0.6, RIM_Y[1] + 0.9, COCK_Z[0] + 0.2], [wx + 0.6, wy - h - 0.6, COCK_Z[0] + 1.4], "ac_nozzle", p, "brass"))
     return out
 
 
@@ -833,14 +843,12 @@ def build_kettle():
     out = disc("y", KC, FLOOR, SET_TOP, SET_R, "kt_setting", p, "brick", k=4, phase=math.pi / 8)
     out += ring("y", KC, FLANGE_Y[0], FLANGE_Y[1], KET_R, KET_FLANGE, 8, "kt_flange", p, "iron")
     out += disc("y", KC, BATH_Y[0], BATH_Y[1], KET_R + 0.05, "kt_bath", p, "lead", k=4, phase=math.pi / 8)
-    for i, (ang, rr, sz) in enumerate(((0.9, 3.0, (2.6, 1.8)), (3.6, 2.8, (2.2, 2.4))), 1):
-        cx, cz = KET_C[0] + rr * math.sin(ang), KET_C[1] + rr * math.cos(ang)
-        el = box([cx - sz[0] / 2, BATH_Y[1], cz - sz[1] / 2], [cx + sz[0] / 2, BATH_Y[1] + 0.3, cz + sz[1] / 2], f"kt_crust{i}", p, "zinc")
-        rotate([el], "y", math.degrees(ang), (cx, 0.0, cz))
-        out.append(el)
-    # the skimmer, a perforated ladle for taking off the crust, lying on the flange at the east
-    sx = KET_C[0] + KET_R + 0.2
-    out.append(box([sx - 1.4, FLANGE_Y[1], KET_C[1] + 1.4], [sx + 1.4, FLANGE_Y[1] + 0.4, KET_C[1] + 4.2], "kt_skimmer", p, "iron"))
+    # the zinc crust rising: cakes of it gathered round the kettle's edge, beyond the paddles' reach
+    for i, deg in enumerate(CRUST_AT, 1):
+        out.append(radial("y", KC, BATH_Y[1], BATH_Y[1] + 0.3, CRUST_R[0], CRUST_R[1], 2.2, math.radians(deg), f"kt_crust{i}", p, "zinc"))
+    # the skimmer, a perforated ladle for taking off the crust, lying across the flange at the west
+    out.append(box([KET_C[0] - KET_FLANGE + 0.1, FLANGE_Y[1], KET_C[1] - 3.4], [KET_C[0] - PADDLE[2] - 0.4, FLANGE_Y[1] + 0.4,
+                    KET_C[1] - 0.8], "kt_skimmer", p, "iron"))
     zf = KET_C[1] + SET_R
     out.append(box([KET_C[0] - 1.8, FLOOR + 3.0, zf], [KET_C[0] + 1.8, FLOOR + 7.4, zf + 0.5], "kt_firedoor", p, "iron"))
     out.append(box([KET_C[0] - 1.5, FLOOR + 0.4, zf], [KET_C[0] + 1.5, FLOOR + 2.2, zf + 0.4], "kt_ashdoor", p, "iron"))
@@ -885,27 +893,54 @@ def build_pinion():
     wheel's gap at theta 0."""
     p = "bevelpinion"
     e1, e2 = [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
-    out, _ = bevel("bp", p, "steel", [0.0, 0.0, 1.0], (e1, e2), DELTA_P, PINION_TEETH, -math.pi / 2)
+    out, back = bevel("bp", p, "steel", [0.0, 0.0, 1.0], (e1, e2), DELTA_P, PINION_TEETH, -math.pi / 2)
+    # its boss, keyed to the shaft, from just clear of the south bearing into the gear's body
+    out += disc("z", SH_C, BEARINGS[1][1][1] + 0.3, APEX[2] - back + 0.3, 1.7, "bp_hub", p, "steel", k=4)
     return out
 
 
 CHUTE_WALL, CHUTE_SIDE = 0.4, 1.6             # a chute's plate, and how high its sides stand over its bottom
-IN_Z = 24.0                                  # the input chute's centre line (z)
-IN_TOP, IN_LOW = (CELLS_X * B, 17.2), (59.4, 14.0)   # (x, y) of its bottom's top: at the input face, over the bath
+
+
+def chute_y(top, low, a):
+    """The height of a chute's bottom's top at `a` along its run, from its two ends ((a, y) points)."""
+    return top[1] + (a - top[0]) * (low[1] - top[1]) / (low[0] - top[0])
+
+
+def _slope_sin(top, low):
+    return abs(top[1] - low[1]) / math.hypot(low[0] - top[0], top[1] - low[1])
+
+
+def onto_face(top, low, face, end):
+    """The chute's `end` ("top" or "low") moved along its line so its outermost corner is on the plane `face`
+    across its run: the bottom plate's underside pokes out at the upper end, the sides' tops at the lower end
+    (both lean along the slope)."""
+    d = 1.0 if low[0] > top[0] else -1.0      # the way the chute runs from its top to its low end
+    for _ in range(8):
+        s = _slope_sin(top, low)
+        if end == "top":
+            a = face + d * CHUTE_WALL * s
+            top = (a, chute_y(top, low, a))
+        else:
+            a = face - d * CHUTE_SIDE * s
+            low = (a, chute_y(top, low, a))
+    return top, low
+
+
+IN_Z = 19.0                                  # the input chute's centre line (z), north of the siphon
 IN_HALF = 1.8
-
-
-def chute_y(top, low, x):
-    return top[1] + (x - top[0]) * (low[1] - top[1]) / (low[0] - top[0])
+IN_TOP, IN_LOW = onto_face((CELLS_X * B, 17.2), (59.4, 14.0), CELLS_X * B, "top")   # (x, y): at the input face, over the bath
+SPOUT_TOP, SPOUT_LOW = onto_face((SIPHON_OUT - 1.0, SPOUT_Y), (CELLS_Z * B, SPOUT_Y - 0.6), CELLS_Z * B, "low")   # (z, y)
+SPOUT_HALF = 1.4
 
 
 def build_chutes():
     """Level 2 makes the kettle chute-fed: an inclined chute from the input face (east) drops the charge into the
-    kettle, a leg under it on the setting; a siphon over the kettle's front rim runs the desilverized lead down
-    into the output spout, its lip on the output face (south)."""
+    kettle, a leg under it on the kettle's flange; a siphon over the kettle's front rim runs the desilverized lead
+    down into the output spout, its lip on the output face (south), a leg under it."""
     p = "chutes"
     out = channel((IN_TOP[0], IN_TOP[1], IN_Z), (IN_LOW[0], IN_LOW[1], IN_Z), IN_HALF, CHUTE_WALL, CHUTE_SIDE, "ch_in", p, "iron", "x")
-    lx = KET_C[0] + KET_FLANGE - 0.4
+    lx = 60.8                                # the leg stands on the flange
     out.append(box([lx - 0.5, FLANGE_Y[1], IN_Z - 0.5], [lx + 0.5, chute_y(IN_TOP, IN_LOW, lx) - CHUTE_WALL - 0.3, IN_Z + 0.5], "ch_inleg", p, "iron"))
     # the siphon: down into the bath, over the rim, down in front of the setting into the spout
     sx, sz = SIPHON
@@ -914,11 +949,12 @@ def build_chutes():
     out.append(box([sx - 0.7, SIPHON_TOP - 0.6, sz - 0.7], [sx + 0.7, SIPHON_TOP + 0.8, sz + 0.7], "ch_siphonbend1", p, "iron"))
     out.append(box([sx - pr, SIPHON_TOP - pr + 0.1, sz + 0.7], [sx + pr, SIPHON_TOP + pr + 0.1, SIPHON_OUT - 0.7], "ch_siphontop", p, "iron"))
     out.append(box([sx - 0.7, SIPHON_TOP - 0.6, SIPHON_OUT - 0.7], [sx + 0.7, SIPHON_TOP + 0.8, SIPHON_OUT + 0.7], "ch_siphonbend2", p, "iron"))
-    out.append(box([sx - pr, SPOUT_Y + 1.0, SIPHON_OUT - pr], [sx + pr, SIPHON_TOP - 0.6, SIPHON_OUT + pr], "ch_siphonout", p, "iron"))
-    # the spout: a short iron trough on a stand, from behind the siphon's leg out to the output face
-    out += channel((sx, SPOUT_Y, SIPHON_OUT - 1.6), (sx, SPOUT_Y - 0.6, CELLS_Z * B - CHUTE_SIDE * 0.07), 1.4, CHUTE_WALL, CHUTE_SIDE,
+    out.append(box([sx - pr, SPOUT_Y + 0.6, SIPHON_OUT - pr], [sx + pr, SIPHON_TOP - 0.6, SIPHON_OUT + pr], "ch_siphonout", p, "iron"))
+    # the spout: a short iron trough on a leg, from under the siphon's leg out to the output face
+    out += channel((sx, SPOUT_TOP[1], SPOUT_TOP[0]), (sx, SPOUT_LOW[1], SPOUT_LOW[0]), SPOUT_HALF, CHUTE_WALL, CHUTE_SIDE,
                    "ch_spout", p, "iron", "z")
-    out.append(box([sx - 0.6, FLOOR, SIPHON_OUT - 0.6], [sx + 0.6, SPOUT_Y - CHUTE_WALL - 0.05, SIPHON_OUT + 0.6], "ch_spoutleg", p, "iron"))
+    lz = SIPHON_OUT
+    out.append(box([sx - 0.6, FLOOR, lz - 0.6], [sx + 0.6, chute_y(SPOUT_TOP, SPOUT_LOW, lz) - CHUTE_WALL - 0.3, lz + 0.6], "ch_spoutleg", p, "iron"))
     return out
 
 
@@ -997,7 +1033,7 @@ def pm(parts, pid, pose):
 
 
 def cycle_poses(n):
-    """n poses over the rig's cycle: two turns of the shaft (the stirrer turns once)."""
+    """n poses over two turns of the shaft (the rig's cycle is one; two exercises the clearances twice over)."""
     return [(2 * TAU * i / n, 2 * TAU * i / n) for i in range(n)]
 
 
@@ -1015,8 +1051,8 @@ ANCHORS = ("input", "output")
 
 
 def anchor_points():
-    return {"input": (CELLS_X * B, IN_TOP[1] + 0.6, IN_Z),
-            "output": (SIPHON[0], SPOUT_Y - 0.6 + 0.6, CELLS_Z * B)}
+    return {"input": (CELLS_X * B, chute_y(IN_TOP, IN_LOW, CELLS_X * B) + 0.6, IN_Z),
+            "output": (SIPHON[0], chute_y(SPOUT_TOP, SPOUT_LOW, CELLS_Z * B) + 0.6, CELLS_Z * B)}
 
 
 def make_rig(parts):
@@ -1025,8 +1061,8 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the cupellation furnace's "
                     "front cell at ground level; the works run 4 wide (x) and 2 deep (z), every furnace's working face to the "
                     "south, the chimney stack at the back. The rig reads theta alone (the axle's angle): the engine shaft and "
-                    "(level 2) the bevel pinion turn with it, the yoke rises and falls with the crank, the stirrer turns at half "
-                    "its speed. requires: one value per fitted set; levels lists each level's sets (1 water, 2 mill), level 2 "
+                    "(level 2) the bevel pinion turn with it, the yoke rises and falls with the crank, the stirrer turns "
+                    "with it the other way (a mitre pair). requires: one value per fitted set; levels lists each level's sets (1 water, 2 mill), level 2 "
                     "adding to level 1. A cell's boxes are the frame's (the floor, the stack); its fitted boxes are there only "
                     "while their set is fitted. See the parting furnace's README for the schema.",
         "cells": [],
@@ -1125,7 +1161,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 
 # ---------------------------------------------------------------- reference poses
 def reference_poses():
-    """theta over both signs and past two turns (the stirrer's cycle), with travel |theta| and more."""
+    """theta over both signs and past two turns, with travel |theta| and more."""
     out = []
     for i, th in enumerate((0.0, 0.3, 1.1, -2.3, 2.9, 4.0, -5.5, 7.5, -9.1, 12.0)):
         out.append((th, round(abs(th) + (0.0, 3.7)[i % 2], 6)))
