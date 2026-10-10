@@ -20,25 +20,19 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// <item><see cref="DoSmelt"/>: the charge and the cupel become one "cupel with silver bead"
 /// (<see cref="BlockCupelBead"/>), holding the whole items it breaks into.</item>
 /// </list>
-/// What the forge's dialog says it will make is <see cref="OutputText"/> (a postfix on the game's
-/// <c>BlockSmeltingContainer.GetOutputText</c>, which is not virtual).
+/// What the forge's dialog says it will make is <see cref="OutputText"/> (<see cref="ContainerText"/>, a
+/// postfix on the game's <c>BlockSmeltingContainer.GetOutputText</c>, which is not virtual).
 /// </summary>
-public class BlockCupel : BlockSmeltingContainer
+public class BlockCupel : BlockSmeltingContainer, IOreContainerText
 {
-    public const string RoastedPrefix = "roastedconcentrate-";
-
     private OreRecovery? Recovery => api == null ? null : OreProcessingSystem.RecoveryFor(api);
 
     /// <summary>What one stack of the charge is to the cupel.</summary>
     public static CupelCharge ChargeOf(OreRecovery r, ItemStack stack)
     {
         var code = stack.Collectible.Code;
-        if (code.Domain == OreProducts.Domain && code.Path.StartsWith(RoastedPrefix, StringComparison.Ordinal))
-        {
-            string ore = code.Path[RoastedPrefix.Length..];
-            double per = stack.Collectible.Attributes?["metalUnits"].AsDouble(r.ConcentrateUnits) ?? r.ConcentrateUnits;
-            return Cupellation.Cupels(r.Ore(ore)) ? new CupelCharge(ore, stack.StackSize * per) : CupelCharge.Other;
-        }
+        if (OreContainers.Roasted(r, stack) is var (ore, units))
+            return Cupellation.Cupels(r.Ore(ore)) ? new CupelCharge(ore, units) : CupelCharge.Other;
         // Litharge is lead spent in a cupel already; it smelts back to lead, not into another cupel.
         if (code.ToString() == OreProducts.LithargeCode)
             return CupelCharge.Other;

@@ -33,6 +33,9 @@ public sealed class OreProcessingConfig
     /// <summary>The bone-ash cupel at the forge (#722).</summary>
     public CupelEntry Cupel { get; set; } = new();
 
+    /// <summary>The clay liquation pan in a firepit or the forge (#724).</summary>
+    public LiquationEntry Liquation { get; set; } = new();
+
     /// <summary>Per ore (the ore part of its code: <c>galena</c>, <c>quartz_nativegold</c>).</summary>
     public Dictionary<string, OreEntry> Ores { get; set; } = new();
 
@@ -86,5 +89,17 @@ public sealed class OreProcessingConfig
         public double MeltingPoint { get; set; } = 950;
         /// <summary>Seconds per 100 units of charge with the blast gate open.</summary>
         public double SecondsPerIngot { get; set; } = 60;
+    }
+
+    public sealed class LiquationEntry
+    {
+        /// <summary>The most metal units a charge holds.</summary>
+        public double CapacityUnits { get; set; } = 100;
+        /// <summary>The heat (°C) at which the tin sweats out.</summary>
+        public double TinPoint { get; set; } = 240;
+        /// <summary>The heat (°C) over which the lead runs with the tin and is lost.</summary>
+        public double LeadPoint { get; set; } = 327;
+        /// <summary>Seconds at the tin point per 100 units of charge.</summary>
+        public double SecondsPerIngot { get; set; } = 15;
     }
 }
