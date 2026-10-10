@@ -1304,5 +1304,15 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.Items, i => i?.HasBehavior<SeraphHorizons.Mod.Ore.Processing.CollectibleBehaviorSpalling>() == true);
         Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle),
             (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
+        // Leaching (#742): borax grinds and alum crushes as before, the saltpeter blocks drop
+        // saltpeter, and none of its items or recipes are in.
+        Assert.Equal(64, W.GetItem(new AssetLocation("game:ore-borax"))!.MaxStackSize);
+        Assert.NotNull(W.GetItem(new AssetLocation("game:ore-borax"))!.GrindingProps);
+        Assert.NotNull(W.GetItem(new AssetLocation("game:ore-alum"))!.CrushingProps);
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:rawsaltpeter")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:crudeliquorportion-borax")));
+        Assert.Equal("game:saltpeter", W.GetBlock(new AssetLocation("game:saltpeter-d"))!.Drops[0].ResolvedItemstack.Collectible.Code.ToString());
+        Assert.DoesNotContain(World.Api.GetBarrelRecipes(), r => r.Code.StartsWith("seraphhorizons-leach-"));
+        Assert.DoesNotContain(World.Api.GetCookingRecipes(), r => r.Code.StartsWith("seraphhorizons-evaporate-"));
     }
 }

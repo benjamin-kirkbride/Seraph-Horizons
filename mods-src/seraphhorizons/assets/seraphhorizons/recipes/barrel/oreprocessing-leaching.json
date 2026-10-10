@@ -1,0 +1,32 @@
+// Leaching (OreProcessing, #742): raw borax, saltpeter or alum and water, sealed a day, give a crude
+// liquor of the mineral: a litre of water to a raw mineral, a litre of liquor from it (OreLeaching;
+// a test holds this file to it). The rock left behind is lost. Switched off with the switch off.
+[
+	{
+		"code": "seraphhorizons-leach-borax",
+		"ingredients": [
+			{ "type": "item", "code": "game:waterportion", "litres": 1 },
+			{ "type": "item", "code": "game:ore-borax", "quantity": 1 }
+		],
+		"sealHours": 24,
+		"output": { "type": "item", "code": "seraphhorizons:crudeliquorportion-borax", "litres": 1 }
+	},
+	{
+		"code": "seraphhorizons-leach-saltpeter",
+		"ingredients": [
+			{ "type": "item", "code": "game:waterportion", "litres": 1 },
+			{ "type": "item", "code": "seraphhorizons:rawsaltpeter", "quantity": 1 }
+		],
+		"sealHours": 24,
+		"output": { "type": "item", "code": "seraphhorizons:crudeliquorportion-saltpeter", "litres": 1 }
+	},
+	{
+		"code": "seraphhorizons-leach-alum",
+		"ingredients": [
+			{ "type": "item", "code": "game:waterportion", "litres": 1 },
+			{ "type": "item", "code": "game:ore-alum", "quantity": 1 }
+		],
+		"sealHours": 24,
+		"output": { "type": "item", "code": "seraphhorizons:crudeliquorportion-alum", "litres": 1 }
+	}
+]

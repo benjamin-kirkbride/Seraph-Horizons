@@ -36,6 +36,16 @@
     "units": 4.7619
   },
 
+  "singles": {
+    "about": "Items of the switch with no rule of their own, added like the forms when the export lacks them, and priced by their routes (routes.json) or a raw value (raw-values.json): leaching's raw saltpeter (#742, a raw like the saltpeter the blocks dropped before) and crude liquors (the barrel's leaching, boiled down in the cooking pot). itemsPerLitre marks a liquid.",
+    "items": [
+      { "code": "seraphhorizons:rawsaltpeter", "stack": 4, "name": "Raw saltpeter" },
+      { "code": "seraphhorizons:crudeliquorportion-borax", "stack": 5000, "itemsPerLitre": 100, "name": "Crude borax liquor" },
+      { "code": "seraphhorizons:crudeliquorportion-saltpeter", "stack": 5000, "itemsPerLitre": 100, "name": "Crude saltpeter liquor" },
+      { "code": "seraphhorizons:crudeliquorportion-alum", "stack": 5000, "itemsPerLitre": 100, "name": "Crude alum liquor" }
+    ]
+  },
+
   "legacyCrushed": {
     "about": "The game's crushed ores that recipes and the crucible furnace take (OreProcessingSystem.LegacyCrushed; PotRecipes counts one as 5 units). With the switch off Expanded Matter's crushing makes them, a bountiful chromite chunk 2.33 of them (15 units each), but every use counts one as 5 units, so they are priced as the coarse crushed ore of their ore: 5 units and the crushing.",
     "ores": ["chromite", "cassiterite", "galena", "ilmenite", "sphalerite"]

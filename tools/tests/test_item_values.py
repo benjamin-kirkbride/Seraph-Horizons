@@ -1232,6 +1232,30 @@ class OreProcessingTest(unittest.TestCase):
         self.assertAlmostEqual(val.value["game:alloy"], 2 * 3.6 / 7 + 0.01 * 0.1 + 1.0 - 10 * 0.01)
         self.assertEqual(iv.table(ex, val)["switches"]["game:alloy"], ["Pot"])
 
+    def test_singles_are_added_and_priced_by_routes(self):
+        # Leaching (#742): a raw and a liquor the export lacks are added as items of the switch, the
+        # liquor with its items per litre; the barrel route prices the liquor as a recipe in litres.
+        self.write_op(singles={"items": [
+            {"code": "seraphhorizons:rawsaltpeter", "stack": 4},
+            {"code": "seraphhorizons:crudeliquorportion-saltpeter", "stack": 5000, "itemsPerLitre": 100},
+        ]})
+        raws = {**ORE_RAWS, "groups": {"test": {"game:stone": 0.01, "seraphhorizons:rawsaltpeter": 0.15}}}
+        (self.dir / "raw-values.json").write_text(json.dumps(raws))
+        (self.dir / "routes.json").write_text(json.dumps({"routes": [
+            {"id": "barrel|leach", "kind": "mod", "switch": "OreProcessing",
+             "slots": [[["seraphhorizons:rawsaltpeter", 1]]],
+             "output": ["seraphhorizons:crudeliquorportion-saltpeter", 100], "liquid": 100},
+        ]}))
+        ex = self.ex()
+        val, rules = self.solve(ex)
+        liquor = "seraphhorizons:crudeliquorportion-saltpeter"
+        self.assertEqual(ex["items"][liquor]["switch"], "OreProcessing")
+        self.assertEqual(iv.per_litre(ex)[liquor], 100)
+        self.assertEqual(iv.extra_routes(ex, rules)[0].liquid, 100)
+        # mod's 1.0 flat over the litre: (0.15 + 1.0) / 100 a portion.
+        self.assertAlmostEqual(val.value[liquor], (0.15 + 1.0) / 100)
+        self.assertEqual(iv.table(ex, val)["switches"][liquor], ["OreProcessing"])
+
     def test_without_the_rules_file_nothing_is_added(self):
         (self.dir / "ore-processing.json").unlink()
         ex = self.ex()
