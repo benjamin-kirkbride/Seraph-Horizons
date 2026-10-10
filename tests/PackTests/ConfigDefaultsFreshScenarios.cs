@@ -9,8 +9,9 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>mods-src/seraphhorizons' <c>FollowPackDefaults</c> on a fresh install (the shared world
 /// starts with an empty ModConfig): the first start records the pack version and changes nothing,
-/// and the files the pack sets values in, BetterRuins' <c>betterruins.yaml</c> and Primitive
-/// Survival's <c>primitivesurvival5.json</c>, are written with them before their mods read them. The
+/// and the files the pack sets values in, BetterRuins' <c>betterruins.yaml</c>, Candela's
+/// <c>candela.json</c> and Primitive Survival's <c>primitivesurvival5.json</c>, are written with them
+/// before their mods read them. The
 /// upgrade is <see cref="ConfigDefaultsScenarios"/>.</summary>
 public partial class SharedWorldScenarios
 {
@@ -20,7 +21,7 @@ public partial class SharedWorldScenarios
         var system = World.Api.ModLoader.GetModSystem<ConfigDefaultsSystem>();
         Assert.NotNull(system);
         Assert.Empty(system.Changes);
-        Assert.Equal(["betterruins.yaml", "primitivesurvival5.json"], system.Created);
+        Assert.Equal(["betterruins.yaml", "candela.json", "primitivesurvival5.json"], system.Created);
 
         var state = DefaultsState.Parse(File.ReadAllText(Path.Combine(GamePaths.ModConfig, ConfigDefaultsSystem.StateFile)));
         Assert.Equal(PackCheckSystem.ReadEmbeddedLock().PackVersion, state.PackVersion);
@@ -39,6 +40,16 @@ public partial class SharedWorldScenarios
         var livingDead = World.Api.World.GetEntityType(new AssetLocation("primitivesurvival:livingdead-normal"));
         Assert.NotNull(livingDead);
         Assert.Equal(0, livingDead.Server.SpawnConditions.Runtime.Chance);
+
+        // Candela read the pack's values in its own StartPre: lights burn as in vanilla (#751).
+        var candela = World.Api.ModLoader.GetModSystem("candela.CandelaModSystem");
+        Assert.NotNull(candela);
+        var current = candela.GetType().Assembly.GetType("candela.CandelaConfig", throwOnError: true)!
+            .GetProperty("Current")!.GetValue(null)!;
+        object? Field(string name) => current.GetType().GetField(name)!.GetValue(current);
+        Assert.Equal("None", Field("BurnoutMode")!.ToString());
+        Assert.Equal(false, Field("WeatherPutsOut"));
+        Assert.Equal(false, Field("TorchesKeepTheirTime"));
 
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
