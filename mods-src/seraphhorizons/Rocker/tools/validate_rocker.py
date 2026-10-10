@@ -70,9 +70,16 @@ def check_basic(v):
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
     rides = {p["id"]: p["ride"] for p in v.parts}
+    drivers = {p["id"]: p["drivers"] for p in v.parts}
     for pid in v.m.MOVING:
         if pid != "cradle" and rides.get(pid) != "cradle":
             v.fail(f"{pid} does not ride the cradle")
+    for pid in v.m.RIGID:
+        if pid != "cradle" and drivers.get(pid):
+            v.fail(f"{pid} has drivers of its own; it rocks as the cradle does")
+    for pid in v.m.LEVEL:
+        if [d["type"] for d in drivers.get(pid, [])] != ["swing"]:
+            v.fail(f"{pid} does not swing back against the cradle")
     for pid in v.m.STATIC:
         p = next(q for q in v.parts if q["id"] == pid)
         if p["ride"] or p["drivers"]:
@@ -112,14 +119,9 @@ def check_floating(v):
 
 ROLES = [
     # (element regex, the textures it may wear)
+    (r"^cradle_apron_canvas$", {"canvas"}),
+    (r"^cradle_riddle$", {"riddle"}),
     (r"^cradle_", {"oak"}),
-    (r"^handle_stick", {"oak"}),
-    (r"^handle_band", {"iron"}),
-    (r"^riffle_", {"oak"}),
-    (r"^apron_(rail|bar)", {"oak"}),
-    (r"^apron_canvas", {"canvas"}),
-    (r"^hopper_", {"oak"}),
-    (r"^riddle_", {"riddle"}),
     (r"^water_", {"water"}),
     (r"^charge_", {"charge"}),
     (r"^conc_", {"concentrate"}),
@@ -149,27 +151,38 @@ def angle_x(mat):
 
 
 def check_rock(v):
-    """The cradle is level at theta 0 and pi and leans ROCK_DEG south at pi/2 and north at 3 pi/2; every part
-    that rocks moves as the cradle does, the handle among them; nothing fixed moves."""
+    """The cradle is level at theta 0 and pi and leans ROCK_DEG south at pi/2 and north at 3 pi/2; every rigid
+    part that rocks moves as the cradle does; the water stays level, carried as its pivot on the cradle is;
+    nothing fixed moves."""
     m = v.m
     want = {0.0: 0.0, math.pi / 2: m.ROCK_DEG, math.pi: 0.0, 3 * math.pi / 2: -m.ROCK_DEG}
     for th, deg in want.items():
         got = angle_x(v.mat("cradle", th))
         if abs(got - deg) > 1e-3:
             v.fail(f"the cradle is at {got:.4f} degrees at theta {th:.4f}, want {deg}")
-    worst = 0.0
+    worst, level = 0.0, 0.0
+    pivot = next(p for p in v.parts if p["id"] == m.LEVEL[0])["drivers"][0]["pivot"]
+    if max(abs(pivot[k] - m.water_pivot()[k] / 16) for k in range(3)) > 1e-6:
+        v.fail("the water's swing is not about its pivot")
     for th in m.sample_thetas(15.0):
         c = v.mat("cradle", th)
-        for pid in m.MOVING:
+        for pid in m.RIGID:
             a = v.mat(pid, th)
             worst = max(worst, max(abs(a[i][j] - c[i][j]) for i in range(3) for j in range(4)))
+        carried = _apply(c, pivot)
+        for pid in m.LEVEL:
+            a = v.mat(pid, th)
+            level = max(level, max(abs(a[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(3)))
+            worst = max(worst, max(abs(a[i][3] - (carried[i] - pivot[i])) for i in range(3)))
         for pid in m.STATIC:
             a = v.mat(pid, th)
             worst = max(worst, max(abs(a[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(4)))
-    print(f"rock: level at 0 and pi, {m.ROCK_DEG:g} degrees south at pi/2 and north at 3 pi/2; every rocking part with the "
-          f"cradle and every fixed part still, within {worst:.1e}")
+    print(f"rock: level at 0 and pi, {m.ROCK_DEG:g} degrees south at pi/2 and north at 3 pi/2; every rigid rocking part with "
+          f"the cradle, the water carried with its pivot, every fixed part still, within {worst:.1e}; the water level within {level:.1e}")
     if worst > 1e-9:
         v.fail("a part does not move with the cradle, or a fixed part moves")
+    if level > 1e-9:
+        v.fail("the water tips with the cradle")
 
 
 def check_rolling(v):
@@ -214,13 +227,12 @@ def check_rolling(v):
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
 # round. Everything else must clear by more than 0.02 voxels at every sampled pose.
 ALLOWED = [
-    ("handle", None, "cradle|hopper", None),
-    ("riffles|apron|hopper", None, "cradle", None),
-    ("riddle", None, "hopper|cradle", None),
-    # the contents: water against everything of the cradle it runs over or stands in
-    ("water", None, "cradle|riffles|apron|hopper|riddle|charge|concentrate", None),
-    ("charge", None, "hopper|riddle", None),
-    ("concentrate", None, "cradle|riffles", None),
+    # the water runs over the floor and round the riffles, its edges in the sides and the head board, its
+    # underside in the floor, the apron's low end in it; the concentrate lies under it
+    ("water", None, "cradle", r"^cradle_(floor|side_[ns]|headboard|riffle\d|apron_(canvas|rail_[ns]))$"),
+    ("water", None, "concentrate", None),
+    ("charge", None, "cradle", r"^cradle_(riddle|hopper_wall_\w+)$"),
+    ("concentrate", None, "cradle", r"^cradle_(floor|side_[ns]|riffle\d)$"),
 ]
 
 
@@ -289,7 +301,7 @@ def check_path(v):
 
 def check_handle(v):
     m = v.m
-    stick = v.named("handle", r"_stick")[0]
+    stick = v.named("cradle", r"^cradle_handle$")[0]
     lo, hi = stick.aabb()
     side = next(e for e in v.by_part["cradle"] if e.name == "cradle_side_n")
     slo, shi = side.aabb()
@@ -305,7 +317,7 @@ def check_foot(v):
     m = v.m
     lip = m.tilt_point([m.BOX_X[0], m.FLOOR_TOP, m.AXIS_Z])
     blocking = []
-    for pid in ("cradle", "riffles", "apron", "hopper", "riddle", "handle"):
+    for pid in ("cradle",):
         for e in v.by_part[pid]:
             lo, hi = e.aabb()
             if lo[0] < lip[0] - 1e-6 and hi[1] > lip[1] + 0.05 and lo[2] < m.IN_Z[1] - 1e-6 and hi[2] > m.IN_Z[0] + 1e-6:
@@ -358,6 +370,57 @@ def check_water(v):
         v.fail(f"something stands over the hopper, in the bucket's way: {sorted(over)[:4]}")
 
 
+def in_cradle(v, th, p):
+    """A posed point (voxels) in the cradle's own level frame: the box as built, before its slope."""
+    m = v.m
+    cm = v.mat("cradle", th)
+    r = [row[:3] for row in cm[:3]]
+    w = [p[k] - cm[k][3] * 16 for k in range(3)]
+    return m.untilt_point([sum(r[j][i] * w[j] for j in range(3)) for i in range(3)])
+
+
+MARGIN = 0.05                                # voxels: how far inside the wood the water's hidden faces must stay
+
+
+def check_level_water(v):
+    """The water stays level while the box tips under it, and its sheet stays in the box over the whole rock
+    (every 5 degrees of theta), read in the box's own level frame: its underside inside the floor (never
+    showing above the floor or below it), its edges inside the sides and the head board, its foot end at the
+    lip, and water over the floor right across the box."""
+    m = v.m
+    sheet = next(e for e in v.by_part["water"] if e.name == "water_sheet")
+    bad = []
+    lo_bottom, hi_bottom, shallow, deep = 1e9, -1e9, 1e9, -1e9
+    side_in, side_out = 1e9, -1e9
+    for th in m.sample_thetas(5.0):
+        mat = v.mat("water", th)
+        posed_sheet = posed(sheet, mat)
+        for i, p in enumerate(posed_sheet.corners()):
+            q = in_cradle(v, th, p)
+            east, top, south = i & 1, (i >> 1) & 1, (i >> 2) & 1
+            if top:
+                shallow, deep = min(shallow, q[1] - m.FLOOR_TOP), max(deep, q[1] - m.FLOOR_TOP)
+            else:
+                lo_bottom, hi_bottom = min(lo_bottom, q[1] - m.FLOOR_Y0), max(hi_bottom, q[1] - m.FLOOR_TOP)
+            into = (m.IN_Z[0] - q[2]) if not south else (q[2] - m.IN_Z[1])
+            side_in, side_out = min(side_in, into), max(side_out, into)
+            if east and not (m.HEAD_IN + MARGIN < q[0] < m.BOX_X[1] - MARGIN):
+                bad.append(("east end out of the head board", round(th, 3)))
+            if not east and not (m.BOX_X[0] + 0.02 < q[0] < m.BOX_X[0] + 0.25):
+                bad.append(("foot end off the lip", round(th, 3)))
+    print(f"level water over the rock: underside {lo_bottom:.2f} over the floor's underside and {-hi_bottom:.2f} under its "
+          f"top; edges {side_in:.2f}..{side_out:.2f} into the sides ({m.BOARD:g} thick); depth at the sides "
+          f"{shallow:.2f}..{deep:.2f} over the floor")
+    if lo_bottom < MARGIN or hi_bottom > -MARGIN:
+        v.fail("the water's underside shows through or above the floor")
+    if side_in < MARGIN or side_out > m.BOARD - MARGIN:
+        v.fail("the water's edges leave the sides")
+    if shallow < 0.3:
+        v.fail("the floor shows through the water at the high side")
+    if bad:
+        v.fail(f"the water leaves the box: {bad[:4]}")
+
+
 def check_zfight(v):
     m = v.m
     bad = 0
@@ -384,6 +447,7 @@ def validate(m, els, parts, rig, quick=False):
     check_handle(v)
     check_foot(v)
     check_water(v)
+    check_level_water(v)
     check_clearances(v, [m.REST, math.pi / 2, 3 * math.pi / 2], "clearances, every part", lambda a, b: True)
     moving, fixed = set(m.MOVING), set(m.STATIC)
     sweep = (lambda a, b: (a in moving) != (b in moving))
@@ -393,17 +457,35 @@ def validate(m, els, parts, rig, quick=False):
     return v.ok
 
 
-def validate_files(m, shape, frame_shape, ship):
+def validate_files(m, shape, frame_shape, item_shape, ship):
     ok = True
-    used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
-    missing = used - set(shape["textures"])
-    if missing:
-        print(f"FAIL textures used but not declared: {missing}")
+    for s in (shape, frame_shape, item_shape):
+        used = {f["texture"].lstrip("#") for e in s["elements"] for f in e["faces"].values()}
+        missing = used - set(s["textures"])
+        if missing:
+            print(f"FAIL textures used but not declared: {missing}")
+            ok = False
+    parts = ship["parts"]
+    of = {e["name"]: part_of(parts, e["name"]) for e in shape["elements"]}
+    frame = {e["name"] for e in frame_shape["elements"]}
+    item = {e["name"] for e in item_shape["elements"]}
+    if frame != {n for n, p in of.items() if p in m.STATIC}:
+        print("FAIL the frame shape is not the fixed parts")
+        ok = False
+    if item != {n for n, p in of.items() if p not in m.STATES}:
+        print("FAIL the item shape is not the rocker dry and empty")
         ok = False
     gaps = lid_gaps(ship["cells"])
     hollow = sum(1 for c in ship["cells"] if c.get("hollow"))
-    print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, {hollow} hollow; "
-          f"lids over every column: {'yes' if not gaps else gaps}")
+    counts = {}
+    for p in of.values():
+        counts[p] = counts.get(p, 0) + 1
+    print(f"files: {len(shape['elements'])} elements ({', '.join(f'{k} {n}' for k, n in counts.items())}), frame "
+          f"{len(frame_shape['elements'])}, item {len(item_shape['elements'])}; {len(ship['cells'])} cells, {hollow} hollow; "
+          f"lids over every column: {'yes' if not gaps else gaps}; operator {ship.get('operatorSide')}")
+    if ship.get("operatorSide") != "north":
+        print("FAIL the operator stands on the north side, at the handle")
+        ok = False
     if gaps or hollow:
         ok = False
     if "powerCell" in ship or "powerFace" in ship:

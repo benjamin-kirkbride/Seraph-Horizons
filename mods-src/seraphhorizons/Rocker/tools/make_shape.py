@@ -2,22 +2,24 @@
 """Generate the rocker's shapes, rig and reference poses.
 
 The rocker (a cradle) is the hand concentrator of the 1850s gold rush: an open-topped oak box on two
-curved rockers, its floor falling gently to its open foot, with low riffles across it. A hopper (the
-riddle box) sits on the head of the box, its bottom an iron riddle plate; under it an inclined canvas
-apron on a frame catches what falls through the riddle and carries it back to the head of the box, and
-the water washes it down over the riffles and out at the foot. The operator rocks it from the side by an
-upright handle. Here the box rolls on its rockers on two oak sills, and its only water is what the player
-pours into the hopper from a bucket held in hand: no pipe, no spout, nothing fixed beside it. Everything is
-built here from plain boxes; no other mod's model is used.
+curved rockers, its floor falling gently to its open foot, with riffles across it. A hopper (the riddle
+box) sits on the head of the box, its bottom an iron riddle plate; under it an inclined canvas apron on a
+frame catches what falls through the riddle and carries it back to the head of the box, and the water
+washes it down over the riffles and out at the foot. The operator rocks it from the side by an upright
+handle. Here the box rolls on its rockers on two oak sills, and its only water is what the player pours
+into the hopper from a bucket held in hand: no pipe, no spout, nothing fixed beside it. It is a hand
+station placed as one item: no build stages. Everything is built here from plain boxes; no other mod's
+model is used.
 
 It writes, deterministically,
 
-    rocker.json         the whole rocker, every moving part        (assets/.../shapes/block/)
-    rocker_frame.json   the static frame only: the sills (block)    (assets/.../shapes/block/)
-    rocker-rig.json     cell, anchors and the part rig              (assets/.../config/)
-    rig-reference.json  every part's matrix at a grid of poses      (tests/Rocker/)
+    rocker.json         the whole rocker, every moving part and state   (assets/.../shapes/block/)
+    rocker_frame.json   the static frame only: the sills (block)         (assets/.../shapes/block/)
+    rocker_item.json    the rocker at rest, dry and empty (the item)     (assets/.../shapes/block/)
+    rocker-rig.json     cell, anchors and the part rig                   (assets/.../config/)
+    rig-reference.json  every part's matrix at a grid of poses           (tests/Rocker/)
 
-or, with `--out DIR`, all four into DIR. It validates its own output (validate_rocker.py) and exits
+or, with `--out DIR`, all five into DIR. It validates its own output (validate_rocker.py) and exits
 non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
@@ -30,7 +32,8 @@ The rig's one input, as this machine uses it (README "Rig schema"):
 
     theta  the rocking, the hold-to-work clock: one turn is one rock, over to the south and back over to
            the north. The cradle swings about its rocking axis by ROCK_DEG sin(theta) and slides south by
-           ROCKER_R times that angle, so its rockers roll on the sills without slipping.
+           ROCKER_R times that angle, so its rockers roll on the sills without slipping. The water rides the
+           cradle and swings back by the same angle about the foot's lip, so it stays level.
 """
 
 from __future__ import annotations
@@ -68,12 +71,12 @@ DEG = math.pi / 180
 # ---------------------------------------------------------------- the box, the cell
 CELLS_X, CELLS_Y, CELLS_Z = 1, 1, 1          # one cell: the period cradle is a metre long and half a metre wide
 ORIGIN_CELL = (0, 0, 0)                      # the controller, the only cell
+OPERATOR_SIDE = "north"                      # where the player stands to rock it, at the handle
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
-    "iron": "game:block/metal/plate/iron",
-    "riddle": "game:block/metal/mesh4",          # the riddle plate: the game's rusty iron mesh, cut out (it shows the apron through it)
-    "canvas": "game:block/linen",                # the apron
+    "riddle": "game:block/metal/plate/iron",       # the riddle plate: plain iron plate (its 1 cm holes are below a voxel)
+    "canvas": "game:block/linen",                  # the apron
     "water": "game:block/liquid/water",
     "charge": "game:block/stone/gravel/granite",       # a charge in the hopper: the renderer sets it to the material's texture
     "concentrate": "game:block/stone/sand/basalt",     # the heavy sand behind the riffles: the renderer sets it to the ore's
@@ -88,7 +91,7 @@ ROCKER_X = (2.6, 12.2)                       # the foot and head rockers' middle
 ROCKER_T = 1.2                               # their thickness (x): the top bar's; the running facets alternate a hair thinner
 ROCKER_R = 10.0                              # the running faces' radius
 ROCKER_HALF = 5.25                           # half the rockers' length (z) about the rocking axis
-ROCKER_FACETS = 6                            # chords of the running face: an even number, so one corner is at the bottom
+ROCKER_FACETS = 4                            # chords of the running face: an even number, so one corner is at the bottom
 ROCKER_BAR = 1.0                             # the top bar's depth, which the floor is nailed to
 ROCKER_EMBED = 0.1                           # the bars' tops sit this far up into the floor's underside
 AXIS_Z = 8.0                                 # the rocking axis (z): the cell's middle
@@ -96,49 +99,49 @@ AXIS_Y = SILL_TOP + ROCKER_R                 # the running faces' centre: it mov
 ROCK_DEG = 10.0                              # the rock, each way
 
 # ---------------------------------------------------------------- the cradle: the box, built level, then tilted
-BOX_X = (0.6, 15.4)                          # from the open foot (west) to the head board's outer face (east)
+BOX_X = (1.2, 15.4)                          # from the open foot (west) to the head board's outer face (east)
 BOX_Z = (4.0, 12.0)                          # outside the sides: 8 wide
-BOARD = 0.6                                  # the sides' thickness
+BOARD = 1.0                                  # the sides' thickness
 IN_Z = (BOX_Z[0] + BOARD, BOX_Z[1] - BOARD)  # inside the sides
-FLOOR_Y0 = 3.75                              # the floor's underside at the foot
-FLOOR_T = 0.75
+FLOOR_Y0 = 3.6                               # the floor's underside at the foot
+FLOOR_T = 1.5                                # thick enough to hide the level water's underside over the whole rock
 FLOOR_TOP = FLOOR_Y0 + FLOOR_T
-SIDE_TOP = FLOOR_TOP + 5.0                   # sides 5 voxels (0.3 m) over the floor
-HEAD_T = 0.6                                 # the head board, on the floor between the sides
+SIDE_TOP = FLOOR_TOP + 4.5                   # sides 4.5 voxels (0.28 m) over the floor
+HEAD_T = 1.0                                 # the head board, on the floor between the sides
+HEAD_IN = BOX_X[1] - HEAD_T                  # its inner face
 SLOPE = 3.5                                  # degrees: the whole box is tilted so the floor falls to the foot
 TILT_PIVOT = (BOX_X[0], FLOOR_Y0, AXIS_Z)    # the foot's bottom edge stays put
 
 # ---------------------------------------------------------------- the riffles, and what lies at them
-RIFFLE_X = (3.0, 6.2, 9.6)                   # the riffles' foot-side faces (x, level frame): two in the open, one under the apron
-RIFFLE_W, RIFFLE_H = 0.6, 0.6
-POOL_L = 1.2                                 # the water standing behind (upstream of) a riffle
-FILM = 0.15                                  # the sheet of water running over the floor
-CONC_L, CONC_H = 1.0, 0.35                   # the heavy sand caught behind a riffle
+RIFFLE_X = (2.6, 5.2)                        # the riffles' foot-side faces (x, level frame), both in the open
+RIFFLE_W, RIFFLE_H = 1.0, 1.5
+CONC_L, CONC_H = 1.2, 0.75                   # the heavy sand caught behind (upstream of) each riffle
+
+# ---------------------------------------------------------------- the water (level frame at rest)
+WATER_DEPTH = 1.0                            # over the floor, at rest
+WATER_SINK = 0.75                            # its underside this far down in the floor, so the rock never shows it
+WATER_INTO = 0.45                            # how far it reaches into the sides and the head board
+WATER_LIP = 0.1                              # its foot end, inside the floor's lip (the level water's end leans 0.04 as it rocks)
+WATER_X = (BOX_X[0] + WATER_LIP, HEAD_IN + WATER_INTO)
 
 # ---------------------------------------------------------------- the apron (level frame)
-APRON_HI = (7.5, 9.2)                        # (x, y): its canvas top at the high end, under the hopper's foot wall
-APRON_LO = (14.2, 6.0)                       # at the low end, short of the head board: it drops onto the floor's head
-APRON_RAIL = 0.6                             # the rails' depth (in their plane) and width (z), against the sides
-CANVAS_T = 0.12
-APRON_WATER = 0.1
+APRON_HI = (8.0, 9.3)                        # (x, y): its canvas top at the high end, under the hopper's foot wall
+APRON_LO = (13.4, 7.3)                       # at the low end, short of the head board: it drops onto the floor's head
+CANVAS_T = 1.0
+APRON_RAIL = 0.8                             # the rails under the canvas's edges, against the sides: depth and width
 
 # ---------------------------------------------------------------- the hopper (the riddle box; level frame)
-HOP_X = (7.4, 15.4)                          # on the head half, sitting on the sides and over the head board
-HOP_WALL = 0.5
+HOP_X = (7.4, BOX_X[1])                      # on the head half, standing on the sides and over the head board
+HOP_WALL = 1.0
 HOP_H = 2.5                                  # walls 2.5 high (the period hopper was 4 to 6 inches deep)
-RIDDLE_T = 0.3                               # the iron plate, between the walls at their foot
-HOP_WATER = 0.5                              # water standing on the plate while it is washed
-CLEAT_X = ((7.9, 8.7), (14.0, 14.8))         # cleats outside the hopper's long walls, over the box's sides: they locate it
-CLEAT_T, CLEAT_DOWN, CLEAT_UP = 0.4, 1.0, 0.6     # their thickness, and how far they reach down the side and up the wall
+RIDDLE_T = 1.0                               # the iron plate, between the walls at their foot
 CHARGE_X = 11.4                              # a charge heaped on the plate: its middle (x)
-CHARGE = ((6.2, 0.9), (4.4, 0.8), (2.4, 0.6))   # (square, height) of each layer, bottom up: heaped a little over the walls
+CHARGE = ((5.0, 1.0), (3.0, 0.9))            # (square, height) of each layer, bottom up
 
 # ---------------------------------------------------------------- the handle (built upright, not tilted)
 HANDLE_X = (10.4, 11.4)
 HANDLE_Z = (BOX_Z[0] - 1.0, BOX_Z[0])        # against the north side, where the operator stands
 HANDLE_TOP = 14.5                            # a hand's height for a standing player
-BANDS = (1.2, 3.8)                           # the iron bands, this far over the handle's foot
-BAND_H = 0.45
 
 SLOPE_TAN = math.tan(SLOPE * DEG)
 
@@ -217,6 +220,12 @@ def facet_gap():
     return ROCKER_R * (1 - math.cos(half))
 
 
+def water_pivot():
+    """The point the water swings back about: the middle of the sheet, half way down its length and its
+    depth. The sheet is carried as that point of the box is, and stays level across the box."""
+    return tilt_point([(WATER_X[0] + WATER_X[1]) / 2, FLOOR_TOP + (WATER_DEPTH - WATER_SINK) / 2, AXIS_Z])
+
+
 # ---------------------------------------------------------------- builders
 def build_sills():
     """The frame: two oak sills on the ground, across the box, under the rockers."""
@@ -260,55 +269,39 @@ def build_box():
         box([BOX_X[0], FLOOR_Y0, IN_Z[0]], [BOX_X[1], FLOOR_TOP, IN_Z[1]], "cradle_floor", p, "oak"),
         box([BOX_X[0], FLOOR_Y0, BOX_Z[0]], [BOX_X[1], SIDE_TOP, IN_Z[0]], "cradle_side_n", p, "oak"),
         box([BOX_X[0], FLOOR_Y0, IN_Z[1]], [BOX_X[1], SIDE_TOP, BOX_Z[1]], "cradle_side_s", p, "oak"),
-        box([BOX_X[1] - HEAD_T, FLOOR_TOP, IN_Z[0]], [BOX_X[1], SIDE_TOP, IN_Z[1]], "cradle_headboard", p, "oak"),
+        box([HEAD_IN, FLOOR_TOP, IN_Z[0]], [BOX_X[1], SIDE_TOP, IN_Z[1]], "cradle_headboard", p, "oak"),
     ]
 
 
 def build_riffles():
-    """Low oak bars across the floor (level frame)."""
-    return [box([x, FLOOR_TOP, IN_Z[0]], [x + RIFFLE_W, FLOOR_TOP + RIFFLE_H, IN_Z[1]], f"riffle_{i + 1}", "riffles", "oak")
+    """Oak bars across the floor (level frame), a voxel square and a half high."""
+    return [box([x, FLOOR_TOP, IN_Z[0]], [x + RIFFLE_W, FLOOR_TOP + RIFFLE_H, IN_Z[1]], f"cradle_riffle{i + 1}", "cradle", "oak")
             for i, x in enumerate(RIFFLE_X)]
 
 
 def build_apron():
-    """The apron (level frame): two oak rails against the sides, falling from under the hopper's foot wall
-    towards the head, a canvas stretched between them, and an oak bar under each end of it."""
-    out = []
-    (hx, hy), (lx, ly) = apron_line(-APRON_RAIL / 2)
-    for s, (z0, z1) in (("n", (IN_Z[0], IN_Z[0] + APRON_RAIL)), ("s", (IN_Z[1] - APRON_RAIL, IN_Z[1]))):
-        out.append(strut_xy((hx, hy), (lx, ly), APRON_RAIL, z0, z1, f"apron_rail_{s}", "apron", "oak"))
+    """The apron (level frame): a canvas a voxel thick from side to side, falling from under the hopper's foot
+    wall towards the head, on two oak rails under its edges nailed to the sides."""
     (hx, hy), (lx, ly) = apron_line(-CANVAS_T / 2)
-    out.append(strut_xy((hx, hy), (lx, ly), CANVAS_T, IN_Z[0] + APRON_RAIL, IN_Z[1] - APRON_RAIL, "apron_canvas", "apron", "canvas"))
-    nx, ny = apron_normal()
-    tx, ty = APRON_LO[0] - APRON_HI[0], APRON_LO[1] - APRON_HI[1]
-    tl = math.hypot(tx, ty)
-    for name, (x, y), inward in (("hi", APRON_HI, 0.5), ("lo", APRON_LO, -0.5)):
-        # the end bars: square, under the canvas and set in from its ends, between the rails, square to the apron
-        d = 0.55
-        c = [x - (CANVAS_T + d / 2) * nx + inward * tx / tl, y - (CANVAS_T + d / 2) * ny + inward * ty / tl, AXIS_Z]
-        el = box([c[0] - d / 2, c[1] - d / 2, IN_Z[0] + APRON_RAIL], [c[0] + d / 2, c[1] + d / 2, IN_Z[1] - APRON_RAIL],
-                 f"apron_bar_{name}", "apron", "oak")
-        rotate([el], "z", math.degrees(math.atan2(ty, tx)), c)
-        out.append(el)
+    out = [strut_xy((hx, hy), (lx, ly), CANVAS_T, IN_Z[0], IN_Z[1], "cradle_apron_canvas", "cradle", "canvas")]
+    (hx, hy), (lx, ly) = apron_line(-CANVAS_T - APRON_RAIL / 2)
+    for s, (z0, z1) in (("n", (IN_Z[0], IN_Z[0] + APRON_RAIL)), ("s", (IN_Z[1] - APRON_RAIL, IN_Z[1]))):
+        out.append(strut_xy((hx, hy), (lx, ly), APRON_RAIL, z0, z1, f"cradle_apron_rail_{s}", "cradle", "oak"))
     return out
 
 
 def build_hopper():
-    """The riddle box (level frame): four oak walls standing on the sides over the head half, cleats
-    outside its long walls over the box's sides; and its iron riddle plate between the walls at their foot."""
+    """The riddle box (level frame): four oak walls standing on the sides over the head half, and its iron
+    riddle plate between the walls at their foot."""
     y0, y1 = SIDE_TOP, SIDE_TOP + HOP_H
     (x0, x1), (z0, z1), w = HOP_X, BOX_Z, HOP_WALL
-    out = [
-        box([x0, y0, z0], [x1, y1, z0 + w], "hopper_wall_n", "hopper", "oak"),
-        box([x0, y0, z1 - w], [x1, y1, z1], "hopper_wall_s", "hopper", "oak"),
-        box([x0, y0, z0 + w], [x0 + w, y1, z1 - w], "hopper_wall_foot", "hopper", "oak"),
-        box([x1 - w, y0, z0 + w], [x1, y1, z1 - w], "hopper_wall_head", "hopper", "oak"),
+    return [
+        box([x0, y0, z0], [x1, y1, z0 + w], "cradle_hopper_wall_n", "cradle", "oak"),
+        box([x0, y0, z1 - w], [x1, y1, z1], "cradle_hopper_wall_s", "cradle", "oak"),
+        box([x0, y0, z0 + w], [x0 + w, y1, z1 - w], "cradle_hopper_wall_foot", "cradle", "oak"),
+        box([x1 - w, y0, z0 + w], [x1, y1, z1 - w], "cradle_hopper_wall_head", "cradle", "oak"),
+        box([x0 + w, y0, z0 + w], [x1 - w, y0 + RIDDLE_T, z1 - w], "cradle_riddle", "cradle", "riddle"),
     ]
-    for i, (cx0, cx1) in enumerate(CLEAT_X):
-        out.append(box([cx0, y0 - CLEAT_DOWN, z0 - CLEAT_T], [cx1, y0 + CLEAT_UP, z0], f"hopper_cleat_n{i + 1}", "hopper", "oak"))
-        out.append(box([cx0, y0 - CLEAT_DOWN, z1], [cx1, y0 + CLEAT_UP, z1 + CLEAT_T], f"hopper_cleat_s{i + 1}", "hopper", "oak"))
-    out.append(box([x0 + w, y0, z0 + w], [x1 - w, y0 + RIDDLE_T, z1 - w], "riddle_plate", "riddle", "riddle"))
-    return out
 
 
 def riddle_box():
@@ -317,53 +310,29 @@ def riddle_box():
 
 
 def build_handle():
-    """The upright oak handle the operator rocks it by, against the north side and the hopper's north wall,
-    held by two iron bands. Built upright: it rides the cradle, so it leans with the rock."""
+    """The upright oak handle the operator rocks it by, against the north side and the hopper's north wall.
+    Built upright: it rides the cradle, so it leans with the rock."""
     x0, x1 = HANDLE_X
     foot = underside((x0 + x1) / 2) + 0.6
-    out = [box([x0, foot, HANDLE_Z[0]], [x1, HANDLE_TOP, HANDLE_Z[1]], "handle_stick", "handle", "oak")]
-    for i, up in enumerate(BANDS):
-        out.append(box([x0 - 0.1, foot + up, HANDLE_Z[0] - 0.1], [x1 + 0.1, foot + up + BAND_H, HANDLE_Z[1]],
-                       f"handle_band{i + 1}", "handle", "iron"))
-    return out
+    return [box([x0, foot, HANDLE_Z[0]], [x1, HANDLE_TOP, HANDLE_Z[1]], "cradle_handle", "cradle", "oak")]
 
 
 def build_water():
-    """Water while it is worked, poured into the hopper from the player's bucket as it rocks (level frame, but
-    the curtain off the foot, built upright): standing on the riddle plate, running down the apron and off its
-    low end, a sheet down the floor with pools behind the riffles, and a curtain off the open foot. The pour
-    itself is not modelled: it comes from the bucket in the player's hand, wherever that is."""
-    out = []
-    (rx0, rx1), (rz0, rz1), ry = riddle_box()
-    out.append(box([rx0, ry, rz0], [rx1, ry + HOP_WATER, rz1], "water_hopper", "water", "water"))
-    (hx, hy), (lx, ly) = apron_line(APRON_WATER / 2)
-    out.append(strut_xy((hx, hy), (lx, ly), APRON_WATER, IN_Z[0] + APRON_RAIL + 0.1, IN_Z[1] - APRON_RAIL - 0.1,
-                        "water_apron", "water", "water"))
-    lx_end = APRON_LO[0] + 0.05
-    out.append(box([lx_end, FLOOR_TOP + FILM, IN_Z[0] + APRON_RAIL + 0.1], [lx_end + 0.3, APRON_LO[1] - 0.05, IN_Z[1] - APRON_RAIL - 0.1],
-                   "water_apronfall", "water", "water"))
-    # the floor: a sheet from the head board to the foot, broken by the riffles, a pool behind each
-    head_in = BOX_X[1] - HEAD_T
-    edges = [BOX_X[0]]
-    for x in RIFFLE_X:
-        edges += [x, x + RIFFLE_W, x + RIFFLE_W + POOL_L]
-    edges.append(head_in)
-    out.append(box([edges[0], FLOOR_TOP, IN_Z[0]], [edges[1], FLOOR_TOP + FILM, IN_Z[1]], "water_film1", "water", "water"))
-    for i in range(len(RIFFLE_X)):
-        a, b, c = edges[3 * i + 2], edges[3 * i + 3], edges[3 * i + 4]
-        out.append(box([a, FLOOR_TOP, IN_Z[0]], [b, FLOOR_TOP + RIFFLE_H - 0.08, IN_Z[1]], f"water_pool{i + 1}", "water", "water"))
-        out.append(box([b, FLOOR_TOP, IN_Z[0]], [c, FLOOR_TOP + FILM, IN_Z[1]], f"water_film{i + 2}", "water", "water"))
-    tilt(out)
-    # the curtain off the foot, falling plumb from the lip towards the ground
-    lip = tilt_point([BOX_X[0], FLOOR_TOP, AXIS_Z])
-    out.append(box([0.2, 0.8, IN_Z[0] + 0.2], [lip[0] - 0.01, lip[1] + FILM - 0.05, IN_Z[1] - 0.2], "water_footfall", "water", "water"))
-    for el in out:
-        el.render_pass = TRANSPARENT
-    return out
+    """Water while it is worked, poured into the hopper from the player's bucket as it rocks: a sheet over
+    the whole floor to the open foot (level frame, then tilted with the box), its underside in the floor and
+    its edges in the sides and the head board. The rig swings it back as the cradle rocks, so it stays level:
+    the floor and the riffles tip under it. Only the water in the rocker is modelled: not the pour from the
+    bucket in the player's hand, nor the water leaving over the foot (particles at the outflow point, if
+    anything). Water passes the riddle plate and the apron at once, so none stands there."""
+    sheet = box([WATER_X[0], FLOOR_TOP - WATER_SINK, IN_Z[0] - WATER_INTO],
+                [WATER_X[1], FLOOR_TOP + WATER_DEPTH, IN_Z[1] + WATER_INTO], "water_sheet", "water", "water")
+    tilt([sheet])
+    sheet.render_pass = TRANSPARENT
+    return [sheet]
 
 
 def build_charge():
-    """A charge heaped on the riddle plate (level frame): three layers, each narrower."""
+    """A charge heaped on the riddle plate (level frame): two layers, the upper narrower."""
     (_, _), (rz0, rz1), y = riddle_box()
     zc = (rz0 + rz1) / 2
     out = []
@@ -374,7 +343,7 @@ def build_charge():
 
 
 def build_concentrate():
-    """The heavy sand caught behind each riffle (level frame), under the pool."""
+    """The heavy sand caught behind each riffle (level frame), under the water."""
     return [box([x + RIFFLE_W, FLOOR_TOP, IN_Z[0]], [x + RIFFLE_W + CONC_L, FLOOR_TOP + CONC_H, IN_Z[1]], f"conc_{i + 1}", "concentrate", "concentrate")
             for i, x in enumerate(RIFFLE_X)]
 
@@ -382,7 +351,9 @@ def build_concentrate():
 def build():
     level = build_box() + build_riffles() + build_apron() + build_hopper() + build_charge() + build_concentrate()
     tilt(level)
-    return build_rockers() + level[:4] + build_handle() + level[4:] + build_water() + build_sills()
+    cradle = [el for el in level if el.part == "cradle"]
+    load = [el for el in level if el.part != "cradle"]
+    return build_rockers() + cradle + build_handle() + build_water() + load + build_sills()
 
 
 # ---------------------------------------------------------------- rig
@@ -411,16 +382,18 @@ def rock_drivers():
             {"type": "slide", "axis": "z", "amplitude": r6(ROCKER_R * a / B), "ratio": 1.0, "phase": 0.0}]
 
 
+def level_drivers():
+    """The water's own swing, before the cradle's: back by the cradle's angle about the water's pivot, so the
+    two cancel and the water only moves as that point of the cradle does."""
+    a = ROCK_DEG * DEG
+    return [{"type": "swing", "axis": "x", "pivot": pt(*water_pivot()), "amplitude": r6(-a), "ratio": 1.0, "phase": 0.0}]
+
+
 def _rig_parts():
     spec = [
         # (id, glob, requires, ride, drivers)
         ("cradle", "cradle_*", None, None, rock_drivers()),
-        ("handle", "handle_*", None, "cradle", []),
-        ("riffles", "riffle_*", "riffles", "cradle", []),
-        ("apron", "apron_*", "apron", "cradle", []),
-        ("hopper", "hopper_*", "hopper", "cradle", []),
-        ("riddle", "riddle_*", "riddle", "cradle", []),
-        ("water", "water_*", "water", "cradle", []),
+        ("water", "water_*", "water", "cradle", level_drivers()),
         ("charge", "charge_*", "charge", "cradle", []),
         ("concentrate", "conc_*", "concentrate", "cradle", []),
         ("frame", "fr_*", None, None, []),
@@ -434,7 +407,10 @@ def _rig_parts():
 
 # ---------------------------------------------------------------- poses
 REST = 0.0                                   # theta: the cradle level, the authored pose
-MOVING = ("cradle", "handle", "riffles", "apron", "hopper", "riddle", "water", "charge", "concentrate")
+MOVING = ("cradle", "water", "charge", "concentrate")
+RIGID = ("cradle", "charge", "concentrate")  # what rocks exactly as the cradle does
+LEVEL = ("water",)                           # what rides the cradle but stays level
+STATES = ("water", "charge", "concentrate")  # drawn by what the rocker holds, not part of the station
 STATIC = ("frame",)
 
 
@@ -463,15 +439,16 @@ def make_rig(parts):
     (rx0, rx1), (rz0, rz1), ry = riddle_box()
     hopper = tilt_point([(rx0 + rx1) / 2, ry, (rz0 + rz1) / 2])
     lip = tilt_point([BOX_X[0], FLOOR_TOP, AXIS_Z])
-    conc = tilt_point([RIFFLE_X[1] + RIFFLE_W + CONC_L / 2, FLOOR_TOP + CONC_H, AXIS_Z])
+    conc = tilt_point([RIFFLE_X[-1] + RIFFLE_W + CONC_L / 2, FLOOR_TOP + CONC_H, AXIS_Z])
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell, the controller [0,0,0]: the box runs along x, "
                     "its head (the hopper) east and its open foot west; the operator stands at the handle on the north side. "
                     "A hand station: no power cell, and no water cell: its only water is poured into the hopper from the "
                     "bucket the player holds while rocking it. theta is the rocking, the hold-to-work clock: one turn is one "
-                    "rock (over to the south and back over to the north). Points with a part ride it. See the rocker's README "
-                    "for the schema.",
+                    "rock (over to the south and back over to the north). The water rides the cradle and swings back, so it "
+                    "stays level. Points with a part ride it. See the rocker's README for the schema.",
         "cells": [],
+        "operatorSide": OPERATOR_SIDE,
         "hopper": {"pos": pt(*hopper), "part": "cradle"},
         "outflow": {"pos": pt(*lip), "part": "cradle"},
         "concentrate": {"pos": pt(*conc), "part": "cradle"},
@@ -509,9 +486,12 @@ def shipped(els, parts, rig):
 
 
 def shipped_cells(shape, ship_parts):
-    """The cell's boxes from the shipped shape as written, posed at rest by the shipped rig; then the lid."""
+    """The cell's boxes from the shipped shape as written, posed at rest by the shipped rig: the station
+    (the cradle and the sills), not what it holds (the water passes through, the load lies inside it).
+    Then the lid."""
     written = flatten(shape["elements"], textures={})
-    rest = [posed(w, _part_matrix(ship_parts, part_of(ship_parts, w.name), inputs_of(REST))) for w in written]
+    rest = [posed(w, _part_matrix(ship_parts, part_of(ship_parts, w.name), inputs_of(REST))) for w in written
+            if part_of(ship_parts, w.name) not in STATES]
     by_cell = {}
     for el in rest:
         lo, hi = el.aabb()
@@ -554,9 +534,9 @@ def reference_json(ship_parts):
 
 
 # ---------------------------------------------------------------- shape files
-def shape_json(els):
+def shape_json(els, what="The whole rocker, every part and state."):
     return machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The charge's and the "
+        els, f"Generated by {SCRIPT}. {what} Every element was made for the Seraph Horizons mod. The charge's and the "
              "concentrate's texture codes ('charge', 'concentrate') are for the renderer to set to the material's; the "
              "water's elements are in the Transparent pass. Keep element names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
@@ -572,7 +552,7 @@ def fix_coplanar(els, parts):
 
 def main():
     ap = argparse.ArgumentParser(description="Generate the rocker's shapes, rig and reference poses.")
-    ap.add_argument("--out", type=Path, help="write the four files into this directory instead of the mod's assets and tests")
+    ap.add_argument("--out", type=Path, help="write the five files into this directory instead of the mod's assets and tests")
     ap.add_argument("--quick", action="store_true", help="skip the z-fighting fix and the slow checks (not for files that ship)")
     args = ap.parse_args()
     import validate_rocker
@@ -587,15 +567,20 @@ def main():
         print(f"coplanar faces: {hidden} faces pressed against their own part removed")
     rig = make_rig(parts)
     ok = validate_rocker.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
+    names = ("rocker.json", "rocker_frame.json", "rocker_item.json")
     if args.out:
-        outs = (args.out / "rocker.json", args.out / "rocker_frame.json", args.out / "rocker-rig.json", args.out / "rig-reference.json")
+        outs = tuple(args.out / n for n in names) + (args.out / "rocker-rig.json", args.out / "rig-reference.json")
     else:
-        outs = (SHAPE_DIR / "rocker.json", SHAPE_DIR / "rocker_frame.json", RIG_DIR / "rocker-rig.json", REFERENCE_OUT)
+        outs = tuple(SHAPE_DIR / n for n in names) + (RIG_DIR / "rocker-rig.json", REFERENCE_OUT)
     ship_els, ship_parts, ship = shipped(els, parts, rig)
-    shape, frame_shape = shape_json(ship_els), shape_json([el for el in ship_els if el.part == "frame"])
+    shape = shape_json(ship_els)
+    frame_shape = shape_json([el for el in ship_els if el.part in STATIC], "The static frame only: the sills, which the block draws.")
+    item_shape = shape_json([el for el in ship_els if el.part not in STATES],
+                            "The rocker at rest, dry and empty: the cradle and the sills, for the item.")
     ship["cells"] = shipped_cells(shape, ship_parts)
-    ok = validate_rocker.validate_files(sys.modules[__name__], shape, frame_shape, ship) and ok
-    texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship), reference_dumps(reference_json(ship_parts)))
+    ok = validate_rocker.validate_files(sys.modules[__name__], shape, frame_shape, item_shape, ship) and ok
+    texts = (shape_dumps(shape), shape_dumps(frame_shape), shape_dumps(item_shape), rig_dumps(ship),
+             reference_dumps(reference_json(ship_parts)))
     for path, text in zip(outs, texts):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
