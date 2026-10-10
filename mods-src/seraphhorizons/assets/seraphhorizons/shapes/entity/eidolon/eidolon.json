@@ -11741,6 +11741,254 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "Strike-Jab",
+			"code": "strike-jab",
+			"quantityframes": 24,
+			"onActivityStopped": "PlayTillEnd",
+			"onAnimationEnd": "Stop",
+			"keyframes": [
+				{
+					"frame": 0,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"upper-armR": {"rotationX": -5.9, "rotationY": 9.83, "rotationZ": 8.37},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.4},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 5.4, "rotationY": -9.51, "rotationZ": 8.36},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.3},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 4,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": -16.0, "rotationZ": 2.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 12.0, "rotationZ": 0.0},
+						"upper-armR": {"rotationX": -13.97, "rotationY": -20.37, "rotationZ": 32.65},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -140.91},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 3.47, "rotationY": -0.04, "rotationZ": -3.4},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -101.53},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 9,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 26.0, "rotationZ": 12.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": -20.0, "rotationZ": -6.0},
+						"upper-armR": {"rotationX": -4.49, "rotationY": -17.44, "rotationZ": -80.65},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 9.6, "rotationY": -35.66, "rotationZ": 33.44},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -127.88},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 13,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 20.0, "rotationZ": 10.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": -16.0, "rotationZ": -4.0},
+						"upper-armR": {"rotationX": -3.83, "rotationY": -10.09, "rotationZ": -68.07},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -29.96},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 8.29, "rotationY": -30.76, "rotationZ": 25.65},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -123.15},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 23,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"upper-armR": {"rotationX": -5.9, "rotationY": 9.83, "rotationZ": 8.37},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.4},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 5.4, "rotationY": -9.51, "rotationZ": 8.36},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.3},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				}
+			]
+		},
+		{
+			"name": "Strike-Hammer",
+			"code": "strike-hammer",
+			"quantityframes": 30,
+			"onActivityStopped": "PlayTillEnd",
+			"onAnimationEnd": "Stop",
+			"keyframes": [
+				{
+					"frame": 0,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"upper-armR": {"rotationX": -5.9, "rotationY": 9.83, "rotationZ": 8.37},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.4},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 5.4, "rotationY": -9.51, "rotationZ": 8.36},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.3},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 7,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -12.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -10.0},
+						"upper-armR": {"rotationX": 9.91, "rotationY": -3.95, "rotationZ": -118.07},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -62.9},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": -9.56, "rotationY": 4.28, "rotationZ": -118.02},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -62.89},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 14,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 55.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -28.0},
+						"upper-armR": {"rotationX": -1.87, "rotationY": 8.26, "rotationZ": -86.7},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -2.05},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 1.99, "rotationY": -7.85, "rotationZ": -86.62},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -2.18},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 19,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 48.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -24.0},
+						"upper-armR": {"rotationX": -3.35, "rotationY": 8.67, "rotationZ": -78.34},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -3.14},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 3.38, "rotationY": -8.26, "rotationZ": -78.17},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -3.44},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				},
+				{
+					"frame": 29,
+					"elements": {
+						"chest-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"head-inside": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"upper-armR": {"rotationX": -5.9, "rotationY": 9.83, "rotationZ": 8.37},
+						"lower-armR": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.4},
+						"palmR": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR2": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR1": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerR3": {"rotationX": 67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR1": {"rotationX": 45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbR2": {"rotationX": 0.0, "rotationY": -22.5, "rotationZ": 0.0},
+						"upperarmL": {"rotationX": 5.4, "rotationY": -9.51, "rotationZ": 8.36},
+						"lower-armL": {"rotationX": 0.0, "rotationY": 0.0, "rotationZ": -96.3},
+						"palmL": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL2": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL1": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"fingerL3": {"rotationX": -67.5, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL1": {"rotationX": -45.0, "rotationY": 0.0, "rotationZ": 0.0},
+						"thumbL2": {"rotationX": 0.0, "rotationY": 22.5, "rotationZ": 0.0}
+					}
+				}
+			]
 		}
 	]
 }

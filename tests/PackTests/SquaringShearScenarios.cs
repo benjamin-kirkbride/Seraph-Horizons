@@ -165,8 +165,7 @@ public partial class SharedWorldScenarios
             }
             Assert.Equal("Squaring shear frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
             Assert.Equal("Squaring shear frame", W.BlockAccessor.GetBlock(ghost).GetPlacedBlockName(W, ghost));
-            // the infeed is beyond the far end, the outfeed in front of the table end
-            Assert.Equal(pos.AddCopy(2 * n.X, 0, 2 * n.Z), shear.CellPos(Assert.Single(ShearRig.InfeedNeighbours())));
+            // the half plates drop in front of the table end
             Assert.Equal(pos.AddCopy(-n.X, 0, -n.Z), shear.CellPos(ShearRig.OutputNeighbour()));
 
             W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
@@ -386,56 +385,38 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
-    // ---- Infeed and outfeed ----
+    // ---- Chests ----
 
-    // Worked on an empty table, the shear takes a plate from a chest beyond its far end, never
-    // anything else (an ingot, a half plate, an angle), and puts the half plates in a chest in front of
-    // the table end.
+    // A chest beyond the far end and one in front of the table end are left alone: worked on an empty
+    // table, the shear takes no plate from the first, and the half plates of a plate put on by hand
+    // drop in front of the table end rather than going into the second.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Squaring_shear_takes_plates_from_a_chest_when_worked_and_puts_half_plates_in_one()
+    public async Task Squaring_shear_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-428, -400);
         var player = await CutterPlayer();
         var shear = await PlaceShear(pos, "north");
         AssembleShear(shear, player);
-        var infeed = shear.CellPos(Assert.Single(ShearRig.InfeedNeighbours()));
+        var infeed = shear.CellPos(new Int3(0, 0, 2));
         var outfeed = shear.CellPos(ShearRig.OutputNeighbour());
         World.SetBlock("game:chest-east", infeed);
         World.SetBlock("game:chest-east", outfeed);
         await World.Ticks(3);
         var source = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(infeed));
         var sink = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(outfeed));
-        source.Inventory[0].Itemstack = CutterItem("game:ingot-copper");
-        source.Inventory[1].Itemstack = CutterItem(HalfLead);
-        source.Inventory[2].Itemstack = CutterItem(Cutting.CopperPlate, 2);
-        source.Inventory[3].Itemstack = CutterItem("seraphhorizons:angle-copper");
+        source.Inventory[0].Itemstack = CutterItem(Cutting.CopperPlate, 2);
         source.MarkDirty(true);
 
-        // a hand machine: nothing is taken while no one works it
-        await World.Ticks(30);
-        Assert.False(shear.PlateOn);
-        var (started, _) = await ShearHold(player, pos, 4);
-        Assert.True(started);
-        Assert.True(shear.PlateOn);
-        Assert.Equal(2, shear.Job.Class);
-        Assert.Equal(1, source.Inventory[2].StackSize);
-        Assert.Equal(2, shear.Cut(ShearRadiansTo(shear, 1)));
-        Assert.Equal(2, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == HalfCopper).Sum(s => s.StackSize));
-        Assert.DoesNotContain(HalfCopper, CutterItemsNear(pos).Keys);
-        // worked again once the table has cleared, the next plate goes on
-        await World.Ticks(20);
-        (started, _) = await ShearHold(player, pos, 4);
-        Assert.True(started);
-        Assert.True(shear.PlateOn);
-        Assert.True(source.Inventory[2].Empty);
-        Assert.Equal(2, shear.Cut(ShearRadiansTo(shear, 1)));
-        Assert.Equal(4, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == HalfCopper).Sum(s => s.StackSize));
-        // only the ingot, the half plate and the angle are left, and the treadle is not worked on them
         await World.Ticks(20);
         Assert.False((await ShearHold(player, pos, 4)).Started);
         Assert.False(shear.PlateOn);
-        Assert.Equal(1, source.Inventory[0].StackSize);
-        Assert.Equal(HalfLead, source.Inventory[1].Itemstack?.Collectible.Code.ToString());
-        Assert.Equal(1, source.Inventory[3].StackSize);
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        Assert.Null(CutterClick(player, pos, CutterItem(Cutting.CopperPlate)));
+        Assert.Equal(2, shear.Cut(ShearRadiansTo(shear, 1)));
+        await World.Ticks(5);
+        Assert.All(sink.Inventory, s => Assert.True(s.Empty));
+        Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(HalfCopper));
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        CutterKillItems(pos);
     }
 }

@@ -167,8 +167,7 @@ public partial class SharedWorldScenarios
             }
             Assert.Equal("Press brake frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
             Assert.Equal("Press brake frame", W.BlockAccessor.GetBlock(ghost).GetPlacedBlockName(W, ghost));
-            // the infeed is beyond the far end, the outfeed in front of the leaf end
-            Assert.Equal(pos.AddCopy(2 * n.X, 0, 2 * n.Z), brake.CellPos(Assert.Single(BrakeRig.InfeedNeighbours())));
+            // the angles drop in front of the leaf end
             Assert.Equal(pos.AddCopy(-n.X, 0, -n.Z), brake.CellPos(BrakeRig.OutputNeighbour()));
 
             W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
@@ -417,58 +416,38 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
-    // ---- Infeed and outfeed ----
+    // ---- Chests ----
 
-    // Worked on an empty bed, the brake takes a half plate from a chest beyond its far end, never
-    // anything else (a whole plate, an ingot, an angle, a hollow section), and puts the angles in a
-    // chest in front of the leaf end.
+    // A chest beyond the far end and one in front of the leaf end are left alone: worked on an empty
+    // bed, the brake takes no half plate from the first, and the angle of a half plate put on by hand
+    // drops in front of the leaf end rather than going into the second.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Press_brake_takes_half_plates_from_a_chest_when_worked_and_puts_angles_in_one()
+    public async Task Press_brake_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-368, -340);
         var player = await CutterPlayer();
         var brake = await PlaceBrake(pos, "north");
         AssembleBrake(brake, player);
-        var infeed = brake.CellPos(Assert.Single(BrakeRig.InfeedNeighbours()));
+        var infeed = brake.CellPos(new Int3(0, 0, 2));
         var outfeed = brake.CellPos(BrakeRig.OutputNeighbour());
         World.SetBlock("game:chest-east", infeed);
         World.SetBlock("game:chest-east", outfeed);
         await World.Ticks(3);
         var source = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(infeed));
         var sink = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(outfeed));
-        source.Inventory[0].Itemstack = CutterItem("game:ingot-copper");
-        source.Inventory[1].Itemstack = CutterItem(AngleLead);
-        source.Inventory[2].Itemstack = CutterItem(Folding.CopperHalfPlate, 2);
-        source.Inventory[3].Itemstack = CutterItem("game:chutesection-copper");
-        source.Inventory[4].Itemstack = CutterItem("game:metalplate-copper");
+        source.Inventory[0].Itemstack = CutterItem(Folding.CopperHalfPlate, 2);
         source.MarkDirty(true);
 
-        // a hand machine: nothing is taken while no one works it
-        await World.Ticks(30);
-        Assert.False(brake.PlateOn);
-        var (started, _) = await BrakeHold(player, pos, 4);
-        Assert.True(started);
-        Assert.True(brake.PlateOn);
-        Assert.Equal(2, brake.Job.Class);
-        Assert.Equal(1, source.Inventory[2].StackSize);
-        Assert.Equal(1, brake.Fold(BrakeRadiansTo(brake, 1)));
-        Assert.Equal(1, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == AngleCopper).Sum(s => s.StackSize));
-        Assert.DoesNotContain(AngleCopper, CutterItemsNear(pos).Keys);
-        // worked again once the leaf has cleared, the next half plate goes on
-        await World.Ticks(20);
-        (started, _) = await BrakeHold(player, pos, 4);
-        Assert.True(started);
-        Assert.True(brake.PlateOn);
-        Assert.True(source.Inventory[2].Empty);
-        Assert.Equal(1, brake.Fold(BrakeRadiansTo(brake, 1)));
-        Assert.Equal(2, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == AngleCopper).Sum(s => s.StackSize));
-        // only the ingot, the angle, the hollow section and the whole plate are left, and the lever is not worked on them
         await World.Ticks(20);
         Assert.False((await BrakeHold(player, pos, 4)).Started);
         Assert.False(brake.PlateOn);
-        Assert.Equal(1, source.Inventory[0].StackSize);
-        Assert.Equal(AngleLead, source.Inventory[1].Itemstack?.Collectible.Code.ToString());
-        Assert.Equal(1, source.Inventory[3].StackSize);
-        Assert.Equal("game:metalplate-copper", source.Inventory[4].Itemstack?.Collectible.Code.ToString());
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        Assert.Null(CutterClick(player, pos, CutterItem(Folding.CopperHalfPlate)));
+        Assert.Equal(1, brake.Fold(BrakeRadiansTo(brake, 1)));
+        await World.Ticks(5);
+        Assert.All(sink.Inventory, s => Assert.True(s.Empty));
+        Assert.Equal(1, CutterItemsNear(pos).GetValueOrDefault(AngleCopper));
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        CutterKillItems(pos);
     }
 }

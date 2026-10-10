@@ -384,7 +384,6 @@ def make_rig(parts):
                     "are placed in hollows. theta is the hammer's clock, carried by a ratio-0 rotate on the mandrel. See the "
                     "mandrel station's README for the schema.",
         "cells": [],
-        "infeedSide": "west",
         "outputSide": "south",
         "output": {"pos": pt(*output_point())},
         "strike": {"pos": pt(*strike_point())},

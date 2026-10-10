@@ -28,8 +28,7 @@ unchanged by this one (no new driver: every motion is a `gauge`, and the links r
 the controller at `[0,0,0]`: x 0, y 0, z 0..1. The controller is the table end, `[0,0,0]`, the block
 the player clicks. Placed like the press brake, the shear extends away from the player along their line
 of sight, the table end nearest them: the block's `side` is the way they look. The operator stands at
-the table with a foot on the treadle; the half plates come off towards them (native north), and a chest
-of plates can stand behind the gauge (native south).
+the table with a foot on the treadle; the half plates come off towards them (native north).
 
 **The cut** (the lower blade's back face, the line the upper blade passes) runs along x at y 9, z 16
 voxels (in blocks 0.5625, 1): the table's top, on the cells' boundary.
@@ -38,8 +37,7 @@ voxels (in blocks 0.5625, 1): the table's top, on the cells' boundary.
 it, 1 thick. As delivered on the table (build frame): the near half x 4..12, y 9..10, z 4..8; the far
 half x 4..12, y 9..10, z 8..12. Two of them are the plate they were cut from.
 
-**Anchors** (in `assets/seraphhorizons/config/squaringshear-rig.json`): `infeedSide` south and
-`outputSide` north; `output.pos` (over the table where the halves lie at W = 1), `plate.pos` (the middle
+**Anchors** (in `assets/seraphhorizons/config/squaringshear-rig.json`): `outputSide` north; `output.pos` (over the table where the halves lie at W = 1), `plate.pos` (the middle
 of the plate as laid: loading sounds) and `edge.pos` (the middle of the cut: the cut's sound and dust).
 There is no `powerCell` or `powerFace`.
 
@@ -201,7 +199,7 @@ rig maths: a `work` quantity, gauges, and one θ-driven rotate of ratio 0.
 - **`cut`**: `strokesPerPlate` (lead 1, copper 1.5: the pace; copper, stiffer, half as long again),
   `plates` (each class's work), `halfPlates` (what a plate makes) and `halfPlatesPerPlate` (2).
 
-**Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `plate`, `edge`, `work`, `cut` and `parts`.
+**Keys.** `cells`, `outputSide`, `output`, `plate`, `edge`, `work`, `cut` and `parts`.
 `requires` values: `blade`, `gauge`, `platelead`, `platecopper`, or null. The texture codes the
 renderer sets: `blade` (the fitted plate's metal) and `gauge` (the rod's metal).
 
@@ -227,7 +225,7 @@ in a client or the site's viewer.
    is not pushed down or bent by it, and the plate is two halves from the start, drawn as one plate.
 2. **The halves come back towards the operator.** On a real shear the far piece falls behind the
    blades. Here both are drawn north under the raised blade, so both come off at the output face (the
-   press brake's arrangement: infeed south, output north).
+   press brake's arrangement: output north).
 3. **Linear ramps.** The gauges move in straight ramps: the treadle, the crosshead and the hold-down
    start and stop at full speed. The links' eyes are slotted for what the straight ramps leave between
    the treadle's arc and the crosshead's slide (0.002).
@@ -301,16 +299,13 @@ plate, an angle, an ingot or another metal's plate is refused. A plate goes on o
 one at a time, and only when its half plate exists (the shear's own item, so it is missing only when
 its type file is: then a plate is refused with a message, as the press brake refuses one with
 `UnifiedPipes`' angle missing). With the `PressBrake` switch off the shear still cuts: the half plates
-then have no use but melting. At W = 1 the plate is used up and the half plates go into a container in
-`SquaringShearRig.OutputNeighbour()` (the cell beyond `output.pos` across the output face, native
-north), else drop at `OutputDrop()`, pushed outward. The cut (`game:sounds/block/heavymetal-hit2`) is
+then have no use but melting. At W = 1 the plate is used up and the half plates drop at `OutputDrop()` (in
+`SquaringShearRig.OutputNeighbour()`, the cell beyond `output.pos` across the output face, native
+north), pushed outward. The cut (`game:sounds/block/heavymetal-hit2`) is
 heard at the bottom of the stroke, the middle of the `crosshead` part's one gauge window
 (`SquaringShearRig.Strokes`, `CutMoments`: 0.40 as generated). The server syncs W every 0.02 plate.
-**Infeed:** a hand machine takes nothing by itself. A work click on an empty table, or a step held on
-past a finished plate, takes one plate from a container in the cell beyond the far end
-(`InfeedNeighbours`, native south); after a plate is done the held steps wait 0.6 s (`ClearMs`) before
-the next, so the model eases the hold-down back first, and the hold goes on through that wait while the
-infeed has a plate.
+Plates go on by hand only, and a held step on an empty table lets go: the shear never takes from or
+puts into a chest or other container beside it.
 
 **Settings** (`SquaringShearSettings`): `StrokesPerPlateLead` 1 and `StrokesPerPlateCopper` 1.5, the
 rig's `cut.strokesPerPlate` (`SquaringShearRigTests.The_default_pace_is_the_rigs` holds them together);

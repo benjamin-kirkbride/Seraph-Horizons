@@ -29,7 +29,7 @@ public class DrawBenchConfig
     /// <summary>Resistance while it draws copper, a harder metal.</summary>
     public float ResistanceCopper { get; set; } = 0.35f;
 
-    /// <summary>The shaft speed below which the bench does not draw or take a hollow from its infeed.</summary>
+    /// <summary>The shaft speed below which the bench does not draw.</summary>
     public float MinSpeed { get; set; } = 0.05f;
 
     /// <summary>What each die draws, by the die's metal: an iron die lead only, a steel die lead

@@ -1886,15 +1886,14 @@ which drops the frame, every fitted item by code, the kit with its durability an
 keeps every fitted code and the kit's durability.
 
 **Work.** Complete is every stage in, the kit with durability left. A blank goes on the arbor by
-right-click, or from a chest or hopper (any container) against the infeed face (native north, the
-gearbox end, the end nearest the placed block), one at a time while the shaft turns. The master
+right-click, one at a time; the cutter never takes from or puts into a chest or other container
+beside it. The master
 decides the size: the temporal gear takes `seraphhorizons:gearblank-stainlesssteel` and cuts
 `seraphhorizons:gear-stainless`, the large temporal gear takes `seraphhorizons:largegearblank-stainlesssteel` and
 cuts `seraphhorizons:largegear-stainless`; the other size is refused with a message. The cut needs the
 shaft at `MinSpeed` and advances by its angle as the mill's saws do (`ShaftClock.AngleAdvance`), one
 tooth per `TurnsPerTooth` turns: 144 turns a small gear and 240 a large one at 12. The finished gear
-goes into a container against the output face (native south, the cell beyond `output.pos`), else
-drops just outside that face, and the next blank comes in. W, the rig's `work`, is the teeth cut;
+drops just outside the output face (native south, the cell beyond `output.pos`). W, the rig's `work`, is the teeth cut;
 the server syncs it every tenth of a tooth and the renderer runs it on with the shaft between.
 
 **Oil and wear (#481).** The cutter is a MachineOil machine (`MachineOilSettings.GearCutter`: tank
@@ -1923,7 +1922,7 @@ in the tank a spray from the injection valve's nozzle at `drip.pos`.
 | `TurnsPerTooth` | 12 | Axle turns per tooth; the rig's `cut.turnsPerTooth` (a test holds them together) |
 | `CutterWearPerGear` | 10 | Kit durability a small gear costs at a full tank |
 | `Resistance` | 0.2 | The complete cutter's load, as the rosser's |
-| `MinSpeed` | 0.05 | Below it the cutter neither cuts nor takes a blank from its infeed |
+| `MinSpeed` | 0.05 | Below it the cutter does not cut |
 
 With the switch off the server marks the three block types, the five new item types and both
 recipe files disabled before the game loads them, so none of it exists and cutters already placed
@@ -2264,19 +2263,19 @@ Ctrl + right-click on an incomplete bench fits its next stage with nothing taken
 bench. Every other stage comes back only by breaking the frame, which drops the frame, every fitted
 item, the die with its durability, and a hollow no pipe section has been drawn from yet.
 
-**Work.** A lead or copper hollow section goes on by right-click, or from a chest or hopper in front of
-the die end (native north), one at a time while the shaft turns; an ingot, an angle or a pipe section
+**Work.** A lead or copper hollow section goes on by right-click, one at a time (the bench never takes
+from or puts into a chest or other container beside it); an ingot, an angle or a pipe section
 (what comes off) is never taken.
 **The die decides the metal:** an iron die draws lead only, a steel die lead and copper (`DieMetals`);
 copper on an iron die is refused with a message. The draw needs the shaft at `MinSpeed` and advances W,
 the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (1.373) turns for lead, the
 fast gear, and `TurnsPerSectionCopper` (2.746) for copper. Each section is handed out as its draw finishes,
 the jaws open on it (W passing 0.43125, 1.43125, 2.43125 and 3.43125, the rig's `draw.handOut`), not a
-return and a pause later: a pipe section of the metal goes into a container against the output face by
-the die end (native east), else drops just outside it, and the model stops showing it there. At 4, the
+return and a pause later: a pipe section of the metal drops just outside the output face by
+the die end (native east), and the model stops showing it there. At 4, the
 dog back at the die after the fourth stroke, the hollow is used up and the die
 loses `DieWearPerHollow` (1), whatever the oil; a worn-out die is gone (the tool-break sound) and the
-bench stops until a new one goes in. The next hollow comes in from the infeed a moment after.
+bench stops until a new one goes in.
 
 **Oil.** A MachineOil machine (`MachineOilSettings.DrawBench`: tank 1000, 2 points a pipe section, 8 a
 hollow), with the
@@ -2298,7 +2297,7 @@ drips from the oiler with oil in the tank, and the gears' sound.
 | `TurnsPerSectionCopper` | 2.746 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
 | `ResistanceLead` | 0.2 | The complete bench's load, empty or drawing lead |
 | `ResistanceCopper` | 0.35 | Its load drawing copper |
-| `MinSpeed` | 0.05 | Below it the bench neither draws nor takes a hollow from its infeed |
+| `MinSpeed` | 0.05 | Below it the bench does not draw |
 | `DieMetals` | iron: lead; steel: lead, copper | What each die draws (lead and copper only) |
 
 With the switch off the server marks the three block types, the die's item type and both recipe files
@@ -2346,11 +2345,9 @@ the cut runs only while someone holds. The treadle clock makes a stroke a second
 cut cycle W (0..1) advances by its strokes over the plate's `StrokesPerPlateLead` (1) or
 `StrokesPerPlateCopper` (1.5): about a second of work for lead, a second and a half for copper. The
 hold-down clamps the plate, the treadle brings the blade down through it (the cut is heard at the
-bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal go into a
-container against the output face (native north, in front of the table end), else drop just outside
-it. Worked with nothing on the table, the shear takes the next plate from a chest or hopper beyond its
-far end (native south), so a player can hold from one plate to the next; it never takes a plate by
-itself. The block info shows the next stage and the plate on, how far cut.
+bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal drop just
+outside the output face (native north, in front of the table end). Plates go on by hand only: the
+shear never takes from or puts into a chest or other container beside it. The block info shows the next stage and the plate on, how far cut.
 
 **Drawn.** The block draws `squaringshear_frame.json`; the renderer splits `squaringshear.json` into the
 rig's parts and draws each whose stage is fitted (the blades, the gauge and the hold-down in their
@@ -2413,10 +2410,8 @@ the fold cycle W (0..1) advances by its turns over the half plate's `LeverTurnsP
 `LeverTurnsPerPlateCopper` (2.25): about a second and a half of work for lead, two and a quarter for
 copper. The bar clamps the half on the bed and the leaf folds the other half up; the bend is heard at
 the leaf's one fold; at W = 1 the half plate is used up and one angle of its metal (two 4-wide legs, 4
-long) goes into a container against the output face (native north, in front of the leaf end), else drop
-just outside it. Worked with nothing on the bed, the brake takes the next half plate from a chest or
-hopper beyond its far end (native south), so a player can hold from one to the next; it never takes one
-by itself. The block info shows the next stage and the half plate on, how far folded.
+long) drops just outside the output face (native north, in front of the leaf end). Half plates go on
+by hand only: the brake never takes from or puts into a chest or other container beside it. The block info shows the next stage and the half plate on, how far folded.
 
 **Drawn.** The block draws `pressbrake_frame.json`; the renderer splits `pressbrake.json` into the
 rig's parts and draws each whose stage is fitted (the edges in their plate's metal, the screws always cupronickel) and the sheet of
@@ -2468,9 +2463,8 @@ tier over `BaseHammerTier` (2, the copper hammer's), over the hollow's `BlowsPer
 `BlowsPerHollowCopper` (14), at most half a hollow a blow; a hammer with no tier counts as the base. With
 the game's tiers (copper, gold, silver 2; bronzes 3; iron, meteoric iron 4; steel 5) lead takes 9, 6, 5
 and 4 blows and copper 14, 10, 7 and 6. When W reaches 1 the hollow is used up
-and two pipe sections of its metal go into a container beyond the tip (native south), else drop just
-past it. A blow on a bare mandrel takes the next hollow from a chest or hopper beside the station (native
-west), so a player can keep striking; it never takes one by itself. Without one there, right-click held
+and two pipe sections of its metal drop just past the tip (native south). The station never takes
+from or puts into a chest or other container beside it. Right-click held
 with the hammer as a hollow is finished puts the next of the same item on from the player's hotbar (not
 the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info shows what the
 station needs and the hollow on, its blows struck and how far it is forged.
@@ -2703,10 +2697,23 @@ once the first is off the infeed, its trunk kept through a save, and the rosser 
 task's 1.5). When something hurts it, the cause of the damage (the archer, not the arrow) is
 remembered unless it is a player or another eidolon. While that creature lives, is within 24 blocks
 and hurt it within the last 12 seconds (each blow landed renews that), the task runs: it goes for it at
-a run by the wide pathfinder and, once their boxes are within 1.6 blocks, strikes, a punch, a kick
-and a slam in turn (the shape's `stand-punch` and `stand-kick`, landing on frame 20, and `stand-slam`,
-both fists down on frame 40, where the archives' eidolon's own slam lets go; `EidolonDefence.Blow`),
-each punch or kick `DefenceDamage` and each slam `SlamDamage` × the world's creature damage
+a run, by the wide pathfinder from afar and straight at it within 8 blocks on the level (moving the
+traverser's goal each tick, as the game's seek task does), aiming where the creature's motion
+(measured each tick, smoothed) takes it by the time it gets there, up to a second ahead, and turning to
+face it at 4.5 radians a second. It strikes on the move: a jab, a jab and a two-fisted hammer in turn
+(only hammers at a creature under 1.5 blocks tall, which a jab would go over), the shape's
+`strike-jab` and `strike-hammer`, upper-body animations the entity type plays over the walk or run
+(weighted on the chest, head and arms only, so the legs keep walking), and it keeps closing while it
+strikes. Only at a creature standing still (under half a block a second) within reach does it stop for
+the standing blows, a punch, a kick and a slam in turn (vanilla's `stand-punch`, `stand-kick` and
+`stand-slam`). A blow is started only when the gap between their boxes, the creature's motion and its
+own carried on to the frame the blow lands on, will be within that blow's reach (the jab 1.1 blocks,
+the hammer 0.6, the punch 0.8, the kick 1.0, the slam 0.8: how far past its own 1.7-wide box the fists
+or foot get on that frame); it is judged on that frame from where the creature is then, landing only
+within its reach and half a block more, within 75° of where it faces and level with it, so a creature
+walking away is still hit and a blow that cannot land does not count (`EidolonStrikes` in
+`Eidolon/Core/EidolonStrikes.cs`). It stands off once their boxes are 0.4 apart. Each blow is
+`DefenceDamage`, every third (the slam or a hammer) `SlamDamage`, × the world's creature damage
 multiplier, blunt, tier 3. Then the order task starts its
 order again (a stay walks back to its place, a follow picks up the player). It starts only while the
 eidolon can work, and never strikes a player, whoever hurts it.
@@ -2975,8 +2982,8 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
 | `CommandRange` | 64 | How far a command tool's orders reach, in blocks |
 | `FollowDistance` | 4 | Following, how many blocks it keeps off the player |
 | `FollowRunDistance` | 10 | Following, it runs while further than this |
-| `DefenceDamage` | 10 | Each punch or kick when it defends itself (times the world's creature damage multiplier) |
-| `SlamDamage` | 16 | Each slam, every third blow (the same multiplier) |
+| `DefenceDamage` | 10 | Each blow when it defends itself or guards (times the world's creature damage multiplier) |
+| `SlamDamage` | 16 | Every third blow, the slam or a hammer (the same multiplier) |
 | `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
 | `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
 
@@ -2991,11 +2998,13 @@ knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and w
 (tallow starts it again), repairs it in a gantry (double) and in the open (a slumped one stands after
 three items, a whole one refuses), and flips `MachineOil` off (no reservoir, never dry);
 `tests/Eidolon/EidolonCommandingTests.cs` covers marking, binding, the follow gait and self-defence's
-rules, and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool as a player does:
+rules, `tests/Eidolon/EidolonStrikesTests.cs` its blows (which, by the creature's motion; when one lands;
+the lead; each an animation of the shape of its length), and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool as a player does:
 bound by its owner it follows them over rough ground (steps of one and two, a pillar) and then stays,
 waits and says so at a doorway too narrow, a stranger can neither bind it nor order it with a tool
 bound to it, and it strikes a wolf that hurt it until dead, never the player who hurt it, and walks
-back to its stay; `tests/Eidolon/EidolonCarryingTests.cs` covers the carry timings and stand points,
+back to its stay, and it runs down a drifter and then a wolf walking steadily away from it (1.5 blocks a
+second), striking each on the move until dead; `tests/Eidolon/EidolonCarryingTests.cs` covers the carry timings and stand points,
 and `tests/PackTests/EidolonCarryScenarios.cs` (Atlas) has it lift a chest of flint, refuse granite,
 open the chest while carried (what goes in stays in, and the load is in the entity's saved bytes),
 follow its commander 20 blocks and set the chest down with everything in it for a load's oil, and set
@@ -5356,9 +5365,8 @@ dropped beyond the output face, the master changed over, the wrong size refused 
 to a large gear (oil drained 10 and 20, kit worn 10 and 17); the kit's wear at full, half and a
 tenth of a tank, the load the same dry, a dry gear breaking the kit and no blank going on after, and
 a refit resuming a half-cut blank; Ctrl + right-click giving back the kit, the blank and the master
-in turn, and breaking giving back every part, the kit with its wear and the blank; and blanks taken
-from a chest at the infeed (not while the shaft stands, never the other size) and gears put in a
-chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks, items
+in turn, and breaking giving back every part, the kit with its wear and the blank; and a chest at
+either end left alone (no blank taken from it, the gear dropped rather than put in it). With the switch off, `SwitchesOffScenarios` requires none of its blocks, items
 or recipes.
 
 `tests/PackTests/DrawBenchScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
@@ -5377,9 +5385,9 @@ hollow is on, and the four pipe sections dropped beyond the output face, the hol
 lead too, a point a hollow; a die wearing only when a hollow is done and out on its last one, the load
 three times dry, no hollow without a die, a worn-out die refused and a new one drawing again; the die
 back by Ctrl from a ghost, and breaking giving back every part, the die with its wear and an undrawn
-hollow (not one with a pipe section off it); and hollows taken from a chest at the infeed (not while the
-shaft stands, never copper on an iron die, a pipe section or an ingot, the next a moment after the last)
-and pipe sections put in a chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks,
+hollow (not one with a pipe section off it); and a chest in front of the die
+end and one by the output face left alone (no hollow taken from the first, the pipe sections dropped
+rather than put in the second). With the switch off, `SwitchesOffScenarios` requires none of its blocks,
 dies or recipes, no link to them and the machine oil page without it, and nothing logged.
 `RecipeExportDrawBenchScenarios.cs` requires one `machine` record per metal (`drawbench|game:chutesection-{metal}|0`):
 the hollow, the four kept stages (two chains and two rods among them), the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
@@ -5389,7 +5397,7 @@ frame, four pipe sections.
 the press brake's blocks, the metal parts and plates its stages take, the lead and copper half plates it folds
 and the angles it makes, no anvil or grid recipe for an angle, its recipe, and the settings' pace the
 rig's; placing on all four facings, the brake running away along the facing, the ghost pointing home,
-both cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on
+both cells' lids, the outfeed cell, and both cells cleared and the frame dropped on
 breaking; the stages fitted in order by real clicks on the frame and the ghost, the edges before the
 screws, a half plate before both, an empty hand on a bare frame and a rod (the screws' old part) refused, a save keeping
 every code, Ctrl taking the edges then the screws back, and the creative shortcut; a lead half plate
@@ -5398,9 +5406,9 @@ moving when let go, a whole lead or copper plate, a chute section, a pipe sectio
 and an angle never taken, a half plate in hand working the lever on a loaded bed, and one angle dropped
 beyond the output face, the half plate used up; copper at half as many turns again; a flat half plate
 back by Ctrl, a part-folded one and the parts staying, and breaking giving back the parts and a flat
-half plate (not a part-folded one); and half plates taken from a chest at the infeed only when the lever
-is worked (never an ingot, an angle, a chute section or a whole plate) and angles put in a chest at the
-output. With the switch off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to
+half plate (not a part-folded one); and a chest beyond the far end and one in front of the leaf end left
+alone (no half plate taken from the first when the lever is worked, the angle dropped rather than put in
+the second). With the switch off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to
 it, no half plate (`SquaringShear` is off there too), and nothing logged. No Atlas world has the brake on
 and the shear off, so the brake's refusal there (`pressbrake-error-no-halfplates`) is not run.
 `RecipeExportPressBrakeScenarios.cs` requires one `machine` record per metal
@@ -5411,7 +5419,7 @@ angle, power `hand` at the lever's 1.5 or 2.25 turns, no wear and no oil.
 requires the shear's blocks and half plates (their names, a half plate melting into one ingot), the
 plates and rods its stages take, the lead and copper plates, its recipe and no other recipe for a half
 plate, and the settings' pace the rig's; placing on all four facings, the shear running away along the
-facing, the ghost pointing home, both cells' lids, the infeed and outfeed cells, and both cells cleared
+facing, the ghost pointing home, both cells' lids, the outfeed cell, and both cells cleared
 and the frame dropped on breaking; the stages fitted in order by real clicks on the frame and the
 ghost, the gauge before the blades, a plate before both, an empty hand on a bare frame and a copper rod
 refused, a save keeping every code, Ctrl taking the gauge then the blades back, and the creative
@@ -5420,8 +5428,8 @@ the ghost), nothing moving when let go, its own half plates, an angle, an ingot 
 taken, a plate in hand working the treadle on a loaded table, and two half plates dropped beyond the
 output face, the plate used up; copper at half as many strokes again; a whole plate back by Ctrl, a
 half-cut one and the parts staying, and breaking giving back the parts and a whole plate (not a half-cut
-one); and plates taken from a chest at the infeed only when the treadle is worked (never an ingot, a half
-plate or an angle) and half plates put in a chest at the output. With the switch off,
+one); and a chest beyond the far end and one in front of the table end left alone (no plate taken from
+the first when the treadle is worked, the half plates dropped rather than put in the second). With the switch off,
 `SwitchesOffScenarios` requires none of its blocks, no half plate and no recipe, no link to either, and
 nothing logged. `RecipeExportSquaringShearScenarios.cs` requires one `machine` record per metal
 (`squaringshear|game:metalplate-{metal}|0`): the plate, the two kept stages, the frame, two half plates,
@@ -5432,7 +5440,7 @@ the half plates and the frame's recipe owned by `SquaringShear`.
 requires the station's blocks, the rods it takes as its mandrel, the lead and copper hollows and pipe
 sections and a hammer, its recipe, its place in the mechanics tab, and the settings' pace the rig's;
 placing on all four facings, the station running away along the facing, the ghost pointing home, both
-cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on breaking; the
+cells' lids, the outfeed cell, and both cells cleared and the frame dropped on breaking; the
 mandrel fitted by a real click on the ghost, a hollow and a blow before it, a copper rod and an empty
 hand refused, a second rod refused, a save keeping it, Ctrl not taking it back (no help line for it), breaking giving it back, and the
 creative shortcut on a new station; a
@@ -5442,9 +5450,9 @@ a point a blow, a save keeping the blows, and two lead pipe sections dropped bey
 the hollow used up; copper at fourteen blows; a steel hammer forging lead in four blows, each two and a half
 of a copper one's, and copper in six; right-click held refilling from the hotbar a lead hollow at a time
 once a blow would be struck (never the copper one beside it), and nothing once the lead runs out; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
-breaking giving back the mandrel and an unstruck hollow (not a struck one); and hollows taken from a
-chest beside the stump only when struck (never an ingot, an angle or a pipe section) and sections put in
-a chest beyond the tip. With the switch off, `SwitchesOffScenarios` requires none of its blocks or
+breaking giving back the mandrel and an unstruck hollow (not a struck one); and a chest
+beside the stump and one beyond the tip left alone (no hollow taken from the first when struck, the
+sections dropped rather than put in the second). With the switch off, `SwitchesOffScenarios` requires none of its blocks or
 recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios.cs` requires one
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 9 or 14
