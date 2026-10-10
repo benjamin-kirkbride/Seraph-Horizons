@@ -169,7 +169,7 @@ public static class DistrictVeinSizes
             string oreCode = tr.Field("OreCode").GetValue<string>() ?? "";
             var variants = tr.Field("AllowedVariantsByInBlock").GetValue<Dictionary<string, List<string>>>();
             var (resolved, ingots) = IngotsPerBlock(oreCode, host, variants);
-            ores.Add(new DistrictOre(OreMetals.MetalOf(DistrictVeins.OreOfCode(oreCode)), tr.Field("Weight").GetValue<float>(),
+            ores.Add(new DistrictOre(OreMetals.WorldgenMetalOf(DistrictVeins.OreOfCode(oreCode)), tr.Field("Weight").GetValue<float>(),
                 resolved ? tr.Field("Density").GetValue<float>() : 0, ingots));
         }
         var k = kind switch
