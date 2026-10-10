@@ -2610,7 +2610,7 @@ out of its shape (every eidolon's, docked or not: the layer's elements from the 
 tessellation, `EidolonLayerElements`).
 
 Docked and **at full health only** (a damaged one is repaired first, double in the dock as before),
-Ctrl+right-click on it strips its outermost layer: skirt, sash, plates, joints, bones, never the torso or
+Ctrl+right-click on it by its owner or their company strips its outermost layer: skirt, sash, plates, joints, bones, never the torso or
 the mind. Each strip gives the player the layer's whole bill (`EidolonFittings.Bill`: its material and its
 Jonas parts; what does not fit drops at their feet), and its `eidolonFittings` record loses the layer, so
 its look and figures follow (its most health keeps its share: a whole one stays whole). The gantry's body
@@ -2621,7 +2621,7 @@ eidolon the moment it is complete. Pieces of a layer part fitted are the gantry'
 them back first, and breaking the gantry or waking the eidolon gives them back. **A turn of the crank
 wakes it** once all five layers are on (else it names the first that is not): it plays `activate`, walks
 3 blocks out of the front and goes back to the order it docked from (follow, stay, guard, a job; not a
-`goto`). **Breaking the gantry** with an eidolon docked lets it go, layers and all, standing up where it
+`goto`), or to one given it while docked, which it holds until then. **Breaking the gantry** with an eidolon docked lets it go, layers and all, standing up where it
 hung; the gantry gives back its frame, its winch and only a layer's loose pieces. Tests:
 `tests/Eidolon/EidolonDockingTests.cs` and `tests/PackTests/EidolonDockScenarios.cs` (Atlas: docked by
 the tool's mode at the nearest gantry and held hung, pushed and not moved; stripping refused away from a

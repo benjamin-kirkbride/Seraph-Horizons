@@ -474,7 +474,7 @@ and `Game/DockOrder.cs`.
   gantry's chunk in and the gantry gone or holding another, it lets go (`Release`: `activate`, no order);
   the gantry lets an eidolon go that is loaded but not docked on it, or missing from a loaded chunk three
   checks running.
-- **Stripping** (Ctrl+right-click, any hand; the machines' take-back key). `EidolonDocking.CanStrip`: only
+- **Stripping** (Ctrl+right-click, any hand, by its owner and their company; the machines' take-back key). `EidolonDocking.CanStrip`: only
   docked, only at full health (`EidolonBuild.CanStrip`), only with a layer on; outermost first
   (`EidolonBuild.NextToStrip`). Pieces of a layer part fitted come back before any layer. The layer's
   whole bill goes to the player (`TryGiveItemStack`, the rest dropped at their feet), the gantry's stage is
@@ -487,7 +487,8 @@ and `Game/DockOrder.cs`.
   the gantry. A layer completed is written to the eidolon at once. A repair item on a damaged eidolon is
   the repair's, not the fitting's.
 - **Waking.** The crank (`OnCrank`) with all five layers on (`EidolonDocking.CanWake`) clears the dock,
-  plays `activate` and gives a `goto` 3 blocks out of the front whose `then` is the order it docked from;
+  plays `activate` and gives a `goto` 3 blocks out of the front whose `then` is the order it was given
+  while docked (orders are taken then, and wait), else the one it docked from;
   the gantry's spine is bare again (loose pieces given back at the front).
 
 Tests: `tests/Eidolon/EidolonDockingTests.cs` (timing, the verdicts, the docked body, refitting in another

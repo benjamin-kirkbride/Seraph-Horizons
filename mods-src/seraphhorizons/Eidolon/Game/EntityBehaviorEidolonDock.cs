@@ -109,10 +109,12 @@ public class EntityBehaviorEidolonDock(Entity entity) : EntityBehavior(entity)
     }
 
     /// <summary>Wakes it on the crank (server side): the gantry lets go, it plays <c>activate</c> and walks
-    /// to <paramref name="walkTo"/>, out of the open front, then takes up the order it docked from.</summary>
+    /// to <paramref name="walkTo"/>, out of the open front, then takes up the order it was given while
+    /// docked, or else the one it docked from.</summary>
     public void Wake(Vec3d? walkTo)
     {
-        var then = Tree?.GetTreeAttribute("then");
+        var given = Eidolon.Orders is { OrderArgs: { } args } orders && EidolonDocking.Resumes(orders.OrderCode) ? args : null;
+        var then = given ?? Tree?.GetTreeAttribute("then");
         Clear();
         Eidolon.Activate();
         if (walkTo != null)

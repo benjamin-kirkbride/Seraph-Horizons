@@ -306,8 +306,8 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     // Docked, with the gantry and the eidolon in one chunk column: unloaded (saved) and loaded again, the
-    // eidolon (the same entity id) is still docked, hung on its point, and the gantry holds it; it strips
-    // and wakes as before.
+    // eidolon (the same entity id) is still docked, hung on its point, and the gantry holds it. An order
+    // given while docked waits; it strips and wakes as before, then takes up that order.
     [AtlasScenario(TimeoutMs = 300_000)]
     public async Task Docked_it_stays_docked_through_unloading_and_loading()
     {
@@ -349,7 +349,12 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         AssertHung(again!, gantryAgain!);
         Assert.Equal(EidolonBuild.OldBuild, again!.Build);
 
-        // it strips and wakes as before
+        // an order given while docked waits: it stays hung
+        again.Orders!.SetOrder(FollowOrder.OrderCode, FollowOrder.Args(player));
+        await World.Ticks(40);
+        AssertHung(again, gantryAgain!);
+
+        // it strips and wakes as before, then follows
         Empty(player);
         ClickEntity(player, again, null, ctrl: true);
         Assert.Equal(EidolonBuild.OldBuild.Stripped(), again.Build);
@@ -357,6 +362,8 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(ClickGantry(player, Crank(gantryAgain!), null));
         Assert.Equal(DockPhase.None, again.Dock!.Phase);
         Assert.False(BodyOf(gantryAgain!).HoldsEidolon);
+        Assert.Equal(GoToOrder.OrderCode, again.Orders.OrderCode);
+        await World.Until(() => again.Orders.OrderCode == FollowOrder.OrderCode, 2400);
 
         again.Die(EnumDespawnReason.Removed);
         W.BlockAccessor.GetBlock(origin).OnBlockBroken(W, origin, player);

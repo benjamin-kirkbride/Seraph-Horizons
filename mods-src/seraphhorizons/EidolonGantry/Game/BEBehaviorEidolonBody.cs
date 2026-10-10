@@ -478,7 +478,8 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         dsc.AppendLine(L("info-body-next", StageName(next), string.Join(", ", needs)));
         if (BodyBill.LayerOf(next) is { } open && _parts.Material(open) is { } chosen)
             dsc.AppendLine(L("info-body-material", StageName(next), MaterialName(open, chosen)));
-        var after = BodyBill.Order.SkipWhile(s => s != next).Skip(1).ToList();
+        // (a docked eidolon's mind is in already)
+        var after = BodyBill.Order.SkipWhile(s => s != next).Skip(1).Where(s => !_parts.StageComplete(s)).ToList();
         if (after.Count > 0)
             dsc.AppendLine(L("info-then", string.Join(", ", after.Select(s => StageName(s)))));
     }
