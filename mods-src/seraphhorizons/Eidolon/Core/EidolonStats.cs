@@ -42,6 +42,16 @@ public sealed record EidolonStats(
         settings.AllSteelHealth
         / (settings.PlateHealth.Steel * settings.JointHealth.Steel * settings.SkirtHealth.Steel);
 
+    /// <summary>The health an eidolon at <paramref name="health"/> of <paramref name="oldMax"/> has when
+    /// its most becomes <paramref name="newMax"/>: the same share of it (a layer swapped on a docked
+    /// eidolon neither heals nor hurts it). With no old most to take a share of, full.</summary>
+    public static double KeepShare(double health, double oldMax, double newMax)
+    {
+        if (!(oldMax > 0) || !double.IsFinite(health))
+            return newMax;
+        return Math.Clamp(health / oldMax, 0, 1) * newMax;
+    }
+
     /// <summary>A hit of <paramref name="damage"/> at <paramref name="damageTier"/> as this eidolon's
     /// armour leaves it (<see cref="EidolonArmour.Reduce"/>); unchanged with no plates.</summary>
     public float Reduce(float damage, int damageTier, ArmourTierLoss loss) =>

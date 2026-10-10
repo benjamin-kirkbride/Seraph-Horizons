@@ -102,10 +102,12 @@ public class EidolonSystem : ModSystem
     /// Spawns an eidolon at <paramref name="pos"/> facing <paramref name="yaw"/>, owned by
     /// <paramref name="owner"/> (null: nobody), charged with <paramref name="gears"/> temporal gears'
     /// worth; with <paramref name="activate"/> it plays <c>activate</c> as it appears, the gantry's
-    /// waking (#672: place it at the gantry's <c>body</c> point, facing out of its front). Server side;
-    /// null when eidolons are off.
+    /// waking (#672: place it at the gantry's <c>body</c> point, facing out of its front), fitted as
+    /// <paramref name="build"/> (null: none written, which reads as <see cref="EidolonBuild.OldBuild"/>).
+    /// Server side; null when eidolons are off.
     /// </summary>
-    public EntityLaborEidolon? Spawn(IWorldAccessor world, Vec3d pos, float yaw, IPlayer? owner, bool activate, double gears = 1)
+    public EntityLaborEidolon? Spawn(IWorldAccessor world, Vec3d pos, float yaw, IPlayer? owner, bool activate, double gears = 1,
+        EidolonBuild? build = null)
     {
         if (!Enabled || world.Side != EnumAppSide.Server || world.GetEntityType(EntityCode) is not { } type)
             return null;
@@ -116,6 +118,8 @@ public class EidolonSystem : ModSystem
         eidolon.PositionBeforeFalling.Set(pos);
         eidolon.SetOwner(owner?.PlayerUID, owner?.PlayerName);
         eidolon.WatchedAttributes.SetBool("noSpawnAnim", true);
+        if (build != null)
+            eidolon.Build = build;
         world.SpawnEntity(eidolon);
         if (eidolon.GetBehavior<EntityBehaviorEidolonCharge>() is { } charge)
             charge.ChargeDays = gears * charge.DaysPerGear;

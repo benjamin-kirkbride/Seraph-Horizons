@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.Eidolon.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
@@ -23,6 +24,13 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <see cref="MayCommand"/> or <see cref="RefuseUnlessCommander"/>; orders run through
 /// <see cref="EntityBehaviorEidolonOrders"/> and <see cref="AiTaskEidolonOrder"/>; while it cannot
 /// work, no AI task starts and those running are stopped.</para>
+///
+/// <para>It is its fittings (<see cref="Build"/>, Eidolon/README.md, "Fittings"): its layers'
+/// materials, in its watched attributes, give its figures (<see cref="FittedStats"/>, from
+/// <see cref="EidolonStats.Of"/>): its most health, its walking and running speed, its blows and its
+/// plates' armour; and its renderer draws each layer in its material
+/// (<see cref="EidolonShapeRenderer"/>). Changing the record (<see cref="Build"/>'s setter, or the
+/// attribute written another way) applies at once.</para>
 /// </summary>
 public class EntityLaborEidolon : EntityAgent
 {
@@ -34,6 +42,9 @@ public class EntityLaborEidolon : EntityAgent
     public const string SlumpedKey = "seraphhorizons:slumped";
     /// <summary>Set at 0 HP, cleared once repaired to <see cref="EidolonConfig.StandUpHealthShare"/>.</summary>
     public const string DownedKey = "seraphhorizons:downed";
+    /// <summary>Its figures as the server worked them out (watched, for the client's info): the blows'
+    /// damage, the move speed's multiplier and the armour.</summary>
+    public const string StatsKey = "seraphhorizons:eidolonStats";
 
     /// <summary>The lengths of the shape's one-shots, at 30 frames a second (Eidolon/README.md).</summary>
     public const double StandUpSeconds = 60 / 30.0;
@@ -43,6 +54,8 @@ public class EntityLaborEidolon : EntityAgent
 
     private float _sinceCheck = CheckSeconds;
     private bool _workingWhenChecked;
+    private EidolonBuild? _appliedBuild;
+    private EidolonStats? _stats;
 
     /// <summary>Slumping and standing up (server side).</summary>
     public EidolonPose Pose { get; } = new();
@@ -62,6 +75,39 @@ public class EntityLaborEidolon : EntityAgent
     public EntityBehaviorEidolonOrders? Orders => GetBehavior<EntityBehaviorEidolonOrders>();
 
     private EidolonConfig Settings => EidolonSystem.Of(Api)?.Config ?? EidolonConfig.Defaults;
+
+    /// <summary>Its fittings: the record under <see cref="EidolonBuild.AttributeKey"/> in its watched
+    /// attributes, or with none (an eidolon from before fittings) <see cref="EidolonBuild.OldBuild"/>.
+    /// Set on the server; its figures and look follow.</summary>
+    public EidolonBuild Build
+    {
+        get => ReadBuild(WatchedAttributes);
+        set => WriteBuild(WatchedAttributes, value);
+    }
+
+    /// <summary>The build kept in <paramref name="attributes"/> (<see cref="EidolonBuild.FromAttributes"/>).</summary>
+    public static EidolonBuild ReadBuild(ITreeAttribute attributes)
+    {
+        if (attributes.GetTreeAttribute(EidolonBuild.AttributeKey) is not { } tree)
+            return EidolonBuild.OldBuild;
+        return EidolonBuild.FromAttributes(EidolonFittings.Layers.Select(EidolonFittings.TextureCode)
+            .ToDictionary(code => code, code => (string?)tree.GetString(code)));
+    }
+
+    /// <summary>Writes <paramref name="build"/> into <paramref name="attributes"/> (a synced tree marks it
+    /// dirty, so it reaches the clients and its listeners run).</summary>
+    public static void WriteBuild(ITreeAttribute attributes, EidolonBuild build)
+    {
+        var tree = new TreeAttribute();
+        foreach (var (code, material) in build.ToAttributes())
+            tree.SetString(code, material);
+        attributes[EidolonBuild.AttributeKey] = tree;
+        (attributes as SyncedTreeAttribute)?.MarkPathDirty(EidolonBuild.AttributeKey);
+    }
+
+    /// <summary>Its figures from its fittings and the server's settings (server side; worked out again
+    /// whenever <see cref="Build"/> changes).</summary>
+    public EidolonStats FittedStats => _stats ??= EidolonStats.Of(Build, Settings);
 
     /// <summary>Its oil (null without the behaviour; its <c>Tank</c> null with MachineOil off).</summary>
     public EntityBehaviorEidolonOil? Oil => GetBehavior<EntityBehaviorEidolonOil>();
@@ -91,6 +137,65 @@ public class EntityLaborEidolon : EntityAgent
         base.Initialize(properties, api, InChunkIndex3d);
         if (api.Side == EnumAppSide.Server && TaskAi is { } ai)
             ai.TaskManager.OnShouldExecuteTask += _ => CanWork;
+        if (api.Side == EnumAppSide.Server)
+        {
+            if (GetBehavior<EntityBehaviorHealth>() is { } health)
+                health.onDamaged += Armour;
+            ApplyFittings();
+        }
+        WatchedAttributes.RegisterModifiedListener(EidolonBuild.AttributeKey, OnFittingsChanged);
+    }
+
+    private void OnFittingsChanged()
+    {
+        if (Api.Side == EnumAppSide.Server)
+            ApplyFittings();
+        else
+            MarkShapeModified();
+    }
+
+    /// <summary>Works its figures out again from <see cref="Build"/> when it has changed since they last
+    /// were: its most health (keeping the share of it it has, <see cref="EidolonStats.KeepShare"/>), and
+    /// the figures the client shows (<see cref="StatsKey"/>). The speeds, blows and armour are read
+    /// from <see cref="FittedStats"/> where they are used. Server side.</summary>
+    public void ApplyFittings()
+    {
+        if (Api?.Side != EnumAppSide.Server)
+            return;
+        var build = Build;
+        if (build.Equals(_appliedBuild))
+            return;
+        _appliedBuild = build;
+        var stats = _stats = EidolonStats.Of(build, Settings);
+        if (GetBehavior<EntityBehaviorHealth>() is { } health && Math.Abs(health.BaseMaxHealth - stats.MaxHealth) > 0.01)
+        {
+            float was = health.Health, wasMax = health.MaxHealth;
+            health.BaseMaxHealth = (float)stats.MaxHealth;
+            health.MarkDirty();
+            health.Health = (float)EidolonStats.KeepShare(was, wasMax, health.MaxHealth);
+        }
+        var shown = new TreeAttribute();
+        shown.SetFloat("defence", stats.DefenceDamage);
+        shown.SetFloat("slam", stats.SlamDamage);
+        shown.SetFloat("speed", Settings.WalkSpeed > 0 ? stats.WalkSpeed / Settings.WalkSpeed : 1);
+        if (stats.Armour is { } armour)
+        {
+            shown.SetInt("armourTier", armour.ProtectionTier);
+            shown.SetFloat("armourRelative", (float)armour.RelativeProtection);
+            shown.SetFloat("armourFlat", (float)armour.FlatDamageReduction);
+        }
+        WatchedAttributes[StatsKey] = shown;
+        WatchedAttributes.MarkPathDirty(StatsKey);
+    }
+
+    /// <summary>The plates' armour on a hit (the health behaviour's damage delegate, as the game's
+    /// worn armour is on a player): a blunt, piercing or slashing attack is reduced as a full suit of
+    /// the plates' metal would reduce it (<see cref="EidolonArmour"/>); anything else passes.</summary>
+    private float Armour(float damage, DamageSource source)
+    {
+        if (!EidolonArmour.Applies(source.Type.ToString(), source.Source.ToString()))
+            return damage;
+        return FittedStats.Reduce(damage, source.DamageTier, Settings.ArmourLoss);
     }
 
     public override void OnEntitySpawn()
@@ -186,6 +291,7 @@ public class EntityLaborEidolon : EntityAgent
     {
         if (Api.Side != EnumAppSide.Server)
             return;
+        ApplyFittings();
         bool running = Pose.State != EidolonPoseState.Slumped;
         var upkeeps = SidedProperties.Behaviors.OfType<IEidolonUpkeep>().ToList();
         foreach (var upkeep in upkeeps)
@@ -287,6 +393,25 @@ public class EntityLaborEidolon : EntityAgent
             : Lang.Get("seraphhorizons:eidolon-info-owner", OwnerName ?? "?"));
         if (WatchedAttributes.GetString(StopKey) is { Length: > 0 } stop)
             text.AppendLine(Lang.Get("seraphhorizons:eidolon-stop-" + stop));
+        AppendFittings(text);
         return text.ToString();
+    }
+
+    /// <summary>Its fittings, then the figures the server sent (<see cref="StatsKey"/>).</summary>
+    private void AppendFittings(StringBuilder text)
+    {
+        var layers = EidolonFittingText.Layers(Build)
+            .Select(l => Lang.Get("seraphhorizons:eidolon-info-layer", Get(l.Material), Lang.Get(l.Layer)));
+        text.AppendLine(Lang.Get("seraphhorizons:eidolon-info-fittings", string.Join(", ", layers)));
+        if (WatchedAttributes.GetTreeAttribute(StatsKey) is not { } stats)
+            return;
+        text.AppendLine(stats.HasAttribute("armourTier")
+            ? Lang.Get("seraphhorizons:eidolon-info-armour", stats.GetInt("armourTier"),
+                stats.GetFloat("armourRelative") * 100, stats.GetFloat("armourFlat"))
+            : Lang.Get("seraphhorizons:eidolon-info-noarmour"));
+        text.AppendLine(Lang.Get("seraphhorizons:eidolon-info-blows", stats.GetFloat("defence"), stats.GetFloat("slam"),
+            stats.GetFloat("speed", 1) * 100));
+
+        static string Get(FittingName t) => Lang.Get(t.Key, t.ArgKeys.Select(k => (object)Lang.Get(k)).ToArray());
     }
 }

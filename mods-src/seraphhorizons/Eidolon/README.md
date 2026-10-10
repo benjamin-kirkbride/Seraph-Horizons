@@ -401,6 +401,43 @@ halved for plate (`highDamageTierResistant`); then damage = max(0, damage − fl
 The game picks a random armour slot, which for a full suit of one metal changes nothing, and wears the
 piece; the eidolon's plates do not wear.
 
+### On the woken eidolon
+
+`EntityLaborEidolon.Build` reads and writes the record in its watched attributes (`ReadBuild` and
+`WriteBuild` do the same on any tree, e.g. for the gantry's hung body); writing it any way applies at once.
+
+- **Look.** `EidolonShapeRenderer` is the texture source the shape is tessellated with (the game's
+  `EntityShapeRenderer` tessellates with `TexSource = this`, its virtual indexer). Before each
+  tessellation, on the main thread, it looks up each worn layer's texture (`EidolonBuild.Textures`) in the
+  entity texture atlas, inserting it the first time (`GetOrInsertTexture` with a `CompositeTexture`), and
+  its indexer returns those for the five layer codes and the shape's own for the rest. A change re-tessellates:
+  the entity's modified-listener on `eidolonFittings` marks the shape modified on the client, and the
+  renderer also compares the record once a second (a `RemoveAttribute` fires no listener).
+- **Figures** (server; `ApplyFittings`, run from that listener, at `Initialize` and in every `Check`,
+  doing nothing when the record has not changed): `EidolonStats.Of(build, settings)` as `FittedStats`.
+  The health behaviour's `BaseMaxHealth` becomes `MaxHealth` and the health keeps its share of the most
+  (`EidolonStats.KeepShare`), so an old eidolon at 300 stays 300. The navigator walks and runs at
+  `FittedStats`' speeds (the traverser's speed, for paths and steering alike), the defence task strikes for
+  its `DefenceDamage` and `SlamDamage` (`AiTaskEidolonDefend.StrikeDamage`), and the armour is a
+  delegate on the health behaviour's `onDamaged`, as the game's worn armour is on a player: before the
+  health is taken, `EidolonArmour.Applies` on the hit's type and source, then `Reduce` at its
+  `DamageTier`. A blow the armour takes whole still provokes the defence (the task AI hears every hit).
+  At 0 HP it slumps as before; armour changes only how fast it gets there.
+- **Info.** The server writes the figures it worked out under `seraphhorizons:eidolonStats` (blows,
+  slams, the move speed's multiplier, the armour), which the info text shows under a "Fittings:" line
+  naming each layer by the game's material and colour names (`Core/EidolonFittingText.cs`).
+- **`/sh eidolon spawn [player] [layer=material ...]`** spawns the old build with the named layers
+  changed, `fit layer=material ...` changes the nearest one's (`Core/EidolonBuildSpec.cs`: `bones=pine
+  plates=brass sash=cloth-red`, `stainless` for `stainlesssteel`, `all=` the three metal layers), and
+  `info` shows the build and figures.
+
+Tests: `tests/Eidolon/EidolonWornFittingsTests.cs`, and the Atlas class `EidolonFittedScenarios` (a
+brass, an iron and a stainless build's health, walking and running speed as the traverser has them and
+blows; a wolf struck for the brass build's damage; each plate metal against blows of four tiers, as the
+maths says, internal harm and fire passing; no record is the old all-steel eidolon at 300; a changed
+record, through the property or straight into the attribute, changes the figures at once and keeps the
+share of health, and taking it away goes back to the old build).
+
 ## Open questions
 
 - **Size.** At size 1 the eidolon is 3.75 blocks tall (vanilla's boss size), a giant beside a
