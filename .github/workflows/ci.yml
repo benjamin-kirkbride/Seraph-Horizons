@@ -160,7 +160,10 @@ jobs:
     # class lands there, and a new plain-world trading feature joins TradingScenarios. `switches`
     # is four classes that cannot share the plain world: SwitchesOffScenarios and
     # ConfigDefaultsScenarios (each its own ModConfig), ClearCommandScenarios (a survival world)
-    # and HandcarScenarios (three players, and the shared world has no slots left). `trunks` is the trunk entity classes and the
+    # and HandcarScenarios (three players, and the shared world has no slots left). The eidolon's
+    # Eidolon* classes (each its own plain world, a server boot apiece) are two shards: `eidolon` the
+    # entity and the command tool, `eidolon-jobs` every other Eidolon* class (carrying, felling,
+    # guarding), so a new one joins it. `trunks` is the trunk entity classes and the
     # pickling tub, each joining more players than the plain world has slots left for. `rest` is
     # the complement filter, so any other new class lands there without anyone having to list it.
     # Each shard's dotnet test run should stay under about four minutes, and the job under five.
@@ -182,6 +185,10 @@ jobs:
             filter: FullyQualifiedName~PackTests.WoodworkingRosserScenarios.
           - shard: woodworking-eidolon
             filter: FullyQualifiedName~PackTests.WoodworkingEidolonScenarios.
+          - shard: eidolon
+            filter: FullyQualifiedName~PackTests.EidolonScenarios.|FullyQualifiedName~PackTests.EidolonCommanderScenarios.
+          - shard: eidolon-jobs
+            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.
           - shard: ore
             filter: FullyQualifiedName~PackTests.Ore
           - shard: trading-core
@@ -193,7 +200,7 @@ jobs:
           - shard: trunks
             filter: FullyQualifiedName~PackTests.TrunkEntityScenarios.|FullyQualifiedName~PackTests.TrunkCarryScenarios.|FullyQualifiedName~PackTests.PicklingTubScenarios.
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ConfigDefaultsScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Eidolon&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ConfigDefaultsScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
