@@ -58,9 +58,7 @@ public class DrawBenchRigTests
         Assert.All(rig.Cells, c => Assert.NotNull(c.Lid));
         Assert.Equal(new Int3(0, 0, 3), rig.PowerCell);
         Assert.Equal(Side.West, rig.PowerFace);
-        Assert.Equal(Side.North, rig.InfeedSide);
         Assert.Equal(Side.East, rig.OutputSide);
-        Assert.Equal([new Int3(0, 0, -1)], rig.InfeedNeighbours());
         // the pipe sections come off by the die end's east face, from the trough's first slot
         Assert.Equal(new Int3(1, 0, 0), rig.OutputNeighbour());
         // the anchors lie in the bench

@@ -16,8 +16,6 @@ public sealed class DrawBenchRig
     public IReadOnlyList<RigCell> Cells { get; }
     public Int3 PowerCell { get; }
     public Side PowerFace { get; }
-    /// <summary>The face a chest or hopper feeds hollow sections through.</summary>
-    public Side InfeedSide { get; }
     /// <summary>The face a drawn section leaves by.</summary>
     public Side OutputSide { get; }
     /// <summary>Where a drawn section comes off (on the output face, by the trough's north end).</summary>
@@ -31,7 +29,7 @@ public sealed class DrawBenchRig
     public IReadOnlyList<float> TurnsPerSection { get; }
     public RigParts MovingParts { get; }
 
-    public DrawBenchRig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Side infeedSide, Side outputSide,
+    public DrawBenchRig(IReadOnlyList<RigCell> cells, Int3 powerCell, Side powerFace, Side outputSide,
                         Float3 output, Float3 die, Float3 drip, WorkQuantity work, float turnsPerSectionLead, float turnsPerSectionCopper,
                         RigParts? movingParts = null)
     {
@@ -48,8 +46,6 @@ public sealed class DrawBenchRig
             throw new FormatException("powerCell is the controller's cell; it must be a ghost cell");
         if (positions.Contains(powerCell + powerFace.Normal()))
             throw new FormatException($"powerCell {powerCell}'s face {powerFace.Code()} is inside the footprint");
-        if (infeedSide == outputSide)
-            throw new FormatException("infeedSide and outputSide are the same face");
         if (!(turnsPerSectionLead > 0) || !float.IsFinite(turnsPerSectionLead) || !(turnsPerSectionCopper > 0) || !float.IsFinite(turnsPerSectionCopper))
             throw new FormatException("draw.turnsPerSection must be above 0 for both metals");
         if (work.Ends[1] != Drawing.SectionsPerHollow || work.Ends[2] != Drawing.SectionsPerHollow)
@@ -57,7 +53,6 @@ public sealed class DrawBenchRig
         Cells = cells;
         PowerCell = powerCell;
         PowerFace = powerFace;
-        InfeedSide = infeedSide;
         OutputSide = outputSide;
         Output = output;
         Die = die;
@@ -75,20 +70,8 @@ public sealed class DrawBenchRig
     /// <summary>The cells other than the controller's, in file order.</summary>
     public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
-    /// <summary>The cells just outside a face of the footprint: where a container against that
-    /// face stands.</summary>
-    public IEnumerable<Int3> Neighbours(Side side)
-    {
-        var step = side.Normal();
-        var occupied = Cells.Select(c => c.Pos).ToHashSet();
-        return Cells.Select(c => c.Pos + step).Where(p => !occupied.Contains(p)).Distinct();
-    }
-
-    /// <summary>Where a chest or hopper feeds hollow sections from (beyond the die end).</summary>
-    public IEnumerable<Int3> InfeedNeighbours() => Neighbours(InfeedSide);
-
-    /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell: a container
-    /// there takes the drawn sections.</summary>
+    /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell, where the drawn sections
+    /// are dropped.</summary>
     public Int3 OutputNeighbour()
     {
         var cell = new Int3((int)MathF.Floor(Output.X), (int)MathF.Floor(Output.Y), (int)MathF.Floor(Output.Z));
@@ -99,7 +82,7 @@ public sealed class DrawBenchRig
         return cell;
     }
 
-    /// <summary>Where a drawn section is dropped when no container takes it: <see cref="Output"/>
+    /// <summary>Where a drawn section is dropped: <see cref="Output"/>
     /// moved out through the output face to <paramref name="beyond"/> blocks past it.</summary>
     public Float3 OutputDrop(float beyond = 0.15f)
     {
@@ -142,7 +125,6 @@ public sealed class DrawBenchRig
             Cells(root),
             Int3Of(Required(root, "powerCell", JsonValueKind.Array), "powerCell"),
             SideOf(Required(root, "powerFace", JsonValueKind.String), "powerFace"),
-            SideOf(Required(root, "infeedSide", JsonValueKind.String), "infeedSide"),
             SideOf(Required(root, "outputSide", JsonValueKind.String), "outputSide"),
             Anchor("output"),
             Anchor("die"),

@@ -148,9 +148,7 @@ public partial class SharedWorldScenarios
             }
             Assert.Equal("Mandrel forging station frame", W.BlockAccessor.GetBlock(pos).GetPlacedBlockName(W, pos));
             Assert.Equal("Mandrel forging station frame", W.BlockAccessor.GetBlock(ghost).GetPlacedBlockName(W, ghost));
-            // the infeed is beside the stump (native west), the outfeed beyond the tip
-            var west = Footprint.ToWorld(Side.West, side).Normal();
-            Assert.Contains(pos.AddCopy(west.X, 0, west.Z), MandrelRig.InfeedNeighbours().Select(station.CellPos));
+            // the sections drop beyond the tip
             Assert.Equal(pos.AddCopy(2 * n.X, 0, 2 * n.Z), station.CellPos(MandrelRig.OutputNeighbour()));
 
             W.BlockAccessor.GetBlock(ghost).OnBlockBroken(W, ghost, player);
@@ -243,7 +241,7 @@ public partial class SharedWorldScenarios
             Assert.Equal(1, CutterClick(player, pos, CutterItem(code))?.StackSize);
             Assert.False(station.HollowOn, $"{code} went on");
         }
-        // a blow on a bare mandrel with no infeed does nothing
+        // a blow on a bare mandrel does nothing
         Assert.NotNull(CutterClick(player, pos, CutterItem(MandrelHammer)));
         Assert.True(_cutterHandled);
         Assert.False(station.HollowOn);
@@ -523,57 +521,42 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
-    // ---- Infeed and outfeed ----
+    // ---- Chests ----
 
-    // A blow on a bare mandrel takes a hollow from a chest beside the stump, never anything else (an
-    // ingot, an angle, a pipe section), and the sections go into a chest beyond the tip.
+    // A chest beside the stump and one beyond the tip are left alone: a blow on the bare mandrel takes
+    // no hollow from the first, and the sections of a hollow put on by hand drop beyond the tip rather
+    // than going into the second.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Mandrel_station_takes_hollows_from_a_chest_when_struck_and_puts_sections_in_one()
+    public async Task Mandrel_station_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-508, -480);
         var player = await CutterPlayer();
         var station = await PlaceMandrelStation(pos, "north");
         FitMandrel(station, player);
         var infeed = station.CellPos(new Int3(-1, 0, 0));
-        Assert.Contains(new Int3(-1, 0, 0), MandrelRig.InfeedNeighbours());
         var outfeed = station.CellPos(MandrelRig.OutputNeighbour());
         World.SetBlock("game:chest-east", infeed);
         World.SetBlock("game:chest-east", outfeed);
         await World.Ticks(3);
         var source = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(infeed));
         var sink = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(outfeed));
-        source.Inventory[0].Itemstack = CutterItem("game:ingot-copper");
-        source.Inventory[1].Itemstack = CutterItem("seraphhorizons:angle-lead");
-        source.Inventory[2].Itemstack = CutterItem(Forging.LeadHollow, 2);
-        source.Inventory[3].Itemstack = CutterItem(PipeSectionCopper);
+        source.Inventory[0].Itemstack = CutterItem(Forging.LeadHollow, 2);
         source.MarkDirty(true);
 
-        // a hand station: nothing is taken until it is struck
         await World.Ticks(20);
-        Assert.False(station.HollowOn);
         var hammer = CutterItem(MandrelHammer);
         CutterClick(player, pos, hammer);
+        Assert.False(station.HollowOn);
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        Assert.Null(CutterClick(player, pos, CutterItem(Forging.LeadHollow)));
         Assert.True(station.HollowOn);
-        Assert.Equal(1, station.Job.Class);
-        Assert.Equal(0, station.Job.Blows);
-        Assert.Equal(1, source.Inventory[2].StackSize);
         for (int b = 0; b < MandrelMod.Config.BlowsPerHollowLead; b++)
             await MandrelBlow(station, player, hammer);
         Assert.False(station.HollowOn);
-        Assert.Equal(2, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == PipeSectionLead).Sum(s => s.StackSize));
-        Assert.DoesNotContain(PipeSectionLead, CutterItemsNear(pos).Keys);
-        // struck again, the next hollow goes on
-        CutterClick(player, pos, hammer);
-        Assert.True(station.HollowOn);
-        Assert.True(source.Inventory[2].Empty);
-        for (int b = 0; b < MandrelMod.Config.BlowsPerHollowLead; b++)
-            await MandrelBlow(station, player, hammer);
-        Assert.Equal(4, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == PipeSectionLead).Sum(s => s.StackSize));
-        // only the ingot, the angle and the pipe section are left, and nothing goes on
-        CutterClick(player, pos, hammer);
-        Assert.False(station.HollowOn);
-        Assert.Equal(1, source.Inventory[0].StackSize);
-        Assert.Equal(1, source.Inventory[1].StackSize);
-        Assert.Equal(1, source.Inventory[3].StackSize);
+        await World.Ticks(5);
+        Assert.All(sink.Inventory, s => Assert.True(s.Empty));
+        Assert.Equal(2, CutterItemsNear(pos).GetValueOrDefault(PipeSectionLead));
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        CutterKillItems(pos);
     }
 }

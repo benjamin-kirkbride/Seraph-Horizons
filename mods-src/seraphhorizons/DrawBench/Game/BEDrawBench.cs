@@ -17,11 +17,9 @@ namespace SeraphHorizons.Mod.DrawBench;
 /// The draw bench's controller. Holds the fitted parts (<see cref="DrawBenchParts"/>: every item's
 /// code and the die's durability), the hollow section on the bench as its item stack and the draw
 /// (<see cref="DrawJob"/>: W, the pipe sections drawn), and its MachineOil tank. The server draws
-/// from the power ghost's shaft angle, drops a pipe section at the output face (or puts it in a
-/// container there) as each section's draw finishes (W crossing m + <see cref="Drawing.HandOut"/>), wears
-/// the die when the hollow is done (W = 4), takes
-/// the next hollow from a chest or hopper at the infeed face, and keeps the ghost cells stamped; the client draws it
-/// (<see cref="DrawBenchRenderer"/>, through <see cref="IDrawBenchView"/>). The rules are
+/// from the power ghost's shaft angle, drops a pipe section at the output face as each section's draw
+/// finishes (W crossing m + <see cref="Drawing.HandOut"/>), wears the die when the hollow is done
+/// (W = 4), and keeps the ghost cells stamped; the client draws it (<see cref="DrawBenchRenderer"/>, through <see cref="IDrawBenchView"/>). The rules are
 /// DrawBench/Core's.
 /// </summary>
 public class BEDrawBench : BlockEntity, IDrawBenchView
@@ -33,9 +31,6 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     private const string PartKeyPrefix = "part-";
     // The server syncs W at least this often (sections); the renderer follows the shaft between.
     private const double SyncStep = 0.05;
-    // After a hollow is done the infeed waits this long, so the drawn sections clear off the bench
-    // (the model eases them out) before the next hollow goes on.
-    private const long ClearMs = 600;
 
     private DrawBenchParts _parts = new();
     private ItemStack? _hollow;
@@ -43,7 +38,6 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     private OilState? _oil;
     private float _lastAngle;
     private bool _angleSeeded;
-    private long _finishedAt = long.MinValue / 2;
     private float _smokeSeconds;
     private float _soundSeconds;
     private float? _serverMinSpeed;
@@ -327,7 +321,6 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         }
         Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
         MarkDirty(true);
-        PullFromInfeed();
         return true;
     }
 
@@ -461,78 +454,29 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
     }
 
     /// <summary>The hollow is drawn: the die wears its fixed points (a spent die breaks with the
-    /// tool-break sound and the bench stops until a new one goes in), and the bench clears; the
-    /// infeed waits a moment before the next hollow.</summary>
+    /// tool-break sound and the bench stops until a new one goes in), and the bench clears.</summary>
     private void Finish()
     {
         if (_parts.WearDie(Config.DieWearPerHollow))
             Api.World.PlaySoundAt(BreakSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5);
         ClearJob();
-        _finishedAt = Api.World.ElapsedMilliseconds;
         MarkDirty(true);
     }
 
-    /// <summary>Puts <paramref name="stack"/> into a container just beyond the output face, else
-    /// drops it there.</summary>
+    /// <summary>Drops <paramref name="stack"/> just beyond the output face.</summary>
     public void Deliver(ItemStack stack)
     {
         if (Rig is not { } rig)
             return;
-        var dummy = new DummySlot(stack);
-        if (Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.OutputNeighbour())) is BlockEntityContainer container)
-        {
-            foreach (var slot in container.Inventory)
-            {
-                if (dummy.Empty)
-                    break;
-                if (slot.CanHold(dummy))
-                    dummy.TryPutInto(Api.World, slot, dummy.StackSize);
-            }
-            container.MarkDirty(true);
-        }
-        if (dummy.Empty)
-            return;
         var at = WorldPoint(rig.OutputDrop());
         var n = Footprint.ToWorld(rig.OutputSide, Side).Normal();
-        Api.World.SpawnItemEntity(dummy.Itemstack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
+        Api.World.SpawnItemEntity(stack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
         Api.World.PlaySoundAt(SectionSound, at.X, at.Y, at.Z);
     }
 
-    /// <summary>A complete bench with nothing on it and its shaft turning takes one hollow section its
-    /// die draws from a container at the infeed face, a moment after the last hollow was done. Returns
-    /// whether one went on.</summary>
-    public bool PullFromInfeed()
-    {
-        if (Api.Side != EnumAppSide.Server || JobOn || !_parts.Complete || ShaftSpeed < MinSpeed || Rig is not { } rig)
-            return false;
-        if (Api.World.ElapsedMilliseconds - _finishedAt < ClearMs)
-            return false;
-        var draws = DieDraws.ToList();
-        foreach (var local in rig.InfeedNeighbours())
-        {
-            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(local)) is not BlockEntityContainer container)
-                continue;
-            foreach (var slot in container.Inventory)
-            {
-                string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-                if (Drawing.CanLoad(code, true, false, draws) != DrawLoadVerdict.Loads || SectionItem(Drawing.ClassOfHollow(code)) == null)
-                    continue;
-                Load(slot.TakeOut(1));
-                slot.MarkDirty();
-                container.MarkDirty(true);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Once a second: the ghosts, and the infeed.
-    private void OnSlowTick(float dt)
-    {
-        // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
-        EnsureGhosts();
-        PullFromInfeed();
-    }
+    // Once a second: the ghosts. A ghost can vanish without being broken (an explosion, another
+    // mod), the power ghost included.
+    private void OnSlowTick(float dt) => EnsureGhosts();
 
     // The client's own: the client removes a broken bench at once, and an update the server sent
     // before it heard of the break then brings the block entity back over air: drop it. A dry bench

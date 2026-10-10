@@ -475,7 +475,6 @@ def make_rig(parts):
                     "the lever's work (the hold-to-work clock), carried by a ratio-0 rotate on the lever. See the press "
                     "brake's README for the schema.",
         "cells": [],
-        "infeedSide": "south",
         "outputSide": "north",
         "output": {"pos": pt(8.0, YB + S / 2, Z_A0)},
         "plate": {"pos": pt(8.0, YB + T, EZ)},

@@ -250,7 +250,7 @@ public partial class SharedWorldScenarios
     // ---- Placing ----
 
     // On all four facings: room for every cell, a ghost stamped in each, the power ghost's axle face
-    // the native west turned to the facing, the infeed and output faces turned with it; broken
+    // the native west turned to the facing, the output face turned with it; broken
     // through a ghost, every cell is cleared.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Gear_cutter_places_on_all_four_facings()
@@ -542,43 +542,39 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
-    // ---- Infeed and outfeed ----
+    // ---- Chests ----
 
+    // A chest against the infeed end and one against the output face are left alone: the running
+    // cutter takes no blank from the first, and the gear of a blank put on by hand drops at the output
+    // face rather than going into the second.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Gear_cutter_takes_blanks_from_a_chest_and_puts_gears_in_one()
+    public async Task Gear_cutter_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-200, -160);
         var player = await CutterPlayer();
         var cutter = await PlaceCutter(pos, "south");
         AssembleCutter(cutter, player);
-        var infeed = cutter.CellPos(CutterRig.InfeedNeighbours().First());
+        var infeed = cutter.CellPos(new Int3(0, 0, -1));
         var outfeed = cutter.CellPos(CutterRig.OutputNeighbour());
         World.SetBlock("game:chest-east", infeed);
         World.SetBlock("game:chest-east", outfeed);
         await World.Ticks(3);
         var source = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(infeed));
         var sink = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(outfeed));
-        // a large blank the small master does not take, then two small ones
-        source.Inventory[0].Itemstack = CutterItem(GearCut.LargeBlank);
-        source.Inventory[1].Itemstack = CutterItem(GearCut.Blank, 2);
+        source.Inventory[0].Itemstack = CutterItem(GearCut.Blank, 2);
         source.MarkDirty(true);
 
-        // not taken while the shaft stands
-        await World.Ticks(30);
-        Assert.False(cutter.BlankOn);
         await PowerCutter(cutter);
-        await World.Until(() => cutter.BlankOn, 5000);
-        Assert.Equal(1, source.Inventory[1].StackSize);
-        Assert.Equal(GearCut.LargeBlank, source.Inventory[0].Itemstack?.Collectible.Code.ToString());
+        await World.Ticks(60);
+        Assert.False(cutter.BlankOn);
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        Assert.Null(CutterClick(player, pos, CutterItem(GearCut.Blank)));
         Assert.True(cutter.Cut(RestOfGear(cutter)));
-        // the gear in the chest, the next blank on at once
-        Assert.Contains(sink.Inventory, s => s.Itemstack?.Collectible.Code.ToString() == GearCut.Gear);
-        Assert.True(cutter.BlankOn);
-        Assert.True(source.Inventory[1].Empty);
-        Assert.True(cutter.Cut(RestOfGear(cutter)));
-        Assert.Equal(2, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == GearCut.Gear).Sum(s => s.StackSize));
-        Assert.DoesNotContain(GearCut.Gear, CutterItemsNear(pos).Keys);
-        await World.Ticks(30);
-        Assert.False(cutter.BlankOn);   // only the large blank is left
+        await World.Ticks(5);
+        Assert.False(cutter.BlankOn);
+        Assert.All(sink.Inventory, s => Assert.True(s.Empty));
+        Assert.Equal(1, CutterItemsNear(pos).GetValueOrDefault(GearCut.Gear));
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        CutterKillItems(pos);
     }
 }
