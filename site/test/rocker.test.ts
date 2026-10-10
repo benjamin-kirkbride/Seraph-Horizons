@@ -6,8 +6,8 @@ import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rigIn
 
 // The rocker's shipped files, and the poses Rocker/tools/make_shape.py computes from them with machinegen's
 // reference maths. Its rig reads θ alone, the rocking (the hold-to-work clock): the cradle swings about its
-// rocking axis and slides as its rockers roll, everything else that rocks rides it, and the spout, the stream
-// and the sills stand still. tools/tests/test_rocker_model.py replays the same file in Python.
+// rocking axis and slides as its rockers roll, everything else that rocks rides it, and the sills stand still.
+// It takes water by bucket only: no water cell, no spout. tools/tests/test_rocker_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 const rig = read("assets/seraphhorizons/config/rocker-rig.json") as Rig;
@@ -49,14 +49,14 @@ describe("the rocker's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("rocks everything that rides the cradle with it and leaves the spout, the stream and the sills still", () => {
+  it("rocks everything that rides the cradle with it and leaves the sills still", () => {
     const ms = partMatrices(parts, at(1.1), order, null);
     const cradle = ms[parts.findIndex((p) => p.id === "cradle")]!;
     parts.forEach((p, i) => {
       if (p.ride === "cradle") ms[i]!.forEach((v, j) => expect(Math.abs(v - cradle[j]!)).toBeLessThan(1e-12));
       if (p.ride == null && p.id !== "cradle") ms[i]!.forEach((v, j) => expect(Math.abs(v - (j % 5 === 0 ? 1 : 0))).toBeLessThan(1e-12));
     });
-    expect(parts.filter((p) => p.ride == null).map((p) => p.id)).toEqual(["cradle", "spout", "stream", "frame"]);
+    expect(parts.filter((p) => p.ride == null).map((p) => p.id)).toEqual(["cradle", "frame"]);
   });
 
   it("gives every element a part and every part an element, each in its own textures", () => {
@@ -69,33 +69,37 @@ describe("the rocker's rig against its rig-reference.json", () => {
     for (const f of flat) for (const code of textureCodes(f.element)) (codes[parts[partOf(globs, f.chain)]!.id] ??= new Set()).add(code);
     expect([...codes.riddle!]).toEqual(["riddle"]);
     expect([...codes.water!]).toEqual(["water"]);
-    expect([...codes.stream!]).toEqual(["water"]);
     expect([...codes.charge!]).toEqual(["charge"]);
     expect([...codes.concentrate!]).toEqual(["concentrate"]);
   });
 });
 
 describe("the rocker's anchors and scenario", () => {
-  it("names the water face, the tailings beyond the foot and the points that ride the cradle", () => {
+  it("names the tailings beyond the foot and the points that ride the cradle, and no water cell", () => {
     const { anchors, unrecognised } = discoverAnchors(rig);
     expect(unrecognised).toEqual(["rock"]);
-    expect(anchors.find((a) => a.key === "waterCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "south" });
+    expect(anchors.filter((a) => a.kind === "cell")).toEqual([]);
     expect(anchors.find((a) => a.key === "tailings")).toMatchObject({ kind: "point", pos: [-0.5, 0, 0.5], side: "west" });
     for (const key of ["hopper", "outflow", "concentrate"]) expect(anchors.find((a) => a.key === key)).toMatchObject({ kind: "point", part: "cradle" });
-    expect(anchors.find((a) => a.key === "spout")).toMatchObject({ kind: "point" });
-    expect(anchors.find((a) => a.key === "spout")).not.toHaveProperty("part");
+    expect(anchors.find((a) => a.key === "spout")).toBeUndefined();
   });
 
-  it("has a water state and a load state over the contents' requires values, and fits the rig", () => {
+  it("has a water state (wet, opened on, as Play rocks it) and a load state, and fits the rig", () => {
     const scenario = manifest.models.find((m) => m.id === "rocker")!.scenario!;
     const requires = requiresValues(parts);
     expect(checkScenario(scenario, rig, discoverAnchors(rig).anchors, requires)).toEqual([]);
     const groups = stateGroups(scenario.states, requires);
     expect(groups.map((g) => [g.id, g.owns])).toEqual([
-      ["water", ["water", "stream"]],
+      ["water", ["water"]],
       ["load", ["charge", "concentrate"]],
     ]);
+    const water = groups[0]!.spec as { default?: string; options: { id: string; fitted: string[] }[] };
+    expect(water.options.map((o) => [o.id, o.fitted])).toEqual([
+      ["dry", []],
+      ["wet", ["water"]],
+    ]);
+    expect(water.default).toBe("wet");
     // the fitted parts stay checkboxes of their own, outside the states
-    expect(requires.filter((r) => !groups.some((g) => g.owns.includes(r)))).toEqual(["riffles", "apron", "hopper", "riddle", "spout"]);
+    expect(requires.filter((r) => !groups.some((g) => g.owns.includes(r)))).toEqual(["riffles", "apron", "hopper", "riddle"]);
   });
 });

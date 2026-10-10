@@ -50,9 +50,6 @@ class V:
         return [e for e in src if r.search(e.name)]
 
 
-SPOUT_CLEAR = 0.3                            # voxels: the least gap between what rocks and the fixed spout
-
-
 def check_basic(v):
     worst = euler_round_trip(v.els)
     print(f"euler round trip: worst {worst:.1e}")
@@ -99,11 +96,11 @@ def check_containment(v, thetas):
 
 
 def check_floating(v):
-    """The frame and the spout stand on the ground; everything that rocks hangs together on the rockers."""
+    """The sills stand on the ground; everything that rocks hangs together on the rockers."""
     m = v.m
-    fixed = v.by_part["frame"] + v.by_part["spout"]
+    fixed = v.by_part["frame"]
     seen, loose = frame_floating(fixed)
-    print(f"fixed: {len(seen)} elements of the sills and the spout joined to the ground, {len(loose)} not")
+    print(f"fixed: {len(seen)} elements of the sills on the ground, {len(loose)} not")
     if loose:
         v.fail(f"fixed elements float: {loose[:8]}")
     rocking = [e for pid in m.MOVING for e in v.posed(pid, m.REST)]
@@ -123,12 +120,9 @@ ROLES = [
     (r"^apron_canvas", {"canvas"}),
     (r"^hopper_", {"oak"}),
     (r"^riddle_", {"riddle"}),
-    (r"^(water|stream)_", {"water"}),
+    (r"^water_", {"water"}),
     (r"^charge_", {"charge"}),
     (r"^conc_", {"concentrate"}),
-    (r"^spout_(union|inlet|run|riser|arm|nozzle)", {"pipe"}),
-    (r"^spout_post", {"oak"}),
-    (r"^spout_clip", {"iron"}),
     (r"^fr_sill", {"oak"}),
 ]
 
@@ -140,7 +134,7 @@ def check_textures(v):
         rule = next((want for rx, want in ROLES if re.match(rx, el.name)), None)
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
-    clear = [el.name for el in v.els if el.part in ("water", "stream") and el.render_pass != v.m.TRANSPARENT]
+    clear = [el.name for el in v.els if el.part == "water" and el.render_pass != v.m.TRANSPARENT]
     print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says; water in the Transparent "
           f"pass: {'all' if not clear else clear}")
     if bad:
@@ -223,12 +217,10 @@ ALLOWED = [
     ("handle", None, "cradle|hopper", None),
     ("riffles|apron|hopper", None, "cradle", None),
     ("riddle", None, "hopper|cradle", None),
-    # the contents: water against everything of the cradle it runs over or stands in, and the stream into it
+    # the contents: water against everything of the cradle it runs over or stands in
     ("water", None, "cradle|riffles|apron|hopper|riddle|charge|concentrate", None),
     ("charge", None, "hopper|riddle", None),
     ("concentrate", None, "cradle|riffles", None),
-    ("stream", None, "water|charge", None),
-    ("stream", None, "spout", r"_nozzle"),
 ]
 
 
@@ -271,76 +263,6 @@ def check_clearances(v, thetas, label, pairs_of):
         print(f"  TOUCH {key[0]} x {key[1]}: {len(hs)}, e.g. " + "; ".join(f"{a}/{b} at theta {t:.3f}" for (a, b), t in ex))
     if allhits:
         v.fail("parts run into each other")
-
-
-def sat_gap(a, b):
-    """The separation of two boxes along their best separating axis (voxels): the distance between them when
-    a face separates them, a lower bound otherwise; negative when they overlap."""
-    ah = [abs(x) / 2 for x in a.size]
-    bh = [abs(x) / 2 for x in b.size]
-    aa = [[a.r[i][k] for i in range(3)] for k in range(3)]
-    ba = [[b.r[i][k] for i in range(3)] for k in range(3)]
-    d = [a.c[k] - b.c[k] for k in range(3)]
-    axes = aa + ba
-    for u in aa:
-        for w in ba:
-            x = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]
-            n = math.sqrt(sum(c * c for c in x))
-            if n > 1e-6:
-                axes.append([c / n for c in x])
-    best = -1e9
-    for ax in axes:
-        dist = abs(sum(d[k] * ax[k] for k in range(3)))
-        ra = sum(ah[k] * abs(sum(aa[k][i] * ax[i] for i in range(3))) for k in range(3))
-        rb = sum(bh[k] * abs(sum(ba[k][i] * ax[i] for i in range(3))) for k in range(3))
-        best = max(best, dist - ra - rb)
-    return best
-
-
-def least_gap(v, thetas, moving, fixed):
-    """The least separation (voxels) between the posed `moving` parts' elements and the `fixed` parts' over
-    `thetas`; for the report."""
-    best, where = 1e9, None
-    fx = [(e, e.aabb()) for pid in fixed for e in v.by_part[pid]]
-    for th in thetas:
-        for pid in moving:
-            for e in v.posed(pid, th):
-                lo, hi = e.aabb()
-                for f, (flo, fhi) in fx:
-                    if max(max(flo[k] - hi[k], lo[k] - fhi[k]) for k in range(3)) > best:
-                        continue
-                    g = sat_gap(e, f)
-                    if g < best:
-                        best, where = g, (e.name, f.name, th)
-    return best, where
-
-
-def check_stream(v):
-    """The stream falls into the hopper at every point of the rock: each point down its middle lies inside the
-    riddle plate's square, clear of the walls by the stream's half width and REACH more, and its foot stands in
-    the water on the plate, above the plate."""
-    m = v.m
-    (x0, x1), (z0, z1), ry = m.riddle_box()
-    reach = 0.3
-    mx, my, mz = m.nozzle_mouth()
-    worst_wall, foot_lo, foot_hi = 1e9, 1e9, -1e9
-    for th in m.sample_thetas(2.0):
-        cm = v.mat("cradle", th)
-        r = [row[:3] for row in cm[:3]]
-        t = [cm[i][3] * 16 for i in range(3)]
-        for k in range(9):
-            y = m.STREAM_FOOT + (my - m.STREAM_FOOT) * k / 8
-            w = [mx - t[0], y - t[1], mz - t[2]]
-            local = [sum(r[j][i] * w[j] for j in range(3)) for i in range(3)]      # the transpose: the inverse turn
-            p = m.untilt_point(local)
-            if p[1] < m.SIDE_TOP + m.HOP_H:
-                worst_wall = min(worst_wall, p[0] - x0, x1 - p[0], p[2] - z0, z1 - p[2])
-            if k == 0:
-                foot_lo, foot_hi = min(foot_lo, p[1] - ry), max(foot_hi, p[1] - ry)
-    print(f"stream: inside the hopper's walls by {worst_wall:.2f} at worst over the rock; its foot {foot_lo:.2f}..{foot_hi:.2f} "
-          f"over the plate (the water stands {m.HOP_WATER:g})")
-    if worst_wall < m.STREAM_HALF + reach or foot_lo < 0.1 or foot_hi > m.HOP_WATER:
-        v.fail("the stream misses the hopper, or does not reach its water")
 
 
 def check_path(v):
@@ -396,35 +318,44 @@ def check_foot(v):
         v.fail("the tailings do not land west of the foot, on the ground")
 
 
-def check_anchors(v):
-    """The water face is the cell's south face and the inlet ends on it, on the ppex pipe's axis, inside its section; the
-    spout point is the nozzle's mouth; the points that ride the cradle name it."""
+def check_water(v):
+    """Its only water is poured into the hopper from the bucket the player holds while rocking it: the rig has no
+    water cell or face, no spout and no part for a pipe or a stream; nothing fixed stands over the sills (the
+    sills are the only fixed part); the hopper is open to the sky, nothing of the rocker over its riddle plate
+    at any point of the rock; and the points that ride name a part the rig has."""
     m = v.m
     rig = v.rig
-    p0, p1 = m.PPEX_PIPE
-    ends = [e for e in v.by_part["spout"] if abs(e.aabb()[1][2] - m.FACE) < 1e-9]
-    for e in ends:
-        lo, hi = e.aabb()
-        mid = ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2)
-        off = max(abs(mid[0] - m.PIPE_AXIS[0]), abs(mid[1] - m.PIPE_AXIS[1]))
-        if not (p0 <= lo[0] and hi[0] <= p1 and p0 <= lo[1] and hi[1] <= p1) or off > 1e-9:
-            v.fail(f"{e.name} meets the south face off the ppex pipe's axis or outside its section")
-    if rig["waterCell"] != [0, 0, 0] or rig["waterFace"] != "south" or [e.name for e in ends] != ["spout_union"]:
-        v.fail("the inlet does not end on the south face")
-    mouth = [c / 16 for c in m.nozzle_mouth()]
-    if max(abs(a - b) for a, b in zip(mouth, rig["spout"]["pos"])) > 1e-6:
-        v.fail("the spout point is not the nozzle's mouth")
-    nozzle = next(e for e in v.by_part["spout"] if e.name == "spout_nozzle")
-    if abs(nozzle.aabb()[0][1] - m.nozzle_mouth()[1]) > 1e-6:
-        v.fail("the nozzle's mouth is not where the spout point says")
     ids = {p["id"] for p in v.parts}
+    plumbing = [k for k in rig if re.search(r"(Cell|Face)$", k) or k in ("spout", "stream", "pipe", "inlet")]
+    plumbing += [p["id"] for p in v.parts if p["id"] in ("spout", "stream") or p["requires"] in ("spout", "stream")]
+    if plumbing:
+        v.fail(f"the rocker takes water only by bucket, but the rig declares {plumbing}")
+    if set(m.STATIC) != {"frame"} or max(e.aabb()[1][1] for e in v.by_part["frame"]) > m.SILL_TOP + 1e-9:
+        v.fail("something fixed stands beside the rocker besides its sills")
+    (x0, x1), (z0, z1), ry = m.riddle_box()
+    over = set()
+    for th in m.sample_thetas(10.0):
+        cm = v.mat("cradle", th)
+        r = [row[:3] for row in cm[:3]]
+        t = [cm[i][3] * 16 for i in range(3)]
+        for pid in v.by_part:
+            if pid in ("water", "charge"):
+                continue
+            for e in v.posed(pid, th):
+                for p in e.corners():
+                    w = [p[k] - t[k] for k in range(3)]
+                    q = m.untilt_point([sum(r[j][i] * w[j] for j in range(3)) for i in range(3)])
+                    if x0 + 1e-6 < q[0] < x1 - 1e-6 and z0 + 1e-6 < q[2] < z1 - 1e-6 and q[1] > ry + 1e-6:
+                        over.add(e.name)
     for key in m.POINT_ANCHORS:
         part = rig[key].get("part")
         if part is not None and part not in ids:
             v.fail(f"the {key} point rides {part}, which is no part")
-    print(f"anchors: water {rig['waterCell']} {rig['waterFace']} (the inlet's end on ppex's {p1 - p0:g}-square pipe's axis), "
-          f"spout {rig['spout']['pos']}, hopper {rig['hopper']['pos']}, outflow {rig['outflow']['pos']}, "
-          f"concentrate {rig['concentrate']['pos']}")
+    print(f"water: by bucket only (no water cell, face, spout or stream in the rig); the sills the only fixed part; the "
+          f"hopper open to the sky over the rock: {'yes' if not over else sorted(over)}; hopper {rig['hopper']['pos']}, "
+          f"outflow {rig['outflow']['pos']}, concentrate {rig['concentrate']['pos']}")
+    if over:
+        v.fail(f"something stands over the hopper, in the bucket's way: {sorted(over)[:4]}")
 
 
 def check_zfight(v):
@@ -449,21 +380,16 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, m.sample_thetas(5.0))
     check_rock(v)
     check_rolling(v)
-    check_stream(v)
     check_path(v)
     check_handle(v)
     check_foot(v)
-    check_anchors(v)
+    check_water(v)
     check_clearances(v, [m.REST, math.pi / 2, 3 * math.pi / 2], "clearances, every part", lambda a, b: True)
     moving, fixed = set(m.MOVING), set(m.STATIC)
     sweep = (lambda a, b: (a in moving) != (b in moving))
     if not quick:
         check_clearances(v, m.sample_thetas(2.0), "swept rock (every 2 degrees of theta), rocking against fixed", sweep)
         check_zfight(v)
-    gap, where = least_gap(v, m.sample_thetas(5.0), [p for p in m.MOVING if p != "water"], ["spout"])
-    print(f"least gap between what rocks and the spout: {gap:.2f} voxels ({where[0]} to {where[1]} at theta {where[2]:.3f})")
-    if gap < SPOUT_CLEAR:
-        v.fail(f"what rocks passes within {gap:.2f} of the spout; keep {SPOUT_CLEAR} clear")
     return v.ok
 
 
@@ -483,8 +409,11 @@ def validate_files(m, shape, frame_shape, ship):
     if "powerCell" in ship or "powerFace" in ship:
         print("FAIL a hand station has no power cell")
         ok = False
+    if any(k.endswith(("Cell", "Face")) for k in ship):
+        print("FAIL the rocker takes no water by pipe: no water cell or face")
+        ok = False
     passes = {e["name"]: e.get("renderPass") for e in shape["elements"]}
-    if any(n.startswith(("water_", "stream_")) and p != m.TRANSPARENT for n, p in passes.items()):
+    if any(n.startswith("water_") and p != m.TRANSPARENT for n, p in passes.items()):
         print("FAIL the water lost its Transparent pass in the file")
         ok = False
     return ok

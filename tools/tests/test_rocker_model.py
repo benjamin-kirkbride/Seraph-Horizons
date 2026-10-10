@@ -3,8 +3,8 @@
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the
 shared rig maths and uses the `requires` vocabulary its README names, its reference poses are its own
 maths, the cell is rebuilt from the shipped shape, theta is the only input and rocks the cradle (and
-everything riding it) over and back once a turn on rockers that roll, the fixed parts stand still, and the
-anchors are where the README puts them. Run with `python3 -m unittest discover -s tools/tests`.
+everything riding it) over and back once a turn on rockers that roll, the sills stand still, it takes water by
+bucket only (no water cell, no spout, no stream), and the anchors are where the README puts them. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -29,10 +29,10 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "rocker-rig.jso
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "rocker.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "rocker_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "Rocker" / "rig-reference.json").read_text())
-# the fitted parts (build stages to be settled) and the states the renderer draws (water, the stream, the load)
-REQUIRES = {"riffles", "apron", "hopper", "riddle", "spout", "water", "stream", "charge", "concentrate", None}
+# the fitted parts (build stages to be settled) and the states the renderer draws (water while worked, the load)
+REQUIRES = {"riffles", "apron", "hopper", "riddle", "water", "charge", "concentrate", None}
 ROCKING = {"cradle", "handle", "riffles", "apron", "hopper", "riddle", "water", "charge", "concentrate"}
-FIXED = {"spout", "stream", "frame"}
+FIXED = {"frame"}
 
 
 def matrix(pid, theta):
@@ -69,14 +69,14 @@ class Rig(unittest.TestCase):
         self.assertEqual(frame, {n for n in names if rigmath.part_of(RIG["parts"], n) == "frame"})
 
     def test_textures_by_part_and_the_water_in_the_transparent_pass(self):
-        want = {"riddle": {"#riddle"}, "water": {"#water"}, "stream": {"#water"}, "charge": {"#charge"},
-                "concentrate": {"#concentrate"}, "riffles": {"#oak"}, "apron": {"#oak", "#canvas"}, "hopper": {"#oak"},
-                "spout": {"#pipe", "#oak", "#iron"}, "cradle": {"#oak"}, "handle": {"#oak", "#iron"}, "frame": {"#oak"}}
+        want = {"riddle": {"#riddle"}, "water": {"#water"}, "charge": {"#charge"}, "concentrate": {"#concentrate"},
+                "riffles": {"#oak"}, "apron": {"#oak", "#canvas"}, "hopper": {"#oak"}, "cradle": {"#oak"},
+                "handle": {"#oak", "#iron"}, "frame": {"#oak"}}
         got = {}
         for e in SHAPE["elements"]:
             pid = rigmath.part_of(RIG["parts"], e["name"])
             got.setdefault(pid, set()).update(f["texture"] for f in e["faces"].values())
-            if pid in ("water", "stream"):
+            if pid == "water":
                 self.assertEqual(e.get("renderPass"), 3, e["name"])
             else:
                 self.assertNotIn("renderPass", e, e["name"])
@@ -142,28 +142,26 @@ class Anchors(unittest.TestCase):
         self.assertNotIn("powerCell", RIG)
         self.assertNotIn("powerFace", RIG)
 
-    def test_water_spout_tailings_and_the_points_that_ride(self):
-        self.assertEqual((RIG["waterCell"], RIG["waterFace"]), ([0, 0, 0], "south"))
+    def test_water_by_bucket_only(self):
+        # no pipe connects: no water cell or face, no spout or stream, nothing fixed but the sills
+        self.assertEqual([k for k in RIG if k.endswith(("Cell", "Face"))], [])
+        for key in ("spout", "stream"):
+            self.assertNotIn(key, RIG)
+            self.assertNotIn(key, {p["id"] for p in RIG["parts"]})
+        self.assertNotIn("pipe", SHAPE["textures"])
+        sills = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == "frame"]
+        self.assertEqual(max(e["to"][1] for e in sills), make_shape.SILL_TOP)
+
+    def test_tailings_and_the_points_that_ride(self):
         self.assertEqual((RIG["tailings"]["pos"], RIG["tailingsSide"]), ([-0.5, 0.0, 0.5], "west"))
         ids = {p["id"] for p in RIG["parts"]}
         for key in ("hopper", "outflow", "concentrate"):
             self.assertEqual(RIG[key]["part"], "cradle", key)
             self.assertIn(RIG[key]["part"], ids)
-        self.assertNotIn("part", RIG["spout"])
-        # the spout stands over the rocking axis, above the hopper; the outflow is the foot's lip, at the west end
-        x, y, z = RIG["spout"]["pos"]
-        self.assertAlmostEqual(z, 0.5, places=4)
-        self.assertGreater(y, RIG["hopper"]["pos"][1])
+        # the hopper's point is over the head half, where the bucket is poured; the outflow is the foot's lip, west
+        self.assertGreater(RIG["hopper"]["pos"][0], 0.5)
+        self.assertAlmostEqual(RIG["hopper"]["pos"][2], 0.5, places=4)
         self.assertLess(RIG["outflow"]["pos"][0], 0.1)
-        # the inlet's union is all that meets the south face: on the face's middle, the axis of ppex's 6-voxel pipe
-        # beyond it (its block's 5..11), and inside that pipe's section
-        on_face = [e for e in SHAPE["elements"] if e["to"][2] == 16.0]
-        self.assertEqual([e["name"] for e in on_face], ["spout_union"])
-        union = on_face[0]
-        for k in (0, 1):
-            self.assertAlmostEqual((union["from"][k] + union["to"][k]) / 2, 8.0, places=6)
-            self.assertGreaterEqual(union["from"][k], 5.0)
-            self.assertLessEqual(union["to"][k], 11.0)
 
 
 if __name__ == "__main__":
