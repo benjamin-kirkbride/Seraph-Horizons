@@ -169,9 +169,9 @@ STAY_TOP = 32.0
 ROD_Y = (30.3, 31.1)                         # the tie rods over the arch's crown (30)
 ROD_T = 0.8
 DISCHARGE = ((33.0, 39.0), (31.0, 37.0))     # (x, z) the discharge hole through the hearth into the pit, by the bridge
-WORK_DOOR = (7.0, (12.0, 19.5))              # half width (z) about each rabble, and y: a work door each side, open
+WORK_DOOR = (8.0, (12.0, 20.0))              # half width (z) about each rabble, and y: a work door each side, open
 DOOR_FRAME = 1.0
-DOOR_PLATE_Y = (20.5, 28.0)                  # the doors' plates, raised in their guides
+DOOR_PLATE_Y = (21.0, 28.5)                  # the doors' plates, raised in their guides
 ASH_DOOR = ((18.0, 30.0), (PLINTH, 8.5))     # (x, y) the ash pit's clean-out door, under the grate, on the fire end's face
 # the firing: a step grate under a coal bunker (gravity-fed; no stoking door)
 STEPS = 4
