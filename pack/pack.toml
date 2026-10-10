@@ -1064,6 +1064,14 @@ license = "unknown"
 redistribute = false
 why = "Schematics roll up into scrolls for the scroll rack, Better Ruins maps included."
 
+[[mod]]
+id = "candela"
+version = "1.0.0"
+side = "universal"
+license = "unknown"
+redistribute = false
+why = "Candle-making: tallow candles dipped at the firepit, clay candle molds, coloured flames, dyed wax and lantern oil burners. Its burning down, weather snuffing and torch time are off (pack/config/ModConfig/candela.json), so lights behave as in vanilla (#751)."
+
 # --- Pack-authored fixes (mods-src/)
 
 [[mod]]

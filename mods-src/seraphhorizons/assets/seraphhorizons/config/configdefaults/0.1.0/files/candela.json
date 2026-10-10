@@ -1,0 +1,11 @@
+{
+  "BeeswaxBurnHours": 432.0,
+  "TallowBurnHours": 216.0,
+  "OilBurnHoursPerLitre": 1728.0,
+  "BurnoutMode": "Dim",
+  "WeatherPutsOut": true,
+  "UnattendedMode": "LoadedOnly",
+  "CatchUpCapHours": 24.0,
+  "FlameLightSaturation": 4,
+  "TorchesKeepTheirTime": true
+}
