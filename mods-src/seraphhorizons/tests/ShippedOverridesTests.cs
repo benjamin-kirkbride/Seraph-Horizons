@@ -134,7 +134,7 @@ public class ShippedOverridesTests
         var r = Resolve(entries);
         Assert.Equal("Iron ore bits (magnetite)", TitleText(r.GroupOf("game:looseores-magnetite-basalt-free")));
         Assert.Equal("Native silver bits (in quartz)", TitleText(r.GroupOf("game:looseores-quartz_nativesilver-granite-free")));
-        Assert.Equal("Crystallized chunk of Native silver in galena", TitleText(r.GroupOf("game:crystalizedore-rich-galena_nativesilver-granite")));
+        Assert.Equal("Crystallized chunk of Argentiferous galena", TitleText(r.GroupOf("game:crystalizedore-rich-galena_nativesilver-granite")));
     }
 
     [Fact]

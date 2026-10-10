@@ -70,13 +70,15 @@ public class OreProcessingSystem : ModSystem
         new(Domain, "itemtypes/oreprocessing/litharge.json"),
         new(Domain, "itemtypes/oreprocessing/crudeliquor.json"),
         new(Domain, "itemtypes/oreprocessing/rawsaltpeter.json"),
+        new(Domain, "blocktypes/oreprocessing/cupel.json"),
     ];
 
-    /// <summary>The recipe files ore processing adds (leaching, #742); emptied with the switch off.</summary>
+    /// <summary>The recipe files ore processing adds (leaching, #742; the cupel, #722); emptied with the switch off.</summary>
     public static readonly AssetLocation[] RecipeAssets =
     [
         new(Domain, "recipes/barrel/oreprocessing-leaching.json"),
         new(Domain, "recipes/cooking/oreprocessing-evaporating.json"),
+        new(Domain, "recipes/grid/cupel.json"),
     ];
 
     /// <summary>
@@ -169,6 +171,8 @@ public class OreProcessingSystem : ModSystem
         api.RegisterItemClass("seraphhorizons.ItemGradedOre", typeof(ItemGradedOre));
         api.RegisterItemClass("seraphhorizons.ItemOreProduct", typeof(ItemOreProduct));
         api.RegisterCollectibleBehaviorClass(CollectibleBehaviorSpalling.Name, typeof(CollectibleBehaviorSpalling));
+        api.RegisterBlockClass("seraphhorizons.BlockCupel", typeof(BlockCupel));
+        api.RegisterBlockClass("seraphhorizons.BlockCupelBead", typeof(BlockCupelBead));
         if (!On(api))
         {
             // Before the patch loader (AssetsLoaded). On the server only: a client has no assets
@@ -184,6 +188,10 @@ public class OreProcessingSystem : ModSystem
             if (!AlloyStackSize.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: the game's AlloyRecipe.mergeAndCompareStacks is not as expected; "
                                    + "an alloy counts a chunk at a whole number of chunks per ingot, which can be off its exact half");
+            CupelText.Patch(_harmony);
+            if (!CupelForge.Patch(_harmony))
+                api.Logger.Warning("[seraphhorizons] Ore processing: crucibulum's forge ({0}) is missing or not as expected; "
+                                   + "the cupel works nowhere", CupelForge.ForgeType);
         }
     }
 
@@ -319,6 +327,14 @@ public class OreProcessingSystem : ModSystem
             json["enabled"] = false;
             asset.Data = Encoding.UTF8.GetBytes(json.ToString());
         }
+    }
+
+    /// <summary>The recovery figures on either side: the server's, or read once from the asset (a
+    /// client reads them for the cupel's dialog text and its own smelting checks).</summary>
+    public static OreRecovery RecoveryFor(ICoreAPI api)
+    {
+        var system = Of(api);
+        return system.Recovery ??= LoadRecovery(api);
     }
 
     /// <summary>The recovery figures, or the defaults' empty figures if the file is missing or broken

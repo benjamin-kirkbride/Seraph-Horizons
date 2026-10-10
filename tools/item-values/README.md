@@ -383,10 +383,12 @@ franckeite's lead, gold quartz's silver) are won only at a parting step, and unp
 lost. `parting` in the file says which methods have a station; for each that has, the parted form (a
 sulfide's roasted concentrate, another ore's concentrate and amalgam) is worth at least what parting
 wins from it: 5 x (u x the ore's `unparted` share + each by-product's share x its metal's u x the
-method's recovery at the line's tier). No method has one yet (the cupel #722, the liquation pan #724,
-acid parting), so today no by-product is priced; turning a method on when its station lands is the
-whole change. Today's costs would hide all but rich by-products anyway: a galena roasted
-concentrate costs 0.20, against 0.10 for its lead and 3 % silver. Sulfur from roasting
+method's recovery at the line's tier). Cupellation has one (the bone-ash cupel, #722); the liquation
+pan (#724) and acid parting do not yet, and turning a method on when its station lands is the whole
+change. Costs hide all but rich by-products: a galena roasted concentrate costs 0.20, against 0.10
+for its lead and 3 % silver, while argentiferous galena's (38 %, #690) is worth 0.44 by its silver.
+`nuggetOf` names ores priced as another nugget's metal: argentiferous galena's forms as lead (its
+raw ore stays silver, what the game hammers it into with the switch off). Sulfur from roasting
 (`roastingByProduct`, #736) is credited against roasted concentrate once its roaster exists.
 
 **Later items.** A station that makes a new item from these (the cupel's silver, the still's

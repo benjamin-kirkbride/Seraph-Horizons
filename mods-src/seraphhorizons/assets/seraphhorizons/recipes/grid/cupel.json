@@ -1,0 +1,27 @@
+// The bone-ash cupel (OreProcessing, #722; README "Cupellation"). Four bone meal (bone ash) pressed
+// into a raw cupel, fired in a pit kiln or a beehive kiln (blocktypes/oreprocessing/cupel.json). Done
+// in the forge, the cupel with its silver bead is broken with a hammer: the litharge it soaked up is
+// the output (as many as the bead holds, Ore/Processing/ItemOreProduct.cs) and its metal bits go to
+// the player (BlockCupelBead.cs). Marked disabled by OreProcessingSystem with the switch off.
+[
+	{
+		ingredientPattern: "BB,BB",
+		ingredients: {
+			"B": { type: "item", code: "game:bonemeal" }
+		},
+		width: 2,
+		height: 2,
+		output: { type: "block", code: "seraphhorizons:cupel-raw" }
+	},
+	{
+		ingredientPattern: "C,H",
+		ingredients: {
+			"C": { type: "block", code: "seraphhorizons:cupel-bead" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		width: 1,
+		height: 2,
+		shapeless: true,
+		output: { type: "item", code: "seraphhorizons:litharge" }
+	}
+]
