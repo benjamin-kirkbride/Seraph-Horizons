@@ -350,6 +350,14 @@ the next. `extra` has the `share`, the `meltingPoint` and the `seconds` one item
 `requirements` says so in words. The concentrate's own `attributes.smelting` gives one roasted item per
 item, the game's terms; the record's quantity is what a player gets.
 
+**Retorting** (type `oreretorting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in
+an export with it on): cinnabar and amalgam retorted in the game's still. One record per input, id
+`oreretorting|<input>|0`: the input (one, consumed), the boiler (`game:verticalboiler-west`) and the
+condenser (`game:condenser-west`), both role `station`; the outputs are the mercury
+(`em:mercuryportion`) in portions with its `litres`, and for an amalgam its retorted sponge
+(`seraphhorizons:sponge-<ore>`, one). `extra` has the `portions` one item gives and the
+`portionsPerSecond`; `requirements` says how the still is set up.
+
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a
 shape it has no layout for.

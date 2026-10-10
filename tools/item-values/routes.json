@@ -87,6 +87,46 @@
       "switch": "OreProcessing",
       "slots": [[["seraphhorizons:crudeliquorportion-alum", 100]]],
       "output": ["game:powder-alum", 1]
+    },
+    {
+      "id": "stillretort|game:crushed-cinnabar",
+      "about": "The still (boiler and condenser, Ore/Processing/MercuryStill.cs) retorts one cinnabar into a tenth of a litre of mercury, nothing left behind (config/ore-processing.json retort.cinnabar). Its export records exist only with OreProcessing on. The still's markup, as spirits.",
+      "kind": "distilling",
+      "switch": "OreProcessing",
+      "slots": [
+        [["game:crushed-cinnabar", 1]]
+      ],
+      "output": ["em:mercuryportion", 10]
+    },
+    {
+      "id": "stillretort|game:powder-cinnabar",
+      "about": "As crushed cinnabar: a tenth of a litre of mercury from one.",
+      "kind": "distilling",
+      "switch": "OreProcessing",
+      "slots": [
+        [["game:powder-cinnabar", 1]]
+      ],
+      "output": ["em:mercuryportion", 10]
+    },
+    {
+      "id": "stillretort|seraphhorizons:amalgam-quartz_nativegold",
+      "about": "The still retorts one amalgam: its gold stays behind as one retorted sponge (5 units, smelts whole). The mercury it returns (9 portions, 90 % of the amalgam pan's 10) is not credited: the amalgam's own price leaves out the pan's mercury, which goes round between the pan and the still.",
+      "kind": "distilling",
+      "switch": "OreProcessing",
+      "slots": [
+        [["seraphhorizons:amalgam-quartz_nativegold", 1]]
+      ],
+      "output": ["seraphhorizons:sponge-quartz_nativegold", 1]
+    },
+    {
+      "id": "stillretort|seraphhorizons:amalgam-quartz_nativesilver",
+      "about": "As gold amalgam: one silver sponge from one.",
+      "kind": "distilling",
+      "switch": "OreProcessing",
+      "slots": [
+        [["seraphhorizons:amalgam-quartz_nativesilver", 1]]
+      ],
+      "output": ["seraphhorizons:sponge-quartz_nativesilver", 1]
     }
   ]
 }

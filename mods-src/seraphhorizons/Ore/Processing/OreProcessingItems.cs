@@ -16,7 +16,8 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// <item>nuggets crush to one coarse crushed ore of their ore (Expanded Matter's and smex's nugget
 /// crushing replaced, whatever order those patches ran in);</item>
 /// <item>crushed ore smelts at half, concentrate whole, roasted concentrate whole, litharge to lead
-/// at 20 in 21; ground ore and amalgam do not smelt;</item>
+/// at 20 in 21, retorted sponge (the gold or silver an amalgam leaves in the still, #726) whole;
+/// ground ore and amalgam do not smelt;</item>
 /// <item>a sulfide's concentrate does not smelt: it roasts in the firepit (#720), any fuel, into
 /// its roasted concentrate, one item at a time at <see cref="OreRoasting.MeltingPoint"/> for the
 /// configured seconds, at the firepit's share (<see cref="ItemOreProduct.RoastShare"/>, kept by its
@@ -33,7 +34,7 @@ public static class OreProcessingItems
     /// <summary>What was set, for the log and the scenarios.</summary>
     public sealed class Report
     {
-        public int OreItems, CrystallisedOre, Nuggets, Crushed, Concentrate, Roasted, Litharge;
+        public int OreItems, CrystallisedOre, Nuggets, Crushed, Concentrate, Roasted, Sponge, Litharge;
         /// <summary>Sulfide concentrates that roast in the firepit.</summary>
         public int Roasting;
         /// <summary>Ores whose nugget does not smelt (or is missing): their forms do not smelt.</summary>
@@ -134,6 +135,11 @@ public static class OreProcessingItems
                 case "roastedconcentrate" when code.Domain == OreProducts.Domain && parts.Length == 2:
                     item.CombustibleProps = Smelting(parts[1], perItem, recovery.SmeltShare(recovery.Ore(parts[1]), OreForm.RoastedConcentrate));
                     report.Roasted++;
+                    break;
+                case "sponge" when code.Domain == OreProducts.Domain && parts.Length == 2:
+                    // The gold or silver an amalgam leaves in the still (#726): whole, as concentrate.
+                    item.CombustibleProps = Smelting(parts[1], perItem, recovery.SmeltShare(recovery.Ore(parts[1]), OreForm.Sponge));
+                    report.Sponge++;
                     break;
                 case "litharge" when code.Domain == OreProducts.Domain && parts.Length == 1:
                     item.CombustibleProps = Smelting("galena", perItem, 1, OreProducts.LithargeRate);
