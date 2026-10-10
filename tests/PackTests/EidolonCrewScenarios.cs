@@ -96,7 +96,8 @@ public partial class WoodworkingScenarios
         double Oil() => e.Oil?.Tank?.Points ?? 0;
         double oil = Oil();
         string State() => $"{EidolonCommands.Describe(e)}; at {e.Pos.XYZ}; carrying {carry.Trunk?.Block?.Code}; rosser {rosser.State}; "
-                           + $"standing {logs.Count(l => Wood(l) > 0)}; {e.GetInfoText().Replace('\n', ' ')}";
+                           + $"standing {logs.Count(l => Wood(l) > 0)}; {e.GetInfoText().Replace('\n', ' ')}; trunks lying at "
+                           + string.Join(" ", TrunksLying(pos, 34).Select(t => $"({t.Pos.X:0.0} {t.Pos.Y:0.0} {t.Pos.Z:0.0})"));
 
         // Both trunks through the rosser: each one it takes is counted, and a finished one taken off its bed.
         var taken = new List<ItemStack>();

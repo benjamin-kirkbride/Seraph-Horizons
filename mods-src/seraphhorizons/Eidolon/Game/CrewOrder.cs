@@ -18,8 +18,10 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// and no trunk of its felling (nor any the machine takes lying in the area) waits; then it tells its
 /// owner, says so and waits, looking again every <see cref="EidolonCrew.RelookSeconds"/>. A tree that
 /// throws no trunk (too small, or no Logging Expanded: its logs fall as items) is simply passed on
-/// from; a trunk the machine does not take, or lost to the hauler <see cref="EidolonCrew.Tries"/>
-/// times, is left. Without an axe it waits for one, as felling does (a trunk carried or waiting is
+/// from; a trunk the machine does not take is left, and one lost to the hauler
+/// <see cref="EidolonCrew.Tries"/> times (it rolled, no way to it, or not reached in
+/// <see cref="EidolonCrew.FetchSeconds"/>) is put by until the next tree falls, and left once the area
+/// is clear. Without an axe it waits for one, as felling does (a trunk carried or waiting is
 /// hauled first). Interrupted (self-defence, a dry reservoir, a slump), it keeps its state, the trunk
 /// it carries included, and carries on where it was.
 /// </summary>
@@ -36,6 +38,8 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
     private readonly List<long> _felledTrunks = [];
     private readonly Dictionary<long, int> _losses = [];
     private readonly HashSet<long> _left = [];
+    private readonly List<long> _putBy = [];
+    private double _fetchSince;
     private bool _felling;
     private int _fellSeen;
     private BlockPos? _stump;
@@ -114,6 +118,11 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
             _lookFrom = now + EidolonCrew.SettleSeconds;
             _lookUntil = now + EidolonCrew.LookSeconds;
             _toldDone = false;
+            // A tree down may have opened the way to a trunk it could not reach.
+            foreach (long id in _putBy)
+                if (!_felledTrunks.Contains(id))
+                    _felledTrunks.Add(id);
+            _putBy.Clear();
         }
 
         if (_hauler.Busy)
@@ -142,6 +151,7 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
             if (NextTrunk(eidolon, infeed) is { } trunk && _hauler.Fetch(trunk))
             {
                 _hauling = trunk.EntityId;
+                _fetchSince = now;
                 Haul(eidolon);
                 return true;
             }
@@ -173,17 +183,34 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
     private void Haul(EntityLaborEidolon eidolon)
     {
         long fetching = _hauler!.Fetching;
+        if (fetching != 0 && Now(eidolon) - _fetchSince > EidolonCrew.FetchSeconds)
+        {
+            _hauler.Interrupt();
+            Lost(eidolon, fetching);
+            return;
+        }
         switch (_hauler.Step())
         {
             case HaulStep.Lost when fetching != 0:
-                _losses[fetching] = _losses.GetValueOrDefault(fetching) + 1;
-                if (_losses[fetching] >= EidolonCrew.Tries || eidolon.World.GetEntityById(fetching) is not EntityTrunk { Alive: true })
-                    Leave(fetching);
+                Lost(eidolon, fetching);
                 break;
             case HaulStep.Delivered:
                 _felledTrunks.Remove(_hauling);
                 _hauling = 0;
                 break;
+        }
+    }
+
+    private void Lost(EntityLaborEidolon eidolon, long id)
+    {
+        _losses[id] = _losses.GetValueOrDefault(id) + 1;
+        if (eidolon.World.GetEntityById(id) is not EntityTrunk { Alive: true })
+            Leave(id);
+        else if (_losses[id] >= EidolonCrew.Tries)
+        {
+            Leave(id);
+            _left.Remove(id);
+            _putBy.Add(id);
         }
     }
 
@@ -240,7 +267,7 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
         if (own != null)
             return own;
         return TrunksAround(eidolon, AreaCentre(), AreaReach())
-            .Where(t => !t.Grabbed && !t.Driven && !_left.Contains(t.EntityId) && HaulPlan.InArea(area, t.Pos.X, t.Pos.Y, t.Pos.Z)
+            .Where(t => !t.Grabbed && !t.Driven && !_left.Contains(t.EntityId) && !_putBy.Contains(t.EntityId) && HaulPlan.InArea(area, t.Pos.X, t.Pos.Y, t.Pos.Z)
                         && t.Trunk is { } stack && infeed.Takes(stack))
             .OrderBy(t => t.Pos.SquareDistanceTo(eidolon.Pos))
             .FirstOrDefault();

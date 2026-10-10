@@ -2802,8 +2802,9 @@ throughout, so trees it gave up stay given up; it replants as felling does and s
 then, after 1.5 seconds for the trunk to settle, it looks (for up to 6 seconds) for the trunk that tree
 threw: a trunk entity not lying there before it started on the tree, within 14 blocks across and 10 up
 or down of the stump. That trunk it hauls with a `TrunkHauler` to the machine (the trunk's oil), then it
-walks back to the next tree. A trunk the machine does not take, or lost to the hauler three times (it
-rolled, no way to it), is left; trunks the machine takes lying in the area are hauled too, at most
+walks back to the next tree. A trunk the machine does not take is left; one lost to the hauler three
+times (it rolled, no way to it, or not reached within 45 seconds: a trunk thrown into another tree's
+crown) is put by until the next tree falls, which may open the way, and left once the area is clear; trunks the machine takes lying in the area are hauled too, at most
 every 2 seconds, before the next tree (so a crew picks up after a save, which forgets which trunks were
 its own). A tree that throws no trunk (too small for one, or no Logging Expanded or trunk entities: its
 logs fall as items) is simply passed on from. With no grown tree it can reach left in the area and no
