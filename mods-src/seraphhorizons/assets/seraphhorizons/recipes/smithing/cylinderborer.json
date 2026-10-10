@@ -1,0 +1,21 @@
+// The cylinder borer's cutter head (#639, stage 4; CylinderBorer/, README "Cylinder borer"), from one
+// steel ingot (26 voxels of its 42), steel only: a ring that keys on the bar with the four cutters
+// standing out of it. Not named plate or blistersteel, the only names the game's helve hammer works
+// (ItemWorkItem.GetHelveWorkableMode), so it is smithed by hand. The server disables it with
+// CylinderBorer off.
+[
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["steel"] },
+		name: "cylinderborerhead",
+		pattern: [[
+			"___#___",
+			"_#####_",
+			"_##_##_",
+			"###_###",
+			"_##_##_",
+			"_#####_",
+			"___#___"
+		]],
+		output: { type: "item", code: "seraphhorizons:cylinderborerhead-{metal}" }
+	}
+]

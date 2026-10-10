@@ -1,0 +1,94 @@
+// Cylinder molds, fired (#639; CylinderBorer/, README "Cylinder borer"). The game's own tool mold classes, as
+// the gear blank molds are: a crucible pours into one (ILiquidMetalSink) and Steelmaking Expanded's canal
+// pedestal takes one as any small tool mold (any BlockToolMold but the anvil and helve hammer molds, which go on
+// its tap) and fills it to its requiredUnits, 600 (six ingots); the casting is the drop below with {metal} the
+// poured metal's last code part, so iron casts seraphhorizons:cylinderblank-iron and steel
+// seraphhorizons:cylinderblank-steel, and a crucible's other metals are refused (the game's CanReceive asks for
+// the drop first). Not broken by filling: one mold casts cylinder after cylinder. The server disables it with
+// CylinderBorer off.
+{
+	code: "cylindermold",
+	class: "BlockToolMold",
+	entityClass: "ToolMold",
+	behaviors: [
+		{ name: "Lockable" },
+		{ name: "UnstableFalling" }
+	],
+	entityBehaviors: [{ name: "TemperatureSensitive" }],
+	variantgroups: [
+		{ code: "color", states: ["blue", "fire", "black", "brown", "cream", "earthyorange", "gray", "orange", "red", "tan"] },
+		{ code: "materialtype", states: ["fired"] }
+	],
+	shape: { base: "seraphhorizons:block/clay/mold/cylinder" },
+	textures: {
+		floor: { base: "game:block/clay/hardened/{color}" },
+		other: { base: "game:block/clay/hardened/{color}" }
+	},
+	attributes: {
+		reinforcable: true,
+		shatteredShape: { base: "game:block/clay/mold/shattered-ingot" },
+		handbook: {
+			groupBy: ["cylindermold-*-{materialtype}"],
+			extraSections: [{ title: "seraphhorizons:cylinderborer-part-section-title", text: "seraphhorizons:cylindermold-section-text" }]
+		},
+		requiredUnits: 600,
+		fillHeight: 10,
+		moldrackable: false,
+		fillQuadsByLevel: [
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 },
+				{ x1: 2, z1: 1, x2: 14, z2: 15 }
+		],
+		drop: { type: "item", code: "seraphhorizons:cylinderblank-{metal}" },
+		onTongTransform: {
+			translation: { x: -1.35, y: -1, z: -0.64 },
+			rotation: { x: 180, y: -20, z: 105 },
+			scale: 0.7
+		},
+		tongOpening: "wide",
+		onMetalTongTransform: {
+			translation: { x: -1.55, y: -0.87, z: -0.84 },
+			rotation: { x: -93, y: -9, z: 1 },
+			scale: 0.7
+		}
+	},
+	blockmaterial: "Ceramic",
+	creativeinventory: { "general": ["*"], "construction": ["*"] },
+	replaceable: 700,
+	resistance: 1.5,
+	maxStackSize: 1,
+	lightAbsorption: 0,
+	sounds: {
+		walk: "game:walk/stone"
+	},
+	collisionbox: { x1: 0.0625, y1: 0, z1: 0, x2: 0.9375, y2: 0.6875, z2: 1 },
+	selectionbox: { x1: 0.0625, y1: 0, z1: 0, x2: 0.9375, y2: 0.6875, z2: 1 },
+	sideopaque: {
+		all: false
+	},
+	sidesolid: {
+		all: false
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.34, z: 0.5 },
+		scale: 1.1
+	},
+	tpHandTransform: {
+		translation: { x: -1.08, y: -0.45, z: -0.73 },
+		rotation: { x: -87, y: 9, z: 4 },
+		origin: { x: 0.5, y: 0.34, z: 0.5 },
+		scale: 0.45
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 1.8
+	}
+}

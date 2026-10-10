@@ -46,6 +46,8 @@ public sealed class SwitchOwnership
         new("GearCutter", [], [], ["gearcutter"]),
         // The exporter's own recipe type for the draw bench's process (tools/recipe-export, Recipes/DrawBenchExport.cs).
         new("DrawBench", [], [], ["drawbench"]),
+        // The exporter's own recipe type for the cylinder borer's process (tools/recipe-export, Recipes/CylinderBorerExport.cs).
+        new("CylinderBorer", [], [], ["cylinderborer"]),
         // The exporter's own recipe type for the press brake's process (tools/recipe-export, Recipes/PressBrakeExport.cs).
         new("PressBrake", [], [], ["pressbrake"]),
         // The exporter's own recipe type for the squaring shear's process (tools/recipe-export, Recipes/SquaringShearExport.cs).

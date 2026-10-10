@@ -821,6 +821,21 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public DrawBench.Core.DrawBenchConfig DrawBenchSettings { get; set; } = new();
 
+    /// <summary>The cylinder borer (#639, CylinderBorer/, README "Cylinder borer"): John Wilkinson's
+    /// boring mill, mechanically powered, built on a frame in four stages (bushings, a boring bar, a
+    /// weighted feed and a steel cutter head, the wearing part), that bores a cast iron or steel
+    /// cylinder blank (cast from Steelmaking Expanded's canal in a clay cylinder mold) into the cylinder
+    /// of Pipes and Power Expanded's Watt (iron) or Cornish (steel) engine, which their recipes then
+    /// take in place of two plates and their pipes; a MachineOil machine whose oil wears its cutter
+    /// head, not its shaft load (off means its blocks, its parts, the mold, the blanks, the cylinders
+    /// and their recipes do not exist, borers already placed are lost, and the engines take their plates
+    /// and pipes again). The server's setting decides.</summary>
+    public bool CylinderBorer { get; set; } = true;
+
+    /// <summary>The cylinder borer's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public CylinderBorer.Core.CylinderBorerConfig CylinderBorerSettings { get; set; } = new();
+
     /// <summary>The press brake (PressBrake/, README "Press brake"): a hand-worked leaf brake of oak
     /// with iron edges and screws, built on a frame in two stages (a rod as its clamp screws, a plate
     /// as its wearing edges), that folds a lead or copper half plate (the squaring shear's) once across
