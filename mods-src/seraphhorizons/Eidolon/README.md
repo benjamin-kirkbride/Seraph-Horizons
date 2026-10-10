@@ -48,12 +48,22 @@ boss entity uses size 1. The contact poses (hands on a block or trunk, a trunk o
 made for size 1 (`SIZE` in the generator); see "Open questions".
 
 **Textures.** Nothing is copied. Vanilla's texture map has no domain, so from our namespace each
-path would resolve to `seraphhorizons:`; every path is written `game:` explicit. One restyle reads
-the body as player-built: the rusty iron armour (`#rusty-iron`: the hood, chest and shoulder plates,
-tassets, bracers and finger plates) becomes the game's tarnished
-brass, Jonas's metal (`game:block/metal/tarnished/brass`), 87 elements, and the gantry's spine's
-staples, drawn from the same map. The joints and bars are already the game's tarnished steel. `make_shape.py --vanilla-look` writes vanilla's map instead; `RESTYLE` is the
-one place to change it.
+path would resolve to `seraphhorizons:`; every path is written `game:` explicit. Vanilla's body is a
+ruin, rusted, charred and worn, but a laborer is built new, so the restyle swaps each aged texture for
+the same material new. Every one is 32×32, so the UVs fit unchanged.
+
+| Code | Vanilla | Restyled | What wears it |
+|---|---|---|---|
+| `rusty-iron` | `tarnished/rusty-iron` | `metal/plate/brass`, Jonas's metal | the hood, chest and shoulder plates, tassets, bracers and finger plates (87 elements), and the gantry's spine's staples |
+| `steel` | `tarnished/steel` (rust red) | `metal/plate/steel` | the joints and bars, and the spine's clamps |
+| `charred` | `wood/charred` | `wood/debarked/oak` | the wooden bones, face plates and feet, and the spine's pulley and winch handle |
+| `poor` | `leather/poor` | `leather/plain` | the chest sash and the fauld |
+| `chain-rust` | `tarnished/chain-rust` | `armor-generic/chain-steel` | the chain skirt |
+
+`rustyglow` (the vessel, an old relic, and the heart), `lattice` (the inner frames), `fire-red` (the
+eye) and `reedrope` keep vanilla's. `make_shape.py --vanilla-look` writes vanilla's map instead;
+`RESTYLE` is the one place to change it. The gantry's block type (`blocktypes/eidolongantry/frame.json`)
+repeats the map for the body built in it.
 
 **Anchors.** Three invisible elements, children of `chest-inside` and built like vanilla's own `origin`
 (zero size, every face disabled), carry the `Carry`, `Trunk` and `ThickTrunk` attachment points. The
@@ -307,5 +317,4 @@ part listed too late is caught).
 - **The axe's orientation in the hand** comes from the item's `tpHandTransform` in the `RightHand`
   frame, matched to the seraph's at rest; whether the head points at the trunk through the swing can
   only be seen in the game.
-- **The restyle** is one texture (rusty iron to tarnished brass); more (the charred wood bones, the
-  rusty chain skirt) is a matter of taste.
+- **The restyle** has been seen only in the model viewer, not in the game's lighting.
