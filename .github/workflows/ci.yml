@@ -153,7 +153,7 @@ jobs:
     # anchored on `PackTests.` and end in `.` so that only that class name matches, not a test
     # method named after a feature or a class whose name extends another's. `ore` is every Ore*
     # class (ore maps with the ore admin tools, ore cells, each a seeded standard world of its
-    # own). The trading shards split the Trading* classes: `trading-core` is the camp grid
+    # own; ore processing, the plain world with its switch on). The trading shards split the Trading* classes: `trading-core` is the camp grid
     # (TradingCoreScenarios, a seeded standard world) with TradingScenarios; `trading-features` is
     # the rest of Trading* (maps and admin, each a seeded standard world), so a new seeded Trading
     # class lands there, and a new plain-world trading feature joins TradingScenarios. `switches`

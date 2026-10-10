@@ -61,6 +61,9 @@ public sealed class SwitchOwnership
         new("UnifiedPipes", [], ["ppex:pipe-*-copper", "ppex:pipe-*-lead", "ppex:pipe-*-tinbronze",
                                  "ppex:pipe-*-bismuthbronze", "ppex:pipe-*-blackbronze",
                                  "game:chutesection-lead"], []),
+        // Crushed ore is an item type in the game's domain whose code, "crushed", is vanilla's
+        // crushed item's too (game:crushed-{material}), so its codes are listed by their grain.
+        new("OreProcessing", [], ["game:crushed-*-coarse", "game:crushed-*-fine"], []),
     ];
 
     private readonly List<OwnedBySwitch> _owned;
