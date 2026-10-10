@@ -662,6 +662,14 @@ public class SeraphHorizonsConfig
     /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
     public int PlacerCellSizeMetres { get; set; } = 1500;
 
+    /// <summary>Ore processing (epic #684, Ore/Processing/, README "Ore processing: items, crushing
+    /// and smelting"): poor and medium ore become raw ore (stack 4, does not smelt), rich and bountiful
+    /// ore chunks (stack 16, smelt at half); crushed, ground, concentrate, roasted concentrate, amalgam
+    /// and litharge items; crushing yields the ore's units in 5-unit crushed ore, and no grid recipe
+    /// or hammer turns ore into nuggets; every furnace takes concentrate. Off by default until the
+    /// hand tier that works the ore lands. Server side (clients follow the server's items).</summary>
+    public bool OreProcessing { get; set; } = false;
+
     /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
     /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
     /// structures' chests, no recipe copies or makes one, and every recipe using one keeps it.
