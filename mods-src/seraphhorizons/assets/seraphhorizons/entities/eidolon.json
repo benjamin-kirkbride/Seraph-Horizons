@@ -51,6 +51,8 @@
 			{ code: "standup", animation: "standup", weight: 100, blendMode: "Average", easeOutSpeed: 4, supressDefaultAnimation: true },
 			{ code: "hung", animation: "hung", weight: 100, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "activate", animation: "activate", weight: 100, blendMode: "Average", easeOutSpeed: 4, supressDefaultAnimation: true },
+			// Docking onto a gantry's spine (activate in reverse), held on its last frame, hung's.
+			{ code: "dock", animation: "dock", weight: 100, blendMode: "Average", easeInSpeed: 4, supressDefaultAnimation: true },
 			{ code: "alert", animation: "stand-alert", blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "punch", animation: "stand-punch", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "kick", animation: "stand-kick", weight: 10, blendMode: "Average", supressDefaultAnimation: true },

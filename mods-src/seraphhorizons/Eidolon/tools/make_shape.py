@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate the eidolon's shape: vanilla's unused mobile eidolon, frozen into our namespace, with the
-laborer's animations, attachment points and build stages (Python 3.11 stdlib only).
+laborer's animations, attachment points and build stages: the torso, five layers of material and the mind (Python 3.11
+stdlib only).
 
 The body is Anego Studios' model (Vintage Story's `entity/lore/eidolon/normal.json`, game 1.22.7;
 see ../../CREDITS.md). This script reads it from a game install and writes
@@ -15,8 +16,9 @@ silently changing the snapshot. Elements, their geometry and the vanilla animati
 copied unchanged, but for the spine (`SPINE_ROOT` and everything under it: the charred-wood mast
 down the back with its pulley, ropes, staples, hooks and clamps), which is cut off: it belongs to
 the gantry, which the body is clamped to while it is built and which it leaves behind when it wakes.
-The spine goes to EidolonGantry/spine.json as it is and out of every animation. Textures point at the game's own files by `game:` path (none are copied), the
-aged ones swapped for new (`RESTYLE`, undone by --vanilla-look). Everything else is authored here: three anchor
+The spine goes to EidolonGantry/spine.json as it is and out of every animation. Textures point at the game's own files by `game:` path (none are copied),
+recoded by the layer of material the body is built in (`CODES`, `RECODE`), the paths the default all-steel build's
+(`TEXTURES`; --vanilla-look keeps vanilla's codes and map). Everything else is authored here: three anchor
 elements, five attachment points and the laborer's animations, posed by `kin.py`'s copy of the
 game's pose maths (arms reach their grips by a deterministic solver, feet are flattened and set on
 the ground). See ../README.md.
@@ -53,14 +55,15 @@ VANILLA_SHA256 = "534f1c0810b10208b11198c04f962add636b95eccd3ea9255d0f4f72228293
 FPS = 30
 
 # ---------------------------------------------------------------------------------------------
-# Textures. The vanilla map has no domain, so from our namespace each would resolve to
-# seraphhorizons:...; every path is made game: explicit. The vanilla body is a ruin, rusted,
-# charred and worn; a laborer is built new, so the restyle swaps every aged texture for the same
-# material new (the textures are all 32x32, so the UVs still fit): the rusty iron armour (hood,
-# plates, tassets, bracers, staples) becomes brass plate, Jonas's metal; the rusted steel joints and
-# bars steel plate; the charred wooden bones debarked oak; the worn leather sash plain leather; the
-# rusty chain skirt steel chain. The vessel and the heart keep their glow (rustyglow), the inner
-# lattice its own. --vanilla-look writes the original map.
+# Textures, by layer. The vanilla map has no domain, so from our namespace each would resolve to
+# seraphhorizons:...; every path is made game: explicit. The body is built in layers of material
+# (README "Build stages"), each fitted in a material of the builder's choice, so its texture codes are
+# the layers: vanilla's rusty iron armour (hood, plates, tassets, bracers) is `plates`, its rusted steel
+# joints and bars `joints`, its charred wooden bones `bones`, its worn leather sash and fauld `sash`, its
+# rusty chain skirt `skirt`, and the vessel's and heart's glow `glow`; the inner lattice, the eye's
+# fire-red and the reedrope keep vanilla's codes. The map's paths are the default build, all steel: steel
+# plate and joints, debarked oak bones, plain leather, steel chain (the entity and the gantry draw each
+# eidolon with its own layers' paths over these). --vanilla-look writes vanilla's codes and map.
 VANILLA_TEXTURES = {
     "steel": "block/metal/tarnished/steel",
     "lattice": "block/machine/lattice",
@@ -72,13 +75,26 @@ VANILLA_TEXTURES = {
     "fire-red": "block/fire-red",
     "reedrope": "block/cloth/reedrope",
 }
-RESTYLE = {
-    "steel": "block/metal/plate/steel",
-    "charred": "block/wood/debarked/oak",
-    "poor": "block/leather/plain",
-    "chain-rust": "block/metal/armor-generic/chain-steel",
-    "rusty-iron": "block/metal/plate/brass",
+CODES = {"rusty-iron": "plates", "steel": "joints", "charred": "bones", "poor": "sash", "chain-rust": "skirt",
+         "rustyglow": "glow"}   # vanilla code -> ours; the rest keep theirs
+TEXTURES = {
+    "joints": "block/metal/plate/steel",
+    "lattice": "block/machine/lattice",
+    "bones": "block/wood/debarked/oak",
+    "sash": "block/leather/plain",
+    "skirt": "block/metal/armor-generic/chain-steel",
+    "glow": "block/machine/statictranslocator/rustyglow",
+    "plates": "block/metal/plate/steel",
+    "fire-red": "block/fire-red",
+    "reedrope": "block/cloth/reedrope",
 }
+LAYERS = ("bones", "joints", "plates", "sash", "skirt")   # the layers, in build order: each a texture code
+# Elements recoded to another layer, so that no layer hangs off a later one (the body stays one piece after
+# every stage, checked): the upper-arm blocks (steel) carry the arms' wooden bones, so they are the arms' root
+# bones, under the shoulder plates; the waist tassets (rusty iron) hang off the fauld, so they are its tassets,
+# leather or cloth like it; the foot nails (steel) sit in the foot plates, so they are the plates' nails.
+RECODE = {"upper-armR": "bones", "upperarmL": "bones", "waist-tassetR": "sash", "waist-tassetL": "sash",
+          "footR-nail": "plates", "footL-nail": "plates"}
 
 # ---------------------------------------------------------------------------------------------
 # Vanilla animations: kept unchanged, or dropped. Every vanilla code is in exactly one list.
@@ -146,6 +162,8 @@ HUNG_BACK = 10.0  # hung, the body is this far behind the entity's position, cla
 #                   activate steps forward off it to stand at the position (at rest it would touch the spine
 #                   up to 7 voxels forward)
 ACTIVATE_LAND = 8  # activate: the frame its feet are on the floor, after the clamps let go
+DOCK_FRAMES = 60   # dock: activate in reverse, from rest to hung (2 s)
+DOCK_CLAMP = 46    # dock: the frame its back is against the spine and the clamps close; its feet leave the floor after
 # Felling: the hands meet on the handle here at the moment of the cut.
 FELL_IMPACT_R = (-13.0, 31.0, 7.0)
 FELL_IMPACT_L = (-9.0, 29.5, 8.5)
@@ -168,52 +186,53 @@ LEG = {"R": ("upperlegR", "lowerlegR", "footR", ("soleR1", "soleR2")),
        "L": ("upperlegL", "lowerlegL", "footL", ("soleL1", "soleL2"))}
 
 # ---------------------------------------------------------------------------------------------
-# Build stages. Each lists the elements it adds, as claim roots: a root and everything under it
-# that no other root claims. The gantry shows stages cumulatively. The torso comes first, before the
-# pelvis it hangs from in the shape's hierarchy (origin > hip-inside > chest-inside), so the rule is not
-# parents first but attachment: after every stage, the elements shown so far are one connected piece
-# of the hierarchy, its links taken either way (a stage fits onto what is there; nothing floats). The
-# gantry bakes the body's pose, so no shown element's place depends on a hidden one at draw time.
-# Ingredients are the epic's body bill (#668), which the gantry's body stages take
-# (EidolonGantry/Core/BodyParts.cs, BodyBill, held to this file by a test). The head brings the vessel,
-# and its element, the brain, goes in with it, so the head hung in the gantry shows it; the mind's
-# temporal gear lights the eye and the heart.
-STAGES = [
-    {"stage": 1, "code": "gantry", "name": "Gantry",
-     "ingredients": ["wood (the gantry's own model)"], "roots": []},
-    {"stage": 2, "code": "torso", "name": "Torso",
-     "ingredients": ["game:jonasparts-tank01", "game:jonasparts-tank02", "game:jonasparts-pumphead",
-                     "4 game:metalplate-steel", "8 game:metalnailsandstrips-steel", "4 game:metal-parts",
-                     "3 seraphhorizons:gear-stainless"],
-     "roots": ["chest-inside", "collar-front", "collar-R", "collar-L", "chest-plateR", "chest-plateL",
-               "chest-backplate", "chest-sideplateR", "chest-sideplateL", "chest-sash2",
-               "bar-chestR1", "bar-chestR2", "bar-chestL1", "bar-chestL2",
-               "carry-anchor", "trunk-anchor", "thick-trunk-anchor"]},
-    {"stage": 3, "code": "pelvis", "name": "Pelvis",
-     "ingredients": ["game:jonasframes-gearbox02", "3 game:metalplate-steel", "8 game:metalnailsandstrips-steel",
-                     "3 game:metal-parts", "2 seraphhorizons:gear-stainless"],
-     "roots": ["origin", "hip-inside", "hip-tassetR", "hip-tassetL", "back-tassetR", "back-tassetL",
-               "waist-fauld", "chainskirt-back1", "chainskirt-front1", "bar-hip"]},
-    {"stage": 4, "code": "legs", "name": "Legs",
-     "ingredients": ["2 game:jonasframes-joint01", "2 game:jonasframes-spring01", "4 game:rod-steel",
-                     "3 game:metalplate-steel", "8 game:metalnailsandstrips-steel", "3 game:metal-parts",
-                     "2 seraphhorizons:gear-stainless"],
-     "roots": ["bar-legs", "upperlegR", "upperlegL"]},
-    {"stage": 5, "code": "arms", "name": "Arms",
-     "ingredients": ["game:jonasframes-gears01", "game:jonasframes-gears02", "game:jonasparts-cylinder01",
-                     "game:jonasparts-valve01", "4 game:rod-steel", "2 game:metalplate-steel",
-                     "8 game:metalnailsandstrips-steel", "4 game:metal-parts", "3 seraphhorizons:gear-stainless"],
-     "roots": ["bar-arms", "upper-armR", "upperarmL"]},
-    {"stage": 6, "code": "head", "name": "Head",
-     "ingredients": ["game:rustypart-eidolon2tr", "game:jonasframes-oscillator01", "game:jonasframes-gearbox01",
-                     "game:jonasparts-cylinder02", "game:jonasparts-connector01", "game:metalplate-steel",
-                     "4 game:metalnailsandstrips-steel", "2 game:metal-parts", "2 seraphhorizons:gear-stainless"],
-     "roots": ["neck", "head-inside", "hood-back3", "hood-back4", "brain"]},
-    {"stage": 7, "code": "mind", "name": "Mind",
-     "ingredients": ["game:gear-temporal"],
-     "roots": ["heart", "Eye-out"]},
-]
-
+# Build stages (README "Build stages"). The torso, crafted, is placed on the gantry's spine; then the five
+# layers (LAYERS), each the elements of its texture code, fitted item by item; then the mind. Which stage an
+# element is in (`layer_of`):
+#   - the torso: the lattice chest and hip blocks (`chest-inside`, `hip-inside`) and the faceless root and
+#     anchors (`origin`, the three anchors): the trunk's frame, which the crafted torso is;
+#   - the mind: the heart and the eye's light (`heart`, `Eye-out`) and what hangs from them (the heart's two
+#     bars), as before: what lights when it wakes;
+#   - every other element: the layer of its texture code, the code over most of its drawn faces' area (ties
+#     the earlier layer; today every element has one code), after RECODE; the head's lattice block
+#     (`head-inside`) and the vessel (`brain`, glow) go with the bones, the frame and the relic the bones take.
+# After every stage the elements shown so far are one connected piece of the hierarchy, its links taken
+# either way (checked). Each layer's count of its material is derived from the model (`layer_bill`).
+TORSO = ("origin", "hip-inside", "chest-inside") + ("carry-anchor", "trunk-anchor", "thick-trunk-anchor")
+MIND_ROOTS = ("heart", "Eye-out")
+CODE_LAYER = {**{c: c for c in LAYERS}, "lattice": "bones", "glow": "bones", "fire-red": "mind"}
+TORSO_ITEM = "seraphhorizons:eidolontorso"
+TORSO_RECIPE = ["game:jonasparts-pumphead", "game:jonasparts-tank01", "game:jonasparts-tank02", "4 game:metal-parts",
+                "3 seraphhorizons:gear-stainless"]
+# Counts scaled to the model. One measure for every layer, the face area its elements show (half a box's
+# surface, xy + yz + zx: a sheet's one side, so a thin plate counts what it covers, not its edges twice), in
+# model voxels squared. Metal sets the scale: today's bill, 13 plates, 8 rods and 36 nails and strips, is
+# 43 ingots (a plate 2, a rod 1, nails and strips 4 to the ingot), and it buys the plates' and joints' area,
+# so an ingot is METAL_INGOTS over that area. A plate or a chain (two ingots on the anvil each) covers two
+# ingots' area, about a block's face, and a leather or a cloth is counted as a sheet the same. A support
+# beam is the game's 16 × 4 × 4 beam, BEAM_AREA (its own measure). Only the material's own elements count:
+# the bones' wood, not their lattice frame or the vessel (Jonas items of their own).
+METAL_INGOTS = 2 * 13 + 8 + 36 / 4
+BEAM_AREA = 16 * 4 + 16 * 4 + 4 * 4
+JONAS = {
+    "bones": ["game:jonasframes-gearbox01", "game:jonasframes-gearbox02", "game:jonasframes-oscillator01",
+              "game:jonasparts-cylinder02", "game:jonasparts-connector01", "game:rustypart-eidolon2tr"],
+    "joints": ["2 game:jonasframes-joint01", "2 game:jonasframes-spring01", "game:jonasframes-gears01",
+               "game:jonasframes-gears02", "game:jonasparts-cylinder01", "game:jonasparts-valve01",
+               "9 seraphhorizons:gear-stainless", "12 game:metal-parts"],
+}
+# A layer's material: the item (its {token}s the builder's choice) and the default build's choice.
+MATERIAL = {
+    "bones": ("game:supportbeam-{wood}", {"wood": "oak"}),
+    "joints": ("game:rod-{metal}", {"metal": "steel"}),              # and game:metalnailsandstrips-{metal}
+    "plates": ("game:metalplate-{metal}", {"metal": "steel"}),
+    "sash": ("game:{fabric}-{colour}", {"fabric": "leather-normal", "colour": "plain"}),   # or cloth-{colour}
+    "skirt": ("game:metalchain-{metal}", {"metal": "steel"}),
+}
+NAILS = "game:metalnailsandstrips-{metal}"
+STAGE_NAMES = {"gantry": "Gantry", "torso": "Torso", "bones": "Bones", "joints": "Joints, bars and clamps",
+               "plates": "Plates", "sash": "Sash and fauld", "skirt": "Chain skirt", "mind": "Mind"}
+STAGE_CODES = ("gantry", "torso") + LAYERS + ("mind",)
 
 # ---------------------------------------------------------------------------------------------
 # Pose helpers. A pose is {element: {"rot"|"off": (x, y, z)}}; unset is the rest pose.
@@ -871,6 +890,33 @@ def authored(b: Builder, vanilla_anims):
         Key(89, {}, plant="feet"),
     ], "Stop", "PlayTillEnd"))
 
+    # dock: activate in reverse, onto the gantry's spine to be clamped (a dock order sends it there to have its
+    # layers stripped and refitted; the crank wakes it again). From rest it glances back over its left shoulder
+    # (6), steps back, left foot (lifted 14, down 22) then right (lifted 30, down 38), onto where activate lands,
+    # and sinks bowed into its knees, its back against the spine (DOCK_CLAMP, activate's landing pose); the clamps
+    # close and lift it off its feet (52, activate's frame 3), and it hangs limp, ending in `hung` (59).
+    k_dock_land = copy.copy(k_land)
+    k_dock_land.frame = DOCK_CLAMP
+    k_dock_hung = copy.copy(k_hung)
+    k_dock_hung.frame = DOCK_FRAMES - 1
+    anims.append(b.animation("dock", "Dock", DOCK_FRAMES, [
+        Key(0, {}, plant="feet"),
+        Key(6, merge({"head-inside": r(0, 30, -2), "chest-inside": r(0, 6, 0)}), plant="feet", feet=home),
+        Key(14, merge(lift_l, walk_arms(-1), {"chest-inside": r(0, 0, 5)}),
+            plant="feet", shift=(HUNG_BACK * 0.2, 0, 0), feet={"R": home["R"], "L": lifted("L", 0.5)}),
+        Key(22, merge(bent_legs(-8, 14), walk_arms(0.5), {"chest-inside": r(0, 0, 5)}),
+            plant="feet", shift=(HUNG_BACK * 0.4, 0, 0), feet={"R": home["R"], "L": planted["L"]}),
+        Key(30, merge(lift_r, walk_arms(1), {"chest-inside": r(0, 0, 6), "head-inside": r(0, 0, 2)}),
+            plant="feet", shift=(HUNG_BACK * 0.6, 0, 0), feet={"R": lifted("R", 0.5), "L": planted["L"]}),
+        Key(38, merge(bent_legs(-14, 24), {"hip-inside": r(0, 0, 4), "chest-inside": r(0, 0, 6),
+                                          "head-inside": r(0, 0, 4)}), plant="feet", feet=planted),
+        k_dock_land,
+        Key(52, merge(hung, {"chest-inside": r(0, 0, 20), "head-inside": r(0, 0, 40), "upper-armR": r(6, 0, -24),
+                             "upperarmL": r(-6, 0, -24), "chainskirt-back1": r(0, 0, -10)}),
+            plant="sole", clear=HUNG_CLEAR - 0.6, shift=(HUNG_BACK - 2.5, 0, 0)),
+        k_dock_hung,
+    ], "Hold", "PlayTillEnd"))
+
     # slump: at 0 HP the knees give and it sinks onto them, bowed and limp, and stays there.
     kneel = merge(LIMP["R"], LIMP["L"], {
         "hip-inside": r(0, 0, 16), "chest-inside": r(0, 0, 30), "head-inside": r(0, 0, 38),
@@ -971,6 +1017,7 @@ EVENTS = {
     "trunk-thick-setdown": {"release": 32},
     "strike-jab": {"hit": STRIKE_JAB_HIT},
     "strike-hammer": {"hit": STRIKE_HAMMER_HIT},
+    "dock": {"clamp": DOCK_CLAMP},
 }
 
 
@@ -1004,14 +1051,17 @@ def cut_spine(shape):
     return spine
 
 
-def spine_file(vanilla):
-    """The gantry's input: vanilla's spine as it is, and the element it hangs from in the body."""
+def spine_file(vanilla, vanilla_look=False):
+    """The gantry's input: vanilla's spine as it is, its codes the body's (CODES), and the element it hangs from
+    in the body."""
     spine = cut_spine(copy.deepcopy(vanilla))
+    if not vanilla_look:
+        recode([spine], per_element=False)
     return {"_comment": "Generated by mods-src/seraphhorizons/Eidolon/tools/make_shape.py: the spine of Vintage Story's "
                         "mobile eidolon (entity/lore/eidolon/normal.json, game 1.22.7, Anego Studios' model; see "
-                        "CREDITS.md), cut off the eidolon's shape unchanged. It is the gantry's: "
+                        "CREDITS.md), cut off the eidolon's shape unchanged but for its texture codes, the body's layer codes. It is the gantry's: "
                         "EidolonGantry/tools/make_shape.py hangs it as a child of `parent` in the eidolon's shape and "
-                        "bakes it in the hung pose. Its textures are the eidolon's codes. Not shipped. Do not edit by hand.",
+                        "bakes it in the hung pose, in its own materials. Not shipped. Do not edit by hand.",
             "parent": SPINE_PARENT, "elements": [spine]}
 
 
@@ -1025,7 +1075,11 @@ def build(vanilla, vanilla_look=False):
     if set(shape["textures"]) != set(VANILLA_TEXTURES) or any(
             shape["textures"][k] != v for k, v in VANILLA_TEXTURES.items()):
         raise SystemExit("vanilla texture map changed")
-    shape["textures"] = {k: "game:" + (v if vanilla_look else RESTYLE.get(k, v)) for k, v in VANILLA_TEXTURES.items()}
+    if vanilla_look:
+        shape["textures"] = {k: "game:" + v for k, v in VANILLA_TEXTURES.items()}
+    else:
+        recode(shape["elements"])
+        shape["textures"] = {k: "game:" + v for k, v in TEXTURES.items()}
     shape["animations"] = [a for a in shape["animations"] if a["code"] in KEEP]
 
     rig = kin.Rig(shape)
@@ -1059,8 +1113,10 @@ def build(vanilla, vanilla_look=False):
     b = Builder(shape)
     shape["animations"] += authored(b, {a["code"]: a for a in shape["animations"]})
 
-    restyle = "" if vanilla_look else (" Restyled: " + ", ".join(
-        f"#{k} {VANILLA_TEXTURES[k]} -> {v}" for k, v in RESTYLE.items()) + " (make_shape.py --vanilla-look undoes it).")
+    restyle = "" if vanilla_look else (" Recoded by layer, the default build's paths: " + ", ".join(
+        f"#{k} {VANILLA_TEXTURES[k]} -> #{CODES.get(k, k)} {TEXTURES[CODES.get(k, k)]}" for k in VANILLA_TEXTURES
+        if CODES.get(k, k) != k or TEXTURES[k] != VANILLA_TEXTURES[k]) + "; "
+        + ", ".join(f"{n} -> #{c}" for n, c in RECODE.items()) + " (make_shape.py --vanilla-look undoes it).")
     out = {"_comment": "Generated by mods-src/seraphhorizons/Eidolon/tools/make_shape.py from Vintage Story's "
                        "entity/lore/eidolon/normal.json (game 1.22.7, Anego Studios' model; see CREDITS.md), "
                        "less its spine, which is the gantry's (EidolonGantry/spine.json). Do not edit by hand." + restyle}
@@ -1068,37 +1124,137 @@ def build(vanilla, vanilla_look=False):
     return out
 
 
+FACE_AXES = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
+
+
+def main_code(e):
+    """The layer code (CODES applied) over most of an element's drawn faces' area, ties the earlier layer; None
+    when it draws nothing."""
+    size = [abs(e["to"][i] - e["from"][i]) for i in range(3)]
+    area = {}
+    for d, f in e.get("faces", {}).items():
+        if f.get("enabled", True):
+            c = f["texture"].lstrip("#")
+            c = CODES.get(c, c)
+            area[c] = area.get(c, 0.0) + size[FACE_AXES[d][0]] * size[FACE_AXES[d][1]]
+    if not area:
+        return None
+    rank = {c: i for i, c in enumerate(LAYERS)}
+    return max(area, key=lambda c: (area[c], -rank.get(c, len(LAYERS))))
+
+
+def element_code(e):
+    return RECODE.get(e["name"]) or main_code(e)
+
+
+def recode(elements, per_element=True):
+    """Vanilla's codes to ours on every face (CODES), and RECODE's elements to their layer's code."""
+    for e in elements:
+        for f in e.get("faces", {}).values():
+            c = f["texture"].lstrip("#")
+            if c in CODES or per_element and e["name"] in RECODE:
+                f["texture"] = "#" + (RECODE[e["name"]] if per_element and e["name"] in RECODE else CODES[c])
+        recode(e.get("children", []), per_element)
+
+
 def stage_map(shape):
-    """{element: stage code}, by nearest claimed ancestor-or-self; raises on a bad claim list."""
+    """{element: stage code}: the torso's, the mind's, or the layer of its code (the Build stages comment)."""
     rig = kin.Rig(shape)
-    claims = {}
-    for st in STAGES:
-        for root in st["roots"]:
-            if root not in rig.elements:
-                raise ValueError(f"stage {st['code']}: no element {root}")
-            if root in claims:
-                raise ValueError(f"{root} claimed by {claims[root]} and {st['code']}")
-            claims[root] = st["code"]
     out = {}
     for n in rig.order:
         a = n
-        while a is not None and a not in claims:
+        while a is not None and a not in MIND_ROOTS:
             a = rig.parent[a]
-        if a is None:
-            raise ValueError(f"{n} is in no stage")
-        out[n] = claims[a]
+        if a is not None:
+            out[n] = "mind"
+        elif n in TORSO:
+            out[n] = "torso"
+        else:
+            code = element_code(rig.elements[n])
+            if code is None:
+                raise ValueError(f"{n} draws nothing and is not the torso's")
+            if code not in CODE_LAYER:
+                raise ValueError(f"{n}: texture code {code} is in no stage")
+            out[n] = CODE_LAYER[code]
     return out
+
+
+def half_area(e):
+    x, y, z = (abs(e["to"][i] - e["from"][i]) for i in range(3))
+    return x * y + y * z + z * x
+
+
+def whole(x):
+    return max(1, int(math.floor(x + 0.5)))
+
+
+def layer_bill(shape):
+    """Each layer's material count, scaled to the model (the comment over METAL_INGOTS): {layer: [(item, count,
+    area, area per item)]}, and the scale {ingot, sheet, beam: area}. Only a layer's own material counts: the
+    elements in it wearing its code."""
+    rig = kin.Rig(shape)
+    sm = stage_map(shape)
+    area = {c: 0.0 for c in LAYERS}
+    bars = 0.0
+    for n in rig.order:
+        e = rig.elements[n]
+        if sm[n] in LAYERS and element_code(e) == sm[n]:
+            area[sm[n]] += half_area(e)
+            if sm[n] == "joints" and n.startswith("bar-"):
+                bars += half_area(e)
+    ingot = (area["plates"] + area["joints"]) / METAL_INGOTS
+    sheet = 2 * ingot
+    nails = area["joints"] - bars
+    out = {
+        "bones": [(MATERIAL["bones"][0], whole(area["bones"] / BEAM_AREA), area["bones"], BEAM_AREA)],
+        # the bars and clamps (bar-*) are rods; the joints, hands and fittings nails and strips, four to the ingot,
+        # counted in whole ingots
+        "joints": [(MATERIAL["joints"][0], whole(bars / ingot), bars, ingot),
+                   (NAILS, 4 * whole(nails / ingot), nails, ingot / 4)],
+        "plates": [(MATERIAL["plates"][0], whole(area["plates"] / sheet), area["plates"], sheet)],
+        "sash": [(MATERIAL["sash"][0], whole(area["sash"] / sheet), area["sash"], sheet)],
+        "skirt": [(MATERIAL["skirt"][0], whole(area["skirt"] / sheet), area["skirt"], sheet)],
+    }
+    return out, {"ingot": ingot, "sheet": sheet, "beam": BEAM_AREA}
+
+
+def counted(n, code):
+    return code if n == 1 else f"{n} {code}"
 
 
 def stages_file(shape):
     sm = stage_map(shape)
     rig = kin.Rig(shape)
+    bill, scale = layer_bill(shape)
+    stages = []
+    for i, code in enumerate(STAGE_CODES, 1):
+        st = {"stage": i, "code": code, "name": STAGE_NAMES[code]}
+        if code == "gantry":
+            st["ingredients"] = ["wood (the gantry's own model)"]
+        elif code == "torso":
+            st["ingredients"] = [TORSO_ITEM]
+            st["recipe"] = TORSO_RECIPE
+        elif code == "mind":
+            st["ingredients"] = ["game:gear-temporal"]
+        else:
+            st["texture"] = code
+            st["material"] = MATERIAL[code][1]
+            st["ingredients"] = [counted(n, item) for item, n, _, _ in bill[code]] + JONAS.get(code, [])
+            st["measure"] = [{"item": item, "area": num(a, 1), "per": num(per, 1), "exact": num(a / per, 2), "count": n}
+                             for item, n, a, per in bill[code]]
+        st["elements"] = [n for n in rig.order if sm[n] == code]
+        stages.append(st)
     return {"_comment": "Generated by mods-src/seraphhorizons/Eidolon/tools/make_shape.py: the eidolon's build "
-                        "stages, each with the shape elements (eidolon.json) it adds. Shown cumulatively. "
-                        "Ingredients are the body bill, \"N code\" for N of an item (Eidolon/README.md).",
-            "stages": [{"stage": st["stage"], "code": st["code"], "name": st["name"],
-                        "ingredients": st["ingredients"],
-                        "elements": [n for n in rig.order if sm[n] == st["code"]]} for st in STAGES]}
+                        "stages, each with the shape elements (eidolon.json) it adds, shown cumulatively: the torso "
+                        "(crafted from `recipe`, placed on the spine), the five layers, each the elements of its "
+                        "texture code (`texture`), and the mind. Ingredients are \"N code\" for N of an item; a "
+                        "layer's {tokens} are the builder's choice of material, `material` the default build's. A "
+                        "layer's material count is scaled to the model: `measure` gives its elements' face area "
+                        "(model voxels squared), the area one item covers (`scale`: an ingot's, from today's 43 "
+                        "ingots of metal over the plates' and joints' area; a plate, chain, leather or cloth two "
+                        "ingots'; a support beam its own) and the count, rounded (Eidolon/README.md, \"Build stages\").",
+            "scale": {k: num(v, 2) for k, v in scale.items()},
+            "stages": stages}
 
 
 def check_stages(shape, stages):
@@ -1130,9 +1286,9 @@ def check_stages(shape, stages):
 def rig_order(shape, stages):
     """The stages in the order the rig lists their parts. A rig element is in the first part with a name
     matching any name in its chain (itself and its ancestors), so a stage must come before every stage
-    holding one of its elements' ancestors: the mind (under the head and chest blocks) before the head,
-    the head and arms (under the chest block) before the torso, the torso and legs (under the hip block)
-    before the pelvis. Ties keep the build order; a cycle raises."""
+    holding one of its elements' ancestors: the mind (under the chest and head blocks) before the bones and the
+    torso, a plate before the joint or bone it is on, the bones before the torso. Ties keep the build order; a
+    cycle raises."""
     rig = kin.Rig(shape)
     st = {n: s["code"] for s in stages["stages"] for n in s["elements"]}
     codes = [s["code"] for s in stages["stages"] if s["elements"]]
@@ -1174,7 +1330,7 @@ def rig_file(shape, stages):
                         "build stage (eidolon-stages.json), each needing its own requires value, with no drivers, so "
                         "the eidolon's page can show any of its stages while an animation plays. An element is in the "
                         "first part matching a name in its chain, so the parts are listed with each stage before the "
-                        "stages its elements hang from (the mind before the head, the torso before the pelvis). "
+                        "stages its elements hang from (the sash before the plates it is on, the bones before the torso). "
                         "Not read by the game. See Eidolon/README.md.",
             "parts": [{"id": c, "match": by[c], "requires": c, "drivers": []} for c in order]}
 
@@ -1226,7 +1382,7 @@ def report(shape):
         out[code + ": lowest sole y, min..max over frames"] = (round(min(lows), 2), round(max(lows), 2))
     # Planted keys: both soles on the ground.
     for code in ("fell", "guard-idle", "lift", "setdown", "trunk-pickup", "trunk-setdown", "trunk-thick-pickup",
-                 "trunk-thick-setdown", "trunk-thick-carry-idle", "standup", "activate"):
+                 "trunk-thick-setdown", "trunk-thick-carry-idle", "standup", "activate", "dock"):
         worst = 0.0
         for f in keyed(code):
             p = kin.sample(anims[code], f)
@@ -1235,6 +1391,10 @@ def report(shape):
                 continue
             if code == "activate":
                 if f >= ACTIVATE_LAND:     # stepping, one foot may be up: the lower on the ground
+                    worst = max(worst, abs(min(ys)))
+                continue
+            if code == "dock":
+                if f <= DOCK_CLAMP:        # the same, until the clamps lift it
                     worst = max(worst, abs(min(ys)))
                 continue
             worst = max(worst, max(abs(y) for y in ys))
@@ -1422,7 +1582,7 @@ def main(argv=None):
     ap.add_argument("--game", help="a game install (default: $VINTAGE_STORY)")
     ap.add_argument("--check", action="store_true", help="compare with the committed files, write nothing")
     ap.add_argument("--report", action="store_true", help="print the pose checks of the committed shape")
-    ap.add_argument("--vanilla-look", action="store_true", help="keep vanilla's texture map (no restyle)")
+    ap.add_argument("--vanilla-look", action="store_true", help="keep vanilla's texture codes and map (no layer codes)")
     args = ap.parse_args(argv)
     if args.report:
         shape = json.loads(SHAPE_OUT.read_text())
@@ -1439,7 +1599,7 @@ def main(argv=None):
         raise SystemExit("stage map: " + "; ".join(problems))
     vanilla = load_vanilla(path)
     files = {SHAPE_OUT: render(shape), STAGES_OUT: render(stages), RIG_OUT: render(rig_file(shape, stages)),
-             SPINE_OUT: render(spine_file(vanilla))}
+             SPINE_OUT: render(spine_file(vanilla, args.vanilla_look))}
     if args.check:
         stale = [str(p.relative_to(MOD)) for p, text in files.items() if not p.exists() or p.read_text() != text]
         if stale:
