@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import oreLine, { CHAINS, CHARTS, TIERS } from "../scripts/standalone/ore-line.ts";
+import oreLine, { CFG, CHAINS, CLASSES, concentration, OPEN_QUESTIONS, PARTED, TIERS, tierConcentrate } from "../scripts/standalone/ore-line.ts";
 import { tabForHash } from "../scripts/standalone/tabs-hash.ts";
 import { expandPath, groupBy, parseSpec, slugify } from "../scripts/standalone/tabs-spec.ts";
 import { loadModels, REPO } from "../scripts/models.ts";
@@ -71,22 +71,48 @@ describe("the tabbed standalone page's spec", () => {
 });
 
 describe("the ore review's processing line", () => {
-  it("draws every step in all three tiers, each with its issue", () => {
-    for (const c of CHARTS) {
-      for (const r of c.rows) {
-        expect(Boolean(r.span) !== Boolean(r.lanes), `${c.id} ${r.stage}`).toBe(true);
-        if (r.lanes) for (const t of TIERS) expect(r.lanes[t].length, `${c.id} ${r.stage} ${t}`).toBeGreaterThan(0);
-        const boxes = r.span ? [r.span] : TIERS.flatMap((t) => r.lanes![t]);
-        for (const b of boxes) expect(b.issues.length, `${c.id} ${r.stage} ${b.name}`).toBeGreaterThan(0);
-      }
-    }
-    for (const c of CHAINS) for (const s of c.steps) expect(s.issues.length, `${c.id} ${s.name}`).toBeGreaterThan(0);
+  it("computes the issues' worked examples from the config", () => {
+    // Poor hematite: hand 22 % (rocker, unground), water 80 % (jig, ground), mill 99 % (#765, #685).
+    expect(tierConcentrate("hand", { poor: true })[0]).toEqual({ device: "rocker", value: 0.55 * 0.4 });
+    expect(tierConcentrate("water", { poor: true })[0]).toEqual({ device: "jig L2", value: 0.8 });
+    expect(tierConcentrate("mill", { poor: true })[0]).toEqual({ device: "table + vanner L4", value: 0.99 });
+    // Factors multiply and the result is capped (#685).
+    expect(concentration(0.55, { classified: false })).toBeCloseTo(0.4675);
+    expect(concentration(0.99, { free: true })).toBeCloseTo(0.693);
+    expect(concentration(0.99, { free: true, amalgamated: true, density: 1.1 })).toBe(1);
+    // What smelts (ore-processing.json, #720).
+    expect(CFG.smelt).toMatchObject({ raw: 0, chunk: 0.5, crushed: 0.5, ground: 0, concentrate: 1, roastedconcentrate: 1 });
   });
 
-  it("renders one section per chart, its issues linked", () => {
+  it("gives every class a strip with a smelt-now exit under each step, each step with its issues", () => {
+    for (const c of CLASSES) {
+      expect(c.steps.length, c.id).toBeGreaterThanOrEqual(4);
+      for (const s of c.steps) {
+        expect(Boolean(s.span) !== Boolean(s.devices), `${c.id} ${s.stage}`).toBe(true);
+        expect(s.issues.length, `${c.id} ${s.stage}`).toBeGreaterThan(0);
+        expect(["smelt", "none", "on"]).toContain(s.exit.kind);
+      }
+      expect(c.steps.some((s) => s.exit.kind === "smelt"), c.id).toBe(true);
+      for (const stop of c.stops) for (const t of TIERS) expect(stop.cells[t], `${c.id} ${stop.item} ${t}`).toBeDefined();
+      expect(c.formula.length, c.id).toBeGreaterThan(20);
+      expect(c.example.lines.length, c.id).toBeGreaterThan(0);
+    }
+    for (const p of PARTED) expect(p.issues.length, p.ore).toBeGreaterThan(0);
+    for (const c of CHAINS) expect(c.issues.length, c.id).toBeGreaterThan(0);
+  });
+
+  it("renders one section per class, the parting table, the open questions, its issues linked, and no script", () => {
     const html = oreLine();
-    for (const c of [...CHARTS, ...CHAINS]) expect(html).toContain(`id="ol-${c.id}"`);
+    for (const c of CLASSES) expect(html).toContain(`id="ol-${c.id}"`);
+    for (const id of ["parting", "nonmetals", "open"]) expect(html).toContain(`id="ol-${id}"`);
     expect(html).toContain('href="https://github.com/benjamin-kirkbride/Seraph-Horizons/issues/747"');
+    expect(html).toContain("Smelt now");
+    // The cumulative figures a reader checks first.
+    expect(html).toContain("<b>22 %</b> rocker");
+    expect(html).toContain("<b>99 %</b> table + vanner L4");
+    expect(html).toContain("<b>46.8 %</b> rocker");
+    expect(html).toContain("× firepit 85 %");
+    for (const q of OPEN_QUESTIONS) expect(html).toContain(q.slice(0, 20).replace(/&/g, "&amp;"));
     expect(html).not.toMatch(/<script/i);
   });
 });
