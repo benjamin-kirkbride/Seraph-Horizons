@@ -11,11 +11,13 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <summary>
 /// Self-defence (#675; README "Eidolon", self-defence): when a creature hurts the eidolon (the
 /// cause of the damage, so an archer too), this task, above the order task (priority 1.6 to its 1.5),
-/// goes for it at a run by the wide pathfinder and strikes it with a punch, a kick and a slam in turn
-/// (<see cref="EidolonDefence.Blow"/>), each for <see cref="EidolonConfig.DefenceDamage"/> (a slam
-/// <see cref="EidolonConfig.SlamDamage"/>), until it
+/// goes for it at a run and strikes it (<see cref="EidolonStrikes"/>), each blow for
+/// <see cref="EidolonConfig.DefenceDamage"/> (every third <see cref="EidolonConfig.SlamDamage"/>), until it
 /// is dead, gone out of range, or has not hurt it for a while; the order task then starts its order
-/// again. Never a player or another eidolon (<see cref="EidolonDefence.Engages"/>). Like every task it
+/// again. It closes by the wide pathfinder from afar and straight at the creature close by, aiming
+/// where the creature's motion takes it, and keeps closing while it strikes on the move; it strikes
+/// standing only at a creature standing in reach. Each blow is judged where the creature is when it
+/// lands. Never a player or another eidolon (<see cref="EidolonDefence.Engages"/>). Like every task it
 /// starts only while the eidolon can work.
 /// </summary>
 public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
@@ -29,8 +31,15 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
     /// <summary>How far it goes after one, in blocks.</summary>
     public const double Range = 24;
 
-    /// <summary>The gap between their boxes, in blocks, within which a blow reaches.</summary>
-    public const double Reach = 1.6;
+    /// <summary>Within this distance (centres, across, in blocks) and nearly level it walks straight at
+    /// the creature instead of searching a path.</summary>
+    public const double SteerRange = 8;
+
+    /// <summary>How fast it turns to face the creature, in radians a second.</summary>
+    public const float TurnRadPerSecond = 4.5f;
+
+    /// <summary>Beyond this gap, or after a creature faster than this many blocks a second, it runs.</summary>
+    private const double RunGap = 2, RunAfterSpeed = 1.5;
 
     private const double GiveUpSeconds = 45;
 
@@ -38,21 +47,29 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
     private double _hurtAt = double.MinValue;
     private EidolonNavigator? _nav;
     private int _blows;
-    private string? _animation;
-    private double _blowEnds;
+    private Strike? _strike;
+    private int _strikeNumber;
+    private double _strikeEnds;
     private double _hitAt;
     private bool _struck;
     private double _giveUpAt;
     private double _nextPath;
-    private bool _slam;
+    private double _pathOnlyUntil;
     private Vec3d? _leashPoint;
     private double _leash;
+    private readonly Motion _own = new(), _theirs = new();
 
     /// <summary>The creature it is after, or null.</summary>
     public EntityAgent? Attacker => _attacker;
 
     /// <summary>Blows landed since it was made (for the scenarios).</summary>
     public int BlowsLanded { get; private set; }
+
+    /// <summary>Blows that missed since it was made (for the scenarios).</summary>
+    public int BlowsMissed { get; private set; }
+
+    /// <summary>Blows landed on the move since it was made (for the scenarios).</summary>
+    public int MovingBlowsLanded { get; private set; }
 
     private double Now => entity.World.ElapsedMilliseconds / 1000.0;
 
@@ -100,53 +117,63 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
     {
         base.StartExecute();
         _nav ??= new EidolonNavigator((EntityLaborEidolon)entity);
-        _animation = null;
+        _strike = null;
         _giveUpAt = Now + GiveUpSeconds;
         _nextPath = 0;
+        _pathOnlyUntil = 0;
+        _own.Reset();
+        _theirs.Reset();
     }
 
     public override bool ContinueExecute(float dt)
     {
         if (_attacker is not { } target || _nav == null || Now > _giveUpAt)
             return false;
-        if (_animation != null)
+        _own.Track(entity.Pos, Now);
+        _theirs.Track(target.Pos, Now);
+        if (_strike is { } strike)
         {
-            Face(target);
             if (!_struck && Now >= _hitAt)
             {
                 _struck = true;
-                if (target.Alive && Gap(target) <= Reach + 0.5)
-                    Strike(target);
+                if (target.Alive && EidolonStrikes.Lands(strike, Gap(target), OffFacingDegrees(target), Level(target)))
+                    Strike(target, strike);
+                else
+                    BlowsMissed++;
             }
-            if (Now < _blowEnds)
+            if (strike.Moving && target.Alive)
+                Close(target);
+            Face(target, dt);
+            if (Now < _strikeEnds)
                 return true;
-            entity.AnimManager.StopAnimation(_animation);
-            _animation = null;
+            entity.AnimManager.StopAnimation(strike.Animation);
+            _strike = null;
         }
         if (!Engaging(target))
         {
             _attacker = null;
             return false;
         }
-        if (Gap(target) <= Reach)
+        double gap = Gap(target);
+        if (gap < double.MaxValue)
         {
-            if (_nav.Active)
-                _nav.Stop();
-            Face(target);
-            var (animation, seconds, hitAt, slam) = EidolonDefence.Blow(_blows++);
-            _slam = slam;
-            entity.AnimManager.StartAnimation(animation);
-            _animation = animation;
-            _blowEnds = Now + seconds;
-            _hitAt = Now + hitAt;
-            _struck = false;
-            return true;
+            var radii = (entity.CollisionBox.XSize + target.CollisionBox.XSize) / 2;
+            var next = EidolonStrikes.Choose(_blows, target.Pos.X - entity.Pos.X, target.Pos.Z - entity.Pos.Z, radii,
+                _theirs.Vx, _theirs.Vz, _own.Vx, _own.Vz, target.CollisionBox.Y2 < EidolonStrikes.LowTarget);
+            if (next != null)
+            {
+                Begin(next);
+                if (next.Moving)
+                    Close(target);
+                else
+                    _nav.Stop();
+                Face(target, dt);
+                return true;
+            }
         }
-        if (Now >= _nextPath || !_nav.Active)
-        {
-            _nextPath = Now + 1;
-            _nav.GoTo(target.Pos.XYZ, true, () => { }, () => { }, tolerance: 1);
-        }
+        Close(target);
+        if (gap < SteerRange)
+            Face(target, dt);
         return true;
     }
 
@@ -154,12 +181,51 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
     {
         base.FinishExecute(cancelled);
         _nav?.Stop();
-        if (_animation != null)
-            entity.AnimManager.StopAnimation(_animation);
-        _animation = null;
+        if (_strike != null)
+            entity.AnimManager.StopAnimation(_strike.Animation);
+        _strike = null;
     }
 
-    private void Strike(EntityAgent target)
+    private void Begin(Strike strike)
+    {
+        _strike = strike;
+        _strikeNumber = _blows++;
+        entity.AnimManager.StartAnimation(strike.Animation);
+        _strikeEnds = Now + strike.Seconds;
+        _hitAt = Now + strike.HitAt;
+        _struck = false;
+    }
+
+    /// <summary>Goes on closing on the creature: straight at where its motion takes it when close and
+    /// level (searching a path again after a stuck), by the wide pathfinder otherwise; it stands once
+    /// within <see cref="EidolonStrikes.StandOff"/>.</summary>
+    private void Close(EntityAgent target)
+    {
+        double gap = Gap(target);
+        if (gap <= EidolonStrikes.StandOff)
+        {
+            if (_nav!.Active)
+                _nav.Stop();
+            return;
+        }
+        double speed = Math.Sqrt(_own.Vx * _own.Vx + _own.Vz * _own.Vz);
+        double lead = gap < double.MaxValue ? EidolonStrikes.LeadSeconds(gap, speed) : 0;
+        var aim = new Vec3d(target.Pos.X + _theirs.Vx * lead, target.Pos.Y, target.Pos.Z + _theirs.Vz * lead);
+        bool run = gap > RunGap || Math.Sqrt(_theirs.Vx * _theirs.Vx + _theirs.Vz * _theirs.Vz) > RunAfterSpeed;
+        double across = Math.Sqrt(Sq(target.Pos.X - entity.Pos.X) + Sq(target.Pos.Z - entity.Pos.Z));
+        if (across <= SteerRange && Math.Abs(target.Pos.Y - entity.Pos.Y) < 1.2 && Now >= _pathOnlyUntil)
+        {
+            _nav!.Steer(aim, run, () => _pathOnlyUntil = Now + 3);
+            return;
+        }
+        if (Now >= _nextPath || !_nav!.Active || _nav.Steering)
+        {
+            _nextPath = Now + 1;
+            _nav!.GoTo(aim, true, () => { }, () => { }, tolerance: 1);
+        }
+    }
+
+    private void Strike(EntityAgent target, Strike strike)
     {
         target.ReceiveDamage(new DamageSource
         {
@@ -168,21 +234,76 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
             Type = EnumDamageType.BluntAttack,
             DamageTier = 3,
             KnockbackStrength = 1,
-        }, (_slam ? Settings.SlamDamage : Settings.DefenceDamage) * GlobalConstants.CreatureDamageModifier);
+        }, (EidolonStrikes.Heavy(_strikeNumber) ? Settings.SlamDamage : Settings.DefenceDamage) * GlobalConstants.CreatureDamageModifier);
         BlowsLanded++;
+        if (strike.Moving)
+            MovingBlowsLanded++;
         _hurtAt = Now;
     }
 
-    /// <summary>The horizontal gap between the two boxes, in blocks (large when one is far above the other).</summary>
+    /// <summary>The horizontal gap between the two boxes, in blocks (large when they are not level).</summary>
     private double Gap(Entity target)
     {
-        double dy = target.Pos.Y - entity.Pos.Y;
-        if (dy > entity.CollisionBox.Y2 || dy < -target.CollisionBox.Y2 - 1)
+        if (!Level(target))
             return double.MaxValue;
         double dx = target.Pos.X - entity.Pos.X, dz = target.Pos.Z - entity.Pos.Z;
         return Math.Sqrt(dx * dx + dz * dz) - entity.CollisionBox.XSize / 2 - target.CollisionBox.XSize / 2;
     }
 
-    private void Face(Entity target) =>
-        entity.Pos.Yaw = (float)Math.Atan2(target.Pos.X - entity.Pos.X, target.Pos.Z - entity.Pos.Z);
+    /// <summary>Neither is above the other's box (a creature down to a block below its feet still counts).</summary>
+    private bool Level(Entity target)
+    {
+        double dy = target.Pos.Y - entity.Pos.Y;
+        return dy <= entity.CollisionBox.Y2 && dy >= -target.CollisionBox.Y2 - 1;
+    }
+
+    private double OffFacingDegrees(Entity target)
+    {
+        float toward = (float)Math.Atan2(target.Pos.X - entity.Pos.X, target.Pos.Z - entity.Pos.Z);
+        return GameMath.AngleRadDistance(entity.Pos.Yaw, toward) * GameMath.RAD2DEG;
+    }
+
+    /// <summary>Turns toward the creature, at most <see cref="TurnRadPerSecond"/>.</summary>
+    private void Face(Entity target, float dt)
+    {
+        float toward = (float)Math.Atan2(target.Pos.X - entity.Pos.X, target.Pos.Z - entity.Pos.Z);
+        float turn = GameMath.AngleRadDistance(entity.Pos.Yaw, toward);
+        float most = TurnRadPerSecond * dt;
+        entity.Pos.Yaw = GameMath.Mod(entity.Pos.Yaw + GameMath.Clamp(turn, -most, most), GameMath.TWOPI);
+    }
+
+    private static double Sq(double v) => v * v;
+
+    /// <summary>An entity's motion across, in blocks a second, from where it was each tick, smoothed
+    /// (a knockback or a step does not swing the aim); a jump of more than a few blocks starts it again.</summary>
+    private sealed class Motion
+    {
+        private double _x, _z, _at = double.NaN;
+
+        public double Vx { get; private set; }
+
+        public double Vz { get; private set; }
+
+        public void Reset()
+        {
+            _at = double.NaN;
+            Vx = Vz = 0;
+        }
+
+        public void Track(EntityPos pos, double now)
+        {
+            double dt = now - _at;
+            if (double.IsNaN(_at) || dt > 1 || Sq(pos.X - _x) + Sq(pos.Z - _z) > 16)
+            {
+                (_x, _z, _at, Vx, Vz) = (pos.X, pos.Z, now, 0, 0);
+                return;
+            }
+            if (dt < 0.04)
+                return;
+            const double keep = 0.5;
+            Vx = keep * Vx + (1 - keep) * (pos.X - _x) / dt;
+            Vz = keep * Vz + (1 - keep) * (pos.Z - _z) / dt;
+            (_x, _z, _at) = (pos.X, pos.Z, now);
+        }
+    }
 }
