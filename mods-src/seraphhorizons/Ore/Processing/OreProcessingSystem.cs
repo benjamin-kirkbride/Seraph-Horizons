@@ -55,6 +55,10 @@ public class OreProcessingSystem : ModSystem
     public const string RoastingGuidePage = "seraphhorizons-oreroasting";
     public const string RoastingGuideTitleKey = "seraphhorizons:oreroasting-title";
 
+    /// <summary>The liquation guide page (<c>config/handbook/liquation.json</c>, #724).</summary>
+    public const string LiquationGuidePage = "seraphhorizons-liquation";
+    public const string LiquationGuideTitleKey = "seraphhorizons:liquation-title";
+
     /// <summary>The save key of <see cref="RoastCarry"/>.</summary>
     public const string RoastCarryKey = "seraphhorizons:oreroastcarry";
 
@@ -71,14 +75,18 @@ public class OreProcessingSystem : ModSystem
         new(Domain, "itemtypes/oreprocessing/crudeliquor.json"),
         new(Domain, "itemtypes/oreprocessing/rawsaltpeter.json"),
         new(Domain, "blocktypes/oreprocessing/cupel.json"),
+        new(Domain, "blocktypes/oreprocessing/liquationpan.json"),
     ];
 
-    /// <summary>The recipe files ore processing adds (leaching, #742; the cupel, #722); emptied with the switch off.</summary>
+    /// <summary>The recipe files ore processing adds (leaching, #742; the cupel, #722; the liquation pan,
+    /// #724); emptied with the switch off.</summary>
     public static readonly AssetLocation[] RecipeAssets =
     [
         new(Domain, "recipes/barrel/oreprocessing-leaching.json"),
         new(Domain, "recipes/cooking/oreprocessing-evaporating.json"),
         new(Domain, "recipes/grid/cupel.json"),
+        new(Domain, "recipes/grid/liquationpan.json"),
+        new(Domain, "recipes/clayforming/liquationpan.json"),
     ];
 
     /// <summary>
@@ -173,6 +181,9 @@ public class OreProcessingSystem : ModSystem
         api.RegisterCollectibleBehaviorClass(CollectibleBehaviorSpalling.Name, typeof(CollectibleBehaviorSpalling));
         api.RegisterBlockClass("seraphhorizons.BlockCupel", typeof(BlockCupel));
         api.RegisterBlockClass("seraphhorizons.BlockCupelBead", typeof(BlockCupelBead));
+        api.RegisterBlockClass("seraphhorizons.BlockLiquationPan", typeof(BlockLiquationPan));
+        api.RegisterBlockClass("seraphhorizons.BlockLiquationPanSmelted", typeof(BlockLiquationPanSmelted));
+        api.RegisterBlockClass("seraphhorizons.BlockLiquationResidue", typeof(BlockLiquationResidue));
         if (!On(api))
         {
             // Before the patch loader (AssetsLoaded). On the server only: a client has no assets
@@ -188,7 +199,7 @@ public class OreProcessingSystem : ModSystem
             if (!AlloyStackSize.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: the game's AlloyRecipe.mergeAndCompareStacks is not as expected; "
                                    + "an alloy counts a chunk at a whole number of chunks per ingot, which can be off its exact half");
-            CupelText.Patch(_harmony);
+            ContainerText.Patch(_harmony);
             if (!CupelForge.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: crucibulum's forge ({0}) is missing or not as expected; "
                                    + "the cupel works nowhere", CupelForge.ForgeType);
@@ -199,13 +210,14 @@ public class OreProcessingSystem : ModSystem
     {
         if (!On(api))
         {
-            // The spalling and roasting guides are not in the handbook, nor in the recipe export (as the eidolon's).
+            // The spalling, roasting and liquation guides are not in the handbook, nor in the recipe export (as the eidolon's).
             var hidden = api.ObjectCache.TryGetValue(WoodworkingGuide.HiddenGuidesKey, out var listed)
                          && listed is IEnumerable<(string, string)> pages
                 ? pages.ToList()
                 : [];
             hidden.Add((SpallingGuidePage, SpallingGuideTitle));
             hidden.Add((RoastingGuidePage, RoastingGuideTitleKey));
+            hidden.Add((LiquationGuidePage, LiquationGuideTitleKey));
             api.ObjectCache[WoodworkingGuide.HiddenGuidesKey] = hidden;
             return;
         }
@@ -228,7 +240,8 @@ public class OreProcessingSystem : ModSystem
         _hidePage = pages =>
         {
             if (api.World.GetItem(new AssetLocation("game:ore-medium-hematite-granite")) is not ItemGradedOre)
-                pages.RemoveAll(p => p.PageCode == SpallingGuidePage || p.PageCode == RoastingGuidePage);
+                pages.RemoveAll(p => p.PageCode == SpallingGuidePage || p.PageCode == RoastingGuidePage
+                                     || p.PageCode == LiquationGuidePage);
         };
         handbook.OnInitCustomPages += _hidePage;
     }

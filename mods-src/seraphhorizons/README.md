@@ -4114,7 +4114,7 @@ it; `Retorting_is_exported`: the records and the guide, with the switch on) and 
 Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
 with ore processing (the switch above; off by default, and with it off nothing here exists and
 vanilla's silver galena hammers into native silver as before). Rules in `Ore/Core/Cupellation.cs`,
-the game side in `Ore/Processing/` (`BlockCupel`, `BlockCupelBead`, `CupelForge`, `CupelText`).
+the game side in `Ore/Processing/` (`BlockCupel`, `BlockCupelBead`, `CupelForge`, `ContainerText`).
 
 **Argentiferous galena.** Vanilla's silver galena (`galena_nativesilver`) is renamed "Argentiferous
 galena" (its ore, raw ore, chunks, crystallised ore, loose bits and processing forms; lang overrides
@@ -4148,7 +4148,7 @@ like the crucible, through the forge's four charge slots, at most 200 units of m
   name, Harmony id `seraphhorizons.oreprocessing`) notes each forge by its charge slots
   (`CupelForge`); without crucibulum (or with it changed) the server warns and the cupel works
   nowhere. The forge's dialog line ("Will part 64.6 units of silver, the 200 units of lead going
-  into litharge", or why not) is the cupel's: a postfix on the game's `GetOutputText` (`CupelText`).
+  into litharge", or why not) is the cupel's: a postfix on the game's `GetOutputText` (`ContainerText`).
 - Done, it is a **cupel with silver bead**, holding what it breaks into: the lead (the ore's and
   the added) as litharge, 5 units each, and each other metal as metal bits, 5 units each: the
   silver at 85 % of the charge's (`OreRecovery.Smelted` at the hand tier: galena 3 %, argentiferous
@@ -4171,6 +4171,67 @@ when the switch is on. Tests: `tests/Ore/CupellationTests.cs` (the ores it takes
 the rounding), `OreRecoveryTests`, `OreProductsTests`, `DepositMakeupTests`;
 `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the names, the smelting to lead, the loose
 bits, the cupel in crucibulum's forge with the gate, the bead and breaking it).
+
+### Liquation (`OreProcessing`)
+
+Teallite's and franckeite's lead (#685: 40 % and 30 % of their tin) parted from the tin in a clay
+liquation pan, in a firepit or crucibulum's forge (#724, hand and tier 1), with ore processing (off by
+default; with it off nothing here exists). **Liquation is tin first**: tin melts at 232 °C and lead at
+327 °C, so a gentle heat sweats the tin out of the roasted concentrate and leaves the lead behind. Rules
+in `Ore/Core/Liquation.cs`, the game side in `Ore/Processing/` (`BlockLiquationPan`,
+`BlockLiquationPanSmelted`, `BlockLiquationResidue`; `OreContainers` and `ContainerText` are shared with
+the cupel).
+
+**The pan** (`seraphhorizons:liquationpan-{raw,fired,smelted,residue}`,
+`blocktypes/oreprocessing/liquationpan.json`, the game's clay bowl shape): clay-formed from any clay
+(`recipes/clayforming/liquationpan.json`, a dish seven voxels across and two high), fired like the
+crucible in a pit kiln or a beehive kiln. The fired pan is a smelting container (`BlockLiquationPan`, on
+the game's `BlockSmeltingContainer`, with the crucible's `cookingContainerSlots`), so it works in both:
+the firepit's four cooking slots (crucibulum leaves crucibles in the firepit on, `CrucibleOnlyInForge`
+off) and crucibulum's forge, which takes any smelting container as a crucible (as the cupel). It needs
+no air: the forge's blast gate only changes the heat. Reused, unlike the cupel.
+
+- **Charge**: roasted teallite or franckeite concentrate (mixed is fine: one main metal), at most 100
+  units (20 concentrate). Anything else is refused, and so is a firepit whose output slot is full.
+- **Heat**: its melting point is the tin point, 240 °C, so the firepit and the forge heat it toward the
+  fire's heat and count the time from 240 °C, 15 s per 100 units of charge (the engine's own, slowed
+  by eleven once at the point). If the charge is over 327 °C when it is done, the lead has run with the
+  tin: it gives the tin as an unparted smelt would and no lead (`Liquation.Yield` with no parting). It is
+  the charge's heat when it finishes (its coolest stack's, as the firepit reads it), not its peak: in a
+  lit fire the heat only climbs, and a charge left to cool below 240 °C stops working. The dialog line
+  (`ContainerText`) says what it will pour and leave, and "Too hot" over the lead point.
+- **What the engine makes of it** (Atlas, the firepit's own burn tick, the fire at full heat first): a
+  full pan in a wood fire (700 °C) is done at about 298 °C, so a wood or grass fire is easy; in a
+  charcoal fire (1,300 °C) at about 370 °C, so charcoal or coal in a firepit is too hot for a full pan
+  (a small charge, done sooner, can make it). A fire lit with the pan already in it is gentler (about
+  268 and 297 °C), since a firepit takes a while to reach its fuel's heat. Crucibulum's forge heats a
+  crucible more gently than a firepit (its `HeatRate` 0.5 and the charge's thermal mass; worked from
+  its code, not run): a full pan there finishes at about 290 °C with the gate open, lower half open,
+  quarter or shut. So the design's "the forge needs the gate shut and little fuel" does not hold with
+  crucibulum's defaults; the forge is the easy place and the charcoal firepit the one to avoid.
+- **Done** (`BlockLiquationPan.DoSmelt`): a **liquation pan of molten tin** (`BlockLiquationPanSmelted`,
+  on the game's smelted crucible class), all the charge's tin (100 units from a full pan), poured into
+  any mold as from a crucible, and the lead the tin left behind, 85 % of the ore's share
+  (`OreRecovery.Smelted` at the hand tier: a full pan of teallite 34 units, of franckeite 25.5), held as
+  whole lead bits drawn once when it is done (`Cupellation.Whole`: 6, a 7th at 80 %). One output slot,
+  two metals: the tin is the pour and the lead stays in the pan. The stack carries the lead, so the
+  smelted pan is never set on the ground. Emptied (the last unit poured), it is a **liquation pan with
+  lead residue** (`BlockLiquationResidue`), or the fired pan if no lead is left; knocked out with a
+  hammer in the grid (`recipes/grid/liquationpan.json`), the pan is the output and the lead bits go to
+  the player.
+- **Unparted** (any other furnace, the crucible), these ores still give their tin and lose the lead, as
+  before. Vanilla's lead solder (45–55 % lead) would take teallite's 40 % nearly as it is; that is an
+  open question, not done.
+
+The figures are `liquation` in `config/ore-processing.json` (`capacityUnits`, `tinPoint`, `leadPoint`,
+`secondsPerIngot`). The guide page "Liquation: tin from lead" (`config/handbook/liquation.json`) and a
+Liquation section on each pan; the page is hidden with the switch off. The recipe browser has a
+`liquation` record per ore (`tools/recipe-export/RecipeSection.Liquation.cs`) when the switch is on, and
+item values count liquation as a station (`tools/item-values/ore-processing.json`, `parting`). Tests:
+`tests/Ore/LiquationTests.cs` (the ores, yields, overheating, refusals, the figures);
+`tests/PackTests/OreProcessingScenarios.cs` (Atlas: a full pan through a firepit's own tick in a wood
+fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
+the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
 
 ## Trading
 

@@ -394,6 +394,159 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Contains(tetrahedrite["ingredients"]!, i => (string)i["code"]! == "game:metalbit-lead" && (double)i["quantity"]! == 20);
     }
 
+    private const string Pan = "seraphhorizons:liquationpan-fired";
+
+    // #724: a firepit at its fuel's full heat with the pan, run by the firepit's own burn tick: what
+    // the fire's heat does to a full pan of teallite. Returns the firepit's output and the hottest the charge got.
+    private async Task<(ItemStack? Output, float Hottest)> LiquateInFirepit(BlockPos pos, string fuel)
+    {
+        World.SetBlock("game:firepit-cold", pos);
+        await World.Ticks(2);
+        var firepit = Assert.IsType<BlockEntityFirepit>(W.BlockAccessor.GetBlockEntity(pos));
+        var inv = (InventorySmelting)firepit.Inventory;
+        var tick = AccessTools.Method(typeof(BlockEntityFirepit), "OnBurnTick");
+        // The fire burning a while first, at its full heat, as a player would have it.
+        inv[0].Itemstack = Stack(fuel, 16);
+        firepit.igniteFuel();
+        for (int i = 0; i < 3000 && firepit.furnaceTemperature < firepit.maxTemperature - 2; i++)
+        {
+            if (!firepit.IsBurning) firepit.igniteFuel();
+            tick.Invoke(firepit, [0.1f]);
+        }
+        inv[1].Itemstack = new ItemStack(W.GetBlock(new AssetLocation(Pan)));
+        Assert.True(inv.HaveCookingContainer);
+        inv.CookingSlots[0].Itemstack = Stack(OreProducts.RoastedCode("teallite"), 20);
+        float hottest = 0;
+        for (int i = 0; i < 1200 && inv[2].Empty; i++)
+        {
+            if (!firepit.IsBurning) firepit.igniteFuel();
+            tick.Invoke(firepit, [0.1f]);
+            if (OreContainers.ChargeTemperature(W, inv) is { } t) hottest = Math.Max(hottest, t);
+        }
+        var result = inv[2].Itemstack;
+        World.SetBlock("game:air", pos);
+        return (result, hottest);
+    }
+
+    // A wood fire is gentle enough: the tin runs off under the lead point and the lead stays in the pan.
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task Liquation_pan_in_a_wood_fire()
+    {
+        var pan = Assert.IsType<BlockLiquationPan>(W.GetBlock(new AssetLocation(Pan)));
+        var slots = new LooseSlots([new DummySlot(Stack(OreProducts.RoastedCode("teallite"), 20)), new DummySlot(), new DummySlot(), new DummySlot()]);
+        var input = new DummySlot(new ItemStack(pan));
+        Assert.True(pan.CanSmelt(W, slots, input.Itemstack, null));
+        Assert.Equal(240, pan.GetMeltingPoint(W, slots, input), 3);
+        Assert.Equal(15, pan.GetMeltingDuration(W, slots, input), 3);
+        Assert.StartsWith("Will pour 100 units of Tin, leaving 34 units of Lead in the pan", pan.OutputText(W, slots));
+        // Nothing but teallite and franckeite, and no more than 100 units.
+        slots.Slots[1].Itemstack = Stack(OreProducts.RoastedCode("galena"), 1);
+        Assert.False(pan.CanSmelt(W, slots, input.Itemstack, null));
+        slots.Slots[1].Itemstack = Stack(OreProducts.RoastedCode("franckeite"), 1);
+        Assert.False(pan.CanSmelt(W, slots, input.Itemstack, null));
+        slots.Slots[1].Itemstack = null;
+        // A full output slot stops it.
+        Assert.False(pan.CanSmelt(W, slots, input.Itemstack, Stack("game:ingot-tin", 1)));
+
+        var (done, hottest) = await LiquateInFirepit(World.Spawn.AddCopy(72, 8, 60), "game:firewood");
+        output.WriteLine($"wood fire: the charge at {hottest} °C when done");
+        Assert.IsType<BlockLiquationPanSmelted>(done?.Collectible);
+        Assert.InRange(hottest, 240, 327);
+        var smelted = (BlockLiquationPanSmelted)done!.Collectible;
+        var contents = smelted.GetContents(W, done);
+        Assert.Equal("game:ingot-tin", contents.Key.Collectible.Code.ToString());
+        Assert.Equal(100, contents.Value);
+        var lead = Assert.Single(BlockLiquationPanSmelted.Residue(done));
+        Assert.Equal("game:metalbit-lead", lead.Code);
+        Assert.InRange(lead.Count, 6, 7);
+        Assert.Equal("Liquation pan (molten Tin)", done.GetName());
+
+        // Poured out, it is the pan with lead residue, which the hammer knocks out in the grid.
+        var residue = BlockLiquationPanSmelted.EmptiedStack(W, done, new ItemStack(pan));
+        Assert.IsType<BlockLiquationResidue>(residue.Collectible);
+        Assert.Equal(lead, Assert.Single(BlockLiquationPanSmelted.Residue(residue)));
+        // (the only recipe whose output is the fired pan)
+        Assert.Single(W.GridRecipes, r => r.Enabled && r.Output?.Code?.ToString() == Pan);
+    }
+
+    // Charcoal in a firepit is too hot for a full pan: the lead runs with the tin and is lost.
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task Liquation_pan_overheated_in_a_charcoal_fire()
+    {
+        var (done, hottest) = await LiquateInFirepit(World.Spawn.AddCopy(76, 8, 60), "game:charcoal");
+        output.WriteLine($"charcoal fire: the charge at {hottest} °C when done");
+        Assert.True(hottest > 327, $"hottest {hottest}");
+        Assert.IsType<BlockLiquationPanSmelted>(done?.Collectible);
+        Assert.Equal(100, ((BlockLiquationPanSmelted)done!.Collectible).GetContents(W, done).Value);
+        Assert.Empty(BlockLiquationPanSmelted.Residue(done));
+        // Poured out, it is the plain pan.
+        var pan = new ItemStack(W.GetBlock(new AssetLocation(Pan)));
+        Assert.Same(pan, BlockLiquationPanSmelted.EmptiedStack(W, done, pan));
+    }
+
+    // Crucibulum's forge takes the pan as a crucible, with no air needed: the gate shut, it still works.
+    [AtlasScenario]
+    public async Task Liquation_pan_in_crucibulums_forge()
+    {
+        var pos = World.Spawn.AddCopy(80, 8, 60);
+        var (forge, charge) = Forge(pos);
+        await World.Ticks(2);
+        var pan = (BlockLiquationPan)W.GetBlock(new AssetLocation(Pan));
+        var work = ((BlockEntityForge)forge).WorkItemSlot;
+        work.Itemstack = new ItemStack(pan);
+        Assert.True((bool)AccessTools.Method(forge.GetType(), "IsCrucible").Invoke(null, [work.Itemstack])!);
+        Assert.True((bool)AccessTools.Method(AccessTools.TypeByName("Crucibulum.ItemSlotCrucibleCharge"), "Admits")
+            .Invoke(null, [Stack(OreProducts.RoastedCode("franckeite"), 1), work.Itemstack])!);
+        charge.Slots[0].Itemstack = Stack(OreProducts.RoastedCode("franckeite"), 20);
+        Gate(forge, "Shut");
+        Assert.True(pan.CanSmelt(W, charge, work.Itemstack, null));
+        foreach (var s in charge.Slots.Where(s => !s.Empty))
+            s.Itemstack.Collectible.SetTemperature(W, s.Itemstack, 300);
+        Assert.Contains("25.5 units of Lead", pan.OutputText(W, charge));
+        AccessTools.Method(forge.GetType(), "DoSmelt").Invoke(forge, []);
+        var smelted = work.Itemstack;
+        Assert.IsType<BlockLiquationPanSmelted>(smelted?.Collectible);
+        Assert.All(charge.Slots, s => Assert.True(s.Empty));
+        Assert.InRange(Assert.Single(BlockLiquationPanSmelted.Residue(smelted!)).Count, 5, 6);
+
+        // Over the lead point when done: the dialog warns, and the charge gives no lead.
+        work.Itemstack = new ItemStack(pan);
+        charge.Slots[0].Itemstack = Stack(OreProducts.RoastedCode("franckeite"), 20);
+        charge.Slots[0].Itemstack.Collectible.SetTemperature(W, charge.Slots[0].Itemstack, 340);
+        Assert.StartsWith("Too hot", pan.OutputText(W, charge));
+        AccessTools.Method(forge.GetType(), "DoSmelt").Invoke(forge, []);
+        Assert.Empty(BlockLiquationPanSmelted.Residue(work.Itemstack!));
+        World.SetBlock("game:air", pos);
+    }
+
+    // The raw pan is clay-formed and fired like clay into the pan.
+    [AtlasScenario]
+    public void Liquation_pan_is_formed_and_fired()
+    {
+        var raw = W.GetBlock(new AssetLocation("seraphhorizons:liquationpan-raw"));
+        Assert.Contains(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.ToString() == "seraphhorizons:liquationpan-raw");
+        Assert.Equal(EnumSmeltType.Fire, raw.CombustibleProps.SmeltingType);
+        Assert.Equal(Pan, raw.CombustibleProps.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
+        Assert.Equal("Liquation pan", new ItemStack(W.GetBlock(new AssetLocation(Pan))).GetName());
+    }
+
+    // The recipe browser's record per ore the pan takes, and the guide page.
+    [AtlasScenario(TimeoutMs = 600_000)]
+    public void Liquation_is_exported()
+    {
+        var doc = ExportUnderTest.Get(World.Api);
+        Assert.Equal("generic", (string)doc["recipeTypes"]!["liquation"]!["shape"]!);
+        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string)r["type"]! == "liquation").ToList();
+        Assert.Equal(["liquation|seraphhorizons:roastedconcentrate-franckeite|0", "liquation|seraphhorizons:roastedconcentrate-teallite|0"],
+            records.Select(r => (string)r["id"]!).Order(StringComparer.Ordinal));
+        var teallite = records.Single(r => (string)r["extra"]!["ore"]! == "teallite");
+        Assert.Equal("OreProcessing", (string?)teallite["switch"]);
+        Assert.Equal(34, (double)teallite["extra"]!["residueUnits"]!["lead"]!, 6);
+        Assert.Contains(teallite["outputs"]!, o => (string)o["code"]! == "game:ingot-tin" && (double)o["quantity"]! == 1);
+        Assert.Contains(teallite["outputs"]!, o => (string)o["code"]! == "game:metalbit-lead" && Math.Abs((double)o["quantity"]! - 6.8) < 1e-6);
+        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.LiquationGuidePage);
+    }
+
     // smex's blast furnace: a nugget or concentrate is 5 units of iron, a crushed ore 2.5.
     [AtlasScenario]
     public void Smex_burden_counts_concentrate_at_five()
