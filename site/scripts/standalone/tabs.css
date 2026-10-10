@@ -1,0 +1,90 @@
+/* The tabbed standalone page (scripts/standalone-tabs.ts), on the site's own tokens (src/app.css). */
+.tabs-page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0.6rem 1rem 2rem;
+}
+
+.tabs-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.tabs-head h1 {
+  font-size: 1.35rem;
+  margin: 0.4rem 0;
+}
+
+.tabs-theme {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.tabs-theme select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.1rem 0.3rem;
+}
+
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-bar [role="tab"] {
+  text-decoration: none;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.7rem;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.tab-bar [role="tab"]:hover {
+  border-color: var(--muted);
+}
+
+.tab-bar [role="tab"][aria-selected="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.tab-notice {
+  background: var(--notice-bg);
+  border: 1px solid var(--notice-border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.88rem;
+}
+
+.tab-notice ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.tab-source {
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+
+.tab-error {
+  color: var(--critical);
+}
+
+/* The tab bar replaces the model page's breadcrumb back to the site's model list, which is not here. */
+.tab-panel nav.crumbs {
+  display: none;
+}

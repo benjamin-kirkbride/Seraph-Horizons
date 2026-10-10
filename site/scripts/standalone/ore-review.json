@@ -1,0 +1,15 @@
+{
+  "title": "Ore processing machines",
+  "tabs": [
+    { "kind": "html", "label": "Processing line", "file": "ore-line.ts" },
+    { "kind": "model", "label": "Rocker", "repo": "$TMPDIR/m-rocker", "id": "rocker", "note": "Branch 717-rocker-model" },
+    { "kind": "model", "label": "Riddle", "repo": "$TMPDIR/m-riddle", "id": "riddle", "note": "Branch 715-riddle-model" },
+    { "kind": "model", "label": "Riddle stand", "repo": "$TMPDIR/m-riddle", "id": "riddle-stand", "note": "Branch 715-riddle-model" },
+    { "kind": "model", "label": "Amalgam pan", "repo": "$TMPDIR/m-amalgam-pan", "id": "amalgam-pan", "note": "Branch main" },
+    { "kind": "model", "label": "Stamp mill", "repo": "$TMPDIR/m-crusher", "id": "crusher", "note": "Branch 729-crusher-model" },
+    { "kind": "model", "label": "Grinder", "repo": "$TMPDIR/m-grinder", "id": "grinder", "note": "Branch 733-grinder-model" },
+    { "kind": "model", "label": "Concentrator", "repo": "$TMPDIR/m-concentrator", "id": "concentrator", "note": "Branch 735-concentrator-model" },
+    { "kind": "model", "label": "Roaster", "repo": "$TMPDIR/m-roaster", "id": "roaster", "note": "Branch 737-roaster-model" },
+    { "kind": "model", "label": "Parting furnace", "repo": "$TMPDIR/m-parting-furnace", "id": "parting-furnace", "note": "Branch 741-parting-furnace-model" }
+  ]
+}

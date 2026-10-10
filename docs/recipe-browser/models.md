@@ -493,6 +493,20 @@ for `src/lib/model-data.ts`; the site's build, check and tests do not use it.
 cd site && node --import tsx scripts/standalone-viewer.ts draw-bench ../build/drawbench-viewer.html
 ```
 
+`site/scripts/standalone-tabs.ts` builds several models, from different checkouts, plus HTML tabs into one
+such page with tabs, for reviewing models being reworked on separate branches side by side. A JSON spec
+lists the tabs (`scripts/standalone/tabs-spec.ts` documents it; `scripts/standalone/ore-review.json` is the
+ore machines' review). Each model tab reads `site/models.json`, the shape and the rig from its own checkout
+(`repo`, which may use `$TMPDIR` or `~`) and is drawn by that checkout's own viewer code, copied into a
+temporary folder of this site to build; tabs whose `site/src` are the same share one bundle. Only the shown
+tab's viewer is mounted, the last one's WebGL context released, and the hash remembers the tab. A model tab
+that fails to build is left out and named on the page. An HTML tab is a fragment file, or a `.ts` module
+returning one (the ore review's flowcharts are `scripts/standalone/ore-line.ts`).
+
+```sh
+cd site && node --import tsx scripts/standalone-tabs.ts scripts/standalone/ore-review.json ../build/ore-review.html
+```
+
 ## Code and tests
 
 | File | |

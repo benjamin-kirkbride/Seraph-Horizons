@@ -16,33 +16,40 @@ import type { Plugin } from "vite";
 import { MODEL_INDEX, publishModels, type ModelIndex, type PublishedFile } from "../src/lib/model-manifest.ts";
 
 const site = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const repo = resolve(site, "..");
+/** This checkout's root. The functions below take another checkout's root too (scripts/standalone-tabs.ts). */
+export const REPO = resolve(site, "..");
 export const MANIFEST = resolve(site, "models.json");
 
-function repoFile(path: string): string {
-  const full = resolve(repo, path);
-  if (relative(repo, full).startsWith("..")) throw new Error(`${path} is outside the repository`);
+/** A checkout's site/models.json. */
+export const manifestOf = (root: string): string => resolve(root, "site", "models.json");
+
+export function repoFile(path: string, root: string = REPO): string {
+  const full = resolve(root, path);
+  if (relative(root, full).startsWith("..")) throw new Error(`${path} is outside the repository`);
   return full;
 }
 
-function readJson(path: string): unknown {
-  const full = repoFile(path);
-  let text: string;
-  try {
-    text = readFileSync(full, "utf8");
-  } catch {
-    throw new Error(`${path} does not exist (named in site/models.json)`);
-  }
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    throw new Error(`${path} is not JSON: ${(e as Error).message}`);
-  }
+/** Reads a repository path of the checkout at `root` as JSON, saying which file is missing or broken. */
+export function readJsonAt(root: string = REPO): (path: string) => unknown {
+  return (path) => {
+    const full = repoFile(path, root);
+    let text: string;
+    try {
+      text = readFileSync(full, "utf8");
+    } catch {
+      throw new Error(`${path} does not exist (named in site/models.json)`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`${path} is not JSON: ${(e as Error).message}`);
+    }
+  };
 }
 
-/** Reads and checks the manifest and every file it names. */
-export function loadModels(): { index: ModelIndex; files: PublishedFile[] } {
-  return publishModels(JSON.parse(readFileSync(MANIFEST, "utf8")), readJson);
+/** Reads and checks the manifest and every file it names, of this checkout or of the one at `root`. */
+export function loadModels(root: string = REPO): { index: ModelIndex; files: PublishedFile[] } {
+  return publishModels(JSON.parse(readFileSync(manifestOf(root), "utf8")), readJsonAt(root));
 }
 
 export function modelsPlugin(): Plugin {
