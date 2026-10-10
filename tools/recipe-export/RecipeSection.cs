@@ -148,6 +148,7 @@ public static partial class RecipeSection
         FillSpalling(ctx, records, types);
         FillEidolon(ctx, records, types);
         FillOreRoasting(ctx, records, types);
+        FillOreRetorting(ctx, records, types);
         FillCasting(ctx, records, types);
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));

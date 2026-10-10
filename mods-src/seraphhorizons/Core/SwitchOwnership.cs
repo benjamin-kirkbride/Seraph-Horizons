@@ -63,8 +63,9 @@ public sealed class SwitchOwnership
                                  "game:chutesection-lead"], []),
         // Crushed ore is an item type in the game's domain whose code, "crushed", is vanilla's
         // crushed item's too (game:crushed-{material}), so its codes are listed by their grain. The
-        // exporter's own recipe type for roasting in the firepit (tools/recipe-export, Recipes/OreRoastingExport.cs).
-        new("OreProcessing", [], ["game:crushed-*-coarse", "game:crushed-*-fine"], ["oreroasting"]),
+        // exporter's own recipe types for roasting in the firepit and retorting in the still
+        // (tools/recipe-export, Recipes/OreRoastingExport.cs, OreRetortingExport.cs).
+        new("OreProcessing", [], ["game:crushed-*-coarse", "game:crushed-*-fine"], ["oreroasting", "oreretorting"]),
     ];
 
     private readonly List<OwnedBySwitch> _owned;

@@ -21,8 +21,9 @@ public enum PartingMethod { Cupellation, Liquation, AcidParting }
 public enum OreClass { Oxide, Sulfide, Native, Placer }
 
 /// <summary>The forms ore takes on the line. Raw ore and chunks hold their grade's units; the rest
-/// hold <see cref="OreRecovery.ConcentrateUnits"/>.</summary>
-public enum OreForm { Raw, Chunk, Crushed, Ground, Concentrate, RoastedConcentrate }
+/// hold <see cref="OreRecovery.ConcentrateUnits"/>. A sponge is the gold or silver amalgam leaves in
+/// the still once its mercury is driven off (#726).</summary>
+public enum OreForm { Raw, Chunk, Crushed, Ground, Concentrate, RoastedConcentrate, Sponge }
 
 /// <summary>What has been done to the feed reaching a concentrator.</summary>
 /// <param name="FineGrained">Poor ore: fine-grained, it loses heavily unless ground.</param>
@@ -136,7 +137,19 @@ public sealed class OreRecovery
         }
         foreach (var (ore, entry) in config.Ores ?? new())
             _ores[ore] = Spec(ore, entry ?? new());
+        var retort = config.Retort ?? new();
+        CheckShare("retort.mercuryReturn", retort.MercuryReturn);
+        if (string.IsNullOrWhiteSpace(retort.Mercury)) _problems.Add("retort.mercury: no mercury item");
+        if (!(retort.AmalgamMercury * retort.MercuryReturn >= 1))
+            _problems.Add($"retort: an amalgam returns {retort.AmalgamMercury * retort.MercuryReturn} portions of mercury, under one");
+        foreach (var (code, portions) in retort.Cinnabar ?? new())
+            if (!(portions >= 1)) _problems.Add($"retort.cinnabar.{code}: {portions} portions is under one");
+        if (!(retort.PortionsPerSecond > 0)) _problems.Add($"retort.portionsPerSecond {retort.PortionsPerSecond} is not positive");
     }
+
+    /// <summary>The still's retort (#726): the mercury, what an amalgam holds and returns, what
+    /// cinnabar gives, the pace. <see cref="MercuryRetort"/> reads it.</summary>
+    public OreProcessingConfig.RetortEntry Retort => _config.Retort ?? new();
 
     /// <summary>What is wrong with the config, for the server log; empty when it is sound. Missing
     /// figures read as 0 (a device that recovers nothing), so they show in play too.</summary>
