@@ -15,8 +15,8 @@ namespace SeraphHorizons.PackTests;
 /// mode wheel's index, right-click elsewhere to order). Its owner binds it and it follows them over
 /// rough ground, steps and a pillar, keeping a few blocks behind; a stranger can neither bind it nor
 /// order it with a tool bound to it; and a creature that hurts it is struck until dead while its stay
-/// order holds, and a player who hurts it is not. Each scenario builds on a granite floor of its own
-/// high over the spawn.
+/// order holds, and a player who hurts it is not; a creature walking steadily away from it is caught and
+/// struck on the move until dead. Each scenario builds on a granite floor of its own high over the spawn.
 /// </summary>
 [AtlasWorld]
 public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -277,6 +277,57 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
         Assert.Equal(StayOrder.OrderCode, e.Orders.OrderCode);
         await World.Until(() => e.Pos.XYZ.HorizontalSquareDistanceTo(post) < 1.5 * 1.5, 1200);
         Assert.Equal(playerHealth, player.Entity.GetBehavior<EntityBehaviorHealth>()!.Health);
+        e.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task It_runs_down_and_strikes_on_the_move_a_creature_walking_away()
+    {
+        var at = await Floor(240, 0, reach: 30);
+        var p = await World.JoinPlayer("eidolonwitness");
+        var player = (IServerPlayer)p.Player;
+        player.WorldData.CurrentGameMode = EnumGameMode.Creative;
+        await p.TeleportTo(at.AddCopy(0, 0, -12));
+        var e = await Spawn(at.AddCopy(-20, 0, 0), player);
+        e.Orders!.SetOrder(StayOrder.OrderCode, StayOrder.Args(e.Pos.XYZ));
+        var defend = e.TaskAi!.TaskManager.GetTask<AiTaskEidolonDefend>()!;
+
+        // A drifter (tall: jabs) and then a wolf (low: hammers), each hurting it from 3 blocks off and
+        // then walking steadily away at 1.5 blocks a second (moved each tick, its own AI taken away),
+        // knockback and all, until it is dead. Standing to strike, it would never catch one.
+        foreach (var code in new[] { "game:drifter-normal", "game:wolf-eurasian-adult-male" })
+        {
+            var creature = (EntityAgent)W.ClassRegistry.CreateEntity(W.GetEntityType(new AssetLocation(code))!);
+            creature.Pos.SetPos(new Vec3d(e.Pos.X + 3, e.Pos.Y, e.Pos.Z));
+            W.SpawnEntity(creature);
+            await World.Ticks(2);
+            if (creature.GetBehavior<EntityBehaviorTaskAI>() is { } ai)
+                creature.SidedProperties.Behaviors.Remove(ai);
+            int landed = defend.BlowsLanded, moving = defend.MovingBlowsLanded, missed = defend.BlowsMissed;
+            double startX = creature.Pos.X;
+            long walk = Sapi.Event.RegisterGameTickListener(dt =>
+            {
+                if (creature.Alive)
+                    creature.Pos.X += 1.5 * dt;
+            }, 20);
+            try
+            {
+                e.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Entity, SourceEntity = creature, Type = EnumDamageType.PiercingAttack }, 1);
+                await World.Until(() => defend.BlowsLanded > landed, 900);
+                Log($"{code}: first blow {creature.Pos.X - startX:0.0} blocks on; " + State(e));
+                await World.Until(() => !creature.Alive, 1500);
+            }
+            finally
+            {
+                Sapi.Event.UnregisterGameTickListener(walk);
+            }
+            Log($"{code}: dead {creature.Pos.X - startX:0.0} blocks on, {defend.BlowsLanded - landed} blows " +
+                $"({defend.MovingBlowsLanded - moving} on the move), {defend.BlowsMissed - missed} missed; " + State(e));
+            Assert.True(defend.MovingBlowsLanded > moving, code + ": struck on the move");
+            Assert.True(e.CanWork);
+            await World.Until(() => defend.Attacker == null, 300);
+        }
+        Assert.Equal(StayOrder.OrderCode, e.Orders.OrderCode);
         e.Die(EnumDespawnReason.Removed);
     }
 }
