@@ -19,14 +19,14 @@ public sealed class EidolonData
     /// <summary>The nine winch stages, in order, on a gantry of each wood (the drum's planks and the
     /// spine's beams are the gantry's wood: a code holds <c>{wood}</c>).</summary>
     public List<EidolonStage> Winch = new();
-    /// <summary>The six body stages, in order (BodyBill).</summary>
+    /// <summary>The seven body stages, in order (BodyBill).</summary>
     public List<EidolonStage> Body = new();
 }
 
 /// <summary>
 /// The eidolon (seraphhorizons, EidolonGantry/ and Eidolon/): the gantry is placed as a frame (its
 /// grid recipe) and then fitted with nine winch stages by right-click, one stage's whole count a
-/// click, in order; then the eidolon's body is built on the gantry's spine in six stages, the last
+/// click, in order; then the eidolon's body is built on the gantry's spine in seven stages, the last
 /// (the mind, a temporal gear) waking it. Neither is a registry: what each stage takes is the mod's
 /// own rules, read here by reflection from its game-independent classes
 /// (<c>EidolonGantry/Core/GantryParts.cs</c>'s <c>GantryParts.CodesFor</c> and <c>Needed</c>,

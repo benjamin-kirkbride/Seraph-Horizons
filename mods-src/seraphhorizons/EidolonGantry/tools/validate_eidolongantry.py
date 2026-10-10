@@ -89,8 +89,8 @@ def check_stages(v, body_shape, stages):
     """Every drawn element of the eidolon is in the gantry once, in its stage's part, and the spine's in the
     spine part; the ring over its top peg comes with the chain and the spine with its own stage; after every
     stage what hangs so far, the spine and the body, is one piece (the eidolon's own rule, with the spine
-    there from the first: the torso, the first stage, is clamped to it, and comes before the pelvis it hangs
-    from in the shape's hierarchy, which the baked pose makes harmless; nothing may float); and the torso is
+    there from the first: the torso, the first stage, is clamped to it, and each layer fits onto what is there;
+    nothing may float); and the torso is
     clamped to the spine where they touch."""
     st = v.m.stage_of(stages)
     spine = v.m.spine_names()

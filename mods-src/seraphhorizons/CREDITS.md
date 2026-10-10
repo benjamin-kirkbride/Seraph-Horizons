@@ -79,14 +79,16 @@ The eidolon's model (`assets/seraphhorizons/shapes/entity/eidolon/eidolon.json`)
 own mobile eidolon by Anego Studios, the game's `shapes/entity/lore/eidolon/normal.json` (game
 1.22.7), copied into this mod as a snapshot by `Eidolon/tools/make_shape.py`. Its elements and their
 geometry, and the vanilla animations the file keeps (`stand-*`, `weapon-*`, `toppleover`), are that
-model's, unchanged. Its textures are not copied: the shape points at the game's own files, with
-the aged ones swapped for others of the game's, the same materials new (brass and steel plate for
-rusty iron and steel, oak for charred wood, plain leather, steel chain). Its spine (`spine1` and
+model's, unchanged. Its textures are not copied: the shape points at the game's own files, its
+texture codes renamed for the layers of material the body is built in (and six elements recoded to
+another layer, their geometry unchanged), the aged textures swapped for others of the game's, the same
+materials new (steel plate for rusty iron and steel, oak for charred wood, plain leather, steel chain),
+which each eidolon's own layers replace. Its spine (`spine1` and
 everything under it) is cut off the eidolon unchanged and drawn as part of the gantry (below); its
 copy, `EidolonGantry/spine.json`, is that model's too. Added for this mod: the three
 anchor elements (`carry-anchor`, `trunk-anchor`, `thick-trunk-anchor`), the `RightHand`, `LeftHand`,
 `Carry`, `Trunk` and `ThickTrunk` attachment points and the laborer's animations (`fell`, `carry-*`, `lift`, `setdown`, `trunk-*`,
-`guard-idle`, `hung`, `activate`, `slump`, `standup`).
+`guard-idle`, `hung`, `activate`, `dock`, `slump`, `standup`, `strike-*`).
 
 The model belongs to Anego Studios and is not covered by this repository's Apache License; it is
 used here as part of a mod for their game. The additions are covered by the repository's license.

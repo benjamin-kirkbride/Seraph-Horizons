@@ -2529,8 +2529,11 @@ help lines (`Help`); it saves its own state and writes its own block info as a b
 
 **The body and waking it** (#672, `EidolonGantry/Game/BEBehaviorEidolonBody.cs`, the gantry's one
 extension; rules in `EidolonGantry/Core/BodyParts.cs`). Once the spine hangs, the body is built on it in
-six stages, in order: torso, pelvis, legs, arms, head, mind (`BodyBill`, the epic's bill; the stages file
-`config/eidolon-stages.json` lists the same and a test holds the two together). Each stage is finished
+seven stages, in order: the torso, the five layers of material (bones; joints, bars and clamps; plates;
+sash and fauld; chain skirt) and the mind (`BodyBill`; the stages file `config/eidolon-stages.json`
+lists the same, its materials the builder's choice, each layer's count scaled to the model,
+`Eidolon/README.md` "Build stages", and a test holds the two together). Until the layers take a choice of
+material the bill is the default build's, below. Each stage is finished
 before the next takes anything; within a stage any order, and each right-click fits what the held
 stack can give toward one item the stage still needs (all of it, up to what is missing). A later stage's
 item is refused as out of order, one the stage has all of as already in, and nothing is taken. Steel
@@ -2538,11 +2541,12 @@ rods, plates and nails go to the body once the winch is done (before, they are w
 
 | Stage | Takes |
 |---|---|
-| Torso | Jonas tank 1, tank 2 and pump head; 4 steel plates, 8 steel nails and strips, 4 metal parts, 3 stainless gears |
-| Pelvis | Jonas gearbox 2; 3 steel plates, 8 nails and strips, 3 metal parts, 2 stainless gears |
-| Legs | 2 Jonas joints (the knees), 2 Jonas springs; 4 steel rods, 3 plates, 8 nails and strips, 3 metal parts, 2 stainless gears |
-| Arms | Jonas gears 1 and 2, cylinder 1, valve; 4 steel rods, 2 plates, 8 nails and strips, 4 metal parts, 3 stainless gears |
-| Head | The Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain), Jonas oscillator, gearbox 1, cylinder 2, connector; a steel plate, 4 nails and strips, 2 metal parts, 2 stainless gears |
+| Torso | The eidolon torso (`seraphhorizons:eidolontorso`, crafted from the Jonas pump head, tank 1 and tank 2, 4 metal parts and 3 stainless gears) |
+| Bones | 10 oak support beams; Jonas gearbox 1 and 2, oscillator, cylinder 2, connector, and the Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain) |
+| Joints, bars and clamps | 4 steel rods, 20 steel nails and strips; 2 Jonas joints (the knees), 2 Jonas springs, Jonas gears 1 and 2, cylinder 1, valve; 9 stainless gears, 12 metal parts |
+| Plates | 17 steel plates |
+| Sash and fauld | 2 plain leather |
+| Chain skirt | 2 steel chains |
 | Mind | A temporal gear, which wakes it |
 
 The block info lists the stages fitted, what the next one still needs, and those after. Each finished
