@@ -93,11 +93,12 @@ describe("the grinder's tiers and the viewer's states", () => {
     }
   });
 
-  it("puts its anchors on the footprint: the power face on the south side, the ore in at the west and out at the east", () => {
+  it("puts its anchors on the footprint: the power face on the south side, the ore in at the west (middlings too) and out at the east", () => {
     const keys = discoverAnchors(rig).anchors.map((a) => a.key);
-    expect(keys).toEqual(expect.arrayContaining(["powerCell", "infeedCell", "outputCell", "returnCell", "output"]));
+    expect(keys).toEqual(["powerCell", "infeedCell", "outputCell", "output"]);
     const r = rig as unknown as Record<string, unknown>;
-    expect([r.powerFace, r.infeedFace, r.outputFace, r.returnFace]).toEqual(["south", "up", "east", "up"]);
+    expect([r.powerFace, r.infeedFace, r.outputFace]).toEqual(["south", "up", "east"]);
+    expect(Object.keys(r).filter((k) => k.startsWith("return"))).toEqual([]);
     expect(rig.cells!.length).toBe(18);
     expect(rig.cells!.some((c) => c.lid !== undefined)).toBe(false);
   });

@@ -186,14 +186,14 @@ ROLES = [
     (r"^t2post_gudgeon|^t2pinion_|^t3pinion_|^t3shaft_(shaft|axle)|^t4mitre_|^t4counter_|^t4balls_|^t3pan_die|^t3scrapers_blade",
      {"steel"}),
     (r"^t2post_|^t2foot_|^t3foot_|^t3shaft_|^t3pan_|^t3scrapers_|^t4bed_|^t4cbear|^t4drum_(?!shell)|^t2arms_staple|^t2stones_eye"
-     r"|^t3runner\d_(tyre|hub)|^t4feed_(spout|launder)", {"iron"}),
+     r"|^t3runner\d_(tyre|hub)|^t4feed_spout", {"iron"}),
     (r"^t2arms_arm", {"oak"}),
     (r"^t2stones_stone", {"granite"}),
     (r"^t2stones_chain", {"chain"}),
     (r"^t3runner\d_stone", {"polished"}),
     (r"^t4drum_shell", {"riveted"}),
-    (r"^t4feed_(box|funnel)(?!_leg)", {"planks"}),
-    (r"^t4feed_(box|funnel)_leg", {"oak"}),
+    (r"^t4feed_box(?!_leg)", {"planks"}),
+    (r"^t4feed_box_leg", {"oak"}),
 ]
 OVERRIDES = [(r"^t3pan_screen$", {"mesh"})]
 
@@ -228,8 +228,8 @@ def cell_face_box(m, cell, face):
 def check_anchors(v):
     """The anchor cells are on the footprint's outside, their faces looking out of it, and all different; the power
     face is on a side, not on the ore's ends (west, east) or its top; the axle's cross reaches the power face at its
-    centre; the hopper's mouth is the infeed cell's top face, the return funnel's the return cell's, and the
-    discharge box's lip reaches the output face in the output cell."""
+    centre; the hopper's mouth is the infeed cell's top face, and the discharge box's lip reaches the output face
+    in the output cell."""
     m, rig = v.m, v.rig
     size = (m.CELLS_X, m.CELLS_Y, m.CELLS_Z)
     cells = {k: tuple(rig[k]) for k in m.CELL_KEYS}
@@ -254,8 +254,8 @@ def check_anchors(v):
     print(f"anchors: the axle's cross reaches z {reach:.2f} (the power face at {lo[2]:.0f}), {off:.3f} off its centre; cells {cells}")
     if abs(reach - lo[2]) > 0.02 or off > 1e-6:
         v.fail("the axle's cross does not meet the power face at its centre")
-    # the hopper's mouth over the infeed cell's top face, the funnel's over the return cell's
-    for key, pid, rx in (("infeedCell", "frame", r"^fr_hopper_(n|s|w|e\d)$"), ("returnCell", "t4feed", r"^t4feed_funnel_(n|s|w|e)$")):
+    # the hopper's mouth over the infeed cell's top face
+    for key, pid, rx in (("infeedCell", "frame", r"^fr_hopper_(n|s|w|e\d)$"),):
         walls = v.named(pid, rx)
         wlo, whi = aabb_of(walls)
         flo, fhi, _ = cell_face_box(m, cells[key], "up")
@@ -280,20 +280,46 @@ def inside_box_mouth(v, pt):
 
 
 def check_flow(v):
-    """The ore's way at every tier, through the same cells: tiers 2 and 3's feed spouts start at the hopper's outlet
-    (touching its east wall round it) and end over the floor inside the curb or the pan's wall; tier 4's feed box
-    takes the hopper's outlet through its west wall, the return funnel's launder ends over it, and its spout ends
-    inside the west trunnion's bore. Each tier's discharge falls into the discharge box: the arrastra's drain and
-    the Chilean mill's launder lip end over its inside, and the ball mill's lip is over it."""
+    """The ore's way at every tier, through the same cells. Everything ground comes in by the hopper's mouth, the
+    infeed cell's top face: fresh ore at every tier and, at tier 4, the concentrator's middlings with it (the owner's
+    ruling: the return is merged into the feed). So there is no other way in: of all the parts only the hopper's
+    reach the machine's top face, and the hopper's floor runs down to its outlet's sill. From the outlet: tiers 2
+    and 3's feed spouts start at it (touching the hopper's east wall round it) and end over the floor inside the
+    curb or the pan's wall; tier 4's feed box takes it through its west wall and its spout ends inside the west
+    trunnion's bore. Each tier's discharge falls into the discharge box: the arrastra's drain and the Chilean
+    mill's launder lip end over its inside, and the ball mill's lip is over it."""
     m = v.m
     out_x = m.HOP_X[1]
+    top = m.CELLS_Y * m.B
+    high = sorted({e.name for pid in v.by_part for e in v.posed(pid, 0.0) if e.aabb()[1][1] > top - 0.5})
+    others = [n for n in high if not n.startswith("fr_hopper")]
+    floor = v.named("frame", r"^fr_hopper_floor$")[0]
+    low = min(floor.corners(), key=lambda p: p[1])
+    sill = max(p[1] for p in floor.corners() if p[0] > out_x - m.HOP_WALL - 0.5)
+    print(f"flow: the only way in is the hopper's mouth (the infeed, middlings too at tier 4): parts at the top face "
+          f"{len(high)}, all the hopper's {not others}; its floor runs down to y {low[1]:.2f}, its top at the outlet "
+          f"{sill:.2f} (the sill {m.OUTLET_Y[0]})")
+    if others:
+        v.fail(f"parts other than the hopper reach the top face, a second way in: {others[:6]}")
+    if abs(sill - m.OUTLET_Y[0]) > 0.3:
+        v.fail("the hopper's floor does not run down to its outlet")
     for pid in ("t2basin", "t3pan"):
         sp = aabb_of(v.named(pid, r"_spout_"))
         end_r = m.CX - m.SPOUT_END
-        print(f"flow: {pid}'s spout from x {sp[0][0]:.2f} (the outlet's face {out_x}) to {sp[1][0]:.2f}, {end_r:.1f} from the centre "
+        print(f"  {pid}'s spout from x {sp[0][0]:.2f} (the outlet's face {out_x}) to {sp[1][0]:.2f}, {end_r:.1f} from the centre "
               f"(inside the rim's {m.RIM_R[0] if pid == 't2basin' else m.RIM_R[1] - 1.0})")
         if abs(sp[0][0] - out_x) > 0.25 or end_r >= (m.RIM_R[0] if pid == "t2basin" else m.RIM_R[1] - 1.0):
             v.fail(f"{pid}'s spout does not run from the outlet to inside the rim")
+    fb = aabb_of(v.named("t4feed", r"_box_"))
+    if abs(fb[0][0] - out_x) > 1e-6 or not (fb[0][2] < m.OUTLET_Z[0] and m.OUTLET_Z[1] < fb[1][2]):
+        v.fail("the feed box does not take the hopper's outlet")
+    sp = v.named("t4feed", r"_spout_")
+    end = max(max(e.corners(), key=lambda p: p[0])[0] for e in sp)
+    worst = max(math.hypot(p[1] - m.DRUM_Y, p[2] - m.CZ) for e in sp for p in e.corners() if p[0] > m.W_TRUNNION_X[0])
+    print(f"  t4feed's box takes the hopper's outlet; its spout ends at x {end:.2f} (the west trunnion {m.W_TRUNNION_X[0]}.."
+          f"{m.W_TRUNNION_X[1]}), at most {worst:.2f} from the axis in it (the bore {m.TRUNNION_R[0]})")
+    if not (m.W_TRUNNION_X[0] < end <= m.W_TRUNNION_X[1]) or worst > m.TRUNNION_R[0] - 0.15:
+        v.fail("tier 4's feed spout is not in the west trunnion's bore")
     for pid, rx in (("t2basin", r"_drain_floor"), ("t3pan", r"_launder_lip")):
         e = v.named(pid, rx)[0]
         lo, hi = e.aabb()
@@ -306,20 +332,6 @@ def check_flow(v):
     print(f"  t4drum's discharge lip ends at x {tip[0]:.2f}, its bottom y {tip[1]:.2f}: over the box's inside {inside_box_mouth(v, tip)}")
     if not inside_box_mouth(v, tip):
         v.fail("the drum's discharge does not fall into the discharge box")
-    fb = aabb_of(v.named("t4feed", r"_box_"))
-    if abs(fb[0][0] - out_x) > 1e-6 or not (fb[0][2] < m.OUTLET_Z[0] and m.OUTLET_Z[1] < fb[1][2]):
-        v.fail("the feed box does not take the hopper's outlet")
-    ld = v.named("t4feed", r"_launder_floor")[0]
-    lend = max(ld.corners(), key=lambda p: -p[2])
-    if not (fb[0][2] < lend[2] < fb[1][2] and lend[1] < fb[1][1] + 1.5):
-        v.fail(f"the return launder does not end over the feed box ({lend})")
-    sp = v.named("t4feed", r"_spout_")
-    end = max(max(e.corners(), key=lambda p: p[0])[0] for e in sp)
-    worst = max(math.hypot(p[1] - m.DRUM_Y, p[2] - m.CZ) for e in sp for p in e.corners() if p[0] > m.W_TRUNNION_X[0])
-    print(f"  t4feed's spout ends at x {end:.2f} (the west trunnion {m.W_TRUNNION_X[0]}..{m.W_TRUNNION_X[1]}), at most "
-          f"{worst:.2f} from the axis in it (the bore {m.TRUNNION_R[0]})")
-    if not (m.W_TRUNNION_X[0] < end <= m.W_TRUNNION_X[1]) or worst > m.TRUNNION_R[0] - 0.15:
-        v.fail("tier 4's feed spout is not in the west trunnion's bore")
 
 
 # ---------------------------------------------------------------- gearing and rolling

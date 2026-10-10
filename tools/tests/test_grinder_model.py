@@ -133,12 +133,13 @@ class Anchors(unittest.TestCase):
         cells = {tuple(c["pos"]) for c in RIG["cells"]}
         self.assertEqual(cells, {(x, y, z) for x in (-1, 0, 1) for y in (0, 1) for z in (0, 1, 2)})
         self.assertFalse([c for c in RIG["cells"] if "lid" in c])
-        got = {k: (tuple(RIG[k + "Cell"]), RIG[k + "Face"]) for k in ("power", "infeed", "output", "return")}
-        self.assertEqual(got, {"power": ((0, 0, 2), "south"), "infeed": ((-1, 1, 1), "up"), "output": ((1, 0, 1), "east"),
-                               "return": ((-1, 1, 2), "up")})
+        got = {k: (tuple(RIG[k + "Cell"]), RIG[k + "Face"]) for k in ("power", "infeed", "output")}
+        self.assertEqual(got, {"power": ((0, 0, 2), "south"), "infeed": ((-1, 1, 1), "up"), "output": ((1, 0, 1), "east")})
         self.assertEqual(RIG["output"]["pos"][0], 2.0)
+        # the middlings return is merged into the feed (the owner's ruling): no anchor of its own
+        self.assertFalse([k for k in RIG if k.startswith("return")])
 
-    def test_the_axle_meets_the_power_face_and_the_mouths_are_the_top_faces(self):
+    def test_the_axle_meets_the_power_face_and_the_hopper_is_the_only_way_in(self):
         # shipped voxels: the power cell [0,0,2] spans x 0..16, z 32..48
         axle = aabb_of([e for e in posed_part("shaft") if e.name.startswith("sh_axle")])
         self.assertAlmostEqual(axle[1][2], 48.0, places=4)
@@ -147,9 +148,14 @@ class Anchors(unittest.TestCase):
         hopper = aabb_of([e for e in posed_part("frame") if re.fullmatch(r"fr_hopper_(n|s|w|e\d)", e.name)])
         self.assertAlmostEqual(hopper[1][1], 32.0, places=4)
         self.assertTrue(-16.0 <= hopper[0][0] and hopper[1][0] <= 0.0 and 16.0 <= hopper[0][2] and hopper[1][2] <= 32.0)
-        funnel = aabb_of([e for e in posed_part("t4feed") if re.fullmatch(r"t4feed_funnel_(n|s|w|e)", e.name)])
-        self.assertAlmostEqual(funnel[1][1], 32.0, places=4)
-        self.assertTrue(-16.0 <= funnel[0][0] and funnel[1][0] <= 0.0 and 32.0 <= funnel[0][2] and funnel[1][2] <= 48.0)
+        # fresh ore and, at tier 4, the middlings come in by the hopper alone: nothing else reaches the top face
+        high = set()
+        for el in flatten(SHAPE["elements"], textures={}):
+            pid = rigmath.part_of(RIG["parts"], el.name)
+            if rigmath.posed(el, matrix(pid, 0.0)).aabb()[1][1] > 31.5:
+                high.add(el.name)
+        self.assertTrue(high)
+        self.assertTrue(all(n.startswith("fr_hopper") for n in high), sorted(high))
 
 
 class Readme(unittest.TestCase):

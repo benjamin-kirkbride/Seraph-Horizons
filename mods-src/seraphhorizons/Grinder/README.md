@@ -9,7 +9,7 @@ parts. Grinding never loses metal: it is what lifts poor ore's × 0.4.
 |---|---|---|---|
 | 2 | arrastra | a stone-paved pit, drag stones on sweeps, mule-driven | a paved basin on piers; a post turned through bevel gears under it sweeps four drag stones round on chain bridles |
 | 3 | Chilean mill | edge runners rolling in a pan | two granite edge runners on a horizontal axle through a cross-head, rolling on a steel die in an iron pan; ploughs; a discharge screen |
-| 4 | ball mill | a riveted drum on trunnions with a girth gear, middlings reground | a riveted drum on hollow trunnions in pillow blocks, a girth gear and pinion, fed through one trunnion and discharging over the other, a return funnel for middlings |
+| 4 | ball mill | a riveted drum on trunnions with a girth gear, middlings reground | a riveted drum on hollow trunnions in pillow blocks, a girth gear and pinion, fed through one trunnion and discharging over the other; the concentrator's middlings come back by the hopper with the fresh ore |
 
 **Status: the model only.** This folder holds the generator (`tools/`). There is no block, block entity or
 renderer yet; the model and its rig are what #732 will be built against. Paths here are from this folder
@@ -30,9 +30,8 @@ tier (shipped coordinates):
 | Anchor | Cell, face | What is there |
 |---|---|---|
 | `powerCell`, `powerFace` | `[0,0,2]`, south | The vanilla axle comes in along z at the face's centre (x 24, y 8 voxels in the build frame) onto the power shaft. |
-| `infeedCell`, `infeedFace` | `[-1,1,1]`, up | The feed hopper's mouth over the west end: a chute from the previous machine (crusher or classifier), or a player at tier 2, tips ore in from above. |
+| `infeedCell`, `infeedFace` | `[-1,1,1]`, up | The feed hopper's mouth over the west end: a chute from the previous machine (crusher or classifier), or a player at tier 2, tips ore in from above. At tier 4 the concentrator's middlings come back the same way, into the same hopper: there is no separate return. |
 | `outputCell`, `outputFace`, `output.pos` | `[1,0,1]`, east, `[2.0, 0.3125, 1.5]` | The discharge box's lip through the east face, low down: the ground ore leaves towards the next machine (the concentrator). |
-| `returnCell`, `returnFace` | `[-1,1,2]`, up | Tier 4's middlings return funnel, beside the hopper at the feed end; the concentrator's middlings come back by chute from above. |
 
 **The frame** (`requires` null) is what never moves between tiers: a timber deck over the whole footprint;
 the power shaft (the vanilla axle's cross from the south face, then an octagonal iron shaft in two pillow
@@ -62,8 +61,9 @@ so the layout is written down as a rule each can follow:
 4. **The frame holds what never moves:** the deck, the power shaft and its bearings, the infeed (hopper) and
    the output (discharge box). Pipes, chutes and the tailings heap would join it (the grinder has none of
    them: no water is drawn and nothing is lost).
-5. **Closed circuits come in beside the feed, by a second top face** (`returnCell`), into tier 4's own feed
-   box, which takes the hopper's outlet too.
+5. **Closed circuits come back into the feed** (the owner's ruling, review pass 1): at tier 4 the
+   concentrator's middlings come in by the same hopper and infeed cell as fresh ore, so the machine has one way
+   in. Tier 4's own feed box, under the hopper's outlet, takes both to the drum.
 6. **The operator stands on the north side**, where the controller is; the drive is on the far side.
 
 ### Powered substitutes for the period drives
@@ -110,7 +110,7 @@ the whole machine repeats every six (the viewer's θ slider spans six turns).
 | Mitre pinion, 12 teeth, and hub (`t4mitre`) [t4drive] | The power shaft (keyed) | The mitre wheel | rides `shaft` |
 | Countershaft: mitre wheel (12), shaft, girth pinion (10), collars (`t4counter`) [t4drive] | The mitre pinion | The girth gear | `rotate` x, −1 |
 | Drum: trunnions, heads, riveted shell, manhole, girth gear (30), discharge lip (`t4drum`) [t4drum] | The girth pinion | Lifts the charge | `rotate` x, +1/3 |
-| Countershaft's pillow blocks (`t4cbear`) [t4drive]; bedplate, portals, trunnion bearings (`t4bed`) [t4bed]; feed box, spout, return funnel and launder (`t4feed`) [t4feed] | Fixed | — | none |
+| Countershaft's pillow blocks (`t4cbear`) [t4drive]; bedplate, portals, trunnion bearings (`t4bed`) [t4bed]; feed box and spout (`t4feed`) [t4feed] | Fixed | — | none |
 | The charge (`t4balls`) [t4balls] | Lies in the drum's bottom, heaped up the rising side | — | none |
 
 At one axle turn a second the arrastra's post turns 20 times a minute, the Chilean mill's shaft 30 (each
@@ -136,7 +136,7 @@ The items are #732's to choose; the `requires` ids and the order are the model's
 | 4 | 2 | `t4drum` | The drum with its trunnions, heads, manhole and girth gear |
 | 4 | 3 | `t4drive` | The mitre pair, the countershaft with its pinion and its two pillow blocks |
 | 4 | 4 | `t4balls` | The charge of iron balls, in through the manhole |
-| 4 | 5 | `t4feed` | The feed box at the west trunnion with its spout, the middlings return funnel and its launder |
+| 4 | 5 | `t4feed` | The feed box at the west trunnion, under the hopper's outlet, with its spout into the trunnion's bore (fresh ore and the middlings both come by the hopper) |
 
 **In the viewer** (`site/models.json`): one select, **Fitted**, steps from "The frame" through "Tier 2:
 arrastra" and "Tier 3: Chilean mill" to "Tier 4: ball mill" (the default), each fitting that tier's whole set
@@ -152,7 +152,7 @@ steel sheet, riveted iron (the drum's shell), iron chain, iron mesh (the screen)
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/grinder.json` | The frame and every tier's parts (1021 elements), each tier's under its `requires`. |
+| `assets/seraphhorizons/shapes/block/grinder.json` | The frame and every tier's parts (1011 elements), each tier's under its `requires`. |
 | `assets/seraphhorizons/shapes/block/grinder_frame.json` | The static frame only (46 elements): what a block would draw. |
 | `assets/seraphhorizons/config/grinder-rig.json` | Footprint, anchors, the tiers, the part rig (22 parts). |
 | `tests/Grinder/rig-reference.json` | Every part's matrix at a grid of axle angles, from the reference maths. |
@@ -194,12 +194,12 @@ every check comparing parts does it a state at a time.
 - **Textures** by role (the list in "Model" above).
 - **Anchors:** the anchor cells on the footprint's outside, their faces looking out and all different; the
   power face on a side, not on the ore's ends; the axle's cross at the power face's centre; the hopper's mouth
-  the infeed cell's top face and the funnel's the return cell's; the lip at the output face, `output.pos` its
-  end.
-- **The ore's way:** tiers 2 and 3's spouts from the hopper's outlet to inside the curb or the pan's wall;
-  tier 4's feed box taking the outlet, the return launder ending over it and its spout inside the west
-  trunnion's bore; the arrastra's drain, the Chilean mill's launder lip and the drum's discharge lip each over
-  the discharge box's inside.
+  the infeed cell's top face; the lip at the output face, `output.pos` its end.
+- **The ore's way:** one way in, the hopper's mouth, for fresh ore at every tier and the middlings at tier 4:
+  of every part only the hopper's reach the machine's top face, and its floor runs down to its outlet; tiers 2
+  and 3's spouts from the outlet to inside the curb or the pan's wall; tier 4's feed box taking the outlet and
+  its spout inside the west trunnion's bore; the arrastra's drain, the Chilean mill's launder lip and the
+  drum's discharge lip each over the discharge box's inside.
 - **Supports:** the power shaft in its two pillow blocks; the post and the Chilean mill's shaft each on a
   footstep and in a neck bearing (the centre stone, the pan's boss); the countershaft in two pillow blocks; each
   trunnion through a bearing closed round it on four sides; each runner between its collar and nut; each
@@ -228,7 +228,7 @@ viewer's states.
 The bucking sawmill's format (`../BuckingSawmill/README.md`, "Rig schema"). The only input is θ; every driver
 is a `rotate` on it, and the rest of the parts ride or stand still. Keys: `cells` (18, the boxes at rest of
 every tier's parts together; no lids), `powerCell` and `powerFace`, `infeedCell` and `infeedFace`,
-`outputCell`, `outputFace` and `output`, `returnCell` and `returnFace`, `tiers` (`[{tier, name, fitted}]`: each
+`outputCell`, `outputFace` and `output`, `tiers` (`[{tier, name, fitted}]`: each
 tier's `requires` values in fitting order) and `parts`. `requires` values: `t2basin`, `t2post`, `t2arms`,
 `t2stones`, `t3pan`, `t3shaft`, `t3runners`, `t3scrapers`, `t4bed`, `t4drum`, `t4drive`, `t4balls`, `t4feed`, or
 null.
@@ -247,7 +247,7 @@ runs again: port them into `make_shape.py`, or stop regenerating.
    are a proposal; one item each, #711's pattern).
 2. **The precedent** ("Why this layout"): flow along x by gravity, in from the top at the west and out low at
    the east; the drive from the south side's middle at ground level; the frame holding the deck, the drive,
-   the infeed and the output; closed circuits by a second top face beside the feed.
+   the infeed and the output.
 3. **Power at the west instead?** With the axle coming in along the drum's axis the pinion could sit straight
    on the power shaft (no mitre pair or countershaft), at the cost of putting the drive on the ore's way in.
 4. **The raised arrastra.** Underdriven, its basin stands on piers about 0.8 m up; a pit at ground level would
@@ -257,12 +257,14 @@ runs again: port them into `make_shape.py`, or stop regenerating.
    should draw some.
 6. **Collision.** The cells' boxes are every tier's parts together; per-tier boxes, and whether the machine is
    walked on (lids), are #711's.
-7. **The return.** The concentrator is downstream and lower, so middlings coming back by chute from above
-   would need lifting (an elevator); gameplay may move them without a chute.
-8. **Sizes and speeds:** the basin about 2 m across, the runners 0.9 m, the drum 1.06 m by 0.84 m (a short,
+7. **Sizes and speeds:** the basin about 2 m across, the runners 0.9 m, the drum 1.06 m by 0.84 m (a short,
    Krupp-like drum); the post at a third of the axle, the Chilean mill's shaft at a half, the drum at a third.
-9. **The charge** is drawn lying still in the drum's bottom, seen only with the drum unticked; the ore and
+8. **The charge** is drawn lying still in the drum's bottom, seen only with the drum unticked; the ore and
    pulp are not drawn at all (no work input).
+
+Decided: **the middlings return is merged into the feed** (review pass 1). At tier 4 the concentrator's
+middlings come back into the same hopper and infeed cell (`[-1,1,1]`, up) as fresh ore; the separate return
+funnel, its launder and its anchor are gone, and the ore's-way check holds the hopper as the only way in.
 
 ## Known weak spots, and what is not checked
 

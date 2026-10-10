@@ -3,8 +3,8 @@
 
 The grinder is the ore line's grind stage (#732, model #733), one machine upgraded in place: a frame, then
 each tier's parts fitted one item each in order, the next tier's set replacing the previous tier's working
-parts. Its footprint is fixed at its tier 4 size from the frame on, and the feed, the discharge, the
-middlings return and the drive stay at the same cells at every tier:
+parts. Its footprint is fixed at its tier 4 size from the frame on, and the feed, the discharge and the drive
+stay at the same cells at every tier (at tier 4 the concentrator's middlings come back by the feed too):
 
     frame    a timber deck over the whole footprint; the power shaft (the vanilla axle's cross from the south
              face, then an iron shaft in two pillow blocks) running north under the middle to the centre; the
@@ -19,9 +19,10 @@ middlings return and the drive stay at the same cells at every tier:
              the pulp leaves through a screen in the pan's east side
     tier 4   the ball mill: a riveted iron drum on two hollow trunnions in pillow blocks on cast portal
              pedestals, a girth gear on its east head turned by a pinion on a countershaft under it, which
-             a mitre pair on the power shaft's end turns; fed through the west trunnion by a spout from the
-             hopper (the middlings return funnel's launder joins it), discharging over the east trunnion's
-             lip into the discharge box, a charge of iron balls inside
+             a mitre pair on the power shaft's end turns; fed through the west trunnion from a feed box
+             under the hopper's outlet (fresh ore and the concentrator's middlings alike come in by the
+             hopper), discharging over the east trunnion's lip into the discharge box, a charge of iron
+             balls inside
 
 Everything is built here from plain boxes; no other mod's model is used. No animal, wheel or engine:
 power comes from a vanilla axle on the power face, and every tier works whichever way it turns.
@@ -80,9 +81,9 @@ CELLS_X, CELLS_Y, CELLS_Z = 3, 2, 3          # three by three, two high: the bal
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the middle of the north (operator's) side at ground level
 CX, CZ = 24.0, 24.0                          # the centre line: the pan's axis (x, z); the drum's axis runs along x at z CZ
 POWER_CELL, POWER_FACE = (1, 0, 2), "south"  # the vanilla axle comes in along z at (x 24, y 8): the line shaft's side
-INFEED_CELL, INFEED_FACE = (0, 1, 1), "up"   # the hopper's mouth: a chute (or a player) tips ore in from above
+INFEED_CELL, INFEED_FACE = (0, 1, 1), "up"   # the hopper's mouth: a chute (or a player) tips ore in from above; at
+                                             # tier 4 the concentrator's middlings come back the same way
 OUTPUT_CELL, OUTPUT_FACE = (2, 0, 1), "east"  # the discharge box's lip: the ground ore leaves eastwards, downhill
-RETURN_CELL, RETURN_FACE = (0, 1, 2), "up"   # tier 4's middlings return funnel, beside the hopper at the feed end
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
@@ -196,8 +197,6 @@ MANHOLE_X = (24.0, 29.5)
 FEEDBOX = ((HOP_X[1], W_TRUNNION_X[0] - 0.2), (19.5, 30.0), (19.2, 26.0))   # tier 4's feed box at the trunnion's mouth
 FEEDBOX_FLOOR = ((8.1, OUTLET_Y[0] - 0.3), (10.7, 19.9))   # (x, y): its floor's top, from the hopper's outlet to the spout
 FEED_SPOUT_END = (W_TRUNNION_X[1] - 0.5, 19.1)            # the spout's floor's top at its end, inside the west trunnion
-RET = ((HOP_X[1], 11.5), (33.0, 40.0), (27.4, 32.0))       # the middlings return funnel, its mouth the return cell's top
-RET_FLOOR = ((38.4, 30.4), (33.8, 28.0))                   # (z, y): its floor's top, sloping north to its outlet
 CHARGE_FACE = (2.2, 0.45)                    # the charge's face: this far under the axis at its middle, rising this much a voxel towards -z
 
 
@@ -750,9 +749,9 @@ def build_t4():
 
 
 def build_t4_feed():
-    """The feed box at the west trunnion's mouth: the hopper's outlet opens into it through its west wall, the
-    middlings return funnel's launder pours in over its south wall, and a spout from its east wall runs into the
-    trunnion's bore. Two legs carry it on the bedplate, one the funnel on the deck."""
+    """The feed box at the west trunnion's mouth: the hopper's outlet opens into it through its west wall (fresh ore
+    and, at this tier, the concentrator's middlings: both come in by the hopper), and a spout from its east wall
+    runs into the trunnion's bore. Two legs carry it on the bedplate."""
     fd, t, w = "t4feed", "planks", HOP_WALL
     (x0, x1), (z0, z1), (y0, y1) = FEEDBOX
     (fx0, fy0), (fx1, fy1) = FEEDBOX_FLOOR
@@ -776,22 +775,6 @@ def build_t4_feed():
         a = [x1 - 0.7, fy1 + 1.0, zc]
         b = [sx, sy + 1.0, zc]
         out.append(tilted(a, b, 0.3, 1.4, f"{fd}_spout_{tag}", fd, "iron", "z"))
-    # the return funnel: a bin with a floor sloping north to an outlet across its north wall, and its short launder
-    (rx0, rx1), (rz0, rz1), (ry0, ry1) = RET
-    (az, ay), (bz, by) = RET_FLOOR
-    out += [box([rx0, ry0, rz0], [rx1, ry0 + 0.6, rz1], f"{fd}_funnel_bottom", fd, t),
-            box([rx0, ry0 + 0.6, rz1 - w], [rx1, ry1, rz1], f"{fd}_funnel_s", fd, t),
-            box([rx0, ry0 + 0.6, rz0], [rx0 + w, ry1, rz1 - w], f"{fd}_funnel_w", fd, t),
-            box([rx1 - w, ry0 + 0.6, rz0], [rx1, ry1, rz1 - w], f"{fd}_funnel_e", fd, t),
-            box([rx0 + w, by + 1.4, rz0], [rx1 - w, ry1, rz0 + w], f"{fd}_funnel_n", fd, t),
-            tilted([(rx0 + rx1) / 2, ay, az], [(rx0 + rx1) / 2, by, bz], rx1 - rx0 - 2 * w, 0.6, f"{fd}_funnel_floor", fd, t, "x")]
-    out.append(box([rx0 + 0.6, DECK, rz1 - 3.2], [rx0 + 2.8, ry0, rz1 - 1.0], f"{fd}_funnel_leg", fd, "oak"))
-    lw = rx1 - rx0 - 2 * w
-    xm = (rx0 + rx1) / 2
-    a, b = [xm, by - 0.1, rz0 + w], [xm, y1 + 0.5, z1 - 1.8]
-    out.append(tilted(a, b, lw, 0.4, f"{fd}_launder_floor", fd, "iron", "x"))
-    for tag, dx in (("w", -lw / 2 + 0.15), ("e", lw / 2 - 0.15)):
-        out.append(tilted(v_add(a, [dx, 0.8, 0.0]), v_add(b, [dx, 0.8, 0.0]), 0.3, 1.2, f"{fd}_launder_{tag}", fd, "iron", "x"))
     return out
 
 
@@ -944,7 +927,8 @@ def tiers_json():
 def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the middle of the north "
-                    "(operator's) side at ground level; the ore runs west to east, the axle comes in from the south. Model only: "
+                    "(operator's) side at ground level; the ore runs west to east (in at the infeed, the middlings too at tier 4; out "
+                    "at the output), the axle comes in from the south. Model only: "
                     "no block or renderer reads it yet (#732). tiers: each tier's fitted parts in order (requires values); a tier's "
                     "set replaces the one before it, the frame (requires null) stays. The only input is theta, the axle's angle. "
                     "See the grinder's README.",
@@ -956,15 +940,13 @@ def make_rig(parts):
         "outputCell": list(OUTPUT_CELL),
         "outputFace": OUTPUT_FACE,
         "output": {"pos": pt(*output_point())},
-        "returnCell": list(RETURN_CELL),
-        "returnFace": RETURN_FACE,
         "tiers": tiers_json(),
         "parts": parts,
     }
 
 
 # ---------------------------------------------------------------- shipped
-CELL_KEYS = ("powerCell", "infeedCell", "outputCell", "returnCell")
+CELL_KEYS = ("powerCell", "infeedCell", "outputCell")
 
 
 def shipped(els, parts, rig):
@@ -1016,7 +998,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
     span = [(min(c[k] for c in cells), max(c[k] for c in cells)) for k in range(3)]
     print(f"shipped: moved by {[v / B for v in d]} blocks, worst posed difference {worst:.2e} voxels; cells x {span[0]}, "
           f"y {span[1]}, z {span[2]}; power {ship['powerCell']} {ship['powerFace']}, infeed {ship['infeedCell']} "
-          f"{ship['infeedFace']}, output {ship['outputCell']} {ship['outputFace']}, return {ship['returnCell']} {ship['returnFace']}")
+          f"{ship['infeedFace']}, output {ship['outputCell']} {ship['outputFace']}")
     if worst > 1e-6 or (0, 0, 0) not in cells:
         print("FAIL: the shipped model is not the checked one moved")
         return False
