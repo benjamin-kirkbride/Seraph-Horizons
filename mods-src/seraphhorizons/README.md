@@ -3863,7 +3863,7 @@ nugget texture retinted by a blended overlay of a vanilla texture (no texture of
 |---|---|---|---|
 | Crushed ore, coarse and fine | `game:crushed-{ore}-{coarse,fine}` | 16 | at half |
 | Ground ore | `seraphhorizons:groundore-{ore}` | 16 | no |
-| Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all |
+| Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all (it roasts in the firepit, next section) |
 | Roasted concentrate (the 13 sulfides) | `seraphhorizons:roastedconcentrate-{ore}` | 128 | whole |
 | Amalgam (gold and silver quartz) | `seraphhorizons:amalgam-{ore}` | 128 | no (retorted first, #726) |
 | Litharge | `seraphhorizons:litharge` | 64 | to lead, 20 in 21 (95 %) |
@@ -4009,6 +4009,43 @@ priced by their barrel routes (`tools/item-values/ore-processing.json`'s `single
 Code: `Ore/Processing/Leaching.cs`, `Ore/Core/OreLeaching.cs`. Tests: `tests/Ore/OreLeachingTests.cs`;
 `OreProcessingScenarios` (the raw forms, the saltpeter drops, a barrel of alum, the pot, diluted alum)
 and `SwitchesOffScenarios`.
+
+### Ore processing: roasting in the firepit (`OreProcessing`, `FirepitRoastSeconds`)
+
+Hand-tier roasting (#720): a sulfide's concentrate (the 13 sulfides of `config/ore-processing.json`,
+argentiferous galena among them) does not smelt, and cooks in the game's firepit into its roasted
+concentrate, which smelts whole. No station and no model: the concentrate goes in the firepit's input
+slot, not in a crucible.
+
+- **Any fuel.** It roasts at 600 °C (`OreRoasting.MeltingPoint`), which dry grass (600) and firewood
+  (700) reach. Its smelting needs no container (`requiresContainer: false`, smelting type `convert`,
+  "When heated, turns into" in the handbook), so the crucible, crucibulum's forge and the other furnaces
+  refuse it.
+- **One at a time.** The game's firepit heats the whole stack in its input slot together (a big stack
+  heats slowly), then turns one item per cook time (`meltingDuration`) once the stack is at the point,
+  faster in a fire at least twice as hot (it counts the cook time by whole multiples of the point).
+  The cook time per item is `FirepitRoastSeconds` (10 s; not positive: the default), so a stack of 128
+  takes about 21 minutes in a firewood fire.
+- **85 %, nothing rounded away.** An item has one smelting, which says one roasted item per item;
+  `ItemOreProduct.DoSmelt` (virtual in 1.22.7, called by the firepit for each item) instead takes one
+  concentrate and gives the whole roasted items that 85 % of its 5 units makes together with what the
+  firepit held over (`UnitCarry`, keyed by the firepit's inventory and the roasted item): 20 concentrate
+  give exactly 17. The share is `roasters.firepit` in `config/ore-processing.json` (#685's
+  `OreRecovery.Roasting(ore, Roaster.Firepit)`). The carry-over is `OreProcessingSystem.RoastCarry`,
+  saved with the world; a firepit broken mid-item leaves under a unit there.
+- **No sulfur**: the firepit has one output slot, and open roasting lost its sulfur to the air. Sulfur
+  is recovered from the roasting stall on (#736).
+
+`OreProcessingItems` sets it with the rest of the smelting (in `AssetsFinalize`): a sulfide's
+concentrate gets the roasting (`Roasting`) and its `RoastShare`; every other form is as above. The
+guide page "Roasting sulfide ore" (`config/handbook/oreroasting.json`, text in `lang/en.json`) is hidden
+with the switch off (on the client, when the roasted concentrate does not exist; the recipe export
+through the hidden-guides list). The recipe export has a record per sulfide (type `oreroasting`,
+`tools/recipe-export/Recipes/OreRoastingExport.cs`, docs/recipe-browser/schema.md), its output the
+share (0.85 of a roasted item). Tests: `tests/Ore/OreRoastingTests.cs` (the share, runs of any split,
+the cook time); `tests/PackTests/OreProcessingScenarios.cs` (`Firepit_roasts_sulfide_concentrate`: the
+props, and 20 concentrate through a firepit's own `smeltItems` giving 17; `Roasting_is_exported`: the
+records and the guide in the export, with the switch on).
 
 ## Trading
 
