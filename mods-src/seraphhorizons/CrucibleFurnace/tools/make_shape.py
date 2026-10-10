@@ -6,8 +6,8 @@ a block of tier-3 refractory brickwork three blocks wide, two deep and two high,
 set into its top, side by side at the front. Each hole is lined with firebrick, 12 voxels square, and
 holds a fireclay pot on a fireclay stand on a grate of iron firebars, packed round with coke up to the
 pot's shoulders. Its cover (firebrick in an iron frame) sits flush in a seat at the hole's mouth and is
-lifted aside, straight back into a bay of its own in the floor behind the hole, to charge the pot, top
-up the coke and pull the pot. Under the grates runs one ashpit (the cave), open at the front under each
+lifted, slid straight back and set down on the flat top behind the hole, on a flush iron floor plate, to
+charge the pot, top up the coke and pull the pot. Under the grates runs one ashpit (the cave), open at the front under each
 hole for the ash and the draught, with an iron-flanged air port into it at the back for forced air.
 Near the top of each hole's back wall a flue opening leads into a flue running behind both holes, and
 from it the stack rises in the middle of the back row to an outlet on the furnace's top, with an iron
@@ -26,13 +26,15 @@ exits non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
 machine box's north-west-bottom corner (the "build frame"). The holes are at the front (north), hole 1
-west and hole 2 east; the bays and the stack are in the back row (south). The controller cell is the
+west and hole 2 east; the covers' places when off and the stack are in the back row (south). The
+controller cell is the
 front middle cell at ground level, build cell (1, 0, 0), which the shipped files move to [0,0,0].
 
 The rig's inputs, as this furnace uses them:
 
     depth  the covers: only one may be off its hole or on its way at a time, so one number says where both
-           are. 0 is hole 1's cover aside in its bay (at rest), 0.5 both seated, 1 hole 2's cover aside:
+           are. 0 is hole 1's cover off, resting on the top behind its hole (at rest), 0.5 both seated, 1
+           hole 2's cover off:
            hole 1's cover goes on over 0..0.5 while hole 2's stays seated, and hole 2's comes off over
            0.5..1 while hole 1's stays seated (COVER_WINDOWS).
     theta  the melter's clock: a ratio-0 rotate on hole 1's cover carries it and moves nothing (so the
@@ -78,9 +80,10 @@ OCT = math.tan(math.pi / 8)                  # an octagon's half side over its a
 # ---------------------------------------------------------------- the box, the cells
 CELLS_X, CELLS_Y, CELLS_Z = 3, 2, 2          # the brickwork: three wide (x), two high, two deep (z)
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the front middle cell at ground level
-# Over each hole and its bay: room for the cover as it is lifted aside (it rises 2.6 voxels over the floor).
-# Reserved as hollow cells (ghosts with no boxes), so nothing is built where the covers pass. The cell
-# over the outlet, (1, 2, 1), is the chimney's and is not the machine's.
+# Over each hole and the place behind it where its cover rests when off: room for the cover as it is carried
+# (its underside 0.5 over the floor) and as it lies there (a plate 2.5 thick on the floor). Reserved as hollow
+# cells (ghosts with no boxes of their own), so nothing is built where the covers go. The cell over the outlet,
+# (1, 2, 1), is the chimney's and is not the machine's.
 LIFT_CELLS = ((0, 2, 0), (0, 2, 1), (2, 2, 0), (2, 2, 1))
 CHIMNEY_CELL = (1, 2, 1)
 
@@ -103,10 +106,12 @@ HOLE_X = {1: 8.0, 2: 40.0}                   # each hole's axis (x): the middle 
 HOLE_Z = 8.0                                 # (z): the front row's middle
 HOLE_HALF = 6.0                              # a hole is 12 square inside (the period's two feet, at the game's scale)
 SEAT_HALF = 7.0                              # the cover's seat at the mouth, 14 square: a 1-voxel ledge round the hole
-BAY_Z = HOLE_Z + B                           # each cover's bay, straight behind its hole in the back row
-FLOOR_TOP = 32.0                             # the furnace's top: the melting floor
+OFF_Z = HOLE_Z + B                           # where a cover rests when off: on the top, straight behind its hole
+FLOOR_TOP = 32.0                             # the furnace's top: the melting floor, flat
 SEAT_Y = 29.5                                # the seat's ledge: the cover is 2.5 thick, flush with the floor
-BAY_PLATE_Y = (29.0, 29.5)                   # the iron plate the cover lies on in its bay
+COVER_T = FLOOR_TOP - SEAT_Y                 # the cover's thickness: off, it is a plate this high on the floor
+FLOOR_PLATE = (7.5, 31.5)                    # the iron floor plate an off cover lies on: its half side, its underside
+#                                              (flush with the top, half a voxel round the cover)
 
 # the cave (the ashpit, one under both holes) and the grates
 CAVE_FLOOR = (0.0, 1.0)                      # brick under the cave
@@ -167,7 +172,7 @@ LUMP_AT = 4.3                                # their place from the hole's axis,
 
 # the flue
 FLUE_OPENING = ((-3.0, 3.0), (25.0, 28.0), (14.0, 20.0))   # through each hole's back wall, near its top (x from its axis)
-BACK_FLUE = ((5.0, 43.0), (23.0, 28.0), (20.0, 28.0))      # behind both holes, under the bays
+BACK_FLUE = ((5.0, 43.0), (23.0, 28.0), (20.0, 28.0))      # behind both holes, under the covers' places when off
 STACK = ((20.0, 28.0), (23.0, FLOOR_TOP), (20.0, 28.0))    # the stack's base, up to the outlet on the top
 CURB = ((18.0, 30.0), (30.0, FLOOR_TOP), (18.0, 30.0))     # the outlet's iron curb, flush, round the stack's mouth
 
@@ -183,13 +188,16 @@ KERB_Y = (30.5, FLOOR_TOP)                   # the band round the top, between t
 
 # the cover: firebrick in an iron frame, with a pocket and a bar for the melter's hook
 COVER_RIM = 1.5                              # the iron frame's width
-POCKET = (1.5, 30.8)                         # the hook's pocket: its half side, its floor (y)
-HOOK = (0.35, 31.0, 31.7)                    # the bar across the pocket: its half width (z), its underside and top (y)
-LIFT = (FLOOR_TOP - SEAT_Y) + 0.1            # how far a cover is lifted: its underside clears the floor by 0.1
-T_LIFT, T_SET = 0.2, 0.8                     # within its window: lifted over its first fifth, carried, set down over its last
+POCKET = (1.5, 1.3)                          # the hook's pocket: its half side, its floor over the cover's underside
+HOOK = (0.35, 1.5, 2.2)                      # the bar across the pocket: its half width (z), its underside and top over
+#                                              the cover's underside (0.3 under its top)
+CARRY = 0.5                                  # a carried cover's underside over the floor
+SEAT_LIFT = COVER_T + CARRY                  # lifted out of the seat (or set down into it)
+FLOOR_LIFT = CARRY                           # lifted off the floor (or set down on it)
+SEAT_FRAC, FLOOR_FRAC = 0.2, 0.1             # of a cover's window: the move at the seat's end, the move at the floor's
 # Only one cover may be off its hole or on its way at a time (gameplay's rule), so depth runs through every allowed
-# state: hole 1's cover goes on over 0..0.5 (aside at 0, the rest pose), both are seated at 0.5, and hole 2's comes
-# off over 0.5..1. Each cover is authored where it is at depth 0: hole 1's in its bay, hole 2's in its seat.
+# state: hole 1's cover goes on over 0..0.5 (off at 0, the rest pose), both are seated at 0.5, and hole 2's comes
+# off over 0.5..1. Each cover is authored where it is at depth 0: hole 1's off, lying on the top, hole 2's seated.
 COVER_WINDOWS = {1: (0.0, 0.5, "on"), 2: (0.5, 1.0, "off")}
 BOTH_ON = 0.5
 
@@ -360,15 +368,17 @@ def split_blocks(name, lo, hi):
 
 def brick_voids():
     """Every space cut out of the brickwork, as (lo, hi) in voxels: each hole from the bearers up and its seat; the
-    bays; the cave and its mouths; the flue openings, the back flue and the stack; and the room for the iron set into
-    the brick (the bearers' ends, the lintels, the curb, the flange; the duct takes the sleeve)."""
+    cave and its mouths; the flue openings, the back flue and the stack; and the room for the iron set flush into
+    the brick (the bearers' ends, the lintels, the floor plates, the curb, the flange, the binding; the duct takes the
+    sleeve). The top is flat but for the holes' seats and the outlet."""
     v = []
     for i in HOLES:
         cx = HOLE_X[i]
         h, s = HOLE_HALF, SEAT_HALF
         v.append(([cx - h, BEARER_Y[0], HOLE_Z - h], [cx + h, SEAT_Y, HOLE_Z + h]))          # the hole, the grate's level
         v.append(([cx - s, SEAT_Y, HOLE_Z - s], [cx + s, FLOOR_TOP, HOLE_Z + s]))           # the cover's seat
-        v.append(([cx - s, BAY_PLATE_Y[0], BAY_Z - s], [cx + s, FLOOR_TOP, BAY_Z + s]))     # the bay and its plate
+        p, py = FLOOR_PLATE
+        v.append(([cx - p, py, OFF_Z - p], [cx + p, FLOOR_TOP, OFF_Z + p]))                 # the floor plate, flush
         for x0, x1 in BEARER_X:
             v.append(([cx + x0, BEARER_Y[0], HOLE_Z - s], [cx + x1, BEARER_Y[1], HOLE_Z + s]))   # the bearers, ends in the walls
         v.append(([cx - MOUTH_HALF, CAVE[1][0], 0.0], [cx + MOUTH_HALF, MOUTH_TOP, CAVE[2][0]]))   # the ash mouth
@@ -460,8 +470,9 @@ def build_brick():
 # ---------------------------------------------------------------- builders
 def build_iron():
     """The iron set into the brickwork: each hole's two bearers (front to back, under the bars' ends) and six firebars
-    (side to side), its ash mouth's lintel, its bay's plate; the outlet's curb; the air port's flange and its sleeve;
-    the binding (corner angles and the band round the top)."""
+    (side to side), its ash mouth's lintel, the floor plate behind it where its cover lies when off (flush with the
+    top); the outlet's curb; the air port's flange and its sleeve; the binding (corner angles and the band round the
+    top)."""
     f, t = "frame", "iron"
     out = []
     for i in HOLES:
@@ -473,8 +484,8 @@ def build_iron():
             z0 = HOLE_Z - HOLE_HALF + n * (BAR_W + gap)
             out.append(box([cx - HOLE_HALF, BAR_Y[0], z0], [cx + HOLE_HALF, BAR_Y[1], z0 + BAR_W], f"fr_bar{i}{n + 1}", f, t))
         out.append(box([cx - MOUTH_HALF - 1.0, LINTEL[0], 0.0], [cx + MOUTH_HALF + 1.0, LINTEL[1], CAVE[2][0]], f"fr_lintel{i}", f, t))
-        out.append(box([cx - SEAT_HALF, BAY_PLATE_Y[0], BAY_Z - SEAT_HALF], [cx + SEAT_HALF, BAY_PLATE_Y[1], BAY_Z + SEAT_HALF],
-                       f"fr_plate{i}", f, t))
+        p, py = FLOOR_PLATE
+        out.append(box([cx - p, py, OFF_Z - p], [cx + p, FLOOR_TOP, OFF_Z + p], f"fr_plate{i}", f, t))
     (x0, x1), (y0, y1), (z0, z1) = CURB
     (sx0, sx1), _, (sz0, sz1) = STACK
     out += [box([x0, y0, z0], [x1, y1, sz0], "fr_curb_n", f, t), box([x0, y0, sz1], [x1, y1, z1], "fr_curb_s", f, t),
@@ -502,19 +513,21 @@ def build_frame():
     return build_brick() + build_iron() + build_stands()
 
 
-def cover_z(i):
-    """Where hole i's cover is authored (z): where it is at depth 0, hole 1's in its bay and hole 2's in its seat."""
-    return BAY_Z if COVER_WINDOWS[i][2] == "on" else HOLE_Z
+def cover_at(i):
+    """Where hole i's cover is authored, (z, its underside): where it is at depth 0, hole 1's off (lying on the floor
+    plate behind its hole) and hole 2's seated."""
+    return (OFF_Z, FLOOR_TOP) if COVER_WINDOWS[i][2] == "on" else (HOLE_Z, SEAT_Y)
 
 
 def build_cover(i):
-    """Hole i's cover (`h<i>cover`), where it is at rest (`cover_z`): an iron frame round firebrick, with a pocket in
-    the middle and an iron bar across it, flush with the top, for the melter's hook."""
+    """Hole i's cover (`h<i>cover`), where it is at rest (`cover_at`): an iron frame round firebrick, with a pocket in
+    the middle and an iron bar across it, under its top, for the melter's hook."""
     p = f"h{i}cover"
-    cx, cz = HOLE_X[i], cover_z(i)
+    cz, y0 = cover_at(i)
+    cx = HOLE_X[i]
     s, r = SEAT_HALF, COVER_RIM
-    y0, y1 = SEAT_Y, FLOOR_TOP
-    q, pf = POCKET
+    y1 = y0 + COVER_T
+    q, pf = POCKET[0], y0 + POCKET[1]
     inner = s - r
     out = [box([cx - s, y0, cz - s], [cx + s, y1, cz - inner], f"{p}_frame_n", p, "iron"),
            box([cx - s, y0, cz + inner], [cx + s, y1, cz + s], f"{p}_frame_s", p, "iron"),
@@ -526,7 +539,7 @@ def build_cover(i):
            wbox([cx - q, y0, cz + q], [cx + q, y1, cz + inner], f"{p}_fill_s", p, "brick"),
            wbox([cx - q, y0, cz - q], [cx + q, pf, cz + q], f"{p}_pocket", p, "brick")]
     hw, hy0, hy1 = HOOK
-    out.append(box([cx - q - 0.5, hy0, cz - hw], [cx + q + 0.5, hy1, cz + hw], f"{p}_hook", p, "iron"))
+    out.append(box([cx - q - 0.5, y0 + hy0, cz - hw], [cx + q + 0.5, y0 + hy1, cz + hw], f"{p}_hook", p, "iron"))
     return out
 
 
@@ -643,29 +656,41 @@ def step(axis, t0, t1, amount):
     return {"type": "step", "motion": "slide", "axis": axis, "from": r6(t0), "to": r6(t1), "amount": r6(amount / B)}
 
 
-def cover_drivers(i):
-    """Over its window of depth (COVER_WINDOWS): hole 1's is put on (lifted out of its bay, carried forward over the
-    floor, set down into the hole's seat), hole 2's taken off (lifted out of its seat, carried back, set down into
-    its bay); outside its window it stays put. Hole 1's also carries theta at ratio 0 (the clock; it moves nothing)."""
+def cover_moves(i):
+    """Hole i's cover's three moves over its window of depth, in order, as (from, to, axis, voxels): hole 1's is put
+    on (lifted off the floor plate, carried forward, set down into the seat), hole 2's taken off (lifted out of the
+    seat, carried back, set down on the floor plate). The move at the seat's end takes SEAT_FRAC of the window, the
+    one at the floor's FLOOR_FRAC, the carry the rest."""
     w0, w1, way = COVER_WINDOWS[i]
-    t = [w0 + (w1 - w0) * f for f in (0.0, T_LIFT, T_SET, 1.0)]
-    run = -(BAY_Z - HOLE_Z) if way == "on" else BAY_Z - HOLE_Z
+    W = w1 - w0
+    run = OFF_Z - HOLE_Z
+    if way == "on":
+        a, b = w0 + FLOOR_FRAC * W, w1 - SEAT_FRAC * W
+        return [(w0, a, "y", FLOOR_LIFT), (a, b, "z", -run), (b, w1, "y", -SEAT_LIFT)]
+    a, b = w0 + SEAT_FRAC * W, w1 - FLOOR_FRAC * W
+    return [(w0, a, "y", SEAT_LIFT), (a, b, "z", run), (b, w1, "y", -FLOOR_LIFT)]
+
+
+def cover_drivers(i):
+    """`cover_moves` as step slides on depth: outside its window a cover stays put. Hole 1's also carries theta at
+    ratio 0 first (the clock; it moves nothing)."""
     drv = []
     if i == 1:
-        drv.append({"type": "rotate", "axis": "y", "pivot": pt(HOLE_X[i], FLOOR_TOP, cover_z(i)), "ratio": 0.0})
-    drv += [step("y", t[0], t[1], LIFT), step("z", t[1], t[2], run), step("y", t[2], t[3], -LIFT)]
-    return drv
+        z, y0 = cover_at(i)
+        drv.append({"type": "rotate", "axis": "y", "pivot": pt(HOLE_X[i], y0, z), "ratio": 0.0})
+    return drv + [step(axis, t0, t1, amount) for t0, t1, axis, amount in cover_moves(i)]
 
 
 def cover_place(i, depth):
-    """Hole i's cover's place at `depth`: 0 aside in its bay, 1 seated (gameplay's view of it)."""
+    """Hole i's cover's place at `depth`: 0 off (lying on the floor plate behind its hole), 1 seated (gameplay's view
+    of it)."""
     w0, w1, way = COVER_WINDOWS[i]
     f = min(1.0, max(0.0, (depth - w0) / (w1 - w0)))
     return f if way == "on" else 1.0 - f
 
 
 def depth_for(i, place):
-    """The depth that poses hole i's cover at `place` (0 aside, 1 seated) with the other seated: what a renderer
+    """The depth that poses hole i's cover at `place` (0 off, 1 seated) with the other seated: what a renderer
     sets from the one cover that is off or on its way (BOTH_ON when both are seated)."""
     w0, w1, way = COVER_WINDOWS[i]
     return w0 + (w1 - w0) * (place if way == "on" else 1.0 - place)
@@ -740,12 +765,14 @@ def shown(parts, posed_els, pose):
 
 # ---------------------------------------------------------------- the rig file
 def footprint():
-    """The brickwork's twelve cells, then the four over the holes and the bays, which the covers pass through."""
+    """The brickwork's twelve cells, then the four over the holes and over the places behind them where the covers lie
+    when off, which the covers pass through and lie in."""
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)] + list(LIFT_CELLS)
 
 
 def regions():
-    """Where the model may be (voxels, (lo, hi)): the brickwork's box, and the column over each hole and its bay."""
+    """Where the model may be (voxels, (lo, hi)): the brickwork's box, and the column over each hole and the place
+    behind it where its cover lies when off."""
     out = [((0.0, 0.0, 0.0), (CELLS_X * B, CELLS_Y * B, CELLS_Z * B))]
     for i in HOLES:
         x = math.floor(HOLE_X[i] / B) * B
@@ -773,7 +800,19 @@ def hole_cell(i):
     return (int(HOLE_X[i] // B), 1, int(HOLE_Z // B))
 
 
-MIN_CHIMNEY = 6                              # CrucibleFurnaceConfig.MinChimneyHeight: chimney blocks on the outlet
+MIN_CHIMNEY = 6                              # CrucibleFurnaceConfig.MinChimneyHeight: chimney blocks stood on the outlet,
+#                                              counted from it up (the stack's base in the furnace does not count)
+
+
+def cover_off(i):
+    """Where hole i's cover lies when off: its cell (shipped, one of the hollow cells) and its box in that cell's own
+    block units, the plate COVER_T high on the floor, which gameplay gives collision while the cover is there."""
+    s = SEAT_HALF
+    lo = [HOLE_X[i] - s, FLOOR_TOP, OFF_Z - s]
+    hi = [HOLE_X[i] + s, FLOOR_TOP + COVER_T, OFF_Z + s]
+    cell = [int((lo[k] + 1e-6) // B) for k in range(3)]
+    box_ = [r6((lo[k] - cell[k] * B) / B) for k in range(3)] + [r6((hi[k] - cell[k] * B) / B) for k in range(3)]
+    return {"cell": [cell[k] - ORIGIN_CELL[k] for k in range(3)], "box": box_}
 
 
 def make_rig(parts):
@@ -782,14 +821,16 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the front middle "
                     "cell at ground level; the holes are in the front (north) row, hole 1 west and hole 2 east, and the "
                     "player works them from the front. No power: it is fired with coke. depth is the covers, of which only one "
-                    "is off its hole or on its way at a time: 0 hole 1's aside in its bay (the rest pose), 0.5 both seated, "
-                    "1 hole 2's aside; h1cover goes on over 0..0.5, h2cover comes off over 0.5..1 (furnace.coverWindows). "
-                    "theta is the melter's clock, carried by a ratio-0 "
+                    "is off its hole or on its way at a time: 0 hole 1's off, lying on the top behind its hole (the rest "
+                    "pose), 0.5 both seated, 1 hole 2's off; h1cover goes on over 0..0.5, h2cover comes off over 0.5..1 "
+                    "(furnace.coverWindows). theta is the melter's clock, carried by a ratio-0 "
                     "rotate on h1cover: nothing turns. requires: per hole i, h<i>pot, h<i>charge, h<i>melt, the coke's three "
                     "layers h<i>coke1..3 (two coke a layer, from the grate up) and the same layers burning, h<i>fire1..3. "
-                    "The cells over each hole and its bay are hollow: the covers pass through them. holeNCell: the hole's "
+                    "The cells over each hole and the place behind it where its cover lies when off are hollow: the covers "
+                    "pass through them and lie in them (furnace.coverOff: an off cover's box, which gameplay adds). The "
+                    "cells' boxes are with both covers seated. holeNCell: the hole's "
                     "cell, worked from its top; outletCell: the stack, the chimney stood on its top; airCell and airFace: the "
-                    "air port, a pipe to its south face; chimney: the shortest chimney on the outlet. See "
+                    "air port, a pipe to its south face; chimney: the shortest chimney, counted from the outlet up. See "
                     "CrucibleFurnace/README.md.",
         "cells": [],
         "hole1Cell": list(hole_cell(1)),
@@ -807,11 +848,14 @@ def make_rig(parts):
                     "minChimney": MIN_CHIMNEY, "potUnits": POT_UNITS,
                     "coverWindows": {f"h{i}cover": {"from": r6(w0), "to": r6(w1), "seatedAt": r6(w1 if way == "on" else w0)}
                                      for i, (w0, w1, way) in COVER_WINDOWS.items()},
+                    "coverOff": {f"h{i}cover": cover_off(i) for i in HOLES},
                     "_comment": "holes: the melting holes, h1 and h2; cokeLayers, cokePerLayer: a hole's coke is drawn as "
                                 "its layers h<i>coke1.. up to ceil(coke / cokePerLayer) (h<i>fire.. while lit); minChimney: "
-                                "chimney blocks the outlet needs (CrucibleFurnaceSettings.MinChimneyHeight); potUnits: what "
-                                "the drawn melt holds (PotCapacityUnits); coverWindows: the depth over which each cover moves, "
-                                "seated at seatedAt and aside at the window's other end; with both seated depth is 0.5."},
+                                "chimney blocks stood on the outlet, counted from it up (CrucibleFurnaceSettings."
+                                "MinChimneyHeight); potUnits: what the drawn melt holds (PotCapacityUnits); coverWindows: the "
+                                "depth over which each cover moves, seated at seatedAt and off at the window's other end; with "
+                                "both seated depth is 0.5; coverOff: where each cover lies when off, its cell (a hollow one) and "
+                                "its box in that cell (cell-local blocks): a raised plate on the floor, for gameplay's collision."},
         "parts": parts,
     }
 
@@ -839,18 +883,20 @@ def shipped(els, parts, rig):
 
 
 CELL_PARTS = ("frame", "h1cover", "h2cover")   # what the cells' boxes are made of: the brickwork, its iron and the
-#                                              covers at rest in their bays; the holes' contents are inside the holes
+#                                              covers seated; the holes' contents are inside the holes
+CELL_POSE = (0.0, BOTH_ON, "charged")        # both covers seated: an off cover is gameplay's box (furnace.coverOff)
 
 
 def shipped_cells(shape, ship_parts):
-    """The cells' boxes from the shipped shape as written, posed at rest by the shipped rig; a lid on every top cell
-    of the brickwork, at the floor, so no one falls into an open hole; the cells over the holes and bays hollow."""
+    """The cells' boxes from the shipped shape as written, posed by the shipped rig with both covers seated; a lid on
+    every top cell of the brickwork, at the floor, so no one falls into an open hole; the cells over the holes and the
+    covers' places when off hollow."""
     by_cell = {}
     for w in flatten(shape["elements"], textures={}):
         pid = part_of(ship_parts, w.name)
         if pid not in CELL_PARTS:
             continue
-        el = posed(w, _part_matrix(ship_parts, pid, inputs_of(REST)))
+        el = posed(w, _part_matrix(ship_parts, pid, inputs_of(CELL_POSE)))
         lo, hi = el.aabb()
         for c in cells_touched(lo, hi):
             by_cell.setdefault(c, []).append(el)

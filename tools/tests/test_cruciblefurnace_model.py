@@ -80,8 +80,10 @@ class Rig(unittest.TestCase):
     def test_reference_poses_are_the_rigs_own_maths(self):
         poses = REFERENCE["poses"]
         self.assertGreater(len(poses), 10)
-        # every edge of both covers' windows: lifted, carried, set down
-        self.assertTrue({p["depth"] for p in poses} >= {0.0, 0.1, 0.4, 0.5, 0.6, 0.9, 1.0})
+        # every edge of both covers' moves: lifted, slid, set down
+        edges = {d[k] for p in RIG["parts"] for d in p["drivers"] if d["type"] == "step" for k in ("from", "to")}
+        self.assertEqual(edges, {0.0, 0.05, 0.4, 0.5, 0.6, 0.95, 1.0})
+        self.assertTrue({p["depth"] for p in poses} >= edges)
         for pose in poses:
             for pid, want in pose["matrices"].items():
                 got = matrix(pid, theta=pose["theta"], depth=pose["depth"])
@@ -112,31 +114,48 @@ class Textures(unittest.TestCase):
 
 
 class Covers(unittest.TestCase):
-    # depth runs through every state the one-cover-at-a-time rule allows: 0 hole 1's cover aside, 0.5 both seated,
-    # 1 hole 2's cover aside; the rig's furnace.coverWindows says which cover moves where
-    WHERE = {0.0: ("bay", "seat"), 0.5: ("seat", "seat"), 1.0: ("seat", "bay")}
+    # depth runs through every state the one-cover-at-a-time rule allows: 0 hole 1's cover off, 0.5 both seated,
+    # 1 hole 2's cover off; the rig's furnace.coverWindows says which cover moves where. Off, a cover lies on the flat
+    # top behind its hole, its underside on the floor: a plate its own thickness high
+    WHERE = {0.0: ("off", "seat"), 0.5: ("seat", "seat"), 1.0: ("seat", "off")}
 
-    def test_one_cover_at_a_time_flush_in_seat_or_bay(self):
+    def test_one_cover_at_a_time_seated_flush_or_lying_on_the_top(self):
         windows = RIG["furnace"]["coverWindows"]
         self.assertEqual(windows, {"h1cover": {"from": 0.0, "to": 0.5, "seatedAt": 0.5},
                                    "h2cover": {"from": 0.5, "to": 1.0, "seatedAt": 0.5}})
+        top, t = make_shape.FLOOR_TOP, make_shape.COVER_T
         for depth, where in self.WHERE.items():
             for i, place in zip((1, 2), where):
                 cx = make_shape.HOLE_X[i] - 16.0 * make_shape.ORIGIN_CELL[0]
-                z = make_shape.BAY_Z if place == "bay" else make_shape.HOLE_Z
+                z = make_shape.OFF_Z if place == "off" else make_shape.HOLE_Z
                 lo, hi = aabb_of(posed_part(f"h{i}cover", theta=0.0, depth=depth))
                 self.assertAlmostEqual(lo[0], cx - make_shape.SEAT_HALF, places=4)
                 self.assertAlmostEqual(hi[0], cx + make_shape.SEAT_HALF, places=4)
                 self.assertAlmostEqual(lo[2], z - make_shape.SEAT_HALF, places=4, msg=f"h{i}cover at {depth}")
                 self.assertAlmostEqual(hi[2], z + make_shape.SEAT_HALF, places=4)
-                self.assertAlmostEqual(hi[1], make_shape.FLOOR_TOP, places=4)
-        # carried clear of the floor, each in its own window; the other seated meanwhile
+                # seated: flush with the floor; off: lying on it
+                self.assertAlmostEqual(lo[1], top if place == "off" else top - t, places=4)
+                self.assertAlmostEqual(hi[1], top + t if place == "off" else top, places=4)
+        # carried half a voxel over the floor, each in its own window; the other seated meanwhile
         for depth, moving, still in ((0.25, 1, 2), (0.75, 2, 1)):
             lo, _ = aabb_of(posed_part(f"h{moving}cover", theta=0.0, depth=depth))
-            self.assertGreater(lo[1], make_shape.FLOOR_TOP)
+            self.assertAlmostEqual(lo[1], top + make_shape.CARRY, places=4)
             lo, hi = aabb_of(posed_part(f"h{still}cover", theta=0.0, depth=depth))
             self.assertAlmostEqual(lo[2], make_shape.HOLE_Z - make_shape.SEAT_HALF, places=4)
-            self.assertAlmostEqual(hi[1], make_shape.FLOOR_TOP, places=4)
+            self.assertAlmostEqual(hi[1], top, places=4)
+
+    def test_an_off_cover_is_a_plate_on_the_floor_in_a_hollow_cell(self):
+        # gameplay gives an off cover collision from furnace.coverOff: its hollow cell, its box (cell-local blocks)
+        cells = {tuple(c["pos"]): c for c in RIG["cells"]}
+        for i, depth in ((1, 0.0), (2, 1.0)):
+            off = RIG["furnace"]["coverOff"][f"h{i}cover"]
+            self.assertTrue(cells[tuple(off["cell"])].get("hollow"))
+            lo, hi = aabb_of(posed_part(f"h{i}cover", theta=0.0, depth=depth))
+            got = [(v - 16.0 * off["cell"][k % 3]) / 16.0 for k, v in enumerate(lo + hi)]
+            for a, b in zip(got, off["box"]):
+                self.assertAlmostEqual(a, b, places=4)
+            self.assertEqual(off["box"][1], 0.0)
+            self.assertAlmostEqual(off["box"][4], make_shape.COVER_T / 16.0)
 
     def test_theta_moves_nothing(self):
         for pid in (p["id"] for p in RIG["parts"]):
@@ -164,9 +183,12 @@ class Anchors(unittest.TestCase):
         # the outlet on the back row's middle, the chimney's cell over it not the furnace's
         self.assertEqual((RIG["outletCell"], RIG["outletFace"]), ([0, 1, 1], "up"))
         self.assertNotIn((0, 2, 1), cells)
+        # the chimney counted from the outlet up: six blocks on it, its top eight over the ground
         line = RIG["chimney"]
-        self.assertEqual((line["axis"], line["length"]), ("y", float(make_shape.MIN_CHIMNEY)))
+        self.assertEqual((line["axis"], line["length"]), ("y", 6.0))
         self.assertAlmostEqual(line["origin"][1] - line["length"] / 2, 2.0)
+        self.assertAlmostEqual(line["origin"][1] + line["length"] / 2, 8.0)
+        self.assertEqual(RIG["furnace"]["minChimney"], 6)
         # the air port on the back face of the back row's middle, into the cave
         self.assertEqual((RIG["airCell"], RIG["airFace"]), ([0, 0, 1], "south"))
         self.assertEqual(RIG["furnace"]["holes"], 2)

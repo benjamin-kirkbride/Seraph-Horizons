@@ -11,7 +11,7 @@ import math
 import re
 
 from machinegen.checks import coplanar_faces, euler_round_trip, frame_floating, obb_obb
-from machinegen.geometry import aabb_of
+from machinegen.geometry import aabb_of, flatten
 from machinegen.rigmath import part_of, posed
 
 
@@ -114,7 +114,7 @@ def check_textures(v):
 # ---------------------------------------------------------------- containment
 def overhang(m, lo, hi):
     """How far (voxels) a box pokes out of where the model may be: the brickwork's box, and the column over each
-    hole and its bay (the covers' lift); negative when inside."""
+    hole and the place behind it where its cover lies when off (the hollow cells); negative when inside."""
     W, H, D = m.CELLS_X * m.B, m.CELLS_Y * m.B, m.CELLS_Z * m.B
     worst = max(-lo[0], hi[0] - W, -lo[1], -lo[2], hi[2] - D)
     if hi[1] > H:
@@ -125,9 +125,11 @@ def overhang(m, lo, hi):
 
 
 def check_containment(v):
+    """Nothing leaves the brickwork and the hollow cells over the whole motion; with both covers seated nothing stands
+    over the floor, and with one off only that cover does, lying on the floor (`coverOff`'s plate)."""
     m = v.m
     worst, where = -1e9, None
-    rest_worst = -1e9
+    over = {}
     for dp in depths(0.01):
         for pid in v.by_part:
             for el in v.posed(pid, dp):
@@ -135,20 +137,25 @@ def check_containment(v):
                 o = overhang(m, lo, hi)
                 if o > worst:
                     worst, where = o, (el.name, dp)
-                if dp in (0.0, 1.0):
-                    rest_worst = max(rest_worst, hi[1] - m.CELLS_Y * m.B)
+                if dp in (0.0, m.BOTH_ON, 1.0) and hi[1] > m.CELLS_Y * m.B + 1e-6:
+                    over.setdefault(dp, set()).add(pid)
+    off = {dp: {f"h{i}cover" for i in m.HOLES if m.cover_place(i, dp) == 0.0} for dp in (0.0, m.BOTH_ON, 1.0)}
     print(f"containment over the covers' motion (every 0.01): worst overhang {worst:.3f} voxels ({where[0]} at depth "
-          f"{where[1]:.2f}); covers aside and seated, the highest point {rest_worst:+.3f} over the floor")
+          f"{where[1]:.2f}); over the floor with both covers seated: {sorted(over.get(m.BOTH_ON, [])) or 'nothing'}, with "
+          f"one off: {', '.join(sorted(p for s in (over.get(0.0, set()), over.get(1.0, set())) for p in s)) or 'nothing'}")
     if worst > 0.01:
         v.fail(f"{where[0]} leaves the furnace's cells at depth {where[1]}")
-    if rest_worst > 1e-6:
-        v.fail("something stands over the floor with the covers aside or seated")
+    for dp in (0.0, m.BOTH_ON, 1.0):
+        if over.get(dp, set()) != off[dp]:
+            v.fail(f"at depth {dp} over the floor: {sorted(over.get(dp, set()))}, not the off cover {sorted(off[dp])}")
 
 
 # ---------------------------------------------------------------- the covers
-def cover_box(m, i, z):
+def cover_box(m, i, seated):
+    """Hole i's cover's box seated (flush in its hole's seat) or off (lying on the top behind its hole)."""
     s = m.SEAT_HALF
-    return ([m.HOLE_X[i] - s, m.SEAT_Y, z - s], [m.HOLE_X[i] + s, m.FLOOR_TOP, z + s])
+    z, y0 = (m.HOLE_Z, m.SEAT_Y) if seated else (m.OFF_Z, m.FLOOR_TOP)
+    return ([m.HOLE_X[i] - s, y0, z - s], [m.HOLE_X[i] + s, y0 + m.COVER_T, z + s])
 
 
 def same_box(a, b, tol=1e-6):
@@ -156,50 +163,75 @@ def same_box(a, b, tol=1e-6):
 
 
 def check_covers(v):
-    """Each cover lies flush in its seat or in its bay at the ends of its window of depth and stays put outside it;
-    within it, it is lifted clear of the floor before it is carried and set down after. Only one cover is ever off its
-    hole or on its way (gameplay's rule, which is what lets one depth pose both): at every depth at least one is
-    seated, both at BOTH_ON, and the window's ends say so (`cover_place`, `depth_for`). Each rests on the seat's brick
-    ledge round its hole, and on its plate in the bay; the covers are the only parts that move, and theta moves
-    nothing."""
+    """Each cover lies flush in its seat or, off, on the top behind its hole at the ends of its window of depth, and
+    stays put outside it; within it, it is lifted before it is carried, carried CARRY over the floor, and set down
+    after. Only one cover is ever off its hole or on its way (gameplay's rule, which is what lets one depth pose
+    both): at every depth at least one is seated, both at BOTH_ON, and the window's ends say so (`cover_place`,
+    `depth_for`). Seated, a cover rests on the seat's brick ledge round its hole. Off, it rests flat on the top
+    surface *(review)*: square to the axes, its underside on the floor, the floor under the whole of it there (brick
+    or its iron floor plate, flush, sampled every half voxel: no hole, seat or outlet under it, no gap) and nothing of
+    the frame above the floor into it. The covers are the only parts that move, and theta moves nothing."""
     m = v.m
     clear, off_both = 1e9, []
+    frame = v.by_part["frame"]
     for i in m.HOLES:
         pid = f"h{i}cover"
         w0, w1, way = m.COVER_WINDOWS[i]
+        carry = next((t0, t1) for t0, t1, axis, _ in m.cover_moves(i) if axis == "z")
         for dp in depths(0.01):
             box = aabb_of(v.posed(pid, dp))
             place = m.cover_place(i, dp)
-            if place == 1.0 and not same_box(box, cover_box(m, i, m.HOLE_Z)):
+            if place == 1.0 and not same_box(box, cover_box(m, i, True)):
                 v.fail(f"{pid} is not seated flush in its hole at depth {dp:.2f}: {box}")
-            if place == 0.0 and not same_box(box, cover_box(m, i, m.BAY_Z)):
-                v.fail(f"{pid} is not flush in its bay at depth {dp:.2f}: {box}")
-            f = (dp - w0) / (w1 - w0)
-            if m.T_LIFT <= f <= m.T_SET:
+            if place == 0.0 and not same_box(box, cover_box(m, i, False)):
+                v.fail(f"{pid} is not lying on the top behind its hole at depth {dp:.2f}: {box}")
+            if carry[0] <= dp <= carry[1]:
                 clear = min(clear, box[0][1] - m.FLOOR_TOP)
             if abs(m.depth_for(i, place) - min(w1, max(w0, dp))) > 1e-9:
                 v.fail(f"{pid}: depth_for does not undo cover_place at {dp:.2f}")
         if m.cover_place(i, m.BOTH_ON) != 1.0:
             v.fail(f"{pid} is not seated at depth {m.BOTH_ON}, where both are on")
-    for dp in depths(0.005):
-        seated = [same_box(aabb_of(v.posed(f"h{i}cover", dp)), cover_box(m, i, m.HOLE_Z)) for i in m.HOLES]
-        if not any(seated):
-            off_both.append(dp)
-    if off_both:
-        v.fail(f"both covers are off their holes at depths {off_both[:5]}")
-    for i in m.HOLES:
-        pid = f"h{i}cover"
-        # the seat's ledge under the cover's rim, round the hole; the bay's plate under it when aside
-        frame = v.by_part["frame"]
+        # off: flat on the floor, the floor whole under it
+        off_dp = m.depth_for(i, 0.0)
+        els = v.posed(pid, off_dp)
+        if any(abs(e.r[a][b] - (1.0 if a == b else 0.0)) > 1e-9 for e in els for a in range(3) for b in range(3)):
+            v.fail(f"{pid} does not lie square when off")
+        lo, hi = aabb_of(els)
+        if abs(lo[1] - m.FLOOR_TOP) > 1e-6:
+            v.fail(f"{pid}'s underside is {lo[1] - m.FLOOR_TOP:+.4f} off the floor when off")
+        gaps, n = [], 0
+        x = lo[0] + 0.25
+        while x < hi[0]:
+            z = lo[2] + 0.25
+            while z < hi[2]:
+                n += 1
+                under = [e for e in frame if inside(e, (x, m.FLOOR_TOP - 0.05, z))]
+                if not under or any(abs(e.aabb()[1][1] - m.FLOOR_TOP) > 1e-6 for e in under):
+                    gaps.append((round(x, 2), round(z, 2)))
+                z += 0.5
+            x += 0.5
+        if gaps:
+            v.fail(f"{pid} is not borne by the floor when off at {len(gaps)} of {n} points, e.g. {gaps[:4]}")
+        into = [e.name for e in frame if all(e.aabb()[0][q] < hi[q] and lo[q] < e.aabb()[1][q] for q in (0, 2))
+                and e.aabb()[1][1] > m.FLOOR_TOP + 1e-6]
+        if into:
+            v.fail(f"frame elements rise above the floor under {pid} when off: {into[:4]}")
+        # seated: on the seat's ledge round the hole
         cx, cz, h = m.HOLE_X[i], m.HOLE_Z, m.HOLE_HALF + 0.5
         for p in ((cx - h, m.SEAT_Y - 0.1, cz), (cx + h, m.SEAT_Y - 0.1, cz), (cx, m.SEAT_Y - 0.1, cz - h), (cx, m.SEAT_Y - 0.1, cz + h)):
             if not any(inside(e, p) for e in frame if e.name.startswith("fr_brick")):
                 v.fail(f"no ledge under {pid}'s rim at {p}")
-        plate = next(e for e in frame if e.name == f"fr_plate{i}")
-        if abs(plate.aabb()[1][1] - m.SEAT_Y) > 1e-9:
-            v.fail(f"{pid} does not lie on its bay's plate")
-    if clear < 0.05:
-        v.fail(f"a cover drags over the floor while carried ({clear:+.3f})")
+        plate = next((e for e in frame if e.name == f"fr_plate{i}"), None)
+        if plate is None or abs(plate.aabb()[1][1] - m.FLOOR_TOP) > 1e-9:
+            v.fail(f"hole {i}'s floor plate is missing or not flush with the top")
+    for dp in depths(0.005):
+        seated = [same_box(aabb_of(v.posed(f"h{i}cover", dp)), cover_box(m, i, True)) for i in m.HOLES]
+        if not any(seated):
+            off_both.append(dp)
+    if off_both:
+        v.fail(f"both covers are off their holes at depths {off_both[:5]}")
+    if clear < m.CARRY - 1e-6:
+        v.fail(f"a cover is carried {clear:+.3f} over the floor, not {m.CARRY}")
     for pid in (p["id"] for p in v.parts):
         for dp in (0.3, 0.8):
             a = v.m.pm(v.parts, pid, (0.0, dp, None))
@@ -211,10 +243,10 @@ def check_covers(v):
             if max(abs(c[r][q] - (1.0 if r == q else 0.0)) for r in range(3) for q in range(4)) > 1e-12:
                 v.fail(f"depth moves {pid}")
     win = ", ".join(f"h{i}cover {'on' if way == 'on' else 'off'} over {w0}..{w1}" for i, (w0, w1, way) in m.COVER_WINDOWS.items())
-    print(f"covers: one at a time ({win}; both seated at {m.BOTH_ON}, never both off, every 0.005), flush in seat or "
-          f"bay at the ends of their windows and put outside them, lifted {m.LIFT:.2f} and carried "
-          f"{m.BAY_Z - m.HOLE_Z:.0f}, clearing the floor by {clear:.3f} while carried; on the seat's ledge and the "
-          f"bay's plate; theta moves nothing, depth only the covers")
+    print(f"covers: one at a time ({win}; both seated at {m.BOTH_ON}, never both off, every 0.005); seated flush on the "
+          f"seat's ledge, or off lying flat on the top behind the hole (square, underside on the floor, the floor whole "
+          f"under it and nothing into it); carried {m.OFF_Z - m.HOLE_Z:.0f} at {clear:.3f} over the floor; the floor "
+          f"plates flush; theta moves nothing, depth only the covers")
 
 
 # ---------------------------------------------------------------- clearances
@@ -248,7 +280,7 @@ def touches(items, movers=None):
 
 def check_clearances(v, step):
     """In every state of the holes, nothing of one part runs into another's (the brick, the iron and the stands are
-    one part), at rest; and the covers, carried between bay and seat (every `step` of depth), touch nothing."""
+    one part), at rest; and the covers, carried between the floor and the seat (every `step` of depth), touch nothing."""
     m = v.m
     allhits = {}
     for state in m.STATE_IDS:
@@ -447,6 +479,40 @@ def check_draught(v):
           f"clear at every depth; the firebars on both bearers, the bearers built into the walls")
 
 
+# ---------------------------------------------------------------- the top
+def check_top(v):
+    """The top is flat *(review)*: no recess but the holes' seats and the outlet's mouth. Every half voxel of it, just
+    under the floor, is brick or flush iron whose top is the floor; nothing of the frame stands above it."""
+    m = v.m
+    frame = v.by_part["frame"]
+    s = m.SEAT_HALF
+    (sx0, sx1), _, (sz0, sz1) = m.STACK
+
+    def opening(x, z):
+        if sx0 <= x <= sx1 and sz0 <= z <= sz1:
+            return True
+        return any(abs(x - m.HOLE_X[i]) <= s and abs(z - m.HOLE_Z) <= s for i in m.HOLES)
+    bad, n = [], 0
+    x = 0.25
+    while x < m.CELLS_X * m.B:
+        z = 0.25
+        while z < m.CELLS_Z * m.B:
+            if not opening(x, z):
+                n += 1
+                under = [e for e in frame if inside(e, (x, m.FLOOR_TOP - 0.05, z))]
+                if not under or any(abs(e.aabb()[1][1] - m.FLOOR_TOP) > 1e-6 for e in under):
+                    bad.append((x, z))
+            z += 0.5
+        x += 0.5
+    high = [e.name for e in frame if e.aabb()[1][1] > m.FLOOR_TOP + 1e-6]
+    print(f"top: flat at the floor at {n - len(bad)} of {n} points (every half voxel, the holes' seats and the outlet "
+          f"aside); {len(high)} frame elements above it")
+    if bad:
+        v.fail(f"the top is not flat at {len(bad)} points, e.g. {bad[:4]}")
+    if high:
+        v.fail(f"frame elements stand above the top: {high[:4]}")
+
+
 # ---------------------------------------------------------------- z-fighting
 def check_zfight(v):
     m = v.m
@@ -468,6 +534,7 @@ def validate(m, els, parts, rig, quick=False):
     check_floating(v)
     check_textures(v)
     check_containment(v)
+    check_top(v)
     check_covers(v)
     check_pot(v)
     check_coke(v)
@@ -519,12 +586,27 @@ def validate_files(m, shape, frame_shape, ship):
         fail("the chimney's line does not stand on the outlet")
     if not (out[0] <= line["origin"][0] <= out[0] + 1 and out[2] <= line["origin"][2] <= out[2] + 1):
         fail("the chimney's line is not over the outlet")
+    # counted from the outlet up: MIN_CHIMNEY blocks on it, so its top is the furnace's height and that over the ground
+    if abs(line["origin"][1] + line["length"] / 2 - (m.CELLS_Y + m.MIN_CHIMNEY)) > 1e-9:
+        fail("the chimney's line is not the minimum counted from the outlet up")
     for i in m.HOLES:
         if ship[f"hole{i}Face"] != "up" or tuple(ship[f"hole{i}Cell"]) not in cells:
             fail(f"hole {i}'s cell")
+        # where an off cover lies: a hollow cell, its box the cover lying on the floor (gameplay's collision)
+        off = ship["furnace"]["coverOff"][f"h{i}cover"]
+        if tuple(off["cell"]) not in hollow:
+            fail(f"h{i}cover's place when off is not in a hollow cell")
+        posed_off = [posed(w, m.pm(ship["parts"], f"h{i}cover", (0.0, m.depth_for(i, 0.0), None)))
+                     for w in flatten(shape["elements"], textures={}) if w.name.startswith(f"h{i}cover_")]
+        lo, hi = aabb_of(posed_off)
+        want = [off["cell"][k % 3] * m.B + off["box"][k] * m.B for k in range(6)]
+        if max(abs(a - b) for a, b in zip(lo + hi, want)) > 1e-3:
+            fail(f"furnace.coverOff for h{i}cover is not the off cover's box: {lo + hi} against {want}")
+        if abs(off["box"][1]) > 1e-9 or abs(off["box"][4] - m.COVER_T / m.B) > 1e-6:
+            fail(f"h{i}cover's off box is not a plate {m.COVER_T} high on the floor")
     if ship["airFace"] != "south" or tuple(ship["airCell"]) not in cells:
         fail("the air port's cell")
     print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, "
-          f"{len(hollow)} hollow (the covers' lift), lids on {len(lids)}; glow on the burning coke and the melt only; "
+          f"{len(hollow)} hollow (where the covers are carried and lie off), lids on {len(lids)}; glow on the burning coke and the melt only; "
           f"no power cell; the outlet under the chimney's cell {list(chim)}")
     return ok
