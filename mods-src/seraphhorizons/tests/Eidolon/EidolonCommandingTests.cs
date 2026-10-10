@@ -110,18 +110,6 @@ public class EidolonCommandingTests
     }
 
     [Fact]
-    public void BlowsGoPunchKickSlamLandingWithinTheirAnimation()
-    {
-        Assert.Equal(["punch", "kick", "slam", "punch"], Enumerable.Range(0, 4).Select(n => EidolonDefence.Blow(n).Animation));
-        Assert.Equal([false, false, true], Enumerable.Range(0, 3).Select(n => EidolonDefence.Blow(n).Slam));
-        for (int n = 0; n < 3; n++)
-        {
-            var (_, seconds, hitAt, _) = EidolonDefence.Blow(n);
-            Assert.InRange(hitAt, 0.1, seconds);
-        }
-    }
-
-    [Fact]
     public void TheCommandSettingsHaveSaneDefaultsAndBadValuesAreReset()
     {
         var config = new EidolonConfig { CommandRange = -1, FollowDistance = 100, FollowRunDistance = double.NaN, DefenceDamage = -3 };

@@ -894,7 +894,59 @@ def authored(b: Builder, vanilla_anims):
         Key(59, {}, plant="feet"),
     ], "Stop", "PlayTillEnd"))
 
+    anims += strikes(b)
     return anims
+
+
+# Strikes on the move (README "Eidolon", self-defence): the upper body only (STRIKE_ELEMENTS), so the
+# entity type plays them over the walk or run, whose legs and hips go on (entities/eidolon.json gives
+# them weight only on these elements). Each blow lands on its EVENTS "hit" frame, the fists then as
+# far out (STRIKE_FIST_*) as the arms, the chest's twist and its lean reach. The standing punch, kick
+# and slam are vanilla's.
+STRIKE_ELEMENTS = {"chest-inside", "head-inside"} | ARM_ELEMENTS["R"] | ARM_ELEMENTS["L"]
+STRIKE_JAB_HIT = 9
+STRIKE_HAMMER_HIT = 14
+STRIKE_FIST_JAB = (-26.0, 36.0, 4.0)            # the right fist straight out, below the shoulder
+STRIKE_FIST_HAMMER = ((-15.5, 18.0, 3.0), (-15.5, 18.0, 13.0))  # both fists down in front, a block up
+
+
+def strikes(b: Builder):
+    fists = merge(FIST["R"], FIST["L"])
+    grip = lambda pr, pl: {"R": ("world", pr), "L": ("world", pl)}  # noqa: E731
+    guard = grip((-6.0, 34.0, 0.0), (-6.0, 34.0, 16.0))
+    hint_guard = {"R": (10, 0, -40, -95), "L": (-10, 0, -40, -95)}
+    out = []
+
+    # strike-jab: a straight right on the move: the right fist drawn back as the chest turns away,
+    # then driven out at the chest's height as it turns in and leans after it, the left pulled back.
+    jab = [
+        Key(0, fists, grips=guard, hint=hint_guard),
+        Key(4, merge(fists, {"chest-inside": r(0, -16, 2), "head-inside": r(0, 12, 0)}),
+            grips=grip((6.0, 40.0, -6.0), (-10.0, 38.0, 14.0)), hint={"R": (20, 0, -20, -120), "L": (-10, 0, -60, -80)}),
+        Key(STRIKE_JAB_HIT, merge(fists, {"chest-inside": r(0, 26, 12), "head-inside": r(0, -20, -6)}),
+            grips=grip(STRIKE_FIST_JAB, (2.0, 36.0, 16.0)), hint={"R": (0, 0, -90, -5), "L": (-10, 0, -20, -100)}),
+        Key(13, merge(fists, {"chest-inside": r(0, 20, 10), "head-inside": r(0, -16, -4)}),
+            grips=grip((-22.0, 40.0, 4.0), (0.0, 36.0, 16.0)), hint={"R": (0, 0, -80, -20), "L": (-10, 0, -20, -100)}),
+        Key(23, fists, grips=guard, hint=hint_guard),
+    ]
+    out.append(b.animation("strike-jab", "Strike-Jab", 24, jab, "Stop", "PlayTillEnd"))
+
+    # strike-hammer: both fists raised over the head as the chest leans back, then brought down
+    # together in front as it bends forward over them.
+    up = {"R": (40, 0, -170, -40), "L": (-40, 0, -170, -40)}
+    down = {"R": (0, 0, -70, -10), "L": (0, 0, -70, -10)}
+    hammer = [
+        Key(0, fists, grips=guard, hint=hint_guard),
+        Key(7, merge(fists, {"chest-inside": r(0, 0, -12), "head-inside": r(0, 0, -10)}),
+            grips=grip((4.0, 70.0, 3.0), (4.0, 70.0, 13.0)), hint=up),
+        Key(STRIKE_HAMMER_HIT, merge(fists, {"chest-inside": r(0, 0, 55), "head-inside": r(0, 0, -28)}),
+            grips=grip(*STRIKE_FIST_HAMMER), hint=down),
+        Key(19, merge(fists, {"chest-inside": r(0, 0, 48), "head-inside": r(0, 0, -24)}),
+            grips=grip((-14.0, 19.5, 3.0), (-14.0, 19.5, 13.0)), hint=down),
+        Key(29, fists, grips=guard, hint=hint_guard),
+    ]
+    out.append(b.animation("strike-hammer", "Strike-Hammer", 30, hammer, "Stop", "PlayTillEnd"))
+    return out
 
 
 FELL_IMPACT_FRAME = 15
@@ -907,6 +959,8 @@ EVENTS = {
     "trunk-setdown": {"release": 36},
     "trunk-thick-pickup": {"grab": 26},
     "trunk-thick-setdown": {"release": 32},
+    "strike-jab": {"hit": STRIKE_JAB_HIT},
+    "strike-hammer": {"hit": STRIKE_HAMMER_HIT},
 }
 
 
