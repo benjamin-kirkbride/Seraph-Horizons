@@ -166,7 +166,8 @@ LEG = {"R": ("upperlegR", "lowerlegR", "footR", ("soleR1", "soleR2")),
 # gantry bakes the body's pose, so no shown element's place depends on a hidden one at draw time.
 # Ingredients are the epic's body bill (#668), which the gantry's body stages take
 # (EidolonGantry/Core/BodyParts.cs, BodyBill, held to this file by a test). The head brings the vessel,
-# though its element, the brain, lights with the mind.
+# and its element, the brain, goes in with it, so the head hung in the gantry shows it; the mind's
+# temporal gear lights the eye and the heart.
 STAGES = [
     {"stage": 1, "code": "gantry", "name": "Gantry",
      "ingredients": ["wood (the gantry's own model)"], "roots": []},
@@ -197,10 +198,10 @@ STAGES = [
      "ingredients": ["game:rustypart-eidolon2tr", "game:jonasframes-oscillator01", "game:jonasframes-gearbox01",
                      "game:jonasparts-cylinder02", "game:jonasparts-connector01", "game:metalplate-steel",
                      "4 game:metalnailsandstrips-steel", "2 game:metal-parts", "2 seraphhorizons:gear-stainless"],
-     "roots": ["neck", "head-inside", "hood-back3", "hood-back4"]},
+     "roots": ["neck", "head-inside", "hood-back3", "hood-back4", "brain"]},
     {"stage": 7, "code": "mind", "name": "Mind",
      "ingredients": ["game:gear-temporal"],
-     "roots": ["brain", "heart", "Eye-out"]},
+     "roots": ["heart", "Eye-out"]},
 ]
 
 

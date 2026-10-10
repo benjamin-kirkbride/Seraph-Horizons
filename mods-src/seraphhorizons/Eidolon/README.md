@@ -233,8 +233,8 @@ the cores into chest and head). Re-rooting the claims instead (the torso owning 
 | 3 Pelvis (15) | `game:jonasframes-gearbox02`, 3 `game:metalplate-steel`, 8 `game:metalnailsandstrips-steel`, 3 `game:metal-parts`, 2 `seraphhorizons:gear-stainless` (8 ingots) | `origin`, `hip-inside`, `hip-tassetR`, `hip-tassetL`, `back-tassetR`, `back-tassetL`, `waist-fauld`, `chainskirt-back1`, `chainskirt-front1`, `bar-hip` | The lattice hip block under the chest block (the gearbox), the leather fauld with its tassets, the brass hip and back tassets, the chain skirts. |
 | 4 Legs (55) | 2 `game:jonasframes-joint01` (the knees), 2 `game:jonasframes-spring01`, 4 `game:rod-steel`, 3 `game:metalplate-steel`, 8 `game:metalnailsandstrips-steel`, 3 `game:metal-parts`, 2 `seraphhorizons:gear-stainless` (12 ingots) | `bar-legs`, `upperlegR`, `upperlegL` | The hip axle and both legs: wooden thighs and shins, steel knees (`kneeR`, `kneeL`), brass shin and knee plates, feet. |
 | 5 Arms (77) | `game:jonasframes-gears01`, `game:jonasframes-gears02`, `game:jonasparts-cylinder01`, `game:jonasparts-valve01`, 4 `game:rod-steel`, 2 `game:metalplate-steel`, 8 `game:metalnailsandstrips-steel`, 4 `game:metal-parts`, 3 `seraphhorizons:gear-stainless` (10 ingots) | `bar-arms`, `upper-armR`, `upperarmL` | The shoulder axle and both arms: shoulder plates, wooden arm bones, elbows (`elbowR`, `elbowL`), bracers, wrists and hands. |
-| 6 Head (21) | `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel, its brain: one per player who hurt the archives' eidolon), `game:jonasframes-oscillator01`, `game:jonasframes-gearbox01`, `game:jonasparts-cylinder02`, `game:jonasparts-connector01`, `game:metalplate-steel`, 4 `game:metalnailsandstrips-steel`, 2 `game:metal-parts`, 2 `seraphhorizons:gear-stainless` (3 ingots) | `neck`, `head-inside`, `hood-back3`, `hood-back4` | The neck, the lattice head block, the wooden face and head plates, the brass hood, and the eye's bracket (`Eye-bracket`), without the eye's light. |
-| 7 Mind (6) | `game:gear-temporal` (its first charge, a quarter in-game year), which wakes it | `brain`, `heart`, `Eye-out` | The two glowing cores, the brain in the head (the vessel, fitted with the head but drawn with the mind, when it lights) and the heart in the chest (the temporal gear), with their bars, and the eye's red light: what lights up when it wakes. In the gantry the mind is never drawn: fitting it wakes the eidolon, which leaves. |
+| 6 Head (23) | `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel, its brain: one per player who hurt the archives' eidolon), `game:jonasframes-oscillator01`, `game:jonasframes-gearbox01`, `game:jonasparts-cylinder02`, `game:jonasparts-connector01`, `game:metalplate-steel`, 4 `game:metalnailsandstrips-steel`, 2 `game:metal-parts`, 2 `seraphhorizons:gear-stainless` (3 ingots) | `neck`, `head-inside`, `hood-back3`, `hood-back4`, `brain` | The neck, the lattice head block, the wooden face and head plates, the brass hood, the eye's bracket (`Eye-bracket`), without the eye's light, and the brain (the vessel, with its bar), fitted with the head and so shown in the head hung in the gantry. |
+| 7 Mind (4) | `game:gear-temporal` (its first charge, a quarter in-game year), which wakes it | `heart`, `Eye-out` | The heart in the chest (the temporal gear) with its bars, and the eye's red light: what lights up when it wakes. In the gantry the mind is never drawn: fitting it wakes the eidolon, which leaves. |
 
 **In the model viewer** the eidolon's page shows the stages too: a **Build state** select (torso, pelvis,
 legs, arms, head, mind: fully built, where it opens) and a checkbox per stage, from
@@ -248,9 +248,9 @@ and the generator checks every element lands in its own stage.
 
 Some elements under the hip and chest blocks belong to other stages by design: `bar-legs` (the
 legs' axle, under `hip-inside`) and `bar-arms` (the arms', under `chest-inside`) arrive with their
-limbs; `neck`, `hood-back3` and `hood-back4` (under `chest-inside`) arrive with the head; `heart`
-(under `chest-inside`), `brain` (under `head-inside`) and `Eye-out` (under `Eye-bracket`) arrive with
-the mind; and the chest block itself (under `hip-inside`) arrives before its parent, as above.
+limbs; `neck`, `hood-back3` and `hood-back4` (under `chest-inside`) arrive with the head, and so does
+`brain` (under `head-inside`), the vessel the head takes; `heart` (under `chest-inside`) and `Eye-out`
+(under `Eye-bracket`) arrive with the mind; and the chest block itself (under `hip-inside`) arrives before its parent, as above.
 
 ## Regenerating
 
@@ -294,8 +294,5 @@ part listed too late is caught).
 - **The axe's orientation in the hand** comes from the item's `tpHandTransform` in the `RightHand`
   frame, matched to the seraph's at rest; whether the head points at the trunk through the swing can
   only be seen in the game.
-- **The vessel's element.** The vessel goes in with the head, but its element (`brain`) is the mind's, so
-  the cores light together when it wakes; the gantry never draws the mind (it wakes on fitting), so the
-  fitted vessel is not seen in the hung head.
 - **The restyle** is one texture (rusty iron to tarnished brass); more (the charred wood bones, the
   rusty chain skirt) is a matter of taste.

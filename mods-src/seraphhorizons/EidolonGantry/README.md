@@ -264,8 +264,8 @@ static element, its hierarchy flattened, the body's renamed `b_<stage>_<name>` b
 (`assets/seraphhorizons/config/eidolon-stages.json`) and the spine's `sp_<name>`: the spine
 (`spine.json`, written from vanilla by the eidolon's generator) is hung back on the chest block to be
 posed with it. Elements with no drawn face (`origin` and the
-invisible anchors) are left out; disabled faces and wind data are dropped; glow is kept (the mind's
-cores glow).
+invisible anchors) are left out; disabled faces and wind data are dropped; glow is kept (the brain,
+the vessel the head brings, glows in the hung head; the mind's heart and eye are never drawn here).
 
 Why baked, for the in-game renderer: a block draws static elements in the chunk mesh, or a renderer
 tessellates them once per stage into a mesh it draws with one matrix (the hook's let-down), as the
