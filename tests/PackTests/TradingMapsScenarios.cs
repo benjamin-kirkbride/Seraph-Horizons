@@ -20,9 +20,12 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// mods-src/seraphhorizons/Trading/Maps (#455) and the wave-2 glue, in a new standard world with a
 /// fixed seed (ore cells, placer fields and the camp grid on): a prospector's shelf offers ore maps
-/// from the deposit registry (which lists deposits whose chunks nobody generated), buying one through
-/// the trade window (its server side: one unit, held) yields a real ore map and marks the deposit sold, another trader
-/// no longer offers it, a general store offers a gravel map exactly when a field is in reach, and
+/// to the deposits of the registry it would sell, those not checked yet "being surveyed" until the
+/// trade opens and their checks land (#693), each named by its ores, grades and host rock (#692);
+/// buying one through the trade window (its server side: one unit, held) yields a real ore map and
+/// marks the deposit sold, another trader no longer offers it, a general store offers a gravel map
+/// exactly when a field is in reach (naming its rock and metals once checked), a player nearing a
+/// prospector camp far away has its deposits checked in the background one at a time, and
 /// standing changes the prices a trader quotes. Camp leads (per buyer, off the shelf, distance in
 /// rings of grid cells): a fresh player at a trader that is no prospector is offered their first
 /// map alone, 10 gears to a prospector, which generates the camp and marks it, and is that trader's
@@ -124,39 +127,93 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(TradingSystem.Of(Api)!.GridReady);
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public async Task A_prospector_sells_an_ore_map_once()
+    /// <summary>A trader's ore or gravel map offers: real ones and those "being surveyed" (#693).</summary>
+    private static List<ItemSlotTrade> DepositOffers(EntitySeraphTrader trader, AssetLocation code) =>
+        trader.Inventory.SellingSlots.Where(s => s.Itemstack?.Collectible.Code == code
+                                                 && s.Itemstack.Attributes.GetString(MapOfferAttrs.Offer) is MapOfferAttrs.OreMap or MapOfferAttrs.GravelMap or MapOfferAttrs.Surveying)
+            .ToList();
+
+    private static string Describe(ItemSlotTrade s)
+    {
+        var a = s.Itemstack.Attributes;
+        return $"{a.GetString(MapOfferAttrs.Offer)} {a.GetString(MapOfferAttrs.Deposit)} ({a.GetString(MapOfferAttrs.Ores)}; {a.GetString(MapOfferAttrs.Grades)};"
+               + $" {a.GetString(MapOfferAttrs.Rock)}; {a.GetString(MapOfferAttrs.Metals)}) stock {s.TradeItem?.Stock} @{s.TradeItem?.Price}";
+    }
+
+    /// <summary>The fallback (#693): with the trade open, waits for every deposit still "being
+    /// surveyed" on the shelf to be checked and its real offer to take its place.</summary>
+    private async Task SurveysLand(EntitySeraphTrader trader, string what)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        await World.Until(() => Offers(trader, MapOfferAttrs.Surveying).Count == 0, 400_000);
+        output.WriteLine($"{what}: the shelf's surveys landed in {watch.Elapsed.TotalSeconds:0.0} s ({Maps.Surveys!.Checked} checks so far)");
+        Assert.Empty(Offers(trader, MapOfferAttrs.Surveying));
+    }
+
+    [AtlasScenario(TimeoutMs = 900_000)]
+    public async Task A_prospector_sells_an_ore_map_once_naming_the_ore()
     {
         var trader = await SpawnTrader("prospector", 24, 24);
         int x = (int)trader.Pos.X, z = (int)trader.Pos.Z;
         var candidates = Deposits.Candidates(x, z, Maps.Prices.OreRadius);
         Assert.NotEmpty(candidates);
-        var metals = candidates.Where(c => c.Record.State == DepositState.Unsold).Select(c => c.Metal).Distinct().ToList();
-        var offers = Offers(trader, MapOfferAttrs.OreMap);
-        output.WriteLine($"candidates {candidates.Count}, unsold metals {string.Join(",", metals)}; offers " +
-                         string.Join(", ", offers.Select(o => $"{o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit)} @{o.TradeItem.Price}")));
-        Assert.Equal(Math.Min(metals.Count, Maps.Prices.MaxOreOffers), offers.Count);
-        foreach (var o in offers)
+        // One offer per metal, the nearest unsold: a map once its deposit is checked, else "being
+        // surveyed" (#693), never a map to a deposit nobody has checked.
+        var picks = Maps.PickOre(Deposits, x, z).Offers;
+        var shelf = DepositOffers(trader, MapIssuer.OreMapCode);
+        output.WriteLine($"candidates {candidates.Count}; picks {string.Join(", ", picks.Select(p => $"{p.Key}{(p.Surveyed ? "" : " (unchecked)")}"))}; "
+                         + "shelf " + string.Join(", ", shelf.Select(Describe)));
+        Assert.Equal(picks.Select(p => p.Key.Id).Order(), shelf.Select(s => s.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit)).Order());
+        foreach (var s in shelf)
         {
-            string id = o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit);
-            Assert.True(DepositKey.TryParse(id, out var key));
-            // The nearest unsold of its metal.
-            Assert.Equal(candidates.First(c => c.Metal == key.Kind && c.Record.State == DepositState.Unsold).Key, key);
-            Assert.Equal(MapPrecision.Rough, o.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision));
+            Assert.True(DepositKey.TryParse(s.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit), out var key));
+            bool surveyed = Deposits.Candidate(key)!.Surveyed;
+            Assert.Equal(surveyed ? MapOfferAttrs.OreMap : MapOfferAttrs.Surveying, s.Itemstack.Attributes.GetString(MapOfferAttrs.Offer));
+            if (!surveyed) Assert.Equal(0, s.TradeItem.Stock);
         }
         Assert.Empty(Offers(trader, MapOfferAttrs.SoldOut));
 
         var buyer = await Buyer("mapbuyer", trader);
+        // A deposit being surveyed is refused before payment.
+        if (Offers(trader, MapOfferAttrs.Surveying).FirstOrDefault() is { } surveying)
+            Assert.Equal("trading-maps-error-surveying", Maps.Refusal(trader, buyer, surveying.Itemstack, surveying)?.Key);
+        // The trade opens: anything still unchecked is checked now, and its offer takes its place.
         Open(trader, buyer);
-        var offer = Offers(trader, MapOfferAttrs.OreMap).OrderBy(o => o.TradeItem.Price).First();
+        trader.OnTradeOpened(buyer);
+        await SurveysLand(trader, "prospector");
+        var offers = Offers(trader, MapOfferAttrs.OreMap);
+        output.WriteLine("after the checks: " + string.Join(", ", DepositOffers(trader, MapIssuer.OreMapCode).Select(Describe)));
+        Assert.NotEmpty(offers);
+        foreach (var o in offers)
+        {
+            var a = o.Itemstack.Attributes;
+            Assert.True(DepositKey.TryParse(a.GetString(MapOfferAttrs.Deposit), out var key));
+            var record = Deposits.Registry.Get(key);
+            Assert.True(record.Surveyed, $"{key} is offered unchecked");
+            // Named by what the ore is (#692), never the metal.
+            var ores = OreNames.Split(a.GetString(MapOfferAttrs.Ores));
+            Assert.NotEmpty(ores);
+            Assert.All(ores, ore => Assert.Equal(key.Kind, OreMetals.MetalOf(ore)));
+            Assert.Equal(record.Makeup!.MainOres(), ores);
+            Assert.Equal(record.Makeup.HostRock(), a.GetString(MapOfferAttrs.Rock));
+            Assert.Equal(record.Makeup.Mix()?.Code, a.GetString(MapOfferAttrs.Grades));
+            Assert.Equal(record.Tier!.Value.ToString().ToLowerInvariant(), a.GetString(MapOfferAttrs.SizeTier));
+            string name = o.Itemstack.GetName();
+            output.WriteLine($"{key}: '{name}'");
+            Assert.Contains(Lang.Get("seraphhorizons:" + OreNames.LangKey(ores[0])), name, StringComparison.OrdinalIgnoreCase);
+            Assert.True(o.TradeItem.Stock > 0);
+        }
+
+        var offer = offers.OrderBy(o => o.TradeItem.Price).First();
         Assert.True(DepositKey.TryParse(offer.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit), out var bought));
+        string offeredOres = offer.Itemstack.Attributes.GetString(MapOfferAttrs.Ores);
         int price = offer.TradeItem.Price;
         int gearsBefore = InventoryTrader.GetPlayerAssets(buyer.Entity);
         Buy(trader, buyer, offer);
         Assert.Null(trader.Inventory.GetBuyingCartSlot(0).Itemstack);
         Assert.Equal(gearsBefore - price, InventoryTrader.GetPlayerAssets(buyer.Entity));
 
-        // The deposit may need generating: the map follows.
+        // The sale checks the deposit again: the map follows.
         await World.Until(() => Holding(buyer, MapIssuer.OreMapCode, s => s.Attributes.HasAttribute(ItemOreMap.AttrX)) != null, 300_000);
         var map = Holding(buyer, MapIssuer.OreMapCode, s => s.Attributes.HasAttribute(ItemOreMap.AttrX))!.Itemstack;
         output.WriteLine($"bought {bought} for {price}: {map.GetName()}");
@@ -164,42 +221,62 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(map.Attributes.GetString(MapOfferAttrs.Pending));
         Assert.Null(map.Attributes.GetString(MapOfferAttrs.Offer));
         Assert.NotNull(map.Attributes.GetString(ItemOreMap.AttrSizeTier));
-        var record = Deposits.Registry.Get(bought);
-        Assert.Equal(DepositState.Sold, record.State);
-        Assert.Equal(buyer.PlayerUID, record.SoldToUid);
+        Assert.Equal(offeredOres, map.Attributes.GetString(ItemOreMap.AttrOres));
+        Assert.NotNull(map.Attributes.GetString(ItemOreMap.AttrRock));
+        var record2 = Deposits.Registry.Get(bought);
+        Assert.Equal(DepositState.Sold, record2.State);
+        Assert.Equal(buyer.PlayerUID, record2.SoldToUid);
         Assert.Null(Holding(buyer, MapIssuer.OreMapCode, s => s.Attributes.HasAttribute(MapOfferAttrs.Pending)));
         Assert.Empty(Maps.Reserved);
 
         // No other trader offers it.
         var other = await SpawnTrader("prospector", -30, 30);
-        var otherOffers = Offers(other, MapOfferAttrs.OreMap).Select(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit)).ToList();
+        var otherOffers = DepositOffers(other, MapIssuer.OreMapCode).Select(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit)).ToList();
         output.WriteLine("the other prospector offers " + string.Join(", ", otherOffers));
         Assert.DoesNotContain(bought.Id, otherOffers);
         // Nor does this one at its next restock.
         trader.Restock(1.1f);
-        Assert.DoesNotContain(bought.Id, Offers(trader, MapOfferAttrs.OreMap).Select(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit)));
+        Assert.DoesNotContain(bought.Id, DepositOffers(trader, MapIssuer.OreMapCode).Select(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit)));
         Close(trader);
         trader.Die(EnumDespawnReason.Removed);
         other.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 600_000)]
     public async Task A_general_store_offers_a_gravel_map_exactly_when_a_field_is_in_reach()
     {
         var trader = await SpawnTrader("generalstore", -24, 18);
         int x = (int)trader.Pos.X, z = (int)trader.Pos.Z;
         var fields = Deposits.GravelFields(x, z, Maps.Prices.GravelRadius);
         var unsold = fields.Where(f => f.Record.State == DepositState.Unsold && !Maps.Reserved.Contains(f.Key.Id)).ToList();
-        var offers = Offers(trader, MapOfferAttrs.GravelMap);
-        output.WriteLine($"{fields.Count} fields within {Maps.Prices.GravelRadius}, {unsold.Count} unsold; offers: " +
-                         string.Join(", ", offers.Select(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit))));
+        var offers = DepositOffers(trader, MapIssuer.GravelMapCode);
+        output.WriteLine($"{fields.Count} fields within {Maps.Prices.GravelRadius}, {unsold.Count} unsold; offers: " + string.Join(", ", offers.Select(Describe)));
         if (unsold.Count == 0)
             Assert.Empty(offers);
         else
             Assert.Equal(unsold[0].Key.Id, Assert.Single(offers).Itemstack.Attributes.GetString(MapOfferAttrs.Deposit));
         Assert.Equal(fields.Count > 0 && unsold.Count == 0, Offers(trader, MapOfferAttrs.SoldOut).Count == 1);
         // No ore maps here: those are the prospector's.
-        Assert.Empty(Offers(trader, MapOfferAttrs.OreMap));
+        Assert.Empty(DepositOffers(trader, MapIssuer.OreMapCode));
+        if (unsold.Count > 0)
+        {
+            // Checked (its one column) when the trade opens if it wasn't: then it names its rock and metals (#692).
+            var buyer = await Buyer("gravelbuyer", trader);
+            Open(trader, buyer);
+            trader.OnTradeOpened(buyer);
+            await SurveysLand(trader, "general store");
+            output.WriteLine("after the check: " + string.Join(", ", DepositOffers(trader, MapIssuer.GravelMapCode).Select(Describe)));
+            foreach (var o in Offers(trader, MapOfferAttrs.GravelMap))
+            {
+                Assert.True(DepositKey.TryParse(o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit), out var key));
+                var field = Deposits.FieldOf(key);
+                Assert.NotNull(field);
+                Assert.Equal(field!.Rock, o.Itemstack.Attributes.GetString(MapOfferAttrs.Rock));
+                Assert.NotEmpty(OreNames.Split(o.Itemstack.Attributes.GetString(MapOfferAttrs.Metals)));
+                output.WriteLine($"{key}: '{o.Itemstack.GetName()}'");
+            }
+            Close(trader);
+        }
         // Maps are never bought back.
         var economy = Mod.Trading.Economy.EconomySystem.Of(Api)!;
         var gravelMap = new ItemStack(W.GetItem(MapIssuer.GravelMapCode)!);
@@ -207,6 +284,55 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var lead = new ItemStack(W.GetItem(ItemTraderLead.LeadCode)!);
         Assert.Equal(Mod.Trading.Economy.Core.Refusal.MapOrLead, economy.QuoteOffList(trader, lead).Refusal);
         trader.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 900_000)]
+    public async Task Nearing_a_prospector_camp_checks_its_deposits_in_the_background()
+    {
+        var trading = TradingSystem.Of(Api)!;
+        var surveys = Maps.Surveys!;
+        Assert.Equal(1500, surveys.ApproachMetres);
+        // A prospector camp far from anything generated, so none of its deposits is checked yet.
+        var spawnCell = Mod.Trading.Core.TraderGrid.CellOf(World.Spawn.X, World.Spawn.Z);
+        var far = new Mod.Trading.Core.CellKey(spawnCell.X + 12, spawnCell.Z + 12);
+        var cell = Mod.Trading.Maps.Core.CampLeads.CellsAround(far, 2).First(c => trading.Grid!.IsProspector(c) && Maps.SiteOf(c) != null);
+        var site = Maps.SiteOf(cell)!.Value;
+        var picks = Maps.PickOre(Deposits, site.X, site.Z).Offers;
+        var field = Maps.PickGravel(Deposits, site.X, site.Z).Offer;
+        output.WriteLine($"prospector cell {cell} at {site.X},{site.Z}: picks {string.Join(", ", picks.Select(p => $"{p.Key}{(p.Surveyed ? "" : " (unchecked)")}"))}; "
+                         + $"gravel {field?.Key}");
+        Assert.NotEmpty(picks);
+        Assert.Contains(picks, p => !p.Surveyed);
+        int before = surveys.Checked;
+
+        // A player comes within 1.2 km of it: the camp's would-be offers are queued at the next scan.
+        var p = await World.JoinAtSpawn("surveyor");
+        var sp = (IServerPlayer)p.Player;
+        sp.WorldData.CurrentGameMode = EnumGameMode.Creative;
+        sp.Entity.TeleportTo(site.X + 1200, 200, site.Z);
+        await World.Ticks(5);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        await World.Until(() => picks.Any(c => surveys.Pending(c.Key) || Deposits.Candidate(c.Key)?.Surveyed != false), 5000);
+        output.WriteLine($"queued after {watch.Elapsed.TotalSeconds:0.0} s: {surveys.Queue.Waiting} waiting, {surveys.Queue.Running} running");
+        Assert.Contains(picks, c => surveys.Pending(c.Key) || Deposits.Candidate(c.Key)?.Surveyed != false);
+
+        // Throttled: one background check at a time, until everything the camp would offer is checked.
+        int most = 0;
+        bool Done()
+        {
+            most = Math.Max(most, surveys.Queue.Running);
+            return Maps.PickOre(Deposits, site.X, site.Z).Offers.All(c => c.Surveyed)
+                   && Maps.PickGravel(Deposits, site.X, site.Z).Offer is null or { Surveyed: true };
+        }
+        await World.Until(Done, 2_000_000);
+        var after = Maps.PickOre(Deposits, site.X, site.Z).Offers;
+        output.WriteLine($"all checked after {watch.Elapsed.TotalSeconds:0.0} s, {surveys.Checked - before} checks, at most {most} running at once: "
+                         + string.Join("; ", after.Select(c => $"{c.Key} {c.Record.Tier} {string.Join(" and ", c.Record.Makeup!.MainOres())}"
+                                                              + $" {c.Record.Makeup.Mix()?.Code} in {c.Record.Makeup.HostRock()}")));
+        Assert.True(Done(), "the camp's deposits were not all checked");
+        Assert.True(most <= 1, $"{most} background checks ran at once");
+        Assert.True(surveys.Checked > before);
+        sp.Entity.TeleportTo(World.Spawn.X, World.Spawn.Y + 1, World.Spawn.Z);
     }
 
     // ---- Camp leads ----
@@ -508,7 +634,9 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         string code = priciest.Itemstack.Collectible.Code.ToString();
         Open(trader, buyer);
         int stranger = priciest.TradeItem.Price;
-        int strangerMap = Offers(trader, MapOfferAttrs.OreMap).FirstOrDefault()?.TradeItem.Price ?? 0;
+        var firstMap = Offers(trader, MapOfferAttrs.OreMap).FirstOrDefault();
+        int strangerMap = firstMap?.TradeItem.Price ?? 0;
+        string? strangerMapId = firstMap?.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit);
         Close(trader);
 
         Assert.True((await World.ExecuteCommand($"/sh trade standing set glueregular {id} 900")).Ok);
@@ -526,7 +654,9 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         foreach (var o in Offers(trader, MapOfferAttrs.OreMap))
             Assert.Equal(MapPrecision.Exact, o.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision));
         // An exact map costs more than a rough one, standing's discount notwithstanding.
-        if (strangerMap > 0) Assert.True(Offers(trader, MapOfferAttrs.OreMap)[0].TradeItem.Price > strangerMap);
+        // (The same deposit's: checks landing meanwhile may put others on the shelf.)
+        if (strangerMap > 0)
+            Assert.True(Offers(trader, MapOfferAttrs.OreMap).First(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit) == strangerMapId).TradeItem.Price > strangerMap);
         // Someone else at the trader: the stranger's prices again.
         Close(trader);
         Assert.Equal(stranger, trader.Inventory.SellingSlots.First(s => s.Itemstack?.Collectible.Code.ToString() == code).TradeItem.Price);
