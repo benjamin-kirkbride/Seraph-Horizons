@@ -234,9 +234,12 @@ Hand edits are lost when the script runs again: port them into `make_shape.py`, 
   grizzly, breaker, feed box, mortar, screen, launder. Mirroring the old breaker puts its discharge just behind the
   feed box, so the feed box's floor is a short, steep chute (40°) into the mortar, and the same floor is where the
   player shovels ore at level 1.
-- **The grizzly sorts before the breaker.** That is the period arrangement: ore is dumped on a grizzly, the fines go
-  through to the bins, the oversize to the rock breaker. The oversize that the battery's screen holds back stays in
-  the mortar and is stamped again: a stamp battery classifies its own product. See the first open question.
+- **Forward flow only; no return inside the machine** (the owner's ruling). Returns between machines are made outside
+  them, by placing one machine to feed another above it, or later by Archimedes screws. The grizzly sorting before the
+  breaker is forward flow, the period arrangement: ore is dumped on a grizzly, the fines go through to the bins, the
+  oversize to the rock breaker. Nothing here would be returned, so the machine has no return outlet: the oversize that
+  the battery's screen holds back stays in the mortar and is stamped again (a stamp battery classifies its own
+  product), and everything the breaker passes goes on into the battery. Its one outlet is the launder's spout.
 - **A low mortar.** Its rim is at the heads' tops, so the heads show as they rise and fall.
 - **The stamps as harmonics.** See "How the machine works". The alternative, the old model's ramps on a work quantity,
   needs a clutch to stop the camshaft between loads.
@@ -257,18 +260,13 @@ one has yet looked at it in a client.
 
 ## Open for the owner
 
-1. **The oversize "return".** The grizzly sends oversize to the breaker before it is broken, and the battery's screen
-   keeps its own oversize in the mortar; nothing goes back up. A true loop (a screen after the breaker returning its
-   oversize to the breaker's mouth) would need a bucket elevator, since the breaker's mouth is above its discharge. Is
-   the grizzly enough, or should there be an elevator (an enclosed wooden leg with a head pulley belted from the
-   eccentric shaft)?
-2. **Water power at level 1.** The earlier audit suggested "water power"; here level 1 takes process water by pipe
+1. **Water power at level 1.** The earlier audit suggested "water power"; here level 1 takes process water by pipe
    (wet stamping) and mechanical power from the axle, like every other machine.
-3. **The fitting order within each level** (three `requires` at level 1, two at level 2) and the items each takes.
-4. **The closed gear case** for the rectifier, rather than drawn gears.
-5. **The feed at level 2.** The player can still shovel into the feed box from above, between the battery and the
+2. **The fitting order within each level** (three `requires` at level 1, two at level 2) and the items each takes.
+3. **The closed gear case** for the rectifier, rather than drawn gears.
+4. **The feed at level 2.** The player can still shovel into the feed box from above, between the battery and the
    breaker; the chute's infeed is the grizzly's head on the top face. Should the feed box take ore by hand at level 2?
-6. **Size.** The battery stands four blocks tall; a real five-stamp battery is about six. The stamps are 5.8 voxels
+5. **Size.** The battery stands four blocks tall; a real five-stamp battery is about six. The stamps are 5.8 voxels
    apart (about 36 cm), with a 4 voxel (25 cm) lift.
-7. **Lids.** The battery's columns have a deck at the top; the breaker's do not (a lid there would be an invisible
+6. **Lids.** The battery's columns have a deck at the top; the breaker's do not (a lid there would be an invisible
    floor four blocks up over an empty stand at level 1).
