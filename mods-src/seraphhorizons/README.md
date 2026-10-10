@@ -1302,7 +1302,7 @@ Immersive Woodworking sawmill frames, thirty-two support beams, thirty-two nails
 copper chute sections, placed as a sixteen by five by four multiblock (long, wide, high), and fitted in the world with existing items only: a sawmill
 crankshaft, four large gear sections, two hoops, four rods, two metal plates, sawmill feed levers,
 four straight Pipes and Power Expanded pipes of one metal, copper or lead (`UnifiedPipes`' metals),
-which are the drip's water line and are drawn in their metal's pipe texture, and four bark spud heads
+which are the drip's water line and are drawn as those pipes are, soldered, in their metal, and four bark spud heads
 of one metal, which are its wearing part and last four times their metal's bark spud (without ppex's
 copper and lead pipes, the pipes are left out of the build). The axle connects on a side face beside the ring and may turn either way. A trunk goes on by
 hand or from a Trunk Storage Rack at the far end; its weight on a treadle starts a geared feed, at
@@ -1935,14 +1935,36 @@ are in the machine (`shapes/item/gearcutter/`, generated with the machine's mode
 
 One pipe network for water, steam and exhaust: Pipes and Power Expanded's (`ppex` 0.7.1, on
 ExpandedLib's `exlib` 0.8.4). Its straight, bend, T- and X-junction pipes come in **copper** and
-**lead** as well as iron and steel: new states of their `material` variant, on ppex's own models with
+**lead** as well as iron and steel: new states of their `material` variant, textured
 `game:block/metal/sheet-plain/copper4` and `lead4` in place of its `iron4`
-(`patches/unifiedpipes-ppex.json`). Every metal couples with every other (ppex joins pipes by family,
+(`patches/unifiedpipes-ppex.json`), and drawn **soldered** (below). Every metal couples with every other (ppex joins pipes by family,
 not metal), so a run may mix them. ppex's fluid intake, outlet and passthroughs have no metal and are
 left as they are. The display name is ppex's, with the game's metal name: "Piping (Straight) (Copper)".
 The rosser's drip is four straight copper or lead pipes, fitted as a stage of its build and drawn in
-their metal (`Rosser/README.md`, **Assembly**); without these two metals the rosser is built without
-them.
+their metal, soldered as these are (`Rosser/README.md`, **Assembly**); without these two metals the
+rosser is built without them.
+
+**Soldered joints.** ppex draws every pipe with an iron band and bolts round each end, right for its
+cast, banded iron and steel; copper and lead pipe is soldered. So its copper and lead pipes are drawn on
+this mod's own models, `shapes/block/pipes/soldered-{straight,bend,tjunction,xjunction}.json`: ppex's
+cross-section (a 6 x 6 tube with 1-voxel walls round a 4 x 4 bore, its block's 5..11, so they meet ppex's
+pipes and fittings flush), no band or bolts, the pipe's cube where arms meet, and at each open end half a
+**wiped joint**, a smooth swelling of solder over the seam in three rings each way (0.6, 0.4 and 0.2
+voxels proud, 3.25 long), so two pipes end to end make one joint 6.5 long over the face between them. The
+solder is the game's lead solder (`game:block/metal/ingot/leadsolder`); the pipe keeps ppex's texture
+code (`iron4`), so the patch's copper4 and lead4 land on it. Iron and steel keep ppex's own model, band
+and bolts. `patches/unifiedpipes-solderedjoints.json` replaces each pipe's `shapebytype` with ppex's own
+table, a copper and a lead entry before each of its entries with that entry's rotations: the game takes
+the first key that matches a block's code (`RegistryObjectType.solveByType`), and a key added by a patch
+goes last, so the whole table is replaced. The shapes and the patch are written by
+`Pipes/tools/make_pipe_shapes.py` from ppex's zip, the geometry by `Pipes/tools/solderedpipe.py`, which
+the rosser's generator builds its drip pipes with too; the generator checks the tube against ppex's
+section and its own boxes for overlaps and z-fighting faces. Before the patch loader runs, the server
+checks each of ppex's four tables against the patch (`Pipes/Core/SolderedJoints.cs`: the patch's table,
+less the copper and lead entries, must be ppex's, key for key in order); if ppex has changed one, one
+warning (`Unified pipes: Pipes and Power Expanded changed ...`) and that patch alone is emptied, so copper
+and lead pipes keep ppex's banded model and the rest goes ahead. `tools/tests/test_soldered_pipes.py`
+holds the shapes to the generator and the patch to ppex's zip.
 
 **Valves are bronze.** ppex's valve and pressure valve get tin, bismuth and black bronze states
 (`sheet-plain/<bronze>4`); the creative inventory and the handbook list only those. The iron and steel
@@ -2080,7 +2102,7 @@ cost levels may change this mod's pipe recipes, and the rest goes ahead.
 operations do not depend on which is applied first, and `tools/tests/test_unified_pipes.py` holds this
 patch to ppex's zip and to that file.
 
-With the switch off, or without ppex, the three patch files are emptied in `Start`, the angle, the pipe
+With the switch off, or without ppex, the four patch files are emptied in `Start`, the angle, the pipe
 section and this mod's recipes (pipe, soldering the hollow) are marked disabled, and
 nothing is patched: ppex's pipes, the game's chute section and its anvil, chute and plate recipes, and
 Better Ruins' chutes are as they ship, and copper, lead and bronze pipes and valves already placed, and
@@ -4018,7 +4040,9 @@ facing, solo and pair, braking and holding, load), branch selector, distance rol
 easing, settings and rig, held to its entity type and rider reference (`Handcar/Core/`, `tests/Handcar/`), the pickling tub's rules, timings,
 over-pickling order, early take-out, passivation, a rule's loss at done and settings (`PicklingTub/Core/`, `tests/PicklingTub/`),
 and the unified pipes' burst figures, lead rule, recipe cost filter and the guard on ppex's assets, held
-to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on the
+to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on
+ppex's four pipe shape tables, held to a copy of ppex 0.7.1's and to the shipped soldered joints' patch
+(`Pipes/Core/SolderedJoints.cs`, `tests/Pipes/SolderedJointsTests.cs`), the guard on the
 game's chute section, its anvil recipe and the chute recipes (held to copies of 1.22.7's, the item and
 chutes trimmed, and to the shipped patch applied to them) and the two-angle soldering recipe
 (`Pipes/Core/ChuteSections.cs`, `tests/Pipes/ChuteSectionsTests.cs`), the angle's item and 4 + 4
@@ -4442,8 +4466,9 @@ switches off, `SwitchesOffScenarios` requires nothing patched and the check answ
 standard locomotive.
 
 `tests/PackTests/UnifiedPipesScenarios.cs` (Atlas, the shared world) requires the switch bound with
-nothing logged; every pipe shape in copper and lead, at the default figures with iron and steel, on
-ppex's model with the metal's texture; the valves and pressure valves in the three bronzes at the
+nothing logged; every pipe shape in copper and lead, at the default figures with iron and steel; every
+orientation of every pipe in copper and lead on this mod's soldered model, turned as ppex turns its own,
+and in iron and steel on ppex's; the valves and pressure valves in the three bronzes at the
 bronze figure, and the iron and steel ones unlisted; none of ppex's plate-and-nails or valve recipes
 left, and this mod's resolving (every shape in all four metals from pipe sections of the metal, in
 the right number, with a solder bar a section and the soldering iron or one nails and strips and a
@@ -4458,8 +4483,10 @@ steam power page's figures and "water only"; and, beside a creative steam source
 bursting within seconds and dropping as itself while copper holds. With the switch off,
 `SwitchesOffScenarios` requires ppex's pipes as they ship (no new states, its recipes back, its text
 and figures), the chute section copper alone with its anvil and plate recipes back, chutes from
-sections alone and Better Ruins' back, no angle or pipe section and nothing patched. `tools/tests/test_unified_pipes.py` holds the patch to ppex's zip, and the chute section patch
-to the game's files.
+sections alone and Better Ruins' back, no angle, pipe section or pipe on a soldered model and nothing patched. `tools/tests/test_unified_pipes.py` holds the patch to ppex's zip, and the chute section patch
+to the game's files; `tools/tests/test_soldered_pipes.py` holds the soldered shapes to their generator
+(their joints, bore and texture mapping) and the soldered joints' patch and the C# tests' copy of ppex's
+tables to ppex's zip.
 
 `tests/PackTests/HydratePipesScenarios.cs` (Atlas, the shared world) requires Hydrate or Diedrate's
 pipes, valves and pipe sections without a recipe, out of the creative inventory and the handbook, and
