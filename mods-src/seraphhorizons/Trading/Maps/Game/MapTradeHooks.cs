@@ -45,8 +45,10 @@ public sealed class MapTradeHooks : ItemOreMap.IHooks
         var a = stack.Attributes;
         return a.GetString(MapOfferAttrs.Offer) switch
         {
-            MapOfferAttrs.OreMap => L("oremap-name", ItemOreMap.MetalName(Lang.CurrentLocale, a.GetString(MapOfferAttrs.Metal) ?? "")),
-            MapOfferAttrs.GravelMap => L("item-gravelmap"),
+            MapOfferAttrs.OreMap => L("oremap-name", ItemOreMap.DepositName(Lang.CurrentLocale, a)),
+            MapOfferAttrs.GravelMap => a.GetString(MapOfferAttrs.Rock) is { } rock
+                ? L("gravelmap-name", ItemOreMap.RockName(Lang.CurrentLocale, rock))
+                : L("item-gravelmap"),
             MapOfferAttrs.Lead => L("trading-maps-lead-name", ItemTraderLead.Title(Lang.CurrentLocale, stack)),
             _ => "",
         };
@@ -59,6 +61,10 @@ public sealed class MapTradeHooks : ItemOreMap.IHooks
         if (offer is null) return null;
         if (offer == MapOfferAttrs.SoldOut)
             return L(stack.Collectible.Code == MapIssuer.GravelMapCode ? "trading-maps-soldout-gravel" : "trading-maps-soldout-ore");
+        if (offer == MapOfferAttrs.Surveying)
+            return stack.Collectible.Code == MapIssuer.GravelMapCode
+                ? L("trading-maps-surveying-gravel")
+                : L("trading-maps-surveying-ore", ItemOreMap.MetalName(Lang.CurrentLocale, a.GetString(MapOfferAttrs.Metal) ?? ""));
         return a.HasAttribute(MapOfferAttrs.Pending) ? L("trading-maps-pending-name", What(stack)) : What(stack);
     }
 
@@ -77,14 +83,16 @@ public sealed class MapTradeHooks : ItemOreMap.IHooks
             case MapOfferAttrs.SoldOut:
                 dsc.AppendLine(L("trading-maps-soldout-info"));
                 break;
+            case MapOfferAttrs.Surveying:
+                dsc.AppendLine(L("trading-maps-surveying-info"));
+                break;
             case MapOfferAttrs.OreMap:
                 dsc.AppendLine(L("oremap-info-precision-" + a.GetInt(MapOfferAttrs.Precision, MapPrecision.Rough)));
-                dsc.AppendLine(a.GetString(MapOfferAttrs.SizeTier) is { } tier
-                    ? L("oremap-info-size", L("ore-size-" + tier))
-                    : L("oremap-info-unsurveyed"));
+                ItemOreMap.AppendDeposit(Lang.CurrentLocale, a, dsc);
                 dsc.AppendLine(L("trading-maps-offer-ore-info"));
                 break;
             case MapOfferAttrs.GravelMap:
+                ItemOreMap.AppendDeposit(Lang.CurrentLocale, a, dsc);
                 dsc.AppendLine(L("trading-maps-offer-gravel-info"));
                 break;
             case MapOfferAttrs.Lead:

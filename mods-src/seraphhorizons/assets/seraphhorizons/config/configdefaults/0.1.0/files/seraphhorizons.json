@@ -98,6 +98,8 @@
   "TraderOrders": true,
   "TraderDeliveries": true,
   "TraderMaps": true,
+  "DepositCheckApproachMetres": 1500,
+  "DepositCheckPauseSeconds": 5.0,
   "AdminTools": true,
   "TravellingMerchants": true,
   "TravellingMerchantMinSupply": 2.0,

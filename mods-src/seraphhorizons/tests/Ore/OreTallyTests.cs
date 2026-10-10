@@ -16,6 +16,23 @@ public class OreTallyTests
     }
 
     [Theory]
+    [InlineData("ore-rich-nativecopper-granite", "copper", "nativecopper", "rich", "granite")]
+    [InlineData("ore-poor-galena_nativesilver-andesite", "silver", "galena_nativesilver", "poor", "andesite")]
+    [InlineData("ore-lignite-shale", "coal", "lignite", "-", "shale")]
+    public void ParsesOreRockAndGrade(string path, string metal, string ore, string grade, string rock) =>
+        Assert.Equal(new OreBlockKind(metal, ore, grade, rock), OreTally.Parse(path));
+
+    [Fact]
+    public void RowsSumOverOresAndRocks()
+    {
+        var t = new OreTally();
+        t.Add(new OreBlockKind("copper", "malachite", "poor", "limestone"), 3, 30);
+        t.Add(new OreBlockKind("copper", "azurite", "poor", "shale"), 2, 20);
+        var row = Assert.Single(t.Rows());
+        Assert.Equal(("copper", "poor", 5L, 50.0), (row.Metal, row.Grade, row.Blocks, row.Units));
+    }
+
+    [Theory]
     [InlineData("rock-granite")]
     [InlineData("ore-quartz-granite")]
     [InlineData("looseores-nativecopper-granite-free")]
