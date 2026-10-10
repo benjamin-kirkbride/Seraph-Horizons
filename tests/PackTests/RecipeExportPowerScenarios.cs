@@ -125,7 +125,6 @@ public partial class RecipeExportScenarios
                      ("immersivewoodworking:sawmill", 0.085), ("immersivewoodworking:sawmill@flywheel", 0.051),
                      ("immersivewoodworking:chopper", 0.085), ("panningmachine:panningmachine", 0.085),
                      ("smex:convertertransmission", 0.25), ("ppex:mpfluidpump", 0.125), ("ppex:enginempgenerator", 0.0005),
-                     ("gondolacablecar:station", 2.25), ("gondolacablecar:station@viking", 3.6), ("gondolacablecar:smallstation@1", 0.45),
                      ("seraphhorizons:buckingmill", 0.17), ("seraphhorizons:rosser", 0.2), ("seraphhorizons:gearcutter", 0.2),
                      ("seraphhorizons:drawbench", 0.2), ("seraphhorizons:cylinderborer", 0.3),
                  })
@@ -145,7 +144,6 @@ public partial class RecipeExportScenarios
         Near(0.35, Consumer("seraphhorizons:drawbench")["loadMax"]);
         Near(0.15, Consumer("smex:mpblower")["loadMax"]);
         Near(0.05, Consumer("smex:mpblower")["load"]);
-        Near(0.02, Consumer("gondolacablecar:station")["idleLoad"]);
         Assert.Equal("transmission", (string)Consumer("game:woodenaxle")["category"]!);
         Assert.Equal("brake", (string)Consumer("millwright:brake")["category"]!);
     }

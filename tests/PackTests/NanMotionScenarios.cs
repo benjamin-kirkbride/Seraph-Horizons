@@ -57,8 +57,11 @@ public partial class SharedWorldScenarios
         Assert.Contains(AccessTools.DeclaredMethod(typeof(EntityPlayer), nameof(Entity.OnGameTick)), methods);
         var nanPush = AccessTools.DeclaredMethod(typeof(NanPushBehavior), nameof(EntityBehavior.OnGameTick));
         Assert.Contains(nanPush, methods);
-        // Mods' overrides too, not only the game's.
-        Assert.Contains(targets, t => t.Method.DeclaringType!.Assembly.GetName().Name == "GondolaCableCar");
+        // Mods' overrides too, not only the game's: a target in a code mod other than the game's own.
+        var modAssemblies = World.Api.ModLoader.Mods
+            .Where(m => m.Info.ModID is not ("game" or "creative" or "survival"))
+            .SelectMany(m => m.Systems).Select(s => s.GetType().Assembly).ToHashSet();
+        Assert.Contains(targets, t => modAssemblies.Contains(t.Method.DeclaringType!.Assembly));
         // EntityBehavior's own empty OnGameTick is left alone (every behavior without an override calls it).
         Assert.DoesNotContain(AccessTools.DeclaredMethod(typeof(EntityBehavior), nameof(EntityBehavior.OnGameTick)), methods);
 
