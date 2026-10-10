@@ -145,6 +145,7 @@ public static partial class RecipeSection
         FillPressBrake(ctx, records, types);
         FillSquaringShear(ctx, records, types);
         FillMandrelStation(ctx, records, types);
+        FillSpalling(ctx, records, types);
         FillEidolon(ctx, records, types);
         FillCasting(ctx, records, types);
 

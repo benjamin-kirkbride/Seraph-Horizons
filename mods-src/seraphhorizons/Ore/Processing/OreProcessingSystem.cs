@@ -2,8 +2,12 @@ using System.Text;
 using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.Ore.Core;
+using SeraphHorizons.Mod.Woodworking;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Ore.Processing;
 
@@ -23,8 +27,10 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// ore of that ore, either grain, instead (<see cref="LegacyCrushed"/>).</item>
 /// <item><see cref="AssetsFinalize"/>, with every item loaded and patched (so it holds whatever order
 /// Expanded Matter's and smex's crushing patches ran in): stack sizes, crushing and smelting set on
-/// the items (<see cref="OreProcessingItems"/>), and smex's blast furnace burden counted in 5-unit
-/// items (<see cref="SmexBurden"/>). The server sends the items to clients as they are then.</item>
+/// the items (<see cref="OreProcessingItems"/>), smex's blast furnace burden counted in 5-unit
+/// items (<see cref="SmexBurden"/>), and the game's hammers given spalling
+/// (<see cref="CollectibleBehaviorSpalling"/>, #747). The server sends the items to clients as they
+/// are then.</item>
 /// </list>
 /// On each side whose own setting is on, a transpiler makes the game's alloy maths count a smelted
 /// stack's size (<see cref="AlloyStackSize"/>), as its single-metal maths already does, so a chunk's
@@ -96,6 +102,19 @@ public class OreProcessingSystem : ModSystem
     /// <summary>What happened to smex's burden; null without smex or with the switch off.</summary>
     public SmexBurden.Status? Smex { get; private set; }
 
+    /// <summary>Spalling (#747): the blows struck, on the server with the switch on; null otherwise.</summary>
+    public OreSpalling? Spalling { get; private set; }
+
+    /// <summary>The hammers given spalling (<see cref="AssetsFinalize"/>), for the log and the scenarios.</summary>
+    public int SpallingHammers { get; private set; }
+
+    /// <summary>Spalling's handbook guide page (<c>config/handbook/spalling.json</c>).</summary>
+    public const string SpallingGuidePage = "seraphhorizons-spalling";
+    public const string SpallingGuideTitle = "seraphhorizons:spalling-guide-title";
+
+    private ModSystemSurvivalHandbook? _handbook;
+    private InitCustomPagesDelegate? _hidePage;
+
     public static OreProcessingSystem Of(ICoreAPI api) => api.ModLoader.GetModSystem<OreProcessingSystem>();
 
     /// <summary>Whether ore processing is on, by this side's setting.</summary>
@@ -107,6 +126,7 @@ public class OreProcessingSystem : ModSystem
     {
         api.RegisterItemClass("seraphhorizons.ItemGradedOre", typeof(ItemGradedOre));
         api.RegisterItemClass("seraphhorizons.ItemOreProduct", typeof(ItemOreProduct));
+        api.RegisterCollectibleBehaviorClass(CollectibleBehaviorSpalling.Name, typeof(CollectibleBehaviorSpalling));
         if (!On(api))
         {
             // Before the patch loader (AssetsLoaded). On the server only: a client has no assets
@@ -123,6 +143,41 @@ public class OreProcessingSystem : ModSystem
                 api.Logger.Warning("[seraphhorizons] Ore processing: the game's AlloyRecipe.mergeAndCompareStacks is not as expected; "
                                    + "an alloy counts a chunk at a whole number of chunks per ingot, which can be off its exact half");
         }
+    }
+
+    public override void StartServerSide(ICoreServerAPI api)
+    {
+        if (!On(api))
+        {
+            // The spalling guide is not in the handbook, nor in the recipe export (as the eidolon's).
+            var hidden = api.ObjectCache.TryGetValue(WoodworkingGuide.HiddenGuidesKey, out var listed)
+                         && listed is IEnumerable<(string, string)> pages
+                ? pages.ToList()
+                : [];
+            hidden.Add((SpallingGuidePage, SpallingGuideTitle));
+            api.ObjectCache[WoodworkingGuide.HiddenGuidesKey] = hidden;
+            return;
+        }
+        var config = SeraphHorizonsSystem.ConfigFor(api);
+        var settings = config.SpallingSettings ??= new SpallingConfig();
+        foreach (var fix in settings.Sanitise())
+            api.Logger.Warning("[seraphhorizons] SpallingSettings: {0}", fix);
+        Spalling = new OreSpalling(api, settings);
+    }
+
+    // The client follows the server's switch: its spalling guide shows only when the server's items
+    // are ore processing's (vanilla's ore item has the pack's class).
+    public override void StartClientSide(ICoreClientAPI api)
+    {
+        if (api.ModLoader.GetModSystem<ModSystemSurvivalHandbook>() is not { } handbook)
+            return;
+        _handbook = handbook;
+        _hidePage = pages =>
+        {
+            if (api.World.GetItem(new AssetLocation("game:ore-medium-hematite-granite")) is not ItemGradedOre)
+                pages.RemoveAll(p => p.PageCode == SpallingGuidePage);
+        };
+        handbook.OnInitCustomPages += _hidePage;
     }
 
     public override void AssetsLoaded(ICoreAPI api)
@@ -143,6 +198,8 @@ public class OreProcessingSystem : ModSystem
             return;
         Recovery ??= LoadRecovery(api);
         Applied = OreProcessingItems.Apply(api.World, Recovery, api.Logger);
+        SpallingHammers = GiveHammersSpalling(api.World);
+        api.Logger.Notification("[seraphhorizons] Ore processing: {0} hammers spall ore set down on the ground", SpallingHammers);
         if (api.ModLoader.IsModEnabled(SmexBurden.ModId))
         {
             Smex = SmexBurden.Apply(api.World, api.Logger);
@@ -153,8 +210,31 @@ public class OreProcessingSystem : ModSystem
 
     public override void Dispose()
     {
+        if (_handbook != null && _hidePage != null)
+            _handbook.OnInitCustomPages -= _hidePage;
+        _handbook = null;
+        _hidePage = null;
         _harmony?.UnpatchAll(_harmony.Id);
         _harmony = null;
+    }
+
+    /// <summary>Gives every game hammer (<c>game:hammer-*</c>) spalling, first among its behaviours so
+    /// it runs before the hammer's swing; returns how many. Added in code on the server, the behaviour
+    /// reaches clients with the items.</summary>
+    public static int GiveHammersSpalling(IWorldAccessor world)
+    {
+        int count = 0;
+        foreach (var item in world.Items)
+        {
+            if (item?.Code is not { Domain: "game" } code || !code.Path.StartsWith("hammer-", StringComparison.Ordinal)
+                || item.HasBehavior<CollectibleBehaviorSpalling>())
+                continue;
+            var spalling = new CollectibleBehaviorSpalling(item);
+            spalling.Initialize(new Vintagestory.API.Datastructures.JsonObject(new JObject()));
+            item.CollectibleBehaviors = [spalling, .. item.CollectibleBehaviors ?? []];
+            count++;
+        }
+        return count;
     }
 
     /// <summary>Leaves ore processing out of the game: its item types marked disabled and its patch

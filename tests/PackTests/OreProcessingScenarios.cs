@@ -1,11 +1,17 @@
+using Atlas.Api;
 using Atlas.XUnit;
 using HarmonyLib;
+using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.CrucibleFurnace.Core;
 using SeraphHorizons.Mod.Ore;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
+using SeraphHorizons.RecipeExport;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
+using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 using Xunit.Abstractions;
 
@@ -94,9 +100,12 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Null(medium.CombustibleProps);
         Assert.Equal("Raw Galena ore (medium)", new ItemStack(medium).GetName());
         Assert.Equal("Galena chunk (rich)", new ItemStack(rich).GetName());
-        // A hammer no longer breaks it into nuggets where it lies.
+        // A hammer no longer breaks it into nuggets where it lies (shift + right-click): it spalls it
+        // with a left-click, which the help says, with every hammer.
         Assert.False(((IContainedInteractable)medium).OnContainedInteractStart(null!, null!, null!, null!));
-        Assert.Empty(((IContainedInteractable)medium).GetContainedInteractionHelp(null!, null!, null!, null!));
+        var help = Assert.Single(((IContainedInteractable)medium).GetContainedInteractionHelp(null!, null!, null!, null!));
+        Assert.Equal(EnumMouseButton.Left, help.MouseButton);
+        Assert.Contains(help.Itemstacks, s => s.Collectible.Code.ToString() == "game:hammer-copper");
     }
 
     // Deposit measurement (sizes, tiers, map prices, district veins) reads the blocks' drops times
@@ -152,7 +161,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
     {
         Assert.True(System.NuggetRecipesOff > 0);
         Assert.DoesNotContain(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path?.StartsWith("nugget-") == true
-                                                  && r.Ingredients.Values.Any(i => i.Code?.Path?.Contains("ore-") == true));
+                                                  && (r.ResolvedIngredients ?? []).Any(i => i?.Code?.Path?.Contains("ore-") == true));
     }
 
     // Recipes that took a crushed ore nothing makes now take the new crushed ore, either grain.
@@ -165,8 +174,9 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.NotEmpty(barrel);
         Assert.All(barrel, r => Assert.Contains(r.Ingredients, i => i.SatisfiesAsIngredient(coarse, false)));
         var bricks = W.GridRecipes.Where(r => r.Output?.Code?.Path == "refractorybrick-raw-tier3").ToList();
-        Assert.Contains(bricks, r => r.Ingredients.Values.Any(i => i.SatisfiesAsIngredient(fine, false)));
-        Assert.Contains(bricks, r => r.Ingredients.Values.Any(i => i.SatisfiesAsIngredient(coarse, false)));
+        // The resolved ingredients: the server frees a grid recipe's Ingredients once a player has joined.
+        Assert.Contains(bricks, r => (r.ResolvedIngredients ?? []).Any(i => i != null && i.SatisfiesAsIngredient(fine, false)));
+        Assert.Contains(bricks, r => (r.ResolvedIngredients ?? []).Any(i => i != null && i.SatisfiesAsIngredient(coarse, false)));
         Assert.Contains("em:recipes/barrel/verdigris.json", System.RetargetedRecipes);
     }
 
@@ -258,5 +268,264 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var match = PotRecipes.Default.Match([new ChargeItem("seraphhorizons:concentrate-chromite", 20),
             new ChargeItem(Stainless.Ferrosilicon, 12), new ChargeItem("game:lime", 8)]);
         Assert.Equal(ferrochrome, match.Recipe);
+    }
+
+    // ---- Spalling (#747) ----
+    // Every blow is a real left-click with a hammer through the hammer's own attack call, as the
+    // server makes it from a client's packet, a few ticks apart (a player strikes no faster than
+    // Spalling.BlowIntervalMs). Each scenario works on a granite floor of its own 30 above spawn.
+
+    private static ITestPlayer? _spaller;
+    private static object? _spallerWorld;
+
+    private async Task<IPlayer> Spaller()
+    {
+        if (_spaller == null || !ReferenceEquals(_spallerWorld, World.Api))
+        {
+            _spaller = await World.JoinPlayer("spaller");
+            _spallerWorld = World.Api;
+        }
+        var player = _spaller.Player;
+        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
+        player.Entity.Controls.ShiftKey = player.Entity.Controls.CtrlKey = false;
+        return player;
+    }
+
+    private async Task<BlockPos> SpallSite(int dx, int dz)
+    {
+        var origin = World.Spawn.AddCopy(dx, 30, dz);
+        if (World.Api is Vintagestory.API.Server.ICoreServerAPI sapi)
+            sapi.WorldManager.LoadChunkColumnPriority(origin.X / GlobalConstants.ChunkSize, origin.Z / GlobalConstants.ChunkSize);
+        await World.Until(() => W.BlockAccessor.GetChunkAtBlockPos(origin) != null, 30000);
+        int floor = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        for (int x = -3; x <= 3; x++)
+        for (int z = -3; z <= 3; z++)
+        {
+            W.BlockAccessor.SetBlock(floor, origin.AddCopy(x, -1, z));
+            for (int y = 0; y <= 3; y++)
+                W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
+        }
+        KillItems(origin);
+        return origin;
+    }
+
+    private Dictionary<string, int> ItemsNear(BlockPos around) =>
+        World.EntitiesIn(new Cuboidi(around.X - 4, around.Y - 2, around.Z - 4, around.X + 4, around.Y + 4, around.Z + 4))
+            .OfType<EntityItem>().Where(e => e.Alive)
+            .GroupBy(e => e.Itemstack.Collectible.Code.ToString())
+            .ToDictionary(g => g.Key, g => g.Sum(e => e.Itemstack.StackSize));
+
+    private void KillItems(BlockPos around)
+    {
+        foreach (var e in World.EntitiesIn(new Cuboidi(around.X - 4, around.Y - 2, around.Z - 4, around.X + 4, around.Y + 4, around.Z + 4)).OfType<EntityItem>())
+            e.Die(EnumDespawnReason.Removed);
+    }
+
+    /// <summary>Shift + right-click on <paramref name="at"/> (its top, or <paramref name="face"/>)
+    /// holding <paramref name="held"/>, as the held item's interaction; returns what is left in hand.</summary>
+    private ItemStack? SetDown(IPlayer player, BlockPos at, ItemStack held, BlockFacing? face = null)
+    {
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        slot.Itemstack = held;
+        slot.MarkDirty();
+        player.Entity.Controls.ShiftKey = true;
+        try
+        {
+            var sel = new BlockSelection { Position = at.Copy(), Face = face ?? BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
+            EnumHandHandling handling = EnumHandHandling.NotHandled;
+            if (W.BlockAccessor.GetBlockEntity(at) is BlockEntityGroundStorage)
+                W.BlockAccessor.GetBlock(at).OnBlockInteractStart(W, player, sel);
+            else
+                held.Collectible.OnHeldInteractStart(slot, player.Entity, sel, null, true, ref handling);
+        }
+        finally
+        {
+            player.Entity.Controls.ShiftKey = false;
+        }
+        return slot.Itemstack;
+    }
+
+    /// <summary>One left-click on <paramref name="at"/> with <paramref name="held"/>, as the server
+    /// runs it; returns the hand handling.</summary>
+    private EnumHandHandling LeftClick(IPlayer player, BlockPos at, ItemStack held)
+    {
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        slot.Itemstack = held;
+        slot.MarkDirty();
+        var sel = new BlockSelection { Position = at.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.1, 0.5) };
+        EnumHandHandling handling = EnumHandHandling.NotHandled;
+        held.Collectible.OnHeldAttackStart(slot, player.Entity, sel, null, ref handling);
+        return handling;
+    }
+
+    /// <summary>One blow: left-clicks a tick apart until the server counts it (or the ore breaks).</summary>
+    private async Task Blow(IPlayer player, BlockPos at, ItemStack hammer)
+    {
+        var spalling = System.Spalling!;
+        int before = spalling.BlowsAt(at);
+        for (int i = 0; i < 60; i++)
+        {
+            await World.Ticks(1);
+            Assert.Equal(EnumHandHandling.PreventDefault, LeftClick(player, at, hammer));
+            if (spalling.BlowsAt(at) != before || OreSpalling.Target(W, at) == null)
+                return;
+        }
+        throw new Xunit.Sdk.XunitException("no blow was struck");
+    }
+
+    [AtlasScenario]
+    public void Hammers_spall_and_ore_sets_down_one_to_a_block()
+    {
+        Assert.NotNull(System.Spalling);
+        Assert.Equal(9, System.SpallingHammers);
+        foreach (var metal in new[] { "copper", "tinbronze", "iron", "steel" })
+        {
+            var hammer = Item($"game:hammer-{metal}");
+            Assert.IsType<CollectibleBehaviorSpalling>(hammer.CollectibleBehaviors[0]);
+            Assert.Contains(hammer.CollectibleBehaviors, b => b is CollectibleBehaviorAnimationAuthoritative);
+        }
+        Assert.False(Item("game:pickaxe-iron").HasBehavior<CollectibleBehaviorSpalling>());
+        foreach (var code in new[] { "game:ore-medium-galena-shale", "game:ore-rich-limonite-shale", "game:ore-bountiful-hematite-granite", "game:crystalizedore-poor-galena-shale" })
+        {
+            var props = Item(code).GetBehavior<CollectibleBehaviorGroundStorable>()!.StorageProps;
+            Assert.Equal(EnumGroundStorageLayout.SingleCenter, props.Layout);
+            Assert.Equal(1, props.TransferQuantity);
+        }
+        var config = SeraphHorizonsSystem.ConfigFor(World.Api).SpallingSettings;
+        Assert.Equal((6, 3, 1), (config.BlowsRawOre, config.BlowsChunk, config.HammerWearPerBlow));
+    }
+
+    // A medium ore: one from the hand goes down, six blows break it into four coarse crushed ore where
+    // it lay, the hammer worn a point a blow.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Spalling_breaks_raw_ore_into_its_crushed_ore()
+    {
+        var pos = await SpallSite(70, 70);
+        var player = await Spaller();
+        var floor = pos.DownCopy();
+        Assert.Equal(3, SetDown(player, floor, Stack("game:ore-medium-galena-shale", 4))?.StackSize);
+        var be = W.BlockAccessor.GetBlockEntity(pos) as BlockEntityGroundStorage;
+        Assert.NotNull(be);
+        Assert.Equal(1, be!.Inventory.Sum(s => s.StackSize));
+        Assert.NotNull(OreSpalling.Target(W, pos));
+
+        // a pick does not spall: the click is left to the game (it breaks the block and picks it up)
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, LeftClick(player, pos, Stack("game:pickaxe-iron", 1)));
+        Assert.Equal(0, System.Spalling!.BlowsAt(pos));
+
+        var hammer = Stack("game:hammer-copper", 1);
+        int durability = hammer.Collectible.GetRemainingDurability(hammer);
+        for (int b = 1; b <= 5; b++)
+        {
+            await Blow(player, pos, hammer);
+            Assert.Equal(b, System.Spalling.BlowsAt(pos));
+        }
+        Assert.NotNull(OreSpalling.Target(W, pos));
+        Assert.Equal(durability - 5, hammer.Collectible.GetRemainingDurability(hammer));
+        Assert.Empty(ItemsNear(pos));
+
+        await Blow(player, pos, hammer);
+        Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
+        await World.Ticks(5);
+        var near = ItemsNear(pos);
+        Assert.Equal(4, near.GetValueOrDefault("game:crushed-galena-coarse"));
+        Assert.Single(near);
+        Assert.Equal(durability - 6, hammer.Collectible.GetRemainingDurability(hammer));
+        KillItems(pos);
+    }
+
+    // Poor ore is fine-grained and gives fine crushed ore, by its units (15: three); a chunk takes
+    // three blows (bountiful galena, 35 units: seven coarse).
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Spalling_gives_fine_from_poor_and_breaks_a_chunk_in_fewer_blows()
+    {
+        var pos = await SpallSite(-70, 70);
+        var player = await Spaller();
+        var hammer = Stack("game:hammer-iron", 1);
+
+        SetDown(player, pos.DownCopy(), Stack("game:ore-poor-galena-shale", 1));
+        for (int b = 0; b < 6; b++)
+            await Blow(player, pos, hammer);
+        await World.Ticks(5);
+        Assert.Equal(3, ItemsNear(pos).GetValueOrDefault("game:crushed-galena-fine"));
+        KillItems(pos);
+
+        SetDown(player, pos.DownCopy(), Stack("game:ore-bountiful-galena-shale", 1));
+        for (int b = 0; b < 2; b++)
+            await Blow(player, pos, hammer);
+        Assert.NotNull(OreSpalling.Target(W, pos));
+        await Blow(player, pos, hammer);
+        Assert.Null(OreSpalling.Target(W, pos));
+        await World.Ticks(5);
+        Assert.Equal(7, ItemsNear(pos).GetValueOrDefault("game:crushed-galena-coarse"));
+        KillItems(pos);
+    }
+
+    // Shift + right-click on a placed ore with another in hand sets it on the next block (beside the
+    // face clicked), never on top and never picking the placed one up; with an empty hand it is taken back.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Another_ore_goes_on_the_next_block()
+    {
+        var pos = await SpallSite(70, -70);
+        var player = await Spaller();
+        Assert.Equal(3, SetDown(player, pos.DownCopy(), Stack("game:ore-medium-hematite-granite", 4))?.StackSize);
+        Assert.Equal(2, SetDown(player, pos, Stack("game:ore-medium-hematite-granite", 3), BlockFacing.EAST)?.StackSize);
+        Assert.Equal(1, OreSpalling.Target(W, pos)!.StackSize);
+        Assert.Equal(1, OreSpalling.Target(W, pos.EastCopy())!.StackSize);
+        // a chunk too, beside the north face
+        Assert.Null(SetDown(player, pos, Stack("game:ore-rich-hematite-granite", 1), BlockFacing.NORTH));
+        Assert.Equal("game:ore-rich-hematite-granite", OreSpalling.Target(W, pos.NorthCopy())!.Itemstack.Collectible.Code.ToString());
+        Assert.Equal(1, OreSpalling.Target(W, pos)!.StackSize);
+        // an empty hand takes the placed ore back
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        slot.Itemstack = null;
+        player.Entity.Controls.ShiftKey = true;
+        W.BlockAccessor.GetBlock(pos).OnBlockInteractStart(W, player,
+            new BlockSelection { Position = pos.Copy(), Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.1, 0.5) });
+        player.Entity.Controls.ShiftKey = false;
+        Assert.Null(OreSpalling.Target(W, pos));
+        var held = player.InventoryManager.Inventories.Values
+            .Where(inv => inv.ClassName is GlobalConstants.hotBarInvClassName or GlobalConstants.backpackInvClassName)
+            .SelectMany(inv => inv).Where(s => s.Itemstack?.Collectible.Code.ToString() == "game:ore-medium-hematite-granite").ToList();
+        Assert.Equal(1, held.Sum(s => s.StackSize));
+        foreach (var s in held)
+            s.Itemstack = null;
+        foreach (var p in new[] { pos.EastCopy(), pos.NorthCopy() })
+            W.BlockAccessor.SetBlock(0, p);
+    }
+
+    // The recipe export has a spalling record per ore kind: by hand, its turns the blows, the hammer
+    // worn a point a blow, no station; the 5-unit rule's crushed ore.
+    [AtlasScenario(TimeoutMs = 600_000)]
+    public void Spalling_is_exported_as_a_hand_job_per_ore_kind()
+    {
+        var doc = ExportUnderTest.Get(World.Api);
+        var type = doc["recipeTypes"]![RecipeSection.SpallingType]!;
+        Assert.Equal("machine", (string?)type["shape"]);
+        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string?)r["type"] == RecipeSection.SpallingType).ToList();
+        Assert.Equal((int)type["count"]!, records.Count);
+        Assert.Equal(2 * 4 * OreProducts.Ores.Count, records.Count);
+        var medium = records.Single(r => (string?)r["id"] == "spalling|game:ore-medium-galena-*|0");
+        Assert.Equal("game:ore-medium-galena-*", (string?)medium["ingredients"]![0]!["code"]);
+        Assert.Equal(6, (int)medium["ingredients"]![1]!["toolDurabilityCost"]!);
+        Assert.Equal("game:crushed-galena-coarse", (string?)medium["outputs"]![0]!["code"]);
+        Assert.Equal(4, (int)medium["outputs"]![0]!["quantity"]!);
+        Assert.Equal("hand", (string?)medium["machine"]!["power"]);
+        Assert.Equal(6, (int)medium["machine"]!["turns"]!);
+        Assert.Equal("strikes", (string?)medium["machine"]!["work"]!["unit"]);
+        Assert.DoesNotContain(medium["ingredients"]!, i => (string?)i["role"] == "station");
+        Assert.Equal(RecipeSection.SpallingRequirement, (string?)medium["requirements"]![0]);
+        Assert.Contains(medium["variants"]![0]!["ingredients"]![0]!, s => (string?)s["code"] == "game:ore-medium-galena-shale");
+        var poor = records.Single(r => (string?)r["id"] == "spalling|game:ore-poor-galena-*|0");
+        Assert.Equal("game:crushed-galena-fine", (string?)poor["outputs"]![0]!["code"]);
+        Assert.Equal(3, (int)poor["outputs"]![0]!["quantity"]!);
+        var chunk = records.Single(r => (string?)r["id"] == "spalling|game:ore-bountiful-galena-*|0");
+        Assert.Equal(3, (int)chunk["machine"]!["turns"]!);
+        Assert.Equal(7, (int)chunk["outputs"]![0]!["quantity"]!);
+        // The guide page is in the export with the switch on.
+        Assert.Contains(((JArray)doc["guides"]!).OfType<JObject>(), g => (string?)g["code"] == OreProcessingSystem.SpallingGuidePage);
+        var dump = Environment.GetEnvironmentVariable("SPALLING_EXPORT_DUMP");
+        if (!string.IsNullOrEmpty(dump))
+            File.WriteAllText(dump, doc.ToString());
     }
 }

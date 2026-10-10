@@ -94,6 +94,11 @@
   "PlacerFields": true,
   "PlacerCellSizeMetres": 1500,
   "OreProcessing": false,
+  "SpallingSettings": {
+    "BlowsRawOre": 6,
+    "BlowsChunk": 3,
+    "HammerWearPerBlow": 1
+  },
   "TraderSchematics": true,
   "MachineSchematics": true,
   "TraderOrders": true,

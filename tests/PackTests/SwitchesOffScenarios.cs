@@ -996,12 +996,13 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's, gear reclamation's, the crucible furnace's and the eidolon's pages, whose switches are off here too).
+        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's and spalling's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
                 .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
                 .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey))
-                .Append((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey)).Order(),
+                .Append((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey))
+                .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
@@ -1298,5 +1299,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path?.StartsWith("nugget-") == true);
         Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.HarmonyId));
         Assert.Null(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.Of(World.Api).Applied);
+        // No spalling: the hammers are as they ship, and the spalling guide is hidden.
+        Assert.Null(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.Of(World.Api).Spalling);
+        Assert.DoesNotContain(W.Items, i => i?.HasBehavior<SeraphHorizons.Mod.Ore.Processing.CollectibleBehaviorSpalling>() == true);
+        Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
     }
 }
