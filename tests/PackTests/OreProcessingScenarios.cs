@@ -194,7 +194,11 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(16 * 35 * 0.5 / 100, Ingots(Stack("game:ore-bountiful-malachite-limestone", 16)), 6);
         // Cassiterite holds less: a rich chunk 15 units, so 7.5 smelted (3 ingots per 40 chunks).
         Assert.Equal(16 * 15 * 0.5 / 100, Ingots(Stack("game:ore-rich-cassiterite-granite", 16)), 6);
-        Assert.Equal(0, Ingots(Stack("seraphhorizons:concentrate-galena", 20)));
+        // A sulfide's concentrate smelts only into its roasted concentrate, with no container, which
+        // the crucible refuses outright (BlockSmeltingContainer.CanSmelt): it does not smelt to metal.
+        var sulfide = Item("seraphhorizons:concentrate-galena").CombustibleProps!;
+        Assert.False(sulfide.RequiresContainer);
+        Assert.Equal("seraphhorizons:roastedconcentrate-galena", sulfide.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal(0, Ingots(Stack("seraphhorizons:groundore-malachite", 20)));
         Assert.Null(Item("game:ore-medium-malachite-limestone").CombustibleProps);
         Assert.Equal(20.0 / 21, Ingots(Stack("seraphhorizons:litharge", 20)), 6);
@@ -219,7 +223,8 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal("game:ironbloom", props.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal(20, props.SmeltedRatio);
         Assert.Equal(40, Item("game:crushed-hematite-coarse").CombustibleProps!.SmeltedRatio);
-        Assert.Null(Item("seraphhorizons:concentrate-pyrite").CombustibleProps);
+        // Pyrite's concentrate roasts first (#720), far below a bloomery's heat.
+        Assert.InRange(Item("seraphhorizons:concentrate-pyrite").CombustibleProps!.MeltingPoint, 1, 999);
     }
 
     // Crucibulum's forge counts a charge as the crucible does.
@@ -527,6 +532,47 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var dump = Environment.GetEnvironmentVariable("SPALLING_EXPORT_DUMP");
         if (!string.IsNullOrEmpty(dump))
             File.WriteAllText(dump, doc.ToString());
+
+    // Roasting in the firepit (#720): any fuel, one item at a time, 85 % with the fraction carried,
+    // so 20 concentrate give 17 roasted; no sulfur.
+    [AtlasScenario]
+    public async Task Firepit_roasts_sulfide_concentrate()
+    {
+        var concentrate = (ItemOreProduct)Item("seraphhorizons:concentrate-galena");
+        var props = concentrate.CombustibleProps!;
+        Assert.Equal(OreRoasting.MeltingPoint, props.MeltingPoint);
+        Assert.Equal((float)OreRoasting.DefaultSeconds, props.MeltingDuration);
+        Assert.Equal(1, props.SmeltedRatio);
+        Assert.Equal(EnumSmeltType.Convert, props.SmeltingType);
+        Assert.Equal(0.85, concentrate.RoastShare, 9);
+        Assert.Equal(OreProducts.Ores.Count(o => System.Recovery!.Ore(o).IsSulfide), System.Applied!.Roasting);
+        // Not a sulfide: smelts as before and does not roast.
+        Assert.Equal(0, ((ItemOreProduct)Item("seraphhorizons:concentrate-malachite")).RoastShare);
+        // Dry grass, the coolest firepit fuel, reaches the point.
+        Assert.True(Item("game:drygrass").CombustibleProps!.BurnTemperature >= OreRoasting.MeltingPoint);
+
+        var pos = World.Spawn.AddCopy(64, 8, 64);
+        World.SetBlock("game:firepit-cold", pos);
+        await World.Ticks(2);
+        var firepit = Assert.IsType<BlockEntityFirepit>(W.BlockAccessor.GetBlockEntity(pos));
+        var input = firepit.Inventory[1];
+        var output = firepit.Inventory[2];
+        input.Itemstack = Stack("seraphhorizons:concentrate-galena", 20);
+        Assert.True(firepit.canSmeltInput());
+        string key = firepit.Inventory.InventoryID + "|seraphhorizons:roastedconcentrate-galena";
+
+        firepit.smeltItems();
+        Assert.Equal(19, input.StackSize);
+        Assert.True(output.Empty);
+        Assert.Equal(4.25, System.RoastCarry.HeldFor(key), 6);
+        for (int i = 0; i < 19; i++)
+            firepit.smeltItems();
+        Assert.True(input.Empty);
+        Assert.Equal("seraphhorizons:roastedconcentrate-galena", output.Itemstack!.Collectible.Code.ToString());
+        Assert.Equal(17, output.StackSize);
+        Assert.Equal(0, System.RoastCarry.HeldFor(key), 6);
+        Assert.DoesNotContain(firepit.Inventory, s => s.Itemstack?.Collectible.Code.Path.Contains("sulfur") == true);
+        World.SetBlock("game:air", pos);
     }
 
     // Leaching (#742): borax and alum ore and raw saltpeter are heavy raw forms that no quern or
