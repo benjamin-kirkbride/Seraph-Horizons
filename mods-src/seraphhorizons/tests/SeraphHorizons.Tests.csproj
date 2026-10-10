@@ -124,6 +124,10 @@
          with no gameplay yet, held to the shared rig maths its renderer will use. -->
     <None Include="../assets/seraphhorizons/config/amalgampan-rig.json" Link="amalgampan-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="AmalgamPan/rig-reference.json" Link="amalgampan-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The riddle's shipped rig and its reference poses (Riddle/tools/make_shape.py): a hand station with no
+         gameplay yet (#714), held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/riddle-rig.json" Link="riddle-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Riddle/rig-reference.json" Link="riddle-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />

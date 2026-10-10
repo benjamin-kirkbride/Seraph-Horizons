@@ -312,6 +312,9 @@ describe("model view", () => {
     expect(textureColour("mercury", "seraphhorizons:block/liquid/mercury")).toBe("#dce2ea");
     expect(textureColour("amalgam", "game:block/metal/ingot/leadsolder")).toBe("#b0aa9c");
     expect(textureColour("pan", "game:block/metal/sheet/iron1")).toBe("#8e98a4");
+    // a charge of crushed ore stands apart from the gravel texture it wears and the iron it lies on
+    expect(textureColour("ore", "game:block/stone/gravel/granite")).toBe("#6f5a48");
+    expect(textureColour("core", "game:block/stone/granite")).toBe("#9a9a92");
   });
 
   it("puts elements no part claims in an unmatched group", () => {
