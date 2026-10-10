@@ -190,6 +190,15 @@ ingredient) and a later stage can ask for the same variant with a `{name}` place
 the water wheel's planks are of the wood of its support beams. Each value is a variant with
 a binding, as for recipes.
 
+The eidolon's two builds (seraphhorizons) are records of this type too, though no engine
+behavior builds them: the gantry's winch (`construction|seraphhorizons:eidolongantry-acacia-north|0`,
+output `seraphhorizons:eidolongantry-{wood}-north`, the placed frame and nine stages, a variant per
+wood binding the drum's planks and the spine's beams) and the eidolon's body
+(`construction|seraphhorizons:creature-eidolon|0`, output the eidolon's creature item). The body's
+first stage is a gantry, an ingredient with role `station`: needed, never consumed, so a reader
+leaves it out of what the build uses up. Their `extra.behavior` names the mod's classes and
+`extra.stages` the stages' codes.
+
 ### Butchery
 
 With the Butchering mod a dead creature is picked up whole, skinned on a hook, left there to

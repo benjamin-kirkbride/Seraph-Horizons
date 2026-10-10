@@ -3,8 +3,11 @@
 Part of the Seraph Horizons mod (`../README.md`): the frame the player-built eidolon (`../Eidolon/README.md`)
 is assembled in, stage by stage, and its dock afterwards, for repair and recharge.
 
-**Status: the model only.** This folder holds the generator (`tools/`). There is no block, block entity
-or renderer yet; the model and its rig are what those will be built against.
+**Status: the gantry and its winch are built** (#671): the block, its ghost cells, the frame's recipe,
+the nine winch stages and the renderer are in `Core/` and `Game/` ("Gameplay", below, and the mod's
+README, "Eidolon"). The body's stages on the spine and the waking are built too (#672:
+`Game/BEBehaviorEidolonBody.cs`, `Core/BodyParts.cs`; the mod's README, "The body and waking it"). This
+folder also holds the model's generator (`tools/`).
 
 Paths here are from this folder unless they start with `assets/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.
@@ -136,9 +139,9 @@ The pulley's caps and its winch handle are small vanilla fittings, not the mast'
 charred texture, as the clamps, staples and ropes keep theirs. The body's own charred parts (its wooden bones) are the eidolon's
 and are unchanged.
 
-## The build (proposal)
+## The build
 
-**A proposal for the gameplay to come**: there is no block yet. The frame is crafted and placed whole;
+The frame is crafted and placed whole;
 the winch is fitted onto the placed frame stage by stage, as the pack's other multiblock machines are
 (`../DrawBench/README.md`, "Stages"; `../GearCutter/README.md`; `../PressBrake/README.md`): the stages go
 in a fixed order, a right-click on the frame holding the next stage's item takes the stage's count of it
@@ -163,7 +166,7 @@ wood of its beams (`seraphhorizons:eidolongantry-{wood}`, "Wood" above).
 
 | Slot | Item | Count |
 |---|---|---|
-| Schematic | `seraphhorizons:schematic-eidolon` (sold by a trader; the item does not exist yet), not consumed | 1 |
+| Schematic | `seraphhorizons:schematic-eidolon`, sold by the curio dealer, not consumed: added by its gate (`config/schematic-gates.json`, machine `eidolon`), not written in the recipe | 1 |
 | Beams | 24 × `game:supportbeam-{wood}`, all of one wood (birch, oak, maple, pine, acacia, kapok, baldcypress, larch, redwood, ebony, walnut, purpleheart) | 24 |
 | Nails and strips | `game:metalnailsandstrips-{metal}`: iron, meteoric iron or steel | 16 |
 | Tools | A hammer and a saw (`tool-hammer`, `tool-saw`), worn as the game's mechanical power recipes wear them | — |
@@ -178,7 +181,8 @@ sheave's pin and 12 trenail heads.
 **The winch's stages**, in order. Each is one rig `requires`, so the viewer shows the bare frame and then
 each stage on top of the ones before. `{metal}` is iron, meteoric iron or steel, as the pack's
 woodworking machines take them (`assets/seraphhorizons/patches/woodworking-machine-costs.json`); `{wood}`
-is any wood (the frame's would match).
+is the gantry's own wood: the drum's planks and the spine's beams are drawn in it, so the gameplay takes
+no other (the eidolon epic's decision, #668).
 
 | # | `requires` | Item | In the model | Taken back |
 |---|---|---|---|---|
@@ -212,7 +216,7 @@ is any wood (the frame's would match).
   its mill pattern (a lantern of six staves into a 30-cog wheel), which the gearing checks hold.
 - **Spine.** Vanilla's mast is three lengths of timber (2 × 2 voxels, 16, 16 and 11 long) pegged end to end, so
   the stage takes a support beam for each (`spine_stage()` counts `SPINE_TIMBERS`), of the gantry's wood
-  (`{wood}`, the frame's would match): the mast is drawn in it. Its small fittings (the steel clamps, staples,
+  (`{wood}`, the gantry's own): the mast is drawn in it. Its small fittings (the steel clamps, staples,
   hooks, pulley, handle and ropes) are not paid for, as the frame's trenail heads are not: one item a stage. A
   steel plate for the clamps would be a second stage of a part the player hangs as one.
 - **Drum, strapping, ratchet, crank, chain.** Planks of a wood for the drum and the sheave; one nails and
@@ -226,6 +230,32 @@ comes before what it is fitted onto (`NEEDS`: a gear its shaft, the drum its sha
 the ratchet and crank the crank shaft, the crank the ratchet, the chain the drum and the sheave, the spine
 the ring, the body the spine). The body's stages then fit onto the spine as before.
 
+## Gameplay (`Core/`, `Game/`)
+
+What the gameplay holds to here, beyond the mod's README ("Eidolon"):
+
+- **Placing.** `GantryRig.PlacedSide`: the open front (native west) faces the player, and the front's
+  middle cell (`exit`'s, `[0, 0, 2]`, `GantryRig.PlaceCell`) is the block they click; the controller,
+  `[0, 0, 0]`, is two cells to its side. Every cell must be free. Hollow cells get a ghost with no boxes.
+- **Stages.** `GantryParts`: the table above, in order, by full code, a stage's whole count from one
+  stack; breaking returns every fitted code and count (`Returns`). `GantryRequires.KnownRequires` is the
+  rig's vocabulary: the nine stages and the body's six (`BodyStages`), which `GantryParts` never claims.
+  A test holds `GantryParts` to this README's stage table, as `tools/tests/test_eidolongantry_model.py`
+  holds the generator to it.
+- **Drawing.** `EidolonGantryRenderer` draws every part with a `requires`, a ride or a driver (the frame
+  is the block's own shape) when its stage is fitted, posed by `BEEidolonGantry.WinchDepth` (eased at
+  1/8 a second). The rig's `crank` part's `rotate` driver runs at ratio 0, so θ is fed 0.
+- **The body's seam.** `IEidolonGantryExtension` (`Game/IEidolonGantryExtension.cs`): a block entity
+  behavior of the controller, asked after the winch for clicks, the creative shortcut, which body stages
+  are drawn, drops and help. `BEEidolonGantry.WinchComplete` is the spine fitted; `WorldPoint` turns the
+  rig's anchors (`body`, `hang`, `fit`, `exit`) to the world; ghosts implement `IMachineGhost`.
+- **The body.** `BEBehaviorEidolonBody`, the one extension: six stages after the spine (`BodyParts`,
+  `BodyBill`), drawn when each is complete; the mind spawns the eidolon at `body`, facing `exitSide`,
+  sends it 3 blocks past `exit` and clears the body. `BEEidolonGantry.DockAt`/`Docks`: whether a point
+  is in the dock (1.25 blocks round `body`).
+- **Hand-off at activation** (below, "Open questions"): the eidolon is spawned standing at `body`
+  whatever the winch's depth (nothing drives the depth yet), and `activate` plays from `hung`.
+
 ## The body: baked, not animated
 
 The gantry's shape carries the eidolon's elements **baked into the hung pose**: each element is posed
@@ -234,8 +264,8 @@ static element, its hierarchy flattened, the body's renamed `b_<stage>_<name>` b
 (`assets/seraphhorizons/config/eidolon-stages.json`) and the spine's `sp_<name>`: the spine
 (`spine.json`, written from vanilla by the eidolon's generator) is hung back on the chest block to be
 posed with it. Elements with no drawn face (`origin` and the
-invisible anchors) are left out; disabled faces and wind data are dropped; glow is kept (the mind's
-cores glow).
+invisible anchors) are left out; disabled faces and wind data are dropped; glow is kept (the brain,
+the vessel the head brings, glows in the hung head; the mind's heart and eye are never drawn here).
 
 Why baked, for the in-game renderer: a block draws static elements in the chunk mesh, or a renderer
 tessellates them once per stage into a mesh it draws with one matrix (the hook's let-down), as the

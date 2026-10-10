@@ -1,6 +1,8 @@
 // Curio dealer: relics, art, maps, gems and jewelry, exotic schematics.
 // Format: docs/trading.md (Trade lists). Jewelry and fine metalwork are player-supplied; the
 // schematics wave (#457) puts every exotic schematic here.
+// The eidolon's stock (#670): its schematic and the Jonas pump head its torso takes, which nothing
+// else gives; both left off with the Eidolon switch off.
 // Prices come from the item value table by config/trading/list-prices.json (docs/trading.md, "Trade list format").
 {
 	"type": "curiodealer",
@@ -17,7 +19,9 @@
 			{"code": "game:schematic-customtranslocator", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 160, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
 			{"code": "betterruins:br-schematic-book", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 20, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
 			{"code": "betterruins:br-schematic-alchemist", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 28, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
-			{"code": "betterruins:br-schematic-textureflipper", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 10, "priceReason": "schematic: a hand-set gate", "standingTier": 1}
+			{"code": "betterruins:br-schematic-textureflipper", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 10, "priceReason": "schematic: a hand-set gate", "standingTier": 1},
+			{"code": "seraphhorizons:schematic-eidolon", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 180, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
+			{"code": "game:jonasparts-pumphead", "stacksize": 1, "stock": {"avg": 1, "var": 0.5}, "price": 40, "priceReason": "the eidolon's torso takes one and nothing else gives one (vanilla's loot randomizers and BetterRuins' part conversion leave it out): a hand-set scarce part", "standingTier": 3}
 		],
 		"rotating": { "maxItems": 6,
 			"list": [

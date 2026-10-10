@@ -343,7 +343,7 @@
       "shape": "mods-src/seraphhorizons/assets/seraphhorizons/shapes/entity/eidolon/eidolon.json",
       "rig": "mods-src/seraphhorizons/assets/seraphhorizons/config/eidolon-rig.json",
       "scenario": {
-        "requires": {"torso": "Torso", "pelvis": "Pelvis", "legs": "Legs", "arms": "Arms", "head": "Head", "mind": "Mind (the glowing cores)"},
+        "requires": {"torso": "Torso", "pelvis": "Pelvis", "legs": "Legs", "arms": "Arms", "head": "Head, with the elucidatory vessel", "mind": "Mind (the eye and the heart)"},
         "states": [
           {
             "id": "build",
@@ -355,8 +355,8 @@
               {"id": "pelvis", "label": "2: pelvis", "fitted": ["torso", "pelvis"]},
               {"id": "legs", "label": "3: legs", "fitted": ["torso", "pelvis", "legs"]},
               {"id": "arms", "label": "4: arms", "fitted": ["torso", "pelvis", "legs", "arms"]},
-              {"id": "head", "label": "5: head", "fitted": ["torso", "pelvis", "legs", "arms", "head"]},
-              {"id": "built", "label": "6: mind, fully built", "fitted": ["torso", "pelvis", "legs", "arms", "head", "mind"]}
+              {"id": "head", "label": "5: head", "fitted": ["torso", "pelvis", "legs", "arms", "head"], "hint": "The head goes on with the Eidolon elucidatory vessel, its brain, from the Resonance Archives' eidolon."},
+              {"id": "built", "label": "6: mind, fully built", "fitted": ["torso", "pelvis", "legs", "arms", "head", "mind"], "hint": "A temporal gear, its first charge, lights the eye and the heart and wakes it."}
             ]
           }
         ],
@@ -401,8 +401,8 @@
           "pelvis": "Body: pelvis",
           "legs": "Body: legs",
           "arms": "Body: arms",
-          "head": "Body: head",
-          "mind": "Body: mind (the glowing cores)"
+          "head": "Body: head, with the elucidatory vessel",
+          "mind": "Body: mind (the eye and the heart)"
         },
         "states": [
           {
@@ -436,7 +436,7 @@
               {"id": "pelvis", "label": "Body 2: pelvis", "fitted": ["torso", "pelvis"]},
               {"id": "legs", "label": "Body 3: legs", "fitted": ["torso", "pelvis", "legs"]},
               {"id": "arms", "label": "Body 4: arms", "fitted": ["torso", "pelvis", "legs", "arms"]},
-              {"id": "head", "label": "Body 5: head", "fitted": ["torso", "pelvis", "legs", "arms", "head"]},
+              {"id": "head", "label": "Body 5: head", "fitted": ["torso", "pelvis", "legs", "arms", "head"], "hint": "The head goes on with the Eidolon elucidatory vessel, its brain, which shows in the hung head."},
               {"id": "built", "label": "Body 6: mind, fully built", "fitted": ["torso", "pelvis", "legs", "arms", "head", "mind"]},
               {"id": "departed", "label": "Departed: awake and gone", "fitted": [], "hint": "The eidolon has woken, let go of the spine and walked out of the open front: the spine hangs empty from the ring, as it did before the body was built, and the gantry waits as its dock."}
             ]

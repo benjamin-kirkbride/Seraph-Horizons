@@ -1,0 +1,26 @@
+// The eidolon gantry (EidolonGantry/, README "Eidolon gantry"). Part of the eidolon: the server
+// disables it with Eidolon off. The eidolon schematic is not written here: its gate
+// (config/schematic-gates.json, machine "eidolon") adds it, kept on crafting, as for the other
+// machines.
+[
+	{
+		// The frame: 24 support beams of one wood, a beam a timber of the model (4 posts, 2 side head
+		// beams, the front, back and hoist beams, 3 sills, 2 side rails, 8 knee braces and 2 cheeks), in
+		// two slots of 12; 16 nails and strips for its iron (fish plates, angle brackets, bearing
+		// plates, the pillow block, the sheave's hangers and pin, trenail heads): iron, meteoric iron
+		// or steel, as the woodworking machines take them; a hammer and a saw. The gantry takes the
+		// beams' wood. The winch and spine are fitted to the placed frame afterwards, by hand.
+		ingredientPattern: "BNB,H_S",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"B": { type: "block", code: "game:supportbeam-*", name: "wood",
+				allowedVariants: ["birch", "oak", "maple", "pine", "acacia", "kapok", "baldcypress", "larch", "redwood", "ebony", "walnut", "purpleheart"],
+				quantity: 12 },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 16 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true },
+			"S": { type: "item", code: "game:saw-*", isTool: true, tags: ["tool-saw"] }
+		},
+		output: { type: "block", code: "seraphhorizons:eidolongantry-{wood}-north" }
+	}
+]

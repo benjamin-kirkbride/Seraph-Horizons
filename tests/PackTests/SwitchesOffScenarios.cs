@@ -296,6 +296,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
         Assert.Contains("Rosser", off);
+        Assert.Contains("Eidolon", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
             .Select(c => (Code: c.Code.ToString(), Owner: registry.SwitchForCode(c.Code.ToString())))
             .Where(c => c.Owner != null && off.Contains(c.Owner))
@@ -372,6 +373,30 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>Eidolon</c>: no eidolon gantry blocks and no recipe for its frame, no link to it in
+    /// the mod's own text, and nothing logged about it. The parts it takes are the game's.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_gantry()
+    {
+        Assert.True(Off("Eidolon"));
+        Assert.False(SeraphHorizons.Mod.EidolonGantry.EidolonGantrySystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("eidolongantry"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("eidolongantry") == true);
+        Assert.True(W.GetBlock(new AssetLocation(SeraphHorizons.Mod.EidolonGantry.Core.GantryParts.AxleCode)) is { Id: > 0 });
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && e.Value.Contains("handbook://block-seraphhorizons:eidolongantry", StringComparison.Ordinal))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the gantry: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("eidolongantry", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("eidolon gantry", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
     /// the mod's own text, and nothing logged about it. The angles it makes are UnifiedPipes' items
     /// (here off too); the half plates it folds are the squaring shear's (here off too).</summary>
@@ -395,6 +420,26 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Eidolon</c>: no command tool and no recipe for it, and the curio dealer stocks
+    /// neither the eidolon schematic nor the Jonas pump head (the pump head is left out by the
+    /// eidolon's own rule: MachineSchematics, off here too, only takes the schematic). The schematic
+    /// item and the pump head still exist.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_command_tool_and_no_eidolon_stock()
+    {
+        Assert.True(Off("Eidolon"));
+        Assert.False(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path == "eidoloncommander");
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.CommanderCode);
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.SchematicCode)));
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.PumpHeadCode)));
+        var lists = SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Lists!;
+        var core = lists.For("curiodealer")!.Selling.Core;
+        Assert.DoesNotContain(core, e => SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.IsTradeStock(e.Code));
+        Assert.Contains(core, e => e.Code == "game:schematic-glider");
+        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead") || u.Contains("schematic-eidolon"));
     }
 
     /// <summary><c>SquaringShear</c>: no squaring shear blocks, no half plate and no recipe for the
@@ -509,6 +554,30 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("handcar", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Eidolon</c>: no eidolon entity type, no creative spawner, no <c>/sh eidolon</c>, its
+    /// handbook guide hidden (the export leaves it out), and nothing logged about it.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_eidolon()
+    {
+        Assert.True(Off("Eidolon"));
+        var eidolons = SeraphHorizons.Mod.Eidolon.EidolonSystem.Of(World.Api)!;
+        Assert.False(eidolons.Enabled);
+        Assert.False(World.Api.World.Config.GetBool(SeraphHorizons.Mod.Eidolon.EidolonSystem.RunningKey, true));
+        Assert.Null(W.GetEntityType(SeraphHorizons.Mod.Eidolon.EidolonSystem.EntityCode));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path == "creature-eidolon");
+        Assert.Null(eidolons.Spawn(W, World.Spawn.ToVec3d(), 0, null, activate: false));
+        var sh = ((Vintagestory.API.Server.ICoreServerAPI)World.Api).ChatCommands.Get("sh");
+        Assert.True(sh == null || !sh.AllSubcommands.ContainsKey("eidolon"));
+        Assert.Contains((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("eidolon", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
@@ -927,11 +996,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's, gear reclamation's and the crucible furnace's pages, whose switches are off here too).
+        // machine oil's, gear reclamation's, the crucible furnace's and the eidolon's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
                 .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
-                .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey)).Order(),
+                .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey))
+                .Append((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
