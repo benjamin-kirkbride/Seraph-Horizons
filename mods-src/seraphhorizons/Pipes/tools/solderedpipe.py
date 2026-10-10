@@ -4,8 +4,8 @@ Pipes and Power Expanded (ppex) draws a pipe as a square tube with an iron band 
 end, a flange: right for its iron and steel pipe, which is cast and banded. Copper and lead pipe is
 soldered, so this module builds this mod's own copper and lead pipe: ppex's cross-section (a square
 tube 6 voxels across, 1-voxel walls round a 4 x 4 bore, its block's 5..11, so it meets ppex's pipes
-and fittings flush), no band and no bolts, and at each joint a wiped joint: a smooth swelling of
-solder over the seam, stepped down in three rings each way (`JOINT`), in the solder's texture.
+and fittings flush), no band and no bolts, and at each joint a thin bead of solder round the seam,
+short and barely proud of the pipe (`JOINT_LENGTH`, `JOINT_SWELL`), in the solder's texture.
 
 Two places draw it and both build it here, so they cannot drift apart:
 
@@ -26,11 +26,11 @@ from __future__ import annotations
 
 HALF = 3.0                                   # half the tube across: ppex's pipe, 6 voxels (its block's 5..11)
 WALL = 1.0                                   # the wall: a 4 x 4 bore
-# Half a wiped joint, from its seam along the pipe: (length, swell over the tube's faces) per ring,
-# fattest at the seam, a long crown falling quickly at its ends so it reads round. Two halves make a
-# joint 6.5 voxels long and 1.2 wider than the pipe (7.2 across).
-JOINT = ((2.0, 0.6), (0.75, 0.4), (0.5, 0.2))
-JOINT_LENGTH = sum(length for length, _ in JOINT)
+# A joint is a thin bead of solder over the seam, as a sweated or wiped joint on pipe this size is: one
+# ring, half on each pipe end. Half a joint runs JOINT_LENGTH along the pipe from its seam and stands
+# JOINT_SWELL proud of the tube's faces, so a whole joint is 1.5 voxels long and 6.4 across (the pipe 6).
+JOINT_LENGTH = 0.75
+JOINT_SWELL = 0.2
 
 BODY, SOLDER = "body", "solder"              # the two textures a pipe wears: its metal, and the joints' solder
 # The solder: the game's lead solder (its ingot's texture), the tin-lead the joints are wiped with.
@@ -94,18 +94,13 @@ def tube(name, axis, a, b, centre):
 
 
 def half_joint(name, axis, seam, inward, centre):
-    """Half a wiped joint on a pipe along `axis`, from its seam at `seam` along the pipe the way
-    `inward` (+1 or -1) says: `JOINT`'s rings of solder round the tube, fattest at the seam."""
-    out, at = [], seam
-    for i, (length, swell) in enumerate(JOINT, 1):
-        nxt = at + inward * length
-        out += _walls(f"{name}{i}", axis, at, nxt, centre, HALF + swell, HALF, SOLDER)
-        at = nxt
-    return out
+    """Half a joint on a pipe along `axis`, from its seam at `seam` along the pipe the way `inward`
+    (+1 or -1) says: a ring of solder round the tube, `JOINT_LENGTH` long, `JOINT_SWELL` proud."""
+    return _walls(name, axis, seam, seam + inward * JOINT_LENGTH, centre, HALF + JOINT_SWELL, HALF, SOLDER)
 
 
 def joint(name, axis, seam, centre):
-    """A whole wiped joint over a seam: both halves."""
+    """A whole joint over a seam: both halves."""
     return half_joint(f"{name}a", axis, seam, -1, centre) + half_joint(f"{name}b", axis, seam, 1, centre)
 
 
