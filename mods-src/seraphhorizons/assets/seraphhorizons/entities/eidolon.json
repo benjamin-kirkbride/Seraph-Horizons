@@ -55,6 +55,14 @@
 			{ code: "punch", animation: "stand-punch", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "kick", animation: "stand-kick", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "slam", animation: "stand-slam", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
+			// Strikes on the move (AiTaskEidolonDefend, EidolonStrikes): the upper body only, over the walk
+			// or run (or the idle, standing). Weight on the upper body's elements alone (make_shape.py's
+			// STRIKE_ELEMENTS; the legs, hips and skirts go on with the walk) and a token weight elsewhere,
+			// as the game's player does it: an element weighted 0 by every playing animation breaks the blend.
+			{ code: "strike-jab", animation: "strike-jab", weight: 0.001, blendMode: "Average",
+				elementWeight: { "chest-inside": 10, "head-inside": 10, "upper-armR": 10, "lower-armR": 10, "wristR": 10, "palmR": 10, "fingerR1": 10, "fingerR2": 10, "fingerR3": 10, "thumbR1": 10, "thumbR2": 10, "upperarmL": 10, "lower-armL": 10, "wristL": 10, "palmL": 10, "fingerL1": 10, "fingerL2": 10, "fingerL3": 10, "thumbL1": 10, "thumbL2": 10 } },
+			{ code: "strike-hammer", animation: "strike-hammer", weight: 0.001, blendMode: "Average",
+				elementWeight: { "chest-inside": 10, "head-inside": 10, "upper-armR": 10, "lower-armR": 10, "wristR": 10, "palmR": 10, "fingerR1": 10, "fingerR2": 10, "fingerR3": 10, "thumbR1": 10, "thumbR2": 10, "upperarmL": 10, "lower-armL": 10, "wristL": 10, "palmL": 10, "fingerL1": 10, "fingerL2": 10, "fingerL3": 10, "thumbL1": 10, "thumbL2": 10 } },
 			{ code: "weapon-walk", animation: "weapon-walk", blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "weapon-run", animation: "weapon-run", blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "weapon-idle", animation: "weapon-idle1", blendMode: "Average", supressDefaultAnimation: true },

@@ -2703,10 +2703,23 @@ once the first is off the infeed, its trunk kept through a save, and the rosser 
 task's 1.5). When something hurts it, the cause of the damage (the archer, not the arrow) is
 remembered unless it is a player or another eidolon. While that creature lives, is within 24 blocks
 and hurt it within the last 12 seconds (each blow landed renews that), the task runs: it goes for it at
-a run by the wide pathfinder and, once their boxes are within 1.6 blocks, strikes, a punch, a kick
-and a slam in turn (the shape's `stand-punch` and `stand-kick`, landing on frame 20, and `stand-slam`,
-both fists down on frame 40, where the archives' eidolon's own slam lets go; `EidolonDefence.Blow`),
-each punch or kick `DefenceDamage` and each slam `SlamDamage` × the world's creature damage
+a run, by the wide pathfinder from afar and straight at it within 8 blocks on the level (moving the
+traverser's goal each tick, as the game's seek task does), aiming where the creature's motion
+(measured each tick, smoothed) takes it by the time it gets there, up to a second ahead, and turning to
+face it at 4.5 radians a second. It strikes on the move: a jab, a jab and a two-fisted hammer in turn
+(only hammers at a creature under 1.5 blocks tall, which a jab would go over), the shape's
+`strike-jab` and `strike-hammer`, upper-body animations the entity type plays over the walk or run
+(weighted on the chest, head and arms only, so the legs keep walking), and it keeps closing while it
+strikes. Only at a creature standing still (under half a block a second) within reach does it stop for
+the standing blows, a punch, a kick and a slam in turn (vanilla's `stand-punch`, `stand-kick` and
+`stand-slam`). A blow is started only when the gap between their boxes, the creature's motion and its
+own carried on to the frame the blow lands on, will be within that blow's reach (the jab 1.1 blocks,
+the hammer 0.6, the punch 0.8, the kick 1.0, the slam 0.8: how far past its own 1.7-wide box the fists
+or foot get on that frame); it is judged on that frame from where the creature is then, landing only
+within its reach and half a block more, within 75° of where it faces and level with it, so a creature
+walking away is still hit and a blow that cannot land does not count (`EidolonStrikes` in
+`Eidolon/Core/EidolonStrikes.cs`). It stands off once their boxes are 0.4 apart. Each blow is
+`DefenceDamage`, every third (the slam or a hammer) `SlamDamage`, × the world's creature damage
 multiplier, blunt, tier 3. Then the order task starts its
 order again (a stay walks back to its place, a follow picks up the player). It starts only while the
 eidolon can work, and never strikes a player, whoever hurts it.
@@ -2975,8 +2988,8 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
 | `CommandRange` | 64 | How far a command tool's orders reach, in blocks |
 | `FollowDistance` | 4 | Following, how many blocks it keeps off the player |
 | `FollowRunDistance` | 10 | Following, it runs while further than this |
-| `DefenceDamage` | 10 | Each punch or kick when it defends itself (times the world's creature damage multiplier) |
-| `SlamDamage` | 16 | Each slam, every third blow (the same multiplier) |
+| `DefenceDamage` | 10 | Each blow when it defends itself or guards (times the world's creature damage multiplier) |
+| `SlamDamage` | 16 | Every third blow, the slam or a hammer (the same multiplier) |
 | `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
 | `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
 
@@ -2991,11 +3004,13 @@ knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and w
 (tallow starts it again), repairs it in a gantry (double) and in the open (a slumped one stands after
 three items, a whole one refuses), and flips `MachineOil` off (no reservoir, never dry);
 `tests/Eidolon/EidolonCommandingTests.cs` covers marking, binding, the follow gait and self-defence's
-rules, and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool as a player does:
+rules, `tests/Eidolon/EidolonStrikesTests.cs` its blows (which, by the creature's motion; when one lands;
+the lead; each an animation of the shape of its length), and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool as a player does:
 bound by its owner it follows them over rough ground (steps of one and two, a pillar) and then stays,
 waits and says so at a doorway too narrow, a stranger can neither bind it nor order it with a tool
 bound to it, and it strikes a wolf that hurt it until dead, never the player who hurt it, and walks
-back to its stay; `tests/Eidolon/EidolonCarryingTests.cs` covers the carry timings and stand points,
+back to its stay, and it runs down a drifter and then a wolf walking steadily away from it (1.5 blocks a
+second), striking each on the move until dead; `tests/Eidolon/EidolonCarryingTests.cs` covers the carry timings and stand points,
 and `tests/PackTests/EidolonCarryScenarios.cs` (Atlas) has it lift a chest of flint, refuse granite,
 open the chest while carried (what goes in stays in, and the load is in the entity's saved bytes),
 follow its commander 20 blocks and set the chest down with everything in it for a load's oil, and set
