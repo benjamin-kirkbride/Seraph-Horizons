@@ -2762,11 +2762,18 @@ and lit by the block above the eidolon; it now goes the trunk's way.)
 
 **Guarding** (#680; `Eidolon/Game/GuardOrder.cs`, `EidolonGuardSystem.cs`, rules in
 `Eidolon/Core/EidolonGuarding.cs`). The tool's *Guard this place* mode (wheel place 80) marks a block:
-the `guard` order holds the point on top of it, standing there in its guard stance (`guard-idle`).
-Once a second it looks about the point, and the nearest hostile creature within `GuardRadius` of it
-(nearest to the eidolon) goes to self-defence (`Engage`, above), leashed to the point: it lets one go
-that gets more than `GuardRadius` + 4 blocks from it. After the fight the order starts again, the next
-hostile one or the walk back to the point. Guarding drains no oil.
+the `guard` order holds the point on top of it, standing in its guard stance (`guard-idle`) at a post
+of its own about the point (`EidolonGuard.Post`): a block within 4 of the point across where its whole
+body fits with a floor under it (`WidePath.Feet`, up to 2 above or below the point's floor; never in
+lava or fire), at random among those at least 3 blocks across from every other guarding eidolon's post
+and from where each of them stands, so several guarding one point spread out round it rather than
+standing in each other; the point itself when there is none. Once it has stood at its post a random 15
+to 45 seconds it takes another the same way (away from the one it held, or that one again if there is
+none), so guards wander about their point; it takes one again too when it finds no way to its post.
+Constants, not settings. Once a second it looks about the point, and the nearest hostile creature
+within `GuardRadius` of it (nearest to the eidolon) goes to self-defence (`Engage`, above), leashed to
+the point: it lets one go that gets more than `GuardRadius` + 4 blocks from it. After the fight the
+order starts again, the next hostile one or the walk back to its post. Guarding drains no oil.
 
 *Hostile* is read from the game's own data for the creature, its entity type's AI tasks (the
 `taskai` behaviour's `aitasks`, as its variant resolves them; `EidolonHostiles`): one is hostile when
@@ -3010,12 +3017,13 @@ open the chest while carried (what goes in stays in, and the load is in the enti
 follow its commander 20 blocks and set the chest down with everything in it for a load's oil, and set
 its load down where it stood when removed; `tests/Eidolon/EidolonGuardingTests.cs` covers hostility (vanilla's task shapes:
 drifter, bowtorn, wolf, sheep, fox, the mech helper; owned, tamed and bred ones; the world's setting)
-and the guard's radius, and `tests/PackTests/EidolonGuardScenarios.cs` (Atlas) reads the game's own
+and the guard's radius and posts (standable, within range, clear of other guards, none when walled in, the
+random wander), and `tests/PackTests/EidolonGuardScenarios.cs` (Atlas) reads the game's own
 creature types (drifters, bowtorns, shivers, locusts, wolves, bears and hyenas hostile; sheep, boars,
 chickens, foxes, deer, the mech helper, hacked locusts and tamed elk not; a sheep hostile when
 angry; a trader never) and guards a point given with the tool: a drifter 10 blocks off is gone for and killed, one 25
-off and a bred wolf 6 off are left alone, it stands at its point again after, and the wolf, unbred,
-is gone for;
+off and a bred wolf 6 off are left alone, it stands at its post again after, and the wolf, unbred,
+is gone for; and three eidolons guarding one point each stand at a post of their own, 3 or more apart;
 `tests/Eidolon/EidolonFellingTests.cs` covers felling's rules (wild logs and
 stumps, grown trees, where it stands, the swing, what replants) and
 `tests/PackTests/EidolonFellScenarios.cs` (Atlas) orders it with the tool: refused without an axe,
