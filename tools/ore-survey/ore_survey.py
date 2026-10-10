@@ -31,6 +31,9 @@ MINERALS = {
     "alum": "alum", "rhodochrosite": "manganese",
 }
 UNITS_PER_NUGGET = 5
+# Ores whose metal is read from another nugget than their own name's last part: argentiferous
+# galena is a lead ore since #690 (its silver is cupelled); vanilla's nugget for it is native silver.
+NUGGET_OF = {"galena_nativesilver": "galena"}
 NUGGETS_PER_INGOT = 20
 SURFACE_DEPTH = 6  # a deposit "reaches the surface" if any of its ore is this close
 
@@ -79,8 +82,9 @@ class Classifier:
         return None
 
     def metal(self, ore: str):
-        """The metal an ore's nugget smelts to (galena_nativesilver -> nativesilver -> silver)."""
-        nugget = self.items.get("Item game:nugget-" + ore.split("_")[-1])
+        """The metal an ore's nugget smelts to (quartz_nativegold -> nativegold -> gold;
+        galena_nativesilver -> galena -> lead, NUGGET_OF)."""
+        nugget = self.items.get("Item game:nugget-" + NUGGET_OF.get(ore, ore.split("_")[-1]))
         smelts = nugget and nugget.get("smeltsTo")
         if not smelts:
             return None

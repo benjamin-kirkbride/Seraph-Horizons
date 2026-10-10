@@ -350,6 +350,16 @@ the next. `extra` has the `share`, the `meltingPoint` and the `seconds` one item
 `requirements` says so in words. The concentrate's own `attributes.smelting` gives one roasted item per
 item, the game's terms; the record's quantity is what a player gets.
 
+**Cupellation** (type `cupellation`, shape `generic`, seraphhorizons with `OreProcessing` on):
+one record per ore the bone-ash cupel takes, a full cupel of it, id
+`cupellation|seraphhorizons:roastedconcentrate-<ore>|0`. The ingredients are the fired cupel
+(used up), the roasted concentrate, lead bits for an ore whose main metal is not lead, and
+`game:forge` (role `station`, crucibulum's forge); the outputs are what the cupel with its
+silver bead breaks into in the grid, as averages: litharge (the lead) and metal bits (silver,
+copper), fractional since whole items are drawn when the cupel is done. `extra` has the units
+(`leadUnits`, `metalUnits` per metal), the cupel's `capacityUnits` and the `seconds` with the
+blast gate open; `requirements` says the heat and the gate.
+
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a
 shape it has no layout for.

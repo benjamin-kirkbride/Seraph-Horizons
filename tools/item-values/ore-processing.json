@@ -27,6 +27,11 @@
     "amalgam": { "code": "seraphhorizons:amalgam-{ore}", "stack": 128, "only": "free", "name": "Amalgam ({ore})" }
   },
 
+  "nuggetOf": {
+    "about": "Ores whose forms smelt to another nugget's metal than the one their name gives (OreProducts.NuggetOf): argentiferous galena is a lead ore with ore processing (#690), its silver a by-product won at the cupel. Its raw ore and chunks are still priced as vanilla's silver, which the game hammers them into with the switch off.",
+    "galena_nativesilver": "galena"
+  },
+
   "litharge": {
     "about": "Litharge, the lead the cupel oxidises: priced by the lead it smelts back to, 20 units in 21 items (OreProducts.LithargeRate).",
     "code": "seraphhorizons:litharge",
@@ -53,7 +58,7 @@
 
   "parting": {
     "about": "Parting methods with a station (true) or none yet (false). A by-product is a share of the main metal's units (the config's byProducts), won only at a parting step at the line's parting tier. Where a method has a station, the form that is parted (roasted concentrate for a sulfide, else concentrate and amalgam) is worth at least what parting wins from it: its main metal at the ore's unparted share, plus each by-product at its share times the method's recovery, both at the metals' unit values. A method without a station leaves the by-product out (it is lost unparted), so turning one on when its station lands (cupellation #722, liquation #724, acid parting) is the whole change.",
-    "cupellation": false,
+    "cupellation": true,
     "liquation": false,
     "acidparting": false
   },
