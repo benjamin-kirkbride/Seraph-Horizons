@@ -36,6 +36,7 @@ FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "gr
 REFERENCE = json.loads((MOD / "tests" / "Grinder" / "rig-reference.json").read_text())
 README = (MOD / "Grinder" / "README.md").read_text()
 LEVELS = {1: ("l1post", "l1arms", "l1stones"), 2: ("l2bed", "l2drum", "l2drive", "l2balls", "l2feed")}
+PIPES = ("pipecopper", "pipelead")
 
 
 def matrix(pid, theta):
@@ -63,9 +64,11 @@ class Rig(unittest.TestCase):
             level = int(p["id"][1]) if re.match(r"l\d", p["id"]) else 0
             if level:
                 self.assertIn(p["requires"], LEVELS[level], p["id"])
+            elif p["id"] in PIPES:
+                self.assertEqual(p["requires"], p["id"])
             else:
                 self.assertIsNone(p["requires"], p["id"])
-        self.assertEqual({p["requires"] for p in RIG["parts"]} - {None}, {r for rs in LEVELS.values() for r in rs})
+        self.assertEqual({p["requires"] for p in RIG["parts"]} - {None}, {r for rs in LEVELS.values() for r in rs} | set(PIPES))
 
     def test_the_levels_list_each_set_in_order_and_level_2_retires_the_arrastra(self):
         self.assertEqual([(lv["level"], tuple(lv["fitted"])) for lv in RIG["levels"]], sorted(LEVELS.items()))
@@ -87,7 +90,8 @@ class Rig(unittest.TestCase):
             used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
             self.assertLessEqual(used, set(shape["textures"]))
         self.assertEqual(SHAPE["textures"]["riveted"], "game:block/metal/riveted/iron1")
-        self.assertEqual(SHAPE["textures"]["pipe"], "game:block/metal/sheet-plain/lead4")
+        self.assertEqual({k: SHAPE["textures"][k] for k in PIPES},
+                         {"pipecopper": "game:block/metal/sheet-plain/copper4", "pipelead": "game:block/metal/sheet-plain/lead4"})
 
     def test_reference_poses_are_the_rigs_own_maths(self):
         poses = REFERENCE["poses"]
@@ -166,7 +170,13 @@ class Anchors(unittest.TestCase):
         self.assertTrue(all(n.startswith("fr_hopper") for n in high), sorted(high))
 
     def test_the_water_inlet_is_a_ppex_section_on_the_water_face(self):
-        pipe = aabb_of([e for e in posed_part("frame") if e.name.startswith("fr_inlet_")])
+        # drawn as the rosser's pipes: the same elements in each metal, only the metal's texture differing
+        copper = sorted((e["name"][len("pipecopper"):], e["from"], e["to"]) for e in SHAPE["elements"] if e["name"].startswith("pipecopper_"))
+        lead = sorted((e["name"][len("pipelead"):], e["from"], e["to"]) for e in SHAPE["elements"] if e["name"].startswith("pipelead_"))
+        self.assertTrue(copper)
+        self.assertEqual(copper, lead)
+        self.assertFalse([e for e in SHAPE["elements"] if e["name"].startswith("fr_inlet")])
+        pipe = aabb_of(posed_part("pipecopper"))
         self.assertAlmostEqual(pipe[0][2], 0.0, places=4)
         self.assertEqual([round(pipe[1][k] - pipe[0][k], 3) for k in (0, 1)], [6.0, 6.0])
         self.assertEqual([round((pipe[0][k] + pipe[1][k]) / 2, 3) for k in (0, 1)], [8.0, 24.0])

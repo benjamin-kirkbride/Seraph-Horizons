@@ -104,7 +104,10 @@ TEXTURES = {
     "drystone": "game:block/stone/drystone/granite1",
     "granite": "game:block/stone/rock/granite1",
     "basalt": "game:block/stone/rock/basalt1",           # the drag stones: a hard, dark rock, as they were chosen
-    "pipe": "game:block/metal/sheet-plain/lead4",        # lead water pipe, as UnifiedPipes gives ppex's lead pipe
+    # the water pipe wears ppex's pipe textures as UnifiedPipes gives them, its joints the solder its soldered pipes
+    # are wiped with (as the rosser's drip pipes)
+    **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in ("copper", "lead")},
+    "solder": solderedpipe.SOLDER_TEXTURE,
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -155,6 +158,7 @@ CHUTE_W = 3.6                                # its floor's width (x); its sides 
 CHUTE_SIDE = 1.6
 CHUTE_SIDES_END = 4.0                        # z: the sides stop here, square to the slope, short of the trunnion's mouth
 PIPE_Y = SHAFT_Y                             # the water pipe's axis: the water face's centre, (x 24, y 24)
+PIPE_METALS = ("copper", "lead")             # the water pipe is ppex's straight pipe in either metal UnifiedPipes adds
 
 # ---------------------------------------------------------------- level 1: the arrastra
 BEVEL = {"wheel": 18, "pinion": 6, "m": 0.8333, "face": 2.0}   # 3:1, the post turns a third of the axle
@@ -197,7 +201,8 @@ SOLE_X = (19.2, 28.8)
 SOLE_TOP = PAVE_TOP + 0.8
 MANHOLE_Z = (13.4, 17.6)
 FEED_LIP = ((CHUTE[1][0] - 0.2, CHUTE[1][1]), (8.0, 11.8))   # (z, y): the feed lip's floor's top, from the chute into the bore
-CHARGE_FACE = (2.0, 0.42)                    # the charge's face: this far under the axis at its middle, rising this much a voxel towards -x
+CHARGE_FACE = (2.0, 0.0)                     # the charge's top: this far under the axis, level (rising this much a voxel towards
+                                             # -x would heap it up one side, true for one direction of the axle only)
 BALL = 2.2                                   # a ball's size (they vary by 0.2 either way)
 
 
@@ -522,18 +527,37 @@ def build_hopper():
     return out
 
 
-def build_inlet():
-    """The water inlet: a stub of soldered lead pipe from the water face through the hopper's north wall, on the
-    axis of the ppex pipe beyond the face (ppex's section: a 6 x 6 tube round a 4 x 4 bore); the pipe placed
-    beyond brings its own half joint to the face, as a soldered ppex pipe does against any block. Water runs into the hopper and down the chute with the ore."""
-    f = "frame"
-    c = (CX, PIPE_Y)
-    boxes = solderedpipe.tube("inlet", 2, 0.0, HOP_Z[0] + HOP_WALL, c)
+def build_inlet(metal=PIPE_METALS[0]):
+    """The water inlet, drawn as the rosser draws its drip pipes: ppex's straight pipe as UnifiedPipes draws it
+    soldered (Pipes/tools/solderedpipe.py: ppex's 6 x 6 tube round its 4 x 4 bore, the same texture mapping),
+    from the water face through the hopper's north wall, on the axis of the ppex pipe beyond the face. It has no
+    joint of its own at the face: the pipe placed beyond brings its own half joint, as a soldered ppex pipe does
+    against any block. Water runs into the hopper and down the chute with the ore. Built in copper as the part
+    `pipecopper`; `pipe_copies` makes the lead part, and whichever metal is supplied is drawn."""
+    p = f"pipe{metal}"
+    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
     out = []
-    for b in solderedpipe.cull_pressed(boxes):
-        el = box(b.lo, b.hi, f"fr_inlet_{b.name}", f, "pipe")
-        el.faces = {d: v for d, v in el.faces.items() if d in b.faces}
-        out.append(el)
+    for b in solderedpipe.cull_pressed(solderedpipe.tube("inlet", 2, 0.0, HOP_Z[0] + HOP_WALL, (CX, PIPE_Y))):
+        size = b.size()
+        faces = {d: {"texture": codes[b.role], "uv": solderedpipe.uv(d, size, TEX / 16)} for d in b.faces}
+        out.append(El(f"{p}_{b.name}", size, [(b.lo[k] + b.hi[k]) / 2 for k in range(3)], [row[:] for row in IDENT], faces, p))
+    return out
+
+
+def pipe_copies(els):
+    """The pipe in the other metals: the first metal's elements as they are (after the z-fighting fix, so every
+    copy gets the same insets), renamed and in their own metal's texture; joints stay solder. Only one metal's
+    is ever drawn, so the copies are not checked against each other (the rosser's rule)."""
+    first = f"pipe{PIPE_METALS[0]}"
+    out = []
+    for m in PIPE_METALS[1:]:
+        for el in els:
+            if el.part == first:
+                c = el.clone(f"pipe{m}" + el.name[len(first):], f"pipe{m}")
+                for face in c.faces.values():
+                    if face["texture"] == f"#{first}":
+                        face["texture"] = f"#pipe{m}"
+                out.append(c)
     return out
 
 
@@ -668,8 +692,9 @@ def build_feed():
 
 
 def build_charge():
-    """The charge: iron balls heaped in the drum's bottom, the heap's face raised up the side the drum lifts it
-    (towards -x when the axle turns forward). The lowest rest on the shell, every other on its neighbours."""
+    """The charge: iron balls in the drum's bottom, its top level: drawn still, it must read right whichever way the
+    axle turns, and a heap raised up one side would be right for one direction only. The lowest rest on the shell,
+    every other on its neighbours."""
     out = []
     r_in = SHELL_R[0]
     step = BALL - 0.15
@@ -705,8 +730,11 @@ LEVELS = (
 )
 
 
+PIPE_PARTS = tuple(f"pipe{m}" for m in PIPE_METALS)   # the water pipe: the frame's, drawn in the metal supplied
+
+
 def level_of(pid):
-    """The level a part belongs to: 0 for the frame's (the frame and the power shaft), else 1 or 2."""
+    """The level a part belongs to: 0 for the frame's (the frame, the power shaft and the water pipe), else 1 or 2."""
     return int(pid[1]) if pid[:1] == "l" and pid[1:2].isdigit() else 0
 
 
@@ -759,6 +787,7 @@ def _rig_parts():
              part("l2bed", stage["l2bed"]),
              part("l2feed", stage["l2feed"]),
              part("l2balls", stage["l2balls"]),
+             *[part(f"pipe{m}", f"pipe{m}") for m in PIPE_METALS],
              {"id": "frame", "match": ["fr_*"], "requires": None, "ride": None, "drivers": []}]
     for p in parts:
         for d in p["drivers"]:
@@ -969,6 +998,7 @@ def main():
             print(f"coplanar faces before the fix, frame and level {k}: {before}; {hidden} faces pressed against their own part removed")
     rig = make_rig(parts)
     ok = validate_grinder.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
+    els += pipe_copies(els)
     if args.out:
         outs = (args.out / "grinder.json", args.out / "grinder_frame.json", args.out / "grinder-rig.json", args.out / "rig-reference.json")
     else:

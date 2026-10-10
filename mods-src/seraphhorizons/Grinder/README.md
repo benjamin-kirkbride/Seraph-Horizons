@@ -34,7 +34,7 @@ the east.** Every anchor is at the same cell at every level (shipped coordinates
 |---|---|---|
 | `powerCell`, `powerFace` | `[0,1,1]`, south | The vanilla axle comes in along z at the upper south face's centre (x 24, y 24 voxels in the build frame) onto the power shaft. High, because the arrastra is driven from overhead. |
 | `infeedCell`, `infeedFace` | `[0,1,0]`, up | The feed hopper's mouth: a player (level 1) or a chute (level 2) tips ore in from above. At level 2 the concentrator's middlings come back the same way, into the same hopper: there is no separate return. |
-| `waterCell`, `waterFace` | `[0,1,0]`, north | The ppex process-water inlet: a stub of the mod's soldered lead pipe through the hopper's north wall, on the axis of a ppex pipe beyond the face. Water runs into the hopper and down the chute with the ore, at both levels. |
+| `waterCell`, `waterFace` | `[0,1,0]`, north | The ppex process-water inlet: ppex's straight pipe, drawn as the rosser's drip pipes are (below), through the hopper's north wall on the axis of a ppex pipe beyond the face. Water runs into the hopper and down the chute with the ore, at both levels. |
 | `outputCell`, `outputFace`, `output.pos` | `[1,0,1]`, east, `[2.0, 0.2125, 1.35]` | The launder's lip on the east face, low: the ground pulp leaves towards the next machine (the concentrator). |
 
 **The frame** (`requires` null) is what never changes between levels:
@@ -49,8 +49,18 @@ the east.** Every anchor is at the same cell at every level (shipped coordinates
   (z 20.6), carried in two iron drop hangers under T2, collars either side of the first; it turns with the axle in
   every state, the bare frame's included;
 - the **hopper** between the stringers, its mouth the infeed's top face, its floor falling north at 45° to an
-  outlet over a steep plank **chute**, which runs down south towards the pit's north side; the **water inlet**
-  through its north wall.
+  outlet over a steep plank **chute**, which runs down south towards the pit's north side; the **water pipe's
+  inlet** through its north wall (below).
+
+**The water pipe** is drawn as the rosser draws its drip pipes (the owner's rule for every water inlet and line):
+Pipes and Power Expanded's straight pipe as `UnifiedPipes` draws it soldered, built by the same module,
+`Pipes/tools/solderedpipe.py` (ppex's 6 × 6 tube round its 4 × 4 bore, the same texture mapping, a hub where two
+lengths meet and beads of solder at the joints). The rig has a part per metal, `pipecopper` and `pipelead`: the same
+elements in `game:block/metal/sheet-plain/copper4` and `lead4`, the textures `UnifiedPipes` gives ppex's copper and
+lead pipes, joints in `game:block/metal/ingot/leadsolder`; whichever metal is supplied is drawn. The grinder's is
+one straight length from the water face through the hopper's wall, so it has no hub and no joint of its own: the
+ppex pipe placed beyond the face brings its own half joint to it, as a soldered pipe does against any block (the
+rosser's inlet is the same). It is the frame's, there at every level, like the anchor it serves.
 
 ### Why this layout
 
@@ -100,6 +110,20 @@ No animal, water wheel or engine: power comes from the axle, and both levels wor
 
 Gearing ratios are the model's (the turns the work makes per axle turn); gameplay's throughput is its own.
 
+### Either way round
+
+The axle may turn either way (the owner's rule for every machine), and nothing in the grinder depends on which:
+
+- **The gearing** has no catch, ratchet or one-way part: both bevel pairs and the girth gear and pinion are
+  symmetric teeth, and every part's motion is a plain `rotate` that runs backwards with θ.
+- **The arrastra's drag stones** hang on bridles of two chains, one fore and one aft of each stone, so the same
+  bridle drags it whichever way the arms go; a period stone on one leading chain would trail the wrong way in
+  reverse.
+- **The ball mill's charge** is drawn still, its top level. A running charge heaps up the side the drum lifts, so
+  a heap drawn up one side would be right for one direction only; the level charge reads right both ways.
+- **The ore's way** does not depend on the turn: the feed falls in by the chute and the trunnion, the arrastra
+  sweeps round either way, and the drum discharges over its lip and the pit overflows whichever way they turn.
+
 ### Every turning part
 
 θ is the axle's angle. A part that rides another turns with it; nothing else moves. Turns are per axle turn;
@@ -109,7 +133,8 @@ the whole machine repeats every three (the viewer's θ slider spans three turns)
 |---|---|---|---|
 | **Frame** | | | |
 | Power shaft: the axle's cross, the iron shaft, its collars (`shaft`) [null] | The vanilla axle | The fitted level's pinion | `rotate` z, 1 |
-| Pit, launder, head frame, hangers, hopper, chute, water inlet (`frame`) [null] | Fixed | — | none |
+| Pit, launder, head frame, hangers, hopper, chute (`frame`) [null] | Fixed | — | none |
+| Water pipe, in copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Fixed, the metal supplied drawn | — | none |
 | **Level 1: arrastra** | | | |
 | Bevel pinion, 6 teeth, on the power shaft's end (`l1pinion`) [l1post] | The power shaft (keyed) | The post's bevel wheel | rides `shaft` |
 | Post: iron gudgeons, oak post, iron bands and cap, bevel wheel (18 teeth) and hub (`l1post`) [l1post] | The pinion | The arms | `rotate` y, +1/3 |
@@ -120,7 +145,7 @@ the whole machine repeats every three (the viewer's θ slider spans three turns)
 | Pinion, 8 teeth, and hub on the power shaft's end (`l2pinion`) [l2drive] | The power shaft (keyed) | The girth gear | rides `shaft` |
 | Drum: trunnions, heads, riveted shell, manhole, girth gear (24), discharge lip (`l2drum`) [l2drum] | The pinion | Lifts the charge | `rotate` z, −1/3 |
 | Sole plates, pedestals, trunnion bearings (`l2bed`) [l2bed]; feed lip (`l2feed`) [l2feed] | Fixed | — | none |
-| The charge (`l2balls`) [l2balls] | Lies in the drum's bottom, heaped up the rising side | — | none |
+| The charge (`l2balls`) [l2balls] | Lies in the drum's bottom, its top level (either way round, above) | — | none |
 
 At one axle turn a second the arrastra's post turns 20 times a minute, the drum 20. Toothed wheels and what
 they mesh (nothing toothed meshes nothing): the arrastra's pinion and wheel; the ball mill's pinion and girth
@@ -145,7 +170,8 @@ Each level's set goes on in this order, one item each (the rig's `levels`). The 
 Level 2 retires level 1's three (`retires` in the rig). **In the viewer** (`site/models.json`): one select,
 **Level**, steps from "The frame" through "Level 1 (water): arrastra" (the default) to "Level 2 (mill): ball
 mill", each fitting that level's whole set and none of the other's; the checkboxes under it show a level's
-stages one at a time. θ has a slider and Play.
+stages one at a time. A second select, **Water pipe**, draws the pipe in copper (the default) or lead, as the
+rosser's drip pipes. θ has a slider and Play.
 
 ### Collision
 
@@ -158,21 +184,22 @@ whether the top is walked on is open. The game's rig loader does not read `fitte
 
 ## Model
 
-Everything in the model was made for this mod: no other mod's model is used. The water inlet is built with the
-mod's own soldered pipe (`Pipes/tools/solderedpipe.py`). Textures are the game's, referenced: debarked oak and
-oak planks, the generic planks of the vanilla axle's cross, iron plate, plain steel sheet, riveted iron (the
-drum's shell), iron chain, lead sheet (the inlet, as UnifiedPipes gives ppex's lead pipe), and granite as
+Everything in the model was made for this mod: no other mod's model is used. The water pipe is built with the
+mod's own soldered pipe (`Pipes/tools/solderedpipe.py`), as the rosser's. Textures are the game's, referenced:
+debarked oak and oak planks, the generic planks of the vanilla axle's cross, iron plate, plain steel sheet,
+riveted iron (the drum's shell), iron chain, copper and lead sheet (the pipe, as UnifiedPipes gives ppex's copper
+and lead pipes; a joint would be in lead solder, but this one length has none), and granite as
 cobblestone (paving), dry stone (curb) and rock (centre stone); the drag stones are basalt, a hard dark rock as
 they were chosen, which also reads apart from the paving. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/grinder.json` | The frame and both levels' parts (371 elements), each level's under its `requires`. |
-| `assets/seraphhorizons/shapes/block/grinder_frame.json` | The static frame only (81 elements): what a block would draw. |
-| `assets/seraphhorizons/config/grinder-rig.json` | Footprint, anchors, the levels, the part rig (12 parts). |
+| `assets/seraphhorizons/shapes/block/grinder.json` | The frame, the pipe in both metals and both levels' parts (377 elements), each under its `requires`. |
+| `assets/seraphhorizons/shapes/block/grinder_frame.json` | The static frame only (77 elements): what a block would draw (the pipe is drawn in its metal, as the rosser's). |
+| `assets/seraphhorizons/config/grinder-rig.json` | Footprint, anchors, the levels, the part rig (14 parts). |
 | `tests/Grinder/rig-reference.json` | Every part's matrix at a grid of axle angles, from the reference maths. |
 
-Elements drawn: the frame alone 95 (with the shaft), level 1 195, level 2 271.
+Elements drawn: the frame alone 95 (with the shaft and one metal's pipe), level 1 195, level 2 273.
 
 ### Dimensions (voxels, build frame)
 
@@ -185,7 +212,7 @@ Elements drawn: the frame alone 95 (with the shaft), level 1 195, level 2 271.
   at z 25.4..27.4 and 28.4..30.
 - **Hopper** x 20..28, z 1..13, its walls down to y 19.6 north of z 8.2 and 23.8 south of it (over the bevel
   wheel); its floor from (z 12.2, y 28.2) down to (z 4.4, y 20.4); the chute from there to (z 5.6, y 13).
-  Water inlet: a 6 × 6 lead tube at (x 24, y 24), z 0..1.8.
+  Water pipe: ppex's 6 × 6 tube at (x 24, y 24), z 0..1.8, through the hopper's north wall.
 - **Level 1**: post radius 2 from y 3.6 to 24.4 on an iron step on the centre stone, its top gudgeon in a bearing
   y 24.8..26.4 under T1; bevel wheel radius 7.5 (18 teeth, module 0.83) under the pinion radius 2.5 (6 teeth),
   apex (24, 24, 16); arms y 8.5..11.5 to radius 12; drag stones radius 4.6..11.5, 4 wide, y 1.5..4.5, on chains
@@ -255,13 +282,13 @@ is a `rotate` on it, and the rest of the parts ride or stand still. Keys: `cells
 and `waterFace` (the rosser's key), `outputCell`, `outputFace` and `output`, `levels`
 (`[{level, tier, name, fitted, retires?}]`: each level's tier, its `requires` values in fitting order, and the
 values it takes out) and `parts`. `requires` values: `l1post`, `l1arms`, `l1stones`, `l2bed`, `l2drum`,
-`l2drive`, `l2balls`, `l2feed`, or null.
+`l2drive`, `l2balls`, `l2feed`, `pipecopper`, `pipelead` (the pipe's metal, not a level's), or null.
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, a part's id and `_`): `sh_*` (the power shaft),
 `fr_*` (the frame), and `l1pinion_*`, `l1post_*`, `l1arms_*`, `l1stones_*`, `l1step_*`, `l2pinion_*`, `l2drum_*`,
-`l2bed_*`, `l2feed_*`, `l2balls_*`. Hand edits are lost when the script runs again: port them into
+`l2bed_*`, `l2feed_*`, `l2balls_*`, `pipecopper_*`, `pipelead_*`. Hand edits are lost when the script runs again: port them into
 `make_shape.py`, or stop regenerating.
 
 ## Open for the owner
@@ -279,8 +306,7 @@ Element names are the rig's interface (first-match globs, a part's id and `_`): 
 5. **The items and the finer stages** within each level (the `requires` ids and order above are a proposal).
 6. **Sizes and speeds:** the pit two blocks across outside (period arrastras were 3 to 6 m), the drum about
    0.95 m by 0.6 m; the post and the drum each at a third of the axle.
-7. **The inlet pipe in lead.** It could be copper, or a choice of the two as the rosser's drip pipes are.
-8. **The charge** is drawn lying still in the drum's bottom, seen only with the drum unticked; the ore and pulp
+7. **The charge** is drawn lying still in the drum's bottom, seen only with the drum unticked; the ore and pulp
    are not drawn at all (no work input).
 
 Decided: **no return path inside the machine** (the owner's ruling). Returns are handled outside it, by placing

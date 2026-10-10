@@ -64,18 +64,21 @@ describe("the grinder's levels and the viewer's states", () => {
   const requires = requiresValues(parts);
   const groups = model.scenario!.states as FittedStates[];
   const level = groups[0]!;
+  const pipes = ["pipecopper", "pipelead"];
 
   it("lists each level's fitted parts once, water then mill, and level 2 retires level 1's", () => {
     expect(rig.levels.map((l) => [l.level, l.tier])).toEqual([[1, "water"], [2, "mill"]]);
     const all = rig.levels.flatMap((l) => l.fitted);
     expect(new Set(all).size).toBe(all.length);
-    expect(new Set(all)).toEqual(new Set(requires));
+    expect(new Set([...all, ...pipes])).toEqual(new Set(requires));
     for (const l of rig.levels) for (const r of l.fitted) expect(r.startsWith(`l${l.level}`)).toBe(true);
     expect(rig.levels[1]!.retires).toEqual(rig.levels[0]!.fitted);
   });
 
   it("has a state for the frame alone and one for each level, fitting exactly that level's set", () => {
-    expect(groups.length).toBe(1);
+    expect(groups.map((g) => g.id)).toEqual(["level", "pipes"]);
+    expect(groups[1]!.default).toBe("pipecopper");
+    expect(groups[1]!.options.map((o) => o.fitted)).toEqual([["pipecopper"], ["pipelead"]]);
     expect(level.options.map((o) => o.id)).toEqual(["frame", "l1", "l2"]);
     expect(level.options[0]!.fitted).toEqual([]);
     rig.levels.forEach((l, i) => expect([...level.options[i + 1]!.fitted].sort()).toEqual([...l.fitted].sort()));
@@ -85,12 +88,12 @@ describe("the grinder's levels and the viewer's states", () => {
   it("draws in each state the frame's parts and only that level's", () => {
     const sg = stateGroups(model.scenario!.states!, requires);
     const { fitted: opening, picked } = openingFitted(requires, [], sg);
-    expect(picked).toEqual({ level: "l1" });
+    expect(picked).toEqual({ level: "l1", pipes: "pipecopper" });
     for (const [i, option] of level.options.entries()) {
       const ticked = applyState(opening, option, sg[0]!.owns);
       const shown = parts.filter((p) => fitted(p.requires, ticked)).map((p) => p.id);
       const lv = i === 0 ? null : `l${i}`;
-      expect(shown.filter((id) => !/^l\d/.test(id)).sort()).toEqual(["frame", "shaft"]);
+      expect(shown.filter((id) => !/^l\d/.test(id)).sort()).toEqual(["frame", "pipecopper", "shaft"]);
       expect(shown.every((id) => !/^l\d/.test(id) || id.startsWith(lv ?? "-"))).toBe(true);
       if (lv) expect(shown.filter((id) => id.startsWith(lv)).length).toBe(parts.filter((p) => p.id.startsWith(lv)).length);
     }

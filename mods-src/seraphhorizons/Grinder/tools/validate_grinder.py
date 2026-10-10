@@ -28,6 +28,8 @@ class V:
         for el in els:
             self.by_part.setdefault(el.part, []).append(el)
         self.spec = {p["id"]: p for p in parts}
+        # the pipe's other metals are the first's elements copied after the checks; only one is ever drawn
+        self.copies = [pid for pid in m.PIPE_PARTS[1:]]
         self.cache = {}
         self.ok = True
 
@@ -75,7 +77,7 @@ def check_basic(v):
     wrong = [(el.name, el.part, part_of(v.parts, el.name)) for el in v.els if part_of(v.parts, el.name) != el.part]
     if wrong:
         v.fail(f"{len(wrong)} elements land in the wrong part, e.g. {wrong[:4]}")
-    empty = [p["id"] for p in v.parts if not v.by_part.get(p["id"])]
+    empty = [p["id"] for p in v.parts if not v.by_part.get(p["id"]) and p["id"] not in v.copies]
     if empty:
         v.fail(f"parts with no elements: {empty}")
     counts = {k: sum(len(v.by_part[pid]) for pid in v.by_part if v.m.level_of(pid) == k) for k in (0, 1, 2)}
@@ -184,7 +186,10 @@ def check_build(v):
         v.fail(f"a requires value is in two stages: {reqs}")
     for p in v.parts:
         pid, want = p["id"], staged.get(p["id"])
-        if m.level_of(pid) == 0:
+        if pid in m.PIPE_PARTS:
+            if p["requires"] != pid:
+                v.fail(f"the pipe's {pid} needs {p['requires']}, not its own metal")
+        elif m.level_of(pid) == 0:
             if p["requires"] is not None:
                 v.fail(f"the frame's {pid} needs {p['requires']}")
         elif want is None or p["requires"] != want or not want.startswith(f"l{m.level_of(pid)}"):
@@ -210,7 +215,7 @@ ROLES = [
     (r"^fr_(hopper_|chute_|launder_(floor|n|s)$)", {"planks"}),
     (r"^fr_(post|stringer|brace|transom|launder_post)", {"oak"}),
     (r"^fr_hanger", {"iron"}),
-    (r"^fr_inlet_", {"pipe"}),
+    (r"^pipecopper_", {"pipecopper", "solder"}),
     (r"^fr_(curb)", {"drystone"}),
     (r"^fr_pave", {"cobble"}),
     (r"^fr_centre", {"granite"}),
@@ -288,7 +293,7 @@ def check_anchors(v):
     print(f"  infeed: the hopper's mouth x {wlo[0]:.1f}..{whi[0]:.1f}, z {wlo[2]:.1f}..{whi[2]:.1f}, top {whi[1]:.2f} (the cell's top {fhi[1]:.0f})")
     if not inside or abs(whi[1] - fhi[1]) > 1e-6:
         v.fail("the hopper's mouth is not the infeed cell's top face")
-    pipe = aabb_of(v.named("frame", r"^fr_inlet_inlet"))
+    pipe = aabb_of(v.named("pipecopper", r"_inlet_"))
     flo, fhi, k = cell_face_box(m, m.WATER_CELL, m.WATER_FACE)
     centre = [(flo[q] + fhi[q]) / 2 for q in range(3)]
     pc = [(pipe[0][q] + pipe[1][q]) / 2 for q in range(3)]
@@ -656,6 +661,7 @@ def validate_files(m, shape, frame_shape, ship):
         print(f"FAIL textures used but not declared: {missing}")
         ok = False
     reqs = {p["requires"] for p in ship["parts"]} - {None}
+    pipes = {f"pipe{x}" for x in m.PIPE_METALS}
     lids = [c["pos"] for c in ship["cells"] if "lid" in c]
     hollow = [c["pos"] for c in ship["cells"] if c.get("hollow")]
     keys = {k for c in ship["cells"] for k in c.get("fitted", {})}
@@ -676,7 +682,7 @@ def validate_files(m, shape, frame_shape, ship):
         print("FAIL the frame shape is not the frame part")
         ok = False
     levels = ship["levels"]
-    if {r for lv in levels for r in lv["fitted"]} != reqs or [lv["level"] for lv in levels] != [1, 2] \
+    if {r for lv in levels for r in lv["fitted"]} != reqs - pipes or [lv["level"] for lv in levels] != [1, 2] \
             or [lv["tier"] for lv in levels] != ["water", "mill"]:
         print(f"FAIL the rig's levels do not list every requires value once: {levels}")
         ok = False
