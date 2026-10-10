@@ -1090,6 +1090,157 @@ class ItemValuesTest(unittest.TestCase):
         self.assertIn("carpenter.json: sh:schematic-mill is a schematic", err)
 
 
+ORE_RAWS = {
+    "ores": {
+        "unitValue": {"game:ingot-lead": 0.02, "game:ingot-silver": 0.2, "game:ingot-chromium": 0.1},
+        "nuggetUnits": 5,
+        "gradeUnits": {"poor": 15, "medium": 20, "rich": 25, "bountiful": 35},
+    },
+    "groups": {"test": {"game:stone": 0.01}},
+}
+ORE_MARKUPS = {
+    **MARKUPS,
+    "kinds": {**MARKUPS["kinds"], "crushing": {"pct": 0.0, "flat": 0.1}, "grinding": {"pct": 0.0, "flat": 0.1},
+              "concentrating": {"pct": 0.0, "flat": 0.0}, "roasting": {"pct": 0.0, "flat": 0.0}},
+}
+ORE_FIGURES = """// Comments, as the mod's config asset has them.
+{
+  "concentrateUnits": 5,
+  "concentrators": { "jig": 0.8 },
+  "freeUnamalgamated": 0.7,
+  "roasters": { "stall": 0.5 },
+  "parting": { "cupellation": { "tier2": 0.5 } },
+  "ores": {
+    "galena": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 1.0, "partedBy": "cupellation" } ] },
+    "chromite": { "density": 1.25 }
+  }
+}
+"""
+
+
+class OreProcessingTest(unittest.TestCase):
+    """Ore processing's items priced on concentrate (#689), on a small export without them (the
+    switch off) and the rules' own figures file."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        (self.dir / "raw-values.json").write_text(json.dumps(ORE_RAWS))
+        (self.dir / "markups.json").write_text(json.dumps(ORE_MARKUPS))
+        (self.dir / "figures.json").write_text(ORE_FIGURES)
+        self.op = {
+            "switch": "OreProcessing",
+            "config": str(self.dir / "figures.json"),
+            "line": {"concentrator": "jig", "roaster": "stall", "parting": "tier2"},
+            "kinds": {"crush": "crushing", "grind": "grinding", "concentrate": "concentrating", "roast": "roasting"},
+            "items": {
+                "crushed": {"code": "game:crushed-{ore}-{grain}", "stack": 16},
+                "ground": {"code": "seraphhorizons:groundore-{ore}", "stack": 16},
+                "concentrate": {"code": "seraphhorizons:concentrate-{ore}", "stack": 128},
+                "roastedconcentrate": {"code": "seraphhorizons:roastedconcentrate-{ore}", "stack": 128, "only": "sulfide"},
+            },
+            "litharge": {"code": "seraphhorizons:litharge", "stack": 64, "metal": "game:ingot-lead", "units": 4},
+            "legacyCrushed": {"ores": ["chromite"]},
+            "parting": {"cupellation": False},
+        }
+        self.write_op()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def solve(self, ex):
+        rules = iv.Rules.load(self.dir)
+        return iv.solve(ex, rules), rules
+
+    def write_op(self, **changes):
+        (self.dir / "ore-processing.json").write_text(json.dumps({**self.op, **changes}))
+
+    def ex(self, extra_items=None):
+        items = {
+            "game:nugget-galena": item(smelting={"output": st("game:ingot-lead")}),
+            "game:nugget-chromite": item(smelting={"output": st("game:ingot-chromium")}),
+            "game:ingot-lead": item(), "game:ingot-chromium": item(),
+            "game:ore-poor-galena-granite": item(), "game:ore-bountiful-galena-granite": item(),
+            "game:crushed-chromite": item(128, extra={"crushing": {"output": st("game:crushed-chromite"), "quantity": {"avg": 1}}}),
+            "game:ore-bountiful-chromite-granite": item(
+                extra={"crushing": {"output": st("game:crushed-chromite"), "quantity": {"avg": 1}}}),
+            **(extra_items or {}),
+        }
+        return export(items, [])
+
+    def test_chain_is_priced_from_units_and_labour(self):
+        val, _ = self.solve(self.ex())
+        v = val.value
+        # Galena, lead at 0.02 a unit. Fine crushed only from poor ore: (15 x 0.02 + 0.1) / 3.
+        self.assertAlmostEqual(v["game:crushed-galena-fine"], 0.4 / 3)
+        # Coarse: the cheapest of medium, rich, bountiful ((35 x 0.02 + 0.1) / 7) and a nugget (0.2).
+        self.assertAlmostEqual(v["game:crushed-galena-coarse"], 0.8 / 7)
+        ground = 0.8 / 7 + 0.1
+        self.assertAlmostEqual(v["seraphhorizons:groundore-galena"], ground)
+        self.assertAlmostEqual(v["seraphhorizons:concentrate-galena"], ground / 0.8)  # the jig
+        self.assertAlmostEqual(v["seraphhorizons:roastedconcentrate-galena"], ground / 0.8 / 0.5)  # the stall
+        # Chromite's density takes the jig to 1: its concentrate costs only the grinding.
+        self.assertAlmostEqual(v["seraphhorizons:concentrate-chromite"], (3.6 / 7 + 0.1) / 1.0)
+        self.assertNotIn("seraphhorizons:roastedconcentrate-chromite", v)  # not a sulfide
+        self.assertAlmostEqual(v["seraphhorizons:litharge"], 4 * 0.02)
+        # The ores and nuggets keep their units' value.
+        self.assertAlmostEqual(v["game:ore-poor-galena-granite"], 15 * 0.02)
+
+    def test_legacy_crushed_ore_is_its_ore_coarse_crushed(self):
+        # Crushing a 35-unit chunk into one legacy crushed chromite is a route of 3.5 + 0.1; every use
+        # counts it as 5 units, so it is priced as the coarse crushed ore, not by that route.
+        val, _ = self.solve(self.ex())
+        self.assertAlmostEqual(val.value["game:crushed-chromite"], 3.6 / 7)
+        self.assertAlmostEqual(val.value["game:crushed-chromite"], val.value["game:crushed-chromite-coarse"])
+
+    def test_items_missing_from_the_export_are_added_with_the_switch(self):
+        ex = self.ex()
+        val, _ = self.solve(ex)
+        self.assertEqual(ex["items"]["seraphhorizons:concentrate-galena"]["switch"], "OreProcessing")
+        self.assertEqual(ex["items"]["seraphhorizons:concentrate-galena"]["attributes"]["maxStackSize"], 128)
+        t = iv.table(ex, val)
+        self.assertEqual(t["switches"]["seraphhorizons:concentrate-galena"], ["OreProcessing"])
+        self.assertEqual(t["switches"]["game:crushed-galena-fine"], ["OreProcessing"])
+        self.assertNotIn("game:crushed-chromite", t["switches"])  # the legacy item exists either way
+        self.assertNotIn("game:ore-poor-galena-granite", t["switches"])
+        # An export made with the switch on keeps its own item.
+        own = item(64)
+        ex2 = self.ex({"seraphhorizons:concentrate-galena": own})
+        self.solve(ex2)
+        self.assertIs(ex2["items"]["seraphhorizons:concentrate-galena"], own)
+
+    def test_parting_with_a_station_floors_the_parted_form_at_what_it_wins(self):
+        val, _ = self.solve(self.ex())
+        cost = (0.8 / 7 + 0.1) / 0.8 / 0.5
+        self.assertAlmostEqual(val.value["seraphhorizons:roastedconcentrate-galena"], cost)
+        self.write_op(parting={"cupellation": True})
+        val, _ = self.solve(self.ex())
+        # 5 units: lead at 0.02, and silver at a share of 1 x 0.2 x the cupel's 0.5 at tier 2.
+        self.assertAlmostEqual(val.value["seraphhorizons:roastedconcentrate-galena"], 5 * (0.02 + 1.0 * 0.2 * 0.5))
+        self.assertAlmostEqual(val.value["seraphhorizons:concentrate-galena"], cost * 0.5)  # not the parted form
+
+    def test_extra_routes_are_priced_like_recipes(self):
+        (self.dir / "routes.json").write_text(json.dumps({"routes": [
+            {"id": "pot|alloy", "kind": "mod", "switch": "Pot",
+             "slots": [[["game:crushed-chromite", 2], ["seraphhorizons:concentrate-chromite", 2]],
+                       {"take": [["game:stone", 1]], "kept": True}],
+             "output": ["game:alloy", 1], "byproducts": [["game:stone", 10]]},
+        ]}))
+        ex = self.ex({"game:alloy": item(), "game:stone": item()})
+        val, _ = self.solve(ex)
+        # The cheaper alternative (legacy crushed), a kept tool's tenth, mod's flat 1, the stone credited.
+        self.assertAlmostEqual(val.value["game:alloy"], 2 * 3.6 / 7 + 0.01 * 0.1 + 1.0 - 10 * 0.01)
+        self.assertEqual(iv.table(ex, val)["switches"]["game:alloy"], ["Pot"])
+
+    def test_without_the_rules_file_nothing_is_added(self):
+        (self.dir / "ore-processing.json").unlink()
+        ex = self.ex()
+        val, _ = self.solve(ex)
+        self.assertNotIn("seraphhorizons:concentrate-galena", ex["items"])
+        # The legacy crushed ore takes its crushing route again.
+        self.assertAlmostEqual(val.value["game:crushed-chromite"], 3.5 + 0.1)
+
+
 class ShippedRulesTest(unittest.TestCase):
     """The shipped rule files load, and the shipped table has the shape the mod reads."""
 
@@ -1172,6 +1323,21 @@ class ShippedRulesTest(unittest.TestCase):
         got = [values[c] for c in chain]
         self.assertEqual(got, sorted(got), dict(zip(chain, got)))
         self.assertLess(got[0], got[1])
+
+    def test_ore_processing_rules_match_the_mods_figures(self):
+        # The reference line names devices of the mod's config/ore-processing.json, every stage's
+        # kind and the crucible furnace's have a markup, and every parting method the figures have
+        # is listed as stationed or not.
+        rules = iv.Rules.load()
+        op = rules.ore_processing
+        fig = op["figures"]
+        self.assertIn(op["line"]["concentrator"], fig["concentrators"])
+        self.assertIn(op["line"]["roaster"], fig["roasters"])
+        for kind in list(op["kinds"].values()) + [r["kind"] for r in rules.extra_routes]:
+            self.assertIn(kind, rules.markups, kind)
+        self.assertEqual(set(fig["parting"]), {k for k in op["parting"] if k != "about"})
+        self.assertEqual(len(fig["ores"]), 32)
+        self.assertNotIn("game:ingot-stainlesssteel", rules.raws)  # the crucible furnace's route prices it
 
     def test_lottery_has_no_labour(self):
         # stainless gear = 10 x neutralized gear - 9 x what a lost one gives, exactly (#523).
