@@ -32,8 +32,7 @@
 
   "groups": {
     "metals": {
-      "game:ingot-blistersteel": 5,
-      "game:ingot-stainlesssteel": 12
+      "game:ingot-blistersteel": 5
     },
     "money": {
       "game:gear-rusty": 1,
