@@ -211,6 +211,8 @@ const en = {
   machineTurns: (power: string, turns: string, work?: { amount: string; unit: string; per?: number }) =>
     power === "hand" && work?.unit === "blows"
       ? `By hand: ${turns} blows a job, each a right-click with a hammer`
+      : power === "hand" && work?.unit === "strikes"
+      ? `By hand where it lies: ${turns} ${turns === "1" ? "blow" : "blows"} a job, each a left-click with a hammer`
       : power === "hand" && work?.unit === "strokes"
       ? `By hand: ${turns} ${turns === "1" ? "stroke" : "strokes"} of the treadle a job, a stroke a second while right-click is held`
       : (power === "hand"

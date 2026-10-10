@@ -475,6 +475,16 @@ describe("validate: cross-references", () => {
     expect(problems(e)).toEqual([["schema:enum", "/recipes/7/machine/wear/rule"]]);
   });
 
+  it("takes a hand job worked in place with no station when its requirements say where", () => {
+    const d = example();
+    d.recipes[7].ingredients.splice(4, 1);
+    d.recipes[7].variants[0].ingredients.splice(4, 1);
+    d.recipes[7].machine.power = "hand";
+    expect(problems(d)).toEqual([["machine-shape", "/recipes/7/ingredients"]]);
+    d.recipes[7].requirements = ["Set down on the ground; each left-click with a hammer is a blow"];
+    expect(problems(d)).toEqual([]);
+  });
+
   it("rejects a variant with too few ingredient lists", () => {
     const d = example();
     d.recipes[0].variants[0].ingredients.pop();

@@ -3,7 +3,20 @@
 // which names poor and medium ore "raw ... ore" and rich and bountiful "... chunk", and does not break
 // ore into nuggets with a hammer where it lies. The rest (stack sizes, crushing, smelting) is set in
 // code once the items are loaded, so it holds whatever other mods patched. Emptied with the switch off.
+//
+// Spalling (#747, README "Ore processing: spalling"): ore is set down on the ground one at a time, a
+// single ore a block in the middle (SingleCenter, not vanilla's messy pile of 12), where a hammer
+// breaks it up. Its three GroundStorable entries (rich and bountiful limonite and hematite, which also
+// paint, and every other ore) and crystallised ore's one.
 [
 	{ "op": "replace", "path": "/class", "value": "seraphhorizons.ItemGradedOre", "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
-	{ "op": "replace", "path": "/class", "value": "seraphhorizons.ItemGradedOre", "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" }
+	{ "op": "replace", "path": "/class", "value": "seraphhorizons.ItemGradedOre", "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" },
+	{ "op": "replace", "path": "/behaviorsByType/@(ore-rich-limonite-.*|ore-bountiful-limonite-.*)/0/properties/layout", "value": "SingleCenter", "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
+	{ "op": "add", "path": "/behaviorsByType/@(ore-rich-limonite-.*|ore-bountiful-limonite-.*)/0/properties/randomizeCenterRotation", "value": true, "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
+	{ "op": "replace", "path": "/behaviorsByType/@(ore-rich-hematite-.*|ore-bountiful-hematite-.*)/0/properties/layout", "value": "SingleCenter", "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
+	{ "op": "add", "path": "/behaviorsByType/@(ore-rich-hematite-.*|ore-bountiful-hematite-.*)/0/properties/randomizeCenterRotation", "value": true, "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
+	{ "op": "replace", "path": "/behaviorsByType/*/0/properties/layout", "value": "SingleCenter", "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
+	{ "op": "add", "path": "/behaviorsByType/*/0/properties/randomizeCenterRotation", "value": true, "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
+	{ "op": "replace", "path": "/behaviors/0/properties/layout", "value": "SingleCenter", "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" },
+	{ "op": "add", "path": "/behaviors/0/properties/randomizeCenterRotation", "value": true, "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" }
 ]
