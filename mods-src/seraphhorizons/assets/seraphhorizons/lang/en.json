@@ -1854,5 +1854,10 @@
   "eidolon-info-axe-unbreaking": "Holds {0}",
   "eidolon-info-noaxe": "Holds no axe",
   "eidolon-help-axe-give": "Give it the axe",
-  "eidolon-help-axe-take": "Take its axe back"
+  "eidolon-help-axe-take": "Take its axe back",
+  "eidoloncommander-mode-crew": "Fell and haul",
+  "eidolon-order-crew": "fell and haul",
+  "eidolon-status-crew-looking": "Looking for the trunk of the tree it felled",
+  "eidolon-status-crew-done": "Its area is clear: it waits, and looks again now and then",
+  "eidolon-crew-done-told": "Your eidolon has cleared its area: {0} trees felled, {1} trunks hauled"
 }

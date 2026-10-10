@@ -2661,12 +2661,9 @@ line, where the machine takes it as it takes any trunk lying there (`PullFromGro
 `OilPerTrunkDelivered`. A trunk it cannot reach is left alone for 30 seconds; with none left it says so
 and waits, still looking, so trunks felled into the area later are hauled too. The order is never done.
 Interrupted (self-defence, dry, out of charge), it keeps a trunk it has taken up and carries on with it;
-given any order that does not haul (`EntityBehaviorEidolonTrunk.Holders`), or none, it lays a carried
-trunk down in front of it at once. Without trunk entities the mode refuses. Clients draw the carried
-trunk with the eidolon's renderer (`seraphhorizons.EidolonShape`, the game's shape renderer plus the
-trunk): Logging Expanded's block of its display class (lg, xxl, debarked if it is), as TrunkEntities
-draws a trunk lying, at the shape's `Trunk` or `ThickTrunk` attachment point, by the matrix the game
-uses for a held item. `tests/Eidolon/EidolonHaulTests.cs` covers the marking, the stands, the drop, the
+given any order that does not haul (`EntityBehaviorEidolonTrunk.Holders`: haul and crew), or none, it
+lays a carried trunk down in front of it at once. Without trunk entities the mode refuses. Clients draw
+the carried trunk with the eidolon's renderer (below, *Drawn at its attachment points*). `tests/Eidolon/EidolonHaulTests.cs` covers the marking, the stands, the drop, the
 area and the event frames; `tests/PackTests/EidolonHaulScenarios.cs` (Atlas, the woodworking world)
 marks an area and a rosser with the tool, and the eidolon delivers a thin and a thick trunk, the second
 once the first is off the infeed, its trunk kept through a save, and the rosser takes both.
@@ -2709,8 +2706,21 @@ click (charge, oil, repair and the command tool come first): the load's own cont
 into the load as they change; the dialog closes when it walks out of reach or sets the load down.
 Removed from the world for good (anything but an unload) while carrying, it sets its load down on the
 nearest free cell with ground within 3 blocks, or drops it and its contents there. Each client draws
-the load at the shape's `Carry` point, following its animation (`EidolonCarryRenderer`, the block's own
-mesh as its stack draws, its corner origin set half a block back), through `EidolonAttachmentRender`.
+the load with the eidolon's renderer (below).
+
+**Drawn at its attachment points** (client; `Eidolon/Game/EidolonShapeRenderer.cs`,
+`EidolonAttachmentRender.cs`). One path draws whatever it holds: the entity type's renderer,
+`seraphhorizons.EidolonShape` (`EidolonShapeRenderer`, registered by `EidolonRenderSystem`), is the
+game's shape renderer, which draws the axe at `RightHand` as any held item (`RightHandItemSlot`), and
+after the entity, in the same passes (the shadow pass included), it draws the carried trunk and the
+carried block, each with its attachment point's matrix this frame (`EidolonAttachmentRender.TryGetMatrix`:
+the matrix the game uses for a held item, the renderer's model matrix, the animator's pose of the
+point's element, then the point's offset and turn) and lit as the eidolon is. The trunk: Logging
+Expanded's block of its display class (lg, xxl, debarked if it is), as TrunkEntities draws a trunk
+lying, at `Trunk` (thin, on the left shoulder) or `ThickTrunk` (in both arms). The block: its stack's
+own mesh as the game draws it on the ground (a chest by its type), at `Carry`, its corner origin set
+half a block back. (Carrying had its own renderer drawing after the entities until #679, unshadowed
+and lit by the block above the eidolon; it now goes the trunk's way.)
 
 **Guarding** (#680; `Eidolon/Game/GuardOrder.cs`, `EidolonGuardSystem.cs`, rules in
 `Eidolon/Core/EidolonGuarding.cs`). The tool's *Guard this place* mode (wheel place 80) marks a block:
@@ -2783,6 +2793,27 @@ stand: on soil). Leaves drop their saplings and seeds as the game's felling does
 *Oil*: each tree costs `OilPerTreeFelled` (`SpendOil(EidolonJob.TreeFelled)`), after the felling and
 replanting. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh.
 
+**The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
+haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
+*Haul trunks* marks (any of its cells; another block is refused and the area kept), and gives `crew`
+(the haul order's arguments). Refused without an axe, as felling is, and with a block in its arms, as
+hauling is. It fells and hauls in a loop: one tree, by a `FellOrder` run `once` (the same one
+throughout, so trees it gave up stay given up; it replants as felling does and spends the tree's oil);
+then, after 1.5 seconds for the trunk to settle, it looks (for up to 6 seconds) for the trunk that tree
+threw: a trunk entity not lying there before it started on the tree, within 14 blocks across and 10 up
+or down of the stump. That trunk it hauls with a `TrunkHauler` to the machine (the trunk's oil), then it
+walks back to the next tree. A trunk the machine does not take, or lost to the hauler three times (it
+rolled, no way to it), is left; trunks the machine takes lying in the area are hauled too, at most
+every 2 seconds, before the next tree (so a crew picks up after a save, which forgets which trunks were
+its own). A tree that throws no trunk (too small for one, or no Logging Expanded or trunk entities: its
+logs fall as items) is simply passed on from. With no grown tree it can reach left in the area and no
+trunk waiting, it tells its owner (trees felled, trunks hauled), says "Its area is clear" and waits,
+its order kept; every 60 seconds it looks again with a fresh felling (trees given up are tried again,
+and a replanted tree once grown is felled). The machine gone, it waits. Without an axe it waits as
+felling does. Self-defence, a dry reservoir or running out of charge interrupt it; it keeps its state
+(the trunk it carries, the trunks it has yet to haul, a tree felled whose trunk it has not looked for)
+and carries on where it was. It may hold a trunk (`EntityBehaviorEidolonTrunk.Holders`).
+
 **Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
 spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
 corners instead, testing the whole box with the game's collision tester at each step (level, up one
@@ -2834,6 +2865,8 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   `AiTaskEidolonOrder` runs it at priority 1.5; self-defence runs above it, and the order is
   stopped (`Stop(cancelled: true)`) and started again after, so an order keeps what it needs to resume. `EidolonNavigator.GoTo(target, run, onArrived, onStuck, tolerance)` walks
   it by the wide pathfinder.
+- The crew (#679): `CrewOrder` (`Felled`, `Delivered`, `Waiting`, `Done`) composes the two below; a
+  loop of other jobs can follow it.
 - Hauling (#678; the crew order, #679): `new TrunkHauler(eidolon, machinePos)` moves one trunk entity
   to a machine's infeed: `Fetch(trunk)`, then `Step()` each tick of the order (`HaulStep.Working`,
   `Delivered` with the oil spent, `Lost` when the trunk is gone or unreachable, `Idle`), `Interrupt()`
@@ -2846,9 +2879,9 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   `IEidolonCarrier` (`CarriedInventory`, null while it carries none); `eidolon.CarriedInventory()` is
   the first one carrying something: a carried container (`EntityBehaviorEidolonCarry`, #676). The fell
   order replants from it (`EidolonFeller.Replant`).
-- Felling (#679's crew order): `new FellOrder(area, once: true)` (or `FellOrder.Args(area, once: true)`)
-  fells one tree and is done, its stump in `LastStump`; `Felled` and `Unreachable` count the order's
-  trees. `EidolonFeller.Fell(eidolon, hand, stump)` fells one tree as the eidolon;
+- Felling (the crew order): `new FellOrder(area, once: true)` (or `FellOrder.Args(area, once: true)`)
+  fells one tree since it was last started and is done, its stump in `LastStump`, `Clear` when it
+  found no tree left; `Felled` and `Unreachable` count the order's trees. `EidolonFeller.Fell(eidolon, hand, stump)` fells one tree as the eidolon;
   `GetBehavior<EntityBehaviorEidolonAxe>()` holds the axe (`Axe`, `Hold`, `Save`).
 - The game's `commandable` and `openablecontainer` entity behaviours (the hacked locust's and the mech
   helper's) may serve the command tool and the carried container.
@@ -2856,10 +2889,12 @@ recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blo
   moves with while it holds something (`carry-walk`); `eidolon.MoveAnimation(run)` asks them and
   `EidolonNavigator.GoTo` uses it, so following with a load walks with it. `GoTo`'s `arriveWithin` sets
   how near the last waypoint counts as there.
-- Drawing at an attachment point (client): `EidolonAttachmentRender.TryGetMatrix(entity, "Carry" |
-  "Trunk" | "ThickTrunk", matrix)` is the point's model matrix as drawn this frame (the entity
-  renderer's, the animator's pose, the point's offset and turn; opaque stage, render order above 0.5),
-  and `Draw(capi, meshRef, matrix, litAt)` draws a mesh with it.
+- Drawing at an attachment point (client): something new it holds is drawn by `EidolonShapeRenderer`
+  (add a `Render...` step to its `DoRender3DOpaque` and draw with its `Draw`, shadows included).
+  `EidolonAttachmentRender.TryGetMatrix(renderer, entity, "Carry" | "Trunk" | "ThickTrunk", matrix)` is
+  the point's model matrix as drawn this frame (the entity renderer's, the animator's pose, the point's
+  offset and turn); `TryGetMatrix(entity, code, matrix)` the same from another renderer (opaque stage,
+  render order above 0.5).
 - Working at a block: `BlockApproach(pos).Step(eidolon, navigator, now)` walks it to a side of a
   block (`EidolonCarrying.Stands`) and puts it there facing it; `CarryOrderBase` holds the walk-up,
   one-shot and tell-the-commander parts of the carry orders.
@@ -2923,6 +2958,11 @@ stumps, grown trees, where it stands, the swing, what replants) and
 then given one it fells an area of three grown oaks (three trunks holding every log, the axe worn by
 the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
 player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
+`tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
+`tests/PackTests/EidolonCrewScenarios.cs` (Atlas, the woodworking world) orders a crew with the tool
+(refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to
+the infeed, the rosser takes both (every log of both trees), oil per tree and per trunk, and it ends
+waiting with its area clear;
 `SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: an icon for the spawner.
 

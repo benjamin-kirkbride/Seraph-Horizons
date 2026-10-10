@@ -17,8 +17,9 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// (<c>fell</c>) <see cref="EidolonFelling.Swings"/> times; the last cut fells it as a player's axe
 /// would (<see cref="EidolonFeller.Fell"/>), replants it from what it carries
 /// (<see cref="EidolonFeller.Replant"/>) and costs oil (<see cref="EidolonJob.TreeFelled"/>). Done when no
-/// grown tree it can reach is left (it tells its owner); with <c>once</c>, after one tree (the crew
-/// order, #679, runs it so and reads <see cref="LastStump"/>).
+/// grown tree it can reach is left (it tells its owner); with <c>once</c>, after one tree since it was
+/// last started, telling no one (the crew order, #679, runs one instance so, starting it again for
+/// each tree, and reads <see cref="Felled"/>, <see cref="LastStump"/> and <see cref="Clear"/>).
 ///
 /// <para>Without an axe in its hand (<see cref="EntityBehaviorEidolonAxe"/>), or once the axe
 /// breaks, it stops and waits, says so and tells its owner once, and goes on when given another.
@@ -57,6 +58,7 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
     private int _cuts;
     private bool _felled;
     private bool _toldNoAxe;
+    private int _felledAtStart;
 
     public string Code => OrderCode;
 
@@ -73,6 +75,10 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
 
     /// <summary>Where the last tree it felled stood (its stump), or null.</summary>
     public BlockPos? LastStump { get; private set; }
+
+    /// <summary>Whether its last search found no grown tree it may fell and can reach (until it is
+    /// started again): what tells the crew order an area is clear from a tree that would not fall.</summary>
+    public bool Clear { get; private set; }
 
     public static ITreeAttribute Args(MarkArea area, bool once = false)
     {
@@ -98,6 +104,8 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
         _phase = Phase.Seek;
         _tree = null;
         _nextScan = 0;
+        _felledAtStart = Felled;
+        Clear = false;
     }
 
     public bool Continue(EntityLaborEidolon eidolon, float dt)
@@ -166,6 +174,7 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
         var axe = (ItemAxe)hand.Axe!.Collectible;
         if (Scan(eidolon, axe) is not { } stump)
         {
+            Clear = true;
             if (!once)
                 TellOwner(eidolon, Unreachable > 0 ? "seraphhorizons:eidolon-fell-done-unreachable" : "seraphhorizons:eidolon-fell-done",
                     Felled, Unreachable);
@@ -329,7 +338,7 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
         _tree = null;
         _phase = Phase.Seek;
         _nextScan = now;
-        return !(once && Felled > 0);
+        return !(once && Felled > _felledAtStart);
     }
 
     private void Face(EntityLaborEidolon eidolon)
@@ -347,7 +356,7 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
         eidolon.AnimManager.StopAnimation("fell");
     }
 
-    private static void TellOwner(EntityLaborEidolon eidolon, string langKey, params object[] args)
+    internal static void TellOwner(EntityLaborEidolon eidolon, string langKey, params object[] args)
     {
         if (eidolon.OwnerUid is { } uid && eidolon.World.PlayerByUid(uid) is IServerPlayer { ConnectionState: EnumClientState.Playing } owner)
             owner.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(owner.LanguageCode, langKey, args), EnumChatType.Notification);
