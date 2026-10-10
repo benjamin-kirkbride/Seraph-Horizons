@@ -14,7 +14,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// The trunk an eidolon carries (README "Eidolon", hauling): a trunk entity it took up is removed and
 /// its trunk stack, unchanged, kept in the watched attribute <see cref="TrunkKey"/> (as a trunk
 /// entity keeps it), so it syncs to clients, which draw it at its attachment point
-/// (<see cref="EidolonTrunkRenderer"/>), and saves with the eidolon. Laying it down spawns a trunk
+/// (<see cref="EidolonShapeRenderer"/>), and saves with the eidolon. Laying it down spawns a trunk
 /// entity again (<see cref="LayDown"/>). Only an order that hauls holds one
 /// (<see cref="Holders"/>): with any other order, or none, a carried trunk is laid down in front
 /// of it, at once and without the animation, so a trunk is never stuck on a shoulder.
@@ -24,8 +24,8 @@ public class EntityBehaviorEidolonTrunk(Entity entity) : EntityBehavior(entity),
     public const string Code = "seraphhorizons.eidolonTrunk";
     public const string TrunkKey = "seraphhorizons:carriedTrunk";
 
-    /// <summary>The order codes that may hold a trunk: the haul order, and later the crew order (#679),
-    /// which adds its own.</summary>
+    /// <summary>The order codes that may hold a trunk: the haul order, and the crew order (#679),
+    /// which adds its own (<see cref="EidolonCrewSystem"/>).</summary>
     public static readonly HashSet<string> Holders = new(StringComparer.Ordinal) { HaulOrder.OrderCode };
 
     private float _sinceCheck;

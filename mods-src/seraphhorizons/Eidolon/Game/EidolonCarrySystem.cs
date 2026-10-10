@@ -1,5 +1,4 @@
 using SeraphHorizons.Mod.Eidolon.Core;
-using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
@@ -9,9 +8,9 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// The eidolon's carry job (#676; README "Eidolon", carrying): the load behaviour
 /// (<see cref="EntityBehaviorEidolonCarry"/>), the <c>carry</c> and <c>setdown</c> orders
 /// (<see cref="CarryOrder"/>, <see cref="SetDownOrder"/>), their command tool modes (wheel order 30
-/// and 40, each marking a block; both refuse without Carry On, <see cref="EidolonCarryOn"/>), and on
-/// the client the renderer that draws each load at its eidolon's <c>Carry</c> point
-/// (<see cref="EidolonCarryRenderer"/>).
+/// and 40, each marking a block; both refuse without Carry On, <see cref="EidolonCarryOn"/>). The
+/// load is drawn at the shape's <c>Carry</c> point by the eidolon's renderer
+/// (<see cref="EidolonShapeRenderer"/>).
 /// </summary>
 public class EidolonCarrySystem : ModSystem
 {
@@ -36,14 +35,6 @@ public class EidolonCarrySystem : ModSystem
             Mark = EidolonMarkKind.Block,
             Command = CommandSetDown,
         });
-    }
-
-    public override void Dispose() => EntityBehaviorEidolonCarry.Tracked.Clear();
-
-    public override void StartClientSide(ICoreClientAPI api)
-    {
-        var renderer = new EidolonCarryRenderer(api);
-        api.Event.RegisterRenderer(renderer, EnumRenderStage.Opaque, "seraphhorizons-eidolonload");
     }
 
     private static EidolonCommand CommandCarry(EidolonCommandContext c)
@@ -81,48 +72,4 @@ public class EidolonCarrySystem : ModSystem
     /// <summary>A multiblock's part stands for the block it is part of (as Carry On takes it).</summary>
     private static BlockPos Origin(IBlockAccessor blocks, BlockPos pos) =>
         blocks.GetBlock(pos) is Vintagestory.GameContent.BlockMultiblock part ? pos.AddCopy(part.OffsetInv) : pos.Copy();
-}
-
-/// <summary>
-/// Draws each eidolon's load (client side) at its shape's <c>Carry</c> point
-/// (<see cref="EidolonAttachmentRender"/>), following its animation: the block's own mesh as the game
-/// draws its stack (a chest by its type), its corner origin put half a block back so the point is
-/// the centre of its underside (Eidolon/README.md, "Attachment points").
-/// </summary>
-public sealed class EidolonCarryRenderer(ICoreClientAPI capi) : IRenderer
-{
-    public const string Point = "Carry";
-
-    private readonly Matrixf _matrix = new();
-    private readonly DummySlot _slot = new();
-
-    // After the entities are drawn in the opaque stage, so their renderers' matrices are this frame's.
-    public double RenderOrder => 1.0;
-
-    public int RenderRange => 99;
-
-    public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
-    {
-        foreach (var entity in EntityBehaviorEidolonCarry.Tracked)
-        {
-            if (entity.World != capi.World || entity.GetBehavior<EntityBehaviorEidolonCarry>()?.LoadStack is not { } stack
-                || !EidolonAttachmentRender.TryGetMatrix(entity, Point, _matrix))
-                continue;
-            _matrix.Translate(-0.5f, 0f, -0.5f);
-            _slot.Itemstack = stack;
-            var info = capi.Render.GetItemStackRenderInfo(_slot, EnumItemRenderTarget.Ground, deltaTime);
-            if (info?.ModelRef == null)
-                continue;
-            if (!info.CullFaces)
-                capi.Render.GlDisableCullFace();
-            EidolonAttachmentRender.Draw(capi, info.ModelRef, _matrix.Values, entity.Pos.AsBlockPos.Up(2));
-            if (!info.CullFaces)
-                capi.Render.GlEnableCullFace();
-        }
-        _slot.Itemstack = null;
-    }
-
-    public void Dispose()
-    {
-    }
 }

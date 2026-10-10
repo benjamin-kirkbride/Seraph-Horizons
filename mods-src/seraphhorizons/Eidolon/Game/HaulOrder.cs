@@ -1,6 +1,5 @@
 using SeraphHorizons.Mod.Eidolon.Core;
 using SeraphHorizons.Mod.TrunkEntities;
-using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -111,8 +110,8 @@ public sealed class HaulOrder(MarkArea area, BlockPos machine) : IEidolonOrder
 }
 
 /// <summary>
-/// Hauling's registrations (#678): the carried trunk's behaviour, the eidolon's renderer that draws
-/// it, the <c>haul</c> order and its command tool mode ("Haul trunks", wheel place 60), which marks an
+/// Hauling's registrations (#678): the carried trunk's behaviour (drawn by the eidolon's renderer,
+/// <see cref="EidolonShapeRenderer"/>), the <c>haul</c> order and its command tool mode ("Haul trunks", wheel place 60), which marks an
 /// area and then a rosser or bucking mill (any of its cells). Without trunk entities the mode refuses.
 /// </summary>
 public class EidolonHaulSystem : ModSystem
@@ -139,7 +138,4 @@ public class EidolonHaulSystem : ModSystem
                 : EidolonCommand.Order(HaulOrder.OrderCode, HaulOrder.Args(area, target)),
         });
     }
-
-    public override void StartClientSide(ICoreClientAPI api) =>
-        api.RegisterEntityRendererClass(EidolonShapeRenderer.ClassName, typeof(EidolonShapeRenderer));
 }
