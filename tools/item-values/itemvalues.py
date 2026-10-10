@@ -139,6 +139,12 @@ class Rules:
             flat *= route.quantity / items
         return flat
 
+    def tools(self, kind: str) -> float:
+        """The share of a kept tool's value a route of this kind charges: the kind's toolFraction,
+        else the file's (a still's boiler and condenser retort many items, one record each)."""
+        m = self.markups.get(kind) or self.markups["mod"]
+        return float(m.get("toolFraction", self.tool_fraction))
+
     def per_item(self, kind: str) -> float:
         """Gears the kind adds to each output item, after the division by the output quantity."""
         m = self.markups.get(kind) or self.markups["mod"]
@@ -393,8 +399,12 @@ def _ore_units(export: dict, rules: Rules):
     grade_units = spec.get("gradeUnits", {})
     by_ore = spec.get("unitsByOre", {})
 
-    def units(ore: str, grade: str) -> float:
-        return float(by_ore.get(ore, grade_units).get(grade, grade_units.get(grade, 15)))
+    crystal = spec.get("crystalUnits") or {}
+
+    def units(ore: str, grade: str, crystallized: bool = False) -> float:
+        # Crystallized ore has its own units (crystalUnits, about twice a chunk's), else a chunk's.
+        gu, bo = (crystal.get("gradeUnits", grade_units), crystal.get("unitsByOre", by_ore)) if crystallized else (grade_units, by_ore)
+        return float(bo.get(ore, gu).get(grade, gu.get(grade, 15)))
 
     return per_unit, nugget_of, units
 
@@ -411,7 +421,7 @@ def ore_raws(export: dict, rules: Rules) -> dict[str, tuple[float, str]]:
         dom, path = code.split(":", 1)
         parts = path.split("-")
         if dom == "game" and parts[0] in ("ore", "crystalizedore") and len(parts) >= 4 and parts[1] in GRADES:
-            units = units_of(parts[2], parts[1])
+            units = units_of(parts[2], parts[1], parts[0] == "crystalizedore")
             v, m = per_unit(nugget_of(parts[2]))
             out[code] = (units * v, f"raw:ore {units:g} units of {m}")
         elif dom == "game" and parts[0] == "nugget" and len(parts) == 2:
@@ -706,7 +716,7 @@ def route_eval(route: Route, value: dict[str, float], rules: Rules,
         picks.append(code)
     pct, _ = rules.markup(route.kind)
     flat = rules.flat(route)
-    cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / max(route.quantity, EPS)
+    cost = (total * (1 + pct) + flat + tools * rules.tools(route.kind) - credit) / max(route.quantity, EPS)
     return max(cost, 0.0) + rules.per_item(route.kind), picks
 
 
@@ -751,14 +761,19 @@ class Siblings:
 
 def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: dict[str, str], rules: Rules,
             picks: dict[str, list[str]] | None = None, hint: dict[str, float] | None = None,
-            floors: dict[str, "Floor"] | None = None,
+            floors: dict[str, "Floor"] | None = None, item_switch: dict[str, str] | None = None,
+            deps: dict[str, frozenset[str]] | None = None,
             ) -> tuple[dict[str, float], dict[str, str], dict[str, Route], int]:
     """Knuth's generalisation of Dijkstra: settle items cheapest first, each at its cheapest route over
     items already settled. A settled value never drops again, so a cycle that makes more than it
     consumes (two linen -> four sails -> eight linen) cannot pull prices down: the sail is priced
     from settled linen, and the linen was settled before any sail existed. A route's cost is at
     least its output's scrap floor (`floors`), and an item settled at its floor has the floor as
-    its source."""
+    its source. Of routes tying for an item's value, the one needing the fewest config switches wins
+    (`item_switch`: the switch adding each item; `deps`, shared across calls: the switches each
+    settled value needs), so a value never looks as if it existed only with a switch because a
+    switch's route ties with one that needs none (litharge smelts to lead at a galena nugget's
+    price)."""
     floors = floors or {}
     value = dict(fixed_value)
     source = dict(fixed_source)
@@ -786,6 +801,23 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
     tentative: dict[str, tuple[float, int, list[str], bool]] = {}
     heap: list[tuple[float, str, int]] = []
     picks = {} if picks is None else picks
+    item_switch = item_switch or {}
+    deps = {} if deps is None else deps
+    tdeps: dict[str, frozenset[str]] = {}
+
+    def needs(code: str) -> frozenset[str]:
+        got = deps.get(code)
+        if got is None:
+            got = frozenset([item_switch[code]]) if code in item_switch else frozenset()
+        return got
+
+    def route_needs(rt: Route, used: list[str]) -> frozenset[str]:
+        out = set(needs(rt.output) if rt.output in item_switch else ())
+        if rt.switch:
+            out.add(rt.switch)
+        for c in used:
+            out |= needs(c)
+        return frozenset(out)
 
     def consider(i: int, wait: set[str] | None) -> None:
         rt = routes[i]
@@ -800,8 +832,11 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
         if bound:
             cost = fl.value
         cur = tentative.get(rt.output)
-        if cur is None or cost < cur[0] - EPS * max(1.0, cur[0]):
+        need = route_needs(rt, used)
+        if cur is None or cost < cur[0] - EPS * max(1.0, cur[0]) or (
+                cost <= cur[0] + EPS * max(1.0, cur[0]) and len(need) < len(tdeps[rt.output])):
             tentative[rt.output] = (cost, i, used, bound)
+            tdeps[rt.output] = need
             heapq.heappush(heap, (cost, rt.output, i))
 
     settled = 0
@@ -816,6 +851,7 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
             source[code] = floors[code].label if tentative[code][3] else routes[i].recipe
             best_route[code] = routes[i]
             picks[code] = tentative[code][2]
+            deps[code] = tdeps[code]
             settled += 1
             for j in uses.get(code, ()):
                 consider(j, reachable)
@@ -838,6 +874,7 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
             break
         cost, i, used, bound = knot
         tentative[routes[i].output] = (cost, i, used, bound)
+        tdeps[routes[i].output] = route_needs(routes[i], used)
         heapq.heappush(heap, (cost, routes[i].output, i))
     return value, source, best_route, settled
 
@@ -957,6 +994,7 @@ def scrap_floors(scrap: list[Route], val: Valuation, by_out: dict[str, list[Rout
 def _solve(export: dict, rules: Rules, routes: list[Route], by_out: dict[str, list[Route]],
            floors: dict[str, Floor]) -> Valuation:
     items = export["items"]
+    item_switch = {code: sw for code, item in items.items() if (sw := (item or {}).get("switch"))}
 
     def floored(code: str, got: tuple[float, str] | None) -> tuple[float, str] | None:
         """A fixed value (raw, default, fallback) raised to the code's scrap floor."""
@@ -997,7 +1035,9 @@ def _solve(export: dict, rules: Rules, routes: list[Route], by_out: dict[str, li
     # still cannot be priced its floor (only then: a route the fallbacks make priceable wins).
     def layers(hint: dict[str, float] | None):
         picks: dict[str, list[str]] = {}
-        val, src, best_route, settled = _settle(routes, dict(value), dict(source), rules, picks, hint, floors)
+        deps: dict[str, frozenset[str]] = {}
+        val, src, best_route, settled = _settle(routes, dict(value), dict(source), rules, picks, hint, floors,
+                                                item_switch, deps)
         sibling = Siblings(val)
         late = 0
         for code in items:
@@ -1013,14 +1053,14 @@ def _solve(export: dict, rules: Rules, routes: list[Route], by_out: dict[str, li
                 val[code], src[code] = dv
                 late += 1
         if late:
-            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors)
+            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors, item_switch, deps)
             best_route.update(more)
             settled += n
         unrouted = [c for c in floors if c in by_out and c not in val and c in items and c not in schematic]
         for code in unrouted:
             val[code], src[code] = floors[code].value, floors[code].label
         if unrouted:
-            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors)
+            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors, item_switch, deps)
             best_route.update(more)
             settled += n
         return val, src, best_route, settled, picks
@@ -1175,7 +1215,7 @@ def below_ingredients(export: dict, val: Valuation, rules: Rules) -> list[tuple[
             pct, _ = rules.markup(rt.kind)
             flat = rules.flat(rt)
             tools = sum(min((val.value.get(a, 0.0) * n for a, n in s.alternatives), default=0.0)
-                        for s in rt.slots if not s.consumed) * rules.tool_fraction
+                        for s in rt.slots if not s.consumed) * rules.tools(rt.kind)
             # Ingredients alone, without the labour markup.
             ing = (((c - rules.per_item(rt.kind)) * rt.quantity - flat - tools) / (1 + pct)) / rt.quantity
             if best is None or ing < best[0]:
@@ -1376,7 +1416,7 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
             out.append(f"{pad}  - {n:g} x {c}{alts} = {cost:.4f}{ret}")
         else:
             tools += cost
-            out.append(f"{pad}  - tool/kept {c}: {cost:.4f} x {rules.tool_fraction} = {cost * rules.tool_fraction:.4f}")
+            out.append(f"{pad}  - tool/kept {c}: {cost:.4f} x {rules.tools(rt.kind)} = {cost * rules.tools(rt.kind):.4f}")
         explain(export, val, rules, c, depth + 2, seen, out, max_depth)
     credit = 0.0
     for c, n in rt.byproducts:
@@ -1387,7 +1427,7 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
         credit += cv * n
         out.append(f"{pad}  - other outcome {n:g} x {c} = {cv * n:.4f}, credited")
     less = f" - {credit:.4f}" if rt.byproducts else ""
-    cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / rt.quantity
+    cost = (total * (1 + pct) + flat + tools * rules.tools(rt.kind) - credit) / rt.quantity
     per = rules.per_item(rt.kind)
     plus = f" + {per:g} per item" if per else ""
     each = max(cost, 0.0) + per
@@ -1397,7 +1437,7 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
         result = f"{each:.6g} a portion = {each * ipl:.4f} gears/L"
     else:
         result = f"{each:.4f}"
-    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat:.4g} + {tools * rules.tool_fraction:.4f}{less}) / {rt.quantity:g}{plus} "
+    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat:.4g} + {tools * rules.tools(rt.kind):.4f}{less}) / {rt.quantity:g}{plus} "
                f"[{rt.kind}] = {result}" + (" (quotient floored at 0)" if cost < 0 else ""))
     sw = val.switches.get(code)
     if sw and depth == 0:

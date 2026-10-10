@@ -1287,7 +1287,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(1, site.Coffin.IngotCount);
     }
 
-    /// <summary><c>OreProcessing</c> (its default): vanilla's ore item as it ships, none of ore
+    /// <summary><c>OreProcessing</c>: vanilla's ore item as it ships, none of ore
     /// processing's items, the nugget grid recipes in, and the alloy maths unpatched.</summary>
     [AtlasScenario]
     public void Ore_processing_off_ore_is_as_it_ships()
