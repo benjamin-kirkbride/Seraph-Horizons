@@ -307,6 +307,44 @@ that would leave a piece floating is caught), the torso first, as the stages fil
 rig a part per stage with no drivers, every element in its own stage's part by the viewer's rule (a
 part listed too late is caught).
 
+## Fittings
+
+The body is customizable in five layers of material (the fittings brief; the rules are
+`Core/EidolonFittings.cs`, the figures `Core/EidolonStats.cs`, the settings in `Core/EidolonConfig.cs`,
+tests in `tests/Eidolon/EidolonFittingsTests.cs`).
+
+| Layer | Texture code | Materials | Items | Texture |
+|---|---|---|---|---|
+| Bones | `bones` | any wood but `rotten`, `veryrotten` | `game:supportbeam-{wood}` (a block) | `game:block/wood/debarked/{wood}` |
+| Joints | `joints` | `iron`, `steel`, `stainlesssteel` | `game:rod-{metal}`, `game:metalnailsandstrips-{metal}` | `game:block/metal/plate/{metal}` |
+| Plates | `plates` | those and `brass` | `game:metalplate-{metal}` | `game:block/metal/plate/{metal}` |
+| Sash | `sash` | `leather-{colour}` (the game's 11), `cloth-{colour}` (its 12 but mordant) | `game:leather-normal-{colour}`, `game:cloth-{colour}` | `game:block/leather/{colour}`, `game:block/cloth/basic/{colour}` (plain cloth `normal`) |
+| Skirt | `skirt` | `iron`, `steel`, `stainlesssteel` | `game:metalchain-{metal}` | `game:block/metal/armor-generic/chain-{metal}`; stainless the pack's `seraphhorizons:block/metal/armor-generic/chain-stainlesssteel` |
+
+A material is stored by its short code (the table's), the metals by the game's metal codes. The Jonas
+parts go with the torso (a grid recipe: pumphead, tank01, tank02, 4 metal parts, 3 stainless gears), the
+bones (gearbox01, gearbox02, oscillator01, cylinder02, connector01 and the elucidatory vessel) and the
+joints (2 joint01, 2 spring01, gears01, gears02, cylinder01, valve01, 9 stainless gears, 12 metal parts);
+a layer's bill (`EidolonFittings.Bill`) is its material then its Jonas parts, and stripping gives it all
+back. **The material counts** (`FittingCounts`) are placeholders, today's metal (13 plates; 8 rods and 36
+nails and strips) and stand-ins (6 beams, 3 leather or cloth, 4 chain), until they are derived from the
+model.
+
+`EidolonBuild` is an eidolon's record: each layer's material or none, always a prefix of the build order
+(`With` fits only the next layer, `Stripped` takes off only the outermost, `CanStrip` only at full
+health). Stored under the attribute `eidolonFittings`, a tree of strings keyed by texture code; no tree at
+all reads as `EidolonBuild.OldBuild` (oak, steel, steel, `leather-plain`, steel), a broken one as the
+layers before the first bad one. `Textures()` gives the per-entity texture override by texture code.
+
+**The armour maths** (`EidolonArmour`) is the game's for a player in a full suit of one armour
+(`ModSystemWearableStats.handleDamaged`, `VSSurvivalMod.dll` 1.22.7; the figures from
+`itemtypes/wearable/seraph/armor.json`): only blunt, piercing and slashing attacks, never internal or
+suicide damage; for each tier up to the attack's, the flat reduction loses 0.1 (0.2 past the armour's
+tier) and the relative protection is multiplied by 1 − 0.03 (1 − 0.15 past it), the past-tier losses
+halved for plate (`highDamageTierResistant`); then damage = max(0, damage − flat) × (1 − max(0, relative)).
+The game picks a random armour slot, which for a full suit of one metal changes nothing, and wears the
+piece; the eidolon's plates do not wear.
+
 ## Open questions
 
 - **Size.** At size 1 the eidolon is 3.75 blocks tall (vanilla's boss size), a giant beside a

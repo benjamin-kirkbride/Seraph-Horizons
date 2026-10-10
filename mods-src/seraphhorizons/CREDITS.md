@@ -97,6 +97,12 @@ mod, and is covered by the repository's license, except for the body hung in it:
 eidolon's spine, which this mod draws as part of the gantry (Anego Studios' model, both), posed in the
 `hung` animation by `EidolonGantry/tools/make_shape.py`, and are that model's as above.
 
+The stainless steel chain textures (`assets/seraphhorizons/textures/block/metal/armor-generic/chain-stainlesssteel.png`
+and `assets/game/textures/entity/humanoid/serapharmor/chain/stainlesssteel.png`) are the game's steel
+chain textures by Anego Studios (`block/metal/armor-generic/chain-steel.png` and
+`entity/humanoid/serapharmor/chain/steel.png`, game 1.22.7), lightened and desaturated by
+`Eidolon/tools/make_stainless_chain.py`, and are those textures' as above.
+
 The eidolon command tool's model (`assets/seraphhorizons/shapes/item/eidoloncommander.json`) was made
 for this mod and is covered by the repository's license, except for the two Jonas parts on it: the
 elements named `cylinder-<name>` and `connector-<name>` are the game's Jonas cylinder and connector

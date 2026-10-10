@@ -2855,6 +2855,34 @@ felling does. Self-defence, a dry reservoir or running out of charge interrupt i
 (the trunk it carries, the trunks it has yet to haul, a tree felled whose trunk it has not looked for)
 and carries on where it was. It may hold a trunk (`EntityBehaviorEidolonTrunk.Holders`).
 
+**Fittings** (the rules so far; `Eidolon/Core/EidolonFittings.cs`, `EidolonStats.cs`, `Eidolon/README.md`
+"Fittings"). The body is built in five layers of material on a crafted torso, in order: bones (support beams
+of any wood but rotten and very rotten), joints (rods and nails and strips of iron, steel or stainless),
+plates (iron, steel, stainless or brass plate), the sash (leather or cloth of one colour) and the chain
+skirt (iron, steel or stainless), then the mind; layers come off outermost first, only at full health,
+each giving back its material and its Jonas parts. An eidolon's layers are an `EidolonBuild`, kept as a
+tree of strings under `eidolonFittings`; one with none is the old build (oak, steel, steel, plain
+leather, steel). Its figures (`EidolonStats.Of`): health is `AllSteelHealth` (300) over the steel
+multipliers, times the plates', joints' and skirt's multipliers (`PlateHealth`, `JointHealth`,
+`SkirtHealth`, each against iron), so an all-steel eidolon keeps 300; the plates' metal also scales the
+blows (`PlateDamage`, brass 0.8) and walking and running (`PlateMoveSpeed`, brass 1.25), and gives the
+armour (`PlateArmour`: protection tier, relative protection, flat reduction; iron 3/0.96/1.7 and steel
+4/0.97/1.8 the game's plate armour, stainless 5/0.98/1.9, brass 2/0.92/1.6), applied to a hit as the game
+applies a full suit of armour to a player (`EidolonArmour`, with `ArmourLoss` the game's per-tier losses).
+Bones and sash are looks only. The material counts per layer are placeholders until the model's are
+derived (`FittingCounts`).
+
+**Stainless fittings.** The game has no stainless rod, nails and strips or chain; with the switch on
+`patches/eidolon-stainless.json` adds `game:rod-stainlesssteel`, `game:metalnailsandstrips-stainlesssteel`
+and `game:metalchain-stainlesssteel` as states of the game's own item types (taking steel's other figures;
+the rod melts back into an ingot), and `recipes/smithing/eidolon-stainless.json` smiths them from a
+stainless steel ingot with the game's steel recipes voxel for voxel (a rod, 4 or 8 nails and strips, a
+chain; a steel anvil). Lang names the two the game does not. The chain item's texture is the pack's
+(`assets/game/textures/entity/humanoid/serapharmor/chain/stainlesssteel.png`), as is the skirt's
+(`textures/block/metal/armor-generic/chain-stainlesssteel.png`): the game's steel chain, lightened and
+desaturated by `Eidolon/tools/make_stainless_chain.py`. With the switch off `EidolonGantrySystem` empties
+the patch and disables the recipes; `SwitchOwnership.HandListed` owns the three codes for `Eidolon`.
+
 **Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
 spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
 corners instead, testing the whole box with the game's collision tester at each step (level, up one
@@ -3047,8 +3075,9 @@ crew gives one up;
 off. Not yet: icons for the recipe browser, which need the game client (`tools/icon-export`,
 `docs/recipe-browser/icons.md`): the gantry (`seraphhorizons:eidolongantry-{wood}-north`, each of the
 12 woods), the command tool (`seraphhorizons:eidoloncommander`), the schematic
-(`seraphhorizons:schematic-eidolon`) and the creature item (`seraphhorizons:creature-eidolon`);
-`tools/icons.py drift` lists them.
+(`seraphhorizons:schematic-eidolon`), the creature item (`seraphhorizons:creature-eidolon`) and the
+stainless rod, nails and strips and chain (`game:rod-stainlesssteel`, `game:metalnailsandstrips-stainlesssteel`,
+`game:metalchain-stainlesssteel`); `tools/icons.py drift` lists them.
 
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)
 

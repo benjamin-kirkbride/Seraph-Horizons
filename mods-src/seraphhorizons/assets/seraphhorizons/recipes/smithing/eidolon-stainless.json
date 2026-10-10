@@ -1,0 +1,68 @@
+// Stainless rods, nails and strips and chain at the anvil (the Eidolon switch; README "Eidolon",
+// "Stainless fittings"): the game has the items' stainless variants only by the pack's patch
+// (patches/eidolon-stainless.json), and no recipes for them. These are the game's own steel recipes
+// (recipes/smithing/rod.json, nails.json, chain.json in 1.22.7), voxel for voxel, with the same
+// names and yields, for the stainless steel ingot. Stainless is a tier 5 metal: a steel anvil.
+[
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["stainlesssteel"] },
+		pattern: [[
+			"##########",
+			"##########",
+		],[
+			"##########",
+			"##########",
+		]],
+		name: "rod",
+		code: "rot-{metal}",
+		output: { type: "item", code: "game:rod-{metal}" }
+	},
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["stainlesssteel"] },
+		pattern: [[
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+		]],
+		name: "4 sets of nails",
+		code: "4setsofnails-{metal}",
+		output: { type: "item", code: "game:metalnailsandstrips-{metal}", stacksize: 4 }
+	},
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["stainlesssteel"] },
+		pattern: [[
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##",
+			"##_##_##"
+		]],
+		name: "8 sets of nails",
+		code: "8setsofnails-{metal}",
+		output: { type: "item", code: "game:metalnailsandstrips-{metal}", stacksize: 8 }
+	},
+	{
+		ingredient: { type: "item", code: "game:ingot-*", name: "metal", allowedVariants: ["stainlesssteel"] },
+		pattern: [[
+			"_#_#_#_#_",
+			"#########",
+			"#_#_#_#_#",
+			"#########",
+			"_#_#_#_#_",
+			"#########",
+			"#_#_#_#_#",
+			"#########",
+			"_#_#_#_#_",
+		]],
+		name: "Chain",
+		code: "metalchain-{metal}",
+		output: { type: "item", code: "game:metalchain-{metal}" }
+	}
+]
