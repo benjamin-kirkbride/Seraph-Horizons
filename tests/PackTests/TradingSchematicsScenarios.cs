@@ -60,7 +60,6 @@ public partial class TradingScenarios
                      ("game:windmillrotor-wood-north", "seraphhorizons:schematic-windmill"),
                      ("game:helvehammerbase-north", "seraphhorizons:schematic-helvehammer"),
                      ("flyingmachine:trestles", "seraphhorizons:schematic-biplane"),
-                     ("gondolacablecar:routeplanner", "seraphhorizons:schematic-cablecar"),
                      ("immersivewoodworking:sawmill-frame-north", "seraphhorizons:schematic-sawmill"),
                      ("game:largegear3", "seraphhorizons:schematic-transmission"),
                      ("game:waterwheel-3m-north", "seraphhorizons:schematic-waterwheel"),

@@ -1034,7 +1034,7 @@ built). A gated recipe gets a new key in `Ingredients`, a new pattern and size, 
 (`GridGate.Place`: first empty slot, else a column, else a row, else two slots of the most frequent
 consumable ingredient merged at double quantity if the stack fits). `GridRecipe.Enabled` is only read
 at load, so removed recipes are taken out of `World.GridRecipes`. Non-grid construction (the water
-wheel's stages, ppex's exlib construction, Gondola's construction sites, the biplane on its trestles)
+wheel's stages, ppex's exlib construction, the biplane on its trestles)
 is gated through the grid recipe of its first stage. A one-slot, consumed, make-one recipe is a
 conversion (Scrolled, MadMechanics) and is neither gated, removed nor made to keep its input.
 

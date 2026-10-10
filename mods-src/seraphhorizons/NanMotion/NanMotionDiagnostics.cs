@@ -316,7 +316,8 @@ public static class NanMotionDiagnostics
         }
 
         // SimPhysics: the frame recorder and binding first, then the trace, then a checkpoint after
-        // every other mod's prefix (gondolacablecar's moves the player before the body runs).
+        // every other mod's prefix (one can move the player before the body runs, as Gondola Cable
+        // Car's did while it was in the pack).
         if (SimPhysicsMethod is { } sim)
         {
             Try("SimPhysics entry", () => harmony.Patch(sim,
