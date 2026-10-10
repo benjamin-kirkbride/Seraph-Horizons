@@ -500,51 +500,40 @@ public partial class SharedWorldScenarios
         CutterKillItems(pos);
     }
 
-    // ---- Infeed and outfeed ----
+    // ---- Chests ----
 
+    // A chest in front of the die end and one by the output face are left alone: the running bench
+    // takes no hollow from the first, and the pipe sections of a hollow put on by hand drop by the
+    // output face rather than going into the second.
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Draw_bench_takes_hollows_from_a_chest_and_puts_pipe_sections_in_one()
+    public async Task Draw_bench_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-252, -280);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "north");
         AssembleBench(bench, player);
-        var infeed = bench.CellPos(Assert.Single(BenchRig.InfeedNeighbours()));
+        var infeed = bench.CellPos(new Int3(0, 0, -1));
         var outfeed = bench.CellPos(BenchRig.OutputNeighbour());
         World.SetBlock("game:chest-east", infeed);
         World.SetBlock("game:chest-east", outfeed);
         await World.Ticks(3);
         var source = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(infeed));
         var sink = Assert.IsAssignableFrom<BlockEntityContainer>(W.BlockAccessor.GetBlockEntity(outfeed));
-        // copper the iron die does not draw, then two lead hollows, and a lead pipe section and a lead
-        // ingot it never takes
-        source.Inventory[0].Itemstack = CutterItem(Drawing.CopperHollow);
-        source.Inventory[1].Itemstack = CutterItem(Drawing.LeadHollow, 2);
-        source.Inventory[2].Itemstack = CutterItem(LeadSection);
-        source.Inventory[3].Itemstack = CutterItem("game:ingot-lead");
+        source.Inventory[0].Itemstack = CutterItem(Drawing.LeadHollow, 2);
         source.MarkDirty(true);
 
-        // not taken while the shaft stands
-        await World.Ticks(30);
-        Assert.False(bench.JobOn);
         await PowerBench(bench);
-        await World.Until(() => bench.JobOn, 5000);
-        Assert.Equal(1, source.Inventory[1].StackSize);
-        Assert.Equal(Drawing.CopperHollow, source.Inventory[0].Itemstack?.Collectible.Code.ToString());
-        Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
-        Assert.Equal(4, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == LeadSection).Sum(s => s.StackSize));
-        // the next hollow goes on once the bench has cleared
+        await World.Ticks(60);
         Assert.False(bench.JobOn);
-        await World.Until(() => bench.JobOn, 5000);
-        Assert.True(source.Inventory[1].Empty);
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        Assert.Null(CutterClick(player, pos, CutterItem(Drawing.LeadHollow)));
         Assert.Equal(4, bench.Draw(BenchRadiansTo(bench, 4)));
-        Assert.Equal(8, sink.Inventory.Where(s => s.Itemstack?.Collectible.Code.ToString() == LeadSection).Sum(s => s.StackSize));
-        Assert.DoesNotContain(LeadSection, CutterItemsNear(pos).Keys);
+        await World.Ticks(5);
+        Assert.All(sink.Inventory, s => Assert.True(s.Empty));
+        Assert.Equal(4, CutterItemsNear(pos).GetValueOrDefault(LeadSection));
         await World.Ticks(40);
-        Assert.False(bench.JobOn);   // only the copper hollow, the pipe section and the ingot are left
-        Assert.Equal(1, source.Inventory[0].StackSize);
-        Assert.Equal(1, source.Inventory[2].StackSize);
-        Assert.Equal(LeadSection, source.Inventory[2].Itemstack?.Collectible.Code.ToString());
-        Assert.Equal("game:ingot-lead", source.Inventory[3].Itemstack?.Collectible.Code.ToString());
+        Assert.False(bench.JobOn);
+        Assert.Equal(2, source.Inventory[0].StackSize);
+        CutterKillItems(pos);
     }
 }

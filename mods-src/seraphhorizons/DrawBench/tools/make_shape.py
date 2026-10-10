@@ -1203,7 +1203,6 @@ def make_rig(parts):
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
-        "infeedSide": "north",
         "outputSide": "east",
         "output": {"pos": pt(CELLS_X * B - 0.01, rest_y(OUTPUT_Z), OUTPUT_Z)},
         "die": {"pos": pt(DL[0], DL[1], Z_MOUTH)},

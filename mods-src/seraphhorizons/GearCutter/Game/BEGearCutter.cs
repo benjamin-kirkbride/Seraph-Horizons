@@ -18,8 +18,7 @@ namespace SeraphHorizons.Mod.GearCutter;
 /// every item's code and the cutter kit's durability), the blank on the arbor as its item stack and
 /// the cut (<see cref="CutJob"/>: W, the teeth cut), and its MachineOil tank. The server cuts from
 /// the power ghost's shaft angle, wears the kit by the tank's fill when a gear is done, drops the
-/// gear at the output face or puts it in a container there, takes the next blank from a chest or
-/// hopper at the infeed face, and keeps the ghost cells stamped; the client draws it
+/// gear at the output face, and keeps the ghost cells stamped; the client draws it
 /// (<see cref="GearCutterRenderer"/>). The rules are GearCutter/Core's.
 /// </summary>
 public class BEGearCutter : BlockEntity
@@ -309,7 +308,6 @@ public class BEGearCutter : BlockEntity
         }
         Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
         MarkDirty(true);
-        PullFromInfeed();
         return true;
     }
 
@@ -443,8 +441,8 @@ public class BEGearCutter : BlockEntity
     }
 
     /// <summary>The gear is cut: the kit wears by the fill the tank has now (#481), then the tank
-    /// drains (double for a large gear); a spent kit breaks with the tool-break sound. The gear goes
-    /// into a container at the output face, else drops there; the next blank comes from the infeed.</summary>
+    /// drains (double for a large gear); a spent kit breaks with the tool-break sound. The gear drops
+    /// at the output face.</summary>
     private void Finish()
     {
         int k = _job.Class;
@@ -456,65 +454,22 @@ public class BEGearCutter : BlockEntity
         if (GearCut.GearFor(k) is { } code && Api.World.GetItem(new AssetLocation(code)) is { } gear)
             Deliver(new ItemStack(gear));
         MarkDirty(true);
-        PullFromInfeed();
     }
 
-    /// <summary>Puts <paramref name="stack"/> into a container just beyond the output face, else
-    /// drops it there.</summary>
+    /// <summary>Drops <paramref name="stack"/> just beyond the output face.</summary>
     public void Deliver(ItemStack stack)
     {
         if (Rig is not { } rig)
             return;
-        var dummy = new DummySlot(stack);
-        if (Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.OutputNeighbour())) is BlockEntityContainer container)
-        {
-            foreach (var slot in container.Inventory)
-            {
-                if (dummy.Empty)
-                    break;
-                if (slot.CanHold(dummy))
-                    dummy.TryPutInto(Api.World, slot, dummy.StackSize);
-            }
-            container.MarkDirty(true);
-        }
-        if (dummy.Empty)
-            return;
         var at = WorldPoint(rig.OutputDrop());
         var n = Footprint.ToWorld(rig.OutputSide, Side).Normal();
-        Api.World.SpawnItemEntity(dummy.Itemstack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
+        Api.World.SpawnItemEntity(stack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
         Api.World.PlaySoundAt(GearSound, at.X, at.Y, at.Z);
     }
 
-    /// <summary>A complete cutter with an empty arbor and its shaft turning takes one blank of its
-    /// master's size from a container at the infeed face. Returns whether one went on.</summary>
-    public bool PullFromInfeed()
-    {
-        if (Api.Side != EnumAppSide.Server || BlankOn || !_parts.Complete || ShaftSpeed < MinSpeed || Rig is not { } rig)
-            return false;
-        foreach (var local in rig.InfeedNeighbours())
-        {
-            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(local)) is not BlockEntityContainer container)
-                continue;
-            foreach (var slot in container.Inventory)
-            {
-                if (GearCut.CanLoad(slot.Itemstack?.Collectible?.Code?.ToString(), true, false, _parts.Master) != GearCutterBlankVerdict.Loads)
-                    continue;
-                Load(slot.TakeOut(1));
-                slot.MarkDirty();
-                container.MarkDirty(true);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Once a second: the ghosts, and the infeed.
-    private void OnSlowTick(float dt)
-    {
-        // A ghost can vanish without being broken (an explosion, another mod), the power ghost included.
-        EnsureGhosts();
-        PullFromInfeed();
-    }
+    // Once a second: the ghosts. A ghost can vanish without being broken (an explosion, another
+    // mod), the power ghost included.
+    private void OnSlowTick(float dt) => EnsureGhosts();
 
     // The client's own: the client removes a broken cutter at once, and an update the server sent
     // before it heard of the break then brings the block entity back over air: drop it. A dry

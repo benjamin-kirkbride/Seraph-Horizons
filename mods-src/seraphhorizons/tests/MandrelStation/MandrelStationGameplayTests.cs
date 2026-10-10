@@ -377,7 +377,6 @@ public class MandrelStationGameplayTests
             { "pos": [0, 0, 0], "boxes": [[0, 0, 0, 1, 0.75, 1]], "lid": 0.75 },
             { "pos": [0, 0, 1], "boxes": [[0.25, 0, 0, 0.75, 0.8, 0.5]], "lid": 0.8 }
           ],
-          "infeedSide": "west",
           "outputSide": "south",
           "output": { "pos": [0.5, 0.375, 1.75] },
           "strike": { "pos": [0.5, 0.8, 0.9] },
@@ -397,9 +396,8 @@ public class MandrelStationGameplayTests
         var rig = MandrelStationRig.Parse(ContractRig);
         Assert.Equal([Int3.Zero, new Int3(0, 0, 1)], rig.Cells.Select(c => c.Pos));
         Assert.Single(rig.GhostCells);
-        Assert.Equal((Side.West, Side.South), (rig.InfeedSide, rig.OutputSide));
-        // a chest beside the stump (and beside the tip's cell) feeds it; the sections leave past the tip
-        Assert.Equal([new Int3(-1, 0, 0), new Int3(-1, 0, 1)], rig.InfeedNeighbours());
+        Assert.Equal(Side.South, rig.OutputSide);
+        // the sections leave past the tip
         Assert.Equal(new Int3(0, 0, 2), rig.OutputNeighbour());
         Assert.Equal(2.15f, rig.OutputDrop().Z, 4);
         Assert.Equal(new Float3(0.5f, 0.8f, 0.9f), rig.Strike);
@@ -414,10 +412,9 @@ public class MandrelStationGameplayTests
     [InlineData("\"thin\": 6", "\"thin\": 6.5")]
     [InlineData("\"game:chutesection-copper\"", "\"game:ingot-copper\"")]
     [InlineData("\"seraphhorizons:pipesection-lead\"", "\"seraphhorizons:pipesection-copper\"")]
-    [InlineData("\"infeedSide\": \"west\"", "\"infeedSide\": \"south\"")]
     [InlineData("\"blowsPerHollow\"", "\"blowsPerSection\"")]
     [InlineData("\"strike\"", "\"hammer\"")]
-    [InlineData("\"infeedSide\"", "\"powerFace\": \"east\", \"infeedSide\"")]
+    [InlineData("\"outputSide\"", "\"powerFace\": \"east\", \"outputSide\"")]
     [InlineData("\"end\": { \"thin\": 1, \"thick\": 1 }", "\"end\": { \"thin\": 6, \"thick\": 9 }")]
     [InlineData("\"pos\": [0, 0, 0]", "\"pos\": [0, 0, 1]")]
     public void The_reader_refuses_a_rig_that_is_not_the_contracts(string from, string to)

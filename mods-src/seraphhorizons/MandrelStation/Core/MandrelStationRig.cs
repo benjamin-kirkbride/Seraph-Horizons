@@ -18,8 +18,6 @@ public sealed class MandrelStationRig
     public const string MandrelPartId = "mandrel";
 
     public IReadOnlyList<RigCell> Cells { get; }
-    /// <summary>The face a chest of hollow sections stands against (beside the stump).</summary>
-    public Side InfeedSide { get; }
     /// <summary>The face the pipe sections leave by (beyond the mandrel's tip).</summary>
     public Side OutputSide { get; }
     /// <summary>Where the two sections lie at W = 1.</summary>
@@ -31,7 +29,7 @@ public sealed class MandrelStationRig
     public IReadOnlyList<int> BlowsPerHollow { get; }
     public RigParts MovingParts { get; }
 
-    public MandrelStationRig(IReadOnlyList<RigCell> cells, Side infeedSide, Side outputSide, Float3 output, Float3 strike,
+    public MandrelStationRig(IReadOnlyList<RigCell> cells, Side outputSide, Float3 output, Float3 strike,
                              WorkQuantity work, int blowsLead, int blowsCopper, RigParts? movingParts = null)
     {
         var positions = cells.Select(c => c.Pos).ToHashSet();
@@ -41,14 +39,11 @@ public sealed class MandrelStationRig
             throw new FormatException("a cell is listed twice");
         if (cells.Any(c => c.Hollow))
             throw new FormatException("the mandrel station has no hollow cells");
-        if (infeedSide == outputSide)
-            throw new FormatException("infeedSide and outputSide are the same face");
         if (blowsLead < 1 || blowsCopper < 1)
             throw new FormatException("forge.blowsPerHollow must be at least 1 for both metals");
         if (work.Ends[1] != 1 || work.Ends[2] != 1)
             throw new FormatException("work.end must be {thin: 1, thick: 1}, the forging of one hollow");
         Cells = cells;
-        InfeedSide = infeedSide;
         OutputSide = outputSide;
         Output = output;
         Strike = strike;
@@ -66,19 +61,8 @@ public sealed class MandrelStationRig
     /// <summary>The cells other than the controller's, in file order.</summary>
     public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
-    /// <summary>The cells just outside a face of the footprint: where a container against that face stands.</summary>
-    public IEnumerable<Int3> Neighbours(Side side)
-    {
-        var step = side.Normal();
-        var occupied = Cells.Select(c => c.Pos).ToHashSet();
-        return Cells.Select(c => c.Pos + step).Where(p => !occupied.Contains(p)).Distinct();
-    }
-
-    /// <summary>Where a chest or hopper of hollow sections stands.</summary>
-    public IEnumerable<Int3> InfeedNeighbours() => Neighbours(InfeedSide);
-
-    /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell: a container
-    /// there takes the pipe sections.</summary>
+    /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell, where the pipe sections
+    /// are dropped.</summary>
     public Int3 OutputNeighbour()
     {
         var cell = new Int3((int)MathF.Floor(Output.X), (int)MathF.Floor(Output.Y), (int)MathF.Floor(Output.Z));
@@ -89,7 +73,7 @@ public sealed class MandrelStationRig
         return cell;
     }
 
-    /// <summary>Where the sections are dropped when no container takes them: <see cref="Output"/>
+    /// <summary>Where the sections are dropped: <see cref="Output"/>
     /// moved out through the output face to <paramref name="beyond"/> blocks past it.</summary>
     public Float3 OutputDrop(float beyond = 0.15f)
     {
@@ -139,7 +123,6 @@ public sealed class MandrelStationRig
         Float3 Anchor(string key) => Float3Of(Required(Required(root, key, JsonValueKind.Object), "pos", JsonValueKind.Array), key + ".pos");
         return new MandrelStationRig(
             Cells(root),
-            SideOf(Required(root, "infeedSide", JsonValueKind.String), "infeedSide"),
             SideOf(Required(root, "outputSide", JsonValueKind.String), "outputSide"),
             Anchor("output"),
             Anchor("strike"),

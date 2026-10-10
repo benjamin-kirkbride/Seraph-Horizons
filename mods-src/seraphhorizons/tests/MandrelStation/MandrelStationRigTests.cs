@@ -65,10 +65,8 @@ public class MandrelStationRigTests
         Assert.Equal([Int3.Zero, new Int3(0, 0, 1)], rig.Cells.Select(c => c.Pos));
         Assert.All(rig.Cells, c => Assert.Null(c.Lid)); // a hand station has no deck to walk on
         Assert.Single(rig.GhostCells);
-        Assert.Equal(Side.West, rig.InfeedSide);
         Assert.Equal(Side.South, rig.OutputSide);
-        // a chest beside the stump feeds it; the sections come off beyond the tip
-        Assert.Contains(new Int3(-1, 0, 0), rig.InfeedNeighbours());
+        // the sections come off beyond the tip
         Assert.Equal(new Int3(0, 0, 2), rig.OutputNeighbour());
         Assert.True(rig.OutputDrop().Z > 2);
         foreach (var p in new[] { rig.Output, rig.Strike })

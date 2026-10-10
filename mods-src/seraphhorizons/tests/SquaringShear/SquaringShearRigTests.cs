@@ -61,10 +61,8 @@ public class SquaringShearRigTests
         Assert.Equal([Int3.Zero, new Int3(0, 0, 1)], rig.Cells.Select(c => c.Pos));
         Assert.All(rig.Cells, c => Assert.NotNull(c.Lid));
         Assert.Single(rig.GhostCells);
-        Assert.Equal(Side.South, rig.InfeedSide);
         Assert.Equal(Side.North, rig.OutputSide);
-        // a chest beyond the gauge's end feeds it; the half plates come off over the table
-        Assert.Equal([new Int3(0, 0, 2)], rig.InfeedNeighbours());
+        // the half plates come off over the table
         Assert.Equal(new Int3(0, 0, -1), rig.OutputNeighbour());
         Assert.True(rig.OutputDrop().Z < 0);
         // the anchors lie in the shear
@@ -110,9 +108,8 @@ public class SquaringShearRigTests
         Assert.Throws<FormatException>(() => SquaringShearRig.Parse(json.Replace("\"halfPlatesPerPlate\": 2", "\"halfPlatesPerPlate\": 1")));
         Assert.Throws<FormatException>(() => SquaringShearRig.Parse(json.Replace("\"game:metalplate-copper\"", "\"game:metalplate-tin\"")));
         Assert.Throws<FormatException>(() => SquaringShearRig.Parse(json.Replace("\"seraphhorizons:halfplate-lead\"", "\"seraphhorizons:angle-lead\"")));
-        Assert.Throws<FormatException>(() => SquaringShearRig.Parse(json.Replace("\"infeedSide\": \"south\"", "\"infeedSide\": \"north\"")));
         Assert.Throws<FormatException>(() => SquaringShearRig.Parse(json.Replace("\"strokesPerPlate\"", "\"turnsPerPlate\"")));
-        Assert.Throws<FormatException>(() => SquaringShearRig.Parse(json.Replace("\"infeedSide\"", "\"powerFace\": \"west\", \"infeedSide\"")));
+        Assert.Throws<FormatException>(() => SquaringShearRig.Parse(json.Replace("\"outputSide\"", "\"powerFace\": \"west\", \"outputSide\"")));
     }
 
     [NeedsSquaringShearFileFact(RigFile, ReferenceFile)]
