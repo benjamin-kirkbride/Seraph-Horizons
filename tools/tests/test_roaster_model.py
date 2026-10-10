@@ -37,7 +37,8 @@ LEVEL1 = ["stalls", "stallflue", "trestle", "hopper"]
 LEVEL2 = ["hopper", "hearth", "walls", "arch", "ironwork", "firebox", "drive", "rabbles", "feeder"]
 CONTENTS = {"1": ["heaps"], "2": ["charge", "fire"]}
 REQUIRES = set(LEVEL1) | set(LEVEL2) | {"heaps", "charge", "fire", None}
-MOVING = {"lineshaft", "rabble1", "rabble2", "feedroll"}
+MOVING = {"entry", "lineshaft", "rabble1", "rabble2", "feedroll"}
+RECTIFIED = {"lineshaft", "rabble1", "rabble2", "feedroll"}
 
 
 def matrix(pid, theta):
@@ -63,13 +64,13 @@ class Rig(unittest.TestCase):
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
         self.assertEqual({p["requires"] for p in RIG["parts"]}, REQUIRES)
-        # the only input is theta: no work, no trunk, no depth
+        # the entry reads theta, everything beyond the gear case's rectifier the axle's travel: no work, no trunk
         self.assertNotIn("work", RIG)
         self.assertNotIn("trunkPath", RIG)
         for p in RIG["parts"]:
             for d in p["drivers"]:
                 self.assertEqual(d["type"], "rotate")
-                self.assertEqual(rigmath.driver_input(d), "theta")
+                self.assertEqual(rigmath.driver_input(d), "travel" if p["id"] in RECTIFIED else "theta", p["id"])
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
@@ -196,6 +197,16 @@ class Motion(unittest.TestCase):
             for r in range(3):
                 for c in range(4):
                     self.assertAlmostEqual(a[r][c], b[r][c], places=4, msg=pid)
+
+    def test_the_axle_may_turn_either_way(self):
+        # the owner's rule: beyond the rectifier everything is posed alike for the axle turned back as forward (the
+        # rabbles plough towards the discharge, the roll feeds); the entry alone turns back
+        for th in (0.6, 2.4, 9.0):
+            for pid in MOVING:
+                fwd = rigmath.part_matrix(RIG["parts"], pid, {"theta": th, "travel": th})
+                back = rigmath.part_matrix(RIG["parts"], pid, {"theta": -th, "travel": th})
+                same = all(abs(fwd[r][c] - back[r][c]) < 1e-12 for r in range(3) for c in range(4))
+                self.assertEqual(same, pid in RECTIFIED, pid)
 
     def test_the_feed_roll_turns_with_the_line_shaft(self):
         self.assertEqual(RIG["gearing"]["feedRollTurnsPerAxleTurn"], 1)

@@ -6,8 +6,8 @@ import { buildModelView } from "../src/lib/model-view.ts";
 import { fitted, partMatrices, rideOrder, rigInputs, thetaTurns, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The roaster's shipped files, and the poses Roaster/tools/make_shape.py computes from them with machinegen's
-// reference maths. Its rig reads θ alone (the line shaft and the feed roll on its end, the rabbles through their
-// bevel pairs); its scenario's states are the frame and levels 1 and 2, level 2 keeping level 1's hopper and pulling
+// reference maths. Its entry shaft reads θ, and everything beyond the gear case's rectifier ψ, the axle's travel (the
+// line shaft and the feed roll on its end, the rabbles through their bevel pairs); its scenario's states are the frame and levels 1 and 2, level 2 keeping level 1's hopper and pulling
 // down the rest. tools/tests/test_roaster_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -24,12 +24,24 @@ const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 +
 const pose = (theta: number): Pose => ({ theta, depth: 0, lifting: 0, travel: Math.abs(theta), work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
 
 describe("the roaster's rig against its rig-reference.json", () => {
-  it("reads θ alone, over a cycle of two turns, and has a matrix for every part", () => {
-    expect(rigInputs(parts)).toMatchObject({ theta: true, travel: false, depth: false, lifting: false });
-    expect(thetaTurns(parts)).toBe(2);
+  it("reads θ at the entry and ψ beyond the rectifier, and has a matrix for every part", () => {
+    expect(rigInputs(parts)).toMatchObject({ theta: true, travel: true, depth: false, lifting: false });
+    expect(thetaTurns(parts)).toBe(1);
     expect(rig.work).toBeUndefined();
     expect(rig.trunkPath).toBeUndefined();
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
+  });
+
+  it("turns the rabbles and the feed roll forward whichever way the axle turns", () => {
+    const rectified = ["lineshaft", "rabble1", "rabble2", "feedroll"];
+    for (const th of [0.6, 2.4, 9]) {
+      const fwd = partMatrices(parts, { ...pose(th), travel: th }, order, null);
+      const back = partMatrices(parts, { ...pose(-th), travel: th }, order, null);
+      parts.forEach((q, i) => {
+        const same = fwd[i]!.every((v, k) => Math.abs(v - back[i]![k]!) < 1e-9);
+        expect([q.id, same]).toEqual([q.id, q.id === "entry" ? false : (q.drivers ?? []).length === 0 || rectified.includes(q.id)]);
+      });
+    }
   });
 
   it("matches every part's matrix at every reference pose", () => {
@@ -82,7 +94,7 @@ describe("the roaster's levels", () => {
   it("shows the frame alone, then the stalls under the hopper, then the furnace under the same hopper", () => {
     expect(shown("frame")).toEqual(["frame"]);
     expect(shown("level1")).toEqual(["stalls", "stallflue", "trestle", "heaps", "hopper", "frame"]);
-    expect(shown("level2")).toEqual(["hopper", "hearth", "walls", "arch", "ironwork", "firebox", "lineshaft", "pedestals", "rabble1", "rabble2", "rabblemounts", "feedroll", "feeder", "charge", "fire", "frame"]);
+    expect(shown("level2")).toEqual(["hopper", "hearth", "walls", "arch", "ironwork", "firebox", "entry", "gearcase", "lineshaft", "pedestals", "rabble1", "rabble2", "rabblemounts", "feedroll", "feeder", "charge", "fire", "frame"]);
   });
 
   it("collides with what each level fits: the frame's boxes always, a part's only while it is fitted", () => {

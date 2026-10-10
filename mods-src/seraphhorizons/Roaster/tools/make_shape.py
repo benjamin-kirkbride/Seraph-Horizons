@@ -21,8 +21,9 @@ output spout, the power cell, the flue chamber with its sulfur door and the stac
             pit; bevel gears from a line shaft on the roof turn them, and the line shaft continues the
             vanilla axle at the power cell. The level 1 hopper stays where it is, now set on a fluted feed
             roll keyed on the line shaft's end, which meters the previous machine's chute down through the
-            arch. The furnace's work doors stand open (their plates raised in their guides), so the hearth
-            and the rabbles can be seen.
+            arch. A gear case at the fire end holds a rectifier, so all of that turns forward whichever way
+            the axle turns. The furnace's work doors stand open (their plates raised in their guides), so the
+            hearth and the rabbles can be seen.
 
 The roaster takes no process water at either level: roasting is dry, so it has no pipe inlet.
 
@@ -46,7 +47,9 @@ the controller) to the stack (south).
 
 The rig's input, as this machine uses it (README "Rig"):
 
-    theta  the axle angle: the line shaft, the feed roll on its end and, through the bevel gears, the rabbles
+    theta  the axle angle, either way: the entry shaft into the gear case
+    psi    the axle's travel, which only grows (`"input": "travel"`): beyond the gear case's rectifier, the line shaft,
+           the feed roll on its end and, through the bevel gears, the rabbles, which so turn forward either way
 """
 
 from __future__ import annotations
@@ -185,8 +188,14 @@ THROAT_Y0 = 17.0                             # the throat under the slot hangs d
 # ---------------------------------------------------------------- level 2: the drive and the rabbles
 SHAFT = (24.0, 40.0)                         # (x, y) of the line shaft along z: the power cell's centre
 SHAFT_R = 0.9
-ENTRY_Z = (0.0, 4.0)                         # the oak entry, the vanilla axle's cross profile, from the power face
-SHAFT_Z = (3.0, 79.0)                        # the iron shaft, on through the feed roll to the feeder casing's far wall
+ENTRY_Z = (0.0, 4.0)                         # the oak entry, the vanilla axle's cross profile, from the power face into the gear case
+SHAFT_Z = (8.0, 79.0)                        # the iron line shaft, from inside the gear case on through the feed roll to the casing's far wall
+# the gear case at the fire end: a closed cast-iron case on the coal bunker's rim, holding a rectifier (as the stamp
+# mill's: two pairs of gears on one-way catches, one through an idler, its gears not drawn), so the line shaft coming
+# out of its south side turns one way whichever way the axle turns
+GEARCASE = ((18.0, 30.0), (33.0, 46.0), (2.0, 10.0))      # the case (x, y, z)
+GEARCASE_BASE = ((17.0, 31.0), (32.0, 33.0), (1.0, 11.0))  # its foot, on the bunker's north and south walls
+GEARCASE_BOSS = (2.2, 1.0)                   # the bosses round the entry and the line shaft: radius, length out of the case
 PEDESTALS = ((14.0, 17.0), (25.0, 28.0), (48.0, 51.0))   # z: the line shaft's pedestals on the arch
 PED_BASE_X = (21.5, 26.5)
 PED_COL_X = (22.8, 25.2)
@@ -777,13 +786,21 @@ def pinion_z(zs):
 
 
 def build_drive():
-    """The line shaft: the oak entry from the power face (the vanilla axle's cross), the iron shaft along the
-    roof's middle to the feeder's casing, a bevel pinion for each rabble's wheel; its pedestals on the arch."""
+    """The drive: the oak entry from the power face (the vanilla axle's cross) into the gear case, whose rectifier
+    turns the line shaft one way whichever way the axle turns; the iron line shaft along the roof's middle to the
+    feeder's casing, a bevel pinion for each rabble's wheel; its pedestals on the arch."""
     p = "lineshaft"
     x, y = SHAFT
     z0, z1 = ENTRY_Z
-    out = [box([x - 1.5, y - 0.6, z0], [x + 1.5, y + 0.6, z1], "lineshaft_entrya", p, "oak"),
-           box([x - 0.6, y - 1.5, z0], [x + 0.6, y + 1.5, z1], "lineshaft_entryb", p, "oak")]
+    out = [box([x - 1.5, y - 0.6, z0], [x + 1.5, y + 0.6, z1], "entry_a", "entry", "oak"),
+           box([x - 0.6, y - 1.5, z0], [x + 0.6, y + 1.5, z1], "entry_b", "entry", "oak")]
+    (cx0, cx1), (cy0, cy1), (cz0, cz1) = GEARCASE
+    (bx0, bx1), (by0, by1), (bz0, bz1) = GEARCASE_BASE
+    br, bl = GEARCASE_BOSS
+    out += wall([bx0, by0, bz0], [bx1, by1, bz1], "gearcase_foot", "gearcase", "iron")
+    out += wall([cx0, cy0, cz0], [cx1, cy1, cz1], "gearcase_case", "gearcase", "iron")
+    out += disc("z", SHAFT_C, cz0 - bl, cz0, br, "gearcase_bossn", "gearcase", "iron", k=6)
+    out += disc("z", SHAFT_C, cz1, cz1 + bl, br, "gearcase_bosss", "gearcase", "iron", k=6)
     out += disc("z", SHAFT_C, *SHAFT_Z, SHAFT_R, "lineshaft_rod", p, "iron")
     for k, zs in enumerate(RABBLE_Z, 1):
         zp = pinion_z(zs)
@@ -891,15 +908,20 @@ def _rig_parts():
     shaft = pt(SHAFT[0], SHAFT[1], 0.0)
     parts = [static("stalls"), static("stallflue"), static("trestle"), static("heaps"), static("hopper"),
              static("hearth"), static("walls"), static("arch"), static("ironwork"), static("firebox"),
-             {"id": "lineshaft", "match": ["lineshaft_*"], "requires": "drive",
+             # the entry turns with the axle (theta), either way; everything beyond the gear case's rectifier reads the
+             # axle's travel (psi), which only grows, so it turns forward whichever way the axle turns
+             {"id": "entry", "match": ["entry_*"], "requires": "drive",
               "drivers": [{"type": "rotate", "axis": "z", "pivot": shaft, "ratio": 1.0}]},
+             static("gearcase", "drive"),
+             {"id": "lineshaft", "match": ["lineshaft_*"], "requires": "drive",
+              "drivers": [{"type": "rotate", "axis": "z", "pivot": shaft, "ratio": 1.0, "input": "travel"}]},
              static("pedestals", "drive", "pedestal*")]
     for k, zs in enumerate(RABBLE_Z, 1):
         parts.append({"id": f"rabble{k}", "match": [f"rabble{k}_*"], "requires": "rabbles",
-                      "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(SHAFT[0], 0.0, zs), "ratio": r6(RATIO)}]})
+                      "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(SHAFT[0], 0.0, zs), "ratio": r6(RATIO), "input": "travel"}]})
     parts += [static("rabblemounts", "rabbles", "rabblemount*"),
               {"id": "feedroll", "match": ["feedroll_*"], "requires": "feeder",
-               "drivers": [{"type": "rotate", "axis": "z", "pivot": shaft, "ratio": 1.0}]},
+               "drivers": [{"type": "rotate", "axis": "z", "pivot": shaft, "ratio": 1.0, "input": "travel"}]},
               static("feeder"), static("charge"), static("fire"),
               {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []}]
     for p in parts:
@@ -909,7 +931,8 @@ def _rig_parts():
     return parts
 
 
-MOVING = ("lineshaft", "rabble1", "rabble2", "feedroll")
+MOVING = ("entry", "lineshaft", "rabble1", "rabble2", "feedroll")
+RECTIFIED = ("lineshaft", "rabble1", "rabble2", "feedroll")   # beyond the rectifier: forward either way
 
 
 # ---------------------------------------------------------------- poses
@@ -951,7 +974,8 @@ def make_rig(parts):
                     "machines (#711): the cells, the power cell, the infeed, the output spout and the stack are the frame's and "
                     "never move; levels lists the requires values each level fits (level 2 keeps level 1's hopper and pulls down "
                     "its stalls, flue and trestle), contents what each shows while roasting. A cell's boxes are the frame's, its "
-                    "fitted boxes those of each requires value while it is fitted. The only input is theta, the axle's angle. "
+                    "fitted boxes those of each requires value while it is fitted. The entry shaft reads theta, the axle's angle; "
+                    "everything beyond the gear case's rectifier reads the axle's travel, so it turns forward either way. "
                     "See the roaster's README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
@@ -975,8 +999,9 @@ def make_rig(parts):
         "gearing": {"rabbleTurnsPerAxleTurn": r6(abs(RATIO)), "feedRollTurnsPerAxleTurn": 1, "pinionTeeth": NP, "wheelTeeth": NW,
                     "_comment": "As drawn: each rabble's bevel wheel is driven from its north rim by a bevel pinion on the line "
                                 f"shaft ({NP}:{NW}), so the rabbles turn {abs(RATIO):.4g} as fast as the axle, against it; the feed "
-                                "roll is keyed on the shaft's end, one turn a turn. A renderer has nothing to read here: the parts' "
-                                "drivers carry it."},
+                                "roll is keyed on the shaft's end, one turn a turn; the line shaft turns once a turn of the axle, "
+                                "forward either way (the gear case's rectifier, 1:1). A renderer has nothing to read here: the "
+                                "parts' drivers carry it."},
         "parts": parts,
     }
 

@@ -118,7 +118,8 @@ ROLES = [
     (r"^charge_", {"ore"}),
     (r"^fire_bed", {"fire"}),
     (r"^fire_coal", {"coal"}),
-    (r"^lineshaft_entry", {"oak"}),
+    (r"^entry_", {"oak"}),
+    (r"^gearcase_", {"iron"}),
     (r"^lineshaft_(rod|pinion)", {"iron"}),
     (r"^(pedestal|rabble|feedroll|feeder)", {"iron"}),
 ]
@@ -205,6 +206,9 @@ def check_floating(v):
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
 # round. Everything else a moving part touches, in a state where both are drawn, is a failure.
 ALLOWED = [
+    ("entry", None, "gearcase", None),                              # the entry into the gear case
+    ("lineshaft", r"_rod", "gearcase", None),                       # the line shaft out of it
+    ("entry", None, "lineshaft", r"_rod"),                          # (the rectifier between them is in the case)
     ("lineshaft", r"_rod", "pedestals", r"_bearing"),               # the shaft in its bearings
     ("lineshaft", r"_rod", "feeder", r"_casing_[ns]"),              # and in the casing's end walls
     ("lineshaft", r"_rod", "feedroll", None),                       # the roll keyed on it
@@ -282,13 +286,16 @@ def check_supports(v):
     """The line shaft in at least two bearings (the pedestals; the feeder casing's end walls besides), each
     spindle in its gland and its bearing, each wheel's hub resting on its bearing."""
     m = v.m
-    statics = [el for pid in ("pedestals", "rabblemounts") for el in v.by_part[pid]]
+    statics = [el for pid in ("pedestals", "rabblemounts", "gearcase") for el in v.by_part[pid]]
     # supports() takes the other two coordinates in axis order: for a shaft along z, (x, y)
     found, span = supports(statics, v.named("lineshaft", r"_rod"), 2, (m.SHAFT[0], m.SHAFT[1]))
-    bearings = [n for n in found if n.endswith("_bearing")]
-    print(f"support line shaft: {len(bearings)} pedestal bearings ({', '.join(bearings)}), shaft z {span}")
-    if len(bearings) < 2:
-        v.fail("the line shaft is not carried by two bearings")
+    bearings = sorted({re.sub(r"_[0-9]+$", "", n) for n in found if n.endswith("_bearing") or n.startswith("gearcase_boss")})
+    print(f"support line shaft: {len(bearings)} bearings ({', '.join(bearings)}), shaft z {span}")
+    if len(bearings) < 3 or "gearcase_bosss" not in bearings:
+        v.fail("the line shaft is not carried by the gear case's boss and two bearings")
+    found, _ = supports(statics, v.named("entry", r"."), 2, (m.SHAFT[0], m.SHAFT[1]))
+    if not any(n.startswith("gearcase_bossn") for n in found):
+        v.fail("the entry does not run into the gear case's boss")
     walls = sorted((e.aabb() for e in v.named("feeder", r"_casing_[ns]")), key=lambda b: b[0][2])
     if len(walls) != 2 or not all(b[0][2] < span[1] and span[0] < b[1][2] for b in walls) or span[1] > walls[1][1][2] + 1e-6:
         v.fail("the line shaft's end does not run in the feeder casing's end walls")
@@ -381,6 +388,26 @@ def check_gearing(v):
         v.fail("a pinion's teeth drift out of the wheel's gaps")
     if worst_d > MESH_LIMIT:
         v.fail("a bevel pair's teeth run too far into each other")
+
+
+def check_reverse(v):
+    """Every machine tolerates the axle turning either way (the owner's rule): the entry shaft turns with the axle,
+    and everything beyond the gear case's rectifier (the line shaft, the rabbles, the feed roll) is posed the same
+    for the axle turned back as forward by as much, so the rabbles plough towards the discharge and the roll feeds
+    either way; nothing at level 1 moves."""
+    m = v.m
+    worst, entry_moves = 0.0, True
+    for th in (0.7, 2.9, 7.3):
+        for pid in m.RECTIFIED:
+            a, b = m.pm(v.parts, pid, (th, "all")), m.pm(v.parts, pid, (-th, "all"))
+            worst = max(worst, max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)))
+        a, b = m.pm(v.parts, "entry", (th, "all")), m.pm(v.parts, "entry", (-th, "all"))
+        entry_moves = entry_moves and max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)) > 1e-3
+    l1 = [pid for pid in m.MOVING if v.shows(pid, "level1")]
+    print(f"reverse: beyond the rectifier {', '.join(m.RECTIFIED)} are posed alike for the axle turned either way (worst "
+          f"difference {worst:.1e}); the entry turns back with the axle; moving at level 1: {l1 or 'nothing'}")
+    if worst > 1e-12 or not entry_moves or set(m.MOVING) - set(m.RECTIFIED) != {"entry"} or l1:
+        v.fail("a working part turns back when the axle does")
 
 
 def check_feedroll(v):
@@ -532,7 +559,7 @@ def check_anchors(v):
         out = tuple(cell[k] + n[k] for k in range(3))
         if cell not in cells or out in cells:
             v.fail(f"the {key} cell {cell} is not in the footprint with its {face} face outside")
-    entry = aabb_of(v.named("lineshaft", r"_entry"))
+    entry = aabb_of(v.named("entry", r"."))
     c = [(m.POWER_CELL[k] + 0.5) * 16 for k in range(3)]
     if abs(entry[0][2] - m.POWER_CELL[2] * 16) > 1e-6 or abs((entry[0][0] + entry[1][0]) / 2 - c[0]) > 1e-6 or abs((entry[0][1] + entry[1][1]) / 2 - c[1]) > 1e-6:
         v.fail(f"the line shaft's entry does not meet the power face at the cell's centre: {entry}")
@@ -587,6 +614,7 @@ def validate(m, els, parts, rig, quick=False):
     check_supports(v)
     check_gearing(v)
     check_feedroll(v)
+    check_reverse(v)
     check_clearances(v, 24, "clearances")
     if not quick:
         check_clearances(v, 144, "swept paths (every 5 degrees of the shaft over the rabbles' two turns)")
