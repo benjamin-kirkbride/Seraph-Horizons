@@ -1,0 +1,111 @@
+// Cylinder molds, raw (#639; CylinderBorer/, README "Cylinder borer"): clay-formed
+// (recipes/clayforming/cylindermold.json) and fired like the game's tool molds, in a pit kiln (ground
+// stored, combustibleProps) or a beehive kiln (beehivekiln), into cylindermold-fired.json. Coded
+// "cylindermold", not "toolmold", so the CylinderBorer switch owns it apart from the gear blank molds
+// (SwitchRegistry reads a type file's code). The server disables it with CylinderBorer off.
+{
+	code: "cylindermold",
+	class: "Block",
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "SingleCenter" } },
+		{ name: "Unplaceable" },
+		{ name: "RightClickPickup" }
+	],
+	variantgroups: [
+		{ code: "color", states: ["blue", "red", "fire"] },
+		{ code: "materialtype", states: ["raw"] }
+	],
+	shape: { base: "seraphhorizons:block/clay/mold/cylinder" },
+	textures: { all: { base: "game:block/clay/{color}clay" } },
+	attributes: {
+		reinforcable: true,
+		handbook: {
+			groupBy: ["cylindermold-*-{materialtype}"],
+			extraSections: [{ title: "seraphhorizons:cylinderborer-part-section-title", text: "seraphhorizons:cylindermold-section-text" }]
+		}
+	},
+	attributesByType: {
+		"cylindermold-red-raw": {
+			beehivekiln: {
+				"0": { type: "block", code: "seraphhorizons:cylindermold-tan-fired" },
+				"1": { type: "block", code: "seraphhorizons:cylindermold-orange-fired" },
+				"2": { type: "block", code: "seraphhorizons:cylindermold-red-fired" },
+				"3": { type: "block", code: "seraphhorizons:cylindermold-brown-fired" }
+			}
+		},
+		"cylindermold-blue-raw": {
+			beehivekiln: {
+				"0": { type: "block", code: "seraphhorizons:cylindermold-cream-fired" },
+				"1": { type: "block", code: "seraphhorizons:cylindermold-gray-fired" },
+				"2": { type: "block", code: "seraphhorizons:cylindermold-black-fired" },
+				"3": { type: "block", code: "seraphhorizons:cylindermold-black-fired" }
+			}
+		},
+		"cylindermold-fire-raw": {
+			beehivekiln: {
+				"0": { type: "block", code: "seraphhorizons:cylindermold-fire-fired" },
+				"1": { type: "block", code: "seraphhorizons:cylindermold-fire-fired" },
+				"2": { type: "block", code: "seraphhorizons:cylindermold-fire-fired" },
+				"3": { type: "block", code: "seraphhorizons:cylindermold-fire-fired" }
+			}
+		}
+	},
+	combustiblePropsByType: {
+		"cylindermold-fire-raw": {
+			meltingPoint: 650,
+			meltingDuration: 45,
+			smeltedRatio: 1,
+			smeltingType: "fire",
+			smeltedStack: { type: "block", code: "seraphhorizons:cylindermold-fire-fired" },
+			requiresContainer: false
+		},
+		"cylindermold-blue-raw": {
+			meltingPoint: 650,
+			meltingDuration: 45,
+			smeltedRatio: 1,
+			smeltingType: "fire",
+			smeltedStack: { type: "block", code: "seraphhorizons:cylindermold-blue-fired" },
+			requiresContainer: false
+		},
+		"cylindermold-red-raw": {
+			meltingPoint: 650,
+			meltingDuration: 45,
+			smeltedRatio: 1,
+			smeltingType: "fire",
+			smeltedStack: { type: "block", code: "seraphhorizons:cylindermold-earthyorange-fired" },
+			requiresContainer: false
+		}
+	},
+	blockmaterial: "Ceramic",
+	creativeinventory: { "general": ["*"], "construction": ["*"] },
+	replaceable: 700,
+	resistance: 1.5,
+	maxStackSize: 1,
+	lightAbsorption: 0,
+	sounds: {
+		walk: "game:walk/stone"
+	},
+	collisionbox: { x1: 0.0625, y1: 0, z1: 0, x2: 0.9375, y2: 0.6875, z2: 1 },
+	selectionbox: { x1: 0.0625, y1: 0, z1: 0, x2: 0.9375, y2: 0.6875, z2: 1 },
+	sideopaque: {
+		all: false
+	},
+	sidesolid: {
+		all: false
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.34, z: 0.5 },
+		scale: 1.1
+	},
+	tpHandTransform: {
+		translation: { x: -1.08, y: -0.45, z: -0.73 },
+		rotation: { x: -87, y: 9, z: 4 },
+		origin: { x: 0.5, y: 0.34, z: 0.5 },
+		scale: 0.45
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 1.8
+	}
+}

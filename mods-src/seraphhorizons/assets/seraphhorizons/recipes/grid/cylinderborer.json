@@ -1,0 +1,62 @@
+// The cylinder borer (#639; CylinderBorer/, README "Cylinder borer"). The server disables these with
+// CylinderBorer off.
+[
+	{
+		// The frame: oak sills and posts (logs) and bearers (planks), iron ways and fittings (two plates
+		// in one slot, two rods in one), bolted up with 12 nails and strips, with a hammer: iron, meteoric
+		// iron or steel, as the draw bench's. Two stainless gears pay for the gearing the frame carries:
+		// the pinion on the entry shaft and the great wheel's drive (#473). Every other working part goes
+		// in afterwards, fitted by hand.
+		ingredientPattern: "MHG,LNL,PRP",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"M": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
+			"G": { type: "item", code: "seraphhorizons:gear-stainless", quantity: 2 },
+			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 12 },
+			"L": { type: "block", code: "game:log-placed-oak-ud" },
+			"P": { type: "item", code: "game:plank-oak" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:cylinderborer-frame-north" }
+	},
+	{
+		// The bushings (stage 1): the pair the bar turns in, from metal parts (drawn in cupronickel, as the
+		// gear cutter draws metal parts).
+		ingredientPattern: "M",
+		width: 1,
+		height: 1,
+		ingredients: {
+			"M": { type: "block", code: "game:metal-parts" }
+		},
+		output: { type: "item", code: "seraphhorizons:cylinderborerbushings" }
+	},
+	{
+		// The boring bar (stage 2): three rods end to end, in a column, of iron, meteoric iron or steel as
+		// the frame's, and metal parts for the feather the cutter head slides on and the collars.
+		ingredientPattern: "R_,RM,R_",
+		width: 2,
+		height: 3,
+		ingredients: {
+			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"M": { type: "block", code: "game:metal-parts" }
+		},
+		output: { type: "item", code: "seraphhorizons:cylinderborerbar" }
+	},
+	{
+		// The feed (stage 3): the crosshead of two oak planks with a rod for its control rod, the drum's
+		// two ropes, and a plate for the weight that pulls the cutter head through the bore (iron, meteoric
+		// iron or steel, as the frame's).
+		ingredientPattern: "PRP,C_C,_M_",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"P": { type: "item", code: "game:plank-oak" },
+			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"C": { type: "item", code: "game:rope" },
+			"M": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "meteoriciron", "steel"] }
+		},
+		output: { type: "item", code: "seraphhorizons:cylinderborerfeed" }
+	}
+]

@@ -300,6 +300,16 @@ input shaft one hollow takes, the `work` it is made of (4 sections, `turnsPerUni
 `wear` (`fixed`: one point per hollow) and `oil` (`points` drained per hollow from a `tank`, 2 a
 pipe section).
 
+**The cylinder borer** (type `cylinderborer`, shape `machine`): one record per metal, id
+`cylinderborer|seraphhorizons:cylinderblank-<metal>|0` (iron, the Watt engine's; steel, the Cornish's). The
+ingredients are the cast cylinder (consumed), the fitted parts (the bushings, the bar and the feed, in
+`machine.kept`), the cutter head (`isTool`, its `toolDurabilityCost` the head's wear per cylinder with a full
+tank), the oil (each listed oil in the variant, with the litres one cylinder drains) and the machine (role
+`station`); the output is the bored cylinder (`seraphhorizons:cylinder-<metal>`). `machine` has `power`
+(`mechanical`), the `turns` of the input shaft one cylinder takes, the `work` it is made of (the cutter head's
+travel, 1.125 `blocks`, `turnsPerUnit` each), `kept`, `wear` (`dividedByOilFill`, as the gear cutter's kit) and
+`oil` (`points` drained per cylinder from a `tank`). The cylinder mold's casting is an ordinary `casting` record.
+
 **The press brake** (type `pressbrake`, shape `machine`): one record per half plate metal, id
 `pressbrake|seraphhorizons:halfplate-<metal>|0`. The ingredients are the half plate (consumed), the
 screws (`game:metal-parts`, a block) and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle

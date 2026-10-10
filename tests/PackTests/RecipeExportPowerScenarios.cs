@@ -127,7 +127,7 @@ public partial class RecipeExportScenarios
                      ("smex:convertertransmission", 0.25), ("ppex:mpfluidpump", 0.125), ("ppex:enginempgenerator", 0.0005),
                      ("gondolacablecar:station", 2.25), ("gondolacablecar:station@viking", 3.6), ("gondolacablecar:smallstation@1", 0.45),
                      ("seraphhorizons:buckingmill", 0.17), ("seraphhorizons:rosser", 0.2), ("seraphhorizons:gearcutter", 0.2),
-                     ("seraphhorizons:drawbench", 0.2),
+                     ("seraphhorizons:drawbench", 0.2), ("seraphhorizons:cylinderborer", 0.3),
                  })
             Near(load, Consumer(id)["load"]);
 
@@ -140,6 +140,8 @@ public partial class RecipeExportScenarios
         Json("""{ "dryMultiplier": 3, "tank": 10 }""", Consumer("immersivewoodworking:chopper")["oil"]!);
         // The gear cutter's oil wears its kit, not its load.
         Json("""{ "dryMultiplier": 1, "tank": 10 }""", Consumer("seraphhorizons:gearcutter")["oil"]!);
+        // The cylinder borer's wears its cutter head.
+        Json("""{ "dryMultiplier": 1, "tank": 10 }""", Consumer("seraphhorizons:cylinderborer")["oil"]!);
         Near(0.35, Consumer("seraphhorizons:drawbench")["loadMax"]);
         Near(0.15, Consumer("smex:mpblower")["loadMax"]);
         Near(0.05, Consumer("smex:mpblower")["load"]);

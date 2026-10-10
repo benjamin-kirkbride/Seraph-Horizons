@@ -11,7 +11,7 @@ same shape; they differ in metal (ppex draws the Watt's iron and the Cornish's s
 classes are the casting's metal, not its size.
 
 The cast cylinder, square outside as ppex draws it, its bore round, lies on its side in a timber cradle: flat
-on two bearers between their cleats, and held down by two chains. A slender iron boring bar runs right through it, carried in a bearing at each end (Wilkinson's
+on two bearers between their cleats, and held down by two chains. A slender iron boring bar runs right through it, carried in a bushing at each end (Wilkinson's
 improvement on Smeaton's cantilevered borer, which wandered), and is turned from the vanilla axle by a
 pinion and a great wheel, 1:4, a slow, heavy cut. A cutter head keyed on the bar by a feather (it turns
 with the bar and slides along it) carries four cutters held by wedges; it is drawn through the bore by a
@@ -27,8 +27,10 @@ It writes, deterministically,
     cylinderborer_frame.json   the static frame only (block and item)  (assets/.../shapes/block/)
     cylinderborer-rig.json     cells, anchors and the part rig         (assets/.../config/)
     rig-reference.json         every part's matrix at a grid of poses  (tests/CylinderBorer/)
+    cylinderborer/<item>.json  the parts', the blank's and the cylinder's item shapes (assets/.../shapes/item/)
+    clay/mold/cylinder.json    the clay mold the blank is cast in        (assets/.../shapes/block/)
 
-or, with `--out DIR`, all four into DIR. It validates its own output (validate_cylinderborer.py) and
+or, with `--out DIR`, all of them into DIR (the item shapes into DIR/item/). It validates its own output (validate_cylinderborer.py) and
 exits non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
@@ -47,7 +49,7 @@ The rig's inputs, as this machine uses them (README "Rig"):
            into the wall as the cutters cross it
     k      the casting's metal: 0 none, 1 iron (a Watt engine's), 2 steel (a Cornish engine's)
     p      its presence, 0..1, eased as a cylinder is loaded and cleared; the head comes back with it
-    oil    the oil tank's fill, 0..1: the two bearings' sight-feed cups
+    oil    the oil tank's fill, 0..1: the two bushings' sight-feed cups
 """
 
 from __future__ import annotations
@@ -77,6 +79,8 @@ MOD = ROOT / "mods-src" / "seraphhorizons"
 SHAPE_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "block"
 RIG_DIR = MOD / "assets" / "seraphhorizons" / "config"
 REFERENCE_OUT = MOD / "tests" / "CylinderBorer" / "rig-reference.json"
+ITEM_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "item" / "cylinderborer"
+MOLD_OUT = MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "clay" / "mold" / "cylinder.json"
 SCRIPT = "mods-src/seraphhorizons/CylinderBorer/tools/make_shape.py"
 
 B = 16.0
@@ -97,6 +101,7 @@ TEXTURES = {
     "rough": "game:block/metal/corroded/rusty1",         # the bore's cast skin, scaled and rough, before the cut
     "bored": "game:block/metal/sheet-plain/steel1",      # the bore once the cutters have passed: bright
     "brass": "game:block/metal/sheet/brass1",
+    "cupronickel": "game:block/metal/sheet/cupronickel1",  # the bar's bushings: metal parts, drawn as the gear cutter draws them
     "rope": "game:item/resource/rope",
     "glass": "game:block/glass/plain",
     "oil": "game:block/liquid/honey",
@@ -116,17 +121,17 @@ PPEX_SHAPES = ("assets/ppex/shapes/engine/watt.json", "assets/ppex/shapes/engine
 # ---------------------------------------------------------------- the bar and the drive
 BAR = (8.0, 16.0)                            # (x, y): the boring bar's axis, along z
 BAR_R = 1.2                                  # its apothem (an octagon 2.4 across, a third of the bore)
-BAR_Z = (0.3, 58.4)                          # from beyond the far bearing into the drive bearing
+BAR_Z = (0.3, 58.4)                          # from beyond the far bushing into the drive bushing
 ENTRY = (8.0, 8.0)                           # (x, y): the entry shaft, along z from the south face (the power cell's centre), under the bar
 GEAR_MOD = 0.4
 PINION_T, WHEEL_T = 8, 32                    # the pinion on the entry shaft, the great wheel on the bar: 1:4, a slow, heavy cut
 R_PINION, R_WHEEL = PINION_T * GEAR_MOD / 2, WHEEL_T * GEAR_MOD / 2     # 1.6 and 6.4: their centres are 8 apart
 BAR_RATIO = -PINION_T / WHEEL_T              # the bar turns a quarter of the axle, the other way
 GEAR_Z = (53.0, 55.0)                        # both gears' faces
-BRG_HALF = 1.8                               # the bar's bearings: blocks 3.6 square round it
-PED_HALF = 1.5                               # the far bearing's pedestal
-BRG_FAR_Z = (0.8, 3.8)                       # the far bearing, at the bench end
-BRG_DRIVE_Z = (56.0, 58.6)                   # the drive bearing, on the drive portal's transom beyond the great wheel
+BUSH_HALF = 1.8                               # the bar's bushings: blocks 3.6 square round it
+PED_HALF = 1.5                               # the far bushing's pedestal
+BUSH_FAR_Z = (0.8, 3.8)                       # the far bushing, at the bench end
+BUSH_DRIVE_Z = (56.0, 58.6)                   # the drive bushing, on the drive portal's transom beyond the great wheel
 ENTRY_HALF = 1.7
 ENTRY_BRG_Z = ((50.0, 52.4), (61.4, 63.8))   # the entry shaft's bearings either side of its pinion, the outer one just inside the face
 COLLAR_R = 1.8
@@ -134,7 +139,7 @@ KEY_HALF, KEY_PROUD = 0.25, 0.2              # the feather on the bar's top flat
 KEY_Z = (4.9, 52.4)
 PORTAL_Z = (56.0, 58.6)                      # the drive portal: two posts on the sills and a transom over the entry shaft
 PORTAL_POSTS = ((0.5, 3.0), (13.0, 15.5))
-TRANSOM_Y = (11.6, BAR[1] - BRG_HALF)
+TRANSOM_Y = (11.6, BAR[1] - BUSH_HALF)
 
 # ---------------------------------------------------------------- the cylinder (one shape; k is its metal)
 CLASSES = ("thin", "thick")
@@ -210,14 +215,14 @@ LINK = {"pitch": 1.2, "wide": (0.9, 0.6), "narrow": (0.55, 0.8)}   # (across, i.
 CHAIN_OFF = 0.4                              # the chain's centre line stands this far off the casting's flats
 HOOK_Y = 3.6                                 # the chains' staples, on the sills
 
-# ---------------------------------------------------------------- the oil cups (one on each bar bearing, one tank)
+# ---------------------------------------------------------------- the oil cups (one on each bar bushing, one tank)
 CUP = {"x": (4.2, 5.4), "y": (15.4, 16.9), "far_z": (1.7, 2.9), "drive_z": (56.7, 57.9)}
 OIL_Y = CUP["y"][0] + 0.01                  # the oil's bottom, a hair over the glass's
 OIL_EMPTY = 0.05
 OIL_FULL = CUP["y"][1] - OIL_Y - 0.15
 
-# ---------------------------------------------------------------- gameplay figures (provisional)
-TURNS_PER_BLOCK = {"thin": 64.0, "thick": 96.0}  # axle turns per block of the head's travel: the gameplay's pace, not drawn (the feed is weighted); steel cuts slower
+# ---------------------------------------------------------------- gameplay figures
+TURNS_PER_BLOCK = {"thin": 64.0, "thick": 96.0}  # axle turns per block of the head's travel: the gameplay's pace (CylinderBorerSettings' defaults, a test holds them together), not drawn (the feed is weighted); steel cuts slower
 
 
 # ---------------------------------------------------------------- ppex's engine cylinder, measured
@@ -417,7 +422,7 @@ def build_entry():
 
 def build_bar():
     """The boring bar (an iron octagon, in block lengths), the feather the head slides on, its two collars at
-    the far bearing (the bar's thrust), and the great wheel keyed on its drive end: a cast spoked wheel of 32
+    the far bushing (the bar's thrust), and the great wheel keyed on its drive end: a cast spoked wheel of 32
     teeth."""
     out = []
     z0, z1 = BAR_Z
@@ -425,8 +430,8 @@ def build_bar():
     for i, (a, b) in enumerate(zip(cuts, cuts[1:])):
         out += disc("z", BAR_C, a, b, BAR_R, f"bar_seg{i + 1}", "bar", "iron", step=0.0 if 0 < i < 3 else 0.012)
     out += long_box([BAR[0] - KEY_HALF, BAR[1] + BAR_R - 0.1, KEY_Z[0]], [BAR[0] + KEY_HALF, BAR[1] + BAR_R + KEY_PROUD, KEY_Z[1]], "bar_key", "bar", "steel")
-    out += disc("z", BAR_C, z0, BRG_FAR_Z[0] - 0.05, COLLAR_R, "bar_collar1", "bar", "iron")
-    out += disc("z", BAR_C, BRG_FAR_Z[1] + 0.05, BRG_FAR_Z[1] + 0.6, COLLAR_R, "bar_collar2", "bar", "iron")
+    out += disc("z", BAR_C, z0, BUSH_FAR_Z[0] - 0.05, COLLAR_R, "bar_collar1", "bar", "iron")
+    out += disc("z", BAR_C, BUSH_FAR_Z[1] + 0.05, BUSH_FAR_Z[1] + 0.6, COLLAR_R, "bar_collar2", "bar", "iron")
     ph = mesh_phase(ENTRY, 0.0, PINION_T, BAR, WHEEL_T)
     root = R_WHEEL - 1.25 * GEAR_MOD
     for i in range(WHEEL_T):
@@ -439,13 +444,13 @@ def build_bar():
     return out
 
 
-def build_bearings():
-    """The bar's two bearings (the fitted `bearings` part): iron blocks on the far pedestal and the drive
-    portal's transom."""
+def build_bushings():
+    """The bar's two bushings (the fitted `bushings` part, made from metal parts and drawn in cupronickel as the
+    gear cutter draws metal parts): blocks on the far pedestal and the drive portal's transom."""
     x, y = BAR
-    h = BRG_HALF
-    return [box([x - h, y - h, BRG_FAR_Z[0]], [x + h, y + h, BRG_FAR_Z[1]], "brg_far", "bearings", "iron"),
-            box([x - h, y - h, BRG_DRIVE_Z[0]], [x + h, y + h, BRG_DRIVE_Z[1]], "brg_drive", "bearings", "iron")]
+    h = BUSH_HALF
+    return [box([x - h, y - h, BUSH_FAR_Z[0]], [x + h, y + h, BUSH_FAR_Z[1]], "bush_far", "bushings", "cupronickel"),
+            box([x - h, y - h, BUSH_DRIVE_Z[0]], [x + h, y + h, BUSH_DRIVE_Z[1]], "bush_drive", "bushings", "cupronickel")]
 
 
 # ---------------------------------------------------------------- the cutter head (the kit)
@@ -682,13 +687,13 @@ def build_beds():
 
 # ---------------------------------------------------------------- the oil cups
 def build_cups():
-    """A sight-feed cup on each bar bearing, on a bracket off the bearing's pedestal or transom (the frame's);
-    a feed pipe from the cup's base into the bearing. Their oil is one rig part (both levels are at one
+    """A sight-feed cup on each bar bushing, on a bracket off the bushing's pedestal or transom (the frame's);
+    a feed pipe from the cup's base into the bushing. Their oil is one rig part (both levels are at one
     height). The glass is in the Transparent render pass, so the level shows from every side."""
     out = []
     (x0, x1), (y0, y1) = CUP["x"], CUP["y"]
     g = 0.15
-    under = BAR[1] - BRG_HALF                # the bearings' bottom: the pedestal's top, the transom's top
+    under = BAR[1] - BUSH_HALF                # the bushings' bottom: the pedestal's top, the transom's top
     for tag, (z0, z1) in (("far", CUP["far_z"]), ("drive", CUP["drive_z"])):
         zm = (z0 + z1) / 2
         p = f"fr_cup{tag}"
@@ -701,7 +706,7 @@ def build_cups():
                box([x0 + 0.35, y1 + 0.3, zm - 0.15], [x1 - 0.35, y1 + 0.55, zm + 0.15], f"{p}_knob", "frame", "brass"),
                box([x0 + 0.4, under - 0.8, zm - 0.25], [x0 + 0.9, y0 - 0.3, zm + 0.25], f"{p}_bracket", "frame", "brass"),
                box([x0 + 0.4, under - 0.8, zm - 0.25], [BAR[0] - PED_HALF, under, zm + 0.25], f"{p}_arm", "frame", "brass"),
-               box([x1, y0 - 0.25, zm - 0.1], [BAR[0] - BRG_HALF + 0.05, y0 - 0.05, zm + 0.1], f"{p}_pipe", "frame", "brass")]
+               box([x1, y0 - 0.25, zm - 0.1], [BAR[0] - BUSH_HALF + 0.05, y0 - 0.05, zm + 0.1], f"{p}_pipe", "frame", "brass")]
         for el in els:
             if "_glass_" in el.name:
                 el.render_pass = TRANSPARENT
@@ -720,24 +725,24 @@ def build_frame():
     for tag, (z0, z1) in CROSS.items():
         out.append(box([SILLS[0][1], SILL_Y[0], z0], [SILLS[1][0], SILL_Y[1], z1], f"fr_cross_{tag}", f, "oak"))
     # the bench end: two posts, the top beam, the drum shaft's bearings, the beam carrying the rails' far ends,
-    # the far bearing's pedestal
+    # the far bushing's pedestal
     for tag, (x0, x1) in zip("we", POSTS):
         out.append(box([x0, SILL_Y[1], POST_Z[0]], [x1, POST_TOP, POST_Z[1]], f"fr_post_{tag}", f, "oak"))
     out.append(box([POSTS[0][0], POST_TOP, POST_Z[0]], [POSTS[1][1], POST_TOP + 2.5, POST_Z[1]], "fr_topbeam", f, "oak"))
     for tag, (x0, x1) in (("w", (POSTS[0][1], POSTS[0][1] + 0.8)), ("e", (POSTS[1][0] - 0.8, POSTS[1][0]))):
         out.append(box([x0, DRUM_C[0] - 1.2, DRUM_C[1] - 1.2], [x1, DRUM_C[0] + 1.2, DRUM_C[1] + 1.2], f"fr_drum_bearing_{tag}", f, "iron"))
     out.append(box([POSTS[0][0], FARBEAM["y"][0], FARBEAM["z"][0]], [POSTS[1][1], FARBEAM["y"][1], FARBEAM["z"][1]], "fr_farbeam", f, "oak"))
-    out.append(box([BAR[0] - PED_HALF, SILL_Y[1], BRG_FAR_Z[0] + 0.3], [BAR[0] + PED_HALF, BAR[1] - BRG_HALF, BRG_FAR_Z[1] - 0.3], "fr_farbrg_post", f, "oak"))
+    out.append(box([BAR[0] - PED_HALF, SILL_Y[1], BUSH_FAR_Z[0] + 0.3], [BAR[0] + PED_HALF, BAR[1] - BUSH_HALF, BUSH_FAR_Z[1] - 0.3], "fr_farbush_post", f, "oak"))
     # the bench: two rails with iron ways, on legs at the middle and the near end
     for tag, (x0, x1) in zip("we", RAILS):
         out += long_box([x0, RAIL_Y[0], RAIL_Z[0]], [x1, RAIL_Y[1], RAIL_Z[1]], f"fr_rail_{tag}", f, "oak")
         out += long_box([x0 + 0.2, WAY_Y[0], RAIL_Z[0]], [x1 - 0.2, WAY_Y[1], RAIL_Z[1]], f"fr_way_{tag}", f, "iron")
         for i, (z0, z1) in enumerate(LEGS_Z, 1):
             out.append(box([x0, SILL_Y[1], z0], [x1, RAIL_Y[0], z1], f"fr_leg_{tag}{i}", f, "oak"))
-    # the drive portal: two posts on the sills and a transom over the entry shaft, carrying the drive bearing
+    # the drive portal: two posts on the sills and a transom over the entry shaft, carrying the drive bushing
     for tag, (x0, x1) in zip("we", PORTAL_POSTS):
         out.append(box([x0, SILL_Y[1], PORTAL_Z[0] + 0.3], [x1, TRANSOM_Y[0], PORTAL_Z[1] - 0.3], f"fr_portal_{tag}", f, "oak"))
-    out.append(box([PORTAL_POSTS[0][0], TRANSOM_Y[0], PORTAL_Z[0]], [PORTAL_POSTS[1][1], TRANSOM_Y[1], PORTAL_Z[1]], "fr_drivebrg_transom", f, "oak"))
+    out.append(box([PORTAL_POSTS[0][0], TRANSOM_Y[0], PORTAL_Z[0]], [PORTAL_POSTS[1][1], TRANSOM_Y[1], PORTAL_Z[1]], "fr_drivebush_transom", f, "oak"))
     # the entry shaft's bearings on short posts
     for i, (z0, z1) in enumerate(ENTRY_BRG_Z, 1):
         x, y = ENTRY
@@ -758,7 +763,7 @@ def build_frame():
 
 
 def build():
-    els = build_entry() + build_bar() + build_bearings() + build_head() + build_feed() + build_ropes()
+    els = build_entry() + build_bar() + build_bushings() + build_head() + build_feed() + build_ropes()
     els += build_drum() + build_weight()
     for cls in CLASSES:
         els += build_cylinder(cls) + build_chains(cls)
@@ -831,7 +836,7 @@ def _rig_parts():
          "drivers": [{"type": "rotate", "axis": "z", "pivot": pt(ENTRY[0], ENTRY[1], 0.0), "ratio": 1.0}]},
         {"id": "bar", "match": ["bar_*", "wheel_*"], "requires": "bar",
          "drivers": [{"type": "rotate", "axis": "z", "pivot": bar_pivot, "ratio": r6(BAR_RATIO)}]},
-        {"id": "bearings", "match": ["brg_*"], "requires": "bearings", "drivers": []},
+        {"id": "bushings", "match": ["bush_*"], "requires": "bushings", "drivers": []},
         {"id": "head", "match": ["head_*"], "requires": "cutterhead",
          "drivers": [{"type": "rotate", "axis": "z", "pivot": bar_pivot, "ratio": r6(BAR_RATIO)}, feed]},
         {"id": "feed", "match": ["feed_*"], "requires": "feed", "drivers": [feed]},
@@ -918,7 +923,7 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the bench end, nearest the "
                     "player who placed it; the machine runs south to the drive, where the axle comes in. work is the cutter head's "
                     "travel through the bore, W, in blocks (0 outside the drive end; the end past the far end); k is the casting's "
-                    "metal (1 iron, 2 steel), the cylinder of ppex's Watt or Cornish engine. The bearings' oil cups follow the rig's "
+                    "metal (1 iron, 2 steel), the cylinder of ppex's Watt or Cornish engine. The bushings' oil cups follow the rig's "
                     "oil input (the MachineOil tank's fill, 0..1). See the cylinder borer's README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
@@ -927,18 +932,19 @@ def make_rig(parts):
         "outputSide": "west",
         "output": {"pos": pt(0.01, 4.0, (BED_Z[0][1] + BED_Z[1][0]) / 2)},
         "chips": {"pos": pt(BAR[0], BAR[1] - R_ROUGH, Z_DRIVE_MOUTH)},
-        "drip": {"pos": pt(BAR[0] - BRG_HALF, CUP["y"][0] - 0.15, sum(CUP["far_z"]) / 2)},
+        "drip": {"pos": pt(BAR[0] - BUSH_HALF, CUP["y"][0] - 0.15, sum(CUP["far_z"]) / 2)},
         "work": dict(WORK),
         "bore": {"turnsPerBlock": per_class(TURNS_PER_BLOCK["thin"], TURNS_PER_BLOCK["thick"]),
                  "cylinder": {"outside": PPEX["outside"], "bore": PPEX["bore"], "length": PPEX["length"]},
                  "blanks": {"thin": "seraphhorizons:cylinderblank-iron", "thick": "seraphhorizons:cylinderblank-steel"},
                  "cylinders": {"thin": "seraphhorizons:cylinder-iron", "thick": "seraphhorizons:cylinder-steel"},
                  "box": blank_box(),
-                 "_comment": "turnsPerBlock: axle turns per block of the head's travel, per metal, the gameplay's pace (provisional): "
+                 "_comment": "turnsPerBlock: axle turns per block of the head's travel, per metal, the gameplay's pace (the settings' "
+                             "defaults, TurnsPerBlockIron and TurnsPerBlockSteel): "
                              "the feed is weighted, not geared to the bar, so no pace is drawn and any pace shows true. cylinder: the "
                              "casting, ppex's engine cylinder (voxels: across the flats outside, the bore, the length), measured from "
-                             "ppex's engine shapes by the generator. blanks, cylinders: each class's work in and out (provisional "
-                             "item codes from #639; the items do not exist yet). box: the casting's bounds (blocks, from the "
+                             "ppex's engine shapes by the generator. blanks, cylinders: each class's work in and out (the cast "
+                             "blank loaded, the bored cylinder handed out). box: the casting's bounds (blocks, from the "
                              "controller), for a collision box while it is loaded: the cells' boxes leave the work out."},
         "parts": parts,
     }
@@ -1044,6 +1050,132 @@ def reference_json(ship_parts, sp):
             "poses": poses}
 
 
+# ---------------------------------------------------------------- the items' shapes
+# Each stage's item looks as its part does in the machine: the rig parts it draws, their elements at rest, centred
+# on the item box's floor (x and z on 8, the bottom at y 0) and scaled down uniformly when they would not fit in 16
+# voxels, as the gear cutter's are. Parts that stand far apart in the machine are gathered first (ITEM_SHIFT, by
+# element name prefix): the far bushing beside the drive one, the drum and the weight in front of the crosshead.
+# The cast blank and the bored cylinder are the iron casting (with its rough skin for the blank, without it for
+# the cylinder), its outside texture renamed `cast` so the item type gives each metal its own (ppex's iron5 and
+# steel5). The scales are fixed here, so an item does not change size because a part moved; validate checks each
+# item fits at its scale.
+SKIN_PARTS = tuple(f"si{j}{q}" for j in range(1, SKIN_SLICES + 1) for q in "tlbr")
+ITEM_PARTS = {
+    "bushings": ("bushings",),                      # the pair, in metal parts' cupronickel
+    "bar": ("bar",),                                # the bar with its feather, collars and great wheel
+    "feed": ("feed", "drum", "weight"),             # the crosshead with its rod and yoke, the drum, the weight
+    "cutterhead": ("head",),                        # the head with its four cutters and wedges
+    "cylinderblank": ("blankiron",) + SKIN_PARTS,   # the casting as it comes from the mold, its bore rough
+    "cylinder": ("blankiron",),                     # the bored cylinder
+}
+ITEM_SHIFT = {
+    "bushings": {"bush_drive": (0.0, 0.0, BUSH_FAR_Z[1] + 1.0 - BUSH_DRIVE_Z[0])},
+    "feed": {"drum_": (0.0, 0.0, 22.0), "weight_": (0.0, 0.0, 22.0)},
+}
+ITEM_RETEX = {"castiron": "cast"}
+ITEM_TEXTURES = {**TEXTURES, "cast": TEXTURES["castiron"]}
+ITEM_SCALE = {"bushings": 1.0, "bar": 0.275, "feed": 0.63, "cutterhead": 1.0, "cylinderblank": 1.0, "cylinder": 1.0}
+
+
+def item_elements(els, parts, item):
+    """The item's elements: its parts' at rest, every face kept that the machine draws (an element with none left is
+    dropped), gathered, moved and scaled into the item box; the UVs scale with the faces."""
+    src = [posed(el, pm(parts, el.part, REST)) for el in els if el.part in ITEM_PARTS[item] and el.faces]
+    for el in src:
+        for prefix, d in ITEM_SHIFT.get(item, {}).items():
+            if el.name.startswith(prefix):
+                el.c = [el.c[i] + d[i] for i in range(3)]
+        for f in el.faces.values():
+            f["texture"] = "#" + ITEM_RETEX.get(f["texture"].lstrip("#"), f["texture"].lstrip("#"))
+    cs = [q for el in src for q in el.corners()]
+    lo = [min(q[i] for q in cs) for i in range(3)]
+    hi = [max(q[i] for q in cs) for i in range(3)]
+    sc = ITEM_SCALE[item]
+    anchor = ((lo[0] + hi[0]) / 2, lo[1], (lo[2] + hi[2]) / 2)
+    out = []
+    for el in src:
+        e = el.clone()
+        e.c = [8.0 + (el.c[0] - anchor[0]) * sc, (el.c[1] - anchor[1]) * sc, 8.0 + (el.c[2] - anchor[2]) * sc]
+        e.size = [v * sc for v in el.size]
+        for f in e.faces.values():
+            f["uv"] = [v * sc for v in f["uv"]]
+        out.append(e)
+    return out
+
+
+def item_shape_json(els, item):
+    return machine_shape_json(
+        els, f"Generated by {SCRIPT}: the cylinder borer's {item} item, its parts' elements from cylinderborer.json at rest "
+             f"(scale {ITEM_SCALE[item]}). Every element was made for the Seraph Horizons mod.", ITEM_TEXTURES, tex_size=TEX)
+
+
+# ---------------------------------------------------------------- the cylinder mold
+# The clay mold the blank is cast in (seraphhorizons:cylindermold-{color}-{raw|fired}; recipes/clayforming/
+# cylindermold.json), the casting lying on its side as it lies in the cradle: a floor one voxel thick, walls one
+# thick and ten high round a cavity 12 across (the band) and 14 long, and a core 6 square through the cavity's
+# length into its end walls, the cored bore. On the voxel grid, so the clay forming recipe is the same voxels
+# (tools/tests/test_cylinderborer_model.py holds the two together). 600 units (six ingots) fill the cavity's ten
+# levels; the mold's fill quads are its cavity at each level.
+MOLD = {"x": (1, 15), "z": (0, 16), "floor": 1, "top": 11, "wall": 1, "core_x": (5, 11), "core_y": (3, 9)}
+MOLD_UNITS = 600
+
+
+def mold_voxels():
+    """The mold's voxels as a set of (x, y, z), the clay forming recipe's layers."""
+    (x0, x1), (z0, z1), w = MOLD["x"], MOLD["z"], MOLD["wall"]
+    out = set()
+    for y in range(MOLD["top"]):
+        for x in range(x0, x1):
+            for z in range(z0, z1):
+                wall = x < x0 + w or x >= x1 - w or z < z0 + w or z >= z1 - w
+                core = MOLD["core_x"][0] <= x < MOLD["core_x"][1] and MOLD["core_y"][0] <= y < MOLD["core_y"][1]
+                if y < MOLD["floor"] or wall or core:
+                    out.add((x, y, z))
+    return out
+
+
+def mold_cavity():
+    """The fill quads by level: the cavity inside the walls, the same at each of the ten levels."""
+    (x0, x1), (z0, z1), w = MOLD["x"], MOLD["z"], MOLD["wall"]
+    return [{"x1": x0 + w, "z1": z0 + w, "x2": x1 - w, "z2": z1 - w} for _ in range(MOLD["top"] - MOLD["floor"])]
+
+
+def mold_shape():
+    """The mold's shape: the floor, the four walls and the core as boxes, textured `floor` on the floor's top and
+    `other` elsewhere (the block types set both to their clay), UVs on the 16 grid."""
+    (x0, x1), (z0, z1), w = MOLD["x"], MOLD["z"], MOLD["wall"]
+    fl, top = MOLD["floor"], MOLD["top"]
+    (cx0, cx1), (cy0, cy1) = MOLD["core_x"], MOLD["core_y"]
+    boxes = [("floor", (x0, 0, z0), (x1, fl, z1)),
+             ("wall north", (x0, fl, z0), (x1, top, z0 + w)),
+             ("wall south", (x0, fl, z1 - w), (x1, top, z1)),
+             ("wall west", (x0, fl, z0 + w), (x0 + w, top, z1 - w)),
+             ("wall east", (x1 - w, fl, z0 + w), (x1, top, z1 - w)),
+             ("core", (cx0, cy0, z0 + w), (cx1, cy1, z1 - w))]
+    els = []
+    for name, lo, hi in boxes:
+        faces = {
+            "north": [lo[0], 16 - hi[1], hi[0], 16 - lo[1]], "south": [lo[0], 16 - hi[1], hi[0], 16 - lo[1]],
+            "east": [lo[2], 16 - hi[1], hi[2], 16 - lo[1]], "west": [lo[2], 16 - hi[1], hi[2], 16 - lo[1]],
+            "up": [lo[0], lo[2], hi[0], hi[2]], "down": [lo[0], lo[2], hi[0], hi[2]],
+        }
+        els.append({"name": name, "from": list(lo), "to": list(hi),
+                     "faces": {d: {"texture": "#floor" if (name == "floor" and d == "up") else "#other", "uv": uv}
+                               for d, uv in faces.items()}})
+    return {"_comment": f"Generated by {SCRIPT}: the cylinder mold, a clay box round the casting lying on its side with a "
+                        "core for its bore. Every element was made for the Seraph Horizons mod.",
+            "textureWidth": 16, "textureHeight": 16,
+            "textures": {"floor": "game:block/clay/ceramic-dark", "other": "game:block/clay/ceramic"},
+            "elements": els}
+
+
+def mold_dumps(shape):
+    head = {k: v for k, v in shape.items() if k != "elements"}
+    lines = ["{"] + [f"\t{json.dumps(k)}: {json.dumps(v)}," for k, v in head.items()] + ['\t"elements": [']
+    lines.append(",\n".join("\t\t" + json.dumps(e, separators=(",", ":")) for e in shape["elements"]))
+    return "\n".join(lines + ["\t]", "}"]) + "\n"
+
+
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
@@ -1118,7 +1250,7 @@ def fix_coplanar(els, parts):
 
 def main():
     ap = argparse.ArgumentParser(description="Generate the cylinder borer's shapes, rig and reference poses.")
-    ap.add_argument("--out", type=Path, help="write the four files into this directory instead of the mod's assets and tests")
+    ap.add_argument("--out", type=Path, help="write the files into this directory instead of the mod's assets and tests")
     ap.add_argument("--quick", action="store_true", help="skip the z-fighting fix and the slow checks (not for files that ship)")
     args = ap.parse_args()
     import validate_cylinderborer
@@ -1143,6 +1275,14 @@ def main():
     ship["cells"] = shipped_cells(shape, ship_parts, ship["work"])
     ok = validate_cylinderborer.validate_files(sys.modules[__name__], shape, frame_shape, ship) and ok
     texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship), reference_dumps(reference_json(ship_parts, ship["work"])))
+    items = {item: item_elements(els, parts, item) for item in ITEM_PARTS}
+    ok = validate_cylinderborer.check_items(sys.modules[__name__], items) and ok
+    item_dir = args.out / "item" if args.out else ITEM_DIR
+    outs += tuple(item_dir / f"{item}.json" for item in items)
+    texts += tuple(shape_dumps(item_shape_json(es, item)) for item, es in items.items())
+    ok = validate_cylinderborer.check_mold(sys.modules[__name__]) and ok
+    outs += (args.out / "mold-cylinder.json" if args.out else MOLD_OUT,)
+    texts += (mold_dumps(mold_shape()),)
     for path, text in zip(outs, texts):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)

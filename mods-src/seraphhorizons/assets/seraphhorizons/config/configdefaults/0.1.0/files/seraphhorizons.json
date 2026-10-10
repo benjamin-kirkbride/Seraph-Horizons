@@ -153,6 +153,10 @@
     "DrawBench": {
       "Tank": 1000.0,
       "DrainPerJob": 2.0
+    },
+    "CylinderBorer": {
+      "Tank": 1000.0,
+      "DrainPerJob": 10.0
     }
   },
   "TrunkEntities": true,
@@ -252,6 +256,14 @@
         "copper"
       ]
     }
+  },
+  "CylinderBorer": true,
+  "CylinderBorerSettings": {
+    "TurnsPerBlockIron": 64.0,
+    "TurnsPerBlockSteel": 96.0,
+    "HeadWearPerCylinder": 1,
+    "Resistance": 0.3,
+    "MinSpeed": 0.05
   },
   "PressBrake": true,
   "PressBrakeSettings": {

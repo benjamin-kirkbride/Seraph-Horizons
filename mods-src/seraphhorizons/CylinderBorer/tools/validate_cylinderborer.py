@@ -156,7 +156,7 @@ SKIN = r"s[is]\d[tlbr]"
 ALLOWED = [
     # shafts in their bearings, collars against them
     ("entry", r"_shaft|_rod", "frame", r"fr_entry_bearing"),
-    ("bar", r"bar_seg", "bearings", None), ("bar", r"bar_collar", "bearings", r"brg_far"),
+    ("bar", r"bar_seg", "bushings", None), ("bar", r"bar_collar", "bushings", r"bush_far"),
     ("drum", r"drum_shaft", "frame", r"fr_drum_bearing|fr_post"),
     # the gears in mesh (their pitch circles are checked by check_gearing)
     ("entry", r"entry_pinion", "bar", r"wheel_tooth|wheel_rim"),
@@ -174,9 +174,9 @@ ALLOWED = [
     ("chain(iron|steel)", None, "frame", r"fr_staple"),
     # the skin is the casting's: it lies on and sinks into its wall; the cutters cut it (check_bore holds the rest)
     (SKIN, None, "blank(iron|steel)", None), (SKIN, None, SKIN, None),
-    # the oil in its cups, the cups' pipes into the bearings, the bearings on their pedestal and transom
+    # the oil in its cups, the cups' pipes into the bushings, the bushings on their pedestal and transom
     ("oillevel", None, "frame", r"fr_cup\w+_(base|glass)"),
-    ("bearings", None, "frame", r"fr_cup\w+_pipe|fr_farbrg_post|fr_drivebrg_transom"),
+    ("bushings", None, "frame", r"fr_cup\w+_pipe|fr_farbush_post|fr_drivebush_transom"),
 ]
 
 
@@ -314,9 +314,10 @@ def check_swept(v):
 
 
 TEX_RULES = [
-    (r"^(fr_sill|fr_cross|fr_post|fr_topbeam|fr_farbeam|fr_rail|fr_leg|fr_farbrg_post|fr_portal|fr_drivebrg_transom|fr_entry_post|fr_bed|entry_shaft[ab]|drum_big|drum_small|feed_(grip|base|upright|toprail))", "oak"),
-    (r"^(fr_way|fr_drum_bearing|fr_entry_bearing|fr_staple|brg_|bar_(seg|collar)|wheel_|entry_(rod|pinion|hub)|head_(body|lip|backhub)|head_cut\d_holder|feed_(shoe|boss|ropeeye|handlearm|rod)|drum_(shaft|flange|sflange)|weight_|ch[is]\d_link)", "iron"),
+    (r"^(fr_sill|fr_cross|fr_post|fr_topbeam|fr_farbeam|fr_rail|fr_leg|fr_farbush_post|fr_portal|fr_drivebush_transom|fr_entry_post|fr_bed|entry_shaft[ab]|drum_big|drum_small|feed_(grip|base|upright|toprail))", "oak"),
+    (r"^(fr_way|fr_drum_bearing|fr_entry_bearing|fr_staple|bar_(seg|collar)|wheel_|entry_(rod|pinion|hub)|head_(body|lip|backhub)|head_cut\d_holder|feed_(shoe|boss|ropeeye|handlearm|rod)|drum_(shaft|flange|sflange)|weight_|ch[is]\d_link)", "iron"),
     (r"^(head_groove|head_cut\d_(bit|wedge)|feed_yoke|bar_key)", "steel"),
+    (r"^bush_", "cupronickel"),
     (r"^bli_", "castiron"),
     (r"^bls_", "caststeel"),
     (r"^s[is]\d[tlbr]_", "rough"),
@@ -342,8 +343,8 @@ def check_textures(v):
         else:
             bad.append((el.name, "no rule", ""))
     print(f"textures: {len(TEX_RULES)} rules (oak timber, the axle's continuation, the bearers, the drums and the crosshead; "
-          f"iron castings, bearings, gears, the bar, the head, the crosshead's shoes, the weight and the chains; steel bits, "
-          f"wedges, the feather and the yoke; the casting in ppex's iron or steel with its bore bright, the rough skin; rope; a "
+          f"iron castings, bearings, gears, the bar, the head, the crosshead's shoes, the weight and the chains; the bar's bushings in "
+          f"cupronickel; steel bits, wedges, the feather and the yoke; the casting in ppex's iron or steel with its bore bright, the rough skin; rope; a "
           f"glass and brass oiler with oil in it): {len(bad)} elements break them")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
@@ -643,13 +644,13 @@ def check_feed(v):
     print(f"feed: the head, the yoke, the rod and the crosshead travel together (within {worst:.1e}), the yoke in the head's groove; "
           f"the big drum ({m.R_DRUM}) winds the crosshead's rope on, level off its top, whole to the crosshead; the weight falls "
           f"{m.R_WDRUM / m.R_DRUM:g} of the travel ({m.DROP:.1f} in a bore), its rope whole to its cap")
-    # the head stays on the bar between its bearings, and is clear of the cylinder at W = 0
+    # the head stays on the bar between its bushings, and is clear of the cylinder at W = 0
     for k in (1, 2):
         for W in (0.0, m.end_of(k)):
             head = aabb_of([e for e in v.posed("head", m.pose_at(k, W))])
-            if head[0][2] < m.BRG_FAR_Z[1] or head[1][2] > m.BRG_DRIVE_Z[0]:
-                v.fail(f"the head leaves the bar between its bearings at W {W}")
-    print("feed: the head stays between the bar's bearings over its whole travel")
+            if head[0][2] < m.BUSH_FAR_Z[1] or head[1][2] > m.BUSH_DRIVE_Z[0]:
+                v.fail(f"the head leaves the bar between its bushings at W {W}")
+    print("feed: the head stays between the bar's bushings over its whole travel")
 
 
 def wall_hides(walls, el):
@@ -693,9 +694,9 @@ def check_bore(v):
 def check_supports(v):
     m = v.m
     frame = v.by_part["frame"]
-    bearings = v.by_part["bearings"]
+    bushings = v.by_part["bushings"]
     shafts = [
-        ("boring bar", "bar", r"bar_seg", 2, m.BAR, bearings, r"^brg_(far|drive)$", 2),
+        ("boring bar", "bar", r"bar_seg", 2, m.BAR, bushings, r"^bush_(far|drive)$", 2),
         ("entry shaft", "entry", r"_shaft|_rod", 2, m.ENTRY, frame, r"^fr_entry_bearing\d$", 2),
         ("drum shaft", "drum", r"drum_shaft", 0, m.DRUM_C, frame, r"^fr_drum_bearing_[we]$", 2),
     ]
@@ -703,23 +704,23 @@ def check_supports(v):
         els_ = v.named(pid, rx)
         found, _ = shaft_supports(carriers, els_, axis, c)
         named = sorted(f for f in set(found) if re.search(brx, f))
-        print(f"support {label}: {len(named)} bearing(s) {', '.join(named) or 'NONE'}")
+        print(f"support {label}: {len(named)} bearing(s) or bushing(s) {', '.join(named) or 'NONE'}")
         if len(named) < need:
-            v.fail(f"the {label} is not carried by {need} bearing(s)")
-    # the bearings sit on their pedestals
-    for b in bearings:
+            v.fail(f"the {label} is not carried by {need} bearings or bushings")
+    # the bushings sit on their pedestals
+    for b in bushings:
         lo, _ = b.aabb()
-        posts = [f for f in frame if f.name in ("fr_farbrg_post", "fr_drivebrg_transom")]
+        posts = [f for f in frame if f.name in ("fr_farbush_post", "fr_drivebush_transom")]
         hi = b.aabb()[1]
         if not any(abs(p.aabb()[1][1] - lo[1]) < 1e-6 and min(p.aabb()[1][2], hi[2]) - max(p.aabb()[0][2], lo[2]) > 1.0
                    and min(p.aabb()[1][0], hi[0]) - max(p.aabb()[0][0], lo[0]) > 1.0 for p in posts):
             v.fail(f"{b.name} does not sit on its pedestal or transom")
     portal = [f for f in frame if re.match(r"fr_portal_[we]$", f.name)]
-    transom = v.named("frame", r"fr_drivebrg_transom")[0].aabb()
+    transom = v.named("frame", r"fr_drivebush_transom")[0].aabb()
     if len(portal) != 2 or any(abs(f.aabb()[1][1] - transom[0][1]) > 1e-6 for f in portal):
-        v.fail("the drive bearing's transom is not on its two posts")
+        v.fail("the drive bushing's transom is not on its two posts")
     entry_top = max(e.aabb()[1][1] for e in v.named("entry", r"_shaft|_rod|_hub"))
-    print(f"support: the bar's bearings on the far pedestal and on the drive portal's transom (its posts either side, the "
+    print(f"support: the bar's bushings on the far pedestal and on the drive portal's transom (its posts either side, the "
           f"entry shaft under it, {transom[0][1] - entry_top:.2f} clear)")
     if transom[0][1] - entry_top < 0.5:
         v.fail("the entry shaft does not pass under the drive portal's transom")
@@ -781,6 +782,28 @@ def clearance_poses(m):
     return out
 
 
+# the gear cutter draws metal parts in cupronickel (GearCutter/README.md); the bushings are made of metal parts
+METAL_PARTS_TEXTURE = "game:block/metal/sheet/cupronickel1"
+
+
+def check_bushings(v):
+    """The bar's bushings are metal parts, drawn as the gear cutter draws them: every face of both in cupronickel,
+    and nothing else in it."""
+    bushings = v.by_part.get("bushings", [])
+    names = sorted(e.name for e in bushings)
+    if names != ["bush_drive", "bush_far"]:
+        v.fail(f"the bushings part is {names}, want bush_far and bush_drive")
+    if v.m.TEXTURES.get("cupronickel") != METAL_PARTS_TEXTURE:
+        v.fail(f"the cupronickel texture is {v.m.TEXTURES.get('cupronickel')}, want metal parts' {METAL_PARTS_TEXTURE}")
+    off = [(e.name, d) for e in bushings for d, f in e.faces.items() if f["texture"] != "#cupronickel"]
+    if off:
+        v.fail(f"bushing faces not in cupronickel: {off[:4]}")
+    others = sorted({e.name for e in v.els if e.name not in names and any(f["texture"] == "#cupronickel" for f in e.faces.values())})
+    if others:
+        v.fail(f"cupronickel on something other than the bushings: {others[:4]}")
+    print(f"bushings: {len(bushings)} blocks, every face in metal parts' cupronickel ({METAL_PARTS_TEXTURE}), nothing else in it")
+
+
 def validate(m, els, parts, rig, measured, quick=False):
     v = V(m, els, parts, rig)
     check_ppex(v, measured)
@@ -790,6 +813,7 @@ def validate(m, els, parts, rig, measured, quick=False):
     check_containment(v, poses)
     check_anchors(v)
     check_textures(v)
+    check_bushings(v)
     check_gearing(v)
     check_concentric(v)
     check_feed(v)
@@ -804,12 +828,78 @@ def validate(m, els, parts, rig, measured, quick=False):
     return v.ok
 
 
+ITEM_TEXTURES = {"bushings": {"cupronickel"}, "cylinderblank": {"cast", "rough", "bored"}, "cylinder": {"cast", "bored"}}
+
+
+def check_items(m, items):
+    """Each item's shape: inside the 16-voxel item box at its scale, centred on its floor, every element with a
+    textured face, and its scale no smaller than it needs (1 when it fits as it is); the bushings in cupronickel,
+    the casting's outside in `cast` (the item type's metal), the blank's bore rough and the cylinder's bright."""
+    ok = True
+    for item, els in items.items():
+        cs = [q for el in els for q in el.corners()]
+        lo = [min(q[i] for q in cs) for i in range(3)]
+        hi = [max(q[i] for q in cs) for i in range(3)]
+        need = min(1.0, 16.0 / (max(hi[i] - lo[i] for i in range(3)) / m.ITEM_SCALE[item]))
+        bare = [el.name for el in els if not any(f.get("texture") for f in el.faces.values())]
+        used = {f["texture"].lstrip("#") for el in els for f in el.faces.values()}
+        print(f"item {item}: {len(els)} elements, {' x '.join(f'{hi[i] - lo[i]:.2f}' for i in range(3))} at scale "
+              f"{m.ITEM_SCALE[item]} (fits from {need:.3f}); textures {', '.join(sorted(used))}")
+        if min(lo) < -1e-6 or max(hi) > 16 + 1e-6 or abs(lo[1]) > 1e-6 or abs(lo[0] + hi[0] - 16) > 1e-6 or abs(lo[2] + hi[2] - 16) > 1e-6:
+            print(f"FAIL item {item} is not centred on the floor of the item box: {lo} .. {hi}")
+            ok = False
+        if bare or not els:
+            print(f"FAIL item {item} has elements with no textured face: {bare[:4]}")
+            ok = False
+        if m.ITEM_SCALE[item] > need + 1e-9 or m.ITEM_SCALE[item] < need - 0.02:
+            print(f"FAIL item {item}'s scale {m.ITEM_SCALE[item]} is not the scale it needs, {need:.3f}")
+            ok = False
+        if item in ITEM_TEXTURES and used != ITEM_TEXTURES[item]:
+            print(f"FAIL item {item}'s textures are {sorted(used)}, want {sorted(ITEM_TEXTURES[item])}")
+            ok = False
+    return ok
+
+
+def check_mold(m):
+    """The cylinder mold: its cavity holds the casting lying on its side (12 across, the band; at least the casting's
+    10 high and its bore's core inside), the core inside the cavity's height and width, the walls closed round it, and
+    the shape's boxes exactly the recipe's voxels."""
+    ok = True
+    vox = m.mold_voxels()
+    quads = m.mold_cavity()
+    q = quads[0]
+    across, long_ = q["x2"] - q["x1"], q["z2"] - q["z1"]
+    high = m.MOLD["top"] - m.MOLD["floor"]
+    (cx0, cx1), (cy0, cy1) = m.MOLD["core_x"], m.MOLD["core_y"]
+    core_mid = ((cx0 + cx1) / 2, (cy0 + cy1) / 2)
+    cav_mid = ((q["x1"] + q["x2"]) / 2, m.MOLD["floor"] + high / 2)
+    print(f"mold: cavity {across} across, {high} high, {long_} long over {len(quads)} levels; core {cx1 - cx0} square, centred "
+          f"{core_mid} in the cavity's {cav_mid}; {len(vox)} voxels of clay ({len(vox) / 25:.1f} clay)")
+    if across != m.PPEX["band_outside"] or high < m.PPEX["outside"] or len(quads) != high:
+        print("FAIL the mold's cavity is not the casting's: 12 across, 10 high, a quad a level")
+        ok = False
+    if core_mid != cav_mid or not (cx1 - cx0) / 2 < m.R_BORE:
+        print("FAIL the mold's core is not the bore's, on the casting's axis")
+        ok = False
+    shape_vox = set()
+    for e in m.mold_shape()["elements"]:
+        (x0, y0, z0), (x1, y1, z1) = e["from"], e["to"]
+        shape_vox |= {(x, y, z) for x in range(x0, x1) for y in range(y0, y1) for z in range(z0, z1)}
+    if shape_vox != vox:
+        print(f"FAIL the mold's shape is not its recipe's voxels: {len(shape_vox ^ vox)} differ")
+        ok = False
+    return ok
+
+
 def validate_files(m, shape, frame_shape, ship):
     ok = True
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
     if missing:
         print(f"FAIL textures used but not declared: {missing}")
+        ok = False
+    if shape["textures"].get("cupronickel") != METAL_PARTS_TEXTURE:
+        print(f"FAIL the bushings' texture is {shape['textures'].get('cupronickel')}, want {METAL_PARTS_TEXTURE}")
         ok = False
     gaps = lid_gaps(ship["cells"])
     hollow = sum(1 for c in ship["cells"] if c.get("hollow"))

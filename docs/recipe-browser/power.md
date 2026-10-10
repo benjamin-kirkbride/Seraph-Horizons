@@ -83,15 +83,15 @@ defaults).
 | smex's Bessemer transmission; mechanical blower | `BessemerTransmissionResistance` 0.25. The blower takes `MpBlowerBaseLoad` 0.05 + `MpBlowerLoadPerAtm` 0.05 per atm of back-pressure, up to `MpBlowerMaxPressure` 2: load 0.05, loadMax 0.15 (`SteelmakingExpanded.SmexValues`). Its port behavior is added to the blower's structure in code, so the entry is found by the block `smex:mpblower`. |
 | ppex's mechanical fluid pump | `MpPumpBaseLoad` 0.05 + `MpPumpLoadPerAtm` 0.05 × `MpPumpDeliveryPressure` 1.5 = 0.125. |
 | Gondola Cable Car stations | `ActiveStationResistance` 2.25 while running, × 1.6 with Viking cabins (code constant, a separate entry); `IdleStationResistance` 0.02 idle (`GondolaCableCarModSystem.Config`). A small station takes ActiveStationResistance × cabins / 5, 0.45 per cabin (the entry is for one). |
-| The pack's own machines: bucking sawmill, rosser, gear cutter, draw bench | `Resistance` 0.17, 0.2, 0.2 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax. 0.005 until assembled (`BEBehaviorMillMP.IncompleteResistance`). |
+| The pack's own machines: bucking sawmill, rosser, gear cutter, cylinder borer, draw bench | `Resistance` 0.17, 0.2, 0.2, 0.3 (`BuckingSawmillSystem`, `RosserSystem`, `GearCutterSystem`, `CylinderBorerSystem` `.Config`); the draw bench's `ResistanceLead` 0.2, `ResistanceCopper` 0.35 as loadMax. 0.005 until assembled (`BEBehaviorMillMP.IncompleteResistance`). |
 
 **Oil.** The pack's MachineOil (`mods-src/seraphhorizons/README.md`, "Machines need oil") gives
 some machines an oil tank: the helve hammer, the pulverizer, Immersive Woodworking's sawmill and
-chopper, the bucking sawmill, the rosser, the gear cutter and the draw bench. A dry machine
+chopper, the bucking sawmill, the rosser, the gear cutter, the draw bench and the cylinder borer. A dry machine
 loads its shaft `DryResistanceMultiplier` (3) times. Such an entry has `oil: { dryMultiplier,
 tank }`, with the tank in litres (`MachineOilSettings.<machine>.Tank` points / 100). The gear
-cutter is the exception. A dry tank wears its cutter kit faster instead of raising its load, so
-its `dryMultiplier` is 1 and its note says so. With MachineOil off (or without the pack's mod)
+cutter and the cylinder borer are the exceptions. A dry tank wears the cutter kit or the cutter head faster
+instead of raising the load, so their `dryMultiplier` is 1 and their note says so. With MachineOil off (or without the pack's mod)
 no entry has `oil`.
 
 ## The wind

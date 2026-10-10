@@ -910,12 +910,12 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
         Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the press brake, the squaring shear,
-        // the mandrel station and ore processing's spalling, roasting, retorting, cupellation and liquation are the types not read
-        // from a registry.
+        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the cylinder borer, the press brake,
+        // the squaring shear, the mandrel station and ore processing's spalling, roasting, retorting, cupellation and liquation are
+        // the types not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
-            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType
+            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType
                 or RecipeSection.SpallingType or RecipeSection.OreRoastingType or RecipeSection.OreRetortingType
                 or RecipeSection.CupellationType or RecipeSection.LiquationType))
             .Where(p => (string)p.Value["shape"]! != "transition")

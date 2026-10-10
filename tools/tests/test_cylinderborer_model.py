@@ -5,7 +5,9 @@ the shared rig maths and uses its `requires` vocabulary, its reference poses are
 are rebuilt from the shipped shape, the work is the cutter head's travel in blocks, the head and the feed
 travel together and come back with the cylinder, the bar turns a quarter of the axle, the casting is ppex's
 engine cylinder (the figures the generator holds to ppex's shapes on every run) in iron or steel and lies
-concentric with the bar, and the oil cups follow the oil. Run with `python3 -m unittest discover -s tools/tests`.
+concentric with the bar, and the oil cups follow the oil; the bushings are drawn in metal parts' cupronickel, the
+items and the mold are the generator's, and the mold's clay forming recipe is its voxels. Run with
+`python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -32,9 +34,10 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "cylinderborer-
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cylinderborer.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cylinderborer_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "CylinderBorer" / "rig-reference.json").read_text())
-# provisional fitted parts (the stages are still to be settled): the bar's bearings, the bar with its great wheel,
-# the weighted feed, the cutter head (the wearing kit); the work is an iron or a steel casting of ppex's engine cylinder
-REQUIRES = {"bearings", "bar", "feed", "cutterhead", "blankiron", "blanksteel", None}
+# the fitted parts in their order after the frame (CylinderBorer/Core/CylinderBorerParts.cs): the bar's bushings, the
+# bar with its great wheel, the weighted feed, the cutter head (the wearing kit); the work is an iron or a steel casting
+# of ppex's engine cylinder
+REQUIRES = {"bushings", "bar", "feed", "cutterhead", "blankiron", "blanksteel", None}
 END = 18 / 16
 
 
@@ -114,6 +117,10 @@ class Bore(unittest.TestCase):
         for key in ("blanks", "cylinders"):
             self.assertEqual(set(RIG["bore"][key]), {"thin", "thick"})
         self.assertEqual(len(RIG["bore"]["box"]), 6)
+        # the gameplay's items (CylinderBorer/Core/Boring.cs) and its settings' pace (CylinderBorerConfig)
+        self.assertEqual(RIG["bore"]["blanks"], {"thin": "seraphhorizons:cylinderblank-iron", "thick": "seraphhorizons:cylinderblank-steel"})
+        self.assertEqual(RIG["bore"]["cylinders"], {"thin": "seraphhorizons:cylinder-iron", "thick": "seraphhorizons:cylinder-steel"})
+        self.assertEqual(RIG["bore"]["turnsPerBlock"], {"thin": 64.0, "thick": 96.0})
 
     def test_the_casting_is_ppexs_engine_cylinder(self):
         # the figures the generator holds to ppex's engine shapes on every run (make_shape.measure_ppex)
@@ -214,6 +221,83 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual(heights[0], make_shape.OIL_EMPTY, places=5)
         self.assertAlmostEqual(heights[2], make_shape.OIL_FULL, places=5)
         self.assertAlmostEqual(heights[1], (heights[0] + heights[2]) / 2, places=5)
+
+
+ITEMS = MOD / "assets" / "seraphhorizons" / "shapes" / "item" / "cylinderborer"
+MOLD = MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "clay" / "mold" / "cylinder.json"
+MOLD_RECIPE = MOD / "assets" / "seraphhorizons" / "recipes" / "clayforming" / "cylindermold.json"
+MOLD_FIRED = MOD / "assets" / "seraphhorizons" / "blocktypes" / "clay" / "cylindermold-fired.json"
+
+
+def lenient(path):
+    """An asset file the game reads: comments and unquoted keys (the gear consumers test's reader)."""
+    sys.path.insert(0, str(ROOT / "tools" / "tests"))
+    from test_gear_consumers import loads
+    return loads(path.read_text())
+
+
+class Bushings(unittest.TestCase):
+    def test_the_bushings_are_drawn_in_metal_parts_cupronickel(self):
+        cupronickel = "game:block/metal/sheet/cupronickel1"
+        self.assertEqual(SHAPE["textures"]["cupronickel"], cupronickel)
+        bush = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == "bushings"]
+        self.assertEqual(sorted(e["name"] for e in bush), ["bush_drive", "bush_far"])
+        for e in bush:
+            self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#cupronickel"}, e["name"])
+        others = [e["name"] for e in SHAPE["elements"] if e not in bush and any(f["texture"] == "#cupronickel" for f in e["faces"].values())]
+        self.assertEqual(others, [])
+        item = json.loads((ITEMS / "bushings.json").read_text())
+        self.assertEqual(item["textures"], {"cupronickel": cupronickel})
+
+
+class Items(unittest.TestCase):
+    def test_each_item_shape_sits_in_the_item_box(self):
+        for name in ("bushings", "bar", "feed", "cutterhead", "cylinderblank", "cylinder"):
+            with self.subTest(item=name):
+                shape = json.loads((ITEMS / f"{name}.json").read_text())
+                els = flatten(shape["elements"], textures={})
+                corners = [q for el in els for q in el.corners()]
+                lo = [min(q[i] for q in corners) for i in range(3)]
+                hi = [max(q[i] for q in corners) for i in range(3)]
+                self.assertGreaterEqual(min(lo), -1e-3)
+                self.assertLessEqual(max(hi), 16 + 1e-3)
+                self.assertAlmostEqual(lo[1], 0, places=3)
+                used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
+                self.assertLessEqual(used, set(shape["textures"]))
+
+    def test_the_casting_items_take_their_metal_from_the_item_type(self):
+        for name in ("cylinderblank", "cylinder"):
+            shape = json.loads((ITEMS / f"{name}.json").read_text())
+            self.assertIn("cast", shape["textures"])
+            self.assertNotIn("castiron", shape["textures"])
+            itemtype = lenient(MOD / "assets" / "seraphhorizons" / "itemtypes" / f"{name}.json")
+            self.assertEqual(itemtype["textures"]["cast"]["base"], "game:block/metal/sheet-plain/{metal}5")
+            self.assertEqual(itemtype["variantgroups"][0]["states"], ["iron", "steel"])
+
+
+class Mold(unittest.TestCase):
+    def test_the_clay_forming_recipe_is_the_molds_voxels(self):
+        recipe = lenient(MOLD_RECIPE)[0]
+        (x0, x1), (z0, z1) = make_shape.MOLD["x"], make_shape.MOLD["z"]
+        voxels = {(x0 + x, y, z0 + z) for y, layer in enumerate(recipe["pattern"]) for z, row in enumerate(layer)
+                  for x, c in enumerate(row) if c == "#"}
+        self.assertEqual(voxels, make_shape.mold_voxels())
+        # the pattern is centred on the 16 grid as the game centres it: x 1..15 (14 wide), z 0..16
+        self.assertEqual({len(row) for layer in recipe["pattern"] for row in layer}, {x1 - x0})
+        self.assertEqual({len(layer) for layer in recipe["pattern"]}, {z1 - z0})
+        self.assertEqual(recipe["output"]["code"], "seraphhorizons:cylindermold-{color}-raw")
+
+    def test_the_shape_is_the_generators_and_the_fired_mold_casts_six_ingots(self):
+        shape = json.loads(MOLD.read_text())
+        self.assertEqual(shape["elements"], make_shape.mold_shape()["elements"])
+        fired = lenient(MOLD_FIRED)
+        self.assertEqual((fired["code"], fired["class"], fired["entityClass"]), ("cylindermold", "BlockToolMold", "ToolMold"))
+        a = fired["attributes"]
+        self.assertEqual(a["requiredUnits"], 600)
+        self.assertEqual(a["fillHeight"], make_shape.MOLD["top"] - make_shape.MOLD["floor"])
+        self.assertEqual(a["fillQuadsByLevel"], make_shape.mold_cavity())
+        self.assertEqual(a["drop"], {"type": "item", "code": "seraphhorizons:cylinderblank-{metal}"})
+        self.assertNotIn("breaksWhenFilled", a)
 
 
 if __name__ == "__main__":

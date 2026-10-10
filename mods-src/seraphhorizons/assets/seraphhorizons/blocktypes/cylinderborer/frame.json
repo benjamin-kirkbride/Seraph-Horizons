@@ -1,0 +1,86 @@
+// The cylinder borer's frame (#639; CylinderBorer/, README "Cylinder borer"): the controller cell of
+// a 1 x 2 x 4 boring mill, at the bench end (the feed's drum and weight), nearest the player who
+// placed it. The server disables it with CylinderBorer off.
+{
+	code: "cylinderborer",
+	class: "seraphhorizons.CylinderBorer",
+	entityClass: "seraphhorizons.CylinderBorer",
+	// No HorizontalOrientable: BlockCylinderBorer.TryPlaceBlock picks the side so the borer extends
+	// away from the player, as the draw bench does.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/cylinderborer_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/cylinderborer_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/cylinderborer_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/cylinderborer_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (cylinderborer.json), which the
+	// renderer draws with this block's textures: the castings in ppex's engine cylinder's iron and
+	// steel, the bore's cast skin rusty and its bored face bright, the bushings in cupronickel as
+	// the gear cutter draws metal parts.
+	textures: {
+		"oak":         { base: "game:block/wood/debarked/oak" },
+		"iron":        { base: "game:block/metal/plate/iron" },
+		"steel":       { base: "game:block/metal/sheet-plain/steel1" },
+		"castiron":    { base: "game:block/metal/sheet-plain/iron5" },
+		"caststeel":   { base: "game:block/metal/sheet-plain/steel5" },
+		"rough":       { base: "game:block/metal/corroded/rusty1" },
+		"bored":       { base: "game:block/metal/sheet-plain/steel1" },
+		"brass":       { base: "game:block/metal/sheet/brass1" },
+		"cupronickel": { base: "game:block/metal/sheet/cupronickel1" },
+		"rope":        { base: "game:item/resource/rope" },
+		"glass":       { base: "game:block/glass/plain" },
+		"oil":         { base: "game:block/liquid/honey" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:cylinderborer-handbook-assembly-title", text: "seraphhorizons:cylinderborer-handbook-assembly-text" },
+				{ title: "seraphhorizons:cylinderborer-handbook-work-title", text: "seraphhorizons:cylinderborer-handbook-work-text" },
+				{ title: "seraphhorizons:cylinderborer-handbook-oil-title", text: "seraphhorizons:cylinderborer-handbook-oil-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:cylinderborer-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame's shape spans the borer's 1 x 2 x 4 footprint (native z 0..4 from the controller; its
+	// mesh z -2.99..0.98 once the -north item form turns it 180°), so the item forms turn about the
+	// mesh's middle (0.5, 0.8, -1). Held, the translation brings the middle back to vanilla's
+	// two-handed crate's spot by the hand, (0.01, 0.14, 0.18): translation = (that spot - origin) /
+	// scale (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: -2.23, y: -2.99, z: 5.38 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.8, z: -1.0 },
+		scale: 0.22
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.8, z: -1.0 },
+		scale: 0.38
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: -1.0 },
+		scale: 0.8
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

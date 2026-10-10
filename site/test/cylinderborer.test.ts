@@ -54,9 +54,9 @@ describe("the cylinder borer's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("fits the bearings, the bar, the feed and the cutter head, and each metal's casting with its chains", () => {
+  it("fits the bushings, the bar, the feed and the cutter head, and each metal's casting with its chains", () => {
     const req = new Set(parts.map((p) => p.requires ?? null));
-    expect(req).toEqual(new Set([null, "bearings", "bar", "feed", "cutterhead", "blankiron", "blanksteel"]));
+    expect(req).toEqual(new Set([null, "bushings", "bar", "feed", "cutterhead", "blankiron", "blanksteel"]));
     const byId = Object.fromEntries(parts.map((p) => [p.id, p]));
     expect(byId.chainiron!.requires).toBe("blankiron");
     expect(byId.chainsteel!.requires).toBe("blanksteel");

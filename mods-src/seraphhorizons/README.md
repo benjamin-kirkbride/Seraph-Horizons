@@ -11,7 +11,8 @@ and the rosser, which strips their branches and bark first; the gears (#484): ru
 into stainless gears through the pot, the pickling tub and the barrel (`GearReclamation`), every machine
 recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
-(`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
+(`GearCutter`); the cylinder borer, which bores the cast cylinder of Pipes and Power Expanded's steam engines
+(`CylinderBorer`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
 bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
@@ -30,7 +31,7 @@ that has it (a server with the steam source switched off, or without ppex, has n
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
-sawmill's, the rosser's, the gear cutter's, the draw bench's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
+sawmill's, the rosser's, the gear cutter's, the draw bench's, the cylinder borer's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
 their moving parts. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
@@ -1376,8 +1377,9 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
 
 The game, Immersive Woodworking (`immersivewoodworking`, 1.3.11) and this mod's two machines. The
 heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
-Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench and the gear
-cutter (whose oil wears its cutter kit instead of loading its shaft: "Gear cutter" below). Nothing else
+Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench, the gear
+cutter and the cylinder borer (whose oil wears their cutter kit and cutter head instead of loading their shafts: "Gear
+cutter" and "Cylinder borer" below). Nothing else
 does: the quern, axles, gears and every other transmission part are exempt. A machine is built
 **dry**, and runs dry again when its oil is used up. Dry, its load on its shaft is
 `DryResistanceMultiplier` (3) times what it is otherwise; nothing else changes (it wears and works
@@ -1402,7 +1404,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
   log chopped, the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
-  double), and the draw bench per pipe section drawn.
+  double), the draw bench per pipe section drawn, and the cylinder borer per cylinder bored.
 - **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
   an empty one 0, not -0), then the load on its shaft: oiled `Load: 17 kN`, and while dry the load
   now against the load it takes oiled (`Dry: a load of 51 kN on its shaft, 3× the 17 kN it takes
@@ -1428,6 +1430,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
 | `Rosser` | tank 1000, 2 a stored log | |
 | `GearCutter` | tank 1000, 10 a gear | A large gear drains double; never a dry load ("Gear cutter") |
 | `DrawBench` | tank 1000, 2 a pipe section | Four pipe sections a hollow, 8 points ("Draw bench") |
+| `CylinderBorer` | tank 1000, 10 a cylinder | Either metal; never a dry load ("Cylinder borer") |
 
 Each machine's entry is `{ "Tank": points, "DrainPerJob": points }`; a value out of range falls back
 to its default with a warning.
@@ -1693,8 +1696,8 @@ number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcu
 | Butchering | temporal butcher box (16; it ships switched off) |
 
 The pack's own machines pay the same way, in their own recipes rather than a patch (so whatever this
-switch says): the draw bench frame 2, for the gearing it carries ("Draw bench"), and the gear cutter
-frame 3 ("Gear cutter"). The first stainless gears come from reclamation, so neither waits on the cutter.
+switch says): the draw bench frame 2, for the gearing it carries ("Draw bench"), the cylinder borer
+frame 2, its pinion and great wheel ("Cylinder borer"), and the gear cutter frame 3 ("Gear cutter"). The first stainless gears come from reclamation, so neither waits on the cutter.
 
 ppex and smex give each machine two recipes, one taking the rusty gear and one ppex's gears
 (`ppex:gear-*`); the first takes the stainless gear and the second is switched off. ppex's anvil gears
@@ -2304,6 +2307,103 @@ With the switch off the server marks the three block types, the die's item type 
 disabled before the game loads them, so none of it exists and benches already placed are lost; the
 machine oil page and the mod's own text no longer name it. The hollow and pipe sections exist either
 way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
+
+### Cylinder borer (`CylinderBorer`, `CylinderBorerSettings`)
+
+The steam engine's cylinder, bored true (#639): a mechanically powered cylinder boring mill after John
+Wilkinson's of 1774-75, which bores the cast cylinder of Pipes and Power Expanded's engines, the Watt
+engine's in iron and the Cornish engine's in steel, and those engines' recipes then take the bored
+cylinder (`seraphhorizons:cylinder-iron`, `-steel`) in place of their bottom row's two plates and pipes.
+Its model, rig and generator are described in `CylinderBorer/README.md`, which also records the
+gameplay's decisions; this is the gameplay, in `CylinderBorer/` (rules in `CylinderBorer/Core/`, the game
+side in `CylinderBorer/Game/`).
+
+**Blocks.** `seraphhorizons:cylinderborer-frame-{side}` is the controller: the bench end, with the feed's
+drum and weight, the block the player clicks, with the borer running four blocks away from them along
+their line of sight, two high, a ghost in each of the rig's other cells (`cylinderborer-ghost`) and the
+power ghost (`cylinderborer-ghostpower-{side}`) at the far end at ground level, which takes the axle in
+line with the borer (native south). The frame is a grid recipe: two oak logs (placed, upright) and two oak
+planks, two metal plates and two rods of iron, meteoric iron or steel, 12 nails and strips of the same, two
+stainless gears (the pinion and the great wheel, #473) and a hammer.
+
+**Stages.** Fitted by right-click on the frame or any ghost with the item, one at a time, in this order
+only; anything of a later stage is refused with a message naming the next:
+
+| # | Stage (`requires`) | Item | Made |
+|---|---|---|---|
+| 1 | `bushings` | `seraphhorizons:cylinderborerbushings`, the pair the bar turns in | Grid: metal parts (`game:metal-parts`); drawn in cupronickel, as the gear cutter draws metal parts |
+| 2 | `bar` | `seraphhorizons:cylinderborerbar`, the boring bar with its feather, collars and great wheel | Grid: three rods of iron, meteoric iron or steel in a column, and metal parts |
+| 3 | `feed` | `seraphhorizons:cylinderborerfeed`: the crosshead, control rod, drum, ropes and weight | Grid: two oak planks, a rod and a plate of iron, meteoric iron or steel, two ropes |
+| 4 | `cutterhead` | `seraphhorizons:cylinderborerhead-steel` (8 durability), the wearing part | Smithing, one steel ingot (26 voxels), steel only |
+
+The cutter head's recipe is named `cylinderborerhead`, not `plate`, so the helve hammer does not work it.
+In creative mode Ctrl + right-click on an incomplete borer fits its next stage with nothing taken.
+**Ctrl + right-click** takes the cutter head back, with the durability it has left (taking it out wears it
+no further), then the casting in the cradle, its bore lost. Every other stage comes back only by breaking
+the frame, which drops the frame, every fitted item, the head with its durability, and the casting.
+
+**The castings.** A cylinder is cast, never forged: clay-form a cylinder mold
+(`seraphhorizons:cylindermold-{color}-raw`, blue, red or fire clay, `recipes/clayforming/cylindermold.json`:
+a box round the casting lying on its side with a core for the bore, about 52 clay), fire it in a pit kiln
+or a beehive kiln as the gear blank molds are fired (`seraphhorizons:cylindermold-{color}-fired`), and fill
+it with 600 units of molten iron or steel, six ingots: it is the game's own `BlockToolMold`
+(`requiredUnits` 600, `fillHeight` 10, `drop` `seraphhorizons:cylinderblank-{metal}`), so Steelmaking
+Expanded's canal pedestal, which takes any small `BlockToolMold`, fills it from the canal, and a crucible
+pours into it as into any tool mold (six ingots' worth in turn). Only iron and steel have a blank: a
+crucible refuses other metals (the game asks for the drop first), and, as with the gear blank molds, smex's
+pedestal does not check, so a canal of another metal fills it with metal that casts nothing. Filling does not
+break the mold. The mold is coded `cylindermold`, not `toolmold` as the gear blank molds are, so the switch
+registry (which reads a type file's code) gives it to this switch; the game's mold code wants only the
+`materialtype` variant and the attributes.
+
+**Work.** A cast iron or steel cylinder (`seraphhorizons:cylinderblank-iron`, `-steel`) goes in the cradle
+by right-click, or from a chest or hopper against the cradle's side (native east: on the left as you look
+along the borer from the bench end), one at a time while the shaft turns; a bored cylinder or an ingot is
+never taken. The bore needs the shaft at `MinSpeed` and advances W, the cutter head's travel through the
+bore, with its angle: one block per `TurnsPerBlockIron` (64) turns for iron and `TurnsPerBlockSteel` (96)
+for the harder steel, the head's whole travel being 18/16 blocks (72 and 108 turns a cylinder). At the end
+the bored cylinder of its metal goes into a container against the output face (native west, the other side
+of the cradle), else drops just outside it, and the next casting comes in from the infeed a moment later,
+once the head has eased back. The casting in the cradle has a collision and selection box (the rig's
+`bore.box`).
+
+**Oil and wear.** A MachineOil machine (`MachineOilSettings.CylinderBorer`: tank 1000, 10 points a cylinder,
+either metal) that, as the gear cutter, never takes a dry load: dry or oiled its load is `Resistance` (0.3).
+The oil spares the cutter head: it loses `HeadWearPerCylinder` (1) a cylinder with a full tank, divided by
+the tank's fill when the cylinder is done (rounded up: twice at half full, ten times at a tenth), and a
+cylinder bored dry takes all it has left, so it breaks on it (the tool-break sound) and the borer stops
+until a new head goes in. 8 points: 8 cylinders on a full tank. It smokes while it cuts dry. The block info
+shows the next stage, the head's durability and the cylinders it has left at this oil, the casting's metal
+and how far it is bored, the oil and the wear, and the speed.
+
+**Drawn.** The block draws `cylinderborer_frame.json`; the renderer splits `cylinderborer.json` into the
+rig's parts and draws each whose stage is fitted, and the casting of the job's metal, with its cast skin and
+chains, only while it is in the cradle (each metal's casting is its own parts, in ppex's iron or steel
+texture). θ is the power ghost's angle about native z; W runs on with the shaft between the server's syncs;
+when a cylinder is done the head, the crosshead and the weight ease back over 0.4 s. While it cuts: chips at
+the bore's mouth, oil drips from the far bushing's cup with oil in the tank, and the gears' sound.
+
+**The engines.** `patches/cylinderborer-ppex.json` gives Pipes and Power Expanded's engines (`recipes/grid/
+machines.json`) the bored cylinder: the Watt engine `GH_,PRP,PIP` (its iron or steel plates and rods, one
+pipe) becomes `GH_,PRP,_C_`, C one `seraphhorizons:cylinder-iron`; the Cornish engine `GHR,PNP,PIP` (steel
+plates, rods, nails and strips, two steel pipes) becomes `GHR,PNP,_C_`, C one `seraphhorizons:cylinder-steel`.
+Both recipes of each pair are patched, the rusty gear's (/4, /5) and ppex's gears' (/9, /10), so it holds
+whatever `GearConsumers`, which changes their gears and switches the second pair off, says;
+`tools/tests/test_cylinderborer_engines.py` holds the patch to ppex's recipes and to that patch.
+
+| Setting | Default | |
+|---|---|---|
+| `TurnsPerBlockIron` | 64 | Axle turns per block of the head's travel through iron; the rig's `bore.turnsPerBlock.thin` (a test holds them together) |
+| `TurnsPerBlockSteel` | 96 | The same through steel; the rig's `bore.turnsPerBlock.thick` |
+| `HeadWearPerCylinder` | 1 | Cutter head durability a cylinder costs with a full tank, divided by the tank's fill |
+| `Resistance` | 0.3 | The complete borer's load, oiled or dry |
+| `MinSpeed` | 0.05 | Below it the borer neither bores nor takes a casting from its infeed |
+
+With the switch off the server marks the three block types, the parts', the castings' and the cylinders'
+item types, the two mold block types and the grid, smithing and clay forming recipe files disabled before
+the game loads them, and empties the engines' patch, so none of it exists, borers already placed are lost,
+and ppex's engines take their plates and pipes again; the machine oil page and the mod's own text no longer
+name it. Not yet: a schematic for the frame (`MachineSchematics`).
 
 ### Squaring shear (`SquaringShear`, `SquaringShearSettings`)
 
@@ -4486,7 +4586,8 @@ switch's patch adds to Logging Expanded's trunk (`loggingmod:treetrunk-*-debarke
 the CastPipes switch's patch adds to smex's tool mold (`smex:toolmold-*-pipe`), and the
 exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `GearReclamation`;
 `gearcutter`: `GearCutter`; `drawbench`: `DrawBench`, whose type and recipe files are
-`DrawBenchSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
+`DrawBenchSystem.TypeAssets` and `RecipeAssets`; `cylinderborer`: `CylinderBorer`, whose files are
+`CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
 `PressBrakeSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
 `SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
@@ -4500,6 +4601,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `GearBlanks` | the blanks, their molds (`seraphhorizons:toolmold-*`), their clay forming and smithing recipes, the molds' casting |
 | `GearCutter` | the cutter's blocks and parts, its grid and smithing recipes, the cutter records |
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
+| `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
@@ -5058,7 +5160,10 @@ optional ingredients, held to the shipped gear item types (none of which rusts),
 drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
 `tests/GearCutter/GearCutterGameplayTests.cs`), the draw bench's build order, die metal, take-back,
 drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/Core/`,
-`tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the press brake's build order,
+`tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the cylinder borer's build order,
+cutter head durability, wear by the oil and take-back, a save's restore, bore arithmetic per metal, renderer clock,
+settings, placement and rig, the shipped rig held to its reader, its contract and the reference poses
+(`CylinderBorer/Core/`, `tests/CylinderBorer/CylinderBorerGameplayTests.cs`, `CylinderBorerRigTests.cs`), the press brake's build order,
 half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
 1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
@@ -5409,6 +5514,29 @@ dies or recipes, no link to them and the machine oil page without it, and nothin
 `RecipeExportDrawBenchScenarios.cs` requires one `machine` record per metal (`drawbench|game:chutesection-{metal}|0`):
 the hollow, the four kept stages (two chains and two rods among them), the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
 frame, four pipe sections.
+
+`tests/PackTests/CylinderBorerScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires the
+cylinder borer's blocks, the parts every stage takes, the cast and bored cylinders, the head's durability (8),
+its grid, smithing and clay forming recipes (the head steel only and not helve-able), the molds, the settings'
+pace the rig's and the machine oil page naming it; the fired mold refusing copper, taking six ingots of iron and
+then of steel as a crucible pours (no more), hot until it hardens, and handing out the blank of its metal while it
+stays, and smex's `MoldKinds.FitsPedestal` taking it; placing on all four facings, the borer running away along the
+facing, every ghost pointing home, the power ghost at the far end with its face along the facing, and every cell
+cleared and the frame dropped on breaking; the stages fitted in order by real clicks, a later stage's part, a
+second pair of bushings, a casting before the head and a spent head refused, and a save keeping every code; the
+creative shortcut fitting the four stages; under a creative rotor, the shaft moving the head through a cast iron
+cylinder by itself, a bored cylinder or an ingot never handled, one casting at a time with its collision box, and
+the bored cylinder dropped beyond the output face (head 7 of 8, oil 990); steel at 1.5 times iron's turns, a head
+worn two points at half a tank and broken by a cylinder bored dry, the load the same, and no casting without a
+head; the head back by Ctrl with its durability, then the casting, and breaking giving back every part, the head
+with its wear and the casting; castings taken from a chest at the infeed (not while the shaft stands, never a bored
+cylinder or an ingot, the next once the head is back) and cylinders put in a chest at the output; and ppex's
+engines taking the bored cylinder and no pipe. With the switch off, `SwitchesOffScenarios` requires none of its
+blocks, items, molds or recipes, ppex's engines taking their pipes again, no link to them, the machine oil page
+without it, and nothing logged. `RecipeExportCylinderBorerScenarios.cs` requires one `machine` record per metal
+(`cylinderborer|seraphhorizons:cylinderblank-{metal}|0`): the casting, the three kept stages, the cutter head as a
+tool worn 1 divided by the oil's fill, 10 points of oil, the frame, the bored cylinder, the turns 72 and 108; the
+mold's casting record (six ingots, iron and steel); and the engines' grid records taking the cylinder.
 
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
 the press brake's blocks, the metal parts and plates its stages take, the lead and copper half plates it folds
