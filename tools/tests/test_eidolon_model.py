@@ -11,6 +11,7 @@ and its output must equal the committed files. Run with `python3 -m unittest dis
 
 import importlib.util
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -56,6 +57,7 @@ AUTHORED = {
     "trunk-thick-pickup": (60, "Hold"), "trunk-thick-setdown": (50, "Stop"),
     "guard-idle": (80, "Repeat"), "hung": (1, "Hold"), "activate": (90, "Stop"),
     "slump": (50, "Hold"), "standup": (60, "Stop"),
+    "strike-jab": (24, "Stop"), "strike-hammer": (30, "Stop"),
 }
 KEY_FIELDS = {n for names in kin.GROUPS.values() for n in names}
 
@@ -249,6 +251,68 @@ class Poses(unittest.TestCase):
             frame = make_shape.EVENTS[code][event]
             self.assertLess(frame, ANIMS[code]["quantityframes"], code)
             self.assertAlmostEqual(r[f"{code}: thick trunk underside height at the {event}"], 0.0, delta=0.5)
+
+
+class Strikes(unittest.TestCase):
+    """Self-defence's blows (Eidolon/Core/EidolonStrikes.cs): each the entity type's animation, of the
+    length the C# says, landing on the frame it says (the moving ones on their EVENTS "hit" frame), with
+    the striking fist or foot then at least as far past the body's 1.7-wide box as the C#'s reach. The
+    moving ones move only the upper body, which the entity type alone weights, so the walk's legs go on."""
+
+    CORE = (MOD / "Eidolon" / "Core" / "EidolonStrikes.cs").read_text(encoding="utf-8")
+    ENTITY = (MOD / "assets" / "seraphhorizons" / "entities" / "eidolon.json").read_text(encoding="utf-8")
+    STRIKERS = {"stand-punch": ("palmR",), "stand-kick": ("footR",), "stand-slam": ("palmR", "palmL"),
+                "strike-jab": ("palmR",), "strike-hammer": ("palmR", "palmL")}
+
+    @classmethod
+    def strikes(cls):
+        found = re.findall(r'new\("([\w-]+)", Frames: (\d+), HitFrame: (\d+), Reach: ([\d.]+), Moving: (true|false)\)', cls.CORE)
+        out = []
+        for code, frames, hit, reach, moving in found:
+            m = re.search(r'code: "%s", animation: "([\w-]+)"' % re.escape(code), cls.ENTITY)
+            assert m, code
+            out.append((m.group(1), int(frames), int(hit), float(reach), moving == "true"))
+        return out
+
+    def test_every_strike_is_found(self):
+        self.assertEqual(sorted(a for a, *_ in self.strikes()), sorted(self.STRIKERS))
+
+    def test_lengths_and_hit_frames(self):
+        for anim, frames, hit, _, moving in self.strikes():
+            self.assertEqual(ANIMS[anim]["quantityframes"], frames, anim)
+            if moving:
+                self.assertEqual(make_shape.EVENTS[anim]["hit"], hit, anim)
+
+    def test_the_blow_reaches_as_far_as_the_core_says(self):
+        for anim, _, hit, reach, _ in self.strikes():
+            pose = kin.sample(ANIMS[anim], hit)
+            front = max(0.5 - RIG.centre(n, RIG.matrix(n, pose))[0] / 16 for n in self.STRIKERS[anim])
+            # the striking part's centre, so a fist's own half width (about 0.15) more is its face
+            self.assertGreater(front - 0.85 + 0.15, reach - 0.05, f"{anim}: {front:.2f} in front at frame {hit}")
+
+    def test_moving_strikes_move_only_the_upper_body(self):
+        for code in ("strike-jab", "strike-hammer"):
+            moved = {n for k in ANIMS[code]["keyframes"] for n in k["elements"]}
+            self.assertLessEqual(moved, make_shape.STRIKE_ELEMENTS, code)
+
+    def test_moving_strikes_weigh_only_the_upper_body(self):
+        for code in ("strike-jab", "strike-hammer"):
+            m = re.search(r'\{ code: "%s", animation: "%s", weight: ([\d.]+), blendMode: "Average",\s*elementWeight: \{([^}]*)\} \}'
+                          % (code, code), self.ENTITY)
+            self.assertTrue(m, code)
+            self.assertLess(float(m.group(1)), 0.01, code)  # but not 0, which breaks the blend
+            weighted = dict(re.findall(r'"([\w-]+)": ([\d.]+)', m.group(2)))
+            self.assertEqual(set(weighted), make_shape.STRIKE_ELEMENTS, code)
+            self.assertEqual(set(weighted.values()), {"10"}, code)
+
+    def test_moving_strikes_start_and_end_on_the_same_guard(self):
+        for code in ("strike-jab", "strike-hammer"):
+            a = ANIMS[code]
+            first, last = kin.sample(a, 0), kin.sample(a, a["quantityframes"] - 1)
+            for n in set(first) | set(last):
+                for g in ("rot", "off"):
+                    for x, y in zip(first.get(n, {}).get(g, (0, 0, 0)), last.get(n, {}).get(g, (0, 0, 0))):
+                        self.assertAlmostEqual(x, y, delta=0.01, msg=f"{code}: {n} {g}")
 
 
 class Stages(unittest.TestCase):
