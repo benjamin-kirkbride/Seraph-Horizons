@@ -9,6 +9,10 @@ public class TrunkPushTests
     private static Box Player(double x, double y, double z) =>
         new((float)(x - 0.3), (float)y, (float)(z - 0.3), (float)(x + 0.3), (float)(y + 1.85), (float)(z + 0.3));
 
+    // An eidolon's box (1.7 wide, 3.75 tall) with its feet's middle at (x, y, z).
+    private static Box Eidolon(double x, double y, double z) =>
+        new((float)(x - 0.85), (float)y, (float)(z - 0.85), (float)(x + 0.85), (float)(y + 3.75), (float)(z + 0.85));
+
     private static TrunkPush.Footprint Thin => TrunkPush.Footprint.Of(TrunkClass.Thin, 0);
     private static TrunkPush.Footprint Thick => TrunkPush.Footprint.Of(TrunkClass.Thick, 0);
 
@@ -73,6 +77,41 @@ public class TrunkPushTests
         Assert.Equal(0.2, exit.Distance, 2);
         // deeper than the margin: off the side instead
         Assert.False(TrunkPush.Out(Thin, Player(0, 0.3, 0))!.Value.Up);
+    }
+
+    [Fact]
+    public void A_player_overlapping_the_side_at_all_steps_up_onto_it()
+    {
+        // its middle 0.29 beyond the side (x = 0.5), feet just under the top: lifted, as before
+        var exit = TrunkPush.Out(Thin, Player(0.79, 0.9, 0))!.Value;
+        Assert.True(exit.Up);
+        Assert.True(TrunkPush.Out(Thick, Player(1.25, 1.75, 0))!.Value.Up);
+    }
+
+    [Fact]
+    public void A_wide_agent_with_its_middle_off_the_edge_is_pushed_off_not_held_up()
+    {
+        // An eidolon (radius 0.85) walking off a trunk: its middle 0.5 beyond the side, its feet just
+        // under the top. Held up there, it hung on the edge, its middle over the floor; now it is
+        // pushed off the side, square to it, and falls.
+        var off = TrunkPush.Out(Thin, Eidolon(1.0, 0.98, 0))!.Value;
+        Assert.False(off.Up);
+        Direction(off, 1, 0);
+        Assert.Equal(0.35, off.Distance, 2);              // 0.85 - 0.5 + skin
+        // past a corner too
+        Assert.False(TrunkPush.Out(Thin, Eidolon(1.0, 0.98, 2.5))!.Value.Up);
+        // its middle over the trunk, or within the reach of its outline: it stands on it
+        Assert.True(TrunkPush.Out(Thin, Eidolon(0.3, 0.98, 0))!.Value.Up);
+        Assert.True(TrunkPush.Out(Thin, Eidolon(0.5 + TrunkPush.StandReach - 0.01, 0.98, 0))!.Value.Up);
+        Assert.False(TrunkPush.Out(Thin, Eidolon(0.5 + TrunkPush.StandReach + 0.01, 0.98, 0))!.Value.Up);
+        // and pushed out step by step, it is clear of the trunk
+        var e = Eidolon(1.0, 0.98, 0);
+        for (int i = 0; i < 4 && TrunkPush.Out(Thin, e) is { } exit; i++)
+        {
+            var (dx, dy, dz) = exit.Step();
+            e = TrunkPush.Shift(e, dx, dy, dz);
+        }
+        Assert.False(TrunkPush.Inside(Thin, e));
     }
 
     [Fact]
