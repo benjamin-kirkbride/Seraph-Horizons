@@ -3319,9 +3319,9 @@ disabled before the game loads them, empties the handbook patch and hides the gu
 it exists and holes and pots already in a world are lost, and smex's converter is not patched and
 its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
 export (the hole and the pot's own recipes are there), and a model past simple boxes (no coke or glow
-drawn in the hole): a generated model of the whole furnace as one machine, two holes with their
-grates, ashpit, flue and outlet, is in `CrucibleFurnace/README.md` (#753), and the game does not use it
-yet. `tests/PackTests/CrucibleFurnaceScenarios.cs`
+drawn in the hole): a generated model of the furnace as one machine, one two-pot hole with its hinged
+lid, grate, ash pit and damper, flue and outlet, is in `CrucibleFurnace/README.md` (#753; the game side is
+#796), and the game does not use it yet. `tests/PackTests/CrucibleFurnaceScenarios.cs`
 (Atlas) builds a row and breaks its stack, melts stainless from a charge on the chimney's draft with a
 top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
 bits, refuses wrong charges and an unlit bad ratio, breaks out both ferroalloys and cracks a pot on
