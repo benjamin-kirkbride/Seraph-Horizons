@@ -1,0 +1,57 @@
+{
+  "about": "Ore processing's items (#684, #689), priced on concentrate: every form from its metal units (config/ore-processing.json's concentrateUnits, 5) and the labour of each stage to reach it, along one reference line of devices. The figures (concentrators, roasters, parting, ore classes, densities, by-products) are the mod's own config/ore-processing.json, read from 'config'; this file only says which device of each stage the reference line has, which markup kind (markups.json) each stage charges, the items, and which parting methods have a station. The switch's items are absent from an export made with the switch off (the default), so the tool adds them to the export as items of 'switch' when it lacks them: their value then exists only by that switch, and nothing the switch does not add is priced from them unless it is cheaper (the ferrochrome pot's chromite takes the legacy crushed chromite first). See README.md, Ore processing.",
+  "switch": "OreProcessing",
+  "config": "mods-src/seraphhorizons/assets/seraphhorizons/config/ore-processing.json",
+
+  "line": {
+    "about": "The reference line the chain is priced along: the water tier (tier 2), where a mid-game player and a trader's supplier work. concentrator: a key of the config's concentrators; roaster: of its roasters; parting: a tier of its parting tables (hand, tier1..tier4). Ground and classified feed, free gold and silver amalgamated, as at that tier.",
+    "concentrator": "jig",
+    "roaster": "stall",
+    "parting": "tier2"
+  },
+
+  "kinds": {
+    "crush": "crushing",
+    "grind": "grinding",
+    "concentrate": "concentrating",
+    "amalgamate": "amalgamating",
+    "roast": "roasting"
+  },
+
+  "items": {
+    "about": "The forms, as OreProducts names them ({ore}: an ore of the config's 'ores'; {grain}: coarse from medium, rich and bountiful ore and nuggets, fine from poor ore). 'only': sulfide (roasted concentrate) or free (amalgam). Stacks as the item type files.",
+    "crushed": { "code": "game:crushed-{ore}-{grain}", "stack": 16, "name": "Crushed ore ({ore}, {grain})" },
+    "ground": { "code": "seraphhorizons:groundore-{ore}", "stack": 16, "name": "Ground ore ({ore})" },
+    "concentrate": { "code": "seraphhorizons:concentrate-{ore}", "stack": 128, "name": "Concentrate ({ore})" },
+    "roastedconcentrate": { "code": "seraphhorizons:roastedconcentrate-{ore}", "stack": 128, "only": "sulfide", "name": "Roasted concentrate ({ore})" },
+    "amalgam": { "code": "seraphhorizons:amalgam-{ore}", "stack": 128, "only": "free", "name": "Amalgam ({ore})" }
+  },
+
+  "litharge": {
+    "about": "Litharge, the lead the cupel oxidises: priced by the lead it smelts back to, 20 units in 21 items (OreProducts.LithargeRate).",
+    "code": "seraphhorizons:litharge",
+    "stack": 64,
+    "name": "Litharge",
+    "metal": "game:ingot-lead",
+    "units": 4.7619
+  },
+
+  "legacyCrushed": {
+    "about": "The game's crushed ores that recipes and the crucible furnace take (OreProcessingSystem.LegacyCrushed; PotRecipes counts one as 5 units). With the switch off Expanded Matter's crushing makes them, a bountiful chromite chunk 2.33 of them (15 units each), but every use counts one as 5 units, so they are priced as the coarse crushed ore of their ore: 5 units and the crushing.",
+    "ores": ["chromite", "cassiterite", "galena", "ilmenite", "sphalerite"]
+  },
+
+  "parting": {
+    "about": "Parting methods with a station (true) or none yet (false). A by-product is a share of the main metal's units (the config's byProducts), won only at a parting step at the line's parting tier. Where a method has a station, the form that is parted (roasted concentrate for a sulfide, else concentrate and amalgam) is worth at least what parting wins from it: its main metal at the ore's unparted share, plus each by-product at its share times the method's recovery, both at the metals' unit values. A method without a station leaves the by-product out (it is lost unparted), so turning one on when its station lands (cupellation #722, liquation #724, acid parting) is the whole change.",
+    "cupellation": false,
+    "liquation": false,
+    "acidparting": false
+  },
+
+  "roastingByProduct": {
+    "about": "Sulfur won from roasting at the stall and reverberatory (#736), credited against roasted concentrate: 'perItem' items of 'code' per roasted concentrate. Off until the roaster that captures it exists.",
+    "enabled": false,
+    "code": "game:ore-sulfur",
+    "perItem": 0.0
+  }
+}

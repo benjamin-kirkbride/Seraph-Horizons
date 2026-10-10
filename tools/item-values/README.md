@@ -70,6 +70,13 @@ press) and distillation (the still). The rules are data:
   the scrap floor's multipliers (`scrapFloor`, below), how smithing and clay forming use material by volume, and the
   schematic patterns.
 - `overrides.json`: hand overrides, fixed and winning over everything, each with its reason.
+- `ore-processing.json`: ore processing's items, priced on concentrate (below, Ore processing).
+- `routes.json`: routes the export does not carry, written as a recipe would be (one batch: slots of
+  alternatives, an output, credited byproducts, a markup kind and the switch that owns it): the
+  crucible furnace's pot recipes (`CrucibleFurnace/Core/PotRecipes.cs`), which are code. A route here
+  is priced exactly as an export recipe. A station whose recipes are code and that has no export
+  record adds its routes here; an export record (`tools/recipe-export`) is the better home, since it
+  also shows the recipe in the browser.
 
 The solver works per item: recipes count a liquid in portions, so a liquid's value is a portion's
 until the table converts it (Values and units, below). A route's value per output item is
@@ -109,9 +116,9 @@ credited at its value times its own expected items:
 
 floored at zero. The `lottery` kind has no labour (pct 0, flat 0), so the neutralized gear (2.18,
 one in ten a stainless gear, else one stainless bit at 0.668) prices a stainless gear at
-10 x 2.18 - 9 x 0.668 = 15.78.
+10 x 2.18 - 9 x 0.465 = 16.62.
 A lottery route waits for the other outputs' values as a route waits for its tools; a loser no
-route will ever value is credited 0. Today the gear cutter (7.62) is the cheaper way to a
+route will ever value is credited 0. Today the gear cutter (6.56) is the cheaper way to a
 stainless gear, so that is its value, and its `switches` are `GearBlanks` and `GearCutter` (below). The table
 is the default config's: it is never rebuilt with a switch off, so with the cutter off the handbook
 shows no value for the stainless gear, though the lottery would still price it.
@@ -226,7 +233,7 @@ sell / buy):
 | bed (wood) | 1.19 | 2 | 8 / — | grid |
 | barrel | 1.5 | 1 | 2 / — | override |
 | neutralized gear | 2.18 | 64 | | rusty gear degreased, pickled, passivated, neutralized |
-| stainless gear | 7.62 | 64 | | gear cutter (a cast stainless blank, 3.36); 15.78 by the neutralized gear's lottery |
+| stainless gear | 6.56 | 64 | | gear cutter (a cast stainless blank, 2.35); 16.62 by the neutralized gear's lottery |
 
 Beverages, gears per litre, as the table stores them (`perLitre`: 100 portions a litre).
 Vanilla's Liga sells a 3 L jug of rye or cherry cider for 3 and of apple brandy for 6, and buys the
@@ -262,9 +269,9 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   and bismuth 0.03, lead 0.015, nickel 0.05, chromium 0.07, titanium 0.08. The precious metals are
   priced well above vanilla's ratios, to be worth the hunt: silver 0.2 (22.2), gold 0.5 (55.2),
   platinum 0.4 (44.2); electrum, half gold and half silver, comes to 40.7. Iron comes from a bloom
-  forged on the anvil (ingot 3.5); blister steel, made in the cementation furnace the export does not carry, is a raw at 5 (steel ingot 8). Stainless steel, which no recipe of the export makes yet (the
-  gears epic #484 reclaims and cuts stainless gears), is a raw at 12, half again a steel ingot,
-  until the crucible furnace gives it a route.
+  forged on the anvil (ingot 3.5); blister steel, made in the cementation furnace the export does not carry, is a raw at 5 (steel ingot 8). Stainless steel is the crucible furnace's
+  (`routes.json`, below): 8.31 an ingot, about a steel ingot (it was a raw at 12, half again a
+  steel ingot, before the furnace had a route).
 - **Smithing** carries the most labour (+30% and 1.5 gears a piece): a tin bronze pickaxe head is
   0.57 ingot and lands at 4.6 with the stick, against vanilla's 4 to buy and 11 to sell.
 - **Wood.** Boards are raws at vanilla's 0.0625: the pack saws them with Immersive Woodworking, whose
@@ -327,10 +334,105 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   also buys back Abyssal Depths' diving gear schematic at its entry's price, the mechanic, the
   smith, ...). A machine built with one is worth its parts and labour.
 
+## Ore processing (#689)
+
+Ore processing's items (the `OreProcessing` switch, off by default; the mod README's "Ore
+processing") are priced on concentrate: every form from the metal units it holds and the labour of
+each stage that reaches it, along one reference line. The rules are `ore-processing.json`; the
+figures (concentrators, roasters, parting, the 32 ores' classes, densities and by-products) are read
+from the mod's own `config/ore-processing.json`, so a retuned figure reprices the chain.
+
+**Absent items are added.** An export made with the switch off (the default, and CI's) has none of
+these items, so the tool adds every one the export lacks (each form of each ore of the figures, and
+litharge) as an item of the switch, with its stack (`augment_export`). The table then prices them,
+its `switches` lists `OreProcessing` for each (the handbook shows their value only with it on), and
+`floorZero` reads their stacks. An export made with the switch on keeps its own items; the prices
+come out the same.
+
+**The chain.** Raw ore and chunks are vanilla's ore items and keep their price (units x the metal's
+unit value, Rules above), on or off: a raw ore holds its metal whether a furnace takes it or a mill.
+Every new item holds 5 units (`concentrateUnits`). Per item, with a stage's `pct` and `flat` from
+`markups.json` and u the metal's gears per unit:
+
+| Form | Price | Stage kind |
+|---|---|---|
+| crushed ore, fine | (units x u x (1 + pct) + flat) / (units / 5) from poor ore | `crushing` |
+| crushed ore, coarse | the same, the cheapest of medium, rich and bountiful ore and a nugget | `crushing` |
+| ground ore | crushed x (1 + pct) + flat | `grinding` |
+| concentrate | (ground x (1 + pct) + flat) / r | `concentrating` (+10 %, 0.01) |
+| amalgam (free gold and silver) | the same at r without the free-gold penalty | `amalgamating` (+10 %, 0.02) |
+| roasted concentrate (sulfides) | (concentrate x (1 + pct) + flat - sulfur credit) / the roaster | `roasting` (+10 %, 0.01) |
+| litharge | 100/21 units of lead, what it smelts back to | |
+
+r is the reference line's concentrator times the ore's density, times `freeUnamalgamated` for free
+gold and silver, at most 1. The line is the water tier (tier 2): the jig (80 %), ground and
+classified feed, the stall roaster (92 %) and tier 2 parting (95 %), where a mid-game player and a
+trader's suppliers work; `line` in the file moves it. These are raws to the solver (fixed, sources
+`raw:oreprocessing ...`), computed from the ore's own raw price, so they are the same with the switch
+on, where the export carries the crushing and smelting that make them.
+
+**The legacy crushed ores** (`game:crushed-chromite`, `-cassiterite`, `-galena`, `-ilmenite`,
+`-sphalerite`) are their ore's coarse crushed ore. With the switch off Expanded Matter's crushing
+makes them, a bountiful chromite chunk 2.33 of them, so they were priced at 15 units each; every use
+counts one as 5 units (the crucible furnace's pot, `PotRecipes.UnitsOf`, and the recipes the switch
+retargets to ore processing's crushed ore), so they are priced as 5. This is what took the tier 3
+refractory brick and the stainless chain down.
+
+**By-products** (galena's and tetrahedrite's silver, freibergite's copper, teallite's and
+franckeite's lead, gold quartz's silver) are won only at a parting step, and unparted they are
+lost. `parting` in the file says which methods have a station; for each that has, the parted form (a
+sulfide's roasted concentrate, another ore's concentrate and amalgam) is worth at least what parting
+wins from it: 5 x (u x the ore's `unparted` share + each by-product's share x its metal's u x the
+method's recovery at the line's tier). No method has one yet (the cupel #722, the liquation pan #724,
+acid parting), so today no by-product is priced; turning a method on when its station lands is the
+whole change. Today's costs would hide all but rich by-products anyway: a galena roasted
+concentrate costs 0.20, against 0.10 for its lead and 3 % silver. Sulfur from roasting
+(`roastingByProduct`, #736) is credited against roasted concentrate once its roaster exists.
+
+**Later items.** A station that makes a new item from these (the cupel's silver, the still's
+mercury) adds a route to `routes.json`, with its switch, if the export does not carry it; an item of
+its own that exists only with `OreProcessing` and is missing from the export goes into
+`ore-processing.json` (`items`, by form, or a single item like `litharge`) so the tool adds it.
+
+Before and after (gears per item; the crucible furnace's routes are `routes.json`, `crucible` +20 %
+and 2 a pot of 200 units: about 8 coke and the tending):
+
+| item | before | after | why |
+|---|---|---|---|
+| crushed chromite (legacy) | 1.113 | 0.370 | 5 units, not 15 |
+| crushed cassiterite / ilmenite / sphalerite | 0.568 / 1.27 / 0.482 | 0.189 / 0.423 / 0.160 | the same |
+| unfired / fired refractory brick, tier 3 | 1.532 / 1.885 | 0.716 / 0.987 | its crushed chromite |
+| refractory bricks block, tier 3 | 8.379 | 4.427 | |
+| ferrosilicon | none | 0.361 | the pot: quartz, iron bits, coke |
+| ferrochrome | none | 0.828 | the pot: crushed chromite (or concentrate), ferrosilicon, lime |
+| stainless steel ingot | 12 (raw) | 8.314 | the pot: 80 % iron, 20 % ferrochrome |
+| stainless gear blank / gear | 3.361 / 7.557 | 2.348 / 6.564 | the ingot |
+| large stainless gear | 34.38 | 25.58 | |
+| chromite concentrate | | 0.547 | crushed 0.370, ground 0.409, the jig at density 1.05 |
+| hematite raw ore, poor / crushed / concentrate | 0.9 / | 0.9 / 0.239 / 0.385 | |
+| galena concentrate / roasted | | 0.158 / 0.200 | the stall |
+| gold quartz concentrate / amalgam | | 5.48 / 3.85 | unamalgamated gold floats past the jig |
+| litharge | | 0.071 | |
+
+Stainless now depends on `StainlessSteel` too (its route is that switch's), and so does everything
+priced from it. The stainless chain takes the legacy crushed chromite (0.370) before chromite
+concentrate (0.547), so nothing outside ore processing depends on `OreProcessing`; with the switch
+on, where only concentrate is made, ferrochrome would cost about 1.04 and a stainless ingot about
+9.3; the table, built with it off, keeps 0.828 and 8.314.
+
+Steelmaking Expanded's blast furnace (its burden, solidified iron, pig iron) is not in the export
+and has no value, so nothing priced from crushed iron changed: `game:crushed-iron` is still an iron
+ingot crushed into 20 (0.18). With the switch on smex counts a crushed iron ore 2.5 units and a
+concentrate 5 (`SmexBurden`), which these prices already are.
+
 ## Known gaps
 
-- The pack's woodworking machines, kiln glazing, bread baking stages and the cementation furnace are
-  not in the export; items made only that way are raws, overrides, or take a fallback.
+- The pack's woodworking machines, kiln glazing, bread baking stages, the cementation furnace and
+  Steelmaking Expanded's blast furnace and Bessemer converter are not in the export; items made only
+  that way are raws, overrides, or take a fallback (or have no value: smex's burden and solidified
+  iron). The crucible furnace is not either, but `routes.json` carries its pot recipes.
+- Ore processing's chain is priced along one reference line (tier 2), not per tier, and no
+  by-product is priced until its parting method has a station (Ore processing, above).
 - A pickling tub record's `failure` output (gears an acid eats, a rule's `lossChance`) is not
   credited or charged: the tub prices its first output as if no gear were lost.
 - A nugget hammered from a rich chunk carries more metal units in its attributes than the plain

@@ -3918,8 +3918,10 @@ follow-up, with the grinding stage). EM's coal crushing in the grid is left as i
 
 Each form is one handbook group (crushed ore one per grain, `groupBy` in its type file), which Tidy
 Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused, and
-reported, in a world with the switch off). Item values (#689) can read
-each item's `metalUnits`; the galena silver share (#690) is #685's figures. Code: `Ore/Processing/`
+reported, in a world with the switch off). Item values (#689) price every new item on concentrate,
+from its 5 units and the labour of each stage along a tier 2 line, with the switch's own value
+switch (`tools/item-values/ore-processing.json`, its README's "Ore processing"; the export made with
+the switch off lacks the items, so the tool adds them); the galena silver share (#690) is #685's figures. Code: `Ore/Processing/`
 (`OreProcessingSystem`, `OreProcessingItems`, `ItemGradedOre`, `ItemOreProduct`, `AlloyStackSize`,
 `SmexBurden`). Tests: `tests/Ore/OreProductsTests.cs` (grades, codes, crushing, exact rates, the type
 files against the figures); `tests/PackTests/OreProcessingScenarios.cs` (Atlas, the switch on: the
