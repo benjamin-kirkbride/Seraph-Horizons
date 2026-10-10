@@ -524,4 +524,11 @@ def validate_files(m, shape, frame_shape, ship):
     for label, fitted in states(m):
         solid = [c["pos"] for c in cells if c.get("boxes") or any(k in fitted for k in c.get("fitted", {}))]
         print(f"collision, {label}: {len(solid)} of {len(cells)} cells have boxes")
+    # no sliver boxes: a part reaching a hair over a cell's edge gives that cell a box too thin to stand for anything
+    thin = [(c["pos"], key) for c in cells for key, bs in [("frame", c.get("boxes", []))] + list(c.get("fitted", {}).items())
+            for b in bs if min(b[k + 3] - b[k] for k in range(3)) < 0.04]
+    print(f"collision: {len(thin)} boxes thinner than 0.04 of a block")
+    if thin:
+        ok = False
+        print(f"FAIL sliver collision boxes (a part just over a cell's edge): {thin[:4]}")
     return ok
