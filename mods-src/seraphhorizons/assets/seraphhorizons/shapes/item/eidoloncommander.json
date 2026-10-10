@@ -7,13 +7,13 @@
 	"textureHeight": 16,
 	"textures": {
 		"blue": "game:block/glass/blue",
-		"brass": "game:block/metal/tarnished/brass",
-		"cupronickel": "game:block/metal/tarnished/cupronickel",
+		"brass": "game:block/metal/plate/brass",
+		"cupronickel": "game:block/metal/ingot/cupronickel",
 		"cupronickel1": "game:block/metal/sheet/cupronickel1",
 		"gold1": "game:block/metal/sheet/gold1",
-		"lead": "game:block/metal/tarnished/lead",
+		"lead": "game:block/metal/plate/lead",
 		"rustyglow": "game:block/machine/statictranslocator/rustyglow",
-		"steel": "game:block/metal/tarnished/steel"
+		"steel": "game:block/metal/plate/steel"
 	},
 	"elements": [
 		{

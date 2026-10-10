@@ -2,14 +2,15 @@
 """Generate the eidolon command tool's item shape (Python 3.11 stdlib only).
 
 The command tool (`seraphhorizons:eidoloncommander`, ../README.md "The command tool") is a small
-Jonas device made of what its recipe takes: a tarnished brass casing (the plate) bound with two steel
+Jonas device made of what its recipe takes: a brass casing (the plate) bound with two steel
 bands and a cupronickel face plate (the nails and strips), the game's Jonas cylinder
 (`item/jonas/parts/cylinder01`, its temporal core in a glass dome) lying along its top, and the
 game's Jonas connector (`item/jonas/parts/connector01`) at its front end as the emitter. The two
 Jonas parts are Anego Studios' models (Vintage Story 1.22.7; ../../CREDITS.md), copied unchanged
 but moved into place, as the eidolon's body is: frozen into our namespace so a game update cannot
 change them under us, each pinned by sha256. Textures point at the game's own files by `game:`
-path (none are copied). The device runs along x, 13 voxels long and centred on the block, the
+path (none are copied); it is built new, so no texture is a tarnished one: the Jonas parts' tarnished
+lead is swapped for lead plate (`RESTYLE`). The device runs along x, 13 voxels long and centred on the block, the
 connector at −x.
 
     python3 mods-src/seraphhorizons/Eidolon/tools/make_commander.py            # write the shape
@@ -46,11 +47,15 @@ CASING_TO = (14.5, 3.0, 9.5)
 SHIFT = {"cylinder01": (3.0, 3.0, 0.25), "connector01": (-1.5, 0.0, 0.0)}
 PREFIX = {"cylinder01": "cylinder-", "connector01": "connector-"}
 
+# The tool is built new, so its metals are the game's clean plate and ingot textures, not its
+# tarnished ones (all 32x32, so a swap keeps the UVs).
 OWN_TEXTURES = {
-    "brass": "game:block/metal/tarnished/brass",
-    "steel": "game:block/metal/tarnished/steel",
-    "cupronickel": "game:block/metal/tarnished/cupronickel",
+    "brass": "game:block/metal/plate/brass",
+    "steel": "game:block/metal/plate/steel",
+    "cupronickel": "game:block/metal/ingot/cupronickel",
 }
+# The Jonas parts' own aged textures, swapped for new.
+RESTYLE = {"game:block/metal/tarnished/lead": "game:block/metal/plate/lead"}
 
 
 def box_faces(texture, size):
@@ -97,7 +102,8 @@ def moved(part, shape):
 
 
 def textures_of(shape):
-    return {k: v if ":" in v else f"game:{v}" for k, v in shape["textures"].items()}
+    paths = {k: v if ":" in v else f"game:{v}" for k, v in shape["textures"].items()}
+    return {k: RESTYLE.get(v, v) for k, v in paths.items()}
 
 
 def build(parts):
