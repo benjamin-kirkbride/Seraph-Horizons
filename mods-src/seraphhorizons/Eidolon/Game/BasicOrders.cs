@@ -58,11 +58,12 @@ public sealed class StayOrder(Vec3d? point) : IEidolonOrder
 
 /// <summary>
 /// Go to a point (arguments <c>x</c>, <c>y</c>, <c>z</c>, and <c>run</c>): walk there by the wide
-/// pathfinder, done on arrival. With no way there it says so (status "no way there") and tries again
+/// pathfinder, done on arrival, or with a <c>then</c> order (its tree) given that on arrival (a docked
+/// eidolon woken walks out of the gantry, then back to what it was doing). With no way there it says so (status "no way there") and tries again
 /// every few seconds; stuck on the way, it searches again. The pathfinding proof for #673 and the
 /// building block of follow (#675) and the jobs.
 /// </summary>
-public sealed class GoToOrder(Vec3d target, bool run) : IEidolonOrder
+public sealed class GoToOrder(Vec3d target, bool run, ITreeAttribute? then = null) : IEidolonOrder
 {
     public const string OrderCode = "goto";
     private const double RetrySeconds = 4;
@@ -75,18 +76,20 @@ public sealed class GoToOrder(Vec3d target, bool run) : IEidolonOrder
 
     public Vec3d Target => target;
 
-    public static ITreeAttribute Args(Vec3d target, bool run)
+    public static ITreeAttribute Args(Vec3d target, bool run, ITreeAttribute? then = null)
     {
         var tree = new TreeAttribute();
         tree.SetDouble("x", target.X);
         tree.SetDouble("y", target.Y);
         tree.SetDouble("z", target.Z);
         tree.SetBool("run", run);
+        if (then?.GetString("code") is { Length: > 0 })
+            tree["then"] = then.Clone();
         return tree;
     }
 
     public static GoToOrder From(ITreeAttribute args) =>
-        new(new Vec3d(args.GetDouble("x"), args.GetDouble("y"), args.GetDouble("z")), args.GetBool("run"));
+        new(new Vec3d(args.GetDouble("x"), args.GetDouble("y"), args.GetDouble("z")), args.GetBool("run"), args.GetTreeAttribute("then"));
 
     public void Start(EntityLaborEidolon eidolon)
     {
@@ -99,7 +102,13 @@ public sealed class GoToOrder(Vec3d target, bool run) : IEidolonOrder
     public bool Continue(EntityLaborEidolon eidolon, float dt)
     {
         if (_arrived)
-            return false;
+        {
+            if (then?.GetString("code") is not { } next)
+                return false;
+            // the next order replaces this one, which then ends
+            eidolon.Orders?.SetOrder(next, (ITreeAttribute)then.Clone());
+            return true;
+        }
         if (_nav is { Active: false } && eidolon.World.ElapsedMilliseconds / 1000.0 >= _retryAt)
             Set(eidolon);
         return true;

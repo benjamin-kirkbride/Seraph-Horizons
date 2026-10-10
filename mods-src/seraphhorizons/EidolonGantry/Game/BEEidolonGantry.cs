@@ -119,12 +119,50 @@ public class BEEidolonGantry : BlockEntity
     /// <summary>The gantry whose dock <paramref name="pos"/> (an entity's feet) is in, or null: the
     /// gantry cell there (a ghost, or the controller) and <see cref="Docks"/>. For repair in the
     /// gantry (#674, <c>EntityBehaviorEidolonRepair.GantryAround</c>). Server or client, wherever the cell's block entity is loaded.</summary>
-    public static BEEidolonGantry? DockAt(IBlockAccessor blockAccessor, Vec3d pos)
+    public static BEEidolonGantry? DockAt(IBlockAccessor blockAccessor, Vec3d pos) =>
+        At(blockAccessor, pos.AsBlockPos) is { } gantry && gantry.Docks(pos) ? gantry : null;
+
+    /// <summary>The gantry <paramref name="pos"/> is a cell of (its controller, or a ghost pointing at
+    /// one), or null.</summary>
+    public static BEEidolonGantry? At(IBlockAccessor blockAccessor, BlockPos pos)
     {
-        var be = blockAccessor.GetBlockEntity(pos.AsBlockPos);
-        var gantry = be as BEEidolonGantry
-                     ?? ((be as BEEidolonGantryGhost)?.Principal is { } principal ? blockAccessor.GetBlockEntity(principal) as BEEidolonGantry : null);
-        return gantry != null && gantry.Docks(pos) ? gantry : null;
+        var be = blockAccessor.GetBlockEntity(pos);
+        return be as BEEidolonGantry
+               ?? ((be as BEEidolonGantryGhost)?.Principal is { } principal ? blockAccessor.GetBlockEntity(principal) as BEEidolonGantry : null);
+    }
+
+    /// <summary>Where the body hangs (the rig's <c>body</c> point) in the world: where a woken eidolon
+    /// stands as it wakes and a docking one backs onto the spine from. Null without the rig.</summary>
+    public Vec3d? BodyPoint => Rig is { } rig ? WorldPoint(rig.Body) : null;
+
+    /// <summary>The yaw of an eidolon facing out of the open front (the rig's <c>exitSide</c>).</summary>
+    public float OutwardYaw
+    {
+        get
+        {
+            var outward = Outward;
+            return (float)Math.Atan2(outward.X, outward.Z);
+        }
+    }
+
+    /// <summary>A unit step out of the open front, in the world.</summary>
+    public Vec3d Outward => (Rig is { } rig ? WorldSide(rig.ExitSide) : Side.West) switch
+    {
+        Side.North => new Vec3d(0, 0, -1),
+        Side.South => new Vec3d(0, 0, 1),
+        Side.East => new Vec3d(1, 0, 0),
+        _ => new Vec3d(-1, 0, 0),
+    };
+
+    /// <summary>Where a woken eidolon walks to: <paramref name="blocks"/> past the open front's middle
+    /// (the rig's <c>exit</c>), on a block's corner. Null without the rig.</summary>
+    public Vec3d? WalkOutTarget(double blocks)
+    {
+        if (Rig is not { } rig)
+            return null;
+        var exit = WorldPoint(rig.Exit);
+        var outward = Outward;
+        return new Vec3d(Math.Round(exit.X + outward.X * blocks), exit.Y, Math.Round(exit.Z + outward.Z * blocks));
     }
 
     /// <summary>The world side a native side is turned to (the rig's <c>exitSide</c>, west).</summary>

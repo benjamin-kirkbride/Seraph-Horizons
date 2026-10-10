@@ -223,7 +223,7 @@ public class ItemEidolonCommander : Item
 
         BlockPos? target = null;
         MarkArea? area = null;
-        if (mode.Mark != EidolonMarkKind.None)
+        if (mode.Mark != EidolonMarkKind.None && !(clicked == null && mode is { Mark: EidolonMarkKind.Block, MarkOptional: true }))
         {
             if (clicked == null)
             {

@@ -30,8 +30,9 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// the texture source its shape is tessellated with, and gives each layer's texture code
 /// (<c>bones</c>, <c>joints</c>, <c>plates</c>, <c>sash</c>, <c>skirt</c>) the texture of that
 /// layer's material (<see cref="EidolonBuild.Textures"/>), put into the entity texture atlas the
-/// first time it is wanted (<see cref="LayerTextures"/>); every other code, and a layer that is off,
-/// keeps the shape's. When the record changes the entity's shape is marked modified (its listener in
+/// first time it is wanted (<see cref="LayerTextures"/>); every other code keeps the shape's. A layer
+/// that is off (stripped in a gantry's dock) is not drawn at all: its elements are left out of the shape
+/// (<see cref="EntityBehaviorEidolonDock"/>'s tessellation hook). When the record changes the entity's shape is marked modified (its listener in
 /// <see cref="EntityLaborEidolon"/>, and a check here once a second in case a change came without
 /// one), and the game tessellates it again.</para>
 /// </summary>

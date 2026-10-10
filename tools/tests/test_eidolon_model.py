@@ -289,6 +289,15 @@ class Poses(unittest.TestCase):
         self.assertAlmostEqual(low, make_shape.HUNG_CLEAR, delta=0.05)
         self.assertEqual(make_shape.EVENTS["dock"], {"clamp": make_shape.DOCK_CLAMP})
 
+    def test_docking_clamps_on_the_dock_animations_frame(self):
+        # the gantry takes hold on the clamp frame (Eidolon/Core/EidolonDocking.cs), and hung follows dock's end
+        core = (MOD / "Eidolon" / "Core" / "EidolonDocking.cs").read_text(encoding="utf-8")
+        frames = int(re.search(r"public const int DockFrames = (\d+);", core).group(1))
+        clamp = int(re.search(r"public const int ClampFrame = (\d+);", core).group(1))
+        self.assertEqual(frames, make_shape.DOCK_FRAMES)
+        self.assertEqual(frames, ANIMS["dock"]["quantityframes"])
+        self.assertEqual(clamp, make_shape.EVENTS["dock"]["clamp"])
+
     def test_hands_on_their_grips(self):
         for k, v in self.report.items():
             if "grip" in k:

@@ -163,9 +163,10 @@ jobs:
     # is four classes that cannot share the plain world: SwitchesOffScenarios and
     # ConfigDefaultsScenarios (each its own ModConfig), ClearCommandScenarios (a survival world)
     # and HandcarScenarios (three players, and the shared world has no slots left). The eidolon's
-    # Eidolon* classes (each its own plain world, a server boot apiece) are two shards: `eidolon` the
-    # entity and the command tool, `eidolon-jobs` every other Eidolon* class (carrying, felling,
-    # guarding), so a new one joins it. `trunks` is the trunk entity classes and the
+    # Eidolon* classes (each its own plain world, a server boot apiece) are three shards: `eidolon` the
+    # entity and the command tool, `eidolon-fittings` its fittings (EidolonFittedScenarios) and docking
+    # to strip and refit them (EidolonDockScenarios), and `eidolon-jobs` every other Eidolon* class
+    # (carrying, felling, guarding), so a new one joins it. `trunks` is the trunk entity classes and the
     # pickling tub, each joining more players than the plain world has slots left for. `rest` is
     # the complement filter, so any other new class lands there without anyone having to list it.
     # Each shard's dotnet test run should stay under about four minutes, and the job under five.
@@ -190,7 +191,9 @@ jobs:
           - shard: eidolon
             filter: FullyQualifiedName~PackTests.EidolonScenarios.|FullyQualifiedName~PackTests.EidolonCommanderScenarios.
           - shard: eidolon-jobs
-            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.
+            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.&FullyQualifiedName!~PackTests.EidolonFittedScenarios.&FullyQualifiedName!~PackTests.EidolonDockScenarios.
+          - shard: eidolon-fittings
+            filter: FullyQualifiedName~PackTests.EidolonFittedScenarios.|FullyQualifiedName~PackTests.EidolonDockScenarios.
           - shard: ore
             filter: FullyQualifiedName~PackTests.Ore
           - shard: trading-core

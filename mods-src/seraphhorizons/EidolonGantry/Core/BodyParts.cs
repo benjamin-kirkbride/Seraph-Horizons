@@ -312,6 +312,73 @@ public sealed class BodyParts
             f.Clear();
     }
 
+    // ---- A docked eidolon (Eidolon/README.md, "Docking") ----
+
+    /// <summary>The body of a woken eidolon docked on the spine wearing <paramref name="build"/>: the torso
+    /// and the mind in, and each layer it wears whole, in its material. The layers it does not wear are
+    /// then fitted item by item as in the build (<see cref="Next"/> is the first of them), and
+    /// <see cref="Build"/> is what it wears with every layer completed since.</summary>
+    public static BodyParts Docked(EidolonBuild build)
+    {
+        var parts = new BodyParts();
+        parts._fitted[BodyBill.TorsoStage][BodyBill.Torso] = 1;
+        foreach (var i in BodyBill.Of(BodyBill.Mind))
+            parts._fitted[BodyBill.Mind][i.Code] = i.Count;
+        foreach (var layer in EidolonFittings.Layers)
+            if (build[layer] is { } material)
+                foreach (var i in BodyBill.Of(BodyBill.StageOf(layer), material))
+                    parts._fitted[BodyBill.StageOf(layer)][i.Code] = i.Count;
+        return parts;
+    }
+
+    /// <summary>What is fitted beyond what a docked eidolon wearing <paramref name="build"/> is made of
+    /// (<see cref="Docked"/>): the pieces of a layer being fitted, and any spare. These are the gantry's
+    /// to give back, never the eidolon's.</summary>
+    public IReadOnlyList<GantryDrop> Loose(EidolonBuild build)
+    {
+        var worn = Docked(build);
+        var totals = new Dictionary<string, int>();
+        var order = new List<string>();
+        foreach (var stage in BodyBill.Order)
+            foreach (var (code, n) in _fitted[stage])
+            {
+                int extra = n - worn.Fitted(stage, code);
+                if (extra <= 0)
+                    continue;
+                if (!totals.ContainsKey(code))
+                    order.Add(code);
+                totals[code] = totals.GetValueOrDefault(code) + extra;
+            }
+        foreach (var (code, n) in _spare.Where(kv => kv.Value > 0))
+        {
+            if (!totals.ContainsKey(code))
+                order.Add(code);
+            totals[code] = totals.GetValueOrDefault(code) + n;
+        }
+        return order.Select(c => new GantryDrop(c, totals[c])).ToList();
+    }
+
+    /// <summary>The loose pieces (<see cref="Loose"/>), taken out: the caller gives them back.</summary>
+    public IReadOnlyList<GantryDrop> TakeLoose(EidolonBuild build)
+    {
+        var loose = Loose(build);
+        var worn = Docked(build);
+        foreach (var stage in BodyBill.Order)
+            foreach (var code in _fitted[stage].Keys.ToList())
+            {
+                int keep = Math.Min(_fitted[stage][code], worn.Fitted(stage, code));
+                if (keep > 0)
+                    _fitted[stage][code] = keep;
+                else
+                    _fitted[stage].Remove(code);
+            }
+        _spare.Clear();
+        return loose;
+    }
+
+    /// <summary>Takes <paramref name="layer"/> off: its stage emptied (the caller gives its bill back).</summary>
+    public void Strip(FittingLayer layer) => _fitted[BodyBill.StageOf(layer)].Clear();
+
     /// <summary>Each fitted count by <c>stage/code</c>, and each spare by <c>spare/code</c>, for saving.</summary>
     public IReadOnlyDictionary<string, int> Snapshot() =>
         _fitted.SelectMany(s => s.Value.Where(kv => kv.Value > 0).Select(kv => (Key: s.Key + "/" + kv.Key, kv.Value)))

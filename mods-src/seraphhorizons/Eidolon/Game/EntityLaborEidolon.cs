@@ -63,8 +63,9 @@ public class EntityLaborEidolon : EntityAgent
     /// <summary>Why it cannot work, or null (server side; the client reads <see cref="StopKey"/>).</summary>
     public EidolonStop? Stop { get; private set; }
 
-    /// <summary>Whether it may work now: on its feet, no upkeep stopping it (server side).</summary>
-    public bool CanWork => Alive && Pose.CanAct && Stop == null;
+    /// <summary>Whether it may work now: on its feet, no upkeep stopping it, not docking or docked in a
+    /// gantry (server side).</summary>
+    public bool CanWork => Alive && Pose.CanAct && Stop == null && Dock?.Holds != true;
 
     public string? OwnerUid => WatchedAttributes.GetString(OwnerUidKey) is { Length: > 0 } uid ? uid : null;
 
@@ -73,6 +74,9 @@ public class EntityLaborEidolon : EntityAgent
     public EntityBehaviorTaskAI? TaskAi => GetBehavior<EntityBehaviorTaskAI>();
 
     public EntityBehaviorEidolonOrders? Orders => GetBehavior<EntityBehaviorEidolonOrders>();
+
+    /// <summary>Its dock on a gantry's spine (Eidolon/README.md, "Docking").</summary>
+    public EntityBehaviorEidolonDock? Dock => GetBehavior<EntityBehaviorEidolonDock>();
 
     private EidolonConfig Settings => EidolonSystem.Of(Api)?.Config ?? EidolonConfig.Defaults;
 
@@ -264,12 +268,13 @@ public class EntityLaborEidolon : EntityAgent
         }
     }
 
-    /// <summary>Pushes itself away from any other eidolon it overlaps (<see cref="EidolonSpacing"/>):
+    /// <summary>Pushes itself away from any other eidolon it overlaps (<see cref="EidolonSpacing"/>), a
+    /// docked one too, which stays put (<see cref="EntityBehaviorEidolonDock"/>):
     /// <c>repulseagents</c> is <c>movable: false</c>, so nothing else parts two. Server side, every tick;
     /// not while either is mounted (a gantry holds it in place).</summary>
     private void KeepApart()
     {
-        if (MountedOn != null || CollisionBox is not { } own)
+        if (MountedOn != null || Dock?.Holds == true || CollisionBox is not { } own)
             return;
         double reach = own.XSize;
         foreach (var e in World.GetEntitiesAround(Pos.XYZ, (float)reach, (float)own.YSize,
@@ -292,7 +297,9 @@ public class EntityLaborEidolon : EntityAgent
         if (Api.Side != EnumAppSide.Server)
             return;
         ApplyFittings();
-        bool running = Pose.State != EidolonPoseState.Slumped;
+        // docked it is switched off: its upkeeps do not run down, and it hangs rather than slumps
+        bool docked = Dock?.Holds == true;
+        bool running = Pose.State != EidolonPoseState.Slumped && !docked;
         var upkeeps = SidedProperties.Behaviors.OfType<IEidolonUpkeep>().ToList();
         foreach (var upkeep in upkeeps)
             upkeep.OnCheck(this, running);
@@ -305,7 +312,7 @@ public class EntityLaborEidolon : EntityAgent
             else
                 WatchedAttributes.SetString(StopKey, stop.Code);
         }
-        switch (Pose.Update(stop?.Slumps == true, World.ElapsedMilliseconds / 1000.0, StandUpSeconds))
+        switch (docked ? EidolonPoseAction.None : Pose.Update(stop?.Slumps == true, World.ElapsedMilliseconds / 1000.0, StandUpSeconds))
         {
             case EidolonPoseAction.Slump:
                 AnimManager.StopAnimation("standup");

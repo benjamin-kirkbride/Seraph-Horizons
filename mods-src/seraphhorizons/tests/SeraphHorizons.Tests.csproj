@@ -125,6 +125,8 @@
     <None Include="../EidolonGantry/README.md" Link="eidolongantry-readme.md" CopyToOutputDirectory="PreserveNewest" />
     <!-- The body bill (#672), held to the eidolon's stages file. -->
     <None Include="../assets/seraphhorizons/config/eidolon-stages.json" Link="eidolon-stages.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The eidolon's shape, whose hierarchy decides what a stripped layer takes with it (EidolonLayerElements). -->
+    <None Include="../assets/seraphhorizons/shapes/entity/eidolon/eidolon.json" Link="eidolon-shape.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The torso's grid recipe and the eidolon schematic's gate, held to EidolonFittings.TorsoRecipe. -->
     <None Include="../assets/seraphhorizons/recipes/grid/eidolontorso.json" Link="eidolontorso-recipe.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The handcar's drive, controls and animation timing, and its generated rig, reference poses,

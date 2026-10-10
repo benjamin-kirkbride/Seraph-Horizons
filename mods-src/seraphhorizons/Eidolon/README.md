@@ -406,7 +406,12 @@ piece; the eidolon's plates do not wear.
 `EntityLaborEidolon.Build` reads and writes the record in its watched attributes (`ReadBuild` and
 `WriteBuild` do the same on any tree, e.g. for the gantry's hung body); writing it any way applies at once.
 
-- **Look.** `EidolonShapeRenderer` is the texture source the shape is tessellated with (the game's
+- **Look.** A layer that is off (stripped in a gantry's dock, below) is not drawn: at tessellation the
+  dock behaviour leaves its elements out of the shape (`willDeleteElements`, as the game hides a worn
+  item's elements; the elements from `config/eidolon-stages.json`, `Core/EidolonLayerElements.cs`). The
+  game deletes an element with its children, and no element hangs from one of a later stage (a test walks
+  the shape), so a layer takes with it only those after it, already off, and with the joints the mind's
+  eye light, which hangs on the eye's bracket. `EidolonShapeRenderer` is the texture source the shape is tessellated with (the game's
   `EntityShapeRenderer` tessellates with `TexSource = this`, its virtual indexer). Before each
   tessellation, on the main thread, it looks up each worn layer's texture (`EidolonBuild.Textures`) in the
   entity texture atlas, inserting it the first time (`GetOrInsertTexture` with a `CompositeTexture`), and
@@ -438,6 +443,57 @@ maths says, internal harm and fire passing; no record is the old all-steel eidol
 record, through the property or straight into the attribute, changes the figures at once and keeps the
 share of health, and taking it away goes back to the old build).
 
+## Docking
+
+A woken eidolon goes back onto a gantry's spine to have its layers stripped and refitted (the gantry's
+side: `../EidolonGantry/README.md`, "Gameplay"; the player's: the mod's README, "Docking, stripping and
+refitting"). Rules in `Core/EidolonDocking.cs`, the entity's side in `Game/EntityBehaviorEidolonDock.cs`
+and `Game/DockOrder.cs`.
+
+- **The order.** The command tool's `dock` mode (wheel place 90, `game:textures/icons/worldmap/home.svg`)
+  marks a block, optionally (`EidolonCommandMode.MarkOptional`): a gantry's cell names that gantry, the air
+  the nearest whose spine is free within `EidolonDocking.SearchBlocks` (24), found among the loaded chunks'
+  block entities; one another eidolon is on its way to (`DockOrder.Claimed`) is passed over. The `dock`
+  order (`x`, `y`, `z` the gantry's controller; `then` the order it was doing, unless that was a `goto` or
+  a dock) walks to the rig's `body` point by the wide pathfinder; within `ArriveBlocks` (0.5) it is set on
+  the point facing out of the open front (`BEEidolonGantry.OutwardYaw`) and `EntityBehaviorEidolonDock.Begin`
+  starts `dock`. With the spine taken it waits before the gantry; with the gantry gone it says so.
+- **The clamp.** `dock` is 60 frames, its clamps closing on frame 46 (`EVENTS["dock"]["clamp"]` in
+  `tools/make_shape.py`; `EidolonDocking.ClampFrame` and `DockFrames`, held to them by
+  `tools/tests/test_eidolon_model.py`): at 46/30 s the gantry
+  takes hold (`BEBehaviorEidolonBody.TakeHold`), the phase goes from `docking` to `docked`, and at 2 s
+  `hung` starts (one frame, held) as `dock` stops, the same pose. A spine taken by then (or the gantry
+  gone) and it stands down and goes back to its order. Loaded mid-dock, it goes straight to the clamp.
+- **Held.** The entity's watched tree `seraphhorizons:dock` (the gantry's position, the point, the yaw,
+  the phase, `then`) is the entity's half; the gantry keeps the entity id. While docking or docked
+  `CanWork` is false (no task starts, the order task ends), its upkeeps' `running` is false (the charge
+  does not drain), the pose is not updated (it hangs rather than slumps; at 0 HP it slumps when woken),
+  it does not push other eidolons off (they push themselves off it), and every server tick it is set back
+  on the point with no motion, its yaw and body yaw outward, its controls stopped: nothing pushes it off.
+  `hung` is started again after a load. The two halves check each other every 2 s: docked with its
+  gantry's chunk in and the gantry gone or holding another, it lets go (`Release`: `activate`, no order);
+  the gantry lets an eidolon go that is loaded but not docked on it, or missing from a loaded chunk three
+  checks running.
+- **Stripping** (Ctrl+right-click, any hand; the machines' take-back key). `EidolonDocking.CanStrip`: only
+  docked, only at full health (`EidolonBuild.CanStrip`), only with a layer on; outermost first
+  (`EidolonBuild.NextToStrip`). Pieces of a layer part fitted come back before any layer. The layer's
+  whole bill goes to the player (`TryGiveItemStack`, the rest dropped at their feet), the gantry's stage is
+  emptied (`BodyParts.Strip`) and the entity's record loses it: the listener on `eidolonFittings` refreshes
+  its figures (its most health keeps its share, so a whole one stays whole) and its look.
+- **Refitting.** Docked, the gantry's `BodyParts` is the eidolon's build (`BodyParts.Docked`: torso, the
+  layers it wears whole, mind), so its own fitting code (first piece fixes the material, out of order and
+  wrong material refused) fits a stripped layer; a right-click on the eidolon with an item the next layer
+  takes (or of its family, to be refused with why) goes to the gantry's `OnGantryInteract`, as does one on
+  the gantry. A layer completed is written to the eidolon at once. A repair item on a damaged eidolon is
+  the repair's, not the fitting's.
+- **Waking.** The crank (`OnCrank`) with all five layers on (`EidolonDocking.CanWake`) clears the dock,
+  plays `activate` and gives a `goto` 3 blocks out of the front whose `then` is the order it docked from;
+  the gantry's spine is bare again (loose pieces given back at the front).
+
+Tests: `tests/Eidolon/EidolonDockingTests.cs` (timing, the verdicts, the docked body, refitting in another
+material, loose pieces, saving, which elements a layer that is off leaves out and that none takes an
+earlier layer's) and `tests/PackTests/EidolonDockScenarios.cs` (Atlas, the mod's README lists them).
+
 ## Open questions
 
 - **Size.** At size 1 the eidolon is 3.75 blocks tall (vanilla's boss size), a giant beside a
@@ -449,3 +505,6 @@ share of health, and taking it away goes back to the old build).
   frame, matched to the seraph's at rest; whether the head points at the trunk through the swing can
   only be seen in the game.
 - **The layers' textures** have been seen only in the model viewer, not in the game's lighting.
+- **Docking's hand-off.** The eidolon is set on the `body` point when it arrives within half a block of
+  it, so it may slide that far before `dock` plays; and it docks wherever the winch stands (nothing
+  drives the winch's depth yet), as it wakes.

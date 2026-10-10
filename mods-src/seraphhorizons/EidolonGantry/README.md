@@ -95,8 +95,8 @@ corner, iron fish plates and angle brackets at the post tops and trenail heads o
   steel clamps (`bar-spine1` and `bar-spine2`) run forward through the chest's backplate, and every layer
   after fits onto what already hangs. When the eidolon wakes (its `activate`) the clamps let go, it drops
   onto its feet, steps forward off the spine and walks out of the front, and the spine is left hanging
-  empty, as before the build. Docked again (its `dock`, `activate` in reverse) it backs onto the spine and
-  is clamped and hung as when it was built.
+  empty, as before the build. Docked again (its `dock`, `activate` in reverse; "Gameplay", the dock) it
+  backs onto the spine and is clamped and hung as when it was built.
 
 The body's pose is `hung` (limp, head down, the lowest toe 3 voxels off the floor), and the spine is
 baked with it where vanilla has it on the chest (tilted with the chest's lean). Searching the posed
@@ -266,6 +266,21 @@ What the gameplay holds to here, beyond the mod's README ("Eidolon"):
   body. The eidolon is spawned at `body`, facing `exitSide`, wearing the body's build, sent 3 blocks past
   `exit`, and the body is cleared. `BEEidolonGantry.DockAt`/`Docks`: whether a point is in the dock (1.25
   blocks round `body`).
+- **The dock** (`../Eidolon/README.md`, "Docking"). A woken eidolon on a dock order backs onto a free
+  spine (`BEBehaviorEidolonBody.SpineFreeFor`: the winch complete, no body started, no other eidolon
+  held) and on its `dock` clamp frame the body behaviour takes hold (`TakeHold`): it keeps the entity's id
+  (`eidolonDocked` in its tree, synced) and its `BodyParts` become the eidolon's build
+  (`BodyParts.Docked`: the torso, the worn layers whole, the mind). So the gantry's own fitting code refits
+  a stripped layer (clicks on the gantry, or on the eidolon, forwarded), and a layer completed is written
+  to the eidolon (`DressDocked`). Stripping (`Strip`, Ctrl+right-click on the eidolon) gives back loose
+  pieces of a layer part fitted first, then, at full health, the outermost layer's bill, emptying its stage
+  and taking it off the eidolon's record. While one is docked `Shows` is false for every body stage (the
+  entity is drawn, hung), `Drops` is only the loose pieces, and the crank wakes it once all five layers are
+  on (`WakeDocked`: the entity's `Wake`, a `goto` out of the front, then its old order), else names the
+  missing layer. Breaking the gantry (`OnBlockRemoved`) lets it go, layers and all. Every 2 s the server
+  frees the spine of an eidolon loaded but not docked here, or missing from a loaded chunk three checks
+  running. Bodies and docked eidolons never share a spine: an eidolon docks only on a bare one, and a body
+  item fits a docked eidolon's build only.
 - **Hand-off at activation** (below, "Open questions"): the eidolon is spawned standing at `body`
   whatever the winch's depth (nothing drives the depth yet), and `activate` plays from `hung`.
 

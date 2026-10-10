@@ -2591,6 +2591,46 @@ skirt, a plain leather sash.
 `pos` is in (within `DockRadius`, 1.25 blocks, of the `body` point, level with its floor), or null;
 `gantry.Docks(pos)` asks one gantry. For repair in the gantry (#674).
 
+**Docking, stripping and refitting** (`Eidolon/Game/EntityBehaviorEidolonDock.cs`, `DockOrder.cs`, the
+gantry's side in `BEBehaviorEidolonBody`; rules in `Eidolon/Core/EidolonDocking.cs`; `Eidolon/README.md`,
+"Docking"). The command tool's *Dock in a gantry* mode (wheel place 90, the map's home icon) sends a woken
+eidolon to a built gantry: point at any cell of one, or at the air for the nearest within 24 blocks whose
+spine is free (a gantry with a body being built on it, another eidolon docked, or another on its way is
+passed over, or refused when pointed at). It walks in to where the body hangs (the rig's `body` point), is
+set on it facing out of the open front and plays `dock` (`activate` in reverse); on its clamp frame (46 of
+60) the gantry takes hold, and `hung` holds the pose. It stays the same entity: owner, charge, oil and
+fittings kept, and the order it was doing kept to go back to. Docked it does not work or walk, its charge
+does not run down, it hangs rather than slumps, and it is put back on its point every tick, so nothing
+pushes it off. The gantry keeps its entity id and the entity its gantry (`seraphhorizons:dock`, watched:
+the gantry's position, the point, the yaw, the phase, the order to go back to), so both survive a save
+and either chunk being unloaded; a docked eidolon whose gantry has gone or holds another lets go, and a
+gantry whose eidolon has been missing from a loaded chunk for three checks (6 s) frees its spine. While
+docked the gantry draws no body of its own: the entity is drawn, hung, and a layer it does not wear is left
+out of its shape (every eidolon's, docked or not: the layer's elements from the stages file are deleted at
+tessellation, `EidolonLayerElements`).
+
+Docked and **at full health only** (a damaged one is repaired first, double in the dock as before),
+Ctrl+right-click on it strips its outermost layer: skirt, sash, plates, joints, bones, never the torso or
+the mind. Each strip gives the player the layer's whole bill (`EidolonFittings.Bill`: its material and its
+Jonas parts; what does not fit drops at their feet), and its `eidolonFittings` record loses the layer, so
+its look and figures follow (its most health keeps its share: a whole one stays whole). The gantry's body
+stages are the docked eidolon's build (`BodyParts.Docked`: the torso and mind in, each worn layer whole),
+so a stripped layer is fitted again item by item through the build's own rules, in any material the layer
+allows (its first piece fixes it), by right-clicking the eidolon or the gantry; the layer goes onto the
+eidolon the moment it is complete. Pieces of a layer part fitted are the gantry's: Ctrl+right-click takes
+them back first, and breaking the gantry or waking the eidolon gives them back. **A turn of the crank
+wakes it** once all five layers are on (else it names the first that is not): it plays `activate`, walks
+3 blocks out of the front and goes back to the order it docked from (follow, stay, guard, a job; not a
+`goto`). **Breaking the gantry** with an eidolon docked lets it go, layers and all, standing up where it
+hung; the gantry gives back its frame, its winch and only a layer's loose pieces. Tests:
+`tests/Eidolon/EidolonDockingTests.cs` and `tests/PackTests/EidolonDockScenarios.cs` (Atlas: docked by
+the tool's mode at the nearest gantry and held hung, pushed and not moved; stripping refused away from a
+gantry and below full health, then the skirt, sash and plates, each bill to the player; brass plates, a
+blue cloth sash and a stainless skirt fitted back, its build, textures and figures following; the crank
+refusing until then, and waking it out of the front and back to its stay order; unloaded and loaded again
+still docked, both sides knowing each other; the gantry broken letting it go whole with only a loose
+chain dropped; one removed while docked freeing the spine).
+
 With the switch off the server marks the gantry's block types and recipe file disabled before the game
 loads them, so none of it exists and gantries already placed are lost; the mod's own text no longer
 links it. The parts it takes are the game's and exist either way. Tests: `tests/EidolonGantry/`
