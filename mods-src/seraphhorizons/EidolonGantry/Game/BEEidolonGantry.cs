@@ -152,6 +152,28 @@ public class BEEidolonGantry : BlockEntity
             c.Hollow ? [] : c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
     }
 
+    /// <summary>The crank's selection box in its cell (cell-local, native frame): the crank's web and
+    /// handle and the ratchet, from the post's outer face out. Selection only: the cell stays hollow,
+    /// nothing to collide with.</summary>
+    public static readonly Box CrankBox = new(0.05f, 0.05f, 0f, 1f, 1f, 0.55f);
+
+    /// <summary>Whether <paramref name="cellPos"/> is the winch crank's cell.</summary>
+    public bool IsCrankCell(BlockPos? cellPos) =>
+        cellPos != null && Rig is { } rig
+        && Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side) == rig.CrankCell;
+
+    /// <summary>A cell's selection boxes: its <see cref="CellBoxes"/>, and in the crank's cell, once the
+    /// crank is fitted, the crank (<see cref="CrankBox"/>), so it can be turned.</summary>
+    public Cuboidf[]? SelectionBoxes(BlockPos cellPos)
+    {
+        if (_parts.Has(GantryStage.Crank) && IsCrankCell(cellPos))
+        {
+            var w = Footprint.ToWorld(CrankBox, Side);
+            return [new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2)];
+        }
+        return CellBoxes(cellPos);
+    }
+
     private Block? GhostBlock() => Api.World.GetBlock(GhostCode);
 
     public void PlaceGhosts()
@@ -209,14 +231,25 @@ public class BEEidolonGantry : BlockEntity
     // ---- Interaction ----
 
     /// <summary>
-    /// Right-click on the gantry or any of its cells. In creative mode, Ctrl fits the next stage
+    /// Right-click on the gantry or any of its cells (<paramref name="cell"/>, the one clicked). A click
+    /// on the crank turns it: the extensions are asked in turn (<see cref="IEidolonGantryExtension.OnCrank"/>).
+    /// Otherwise, in creative mode, Ctrl fits the next stage
     /// (the winch's, then each extension's) with nothing taken. A winch part in hand while the winch
     /// is not complete goes to the winch (fitted if it is the next stage's). Every other click is
     /// offered to the extensions in turn; a winch part nobody takes is refused as already fitted.
     /// Decided and done on the server; the client only says whether the click is the gantry's.
     /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    public bool OnInteract(IPlayer byPlayer, BlockPos? cell = null)
     {
+        if (_parts.Has(GantryStage.Crank) && IsCrankCell(cell))
+        {
+            foreach (var extension in Extensions)
+                if (extension.OnCrank(this, byPlayer))
+                    return true;
+            if (Api.Side == EnumAppSide.Server)
+                Error(byPlayer, "error-crank-nothing");
+            return true;
+        }
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
         if (CreativeShortcutApplies(byPlayer))

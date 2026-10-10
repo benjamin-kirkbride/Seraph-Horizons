@@ -197,8 +197,14 @@ output `seraphhorizons:eidolongantry-{wood}-north`, the placed frame and nine st
 wood binding the drum's planks and the spine's beams) and the eidolon's body
 (`construction|seraphhorizons:creature-eidolon|0`, output the eidolon's creature item). The body's
 first stage is a gantry, an ingredient with role `station`: needed, never consumed, so a reader
-leaves it out of what the build uses up. Their `extra.behavior` names the mod's classes and
-`extra.stages` the stages' codes.
+leaves it out of what the build uses up; then the torso (its own grid recipe), five layers and the
+mind. A layer is built in one material of the builder's choice: each piece of its material is one
+ingredient, a wildcard with `allowedVariants` (the sash, leather or cloth, is `game:*` over both
+families' paths), and the record's one variant lists every allowed material's stack for it, the
+default build's first. That all of a layer is one material is in `extra.layers`: per layer, `layer`,
+its `materials` as the mod writes them, the `default`, and the indices of its material `ingredients`.
+`extra.wake` is the crank's action, which wakes it after the last stage. Their `extra.behavior` names
+the mod's classes and `extra.stages` the stages' codes.
 
 ### Butchery
 

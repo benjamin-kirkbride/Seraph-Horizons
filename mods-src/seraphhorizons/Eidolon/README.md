@@ -382,9 +382,9 @@ parts go with the torso (a grid recipe: pumphead, tank01, tank02, 4 metal parts,
 bones (gearbox01, gearbox02, oscillator01, cylinder02, connector01 and the elucidatory vessel) and the
 joints (2 joint01, 2 spring01, gears01, gears02, cylinder01, valve01, 9 stainless gears, 12 metal parts);
 a layer's bill (`EidolonFittings.Bill`) is its material then its Jonas parts, and stripping gives it all
-back. **The material counts** (`FittingCounts`) are placeholders, today's metal (13 plates; 8 rods and 36
-nails and strips) and stand-ins (6 beams, 3 leather or cloth, 4 chain), until they are derived from the
-model.
+back. **The material counts** (`FittingCounts`) are the model's ("Build stages", above, its table; the
+stages file's `measure`), kept in that one place and held to the stages file by
+`tests/EidolonGantry/EidolonBodyTests.cs`.
 
 `EidolonBuild` is an eidolon's record: each layer's material or none, always a prefix of the build order
 (`With` fits only the next layer, `Stripped` takes off only the outermost, `CanStrip` only at full

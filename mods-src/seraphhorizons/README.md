@@ -2527,37 +2527,65 @@ implements `IEidolonGantryExtension` is asked, after the winch, for every click 
 `Complete`), whether a body stage's rig parts are drawn (`Shows`), what breaking returns (`Drops`) and its
 help lines (`Help`); it saves its own state and writes its own block info as a behavior does.
 
-**The body and waking it** (#672, `EidolonGantry/Game/BEBehaviorEidolonBody.cs`, the gantry's one
-extension; rules in `EidolonGantry/Core/BodyParts.cs`). Once the spine hangs, the body is built on it in
-seven stages, in order: the torso, the five layers of material (bones; joints, bars and clamps; plates;
-sash and fauld; chain skirt) and the mind (`BodyBill`; the stages file `config/eidolon-stages.json`
-lists the same, its materials the builder's choice, each layer's count scaled to the model,
-`Eidolon/README.md` "Build stages", and a test holds the two together). Until the layers take a choice of
-material the bill is the default build's, below. Each stage is finished
-before the next takes anything; within a stage any order, and each right-click fits what the held
-stack can give toward one item the stage still needs (all of it, up to what is missing). A later stage's
-item is refused as out of order, one the stage has all of as already in, and nothing is taken. Steel
-rods, plates and nails go to the body once the winch is done (before, they are winch parts).
+**The body and waking it** (#672 and the fittings, `EidolonGantry/Game/BEBehaviorEidolonBody.cs`, the
+gantry's one extension; rules in `EidolonGantry/Core/BodyParts.cs` over `Eidolon/Core/EidolonFittings.cs`).
+Once the spine hangs, the body is built on it in seven stages, in order: the torso, the five layers of
+material (bones; joints, bars and clamps; plates; sash and fauld; chain skirt) and the mind (`BodyBill`,
+whose layers are `EidolonFittings.Bill`, counts `FittingCounts`; the stages file
+`config/eidolon-stages.json` lists the same with the default build's materials as {tokens}, each layer's
+count scaled to the model, `Eidolon/README.md` "Build stages", and a test holds the three together). Each
+stage is finished before the next takes anything; within a stage any order, and each right-click fits
+what the held stack can give toward one item the stage still needs (all of it, up to what is missing). A
+later stage's item is refused as out of order, one the stage has all of as already in, and nothing is
+taken. Rods, plates, nails and chain go to the body once the winch is done (before, they are winch parts).
+
+**A layer is of one material, the builder's choice**: the first piece of material fitted fixes it
+(`BodyParts.Material`, read from what is in, not stored), and a piece of another material, or of one the
+layer does not take (a copper plate, a rotten beam), is refused with the reason ("This layer, the plates,
+is of brass"). The Jonas parts go in whatever the material and do not fix it. The block info shows each
+finished layer with its material, and an open layer's material once chosen; the help shows every
+material's item until one is.
 
 | Stage | Takes |
 |---|---|
-| Torso | The eidolon torso (`seraphhorizons:eidolontorso`, crafted from the Jonas pump head, tank 1 and tank 2, 4 metal parts and 3 stainless gears) |
-| Bones | 10 oak support beams; Jonas gearbox 1 and 2, oscillator, cylinder 2, connector, and the Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain) |
-| Joints, bars and clamps | 4 steel rods, 20 steel nails and strips; 2 Jonas joints (the knees), 2 Jonas springs, Jonas gears 1 and 2, cylinder 1, valve; 9 stainless gears, 12 metal parts |
-| Plates | 17 steel plates |
-| Sash and fauld | 2 plain leather |
-| Chain skirt | 2 steel chains |
-| Mind | A temporal gear, which wakes it |
+| Torso | The eidolon torso (`seraphhorizons:eidolontorso`), used on the gantry: crafted on the grid from the Jonas pump head, tank 1 and tank 2, 4 metal parts and 3 stainless gears (`recipes/grid/eidolontorso.json`, `EidolonFittings.TorsoRecipe`; the eidolon schematic's gate adds the schematic, kept) |
+| Bones | 10 support beams of one wood, any but rotten and very rotten; Jonas gearbox 1 and 2, oscillator, cylinder 2, connector, and the Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain) |
+| Joints, bars and clamps | 4 rods and 20 nails and strips of one of iron, steel and stainless steel; 2 Jonas joints (the knees), 2 Jonas springs, Jonas gears 1 and 2, cylinder 1, valve; 9 stainless gears, 12 metal parts |
+| Plates | 17 plates of one of iron, steel, stainless steel and brass |
+| Sash and fauld | 2 normal leather or 2 cloth, one colour |
+| Chain skirt | 2 chains of one of iron, steel and stainless steel |
+| Mind | A temporal gear, its first charge |
 
-The block info lists the stages fitted, what the next one still needs, and those after. Each finished
-stage is drawn on the spine (`Shows`). Fitting the mind wakes it: `EidolonSystem.Spawn` puts the eidolon
-at the rig's `body` point, facing out of the open front, owned by the player who fitted the mind (and so
-their company), charged with that gear, playing `activate`; it is given a `goto` order 3 blocks past the
-front's middle (`exit`), which it starts once `activate` has played, and walks out. The body stages are
-cleared, so the gantry is an empty dock with its spine again, and another eidolon can be built in it.
-If the eidolon cannot be spawned the gear is refused and kept. Breaking the gantry mid-build returns every
+The torso item (`itemtypes/eidolontorso.json`, its shape the torso stage's two lattice blocks,
+`shapes/item/eidolontorso.json`) is one of the gantry's switch-owned assets (`EidolonGantrySystem.TypeAssets`,
+`RecipeAssets`). Each finished stage is drawn on the spine (`Shows`), the layers in their materials: the
+renderer draws the body's rig parts with the body's `EidolonBuild.Textures()` over the block's layer codes
+(one mesh set per set of materials, shared). **A turn of the winch's crank wakes it**: the crank's cell
+(`crankCell`, hollow, nothing to collide with) has a selection box once the crank stage is fitted
+(`BEEidolonGantry.CrankBox`), and a right-click there goes to the extensions' `OnCrank` instead of
+fitting. With nothing on the spine it does nothing; with a body still being built it names the next stage;
+with every stage in, the mind too, `EidolonSystem.Spawn` puts the eidolon at the rig's `body` point,
+facing out of the open front, owned by the player who turned the crank (and so their company), charged
+with the mind's gear, wearing its layers (the `EidolonBuild` written on its watched attributes under
+`eidolonFittings` before it enters the world), playing `activate`; it is given a `goto` order 3 blocks
+past the front's middle (`exit`), which it starts once `activate` has played, and walks out. The body is
+cleared, so the gantry is an empty dock with its spine again. Breaking the gantry mid-build returns every
 item fitted to the body, with the winch's. In creative mode Ctrl + right-click fits the winch's next stage,
-then the body's, the last waking it (owned by that player). The body has no settings.
+then the body's (a layer in its chosen material, or the default build's), up to the mind; the crank wakes
+it. The body has no settings.
+
+**Old builds.** A body saved under the limb stages (torso, pelvis, legs, arms, head: all steel) loads on
+the new ones (`BodyParts.Migrate`): everything fitted is pooled; a complete old torso becomes the crafted
+torso, from its recipe's parts (pump head, tanks, 4 metal parts, 3 stainless gears, all the old torso's),
+its 4 plates and 8 nails and strips going to the pool; the pool then fills each layer in order as far as it
+goes, in steel: the bones' Jonas parts and vessel (the old head and pelvis had them), the joints' Jonas
+parts, gears, metal parts, 4 steel rods and 20 nails and strips, the plates' steel plates (13 of 17 for a
+whole old body). The old build had no wood, leather or chain, so the bones, sash and skirt wait for theirs
+(the joints and plates keep what they hold behind the bones). What is left over (an old torso not
+finished, and for a whole old body 16 nails and strips and 4 rods) is spare: kept in the save and returned
+on breaking, and given back as items at the open front once the gantry loads. An eidolon woken before
+the fittings has no `eidolonFittings` and reads as the old build: oak bones, steel joints, plates and
+skirt, a plain leather sash.
 
 **The dock.** `BEEidolonGantry.DockAt(blockAccessor, pos)` is the gantry whose dock an entity standing at
 `pos` is in (within `DockRadius`, 1.25 blocks, of the `body` point, level with its floor), or null;
@@ -2569,9 +2597,11 @@ links it. The parts it takes are the game's and exist either way. Tests: `tests/
 (stages, returns, the rig, held to `EidolonGantry/README.md`'s stage table) and
 `tests/PackTests/EidolonGantryScenarios.cs` (Atlas: placing, stages in and out of order, returns, the
 creative shortcut and the assembled stack); the body's in `tests/EidolonGantry/EidolonBodyTests.cs` (the
-bill, its order and counts, held to the stages file) and `tests/PackTests/EidolonBodyScenarios.cs` (Atlas:
-a full build from real stacks ends with one owned eidolon outside the gantry and the spine empty, and a
-partial build broken returns everything).
+bill, its order and counts, held to the stages file and the torso's recipe; materials fixed and refused;
+the old-build migration) and `tests/PackTests/EidolonBodyScenarios.cs` (Atlas: a full build from real
+stacks in mixed materials, the crank waking one owned eidolon in those layers outside the gantry and the
+spine empty; a partial build saved, loaded and broken returning everything; a limb-by-limb save loaded,
+its spare given back, finished and woken all steel).
 
 **The gate** (#670). The eidolon schematic, `seraphhorizons:schematic-eidolon` (a `machine` variant of
 the machines' schematic item, the translocator's drawing), is sold only by the curio dealer, from
@@ -2873,8 +2903,8 @@ blows (`PlateDamage`, brass 0.8) and walking and running (`PlateMoveSpeed`, bras
 armour (`PlateArmour`: protection tier, relative protection, flat reduction; iron 3/0.96/1.7 and steel
 4/0.97/1.8 the game's plate armour, stainless 5/0.98/1.9, brass 2/0.92/1.6), applied to a hit as the game
 applies a full suit of armour to a player (`EidolonArmour`, with `ArmourLoss` the game's per-tier losses).
-Bones and sash are looks only. The material counts per layer are placeholders until the model's are
-derived (`FittingCounts`).
+Bones and sash are looks only. The material counts per layer are the model's (`FittingCounts`,
+`Eidolon/README.md` "Build stages").
 
 **Stainless fittings.** The game has no stainless rod, nails and strips or chain; with the switch on
 `patches/eidolon-stainless.json` adds `game:rod-stainlesssteel`, `game:metalnailsandstrips-stainlesssteel`

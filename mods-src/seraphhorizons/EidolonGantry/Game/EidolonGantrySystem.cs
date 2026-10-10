@@ -22,11 +22,14 @@ public class EidolonGantrySystem : ModSystem
     [
         new(Domain, "blocktypes/eidolongantry/frame.json"),
         new(Domain, "blocktypes/eidolongantry/ghost.json"),
+        // The torso, crafted and placed on the spine as the body's first stage.
+        new(Domain, "itemtypes/eidolontorso.json"),
     ];
 
     public static readonly AssetLocation[] RecipeAssets =
     [
         new(Domain, "recipes/grid/eidolongantry.json"),
+        new(Domain, "recipes/grid/eidolontorso.json"),
         // The eidolon's stainless rods, nails and strips and chain at the anvil (its fittings).
         new(Domain, "recipes/smithing/eidolon-stainless.json"),
     ];

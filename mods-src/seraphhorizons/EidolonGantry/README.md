@@ -252,14 +252,20 @@ What the gameplay holds to here, beyond the mod's README ("Eidolon"):
   is the block's own shape) when its stage is fitted, posed by `BEEidolonGantry.WinchDepth` (eased at
   1/8 a second). The rig's `crank` part's `rotate` driver runs at ratio 0, so θ is fed 0.
 - **The body's seam.** `IEidolonGantryExtension` (`Game/IEidolonGantryExtension.cs`): a block entity
-  behavior of the controller, asked after the winch for clicks, the creative shortcut, which body stages
-  are drawn, drops and help. `BEEidolonGantry.WinchComplete` is the spine fitted; `WorldPoint` turns the
+  behavior of the controller, asked after the winch for clicks, a turn of the crank (`OnCrank`), the
+  creative shortcut, which body stages are drawn, drops and help. `BEEidolonGantry.WinchComplete` is the spine fitted; `WorldPoint` turns the
   rig's anchors (`body`, `hang`, `fit`, `exit`) to the world; ghosts implement `IMachineGhost`.
 - **The body.** `BEBehaviorEidolonBody`, the one extension: seven stages after the spine (`BodyParts`,
-  `BodyBill`: the torso, the five layers, the mind; the default build's materials until the layers take a
-  choice), drawn when each is complete; the mind spawns the eidolon at `body`, facing `exitSide`,
-  sends it 3 blocks past `exit` and clears the body. `BEEidolonGantry.DockAt`/`Docks`: whether a point
-  is in the dock (1.25 blocks round `body`).
+  `BodyBill`: the crafted torso, used on the gantry; the five layers, each fitted item by item in a
+  material its first piece fixes; the mind), drawn when each is complete, the layers in their materials
+  (the renderer's body meshes take `EidolonBuild.Textures()` over the layer codes). Old limb-by-limb
+  saves are migrated (`BodyParts.Migrate`; the mod's README, "Old builds").
+- **The crank.** Its cell stays hollow (no collision), but once the `crank` stage is fitted it has a
+  selection box (`BEEidolonGantry.CrankBox`, cell-local: the web, handle and ratchet from the post's outer
+  face out), and a right-click there turns the crank: the extensions' `OnCrank`, which wakes a complete
+  body. The eidolon is spawned at `body`, facing `exitSide`, wearing the body's build, sent 3 blocks past
+  `exit`, and the body is cleared. `BEEidolonGantry.DockAt`/`Docks`: whether a point is in the dock (1.25
+  blocks round `body`).
 - **Hand-off at activation** (below, "Open questions"): the eidolon is spawned standing at `body`
   whatever the winch's depth (nothing drives the depth yet), and `activate` plays from `hung`.
 
@@ -382,7 +388,7 @@ the drum's shaft on their gudgeons in both cheeks' bearings, each gudgeon driven
 shaft in the left's and the pillow block and out of the frame, the pawl on its pin, the sheave's pin in both hangers and the sheave on it; the eidolon
 standing where it woke (vanilla's rest pose) walking out west touching nothing, the empty spine included; at least a block to walk past the body on every side; textures by
 role (the wood-variant codes on the frame, drum, sheave and handle, `wood-end` only on wood, `mechanics` on the axles and gears; the spine's mast and platforms in the wood codes and nothing else of it); no z-fighting among the gantry's own faces (after `fix_coplanar`); and in the written rig, the
-crank's cell in the footprint, hollow, with no boxes. `tools/tests/test_eidolongantry_model.py`
+crank's cell in the footprint, hollow, with no boxes (its selection box is gameplay's, `CrankBox`). `tools/tests/test_eidolongantry_model.py`
 holds the written files to these without the generator's state, and this README's stage table to the
 generator's.
 
