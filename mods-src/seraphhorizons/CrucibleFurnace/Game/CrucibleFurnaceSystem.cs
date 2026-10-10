@@ -181,9 +181,12 @@ public class CrucibleFurnaceSystem : ModSystem
         var kept = new List<PotRecipe>();
         foreach (var recipe in PotRecipes.Default.Recipes)
         {
-            var missing = recipe.Ingredients.SelectMany(i => i.Codes).Append(recipe.Output)
-                .Concat(recipe.Byproduct is { } b ? [b] : [])
-                .Where(c => !c.Contains('*') && Resolve(api.World, c) == null).ToList();
+            bool Present(string c) => c.Contains('*') || Resolve(api.World, c) != null;
+            // An ingredient is there if any of its codes is (chromite concentrate exists only with
+            // OreProcessing on, crushed chromite always).
+            var missing = recipe.Ingredients.Where(i => !i.Codes.Any(Present)).Select(i => string.Join(" or ", i.Codes))
+                .Concat(new[] { recipe.Output }.Concat(recipe.Byproduct is { } b ? [b] : []).Where(c => !Present(c)))
+                .ToList();
             if (missing.Count == 0)
                 kept.Add(recipe);
             else

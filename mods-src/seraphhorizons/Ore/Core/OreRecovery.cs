@@ -179,7 +179,7 @@ public sealed class OreRecovery
         _parting.TryGetValue(Key(method), out var byTier) && byTier.TryGetValue(Key(tier), out var v) ? v : null;
 
     /// <summary>The share of its units a form gives in a furnace: concentrate 1, crushed ore and
-    /// chunks a half, raw ore nothing (config <c>smelt</c>); sulfide concentrate nothing until
+    /// chunks a half, raw and ground ore nothing (config <c>smelt</c>); sulfide concentrate nothing until
     /// roasted (#720). Crushed sulfide and sulfide chunks take the half like any other.</summary>
     public double SmeltShare(OreSpec ore, OreForm form)
     {

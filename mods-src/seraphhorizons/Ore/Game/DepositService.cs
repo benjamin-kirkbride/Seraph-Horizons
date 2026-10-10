@@ -304,13 +304,22 @@ public sealed class DepositService
         {
             var block = blocks[id];
             if (block?.Code is not { } code || OreMetals.MetalOf(OreMetals.OreOfBlockPath(code.Path)) != metal) continue;
-            double units = 0;
-            foreach (var drop in block.Drops ?? [])
-                if (drop?.ResolvedItemstack?.Collectible?.Attributes?["metalUnits"] is { Exists: true } mu)
-                    units += drop.Quantity.avg * mu.AsDouble();
-            table[id] = units;
+            table[id] = BlockUnits(block);
         }
         return _unitsByMetal[metal] = table;
+    }
+
+    /// <summary>A block's metal units as deposit measurement counts them: the sum over its drops of
+    /// the average count times the dropped item's <c>metalUnits</c>. Ore processing (#686) must leave
+    /// this as it is: <c>OreProcessingScenarios</c> checks a medium ore block still measures 1.25 ×
+    /// its units plus the crystallised ore.</summary>
+    public static double BlockUnits(Block block)
+    {
+        double units = 0;
+        foreach (var drop in block.Drops ?? [])
+            if (drop?.ResolvedItemstack?.Collectible?.Attributes?["metalUnits"] is { Exists: true } mu)
+                units += drop.Quantity.avg * mu.AsDouble();
+        return units;
     }
 
     /// <summary>Loads (generating if need be) the columns, then calls back once all are loaded.</summary>
