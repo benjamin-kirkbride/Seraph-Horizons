@@ -51,7 +51,8 @@ ground level, is [0,0,0]. The mechanism (the README's tables say the same, part 
   brings an arc on its arm under a finger of the rock shaft, which holds it in; when the last roll
   drops, the rock shaft's weight throws it out and both selectors go to neutral.
 * Limb breaker V bars hang in the throat before the ring; the drip's pipes (four straight ppex pipes,
-  copper or lead, fitted as a stage and drawn in their metal) come in at the water face on the south
+  copper or lead, fitted as a stage and drawn in their metal, soldered as UnifiedPipes draws those
+  pipes: Pipes/tools/solderedpipe.py) come in at the water face on the south
   and cross the trunk ahead of the ring to wet it; bark and sticks fall to a chute at the south face.
 """
 
@@ -66,13 +67,16 @@ import sys
 import zipfile
 from pathlib import Path
 
-# The generic, machine-free half of this script is shared with the bucking mill's generator.
+# The generic, machine-free half of this script is shared with the bucking mill's generator; the drip's
+# pipes are UnifiedPipes' soldered copper and lead pipe, built as the ppex pipes in those metals are.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Pipes" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import solderedpipe  # noqa: E402
 from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
-from machinegen.geometry import (IDENT, aabb_of, beam, flatten, from_template, metal, pick,  # noqa: E402
+from machinegen.geometry import (IDENT, El, aabb_of, beam, flatten, from_template, metal, pick,  # noqa: E402
                                  rename, rotate, strut, tpl, translate)
 from machinegen.output import (element_json, reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
@@ -220,12 +224,19 @@ BREAKER_PIN_Z = (33.0, 64.4)
 # Four straight copper or lead pipes (Pipes and Power Expanded's, in UnifiedPipes' metals) fitted as
 # a stage: from the water face's pipe up over the ring's roller bracket and across the trunk as the
 # drip's header. The part is drawn twice, in each metal (`pipecopper`, `pipelead`); the renderer
-# draws the fitted metal's.
-PIPE_HALF = 3.0                              # ppex's pipe: a square tube 6 voxels across (its block's 5..11)
+# draws the fitted metal's. They are drawn as UnifiedPipes draws copper and lead ppex pipe
+# (Pipes/tools/solderedpipe.py, as shapes/block/pipes/soldered-*.json): the same tube round its bore,
+# texture mapping, hub where pipes meet, and wiped joints of solder.
+PIPE_HALF = solderedpipe.HALF                # ppex's pipe: a square tube 6 voxels across (its block's 5..11)
 WATER_IN = (120.0, 40.0)                     # the inlet's axis (x, y): the middle of the water cell's south face, on the pipe beyond it
 DRIP_X, DRIP_Y = 112.4, 52.0                 # the header across the trunk (x, y): its underside 49, over the breaker bars a thick trunk lifts
 DRIP_Z0 = 33.0                               # the header's capped north end, clear of the rectifier pinion (32.6)
 PIPE_RUN_Z = 72.5                            # the riser and the run (z): north of the ring posts (76), south of the upper roller (69.1)
+# The header is pipe lengths of a block from its capped end, as ppex's pipes are laid: its seams (z),
+# where one length's texture ends and the next one's starts. The second is soldered, a whole wiped joint,
+# clear of the nozzles (to 51.6) and the strap (59.4..60.6); the first, among the nozzles, has no joint.
+HEADER_SEAMS = (DRIP_Z0 + B, DRIP_Z0 + 2 * B)
+HEADER_JOINT = HEADER_SEAMS[1]
 PIPE_METALS = ("copper", "lead")             # the pipes the rosser takes (RosserParts.PipeMetals)
 CHUTE_X = (128.0, 144.0)                     # the chute's mouth on the south face
 CHUTE_BOARDS = ((100.5, 111.5), (129.5, 143.5))   # under the breaker and under the scraper arms (x)
@@ -235,9 +246,11 @@ CHUTE_MOUTH_Y = 0.8                          # the boards' top at the south face
 # ---------------------------------------------------------------- frame
 TOP_Y = (60.0, 64.0)
 POST = 4.0
-# the pipes wear ppex's pipe textures as UnifiedPipes gives them (patches/unifiedpipes-ppex.json)
+# the pipes wear ppex's pipe textures as UnifiedPipes gives them (patches/unifiedpipes-ppex.json), their
+# joints the solder UnifiedPipes' soldered pipes are wiped with
 TEXTURES = {"oak": "game:block/wood/debarked/oak", "metal": "game:block/metal/plate/iron",
-            **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in PIPE_METALS}}
+            **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in PIPE_METALS},
+            "solder": solderedpipe.SOLDER_TEXTURE}
 TEX_SIZE = 64
 
 
@@ -871,34 +884,55 @@ def build_drip(iw):
             metal(box(t_metal, [113.5, top, 59.4], [114.9, TOP_Y[0], 60.6], "fr_drip_strap", "frame"))]
 
 
-def pipe_run(t, lo, hi, name, metal_):
-    """A straight length of the drip's pipe, a solid box of ppex's section in `metal_`'s pipe
-    texture, cut into pieces no longer than a block so the texture keeps its scale."""
-    return [metal(el, texture=f"#pipe{metal_}") for el in beam(t, lo, hi, name, f"pipe{metal_}")]
+def pipe_boxes():
+    """The drip's water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels),
+    four straight pipes' worth: the inlet from the water face on the axis of the ppex pipe beyond it, a
+    hub, a riser up beside the ring (south of its upper roller), a hub, a run west over the roller's
+    bracket, a hub, and the header across the trunk in block lengths from its north end
+    (`HEADER_SEAMS`), soldered at `HEADER_JOINT`, with five nozzles under it and its north end plugged
+    with solder. A hub is where two lengths meet, as in UnifiedPipes' soldered bend: the pipe's own
+    cube, open to its two arms. The inlet has no joint of its own at the face: it runs along the ring
+    post beside it, with no room for one, and the pipe beyond brings its own half joint to the face, as
+    a soldered ppex pipe does against any block it meets."""
+    h, (wx, wy), rz = PIPE_HALF, WATER_IN, PIPE_RUN_Z
+    out = solderedpipe.hub("hub1", (wx, wy, rz), ("south", "up"))
+    out += solderedpipe.tube("inlet", 2, rz + h, CELLS_Z * B, (wx, wy))
+    out += solderedpipe.tube("riser", 1, wy + h, DRIP_Y - h, (wx, rz))
+    out += solderedpipe.hub("hub2", (wx, DRIP_Y, rz), ("down", "west"))
+    out += solderedpipe.tube("run", 0, DRIP_X + h, wx - h, (rz, DRIP_Y))
+    out += solderedpipe.hub("hub3", (DRIP_X, DRIP_Y, rz), ("east", "north"))
+    ends = (DRIP_Z0,) + HEADER_SEAMS + (rz - h,)
+    for i in range(len(ends) - 1):
+        out += solderedpipe.tube(f"header{i + 1}", 2, ends[i], ends[i + 1], (DRIP_X, DRIP_Y))
+    out += solderedpipe.joint("joint_header", 2, HEADER_JOINT, (DRIP_X, DRIP_Y))
+    i_ = h - solderedpipe.WALL
+    out.append(solderedpipe.Box("cap", [DRIP_X - i_, DRIP_Y - i_, DRIP_Z0], [DRIP_X + i_, DRIP_Y + i_, DRIP_Z0 + solderedpipe.WALL],
+                                solderedpipe.SOLDER))
+    for i in range(5):
+        z = TZ - 8.0 + 4.0 * i
+        out.append(solderedpipe.Box(f"nozzle{i + 1}", [DRIP_X - 0.6, DRIP_Y - h - 1.0, z - 0.6], [DRIP_X + 0.6, DRIP_Y - h, z + 0.6],
+                                    solderedpipe.BODY))
+    return solderedpipe.cull_pressed(out)
 
 
 def build_pipes(iw, metal_=PIPE_METALS[0]):
-    """The drip's water line, four straight pipes' worth: the inlet from the water face on the axis
-    of the ppex pipe beyond it, a riser up beside the ring (south of its upper roller), a run west
-    over the roller's bracket, and the header across the trunk with five nozzles under it, capped at
-    its north end. Elbows are where two lengths meet. Built in copper; `pipe_copies` makes lead."""
-    t = tpl(iw, "sash_001")
-    h, (wx, wy), rz, p = PIPE_HALF, WATER_IN, PIPE_RUN_Z, f"pipe{metal_}"
-    out = pipe_run(t, [wx - h, wy - h, rz - h], [wx + h, wy + h, CELLS_Z * B], f"{p}_inlet", metal_)
-    out += pipe_run(t, [wx - h, wy + h, rz - h], [wx + h, DRIP_Y + h, rz + h], f"{p}_riser", metal_)
-    out += pipe_run(t, [DRIP_X - h, DRIP_Y - h, rz - h], [wx - h, DRIP_Y + h, rz + h], f"{p}_run", metal_)
-    out += pipe_run(t, [DRIP_X - h, DRIP_Y - h, DRIP_Z0], [DRIP_X + h, DRIP_Y + h, rz - h], f"{p}_header", metal_)
-    for i in range(5):
-        z = TZ - 8.0 + 4.0 * i
-        out.append(metal(box(t, [DRIP_X - 0.6, DRIP_Y - h - 1.0, z - 0.6], [DRIP_X + 0.6, DRIP_Y - h, z + 0.6], f"{p}_nozzle{i + 1}", p),
-                         texture=f"#{p}"))
+    """The drip's pipes as elements of the part `pipe<metal_>` (`pipe_boxes`): the body in that metal's
+    pipe texture, the joints in solder, each face's UVs solderedpipe's on this model's texture scale.
+    Built in copper; `pipe_copies` makes lead."""
+    p = f"pipe{metal_}"
+    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
+    out = []
+    for b in pipe_boxes():
+        size = b.size()
+        faces = {d: {"texture": codes[b.role], "uv": solderedpipe.uv(d, size, TEX_SIZE / 16)} for d in b.faces}
+        out.append(El(f"{p}_{b.name}", size, [(b.lo[k] + b.hi[k]) / 2 for k in range(3)], [row[:] for row in IDENT], faces, p))
     return out
 
 
 def pipe_copies(els):
     """The pipes in the other metals: the first metal's elements, as they are (after the z-fighting
-    fix, so every copy gets the same insets), renamed and in their own metal's texture. Only one
-    metal's are ever drawn, so the copies are not checked against each other."""
+    fix, so every copy gets the same insets), renamed and in their own metal's texture; the joints
+    stay solder. Only one metal's are ever drawn, so the copies are not checked against each other."""
     first = f"pipe{PIPE_METALS[0]}"
     out = []
     for m in PIPE_METALS[1:]:
@@ -906,7 +940,8 @@ def pipe_copies(els):
             if el.part == first:
                 copy_ = el.clone(f"pipe{m}" + el.name[len(first):], f"pipe{m}")
                 for face in copy_.faces.values():
-                    face["texture"] = f"#pipe{m}"
+                    if face["texture"] == f"#{first}":
+                        face["texture"] = f"#pipe{m}"
                 out.append(copy_)
     return out
 
