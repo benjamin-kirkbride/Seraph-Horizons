@@ -27,6 +27,11 @@
 //   quartz 0.85, default 1); "byProducts": a second metal as a share of the main metal's recovered
 //   units, won only at a parting step ("districtShare" for ore from a hydrothermal district).
 //   Unparted, a by-product is lost. Ores not listed are oxides at density 1.
+// - retort: the still (the game's boiler with a condenser beside it, #726). "mercury" is the
+//   mercury item (a liquid portion, 100 to the litre); "amalgamMercury" the portions the amalgam pan
+//   puts into one amalgam (#718), of which the still returns "mercuryReturn" while the gold or silver
+//   stays in the boiler as sponge (smelt "sponge"); "cinnabar" the portions one item of each cinnabar
+//   form gives; "portionsPerSecond" the pace (at most 10).
 {
   "concentrateUnits": 5,
   "concentrators": { "pan": 0.45, "rocker": 0.55, "sluice": 0.65, "jig": 0.80, "table": 0.92, "tableandvanner": 0.99 },
@@ -39,7 +44,14 @@
     "liquation":   { "hand": 0.85, "tier1": 0.85, "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 },
     "acidparting": { "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 }
   },
-  "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0, "concentrate": 1.0, "roastedconcentrate": 1.0 },
+  "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0, "concentrate": 1.0, "roastedconcentrate": 1.0, "sponge": 1.0 },
+  "retort": {
+    "mercury": "em:mercuryportion",
+    "amalgamMercury": 10,
+    "mercuryReturn": 0.9,
+    "cinnabar": { "game:crushed-cinnabar": 10, "game:powder-cinnabar": 10 },
+    "portionsPerSecond": 2
+  },
   "ores": {
     "hematite": {}, "magnetite": {}, "limonite": {}, "malachite": {}, "azurite": {},
     "cassiterite": { "density": 1.05 },

@@ -86,7 +86,7 @@ public class OreProductsTests
     [Fact]
     public void LithargeLosesALittle() => Assert.InRange(OreProducts.LithargeRate.UnitsPerItem / 5, 0.9, 0.99);
 
-    // The type files list every ore, the roasted concentrate the sulfides, the amalgam the free metals.
+    // The type files list every ore, the roasted concentrate the sulfides, the amalgam and sponge the free metals.
     [Fact]
     public void TypeFilesListTheFiguresOres()
     {
@@ -95,6 +95,7 @@ public class OreProductsTests
         Assert.Equal(OreProducts.Ores, OreStates("concentrate.json"));
         Assert.Equal(OreProducts.Ores.Where(o => OreProducts.Roasts(R.Ore(o))), OreStates("roastedconcentrate.json"));
         Assert.Equal(OreProducts.Ores.Where(o => OreProducts.Amalgamates(R.Ore(o))), OreStates("amalgam.json"));
+        Assert.Equal(OreProducts.Ores.Where(o => OreProducts.Amalgamates(R.Ore(o))), OreStates("sponge.json"));
         foreach (var ore in OreProducts.Ores)
             Assert.True(R.Ores.Any(s => s.Ore == ore), $"{ore} is not in ore-processing.json");
     }
@@ -103,7 +104,7 @@ public class OreProductsTests
     public void TypeFilesHoldConcentrateUnitsAndStack()
     {
         foreach (var (file, stack) in new[] { ("crushedore.json", 16), ("groundore.json", 16), ("concentrate.json", 128),
-                     ("roastedconcentrate.json", 128), ("amalgam.json", 128), ("litharge.json", 64) })
+                     ("roastedconcentrate.json", 128), ("amalgam.json", 128), ("sponge.json", 128), ("litharge.json", 64) })
         {
             var type = Type(file);
             Assert.Equal(R.ConcentrateUnits, (double)type["attributes"]!["metalUnits"]!);
