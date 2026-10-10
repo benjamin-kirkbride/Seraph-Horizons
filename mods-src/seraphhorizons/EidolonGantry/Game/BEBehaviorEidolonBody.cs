@@ -13,7 +13,7 @@ namespace SeraphHorizons.Mod.EidolonGantry;
 /// <summary>
 /// The eidolon's body stages on the gantry's spine (#672), a block entity behavior of the gantry's
 /// controller (<c>entityBehaviors</c> in <c>blocktypes/eidolongantry/frame.json</c>) plugged in through
-/// <see cref="IEidolonGantryExtension"/>. Once the winch and spine are fitted, the six stages of
+/// <see cref="IEidolonGantryExtension"/>. Once the winch and spine are fitted, the seven stages of
 /// <see cref="BodyBill"/> go on in order (<see cref="BodyParts"/>); within a stage a click fits what the
 /// held stack can give toward one ingredient still needed. The last, the mind (a temporal gear), wakes
 /// it: the eidolon is spawned where the body hung, owned by the player who fitted the mind, plays

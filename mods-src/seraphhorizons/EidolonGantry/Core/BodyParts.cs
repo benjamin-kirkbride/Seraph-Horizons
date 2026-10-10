@@ -16,18 +16,23 @@ public enum BodyFitVerdict
 }
 
 /// <summary>
-/// The eidolon's body bill (the epic's, #668; Eidolon/README.md "Build stages"): what each body stage
-/// takes, in <see cref="GantryRequires.BodyStages"/> order. Every ingredient is one plain code: the
-/// steel is steel, the gears the pack's stainless spur gear. The head brings the Resonance Archives'
-/// eidolon's elucidatory vessel, its brain; the mind is one temporal gear, its first charge, which wakes it.
-/// <c>config/eidolon-stages.json</c> (written by Eidolon/tools/make_shape.py) lists the same, held to
-/// this by a test.
+/// The eidolon's body bill (Eidolon/README.md "Build stages"): what each body stage takes, in
+/// <see cref="GantryRequires.BodyStages"/> order: the crafted torso, the five layers of material (bones,
+/// joints, plates, sash, skirt) and the mind. Until the layers take a choice of material this is the default
+/// build's, all steel, oak bones, a plain leather sash, steel chain, each layer's count scaled to the model. The
+/// bones bring the Resonance Archives' eidolon's elucidatory vessel, its brain; the mind is one temporal gear,
+/// its first charge, which wakes it. <c>config/eidolon-stages.json</c> (written by Eidolon/tools/make_shape.py)
+/// lists the same with its materials as {tokens}, held to this by a test.
 /// </summary>
 public static class BodyBill
 {
+    public const string Torso = "seraphhorizons:eidolontorso";
+    public const string SupportBeam = "game:supportbeam-oak";
     public const string SteelPlate = "game:metalplate-steel";
     public const string SteelRod = "game:rod-steel";
     public const string SteelNails = "game:metalnailsandstrips-steel";
+    public const string Leather = "game:leather-normal-plain";
+    public const string SteelChain = "game:metalchain-steel";
     public const string MetalParts = "game:metal-parts";
     public const string StainlessGear = "seraphhorizons:gear-stainless";
     public const string Vessel = "game:rustypart-eidolon2tr";
@@ -39,32 +44,23 @@ public static class BodyBill
     public static readonly IReadOnlyDictionary<string, IReadOnlyList<BodyIngredient>> Stages =
         new Dictionary<string, IReadOnlyList<BodyIngredient>>
         {
-            ["torso"] =
+            ["torso"] = [One(Torso)],
+            ["bones"] =
             [
-                One("game:jonasparts-tank01"), One("game:jonasparts-tank02"), One("game:jonasparts-pumphead"),
-                new(SteelPlate, 4), new(SteelNails, 8), new(MetalParts, 4), new(StainlessGear, 3),
+                new(SupportBeam, 10),
+                One("game:jonasframes-gearbox01"), One("game:jonasframes-gearbox02"), One("game:jonasframes-oscillator01"),
+                One("game:jonasparts-cylinder02"), One("game:jonasparts-connector01"), One(Vessel),
             ],
-            ["pelvis"] =
+            ["joints"] =
             [
-                One("game:jonasframes-gearbox02"),
-                new(SteelPlate, 3), new(SteelNails, 8), new(MetalParts, 3), new(StainlessGear, 2),
-            ],
-            ["legs"] =
-            [
+                new(SteelRod, 4), new(SteelNails, 20),
                 new("game:jonasframes-joint01", 2), new("game:jonasframes-spring01", 2),
-                new(SteelRod, 4), new(SteelPlate, 3), new(SteelNails, 8), new(MetalParts, 3), new(StainlessGear, 2),
-            ],
-            ["arms"] =
-            [
                 One("game:jonasframes-gears01"), One("game:jonasframes-gears02"), One("game:jonasparts-cylinder01"), One("game:jonasparts-valve01"),
-                new(SteelRod, 4), new(SteelPlate, 2), new(SteelNails, 8), new(MetalParts, 4), new(StainlessGear, 3),
+                new(StainlessGear, 9), new(MetalParts, 12),
             ],
-            ["head"] =
-            [
-                One(Vessel), One("game:jonasframes-oscillator01"), One("game:jonasframes-gearbox01"),
-                One("game:jonasparts-cylinder02"), One("game:jonasparts-connector01"),
-                new(SteelPlate, 1), new(SteelNails, 4), new(MetalParts, 2), new(StainlessGear, 2),
-            ],
+            ["plates"] = [new(SteelPlate, 17)],
+            ["sash"] = [new(Leather, 2)],
+            ["skirt"] = [new(SteelChain, 2)],
             ["mind"] = [One(TemporalGear)],
         };
 
@@ -78,7 +74,7 @@ public static class BodyBill
 }
 
 /// <summary>
-/// The eidolon's body on a gantry's spine: six stages after the winch (<see cref="BodyBill"/>), in
+/// The eidolon's body on a gantry's spine: seven stages after the winch (<see cref="BodyBill"/>), in
 /// order, each complete before the next takes anything. Within a stage any order: a click fits what
 /// the held stack can give toward one ingredient still needed (all of it, up to what the stage still
 /// needs of that item). Every fitted count is kept, so breaking returns exactly what went in.

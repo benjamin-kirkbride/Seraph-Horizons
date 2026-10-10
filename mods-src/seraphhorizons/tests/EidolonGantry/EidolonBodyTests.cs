@@ -18,9 +18,13 @@ public class EidolonBodyTests
         Assert.Equal(GantryRequires.BodyStages, BodyBill.Order);
         foreach (var stage in stages)
         {
+            // a layer's {tokens} are the builder's choice of material; the bill is the default build's
+            var material = stage.TryGetProperty("material", out var m)
+                ? m.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!)
+                : new Dictionary<string, string>();
             var listed = stage.GetProperty("ingredients").EnumerateArray().Select(e =>
             {
-                var text = e.GetString()!;
+                var text = material.Aggregate(e.GetString()!, (s, kv) => s.Replace("{" + kv.Key + "}", kv.Value));
                 int space = text.IndexOf(' ');
                 return space > 0 ? new BodyIngredient(text[(space + 1)..], int.Parse(text[..space])) : new BodyIngredient(text, 1);
             });
@@ -31,11 +35,13 @@ public class EidolonBodyTests
     [Fact]
     public void The_bill_has_the_epics_totals()
     {
+        // the torso is crafted (3 of the 12 stainless gears and 4 of the 16 metal parts are in its recipe)
         var all = BodyBill.Stages.Values.SelectMany(b => b).GroupBy(i => i.Code).ToDictionary(g => g.Key, g => g.Sum(i => i.Count));
-        Assert.Equal(12, all[BodyBill.StainlessGear]);
-        Assert.Equal(16, all[BodyBill.MetalParts]);
+        Assert.Equal([new BodyIngredient(BodyBill.Torso, 1)], BodyBill.Of("torso"));
+        Assert.Equal(9, all[BodyBill.StainlessGear]);
+        Assert.Equal(12, all[BodyBill.MetalParts]);
         Assert.Equal(43, 2 * all[BodyBill.SteelPlate] + all[BodyBill.SteelRod] + all[BodyBill.SteelNails] / 4);
-        Assert.Contains(new BodyIngredient(BodyBill.Vessel, 1), BodyBill.Of("head"));
+        Assert.Contains(new BodyIngredient(BodyBill.Vessel, 1), BodyBill.Of("bones"));
         Assert.Equal([new BodyIngredient(BodyBill.TemporalGear, 1)], BodyBill.Of(BodyBill.Last));
         // each code once a stage, so a click's ingredient is its code
         Assert.All(BodyBill.Stages.Values, b => Assert.Equal(b.Count, b.Select(i => i.Code).Distinct().Count()));
@@ -52,21 +58,22 @@ public class EidolonBodyTests
         Assert.Equal(BodyFitVerdict.OutOfOrder, body.CanFit(BodyBill.TemporalGear, 1, out _, out _));
         Assert.Equal(BodyFitVerdict.NotAPart, body.CanFit("game:rod-copper", 1, out _, out _));
         Assert.Equal(BodyFitVerdict.NotAPart, body.CanFit(null, 1, out _, out _));
-        // the torso takes 4 plates: three held go in, then one of a stack of five
-        Assert.Equal(3, body.Fit("metalplate-steel", 3));
-        Assert.Equal(BodyFitVerdict.Fits, body.CanFit(BodyBill.SteelPlate, 5, out var stage, out int take));
-        Assert.Equal(("torso", 1), (stage, take));
-        Assert.Equal(1, body.Fit(BodyBill.SteelPlate, 5));
-        // plates are needed later too, but not yet: the torso has all it takes of them
-        Assert.Equal(BodyFitVerdict.OutOfOrder, body.CanFit(BodyBill.SteelPlate, 1, out _, out _));
+        Assert.Equal(1, body.Fit(BodyBill.Torso, 1));
+        Assert.Equal("bones", body.Next);
+        // the bones take 10 beams: three held go in, then seven of a stack of sixteen
+        Assert.Equal(3, body.Fit("supportbeam-oak", 3));
+        Assert.Equal(BodyFitVerdict.Fits, body.CanFit(BodyBill.SupportBeam, 16, out var stage, out int take));
+        Assert.Equal(("bones", 7), (stage, take));
+        Assert.Equal(7, body.Fit(BodyBill.SupportBeam, 16));
+        Assert.Equal(BodyFitVerdict.AlreadyFitted, body.CanFit(BodyBill.SupportBeam, 1, out _, out _));
         Assert.True(body.Started);
-        Assert.DoesNotContain(body.StillNeeded("torso"), i => i.Code == BodyBill.SteelPlate);
-        foreach (var i in body.StillNeeded("torso"))
+        Assert.DoesNotContain(body.StillNeeded("bones"), i => i.Code == BodyBill.SupportBeam);
+        foreach (var i in body.StillNeeded("bones"))
             Assert.Equal(i.Count, body.Fit(i.Code, 64));
-        Assert.True(body.StageComplete("torso"));
-        Assert.Equal("pelvis", body.Next);
-        // the pump head is the torso's only: nothing more of it goes in
-        Assert.Equal(BodyFitVerdict.AlreadyFitted, body.CanFit("game:jonasparts-pumphead", 1, out _, out _));
+        Assert.True(body.StageComplete("bones"));
+        Assert.Equal("joints", body.Next);
+        // the vessel is the bones' only: nothing more of it goes in
+        Assert.Equal(BodyFitVerdict.AlreadyFitted, body.CanFit(BodyBill.Vessel, 1, out _, out _));
     }
 
     [Fact]
@@ -74,17 +81,19 @@ public class EidolonBodyTests
     {
         var body = new BodyParts();
         body.FitNextStage();
-        body.Fit(BodyBill.SteelPlate, 2);
-        body.Fit("game:jonasframes-gearbox02", 1);
+        body.FitNextStage();
+        body.Fit(BodyBill.SteelRod, 2);
+        body.Fit("game:jonasframes-joint01", 1);
         var returns = body.Returns().ToDictionary(d => d.Code, d => d.Count);
-        Assert.Equal(6, returns[BodyBill.SteelPlate]);
-        Assert.Equal(1, returns["game:jonasframes-gearbox02"]);
-        Assert.Equal(3, returns[BodyBill.StainlessGear]);
-        Assert.Equal(BodyBill.Of("torso").Sum(i => i.Count) + 3, returns.Values.Sum());
+        Assert.Equal(1, returns[BodyBill.Torso]);
+        Assert.Equal(10, returns[BodyBill.SupportBeam]);
+        Assert.Equal(2, returns[BodyBill.SteelRod]);
+        Assert.Equal(1, returns["game:jonasframes-joint01"]);
+        Assert.Equal(BodyBill.Of("torso").Sum(i => i.Count) + BodyBill.Of("bones").Sum(i => i.Count) + 3, returns.Values.Sum());
 
         var restored = BodyParts.Restore(body.Snapshot());
         Assert.Equal(body.Returns(), restored.Returns());
-        Assert.Equal("pelvis", restored.Next);
+        Assert.Equal("joints", restored.Next);
 
         body.Clear();
         Assert.False(body.Started);
@@ -97,12 +106,12 @@ public class EidolonBodyTests
     {
         var restored = BodyParts.Restore(new Dictionary<string, int>
         {
-            ["torso/game:metalplate-steel"] = 99,
-            ["torso/game:jonasframes-gearbox02"] = 1,
+            ["plates/game:metalplate-steel"] = 99,
+            ["plates/game:jonasframes-gearbox02"] = 1,
             ["wings/game:metalplate-steel"] = 1,
-            ["torso"] = 1,
+            ["plates"] = 1,
         });
-        Assert.Equal([new GantryDrop(BodyBill.SteelPlate, 4)], restored.Returns());
+        Assert.Equal([new GantryDrop(BodyBill.SteelPlate, 17)], restored.Returns());
     }
 
     [Fact]
