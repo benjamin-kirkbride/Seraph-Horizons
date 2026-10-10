@@ -225,8 +225,8 @@ class Pipes(unittest.TestCase):
     def test_the_pipes_are_the_soldered_ppex_pipe(self):
         """A rosser pipe and a copper or lead ppex pipe read as the same pipe: the inlet's tube is the
         soldered straight's in section about the axis, every face maps its texture as the soldered
-        pipes' do (one texel a voxel from the corner, on this model's 64-texel scale), and the header's
-        joint is two soldered straights' half joints where they meet."""
+        pipes' do (one texel a voxel from the corner, on this model's 64-texel scale), and each of the
+        header's joints is two soldered straights' half joints where they meet."""
         straight = json.loads((SOLDERED / "soldered-straight.json").read_text())
         pipe = self.elements("copper")
         scale = SHAPE["textureSizes"]["pipecopper"][0] / straight["textureWidth"]
@@ -244,19 +244,21 @@ class Pipes(unittest.TestCase):
         inlet = [e for e in pipe if e["name"].startswith("pipecopper_inlet_")]
         self.assertEqual(4, len(inlet))
         self.assertEqual(section(body, 8, 8), section(inlet, (wx + 0.5) * 16, (wy + 0.5) * 16))
-        # the header's joint: a straight's south half joint and the next straight's north one, about the seam
+        # the header's joints: each a straight's south half joint and the next straight's north one,
+        # about a seam of the header's lengths, as two blocks' pipes meet at their faces
         halves = [e for e in straight["elements"] if e["name"].startswith("joint_south")]
         halves += [{**e, "from": [e["from"][0], e["from"][1], e["from"][2] + 16], "to": [e["to"][0], e["to"][1], e["to"][2] + 16]}
                    for e in straight["elements"] if e["name"].startswith("joint_north")]
-        joint = [e for e in pipe if e["name"].startswith("pipecopper_joint_header")]
         header = [e for e in pipe if e["name"].startswith("pipecopper_header")]
         cx = (min(e["from"][0] for e in header) + max(e["to"][0] for e in header)) / 2
         cy = (min(e["from"][1] for e in header) + max(e["to"][1] for e in header)) / 2
-        seam = (min(e["from"][2] for e in joint) + max(e["to"][2] for e in joint)) / 2
-        self.assertEqual(self.relative(halves, (8, 8, 16)), self.relative(joint, (cx, cy, seam)))
-        self.assertEqual({"#solder"}, {f["texture"] for e in joint for f in e["faces"].values()})
-        # the joint sits on a seam of the header's lengths, as two blocks' pipes meet at their faces
-        self.assertIn(round(seam, 4), {round(e["to"][2], 4) for e in header})
+        inner_seams = sorted({round(e["to"][2], 4) for e in header})[:-1]   # the last is the hub's face
+        self.assertEqual(len(make_shape.HEADER_SEAMS), len(inner_seams))
+        for i, seam in enumerate(inner_seams, 1):
+            joint = [e for e in pipe if e["name"].startswith(f"pipecopper_joint_header{i}")]
+            self.assertEqual(seam, round((min(e["from"][2] for e in joint) + max(e["to"][2] for e in joint)) / 2, 4))
+            self.assertEqual(self.relative(halves, (8, 8, 16)), self.relative(joint, (cx, cy, seam)))
+            self.assertEqual({"#solder"}, {f["texture"] for e in joint for f in e["faces"].values()})
 
 
 if __name__ == "__main__":

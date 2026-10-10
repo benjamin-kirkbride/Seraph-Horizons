@@ -118,7 +118,7 @@ are one per metal:
 | Outfeed rolls | `rollsout` | 2 `game:rod-{metal}` | The same at the outfeed |
 | Limb breaker | `breaker` | 2 `game:metalplate-{metal}` | The V bars |
 | Levers | `levers` | 1 `immersivewoodworking:sawmilllevers` | The treadle, its lever and the pushrod, the rock shaft, and both selector levers |
-| Pipes | `pipecopper` or `pipelead` (the stage is `pipes`) | 4 `ppex:pipe-straight-*-copper` or `-lead`, one metal, from one stack | The drip's water line, soldered pipe in that metal: the inlet from the water face, the riser beside the ring, the run over the roller's bracket and the header across the trunk with its wiped joint, nozzles and soldered end |
+| Pipes | `pipecopper` or `pipelead` (the stage is `pipes`) | 4 `ppex:pipe-straight-*-copper` or `-lead`, one metal, from one stack | The drip's water line, soldered pipe in that metal: the inlet from the water face, the riser beside the ring, the run over the roller's bracket and the header across the trunk with its joints, nozzles and soldered end |
 | Heads | `heads` | 4 `immersivewoodworking:barkspudhead-{metal}`, one metal, from one stack | The scraper tips, in that metal. Needs the ring. |
 
 - Any order, except that the tyres and the heads go on the ring (`NeedsRing`).
@@ -134,7 +134,7 @@ are one per metal:
   pipes (`patches/unifiedpipes-ppex.json`), whatever `IronWoodworkingMachines` says: iron and steel
   pipes are refused (`error-wrong-pipe-metal`). The model draws them as `UnifiedPipes` draws those
   pipes, soldered (built by the same module, `Pipes/tools/solderedpipe.py`: ppex's tube round its
-  bore, the same texture mapping, a hub where two lengths meet, wiped joints of solder), in that
+  bore, the same texture mapping, a hub where two lengths meet, thin beads of solder at the joints), in that
   metal: the rig has a part per metal, `pipecopper` and `pipelead`, the same elements in
   `game:block/metal/sheet-plain/copper4` and `lead4`, the textures `UnifiedPipes` gives ppex's copper
   and lead pipes, with their joints in `game:block/metal/ingot/leadsolder`, and the renderer draws
@@ -424,7 +424,7 @@ from one of that model's teeth (`../CREDITS.md`). It is generated, not drawn:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/rosser.json` | The whole machine, every moving part and both metals' pipes (1615 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/rosser.json` | The whole machine, every moving part and both metals' pipes (1599 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/rosser_frame.json` | The static frame only (277 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/rosser-rig.json` | Footprint, anchors, the trunk path, the feed constants and the part rig (47 parts). |
 | `tests/Rosser/rig-reference.json` | Every part's matrix at a grid of poses (197), from the reference maths. |
@@ -453,11 +453,12 @@ centreline, so a mill in line has its trunk on the same line). Going east:
    and the header crosses the trunk from z 69.5 to its north end at z 33, its underside at 49, over
    the breaker bars a thick trunk lifts, with five nozzles under it. Where two lengths meet is a hub,
    the pipe's own cube, as in the soldered bend. The header is laid in block lengths from its north
-   end (seams at z 49 and 65, `HEADER_SEAMS`), soldered with a whole wiped joint at z 65 (clear of the
-   nozzles and the strap; the seam at 49 is among the nozzles and has none), and its north end is
-   plugged with solder. The inlet has no joint of its own at the water face: it runs along the south
-   ring post with no room for one, and a soldered pipe placed beyond brings its own half joint to the
-   face. Two iron straps of the frame hang the header from the top beams.
+   end (seams at z 49 and 65, `HEADER_SEAMS`), each soldered with a whole joint, the soldered pipes'
+   thin bead 1.5 long (the one at 49 between the nozzles at 47 and 51, the one at 65 clear of the
+   strap), and its bore is plugged with solder at its north end. The inlet has no joint of its own at
+   the water face: it runs flush along the south ring post with no room for even a thin bead, and a
+   soldered pipe placed beyond brings its own half joint to the face. Two iron straps of the frame hang
+   the header from the top beams.
 5. **Ring** (x 118..124, plane x 121): the cutter ring, 3.25 blocks across its teeth, with a bore of
    radius 20.5 that clears a thick trunk's knots (19.45) by 1.05. Its scraper arms reach downstream
    into x 124..140.
@@ -826,7 +827,7 @@ regenerating.
   gears' pitch and centre distances, and the pipes: the same elements in each metal, each in the
   texture `patches/unifiedpipes-ppex.json` gives that metal's ppex pipes and the soldered pipes'
   solder, the inlet on the water face's middle, the soldered ppex pipe's tube in section, texture
-  mapping and wiped joint (against the shipped `shapes/block/pipes/soldered-straight.json`), and the
+  mapping and joints (against the shipped `shapes/block/pipes/soldered-straight.json`), and the
   frame block declaring every texture code of the shape. `tools/tests/test_machinegen.py` tests the shared generator
   package and that the driver fixture is what its maths writes.
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
