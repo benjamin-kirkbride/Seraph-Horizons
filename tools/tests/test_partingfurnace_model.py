@@ -40,7 +40,8 @@ RIG = json.loads(RIG_PATH.read_text())
 REFERENCE = json.loads(REFERENCE_PATH.read_text())
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
 LEVELS = {"1": ["blast", "cupel", "liquation", "acid"], "2": ["kettle", "stirrer", "chutes"]}
-REQUIRES = [v for k in sorted(LEVELS) for v in LEVELS[k]]
+PIPES = ["pipecopper", "pipelead"]          # the water pipe, one part per metal, fitted with the acid set
+REQUIRES = LEVELS["1"] + PIPES + LEVELS["2"]
 
 
 def matrix(pid, theta):
@@ -66,6 +67,7 @@ class Generator(unittest.TestCase):
 class Rig(unittest.TestCase):
     def test_parts_parse_and_requires_are_the_levels_sets(self):
         self.assertEqual(RIG["levels"], LEVELS)
+        self.assertEqual(RIG["waterPipes"], PIPES)
         self.assertNotIn("tiers", RIG)
         ids = [p["id"] for p in RIG["parts"]]
         self.assertEqual(len(ids), len(set(ids)))
@@ -78,10 +80,10 @@ class Rig(unittest.TestCase):
             self.assertIsNone(p.get("ride"))
             r = p["requires"]
             if r is not None:
-                self.assertEqual(sum(r in vs for vs in LEVELS.values()), 1, r)
+                self.assertEqual(sum(r in vs for vs in LEVELS.values()) + (r in PIPES), 1, r)
                 if r not in order:
                     order.append(r)
-        # listed level by level, every set used
+        # listed level by level, the water pipe's after the acid set's, every set used
         self.assertEqual(order, REQUIRES)
 
     def test_theta_is_the_only_input(self):
@@ -172,7 +174,7 @@ class Anchors(unittest.TestCase):
 
     def test_the_water_pipe_meets_the_water_face_in_ppexs_section(self):
         cell = RIG["waterCell"]
-        pipe = [e for e in SHAPE["elements"] if e["name"].startswith("ac_pipe")]
+        pipe = [e for e in SHAPE["elements"] if e["name"].startswith("pipecopper_inlet")]
         lo = [min(e["from"][k] for e in pipe) for k in range(3)]
         hi = [max(e["to"][k] for e in pipe) for k in range(3)]
         self.assertAlmostEqual(hi[2], (cell[2] + 1) * 16, places=4)
@@ -182,7 +184,35 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual((lo[1] + hi[1]) / 2, cell[1] * 16 + 8, places=4)
 
 
+class Pipes(unittest.TestCase):
+    def test_the_water_pipe_is_drawn_in_each_metal_as_soldered_ppex_pipe(self):
+        by = {p: [e for e in SHAPE["elements"] if e["name"].startswith(p + "_")] for p in PIPES}
+        first = by[PIPES[0]]
+        self.assertEqual(len(first), 8)                 # four walls, and four of the wiped joint at the cock
+        for p in PIPES:
+            self.assertEqual([p + e["name"][len(PIPES[0]):] for e in first], [e["name"] for e in by[p]])
+            for a, b in zip(first, by[p]):
+                self.assertEqual((a["from"], a["to"]), (b["from"], b["to"]))
+                want = "#solder" if "_joint" in b["name"] else f"#{p}"
+                self.assertEqual({f["texture"] for f in b["faces"].values()}, {want}, b["name"])
+        self.assertEqual(SHAPE["textures"]["pipecopper"], "game:block/metal/sheet-plain/copper4")
+        self.assertEqual(SHAPE["textures"]["pipelead"], "game:block/metal/sheet-plain/lead4")
+        self.assertEqual(SHAPE["textures"]["solder"], "game:block/metal/ingot/leadsolder")
+
+
 class Mechanism(unittest.TestCase):
+    def test_every_motion_works_either_way_round(self):
+        # nothing reads the travel; backwards the yoke covers the same stroke, and the stirrer turns the other way
+        for p in RIG["parts"]:
+            for d in p["drivers"]:
+                self.assertEqual(rigmath.driver_input(d), "theta")
+                self.assertNotIn("rectified", d)
+        fw = [matrix("yoke", 2 * math.pi * i / 36)[1][3] for i in range(37)]
+        bw = [matrix("yoke", -2 * math.pi * i / 36)[1][3] for i in range(37)]
+        self.assertAlmostEqual(min(fw), min(bw), places=9)
+        self.assertAlmostEqual(max(fw), max(bw), places=9)
+
+
     def test_the_stirrer_turns_with_the_shaft_through_the_mitre_pair(self):
         self.assertEqual(make_shape.PINION_TEETH, make_shape.WHEEL_TEETH)
         for th in (0.3, 1.2, -0.8):
@@ -210,7 +240,14 @@ class Scenario(unittest.TestCase):
         model = next(m for m in MANIFEST["models"] if m["id"] == "parting-furnace")
         self.assertEqual(model["rig"], str(RIG_PATH.relative_to(ROOT)))
         self.assertEqual(model["shape"], str(SHAPE_PATH.relative_to(ROOT)))
-        states = model["scenario"]["states"]
+        groups = {g["id"]: g for g in model["scenario"]["states"]}
+        self.assertEqual(list(groups), ["level", "pipes"])
+        states = groups["level"]
+        self.assertEqual(states["values"], LEVELS["1"] + LEVELS["2"])
+        pipes = groups["pipes"]
+        self.assertEqual((pipes["values"], pipes["default"], pipes["needs"]), (PIPES, "pipecopper", ["acid"]))
+        self.assertEqual([o["fitted"] for o in pipes["options"]], [[p] for p in PIPES])
+        self.assertEqual([o["label"] for o in pipes["options"]], ["Copper", "Lead"])
         fitted, want = [], [[]]
         for k in sorted(LEVELS):
             fitted = fitted + LEVELS[k]
@@ -219,6 +256,8 @@ class Scenario(unittest.TestCase):
         self.assertEqual(states["default"], states["options"][-1]["id"])
         self.assertEqual(set(model["scenario"]["requires"]), set(REQUIRES))
         for value, label in model["scenario"]["requires"].items():
+            if value in PIPES:
+                continue
             level = next(k for k, vs in LEVELS.items() if value in vs)
             self.assertTrue(label.startswith(f"Level {level}: "), label)
 

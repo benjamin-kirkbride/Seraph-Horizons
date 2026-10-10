@@ -44,7 +44,7 @@ floor over the whole footprint and the chimney stack (a base, the shaft, a fire-
 soot-black inside). **The fires' flues run under the floor to the stack and are not drawn**; the cupellation furnace
 and the acid hood stand against the stack.
 
-**Level 1** (water: `blast`, `cupel`, `liquation`, `acid`; 228 elements with the frame):
+**Level 1** (water: `blast`, `cupel`, `liquation`, `acid`, and the water pipe in one metal; 232 elements with the frame):
 
 - *The blast* (`blast`). The vanilla axle comes in on the north face of the power cell, along z, and continues as
   the **engine shaft** in two cast-iron pedestal bearings. Between them a **crank** (two webs and a pin) works a
@@ -66,10 +66,17 @@ and the acid hood stand against the stack.
 - *The acid parting vessel* (`acid`): a brick firebox with a cast-iron **sand bath** on it, the **stoneware vessel**
   set in the sand with the aqua fortis in it, and a brick **hood** over the vessel (two piers and a top), its back
   against the stack, which takes the fumes. The front of the sand bath is open. The **process water** comes in
-  from a ppex pipe on the water face (south, at the hood's front) through a lead pipe in ppex's section to a
+  from a ppex pipe on the water face (south, at the hood's front) through a **water pipe** under the hood to a
   **brass cock** over the vessel, its nozzle over the vessel's mouth.
+- *The water pipe* (`pipecopper` or `pipelead`, fitted with the acid set). It is drawn as the rosser draws its drip
+  pipes and as UnifiedPipes draws copper and lead ppex pipe (`../Pipes/tools/solderedpipe.py`): one straight length
+  of Pipes and Power Expanded's pipe, its square tube round its bore and its texture mapping, from the water face
+  along the east pier's inside to the cock, with a wiped joint of solder where it meets the cock. It has no joint at
+  the face: the ppex pipe beyond brings its own half joint there. The part is drawn twice, once in each metal
+  (`game:block/metal/sheet-plain/copper4` or `lead4`, the joint in `game:block/metal/ingot/leadsolder`), and the
+  renderer draws the supplied metal's.
 
-**Level 2** (mill: `kettle`, `stirrer`, `chutes`; 79 more elements, 307 in all):
+**Level 2** (mill: `kettle`, `stirrer`, `chutes`; 79 more elements, 311 drawn in all):
 
 - *The Parkes kettle* (`kettle`): an octagonal brick **setting** over its firebox (fire and ash-pit doors on its
   front), the cast-iron kettle's **flange** round its mouth, the molten **lead** in it with cakes of **zinc crust**
@@ -87,7 +94,7 @@ and the acid hood stand against the stack.
 | Key | Value | What |
 |---|---|---|
 | `powerCell`, `powerFace` | `[1, 1, -1]`, north | The vanilla axle comes in along z at the cell's centre (build (x 56, y 24)) |
-| `waterCell`, `waterFace` | `[-1, 1, 0]`, south | The process-water pipe ends on the face's centre in ppex's 6 x 6 section (build (x 24, y 24)) |
+| `waterCell`, `waterFace` | `[-1, 1, 0]`, south | The water pipe ends on the face's centre in ppex's section, on the axis of the ppex pipe beyond (build (x 24, y 24)) |
 | `inputCell`, `inputFace`, `input.pos` | `[1, 1, 0]`, east, `[2.0, 1.1125, 0.1875]` | Level 2: the input chute's mouth on that face |
 | `outputCell`, `outputFace`, `output.pos` | `[1, 0, 0]`, south, `[1.65, 0.35, 1.0]` | Level 2: the output spout's lip on that face |
 
@@ -111,6 +118,19 @@ The crank pin is east of the shaft at θ 0, so its height is the shaft's plus 2.
 crank pin's height exactly: the `slide` driver is that motion, with no approximation. The bevel pair's pitch cones
 share their apex where the axes cross, over the kettle's centre (module 1.2, 6 teeth each, pitch radius 3.6).
 Toothed wheels and what they mesh: the pinion and the wheel, only.
+
+**Either way round.** The vanilla axle may turn either way, and every motion works in both:
+
+- *The blast.* The yoke follows the crank pin's height, r sin θ: turned backwards it runs the same stroke, up and
+  down, in the other order. The blowing cylinder's valves (in its valve chest) are self-acting flap valves, opened
+  and shut by the air as the piston draws and drives, not by anything on the shaft, so the cylinder blows on its
+  stroke whichever way the crank turns. Nothing in the engine has a direction: no ratchet, no cam with a working
+  flank, no one-way catch.
+- *The stirrer.* The mitre pair turns the stirrer the other way when the shaft does. Its two paddles are flat blades
+  through the shaft, symmetric about it, so they stir alike either way.
+- *The rig.* Every driver reads θ alone (none reads the shaft's travel, which is how the mill tells a direction), so
+  the model is posed by the angle only. The generator checks this, that the yoke's stroke is the same backwards,
+  that the paddles are symmetric about the stirrer's axis, and the clearances over a turn backwards.
 
 ### Choices, and why
 
@@ -153,27 +173,30 @@ The bucking sawmill's schema (`../BuckingSawmill/README.md`, "Rig schema") with 
   `outputFace`, `output.pos` (above).
 - `levels`: `{ "1": [...], "2": [...] }`, the `requires` values of each level's sets, in order. The viewer lists it as
   a key it does not draw.
+- `waterPipes`: `["pipecopper", "pipelead"]`, the water pipe's parts, one per metal, fitted with the acid set: the
+  supplied metal's is drawn (the rosser's drip pipes' way). Also listed as not drawn.
 - `parts`, in level order, the frame last: `shaft`, `yoke`, `engine` [blast]; `cupel` [cupel]; `liquation`
-  [liquation]; `acid` [acid]; `kettle` [kettle]; `gallows`, `stirrer`, `bevelpinion` [stirrer]; `chutes` [chutes];
+  [liquation]; `acid` [acid]; `pipecopper` [pipecopper], `pipelead` [pipelead]; `kettle` [kettle]; `gallows`, `stirrer`, `bevelpinion` [stirrer]; `chutes` [chutes];
   `frame` (null). No part rides another.
 
 ## Model files
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/partingfurnace.json` | The whole machine, both levels' sets (307 elements). |
+| `assets/seraphhorizons/shapes/block/partingfurnace.json` | The whole machine, both levels' sets and the water pipe in both metals (319 elements). |
 | `assets/seraphhorizons/shapes/block/partingfurnace_frame.json` | The frame only (18 elements): the floor and the stack. |
-| `assets/seraphhorizons/config/partingfurnace-rig.json` | Cells, anchors, levels and the part rig (12 parts). |
+| `assets/seraphhorizons/config/partingfurnace-rig.json` | Cells, anchors, levels, the water pipe's parts and the part rig (14 parts). |
 | `tests/PartingFurnace/rig-reference.json` | Every part's matrix at ten poses of θ, from the reference maths. |
 
 Elements by set: frame 18; blast 63 (shaft 16, yoke 7, engine 40); cupellation furnace 72; liquation furnace 40;
-acid parting 35; kettle 22; stirrer 44 (gallows 6, stirrer 20, pinion 18); chutes 13.
+acid parting 31; the water pipe 8 in each metal; kettle 22; stirrer 44 (gallows 6, stirrer 20, pinion 18); chutes 13.
 
 Textures are the game's, referenced: brick `clay/brick/eight/running/orange1`, the floor's `red1`, fire brick
 `cream1`, cast iron `metal/plate/iron`, steel `metal/sheet-plain/steel1`, oak, bone ash `stone/rock/chalk1`, lead,
 tin and zinc ingots for the metals, litharge `clay/hardened/orange`, coke, charcoal and ember for the fires and the
 dross, sandstone sand for the sand bath, `clay/ceramic-dark` for the stoneware, `liquid/dilutedalum` for the aqua
-fortis, `metal/sheet-plain/lead4` (ppex's lead pipe's) for the water pipe, `metal/plate/brass` for the cock, and
+fortis, `metal/sheet-plain/copper4` or `lead4` (ppex's pipes', as UnifiedPipes gives them) for the water pipe, with its
+joint in `metal/ingot/leadsolder`, `metal/plate/brass` for the cock, and
 `black` down the stack. Coloured by texture in the viewer, each has a colour of its own
 (`site/src/lib/model-view.ts`).
 
@@ -202,7 +225,7 @@ Every run checks its output and exits non-zero if a check fails:
   its cell's centre in ppex's 6 × 6 section; the input chute's mouth is on the input cell's face and the output
   spout's lip on the output cell's, each within its cell, their anchor points on those faces; every anchor cell is on
   the footprint's outside, and no two share a face.
-- **Textures** by role (20 rules, every element covered).
+- **Textures** by role (23 rules, every element covered; the water pipe in its metal, its joint in solder).
 - **Gearing:** the bevel pair's axes cross at its apex, its ratio is its teeth's, and the pitch point moves alike on
   both gears at six angles either way (finite differences of the posed rig).
 - **Yoke:** at 48 angles the crank pin stays on the slot's centre line and within its length; the piston rod stays
@@ -212,11 +235,15 @@ Every run checks its output and exits non-zero if a check fails:
 - **Flows:** the litharge channel ends over its pot, the liquation spout over its pot, the blast pipe runs from the
   valve chest into the tuyere, the input chute ends over the kettle's lead, the siphon dips into it and runs out into
   the spout, and the water cock's nozzle is over the vessel's mouth.
+- **Pipes:** the water pipe is four walls of ppex's section from the water face into the cock, a wiped joint where it
+  meets the cock; each other metal's part is the same elements in its own texture, the joint in solder.
+- **Either way round:** every driver reads θ alone; the yoke's stroke is the same backwards; the paddles are
+  symmetric about the stirrer's axis; the clearances hold over 48 poses of a turn backwards.
 - **Clearances:** over 99 poses through two turns (and backwards), no moving part touches anything but its intended
   contacts (`ALLOWED`: the shaft in its bearings, the pin in the slot, the rod in the cylinder and gland, the slippers
   on their guides, the pinion on the shaft, the stirrer in its bosses and the lead). The bevel teeth clear each other:
   they are 0.30 of the pitch thick, cast teeth with backlash.
-- **No z-fighting** (full runs): no coplanar overlapping faces at four poses, after the fix.
+- **No z-fighting** (full runs): no coplanar overlapping faces at four poses, after the fix, with the water pipe in one metal (the copies are made after the fix, so each gets the same insets, and never drawn together).
 - **Files:** every texture declared; no hollow cells, no lids, every `fitted` key a requires value, no collision box
   thinner than 0.04 of a block (a part just over a cell's edge); what collides at each level is printed; the shipped
   model is the checked one moved.
@@ -231,13 +258,15 @@ into `make_shape.py`, or stop regenerating.
 
 `site/models.json`, `parting-furnace`: θ's slider spans one turn (the stirrer turns with the shaft), Play turns the
 axle at 1.5 s a turn (the play script has no phases: the rig reads θ alone), and a **Level** select (one group of
-states) shows the frame, level 1 (water) or level 2 (mill), each with every set before it, level 2 by default. The
-checkboxes under it fit or take off each set by hand. The anchors draw as the power, water, input and output cells
+states) shows the frame, level 1 (water) or level 2 (mill), each with every set before it, level 2 by default, and a **Water pipe** select (Copper or Lead, the
+rosser's values and labels, copper by default), which waits until the acid set is fitted. The checkboxes under each
+fit or take off a set by hand. The anchors draw as the power, water, input and output cells
 and the two chute ends; the collision overlay draws what each picked level collides with.
 
 `site/test/partingfurnace.test.ts` replays the reference poses through the viewer's maths and checks the anchors,
 the scenario, the level states, the fitted collision and the texture colours; `tools/tests/test_partingfurnace_model.py`
-does the same in Python and checks the generator reproduces the files, the cells, the mitre pair and the yoke.
+does the same in Python and checks the generator reproduces the files, the cells, the water pipe in each metal, the mitre pair, the yoke, and
+that every motion works either way round.
 
 ## Open for the owner
 
@@ -262,7 +291,7 @@ does the same in Python and checks the generator reproduces the files, the cells
 8. **The build stages** within each level (which items fit which set, in what order) are not designed yet.
 9. **The controller cell** (the cupellation furnace's front) and the anchor faces were chosen for the layout; the
    gameplay's placement rule (which way the works extend from the player) is to be set.
-10. **Drawing it in the game.** 228 of the 307 elements are fitted sets that never move; gameplay should mesh the
+10. **Drawing it in the game.** 232 of the 311 elements drawn at once are fitted sets that never move; gameplay should mesh the
     fitted static sets with the frame and draw only the four moving parts in the renderer.
 11. **The game's rig loader** (`Machines/Core`) does not read `fitted` yet (the viewer does).
 
@@ -276,7 +305,7 @@ every level and at several crank angles, from the front, both angles and above. 
    rectangles each.
 3. **The cylinder's piston and the kettle's bowl are not drawn**; the paddles are drawn breaking the lead's surface
    (a real stirrer's blades are under it).
-4. **The water pipe** is ppex's 6 × 6 section all the way to the cock, large next to the vessel; it shows where a
-   ppex pipe meets the machine.
+4. **The water pipe** is ppex's pipe all the way to the cock, large next to the vessel; it shows where a ppex pipe
+   meets the machine.
 5. **The engine shaft's end** reaches 2.4 voxels into the kettle's upper cell, so at level 1 that cell collides
    with it alone: the stub the pinion is keyed to at level 2.

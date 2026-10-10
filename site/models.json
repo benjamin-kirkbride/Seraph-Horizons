@@ -322,18 +322,33 @@
           "cupel": "Level 1: cupellation furnace (the test, its fire and breast)",
           "liquation": "Level 1: liquation furnace",
           "acid": "Level 1: acid parting vessel (sand bath, hood, water cock)",
+          "pipecopper": "Copper (a straight copper pipe)",
+          "pipelead": "Lead (a straight lead pipe)",
           "kettle": "Level 2: Parkes kettle in its setting",
           "stirrer": "Level 2: stirrer (bevel pair, gallows)",
           "chutes": "Level 2: input chute, siphon and output spout"
         },
-        "states": {
-          "id": "level", "label": "Level", "default": "level2",
-          "options": [
-            { "id": "frame", "label": "The frame", "fitted": [], "hint": "Placed: the paved floor and the chimney stack, at the machine's level 2 size. The fires' flues run under the floor to the stack." },
-            { "id": "level1", "label": "Level 1 (water): cupellation, liquation, acid parting", "fitted": ["blast", "cupel", "liquation", "acid"], "hint": "The engine shaft from the axle, the blowing cylinder and its blast pipe to the cupellation furnace's tuyere, the liquation furnace, and the acid parting vessel with its water cock, fed from a ppex pipe at the front. Fed by the player. The kettle's place, front right, stands empty." },
-            { "id": "level2", "label": "Level 2 (mill): the Parkes kettle added, chute-fed", "fitted": ["blast", "cupel", "liquation", "acid", "kettle", "stirrer", "chutes"], "hint": "The kettle in front of the blowing engine, its stirrer geared off the engine shaft, the input chute in from the east and the siphon and output spout out at the front. Level 1's furnaces stay: the rich crust is still cupelled." }
-          ]
-        },
+        "states": [
+          {
+            "id": "level", "label": "Level", "default": "level2",
+            "values": ["blast", "cupel", "liquation", "acid", "kettle", "stirrer", "chutes"],
+            "options": [
+              { "id": "frame", "label": "The frame", "fitted": [], "hint": "Placed: the paved floor and the chimney stack, at the machine's level 2 size. The fires' flues run under the floor to the stack." },
+              { "id": "level1", "label": "Level 1 (water): cupellation, liquation, acid parting", "fitted": ["blast", "cupel", "liquation", "acid"], "hint": "The engine shaft from the axle, the blowing cylinder and its blast pipe to the cupellation furnace's tuyere, the liquation furnace, and the acid parting vessel with its water cock, fed by a ppex pipe at the front. Fed by the player. The kettle's place, front right, stands empty." },
+              { "id": "level2", "label": "Level 2 (mill): the Parkes kettle added, chute-fed", "fitted": ["blast", "cupel", "liquation", "acid", "kettle", "stirrer", "chutes"], "hint": "The kettle in front of the blowing engine, its stirrer geared off the engine shaft, the input chute in from the east and the siphon and output spout out at the front. Level 1's furnaces stay: the rich crust is still cupelled." }
+            ]
+          },
+          {
+            "id": "pipes", "label": "Water pipe", "default": "pipecopper",
+            "values": ["pipecopper", "pipelead"],
+            "needs": ["acid"],
+            "needsHint": "The water pipe runs to the acid parting vessel's cock: fit level 1 first.",
+            "options": [
+              { "id": "pipecopper", "label": "Copper", "fitted": ["pipecopper"], "hint": "Pipes and Power Expanded's straight pipe in copper, soldered, from the water face to the cock; the metal shown is the one supplied." },
+              { "id": "pipelead", "label": "Lead", "fitted": ["pipelead"], "hint": "Pipes and Power Expanded's straight pipe in lead, soldered, from the water face to the cock; the metal shown is the one supplied." }
+            ]
+          }
+        ],
         "play": { "secondsPerTurn": 1.5, "phases": [] }
       }
     },

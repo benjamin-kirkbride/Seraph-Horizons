@@ -48,6 +48,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Pipes" / "tools"))
 
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
@@ -57,6 +58,7 @@ from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_d
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
+import solderedpipe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
@@ -94,7 +96,10 @@ TEXTURES = {
     "sand": "game:block/stone/sand/sandstone",                  # the sand bath
     "stoneware": "game:block/clay/ceramic-dark",                # the parting vessel
     "acid": "game:block/liquid/dilutedalum",                    # aqua fortis with the silver in it
-    "leadpipe": "game:block/metal/sheet-plain/lead4",           # the process-water pipe (ppex's lead pipe's texture)
+    # the water pipe wears ppex's pipe textures as UnifiedPipes gives them, its joint the solder it is wiped with
+    "pipecopper": "game:block/metal/sheet-plain/copper4",
+    "pipelead": "game:block/metal/sheet-plain/lead4",
+    "solder": solderedpipe.SOLDER_TEXTURE,
     "brass": "game:block/metal/plate/brass",                    # the water cock
     "soot": "game:block/black",                                 # down the stack's flue
 }
@@ -177,7 +182,7 @@ def liq_world(p):
 
 # ---------------------------------------------------------------- the acid parting (level 1)
 AC_X = (16.0, 28.0)
-AC_PIER = 1.5
+AC_PIER = 1.0                                # the piers: the water pipe runs along the east one's inside
 AC_BACK = 11.6                               # the hood stands against the stack's shaft ...
 AC_FIRE_BACK = 12.2                          # ... and the firebox against its base
 AC_FRONT = 30.0
@@ -191,7 +196,8 @@ RIM_R = (2.9, 3.8)
 HOOD_Y = (28.0, 29.6)
 HOOD_FRONT = 26.0                            # the hood covers the vessel; in front of it the sand bath is open
 WATER = (24.0, 24.0)                         # (x, y): the process-water pipe's axis, along z from the water face
-PIPE_HALF = 3.0                              # ppex's pipe: 6 voxels across
+PIPE_HALF = solderedpipe.HALF                # ppex's pipe: a square tube 6 voxels across (its block's 5..11)
+PIPE_METALS = ("copper", "lead")             # the water pipe is ppex's straight pipe in UnifiedPipes' metals: one part each
 COCK_Z = (21.8, 23.4)
 
 # ---------------------------------------------------------------- the stack (frame)
@@ -817,17 +823,53 @@ def build_acid():
     out += disc("y", vc, VESSEL_Y[0], VESSEL_Y[1], VESSEL_R, "ac_vessel", p, "stoneware", k=4, phase=math.pi / 8)
     out += ring("y", vc, RIM_Y[0], RIM_Y[1], RIM_R[0], RIM_R[1], 8, "ac_rim", p, "stoneware")
     out += disc("y", vc, RIM_Y[0] + 0.1, RIM_Y[0] + 0.4, RIM_R[0] + 0.05, "ac_acid", p, "acid", k=4, phase=math.pi / 8)
-    # the process water: a lead pipe in ppex's section (a 6 x 6 square tube round a 4 x 4 bore) from the water
-    # face to a brass cock over the vessel, a nozzle down from it
+    # the brass cock over the vessel, where the water pipe (`build_pipes`) ends, a nozzle down from it
     wx, wy = WATER
-    h, t = PIPE_HALF, 1.0
-    za, zo = COCK_Z[1], CELLS_Z * B
-    out += [box([wx - h, wy + h - t, za], [wx + h, wy + h, zo], "ac_pipe_top", p, "leadpipe"),
-            box([wx - h, wy - h, za], [wx + h, wy - h + t, zo], "ac_pipe_bottom", p, "leadpipe"),
-            box([wx - h, wy - h + t, za], [wx - h + t, wy + h - t, zo], "ac_pipe_w", p, "leadpipe"),
-            box([wx + h - t, wy - h + t, za], [wx + h, wy + h - t, zo], "ac_pipe_e", p, "leadpipe")]
-    out.append(box([wx - h + 0.4, wy - h - 0.6, COCK_Z[0]], [wx + h - 0.4, wy + h - 0.4, za], "ac_cock", p, "brass"))
+    h = PIPE_HALF
+    out.append(box([wx - h - 0.2, wy - h - 0.6, COCK_Z[0]], [wx + h, wy + h + 0.2, COCK_Z[1]], "ac_cock", p, "brass"))
     out.append(box([wx - 0.6, RIM_Y[1] + 0.9, COCK_Z[0] + 0.2], [wx + 0.6, wy - h - 0.6, COCK_Z[0] + 1.4], "ac_nozzle", p, "brass"))
+    return out
+
+
+def pipe_boxes():
+    """The process-water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels), one
+    straight pipe's worth: from the water face on the axis of the ppex pipe beyond it, along z under the hood to
+    the brass cock, a wiped joint of solder where it meets the cock. It has no joint of its own at the face: the
+    pipe beyond brings its own half joint there, as a soldered ppex pipe does against any block it meets."""
+    wx, wy = WATER
+    out = solderedpipe.tube("inlet", 2, COCK_Z[1], CELLS_Z * B, (wx, wy))
+    out += solderedpipe.half_joint("joint_cock", 2, COCK_Z[1], 1, (wx, wy))
+    return solderedpipe.cull_pressed(out)
+
+
+def build_pipes():
+    """The water pipe as elements of the part `pipe<first metal>` (`pipe_boxes`): the body in that metal's pipe
+    texture (ppex's, as UnifiedPipes gives it), the joint in solder, each face's UVs solderedpipe's on this
+    model's texture scale. Built in copper; `pipe_copies` makes the other metals."""
+    p = f"pipe{PIPE_METALS[0]}"
+    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
+    out = []
+    for b in pipe_boxes():
+        size = b.size()
+        faces = {d: {"texture": codes[b.role], "uv": solderedpipe.uv(d, size, TEX / 16)} for d in b.faces}
+        out.append(El(f"{p}_{b.name}", size, [(b.lo[k] + b.hi[k]) / 2 for k in range(3)], [row[:] for row in IDENT], faces, p))
+    return out
+
+
+def pipe_copies(els):
+    """The pipe in the other metals: the first metal's elements as they are (after the z-fighting fix, so every
+    copy gets the same insets), renamed and in their own metal's texture; the joint stays solder. Only the
+    supplied metal's is ever drawn, so the copies are not checked against each other."""
+    first = f"pipe{PIPE_METALS[0]}"
+    out = []
+    for m in PIPE_METALS[1:]:
+        for el in els:
+            if el.part == first:
+                c = el.clone(f"pipe{m}" + el.name[len(first):], f"pipe{m}")
+                for face in c.faces.values():
+                    if face["texture"] == f"#{first}":
+                        face["texture"] = f"#pipe{m}"
+                out.append(c)
     return out
 
 
@@ -960,7 +1002,7 @@ def build_chutes():
 
 def build():
     els = build_shaft() + build_yoke() + build_engine() + build_cupel() + build_liquation() + build_acid()
-    els += build_kettle() + build_gallows() + build_stirrer() + build_pinion() + build_chutes() + build_frame()
+    els += build_pipes() + build_kettle() + build_gallows() + build_stirrer() + build_pinion() + build_chutes() + build_frame()
     return els
 
 
@@ -978,7 +1020,9 @@ LEVELS = {
     "2": ["kettle", "stirrer", "chutes"],
 }
 LEVEL_TIERS = {"1": "water", "2": "mill"}
-REQUIRES = [v for k in sorted(LEVELS) for v in LEVELS[k]]
+# The water pipe, fitted with the acid set: one part per metal, the supplied metal's drawn (the rosser's drip pipes' way).
+PIPES = [f"pipe{m}" for m in PIPE_METALS]
+REQUIRES = LEVELS["1"] + PIPES + LEVELS["2"]
 
 _PARTS = []
 
@@ -1000,6 +1044,8 @@ def _rig_parts():
         {"id": "cupel", "match": ["cp_*"], "requires": "cupel", "drivers": []},
         {"id": "liquation", "match": ["lq_*"], "requires": "liquation", "drivers": []},
         {"id": "acid", "match": ["ac_*"], "requires": "acid", "drivers": []},
+        # the water pipe, one part per metal (requires pipecopper, pipelead): only the supplied metal's is drawn
+        *({"id": p, "match": [f"{p}_*"], "requires": p, "drivers": []} for p in PIPES),
         {"id": "kettle", "match": ["kt_*"], "requires": "kettle", "drivers": []},
         {"id": "gallows", "match": ["gl_*"], "requires": "stirrer", "drivers": []},
         {"id": "stirrer", "match": ["st_*"], "requires": "stirrer",
@@ -1062,8 +1108,9 @@ def make_rig(parts):
                     "front cell at ground level; the works run 4 wide (x) and 2 deep (z), every furnace's working face to the "
                     "south, the chimney stack at the back. The rig reads theta alone (the axle's angle): the engine shaft and "
                     "(level 2) the bevel pinion turn with it, the yoke rises and falls with the crank, the stirrer turns "
-                    "with it the other way (a mitre pair). requires: one value per fitted set; levels lists each level's sets (1 water, 2 mill), level 2 "
-                    "adding to level 1. A cell's boxes are the frame's (the floor, the stack); its fitted boxes are there only "
+                    "with it the other way (a mitre pair); every motion works either way round. requires: one value per "
+                    "fitted set; levels lists each level's sets (1 water, 2 mill), level 2 adding to level 1; waterPipes the "
+                    "water pipe's parts, one per metal, fitted with the acid set, the supplied metal's drawn. A cell's boxes are the frame's (the floor, the stack); its fitted boxes are there only "
                     "while their set is fitted. See the parting furnace's README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
@@ -1077,6 +1124,7 @@ def make_rig(parts):
         "input": {"pos": pt(*pts["input"])},
         "output": {"pos": pt(*pts["output"])},
         "levels": {k: list(v) for k, v in LEVELS.items()},
+        "waterPipes": list(PIPES),
         "parts": parts,
     }
 
@@ -1210,6 +1258,7 @@ def main():
         for pose, pairs in before.items():
             print(f"coplanar faces before the fix at {pose}: {len(pairs)} pairs")
         print(f"coplanar faces: {hidden} faces pressed against their own part removed")
+    els += pipe_copies(els)
     rig = make_rig(parts)
     ok = validate_partingfurnace.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
     if args.out:

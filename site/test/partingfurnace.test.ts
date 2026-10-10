@@ -57,7 +57,9 @@ describe("the parting furnace's rig against its rig-reference.json", () => {
     const used = new Set(flat.map((f) => partOf(globs, f.chain)));
     expect(used.has(-1)).toBe(false);
     expect(used.size).toBe(parts.length);
-    const byLevel = Object.keys(levels).sort().flatMap((k) => levels[k]!);
+    // the water pipe's parts (one per metal) come after the acid set's
+    const waterPipes = (rig as unknown as { waterPipes: string[] }).waterPipes;
+    const byLevel = [...levels["1"]!, ...waterPipes, ...levels["2"]!];
     const seen: string[] = [];
     for (const p of parts) if (p.requires && !seen.includes(p.requires)) seen.push(p.requires);
     expect(seen).toEqual(byLevel);
@@ -79,22 +81,27 @@ describe("the parting furnace in the viewer", () => {
       ["point", "input"],
       ["point", "output"],
     ]);
-    expect(unrecognised).toEqual(["levels"]);
+    expect(unrecognised).toEqual(["levels", "waterPipes"]);
     expect(checkScenario(scenario, rig, anchors, requires)).toEqual([]);
   });
 
-  it("builds up level by level: the frame, then each level with all before it", () => {
-    const states = scenario.states as FittedStates;
-    const groups = stateGroups(states, requires);
-    expect(groups).toHaveLength(1);
+  it("builds up level by level: the frame, then each level with all before it; the water pipe in the metal supplied", () => {
+    const groups = stateGroups(scenario.states!, requires);
+    expect(groups.map((g) => g.id)).toEqual(["level", "pipes"]);
+    const states = groups[0]!.spec as FittedStates;
+    const pipes = groups[1]!.spec as FittedStates & { values: string[]; needs: string[] };
+    expect(pipes.values).toEqual(["pipecopper", "pipelead"]);
+    expect(pipes.needs).toEqual(["acid"]);
+    expect(pipes.default).toBe("pipecopper");
+    expect(pipes.options.map((o) => [o.label, o.fitted])).toEqual([["Copper", ["pipecopper"]], ["Lead", ["pipelead"]]]);
     let want: string[] = [];
     const cumulative = [[] as string[]];
     for (const k of Object.keys(levels).sort()) cumulative.push((want = [...want, ...levels[k]!]));
     expect(states.options.map((o) => o.fitted)).toEqual(cumulative);
     expect(states.default).toBe("level2");
     const start = initialFitted(requires);
-    const level1 = applyState(start, states.options.find((o) => o.id === "level1")!, requires);
-    expect(Object.entries(level1).filter(([, on]) => on).map(([r]) => r)).toEqual(levels["1"]);
+    const level1 = applyState(start, states.options.find((o) => o.id === "level1")!, groups[0]!.owns);
+    expect(Object.entries(level1).filter(([, on]) => on).map(([r]) => r)).toEqual([...levels["1"]!, "pipecopper", "pipelead"]);
   });
 
   it("collides with what is fitted: the kettle's cells are empty until level 2", () => {

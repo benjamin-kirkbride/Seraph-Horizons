@@ -14,7 +14,7 @@ from machinegen.checks import bearing_margin, box_overhang, cells_touched, copla
 from machinegen.checks import supports as shaft_supports
 from machinegen.geometry import aabb_of
 from machinegen.rigmath import apply as _apply
-from machinegen.rigmath import part_of, posed
+from machinegen.rigmath import driver_input, part_of, posed
 
 
 class V:
@@ -25,6 +25,8 @@ class V:
             self.by_part.setdefault(el.part, []).append(el)
         self.cache = {}
         self.ok = True
+        # the water pipe is drawn in one metal at a time: the other metals' copies are checked as copies only
+        self.copies = set(m.PIPES[1:])
 
     def fail(self, msg):
         self.ok = False
@@ -74,16 +76,17 @@ def check_basic(v):
 
 
 def check_levels(v):
-    """Every requires value belongs to one level; the parts are listed level by level (the viewer lists the
-    requires values in the order parts first need them), the frame last; every level has a set."""
+    """Every requires value belongs to one level, or is the water pipe's in a metal (fitted with the acid set); the
+    parts are listed level by level (the viewer lists the requires values in the order parts first need them), the
+    water pipe's after the acid set's, the frame last; every level has a set."""
     m = v.m
     seen = []
     for p in v.parts:
         r = p["requires"]
         if r is None:
             continue
-        if sum(r in vs for vs in m.LEVELS.values()) != 1:
-            v.fail(f"part {p['id']} requires {r!r}, which is not one level's")
+        if sum(r in vs for vs in m.LEVELS.values()) + (r in m.PIPES) != 1:
+            v.fail(f"part {p['id']} requires {r!r}, which is not one level's nor a water pipe's")
         if r not in seen:
             seen.append(r)
     if seen != m.REQUIRES:
@@ -101,6 +104,8 @@ def states(m):
     have = set()
     for k in sorted(m.LEVELS):
         have |= set(m.LEVELS[k])
+        if k == "1":
+            have.add(m.PIPES[0])                 # the water pipe, in the first metal (the others are its copies)
         out.append((f"level {k}", set(have)))
     return out
 
@@ -170,7 +175,8 @@ def check_anchors(v):
           f"{m.SHAFT}, the cell's centre {centre}")
     if abs(edge - face) > 1e-6 or tuple(m.SHAFT) != centre:
         v.fail("the engine shaft does not meet the power face at the cell's centre")
-    lo, hi = aabb_of(v.named("acid", r"^ac_pipe"))
+    first = m.PIPES[0]
+    lo, hi = aabb_of(v.named(first, rf"^{first}_inlet"))
     wc = m.WATER_CELL
     edge, face = on_face(lo, hi, wc, m.WATER_FACE)
     centre = (wc[0] * 16 + 8, wc[1] * 16 + 8)
@@ -227,7 +233,10 @@ TEX_RULES = [
     (r"^ac_sand", "sand"),
     (r"^ac_(vessel|rim)", "stoneware"),
     (r"^ac_acid", "acid"),
-    (r"^ac_pipe", "leadpipe"),
+    (r"^pipecopper_joint", "solder"),
+    (r"^pipelead_joint", "solder"),
+    (r"^pipecopper_", "pipecopper"),
+    (r"^pipelead_", "pipelead"),
     (r"^ac_(cock|nozzle)", "brass"),
 ]
 
@@ -244,7 +253,7 @@ def check_textures(v):
         else:
             unruled.append(el.name)
     print(f"textures: {len(TEX_RULES)} rules (iron castings, steel shafts, pins and gears, oak for the axle's continuation, brick and "
-          f"fire brick, lead pipe and a brass cock for the water, the work's own materials): {len(bad)} elements break them, "
+          f"fire brick, ppex's copper or lead pipe soldered and a brass cock for the water, the work's own materials): {len(bad)} elements break them, "
           f"{len(unruled)} have no rule")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
@@ -428,7 +437,7 @@ def check_zfight(v):
     m = v.m
     bad = 0
     for pose in m.coplanar_poses():
-        els = [e for pid in v.by_part for e in v.posed(pid, pose)]
+        els = [e for pid in v.by_part if pid not in v.copies for e in v.posed(pid, pose)]
         pairs = coplanar_faces(els)
         if pairs:
             bad += len(pairs)
@@ -485,6 +494,65 @@ def check_flows(v):
     print("flows: " + "; ".join(f"{label} {'yes' if good else 'NO'}" for label, good in out))
 
 
+def check_pipes(v):
+    """The water pipe as UnifiedPipes draws soldered ppex pipe (the rosser's drip pipes' way): a straight length of
+    ppex's section, four walls round the bore, from the water face to the brass cock, a wiped joint of solder where it
+    meets the cock; each other metal's part the same elements in its own pipe texture, the joint in solder."""
+    m = v.m
+    first = m.PIPES[0]
+    els = sorted(v.by_part[first], key=lambda e: e.name)
+    walls = [e for e in els if e.name.startswith(f"{first}_inlet_")]
+    joint = [e for e in els if e.name.startswith(f"{first}_joint")]
+    lo, hi = aabb_of(walls)
+    clo, chi = aabb_of(v.named("acid", r"^ac_cock"))
+    bad = []
+    if len(walls) != 4:
+        bad.append(f"{len(walls)} walls, 4 wanted")
+    if abs(lo[2] - m.COCK_Z[1]) > 0.05 or abs(chi[2] - m.COCK_Z[1]) > 1e-6 or not (clo[0] <= lo[0] + 0.2 and hi[1] <= chi[1]):
+        bad.append("the pipe does not end in the cock")
+    if len(joint) != 4 or abs(aabb_of(joint)[0][2] - m.COCK_Z[1]) > 0.05:
+        bad.append("no wiped joint where the pipe meets the cock")
+    for metal in m.PIPES[1:]:
+        copies = sorted(v.by_part.get(metal, []), key=lambda e: e.name)
+        if len(copies) != len(els):
+            bad.append(f"{metal} has {len(copies)} elements, {len(els)} wanted")
+            continue
+        for a, b in zip(els, copies):
+            if b.name != metal + a.name[len(first):] or max(abs(a.c[k] - b.c[k]) + abs(a.size[k] - b.size[k]) for k in range(3)) > 1e-9:
+                bad.append(f"{b.name} is not {a.name} in {metal}")
+    for msg in bad:
+        v.fail(f"pipes: {msg}")
+    print(f"pipes: {len(els)} elements a metal in {', '.join(m.PIPES)}: ppex's section from the water face (z {hi[2]:.1f}) to the "
+          f"cock (z {lo[2]:.1f}), a wiped joint there")
+
+
+def check_reverse(v):
+    """Every motion works either way round, since the axle may turn either way: no driver reads the shaft's travel or
+    anything else that knows the direction; over a turn backwards the yoke covers the same stroke as forwards (the
+    blowing cylinder's valves are self-acting flaps, opened and shut by the air, so it blows either way); the paddles
+    lie symmetric about the stirrer's axis (they stir alike either way); and the clearances hold over a turn
+    backwards."""
+    m = v.m
+    for p in v.parts:
+        for d in p["drivers"]:
+            if driver_input(d) != "theta" or d.get("rectified"):
+                v.fail(f"reverse: {p['id']} reads {driver_input(d)}, which knows the direction")
+    ys = {sign: [v.mat("yoke", (sign * TAU * i / 48, TAU * i / 48))[1][3] * 16 for i in range(49)] for sign in (1, -1)}
+    fw, bw = (min(ys[1]), max(ys[1])), (min(ys[-1]), max(ys[-1]))
+    if max(abs(fw[0] - bw[0]), abs(fw[1] - bw[1])) > 1e-9 or abs(fw[1] - fw[0] - 2 * m.CRANK_R) > 1e-6:
+        v.fail(f"reverse: the yoke's stroke is {fw} forwards and {bw} backwards")
+    for e in v.named("stirrer", r"^st_paddle"):
+        lo, hi = e.aabb()
+        if max(abs((lo[0] + hi[0]) / 2 - m.KET_C[0]), abs((lo[2] + hi[2]) / 2 - m.KET_C[1])) > 1e-6:
+            v.fail(f"reverse: {e.name} is not symmetric about the stirrer's axis")
+    print(f"reverse: every driver reads theta alone; the yoke's stroke {fw[0]:.2f}..{fw[1]:.2f} voxels either way round; the "
+          f"paddles symmetric about the stirrer's axis")
+    check_clearances(v, [(-TAU * i / 48, TAU * i / 48) for i in range(1, 49)])
+
+
+TAU = 2 * math.pi
+
+
 def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
@@ -497,6 +565,8 @@ def validate(m, els, parts, rig, quick=False):
     check_yoke(v)
     check_supports(v)
     check_flows(v)
+    check_pipes(v)
+    check_reverse(v)
     check_clearances(v, [m.REST] + m.cycle_poses(96) + [(-1.3, 1.3), (-4.1, 4.1)])
     if not quick:
         check_zfight(v)
