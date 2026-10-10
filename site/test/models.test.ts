@@ -309,7 +309,7 @@ describe("model view", () => {
     expect(textureColour("oil", "game:block/liquid/honey")).toBe("#c8902a");
     expect(textureColour("coil", null)).not.toBe("#c8902a");
     // a pan's contents stand apart from the iron they lie in, though the amalgam wears an ingot's texture
-    expect(textureColour("mercury", "seraphhorizons:block/liquid/mercury")).toBe("#dce2ea");
+    expect(textureColour("mercury", "seraphhorizons:block/liquid/mercury")).toBe("#b8c0ca");
     expect(textureColour("amalgam", "game:block/metal/ingot/leadsolder")).toBe("#b0aa9c");
     expect(textureColour("pan", "game:block/metal/sheet/iron1")).toBe("#8e98a4");
   });

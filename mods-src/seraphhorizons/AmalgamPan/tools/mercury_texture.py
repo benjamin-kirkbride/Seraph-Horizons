@@ -1,9 +1,12 @@
-"""The amalgam pan's provisional mercury texture: a plain 32 x 32 silver liquid, written by make_shape.py.
+"""The amalgam pan's provisional mercury texture: a 32 x 32 liquid silver, written by make_shape.py.
 
 Neither the game nor the pack's mods have a mercury texture: Expanded Matter's `em:mercuryportion`
 borrows the game's andesite and kimberlite rock, blended, for its bucket. This one is made for the pan's
-pool in the style of the game's liquids (32 x 32, soft ripples, a few bright glints), from integer-period
-waves so it tiles, and a fixed hash for its grain, so every run writes the same pixels. Stdlib only.
+pool in the style of the game's liquids (32 x 32): a smooth silver with broad, soft swells of light and
+shade, as a mirror-bright liquid shows its surroundings, and one soft glint on the brightest swell. The
+waves have whole periods across the tile, so it tiles, and only low ones, so it shows no grid or pattern
+of dots (the first version's diagonal ripples and glints read as quilted cloth); a fixed hash gives a
+faint grain, so every run writes the same pixels. Stdlib only.
 """
 
 from __future__ import annotations
@@ -13,9 +16,17 @@ import struct
 import zlib
 
 SIZE = 32
-BASE = (190, 196, 203)                       # the pool's silver, a little blue
-RIPPLE = 20.0                                # how far the waves take it lighter or darker
-GLINT = 26.0                                 # extra light on the crests
+BASE = (182, 187, 194)                       # the pool's silver, a little blue
+SWELL = 20.0                                 # how far the swells take it lighter or darker
+GLINT = 90.0                                 # extra light on the brightest swell's crest
+GRAIN = 0.8
+WAVES = (                                    # (amplitude, cycles across x, across y, phase): low, so the swells are broad
+    (0.50, 1, 0, 0.0),
+    (0.30, 1, 1, 2.0),
+    (0.20, 0, 1, 4.1),
+    (0.12, 2, 1, 1.0),
+    (0.07, 1, -3, 2.9),
+)
 
 
 def _grain(x, y):
@@ -28,16 +39,13 @@ def _grain(x, y):
 def pixels():
     """Rows of (r, g, b, a) tuples, SIZE x SIZE."""
     rows = []
+    t = 2 * math.pi / SIZE
     for y in range(SIZE):
         row = []
         for x in range(SIZE):
-            t = 2 * math.pi / SIZE
-            w = (0.42 * math.sin(t * (x + 2 * y))
-                 + 0.28 * math.sin(t * (2 * x - y) + 1.3)
-                 + 0.17 * math.sin(t * (3 * x + 4 * y) + 0.7)
-                 + 0.13 * math.sin(t * (5 * x - 3 * y) + 2.1))
-            light = RIPPLE * w + GLINT * max(0.0, w - 0.62) / 0.38 + 3.0 * _grain(x, y)
-            row.append(tuple(max(0, min(255, round(c + light * (1.0 if i < 2 else 1.04)))) for i, c in enumerate(BASE)) + (255,))
+            w = sum(a * math.sin(t * (kx * x + ky * y) + ph) for a, kx, ky, ph in WAVES)
+            light = SWELL * math.tanh(1.6 * w) + GLINT * max(0.0, w - 0.55) ** 2 + GRAIN * _grain(x, y)
+            row.append(tuple(max(0, min(255, round(c + light * (1.0 if i < 2 else 1.03)))) for i, c in enumerate(BASE)) + (255,))
         rows.append(row)
     return rows
 

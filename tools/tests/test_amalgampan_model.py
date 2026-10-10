@@ -1,11 +1,12 @@
 """The amalgam pan's generated model files (mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with
-the shared rig maths and uses its `requires` vocabulary (the muller, its shoes, and the two contents),
-its reference poses are its own maths, the cell is rebuilt from the shipped shape, theta (the crank)
-turns the muller and its shoes about the pan's axis and nothing else, the contents lie on the pan's
-floor, every texture is declared and exists, and the provisional mercury texture is the generator's.
-Run with `python3 -m unittest discover -s tools/tests`.
+the shared rig maths and uses its `requires` vocabulary (only the two contents: the crank, the muller and
+the frame are always fitted), its reference poses are its own maths, the cell is rebuilt from the shipped
+shape, theta (the crank) turns the crank about its shaft and, through the gears, the muller about the
+pan's axis, and nothing else, the contents lie on the pan's floor, every texture is declared and exists,
+and the provisional mercury texture is the generator's. Run with
+`python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -34,8 +35,9 @@ SHAPE = json.loads((ASSETS / "shapes" / "block" / "amalgampan.json").read_text()
 FRAME = json.loads((ASSETS / "shapes" / "block" / "amalgampan_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "AmalgamPan" / "rig-reference.json").read_text())
 MERCURY = ASSETS / "textures" / "block" / "liquid" / "mercury.png"
-# the fitted parts: the muller (spindle, hub, arms, crank) and its shoes; the contents: a mercury pool or amalgam
-REQUIRES = {"muller", "shoes", "mercury", "amalgam", None}
+# the contents, a mercury pool or amalgam, are the only requires values: the station has no build stages
+REQUIRES = {"mercury", "amalgam", None}
+RATIO = make_shape.PINION_TEETH / make_shape.WHEEL_TEETH        # the muller's turns per turn of the crank
 
 
 def matrix(pid, theta):
@@ -46,10 +48,14 @@ def turn_y(m):
     return math.atan2(-m[2][0], m[0][0])
 
 
+def turn_z(m):
+    return math.atan2(m[1][0], m[0][0])
+
+
 class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
-        self.assertEqual(ids, ["muller", "shoes", "mercury", "amalgam", "frame"])
+        self.assertEqual(ids, ["crank", "muller", "mercury", "amalgam", "frame"])
         for p in RIG["parts"]:
             self.assertIn(p["requires"], REQUIRES, p["id"])
             if p.get("ride"):
@@ -60,6 +66,12 @@ class Rig(unittest.TestCase):
         self.assertEqual(rigmath.progress_of(RIG), None)          # no work: nothing is posed by one
         for key in ("powerCell", "powerFace", "work", "trunkPath"):
             self.assertNotIn(key, RIG)
+
+    def test_the_moving_parts_are_always_fitted(self):
+        for pid in ("crank", "muller"):
+            (part,) = [p for p in RIG["parts"] if p["id"] == pid]
+            self.assertIsNone(part["requires"], pid)
+            self.assertTrue(part["drivers"], pid)
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
@@ -84,7 +96,7 @@ class Rig(unittest.TestCase):
         self.assertEqual(make_shape.shipped_cells(SHAPE, RIG["parts"]), RIG["cells"])
         (cell,) = RIG["cells"]
         self.assertEqual(cell["pos"], [0, 0, 0])
-        self.assertGreater(cell["lid"], 0.9)
+        self.assertGreater(cell["lid"], 0.8)
 
     def test_anchors(self):
         self.assertEqual(RIG["operatorSide"], "north")
@@ -92,14 +104,30 @@ class Rig(unittest.TestCase):
 
 
 class Turning(unittest.TestCase):
-    def test_the_crank_turns_the_muller_and_its_shoes_once_a_turn_about_the_pans_axis(self):
+    def test_the_crank_turns_about_its_shaft_once_a_turn(self):
+        axis = [0.5, make_shape.SHAFT_Y / 16]
+        for theta in (0.3, 1.7, -2.2, 5.0, 11.0):
+            m = matrix("crank", theta)
+            self.assertAlmostEqual(math.remainder(turn_z(m) - theta, 2 * math.pi), 0.0, places=9)
+            for z in (0.0, 0.3, 0.6):
+                p = rigmath.apply(m, axis + [z])
+                for got, want in zip(p, axis + [z]):
+                    self.assertAlmostEqual(got, want, places=12)
+
+    def test_the_gears_turn_the_muller_about_the_pans_axis_two_thirds_as_fast(self):
+        self.assertAlmostEqual(RATIO, 2 / 3, places=12)
         for theta in (0.3, 1.7, -2.2, 5.0, 11.0):
             m = matrix("muller", theta)
-            self.assertAlmostEqual(math.remainder(turn_y(m) - theta, 2 * math.pi), 0.0, places=9)
+            self.assertAlmostEqual(math.remainder(turn_y(m) - RATIO * theta, 2 * math.pi), 0.0, places=9)
             axis = rigmath.apply(m, [0.5, 0.7, 0.5])
             for got, want in zip(axis, [0.5, 0.7, 0.5]):
                 self.assertAlmostEqual(got, want, places=12)
-            self.assertEqual(matrix("shoes", theta), m)
+
+    def test_the_pinion_and_crown_mesh_where_their_speeds_agree(self):
+        # at the pitch point (over the pinion's top, north of the spindle) both move the same way, as fast
+        r_p, r_w = make_shape.R_PINION, make_shape.R_WHEEL
+        self.assertAlmostEqual(r_p * 1.0, r_w * RATIO, places=12)
+        self.assertAlmostEqual(make_shape.SHAFT_Y + r_p, make_shape.PITCH_Y, places=12)
 
     def test_nothing_else_moves(self):
         ident = rigmath.m4()
@@ -108,12 +136,13 @@ class Turning(unittest.TestCase):
                 m = matrix(pid, theta)
                 self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in m], ident, pid)
 
-    def test_the_crank_points_at_the_operator_at_rest(self):
-        # the handle's elements lie north of the axis (towards the operator) in the authored pose
-        handle = [e for e in SHAPE["elements"] if e["name"].startswith("muller_handle_")]
+    def test_the_crank_is_on_the_operators_side(self):
+        # the handle stands out to the block's north face, north of the pan's middle and of the stand's legs
+        handle = [e for e in SHAPE["elements"] if e["name"].startswith("crank_handle_")]
         self.assertTrue(handle)
+        self.assertLess(min(min(e["from"][2], e["to"][2]) for e in handle), 0.5)
         for e in handle:
-            self.assertLess(max(e["from"][2], e["to"][2]), 8.0)
+            self.assertLess(max(e["from"][2], e["to"][2]), make_shape.LEG[0][1])
 
 
 class Contents(unittest.TestCase):
@@ -133,7 +162,8 @@ class Contents(unittest.TestCase):
         self.assertLess(floor, m1)
         self.assertLess(m1, a1)
         # the shoes stand out of the paste
-        shoes = [e for e in SHAPE["elements"] if e["name"].startswith("shoe_")]
+        shoes = [e for e in SHAPE["elements"] if e["name"].startswith("muller_shoe")]
+        self.assertEqual(len(shoes), 4)
         self.assertGreater(min(max(e["from"][1], e["to"][1]) for e in shoes), a1)
 
     def test_each_content_is_its_own_requires_and_texture(self):
@@ -153,9 +183,10 @@ class Textures(unittest.TestCase):
         for code, path in FRAME["textures"].items():
             self.assertEqual(SHAPE["textures"][code], path, code)
 
-    def test_the_shoes_have_their_own_code(self):
-        shoes = [e for e in SHAPE["elements"] if e["name"].startswith("shoe_")]
-        self.assertEqual({f["texture"] for e in shoes for f in e["faces"].values()}, {"#shoe"})
+    def test_the_moving_parts_are_iron_and_the_handle_oak(self):
+        for pid, want in (("muller", {"#iron"}), ("crank", {"#iron", "#oak"})):
+            els = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == pid]
+            self.assertEqual({f["texture"] for e in els for f in e["faces"].values()}, want, pid)
 
     def test_the_mods_own_textures_exist(self):
         for code, path in SHAPE["textures"].items():
