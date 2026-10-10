@@ -124,6 +124,146 @@ public class EidolonGuardingTests
         Assert.False(EidolonGuard.AtHome(0, 2, 0));
     }
 
+    /// <summary>Full blocks with the eidolon's box (1.7 wide, 3.75 tall, its feet's centre at the point
+    /// asked), as in WidePathTests.</summary>
+    private sealed class Voxels : IWideSpace
+    {
+        public readonly HashSet<(int, int, int)> Solid = [];
+        public readonly HashSet<(int, int, int)> Lava = [];
+
+        public static Voxels Floor(int reach)
+        {
+            var v = new Voxels();
+            for (int x = -reach; x <= reach; x++)
+            for (int z = -reach; z <= reach; z++)
+                v.Solid.Add((x, -1, z));
+            return v;
+        }
+
+        public bool Free(double x, double y, double z)
+        {
+            const double half = 0.85, height = 3.75, eps = 1e-6;
+            for (int bx = (int)Math.Floor(x - half); bx <= (int)Math.Floor(x + half - eps); bx++)
+            for (int by = (int)Math.Floor(y); by <= (int)Math.Floor(y + height - eps); by++)
+            for (int bz = (int)Math.Floor(z - half); bz <= (int)Math.Floor(z + half - eps); bz++)
+                if (Solid.Contains((bx, by, bz)))
+                    return false;
+            return true;
+        }
+
+        public float Cost(PathCell c) =>
+            Lava.Contains((c.X - 1, c.Y, c.Z - 1)) || Lava.Contains((c.X - 1, c.Y, c.Z))
+            || Lava.Contains((c.X, c.Y, c.Z - 1)) || Lava.Contains((c.X, c.Y, c.Z))
+                ? WidePath.Impassable + 1 : 0;
+    }
+
+    private static readonly GuardPost Point = new(0.5, 0, 0.5);
+
+    private static double Across(GuardPost a, GuardPost b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
+
+    [Fact]
+    public void OnOpenGroundEveryPostIsWithinRangeOnTheFloorAndThePointComesFirst()
+    {
+        var posts = EidolonGuard.Posts(Voxels.Floor(12), Point, []);
+        Assert.Equal(Point, posts[0]);
+        Assert.True(posts.Count > 20);
+        Assert.All(posts, p =>
+        {
+            Assert.True(Across(p, Point) <= EidolonGuard.PostRange + 1e-9);
+            Assert.Equal(0, p.Y);
+        });
+    }
+
+    [Fact]
+    public void APostNeedsAFloorRoomForTheBodyAndNoLava()
+    {
+        // Floor only on the point's side (x < 3); a pillar of granite at x -3; lava along z 3.
+        var v = new Voxels();
+        for (int x = -6; x <= 2; x++)
+        for (int z = -6; z <= 6; z++)
+            v.Solid.Add((x, -1, z));
+        for (int y = 0; y < 5; y++)
+            v.Solid.Add((-3, y, 0));
+        for (int x = -6; x <= 6; x++)
+            v.Lava.Add((x, 0, 3));
+        var posts = EidolonGuard.Posts(v, Point, []);
+        Assert.NotEmpty(posts);
+        Assert.All(posts, p =>
+        {
+            Assert.True(v.Free(p.X, p.Y, p.Z), $"{p} in a block");
+            Assert.False(v.Free(p.X, p.Y - 1, p.Z), $"{p} on no floor");
+            Assert.True(v.Cost(WidePath.NodeAt(p.X, p.Y, p.Z)) <= WidePath.Impassable, $"{p} in lava");
+        });
+        Assert.DoesNotContain(posts, p => p.X > 3.5); // a box at x 3.5 still reaches the floor's edge
+    }
+
+    [Fact]
+    public void APostOnALedgeOrInAPitStandsOnItsFloor()
+    {
+        // A step up of one block east of x 2.
+        var v = Voxels.Floor(12);
+        for (int x = 3; x <= 12; x++)
+        for (int z = -12; z <= 12; z++)
+            v.Solid.Add((x, 0, z));
+        var posts = EidolonGuard.Posts(v, Point, []);
+        Assert.Contains(posts, p => p.Y == 1);
+        Assert.All(posts, p => Assert.False(v.Free(p.X, p.Y - 1, p.Z)));
+    }
+
+    [Fact]
+    public void APostKeepsClearOfOtherGuardsPostsAndWhereTheyStand()
+    {
+        GuardPost[] taken = [Point, new(3.5, 0, 0.5), new(-1.2, 0, -2.7)];
+        var posts = EidolonGuard.Posts(Voxels.Floor(12), Point, taken);
+        Assert.NotEmpty(posts);
+        Assert.All(posts, p => Assert.All(taken, t => Assert.True(Across(p, t) >= EidolonGuard.PostSpacing, $"{p} by {t}")));
+        // A guard on the floor above (another storey) does not take a post.
+        Assert.True(EidolonGuard.Clear(Point, [new GuardPost(0.5, 5, 0.5)]));
+        Assert.False(EidolonGuard.Clear(Point, [new GuardPost(1.5, 0, 1.5)]));
+    }
+
+    [Fact]
+    public void GuardsTakingPostsOneAfterAnotherNeverShareOne()
+    {
+        var space = Voxels.Floor(12);
+        var random = new Random(680);
+        var taken = new List<GuardPost>();
+        for (int i = 0; i < 4; i++)
+        {
+            var post = EidolonGuard.Post(space, Point, taken, random);
+            Assert.NotNull(post);
+            Assert.All(taken, t => Assert.True(Across(post!.Value, t) >= EidolonGuard.PostSpacing));
+            taken.Add(post!.Value);
+        }
+    }
+
+    [Fact]
+    public void WithNoRoomThereIsNoPost()
+    {
+        // Walled in: granite all round the point but its own column.
+        var v = Voxels.Floor(12);
+        for (int x = -6; x <= 6; x++)
+        for (int z = -6; z <= 6; z++)
+            if (x != 0 || z != 0)
+                for (int y = 0; y < 8; y++)
+                    v.Solid.Add((x, y, z));
+        Assert.Null(EidolonGuard.Post(v, Point, [], new Random(1)));
+    }
+
+    [Fact]
+    public void ItKeepsAPostForARandomWhileAndStopsNearIt()
+    {
+        var random = new Random(7);
+        for (int i = 0; i < 100; i++)
+        {
+            double s = EidolonGuard.WanderSeconds(random);
+            Assert.InRange(s, EidolonGuard.WanderMinSeconds, EidolonGuard.WanderMaxSeconds);
+        }
+        Assert.True(EidolonGuard.AtPost(0.5, 0.2, 0.2));
+        Assert.False(EidolonGuard.AtPost(1, 0, 0));
+        Assert.True(EidolonGuard.AtHome(1, 0, 0));
+    }
+
     [Fact]
     public void TheGuardSettingsHaveSaneDefaultsAndBadValuesAreReset()
     {
