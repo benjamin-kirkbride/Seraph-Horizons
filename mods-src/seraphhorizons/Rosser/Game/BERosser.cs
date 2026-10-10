@@ -815,6 +815,23 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
         return true;
     }
 
+    // ---- Hauling (the eidolon's haul order, Eidolon/Game/HaulOrder.cs) ----
+
+    /// <summary>The ground cells just beyond the infeed end, where a trunk entity lying is taken
+    /// (<see cref="PullFromGround"/>), and the way out of the machine from them; null without a rig.</summary>
+    public (List<BlockPos> Cells, int OutwardX, int OutwardZ)? InfeedCells()
+    {
+        if (Rig is not { } rig)
+            return null;
+        var outward = Footprint.ToWorld(rig.InfeedSide, Side).Normal();
+        return (rig.InfeedNeighbours().Select(CellPos).ToList(), outward.X, outward.Z);
+    }
+
+    /// <summary>Whether it takes <paramref name="trunk"/> at all, whatever it is doing now: a trunk
+    /// with logs, not already debarked.</summary>
+    public bool Takes(ItemStack trunk) =>
+        Trunks.IsTrunk(trunk) && !Trunks.IsDebarked(trunk) && Api != null && Trunks.StoredLogs(trunk, Api.World) > 0;
+
     /// <summary>Where the delivered trunk can go at the outfeed end (server side): a bucking mill in
     /// line takes it itself; else, while <c>AutoPushToRack</c> is on, a rack touching the outfeed
     /// end with room is <paramref name="rack"/>.</summary>

@@ -277,7 +277,32 @@ class Stages(unittest.TestCase):
                          ["gantry", "torso", "pelvis", "legs", "arms", "head", "mind"])
         self.assertEqual(STAGES["stages"][0]["elements"], [])
         mind = set(STAGES["stages"][-1]["elements"])
-        self.assertEqual(mind, {"brain", "bar-head1", "heart", "bar-heart1", "bar-heart2", "Eye-out"})
+        self.assertEqual(mind, {"heart", "bar-heart1", "bar-heart2", "Eye-out"})
+        # the elucidatory vessel is fitted with the head, so its element, the brain, is the head's
+        # and shows in the head hung in the gantry
+        self.assertLessEqual({"brain", "bar-head1"}, set(STAGES["stages"][-2]["elements"]))
+
+    def test_ingredients_are_the_body_bill(self):
+        # the epic's bill (#668): "N code" for N of an item; the gantry's BodyBill is held to this file
+        # by mods-src/seraphhorizons/tests/EidolonGantry/EidolonBodyTests.cs
+        totals = {}
+        for st in STAGES["stages"][1:]:
+            for ing in st["ingredients"]:
+                n, _, code = ing.rpartition(" ")
+                totals[code] = totals.get(code, 0) + (int(n) if n else 1)
+        self.assertEqual(totals.get("seraphhorizons:gear-stainless"), 12)
+        self.assertEqual(totals.get("game:metal-parts"), 16)
+        self.assertEqual(totals.get("game:rustypart-eidolon2tr"), 1)
+        self.assertEqual(totals.get("game:gear-temporal"), 1)
+        self.assertNotIn("game:eidolongearbox", totals)
+        self.assertFalse(any("largegear" in c for c in totals), "no large gears")
+        jonas = {c: n for c, n in totals.items() if c.startswith(("game:jonasparts-", "game:jonasframes-"))}
+        self.assertEqual((len(jonas), sum(jonas.values())), (14, 16))
+        steel = (2 * totals["game:metalplate-steel"] + totals["game:rod-steel"]
+                 + totals["game:metalnailsandstrips-steel"] / 4)
+        self.assertEqual(steel, 43)
+        self.assertEqual(STAGES["stages"][-1]["ingredients"], ["game:gear-temporal"])
+        self.assertIn("game:rustypart-eidolon2tr", STAGES["stages"][-2]["ingredients"])
 
     def test_the_stage_file_is_the_stage_map(self):
         self.assertEqual(STAGES, make_shape.stages_file(SHAPE))

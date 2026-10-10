@@ -6,9 +6,13 @@ sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On
 defends itself and stands guard. At 0 HP it slumps disabled and can be repaired; it is never killed.
 It is built stage by stage in a mostly wooden gantry.
 
-**Status: the model only.** This folder holds the shape's generator (`tools/`). There is no gameplay
-yet: no entity type, no AI, no gantry. The shape and the stage map below are what those will be
-built against, and the stage map and its ingredients are a **proposal for review**.
+**Status: the model and the entity.** This folder holds the shape's generator (`tools/`) and the
+entity (#673): its type, ownership, charge, slumping and a first pathfinder for its size, in `Core/`
+and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantry, upkeep, command tool
+and jobs plug into; the body stages and the waking (#672: the gantry's `BEBehaviorEidolonBody`,
+`../EidolonGantry/`), oil and repair (#674), and the command tool's binding, mode wheel and marking,
+following, staying and self-defence (#675) are built too, and hauling trunks to the rosser and the
+bucking mill (#678). The other jobs are not built yet.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.
@@ -23,7 +27,7 @@ against the 1.22.7 file (`VANILLA_SHA256`; a different file stops the script) an
 | File | What it holds |
 |---|---|
 | `assets/seraphhorizons/shapes/entity/eidolon/eidolon.json` | The shape: vanilla's 218 elements unchanged but for the spine's 29, cut off (below), so 189, and three anchor elements, five new attachment points, 23 vanilla animations and 18 authored ones. Strict JSON. |
-| `assets/seraphhorizons/config/eidolon-stages.json` | The build stages, each with its ingredients (proposal) and the element names it adds. |
+| `assets/seraphhorizons/config/eidolon-stages.json` | The build stages, each with its ingredients (the body bill) and the element names it adds. |
 | `assets/seraphhorizons/config/eidolon-rig.json` | For the model viewer: a part per build stage, matching its elements by name, needing its own `requires`, with no drivers (below). Not read by the game. |
 | `../EidolonGantry/spine.json` | The spine, as vanilla has it, and the element it hangs from (`chest-inside`): the gantry generator's input. Not shipped. |
 
@@ -77,7 +81,9 @@ neither set of animations has to move the other's anchor away from rest. It cost
 | `ObjectR`, `ObjectL` | `wristR`, `wristL` | Vanilla's, kept | Unused by vanilla's mobile eidolon. |
 
 Carry On's own player point is `carryon:FrontCarry` (patched onto the seraph by Carry On); the
-eidolon's gameplay will draw its carried block itself at `Carry`.
+eidolon draws its carried block itself at `Carry`, and its carried trunk at `Trunk` or `ThickTrunk`, in
+its own renderer (`Eidolon/Game/EidolonShapeRenderer.cs`, through `EidolonAttachmentRender`, which any
+point can use); the axe at `RightHand` is the game's held-item drawing.
 
 ## Animations
 
@@ -193,7 +199,7 @@ when negative; rotation x moves the right arm or leg out when positive, the left
 | `fell` hands at the cut | within 0.3 of the targets; wind-up with the right hand at 62 (above the 60-voxel head) |
 | A thin trunk on the shoulder against the head and hood | no corner of the head inside it |
 
-## Build stages (proposal)
+## Build stages
 
 The gantry shows the body cumulatively, stage by stage, by element name; `eidolon-stages.json`
 lists each stage's elements. Each stage claims some root elements and everything under them that no
@@ -201,8 +207,13 @@ other root claims, so every element is in exactly one stage. The spine is in non
 hanging in it by the ring over its top peg before anything is fitted. The torso comes first, the chest
 block with its plates, clamped onto the spine by the spine's steel clamps, so the spine holds the body
 from the first part fitted on. The
-ingredients are the first proposal, matched to the model's parts; the steel comes to **20 ingots** (a
-`metalplate` is 2 ingots, a `rod` 1).
+ingredients are the epic's body bill (#668), which the gantry's body stages take
+(`../EidolonGantry/Core/BodyParts.cs`, `BodyBill`; a test holds the stages file to it). The steel comes to
+about **43 ingots** (a `metalplate` is 2 ingots, a `rod` 1, four `metalnailsandstrips` 1), with 16 Jonas
+items (all 14 kinds once, the knee joint and the spring twice), 16 `game:metal-parts`, 12 stainless gears
+(`seraphhorizons:gear-stainless`; no large gears), the vessel and a temporal gear. The game's
+`eidolongearbox` (disabled in vanilla) is not used. How they are fitted, and the waking, is in the mod's
+README ("Eidolon").
 
 **Attached, not parents first.** In the shape's hierarchy the chest block hangs off the hip block
 (`origin` > `hip-inside` > `chest-inside`), so with the torso first the chest's parent arrives a stage
@@ -219,12 +230,12 @@ the cores into chest and head). Re-rooting the claims instead (the torso owning 
 | Stage | Ingredients | Elements (claim roots; the full list is in the stages file) | What they are in the model |
 |---|---|---|---|
 | 1 Gantry | Wood: the gantry's own model | None | The frame it hangs in. |
-| 2 Torso (18) | `game:eidolongearbox` (disabled in vanilla; to be enabled), `game:jonasparts-tank01`, `game:jonasparts-tank02`, `game:jonasparts-pumphead`, 2 `game:metalplate-steel` (4 ingots) | `chest-inside`, `collar-front`, `collar-R`, `collar-L`, `chest-plateR`, `chest-plateL`, `chest-backplate`, `chest-sideplateR`, `chest-sideplateL`, `chest-sash2`, `bar-chestR1`, `bar-chestR2`, `bar-chestL1`, `bar-chestL2`, `carry-anchor`, `trunk-anchor`, `thick-trunk-anchor` | The lattice chest block, its plates, collar and sashes (and the three invisible anchors), clamped to the gantry's spine. |
-| 3 Pelvis (15) | `game:eidolongearbox`, `game:jonasframes-gearbox02`, 2 `game:metalplate-steel` (4 ingots) | `origin`, `hip-inside`, `hip-tassetR`, `hip-tassetL`, `back-tassetR`, `back-tassetL`, `waist-fauld`, `chainskirt-back1`, `chainskirt-front1`, `bar-hip` | The lattice hip block under the chest block (the gearbox), the leather fauld with its tassets, the brass hip and back tassets, the chain skirts. |
-| 4 Legs (55) | 2 `game:jonasframes-joint01` (the knees), `game:jonasframes-spring01`, 2 `game:rod-steel`, 2 `game:metalplate-steel` (6 ingots) | `bar-legs`, `upperlegR`, `upperlegL` | The hip axle and both legs: wooden thighs and shins, steel knees (`kneeR`, `kneeL`), brass shin and knee plates, feet. |
-| 5 Arms (77) | `game:eidolongearbox` (the shoulders), `game:jonasframes-gears01`, `game:jonasframes-gears02`, `game:jonasparts-cylinder01`, `game:jonasparts-valve01`, 2 `game:rod-steel`, `game:metalplate-steel` (4 ingots) | `bar-arms`, `upper-armR`, `upperarmL` | The shoulder axle and both arms: shoulder plates, wooden arm bones, elbows (`elbowR`, `elbowL`), bracers, wrists and hands. |
-| 6 Head (21) | `game:jonasframes-oscillator01`, `game:jonasparts-cylinder02`, `game:jonasframes-gearbox01`, `game:jonasparts-connector01`, `game:metalplate-steel` (2 ingots) | `neck`, `head-inside`, `hood-back3`, `hood-back4` | The neck, the lattice head block, the wooden face and head plates, the brass hood, and the eye's bracket (`Eye-bracket`), without the eye's light. |
-| 7 Mind (6) | `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel), `game:gear-temporal` (its charge, a quarter in-game year) | `brain`, `heart`, `Eye-out` | The two glowing cores, the brain in the head (the vessel) and the heart in the chest (the temporal gear), with their bars, and the eye's red light: what lights up when it wakes. |
+| 2 Torso (18) | `game:jonasparts-tank01`, `game:jonasparts-tank02`, `game:jonasparts-pumphead` (the curio dealer's), 4 `game:metalplate-steel`, 8 `game:metalnailsandstrips-steel`, 4 `game:metal-parts`, 3 `seraphhorizons:gear-stainless` (10 ingots) | `chest-inside`, `collar-front`, `collar-R`, `collar-L`, `chest-plateR`, `chest-plateL`, `chest-backplate`, `chest-sideplateR`, `chest-sideplateL`, `chest-sash2`, `bar-chestR1`, `bar-chestR2`, `bar-chestL1`, `bar-chestL2`, `carry-anchor`, `trunk-anchor`, `thick-trunk-anchor` | The lattice chest block, its plates, collar and sashes (and the three invisible anchors), clamped to the gantry's spine. |
+| 3 Pelvis (15) | `game:jonasframes-gearbox02`, 3 `game:metalplate-steel`, 8 `game:metalnailsandstrips-steel`, 3 `game:metal-parts`, 2 `seraphhorizons:gear-stainless` (8 ingots) | `origin`, `hip-inside`, `hip-tassetR`, `hip-tassetL`, `back-tassetR`, `back-tassetL`, `waist-fauld`, `chainskirt-back1`, `chainskirt-front1`, `bar-hip` | The lattice hip block under the chest block (the gearbox), the leather fauld with its tassets, the brass hip and back tassets, the chain skirts. |
+| 4 Legs (55) | 2 `game:jonasframes-joint01` (the knees), 2 `game:jonasframes-spring01`, 4 `game:rod-steel`, 3 `game:metalplate-steel`, 8 `game:metalnailsandstrips-steel`, 3 `game:metal-parts`, 2 `seraphhorizons:gear-stainless` (12 ingots) | `bar-legs`, `upperlegR`, `upperlegL` | The hip axle and both legs: wooden thighs and shins, steel knees (`kneeR`, `kneeL`), brass shin and knee plates, feet. |
+| 5 Arms (77) | `game:jonasframes-gears01`, `game:jonasframes-gears02`, `game:jonasparts-cylinder01`, `game:jonasparts-valve01`, 4 `game:rod-steel`, 2 `game:metalplate-steel`, 8 `game:metalnailsandstrips-steel`, 4 `game:metal-parts`, 3 `seraphhorizons:gear-stainless` (10 ingots) | `bar-arms`, `upper-armR`, `upperarmL` | The shoulder axle and both arms: shoulder plates, wooden arm bones, elbows (`elbowR`, `elbowL`), bracers, wrists and hands. |
+| 6 Head (23) | `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel, its brain: one per player who hurt the archives' eidolon), `game:jonasframes-oscillator01`, `game:jonasframes-gearbox01`, `game:jonasparts-cylinder02`, `game:jonasparts-connector01`, `game:metalplate-steel`, 4 `game:metalnailsandstrips-steel`, 2 `game:metal-parts`, 2 `seraphhorizons:gear-stainless` (3 ingots) | `neck`, `head-inside`, `hood-back3`, `hood-back4`, `brain` | The neck, the lattice head block, the wooden face and head plates, the brass hood, the eye's bracket (`Eye-bracket`), without the eye's light, and the brain (the vessel, with its bar), fitted with the head and so shown in the head hung in the gantry. |
+| 7 Mind (4) | `game:gear-temporal` (its first charge, a quarter in-game year), which wakes it | `heart`, `Eye-out` | The heart in the chest (the temporal gear) with its bars, and the eye's red light: what lights up when it wakes. In the gantry the mind is never drawn: fitting it wakes the eidolon, which leaves. |
 
 **In the model viewer** the eidolon's page shows the stages too: a **Build state** select (torso, pelvis,
 legs, arms, head, mind: fully built, where it opens) and a checkbox per stage, from
@@ -238,9 +249,9 @@ and the generator checks every element lands in its own stage.
 
 Some elements under the hip and chest blocks belong to other stages by design: `bar-legs` (the
 legs' axle, under `hip-inside`) and `bar-arms` (the arms', under `chest-inside`) arrive with their
-limbs; `neck`, `hood-back3` and `hood-back4` (under `chest-inside`) arrive with the head; `heart`
-(under `chest-inside`), `brain` (under `head-inside`) and `Eye-out` (under `Eye-bracket`) arrive with
-the mind; and the chest block itself (under `hip-inside`) arrives before its parent, as above.
+limbs; `neck`, `hood-back3` and `hood-back4` (under `chest-inside`) arrive with the head, and so does
+`brain` (under `head-inside`), the vessel the head takes; `heart` (under `chest-inside`) and `Eye-out`
+(under `Eye-bracket`) arrive with the mind; and the chest block itself (under `hip-inside`) arrives before its parent, as above.
 
 ## Regenerating
 
@@ -284,6 +295,5 @@ part listed too late is caught).
 - **The axe's orientation in the hand** comes from the item's `tpHandTransform` in the `RightHand`
   frame, matched to the seraph's at rest; whether the head points at the trunk through the swing can
   only be seen in the game.
-- **Ingredients and steel** per stage are the first proposal; the counts are to taste.
 - **The restyle** is one texture (rusty iron to tarnished brass); more (the charred wood bones, the
   rusty chain skirt) is a matter of taste.
