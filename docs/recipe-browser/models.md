@@ -511,7 +511,8 @@ checks the handcar's anchors, its grips riding the beam, and the handcar as a ve
 three turns, `distancePerCycle` rolled in one, and its axle boxes on its axles.
 `site/test/riddle.test.ts` replays the riddle's two reference files (`mods-src/seraphhorizons/tests/Riddle/`: the
 hand riddle and the riddle on its stand), whose shake is a gauge's `lobes` on ψ with no driver reading θ, and
-holds the stand's riddle level on its hangers.
+holds the stand's riddle on its pins (lever, link and hanger a parallelogram), tipped into its second block and
+back at rest by the end of a charge.
 `site/test/keyframes.test.ts` holds the keyframe maths to `site/test/fixtures/keyframes.json`, a small
 shape with three animations (a channel set on one keyframe only, wrapping round the end,
 `rotShortestDistance`, stretch, a held end, a child carried by its parent), worked by hand, and holds

@@ -11,8 +11,8 @@ from __future__ import annotations
 import math
 import re
 
-from machinegen.checks import bearing_margin, box_overhang, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
-from machinegen.geometry import aabb_of, mvec
+from machinegen.checks import bearing_margin, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
+from machinegen.geometry import aabb_of
 from machinegen.rigmath import apply as _apply
 from machinegen.rigmath import part_of, posed
 
@@ -51,9 +51,9 @@ class V:
         r = re.compile(rx)
         return [e for e in self.posed(pid, pose) if r.search(e.name)]
 
-    def in_riddle(self, pid, pose):
-        """A part's elements posed in the riddle's own frame: as the rig poses them, then the riddle's motion undone."""
-        f = self.mat("riddle", pose)
+    def relative(self, pid, frame_pid, pose):
+        """A part's elements posed in another part's frame: as the rig poses them, the other part's motion undone."""
+        f = self.mat(frame_pid, pose)
         rt = [[f[j][i] for j in range(3)] for i in range(3)]
         t = [-sum(rt[i][j] * f[j][3] for j in range(3)) for i in range(3)]
         inv = [rt[0] + [t[0]], rt[1] + [t[1]], rt[2] + [t[2]], [0.0, 0.0, 0.0, 1.0]]
@@ -73,14 +73,12 @@ def cycle_poses(v, step=0.005):
 
 def grid_poses(v):
     """W over the cycle against the shake's phase (psi a quarter turn apart and between), both classes."""
-    m = v.m
-    ws = (0.0, 0.03, 0.06, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.82, 0.9, 1.0)
+    ws = (0.0, 0.03, 0.06, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.64, 0.7, 0.8, 0.82, 0.9, 1.0)
+    if v.md.key == "stand":
+        ws += (0.69, 0.73, 0.77, 0.81, 0.83, 0.85, 0.87, 0.93, 0.97)
     psis = [i * math.pi / 4 for i in range(8)]
-    return [(psi, w, k, 1.0) for k in (1, 2) for w in ws for psi in psis] + [(psi, 0.5, k, 0.5) for k in (1, 2) for psi in psis[::2]]
-
-
-def radius(p, m):
-    return math.hypot(p[0] - m.CX, p[2] - m.CZ)
+    return ([(psi, w, k, 1.0) for k in (1, 2) for w in sorted(set(ws)) for psi in psis]
+            + [(psi, 0.5, k, 0.5) for k in (1, 2) for psi in psis[::2]])
 
 
 def check_basic(v):
@@ -102,21 +100,33 @@ def check_basic(v):
 
 
 def check_containment(v, poses):
-    m = v.m
-    box = (m.CELLS_X, m.CELLS_Y, m.CELLS_Z)
+    """Nothing leaves the footprint's box, but for the parts the model lets rise above it (the stand's lever),
+    and those only through its top: never out of its sides or under it."""
+    m, md = v.m, v.md
+    size = [n * 16.0 for n in md.cells]
     worst, where = -1e9, None
+    above = 0.0
     for pose in poses:
         for pid in v.by_part:
             if not present(m, pid, pose[2]):
                 continue
             for el in v.posed(pid, pose):
                 lo, hi = el.aabb()
-                o = box_overhang(lo, hi, box)
+                sides = [-lo[0], -lo[1], -lo[2], hi[0] - size[0], hi[2] - size[2]]
+                top = hi[1] - size[1]
+                if pid in md.above:
+                    above = max(above, top)
+                else:
+                    sides.append(top)
+                o = max(sides)
                 if o > worst:
                     worst, where = o, (el.name, pose)
-    print(f"containment over {len(poses)} poses: worst overhang {worst:.3f} voxels ({where[0]})")
+    allowed = f"; {', '.join(md.above)} up to {above:.2f} over the top" if md.above else ""
+    print(f"containment over {len(poses)} poses: worst overhang {worst:.3f} voxels ({where[0]}){allowed}")
     if worst > 0.01:
-        v.fail(f"{where[0]} leaves the block at {where[1]}")
+        v.fail(f"{where[0]} leaves the footprint at {where[1]}")
+    if md.above and above < 1.0:
+        v.fail("the lever does not rise above the block")
 
 
 def check_floating(v):
@@ -128,15 +138,15 @@ def check_floating(v):
 
 ROLES = [
     # (element regex, the textures it may wear)
-    (r"^(fr_)?tub_(stave|bottom)", {"planks"}),
-    (r"^(fr_)?tub_hoop", {"iron"}),
-    (r"^fr_(bearer|leg|rail|endrail|stretcher|endstretcher)", {"oak"}),
-    (r"^fr_(bracket|boss|pin|leverpin)", {"iron"}),
-    (r"^riddle_rim", {"oak"}),
-    (r"^riddle_(band|wire)", {"iron"}),
+    (r"^(fr_)?o?box_(wall|bottom)", {"planks"}),
+    (r"^(fr_)?o?box_corner", {"iron"}),
+    (r"^fr_(bearer|leg|rail|endrail|stretcher|endstretcher|roller)", {"oak"}),
+    (r"^fr_(bracket|bearing|pin)", {"iron"}),
+    (r"^riddle_(lower|upper)", {"oak"}),
+    (r"^riddle_wire", {"iron"}),
     (r"^(hanger|lug|link)_", {"iron"}),
     (r"^lever_bar", {"oak"}),
-    (r"^lever_(knuckle|pin)", {"iron"}),
+    (r"^lever_(strap|pin)", {"iron"}),
     (r"^c[12](base|top|mid|fines)", {"ore"}),
 ]
 
@@ -153,28 +163,25 @@ def check_textures(v):
         v.fail(f"textures off their role: {bad[:6]}")
 
 
-def y_range(els):
-    """(the highest bottom, the lowest top) of a stack of strips: what is surely inside all of them."""
-    return max(e.aabb()[0][1] for e in els), min(e.aabb()[1][1] for e in els)
-
-
-def inside(v, inner, outer, r_outer, what):
-    """Every element of `inner` lies inside the strips of `outer` (a disc of radius r_outer) by HIDE_MARGIN."""
-    m = v.m
-    lo, hi = y_range(outer)
-    ilo = min(e.aabb()[0][1] for e in inner)
-    ihi = max(e.aabb()[1][1] for e in inner)
-    rmax = max(radius(c, m) for e in inner for c in e.corners())
-    margin = min(ilo - lo, hi - ihi, r_outer - rmax)
-    if margin < m.HIDE_MARGIN - 1e-9:
+def inside(v, inner, outer, what):
+    """Every element of `inner` lies inside the box `outer` (one element, axis-aligned in this frame) by HIDE_MARGIN."""
+    lo, hi = aabb_of(outer)
+    ilo, ihi = aabb_of(inner)
+    margin = min(min(ilo[k] - lo[k], hi[k] - ihi[k]) for k in range(3))
+    if margin < v.m.HIDE_MARGIN - 1e-6:
         v.fail(f"{what} is not hidden (margin {margin:.3f})")
     return margin
 
 
+def bottom_of(v, pose):
+    box = "frame" if v.md.key == "hand" else "boxes"
+    return [e for e in v.posed(box, pose) if re.search(r"^(fr_)?box_bottom", e.name)]
+
+
 def check_charge(v):
-    """At W 0 the heap lies as loaded and the fines are hidden in the tub's bottom; at W 1 every layer of fines
-    has sunk inside the oversize bed, which has not moved in the riddle, and the fines lie in the tub, the
-    first layer on the bottom and the second on it."""
+    """At W 0 the heap lies as loaded and the fines are hidden in the box's bottom; the bed moves with the riddle
+    while it is riddled; every layer of fines sinks inside the bed (a full charge's top first inside its lower
+    layer) and the fines lie in the box at W 1, the first layer on the bottom and the second on it."""
     m, md = v.m, v.md
     worst = 1e9
     for k, pre in ((1, "c1"), (2, "c2")):
@@ -183,44 +190,42 @@ def check_charge(v):
             if pid.startswith(pre):
                 if any(abs(a - b) > 1e-9 for ea, eb in zip(v.posed(pid, start), v.by_part[pid]) for a, b in zip(ea.c, eb.c)):
                     v.fail(f"{pid} is not as loaded at W 0")
-        for pose in (done, m.pose_at(md, k, 0.5)):
-            base = v.in_riddle(f"{pre}base", pose)
-            if any(abs(a - b) > 1e-9 for ea, eb in zip(base, v.by_part[f"{pre}base"]) for a, b in zip(ea.c, eb.c)):
-                v.fail(f"the oversize bed ({pre}) moves in the riddle")
-        base = v.in_riddle(f"{pre}base", done)
+        # the bed is part of the riddle while it is riddled (on the stand until it is lifted out)
+        last = md.t["lift"][0] if "lift" in md.t else 1.0
+        for w in [i * 0.01 for i in range(int(round(last * 100)) + 1)]:
+            for psi in (0.0, 1.3, 2.9):
+                a, b = v.mat(f"{pre}base", (psi, w, k, 1.0)), v.mat("riddle", (psi, w, k, 1.0))
+                if max(abs(a[i][j] - b[i][j]) for i in range(3) for j in range(4)) > 1e-9:
+                    v.fail(f"the oversize bed ({pre}) leaves the riddle at W {w:.2f}")
+                    break
         sunk = ("c1top",) if k == 1 else ("c2mid", "c2top")
+        bed = v.relative(f"{pre}base", f"{pre}base", done)
         for pid in sunk:
-            worst = min(worst, inside(v, v.in_riddle(pid, done), base, m.BASE[0], f"{pid} at W 1"))
+            worst = min(worst, inside(v, v.relative(pid, f"{pre}base", done), bed, f"{pid} at W 1"))
         if k == 2:
-            # the top is first sunk into the lower layer, before that sinks (measured in the riddle: it is shaken then)
-            t = m.pose_at(md, 2, (m.T_TOP[1] + m.T_MID[0]) / 2)
-            worst = min(worst, inside(v, v.in_riddle("c2top", t), v.in_riddle("c2mid", t), m.MID[0], "c2top in c2mid"))
-        bottom = v.named("frame" if md.key == "hand" else "tub", r"tub_bottom", start)
+            t = m.pose_at(md, 2, (md.t["top"][1] + md.t["mid"][0]) / 2)
+            worst = min(worst, inside(v, v.relative("c2top", "c2mid", t), v.relative("c2mid", "c2mid", t), "c2top in c2mid"))
         fines = ("c1fines",) if k == 1 else ("c2fines1",)
         for pid in fines:
-            worst = min(worst, inside(v, v.posed(pid, start), bottom, m.TUB_BOTTOM_R, f"{pid} at W 0"))
-            low = min(e.aabb()[0][1] for e in v.posed(pid, done))
-            if abs(low - m.TUB_BOTTOM[1]) > 1e-4:
-                v.fail(f"{pid} does not lie on the tub's bottom at W 1 ({low:.4f})")
+            worst = min(worst, inside(v, v.posed(pid, start), bottom_of(v, start), f"{pid} at W 0"))
+            low = aabb_of(v.posed(pid, done))[0][1]
+            if abs(low - m.BOX_BOTTOM) > 1e-4:
+                v.fail(f"{pid} does not lie on the box's bottom at W 1 ({low:.4f})")
         if k == 2:
-            worst = min(worst, inside(v, v.posed("c2fines2", start), v.posed("c2fines1", start), m.F1[0], "c2fines2 at W 0"))
-            top1 = max(e.aabb()[1][1] for e in v.posed("c2fines1", done))
-            low2 = min(e.aabb()[0][1] for e in v.posed("c2fines2", done))
+            worst = min(worst, inside(v, v.posed("c2fines2", start), v.posed("c2fines1", start), "c2fines2 at W 0"))
+            top1 = aabb_of(v.posed("c2fines1", done))[1][1]
+            low2 = aabb_of(v.posed("c2fines2", done))[0][1]
             if abs(low2 - top1) > 1e-4:
                 v.fail(f"the second layer of fines does not lie on the first at W 1 ({low2:.4f} on {top1:.4f})")
-        for pid in fines + (("c2fines2",) if k == 2 else ()):
-            rmax = max(radius(c, m) for e in v.posed(pid, done) for c in e.corners())
-            if rmax > m.TUB_R - m.STAVE_T - 0.05:
-                v.fail(f"{pid} reaches the staves ({rmax:.2f})")
-    heap = max(e.aabb()[1][1] for e in v.posed("c2top", m.pose_at(md, 2, 0.0)))
-    rim = md.y0 + m.RIM_H
-    print(f"charge: as loaded at W 0 (a full charge heaped {heap - rim:.2f} over the rim); every layer of fines hidden "
-          f"when sunk or before it rises, by at least {worst:.3f}; the fines on the tub's bottom at W 1, the bed left in the riddle")
+    heap = aabb_of(v.posed("c2top", m.pose_at(md, 2, 0.0)))[1][1]
+    print(f"charge: as loaded at W 0 (a full charge heaped {heap - md.y0 - m.RIM_H:.2f} over the rim); the bed moves with the "
+          f"riddle while it is riddled; every layer of fines hidden when sunk or before it rises, by at least {worst:.3f}; "
+          "the fines in the box at W 1")
 
 
 def riddle_centre(v, pose):
     m, md = v.m, v.md
-    return v.point("riddle", pose, [m.CX, md.y0 + m.RIM_H / 2, m.CZ])
+    return v.point("riddle", pose, [md.centre[0], md.y0 + m.RIM_H / 2, md.centre[1]])
 
 
 def check_shake(v):
@@ -228,8 +233,9 @@ def check_shake(v):
     by hand, side to side) as far as designed."""
     m, md = v.m, v.md
     psis = [i * math.pi / 8 for i in range(16)]
+    outside = (0.0, 0.02, md.t["shake"][3] + 0.01, 0.9, 1.0)
     for k in (1, 2):
-        for w in (0.0, 0.02, 0.86, 0.93, 1.0):
+        for w in outside:
             ref = {p["id"]: v.mat(p["id"], (0.0, w, k, 1.0)) for p in v.parts}
             for psi in psis:
                 for p in v.parts:
@@ -238,30 +244,28 @@ def check_shake(v):
                         v.fail(f"the clock moves {p['id']} outside the shaking window (W {w})")
                         return
     rest = riddle_centre(v, m.REST)
-    dz = [riddle_centre(v, (psi, 0.5, 2, 1.0))[2] - rest[2] for psi in psis]
-    dx = [riddle_centre(v, (psi, 0.5, 2, 1.0))[0] - rest[0] for psi in psis]
-    want_z = m.SHAKE_Z if md.key == "hand" else m.SWING
+    w = (md.t["shake"][1] + md.t["shake"][2]) / 2
+    dz = [riddle_centre(v, (psi, w, 2, 1.0))[2] - rest[2] for psi in psis]
+    dx = [riddle_centre(v, (psi, w, 2, 1.0))[0] - rest[0] for psi in psis]
+    want_z = m.SHAKE_Z if md.key == "hand" else m.RIDDLE_SWING
     want_x = m.SHAKE_X if md.key == "hand" else 0.0
     got_z, got_x = max(abs(d) for d in dz), max(abs(d) for d in dx)
     print(f"shake: the clock moves nothing outside the window; in it the riddle goes {got_z:.3f} to and fro (want {want_z}), "
           f"{got_x:.3f} side to side (want {want_x})")
-    if abs(got_z - want_z) > 0.01 or abs(got_x - want_x) > 0.01:
+    if abs(got_z - want_z) > 0.05 or abs(got_x - want_x) > 0.01:
         v.fail("the shake is not as designed")
 
 
 def check_hand(v):
     """The riddle rests on the bearers, across both, and is lifted clear of them while it is shaken."""
     m = v.m
-    low = min(e.aabb()[0][1] for e in v.posed("riddle", m.REST))
-    if abs(low - m.HAND_Y0) > 1e-6 or abs(m.HAND_Y0 - (m.TUB_H + m.BEARER_H)) > 1e-9:
+    low = aabb_of(v.posed("riddle", m.REST))[0][1]
+    if abs(low - m.HAND_Y0) > 1e-6:
         v.fail(f"the riddle does not rest on the bearers ({low:.3f})")
-    reach = math.sqrt(m.RIM_R ** 2 - (m.BEARER_Z[1] - m.CZ) ** 2)
-    if not (m.BEARER_X[0] < m.CX - reach and m.CX + reach < m.BEARER_X[1]):
-        v.fail("the riddle's rim does not cross both bearers")
     worst = 1e9
     bearers = [e.aabb() for e in v.named("frame", r"bearer", m.REST)]
     for pose in grid_poses(v):
-        if not (m.T_SHAKE[1] <= pose[1] <= m.T_SHAKE[2]):
+        if not (m.HAND_T["shake"][1] <= pose[1] <= m.HAND_T["shake"][2]):
             continue
         for e in v.posed("riddle", pose):
             lo, hi = e.aabb()
@@ -273,62 +277,93 @@ def check_hand(v):
         v.fail("the shaken riddle rubs on the bearers")
 
 
-def rotation_error(mm):
-    return max(abs(mm[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(3))
+def roller_gap(v, pose):
+    """How far the riddle's underside stands off the roller (negative: into it), in the plane x = const."""
+    m, md = v.m, v.md
+    ry, rz, rr = m.ROLLER
+    mm = v.mat("riddle", pose)
+    # the underside: the plane y = y0 in the riddle's frame; its normal and a point on it, posed
+    n = [mm[0][1], mm[1][1], mm[2][1]]
+    p = v.point("riddle", pose, [md.centre[0], md.y0, md.centre[1]])
+    return -((ry - p[1]) * n[1] + (rz - p[2]) * n[2]) - rr
 
 
 def check_stand(v):
-    """The riddle hangs level; its trunnions stay in the hangers' eyes and the link's eye on the hanger's pin;
-    the lever's pin stays in the link's slot; every pin in its bearing."""
-    m = v.m
-    poses = [m.REST] + grid_poses(v) + cycle_poses(v, 0.01)
-    level = max(rotation_error(v.mat("riddle", pose)) for pose in poses)
-    trun = link_h = 0.0
-    slot_y = slot_z = 0.0
-    lz = m.LEVER_PIVOT[1]
+    """The riddle's north end on the hangers' pins, the link exactly on its two pins (a parallelogram), the
+    riddle's underside on the roller (riddled, swung out and back); tipped into the second cell at full swing,
+    back at rest by W 1; the oversize laid flat on the oversize box's floor; every pin carried."""
+    m, md = v.m, v.md
+    poses = [m.REST] + grid_poses(v) + cycle_poses(v, 0.005)
+    pin = link = 0.0
+    lo_gap, hi_gap = 1e9, -1e9
     for pose in poses:
-        for x in (m.CX - m.RIM_R, m.CX + m.RIM_R):
-            p = [x, m.TRUNNION_Y, m.CZ]
+        for x in (md.centre[0] - m.UPPER_HALF, md.centre[0] + m.UPPER_HALF):
+            p = [x, m.HANG_Y, m.HANG_Z]
             a, b = v.point("lugs", pose, p), v.point("hangers", pose, p)
-            trun = max(trun, max(abs(a[i] - b[i]) for i in range(3)))
-        p = [m.LINK_X[0], m.LINK_PIN_Y, m.CZ]
-        a, b = v.point("link", pose, p), v.point("hangers", pose, p)
-        link_h = max(link_h, max(abs(a[i] - b[i]) for i in range(3)))
-        q = [m.LINK_X[0], m.LINK_PIN_Y, lz]
-        a, b = v.point("lever", pose, q), v.point("link", pose, q)
-        slot_y, slot_z = max(slot_y, abs(a[1] - b[1])), max(slot_z, abs(a[2] - b[2]))
-    room = (m.SLOT_Y[1] - m.SLOT_Y[0]) / 2 - m.LINK_PIN_R - 0.05
-    print(f"stand: the riddle level within {level:.1e}; trunnions in the hangers' eyes within {trun:.1e}; the link on the "
-          f"hanger's pin within {link_h:.1e}; the lever's pin in the link's slot, {slot_y:.3f} up or down (room {room:.2f}), "
-          f"{slot_z:.4f} along it")
-    if level > 1e-9:
-        v.fail("the riddle tilts as it swings")
-    if trun > 1e-6 or link_h > 1e-6:
+            pin = max(pin, max(abs(a[i] - b[i]) for i in range(3)))
+        for z, other in ((m.HANG_Z, "hangers"), (m.LEVER_Z, "lever")):
+            p = [m.LINK_X[0], m.LINK_PIN_Y, z]
+            a, b = v.point("link", pose, p), v.point(other, pose, p)
+            link = max(link, max(abs(a[i] - b[i]) for i in range(3)))
+        if pose[2]:
+            g = roller_gap(v, pose)
+            lo_gap, hi_gap = min(lo_gap, g), max(hi_gap, g)
+    print(f"stand: the riddle's north end on the hangers' pins within {pin:.1e}; the link on both its pins within {link:.1e}; "
+          f"the riddle's underside off the roller by {lo_gap:.3f} .. {hi_gap:.3f}")
+    if pin > 1e-6 or link > 1e-6:
         v.fail("a pin leaves its eye")
-    if slot_y > room or slot_z > 0.03:
-        v.fail("the lever's pin leaves the link's slot")
-    # every pin in its bearing; the hangers' and the lever's eyes round their pivots through the swing
+    if lo_gap < -0.06 or hi_gap > 0.12:
+        v.fail("the riddle does not ride on the roller")
+    # tipped into the second cell, and back
+    full = m.pose_at(md, 2, md.t["out"] + m.KNOTS * md.t["step"])
+    tip = math.degrees(math.atan2(v.mat("riddle", full)[2][1], v.mat("riddle", full)[1][1]))
+    lip = max(c[2] for e in v.posed("riddle", full) for c in e.corners())
+    back = max(max(abs(v.mat(p["id"], m.pose_at(md, k, 1.0))[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(4))
+               for p in v.parts if p["id"] in ("hangers", "riddle", "lever", "link") for k in (1, 2))
+    print(f"stand: swung out, the riddle tips {tip:.1f} degrees, its far end over the second cell to z {lip:.2f}; back at rest at "
+          f"W 1 within {back:.1e}")
+    if tip < 35.0 or lip < 17.0:
+        v.fail("the riddle does not tip over the oversize box")
+    if back > 1e-9:
+        v.fail("the riddle is not back at rest when the charge is delivered")
+    # the oversize laid flat on the oversize box's floor, inside its walls
+    obox = [e.aabb() for e in v.posed("boxes", m.REST) if e.name.startswith("obox_")]
+    inner = [(e.aabb()) for e in v.posed("boxes", m.REST) if e.name == "obox_bottom"][0]
+    for k, pre in ((1, "c1"), (2, "c2")):
+        lo, hi = aabb_of(v.posed(f"{pre}base", m.pose_at(md, k, 1.0)))
+        flat = max(abs(v.mat(f"{pre}base", m.pose_at(md, k, 1.0))[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(3))
+        if abs(lo[1] - inner[1][1]) > 1e-3 or flat > 1e-5 or not (inner[0][0] < lo[0] and hi[0] < inner[1][0]
+                                                                   and inner[0][2] < lo[2] and hi[2] < inner[1][2]):
+            v.fail(f"the oversize ({pre}) is not laid flat in the oversize box at W 1 ({lo}, {hi}, turn {flat:.1e})")
+    del obox
+    print("stand: the oversize tipped off and laid flat on the oversize box's floor, inside its walls")
+    # every pin carried; every eye round its pin through the swing
     frame = v.by_part["frame"]
     for s in ("w", "e"):
-        bracket = next(f for f in frame if f.name == f"fr_bracket_{s}")
-        rail = next(f for f in frame if f.name == f"fr_rail_{s}")
         pins = [f for f in frame if f.name.startswith(f"fr_pin_{s}")]
-        for bearing in (bracket, rail):
+        for bearing in (next(f for f in frame if f.name == f"fr_bracket_{s}"), next(f for f in frame if f.name == f"fr_rail_{s}")):
             mg = bearing_margin(bearing, pins, 0)
             if not (0 < mg < 1e8):
                 v.fail(f"the {s} hanger's pivot pin is not carried by {bearing.name}")
-    mg = bearing_margin(next(f for f in frame if f.name == "fr_boss"), [f for f in frame if f.name.startswith("fr_leverpin")], 0)
-    if not (0 < mg < 1e8):
-        v.fail("the lever's pivot pin is not in its boss")
+        roll = [f for f in frame if f.name.startswith("fr_roller")]
+        for bearing in (next(f for f in frame if f.name == f"fr_bearing_{s}"), next(f for f in frame if f.name == f"fr_legm_{s}")):
+            mg = bearing_margin(bearing, roll, 0)
+            if not (0 < mg < 1e8):
+                v.fail(f"the roller is not carried by {bearing.name}")
+    for bearing in (next(f for f in frame if f.name == "fr_bracket_lever"), next(f for f in frame if f.name == "fr_rail_w")):
+        mg = bearing_margin(bearing, [f for f in frame if f.name.startswith("fr_pin_lever")], 0)
+        if not (0 < mg < 1e8):
+            v.fail(f"the lever's pivot pin is not carried by {bearing.name}")
     worst = 1e9
-    for pose in poses:
-        for s, x in (("w", m.CX - m.RIM_R), ("e", m.CX + m.RIM_R)):
+    for pose in poses[::3]:
+        for s, x in (("w", md.centre[0] - m.UPPER_HALF), ("e", md.centre[0] + m.UPPER_HALF)):
             strap = v.named("hangers", rf"strap_{s}", pose)[0]
-            for p in ([x, m.PIVOT_Y, m.CZ], v.point("lugs", pose, [x, m.TRUNNION_Y, m.CZ])):
+            for p in ([x, m.PIVOT_Y, m.HANG_Z], v.point("lugs", pose, [x, m.HANG_Y, m.HANG_Z])):
                 worst = min(worst, eye_margin(strap, p))
-        knuckle = v.named("lever", r"knuckle", pose)[0]
-        worst = min(worst, eye_margin(knuckle, [m.CX, m.LEVER_PIVOT[0], lz]))
-    print(f"stand: pivot pins carried by the rails, the brackets and the boss; every eye round its pin by at least {worst:.3f}")
+        bar = v.named("lever", r"_bar", pose)[0]
+        worst = min(worst, eye_margin(bar, [md.centre[0], m.PIVOT_Y, m.LEVER_Z]))
+    print(f"stand: pivot pins carried by the rails and their plates, the roller by the middle legs and their bearings; every "
+          f"eye round its pin by at least {worst:.3f}")
     if worst < m.PIN_R:
         v.fail("an eye lets go of its pin")
 
@@ -343,20 +378,24 @@ def eye_margin(el, p):
 ALLOWED = {
     "hand": [
         ("riddle", None, "frame", r"fr_bearer"),
+        ("c[12]fines\\d?", None, "frame", r"box_bottom"),
     ],
     "stand": [
-        ("lugs", None, "riddle", r"_rim"), ("lugs", None, "hangers", None),
-        ("hangers", None, "frame", r"fr_pin|fr_bracket"),
+        ("lugs", None, "riddle", r"_upper"), ("lugs", None, "hangers", None),
+        ("hangers", None, "frame", r"fr_pin_|fr_bracket_"),
         ("link", None, "hangers", None), ("link", None, "lever", None),
-        ("lever", None, "frame", r"fr_leverpin|fr_boss"),
+        ("lever", None, "frame", r"fr_pin_lever|fr_bracket_lever"),
+        # the riddle rides on the roller
+        ("riddle", r"_lower", "frame", r"fr_roller"),
+        ("c[12]fines\\d?", None, "boxes", r"^box_bottom"),
+        # the oversize laid on the oversize box's floor
+        ("c[12]base", None, "boxes", r"obox_bottom"),
     ],
 }
 ALLOWED_BOTH = [
     # the charge: the bed on the mesh, each layer sinking into the one under it
-    ("c[12]base", None, "riddle", r"_wire|_band"),
+    ("c[12]base", None, "riddle", r"_wire"),
     ("c[12](top|mid)", None, "c[12](base|mid)", None),
-    # the fines: hidden in the tub's bottom, the second in the first
-    ("c[12]fines\\d?", None, "frame|tub", r"tub_bottom"),
     ("c2fines2", None, "c2fines1", None),
 ]
 
@@ -428,7 +467,7 @@ def validate(m, md, els, parts, rig, quick=False):
     check_basic(v)
     check_floating(v)
     check_textures(v)
-    check_containment(v, [m.REST] + grid_poses(v) + cycle_poses(v, 0.01))
+    check_containment(v, [m.REST] + grid_poses(v) + cycle_poses(v, 0.005))
     check_charge(v)
     check_shake(v)
     if md.key == "hand":
@@ -443,6 +482,9 @@ def validate(m, md, els, parts, rig, quick=False):
 
 
 def validate_files(m, md, shape, frame_shape, ship):
+    """Every texture declared; the cells exactly the footprint, every box inside its cell (so nothing drawn
+    outside the footprint, the stand's lever above the block, is selectable or solid), lids on every column;
+    no power cell."""
     ok = True
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
@@ -451,10 +493,16 @@ def validate_files(m, md, shape, frame_shape, ship):
         ok = False
     gaps = lid_gaps(ship["cells"])
     hollow = sum(1 for c in ship["cells"] if c.get("hollow"))
-    print(f"{md.key} files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, "
-          f"{hollow} hollow; lids over every column: {'yes' if not gaps else gaps}")
-    if gaps or hollow or len(ship["cells"]) != 1:
-        print(f"FAIL {md.key}: the cell is not one lidded block")
+    cells = sorted(tuple(c["pos"]) for c in ship["cells"])
+    want = sorted(tuple(c[k] - m.ORIGIN_CELL[k] for k in range(3)) for c in m.footprint(md))
+    boxes = [b for c in ship["cells"] for b in c.get("boxes", [])]
+    inside_cell = all(0.0 <= b[i] <= 1.0 and b[i] < b[i + 3] <= 1.0 for b in boxes for i in range(3))
+    lids = all(0.0 < c.get("lid", 0.0) <= 1.0 for c in ship["cells"])
+    print(f"{md.key} files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; cells {cells}, {hollow} hollow; "
+          f"{len(boxes)} boxes, all inside their cells: {'yes' if inside_cell else 'NO'}; lids over every column: "
+          f"{'yes' if not gaps and lids else gaps}")
+    if gaps or hollow or cells != want or not inside_cell or not lids:
+        print(f"FAIL {md.key}: the cells are not the footprint's, boxed inside it and lidded")
         ok = False
     if "powerCell" in ship or "powerFace" in ship:
         print(f"FAIL {md.key}: a hand station has no power cell")

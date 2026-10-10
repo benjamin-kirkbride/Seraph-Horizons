@@ -1,27 +1,32 @@
 #!/usr/bin/env python3
 """Generate the riddle's shapes, rigs and reference poses: the hand riddle and the riddle on its stand.
 
-The riddle is a miner's riddle of the 1800s, the hand tier of classifying crushed ore: a round sieve with a
-bent-wood rim and a coarse woven mesh of iron wire held in it by an iron band. Two models share it,
-element for element:
+The riddle is a miner's riddle of the 1800s, the hand tier of classifying crushed ore: a square, shallow
+sieve after the proportions of vanilla's pan (a frame of two stepped tiers of oak boards, 11.5 across at the
+top and 2 deep) with a coarse woven mesh of iron wire let into its lower tier. Two models share it, element
+for element:
 
-  * the hand riddle, one block: a cooper's low tub (oak staves, two iron hoops, a bottom set in above the
-    chime) with two oak bearers laid across its mouth, and the riddle on them. The player shakes it, lifted
-    just clear of the bearers, to and fro and side to side, and the fines fall through into the tub;
-  * the riddle on its stand, tier 1, one block: the same tub under a light oak stand (four legs, top rails,
-    low stretchers), the same riddle hung from the side rails by two iron hangers on trunnions at its
-    rim, and a hand lever on the operator's right that swings it to and fro through an iron link to the
-    west hanger. A full charge, a stack, is riddled without being held.
+  * the hand riddle, one block: a square plank box with iron corners and two oak bearers laid across its
+    mouth, and the riddle on them. The player shakes it, lifted just clear of the bearers, to and fro and
+    side to side, and the fines fall through into the box;
+  * the riddle on its stand, tier 1, two blocks long: a light oak stand over the same box (the fines box)
+    and, in the second block, a low box of the same make for the oversize. The riddle hangs at its north end
+    from two iron hangers and rests near its south end on an oak roller across the stand. A long hand lever
+    on the operator's right, pivoted on the side rail and rising above the block, swings the hangers through
+    an iron link (lever, link and hanger are a parallelogram): worked to and fro it riddles the charge;
+    pulled right back it swings the riddle out over the roller, which tips it into the second block, and the
+    oversize goes off its far end into the oversize box.
 
 A charge of crushed ore is drawn as a heap on the mesh: an oversize bed and one (a part charge) or two (a
 full charge) layers of fines over it. As the charge is riddled each layer of fines sinks into the one under
-it and the fines rise in the tub, layer by layer, out of the tub's bottom; the oversize bed is left in the
-riddle when the charge is done. Everything is built here from plain boxes; no other mod's model is used.
+it and the fines rise in the box, layer by layer, out of its bottom. By hand the bed is left in the riddle
+when the charge is done; on the stand it is tipped off into the oversize box. Everything is built here from
+plain boxes; no other mod's model is used.
 
 It writes, deterministically,
 
     riddle.json                    the hand riddle, every moving part         (assets/.../shapes/block/)
-    riddle_frame.json              its static frame only (the tub and bearers) (assets/.../shapes/block/)
+    riddle_frame.json              its static frame only (the box, bearers)   (assets/.../shapes/block/)
     riddlestand.json               the riddle on its stand, every moving part (assets/.../shapes/block/)
     riddlestand_frame.json         the stand's static frame only              (assets/.../shapes/block/)
     riddle-rig.json                the hand riddle's cells, anchors and rig   (assets/.../config/)
@@ -33,8 +38,8 @@ or, with `--out DIR`, all eight into DIR. It validates its own output (validate_
 non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
-cell's north-west-bottom corner (the "build frame"); each model is one cell, the controller [0,0,0], so the
-shipped files are the build frame divided by 16. The operator stands to the north.
+controller cell's north-west-bottom corner (the "build frame"), so the shipped files are the build frame
+divided by 16. The operator stands to the north; the stand runs south from the controller.
 
 The rigs' inputs, as these models use them (README, "Rig schema"):
 
@@ -63,7 +68,7 @@ from machinegen.geometry import IDENT, El, flatten, rot, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
-from machinegen.rigmath import part_of, posed, progress_of, validate_driver  # noqa: E402
+from machinegen.rigmath import about, apply, part_of, posed, progress_of, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -75,11 +80,9 @@ SCRIPT = "mods-src/seraphhorizons/Riddle/tools/make_shape.py"
 
 B = 16.0
 TAU = 2 * math.pi
-
-# ---------------------------------------------------------------- the box, the cells
-CELLS_X, CELLS_Y, CELLS_Z = 1, 1, 1          # each model is one block
-ORIGIN_CELL = (0, 0, 0)                      # the controller: the only cell
-CX, CZ = 8.0, 8.0                            # the tub's axis, and the riddle's at rest
+DEG = math.pi / 180
+ORIGIN_CELL = (0, 0, 0)                      # the controller: the hand riddle's one cell, the stand's fines end
+TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
@@ -87,94 +90,93 @@ TEXTURES = {
     "iron": "game:block/metal/plate/iron",
     "ore": "game:block/stone/gravel/granite",   # the charge: the renderer sets it to the crushed ore's texture
 }
-TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
-# ---------------------------------------------------------------- the tub (both models)
-SIDES_N = 16                                 # the tub's staves and hoops, the riddle's rim and band: 16-gons
-TUB_R = 5.75                                 # the staves' outer faces
-STAVE_T = 0.7
-TUB_H = 5.5                                  # the staves' tops: the tub's rim
-TUB_BOTTOM = (0.6, 1.6)                      # the bottom, set in the staves above their chime
-TUB_BOTTOM_R = 5.1                           # into the staves (their inner faces at TUB_R - STAVE_T)
-HOOPS_Y = ((0.9, 1.4), (4.1, 4.6))           # two iron hoops
-HOOP_OUT, HOOP_IN = 0.15, 0.05               # proud of the staves, and into them
-
-# ---------------------------------------------------------------- the riddle (both models); heights from the rim's bottom edge
-RIM_R = 5.5                                  # the bent-wood rim's outer faces: 11 across
-RIM_T = 0.45
-RIM_H = 2.4
-BAND_R = (4.75, 5.1)                         # the iron band inside the rim that holds the mesh (into the rim)
-BAND_Y = (0.45, 1.15)
+# ---------------------------------------------------------------- the riddle (both models); half widths from its middle, heights from its underside
+LOWER_HALF = 5.0                             # the lower tier's outer faces: 10 across (vanilla's pan: 7, 9, 11)
+UPPER_HALF = 5.75                            # the upper tier's, stepped out: 11.5 across
+BOARD = 1.0                                  # the tiers' boards: 1 thick, 1 deep
+RIM_H = 2.0                                  # two tiers: shallow, a sieve and not a box
 WIRE = 0.25                                  # the woven mesh: square iron wires,
-PITCH = 1.25                                 # this far apart: openings of 1
-WIRE_Y = 0.55                                # the lower wires' underside; the upper wires cross on them
-WIRE_END = 4.9                               # the wires end inside the band
-WIRES = tuple(PITCH * (i - 3.5) for i in range(8))
+WIRES = tuple(i - 3.5 for i in range(8))     # a voxel apart: openings of 0.75
+WIRE_Y = 0.2                                 # the lower wires' underside; the upper wires cross on them
+WIRE_HALF = LOWER_HALF - BOARD + 0.4         # the wires run into the lower tier's boards
 MESH_TOP = WIRE_Y + 2 * WIRE                 # the mesh's top, the charge's bed
 
-# ---------------------------------------------------------------- the charge: a heap on the mesh, (radius, thickness)
-BASE = (3.7, 0.7)                            # the oversize bed, left in the riddle; the mesh shows round it
-MID = (2.8, 0.5)                             # a full charge's lower layer of fines
-TOP = (1.7, 0.36)                            # a full charge's top
-TOP1 = (2.4, 0.5)                            # a part charge's one layer of fines
+# ---------------------------------------------------------------- the charge: square layers on the mesh, (half width, thickness)
+BASE = (3.0, 0.7)                            # the oversize bed; the mesh shows round it
+MID = (2.3, 0.5)                             # a full charge's lower layer of fines
+TOP = (1.4, 0.36)                            # a full charge's top
+TOP1 = (2.0, 0.5)                            # a part charge's one layer of fines
 MID_SINK = 0.6                               # into the bed: its bottom 0.1 over the bed's
 TOP_SINK = 0.43                              # into the lower layer (and with it into the bed)
 TOP1_SINK = 0.6
-DISC_STEP = 0.012                            # a disc's strips are this much shorter each, so their ends share no plane
-HIDE_MARGIN = 0.02                           # a sunk layer stays this far inside what hides it
+HIDE_MARGIN = 0.05                           # a sunk layer stays this far inside what hides it
 
-# ---------------------------------------------------------------- the fines in the tub, (radius, thickness)
-F1 = (4.0, 0.75)                             # a full charge's first layer of fines
-F2 = (2.6, 0.6)                              # and its second, on the first
-FS = (3.4, 0.75)                             # a part charge's one layer
-F_HIDDEN = 0.7                               # hidden in the tub's bottom (its underside), until it rises
-F2_HIDDEN = 0.775                            # hidden in the first layer
-F1_RISE = TUB_BOTTOM[1] - F_HIDDEN           # onto the bottom
+# ---------------------------------------------------------------- the boxes: plank walls, a bottom, iron corners
+BOX_HALF = 6.5                               # 13 square outside
+WALL = 0.75
+BOX_BOTTOM = 1.0                             # the bottom, on the ground inside the walls
+FINES_H = 4.4                                # the fines box (both models)
+OVERSIZE_H = 2.5                             # the stand's oversize box, the same make, low
+OVERSIZE_HALF_Z = 6.25
+CORNER = (1.0, 0.12)                         # the iron corners: each leg's width, thickness
+
+# ---------------------------------------------------------------- the fines in the box, (half width, thickness)
+F1 = (4.6, 0.75)                             # a full charge's first layer of fines
+F2 = (3.0, 0.6)                              # and its second, on the first
+FS = (4.0, 0.75)                             # a part charge's one layer
+F_HIDDEN = 0.1                               # hidden in the box's bottom (its underside), until it rises
+F2_HIDDEN = 0.175                            # hidden in the first layer
+F1_RISE = BOX_BOTTOM - F_HIDDEN              # onto the bottom
 F2_RISE = (F_HIDDEN + F1[1]) - F2_HIDDEN     # onto the first layer
 
 # ---------------------------------------------------------------- the hand riddle
-BEARER_Z = (CZ - 3.3, CZ + 3.3)              # two oak bearers laid across the tub's mouth (centres)
+HAND_C = (8.0, 8.0)                          # (x, z): the box's and the riddle's middle
+BEARER_Z = (HAND_C[1] - 3.5, HAND_C[1] + 3.5)   # two oak bearers across the box's mouth, under the riddle's side boards
 BEARER_W, BEARER_H = 0.9, 0.8
-BEARER_X = (1.6, 14.4)
-HAND_Y0 = TUB_H + BEARER_H                   # the riddle's rim's bottom edge, on the bearers
+BEARER_X = (0.9, 15.1)
+HAND_Y0 = FINES_H + BEARER_H                 # the riddle's underside, on the bearers
 LIFT = 0.4                                   # held this far off the bearers while it is shaken
 SHAKE_Z = 1.2                                # to and fro (z), as the operator pushes and pulls it
 SHAKE_X = 0.6                                # side to side (x), a quarter turn behind: it is swirled
 SHAKE_PIVOT_Y = 40.0                         # the shake turns it about axes this high: it moves nearly level
 
-# ---------------------------------------------------------------- the stand
-LEG = 1.5                                    # four oak legs at the corners
-RAIL_Y = (14.6, 16.0)                        # the top rails: east and west (along z) and north and south (along x)
+# ---------------------------------------------------------------- the stand: 1 wide, 2 long (z), the controller the fines end
+STAND_CELLS = (1, 1, 2)
+FINES_C = (8.0, 9.0)                         # the fines box: z 2.5 .. 15.5
+OVERSIZE_C = (8.0, 23.25)                    # the oversize box: z 17 .. 29.5
+STAND_C = (8.0, 10.25)                       # the riddle's middle at rest
+STAND_Y0 = 5.5                               # its underside, on the roller
+LEG = 1.2                                    # oak legs at the four corners and at the roller
+MID_LEG_Z = (14.15, 15.35)
+RAIL_Y = (14.6, 16.0)                        # the top rails: east and west (along z), north and south (along x)
 STRETCH_Y = (1.4, 2.6)                       # the low stretchers, all round
-STAND_Y0 = 7.6                               # the riddle's rim's bottom edge, hung
-TRUNNION_Y = STAND_Y0 + RIM_H                # its trunnions, at the rim's top: it hangs level under them
-PIVOT_Y = 15.25                              # the hangers' pivots, in the side rails, over the trunnions
-HANGER_L = PIVOT_Y - TRUNNION_Y
-SWING = 1.5                                  # to and fro, on the hangers
-HANGER_X = (LEG + 0.3, LEG + 0.7)            # the west hanger's strap (mirrored east), inside its rail
-HANGER_W = 0.8
-BRACKET_X = (LEG, HANGER_X[0])               # an iron plate on the rail's inner face, the hanger's wearing face
+ROLLER = (5.0, 14.75, 0.5)                   # (y, z, radius): the oak roller the riddle rests on, in iron bearings on the middle legs
+PIVOT_Y = 15.25                              # the hangers' and the lever's pivots, in the side rails
+HANG_Z = STAND_C[1] - UPPER_HALF + 0.5       # the hangers carry the riddle's north end
+HANG_Y = STAND_Y0 + RIM_H                    # on pins through lugs at its rim's top
+HANGER_L = PIVOT_Y - HANG_Y
+HANGER_X = (LEG + 0.15, LEG + 0.55)          # the west hanger's strap (mirrored east), inside its rail
+BRACKET_X = (LEG, HANGER_X[0])               # iron plates on the rails' inner faces round the pivots
+STRAP_W = 0.8
 PIN_R = 0.25
-LUG_X = (HANGER_X[1], CX - RIM_R + 0.05)     # the riddle's trunnion lugs, iron straps on its rim
-LUG_Y = (TRUNNION_Y - 0.6, TRUNNION_Y + 0.6)
-LUG_Z = (CZ - 0.4, CZ + 0.4)
-LINK_PIN_Y = 11.3                            # the link's pin on the west hanger
-LEVER_PIVOT = (2.0, 4.0)                     # (y, z): the hand lever's pivot, in the west stretcher
-LEVER_X = (LEG + 0.1, HANGER_X[1])           # the lever, beside the link
-LEVER_W = 0.8
-LEVER_TOP = 15.4                             # its grip
-BOSS_X = (LEG, LEG + 0.08)                   # an iron plate on the stretcher's inner face round the lever's pin
-KNUCKLE_X = (LEG + 0.08, HANGER_X[1] + 0.02)
-LINK_X = (HANGER_X[1], HANGER_X[1] + 0.48)   # the iron link, inside the lever and the hanger
-LINK_Y = (LINK_PIN_Y - 0.35, LINK_PIN_Y + 0.35)
-SLOT_Y = (LINK_PIN_Y - 0.6, LINK_PIN_Y + 0.6)   # its eye at the lever is a slot: the lever's pin may ride up and down in it
+LUG_X = (HANGER_X[1], STAND_C[0] - UPPER_HALF + 0.05)
+LUG_Y = (HANG_Y - 0.6, HANG_Y + 0.6)
+LEVER_Z = 8.0                                # the hand lever's pivot, on the west rail, south of the hanger
+LEVER_TOP = 21.25                            # its grip: above the block, where the player's hand is
+ARM = 3.0                                    # the lever's arm below its pivot = the hanger's link pin under its pivot: a parallelogram
+LINK_X = (HANGER_X[1], HANGER_X[1] + 0.4)    # the iron link, inside the lever and the hanger
+LINK_PIN_Y = PIVOT_Y - ARM
 LINK_PIN_R = 0.22
+RIDDLE_SWING = 1.5                           # riddling: to and fro on the hangers
+SWING_OUT = 60.0                             # degrees: pulled right back, the hangers swing this far south
+KNOTS = 10                                   # the swing out is drawn in this many straight steps, the tip fitted at each
 
-# ---------------------------------------------------------------- the cycle (t = W, one charge)
-T_SHAKE = (0.04, 0.08, 0.80, 0.84)           # shaken: in over the first pair, out over the second
-T_TOP = (0.10, 0.38)                         # a full charge's top sinks into its lower layer; the first fines rise
-T_MID = (0.42, 0.76)                         # its lower layer sinks into the bed; the second fines rise
-T_TOP1 = (0.10, 0.76)                        # a part charge's one layer sinks into the bed; its fines rise
+# ---------------------------------------------------------------- the cycles (t = W, one charge)
+HAND_T = {"shake": (0.04, 0.08, 0.80, 0.84), "top": (0.10, 0.38), "mid": (0.42, 0.76), "top1": (0.10, 0.76)}
+STAND_T = {"shake": (0.04, 0.08, 0.62, 0.66), "top": (0.10, 0.34), "mid": (0.38, 0.60), "top1": (0.10, 0.60),
+           "out": 0.68, "step": 0.012, "back": 0.88,     # the swing out in KNOTS steps from 0.68; back from 0.88 to 1
+           "lift": (0.80, 0.82), "away": (0.82, 0.85), "level": (0.85, 0.865), "down": (0.865, 0.88)}
 
 CLASSES = (("thin", "c1", "chargesmall"), ("thick", "c2", "chargefull"))
 
@@ -196,45 +198,8 @@ def box(lo, hi, name, part, tex):
     return skin(El(name, [hi[k] - lo[k] for k in range(3)], c, [r[:] for r in IDENT], {}, part), tex)
 
 
-def half_turn(deg):
-    """An angle in (-90, 90]: a box turned half a turn is the same box."""
-    return ((deg + 90.0) % 180.0) - 90.0 if ((deg + 90.0) % 180.0) else 90.0
-
-
-def turned_box(c, size, deg, name, part, tex):
-    """A box of `size` (x, y, z) centred on `c`, turned `deg` about y."""
-    el = box([c[k] - size[k] / 2 for k in range(3)], [c[k] + size[k] / 2 for k in range(3)], name, part, tex)
-    a = half_turn(deg)
-    if abs(a) > 1e-9:
-        el.r = rot("y", a)
-    return el
-
-
-def ring(c, r_out, t, y0, y1, name, part, tex, n=SIDES_N):
-    """A hoop about the vertical axis through c (x, z): n straight segments, each as long as a side of the
-    n-gon of its outer faces (r_out from the axis), t thick, y0..y1. Neighbours meet at their outer corners."""
-    length = 2 * r_out * math.tan(math.pi / n)
-    rc = r_out - t / 2
-    out = []
-    for i in range(n):
-        a = 360.0 * i / n
-        ar = math.radians(a)
-        centre = [c[0] + rc * math.cos(ar), (y0 + y1) / 2, c[1] - rc * math.sin(ar)]
-        out.append(turned_box(centre, [t, y1 - y0, length], a, f"{name}_{i + 1}", part, tex))
-    return out
-
-
-def disc(c, y0, y1, r, name, part, tex, k=4):
-    """A plain round slab about the vertical axis through c (x, z): k strips as long as the 2k-gon is
-    across, 180/k degrees apart; each a hair thinner than the last (DISC_STEP off both faces) so no two
-    strips' faces share a plane. The union holds the circle of radius r."""
-    half = r * math.tan(math.pi / (2 * k))
-    out = []
-    for i in range(k):
-        st = DISC_STEP * i
-        centre = [c[0], (y0 + y1) / 2, c[1]]
-        out.append(turned_box(centre, [2 * r, (y1 - y0) - 2 * st, 2 * half], 180.0 * i / k, f"{name}_{i + 1}", part, tex))
-    return out
+def square(cx, cz, half, y0, y1, name, part, tex):
+    return box([cx - half, y0, cz - half], [cx + half, y1, cz + half], name, part, tex)
 
 
 def pin_x(x0, x1, y, z, r, name, part, tex="iron"):
@@ -244,6 +209,19 @@ def pin_x(x0, x1, y, z, r, name, part, tex="iron"):
         el = box([x0 + 0.01 * i, y - r, z - r], [x1 - 0.01 * i, y + r, z + r], f"{name}_{i + 1}", part, tex)
         if i:
             el.r = rot("x", 45.0)
+        out.append(el)
+    return out
+
+
+def round_x(x0, x1, y, z, r, name, part, tex):
+    """A round bar along x: a regular octagon of apothem r, four strips turned 0, 45, 90 and 135 degrees
+    about x (each a hair shorter than the last so no two ends share a plane): its top is r over its axis."""
+    half = r * math.tan(math.pi / 8)
+    out = []
+    for i in range(4):
+        el = box([x0 + 0.012 * i, y - half, z - r], [x1 - 0.012 * i, y + half, z + r], f"{name}_{i + 1}", part, tex)
+        if i:
+            el.r = rot("x", 45.0 * i if i < 3 else -45.0)
         out.append(el)
     return out
 
@@ -258,134 +236,193 @@ def sides():
 
 
 # ---------------------------------------------------------------- builders shared by both models
-def build_tub(prefix, part):
-    """The tub: sixteen oak staves, a bottom set in them above the chime, two iron hoops round them."""
-    out = ring((CX, CZ), TUB_R, STAVE_T, 0.0, TUB_H, f"{prefix}stave", part, "planks")
-    out += disc((CX, CZ), TUB_BOTTOM[0], TUB_BOTTOM[1], TUB_BOTTOM_R, f"{prefix}bottom", part, "planks")
-    for i, (y0, y1) in enumerate(HOOPS_Y):
-        out += ring((CX, CZ), TUB_R + HOOP_OUT, HOOP_OUT + HOOP_IN, y0, y1, f"{prefix}hoop{i + 1}", part, "iron")
-    return out
-
-
-def build_riddle(y0):
-    """The riddle, its rim's bottom edge at y0: the bent-wood rim, the iron band inside it and the woven mesh
-    of iron wires (the lower layer along x, the upper along z, crossing on it), their ends in the band. Built
-    at 0 and raised, so both models' riddles are the same boxes."""
-    out = ring((CX, CZ), RIM_R, RIM_T, 0.0, RIM_H, "riddle_rim", "riddle", "oak")
-    out += ring((CX, CZ), BAND_R[1], BAND_R[1] - BAND_R[0], BAND_Y[0], BAND_Y[1], "riddle_band", "riddle", "iron")
-    for j, off in enumerate(WIRES):
-        half = math.sqrt(WIRE_END ** 2 - off ** 2)
-        out.append(box([CX - half, WIRE_Y, CZ + off - WIRE / 2], [CX + half, WIRE_Y + WIRE, CZ + off + WIRE / 2],
-                       f"riddle_wirex_{j + 1}", "riddle", "iron"))
-        out.append(box([CX + off - WIRE / 2, WIRE_Y + WIRE, CZ - half], [CX + off + WIRE / 2, WIRE_Y + 2 * WIRE, CZ + half],
-                       f"riddle_wirez_{j + 1}", "riddle", "iron"))
-    return translate(out, [0.0, y0, 0.0])
-
-
-def build_charge(y0):
-    """The charge on the mesh of a riddle whose rim's bottom edge is at y0: per class the oversize bed and
-    its fines over it, as loaded (the authored pose). Built at 0 and raised, as the riddle is."""
-    m = MESH_TOP
+def build_riddle(cx, y0, cz):
+    """The riddle, its underside at y0, its middle at (cx, cz): the frame of oak boards in two stepped tiers
+    (north and south boards across, east and west between them) and the woven mesh, iron wires along x under
+    wires along z, crossing on them, their ends let into the lower tier's boards. Built at the origin and
+    moved, so both models' riddles are the same boxes."""
     out = []
-    for _cls, pre, _req in CLASSES:
-        out += disc((CX, CZ), m, m + BASE[1], BASE[0], f"{pre}base", f"{pre}base", "ore")
+    for tier, half, ya in (("lower", LOWER_HALF, 0.0), ("upper", UPPER_HALF, BOARD)):
+        inner = half - BOARD
+        out.append(box([-half, ya, -half], [half, ya + BOARD, -inner], f"riddle_{tier}_n", "riddle", "oak"))
+        out.append(box([-half, ya, inner], [half, ya + BOARD, half], f"riddle_{tier}_s", "riddle", "oak"))
+        out.append(box([-half, ya, -inner], [-inner, ya + BOARD, inner], f"riddle_{tier}_w", "riddle", "oak"))
+        out.append(box([inner, ya, -inner], [half, ya + BOARD, inner], f"riddle_{tier}_e", "riddle", "oak"))
+    for j, off in enumerate(WIRES):
+        out.append(box([-WIRE_HALF, WIRE_Y, off - WIRE / 2], [WIRE_HALF, WIRE_Y + WIRE, off + WIRE / 2],
+                       f"riddle_wirex_{j + 1}", "riddle", "iron"))
+        out.append(box([off - WIRE / 2, WIRE_Y + WIRE, -WIRE_HALF], [off + WIRE / 2, WIRE_Y + 2 * WIRE, WIRE_HALF],
+                       f"riddle_wirez_{j + 1}", "riddle", "iron"))
+    return translate(out, [cx, y0, cz])
+
+
+def build_charge(cx, y0, cz):
+    """The charge on the riddle's mesh: per class the oversize bed and its fines over it, as loaded."""
+    m = MESH_TOP
+    out = [square(0.0, 0.0, BASE[0], m, m + BASE[1], f"{pre}base_1", f"{pre}base", "ore") for _c, pre, _r in CLASSES]
     b = m + BASE[1]
-    out += disc((CX, CZ), b, b + TOP1[1], TOP1[0], "c1top", "c1top", "ore")
-    out += disc((CX, CZ), b, b + MID[1], MID[0], "c2mid", "c2mid", "ore")
-    out += disc((CX, CZ), b + MID[1], b + MID[1] + TOP[1], TOP[0], "c2top", "c2top", "ore")
-    return translate(out, [0.0, y0, 0.0])
+    out.append(square(0.0, 0.0, TOP1[0], b, b + TOP1[1], "c1top_1", "c1top", "ore"))
+    out.append(square(0.0, 0.0, MID[0], b, b + MID[1], "c2mid_1", "c2mid", "ore"))
+    out.append(square(0.0, 0.0, TOP[0], b + MID[1], b + MID[1] + TOP[1], "c2top_1", "c2top", "ore"))
+    return translate(out, [cx, y0, cz])
 
 
-def build_fines():
-    """The fines in the tub, hidden in its bottom (and the second layer in the first) until they rise."""
-    out = disc((CX, CZ), F_HIDDEN, F_HIDDEN + FS[1], FS[0], "c1fines", "c1fines", "ore")
-    out += disc((CX, CZ), F_HIDDEN, F_HIDDEN + F1[1], F1[0], "c2fines1", "c2fines1", "ore")
-    out += disc((CX, CZ), F2_HIDDEN, F2_HIDDEN + F2[1], F2[0], "c2fines2", "c2fines2", "ore")
+def build_box(prefix, part, cx, cz, half_x, half_z, height):
+    """A plank box: north and south walls across, east and west between them, a bottom inside them on the
+    ground, and an iron angle down each corner (a plate on each face)."""
+    out = [box([cx - half_x, 0.0, cz - half_z], [cx + half_x, height, cz - half_z + WALL], f"{prefix}wall_n", part, "planks"),
+           box([cx - half_x, 0.0, cz + half_z - WALL], [cx + half_x, height, cz + half_z], f"{prefix}wall_s", part, "planks"),
+           box([cx - half_x, 0.0, cz - half_z + WALL], [cx - half_x + WALL, height, cz + half_z - WALL], f"{prefix}wall_w", part, "planks"),
+           box([cx + half_x - WALL, 0.0, cz - half_z + WALL], [cx + half_x, height, cz + half_z - WALL], f"{prefix}wall_e", part, "planks"),
+           box([cx - half_x + WALL, 0.0, cz - half_z + WALL], [cx + half_x - WALL, BOX_BOTTOM, cz + half_z - WALL],
+               f"{prefix}bottom", part, "planks")]
+    leg, t = CORNER
+    y0, y1 = 0.3, height - 0.3
+    for zn, zs in (("n", -1), ("s", 1)):
+        for xn, xs in (("w", -1), ("e", 1)):
+            x, z = cx + xs * half_x, cz + zs * half_z
+            out.append(box([min(x - xs * leg, x + xs * t), y0, min(z, z + zs * t)], [max(x - xs * leg, x + xs * t), y1, max(z, z + zs * t)],
+                           f"{prefix}corner_{zn}{xn}_a", part, "iron"))
+            out.append(box([min(x, x + xs * t), y0, min(z - zs * leg, z)], [max(x, x + xs * t), y1, max(z - zs * leg, z)],
+                           f"{prefix}corner_{zn}{xn}_b", part, "iron"))
     return out
+
+
+def build_fines(cx, cz):
+    """The fines in the box, hidden in its bottom (and the second layer in the first) until they rise."""
+    return [square(cx, cz, FS[0], F_HIDDEN, F_HIDDEN + FS[1], "c1fines_1", "c1fines", "ore"),
+            square(cx, cz, F1[0], F_HIDDEN, F_HIDDEN + F1[1], "c2fines1_1", "c2fines1", "ore"),
+            square(cx, cz, F2[0], F2_HIDDEN, F2_HIDDEN + F2[1], "c2fines2_1", "c2fines2", "ore")]
 
 
 # ---------------------------------------------------------------- the hand riddle
-def build_bearers():
-    out = []
+def build_hand():
+    cx, cz = HAND_C
+    out = build_riddle(cx, HAND_Y0, cz) + build_charge(cx, HAND_Y0, cz) + build_fines(cx, cz)
+    out += build_box("fr_box_", "frame", cx, cz, BOX_HALF, BOX_HALF, FINES_H)
     for name, z in (("n", BEARER_Z[0]), ("s", BEARER_Z[1])):
-        out.append(box([BEARER_X[0], TUB_H, z - BEARER_W / 2], [BEARER_X[1], TUB_H + BEARER_H, z + BEARER_W / 2],
+        out.append(box([BEARER_X[0], FINES_H, z - BEARER_W / 2], [BEARER_X[1], FINES_H + BEARER_H, z + BEARER_W / 2],
                        f"fr_bearer_{name}", "frame", "oak"))
     return out
 
 
-def build_hand():
-    return build_riddle(HAND_Y0) + build_charge(HAND_Y0) + build_fines() + build_tub("fr_tub_", "frame") + build_bearers()
-
-
 # ---------------------------------------------------------------- the stand
 def build_stand_frame():
-    """The oak stand: four legs, the top rails (east and west carrying the hangers, north and south tying
-    them), low stretchers all round; the iron plates the hangers and the lever bear on and their pins."""
+    """The oak stand, 16 x 32: legs at the corners and at the roller, top rails all round, low stretchers all
+    round; the oak roller the riddle rests on, in iron bearings on the middle legs; the iron plates and pins
+    the hangers and the lever turn on."""
     f = "frame"
     out = []
+    ry, rz, rr = ROLLER
     for s, mx in sides():
         lx = mx(0.0, LEG)
-        for zn, (z0, z1) in (("n", (0.0, LEG)), ("s", (16.0 - LEG, 16.0))):
+        for zn, (z0, z1) in (("n", (0.0, LEG)), ("m", MID_LEG_Z), ("s", (32.0 - LEG, 32.0))):
             out.append(box([lx[0], 0.0, z0], [lx[1], RAIL_Y[0], z1], f"fr_leg{zn}_{s}", f, "oak"))
-        out.append(box([lx[0], RAIL_Y[0], 0.0], [lx[1], RAIL_Y[1], 16.0], f"fr_rail_{s}", f, "oak"))
-        out.append(box([lx[0], STRETCH_Y[0], LEG], [lx[1], STRETCH_Y[1], 16.0 - LEG], f"fr_stretcher_{s}", f, "oak"))
+        out.append(box([lx[0], RAIL_Y[0], 0.0], [lx[1], RAIL_Y[1], 32.0], f"fr_rail_{s}", f, "oak"))
+        out.append(box([lx[0], STRETCH_Y[0], LEG], [lx[1], STRETCH_Y[1], MID_LEG_Z[0]], f"fr_stretcher_{s}1", f, "oak"))
+        out.append(box([lx[0], STRETCH_Y[0], MID_LEG_Z[1]], [lx[1], STRETCH_Y[1], 32.0 - LEG], f"fr_stretcher_{s}2", f, "oak"))
+        bx = mx(LEG, LEG + 0.2)
+        out.append(box([bx[0], ry - 0.8, rz - 0.8], [bx[1], ry + 0.8, rz + 0.8], f"fr_bearing_{s}", f, "iron"))
         bx = mx(*BRACKET_X)
-        out.append(box([bx[0], RAIL_Y[0] + 0.05, CZ - 0.7], [bx[1], RAIL_Y[1] - 0.15, CZ + 0.7], f"fr_bracket_{s}", f, "iron"))
+        out.append(box([bx[0], RAIL_Y[0] + 0.05, HANG_Z - 0.7], [bx[1], RAIL_Y[1] - 0.15, HANG_Z + 0.7], f"fr_bracket_{s}", f, "iron"))
         px = mx(0.3, HANGER_X[1] + 0.05)
-        out += pin_x(px[0], px[1], PIVOT_Y, CZ, PIN_R, f"fr_pin_{s}", f)
-    for zn, (z0, z1) in (("n", (0.0, LEG)), ("s", (16.0 - LEG, 16.0))):
+        out += pin_x(px[0], px[1], PIVOT_Y, HANG_Z, PIN_R, f"fr_pin_{s}", f)
+    for zn, (z0, z1) in (("n", (0.0, LEG)), ("s", (32.0 - LEG, 32.0))):
         out.append(box([LEG, RAIL_Y[0], z0], [16.0 - LEG, RAIL_Y[1], z1], f"fr_endrail_{zn}", f, "oak"))
         out.append(box([LEG, STRETCH_Y[0], z0], [16.0 - LEG, STRETCH_Y[1], z1], f"fr_endstretcher_{zn}", f, "oak"))
-    ly, lz = LEVER_PIVOT
-    out.append(box([BOSS_X[0], STRETCH_Y[0], lz - 0.6], [BOSS_X[1], STRETCH_Y[1], lz + 0.6], "fr_boss", f, "iron"))
-    out += pin_x(0.3, KNUCKLE_X[1] + 0.03, ly, lz, PIN_R, "fr_leverpin", f)
+    out += round_x(0.6, 15.4, ry, rz, rr, "fr_roller", f, "oak")
+    out.append(box([BRACKET_X[0], RAIL_Y[0] + 0.05, LEVER_Z - 0.7], [BRACKET_X[1], RAIL_Y[1] - 0.15, LEVER_Z + 0.7], "fr_bracket_lever", f, "iron"))
+    out += pin_x(0.3, HANGER_X[1] + 0.05, PIVOT_Y, LEVER_Z, PIN_R, "fr_pin_lever", f)
     return out
 
 
 def build_hangers():
-    """The two iron hangers, each a strap from its pivot in the side rail down to the riddle's trunnion; the
-    west one carries the link's pin."""
+    """The two iron hangers, each a strap from its pivot in the side rail down to the pin through the riddle's
+    north lug; the west one carries the link's pin."""
     out = []
     for s, mx in sides():
         hx = mx(*HANGER_X)
-        out.append(box([hx[0], TRUNNION_Y - 0.45, CZ - HANGER_W / 2], [hx[1], PIVOT_Y + 0.45, CZ + HANGER_W / 2],
+        out.append(box([hx[0], HANG_Y - 0.45, HANG_Z - STRAP_W / 2], [hx[1], PIVOT_Y + 0.45, HANG_Z + STRAP_W / 2],
                        f"hanger_strap_{s}", "hangers", "iron"))
-    out += pin_x(HANGER_X[0], LINK_X[1] + 0.05, LINK_PIN_Y, CZ, LINK_PIN_R, "hanger_linkpin", "hangers")
+    out += pin_x(HANGER_X[0], LINK_X[1] + 0.05, LINK_PIN_Y, HANG_Z, LINK_PIN_R, "hanger_linkpin", "hangers")
     return out
 
 
 def build_lugs():
-    """The riddle's trunnion lugs, iron straps on its rim at the east and west, and the trunnion pins
+    """The riddle's lugs, iron straps on its upper tier's east and west faces at its north end, and the pins
     through them and the hangers' eyes."""
     out = []
     for s, mx in sides():
         lx = mx(*LUG_X)
-        out.append(box([lx[0], LUG_Y[0], LUG_Z[0]], [lx[1], LUG_Y[1], LUG_Z[1]], f"lug_strap_{s}", "lugs", "iron"))
+        out.append(box([lx[0], LUG_Y[0], HANG_Z - 0.4], [lx[1], LUG_Y[1], HANG_Z + 0.4], f"lug_strap_{s}", "lugs", "iron"))
         px = mx(HANGER_X[0] - 0.05, LUG_X[1] + 0.05)
-        out += pin_x(px[0], px[1], TRUNNION_Y, CZ, PIN_R, f"lug_pin_{s}", "lugs")
+        out += pin_x(px[0], px[1], HANG_Y, HANG_Z, PIN_R, f"lug_pin_{s}", "lugs")
     return out
 
 
 def build_lever():
-    """The hand lever, on the operator's right (west): an oak bar from below its pivot in the west stretcher
-    up to its grip, an iron knuckle round the pivot, and the pin the link hangs on."""
-    ly, lz = LEVER_PIVOT
-    out = [box([LEVER_X[0], STRETCH_Y[0], lz - LEVER_W / 2], [LEVER_X[1], LEVER_TOP, lz + LEVER_W / 2], "lever_bar", "lever", "oak"),
-           box([KNUCKLE_X[0], ly - 0.65, lz - 0.55], [KNUCKLE_X[1], ly + 0.65, lz + 0.55], "lever_knuckle", "lever", "iron")]
-    out += pin_x(LEVER_X[0], LINK_X[1] + 0.05, LINK_PIN_Y, lz, LINK_PIN_R, "lever_pin", "lever")
+    """The hand lever, on the operator's right (west): an oak bar pivoted on the west rail, its arm below the
+    pivot carrying the link's pin, its handle rising above the block; an iron strap round it at the pivot."""
+    out = [box([HANGER_X[0], LINK_PIN_Y - 0.45, LEVER_Z - STRAP_W / 2], [HANGER_X[1], LEVER_TOP, LEVER_Z + STRAP_W / 2], "lever_bar", "lever", "oak"),
+           box([HANGER_X[0] - 0.02, PIVOT_Y - 0.6, LEVER_Z - 0.5], [HANGER_X[1] + 0.02, PIVOT_Y + 0.6, LEVER_Z + 0.5], "lever_strap", "lever", "iron")]
+    out += pin_x(HANGER_X[0], LINK_X[1] + 0.05, LINK_PIN_Y, LEVER_Z, LINK_PIN_R, "lever_pin", "lever")
     return out
 
 
 def build_link():
-    """The iron link from the lever's pin to the west hanger's: a flat bar, its eye at the lever a slot."""
-    _, lz = LEVER_PIVOT
-    return [box([LINK_X[0], LINK_Y[0], lz - 0.6], [LINK_X[1], LINK_Y[1], CZ + 0.6], "link_bar", "link", "iron"),
-            box([LINK_X[0], SLOT_Y[0], lz - 0.6], [LINK_X[1], SLOT_Y[1], lz + 0.6], "link_eye", "link", "iron")]
+    """The iron link from the lever's pin to the west hanger's."""
+    return [box([LINK_X[0], LINK_PIN_Y - 0.35, HANG_Z - 0.6], [LINK_X[1], LINK_PIN_Y + 0.35, LEVER_Z + 0.6], "link_bar", "link", "iron")]
 
 
 def build_stand():
-    return (build_hangers() + build_riddle(STAND_Y0) + build_lugs() + build_lever() + build_link() + build_charge(STAND_Y0)
-            + build_tub("tub_", "tub") + build_fines() + build_stand_frame())
+    cx, cz = STAND_C
+    return (build_hangers() + build_riddle(cx, STAND_Y0, cz) + build_lugs() + build_lever() + build_link() + build_charge(cx, STAND_Y0, cz)
+            + build_box("box_", "boxes", FINES_C[0], FINES_C[1], BOX_HALF, BOX_HALF, FINES_H)
+            + build_box("obox_", "boxes", OVERSIZE_C[0], OVERSIZE_C[1], BOX_HALF, OVERSIZE_HALF_Z, OVERSIZE_H)
+            + build_fines(*FINES_C) + build_stand_frame())
+
+
+# ---------------------------------------------------------------- the stand's kinematics
+def hang_point(gamma):
+    """(y, z) of the pin through the riddle's north lug with the hangers swung `gamma` radians south."""
+    return (PIVOT_Y - HANGER_L * math.cos(gamma), HANG_Z + HANGER_L * math.sin(gamma))
+
+
+def tilt(gamma):
+    """The riddle's tip (radians, its far end down) with the hangers swung `gamma` south: hung at its north
+    lug and resting on the roller, its underside (RIM_H under the lug's pin) is tangent to the roller."""
+    ny, nz = hang_point(gamma)
+    ry, rz, rr = ROLLER
+
+    def gap(b):
+        # the roller's centre's height over the underside's line, less its radius; the line through the
+        # lug's pin's foot, turned b about x (b > 0: the south end down)
+        return (ry - ny) * math.cos(b) + (rz - nz) * math.sin(b) + RIM_H + rr
+
+    lo, hi = -0.6, 1.4
+    for _ in range(100):
+        mid = (lo + hi) / 2
+        if (gap(lo) > 0) == (gap(mid) > 0):
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def riddling_amplitude():
+    return math.asin(RIDDLE_SWING / HANGER_L)
+
+
+def riddling_tilt():
+    """The riddle's tip while riddling, as a1 * gamma + a2 * gamma^2 fitted at +-the swing: it rides the roller."""
+    a = riddling_amplitude()
+    tp, tm = tilt(a), tilt(-a)
+    return (tp - tm) / (2 * a), (tp + tm) / (2 * a * a)
+
+
+def swing_knots():
+    """The swing out's knots: (gamma_i, tilt_i), gamma from 0 to SWING_OUT in KNOTS even steps."""
+    return [(SWING_OUT * DEG * i / KNOTS, tilt(SWING_OUT * DEG * i / KNOTS)) for i in range(KNOTS + 1)]
 
 
 # ---------------------------------------------------------------- rig
@@ -418,11 +455,49 @@ def slide(axis, dist, wins):
     return {"type": "gauge", "motion": "slide", "axis": axis, "amount": per_class(dist / B), "windows": wins}
 
 
-def shake(axis, pivot, amplitude, phase):
-    """A turn about `axis` through `pivot` (blocks) by e * amplitude * cos(psi + phase): the shake, its
-    amplitude eased in and out with the shaking window, its phase the riddling clock's travel."""
-    return {"type": "gauge", "motion": "rotate", "axis": axis, "pivot": pivot, "amount": per_class(0.0),
-            "windows": [win(*T_SHAKE)], "lobes": {"ratio": 1.0, "phase": r6(phase), "amplitude": per_class(amplitude)}}
+def turn(axis, pivot, angle, wins):
+    return {"type": "gauge", "motion": "rotate", "axis": axis, "pivot": pivot, "amount": per_class(angle), "windows": wins}
+
+
+def shake(axis, pivot, amplitude, phase, t, ratio=1.0, amount=0.0):
+    """A turn about `axis` through `pivot` (blocks) by e * (amount + amplitude * cos(ratio * psi + phase)): the
+    shake, eased in and out with the shaking window, its phase the riddling clock's travel."""
+    return {"type": "gauge", "motion": "rotate", "axis": axis, "pivot": pivot, "amount": per_class(amount),
+            "windows": [win(*t)], "lobes": {"ratio": r6(ratio), "phase": r6(phase), "amplitude": per_class(amplitude)}}
+
+
+def charge_parts(t, base_ride, base_drivers):
+    """The charge's parts: the beds carry their layers of fines, each sinking into the one under it."""
+    parts = []
+    for _cls, pre, req in CLASSES:
+        parts.append({"id": f"{pre}base", "match": [f"{pre}base_*"], "requires": req, "ride": base_ride,
+                      "drivers": copy.deepcopy(base_drivers)})
+    parts.append({"id": "c1top", "match": ["c1top_*"], "requires": "chargesmall", "ride": "c1base",
+                  "drivers": [slide("y", -TOP1_SINK, [win(*t["top1"])])]})
+    parts.append({"id": "c2mid", "match": ["c2mid_*"], "requires": "chargefull", "ride": "c2base",
+                  "drivers": [slide("y", -MID_SINK, [win(*t["mid"])])]})
+    parts.append({"id": "c2top", "match": ["c2top_*"], "requires": "chargefull", "ride": "c2mid",
+                  "drivers": [slide("y", -TOP_SINK, [win(*t["top"])])]})
+    return parts
+
+
+def fines_parts(t):
+    """The fines in the box, rising out of its bottom as they fall through."""
+    return [{"id": "c1fines", "match": ["c1fines_*"], "requires": "chargesmall", "drivers": [slide("y", F1_RISE, [win(*t["top1"])])]},
+            {"id": "c2fines1", "match": ["c2fines1_*"], "requires": "chargefull", "drivers": [slide("y", F1_RISE, [win(*t["top"])])]},
+            {"id": "c2fines2", "match": ["c2fines2_*"], "requires": "chargefull", "ride": "c2fines1",
+             "drivers": [slide("y", F2_RISE, [win(*t["mid"])])]}]
+
+
+def finish(parts):
+    out = []
+    for p in parts:
+        p.setdefault("ride", None)
+        p.setdefault("drivers", [])
+        for d in p["drivers"]:
+            validate_driver(d)
+        out.append({"id": p["id"], "match": p["match"], "requires": p.get("requires"), "ride": p["ride"], "drivers": p["drivers"]})
+    return out
 
 
 def hand_amplitudes():
@@ -431,98 +506,125 @@ def hand_amplitudes():
     return math.asin(SHAKE_Z / d), math.asin(SHAKE_X / d)
 
 
-def stand_amplitudes():
-    """The hangers' swing (radians) that carries the riddle SWING to and fro, and the lever's that moves its
-    pin as far as the hanger's link pin goes."""
-    a = math.asin(SWING / HANGER_L)
-    b = -math.asin((PIVOT_Y - LINK_PIN_Y) * math.sin(a) / (LINK_PIN_Y - LEVER_PIVOT[0]))
-    return a, b
-
-
-def charge_parts(ride):
-    """The charge's parts, riding the riddle: the bed stays, each layer of fines sinks into the one under it."""
-    parts = []
-    for _cls, pre, req in CLASSES:
-        parts.append({"id": f"{pre}base", "match": [f"{pre}base_*"], "requires": req, "ride": ride, "drivers": []})
-    parts.append({"id": "c1top", "match": ["c1top_*"], "requires": "chargesmall", "ride": ride,
-                  "drivers": [slide("y", -TOP1_SINK, [win(*T_TOP1)])]})
-    parts.append({"id": "c2mid", "match": ["c2mid_*"], "requires": "chargefull", "ride": ride,
-                  "drivers": [slide("y", -MID_SINK, [win(*T_MID)])]})
-    parts.append({"id": "c2top", "match": ["c2top_*"], "requires": "chargefull", "ride": "c2mid",
-                  "drivers": [slide("y", -TOP_SINK, [win(*T_TOP)])]})
-    return parts
-
-
-def fines_parts():
-    """The fines in the tub, rising out of its bottom as they fall through."""
-    return [{"id": "c1fines", "match": ["c1fines_*"], "requires": "chargesmall", "drivers": [slide("y", F1_RISE, [win(*T_TOP1)])]},
-            {"id": "c2fines1", "match": ["c2fines1_*"], "requires": "chargefull", "drivers": [slide("y", F1_RISE, [win(*T_TOP)])]},
-            {"id": "c2fines2", "match": ["c2fines2_*"], "requires": "chargefull", "ride": "c2fines1",
-             "drivers": [slide("y", F2_RISE, [win(*T_MID)])]}]
-
-
-def finish(parts):
-    for p in parts:
-        p.setdefault("ride", None)
-        p["requires"] = p.get("requires")
-        p.setdefault("drivers", [])
-        for d in p["drivers"]:
-            validate_driver(d)
-    return [{"id": p["id"], "match": p["match"], "requires": p["requires"], "ride": p["ride"], "drivers": p["drivers"]} for p in parts]
-
-
 def hand_parts():
+    t = HAND_T
     az, ax = hand_amplitudes()
-    piv = pt(CX, SHAKE_PIVOT_Y, CZ)
+    piv = pt(HAND_C[0], SHAKE_PIVOT_Y, HAND_C[1])
     parts = [{"id": "riddle", "match": ["riddle_*"], "requires": "riddle",
-              "drivers": [slide("y", LIFT, [win(*T_SHAKE)]),
-                          shake("x", piv, az, -math.pi / 2),
-                          shake("z", piv, ax, 0.0)]}]
-    parts += charge_parts("riddle") + fines_parts()
+              "drivers": [slide("y", LIFT, [win(*t["shake"])]),
+                          shake("x", piv, az, -math.pi / 2, t["shake"]),
+                          shake("z", piv, ax, 0.0, t["shake"])]}]
+    parts += charge_parts(t, "riddle", []) + fines_parts(t)
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None})
     return finish(parts)
 
 
+def out_windows(closing=True):
+    """The swing out's knot windows: knot i rises over its step from STAND_T['out']; closing, it falls again in
+    the reverse order from STAND_T['back'], the riddle back at rest at W 1; else it stays."""
+    t = STAND_T
+    s = t["step"]
+    wins = []
+    for i in range(KNOTS):
+        t0 = t["out"] + i * s
+        if closing:
+            t2 = t["back"] + (KNOTS - 1 - i) * s
+            wins.append(win(t0, t0 + s, t2, t2 + s))
+        else:
+            wins.append(win(t0, t0 + s))
+    return wins
+
+
+def stand_chain(closing):
+    """The drivers of the riddle's own motion and of the hangers', as (riddle's own, hangers'): riddling, the
+    riddle turned about its north pin as far as the hangers turn (so it moves level) plus its small tip on the
+    roller; the swing out in KNOTS steps, each turning the hangers south and the riddle by as much back plus
+    its tip at that knot. `closing` False keeps the swing out (for the oversize, which stays tipped off)."""
+    t = STAND_T
+    a = riddling_amplitude()
+    a1, a2 = riddling_tilt()
+    hang = pt(STAND_C[0], HANG_Y, HANG_Z)
+    piv = pt(STAND_C[0], PIVOT_Y, HANG_Z)
+    own = [shake("x", hang, (1.0 + a1) * a, -math.pi / 2, t["shake"]),
+           shake("x", hang, -a2 * a * a / 2, 0.0, t["shake"], ratio=2.0, amount=a2 * a * a / 2)]
+    hangers = [shake("x", piv, -a, -math.pi / 2, t["shake"])]
+    knots = swing_knots()
+    for i, w in enumerate(out_windows(closing)):
+        dg = knots[i + 1][0] - knots[i][0]
+        db = knots[i + 1][1] - knots[i][1]
+        own.append(turn("x", hang, dg + db, [w]))
+        hangers.append(turn("x", piv, -dg, [w]))
+    return own, hangers
+
+
+BED_HOLD = 5.0                               # the oversize is carried off at this height (its middle), over the oversize box
+
+
+def bed_path():
+    """The oversize's way off, once the riddle is tipped: lifted clear of the rim in the riddle's frame, carried
+    straight off the far end to over the oversize box (away from the tipped rim all the way), levelled there
+    and laid on the box's floor. Returns (local lift, world move (y, z), the level pivot and turn, the drop)."""
+    gamma, beta = swing_knots()[-1]
+    lift = RIM_H - MESH_TOP + 0.05
+    # the bed's middle after the lift, in the swung riddle: turned beta about the north pin, carried to its swung place
+    ny, nz = hang_point(gamma)
+    ly = STAND_Y0 + MESH_TOP + BASE[1] / 2 + lift - HANG_Y
+    lz = STAND_C[1] - HANG_Z
+    y = ny + ly * math.cos(beta) - lz * math.sin(beta)
+    z = nz + ly * math.sin(beta) + lz * math.cos(beta)
+    move = (BED_HOLD - y, OVERSIZE_C[1] - z)
+    drop = BOX_BOTTOM + BASE[1] / 2 - BED_HOLD
+    return lift, move, (OVERSIZE_C[0], BED_HOLD, OVERSIZE_C[1]), -beta, drop
+
+
 def stand_parts():
-    a, b = stand_amplitudes()
-    ly, lz = LEVER_PIVOT
+    t = STAND_T
+    own, hangers = stand_chain(True)
+    a = riddling_amplitude()
+    lever = [shake("x", pt(STAND_C[0], PIVOT_Y, LEVER_Z), -a, -math.pi / 2, t["shake"])]
+    link = [shake("x", pt(STAND_C[0], LINK_PIN_Y, HANG_Z), a, -math.pi / 2, t["shake"])]
+    knots = swing_knots()
+    for i, w in enumerate(out_windows(True)):
+        dg = knots[i + 1][0] - knots[i][0]
+        lever.append(turn("x", pt(STAND_C[0], PIVOT_Y, LEVER_Z), -dg, [w]))
+        link.append(turn("x", pt(STAND_C[0], LINK_PIN_Y, HANG_Z), dg, [w]))
+    # the oversize bed: the riddle's motion written out (it does not ride: it is left behind), its swing out kept
+    keep_own, keep_hangers = stand_chain(False)
+    lift, move, level_pivot, level, drop = bed_path()
+    bed = ([slide("y", lift, [win(*t["lift"])])] + keep_own + keep_hangers
+           + [slide("y", move[0], [win(*t["away"])]), slide("z", move[1], [win(*t["away"])]),
+              turn("x", pt(*level_pivot), level, [win(*t["level"])]), slide("y", drop, [win(*t["down"])])])
     parts = [
-        {"id": "hangers", "match": ["hanger_*"], "requires": "hangers",
-         "drivers": [shake("x", pt(CX, PIVOT_Y, CZ), a, -math.pi / 2)]},
-        # it hangs level from its trunnions: turned back about them as far as the hangers turn
-        {"id": "riddle", "match": ["riddle_*"], "requires": "riddle", "ride": "hangers",
-         "drivers": [shake("x", pt(CX, TRUNNION_Y, CZ), -a, -math.pi / 2)]},
+        {"id": "hangers", "match": ["hanger_*"], "requires": "hangers", "drivers": hangers},
+        {"id": "riddle", "match": ["riddle_*"], "requires": "riddle", "ride": "hangers", "drivers": own},
         {"id": "lugs", "match": ["lug_*"], "requires": "hangers", "ride": "riddle"},
-        {"id": "lever", "match": ["lever_*"], "requires": "lever",
-         "drivers": [shake("x", pt(CX, ly, lz), b, -math.pi / 2)]},
+        {"id": "lever", "match": ["lever_*"], "requires": "lever", "drivers": lever},
         # the link stays parallel to itself: turned back about its pin on the hanger
-        {"id": "link", "match": ["link_*"], "requires": "lever", "ride": "hangers",
-         "drivers": [shake("x", pt(CX, LINK_PIN_Y, CZ), -a, -math.pi / 2)]},
+        {"id": "link", "match": ["link_*"], "requires": "lever", "ride": "hangers", "drivers": link},
     ]
-    parts += charge_parts("riddle")
-    parts.append({"id": "tub", "match": ["tub_*"], "requires": "tub"})
-    parts += fines_parts()
+    parts += charge_parts(t, None, bed)
+    parts.append({"id": "boxes", "match": ["box_*", "obox_*"], "requires": "boxes"})
+    parts += fines_parts(t)
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None})
     return finish(parts)
 
 
 # ---------------------------------------------------------------- the two models
 class Model:
-    """What differs between the hand riddle and the stand: names, geometry, rig, pace and anchors."""
+    """What differs between the hand riddle and the stand."""
 
-    def __init__(self, key, shape_name, rig_name, ref_name, title, y0, shakes, build_fn, parts_fn, infeed, output):
-        self.key, self.shape_name, self.rig_name, self.ref_name, self.title = key, shape_name, rig_name, ref_name, title
-        self.y0, self.shakes, self.build_fn, self.parts_fn = y0, shakes, build_fn, parts_fn
-        self.infeed, self.output = infeed, output
-
-    def charge_y(self):
-        return self.y0 + MESH_TOP + BASE[1] / 2
+    def __init__(self, key, **kw):
+        self.key = key
+        self.__dict__.update(kw)
 
 
-HAND = Model("hand", "riddle", "riddle-rig", "rig-reference", "riddle", HAND_Y0, {"thin": 12.0, "thick": 20.0},
-             build_hand, hand_parts, "east", "south")
-STAND = Model("stand", "riddlestand", "riddlestand-rig", "stand-rig-reference", "riddle on its stand", STAND_Y0,
-              {"thin": 20.0, "thick": 32.0}, build_stand, stand_parts, "east", "south")
+HAND = Model("hand", shape_name="riddle", rig_name="riddle-rig", ref_name="rig-reference", title="riddle",
+             cells=(1, 1, 1), centre=HAND_C, y0=HAND_Y0, shakes={"thin": 12.0, "thick": 20.0}, t=HAND_T,
+             build_fn=build_hand, parts_fn=hand_parts, infeed="east", output="south", fines_c=HAND_C, above=())
+STAND = Model("stand", shape_name="riddlestand", rig_name="riddlestand-rig", ref_name="stand-rig-reference",
+              title="riddle on its stand", cells=STAND_CELLS, centre=STAND_C, y0=STAND_Y0, shakes={"thin": 20.0, "thick": 32.0},
+              t=STAND_T, build_fn=build_stand, parts_fn=stand_parts, infeed="east", output="west", fines_c=FINES_C,
+              above=("lever",))
 MODELS = (HAND, STAND)
 
 
@@ -568,9 +670,13 @@ def shown(posed_els, pose):
 
 def coplanar_poses(md):
     q = math.pi / 2
-    return (REST, pose_at(md, 1, 0.0), pose_at(md, 2, 0.0), pose_at(md, 1, 0.3, q), pose_at(md, 2, 0.25, 3 * q),
-            pose_at(md, 2, 0.5, 0.7), pose_at(md, 1, 0.6, 2 * q), pose_at(md, 2, 0.6, q), pose_at(md, 1, 0.9),
-            pose_at(md, 2, 1.0))
+    poses = [REST, pose_at(md, 1, 0.0), pose_at(md, 2, 0.0), pose_at(md, 1, 0.3, q), pose_at(md, 2, 0.25, 3 * q),
+             pose_at(md, 2, 0.5, 0.7), pose_at(md, 1, 0.55, 2 * q), pose_at(md, 2, 0.6, q), pose_at(md, 2, 1.0)]
+    if md is STAND:
+        poses += [pose_at(md, 2, w) for w in (0.7, 0.75, 0.8, 0.83, 0.86, 0.9, 0.95)]
+    else:
+        poses.append(pose_at(md, 1, 0.9))
+    return tuple(poses)
 
 
 def fix_coplanar(md, els, parts):
@@ -579,39 +685,48 @@ def fix_coplanar(md, els, parts):
 
 
 # ---------------------------------------------------------------- the rig file
-def footprint():
-    return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
-
-
-ANCHORS = ("output", "charge")
+def footprint(md):
+    cx, cy, cz = md.cells
+    return [(x, y, z) for x in range(cx) for y in range(cy) for z in range(cz)]
 
 
 def make_rig(md, parts):
     progress_of({"work": WORK})
-    hand = md is HAND
-    return {
-        "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell [0,0,0]; the operator stands to the north. "
-                    "A hand station: no power cell. work is the riddling of one charge, W 0..1; k is the charge (1 a part "
-                    "charge, 2 a full charge); gauge windows are placed in charges. theta is the riddling clock, the "
-                    "player's hold-to-work, one turn a shake: nothing reads it but the shake's lobes, through its travel "
-                    "psi. " + ("The riddle sits on bearers over the tub and is shaken lifted just off them."
-                               if hand else "The riddle hangs from the stand on two hangers, swung by a hand lever through a link.")
+    fx, fz = md.fines_c
+    rig = {
+        "_comment": f"Generated by {SCRIPT}. Native frame, block units, the controller cell [0,0,0]; the operator stands to "
+                    "the north. A hand station: no power cell. work is the riddling of one charge, W 0..1; k is the charge "
+                    "(1 a part charge, 2 a full charge); gauge windows are placed in charges. theta is the riddling clock, "
+                    "the player's hold-to-work, one turn a shake: nothing reads it but the shake's lobes, through its travel "
+                    "psi. " + ("The riddle sits on bearers over the box and is shaken lifted just off them."
+                               if md is HAND else
+                               "The riddle hangs at its north end from two hangers and rests on a roller; a hand lever, rising "
+                               "above the block (it has no boxes there), swings the hangers through a link, and pulled right "
+                               "back tips the riddle over the roller into the oversize box in the second cell.")
                     + " See the riddle's README for the schema.",
         "cells": [],
         "infeedSide": md.infeed,
         "outputSide": md.output,
-        "output": {"pos": pt(CX, TUB_BOTTOM[1] + F1[1] + F2[1], CZ)},
-        "charge": {"pos": pt(CX, md.charge_y(), CZ)},
-        "work": dict(WORK),
-        "riddling": {"shakesPerCharge": per_class(md.shakes["thin"], md.shakes["thick"]),
-                     "_comment": "shakesPerCharge: the pace, shakes (theta / 2 pi) a charge; a full charge takes longer. "
-                                 "Provisional: the gameplay (#714) sets it."},
-        "parts": parts,
+        "output": {"pos": pt(fx, BOX_BOTTOM + F1[1] + F2[1], fz)},
+        "charge": {"pos": pt(md.centre[0], md.y0 + MESH_TOP + BASE[1] / 2, md.centre[1])},
     }
+    if md is STAND:
+        rig["oversizeSide"] = "south"
+        rig["oversize"] = {"pos": pt(OVERSIZE_C[0], BOX_BOTTOM + BASE[1], OVERSIZE_C[1])}
+    rig["work"] = dict(WORK)
+    rig["riddling"] = {"shakesPerCharge": per_class(md.shakes["thin"], md.shakes["thick"]),
+                       "_comment": "shakesPerCharge: the pace, shakes (theta / 2 pi) a charge; a full charge takes longer. "
+                                   "Provisional: the gameplay (#714) sets it."}
+    rig["parts"] = parts
+    return rig
+
+
+def anchors(md):
+    return ("output", "charge", "oversize") if md is STAND else ("output", "charge")
 
 
 # ---------------------------------------------------------------- shipped
-def shipped(els, parts, rig):
+def shipped(md, els, parts, rig):
     """The build-frame model and rig moved so ORIGIN_CELL is [0,0,0] (here no move: the build frame's
     corner is the controller's). Gauge windows are in charges, so they stay as they are."""
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
@@ -626,14 +741,16 @@ def shipped(els, parts, rig):
                     drv[key] = [r6(drv[key][k] + db[k]) for k in range(3)]
     ship = copy.deepcopy(rig)
     ship["cells"] = [{**c, "pos": shift_cell(c["pos"], ORIGIN_CELL)} for c in rig["cells"]]
-    for key in ANCHORS:
+    for key in anchors(md):
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
     ship["parts"] = ship_parts
     return ship_els, ship_parts, ship
 
 
-def shipped_cells(shape, ship_parts, sp):
-    """The cells' boxes from the shipped shape as written, posed at rest by the shipped rig; then the lids."""
+def shipped_cells(shape, ship_parts, sp, cells=None):
+    """The cells' boxes from the shipped shape as written, posed at rest by the shipped rig; then the lids.
+    Only the footprint's cells are written, and each box is clipped to its cell: whatever is drawn outside
+    the footprint (the stand's lever above the block) has no box."""
     written = flatten(shape["elements"], textures={})
     rest = [posed(w, _part_matrix(ship_parts, part_of(ship_parts, w.name), inputs_of(REST), sp)) for w in written]
     by_cell = {}
@@ -641,8 +758,9 @@ def shipped_cells(shape, ship_parts, sp):
         lo, hi = el.aabb()
         for c in cells_touched(lo, hi):
             by_cell.setdefault(c, []).append(el)
+    cx, cy, cz = cells or (1, 1, 1)
     out = []
-    for c in footprint():
+    for c in [(x, y, z) for x in range(cx) for y in range(cy) for z in range(cz)]:
         pos = tuple(c[k] - ORIGIN_CELL[k] for k in range(3))
         boxes = cell_boxes(by_cell[pos], pos) if pos in by_cell else None
         out.append({"pos": list(pos), "boxes": boxes} if boxes else {"pos": list(pos), "hollow": True})
@@ -652,7 +770,8 @@ def shipped_cells(shape, ship_parts, sp):
 def check_shipped(md, els, parts, ship_els, ship_parts, ship):
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
     sp = ship["work"]
-    poses = [REST, pose_at(md, 1, 0.2), pose_at(md, 2, 0.45), pose_at(md, 1, 0.7), pose_at(md, 2, 0.99), (1.3, 0.3, 1, 0.6)]
+    poses = [REST, pose_at(md, 1, 0.2), pose_at(md, 2, 0.45), pose_at(md, 1, 0.7), pose_at(md, 2, 0.85), pose_at(md, 2, 0.99),
+             (1.3, 0.3, 1, 0.6)]
     worst = worst_shift_error(els, ship_els, lambda el, pose: pm(parts, el.part, pose),
                               lambda el, pose: _part_matrix(ship_parts, el.part, inputs_of(pose), sp), d, poses)
     cells = [tuple(c["pos"]) for c in ship["cells"]]
@@ -664,16 +783,18 @@ def check_shipped(md, els, parts, ship_els, ship_parts, ship):
 
 
 # ---------------------------------------------------------------- reference poses
-REF_EDGES = (0.0, 0.03, 0.06, 0.09, 0.14, 0.24, 0.33, 0.4, 0.45, 0.55, 0.65, 0.72, 0.78, 0.82, 0.86, 0.93, 1.0)
+REF_EDGES = {"hand": (0.0, 0.03, 0.06, 0.09, 0.14, 0.24, 0.33, 0.4, 0.45, 0.55, 0.65, 0.72, 0.78, 0.82, 0.86, 0.93, 1.0),
+             "stand": (0.0, 0.03, 0.06, 0.09, 0.2, 0.36, 0.5, 0.63, 0.67, 0.69, 0.71, 0.74, 0.77, 0.8, 0.81, 0.83, 0.85, 0.87,
+                       0.89, 0.92, 0.95, 0.98, 1.0)}
 REF_THETAS = (0.0, 1.1, 2.3, 2.9, 4.4, 5.6)
 
 
-def reference_poses():
+def reference_poses(md):
     """theta in {0, 1.1, 2.3, 2.9} with no charge; for each class, W over the cycle's edges with p 1 and
     theta cycling through REF_THETAS (psi = theta: the shake's phase), and every fourth also at p 0.4."""
     out = [(th, 0.0, 0, 0.0) for th in REF_THETAS[:4]]
     for k in (1, 2):
-        for i, W in enumerate(REF_EDGES):
+        for i, W in enumerate(REF_EDGES[md.key]):
             th = REF_THETAS[(i + 2 * k) % len(REF_THETAS)]
             for p in ((1.0,) if i % 4 else (1.0, 0.4)):
                 out.append((th, W, k, p))
@@ -682,7 +803,7 @@ def reference_poses():
 
 def reference_json(md, ship_parts, sp):
     poses = []
-    for pose in reference_poses():
+    for pose in reference_poses(md):
         th, W, k, p = pose
         mats = {q["id"]: round_matrix(_part_matrix(ship_parts, q["id"], inputs_of(pose), sp)) for q in ship_parts}
         poses.append({"theta": th, "work": W, "size": k, "presence": p, "matrices": mats})
@@ -706,24 +827,24 @@ def riddle_elements(els):
 
 
 def check_same_riddle(hand_els, stand_els):
-    """The riddle on the stand is the hand riddle's, element for element, raised: the same rim and mesh."""
+    """The riddle on the stand is the hand riddle's, element for element, moved: the same frame and mesh."""
     a, b = riddle_elements(hand_els), riddle_elements(stand_els)
-    dy = STAND_Y0 - HAND_Y0
+    d = (STAND_C[0] - HAND_C[0], STAND_Y0 - HAND_Y0, STAND_C[1] - HAND_C[1])
     worst = 0.0 if len(a) == len(b) else 1e9
     for x, y in zip(a, b):
         if x.name != y.name:
             worst = 1e9
             break
-        worst = max(worst, max(abs(x.size[i] - y.size[i]) for i in range(3)),
-                    max(abs(x.c[i] + (dy if i == 1 else 0.0) - y.c[i]) for i in range(3)),
+        worst = max(worst, max(abs(x.size[i] - y.size[i]) for i in range(3)), max(abs(x.c[i] + d[i] - y.c[i]) for i in range(3)),
                     max(abs(x.r[i][j] - y.r[i][j]) for i in range(3) for j in range(3)))
-        for d in set(x.faces) | set(y.faces):
-            fa, fb = x.faces.get(d), y.faces.get(d)
+        for f in set(x.faces) | set(y.faces):
+            fa, fb = x.faces.get(f), y.faces.get(f)
             if fa is None or fb is None or fa["texture"] != fb["texture"]:
                 worst = max(worst, 1.0)
             else:
                 worst = max(worst, max(abs(p - q) for p, q in zip(fa["uv"], fb["uv"])))
-    print(f"the same riddle: {len(a)} elements in each model, the stand's the hand's raised {dy:g}, worst difference {worst:.1e}")
+    print(f"the same riddle: {len(a)} elements in each model, the stand's the hand's moved by {[round(v, 4) for v in d]}, "
+          f"worst difference {worst:.1e}")
     if worst > 1e-9:
         print("FAIL the stand's riddle is not the hand riddle")
         return False
@@ -744,9 +865,8 @@ def main():
         parts = md.parts_fn()
         if not args.quick:
             before, hidden = fix_coplanar(md, els, parts)
-            for pose, pairs in before.items():
-                print(f"coplanar faces before the fix at {pose}: {len(pairs)} pairs")
-            print(f"coplanar faces: {hidden} faces pressed against their own part removed")
+            print(f"coplanar faces before the fix: {sum(len(v) for v in before.values())} pairs over {len(before)} poses; "
+                  f"{hidden} faces pressed against their own part removed")
         rig = make_rig(md, parts)
         ok = validate_riddle.validate(sys.modules[__name__], md, els, parts, rig, quick=args.quick) and ok
         built[md.key] = (els, parts, rig)
@@ -759,9 +879,9 @@ def main():
         else:
             outs = (SHAPE_DIR / f"{md.shape_name}.json", SHAPE_DIR / f"{md.shape_name}_frame.json", RIG_DIR / f"{md.rig_name}.json",
                     REFERENCE_DIR / f"{md.ref_name}.json")
-        ship_els, ship_parts, ship = shipped(els, parts, rig)
+        ship_els, ship_parts, ship = shipped(md, els, parts, rig)
         shape, frame_shape = shape_json(md, ship_els), shape_json(md, [el for el in ship_els if el.part == "frame"])
-        ship["cells"] = shipped_cells(shape, ship_parts, ship["work"])
+        ship["cells"] = shipped_cells(shape, ship_parts, ship["work"], md.cells)
         ok = validate_riddle.validate_files(sys.modules[__name__], md, shape, frame_shape, ship) and ok
         texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship), reference_dumps(reference_json(md, ship_parts, ship["work"])))
         for path, text in zip(outs, texts):
