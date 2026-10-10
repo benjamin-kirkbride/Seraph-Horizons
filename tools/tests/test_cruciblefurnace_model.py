@@ -2,10 +2,11 @@
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
 maths and uses the per-hole `requires` vocabulary, its reference poses are its own maths, the cells are rebuilt from
-the shipped shape, the covers lie flush in their bays at rest and in their holes at depth 1 and nothing else moves,
-the textures are the game's own (no new texture), only the burning coke and the melt glow, the anchors are where the
-contract puts them (no power cell; the outlet under the chimney's cell), and the model viewer's scenario
-(site/models.json) gives each hole the generator's states. Run with `python3 -m unittest discover -s tools/tests`.
+the shipped shape, the covers move one at a time (depth 0 hole 1's aside, 0.5 both seated, 1 hole 2's aside) and
+nothing else moves, the melt holds a full pot of 300 units, the textures are the game's own (no new texture), only
+the burning coke and the melt glow, the anchors are where the contract puts them (no power cell; the outlet under
+the chimney's cell), and the model viewer's scenario (site/models.json) gives each hole the generator's states and
+plays the covers one at a time. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -79,7 +80,8 @@ class Rig(unittest.TestCase):
     def test_reference_poses_are_the_rigs_own_maths(self):
         poses = REFERENCE["poses"]
         self.assertGreater(len(poses), 10)
-        self.assertEqual({p["depth"] for p in poses} >= {0.0, make_shape.T_LIFT, make_shape.T_SET, 1.0}, True)
+        # every edge of both covers' windows: lifted, carried, set down
+        self.assertTrue({p["depth"] for p in poses} >= {0.0, 0.1, 0.4, 0.5, 0.6, 0.9, 1.0})
         for pose in poses:
             for pid, want in pose["matrices"].items():
                 got = matrix(pid, theta=pose["theta"], depth=pose["depth"])
@@ -110,19 +112,31 @@ class Textures(unittest.TestCase):
 
 
 class Covers(unittest.TestCase):
-    def test_flush_in_the_bay_at_rest_and_in_the_hole_when_on(self):
-        for i in (1, 2):
-            cx = make_shape.HOLE_X[i] - 16.0 * make_shape.ORIGIN_CELL[0]
-            for depth, z in ((0.0, make_shape.BAY_Z), (1.0, make_shape.HOLE_Z)):
+    # depth runs through every state the one-cover-at-a-time rule allows: 0 hole 1's cover aside, 0.5 both seated,
+    # 1 hole 2's cover aside; the rig's furnace.coverWindows says which cover moves where
+    WHERE = {0.0: ("bay", "seat"), 0.5: ("seat", "seat"), 1.0: ("seat", "bay")}
+
+    def test_one_cover_at_a_time_flush_in_seat_or_bay(self):
+        windows = RIG["furnace"]["coverWindows"]
+        self.assertEqual(windows, {"h1cover": {"from": 0.0, "to": 0.5, "seatedAt": 0.5},
+                                   "h2cover": {"from": 0.5, "to": 1.0, "seatedAt": 0.5}})
+        for depth, where in self.WHERE.items():
+            for i, place in zip((1, 2), where):
+                cx = make_shape.HOLE_X[i] - 16.0 * make_shape.ORIGIN_CELL[0]
+                z = make_shape.BAY_Z if place == "bay" else make_shape.HOLE_Z
                 lo, hi = aabb_of(posed_part(f"h{i}cover", theta=0.0, depth=depth))
                 self.assertAlmostEqual(lo[0], cx - make_shape.SEAT_HALF, places=4)
                 self.assertAlmostEqual(hi[0], cx + make_shape.SEAT_HALF, places=4)
-                self.assertAlmostEqual(lo[2], z - make_shape.SEAT_HALF, places=4)
+                self.assertAlmostEqual(lo[2], z - make_shape.SEAT_HALF, places=4, msg=f"h{i}cover at {depth}")
                 self.assertAlmostEqual(hi[2], z + make_shape.SEAT_HALF, places=4)
                 self.assertAlmostEqual(hi[1], make_shape.FLOOR_TOP, places=4)
-            # carried clear of the floor
-            lo, _ = aabb_of(posed_part(f"h{i}cover", theta=0.0, depth=0.5))
+        # carried clear of the floor, each in its own window; the other seated meanwhile
+        for depth, moving, still in ((0.25, 1, 2), (0.75, 2, 1)):
+            lo, _ = aabb_of(posed_part(f"h{moving}cover", theta=0.0, depth=depth))
             self.assertGreater(lo[1], make_shape.FLOOR_TOP)
+            lo, hi = aabb_of(posed_part(f"h{still}cover", theta=0.0, depth=depth))
+            self.assertAlmostEqual(lo[2], make_shape.HOLE_Z - make_shape.SEAT_HALF, places=4)
+            self.assertAlmostEqual(hi[1], make_shape.FLOOR_TOP, places=4)
 
     def test_theta_moves_nothing(self):
         for pid in (p["id"] for p in RIG["parts"]):
@@ -172,9 +186,35 @@ class Scenario(unittest.TestCase):
             got = [(o["id"], o["label"], tuple(o["fitted"])) for o in g["options"]]
             want = [(sid, label, tuple(f"h{i}{w}" for w in what)) for sid, label, what in make_shape.STATES]
             self.assertEqual(got, want)
-        # Play lifts the covers on and off
-        targets = [p.get("to") for p in sc["play"]["phases"] if not p.get("wait")]
-        self.assertEqual(sorted(targets), [0, 1])
+        self.assertEqual((groups[0]["default"], groups[1]["default"]), ("melted", "lit"))
+        # Play takes the covers off and puts them back one at a time: hole 1's back on, hole 2's off and back on,
+        # hole 1's off; every move passes through 0.5, both seated, never straight from one cover off to the other
+        phases = {p["id"]: p for p in sc["play"]["phases"]}
+        at, seen, pid = 0.0, [], sc["play"]["phases"][0]["id"]
+        for _ in range(len(phases)):
+            p = phases[pid]
+            if not p.get("wait"):
+                self.assertIn(0.5, (at, p["to"]), f"{pid} moves both covers")
+                at = p["to"]
+                seen.append(at)
+            pid = p["next"]
+        self.assertEqual(pid, sc["play"]["phases"][0]["id"])
+        self.assertEqual(seen, [0.5, 1, 0.5, 0])
+
+
+class Pot(unittest.TestCase):
+    def test_the_melt_holds_a_full_pot(self):
+        # a pot holds 300 units (#768); the melt and the charge's top stand where the pot's inside holds them
+        self.assertEqual(RIG["furnace"]["potUnits"], 300)
+        self.assertEqual(make_shape.POT_UNITS, 300)
+        level = make_shape.pot_level(300)
+        for i in (1, 2):
+            for what in ("melt", "charge"):
+                top = max(rigmath.posed(el, matrix(f"h{i}{what}", depth=0.0)).aabb()[1][1]
+                          for el in flatten(SHAPE["elements"], textures={})
+                          if rigmath.part_of(RIG["parts"], el.name) == f"h{i}{what}" and "_piece" not in el.name)
+                self.assertAlmostEqual(top, level, delta=0.02, msg=f"h{i}{what}")
+        self.assertGreaterEqual(make_shape.POT_TOP - level, 1.0)
 
 
 if __name__ == "__main__":

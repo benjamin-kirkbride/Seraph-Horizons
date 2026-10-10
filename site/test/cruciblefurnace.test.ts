@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, textureCodes, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The crucible furnace's shipped files, and the poses CrucibleFurnace/tools/make_shape.py computes from them with
-// machinegen's reference maths. Its rig reads depth (a cover's place: 0 aside in its bay, 1 seated in its hole; the
-// covers are the only parts that move) and θ (the melter's clock, carried by a ratio-0 rotate so the viewer offers
-// Play); everything else is a requires per hole. tools/tests/test_cruciblefurnace_model.py replays the same file in
+// machinegen's reference maths. Its rig reads depth (the covers, only one off at a time: 0 hole 1's aside in its
+// bay, 0.5 both seated, 1 hole 2's aside; they are the only parts that move) and θ (the melter's clock, carried by a
+// ratio-0 rotate so the viewer offers Play); everything else is a requires per hole. tools/tests/test_cruciblefurnace_model.py replays the same file in
 // Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -48,24 +48,29 @@ describe("the crucible furnace's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("moves nothing with θ, and only the covers with depth: a block back and set down flush", () => {
+  it("moves nothing with θ, and only the covers with depth, one at a time: a block between bay and seat", () => {
     const at = (theta: number, depth: number) => partMatrices(parts, pose(theta, depth), order);
-    const a = at(0, 0.5);
-    const b = at(4.2, 0.5);
-    a.forEach((m, i) => m.forEach((v, j) => expect(Math.abs(v - b[i]![j]!)).toBeLessThan(1e-12)));
-    const seated = at(0, 1);
-    parts.forEach((q, i) => {
-      const m = seated[i]!;
-      if (q.id.endsWith("cover")) {
-        // seated: a block forward (north) of its bay, at the same height
-        expect(m[12]).toBeCloseTo(0, 9);
-        expect(m[13]).toBeCloseTo(0, 9);
-        expect(m[14]).toBeCloseTo(-1, 9);
-      } else expect([m[12], m[13], m[14]]).toEqual([0, 0, 0]);
-    });
-    // carried: lifted clear of the floor
-    const carried = at(0, 0.5);
-    for (const [i, q] of parts.entries()) if (q.id.endsWith("cover")) expect(carried[i]![13]).toBeGreaterThan(2.5 / 16);
+    for (const depth of [0.3, 0.8]) {
+      const a = at(0, depth);
+      const b = at(4.2, depth);
+      a.forEach((m, i) => m.forEach((v, j) => expect(Math.abs(v - b[i]![j]!)).toBeLessThan(1e-12)));
+    }
+    // hole 1's cover is authored aside in its bay, hole 2's in its seat: at 0 hole 1 is open, at 0.5 both are
+    // shut (hole 1's a block forward), at 1 hole 2 is open (its cover a block back); nothing else ever moves
+    const shift = (depth: number, id: string) => {
+      const m = at(0, depth)[parts.findIndex((q) => q.id === id)]!;
+      return [m[12]!, m[13]!, m[14]!].map((v) => Math.round(v * 1e9) / 1e9 + 0);
+    };
+    for (const [depth, one, two] of [[0, 0, 0], [0.5, -1, 0], [1, -1, 1]] as const) {
+      expect(shift(depth, "h1cover")).toEqual([0, 0, one]);
+      expect(shift(depth, "h2cover")).toEqual([0, 0, two]);
+      for (const q of parts) if (!q.id.endsWith("cover")) expect(shift(depth, q.id)).toEqual([0, 0, 0]);
+    }
+    // carried clear of the floor, each in its own half, the other seated meanwhile
+    expect(shift(0.25, "h1cover")[1]).toBeGreaterThan(2.5 / 16);
+    expect(shift(0.25, "h2cover")).toEqual([0, 0, 0]);
+    expect(shift(0.75, "h2cover")[1]).toBeGreaterThan(2.5 / 16);
+    expect(shift(0.75, "h1cover")).toEqual([0, 0, -1]);
   });
 
   it("shows each hole's contents by requires, with their own texture codes, and glows only where it burns", () => {

@@ -156,21 +156,40 @@ def same_box(a, b, tol=1e-6):
 
 
 def check_covers(v):
-    """Each cover lies flush in its bay at depth 0 and in its hole's seat at depth 1; between, it is lifted clear of the
-    floor before it moves and set down after; it rests on the seat's brick ledge round the hole, and on its plate in
-    the bay; and it is the only thing that moves: theta moves nothing."""
+    """Each cover lies flush in its seat or in its bay at the ends of its window of depth and stays put outside it;
+    within it, it is lifted clear of the floor before it is carried and set down after. Only one cover is ever off its
+    hole or on its way (gameplay's rule, which is what lets one depth pose both): at every depth at least one is
+    seated, both at BOTH_ON, and the window's ends say so (`cover_place`, `depth_for`). Each rests on the seat's brick
+    ledge round its hole, and on its plate in the bay; the covers are the only parts that move, and theta moves
+    nothing."""
     m = v.m
-    clear = 1e9
+    clear, off_both = 1e9, []
     for i in m.HOLES:
         pid = f"h{i}cover"
-        if not same_box(aabb_of(v.posed(pid, 0.0)), cover_box(m, i, m.BAY_Z)):
-            v.fail(f"{pid} is not flush in its bay at rest: {aabb_of(v.posed(pid, 0.0))}")
-        if not same_box(aabb_of(v.posed(pid, 1.0)), cover_box(m, i, m.HOLE_Z)):
-            v.fail(f"{pid} is not seated flush in its hole at depth 1: {aabb_of(v.posed(pid, 1.0))}")
+        w0, w1, way = m.COVER_WINDOWS[i]
         for dp in depths(0.01):
-            if m.T_LIFT <= dp <= m.T_SET:
-                clear = min(clear, aabb_of(v.posed(pid, dp))[0][1] - m.FLOOR_TOP)
-        # the seat's ledge under the cover's rim, round the hole; the bay's plate under it at rest
+            box = aabb_of(v.posed(pid, dp))
+            place = m.cover_place(i, dp)
+            if place == 1.0 and not same_box(box, cover_box(m, i, m.HOLE_Z)):
+                v.fail(f"{pid} is not seated flush in its hole at depth {dp:.2f}: {box}")
+            if place == 0.0 and not same_box(box, cover_box(m, i, m.BAY_Z)):
+                v.fail(f"{pid} is not flush in its bay at depth {dp:.2f}: {box}")
+            f = (dp - w0) / (w1 - w0)
+            if m.T_LIFT <= f <= m.T_SET:
+                clear = min(clear, box[0][1] - m.FLOOR_TOP)
+            if abs(m.depth_for(i, place) - min(w1, max(w0, dp))) > 1e-9:
+                v.fail(f"{pid}: depth_for does not undo cover_place at {dp:.2f}")
+        if m.cover_place(i, m.BOTH_ON) != 1.0:
+            v.fail(f"{pid} is not seated at depth {m.BOTH_ON}, where both are on")
+    for dp in depths(0.005):
+        seated = [same_box(aabb_of(v.posed(f"h{i}cover", dp)), cover_box(m, i, m.HOLE_Z)) for i in m.HOLES]
+        if not any(seated):
+            off_both.append(dp)
+    if off_both:
+        v.fail(f"both covers are off their holes at depths {off_both[:5]}")
+    for i in m.HOLES:
+        pid = f"h{i}cover"
+        # the seat's ledge under the cover's rim, round the hole; the bay's plate under it when aside
         frame = v.by_part["frame"]
         cx, cz, h = m.HOLE_X[i], m.HOLE_Z, m.HOLE_HALF + 0.5
         for p in ((cx - h, m.SEAT_Y - 0.1, cz), (cx + h, m.SEAT_Y - 0.1, cz), (cx, m.SEAT_Y - 0.1, cz - h), (cx, m.SEAT_Y - 0.1, cz + h)):
@@ -182,16 +201,19 @@ def check_covers(v):
     if clear < 0.05:
         v.fail(f"a cover drags over the floor while carried ({clear:+.3f})")
     for pid in (p["id"] for p in v.parts):
-        a = v.m.pm(v.parts, pid, (0.0, 0.4, None))
-        b = v.m.pm(v.parts, pid, (3.7, 0.4, None))
-        if max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)) > 1e-12:
-            v.fail(f"theta moves {pid}")
+        for dp in (0.3, 0.8):
+            a = v.m.pm(v.parts, pid, (0.0, dp, None))
+            b = v.m.pm(v.parts, pid, (3.7, dp, None))
+            if max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)) > 1e-12:
+                v.fail(f"theta moves {pid}")
         if not pid.endswith("cover"):
             c = v.m.pm(v.parts, pid, (0.0, 1.0, None))
             if max(abs(c[r][q] - (1.0 if r == q else 0.0)) for r in range(3) for q in range(4)) > 1e-12:
                 v.fail(f"depth moves {pid}")
-    print(f"covers: flush in their bays at rest and in their seats at depth 1, lifted {m.LIFT:.2f} and carried "
-          f"{m.BAY_Z - m.HOLE_Z:.0f} back, clearing the floor by {clear:.3f} while carried; on the seat's ledge and the "
+    win = ", ".join(f"h{i}cover {'on' if way == 'on' else 'off'} over {w0}..{w1}" for i, (w0, w1, way) in m.COVER_WINDOWS.items())
+    print(f"covers: one at a time ({win}; both seated at {m.BOTH_ON}, never both off, every 0.005), flush in seat or "
+          f"bay at the ends of their windows and put outside them, lifted {m.LIFT:.2f} and carried "
+          f"{m.BAY_Z - m.HOLE_Z:.0f}, clearing the floor by {clear:.3f} while carried; on the seat's ledge and the "
           f"bay's plate; theta moves nothing, depth only the covers")
 
 
@@ -269,9 +291,43 @@ def check_pot(v):
         top = aabb_of(v.by_part[f"h{i}charge"])[1][1]
         if top > m.SEAT_Y - 1.0:
             v.fail(f"hole {i}'s charge reaches the cover ({top:.2f})")
+        foot = aabb_of([e for e in v.by_part[f"h{i}pot"] if "_foot" in e.name])
+        if foot[0][0] > stand[0][0] or foot[1][0] < stand[1][0] or foot[0][2] > stand[0][2] or foot[1][2] < stand[1][2]:
+            v.fail(f"hole {i}'s pot's foot does not cover its stand")
+        # the melt holds a full pot: the pot's inside, measured from its walls, from its floor to the melt's top
+        floor = max(e.aabb()[1][1] for e in v.by_part[f"h{i}pot"] if "_foot" in e.name)
+        level = max(e.aabb()[1][1] for e in v.by_part[f"h{i}melt"])
+        held = inside_volume(v, i, floor, level) / m.VOXELS_PER_UNIT
+        if abs(held - m.POT_UNITS) > 0.02 * m.POT_UNITS:
+            v.fail(f"hole {i}'s melt holds {held:.0f} units, not a full pot's {m.POT_UNITS}")
+        if m.POT_TOP - level < 1.0:
+            v.fail(f"hole {i}'s melt stands {m.POT_TOP - level:.2f} under the rim")
     print(f"pot: on its stand on the grate, the mouth {m.SEAT_Y - m.POT_TOP:.1f} under the seated cover, "
-          f"{m.HOLE_HALF - max(a for *_, a in m.POT_TUBES):.1f} of coke room round its belly; the charge to "
-          f"{top:.2f} and the melt at {m.LEVEL[1]}, inside it")
+          f"{m.HOLE_HALF - max(a for *_, a in m.POT_TUBES):.1f} of coke room round its belly; the melt at {level:.2f}, "
+          f"{m.POT_TOP - level:.2f} under the rim, holding {held:.1f} units (a full pot: {m.POT_UNITS} at "
+          f"{m.VOXELS_PER_UNIT} cubic voxels a unit, measured from the walls); the charge to {top:.2f}")
+
+
+def inside_volume(v, i, y0, y1, dy=0.01):
+    """The volume inside hole i's pot from y0 to y1, from its walls' elements: at each height, the octagon whose
+    apothem is the nearest of the walls' inner faces to the pot's axis."""
+    m = v.m
+    cx, cz = m.HOLE_X[i], m.HOLE_Z
+    walls = []
+    for e in v.by_part[f"h{i}pot"]:
+        if "_foot" in e.name:
+            continue
+        k = min((0, 2), key=lambda q: abs(e.size[q]))           # the thin local axis: the wall's normal
+        n = [e.r[q][k] for q in range(3)]
+        d = abs((e.c[0] - cx) * n[0] + (e.c[2] - cz) * n[2]) - abs(e.size[k]) / 2
+        lo, hi = e.aabb()
+        walls.append((lo[1], hi[1], d))
+    vol, y = 0.0, y0 + dy / 2
+    while y < y1:
+        a = min(d for lo, hi, d in walls if lo <= y <= hi)
+        vol += m.oct_area(a) * min(dy, y1 - (y - dy / 2))
+        y += dy
+    return vol
 
 
 def octagon_has(cx, cz, a, x, z):

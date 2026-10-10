@@ -31,10 +31,13 @@ front middle cell at ground level, build cell (1, 0, 0), which the shipped files
 
 The rig's inputs, as this furnace uses them:
 
-    depth  a cover's place: 0 lifted aside into its bay (at rest), 1 seated in its hole. In the game each
-           hole's cover has its own (the renderer poses cover i with hole i's); the viewer moves both.
+    depth  the covers: only one may be off its hole or on its way at a time, so one number says where both
+           are. 0 is hole 1's cover aside in its bay (at rest), 0.5 both seated, 1 hole 2's cover aside:
+           hole 1's cover goes on over 0..0.5 while hole 2's stays seated, and hole 2's comes off over
+           0.5..1 while hole 1's stays seated (COVER_WINDOWS).
     theta  the melter's clock: a ratio-0 rotate on hole 1's cover carries it and moves nothing (so the
-           viewer offers Play, which lifts the covers on and off). Nothing in the furnace turns.
+           viewer offers Play, which takes the covers off and on, one at a time). Nothing in the furnace
+           turns.
 
 Everything else that shows or not (the pot, its charge, the melt, the coke in three layers and the same
 coke burning) is a `requires` per hole, `h1...` and `h2...`: gameplay's state, not a motion.
@@ -117,24 +120,53 @@ BAR_Y = (10.5, 12.0)                         # the firebars, along x, side wall 
 BARS, BAR_W = 6, 1.2                         # six bars 1.2 wide across the 12: gaps of 0.96
 GRATE_TOP = BAR_Y[1]
 
-# the pot and its stand (the existing pot block is 8 across and 11 tall)
+# the pot and its stand. A pot holds POT_UNITS (PotCapacityUnits, 300 since #768: a firing of both holes is 600),
+# drawn full: its melt stands where the pot's inside holds POT_UNITS at VOXELS_PER_UNIT. That figure is the first
+# pass's, whose pot (the game's meltingpot block, 8 across and 11 tall) held 200 units with 2.4 to spare; for 300
+# the pot is a little larger, 8.6 across the belly and 12 tall, still on the same stand and in the same hole.
 STAND = (GRATE_TOP, 14.0, 2.6)               # the fireclay stand on the grate: y0, y1, apothem
-POT_BASE = (14.0, 15.0, 3.0)                 # the pot's foot: a solid octagon
+POT_BASE = (14.0, 15.0, 3.2)                 # the pot's foot: a solid octagon, wider than the stand
 POT_WALL = 0.9
-POT_TUBES = (("lower", 15.0, 18.0, 3.6), ("belly", 18.0, 22.5, 4.0), ("upper", 22.5, 25.0, 3.6))
+POT_TUBES = (("lower", 15.0, 18.0, 3.9), ("belly", 18.0, 23.5, 4.3), ("upper", 23.5, 26.0, 3.9))
 POT_TOP = POT_TUBES[-1][2]
-POT_INNER = POT_TUBES[-1][3] - POT_WALL      # the mouth's inner apothem
-LEVEL = (21.6, 22.6)                         # the charge's top layer, or the melt, inside the pot (y)
-LEVEL_A = POT_INNER + 0.01                   # its apothem: a hundredth into the walls, so no gap shows round it
+POT_UNITS = 300                              # CrucibleFurnaceSettings.PotCapacityUnits (#768)
+VOXELS_PER_UNIT = 1.1                        # a unit of metal in the pot, cubic voxels
+
+
+def oct_area(a):
+    """A regular octagon's area, apothem a."""
+    return 8.0 * math.tan(math.pi / 8) * a * a
+
+
+def pot_inner(y):
+    """The pot's inner apothem at height y: its tube's there (the narrower where two meet)."""
+    inner = [a - POT_WALL for _, t0, t1, a in POT_TUBES if t0 <= y <= t1]
+    return min(inner) if inner else 0.0
+
+
+def pot_level(units):
+    """The height the pot's inside, from its floor (the foot's top) up, holds `units` at VOXELS_PER_UNIT."""
+    left = units * VOXELS_PER_UNIT
+    for _, t0, t1, a in POT_TUBES:
+        cap = oct_area(a - POT_WALL) * (t1 - t0)
+        if left <= cap:
+            return t0 + left / oct_area(a - POT_WALL)
+        left -= cap
+    raise ValueError(f"the pot does not hold {units} units")
+
+
+LEVEL_TOP = round(pot_level(POT_UNITS), 3)
+LEVEL = (LEVEL_TOP - 1.0, LEVEL_TOP)         # the charge's top layer, or the melt, inside the pot (y)
+LEVEL_A = pot_inner(LEVEL_TOP) + 0.01        # its apothem: a hundredth into the walls, so no gap shows round it
 
 # the coke: three layers from the grate to the pot's shoulders (where the belly ends), two coke a layer
-COKE_LAYERS = ((GRATE_TOP, 16.0), (16.0, 19.5), (19.5, 22.5))
+COKE_LAYERS = ((GRATE_TOP, 16.0), (16.0, 20.0), (20.0, 23.5))
 COKE_PER_LAYER = 2                           # CokeCapacity (6) over the layers: gameplay's coke count -> layers shown
 LUMP = 1.5                                   # the coke lumps lying on each layer's top, in its corners
 LUMP_AT = 4.3                                # their place from the hole's axis, along both x and z
 
 # the flue
-FLUE_OPENING = ((-3.0, 3.0), (24.0, 28.0), (14.0, 20.0))   # through each hole's back wall, near its top (x from its axis)
+FLUE_OPENING = ((-3.0, 3.0), (25.0, 28.0), (14.0, 20.0))   # through each hole's back wall, near its top (x from its axis)
 BACK_FLUE = ((5.0, 43.0), (23.0, 28.0), (20.0, 28.0))      # behind both holes, under the bays
 STACK = ((20.0, 28.0), (23.0, FLOOR_TOP), (20.0, 28.0))    # the stack's base, up to the outlet on the top
 CURB = ((18.0, 30.0), (30.0, FLOOR_TOP), (18.0, 30.0))     # the outlet's iron curb, flush, round the stack's mouth
@@ -154,7 +186,12 @@ COVER_RIM = 1.5                              # the iron frame's width
 POCKET = (1.5, 30.8)                         # the hook's pocket: its half side, its floor (y)
 HOOK = (0.35, 31.0, 31.7)                    # the bar across the pocket: its half width (z), its underside and top (y)
 LIFT = (FLOOR_TOP - SEAT_Y) + 0.1            # how far a cover is lifted: its underside clears the floor by 0.1
-T_LIFT, T_SET = 0.2, 0.8                     # depth: lifted over 0..0.2, carried over 0.2..0.8, set down over 0.8..1
+T_LIFT, T_SET = 0.2, 0.8                     # within its window: lifted over its first fifth, carried, set down over its last
+# Only one cover may be off its hole or on its way at a time (gameplay's rule), so depth runs through every allowed
+# state: hole 1's cover goes on over 0..0.5 (aside at 0, the rest pose), both are seated at 0.5, and hole 2's comes
+# off over 0.5..1. Each cover is authored where it is at depth 0: hole 1's in its bay, hole 2's in its seat.
+COVER_WINDOWS = {1: (0.0, 0.5, "on"), 2: (0.5, 1.0, "off")}
+BOTH_ON = 0.5
 
 PARTS_OF_HOLE = ("cover", "pot", "charge", "melt", "coke1", "coke2", "coke3", "fire1", "fire2", "fire3")
 
@@ -465,11 +502,16 @@ def build_frame():
     return build_brick() + build_iron() + build_stands()
 
 
+def cover_z(i):
+    """Where hole i's cover is authored (z): where it is at depth 0, hole 1's in its bay and hole 2's in its seat."""
+    return BAY_Z if COVER_WINDOWS[i][2] == "on" else HOLE_Z
+
+
 def build_cover(i):
-    """Hole i's cover (`h<i>cover`), at rest in its bay: an iron frame round firebrick, with a pocket in the middle and
-    an iron bar across it, flush with the top, for the melter's hook."""
+    """Hole i's cover (`h<i>cover`), where it is at rest (`cover_z`): an iron frame round firebrick, with a pocket in
+    the middle and an iron bar across it, flush with the top, for the melter's hook."""
     p = f"h{i}cover"
-    cx, cz = HOLE_X[i], BAY_Z
+    cx, cz = HOLE_X[i], cover_z(i)
     s, r = SEAT_HALF, COVER_RIM
     y0, y1 = SEAT_Y, FLOOR_TOP
     q, pf = POCKET
@@ -602,13 +644,31 @@ def step(axis, t0, t1, amount):
 
 
 def cover_drivers(i):
-    """Put on as depth goes 0 -> 1: lifted out of its bay, carried forward over the floor, set down into the hole's
-    seat. Taken off the other way. Hole 1's also carries theta at ratio 0 (the clock; it moves nothing)."""
+    """Over its window of depth (COVER_WINDOWS): hole 1's is put on (lifted out of its bay, carried forward over the
+    floor, set down into the hole's seat), hole 2's taken off (lifted out of its seat, carried back, set down into
+    its bay); outside its window it stays put. Hole 1's also carries theta at ratio 0 (the clock; it moves nothing)."""
+    w0, w1, way = COVER_WINDOWS[i]
+    t = [w0 + (w1 - w0) * f for f in (0.0, T_LIFT, T_SET, 1.0)]
+    run = -(BAY_Z - HOLE_Z) if way == "on" else BAY_Z - HOLE_Z
     drv = []
     if i == 1:
-        drv.append({"type": "rotate", "axis": "y", "pivot": pt(HOLE_X[i], FLOOR_TOP, BAY_Z), "ratio": 0.0})
-    drv += [step("y", 0.0, T_LIFT, LIFT), step("z", T_LIFT, T_SET, -(BAY_Z - HOLE_Z)), step("y", T_SET, 1.0, -LIFT)]
+        drv.append({"type": "rotate", "axis": "y", "pivot": pt(HOLE_X[i], FLOOR_TOP, cover_z(i)), "ratio": 0.0})
+    drv += [step("y", t[0], t[1], LIFT), step("z", t[1], t[2], run), step("y", t[2], t[3], -LIFT)]
     return drv
+
+
+def cover_place(i, depth):
+    """Hole i's cover's place at `depth`: 0 aside in its bay, 1 seated (gameplay's view of it)."""
+    w0, w1, way = COVER_WINDOWS[i]
+    f = min(1.0, max(0.0, (depth - w0) / (w1 - w0)))
+    return f if way == "on" else 1.0 - f
+
+
+def depth_for(i, place):
+    """The depth that poses hole i's cover at `place` (0 aside, 1 seated) with the other seated: what a renderer
+    sets from the one cover that is off or on its way (BOTH_ON when both are seated)."""
+    w0, w1, way = COVER_WINDOWS[i]
+    return w0 + (w1 - w0) * (place if way == "on" else 1.0 - place)
 
 
 _PARTS = []
@@ -721,9 +781,10 @@ def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the front middle "
                     "cell at ground level; the holes are in the front (north) row, hole 1 west and hole 2 east, and the "
-                    "player works them from the front. No power: it is fired with coke. depth is a cover's place, 0 lifted "
-                    "aside into its bay behind the hole (the rest pose), 1 seated in the hole: in the game each hole's cover "
-                    "is posed with its own (h<i>cover with hole i's). theta is the melter's clock, carried by a ratio-0 "
+                    "player works them from the front. No power: it is fired with coke. depth is the covers, of which only one "
+                    "is off its hole or on its way at a time: 0 hole 1's aside in its bay (the rest pose), 0.5 both seated, "
+                    "1 hole 2's aside; h1cover goes on over 0..0.5, h2cover comes off over 0.5..1 (furnace.coverWindows). "
+                    "theta is the melter's clock, carried by a ratio-0 "
                     "rotate on h1cover: nothing turns. requires: per hole i, h<i>pot, h<i>charge, h<i>melt, the coke's three "
                     "layers h<i>coke1..3 (two coke a layer, from the grate up) and the same layers burning, h<i>fire1..3. "
                     "The cells over each hole and its bay are hollow: the covers pass through them. holeNCell: the hole's "
@@ -743,10 +804,14 @@ def make_rig(parts):
         "mouth1": {"pos": pt(*mouth_point(1))},
         "mouth2": {"pos": pt(*mouth_point(2))},
         "furnace": {"holes": len(HOLES), "cokeLayers": len(COKE_LAYERS), "cokePerLayer": COKE_PER_LAYER,
-                    "minChimney": MIN_CHIMNEY,
+                    "minChimney": MIN_CHIMNEY, "potUnits": POT_UNITS,
+                    "coverWindows": {f"h{i}cover": {"from": r6(w0), "to": r6(w1), "seatedAt": r6(w1 if way == "on" else w0)}
+                                     for i, (w0, w1, way) in COVER_WINDOWS.items()},
                     "_comment": "holes: the melting holes, h1 and h2; cokeLayers, cokePerLayer: a hole's coke is drawn as "
                                 "its layers h<i>coke1.. up to ceil(coke / cokePerLayer) (h<i>fire.. while lit); minChimney: "
-                                "chimney blocks the outlet needs (CrucibleFurnaceSettings.MinChimneyHeight)."},
+                                "chimney blocks the outlet needs (CrucibleFurnaceSettings.MinChimneyHeight); potUnits: what "
+                                "the drawn melt holds (PotCapacityUnits); coverWindows: the depth over which each cover moves, "
+                                "seated at seatedAt and aside at the window's other end; with both seated depth is 0.5."},
         "parts": parts,
     }
 
@@ -805,7 +870,7 @@ def shipped_cells(shape, ship_parts):
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
-    poses = [REST, (0.0, 0.1, "lit"), (1.3, 0.5, "melted"), (-2.0, 0.85, "pot"), (0.0, 1.0, "charged")]
+    poses = [REST, (0.0, 0.1, "lit"), (1.3, 0.3, "melted"), (0.0, 0.5, "charged"), (-2.0, 0.7, "pot"), (0.0, 1.0, "charged")]
     worst = worst_shift_error(els, ship_els, lambda el, pose: pm(parts, el.part, pose),
                               lambda el, pose: _part_matrix(ship_parts, el.part, inputs_of(pose)), d, poses)
     cells = [tuple(c["pos"]) for c in ship["cells"]]
@@ -817,7 +882,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 
 
 # ---------------------------------------------------------------- reference poses
-REF_DEPTHS = (0.0, 0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 0.85, 0.9, 0.95, 1.0)
+REF_DEPTHS = (0.0, 0.05, 0.1, 0.2, 0.25, 0.4, 0.45, 0.5, 0.55, 0.6, 0.75, 0.9, 0.95, 1.0)
 
 
 def reference_poses():
@@ -831,7 +896,7 @@ def reference_json(ship_parts):
         mats = {q["id"]: round_matrix(_part_matrix(ship_parts, q["id"], {"theta": th, "depth": dp})) for q in ship_parts}
         poses.append({"theta": th, "depth": dp, "matrices": mats})
     return {"_comment": f"Generated by {SCRIPT} from the shipped cruciblefurnace-rig.json's parts: each part's matrix as 3 "
-                        "rows of 4 (block units) at each pose (depth, a cover's place; theta moves nothing). The site's and "
+                        "rows of 4 (block units) at each pose (depth, the covers one at a time; theta moves nothing). The site's and "
                         "the mod's tests check their rig maths against it.",
             "poses": poses}
 
@@ -852,7 +917,7 @@ def shape_json(els):
 
 
 def coplanar_poses():
-    return tuple((0.0, dp, st) for st in ("charged", "melted", "burntlow", "pulled", "pot") for dp in (0.0, 0.1, 0.5, 0.9, 1.0))
+    return tuple((0.0, dp, st) for st in ("charged", "melted", "burntlow", "pulled", "pot") for dp in (0.0, 0.25, 0.5, 0.75, 1.0))
 
 
 def fix_coplanar(els, parts):
