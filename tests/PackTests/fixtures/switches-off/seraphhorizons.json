@@ -36,6 +36,7 @@
   "MapReveal": false,
   "NoSurfaceCopper": false,
   "OreCells": false,
+  "OreProcessing": false,
   "PackVersionCheck": false,
   "PanningDropsTrimmed": false,
   "PlacerFields": false,
