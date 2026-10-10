@@ -217,6 +217,12 @@ public static class Consumers
             Idle = SeraphIdle, Oil = "DrawBench",
             Note = "ResistanceLead empty or drawing lead, ResistanceCopper drawing copper",
         },
+        new("BEBehaviorCylinderBorerMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem", "Config.Resistance", 0.3, "ModConfig/seraphhorizons.json (CylinderBorerSettings)"))
+        {
+            Mod = Seraph, Id = "seraphhorizons:cylinderborer", ItemPrefix = "seraphhorizons:cylinderborer-frame", Name = "Cylinder borer",
+            Idle = SeraphIdle, Oil = "CylinderBorer", OilDryLoadFixed = true,
+            Note = "a dry tank does not raise its load: it wears the cutter head faster instead",
+        },
     };
 
     /// <summary>MPE's brass gearboxes have the same name as the wooden ones.</summary>

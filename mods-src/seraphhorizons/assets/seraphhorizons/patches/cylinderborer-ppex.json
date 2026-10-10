@@ -1,0 +1,28 @@
+// seraphhorizons' CylinderBorer switch (README.md "Cylinder borer", CylinderBorer/; #639): Pipes and Power
+// Expanded's engines take a bored engine cylinder from the cylinder borer for their bottom row, the two plates and
+// the pipe(s) that stood for the cylinder. tools/tests/test_cylinderborer_engines.py holds this file to ppex's
+// recipes and to the GearConsumers patch, which changes the same recipes' gears (patches/gearconsumers-ppex.json).
+// Pipes and Power Expanded (ppex 0.7.1), recipes/grid/machines.json: each engine has two recipes, one taking
+// game:gear-rusty (/4 Cornish, /5 Watt) and one ppex:gear-* (/9, /10), which GearConsumers switches off; both
+// pairs are patched, so the cylinder holds whatever that switch says.
+//   Watt engine "GH_,PRP,PIP" (iron or steel plates and rods, one pipe) -> "GH_,PRP,_C_", C one
+//     seraphhorizons:cylinder-iron: its rods, its middle row's two plates, its two gears and the hammer stay.
+//   Cornish engine "GHR,PNP,PIP" (steel plates, rods and nails, two steel pipes) -> "GHR,PNP,_C_", C one
+//     seraphhorizons:cylinder-steel: steel only, as before; its rods, nails and strips, middle row's plates,
+//     four gears and the hammer stay.
+// The CylinderBorer switch off empties this file (CylinderBorerSystem.DisablePatches), so the engines take their
+// plates and pipes again.
+[
+  {"file": "ppex:recipes/grid/machines.json", "op": "replace", "path": "/4/ingredientPattern", "value": "GHR,PNP,_C_", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "remove", "path": "/4/ingredients/I", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "add", "path": "/4/ingredients/C", "value": {"type": "item", "code": "seraphhorizons:cylinder-steel", "quantity": 1}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "replace", "path": "/5/ingredientPattern", "value": "GH_,PRP,_C_", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "remove", "path": "/5/ingredients/I", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "add", "path": "/5/ingredients/C", "value": {"type": "item", "code": "seraphhorizons:cylinder-iron", "quantity": 1}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "replace", "path": "/9/ingredientPattern", "value": "GHR,PNP,_C_", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "remove", "path": "/9/ingredients/I", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "add", "path": "/9/ingredients/C", "value": {"type": "item", "code": "seraphhorizons:cylinder-steel", "quantity": 1}, "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "replace", "path": "/10/ingredientPattern", "value": "GH_,PRP,_C_", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "remove", "path": "/10/ingredients/I", "dependsOn": [{"modid": "ppex"}]},
+  {"file": "ppex:recipes/grid/machines.json", "op": "add", "path": "/10/ingredients/C", "value": {"type": "item", "code": "seraphhorizons:cylinder-iron", "quantity": 1}, "dependsOn": [{"modid": "ppex"}]}
+]

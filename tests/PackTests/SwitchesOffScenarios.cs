@@ -292,6 +292,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var off = registry.Switches.Where(Off).ToList();
         Assert.Contains("GearCutter", off);
         Assert.Contains("DrawBench", off);
+        Assert.Contains("CylinderBorer", off);
         Assert.Contains("PressBrake", off);
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
@@ -367,6 +368,50 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("drawbench", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("draw bench", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>CylinderBorer</c>: no cylinder borer blocks, parts, molds, castings or bored
+    /// cylinders and no recipe for them, ppex's engines taking their plates and pipes again (the patch
+    /// emptied), no link to them in the mod's own text, the machine oil page without it whatever the
+    /// gear cutter's and the draw bench's switches (all off here, and their edits to that page touch
+    /// different passages), and nothing logged about them.</summary>
+    [AtlasScenario]
+    public void Cylinder_borer_off_there_is_no_cylinder_borer()
+    {
+        Assert.True(Off("CylinderBorer"));
+        Assert.False(SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylindermold"));
+        // ppex's engines as it ships them: the bottom row's plates and pipes, no cylinder
+        foreach (var engine in new[] { "ppex:enginewatt-north", "ppex:enginecornish-north" })
+        {
+            var recipes = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == engine).ToList();
+            Assert.NotEmpty(recipes);
+            Assert.All(recipes, r => Assert.Contains(GearConsumerUses.Codes(r), c => c?.StartsWith("ppex:pipe-straight-") == true));
+            Assert.All(recipes, r => Assert.DoesNotContain(GearConsumerUses.Codes(r), c => c?.StartsWith("seraphhorizons:cylinder") == true));
+        }
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:cylinder"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the cylinder borer: " + string.Join(", ", linked));
+        var oil = Lang.Get("seraphhorizons:machineoil-text");
+        Assert.DoesNotContain("cylinder borer", oil);
+        Assert.Contains("automated sawmill</a>, the <a href=\"handbook://block-immersivewoodworking:chopper-frame-north\">", oil);
+        Assert.Contains("the sawmill 2 points a log, the chopper", oil);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("cylinderborer", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("cylinder borer", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("cylindermold", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("cylinderblank", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
