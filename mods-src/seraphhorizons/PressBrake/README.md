@@ -28,8 +28,7 @@ unchanged by this one (no new driver: every motion is a `gauge`).
 the controller at `[0,0,0]`: x 0, y 0, z 0..1. The controller is the leaf end, `[0,0,0]`, the block
 the player clicks. Placed like the draw bench, the brake extends away from the player along their line
 of sight, the leaf end nearest them: the block's `side` is the way they look. The operator stands at
-the leaf; the angle comes off towards them (native north), and a chest of half plates can stand behind
-the far end of the bed (native south).
+the leaf; the angle comes off towards them (native north).
 
 **The folding edge** (the leaf's hinge axis) runs along x at y 4.6, z 10 voxels (in blocks 0.2875,
 0.625): the bed's top and its iron edge.
@@ -45,8 +44,7 @@ the game's 8 × 8 × 8 chute section on the grid (`assets/seraphhorizons/recipes
 though each angle is a 4 × 4 × 4 L. The owner accepts it: it is the grid recipe's abstraction, off-screen,
 and nothing on the brake grows or appears from nowhere.
 
-**Anchors** (in `assets/seraphhorizons/config/pressbrake-rig.json`): `infeedSide` south and `outputSide`
-north; `output.pos` (over the leaf at the near end, where the angle lies at W = 1), `plate.pos`
+**Anchors** (in `assets/seraphhorizons/config/pressbrake-rig.json`): `outputSide` north; `output.pos` (over the leaf at the near end, where the angle lies at W = 1), `plate.pos`
 (the middle of the half plate as laid, over the folding edge: loading sounds) and `edge.pos` (the middle of the folding
 edge: the bend's sound and dust). There is no `powerCell` or `powerFace`.
 
@@ -217,7 +215,7 @@ maths: a `work` quantity, gauges, and one θ-driven rotate of ratio 0.
   4.5 for half the sheet), `throwDegrees` (95, 100: as drawn), `plates` (each class's work:
   `seraphhorizons:halfplate-lead`, `-copper`), `angles` (what a half plate makes) and `anglesPerPlate` (1).
 
-**Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `plate`, `edge`, `work`, `fold` and `parts`.
+**Keys.** `cells`, `outputSide`, `output`, `plate`, `edge`, `work`, `fold` and `parts`.
 `requires` values: `screws`, `edge`, `platelead`, `platecopper`, or null. The texture codes the
 renderer sets: `edge` (the fitted plate's metal); the screws' `cupronickel` is fixed.
 
@@ -319,15 +317,11 @@ there are no half plates (they are the shear's item, `../SquaringShear/`), so a 
 every work click, and the load, with `pressbrake-error-no-halfplates` ("the squaring shear that cuts
 them is switched off"; `BEPressBrake.HalfPlatesExist`, which asks the world for either half plate, as
 `AngleItem` asks for the angle). Fitting parts still works. At W = 1 the half plate is
-used up and the angle goes into a container in `PressBrakeRig.OutputNeighbour()` (the cell beyond
-`output.pos` across the output face, native north), else drop at `OutputDrop()`, pushed outward, as the
-draw bench's. The bend (`game:sounds/block/heavymetal-hit`) is heard at the middle of the fold, the
+used up and the angle drops at `OutputDrop()` (in `PressBrakeRig.OutputNeighbour()`, the cell beyond
+`output.pos` across the output face, native north), pushed outward, as the draw bench's. The bend (`game:sounds/block/heavymetal-hit`) is heard at the middle of the fold, the
 `leaf` part's one gauge window, up and back (`PressBrakeRig.Folds`, `FoldMoments`: 0.42 as generated). The
-server syncs W every 0.02 plate. **Infeed:** a hand machine takes nothing by itself. A work click on an
-empty bed, or a step held on past a finished half plate, takes one half plate from a container in the
-cell beyond the far end (`InfeedNeighbours`, native south; whole plates there are left alone); after one
-is done the held steps wait 0.6 s (`ClearMs`) before the next, so the model eases the bar back first, and
-the hold goes on through that wait while the infeed has a half plate.
+server syncs W every 0.02 plate. Half plates go on by hand only, and a held step on an empty bed lets go:
+the brake never takes from or puts into a chest or other container beside it.
 
 **Settings** (`PressBrakeSettings`): `LeverTurnsPerPlateLead` 1.5 and `LeverTurnsPerPlateCopper` 2.25 (a
 half plate, half the sheet of the whole plate the brake used to fold at 3 and 4.5), the

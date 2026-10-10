@@ -412,11 +412,8 @@ public class DrawBenchGameplayTests
         Assert.All(rig.Cells, c => Assert.NotNull(c.Lid));
         Assert.Equal(new Int3(0, 0, 3), rig.PowerCell);
         Assert.Equal(Side.West, rig.PowerFace);
-        Assert.Equal(Side.North, rig.InfeedSide);
         Assert.Equal(Side.East, rig.OutputSide);
         Assert.Equal(3, rig.GhostCells.Count());
-        // a chest in front of the die end feeds it
-        Assert.Equal([new Int3(0, 0, -1)], rig.InfeedNeighbours());
         // the sections come off by the die end's east face
         Assert.Equal(new Int3(1, 0, 0), rig.OutputNeighbour());
         Assert.Equal(1.15f, rig.OutputDrop().X, 4);
@@ -441,7 +438,6 @@ public class DrawBenchGameplayTests
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"sectionsPerHollow\"", "\"sectionsPerIngot\"")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"hollows\"", "\"ingots\"")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"thin\": 4.0", "\"thin\": 3.0")));
-        Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"infeedSide\": \"north\"", "\"infeedSide\": \"east\"")));
         Assert.Throws<FormatException>(() => DrawBenchRig.Parse(json.Replace("\"turnsPerSection\"", "\"turnsPerTooth\"")));
     }
 

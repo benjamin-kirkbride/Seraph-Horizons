@@ -162,7 +162,8 @@ class Anchors(unittest.TestCase):
         self.assertTrue(all(c.get("boxes") for c in RIG["cells"]))
         self.assertNotIn("powerCell", RIG)
         self.assertNotIn("powerFace", RIG)
-        self.assertEqual((RIG["infeedSide"], RIG["outputSide"]), ("west", "south"))
+        self.assertNotIn("infeedSide", RIG)
+        self.assertEqual(RIG["outputSide"], "south")
         for key in ("output", "strike"):
             self.assertEqual(len(RIG[key]["pos"]), 3)
         # the strike on the box's top over the stump's cell; the output (where gameplay drops the sections)

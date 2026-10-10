@@ -38,8 +38,7 @@ south-facing frame with the controller at `[0,0,0]`: x 0, y 0, z 0..3. The contr
 of sight, the die end nearest them: the block's `side` is the way they look, since the bench runs along
 native south (not the mills' `Footprint.PlacedFacing`, which sends native west along the look; see
 "Gameplay"). Seen by the player who placed it, the axle comes in at the far end on their right (native
-west), finished sections come out on their left (native east), and a chest of hollow sections stands in
-front of the die end (native north).
+west), and finished sections come out on their left (native east).
 
 **The draw line** runs along z at x 5, y 11.5 voxels (in blocks 0.3125, 0.719): the section's axis.
 
@@ -61,11 +60,9 @@ the cell's centre (y 8, z 56 voxels), into the head. Whichever way the axle turn
 the clutch's cup the draw's way; the draw itself is always forward.
 
 **Anchors** (in `assets/seraphhorizons/config/drawbench-rig.json`): `powerCell` and `powerFace`;
-`infeedSide` north (a chest or hopper beyond the die end's north face feeds hollow sections) and
 `outputSide` east with `output.pos` (`[0.9994, 0.2329, 0.26]`: the east face of the die end's cell
 `[0,0,0]`, level with a section lying on the trough's rails at its north end, where the queue's first
-section lay before sections were handed out as drawn; a finished section leaves the east face there, so
-a chest beside the die end takes it); `die.pos` (the die's mouth on the draw line, where the section emerges: dust
+section lay before sections were handed out as drawn; a finished section leaves the east face there); `die.pos` (the die's mouth on the draw line, where the section emerges: dust
 and lubricant smoke) and `drip.pos` (`[0.3125, 0.9719, 1.1281]`: the oiler's spout over the hollow, just
 behind the die stock). There is no oil anchor: the oil is MachineOil's.
 
@@ -330,7 +327,7 @@ maths: a `work` quantity, gauges, rotations on θ and ψ, and a `stretch` on the
   through a job (the hollow's quarters, the sections, the follower and the spring) have windows open to the
   end of the job (`to` 1000) and come back with p. The change gear's setting is a `present` gauge.
 
-**Keys.** `cells`, `powerCell` and `powerFace`, `infeedSide`, `outputSide`, `output`, `die`, `drip`,
+**Keys.** `cells`, `powerCell` and `powerFace`, `outputSide`, `output`, `die`, `drip`,
 `work`, `draw` (`turnsPerSection`, `sectionsPerHollow`, `handOut`, `hollows`) and `parts`. `requires` values:
 `gearbox`, `chain`, `dog`, `mandrel`, `die`, `billetlead`, `billetcopper`, or null. The die's texture code
 is `die`.
@@ -408,8 +405,8 @@ renderer draws the parts with the block's texture source), `drawbench-ghost` and
 the bench runs along native south, so the `side` placed is the way the player looks
 (`DrawBenchRig.PlacedSide`), and the bench runs away from them with the die end, the block they clicked,
 nearest. (`Footprint.PlacedFacing`, the mills' rule, sends native west along the look, which would lay
-the bench across it.) The axle then comes in at the far end on the player's right, the pipe sections come
-off to their left, and a chest of hollow sections stands in front of the die end. The frame recipe
+the bench across it.) The axle then comes in at the far end on the player's right, and the pipe sections come
+off to their left. The frame recipe
 (`assets/seraphhorizons/recipes/grid/drawbench.json`): two metal plates (die stock and the drive head's bed
 plate, in one slot) and four rods (the ways, two a side) of iron, meteoric iron or steel, 12 nails and
 strips of the same metals, two stainless gears (`seraphhorizons:gear-stainless`, for the gearing the frame carries:
@@ -454,27 +451,25 @@ ingot in and chute sections out, and before that a forged section in and pipes o
 only on a complete bench, one at a time, and only of a metal the die draws (`DieMetals`: iron `lead`;
 steel `lead`, `copper`; a server can change them), and only when its pipe section exists in the game.
 The lead hollow is `UnifiedPipes`' state on the game's item (`patches/unifiedpipes-chutesection.json`);
-with that switch off there is none to put on. An ingot, an angle or a pipe section is never taken, by
-hand or from the infeed (`ClassOfHollow` is 0 for each: the click is the item's own business). Class k
+with that switch off there is none to put on. An ingot, an angle or a pipe section is never taken
+(`ClassOfHollow` is 0 for each: the click is the item's own business). Class k
 is 1 for a lead hollow, 2 for a copper one (the rig's `draw.hollows`; `draw.sectionsPerHollow` is 4;
 the reader takes only these keys, and refuses a rig without them). W runs from 0 to 4 by
 `SectionsFor(radians, TurnsPerSection(k))` while `Drawing.Running` (complete, a hollow on, the shaft at
 `MinSpeed`); `BEDrawBench.Draw(radians)` is the step (the server's 50 ms tick calls it with the shaft's
 advance; the Atlas scenarios call it to finish a hollow). Each time W crosses a section's hand-out, m +
 `Drawing.HandOut` (0.43125, 1.43125, 2.43125 and 3.43125: the section's tail has left the die and the
-jaws have sprung open), one pipe section goes into a container in `DrawBenchRig.OutputNeighbour()` (the
-cell beyond `output.pos` across the output face: native east of the die end's cell), else drops at
-`OutputDrop()`, pushed outward, as the gear cutter's gears do; the tank drains `DrainPerJob` (2) a pipe
+jaws have sprung open), one pipe section drops at `OutputDrop()` (in
+`DrawBenchRig.OutputNeighbour()`, the cell beyond `output.pos` across the output face: native east of
+the die end's cell), pushed outward, as the gear cutter's gears do; the tank drains `DrainPerJob` (2) a pipe
 section, 8 a hollow. The model hides the section at the same W (the rig's `draw.handOut`, which the reader
 holds to `Drawing.HandOut`), and the renderer's W is never behind the server's, so the item and the
 model never both show it; `SectionsDone` counts the hand-outs W has reached. (Before, the model dropped
 each section into the trough to queue there and gameplay delivered at the whole number, a return and a
 pause later.) At W = 4, the dog back at the die after the fourth stroke, the hollow is used up and the die wears
 `DieWearPerHollow` (1), whatever the oil (the export's `wear.rule` `fixed`): at 0 it is gone with the
-tool-break sound and the bench stops until a new die is fitted. The bench then clears, and the infeed
-(the cell in front of the die end, `InfeedNeighbours`, a container slot holding a hollow the die draws)
-waits 0.6 s before the next hollow, so the model eases the last one out first; it feeds on the slow
-tick, while the shaft turns. The server syncs W every 0.05 section and at every section.
+tool-break sound and the bench stops until a new die is fitted. The bench then clears; the next hollow
+goes on by hand (the bench never takes from or puts into a chest or other container beside it). The server syncs W every 0.05 section and at every section.
 
 **Oil and load.** `Oil.NewOwn(api, OilMachine.DrawBench)`: the tank (1000), pouring, saving, syncing and the
 smoke are MachineOil's, with the standard dry rule: `BEBehaviorDrawBenchMP.GetResistance` is

@@ -174,7 +174,8 @@ class Anchors(unittest.TestCase):
         power = tuple(RIG["powerCell"])
         self.assertEqual(power, (0, 0, 3))
         self.assertEqual(RIG["powerFace"], "west")
-        self.assertEqual((RIG["infeedSide"], RIG["outputSide"]), ("north", "east"))
+        self.assertNotIn("infeedSide", RIG)
+        self.assertEqual(RIG["outputSide"], "east")
         for key in ("output", "die", "drip"):
             self.assertEqual(len(RIG[key]["pos"]), 3)
         # the die anchor is the die's mouth on the draw line (anchors are rounded to 1e-4 blocks)

@@ -360,12 +360,8 @@ public class GearCutterGameplayTests
         Assert.Equal(8, rig.Cells.Count);
         Assert.Equal(new Int3(-1, 0, 0), rig.PowerCell);
         Assert.Equal(Side.West, rig.PowerFace);
-        Assert.Equal(Side.North, rig.InfeedSide);
         Assert.Equal(Side.South, rig.OutputSide);
         Assert.Equal(7, rig.GhostCells.Count());
-        // a chest at either cell against the north face, either level, feeds it
-        Assert.Equal(4, rig.InfeedNeighbours().Count());
-        Assert.All(rig.InfeedNeighbours(), n => Assert.Equal(-1, n.Z));
         Assert.Equal(new Int3(0, 0, 2), rig.OutputNeighbour());
         Assert.Equal(2.15f, rig.OutputDrop().Z, 4);
         Assert.Equal(rig.Output.X, rig.OutputDrop().X);
