@@ -15,6 +15,7 @@ import {
   type SearchFile,
   type VersionsFile,
 } from "./format.ts";
+import type { EidolonData } from "./eidolon-fittings.ts";
 import type { PowerData } from "./power-data.ts";
 import { readIconIndex, type IconIndex } from "./icons.ts";
 import { ItemSearch } from "./search.ts";
@@ -63,6 +64,7 @@ export class VersionData {
   private readonly recipeChunks = new Map<number, Promise<RecipeChunk>>();
   private entitiesP: Promise<EntityIndex> | null = null;
   private powerP: Promise<PowerData | null> | null = null;
+  private eidolonP: Promise<EidolonData | null> | null = null;
   private readonly entityChunks = new Map<number, Promise<EntityChunk>>();
   private multiblocksP: Promise<MultiblockIndex> | null = null;
   private readonly multiblockFiles = new Map<number, Promise<MultiblockFile>>();
@@ -143,6 +145,16 @@ export class VersionData {
       return ((await res.json()) as PowerData | null) ?? null;
     });
     return this.powerP;
+  }
+
+  /** eidolon.json; null for a version whose export had no eidolon section. */
+  eidolon(): Promise<EidolonData | null> {
+    this.eidolonP ??= fetch(`${this.base}eidolon.json`).then(async (res) => {
+      if (res.status === 404) return null;
+      if (!res.ok) throw new LoadError(`${this.base}eidolon.json: HTTP ${res.status}`);
+      return ((await res.json()) as EidolonData | null) ?? null;
+    });
+    return this.eidolonP;
   }
 
   /** The variants of entity type `index` of entities.json, with what each gives. */
