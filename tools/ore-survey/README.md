@@ -94,7 +94,9 @@ change touches drops or metal units.
   to both summaries of a comparison.
 - **Ingots.** From the dump: an ore block drops 1.25 ore chunks and 0.01 crystallised ore;
   each has `metalUnits` by grade; 5 units are a nugget and 20 nuggets an ingot. The metal is
-  what the ore's nugget smelts to (`galena_nativesilver` counts as silver, iron ores as iron).
+  what the ore's nugget smelts to (iron ores as iron). Argentiferous galena (`galena_nativesilver`)
+  counts as lead since #690 (its silver is won by cupellation); the epic's surveys, and
+  `config/ore-sizes.json`'s medians, counted it as silver.
 - **Per metal:** deposits per km² (and km² per deposit), ingots p10 / median / p90 / max (no
   interpolation: the value at index `int(p * n)`), the median distance from a deposit to the
   nearest other deposit of the same metal in the same seed, the share of deposits with ore

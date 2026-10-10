@@ -49,7 +49,7 @@ public partial class RecipeExportScenarios
         foreach (var hand in SeraphHorizons.Mod.Core.SwitchOwnership.HandListed.Where(h => On(h.Switch)))
             foreach (var pattern in hand.CodePatterns)
                 Assert.True(Matches(pattern), $"{hand.Switch}: no registered code matches {pattern}");
-        foreach (var owned in registry.Owned)
+        foreach (var owned in registry.Owned.Where(o => On(o.Switch)))
         {
             foreach (var type in owned.RecipeTypes)
                 Assert.True(Doc["recipeTypes"]![type] != null, $"{owned.Switch}: the export has no recipe type {type}");

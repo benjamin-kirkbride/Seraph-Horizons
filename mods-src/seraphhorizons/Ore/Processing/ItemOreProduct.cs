@@ -32,6 +32,17 @@ public class ItemOreProduct : Item
         return Lang.Get(key, Lang.Get("ore-" + ore));
     }
 
+    /// <summary>Litharge out of a broken cupel (<see cref="BlockCupelBead"/>): as many as the cupel
+    /// holds, up to a stack (the rest goes to the player with the bead's bits).</summary>
+    public override void OnCreatedByCrafting(ItemSlot[] allInputSlots, ItemSlot outputSlot, IRecipeBase byRecipe)
+    {
+        base.OnCreatedByCrafting(allInputSlots, outputSlot, byRecipe);
+        if (Form != "litharge" || outputSlot.Itemstack is not { } output) return;
+        foreach (var slot in allInputSlots)
+            if (slot.Itemstack is { Collectible: BlockCupelBead } bead)
+                output.StackSize = Math.Clamp(BlockCupelBead.Litharge(bead), 1, MaxStackSize);
+    }
+
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);

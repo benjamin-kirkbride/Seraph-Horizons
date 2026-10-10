@@ -34,6 +34,7 @@ def dump(*parts):
         "Item game:nugget-nativecopper": {"metalUnits": None, "smeltsTo": "game:ingot-copper"},
         "Item game:nugget-hematite": {"metalUnits": None, "smeltsTo": "game:ironbloom"},
         "Item game:nugget-nativesilver": {"metalUnits": None, "smeltsTo": "game:ingot-silver"},
+        "Item game:nugget-galena": {"metalUnits": None, "smeltsTo": "game:ingot-lead"},
         "Item game:nugget-rhodochrosite": {"metalUnits": None, "smeltsTo": None},
     }, "deposits": []}
     for p in parts:
@@ -66,7 +67,8 @@ class Conversion(unittest.TestCase):
 
     def test_metal_follows_the_nugget(self):
         self.assertEqual(self.c("game:ore-rich-hematite-granite")[1], "iron")
-        self.assertEqual(self.c("game:ore-poor-galena_nativesilver-granite")[1], "silver")
+        # Argentiferous galena is a lead ore (#690).
+        self.assertEqual(self.c("game:ore-poor-galena_nativesilver-granite")[1], "lead")
 
     def test_minerals_gravel_and_ignored(self):
         self.assertEqual(self.c("interestingoregen:saltpeterore")[:2], ("mineral", "saltpeter"))

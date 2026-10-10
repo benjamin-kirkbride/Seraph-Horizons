@@ -19,15 +19,32 @@ public sealed record DepositMakeup
     public Dictionary<string, long> Grades { get; init; } = new();
     public Dictionary<string, long> Rocks { get; init; } = new();
 
+    /// <summary>Ores named whenever the deposit holds any, however little: argentiferous galena, a
+    /// lead deposit's silver (#690), which a buyer wants to know of.</summary>
+    public static readonly IReadOnlySet<string> AlwaysNamed = new HashSet<string>(StringComparer.Ordinal) { "galena_nativesilver" };
+
     /// <summary>The ores holding at least <see cref="MinOreShare"/> of the metal (the richest one
-    /// always), richest first, at most <see cref="MaxOres"/>; ties by name.</summary>
+    /// always), and any of <see cref="AlwaysNamed"/> there, richest first, at most
+    /// <see cref="MaxOres"/> (an always-named ore takes the poorest other's place); ties by name.</summary>
     public IReadOnlyList<string> MainOres()
     {
         double total = Ores.Values.Sum();
         var sorted = Ores.Where(kv => kv.Value > 0)
             .OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.Ordinal)
             .ToList();
-        return sorted.Where((kv, i) => i == 0 || kv.Value >= MinOreShare * total).Take(MaxOres).Select(kv => kv.Key).ToList();
+        var named = sorted.Where((kv, i) => i == 0 || kv.Value >= MinOreShare * total).Take(MaxOres).ToList();
+        foreach (var kv in sorted)
+        {
+            if (!AlwaysNamed.Contains(kv.Key) || named.Contains(kv)) continue;
+            if (named.Count >= MaxOres)
+            {
+                int last = named.FindLastIndex(n => !AlwaysNamed.Contains(n.Key));
+                if (last <= 0) continue;
+                named.RemoveAt(last);
+            }
+            named.Add(kv);
+        }
+        return named.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key).ToList();
     }
 
     /// <summary>The rock most of the ore sits in; ties by name; null with no ore.</summary>

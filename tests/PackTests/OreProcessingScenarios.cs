@@ -13,6 +13,8 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using Newtonsoft.Json.Linq;
+using Vintagestory.API.MathTools;
 using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
@@ -238,6 +240,153 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(2.0 / 3, shares[0], 6);
         Assert.Equal(1.0 / 3, shares[1], 6);
         World.SetBlock("game:air", pos);
+    }
+
+    // #690: argentiferous galena is named so and is a lead ore: every form smelts to lead, its loose
+    // bits drop galena, and its metal group is lead.
+    [AtlasScenario]
+    public void Argentiferous_galena_is_a_lead_ore()
+    {
+        Assert.Equal("Argentiferous galena concentrate", new ItemStack(Item(OreProducts.ConcentrateCode("galena_nativesilver"))).GetName());
+        Assert.Equal("Raw Argentiferous galena ore (medium)", new ItemStack(Item("game:ore-medium-galena_nativesilver-shale")).GetName());
+        Assert.Equal("Argentiferous galena ore", new ItemStack(W.GetBlock(new AssetLocation("game:ore-poor-galena_nativesilver-shale"))).GetName());
+        Assert.Equal("Argentiferous galena bits", new ItemStack(W.GetBlock(new AssetLocation("game:looseores-galena_nativesilver-shale-free"))).GetName());
+        foreach (var code in new[] { OreProducts.RoastedCode("galena_nativesilver"), OreProducts.CrushedCode("galena_nativesilver", OreGrain.Coarse),
+                     "game:crystalizedore-rich-galena_nativesilver-granite" })
+            Assert.Equal("game:ingot-lead", Item(code).CombustibleProps?.SmeltedStack?.ResolvedItemstack?.Collectible.Code.ToString());
+        Assert.Equal("game:nugget-galena",
+            W.GetBlock(new AssetLocation("game:looseores-galena_nativesilver-shale-free"))!.Drops.Single().ResolvedItemstack.Collectible.Code.ToString());
+        Assert.Equal("game:nugget-nativesilver",
+            W.GetBlock(new AssetLocation("game:looseores-quartz_nativesilver-granite-free"))!.Drops.Single().ResolvedItemstack.Collectible.Code.ToString());
+        Assert.Equal("lead", OreMetals.MetalOf("galena_nativesilver"));
+    }
+
+    private sealed class LooseSlots(ItemSlot[] slots) : ISlotProvider
+    {
+        public ItemSlot[] Slots => slots;
+    }
+
+    private (BlockEntity Forge, ISlotProvider Charge) Forge(BlockPos pos)
+    {
+        World.SetBlock("game:forge", pos);
+        var forge = W.BlockAccessor.GetBlockEntity(pos)!;
+        Assert.Equal(CupelForge.ForgeType, forge.GetType().FullName);
+        return (forge, (ISlotProvider)AccessTools.Field(forge.GetType(), "chargeProvider").GetValue(forge)!);
+    }
+
+    private void Gate(BlockEntity forge, string position)
+    {
+        AccessTools.Property(forge.GetType(), "GateStack").SetValue(forge, Stack("game:metalplate-iron", 1));
+        var gate = AccessTools.Property(forge.GetType(), "GatePosition");
+        gate.SetValue(forge, Enum.Parse(gate.PropertyType, position));
+    }
+
+    // #722: the cupel goes in crucibulum's forge as a crucible; its gate sets the pace; done, it is
+    // the bead, which breaks into litharge (the recipe's output) and silver bits.
+    [AtlasScenario]
+    public async Task Cupel_in_crucibulums_forge()
+    {
+        Assert.True(CupelForge.Bound);
+        var pos = World.Spawn.AddCopy(64, 8, 60);
+        var (forge, charge) = Forge(pos);
+        await World.Ticks(2);
+        var cupelBlock = W.GetBlock(new AssetLocation("seraphhorizons:cupel-fired"));
+        var cupel = Assert.IsType<BlockCupel>(cupelBlock);
+        var work = ((BlockEntityForge)forge).WorkItemSlot;
+        work.Itemstack = new ItemStack(cupelBlock);
+        Assert.True((bool)AccessTools.Method(forge.GetType(), "IsCrucible").Invoke(null, [work.Itemstack])!);
+        // The charge slots take roasted concentrate as they take a crucible's charge.
+        Assert.True((bool)AccessTools.Method(AccessTools.TypeByName("Crucibulum.ItemSlotCrucibleCharge"), "Admits")
+            .Invoke(null, [Stack(OreProducts.RoastedCode("galena_nativesilver"), 1), work.Itemstack])!);
+
+        charge.Slots[0].Itemstack = Stack(OreProducts.RoastedCode("galena_nativesilver"), 40);
+        Assert.True(cupel.CanSmelt(W, charge, work.Itemstack, null));
+        Assert.Equal(950, cupel.GetMeltingPoint(W, charge, work), 3);
+        Assert.Equal(120, cupel.GetMeltingDuration(W, charge, work), 3);
+        Assert.StartsWith("Will part 64.6 units of Silver", cupel.OutputText(W, charge));
+        Gate(forge, "Quarter");
+        Assert.Equal(120 / 0.7, cupel.GetMeltingDuration(W, charge, work), 2);
+        Gate(forge, "Shut");
+        Assert.False(cupel.CanSmelt(W, charge, work.Itemstack, null));
+        Gate(forge, "Open");
+
+        // Not a forge's slots (a firepit's): refused.
+        var elsewhere = new LooseSlots([new DummySlot(Stack(OreProducts.RoastedCode("galena_nativesilver"), 40))]);
+        Assert.False(cupel.CanSmelt(W, elsewhere, work.Itemstack, null));
+        Assert.Null(CupelForge.Air(elsewhere));
+        // Too much, or something else in the charge: refused.
+        charge.Slots[1].Itemstack = Stack(OreProducts.RoastedCode("galena"), 1);
+        Assert.False(cupel.CanSmelt(W, charge, work.Itemstack, null));
+        charge.Slots[1].Itemstack = Stack("seraphhorizons:roastedconcentrate-chalcopyrite", 1);
+        Assert.False(cupel.CanSmelt(W, charge, work.Itemstack, null));
+        charge.Slots[1].Itemstack = null;
+
+        AccessTools.Method(forge.GetType(), "DoSmelt").Invoke(forge, []);
+        var bead = work.Itemstack;
+        Assert.IsType<BlockCupelBead>(bead?.Collectible);
+        Assert.All(charge.Slots, s => Assert.True(s.Empty));
+        Assert.Equal(40, BlockCupelBead.Litharge(bead!));
+        var bits = BlockCupelBead.Bits(bead!).ToList();
+        Assert.Equal("game:metalbit-silver", Assert.Single(bits).Code);
+        Assert.InRange(bits[0].Count, 12, 13);
+
+        // Broken in the grid: litharge out, as many as the bead holds.
+        var recipe = W.GridRecipes.Single(r => r.Enabled && r.Output.Code.ToString() == OreProducts.LithargeCode);
+        var output = new DummySlot(Stack(OreProducts.LithargeCode, 1));
+        Item(OreProducts.LithargeCode).OnCreatedByCrafting([new DummySlot(bead), new DummySlot(Stack("game:hammer-iron", 1))], output, recipe);
+        Assert.Equal(40, output.Itemstack.StackSize);
+        World.SetBlock("game:air", pos);
+    }
+
+    // Tetrahedrite and freibergite want their own weight of lead.
+    [AtlasScenario]
+    public async Task Cupel_takes_copper_ores_with_lead()
+    {
+        var pos = World.Spawn.AddCopy(68, 8, 60);
+        var (forge, charge) = Forge(pos);
+        await World.Ticks(2);
+        var cupel = (BlockCupel)W.GetBlock(new AssetLocation("seraphhorizons:cupel-fired"));
+        var work = ((BlockEntityForge)forge).WorkItemSlot;
+        work.Itemstack = new ItemStack(cupel);
+        charge.Slots[0].Itemstack = Stack(OreProducts.RoastedCode("freibergite"), 20);
+        Assert.False(cupel.CanSmelt(W, charge, work.Itemstack, null));
+        charge.Slots[1].Itemstack = Stack("game:metalbit-lead", 20);
+        Assert.True(cupel.CanSmelt(W, charge, work.Itemstack, null));
+        AccessTools.Method(forge.GetType(), "DoSmelt").Invoke(forge, []);
+        var bits = BlockCupelBead.Bits(work.Itemstack!).ToDictionary(b => b.Code, b => b.Count);
+        Assert.Equal(20, bits["game:metalbit-silver"]);
+        Assert.InRange(bits["game:metalbit-copper"], 5, 6);
+        Assert.Equal(20, BlockCupelBead.Litharge(work.Itemstack!));
+        World.SetBlock("game:air", pos);
+    }
+
+    // The raw cupel is four bone meal, fired like clay into the cupel.
+    [AtlasScenario]
+    public void Cupel_is_made_of_bone_meal_and_fired()
+    {
+        var raw = W.GetBlock(new AssetLocation("seraphhorizons:cupel-raw"));
+        Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.ToString() == "seraphhorizons:cupel-raw");
+        Assert.Equal(EnumSmeltType.Fire, raw.CombustibleProps.SmeltingType);
+        Assert.Equal("seraphhorizons:cupel-fired", raw.CombustibleProps.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
+        Assert.Equal("Bone-ash cupel", new ItemStack(W.GetBlock(new AssetLocation("seraphhorizons:cupel-fired"))).GetName());
+    }
+
+    // The recipe browser's record per ore the cupel takes.
+    [AtlasScenario(TimeoutMs = 600_000)]
+    public void Cupellation_is_exported()
+    {
+        var doc = ExportUnderTest.Get(World.Api);
+        Assert.Equal("generic", (string)doc["recipeTypes"]!["cupellation"]!["shape"]!);
+        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string)r["type"]! == "cupellation").ToList();
+        Assert.Equal(["cupellation|seraphhorizons:roastedconcentrate-freibergite|0", "cupellation|seraphhorizons:roastedconcentrate-galena_nativesilver|0",
+                      "cupellation|seraphhorizons:roastedconcentrate-galena|0", "cupellation|seraphhorizons:roastedconcentrate-tetrahedrite|0"],
+            records.Select(r => (string)r["id"]!).Order(StringComparer.Ordinal));
+        var argentiferous = records.Single(r => (string)r["extra"]!["ore"]! == "galena_nativesilver");
+        Assert.Equal("OreProcessing", (string?)argentiferous["switch"]);
+        Assert.Equal(64.6, (double)argentiferous["extra"]!["metalUnits"]!["silver"]!, 6);
+        Assert.Equal(40, (double)argentiferous["ingredients"]![1]!["quantity"]!);
+        var tetrahedrite = records.Single(r => (string)r["extra"]!["ore"]! == "tetrahedrite");
+        Assert.Contains(tetrahedrite["ingredients"]!, i => (string)i["code"]! == "game:metalbit-lead" && (double)i["quantity"]! == 20);
     }
 
     // smex's blast furnace: a nugget or concentrate is 5 units of iron, a crushed ore 2.5.
