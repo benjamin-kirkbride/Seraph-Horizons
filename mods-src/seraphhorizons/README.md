@@ -12,7 +12,7 @@ into stainless gears through the pot, the pickling tub and the barrel (`GearRecl
 recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
 (`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -2790,6 +2790,27 @@ block, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and th
 and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's own waypoint
 traverser then walks the path. A first pass: following (#675) proves it on real terrain.
 
+**The guide** (#681, `Eidolon/Game/EidolonGuideSystem.cs`). The handbook has a page of its own,
+"Building and commanding an eidolon" (`config/handbook/eidolon.json`, page code
+`seraphhorizons-eidolon`, text `eidolon-guide-text`): the schematic, the gantry and its nine winch
+stages, the body bill, waking it, charge, oil, repair, the command tool (binding, the wheel, marks) and
+every order, self-defence and its limits. Its text quotes the default settings. The gantry's "Building
+the gantry" and the command tool's "Giving orders" sections are short and link it. With the switch off
+the client drops the page and the server lists it under `handbook-hiddenGuides`, so the recipe export
+leaves it out (`SwitchesOffScenarios`).
+
+**In the recipe browser** (#681, `tools/recipe-export/Recipes/EidolonExport.cs`,
+`RecipeSection.Eidolon.cs`). The frame's grid recipe exports as any recipe; the two builds are records
+of type `construction` (blocks built in place, `docs/recipe-browser/schema.md`), read by reflection
+from `GantryParts` and `BodyBill`, so they cannot drift from the rules: the gantry's winch
+(`construction|seraphhorizons:eidolongantry-<wood>-north|0`, the placed frame then the nine stages, a
+variant per wood binding the drum's planks and the spine's beams) and the body
+(`construction|seraphhorizons:creature-eidolon|0`, a gantry as its first stage, role `station`, never
+consumed, then the six body stages; its output is the eidolon's creature item). The command tool's grid
+recipe exports as any recipe. Item values follow from these: the gantry (every wood) and the command
+tool from their grid recipes; the schematic has none, by rule, and neither has the creature item, as no
+creature has: its body build takes the elucidatory vessel, a boss drop with no value.
+
 **For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
 recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
 (one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
@@ -2924,7 +2945,11 @@ then given one it fells an area of three grown oaks (three trunks holding every 
 the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
 player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
 `SwitchesOffScenarios` requires none of it with the switch
-off. Not yet: an icon for the spawner.
+off. Not yet: icons for the recipe browser, which need the game client (`tools/icon-export`,
+`docs/recipe-browser/icons.md`): the gantry (`seraphhorizons:eidolongantry-{wood}-north`, each of the
+12 woods), the command tool (`seraphhorizons:eidoloncommander`), the schematic
+(`seraphhorizons:schematic-eidolon`) and the creature item (`seraphhorizons:creature-eidolon`);
+`tools/icons.py drift` lists them.
 
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)
 
@@ -3921,6 +3946,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
+| `Eidolon` | the gantry (`seraphhorizons:eidolongantry*`), the command tool, the eidolon's creature item, `recipes/grid/eidolongantry.json` and `eidoloncommander.json`, the gantry's and the body's construction records |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
 `BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `GearPartsRemoved`, `TraderSchematics`, the retired stations of

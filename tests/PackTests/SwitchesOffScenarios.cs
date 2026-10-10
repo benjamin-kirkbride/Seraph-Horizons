@@ -559,8 +559,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
-    /// <summary><c>Eidolon</c>: no eidolon entity type, no creative spawner, no <c>/sh eidolon</c>, and
-    /// nothing logged about it.</summary>
+    /// <summary><c>Eidolon</c>: no eidolon entity type, no creative spawner, no <c>/sh eidolon</c>, its
+    /// handbook guide hidden (the export leaves it out), and nothing logged about it.</summary>
     [AtlasScenario]
     public void Eidolon_off_there_is_no_eidolon()
     {
@@ -573,6 +573,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(eidolons.Spawn(W, World.Spawn.ToVec3d(), 0, null, activate: false));
         var sh = ((Vintagestory.API.Server.ICoreServerAPI)World.Api).ChatCommands.Get("sh");
         Assert.True(sh == null || !sh.AllSubcommands.ContainsKey("eidolon"));
+        Assert.Contains((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("eidolon", StringComparison.OrdinalIgnoreCase))
@@ -993,11 +995,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's, gear reclamation's and the crucible furnace's pages, whose switches are off here too).
+        // machine oil's, gear reclamation's, the crucible furnace's and the eidolon's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
                 .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
-                .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey)).Order(),
+                .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey))
+                .Append((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
