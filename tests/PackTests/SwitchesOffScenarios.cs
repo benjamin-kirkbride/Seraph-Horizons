@@ -1281,4 +1281,22 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         site.Click(site.Stack(CoffinSite.IronIngot, 1));
         Assert.Equal(1, site.Coffin.IngotCount);
     }
+
+    /// <summary><c>OreProcessing</c> (its default): vanilla's ore item as it ships, none of ore
+    /// processing's items, the nugget grid recipes in, and the alloy maths unpatched.</summary>
+    [AtlasScenario]
+    public void Ore_processing_off_ore_is_as_it_ships()
+    {
+        Assert.True(Off("OreProcessing"));
+        var medium = W.GetItem(new AssetLocation("game:ore-medium-galena-shale"))!;
+        Assert.Equal(typeof(ItemOre), medium.GetType());
+        Assert.Equal(64, medium.MaxStackSize);
+        Assert.Equal("game:crushed-galena", medium.CrushingProps?.CrushedStack?.ResolvedItemstack?.Collectible.Code.ToString());
+        Assert.Null(W.GetItem(new AssetLocation("game:crushed-galena-coarse")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:concentrate-galena")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:litharge")));
+        Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path?.StartsWith("nugget-") == true);
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.HarmonyId));
+        Assert.Null(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.Of(World.Api).Applied);
+    }
 }

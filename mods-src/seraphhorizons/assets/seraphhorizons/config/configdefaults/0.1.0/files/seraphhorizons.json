@@ -93,6 +93,7 @@
   "SupplySpreadFraction": 0.1,
   "PlacerFields": true,
   "PlacerCellSizeMetres": 1500,
+  "OreProcessing": false,
   "TraderSchematics": true,
   "MachineSchematics": true,
   "TraderOrders": true,
