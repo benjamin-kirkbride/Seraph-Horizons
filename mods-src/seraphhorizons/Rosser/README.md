@@ -118,7 +118,7 @@ are one per metal:
 | Outfeed rolls | `rollsout` | 2 `game:rod-{metal}` | The same at the outfeed |
 | Limb breaker | `breaker` | 2 `game:metalplate-{metal}` | The V bars |
 | Levers | `levers` | 1 `immersivewoodworking:sawmilllevers` | The treadle, its lever and the pushrod, the rock shaft, and both selector levers |
-| Pipes | `pipecopper` or `pipelead` (the stage is `pipes`) | 4 `ppex:pipe-straight-*-copper` or `-lead`, one metal, from one stack | The drip's water line, in that metal's pipe texture: the inlet from the water face, the riser beside the ring, the run over the roller's bracket and the header across the trunk with its nozzles |
+| Pipes | `pipecopper` or `pipelead` (the stage is `pipes`) | 4 `ppex:pipe-straight-*-copper` or `-lead`, one metal, from one stack | The drip's water line, soldered pipe in that metal: the inlet from the water face, the riser beside the ring, the run over the roller's bracket and the header across the trunk with its wiped joint, nozzles and soldered end |
 | Heads | `heads` | 4 `immersivewoodworking:barkspudhead-{metal}`, one metal, from one stack | The scraper tips, in that metal. Needs the ring. |
 
 - Any order, except that the tyres and the heads go on the ring (`NeedsRing`).
@@ -132,9 +132,12 @@ are one per metal:
 - **The pipes** are Pipes and Power Expanded's straight pipe (`ppex:pipe-straight-{ns,we,ud}-{metal}`,
   any orientation; it goes back as it came) in copper or lead, the metals `UnifiedPipes` adds to ppex's
   pipes (`patches/unifiedpipes-ppex.json`), whatever `IronWoodworkingMachines` says: iron and steel
-  pipes are refused (`error-wrong-pipe-metal`). The model draws them in that metal: the rig has a part
-  per metal, `pipecopper` and `pipelead`, the same elements in `game:block/metal/sheet-plain/copper4`
-  and `lead4`, the textures `UnifiedPipes` gives ppex's copper and lead pipes, and the renderer draws
+  pipes are refused (`error-wrong-pipe-metal`). The model draws them as `UnifiedPipes` draws those
+  pipes, soldered (built by the same module, `Pipes/tools/solderedpipe.py`: ppex's tube round its
+  bore, the same texture mapping, a hub where two lengths meet, wiped joints of solder), in that
+  metal: the rig has a part per metal, `pipecopper` and `pipelead`, the same elements in
+  `game:block/metal/sheet-plain/copper4` and `lead4`, the textures `UnifiedPipes` gives ppex's copper
+  and lead pipes, with their joints in `game:block/metal/ingot/leadsolder`, and the renderer draws
   the fitted metal's (`RosserParts.Fitted`, `PipeMetal`; the block info names it). Until they are in,
   a straight pipe in hand is a part, so a click on the water face fits it (sneak to place one there);
   once they are in, the click is not the rosser's and places the pipe against it as against any
@@ -421,7 +424,7 @@ from one of that model's teeth (`../CREDITS.md`). It is generated, not drawn:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/rosser.json` | The whole machine, every moving part and both metals' pipes (1489 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/rosser.json` | The whole machine, every moving part and both metals' pipes (1615 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/rosser_frame.json` | The static frame only (277 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/rosser-rig.json` | Footprint, anchors, the trunk path, the feed constants and the part rig (47 parts). |
 | `tests/Rosser/rig-reference.json` | Every part's matrix at a grid of poses (197), from the reference maths. |
@@ -442,12 +445,19 @@ centreline, so a mill in line has its trunk on the same line). Going east:
    cradle.
 3. **Limb breaker** (x 104): two iron V bars on a cross pin, hanging in the throat; the trunk's nose
    rides under them and lifts them, and they snap the branches off.
-4. **Drip** (x 112.4): the drip's pipes, ppex's 6 x 6 section in the fitted metal. The inlet comes
-   in from the water face on the south on the axis of a pipe beyond it (x 120, y 40), between the
-   ring's south posts; a riser goes up beside the ring, south of its upper roller (z 72.5); a run
-   goes west at y 52 over that roller's bracket; and the header crosses the trunk from z 69.5 to its
-   capped north end at z 33, its underside at 49, over the breaker bars a thick trunk lifts, with
-   five nozzles under it. Two iron straps of the frame hang it from the top beams.
+4. **Drip** (x 112.4): the drip's pipes, `UnifiedPipes`' soldered copper or lead pipe in the fitted
+   metal (`Pipes/tools/solderedpipe.py`, as the soldered ppex pipes are built: ppex's 6 x 6 tube round
+   its 4 x 4 bore, the same texture mapping). The inlet comes in from the water face on the south on
+   the axis of a pipe beyond it (x 120, y 40), between the ring's south posts; a riser goes up beside
+   the ring, south of its upper roller (z 72.5); a run goes west at y 52 over that roller's bracket;
+   and the header crosses the trunk from z 69.5 to its north end at z 33, its underside at 49, over
+   the breaker bars a thick trunk lifts, with five nozzles under it. Where two lengths meet is a hub,
+   the pipe's own cube, as in the soldered bend. The header is laid in block lengths from its north
+   end (seams at z 49 and 65, `HEADER_SEAMS`), soldered with a whole wiped joint at z 65 (clear of the
+   nozzles and the strap; the seam at 49 is among the nozzles and has none), and its north end is
+   plugged with solder. The inlet has no joint of its own at the water face: it runs along the south
+   ring post with no room for one, and a soldered pipe placed beyond brings its own half joint to the
+   face. Two iron straps of the frame hang the header from the top beams.
 5. **Ring** (x 118..124, plane x 121): the cutter ring, 3.25 blocks across its teeth, with a bore of
    radius 20.5 that clears a thick trunk's knots (19.45) by 1.05. Its scraper arms reach downstream
    into x 124..140.
@@ -543,7 +553,7 @@ travel, φ the feed, T the trunk's travel, k its class, p its presence):
 | Treadle lever, axle, tail roller, counterweight (`treadlever`) [levers] | The plate (down); its counterweight (back up) | The pushrod's stirrup | `gauge` rotate x (treadle window) |
 | Pushrod with its stirrup (`pushrod`) [levers] | The lever's tail roller, up to the rock's stop; gravity | The rock's tappet | `gauge` slide y, gain 6.03 for thick (the lost motion) |
 | Rock shaft: tappet, lever arms and pins, hold fingers, throw-out weight (`rock`) [levers] | Thrown in by the pushrod; held by either arc; thrown out by its weight; stopped at full throw | Both selector levers | `gauge` rotate x 12°, windows: the treadle, then a rise and a drop window per station and class (max) |
-| Drip pipes: inlet, riser, run, header and nozzles (`pipecopper`, `pipelead`) [pipecopper, pipelead] | Static; only the fitted metal's is drawn | — | none |
+| Drip pipes: inlet, hubs, riser, run, header with its joint and nozzles (`pipecopper`, `pipelead`) [pipecopper, pipelead] | Static; only the fitted metal's is drawn | — | none |
 | Frame (`frame`) | Static | — | none |
 
 Toothed wheels and what they mesh (nothing toothed meshes nothing; the selector, flywheel, rollers,
@@ -613,9 +623,11 @@ because a review of the renders found a fault:
   cell's face in ppex's 6 x 6 section, so a pipe there meets it end to end; a mill in line keeps its
   power feed cell, and both trunk heights are printed.
 - **Pipes:** each metal's pipes are the first metal's elements exactly (the same boxes and faces,
-  renamed, in their own texture), made after the z-fighting fix so they get its insets too; the
-  header spans a thin trunk's width. Only one metal's are ever drawn, so the z-fighting, clearance
-  and swept-path checks see copper's alone.
+  renamed, in their own texture, the joints' solder kept), made after the z-fighting fix so they get
+  its insets too; the header spans a thin trunk's width. Only one metal's are ever drawn, so the
+  z-fighting, clearance and swept-path checks see copper's alone. (The pipes' own boxes come out of
+  `solderedpipe` with every face pressed against another left out and none overlapping, so the fix
+  has nothing to do on them.)
 - **Gearing:** every meshing pair (ring pinion and rim, rollers and tyres, both change pairs, the
   banjos at thin and thick, the worms by lead and centre distance) has tangent pitch circles, and its
   contact points move together, by finite differences of the posed rig, with the shaft turning either
@@ -648,7 +660,7 @@ because a review of the renders found a fault:
   bearing enclosing its shaft at rest and turned 45°, loose wheels located on both faces.
 - **Textures** *(review)*: iron for the wearing surfaces and linkage (feed rolls, tips, worms,
   selectors, levers, pins, the drip's straps), oak for structure, each metal's pipe texture on that
-  metal's pipes and nowhere else.
+  metal's pipes and nowhere else, and solder on the pipes' joints and nowhere else.
 - **Chute** *(review)*: the boards fall to the south face under the anchor, and the mouth is clear.
 - **Stops** *(review)*: the top-roll arms rest on their brackets; the rock's tappet meets its stop
   when in and clears it when out.
@@ -678,12 +690,13 @@ mill's, so every reader (the Python test, the site's test) gets the same split.
   `MainRotor_twoway_021` (gear bodies, collars, the flywheel, roll bodies).
 - **Not used:** IW's spring, crank and ratchet.
 
-Texture codes are `oak`, `metal`, `pipecopper` and `pipelead`. The tips use `metal`, which the
+Texture codes are `oak`, `metal`, `pipecopper`, `pipelead` and `solder`. The tips use `metal`, which the
 renderer swaps for the heads' metal; everything else that is `metal` stays the block's iron plate.
 Iron for the wearing surfaces and linkage, oak for structure, as the mill's rule. The pipes wear
 `pipecopper` (`game:block/metal/sheet-plain/copper4`) or `pipelead` (`lead4`), the textures
-`UnifiedPipes` gives ppex's copper and lead pipes. The frame block (`blocktypes/rosser/frame.json`)
-declares all four: the renderer draws the moving parts with the block's textures, and a code the
+`UnifiedPipes` gives ppex's copper and lead pipes, and their joints and soldered end `solder`
+(`game:block/metal/ingot/leadsolder`), the soldered ppex pipes' solder. The frame block (`blocktypes/rosser/frame.json`)
+declares all five: the renderer draws the moving parts with the block's textures, and a code the
 block lacks would render white (`tools/tests/test_rosser_model.py` holds them together).
 
 ### Rig schema (`rosser-rig.json`)
@@ -811,8 +824,10 @@ regenerating.
   in Python and checks the parts and their globs, the cells rebuilt from the shape, the anchors, the
   trunk path against the generator's constants, the feed constants against the drawn gears, the
   gears' pitch and centre distances, and the pipes: the same elements in each metal, each in the
-  texture `patches/unifiedpipes-ppex.json` gives that metal's ppex pipes, the inlet on the water
-  face's middle, and the frame block declaring every texture code of the shape. `tools/tests/test_machinegen.py` tests the shared generator
+  texture `patches/unifiedpipes-ppex.json` gives that metal's ppex pipes and the soldered pipes'
+  solder, the inlet on the water face's middle, the soldered ppex pipe's tube in section, texture
+  mapping and wiped joint (against the shipped `shapes/block/pipes/soldered-straight.json`), and the
+  frame block declaring every texture code of the shape. `tools/tests/test_machinegen.py` tests the shared generator
   package and that the driver fixture is what its maths writes.
 - `tools/make_shape.py` checks its own output every time it regenerates the model.
 - `tests/PackTests/RosserScenarios.cs` (Atlas, part of `WoodworkingRosserScenarios`, its ModConfig seeded

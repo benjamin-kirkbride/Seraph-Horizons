@@ -863,21 +863,23 @@ def check_textures(v):
             bad.append(f"{el.name} (should be iron)")
         if OAK.match(el.name) and tex - {"#oak"}:
             bad.append(f"{el.name} (should be oak)")
-        if el.part.startswith("pipe") and tex != {"#" + el.part}:
-            bad.append(f"{el.name} (should be {el.part[4:]} pipe)")
-        elif not el.part.startswith("pipe") and any(t.startswith("#pipe") for t in tex):
-            bad.append(f"{el.name} (wears a pipe's metal)")
-    print(f"textures: {'iron, oak and the pipes in their metals where they belong' if not bad else 'WRONG: ' + ', '.join(bad[:8])}")
+        if el.part.startswith("pipe") and tex not in ({"#" + el.part}, {"#solder"}):
+            bad.append(f"{el.name} (should be {el.part[4:]} pipe or its solder)")
+        elif not el.part.startswith("pipe") and any(t.startswith("#pipe") or t == "#solder" for t in tex):
+            bad.append(f"{el.name} (wears a pipe's metal or solder)")
+    print(f"textures: {'iron, oak, and the pipes in their metals and solder where they belong' if not bad else 'WRONG: ' + ', '.join(bad[:8])}")
     if bad:
         v.fail("an element has the wrong material")
 
 
 def check_pipes(v):
     """The drip's pipes: one part per metal the rosser takes, each the first metal's elements
-    exactly (the same boxes and faces, renamed, in its own texture), so whichever is fitted draws
-    the same pipes; the header lies across the whole width a thin trunk's top takes."""
+    exactly (the same boxes and faces, renamed, in its own texture, the joints' solder kept), so
+    whichever is fitted draws the same pipes; the header lies across the whole width a thin trunk's
+    top takes."""
     m = v.m
     first = sorted(v.by_part[f"pipe{m.PIPE_METALS[0]}"], key=lambda e: e.name)
+    body = "#" + first[0].part
     bad = []
     for metal in m.PIPE_METALS[1:]:
         pid = f"pipe{metal}"
@@ -886,11 +888,11 @@ def check_pipes(v):
             bad.append(f"{pid} has {len(copies)} elements, {len(first)} wanted")
             continue
         for a, b in zip(first, copies):
-            faces = {d: {**f, "texture": "#" + pid} for d, f in a.faces.items()}
+            faces = {d: {**f, "texture": "#" + pid if f["texture"] == body else f["texture"]} for d, f in a.faces.items()}
             if (b.name != pid + a.name[len(first[0].part):] or b.size != a.size or b.c != a.c or b.r != a.r
                     or b.faces != faces):
                 bad.append(f"{b.name} is not {a.name}")
-    head = [e for e in first if "_header" in e.name]
+    head = [e for e in first if e.name.startswith(f"{first[0].part}_header")]
     hlo, hhi = aabb_of(head)
     thin = m.TRUNK_RADII["thin"][1]
     print(f"pipes: {len(first)} elements a metal in {', '.join(m.PIPE_METALS)}; the header z {hlo[2]:.1f}..{hhi[2]:.1f} "

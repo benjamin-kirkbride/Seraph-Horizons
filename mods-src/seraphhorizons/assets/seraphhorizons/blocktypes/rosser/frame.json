@@ -17,12 +17,14 @@
 	},
 	// Every texture code of rosser.json: the renderer draws the moving parts with this block's
 	// textures. The drip's pipes wear Pipes and Power Expanded's pipe textures as UnifiedPipes gives
-	// its copper and lead pipes (patches/unifiedpipes-ppex.json); the renderer draws the fitted metal's.
+	// its copper and lead pipes (patches/unifiedpipes-ppex.json), and their joints the solder of
+	// UnifiedPipes' soldered pipes (Pipes/tools/solderedpipe.py); the renderer draws the fitted metal's.
 	textures: {
 		"oak":        { base: "game:block/wood/debarked/oak" },
 		"metal":      { base: "game:block/metal/plate/iron" },
 		"pipecopper": { base: "game:block/metal/sheet-plain/copper4" },
-		"pipelead":   { base: "game:block/metal/sheet-plain/lead4" }
+		"pipelead":   { base: "game:block/metal/sheet-plain/lead4" },
+		"solder":     { base: "game:block/metal/ingot/leadsolder" }
 	},
 	attributes: {
 		handbook: {

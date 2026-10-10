@@ -163,6 +163,10 @@
     <Compile Include="../Pipes/Core/**/*.cs" Link="Pipes/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/patches/unifiedpipes-ppex.json" Link="unifiedpipes-ppex.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/grid/unifiedpipes.json" Link="unifiedpipes-grid.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Soldered joints: the patch putting ppex's copper and lead pipes on this mod's soldered
+         models, and ppex 0.7.1's four pipe blocktypes trimmed to their shape tables. -->
+    <None Include="../assets/seraphhorizons/patches/unifiedpipes-solderedjoints.json" Link="unifiedpipes-solderedjoints.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Pipes/fixtures/ppex-pipe-shapes.json" Link="ppex-pipe-shapes.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The chain: the patch on the game's chute section (the hollow section), its anvil recipe and
          the chute recipes; this mod's soldering recipe, the angle (item and shape) and the pipe
          section; and the game's three files (1.22.7), the item and chutes trimmed to what the guard reads. -->
