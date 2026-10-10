@@ -1,0 +1,69 @@
+// Ore processing (epic #684): the recovery figures every station and machine reads
+// (Ore/Core/OreRecovery.cs; README.md "Ore processing"). All of them are starting values for
+// playtesting, not settled balance.
+//
+// Overall recovery is the product of the stage multipliers. Concentration is the concentrator's
+// base times the feed's factors and the ore's density, capped at 1; crushing and grinding never
+// lose metal. A fraction is of the ore's metal units (ore-graded.json's metalUnitsByType for raw
+// ore and chunks; crushed, ground and concentrate hold concentrateUnits), and output carries its
+// fraction over from one item to the next (OreUnits.cs), so nothing is lost to rounding.
+//
+// - concentrators: base recovery per device (hand: pan, rocker; tiers 1-4: sluice, jig, table,
+//   tableandvanner).
+// - unclassified: feed that skipped the riddle or classifier.
+// - fineUnground: fine-grained (poor) feed that was not ground.
+// - freeUnamalgamated: free gold and silver (an ore with "free": true) not amalgamated at the same
+//   tier: it floats past a gravity concentrator.
+// - roasters: sulfide concentrate roasted (hand and tier 1 firepit, tier 2 stall, tiers 3-4
+//   reverberatory). Unroasted sulfide concentrate does not smelt at all (#720).
+// - parting: a by-product's recovery per method and tier (hand, tier1..tier4); a tier left out has
+//   no station for it (acid parting starts at tier 2).
+// - smelt: what share of its units each form gives in a furnace. Raw ore not at all; sulfide
+//   concentrate only once roasted (that rule is in the code, not here).
+// - ores: per ore (the ore part of its code). "class": oxide, sulfide, native, placer (default
+//   oxide); "density" (default 1) multiplies concentration; "free": gold or silver that wants
+//   amalgamation; "unparted": the share of the main metal a smelt gives without parting (gold
+//   quartz 0.85, default 1); "byProducts": a second metal as a share of the main metal's recovered
+//   units, won only at a parting step ("districtShare" for ore from a hydrothermal district).
+//   Unparted, a by-product is lost. Ores not listed are oxides at density 1.
+{
+  "concentrateUnits": 5,
+  "concentrators": { "pan": 0.45, "rocker": 0.55, "sluice": 0.65, "jig": 0.80, "table": 0.92, "tableandvanner": 0.99 },
+  "unclassified": 0.85,
+  "fineUnground": 0.4,
+  "freeUnamalgamated": 0.7,
+  "roasters": { "firepit": 0.85, "stall": 0.92, "reverberatory": 1.0 },
+  "parting": {
+    "cupellation": { "hand": 0.85, "tier1": 0.85, "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 },
+    "liquation":   { "hand": 0.85, "tier1": 0.85, "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 },
+    "acidparting": { "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 }
+  },
+  "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0.5, "concentrate": 1.0, "roastedconcentrate": 1.0 },
+  "ores": {
+    "hematite": {}, "magnetite": {}, "limonite": {}, "malachite": {}, "azurite": {},
+    "cassiterite": { "density": 1.05 },
+    "chromite": { "density": 1.05 },
+    "ilmenite": {},
+    "smithsonite": { "density": 0.9 },
+    "hemimorphite": {}, "cerussite": {}, "vanadinite": {}, "wulfenite": {}, "uranium": {}, "rhodochrosite": {},
+
+    "galena": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.03, "districtShare": 0.15, "partedBy": "cupellation" } ] },
+    "chalcopyrite": { "class": "sulfide" },
+    "chalcocite": { "class": "sulfide" },
+    "tetrahedrite": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.05, "partedBy": "cupellation" } ] },
+    "freibergite": { "class": "sulfide", "byProducts": [ { "metal": "copper", "share": 0.30, "partedBy": "cupellation" } ] },
+    "sphalerite": { "class": "sulfide" },
+    "pentlandite": { "class": "sulfide" },
+    "bismuthinite": { "class": "sulfide" },
+    "pyrite": { "class": "sulfide" },
+    "teallite": { "class": "sulfide", "byProducts": [ { "metal": "lead", "share": 0.40, "partedBy": "liquation" } ] },
+    "franckeite": { "class": "sulfide", "byProducts": [ { "metal": "lead", "share": 0.30, "partedBy": "liquation" } ] },
+    "sperrylite": { "class": "sulfide" },
+
+    "quartz_nativegold": { "class": "native", "free": true, "unparted": 0.85,
+      "byProducts": [ { "metal": "silver", "share": 0.15, "partedBy": "acidparting" } ] },
+    "quartz_nativesilver": { "class": "native", "free": true },
+    "nativecopper": { "class": "native", "density": 1.1 },
+    "nativeplatinum": { "class": "native" }
+  }
+}

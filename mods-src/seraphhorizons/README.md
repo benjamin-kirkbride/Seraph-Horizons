@@ -3216,6 +3216,50 @@ suitability, the placer book, the registry's states, size tiers, map offsets);
 cut, every rock panning copper, the registry listing from the seed, verifying an ungenerated deposit,
 `givemap` and the waypoint, a gravel cell resolving to a field of rich gravel and its map).
 
+### Ore processing: recovery (no switch yet)
+
+Ore processing (epic #684) turns the mine into an 1800s mill chain: hand stations and machines at
+tiers 1–4 for crushing, classifying, grinding, gravity concentration, roasting, amalgamation and
+parting. Its recovery maths (#685) is game-independent and comes first; the stations and machines
+that call it are the epic's other tasks, so nothing in play uses it yet.
+
+The figures are `config/ore-processing.json` (an asset; every one a starting value for
+playtesting), read into `OreProcessingConfig` and wrapped by `OreRecovery` (`Ore/Core/`), which also
+lists what is wrong with the file (`Problems`, for the server log; a missing figure reads as 0):
+
+- Overall recovery is the product of the stages' multipliers (`Overall(ore, line, fineGrained)`,
+  with `OreLine.AtTier(tier)` the standard line at a tier). Concentration (`Concentration(ore,
+  concentrator, feed)`): the concentrator's base (pan 45 %, rocker 55 %, long-tom sluice 65 %,
+  jig 80 %, table 92 %, table and vanner 99 %), × 0.85 for feed not classified, × 0.4 for
+  fine-grained (poor) feed not ground, × 0.7 for free gold and silver not amalgamated, × the ore's
+  density (cassiterite and chromite 1.05, native copper 1.1, smithsonite 0.9), capped at 100 %.
+  Crushing and grinding lose nothing.
+- Roasting (`Roasting(ore, roaster)`): firepit 85 %, stall 92 %, reverberatory 100 %; unroasted
+  sulfide concentrate doesn't smelt at all, and a non-sulfide is not roasted (1).
+- Which device a stage has at each tier is code, not config (`OreTiers`): concentrators rocker
+  (hand), sluice, jig, table, table and vanner; roasting by firepit to tier 1, stall at 2,
+  reverberatory at 3 and 4; grinding from tier 2.
+- Smelting (`SmeltShare(ore, form)`): concentrate and roasted concentrate 100 %, crushed or ground
+  ore and chunks 50 %, raw ore nothing, sulfide concentrate nothing until roasted.
+- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier, district)`): a
+  by-product is a share of the main metal's recovered units, won only at a parting step at
+  cupellation or liquation 85 / 95 / 100 % (hand and tier 1 / tiers 2–3 / tier 4) or acid
+  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 % (15 % in a
+  district's ore), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
+  franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
+  metal comes out at the ore's `unparted` share (gold quartz 85 %).
+- Units: raw ore and chunks keep their grade's units (`ore-graded.json`'s `metalUnitsByType`);
+  crushed, ground and concentrate items hold 5 (`concentrateUnits`). A station turns units into
+  items through a `UnitCarry` (per output, saved with the station), which holds the fraction
+  over for the next item, so nothing is lost to rounding.
+
+Tests (`tests/Ore/OreRecoveryTests.cs`) hold the shipped figures to the design's worked examples,
+each a pocket of 64 blocks at 1.25 ore a block: poor hematite 1,600 units gives 352 by hand,
+1,280 at tier 2 and 1,584 at tier 4; medium chromite 924 / 1,344 / 1,600; medium galena 748 by
+hand with a firepit roast, 1,472 at tier 3, 1,584 at tier 4 plus about 48 units of silver; medium
+gold quartz (800) 308 with the rocker alone, 440 with the amalgam pan, 792 at tier 4; medium
+native copper 968 by hand, 1,600 at tier 4.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
