@@ -12,7 +12,7 @@
 		{ code: "machine", states: [
 			"windmill", "waterwheel", "handcrank", "transmission", "helvehammer", "pulverizer",
 			"sawmill", "chopper", "buckingmill", "rosser", "gearbox", "centeredspurgear",
-			"panningmachine", "cablecar", "biplane", "eidolon"
+			"panningmachine", "biplane", "eidolon"
 		] }
 	],
 	attributes: {
