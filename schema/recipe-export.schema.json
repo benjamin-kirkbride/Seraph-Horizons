@@ -344,6 +344,25 @@
           "items": { "type": "string" },
           "uniqueItems": true
         },
+        "groundStorage": {
+          "description": "How the item is put down on the ground (Shift + right click; the game's GroundStorable behavior). Absent when it cannot be. Numbers are the ones the game's ground storage block uses.",
+          "type": "object",
+          "required": ["layout", "capacity"],
+          "additionalProperties": false,
+          "properties": {
+            "layout": {
+              "description": "The game's layout, lower case: placed one at the centre (singlecenter), two side by side (halves), two against a wall (wallhalves), four in quadrants (quadrants); a loose pile of up to 12 (messy12); or a pile (stacking).",
+              "enum": ["singlecenter", "halves", "wallhalves", "quadrants", "messy12", "stacking"]
+            },
+            "capacity": { "description": "Items one block holds: 1, 2, 2, 4 and 12 for the layouts above, the item's stacking capacity for a pile.", "type": "integer", "minimum": 1 },
+            "transfer": { "description": "Items put down or taken per click. Only for messy12 and stacking.", "type": "integer", "minimum": 1 },
+            "bulkTransfer": { "description": "Items per click with Ctrl held. Only for messy12 (at most 12) and stacking.", "type": "integer", "minimum": 1 },
+            "requiresCtrl": { "description": "Ctrl must be held as well to put it down. Present only when true.", "const": true },
+            "solidTop": { "description": "A full pile is solid on top, so blocks and more piles can go on it. Only for stacking; present only when true.", "const": true },
+            "maxPilesHigh": { "description": "Most piles of the item one column may hold. Only with solidTop, and only when the item sets a limit.", "type": "integer", "minimum": 1 },
+            "fullHeight": { "description": "Height of a full pile's collision box, in blocks. Only for stacking, when the game gives the pile a box.", "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
         "extra": { "$ref": "#/$defs/extra" }
       }
     },

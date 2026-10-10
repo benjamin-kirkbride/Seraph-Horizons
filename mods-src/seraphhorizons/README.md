@@ -1097,7 +1097,7 @@ creative only:
 
 - the rosser (`Rosser/README.md`, "Creative shortcut"), one stage per click on an incomplete
   rosser: the crankshaft, the ring's four gear sections, the hoops, each set of feed-roll rods, the
-  breaker plates, the levers and four steel bark spud heads. It is the rosser's own interaction too,
+  breaker plates, the levers, four copper straight pipes and four steel bark spud heads. It is the rosser's own interaction too,
   and runs while this tweak does; on the complete rosser Ctrl takes the trunk or the unused heads
   back, as in survival.
 
@@ -1300,17 +1300,19 @@ on the ring, tipped with bark spud heads, strip its bark, which falls as Immersi
 for the trunk's wood, log by log; and the trunk comes out debarked. Its frame is crafted from four
 Immersive Woodworking sawmill frames, thirty-two support beams, thirty-two nails and strips and two
 copper chute sections, placed as a sixteen by five by four multiblock (long, wide, high), and fitted in the world with existing items only: a sawmill
-crankshaft, four large gear sections, two hoops, four rods, two metal plates, sawmill feed levers and
-four bark spud heads of one metal, which are its wearing part and last four times their metal's bark
-spud. The axle connects on a side face beside the ring and may turn either way. A trunk goes on by
+crankshaft, four large gear sections, two hoops, four rods, two metal plates, sawmill feed levers,
+four straight Pipes and Power Expanded pipes of one metal, copper or lead (`UnifiedPipes`' metals),
+which are the drip's water line and are drawn in their metal's pipe texture, and four bark spud heads
+of one metal, which are its wearing part and last four times their metal's bark spud (without ppex's
+copper and lead pipes, the pipes are left out of the build). The axle connects on a side face beside the ring and may turn either way. A trunk goes on by
 hand or from a Trunk Storage Rack at the far end; its weight on a treadle starts a geared feed, at
 one speed for every thin trunk and a slower one for every thick trunk (about 68 and 169 shaft turns with
 copper heads; better heads feed faster by their tool tier, as the mill's blade kit cuts). The
 debarked trunk waits on the outfeed bed until a hand takes it, a rack at the near end with room takes
 it, or a bucking mill placed in line takes it at the top of its saws' cycle; it leaves this way even
 when it was the trunk that wore the heads out (only a new trunk needs heads). A Pipes and Power
-Expanded water pipe on its other side fills a drip, and wet logs give more bark, and more often the
-special kinds. In creative, Ctrl + right click fits the next stage, as on the woodworking stations.
+Expanded water pipe on its other side, where its own pipes come out, fills a drip, and wet logs give
+more bark, and more often the special kinds. In creative, Ctrl + right click fits the next stage, as on the woodworking stations.
 Its model is generated and checked like the mill's.
 
 `RosserSettings` holds its figures (shaft load, the typical trunks and turns per log and per branch
@@ -1938,6 +1940,9 @@ ExpandedLib's `exlib` 0.8.4). Its straight, bend, T- and X-junction pipes come i
 (`patches/unifiedpipes-ppex.json`). Every metal couples with every other (ppex joins pipes by family,
 not metal), so a run may mix them. ppex's fluid intake, outlet and passthroughs have no metal and are
 left as they are. The display name is ppex's, with the game's metal name: "Piping (Straight) (Copper)".
+The rosser's drip is four straight copper or lead pipes, fitted as a stage of its build and drawn in
+their metal (`Rosser/README.md`, **Assembly**); without these two metals the rosser is built without
+them.
 
 **Valves are bronze.** ppex's valve and pressure valve get tin, bismuth and black bronze states
 (`sheet-plain/<bronze>4`); the creative inventory and the handbook list only those. The iron and steel

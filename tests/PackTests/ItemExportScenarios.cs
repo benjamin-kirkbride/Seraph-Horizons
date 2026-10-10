@@ -107,6 +107,59 @@ public class ItemExportScenarios : AtlasScenarioBase
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
+    public void Ground_storage_reads_piles_loose_piles_placed_items_and_more_piles_blocks()
+    {
+        // survival/itemtypes/resource/ingot.json: Stacking, stackingCapacity 64, transfer 1, bulk 4,
+        // upSolid, collision box 0.125 high scaled by ceil(0.125 * 64) = 8 layers: one block.
+        var ingot = (JObject?)Attrs(Item(Items, "game:ingot-copper"))["groundStorage"];
+        Assert.NotNull(ingot);
+        Assert.Equal("stacking", (string?)ingot["layout"]);
+        Assert.Equal(64, (int?)ingot["capacity"]);
+        Assert.Equal(1, (int?)ingot["transfer"]);
+        Assert.Equal(4, (int?)ingot["bulkTransfer"]);
+        Assert.True((bool?)ingot["solidTop"]);
+        Assert.Null(ingot["requiresCtrl"]);
+        Assert.Equal(1.0, (double?)ingot["fullHeight"]);
+
+        // resource/nugget.json: Messy12, the block's fixed 12, bulk min(4, 12).
+        var nugget = (JObject?)Attrs(Item(Items, "game:nugget-nativecopper"))["groundStorage"];
+        Assert.NotNull(nugget);
+        Assert.Equal("messy12", (string?)nugget["layout"]);
+        Assert.Equal(12, (int?)nugget["capacity"]);
+        Assert.Equal(1, (int?)nugget["transfer"]);
+        Assert.Equal(4, (int?)nugget["bulkTransfer"]);
+        Assert.Null(nugget["solidTop"]);
+        Assert.Null(nugget["fullHeight"]);
+
+        // tool/saw.json: WallHalves, two per block, no per-click numbers.
+        var saw = (JObject?)Attrs(Item(Items, "game:saw-copper"))["groundStorage"];
+        Assert.NotNull(saw);
+        Assert.Equal("wallhalves", (string?)saw["layout"]);
+        Assert.Equal(2, (int?)saw["capacity"]);
+        Assert.Null(saw["transfer"]);
+
+        // More Piles adds the behavior in code; its config/default-block-piles.json "Most slabs
+        // (vanilla)": CtrlKey, UpSolid, 64, transfer 1, bulk 4, 0.125 box scaled by 0.125.
+        var slab = (JObject?)Attrs(Item(Items, "game:plankslab-oak-down-free"))["groundStorage"];
+        Assert.NotNull(slab);
+        Assert.Equal("stacking", (string?)slab["layout"]);
+        Assert.Equal(64, (int?)slab["capacity"]);
+        Assert.Equal(1, (int?)slab["transfer"]);
+        Assert.Equal(4, (int?)slab["bulkTransfer"]);
+        Assert.True((bool?)slab["requiresCtrl"]);
+        Assert.True((bool?)slab["solidTop"]);
+        Assert.Equal(1.0, (double?)slab["fullHeight"]);
+
+        // food/fruit.json: Quadrants, four per block.
+        var berry = (JObject?)Attrs(Item(Items, "game:fruit-blueberry"))["groundStorage"];
+        Assert.Equal("quadrants", (string?)berry?["layout"]);
+        Assert.Equal(4, (int?)berry?["capacity"]);
+
+        // resource/flint.json has no GroundStorable, and More Piles adds none for it.
+        Assert.Null(Attrs(Item(Items, "game:flint"))["groundStorage"]);
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
     public void Apple_and_honeycomb_press_into_juice_and_honey()
     {
         // survival/itemtypes/food/fruit.json juiceablePropertiesByType "@*-(pinkapple|redapple|yellowapple)":
@@ -609,6 +662,17 @@ public class ItemExportScenarios : AtlasScenarioBase
             if (item!["attributes"]?["nutrition"] is JObject n)
                 foreach (var p in n.Properties())
                     if (!nutritionProps.ContainsKey(p.Name)) problems.Add($"{code}: nutrition.{p.Name}");
+        var ground = (JObject)defs["itemAttributes"]!["properties"]!["groundStorage"]!;
+        var groundProps = (JObject)ground["properties"]!;
+        var layouts = groundProps["layout"]!["enum"]!.Values<string>().ToHashSet();
+        foreach (var (code, item) in Items)
+            if (item!["attributes"]?["groundStorage"] is JObject g)
+            {
+                foreach (var p in g.Properties())
+                    if (!groundProps.ContainsKey(p.Name)) problems.Add($"{code}: groundStorage.{p.Name}");
+                if (!layouts.Contains((string?)g["layout"])) problems.Add($"{code}: groundStorage.layout {g["layout"]}");
+                if (g["capacity"] is not { } c || (int)c < 1) problems.Add($"{code}: groundStorage.capacity {g["capacity"]}");
+            }
         Assert.True(problems.Count == 0, string.Join("\n", problems.Take(50)));
     }
 
