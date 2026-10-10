@@ -214,6 +214,10 @@ internal sealed class DepositCommands
     {
         VerifyStatus.Measured => Msg(lang, "verify-measured", result.Candidate!.Key.Id, result.OreBlocks, Math.Round(result.Ingots),
             Msg(lang, "size-" + result.Tier.ToString()!.ToLowerInvariant()), result.Candidate.X, result.Candidate.Y, result.Candidate.Z)
+            + (result.Makeup is { } m && m.MainOres().Count > 0
+                ? " " + Msg(lang, "verify-makeup", ItemOreMap.OreList(lang, m.MainOres()), ItemOreMap.GradeText(lang, m.Mix()?.Code) ?? "-",
+                    m.HostRock() is { } rock ? ItemOreMap.RockName(lang, rock) : "?")
+                : "")
             + (result.WorkedOut ? " " + Msg(lang, "verify-workedout") : ""),
         VerifyStatus.Field => result.Field is { } f
             ? Msg(lang, "verify-field", result.Candidate!.Key.Id, f.Blocks, f.Rock, f.X, f.Y, f.Z)

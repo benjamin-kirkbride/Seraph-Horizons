@@ -556,6 +556,33 @@ public class EntitySeraphTrader : EntityTrader
         Restocked?.Invoke(this);
     }
 
+    /// <summary>Server: puts <paramref name="entry"/> (one unit at least; null: nothing) on selling
+    /// slot <paramref name="index"/> in place of what is there, between restocks, and keeps the slot's
+    /// key with it so the next restock sees what is on the shelf (a map offer whose deposit check
+    /// landed, #693). The caller stores the inventory.</summary>
+    public void ReplaceSelling(int index, TradeEntry? entry)
+    {
+        if (TradingSystem.Of(Api)?.Lists is not { } lists || Inventory is null || index < 0 || index >= Inventory.SellingSlots.Length) return;
+        var slot = Inventory.SellingSlots[index];
+        if (entry is null)
+        {
+            slot.Itemstack = null;
+            slot.TradeItem = null;
+        }
+        else
+        {
+            var resolved = lists.ItemFor(entry).Resolve(World);
+            resolved.Stock = Math.Max(1, resolved.Stock);
+            slot.SetTradeItem(resolved);
+        }
+        slot.MarkDirty();
+        var keys = (WatchedAttributes[SellingKeysAttr] as StringArrayAttribute)?.value;
+        if (keys is null || index >= keys.Length) return;
+        keys = (string[])keys.Clone();
+        keys[index] = entry?.Key ?? "";
+        WatchedAttributes[SellingKeysAttr] = new StringArrayAttribute(keys);
+    }
+
     private void Fill(TradingSystem system, ItemSlotTrade[] slots, ResolvedSide side, string keysAttr, float refreshChance,
         System.Func<TradeEntry, int>? gate, EnumTradeDirection direction)
     {

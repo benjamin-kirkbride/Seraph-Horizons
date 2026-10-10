@@ -158,19 +158,43 @@ placer fields are bound in the world.
   `metalUnits` (1.25 ore chunks plus 0.01 crystallised ore, as the survey reads them); 5 units make
   a nugget, 20 nuggets an ingot (`DepositSizing`). The tier is the bottom, middle or top third of the
   metal's `smallIngots`..`largeIngots`; below a tenth of `smallIngots` the deposit is worked out and
-  marked sold out. A gravel field's verify generates its column, which places it or not.
+  marked sold out. The same count, per ore, grade and host rock (`OreTally`, `OreBlockKind` from the
+  block's code `ore-{grade}-{ore}-{rock}`), is the deposit's **makeup** (#692, `DepositMakeup`):
+  metal units per ore, blocks per grade and per rock, kept with the measurement. A gravel field's
+  verify generates its column, which places it or not.
+- **Checked** (`DepositCandidate.Surveyed`, #693): an ore deposit measured with its makeup (a
+  measurement from before makeups were kept doesn't count), a gravel field placed. The seed gives a
+  cell's spots, not which one takes the deposit or what ore it is (that follows the host rock, known
+  once terrain generates), so traders offer maps only to checked deposits (`docs/trading.md`,
+  "Deposit checks").
 - **Registry** (`Ore/Core/DepositRegistry.cs`, JSON under `seraphhorizons:deposits`): per
   `DepositKey` (`copper:102,102`, `gravel:341,340`) the state `Unsold` → `Sold` (buyer's uid and
-  name, game day) → `SoldOut`, and the last measurement (ingots, tier, centre, game day). A deposit
-  is sold once; sold out is final but for an admin reset.
+  name, game day) → `SoldOut`, and the last measurement (ingots, tier, centre, game day, makeup). A
+  deposit is sold once; sold out is final but for an admin reset.
 
 ## Maps (#444)
 
 Items `seraphhorizons:oremap` and `seraphhorizons:gravelmap`, class `ItemOreMap` (registered on both
 sides by `OreMapsSystem`). Modelled on the game's `ItemLocatorMap`: everything is in the stack's
-attributes (`depositId`, `metal`, `sizeTier`, `precision`, `rock`, `x`, `y`, `z`, the marker already
-offset), and right-click on the server adds a pinned waypoint for the reader (icon `pick` or
-`rocks`; once per position) and keeps the item. Without the world map it says the distance instead.
+attributes (`depositId`, `metal`, `sizeTier`, `precision`, `ores`, `grades`, `rock`, `metals`, `x`,
+`y`, `z`, the marker already offset), and right-click on the server adds a pinned waypoint for the
+reader (icon `pick` or `rocks`; once per position) and keeps the item. Without the world map it says
+the distance instead.
+
+**What a map names (#692).** An ore map says the ore actually there, never the metal: its name,
+waypoint and description come from the deposit's makeup. `ores`: the ores holding at least a tenth
+of the deposit's metal (the richest always), richest first, at most three (`DepositMakeup.MainOres`),
+named by `orename-{ore}` ("galena and cerussite"; `ItemOreMap.OreList`); `grades`: `only:poor` (90 %
+of the graded blocks or more), `mostly:poor` (60 %), else `mixed:poor,medium`, the two commonest
+(`GradeMix`, read "mostly poor", "poor and medium"); `rock`: the rock most of the ore sits in. The
+size tier is the metal in the ground as measured above (each block worth its drops' `metalUnits`),
+not what a given way of working the ore wins from it, and the description says so. So "Galena and
+cerussite ore map", waypoint "Galena and cerussite deposit (medium)", and the lines "Ore: galena and
+cerussite. Grade: mostly poor. Host rock: Limestone. Deposit size: medium, by the metal in the
+ground". A gravel map names its field's rock and the metals the pan gives from that rock's rich
+gravel (`metals`, `DepositService.PanMetals`: the pan's last `panningDrops` key that matches
+`richgravel-{rock}`, each nugget's smelted metal, the likeliest first): "Gravel map (Granite)",
+"The pan gives tin, silver, gold and copper here." A map made before keeps naming its metal.
 
 Precision tiers (`MapPrecision`): 1 within 400 m, 2 within 150 m, 3 exact. The offset is a point of
 the unit disc from the seed and the deposit key, scaled by the tier's reach, so every copy of a tier
@@ -206,12 +230,14 @@ deposits.Verify(candidate.Key, result =>
   deposit is sold or sold out, the cell has none, or the precision isn't 1–3. The size tier on the
   map is the last measurement, so verify first.
 - A verify loads up to nine columns around the deposit (generating those that aren't): a few seconds
-  each on a busy server. Verify when the player asks for the map, not for every candidate.
+  each on a busy server. Don't verify every candidate: the traders verify only what a camp would
+  offer, one check at a time as a player nears it (`Trading/Maps/Game/DepositSurveys.cs`, #693).
 - Traders refuse maps offered for sale (the economy's `refused` prefixes); the items are ordinary
   otherwise.
 - The traders' side is built (#455): `docs/trading.md` "Maps and leads". Prospectors offer one map
-  per metal within 5 km, every trader a gravel map within 2 km; the sale reserves the deposit,
-  verifies it and issues the map, or refunds. `ItemOreMap` implements the game's
+  per metal within 5 km, every trader a gravel map within 2 km, only to checked deposits (#693; the
+  rest show "being surveyed" while a check runs, ahead of players nearing a camp); the sale
+  reserves the deposit, verifies it again and issues the map, or refunds. `ItemOreMap` implements the game's
   `ITradeableCollectible` through `ItemOreMap.Hooks`, which the trading side sets.
 
 ## Survey (#445)

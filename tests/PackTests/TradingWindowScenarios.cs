@@ -591,8 +591,20 @@ public partial class TradingScenarios
         texts.AddRange(TradeWindowModel.SellOffer([dirt], true));
         texts.AddRange(TradeWindowModel.SellOffer([dirt, dirt with { Slot = 37 }], true));
         texts.AddRange(new[] { "trading-window-sell-wontbuy", "trading-window-sell-breakdown", "trading-window-sell-never", "trading-window-sell-under" }.Select(k => new Text(k)));
-        texts.Add(TradeWindowModel.OreMapLine("copper", null, 10, 1));
-        texts.Add(TradeWindowModel.OreMapLine("iron", "large", 10, 3));
+        texts.Add(TradeWindowModel.OreMapLine("copper", [], null, null, null, 10, 1));
+        texts.Add(TradeWindowModel.OreMapLine("iron", [], "large", null, null, 10, 3));
+        // Maps that name the ore (#692), and deposits being surveyed (#693).
+        texts.Add(TradeWindowModel.OreMapLine("lead", ["galena", "cerussite", "wulfenite"], "medium", "mostly:poor", "Limestone", 10, 2));
+        texts.Add(TradeWindowModel.OreMapLine("tin", ["cassiterite"], "small", "mixed:poor,rich", null, 10, 1));
+        texts.Add(TradeWindowModel.OreMapLine("gold", ["quartz_nativegold"], "large", "only:bountiful", "Granite", 10, 3));
+        texts.Add(TradeWindowModel.GravelMapLine("Granite", ["tin", "silver", "gold"], 10));
+        texts.Add(TradeWindowModel.GravelMapLine("Granite", [], 10));
+        texts.Add(TradeWindowModel.GravelMapLine(null, [], 10));
+        texts.Add(TradeWindowModel.SurveyingLine("copper"));
+        texts.Add(TradeWindowModel.SurveyingLine("gravel"));
+        foreach (string key in new[] { "trading-maps-error-surveying", "trading-maps-surveying-ore", "trading-maps-surveying-gravel", "trading-maps-surveying-info",
+                     "gravelmap-name", "oremap-info-ores", "oremap-info-grades", "oremap-info-host", "oremap-info-pans" })
+            texts.Add(new Text(key));
         texts.Add(TradeWindowModel.LeadLine("camp", "cook", 10, TradeWindowModel.Direction(1, 1)));
         texts.Add(TradeWindowModel.LeadLine("settlement", "", 10, TradeWindowModel.Direction(-1, 0)));
         foreach (var status in Enum.GetValues<MapOfferStatus>())
