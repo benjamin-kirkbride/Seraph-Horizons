@@ -4,6 +4,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Eidolon;
@@ -11,7 +12,10 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <summary>
 /// The guard order (#680; README "Eidolon", guarding): the command tool's <c>guard</c> mode marks a
 /// block and the eidolon holds the point on top of it (arguments <c>x</c>, <c>y</c>, <c>z</c>),
-/// standing there in its guard stance (<c>guard-idle</c>). Once a second it looks about its point: a
+/// standing in its guard stance (<c>guard-idle</c>) at a post of its own about the point
+/// (<see cref="EidolonGuard.Post"/>: standable, and clear of every other guard's post and of where the
+/// others stand; the point itself when there is none), and taking a new post the same way every 15 to
+/// 45 seconds it has stood at one, so guards wander about their point. Once a second it looks about its point: a
 /// hostile creature (<see cref="EidolonHostiles"/>) within <see cref="EidolonConfig.GuardRadius"/> of
 /// it is handed to self-defence (<see cref="AiTaskEidolonDefend.Engage"/>, leashed to the point), which
 /// cancels this order for the fight; the order starts again after and walks back to the point. Never
@@ -27,11 +31,16 @@ public sealed class GuardOrder(Vec3d point) : IEidolonOrder
     private double _retryAt;
     private double _scanAt;
     private bool _idle;
+    private GuardPost? _post;
+    private double _wanderAt;
 
     public string Code => OrderCode;
 
     /// <summary>The point it guards.</summary>
     public Vec3d Point => point;
+
+    /// <summary>Where about its point it stands now, or is walking to; null before it has taken one.</summary>
+    public GuardPost? Post => _post;
 
     /// <summary>Creatures it has handed to self-defence (for the scenarios).</summary>
     public int Engaged { get; private set; }
@@ -56,6 +65,7 @@ public sealed class GuardOrder(Vec3d point) : IEidolonOrder
         _nav ??= new EidolonNavigator(eidolon);
         _retryAt = 0;
         _scanAt = 0;
+        _wanderAt = 0;
         eidolon.TaskAi?.PathTraverser?.Stop();
     }
 
@@ -73,21 +83,64 @@ public sealed class GuardOrder(Vec3d point) : IEidolonOrder
         }
         if (_nav == null)
             return true;
-        if (EidolonGuard.AtHome(eidolon.Pos.X - point.X, eidolon.Pos.Y - point.Y, eidolon.Pos.Z - point.Z))
+        var post = _post ??= TakePost(eidolon, false);
+        double dx = eidolon.Pos.X - post.X, dy = eidolon.Pos.Y - post.Y, dz = eidolon.Pos.Z - post.Z;
+        // Home: near its post and done walking, or walked close enough to stop.
+        if (EidolonGuard.AtHome(dx, dy, dz) && (!_nav.Active || EidolonGuard.AtPost(dx, dy, dz)))
         {
             if (_nav.Active)
                 _nav.Stop();
             Idle(eidolon, true);
             eidolon.Orders?.SetStatus(null);
+            if (_wanderAt == 0)
+                _wanderAt = now + EidolonGuard.WanderSeconds(eidolon.World.Rand);
+            else if (now >= _wanderAt)
+            {
+                _wanderAt = 0;
+                _post = TakePost(eidolon, true);
+            }
             return true;
         }
         Idle(eidolon, false);
         if (_nav.Active || now < _retryAt)
             return true;
         _retryAt = now + RetrySeconds;
-        bool going = _nav.GoTo(point, false, () => { }, () => { });
+        bool going = _nav.GoTo(new Vec3d(post.X, post.Y, post.Z), false, () => { }, () => { });
         eidolon.Orders?.SetStatus(going ? null : "seraphhorizons:eidolon-status-nopath");
+        if (!going)
+            _post = null; // another next time
         return true;
+    }
+
+    /// <summary>A post about its point clear of the other guards (<see cref="EidolonGuard.Post"/>), or
+    /// the point itself when there is none. <paramref name="moving"/>: a new one away from the post it
+    /// holds, or that one again when there is none.</summary>
+    private GuardPost TakePost(EntityLaborEidolon eidolon, bool moving)
+    {
+        var space = new GameWideSpace(eidolon.World.BlockAccessor, eidolon.CollisionBox);
+        var home = new GuardPost(point.X, point.Y, point.Z);
+        var taken = Taken(eidolon);
+        if (moving && _post is { } held)
+            return EidolonGuard.Post(space, home, [.. taken, held], eidolon.World.Rand) ?? held;
+        return EidolonGuard.Post(space, home, taken, eidolon.World.Rand) ?? home;
+    }
+
+    /// <summary>Where every other guarding eidolon stands and the post it holds.</summary>
+    private static List<GuardPost> Taken(EntityLaborEidolon eidolon)
+    {
+        var taken = new List<GuardPost>();
+        if (eidolon.Api is not ICoreServerAPI sapi)
+            return taken;
+        foreach (var other in sapi.World.LoadedEntities.Values.OfType<EntityLaborEidolon>())
+        {
+            if (other == eidolon || !other.Alive || other.Pos.Dimension != eidolon.Pos.Dimension
+                || other.Orders?.Current is not GuardOrder guard)
+                continue;
+            taken.Add(new GuardPost(other.Pos.X, other.Pos.Y, other.Pos.Z));
+            if (guard.Post is { } held)
+                taken.Add(held);
+        }
+        return taken;
     }
 
     public void Stop(EntityLaborEidolon eidolon, bool cancelled)
