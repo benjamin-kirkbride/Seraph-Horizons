@@ -150,11 +150,32 @@ public class EntityLaborEidolon : EntityAgent
         base.OnGameTick(dt);
         if (Api.Side != EnumAppSide.Server || !Alive)
             return;
+        KeepApart();
         _sinceCheck += dt;
         if (_sinceCheck >= CheckSeconds)
         {
             _sinceCheck = 0;
             Check();
+        }
+    }
+
+    /// <summary>Pushes itself away from any other eidolon it overlaps (<see cref="EidolonSpacing"/>):
+    /// <c>repulseagents</c> is <c>movable: false</c>, so nothing else parts two. Server side, every tick;
+    /// not while either is mounted (a gantry holds it in place).</summary>
+    private void KeepApart()
+    {
+        if (MountedOn != null || CollisionBox is not { } own)
+            return;
+        double reach = own.XSize;
+        foreach (var e in World.GetEntitiesAround(Pos.XYZ, (float)reach, (float)own.YSize,
+                     e => e is EntityLaborEidolon { Alive: true, MountedOn: null } && e != this))
+        {
+            if (e.Pos.Dimension != Pos.Dimension)
+                continue;
+            var (mx, mz) = EidolonSpacing.Push(e.Pos.X - Pos.X, e.Pos.Z - Pos.Z, (own.XSize + e.CollisionBox.XSize) / 2,
+                EntityId, e.EntityId);
+            Pos.Motion.X += mx;
+            Pos.Motion.Z += mz;
         }
     }
 
