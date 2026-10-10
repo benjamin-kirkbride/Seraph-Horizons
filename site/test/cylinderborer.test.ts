@@ -4,8 +4,9 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 
 // The cylinder borer's shipped files, and the poses CylinderBorer/tools/make_shape.py computes from them
 // with machinegen's reference maths. Its rig reads W, its work (the cutter head's travel, in blocks), k (the
-// cylinder: small or large), p, the oil and the axle's angle; the bar turns a quarter of the axle, and the
-// feed, the drum, the weight, the ropes and the bore's skin are gauges on the head's travel.
+// casting's metal: iron or steel, ppex's Watt or Cornish cylinder), p, the oil and the axle's angle; the bar
+// turns a quarter of the axle, and the feed, the drum, the weight, the ropes and the bore's skin are gauges on
+// the head's travel.
 // tools/tests/test_cylinderborer_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -21,11 +22,11 @@ const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 +
 const pose = (p: RefPose): Pose => ({ theta: p.theta, depth: 0, lifting: 0, travel: p.travel, work: p.work, size: p.size, presence: p.presence, feed: 0, oil: p.oil });
 
 describe("the cylinder borer's rig against its rig-reference.json", () => {
-  it("measures its work as the head's travel in blocks, has poses of both cylinders and none, and a matrix for every part", () => {
+  it("measures its work as the head's travel in blocks, has poses of both metals and none, and a matrix for every part", () => {
     expect(path).toMatchObject({ kind: "work", name: "cutter travel", unit: "blocks" });
     expect(rig.trunkPath).toBeUndefined();
-    expect(workEnd(path, 1)).toBe(17 / 16);
-    expect(workEnd(path, 2)).toBe(21 / 16);
+    expect(workEnd(path, 1)).toBe(18 / 16);
+    expect(workEnd(path, 2)).toBe(18 / 16);
     expect(new Set(reference.poses.map((p) => p.size))).toEqual(new Set([0, 1, 2]));
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
     // the viewer shows W, the cylinder (size), its presence, the axle and the oil; no depth, lifting or feed
@@ -53,13 +54,15 @@ describe("the cylinder borer's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("fits the bearings, the bar, the feed and the cutter head, and each cylinder's set by its size", () => {
+  it("fits the bearings, the bar, the feed and the cutter head, and each metal's casting with its chains", () => {
     const req = new Set(parts.map((p) => p.requires ?? null));
-    expect(req).toEqual(new Set([null, "bearings", "bar", "feed", "cutterhead", "blanksmall", "blanklarge"]));
+    expect(req).toEqual(new Set([null, "bearings", "bar", "feed", "cutterhead", "blankiron", "blanksteel"]));
     const byId = Object.fromEntries(parts.map((p) => [p.id, p]));
-    for (const c of ["cutter1", "cutter2", "cutter3", "cutter4"]) expect(byId[c]!.ride).toBe("head");
-    expect(byId.chainsmall!.requires).toBe("blanksmall");
-    expect(byId.chainlarge!.requires).toBe("blanklarge");
+    expect(byId.chainiron!.requires).toBe("blankiron");
+    expect(byId.chainsteel!.requires).toBe("blanksteel");
+    // the casting wears ppex's own cylinder textures: the Watt's iron, the Cornish's steel
+    expect(shape.textures?.castiron).toBe("game:block/metal/sheet-plain/iron5");
+    expect(shape.textures?.caststeel).toBe("game:block/metal/sheet-plain/steel5");
   });
 
   it("gives every element a part and every part an element", () => {

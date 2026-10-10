@@ -3,7 +3,8 @@
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with
 the shared rig maths and uses its `requires` vocabulary, its reference poses are its own maths, the cells
 are rebuilt from the shipped shape, the work is the cutter head's travel in blocks, the head and the feed
-travel together and come back with the cylinder, the bar turns a quarter of the axle, both cylinders lie
+travel together and come back with the cylinder, the bar turns a quarter of the axle, the casting is ppex's
+engine cylinder (the figures the generator holds to ppex's shapes on every run) in iron or steel and lies
 concentric with the bar, and the oil cups follow the oil. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
@@ -32,8 +33,9 @@ SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cy
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cylinderborer_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "CylinderBorer" / "rig-reference.json").read_text())
 # provisional fitted parts (the stages are still to be settled): the bar's bearings, the bar with its great wheel,
-# the weighted feed, the cutter head (the wearing kit); the work is a small or a large cylinder
-REQUIRES = {"bearings", "bar", "feed", "cutterhead", "blanksmall", "blanklarge", None}
+# the weighted feed, the cutter head (the wearing kit); the work is an iron or a steel casting of ppex's engine cylinder
+REQUIRES = {"bearings", "bar", "feed", "cutterhead", "blankiron", "blanksteel", None}
+END = 18 / 16
 
 
 def inputs(pose):
@@ -106,27 +108,48 @@ class Bore(unittest.TestCase):
         self.assertNotIn("trunkPath", RIG)
         w = rigmath.progress_of(RIG)
         self.assertEqual((w["name"], w["unit"]), ("cutter travel", "blocks"))
-        self.assertEqual(w["end"], {"thin": 17 / 16, "thick": 21 / 16})
-        self.assertGreater(RIG["bore"]["turnsPerBlock"], 0)
-        for key in ("blanks", "cylinders", "box"):
+        self.assertEqual(w["end"], {"thin": END, "thick": END})
+        self.assertEqual(set(RIG["bore"]["turnsPerBlock"]), {"thin", "thick"})
+        self.assertGreater(RIG["bore"]["turnsPerBlock"]["thick"], RIG["bore"]["turnsPerBlock"]["thin"])   # steel cuts slower
+        for key in ("blanks", "cylinders"):
             self.assertEqual(set(RIG["bore"][key]), {"thin", "thick"})
+        self.assertEqual(len(RIG["bore"]["box"]), 6)
+
+    def test_the_casting_is_ppexs_engine_cylinder(self):
+        # the figures the generator holds to ppex's engine shapes on every run (make_shape.measure_ppex)
+        self.assertEqual(RIG["bore"]["cylinder"], {"outside": 10.0, "bore": 8.0, "length": 16.0})
+        self.assertEqual((make_shape.R_OUT * 2, make_shape.R_BORE * 2, make_shape.CYL_Z[1] - make_shape.CYL_Z[0]), (10.0, 8.0, 16.0))
+        els = flatten(SHAPE["elements"], textures={})
+        for t, tex in (("i", "castiron"), ("s", "caststeel")):
+            walls = [e for e in els if e.name.startswith(f"bl{t}_wall")]
+            self.assertEqual(len(walls), 12)
+            outer = {round(math.hypot(e.c[0] - make_shape.BAR[0], e.c[1] - make_shape.BAR[1]) + abs(e.size[1]) / 2, 2) for e in walls}
+            inner = {round(math.hypot(e.c[0] - make_shape.BAR[0], e.c[1] - make_shape.BAR[1]) - abs(e.size[1]) / 2, 2) for e in walls}
+            self.assertEqual((outer, inner), ({5.0}, {4.0}))
+            zs = [p[2] for e in walls for p in e.corners()]
+            self.assertAlmostEqual(max(zs) - min(zs), 16.0, places=2)
+            # ppex's Watt cylinder is iron5, its Cornish's steel5: each casting wears its metal's
+            faces = {f["texture"] for e in SHAPE["elements"] if e["name"].startswith(f"bl{t}_") for f in e["faces"].values()}
+            self.assertEqual(faces - {"#bored"}, {f"#{tex}"})
+        self.assertEqual(SHAPE["textures"]["castiron"], "game:block/metal/sheet-plain/iron5")
+        self.assertEqual(SHAPE["textures"]["caststeel"], "game:block/metal/sheet-plain/steel5")
 
     def test_the_head_and_the_feed_travel_together_and_come_back_with_the_cylinder(self):
-        for k, end in ((1, 17 / 16), (2, 21 / 16)):
-            for w in (0.0, 0.3, end / 2, end):
+        for k in (1, 2):
+            for w in (0.0, 0.3, END / 2, END):
                 for pid in ("head", "feed"):
                     self.assertAlmostEqual(matrix(pid, work=w, size=k, presence=1.0)[2][3], -w, places=6, msg=f"{pid} {k} {w}")
             # the cylinder taken away at its end: the head is pushed back as p eases out
             for p in (0.5, 0.0):
-                self.assertAlmostEqual(matrix("head", work=end, size=k, presence=p)[2][3], -end * p, places=6)
+                self.assertAlmostEqual(matrix("head", work=END, size=k, presence=p)[2][3], -END * p, places=6)
 
     def test_the_drum_and_the_weight_follow_the_head(self):
-        for k, end in ((1, 17 / 16), (2, 21 / 16)):
-            m = matrix("drum", work=end, size=k, presence=1.0)
+        for k in (1, 2):
+            m = matrix("drum", work=END, size=k, presence=1.0)
             turned = -math.atan2(m[2][1], m[1][1])
-            self.assertAlmostEqual(math.remainder(turned * make_shape.R_DRUM - end * 16, 2 * math.pi * make_shape.R_DRUM), 0.0, places=3)
-            fall = -matrix("weight", work=end, size=k, presence=1.0)[1][3] * 16
-            self.assertAlmostEqual(fall, end * 16 * make_shape.R_WDRUM / make_shape.R_DRUM, places=3)
+            self.assertAlmostEqual(math.remainder(turned * make_shape.R_DRUM - END * 16, 2 * math.pi * make_shape.R_DRUM), 0.0, places=3)
+            fall = -matrix("weight", work=END, size=k, presence=1.0)[1][3] * 16
+            self.assertAlmostEqual(fall, END * 16 * make_shape.R_WDRUM / make_shape.R_DRUM, places=3)
 
     def test_the_bar_turns_a_quarter_of_the_axle_and_the_head_with_it(self):
         for th in (0.7, -2.1):
@@ -138,36 +161,32 @@ class Bore(unittest.TestCase):
         self.assertAlmostEqual(d, make_shape.R_PINION + make_shape.R_WHEEL)
 
     def test_every_skin_slice_is_cut_by_the_end(self):
-        # each quarter of the cast skin has sunk into the wall once the cutters are past it, for either cylinder
-        for k, t, end in ((1, "s", 17 / 16), (2, "l", 21 / 16)):
+        # each quarter of the cast skin has sunk into the wall once the cutters are past it, for either metal
+        for k, t in ((1, "i"), (2, "s")):
             for j in range(1, make_shape.SKIN_SLICES + 1):
                 for q in "tlbr":
                     pid = f"s{t}{j}{q}"
                     rest = matrix(pid, work=0.0, size=k, presence=1.0)
-                    done = matrix(pid, work=end, size=k, presence=1.0)
+                    done = matrix(pid, work=END, size=k, presence=1.0)
                     self.assertAlmostEqual(max(abs(rest[r][3]) for r in range(3)), 0.0, places=9, msg=pid)
                     self.assertAlmostEqual(max(abs(done[r][3]) for r in range(3)) * 16, make_shape.SKIN_SINK, places=4, msg=pid)
 
-    def test_both_cylinders_lie_concentric_with_the_bar(self):
+    def test_the_casting_lies_concentric_with_the_bar(self):
         els = flatten(SHAPE["elements"], textures={})
-        for size in ("small", "large"):
-            walls = [e for e in els if e.name.startswith(f"bl{size[0]}_wall")]
+        for t in ("i", "s"):
+            walls = [e for e in els if e.name.startswith(f"bl{t}_wall")]
             xs = [p[0] for e in walls for p in e.corners()]
             ys = [p[1] for e in walls for p in e.corners()]
             self.assertAlmostEqual((min(xs) + max(xs)) / 2, make_shape.BAR[0], places=3)
             self.assertAlmostEqual((min(ys) + max(ys)) / 2, make_shape.BAR[1], places=3)
-        # the large cylinder winds the V-blocks down and sets the cutters out
-        self.assertAlmostEqual(matrix("saddles", size=2, presence=1.0)[1][3] * 16, -make_shape.V_DROP, places=4)
-        self.assertAlmostEqual(matrix("saddles", size=1, presence=1.0)[1][3], 0.0)
-        self.assertAlmostEqual(matrix("cutter1", size=2, presence=1.0)[1][3] * 16, make_shape.CUTTER_SET, places=4)
 
 
 class Anchors(unittest.TestCase):
     def test_cells_and_faces(self):
         cells = {tuple(c["pos"]) for c in RIG["cells"]}
-        self.assertEqual(cells, {(x, y, z) for x in range(2) for y in range(2) for z in range(4)})
+        self.assertEqual(cells, {(0, y, z) for y in range(2) for z in range(4)})
         self.assertEqual(checks.lid_gaps(RIG["cells"]), [])
-        self.assertEqual(tuple(RIG["powerCell"]), (0, 1, 3))
+        self.assertEqual(tuple(RIG["powerCell"]), (0, 0, 3))
         self.assertEqual(RIG["powerFace"], "south")
         self.assertEqual((RIG["infeedSide"], RIG["outputSide"]), ("east", "west"))
         for key in ("output", "chips", "drip"):

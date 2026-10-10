@@ -152,7 +152,7 @@ def check_zfight(v):
 
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
 # round. Everything else must clear by more than 0.02 voxels at every sampled pose.
-SKIN = r"s[sl]\d[tlbr]"
+SKIN = r"s[is]\d[tlbr]"
 ALLOWED = [
     # shafts in their bearings, collars against them
     ("entry", r"_shaft|_rod", "frame", r"fr_entry_bearing"),
@@ -160,9 +160,8 @@ ALLOWED = [
     ("drum", r"drum_shaft", "frame", r"fr_drum_bearing|fr_post"),
     # the gears in mesh (their pitch circles are checked by check_gearing)
     ("entry", r"entry_pinion", "bar", r"wheel_tooth|wheel_rim"),
-    # the head on the bar (keyed, it slides along it), the yoke in its groove, the rod in the yoke
-    ("head", None, "bar", r"bar_(seg|key)"), ("cutter\\d", r"_holder", "head", r"head_body|head_wedge"),
-    ("cutter\\d", r"_holder", "bar", r"bar_seg"),
+    # the head on the bar (keyed by the feather, it slides along it), the yoke in its groove
+    ("head", None, "bar", r"bar_(seg|key)"),
     ("feed", r"feed_yoke", "head", r"head_groove|head_lip"),
     # the crosshead on its ways
     ("feed", r"feed_shoe", "frame", r"fr_way"),
@@ -170,16 +169,14 @@ ALLOWED = [
     ("xrope\\d|feedropes", None, "feed", r"feed_toprail|feed_ropeeye"), ("xrope\\d|feedropes", None, "drum", None),
     ("xrope\\d|feedropes", None, "xrope\\d|feedropes", None),
     ("wrope\\d|feedropes", None, "weight", None), ("wrope\\d|feedropes", None, "wrope\\d|feedropes", None),
-    # the cylinders in their V-blocks and chains, the chains on their hook bars
-    ("blank(small|large)", None, "saddles", r"_cheek"), ("chain(small|large)", None, "blank(small|large)", None),
-    ("chain(small|large)", None, "frame", r"fr_hookbar\d$"),
+    # the casting in its V-blocks and chains, the chains on their staples
+    ("blank(iron|steel)", None, "frame", r"fr_vblock\d_cheek"), ("chain(iron|steel)", None, "blank(iron|steel)", None),
+    ("chain(iron|steel)", None, "frame", r"fr_staple"),
     # the skin is the casting's: it lies on and sinks into its wall; the cutters cut it (check_bore holds the rest)
-    (SKIN, None, "blank(small|large)", None), (SKIN, None, SKIN, None),
-    # the V-blocks on their jacks' nuts, round the screws; the nuts on the screws and on the beams
-    ("saddles", r"_base", "jack\\d", r"_nut"), ("saddles", None, "frame", r"fr_jack\d_screw"),
-    ("jack\\d", None, "frame", r"fr_jack\d_screw|fr_cross_saddle"),
-    # the oil in its cups, the cups' pipes into the bearings
-    ("oillevel", None, "frame", r"fr_cup\w+_(base|glass)"), ("bearings", None, "frame", r"fr_cup\w+_pipe|fr_\w+brg_post"),
+    (SKIN, None, "blank(iron|steel)", None), (SKIN, None, SKIN, None),
+    # the oil in its cups, the cups' pipes into the bearings, the bearings on their pedestal and transom
+    ("oillevel", None, "frame", r"fr_cup\w+_(base|glass)"),
+    ("bearings", None, "frame", r"fr_cup\w+_pipe|fr_farbrg_post|fr_drivebrg_transom"),
 ]
 
 
@@ -233,13 +230,12 @@ def cutting(m, pose):
     k, W = pose[3], pose[2]
     if not k:
         return set()
-    cls = m.CLASSES[k - 1]
-    t, _ = m.blank_tag(cls)
+    _, _, _, sp, _ = m.blank_parts(m.CLASSES[k - 1])
     out = set()
     for j in range(1, m.SKIN_SLICES + 1):
-        w0, w1 = m.skin_window(cls, j)
+        w0, w1 = m.skin_window(j)
         if w0 - 1e-9 <= W <= w1 + 1e-9:
-            out |= {f"s{t}{j}{q}" for q in "tlbr"}
+            out |= {f"{sp}{j}{q}" for q in "tlbr"}
     return out
 
 
@@ -247,8 +243,8 @@ def cut_skip(m, pose):
     cut = cutting(m, pose)
 
     def skip(pa, ea, pb, eb):
-        for x, y in ((pa, pb), (pb, pa)):
-            if re.fullmatch(r"cutter\d", x) and y in cut:
+        for x, y, ex in ((pa, pb, ea), (pb, pa, eb)):
+            if x == "head" and re.search(r"head_cut\d_(bit|holder)", ex.name) and y in cut:
                 return True
         return False
     return skip
@@ -275,15 +271,14 @@ def check_clearances(v, poses):
 
 def check_clearing(v):
     """The bored cylinder taken away: at its end, with its parts no longer drawn (gameplay hides the work when it
-    delivers it), the head, the crosshead, the weight and the V-blocks and cutters ease back with p, touching nothing
-    but their intended contacts."""
+    delivers it), the head, the crosshead, the drum and the weight ease back with p, touching nothing but their
+    intended contacts."""
     m = v.m
     hits = {}
     n = 0
-    work = ("blank", "chain")
 
     def skip(pa, ea, pb, eb):
-        return any(x.startswith(work) or m.is_skin(x) for x in (pa, pb))
+        return any(m.class_of(x) for x in (pa, pb))
     for k in (1, 2):
         for p in (0.85, 0.6, 0.35, 0.1):
             pose = m.pose_at(k, m.end_of(k), p=p)
@@ -298,7 +293,7 @@ def check_clearing(v):
 
 def check_swept(v):
     """Swept paths: the head, its cutters, the rod and the crosshead through the whole travel, every 1/64 block,
-    for both cylinders and five shaft angles (the bar a quarter turn apart, so its feather comes all round), touch
+    for both castings and five shaft angles (the bar a quarter turn apart, so its feather comes all round), touch
     nothing but their intended contacts (the cutters only the skin slices they are cutting)."""
     m = v.m
     n = 0
@@ -319,11 +314,12 @@ def check_swept(v):
 
 
 TEX_RULES = [
-    (r"^(fr_sill|fr_cross|fr_post|fr_topbeam|fr_farbeam|fr_rail|fr_leg|fr_\w+brg_post|fr_entry_post|entry_shaft[ab]|saddle\d_|drum_big|drum_small|feed_(grip|base|upright|toprail))", "oak"),
-    (r"^(fr_way|fr_drum_bearing|fr_entry_bearing|fr_jack\d_screw|fr_hookbar|brg_|bar_(seg|collar)|wheel_|entry_(rod|pinion|hub)|head_(body|lip|backhub)|cut\d_holder|feed_(shoe|boss|ropeeye|handlearm|rod)|drum_(shaft|flange|sflange)|weight_|jack\d_|ch[sl]\d_link)", "iron"),
-    (r"^(head_(groove|wedge)|cut\d_bit|feed_yoke|bar_key)", "steel"),
-    (r"^bl[sl]_", "cast"),
-    (r"^s[sl]\d[tlbr]_", "rough"),
+    (r"^(fr_sill|fr_cross|fr_post|fr_topbeam|fr_farbeam|fr_rail|fr_leg|fr_farbrg_post|fr_portal|fr_drivebrg_transom|fr_entry_post|fr_vblock|entry_shaft[ab]|drum_big|drum_small|feed_(grip|base|upright|toprail))", "oak"),
+    (r"^(fr_way|fr_drum_bearing|fr_entry_bearing|fr_staple|brg_|bar_(seg|collar)|wheel_|entry_(rod|pinion|hub)|head_(body|lip|backhub)|head_cut\d_holder|feed_(shoe|boss|ropeeye|handlearm|rod)|drum_(shaft|flange|sflange)|weight_|ch[is]\d_link)", "iron"),
+    (r"^(head_groove|head_cut\d_(bit|wedge)|feed_yoke|bar_key)", "steel"),
+    (r"^bli_", "castiron"),
+    (r"^bls_", "caststeel"),
+    (r"^s[is]\d[tlbr]_", "rough"),
     (r"^(ropes_|xr\d|wr\d|drum_(wraps|swraps))", "rope"),
     (r"^fr_cup\w+_glass", "glass"),
     (r"^fr_cup\w+_(base|cap|knob|bracket|arm|pipe)", "brass"),
@@ -338,21 +334,22 @@ def check_textures(v):
             if re.match(rx, el.name):
                 got = {f["texture"].lstrip("#") for f in el.faces.values()}
                 want = {tex}
-                if re.match(r"^bl[sl]_wall", el.name):
-                    want = {"cast", "bored"}            # the barrel's bore face is bright, the rest is the casting
+                if re.match(r"^bl[is]_wall", el.name):
+                    want = {tex, "bored"}               # the barrel's bore face is bright, the rest is the casting
                 if got != want:
                     bad.append((el.name, sorted(got), sorted(want)))
                 break
         else:
             bad.append((el.name, "no rule", ""))
-    print(f"textures: {len(TEX_RULES)} rules (oak timber, the axle's continuation, the V-blocks, the drums and the crosshead; iron castings, "
-          f"bearings, gears, the bar, the head, the crosshead's shoes, the weight and the chains; steel bits, wedges, the feather and the yoke; the "
-          f"casting, its bright bore and its rough skin; rope; a glass and brass oiler with oil in it): {len(bad)} elements break them")
+    print(f"textures: {len(TEX_RULES)} rules (oak timber, the axle's continuation, the V-blocks, the drums and the crosshead; "
+          f"iron castings, bearings, gears, the bar, the head, the crosshead's shoes, the weight and the chains; steel bits, "
+          f"wedges, the feather and the yoke; the casting in ppex's iron or steel with its bore bright, the rough skin; rope; a "
+          f"glass and brass oiler with oil in it): {len(bad)} elements break them")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
     # the bore face of each barrel stave is the one towards the bar
     for el in v.els:
-        if re.match(r"^bl[sl]_wall\d", el.name):
+        if re.match(r"^bl[is]_wall\d", el.name):
             down = mvec(el.r, [0.0, -1.0, 0.0])
             to_axis = [v.m.BAR[0] - el.c[0], v.m.BAR[1] - el.c[1], 0.0]
             if sum(down[i] * to_axis[i] for i in range(3)) <= 0 or el.faces["down"]["texture"] != "#bored":
@@ -375,7 +372,7 @@ def check_anchors(v):
         if not all(0 <= p[i] <= (m.CELLS_X, m.CELLS_Y, m.CELLS_Z)[i] for i in range(3)):
             v.fail(f"the {key} anchor is outside the machine")
     ox = rig["output"]["pos"]
-    if rig["outputSide"] != "west" or ox[0] > 0.01 or not (m.SADDLE_Z[0][1] / 16 < ox[2] < m.SADDLE_Z[1][0] / 16):
+    if rig["outputSide"] != "west" or ox[0] > 0.01 or not (m.CYL_Z[0] / 16 < ox[2] < m.CYL_Z[1] / 16):
         v.fail("the output anchor is not on the west face beside the cradle")
     if rig["infeedSide"] != "east":
         v.fail("the infeed is not the cradle's east side")
@@ -429,54 +426,93 @@ def check_gearing(v):
         v.fail("the gears' teeth run into each other")
 
 
+def check_ppex(v, measured):
+    """The cylinder is ppex's: both engine shapes' barrels, measured from the zip, match the figures this model is
+    built to (outside, bore, length, the band and its place, the ports and their places, the piston that fits the
+    bore), and each other; and the casting as built has those figures (its walls' apothems, its length, its band's and
+    its ports' places along it)."""
+    m = v.m
+    want = m.PPEX
+    for engine, got in sorted(measured.items()):
+        for key in ("outside", "bore", "length", "band", "band_outside", "ports", "port", "piston"):
+            a, b = got[key], want[key]
+            if key == "ports":
+                same = [tuple(x) for x in a] == [tuple(x) for x in b]
+            elif isinstance(b, tuple):
+                same = tuple(a) == tuple(b)
+            else:
+                same = abs(a - b) < 1e-6
+            if not same:
+                v.fail(f"ppex's {engine} cylinder: {key} is {a}, the model is built to {b}")
+        if abs(got["outside_z"] - got["outside"]) > 1e-6 or abs(got["bore_z"] - got["bore"]) > 1e-6:
+            v.fail(f"ppex's {engine} cylinder is no longer square: {got}")
+    engines = sorted(measured)
+    if len(engines) != 2 or measured[engines[0]] != measured[engines[1]]:
+        v.fail(f"ppex's engines no longer share one cylinder: {measured}")
+    w = measured[engines[0]]
+    print(f"ppex: {' and '.join(engines)} share one cylinder, measured from build/mods: outside {w['outside']:g}, bore "
+          f"{w['bore']:g}, length {w['length']:g}, a band {w['band_outside']:g} across at {w['band'][0]:g}..{w['band'][1]:g}, "
+          f"ports {w['port']:g} square at {', '.join(f'{a:g}..{b:g}' for a, b in w['ports'])}, the piston {w['piston']:g} across")
+    # the casting as built, each metal: its walls' outer and inner apothems, its length, the band and the ports
+    for cls in m.CLASSES:
+        _, part, _, _, _ = m.blank_parts(cls)
+        metal = m.METALS[cls][1]
+        els = v.by_part[part]
+        walls = [e for e in els if "_wall" in e.name]
+        z0 = min(e.aabb()[0][2] for e in walls)
+        z1 = max(e.aabb()[1][2] for e in walls)
+        radial = [(math.hypot(e.c[0] - m.BAR[0], e.c[1] - m.BAR[1]), abs(e.size[1]) / 2) for e in walls]
+        outer = sorted({round(c + h, 3) for c, h in radial})
+        inner = sorted({round(c - h, 3) for c, h in radial})
+        band = [e for e in els if "_band" in e.name]
+        b0 = min(e.aabb()[0][2] for e in band) - z0
+        b1 = max(e.aabb()[1][2] for e in band) - z0
+        brad = max(round(math.hypot(e.c[0] - m.BAR[0], e.c[1] - m.BAR[1]) + abs(e.size[1]) / 2, 3) for e in band)
+        ports = sorted((round(e.aabb()[0][2] - z0, 4), round(e.aabb()[1][2] - z0, 4), round(abs(e.size[0]), 4)) for e in els if "_port" in e.name)
+        ok = (outer == [want["outside"] / 2] and inner == [want["bore"] / 2] and abs((z1 - z0) - want["length"]) < 0.05
+              and abs(b0 - want["band"][0]) < 0.01 and abs(b1 - want["band"][1]) < 0.01 and abs(brad - want["band_outside"] / 2) < 1e-6
+              and [(a, b) for a, b, _ in ports] == [tuple(p) for p in want["ports"]] and all(abs(w_ - want["port"]) < 1e-6 for _, _, w_ in ports))
+        print(f"casting ({metal}): its walls {outer[0]:g} out and {inner[0]:g} in (apothems: {2 * outer[0]:g} and {2 * inner[0]:g} across "
+              f"the flats), {z1 - z0:.2f} long, the band {2 * brad:g} across at {b0:.2f}..{b1:.2f}, the ports at "
+              f"{', '.join(f'{a:g}..{b:g}' for a, b, _ in ports)}: ppex's")
+        if not ok:
+            v.fail(f"the {metal} casting is not ppex's cylinder: walls {outer} / {inner}, length {z1 - z0}, band {b0}..{b1} to {brad}, ports {ports}")
+
+
 def axis_of(els):
     lo, hi = aabb_of(els)
     return ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2)
 
 
 def check_concentric(v):
-    """Each cylinder lies concentric with the bar, its two lower flats either side of the bottom bedded on the V-blocks
-    as set for it; the chains lie on its upper flats and come down to their hook bars; the cutters reach just inside its
-    bore and its skin starts at its rough bore."""
+    """The casting lies concentric with the bar, its two lower flats either side of the bottom bedded on the V-blocks'
+    faces; the chains lie on its upper flats and come down to their staples; the cutters reach just inside its bore."""
     m = v.m
     for k, cls in ((1, "thin"), (2, "thick")):
-        size = "small" if k == 1 else "large"
+        _, part, chain, _, _ = m.blank_parts(cls)
+        metal = m.METALS[cls][1]
         pose = m.pose_at(k, 0.0)
-        g = m.CYL[cls]
-        walls = v.named(f"blank{size}", r"_wall", pose)
+        walls = v.named(part, r"_wall", pose)
         cx, cy = axis_of(walls)
         if math.hypot(cx - m.BAR[0], cy - m.BAR[1]) > 1e-6:
-            v.fail(f"the {size} cylinder's axis is at ({cx:.3f}, {cy:.3f}), not the bar's")
-        # the V's faces: each cheek's top face plane, against the cylinder's flats at 30 degrees either side of the bottom
+            v.fail(f"the {metal} casting's axis is at ({cx:.3f}, {cy:.3f}), not the bar's")
         worst = 0.0
-        for cheek in v.named("saddles", r"_cheek", pose):
+        for cheek in v.named("frame", r"fr_vblock\d_cheek"):
             n = mvec(cheek.r, [0.0, 1.0, 0.0])
             if n[1] < 0:
                 n = [-x for x in n]
-            # the face towards the V (up and in) is the cheek's +-y face whose normal points up
             face_c = [cheek.c[i] + n[i] * abs(cheek.size[1]) / 2 for i in range(3)]
             dist = sum((m.BAR[i] - face_c[i]) * n[i] for i in range(2))
-            worst = max(worst, abs(dist - g["out"]))
-        print(f"cradle: the {size} cylinder concentric with the bar; its bedding flats lie on the V-blocks' faces (within {worst:.1e})")
+            worst = max(worst, abs(dist - m.R_OUT))
+        print(f"cradle: the {metal} casting concentric with the bar; its bedding flats lie on the V-blocks' faces (within {worst:.1e})")
         if worst > 1e-3:
-            v.fail(f"the {size} cylinder does not bed on its V-blocks")
-        # the cutters' bits just inside its bore
-        tips = []
-        for q in m.CUTTER_ANGLES:
-            bit = v.named(f"cutter{q + 1}", r"_bit", pose)[0]
-            tips.append(max(math.hypot(p[0] - m.BAR[0], p[1] - m.BAR[1]) for p in bit.corners()))
-        gap = g["bore"] - max(tips)
-        print(f"cutters: set for the {size} bore, their bits {min(tips):.3f}..{max(tips):.3f} from the axis, {gap:.3f} inside it")
-        if not (0.0 < gap <= 0.05):
-            v.fail(f"the cutters are not set to the {size} bore")
-        # the chains: every link's centre CHAIN_OFF off the casting's surface or on the vertical runs, ends on the hook bars
-        links = v.named(f"chain{size}", r"_link", pose)
-        rc = g["out"] + m.CHAIN_OFF
+            v.fail(f"the {metal} casting does not bed on its V-blocks")
+        links = v.named(chain, r"_link", pose)
+        rc = m.R_OUT + m.CHAIN_OFF
         worst = 0.0
         for ln in links:
             x, y = ln.c[0] - m.BAR[0], ln.c[1] - m.BAR[1]
             if y > rc * math.tan(math.pi / m.NGON) - 1e-6:
-                # on the upper flats: its distance along the nearest flat's normal
                 a = round(math.degrees(math.atan2(-x, y)) / 30) * 30
                 dx, dy = m.ang_dir(a * m.DEG)
                 worst = max(worst, abs(x * dx + y * dy - rc))
@@ -484,38 +520,17 @@ def check_concentric(v):
                 worst = max(worst, abs(abs(x) - rc))
         ends = sorted(links, key=lambda e: e.c[1])[:4]
         low = max(e.aabb()[0][1] for e in ends)
-        print(f"chains: {len(links)} links over the {size} cylinder, on its flats (within {worst:.3f}), down to their hook bars at y {m.HOOK_Y}")
+        print(f"chains: {len(links)} links over the {metal} casting, on its flats (within {worst:.3f}), down to their staples at y {m.HOOK_Y}")
         if worst > 0.05 or low > m.HOOK_Y + 0.2:
-            v.fail(f"the {size} cylinder's chains are not on it and its hook bars")
-
-
-def check_cradle(v):
-    """The jacks: each nut turns V_DROP / lead turns as it runs down V_DROP for the large cylinder; the V-blocks rest on
-    the nuts for both; the nuts stand on the beams for the large one."""
-    m = v.m
-    for k in (1, 2):
-        pose = m.pose_at(k, 0.0)
-        base = min(e.aabb()[0][1] for e in v.named("saddles", r"_base", pose))
-        for i in range(1, len(m.jack_spots()) + 1):
-            nut = v.named(f"jack{i}", r"_nut", pose)
-            top = max(e.aabb()[1][1] for e in nut)
-            bot = min(e.aabb()[0][1] for e in nut)
-            if abs(top - base) > 0.03:
-                v.fail(f"jack {i}'s nut is not under the V-block (cylinder {k}): {top:.3f} against {base:.3f}")
-            if k == 2 and abs(bot - m.CRADLE_TOP) > 0.01:
-                v.fail(f"jack {i}'s nut does not stand on its beam for the large cylinder ({bot:.3f})")
-            turned = -angle_y(v, f"jack{i}", pose)
-            drop = -v.mat(f"jack{i}", pose)[1][3] * 16
-            want_turn = drop / m.JACK_LEAD * 2 * math.pi
-            if abs(math.remainder(turned - want_turn, 2 * math.pi)) > 1e-4:
-                v.fail(f"jack {i} turns {turned:.4f} for a drop of {drop:.3f}")
-    print(f"cradle: the V-blocks wound down {m.V_DROP:.3f} for the large cylinder on four jacks, each nut turning "
-          f"{m.V_DROP / m.JACK_LEAD:.3f} turns on its screw (lead {m.JACK_LEAD}), the blocks resting on the nuts")
-
-
-def angle_y(v, pid, pose):
-    mm = v.mat(pid, pose)
-    return math.atan2(mm[0][2], mm[0][0])
+            v.fail(f"the {metal} casting's chains are not on it and its staples")
+    tips = []
+    for q in m.CUTTER_ANGLES:
+        bit = v.named("head", rf"head_cut{q + 1}_bit")[0]
+        tips.append(max(math.hypot(p[0] - m.BAR[0], p[1] - m.BAR[1]) for p in bit.corners()))
+    gap = m.R_BORE - max(tips)
+    print(f"cutters: their bits {min(tips):.3f}..{max(tips):.3f} from the axis, {gap:.3f} inside the bore")
+    if not (0.0 < gap <= 0.05):
+        v.fail("the cutters are not set to the bore")
 
 
 def spans_union(spans):
@@ -594,7 +609,7 @@ def check_feed(v):
                 v.fail(f"the weight's rope at W {W:.3f}: {u}, want {cap:.2f}..{m.DRUM_C[0]}")
     print(f"feed: the head, the yoke, the rod and the crosshead travel together (within {worst:.1e}), the yoke in the head's groove; "
           f"the big drum ({m.R_DRUM}) winds the crosshead's rope on, level off its top, whole to the crosshead; the weight falls "
-          f"{m.R_WDRUM / m.R_DRUM:g} of the travel ({m.DROP:.1f} in a large bore), its rope whole to its cap")
+          f"{m.R_WDRUM / m.R_DRUM:g} of the travel ({m.DROP:.1f} in a bore), its rope whole to its cap")
     # the head stays on the bar between its bearings, and is clear of the cylinder at W = 0
     for k in (1, 2):
         for W in (0.0, m.end_of(k)):
@@ -610,25 +625,24 @@ def wall_hides(walls, el):
 
 def check_bore(v):
     """The bore: each skin slice stands where it was cast (at the rough bore) until the cutters reach it, and from when
-    they have passed it lies wholly inside the wall (every corner, edge and face centre of it inside a wall stave or a
-    flange), so the bored face shows; at the end of the job every slice is sunk; the cutters' leading face reaches the
-    first slice only after W = 0 and their trailing face leaves the last before the end."""
+    they have passed it lies wholly inside the wall (every corner, edge middle and face centre of it inside a wall
+    stave), so the bored face shows; at the end of the job every slice is sunk; the cut lies within the head's travel."""
     m = v.m
     for k, cls in ((1, "thin"), (2, "thick")):
-        size = "small" if k == 1 else "large"
-        t, _ = m.blank_tag(cls)
+        _, part, _, sp, _ = m.blank_parts(cls)
+        metal = m.METALS[cls][1]
         end = m.end_of(k)
-        walls_rest = v.named(f"blank{size}", r".", m.pose_at(k, 0.0))
-        first, last = m.skin_window(cls, 1), m.skin_window(cls, m.SKIN_SLICES)
+        walls_rest = [e for e in v.posed(part, m.pose_at(k, 0.0)) if "_wall" in e.name]
+        first, last = m.skin_window(1), m.skin_window(m.SKIN_SLICES)
         if not (first[0] > 0 and last[1] < end):
-            v.fail(f"the {size} bore's cut does not lie within the head's travel: {first} .. {last}, end {end}")
+            v.fail(f"the bore's cut does not lie within the head's travel: {first} .. {last}, end {end}")
         n_hidden = 0
         for j in range(1, m.SKIN_SLICES + 1):
-            w0, w1 = m.skin_window(cls, j)
+            w0, w1 = m.skin_window(j)
             for W, want in ((max(0.0, w0 - 0.01), "rest"), (w1 + 1e-6, "sunk"), (end, "sunk")):
                 pose = m.pose_at(k, W)
                 for q in "tlbr":
-                    pid = f"s{t}{j}{q}"
+                    pid = f"{sp}{j}{q}"
                     mm = v.mat(pid, pose)
                     moved = max(abs(mm[r][c] - (1.0 if r == c else 0.0)) for r in range(3) for c in range(4))
                     if want == "rest" and moved > 1e-9:
@@ -636,9 +650,9 @@ def check_bore(v):
                     if want == "sunk":
                         for e in v.posed(pid, pose):
                             if not wall_hides(walls_rest, e):
-                                v.fail(f"{e.name} is not hidden in the {size} wall at W {W:.4f}")
+                                v.fail(f"{e.name} is not hidden in the {metal} casting's wall at W {W:.4f}")
                             n_hidden += 1
-        print(f"bore: the {size} cylinder's skin, {m.SKIN_SLICES} slices of four quarters, in place until the cutters reach "
+        print(f"bore: the {metal} casting's skin, {m.SKIN_SLICES} slices of four quarters, in place until the cutters reach "
               f"each slice and wholly inside the wall once they have passed it ({n_hidden} staves checked); cut over W "
               f"{first[0]:.3f}..{last[1]:.3f} of {end:.4f}")
 
@@ -662,10 +676,20 @@ def check_supports(v):
     # the bearings sit on their pedestals
     for b in bearings:
         lo, _ = b.aabb()
-        posts = [f for f in frame if f.name.startswith("fr_") and f.name.endswith("brg_post")]
-        if not any(abs(p.aabb()[1][1] - lo[1]) < 1e-6 and p.aabb()[0][2] >= lo[2] - 1e-6 and p.aabb()[1][2] <= b.aabb()[1][2] + 1e-6 for p in posts):
-            v.fail(f"{b.name} does not sit on a pedestal")
-    print("support: the bar's bearings on their pedestals")
+        posts = [f for f in frame if f.name in ("fr_farbrg_post", "fr_drivebrg_transom")]
+        hi = b.aabb()[1]
+        if not any(abs(p.aabb()[1][1] - lo[1]) < 1e-6 and min(p.aabb()[1][2], hi[2]) - max(p.aabb()[0][2], lo[2]) > 1.0
+                   and min(p.aabb()[1][0], hi[0]) - max(p.aabb()[0][0], lo[0]) > 1.0 for p in posts):
+            v.fail(f"{b.name} does not sit on its pedestal or transom")
+    portal = [f for f in frame if re.match(r"fr_portal_[we]$", f.name)]
+    transom = v.named("frame", r"fr_drivebrg_transom")[0].aabb()
+    if len(portal) != 2 or any(abs(f.aabb()[1][1] - transom[0][1]) > 1e-6 for f in portal):
+        v.fail("the drive bearing's transom is not on its two posts")
+    entry_top = max(e.aabb()[1][1] for e in v.named("entry", r"_shaft|_rod|_hub"))
+    print(f"support: the bar's bearings on the far pedestal and on the drive portal's transom (its posts either side, the "
+          f"entry shaft under it, {transom[0][1] - entry_top:.2f} clear)")
+    if transom[0][1] - entry_top < 0.5:
+        v.fail("the entry shaft does not pass under the drive portal's transom")
     # the control rod is held at both ends: in the crosshead's boss and in the yoke, at every W
     for k in (1, 2):
         for W in (0.0, m.end_of(k)):
@@ -714,10 +738,9 @@ def check_oiler(v):
 def clearance_poses(m):
     out = [m.REST, (0.9, 0.9, 0.0, 0, 0.0, 0.5)]
     for k in (1, 2):
-        cls = m.CLASSES[k - 1]
         ws = {0.0, m.end_of(k)}
         for j in range(1, m.SKIN_SLICES + 1):
-            w0, w1 = m.skin_window(cls, j)
+            w0, w1 = m.skin_window(j)
             ws |= {w0, (w0 + w1) / 2, w1}
         for i, W in enumerate(sorted(ws)):
             out.append(m.pose_at(k, W, theta=(0.0, 0.4, 1.1, 2.3)[i % 4]))
@@ -725,8 +748,9 @@ def clearance_poses(m):
     return out
 
 
-def validate(m, els, parts, rig, quick=False):
+def validate(m, els, parts, rig, measured, quick=False):
     v = V(m, els, parts, rig)
+    check_ppex(v, measured)
     check_basic(v)
     check_floating(v)
     poses = [m.REST] + [m.pose_at(k, m.end_of(k) * f, theta=th) for k in (1, 2) for f in (0.0, 0.25, 0.5, 0.75, 1.0) for th in (0.0, 0.5)]
@@ -735,7 +759,6 @@ def validate(m, els, parts, rig, quick=False):
     check_textures(v)
     check_gearing(v)
     check_concentric(v)
-    check_cradle(v)
     check_feed(v)
     check_bore(v)
     check_supports(v)
