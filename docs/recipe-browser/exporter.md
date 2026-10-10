@@ -346,6 +346,16 @@ is left out when its switch is off or what it names is not registered.
   are `kept`, their alternatives the variant's stacks; the output is two half plates of the metal
   (`seraphhorizons:halfplate-{metal}`). The `SquaringShear` switch leaves it out when off (and the
   half plate with it).
+- The eidolon (`Recipes/EidolonExport.cs`, `RecipeSection.Eidolon.cs`, type `construction`): the
+  gantry's winch and the body on its spine, two blocks built in place that no engine behavior builds.
+  What each stage takes is read by reflection from the mod's game-independent rules,
+  `EidolonGantry/Core/GantryParts.cs` (`Woods`, `CodesFor(stage, wood)`, `Needed`) and `BodyParts.cs`
+  (`BodyBill.Stages`, `Order`), so the records cannot drift from the game. A stage's alternatives
+  (iron, meteoric iron or steel) are one wildcard ingredient with `allowedVariants`; the gantry's wood
+  is a `{wood}` binding, a variant per wood whose gantry is registered, the record named after the first
+  by code. The body's first stage is the gantry (role `station`) and its output the creature item
+  `seraphhorizons:creature-eidolon`. The stages' actions are the gantry's own help lines. The `Eidolon`
+  switch leaves both out when off (and they are owned by it through their codes).
 - The mandrel forging station (`Recipes/MandrelStationExport.cs`, `RecipeSection.MandrelStation.cs`,
   type `mandrelstation`, shape `machine`): one record per metal, `mandrelstation|game:chutesection-{metal}|0`.
   `config/mandrelstation-rig.json` gives each class's hollow and pipe section (`forge.hollows`,
@@ -444,6 +454,9 @@ details and the limits (facing, connectors).
   and the frame's recipe;
 - the mandrel station (`RecipeExportMandrelStationScenarios.cs`): a record per metal, the kept
   mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections;
+- the eidolon (`RecipeExportEidolonScenarios.cs`): the gantry's winch, nine stages in order with their
+  counts and a variant per wood, the body on a gantry (a station) to the mind's temporal gear, the
+  bill's totals, and the eidolon's guide in `guides`;
 - the power section (`RecipeExportPowerScenarios.cs`): the producers' models and the
   consumers' loads against figures worked out from the code, no figure a fallback, a quern's and
   a grinding wheel's exported load against the placed block's `GetResistance`, and the wind
