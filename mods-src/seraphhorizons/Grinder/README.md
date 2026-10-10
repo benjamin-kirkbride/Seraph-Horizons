@@ -64,7 +64,8 @@ the east.** Every anchor is at the same cell at every level (shipped coordinates
    rows of their own, so the box is 3 × 2 × 2, and two of its cells are dropped (above): 10 cells, against the
    old 18.
 3. **One way in, at the top; out low, by the pit's own overflow.** The hopper takes fresh ore and, at level 2, the
-   concentrator's middlings (the owner's ruling). The pulp of both levels leaves by the same notch and launder: at
+   concentrator's middlings, which arrive by the same infeed as any other feed: the machine models no return path
+   of its own (the owner's ruling, below). The pulp of both levels leaves by the same notch and launder: at
    level 1 it is the arrastra's overflow, at level 2 the drum discharges into the pit, which is its sump.
 4. **The drive from the side, never the ore's ends**, as before: the axle comes in on the south, the ore runs
    north (in) to east (out).
@@ -282,8 +283,10 @@ Element names are the rig's interface (first-match globs, a part's id and `_`): 
 8. **The charge** is drawn lying still in the drum's bottom, seen only with the drum unticked; the ore and pulp
    are not drawn at all (no work input).
 
-Decided earlier and kept: **the middlings come back by the feed** (review pass 1 of the first model): at level 2
-the concentrator's middlings come into the same hopper and infeed cell as fresh ore.
+Decided: **no return path inside the machine** (the owner's ruling). Returns are handled outside it, by placing
+machines so that one feeds another above it, or later by Archimedes screws; the concentrator's middlings simply
+come back in through the normal infeed, the hopper's mouth, with the fresh ore. Nothing in the model carries
+them: there is no return funnel, launder or anchor.
 
 ## Known weak spots, and what is not checked
 
