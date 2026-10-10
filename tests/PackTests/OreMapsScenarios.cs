@@ -189,7 +189,19 @@ public partial class OreMapsScenarios : AtlasScenarioBase
         var wp = mine.Last();
         output.WriteLine($"waypoint '{wp.Title}' at {wp.Position}");
         Assert.Equal(a.GetInt(ItemOreMap.AttrX) + 0.5, wp.Position.X);
-        Assert.Contains("Copper deposit", wp.Title);
+        // Titled by what the ore is (#692): "Malachite and azurite deposit (medium)".
+        var ores = OreNames.Split(a.GetString(ItemOreMap.AttrOres));
+        Assert.NotEmpty(ores);
+        Assert.All(ores, ore => Assert.Equal("copper", OreMetals.MetalOf(ore)));
+        Assert.Equal(record.Makeup!.MainOres(), ores);
+        Assert.Equal(record.Makeup.HostRock(), a.GetString(ItemOreMap.AttrRock));
+        Assert.Equal(record.Makeup.Mix()?.Code, a.GetString(ItemOreMap.AttrGrades));
+        Assert.Contains(Lang.Get("seraphhorizons:" + OreNames.LangKey(ores[0])), wp.Title, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(" deposit", wp.Title);
+        var info = new StringBuilder();
+        slot.Itemstack.Collectible.GetHeldItemInfo(slot, info, Sapi.World, false);
+        output.WriteLine($"'{slot.Itemstack.GetName()}': {info}");
+        Assert.Contains(Lang.Get("seraphhorizons:" + OreNames.LangKey(ores[0])), info.ToString(), StringComparison.OrdinalIgnoreCase);
         Assert.False(slot.Empty);
         // Read twice: no second waypoint.
         slot.Itemstack.Collectible.OnHeldInteractStart(slot, sp.Entity, null, null, true, ref handling);
@@ -266,6 +278,10 @@ public partial class OreMapsScenarios : AtlasScenarioBase
         Assert.Equal(MapPrecision.Exact, map.Attributes.GetInt(ItemOreMap.AttrPrecision)); // gravel maps are exact
         Assert.Equal(placed.X, map.Attributes.GetInt(ItemOreMap.AttrX));
         Assert.Equal(placed.Rock, map.Attributes.GetString(ItemOreMap.AttrRock));
+        // What it pans (#692): the metals of the rock's rich gravel table, native copper at least.
+        var metals = OreNames.Split(map.Attributes.GetString(ItemOreMap.AttrMetals));
+        output.WriteLine($"{placed.Rock} rich gravel pans {string.Join(", ", metals)}: '{map.GetName()}'");
+        Assert.Contains("copper", metals);
         Assert.Equal(DepositState.Sold, Deposits.Registry.Get(key).State);
     }
 }

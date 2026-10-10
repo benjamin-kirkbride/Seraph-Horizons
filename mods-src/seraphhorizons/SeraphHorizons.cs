@@ -691,6 +691,17 @@ public class SeraphHorizonsConfig
     /// deposit registry (ore cells or placer fields) for maps. Server side.</summary>
     public bool TraderMaps { get; set; } = true;
 
+    /// <summary>Trader maps: offers list only deposits that have been checked (#693), and a player
+    /// coming within this many blocks of a trader camp has the deposits it would sell maps to checked
+    /// in the background (generated if need be and measured), so the offers are ready when they
+    /// arrive. 0: checked only when a trade window opens on one still unchecked. Server side.</summary>
+    public int DepositCheckApproachMetres { get; set; } = 1500;
+
+    /// <summary>Trader maps: seconds between one background deposit check and the next (one runs at a
+    /// time; a check loads, or generates, an ore deposit's nine chunk columns or a gravel field's
+    /// one). Raise it if the checks show as lag on a busy server. Server side.</summary>
+    public double DepositCheckPauseSeconds { get; set; } = 5;
+
     /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
     /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
     /// logs and the admin map layer. Changes nothing in play. Server side.</summary>
@@ -825,6 +836,20 @@ public class SeraphHorizonsConfig
     /// <summary>The mandrel station's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public MandrelStation.Core.MandrelStationConfig MandrelStationSettings { get; set; } = new();
+
+    /// <summary>The player-built eidolon (#668; EidolonGantry/, Eidolon/, README "Eidolon"): a laborer
+    /// automaton behind the eidolon schematic the curio dealer sells, raised in a wooden gantry built
+    /// from support beams and fitted with a winch and a spine in nine stages, its body built on the
+    /// spine and woken, run by temporal gear charge, slumping disabled at 0 HP or out of charge and
+    /// never killed, and ordered with a command tool (off means the gantry, the eidolon, its creative
+    /// spawner, the command tool and their recipes do not exist, those already in a world are lost,
+    /// and the curio dealer does not stock the schematic or the Jonas pump head). The server's
+    /// setting decides.</summary>
+    public bool Eidolon { get; set; } = true;
+
+    /// <summary>The eidolon's figures; a value out of range falls back to its default with a warning.
+    /// The server's are used.</summary>
+    public SeraphHorizons.Mod.Eidolon.Core.EidolonConfig EidolonSettings { get; set; } = new();
 
     /// <summary>Stainless steel (#484, CrucibleFurnace/, README "Crucible furnace"): a crucible
     /// furnace of melting holes lined with tier-3 refractory brick, in a row of up to four on a brick

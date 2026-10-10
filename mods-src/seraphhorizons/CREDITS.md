@@ -95,3 +95,10 @@ mod, and is covered by the repository's license, except for the body hung in it:
 `b_<stage>_<name>` are a copy of the eidolon's elements above, and those named `sp_<name>` the
 eidolon's spine, which this mod draws as part of the gantry (Anego Studios' model, both), posed in the
 `hung` animation by `EidolonGantry/tools/make_shape.py`, and are that model's as above.
+
+The eidolon command tool's model (`assets/seraphhorizons/shapes/item/eidoloncommander.json`) was made
+for this mod and is covered by the repository's license, except for the two Jonas parts on it: the
+elements named `cylinder-<name>` and `connector-<name>` are the game's Jonas cylinder and connector
+by Anego Studios (`shapes/item/jonas/parts/cylinder01.json` and `connector01.json`, game 1.22.7),
+copied unchanged but moved into place by `Eidolon/tools/make_commander.py`, and are that model's as
+above. Its textures are the game's own files.

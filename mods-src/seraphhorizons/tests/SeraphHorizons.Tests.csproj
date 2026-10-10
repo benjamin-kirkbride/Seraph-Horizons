@@ -113,6 +113,13 @@
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
     <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('MandrelStation/rig-reference.json')" />
+    <!-- The eidolon gantry's winch stages and rig reader, its shipped rig, and its README, whose
+         stage table the stages are held to. -->
+    <Compile Include="../EidolonGantry/Core/**/*.cs" Link="EidolonGantry/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/eidolongantry-rig.json" Link="eidolongantry-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../EidolonGantry/README.md" Link="eidolongantry-readme.md" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The body bill (#672), held to the eidolon's stages file. -->
+    <None Include="../assets/seraphhorizons/config/eidolon-stages.json" Link="eidolon-stages.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The handcar's drive, controls and animation timing, and its generated rig, reference poses,
          rider targets and entity type (Handcar/tools/make_shape.py), which the tests hold together. -->
     <Compile Include="../Handcar/Core/**/*.cs" Link="Handcar/Core/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -191,6 +198,8 @@
     <None Include="../assets/seraphhorizons/patches/castpipes-smexmold.json" Link="castpipes-smexmold.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/clayforming/pipemold.json" Link="castpipes-pipemold.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Pipes/fixtures/smex-toolmold*.json" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The eidolon (#673): charge, stops, the slump pose, ownership and the wide pathfinder. -->
+    <Compile Include="../Eidolon/Core/**/*.cs" Link="Eidolon/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

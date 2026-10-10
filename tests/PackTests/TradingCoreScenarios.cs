@@ -129,7 +129,9 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
             Assert.Contains(selling, s => Same(s, e));
         Assert.DoesNotContain(selling, s => resolved.Selling.Core.Concat(resolved.Selling.Rotating).Any(e => e.PlayerSupplied && Same(s, e)));
         Assert.All(selling, s => Assert.Contains(resolved.Selling.Core.Concat(resolved.Selling.Rotating), e => Same(s, e)));
-        Assert.All(selling.Concat(buying), s => Assert.True(s.TradeItem.Stock > 0 && s.TradeItem.Price > 0));
+        // A map offer whose deposit is still being surveyed (#693), or a sold-out one, shows unavailable.
+        static bool Unavailable(ItemSlotTrade s) => s.Itemstack!.Attributes.GetString("offer") is "surveying" or "soldout";
+        Assert.All(selling.Concat(buying).Where(s => !Unavailable(s)), s => Assert.True(s.TradeItem.Stock > 0 && s.TradeItem.Price > 0));
         Assert.True(selling.Count >= resolved.Selling.Core.Count(e => !e.PlayerSupplied && e.Kind != "lead") + 1, "no rotating goods");
         foreach (var e in resolved.Buying.Core)
             Assert.Contains(buying, s => Same(s, e));

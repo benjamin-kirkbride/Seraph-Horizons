@@ -12,7 +12,7 @@ into stainless gears through the pot, the pickling tub and the barrel (`GearRecl
 recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
 (`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -2492,6 +2492,541 @@ links it. The hollows and the pipe sections exist either way (the sections are `
 that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic
 for the frame (`MachineSchematics`).
 
+### Eidolon (`Eidolon`, `EidolonSettings`)
+
+The player-built eidolon (#668): a laborer automaton built in a wooden gantry from Jonas parts, steel,
+stainless gears and the Resonance Archives' eidolon's elucidatory vessel. One switch covers all of it.
+Its models are described in `EidolonGantry/README.md` and `Eidolon/README.md`.
+
+**The gantry** (#671, `EidolonGantry/`: rules in `EidolonGantry/Core/`, the game side in
+`EidolonGantry/Game/`). `seraphhorizons:eidolongantry-{wood}-{side}`, a wood-typed block (the game's
+`block/wood` woods; its timbers drawn in that wood), is the controller, the foot of the front right post
+of a frame 6 deep, 5 wide and 5.5 high, plus a ghost (`eidolongantryghost`) in each of the rig's other
+180 cells. 88 of them are hollow, with no boxes (the space the body hangs in and walks out of, and the
+crank's cell outside the box, south of the back left post, a block up), so nothing can be built there. It
+is placed with its open front towards the player, its middle on the block they click. The frame is a
+grid recipe: 24 `game:supportbeam-{wood}` of one wood (two slots of 12), 16 nails and strips of iron,
+meteoric iron or steel, a hammer and a saw; the eidolon schematic's gate (`config/schematic-gates.json`,
+machine `eidolon`) adds the schematic, kept. The gantry takes the beams' wood.
+
+Then nine stages are fitted by right-click on any of its cells, in order, each taking its whole count
+from the held stack in one click (fewer is refused, as is a later stage's item, and nothing is taken):
+8 `game:woodenaxle-ud`, a `game:rod-{metal}` (the crank shaft), 4 `game:spurgear-s`, 10
+`game:plank-{wood}`, 10 `game:metalnailsandstrips-{metal}`, a `game:metalplate-{metal}` (the ratchet and
+pawl), a `game:rod-{metal}` (the crank), 4 `game:metalchain-{metal}` and 3 `game:supportbeam-{wood}` (the
+spine), `{metal}` iron, meteoric iron or steel. The drum's planks and the spine's beams must be of the
+gantry's own wood (the epic's decision; the model's README allowed any). Nothing comes back but by
+breaking the gantry, which drops the frame and every item that went in. In creative mode Ctrl +
+right-click fits the next stage with nothing taken, and the creative inventory has an assembled oak
+gantry (the stack attribute `assembled`) that places with the winch and spine fitted. The block info
+names the next stage and what it takes.
+
+**Drawn.** The block draws `eidolongantry_frame.json`; the renderer splits `eidolongantry.json` by the
+rig's parts (one mesh set per wood, shared) and draws each winch stage once fitted, posed by the winch's
+depth (`BEEidolonGantry.WinchDepth`, 0 hung, 1 let down: the crank, layshaft, drum and sheave turn, the
+pawl is thrown off, the chain pays out and the spine comes down; nothing drives it yet). The body's
+baked stages (`torso` to `mind`) are drawn only when a gantry extension says so.
+
+**Extending it** (the body stages, #672): a block entity behavior on the gantry's controller that
+implements `IEidolonGantryExtension` is asked, after the winch, for every click the winch does not take
+(`OnGantryInteract`), for the creative shortcut once the winch is complete (`CreativeFitNext`,
+`Complete`), whether a body stage's rig parts are drawn (`Shows`), what breaking returns (`Drops`) and its
+help lines (`Help`); it saves its own state and writes its own block info as a behavior does.
+
+**The body and waking it** (#672, `EidolonGantry/Game/BEBehaviorEidolonBody.cs`, the gantry's one
+extension; rules in `EidolonGantry/Core/BodyParts.cs`). Once the spine hangs, the body is built on it in
+six stages, in order: torso, pelvis, legs, arms, head, mind (`BodyBill`, the epic's bill; the stages file
+`config/eidolon-stages.json` lists the same and a test holds the two together). Each stage is finished
+before the next takes anything; within a stage any order, and each right-click fits what the held
+stack can give toward one item the stage still needs (all of it, up to what is missing). A later stage's
+item is refused as out of order, one the stage has all of as already in, and nothing is taken. Steel
+rods, plates and nails go to the body once the winch is done (before, they are winch parts).
+
+| Stage | Takes |
+|---|---|
+| Torso | Jonas tank 1, tank 2 and pump head; 4 steel plates, 8 steel nails and strips, 4 metal parts, 3 stainless gears |
+| Pelvis | Jonas gearbox 2; 3 steel plates, 8 nails and strips, 3 metal parts, 2 stainless gears |
+| Legs | 2 Jonas joints (the knees), 2 Jonas springs; 4 steel rods, 3 plates, 8 nails and strips, 3 metal parts, 2 stainless gears |
+| Arms | Jonas gears 1 and 2, cylinder 1, valve; 4 steel rods, 2 plates, 8 nails and strips, 4 metal parts, 3 stainless gears |
+| Head | The Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain), Jonas oscillator, gearbox 1, cylinder 2, connector; a steel plate, 4 nails and strips, 2 metal parts, 2 stainless gears |
+| Mind | A temporal gear, which wakes it |
+
+The block info lists the stages fitted, what the next one still needs, and those after. Each finished
+stage is drawn on the spine (`Shows`). Fitting the mind wakes it: `EidolonSystem.Spawn` puts the eidolon
+at the rig's `body` point, facing out of the open front, owned by the player who fitted the mind (and so
+their company), charged with that gear, playing `activate`; it is given a `goto` order 3 blocks past the
+front's middle (`exit`), which it starts once `activate` has played, and walks out. The body stages are
+cleared, so the gantry is an empty dock with its spine again, and another eidolon can be built in it.
+If the eidolon cannot be spawned the gear is refused and kept. Breaking the gantry mid-build returns every
+item fitted to the body, with the winch's. In creative mode Ctrl + right-click fits the winch's next stage,
+then the body's, the last waking it (owned by that player). The body has no settings.
+
+**The dock.** `BEEidolonGantry.DockAt(blockAccessor, pos)` is the gantry whose dock an entity standing at
+`pos` is in (within `DockRadius`, 1.25 blocks, of the `body` point, level with its floor), or null;
+`gantry.Docks(pos)` asks one gantry. For repair in the gantry (#674).
+
+With the switch off the server marks the gantry's block types and recipe file disabled before the game
+loads them, so none of it exists and gantries already placed are lost; the mod's own text no longer
+links it. The parts it takes are the game's and exist either way. Tests: `tests/EidolonGantry/`
+(stages, returns, the rig, held to `EidolonGantry/README.md`'s stage table) and
+`tests/PackTests/EidolonGantryScenarios.cs` (Atlas: placing, stages in and out of order, returns, the
+creative shortcut and the assembled stack); the body's in `tests/EidolonGantry/EidolonBodyTests.cs` (the
+bill, its order and counts, held to the stages file) and `tests/PackTests/EidolonBodyScenarios.cs` (Atlas:
+a full build from real stacks ends with one owned eidolon outside the gantry and the spine empty, and a
+partial build broken returns everything).
+
+**The gate** (#670). The eidolon schematic, `seraphhorizons:schematic-eidolon` (a `machine` variant of
+the machines' schematic item, the translocator's drawing), is sold only by the curio dealer, from
+standing tier 3, at 180 gears, and gates the gantry frame (`seraphhorizons:eidolongantry-*`) and the
+command tool (`config/schematic-gates.json`, machine `eidolon`; "Schematics" below). The curio dealer
+also stocks the Jonas pump head (`game:jonasparts-pumphead`), which the eidolon's torso takes and
+nothing else gives (vanilla's loot randomizers leave it out, BetterRuins' part conversion skips it),
+from tier 3, one at a time, at a hand-set 40 gears.
+
+**The command tool**, `seraphhorizons:eidoloncommander` (`itemtypes/eidoloncommander.json`): a Jonas
+connector on a Jonas cylinder in a casing of one brass or steel plate with four nails and strips of
+the same metal, made on the grid with a hammer (`recipes/grid/eidoloncommander.json`) and the
+schematic, kept. Its shape (`shapes/item/eidoloncommander.json`) is generated by
+`Eidolon/tools/make_commander.py` from the game's two Jonas parts, pinned by sha256 (`CREDITS.md`);
+`tools/tests/test_eidoloncommander_model.py` holds the committed file to it. What it does is its class,
+`ItemEidolonCommander` (#675, below).
+
+Off: the command tool and its recipe do not exist (those already in a world are lost), and the
+curio dealer does not stock the schematic or the pump head (`EidolonCommanderSystem`,
+`TradingSystem.Exclude`); the schematic item itself stays, as every machine schematic does.
+
+**The entity.** `seraphhorizons:eidolon` (class `seraphhorizons.EntityLaborEidolon`; the game's own
+`EntityEidolon` is the boss's), the frozen mobile eidolon at size 1: a 1.7 × 3.75 box, 300 HP,
+mechanical (no breathing, hunger or fall damage), knockback-proof, its hurt sound the boss's. Its
+animation codes are the shape's (`slump`, `standup`, `activate`, `fell`, `carry-walk`, ...), with
+`idle`, `walk`, `run` and `hurt` mapped to `stand-idle1`, `stand-walk`, `stand-run` and
+`stand-stagger`. It is saved with its chunk and never despawns. Its AI runs, as any creature's, only
+while a player is within the server's simulation range.
+
+**Ownership.** An owner (uid and name, in its watched attributes): `EidolonSystem.Spawn` sets it, the
+creative spawner sets the player who used it. The owner and their company (the trading standing's
+company; with standing off, any group the two share) command it and open what it carries
+(`EntityLaborEidolon.MayCommand`, `RefuseUnlessCommander`, which tells anyone else whose it is). One
+with no owner answers anyone. Recharging, oiling and repairing are open to all.
+
+**Charge.** A temporal gear runs it a quarter of the world's year (27 days at 9 days a month,
+`ChargeYearsPerGear`). Right-click it with a gear anywhere to add a gear's worth, up to
+`MaxChargeGears` (a gear that would go over is refused and kept). Charge drains with game time while
+it stands and its chunk is loaded, not while it is slumped. Out of charge it slumps where it stands
+and holds there until recharged, then plays `standup`. Its info shows the days left.
+
+**Never killed.** At 0 HP it slumps disabled instead of dying: no drops, no corpse, and a `Die` for
+death or lava does nothing but that. Down, it takes no more damage but heals, and stands up once
+repaired to `StandUpHealthShare` of its health. Its info says why it is stopped.
+
+**Oil** (#674, `EntityBehaviorEidolonOil`). With the `MachineOil` switch on it has a reservoir like a
+machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by right-click with what
+oils a machine (MachineOil's oils from any liquid container, or rendered fat; `MachineOilSettings`'
+lists), as much as fits, refused when full. It wakes with `InitialOilShare` of it (a quarter). Each job
+done drains it: a tree felled `OilPerTreeFelled` (5), a trunk delivered `OilPerTrunkDelivered` (3), a
+load carried somewhere and set down `OilPerLoadCarried` (2), so a full reservoir fells 200 trees;
+idling, following, staying and guarding cost nothing. Dry, it stops and waits standing (no slump; its
+order is kept) until oiled, then carries on. Its info shows the reservoir. With `MachineOil` off it has
+none, is never dry and takes no oil; turned on later, it starts as a new one.
+
+**Repair** (#674, `EntityBehaviorEidolonRepair`). Right-click with `game:metal-parts` or
+`game:metalplate-iron`, one item a click: each restores `RepairShare` (a tenth) of its most health,
+`GantryRepairMultiplier` (2) times that while it stands in a gantry's dock (where
+its body hung, `BEEidolonGantry.DockAt`). A slumped one is repaired where it lies and stands up past `StandUpHealthShare`: three items
+from 0 HP in the open, two in a gantry. A whole one refuses the item.
+
+**Orders.** One at a time, in its watched attributes (saved with it, shown in its info with how it is
+going): `stay` holds a place (given, or where it stands), `goto` walks to a point and is done on
+arrival, `follow` follows a player (below). No order: it stands at rest.
+
+**Commanding** (#675; `Eidolon/Game/ItemEidolonCommander.cs`, `EidolonCommandModes.cs`, rules in
+`Eidolon/Core/EidolonMarking.cs` and `EidolonCommanding.cs`). The command tool is **bound** to
+eidolons one by one: right-click an eidolon with it to bind it (refused, with whose it is, unless you
+may command it), sneak + right-click to unbind. The tool keeps the bound entity ids (at most 16), so it
+orders only the eidolons it was bound to, not every one its holder could command; a company's members
+each bind their own tools. A **mode wheel** (the tool mode key, as the prospecting pick's) picks the
+order; right-click anywhere but on an eidolon gives it to every bound eidolon loaded within
+`CommandRange` of the holder that the holder may still command (the others are counted in a refusal
+message), and a chat line says how many took it. Modes that work in a place have the player **mark**
+it first: a block (one right-click on it, which then gives the order) or an area (a first corner,
+then the opposite corner, which closes it and gives the order; wider than the mode's limit is refused
+and the first corner kept; a third click starts a new area). The tool keeps each mode's marks; while it
+is held, the client highlights the selected mode's (an area as a green box, a first corner or block in
+yellow; highlight slot 6750), and sneak + right-click on a block or the air clears them. Everything is
+decided on the server.
+
+**Follow and stay**, the first two modes. *Follow me* gives the `follow` order (`FollowOrder`, the
+player's uid): it keeps `FollowDistance` blocks off them by the wide pathfinder, walking, or running
+beyond `FollowRunDistance` (with slack both ways so it does not shuffle or flip gait each step), and
+searches again as they move on (when they are a quarter of the remaining way, at least 2 blocks, from
+where its path leads). The goal is the ground under them, so a jump or a ladder does not throw it.
+Where it finds no way to them (a gap or drop it cannot cross, a doorway under 2 × 4) it stands, its info
+says "It can find no way to {player} and waits", the player is told once in chat, and it tries again
+every 3 seconds; logged off, dead or more than twice `CommandRange` away, it waits where it is.
+*Stay here* gives `stay` with the eidolon's position: it holds that place and walks back to it if drawn
+off (by self-defence). Following drains no oil (#674's oil drains per job).
+
+**Hauling** (#678; `Eidolon/Game/HaulOrder.cs`, `TrunkHauler.cs`, `EntityBehaviorEidolonTrunk.cs`,
+`MachineInfeeds.cs`, `EidolonShapeRenderer.cs`; rules in `Eidolon/Core/HaulPlan.cs`). *Haul trunks*
+(wheel place 60) marks an area, then a machine: two corners as for any area, then a right-click on any
+cell of a rosser or a bucking mill (another block is refused and the area kept, so a misclick costs
+nothing). It gives `haul` (the area's corners and the machine's cell). Every `ScanSeconds` (2) it looks
+over the area for a trunk entity whose middle's column is inside it (from the area's lowest mark to 4
+above its highest), that the machine takes at all (the rosser none already debarked, the mill none
+branched while Logging Expanded requires debranching; any with logs) and that nobody is driving, and
+goes for the nearest. It stands square to the trunk, either side, 1.4 blocks off a thin one and 2 off a
+thick one (clear of the trunk, so TrunkEntities' solidity leaves it be), on the floor there (a trunk
+resting on a stump or a log lies above it, and the game's traverser never counts a waypoint off the
+floor reached, so the navigator also ends every path at the height its search ended), and takes it up: a thin trunk
+(Logging Expanded's xs to lg) onto its left shoulder (`trunk-pickup`, taken on frame 24), a thick one
+(xl, xxl) in both arms in front (`trunk-thick-pickup`, frame 26). The trunk entity is removed and its
+stack, unchanged, is kept in the eidolon's watched attribute `seraphhorizons:carriedTrunk`
+(`EntityBehaviorEidolonTrunk`), so it is saved with the eidolon and shown in its info. It walks to the
+machine with `trunk-carry-walk` (or `trunk-thick-carry-walk`), never running, to stand `Reach` beyond
+the infeed cell nearest the middle of the machine's infeed cells (the ground cells the machine takes a
+trunk lying in), facing the machine. While any trunk lies in those cells it waits there holding its
+own (`trunk-carry-idle`, "Waiting for the infeed to clear"); then it lays it down (`trunk-setdown`, let
+go on frame 36; thick, frame 32) as a trunk entity in the middle of that cell, across the machine's
+line, where the machine takes it as it takes any trunk lying there (`PullFromGround`), and spends
+`OilPerTrunkDelivered`. A trunk it cannot reach (no path, or not reached within `HaulPlan.FetchSeconds`, 45, or its third
+stuck walk, `StuckTries`) is left alone for 30 seconds; with none left it says so
+and waits, still looking, so trunks felled into the area later are hauled too. The order is never done.
+Interrupted (self-defence, dry, out of charge), it keeps a trunk it has taken up and carries on with it;
+given any order that does not haul (`EntityBehaviorEidolonTrunk.Holders`: haul and crew), or none, it
+lays a carried trunk down in front of it at once. Without trunk entities the mode refuses. Clients draw
+the carried trunk with the eidolon's renderer (below, *Drawn at its attachment points*). `tests/Eidolon/EidolonHaulTests.cs` covers the marking, the stands, the drop, the
+area and the event frames; `tests/PackTests/EidolonHaulScenarios.cs` (Atlas, `WoodworkingEidolonScenarios`)
+marks an area and a rosser with the tool, and the eidolon delivers a thin and a thick trunk, the second
+once the first is off the infeed, its trunk kept through a save, and the rosser takes both.
+
+**Self-defence** (`AiTaskEidolonDefend`, `seraphhorizons-eidolondefend`, priority 1.6 above the order
+task's 1.5). When something hurts it, the cause of the damage (the archer, not the arrow) is
+remembered unless it is a player or another eidolon. While that creature lives, is within 24 blocks
+and hurt it within the last 12 seconds (each blow landed renews that), the task runs: it goes for it at
+a run by the wide pathfinder and, once their boxes are within 1.6 blocks, strikes, a punch, a kick
+and a slam in turn (the shape's `stand-punch` and `stand-kick`, landing on frame 20, and `stand-slam`,
+both fists down on frame 40, where the archives' eidolon's own slam lets go; `EidolonDefence.Blow`),
+each punch or kick `DefenceDamage` and each slam `SlamDamage` × the world's creature damage
+multiplier, blunt, tier 3. Then the order task starts its
+order again (a stay walks back to its place, a follow picks up the player). It starts only while the
+eidolon can work, and never strikes a player, whoever hurts it.
+
+**Carrying** (#676; `Eidolon/Game/EidolonCarrySystem.cs`, `CarryOrders.cs`, `EntityBehaviorEidolonCarry.cs`,
+the Carry On bridge `EidolonCarryOn.cs`; rules in `Eidolon/Core/EidolonCarrying.cs`). Two modes, each
+marking a block. *Carry that* (`carry`): the eidolon walks up to the block (to one of its four sides,
+`EidolonCarrying.Reach` from its centre, its box clear of the block's cell, nearest first), turns to it,
+plays `lift` and takes it out of the world on the grab frame (22), then carries it with `carry-idle`
+standing and `carry-walk` moving, following the player who gave the order as *Follow me* does, until told
+to set it down. It carries any block Carry On lets a player carry (in the hands or on the back), lifted
+through Carry On's own `GetCarriedFromWorld` (its checks, too hot to carry among them, and its block entity
+data and wall signs with it) and kept in Carry On's carried form in its watched attributes, so the load
+saves with the entity and outlives a chunk unload. A multiblock's part stands for the whole. Refused (the
+order is not given) without Carry On, for a block Carry On does not carry, one the player may not take
+(Carry On's permission check: claims, reinforcement), or while it already carries something. *Set it
+down there* (`setdown`): on the marked block if the load can replace it (grass), else on the block above
+it; it walks up the same way, plays `setdown` and on the release frame (28) puts the block back as it
+stood when lifted (its own block and turn, its block entity's data, so a container's contents, and its
+wall signs), which costs `OilPerLoadCarried`. Setting down needs no Carry On, so a load outlives the
+mod. Refused while it carries nothing or with no room there. The animations reach 1.09 blocks and the box
+needs 1.35, so the block is taken and set down 0.31 blocks beyond the hands. A job that fails on the way
+(the block gone or no longer liftable, the place taken) ends and tells its commander in chat.
+
+The owner and their company open a carried container (a generic typed container: a chest, a trunk, a
+storage vessel) by right-click with an empty hand on the eidolon, when no other interaction takes the
+click (charge, oil, repair and the command tool come first): the load's own contents, written back
+into the load as they change; the dialog closes when it walks out of reach or sets the load down.
+Removed from the world for good (anything but an unload) while carrying, it sets its load down on the
+nearest free cell with ground within 3 blocks, or drops it and its contents there. Each client draws
+the load with the eidolon's renderer (below).
+
+**Drawn at its attachment points** (client; `Eidolon/Game/EidolonShapeRenderer.cs`,
+`EidolonAttachmentRender.cs`). One path draws whatever it holds: the entity type's renderer,
+`seraphhorizons.EidolonShape` (`EidolonShapeRenderer`, registered by `EidolonRenderSystem`), is the
+game's shape renderer, which draws the axe at `RightHand` as any held item (`RightHandItemSlot`), and
+after the entity, in the same passes (the shadow pass included), it draws the carried trunk and the
+carried block, each with its attachment point's matrix this frame (`EidolonAttachmentRender.TryGetMatrix`:
+the matrix the game uses for a held item, the renderer's model matrix, the animator's pose of the
+point's element, then the point's offset and turn) and lit as the eidolon is. The trunk: Logging
+Expanded's block of its display class (lg, xxl, debarked if it is), as TrunkEntities draws a trunk
+lying, at `Trunk` (thin, on the left shoulder) or `ThickTrunk` (in both arms). The block: its stack's
+own mesh as the game draws it on the ground (a chest by its type), at `Carry`, its corner origin set
+half a block back. (Carrying had its own renderer drawing after the entities until #679, unshadowed
+and lit by the block above the eidolon; it now goes the trunk's way.)
+
+**Guarding** (#680; `Eidolon/Game/GuardOrder.cs`, `EidolonGuardSystem.cs`, rules in
+`Eidolon/Core/EidolonGuarding.cs`). The tool's *Guard this place* mode (wheel place 80) marks a block:
+the `guard` order holds the point on top of it, standing there in its guard stance (`guard-idle`).
+Once a second it looks about the point, and the nearest hostile creature within `GuardRadius` of it
+(nearest to the eidolon) goes to self-defence (`Engage`, above), leashed to the point: it lets one go
+that gets more than `GuardRadius` + 4 blocks from it. After the fight the order starts again, the next
+hostile one or the walk back to the point. Guarding drains no oil.
+
+*Hostile* is read from the game's own data for the creature, its entity type's AI tasks (the
+`taskai` behaviour's `aitasks`, as its variant resolves them; `EidolonHostiles`): one is hostile when
+one of its attack tasks (a code with "attack" in it, or `throwatentity`, `shootatentity`,
+`turretmode`, `eidolonslam`; not the mech helper's `meleeattacktargetingentity`, which strikes only what
+its owner fights) targets players (`entityCodes`, the game's default `player`, wildcards as the game
+reads them) and may run now: its `whenInEmotionState` and `whenNotInEmotionState` against the
+creature's emotion states, its `minGeneration` and `maxGeneration`. So drifters, bowtorns, shivers,
+locusts, wolves, bears, hyenas and moose are; sheep, boars, foxes, raccoons, chickens and deer are only
+while angry (`aggressiveondamage`, or `aggressivearoundentities`, a sow by her piglets). An attack the game drops as a species is bred (a
+task with a `maxGeneration`: the wild sheep's and boar's charge at a player who comes too close) counts
+only while angry, so wild animals just penned are safe. Never: a creature with an owner (`ownedby`, a
+mount or a hacked locust; `guardedPlayerUid`/`guardedEntityId`), a type marked `tamed`, one bred by
+players (`generation` 1 and on), a player, an eidolon, or a person (`EntityDressedHumanoid`:
+traders and villagers, angry by their tasks once a player hits one). The world's `creatureHostility` holds as the
+game's targeting reads it: `passive`, only angry ones; `off`, none.
+
+**Felling** (#677; `Eidolon/Game/FellOrder.cs`, `EidolonFeller.cs`, `EntityBehaviorEidolonAxe.cs`,
+`EidolonFellSystem.cs`, rules in `Eidolon/Core/EidolonFelling.cs`). *The axe*: one who may command it
+gives it an axe (the game's `ItemAxe`, any metal) by right-clicking it with one; it holds one at a time,
+in its right hand, where the game's shape renderer draws it (`RightHandItemSlot`, the shape's
+`RightHand` point; the axe is kept in its watched attributes, saved and sent to clients). Its commander
+takes it back by sneaking and right-clicking it with an empty hand. Its info shows the axe and its
+durability. *Fell trees here* (wheel order 50) marks an area (two corners, at most
+32 blocks a side) and gives the `fell` order; without an axe it is refused. It looks for the nearest
+grown wild tree whose stump stands in the area (between 8 blocks below the lower corner and 8 above the
+higher), at most every 2 seconds, weighing at most 24 a search (the axe's own tree search). A wild log
+is one with the game's tree felling group that is grown, not placed (`log-grown-*`, `logsection-grown-*`,
+`lognarrow-grown-*`, the resin logs), never a fruit tree; a stump is such a log upright with no log of the
+same tree under it. A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
+(5) wood blocks: a sapling is no log, and a small young tree is left. A player's log building (placed
+logs, which have no felling group) is never touched, and neither is a tree in a land claim its owner may
+not break in (or, its owner unknown to the server, any claimed one). It walks to a place beside the trunk
+(a block corner 1.5 to 3.6 blocks from the trunk's centre, those within 2.8 and nearest it first, its
+box free and on the ground; three tried by the wide pathfinder before the tree is given up), faces it and
+swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A tree it cannot reach is
+given up for the order's life. Done when no grown tree it can reach is left, when it tells its owner how
+many it felled (and how many were out of reach).
+
+*Felled as a player's axe fells.* The server raises its `BreakBlock` event only for players, which
+is where Logging Expanded fells, its handler starting from the player's hotbar, and no stand-in player
+can be made (the game's `IPlayer` has an internal member). So `EidolonFeller` runs that handler's steps
+itself with Logging Expanded's own members, found by name on its listener
+(`LoggingMod.Core._fellingListener`): its tree manager's `GetWoodType` and `IsResinBearingLog`, its
+`FindTreeCompat`, `IsLeafBlock`, `IsBranchyLeaf` and `SpawnTrunk` (with no player), its
+`FellingDropSuppression.MarkRange` and its config's `MinLogsForTrunk` and `StickYieldRatio`, counting
+as the handler counts; then it calls the axe's own `ItemAxe.OnBlockBrokenWith` with the eidolon as the
+entity, the order the server uses for a player. Left out is what needs a player: Logging Expanded's
+`LogYieldModifier` and `OnTreeFelled` callbacks (no mod in the pack sets the modifier; `FellingWear`,
+the one listener, is told directly with `FellingWear.NoteFelled` and knows the felling by
+`FellingWear.FellerId` of the eidolon). The trunk falls as a trunk entity (`TrunkEntities`), and the axe
+wears as a player's: `FellingWear` charges its flat figure (4, or 8 for a thick tree). Without Logging
+Expanded (or its members not as expected: one warning) the axe alone fells it and the game's logs drop.
+An axe that breaks stops the job: it waits, its info says it has no axe,
+its owner is told once, and it goes on when given another.
+
+*Replanting.* After each tree, if what it carries (`IEidolonCarrier`, below) holds a sapling of that
+tree's wood (`game:sapling-{wood}-*`) or its seed (`game:treeseed-{wood}`), it takes one and plants
+`game:sapling-{wood}-free` in the stump's place, as a tree seed plants one (where the sapling can
+stand: on soil). Leaves drop their saplings and seeds as the game's felling does.
+
+*Oil*: each tree costs `OilPerTreeFelled` (`SpendOil(EidolonJob.TreeFelled)`), after the felling and
+replanting. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh.
+
+**The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
+haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
+*Haul trunks* marks (any of its cells; another block is refused and the area kept), and gives `crew`
+(the haul order's arguments). Refused without an axe, as felling is, and with a block in its arms, as
+hauling is. It fells and hauls in a loop: one tree, by a `FellOrder` run `once` (the same one
+throughout, so trees it gave up stay given up; it replants as felling does and spends the tree's oil);
+then, after 1.5 seconds for the trunk to settle, it looks (for up to 6 seconds) for the trunk that tree
+threw: a trunk entity not lying there before it started on the tree, within 14 blocks across and 10 up
+or down of the stump. That trunk it hauls with a `TrunkHauler` to the machine (the trunk's oil), then it
+walks back to the next tree. A trunk the machine does not take is left; one lost to the hauler three
+times (it rolled, no way to it, or not reached: the hauler gives a trunk up after 45 seconds or its
+third stuck walk, `HaulPlan.FetchSeconds` and `StuckTries`, as for a trunk thrown into another tree's
+crown) is put by until the next tree falls, which may open the way, and left once the area is clear
+(its status then says how many it left lying); trunks the machine takes lying in the area are hauled too, at most
+every 2 seconds, before the next tree (so a crew picks up after a save, which forgets which trunks were
+its own). A tree that throws no trunk (too small for one, or no Logging Expanded or trunk entities: its
+logs fall as items) is simply passed on from. With no grown tree it can reach left in the area and no
+trunk waiting, it tells its owner (trees felled, trunks hauled), says "Its area is clear" and waits,
+its order kept; every 60 seconds it looks again with a fresh felling (trees given up are tried again,
+and a replanted tree once grown is felled). The machine gone, it waits. Without an axe it waits as
+felling does. Self-defence, a dry reservoir or running out of charge interrupt it; it keeps its state
+(the trunk it carries, the trunks it has yet to haul, a tree felled whose trunk it has not looked for)
+and carries on where it was. It may hold a trunk (`EntityBehaviorEidolonTrunk.Holders`).
+
+**Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
+spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
+corners instead, testing the whole box with the game's collision tester at each step (level, up one
+block, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like refused, water
+and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's own waypoint
+traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+
+**The guide** (#681, `Eidolon/Game/EidolonGuideSystem.cs`). The handbook has a page of its own,
+"Building and commanding an eidolon" (`config/handbook/eidolon.json`, page code
+`seraphhorizons-eidolon`, text `eidolon-guide-text`): the schematic, the gantry and its nine winch
+stages, the body bill, waking it, charge, oil, repair, the command tool (binding, the wheel, marks) and
+every order, self-defence and its limits. Its text quotes the default settings. The gantry's "Building
+the gantry" and the command tool's "Giving orders" sections are short and link it. With the switch off
+the client drops the page and the server lists it under `handbook-hiddenGuides`, so the recipe export
+leaves it out (`SwitchesOffScenarios`).
+
+**In the recipe browser** (#681, `tools/recipe-export/Recipes/EidolonExport.cs`,
+`RecipeSection.Eidolon.cs`). The frame's grid recipe exports as any recipe; the two builds are records
+of type `construction` (blocks built in place, `docs/recipe-browser/schema.md`), read by reflection
+from `GantryParts` and `BodyBill`, so they cannot drift from the rules: the gantry's winch
+(`construction|seraphhorizons:eidolongantry-<wood>-north|0`, the placed frame then the nine stages, a
+variant per wood binding the drum's planks and the spine's beams) and the body
+(`construction|seraphhorizons:creature-eidolon|0`, a gantry as its first stage, role `station`, never
+consumed, then the six body stages; its output is the eidolon's creature item). The command tool's grid
+recipe exports as any recipe. Item values follow from these: the gantry (every wood) and the command
+tool from their grid recipes; the schematic has none, by rule, and neither has the creature item, as no
+creature has: its body build takes the elucidatory vessel, a boss drop with no value.
+
+**For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
+recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
+(one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
+`health <hp>`, `oil <points>`, `info`.
+
+**Seams for the next tasks.**
+- Spawning: `EidolonSystem.Of(api).Spawn(world, pos, yaw, owner, activate: true, gears: 1)`
+  spawns it owned and charged and plays `activate`; it cannot work until that has played. The gantry's
+  mind stage uses it (above).
+- Upkeep (#674): an entity behaviour implementing `IEidolonUpkeep` (`Stop`: an `EidolonStop`, slumping
+  or only waiting, e.g. `new EidolonStop("dry", false, 20)`; `OnCheck(eidolon, running)`, four times a
+  second) is weighed with damage and charge into `Stop` and `CanWork`; nothing works while one stops
+  it. Repair: heal through `ReceiveDamage` with `EnumDamageType.Heal`, then `Check()`; the stand-up
+  threshold is `StandUpHealthShare`. Right-clicks reach each behaviour's `OnInteract` in the entity
+  type's order: charge, oil, repair, then orders.
+- Oil (#676 on): a job order calls `eidolon.SpendOil(EidolonJob.X)` as each job finishes (a tree
+  felled, a trunk delivered, a load set down); a new kind of job adds an `EidolonJob` value and its
+  figure in `EidolonSettings`. Dry stops the eidolon at once; the order is kept and resumes when oiled.
+- Inside a gantry: `EntityBehaviorEidolonRepair.GantryAround(entity)` (the gantry whose dock it
+  stands in, or null, by `BEEidolonGantry.DockAt`) is the one lookup.
+- Command tool modes (#676 on): `EidolonCommandModes.Register(new EidolonCommandMode { Code, Order,
+  Icon, Mark, MaxAreaSide, CheckTarget, Command })` in a mod system's `Start` (both sides: the wheel is chosen by
+  index). `Code` names it (lang `seraphhorizons:eidoloncommander-mode-{code}`); `Order` places it on the
+  wheel (follow 10, stay 20; carry 30, set down 40, fell 50, haul 60, crew 70, guard 80 suggested);
+  `Icon` is an SVG (the game's are `game:textures/icons/...`); `Mark` is `None`, `Block`, `Area` or
+  `AreaThenBlock` (an area's two corners, then a block: the third click gives the order, and the
+  context has both `Area` and `Target`; a fourth click starts a new area; haul uses it, and the crew
+  order's fell area and infeed should); `CheckTarget(world, pos)` may refuse a marked block (return
+  `EidolonCommand.Refuse(key)`) before it is kept, the area staying;
+  `Command(context)` gets the eidolon, the player, and the marked block (`Target`) or area (`Area`,
+  a `MarkArea` with `Min`, `Max`, `Contains`) and returns `EidolonCommand.Order(code, args)` or
+  `EidolonCommand.Refuse(langKey, args)` (a mode whose bridge's mod is missing refuses here; it stays on
+  the wheel). `ItemEidolonCommander.GetMarks(stack, mode)` reads a tool's marks.
+- Self-defence: `TaskManager.GetTask<AiTaskEidolonDefend>().Engage(creature, leashPoint, leash)` sends
+  it after a creature as if it had been hurt by it, letting it go past `leash` blocks from `leashPoint`
+  when given (the guard order uses it); `DefenceDamage` and `SlamDamage` are the blows.
+- Hostility (#680): `EidolonHostiles.IsHostile(entity, EidolonHostiles.WorldHostility(world))` says
+  whether a creature would attack a player now, by its type's data (above).
+- Orders (#675 on): `EidolonOrders.Register(code, (eidolon, args) => new MyOrder(...))`, an
+  `IEidolonOrder` (`Start`, `Continue` each tick, `Stop` when done, replaced or interrupted);
+  `eidolon.Orders.SetOrder(code, args)` gives one, `SetStatus(langKey, args)` says how it goes.
+  `AiTaskEidolonOrder` runs it at priority 1.5; self-defence runs above it, and the order is
+  stopped (`Stop(cancelled: true)`) and started again after, so an order keeps what it needs to resume. `EidolonNavigator.GoTo(target, run, onArrived, onStuck, tolerance)` walks
+  it by the wide pathfinder.
+- The crew (#679): `CrewOrder` (`Felled`, `Delivered`, `Waiting`, `Done`) composes the two below; a
+  loop of other jobs can follow it.
+- Hauling (#678; the crew order, #679): `new TrunkHauler(eidolon, machinePos)` moves one trunk entity
+  to a machine's infeed: `Fetch(trunk)`, then `Step()` each tick of the order (`HaulStep.Working`,
+  `Delivered` with the oil spent, `Lost` when the trunk is gone or unreachable, `Idle`), `Interrupt()`
+  in the order's `Stop`; a trunk already carried is delivered without fetching. `MachineInfeeds.Find(world,
+  pos)` resolves a rosser or mill from any of its cells (its infeed cells, way out and `Takes`).
+  `EntityBehaviorEidolonTrunk` holds the carried trunk (`Carrying`, `Trunk`, `TakeUp`, `Hold`,
+  `LayDown`); an order that may hold one adds its code to `EntityBehaviorEidolonTrunk.Holders`.
+  Carrying, it walks with `trunk-carry-walk` (its `IEidolonStance`, below).
+- Carrying (#676) and replanting: an entity behaviour that carries a container implements
+  `IEidolonCarrier` (`CarriedInventory`, null while it carries none); `eidolon.CarriedInventory()` is
+  the first one carrying something: a carried container (`EntityBehaviorEidolonCarry`, #676). The fell
+  order replants from it (`EidolonFeller.Replant`).
+- Felling (the crew order): `new FellOrder(area, once: true)` (or `FellOrder.Args(area, once: true)`)
+  fells one tree since it was last started and is done, its stump in `LastStump`, `Clear` when it
+  found no tree left; `Felled` and `Unreachable` count the order's trees. `EidolonFeller.Fell(eidolon, hand, stump)` fells one tree as the eidolon;
+  `GetBehavior<EntityBehaviorEidolonAxe>()` holds the axe (`Axe`, `Hold`, `Save`).
+- The game's `commandable` and `openablecontainer` entity behaviours (the hacked locust's and the mech
+  helper's) may serve the command tool and the carried container.
+- Holding something (#676 on): an entity behaviour implementing `IEidolonStance` names the animation it
+  moves with while it holds something (`carry-walk`); `eidolon.MoveAnimation(run)` asks them and
+  `EidolonNavigator.GoTo` uses it, so following with a load walks with it. `GoTo`'s `arriveWithin` sets
+  how near the last waypoint counts as there.
+- Drawing at an attachment point (client): something new it holds is drawn by `EidolonShapeRenderer`
+  (add a `Render...` step to its `DoRender3DOpaque` and draw with its `Draw`, shadows included).
+  `EidolonAttachmentRender.TryGetMatrix(renderer, entity, "Carry" | "Trunk" | "ThickTrunk", matrix)` is
+  the point's model matrix as drawn this frame (the entity renderer's, the animator's pose, the point's
+  offset and turn); `TryGetMatrix(entity, code, matrix)` the same from another renderer (opaque stage,
+  render order above 0.5).
+- Working at a block: `BlockApproach(pos).Step(eidolon, navigator, now)` walks it to a side of a
+  block (`EidolonCarrying.Stands`) and puts it there facing it; `CarryOrderBase` holds the walk-up,
+  one-shot and tell-the-commander parts of the carry orders.
+- The carried load: `eidolon.GetBehavior<EntityBehaviorEidolonCarry>()` (`Carrying`, `LoadStack`,
+  `Hold(load)`, `TryPlace(pos)`, `Release()`; the tree under `LoadKey` is Carry On's carried form).
+
+| Setting | Default | |
+|---|---|---|
+| `ChargeYearsPerGear` | 0.25 | Years of the world's calendar one temporal gear runs it |
+| `MaxChargeGears` | 2 | The most charge it holds, in gears' worth |
+| `StandUpHealthShare` | 0.25 | Down at 0 HP, it stands up once repaired to this share of its health |
+| `WalkSpeed` | 0.022 | Its walking speed (creature scale; a player walks at about 0.03) |
+| `RunSpeed` | 0.04 | Its running speed |
+| `PathSearchNodes` | 3000 | The most nodes one path search visits |
+| `MaxFallBlocks` | 3 | The highest drop it walks off on a path |
+| `OilTank` | 1000 | Points its oil reservoir holds (100 to the litre); none with `MachineOil` off |
+| `InitialOilShare` | 0.25 | The share of the reservoir a new eidolon wakes with |
+| `OilPerTreeFelled` | 5 | Oil points a tree felled costs |
+| `OilPerTrunkDelivered` | 3 | Oil points a trunk delivered costs |
+| `OilPerLoadCarried` | 2 | Oil points a load carried and set down costs |
+| `RepairShare` | 0.1 | The share of its most health one item of metal parts or iron plate restores |
+| `GantryRepairMultiplier` | 2 | What a repair is multiplied by inside a gantry |
+| `CommandRange` | 64 | How far a command tool's orders reach, in blocks |
+| `FollowDistance` | 4 | Following, how many blocks it keeps off the player |
+| `FollowRunDistance` | 10 | Following, it runs while further than this |
+| `DefenceDamage` | 10 | Each punch or kick when it defends itself (times the world's creature damage multiplier) |
+| `SlamDamage` | 16 | Each slam, every third blow (the same multiplier) |
+| `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
+| `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
+
+With the switch off the server marks the entity type and the spawner disabled before the game loads
+them and registers no command, so none of it exists; eidolons already in a world are lost. A client
+follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, ownership, oil per job,
+repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
+node budget); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
+stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
+knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and walks it through a
+2 × 4 gate and not through a 1 × 4 one, drains its oil with a stand-in job until dry stops it standing
+(tallow starts it again), repairs it in a gantry (double) and in the open (a slumped one stands after
+three items, a whole one refuses), and flips `MachineOil` off (no reservoir, never dry);
+`tests/Eidolon/EidolonCommandingTests.cs` covers marking, binding, the follow gait and self-defence's
+rules, and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool as a player does:
+bound by its owner it follows them over rough ground (steps of one and two, a pillar) and then stays,
+waits and says so at a doorway too narrow, a stranger can neither bind it nor order it with a tool
+bound to it, and it strikes a wolf that hurt it until dead, never the player who hurt it, and walks
+back to its stay; `tests/Eidolon/EidolonCarryingTests.cs` covers the carry timings and stand points,
+and `tests/PackTests/EidolonCarryScenarios.cs` (Atlas) has it lift a chest of flint, refuse granite,
+open the chest while carried (what goes in stays in, and the load is in the entity's saved bytes),
+follow its commander 20 blocks and set the chest down with everything in it for a load's oil, and set
+its load down where it stood when removed; `tests/Eidolon/EidolonGuardingTests.cs` covers hostility (vanilla's task shapes:
+drifter, bowtorn, wolf, sheep, fox, the mech helper; owned, tamed and bred ones; the world's setting)
+and the guard's radius, and `tests/PackTests/EidolonGuardScenarios.cs` (Atlas) reads the game's own
+creature types (drifters, bowtorns, shivers, locusts, wolves, bears and hyenas hostile; sheep, boars,
+chickens, foxes, deer, the mech helper, hacked locusts and tamed elk not; a sheep hostile when
+angry; a trader never) and guards a point given with the tool: a drifter 10 blocks off is gone for and killed, one 25
+off and a bred wolf 6 off are left alone, it stands at its point again after, and the wolf, unbred,
+is gone for;
+`tests/Eidolon/EidolonFellingTests.cs` covers felling's rules (wild logs and
+stumps, grown trees, where it stands, the swing, what replants) and
+`tests/PackTests/EidolonFellScenarios.cs` (Atlas) orders it with the tool: refused without an axe,
+then given one it fells an area of three grown oaks (three trunks holding every log, the axe worn by
+the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
+player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
+`tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
+`tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
+(refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to
+the infeed (the second trunk comes to rest on the first tree's stump, a block above the floor), the
+rosser takes both (every log of both trees), oil per tree and per trunk, and it ends waiting with its
+area clear; it fails within five minutes, not at the watchdog, when the trunks do not arrive or the
+crew gives one up;
+`SwitchesOffScenarios` requires none of it with the switch
+off. Not yet: icons for the recipe browser, which need the game client (`tools/icon-export`,
+`docs/recipe-browser/icons.md`): the gantry (`seraphhorizons:eidolongantry-{wood}-north`, each of the
+12 woods), the command tool (`seraphhorizons:eidoloncommander`), the schematic
+(`seraphhorizons:schematic-eidolon`) and the creature item (`seraphhorizons:creature-eidolon`);
+`tools/icons.py drift` lists them.
+
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)
 
 Stainless steel, the gears epic's metal (#484): the Huntsman (Sheffield) crucible furnace, the
@@ -2733,7 +3268,8 @@ per wood block; leaves cost nothing. Logging Expanded fells in the server's `Bre
 which runs first: it marks the tree's blocks to drop nothing, throws the trunk (a trunk entity,
 with `TrunkEntities`) and raises its public `FellingListener.OnTreeFelled` when it made one.
 `FellingWear.cs` (server side, by name): hears that callback and notes the player and the stump; a
-prefix on `ItemAxe.OnBlockBrokenWith` for that player, when the tree the axe is about to break
+prefix on `ItemAxe.OnBlockBrokenWith` for that player (or an eidolon felling as one, known by
+`FellingWear.FellerId`: "Eidolon", felling), when the tree the axe is about to break
 holds that stump, takes the note, decides thick or thin from the tree's blocks
 (`Core/FellingWearRules.cs`: any `logsection-` block) and opens a window in which a prefix on
 `CollectibleObject.DamageItem` skips every hit on the axe's slot; a finalizer closes it and charges
@@ -3217,9 +3753,14 @@ not listed.
 
 **Ore and gravel maps** (#444): `seraphhorizons:oremap` and `seraphhorizons:gravelmap`
 (`Ore/Game/ItemOreMap.cs`, after the game's locator map), stack size 1, ordinary items. A map holds
-its deposit, metal, size tier, precision and marker position; right-click adds a pinned waypoint
-titled with its precision ("Copper deposit (large) (precision 1, ±400 m)", "Rich gravel (granite)
-(exact)"; see "Maps and leads" for how a better map replaces a rougher marker) and keeps the map. Precision 1 marks within
+its deposit, metal, size tier, precision and marker position, and what the deposit is (#692): an
+ore map names the ores there, never the metal (those holding a tenth of its metal or more, at most
+three: "galena and cerussite"), their grades ("mostly poor", "poor and medium") and the rock most of
+it sits in, from the ore counted when the deposit was measured; its size is the metal in the
+ground, not what a given way of working the ore wins. A gravel map names its field's rock and the
+metals the pan gives there. Right-click adds a pinned waypoint titled with its precision ("Galena
+and cerussite deposit (medium) (precision 1, ±400 m)", "Rich gravel (granite) (exact)"; see "Maps
+and leads" for how a better map replaces a rougher marker) and keeps the map. Precision 1 marks within
 400 m, 2 within 150 m, 3 the deposit itself (its measured centre); the offset is seeded from the
 deposit, so every copy agrees and a better tier's marker lies between the worse one's and the
 deposit (`MapPrecision`). Gravel maps are exact. `OreSystem.Maps.Issue(player, deposit, precision)`
@@ -3530,6 +4071,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
+| `Eidolon` | the gantry (`seraphhorizons:eidolongantry*`), the command tool, the eidolon's creature item, `recipes/grid/eidolongantry.json` and `eidoloncommander.json`, the gantry's and the body's construction records |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
 `BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `GearPartsRemoved`, `TraderSchematics`, the retired stations of
@@ -3689,6 +4231,7 @@ machine's first-stage grid recipe, kept on crafting:
 | `gearbox`, `centeredspurgear` | Mechanical Power Expanded's | smith, 2 |
 | `cablecar` | Gondola's route planner, which places every station and tower | mechanic, 4 |
 | `biplane` | the biplane's trestles | mechanic, 4 |
+| `eidolon` | the eidolon gantry's frame and the eidolon command tool | curio dealer, 3 |
 
 The schematic takes the recipe's first empty slot. A narrow or short recipe gets a column or a row.
 In a full 3×3 grid, two slots of the ingredient filling the most slots become one at double quantity
@@ -3699,8 +4242,8 @@ they are. Off, the recipes are as their mods ship them and no trader lists the m
 **Sellers**: each schematic is in its seller's core from its standing tier (`standingTier` on the
 trade list entry; the core shows it once the buyer's tier reaches it). Everyday BetterRuins families
 are tier 1 at the carpenter, mason, smith, tailor, farmer, general store or curio dealer; the cart and
-ship wrights and Cartwright's carts are tier 2 at the mechanic; the glider, translocator, flintlock
-and diving gear are tier 3 at the curio dealer. Prices are hand-set in the lists, 10 to 250 gears.
+ship wrights and Cartwright's carts are tier 2 at the mechanic; the glider, translocator, flintlock,
+diving gear and eidolon are tier 3 at the curio dealer. Prices are hand-set in the lists, 10 to 250 gears.
 Cartwright's canopies and sides schematics gate nothing in 1.9.1 and are not sold.
 
 Tests: `tests/Trading/Schematics/` (the table, the item variants and their text, every sale in its
@@ -3718,8 +4261,15 @@ on; notes in `docs/trading.md` and `docs/oregen.md`). Prices are in
 carry their own discount instead).
 
 - **Ore maps**, from prospectors: one offer per metal, the nearest unsold deposit of the deposit
-  registry within 5 km (whether or not anyone has generated its chunks), at most four metals,
-  nearest first. A stranger is offered precision 1 (within 400 m); standing's map tier buys
+  registry within 5 km, at most four metals, nearest first, each named by its ores, grades, host
+  rock and size (#692). Only a deposit that has been checked is offered (#693): the seed tells where
+  a cell's deposit may be, not which spot takes it or what ore it is. So when a player comes within
+  `DepositCheckApproachMetres` (1,500) blocks of a trader camp, the deposits it would sell maps to
+  (and its gravel map's field) are checked in the background, generated if need be and measured,
+  one at a time, `DepositCheckPauseSeconds` (5) apart, and are ready when they arrive on foot.
+  A deposit still being checked shows as "Lead ore map: being surveyed" (unavailable) until its
+  check lands and the map takes its place; anything unchecked when a trade window opens (a player
+  who teleported) is checked then, first. `DepositCheckApproachMetres` 0 checks only then. A stranger is offered precision 1 (within 400 m); standing's map tier buys
   precision 2 (tier 1, "known") and exact maps (tier 2 up). The price is a share of the deposit's
   worth: the ingots in the middle of its size class's band (small, medium and large are the bottom,
   middle and top third of the metal's range in `config/ore-sizes.json`; a deposit not yet measured
@@ -3727,7 +4277,8 @@ carry their own discount instead).
   (exact), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
   middle, never the measured size. A medium copper deposit's map costs 36, 71 or 119 gears, a medium
   gold one's 571, 1143 or 1904.
-- **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
+- **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears,
+  naming its rock and the metals the pan gives there; checked like ore maps (one column).
 - **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
   map to a trader within some radius that you don't already have, and the radius and count grow
   with your standing, so it pays to travel and learn from local traders rather than buy the whole
@@ -4713,7 +5264,8 @@ features on the plain world, sharing its players; `WoodworkingScenarios`
 (`fixtures/buckingsawmill`, which shortens the mill's cut and cycle and the rosser's trip), and
 `WoodworkingRosserScenarios` (`WoodworkingRosserScenarios.cs`), the rosser and the debarked trunk
 on the same fixture, a class of its own only because its real-time trips would otherwise make the
-one class's CI shard too long. Only a different world (a play style, ModConfig fixtures, a seeded
+one class's CI shard too long, and `WoodworkingEidolonScenarios` (`WoodworkingEidolonScenarios.cs`),
+the eidolon's haul and crew orders on the same fixture, for the same reason. Only a different world (a play style, ModConfig fixtures, a seeded
 standard world) gets a class of its own, as `/clear`'s, the off checks and the ore and trading
 camp scenarios do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
@@ -4739,7 +5291,7 @@ a world created with them off to have none of it.
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
 the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
 of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
-the rosser, `TradingScenarios` for trading), and a section above. Its
+the rosser, `WoodworkingEidolonScenarios` for the eidolon's work at the machines, `TradingScenarios` for trading), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A
 tweak big enough for mod systems of its own gets a folder, as `TidyVariants/` does; its systems

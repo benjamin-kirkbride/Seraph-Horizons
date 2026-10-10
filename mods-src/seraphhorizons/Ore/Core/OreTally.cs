@@ -9,40 +9,57 @@ public sealed record OreTallyRow(string Metal, string Grade, long Blocks, double
     public double Ingots => DepositSizing.Ingots(Units);
 }
 
+/// <summary>What an ore block is (#692): its metal group, the ore itself, its grade (<c>-</c> for
+/// ungraded ores) and the rock it sits in.</summary>
+public readonly record struct OreBlockKind(string Metal, string Ore, string Grade, string Rock);
+
 /// <summary>
-/// Ore blocks counted by metal and grade (<c>/sh ore count</c>, #458), with their metal units, so
-/// they read in blocks and in ingots as the deposit registry measures them (<see cref="DepositSizing"/>).
+/// Ore blocks counted by metal, ore, grade and host rock (<c>/sh ore count</c>, #458; a deposit's
+/// measurement, #692), with their metal units, so they read in blocks and in ingots as the deposit
+/// registry measures them (<see cref="DepositSizing"/>), and a metal's ore makes a
+/// <see cref="DepositMakeup"/>.
 /// </summary>
 public sealed class OreTally
 {
     public static readonly IReadOnlyList<string> Grades = ["poor", "medium", "rich", "bountiful"];
 
-    private readonly Dictionary<(string Metal, string Grade), (long Blocks, double Units)> _rows = new();
+    private readonly Dictionary<OreBlockKind, (long Blocks, double Units)> _rows = new();
 
     /// <summary>The metal and grade of an ore block's path, or null for anything that isn't a
     /// managed ore: <c>ore-rich-nativecopper-granite</c> is (copper, rich), <c>ore-lignite-shale</c>
     /// (coal, -).</summary>
-    public static (string Metal, string Grade)? Classify(string path)
+    public static (string Metal, string Grade)? Classify(string path) =>
+        Parse(path) is { } k ? (k.Metal, k.Grade) : null;
+
+    /// <summary>What an ore block's path names, or null for anything that isn't a managed ore:
+    /// <c>ore-rich-nativecopper-granite</c> is (copper, nativecopper, rich, granite),
+    /// <c>ore-lignite-shale</c> (coal, lignite, -, shale).</summary>
+    public static OreBlockKind? Parse(string path)
     {
-        if (OreMetals.MetalOf(OreMetals.OreOfBlockPath(path)) is not { } metal) return null;
+        if (OreMetals.OreOfBlockPath(path) is not { } ore || OreMetals.MetalOf(ore) is not { } metal) return null;
         var parts = path.Split('-');
-        string grade = parts.Length >= 4 && Grades.Contains(parts[1]) ? parts[1] : "-";
-        return (metal, grade);
+        bool graded = parts.Length >= 4 && Grades.Contains(parts[1]);
+        int rockAt = graded ? 3 : 2;
+        string rock = parts.Length > rockAt ? string.Join('-', parts[rockAt..]) : "-";
+        return new OreBlockKind(metal, ore, graded ? parts[1] : "-", rock);
     }
 
-    public void Add(string metal, string grade, long blocks, double units)
+    public void Add(string metal, string grade, long blocks, double units) => Add(new OreBlockKind(metal, "-", grade, "-"), blocks, units);
+
+    public void Add(OreBlockKind kind, long blocks, double units)
     {
-        _rows.TryGetValue((metal, grade), out var r);
-        _rows[(metal, grade)] = (r.Blocks + blocks, r.Units + units);
+        _rows.TryGetValue(kind, out var r);
+        _rows[kind] = (r.Blocks + blocks, r.Units + units);
     }
 
     public long Blocks => _rows.Values.Sum(r => r.Blocks);
 
     /// <summary>Metals in name order, grades poor to bountiful.</summary>
     public IReadOnlyList<OreTallyRow> Rows() => _rows
-        .OrderBy(kv => kv.Key.Metal, StringComparer.Ordinal)
-        .ThenBy(kv => kv.Key.Grade == "-" ? -1 : Grades.ToList().IndexOf(kv.Key.Grade))
-        .Select(kv => new OreTallyRow(kv.Key.Metal, kv.Key.Grade, kv.Value.Blocks, kv.Value.Units))
+        .GroupBy(kv => (kv.Key.Metal, kv.Key.Grade))
+        .OrderBy(g => g.Key.Metal, StringComparer.Ordinal)
+        .ThenBy(g => g.Key.Grade == "-" ? -1 : Grades.ToList().IndexOf(g.Key.Grade))
+        .Select(g => new OreTallyRow(g.Key.Metal, g.Key.Grade, g.Sum(kv => kv.Value.Blocks), g.Sum(kv => kv.Value.Units)))
         .ToList();
 
     /// <summary>Per metal, every grade summed.</summary>
@@ -51,6 +68,21 @@ public sealed class OreTally
         .OrderBy(g => g.Key, StringComparer.Ordinal)
         .Select(g => new OreTallyRow(g.Key, "*", g.Sum(kv => kv.Value.Blocks), g.Sum(kv => kv.Value.Units)))
         .ToList();
+
+    /// <summary>What a metal's ore counted here is made of: units per ore, blocks per grade and per
+    /// host rock (#692).</summary>
+    public DepositMakeup Makeup(string metal)
+    {
+        var makeup = new DepositMakeup();
+        foreach (var (k, v) in _rows)
+        {
+            if (k.Metal != metal) continue;
+            makeup.Ores[k.Ore] = makeup.Ores.GetValueOrDefault(k.Ore) + v.Units;
+            makeup.Grades[k.Grade] = makeup.Grades.GetValueOrDefault(k.Grade) + v.Blocks;
+            makeup.Rocks[k.Rock] = makeup.Rocks.GetValueOrDefault(k.Rock) + v.Blocks;
+        }
+        return makeup;
+    }
 }
 
 /// <summary>

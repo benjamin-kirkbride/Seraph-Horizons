@@ -36,14 +36,23 @@ public class TrunkEntityRenderer : EntityRenderer
         _mesh = null;
         if (shown == null || id == 0)
             return;
+        if (LyingMesh(capi, shown) is { } mesh)
+            _mesh = capi.Render.UploadMultiTextureMesh(mesh);
+    }
+
+    /// <summary>The shown block's mesh laid as a trunk entity is drawn: its underside's middle at the
+    /// origin, its length along z; null when it tessellates to nothing. Also the eidolon's carried
+    /// trunk (<c>Eidolon/Game/EidolonShapeRenderer.cs</c>).</summary>
+    public static MeshData? LyingMesh(ICoreClientAPI capi, Block shown)
+    {
         capi.Tesselator.TesselateBlock(shown, out var mesh);
         if (mesh == null || mesh.VerticesCount == 0)
-            return;
+            return null;
         var (min, max) = MachineMeshes.Bounds(mesh);
         mesh.Translate(-(min.X + max.X) / 2, -min.Y, -(min.Z + max.Z) / 2);
         if (max.X - min.X > max.Z - min.Z)
             mesh.Rotate(new Vec3f(0, 0, 0), 0, GameMath.PIHALF, 0);
-        _mesh = capi.Render.UploadMultiTextureMesh(mesh);
+        return mesh;
     }
 
     public override void DoRender3DOpaque(float dt, bool isShadowPass)

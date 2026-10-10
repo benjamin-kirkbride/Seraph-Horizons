@@ -64,6 +64,7 @@ public partial class TradingScenarios
                      ("immersivewoodworking:sawmill-frame-north", "seraphhorizons:schematic-sawmill"),
                      ("game:largegear3", "seraphhorizons:schematic-transmission"),
                      ("game:waterwheel-3m-north", "seraphhorizons:schematic-waterwheel"),
+                     ("seraphhorizons:eidoloncommander", "seraphhorizons:schematic-eidolon"),
                  })
         {
             var recipes = Making(output).ToList();

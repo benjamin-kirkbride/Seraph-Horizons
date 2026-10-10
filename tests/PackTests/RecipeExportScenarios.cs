@@ -414,7 +414,11 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         Assert.NotEmpty(blocks);
         // exlib's behavior, its own class since exlib 0.8: fails if ppex's machines stop using it.
         Assert.Contains("ppex:mpfluidpump-north", blocks);
-        var covered = Doc["recipes"]!.Where(r => (string)r["type"]! == "construction")
+        // The eidolon's gantry and body (#681) are construction records too, but built by the pack's own
+        // fitting (EidolonExport), not the game's constructable behaviour.
+        var covered = Doc["recipes"]!.Where(r => (string)r["type"]! == "construction"
+                && !((string)r["id"]!).StartsWith("construction|seraphhorizons:eidolongantry-", StringComparison.Ordinal)
+                && (string)r["id"]! != "construction|seraphhorizons:creature-eidolon|0")
             .SelectMany(r => r["extra"]?["members"]?.Select(m => (string)m!) ?? new[] { (string)r["outputs"]![0]!["code"]! })
             .OrderBy(c => c, StringComparer.Ordinal)
             .ToList();
