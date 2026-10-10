@@ -233,10 +233,9 @@ DRIP_X, DRIP_Y = 112.4, 52.0                 # the header across the trunk (x, y
 DRIP_Z0 = 33.0                               # the header's capped north end, clear of the rectifier pinion (32.6)
 PIPE_RUN_Z = 72.5                            # the riser and the run (z): north of the ring posts (76), south of the upper roller (69.1)
 # The header is pipe lengths of a block from its capped end, as ppex's pipes are laid: its seams (z),
-# where one length's texture ends and the next one's starts. The second is soldered, a whole wiped joint,
-# clear of the nozzles (to 51.6) and the strap (59.4..60.6); the first, among the nozzles, has no joint.
+# where one length's texture ends and the next one's starts, each soldered with a whole joint (a bead
+# 1.5 long: the one at 49 between the nozzles at 47 and 51, the one at 65 clear of the strap at 59.4..60.6).
 HEADER_SEAMS = (DRIP_Z0 + B, DRIP_Z0 + 2 * B)
-HEADER_JOINT = HEADER_SEAMS[1]
 PIPE_METALS = ("copper", "lead")             # the pipes the rosser takes (RosserParts.PipeMetals)
 CHUTE_X = (128.0, 144.0)                     # the chute's mouth on the south face
 CHUTE_BOARDS = ((100.5, 111.5), (129.5, 143.5))   # under the breaker and under the scraper arms (x)
@@ -888,12 +887,12 @@ def pipe_boxes():
     """The drip's water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels),
     four straight pipes' worth: the inlet from the water face on the axis of the ppex pipe beyond it, a
     hub, a riser up beside the ring (south of its upper roller), a hub, a run west over the roller's
-    bracket, a hub, and the header across the trunk in block lengths from its north end
-    (`HEADER_SEAMS`), soldered at `HEADER_JOINT`, with five nozzles under it and its north end plugged
-    with solder. A hub is where two lengths meet, as in UnifiedPipes' soldered bend: the pipe's own
-    cube, open to its two arms. The inlet has no joint of its own at the face: it runs along the ring
-    post beside it, with no room for one, and the pipe beyond brings its own half joint to the face, as
-    a soldered ppex pipe does against any block it meets."""
+    bracket, a hub, and the header across the trunk in block lengths from its north end, a joint at
+    each of its seams (`HEADER_SEAMS`), with five nozzles under it and its bore plugged with solder at
+    its north end. A hub is where two lengths meet, as in UnifiedPipes' soldered bend: the pipe's own
+    cube, open to its two arms. The inlet has no joint of its own at the face: it runs flush along the
+    ring post beside it, with no room for even a thin bead, and the pipe beyond brings its own half
+    joint to the face, as a soldered ppex pipe does against any block it meets."""
     h, (wx, wy), rz = PIPE_HALF, WATER_IN, PIPE_RUN_Z
     out = solderedpipe.hub("hub1", (wx, wy, rz), ("south", "up"))
     out += solderedpipe.tube("inlet", 2, rz + h, CELLS_Z * B, (wx, wy))
@@ -904,7 +903,8 @@ def pipe_boxes():
     ends = (DRIP_Z0,) + HEADER_SEAMS + (rz - h,)
     for i in range(len(ends) - 1):
         out += solderedpipe.tube(f"header{i + 1}", 2, ends[i], ends[i + 1], (DRIP_X, DRIP_Y))
-    out += solderedpipe.joint("joint_header", 2, HEADER_JOINT, (DRIP_X, DRIP_Y))
+    for i, seam in enumerate(HEADER_SEAMS, 1):
+        out += solderedpipe.joint(f"joint_header{i}", 2, seam, (DRIP_X, DRIP_Y))
     i_ = h - solderedpipe.WALL
     out.append(solderedpipe.Box("cap", [DRIP_X - i_, DRIP_Y - i_, DRIP_Z0], [DRIP_X + i_, DRIP_Y + i_, DRIP_Z0 + solderedpipe.WALL],
                                 solderedpipe.SOLDER))
