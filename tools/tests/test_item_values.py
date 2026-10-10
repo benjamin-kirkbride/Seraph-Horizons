@@ -304,6 +304,32 @@ class ItemValuesTest(unittest.TestCase):
         val, _ = self.solve(ex)
         self.assertAlmostEqual(val.value["game:nugget"], 0.5 + 10 * 0.1)
 
+    def test_a_kinds_tool_fraction_replaces_the_files(self):
+        # The still (oreretorting) is one record per item: its kind charges none of its stations.
+        markups = {**MARKUPS, "kinds": {**MARKUPS["kinds"], "retort": {"pct": 0.0, "flat": 0.0, "toolFraction": 0.0}}}
+        self.write_rules(markups=markups)
+        items = {c: item() for c in ("game:ore-tin", "game:gem", "game:still", "game:nugget")}
+        ex = export(items, [
+            grid("grid|still|0", ["G"], {"G": ["game:gem"]}, st("game:still")),
+            recipe("retort|nugget|0", "retort", [st("game:ore-tin"), st("game:still", role="station")],
+                   [[st("game:ore-tin")], [st("game:still")]], [st("game:nugget")]),
+        ])
+        val, rules = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:nugget"], 0.5)
+        self.assertEqual(rules.tools("retort"), 0.0)
+        self.assertEqual(rules.tools("grid"), 0.1)
+
+    def test_a_tie_goes_to_the_route_needing_fewer_switches(self):
+        # Two routes at the same price, the switch's first: the value does not exist only by it.
+        items = {c: item() for c in ("game:log", "game:box")}
+        switched = grid("grid|a|0", ["L"], {"L": ["game:log"]}, st("game:box"))
+        switched["switch"] = "Boxes"
+        ex = export(items, [switched, grid("grid|b|0", ["L"], {"L": ["game:log"]}, st("game:box"))])
+        val, _ = self.solve(ex)
+        self.assertAlmostEqual(val.value["game:box"], 1.0)
+        self.assertEqual(val.source["game:box"], "grid|b|0")
+        self.assertNotIn("game:box", iv.table(ex, val)["switches"])
+
     def test_returned_container_is_not_consumed(self):
         items = {c: item() for c in ("game:log", "game:gem", "game:out")}
         ex = export(items, [grid("grid|r|0", ["LG"], {"L": ["game:log"], "G": ["game:gem"]}, st("game:out"),
@@ -1185,6 +1211,17 @@ class OreProcessingTest(unittest.TestCase):
         self.assertAlmostEqual(v["seraphhorizons:litharge"], 4 * 0.02)
         # The ores and nuggets keep their units' value.
         self.assertAlmostEqual(v["game:ore-poor-galena-granite"], 15 * 0.02)
+
+    def test_crystallized_ore_has_its_own_units(self):
+        raws = {**ORE_RAWS, "ores": {**ORE_RAWS["ores"], "crystalUnits": {
+            "gradeUnits": {"poor": 30, "medium": 40, "rich": 50, "bountiful": 70},
+            "unitsByOre": {"chromite": {"bountiful": 80}}}}}
+        (self.dir / "raw-values.json").write_text(json.dumps(raws))
+        val, _ = self.solve(self.ex({"game:crystalizedore-bountiful-galena-granite": item(),
+                                     "game:crystalizedore-bountiful-chromite-granite": item()}))
+        self.assertAlmostEqual(val.value["game:crystalizedore-bountiful-galena-granite"], 70 * 0.02)
+        self.assertAlmostEqual(val.value["game:crystalizedore-bountiful-chromite-granite"], 80 * 0.1)
+        self.assertAlmostEqual(val.value["game:ore-bountiful-galena-granite"], 35 * 0.02)  # the chunk's own
 
     def test_legacy_crushed_ore_is_its_ore_coarse_crushed(self):
         # Crushing a 35-unit chunk into one legacy crushed chromite is a route of 3.5 + 0.1; every use

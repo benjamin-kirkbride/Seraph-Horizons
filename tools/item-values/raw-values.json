@@ -26,6 +26,16 @@
       "quartz_nativesilver": { "poor": 10, "medium": 15, "rich": 20, "bountiful": 25 },
       "quartz_nativegold": { "poor": 5, "medium": 10, "rich": 15, "bountiful": 20 }
     },
+    "crystalUnits": {
+      "about": "Crystallized ore (game:crystalizedore-{grade}-{ore}-{rock}) holds its own metalUnitsByType, about twice an ore chunk's (survival itemtypes/resource/crystalizedore-graded.json): with OreProcessing it smelts at half of these, as the chunks do of theirs.",
+      "gradeUnits": { "poor": 30, "medium": 40, "rich": 50, "bountiful": 70 },
+      "unitsByOre": {
+        "cassiterite": { "poor": 10, "medium": 20, "rich": 30, "bountiful": 40 },
+        "hematite": { "poor": 40, "medium": 50, "rich": 60, "bountiful": 80 },
+        "quartz_nativesilver": { "poor": 20, "medium": 30, "rich": 40, "bountiful": 50 },
+        "quartz_nativegold": { "poor": 10, "medium": 20, "rich": 30, "bountiful": 40 }
+      }
+    },
     "pyriteNote": "pyrite smelts to a bloom in the export but is fool's gold: priced by noMetalUnitValue",
     "noMetal": ["pyrite"]
   },

@@ -11,7 +11,8 @@ namespace SeraphHorizons.Mod.TrunkEntities.Core;
 /// The way out is worked out in the trunk's own frame: from beside the trunk, straight away from
 /// the nearest point of its outline (so along a side, square to the trunk's axis, the same depth
 /// all along it; round a corner, round it); from inside, the shortest way out across or along the
-/// trunk; or up, onto it, when the agent's feet are within <see cref="StandMargin"/> of the top.
+/// trunk; or up, onto it, when the agent's feet are within <see cref="StandMargin"/> of the top and
+/// its middle is over the trunk or within <see cref="StandReach"/> of its outline.
 /// </summary>
 public static class TrunkPush
 {
@@ -23,6 +24,14 @@ public static class TrunkPush
     /// <summary>How far below the top of the trunk, blocks, an agent's feet may be and still be
     /// lifted onto it rather than pushed off its side.</summary>
     public const double StandMargin = 0.4;
+
+    /// <summary>How far beyond the trunk's outline, blocks, an agent's middle may be and still be
+    /// lifted onto it: a player's radius (0.3), so a player overlapping the trunk at all steps onto
+    /// it as before. A wider agent (an eidolon, 0.85) whose middle is further out has its weight off
+    /// the trunk: it is pushed off the side and falls, rather than held up on the edge, its middle
+    /// in the air, never falling and never on the ground (a walk to a point beside the trunk ended
+    /// there, standing on nothing).</summary>
+    public const double StandReach = 0.3;
 
     /// <summary>A little past touching, so a pushed-out agent is clear, not grazing.</summary>
     public const double Skin = 0.001;
@@ -113,9 +122,10 @@ public static class TrunkPush
             else
                 (ex, ez, d) = (0, cz >= 0 ? 1 : -1, along + r + Skin);
         }
-        // Up, onto the trunk, only for an agent whose feet are near the top.
+        // Up, onto the trunk, only for an agent whose feet are near the top and whose middle is
+        // over it or near enough.
         double up = trunk.Height - agent.Y1 + Skin;
-        if (up <= StandMargin + Skin)
+        if (up <= StandMargin + Skin && gap <= StandReach)
             return new Exit(0, 1, 0, up);
         var (wx, wz) = trunk.ToWorld(ex, ez);
         return new Exit(wx, 0, wz, d);

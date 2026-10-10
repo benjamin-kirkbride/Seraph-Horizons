@@ -13,7 +13,7 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 
 /// <summary>
 /// Ore processing's items, crushing and smelting (#686, #687, #688; switch <c>OreProcessing</c>,
-/// default off; README "Ore processing: items, crushing and smelting"). With the switch off the
+/// on by default; README "Ore processing: items, crushing and smelting"). With the switch off the
 /// server leaves every item, patch and change of it out, and the game is as before.
 ///
 /// With it on, on the server:
