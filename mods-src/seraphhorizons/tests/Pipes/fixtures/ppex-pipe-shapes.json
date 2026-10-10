@@ -1,0 +1,52 @@
+{
+  "blocktypes/pipes/straight.json": {
+    "code": "pipe",
+    "shapebytype": {
+      "*-straight-ns-*": {"base": "ppex:pipes/straight"},
+      "*-straight-we-*": {"base": "ppex:pipes/straight", "rotateY": 90},
+      "*-straight-ud-*": {"base": "ppex:pipes/straight", "rotateX": 90}
+    }
+  },
+  "blocktypes/pipes/bend.json": {
+    "code": "pipe",
+    "shapebytype": {
+      "*-bend-nw-*": {"base": "ppex:pipes/bend"},
+      "*-bend-en-*": {"base": "ppex:pipes/bend", "rotateY": 270},
+      "*-bend-se-*": {"base": "ppex:pipes/bend", "rotateY": 180},
+      "*-bend-ws-*": {"base": "ppex:pipes/bend", "rotateY": 90},
+      "*-bend-dn-*": {"base": "ppex:pipes/bend", "rotateZ": 90},
+      "*-bend-de-*": {"base": "ppex:pipes/bend", "rotateZ": 90, "rotateY": 270},
+      "*-bend-ds-*": {"base": "ppex:pipes/bend", "rotateZ": 90, "rotateY": 180},
+      "*-bend-dw-*": {"base": "ppex:pipes/bend", "rotateZ": 90, "rotateY": 90},
+      "*-bend-un-*": {"base": "ppex:pipes/bend", "rotateZ": 270},
+      "*-bend-ue-*": {"base": "ppex:pipes/bend", "rotateZ": 270, "rotateY": 270},
+      "*-bend-us-*": {"base": "ppex:pipes/bend", "rotateZ": 270, "rotateY": 180},
+      "*-bend-uw-*": {"base": "ppex:pipes/bend", "rotateZ": 270, "rotateY": 90}
+    }
+  },
+  "blocktypes/pipes/tjunction.json": {
+    "code": "pipe",
+    "shapebytype": {
+      "*-tjunction-wne-*": {"base": "ppex:pipes/tjunction"},
+      "*-tjunction-nes-*": {"base": "ppex:pipes/tjunction", "rotateY": 270},
+      "*-tjunction-esw-*": {"base": "ppex:pipes/tjunction", "rotateY": 180},
+      "*-tjunction-swn-*": {"base": "ppex:pipes/tjunction", "rotateY": 90},
+      "*-tjunction-uwe-*": {"base": "ppex:pipes/tjunction", "rotateX": 90},
+      "*-tjunction-uns-*": {"base": "ppex:pipes/tjunction", "rotateX": 90, "rotateZ": 90},
+      "*-tjunction-dwe-*": {"base": "ppex:pipes/tjunction", "rotateX": 270},
+      "*-tjunction-dns-*": {"base": "ppex:pipes/tjunction", "rotateZ": 90, "rotateX": 270},
+      "*-tjunction-dnu-*": {"base": "ppex:pipes/tjunction", "rotateZ": 90},
+      "*-tjunction-deu-*": {"base": "ppex:pipes/tjunction", "rotateZ": 90, "rotateY": 270},
+      "*-tjunction-dsu-*": {"base": "ppex:pipes/tjunction", "rotateZ": 90, "rotateY": 180},
+      "*-tjunction-dwu-*": {"base": "ppex:pipes/tjunction", "rotateZ": 90, "rotateY": 90}
+    }
+  },
+  "blocktypes/pipes/xjunction.json": {
+    "code": "pipe",
+    "shapebytype": {
+      "*-xjunction-nswe-*": {"base": "ppex:pipes/xjunction"},
+      "*-xjunction-nsud-*": {"base": "ppex:pipes/xjunction", "rotateZ": 90},
+      "*-xjunction-weud-*": {"base": "ppex:pipes/xjunction", "rotateZ": 90, "rotateY": 90}
+    }
+  }
+}
