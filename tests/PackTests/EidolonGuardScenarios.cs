@@ -15,8 +15,9 @@ namespace SeraphHorizons.PackTests;
 /// game's own creature types read as hostile or not (the archives' creatures and wolves are, grazers
 /// are not until hurt, a bred or owned one never), and an eidolon given the guard order with the
 /// command tool goes for a drifter 10 blocks from its point and kills it, leaves one 25 blocks off and
-/// a bred wolf alone, and stands at its point again after. The creatures' own AI is taken away, so
-/// they stand where they are put.
+/// a bred wolf alone, and stands at its post about its point again after. Three eidolons guarding one
+/// point each take a post of their own, apart. The creatures' own AI is taken away, so they stand
+/// where they are put.
 /// </summary>
 [AtlasWorld]
 public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -124,7 +125,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Click(player, slot, block: at.DownCopy());
         Assert.Equal(GuardOrder.OrderCode, e.Orders!.OrderCode);
         var point = new Vec3d(at.X + 0.5, at.Y, at.Z + 0.5);
-        await World.Until(() => EidolonGuard.AtHome(e.Pos.X - point.X, e.Pos.Y - point.Y, e.Pos.Z - point.Z), 1200);
+        await World.Until(() => AtItsPost(e), 1200);
         await World.Until(() => e.AnimManager.IsAnimationActive(GuardOrder.IdleAnimation), 100);
 
         // A drifter 25 blocks off, a bred wolf 6 and a drifter 10, its AI gone, so they stand.
@@ -140,8 +141,8 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Log($"near drifter dead after {defend.BlowsLanded} blows; " + EidolonCommands.Describe(e));
         Assert.Equal(GuardOrder.OrderCode, e.Orders.OrderCode);
 
-        // Back to its point; the far drifter and the wolf untouched and never gone for.
-        await World.Until(() => EidolonGuard.AtHome(e.Pos.X - point.X, e.Pos.Y - point.Y, e.Pos.Z - point.Z), 1600);
+        // Back to its post; the far drifter and the wolf untouched and never gone for.
+        await World.Until(() => AtItsPost(e), 1600);
         await World.Ticks(100);
         Assert.True(far.Alive);
         Assert.True(wolf.Alive);
@@ -150,7 +151,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(defend.Attacker);
         Assert.Equal(1, (e.Orders.Current as GuardOrder)!.Engaged);
         Assert.True(e.CanWork);
-        Assert.True(EidolonGuard.AtHome(e.Pos.X - point.X, e.Pos.Y - point.Y, e.Pos.Z - point.Z), EidolonCommands.Describe(e));
+        Assert.True(AboutItsPoint(e, point), EidolonCommands.Describe(e));
 
         // Unbred, the same wolf is hostile and it goes for it.
         wolf.WatchedAttributes.SetInt("generation", 0);
@@ -158,6 +159,50 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         foreach (var c in new Entity[] { far, wolf, e })
             c.Die(EnumDespawnReason.Removed);
     }
+
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task Guards_of_one_point_each_stand_at_a_post_of_their_own()
+    {
+        var at = await Floor(80, 0, reach: 14);
+        var p = await World.JoinPlayer("eidolonposts");
+        var player = (IServerPlayer)p.Player;
+        await p.TeleportTo(at.AddCopy(10, 0, 10));
+        var guards = new List<EntityLaborEidolon>();
+        foreach (var (dx, dz) in new[] { (-6, -6), (6, -6), (-6, 6) })
+            guards.Add(await SpawnEidolon(at.AddCopy(dx, 0, dz), player));
+        var point = GuardOrder.PointOn(at.DownCopy());
+        foreach (var g in guards)
+            g.Orders!.SetOrder(GuardOrder.OrderCode, GuardOrder.Args(point));
+
+        await World.Until(() => guards.All(g => AtItsPost(g) && g.AnimManager.IsAnimationActive(GuardOrder.IdleAnimation)), 1600);
+        var posts = guards.Select(g => ((GuardOrder)g.Orders!.Current!).Post!.Value).ToList();
+        Log("posts: " + string.Join("; ", posts) + " | at: " + string.Join("; ", guards.Select(g => g.Pos.XYZ)));
+        for (int i = 0; i < guards.Count; i++)
+        {
+            Assert.True(AboutItsPoint(guards[i], point), EidolonCommands.Describe(guards[i]));
+            for (int j = i + 1; j < guards.Count; j++)
+            {
+                Assert.True(Across(posts[i].X - posts[j].X, posts[i].Z - posts[j].Z) >= EidolonGuard.PostSpacing,
+                    $"posts {posts[i]} and {posts[j]}");
+                // Standing, never in each other (the box is 1.7 wide).
+                Assert.True(Across(guards[i].Pos.X - guards[j].Pos.X, guards[i].Pos.Z - guards[j].Pos.Z) >= 1.7,
+                    $"guards at {guards[i].Pos.XYZ} and {guards[j].Pos.XYZ}");
+            }
+        }
+        foreach (var g in guards)
+            g.Die(EnumDespawnReason.Removed);
+    }
+
+    private static double Across(double dx, double dz) => Math.Sqrt(dx * dx + dz * dz);
+
+    /// <summary>Standing at the post its guard order holds.</summary>
+    private static bool AtItsPost(EntityLaborEidolon e) =>
+        e.Orders?.Current is GuardOrder { Post: { } post } && EidolonGuard.AtHome(e.Pos.X - post.X, e.Pos.Y - post.Y, e.Pos.Z - post.Z);
+
+    /// <summary>Within a post's reach of its point (it may be off to a new post by now).</summary>
+    private static bool AboutItsPoint(EntityLaborEidolon e, Vec3d point) =>
+        Across(e.Pos.X - point.X, e.Pos.Z - point.Z) < EidolonGuard.PostRange + EidolonGuard.HomeTolerance
+        && Math.Abs(e.Pos.Y - point.Y) < EidolonGuard.HomeTolerance + 2;
 
     private async Task<EntityLaborEidolon> SpawnEidolon(BlockPos at, IPlayer owner)
     {
