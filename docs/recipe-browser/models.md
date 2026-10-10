@@ -509,6 +509,8 @@ rebuilt from the shipped shape, hollow cells with none.
 `site/test/handcar.test.ts` replays `mods-src/seraphhorizons/tests/Handcar/rig-reference.json` (θ alone) and
 checks the handcar's anchors, its grips riding the beam, and the handcar as a vehicle: a stroke's
 three turns, `distancePerCycle` rolled in one, and its axle boxes on its axles.
+`site/test/grinder.test.ts` replays `mods-src/seraphhorizons/tests/Grinder/rig-reference.json` (θ alone) and checks the
+grinder's tiers and states: the frame alone, and each tier's whole set with none of another's.
 `site/test/keyframes.test.ts` holds the keyframe maths to `site/test/fixtures/keyframes.json`, a small
 shape with three animations (a channel set on one keyframe only, wrapping round the end,
 `rotShortestDistance`, stretch, a held end, a child carried by its parent), worked by hand, and holds
