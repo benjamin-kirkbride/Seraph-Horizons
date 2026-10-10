@@ -147,7 +147,8 @@ jobs:
     # classes are the exception: each builds the pack's export (over a minute) and fills parts of
     # it again to compare, so each has a shard to itself. `fixes` is the fix mods' class and `tidy`
     # is Tidy Variants', both matched by name, so a new class of either kind joins its shard.
-    # `woodworking` and `woodworking-rosser` are the two woodworking classes, each a world of real
+    # `woodworking`, `woodworking-rosser` and `woodworking-eidolon` (the eidolon's haul and crew
+    # orders, WoodworkingEidolonScenarios) are the three woodworking classes, each a world of real
     # machine runs (the machines turn in wall-clock time, so their tests cannot be hurried), kept
     # out of `rest` and apart from each other to keep every shard under five minutes; the terms are
     # anchored on `PackTests.` and end in `.` so that only that class name matches, not a test
@@ -179,6 +180,8 @@ jobs:
             filter: FullyQualifiedName~PackTests.WoodworkingScenarios.
           - shard: woodworking-rosser
             filter: FullyQualifiedName~PackTests.WoodworkingRosserScenarios.
+          - shard: woodworking-eidolon
+            filter: FullyQualifiedName~PackTests.WoodworkingEidolonScenarios.
           - shard: ore
             filter: FullyQualifiedName~PackTests.Ore
           - shard: trading-core

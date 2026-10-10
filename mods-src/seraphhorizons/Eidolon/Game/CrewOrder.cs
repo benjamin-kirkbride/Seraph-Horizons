@@ -19,9 +19,10 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// owner, says so and waits, looking again every <see cref="EidolonCrew.RelookSeconds"/>. A tree that
 /// throws no trunk (too small, or no Logging Expanded: its logs fall as items) is simply passed on
 /// from; a trunk the machine does not take is left, and one lost to the hauler
-/// <see cref="EidolonCrew.Tries"/> times (it rolled, no way to it, or not reached in
-/// <see cref="EidolonCrew.FetchSeconds"/>) is put by until the next tree falls, and left once the area
-/// is clear. Without an axe it waits for one, as felling does (a trunk carried or waiting is
+/// <see cref="EidolonCrew.Tries"/> times (it rolled, no way to it, or not reached: the hauler gives one
+/// up after <see cref="HaulPlan.FetchSeconds"/> or <see cref="HaulPlan.StuckTries"/> stuck walks) is put
+/// by until the next tree falls, and left once the area is clear (its status then counts the trunks
+/// left lying). Without an axe it waits for one, as felling does (a trunk carried or waiting is
 /// hauled first). Interrupted (self-defence, a dry reservoir, a slump), it keeps its state, the trunk
 /// it carries included, and carries on where it was.
 /// </summary>
@@ -39,7 +40,6 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
     private readonly Dictionary<long, int> _losses = [];
     private readonly HashSet<long> _left = [];
     private readonly List<long> _putBy = [];
-    private double _fetchSince;
     private bool _felling;
     private int _fellSeen;
     private BlockPos? _stump;
@@ -151,7 +151,6 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
             if (NextTrunk(eidolon, infeed) is { } trunk && _hauler.Fetch(trunk))
             {
                 _hauling = trunk.EntityId;
-                _fetchSince = now;
                 Haul(eidolon);
                 return true;
             }
@@ -176,19 +175,17 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
             _toldDone = true;
             FellOrder.TellOwner(eidolon, "seraphhorizons:eidolon-crew-done-told", Felled, Delivered);
         }
-        eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-crew-done");
+        int left = LeftLying(eidolon);
+        if (left > 0)
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-crew-doneleft", left);
+        else
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-crew-done");
         return true;
     }
 
     private void Haul(EntityLaborEidolon eidolon)
     {
         long fetching = _hauler!.Fetching;
-        if (fetching != 0 && Now(eidolon) - _fetchSince > EidolonCrew.FetchSeconds)
-        {
-            _hauler.Interrupt();
-            Lost(eidolon, fetching);
-            return;
-        }
         switch (_hauler.Step())
         {
             case HaulStep.Lost when fetching != 0:
@@ -272,6 +269,10 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
             .OrderBy(t => t.Pos.SquareDistanceTo(eidolon.Pos))
             .FirstOrDefault();
     }
+
+    /// <summary>The trunks it gave up (lost too often, or put by) still lying.</summary>
+    public int LeftLying(EntityLaborEidolon eidolon) =>
+        _left.Concat(_putBy).Distinct().Count(id => eidolon.World.GetEntityById(id) is EntityTrunk { Alive: true, Grabbed: false, Driven: false });
 
     private void Leave(long id)
     {

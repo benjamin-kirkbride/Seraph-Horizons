@@ -80,6 +80,14 @@ public static class HaulPlan
                && by >= area.Min.Y && by <= area.Max.Y + AreaHeadroom;
     }
 
+    /// <summary>The longest a hauler goes for a trunk before it counts it lost: a path that seemed to
+    /// lead there but never arrives (the trunk lies in another tree's crown, or the way changed).</summary>
+    public const double FetchSeconds = 45;
+
+    /// <summary>How many times the walk to a trunk may stick (the traverser's stuck detection) before
+    /// the hauler counts it lost.</summary>
+    public const int StuckTries = 3;
+
     /// <summary>How many blocks above an area's highest mark a trunk still counts as in it.</summary>
     public const int AreaHeadroom = 4;
 

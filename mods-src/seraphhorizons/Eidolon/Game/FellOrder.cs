@@ -256,19 +256,9 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
         int tries = 0;
         foreach (var (x, z) in EidolonFelling.StandCorners(stump.X, stump.Z, eidolon.Pos.X, eidolon.Pos.Z))
         {
-            int? feet = null;
-            foreach (int dy in (ReadOnlySpan<int>)[0, 1, -1, 2, -2])
-            {
-                int y = stump.Y + dy;
-                if (space.Free(x, y, z) && !space.Free(x, y - 1, z))
-                {
-                    feet = y;
-                    break;
-                }
-            }
-            if (feet == null)
+            if (WidePath.Feet(space, x, stump.Y, z, [0, 1, -1, 2, -2]) is not { } feet)
                 continue;
-            if (_nav!.GoTo(new Vec3d(x, feet.Value, z), false, () => { }, () => { }))
+            if (_nav!.GoTo(new Vec3d(x, feet, z), false, () => { }, () => { }))
             {
                 _phase = Phase.Walk;
                 eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-fell-walking");

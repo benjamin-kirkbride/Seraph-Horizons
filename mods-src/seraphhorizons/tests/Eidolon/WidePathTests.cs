@@ -107,6 +107,20 @@ public class WidePathTests
     }
 
     [Fact]
+    public void FeetAreOnTheFloorBesideSomethingRaised()
+    {
+        // A floor at y -1 and a stump (one block) at (0, 0, 0): beside it, at a trunk's height on
+        // the stump (y 1), the feet are found one lower, on the floor.
+        var v = new Voxels().Floor(-5, 5, -5, 5);
+        v.Solid.Add((0, 0, 0));
+        Assert.Equal(0, WidePath.Feet(v, 2.5, 1, 0.5, [0, -1, 1]));
+        // Over the stump itself the box stands on it.
+        Assert.Equal(1, WidePath.Feet(v, 0.5, 1, 0.5, [0, -1, 1]));
+        // Nothing to stand on within the heights tried.
+        Assert.Null(WidePath.Feet(v, 2.5, 4, 0.5, [0, 1]));
+    }
+
+    [Fact]
     public void WalksDownADropWithinItsFallButNotOffACliff()
     {
         var v = new Voxels().Floor(-5, 4, -5, 5, y: 4).Floor(5, 15, -5, 5, y: 1);

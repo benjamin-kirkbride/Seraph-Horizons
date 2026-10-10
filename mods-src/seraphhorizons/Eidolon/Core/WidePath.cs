@@ -42,6 +42,18 @@ public sealed class WidePath(IWideSpace space, int maxFall, bool stepUp = true)
     public static PathCell NodeAt(double x, double y, double z) =>
         new((int)Math.Round(x, MidpointRounding.AwayFromZero), (int)Math.Floor(y + 0.01), (int)Math.Round(z, MidpointRounding.AwayFromZero));
 
+    /// <summary>Where its feet stand on a floor at (<paramref name="x"/>, <paramref name="z"/>): the
+    /// first of the heights <paramref name="y"/> + each of <paramref name="offsets"/> (in their order)
+    /// where its box is free and would not be one block lower; null for none. A walk's target is put
+    /// there, not at the height of what it goes to (a trunk resting on a stump lies above the floor).</summary>
+    public static int? Feet(IWideSpace space, double x, int y, double z, ReadOnlySpan<int> offsets)
+    {
+        foreach (int dy in offsets)
+            if (space.Free(x, y + dy, z) && !space.Free(x, y + dy - 1, z))
+                return y + dy;
+        return null;
+    }
+
     /// <summary>Where a step from <paramref name="from"/> by (dx, dz) lands, or null when it cannot.</summary>
     public PathCell? Step(PathCell from, int dx, int dz, out float cost)
     {

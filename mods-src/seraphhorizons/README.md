@@ -2652,7 +2652,9 @@ over the area for a trunk entity whose middle's column is inside it (from the ar
 above its highest), that the machine takes at all (the rosser none already debarked, the mill none
 branched while Logging Expanded requires debranching; any with logs) and that nobody is driving, and
 goes for the nearest. It stands square to the trunk, either side, 1.4 blocks off a thin one and 2 off a
-thick one (clear of the trunk, so TrunkEntities' solidity leaves it be), and takes it up: a thin trunk
+thick one (clear of the trunk, so TrunkEntities' solidity leaves it be), on the floor there (a trunk
+resting on a stump or a log lies above it, and the game's traverser never counts a waypoint off the
+floor reached, so the navigator also ends every path at the height its search ended), and takes it up: a thin trunk
 (Logging Expanded's xs to lg) onto its left shoulder (`trunk-pickup`, taken on frame 24), a thick one
 (xl, xxl) in both arms in front (`trunk-thick-pickup`, frame 26). The trunk entity is removed and its
 stack, unchanged, is kept in the eidolon's watched attribute `seraphhorizons:carriedTrunk`
@@ -2663,13 +2665,14 @@ trunk lying in), facing the machine. While any trunk lies in those cells it wait
 own (`trunk-carry-idle`, "Waiting for the infeed to clear"); then it lays it down (`trunk-setdown`, let
 go on frame 36; thick, frame 32) as a trunk entity in the middle of that cell, across the machine's
 line, where the machine takes it as it takes any trunk lying there (`PullFromGround`), and spends
-`OilPerTrunkDelivered`. A trunk it cannot reach is left alone for 30 seconds; with none left it says so
+`OilPerTrunkDelivered`. A trunk it cannot reach (no path, or not reached within `HaulPlan.FetchSeconds`, 45, or its third
+stuck walk, `StuckTries`) is left alone for 30 seconds; with none left it says so
 and waits, still looking, so trunks felled into the area later are hauled too. The order is never done.
 Interrupted (self-defence, dry, out of charge), it keeps a trunk it has taken up and carries on with it;
 given any order that does not haul (`EntityBehaviorEidolonTrunk.Holders`: haul and crew), or none, it
 lays a carried trunk down in front of it at once. Without trunk entities the mode refuses. Clients draw
 the carried trunk with the eidolon's renderer (below, *Drawn at its attachment points*). `tests/Eidolon/EidolonHaulTests.cs` covers the marking, the stands, the drop, the
-area and the event frames; `tests/PackTests/EidolonHaulScenarios.cs` (Atlas, the woodworking world)
+area and the event frames; `tests/PackTests/EidolonHaulScenarios.cs` (Atlas, `WoodworkingEidolonScenarios`)
 marks an area and a rosser with the tool, and the eidolon delivers a thin and a thick trunk, the second
 once the first is off the infeed, its trunk kept through a save, and the rosser takes both.
 
@@ -2808,8 +2811,10 @@ then, after 1.5 seconds for the trunk to settle, it looks (for up to 6 seconds) 
 threw: a trunk entity not lying there before it started on the tree, within 14 blocks across and 10 up
 or down of the stump. That trunk it hauls with a `TrunkHauler` to the machine (the trunk's oil), then it
 walks back to the next tree. A trunk the machine does not take is left; one lost to the hauler three
-times (it rolled, no way to it, or not reached within 45 seconds: a trunk thrown into another tree's
-crown) is put by until the next tree falls, which may open the way, and left once the area is clear; trunks the machine takes lying in the area are hauled too, at most
+times (it rolled, no way to it, or not reached: the hauler gives a trunk up after 45 seconds or its
+third stuck walk, `HaulPlan.FetchSeconds` and `StuckTries`, as for a trunk thrown into another tree's
+crown) is put by until the next tree falls, which may open the way, and left once the area is clear
+(its status then says how many it left lying); trunks the machine takes lying in the area are hauled too, at most
 every 2 seconds, before the next tree (so a crew picks up after a save, which forgets which trunks were
 its own). A tree that throws no trunk (too small for one, or no Logging Expanded or trunk entities: its
 logs fall as items) is simply passed on from. With no grown tree it can reach left in the area and no
@@ -2986,10 +2991,12 @@ then given one it fells an area of three grown oaks (three trunks holding every 
 the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
 player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
-`tests/PackTests/EidolonCrewScenarios.cs` (Atlas, the woodworking world) orders a crew with the tool
+`tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
 (refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to
-the infeed, the rosser takes both (every log of both trees), oil per tree and per trunk, and it ends
-waiting with its area clear;
+the infeed (the second trunk comes to rest on the first tree's stump, a block above the floor), the
+rosser takes both (every log of both trees), oil per tree and per trunk, and it ends waiting with its
+area clear; it fails within five minutes, not at the watchdog, when the trunks do not arrive or the
+crew gives one up;
 `SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: icons for the recipe browser, which need the game client (`tools/icon-export`,
 `docs/recipe-browser/icons.md`): the gantry (`seraphhorizons:eidolongantry-{wood}-north`, each of the
@@ -5172,7 +5179,8 @@ features on the plain world, sharing its players; `WoodworkingScenarios`
 (`fixtures/buckingsawmill`, which shortens the mill's cut and cycle and the rosser's trip), and
 `WoodworkingRosserScenarios` (`WoodworkingRosserScenarios.cs`), the rosser and the debarked trunk
 on the same fixture, a class of its own only because its real-time trips would otherwise make the
-one class's CI shard too long. Only a different world (a play style, ModConfig fixtures, a seeded
+one class's CI shard too long, and `WoodworkingEidolonScenarios` (`WoodworkingEidolonScenarios.cs`),
+the eidolon's haul and crew orders on the same fixture, for the same reason. Only a different world (a play style, ModConfig fixtures, a seeded
 standard world) gets a class of its own, as `/clear`'s, the off checks and the ore and trading
 camp scenarios do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
@@ -5198,7 +5206,7 @@ a world created with them off to have none of it.
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
 the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
 of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
-the rosser, `TradingScenarios` for trading), and a section above. Its
+the rosser, `WoodworkingEidolonScenarios` for the eidolon's work at the machines, `TradingScenarios` for trading), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A
 tweak big enough for mod systems of its own gets a folder, as `TidyVariants/` does; its systems

@@ -1866,5 +1866,6 @@
   "eidolon-order-crew": "fell and haul",
   "eidolon-status-crew-looking": "Looking for the trunk of the tree it felled",
   "eidolon-status-crew-done": "Its area is clear: it waits, and looks again now and then",
+  "eidolon-status-crew-doneleft": "Its area is clear of trees it can reach: it waits, and looks again now and then. Trunks it could not get to, left lying: {0}",
   "eidolon-crew-done-told": "Your eidolon has cleared its area: {0} trees felled, {1} trunks hauled"
 }

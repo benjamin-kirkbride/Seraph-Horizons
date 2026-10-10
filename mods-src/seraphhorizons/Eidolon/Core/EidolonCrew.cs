@@ -22,13 +22,9 @@ public static class EidolonCrew
     public const double LookSeconds = 6;
 
     /// <summary>Times a trunk may be lost to the hauler (it rolled, it had no way to it, it took too
-    /// long to reach) before it is put by until the next tree falls (which may open a way to it), or
+    /// long to reach: <see cref="HaulPlan.FetchSeconds"/>, <see cref="HaulPlan.StuckTries"/>) before it is put by until the next tree falls (which may open a way to it), or
     /// left once the area is clear.</summary>
     public const int Tries = 3;
-
-    /// <summary>The longest it goes for a trunk before it counts it lost (a path that never arrives:
-    /// the trunk lies in another tree's crown).</summary>
-    public const double FetchSeconds = 45;
 
     /// <summary>With the area clear, how often it looks again for a grown tree (a replanted one grows).</summary>
     public const double RelookSeconds = 60;

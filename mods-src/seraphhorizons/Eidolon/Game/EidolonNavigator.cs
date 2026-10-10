@@ -74,7 +74,17 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             return false;
         var waypoints = path.Skip(1).Select(c => new Vec3d(c.X, c.Y, c.Z)).ToList();
         if (tolerance == 0)
-            waypoints.Add(target.Clone());
+        {
+            // The search ends within two blocks of the target's height; the last waypoint is where it
+            // ends. The traverser counts a waypoint reached only near its height too, so a target in the
+            // air or in a block (a trunk's height, not the floor beside it) would never be reached:
+            // it would walk on the spot until something else stopped it.
+            var end = path[^1];
+            var last = target.Clone();
+            if (Math.Abs(last.Y - end.Y) >= 1)
+                last.Y = end.Y;
+            waypoints.Add(last);
+        }
         if (waypoints.Count == 0)
         {
             onArrived();

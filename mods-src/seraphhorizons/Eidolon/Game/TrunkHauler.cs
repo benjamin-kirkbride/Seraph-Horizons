@@ -37,6 +37,11 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
     private enum Phase { Idle, ToTrunk, TakingUp, ToInfeed, AtInfeed, LayingDown }
 
     private const double RetrySeconds = 3;
+
+    /// <summary>Its feet's heights tried beside a trunk, from the block the trunk's underside is in:
+    /// level first, then lower (a trunk resting on a stump, a log or a bush lies above the floor
+    /// it is taken from), then higher.</summary>
+    private static readonly int[] StandHeights = [0, -1, 1, -2, 2, -3];
     private const double MovedTolerance = 0.75;
     private const double ArrivedTolerance = 1.25;
 
@@ -50,6 +55,8 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
     private double _moveStarted;
     private bool _evented;
     private bool _arrived, _stuck;
+    private int _stuckTimes;
+    private double _fetchStarted;
     private double _retryAt;
     private string? _pose;
 
@@ -78,6 +85,8 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
         _trunkAt = new Vec3d(trunk.Pos.X, trunk.Pos.Y, trunk.Pos.Z);
         _phase = Phase.ToTrunk;
         _arrived = _stuck = false;
+        _stuckTimes = 0;
+        _fetchStarted = Now;
         _retryAt = 0;
         return true;
     }
@@ -126,6 +135,9 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
     {
         if (Wanted() is not { } trunk)
             return Lose();
+        // A trunk it cannot get to, though a path seemed to lead there: lost, never walked at forever.
+        if (Now - _fetchStarted > HaulPlan.FetchSeconds || _stuckTimes >= HaulPlan.StuckTries)
+            return Lose();
         bool thick = trunk.TypeClass == Machines.Core.TrunkClass.Thick;
         if (_arrived)
         {
@@ -143,11 +155,19 @@ public sealed class TrunkHauler(EntityLaborEidolon eidolon, BlockPos machine)
         {
             if (_stuck && Now < _retryAt)
                 return HaulStep.Working;
+            if (_stuck && ++_stuckTimes >= HaulPlan.StuckTries)
+                return Lose();
             _stuck = false;
             _retryAt = Now + RetrySeconds;
+            var space = new GameWideSpace(eidolon.World.BlockAccessor, eidolon.CollisionBox);
+            int under = (int)Math.Floor(trunk.Pos.Y + 0.01);
             foreach (var stand in HaulPlan.PickupStands(trunk.Pos.X, trunk.Pos.Z, trunk.Pos.Yaw, thick, eidolon.Pos.X, eidolon.Pos.Z))
             {
-                if (_nav.GoTo(new Vec3d(stand.X, trunk.Pos.Y, stand.Z), false, () => _arrived = true, () => _stuck = true))
+                // It walks to the floor beside the trunk, not to the trunk's height: a waypoint off the
+                // floor is never reached.
+                if (WidePath.Feet(space, stand.X, under, stand.Z, StandHeights) is not { } feet)
+                    continue;
+                if (_nav.GoTo(new Vec3d(stand.X, feet, stand.Z), false, () => _arrived = true, () => _stuck = true))
                 {
                     _stand = stand;
                     eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-haul-totrunk");

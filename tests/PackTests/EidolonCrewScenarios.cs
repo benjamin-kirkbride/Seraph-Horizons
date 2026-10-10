@@ -21,9 +21,9 @@ namespace SeraphHorizons.PackTests;
 /// rosser taking both, oil spent per tree and per trunk; then, the area clear, it says so and waits,
 /// its order kept.
 /// </summary>
-public partial class WoodworkingScenarios
+public partial class WoodworkingEidolonScenarios
 {
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 600_000)]
     public async Task An_eidolon_crew_fells_two_trees_and_hauls_both_trunks_to_a_rosser()
     {
         var pos = await Felling.Sky(World, World.Spawn.AddCopy(-640, 50, 1700), reach: 34);
@@ -100,9 +100,13 @@ public partial class WoodworkingScenarios
                            + string.Join(" ", TrunksLying(pos, 34).Select(t => $"({t.Pos.X:0.0} {t.Pos.Y:0.0} {t.Pos.Z:0.0})"));
 
         // Both trunks through the rosser: each one it takes is counted, and a finished one taken off its bed.
+        // Bounded well under the watchdog (which would fail the whole class): the wait ends early when the
+        // crew says its area is clear having given a trunk up.
         var taken = new List<ItemStack>();
         bool had = false;
         int ticks = 0;
+        var crew = Assert.IsType<CrewOrder>(e.Orders.Current);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         await World.Until(() =>
         {
             var on = rosser.Trunk;
@@ -116,13 +120,16 @@ public partial class WoodworkingScenarios
                 rosser.TakeFinished();
             if (++ticks % 600 == 0)
                 output.WriteLine(State());
-            return taken.Count >= 2;
-        }, 200_000);
+            return taken.Count >= 2 || (crew.Done && crew.LeftLying(e) > 0) || clock.Elapsed > CrewBudget;
+        }, int.MaxValue);
+        Assert.True(taken.Count >= 2, $"the rosser took {taken.Count} of 2 trunks in {clock.Elapsed.TotalSeconds:0} s "
+                                      + $"(crew done {crew.Done}, {crew.LeftLying(e)} trunks given up); " + State());
         Assert.All(logs, l => Assert.Equal(0, Wood(l)));
         Assert.Equal(woods.Sum(), taken.Sum(t => Trunks.StoredLogs(t, W)));
 
         // The area clear and nothing left lying: it says so, keeps its order and waits.
         var order = Assert.IsType<CrewOrder>(e.Orders.Current);
+        Assert.Same(crew, order);
         await World.Until(() => order.Done, 2000);
         await World.Until(() => e.GetInfoText().Contains("area is clear"), 400);
         output.WriteLine("done: " + State());
@@ -138,6 +145,10 @@ public partial class WoodworkingScenarios
         W.BlockAccessor.SetBlock(0, RosserRotorPos(rosser));
         KillItemsNear(pos, 40);
     }
+
+    /// <summary>The longest the crew scenario waits for both trunks to reach the rosser (about two
+    /// minutes when it works), well under its watchdog.</summary>
+    private static readonly TimeSpan CrewBudget = TimeSpan.FromMinutes(5);
 
     private List<EntityTrunk> TrunksLying(BlockPos around, int radius) =>
         World.EntitiesIn(new Cuboidi(around.X - radius, around.Y - 10, around.Z - radius, around.X + radius, around.Y + 20, around.Z + radius))

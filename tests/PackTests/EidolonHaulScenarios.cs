@@ -21,7 +21,7 @@ namespace SeraphHorizons.PackTests;
 /// each, its trunk kept through a save of the entity, and lays them in the rosser's infeed cells, the
 /// second once the first is off them, and the rosser takes both; oil is spent per trunk.
 /// </summary>
-public partial class WoodworkingScenarios
+public partial class WoodworkingEidolonScenarios
 {
     [AtlasScenario(TimeoutMs = 600_000)]
     public async Task An_eidolon_hauls_a_thin_and_a_thick_trunk_to_a_rosser()
