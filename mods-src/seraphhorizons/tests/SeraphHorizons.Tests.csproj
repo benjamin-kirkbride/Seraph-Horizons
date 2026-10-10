@@ -6,7 +6,7 @@
        machines' shared rig maths, footprint and trunk path (../Machines/Core), the bucking
        sawmill's assembly rules and cut arithmetic (../BuckingSawmill/Core), the rosser's
        (../Rosser/Core), the item value table's lookup (../Trading/Values/Core), the ore
-       cells' grid, state and vein scaling (../Ore/Core), the traders' grid, regions, lists
+       cells' grid, state and vein scaling and ore processing's recovery (../Ore/Core), the traders' grid, regions, lists
        and restock (../Trading/Core), standing (../Trading/Standing/Core) and their economy's
        prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
        (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
@@ -46,6 +46,8 @@
     <!-- Rarer battle towers (#519): the shipped rates, so the tests check that they parse. -->
     <None Include="../assets/seraphhorizons/config/battletowers-rates.json" Link="battletowers-rates.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Ore/Core/**/*.cs" Link="Ore/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Ore processing's recovery figures (#685), so the tests check the design's worked examples on them. -->
+    <None Include="../assets/seraphhorizons/config/ore-processing.json" Link="ore-processing.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Trading/Core/**/*.cs" Link="Trading/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Trader standing and companies (#452, #463), and the shipped tiers file. -->
     <Compile Include="../Trading/Standing/Core/**/*.cs" Link="Trading/Standing/Core/%(RecursiveDir)%(Filename)%(Extension)" />

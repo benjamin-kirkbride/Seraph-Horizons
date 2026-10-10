@@ -1,0 +1,58 @@
+namespace SeraphHorizons.Mod.Ore.Core;
+
+/// <summary>
+/// <c>config/ore-processing.json</c> as written (epic #684, #685): the recovery figures, as plain
+/// properties and string-keyed tables so the game's Newtonsoft reader and the tests'
+/// System.Text.Json both read it. <see cref="OreRecovery"/> is built from it and is what callers
+/// use; the file's comments say what each figure means.
+/// </summary>
+public sealed class OreProcessingConfig
+{
+    /// <summary>Units of metal in one crushed, ground or concentrate item (a nugget's 5).</summary>
+    public double ConcentrateUnits { get; set; } = 5;
+
+    /// <summary>Base recovery per <see cref="Concentrator"/>, keyed by its lower-case name.</summary>
+    public Dictionary<string, double> Concentrators { get; set; } = new();
+
+    public double Unclassified { get; set; } = 1;
+    public double FineUnground { get; set; } = 1;
+    public double FreeUnamalgamated { get; set; } = 1;
+
+    /// <summary>Recovery per <see cref="Roaster"/>, keyed by its lower-case name.</summary>
+    public Dictionary<string, double> Roasters { get; set; } = new();
+
+    /// <summary>A by-product's recovery per <see cref="PartingMethod"/> and then per
+    /// <see cref="OreTier"/> (<c>hand</c>, <c>tier1</c>..<c>tier4</c>); a tier left out has no
+    /// station.</summary>
+    public Dictionary<string, Dictionary<string, double>> Parting { get; set; } = new();
+
+    /// <summary>The share of its units each <see cref="OreForm"/> smelts to, keyed by its lower-case
+    /// name.</summary>
+    public Dictionary<string, double> Smelt { get; set; } = new();
+
+    /// <summary>Per ore (the ore part of its code: <c>galena</c>, <c>quartz_nativegold</c>).</summary>
+    public Dictionary<string, OreEntry> Ores { get; set; } = new();
+
+    public sealed class OreEntry
+    {
+        /// <summary><c>oxide</c> (default), <c>sulfide</c>, <c>native</c> or <c>placer</c>.</summary>
+        public string? Class { get; set; }
+        public double Density { get; set; } = 1;
+        /// <summary>Free gold or silver: loses <see cref="FreeUnamalgamated"/> unless amalgamated.</summary>
+        public bool Free { get; set; }
+        /// <summary>The share of the main metal smelting gives without parting.</summary>
+        public double Unparted { get; set; } = 1;
+        public List<ByProductEntry> ByProducts { get; set; } = new();
+    }
+
+    public sealed class ByProductEntry
+    {
+        public string Metal { get; set; } = "";
+        /// <summary>Units of the by-product per unit of the main metal recovered.</summary>
+        public double Share { get; set; }
+        /// <summary>The share in ore from a hydrothermal district, when it differs (galena 15 %).</summary>
+        public double? DistrictShare { get; set; }
+        /// <summary>A <see cref="PartingMethod"/>'s lower-case name.</summary>
+        public string PartedBy { get; set; } = "";
+    }
+}
