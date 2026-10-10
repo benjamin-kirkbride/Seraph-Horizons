@@ -39,8 +39,8 @@ public static class OreProducts
     /// <summary>Chunks (rich and bountiful) stack to 16.</summary>
     public const int ChunkStack = 16;
 
-    /// <summary>Crushed and ground ore stack to 16, concentrate and roasted concentrate and amalgam to
-    /// 128, litharge to 64 (the item type files).</summary>
+    /// <summary>Crushed and ground ore stack to 16, concentrate, roasted concentrate, amalgam and
+    /// sponge to 128, litharge to 64 (the item type files).</summary>
     public const int CrushedStack = 16, ConcentrateStack = 128, LithargeStack = 64;
 
     /// <summary>Litharge holds a nugget's worth of lead and smelts back to it at a small loss:
@@ -91,6 +91,8 @@ public static class OreProducts
     public static string ConcentrateCode(string ore) => $"{Domain}:concentrate-{ore}";
     public static string RoastedCode(string ore) => $"{Domain}:roastedconcentrate-{ore}";
     public static string AmalgamCode(string ore) => $"{Domain}:amalgam-{ore}";
+    /// <summary>Retorted sponge: the gold or silver an amalgam leaves in the still (#726).</summary>
+    public static string SpongeCode(string ore) => $"{Domain}:sponge-{ore}";
     public const string LithargeCode = Domain + ":litharge";
 
     /// <summary>Whether an ore has a roasted concentrate: a sulfide.</summary>

@@ -194,7 +194,11 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(16 * 35 * 0.5 / 100, Ingots(Stack("game:ore-bountiful-malachite-limestone", 16)), 6);
         // Cassiterite holds less: a rich chunk 15 units, so 7.5 smelted (3 ingots per 40 chunks).
         Assert.Equal(16 * 15 * 0.5 / 100, Ingots(Stack("game:ore-rich-cassiterite-granite", 16)), 6);
-        Assert.Equal(0, Ingots(Stack("seraphhorizons:concentrate-galena", 20)));
+        // A sulfide's concentrate smelts only into its roasted concentrate, with no container, which
+        // the crucible refuses outright (BlockSmeltingContainer.CanSmelt): it does not smelt to metal.
+        var sulfide = Item("seraphhorizons:concentrate-galena").CombustibleProps!;
+        Assert.False(sulfide.RequiresContainer);
+        Assert.Equal("seraphhorizons:roastedconcentrate-galena", sulfide.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal(0, Ingots(Stack("seraphhorizons:groundore-malachite", 20)));
         Assert.Null(Item("game:ore-medium-malachite-limestone").CombustibleProps);
         Assert.Equal(20.0 / 21, Ingots(Stack("seraphhorizons:litharge", 20)), 6);
@@ -219,7 +223,8 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal("game:ironbloom", props.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal(20, props.SmeltedRatio);
         Assert.Equal(40, Item("game:crushed-hematite-coarse").CombustibleProps!.SmeltedRatio);
-        Assert.Null(Item("seraphhorizons:concentrate-pyrite").CombustibleProps);
+        // Pyrite's concentrate roasts first (#720), far below a bloomery's heat.
+        Assert.InRange(Item("seraphhorizons:concentrate-pyrite").CombustibleProps!.MeltingPoint, 1, 999);
     }
 
     // Crucibulum's forge counts a charge as the crucible does.
@@ -529,6 +534,48 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
             File.WriteAllText(dump, doc.ToString());
     }
 
+    // Roasting in the firepit (#720): any fuel, one item at a time, 85 % with the fraction carried,
+    // so 20 concentrate give 17 roasted; no sulfur.
+    [AtlasScenario]
+    public async Task Firepit_roasts_sulfide_concentrate()
+    {
+        var concentrate = (ItemOreProduct)Item("seraphhorizons:concentrate-galena");
+        var props = concentrate.CombustibleProps!;
+        Assert.Equal(OreRoasting.MeltingPoint, props.MeltingPoint);
+        Assert.Equal((float)OreRoasting.DefaultSeconds, props.MeltingDuration);
+        Assert.Equal(1, props.SmeltedRatio);
+        Assert.Equal(EnumSmeltType.Convert, props.SmeltingType);
+        Assert.Equal(0.85, concentrate.RoastShare, 9);
+        Assert.Equal(OreProducts.Ores.Count(o => System.Recovery!.Ore(o).IsSulfide), System.Applied!.Roasting);
+        // Not a sulfide: smelts as before and does not roast.
+        Assert.Equal(0, ((ItemOreProduct)Item("seraphhorizons:concentrate-malachite")).RoastShare);
+        // Dry grass, the coolest firepit fuel, reaches the point.
+        Assert.True(Item("game:drygrass").CombustibleProps!.BurnTemperature >= OreRoasting.MeltingPoint);
+
+        var pos = World.Spawn.AddCopy(64, 8, 64);
+        World.SetBlock("game:firepit-cold", pos);
+        await World.Ticks(2);
+        var firepit = Assert.IsType<BlockEntityFirepit>(W.BlockAccessor.GetBlockEntity(pos));
+        var input = firepit.Inventory[1];
+        var output = firepit.Inventory[2];
+        input.Itemstack = Stack("seraphhorizons:concentrate-galena", 20);
+        Assert.True(firepit.canSmeltInput());
+        string key = firepit.Inventory.InventoryID + "|seraphhorizons:roastedconcentrate-galena";
+
+        firepit.smeltItems();
+        Assert.Equal(19, input.StackSize);
+        Assert.True(output.Empty);
+        Assert.Equal(4.25, System.RoastCarry.HeldFor(key), 6);
+        for (int i = 0; i < 19; i++)
+            firepit.smeltItems();
+        Assert.True(input.Empty);
+        Assert.Equal("seraphhorizons:roastedconcentrate-galena", output.Itemstack!.Collectible.Code.ToString());
+        Assert.Equal(17, output.StackSize);
+        Assert.Equal(0, System.RoastCarry.HeldFor(key), 6);
+        Assert.DoesNotContain(firepit.Inventory, s => s.Itemstack?.Collectible.Code.Path.Contains("sulfur") == true);
+        World.SetBlock("game:air", pos);
+    }
+
     // Leaching (#742): borax and alum ore and raw saltpeter are heavy raw forms that no quern or
     // crusher takes, and the leaching section is on their handbook pages.
     [AtlasScenario]
@@ -624,5 +671,142 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.NotEmpty(recipes);
         Assert.All(recipes, r => Assert.Contains(r.Ingredients, i => i.SatisfiesAsIngredient(Stack("game:powder-alum", 1), false)));
         Assert.Contains("game:recipes/barrel/dilutedalum.json", System.RetargetedRecipes);
+    }
+
+    // The recipe export (the one the spalling scenario reads, built once per server): a roasting
+    // record per sulfide, the firepit a station, 0.85 of a roasted concentrate out of one
+    // concentrate; and the roasting guide page.
+    [AtlasScenario(TimeoutMs = 600_000)]
+    public void Roasting_is_exported()
+    {
+        var doc = ExportUnderTest.Get(World.Api);
+        var type = doc["recipeTypes"]![RecipeSection.OreRoastingType]!;
+        Assert.Equal("generic", (string?)type["shape"]);
+        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string?)r["type"] == RecipeSection.OreRoastingType).ToList();
+        Assert.Equal(System.Applied!.Roasting, records.Count);
+        Assert.Equal(records.Count, (int)type["count"]!);
+        var galena = records.Single(r => (string?)r["id"] == "oreroasting|seraphhorizons:concentrate-galena|0");
+        Assert.Equal("OreProcessing", (string?)galena["switch"]);
+        var ingredients = (JArray)galena["ingredients"]!;
+        Assert.Equal("seraphhorizons:concentrate-galena", (string?)ingredients[0]["code"]);
+        Assert.Equal(1, (double)ingredients[0]["quantity"]!);
+        Assert.Equal("game:firepit-cold", (string?)ingredients[1]["code"]);
+        Assert.Equal("station", (string?)ingredients[1]["role"]);
+        var output = galena["outputs"]![0]!;
+        Assert.Equal("seraphhorizons:roastedconcentrate-galena", (string?)output["code"]);
+        Assert.Equal(0.85, (double)output["quantity"]!, 9);
+        Assert.Equal(OreRoasting.MeltingPoint, (int)galena["extra"]!["meltingPoint"]!);
+        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.RoastingGuidePage);
+    }
+
+    // Retorting in the still (#726): Expanded Matter's cooking pot recipe for mercury is off; cinnabar
+    // and amalgam go into the boiler and their mercury into the condenser's bucket, one portion a step;
+    // an amalgam's gold stays behind as sponge, which smelts whole.
+    [AtlasScenario]
+    public async Task Still_retorts_cinnabar_and_amalgam()
+    {
+        var still = MercuryStillSystem.Of(World.Api);
+        Assert.Equal(["game:crushed-cinnabar", "game:powder-cinnabar", "seraphhorizons:amalgam-quartz_nativegold",
+            "seraphhorizons:amalgam-quartz_nativesilver"], still.Marked.Order(StringComparer.Ordinal));
+        Assert.True(Harmony.HasAnyPatches(MercuryStill.HarmonyId));
+        Assert.Equal(5, still.MercuryRecipesOff);
+        Assert.DoesNotContain(World.Api.ModLoader.GetModSystem<RecipeRegistrySystem>().CookingRecipes,
+            r => r.CooksInto?.Code?.ToString() == "em:mercuryportion");
+
+        // The sponge smelts whole: 20 to a gold ingot.
+        var sponge = Item("seraphhorizons:sponge-quartz_nativegold").CombustibleProps!;
+        Assert.Equal("game:ingot-gold", sponge.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
+        Assert.Equal(100.0 / 5, sponge.SmeltedRatio / (double)sponge.SmeltedStack.StackSize, 6);
+
+        var pos = World.Spawn.AddCopy(70, 8, 64);
+        World.SetBlock("game:verticalboiler-west", pos);
+        World.SetBlock("game:condenser-west", pos.EastCopy());
+        await World.Ticks(2);
+        var boiler = Assert.IsType<BlockEntityBoiler>(W.BlockAccessor.GetBlockEntity(pos));
+        var condenser = Assert.IsType<BlockEntityCondenser>(W.BlockAccessor.GetBlockEntity(pos.EastCopy()));
+        var bucketBlock = Assert.IsAssignableFrom<BlockLiquidContainerTopOpened>(W.GetBlock(new AssetLocation("game:woodbucket")));
+        condenser.Inventory[1].Itemstack = new ItemStack(bucketBlock);
+        condenser.Inventory[0].Itemstack = Stack("game:waterportion", 1000);
+        int Mercury() => bucketBlock.GetContent(condenser.Inventory[1].Itemstack)?.StackSize ?? 0;
+        var input = boiler.Inventory[0];
+
+        // A plain liquid still has no distillation; the amalgam has the still's.
+        input.Itemstack = Stack("seraphhorizons:amalgam-quartz_nativegold", 3);
+        var props = boiler.DistProps;
+        Assert.NotNull(props);
+        Assert.Equal("em:mercuryportion", props.DistilledStack.Code.ToString());
+
+        // Taken out part way: the item under way comes back whole, with the sponge so far.
+        for (int i = 0; i < 13; i++)
+            Assert.True(condenser.ReceiveDistillate(input, props));
+        Assert.Equal(13, Mercury());
+        Assert.Equal(2, input.StackSize);
+        var back = MercuryStill.TakeBack(W, input.Itemstack!);
+        Assert.Equal(2, back[0].StackSize);
+        Assert.False(back[0].Attributes.HasAttribute(MercuryStill.OwedKey));
+        Assert.Equal("seraphhorizons:sponge-quartz_nativegold", back[1].Collectible.Code.ToString());
+        Assert.Equal(1, back[1].StackSize);
+
+        // Run to the end: 27 portions from 3 amalgam (9 each), and 3 sponge left in the boiler.
+        for (int i = 0; i < 14; i++)
+            Assert.True(condenser.ReceiveDistillate(input, props));
+        Assert.Equal(27, Mercury());
+        Assert.Equal("seraphhorizons:sponge-quartz_nativegold", input.Itemstack!.Collectible.Code.ToString());
+        Assert.Equal(3, input.StackSize);
+        Assert.Null(boiler.DistProps);
+
+        // Cinnabar: 10 portions a powder, nothing left behind.
+        input.Itemstack = Stack("game:powder-cinnabar", 2);
+        props = boiler.DistProps!;
+        for (int i = 0; i < 20; i++)
+            Assert.True(condenser.ReceiveDistillate(input, props));
+        Assert.Equal(47, Mercury());
+        Assert.True(input.Empty);
+
+        // A bucket holding something else takes none, and nothing is used up.
+        bucketBlock.SetContent(condenser.Inventory[1].Itemstack, Stack("game:waterportion", 10));
+        input.Itemstack = Stack("game:powder-cinnabar", 1);
+        Assert.False(condenser.ReceiveDistillate(input, boiler.DistProps!));
+        Assert.Equal(1, input.StackSize);
+        Assert.False(input.Itemstack.Attributes.HasAttribute(MercuryStill.OwedKey));
+
+        // The game's own still, lit and hot, runs it (the boiler's tick asks DistProps).
+        condenser.Inventory[1].Itemstack = new ItemStack(bucketBlock);
+        boiler.firepitStage = 6;
+        boiler.fuelHours = 10;
+        boiler.InputStackTemp = 100;
+        for (int i = 0; i < 100 && !input.Empty; i++)
+            await World.Ticks(5);
+        Assert.True(input.Empty, "the still did not retort the cinnabar");
+        Assert.Equal(10, Mercury());
+
+        World.SetBlock("game:air", pos);
+        World.SetBlock("game:air", pos.EastCopy());
+    }
+
+    // Retorting in the still (#726), in the same export: a record per input, the boiler and condenser
+    // stations, the mercury in portions and litres, an amalgam's sponge; and the guide page.
+    [AtlasScenario(TimeoutMs = 600_000)]
+    public void Retorting_is_exported()
+    {
+        var doc = ExportUnderTest.Get(World.Api);
+        var type = doc["recipeTypes"]![RecipeSection.OreRetortingType]!;
+        Assert.Equal("generic", (string?)type["shape"]);
+        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string?)r["type"] == RecipeSection.OreRetortingType).ToList();
+        Assert.Equal(MercuryStillSystem.Of(World.Api).Marked.Count, records.Count);
+        var gold = records.Single(r => (string?)r["id"] == "oreretorting|seraphhorizons:amalgam-quartz_nativegold|0");
+        Assert.Equal("OreProcessing", (string?)gold["switch"]);
+        var ingredients = (JArray)gold["ingredients"]!;
+        Assert.Equal("seraphhorizons:amalgam-quartz_nativegold", (string?)ingredients[0]["code"]);
+        Assert.Equal("game:verticalboiler-west", (string?)ingredients[1]["code"]);
+        Assert.Equal("station", (string?)ingredients[2]["role"]);
+        var outputs = (JArray)gold["outputs"]!;
+        Assert.Equal("em:mercuryportion", (string?)outputs[0]["code"]);
+        Assert.Equal(9, (double)outputs[0]["quantity"]!, 9);
+        Assert.Equal(0.09, (double)outputs[0]["litres"]!, 9);
+        Assert.Equal("seraphhorizons:sponge-quartz_nativegold", (string?)outputs[1]["code"]);
+        var cinnabar = records.Single(r => (string?)r["id"] == "oreretorting|game:powder-cinnabar|0");
+        Assert.Single((JArray)cinnabar["outputs"]!);
+        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == MercuryStillSystem.GuidePage);
     }
 }

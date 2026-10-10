@@ -3863,9 +3863,10 @@ nugget texture retinted by a blended overlay of a vanilla texture (no texture of
 |---|---|---|---|
 | Crushed ore, coarse and fine | `game:crushed-{ore}-{coarse,fine}` | 16 | at half |
 | Ground ore | `seraphhorizons:groundore-{ore}` | 16 | no |
-| Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all |
+| Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all (it roasts in the firepit, next section) |
 | Roasted concentrate (the 13 sulfides) | `seraphhorizons:roastedconcentrate-{ore}` | 128 | whole |
-| Amalgam (gold and silver quartz) | `seraphhorizons:amalgam-{ore}` | 128 | no (retorted first, #726) |
+| Amalgam (gold and silver quartz) | `seraphhorizons:amalgam-{ore}` | 128 | no (retorted in the still first, below) |
+| Retorted sponge (gold and silver quartz) | `seraphhorizons:sponge-{ore}` | 128 | whole |
 | Litharge | `seraphhorizons:litharge` | 64 | to lead, 20 in 21 (95 %) |
 
 Crushed ore is vanilla's crushed item with a grain: an item type of the pack's in the game's domain
@@ -4009,6 +4010,104 @@ priced by their barrel routes (`tools/item-values/ore-processing.json`'s `single
 Code: `Ore/Processing/Leaching.cs`, `Ore/Core/OreLeaching.cs`. Tests: `tests/Ore/OreLeachingTests.cs`;
 `OreProcessingScenarios` (the raw forms, the saltpeter drops, a barrel of alum, the pot, diluted alum)
 and `SwitchesOffScenarios`.
+
+### Ore processing: roasting in the firepit (`OreProcessing`, `FirepitRoastSeconds`)
+
+Hand-tier roasting (#720): a sulfide's concentrate (the 13 sulfides of `config/ore-processing.json`,
+argentiferous galena among them) does not smelt, and cooks in the game's firepit into its roasted
+concentrate, which smelts whole. No station and no model: the concentrate goes in the firepit's input
+slot, not in a crucible.
+
+- **Any fuel.** It roasts at 600 °C (`OreRoasting.MeltingPoint`), which dry grass (600) and firewood
+  (700) reach. Its smelting needs no container (`requiresContainer: false`, smelting type `convert`,
+  "When heated, turns into" in the handbook), so the crucible, crucibulum's forge and the other furnaces
+  refuse it.
+- **One at a time.** The game's firepit heats the whole stack in its input slot together (a big stack
+  heats slowly), then turns one item per cook time (`meltingDuration`) once the stack is at the point,
+  faster in a fire at least twice as hot (it counts the cook time by whole multiples of the point).
+  The cook time per item is `FirepitRoastSeconds` (10 s; not positive: the default), so a stack of 128
+  takes about 21 minutes in a firewood fire.
+- **85 %, nothing rounded away.** An item has one smelting, which says one roasted item per item;
+  `ItemOreProduct.DoSmelt` (virtual in 1.22.7, called by the firepit for each item) instead takes one
+  concentrate and gives the whole roasted items that 85 % of its 5 units makes together with what the
+  firepit held over (`UnitCarry`, keyed by the firepit's inventory and the roasted item): 20 concentrate
+  give exactly 17. The share is `roasters.firepit` in `config/ore-processing.json` (#685's
+  `OreRecovery.Roasting(ore, Roaster.Firepit)`). The carry-over is `OreProcessingSystem.RoastCarry`,
+  saved with the world; a firepit broken mid-item leaves under a unit there.
+- **No sulfur**: the firepit has one output slot, and open roasting lost its sulfur to the air. Sulfur
+  is recovered from the roasting stall on (#736).
+
+`OreProcessingItems` sets it with the rest of the smelting (in `AssetsFinalize`): a sulfide's
+concentrate gets the roasting (`Roasting`) and its `RoastShare`; every other form is as above. The
+guide page "Roasting sulfide ore" (`config/handbook/oreroasting.json`, text in `lang/en.json`) is hidden
+with the switch off (on the client, when the roasted concentrate does not exist; the recipe export
+through the hidden-guides list). The recipe export has a record per sulfide (type `oreroasting`,
+`tools/recipe-export/Recipes/OreRoastingExport.cs`, docs/recipe-browser/schema.md), its output the
+share (0.85 of a roasted item). Tests: `tests/Ore/OreRoastingTests.cs` (the share, runs of any split,
+the cook time); `tests/PackTests/OreProcessingScenarios.cs` (`Firepit_roasts_sulfide_concentrate`: the
+props, and 20 concentrate through a firepit's own `smeltItems` giving 17; `Roasting_is_exported`: the
+records and the guide in the export, with the switch on).
+
+### Ore processing: retorting mercury in the still (`OreProcessing`)
+
+Hand-tier mercury (#726): cinnabar and amalgam are retorted in the game's still, with no station and
+no model. **The game's still is not a cooking pot**: in 1.22.7 it is the boiler (`game:verticalboiler`,
+`BlockBoiler` / `BlockEntityBoiler`, a firepit built under it from dry grass and firewood) and the copper
+condenser (`game:condenser`, `BlockEntityCondenser`) on one of its four sides, with a bucket (or any
+top-opened container of 1 to 20 L) under the spout and water in it. The boiler holds one liquid stack
+(30 L); once it is at 75 °C, every 0.2 / `ratio` seconds it hands the condenser one portion of the
+stack's `distillationProps.distilledStack`, and the condenser takes `ceil(1 / ratio)` of the liquid for
+it (vanilla's grain cider at 0.05: 20 portions for one of spirits). Without water half the portions are
+lost; with it, half of them use up a portion of the water. So the game's distilling takes only liquids
+(the boiler is filled from a bucket) and can never give more than one portion an item, which is why
+cinnabar (10 portions an item) and amalgam need code, in `Ore/Processing/MercuryStill.cs` (Harmony id
+`seraphhorizons.oreprocessing.still`):
+
+- **Into the boiler by hand.** Right-click the boiler with a retortable item to put the held stack in
+  (an empty boiler, or onto the same item, up to its stack size); right-click it with an empty hand to
+  take a solid content back out. A prefix on `BlockBoiler.OnBlockInteractStart`; the boiler's liquid
+  transfers refuse a solid on their own (`TryPutLiquid` compares contents, a bucket takes only
+  liquids). `BlockBoiler.GetPlacedBlockInfo` names a solid by count, not litres.
+- **Distilling.** A postfix on `BlockEntityBoiler.DistProps` gives the item the still's distillation
+  (mercury, at `portionsPerSecond`, default 2, as the game's ratio, `MercuryRetort.Pace`), and a prefix
+  on `BlockEntityCondenser.ReceiveDistillate` takes over for it: one portion into the bucket a step,
+  water as the game does, and the portion counted against the item being retorted
+  (`MercuryRetort.Portion`); once less than a portion is left in it the item is used up and the
+  fraction carried to the next, so a stack's mercury comes out exactly (the last item's fraction under a
+  portion is lost). A bucket holding something else, or full, takes nothing and uses nothing.
+- **What stays behind.** An amalgam leaves a **retorted sponge** (`seraphhorizons:sponge-{ore}`, one per
+  amalgam, 5 units, stack 128, `smelt.sponge` 1: whole, as concentrate), counted on the stack in the
+  boiler and taking its slot when the last amalgam is done; take it out with an empty hand. Taken out
+  early, the amalgam still to do comes back (the one under way whole) with the sponge so far. Sponge,
+  not nuggets: a nugget is pure metal and crushes back into ore, while the sponge keeps the ore (gold
+  quartz's silver, its `unparted` share) for acid parting. Cinnabar leaves nothing.
+- **Figures** (`config/ore-processing.json` `retort`): the mercury is Expanded Matter's
+  `em:mercuryportion` (a liquid, 100 to the litre), kept rather than an item of our own; cinnabar,
+  crushed (`game:crushed-cinnabar`) or ground (`game:powder-cinnabar`), gives 10 portions (0.1 L) an
+  item; an amalgam returns `amalgamMercury` (10, what the amalgam pan #718 is to put into one) ×
+  `mercuryReturn` (0.9): 9 portions. The progress (`seraphhorizonsRetortOwed`,
+  `seraphhorizonsRetortResidue`) rides on the stack, so it survives a save and a broken boiler.
+
+The server marks the inputs in `AssetsFinalize` (`MercuryStill.Mark`, the item attribute
+`seraphhorizonsRetort`: mercury, portions, residue, pace), before the items go to clients; the patches
+check that mark, so they touch nothing else, and a client patches once it has the server's items if any
+carries it, so it follows the server's switch (its condenser then shows the drip). Expanded Matter's
+cooking pot recipes for mercury (`em:recipes/cooking/mercury.json`, cinnabar powder into 10 portions,
+crushed into 20) are switched off in `AssetsLoaded`, so the still is the only way; with the switch off
+they stay and nothing is marked or patched. `MercuryStillSystem` holds it; the guide page "Retorting
+mercury" (`config/handbook/oreretorting.json`) is hidden with the switch off. The recipe export has a
+record per input (type `oreretorting`, `tools/recipe-export/Recipes/OreRetortingExport.cs`,
+docs/recipe-browser/schema.md): the boiler and condenser as stations, the mercury in portions and
+litres, an amalgam's sponge. Item values: the amalgam-to-sponge routes are in
+`tools/item-values/routes.json` (switch `OreProcessing`; the export made with the switch off has no
+records), and the sponge is an item of `ore-processing.json`, priced from its amalgam; the mercury the
+amalgam returns is not credited, since the amalgam's price leaves out the pan's. Mercury keeps its price
+from Expanded Matter's recipe (the same 10 portions a powder), which that export still has; a still
+route for it would make mercury look like it exists only with the switch. Tests: `tests/Ore/MercuryRetortTests.cs` (the inputs and
+figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
+(`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
+taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
+it; `Retorting_is_exported`: the records and the guide, with the switch on) and `SwitchesOffScenarios` (off).
 
 ## Trading
 

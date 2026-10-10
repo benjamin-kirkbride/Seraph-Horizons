@@ -33,6 +33,25 @@ public sealed class OreProcessingConfig
     /// <summary>Per ore (the ore part of its code: <c>galena</c>, <c>quartz_nativegold</c>).</summary>
     public Dictionary<string, OreEntry> Ores { get; set; } = new();
 
+    /// <summary>Retorting in the still (#726).</summary>
+    public RetortEntry Retort { get; set; } = new();
+
+    public sealed class RetortEntry
+    {
+        /// <summary>The mercury the still collects and the amalgam pan uses: a liquid portion item
+        /// (Expanded Matter's <c>em:mercuryportion</c>, 100 to the litre).</summary>
+        public string Mercury { get; set; } = "em:mercuryportion";
+        /// <summary>Portions of mercury the amalgam pan puts into one amalgam (#718).</summary>
+        public double AmalgamMercury { get; set; } = 10;
+        /// <summary>The share of an amalgam's mercury the still returns.</summary>
+        public double MercuryReturn { get; set; } = 0.9;
+        /// <summary>Portions of mercury one item of cinnabar gives, by item code.</summary>
+        public Dictionary<string, double> Cinnabar { get; set; } = new();
+        /// <summary>Portions a lit still drives over per second (the game's still ticks ten times a
+        /// second, so at most 10).</summary>
+        public double PortionsPerSecond { get; set; } = 2;
+    }
+
     public sealed class OreEntry
     {
         /// <summary><c>oxide</c> (default), <c>sulfide</c>, <c>native</c> or <c>placer</c>.</summary>
