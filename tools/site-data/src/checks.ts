@@ -36,6 +36,7 @@ export interface ExportV1 {
   recipeTypes: Record<string, { count: number }>;
   variantGroups?: Record<string, { title: string; members: string[] }>;
   power?: Power;
+  eidolon?: Eidolon;
   multiblocks?: {
     structures: { id: string; mod: string; parts: { block?: string; air?: true }[]; sizes: { cells: number[][] }[]; defaultSize?: number }[];
     shapes: Record<string, unknown>;
@@ -55,6 +56,21 @@ interface Power {
   })[];
   consumers: (PowerEntry & { load: number; loadMax?: number })[];
   wind: { patterns: { code: string; share: number }[]; histogram: { shares: number[] } } | null;
+}
+
+interface EidolonStack {
+  code: string;
+  count: number;
+}
+interface Eidolon {
+  mod: string;
+  item: string | null;
+  torso: { item: string | null; recipe: EidolonStack[] };
+  mind: EidolonStack[];
+  layers: { id: string; default: string | null; materials: { id: string; texture: string | null; items: EidolonStack[] }[]; parts: EidolonStack[] }[];
+  builds: { joints: string; plates: string; skirt: string }[];
+  shapeTextures: Record<string, string>;
+  textures: Record<string, string>;
 }
 
 export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
@@ -143,6 +159,7 @@ export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
 
   if (d.variantGroups) checkVariantGroups(d, report);
   if (d.power) checkPower(d, report);
+  if (d.eidolon) checkEidolon(d, report);
   if (d.multiblocks) checkMultiblocks(d, report);
 }
 
@@ -198,6 +215,55 @@ function checkPower(d: ExportV1, report: ErrorReport): void {
     if (Math.abs(patterns - 1) > 1e-3) {
       report.add("power-wind-share", "/power/wind/patterns", "pattern shares adding up to 1", String(patterns));
     }
+  }
+}
+
+// The eidolon's fittings (schema.md, The eidolon's fittings): every code is an item, layers and
+// their materials appear once, a layer's default is one of its materials, each build is of
+// materials its layers take and appears once, and every texture is one a material or the shape
+// names. The fitting sheet draws from these without checking again.
+const BUILD_LAYERS = ["joints", "plates", "skirt"] as const;
+function checkEidolon(d: ExportV1, report: ErrorReport): void {
+  const e = d.eidolon!;
+  if (!Object.hasOwn(d.mods, e.mod)) report.add("eidolon-mod", "/eidolon/mod", "a key of mods", JSON.stringify(e.mod));
+  const item = (code: string | null, at: string) => {
+    if (code !== null && !Object.hasOwn(d.items, code)) report.add("eidolon-item", at, "a key of items", JSON.stringify(code));
+  };
+  const stacks = (list: EidolonStack[], at: string) => list.forEach((s, i) => item(s.code, `${at}/${i}/code`));
+  item(e.item, "/eidolon/item");
+  item(e.torso.item, "/eidolon/torso/item");
+  stacks(e.torso.recipe, "/eidolon/torso/recipe");
+  stacks(e.mind, "/eidolon/mind");
+
+  const layers = new Map<string, Set<string>>();
+  const paths = new Set(Object.values(e.shapeTextures));
+  e.layers.forEach((l, li) => {
+    const at = `/eidolon/layers/${li}`;
+    if (layers.has(l.id)) report.add("eidolon-layer", `${at}/id`, "a layer no other entry is", JSON.stringify(l.id));
+    const ids = new Set<string>();
+    l.materials.forEach((m, mi) => {
+      if (ids.has(m.id)) report.add("eidolon-material", `${at}/materials/${mi}/id`, "a material listed once", JSON.stringify(m.id));
+      ids.add(m.id);
+      stacks(m.items, `${at}/materials/${mi}/items`);
+      if (m.texture !== null) paths.add(m.texture);
+    });
+    stacks(l.parts, `${at}/parts`);
+    if (l.default !== null && !ids.has(l.default)) report.add("eidolon-default", `${at}/default`, "one of the layer's materials", JSON.stringify(l.default));
+    layers.set(l.id, ids);
+  });
+
+  const seen = new Set<string>();
+  e.builds.forEach((b, bi) => {
+    const key = BUILD_LAYERS.map((k) => b[k]).join("|");
+    if (seen.has(key)) report.add("eidolon-build", `/eidolon/builds/${bi}`, "a build listed once", key);
+    seen.add(key);
+    for (const k of BUILD_LAYERS) {
+      if (!layers.get(k)?.has(b[k])) report.add("eidolon-build", `/eidolon/builds/${bi}/${k}`, `one of the ${k} layer's materials`, JSON.stringify(b[k]));
+    }
+  });
+
+  for (const path of Object.keys(e.textures)) {
+    if (!paths.has(path)) report.add("eidolon-texture", `/eidolon/textures/${ptr(path)}`, "a texture a material or the shape names", JSON.stringify(path));
   }
 }
 

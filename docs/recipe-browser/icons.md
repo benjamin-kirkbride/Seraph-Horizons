@@ -293,6 +293,9 @@ Push as usual. The pre-push hook uploads the images to LFS.
 ## Rights and removal
 
 The icons are renders of the base game's assets and of the pack's third-party mods. The site
+also shows a few of the game's textures themselves, on the eidolon's fitting sheet: the woods,
+metal plates, chain, leather and cloth its layers draw with, which the recipe export carries
+(schema.md, The eidolon's fittings), with the pack's own stainless chain. The site
 hosts them and says that it is unofficial and fan-made. It credits the game and every mod,
 and gives a contact for removal requests. To remove a mod's icons, delete its entries from
 the index and prune the files it no longer references:

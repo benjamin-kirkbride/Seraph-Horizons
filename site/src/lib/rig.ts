@@ -21,7 +21,38 @@ export type Axis = "x" | "y" | "z";
 export interface ShapeFace {
   texture?: string;
   enabled?: boolean;
+  /** [u1, v1, u2, v2] in the shape's texture units; only the textured scene reads it. */
+  uv?: number[];
+  /** 0, 90, 180 or 270: the face's texture turned. */
+  rotation?: number;
   [key: string]: unknown;
+}
+
+// The corners a face's uv runs over, in the order (u1, v1), (u2, v1), (u2, v2), (u1, v2), as the
+// game maps a face's `uv` onto it (before its `rotation`).
+const UV_CORNERS: Record<FaceName, [number, number, number, number]> = {
+  north: [3, 2, 0, 1],
+  south: [6, 7, 5, 4],
+  east: [7, 3, 1, 5],
+  west: [2, 6, 4, 0],
+  up: [2, 3, 7, 6],
+  down: [4, 5, 1, 0],
+};
+/**
+ * A face's texture coordinates by box corner (0 to 7), as the game maps its `uv` and `rotation`:
+ * in the shape's texture units, v negated (setTextures scales them by the texture's size and turns
+ * v into three's, up from the bottom). A face without a `uv` covers the whole texture.
+ */
+export function faceUv(name: FaceName, face: ShapeFace | undefined, size: readonly [number, number] = [16, 16]): Map<number, [number, number]> {
+  const [u1, v1, u2, v2] = face?.uv && face.uv.length === 4 ? face.uv : [0, 0, size[0], size[1]];
+  let uv: [number, number][] = [
+    [u1!, v1!],
+    [u2!, v1!],
+    [u2!, v2!],
+    [u1!, v2!],
+  ];
+  for (let r = (((Math.round((face?.rotation ?? 0) / 90) % 4) + 4) % 4); r > 0; r--) uv = [uv[3]!, uv[0]!, uv[1]!, uv[2]!];
+  return new Map(UV_CORNERS[name].map((c, i) => [c, [uv[i]![0], -uv[i]![1]]]));
 }
 
 export interface ShapeElement {

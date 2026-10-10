@@ -235,6 +235,7 @@ Animation keys are read in any case, as the game's JSON reader does (`quantityFr
 | `id` | The address, `#/models/<id>`: lower-case letters, digits and dashes. |
 | `title`, `description`, `credit` | Required. Write the credit from the mod's `CREDITS.md`. |
 | `creditUrl` | Optional, https: a link after the credit. |
+| `link` | Optional: `{ "label", "page" }`, a page of the recipe browser about the model, linked under the credit: `page` is its address after the version (`eidolon`, the eidolon's fitting sheet), opened in the default version. |
 | `shape` | Required: the shape file, as a path from the repository's root. Strict JSON (a generated shape is; a hand-edited one with comments or trailing commas is not read). |
 | `rig` | Optional: the rig. Without one the model is shown still, coloured by texture, as one part. |
 | `bogie` | Optional: a vehicle's bogie shape, drawn at each of its `scenario.vehicle.bogies` places ([Vehicles](#vehicles)); needs that. |

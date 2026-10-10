@@ -116,7 +116,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
     ]);
     expect(r.detail("game:ingot-copper").description).toBe("A bar of copper.");
     expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, start: 6, mod: "examplemod" });
-    expect(r.meta.itemCount).toBe(50);
+    expect(r.meta.itemCount).toBe(59);
     expect(r.meta.recipeCount).toBe(13);
   });
 

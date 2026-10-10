@@ -119,7 +119,16 @@
       "value": 1.5,
       "valuePerLitre": true
     },
-    "seraphhorizons:picklingtub": { "kind": "block", "name": "Pickling tub", "mod": "seraphhorizons", "handbookVisible": true, "switch": "GearReclamation" }
+    "seraphhorizons:picklingtub": { "kind": "block", "name": "Pickling tub", "mod": "seraphhorizons", "handbookVisible": true, "switch": "GearReclamation" },
+    "seraphhorizons:creature-eidolon": { "kind": "item", "name": "Eidolon", "mod": "seraphhorizons", "handbookVisible": true, "switch": "Eidolon" },
+    "seraphhorizons:eidolontorso": { "kind": "item", "name": "Eidolon torso", "mod": "seraphhorizons", "handbookVisible": true, "switch": "Eidolon" },
+    "game:jonasframes-joint01": { "kind": "item", "name": "Joint frame", "mod": "game", "handbookVisible": true },
+    "game:rod-steel": { "kind": "item", "name": "Steel rod", "mod": "game", "handbookVisible": true },
+    "game:metalnailsandstrips-steel": { "kind": "item", "name": "Steel nails and strips", "mod": "game", "handbookVisible": true },
+    "game:metalplate-steel": { "kind": "item", "name": "Steel plate", "mod": "game", "handbookVisible": true },
+    "game:metalplate-brass": { "kind": "item", "name": "Brass plate", "mod": "game", "handbookVisible": true },
+    "game:leather-normal-plain": { "kind": "item", "name": "Leather", "mod": "game", "handbookVisible": true },
+    "game:metalchain-steel": { "kind": "item", "name": "Steel chain", "mod": "game", "handbookVisible": true }
   },
   "recipes": [
     {
@@ -840,6 +849,86 @@
         { "what": "wind pattern still", "from": "game:config/windpatterns/still.json" },
         { "what": "next pattern chosen uniformly, Rand.NextInt(patterns); weight not used", "from": "code constant (WeatherSimulationRegion)" }
       ]
+    }
+  },
+  "eidolon": {
+    "mod": "seraphhorizons",
+    "item": "seraphhorizons:creature-eidolon",
+    "torso": { "item": "seraphhorizons:eidolontorso", "recipe": [{ "code": "seraphhorizons:gear-stainless", "count": 3 }] },
+    "mind": [{ "code": "game:gear-temporal", "count": 1 }],
+    "layers": [
+      {
+        "id": "bones", "name": "Bones", "default": "oak",
+        "materials": [
+          { "id": "oak", "texture": "game:block/wood/debarked/oak", "items": [{ "code": "game:supportbeam-oak", "count": 10 }] },
+          { "id": "birch", "texture": "game:block/wood/debarked/birch", "items": [{ "code": "game:supportbeam-birch", "count": 10 }] }
+        ],
+        "parts": []
+      },
+      {
+        "id": "joints", "name": "Joints, bars and clamps", "default": "steel",
+        "materials": [
+          { "id": "steel", "texture": "game:block/metal/plate/steel", "items": [{ "code": "game:rod-steel", "count": 4 }, { "code": "game:metalnailsandstrips-steel", "count": 20 }] }
+        ],
+        "parts": [{ "code": "game:jonasframes-joint01", "count": 2 }, { "code": "seraphhorizons:gear-stainless", "count": 9 }]
+      },
+      {
+        "id": "plates", "name": "Plates", "default": "steel",
+        "materials": [
+          { "id": "steel", "texture": "game:block/metal/plate/steel", "items": [{ "code": "game:metalplate-steel", "count": 17 }] },
+          { "id": "brass", "texture": "game:block/metal/plate/brass", "items": [{ "code": "game:metalplate-brass", "count": 17 }] }
+        ],
+        "parts": []
+      },
+      {
+        "id": "sash", "name": "Sash and fauld", "default": "leather-plain",
+        "materials": [
+          { "id": "leather-plain", "texture": "game:block/leather/plain", "items": [{ "code": "game:leather-normal-plain", "count": 2 }] }
+        ],
+        "parts": []
+      },
+      {
+        "id": "skirt", "name": "Chain skirt", "default": "steel",
+        "materials": [
+          { "id": "steel", "texture": "game:block/metal/armor-generic/chain-steel", "items": [{ "code": "game:metalchain-steel", "count": 2 }] }
+        ],
+        "parts": []
+      }
+    ],
+    "settings": {
+      "allSteelHealth": 300,
+      "baseHealth": 106.666667,
+      "plateHealth": { "steel": 1.5, "brass": 0.8 },
+      "jointHealth": { "steel": 1.5 },
+      "skirtHealth": { "steel": 1.25 },
+      "plateDamage": { "steel": 1, "brass": 0.8 },
+      "plateMoveSpeed": { "steel": 1, "brass": 1.25 },
+      "plateArmour": {
+        "steel": { "protectionTier": 4, "relativeProtection": 0.97, "flatDamageReduction": 1.8 },
+        "brass": { "protectionTier": 2, "relativeProtection": 0.92, "flatDamageReduction": 1.6 }
+      },
+      "armourLoss": { "relativeLossWithinTier": 0.03, "relativeLossAboveTier": 0.15, "flatLossWithinTier": 0.1, "flatLossAboveTier": 0.2, "highDamageTierResistant": true },
+      "walkSpeed": 0.022,
+      "runSpeed": 0.04,
+      "defenceDamage": 10,
+      "slamDamage": 16
+    },
+    "builds": [
+      { "joints": "steel", "plates": "steel", "skirt": "steel", "maxHealth": 300, "walkSpeed": 0.022, "runSpeed": 0.04, "defenceDamage": 10, "slamDamage": 16,
+        "armour": { "protectionTier": 4, "relativeProtection": 0.97, "flatDamageReduction": 1.8 } },
+      { "joints": "steel", "plates": "brass", "skirt": "steel", "maxHealth": 160, "walkSpeed": 0.0275, "runSpeed": 0.05, "defenceDamage": 8, "slamDamage": 12.8,
+        "armour": { "protectionTier": 2, "relativeProtection": 0.92, "flatDamageReduction": 1.6 } }
+    ],
+    "shapeTextures": {
+      "bones": "game:block/wood/debarked/oak",
+      "joints": "game:block/metal/plate/steel",
+      "plates": "game:block/metal/plate/steel",
+      "sash": "game:block/leather/plain",
+      "skirt": "game:block/metal/armor-generic/chain-steel",
+      "lattice": "game:block/machine/lattice"
+    },
+    "textures": {
+      "game:block/metal/plate/steel": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPombbgPwAGNgLC5CSs+AAAAABJRU5ErkJggg=="
     }
   },
   "multiblocks": {

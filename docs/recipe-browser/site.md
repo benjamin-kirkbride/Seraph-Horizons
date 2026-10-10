@@ -3,7 +3,7 @@
 The app in `site/`: Vite, Svelte 5 and TypeScript. It is a static single-page app. The
 build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<code>`,
 `#/<version>/type/<code>`, `#/<version>/entity/<type>`, `#/<version>/search?q=`,
-`#/<version>/values`, `#/<version>/power`, `#/<version>/multiblock/<id>`),
+`#/<version>/values`, `#/<version>/power`, `#/<version>/eidolon`, `#/<version>/multiblock/<id>`),
 so the same `dist/` works at any sub-path and a reload on a deep link only ever asks
 the server for `index.html`.
 
@@ -139,6 +139,7 @@ and writes:
 <dir>/entities.json      every creature and trader, column-wise and sorted by code
 <dir>/entities/<n>.json  what each entity gives, a few hundred entities per file
 <dir>/power.json         the export's power section as it is (absent when the export has none)
+<dir>/eidolon.json       the export's eidolon section as it is, textures and all (absent when the export has none)
 <dir>/multiblocks.json   the multiblocks, when the export has any (multiblocks.md)
 <dir>/multiblocks/<n>.json  one multiblock with the shapes of its blocks
 ```
@@ -188,6 +189,10 @@ export may predate the check). An export without groups gets no `groups`.
 An export with a `power` section ([power.md](power.md)) gets `power.json`, the section as it
 is, and `power: true` in `meta.json`, so the app shows its Power link only for versions that
 have one; an older export gets neither.
+
+An export with an `eidolon` section ([schema.md](schema.md#the-eidolons-fittings)) gets
+`eidolon.json`, the section as it is, and `eidolon: { items }` in `meta.json`: the eidolon's
+creature item and its torso, whose item pages link to the fitting sheet. An older export gets neither.
 
 `meta.json` has `itemChunks` and `recipeChunks`, the first index held by each chunk file,
 ascending. Item `i` is in `items/<n>.json` for the last `n` whose start is at most `i`,
@@ -385,6 +390,34 @@ reader (the value is visually hidden text in the label, not an `aria-label`, so 
 colour-blind separation against both themes' surfaces); every value is written beside its
 mark or in a table, so none depends on colour or hover. The page's state is not in the
 address.
+
+### The eidolon's fitting sheet
+
+`#/<version>/eidolon` (`EidolonFittingPage.svelte`, loaded lazily with three.js after it) is the
+eidolon's fitting sheet, linked from the eidolon's item page (and its torso's) when the version's
+`meta.json` has `eidolon`, and from the eidolon's model page (its manifest entry's `link`,
+[models.md](models.md)). It picks a material per layer (bones, joints, plates, sash, skirt, in build
+order), and shows:
+
+- the model wearing them: the model viewer's eidolon (`site/models.json`'s `eidolon`: its shape,
+  rig and animations, as main has them, like every model page) drawn by the viewer's scene
+  (`src/viewer/model-scene.ts`) in **the game's textures**, which the export carries
+  (`eidolon.textures`, PNG data URIs the exporter reads from the server's assets). The scene's
+  `setTextures` draws each texture code with its image on the faces' `uv` and `rotation`
+  (`faceUv` in `rig.ts`) and keeps the vertex colours for a code without one, so an export whose
+  server had no textures draws in the viewer's colours, and says so. `dim` greys out every layer
+  but the one under the pointer or focus. An animation picker plays the shape's animations
+  (keyframes.ts, as the model page does), and the camera turns until stopped (not with reduced motion);
+- the stats: max HP, walk, run, punch and kick, slam, and the plates' armour tier, protection and
+  flat reduction, each against the default (all-steel) build. They are looked up in the export's
+  `builds`, which the mod's own `EidolonStats` computed, never worked out in the browser; each
+  layer's effect (HP ×1.5 ...) is the settings' multiplier for its material;
+- the bill stage by stage: the torso's grid recipe, each layer's material (highlighted: it follows
+  the pick) and its Jonas parts, then the mind, each item linked to its page.
+
+Its logic is `site/src/lib/eidolon-fittings.ts` (pure, `site/test/eidolon-fittings.test.ts`), its
+strings `eidolon-strings.ts`, and `site/e2e/eidolon.spec.ts` checks it against a real export. The
+pick is not in the address.
 
 ### Recipe type pages
 

@@ -129,6 +129,52 @@ describe("validate: cross-references", () => {
     expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["variant-group-size", "/variantGroups/auto:game:plank/members"]]);
   });
 
+  it("accepts an export without the eidolon's fittings", () => {
+    const d = example();
+    delete d.eidolon;
+    expect(problems(d)).toEqual([]);
+  });
+
+  it("rejects an eidolon code that is not an item", () => {
+    const d = example();
+    d.eidolon.layers[1].parts[0].code = "game:jonasframes-joint02";
+    d.eidolon.torso.item = "seraphhorizons:eidolontorso-old";
+    expect(problems(d)).toEqual([
+      ["eidolon-item", "/eidolon/torso/item"],
+      ["eidolon-item", "/eidolon/layers/1/parts/0/code"],
+    ]);
+  });
+
+  it("rejects a duplicate eidolon layer or material, and a default it does not list", () => {
+    const d = example();
+    d.eidolon.layers[0].materials[1].id = "oak";
+    d.eidolon.layers[3].default = "cloth-plain";
+    d.eidolon.layers[4].id = "sash";
+    expect(problems(d)).toEqual([
+      ["eidolon-material", "/eidolon/layers/0/materials/1/id"],
+      ["eidolon-default", "/eidolon/layers/3/default"],
+      ["eidolon-layer", "/eidolon/layers/4/id"],
+      // the skirt layer is gone, so no build's skirt is one of its materials
+      ["eidolon-build", "/eidolon/builds/0/skirt"],
+      ["eidolon-build", "/eidolon/builds/1/skirt"],
+    ]);
+  });
+
+  it("rejects an eidolon build of a material its layer does not take, or listed twice", () => {
+    const d = example();
+    d.eidolon.builds[1].plates = "steel";
+    expect(problems(d)).toEqual([["eidolon-build", "/eidolon/builds/1"]]);
+    d.eidolon.builds[1].joints = "brass";
+    expect(problems(d)).toEqual([["eidolon-build", "/eidolon/builds/1/joints"]]);
+  });
+
+  it("rejects an eidolon texture nothing names", () => {
+    const d = example();
+    d.eidolon.textures["game:block/metal/plate/iron"] = d.eidolon.textures["game:block/metal/plate/steel"];
+    const p = only(d);
+    expect([p.kind, p.path]).toEqual(["eidolon-texture", "/eidolon/textures/game:block~1metal~1plate~1iron"]);
+  });
+
   it("accepts an export without power, and power without wind", () => {
     const d = example();
     d.power.wind = null;

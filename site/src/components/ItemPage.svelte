@@ -133,6 +133,9 @@
           <div><dt>{t.code}</dt><dd><code data-testid="item-code">{ref.code}</code></dd></div>
           <div><dt>{t.mod}</dt><dd data-testid="item-mod"><ModLink id={ref.mod} mods={meta.mods} /></dd></div>
         </dl>
+        {#if meta.eidolon?.items.includes(ref.code)}
+          <p class="eidolon-link" data-testid="eidolon-link"><a href={formatRoute({ view: "eidolon", version: data.id })}>{t.eidolonFittings}</a></p>
+        {/if}
       </div>
     </header>
 

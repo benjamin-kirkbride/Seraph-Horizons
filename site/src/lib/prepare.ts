@@ -445,6 +445,7 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     entityChunks,
     ...(valueCount > 0 ? { valueCount } : {}),
     ...(exp.power ? { power: true } : {}),
+    ...(exp.eidolon ? { eidolon: { items: [exp.eidolon.item, exp.eidolon.torso.item].filter((c): c is string => c !== null) } } : {}),
     ...(multiblocks.index.multiblocks.length > 0 ? { multiblockCount: multiblocks.index.multiblocks.length } : {}),
   };
   files.set("meta.json", meta);
@@ -454,6 +455,8 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
   // The power page's data, as the export has it (power-data.ts). An export without it, such as
   // every one made before it existed, gives no power.json, which the app reads as none.
   if (exp.power) files.set("power.json", exp.power);
+  // The eidolon's fitting sheet's data, as the export has it (eidolon-fittings.ts); none without it.
+  if (exp.eidolon) files.set("eidolon.json", exp.eidolon);
   return { files, meta };
 }
 
