@@ -791,14 +791,6 @@ redistribute = false
 why = "Gravity-powered ziplines."
 
 [[mod]]
-id = "gondolacablecar"
-version = "0.4.43"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "Mechanically powered cable cars."
-
-[[mod]]
 id = "flyingmachine"
 version = "0.1.0"
 side = "universal"

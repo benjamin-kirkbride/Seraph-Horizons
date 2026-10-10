@@ -339,8 +339,8 @@ System.ArgumentException: Given pos contained NaN: XYZ: 511823.82/114/512083.63,
 ```
 
 The position is finite and the player's `Pos.Motion` is NaN: `EntityBehaviorControlledPhysics.ApplyTests`
-checks both before anything else, and throws (the frame shown is `SimPhysics` because gondolacablecar's
-finalizer on it rethrows, which restarts the trace there). It has happened standing still and AFK, and
+checks both before anything else, and throws (the frame shown is `SimPhysics` because Gondola Cable Car,
+in the pack then, had a finalizer on it that rethrows, which restarts the trace there). It has happened standing still and AFK, and
 nobody has reproduced it. This finds what made the motion NaN and leaves the crash as it is: nothing is
 repaired, dropped or caught.
 
@@ -359,8 +359,8 @@ player's motion, not its own entity's, because another entity's behavior can pus
   `SetState`, `MotionAndCollision`, `ApplyTests`, `AfterPhysicsTick` (the traversed blocks'
   `OnEntityInside`) and `CollisionTester.ApplyTerrainCollision`; and `SimPhysics` with a checkpoint
   before every mod's prefix and one after them all, so a NaN made in the physics step, one that arrives
-  from outside and one a mod's patch on `SimPhysics` makes (gondolacablecar's prefix moves the player)
-  are told apart;
+  from outside and one a mod's patch on `SimPhysics` makes (a prefix there can move the player, as
+  Gondola Cable Car's did while it was in the pack) are told apart;
 - everything else on the client's main thread that runs mods' code: tick listeners
   (`GameTickListener.OnTriggered`, naming the handler), each renderer (a transpiler on
   `ClientEventManager.TriggerRenderStage` calls each `OnRenderFrame` through a traced wrapper), queued
@@ -4776,7 +4776,6 @@ machine's first-stage grid recipe, kept on crafting:
 | `sawmill`, `chopper` | Immersive Woodworking's frames | carpenter, 2 |
 | `buckingmill`, `rosser` | this mod's frames | mechanic, 2 |
 | `gearbox`, `centeredspurgear` | Mechanical Power Expanded's | smith, 2 |
-| `cablecar` | Gondola's route planner, which places every station and tower | mechanic, 4 |
 | `biplane` | the biplane's trestles | mechanic, 4 |
 | `eidolon` | the eidolon gantry's frame and the eidolon command tool | curio dealer, 3 |
 

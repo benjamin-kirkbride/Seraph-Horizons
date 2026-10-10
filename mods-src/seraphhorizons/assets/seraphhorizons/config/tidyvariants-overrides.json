@@ -88,7 +88,6 @@
     {"match": {"domain": "tailorsdelight", "code": "panel-cloth-full-*", "kind": "block"}, "group": {"id": "tailorsdelight-panel-cloth-full", "title": "seraphhorizons:tidyvariants-group-tailorsdelight-panel-cloth-full"}},
     {"match": {"domain": "cartwrightscaravan", "code": "*marketstall-smallstall-*", "kind": "item"}, "group": {"id": "cartwrightscaravan-smallstall", "title": "seraphhorizons:tidyvariants-group-cartwrightscaravan-smallstall"}},
     {"match": {"domain": "walkingstick", "code": "walkingstick-*", "kind": "item"}, "group": {"id": "walkingstick-walkingstick", "title": "seraphhorizons:tidyvariants-group-walkingstick-walkingstick"}},
-    {"match": {"domain": "gondolacablecar", "code": "gondola-seat-*", "kind": "item"}, "group": {"id": "gondolacablecar-gondola-seat", "title": "seraphhorizons:tidyvariants-group-gondolacablecar-gondola-seat"}},
 
     // Catalogues of one kind of thing (owner feedback: "termite mounds should be one entry, not 74"): the variant is a
     // generic dimension (painting, flower, type, ...) whose values are kinds of the same thing. One tile each; search
