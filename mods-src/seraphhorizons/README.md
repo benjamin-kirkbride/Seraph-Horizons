@@ -3216,9 +3216,14 @@ not listed.
 
 **Ore and gravel maps** (#444): `seraphhorizons:oremap` and `seraphhorizons:gravelmap`
 (`Ore/Game/ItemOreMap.cs`, after the game's locator map), stack size 1, ordinary items. A map holds
-its deposit, metal, size tier, precision and marker position; right-click adds a pinned waypoint
-titled with its precision ("Copper deposit (large) (precision 1, ±400 m)", "Rich gravel (granite)
-(exact)"; see "Maps and leads" for how a better map replaces a rougher marker) and keeps the map. Precision 1 marks within
+its deposit, metal, size tier, precision and marker position, and what the deposit is (#692): an
+ore map names the ores there, never the metal (those holding a tenth of its metal or more, at most
+three: "galena and cerussite"), their grades ("mostly poor", "poor and medium") and the rock most of
+it sits in, from the ore counted when the deposit was measured; its size is the metal in the
+ground, not what a given way of working the ore wins. A gravel map names its field's rock and the
+metals the pan gives there. Right-click adds a pinned waypoint titled with its precision ("Galena
+and cerussite deposit (medium) (precision 1, ±400 m)", "Rich gravel (granite) (exact)"; see "Maps
+and leads" for how a better map replaces a rougher marker) and keeps the map. Precision 1 marks within
 400 m, 2 within 150 m, 3 the deposit itself (its measured centre); the offset is seeded from the
 deposit, so every copy agrees and a better tier's marker lies between the worse one's and the
 deposit (`MapPrecision`). Gravel maps are exact. `OreSystem.Maps.Issue(player, deposit, precision)`
@@ -3717,8 +3722,15 @@ on; notes in `docs/trading.md` and `docs/oregen.md`). Prices are in
 carry their own discount instead).
 
 - **Ore maps**, from prospectors: one offer per metal, the nearest unsold deposit of the deposit
-  registry within 5 km (whether or not anyone has generated its chunks), at most four metals,
-  nearest first. A stranger is offered precision 1 (within 400 m); standing's map tier buys
+  registry within 5 km, at most four metals, nearest first, each named by its ores, grades, host
+  rock and size (#692). Only a deposit that has been checked is offered (#693): the seed tells where
+  a cell's deposit may be, not which spot takes it or what ore it is. So when a player comes within
+  `DepositCheckApproachMetres` (1,500) blocks of a trader camp, the deposits it would sell maps to
+  (and its gravel map's field) are checked in the background, generated if need be and measured,
+  one at a time, `DepositCheckPauseSeconds` (5) apart, and are ready when they arrive on foot.
+  A deposit still being checked shows as "Lead ore map: being surveyed" (unavailable) until its
+  check lands and the map takes its place; anything unchecked when a trade window opens (a player
+  who teleported) is checked then, first. `DepositCheckApproachMetres` 0 checks only then. A stranger is offered precision 1 (within 400 m); standing's map tier buys
   precision 2 (tier 1, "known") and exact maps (tier 2 up). The price is a share of the deposit's
   worth: the ingots in the middle of its size class's band (small, medium and large are the bottom,
   middle and top third of the metal's range in `config/ore-sizes.json`; a deposit not yet measured
@@ -3726,7 +3738,8 @@ carry their own discount instead).
   (exact), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
   middle, never the measured size. A medium copper deposit's map costs 36, 71 or 119 gears, a medium
   gold one's 571, 1143 or 1904.
-- **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
+- **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears,
+  naming its rock and the metals the pan gives there; checked like ore maps (one column).
 - **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
   map to a trader within some radius that you don't already have, and the radius and count grow
   with your standing, so it pays to travel and learn from local traders rather than buy the whole

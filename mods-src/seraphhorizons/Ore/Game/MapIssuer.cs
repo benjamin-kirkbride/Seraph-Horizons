@@ -65,8 +65,14 @@ public sealed class MapIssuer
         a.SetString(ItemOreMap.AttrMetal, deposit.Kind);
         a.SetInt(ItemOreMap.AttrPrecision, precision);
         if (candidate.Record.Tier is { } tier) a.SetString(ItemOreMap.AttrSizeTier, tier.ToString().ToLowerInvariant());
-        // A gravel field's rock, so the map can say what the pan will give.
-        if (_deposits.FieldOf(deposit)?.Rock is { } rock) a.SetString(ItemOreMap.AttrRock, rock);
+        // What the ore is (#692): the ores, their grades and the host rock; for a gravel field its
+        // rock and the metals the pan gives from it.
+        if (candidate.Record.Makeup is { } makeup) ItemOreMap.SetMakeup(a, makeup);
+        if (_deposits.FieldOf(deposit)?.Rock is { } rock)
+        {
+            a.SetString(ItemOreMap.AttrRock, rock);
+            if (_deposits.PanMetals(rock) is { Count: > 0 } metals) a.SetString(ItemOreMap.AttrMetals, OreNames.Csv(metals));
+        }
         a.SetInt(ItemOreMap.AttrX, candidate.X + dx);
         a.SetInt(ItemOreMap.AttrY, candidate.Y);
         a.SetInt(ItemOreMap.AttrZ, candidate.Z + dz);

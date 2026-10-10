@@ -41,7 +41,8 @@ public enum SizeTier { Small = 1, Medium = 2, Large = 3 }
 
 /// <summary>What the world knows of one deposit beyond the seed: whether a map to it was sold
 /// (to whom, when, in game days) or it is worked out, and its last measurement (remaining ingots,
-/// its tier then, and the centre of the ore counted).</summary>
+/// its tier then, the centre of the ore counted, and what the ore is: <see cref="Makeup"/>, #692;
+/// none for a measurement made before it was kept).</summary>
 public sealed record DepositRecord
 {
     public DepositState State { get; init; }
@@ -54,6 +55,11 @@ public sealed record DepositRecord
     public int? Y { get; init; }
     public int? Z { get; init; }
     public double? MeasuredAtDays { get; init; }
+    public DepositMakeup? Makeup { get; init; }
+
+    /// <summary>Measured with its makeup (#692): a trader may offer a map to it.</summary>
+    [JsonIgnore]
+    public bool Surveyed => Tier != null && Makeup != null;
 
     public static readonly DepositRecord Fresh = new();
 }
@@ -109,11 +115,12 @@ public sealed class DepositRegistry
 
     /// <summary>Records a measurement; a worked-out one (<see cref="DepositSizing.IsWorkedOut"/>,
     /// decided by the caller) marks it sold out.</summary>
-    public void RecordMeasure(DepositKey key, double ingots, SizeTier tier, int x, int y, int z, double days, bool workedOut)
+    public void RecordMeasure(DepositKey key, double ingots, SizeTier tier, int x, int y, int z, double days, bool workedOut,
+        DepositMakeup? makeup = null)
     {
         lock (_lock)
         {
-            var r = Get(key) with { Ingots = ingots, Tier = tier, X = x, Y = y, Z = z, MeasuredAtDays = days };
+            var r = Get(key) with { Ingots = ingots, Tier = tier, X = x, Y = y, Z = z, MeasuredAtDays = days, Makeup = makeup };
             if (workedOut) r = r with { State = DepositState.SoldOut };
             _records[key] = r;
         }
